@@ -1,4 +1,5 @@
 import { onModalBackdropClick } from '@/lib/utils'
+import { Label } from '@/components/ui/label'
 import { useState } from 'react'
 import { useEscapeToClose } from '@/hooks/useEscapeToClose'
 import { Plus, Trash2, X, Layers, ListChecks, Pencil, CheckCircle2, Circle, Clock as ClockIcon } from 'lucide-react'
@@ -183,7 +184,7 @@ function StartChecklistModal({
         </div>
         <form onSubmit={submit} className="p-5 space-y-3">
           <div>
-            <label className="text-xs font-medium text-gray-600 uppercase">Employee *</label>
+            <Label className="text-xs font-medium text-gray-600 uppercase" required>Employee</Label>
             <select required value={form.employee_id} onChange={e => setForm({ ...form, employee_id: e.target.value })}
               className="w-full mt-1 px-3 py-2 border rounded-lg text-sm">
               <option value="">— Select —</option>
@@ -195,7 +196,7 @@ function StartChecklistModal({
             </select>
           </div>
           <div>
-            <label className="text-xs font-medium text-gray-600 uppercase">Template (optional)</label>
+            <Label className="text-xs font-medium text-gray-600 uppercase">Template (optional)</Label>
             <select value={form.template_id} onChange={e => setForm({ ...form, template_id: e.target.value })}
               className="w-full mt-1 px-3 py-2 border rounded-lg text-sm">
               <option value="">— Auto-pick by designation —</option>
@@ -205,7 +206,7 @@ function StartChecklistModal({
             </select>
           </div>
           <div>
-            <label className="text-xs font-medium text-gray-600 uppercase">Target Completion Date</label>
+            <Label className="text-xs font-medium text-gray-600 uppercase">Target Completion Date</Label>
             <input type="date" value={form.target_completion_date}
               onChange={e => setForm({ ...form, target_completion_date: e.target.value })}
               className="w-full mt-1 px-3 py-2 border rounded-lg text-sm" />
@@ -351,18 +352,18 @@ function TemplateModal({
         </div>
         <form onSubmit={submit} className="p-5 space-y-4">
           <div>
-            <label className="text-xs font-medium text-gray-600 uppercase">Template Name *</label>
+            <Label className="text-xs font-medium text-gray-600 uppercase" required>Template Name</Label>
             <input required value={form.name} onChange={e => setForm({ ...form, name: e.target.value })}
               className="w-full mt-1 px-3 py-2 border rounded-lg text-sm" />
           </div>
           <div>
-            <label className="text-xs font-medium text-gray-600 uppercase">Description</label>
+            <Label className="text-xs font-medium text-gray-600 uppercase">Description</Label>
             <textarea rows={2} value={form.description} onChange={e => setForm({ ...form, description: e.target.value })}
               className="w-full mt-1 px-3 py-2 border rounded-lg text-sm" />
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="text-xs font-medium text-gray-600 uppercase">Department</label>
+              <Label className="text-xs font-medium text-gray-600 uppercase">Department</Label>
               <select value={form.department_id} onChange={e => setForm({ ...form, department_id: e.target.value })}
                 className="w-full mt-1 px-3 py-2 border rounded-lg text-sm">
                 <option value="">All</option>
@@ -370,7 +371,7 @@ function TemplateModal({
               </select>
             </div>
             <div>
-              <label className="text-xs font-medium text-gray-600 uppercase">Designation</label>
+              <Label className="text-xs font-medium text-gray-600 uppercase">Designation</Label>
               <select value={form.designation_id} onChange={e => setForm({ ...form, designation_id: e.target.value })}
                 className="w-full mt-1 px-3 py-2 border rounded-lg text-sm">
                 <option value="">All</option>

@@ -1,4 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
+import { SectionLabel } from '@/components/common/FieldLabel'
+import { Label } from '@/components/ui/label'
 import {
   Check, ChevronDown, Copy, Eye, EyeOff, KeyRound, Link2, Loader2,
   LogIn, Mail, Plus, RefreshCw, Share2, ShieldCheck, Trash2, X,
@@ -282,7 +284,7 @@ export function EmployeePersonalTab({
         </FieldRow>
       </div>
       <div className="pt-4 border-t">
-        <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-3">Emergency contact</p>
+        <SectionLabel className="mb-3">Emergency contact</SectionLabel>
         <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
           <FieldRow label="Name" editing={editing} display={form.emergency_contact_name}>
             <input className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none" value={form.emergency_contact_name} onChange={e => update('emergency_contact_name', e.target.value)} />
@@ -691,14 +693,14 @@ export function EmployeeCredentialsTab({
             </div>
 
             {/* Manual password set/reset */}
-            <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-3">Set / reset portal password</p>
+            <SectionLabel className="mb-3">Set / reset portal password</SectionLabel>
             <form onSubmit={handlePortalSubmit} className="max-w-md space-y-3">
               <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1">New password</label>
+                <Label className="block text-xs font-medium text-gray-600 mb-1">New password</Label>
                 <input type="password" autoComplete="new-password" className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none" placeholder="Minimum 8 characters" value={password} onChange={e => setPassword(e.target.value)} />
               </div>
               <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1">Confirm password</label>
+                <Label className="block text-xs font-medium text-gray-600 mb-1">Confirm password</Label>
                 <input type="password" autoComplete="new-password" className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none" placeholder="Re-enter password" value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} />
               </div>
               <button type="submit" disabled={setPortalPw.isPending || !password || !confirmPassword} className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium bg-primary text-white rounded-lg hover:bg-primary/90 disabled:opacity-50">

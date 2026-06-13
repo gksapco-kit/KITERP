@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
+import { TableColumnLabel } from '@/components/common/FieldLabel'
 import { Plus, Trash2, Save, Loader2, Factory, Search, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -140,10 +141,10 @@ export function BOMEditor({ productId, productName }: BOMEditorProps) {
           <table className="w-full text-sm">
             <thead className="bg-gray-50 text-xs text-gray-500 uppercase tracking-wide">
               <tr>
-                <th className="px-4 py-2.5 text-left font-semibold w-[40%]">Component / Material</th>
-                <th className="px-4 py-2.5 text-left font-semibold w-[12%]">Qty / Unit</th>
-                <th className="px-4 py-2.5 text-left font-semibold w-[10%]">UOM</th>
-                <th className="px-4 py-2.5 text-left font-semibold">Notes</th>
+                <th className="px-4 py-2.5 text-left font-semibold w-[40%]"><TableColumnLabel>Component / Material</TableColumnLabel></th>
+                <th className="px-4 py-2.5 text-left font-semibold w-[12%]"><TableColumnLabel>Qty / Unit</TableColumnLabel></th>
+                <th className="px-4 py-2.5 text-left font-semibold w-[10%]"><TableColumnLabel>UOM</TableColumnLabel></th>
+                <th className="px-4 py-2.5 text-left font-semibold"><TableColumnLabel>Notes</TableColumnLabel></th>
                 <th className="px-4 py-2.5 w-10"></th>
               </tr>
             </thead>

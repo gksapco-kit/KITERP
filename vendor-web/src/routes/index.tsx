@@ -165,6 +165,7 @@ import CrmSegments from '@/pages/crm/Segments'
 import CrmTemplates from '@/pages/crm/Templates'
 import DocumentTemplatesPage from '@/pages/document-templates/index'
 import SystemModulesPage from '@/pages/system/Modules'
+import SystemModelsPage from '@/pages/system/Models'
 import SystemStorefrontDisplayPage from '@/pages/system/StorefrontDisplay'
 import SystemSocialLinksPage from '@/pages/system/SocialLinks'
 import AssetsLayout from '@/pages/system/assets'
@@ -316,6 +317,7 @@ export const router = createBrowserRouter([
       { path: 'settings/support-activity', element: <SupportActivityPage /> },
       { path: 'about', element: <AboutPage /> },
       { path: 'system/modules', element: <SystemModulesPage /> },
+      { path: 'system/models', element: <SystemModelsPage /> },
       { path: 'system/storefront-display', element: <SystemStorefrontDisplayPage /> },
       { path: 'system/social-links', element: <SystemSocialLinksPage /> },
       {

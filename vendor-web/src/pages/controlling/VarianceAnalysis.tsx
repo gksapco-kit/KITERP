@@ -3,6 +3,7 @@
  * breakdown, filterable by order kind, status, company.
  */
 import { Fragment, useState, useMemo } from 'react'
+import { TableColumnLabel } from '@/components/common/FieldLabel'
 import { Link } from 'react-router-dom'
 import { ExternalLink, TrendingDown, TrendingUp, Minus } from 'lucide-react'
 import { useCompanies } from '@/hooks/useFinance'
@@ -247,14 +248,14 @@ export default function VarianceAnalysisPage() {
           <table className="w-full text-sm">
             <thead className="bg-muted/60 text-left text-[12px] border-b border-border">
               <tr>
-                <th className="px-4 py-3 font-medium text-muted-foreground">Order</th>
-                <th className="px-4 py-3 font-medium text-muted-foreground">Kind / Status</th>
-                <th className="px-4 py-3 font-medium text-muted-foreground text-right">Planned</th>
-                <th className="px-4 py-3 font-medium text-muted-foreground text-right">Actual</th>
-                <th className="px-4 py-3 font-medium text-muted-foreground text-right">Variance</th>
-                <th className="px-4 py-3 font-medium text-muted-foreground text-right">Price Var</th>
-                <th className="px-4 py-3 font-medium text-muted-foreground text-right">Usage Var</th>
-                <th className="px-4 py-3 font-medium text-muted-foreground text-right">OH Var</th>
+                <th className="px-4 py-3 font-medium text-muted-foreground"><TableColumnLabel>Order</TableColumnLabel></th>
+                <th className="px-4 py-3 font-medium text-muted-foreground"><TableColumnLabel>Kind / Status</TableColumnLabel></th>
+                <th className="px-4 py-3 font-medium text-muted-foreground text-right"><TableColumnLabel>Planned</TableColumnLabel></th>
+                <th className="px-4 py-3 font-medium text-muted-foreground text-right"><TableColumnLabel>Actual</TableColumnLabel></th>
+                <th className="px-4 py-3 font-medium text-muted-foreground text-right"><TableColumnLabel>Variance</TableColumnLabel></th>
+                <th className="px-4 py-3 font-medium text-muted-foreground text-right"><TableColumnLabel>Price Var</TableColumnLabel></th>
+                <th className="px-4 py-3 font-medium text-muted-foreground text-right"><TableColumnLabel>Usage Var</TableColumnLabel></th>
+                <th className="px-4 py-3 font-medium text-muted-foreground text-right"><TableColumnLabel>OH Var</TableColumnLabel></th>
                 <th className="px-4 py-3" />
               </tr>
             </thead>
@@ -339,15 +340,15 @@ export default function VarianceAnalysisPage() {
                               <table className="w-full text-xs">
                                 <thead className="bg-muted/50 text-muted-foreground border-b border-border">
                                   <tr>
-                                    <th className="px-3 py-2 text-left font-medium">Category</th>
-                                    <th className="px-3 py-2 text-left font-medium">Description</th>
-                                    <th className="px-3 py-2 text-right font-medium">Qty Plan</th>
-                                    <th className="px-3 py-2 text-right font-medium">Qty Act</th>
-                                    <th className="px-3 py-2 text-right font-medium">Rate Plan</th>
-                                    <th className="px-3 py-2 text-right font-medium">Rate Act</th>
-                                    <th className="px-3 py-2 text-right font-medium">Amt Plan</th>
-                                    <th className="px-3 py-2 text-right font-medium">Amt Act</th>
-                                    <th className="px-3 py-2 text-right font-medium">Variance</th>
+                                    <th className="px-3 py-2 text-left font-medium"><TableColumnLabel>Category</TableColumnLabel></th>
+                                    <th className="px-3 py-2 text-left font-medium"><TableColumnLabel>Description</TableColumnLabel></th>
+                                    <th className="px-3 py-2 text-right font-medium"><TableColumnLabel>Qty Plan</TableColumnLabel></th>
+                                    <th className="px-3 py-2 text-right font-medium"><TableColumnLabel>Qty Act</TableColumnLabel></th>
+                                    <th className="px-3 py-2 text-right font-medium"><TableColumnLabel>Rate Plan</TableColumnLabel></th>
+                                    <th className="px-3 py-2 text-right font-medium"><TableColumnLabel>Rate Act</TableColumnLabel></th>
+                                    <th className="px-3 py-2 text-right font-medium"><TableColumnLabel>Amt Plan</TableColumnLabel></th>
+                                    <th className="px-3 py-2 text-right font-medium"><TableColumnLabel>Amt Act</TableColumnLabel></th>
+                                    <th className="px-3 py-2 text-right font-medium"><TableColumnLabel>Variance</TableColumnLabel></th>
                                   </tr>
                                 </thead>
                                 <tbody className="divide-y divide-border">

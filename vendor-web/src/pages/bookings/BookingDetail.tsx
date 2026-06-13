@@ -1,4 +1,5 @@
 import { useState, useRef, useMemo } from 'react'
+import { TableColumnLabel } from '@/components/common/FieldLabel'
 import { useEscapeToClose } from '@/hooks/useEscapeToClose'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
@@ -64,7 +65,7 @@ function downloadInvoicePdf(invoice: Record<string, unknown>, bookingNumber: str
     <div><div class="label">Bill To</div><strong>${invoice.customer_name||''}</strong></div>
   </div>
   <table>
-    <thead><tr><th>#</th><th>Item</th><th class="right">Qty</th><th class="right">Rate</th><th class="right">Tax</th><th class="right">Amount</th></tr></thead>
+    <thead><tr><th><TableColumnLabel>#</TableColumnLabel></th><th><TableColumnLabel>Item</TableColumnLabel></th><th class="right"><TableColumnLabel>Qty</TableColumnLabel></th><th class="right"><TableColumnLabel>Rate</TableColumnLabel></th><th class="right"><TableColumnLabel>Tax</TableColumnLabel></th><th class="right"><TableColumnLabel>Amount</TableColumnLabel></th></tr></thead>
     <tbody>
       ${items.map((it,i)=>`<tr>
         <td>${i+1}</td><td>${it.name||it.description||''}</td>

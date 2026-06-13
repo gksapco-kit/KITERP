@@ -1,4 +1,5 @@
 import { useState, useMemo, useCallback } from 'react'
+import { TableColumnLabel } from '@/components/common/FieldLabel'
 import {
   useAccountLedger, usePartyLedger, useCostCenterLedger, useLedgerSummary,
   useCompanies, useCostCenters,
@@ -298,17 +299,17 @@ function LedgerTable({
       <table className="w-full text-xs whitespace-nowrap">
         <thead className="bg-muted border-b border-border sticky top-0 z-10">
           <tr>
-            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wide">Date</th>
-            <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wide">Entry No</th>
+            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wide"><TableColumnLabel>Date</TableColumnLabel></th>
+            <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wide"><TableColumnLabel>Entry No</TableColumnLabel></th>
             {showAccount && (
-              <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wide">Account</th>
+              <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wide"><TableColumnLabel>Account</TableColumnLabel></th>
             )}
-            <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wide max-w-[200px]">Narration</th>
-            <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wide">Ref Doc</th>
-            <th className="px-3 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wide">Source</th>
-            <th className="px-3 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wide">Debit</th>
-            <th className="px-3 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wide">Credit</th>
-            <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wide">Balance</th>
+            <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wide max-w-[200px]"><TableColumnLabel>Narration</TableColumnLabel></th>
+            <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wide"><TableColumnLabel>Ref Doc</TableColumnLabel></th>
+            <th className="px-3 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wide"><TableColumnLabel>Source</TableColumnLabel></th>
+            <th className="px-3 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wide"><TableColumnLabel>Debit</TableColumnLabel></th>
+            <th className="px-3 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wide"><TableColumnLabel>Credit</TableColumnLabel></th>
+            <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wide"><TableColumnLabel>Balance</TableColumnLabel></th>
           </tr>
         </thead>
         <tbody className="divide-y divide-gray-50">
@@ -438,13 +439,13 @@ function SummaryView({ fromDate, toDate }: { fromDate: string; toDate: string })
           <table className="w-full text-xs">
             <thead className="bg-muted border-b border-border">
               <tr>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wide">Code</th>
-                <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wide">Account Name</th>
-                <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wide">Type</th>
-                <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wide">Subtype</th>
-                <th className="px-3 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wide">Total Debit</th>
-                <th className="px-3 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wide">Total Credit</th>
-                <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wide">Net</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wide"><TableColumnLabel>Code</TableColumnLabel></th>
+                <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wide"><TableColumnLabel>Account Name</TableColumnLabel></th>
+                <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wide"><TableColumnLabel>Type</TableColumnLabel></th>
+                <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wide"><TableColumnLabel>Subtype</TableColumnLabel></th>
+                <th className="px-3 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wide"><TableColumnLabel>Total Debit</TableColumnLabel></th>
+                <th className="px-3 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wide"><TableColumnLabel>Total Credit</TableColumnLabel></th>
+                <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wide"><TableColumnLabel>Net</TableColumnLabel></th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-50">

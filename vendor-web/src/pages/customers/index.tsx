@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { TableColumnLabel } from '@/components/common/FieldLabel'
 import { useEscapeToClose } from '@/hooks/useEscapeToClose'
 import { useNavigate } from 'react-router-dom'
 import { Card, CardContent } from '@/components/ui/card'
@@ -390,13 +391,13 @@ export default function Customers() {
           <ResizableTable tableId="customers" defaultWidths={[220, 120, 140, 80, 100, 90, 80]}>
             <thead>
               <tr className="border-b bg-gray-50">
-                <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">Customer</th>
-                <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase hidden sm:table-cell">Phone</th>
-                <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase hidden lg:table-cell">GSTIN</th>
-                <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">Orders</th>
-                <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">Spent</th>
-                <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase hidden md:table-cell">Balance</th>
-                <th className="text-right px-6 py-3 text-xs font-medium text-gray-500 uppercase">Action</th>
+                <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase"><TableColumnLabel>Customer</TableColumnLabel></th>
+                <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase hidden sm:table-cell"><TableColumnLabel>Phone</TableColumnLabel></th>
+                <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase hidden lg:table-cell"><TableColumnLabel>GSTIN</TableColumnLabel></th>
+                <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase"><TableColumnLabel>Orders</TableColumnLabel></th>
+                <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase"><TableColumnLabel>Spent</TableColumnLabel></th>
+                <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase hidden md:table-cell"><TableColumnLabel>Balance</TableColumnLabel></th>
+                <th className="text-right px-6 py-3 text-xs font-medium text-gray-500 uppercase"><TableColumnLabel>Action</TableColumnLabel></th>
               </tr>
             </thead>
             <tbody className="divide-y">

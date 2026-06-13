@@ -1,4 +1,6 @@
 import { useState } from 'react'
+import { TableColumnLabel } from '@/components/common/FieldLabel'
+import { Label } from '@/components/ui/label'
 import { useEscapeToClose } from '@/hooks/useEscapeToClose'
 import { Plus, CheckCircle, DollarSign, X, ChevronDown, ChevronRight } from 'lucide-react'
 import { toast } from 'sonner'
@@ -24,11 +26,11 @@ function RunDetail({ runId }: { runId: string }) {
       <h4 className="text-xs font-medium text-gray-500 uppercase mb-3">Payee Breakdown</h4>
       <table className="w-full text-sm">
         <thead><tr className="border-b border-gray-100">
-          <th className="text-left py-2 text-xs text-gray-500">Payee</th>
-          <th className="text-right py-2 text-xs text-gray-500">Accruals</th>
-          <th className="text-right py-2 text-xs text-gray-500">Amount</th>
-          <th className="text-right py-2 text-xs text-gray-500">Points</th>
-          <th className="text-right py-2 text-xs text-gray-500">Status</th>
+          <th className="text-left py-2 text-xs text-gray-500"><TableColumnLabel>Payee</TableColumnLabel></th>
+          <th className="text-right py-2 text-xs text-gray-500"><TableColumnLabel>Accruals</TableColumnLabel></th>
+          <th className="text-right py-2 text-xs text-gray-500"><TableColumnLabel>Amount</TableColumnLabel></th>
+          <th className="text-right py-2 text-xs text-gray-500"><TableColumnLabel>Points</TableColumnLabel></th>
+          <th className="text-right py-2 text-xs text-gray-500"><TableColumnLabel>Status</TableColumnLabel></th>
         </tr></thead>
         <tbody className="divide-y divide-gray-50">
           {items.map(item => (
@@ -195,7 +197,7 @@ export default function PayoutsPage() {
               <div className="grid grid-cols-2 gap-4">
                 {[{ k: 'period_start', l: 'Period Start' }, { k: 'period_end', l: 'Period End' }].map(f => (
                   <div key={f.k}>
-                    <label className="block text-xs font-medium text-gray-700 mb-1">{f.l}</label>
+                    <Label className="block text-xs font-medium text-gray-700 mb-1">{f.l}</Label>
                     <input type="date" value={createForm[f.k as keyof typeof createForm]}
                       onChange={e => setCreateForm(p => ({ ...p, [f.k]: e.target.value }))}
                       className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm" />
@@ -203,14 +205,14 @@ export default function PayoutsPage() {
                 ))}
               </div>
               <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">Payment Method</label>
+                <Label className="block text-xs font-medium text-gray-700 mb-1">Payment Method</Label>
                 <select value={createForm.payment_method} onChange={e => setCreateForm(p => ({ ...p, payment_method: e.target.value }))}
                   className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm">
                   {['bank_transfer', 'cash', 'upi', 'cheque'].map(m => <option key={m} value={m}>{m.replace('_', ' ')}</option>)}
                 </select>
               </div>
               <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">Notes</label>
+                <Label className="block text-xs font-medium text-gray-700 mb-1">Notes</Label>
                 <textarea value={createForm.notes} onChange={e => setCreateForm(p => ({ ...p, notes: e.target.value }))}
                   rows={2} className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm" />
               </div>

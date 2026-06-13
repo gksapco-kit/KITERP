@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react'
+import { SectionLabel } from '@/components/common/FieldLabel'
 import { useEscapeToClose } from '@/hooks/useEscapeToClose'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -314,7 +315,7 @@ function CategoryDetailPanel({
 
       {(cat.children?.length ?? 0) > 0 && (
         <div className="mb-4 flex-1 min-h-0">
-          <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">Subcategories</p>
+          <SectionLabel className="mb-2">Subcategories</SectionLabel>
           <ul className="list-disc list-inside space-y-1 text-sm text-gray-700 ml-1">
             {cat.children!.map(child => (
               <li key={child.id}>

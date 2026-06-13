@@ -1,4 +1,6 @@
 import { useState } from 'react'
+import { TableColumnLabel } from '@/components/common/FieldLabel'
+import { Label } from '@/components/ui/label'
 import { useTrialBalance } from '@/hooks/useFinance'
 
 function fmt(n: number) {
@@ -28,12 +30,12 @@ export default function TrialBalance() {
 
       <div className="flex gap-3 items-end">
         <div>
-          <label className="block text-xs font-medium text-gray-600 mb-1">From</label>
+          <Label className="block text-xs font-medium text-gray-600 mb-1">From</Label>
           <input type="date" value={from} onChange={e => setFrom(e.target.value)}
             className="border border-gray-300 rounded-lg px-3 py-2 text-sm" />
         </div>
         <div>
-          <label className="block text-xs font-medium text-gray-600 mb-1">To</label>
+          <Label className="block text-xs font-medium text-gray-600 mb-1">To</Label>
           <input type="date" value={to} onChange={e => setTo(e.target.value)}
             className="border border-gray-300 rounded-lg px-3 py-2 text-sm" />
         </div>
@@ -45,12 +47,12 @@ export default function TrialBalance() {
         <table className="w-full text-sm">
           <thead className="bg-gray-50 border-b border-gray-200">
             <tr>
-              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Code</th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Account Name</th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Type</th>
-              <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Debit</th>
-              <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Credit</th>
-              <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Balance</th>
+              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase"><TableColumnLabel>Code</TableColumnLabel></th>
+              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase"><TableColumnLabel>Account Name</TableColumnLabel></th>
+              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase"><TableColumnLabel>Type</TableColumnLabel></th>
+              <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase"><TableColumnLabel>Debit</TableColumnLabel></th>
+              <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase"><TableColumnLabel>Credit</TableColumnLabel></th>
+              <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase"><TableColumnLabel>Balance</TableColumnLabel></th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100">

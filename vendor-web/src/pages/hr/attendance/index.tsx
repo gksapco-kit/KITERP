@@ -1,4 +1,7 @@
 import { useState, useMemo } from 'react'
+import { SectionLabel } from '@/components/common/FieldLabel'
+import { TableColumnLabel } from '@/components/common/FieldLabel'
+import { Label } from '@/components/ui/label'
 import { useEscapeToClose } from '@/hooks/useEscapeToClose'
 import {
   Calendar, CheckCircle, XCircle, Clock, AlertCircle,
@@ -120,7 +123,7 @@ function AttendanceModal({
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
           {!isEdit && (
             <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">Employee *</label>
+              <Label className="block text-xs font-medium text-gray-600 mb-1" required>Employee</Label>
               <select required className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary outline-none" value={form.employee_id} onChange={e => set('employee_id', e.target.value)}>
                 <option value="">— Select Employee —</option>
                 {employees.map(e => <option key={e.id} value={e.id}>{e.vendor_user?.user?.full_name ?? e.employee_code}</option>)}
@@ -136,12 +139,12 @@ function AttendanceModal({
           <div className="grid grid-cols-2 gap-3">
             {!isEdit && (
               <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1">Date</label>
+                <Label className="block text-xs font-medium text-gray-600 mb-1">Date</Label>
                 <input type="date" className="w-full border rounded-lg px-3 py-2 text-sm" value={form.date} onChange={e => set('date', e.target.value)} />
               </div>
             )}
             <div className={isEdit ? 'col-span-2' : ''}>
-              <label className="block text-xs font-medium text-gray-600 mb-1">Status</label>
+              <Label className="block text-xs font-medium text-gray-600 mb-1">Status</Label>
               <select className="w-full border rounded-lg px-3 py-2 text-sm" value={form.status} onChange={e => set('status', e.target.value)}>
                 {STATUS_OPTS.map(s => <option key={s} value={s}>{STATUS_CONFIG[s]?.label ?? s}</option>)}
               </select>
@@ -151,24 +154,24 @@ function AttendanceModal({
             <>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-medium text-gray-600 mb-1">Clock In</label>
+                  <Label className="block text-xs font-medium text-gray-600 mb-1">Clock In</Label>
                   <input type="time" className="w-full border rounded-lg px-3 py-2 text-sm" value={form.clock_in} onChange={e => set('clock_in', e.target.value)} />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-gray-600 mb-1">Clock Out</label>
+                  <Label className="block text-xs font-medium text-gray-600 mb-1">Clock Out</Label>
                   <input type="time" className="w-full border rounded-lg px-3 py-2 text-sm" value={form.clock_out} onChange={e => set('clock_out', e.target.value)} />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-gray-600 mb-1">Work Hours</label>
+                  <Label className="block text-xs font-medium text-gray-600 mb-1">Work Hours</Label>
                   <input type="number" step="0.5" min="0" max="24" className="w-full border rounded-lg px-3 py-2 text-sm" value={form.work_hours} onChange={e => set('work_hours', e.target.value)} placeholder="e.g. 8.5" />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-gray-600 mb-1">OT Hours</label>
+                  <Label className="block text-xs font-medium text-gray-600 mb-1">OT Hours</Label>
                   <input type="number" step="0.5" min="0" className="w-full border rounded-lg px-3 py-2 text-sm" value={form.overtime_hours} onChange={e => set('overtime_hours', e.target.value)} placeholder="e.g. 1.5" />
                 </div>
               </div>
               <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1">Approval</label>
+                <Label className="block text-xs font-medium text-gray-600 mb-1">Approval</Label>
                 <div className="flex gap-2">
                   {(['pending', 'approved', 'rejected'] as const).map(s => (
                     <button key={s} type="button" onClick={() => set('approval_status', s)}
@@ -184,14 +187,14 @@ function AttendanceModal({
               </div>
               {form.approval_status === 'rejected' && (
                 <div>
-                  <label className="block text-xs font-medium text-gray-600 mb-1">Rejection Reason</label>
+                  <Label className="block text-xs font-medium text-gray-600 mb-1">Rejection Reason</Label>
                   <input className="w-full border rounded-lg px-3 py-2 text-sm" value={form.rejection_reason} onChange={e => set('rejection_reason', e.target.value)} placeholder="Reason…" />
                 </div>
               )}
             </>
           )}
           <div>
-            <label className="block text-xs font-medium text-gray-600 mb-1">Notes</label>
+            <Label className="block text-xs font-medium text-gray-600 mb-1">Notes</Label>
             <input className="w-full border rounded-lg px-3 py-2 text-sm" value={form.notes} onChange={e => set('notes', e.target.value)} placeholder="Optional notes…" />
           </div>
           <div className="flex justify-end gap-2 pt-1">
@@ -386,7 +389,7 @@ function RangeMarkModal({
 
           {/* Date range — future dates allowed on To */}
           <div>
-            <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">Date Range *</p>
+            <SectionLabel className="mb-2">Date Range *</SectionLabel>
             <div className="flex items-center gap-3 flex-wrap">
               <div className="flex items-center gap-2">
                 <span className="text-xs text-gray-500 w-7">From</span>
@@ -421,7 +424,7 @@ function RangeMarkModal({
 
           {/* Default status */}
           <div>
-            <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">Default Status</p>
+            <SectionLabel className="mb-2">Default Status</SectionLabel>
             <div className="flex flex-wrap gap-1.5">
               {STATUS_OPTS.map(s => {
                 const cfg = STATUS_CONFIG[s]
@@ -441,7 +444,7 @@ function RangeMarkModal({
 
           {/* Default work from */}
           <div>
-            <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">Default Work From</p>
+            <SectionLabel className="mb-2">Default Work From</SectionLabel>
             <div className="flex gap-1.5 flex-wrap">
               {WORK_FROM_OPTS.map(({ value, label, icon: Icon }) => (
                 <button key={value} type="button" onClick={() => setGlobalWF(value)}
@@ -591,14 +594,14 @@ function RangeMarkModal({
           <table className="w-full text-xs border-collapse">
             <thead className="sticky top-0 z-10 bg-gray-100 border-b">
               <tr>
-                <th className="w-8  px-2 py-2 text-left font-medium text-gray-500">#</th>
-                <th className="w-36 px-2 py-2 text-left font-medium text-gray-500">Date &amp; Day</th>
-                <th className="w-32 px-2 py-2 text-left font-medium text-gray-500">Status</th>
-                <th className="w-28 px-2 py-2 text-left font-medium text-gray-500">Work From</th>
+                <th className="w-8  px-2 py-2 text-left font-medium text-gray-500"><TableColumnLabel>#</TableColumnLabel></th>
+                <th className="w-36 px-2 py-2 text-left font-medium text-gray-500"><TableColumnLabel>Date &amp; Day</TableColumnLabel></th>
+                <th className="w-32 px-2 py-2 text-left font-medium text-gray-500"><TableColumnLabel>Status</TableColumnLabel></th>
+                <th className="w-28 px-2 py-2 text-left font-medium text-gray-500"><TableColumnLabel>Work From</TableColumnLabel></th>
                 <th className="w-48 px-2 py-2 text-left font-medium text-gray-500">
                   <span className="flex items-center gap-1"><Timer className="w-3 h-3" /> Hours / Time</span>
                 </th>
-                <th className="px-2 py-2 text-left font-medium text-gray-500">Comment</th>
+                <th className="px-2 py-2 text-left font-medium text-gray-500"><TableColumnLabel>Comment</TableColumnLabel></th>
               </tr>
             </thead>
             <tbody>

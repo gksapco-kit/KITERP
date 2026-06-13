@@ -1,4 +1,5 @@
 import { Card, CardContent } from '@/components/ui/card'
+import { TableColumnLabel } from '@/components/common/FieldLabel'
 import { Badge } from '@/components/ui/badge'
 import { useSalesReport, useCampaignsReport, useTicketsReport, useCrmOverview } from '@/hooks/useCrm'
 import { Loader2, TrendingUp, Mail, LifeBuoy, BarChart3 } from 'lucide-react'
@@ -93,7 +94,7 @@ export default function ReportsPage() {
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b text-left text-xs text-gray-500 uppercase">
-                    <th className="py-2">Owner</th><th>Deals</th><th>Value</th><th>Won</th>
+                    <th className="py-2"><TableColumnLabel>Owner</TableColumnLabel></th><th><TableColumnLabel>Deals</TableColumnLabel></th><th><TableColumnLabel>Value</TableColumnLabel></th><th><TableColumnLabel>Won</TableColumnLabel></th>
                   </tr>
                 </thead>
                 <tbody className="divide-y">
@@ -120,7 +121,7 @@ export default function ReportsPage() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b text-left text-xs text-gray-500 uppercase">
-                  <th className="py-2">Name</th><th>Sent</th><th>Opens</th><th>Clicks</th><th>Bounces</th>
+                  <th className="py-2"><TableColumnLabel>Name</TableColumnLabel></th><th><TableColumnLabel>Sent</TableColumnLabel></th><th><TableColumnLabel>Opens</TableColumnLabel></th><th><TableColumnLabel>Clicks</TableColumnLabel></th><th><TableColumnLabel>Bounces</TableColumnLabel></th>
                 </tr>
               </thead>
               <tbody className="divide-y">

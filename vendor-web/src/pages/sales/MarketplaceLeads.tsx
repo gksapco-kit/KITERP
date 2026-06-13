@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { TableColumnLabel } from '@/components/common/FieldLabel'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Loader2, MessageSquare, Send } from 'lucide-react'
 import { marketplaceApi } from '@/api/marketplace'
@@ -100,9 +101,9 @@ export default function MarketplaceLeadsPage() {
             <table className="w-full text-sm">
               <thead className="bg-gray-50 text-left text-xs uppercase text-gray-500">
                 <tr>
-                  <th className="px-4 py-3">Lead</th>
-                  <th className="px-4 py-3">Price</th>
-                  <th className="px-4 py-3">Status</th>
+                  <th className="px-4 py-3"><TableColumnLabel>Lead</TableColumnLabel></th>
+                  <th className="px-4 py-3"><TableColumnLabel>Price</TableColumnLabel></th>
+                  <th className="px-4 py-3"><TableColumnLabel>Status</TableColumnLabel></th>
                 </tr>
               </thead>
               <tbody className="divide-y">

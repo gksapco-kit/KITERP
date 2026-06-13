@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useMemo, useCallback } from 'react'
+import { TableColumnLabel, CheckboxFieldLabel, FormColumnLabel } from '@/components/common/FieldLabel'
 import { useEscapeToClose } from '@/hooks/useEscapeToClose'
 import { useNavigate } from 'react-router-dom'
 import { Card, CardContent } from '@/components/ui/card'
@@ -136,7 +137,7 @@ function ShareMenu({ invoice, onClose }: {
 
   return (
     <div ref={ref} className="absolute right-0 top-full mt-1 z-50 bg-white rounded-xl shadow-xl border w-48 py-1 animate-in fade-in zoom-in-95 duration-100 max-h-[90vh] overflow-y-auto">
-      <p className="px-3 py-1.5 text-xs font-medium text-gray-400 uppercase">Share via</p>
+      <FormColumnLabel className="px-3 py-1.5">Share via</FormColumnLabel>
       {shareOptions.map((opt) => (
         <button
           key={opt.label}
@@ -246,15 +247,15 @@ export default function InvoicesPage() {
           <ResizableTable tableId="invoices" defaultWidths={[120, 120, 90, 160, 90, 90, 90, 100, 80]}>
             <thead>
               <tr className="border-b bg-gray-50">
-                <th className="text-left px-5 py-3 text-xs font-medium text-gray-500 uppercase">Invoice #</th>
-                <th className="text-left px-5 py-3 text-xs font-medium text-gray-500 uppercase">Reference</th>
-                <th className="text-left px-5 py-3 text-xs font-medium text-gray-500 uppercase">Type</th>
-                <th className="text-left px-5 py-3 text-xs font-medium text-gray-500 uppercase">Customer</th>
-                <th className="text-right px-5 py-3 text-xs font-medium text-gray-500 uppercase">Total</th>
-                <th className="text-right px-5 py-3 text-xs font-medium text-gray-500 uppercase">Due</th>
-                <th className="text-center px-5 py-3 text-xs font-medium text-gray-500 uppercase">Status</th>
-                <th className="text-left px-5 py-3 text-xs font-medium text-gray-500 uppercase">Date</th>
-                <th className="text-center px-5 py-3 text-xs font-medium text-gray-500 uppercase">Actions</th>
+                <th className="text-left px-5 py-3 text-xs font-medium text-gray-500 uppercase"><TableColumnLabel>Invoice #</TableColumnLabel></th>
+                <th className="text-left px-5 py-3 text-xs font-medium text-gray-500 uppercase"><TableColumnLabel>Reference</TableColumnLabel></th>
+                <th className="text-left px-5 py-3 text-xs font-medium text-gray-500 uppercase"><TableColumnLabel>Type</TableColumnLabel></th>
+                <th className="text-left px-5 py-3 text-xs font-medium text-gray-500 uppercase"><TableColumnLabel>Customer</TableColumnLabel></th>
+                <th className="text-right px-5 py-3 text-xs font-medium text-gray-500 uppercase"><TableColumnLabel>Total</TableColumnLabel></th>
+                <th className="text-right px-5 py-3 text-xs font-medium text-gray-500 uppercase"><TableColumnLabel>Due</TableColumnLabel></th>
+                <th className="text-center px-5 py-3 text-xs font-medium text-gray-500 uppercase"><TableColumnLabel>Status</TableColumnLabel></th>
+                <th className="text-left px-5 py-3 text-xs font-medium text-gray-500 uppercase"><TableColumnLabel>Date</TableColumnLabel></th>
+                <th className="text-center px-5 py-3 text-xs font-medium text-gray-500 uppercase"><TableColumnLabel>Actions</TableColumnLabel></th>
               </tr>
             </thead>
             <tbody className="divide-y">
@@ -709,7 +710,7 @@ export function CreateInvoiceModal({
               </div>
             )}
             <div className={isQuotation ? undefined : 'sm:col-span-3'}>
-              <Label>GSTIN</Label>
+              <Label helpKey="invoice customer gstin">GSTIN</Label>
               <Input className="mt-1" value={form.customer_gstin} onChange={e => setForm({ ...form, customer_gstin: e.target.value.toUpperCase() })} maxLength={15} />
             </div>
             {!isQuotation && (
@@ -731,7 +732,12 @@ export function CreateInvoiceModal({
               </>
             )}
           </div>
-          <label className="flex items-center gap-2"><input type="checkbox" checked={form.is_inter_state} onChange={e => setForm({ ...form, is_inter_state: e.target.checked })} className="w-4 h-4 rounded" /><span className="text-sm">Inter-state supply (IGST)</span></label>
+          <CheckboxFieldLabel
+            label="Inter-state supply (IGST)"
+            checked={form.is_inter_state}
+            onChange={(is_inter_state) => setForm({ ...form, is_inter_state })}
+            helpKey="inter-state supply (igst)"
+          />
 
           <div>
             <div className="flex items-center justify-between mb-2">
@@ -743,11 +749,11 @@ export function CreateInvoiceModal({
             </div>
             {/* Column headers */}
             <div className="flex gap-2 mb-1 px-0.5">
-              <p className="flex-1 min-w-0 text-xs font-medium text-gray-400 uppercase">Item</p>
-              <p className="w-32 shrink-0 text-xs font-medium text-gray-400 uppercase">HSN/SAC</p>
-              <p className="w-28 shrink-0 text-xs font-medium text-gray-400 uppercase text-center">Qty</p>
-              <p className="w-36 shrink-0 text-xs font-medium text-gray-400 uppercase">Rate (₹)</p>
-              <p className="w-24 shrink-0 text-xs font-medium text-gray-400 uppercase text-center">Tax %</p>
+              <FormColumnLabel className="flex-1 min-w-0">Item</FormColumnLabel>
+              <FormColumnLabel className="w-32 shrink-0">HSN/SAC</FormColumnLabel>
+              <FormColumnLabel className="w-28 shrink-0 text-center">Qty</FormColumnLabel>
+              <FormColumnLabel className="w-36 shrink-0">Rate (₹)</FormColumnLabel>
+              <FormColumnLabel className="w-24 shrink-0 text-center">Tax %</FormColumnLabel>
               <div className="w-10 shrink-0" />
             </div>
             <div className="space-y-2">

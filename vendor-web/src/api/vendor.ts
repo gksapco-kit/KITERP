@@ -2036,4 +2036,90 @@ export const vendorApi = {
     const r = await apiClient.post('/vendors/me/production-orders/import-local', data)
     return r.data as { created: number; skipped: number }
   },
+
+  // ── Schema catalog (Models explorer) ─────────────────────────
+  listSchemaModels: async () => {
+    const r = await apiClient.get('/vendors/me/schema/models')
+    return r.data as {
+      models: SchemaModelRecord[]
+      model_count: number
+      table_count: number
+      column_count: number
+      api_bound_columns: number
+      user_mapped_columns: number
+      mappings: SchemaFieldMappingRecord[]
+    }
+  },
+
+  listSchemaFieldMappings: async () => {
+    const r = await apiClient.get('/vendors/me/schema/mappings')
+    return r.data as { items: SchemaFieldMappingRecord[]; total: number }
+  },
+
+  createSchemaFieldMapping: async (data: SchemaFieldMappingInput) => {
+    const r = await apiClient.post('/vendors/me/schema/mappings', data)
+    return r.data as SchemaFieldMappingRecord
+  },
+
+  updateSchemaFieldMapping: async (id: string, data: Partial<SchemaFieldMappingInput>) => {
+    const r = await apiClient.patch(`/vendors/me/schema/mappings/${id}`, data)
+    return r.data as SchemaFieldMappingRecord
+  },
+
+  deleteSchemaFieldMapping: async (id: string) => {
+    await apiClient.delete(`/vendors/me/schema/mappings/${id}`)
+  },
+}
+
+export type SchemaApiBinding = {
+  method: string
+  path: string
+  schema: string
+  direction: 'read' | 'write'
+}
+
+export type SchemaModelRecord = {
+  model: string
+  table: string
+  module: string
+  domain: string
+  column_count: number
+  columns: SchemaColumnRecord[]
+  api_exposed_columns?: number
+}
+
+export type SchemaFieldMappingRecord = {
+  id: string
+  vendor_id: string
+  table_name: string
+  column_name: string
+  ui_label: string
+  help_short?: string | null
+  help_full?: string | null
+  screens: string[]
+  note?: string | null
+  is_active: boolean
+  created_at?: string | null
+  updated_at?: string | null
+}
+
+export type SchemaFieldMappingInput = {
+  table_name: string
+  column_name: string
+  ui_label: string
+  help_short?: string
+  help_full?: string
+  screens?: string[]
+  note?: string
+}
+
+export type SchemaColumnRecord = {
+  name: string
+  type: string
+  nullable: boolean
+  primary_key: boolean
+  unique: boolean
+  foreign_keys: string[]
+  api_bindings?: SchemaApiBinding[]
+  user_mapping?: SchemaFieldMappingRecord | null
 }

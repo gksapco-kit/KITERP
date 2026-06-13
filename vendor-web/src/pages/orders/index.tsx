@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { TableColumnLabel } from '@/components/common/FieldLabel'
 import { useNavigate } from 'react-router-dom'
 import { useVendorStore } from '@/stores/vendorStore'
 import { Card, CardContent } from '@/components/ui/card'
@@ -299,14 +300,14 @@ export default function Orders() {
                     className="h-4 w-4 rounded border-gray-300 accent-blue-600"
                   />
                 </th>
-                <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">Order</th>
-                <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">Customer</th>
-                <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">Items</th>
-                <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">Total</th>
-                <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">Source</th>
-                <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">Status</th>
-                <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">Date</th>
-                <th className="text-right px-6 py-3 text-xs font-medium text-gray-500 uppercase">Action</th>
+                <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase"><TableColumnLabel>Order</TableColumnLabel></th>
+                <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase"><TableColumnLabel>Customer</TableColumnLabel></th>
+                <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase"><TableColumnLabel>Items</TableColumnLabel></th>
+                <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase"><TableColumnLabel>Total</TableColumnLabel></th>
+                <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase"><TableColumnLabel>Source</TableColumnLabel></th>
+                <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase"><TableColumnLabel>Status</TableColumnLabel></th>
+                <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase"><TableColumnLabel>Date</TableColumnLabel></th>
+                <th className="text-right px-6 py-3 text-xs font-medium text-gray-500 uppercase"><TableColumnLabel>Action</TableColumnLabel></th>
               </tr>
             </thead>
             <tbody className="divide-y">

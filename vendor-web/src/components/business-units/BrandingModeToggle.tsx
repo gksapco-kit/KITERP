@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { createPortal } from 'react-dom'
 import { Loader2, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -68,6 +69,97 @@ export function BrandingModeToggle({ mode, onConfirm, pending }: Props) {
     closeConfirm()
   }
 
+  const blockEnterKey = (e: React.KeyboardEvent) => {
+    if (e.key !== 'Enter') return
+    e.preventDefault()
+    e.stopPropagation()
+  }
+
+  const confirmDialog =
+    pendingMode && pendingOption ? (
+      <div
+        className="fixed inset-0 z-[200] flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm"
+        onClick={closeConfirm}
+        role="presentation"
+        onKeyDownCapture={blockEnterKey}
+      >
+        <div
+          className="w-full max-w-md overflow-hidden rounded-2xl border border-border bg-card shadow-2xl"
+          role="dialog"
+          aria-labelledby="branding-mode-title"
+          aria-modal="true"
+          onClick={e => e.stopPropagation()}
+        >
+          <div className="flex items-start justify-between gap-3 border-b border-border px-5 py-4">
+            <div className="min-w-0">
+              <h2 id="branding-mode-title" className="text-base font-semibold text-foreground">
+                Change branding source?
+              </h2>
+              <p className="mt-1 text-xs text-muted-foreground">
+                This updates which logo and banners show on the dashboard and business unit views. Existing per-unit branding is preserved.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={closeConfirm}
+              className="rounded-md p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground"
+              aria-label="Close"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+
+          <form
+            className="space-y-4 px-5 py-4"
+            onSubmit={e => e.preventDefault()}
+          >
+            <div className="rounded-lg border border-border bg-muted/30 px-3 py-2.5 text-xs">
+              <p className="font-medium text-foreground">
+                {currentOption?.label} → {pendingOption.label}
+              </p>
+              <p className="mt-1 text-muted-foreground">{pendingOption.description}</p>
+            </div>
+
+            <div className="space-y-2">
+              <p className="text-xs text-muted-foreground">
+                Type <span className="font-semibold text-foreground">{CONFIRM_PHRASE}</span> to confirm, then click Confirm change.
+              </p>
+              <Input
+                value={confirmText}
+                onChange={e => setConfirmText(e.target.value)}
+                onKeyDown={blockEnterKey}
+                placeholder={CONFIRM_PHRASE}
+                autoComplete="off"
+                autoFocus
+                className="font-mono text-sm"
+              />
+            </div>
+
+            <div className="flex gap-2">
+              <Button type="button" variant="outline" className="flex-1" onClick={closeConfirm}>
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                className="flex-1"
+                disabled={!canConfirm}
+                onClick={handleConfirm}
+              >
+                {pending ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Saving...
+                  </>
+                ) : (
+                  'Confirm change'
+                )}
+              </Button>
+            </div>
+          </form>
+        </div>
+      </div>
+    ) : null
+
   return (
     <>
       <div className="flex shrink-0 flex-col items-start gap-1 lg:items-end">
@@ -82,106 +174,31 @@ export function BrandingModeToggle({ mode, onConfirm, pending }: Props) {
           {OPTIONS.map(opt => {
             const isSelected = mode === opt.id
             return (
-            <button
-              key={opt.id}
-              type="button"
-              disabled={pending}
-              onClick={() => {
-                if (!isSelected) openConfirm(opt.id)
-              }}
-              aria-pressed={isSelected}
-              title={opt.label}
-              className={cn(
-                'max-w-[11rem] rounded-md border border-transparent px-2 py-1.5 text-left text-[10px] font-semibold leading-snug transition-colors disabled:opacity-60 sm:max-w-none sm:px-2.5 sm:text-xs',
-                isSelected ? opt.selectedClass : opt.idleClass,
-              )}
-            >
-              <span className="hidden sm:inline">{opt.label}</span>
-              <span className="sm:hidden">{opt.shortLabel}</span>
-            </button>
+              <button
+                key={opt.id}
+                type="button"
+                disabled={pending}
+                onClick={() => {
+                  if (!isSelected) openConfirm(opt.id)
+                }}
+                aria-pressed={isSelected}
+                title={opt.label}
+                className={cn(
+                  'max-w-[11rem] rounded-md border border-transparent px-2 py-1.5 text-left text-[10px] font-semibold leading-snug transition-colors disabled:opacity-60 sm:max-w-none sm:px-2.5 sm:text-xs',
+                  isSelected ? opt.selectedClass : opt.idleClass,
+                )}
+              >
+                <span className="hidden sm:inline">{opt.label}</span>
+                <span className="sm:hidden">{opt.shortLabel}</span>
+              </button>
             )
           })}
         </div>
       </div>
 
-      {pendingMode && pendingOption ? (
-        <div
-          className="fixed inset-0 z-[200] flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm"
-          onClick={closeConfirm}
-          role="presentation"
-        >
-          <div
-            className="w-full max-w-md overflow-hidden rounded-2xl border border-border bg-card shadow-2xl"
-            role="dialog"
-            aria-labelledby="branding-mode-title"
-            aria-modal="true"
-            onClick={e => e.stopPropagation()}
-          >
-            <div className="flex items-start justify-between gap-3 border-b border-border px-5 py-4">
-              <div className="min-w-0">
-                <h2 id="branding-mode-title" className="text-base font-semibold text-foreground">
-                  Change branding source?
-                </h2>
-                <p className="mt-1 text-xs text-muted-foreground">
-                  This updates which logo and banners show on the dashboard and business unit views. Existing per-unit branding is preserved.
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={closeConfirm}
-                className="rounded-md p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground"
-                aria-label="Close"
-              >
-                <X className="h-4 w-4" />
-              </button>
-            </div>
-
-            <div className="space-y-4 px-5 py-4">
-              <div className="rounded-lg border border-border bg-muted/30 px-3 py-2.5 text-xs">
-                <p className="font-medium text-foreground">
-                  {currentOption?.label} → {pendingOption.label}
-                </p>
-                <p className="mt-1 text-muted-foreground">{pendingOption.description}</p>
-              </div>
-
-              <div className="space-y-2">
-                <p className="text-xs text-muted-foreground">
-                  Type <span className="font-semibold text-foreground">{CONFIRM_PHRASE}</span> to confirm.
-                </p>
-                <Input
-                  value={confirmText}
-                  onChange={e => setConfirmText(e.target.value)}
-                  placeholder={CONFIRM_PHRASE}
-                  autoComplete="off"
-                  autoFocus
-                  className="font-mono text-sm"
-                />
-              </div>
-
-              <div className="flex gap-2">
-                <Button type="button" variant="outline" className="flex-1" onClick={closeConfirm}>
-                  Cancel
-                </Button>
-                <Button
-                  type="button"
-                  className="flex-1"
-                  disabled={!canConfirm}
-                  onClick={handleConfirm}
-                >
-                  {pending ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Saving…
-                    </>
-                  ) : (
-                    'Confirm change'
-                  )}
-                </Button>
-              </div>
-            </div>
-          </div>
-        </div>
-      ) : null}
+      {typeof document !== 'undefined' && confirmDialog
+        ? createPortal(confirmDialog, document.body)
+        : null}
     </>
   )
 }

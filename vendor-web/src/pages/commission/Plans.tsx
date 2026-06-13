@@ -4,6 +4,7 @@ import { Plus, Edit2, ChevronDown, ChevronRight, ToggleLeft, ToggleRight, X } fr
 import { toast } from 'sonner'
 import { usePlans, useCreatePlan, useUpdatePlan, useDeletePlan, useCreateRule, useUpdateRule, useDeleteRule } from '@/hooks/useCommission'
 import { RuleBuilder } from '@/components/commission/RuleBuilder'
+import { Label } from '@/components/ui/label'
 import type { CommissionPlan, CommissionRule } from '@/types/commission'
 
 const PAYEE_SCOPES = ['any', 'employee', 'vendor', 'contractor', 'agent', 'customer']
@@ -209,41 +210,43 @@ export default function PlansPage() {
             </div>
             <div className="p-5 space-y-4 max-h-[70vh] overflow-y-auto">
               <div className="grid grid-cols-2 gap-4">
-                {[{ key: 'code', label: 'Code *' }, { key: 'name', label: 'Name *' }].map(f => (
+                {[{ key: 'code', label: 'Code' }, { key: 'name', label: 'Name' }].map(f => (
                   <div key={f.key}>
-                    <label className="block text-xs font-medium text-gray-700 mb-1">{f.label}</label>
+                    <Label required className="block text-xs font-medium text-gray-700 mb-1">
+                      {f.label}
+                    </Label>
                     <input value={String(form[f.key] || '')} onChange={e => setForm(p => ({ ...p, [f.key]: e.target.value }))}
                       className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm" />
                   </div>
                 ))}
               </div>
               <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">Description</label>
+                <Label className="block text-xs font-medium text-gray-700 mb-1">Description</Label>
                 <textarea value={String(form.description || '')} onChange={e => setForm(p => ({ ...p, description: e.target.value }))}
                   rows={2} className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm" />
               </div>
               <div className="grid grid-cols-3 gap-4">
                 <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1">Status</label>
+                  <Label className="block text-xs font-medium text-gray-700 mb-1">Status</Label>
                   <select value={String(form.status)} onChange={e => setForm(p => ({ ...p, status: e.target.value }))} className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm">
                     {['active', 'inactive', 'draft'].map(s => <option key={s} value={s}>{s}</option>)}
                   </select>
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1">Payee Scope</label>
+                  <Label className="block text-xs font-medium text-gray-700 mb-1">Payee Scope</Label>
                   <select value={String(form.payee_scope)} onChange={e => setForm(p => ({ ...p, payee_scope: e.target.value }))} className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm">
                     {PAYEE_SCOPES.map(s => <option key={s} value={s}>{s}</option>)}
                   </select>
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1">Priority</label>
+                  <Label className="block text-xs font-medium text-gray-700 mb-1">Priority</Label>
                   <input type="number" value={Number(form.priority)} onChange={e => setForm(p => ({ ...p, priority: parseInt(e.target.value) || 10 }))} className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm" />
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 {[{ key: 'effective_from', label: 'Effective From' }, { key: 'effective_to', label: 'Effective To' }].map(f => (
                   <div key={f.key}>
-                    <label className="block text-xs font-medium text-gray-700 mb-1">{f.label}</label>
+                    <Label className="block text-xs font-medium text-gray-700 mb-1">{f.label}</Label>
                     <input type="date" value={String(form[f.key] || '')} onChange={e => setForm(p => ({ ...p, [f.key]: e.target.value }))}
                       className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm" />
                   </div>

@@ -1,4 +1,5 @@
 import { onModalBackdropClick } from '@/lib/utils'
+import { Label } from '@/components/ui/label'
 import { useState, useMemo } from 'react'
 import { useEscapeToClose } from '@/hooks/useEscapeToClose'
 import { useParams, Link } from 'react-router-dom'
@@ -97,25 +98,25 @@ function ScheduleInterviewModal({
         </div>
         <form onSubmit={submit} className="p-5 space-y-3">
           <div>
-            <label className="text-xs font-medium text-gray-600 uppercase">Round Name</label>
+            <Label className="text-xs font-medium text-gray-600 uppercase">Round Name</Label>
             <input value={form.round_name} onChange={e => setForm({ ...form, round_name: e.target.value })}
               className="w-full mt-1 px-3 py-2 border rounded-lg text-sm" />
           </div>
           <div>
-            <label className="text-xs font-medium text-gray-600 uppercase">When</label>
+            <Label className="text-xs font-medium text-gray-600 uppercase">When</Label>
             <input type="datetime-local" required value={form.scheduled_at}
               onChange={e => setForm({ ...form, scheduled_at: e.target.value })}
               className="w-full mt-1 px-3 py-2 border rounded-lg text-sm" />
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="text-xs font-medium text-gray-600 uppercase">Duration (min)</label>
+              <Label className="text-xs font-medium text-gray-600 uppercase">Duration (min)</Label>
               <input type="number" value={form.duration_min}
                 onChange={e => setForm({ ...form, duration_min: Number(e.target.value) })}
                 className="w-full mt-1 px-3 py-2 border rounded-lg text-sm" />
             </div>
             <div>
-              <label className="text-xs font-medium text-gray-600 uppercase">Mode</label>
+              <Label className="text-xs font-medium text-gray-600 uppercase">Mode</Label>
               <select value={form.mode} onChange={e => setForm({ ...form, mode: e.target.value })}
                 className="w-full mt-1 px-3 py-2 border rounded-lg text-sm">
                 <option value="video">Video</option>
@@ -125,7 +126,7 @@ function ScheduleInterviewModal({
             </div>
           </div>
           <div>
-            <label className="text-xs font-medium text-gray-600 uppercase">Link / Location</label>
+            <Label className="text-xs font-medium text-gray-600 uppercase">Link / Location</Label>
             <input value={form.location_or_link}
               onChange={e => setForm({ ...form, location_or_link: e.target.value })}
               className="w-full mt-1 px-3 py-2 border rounded-lg text-sm" placeholder="https://meet…" />

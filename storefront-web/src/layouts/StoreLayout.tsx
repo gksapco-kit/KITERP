@@ -21,6 +21,7 @@ import CrmChatWidget from '@/components/CrmChatWidget'
 import { CustomerNotificationsBell } from '@/components/CustomerNotificationsBell'
 import { useJourneyBeacon } from '@/hooks/useJourneyBeacon'
 import { BranchProvider, useBranch } from '@/contexts/BranchContext'
+import { useEffectiveVendor } from '@/hooks/useEffectiveVendor'
 import { StoreBranchPicker } from '@/components/store/StoreBranchPicker'
 
 // ── Shared sub-components ─────────────────────────────────────────────────────
@@ -400,7 +401,8 @@ function StoreContent() {
   const { pathname } = useLocation()
   const { vendorSlug } = useParams<{ vendorSlug: string }>()
   const { builderSite } = useBuilderSite()
-  const { vendor, isLoading, error } = useVendor()
+  const { isLoading, error } = useVendor()
+  const vendor = useEffectiveVendor()
   const { storePath } = useBranch()
   const assignedTemplateId = useAssignedStorefrontTemplateId()
   const { isAuthenticated, customer } = useAuthStore()

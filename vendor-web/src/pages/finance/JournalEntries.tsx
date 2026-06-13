@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
+import { TableColumnLabel } from '@/components/common/FieldLabel'
 import { useEscapeToClose } from '@/hooks/useEscapeToClose'
 import { useQuery } from '@tanstack/react-query'
 import {
@@ -1037,9 +1038,9 @@ function JEDrawer({
                 <table className="w-full">
                   <thead className="bg-gray-50 border-b text-xs text-gray-500 uppercase">
                     <tr>
-                      <th className="text-left px-2 py-1.5">Account</th>
-                      <th className="text-right px-2 py-1.5">Dr</th>
-                      <th className="text-right px-2 py-1.5">Cr</th>
+                      <th className="text-left px-2 py-1.5"><TableColumnLabel>Account</TableColumnLabel></th>
+                      <th className="text-right px-2 py-1.5"><TableColumnLabel>Dr</TableColumnLabel></th>
+                      <th className="text-right px-2 py-1.5"><TableColumnLabel>Cr</TableColumnLabel></th>
                     </tr>
                   </thead>
                   <tbody>

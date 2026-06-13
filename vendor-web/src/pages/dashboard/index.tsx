@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { TableColumnLabel } from '@/components/common/FieldLabel'
 import { useNavigate, Link } from 'react-router-dom'
 import { useVendorStore } from '@/stores/vendorStore'
 import { vendorApi } from '@/api/vendor'
@@ -554,10 +555,10 @@ export default function Dashboard() {
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b bg-muted text-left text-xs font-medium uppercase text-muted-foreground">
-                    <th className="w-10 px-5 py-2">#</th>
-                    <th className="px-5 py-2">Product</th>
-                    <th className="px-5 py-2 text-right">Price</th>
-                    <th className="px-5 py-2 text-right">Qty</th>
+                    <th className="w-10 px-5 py-2"><TableColumnLabel>#</TableColumnLabel></th>
+                    <th className="px-5 py-2"><TableColumnLabel>Product</TableColumnLabel></th>
+                    <th className="px-5 py-2 text-right"><TableColumnLabel>Price</TableColumnLabel></th>
+                    <th className="px-5 py-2 text-right"><TableColumnLabel>Qty</TableColumnLabel></th>
                   </tr>
                 </thead>
                 <tbody className="divide-y">
@@ -589,10 +590,10 @@ export default function Dashboard() {
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b bg-muted text-left text-xs font-medium uppercase text-muted-foreground">
-                    <th className="w-10 px-5 py-2">#</th>
-                    <th className="px-5 py-2">Customer</th>
-                    <th className="px-5 py-2 text-right">Orders</th>
-                    <th className="px-5 py-2 text-right">Spent</th>
+                    <th className="w-10 px-5 py-2"><TableColumnLabel>#</TableColumnLabel></th>
+                    <th className="px-5 py-2"><TableColumnLabel>Customer</TableColumnLabel></th>
+                    <th className="px-5 py-2 text-right"><TableColumnLabel>Orders</TableColumnLabel></th>
+                    <th className="px-5 py-2 text-right"><TableColumnLabel>Spent</TableColumnLabel></th>
                   </tr>
                 </thead>
                 <tbody className="divide-y">
@@ -724,13 +725,13 @@ export default function Dashboard() {
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="border-b bg-muted text-left text-xs font-medium uppercase text-muted-foreground">
-                      <th className="px-5 py-2">Date</th>
+                      <th className="px-5 py-2"><TableColumnLabel>Date</TableColumnLabel></th>
                       <th className="px-5 py-2">{isBookingTab ? 'Booking #' : 'Order #'}</th>
-                      {isBookingTab && <th className="px-5 py-2">Service</th>}
-                      <th className="px-5 py-2">Customer</th>
-                      {!isBookingTab && <th className="px-5 py-2 text-right">Total</th>}
-                      {!isBookingTab && <th className="px-5 py-2">Payment</th>}
-                      <th className="px-5 py-2">Status</th>
+                      {isBookingTab && <th className="px-5 py-2"><TableColumnLabel>Service</TableColumnLabel></th>}
+                      <th className="px-5 py-2"><TableColumnLabel>Customer</TableColumnLabel></th>
+                      {!isBookingTab && <th className="px-5 py-2 text-right"><TableColumnLabel>Total</TableColumnLabel></th>}
+                      {!isBookingTab && <th className="px-5 py-2"><TableColumnLabel>Payment</TableColumnLabel></th>}
+                      <th className="px-5 py-2"><TableColumnLabel>Status</TableColumnLabel></th>
                     </tr>
                   </thead>
                   <tbody className="divide-y">

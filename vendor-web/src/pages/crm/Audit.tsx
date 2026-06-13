@@ -1,4 +1,5 @@
 import { Fragment, useState } from 'react'
+import { TableColumnLabel } from '@/components/common/FieldLabel'
 import { Card, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
@@ -45,12 +46,12 @@ export default function AuditPage() {
             <thead>
               <tr className="border-b bg-gray-50">
                 <th className="w-8"></th>
-                <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">When</th>
-                <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">Actor</th>
-                <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">Action</th>
-                <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">Entity</th>
-                <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase hidden lg:table-cell">Path</th>
-                <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase hidden xl:table-cell">IP</th>
+                <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase"><TableColumnLabel>When</TableColumnLabel></th>
+                <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase"><TableColumnLabel>Actor</TableColumnLabel></th>
+                <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase"><TableColumnLabel>Action</TableColumnLabel></th>
+                <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase"><TableColumnLabel>Entity</TableColumnLabel></th>
+                <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase hidden lg:table-cell"><TableColumnLabel>Path</TableColumnLabel></th>
+                <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase hidden xl:table-cell"><TableColumnLabel>IP</TableColumnLabel></th>
               </tr>
             </thead>
             <tbody className="divide-y">

@@ -1,4 +1,6 @@
 import { useState } from 'react'
+import { TableColumnLabel } from '@/components/common/FieldLabel'
+import { Label } from '@/components/ui/label'
 import { useCashFlow } from '@/hooks/useFinance'
 
 function fmt(n: number) {
@@ -39,11 +41,11 @@ export default function CashFlow() {
 
       <div className="flex gap-3 items-end flex-wrap">
         <div>
-          <label className="block text-xs font-medium text-gray-600 mb-1">From</label>
+          <Label className="block text-xs font-medium text-gray-600 mb-1">From</Label>
           <input type="date" value={from} onChange={e => setFrom(e.target.value)} className="border border-gray-300 rounded-lg px-3 py-2 text-sm" />
         </div>
         <div>
-          <label className="block text-xs font-medium text-gray-600 mb-1">To</label>
+          <Label className="block text-xs font-medium text-gray-600 mb-1">To</Label>
           <input type="date" value={to} onChange={e => setTo(e.target.value)} className="border border-gray-300 rounded-lg px-3 py-2 text-sm" />
         </div>
         <button
@@ -65,10 +67,10 @@ export default function CashFlow() {
           <table className="w-full text-sm">
             <thead>
               <tr className="bg-muted text-xs text-muted-foreground uppercase">
-                <th className="px-4 py-2 text-left">Activity</th>
-                <th className="px-4 py-2 text-right">Inflows</th>
-                <th className="px-4 py-2 text-right">Outflows</th>
-                <th className="px-4 py-2 text-right">Net</th>
+                <th className="px-4 py-2 text-left"><TableColumnLabel>Activity</TableColumnLabel></th>
+                <th className="px-4 py-2 text-right"><TableColumnLabel>Inflows</TableColumnLabel></th>
+                <th className="px-4 py-2 text-right"><TableColumnLabel>Outflows</TableColumnLabel></th>
+                <th className="px-4 py-2 text-right"><TableColumnLabel>Net</TableColumnLabel></th>
               </tr>
             </thead>
             <tbody>

@@ -1,4 +1,6 @@
 import { useState, useMemo } from 'react'
+import { TableColumnLabel } from '@/components/common/FieldLabel'
+import { Label } from '@/components/ui/label'
 import { useEscapeToClose } from '@/hooks/useEscapeToClose'
 import { Link } from 'react-router-dom'
 import { ArrowLeft, Plus, Clock, Trash2, X } from 'lucide-react'
@@ -171,15 +173,15 @@ export default function ActivityConfirmationsPage() {
         <table className="w-full text-sm">
           <thead className="bg-gray-50 text-left">
             <tr>
-              <th className="px-4 py-3 font-medium text-gray-600">Date</th>
-              <th className="px-4 py-3 font-medium text-gray-600">Type</th>
-              <th className="px-4 py-3 font-medium text-gray-600">Order</th>
-              <th className="px-4 py-3 font-medium text-gray-600 text-right">Qty</th>
-              <th className="px-4 py-3 font-medium text-gray-600 text-right">Hours</th>
-              <th className="px-4 py-3 font-medium text-gray-600 text-right">Rate/h</th>
-              <th className="px-4 py-3 font-medium text-gray-600 text-right">Total Cost</th>
-              <th className="px-4 py-3 font-medium text-gray-600 text-right">Yield %</th>
-              <th className="px-4 py-3 font-medium text-gray-600">Status</th>
+              <th className="px-4 py-3 font-medium text-gray-600"><TableColumnLabel>Date</TableColumnLabel></th>
+              <th className="px-4 py-3 font-medium text-gray-600"><TableColumnLabel>Type</TableColumnLabel></th>
+              <th className="px-4 py-3 font-medium text-gray-600"><TableColumnLabel>Order</TableColumnLabel></th>
+              <th className="px-4 py-3 font-medium text-gray-600 text-right"><TableColumnLabel>Qty</TableColumnLabel></th>
+              <th className="px-4 py-3 font-medium text-gray-600 text-right"><TableColumnLabel>Hours</TableColumnLabel></th>
+              <th className="px-4 py-3 font-medium text-gray-600 text-right"><TableColumnLabel>Rate/h</TableColumnLabel></th>
+              <th className="px-4 py-3 font-medium text-gray-600 text-right"><TableColumnLabel>Total Cost</TableColumnLabel></th>
+              <th className="px-4 py-3 font-medium text-gray-600 text-right"><TableColumnLabel>Yield %</TableColumnLabel></th>
+              <th className="px-4 py-3 font-medium text-gray-600"><TableColumnLabel>Status</TableColumnLabel></th>
               <th className="px-4 py-3" />
             </tr>
           </thead>
@@ -241,7 +243,7 @@ export default function ActivityConfirmationsPage() {
             </div>
             <form onSubmit={handleCreate} className="p-6 space-y-4">
               <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1">CO Order *</label>
+                <Label className="block text-xs font-medium text-gray-600 mb-1" required>CO Order</Label>
                 <select value={form.order_id} onChange={e => setForm(f => ({ ...f, order_id: e.target.value }))}
                   className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm" required>
                   <option value="">— select order —</option>
@@ -252,7 +254,7 @@ export default function ActivityConfirmationsPage() {
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-medium text-gray-600 mb-1">Confirmation Type</label>
+                  <Label className="block text-xs font-medium text-gray-600 mb-1">Confirmation Type</Label>
                   <select value={form.confirmation_type}
                     onChange={e => setForm(f => ({ ...f, confirmation_type: e.target.value }))}
                     className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm">
@@ -260,7 +262,7 @@ export default function ActivityConfirmationsPage() {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-gray-600 mb-1">Activity Type</label>
+                  <Label className="block text-xs font-medium text-gray-600 mb-1">Activity Type</Label>
                   <select value={form.activity_type_id}
                     onChange={e => setForm(f => ({ ...f, activity_type_id: e.target.value }))}
                     className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm">
@@ -272,26 +274,26 @@ export default function ActivityConfirmationsPage() {
                 </div>
               </div>
               <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1">Confirmation Date *</label>
+                <Label className="block text-xs font-medium text-gray-600 mb-1" required>Confirmation Date</Label>
                 <input type="date" value={form.confirmation_date}
                   onChange={e => setForm(f => ({ ...f, confirmation_date: e.target.value }))}
                   className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm" required />
               </div>
               <div className="grid grid-cols-3 gap-3">
                 <div>
-                  <label className="block text-xs font-medium text-gray-600 mb-1">Qty Confirmed</label>
+                  <Label className="block text-xs font-medium text-gray-600 mb-1">Qty Confirmed</Label>
                   <input type="number" step="0.0001" value={form.qty_confirmed}
                     onChange={e => setForm(f => ({ ...f, qty_confirmed: e.target.value }))}
                     className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm" />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-gray-600 mb-1">Hours *</label>
+                  <Label className="block text-xs font-medium text-gray-600 mb-1" required>Hours</Label>
                   <input type="number" step="0.001" value={form.hours_confirmed}
                     onChange={e => setForm(f => ({ ...f, hours_confirmed: e.target.value }))}
                     className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm" required />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-gray-600 mb-1">Rate / Hour</label>
+                  <Label className="block text-xs font-medium text-gray-600 mb-1">Rate / Hour</Label>
                   <input type="number" step="0.0001" value={form.rate_per_hour}
                     onChange={e => setForm(f => ({ ...f, rate_per_hour: e.target.value }))}
                     className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm" />
@@ -299,20 +301,20 @@ export default function ActivityConfirmationsPage() {
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-medium text-gray-600 mb-1">Scrap Qty</label>
+                  <Label className="block text-xs font-medium text-gray-600 mb-1">Scrap Qty</Label>
                   <input type="number" step="0.0001" value={form.scrap_qty}
                     onChange={e => setForm(f => ({ ...f, scrap_qty: e.target.value }))}
                     className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm" />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-gray-600 mb-1">Yield %</label>
+                  <Label className="block text-xs font-medium text-gray-600 mb-1">Yield %</Label>
                   <input type="number" step="0.01" min="0" max="100" value={form.yield_pct}
                     onChange={e => setForm(f => ({ ...f, yield_pct: e.target.value }))}
                     className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm" />
                 </div>
               </div>
               <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1">Narration</label>
+                <Label className="block text-xs font-medium text-gray-600 mb-1">Narration</Label>
                 <input value={form.narration} onChange={e => setForm(f => ({ ...f, narration: e.target.value }))}
                   className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm"
                   placeholder="Optional notes…" />

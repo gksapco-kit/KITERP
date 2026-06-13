@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect, useCallback } from 'react'
+import { SectionLabel } from '@/components/common/FieldLabel'
 import { useEscapeToClose } from '@/hooks/useEscapeToClose'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -515,7 +516,7 @@ function ComposeModal({
 
               {/* Preview card */}
               <div className="rounded-xl border-2 border-dashed border-gray-200 p-4 bg-gray-50">
-                <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-3">Message Preview</p>
+                <SectionLabel className="mb-3">Message Preview</SectionLabel>
                 <div className={`rounded-xl p-4 ${chMeta.bg} border ${chMeta.border}`}>
                   {channel === 'email' && subject && <p className="text-xs font-bold text-gray-700 mb-2">Subject: {subject}</p>}
                   <p className="text-sm text-gray-800 leading-relaxed whitespace-pre-wrap">{message}</p>
@@ -636,7 +637,7 @@ function ReminderCard({ r, expanded, onToggleView, onMarkSent, onCancel, onMarkR
         <div className="border-t bg-gray-50 px-4 py-4 space-y-4" onClick={e => e.stopPropagation()}>
           {/* Full message preview */}
           <div>
-            <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">Message</p>
+            <SectionLabel className="mb-2">Message</SectionLabel>
             <div className={`rounded-xl p-3 ${chMeta.bg} border ${chMeta.border} text-sm text-gray-800 leading-relaxed whitespace-pre-wrap`}>
               {r.channel === 'email' && r.subject && <p className="text-xs font-bold text-gray-700 mb-2">Subject: {r.subject}</p>}
               {r.message}
@@ -925,7 +926,7 @@ export default function CareReminderPage() {
             <button key={s.label} onClick={() => setFilterStatus(s.filter === filterStatus ? 'all' : s.filter as any)}
               className={`bg-white border rounded-2xl p-4 flex items-start justify-between text-left hover:shadow-md transition-shadow ${filterStatus === s.filter && s.filter !== 'all' ? 'ring-2 ring-primary/40' : ''}`}>
               <div>
-                <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">{s.label}</p>
+                <SectionLabel>{s.label}</SectionLabel>
                 <p className="text-2xl font-bold text-gray-900 mt-1">{s.value}</p>
               </div>
               <div className={`w-9 h-9 rounded-xl flex items-center justify-center ${s.bg}`}>

@@ -1,4 +1,5 @@
 import { useParams, useNavigate } from 'react-router-dom'
+import { TableColumnLabel } from '@/components/common/FieldLabel'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { useService } from '@/hooks/useVendor'
@@ -113,7 +114,7 @@ function buildHtmlTable(rows: AuditRow[], svc: any): string {
   let html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Audit Report - ${svc.name}</title>${styles}</head><body>`
   html += `<h1>Service Audit Report: ${svc.name}</h1>`
   html += `<div class="meta">Slug: ${svc.slug || '—'} | Status: ${svc.status} | Version: v${svc.version_number || 1} | Generated: ${new Date().toLocaleString('en-IN')}</div>`
-  html += `<table><thead><tr><th>Version</th><th>Timestamp</th><th>Changed By</th><th>Action</th><th>Field</th><th>Old Value</th><th>New Value</th></tr></thead><tbody>`
+  html += `<table><thead><tr><th><TableColumnLabel>Version</TableColumnLabel></th><th><TableColumnLabel>Timestamp</TableColumnLabel></th><th><TableColumnLabel>Changed By</TableColumnLabel></th><th><TableColumnLabel>Action</TableColumnLabel></th><th><TableColumnLabel>Field</TableColumnLabel></th><th><TableColumnLabel>Old Value</TableColumnLabel></th><th><TableColumnLabel>New Value</TableColumnLabel></th></tr></thead><tbody>`
   for (const r of rows) {
     const vc = vMap[r.version] || palette[0]
     html += `<tr style="background:${vc.bg};border-left:4px solid ${vc.border}"><td><span class="vbadge" style="background:${vc.badge}">${r.version}</span></td><td>${r.timestamp}</td><td>${r.changedBy}</td><td>${r.action}</td><td>${r.field}</td><td class="old">${r.oldValue}</td><td class="new">${r.newValue}</td></tr>`

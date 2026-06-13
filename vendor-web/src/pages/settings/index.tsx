@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useMemo, useCallback } from 'react'
+import { useState, useEffect, useLayoutEffect, useRef, useMemo, useCallback } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { Link, useSearchParams } from 'react-router-dom'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -46,6 +46,7 @@ import { companyTypeLabel } from '@/data/companyTypes'
 import { BUSINESS_UNIT_STORE_LABEL } from '@/lib/businessUnitLabels'
 import { getBusinessUnitVisual } from '@/lib/businessUnitVisuals'
 import { CollapsibleSection } from '@/components/common/CollapsibleSection'
+import { DisabledOptionCard } from '@/components/common/DisabledOptionCard'
 import {
   galleryImageToFile,
   resolveBrandingImageUrl,
@@ -81,8 +82,10 @@ import {
   isBusinessHoursSectionDirty,
   isContactSectionDirty,
   isExternalDomainSectionDirty,
+  isExternalDomainToggleOnlyDirty,
   isOrderAcceptanceSectionDirty,
   isProfileSectionDirty,
+  profileFormFromStore,
   isTaxSectionDirty,
   supportEmailsFromVendor,
   supportPhonesFromVendor,
@@ -371,6 +374,7 @@ function SettingsPageBody() {
     confirmIfDirty,
   } = useUnsavedChangesGuard({
     when: hasDirty,
+    dirtyRef: hasDirtyRef,
     onSave: saveOpenSection,
     onDiscard: discardAll,
   })
@@ -667,6 +671,7 @@ function SettingsPageBody() {
             <ProfileSection
               vendor={vendor}
               activeStore={activeStoreRecord}
+              unitProfileEditable={!allBusinessUnitsMode && Boolean(activeStoreRecord)}
               unitBrandingEditable={
                 brandingMode === 'per_unit' &&
                 !allBusinessUnitsMode &&
@@ -767,6 +772,7 @@ function SectionWrapper({
   subtitle: subtitleOverride,
   helpText,
   badge,
+  headerAction,
   open,
   toggle,
   children,
@@ -776,6 +782,7 @@ function SectionWrapper({
   subtitle?: string
   helpText?: string
   badge?: React.ReactNode
+  headerAction?: React.ReactNode
   open: boolean
   toggle: () => void
   children: React.ReactNode
@@ -788,6 +795,7 @@ function SectionWrapper({
       subtitle={subtitleOverride ?? scopeLabel}
       helpText={helpText}
       badge={badge}
+      headerAction={headerAction}
       open={open}
       toggle={toggle}
     >
@@ -817,6 +825,8 @@ function SaveButton({ loading, compact }: { loading: boolean; compact?: boolean 
 
 type ProfileSectionProps = SectionProps & {
   activeStore?: StoreRecord
+  /** When a single BU is scoped, name/description save to that unit — not vendor-wide. */
+  unitProfileEditable: boolean
   /** When a single BU is scoped, logo/banner save to that unit — not vendor-wide. */
   unitBrandingEditable: boolean
   /**
@@ -888,9 +898,10 @@ function resolveProfileBusinessCategory(
   }
 }
 
-function ProfileSection({ vendor, activeStore: activeStoreProp, unitBrandingEditable, showVendorBranding = true, open, toggle, onSave }: ProfileSectionProps) {
+function ProfileSection({ vendor, activeStore: activeStoreProp, unitProfileEditable, unitBrandingEditable, showVendorBranding = true, open, toggle, onSave }: ProfileSectionProps) {
   const qc = useQueryClient()
   const setVendor = useVendorStore((s) => s.setVendor)
+  const setSelectedStore = useVendorStore((s) => s.setSelectedStore)
   const { data: storesData } = useStores()
   const activeStore = activeStoreProp
     ? storesData?.stores?.find((s) => s.id === activeStoreProp.id) ?? activeStoreProp
@@ -908,8 +919,17 @@ function ProfileSection({ vendor, activeStore: activeStoreProp, unitBrandingEdit
   const [cropFile, setCropFile] = useState<File | null>(null)
   const [cropTarget, setCropTarget] = useState<'logo' | 'banner' | null>(null)
   const [bannerLightboxIndex, setBannerLightboxIndex] = useState<number | null>(null)
+  const [profileSaving, setProfileSaving] = useState(false)
+  const profileSavingRef = useRef(false)
+  const [profileHydrated, setProfileHydrated] = useState(false)
 
-  useEffect(() => {
+  useLayoutEffect(() => {
+    if (profileSavingRef.current) return
+    if (unitProfileEditable && activeStore) {
+      setForm(profileFormFromStore(activeStore, vendor))
+      setProfileHydrated(true)
+      return
+    }
     if (vendor) {
       setForm({
         business_name: vendor.business_name || '',
@@ -917,16 +937,69 @@ function ProfileSection({ vendor, activeStore: activeStoreProp, unitBrandingEdit
         description: vendor.description || '',
         offering_type: vendor.offering_type || 'both',
       })
+      setProfileHydrated(true)
+      return
     }
-  }, [vendor])
+    setProfileHydrated(false)
+  }, [
+    vendor,
+    unitProfileEditable,
+    activeStore?.id,
+    activeStore?.name,
+    activeStore?.description,
+    JSON.stringify(activeStore?.settings ?? {}),
+  ])
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    if (unitProfileEditable && activeStore) {
+      profileSavingRef.current = true
+      setProfileSaving(true)
+      try {
+        const settings = {
+          ...storeSettings,
+          display_name: form.display_name.trim() || undefined,
+          offering_type: form.offering_type,
+        }
+        const { store } = await vendorApi.updateStore(activeStore.id, {
+          name: form.business_name.trim() || activeStore.name,
+          description: form.description.trim() || undefined,
+          settings,
+        })
+        qc.setQueryData(
+          vendorKeys.stores(),
+          (old: { stores: StoreRecord[]; total: number } | undefined) => {
+            if (!old?.stores) return old
+            return {
+              ...old,
+              stores: old.stores.map((s) => (s.id === store.id ? store : s)),
+            }
+          },
+        )
+        void qc.invalidateQueries({ queryKey: vendorKeys.stores() })
+        setSelectedStore({
+          id: store.id,
+          name: store.name,
+          code: store.code,
+          description: store.description,
+        })
+        toast.success('Business profile updated for this unit')
+      } catch {
+        toast.error('Could not save business profile for this unit')
+      } finally {
+        profileSavingRef.current = false
+        setProfileSaving(false)
+      }
+      return
+    }
     onSave.mutate({ ...form, offering_type: form.offering_type as 'products' | 'services' | 'both' })
   }
 
-  const isDirty = useMemo(() => isProfileSectionDirty(form, vendor), [form, vendor])
-  useSettingsSectionDirty('profile', isDirty)
+  const isDirty = useMemo(
+    () => isProfileSectionDirty(form, vendor, activeStore, unitProfileEditable),
+    [form, vendor, activeStore, unitProfileEditable],
+  )
+  useSettingsSectionDirty('profile', isDirty, profileHydrated)
 
   const handleLogoFileSelected = (file: File) => {
     setCropFile(file)
@@ -1251,7 +1324,14 @@ function ProfileSection({ vendor, activeStore: activeStoreProp, unitBrandingEdit
   }
 
   return (
-    <SectionWrapper title="Business Profile" helpText="Name, branding, logo, and banners" icon={Store} open={open} toggle={toggle}>
+    <SectionWrapper
+      title="Business Profile"
+      subtitle={unitProfileEditable ? `Applies to ${activeStore?.name ?? 'this business unit'}` : undefined}
+      helpText="Name, branding, logo, and banners"
+      icon={Store}
+      open={open}
+      toggle={toggle}
+    >
       {/* Image crop modal */}
       {cropFile && cropTarget && (
         <ImageCropModal
@@ -1454,17 +1534,7 @@ function ProfileSection({ vendor, activeStore: activeStoreProp, unitBrandingEdit
 
         <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-4">
           <div>
-            <div className="mb-1 flex items-center gap-1">
-              <Label className="text-xs font-medium">Business name</Label>
-              <button
-                type="button"
-                className="inline-flex text-muted-foreground hover:text-foreground"
-                title="Legal / registered name (e.g. on invoices). Store URL is unchanged."
-                aria-label="About business name"
-              >
-                <HelpCircle className="h-3 w-3" />
-              </button>
-            </div>
+            <Label className="mb-1 block text-xs font-medium">Business name</Label>
             <Input
               className="h-8 text-sm"
               value={form.business_name}
@@ -1474,17 +1544,7 @@ function ProfileSection({ vendor, activeStore: activeStoreProp, unitBrandingEdit
             />
           </div>
           <div>
-            <div className="mb-1 flex items-center gap-1">
-              <Label className="text-xs font-medium">Brand name</Label>
-              <button
-                type="button"
-                className="inline-flex text-muted-foreground hover:text-foreground"
-                title="Public name shown on your business front and customer-facing pages."
-                aria-label="About brand name"
-              >
-                <HelpCircle className="h-3 w-3" />
-              </button>
-            </div>
+            <Label className="mb-1 block text-xs font-medium">Brand name</Label>
             <Input
               className="h-8 text-sm"
               value={form.display_name}
@@ -1492,17 +1552,7 @@ function ProfileSection({ vendor, activeStore: activeStoreProp, unitBrandingEdit
             />
           </div>
           <div>
-            <div className="mb-1 flex items-center gap-1">
-              <Label className="text-xs font-medium text-muted-foreground">Business category</Label>
-              <button
-                type="button"
-                className="inline-flex text-muted-foreground hover:text-foreground"
-                title={businessCategory.hint}
-                aria-label="About business category"
-              >
-                <HelpCircle className="h-3 w-3" />
-              </button>
-            </div>
+            <Label className="mb-1 block text-xs font-medium text-muted-foreground">Business category</Label>
             <div
               className="flex h-8 w-full items-center rounded-md border border-border bg-muted/60 px-2.5 text-sm text-muted-foreground"
               aria-readonly="true"
@@ -1539,7 +1589,7 @@ function ProfileSection({ vendor, activeStore: activeStoreProp, unitBrandingEdit
         </div>
 
         <div className="flex justify-end border-t border-border/60 pt-2">
-          <SaveButton loading={onSave.isPending} />
+          <SaveButton loading={profileSaving || onSave.isPending} />
         </div>
       </form>
     </SectionWrapper>
@@ -1551,11 +1601,15 @@ function ProfileSection({ vendor, activeStore: activeStoreProp, unitBrandingEdit
 function ContactSection({ vendor, open, toggle, onSave }: SectionProps) {
   const [supportEmails, setSupportEmails] = useState<string[]>([''])
   const [supportPhones, setSupportPhones] = useState<string[]>([''])
+  const [contactHydrated, setContactHydrated] = useState(false)
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (vendor) {
       setSupportEmails(supportEmailsFromVendor(vendor))
       setSupportPhones(supportPhonesFromVendor(vendor))
+      setContactHydrated(true)
+    } else {
+      setContactHydrated(false)
     }
   }, [vendor])
 
@@ -1602,7 +1656,7 @@ function ContactSection({ vendor, open, toggle, onSave }: SectionProps) {
     () => isContactSectionDirty(supportEmails, supportPhones, vendor),
     [supportEmails, supportPhones, vendor],
   )
-  useSettingsSectionDirty('contact', isDirty)
+  useSettingsSectionDirty('contact', isDirty, contactHydrated)
 
   return (
     <SectionWrapper title="Contact Information" helpText="Phone, email, and support details" icon={Phone} open={open} toggle={toggle}>
@@ -1863,8 +1917,10 @@ function AddressSection({
   })
   const hqSavingRef = useRef(false)
   const unitSavingRef = useRef(false)
+  const [hqHydrated, setHqHydrated] = useState(false)
+  const [unitHydrated, setUnitHydrated] = useState(false)
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (vendor && !hqSavingRef.current) {
       setHqForm({
         street_address: vendor.street_address || '',
@@ -1872,19 +1928,27 @@ function AddressSection({
         state: vendor.state || '',
         postal_code: vendor.postal_code || '',
       })
+      setHqHydrated(true)
+    } else if (!vendor) {
+      setHqHydrated(false)
     }
   }, [vendor])
 
-  useEffect(() => {
-    if (!unitSavingRef.current) {
-      const addr = activeStore?.address
-      setUnitForm({
-        street: addr?.street ?? '',
-        city: addr?.city ?? '',
-        state: addr?.state ?? '',
-        pincode: addr?.pincode ?? '',
-      })
+  useLayoutEffect(() => {
+    if (unitSavingRef.current) return
+    if (!activeStore) {
+      setUnitForm({ street: '', city: '', state: '', pincode: '' })
+      setUnitHydrated(false)
+      return
     }
+    const addr = activeStore.address
+    setUnitForm({
+      street: addr?.street ?? '',
+      city: addr?.city ?? '',
+      state: addr?.state ?? '',
+      pincode: addr?.pincode ?? '',
+    })
+    setUnitHydrated(true)
   }, [activeStore?.id, activeStore?.address?.street, activeStore?.address?.city, activeStore?.address?.state, activeStore?.address?.pincode])
 
   const handleHqSubmit = (e: React.FormEvent) => {
@@ -1931,7 +1995,8 @@ function AddressSection({
     () => isAddressSectionDirty(hqForm, unitForm, vendor, activeStore, hqEditable, unitEditable),
     [hqForm, unitForm, vendor, activeStore, hqEditable, unitEditable],
   )
-  useSettingsSectionDirty('address', isDirty)
+  const addressReady = (hqEditable ? hqHydrated : true) && (unitEditable ? unitHydrated : true)
+  useSettingsSectionDirty('address', isDirty, addressReady)
 
   return (
     <SectionWrapper title="Addresses" helpText="Branch location and registered HQ address" icon={MapPin} open={open} toggle={toggle}>
@@ -2006,8 +2071,9 @@ function TaxSection({ vendor, open, toggle, onSave }: SectionProps) {
     pan_number: '',
     default_tax_rate: '',
   })
+  const [taxHydrated, setTaxHydrated] = useState(false)
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (vendor) {
       setForm({
         is_gst_registered: vendor.is_gst_registered ?? false,
@@ -2015,6 +2081,9 @@ function TaxSection({ vendor, open, toggle, onSave }: SectionProps) {
         pan_number: vendor.pan_number || '',
         default_tax_rate: vendor.default_tax_rate != null ? String(vendor.default_tax_rate) : '',
       })
+      setTaxHydrated(true)
+    } else {
+      setTaxHydrated(false)
     }
   }, [vendor])
 
@@ -2032,7 +2101,7 @@ function TaxSection({ vendor, open, toggle, onSave }: SectionProps) {
   }
 
   const isDirty = useMemo(() => isTaxSectionDirty(form, vendor), [form, vendor])
-  useSettingsSectionDirty('tax', isDirty)
+  useSettingsSectionDirty('tax', isDirty, taxHydrated)
 
   return (
     <SectionWrapper title="Tax & Compliance" helpText="GST, PAN, GSTIN and tax registration details" icon={FileText} open={open} toggle={toggle}>
@@ -2099,8 +2168,9 @@ function BusinessHoursSection({ vendor, open, toggle, onSave }: SectionProps) {
   const [hours, setHours] = useState<Record<string, { open: string; close: string; closed: boolean }>>({})
   const [holidays, setHolidays] = useState<StoreHoliday[]>([])
   const savingRef = useRef(false)
+  const [hoursHydrated, setHoursHydrated] = useState(false)
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (vendor && !savingRef.current) {
       const h: Record<string, { open: string; close: string; closed: boolean }> = {}
       for (const day of DAYS) {
@@ -2119,6 +2189,9 @@ function BusinessHoursSection({ vendor, open, toggle, onSave }: SectionProps) {
           closed: entry.closed !== false,
         })),
       )
+      setHoursHydrated(true)
+    } else if (!vendor) {
+      setHoursHydrated(false)
     }
   }, [vendor])
 
@@ -2149,7 +2222,7 @@ function BusinessHoursSection({ vendor, open, toggle, onSave }: SectionProps) {
       h.date !== saved[i]?.date || h.label !== saved[i]?.label || h.closed !== saved[i]?.closed,
     )
   }, [hours, holidays, vendor])
-  useSettingsSectionDirty('hours-availability', isDirty)
+  useSettingsSectionDirty('hours-availability', isDirty, hoursHydrated)
 
   return (
     <SectionWrapper
@@ -2260,8 +2333,9 @@ function OrderAcceptanceSection({ vendor, open, toggle, onSave }: SectionProps) 
   const [hours, setHours] = useState<Record<string, { open: string; close: string; closed: boolean }>>({})
   const [sameAsOfflineHours, setSameAsOfflineHours] = useState(true)
   const savingRef = useRef(false)
+  const [ordersHydrated, setOrdersHydrated] = useState(false)
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (vendor && !savingRef.current) {
       setEnabled(vendor.order_acceptance_enabled !== false)
       const h: Record<string, { open: string; close: string; closed: boolean }> = {}
@@ -2278,6 +2352,9 @@ function OrderAcceptanceSection({ vendor, open, toggle, onSave }: SectionProps) 
         }
       }
       setHours(h)
+      setOrdersHydrated(true)
+    } else if (!vendor) {
+      setOrdersHydrated(false)
     }
   }, [vendor])
 
@@ -2318,7 +2395,7 @@ function OrderAcceptanceSection({ vendor, open, toggle, onSave }: SectionProps) 
     () => isOrderAcceptanceSectionDirty(enabled, sameAsOfflineHours, hours, vendor),
     [enabled, sameAsOfflineHours, hours, vendor],
   )
-  useSettingsSectionDirty('order-acceptance', isDirty)
+  useSettingsSectionDirty('order-acceptance', isDirty, ordersHydrated)
 
   return (
     <SectionWrapper
@@ -2456,6 +2533,11 @@ const KIT_ERP_SUPPORT_EMAIL = 'support@kiterp.com'
 function ExternalDomainSection({ vendor, open, toggle, onSave }: SectionProps) {
   const [enabled, setEnabled] = useState(false)
   const [domainScope, setDomainScope] = useState<'all' | 'per_unit'>('all')
+  const storefrontLinkMode = resolveStorefrontLinkMode(vendor?.settings)
+  const forcedDomainScope: 'all' | 'per_unit' = storefrontLinkMode === 'single' ? 'all' : 'per_unit'
+  const isDomainScopeOptionDisabled = (key: 'all' | 'per_unit') =>
+    (storefrontLinkMode === 'single' && key === 'per_unit') ||
+    (storefrontLinkMode === 'per_unit' && key === 'all')
   const [dnsMode, setDnsMode] = useState<ExternalDomainDnsMode>('kit_assisted')
   const [domainName, setDomainName] = useState('')
   const [registrar, setRegistrar] = useState('')
@@ -2466,6 +2548,7 @@ function ExternalDomainSection({ vendor, open, toggle, onSave }: SectionProps) {
   const [recoveryContact, setRecoveryContact] = useState('')
   const [notes, setNotes] = useState('')
   const savingRef = useRef(false)
+  const [domainHydrated, setDomainHydrated] = useState(false)
 
   // Edit mode — shows full form even when pending (to update submitted details)
   const [editMode, setEditMode] = useState(false)
@@ -2526,27 +2609,51 @@ function ExternalDomainSection({ vendor, open, toggle, onSave }: SectionProps) {
     setOtpLoading(false)
   }
 
-  useEffect(() => {
-    if (vendor && !savingRef.current) {
-      const v = vendor as any
-      const status = v.external_domain_access_status ?? 'not_requested'
-      setAccessStatus(status)
-      // Force ON if access is pending or active — domain is in use regardless of the saved flag
-      const forcedEnabled = status === 'pending' || status === 'active'
-        ? true
-        : (v.external_domain_enabled ?? false)
-      setEnabled(forcedEnabled)
-      setDomainName(v.external_domain_name ?? '')
-      setRegistrar(v.external_domain_registrar ?? '')
-      setRegEmail(v.external_domain_reg_email ?? '')
-      setHolder(v.external_domain_holder ?? '')
-      setExpiry(v.external_domain_expiry ?? '')
-      setRecoveryContact(v.external_domain_recovery_contact ?? '')
-      setNotes(v.external_domain_notes ?? '')
-      setDomainScope(v.external_domain_scope === 'per_unit' ? 'per_unit' : 'all')
-      setDnsMode(v.external_domain_dns_mode === 'self_managed' ? 'self_managed' : 'kit_assisted')
+  const applyVendorToDomainForm = useCallback((v: Vendor) => {
+    const raw = v as Vendor & {
+      external_domain_enabled?: boolean
+      external_domain_access_status?: string
+      external_domain_name?: string
+      external_domain_registrar?: string
+      external_domain_reg_email?: string
+      external_domain_holder?: string
+      external_domain_expiry?: string
+      external_domain_recovery_contact?: string
+      external_domain_notes?: string
+      external_domain_dns_mode?: string
     }
-  }, [vendor])
+    const status = raw.external_domain_access_status ?? 'not_requested'
+    setAccessStatus(status)
+    const forcedEnabled = status === 'pending' || status === 'active'
+      ? true
+      : (raw.external_domain_enabled ?? false)
+    setEnabled(forcedEnabled)
+    setDomainName(raw.external_domain_name ?? '')
+    setRegistrar(raw.external_domain_registrar ?? '')
+    setRegEmail(raw.external_domain_reg_email ?? '')
+    setHolder(raw.external_domain_holder ?? '')
+    setExpiry(raw.external_domain_expiry ?? '')
+    setRecoveryContact(raw.external_domain_recovery_contact ?? '')
+    setNotes(raw.external_domain_notes ?? '')
+    setDomainScope(resolveStorefrontLinkMode(v.settings) === 'single' ? 'all' : 'per_unit')
+    setDnsMode(raw.external_domain_dns_mode === 'self_managed' ? 'self_managed' : 'kit_assisted')
+    setEditMode(false)
+  }, [])
+
+  useLayoutEffect(() => {
+    if (vendor && !savingRef.current) {
+      applyVendorToDomainForm(vendor)
+      setDomainHydrated(true)
+    } else {
+      setDomainHydrated(false)
+    }
+  }, [vendor, applyVendorToDomainForm])
+
+  useEffect(() => {
+    if (domainScope !== forcedDomainScope) {
+      setDomainScope(forcedDomainScope)
+    }
+  }, [forcedDomainScope, domainScope])
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
@@ -2563,7 +2670,7 @@ function ExternalDomainSection({ vendor, open, toggle, onSave }: SectionProps) {
       accessStatus === 'not_requested' && enabled ? 'not_requested' : accessStatus
     onSave.mutate({
       external_domain_enabled: enabled,
-      external_domain_scope: domainScope,
+      external_domain_scope: forcedDomainScope,
       external_domain_dns_mode: dnsMode,
       external_domain_name: domainName.trim() || undefined,
       external_domain_registrar: registrar || undefined,
@@ -2586,7 +2693,7 @@ function ExternalDomainSection({ vendor, open, toggle, onSave }: SectionProps) {
     // Save ALL form fields together with the status — so "Edit" can pre-populate them
     onSave.mutate({
       external_domain_enabled: true,
-      external_domain_scope: domainScope,
+      external_domain_scope: forcedDomainScope,
       external_domain_dns_mode: dnsMode,
       external_domain_access_status: 'pending',
       external_domain_name: domainName.trim(),
@@ -2636,27 +2743,88 @@ function ExternalDomainSection({ vendor, open, toggle, onSave }: SectionProps) {
     </div>
   ) : null
 
-  const isDirty = useMemo(
-    () =>
-      isExternalDomainSectionDirty(
-        {
-          enabled,
-          domainScope,
-          dnsMode,
-          domainName,
-          registrar,
-          regEmail,
-          holder,
-          expiry,
-          accessStatus,
-          recoveryContact,
-          notes,
-        },
-        vendor,
-      ),
-    [enabled, domainScope, dnsMode, domainName, registrar, regEmail, holder, expiry, accessStatus, recoveryContact, notes, vendor],
+  const domainFormState = useMemo(
+    () => ({
+      enabled,
+      domainScope,
+      dnsMode,
+      domainName,
+      registrar,
+      regEmail,
+      holder,
+      expiry,
+      accessStatus,
+      recoveryContact,
+      notes,
+    }),
+    [enabled, domainScope, dnsMode, domainName, registrar, regEmail, holder, expiry, accessStatus, recoveryContact, notes],
   )
-  useSettingsSectionDirty('external-domain', isDirty)
+
+  const isDirty = useMemo(
+    () => isExternalDomainSectionDirty(domainFormState, vendor),
+    [domainFormState, vendor],
+  )
+
+  const isToggleOnlyDirty = useMemo(
+    () => isExternalDomainToggleOnlyDirty(domainFormState, vendor),
+    [domainFormState, vendor],
+  )
+
+  useSettingsSectionDirty('external-domain', isDirty && !isToggleOnlyDirty, domainHydrated)
+
+  // Leaving the section without edits — undo a preview "Yes" toggle back to saved "No"
+  useEffect(() => {
+    if (open || !domainHydrated || !vendor || !isToggleOnlyDirty) return
+    applyVendorToDomainForm(vendor)
+  }, [open, domainHydrated, vendor, isToggleOnlyDirty, applyVendorToDomainForm])
+
+  const domainYesNoControl = (
+    <div className="flex items-center gap-2 pr-1 sm:pr-2">
+      <span className="hidden whitespace-nowrap text-xs font-medium text-muted-foreground sm:inline">
+        Use an external domain?
+      </span>
+      <div
+        className="inline-flex rounded-lg border border-border bg-muted/40 p-0.5"
+        role="group"
+        aria-label="Use an external domain"
+      >
+        {(['yes', 'no'] as const).map(choice => {
+          const isYes = choice === 'yes'
+          const active = isYes ? enabled : !enabled
+          return (
+            <button
+              key={choice}
+              type="button"
+              onClick={() => {
+                if (isYes) {
+                  if (!enabled) setEnabled(true)
+                  if (!open) toggle()
+                } else if (enabled) {
+                  handleToggleOff()
+                }
+              }}
+              aria-pressed={active}
+              className={cn(
+                'min-w-[3rem] rounded-md px-2.5 py-1 text-xs font-semibold transition-colors sm:min-w-[3.5rem] sm:px-3 sm:py-1.5',
+                active
+                  ? 'bg-primary text-white shadow-sm'
+                  : 'text-muted-foreground hover:bg-muted/60 hover:text-foreground',
+              )}
+            >
+              {isYes ? 'Yes' : 'No'}
+            </button>
+          )
+        })}
+      </div>
+      {enabled && accessStatus !== 'not_requested' && accessStatus !== 'revoked' && (
+        <span className={`hidden rounded-full border px-2 py-0.5 text-[10px] font-medium md:inline ${
+          accessStatus === 'active' ? 'border-green-200 bg-green-50 text-green-700' : 'border-amber-200 bg-amber-50 text-amber-700'
+        }`}>
+          {accessStatus === 'active' ? '● Connected' : '● Awaiting KIT ERP'}
+        </span>
+      )}
+    </div>
+  )
 
   return (
     <SectionWrapper
@@ -2664,13 +2832,14 @@ function ExternalDomainSection({ vendor, open, toggle, onSave }: SectionProps) {
       subtitle={
         enabled
           ? domainScope === 'all'
-            ? 'One domain for all business unit / store fronts'
-            : 'A unique domain per business unit front website'
+            ? 'One website link shared by all shops'
+            : 'A separate website link for each shop'
           : undefined
       }
       helpText="Use your own domain instead of the default KIT ERP link"
       icon={Globe}
       badge={domainBadge}
+      headerAction={domainYesNoControl}
       open={open}
       toggle={toggle}
     >
@@ -2719,37 +2888,13 @@ function ExternalDomainSection({ vendor, open, toggle, onSave }: SectionProps) {
             <div className="px-3 py-2 text-muted-foreground italic">No domain requested yet</div>
           )}
         </div>
-        {/* ── Toggle row ── */}
-        <div className="flex items-center justify-between gap-3">
-          <label className="flex cursor-pointer items-center gap-2.5">
-            <button
-              type="button"
-              role="switch"
-              aria-checked={enabled}
-              onClick={() => { if (!enabled) setEnabled(true); else handleToggleOff() }}
-              className={`relative inline-flex h-5 w-9 shrink-0 rounded-full border-2 border-transparent transition-colors ${
-                !enabled ? 'bg-gray-300' : accessStatus === 'active' ? 'bg-green-500' : 'bg-amber-400'
-              }`}
-            >
-              <span className={`pointer-events-none inline-block h-4 w-4 rounded-full bg-white shadow-sm transform transition-transform ${enabled ? 'translate-x-4' : 'translate-x-0'}`} />
-            </button>
-            <span className="text-sm font-medium text-foreground">Use an external domain</span>
-          </label>
-          {enabled && accessStatus !== 'not_requested' && accessStatus !== 'revoked' && (
-            <span className={`rounded-full border px-2 py-0.5 text-[10px] font-medium ${
-              accessStatus === 'active' ? 'border-green-200 bg-green-50 text-green-700' : 'border-amber-200 bg-amber-50 text-amber-700'
-            }`}>
-              {accessStatus === 'active' ? '● Connected' : '● Awaiting KIT ERP'}
-            </span>
-          )}
-        </div>
 
         {/* ── OFF state ── */}
-        {!enabled && (
+        {!enabled && open && (
           <p className="text-xs text-muted-foreground">
             {(domainName && (accessStatus === 'pending' || accessStatus === 'active'))
-              ? `${domainName} — ${accessStatus === 'active' ? 'was live, now paused.' : 'request pending.'} Toggle ON to manage.`
-              : 'Toggle on to use your own domain. KIT ERP handles DNS — your default link stays active until setup is complete.'}
+              ? `${domainName} — ${accessStatus === 'active' ? 'was live, now paused.' : 'request pending.'} Select Yes to manage.`
+              : 'Select Yes to use your own domain. KIT ERP handles DNS — your default link stays active until setup is complete.'}
           </p>
         )}
 
@@ -2798,32 +2943,41 @@ function ExternalDomainSection({ vendor, open, toggle, onSave }: SectionProps) {
               <Label className="text-xs font-medium text-foreground">Where does this domain apply?</Label>
               <div className="grid grid-cols-2 gap-2">
                 {([
-                  { key: 'all', title: 'One for all', desc: 'Same domain across every business unit / store front' },
-                  { key: 'per_unit', title: 'Per business unit', desc: 'A unique domain for each business unit front website' },
+                  {
+                    key: 'all',
+                    title: 'One for all',
+                    desc: 'Everyone uses the same website link',
+                    hoverDesc:
+                      'One website link works for all your shops. To use this, choose "Single Website for All BUs / Stores" in Customer store websites above.',
+                  },
+                  {
+                    key: 'per_unit',
+                    title: 'Per business unit',
+                    desc: 'Each shop gets its own website link',
+                    hoverDesc:
+                      'Every shop can have a different website link (like delhi-shop.com and mumbai-shop.com). To use this, choose "Unique Website Per BU / Store" in Customer store websites above.',
+                  },
                 ] as const).map(opt => {
                   const active = domainScope === opt.key
+                  const disabled = isDomainScopeOptionDisabled(opt.key)
                   return (
-                    <button
+                    <DisabledOptionCard
                       key={opt.key}
-                      type="button"
+                      active={active}
+                      disabled={disabled}
+                      title={opt.title}
+                      description={opt.desc}
+                      helpText={opt.hoverDesc}
+                      icon={Globe}
                       onClick={() => setDomainScope(opt.key)}
-                      className={`flex flex-col items-start gap-0.5 rounded-lg border p-2.5 text-left transition-colors ${
-                        active ? 'border-primary bg-primary/5 ring-1 ring-primary/30' : 'border-border bg-background hover:bg-muted/40'
-                      }`}
-                    >
-                      <span className="flex items-center gap-1.5 text-xs font-semibold text-foreground">
-                        <Globe className={`h-3.5 w-3.5 ${active ? 'text-primary' : 'text-muted-foreground'}`} />
-                        {opt.title}
-                      </span>
-                      <span className="text-[10px] leading-snug text-muted-foreground">{opt.desc}</span>
-                    </button>
+                    />
                   )
                 })}
               </div>
               {domainScope === 'per_unit' && (
                 <p className="flex items-start gap-1 text-[10px] leading-snug text-muted-foreground">
                   <Info className="mt-0.5 h-3 w-3 shrink-0" />
-                  Add the domain for this business unit below. Repeat from each business unit's settings to map a unique domain to each front website.
+                  Add this shop&apos;s website link below. For your other shops, open each shop&apos;s settings and add their link there too.
                 </p>
               )}
             </div>
@@ -2861,7 +3015,9 @@ function ExternalDomainSection({ vendor, open, toggle, onSave }: SectionProps) {
             {/* Domain + Registrar row */}
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <div className="space-y-1">
-                <Label className="text-xs font-medium">Domain name <span className="text-red-500">*</span></Label>
+                <Label className="text-xs font-medium" required>
+                  Domain name
+                </Label>
                 <Input
                   value={domainName}
                   onChange={e => setDomainName(e.target.value)}
@@ -2869,8 +3025,8 @@ function ExternalDomainSection({ vendor, open, toggle, onSave }: SectionProps) {
                 />
               </div>
               <div className="space-y-1">
-                <Label className="text-xs font-medium">
-                  Registrar {dnsMode === 'kit_assisted' && <span className="text-red-500">*</span>}
+                <Label className="text-xs font-medium" required={dnsMode === 'kit_assisted'}>
+                  Registrar
                 </Label>
                 <select
                   value={registrar}
@@ -2888,14 +3044,15 @@ function ExternalDomainSection({ vendor, open, toggle, onSave }: SectionProps) {
               <>
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                   <div className="space-y-1">
-                    <Label className="text-xs font-medium">Registrar login email <span className="text-red-500">*</span></Label>
+                    <Label className="text-xs font-medium" required>
+                      Registrar login email
+                    </Label>
                     <Input
                       type="email"
                       value={regEmail}
                       onChange={e => setRegEmail(e.target.value)}
                       placeholder="your-email@example.com"
                     />
-                    <p className="text-[10px] text-muted-foreground">Email used to log into your registrar account.</p>
                   </div>
                   <div className="space-y-1">
                     <Label className="text-xs font-medium">Account holder name</Label>
@@ -2919,7 +3076,6 @@ function ExternalDomainSection({ vendor, open, toggle, onSave }: SectionProps) {
                       onChange={e => setRecoveryContact(e.target.value)}
                       placeholder="Phone or backup email"
                     />
-                    <p className="text-[10px] text-muted-foreground">Used if registrar requires 2FA verification.</p>
                   </div>
                 </div>
 

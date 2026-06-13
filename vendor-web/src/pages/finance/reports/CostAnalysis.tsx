@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Label } from '@/components/ui/label'
 import { useCostAnalysis } from '@/hooks/useFinance'
 
 function fmt(n: number) {
@@ -20,11 +21,11 @@ export default function CostAnalysis() {
 
       <div className="flex gap-3 items-end">
         <div>
-          <label className="block text-xs font-medium text-gray-600 mb-1">From</label>
+          <Label className="block text-xs font-medium text-gray-600 mb-1">From</Label>
           <input type="date" value={from} onChange={e => setFrom(e.target.value)} className="border border-gray-300 rounded-lg px-3 py-2 text-sm" />
         </div>
         <div>
-          <label className="block text-xs font-medium text-gray-600 mb-1">To</label>
+          <Label className="block text-xs font-medium text-gray-600 mb-1">To</Label>
           <input type="date" value={to} onChange={e => setTo(e.target.value)} className="border border-gray-300 rounded-lg px-3 py-2 text-sm" />
         </div>
         <button onClick={() => setApplied({ from_date: from, to_date: to })} className="px-4 py-2 bg-primary text-white rounded-lg text-sm hover:bg-primary/90">Apply</button>

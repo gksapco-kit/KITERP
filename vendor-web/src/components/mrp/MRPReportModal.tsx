@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { TableColumnLabel } from '@/components/common/FieldLabel'
 import { useEscapeToClose } from '@/hooks/useEscapeToClose'
 import { createPortal } from 'react-dom'
 import {
@@ -286,13 +287,13 @@ export function MRPReportModal({
                       className="rounded border-gray-300"
                     />
                   </th>
-                  <th className="px-4 py-3 text-left font-semibold">Material</th>
-                  <th className="px-4 py-3 text-right font-semibold">Required</th>
-                  <th className="px-4 py-3 text-right font-semibold">In Stock</th>
-                  <th className="px-4 py-3 text-right font-semibold">Reserved (Others)</th>
-                  <th className="px-4 py-3 text-right font-semibold">This Order</th>
-                  <th className="px-4 py-3 text-right font-semibold">Available</th>
-                  <th className="px-4 py-3 text-center font-semibold">Status</th>
+                  <th className="px-4 py-3 text-left font-semibold"><TableColumnLabel>Material</TableColumnLabel></th>
+                  <th className="px-4 py-3 text-right font-semibold"><TableColumnLabel>Required</TableColumnLabel></th>
+                  <th className="px-4 py-3 text-right font-semibold"><TableColumnLabel>In Stock</TableColumnLabel></th>
+                  <th className="px-4 py-3 text-right font-semibold"><TableColumnLabel>Reserved (Others)</TableColumnLabel></th>
+                  <th className="px-4 py-3 text-right font-semibold"><TableColumnLabel>This Order</TableColumnLabel></th>
+                  <th className="px-4 py-3 text-right font-semibold"><TableColumnLabel>Available</TableColumnLabel></th>
+                  <th className="px-4 py-3 text-center font-semibold"><TableColumnLabel>Status</TableColumnLabel></th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">

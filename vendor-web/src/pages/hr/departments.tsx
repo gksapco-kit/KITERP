@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { TableColumnLabel } from '@/components/common/FieldLabel'
 import { Plus, Pencil, Trash2, Building2, ChevronRight } from 'lucide-react'
 import { useHRDepartments, useDeleteHRDepartment } from '@/hooks/useVendor'
 import { DeptModal } from '@/components/hr/DeptModal'
@@ -85,9 +86,9 @@ export default function DepartmentsPage() {
           <table className="w-full">
             <thead className="bg-gray-50 border-b">
               <tr>
-                <th className="text-left py-3 px-4 text-xs font-medium text-gray-500 uppercase tracking-wide">Name</th>
-                <th className="text-left py-3 px-4 text-xs font-medium text-gray-500 uppercase tracking-wide">Description</th>
-                <th className="text-left py-3 px-4 text-xs font-medium text-gray-500 uppercase tracking-wide">Status</th>
+                <th className="text-left py-3 px-4 text-xs font-medium text-gray-500 uppercase tracking-wide"><TableColumnLabel>Name</TableColumnLabel></th>
+                <th className="text-left py-3 px-4 text-xs font-medium text-gray-500 uppercase tracking-wide"><TableColumnLabel>Description</TableColumnLabel></th>
+                <th className="text-left py-3 px-4 text-xs font-medium text-gray-500 uppercase tracking-wide"><TableColumnLabel>Status</TableColumnLabel></th>
                 <th className="py-3 px-4" />
               </tr>
             </thead>

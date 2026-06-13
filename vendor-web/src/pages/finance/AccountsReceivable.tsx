@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Label } from '@/components/ui/label'
 import { useArAging, useApplyPayment } from '@/hooks/useFinance'
 import { AlertCircle } from 'lucide-react'
 
@@ -107,7 +108,7 @@ export default function AccountsReceivable() {
             { label: 'Amount Applied', key: 'amount_applied', type: 'number' },
           ].map(({ label, key, type }) => (
             <div key={key}>
-              <label className="block text-xs font-medium text-gray-600 mb-1">{label}</label>
+              <Label className="block text-xs font-medium text-gray-600 mb-1">{label}</Label>
               <input type={type || 'text'} value={(payForm as any)[key]}
                 onChange={e => setPayForm(f => ({ ...f, [key]: e.target.value }))}
                 className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" />

@@ -1,4 +1,5 @@
 import { useState, useCallback, useEffect, useMemo, useRef } from 'react'
+import { TableColumnLabel } from '@/components/common/FieldLabel'
 import { useEscapeToClose } from '@/hooks/useEscapeToClose'
 import { useVendorStore } from '@/stores/vendorStore'
 import { ResizableTable } from '@/components/table/ResizableTable'
@@ -189,12 +190,12 @@ export default function Inventory() {
                 <table className="w-full text-sm">
                   <thead className="bg-indigo-100/50">
                     <tr>
-                      <th className="text-left px-4 py-2 font-medium text-gray-600">Product</th>
-                      <th className="text-left px-4 py-2 font-medium text-gray-600">SKU</th>
-                      <th className="text-left px-4 py-2 font-medium text-gray-600">Location</th>
-                      <th className="text-right px-4 py-2 font-medium text-gray-600">Qty</th>
-                      <th className="text-right px-4 py-2 font-medium text-gray-600">Min Stock</th>
-                      <th className="text-right px-4 py-2 font-medium text-gray-600">Status</th>
+                      <th className="text-left px-4 py-2 font-medium text-gray-600"><TableColumnLabel>Product</TableColumnLabel></th>
+                      <th className="text-left px-4 py-2 font-medium text-gray-600"><TableColumnLabel>SKU</TableColumnLabel></th>
+                      <th className="text-left px-4 py-2 font-medium text-gray-600"><TableColumnLabel>Location</TableColumnLabel></th>
+                      <th className="text-right px-4 py-2 font-medium text-gray-600"><TableColumnLabel>Qty</TableColumnLabel></th>
+                      <th className="text-right px-4 py-2 font-medium text-gray-600"><TableColumnLabel>Min Stock</TableColumnLabel></th>
+                      <th className="text-right px-4 py-2 font-medium text-gray-600"><TableColumnLabel>Status</TableColumnLabel></th>
                     </tr>
                   </thead>
                   <tbody className="divide-y bg-white">
@@ -406,10 +407,10 @@ function SummaryTab({ data, loading, stores, selectedStoreId, onAction, onViewHi
         <ResizableTable tableId="inventory-stock" defaultWidths={[240, 110, 110, 110, 110, ...stores.map(() => 90), 90, 80]}>
           <thead>
             <tr className="border-b bg-gray-50">
-              <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">Product / Variant</th>
-              <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">SKU</th>
-              <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">Barcode</th>
-              <th className="text-right px-6 py-3 text-xs font-medium text-gray-500 uppercase">Cost Price</th>
+              <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase"><TableColumnLabel>Product / Variant</TableColumnLabel></th>
+              <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase"><TableColumnLabel>SKU</TableColumnLabel></th>
+              <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase"><TableColumnLabel>Barcode</TableColumnLabel></th>
+              <th className="text-right px-6 py-3 text-xs font-medium text-gray-500 uppercase"><TableColumnLabel>Cost Price</TableColumnLabel></th>
               <th className="text-right px-6 py-3 text-xs font-medium text-gray-500 uppercase">
                 {selectedStoreId !== 'all' ? (stores.find(s => s.id === selectedStoreId)?.name ?? 'Store') + ' Stock' : 'Total Stock'}
               </th>
@@ -418,8 +419,8 @@ function SummaryTab({ data, loading, stores, selectedStoreId, onAction, onViewHi
                   {s.code || s.name}
                 </th>
               ))}
-              <th className="text-center px-6 py-3 text-xs font-medium text-gray-500 uppercase">Status</th>
-              <th className="text-right px-6 py-3 text-xs font-medium text-gray-500 uppercase">Actions</th>
+              <th className="text-center px-6 py-3 text-xs font-medium text-gray-500 uppercase"><TableColumnLabel>Status</TableColumnLabel></th>
+              <th className="text-right px-6 py-3 text-xs font-medium text-gray-500 uppercase"><TableColumnLabel>Actions</TableColumnLabel></th>
             </tr>
           </thead>
           <tbody className="divide-y">
@@ -602,13 +603,13 @@ function HistoryTab({ data, loading, page, setPage, productFilter, onClearFilter
           <ResizableTable tableId="inventory-movements" defaultWidths={[110, 80, 80, 80, 140, 180, 120]}>
             <thead>
               <tr className="border-b bg-gray-50">
-                <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">Type</th>
-                <th className="text-right px-6 py-3 text-xs font-medium text-gray-500 uppercase">Qty</th>
-                <th className="text-right px-6 py-3 text-xs font-medium text-gray-500 uppercase">Before</th>
-                <th className="text-right px-6 py-3 text-xs font-medium text-gray-500 uppercase">After</th>
-                <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">Location</th>
-                <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">Reason</th>
-                <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">Date</th>
+                <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase"><TableColumnLabel>Type</TableColumnLabel></th>
+                <th className="text-right px-6 py-3 text-xs font-medium text-gray-500 uppercase"><TableColumnLabel>Qty</TableColumnLabel></th>
+                <th className="text-right px-6 py-3 text-xs font-medium text-gray-500 uppercase"><TableColumnLabel>Before</TableColumnLabel></th>
+                <th className="text-right px-6 py-3 text-xs font-medium text-gray-500 uppercase"><TableColumnLabel>After</TableColumnLabel></th>
+                <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase"><TableColumnLabel>Location</TableColumnLabel></th>
+                <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase"><TableColumnLabel>Reason</TableColumnLabel></th>
+                <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase"><TableColumnLabel>Date</TableColumnLabel></th>
               </tr>
             </thead>
             <tbody className="divide-y">
@@ -722,12 +723,12 @@ function LowStockTab({ data, loading, onAction, onViewHistory }: {
         <ResizableTable tableId="inventory-lowstock" defaultWidths={[240, 120, 90, 90, 90, 80]}>
           <thead>
             <tr className="border-b bg-amber-50/50">
-              <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">Product</th>
-              <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">SKU</th>
-              <th className="text-right px-6 py-3 text-xs font-medium text-gray-500 uppercase">Current</th>
-              <th className="text-right px-6 py-3 text-xs font-medium text-gray-500 uppercase">Threshold</th>
-              <th className="text-right px-6 py-3 text-xs font-medium text-gray-500 uppercase">Shortage</th>
-              <th className="text-right px-6 py-3 text-xs font-medium text-gray-500 uppercase">Actions</th>
+              <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase"><TableColumnLabel>Product</TableColumnLabel></th>
+              <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase"><TableColumnLabel>SKU</TableColumnLabel></th>
+              <th className="text-right px-6 py-3 text-xs font-medium text-gray-500 uppercase"><TableColumnLabel>Current</TableColumnLabel></th>
+              <th className="text-right px-6 py-3 text-xs font-medium text-gray-500 uppercase"><TableColumnLabel>Threshold</TableColumnLabel></th>
+              <th className="text-right px-6 py-3 text-xs font-medium text-gray-500 uppercase"><TableColumnLabel>Shortage</TableColumnLabel></th>
+              <th className="text-right px-6 py-3 text-xs font-medium text-gray-500 uppercase"><TableColumnLabel>Actions</TableColumnLabel></th>
             </tr>
           </thead>
           <tbody className="divide-y">
@@ -1398,13 +1399,13 @@ function BulkUploadModal({
                 <table className="w-full text-sm">
                   <thead className="bg-gray-50 sticky top-0">
                     <tr>
-                      <th className="text-left px-3 py-2 text-xs font-medium text-gray-500">#</th>
-                      <th className="text-left px-3 py-2 text-xs font-medium text-gray-500">Product</th>
-                      <th className="text-left px-3 py-2 text-xs font-medium text-gray-500">SKU</th>
-                      <th className="text-right px-3 py-2 text-xs font-medium text-gray-500">Qty</th>
-                      <th className="text-left px-3 py-2 text-xs font-medium text-gray-500">Type</th>
-                      <th className="text-left px-3 py-2 text-xs font-medium text-gray-500">Reason</th>
-                      <th className="text-center px-3 py-2 text-xs font-medium text-gray-500">Match</th>
+                      <th className="text-left px-3 py-2 text-xs font-medium text-gray-500"><TableColumnLabel>#</TableColumnLabel></th>
+                      <th className="text-left px-3 py-2 text-xs font-medium text-gray-500"><TableColumnLabel>Product</TableColumnLabel></th>
+                      <th className="text-left px-3 py-2 text-xs font-medium text-gray-500"><TableColumnLabel>SKU</TableColumnLabel></th>
+                      <th className="text-right px-3 py-2 text-xs font-medium text-gray-500"><TableColumnLabel>Qty</TableColumnLabel></th>
+                      <th className="text-left px-3 py-2 text-xs font-medium text-gray-500"><TableColumnLabel>Type</TableColumnLabel></th>
+                      <th className="text-left px-3 py-2 text-xs font-medium text-gray-500"><TableColumnLabel>Reason</TableColumnLabel></th>
+                      <th className="text-center px-3 py-2 text-xs font-medium text-gray-500"><TableColumnLabel>Match</TableColumnLabel></th>
                     </tr>
                   </thead>
                   <tbody className="divide-y">
@@ -1453,10 +1454,10 @@ function BulkUploadModal({
                 <table className="w-full text-sm">
                   <thead className="bg-gray-50 sticky top-0">
                     <tr>
-                      <th className="text-left px-3 py-2 text-xs font-medium text-gray-500">Row</th>
-                      <th className="text-left px-3 py-2 text-xs font-medium text-gray-500">Product</th>
-                      <th className="text-center px-3 py-2 text-xs font-medium text-gray-500">Status</th>
-                      <th className="text-left px-3 py-2 text-xs font-medium text-gray-500">Details</th>
+                      <th className="text-left px-3 py-2 text-xs font-medium text-gray-500"><TableColumnLabel>Row</TableColumnLabel></th>
+                      <th className="text-left px-3 py-2 text-xs font-medium text-gray-500"><TableColumnLabel>Product</TableColumnLabel></th>
+                      <th className="text-center px-3 py-2 text-xs font-medium text-gray-500"><TableColumnLabel>Status</TableColumnLabel></th>
+                      <th className="text-left px-3 py-2 text-xs font-medium text-gray-500"><TableColumnLabel>Details</TableColumnLabel></th>
                     </tr>
                   </thead>
                   <tbody className="divide-y">

@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Label } from '@/components/ui/label'
 import { useEscapeToClose } from '@/hooks/useEscapeToClose'
 import { useLoans, useCreateLoan, useGenerateLoanSchedule, useInvestments, useCreateInvestment, useInvestmentROI } from '@/hooks/useFinance'
 import { Plus, BarChart3, X } from 'lucide-react'
@@ -144,14 +145,14 @@ export default function Capital() {
               { label: 'Disbursement Date', key: 'disbursement_date', type: 'date' },
             ].map(({ label, key, type }) => (
               <div key={key}>
-                <label className="block text-xs font-medium text-gray-600 mb-1">{label}</label>
+                <Label className="block text-xs font-medium text-gray-600 mb-1">{label}</Label>
                 <input type={type || 'text'} value={(loanForm as any)[key]}
                   onChange={e => setLoanForm(f => ({ ...f, [key]: e.target.value }))}
                   className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" />
               </div>
             ))}
             <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">Loan Type</label>
+              <Label className="block text-xs font-medium text-gray-600 mb-1">Loan Type</Label>
               <select value={loanForm.loan_type} onChange={e => setLoanForm(f => ({ ...f, loan_type: e.target.value }))}
                 className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
                 {['term', 'overdraft', 'revolving', 'equipment'].map(t => <option key={t}>{t}</option>)}
@@ -193,14 +194,14 @@ export default function Capital() {
               { label: 'Investment Date', key: 'investment_date', type: 'date' },
             ].map(({ label, key, type }) => (
               <div key={key}>
-                <label className="block text-xs font-medium text-gray-600 mb-1">{label}</label>
+                <Label className="block text-xs font-medium text-gray-600 mb-1">{label}</Label>
                 <input type={type || 'text'} value={(invForm as any)[key]}
                   onChange={e => setInvForm(f => ({ ...f, [key]: e.target.value }))}
                   className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" />
               </div>
             ))}
             <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">Type</label>
+              <Label className="block text-xs font-medium text-gray-600 mb-1">Type</Label>
               <select value={invForm.investment_type} onChange={e => setInvForm(f => ({ ...f, investment_type: e.target.value }))}
                 className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
                 {['equity', 'debt', 'mutual_fund', 'real_estate', 'other'].map(t => <option key={t}>{t}</option>)}

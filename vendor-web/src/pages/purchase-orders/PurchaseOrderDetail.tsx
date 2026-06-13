@@ -1,4 +1,5 @@
 import { useState, useCallback, useMemo, useEffect } from 'react'
+import { TableColumnLabel } from '@/components/common/FieldLabel'
 import { useEscapeToClose } from '@/hooks/useEscapeToClose'
 import { ResizableTable } from '@/components/table/ResizableTable'
 import { useParams, useNavigate } from 'react-router-dom'
@@ -460,14 +461,14 @@ export default function PurchaseOrderDetail() {
           <ResizableTable tableId="po-lines" defaultWidths={[220, 130, 110, 80, 80, 80, 90, 90, isDraft ? 60 : 0]}>
             <thead>
               <tr className="border-b bg-gray-50">
-                <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">Product</th>
-                <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">Variant</th>
-                <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">Barcode / SKU</th>
-                <th className="text-right px-6 py-3 text-xs font-medium text-gray-500 uppercase">Ordered</th>
-                <th className="text-right px-6 py-3 text-xs font-medium text-gray-500 uppercase">Received</th>
-                <th className="text-right px-6 py-3 text-xs font-medium text-gray-500 uppercase">Remaining</th>
-                <th className="text-right px-6 py-3 text-xs font-medium text-gray-500 uppercase">Unit Cost</th>
-                <th className="text-right px-6 py-3 text-xs font-medium text-gray-500 uppercase">Total</th>
+                <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase"><TableColumnLabel>Product</TableColumnLabel></th>
+                <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase"><TableColumnLabel>Variant</TableColumnLabel></th>
+                <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase"><TableColumnLabel>Barcode / SKU</TableColumnLabel></th>
+                <th className="text-right px-6 py-3 text-xs font-medium text-gray-500 uppercase"><TableColumnLabel>Ordered</TableColumnLabel></th>
+                <th className="text-right px-6 py-3 text-xs font-medium text-gray-500 uppercase"><TableColumnLabel>Received</TableColumnLabel></th>
+                <th className="text-right px-6 py-3 text-xs font-medium text-gray-500 uppercase"><TableColumnLabel>Remaining</TableColumnLabel></th>
+                <th className="text-right px-6 py-3 text-xs font-medium text-gray-500 uppercase"><TableColumnLabel>Unit Cost</TableColumnLabel></th>
+                <th className="text-right px-6 py-3 text-xs font-medium text-gray-500 uppercase"><TableColumnLabel>Total</TableColumnLabel></th>
                 {isDraft && <th className="px-3 py-3" />}
               </tr>
             </thead>
@@ -589,9 +590,9 @@ export default function PurchaseOrderDetail() {
             <ResizableTable tableId="po-receipts" defaultWidths={[150, 300, 200]}>
               <thead>
                 <tr className="border-b bg-gray-50">
-                  <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">Date</th>
-                  <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">Items Received</th>
-                  <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">Notes</th>
+                  <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase"><TableColumnLabel>Date</TableColumnLabel></th>
+                  <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase"><TableColumnLabel>Items Received</TableColumnLabel></th>
+                  <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase"><TableColumnLabel>Notes</TableColumnLabel></th>
                 </tr>
               </thead>
               <tbody className="divide-y">

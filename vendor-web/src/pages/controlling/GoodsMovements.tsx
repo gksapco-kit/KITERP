@@ -1,4 +1,6 @@
 import { useState, useMemo } from 'react'
+import { TableColumnLabel } from '@/components/common/FieldLabel'
+import { Label } from '@/components/ui/label'
 import { useEscapeToClose } from '@/hooks/useEscapeToClose'
 import { Link } from 'react-router-dom'
 import { ArrowLeft, Plus, RotateCcw, Package, ArrowDownToLine, ArrowUpFromLine, X } from 'lucide-react'
@@ -191,14 +193,14 @@ export default function GoodsMovementsPage() {
         <table className="w-full text-sm">
           <thead className="bg-gray-50 text-left">
             <tr>
-              <th className="px-4 py-3 font-medium text-gray-600">Doc No</th>
-              <th className="px-4 py-3 font-medium text-gray-600">Type</th>
-              <th className="px-4 py-3 font-medium text-gray-600">Date</th>
-              <th className="px-4 py-3 font-medium text-gray-600">Description</th>
-              <th className="px-4 py-3 font-medium text-gray-600 text-right">Qty</th>
-              <th className="px-4 py-3 font-medium text-gray-600 text-right">Unit Cost</th>
-              <th className="px-4 py-3 font-medium text-gray-600 text-right">Total</th>
-              <th className="px-4 py-3 font-medium text-gray-600">Status</th>
+              <th className="px-4 py-3 font-medium text-gray-600"><TableColumnLabel>Doc No</TableColumnLabel></th>
+              <th className="px-4 py-3 font-medium text-gray-600"><TableColumnLabel>Type</TableColumnLabel></th>
+              <th className="px-4 py-3 font-medium text-gray-600"><TableColumnLabel>Date</TableColumnLabel></th>
+              <th className="px-4 py-3 font-medium text-gray-600"><TableColumnLabel>Description</TableColumnLabel></th>
+              <th className="px-4 py-3 font-medium text-gray-600 text-right"><TableColumnLabel>Qty</TableColumnLabel></th>
+              <th className="px-4 py-3 font-medium text-gray-600 text-right"><TableColumnLabel>Unit Cost</TableColumnLabel></th>
+              <th className="px-4 py-3 font-medium text-gray-600 text-right"><TableColumnLabel>Total</TableColumnLabel></th>
+              <th className="px-4 py-3 font-medium text-gray-600"><TableColumnLabel>Status</TableColumnLabel></th>
               <th className="px-4 py-3" />
             </tr>
           </thead>
@@ -262,7 +264,7 @@ export default function GoodsMovementsPage() {
             </div>
             <form onSubmit={handleCreate} className="p-6 space-y-4">
               <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1">Movement Type *</label>
+                <Label className="block text-xs font-medium text-gray-600 mb-1" required>Movement Type</Label>
                 <select
                   value={form.movement_type}
                   onChange={e => setForm(f => ({ ...f, movement_type: e.target.value }))}
@@ -273,7 +275,7 @@ export default function GoodsMovementsPage() {
                 </select>
               </div>
               <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1">CO Order *</label>
+                <Label className="block text-xs font-medium text-gray-600 mb-1" required>CO Order</Label>
                 <select
                   value={form.order_id}
                   onChange={e => setForm(f => ({ ...f, order_id: e.target.value }))}
@@ -288,19 +290,19 @@ export default function GoodsMovementsPage() {
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-medium text-gray-600 mb-1">Posting Date *</label>
+                  <Label className="block text-xs font-medium text-gray-600 mb-1" required>Posting Date</Label>
                   <input type="date" value={form.posting_date}
                     onChange={e => setForm(f => ({ ...f, posting_date: e.target.value }))}
                     className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm" required />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-gray-600 mb-1">UoM</label>
+                  <Label className="block text-xs font-medium text-gray-600 mb-1">UoM</Label>
                   <input value={form.uom} onChange={e => setForm(f => ({ ...f, uom: e.target.value }))}
                     className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm" />
                 </div>
               </div>
               <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1">Description</label>
+                <Label className="block text-xs font-medium text-gray-600 mb-1">Description</Label>
                 <input value={form.description}
                   onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
                   className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm"
@@ -308,13 +310,13 @@ export default function GoodsMovementsPage() {
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-medium text-gray-600 mb-1">Quantity *</label>
+                  <Label className="block text-xs font-medium text-gray-600 mb-1" required>Quantity</Label>
                   <input type="number" step="0.0001" value={form.qty}
                     onChange={e => setForm(f => ({ ...f, qty: e.target.value }))}
                     className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm" required />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-gray-600 mb-1">Unit Cost</label>
+                  <Label className="block text-xs font-medium text-gray-600 mb-1">Unit Cost</Label>
                   <input type="number" step="0.0001" value={form.unit_cost}
                     onChange={e => setForm(f => ({ ...f, unit_cost: e.target.value }))}
                     className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm" />
@@ -322,13 +324,13 @@ export default function GoodsMovementsPage() {
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-medium text-gray-600 mb-1">Storage Location</label>
+                  <Label className="block text-xs font-medium text-gray-600 mb-1">Storage Location</Label>
                   <input value={form.storage_location}
                     onChange={e => setForm(f => ({ ...f, storage_location: e.target.value }))}
                     className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm" />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-gray-600 mb-1">Batch / Lot No</label>
+                  <Label className="block text-xs font-medium text-gray-600 mb-1">Batch / Lot No</Label>
                   <input value={form.batch_no}
                     onChange={e => setForm(f => ({ ...f, batch_no: e.target.value }))}
                     className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm" />

@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect } from 'react'
+import { TableColumnLabel } from '@/components/common/FieldLabel'
 import { useEscapeToClose } from '@/hooks/useEscapeToClose'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -338,11 +339,11 @@ export default function StorageLocationsPage() {
             <ResizableTable tableId="storage-locations" defaultWidths={[280, 100, 100, 90, 120]}>
               <thead>
                 <tr className="border-b bg-gray-50/80 text-left text-xs font-medium text-gray-500 uppercase tracking-wide">
-                  <th className="px-4 py-3">Location</th>
-                  <th className="px-4 py-3">Code</th>
-                  <th className="px-4 py-3">Fields</th>
-                  <th className="px-4 py-3">Status</th>
-                  <th className="px-4 py-3 text-right">Actions</th>
+                  <th className="px-4 py-3"><TableColumnLabel>Location</TableColumnLabel></th>
+                  <th className="px-4 py-3"><TableColumnLabel>Code</TableColumnLabel></th>
+                  <th className="px-4 py-3"><TableColumnLabel>Fields</TableColumnLabel></th>
+                  <th className="px-4 py-3"><TableColumnLabel>Status</TableColumnLabel></th>
+                  <th className="px-4 py-3 text-right"><TableColumnLabel>Actions</TableColumnLabel></th>
                 </tr>
               </thead>
               <tbody className="divide-y">

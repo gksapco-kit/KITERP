@@ -1,4 +1,5 @@
 import { onModalBackdropClick } from '@/lib/utils'
+import { Label } from '@/components/ui/label'
 import { useState, useMemo } from 'react'
 import { useEscapeToClose } from '@/hooks/useEscapeToClose'
 import { useNavigate } from 'react-router-dom'
@@ -158,23 +159,23 @@ function CreateOfferModal({
           <div className="grid grid-cols-2 gap-3">
             {/* Candidate */}
             <div className="col-span-2">
-              <label className="block text-xs font-medium text-gray-700 mb-1">Candidate Name *</label>
+              <Label className="block text-xs font-medium text-gray-700 mb-1" required>Candidate Name</Label>
               <input required className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
                 value={form.candidate_name} onChange={e => set('candidate_name', e.target.value)} />
             </div>
             <div>
-              <label className="block text-xs font-medium text-gray-700 mb-1">Email</label>
+              <Label className="block text-xs font-medium text-gray-700 mb-1">Email</Label>
               <input type="email" className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
                 value={form.candidate_email} onChange={e => set('candidate_email', e.target.value)} />
             </div>
             <div>
-              <label className="block text-xs font-medium text-gray-700 mb-1">Phone</label>
+              <Label className="block text-xs font-medium text-gray-700 mb-1">Phone</Label>
               <PhoneInput value={form.candidate_phone} onChange={v => set('candidate_phone', v)} defaultCountryIso="IN" />
             </div>
 
             {/* Role + Entity scope */}
             <div>
-              <label className="block text-xs font-medium text-gray-700 mb-1">Designation</label>
+              <Label className="block text-xs font-medium text-gray-700 mb-1">Designation</Label>
               <select className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
                 value={form.designation_id} onChange={e => set('designation_id', e.target.value)}>
                 <option value="">— None —</option>
@@ -182,7 +183,7 @@ function CreateOfferModal({
               </select>
             </div>
             <div>
-              <label className="block text-xs font-medium text-gray-700 mb-1">Department</label>
+              <Label className="block text-xs font-medium text-gray-700 mb-1">Department</Label>
               <select className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
                 value={form.department_id} onChange={e => set('department_id', e.target.value)}>
                 <option value="">— None —</option>
@@ -190,7 +191,7 @@ function CreateOfferModal({
               </select>
             </div>
             <div className="col-span-2">
-              <label className="block text-xs font-medium text-gray-700 mb-1">Store / Branch</label>
+              <Label className="block text-xs font-medium text-gray-700 mb-1">Store / Branch</Label>
               <select className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
                 value={form.store_id} onChange={e => set('store_id', e.target.value)}>
                 <option value="">— None —</option>
@@ -200,29 +201,29 @@ function CreateOfferModal({
 
             {/* Offer details */}
             <div>
-              <label className="block text-xs font-medium text-gray-700 mb-1">CTC (Annual ₹)</label>
+              <Label className="block text-xs font-medium text-gray-700 mb-1">CTC (Annual ₹)</Label>
               <input type="number" min={0} className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
                 value={form.offered_ctc} onChange={e => set('offered_ctc', e.target.value)} />
             </div>
             <div>
-              <label className="block text-xs font-medium text-gray-700 mb-1">Offer Date</label>
+              <Label className="block text-xs font-medium text-gray-700 mb-1">Offer Date</Label>
               <input type="date" className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
                 value={form.offered_date} onChange={e => set('offered_date', e.target.value)} />
             </div>
             <div>
-              <label className="block text-xs font-medium text-gray-700 mb-1">Joining Date</label>
+              <Label className="block text-xs font-medium text-gray-700 mb-1">Joining Date</Label>
               <input type="date" className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
                 value={form.joining_date} onChange={e => set('joining_date', e.target.value)} />
             </div>
             <div>
-              <label className="block text-xs font-medium text-gray-700 mb-1">Offer Expiry</label>
+              <Label className="block text-xs font-medium text-gray-700 mb-1">Offer Expiry</Label>
               <input type="date" className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
                 value={form.expiry_date} onChange={e => set('expiry_date', e.target.value)} />
             </div>
           </div>
 
           <div>
-            <label className="block text-xs font-medium text-gray-700 mb-1">Notes</label>
+            <Label className="block text-xs font-medium text-gray-700 mb-1">Notes</Label>
             <textarea className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none" rows={2}
               value={form.notes} onChange={e => set('notes', e.target.value)} />
           </div>

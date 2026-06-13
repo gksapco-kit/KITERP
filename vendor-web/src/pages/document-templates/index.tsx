@@ -1,4 +1,5 @@
 import { useState, useLayoutEffect, useRef, useCallback, useEffect } from 'react'
+import { TableColumnLabel } from '@/components/common/FieldLabel'
 import { useNavigate } from 'react-router-dom'
 import {
   FileText, Stethoscope, ClipboardList, Wrench, Truck,
@@ -406,7 +407,7 @@ function generateSOPHtml(s: SOPSettings): string {
       <li>ISO 22000:2018 — Food Safety Management</li><li>FSSAI Hygiene &amp; Sanitation Guidelines</li><li>Internal QC Manual v3.0</li>
     </ul></div>` : ''}
   ${s.show_approval_table ? `<div class="section"><div class="section-title">${s.show_references ? '5' : '4'}. Approval &amp; Sign-off</div>
-    <table class="approval-table"><thead><tr><th>Role</th><th>Name</th><th>Signature</th><th>Date</th></tr></thead>
+    <table class="approval-table"><thead><tr><th><TableColumnLabel>Role</TableColumnLabel></th><th><TableColumnLabel>Name</TableColumnLabel></th><th><TableColumnLabel>Signature</TableColumnLabel></th><th><TableColumnLabel>Date</TableColumnLabel></th></tr></thead>
     <tbody>
       <tr><td>Prepared By</td><td>Anita Rao</td><td style="border-bottom:1px solid #374151;min-width:120px"> </td><td>${new Date().toLocaleDateString('en-IN')}</td></tr>
       <tr><td>Reviewed By</td><td>Dept. Manager</td><td style="border-bottom:1px solid #374151;min-width:120px"> </td><td></td></tr>
@@ -450,7 +451,7 @@ function generateWorkOrderHtml(s: WorkOrderSettings): string {
     <div class="info-box"><div class="info-label">Job Description</div><div class="info-val">Annual AC Servicing & Filter Replacement</div></div>
   </div>` : ''}
   ${s.show_assigned_tech ? `<div class="info-box" style="margin-bottom:12px"><div class="info-label">Assigned Technician</div><div style="display:flex;align-items:center;gap:8px;margin-top:3px"><div style="width:28px;height:28px;border-radius:50%;background:${c}22;display:flex;align-items:center;justify-content:center;font-weight:700;color:${c};font-size:12px">SK</div><div><div class="info-val">Suresh Kumar</div><div style="font-size:10px;color:#6b7280">EMP-042 · HVAC Technician</div></div></div></div>` : ''}
-  ${s.show_materials_list ? `<table class="items-table"><thead><tr><th>#</th><th>Material / Part</th><th>Qty</th><th>Unit</th></tr></thead>
+  ${s.show_materials_list ? `<table class="items-table"><thead><tr><th><TableColumnLabel>#</TableColumnLabel></th><th><TableColumnLabel>Material / Part</TableColumnLabel></th><th><TableColumnLabel>Qty</TableColumnLabel></th><th><TableColumnLabel>Unit</TableColumnLabel></th></tr></thead>
     <tbody>
       <tr><td>1</td><td>AC Filter 1.5 Ton Compatible</td><td>2</td><td>Pcs</td></tr>
       <tr><td>2</td><td>Refrigerant R22</td><td>500</td><td>g</td></tr>
@@ -502,7 +503,7 @@ function generateDeliveryHtml(s: DeliverySettings): string {
     <div class="info-box"><div class="info-label">Dispatched From</div><div class="info-val">Main Warehouse, Hyderabad</div><div style="font-size:10px;color:#6b7280;margin-top:2px">Gate 3, Logistics Park, Medchal 501401</div></div>
     <div class="info-box"><div class="info-label">Deliver To</div><div class="info-val">ABC Corp – Mumbai Branch</div><div style="font-size:10px;color:#6b7280;margin-top:2px">12, BKC Complex, Mumbai 400051</div></div>
   </div>
-  <table class="items-table"><thead><tr><th>#</th><th>Item Description</th><th>SKU</th>${s.show_batch_number ? '<th>Batch</th>' : ''}${s.show_weight ? '<th>Weight</th>' : ''}<th>Qty</th></tr></thead>
+  <table class="items-table"><thead><tr><th><TableColumnLabel>#</TableColumnLabel></th><th><TableColumnLabel>Item Description</TableColumnLabel></th><th><TableColumnLabel>SKU</TableColumnLabel></th>${s.show_batch_number ? '<th><TableColumnLabel>Batch</TableColumnLabel></th>' : ''}${s.show_weight ? '<th><TableColumnLabel>Weight</TableColumnLabel></th>' : ''}<th><TableColumnLabel>Qty</TableColumnLabel></th></tr></thead>
     <tbody>
       <tr><td>1</td><td>Office Chair – Ergonomic Pro</td><td>CHR-001</td>${s.show_batch_number ? '<td>B2504</td>' : ''}${s.show_weight ? '<td>8 kg</td>' : ''}<td>10 Pcs</td></tr>
       <tr><td>2</td><td>Standing Desk 120cm</td><td>DSK-204</td>${s.show_batch_number ? '<td>B2504</td>' : ''}${s.show_weight ? '<td>22 kg</td>' : ''}<td>5 Pcs</td></tr>
@@ -549,7 +550,7 @@ function generateQuotationHtml(s: QuotationSettings): string {
     <div class="info-box"><div class="info-label">Quoted To</div><div class="info-val">Sharma Enterprises</div><div style="font-size:10px;color:#6b7280;margin-top:2px">+91 98765 00011 · sharma@ent.com</div></div>
     <div class="info-box"><div class="info-label">Subject</div><div class="info-val">Office Furniture Supply</div><div style="font-size:10px;color:#6b7280;margin-top:2px">As per discussion on ${new Date().toLocaleDateString('en-IN')}</div></div>
   </div>
-  <table class="items-table" style="margin-bottom:12px"><thead><tr><th>#</th><th>Description</th><th>Qty</th><th style="text-align:right">Unit Price</th>${s.show_discount ? '<th style="text-align:right">Disc.</th>' : ''}<th style="text-align:right">Amount</th></tr></thead>
+  <table class="items-table" style="margin-bottom:12px"><thead><tr><th><TableColumnLabel>#</TableColumnLabel></th><th><TableColumnLabel>Description</TableColumnLabel></th><th><TableColumnLabel>Qty</TableColumnLabel></th><th style="text-align:right"><TableColumnLabel>Unit Price</TableColumnLabel></th>${s.show_discount ? '<th style="text-align:right"><TableColumnLabel>Disc.</TableColumnLabel></th>' : ''}<th style="text-align:right"><TableColumnLabel>Amount</TableColumnLabel></th></tr></thead>
     <tbody>
       <tr><td>1</td><td>Ergonomic Office Chair</td><td>10</td><td style="text-align:right">₹4,500</td>${s.show_discount ? '<td style="text-align:right">5%</td>' : ''}<td style="text-align:right">₹42,750</td></tr>
       <tr><td>2</td><td>Height-adjustable Desk</td><td>5</td><td style="text-align:right">₹12,000</td>${s.show_discount ? '<td style="text-align:right">—</td>' : ''}<td style="text-align:right">₹60,000</td></tr>
@@ -603,7 +604,7 @@ function generateQualityHtml(s: QualitySettings): string {
     <div><span style="color:#9ca3af">Inspector:</span> <span style="font-weight:600">Sunita Verma</span></div>
     <div><span style="color:#9ca3af">Shift:</span> <span style="font-weight:600">Morning (06:00–14:00)</span></div>
   </div>` : ''}
-  ${s.show_test_parameters ? `<table class="check-table"><thead><tr><th>#</th><th>Parameter</th><th>Specification</th><th>Observed</th>${s.show_pass_fail ? '<th>Result</th>' : ''}${s.show_remarks ? '<th>Remarks</th>' : ''}</tr></thead>
+  ${s.show_test_parameters ? `<table class="check-table"><thead><tr><th><TableColumnLabel>#</TableColumnLabel></th><th><TableColumnLabel>Parameter</TableColumnLabel></th><th><TableColumnLabel>Specification</TableColumnLabel></th><th><TableColumnLabel>Observed</TableColumnLabel></th>${s.show_pass_fail ? '<th><TableColumnLabel>Result</TableColumnLabel></th>' : ''}${s.show_remarks ? '<th><TableColumnLabel>Remarks</TableColumnLabel></th>' : ''}</tr></thead>
     <tbody>
       <tr><td>1</td><td>pH Level</td><td>5.5 – 6.5</td><td>6.0</td>${s.show_pass_fail ? '<td><span class="badge-pass">PASS</span></td>' : ''}${s.show_remarks ? '<td>Within range</td>' : ''}</tr>
       <tr><td>2</td><td>Viscosity</td><td>8000–12000 cPs</td><td>9500 cPs</td>${s.show_pass_fail ? '<td><span class="badge-pass">PASS</span></td>' : ''}${s.show_remarks ? '<td>Acceptable</td>' : ''}</tr>

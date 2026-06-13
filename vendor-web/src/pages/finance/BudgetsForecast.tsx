@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Label } from '@/components/ui/label'
 import { useEscapeToClose } from '@/hooks/useEscapeToClose'
 import { useBudgets, useCreateBudget, useBudgetVariance, useForecasts, useCreateForecast } from '@/hooks/useFinance'
 import { Plus, BarChart3, X } from 'lucide-react'
@@ -154,13 +155,13 @@ export default function BudgetsForecast() {
               { label: 'Notes', key: 'notes' },
             ].map(({ label, key }) => (
               <div key={key}>
-                <label className="block text-xs font-medium text-gray-600 mb-1">{label}</label>
+                <Label className="block text-xs font-medium text-gray-600 mb-1">{label}</Label>
                 <input value={(budgetForm as any)[key]} onChange={e => setBudgetForm(f => ({ ...f, [key]: e.target.value }))}
                   className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" />
               </div>
             ))}
             <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">Scope</label>
+              <Label className="block text-xs font-medium text-gray-600 mb-1">Scope</Label>
               <select value={budgetForm.scope} onChange={e => setBudgetForm(f => ({ ...f, scope: e.target.value }))}
                 className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
                 {['company', 'store', 'department'].map(s => <option key={s}>{s}</option>)}

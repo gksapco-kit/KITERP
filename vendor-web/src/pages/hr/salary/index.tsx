@@ -1,4 +1,5 @@
 import { onModalBackdropClick } from '@/lib/utils'
+import { Label } from '@/components/ui/label'
 import { useState } from 'react'
 import { useEscapeToClose } from '@/hooks/useEscapeToClose'
 import { DollarSign, Plus, ChevronDown, ChevronUp, X } from 'lucide-react'
@@ -46,14 +47,14 @@ function SalaryModal({
         <form onSubmit={handleSubmit} className="space-y-5">
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs font-medium text-gray-700 mb-1">Employee *</label>
+              <Label className="block text-xs font-medium text-gray-700 mb-1" required>Employee</Label>
               <select required className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none" value={empId} onChange={e => setEmpId(e.target.value)}>
                 <option value="">— Select —</option>
                 {employees.map(e => <option key={e.id} value={e.id}>{e.vendor_user?.user?.full_name ?? e.employee_code}</option>)}
               </select>
             </div>
             <div>
-              <label className="block text-xs font-medium text-gray-700 mb-1">Effective From *</label>
+              <Label className="block text-xs font-medium text-gray-700 mb-1" required>Effective From</Label>
               <input type="date" required className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none" value={effectiveFrom} onChange={e => setEffectiveFrom(e.target.value)} />
             </div>
           </div>

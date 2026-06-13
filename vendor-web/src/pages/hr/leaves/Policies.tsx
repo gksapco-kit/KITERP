@@ -1,4 +1,5 @@
 import { onModalBackdropClick } from '@/lib/utils'
+import { Label } from '@/components/ui/label'
 import { useState } from 'react'
 import { useEscapeToClose } from '@/hooks/useEscapeToClose'
 import { Plus, Pencil, Shield, X } from 'lucide-react'
@@ -44,21 +45,21 @@ function PolicyModal({
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs font-medium text-gray-700 mb-1">Name *</label>
+              <Label className="block text-xs font-medium text-gray-700 mb-1" required>Name</Label>
               <input required className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none" value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder="e.g. Casual Leave" />
             </div>
             <div>
-              <label className="block text-xs font-medium text-gray-700 mb-1">Code *</label>
+              <Label className="block text-xs font-medium text-gray-700 mb-1" required>Code</Label>
               <input required className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none" value={form.code} onChange={e => setForm(f => ({ ...f, code: e.target.value }))} placeholder="e.g. CL" />
             </div>
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs font-medium text-gray-700 mb-1">Days/Year</label>
+              <Label className="block text-xs font-medium text-gray-700 mb-1">Days/Year</Label>
               <input type="number" min={0} step={0.5} className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none" value={form.days_per_year} onChange={e => setForm(f => ({ ...f, days_per_year: parseFloat(e.target.value) || 0 }))} />
             </div>
             <div>
-              <label className="block text-xs font-medium text-gray-700 mb-1">Max Carry Forward</label>
+              <Label className="block text-xs font-medium text-gray-700 mb-1">Max Carry Forward</Label>
               <input type="number" min={0} step={0.5} className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none" value={form.max_carry_forward_days} onChange={e => setForm(f => ({ ...f, max_carry_forward_days: parseFloat(e.target.value) || 0 }))} />
             </div>
           </div>

@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { TableColumnLabel } from '@/components/common/FieldLabel'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Calendar, Loader2, Package, Plus } from 'lucide-react'
 import apiClient from '@/api/client'
@@ -108,10 +109,10 @@ export default function RentalHubPage() {
             <table className="w-full text-sm">
               <thead className="bg-gray-50 text-left text-xs uppercase text-gray-500">
                 <tr>
-                  <th className="px-4 py-3">Customer</th>
-                  <th className="px-4 py-3">Dates</th>
-                  <th className="px-4 py-3 text-right">Total</th>
-                  <th className="px-4 py-3">Status</th>
+                  <th className="px-4 py-3"><TableColumnLabel>Customer</TableColumnLabel></th>
+                  <th className="px-4 py-3"><TableColumnLabel>Dates</TableColumnLabel></th>
+                  <th className="px-4 py-3 text-right"><TableColumnLabel>Total</TableColumnLabel></th>
+                  <th className="px-4 py-3"><TableColumnLabel>Status</TableColumnLabel></th>
                 </tr>
               </thead>
               <tbody className="divide-y">

@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button'
 import { useProducts, useServices } from '@/hooks/useStore'
 import { useVendor } from '@/contexts/VendorContext'
 import { useBranch } from '@/contexts/BranchContext'
+import { useEffectiveVendor } from '@/hooks/useEffectiveVendor'
 import { useTheme } from '@/contexts/ThemeContext'
 import { useAuthStore } from '@/stores/authStore'
 import { formatCurrency, imgUrl } from '@/lib/utils'
@@ -787,7 +788,7 @@ function StoreLocatorSection({
 // MAIN HOME COMPONENT
 // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 export default function Home() {
-  const { vendor } = useVendor()
+  const vendor = useEffectiveVendor()
   const { storePath } = useBranch()
   const theme = useTheme()
   const { isAuthenticated } = useAuthStore()

@@ -92,6 +92,7 @@ from app.models.controlling import (
 )
 
 from app.models.blog import VendorBlogPost
+from app.models.schema_field_mapping import SchemaFieldMapping
 
 from app.models.website import (
     WebsiteSite, WebsitePage, WebsiteBlock, WebsiteMedia, WebsiteRedirect,
@@ -238,6 +239,7 @@ __all__ = [
     "FinBasicTransaction",
     # Blog CMS
     "VendorBlogPost",
+    "SchemaFieldMapping",
     # Website Builder
     "WebsiteSite", "WebsitePage", "WebsiteBlock", "WebsiteMedia", "WebsiteRedirect",
     "WebsiteFormSubmission", "WebsitePageRevision", "WebsiteBuilderPreview",

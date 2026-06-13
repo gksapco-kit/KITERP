@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { TableColumnLabel } from '@/components/common/FieldLabel'
 import { Link } from 'react-router-dom'
 import { useCompanies } from '@/hooks/useFinance'
 import { useProducts } from '@/hooks/useVendor'
@@ -192,15 +193,15 @@ export default function ControllingProductCostsPage() {
             <thead className="bg-gray-50 text-left text-gray-600">
               <tr>
                 <th className="px-4 py-3 font-medium" />
-                <th className="px-4 py-3 font-medium">Version</th>
-                <th className="px-4 py-3 font-medium">Product</th>
-                <th className="px-4 py-3 font-medium">Status</th>
-                <th className="px-4 py-3 font-medium text-right">Material</th>
-                <th className="px-4 py-3 font-medium text-right">Activity</th>
-                <th className="px-4 py-3 font-medium text-right">Direct OH</th>
-                <th className="px-4 py-3 font-medium text-right">Indirect OH</th>
-                <th className="px-4 py-3 font-medium text-right">Unit cost</th>
-                <th className="px-4 py-3 font-medium text-right">Actions</th>
+                <th className="px-4 py-3 font-medium"><TableColumnLabel>Version</TableColumnLabel></th>
+                <th className="px-4 py-3 font-medium"><TableColumnLabel>Product</TableColumnLabel></th>
+                <th className="px-4 py-3 font-medium"><TableColumnLabel>Status</TableColumnLabel></th>
+                <th className="px-4 py-3 font-medium text-right"><TableColumnLabel>Material</TableColumnLabel></th>
+                <th className="px-4 py-3 font-medium text-right"><TableColumnLabel>Activity</TableColumnLabel></th>
+                <th className="px-4 py-3 font-medium text-right"><TableColumnLabel>Direct OH</TableColumnLabel></th>
+                <th className="px-4 py-3 font-medium text-right"><TableColumnLabel>Indirect OH</TableColumnLabel></th>
+                <th className="px-4 py-3 font-medium text-right"><TableColumnLabel>Unit cost</TableColumnLabel></th>
+                <th className="px-4 py-3 font-medium text-right"><TableColumnLabel>Actions</TableColumnLabel></th>
               </tr>
             </thead>
             <tbody>
@@ -336,12 +337,12 @@ export default function ControllingProductCostsPage() {
                               <table className="w-full text-xs">
                                 <thead className="bg-gray-50 text-gray-500">
                                   <tr>
-                                    <th className="px-3 py-2 text-left font-medium">Category</th>
-                                    <th className="px-3 py-2 text-left font-medium">Description</th>
-                                    <th className="px-3 py-2 text-right font-medium">Qty plan</th>
-                                    <th className="px-3 py-2 text-right font-medium">Rate plan</th>
-                                    <th className="px-3 py-2 text-right font-medium">Amount plan</th>
-                                    <th className="px-3 py-2 text-right font-medium">% of total</th>
+                                    <th className="px-3 py-2 text-left font-medium"><TableColumnLabel>Category</TableColumnLabel></th>
+                                    <th className="px-3 py-2 text-left font-medium"><TableColumnLabel>Description</TableColumnLabel></th>
+                                    <th className="px-3 py-2 text-right font-medium"><TableColumnLabel>Qty plan</TableColumnLabel></th>
+                                    <th className="px-3 py-2 text-right font-medium"><TableColumnLabel>Rate plan</TableColumnLabel></th>
+                                    <th className="px-3 py-2 text-right font-medium"><TableColumnLabel>Amount plan</TableColumnLabel></th>
+                                    <th className="px-3 py-2 text-right font-medium"><TableColumnLabel>% of total</TableColumnLabel></th>
                                   </tr>
                                 </thead>
                                 <tbody className="divide-y divide-gray-100">

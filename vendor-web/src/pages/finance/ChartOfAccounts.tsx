@@ -1,4 +1,6 @@
 import { useState, useEffect, useMemo } from 'react'
+import { TableColumnLabel } from '@/components/common/FieldLabel'
+import { Label } from '@/components/ui/label'
 import { useEscapeToClose } from '@/hooks/useEscapeToClose'
 import { useAccounts, useCreateAccount, useUpdateAccount, useSeedCOA, useAccountLedger } from '@/hooks/useFinance'
 import {
@@ -571,13 +573,13 @@ function AccountDetailDrawer({
                   <table className="w-full text-xs">
                     <thead className="bg-gray-50 border-b border-gray-200 sticky top-0 z-10">
                       <tr>
-                        <th className="px-4 py-2.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wide whitespace-nowrap">Date</th>
-                        <th className="px-3 py-2.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wide whitespace-nowrap">Entry No</th>
-                        <th className="px-3 py-2.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wide">Narration</th>
-                        <th className="px-3 py-2.5 text-xs font-medium text-gray-500 uppercase tracking-wide whitespace-nowrap">Source</th>
-                        <th className="px-3 py-2.5 text-right text-xs font-medium text-gray-500 uppercase tracking-wide whitespace-nowrap">Debit</th>
-                        <th className="px-3 py-2.5 text-right text-xs font-medium text-gray-500 uppercase tracking-wide whitespace-nowrap">Credit</th>
-                        <th className="px-4 py-2.5 text-right text-xs font-medium text-gray-500 uppercase tracking-wide whitespace-nowrap">Balance</th>
+                        <th className="px-4 py-2.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wide whitespace-nowrap"><TableColumnLabel>Date</TableColumnLabel></th>
+                        <th className="px-3 py-2.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wide whitespace-nowrap"><TableColumnLabel>Entry No</TableColumnLabel></th>
+                        <th className="px-3 py-2.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wide"><TableColumnLabel>Narration</TableColumnLabel></th>
+                        <th className="px-3 py-2.5 text-xs font-medium text-gray-500 uppercase tracking-wide whitespace-nowrap"><TableColumnLabel>Source</TableColumnLabel></th>
+                        <th className="px-3 py-2.5 text-right text-xs font-medium text-gray-500 uppercase tracking-wide whitespace-nowrap"><TableColumnLabel>Debit</TableColumnLabel></th>
+                        <th className="px-3 py-2.5 text-right text-xs font-medium text-gray-500 uppercase tracking-wide whitespace-nowrap"><TableColumnLabel>Credit</TableColumnLabel></th>
+                        <th className="px-4 py-2.5 text-right text-xs font-medium text-gray-500 uppercase tracking-wide whitespace-nowrap"><TableColumnLabel>Balance</TableColumnLabel></th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-50">
@@ -849,7 +851,7 @@ function ConfigPanel({
                     {/* Subtypes */}
                     <div>
                       <div className="flex items-center justify-between mb-2">
-                        <label className="text-xs font-medium text-gray-500 uppercase tracking-wide">Subtypes</label>
+                        <Label className="text-xs font-medium text-gray-500 uppercase tracking-wide">Subtypes</Label>
                         <button
                           onClick={() => addSubtype(cfg.type)}
                           className="flex items-center gap-1 text-xs text-primary hover:text-primary/80 font-medium"
@@ -1230,7 +1232,7 @@ export default function ChartOfAccounts() {
 
             {/* Type first — drives subtype list */}
             <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">Type</label>
+              <Label className="block text-xs font-medium text-gray-600 mb-1">Type</Label>
               <div className="grid grid-cols-5 gap-1">
                 {config.map(c => (
                   <button
@@ -1248,7 +1250,7 @@ export default function ChartOfAccounts() {
 
             {/* Subtype dropdown — options come from config */}
             <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">Subtype</label>
+              <Label className="block text-xs font-medium text-gray-600 mb-1">Subtype</Label>
               <select
                 value={form.account_subtype}
                 onChange={e => setForm(f => ({ ...f, account_subtype: e.target.value }))}
@@ -1266,7 +1268,7 @@ export default function ChartOfAccounts() {
               { label: 'Description', key: 'description', placeholder: 'Optional description' },
             ].map(({ label, key, placeholder }) => (
               <div key={key}>
-                <label className="block text-xs font-medium text-gray-600 mb-1">{label}</label>
+                <Label className="block text-xs font-medium text-gray-600 mb-1">{label}</Label>
                 <input
                   value={(form as Record<string, string>)[key]}
                   onChange={e => setForm(f => ({ ...f, [key]: e.target.value }))}

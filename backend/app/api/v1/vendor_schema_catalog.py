@@ -1,0 +1,147 @@
+from typing import List, Optional
+from uuid import UUID
+
+from fastapi import APIRouter, Depends, HTTPException
+from pydantic import BaseModel, Field
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.api.deps import get_current_active_user, get_current_vendor_user, require_role
+from app.database import get_db
+from app.models.user import User
+from app.models.vendor_user import VendorUser
+from app.services.api_catalog_service import enrich_models_with_api_bindings
+from app.services.schema_catalog_service import build_schema_catalog
+from app.services import schema_field_mapping_service as mapping_svc
+from app.services.vendor_service import VendorService
+
+router = APIRouter()
+
+
+class FieldMappingCreate(BaseModel):
+    table_name: str = Field(..., min_length=1, max_length=120)
+    column_name: str = Field(..., min_length=1, max_length=120)
+    ui_label: str = Field(..., min_length=1, max_length=200)
+    help_short: Optional[str] = None
+    help_full: Optional[str] = None
+    screens: List[str] = []
+    note: Optional[str] = None
+
+
+class FieldMappingUpdate(BaseModel):
+    ui_label: Optional[str] = Field(None, min_length=1, max_length=200)
+    help_short: Optional[str] = None
+    help_full: Optional[str] = None
+    screens: Optional[List[str]] = None
+    note: Optional[str] = None
+
+
+async def _vendor_id(
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db),
+) -> UUID:
+    svc = VendorService(db)
+    vendor = await svc.get_by_user_id(current_user.id)
+    if not vendor:
+        raise HTTPException(404, "No vendor found")
+    return vendor.id
+
+
+@router.get("/models")
+async def list_schema_models(
+    _user: User = Depends(get_current_active_user),
+    _vendor_user: VendorUser = Depends(get_current_vendor_user),
+    vendor_id: UUID = Depends(_vendor_id),
+    db: AsyncSession = Depends(get_db),
+):
+    """Database model catalog — tables, columns, API bindings, and user mappings."""
+    models = build_schema_catalog()
+    try:
+        models = enrich_models_with_api_bindings(models)
+    except Exception:
+        pass
+    try:
+        mappings = await mapping_svc.list_mappings(db, vendor_id)
+    except Exception:
+        mappings = []
+    mapping_by_col = {f"{m['table_name']}.{m['column_name']}": m for m in mappings}
+
+    user_mapped_columns = 0
+    for model in models:
+        for col in model["columns"]:
+            key = f"{model['table']}.{col['name']}"
+            user_map = mapping_by_col.get(key)
+            col["user_mapping"] = user_map
+            if user_map:
+                user_mapped_columns += 1
+
+    api_bound_columns = sum(1 for m in models for c in m["columns"] if c.get("api_bindings"))
+    return {
+        "models": models,
+        "model_count": len(models),
+        "table_count": len(models),
+        "column_count": sum(m["column_count"] for m in models),
+        "api_bound_columns": api_bound_columns,
+        "user_mapped_columns": user_mapped_columns,
+        "mappings": mappings,
+    }
+
+
+@router.get("/mappings")
+async def list_field_mappings(
+    vendor_id: UUID = Depends(_vendor_id),
+    db: AsyncSession = Depends(get_db),
+    _user: User = Depends(get_current_active_user),
+):
+    """Active field mappings for this vendor (all staff can read for labels)."""
+    items = await mapping_svc.list_mappings(db, vendor_id)
+    return {"items": items, "total": len(items)}
+
+
+@router.post("/mappings", status_code=201)
+async def create_field_mapping(
+    data: FieldMappingCreate,
+    vendor_id: UUID = Depends(_vendor_id),
+    db: AsyncSession = Depends(get_db),
+    _vendor_user: VendorUser = Depends(require_role("owner", "admin")),
+):
+    try:
+        row = await mapping_svc.create_mapping(db, vendor_id, data.model_dump())
+        await db.commit()
+        return row
+    except ValueError as e:
+        await db.rollback()
+        raise HTTPException(400, str(e))
+
+
+@router.patch("/mappings/{mapping_id}")
+async def update_field_mapping(
+    mapping_id: UUID,
+    data: FieldMappingUpdate,
+    vendor_id: UUID = Depends(_vendor_id),
+    db: AsyncSession = Depends(get_db),
+    _vendor_user: VendorUser = Depends(require_role("owner", "admin")),
+):
+    try:
+        row = await mapping_svc.update_mapping(
+            db, vendor_id, mapping_id, data.model_dump(exclude_unset=True)
+        )
+        await db.commit()
+        return row
+    except ValueError as e:
+        await db.rollback()
+        raise HTTPException(404, str(e))
+
+
+@router.delete("/mappings/{mapping_id}", status_code=204)
+async def delete_field_mapping(
+    mapping_id: UUID,
+    vendor_id: UUID = Depends(_vendor_id),
+    db: AsyncSession = Depends(get_db),
+    _vendor_user: VendorUser = Depends(require_role("owner", "admin")),
+):
+    try:
+        await mapping_svc.delete_mapping(db, vendor_id, mapping_id)
+        await db.commit()
+    except ValueError as e:
+        await db.rollback()
+        raise HTTPException(404, str(e))

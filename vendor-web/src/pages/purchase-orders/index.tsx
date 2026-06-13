@@ -1,4 +1,5 @@
 import { useState, useCallback, useMemo, useEffect } from 'react'
+import { TableColumnLabel } from '@/components/common/FieldLabel'
 import { useEscapeToClose } from '@/hooks/useEscapeToClose'
 import { useNavigate } from 'react-router-dom'
 import { Card, CardContent } from '@/components/ui/card'
@@ -215,13 +216,13 @@ export default function PurchaseOrdersPage() {
               <ResizableTable tableId="purchase-orders" defaultWidths={[110, 160, 100, 100, 200, 110, 110]}>
                 <thead>
                   <tr className="border-b bg-gray-50">
-                    <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">PO #</th>
-                    <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">Supplier</th>
-                    <th className="text-center px-6 py-3 text-xs font-medium text-gray-500 uppercase">Status</th>
-                    <th className="text-right px-6 py-3 text-xs font-medium text-gray-500 uppercase">Total</th>
-                    <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">Items / Variants</th>
-                    <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">Order Date</th>
-                    <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">Expected</th>
+                    <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase"><TableColumnLabel>PO #</TableColumnLabel></th>
+                    <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase"><TableColumnLabel>Supplier</TableColumnLabel></th>
+                    <th className="text-center px-6 py-3 text-xs font-medium text-gray-500 uppercase"><TableColumnLabel>Status</TableColumnLabel></th>
+                    <th className="text-right px-6 py-3 text-xs font-medium text-gray-500 uppercase"><TableColumnLabel>Total</TableColumnLabel></th>
+                    <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase"><TableColumnLabel>Items / Variants</TableColumnLabel></th>
+                    <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase"><TableColumnLabel>Order Date</TableColumnLabel></th>
+                    <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase"><TableColumnLabel>Expected</TableColumnLabel></th>
                   </tr>
                 </thead>
                 <tbody className="divide-y">

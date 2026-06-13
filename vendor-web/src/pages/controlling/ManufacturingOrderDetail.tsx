@@ -1,4 +1,6 @@
 import { useState } from 'react'
+import { TableColumnLabel } from '@/components/common/FieldLabel'
+import { Label } from '@/components/ui/label'
 import { useEscapeToClose } from '@/hooks/useEscapeToClose'
 import { Link, useParams } from 'react-router-dom'
 import {
@@ -350,12 +352,12 @@ export default function ManufacturingOrderDetailPage() {
           <table className="w-full text-sm">
             <thead className="bg-gray-50 text-left text-gray-600">
               <tr>
-                <th className="px-3 py-2">#</th>
-                <th className="px-3 py-2">Name</th>
-                <th className="px-3 py-2 text-right">Pln hrs</th>
-                <th className="px-3 py-2 text-right">Act hrs</th>
-                <th className="px-3 py-2 text-right">Rate</th>
-                <th className="px-3 py-2">Status</th>
+                <th className="px-3 py-2"><TableColumnLabel>#</TableColumnLabel></th>
+                <th className="px-3 py-2"><TableColumnLabel>Name</TableColumnLabel></th>
+                <th className="px-3 py-2 text-right"><TableColumnLabel>Pln hrs</TableColumnLabel></th>
+                <th className="px-3 py-2 text-right"><TableColumnLabel>Act hrs</TableColumnLabel></th>
+                <th className="px-3 py-2 text-right"><TableColumnLabel>Rate</TableColumnLabel></th>
+                <th className="px-3 py-2"><TableColumnLabel>Status</TableColumnLabel></th>
                 <th className="px-3 py-2" />
               </tr>
             </thead>
@@ -413,12 +415,12 @@ export default function ManufacturingOrderDetailPage() {
           <table className="w-full text-sm">
             <thead className="bg-gray-50 text-left text-gray-600">
               <tr>
-                <th className="px-3 py-2">Cat</th>
-                <th className="px-3 py-2">Description</th>
-                <th className="px-3 py-2 text-right">Qty P</th>
-                <th className="px-3 py-2 text-right">Qty A</th>
-                <th className="px-3 py-2 text-right">Amt P</th>
-                <th className="px-3 py-2 text-right">Amt A</th>
+                <th className="px-3 py-2"><TableColumnLabel>Cat</TableColumnLabel></th>
+                <th className="px-3 py-2"><TableColumnLabel>Description</TableColumnLabel></th>
+                <th className="px-3 py-2 text-right"><TableColumnLabel>Qty P</TableColumnLabel></th>
+                <th className="px-3 py-2 text-right"><TableColumnLabel>Qty A</TableColumnLabel></th>
+                <th className="px-3 py-2 text-right"><TableColumnLabel>Amt P</TableColumnLabel></th>
+                <th className="px-3 py-2 text-right"><TableColumnLabel>Amt A</TableColumnLabel></th>
               </tr>
             </thead>
             <tbody>
@@ -489,11 +491,11 @@ export default function ManufacturingOrderDetailPage() {
             <table className="w-full text-xs md:text-sm">
               <thead className="bg-gray-50 text-left text-gray-600">
                 <tr>
-                  <th className="px-2 py-2">Cat</th>
-                  <th className="px-2 py-2">Description</th>
-                  <th className="px-2 py-2 text-right">Price var</th>
-                  <th className="px-2 py-2 text-right">Usage var</th>
-                  <th className="px-2 py-2 text-right">Total</th>
+                  <th className="px-2 py-2"><TableColumnLabel>Cat</TableColumnLabel></th>
+                  <th className="px-2 py-2"><TableColumnLabel>Description</TableColumnLabel></th>
+                  <th className="px-2 py-2 text-right"><TableColumnLabel>Price var</TableColumnLabel></th>
+                  <th className="px-2 py-2 text-right"><TableColumnLabel>Usage var</TableColumnLabel></th>
+                  <th className="px-2 py-2 text-right"><TableColumnLabel>Total</TableColumnLabel></th>
                 </tr>
               </thead>
               <tbody>
@@ -576,10 +578,10 @@ export default function ManufacturingOrderDetailPage() {
             <table className="w-full text-sm">
               <thead className="bg-gray-50 text-left">
                 <tr>
-                  <th className="px-4 py-3 font-medium text-gray-600">Category</th>
-                  <th className="px-4 py-3 font-medium text-gray-600">Type</th>
-                  <th className="px-4 py-3 font-medium text-gray-600">Description</th>
-                  <th className="px-4 py-3 font-medium text-gray-600 text-right">Budgeted</th>
+                  <th className="px-4 py-3 font-medium text-gray-600"><TableColumnLabel>Category</TableColumnLabel></th>
+                  <th className="px-4 py-3 font-medium text-gray-600"><TableColumnLabel>Type</TableColumnLabel></th>
+                  <th className="px-4 py-3 font-medium text-gray-600"><TableColumnLabel>Description</TableColumnLabel></th>
+                  <th className="px-4 py-3 font-medium text-gray-600 text-right"><TableColumnLabel>Budgeted</TableColumnLabel></th>
                   <th className="px-4 py-3" />
                 </tr>
               </thead>
@@ -614,13 +616,13 @@ export default function ManufacturingOrderDetailPage() {
           <table className="w-full text-sm">
             <thead className="bg-gray-50 text-left">
               <tr>
-                <th className="px-4 py-3 font-medium text-gray-600">Doc No</th>
-                <th className="px-4 py-3 font-medium text-gray-600">Type</th>
-                <th className="px-4 py-3 font-medium text-gray-600">Date</th>
-                <th className="px-4 py-3 font-medium text-gray-600">Description</th>
-                <th className="px-4 py-3 font-medium text-gray-600 text-right">Qty</th>
-                <th className="px-4 py-3 font-medium text-gray-600 text-right">Total Cost</th>
-                <th className="px-4 py-3 font-medium text-gray-600">Status</th>
+                <th className="px-4 py-3 font-medium text-gray-600"><TableColumnLabel>Doc No</TableColumnLabel></th>
+                <th className="px-4 py-3 font-medium text-gray-600"><TableColumnLabel>Type</TableColumnLabel></th>
+                <th className="px-4 py-3 font-medium text-gray-600"><TableColumnLabel>Date</TableColumnLabel></th>
+                <th className="px-4 py-3 font-medium text-gray-600"><TableColumnLabel>Description</TableColumnLabel></th>
+                <th className="px-4 py-3 font-medium text-gray-600 text-right"><TableColumnLabel>Qty</TableColumnLabel></th>
+                <th className="px-4 py-3 font-medium text-gray-600 text-right"><TableColumnLabel>Total Cost</TableColumnLabel></th>
+                <th className="px-4 py-3 font-medium text-gray-600"><TableColumnLabel>Status</TableColumnLabel></th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
@@ -659,13 +661,13 @@ export default function ManufacturingOrderDetailPage() {
           <table className="w-full text-sm">
             <thead className="bg-gray-50 text-left">
               <tr>
-                <th className="px-4 py-3 font-medium text-gray-600">Date</th>
-                <th className="px-4 py-3 font-medium text-gray-600">Type</th>
-                <th className="px-4 py-3 font-medium text-gray-600 text-right">Hours</th>
-                <th className="px-4 py-3 font-medium text-gray-600 text-right">Rate/h</th>
-                <th className="px-4 py-3 font-medium text-gray-600 text-right">Total Cost</th>
-                <th className="px-4 py-3 font-medium text-gray-600 text-right">Yield %</th>
-                <th className="px-4 py-3 font-medium text-gray-600">Status</th>
+                <th className="px-4 py-3 font-medium text-gray-600"><TableColumnLabel>Date</TableColumnLabel></th>
+                <th className="px-4 py-3 font-medium text-gray-600"><TableColumnLabel>Type</TableColumnLabel></th>
+                <th className="px-4 py-3 font-medium text-gray-600 text-right"><TableColumnLabel>Hours</TableColumnLabel></th>
+                <th className="px-4 py-3 font-medium text-gray-600 text-right"><TableColumnLabel>Rate/h</TableColumnLabel></th>
+                <th className="px-4 py-3 font-medium text-gray-600 text-right"><TableColumnLabel>Total Cost</TableColumnLabel></th>
+                <th className="px-4 py-3 font-medium text-gray-600 text-right"><TableColumnLabel>Yield %</TableColumnLabel></th>
+                <th className="px-4 py-3 font-medium text-gray-600"><TableColumnLabel>Status</TableColumnLabel></th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
@@ -716,7 +718,7 @@ export default function ManufacturingOrderDetailPage() {
             </div>
             <p className="text-sm text-gray-500">Current status: <strong>{order.status}</strong></p>
             <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">New Status</label>
+              <Label className="block text-xs font-medium text-gray-600 mb-1">New Status</Label>
               <select value={transitionStatus} onChange={e => setTransitionStatus(e.target.value)}
                 className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm">
                 <option value="">— select —</option>
@@ -726,7 +728,7 @@ export default function ManufacturingOrderDetailPage() {
               </select>
             </div>
             <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">Notes (optional)</label>
+              <Label className="block text-xs font-medium text-gray-600 mb-1">Notes (optional)</Label>
               <textarea value={transitionNotes} onChange={e => setTransitionNotes(e.target.value)}
                 rows={2} className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm" />
             </div>

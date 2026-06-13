@@ -1,4 +1,6 @@
 import { useState, useMemo, useRef, useCallback, useEffect } from 'react'
+import { TableColumnLabel } from '@/components/common/FieldLabel'
+import { Label } from '@/components/ui/label'
 import { useEscapeToClose } from '@/hooks/useEscapeToClose'
 import { ModalEscapeHandler } from '@/components/ui/ModalEscapeHandler'
 import { useNavigate } from 'react-router-dom'
@@ -1218,13 +1220,13 @@ export default function ProductionOrdersPage() {
                       <div className="border border-gray-200 rounded-xl overflow-hidden">
                         <ResizableTable tableId="production-bom" defaultWidths={[40, 200, 120, 80, 90, 90, 80]}>
                           <thead className="bg-gray-50 border-b"><tr className="text-xs font-medium text-muted-foreground uppercase">
-                            <th className="py-2 px-3 text-center w-8">#</th>
-                            <th className="py-2 px-3 text-left">Item</th>
-                            <th className="py-2 px-3 text-left hidden sm:table-cell">Variant / SKU</th>
-                            <th className="py-2 px-3 text-left hidden sm:table-cell">Type</th>
-                            <th className="py-2 px-3 text-right">Required</th>
-                            <th className="py-2 px-3 text-right">Produced</th>
-                            <th className="py-2 px-3 text-right hidden sm:table-cell">Priority</th>
+                            <th className="py-2 px-3 text-center w-8"><TableColumnLabel>#</TableColumnLabel></th>
+                            <th className="py-2 px-3 text-left"><TableColumnLabel>Item</TableColumnLabel></th>
+                            <th className="py-2 px-3 text-left hidden sm:table-cell"><TableColumnLabel>Variant / SKU</TableColumnLabel></th>
+                            <th className="py-2 px-3 text-left hidden sm:table-cell"><TableColumnLabel>Type</TableColumnLabel></th>
+                            <th className="py-2 px-3 text-right"><TableColumnLabel>Required</TableColumnLabel></th>
+                            <th className="py-2 px-3 text-right"><TableColumnLabel>Produced</TableColumnLabel></th>
+                            <th className="py-2 px-3 text-right hidden sm:table-cell"><TableColumnLabel>Priority</TableColumnLabel></th>
                           </tr></thead>
                           <tbody className="divide-y">
                             {order.items.map((item, idx) => (
@@ -1281,10 +1283,10 @@ export default function ProductionOrdersPage() {
                         <div className="border border-gray-200 rounded-xl overflow-hidden">
                           <ResizableTable tableId="production-dispatches" defaultWidths={[120, 80, 100, 200]}>
                             <thead className="bg-gray-50 border-b"><tr className="font-semibold text-muted-foreground uppercase">
-                              <th className="py-2 px-3 text-left">Date</th>
-                              <th className="py-2 px-3 text-right">Qty</th>
-                              <th className="py-2 px-3">By</th>
-                              <th className="py-2 px-3">Notes</th>
+                              <th className="py-2 px-3 text-left"><TableColumnLabel>Date</TableColumnLabel></th>
+                              <th className="py-2 px-3 text-right"><TableColumnLabel>Qty</TableColumnLabel></th>
+                              <th className="py-2 px-3"><TableColumnLabel>By</TableColumnLabel></th>
+                              <th className="py-2 px-3"><TableColumnLabel>Notes</TableColumnLabel></th>
                             </tr></thead>
                             <tbody className="divide-y">
                               {order.stock_dispatches.map(d => (
@@ -1613,7 +1615,7 @@ export default function ProductionOrdersPage() {
 
                       {/* Customer search */}
                       <div className="relative">
-                        <label className="block text-xs font-medium text-gray-600 mb-1">Search Customer</label>
+                        <Label className="block text-xs font-medium text-gray-600 mb-1">Search Customer</Label>
                         <div className="flex items-center border border-border rounded-xl overflow-hidden bg-card focus-within:ring-2 focus-within:ring-indigo-400">
                           <Search className="w-3.5 h-3.5 text-gray-400 ml-3 shrink-0" />
                           <input
@@ -1705,14 +1707,14 @@ export default function ProductionOrdersPage() {
 
                       {/* Order details */}
                       <div className="grid grid-cols-2 gap-3">
-                        <div><label className="block text-xs font-medium text-gray-600 mb-1">Sales Order Ref</label>
+                        <div><Label className="block text-xs font-medium text-gray-600 mb-1">Sales Order Ref</Label>
                           <input value={formOrderRef} onChange={e => setFormOrderRef(e.target.value)} placeholder="e.g. SO-12345"
                             className="w-full border border-gray-200 rounded-lg px-3 py-1.5 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-indigo-400" /></div>
-                        <div><label className="block text-xs font-medium text-gray-600 mb-1">Delivery Deadline</label>
+                        <div><Label className="block text-xs font-medium text-gray-600 mb-1">Delivery Deadline</Label>
                           <input type="date" value={formDeadline} onChange={e => setFormDeadline(e.target.value)}
                             className="w-full border border-gray-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400" /></div>
                       </div>
-                      <div><label className="block text-xs font-medium text-gray-600 mb-1">Special Requirements</label>
+                      <div><Label className="block text-xs font-medium text-gray-600 mb-1">Special Requirements</Label>
                         <textarea value={formSpecialReq} onChange={e => setFormSpecialReq(e.target.value)} rows={2} placeholder="Customer-specific requirements, customisation notes…"
                           className="w-full border border-gray-200 rounded-lg px-3 py-1.5 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-indigo-400" /></div>
                     </div>
@@ -1722,7 +1724,7 @@ export default function ProductionOrdersPage() {
                   {createType === 'mts' && (
                     <div className="bg-teal-50 rounded-2xl p-4 space-y-3">
                       <p className="text-xs font-bold text-teal-800 flex items-center gap-1.5"><BarChart3 className="w-3.5 h-3.5" /> Stock Target</p>
-                      <div><label className="block text-xs font-medium text-gray-600 mb-1">Target Stock Level (units)</label>
+                      <div><Label className="block text-xs font-medium text-gray-600 mb-1">Target Stock Level (units)</Label>
                         <input type="number" min={0} value={formTargetStock} onChange={e => setFormTargetStock(e.target.value)} placeholder="e.g. 500"
                           className="w-full border border-gray-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-teal-400" /></div>
                     </div>
@@ -1799,11 +1801,11 @@ export default function ProductionOrdersPage() {
                       <div className="border border-gray-200 rounded-xl overflow-hidden">
                         <ResizableTable tableId="production-form-bom" defaultWidths={[40, 200, 120, 80, 80, 40]}>
                           <thead className="bg-gray-50 border-b"><tr className="text-xs font-medium text-muted-foreground uppercase">
-                            <th className="py-2 px-3 text-center w-8">#</th>
-                            <th className="py-2 px-3 text-left">Item</th>
-                            <th className="py-2 px-3 text-left hidden sm:table-cell">Variant / SKU</th>
-                            <th className="py-2 px-3 text-left hidden sm:table-cell">Type</th>
-                            <th className="py-2 px-3 text-right">Qty</th>
+                            <th className="py-2 px-3 text-center w-8"><TableColumnLabel>#</TableColumnLabel></th>
+                            <th className="py-2 px-3 text-left"><TableColumnLabel>Item</TableColumnLabel></th>
+                            <th className="py-2 px-3 text-left hidden sm:table-cell"><TableColumnLabel>Variant / SKU</TableColumnLabel></th>
+                            <th className="py-2 px-3 text-left hidden sm:table-cell"><TableColumnLabel>Type</TableColumnLabel></th>
+                            <th className="py-2 px-3 text-right"><TableColumnLabel>Qty</TableColumnLabel></th>
                             <th className="py-2 px-2 w-8" />
                           </tr></thead>
                           <tbody className="divide-y">

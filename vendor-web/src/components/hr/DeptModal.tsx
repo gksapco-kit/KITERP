@@ -1,4 +1,5 @@
 import { onModalBackdropClick } from '@/lib/utils'
+import { Label } from '@/components/ui/label'
 import { useState } from 'react'
 import { useEscapeToClose } from '@/hooks/useEscapeToClose'
 import { X } from 'lucide-react'
@@ -61,7 +62,7 @@ export function DeptModal({
             </div>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Name *</label>
+            <Label className="block text-sm font-medium text-gray-700 mb-1" required>Name</Label>
             <input
               autoFocus
               className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
@@ -71,7 +72,7 @@ export function DeptModal({
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Code</label>
+            <Label className="block text-sm font-medium text-gray-700 mb-1">Code</Label>
             <input
               className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
               placeholder="e.g. ENG, HR, FIN"
@@ -80,7 +81,7 @@ export function DeptModal({
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
+            <Label className="block text-sm font-medium text-gray-700 mb-1">Description</Label>
             <textarea
               className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
               rows={2}

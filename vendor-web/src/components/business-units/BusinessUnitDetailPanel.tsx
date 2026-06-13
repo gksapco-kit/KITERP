@@ -6,6 +6,7 @@ import { resolveBrandingMode } from '@/lib/brandingMode'
 import { useVendorStore } from '@/stores/vendorStore'
 import { BusinessUnitLogoThumb } from '@/components/business-units/BusinessUnitLogoThumb'
 import VendorStorefrontLinksCard from '@/components/VendorStorefrontLinksCard'
+import { branchCodeForStore } from '@/lib/liveStorefrontUrl'
 import { BusinessUnitVisualHero } from '@/components/business-units/BusinessUnitVisualHero'
 import { IdChip, VerifiedBadge, formatStoreCode, vendorVerificationLevel } from '@/lib/verification'
 
@@ -129,7 +130,7 @@ export default function BusinessUnitDetailPanel({ store, embeddedInSettings = fa
       {slug ? (
         <VendorStorefrontLinksCard
           vendorSlug={slug}
-          outletCode={store.code}
+          outletCode={branchCodeForStore(store)}
           storeId={store.id}
           vendorSettings={vendor?.settings as Record<string, unknown> | undefined}
           hideOutletRow

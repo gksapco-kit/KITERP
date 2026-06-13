@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useMemo } from 'react'
+import { Label } from '@/components/ui/label'
 import { useNavigate } from 'react-router-dom'
 import {
   FileText, Plus, Trash2, Star, Save, ArrowLeft,
@@ -487,13 +488,13 @@ export default function OfferTemplatesPage() {
               {/* Name + Description */}
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-medium text-gray-600 mb-1">Template Name *</label>
+                  <Label className="block text-xs font-medium text-gray-600 mb-1" required>Template Name</Label>
                   <input value={form.name} onChange={e => setField('name', e.target.value)}
                     className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
                     placeholder="e.g. Engineering Offer Letter" />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-gray-600 mb-1">Description</label>
+                  <Label className="block text-xs font-medium text-gray-600 mb-1">Description</Label>
                   <input value={form.description} onChange={e => setField('description', e.target.value)}
                     className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
                     placeholder="Short admin note…" />
@@ -554,9 +555,7 @@ export default function OfferTemplatesPage() {
 
               {/* Body textarea */}
               <div className="flex-1 flex flex-col">
-                <label className="block text-xs font-medium text-gray-600 mb-1">
-                  Template Body (HTML allowed) *
-                </label>
+                <Label className="block text-xs font-medium text-gray-600 mb-1" required>Template Body (HTML allowed)</Label>
                 <textarea
                   ref={textareaRef}
                   value={form.body_html}

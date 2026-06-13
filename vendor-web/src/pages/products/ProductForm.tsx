@@ -1,4 +1,7 @@
 import { useForm, FormProvider, Controller, useFieldArray, type FieldErrors } from 'react-hook-form'
+import { SectionLabel } from '@/components/common/FieldLabel'
+import { FormColumnLabel } from '@/components/common/FieldLabel'
+import { TableColumnLabel } from '@/components/common/FieldLabel'
 import { ProductModifiers } from './ProductModifiers'
 import { ResizableTable } from '@/components/table/ResizableTable'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -650,7 +653,7 @@ function QuoteFormConfigurator({ fields, onChange }: {
               />
               {f.type === 'select' && (
                 <div className="pl-1">
-                  <p className="text-xs font-medium text-gray-400 uppercase mb-1">Dropdown Options</p>
+                  <FormColumnLabel className="mb-1">Dropdown Options</FormColumnLabel>
                   <div className="flex flex-wrap gap-1 mb-1.5">
                     {(f.options || []).map((opt, i) => (
                       <span key={i} className="inline-flex items-center gap-1 bg-gray-100 text-gray-700 text-xs pl-2 pr-1 py-0.5 rounded-full">
@@ -1120,14 +1123,14 @@ function ProductDisplay({ product, onEdit, onBack, priceRules = [], merchMapping
             <table className="w-full text-xs">
               <thead>
                 <tr className="border-b bg-gray-50">
-                  <th className="text-left px-2 py-1.5 font-semibold text-gray-500 w-6">#</th>
-                  <th className="text-left px-2 py-1.5 font-semibold text-gray-500">Variant</th>
-                  <th className="text-left px-2 py-1.5 font-semibold text-gray-500">SKU / Barcode</th>
-                  <th className="text-left px-2 py-1.5 font-semibold text-gray-500">Pricing</th>
-                  <th className="text-left px-2 py-1.5 font-semibold text-gray-500">Stock</th>
-                  <th className="text-left px-2 py-1.5 font-semibold text-gray-500">Tax / HSN</th>
-                  <th className="text-left px-2 py-1.5 font-semibold text-gray-500">UOM</th>
-                  <th className="text-left px-2 py-1.5 font-semibold text-gray-500">Flags</th>
+                  <th className="text-left px-2 py-1.5 font-semibold text-gray-500 w-6"><TableColumnLabel>#</TableColumnLabel></th>
+                  <th className="text-left px-2 py-1.5 font-semibold text-gray-500"><TableColumnLabel>Variant</TableColumnLabel></th>
+                  <th className="text-left px-2 py-1.5 font-semibold text-gray-500"><TableColumnLabel>SKU / Barcode</TableColumnLabel></th>
+                  <th className="text-left px-2 py-1.5 font-semibold text-gray-500"><TableColumnLabel>Pricing</TableColumnLabel></th>
+                  <th className="text-left px-2 py-1.5 font-semibold text-gray-500"><TableColumnLabel>Stock</TableColumnLabel></th>
+                  <th className="text-left px-2 py-1.5 font-semibold text-gray-500"><TableColumnLabel>Tax / HSN</TableColumnLabel></th>
+                  <th className="text-left px-2 py-1.5 font-semibold text-gray-500"><TableColumnLabel>UOM</TableColumnLabel></th>
+                  <th className="text-left px-2 py-1.5 font-semibold text-gray-500"><TableColumnLabel>Flags</TableColumnLabel></th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
@@ -1507,10 +1510,10 @@ function ProductDisplay({ product, onEdit, onBack, priceRules = [], merchMapping
                 <ResizableTable tableId="product-quote-fields" defaultWidths={[180, 100, 80, 80]}>
                   <thead className="bg-gray-50">
                     <tr>
-                      <th className="text-left px-3 py-2 text-xs font-medium text-gray-500">Field</th>
-                      <th className="text-left px-3 py-2 text-xs font-medium text-gray-500">Type</th>
-                      <th className="text-left px-3 py-2 text-xs font-medium text-gray-500">Enabled</th>
-                      <th className="text-left px-3 py-2 text-xs font-medium text-gray-500">Required</th>
+                      <th className="text-left px-3 py-2 text-xs font-medium text-gray-500"><TableColumnLabel>Field</TableColumnLabel></th>
+                      <th className="text-left px-3 py-2 text-xs font-medium text-gray-500"><TableColumnLabel>Type</TableColumnLabel></th>
+                      <th className="text-left px-3 py-2 text-xs font-medium text-gray-500"><TableColumnLabel>Enabled</TableColumnLabel></th>
+                      <th className="text-left px-3 py-2 text-xs font-medium text-gray-500"><TableColumnLabel>Required</TableColumnLabel></th>
                     </tr>
                   </thead>
                   <tbody className="divide-y">
@@ -1594,20 +1597,20 @@ function ProductDisplay({ product, onEdit, onBack, priceRules = [], merchMapping
               const typeLabel: Record<string, string> = { party: 'Party / Customer', location: 'Location', scheduled: 'Scheduled', quantity: 'Quantity Tiers', channel: 'Channel' }
               return (
                 <div key={ruleType} className="space-y-2">
-                  <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">{typeLabel[ruleType]}</p>
+                  <SectionLabel>{typeLabel[ruleType]}</SectionLabel>
                   <div className="overflow-x-auto rounded-lg border">
                     <ResizableTable tableId={`product-price-rules-${ruleType}`} defaultWidths={[150, 120, 90, 80, 80]}>
                       <thead className="bg-gray-50">
                         <tr>
-                          <th className="text-left px-3 py-2 text-xs font-medium text-gray-500">Name</th>
-                          {ruleType === 'party' && <th className="text-left px-3 py-2 text-xs font-medium text-gray-500">Group</th>}
-                          {ruleType === 'location' && <><th className="text-left px-3 py-2 text-xs font-medium text-gray-500">State</th><th className="text-left px-3 py-2 text-xs font-medium text-gray-500">City</th><th className="text-left px-3 py-2 text-xs font-medium text-gray-500">Pincode</th></>}
-                          {ruleType === 'scheduled' && <><th className="text-left px-3 py-2 text-xs font-medium text-gray-500">Start</th><th className="text-left px-3 py-2 text-xs font-medium text-gray-500">End</th></>}
-                          {ruleType === 'quantity' && <><th className="text-left px-3 py-2 text-xs font-medium text-gray-500">Min Qty</th><th className="text-left px-3 py-2 text-xs font-medium text-gray-500">Max Qty</th></>}
-                          {ruleType === 'channel' && <th className="text-left px-3 py-2 text-xs font-medium text-gray-500">Channel</th>}
-                          <th className="text-left px-3 py-2 text-xs font-medium text-gray-500">Price</th>
-                          <th className="text-left px-3 py-2 text-xs font-medium text-gray-500">Discount %</th>
-                          <th className="text-left px-3 py-2 text-xs font-medium text-gray-500">Status</th>
+                          <th className="text-left px-3 py-2 text-xs font-medium text-gray-500"><TableColumnLabel>Name</TableColumnLabel></th>
+                          {ruleType === 'party' && <th className="text-left px-3 py-2 text-xs font-medium text-gray-500"><TableColumnLabel>Group</TableColumnLabel></th>}
+                          {ruleType === 'location' && <><th className="text-left px-3 py-2 text-xs font-medium text-gray-500"><TableColumnLabel>State</TableColumnLabel></th><th className="text-left px-3 py-2 text-xs font-medium text-gray-500"><TableColumnLabel>City</TableColumnLabel></th><th className="text-left px-3 py-2 text-xs font-medium text-gray-500"><TableColumnLabel>Pincode</TableColumnLabel></th></>}
+                          {ruleType === 'scheduled' && <><th className="text-left px-3 py-2 text-xs font-medium text-gray-500"><TableColumnLabel>Start</TableColumnLabel></th><th className="text-left px-3 py-2 text-xs font-medium text-gray-500"><TableColumnLabel>End</TableColumnLabel></th></>}
+                          {ruleType === 'quantity' && <><th className="text-left px-3 py-2 text-xs font-medium text-gray-500"><TableColumnLabel>Min Qty</TableColumnLabel></th><th className="text-left px-3 py-2 text-xs font-medium text-gray-500"><TableColumnLabel>Max Qty</TableColumnLabel></th></>}
+                          {ruleType === 'channel' && <th className="text-left px-3 py-2 text-xs font-medium text-gray-500"><TableColumnLabel>Channel</TableColumnLabel></th>}
+                          <th className="text-left px-3 py-2 text-xs font-medium text-gray-500"><TableColumnLabel>Price</TableColumnLabel></th>
+                          <th className="text-left px-3 py-2 text-xs font-medium text-gray-500"><TableColumnLabel>Discount %</TableColumnLabel></th>
+                          <th className="text-left px-3 py-2 text-xs font-medium text-gray-500"><TableColumnLabel>Status</TableColumnLabel></th>
                         </tr>
                       </thead>
                       <tbody className="divide-y">
@@ -1895,12 +1898,12 @@ function AddPriceRuleForm({ ruleType, productId, variants, onSave, onCancel, sav
 
       <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
         <div className="col-span-2 md:col-span-1">
-          <label className="block text-xs font-medium text-gray-600 mb-1">Rule Name *</label>
+          <Label className="block text-xs font-medium text-gray-600 mb-1" required>Rule Name</Label>
           <input className={inputCls} value={name} onChange={e => setName(e.target.value)} placeholder="e.g. Wholesale Rate" />
         </div>
         {variants.length > 0 && (
           <div>
-            <label className="block text-xs font-medium text-gray-600 mb-1">Apply to Variant</label>
+            <Label className="block text-xs font-medium text-gray-600 mb-1">Apply to Variant</Label>
             <select className={selectCls} value={variantId} onChange={e => setVariantId(e.target.value)}>
               <option value="">All variants (product-level)</option>
               {variants.map(v => <option key={v.id} value={v.id}>{v.name}</option>)}
@@ -1908,7 +1911,7 @@ function AddPriceRuleForm({ ruleType, productId, variants, onSave, onCancel, sav
           </div>
         )}
         <div>
-          <label className="block text-xs font-medium text-gray-600 mb-1">Priority</label>
+          <Label className="block text-xs font-medium text-gray-600 mb-1">Priority</Label>
           <input type="number" className={inputCls} value={priority} onChange={e => setPriority(e.target.value)} placeholder="0" min="0" />
         </div>
       </div>
@@ -1917,7 +1920,7 @@ function AddPriceRuleForm({ ruleType, productId, variants, onSave, onCancel, sav
       {ruleType === 'party' && (
         <div className="grid grid-cols-2 gap-3">
           <div>
-            <label className="block text-xs font-medium text-gray-600 mb-1">Customer Group *</label>
+            <Label className="block text-xs font-medium text-gray-600 mb-1" required>Customer Group</Label>
             <select className={selectCls} value={customerGroup} onChange={e => setCustomerGroup(e.target.value)}>
               <option value="">Select group…</option>
               <option value="wholesale">Wholesale</option>
@@ -1938,23 +1941,23 @@ function AddPriceRuleForm({ ruleType, productId, variants, onSave, onCancel, sav
       {ruleType === 'location' && (
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           <div>
-            <label className="block text-xs font-medium text-gray-600 mb-1">Country</label>
+            <Label className="block text-xs font-medium text-gray-600 mb-1">Country</Label>
             <input className={inputCls} value={country} onChange={e => setCountry(e.target.value)} placeholder="India" />
           </div>
           <div>
-            <label className="block text-xs font-medium text-gray-600 mb-1">State</label>
+            <Label className="block text-xs font-medium text-gray-600 mb-1">State</Label>
             <input className={inputCls} value={state} onChange={e => setState(e.target.value)} placeholder="e.g. Karnataka" />
           </div>
           <div>
-            <label className="block text-xs font-medium text-gray-600 mb-1">City</label>
+            <Label className="block text-xs font-medium text-gray-600 mb-1">City</Label>
             <input className={inputCls} value={city} onChange={e => setCity(e.target.value)} placeholder="e.g. Bangalore" />
           </div>
           <div>
-            <label className="block text-xs font-medium text-gray-600 mb-1">Pincode</label>
+            <Label className="block text-xs font-medium text-gray-600 mb-1">Pincode</Label>
             <input className={inputCls} value={pincode} onChange={e => setPincode(e.target.value)} placeholder="e.g. 560001" />
           </div>
           <div>
-            <label className="block text-xs font-medium text-gray-600 mb-1">Region</label>
+            <Label className="block text-xs font-medium text-gray-600 mb-1">Region</Label>
             <input className={inputCls} value={region} onChange={e => setRegion(e.target.value)} placeholder="e.g. South India" />
           </div>
         </div>
@@ -1963,11 +1966,11 @@ function AddPriceRuleForm({ ruleType, productId, variants, onSave, onCancel, sav
       {ruleType === 'scheduled' && (
         <div className="grid grid-cols-2 gap-3">
           <div>
-            <label className="block text-xs font-medium text-gray-600 mb-1">Start Date *</label>
+            <Label className="block text-xs font-medium text-gray-600 mb-1" required>Start Date</Label>
             <input type="datetime-local" className={inputCls} value={startDate} onChange={e => setStartDate(e.target.value)} />
           </div>
           <div>
-            <label className="block text-xs font-medium text-gray-600 mb-1">End Date</label>
+            <Label className="block text-xs font-medium text-gray-600 mb-1">End Date</Label>
             <input type="datetime-local" className={inputCls} value={endDate} onChange={e => setEndDate(e.target.value)} />
           </div>
         </div>
@@ -1976,11 +1979,11 @@ function AddPriceRuleForm({ ruleType, productId, variants, onSave, onCancel, sav
       {ruleType === 'quantity' && (
         <div className="grid grid-cols-2 gap-3">
           <div>
-            <label className="block text-xs font-medium text-gray-600 mb-1">Min Quantity *</label>
+            <Label className="block text-xs font-medium text-gray-600 mb-1" required>Min Quantity</Label>
             <input type="number" min="1" className={inputCls} value={minQty} onChange={e => setMinQty(e.target.value)} placeholder="e.g. 10" />
           </div>
           <div>
-            <label className="block text-xs font-medium text-gray-600 mb-1">Max Quantity (leave blank for unlimited)</label>
+            <Label className="block text-xs font-medium text-gray-600 mb-1">Max Quantity (leave blank for unlimited)</Label>
             <input type="number" min="1" className={inputCls} value={maxQty} onChange={e => setMaxQty(e.target.value)} placeholder="e.g. 49" />
           </div>
         </div>
@@ -1989,7 +1992,7 @@ function AddPriceRuleForm({ ruleType, productId, variants, onSave, onCancel, sav
       {ruleType === 'channel' && (
         <div className="grid grid-cols-2 gap-3">
           <div>
-            <label className="block text-xs font-medium text-gray-600 mb-1">Sales Channel *</label>
+            <Label className="block text-xs font-medium text-gray-600 mb-1" required>Sales Channel</Label>
             <select className={selectCls} value={channel} onChange={e => setChannel(e.target.value)}>
               <option value="">Select channel…</option>
               <option value="online">Online Store</option>
@@ -2008,22 +2011,22 @@ function AddPriceRuleForm({ ruleType, productId, variants, onSave, onCancel, sav
         <h5 className="text-xs font-medium text-gray-600 mb-2">Pricing (set at least one)</h5>
         <div className="grid grid-cols-3 gap-3">
           <div>
-            <label className="block text-xs font-medium text-gray-600 mb-1">Fixed Price</label>
+            <Label className="block text-xs font-medium text-gray-600 mb-1">Fixed Price</Label>
             <input type="number" step="0.01" min="0" className={inputCls} value={price} onChange={e => setPrice(e.target.value)} placeholder="e.g. 899.00" />
           </div>
           <div>
-            <label className="block text-xs font-medium text-gray-600 mb-1">Discount %</label>
+            <Label className="block text-xs font-medium text-gray-600 mb-1">Discount %</Label>
             <input type="number" step="0.01" min="0" max="100" className={inputCls} value={discountPct} onChange={e => setDiscountPct(e.target.value)} placeholder="e.g. 15" />
           </div>
           <div>
-            <label className="block text-xs font-medium text-gray-600 mb-1">Discount Amount (₹)</label>
+            <Label className="block text-xs font-medium text-gray-600 mb-1">Discount Amount (₹)</Label>
             <input type="number" step="0.01" min="0" className={inputCls} value={discountAmt} onChange={e => setDiscountAmt(e.target.value)} placeholder="e.g. 100" />
           </div>
         </div>
       </div>
 
       <div>
-        <label className="block text-xs font-medium text-gray-600 mb-1">Notes (optional)</label>
+        <Label className="block text-xs font-medium text-gray-600 mb-1">Notes (optional)</Label>
         <input className={inputCls} value={notes} onChange={e => setNotes(e.target.value)} placeholder="Internal note about this rule…" />
       </div>
 
@@ -4363,16 +4366,16 @@ export default function ProductForm() {
                         <ResizableTable tableId={`product-form-price-rules-${priceRuleTab}`} defaultWidths={[150, 120, 90, 80, 80, 80]}>
                           <thead className="bg-gray-50 text-left">
                             <tr>
-                              <th className="px-3 py-2 font-medium text-gray-600">Name</th>
-                              {priceRuleTab === 'party' && <><th className="px-3 py-2 font-medium text-gray-600">Group</th></>}
-                              {priceRuleTab === 'location' && <><th className="px-3 py-2 font-medium text-gray-600">State</th><th className="px-3 py-2 font-medium text-gray-600">City</th><th className="px-3 py-2 font-medium text-gray-600">Pincode</th></>}
-                              {priceRuleTab === 'scheduled' && <><th className="px-3 py-2 font-medium text-gray-600">Start</th><th className="px-3 py-2 font-medium text-gray-600">End</th></>}
-                              {priceRuleTab === 'quantity' && <><th className="px-3 py-2 font-medium text-gray-600">Min Qty</th><th className="px-3 py-2 font-medium text-gray-600">Max Qty</th></>}
-                              {priceRuleTab === 'channel' && <th className="px-3 py-2 font-medium text-gray-600">Channel</th>}
-                              <th className="px-3 py-2 font-medium text-gray-600">Price</th>
-                              <th className="px-3 py-2 font-medium text-gray-600">Discount %</th>
-                              <th className="px-3 py-2 font-medium text-gray-600">Active</th>
-                              <th className="px-3 py-2 font-medium text-gray-600 text-right">Actions</th>
+                              <th className="px-3 py-2 font-medium text-gray-600"><TableColumnLabel>Name</TableColumnLabel></th>
+                              {priceRuleTab === 'party' && <><th className="px-3 py-2 font-medium text-gray-600"><TableColumnLabel>Group</TableColumnLabel></th></>}
+                              {priceRuleTab === 'location' && <><th className="px-3 py-2 font-medium text-gray-600"><TableColumnLabel>State</TableColumnLabel></th><th className="px-3 py-2 font-medium text-gray-600"><TableColumnLabel>City</TableColumnLabel></th><th className="px-3 py-2 font-medium text-gray-600"><TableColumnLabel>Pincode</TableColumnLabel></th></>}
+                              {priceRuleTab === 'scheduled' && <><th className="px-3 py-2 font-medium text-gray-600"><TableColumnLabel>Start</TableColumnLabel></th><th className="px-3 py-2 font-medium text-gray-600"><TableColumnLabel>End</TableColumnLabel></th></>}
+                              {priceRuleTab === 'quantity' && <><th className="px-3 py-2 font-medium text-gray-600"><TableColumnLabel>Min Qty</TableColumnLabel></th><th className="px-3 py-2 font-medium text-gray-600"><TableColumnLabel>Max Qty</TableColumnLabel></th></>}
+                              {priceRuleTab === 'channel' && <th className="px-3 py-2 font-medium text-gray-600"><TableColumnLabel>Channel</TableColumnLabel></th>}
+                              <th className="px-3 py-2 font-medium text-gray-600"><TableColumnLabel>Price</TableColumnLabel></th>
+                              <th className="px-3 py-2 font-medium text-gray-600"><TableColumnLabel>Discount %</TableColumnLabel></th>
+                              <th className="px-3 py-2 font-medium text-gray-600"><TableColumnLabel>Active</TableColumnLabel></th>
+                              <th className="px-3 py-2 font-medium text-gray-600 text-right"><TableColumnLabel>Actions</TableColumnLabel></th>
                             </tr>
                           </thead>
                           <tbody className="divide-y">

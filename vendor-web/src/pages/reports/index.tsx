@@ -1,4 +1,6 @@
 import { useMemo, useState, useEffect, useRef, useCallback } from 'react'
+import { SectionLabel } from '@/components/common/FieldLabel'
+import { TableColumnLabel } from '@/components/common/FieldLabel'
 import { useEscapeToClose } from '@/hooks/useEscapeToClose'
 import { ResizableTable } from '@/components/table/ResizableTable'
 import { useNavigate } from 'react-router-dom'
@@ -1418,7 +1420,7 @@ export default function ReportsPage() {
 
                       {/* ── Quick preset bundles ── */}
                       <div>
-                        <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">Quick Presets</p>
+                        <SectionLabel className="mb-2">Quick Presets</SectionLabel>
                         <div className="flex flex-wrap gap-2">
                           {WA_PRESETS.map(p => (
                             <button key={p.label} onClick={() => updateContact(contact.id, { reports: p.reports, smart_triggers: p.triggers })}
@@ -1664,7 +1666,7 @@ export default function ReportsPage() {
                       <SortHeader label="Date" sortKey="date" activeSortKey={sortKey} sortDir={sortDir} onSort={handleSort} />
                       <SortHeader label="Orders" sortKey="orders" activeSortKey={sortKey} sortDir={sortDir} onSort={handleSort} />
                       <SortHeader label="Revenue" sortKey="revenue" activeSortKey={sortKey} sortDir={sortDir} onSort={handleSort} />
-                      <th className="py-2 text-right">Avg Order</th>
+                      <th className="py-2 text-right"><TableColumnLabel>Avg Order</TableColumnLabel></th>
                     </tr></thead>
                     <tbody className="divide-y divide-gray-100">
                       {sorted.map(r => (
@@ -1766,7 +1768,7 @@ export default function ReportsPage() {
                 <div className="overflow-auto max-h-96">
                   <ResizableTable tableId="rpt-top-products" defaultWidths={[40, 240, 100, 90]}>
                     <thead className="sticky top-0 bg-white"><tr className="border-b text-left text-xs font-medium text-gray-500 uppercase">
-                      <th className="py-2 pr-2 w-8">#</th>
+                      <th className="py-2 pr-2 w-8"><TableColumnLabel>#</TableColumnLabel></th>
                       <SortHeader label="Product" sortKey="name" activeSortKey={sortKey} sortDir={sortDir} onSort={handleSort} />
                       <SortHeader label="Price" sortKey="price" activeSortKey={sortKey} sortDir={sortDir} onSort={handleSort} />
                       <SortHeader label="Stock" sortKey="stock" activeSortKey={sortKey} sortDir={sortDir} onSort={handleSort} />
@@ -1807,7 +1809,7 @@ export default function ReportsPage() {
                 <div className="overflow-auto max-h-96">
                   <ResizableTable tableId="rpt-top-customers" defaultWidths={[40, 200, 80, 100]}>
                     <thead className="sticky top-0 bg-white"><tr className="border-b text-left text-xs font-medium text-gray-500 uppercase">
-                      <th className="py-2 pr-2 w-8">#</th>
+                      <th className="py-2 pr-2 w-8"><TableColumnLabel>#</TableColumnLabel></th>
                       <SortHeader label="Customer" sortKey="name" activeSortKey={sortKey} sortDir={sortDir} onSort={handleSort} />
                       <SortHeader label="Orders" sortKey="orders" activeSortKey={sortKey} sortDir={sortDir} onSort={handleSort} />
                       <SortHeader label="Spent" sortKey="spent" activeSortKey={sortKey} sortDir={sortDir} onSort={handleSort} />
@@ -1864,10 +1866,10 @@ export default function ReportsPage() {
                     <thead className="sticky top-0 bg-white"><tr className="border-b text-left text-xs font-medium text-gray-500 uppercase">
                       <SortHeader label="Date" sortKey="created_at" activeSortKey={sortKey} sortDir={sortDir} onSort={handleSort} />
                       <SortHeader label="Order #" sortKey="order_number" activeSortKey={sortKey} sortDir={sortDir} onSort={handleSort} />
-                      <th className="py-2 pr-4">Customer</th>
+                      <th className="py-2 pr-4"><TableColumnLabel>Customer</TableColumnLabel></th>
                       <SortHeader label="Total" sortKey="total" activeSortKey={sortKey} sortDir={sortDir} onSort={handleSort} />
-                      <th className="py-2 pr-4">Payment</th>
-                      <th className="py-2">Status</th>
+                      <th className="py-2 pr-4"><TableColumnLabel>Payment</TableColumnLabel></th>
+                      <th className="py-2"><TableColumnLabel>Status</TableColumnLabel></th>
                     </tr></thead>
                     <tbody className="divide-y divide-gray-100">
                       {sorted.slice(0, 30).map((o: any) => {
@@ -1923,9 +1925,9 @@ export default function ReportsPage() {
                     <thead className="sticky top-0 bg-white"><tr className="border-b text-left text-xs font-medium text-gray-500 uppercase">
                       <SortHeader label="Date" sortKey="booking_date" activeSortKey={sortKey} sortDir={sortDir} onSort={handleSort} />
                       <SortHeader label="Booking #" sortKey="booking_number" activeSortKey={sortKey} sortDir={sortDir} onSort={handleSort} />
-                      <th className="py-2 pr-4">Service</th>
-                      <th className="py-2 pr-4">Customer</th>
-                      <th className="py-2">Status</th>
+                      <th className="py-2 pr-4"><TableColumnLabel>Service</TableColumnLabel></th>
+                      <th className="py-2 pr-4"><TableColumnLabel>Customer</TableColumnLabel></th>
+                      <th className="py-2"><TableColumnLabel>Status</TableColumnLabel></th>
                     </tr></thead>
                     <tbody className="divide-y divide-gray-100">
                       {sorted.slice(0, 30).map((b: any) => {
@@ -1975,9 +1977,9 @@ export default function ReportsPage() {
                     <thead className="sticky top-0 bg-white"><tr className="border-b text-left text-xs font-medium text-gray-500 uppercase">
                       <SortHeader label="Date" sortKey="created_at" activeSortKey={sortKey} sortDir={sortDir} onSort={handleSort} />
                       <SortHeader label="Order #" sortKey="order_number" activeSortKey={sortKey} sortDir={sortDir} onSort={handleSort} />
-                      <th className="py-2 pr-4">Customer</th>
+                      <th className="py-2 pr-4"><TableColumnLabel>Customer</TableColumnLabel></th>
                       <SortHeader label="Total" sortKey="total" activeSortKey={sortKey} sortDir={sortDir} onSort={handleSort} />
-                      <th className="py-2">Status</th>
+                      <th className="py-2"><TableColumnLabel>Status</TableColumnLabel></th>
                     </tr></thead>
                     <tbody className="divide-y divide-gray-100">
                       {sorted.slice(0, 30).map((o: any) => {
@@ -2015,10 +2017,10 @@ export default function ReportsPage() {
                   <ResizableTable tableId="rpt-coupons" defaultWidths={[120, 90, 100, 80, 80]}>
                     <thead className="sticky top-0 bg-white"><tr className="border-b text-left text-xs font-medium text-gray-500 uppercase">
                       <SortHeader label="Code" sortKey="code" activeSortKey={sortKey} sortDir={sortDir} onSort={handleSort} />
-                      <th className="py-2 pr-4">Type</th>
+                      <th className="py-2 pr-4"><TableColumnLabel>Type</TableColumnLabel></th>
                       <SortHeader label="Discount" sortKey="discount_value" activeSortKey={sortKey} sortDir={sortDir} onSort={handleSort} />
-                      <th className="py-2 pr-4">Uses</th>
-                      <th className="py-2">Status</th>
+                      <th className="py-2 pr-4"><TableColumnLabel>Uses</TableColumnLabel></th>
+                      <th className="py-2"><TableColumnLabel>Status</TableColumnLabel></th>
                     </tr></thead>
                     <tbody className="divide-y divide-gray-100">
                       {sorted.filter((c: any) => {
@@ -2076,7 +2078,7 @@ export default function ReportsPage() {
                       <SortHeader label="Product" sortKey="name" activeSortKey={sortKey} sortDir={sortDir} onSort={handleSort} />
                       <SortHeader label={selectedStoreId !== 'all' ? 'Store Stock' : 'Total Stock'} sortKey="stock" activeSortKey={sortKey} sortDir={sortDir} onSort={handleSort} />
                       <SortHeader label="Price" sortKey="price" activeSortKey={sortKey} sortDir={sortDir} onSort={handleSort} />
-                      <th className="py-2 text-right px-2">Value</th>
+                      <th className="py-2 text-right px-2"><TableColumnLabel>Value</TableColumnLabel></th>
                       {hasStores && reportStores.map(s => (
                         <th key={s.id} className="py-2 text-right px-2 text-indigo-500">{s.code || s.name}</th>
                       ))}
@@ -2353,7 +2355,7 @@ export default function ReportsPage() {
                         <th className="py-3 pr-3 cursor-pointer select-none hover:text-gray-700" onClick={() => mrpSort('name')}>
                           Product {mrpSortKey === 'name' && (mrpSortDir === 'asc' ? '↑' : '↓')}
                         </th>
-                        <th className="py-3 pr-3 hidden md:table-cell">SKU / Category</th>
+                        <th className="py-3 pr-3 hidden md:table-cell"><TableColumnLabel>SKU / Category</TableColumnLabel></th>
                         <th className="py-3 pr-3 text-right cursor-pointer select-none hover:text-gray-700" onClick={() => mrpSort('required_qty')}>
                           Required {mrpSortKey === 'required_qty' && (mrpSortDir === 'asc' ? '↑' : '↓')}
                         </th>
@@ -2363,10 +2365,10 @@ export default function ReportsPage() {
                         <th className="py-3 pr-3 text-right cursor-pointer select-none hover:text-gray-700" onClick={() => mrpSort('gap')}>
                           Gap {mrpSortKey === 'gap' && (mrpSortDir === 'asc' ? '↑' : '↓')}
                         </th>
-                        {mrpOptCols.has('unit_price') && <th className="py-3 pr-3 text-right hidden lg:table-cell">Unit Price</th>}
-                        <th className="py-3 pr-3 text-right hidden lg:table-cell">Est. Value</th>
-                        <th className="py-3 pr-3 hidden xl:table-cell">Order Refs</th>
-                        <th className="py-3 px-4">Action</th>
+                        {mrpOptCols.has('unit_price') && <th className="py-3 pr-3 text-right hidden lg:table-cell"><TableColumnLabel>Unit Price</TableColumnLabel></th>}
+                        <th className="py-3 pr-3 text-right hidden lg:table-cell"><TableColumnLabel>Est. Value</TableColumnLabel></th>
+                        <th className="py-3 pr-3 hidden xl:table-cell"><TableColumnLabel>Order Refs</TableColumnLabel></th>
+                        <th className="py-3 px-4"><TableColumnLabel>Action</TableColumnLabel></th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-100">
@@ -2633,10 +2635,10 @@ export default function ReportsPage() {
                 <div className="border border-gray-200 rounded-xl overflow-hidden">
                   <ResizableTable tableId="rpt-po-lines" defaultWidths={[200, 90, 100, 100]}>
                     <thead className="bg-gray-50 border-b"><tr className="text-xs font-medium text-gray-500 uppercase">
-                      <th className="py-2 px-3 text-left">Product</th>
-                      <th className="py-2 px-3 text-right">Qty</th>
-                      <th className="py-2 px-3 text-right">Unit Price</th>
-                      <th className="py-2 px-3 text-right">Line Total</th>
+                      <th className="py-2 px-3 text-left"><TableColumnLabel>Product</TableColumnLabel></th>
+                      <th className="py-2 px-3 text-right"><TableColumnLabel>Qty</TableColumnLabel></th>
+                      <th className="py-2 px-3 text-right"><TableColumnLabel>Unit Price</TableColumnLabel></th>
+                      <th className="py-2 px-3 text-right"><TableColumnLabel>Line Total</TableColumnLabel></th>
                     </tr></thead>
                     <tbody className="divide-y">
                       {poLines.map(l => (
@@ -2781,9 +2783,9 @@ export default function ReportsPage() {
                   <div className="border border-gray-200 rounded-xl overflow-hidden">
                     <ResizableTable tableId="rpt-manufacture" defaultWidths={[220, 90, 100]}>
                       <thead className="bg-gray-50 border-b"><tr className="text-xs font-medium text-gray-500 uppercase">
-                        <th className="py-2 px-3 text-left">Product</th>
-                        <th className="py-2 px-3 text-right">Qty</th>
-                        <th className="py-2 px-3 text-right hidden sm:table-cell">Priority</th>
+                        <th className="py-2 px-3 text-left"><TableColumnLabel>Product</TableColumnLabel></th>
+                        <th className="py-2 px-3 text-right"><TableColumnLabel>Qty</TableColumnLabel></th>
+                        <th className="py-2 px-3 text-right hidden sm:table-cell"><TableColumnLabel>Priority</TableColumnLabel></th>
                       </tr></thead>
                       <tbody className="divide-y">
                         {prodLines.map((l, i) => (
@@ -2818,10 +2820,10 @@ export default function ReportsPage() {
                     <div className="mb-3 border border-gray-200 rounded-xl overflow-hidden">
                       <ResizableTable tableId="rpt-stock-dispatches" defaultWidths={[120, 80, 120, 160, 40]}>
                         <thead className="bg-gray-50 border-b"><tr className="font-semibold text-gray-500 uppercase">
-                          <th className="py-2 px-3 text-left">Date</th>
-                          <th className="py-2 px-3 text-right">Qty</th>
-                          <th className="py-2 px-3">Dispatched By</th>
-                          <th className="py-2 px-3">Notes</th>
+                          <th className="py-2 px-3 text-left"><TableColumnLabel>Date</TableColumnLabel></th>
+                          <th className="py-2 px-3 text-right"><TableColumnLabel>Qty</TableColumnLabel></th>
+                          <th className="py-2 px-3"><TableColumnLabel>Dispatched By</TableColumnLabel></th>
+                          <th className="py-2 px-3"><TableColumnLabel>Notes</TableColumnLabel></th>
                           <th className="py-2 px-2 w-8" />
                         </tr></thead>
                         <tbody className="divide-y">

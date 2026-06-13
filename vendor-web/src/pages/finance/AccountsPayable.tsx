@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Label } from '@/components/ui/label'
 import { useEscapeToClose } from '@/hooks/useEscapeToClose'
 import { useBills, useApAging, useCreateBill, usePostBill, useRecordVendorPayment, usePaymentRuns } from '@/hooks/useFinance'
 import { Plus, CheckCircle, X } from 'lucide-react'
@@ -187,7 +188,7 @@ export default function AccountsPayable() {
               { label: 'Notes', key: 'notes' },
             ].map(({ label, key, type }) => (
               <div key={key}>
-                <label className="block text-xs font-medium text-gray-600 mb-1">{label}</label>
+                <Label className="block text-xs font-medium text-gray-600 mb-1">{label}</Label>
                 <input type={type || 'text'} value={(billForm as any)[key]}
                   onChange={e => setBillForm(f => ({ ...f, [key]: e.target.value }))}
                   className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary" />

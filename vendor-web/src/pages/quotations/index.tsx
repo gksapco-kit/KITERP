@@ -1,4 +1,5 @@
 import { useCallback, useMemo, useState } from 'react'
+import { TableColumnLabel } from '@/components/common/FieldLabel'
 import { useNavigate } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Card, CardContent } from '@/components/ui/card'
@@ -439,14 +440,14 @@ export default function QuotationsPage() {
           >
             <thead>
               <tr className="border-b bg-gray-50">
-                <th className="text-left px-5 py-3 text-xs font-medium text-gray-500 uppercase">Reference</th>
-                <th className="text-left px-5 py-3 text-xs font-medium text-gray-500 uppercase">Type</th>
-                <th className="text-left px-5 py-3 text-xs font-medium text-gray-500 uppercase">Customer</th>
-                <th className="text-left px-5 py-3 text-xs font-medium text-gray-500 uppercase">Subject</th>
-                <th className="text-right px-5 py-3 text-xs font-medium text-gray-500 uppercase">Amount</th>
-                <th className="text-center px-5 py-3 text-xs font-medium text-gray-500 uppercase">Status</th>
-                <th className="text-left px-5 py-3 text-xs font-medium text-gray-500 uppercase">Date</th>
-                <th className="text-center px-5 py-3 text-xs font-medium text-gray-500 uppercase">Actions</th>
+                <th className="text-left px-5 py-3 text-xs font-medium text-gray-500 uppercase"><TableColumnLabel>Reference</TableColumnLabel></th>
+                <th className="text-left px-5 py-3 text-xs font-medium text-gray-500 uppercase"><TableColumnLabel>Type</TableColumnLabel></th>
+                <th className="text-left px-5 py-3 text-xs font-medium text-gray-500 uppercase"><TableColumnLabel>Customer</TableColumnLabel></th>
+                <th className="text-left px-5 py-3 text-xs font-medium text-gray-500 uppercase"><TableColumnLabel>Subject</TableColumnLabel></th>
+                <th className="text-right px-5 py-3 text-xs font-medium text-gray-500 uppercase"><TableColumnLabel>Amount</TableColumnLabel></th>
+                <th className="text-center px-5 py-3 text-xs font-medium text-gray-500 uppercase"><TableColumnLabel>Status</TableColumnLabel></th>
+                <th className="text-left px-5 py-3 text-xs font-medium text-gray-500 uppercase"><TableColumnLabel>Date</TableColumnLabel></th>
+                <th className="text-center px-5 py-3 text-xs font-medium text-gray-500 uppercase"><TableColumnLabel>Actions</TableColumnLabel></th>
               </tr>
             </thead>
             <tbody className="divide-y">

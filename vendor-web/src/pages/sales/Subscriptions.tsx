@@ -1,4 +1,5 @@
 import { useMemo } from 'react'
+import { TableColumnLabel } from '@/components/common/FieldLabel'
 import { Link } from 'react-router-dom'
 import { Loader2 } from 'lucide-react'
 import { useQuery } from '@tanstack/react-query'
@@ -83,11 +84,11 @@ export default function SubscriptionsSalesPage() {
             <table className="w-full text-sm">
               <thead className="bg-gray-50 text-left text-xs uppercase text-gray-500">
                 <tr>
-                  <th className="px-4 py-3">Customer</th>
-                  <th className="px-4 py-3">Item</th>
-                  <th className="px-4 py-3">Cadence</th>
-                  <th className="px-4 py-3 text-right">Per cycle</th>
-                  <th className="px-4 py-3">Status</th>
+                  <th className="px-4 py-3"><TableColumnLabel>Customer</TableColumnLabel></th>
+                  <th className="px-4 py-3"><TableColumnLabel>Item</TableColumnLabel></th>
+                  <th className="px-4 py-3"><TableColumnLabel>Cadence</TableColumnLabel></th>
+                  <th className="px-4 py-3 text-right"><TableColumnLabel>Per cycle</TableColumnLabel></th>
+                  <th className="px-4 py-3"><TableColumnLabel>Status</TableColumnLabel></th>
                 </tr>
               </thead>
               <tbody className="divide-y">
@@ -111,10 +112,10 @@ export default function SubscriptionsSalesPage() {
         <table className="w-full text-sm">
           <thead className="bg-gray-50 text-left text-xs uppercase text-gray-500">
             <tr>
-              <th className="px-4 py-3">Type</th>
-              <th className="px-4 py-3">Name</th>
-              <th className="px-4 py-3">Cadence</th>
-              <th className="px-4 py-3 text-right">From price</th>
+              <th className="px-4 py-3"><TableColumnLabel>Type</TableColumnLabel></th>
+              <th className="px-4 py-3"><TableColumnLabel>Name</TableColumnLabel></th>
+              <th className="px-4 py-3"><TableColumnLabel>Cadence</TableColumnLabel></th>
+              <th className="px-4 py-3 text-right"><TableColumnLabel>From price</TableColumnLabel></th>
               <th className="px-4 py-3" />
             </tr>
           </thead>

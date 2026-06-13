@@ -17,6 +17,7 @@ from app.api.v1 import (
     vendor_finance,
     vendor_controlling,
     vendor_commission,
+    vendor_schema_catalog,
     vendor_websites,
     public_sites,
     vendor_blog,
@@ -85,6 +86,7 @@ api_router.include_router(vendor_crm_advanced.public_router, prefix="/public/crm
 api_router.include_router(vendor_finance.router, prefix="/vendors/me/finance", tags=["Finance"])
 api_router.include_router(vendor_controlling.router, prefix="/vendors/me/controlling", tags=["Controlling"])
 api_router.include_router(vendor_commission.router, prefix="/vendors/me/commission", tags=["Commission"])
+api_router.include_router(vendor_schema_catalog.router, prefix="/vendors/me/schema", tags=["Schema Catalog"])
 
 # ── App Builds (branded apps) ─────────────────────────────────────
 api_router.include_router(app_builds.router, tags=["App Builds"])

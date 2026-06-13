@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type MutableRefObject, type ReactNode } from 'react'
+import { createContext, useCallback, useContext, useLayoutEffect, useMemo, useRef, useState, type MutableRefObject, type ReactNode } from 'react'
 import type { SettingsSectionKey } from './settingsDirtyHelpers'
 
 type SettingsDirtyContextValue = {
@@ -51,10 +51,10 @@ export function useSettingsDirtyContext() {
   return ctx
 }
 
-export function useSettingsSectionDirty(key: SettingsSectionKey, isDirty: boolean) {
+export function useSettingsSectionDirty(key: SettingsSectionKey, isDirty: boolean, ready = true) {
   const { setSectionDirty } = useSettingsDirtyContext()
-  useEffect(() => {
-    setSectionDirty(key, isDirty)
+  useLayoutEffect(() => {
+    setSectionDirty(key, ready && isDirty)
     return () => setSectionDirty(key, false)
-  }, [key, isDirty, setSectionDirty])
+  }, [key, isDirty, ready, setSectionDirty])
 }

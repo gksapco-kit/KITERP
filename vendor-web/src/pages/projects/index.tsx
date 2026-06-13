@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { TableColumnLabel } from '@/components/common/FieldLabel'
 import { useNavigate } from 'react-router-dom'
 import { useEscapeToClose } from '@/hooks/useEscapeToClose'
 import { Card, CardContent } from '@/components/ui/card'
@@ -306,12 +307,12 @@ export default function ProjectsPage() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-border bg-muted/40 text-left text-xs uppercase tracking-wide text-muted-foreground">
-                  <th className="px-4 py-3 font-medium">Project</th>
-                  <th className="px-4 py-3 font-medium">Customer</th>
-                  <th className="px-4 py-3 font-medium">Status</th>
-                  <th className="px-4 py-3 font-medium">Priority</th>
-                  <th className="px-4 py-3 font-medium">Due</th>
-                  <th className="px-4 py-3 font-medium">Progress</th>
+                  <th className="px-4 py-3 font-medium"><TableColumnLabel>Project</TableColumnLabel></th>
+                  <th className="px-4 py-3 font-medium"><TableColumnLabel>Customer</TableColumnLabel></th>
+                  <th className="px-4 py-3 font-medium"><TableColumnLabel>Status</TableColumnLabel></th>
+                  <th className="px-4 py-3 font-medium"><TableColumnLabel>Priority</TableColumnLabel></th>
+                  <th className="px-4 py-3 font-medium"><TableColumnLabel>Due</TableColumnLabel></th>
+                  <th className="px-4 py-3 font-medium"><TableColumnLabel>Progress</TableColumnLabel></th>
                 </tr>
               </thead>
               <tbody>

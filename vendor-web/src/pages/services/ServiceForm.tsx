@@ -1,4 +1,6 @@
 import { useForm, FormProvider, Controller, type FieldErrors } from 'react-hook-form'
+import { SectionLabel } from '@/components/common/FieldLabel'
+import { FormColumnLabel } from '@/components/common/FieldLabel'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom'
@@ -230,7 +232,7 @@ function DisplayField({ label, value }: { label: string; value?: React.ReactNode
   if (value === null || value === undefined || value === '') return null
   return (
     <div>
-      <p className="text-xs font-medium text-gray-400 uppercase tracking-wide mb-0.5">{label}</p>
+      <FormColumnLabel className="tracking-wide mb-0.5">{label}</FormColumnLabel>
       <p className="text-sm text-gray-800">{value}</p>
     </div>
   )
@@ -383,7 +385,7 @@ function QuoteFormConfigurator({ fields, onChange }: {
               />
               {f.type === 'select' && (
                 <div className="pl-1">
-                  <p className="text-xs font-medium text-gray-400 uppercase mb-1">Dropdown Options</p>
+                  <FormColumnLabel className="mb-1">Dropdown Options</FormColumnLabel>
                   <div className="flex flex-wrap gap-1 mb-1.5">
                     {(f.options || []).map((opt, i) => (
                       <span key={i} className="inline-flex items-center gap-1 bg-gray-100 text-gray-700 text-xs pl-2 pr-1 py-0.5 rounded-full">
@@ -1366,7 +1368,7 @@ export default function ServiceForm() {
             </div>
             {service.allow_quote_request && Array.isArray(service.quote_form_config) && service.quote_form_config.length > 0 && (
               <div className="mt-3 space-y-1">
-                <p className="text-xs font-medium text-gray-400 uppercase tracking-wide">Quote Form Fields</p>
+                <FormColumnLabel className="tracking-wide">Quote Form Fields</FormColumnLabel>
                 <div className="flex flex-wrap gap-1.5">
                   {service.quote_form_config.map((f: any, i: number) => (
                     f.enabled !== false && (
@@ -1496,16 +1498,16 @@ export default function ServiceForm() {
           <Card>
             <CardContent className={formDisplayCompact.cardBody}>
               <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-3 flex items-center gap-1.5"><Globe className="w-3.5 h-3.5" />Details</p>
-              {service.prerequisites && <div className="mb-3"><p className="text-xs font-medium text-gray-400 uppercase mb-1">Prerequisites</p><p className="text-sm text-gray-700">{service.prerequisites}</p></div>}
+              {service.prerequisites && <div className="mb-3"><FormColumnLabel className="mb-1">Prerequisites</FormColumnLabel><p className="text-sm text-gray-700">{service.prerequisites}</p></div>}
               {service.whats_included?.length > 0 && (
                 <div className="mb-3">
-                  <p className="text-xs font-medium text-gray-400 uppercase mb-1">What's Included</p>
+                  <FormColumnLabel className="mb-1">What's Included</FormColumnLabel>
                   <div className="flex gap-1.5 flex-wrap">{service.whats_included.map((w: string, i: number) => <span key={i} className="text-xs px-2 py-0.5 bg-green-50 text-green-700 rounded-full border border-green-200">{w}</span>)}</div>
                 </div>
               )}
               {service.whats_not_included?.length > 0 && (
                 <div className="mb-3">
-                  <p className="text-xs font-medium text-gray-400 uppercase mb-1">Not Included</p>
+                  <FormColumnLabel className="mb-1">Not Included</FormColumnLabel>
                   <div className="flex gap-1.5 flex-wrap">{service.whats_not_included.map((w: string, i: number) => <span key={i} className="text-xs px-2 py-0.5 bg-red-50 text-red-600 rounded-full border border-red-100">{w}</span>)}</div>
                 </div>
               )}
@@ -1549,7 +1551,7 @@ export default function ServiceForm() {
               <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-3 flex items-center gap-1.5"><Puzzle className="w-3.5 h-3.5" />Add-ons & Packages</p>
               {svcAddons.length > 0 && (
                 <div className="mb-3">
-                  <p className="text-xs font-medium text-gray-400 uppercase mb-1">Linked Add-ons</p>
+                  <FormColumnLabel className="mb-1">Linked Add-ons</FormColumnLabel>
                   <div className="space-y-2">
                     {svcAddons.map((addon, i) => (
                       <div key={addon.id || i} className="flex items-center justify-between rounded-lg border border-border px-3 py-2 text-sm">
@@ -1572,7 +1574,7 @@ export default function ServiceForm() {
                 if (!Array.isArray(pkgs) || pkgs.length === 0) return null
                 return (
                   <div>
-                    <p className="text-xs font-medium text-gray-400 uppercase mb-2">Service Packages</p>
+                    <FormColumnLabel className="mb-2">Service Packages</FormColumnLabel>
                     <div className="space-y-2">
                       {pkgs.map((pkg: any, i: number) => (
                         <div key={i} className="flex items-center justify-between rounded-lg border px-3 py-2 bg-gray-50/50">
@@ -1657,7 +1659,7 @@ export default function ServiceForm() {
               <div className="flex items-start gap-2">
                 <History className="w-4 h-4 text-gray-400 mt-0.5 shrink-0" />
                 <div>
-                  <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">Change History</p>
+                  <SectionLabel>Change History</SectionLabel>
                   <span className="text-xs bg-gray-100 rounded-full px-2 py-0.5 text-gray-500">v{service.version_number}</span>
                   <span className="text-xs text-gray-400 ml-1">{history.length} entries</span>
                   <p className="mt-1 text-xs text-muted-foreground max-w-md">

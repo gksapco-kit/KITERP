@@ -38,7 +38,7 @@ export function Field({
 }: { label: string; children: ReactNode; required?: boolean }) {
   return (
     <div>
-      <Label>{label}{required && <span className="text-red-500 ml-0.5">*</span>}</Label>
+      <Label required={required}>{label}</Label>
       {children}
     </div>
   )

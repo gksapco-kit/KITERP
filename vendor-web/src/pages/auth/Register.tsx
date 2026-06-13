@@ -460,7 +460,6 @@ export default function Register() {
                             onChange={field.onChange}
                             error={errors.phone?.message ? formatFormFieldError(errors.phone.message, 'Phone') : undefined}
                             defaultCountryIso="IN"
-                            inferCountryFromLocation
                             subtleFeedback
                           />
                         )}

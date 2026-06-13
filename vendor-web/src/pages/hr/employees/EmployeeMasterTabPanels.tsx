@@ -1,4 +1,5 @@
 import { useEffect, useState, useRef } from 'react'
+import { SectionLabel } from '@/components/common/FieldLabel'
 import { PhoneInput } from '@/components/ui/PhoneInput'
 import { useHREmployees, useStores } from '@/hooks/useVendor'
 import { employeeDisplayName, sanitizeEmployeeUpdatePayload } from '@/lib/hrEmployeeDisplay'
@@ -42,14 +43,14 @@ export function AddressFields({
     const line = [addr.street, addr.city, addr.state, addr.pincode, addr.country].filter(Boolean).join(', ')
     return (
       <div className="space-y-1">
-        <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">{label}</p>
+        <SectionLabel>{label}</SectionLabel>
         <p className="text-sm text-gray-900">{line || <span className="text-gray-400">—</span>}</p>
       </div>
     )
   }
   return (
     <div className="space-y-2">
-      <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">{label}</p>
+      <SectionLabel>{label}</SectionLabel>
       <input
         className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
         placeholder="Street / House No. / Area"

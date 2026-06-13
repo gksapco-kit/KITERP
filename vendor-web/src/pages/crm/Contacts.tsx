@@ -1,4 +1,6 @@
 import { useMemo, useState } from 'react'
+import { SectionLabel } from '@/components/common/FieldLabel'
+import { TableColumnLabel } from '@/components/common/FieldLabel'
 import { useSearchParams } from 'react-router-dom'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -38,7 +40,7 @@ function ContactPersonsSection({ companyId }: { companyId: string }) {
   return (
     <div className="rounded-lg border p-3 space-y-2">
       <div className="flex items-center justify-between">
-        <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">Contact persons</p>
+        <SectionLabel>Contact persons</SectionLabel>
         <Button type="button" size="sm" variant="outline" onClick={() => setAdding(true)}>
           <Plus className="w-3.5 h-3.5 mr-1" /> Add person
         </Button>
@@ -450,12 +452,12 @@ export default function ContactsPage() {
             <table className="w-full min-w-[860px]">
               <thead>
                 <tr className="border-b bg-gray-50">
-                  <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">Name</th>
-                  <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">Type</th>
-                  <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">Email / Phone</th>
-                  <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">Company</th>
-                  <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">Stage</th>
-                  <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">Last activity</th>
+                  <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase"><TableColumnLabel>Name</TableColumnLabel></th>
+                  <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase"><TableColumnLabel>Type</TableColumnLabel></th>
+                  <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase"><TableColumnLabel>Email / Phone</TableColumnLabel></th>
+                  <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase"><TableColumnLabel>Company</TableColumnLabel></th>
+                  <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase"><TableColumnLabel>Stage</TableColumnLabel></th>
+                  <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase"><TableColumnLabel>Last activity</TableColumnLabel></th>
                 </tr>
               </thead>
               <tbody className="divide-y">

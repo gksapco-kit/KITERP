@@ -1,4 +1,5 @@
 import { useState, useCallback, useMemo } from 'react'
+import { TableColumnLabel } from '@/components/common/FieldLabel'
 import { useEscapeToClose } from '@/hooks/useEscapeToClose'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -161,13 +162,13 @@ export default function SuppliersPage() {
             <ResizableTable tableId="suppliers" defaultWidths={[180, 120, 140, 120, 90, 90, 80]}>
               <thead>
                 <tr className="border-b bg-gray-50">
-                  <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">Name</th>
-                  <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">Contact</th>
-                  <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase hidden lg:table-cell">GSTIN</th>
-                  <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">Phone</th>
-                  <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase hidden md:table-cell">Balance</th>
-                  <th className="text-center px-6 py-3 text-xs font-medium text-gray-500 uppercase">Status</th>
-                  <th className="text-right px-6 py-3 text-xs font-medium text-gray-500 uppercase">Actions</th>
+                  <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase"><TableColumnLabel>Name</TableColumnLabel></th>
+                  <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase"><TableColumnLabel>Contact</TableColumnLabel></th>
+                  <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase hidden lg:table-cell"><TableColumnLabel>GSTIN</TableColumnLabel></th>
+                  <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase"><TableColumnLabel>Phone</TableColumnLabel></th>
+                  <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase hidden md:table-cell"><TableColumnLabel>Balance</TableColumnLabel></th>
+                  <th className="text-center px-6 py-3 text-xs font-medium text-gray-500 uppercase"><TableColumnLabel>Status</TableColumnLabel></th>
+                  <th className="text-right px-6 py-3 text-xs font-medium text-gray-500 uppercase"><TableColumnLabel>Actions</TableColumnLabel></th>
                 </tr>
               </thead>
               <tbody className="divide-y">

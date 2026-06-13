@@ -1,5 +1,6 @@
 import type { StoreRecord } from '@/api/vendor'
 import type { Vendor } from '@/types'
+import { resolveStorefrontLinkMode } from '@/lib/liveStorefrontUrl'
 
 export const SETTINGS_SECTION_KEYS = [
   'profile',
@@ -25,6 +26,19 @@ function normStr(v: string | null | undefined): string {
 function arraysEqualNormalized(a: string[], b: string[]): boolean {
   const na = a.map((x) => x.trim()).filter(Boolean)
   const nb = b.map((x) => x.trim()).filter(Boolean)
+  if (na.length !== nb.length) return false
+  return na.every((v, i) => v === nb[i])
+}
+
+/** Compare phone lists ignoring formatting (+91 vs 91987…). */
+function phonesEqualNormalized(a: string[], b: string[]): boolean {
+  const norm = (phones: string[]) =>
+    phones
+      .map((p) => p.replace(/\D/g, ''))
+      .filter(Boolean)
+      .sort()
+  const na = norm(a)
+  const nb = norm(b)
   if (na.length !== nb.length) return false
   return na.every((v, i) => v === nb[i])
 }
@@ -71,11 +85,39 @@ export function supportEmailsFromVendor(vendor: Vendor): string[] {
   return extra.length > 0 ? extra : ['']
 }
 
+export function profileFormFromStore(
+  store: StoreRecord,
+  vendor: Vendor | null,
+): { business_name: string; display_name: string; description: string; offering_type: string } {
+  const settings = (store.settings ?? {}) as Record<string, unknown>
+  const settingStr = (key: string) => {
+    const v = settings[key]
+    return typeof v === 'string' && v.trim() ? v.trim() : ''
+  }
+  return {
+    business_name: store.name || '',
+    display_name: settingStr('display_name') || store.name || '',
+    description: store.description || '',
+    offering_type: settingStr('offering_type') || vendor?.offering_type || 'both',
+  }
+}
+
 export function isProfileSectionDirty(
   form: { business_name: string; display_name: string; description: string; offering_type: string },
   vendor: Vendor | null,
+  activeStore?: StoreRecord,
+  unitProfileEditable?: boolean,
 ): boolean {
   if (!vendor) return false
+  if (unitProfileEditable && activeStore) {
+    const saved = profileFormFromStore(activeStore, vendor)
+    return (
+      normStr(form.business_name) !== normStr(saved.business_name) ||
+      normStr(form.display_name) !== normStr(saved.display_name) ||
+      normStr(form.description) !== normStr(saved.description) ||
+      (form.offering_type || 'both') !== (saved.offering_type || 'both')
+    )
+  }
   return (
     normStr(form.business_name) !== normStr(vendor.business_name) ||
     normStr(form.display_name) !== normStr(vendor.display_name) ||
@@ -92,7 +134,7 @@ export function isContactSectionDirty(
   if (!vendor) return false
   return (
     !arraysEqualNormalized(supportEmails, supportEmailsFromVendor(vendor)) ||
-    !arraysEqualNormalized(supportPhones, supportPhonesFromVendor(vendor))
+    !phonesEqualNormalized(supportPhones, supportPhonesFromVendor(vendor))
   )
 }
 
@@ -171,20 +213,35 @@ export function isOrderAcceptanceSectionDirty(
   }))
 }
 
+/** Domain scope shown in the form — follows customer storefront link mode, not the raw saved field. */
+function effectiveExternalDomainScope(vendor: Vendor | null): 'all' | 'per_unit' {
+  return resolveStorefrontLinkMode(vendor?.settings) === 'single' ? 'all' : 'per_unit'
+}
+
+export type ExternalDomainFormState = {
+  enabled: boolean
+  domainScope: 'all' | 'per_unit'
+  dnsMode: 'kit_assisted' | 'self_managed'
+  domainName: string
+  registrar: string
+  regEmail: string
+  holder: string
+  expiry: string
+  accessStatus: string
+  recoveryContact: string
+  notes: string
+}
+
+/** Saved Yes/No for the external-domain toggle (respects pending/active lock). */
+export function savedExternalDomainEnabled(vendor: Vendor | null): boolean {
+  if (!vendor) return false
+  const v = vendor as Vendor & { external_domain_enabled?: boolean; external_domain_access_status?: string }
+  const status = v.external_domain_access_status ?? 'not_requested'
+  return status === 'pending' || status === 'active' ? true : (v.external_domain_enabled ?? false)
+}
+
 export function isExternalDomainSectionDirty(
-  state: {
-    enabled: boolean
-    domainScope: 'all' | 'per_unit'
-    dnsMode: 'kit_assisted' | 'self_managed'
-    domainName: string
-    registrar: string
-    regEmail: string
-    holder: string
-    expiry: string
-    accessStatus: string
-    recoveryContact: string
-    notes: string
-  },
+  state: ExternalDomainFormState,
   vendor: Vendor | null,
 ): boolean {
   if (!vendor) return false
@@ -205,7 +262,7 @@ export function isExternalDomainSectionDirty(
   const forcedEnabled = status === 'pending' || status === 'active' ? true : (v.external_domain_enabled ?? false)
   return (
     state.enabled !== forcedEnabled ||
-    state.domainScope !== (v.external_domain_scope === 'per_unit' ? 'per_unit' : 'all') ||
+    state.domainScope !== effectiveExternalDomainScope(vendor) ||
     state.dnsMode !== (v.external_domain_dns_mode === 'self_managed' ? 'self_managed' : 'kit_assisted') ||
     normStr(state.domainName) !== normStr(v.external_domain_name) ||
     normStr(state.registrar) !== normStr(v.external_domain_registrar) ||
@@ -216,4 +273,15 @@ export function isExternalDomainSectionDirty(
     normStr(state.recoveryContact) !== normStr(v.external_domain_recovery_contact) ||
     normStr(state.notes) !== normStr(v.external_domain_notes)
   )
+}
+
+/** Only the Yes/No preview toggle changed — no other fields edited. */
+export function isExternalDomainToggleOnlyDirty(
+  state: ExternalDomainFormState,
+  vendor: Vendor | null,
+): boolean {
+  if (!vendor) return false
+  const savedEnabled = savedExternalDomainEnabled(vendor)
+  if (state.enabled === savedEnabled) return false
+  return !isExternalDomainSectionDirty({ ...state, enabled: savedEnabled }, vendor)
 }

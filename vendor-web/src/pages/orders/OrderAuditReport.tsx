@@ -1,4 +1,5 @@
 import { useParams, useNavigate } from 'react-router-dom'
+import { TableColumnLabel } from '@/components/common/FieldLabel'
 import { ResizableTable } from '@/components/table/ResizableTable'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -93,7 +94,7 @@ function buildHtmlTable(rows: AuditRow[], order: Order): string {
   let html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Order Audit - #${order.order_number}</title>${styles}</head><body>`
   html += `<h1>Order Audit Report: #${order.order_number}</h1>`
   html += `<div class="meta">Status: ${order.status} | Total: ${formatCurrency(order.total)} | Payment: ${order.payment_method || '—'} | Generated: ${new Date().toLocaleString('en-IN')}</div>`
-  html += `<table><thead><tr><th>Timestamp</th><th>From Status</th><th>To Status</th><th>Changed By</th><th>Notes</th></tr></thead><tbody>`
+  html += `<table><thead><tr><th><TableColumnLabel>Timestamp</TableColumnLabel></th><th><TableColumnLabel>From Status</TableColumnLabel></th><th><TableColumnLabel>To Status</TableColumnLabel></th><th><TableColumnLabel>Changed By</TableColumnLabel></th><th><TableColumnLabel>Notes</TableColumnLabel></th></tr></thead><tbody>`
   for (const r of rows) {
     const fc = getColor(r.fromStatus)
     const tc = getColor(r.toStatus)

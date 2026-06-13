@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Label } from '@/components/ui/label'
 import { CheckCircle, RotateCcw, Filter, ChevronDown } from 'lucide-react'
 import { toast } from 'sonner'
 import { useAccruals, useApproveAccrual, useReverseAccrual, useBulkApproveAccruals } from '@/hooks/useCommission'
@@ -83,26 +84,26 @@ export default function AccrualsPage() {
       {showFilters && (
         <div className="bg-white border border-gray-200 rounded-xl p-4 mb-4 grid grid-cols-4 gap-4">
           <div>
-            <label className="block text-xs font-medium text-gray-700 mb-1">Status</label>
+            <Label className="block text-xs font-medium text-gray-700 mb-1">Status</Label>
             <select value={filters.status} onChange={e => setFilters(p => ({ ...p, status: e.target.value }))}
               className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm">
               {STATUSES.map(s => <option key={s} value={s}>{s || 'All'}</option>)}
             </select>
           </div>
           <div>
-            <label className="block text-xs font-medium text-gray-700 mb-1">Channel</label>
+            <Label className="block text-xs font-medium text-gray-700 mb-1">Channel</Label>
             <select value={filters.channel} onChange={e => setFilters(p => ({ ...p, channel: e.target.value }))}
               className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm">
               {CHANNELS.map(c => <option key={c} value={c}>{c || 'All'}</option>)}
             </select>
           </div>
           <div>
-            <label className="block text-xs font-medium text-gray-700 mb-1">From</label>
+            <Label className="block text-xs font-medium text-gray-700 mb-1">From</Label>
             <input type="date" value={filters.date_from} onChange={e => setFilters(p => ({ ...p, date_from: e.target.value }))}
               className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm" />
           </div>
           <div>
-            <label className="block text-xs font-medium text-gray-700 mb-1">To</label>
+            <Label className="block text-xs font-medium text-gray-700 mb-1">To</Label>
             <input type="date" value={filters.date_to} onChange={e => setFilters(p => ({ ...p, date_to: e.target.value }))}
               className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm" />
           </div>

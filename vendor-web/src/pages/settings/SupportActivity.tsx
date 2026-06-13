@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { TableColumnLabel } from '@/components/common/FieldLabel'
 import { Link } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { ArrowLeft, HelpCircle, Loader2 } from 'lucide-react'
@@ -87,11 +88,11 @@ export default function SupportActivityPage() {
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="border-b bg-muted/40 text-left">
-                      <th className="p-3 font-medium whitespace-nowrap">When</th>
-                      <th className="p-3 font-medium">Action</th>
-                      <th className="p-3 font-medium">Actor</th>
-                      <th className="p-3 font-medium min-w-[200px]">Detail</th>
-                      <th className="p-3 font-medium whitespace-nowrap">IP</th>
+                      <th className="p-3 font-medium whitespace-nowrap"><TableColumnLabel>When</TableColumnLabel></th>
+                      <th className="p-3 font-medium"><TableColumnLabel>Action</TableColumnLabel></th>
+                      <th className="p-3 font-medium"><TableColumnLabel>Actor</TableColumnLabel></th>
+                      <th className="p-3 font-medium min-w-[200px]"><TableColumnLabel>Detail</TableColumnLabel></th>
+                      <th className="p-3 font-medium whitespace-nowrap"><TableColumnLabel>IP</TableColumnLabel></th>
                     </tr>
                   </thead>
                   <tbody>

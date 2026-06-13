@@ -199,10 +199,9 @@ export default function VendorStorefrontLinksCard({
 
   const storeBase = getCustomerStorefrontBaseUrl(slug)
   const linkMode = resolveStorefrontLinkMode(vendorSettings)
-  const storeUrl =
-    (linkMode === 'single'
-      ? buildCustomerStoreLink(slug)
-      : buildCustomerStoreLink(slug, outletCode)) ?? storeBase
+  const outlet = (outletCode ?? '').trim()
+  const branchForLink = outlet || (linkMode === 'per_unit' ? undefined : null)
+  const storeUrl = buildCustomerStoreLink(slug, branchForLink) ?? storeBase
   const showHr =
     !storeId || isHrEssLinkVisibleForStore(storeId, vendorSettings ?? undefined)
   const hrSettings = vendorSettings ?? undefined
@@ -219,12 +218,11 @@ export default function VendorStorefrontLinksCard({
     }
   }
 
-  const outlet = (outletCode ?? '').trim()
   const storeHint =
-    linkMode === 'single'
-      ? 'Shared link for all units'
-      : outlet
-        ? 'Includes branch filter'
+    outlet
+      ? 'Opens this business unit on the customer storefront'
+      : linkMode === 'single'
+        ? 'Shared link for all units'
         : 'Customer-facing shop'
 
   const cardBody = (

@@ -1,4 +1,5 @@
 import { useMemo, useState, useRef, useEffect, useCallback } from 'react'
+import { TableColumnLabel } from '@/components/common/FieldLabel'
 import { createPortal } from 'react-dom'
 import { useNavigate } from 'react-router-dom'
 import { Card, CardContent } from '@/components/ui/card'
@@ -309,7 +310,7 @@ export default function Products() {
                     </th>
                   )
                 })}
-                <th className="text-right px-5 py-3 text-xs font-medium text-gray-400 uppercase tracking-wider">Actions</th>
+                <th className="text-right px-5 py-3 text-xs font-medium text-gray-400 uppercase tracking-wider"><TableColumnLabel>Actions</TableColumnLabel></th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">

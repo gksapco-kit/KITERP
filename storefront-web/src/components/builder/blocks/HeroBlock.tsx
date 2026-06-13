@@ -16,6 +16,11 @@ import { BuilderContentGroup } from '@/components/builder/BuilderContentGroup'
 import { MediaClipFrame } from '@/components/builder/MediaClipFrame'
 import { hasMediaClip } from '@/lib/mediaClip'
 import { useBuilderCanvas } from '@/contexts/BuilderCanvasContext'
+import { useEffect, useMemo, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
+import { storeApi, type StoreLocation } from '@/api/store'
+import { branchDisplayName, branchWelcomeHeadline } from '@/lib/branchStorefrontIdentity'
+import { useBranch } from '@/contexts/BranchContext'
 
 interface Props {
   site: PublicSite
@@ -35,14 +40,45 @@ function borderRadiusPx(style: StyleConfig): number {
   return 8
 }
 
-export default function HeroBlock({ site, style, props, blockType, blockId }: Props) {
+export default function HeroBlock({ site, style, props, blockType, blockId, branchCode: branchFromBlocks }: Props) {
   const canvas = useBuilderCanvas()
   const isEditorCanvas = canvas?.isEditorCanvas && !!blockId
-  const headline = sanitizeWellnessBodyCopy((props.headline as string) || site.name || 'Welcome')
+  const [searchParams] = useSearchParams()
+  const { selectedBranch: branchFromContext } = useBranch()
+  const [branches, setBranches] = useState<StoreLocation[]>([])
+
+  useEffect(() => {
+    let cancelled = false
+    storeApi.listBranches()
+      .then((r) => { if (!cancelled) setBranches(r.stores || []) })
+      .catch(() => { if (!cancelled) setBranches([]) })
+    return () => { cancelled = true }
+  }, [])
+
+  const effectiveBranchKey = searchParams.get('branch') || branchFromBlocks || null
+
+  const selectedBranch = useMemo(() => {
+    if (branchFromContext && effectiveBranchKey) {
+      const ctxKey = branchFromContext.code || branchFromContext.id
+      if (ctxKey === effectiveBranchKey || branchFromContext.code === effectiveBranchKey || branchFromContext.id === effectiveBranchKey) {
+        return branchFromContext
+      }
+    }
+    const key = (effectiveBranchKey ?? '').trim()
+    if (!key) return null
+    return branches.find((b) => b.code === key || b.id === key) ?? null
+  }, [branches, effectiveBranchKey, branchFromContext])
+
+  const defaultHeadline = selectedBranch
+    ? branchWelcomeHeadline(selectedBranch)
+    : sanitizeWellnessBodyCopy((props.headline as string) || site.name || 'Welcome')
+  const headline = sanitizeWellnessBodyCopy(defaultHeadline)
   const headlineLine2 = sanitizeWellnessBodyCopy((props.headline_line2 as string) || '')
   const eyebrow = sanitizeWellnessBodyCopy((props.eyebrow as string) || '')
   const eyebrowPlain = props.eyebrow_plain === true
-  const subtitle = sanitizeWellnessBodyCopy((props.subtitle as string) || site.description || '')
+  const subtitle = sanitizeWellnessBodyCopy(
+    (props.subtitle as string) || (selectedBranch?.description ?? site.description) || '',
+  )
   const ctaPrimary = sanitizeWellnessBodyCopy((props.cta_primary as string) || 'Get Started')
   const ctaSecondaryRaw = (props.cta_secondary as string | null) || null
   const ctaSecondary = ctaSecondaryRaw ? sanitizeWellnessCtaLabel(ctaSecondaryRaw) : null

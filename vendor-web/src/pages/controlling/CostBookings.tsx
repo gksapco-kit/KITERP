@@ -3,6 +3,7 @@
  * COGS issues, variance adjustments, WIP accruals) across all orders.
  */
 import { useState, useMemo } from 'react'
+import { TableColumnLabel } from '@/components/common/FieldLabel'
 import { Link } from 'react-router-dom'
 import { ExternalLink, Receipt, TrendingDown, TrendingUp, DollarSign } from 'lucide-react'
 import { useCompanies } from '@/hooks/useFinance'
@@ -170,14 +171,14 @@ export default function CostBookingsPage() {
           <table className="w-full text-sm">
             <thead className="bg-gray-50 text-left">
               <tr>
-                <th className="px-4 py-3 font-medium text-gray-600">Order</th>
-                <th className="px-4 py-3 font-medium text-gray-600">Booking Type</th>
-                <th className="px-4 py-3 font-medium text-gray-600">Date</th>
-                <th className="px-4 py-3 font-medium text-gray-600 text-right">Qty Basis</th>
-                <th className="px-4 py-3 font-medium text-gray-600 text-right">Unit Cost</th>
-                <th className="px-4 py-3 font-medium text-gray-600 text-right">Amount</th>
-                <th className="px-4 py-3 font-medium text-gray-600">Narration</th>
-                <th className="px-4 py-3 font-medium text-gray-600">GL</th>
+                <th className="px-4 py-3 font-medium text-gray-600"><TableColumnLabel>Order</TableColumnLabel></th>
+                <th className="px-4 py-3 font-medium text-gray-600"><TableColumnLabel>Booking Type</TableColumnLabel></th>
+                <th className="px-4 py-3 font-medium text-gray-600"><TableColumnLabel>Date</TableColumnLabel></th>
+                <th className="px-4 py-3 font-medium text-gray-600 text-right"><TableColumnLabel>Qty Basis</TableColumnLabel></th>
+                <th className="px-4 py-3 font-medium text-gray-600 text-right"><TableColumnLabel>Unit Cost</TableColumnLabel></th>
+                <th className="px-4 py-3 font-medium text-gray-600 text-right"><TableColumnLabel>Amount</TableColumnLabel></th>
+                <th className="px-4 py-3 font-medium text-gray-600"><TableColumnLabel>Narration</TableColumnLabel></th>
+                <th className="px-4 py-3 font-medium text-gray-600"><TableColumnLabel>GL</TableColumnLabel></th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">

@@ -23,6 +23,7 @@ import {
   ArrowLeft, MoreHorizontal, Keyboard, Plus, Star, Save,
 } from 'lucide-react'
 import { APP_SAVE_REQUEST_EVENT, dispatchAppSaveRequest } from '@/lib/appSave'
+import { FieldMappingProvider } from '@/providers/FieldMappingProvider'
 import { cn, mediaUrl } from '@/lib/utils'
 
 function ProfileAvatar({
@@ -649,6 +650,7 @@ const allSections: NavSection[] = [
       { to: '/system/social-links', icon: Globe, label: 'Social & Web Links', alwaysShow: true },
       { to: '/document-templates', icon: LayoutTemplate, label: 'Document Templates', alwaysShow: true },
       { to: '/system/modules', icon: Layers, label: 'Module Settings', alwaysShow: true },
+      { to: '/system/models', icon: Database, label: 'Models', alwaysShow: true },
       { to: '/system/assets/images', icon: Image, label: 'Images', alwaysShow: true, groupLabel: 'Gallery', groupColor: 'violet' },
       { to: '/team', icon: UsersRound, label: 'Staff Access Control', requiresPermission: 'team.view' },
       { to: '/roles', icon: ShieldCheck, label: 'Roles', requiresPermission: 'roles.view' },
@@ -957,6 +959,7 @@ const pageTitles: Record<string, string> = {
   '/plans': 'Plans & Billing',
   '/settings': 'Settings',
   '/system/modules': 'Module Settings',
+  '/system/models': 'Models',
   '/system/storefront-display': 'Business Front Display',
   '/system/social-links': 'Social & Web Links',
   '/system/assets': 'Gallery',
@@ -3401,7 +3404,9 @@ export default function DashboardLayout() {
 
         {/* Page content */}
         <main className="min-w-0 overflow-x-clip [overscroll-behavior-y:none] p-4 sm:p-6 lg:p-8 bg-background font-sans text-sm">
-          <Outlet />
+          <FieldMappingProvider>
+            <Outlet />
+          </FieldMappingProvider>
         </main>
       </div>
     </div>

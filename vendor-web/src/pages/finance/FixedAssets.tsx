@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Label } from '@/components/ui/label'
 import { useEscapeToClose } from '@/hooks/useEscapeToClose'
 import { useAssets, useCreateAsset, useRunDepreciation, useDisposeAsset, useAssetCategories, useCreateAssetCategory } from '@/hooks/useFinance'
 import { Plus, Zap, Trash2, X } from 'lucide-react'
@@ -145,7 +146,7 @@ export default function FixedAssets() {
                 { label: 'Serial Number', key: 'serial_number' },
               ].map(({ label, key, type }) => (
                 <div key={key}>
-                  <label className="block text-xs font-medium text-gray-600 mb-1">{label}</label>
+                  <Label className="block text-xs font-medium text-gray-600 mb-1">{label}</Label>
                   <input type={type || 'text'} value={(form as any)[key]}
                     onChange={e => setForm(f => ({ ...f, [key]: e.target.value }))}
                     className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" />
@@ -153,7 +154,7 @@ export default function FixedAssets() {
               ))}
             </div>
             <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">Depreciation Method</label>
+              <Label className="block text-xs font-medium text-gray-600 mb-1">Depreciation Method</Label>
               <select value={form.depreciation_method} onChange={e => setForm(f => ({ ...f, depreciation_method: e.target.value }))}
                 className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
                 <option value="straight_line">Straight Line</option>

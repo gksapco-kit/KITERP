@@ -169,9 +169,8 @@ export function FormField({
         className,
       )}
     >
-      <Label className={formLabelClass}>
+      <Label className={formLabelClass} required={required}>
         {label}
-        {required && ' *'}
       </Label>
       <div className={cn(invalid && formFieldInvalidChildClass)}>{enhancedChild}</div>
       {error && (

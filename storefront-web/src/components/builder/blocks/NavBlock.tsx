@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate, useLocation, useSearchParams } from 'react-router-dom'
 import { MapPin, ChevronDown, Search, ShoppingBag, User, X } from 'lucide-react'
 import { useVendor } from '@/contexts/VendorContext'
+import { branchDisplayName } from '@/lib/branchStorefrontIdentity'
 import { useCartStore } from '@/stores/cartStore'
 import { useAuthStore } from '@/stores/authStore'
 import { imgUrl, cn } from '@/lib/utils'
@@ -92,8 +93,12 @@ export default function NavBlock({
     return branches.find(b => b.code === effectiveBranch || b.id === effectiveBranch) ?? null
   }, [branches, effectiveBranch])
 
-  const brand = (props.brand as string) || site.name || vendor?.display_name || 'Store'
-  const logoUrl = resolveLogoUrl(props, site, vendor?.logo_url)
+  const brand = (props.brand as string) || (selectedBranch ? branchDisplayName(selectedBranch) : null) || site.name || vendor?.display_name || 'Store'
+  const logoUrl = resolveLogoUrl(
+    props,
+    site,
+    selectedBranch?.settings?.logo_url || vendor?.logo_url,
+  )
   const showLogo = props.show_logo !== false && !!logoUrl
   const showBrandName = props.show_brand_name !== false
   const showNavLinks = props.show_nav_links !== false

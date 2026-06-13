@@ -1,4 +1,5 @@
 import { useMemo, useState, useRef, useEffect } from 'react'
+import { TableColumnLabel } from '@/components/common/FieldLabel'
 import { createPortal } from 'react-dom'
 import { useNavigate } from 'react-router-dom'
 import { Card, CardContent } from '@/components/ui/card'
@@ -289,14 +290,14 @@ export default function Services() {
             <ResizableTable tableId="services" defaultWidths={[240, 90, 90, 90, 70, 90, 80, 80]}>
               <thead>
                 <tr className="border-b bg-gray-50/80">
-                  <th className="text-left px-5 py-3 text-xs font-medium text-gray-400 uppercase tracking-wider">Service</th>
-                  <th className="text-left px-4 py-3 text-xs font-medium text-gray-400 uppercase tracking-wider">Type</th>
-                  <th className="text-left px-4 py-3 text-xs font-medium text-gray-400 uppercase tracking-wider">Mode</th>
-                  <th className="text-left px-4 py-3 text-xs font-medium text-gray-400 uppercase tracking-wider">Price</th>
-                  <th className="text-left px-4 py-3 text-xs font-medium text-gray-400 uppercase tracking-wider">Plans</th>
-                  <th className="text-left px-4 py-3 text-xs font-medium text-gray-400 uppercase tracking-wider">Duration</th>
-                  <th className="text-left px-4 py-3 text-xs font-medium text-gray-400 uppercase tracking-wider">Status</th>
-                  <th className="text-right px-5 py-3 text-xs font-medium text-gray-400 uppercase tracking-wider">Actions</th>
+                  <th className="text-left px-5 py-3 text-xs font-medium text-gray-400 uppercase tracking-wider"><TableColumnLabel>Service</TableColumnLabel></th>
+                  <th className="text-left px-4 py-3 text-xs font-medium text-gray-400 uppercase tracking-wider"><TableColumnLabel>Type</TableColumnLabel></th>
+                  <th className="text-left px-4 py-3 text-xs font-medium text-gray-400 uppercase tracking-wider"><TableColumnLabel>Mode</TableColumnLabel></th>
+                  <th className="text-left px-4 py-3 text-xs font-medium text-gray-400 uppercase tracking-wider"><TableColumnLabel>Price</TableColumnLabel></th>
+                  <th className="text-left px-4 py-3 text-xs font-medium text-gray-400 uppercase tracking-wider"><TableColumnLabel>Plans</TableColumnLabel></th>
+                  <th className="text-left px-4 py-3 text-xs font-medium text-gray-400 uppercase tracking-wider"><TableColumnLabel>Duration</TableColumnLabel></th>
+                  <th className="text-left px-4 py-3 text-xs font-medium text-gray-400 uppercase tracking-wider"><TableColumnLabel>Status</TableColumnLabel></th>
+                  <th className="text-right px-5 py-3 text-xs font-medium text-gray-400 uppercase tracking-wider"><TableColumnLabel>Actions</TableColumnLabel></th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">

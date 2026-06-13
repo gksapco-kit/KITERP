@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react'
+import { TableColumnLabel, CheckboxFieldLabel } from '@/components/common/FieldLabel'
 import { useEscapeToClose } from '@/hooks/useEscapeToClose'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -118,13 +119,13 @@ export default function CouponsPage() {
           <ResizableTable tableId="coupons" defaultWidths={[150, 120, 110, 80, 80, 120, 80]}>
             <thead>
               <tr className="border-b bg-gray-50">
-                <th className="text-left px-5 py-3 text-xs font-medium text-gray-500 uppercase">Code</th>
-                <th className="text-left px-5 py-3 text-xs font-medium text-gray-500 uppercase">Discount</th>
-                <th className="text-left px-5 py-3 text-xs font-medium text-gray-500 uppercase">Min Order</th>
-                <th className="text-center px-5 py-3 text-xs font-medium text-gray-500 uppercase">Used</th>
-                <th className="text-center px-5 py-3 text-xs font-medium text-gray-500 uppercase">Active</th>
-                <th className="text-left px-5 py-3 text-xs font-medium text-gray-500 uppercase">Expires</th>
-                <th className="text-right px-5 py-3 text-xs font-medium text-gray-500 uppercase">Actions</th>
+                <th className="text-left px-5 py-3 text-xs font-medium text-gray-500 uppercase"><TableColumnLabel>Code</TableColumnLabel></th>
+                <th className="text-left px-5 py-3 text-xs font-medium text-gray-500 uppercase"><TableColumnLabel>Discount</TableColumnLabel></th>
+                <th className="text-left px-5 py-3 text-xs font-medium text-gray-500 uppercase"><TableColumnLabel>Min Order</TableColumnLabel></th>
+                <th className="text-center px-5 py-3 text-xs font-medium text-gray-500 uppercase"><TableColumnLabel>Used</TableColumnLabel></th>
+                <th className="text-center px-5 py-3 text-xs font-medium text-gray-500 uppercase"><TableColumnLabel>Active</TableColumnLabel></th>
+                <th className="text-left px-5 py-3 text-xs font-medium text-gray-500 uppercase"><TableColumnLabel>Expires</TableColumnLabel></th>
+                <th className="text-right px-5 py-3 text-xs font-medium text-gray-500 uppercase"><TableColumnLabel>Actions</TableColumnLabel></th>
               </tr>
             </thead>
             <tbody className="divide-y">
@@ -229,8 +230,8 @@ function CouponModal({
             <div><Label>Per Customer</Label><Input type="number" className="mt-1" min={1} value={form.usage_per_customer} onChange={e => setForm({ ...form, usage_per_customer: Number(e.target.value) })} /></div>
           </div>
           <div className="flex gap-6">
-            <label className="flex items-center gap-2"><input type="checkbox" checked={form.is_active} onChange={e => setForm({ ...form, is_active: e.target.checked })} className="w-4 h-4 rounded" /><span className="text-sm">Active</span></label>
-            <label className="flex items-center gap-2"><input type="checkbox" checked={form.is_public} onChange={e => setForm({ ...form, is_public: e.target.checked })} className="w-4 h-4 rounded" /><span className="text-sm">Visible on Store</span></label>
+            <CheckboxFieldLabel label="Active" checked={form.is_active} onChange={(is_active) => setForm({ ...form, is_active })} />
+            <CheckboxFieldLabel label="Visible on Store" checked={form.is_public} onChange={(is_public) => setForm({ ...form, is_public })} helpKey="visible on store" />
           </div>
         </div>
         <div className="px-6 py-4 border-t flex justify-end gap-3">

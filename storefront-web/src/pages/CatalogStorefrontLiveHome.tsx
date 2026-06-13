@@ -5,8 +5,8 @@
 import { lazy, Suspense, useMemo, type ComponentType } from 'react'
 import { useParams } from 'react-router-dom'
 import { Loader2 } from 'lucide-react'
-import { useVendor } from '@/contexts/VendorContext'
 import { useBuilderSite } from '@/contexts/BuilderSiteContext'
+import { useEffectiveVendor } from '@/hooks/useEffectiveVendor'
 import { StorefrontProvider } from '@/storefront/StorefrontContext'
 import { vendorCatalogAdapter } from '@/storefront/adapters/vendorCatalog'
 import { buildStorefrontConfigFromSiteStyle } from '@/storefront/buildStorefrontConfigFromSite'
@@ -45,7 +45,7 @@ interface Props {
 
 export default function CatalogStorefrontLiveHome({ catalogTemplateId }: Props) {
   const { vendorSlug = '' } = useParams<{ vendorSlug: string }>()
-  const { vendor } = useVendor()
+  const vendor = useEffectiveVendor()
   const { builderSite } = useBuilderSite()
   const Template = LIVE_TEMPLATES[catalogTemplateId]
 

@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { TableColumnLabel } from '@/components/common/FieldLabel'
 import { Wine, Check } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -159,7 +160,7 @@ export function NutritionTable({ showSodium = true, compact = false }: Nutrition
         <table className={cn("w-full text-sm", compact && "text-xs")}>
           <thead>
             <tr className="border-b border-border bg-muted/40 text-left">
-              <th className={cn("p-4 font-medium", compact && "p-2")}>Item</th>
+              <th className={cn("p-4 font-medium", compact && "p-2")}><TableColumnLabel>Item</TableColumnLabel></th>
               {cols
                 .filter((c) => c.show !== false)
                 .map((c) => (

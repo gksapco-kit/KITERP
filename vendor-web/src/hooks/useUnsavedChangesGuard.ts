@@ -1,15 +1,19 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState, type MutableRefObject } from 'react'
 import { useBlocker, type BlockerFunction } from 'react-router-dom'
 
 type Options = {
   when: boolean
+  /** Prefer this ref when set — stays in sync with section dirty flags via useLayoutEffect. */
+  dirtyRef?: MutableRefObject<boolean>
   onSave: () => Promise<boolean>
   onDiscard: () => void
 }
 
-export function useUnsavedChangesGuard({ when, onSave, onDiscard }: Options) {
+export function useUnsavedChangesGuard({ when, dirtyRef, onSave, onDiscard }: Options) {
   const whenRef = useRef(when)
   whenRef.current = when
+
+  const isDirty = useCallback(() => dirtyRef?.current ?? whenRef.current, [dirtyRef])
 
   const [dialogOpen, setDialogOpen] = useState(false)
   const [saving, setSaving] = useState(false)
@@ -21,11 +25,11 @@ export function useUnsavedChangesGuard({ when, onSave, onDiscard }: Options) {
 
   const shouldBlock = useCallback<BlockerFunction>(
     ({ currentLocation, nextLocation }) =>
-      whenRef.current &&
+      isDirty() &&
       (currentLocation.pathname !== nextLocation.pathname ||
         currentLocation.search !== nextLocation.search ||
         currentLocation.hash !== nextLocation.hash),
-    [],
+    [isDirty],
   )
 
   const blocker = useBlocker(shouldBlock)
@@ -37,14 +41,15 @@ export function useUnsavedChangesGuard({ when, onSave, onDiscard }: Options) {
   }, [blocker.state, blocker])
 
   useEffect(() => {
-    if (!when) return
+    if (!when && !dirtyRef?.current) return
     const handler = (event: BeforeUnloadEvent) => {
+      if (!isDirty()) return
       event.preventDefault()
       event.returnValue = ''
     }
     window.addEventListener('beforeunload', handler)
     return () => window.removeEventListener('beforeunload', handler)
-  }, [when])
+  }, [when, dirtyRef, isDirty])
 
   const closeDialog = useCallback(() => {
     setDialogOpen(false)
@@ -82,13 +87,13 @@ export function useUnsavedChangesGuard({ when, onSave, onDiscard }: Options) {
 
   /** Run an in-page action (section switch, scope change) after confirming if dirty. */
   const confirmIfDirty = useCallback((proceed: () => void) => {
-    if (!whenRef.current) {
+    if (!isDirty()) {
       proceed()
       return
     }
     pendingActionRef.current = proceed
     setDialogOpen(true)
-  }, [])
+  }, [isDirty])
 
   return {
     dialogOpen,

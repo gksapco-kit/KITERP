@@ -3,6 +3,7 @@
  * Pre-fill any combination of customer / service / date / time / staff.
  */
 import { useState, useEffect, useMemo, useCallback } from 'react'
+import { Label } from '@/components/ui/label'
 import { useEscapeToClose } from '@/hooks/useEscapeToClose'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { vendorApi } from '@/api/vendor'
@@ -241,7 +242,7 @@ export function CreateBookingModal({
 
             {/* Customer */}
             <div>
-              <label className="text-xs font-medium text-gray-500 uppercase tracking-wide block mb-1.5">Customer *</label>
+              <Label className="text-xs font-medium text-gray-500 uppercase tracking-wide block mb-1.5" required>Customer</Label>
               {selectedCustomer ? (
                 <div className="flex items-center gap-2 p-2 bg-accent border border-primary/30 rounded-xl">
                   <div className="w-7 h-7 rounded-full bg-primary text-white flex items-center justify-center text-xs font-bold shrink-0">
@@ -296,7 +297,7 @@ export function CreateBookingModal({
 
             {/* Service */}
             <div>
-              <label className="text-xs font-medium text-gray-500 uppercase tracking-wide block mb-1.5">Service *</label>
+              <Label className="text-xs font-medium text-gray-500 uppercase tracking-wide block mb-1.5" required>Service</Label>
               <select
                 className="w-full h-9 px-3 border border-gray-200 rounded-lg text-xs bg-white focus:outline-none focus:ring-2 focus:ring-ring"
                 value={selectedService}
@@ -351,7 +352,7 @@ export function CreateBookingModal({
 
             {/* Payment */}
             <div>
-              <label className="text-xs font-medium text-gray-500 uppercase tracking-wide block mb-1.5">Payment</label>
+              <Label className="text-xs font-medium text-gray-500 uppercase tracking-wide block mb-1.5">Payment</Label>
               <select value={paymentMethod} onChange={e => setPaymentMethod(e.target.value)}
                 className="w-full h-9 px-3 border border-gray-200 rounded-lg text-xs bg-white focus:outline-none focus:ring-2 focus:ring-ring">
                 <option value="cod">Cash on Delivery</option>
@@ -364,7 +365,7 @@ export function CreateBookingModal({
 
             {/* Notes */}
             <div>
-              <label className="text-xs font-medium text-gray-500 uppercase tracking-wide block mb-1.5">Notes</label>
+              <Label className="text-xs font-medium text-gray-500 uppercase tracking-wide block mb-1.5">Notes</Label>
               <textarea
                 className="w-full px-3 py-2 border border-gray-200 rounded-lg text-xs bg-white resize-none focus:outline-none focus:ring-2 focus:ring-ring"
                 rows={3}

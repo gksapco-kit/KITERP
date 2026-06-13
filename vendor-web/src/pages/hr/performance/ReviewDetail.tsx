@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { TableColumnLabel } from '@/components/common/FieldLabel'
 import { useParams, Link } from 'react-router-dom'
 import { ArrowLeft, FileSignature, Save, Check } from 'lucide-react'
 import {
@@ -118,11 +119,11 @@ export default function ReviewDetailPage() {
             <table className="w-full">
               <thead className="text-xs uppercase text-gray-500 bg-gray-50">
                 <tr>
-                  <th className="text-left py-2 px-3">KPI</th>
-                  <th className="text-left py-2 px-3">Weight</th>
-                  <th className="text-left py-2 px-3">Self</th>
-                  <th className="text-left py-2 px-3">Manager</th>
-                  <th className="text-left py-2 px-3">Comments</th>
+                  <th className="text-left py-2 px-3"><TableColumnLabel>KPI</TableColumnLabel></th>
+                  <th className="text-left py-2 px-3"><TableColumnLabel>Weight</TableColumnLabel></th>
+                  <th className="text-left py-2 px-3"><TableColumnLabel>Self</TableColumnLabel></th>
+                  <th className="text-left py-2 px-3"><TableColumnLabel>Manager</TableColumnLabel></th>
+                  <th className="text-left py-2 px-3"><TableColumnLabel>Comments</TableColumnLabel></th>
                 </tr>
               </thead>
               <tbody>

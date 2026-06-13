@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Label } from '@/components/ui/label'
 import { useEscapeToClose } from '@/hooks/useEscapeToClose'
 import { useTaxReturns, useCreateTaxReturn, useComputeTaxReturn, useFileTaxReturn, useTaxCodes, useCreateTaxCode } from '@/hooks/useFinance'
 import { Plus, Calculator, Send, X } from 'lucide-react'
@@ -156,7 +157,7 @@ export default function TaxReturns() {
 
             </div>
             <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">Return Type</label>
+              <Label className="block text-xs font-medium text-gray-600 mb-1">Return Type</Label>
               <select value={returnForm.return_type} onChange={e => setReturnForm(f => ({ ...f, return_type: e.target.value }))}
                 className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
                 {['GSTR1', 'GSTR3B', 'TDS', 'Income'].map(t => <option key={t}>{t}</option>)}
@@ -169,7 +170,7 @@ export default function TaxReturns() {
               { label: 'Notes', key: 'notes' },
             ].map(({ label, key, type }) => (
               <div key={key}>
-                <label className="block text-xs font-medium text-gray-600 mb-1">{label}</label>
+                <Label className="block text-xs font-medium text-gray-600 mb-1">{label}</Label>
                 <input type={type || 'text'} value={(returnForm as any)[key]}
                   onChange={e => setReturnForm(f => ({ ...f, [key]: e.target.value }))}
                   className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" />
@@ -210,14 +211,14 @@ export default function TaxReturns() {
                 { label: 'Code', key: 'code' }, { label: 'Name', key: 'name' }, { label: 'Rate %', key: 'rate', type: 'number' },
               ].map(({ label, key, type }) => (
                 <div key={key}>
-                  <label className="block text-xs font-medium text-gray-600 mb-1">{label}</label>
+                  <Label className="block text-xs font-medium text-gray-600 mb-1">{label}</Label>
                   <input type={type || 'text'} value={(codeForm as any)[key]}
                     onChange={e => setCodeForm(f => ({ ...f, [key]: e.target.value }))}
                     className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" />
                 </div>
               ))}
               <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1">Tax Type</label>
+                <Label className="block text-xs font-medium text-gray-600 mb-1">Tax Type</Label>
                 <select value={codeForm.tax_type} onChange={e => setCodeForm(f => ({ ...f, tax_type: e.target.value }))}
                   className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
                   {['CGST', 'SGST', 'IGST', 'TDS', 'TCS', 'Income'].map(t => <option key={t}>{t}</option>)}

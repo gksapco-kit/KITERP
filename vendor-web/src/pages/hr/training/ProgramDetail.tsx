@@ -1,4 +1,5 @@
 import { onModalBackdropClick } from '@/lib/utils'
+import { InlineFieldLabel } from '@/components/common/InlineFieldLabel'
 import { useState } from 'react'
 import { useEscapeToClose } from '@/hooks/useEscapeToClose'
 import { useParams, Link } from 'react-router-dom'
@@ -283,9 +284,9 @@ function CourseModal({
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <label className="block">
-      <span className="block text-xs font-medium text-gray-700 mb-1">{label}</span>
+    <div>
+      <InlineFieldLabel label={label} className="block text-xs font-medium text-gray-700 mb-1" />
       {children}
-    </label>
+    </div>
   )
 }

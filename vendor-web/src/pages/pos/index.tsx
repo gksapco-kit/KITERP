@@ -1,4 +1,7 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
+import { SectionLabel } from '@/components/common/FieldLabel'
+import { FormColumnLabel } from '@/components/common/FieldLabel'
+import { TableColumnLabel } from '@/components/common/FieldLabel'
 import { useEscapeToClose } from '@/hooks/useEscapeToClose'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
@@ -1487,7 +1490,7 @@ export default function POS() {
 
         {txnMode === 'sale' && (
           <div className="px-3 py-2 border-b bg-gray-50/50 space-y-1">
-            <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">Salesperson (commission)</p>
+            <SectionLabel>Salesperson (commission)</SectionLabel>
             <StaffPicker selected={selectedSalesPerson} onSelect={setSelectedSalesPerson} />
           </div>
         )}
@@ -2499,7 +2502,7 @@ function PostSaleReceipt({ data, invSettings, vendor, posSettings, onClose, onNe
           {items.length > 0 && (
             <div className="border rounded-lg overflow-hidden">
               <table className="w-full text-sm">
-                <thead><tr className="bg-gray-50 text-xs text-gray-500"><th className="px-3 py-1.5 text-left">Item</th><th className="px-3 py-1.5 text-center">Qty</th><th className="px-3 py-1.5 text-right">Amount</th></tr></thead>
+                <thead><tr className="bg-gray-50 text-xs text-gray-500"><th className="px-3 py-1.5 text-left"><TableColumnLabel>Item</TableColumnLabel></th><th className="px-3 py-1.5 text-center"><TableColumnLabel>Qty</TableColumnLabel></th><th className="px-3 py-1.5 text-right"><TableColumnLabel>Amount</TableColumnLabel></th></tr></thead>
                 <tbody className="divide-y">{items.map((it: any, i) => (
                   <tr key={i}><td className="px-3 py-1.5 flex items-center gap-1.5">
                     {it.item_type === 'service' ? <Wrench className="w-3 h-3 text-primary/70" /> : <Package className="w-3 h-3 text-blue-400" />}
@@ -2832,14 +2835,14 @@ function POSTransactionHistory({
             <div className="overflow-x-auto">
               <ResizableTable tableId="pos-orders" defaultWidths={[120, 100, 80, 140, 60, 90, 100, 80, 50]}>
                 <thead><tr className="border-b bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase">
-                  <th className="px-4 py-2.5">Date</th>
-                  <th className="px-4 py-2.5">Order #</th>
-                  <th className="px-4 py-2.5">POS #</th>
-                  <th className="px-4 py-2.5">Customer</th>
-                  <th className="px-4 py-2.5 text-center">Items</th>
-                  <th className="px-4 py-2.5 text-right">Total</th>
-                  <th className="px-4 py-2.5">Payment</th>
-                  <th className="px-4 py-2.5">Type</th>
+                  <th className="px-4 py-2.5"><TableColumnLabel>Date</TableColumnLabel></th>
+                  <th className="px-4 py-2.5"><TableColumnLabel>Order #</TableColumnLabel></th>
+                  <th className="px-4 py-2.5"><TableColumnLabel>POS #</TableColumnLabel></th>
+                  <th className="px-4 py-2.5"><TableColumnLabel>Customer</TableColumnLabel></th>
+                  <th className="px-4 py-2.5 text-center"><TableColumnLabel>Items</TableColumnLabel></th>
+                  <th className="px-4 py-2.5 text-right"><TableColumnLabel>Total</TableColumnLabel></th>
+                  <th className="px-4 py-2.5"><TableColumnLabel>Payment</TableColumnLabel></th>
+                  <th className="px-4 py-2.5"><TableColumnLabel>Type</TableColumnLabel></th>
                   <th className="px-4 py-2.5"></th>
                 </tr></thead>
                 <tbody className="divide-y">
@@ -3091,12 +3094,12 @@ function TransactionDetail({ txn, onBack, invSettings, vendor, posSettings }: {
           <div className="border rounded-lg overflow-hidden">
             <table className="w-full text-sm">
               <thead><tr className="bg-gray-50 text-xs text-gray-500 font-semibold uppercase">
-                <th className="px-4 py-2 text-left">#</th>
-                <th className="px-4 py-2 text-left">Item</th>
-                <th className="px-4 py-2 text-center">Qty</th>
-                <th className="px-4 py-2 text-right">Rate</th>
-                <th className="px-4 py-2 text-right">Tax</th>
-                <th className="px-4 py-2 text-right">Amount</th>
+                <th className="px-4 py-2 text-left"><TableColumnLabel>#</TableColumnLabel></th>
+                <th className="px-4 py-2 text-left"><TableColumnLabel>Item</TableColumnLabel></th>
+                <th className="px-4 py-2 text-center"><TableColumnLabel>Qty</TableColumnLabel></th>
+                <th className="px-4 py-2 text-right"><TableColumnLabel>Rate</TableColumnLabel></th>
+                <th className="px-4 py-2 text-right"><TableColumnLabel>Tax</TableColumnLabel></th>
+                <th className="px-4 py-2 text-right"><TableColumnLabel>Amount</TableColumnLabel></th>
               </tr></thead>
               <tbody className="divide-y">
                 {items.map((it: any, i) => (
@@ -3409,7 +3412,7 @@ function generatePrintFormHtml(
 
   const itemTable = `
     <table>
-      <thead><tr><th>Item / Description</th><th style="text-align:center">Qty</th><th style="text-align:right">Rate</th><th style="text-align:right">Amount</th></tr></thead>
+      <thead><tr><th><TableColumnLabel>Item / Description</TableColumnLabel></th><th style="text-align:center"><TableColumnLabel>Qty</TableColumnLabel></th><th style="text-align:right"><TableColumnLabel>Rate</TableColumnLabel></th><th style="text-align:right"><TableColumnLabel>Amount</TableColumnLabel></th></tr></thead>
       <tbody>${itemRows}</tbody>
     </table>`
 
@@ -3467,7 +3470,7 @@ function generatePrintFormHtml(
           <div class="info-box"><div class="info-box-label">Driver / Courier</div><div class="blank-field"></div><div class="info-box-label" style="margin-top:8px">Vehicle No.</div><div class="blank-field"></div></div>
         </div>
         <table>
-          <thead><tr><th>Item</th><th style="text-align:center">Ordered</th><th style="text-align:center">Delivered</th><th>Remarks</th></tr></thead>
+          <thead><tr><th><TableColumnLabel>Item</TableColumnLabel></th><th style="text-align:center"><TableColumnLabel>Ordered</TableColumnLabel></th><th style="text-align:center"><TableColumnLabel>Delivered</TableColumnLabel></th><th><TableColumnLabel>Remarks</TableColumnLabel></th></tr></thead>
           <tbody>${items.map(it => `<tr><td>${it.name}</td><td style="text-align:center">${it.qty}</td><td style="text-align:center"></td><td></td></tr>`).join('')}</tbody>
         </table>
         <div class="sig-row" style="margin-top:40px">
@@ -3499,7 +3502,7 @@ function generatePrintFormHtml(
           <div class="info-box"><div class="info-box-label">Diagnosis</div><div class="blank-field"></div></div>
         </div>
         <table>
-          <thead><tr><th>#</th><th>Medicine / Item</th><th>Dosage</th><th>Duration</th><th>Instructions</th></tr></thead>
+          <thead><tr><th><TableColumnLabel>#</TableColumnLabel></th><th><TableColumnLabel>Medicine / Item</TableColumnLabel></th><th><TableColumnLabel>Dosage</TableColumnLabel></th><th><TableColumnLabel>Duration</TableColumnLabel></th><th><TableColumnLabel>Instructions</TableColumnLabel></th></tr></thead>
           <tbody>${items.map((it, i) => `<tr><td>${i + 1}</td><td>${it.name}</td><td></td><td></td><td></td></tr>`).join('')}
           ${Array(Math.max(0, 3 - items.length)).fill(0).map(() => `<tr><td></td><td>&nbsp;</td><td></td><td></td><td></td></tr>`).join('')}
           </tbody>
@@ -3536,7 +3539,7 @@ function generatePrintFormHtml(
           <div class="info-box"><div class="info-box-label">Purchase Date</div><div class="info-box-value">${dateStr}</div></div>
         </div>
         <table>
-          <thead><tr><th>Product</th><th>Serial No.</th><th>Warranty Period</th><th>Expiry Date</th></tr></thead>
+          <thead><tr><th><TableColumnLabel>Product</TableColumnLabel></th><th><TableColumnLabel>Serial No.</TableColumnLabel></th><th><TableColumnLabel>Warranty Period</TableColumnLabel></th><th><TableColumnLabel>Expiry Date</TableColumnLabel></th></tr></thead>
           <tbody>${items.map(it => `<tr><td>${it.name}</td><td></td><td></td><td></td></tr>`).join('')}</tbody>
         </table>
         <div class="info-box" style="margin-bottom:12px"><div class="info-box-label">Warranty Terms</div>
@@ -3795,7 +3798,7 @@ function POSInvoiceSettingsModal({
             {/* Group by category */}
             {Array.from(new Set(PRINT_FORM_TYPES.map(f => f.category))).map(category => (
               <div key={category} className="mb-6">
-                <p className="text-xs font-medium text-gray-400 uppercase tracking-wide mb-2">{category}</p>
+                <FormColumnLabel className="tracking-wide mb-2">{category}</FormColumnLabel>
                 <div className="grid sm:grid-cols-2 gap-3">
                   {PRINT_FORM_TYPES.filter(f => f.category === category).map(form => {
                     const isEnabled = enabledForms.includes(form.id)

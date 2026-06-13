@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { SectionLabel } from '@/components/common/FieldLabel'
 import {
   BarChart, Bar, PieChart, Pie, Cell, LineChart, Line,
   XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
@@ -16,7 +17,7 @@ function KPICard({ title, value, sub, icon: Icon, color }: { title: string; valu
     <div className="bg-white rounded-xl border border-gray-200 p-5">
       <div className="flex items-start justify-between">
         <div>
-          <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">{title}</p>
+          <SectionLabel>{title}</SectionLabel>
           <p className="text-2xl font-bold text-gray-900 mt-1">{value}</p>
           {sub && <p className="text-xs text-gray-400 mt-0.5">{sub}</p>}
         </div>

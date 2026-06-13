@@ -7,6 +7,7 @@
  *  3. Routing Operations — step-by-step detail for selected routing
  */
 import { useState, useMemo } from 'react'
+import { TableColumnLabel } from '@/components/common/FieldLabel'
 import {
   Plus, Trash2, Pencil, ChevronDown, ChevronRight,
   Cpu, GitBranch, Clock, Wrench, Check, X,
@@ -200,13 +201,13 @@ function WorkCentersPanel({ companyId }: { companyId: string }) {
         <table className="w-full text-sm">
           <thead className="bg-gray-50 text-left text-xs text-gray-500">
             <tr>
-              <th className="px-4 py-2 font-medium">Code</th>
-              <th className="px-4 py-2 font-medium">Name</th>
-              <th className="px-4 py-2 font-medium">Type</th>
-              <th className="px-4 py-2 font-medium text-right">Labor/hr</th>
-              <th className="px-4 py-2 font-medium text-right">Machine/hr</th>
-              <th className="px-4 py-2 font-medium text-right">Direct OH/hr</th>
-              <th className="px-4 py-2 font-medium text-right">Cap. hrs</th>
+              <th className="px-4 py-2 font-medium"><TableColumnLabel>Code</TableColumnLabel></th>
+              <th className="px-4 py-2 font-medium"><TableColumnLabel>Name</TableColumnLabel></th>
+              <th className="px-4 py-2 font-medium"><TableColumnLabel>Type</TableColumnLabel></th>
+              <th className="px-4 py-2 font-medium text-right"><TableColumnLabel>Labor/hr</TableColumnLabel></th>
+              <th className="px-4 py-2 font-medium text-right"><TableColumnLabel>Machine/hr</TableColumnLabel></th>
+              <th className="px-4 py-2 font-medium text-right"><TableColumnLabel>Direct OH/hr</TableColumnLabel></th>
+              <th className="px-4 py-2 font-medium text-right"><TableColumnLabel>Cap. hrs</TableColumnLabel></th>
               <th className="px-4 py-2" />
             </tr>
           </thead>
@@ -418,13 +419,13 @@ function RoutingOperationsEditor({ routing, companyId }: { routing: Routing; com
         <table className="w-full text-xs">
           <thead className="bg-gray-50 text-left text-gray-500">
             <tr>
-              <th className="px-3 py-2 font-medium">Seq</th>
-              <th className="px-3 py-2 font-medium">Code / Description</th>
-              <th className="px-3 py-2 font-medium">Work Centre</th>
-              <th className="px-3 py-2 font-medium text-right">Setup hrs</th>
-              <th className="px-3 py-2 font-medium text-right">Run hrs/unit</th>
-              <th className="px-3 py-2 font-medium text-right">Machine hrs/unit</th>
-              <th className="px-3 py-2 font-medium text-right">Direct OH%</th>
+              <th className="px-3 py-2 font-medium"><TableColumnLabel>Seq</TableColumnLabel></th>
+              <th className="px-3 py-2 font-medium"><TableColumnLabel>Code / Description</TableColumnLabel></th>
+              <th className="px-3 py-2 font-medium"><TableColumnLabel>Work Centre</TableColumnLabel></th>
+              <th className="px-3 py-2 font-medium text-right"><TableColumnLabel>Setup hrs</TableColumnLabel></th>
+              <th className="px-3 py-2 font-medium text-right"><TableColumnLabel>Run hrs/unit</TableColumnLabel></th>
+              <th className="px-3 py-2 font-medium text-right"><TableColumnLabel>Machine hrs/unit</TableColumnLabel></th>
+              <th className="px-3 py-2 font-medium text-right"><TableColumnLabel>Direct OH%</TableColumnLabel></th>
               <th className="px-3 py-2" />
             </tr>
           </thead>
@@ -628,12 +629,12 @@ export default function RoutingPage() {
             <thead className="bg-gray-50 text-left text-xs text-gray-500">
               <tr>
                 <th className="px-4 py-2 font-medium" />
-                <th className="px-4 py-2 font-medium">Code / Version</th>
-                <th className="px-4 py-2 font-medium">Name</th>
-                <th className="px-4 py-2 font-medium">Product</th>
-                <th className="px-4 py-2 font-medium">Status</th>
-                <th className="px-4 py-2 font-medium text-right">Lot size</th>
-                <th className="px-4 py-2 font-medium text-right">Ops</th>
+                <th className="px-4 py-2 font-medium"><TableColumnLabel>Code / Version</TableColumnLabel></th>
+                <th className="px-4 py-2 font-medium"><TableColumnLabel>Name</TableColumnLabel></th>
+                <th className="px-4 py-2 font-medium"><TableColumnLabel>Product</TableColumnLabel></th>
+                <th className="px-4 py-2 font-medium"><TableColumnLabel>Status</TableColumnLabel></th>
+                <th className="px-4 py-2 font-medium text-right"><TableColumnLabel>Lot size</TableColumnLabel></th>
+                <th className="px-4 py-2 font-medium text-right"><TableColumnLabel>Ops</TableColumnLabel></th>
                 <th className="px-4 py-2" />
               </tr>
             </thead>

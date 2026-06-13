@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react'
+import { Label } from '@/components/ui/label'
 import { useEscapeToClose } from '@/hooks/useEscapeToClose'
 import { Plus, Edit2, X, Filter, ChevronDown } from 'lucide-react'
 import { toast } from 'sonner'
@@ -184,7 +185,7 @@ export default function AssignmentsPage() {
         <div className="bg-white border border-gray-200 rounded-xl p-4 mb-4 space-y-4">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
             <div className="lg:col-span-2">
-              <label className="block text-xs font-medium text-gray-700 mb-1">Search</label>
+              <Label className="block text-xs font-medium text-gray-700 mb-1">Search</Label>
               <input
                 value={filters.search}
                 onChange={e => { setFilters(f => ({ ...f, search: e.target.value })); setPage(1) }}
@@ -193,7 +194,7 @@ export default function AssignmentsPage() {
               />
             </div>
             <div>
-              <label className="block text-xs font-medium text-gray-700 mb-1">Payee</label>
+              <Label className="block text-xs font-medium text-gray-700 mb-1">Payee</Label>
               <select
                 value={filters.payee_id}
                 onChange={e => { setFilters(f => ({ ...f, payee_id: e.target.value })); setPage(1) }}
@@ -206,7 +207,7 @@ export default function AssignmentsPage() {
               </select>
             </div>
             <div>
-              <label className="block text-xs font-medium text-gray-700 mb-1">Plan</label>
+              <Label className="block text-xs font-medium text-gray-700 mb-1">Plan</Label>
               <select
                 value={filters.plan_id}
                 onChange={e => { setFilters(f => ({ ...f, plan_id: e.target.value })); setPage(1) }}
@@ -219,7 +220,7 @@ export default function AssignmentsPage() {
               </select>
             </div>
             <div>
-              <label className="block text-xs font-medium text-gray-700 mb-1">Store / branch</label>
+              <Label className="block text-xs font-medium text-gray-700 mb-1">Store / branch</Label>
               <select
                 value={filters.store_id}
                 onChange={e => { setFilters(f => ({ ...f, store_id: e.target.value })); setPage(1) }}
@@ -232,7 +233,7 @@ export default function AssignmentsPage() {
               </select>
             </div>
             <div>
-              <label className="block text-xs font-medium text-gray-700 mb-1">Status</label>
+              <Label className="block text-xs font-medium text-gray-700 mb-1">Status</Label>
               <select
                 value={filters.is_active}
                 onChange={e => { setFilters(f => ({ ...f, is_active: e.target.value })); setPage(1) }}
@@ -244,7 +245,7 @@ export default function AssignmentsPage() {
               </select>
             </div>
             <div>
-              <label className="block text-xs font-medium text-gray-700 mb-1">Payee type</label>
+              <Label className="block text-xs font-medium text-gray-700 mb-1">Payee type</Label>
               <select
                 value={filters.link_type}
                 onChange={e => { setFilters(f => ({ ...f, link_type: e.target.value })); setPage(1) }}
@@ -256,7 +257,7 @@ export default function AssignmentsPage() {
               </select>
             </div>
             <div>
-              <label className="block text-xs font-medium text-gray-700 mb-1">Plan code</label>
+              <Label className="block text-xs font-medium text-gray-700 mb-1">Plan code</Label>
               <input
                 value={filters.plan_code}
                 onChange={e => { setFilters(f => ({ ...f, plan_code: e.target.value })); setPage(1) }}
@@ -265,7 +266,7 @@ export default function AssignmentsPage() {
               />
             </div>
             <div>
-              <label className="block text-xs font-medium text-gray-700 mb-1">Plan name</label>
+              <Label className="block text-xs font-medium text-gray-700 mb-1">Plan name</Label>
               <input
                 value={filters.plan_name}
                 onChange={e => { setFilters(f => ({ ...f, plan_name: e.target.value })); setPage(1) }}
@@ -274,7 +275,7 @@ export default function AssignmentsPage() {
               />
             </div>
             <div>
-              <label className="block text-xs font-medium text-gray-700 mb-1">Location</label>
+              <Label className="block text-xs font-medium text-gray-700 mb-1">Location</Label>
               <input
                 value={filters.location}
                 onChange={e => { setFilters(f => ({ ...f, location: e.target.value })); setPage(1) }}
@@ -283,7 +284,7 @@ export default function AssignmentsPage() {
               />
             </div>
             <div>
-              <label className="block text-xs font-medium text-gray-700 mb-1">Group</label>
+              <Label className="block text-xs font-medium text-gray-700 mb-1">Group</Label>
               <input
                 value={filters.group_name}
                 onChange={e => { setFilters(f => ({ ...f, group_name: e.target.value })); setPage(1) }}
@@ -419,13 +420,13 @@ export default function AssignmentsPage() {
 
               {!editing && (
                 <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1">Payee <span className="text-red-500">*</span></label>
+                  <Label className="block text-xs font-medium text-gray-700 mb-1" required>Payee</Label>
                   <PayeeSelector onChange={p => setSelectedPayee(p)} />
                 </div>
               )}
 
               <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">Commission Plan <span className="text-red-500">*</span></label>
+                <Label className="block text-xs font-medium text-gray-700 mb-1" required>Commission Plan</Label>
                 <select value={String(form.plan_id)} onChange={e => set('plan_id', e.target.value)}
                   className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary">
                   <option value="">Select plan…</option>
@@ -434,7 +435,7 @@ export default function AssignmentsPage() {
               </div>
 
               <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">Weight (%)</label>
+                <Label className="block text-xs font-medium text-gray-700 mb-1">Weight (%)</Label>
                 <input type="number" min="0" max="100" step="0.01"
                   value={Number(form.weight_percent)}
                   onChange={e => set('weight_percent', parseFloat(e.target.value) || 100)}
@@ -453,7 +454,7 @@ export default function AssignmentsPage() {
                 <div className="grid grid-cols-2 gap-4">
                   {[{ k: 'valid_from', l: 'Valid From' }, { k: 'valid_to', l: 'Valid To' }].map(f => (
                     <div key={f.k}>
-                      <label className="block text-xs font-medium text-gray-700 mb-1">{f.l}</label>
+                      <Label className="block text-xs font-medium text-gray-700 mb-1">{f.l}</Label>
                       <input type="date" value={String(form[f.k] || '')} onChange={e => set(f.k, e.target.value)}
                         className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
                     </div>
@@ -461,7 +462,7 @@ export default function AssignmentsPage() {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1">Store / Branch</label>
+                  <Label className="block text-xs font-medium text-gray-700 mb-1">Store / Branch</Label>
                   <select value={String(form.store_id || '')} onChange={e => set('store_id', e.target.value)}
                     className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary">
                     <option value="">All stores (no restriction)</option>
@@ -470,7 +471,7 @@ export default function AssignmentsPage() {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1">Team ID</label>
+                  <Label className="block text-xs font-medium text-gray-700 mb-1">Team ID</Label>
                   <input value={String(form.team_id || '')} onChange={e => set('team_id', e.target.value)}
                     placeholder="Team UUID (optional)"
                     className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
@@ -479,7 +480,7 @@ export default function AssignmentsPage() {
                 <div className="grid grid-cols-2 gap-4">
                   {[{ k: 'location', l: 'Location' }, { k: 'group_name', l: 'Group' }].map(f => (
                     <div key={f.k}>
-                      <label className="block text-xs font-medium text-gray-700 mb-1">{f.l}</label>
+                      <Label className="block text-xs font-medium text-gray-700 mb-1">{f.l}</Label>
                       <input value={String(form[f.k] || '')} onChange={e => set(f.k, e.target.value)}
                         className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
                     </div>
@@ -487,7 +488,7 @@ export default function AssignmentsPage() {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1">Notes</label>
+                  <Label className="block text-xs font-medium text-gray-700 mb-1">Notes</Label>
                   <textarea rows={2} value={String(form.notes || '')} onChange={e => set('notes', e.target.value)}
                     className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
                 </div>

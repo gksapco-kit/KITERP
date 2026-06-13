@@ -1,4 +1,5 @@
 import { useState, useRef, useCallback, useEffect } from 'react'
+import { SectionLabel } from '@/components/common/FieldLabel'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -918,7 +919,7 @@ export default function InvoiceSettingsPage() {
                 {/* Layout Editor - right panel within Template */}
                 <div className="w-44 shrink-0 border-l pl-3 space-y-3">
                   <div>
-                    <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1.5">Font Size</p>
+                    <SectionLabel className="mb-1.5">Font Size</SectionLabel>
                     <div className="flex gap-1">
                       {([{ id: 'sm', label: 'S' }, { id: 'md', label: 'M' }, { id: 'lg', label: 'L' }] as { id: 'sm' | 'md' | 'lg'; label: string }[]).map(o => (
                         <button key={o.id} onClick={() => setPos('font_size_scale', o.id)}
@@ -929,7 +930,7 @@ export default function InvoiceSettingsPage() {
                     </div>
                   </div>
                   <div>
-                    <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">Section Order</p>
+                    <SectionLabel className="mb-1">Section Order</SectionLabel>
                     <p className="text-xs text-gray-400 mb-1.5 leading-tight">Drag to reorder · eye to hide</p>
                     {(posMerged().layout_sections ?? DEFAULT_LAYOUT_SECTIONS.map(s => ({ ...s }))).map((s, idx, arr) => (
                       <div key={s.id}
@@ -1056,7 +1057,7 @@ export default function InvoiceSettingsPage() {
               <ToggleRow label="Show tax-inclusive note" hint='Adds "All prices inclusive of taxes" note'
                 checked={posMerged().show_tax_inclusive_note ?? false} onChange={v => setPos('show_tax_inclusive_note', v)} />
               <div className="pt-3 border-t border-gray-100 space-y-2">
-                <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">Custom Tax Labels</p>
+                <SectionLabel>Custom Tax Labels</SectionLabel>
                 <div className="grid grid-cols-2 gap-2">
                   {[
                     { key: 'tax_label',  label: 'Combined Tax', placeholder: 'Tax'  },
@@ -1444,7 +1445,7 @@ export default function InvoiceSettingsPage() {
               {/* Layout Editor - right panel within Themes */}
               <div className="w-44 shrink-0 border-l pl-3 space-y-3">
                 <div>
-                  <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1.5">Font Size</p>
+                  <SectionLabel className="mb-1.5">Font Size</SectionLabel>
                   <div className="flex gap-1">
                     {([{ id: 'sm', label: 'S' }, { id: 'md', label: 'M' }, { id: 'lg', label: 'L' }] as { id: 'sm' | 'md' | 'lg'; label: string }[]).map(o => (
                       <button key={o.id} onClick={() => set('font_size_scale', o.id)}
@@ -1456,7 +1457,7 @@ export default function InvoiceSettingsPage() {
                 </div>
 
                 <div>
-                  <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">Section Order</p>
+                  <SectionLabel className="mb-1">Section Order</SectionLabel>
                   <p className="text-xs text-gray-400 mb-1.5 leading-tight">Drag to reorder · eye to hide</p>
                   {(settings.layout_sections ?? DEFAULT_LAYOUT_SECTIONS.map(s => ({ ...s }))).map((s, idx, arr) => (
                     <div key={s.id}
@@ -1913,7 +1914,7 @@ export default function InvoiceSettingsPage() {
             />
 
             <div className="pt-3 border-t border-gray-100 space-y-2">
-              <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">Custom Tax Labels</p>
+              <SectionLabel>Custom Tax Labels</SectionLabel>
               <div className="grid grid-cols-2 gap-2">
                 {[
                   { key: 'tax_label',  label: 'Combined Tax Label', placeholder: 'Tax' },

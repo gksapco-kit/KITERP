@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { TableColumnLabel } from '@/components/common/FieldLabel'
 import { useProfitLoss } from '@/hooks/useFinance'
 
 function fmt(n: number) {
@@ -54,8 +55,8 @@ export default function ProfitLoss() {
           <table className="w-full text-sm">
             <thead className="bg-muted border-b border-border">
               <tr>
-                <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase">Description</th>
-                <th className="px-4 py-3 text-right text-xs font-medium text-muted-foreground uppercase">Amount (₹)</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase"><TableColumnLabel>Description</TableColumnLabel></th>
+                <th className="px-4 py-3 text-right text-xs font-medium text-muted-foreground uppercase"><TableColumnLabel>Amount (₹)</TableColumnLabel></th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border">

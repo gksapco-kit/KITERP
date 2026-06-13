@@ -1,4 +1,5 @@
 import { onModalBackdropClick } from '@/lib/utils'
+import { Label } from '@/components/ui/label'
 import { useState } from 'react'
 import { useEscapeToClose } from '@/hooks/useEscapeToClose'
 import { Link } from 'react-router-dom'
@@ -182,18 +183,18 @@ function PolicyModal({
         </div>
         <form onSubmit={submit} className="p-5 space-y-3">
           <div>
-            <label className="text-xs font-medium text-gray-600 uppercase">Title *</label>
+            <Label className="text-xs font-medium text-gray-600 uppercase" required>Title</Label>
             <input required value={form.title} onChange={e => setForm({ ...form, title: e.target.value })}
               className="w-full mt-1 px-3 py-2 border rounded-lg text-sm" />
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="text-xs font-medium text-gray-600 uppercase">Category</label>
+              <Label className="text-xs font-medium text-gray-600 uppercase">Category</Label>
               <input value={form.category} onChange={e => setForm({ ...form, category: e.target.value })}
                 className="w-full mt-1 px-3 py-2 border rounded-lg text-sm" placeholder="e.g. Code of Conduct" />
             </div>
             <div>
-              <label className="text-xs font-medium text-gray-600 uppercase">Audience</label>
+              <Label className="text-xs font-medium text-gray-600 uppercase">Audience</Label>
               <select value={form.audience} onChange={e => setForm({ ...form, audience: e.target.value })}
                 className="w-full mt-1 px-3 py-2 border rounded-lg text-sm">
                 <option value="all">All employees</option>
@@ -202,28 +203,28 @@ function PolicyModal({
               </select>
             </div>
             <div>
-              <label className="text-xs font-medium text-gray-600 uppercase">Effective From</label>
+              <Label className="text-xs font-medium text-gray-600 uppercase">Effective From</Label>
               <input type="date" value={form.effective_from} onChange={e => setForm({ ...form, effective_from: e.target.value })}
                 className="w-full mt-1 px-3 py-2 border rounded-lg text-sm" />
             </div>
             <div>
-              <label className="text-xs font-medium text-gray-600 uppercase">Expires On</label>
+              <Label className="text-xs font-medium text-gray-600 uppercase">Expires On</Label>
               <input type="date" value={form.expires_on} onChange={e => setForm({ ...form, expires_on: e.target.value })}
                 className="w-full mt-1 px-3 py-2 border rounded-lg text-sm" />
             </div>
           </div>
           <div>
-            <label className="text-xs font-medium text-gray-600 uppercase">Summary</label>
+            <Label className="text-xs font-medium text-gray-600 uppercase">Summary</Label>
             <textarea rows={2} value={form.summary} onChange={e => setForm({ ...form, summary: e.target.value })}
               className="w-full mt-1 px-3 py-2 border rounded-lg text-sm" />
           </div>
           <div>
-            <label className="text-xs font-medium text-gray-600 uppercase">Body (HTML/Markdown)</label>
+            <Label className="text-xs font-medium text-gray-600 uppercase">Body (HTML/Markdown)</Label>
             <textarea rows={10} value={form.body} onChange={e => setForm({ ...form, body: e.target.value })}
               className="w-full mt-1 px-3 py-2 border rounded-lg text-sm font-mono" />
           </div>
           <div>
-            <label className="text-xs font-medium text-gray-600 uppercase">Attachment URL</label>
+            <Label className="text-xs font-medium text-gray-600 uppercase">Attachment URL</Label>
             <input value={form.attachment_url} onChange={e => setForm({ ...form, attachment_url: e.target.value })}
               className="w-full mt-1 px-3 py-2 border rounded-lg text-sm" placeholder="https://…" />
           </div>
@@ -390,7 +391,7 @@ function CertModal({
         </div>
         <form onSubmit={submit} className="p-5 space-y-3">
           <div>
-            <label className="text-xs font-medium text-gray-600 uppercase">Employee *</label>
+            <Label className="text-xs font-medium text-gray-600 uppercase" required>Employee</Label>
             <select required value={form.employee_id} onChange={e => setForm({ ...form, employee_id: e.target.value })}
               className="w-full mt-1 px-3 py-2 border rounded-lg text-sm">
               <option value="">— Select —</option>
@@ -400,49 +401,49 @@ function CertModal({
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="text-xs font-medium text-gray-600 uppercase">Certification Name *</label>
+              <Label className="text-xs font-medium text-gray-600 uppercase" required>Certification Name</Label>
               <input required value={form.name} onChange={e => setForm({ ...form, name: e.target.value })}
                 className="w-full mt-1 px-3 py-2 border rounded-lg text-sm" />
             </div>
             <div>
-              <label className="text-xs font-medium text-gray-600 uppercase">Type</label>
+              <Label className="text-xs font-medium text-gray-600 uppercase">Type</Label>
               <input value={form.type} onChange={e => setForm({ ...form, type: e.target.value })}
                 placeholder="license / training / etc."
                 className="w-full mt-1 px-3 py-2 border rounded-lg text-sm" />
             </div>
             <div>
-              <label className="text-xs font-medium text-gray-600 uppercase">Issued By</label>
+              <Label className="text-xs font-medium text-gray-600 uppercase">Issued By</Label>
               <input value={form.issued_by} onChange={e => setForm({ ...form, issued_by: e.target.value })}
                 className="w-full mt-1 px-3 py-2 border rounded-lg text-sm" />
             </div>
             <div>
-              <label className="text-xs font-medium text-gray-600 uppercase">Cert Number</label>
+              <Label className="text-xs font-medium text-gray-600 uppercase">Cert Number</Label>
               <input value={form.cert_number} onChange={e => setForm({ ...form, cert_number: e.target.value })}
                 className="w-full mt-1 px-3 py-2 border rounded-lg text-sm" />
             </div>
             <div>
-              <label className="text-xs font-medium text-gray-600 uppercase">Issued On</label>
+              <Label className="text-xs font-medium text-gray-600 uppercase">Issued On</Label>
               <input type="date" value={form.issued_on} onChange={e => setForm({ ...form, issued_on: e.target.value })}
                 className="w-full mt-1 px-3 py-2 border rounded-lg text-sm" />
             </div>
             <div>
-              <label className="text-xs font-medium text-gray-600 uppercase">Expires On</label>
+              <Label className="text-xs font-medium text-gray-600 uppercase">Expires On</Label>
               <input type="date" value={form.expires_on} onChange={e => setForm({ ...form, expires_on: e.target.value })}
                 className="w-full mt-1 px-3 py-2 border rounded-lg text-sm" />
             </div>
           </div>
           <div>
-            <label className="text-xs font-medium text-gray-600 uppercase">Document URL</label>
+            <Label className="text-xs font-medium text-gray-600 uppercase">Document URL</Label>
             <input value={form.document_url} onChange={e => setForm({ ...form, document_url: e.target.value })}
               className="w-full mt-1 px-3 py-2 border rounded-lg text-sm" />
           </div>
           <div>
-            <label className="text-xs font-medium text-gray-600 uppercase">Notes</label>
+            <Label className="text-xs font-medium text-gray-600 uppercase">Notes</Label>
             <textarea rows={2} value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })}
               className="w-full mt-1 px-3 py-2 border rounded-lg text-sm" />
           </div>
           <div>
-            <label className="text-xs font-medium text-gray-600 uppercase">Status</label>
+            <Label className="text-xs font-medium text-gray-600 uppercase">Status</Label>
             <select value={form.status} onChange={e => setForm({ ...form, status: e.target.value as ComplianceCertification['status'] })}
               className="w-full mt-1 px-3 py-2 border rounded-lg text-sm">
               <option value="active">Active</option>

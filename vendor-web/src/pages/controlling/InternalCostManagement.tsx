@@ -4,6 +4,7 @@
  * and internal recharge summary.
  */
 import { useState, useMemo } from 'react'
+import { TableColumnLabel } from '@/components/common/FieldLabel'
 import { Building2, GitMerge, TrendingUp, AlertCircle, BarChart2 } from 'lucide-react'
 import { useCompanies } from '@/hooks/useFinance'
 import {
@@ -278,10 +279,10 @@ export default function InternalCostManagementPage() {
           <table className="w-full text-sm">
             <thead className="bg-gray-50 text-left">
               <tr>
-                <th className="px-4 py-3 font-medium text-gray-600">Code</th>
-                <th className="px-4 py-3 font-medium text-gray-600">Name</th>
-                <th className="px-4 py-3 font-medium text-gray-600">UoM</th>
-                <th className="px-4 py-3 font-medium text-gray-600">Status</th>
+                <th className="px-4 py-3 font-medium text-gray-600"><TableColumnLabel>Code</TableColumnLabel></th>
+                <th className="px-4 py-3 font-medium text-gray-600"><TableColumnLabel>Name</TableColumnLabel></th>
+                <th className="px-4 py-3 font-medium text-gray-600"><TableColumnLabel>UoM</TableColumnLabel></th>
+                <th className="px-4 py-3 font-medium text-gray-600"><TableColumnLabel>Status</TableColumnLabel></th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
@@ -338,11 +339,11 @@ export default function InternalCostManagementPage() {
             <table className="w-full text-sm">
               <thead className="bg-gray-50 text-left">
                 <tr>
-                  <th className="px-4 py-3 font-medium text-gray-600">Cycle</th>
-                  <th className="px-4 py-3 font-medium text-gray-600">Method</th>
-                  <th className="px-4 py-3 font-medium text-gray-600 text-right">Value</th>
-                  <th className="px-4 py-3 font-medium text-gray-600 text-right">Amount</th>
-                  <th className="px-4 py-3 font-medium text-gray-600">Status</th>
+                  <th className="px-4 py-3 font-medium text-gray-600"><TableColumnLabel>Cycle</TableColumnLabel></th>
+                  <th className="px-4 py-3 font-medium text-gray-600"><TableColumnLabel>Method</TableColumnLabel></th>
+                  <th className="px-4 py-3 font-medium text-gray-600 text-right"><TableColumnLabel>Value</TableColumnLabel></th>
+                  <th className="px-4 py-3 font-medium text-gray-600 text-right"><TableColumnLabel>Amount</TableColumnLabel></th>
+                  <th className="px-4 py-3 font-medium text-gray-600"><TableColumnLabel>Status</TableColumnLabel></th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">

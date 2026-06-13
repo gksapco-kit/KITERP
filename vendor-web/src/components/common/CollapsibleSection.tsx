@@ -13,6 +13,8 @@ export interface CollapsibleSectionProps {
   toggle: () => void
   children: ReactNode
   badge?: ReactNode
+  /** Controls rendered in the header row (e.g. Yes/No) — clicks do not toggle the section. */
+  headerAction?: ReactNode
 }
 
 /** Shared accordion section — matches Settings page styling (dark-mode safe). */
@@ -25,6 +27,7 @@ export function CollapsibleSection({
   toggle,
   children,
   badge,
+  headerAction,
 }: CollapsibleSectionProps) {
   return (
     <Card
@@ -35,51 +38,72 @@ export function CollapsibleSection({
           : 'border-border/80 hover:border-primary/25 hover:shadow-md',
       )}
     >
-      <button
-        type="button"
-        onClick={toggle}
-        aria-expanded={open}
+      <div
         className={cn(
-          'flex w-full items-center gap-3 border-b border-transparent px-3 py-3.5 text-left transition-colors sm:px-4',
+          'flex w-full items-center gap-1 border-b border-transparent sm:gap-2',
           open && 'border-border/60 bg-muted/20',
-          'hover:bg-accent/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
         )}
       >
-        <span
+        <button
+          type="button"
+          onClick={toggle}
+          aria-expanded={open}
           className={cn(
-            'flex h-9 w-9 shrink-0 items-center justify-center rounded-lg',
-            'bg-primary/10 text-primary ring-1 ring-inset ring-primary/15',
+            'flex min-w-0 flex-1 items-center gap-3 px-3 py-3.5 text-left transition-colors sm:px-4',
+            'hover:bg-accent/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
           )}
-          aria-hidden
         >
-          <Icon className="h-4 w-4 shrink-0" strokeWidth={2} />
-        </span>
-        <div className="min-w-0 flex-1">
-          {/* Line 1: title + scope label inline */}
-          <p className="flex min-w-0 flex-wrap items-baseline gap-x-1.5 leading-snug">
-            <span className="text-sm font-semibold text-foreground">{title}</span>
-            {subtitle ? (
-              <span className="truncate text-xs font-normal text-muted-foreground" title={subtitle}>
-                {subtitle}
-              </span>
-            ) : null}
-          </p>
-          {/* Line 2: descriptive help text */}
-          {helpText ? (
-            <p className="mt-0.5 truncate text-xs text-muted-foreground/80" title={helpText}>
-              {helpText}
+          <span
+            className={cn(
+              'flex h-9 w-9 shrink-0 items-center justify-center rounded-lg',
+              'bg-primary/10 text-primary ring-1 ring-inset ring-primary/15',
+            )}
+            aria-hidden
+          >
+            <Icon className="h-4 w-4 shrink-0" strokeWidth={2} />
+          </span>
+          <div className="min-w-0 flex-1">
+            <p className="flex min-w-0 flex-wrap items-baseline gap-x-1.5 leading-snug">
+              <span className="text-sm font-semibold text-foreground">{title}</span>
+              {subtitle ? (
+                <span className="truncate text-xs font-normal text-muted-foreground" title={subtitle}>
+                  {subtitle}
+                </span>
+              ) : null}
             </p>
-          ) : null}
-        </div>
+            {helpText ? (
+              <p className="mt-0.5 truncate text-xs text-muted-foreground/80" title={helpText}>
+                {helpText}
+              </p>
+            ) : null}
+          </div>
+        </button>
+        {headerAction ? (
+          <div
+            className="shrink-0 self-center"
+            onMouseDown={(e) => e.stopPropagation()}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {headerAction}
+          </div>
+        ) : null}
         {badge}
-        <ChevronDown
-          className={cn(
-            'h-4 w-4 shrink-0 text-muted-foreground transition-transform duration-200',
-            open && 'rotate-180',
-          )}
-          aria-hidden
-        />
-      </button>
+        <button
+          type="button"
+          onClick={toggle}
+          aria-expanded={open}
+          aria-label={open ? 'Collapse section' : 'Expand section'}
+          className="shrink-0 px-3 py-3.5 text-muted-foreground transition-colors hover:bg-accent/40 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+        >
+          <ChevronDown
+            className={cn(
+              'h-4 w-4 transition-transform duration-200',
+              open && 'rotate-180',
+            )}
+            aria-hidden
+          />
+        </button>
+      </div>
       {open ? (
         <CardContent className="border-t border-border/80 bg-muted/25 px-3 pb-5 pt-4 sm:px-5">
           {children}

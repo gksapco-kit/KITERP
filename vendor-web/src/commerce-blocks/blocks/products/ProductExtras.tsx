@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { TableColumnLabel } from '@/components/common/FieldLabel'
 import { Star, ThumbsUp, Check, Search, X, Heart, Bell, BadgePercent } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -177,7 +178,7 @@ export function ComparisonTable({
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-border bg-muted/40">
-              <th className="w-32 p-4 text-left font-medium text-muted-foreground">Feature</th>
+              <th className="w-32 p-4 text-left font-medium text-muted-foreground"><TableColumnLabel>Feature</TableColumnLabel></th>
               {items.map((p) => (
                 <th key={p.id} className="p-4 text-left">
                   <div className="flex flex-col gap-2">

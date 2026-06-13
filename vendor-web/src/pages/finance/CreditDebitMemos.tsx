@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useMemo, useLayoutEffect } from 'react'
+import { TableColumnLabel } from '@/components/common/FieldLabel'
 import { useEscapeToClose } from '@/hooks/useEscapeToClose'
 import { createPortal } from 'react-dom'
 import { ResizableTable } from '@/components/table/ResizableTable'
@@ -837,15 +838,15 @@ export default function CreditDebitMemos() {
             <div className="overflow-x-auto">
               <ResizableTable tableId="credit-debit-memos" defaultWidths={[110, 100, 80, 72, 150, 60, 90, 100, 88]}>
                 <thead><tr className="border-b bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase">
-                  <th className="px-4 py-2.5">Date</th>
-                  <th className="px-4 py-2.5">Memo #</th>
-                  <th className="px-4 py-2.5">Type</th>
-                  <th className="px-4 py-2.5">Status</th>
-                  <th className="px-4 py-2.5">Customer</th>
-                  <th className="px-4 py-2.5 text-center">Items</th>
-                  <th className="px-4 py-2.5 text-right">Amount</th>
-                  <th className="px-4 py-2.5">Payment</th>
-                  <th className="px-4 py-2.5 text-right">Actions</th>
+                  <th className="px-4 py-2.5"><TableColumnLabel>Date</TableColumnLabel></th>
+                  <th className="px-4 py-2.5"><TableColumnLabel>Memo #</TableColumnLabel></th>
+                  <th className="px-4 py-2.5"><TableColumnLabel>Type</TableColumnLabel></th>
+                  <th className="px-4 py-2.5"><TableColumnLabel>Status</TableColumnLabel></th>
+                  <th className="px-4 py-2.5"><TableColumnLabel>Customer</TableColumnLabel></th>
+                  <th className="px-4 py-2.5 text-center"><TableColumnLabel>Items</TableColumnLabel></th>
+                  <th className="px-4 py-2.5 text-right"><TableColumnLabel>Amount</TableColumnLabel></th>
+                  <th className="px-4 py-2.5"><TableColumnLabel>Payment</TableColumnLabel></th>
+                  <th className="px-4 py-2.5 text-right"><TableColumnLabel>Actions</TableColumnLabel></th>
                 </tr></thead>
                 <tbody className="divide-y">
                   {filteredMemos.map((m: any) => {
@@ -1425,14 +1426,14 @@ export default function CreditDebitMemos() {
               <table className="w-full min-w-[56rem] text-sm">
                 <thead>
                   <tr className="bg-slate-50/95 text-left text-[0.65rem] font-bold uppercase tracking-wide text-slate-500 border-b border-slate-200">
-                    <th className="pl-3 sm:pl-4 py-2.5 w-8">#</th>
-                    <th className="py-2.5 pr-2 w-[40%] min-w-[20rem] sm:min-w-[24rem]">Particulars</th>
-                    <th className="py-2.5 w-20">HSN / SAC</th>
-                    <th className="py-2.5 w-16 text-right">Qty</th>
-                    <th className="py-2.5 w-24 text-right">Rate</th>
-                    <th className="py-2.5 w-20 text-right">Disc.</th>
-                    <th className="py-2.5 w-16 text-right">Tax %</th>
-                    <th className="py-2.5 w-24 text-right pr-1">Amount</th>
+                    <th className="pl-3 sm:pl-4 py-2.5 w-8"><TableColumnLabel>#</TableColumnLabel></th>
+                    <th className="py-2.5 pr-2 w-[40%] min-w-[20rem] sm:min-w-[24rem]"><TableColumnLabel>Particulars</TableColumnLabel></th>
+                    <th className="py-2.5 w-20"><TableColumnLabel>HSN / SAC</TableColumnLabel></th>
+                    <th className="py-2.5 w-16 text-right"><TableColumnLabel>Qty</TableColumnLabel></th>
+                    <th className="py-2.5 w-24 text-right"><TableColumnLabel>Rate</TableColumnLabel></th>
+                    <th className="py-2.5 w-20 text-right"><TableColumnLabel>Disc.</TableColumnLabel></th>
+                    <th className="py-2.5 w-16 text-right"><TableColumnLabel>Tax %</TableColumnLabel></th>
+                    <th className="py-2.5 w-24 text-right pr-1"><TableColumnLabel>Amount</TableColumnLabel></th>
                     <th className="w-10" />
                   </tr>
                 </thead>
@@ -2111,11 +2112,11 @@ function MemoDetail({ txn, onBack, onEdit, onVoid, voidingId }: {
           <div className="border rounded-lg overflow-hidden">
             <table className="w-full text-sm">
               <thead><tr className="bg-gray-50 text-xs text-gray-500 font-semibold uppercase">
-                <th className="px-4 py-2 text-left">#</th>
-                <th className="px-4 py-2 text-left">Item</th>
-                <th className="px-4 py-2 text-center">Qty</th>
-                <th className="px-4 py-2 text-right">Rate</th>
-                <th className="px-4 py-2 text-right">Amount</th>
+                <th className="px-4 py-2 text-left"><TableColumnLabel>#</TableColumnLabel></th>
+                <th className="px-4 py-2 text-left"><TableColumnLabel>Item</TableColumnLabel></th>
+                <th className="px-4 py-2 text-center"><TableColumnLabel>Qty</TableColumnLabel></th>
+                <th className="px-4 py-2 text-right"><TableColumnLabel>Rate</TableColumnLabel></th>
+                <th className="px-4 py-2 text-right"><TableColumnLabel>Amount</TableColumnLabel></th>
               </tr></thead>
               <tbody className="divide-y">
                 {items.map((it: { item_type?: string; name?: string; qty?: number; price?: number; total?: number }, i) => (

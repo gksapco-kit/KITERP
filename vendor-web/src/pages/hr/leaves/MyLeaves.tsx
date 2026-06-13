@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Label } from '@/components/ui/label'
 import { Plus, Plane } from 'lucide-react'
 import { useHRMyLeaves, useSubmitLeaveRequest, useCancelLeave, useHRLeavePolicies } from '@/hooks/useVendor'
 import type { LeaveBalance, LeaveRequest } from '@/types'
@@ -63,27 +64,27 @@ export default function MyLeavesPage() {
           <h3 className="font-semibold text-gray-900">New Leave Request</h3>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">Leave Type *</label>
+              <Label className="block text-xs font-medium text-gray-600 mb-1" required>Leave Type</Label>
               <select required className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none" value={form.leave_policy_id} onChange={e => setForm(f => ({ ...f, leave_policy_id: e.target.value }))}>
                 <option value="">— Select —</option>
                 {policies.map((p: any) => <option key={p.id} value={p.id}>{p.name}</option>)}
               </select>
             </div>
             <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">Days</label>
+              <Label className="block text-xs font-medium text-gray-600 mb-1">Days</Label>
               <input type="number" min={0.5} step={0.5} className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none" value={form.days} onChange={e => setForm(f => ({ ...f, days: parseFloat(e.target.value) || 0.5 }))} />
             </div>
             <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">From *</label>
+              <Label className="block text-xs font-medium text-gray-600 mb-1" required>From</Label>
               <input type="date" required className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none" value={form.from_date} onChange={e => setForm(f => ({ ...f, from_date: e.target.value }))} />
             </div>
             <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">To *</label>
+              <Label className="block text-xs font-medium text-gray-600 mb-1" required>To</Label>
               <input type="date" required className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none" value={form.to_date} onChange={e => setForm(f => ({ ...f, to_date: e.target.value }))} />
             </div>
           </div>
           <div>
-            <label className="block text-xs font-medium text-gray-600 mb-1">Reason</label>
+            <Label className="block text-xs font-medium text-gray-600 mb-1">Reason</Label>
             <textarea className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none" rows={2} value={form.reason} onChange={e => setForm(f => ({ ...f, reason: e.target.value }))} />
           </div>
           <label className="flex items-center gap-2 text-sm cursor-pointer">

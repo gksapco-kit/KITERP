@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { TableColumnLabel } from '@/components/common/FieldLabel'
 import { Plus, Pencil, Trash2, Award } from 'lucide-react'
 import { useHRDesignations, useDeleteHRDesignation } from '@/hooks/useVendor'
 import { DesigModal } from '@/components/hr/DesigModal'
@@ -36,9 +37,9 @@ export default function DesignationsPage() {
           <table className="w-full">
             <thead className="bg-gray-50 border-b">
               <tr>
-                <th className="text-left py-3 px-4 text-xs font-medium text-gray-500 uppercase tracking-wide">Title</th>
-                <th className="text-left py-3 px-4 text-xs font-medium text-gray-500 uppercase tracking-wide">Level</th>
-                <th className="text-left py-3 px-4 text-xs font-medium text-gray-500 uppercase tracking-wide">Status</th>
+                <th className="text-left py-3 px-4 text-xs font-medium text-gray-500 uppercase tracking-wide"><TableColumnLabel>Title</TableColumnLabel></th>
+                <th className="text-left py-3 px-4 text-xs font-medium text-gray-500 uppercase tracking-wide"><TableColumnLabel>Level</TableColumnLabel></th>
+                <th className="text-left py-3 px-4 text-xs font-medium text-gray-500 uppercase tracking-wide"><TableColumnLabel>Status</TableColumnLabel></th>
                 <th className="py-3 px-4" />
               </tr>
             </thead>

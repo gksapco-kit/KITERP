@@ -1,4 +1,6 @@
 import { useState, useRef, useEffect, useMemo } from 'react'
+import { SectionLabel } from '@/components/common/FieldLabel'
+import { Label } from '@/components/ui/label'
 import { useParams, Link, useSearchParams } from 'react-router-dom'
 import {
   ArrowLeft, User, Briefcase, FileText, Calendar, Plane, DollarSign, Receipt,
@@ -652,7 +654,7 @@ function DocumentsTab({ empId }: { empId: string }) {
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">Document Type</label>
+              <Label className="block text-xs font-medium text-gray-600 mb-1">Document Type</Label>
               <select
                 className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none bg-white"
                 value={form.document_type}
@@ -662,7 +664,7 @@ function DocumentsTab({ empId }: { empId: string }) {
               </select>
             </div>
             <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">Document Name *</label>
+              <Label className="block text-xs font-medium text-gray-600 mb-1" required>Document Name</Label>
               <input
                 className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none bg-white"
                 required
@@ -671,7 +673,7 @@ function DocumentsTab({ empId }: { empId: string }) {
               />
             </div>
             <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">Expiry Date</label>
+              <Label className="block text-xs font-medium text-gray-600 mb-1">Expiry Date</Label>
               <input
                 type="date"
                 className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none bg-white"
@@ -680,7 +682,7 @@ function DocumentsTab({ empId }: { empId: string }) {
               />
             </div>
             <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">Notes</label>
+              <Label className="block text-xs font-medium text-gray-600 mb-1">Notes</Label>
               <input
                 className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none bg-white"
                 placeholder="Optional notes"
@@ -839,27 +841,27 @@ function LeavesTab({ empId }: { empId: string }) {
           <h4 className="font-medium text-sm">New Leave Request</h4>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">Leave Type</label>
+              <Label className="block text-xs font-medium text-gray-600 mb-1">Leave Type</Label>
               <select className="w-full border rounded-lg px-3 py-2 text-sm" required value={form.leave_policy_id} onChange={e => setForm(f => ({ ...f, leave_policy_id: e.target.value }))}>
                 <option value="">— Select —</option>
                 {policies.map((p: any) => <option key={p.id} value={p.id}>{p.name}</option>)}
               </select>
             </div>
             <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">Days</label>
+              <Label className="block text-xs font-medium text-gray-600 mb-1">Days</Label>
               <input type="number" min={0.5} step={0.5} className="w-full border rounded-lg px-3 py-2 text-sm" value={form.days} onChange={e => setForm(f => ({ ...f, days: parseFloat(e.target.value) }))} />
             </div>
             <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">From</label>
+              <Label className="block text-xs font-medium text-gray-600 mb-1">From</Label>
               <input type="date" className="w-full border rounded-lg px-3 py-2 text-sm" required value={form.from_date} onChange={e => setForm(f => ({ ...f, from_date: e.target.value }))} />
             </div>
             <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">To</label>
+              <Label className="block text-xs font-medium text-gray-600 mb-1">To</Label>
               <input type="date" className="w-full border rounded-lg px-3 py-2 text-sm" required value={form.to_date} onChange={e => setForm(f => ({ ...f, to_date: e.target.value }))} />
             </div>
           </div>
           <div>
-            <label className="block text-xs font-medium text-gray-600 mb-1">Reason</label>
+            <Label className="block text-xs font-medium text-gray-600 mb-1">Reason</Label>
             <textarea className="w-full border rounded-lg px-3 py-2 text-sm" rows={2} value={form.reason} onChange={e => setForm(f => ({ ...f, reason: e.target.value }))} />
           </div>
           <div className="flex justify-end gap-2">
@@ -934,7 +936,7 @@ function SalaryTab({ empId }: { empId: string }) {
       {showForm && (
         <div className="bg-gray-50 rounded-xl border p-4 space-y-4">
           <div>
-            <label className="block text-xs font-medium text-gray-600 mb-1">Effective From</label>
+            <Label className="block text-xs font-medium text-gray-600 mb-1">Effective From</Label>
             <input type="date" className="border rounded-lg px-3 py-2 text-sm" value={effectiveFrom} onChange={e => setEffectiveFrom(e.target.value)} />
           </div>
           <div className="grid grid-cols-2 gap-6">
@@ -1061,7 +1063,7 @@ function CredentialsTab({ emp }: { emp: any }) {
 
       <form onSubmit={handleSubmit} className="max-w-md space-y-4">
         <div>
-          <label className="block text-xs font-medium text-gray-600 mb-1">New portal password</label>
+          <Label className="block text-xs font-medium text-gray-600 mb-1">New portal password</Label>
           <input
             type="password"
             autoComplete="new-password"
@@ -1072,7 +1074,7 @@ function CredentialsTab({ emp }: { emp: any }) {
           />
         </div>
         <div>
-          <label className="block text-xs font-medium text-gray-600 mb-1">Confirm password</label>
+          <Label className="block text-xs font-medium text-gray-600 mb-1">Confirm password</Label>
           <input
             type="password"
             autoComplete="new-password"
@@ -1859,7 +1861,7 @@ function ExitTab({ emp, onSave }: { emp: any; onSave: (data: Record<string, unkn
         {/* New task form */}
         {showTaskForm && (
           <div className="border rounded-xl p-4 mb-4 bg-blue-50/30 space-y-3">
-            <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">New Task</p>
+            <SectionLabel>New Task</SectionLabel>
             <div>
               <label className="block text-xs font-medium text-gray-600 mb-1">Task Title <span className="text-red-500">*</span></label>
               <input
@@ -1872,7 +1874,7 @@ function ExitTab({ emp, onSave }: { emp: any; onSave: (data: Record<string, unkn
             </div>
             <div className="grid grid-cols-3 gap-3">
               <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1">Assigned To</label>
+                <Label className="block text-xs font-medium text-gray-600 mb-1">Assigned To</Label>
                 <AssigneeInput
                   value={taskForm.assignedTo}
                   onChange={v => setTaskForm(f => ({ ...f, assignedTo: v }))}
@@ -1880,7 +1882,7 @@ function ExitTab({ emp, onSave }: { emp: any; onSave: (data: Record<string, unkn
                 />
               </div>
               <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1">Due Date</label>
+                <Label className="block text-xs font-medium text-gray-600 mb-1">Due Date</Label>
                 <input
                   type="date"
                   className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none bg-white"
@@ -1889,7 +1891,7 @@ function ExitTab({ emp, onSave }: { emp: any; onSave: (data: Record<string, unkn
                 />
               </div>
               <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1">Priority</label>
+                <Label className="block text-xs font-medium text-gray-600 mb-1">Priority</Label>
                 <select
                   className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none bg-white"
                   value={taskForm.priority}

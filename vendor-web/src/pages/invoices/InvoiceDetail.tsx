@@ -1,4 +1,5 @@
 import { useState, useCallback, useMemo, useEffect } from 'react'
+import { TableColumnLabel } from '@/components/common/FieldLabel'
 import { useParams, useNavigate, useLocation } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { vendorApi } from '@/api/vendor'
@@ -612,13 +613,13 @@ export default function InvoiceDetail() {
           <table className="w-full">
             <thead>
               <tr className="border-b text-xs text-gray-500 uppercase">
-                <th className="text-left px-5 py-2.5 font-semibold">#</th>
-                <th className="text-left px-5 py-2.5 font-semibold">Item</th>
-                <th className="text-left px-5 py-2.5 font-semibold">HSN/SAC</th>
-                <th className="text-right px-5 py-2.5 font-semibold">Qty</th>
-                <th className="text-right px-5 py-2.5 font-semibold">Rate</th>
-                <th className="text-right px-5 py-2.5 font-semibold">Tax %</th>
-                <th className="text-right px-5 py-2.5 font-semibold">Amount</th>
+                <th className="text-left px-5 py-2.5 font-semibold"><TableColumnLabel>#</TableColumnLabel></th>
+                <th className="text-left px-5 py-2.5 font-semibold"><TableColumnLabel>Item</TableColumnLabel></th>
+                <th className="text-left px-5 py-2.5 font-semibold"><TableColumnLabel>HSN/SAC</TableColumnLabel></th>
+                <th className="text-right px-5 py-2.5 font-semibold"><TableColumnLabel>Qty</TableColumnLabel></th>
+                <th className="text-right px-5 py-2.5 font-semibold"><TableColumnLabel>Rate</TableColumnLabel></th>
+                <th className="text-right px-5 py-2.5 font-semibold"><TableColumnLabel>Tax %</TableColumnLabel></th>
+                <th className="text-right px-5 py-2.5 font-semibold"><TableColumnLabel>Amount</TableColumnLabel></th>
               </tr>
             </thead>
             <tbody className="divide-y">

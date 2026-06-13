@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { TableColumnLabel } from '@/components/common/FieldLabel'
 import { Link } from 'react-router-dom'
 import { useCompanies } from '@/hooks/useFinance'
 import { useWipReport } from '@/hooks/useControlling'
@@ -99,11 +100,11 @@ export default function ControllingWipReportPage() {
               <table className="w-full text-sm">
                 <thead className="text-left text-gray-500 text-xs uppercase">
                   <tr>
-                    <th className="px-4 py-2">Order</th>
-                    <th className="px-4 py-2">Title</th>
-                    <th className="px-4 py-2 text-right">Planned</th>
-                    <th className="px-4 py-2 text-right">Actual</th>
-                    <th className="px-4 py-2 text-right">Var</th>
+                    <th className="px-4 py-2"><TableColumnLabel>Order</TableColumnLabel></th>
+                    <th className="px-4 py-2"><TableColumnLabel>Title</TableColumnLabel></th>
+                    <th className="px-4 py-2 text-right"><TableColumnLabel>Planned</TableColumnLabel></th>
+                    <th className="px-4 py-2 text-right"><TableColumnLabel>Actual</TableColumnLabel></th>
+                    <th className="px-4 py-2 text-right"><TableColumnLabel>Var</TableColumnLabel></th>
                     <th className="px-4 py-2" />
                   </tr>
                 </thead>

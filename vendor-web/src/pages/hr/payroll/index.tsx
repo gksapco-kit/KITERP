@@ -1,4 +1,5 @@
 import { onModalBackdropClick } from '@/lib/utils'
+import { Label } from '@/components/ui/label'
 import { useState } from 'react'
 import { useEscapeToClose } from '@/hooks/useEscapeToClose'
 import { Link } from 'react-router-dom'
@@ -46,7 +47,7 @@ function ProcessWizard({
             </p>
             <div className="grid grid-cols-2 gap-3 mb-6">
               <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">Month</label>
+                <Label className="block text-xs font-medium text-gray-700 mb-1">Month</Label>
                 <select className="w-full border rounded-lg px-3 py-2 text-sm" value={month} onChange={e => setMonth(parseInt(e.target.value))}>
                   {Array.from({ length: 12 }, (_, i) => i + 1).map(m => (
                     <option key={m} value={m}>{new Date(year, m - 1).toLocaleDateString('en-IN', { month: 'long' })}</option>
@@ -54,7 +55,7 @@ function ProcessWizard({
                 </select>
               </div>
               <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">Year</label>
+                <Label className="block text-xs font-medium text-gray-700 mb-1">Year</Label>
                 <select className="w-full border rounded-lg px-3 py-2 text-sm" value={year} onChange={e => setYear(parseInt(e.target.value))}>
                   {[now.getFullYear() - 1, now.getFullYear()].map(y => <option key={y} value={y}>{y}</option>)}
                 </select>

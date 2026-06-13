@@ -1,4 +1,5 @@
 import { useState, useRef } from 'react'
+import { Label } from '@/components/ui/label'
 import { useEscapeToClose } from '@/hooks/useEscapeToClose'
 import { useBankAccounts, useCreateBankAccount, useStatements, useUploadStatementCSV, useReconciliations, useCreateReconciliation, useAutoMatch } from '@/hooks/useFinance'
 import { Plus, Upload, Shuffle, X } from 'lucide-react'
@@ -206,14 +207,14 @@ export default function BankCash() {
               { label: 'Opening Balance', key: 'opening_balance', type: 'number' },
             ].map(({ label, key, type }) => (
               <div key={key}>
-                <label className="block text-xs font-medium text-gray-600 mb-1">{label}</label>
+                <Label className="block text-xs font-medium text-gray-600 mb-1">{label}</Label>
                 <input type={type || 'text'} value={(accountForm as any)[key]}
                   onChange={e => setAccountForm(f => ({ ...f, [key]: e.target.value }))}
                   className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" />
               </div>
             ))}
             <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">Type</label>
+              <Label className="block text-xs font-medium text-gray-600 mb-1">Type</Label>
               <select value={accountForm.account_type} onChange={e => setAccountForm(f => ({ ...f, account_type: e.target.value }))}
                 className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
                 {['bank', 'cash', 'credit_card', 'wallet'].map(t => <option key={t}>{t}</option>)}

@@ -1,4 +1,7 @@
 import { useState, useMemo, useCallback } from 'react'
+import { FormColumnLabel } from '@/components/common/FieldLabel'
+import { TableColumnLabel } from '@/components/common/FieldLabel'
+import { Label } from '@/components/ui/label'
 import { useEscapeToClose } from '@/hooks/useEscapeToClose'
 import { Link, useNavigate } from 'react-router-dom'
 import { ResizableTable } from '@/components/table/ResizableTable'
@@ -315,14 +318,14 @@ export default function TeamPage() {
             <ResizableTable tableId="team" defaultWidths={[260, 200, 120, 140, 100, 120, 80]}>
               <thead>
                 <tr className="bg-gray-50 border-b border-gray-200">
-                  <th className="text-left px-6 py-3 font-medium text-gray-600">Member</th>
-                  <th className="text-left px-6 py-3 font-medium text-gray-600">Contact</th>
-                  <th className="text-left px-6 py-3 font-medium text-gray-600">Role</th>
-                  <th className="text-left px-6 py-3 font-medium text-gray-600">Store</th>
-                  <th className="text-left px-6 py-3 font-medium text-gray-600">Status</th>
-                  <th className="text-left px-6 py-3 font-medium text-gray-600">Joined</th>
+                  <th className="text-left px-6 py-3 font-medium text-gray-600"><TableColumnLabel>Member</TableColumnLabel></th>
+                  <th className="text-left px-6 py-3 font-medium text-gray-600"><TableColumnLabel>Contact</TableColumnLabel></th>
+                  <th className="text-left px-6 py-3 font-medium text-gray-600"><TableColumnLabel>Role</TableColumnLabel></th>
+                  <th className="text-left px-6 py-3 font-medium text-gray-600"><TableColumnLabel>Store</TableColumnLabel></th>
+                  <th className="text-left px-6 py-3 font-medium text-gray-600"><TableColumnLabel>Status</TableColumnLabel></th>
+                  <th className="text-left px-6 py-3 font-medium text-gray-600"><TableColumnLabel>Joined</TableColumnLabel></th>
                   {canManageTeam && (
-                    <th className="text-right px-6 py-3 font-medium text-gray-600">Actions</th>
+                    <th className="text-right px-6 py-3 font-medium text-gray-600"><TableColumnLabel>Actions</TableColumnLabel></th>
                   )}
                 </tr>
               </thead>
@@ -530,7 +533,7 @@ export default function TeamPage() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Full Name</label>
+                <Label className="block text-sm font-medium text-gray-700 mb-1">Full Name</Label>
                 <input
                   type="text"
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
@@ -553,7 +556,7 @@ export default function TeamPage() {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Phone Number</label>
+                  <Label className="block text-sm font-medium text-gray-700 mb-1">Phone Number</Label>
                   <PhoneInput
                     value={inviteForm.phone}
                     onChange={v => setInviteForm(f => ({ ...f, phone: v }))}
@@ -561,7 +564,7 @@ export default function TeamPage() {
                 </div>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Password</label>
+                <Label className="block text-sm font-medium text-gray-700 mb-1">Password</Label>
                 <input
                   type="password"
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
@@ -571,7 +574,7 @@ export default function TeamPage() {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Role</label>
+                <Label className="block text-sm font-medium text-gray-700 mb-1">Role</Label>
                 <TeamRoleSelect
                   assignable={assignableRoles}
                   value={inviteForm.role === 'custom' ? inviteForm.role_id : inviteForm.role}
@@ -586,7 +589,7 @@ export default function TeamPage() {
                 />
               </div>
               <div>
-                <p className="text-xs font-medium text-gray-400 uppercase tracking-wide mb-2">Access window</p>
+                <FormColumnLabel className="tracking-wide mb-2">Access window</FormColumnLabel>
                 <AccessWindowFields
                   accessStartsAt={inviteForm.access_starts_at}
                   accessEndsAt={inviteForm.access_ends_at}
@@ -881,7 +884,7 @@ function MemberDetailDrawer({
 
           {/* Contact */}
           <div className="space-y-2">
-            <p className="text-xs font-medium text-gray-400 uppercase tracking-wide">Contact</p>
+            <FormColumnLabel className="tracking-wide">Contact</FormColumnLabel>
             <div className="space-y-2 bg-white border border-gray-100 rounded-xl divide-y divide-gray-50">
               <div className="flex items-center justify-between px-4 py-2.5">
                 <div className="flex items-center gap-2 text-sm text-gray-700">
@@ -917,7 +920,7 @@ function MemberDetailDrawer({
           {/* Store Assignment */}
           {stores.length > 0 && (
             <div className="space-y-2">
-              <p className="text-xs font-medium text-gray-400 uppercase tracking-wide">Store Assignment</p>
+              <FormColumnLabel className="tracking-wide">Store Assignment</FormColumnLabel>
               <div className="flex items-center gap-2 px-4 py-2.5 bg-white border border-gray-100 rounded-xl">
                 <Store className="w-4 h-4 text-gray-400 shrink-0" />
                 <select
@@ -937,10 +940,10 @@ function MemberDetailDrawer({
           {/* Role & Access */}
           {canEdit ? (
             <div className="space-y-3">
-              <p className="text-xs font-medium text-gray-400 uppercase tracking-wide">Role & Access</p>
+              <FormColumnLabel className="tracking-wide">Role & Access</FormColumnLabel>
               <div className="space-y-3 p-4 bg-gray-50 rounded-xl border border-gray-100">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Role</label>
+                  <Label className="block text-sm font-medium text-gray-700 mb-1">Role</Label>
                   <TeamRoleSelect
                     assignable={assignableRoles}
                     value={selectValue}
@@ -979,7 +982,7 @@ function MemberDetailDrawer({
             </div>
           ) : (
             <div className="space-y-3">
-              <p className="text-xs font-medium text-gray-400 uppercase tracking-wide">Role & Access</p>
+              <FormColumnLabel className="tracking-wide">Role & Access</FormColumnLabel>
               <div className="space-y-3 p-4 bg-gray-50 rounded-xl border border-gray-100">
                 <p className="text-sm text-gray-700">
                   <span className="font-medium">Role:</span> {member.role_name}
@@ -1001,7 +1004,7 @@ function MemberDetailDrawer({
           {/* HR Profile Link */}
           {employeeId && (
             <div className="space-y-2">
-              <p className="text-xs font-medium text-gray-400 uppercase tracking-wide">HR Profile</p>
+              <FormColumnLabel className="tracking-wide">HR Profile</FormColumnLabel>
               <Link
                 to={`/hr/employees/${employeeId}`}
                 onClick={onClose}
@@ -1019,7 +1022,7 @@ function MemberDetailDrawer({
           {/* Verification */}
           {needsVerification && canManage && (
             <div className="space-y-2">
-              <p className="text-xs font-medium text-gray-400 uppercase tracking-wide">Verification</p>
+              <FormColumnLabel className="tracking-wide">Verification</FormColumnLabel>
               <button
                 type="button"
                 onClick={() => { onSendOtp(); onClose() }}
@@ -1114,7 +1117,7 @@ function EditRoleModal({
             </div>
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Role</label>
+            <Label className="block text-sm font-medium text-gray-700 mb-1">Role</Label>
             <TeamRoleSelect
               assignable={assignableRoles}
               value={selectValue}

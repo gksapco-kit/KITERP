@@ -1,4 +1,5 @@
 import { onModalBackdropClick } from '@/lib/utils'
+import { Label } from '@/components/ui/label'
 import { useState } from 'react'
 import { useEscapeToClose } from '@/hooks/useEscapeToClose'
 import { Link } from 'react-router-dom'
@@ -203,28 +204,28 @@ function CycleModal({
         </div>
         <form onSubmit={submit} className="p-5 space-y-4">
           <div>
-            <label className="text-xs font-medium text-gray-600 uppercase">Cycle Name *</label>
+            <Label className="text-xs font-medium text-gray-600 uppercase" required>Cycle Name</Label>
             <input required value={form.name} onChange={e => setForm({ ...form, name: e.target.value })}
               className="w-full mt-1 px-3 py-2 border rounded-lg text-sm" placeholder="e.g. Annual Review 2026" />
           </div>
           <div>
-            <label className="text-xs font-medium text-gray-600 uppercase">Description</label>
+            <Label className="text-xs font-medium text-gray-600 uppercase">Description</Label>
             <textarea rows={2} value={form.description} onChange={e => setForm({ ...form, description: e.target.value })}
               className="w-full mt-1 px-3 py-2 border rounded-lg text-sm" />
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="text-xs font-medium text-gray-600 uppercase">Period Start *</label>
+              <Label className="text-xs font-medium text-gray-600 uppercase" required>Period Start</Label>
               <input type="date" required value={form.period_start} onChange={e => setForm({ ...form, period_start: e.target.value })}
                 className="w-full mt-1 px-3 py-2 border rounded-lg text-sm" />
             </div>
             <div>
-              <label className="text-xs font-medium text-gray-600 uppercase">Period End *</label>
+              <Label className="text-xs font-medium text-gray-600 uppercase" required>Period End</Label>
               <input type="date" required value={form.period_end} onChange={e => setForm({ ...form, period_end: e.target.value })}
                 className="w-full mt-1 px-3 py-2 border rounded-lg text-sm" />
             </div>
             <div>
-              <label className="text-xs font-medium text-gray-600 uppercase">Type</label>
+              <Label className="text-xs font-medium text-gray-600 uppercase">Type</Label>
               <select value={form.review_type} onChange={e => setForm({ ...form, review_type: e.target.value })}
                 className="w-full mt-1 px-3 py-2 border rounded-lg text-sm">
                 <option value="annual">Annual</option>
@@ -234,7 +235,7 @@ function CycleModal({
               </select>
             </div>
             <div>
-              <label className="text-xs font-medium text-gray-600 uppercase">Rating Scale Max</label>
+              <Label className="text-xs font-medium text-gray-600 uppercase">Rating Scale Max</Label>
               <input type="number" value={form.rating_scale_max}
                 onChange={e => setForm({ ...form, rating_scale_max: Number(e.target.value) })}
                 className="w-full mt-1 px-3 py-2 border rounded-lg text-sm" />
@@ -436,7 +437,7 @@ function GoalModal({
         </div>
         <form onSubmit={submit} className="p-5 space-y-3">
           <div>
-            <label className="text-xs font-medium text-gray-600 uppercase">Employee *</label>
+            <Label className="text-xs font-medium text-gray-600 uppercase" required>Employee</Label>
             <select required value={form.employee_id} onChange={e => setForm({ ...form, employee_id: e.target.value })}
               className="w-full mt-1 px-3 py-2 border rounded-lg text-sm">
               <option value="">— Select —</option>
@@ -446,7 +447,7 @@ function GoalModal({
             </select>
           </div>
           <div>
-            <label className="text-xs font-medium text-gray-600 uppercase">Cycle (optional)</label>
+            <Label className="text-xs font-medium text-gray-600 uppercase">Cycle (optional)</Label>
             <select value={form.cycle_id} onChange={e => setForm({ ...form, cycle_id: e.target.value })}
               className="w-full mt-1 px-3 py-2 border rounded-lg text-sm">
               <option value="">— None —</option>
@@ -454,33 +455,33 @@ function GoalModal({
             </select>
           </div>
           <div>
-            <label className="text-xs font-medium text-gray-600 uppercase">Title *</label>
+            <Label className="text-xs font-medium text-gray-600 uppercase" required>Title</Label>
             <input required value={form.title} onChange={e => setForm({ ...form, title: e.target.value })}
               className="w-full mt-1 px-3 py-2 border rounded-lg text-sm" />
           </div>
           <div>
-            <label className="text-xs font-medium text-gray-600 uppercase">Description</label>
+            <Label className="text-xs font-medium text-gray-600 uppercase">Description</Label>
             <textarea rows={2} value={form.description} onChange={e => setForm({ ...form, description: e.target.value })}
               className="w-full mt-1 px-3 py-2 border rounded-lg text-sm" />
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="text-xs font-medium text-gray-600 uppercase">Category</label>
+              <Label className="text-xs font-medium text-gray-600 uppercase">Category</Label>
               <input value={form.category} onChange={e => setForm({ ...form, category: e.target.value })}
                 className="w-full mt-1 px-3 py-2 border rounded-lg text-sm" placeholder="e.g. Technical" />
             </div>
             <div>
-              <label className="text-xs font-medium text-gray-600 uppercase">Target Date</label>
+              <Label className="text-xs font-medium text-gray-600 uppercase">Target Date</Label>
               <input type="date" value={form.target_date} onChange={e => setForm({ ...form, target_date: e.target.value })}
                 className="w-full mt-1 px-3 py-2 border rounded-lg text-sm" />
             </div>
             <div>
-              <label className="text-xs font-medium text-gray-600 uppercase">Weight</label>
+              <Label className="text-xs font-medium text-gray-600 uppercase">Weight</Label>
               <input type="number" value={form.weight} onChange={e => setForm({ ...form, weight: Number(e.target.value) })}
                 className="w-full mt-1 px-3 py-2 border rounded-lg text-sm" />
             </div>
             <div>
-              <label className="text-xs font-medium text-gray-600 uppercase">Target Value</label>
+              <Label className="text-xs font-medium text-gray-600 uppercase">Target Value</Label>
               <input value={form.target_value} onChange={e => setForm({ ...form, target_value: e.target.value })}
                 className="w-full mt-1 px-3 py-2 border rounded-lg text-sm" placeholder="e.g. 100k revenue" />
             </div>

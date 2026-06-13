@@ -1,4 +1,7 @@
 import { onModalBackdropClick } from '@/lib/utils'
+import { SectionLabel } from '@/components/common/FieldLabel'
+import { TableColumnLabel } from '@/components/common/FieldLabel'
+import { Label } from '@/components/ui/label'
 import { useState, useCallback } from 'react'
 import { useEscapeToClose } from '@/hooks/useEscapeToClose'
 import { Link, useNavigate } from 'react-router-dom'
@@ -66,7 +69,7 @@ function AddressFields({
 }) {
   return (
     <div className="space-y-2">
-      <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">{label}</p>
+      <SectionLabel>{label}</SectionLabel>
       <input
         className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
         placeholder="Street / House No. / Area"
@@ -132,7 +135,7 @@ function FamilyMemberRow({
       </div>
       <div className="grid grid-cols-2 gap-2">
         <div>
-          <label className="block text-xs text-gray-500 mb-0.5">Name *</label>
+          <Label className="block text-xs text-gray-500 mb-0.5" required>Name</Label>
           <input
             className="w-full border rounded-md px-2 py-1.5 text-sm focus:ring-2 focus:ring-blue-500 outline-none bg-white"
             value={member.name}
@@ -142,7 +145,7 @@ function FamilyMemberRow({
           />
         </div>
         <div>
-          <label className="block text-xs text-gray-500 mb-0.5">Relation *</label>
+          <Label className="block text-xs text-gray-500 mb-0.5" required>Relation</Label>
           <select
             className="w-full border rounded-md px-2 py-1.5 text-sm focus:ring-2 focus:ring-blue-500 outline-none bg-white"
             value={member.relation}
@@ -156,7 +159,7 @@ function FamilyMemberRow({
           </select>
         </div>
         <div>
-          <label className="block text-xs text-gray-500 mb-0.5">Date of Birth</label>
+          <Label className="block text-xs text-gray-500 mb-0.5">Date of Birth</Label>
           <input
             type="date"
             className="w-full border rounded-md px-2 py-1.5 text-sm focus:ring-2 focus:ring-blue-500 outline-none bg-white"
@@ -165,14 +168,14 @@ function FamilyMemberRow({
           />
         </div>
         <div>
-          <label className="block text-xs text-gray-500 mb-0.5">Phone</label>
+          <Label className="block text-xs text-gray-500 mb-0.5">Phone</Label>
           <PhoneInput
             value={member.phone ?? ''}
             onChange={v => onChange({ ...member, phone: v })}
           />
         </div>
         <div>
-          <label className="block text-xs text-gray-500 mb-0.5">Gender</label>
+          <Label className="block text-xs text-gray-500 mb-0.5">Gender</Label>
           <select
             className="w-full border rounded-md px-2 py-1.5 text-sm focus:ring-2 focus:ring-blue-500 outline-none bg-white"
             value={member.gender ?? ''}
@@ -185,7 +188,7 @@ function FamilyMemberRow({
           </select>
         </div>
         <div>
-          <label className="block text-xs text-gray-500 mb-0.5">Blood Group</label>
+          <Label className="block text-xs text-gray-500 mb-0.5">Blood Group</Label>
           <select
             className="w-full border rounded-md px-2 py-1.5 text-sm focus:ring-2 focus:ring-blue-500 outline-none bg-white"
             value={member.blood_group ?? ''}
@@ -509,7 +512,7 @@ function AddEmployeeModal({
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-medium text-gray-600 mb-1">Personal Phone</label>
+                    <Label className="block text-xs font-medium text-gray-600 mb-1">Personal Phone</Label>
                     <PhoneInput value={personalPhone} onChange={setPersonalPhone} placeholder="Personal mobile" />
                   </div>
                 </div>
@@ -574,7 +577,7 @@ function AddEmployeeModal({
 
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-xs font-medium text-gray-600 mb-1">Department</label>
+                    <Label className="block text-xs font-medium text-gray-600 mb-1">Department</Label>
                     <div className="flex gap-1">
                       <select className="flex-1 border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none" value={departmentId} onChange={e => setDepartmentId(e.target.value)}>
                         <option value="">— None —</option>
@@ -586,7 +589,7 @@ function AddEmployeeModal({
                     </div>
                   </div>
                   <div>
-                    <label className="block text-xs font-medium text-gray-600 mb-1">Designation</label>
+                    <Label className="block text-xs font-medium text-gray-600 mb-1">Designation</Label>
                     <div className="flex gap-1">
                       <select className="flex-1 border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none" value={designationId} onChange={e => setDesignationId(e.target.value)}>
                         <option value="">— None —</option>
@@ -598,7 +601,7 @@ function AddEmployeeModal({
                     </div>
                   </div>
                   <div>
-                    <label className="block text-xs font-medium text-gray-600 mb-1">Employment Type</label>
+                    <Label className="block text-xs font-medium text-gray-600 mb-1">Employment Type</Label>
                     {showNewEmpType ? (
                       <div className="flex gap-1">
                         <input
@@ -625,7 +628,7 @@ function AddEmployeeModal({
                     )}
                   </div>
                   <div>
-                    <label className="block text-xs font-medium text-gray-600 mb-1">Date of Joining</label>
+                    <Label className="block text-xs font-medium text-gray-600 mb-1">Date of Joining</Label>
                     <input type="date" className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none" value={dateOfJoining} onChange={e => setDateOfJoining(e.target.value)} />
                   </div>
                   <div>
@@ -691,26 +694,26 @@ function AddEmployeeModal({
             {activeTab === 'bank' && (
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-medium text-gray-600 mb-1">Bank Name</label>
+                  <Label className="block text-xs font-medium text-gray-600 mb-1">Bank Name</Label>
                   <input className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none" placeholder="e.g. State Bank of India" value={bankName} onChange={e => setBankName(e.target.value)} />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-gray-600 mb-1">Account Type</label>
+                  <Label className="block text-xs font-medium text-gray-600 mb-1">Account Type</Label>
                   <select className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none" value={accountType} onChange={e => setAccountType(e.target.value)}>
                     <option value="savings">Savings</option>
                     <option value="current">Current</option>
                   </select>
                 </div>
                 <div className="col-span-2">
-                  <label className="block text-xs font-medium text-gray-600 mb-1">Account Holder Name</label>
+                  <Label className="block text-xs font-medium text-gray-600 mb-1">Account Holder Name</Label>
                   <input className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none" placeholder="As per bank records" value={accountHolderName} onChange={e => setAccountHolderName(e.target.value)} />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-gray-600 mb-1">Account Number</label>
+                  <Label className="block text-xs font-medium text-gray-600 mb-1">Account Number</Label>
                   <input className="w-full border rounded-lg px-3 py-2 text-sm font-mono focus:ring-2 focus:ring-blue-500 outline-none" placeholder="Account number" value={accountNumber} onChange={e => setAccountNumber(e.target.value.replace(/\D/g, ''))} />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-gray-600 mb-1">IFSC Code</label>
+                  <Label className="block text-xs font-medium text-gray-600 mb-1">IFSC Code</Label>
                   <input className="w-full border rounded-lg px-3 py-2 text-sm font-mono uppercase focus:ring-2 focus:ring-blue-500 outline-none" placeholder="SBIN0001234" maxLength={11} value={ifscCode} onChange={e => setIfscCode(e.target.value.toUpperCase())} />
                 </div>
               </div>
@@ -720,19 +723,19 @@ function AddEmployeeModal({
             {activeTab === 'kyc' && (
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-medium text-gray-600 mb-1">PAN Number</label>
+                  <Label className="block text-xs font-medium text-gray-600 mb-1">PAN Number</Label>
                   <input className="w-full border rounded-lg px-3 py-2 text-sm font-mono uppercase focus:ring-2 focus:ring-blue-500 outline-none" placeholder="ABCDE1234F" maxLength={10} value={panNumber} onChange={e => setPanNumber(e.target.value.toUpperCase())} />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-gray-600 mb-1">Aadhaar Number</label>
+                  <Label className="block text-xs font-medium text-gray-600 mb-1">Aadhaar Number</Label>
                   <input className="w-full border rounded-lg px-3 py-2 text-sm font-mono focus:ring-2 focus:ring-blue-500 outline-none" placeholder="12 digits" maxLength={12} value={aadhaarNumber} onChange={e => setAadhaarNumber(e.target.value.replace(/\D/g, '').slice(0, 12))} />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-gray-600 mb-1">UAN (PF Number)</label>
+                  <Label className="block text-xs font-medium text-gray-600 mb-1">UAN (PF Number)</Label>
                   <input className="w-full border rounded-lg px-3 py-2 text-sm font-mono focus:ring-2 focus:ring-blue-500 outline-none" placeholder="Universal Account Number" value={uanNumber} onChange={e => setUanNumber(e.target.value)} />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-gray-600 mb-1">ESI Number</label>
+                  <Label className="block text-xs font-medium text-gray-600 mb-1">ESI Number</Label>
                   <input className="w-full border rounded-lg px-3 py-2 text-sm font-mono focus:ring-2 focus:ring-blue-500 outline-none" placeholder="Employee State Insurance No." value={esiNumber} onChange={e => setEsiNumber(e.target.value)} />
                 </div>
               </div>
@@ -743,11 +746,11 @@ function AddEmployeeModal({
               <div className="space-y-4">
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-xs font-medium text-gray-600 mb-1">Date of Birth</label>
+                    <Label className="block text-xs font-medium text-gray-600 mb-1">Date of Birth</Label>
                     <input type="date" className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none" value={dateOfBirth} onChange={e => setDateOfBirth(e.target.value)} />
                   </div>
                   <div>
-                    <label className="block text-xs font-medium text-gray-600 mb-1">Gender</label>
+                    <Label className="block text-xs font-medium text-gray-600 mb-1">Gender</Label>
                     <select className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none" value={gender} onChange={e => setGender(e.target.value)}>
                       <option value="">—</option>
                       <option value="male">Male</option>
@@ -757,14 +760,14 @@ function AddEmployeeModal({
                     </select>
                   </div>
                   <div>
-                    <label className="block text-xs font-medium text-gray-600 mb-1">Blood Group</label>
+                    <Label className="block text-xs font-medium text-gray-600 mb-1">Blood Group</Label>
                     <select className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none" value={bloodGroup} onChange={e => setBloodGroup(e.target.value)}>
                       <option value="">—</option>
                       {['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'].map(g => <option key={g} value={g}>{g}</option>)}
                     </select>
                   </div>
                   <div>
-                    <label className="block text-xs font-medium text-gray-600 mb-1">Marital Status</label>
+                    <Label className="block text-xs font-medium text-gray-600 mb-1">Marital Status</Label>
                     <select className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none" value={maritalStatus} onChange={e => setMaritalStatus(e.target.value)}>
                       <option value="">—</option>
                       <option value="single">Single</option>
@@ -774,23 +777,23 @@ function AddEmployeeModal({
                     </select>
                   </div>
                   <div>
-                    <label className="block text-xs font-medium text-gray-600 mb-1">Nationality</label>
+                    <Label className="block text-xs font-medium text-gray-600 mb-1">Nationality</Label>
                     <input className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none" value={nationality} onChange={e => setNationality(e.target.value)} />
                   </div>
                 </div>
                 <div className="border-t pt-4">
-                  <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-3">Emergency Contact</p>
+                  <SectionLabel className="mb-3">Emergency Contact</SectionLabel>
                   <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <label className="block text-xs font-medium text-gray-600 mb-1">Name</label>
+                      <Label className="block text-xs font-medium text-gray-600 mb-1">Name</Label>
                       <input className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none" value={emergencyName} onChange={e => setEmergencyName(e.target.value)} />
                     </div>
                     <div>
-                      <label className="block text-xs font-medium text-gray-600 mb-1">Phone</label>
+                      <Label className="block text-xs font-medium text-gray-600 mb-1">Phone</Label>
                       <PhoneInput value={emergencyPhone} onChange={setEmergencyPhone} placeholder="Emergency contact" />
                     </div>
                     <div className="col-span-2">
-                      <label className="block text-xs font-medium text-gray-600 mb-1">Relation</label>
+                      <Label className="block text-xs font-medium text-gray-600 mb-1">Relation</Label>
                       <input className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none" placeholder="e.g. Spouse, Parent, Sibling" value={emergencyRelation} onChange={e => setEmergencyRelation(e.target.value)} />
                     </div>
                   </div>
@@ -858,7 +861,7 @@ function AddEmployeeModal({
                     <p className="text-xs font-medium text-gray-600 uppercase tracking-wide">New Document</p>
                     <div className="grid grid-cols-2 gap-3">
                       <div>
-                        <label className="block text-xs font-medium text-gray-600 mb-1">Document Type</label>
+                        <Label className="block text-xs font-medium text-gray-600 mb-1">Document Type</Label>
                         <select
                           className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none bg-white"
                           value={docType}
@@ -956,7 +959,7 @@ function AddEmployeeModal({
             {/* Tab: Notes */}
             {activeTab === 'notes' && (
               <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1">Internal Notes</label>
+                <Label className="block text-xs font-medium text-gray-600 mb-1">Internal Notes</Label>
                 <textarea
                   rows={6}
                   className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none resize-none"
@@ -1113,11 +1116,11 @@ export default function EmployeesPage() {
           <table className="w-full">
             <thead className="bg-gray-50 border-b">
               <tr>
-                <th className="text-left py-3 px-4 text-xs font-medium text-gray-500 uppercase tracking-wide">Employee</th>
-                <th className="text-left py-3 px-4 text-xs font-medium text-gray-500 uppercase tracking-wide">Department</th>
-                <th className="text-left py-3 px-4 text-xs font-medium text-gray-500 uppercase tracking-wide">Designation</th>
-                <th className="text-left py-3 px-4 text-xs font-medium text-gray-500 uppercase tracking-wide">Type</th>
-                <th className="text-left py-3 px-4 text-xs font-medium text-gray-500 uppercase tracking-wide">Status</th>
+                <th className="text-left py-3 px-4 text-xs font-medium text-gray-500 uppercase tracking-wide"><TableColumnLabel>Employee</TableColumnLabel></th>
+                <th className="text-left py-3 px-4 text-xs font-medium text-gray-500 uppercase tracking-wide"><TableColumnLabel>Department</TableColumnLabel></th>
+                <th className="text-left py-3 px-4 text-xs font-medium text-gray-500 uppercase tracking-wide"><TableColumnLabel>Designation</TableColumnLabel></th>
+                <th className="text-left py-3 px-4 text-xs font-medium text-gray-500 uppercase tracking-wide"><TableColumnLabel>Type</TableColumnLabel></th>
+                <th className="text-left py-3 px-4 text-xs font-medium text-gray-500 uppercase tracking-wide"><TableColumnLabel>Status</TableColumnLabel></th>
                 <th className="py-3 px-4" />
               </tr>
             </thead>

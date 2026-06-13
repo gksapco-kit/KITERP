@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Label } from '@/components/ui/label'
 import { Plus, Trash2, Star } from 'lucide-react'
 import { useHRHolidays, useCreateHoliday, useDeleteHoliday } from '@/hooks/useVendor'
 import type { Holiday } from '@/types'
@@ -42,11 +43,11 @@ export default function HolidaysPage() {
           <h3 className="font-semibold text-sm">New Holiday</h3>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">Name *</label>
+              <Label className="block text-xs font-medium text-gray-600 mb-1" required>Name</Label>
               <input required className="w-full border rounded-lg px-3 py-2 text-sm" value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder="e.g. Diwali" />
             </div>
             <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">Date *</label>
+              <Label className="block text-xs font-medium text-gray-600 mb-1" required>Date</Label>
               <input type="date" required className="w-full border rounded-lg px-3 py-2 text-sm" value={form.date} onChange={e => setForm(f => ({ ...f, date: e.target.value }))} />
             </div>
           </div>

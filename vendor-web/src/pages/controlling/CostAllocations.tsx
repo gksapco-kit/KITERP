@@ -1,4 +1,6 @@
 import { useState, useMemo } from 'react'
+import { TableColumnLabel } from '@/components/common/FieldLabel'
+import { Label } from '@/components/ui/label'
 import { useEscapeToClose } from '@/hooks/useEscapeToClose'
 import { Link } from 'react-router-dom'
 import { ArrowLeft, Plus, SendHorizonal, Trash2, GitMerge, X } from 'lucide-react'
@@ -186,13 +188,13 @@ export default function CostAllocationsPage() {
         <table className="w-full text-sm">
           <thead className="bg-gray-50 text-left">
             <tr>
-              <th className="px-4 py-3 font-medium text-gray-600">Cycle</th>
-              <th className="px-4 py-3 font-medium text-gray-600">Period</th>
-              <th className="px-4 py-3 font-medium text-gray-600">Method</th>
-              <th className="px-4 py-3 font-medium text-gray-600 text-right">Allocation Value</th>
-              <th className="px-4 py-3 font-medium text-gray-600 text-right">Allocated Amount</th>
-              <th className="px-4 py-3 font-medium text-gray-600">Status</th>
-              <th className="px-4 py-3 font-medium text-gray-600">Posting Date</th>
+              <th className="px-4 py-3 font-medium text-gray-600"><TableColumnLabel>Cycle</TableColumnLabel></th>
+              <th className="px-4 py-3 font-medium text-gray-600"><TableColumnLabel>Period</TableColumnLabel></th>
+              <th className="px-4 py-3 font-medium text-gray-600"><TableColumnLabel>Method</TableColumnLabel></th>
+              <th className="px-4 py-3 font-medium text-gray-600 text-right"><TableColumnLabel>Allocation Value</TableColumnLabel></th>
+              <th className="px-4 py-3 font-medium text-gray-600 text-right"><TableColumnLabel>Allocated Amount</TableColumnLabel></th>
+              <th className="px-4 py-3 font-medium text-gray-600"><TableColumnLabel>Status</TableColumnLabel></th>
+              <th className="px-4 py-3 font-medium text-gray-600"><TableColumnLabel>Posting Date</TableColumnLabel></th>
               <th className="px-4 py-3" />
             </tr>
           </thead>
@@ -261,7 +263,7 @@ export default function CostAllocationsPage() {
             </div>
             <form onSubmit={handleCreate} className="p-6 space-y-4">
               <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1">Allocation Cycle Name</label>
+                <Label className="block text-xs font-medium text-gray-600 mb-1">Allocation Cycle Name</Label>
                 <input value={form.allocation_cycle}
                   onChange={e => setForm(f => ({ ...f, allocation_cycle: e.target.value }))}
                   className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm"
@@ -269,13 +271,13 @@ export default function CostAllocationsPage() {
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-medium text-gray-600 mb-1">Year *</label>
+                  <Label className="block text-xs font-medium text-gray-600 mb-1" required>Year</Label>
                   <input type="number" value={form.period_year}
                     onChange={e => setForm(f => ({ ...f, period_year: e.target.value }))}
                     className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm" required />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-gray-600 mb-1">Month *</label>
+                  <Label className="block text-xs font-medium text-gray-600 mb-1" required>Month</Label>
                   <select value={form.period_month}
                     onChange={e => setForm(f => ({ ...f, period_month: e.target.value }))}
                     className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm">
@@ -284,7 +286,7 @@ export default function CostAllocationsPage() {
                 </div>
               </div>
               <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1">Allocation Method</label>
+                <Label className="block text-xs font-medium text-gray-600 mb-1">Allocation Method</Label>
                 <select value={form.allocation_method}
                   onChange={e => setForm(f => ({ ...f, allocation_method: e.target.value }))}
                   className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm">
@@ -293,22 +295,20 @@ export default function CostAllocationsPage() {
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-medium text-gray-600 mb-1">
-                    {form.allocation_method === 'percentage' ? 'Percentage (%)' : 'Driver Value'}
-                  </label>
+                  <Label className="block text-xs font-medium text-gray-600 mb-1">{form.allocation_method === 'percentage' ? 'Percentage (%)' : 'Driver Value'}</Label>
                   <input type="number" step="0.000001" value={form.allocation_value}
                     onChange={e => setForm(f => ({ ...f, allocation_value: e.target.value }))}
                     className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm" />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-gray-600 mb-1">Allocated Amount</label>
+                  <Label className="block text-xs font-medium text-gray-600 mb-1">Allocated Amount</Label>
                   <input type="number" step="0.0001" value={form.allocated_amount}
                     onChange={e => setForm(f => ({ ...f, allocated_amount: e.target.value }))}
                     className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm" />
                 </div>
               </div>
               <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1">Narration</label>
+                <Label className="block text-xs font-medium text-gray-600 mb-1">Narration</Label>
                 <input value={form.narration} onChange={e => setForm(f => ({ ...f, narration: e.target.value }))}
                   className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm"
                   placeholder="Description…" />

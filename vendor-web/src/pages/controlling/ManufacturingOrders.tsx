@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { TableColumnLabel } from '@/components/common/FieldLabel'
 import { Link } from 'react-router-dom'
 import { useCompanies } from '@/hooks/useFinance'
 import { useProducts } from '@/hooks/useVendor'
@@ -180,13 +181,13 @@ export default function ControllingManufacturingOrdersPage() {
           <table className="w-full text-sm">
             <thead className="bg-gray-50 text-left text-gray-600">
               <tr>
-                <th className="px-4 py-3 font-medium">Order</th>
-                <th className="px-4 py-3 font-medium">Kind</th>
-                <th className="px-4 py-3 font-medium">Status</th>
-                <th className="px-4 py-3 font-medium">Product</th>
-                <th className="px-4 py-3 font-medium text-right">Qty</th>
-                <th className="px-4 py-3 font-medium text-right">Detail</th>
-                <th className="px-4 py-3 font-medium text-right">Actions</th>
+                <th className="px-4 py-3 font-medium"><TableColumnLabel>Order</TableColumnLabel></th>
+                <th className="px-4 py-3 font-medium"><TableColumnLabel>Kind</TableColumnLabel></th>
+                <th className="px-4 py-3 font-medium"><TableColumnLabel>Status</TableColumnLabel></th>
+                <th className="px-4 py-3 font-medium"><TableColumnLabel>Product</TableColumnLabel></th>
+                <th className="px-4 py-3 font-medium text-right"><TableColumnLabel>Qty</TableColumnLabel></th>
+                <th className="px-4 py-3 font-medium text-right"><TableColumnLabel>Detail</TableColumnLabel></th>
+                <th className="px-4 py-3 font-medium text-right"><TableColumnLabel>Actions</TableColumnLabel></th>
               </tr>
             </thead>
             <tbody>

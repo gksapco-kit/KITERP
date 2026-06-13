@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { TableColumnLabel } from '@/components/common/FieldLabel'
 import { useSearchParams } from 'react-router-dom'
 import { Receipt, Check, X as XIcon, DollarSign, Trash2 } from 'lucide-react'
 import {
@@ -90,14 +91,14 @@ export default function ExpensesPage() {
           <table className="w-full min-w-[920px] text-sm border-collapse">
             <thead className="bg-gray-50 border-b text-xs uppercase text-gray-500">
               <tr>
-                <th className={thCell}>Claim #</th>
-                <th className={thCell}>Employee</th>
-                <th className={`${thCell} max-w-[140px]`}>Title</th>
-                <th className={thCell}>Category</th>
-                <th className={thCell}>Amount</th>
-                <th className={thCell}>Date</th>
-                <th className={`${thCell} min-w-[100px]`}>Status</th>
-                <th className={stickyActionsTh}>Actions</th>
+                <th className={thCell}><TableColumnLabel>Claim #</TableColumnLabel></th>
+                <th className={thCell}><TableColumnLabel>Employee</TableColumnLabel></th>
+                <th className={`${thCell} max-w-[140px]`}><TableColumnLabel>Title</TableColumnLabel></th>
+                <th className={thCell}><TableColumnLabel>Category</TableColumnLabel></th>
+                <th className={thCell}><TableColumnLabel>Amount</TableColumnLabel></th>
+                <th className={thCell}><TableColumnLabel>Date</TableColumnLabel></th>
+                <th className={`${thCell} min-w-[100px]`}><TableColumnLabel>Status</TableColumnLabel></th>
+                <th className={stickyActionsTh}><TableColumnLabel>Actions</TableColumnLabel></th>
               </tr>
             </thead>
             <tbody>

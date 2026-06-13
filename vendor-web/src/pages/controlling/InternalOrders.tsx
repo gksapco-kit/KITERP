@@ -1,4 +1,6 @@
 import { useState, useMemo } from 'react'
+import { TableColumnLabel } from '@/components/common/FieldLabel'
+import { Label } from '@/components/ui/label'
 import { useEscapeToClose } from '@/hooks/useEscapeToClose'
 import { Link } from 'react-router-dom'
 import { ArrowLeft, Plus, ExternalLink, FolderOpen, Target, X } from 'lucide-react'
@@ -127,10 +129,10 @@ function BudgetPanel({ orderId, companyId }: { orderId: string; companyId: strin
           <table className="w-full text-xs">
             <thead className="bg-gray-50">
               <tr>
-                <th className="px-3 py-2 text-left font-medium text-gray-600">Category</th>
-                <th className="px-3 py-2 text-left font-medium text-gray-600">Description</th>
-                <th className="px-3 py-2 text-right font-medium text-gray-600">Budgeted</th>
-                <th className="px-3 py-2 text-left font-medium text-gray-600">Type</th>
+                <th className="px-3 py-2 text-left font-medium text-gray-600"><TableColumnLabel>Category</TableColumnLabel></th>
+                <th className="px-3 py-2 text-left font-medium text-gray-600"><TableColumnLabel>Description</TableColumnLabel></th>
+                <th className="px-3 py-2 text-right font-medium text-gray-600"><TableColumnLabel>Budgeted</TableColumnLabel></th>
+                <th className="px-3 py-2 text-left font-medium text-gray-600"><TableColumnLabel>Type</TableColumnLabel></th>
                 <th className="px-3 py-2" />
               </tr>
             </thead>
@@ -354,7 +356,7 @@ export default function InternalOrdersPage() {
             <form onSubmit={handleCreate} className="p-6 space-y-4">
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-medium text-gray-600 mb-1">Order Kind *</label>
+                  <Label className="block text-xs font-medium text-gray-600 mb-1" required>Order Kind</Label>
                   <select value={form.order_kind} onChange={e => setForm(f => ({ ...f, order_kind: e.target.value }))}
                     className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm">
                     <option value="project">Project</option>
@@ -364,7 +366,7 @@ export default function InternalOrdersPage() {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-gray-600 mb-1">Priority</label>
+                  <Label className="block text-xs font-medium text-gray-600 mb-1">Priority</Label>
                   <select value={form.priority} onChange={e => setForm(f => ({ ...f, priority: e.target.value }))}
                     className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm">
                     <option value="low">Low</option>
@@ -375,33 +377,33 @@ export default function InternalOrdersPage() {
                 </div>
               </div>
               <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1">Order No (auto if blank)</label>
+                <Label className="block text-xs font-medium text-gray-600 mb-1">Order No (auto if blank)</Label>
                 <input value={form.order_no} onChange={e => setForm(f => ({ ...f, order_no: e.target.value }))}
                   className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm"
                   placeholder="e.g. INT-2026-001" />
               </div>
               <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1">Title *</label>
+                <Label className="block text-xs font-medium text-gray-600 mb-1" required>Title</Label>
                 <input value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))}
                   className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm"
                   placeholder="Order description" required />
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-medium text-gray-600 mb-1">Start Date</label>
+                  <Label className="block text-xs font-medium text-gray-600 mb-1">Start Date</Label>
                   <input type="date" value={form.scheduled_start}
                     onChange={e => setForm(f => ({ ...f, scheduled_start: e.target.value }))}
                     className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm" />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-gray-600 mb-1">End Date</label>
+                  <Label className="block text-xs font-medium text-gray-600 mb-1">End Date</Label>
                   <input type="date" value={form.scheduled_end}
                     onChange={e => setForm(f => ({ ...f, scheduled_end: e.target.value }))}
                     className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm" />
                 </div>
               </div>
               <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1">Notes</label>
+                <Label className="block text-xs font-medium text-gray-600 mb-1">Notes</Label>
                 <textarea value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))}
                   rows={2} className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm"
                   placeholder="Project description, scope, objectives…" />

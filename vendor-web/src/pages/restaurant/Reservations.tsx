@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Label } from '@/components/ui/label'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link, useNavigate } from 'react-router-dom'
 import {
@@ -312,11 +313,11 @@ function NewReservationForm({ onSuccess, onCancel }: { onSuccess: () => void; on
       <h2 className="font-semibold text-gray-800">New Reservation</h2>
       <div className="grid grid-cols-2 gap-3">
         <div className="col-span-2">
-          <label className="text-xs font-medium text-gray-500 block mb-1">Guest name *</label>
+          <Label className="text-xs font-medium text-gray-500 block mb-1" required>Guest name</Label>
           <Input value={form.guest_name} onChange={e => set('guest_name', e.target.value)} className="h-9 text-sm" placeholder="John Smith" />
         </div>
         <div>
-          <label className="text-xs font-medium text-gray-500 block mb-1">Phone</label>
+          <Label className="text-xs font-medium text-gray-500 block mb-1">Phone</Label>
           <PhoneInput
             value={form.guest_phone}
             onChange={v => set('guest_phone', v)}
@@ -326,23 +327,23 @@ function NewReservationForm({ onSuccess, onCancel }: { onSuccess: () => void; on
           />
         </div>
         <div>
-          <label className="text-xs font-medium text-gray-500 block mb-1">Email</label>
+          <Label className="text-xs font-medium text-gray-500 block mb-1">Email</Label>
           <Input value={form.guest_email} onChange={e => set('guest_email', e.target.value)} className="h-9 text-sm" placeholder="guest@email.com" />
         </div>
         <div>
-          <label className="text-xs font-medium text-gray-500 block mb-1">Date *</label>
+          <Label className="text-xs font-medium text-gray-500 block mb-1" required>Date</Label>
           <Input type="date" value={form.reservation_date} onChange={e => set('reservation_date', e.target.value)} className="h-9 text-sm" />
         </div>
         <div>
-          <label className="text-xs font-medium text-gray-500 block mb-1">Time *</label>
+          <Label className="text-xs font-medium text-gray-500 block mb-1" required>Time</Label>
           <Input type="time" value={form.reservation_time} onChange={e => set('reservation_time', e.target.value)} className="h-9 text-sm" />
         </div>
         <div>
-          <label className="text-xs font-medium text-gray-500 block mb-1">Party size</label>
+          <Label className="text-xs font-medium text-gray-500 block mb-1">Party size</Label>
           <Input type="number" min={1} max={50} value={form.party_size} onChange={e => set('party_size', parseInt(e.target.value) || 1)} className="h-9 text-sm" />
         </div>
         <div>
-          <label className="text-xs font-medium text-gray-500 block mb-1">Notes</label>
+          <Label className="text-xs font-medium text-gray-500 block mb-1">Notes</Label>
           <Input value={form.notes} onChange={e => set('notes', e.target.value)} className="h-9 text-sm" placeholder="Special requests…" />
         </div>
       </div>

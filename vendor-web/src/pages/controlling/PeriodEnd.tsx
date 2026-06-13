@@ -1,4 +1,6 @@
 import { useState, useMemo } from 'react'
+import { TableColumnLabel } from '@/components/common/FieldLabel'
+import { Label } from '@/components/ui/label'
 import { useEscapeToClose } from '@/hooks/useEscapeToClose'
 import { Link } from 'react-router-dom'
 import { ArrowLeft, Play, CheckCircle, AlertTriangle, Clock, TrendingUp, BarChart2, X } from 'lucide-react'
@@ -260,15 +262,15 @@ export default function PeriodEndPage() {
           <table className="w-full text-sm">
             <thead className="bg-gray-50 text-left">
               <tr>
-                <th className="px-4 py-3 font-medium text-gray-600">Type</th>
-                <th className="px-4 py-3 font-medium text-gray-600">Run Date</th>
-                <th className="px-4 py-3 font-medium text-gray-600 text-right">Orders</th>
-                <th className="px-4 py-3 font-medium text-gray-600 text-right">Total Planned</th>
-                <th className="px-4 py-3 font-medium text-gray-600 text-right">Total Actual</th>
-                <th className="px-4 py-3 font-medium text-gray-600 text-right">Variance</th>
-                <th className="px-4 py-3 font-medium text-gray-600 text-right">Price Var</th>
-                <th className="px-4 py-3 font-medium text-gray-600 text-right">Usage Var</th>
-                <th className="px-4 py-3 font-medium text-gray-600">Status</th>
+                <th className="px-4 py-3 font-medium text-gray-600"><TableColumnLabel>Type</TableColumnLabel></th>
+                <th className="px-4 py-3 font-medium text-gray-600"><TableColumnLabel>Run Date</TableColumnLabel></th>
+                <th className="px-4 py-3 font-medium text-gray-600 text-right"><TableColumnLabel>Orders</TableColumnLabel></th>
+                <th className="px-4 py-3 font-medium text-gray-600 text-right"><TableColumnLabel>Total Planned</TableColumnLabel></th>
+                <th className="px-4 py-3 font-medium text-gray-600 text-right"><TableColumnLabel>Total Actual</TableColumnLabel></th>
+                <th className="px-4 py-3 font-medium text-gray-600 text-right"><TableColumnLabel>Variance</TableColumnLabel></th>
+                <th className="px-4 py-3 font-medium text-gray-600 text-right"><TableColumnLabel>Price Var</TableColumnLabel></th>
+                <th className="px-4 py-3 font-medium text-gray-600 text-right"><TableColumnLabel>Usage Var</TableColumnLabel></th>
+                <th className="px-4 py-3 font-medium text-gray-600"><TableColumnLabel>Status</TableColumnLabel></th>
                 <th className="px-4 py-3" />
               </tr>
             </thead>
@@ -335,7 +337,7 @@ export default function PeriodEndPage() {
               Calculates planned vs actual variances across all completed orders for {MONTHS[month - 1]} {year}.
             </p>
             <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">Run Type</label>
+              <Label className="block text-xs font-medium text-gray-600 mb-1">Run Type</Label>
               <select value={runType} onChange={e => setRunType(e.target.value)}
                 className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm">
                 {RUN_TYPES.map(r => <option key={r.value} value={r.value}>{r.label}</option>)}
@@ -363,7 +365,7 @@ export default function PeriodEndPage() {
               This will post the variance amount to the production variance account in the general ledger.
             </p>
             <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">Entry Date</label>
+              <Label className="block text-xs font-medium text-gray-600 mb-1">Entry Date</Label>
               <input type="date" value={entryDate} onChange={e => setEntryDate(e.target.value)}
                 className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm" />
             </div>

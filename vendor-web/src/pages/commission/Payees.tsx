@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { Label } from '@/components/ui/label'
 import { useEscapeToClose } from '@/hooks/useEscapeToClose'
 import { Plus, Search, Edit2, Trash2, UserCheck, Building2, CreditCard, X } from 'lucide-react'
 import { toast } from 'sonner'
@@ -389,7 +390,7 @@ export default function PayeesPage() {
 
               {/* 1. Type selector */}
               <div>
-                <label className="block text-xs font-medium text-gray-700 mb-2">Payee Type</label>
+                <Label className="block text-xs font-medium text-gray-700 mb-2">Payee Type</Label>
                 <div className="grid grid-cols-2 gap-2">
                   {LINK_TYPES.map(lt => (
                     <button key={lt} type="button" onClick={() => onLinkTypeChange(lt)}
@@ -408,28 +409,28 @@ export default function PayeesPage() {
               {/* 2. Master picker */}
               {form.link_type === 'vendor_user' && (
                 <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1">Select Staff Member</label>
+                  <Label className="block text-xs font-medium text-gray-700 mb-1">Select Staff Member</Label>
                   <StaffPicker selected={selectedStaff} onSelect={onStaffSelect} />
                 </div>
               )}
               {form.link_type === 'supplier' && (
                 <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1">Select Supplier / Contractor</label>
+                  <Label className="block text-xs font-medium text-gray-700 mb-1">Select Supplier / Contractor</Label>
                   <SupplierPicker selected={selectedSupplier} onSelect={onSupplierSelect} />
                 </div>
               )}
               {form.link_type === 'customer' && (
                 <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1">Select Customer</label>
+                  <Label className="block text-xs font-medium text-gray-700 mb-1">Select Customer</Label>
                   <CustomerPicker selected={selectedCustomer} onSelect={onCustomerSelect} />
                 </div>
               )}
 
               {/* 3. Core identity fields */}
               <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">
-                  Display Name <span className="text-red-500">*</span>
-                </label>
+                <Label className="block text-xs font-medium text-gray-700 mb-1" required>
+                  Display Name
+                </Label>
                 <input value={form.display_name} onChange={e => set('display_name', e.target.value)}
                   placeholder="Name shown on payout reports"
                   className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
@@ -437,19 +438,19 @@ export default function PayeesPage() {
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1">Phone</label>
+                  <Label className="block text-xs font-medium text-gray-700 mb-1">Phone</Label>
                   <input value={form.phone} onChange={e => set('phone', e.target.value)} placeholder="9xxxxxxxxx"
                     className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1">Email</label>
+                  <Label className="block text-xs font-medium text-gray-700 mb-1">Email</Label>
                   <input type="email" value={form.email} onChange={e => set('email', e.target.value)} placeholder="name@example.com"
                     className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
                 </div>
               </div>
 
               <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">Status</label>
+                <Label className="block text-xs font-medium text-gray-700 mb-1">Status</Label>
                 <select value={form.status} onChange={e => set('status', e.target.value)}
                   className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary">
                   <option value="active">Active</option>
@@ -551,7 +552,7 @@ export default function PayeesPage() {
                     <>
                       {/* Payout method selector */}
                       <div>
-                        <label className="block text-xs font-medium text-gray-700 mb-2">Payout Method</label>
+                        <Label className="block text-xs font-medium text-gray-700 mb-2">Payout Method</Label>
                         <div className="grid grid-cols-5 gap-1">
                           {PAYOUT_METHODS.map(m => (
                             <button key={m.value} type="button" onClick={() => set('default_payout_method', m.value)}
@@ -571,26 +572,26 @@ export default function PayeesPage() {
                         <div className="space-y-3">
                           <div className="grid grid-cols-2 gap-3">
                             <div>
-                              <label className="block text-xs font-medium text-gray-700 mb-1">Bank Name</label>
+                              <Label className="block text-xs font-medium text-gray-700 mb-1">Bank Name</Label>
                               <input value={bank.bank_name} onChange={e => setB('bank_name', e.target.value)}
                                 placeholder="e.g. HDFC Bank"
                                 className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
                             </div>
                             <div>
-                              <label className="block text-xs font-medium text-gray-700 mb-1">IFSC Code</label>
+                              <Label className="block text-xs font-medium text-gray-700 mb-1">IFSC Code</Label>
                               <input value={bank.ifsc_code} onChange={e => setB('ifsc_code', e.target.value.toUpperCase())}
                                 placeholder="HDFC0001234"
                                 className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
                             </div>
                           </div>
                           <div>
-                            <label className="block text-xs font-medium text-gray-700 mb-1">Account Number</label>
+                            <Label className="block text-xs font-medium text-gray-700 mb-1">Account Number</Label>
                             <input value={bank.account_number} onChange={e => setB('account_number', e.target.value)}
                               placeholder="Enter account number"
                               className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
                           </div>
                           <div>
-                            <label className="block text-xs font-medium text-gray-700 mb-1">Account Holder Name</label>
+                            <Label className="block text-xs font-medium text-gray-700 mb-1">Account Holder Name</Label>
                             <input value={bank.account_holder_name} onChange={e => setB('account_holder_name', e.target.value)}
                               placeholder="As per bank records"
                               className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
@@ -601,7 +602,7 @@ export default function PayeesPage() {
                       {/* UPI inputs */}
                       {form.default_payout_method === 'upi' && (
                         <div>
-                          <label className="block text-xs font-medium text-gray-700 mb-1">UPI ID</label>
+                          <Label className="block text-xs font-medium text-gray-700 mb-1">UPI ID</Label>
                           <input value={bank.upi_id} onChange={e => setB('upi_id', e.target.value)}
                             placeholder="name@upi or 9xxxxxxx@paytm"
                             className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
@@ -612,14 +613,14 @@ export default function PayeesPage() {
                       {form.default_payout_method === 'wallet' && (
                         <div className="space-y-3">
                           <div>
-                            <label className="block text-xs font-medium text-gray-700 mb-1">Wallet Provider</label>
+                            <Label className="block text-xs font-medium text-gray-700 mb-1">Wallet Provider</Label>
                             <select value={bank.wallet_provider} onChange={e => setB('wallet_provider', e.target.value)}
                               className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary">
                               {WALLET_PROVIDERS.map(w => <option key={w} value={w}>{w}</option>)}
                             </select>
                           </div>
                           <div>
-                            <label className="block text-xs font-medium text-gray-700 mb-1">Wallet ID / Phone</label>
+                            <Label className="block text-xs font-medium text-gray-700 mb-1">Wallet ID / Phone</Label>
                             <input value={bank.wallet_id} onChange={e => setB('wallet_id', e.target.value)}
                               placeholder="Registered phone or wallet ID"
                               className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
@@ -645,15 +646,13 @@ export default function PayeesPage() {
               {/* Advanced */}
               <CollapsibleSection title="Advanced">
                 <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1">Code (optional)</label>
+                  <Label className="block text-xs font-medium text-gray-700 mb-1">Code (optional)</Label>
                   <input value={form.code} onChange={e => set('code', e.target.value)} placeholder="e.g. AGT-001"
                     className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
                   <p className="text-xs text-gray-400 mt-1">Short reference printed on payout statements.</p>
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1">
-                    {form.link_type === 'external' ? 'External / Agent ID' : 'Master Record ID'}
-                  </label>
+                  <Label className="block text-xs font-medium text-gray-700 mb-1">{form.link_type === 'external' ? 'External / Agent ID' : 'Master Record ID'}</Label>
                   <input
                     value={form.external_user_id}
                     onChange={e => set('external_user_id', e.target.value)}
@@ -670,7 +669,7 @@ export default function PayeesPage() {
                   )}
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1">Currency</label>
+                  <Label className="block text-xs font-medium text-gray-700 mb-1">Currency</Label>
                   <input value={form.currency} onChange={e => set('currency', e.target.value)} maxLength={3}
                     className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
                 </div>

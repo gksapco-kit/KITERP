@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Label } from '@/components/ui/label'
 import { Plus, Trash2, ChevronDown, ChevronUp } from 'lucide-react'
 import type { CommissionRule } from '@/types/commission'
 
@@ -86,7 +87,7 @@ export function RuleBuilder({ rules, onChange }: RuleBuilderProps) {
 
                 {/* Calculation */}
                 <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1">Calculation Type</label>
+                  <Label className="block text-xs font-medium text-gray-700 mb-1">Calculation Type</Label>
                   <select
                     value={rule.calculation_type}
                     onChange={e => updateRule(idx, { calculation_type: e.target.value as CommissionRule['calculation_type'] })}
@@ -130,13 +131,13 @@ export function RuleBuilder({ rules, onChange }: RuleBuilderProps) {
                 {/* Match conditions */}
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-xs font-medium text-gray-700 mb-1">Channel</label>
+                    <Label className="block text-xs font-medium text-gray-700 mb-1">Channel</Label>
                     <select value={rule.channel || 'any'} onChange={e => updateRule(idx, { channel: e.target.value })} className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm">
                       {CHANNELS.map(c => <option key={c} value={c}>{c}</option>)}
                     </select>
                   </div>
                   <div>
-                    <label className="block text-xs font-medium text-gray-700 mb-1">Applies To</label>
+                    <Label className="block text-xs font-medium text-gray-700 mb-1">Applies To</Label>
                     <select value={rule.applies_to || 'all'} onChange={e => updateRule(idx, { applies_to: e.target.value })} className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm">
                       {['all', 'product', 'service', 'category'].map(v => <option key={v} value={v}>{v}</option>)}
                     </select>
@@ -158,14 +159,14 @@ export function RuleBuilder({ rules, onChange }: RuleBuilderProps) {
                 {/* Aggregation */}
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-xs font-medium text-gray-700 mb-1">Window Type</label>
+                    <Label className="block text-xs font-medium text-gray-700 mb-1">Window Type</Label>
                     <select value={rule.window_type || 'per_line'} onChange={e => updateRule(idx, { window_type: e.target.value })} className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm">
                       {WINDOW_TYPES.map(w => <option key={w} value={w}>{w}</option>)}
                     </select>
                   </div>
                   {rule.window_type === 'per_period' && (
                     <div>
-                      <label className="block text-xs font-medium text-gray-700 mb-1">Period</label>
+                      <Label className="block text-xs font-medium text-gray-700 mb-1">Period</Label>
                       <select value={rule.period || 'month'} onChange={e => updateRule(idx, { period: e.target.value })} className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm">
                         {PERIODS.map(p => <option key={p} value={p}>{p}</option>)}
                       </select>
@@ -193,7 +194,7 @@ export function RuleBuilder({ rules, onChange }: RuleBuilderProps) {
 function Field({ label, value, onChange }: { label: string; value: string; onChange: (v: string) => void }) {
   return (
     <div>
-      <label className="block text-xs font-medium text-gray-700 mb-1">{label}</label>
+      <Label className="block text-xs font-medium text-gray-700 mb-1">{label}</Label>
       <input value={value} onChange={e => onChange(e.target.value)} className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm" />
     </div>
   )
@@ -202,7 +203,7 @@ function Field({ label, value, onChange }: { label: string; value: string; onCha
 function FieldNum({ label, value, onChange, step }: { label: string; value: number | string; onChange: (v: number) => void; step?: string }) {
   return (
     <div>
-      <label className="block text-xs font-medium text-gray-700 mb-1">{label}</label>
+      <Label className="block text-xs font-medium text-gray-700 mb-1">{label}</Label>
       <input
         type="number"
         step={step || '1'}

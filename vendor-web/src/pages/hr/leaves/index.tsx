@@ -1,4 +1,5 @@
 import { onModalBackdropClick } from '@/lib/utils'
+import { Label } from '@/components/ui/label'
 import { useState } from 'react'
 import { useEscapeToClose } from '@/hooks/useEscapeToClose'
 import { CheckCircle, XCircle, Clock, Filter, X } from 'lucide-react'
@@ -37,7 +38,7 @@ function RejectModal({
             </div>
         <form onSubmit={handleSubmit} className="space-y-3">
           <div>
-            <label className="block text-xs font-medium text-gray-600 mb-1">Reason</label>
+            <Label className="block text-xs font-medium text-gray-600 mb-1">Reason</Label>
             <textarea className="w-full border rounded-lg px-3 py-2 text-sm" rows={3} value={reason} onChange={e => setReason(e.target.value)} required />
           </div>
           <div className="flex justify-end gap-2">

@@ -1,4 +1,5 @@
 import { useEscapeToClose } from '@/hooks/useEscapeToClose'
+import { FormColumnLabel } from '@/components/common/FieldLabel'
 import { registerEscapeHandler } from '@/lib/escapeCloseRegistry'
 import { dismissBuilderEscapeLayer, type BuilderEscapeActions, type BuilderEscapeUiState } from '@/lib/builderEscapeDismiss'
 import React, {
@@ -12977,9 +12978,7 @@ export default function WebsiteBuilder() {
 
                     <div className="flex-1 overflow-y-auto p-3 space-y-3">
                       <div>
-                        <p className="text-xs font-medium text-gray-400 uppercase tracking-wide px-1 mb-2">
-                          Add Section{sectionSearchLower || sectionCategory !== 'all' ? ` · ${filteredCatalogBlocks.length}` : ''}
-                        </p>
+                        <FormColumnLabel className="tracking-wide px-1 mb-2">Add Section{sectionSearchLower || sectionCategory !== 'all' ? ` · ${filteredCatalogBlocks.length}` : ''}</FormColumnLabel>
                         <p className="text-[11px] text-gray-400 px-1 mb-2 leading-snug">
                           Click to add a section after your selection (or at the end).
                           <strong className="font-medium text-gray-500"> Move ↑↓</strong> reorders on the page;
@@ -13015,9 +13014,7 @@ export default function WebsiteBuilder() {
                 {leftPanel === 'pages' && (
                   <div className="flex-1 overflow-y-auto p-3 space-y-1.5">
                     <div className="px-1 mb-1">
-                      <p className="text-xs font-medium text-gray-400 uppercase tracking-wide">
-                        {localPages.length} page{localPages.length !== 1 ? 's' : ''}
-                      </p>
+                      <FormColumnLabel className="tracking-wide">{localPages.length} page{localPages.length !== 1 ? 's' : ''}</FormColumnLabel>
                       <p className="text-[11px] text-gray-400 mt-0.5 leading-snug">
                         Open <strong className="font-semibold text-gray-500">Actions</strong> on a page to duplicate or delete it.
                       </p>

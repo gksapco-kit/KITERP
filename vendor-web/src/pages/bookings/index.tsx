@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
+import { TableColumnLabel } from '@/components/common/FieldLabel'
 import { useEscapeToClose } from '@/hooks/useEscapeToClose'
 import { ModalEscHint } from '@/components/ui/Modal'
 import { useNavigate } from 'react-router-dom'
@@ -782,7 +783,7 @@ export default function BookingsPage() {
                   {/* Customer */}
                   <div className="mb-4">
                     <div className="flex items-center justify-between mb-1.5">
-                      <label className="text-xs font-medium text-gray-500 uppercase tracking-wide">Customer *</label>
+                      <Label className="text-xs font-medium text-gray-500 uppercase tracking-wide" required>Customer</Label>
                       {!selectedCustomer && (
                         <button
                           type="button"
@@ -848,7 +849,7 @@ export default function BookingsPage() {
 
                   {/* Service */}
                   <div className="mb-4">
-                    <label className="text-xs font-medium text-gray-500 uppercase tracking-wide block mb-1.5">Service *</label>
+                    <Label className="text-xs font-medium text-gray-500 uppercase tracking-wide block mb-1.5" required>Service</Label>
                     <select
                       className="w-full h-9 px-3 border border-gray-200 rounded-lg text-xs bg-white focus:outline-none focus:ring-2 focus:ring-ring"
                       value={selectedService}
@@ -945,7 +946,7 @@ export default function BookingsPage() {
 
                   {/* Payment */}
                   <div className="mb-4">
-                    <label className="text-xs font-medium text-gray-500 uppercase tracking-wide block mb-1.5">Payment</label>
+                    <Label className="text-xs font-medium text-gray-500 uppercase tracking-wide block mb-1.5">Payment</Label>
                     <select value={paymentMethod} onChange={e => setPaymentMethod(e.target.value)}
                       className="w-full h-9 px-3 border border-gray-200 rounded-lg text-xs bg-white focus:outline-none focus:ring-2 focus:ring-ring">
                       <option value="cod">Cash on Delivery</option>
@@ -958,7 +959,7 @@ export default function BookingsPage() {
 
                   {/* Notes */}
                   <div>
-                    <label className="text-xs font-medium text-gray-500 uppercase tracking-wide block mb-1.5">Notes</label>
+                    <Label className="text-xs font-medium text-gray-500 uppercase tracking-wide block mb-1.5">Notes</Label>
                     <textarea
                       className="w-full px-3 py-2 border border-gray-200 rounded-lg text-xs bg-white resize-none focus:outline-none focus:ring-2 focus:ring-ring"
                       rows={3}
@@ -1439,14 +1440,14 @@ export default function BookingsPage() {
               <ResizableTable tableId="bookings" defaultWidths={[120, 160, 150, 100, 100, 90, 110, 80]}>
                 <thead>
                   <tr className="border-b bg-gray-50">
-                    <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">Booking #</th>
-                    <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">Service</th>
-                    <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">Customer</th>
-                    <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">Date</th>
-                    <th className="text-center px-6 py-3 text-xs font-medium text-gray-500 uppercase">Status</th>
-                    <th className="text-right px-6 py-3 text-xs font-medium text-gray-500 uppercase">Total</th>
-                    <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">Created</th>
-                    <th className="text-right px-6 py-3 text-xs font-medium text-gray-500 uppercase">Actions</th>
+                    <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase"><TableColumnLabel>Booking #</TableColumnLabel></th>
+                    <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase"><TableColumnLabel>Service</TableColumnLabel></th>
+                    <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase"><TableColumnLabel>Customer</TableColumnLabel></th>
+                    <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase"><TableColumnLabel>Date</TableColumnLabel></th>
+                    <th className="text-center px-6 py-3 text-xs font-medium text-gray-500 uppercase"><TableColumnLabel>Status</TableColumnLabel></th>
+                    <th className="text-right px-6 py-3 text-xs font-medium text-gray-500 uppercase"><TableColumnLabel>Total</TableColumnLabel></th>
+                    <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase"><TableColumnLabel>Created</TableColumnLabel></th>
+                    <th className="text-right px-6 py-3 text-xs font-medium text-gray-500 uppercase"><TableColumnLabel>Actions</TableColumnLabel></th>
                   </tr>
                 </thead>
                 <tbody className="divide-y">
