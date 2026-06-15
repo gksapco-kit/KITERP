@@ -24,6 +24,7 @@ async def list_schema_models_catalog(
         "models": models,
         "model_count": len(models),
         "table_count": len(models),
+        "scope": "platform",
     }
 
 

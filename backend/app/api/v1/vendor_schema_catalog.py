@@ -18,6 +18,11 @@ from app.models.vendor_user import VendorUser
 from app.services.api_catalog_service import enrich_models_with_api_bindings
 from app.services.schema_catalog_service import build_schema_catalog
 from app.services import schema_field_mapping_service as mapping_svc
+from app.services.table_data_service import (
+    browse_table_rows,
+    filter_catalog_for_vendor,
+    find_value_across_tables,
+)
 
 router = APIRouter()
 
@@ -210,4 +215,49 @@ async def delete_field_mapping(
     except ValueError as e:
         await db.rollback()
         raise HTTPException(404, str(e))
+
+
+@router.get("/table-data/tables")
+async def list_vendor_table_data_tables(
+    vendor_id: UUID = Depends(get_current_vendor_id),
+    _vendor_user: VendorUser = Depends(require_role("owner", "admin")),
+):
+    """Tables this business may browse (tenant-scoped rows only)."""
+    models = filter_catalog_for_vendor(build_schema_catalog())
+    return {
+        "models": models,
+        "model_count": len(models),
+        "table_count": len(models),
+        "scope": "vendor",
+    }
+
+
+@router.get("/table-data/find")
+async def find_vendor_table_data(
+    q: str = Query(..., min_length=2, max_length=120, description="UUID or text to locate"),
+    vendor_id: UUID = Depends(get_current_vendor_id),
+    db: AsyncSession = Depends(get_db),
+    _vendor_user: VendorUser = Depends(require_role("owner", "admin")),
+):
+    """Search this business's tables for a UUID or text value."""
+    return await find_value_across_tables(db, q, vendor_id=vendor_id)
+
+
+@router.get("/table-data/{table_name}")
+async def browse_vendor_table_data(
+    table_name: str,
+    q: Optional[str] = Query(None, max_length=200),
+    page: int = Query(1, ge=1),
+    page_size: int = Query(50, ge=1, le=100),
+    vendor_id: UUID = Depends(get_current_vendor_id),
+    db: AsyncSession = Depends(get_db),
+    _vendor_user: VendorUser = Depends(require_role("owner", "admin")),
+):
+    """Browse rows for one table — only records for this business."""
+    try:
+        return await browse_table_rows(
+            db, table_name, vendor_id=vendor_id, q=q, page=page, page_size=page_size
+        )
+    except ValueError as e:
+        raise HTTPException(400, str(e))
 

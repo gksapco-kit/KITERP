@@ -2070,6 +2070,26 @@ export const vendorApi = {
   deleteSchemaFieldMapping: async (id: string) => {
     await apiClient.delete(`/vendors/me/schema/mappings/${id}`)
   },
+
+  listTableDataTables: async () => {
+    const r = await apiClient.get('/vendors/me/schema/table-data/tables')
+    return r.data as TableDataCatalogResponse
+  },
+
+  findTableDataValue: async (q: string) => {
+    const r = await apiClient.get('/vendors/me/schema/table-data/find', { params: { q } })
+    return r.data as TableDataFindResult
+  },
+
+  browseTableData: async (
+    table: string,
+    params?: { q?: string; page?: number; page_size?: number },
+  ) => {
+    const r = await apiClient.get(`/vendors/me/schema/table-data/${encodeURIComponent(table)}`, {
+      params,
+    })
+    return r.data as TableDataRows
+  },
 }
 
 export type SchemaApiBinding = {
@@ -2125,4 +2145,49 @@ export type SchemaColumnRecord = {
   user_mapping?: SchemaFieldMappingRecord | null
   is_virtual?: boolean
   json_parent?: string | null
+}
+
+export type TableDataCatalogResponse = {
+  models: SchemaModelRecord[]
+  model_count: number
+  table_count: number
+  scope: 'vendor'
+}
+
+export type TableDataCellMatch = {
+  table: string
+  column: string
+  value: string
+  domain?: string
+}
+
+export type TableDataFindHit = {
+  table: string
+  domain?: string
+  matched_columns: string[]
+  row_count: number
+  rows: Record<string, unknown>[]
+  cell_matches?: TableDataCellMatch[]
+}
+
+export type TableDataFindResult = {
+  query: string
+  scope?: 'vendor' | 'platform'
+  search_mode: 'uuid' | 'text'
+  hits: TableDataFindHit[]
+  matches: TableDataCellMatch[]
+  match_count: number
+  hit_count: number
+  tables_scanned: number
+}
+
+export type TableDataRows = {
+  table: string
+  domain?: string
+  scope?: 'vendor' | 'platform'
+  columns: string[]
+  page: number
+  page_size: number
+  total: number
+  rows: Record<string, unknown>[]
 }

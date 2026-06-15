@@ -18,7 +18,7 @@ import {
   Shuffle, ClipboardCheck, Heart, Layers, Percent, Link2, Wallet2, Sparkles,
   Lock, ListChecks, Boxes, Gauge, Globe, Newspaper, Moon, Sun, Image, Palette,
   UtensilsCrossed, ChefHat, LayoutGrid, RefreshCw, FolderKanban,
-  GripVertical, SlidersHorizontal, Database, Search, ExternalLink,
+  GripVertical, SlidersHorizontal, Database, Table2, Search, ExternalLink,
   PanelLeftClose, PanelLeft, Settings2,
   ArrowLeft, MoreHorizontal, Keyboard, Plus, Star, Save,
 } from 'lucide-react'
@@ -207,6 +207,8 @@ interface NavItem {
   groupColor?: 'blue' | 'amber' | 'emerald' | 'indigo' | 'rose' | 'violet'
   /** Restrict to a specific finance mode: 'basic' shows only when finance_mode=basic; 'advanced' shows only when finance_mode=advanced (or unset) */
   requiresFinanceMode?: 'basic' | 'advanced'
+  /** Vendor owner or admin only (hidden from regular staff). */
+  requiresVendorAdmin?: boolean
   /** Full URL — renders as external link (new tab) instead of in-app route */
   externalHref?: string
 }
@@ -653,6 +655,7 @@ const allSections: NavSection[] = [
       { to: '/document-templates', icon: LayoutTemplate, label: 'Document Templates', alwaysShow: true },
       { to: '/system/modules', icon: Layers, label: 'Module Settings', alwaysShow: true },
       { to: '/system/models', icon: Database, label: 'Models', alwaysShow: true },
+      { to: '/system/table-data', icon: Table2, label: 'Table Data', requiresVendorAdmin: true },
       { to: '/system/assets/images', icon: Image, label: 'Images', alwaysShow: true, groupLabel: 'Gallery', groupColor: 'violet' },
       { to: '/team', icon: UsersRound, label: 'Staff Access Control', requiresPermission: 'team.view' },
       { to: '/roles', icon: ShieldCheck, label: 'Roles', requiresPermission: 'roles.view' },
@@ -962,6 +965,7 @@ const pageTitles: Record<string, string> = {
   '/settings': 'Settings',
   '/system/modules': 'Module Settings',
   '/system/models': 'Models',
+  '/system/table-data': 'Table Data',
   '/system/storefront-display': 'Business Front Display',
   '/system/social-links': 'Social & Web Links',
   '/system/assets': 'Gallery',
@@ -1551,6 +1555,7 @@ export default function DashboardLayout() {
 
   const filterItem = useCallback(
     (item: NavItem) => {
+      if (item.requiresVendorAdmin && !isOwnerOrAdmin) return false
       if (item.alwaysShow) return true
       if (item.to === '/pos' && !isPosNavVisible(vendorSettings, vendor?.offering_type, planFeatures)) return false
       if (

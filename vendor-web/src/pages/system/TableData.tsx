@@ -3,17 +3,17 @@ import { Navigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { ChevronLeft, ChevronRight, Copy, Database, Loader2, Search, Table2 } from 'lucide-react'
 import {
-  schemaApi,
+  vendorApi,
   type SchemaModelRecord,
   type TableDataCellMatch,
   type TableDataFindHit,
-  type TableDataRows,
-} from '@/api/schema.api'
+} from '@/api/vendor'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { useAuthStore } from '@/stores/authStore'
-import { isSuperuserAdmin } from '@/lib/platformAccess'
+import { useIsVendorAdmin } from '@/hooks/usePermissions'
+import { useVendorStore } from '@/stores/vendorStore'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 
@@ -141,7 +141,9 @@ function FindHitCard({
 }
 
 export default function TableDataPage() {
-  const { user, isAuthenticated } = useAuthStore()
+  const { isAuthenticated } = useAuthStore()
+  const isVendorAdmin = useIsVendorAdmin()
+  const vendor = useVendorStore((s) => s.vendor)
   const [idSearch, setIdSearch] = useState('')
   const [submittedId, setSubmittedId] = useState('')
   const [tableFilter, setTableFilter] = useState('')
@@ -150,9 +152,10 @@ export default function TableDataPage() {
   const [browsePage, setBrowsePage] = useState(1)
 
   const { data: catalog } = useQuery({
-    queryKey: ['admin-schema-models'],
-    queryFn: () => schemaApi.listModels(),
+    queryKey: ['vendor-table-data-tables'],
+    queryFn: () => vendorApi.listTableDataTables(),
     staleTime: 5 * 60_000,
+    enabled: isAuthenticated && isVendorAdmin,
   })
 
   const {
@@ -161,9 +164,9 @@ export default function TableDataPage() {
     isError: findError,
     error: findErr,
   } = useQuery({
-    queryKey: ['admin-table-data-find', submittedId],
-    queryFn: () => schemaApi.findTableDataValue(submittedId),
-    enabled: isAuthenticated && isSuperuserAdmin(user) && submittedId.length >= 2,
+    queryKey: ['vendor-table-data-find', submittedId],
+    queryFn: () => vendorApi.findTableDataValue(submittedId),
+    enabled: isAuthenticated && isVendorAdmin && submittedId.length >= 2,
     retry: false,
   })
 
@@ -173,14 +176,14 @@ export default function TableDataPage() {
     isError: browseError,
     error: browseErr,
   } = useQuery({
-    queryKey: ['admin-table-data-browse', browseTable, browseQ, browsePage],
+    queryKey: ['vendor-table-data-browse', browseTable, browseQ, browsePage],
     queryFn: () =>
-      schemaApi.browseTableData(browseTable, {
+      vendorApi.browseTableData(browseTable, {
         q: browseQ.trim() || undefined,
         page: browsePage,
         page_size: 50,
       }),
-    enabled: isAuthenticated && isSuperuserAdmin(user) && Boolean(browseTable),
+    enabled: isAuthenticated && isVendorAdmin && Boolean(browseTable),
     retry: false,
   })
 
@@ -234,8 +237,8 @@ export default function TableDataPage() {
   const browseColumns = browseResult?.columns ?? []
   const totalPages = browseResult ? Math.max(1, Math.ceil(browseResult.total / browseResult.page_size)) : 1
 
-  if (!isSuperuserAdmin(user)) {
-    return <Navigate to="/dashboard" replace />
+  if (!isVendorAdmin) {
+    return <Navigate to="/" replace />
   }
 
   return (
@@ -246,8 +249,12 @@ export default function TableDataPage() {
           Table Data
         </h1>
         <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
-          Search the full database for any value and see which table and column it belongs to. Or pick a
-          table to view all platform records.
+          Search your business data and see which table and column a value belongs to. Or pick a table
+          to view its records. Only data for{' '}
+          <span className="font-medium text-foreground">
+            {vendor?.display_name || vendor?.business_name || 'your business'}
+          </span>{' '}
+          is shown.
         </p>
       </div>
 

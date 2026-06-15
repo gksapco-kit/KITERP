@@ -46,6 +46,8 @@ export function useIsVendorOwner(): boolean {
  * Check if the current user is a vendor owner or admin.
  */
 export function useIsVendorAdmin(): boolean {
-  const role = useVendorRole()
-  return role === 'owner' || role === 'admin'
+  const { user } = useAuthStore()
+  const role = user?.vendor_role?.role
+  const roleName = user?.vendor_role?.role_name?.toLowerCase()
+  return role === 'owner' || role === 'admin' || roleName === 'owner' || roleName === 'admin'
 }
