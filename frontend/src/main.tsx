@@ -1,6 +1,8 @@
 import React from 'react'
 import ReactDOM from 'react-dom/client'
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { QueryClientProvider } from '@tanstack/react-query'
+import apiClient from '@/api/client'
+import { attachAutoRefreshInterceptor, createAppQueryClient } from '@/lib/queryClient'
 import { RouterProvider } from 'react-router-dom'
 import { Toaster } from 'sonner'
 
@@ -10,14 +12,8 @@ import './styles/globals.css'
 
 initGlobalEscapeHandler()
 
-const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: {
-      staleTime: 5 * 60 * 1000, // 5 minutes
-      retry: 1,
-    },
-  },
-})
+const queryClient = createAppQueryClient()
+attachAutoRefreshInterceptor(apiClient)
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>

@@ -7,6 +7,7 @@ import { vendorApi } from '@/api/vendor'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useVendorStore } from '@/stores/vendorStore'
 import { useSiteList } from '@/hooks/useWebsites'
+import { vendorKeys } from '@/hooks/useVendor'
 import { resolveBusinessFrontActiveTemplate } from '@/lib/businessFrontActiveTemplate'
 import { getCustomerStorefrontBaseUrl } from '@/lib/storefrontPreviewUrl'
 import { toast } from 'sonner'
@@ -90,7 +91,9 @@ export function StoreThemeCustomizer({ embedded = false }: { embedded?: boolean 
     mutationFn: (data: Partial<ThemeConfig>) => vendorApi.updateTemplateConfig(data),
     onSuccess: (res) => {
       setDraft(res)
+      qc.setQueryData(['template-config'], res)
       qc.invalidateQueries({ queryKey: ['template-config'] })
+      qc.invalidateQueries({ queryKey: vendorKeys.me() })
       toast.success('Template saved!')
     },
     onError: () => toast.error('Could not save template — check your customization settings'),

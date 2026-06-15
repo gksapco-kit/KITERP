@@ -1,13 +1,12 @@
 import { useMemo, useState } from 'react'
 import { Navigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
-import { ChevronLeft, ChevronRight, Copy, Database, Loader2, Search, Table2 } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Database, Loader2, Search, Table2 } from 'lucide-react'
 import {
   schemaApi,
   type SchemaModelRecord,
   type TableDataCellMatch,
   type TableDataFindHit,
-  type TableDataRows,
 } from '@/api/schema.api'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'

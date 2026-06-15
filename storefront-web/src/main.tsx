@@ -1,6 +1,8 @@
 import React from 'react'
 import ReactDOM from 'react-dom/client'
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { QueryClientProvider } from '@tanstack/react-query'
+import { apiClient } from '@/api/client'
+import { attachAutoRefreshInterceptor, createAppQueryClient } from '@/lib/queryClient'
 import { RouterProvider } from 'react-router-dom'
 import { Toaster } from 'sonner'
 import { router } from './routes'
@@ -10,7 +12,8 @@ import './checkout/theme.css'
 
 initGlobalEscapeHandler()
 
-const queryClient = new QueryClient({ defaultOptions: { queries: { staleTime: 5 * 60 * 1000, retry: 1 } } })
+const queryClient = createAppQueryClient()
+attachAutoRefreshInterceptor(apiClient)
 
 // Debug: Identify which app is running
 console.log('%c🚀 STOREFRONT-WEB (Port 3002)', 'color: #3b82f6; font-size: 16px; font-weight: bold;')

@@ -15,5 +15,16 @@ export function ThemeSync() {
     root.dataset.kitTemplate = layoutTemplate || DEFAULT_KIT_ERP_LAYOUT
   }, [dark, colorTheme, layoutTemplate])
 
+  // Sync theme across browser tabs when changed in another tab.
+  useEffect(() => {
+    const onStorage = (e: StorageEvent) => {
+      if (e.key === 'vendor-ui-theme') {
+        void useThemeStore.persist.rehydrate()
+      }
+    }
+    window.addEventListener('storage', onStorage)
+    return () => window.removeEventListener('storage', onStorage)
+  }, [])
+
   return null
 }
