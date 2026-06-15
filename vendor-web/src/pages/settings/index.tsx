@@ -12,6 +12,7 @@ import type { StoreRecord } from '@/api/vendor'
 import { useBusinessUnitScopeLabel, type BusinessUnitScopeMode } from '@/hooks/useBusinessUnitScope'
 import StoresPage from '@/pages/stores'
 import { StoresListToolbar } from '@/components/business-units/StoresListToolbar'
+import { BusinessFrontCopyLinksButton } from '@/components/business-units/BusinessFrontCopyLinksButton'
 import BusinessUnitDetailPanel from '@/components/business-units/BusinessUnitDetailPanel'
 import { StorefrontLinkModeToggle } from '@/components/business-units/StorefrontLinkModeToggle'
 import { BusinessUnitDetailNav } from '@/components/business-units/BusinessUnitDetailNav'
@@ -491,6 +492,7 @@ function SettingsPageBody() {
                 vendorSlug={vendor?.slug ?? ''}
                 vendorSettings={vendor?.settings as Record<string, unknown> | undefined}
                 variant="inline"
+                hideCopyLinks
               />
             )}
             <Button
@@ -569,11 +571,19 @@ function SettingsPageBody() {
             ) : null}
 
             {allBusinessUnitsMode && stores.length > 0 ? (
-              <StorefrontLinkModeToggle
-                mode={storefrontLinkMode}
-                pending={updateVendor.isPending}
-                onConfirm={handleSetStorefrontLinkMode}
-              />
+              <div className="flex shrink-0 flex-wrap items-end justify-end gap-2">
+                <BusinessFrontCopyLinksButton
+                  stores={stores}
+                  vendorSlug={vendor?.slug ?? ''}
+                  vendorSettings={vendor?.settings as Record<string, unknown> | undefined}
+                  variant="inline"
+                />
+                <StorefrontLinkModeToggle
+                  mode={storefrontLinkMode}
+                  pending={updateVendor.isPending}
+                  onConfirm={handleSetStorefrontLinkMode}
+                />
+              </div>
             ) : null}
           </header>
           <div className="p-4">

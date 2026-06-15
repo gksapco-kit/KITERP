@@ -59,18 +59,28 @@ class CustomerService:
         else:
             customer = await self.repo.get_by_vendor_and_email(vendor_id, login)
 
-        if not customer or not verify_password(password, customer.password_hash):
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Incorrect email/phone or password",
-            )
+        if customer and verify_password(password, customer.password_hash or ""):
+            if not customer.is_active:
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail="Account is disabled",
+                )
+            return self._issue_customer_token(vendor_id, customer)
 
-        if not customer.is_active:
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Account is disabled",
-            )
+        # Fallback: a platform admin (User table, e.g. admin@kiterp.com) may sign in to any
+        # storefront using the active password stored on their User row. We mirror them into a
+        # Customer record for this vendor so the rest of the storefront (which expects a
+        # customer-scoped token) keeps working unchanged.
+        admin_customer = await self._try_platform_admin_login(vendor_id, login, password)
+        if admin_customer is not None:
+            return self._issue_customer_token(vendor_id, admin_customer)
 
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Incorrect email/phone or password",
+        )
+
+    def _issue_customer_token(self, vendor_id: UUID, customer: Customer) -> Token:
         token_data = {
             "sub": str(customer.id),
             "vendor_id": str(vendor_id),
@@ -80,8 +90,57 @@ class CustomerService:
             token_data["email"] = customer.email
         access_token = create_access_token(data=token_data)
         refresh_token = create_refresh_token(data=token_data)
-
         return Token(access_token=access_token, refresh_token=refresh_token)
+
+    async def _try_platform_admin_login(
+        self, vendor_id: UUID, login: str, password: str,
+    ) -> Customer | None:
+        """Authenticate against the platform User table and, on success for an active
+        platform admin, get-or-create a mirrored Customer row for this vendor."""
+        from app.repositories.user_repo import UserRepository
+        from app.utils.platform_staff import has_platform_staff_access
+
+        user_repo = UserRepository(self.db)
+        if _PHONE_RE.match(login):
+            candidates = await user_repo.list_users_by_phone(login)
+        else:
+            candidates = await user_repo.list_users_by_email_ci(login)
+
+        eligible = [
+            u
+            for u in candidates
+            if u.password_hash
+            and verify_password(password, u.password_hash)
+            and u.is_active
+            and has_platform_staff_access(u)
+        ]
+        if not eligible:
+            return None
+        admin = eligible[0]
+
+        customer: Customer | None = None
+        if admin.email:
+            customer = await self.repo.get_by_vendor_and_email(vendor_id, admin.email)
+        if customer is None and admin.phone:
+            customer = await self.repo.get_by_vendor_and_phone(vendor_id, admin.phone)
+
+        if customer is None:
+            customer = Customer(
+                vendor_id=vendor_id,
+                full_name=admin.full_name or "Administrator",
+                email=admin.email,
+                phone=admin.phone,
+                password_hash=admin.password_hash,
+            )
+            self.db.add(customer)
+        else:
+            # Keep the mirrored row aligned with the admin's current password / status.
+            customer.password_hash = admin.password_hash
+            customer.is_active = True
+
+        await self.db.commit()
+        await self.db.refresh(customer)
+        return customer
 
     async def get_by_id(self, vendor_id: UUID, customer_id: UUID) -> Customer:
         customer = await self.repo.get_by_vendor_and_id(vendor_id, customer_id)

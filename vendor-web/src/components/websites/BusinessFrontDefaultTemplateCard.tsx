@@ -1,9 +1,8 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { Check, Store } from 'lucide-react'
+import { Check, ExternalLink, Store } from 'lucide-react'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
-import { templateBadgeEmeraldClass, templateBadgeVioletClass } from '@/lib/websiteTemplateBadges'
-import { formatAssignedStoresLabel } from '@/lib/websiteTemplateAssignment'
+import { templateBadgeEmeraldClass, templateBadgeVioletClass, templateCardActionBtnClass, templateCardBodyClass, templateCardMediaHeightClass, templateCardPreviewOverlayClass, templateCardShellClass } from '@/lib/websiteTemplateBadges'
 import type { AppliedTemplateViewLiveLink } from '@/lib/liveStorefrontUrl'
 import { AppliedTemplateViewLiveButton } from '@/components/websites/AppliedTemplateViewLiveButton'
 import { vendorApi } from '@/api/vendor'
@@ -23,7 +22,7 @@ type Props = {
   /** When single template mode: show "Use for all stores". */
   singleTemplateMode?: boolean
   isSingleTemplateSelected?: boolean
-  onUseForAllStores?: (templateId: string) => void
+  onUseForAllStores?: (templateId: string, templateName: string) => void
   useForAllStoresPending?: boolean
   /** When per-store template mode: show "Apply for Single BU / Store". */
   perStoreTemplateMode?: boolean
@@ -71,29 +70,50 @@ export function BusinessFrontDefaultTemplateCard({
 
   return (
     <div
+      title={storeUrl ? (live ? `Click to view live ${preset.name}` : `Click to open ${preset.name} store`) : undefined}
+      onClick={storeUrl ? (e) => {
+        if ((e.target as HTMLElement).closest('[data-template-card-action]')) return
+        window.open(storeUrl, '_blank', 'noopener,noreferrer')
+      } : undefined}
       className={cn(
-        'text-left border rounded-2xl overflow-hidden transition-colors group bg-white',
-        'shadow-[0_1px_0_rgba(0,0,0,0.02)] hover:shadow-[0_8px_24px_rgba(100,195,160,0.15)]',
-        live ? 'border-primary ring-2 ring-primary/20' : 'border-gray-100 hover:border-primary/30',
+        templateCardShellClass,
+        live && 'border-primary ring-2 ring-primary/20',
       )}
     >
-      <div className="relative">
+      <div className="relative overflow-hidden">
         <div
-          className="w-full h-36 sm:h-40"
+          className={cn(templateCardMediaHeightClass, 'w-full transition-transform duration-300 group-hover/card:scale-[1.03]')}
           style={{
             background: palette.length >= 2
               ? `linear-gradient(135deg, ${palette[0]}, ${palette[1]})`
               : 'linear-gradient(135deg, #64C3A0, #13624A)',
           }}
         />
-        <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-black/5 to-transparent pointer-events-none" />
-        <div className="absolute top-2 left-2 flex max-w-[calc(100%-1rem)] flex-nowrap items-center gap-1.5 overflow-hidden">
-          <span className="shrink-0 text-[10px] uppercase tracking-wide font-extrabold bg-white/90 text-gray-800 rounded-full px-2 py-0.5 whitespace-nowrap">
+        <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/50 via-black/5 to-transparent" />
+        {storeUrl ? (
+          <div className={templateCardPreviewOverlayClass}>
+            <span className="inline-flex items-center gap-1 rounded-full bg-white/95 px-2 py-1 text-[10px] font-bold text-gray-900 shadow-md">
+              {live ? (
+                <>
+                  <ExternalLink className="h-3 w-3" />
+                  View live site
+                </>
+              ) : (
+                <>
+                  <ExternalLink className="h-3 w-3" />
+                  View store
+                </>
+              )}
+            </span>
+          </div>
+        ) : null}
+        <div className="absolute left-1.5 top-1.5 flex max-w-[calc(100%-0.75rem)] flex-nowrap items-center gap-1 overflow-hidden">
+          <span className="shrink-0 whitespace-nowrap rounded-full bg-white/90 px-1.5 py-0 text-[9px] font-extrabold uppercase tracking-wide text-gray-800">
             Default layout
           </span>
           {live && (
-            <span className="shrink-0 text-[10px] uppercase tracking-wide font-extrabold bg-primary text-white rounded-full px-2 py-0.5 flex items-center gap-0.5 whitespace-nowrap">
-              <Check className="w-3 h-3" /> Live
+            <span className="flex shrink-0 items-center gap-0.5 whitespace-nowrap rounded-full bg-primary px-1.5 py-0 text-[9px] font-extrabold uppercase tracking-wide text-white">
+              <Check className="h-2.5 w-2.5" /> Live
             </span>
           )}
           {singleTemplateMode && isSingleTemplateSelected && (
@@ -113,49 +133,72 @@ export function BusinessFrontDefaultTemplateCard({
           )}
         </div>
         {palette.length > 0 && (
-          <div className="absolute bottom-2 right-2 inline-flex -space-x-1">
+          <div className="absolute bottom-1.5 right-1.5 inline-flex -space-x-1">
             {palette.slice(0, 4).map((c, i) => (
               <span
                 key={`${c}-${i}`}
-                className="w-3.5 h-3.5 rounded-full border border-white shadow-sm"
+                className="h-3 w-3 rounded-full border border-white shadow-sm"
                 style={{ backgroundColor: c }}
               />
             ))}
           </div>
         )}
       </div>
-      <div className="p-3.5">
-        <div className="font-extrabold text-gray-900 group-hover:text-primary transition-colors">{preset.name}</div>
-        <p className="text-xs text-gray-500 mt-1 line-clamp-2">
-          {preset.description || 'Section-based home used when no Website Builder site is published.'}
+      <div className={templateCardBodyClass}>
+        <div className="flex items-start justify-between gap-2">
+          <div className="min-w-0 truncate text-sm font-extrabold text-gray-900 transition-colors group-hover/card:text-primary">{preset.name}</div>
+          {(singleTemplateMode || perStoreTemplateMode) ? (() => {
+            const applied = singleTemplateMode ? Boolean(isSingleTemplateSelected) : (perStoreUsedCount ?? 0) > 0
+            return (
+              <span
+                className={cn(
+                  'inline-flex shrink-0 items-center gap-1 text-[10px] font-semibold',
+                  applied || live
+                    ? (singleTemplateMode ? 'text-violet-700' : 'text-emerald-700')
+                    : 'text-gray-400',
+                )}
+                title={perStoreTemplateMode && applied ? assignedStoreNames.join(', ') : undefined}
+              >
+                <span
+                  className={cn(
+                    'h-1.5 w-1.5 shrink-0 rounded-full',
+                    applied || live
+                      ? (singleTemplateMode ? 'bg-violet-500' : 'bg-emerald-500')
+                      : 'bg-gray-300',
+                  )}
+                />
+                {singleTemplateMode
+                  ? applied ? 'Live all' : live ? 'Default live' : 'Unused'
+                  : applied
+                    ? `${perStoreUsedCount} live`
+                    : live
+                      ? 'Default live'
+                      : 'Unused'}
+              </span>
+            )
+          })() : live ? (
+            <span className="shrink-0 text-[10px] font-semibold text-primary">In use</span>
+          ) : null}
+        </div>
+        <p className="mt-0.5 line-clamp-1 text-[11px] leading-snug text-gray-500">
+          {preset.description || 'Section-based home when no Website Builder site is published.'}
         </p>
-        {singleTemplateMode && isSingleTemplateSelected ? (
-          <p className="mt-1 truncate text-[10px] font-semibold text-violet-700">Used by: All BUs / Stores</p>
-        ) : null}
-        {perStoreTemplateMode && (perStoreUsedCount ?? 0) > 0 ? (
-          <p
-            className="mt-1 truncate text-[10px] font-semibold text-emerald-700"
-            title={assignedStoreNames.join(', ')}
-          >
-            Used by: {formatAssignedStoresLabel(assignedStoreNames.map(name => ({ name })))}
-          </p>
-        ) : null}
-        <div className="flex flex-wrap items-center justify-end gap-2 mt-3">
-          <div className="inline-flex items-center gap-1.5">
+        <div className="mt-1.5 flex flex-wrap items-center justify-end gap-1.5" data-template-card-action>
+          <div className="inline-flex items-center gap-1">
             {singleTemplateMode && onUseForAllStores ? (
               <button
                 type="button"
                 disabled={isSingleTemplateSelected || useForAllStoresPending}
-                onClick={() => onUseForAllStores(preset.id)}
+                onClick={() => onUseForAllStores(preset.id, preset.name)}
                 className={cn(
-                  'inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border text-xs font-extrabold transition-colors',
+                  templateCardActionBtnClass,
                   isSingleTemplateSelected
                     ? 'cursor-default border-violet-200 bg-violet-50 text-violet-600'
                     : 'border-violet-200 bg-violet-50/80 text-violet-700 hover:border-violet-300 hover:bg-violet-100',
                 )}
               >
-                {isSingleTemplateSelected ? <Check className="h-3.5 w-3.5" /> : <Store className="h-3.5 w-3.5" />}
-                {isSingleTemplateSelected ? 'Applied — all BU / Store' : 'Apply for all BU / Store'}
+                {isSingleTemplateSelected ? <Check className="h-3 w-3" /> : <Store className="h-3 w-3" />}
+                {isSingleTemplateSelected ? 'Applied' : 'All stores'}
               </button>
             ) : null}
             {perStoreTemplateMode && onApplyForStore ? (
@@ -164,36 +207,24 @@ export function BusinessFrontDefaultTemplateCard({
                 disabled={applyForStorePending}
                 onClick={() => onApplyForStore(preset.id)}
                 className={cn(
-                  'inline-flex items-center gap-1 rounded-lg border px-3 py-1.5 text-xs font-extrabold transition-colors',
+                  templateCardActionBtnClass,
                   (perStoreUsedCount ?? 0) > 0
                     ? 'border-emerald-200 bg-emerald-50 text-emerald-600 hover:border-emerald-300 hover:bg-emerald-100'
                     : 'border-emerald-200 bg-emerald-50/80 text-emerald-700 hover:border-emerald-300 hover:bg-emerald-100',
                 )}
               >
-                {(perStoreUsedCount ?? 0) > 0 ? <Check className="h-3.5 w-3.5" /> : <Store className="h-3.5 w-3.5" />}
-                {(perStoreUsedCount ?? 0) > 0
-                  ? `Applied — BU / Store · ${perStoreUsedCount}`
-                  : 'Apply for Single BU / Store'}
+                {(perStoreUsedCount ?? 0) > 0 ? <Check className="h-3 w-3" /> : <Store className="h-3 w-3" />}
+                {(perStoreUsedCount ?? 0) > 0 ? 'Manage' : 'Assign'}
               </button>
             ) : null}
             {viewLiveLinks.length > 0 ? (
-              <AppliedTemplateViewLiveButton links={viewLiveLinks} />
+              <AppliedTemplateViewLiveButton links={viewLiveLinks} templateName={preset.name} />
             ) : null}
           </div>
-          {storeUrl && (
-            <a
-              href={storeUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="px-3 py-1.5 rounded-lg text-xs font-extrabold border border-gray-200 text-gray-700 hover:bg-gray-50"
-            >
-              Preview store
-            </a>
-          )}
           <button
             type="button"
             onClick={onCustomize}
-            className="px-3 py-1.5 rounded-lg text-xs font-extrabold border border-gray-200 text-gray-700 hover:bg-gray-50"
+            className={cn(templateCardActionBtnClass, 'border-gray-200 text-gray-700 hover:border-primary/35 hover:bg-primary/10 hover:text-primary')}
           >
             Customize
           </button>
@@ -209,13 +240,13 @@ export function BusinessFrontDefaultTemplateCard({
             }
             onClick={() => applyPreset.mutate(preset.id)}
             className={cn(
-              'px-3 py-1.5 rounded-lg text-xs font-extrabold transition-colors',
+              templateCardActionBtnClass,
               live || active.kind === 'website_builder'
-                ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                : 'bg-primary text-white hover:opacity-90',
+                ? 'cursor-not-allowed border-transparent bg-gray-100 text-gray-400'
+                : 'border-transparent bg-primary text-white hover:opacity-90',
             )}
           >
-            {live ? 'In use' : 'Use this theme'}
+            {live ? 'In use' : 'Use theme'}
           </button>
         </div>
       </div>

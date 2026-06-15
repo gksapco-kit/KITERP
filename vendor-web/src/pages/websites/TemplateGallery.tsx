@@ -1,14 +1,15 @@
 import { useMemo, useState, useEffect, useLayoutEffect, useRef, useCallback } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Sparkles, Search, Globe, ChevronRight, ChevronDown, Check, Store, Eye, LayoutTemplate, X } from 'lucide-react'
+import { Sparkles, Search, Globe, ChevronRight, ChevronDown, Check, Store, Eye, LayoutTemplate, X, AlertTriangle, ExternalLink } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useSiteList, useWebsiteTemplates } from '@/hooks/useWebsites'
 import { useUpdateVendor, useStores, vendorKeys } from '@/hooks/useVendor'
 import type { WebsiteTemplate } from '@/types/websites'
 import { getTemplatePreviewPalette } from '@/lib/templateBlockHighlights'
 import { WebsiteTemplatePreviewModal, getStorefrontTemplateBrowserPreviewUrl } from '@/components/websites/WebsiteTemplatePreviewModal'
-import { AppliedTemplateViewLiveButton, templateCardIconActionClass } from '@/components/websites/AppliedTemplateViewLiveButton'
+import { AppliedTemplateViewLiveButton, ViewLiveLinksPickerModal, templateCardIconActionClass } from '@/components/websites/AppliedTemplateViewLiveButton'
+import type { AppliedTemplateViewLiveLink } from '@/lib/liveStorefrontUrl'
 import { BusinessFrontDefaultTemplateCard } from '@/components/websites/BusinessFrontDefaultTemplateCard'
 import { StoreThemeCustomizerDialog } from '@/components/websites/StoreThemeCustomizerDialog'
 import { StorefrontTemplateModeToggle } from '@/components/business-units/StorefrontTemplateModeToggle'
@@ -24,13 +25,14 @@ import {
   STOREFRONT_TEMPLATE_MODE_KEY,
   type StorefrontTemplateMode,
 } from '@/lib/liveStorefrontUrl'
-import { resolveTemplateDisplay } from '@/lib/websiteAppliedTemplate'
-import { formatAssignedStoresLabel, storesAssignedToTemplate } from '@/lib/websiteTemplateAssignment'
-import { templateBadgeEmeraldClass, templateBadgeVioletClass } from '@/lib/websiteTemplateBadges'
+import { resolveTemplateDisplay, type ResolvedTemplateDisplay } from '@/lib/websiteAppliedTemplate'
+import { storesAssignedToTemplate } from '@/lib/websiteTemplateAssignment'
+import { templateBadgeEmeraldClass, templateBadgeVioletClass, templateCardActionBtnClass, templateCardBodyClass, templateCardMediaHeightClass, templateCardPreviewOverlayClass, templateCardShellClass } from '@/lib/websiteTemplateBadges'
 import { vendorApi } from '@/api/vendor'
 import { useVendorStore } from '@/stores/vendorStore'
 import { Button } from '@/components/ui/button'
 import { toast } from 'sonner'
+import { formatStoreCode } from '@/lib/verification'
 
 const formatCategoryLabel = (cat: string) =>
   cat === 'all' ? 'All' : cat.charAt(0).toUpperCase() + cat.slice(1)
@@ -163,134 +165,394 @@ function TemplateCategoryFilters({
 type PickerStore = {
   id: string
   name: string
+  code: string
   is_default?: boolean
   currentTemplateName?: string | null
+}
+
+function PickerStoreCard({
+  store,
+  checked,
+  onToggle,
+  compact = false,
+  prominent = false,
+}: {
+  store: PickerStore
+  checked: boolean
+  onToggle: () => void
+  compact?: boolean
+  prominent?: boolean
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onToggle}
+      title={`${store.code} · ${store.name}`}
+      className={cn(
+        'flex items-center gap-2 overflow-hidden rounded-xl border text-left transition-colors',
+        compact
+          ? 'min-w-0 w-full gap-2 px-2 py-1.5'
+          : 'w-full min-w-0 gap-3 px-3 py-2.5',
+        checked
+          ? prominent
+            ? 'border-emerald-400 bg-emerald-50/80 ring-2 ring-emerald-200'
+            : 'border-emerald-300 bg-emerald-50/70'
+          : compact
+            ? 'border-gray-200 hover:border-emerald-300 hover:bg-emerald-50/40'
+            : 'border-gray-200 hover:bg-gray-50',
+      )}
+    >
+      <span
+        className={cn(
+          'flex shrink-0 items-center justify-center rounded-md border',
+          compact ? 'h-4 w-4' : 'h-5 w-5',
+          checked ? 'border-emerald-600 bg-emerald-600 text-white' : 'border-gray-300 bg-white',
+        )}
+      >
+        {checked ? <Check className={compact ? 'h-2.5 w-2.5' : 'h-3.5 w-3.5'} /> : null}
+      </span>
+      <span className="min-w-0 flex-1 overflow-hidden">
+        <span className="flex min-w-0 items-center gap-1">
+          <span
+            className={cn(
+              'truncate font-mono font-bold tracking-wide text-gray-800',
+              compact ? 'text-[11px]' : 'text-xs',
+            )}
+            title={store.code}
+          >
+            {store.code}
+          </span>
+          {store.is_default ? (
+            <span className="shrink-0 rounded bg-gray-100 px-0.5 text-[8px] font-bold uppercase leading-none text-gray-500">
+              DEF
+            </span>
+          ) : null}
+        </span>
+        <span
+          className={cn(
+            'mt-0.5 block truncate font-medium text-gray-500',
+            compact ? 'text-[10px]' : 'text-xs',
+          )}
+          title={store.name}
+        >
+          {store.name}
+        </span>
+        <span
+          className={cn(
+            'mt-0.5 block truncate',
+            store.currentTemplateName
+              ? compact
+                ? 'text-[11px] font-bold text-emerald-700'
+                : 'text-[11px] font-semibold text-emerald-700'
+              : compact
+                ? 'text-[10px] font-semibold text-amber-700'
+                : 'text-[11px] font-medium text-amber-700',
+          )}
+          title={store.currentTemplateName ?? undefined}
+        >
+          {store.currentTemplateName ?? 'No template assigned'}
+        </span>
+      </span>
+    </button>
+  )
 }
 
 function StoreTemplatePicker({
   templateName,
   stores,
-  initialSelected,
+  primaryStoreId,
   pending,
   onClose,
   onConfirm,
+  onPrimaryStoreChange,
 }: {
   templateName: string
   stores: PickerStore[]
-  initialSelected: string[]
+  primaryStoreId: string | null
   pending?: boolean
   onClose: () => void
   onConfirm: (storeIds: string[]) => void
+  onPrimaryStoreChange: (storeId: string) => void
 }) {
-  const [selected, setSelected] = useState<string[]>(initialSelected)
+  const [activePrimaryId, setActivePrimaryId] = useState<string | null>(primaryStoreId)
+  const [showOthers, setShowOthers] = useState(!primaryStoreId)
+  const [pendingOtherStoreId, setPendingOtherStoreId] = useState<string | null>(null)
 
-  const toggle = (id: string) =>
-    setSelected(prev => (prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]))
+  useEffect(() => {
+    setActivePrimaryId(primaryStoreId)
+    setShowOthers(!primaryStoreId)
+    setPendingOtherStoreId(null)
+  }, [primaryStoreId, templateName])
 
-  const allSelected = stores.length > 0 && selected.length === stores.length
-  const toggleAll = () => setSelected(allSelected ? [] : stores.map(s => s.id))
+  const activePrimaryStore = activePrimaryId ? stores.find(s => s.id === activePrimaryId) ?? null : null
+  const otherStores = activePrimaryStore ? stores.filter(s => s.id !== activePrimaryStore.id) : stores
+  const pendingTargetStore = pendingOtherStoreId
+    ? stores.find(s => s.id === pendingOtherStoreId) ?? null
+    : null
+
+  const replacePrimaryStore = (storeId: string) => {
+    setActivePrimaryId(storeId)
+    onPrimaryStoreChange(storeId)
+    setPendingOtherStoreId(null)
+    setShowOthers(false)
+  }
+
+  const requestOtherStore = (storeId: string) => {
+    if (storeId === activePrimaryId) return
+    if (activePrimaryStore) {
+      setPendingOtherStoreId(storeId)
+      return
+    }
+    replacePrimaryStore(storeId)
+  }
+
+  return (
+    <>
+      <div
+        className="fixed inset-0 z-[200] flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm"
+        onClick={onClose}
+        role="presentation"
+      >
+        <div
+          className="flex max-h-[80vh] w-full max-w-lg flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-2xl"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="store-template-picker-title"
+          onClick={e => e.stopPropagation()}
+        >
+          <div className="flex items-start justify-between gap-3 border-b border-border px-5 py-4">
+            <div className="min-w-0">
+              <h2 id="store-template-picker-title" className="text-base font-semibold text-foreground">
+                Apply “{templateName}”
+              </h2>
+              <p className="mt-1 text-xs text-muted-foreground">
+                {activePrimaryStore
+                  ? 'Applies to the business unit selected below. Expand to switch to a different company code.'
+                  : 'Choose which business unit / store should use this template.'}
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={onClose}
+              className="rounded-md p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground"
+              aria-label="Close"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+
+          <div className="flex items-center justify-between border-b border-border px-5 py-2">
+            <span className="text-xs font-medium text-muted-foreground">
+              {activePrimaryStore
+                ? <>Applying to <span className="font-mono font-semibold text-emerald-700">{activePrimaryStore.code}</span></>
+                : 'No business unit selected'}
+            </span>
+          </div>
+
+          <div className="min-h-0 flex-1 overflow-y-auto px-4 py-3">
+            {activePrimaryStore ? (
+              <div className="mb-3">
+                <p className="mb-1.5 text-[10px] font-extrabold uppercase tracking-wide text-emerald-700">
+                  Selected business unit
+                </p>
+                <PickerStoreCard
+                  store={activePrimaryStore}
+                  checked
+                  onToggle={() => {}}
+                  prominent
+                />
+              </div>
+            ) : null}
+
+            {otherStores.length > 0 ? (
+              <div>
+                <button
+                  type="button"
+                  onClick={() => setShowOthers(open => !open)}
+                  className="flex w-full items-center justify-between rounded-lg border border-gray-200 bg-gray-50/80 px-3 py-2 text-left transition-colors hover:bg-gray-100/80"
+                >
+                  <span className="text-xs font-semibold text-gray-700">
+                    {activePrimaryStore ? 'Switch to another business unit' : 'Business units'}
+                    <span className="ml-1.5 font-normal text-gray-500">({otherStores.length})</span>
+                  </span>
+                  <ChevronDown
+                    className={cn('h-4 w-4 shrink-0 text-gray-500 transition-transform', showOthers && 'rotate-180')}
+                  />
+                </button>
+
+                {showOthers ? (
+                  <div className="mt-2 grid grid-cols-2 gap-1.5 sm:grid-cols-3">
+                    {otherStores.map(store => (
+                      <PickerStoreCard
+                        key={store.id}
+                        store={store}
+                        checked={false}
+                        onToggle={() => requestOtherStore(store.id)}
+                        compact
+                      />
+                    ))}
+                  </div>
+                ) : null}
+              </div>
+            ) : null}
+
+            {!activePrimaryStore && otherStores.length === 0 ? (
+              <p className="text-center text-xs text-muted-foreground">No business units available.</p>
+            ) : null}
+          </div>
+
+          <div className="flex gap-2 border-t border-border px-5 py-4">
+            <Button type="button" variant="outline" className="flex-1" onClick={onClose}>
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              className="flex-1"
+              disabled={!activePrimaryId || pending}
+              onClick={() => activePrimaryId && onConfirm([activePrimaryId])}
+            >
+              {pending ? 'Applying…' : 'Apply'}
+            </Button>
+          </div>
+        </div>
+      </div>
+
+      {pendingOtherStoreId && activePrimaryStore && pendingTargetStore ? (
+        <div
+          className="fixed inset-0 z-[210] flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm"
+          onClick={() => setPendingOtherStoreId(null)}
+          role="presentation"
+        >
+          <div
+            className="w-full max-w-md overflow-hidden rounded-2xl border border-border bg-card shadow-2xl"
+            role="alertdialog"
+            aria-labelledby="other-bu-confirm-title"
+            aria-modal="true"
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="flex items-start gap-3 border-b border-border px-5 py-4">
+              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-amber-100 text-amber-700">
+                <AlertTriangle className="h-4 w-4" />
+              </span>
+              <div className="min-w-0 flex-1">
+                <h2 id="other-bu-confirm-title" className="text-base font-semibold text-foreground">
+                  Change business unit?
+                </h2>
+                <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+                  You are changing from company code{' '}
+                  <span className="font-mono font-semibold text-foreground">{activePrimaryStore.code}</span>
+                  {' '}to{' '}
+                  <span className="font-mono font-semibold text-foreground">{pendingTargetStore.code}</span>.
+                  {' '}“{templateName}” will apply to the new business unit instead, and your selection on the
+                  templates screen will update to match.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setPendingOtherStoreId(null)}
+                className="shrink-0 rounded-md p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground"
+                aria-label="Close"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+            <div className="flex gap-2 px-5 py-4">
+              <Button
+                type="button"
+                variant="outline"
+                className="flex-1"
+                onClick={() => setPendingOtherStoreId(null)}
+              >
+                Keep {activePrimaryStore.code}
+              </Button>
+              <Button
+                type="button"
+                className="flex-1"
+                onClick={() => replacePrimaryStore(pendingOtherStoreId)}
+              >
+                Use {pendingTargetStore.code}
+              </Button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+    </>
+  )
+}
+
+function UseForAllStoresConfirmModal({
+  pending,
+  currentTemplateName,
+  storeCount,
+  applying,
+  onClose,
+  onConfirm,
+}: {
+  pending: { id: string; name: string } | null
+  currentTemplateName: string | null
+  storeCount: number
+  applying?: boolean
+  onClose: () => void
+  onConfirm: () => void
+}) {
+  if (!pending) return null
+
+  const unitLabel = storeCount === 1 ? 'business unit' : 'business units'
 
   return (
     <div
-      className="fixed inset-0 z-[200] flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm"
+      className="fixed inset-0 z-[210] flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm"
       onClick={onClose}
       role="presentation"
     >
       <div
-        className="flex max-h-[80vh] w-full max-w-md flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-2xl"
-        role="dialog"
+        className="w-full max-w-md overflow-hidden rounded-2xl border border-border bg-card shadow-2xl"
+        role="alertdialog"
+        aria-labelledby="use-for-all-confirm-title"
         aria-modal="true"
-        aria-labelledby="store-template-picker-title"
         onClick={e => e.stopPropagation()}
       >
-        <div className="flex items-start justify-between gap-3 border-b border-border px-5 py-4">
-          <div className="min-w-0">
-            <h2 id="store-template-picker-title" className="text-base font-semibold text-foreground">
-              Apply “{templateName}”
+        <div className="flex items-start gap-3 border-b border-border px-5 py-4">
+          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-violet-100 text-violet-700">
+            <AlertTriangle className="h-4 w-4" />
+          </span>
+          <div className="min-w-0 flex-1">
+            <h2 id="use-for-all-confirm-title" className="text-base font-semibold text-foreground">
+              Apply to all stores?
             </h2>
-            <p className="mt-1 text-xs text-muted-foreground">
-              Choose which business units / stores should use this template.
+            <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+              {currentTemplateName ? (
+                <>
+                  Are you sure you want to change the storefront template from{' '}
+                  <span className="font-semibold text-foreground">{currentTemplateName}</span>
+                  {' '}to{' '}
+                  <span className="font-semibold text-foreground">{pending.name}</span>
+                  {' '}for all {storeCount} {unitLabel}?
+                </>
+              ) : (
+                <>
+                  Apply{' '}
+                  <span className="font-semibold text-foreground">{pending.name}</span>
+                  {' '}as the shared storefront template for all {storeCount} {unitLabel}?
+                </>
+              )}
             </p>
           </div>
           <button
             type="button"
             onClick={onClose}
-            className="rounded-md p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground"
+            className="shrink-0 rounded-md p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground"
             aria-label="Close"
           >
             <X className="h-4 w-4" />
           </button>
         </div>
-
-        <div className="flex items-center justify-between border-b border-border px-5 py-2">
-          <span className="text-xs font-medium text-muted-foreground">
-            {selected.length} of {stores.length} selected
-          </span>
-          <button
-            type="button"
-            onClick={toggleAll}
-            className="text-xs font-semibold text-emerald-700 hover:underline"
-          >
-            {allSelected ? 'Clear all' : 'Select all'}
-          </button>
-        </div>
-
-        <div className="min-h-0 flex-1 overflow-y-auto px-2 py-2">
-          {stores.map(store => {
-            const checked = selected.includes(store.id)
-            return (
-              <button
-                key={store.id}
-                type="button"
-                onClick={() => toggle(store.id)}
-                className={cn(
-                  'flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left transition-colors',
-                  checked ? 'bg-emerald-50' : 'hover:bg-gray-50',
-                )}
-              >
-                <span
-                  className={cn(
-                    'flex h-5 w-5 shrink-0 items-center justify-center rounded-md border',
-                    checked ? 'border-emerald-600 bg-emerald-600 text-white' : 'border-gray-300 bg-white',
-                  )}
-                >
-                  {checked ? <Check className="h-3.5 w-3.5" /> : null}
-                </span>
-                <span className="min-w-0 flex-1">
-                  <span className="flex items-center gap-1.5">
-                    <span className="truncate text-sm font-semibold text-gray-900">{store.name}</span>
-                    {store.is_default ? (
-                      <span className="shrink-0 rounded-full bg-gray-100 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-gray-500">
-                        Default
-                      </span>
-                    ) : null}
-                  </span>
-                  <span className="mt-0.5 block truncate text-[11px] text-gray-500">
-                    {store.currentTemplateName
-                      ? `Currently: ${store.currentTemplateName}`
-                      : 'No template assigned'}
-                  </span>
-                </span>
-              </button>
-            )
-          })}
-        </div>
-
-        <div className="flex gap-2 border-t border-border px-5 py-4">
-          <Button type="button" variant="outline" className="flex-1" onClick={onClose}>
+        <div className="flex gap-2 px-5 py-4">
+          <Button type="button" variant="outline" className="flex-1" disabled={applying} onClick={onClose}>
             Cancel
           </Button>
-          <Button
-            type="button"
-            className="flex-1"
-            disabled={selected.length === 0 || pending}
-            onClick={() => onConfirm(selected)}
-          >
-            {pending
-              ? 'Applying…'
-              : selected.length > 1
-                ? `Apply to ${selected.length} stores`
-                : 'Apply'}
+          <Button type="button" className="flex-1" disabled={applying} onClick={onConfirm}>
+            {applying ? 'Applying…' : 'Apply to all stores'}
           </Button>
         </div>
       </div>
@@ -301,15 +563,224 @@ function StoreTemplatePicker({
 function TemplateCardSkeleton() {
   return (
     <div className="overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-[0_1px_0_rgba(0,0,0,0.02)]">
-      <div className="h-36 w-full animate-pulse bg-gradient-to-r from-gray-100 to-gray-200/70 sm:h-40" />
-      <div className="space-y-2.5 p-3.5">
-        <div className="h-4 w-1/2 animate-pulse rounded bg-gray-200" />
-        <div className="h-3 w-full animate-pulse rounded bg-gray-100" />
-        <div className="h-3 w-3/4 animate-pulse rounded bg-gray-100" />
-        <div className="flex justify-end gap-2 pt-1">
-          <div className="h-7 w-16 animate-pulse rounded-lg bg-gray-100" />
-          <div className="h-7 w-16 animate-pulse rounded-lg bg-gray-200" />
+      <div className={cn(templateCardMediaHeightClass, 'w-full animate-pulse bg-gradient-to-r from-gray-100 to-gray-200/70')} />
+      <div className="space-y-2 p-2.5">
+        <div className="h-3.5 w-1/2 animate-pulse rounded bg-gray-200" />
+        <div className="h-2.5 w-full animate-pulse rounded bg-gray-100" />
+        <div className="flex justify-end gap-1.5 pt-0.5">
+          <div className="h-6 w-14 animate-pulse rounded-md bg-gray-100" />
+          <div className="h-6 w-6 animate-pulse rounded-md bg-gray-200" />
         </div>
+      </div>
+    </div>
+  )
+}
+
+type CoverageStore = {
+  id: string
+  name: string
+  code: string
+  is_default?: boolean
+  template: ResolvedTemplateDisplay | null
+}
+
+function CoverageThumb({ template }: { template: ResolvedTemplateDisplay | null }) {
+  return (
+    <span className="h-9 w-12 shrink-0 overflow-hidden rounded-md border border-black/5">
+      {template?.thumbnail ? (
+        <img src={template.thumbnail} alt="" className="h-full w-full object-cover" />
+      ) : (
+        <span
+          className="block h-full w-full"
+          style={{ background: template?.gradient ?? 'linear-gradient(135deg, #e5e7eb, #cbd5e1)' }}
+        />
+      )}
+    </span>
+  )
+}
+
+function CoverageStoreCard({
+  store,
+  active,
+  onSelect,
+}: {
+  store: CoverageStore
+  active: boolean
+  onSelect: () => void
+}) {
+  const assigned = Boolean(store.template)
+  return (
+    <button
+      type="button"
+      onClick={onSelect}
+      title={
+        assigned
+          ? `${store.code} · ${store.name} → ${store.template?.name}`
+          : `${store.code} · ${store.name} has no template`
+      }
+      className={cn(
+        'flex w-full min-w-0 items-center gap-2 overflow-hidden rounded-lg border px-2 py-1.5 text-left transition-colors',
+        active
+          ? 'border-emerald-400 bg-emerald-50/50 ring-1 ring-emerald-200'
+          : assigned
+            ? 'border-gray-200 hover:border-emerald-300 hover:bg-emerald-50/40'
+            : 'border-amber-200 bg-amber-50/40 hover:border-amber-300',
+      )}
+    >
+      <CoverageThumb template={store.template} />
+      <span className="min-w-0 flex-1 overflow-hidden">
+        <span className="flex min-w-0 items-center gap-1">
+          <span
+            className="truncate font-mono text-[11px] font-bold tracking-wide text-gray-800"
+            title={store.code}
+          >
+            {store.code}
+          </span>
+          {store.is_default ? (
+            <span className="shrink-0 rounded bg-gray-100 px-0.5 text-[8px] font-bold uppercase leading-none text-gray-500">
+              DEF
+            </span>
+          ) : null}
+        </span>
+        <span className="block truncate text-[10px] font-medium text-gray-500" title={store.name}>
+          {store.name}
+        </span>
+        {assigned ? (
+          <span
+            className="block truncate text-[11px] font-bold leading-tight text-emerald-700"
+            title={store.template?.name}
+          >
+            {store.template?.name}
+          </span>
+        ) : (
+          <span className="inline-flex max-w-full items-center gap-0.5 truncate text-[10px] font-semibold text-amber-700">
+            <AlertTriangle className="h-2.5 w-2.5 shrink-0" />
+            Not assigned
+          </span>
+        )}
+      </span>
+      {assigned ? <Check className="h-3.5 w-3.5 shrink-0 text-emerald-600" /> : null}
+    </button>
+  )
+}
+
+/** Always-visible "what is each store using right now" panel for both template modes. */
+function StorefrontCoverage({
+  mode,
+  isSingleLinkMode,
+  coverageStores,
+  singleTemplate,
+  activeStoreId,
+  onSelectStore,
+  highlight,
+  innerRef,
+}: {
+  mode: StorefrontTemplateMode
+  isSingleLinkMode: boolean
+  coverageStores: CoverageStore[]
+  singleTemplate: ResolvedTemplateDisplay | null
+  activeStoreId: string | null
+  onSelectStore: (id: string) => void
+  highlight: boolean
+  innerRef: React.RefObject<HTMLDivElement>
+}) {
+  const isSingle = mode === 'single'
+  const total = coverageStores.length
+  const unassignedCount = coverageStores.filter(s => !s.template).length
+
+  const alert = isSingle
+    ? (!singleTemplate ? 'No template chosen yet' : null)
+    : (unassignedCount > 0
+        ? `${unassignedCount} ${unassignedCount === 1 ? 'store has' : 'stores have'} no template`
+        : null)
+
+  const activeStore = activeStoreId ? coverageStores.find(s => s.id === activeStoreId) : null
+
+  return (
+    <div
+      ref={innerRef}
+      className={cn(
+        'mb-3 rounded-xl border bg-white p-2.5 shadow-sm sm:p-3',
+        isSingle ? 'border-violet-200/70' : 'border-emerald-200/70',
+        highlight && (isSingle ? 'ring-2 ring-violet-200' : 'ring-2 ring-emerald-200'),
+      )}
+    >
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
+          <h2 className="inline-flex items-center gap-1.5 text-sm font-bold text-gray-900">
+            <Store className={cn('h-3.5 w-3.5', isSingle ? 'text-violet-600' : 'text-emerald-600')} />
+            Storefront coverage
+          </h2>
+          <span
+            className={cn(
+              'rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide',
+              isSingle ? 'bg-violet-50 text-violet-700' : 'bg-emerald-50 text-emerald-700',
+            )}
+          >
+            {isSingle ? 'One for all' : 'Per BU'}
+          </span>
+          {!isSingle && activeStore ? (
+            <span className="rounded-full border border-emerald-200 bg-emerald-50/80 px-2 py-0.5 text-[10px] font-semibold text-emerald-800">
+              Target: <span className="font-mono">{activeStore.code}</span>
+            </span>
+          ) : null}
+        </div>
+        {alert ? (
+          <span className="inline-flex shrink-0 items-center gap-1 rounded-md border border-amber-200 bg-amber-50 px-2 py-0.5 text-[10px] font-semibold text-amber-800">
+            <AlertTriangle className="h-3 w-3" />
+            {alert}
+          </span>
+        ) : null}
+      </div>
+
+      {isSingle ? (
+        <div className="mt-2">
+          <div
+            className={cn(
+              'flex items-center gap-2 rounded-lg border px-2.5 py-1.5',
+              singleTemplate ? 'border-violet-200 bg-violet-50/50' : 'border-dashed border-amber-300 bg-amber-50/40',
+            )}
+          >
+            <CoverageThumb template={singleTemplate} />
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-xs font-semibold text-gray-900">
+                {singleTemplate ? singleTemplate.name : 'No template chosen'}
+              </p>
+              <p className="truncate text-[11px] text-gray-500">
+                {singleTemplate
+                  ? `Shared by all ${total} business unit${total === 1 ? '' : 's'}`
+                  : 'Pick a template below with “Use for all stores”'}
+              </p>
+            </div>
+            {singleTemplate ? <Check className="h-4 w-4 shrink-0 text-violet-600" /> : null}
+          </div>
+        </div>
+      ) : (
+        <div className="mt-2 grid grid-cols-2 gap-1.5 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
+          {coverageStores.map(store => (
+            <CoverageStoreCard
+              key={store.id}
+              store={store}
+              active={store.id === activeStoreId}
+              onSelect={() => onSelectStore(store.id)}
+            />
+          ))}
+        </div>
+      )}
+
+      <div className="mt-2 flex flex-wrap items-center justify-between gap-x-3 gap-y-0.5 border-t border-gray-100 pt-2 text-[10px]">
+        <Link
+          to="/settings"
+          className={cn(
+            'font-semibold hover:underline',
+            isSingle ? 'text-violet-700' : 'text-emerald-700',
+          )}
+        >
+          Change website link mode
+        </Link>
+        <span className="text-gray-400">
+          {isSingleLinkMode ? 'All units share one customer URL.' : 'Each unit has its own customer URL.'}
+        </span>
       </div>
     </div>
   )
@@ -354,6 +825,12 @@ export default function WebsiteTemplateGalleryPage() {
   const isPerStoreTemplateMode = storefrontTemplateMode === 'per_unit'
   const singleFrontTemplateId = resolveSingleFrontTemplateId(vendor?.settings)
 
+  const [useForAllConfirm, setUseForAllConfirm] = useState<{ id: string; name: string } | null>(null)
+
+  const requestUseForAllStores = useCallback((templateId: string, templateName: string) => {
+    setUseForAllConfirm({ id: templateId, name: templateName })
+  }, [])
+
   const handleUseForAllStores = useCallback(
     (templateId: string) => {
       const current = useVendorStore.getState().vendor
@@ -365,6 +842,7 @@ export default function WebsiteTemplateGalleryPage() {
         {
           onSuccess: () => {
             toast.success('Template set for all business units')
+            setUseForAllConfirm(null)
             setSearchParams(prev => {
               const next = new URLSearchParams(prev)
               next.delete('singleFront')
@@ -378,6 +856,10 @@ export default function WebsiteTemplateGalleryPage() {
   )
 
   const [assignTemplate, setAssignTemplate] = useState<{ id: string; name: string } | null>(null)
+  const [viewLivePicker, setViewLivePicker] = useState<{
+    templateName: string
+    links: AppliedTemplateViewLiveLink[]
+  } | null>(null)
 
   const assignTemplateToStores = useMutation({
     mutationFn: async ({ templateId, storeIds }: { templateId: string; storeIds: string[] }) => {
@@ -409,6 +891,33 @@ export default function WebsiteTemplateGalleryPage() {
   const openStorePicker = useCallback((templateId: string, templateName: string) => {
     setAssignTemplate({ id: templateId, name: templateName })
   }, [])
+
+  const openTemplateBrowserPreview = useCallback((templateId: string) => {
+    openDraftPreviewInBrowser(
+      wrapStorefrontPreviewForVendorBrowser(getStorefrontTemplateBrowserPreviewUrl(templateId)),
+    )
+  }, [])
+
+  const handleTemplateCardSurfaceClick = useCallback(
+    (
+      e: React.MouseEvent,
+      templateId: string,
+      viewLiveLinks: AppliedTemplateViewLiveLink[],
+      templateName: string,
+    ) => {
+      if ((e.target as HTMLElement).closest('[data-template-card-action]')) return
+      if (viewLiveLinks.length > 1) {
+        setViewLivePicker({ templateName, links: viewLiveLinks })
+        return
+      }
+      if (viewLiveLinks.length === 1) {
+        window.open(viewLiveLinks[0].href, '_blank', 'noopener,noreferrer')
+        return
+      }
+      openTemplateBrowserPreview(templateId)
+    },
+    [openTemplateBrowserPreview],
+  )
 
   const handleSetTemplateMode = useCallback(
     (mode: StorefrontTemplateMode) => {
@@ -504,10 +1013,6 @@ export default function WebsiteTemplateGalleryPage() {
   }, [templates, templateSearch, templateCategory])
 
   const selectedSite = sites.find(s => s.id === selectedSiteId) ?? null
-  const selectedAssignStore = stores.find(s => s.id === selectedAssignStoreId) ?? null
-  const perStoreTemplateId = selectedAssignStore
-    ? resolveStoreFrontTemplateId(selectedAssignStore.settings)
-    : null
   const busy = sitesLoading || templatesLoading
   const legacyPresetsBusy = themeLoading || presetsLoading || sitesLoading
   const legacyPresets = presetsData?.presets ?? []
@@ -519,9 +1024,19 @@ export default function WebsiteTemplateGalleryPage() {
     [legacyPresets, singleFrontTemplateId, templates],
   )
 
-  const activePerStoreTemplate = useMemo(
-    () => resolveTemplateDisplay(perStoreTemplateId, templates, legacyPresets),
-    [legacyPresets, perStoreTemplateId, templates],
+  const coverageStores = useMemo<CoverageStore[]>(
+    () =>
+      stores.map(store => {
+        const tid = resolveStoreFrontTemplateId(store.settings)
+        return {
+          id: store.id,
+          name: store.name,
+          code: formatStoreCode(store),
+          is_default: store.is_default,
+          template: tid ? resolveTemplateDisplay(tid, templates, legacyPresets) : null,
+        }
+      }),
+    [stores, templates, legacyPresets],
   )
 
   const pickerStores = useMemo(
@@ -531,6 +1046,7 @@ export default function WebsiteTemplateGalleryPage() {
         return {
           id: store.id,
           name: store.name,
+          code: formatStoreCode(store),
           is_default: store.is_default,
           currentTemplateName: tid
             ? resolveTemplateDisplay(tid, templates, legacyPresets)?.name ?? null
@@ -556,223 +1072,62 @@ export default function WebsiteTemplateGalleryPage() {
     }, { replace: true })
   }
 
-  const renderTemplatePreviewCard = (
-    template: NonNullable<ReturnType<typeof resolveTemplateDisplay>>,
-    badgeLabel: string,
-    tone: 'violet' | 'emerald' = 'violet',
-  ) => (
-    <div
-      className={cn(
-        'w-full max-w-[14rem] overflow-hidden rounded-xl border bg-white shadow-sm sm:w-60',
-        tone === 'emerald' ? 'border-emerald-200/80' : 'border-violet-200/80',
-      )}
-      title={template.name}
-    >
-      <div className="relative h-14 w-full overflow-hidden">
-        {template.thumbnail ? (
-          <img src={template.thumbnail} alt="" className="h-full w-full object-cover" />
-        ) : (
-          <div
-            className="h-full w-full"
-            style={{
-              background: template.gradient ?? 'linear-gradient(135deg, #64C3A0, #13624A)',
-            }}
-          />
-        )}
-        <div className="absolute inset-0 bg-gradient-to-t from-black/35 to-transparent" />
-        <span
-          className={cn(
-            'absolute left-1.5 top-1.5 right-1.5 max-w-[calc(100%-0.75rem)]',
-            tone === 'emerald' ? templateBadgeEmeraldClass : templateBadgeVioletClass,
-          )}
-          title={badgeLabel}
-        >
-          <Check className="h-2.5 w-2.5 shrink-0" />
-          <span className="truncate">{badgeLabel}</span>
-        </span>
-      </div>
-      <div className="px-2.5 py-1.5">
-        <div className="flex items-center justify-between gap-2">
-          <p className="min-w-0 truncate text-xs font-bold text-gray-900">{template.name}</p>
-          <p
-            className={cn(
-              'shrink-0 text-[10px] font-semibold uppercase tracking-wide',
-              tone === 'emerald' ? 'text-emerald-700' : 'text-violet-700',
-            )}
-          >
-            In use
-          </p>
-        </div>
-        {template.description ? (
-          <p className="mt-0.5 truncate text-[10px] leading-tight text-gray-500">
-            {template.description}
-          </p>
-        ) : null}
-      </div>
-    </div>
-  )
-
   return (
     <div className="min-h-[calc(100vh-4rem)] bg-gradient-to-b from-accent/70 to-gray-50/80">
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 py-8">
-        <div className="mb-6 flex flex-wrap items-start justify-between gap-x-4 gap-y-3">
-          <div className="flex min-w-0 items-start gap-3">
-            <span className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary ring-1 ring-primary/15">
-              <Sparkles className="h-5 w-5" />
+      <div className="mx-auto max-w-6xl px-4 py-5 sm:px-6 sm:py-6">
+        <div className="mb-4 flex flex-wrap items-start justify-between gap-x-3 gap-y-2">
+          <div className="flex min-w-0 items-center gap-2.5">
+            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary ring-1 ring-primary/15">
+              <Sparkles className="h-4 w-4" />
             </span>
             <div className="min-w-0">
-              <h1 className="text-lg font-extrabold tracking-tight text-gray-900 sm:text-xl">
+              <h1 className="text-lg font-extrabold tracking-tight text-gray-900">
                 Website Templates
               </h1>
-              <p className="mt-0.5 max-w-xl text-sm text-gray-600">
-                Choose a default store layout or apply full-site Website Builder templates.
+              <p className="text-xs text-gray-600 sm:text-sm">
+                Choose a layout or apply full-site Website Builder templates.
               </p>
             </div>
           </div>
           {stores.length > 0 ? (
-            <div className="flex shrink-0 flex-col items-stretch gap-3 sm:items-end">
-              <StorefrontTemplateModeToggle
-                mode={storefrontTemplateMode}
-                pending={updateVendor.isPending}
-                onConfirm={handleSetTemplateMode}
-              />
-            </div>
+            <StorefrontTemplateModeToggle
+              mode={storefrontTemplateMode}
+              pending={updateVendor.isPending}
+              onConfirm={handleSetTemplateMode}
+            />
           ) : null}
         </div>
 
-        {isSingleTemplateMode ? (
-          <div
-            ref={singleFrontBannerRef}
-            className={cn(
-              'mb-4 rounded-xl border px-3 py-2.5 sm:px-4',
-              singleFrontHighlight
-                ? 'border-violet-300 bg-violet-50/80 ring-2 ring-violet-200'
-                : 'border-violet-200/80 bg-violet-50/50',
-            )}
-          >
-            <div className="flex flex-col gap-2.5 sm:flex-row sm:items-center sm:justify-between">
-              <div className="min-w-0 flex-1">
-                <p className="inline-flex items-center gap-1.5 text-[10px] font-extrabold uppercase tracking-wide text-violet-800">
-                  <Store className="h-3 w-3" />
-                  One template for all stores
-                </p>
-                <h2 className="mt-0.5 text-sm font-bold text-gray-900">
-                  Choose the template every business unit will use
-                </h2>
-                <p className="mt-0.5 max-w-2xl text-xs text-gray-600">
-                  {isSingleLinkMode
-                    ? 'Your account uses one shared customer website URL. Pick a template below with '
-                    : 'Each business unit has its own storefront URL, but they all share one template. Pick a template below with '}
-                  <span className="font-semibold">Use for all stores</span>.
-                </p>
-                {!activeSingleFrontTemplate ? (
-                  <p className="mt-1 text-[11px] font-medium text-amber-800">
-                    No template selected yet — choose one below.
-                  </p>
-                ) : null}
-                <Link
-                  to="/settings"
-                  className="mt-1.5 inline-flex text-[11px] font-semibold text-violet-700 hover:underline"
-                >
-                  Change website link mode in settings
-                </Link>
-              </div>
-              <div className="flex shrink-0 flex-col items-stretch sm:items-end">
-                {activeSingleFrontTemplate
-                  ? renderTemplatePreviewCard(activeSingleFrontTemplate, 'All stores')
-                  : (
-                    <div className="flex h-16 w-full max-w-[14rem] flex-col items-center justify-center rounded-xl border border-dashed border-violet-300/80 bg-white/60 px-3 text-center sm:w-60">
-                      <Sparkles className="mb-1 h-4 w-4 text-violet-400" />
-                      <p className="text-[10px] font-medium text-violet-700">Pick a template below</p>
-                    </div>
-                  )}
-              </div>
-            </div>
-          </div>
+        {stores.length > 0 && (isSingleTemplateMode || isPerStoreTemplateMode) ? (
+          <StorefrontCoverage
+            mode={storefrontTemplateMode}
+            isSingleLinkMode={isSingleLinkMode}
+            coverageStores={coverageStores}
+            singleTemplate={activeSingleFrontTemplate}
+            activeStoreId={selectedAssignStoreId}
+            onSelectStore={onAssignStoreChange}
+            highlight={isSingleTemplateMode ? singleFrontHighlight : perStoreHighlight}
+            innerRef={isSingleTemplateMode ? singleFrontBannerRef : perStoreBannerRef}
+          />
         ) : null}
 
-        {isPerStoreTemplateMode && stores.length > 0 ? (
-          <div
-            ref={perStoreBannerRef}
-            className={cn(
-              'mb-4 rounded-xl border px-3 py-2.5 sm:px-4',
-              perStoreHighlight
-                ? 'border-emerald-300 bg-emerald-50/80 ring-2 ring-emerald-200'
-                : 'border-emerald-200/80 bg-emerald-50/50',
-            )}
-          >
-            <div className="flex flex-col gap-2.5 sm:flex-row sm:items-center sm:justify-between">
-              <div className="min-w-0 flex-1">
-                <p className="inline-flex items-center gap-1.5 text-[10px] font-extrabold uppercase tracking-wide text-emerald-800">
-                  <Store className="h-3 w-3" />
-                  Individual template per business unit
-                </p>
-                <h2 className="mt-0.5 text-sm font-bold text-gray-900">
-                  Assign a template to each store
-                </h2>
-                <p className="mt-0.5 max-w-2xl text-xs text-gray-600">
-                  Choose a business unit, then pick a template with{' '}
-                  <span className="font-semibold">Use for this store</span>.
-                  {isSingleLinkMode
-                    ? ' All units share one customer URL but can look different.'
-                    : ' Each unit can have its own URL and its own template.'}
-                </p>
-                <div className="mt-2 max-w-xs">
-                  <label className="mb-0.5 block text-[10px] font-semibold uppercase tracking-wide text-emerald-800">
-                    Assign template to
-                  </label>
-                  <select
-                    className="w-full rounded-lg border border-emerald-200 bg-white px-2.5 py-1.5 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-emerald-300"
-                    value={selectedAssignStoreId || ''}
-                    onChange={e => onAssignStoreChange(e.target.value)}
-                  >
-                    {stores.map(store => (
-                      <option key={store.id} value={store.id}>
-                        {store.name}{store.is_default ? ' · default' : ''}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <Link
-                  to="/settings"
-                  className="mt-1.5 inline-flex text-[11px] font-semibold text-emerald-700 hover:underline"
-                >
-                  Change website link mode in settings
-                </Link>
-              </div>
-              <div className="flex shrink-0 flex-col items-stretch sm:items-end">
-                {activePerStoreTemplate && selectedAssignStore
-                  ? renderTemplatePreviewCard(activePerStoreTemplate, selectedAssignStore.name, 'emerald')
-                  : (
-                    <div className="flex h-16 w-full max-w-[14rem] flex-col items-center justify-center rounded-xl border border-dashed border-emerald-300/80 bg-white/60 px-3 text-center sm:w-60">
-                      <Sparkles className="mb-1 h-4 w-4 text-emerald-400" />
-                      <p className="text-[10px] font-medium text-emerald-700">
-                        {selectedAssignStore ? `No template for ${selectedAssignStore.name}` : 'Pick a store'}
-                      </p>
-                    </div>
-                  )}
-              </div>
-            </div>
-          </div>
-        ) : null}
-
-        <div className="mb-4 rounded-2xl border border-gray-200/80 bg-white p-3 shadow-sm sm:p-3.5">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+        <div className="mb-3 rounded-xl border border-gray-200/80 bg-white p-2.5 shadow-sm sm:p-3">
+          <div className="flex flex-col gap-2 lg:flex-row lg:items-center">
             <Link
               to="/websites"
-              className="inline-flex shrink-0 items-center justify-center gap-1.5 rounded-xl border border-primary/30 bg-white px-3.5 py-2 text-sm font-semibold text-primary shadow-sm transition-colors hover:bg-primary/5"
+              className="inline-flex shrink-0 items-center justify-center gap-1 rounded-lg border border-primary/30 bg-white px-2.5 py-1.5 text-xs font-semibold text-primary transition-colors hover:bg-primary/5 sm:text-sm"
             >
-              <Globe className="h-4 w-4" />
-              Open Website Builder
-              <ChevronRight className="h-4 w-4 opacity-60" />
+              <Globe className="h-3.5 w-3.5" />
+              Website Builder
+              <ChevronRight className="h-3.5 w-3.5 opacity-60" />
             </Link>
-            <div className="relative w-full sm:max-w-xs">
-              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+            <div className="relative min-w-0 flex-1">
+              <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-gray-400" />
               <input
                 value={templateSearch}
                 onChange={e => setTemplateSearch(e.target.value)}
                 placeholder="Search templates…"
-                className="w-full rounded-xl border border-gray-200 py-2 pl-9 pr-9 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                className="w-full rounded-lg border border-gray-200 py-1.5 pl-8 pr-8 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
               />
               {templateSearch ? (
                 <button
@@ -794,7 +1149,7 @@ export default function WebsiteTemplateGalleryPage() {
         </div>
 
         {!busy && !legacyPresetsBusy ? (
-          <p className="mb-3 text-xs font-medium text-gray-500">
+          <p className="mb-2 text-xs font-medium text-gray-500">
             {filteredTemplates.length + (showDefaultLayoutCard && lightPreset ? 1 : 0)} template
             {filteredTemplates.length + (showDefaultLayoutCard && lightPreset ? 1 : 0) === 1 ? '' : 's'}
             {templateCategory !== 'all' ? ` in ${formatCategoryLabel(templateCategory)}` : ''}
@@ -802,14 +1157,14 @@ export default function WebsiteTemplateGalleryPage() {
         ) : null}
 
         {(busy || legacyPresetsBusy) && (
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-3">
             {Array.from({ length: 6 }).map((_, i) => (
               <TemplateCardSkeleton key={i} />
             ))}
           </div>
         )}
         {!busy && !legacyPresetsBusy && (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-3">
             {showDefaultLayoutCard && lightPreset && (
               <BusinessFrontDefaultTemplateCard
                 preset={lightPreset}
@@ -819,7 +1174,7 @@ export default function WebsiteTemplateGalleryPage() {
                 onCustomize={() => setCustomizeOpen(true)}
                 singleTemplateMode={isSingleTemplateMode}
                 isSingleTemplateSelected={singleFrontTemplateId === lightPreset.id}
-                onUseForAllStores={isSingleTemplateMode ? handleUseForAllStores : undefined}
+                onUseForAllStores={isSingleTemplateMode ? requestUseForAllStores : undefined}
                 useForAllStoresPending={updateVendor.isPending}
                 perStoreTemplateMode={isPerStoreTemplateMode}
                 perStoreUsedCount={storesUsingTemplate(lightPreset.id)}
@@ -843,30 +1198,53 @@ export default function WebsiteTemplateGalleryPage() {
               const perStoreAppliedCount = assignedStores.length
               const showAssignHighlight = (isSingleTemplateMode && isSingleTemplateSelected)
                 || (isPerStoreTemplateMode && perStoreAppliedCount > 0)
-              const assignedStoresLabel = formatAssignedStoresLabel(assignedStores)
               const viewLiveLinks = resolveAppliedTemplateViewLiveLinks(vendor?.slug, storefrontLinkMode, {
                 templateId: tpl.id,
                 templateMode: storefrontTemplateMode,
                 singleFrontTemplateId,
                 stores,
               })
+              const isLiveOnStorefront = viewLiveLinks.length > 0
+              const multipleLiveStores = viewLiveLinks.length > 1
               return (
                 <div
                   key={tpl.id}
+                  title={
+                    multipleLiveStores
+                      ? `View live site — pick from ${viewLiveLinks.length} business units`
+                      : isLiveOnStorefront
+                        ? `View live site for ${tpl.name}`
+                        : `Preview ${tpl.name}`
+                  }
+                  onClick={e => handleTemplateCardSurfaceClick(e, tpl.id, viewLiveLinks, tpl.name)}
                   className={cn(
-                    'flex flex-col text-left border border-gray-100 rounded-2xl overflow-hidden hover:border-primary/30 transition-all group bg-white',
-                    'shadow-[0_1px_0_rgba(0,0,0,0.02)] hover:shadow-[0_8px_24px_rgba(100,195,160,0.15)] hover:-translate-y-0.5',
+                    templateCardShellClass,
                     showAssignHighlight && isSingleTemplateMode && 'border-violet-400 ring-2 ring-violet-200',
                     showAssignHighlight && isPerStoreTemplateMode && 'border-emerald-400 ring-2 ring-emerald-200',
                   )}
                 >
                   <div className="relative overflow-hidden">
                     {tpl.thumbnail ? (
-                      <img src={tpl.thumbnail} className="w-full h-36 sm:h-40 object-cover transition-transform duration-300 group-hover:scale-105" alt={tpl.name} loading="lazy" />
+                      <img src={tpl.thumbnail} className={cn(templateCardMediaHeightClass, 'w-full object-cover transition-transform duration-300 group-hover/card:scale-[1.03]')} alt={tpl.name} loading="lazy" />
                     ) : (
-                      <div className="w-full h-36 sm:h-40 bg-gradient-to-r from-accent to-primary/20" />
+                      <div className={cn(templateCardMediaHeightClass, 'w-full bg-gradient-to-r from-accent to-primary/20')} />
                     )}
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-black/5 to-transparent pointer-events-none" />
+                    <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/50 via-black/5 to-transparent" />
+                    <div className={templateCardPreviewOverlayClass}>
+                      <span className="inline-flex items-center gap-1 rounded-full bg-white/95 px-2 py-1 text-[10px] font-bold text-gray-900 shadow-md">
+                        {isLiveOnStorefront ? (
+                          <>
+                            <ExternalLink className="h-3 w-3" />
+                            {multipleLiveStores ? `View live site (${viewLiveLinks.length})` : 'View live site'}
+                          </>
+                        ) : (
+                          <>
+                            <Eye className="h-3 w-3" />
+                            Preview
+                          </>
+                        )}
+                      </span>
+                    </div>
                     {isSingleTemplateMode && isSingleTemplateSelected ? (
                       <span className={cn('absolute right-2 top-2 max-w-[70%]', templateBadgeVioletClass)} title="All stores">
                         <Check className="h-2.5 w-2.5 shrink-0" />
@@ -884,67 +1262,87 @@ export default function WebsiteTemplateGalleryPage() {
                         </span>
                       </span>
                     ) : null}
-                    <div className="absolute bottom-2 left-2 right-2 flex items-center justify-between gap-2">
-                      <div className="flex items-center gap-1.5 flex-wrap">
+                    <div className="absolute bottom-1.5 left-1.5 right-1.5 flex items-center justify-between gap-1.5">
+                      <div className="flex min-w-0 flex-1 items-center gap-1 overflow-hidden">
                         <span className={cn(
-                          'text-xs px-2 py-0.5 rounded-full font-extrabold uppercase tracking-wide',
+                          'shrink-0 rounded-full px-1.5 py-0 text-[9px] font-extrabold uppercase tracking-wide',
                           tier === 'full' ? 'bg-accent text-primary' : 'bg-white/80 text-gray-700',
                         )}>
                           {tier === 'full' ? 'Full site' : 'Lite'}
                         </span>
                         {tpl.id.startsWith('storefront_') && (
-                          <span className="text-xs bg-primary/90 text-white rounded-full px-2 py-0.5 font-semibold">
+                          <span className="shrink-0 rounded-full bg-primary/90 px-1.5 py-0 text-[9px] font-semibold text-white">
                             Storefront
                           </span>
                         )}
                         {(tpl.id === 'atelier' || tpl.id === 'verde' || tpl.id === 'solace') && (
-                          <span className="text-xs bg-amber-600/90 text-white rounded-full px-2 py-0.5 font-semibold">
+                          <span className="shrink-0 rounded-full bg-amber-600/90 px-1.5 py-0 text-[9px] font-semibold text-white">
                             Editorial
                           </span>
                         )}
-                        <span className="text-xs bg-white/80 text-gray-700 rounded-full px-2 py-0.5 font-semibold">
+                        <span className="shrink-0 rounded-full bg-white/80 px-1.5 py-0 text-[9px] font-semibold text-gray-700">
                           {pageCount} pg
                         </span>
                       </div>
-                      <span className="inline-flex -space-x-1">
+                      <span className="inline-flex shrink-0 -space-x-1">
                         {palette.slice(0, 5).map((c, i) => (
-                          <span key={`${c}-${i}`} className="w-3.5 h-3.5 rounded-full border border-white shadow-sm" style={{ backgroundColor: c }} />
+                          <span key={`${c}-${i}`} className="h-3 w-3 rounded-full border border-white shadow-sm" style={{ backgroundColor: c }} />
                         ))}
                       </span>
                     </div>
                   </div>
-                  <div className="flex flex-1 flex-col p-3.5">
-                    <div className="font-extrabold text-gray-900 group-hover:text-primary transition-colors">{tpl.name}</div>
-                    <p className="text-xs text-gray-500 mt-1 line-clamp-2">{tpl.description}</p>
-                    {isSingleTemplateMode && isSingleTemplateSelected ? (
-                      <p className="mt-1 truncate text-[10px] font-semibold text-violet-700">
-                        Used by: All BUs / Stores
-                      </p>
-                    ) : null}
-                    {isPerStoreTemplateMode && perStoreAppliedCount > 0 ? (
-                      <p
-                        className="mt-1 truncate text-[10px] font-semibold text-emerald-700"
-                        title={assignedStores.map(s => s.name).join(', ')}
-                      >
-                        Used by: {assignedStoresLabel}
-                      </p>
-                    ) : null}
-                    <div className="mt-auto flex flex-wrap items-center justify-end gap-2 pt-3">
-                      <div className="inline-flex items-center gap-1.5">
+                  <div className={templateCardBodyClass}>
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0 truncate text-sm font-extrabold text-gray-900 transition-colors group-hover/card:text-primary">{tpl.name}</div>
+                      {(isSingleTemplateMode || isPerStoreTemplateMode) ? (
+                        <span
+                          className={cn(
+                            'inline-flex shrink-0 items-center gap-1 text-[10px] font-semibold',
+                            showAssignHighlight
+                              ? isSingleTemplateMode
+                                ? 'text-violet-700'
+                                : 'text-emerald-700'
+                              : 'text-gray-400',
+                          )}
+                          title={isPerStoreTemplateMode && perStoreAppliedCount > 0 ? assignedStores.map(s => s.name).join(', ') : undefined}
+                        >
+                          <span
+                            className={cn(
+                              'h-1.5 w-1.5 shrink-0 rounded-full',
+                              showAssignHighlight
+                                ? isSingleTemplateMode
+                                  ? 'bg-violet-500'
+                                  : 'bg-emerald-500'
+                                : 'bg-gray-300',
+                            )}
+                          />
+                          {isSingleTemplateMode
+                            ? isSingleTemplateSelected
+                              ? 'Live all'
+                              : 'Unused'
+                            : perStoreAppliedCount > 0
+                              ? `${perStoreAppliedCount} live`
+                              : 'Unused'}
+                        </span>
+                      ) : null}
+                    </div>
+                    <p className="mt-0.5 line-clamp-1 text-[11px] leading-snug text-gray-500">{tpl.description}</p>
+                    <div className="mt-1.5 flex flex-wrap items-center justify-end gap-1.5" data-template-card-action>
+                      <div className="inline-flex items-center gap-1">
                         {isSingleTemplateMode ? (
                           <button
                             type="button"
                             disabled={isSingleTemplateSelected || updateVendor.isPending}
-                            onClick={() => handleUseForAllStores(tpl.id)}
+                            onClick={() => requestUseForAllStores(tpl.id, tpl.name)}
                             className={cn(
-                              'inline-flex items-center gap-1 rounded-lg border px-3 py-1.5 text-xs font-extrabold transition-colors',
+                              templateCardActionBtnClass,
                               isSingleTemplateSelected
                                 ? 'cursor-default border-violet-200 bg-violet-50 text-violet-600'
                                 : 'border-violet-200 bg-violet-50/80 text-violet-700 hover:border-violet-300 hover:bg-violet-100',
                             )}
                           >
-                            {isSingleTemplateSelected ? <Check className="h-3.5 w-3.5" /> : <Store className="h-3.5 w-3.5" />}
-                            {isSingleTemplateSelected ? 'Applied — all BU / Store' : 'Apply for all BU / Store'}
+                            {isSingleTemplateSelected ? <Check className="h-3 w-3" /> : <Store className="h-3 w-3" />}
+                            {isSingleTemplateSelected ? 'Applied' : 'All stores'}
                           </button>
                         ) : null}
                         {isPerStoreTemplateMode ? (() => {
@@ -955,16 +1353,14 @@ export default function WebsiteTemplateGalleryPage() {
                               disabled={assignTemplateToStores.isPending}
                               onClick={() => openStorePicker(tpl.id, tpl.name)}
                               className={cn(
-                                'inline-flex items-center gap-1 rounded-lg border px-3 py-1.5 text-xs font-extrabold transition-colors',
+                                templateCardActionBtnClass,
                                 isApplied
                                   ? 'border-emerald-200 bg-emerald-50 text-emerald-600 hover:border-emerald-300 hover:bg-emerald-100'
                                   : 'border-emerald-200 bg-emerald-50/80 text-emerald-700 hover:border-emerald-300 hover:bg-emerald-100',
                               )}
                             >
-                              {isApplied ? <Check className="h-3.5 w-3.5" /> : <Store className="h-3.5 w-3.5" />}
-                              {isApplied
-                                ? `Applied — BU / Store · ${perStoreAppliedCount}`
-                                : 'Apply for Single BU / Store'}
+                              {isApplied ? <Check className="h-3 w-3" /> : <Store className="h-3 w-3" />}
+                              {isApplied ? 'Manage' : 'Assign'}
                             </button>
                           )
                         })() : null}
@@ -980,32 +1376,33 @@ export default function WebsiteTemplateGalleryPage() {
                               setApplyTemplate(tpl)
                             }}
                             className={cn(
-                              'inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-extrabold transition-colors',
+                              templateCardActionBtnClass,
                               selectedSiteId
-                                ? 'bg-primary text-white hover:opacity-90'
-                                : 'bg-gray-200 text-gray-400 cursor-not-allowed',
+                                ? 'border-transparent bg-primary text-white hover:opacity-90'
+                                : 'cursor-not-allowed border-gray-200 bg-gray-200 text-gray-400',
                             )}
                           >
-                            <LayoutTemplate className="h-3.5 w-3.5" />
-                            Apply to site
+                            <LayoutTemplate className="h-3 w-3" />
+                            Apply
                           </button>
                         ) : null}
                         {viewLiveLinks.length > 0 ? (
-                          <AppliedTemplateViewLiveButton links={viewLiveLinks} />
+                          <AppliedTemplateViewLiveButton links={viewLiveLinks} templateName={tpl.name} />
                         ) : null}
-                        <button
-                          type="button"
-                          onClick={() => {
-                            openDraftPreviewInBrowser(
-                              wrapStorefrontPreviewForVendorBrowser(getStorefrontTemplateBrowserPreviewUrl(tpl.id)),
-                            )
-                          }}
-                          className={templateCardIconActionClass}
-                          title="Preview"
-                          aria-label="Preview"
-                        >
-                          <Eye className="h-4 w-4" />
-                        </button>
+                        {!isLiveOnStorefront ? (
+                          <button
+                            type="button"
+                            onClick={e => {
+                              e.stopPropagation()
+                              openTemplateBrowserPreview(tpl.id)
+                            }}
+                            className={templateCardIconActionClass}
+                            title="Preview draft template"
+                            aria-label="Preview draft template"
+                          >
+                            <Eye className="h-3.5 w-3.5" />
+                          </button>
+                        ) : null}
                       </div>
                     </div>
                   </div>
@@ -1043,14 +1440,35 @@ export default function WebsiteTemplateGalleryPage() {
         <StoreTemplatePicker
           templateName={assignTemplate.name}
           stores={pickerStores}
-          initialSelected={selectedAssignStoreId ? [selectedAssignStoreId] : []}
+          primaryStoreId={selectedAssignStoreId}
           pending={assignTemplateToStores.isPending}
           onClose={() => setAssignTemplate(null)}
+          onPrimaryStoreChange={onAssignStoreChange}
           onConfirm={storeIds =>
             assignTemplateToStores.mutate({ templateId: assignTemplate.id, storeIds })
           }
         />
       ) : null}
+
+      {viewLivePicker ? (
+        <ViewLiveLinksPickerModal
+          open
+          templateName={viewLivePicker.templateName}
+          links={viewLivePicker.links}
+          onClose={() => setViewLivePicker(null)}
+        />
+      ) : null}
+
+      <UseForAllStoresConfirmModal
+        pending={useForAllConfirm}
+        currentTemplateName={activeSingleFrontTemplate?.name ?? null}
+        storeCount={stores.length}
+        applying={updateVendor.isPending}
+        onClose={() => setUseForAllConfirm(null)}
+        onConfirm={() => {
+          if (useForAllConfirm) handleUseForAllStores(useForAllConfirm.id)
+        }}
+      />
 
       <WebsiteTemplatePreviewModal
         template={applyTemplate}

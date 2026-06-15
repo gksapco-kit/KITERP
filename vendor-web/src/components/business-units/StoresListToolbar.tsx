@@ -2,9 +2,9 @@ import { useEffect, useRef, useState, type ReactNode } from 'react'
 import type { StoreRecord } from '@/api/vendor'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Search, Link2, ArrowLeftRight, X } from 'lucide-react'
+import { Search, ArrowLeftRight, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { BusinessFrontLinksModal } from '@/components/business-units/BusinessFrontLinksModal'
+import { BusinessFrontCopyLinksButton } from '@/components/business-units/BusinessFrontCopyLinksButton'
 
 type Props = {
   stores: StoreRecord[]
@@ -19,6 +19,7 @@ type Props = {
   compact?: boolean
   /** default = stores page row; inline = settings header action cluster */
   variant?: 'default' | 'inline'
+  hideCopyLinks?: boolean
 }
 
 const inlineIconBtn =
@@ -39,8 +40,8 @@ export function StoresListToolbar({
   trailing,
   compact = false,
   variant,
+  hideCopyLinks = false,
 }: Props) {
-  const [linksOpen, setLinksOpen] = useState(false)
   const [searchExpanded, setSearchExpanded] = useState(false)
   const searchInputRef = useRef<HTMLInputElement>(null)
   const searchWrapRef = useRef<HTMLDivElement>(null)
@@ -67,8 +68,6 @@ export function StoresListToolbar({
   }, [searchExpanded, listSearch])
 
   if (stores.length === 0 && !trailing) return null
-
-  const canShowLinks = stores.length >= 2 && Boolean(vendorSlug.trim())
 
   const searchField = stores.length > 0 ? (
     <div
@@ -140,22 +139,14 @@ export function StoresListToolbar({
     </button>
   ) : null
 
-  const copyLinksBtn = canShowLinks ? (
-    <Button
-      variant="outline"
-      size="sm"
-      className={cn(
-        isInline
-          ? cn(inlineIconBtn, inlineTextBtn)
-          : cn(inlineIconBtn, 'lg:h-8 lg:w-auto lg:gap-1 lg:px-2.5'),
-      )}
-      onClick={() => setLinksOpen(true)}
-      title="View and copy customer store and HR login links"
-    >
-      <Link2 className="h-3 w-3 shrink-0" />
-      <span className={cn(isInline ? 'hidden sm:inline' : 'hidden lg:inline')}>Copy links</span>
-    </Button>
-  ) : null
+  const copyLinksBtn = hideCopyLinks ? null : (
+    <BusinessFrontCopyLinksButton
+      stores={stores}
+      vendorSlug={vendorSlug}
+      vendorSettings={vendorSettings}
+      variant={isInline ? 'inline' : 'default'}
+    />
+  )
 
   const transferBtn = onTransfer && stores.length >= 2 ? (
     <Button
@@ -189,14 +180,6 @@ export function StoresListToolbar({
         {transferBtn}
         {trailing}
       </div>
-
-      <BusinessFrontLinksModal
-        open={linksOpen}
-        onClose={() => setLinksOpen(false)}
-        vendorSlug={vendorSlug}
-        stores={stores}
-        vendorSettings={vendorSettings}
-      />
     </>
   )
 }

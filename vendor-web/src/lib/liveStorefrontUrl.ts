@@ -1,4 +1,5 @@
 import { getCustomerStorefrontBaseUrl } from '@/lib/storefrontPreviewUrl'
+import { formatStoreCode } from '@/lib/verification'
 
 export type LiveStorefrontSite = {
   custom_domain?: string | null
@@ -205,14 +206,16 @@ export function resolveAppliedTemplateViewLiveLinks(
   }
 
   if (assignedStores.length === 1) {
-    const href = customerLinkForStore(slug, assignedStores[0], linkMode)
-    return href ? [{ href, label: 'View live BU / Store' }] : []
+    const store = assignedStores[0]
+    const href = customerLinkForStore(slug, store, linkMode)
+    const label = `${formatStoreCode(store)} · ${store.name}`
+    return href ? [{ href, label }] : []
   }
 
   return assignedStores
     .map(store => {
       const href = customerLinkForStore(slug, store, linkMode)
-      return href ? { href, label: store.name } : null
+      return href ? { href, label: `${formatStoreCode(store)} · ${store.name}` } : null
     })
     .filter((link): link is AppliedTemplateViewLiveLink => link != null)
 }

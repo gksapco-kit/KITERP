@@ -90,40 +90,53 @@ export default function Login() {
   const location = [city, state].filter(Boolean).join(', ')
 
   return (
-    <div className="min-h-[calc(100vh-4rem)] flex items-center justify-center px-4 py-10" style={{ backgroundColor: background, fontFamily }}>
-      <div className="w-full max-w-4xl rounded-2xl overflow-hidden shadow-2xl border-2 border-gray-200 flex flex-col md:flex-row">
+    <div
+      className="min-h-[calc(100vh-4rem)] flex items-center justify-center px-4 py-10"
+      style={{ backgroundColor: background, fontFamily }}
+    >
+      <div className="w-full max-w-4xl overflow-hidden rounded-3xl border border-black/5 bg-white shadow-[0_30px_80px_-30px_rgba(0,0,0,0.35)] flex flex-col md:flex-row animate-in fade-in zoom-in-95 duration-500">
 
         {/* ── Left brand panel ── */}
         <div
-          className="relative flex flex-col items-center justify-center p-10 md:w-[42%] shrink-0 overflow-hidden"
+          className="relative flex flex-col items-center justify-center overflow-hidden p-10 md:w-[44%] shrink-0"
           style={{ background: panelGradient }}
         >
-          {/* Background decorative circles */}
-          <div className="absolute -top-16 -left-16 w-64 h-64 rounded-full bg-white/10" />
-          <div className="absolute -bottom-20 -right-12 w-72 h-72 rounded-full bg-white/8" />
-          <div className="absolute top-1/2 -right-8 w-32 h-32 rounded-full bg-white/5" />
+          {/* Layered decorative glows */}
+          <div className="pointer-events-none absolute -top-20 -left-20 h-64 w-64 rounded-full bg-white/15 blur-2xl" />
+          <div className="pointer-events-none absolute -bottom-24 -right-16 h-72 w-72 rounded-full bg-white/10 blur-2xl" />
+          <div className="pointer-events-none absolute top-1/2 -right-8 h-32 w-32 rounded-full bg-white/10" />
+          {/* Subtle grid texture */}
+          <div
+            className="pointer-events-none absolute inset-0 opacity-[0.07]"
+            style={{
+              backgroundImage:
+                'linear-gradient(to right, white 1px, transparent 1px), linear-gradient(to bottom, white 1px, transparent 1px)',
+              backgroundSize: '28px 28px',
+            }}
+          />
 
-          <div className="relative z-10 flex flex-col items-center text-center gap-5">
+          <div className="relative z-10 flex flex-col items-center gap-6 text-center">
             {/* Logo */}
-            <div className="w-24 h-24 rounded-2xl bg-white/20 backdrop-blur-sm flex items-center justify-center shadow-2xl ring-4 ring-white/25">
+            <div className="flex h-28 w-28 items-center justify-center rounded-3xl bg-white/15 shadow-2xl ring-1 ring-white/30 backdrop-blur-md">
               {vendor?.logo_url ? (
                 <img
                   src={imgUrl(vendor.logo_url)}
                   alt={vendor.display_name}
-                  className="w-20 h-20 rounded-xl object-cover"
+                  className="h-24 w-24 rounded-2xl object-cover"
                 />
               ) : (
-                <Store className="w-11 h-11 text-white" />
+                <Store className="h-12 w-12 text-white" />
               )}
             </div>
 
             {/* Store name & description */}
-            <div>
-              <h1 className="text-2xl font-extrabold text-white tracking-tight">
+            <div className="flex flex-col items-center">
+              <h1 className="text-2xl font-extrabold tracking-tight text-white">
                 {vendor?.display_name || 'Our Store'}
               </h1>
+              <span className="mt-3 h-px w-12 rounded-full bg-white/40" />
               {vendor?.description && (
-                <p className="mt-2 text-sm text-white/70 leading-relaxed line-clamp-3 max-w-[220px]">
+                <p className="mt-3 line-clamp-3 max-w-[230px] text-sm leading-relaxed text-white/75">
                   {vendor.description}
                 </p>
               )}
@@ -131,38 +144,41 @@ export default function Login() {
 
             {/* Location */}
             {location && (
-              <span className="inline-flex items-center gap-1.5 text-white/75 text-xs bg-white/15 px-3 py-1.5 rounded-full">
-                <MapPin className="w-3.5 h-3.5 shrink-0" />
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-white/15 px-3.5 py-1.5 text-xs font-medium text-white/85 ring-1 ring-white/20 backdrop-blur-sm">
+                <MapPin className="h-3.5 w-3.5 shrink-0" />
                 {location}
               </span>
             )}
 
             {/* Trust badges */}
-            <div className="flex flex-col gap-2 mt-1 w-full">
+            <div className="mt-1 flex w-full max-w-[230px] flex-col gap-2">
               {[
                 { icon: ShieldCheck, label: 'Secure & private login' },
                 { icon: Star,        label: 'Trusted store' },
                 { icon: Clock,       label: 'Fast checkout' },
               ].map(({ icon: Icon, label }) => (
-                <div key={label} className="flex items-center gap-2 text-white/65 text-xs">
-                  <Icon className="w-3.5 h-3.5 shrink-0" />
-                  <span>{label}</span>
+                <div
+                  key={label}
+                  className="flex items-center gap-2.5 rounded-xl bg-white/10 px-3 py-2 text-xs text-white/80 ring-1 ring-white/10 backdrop-blur-sm"
+                >
+                  <Icon className="h-4 w-4 shrink-0" />
+                  <span className="font-medium">{label}</span>
                 </div>
               ))}
             </div>
           </div>
 
           {/* Powered by */}
-          <p className="absolute bottom-4 text-white/60 text-xs">Powered by KITERP</p>
+          <p className="absolute bottom-4 text-xs text-white/55">Powered by KITERP</p>
         </div>
 
         {/* ── Right form panel ── */}
-        <div className="flex-1 flex flex-col justify-center bg-white px-8 py-10">
-          <div className="w-full max-w-sm mx-auto">
+        <div className="flex flex-1 flex-col justify-center bg-white px-8 py-10 sm:px-10">
+          <div className="mx-auto w-full max-w-sm">
             {/* Heading */}
             <div className="mb-7">
-              <h2 className="text-2xl font-bold text-gray-900">Welcome back</h2>
-              <p className="text-sm text-gray-500 mt-1">
+              <h2 className="text-3xl font-bold tracking-tight text-gray-900">Welcome back</h2>
+              <p className="mt-1.5 text-sm text-gray-500">
                 Sign in to{' '}
                 <span className="font-semibold text-gray-700">
                   {vendor?.display_name || 'your account'}
@@ -172,7 +188,7 @@ export default function Login() {
 
             {/* Error banner */}
             {loginMut.isError && (
-              <div className="mb-4 rounded-lg bg-red-50 border border-red-200 px-3 py-2.5 text-sm text-red-800">
+              <div className="mb-4 rounded-xl border border-red-200 bg-red-50 px-3.5 py-2.5 text-sm text-red-800">
                 {(loginMut.error as { response?: { data?: { detail?: string } } })?.response?.data?.detail
                   || 'Invalid credentials. Please try again.'}
               </div>
@@ -196,7 +212,7 @@ export default function Login() {
                       onChange={field.onChange}
                       error={errors.login?.message as string | undefined}
                       defaultCountryIso="IN"
-                      className="h-11"
+                      className="h-11 rounded-xl"
                       inputId="login"
                       name="login"
                       autoComplete="username"
@@ -207,82 +223,80 @@ export default function Login() {
 
               {/* Password */}
               <div>
-                <label htmlFor="password" className="text-sm font-medium text-gray-700 mb-1.5 block">Password</label>
+                <div className="mb-1.5 flex items-center justify-between">
+                  <label htmlFor="password" className="block text-sm font-medium text-gray-700">Password</label>
+                  <Link
+                    to={storePath('/forgot-password')}
+                    className="text-xs font-medium transition-colors hover:underline"
+                    style={{ color: linkColor }}
+                  >
+                    Forgot password?
+                  </Link>
+                </div>
                 <div className="relative">
                   <Input
                     id="password"
                     type={showPw ? 'text' : 'password'}
                     autoComplete="current-password"
                     placeholder="Enter your password"
-                    className="h-11 pr-10 border-gray-300"
+                    className="h-11 rounded-xl border-gray-300 pr-10"
                     {...register('password')}
                   />
                   <button
                     type="button"
                     onClick={() => setShowPw((v) => !v)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 transition-colors hover:text-gray-600"
                     tabIndex={-1}
                     aria-label={showPw ? 'Hide password' : 'Show password'}
                   >
-                    {showPw ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    {showPw ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                   </button>
                 </div>
                 {errors.password && (
-                  <p className="text-xs text-red-500 mt-1">{errors.password.message as string}</p>
+                  <p className="mt-1 text-xs text-red-500">{errors.password.message as string}</p>
                 )}
               </div>
+
+              {/* Remember me */}
+              <label className="flex cursor-pointer select-none items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={rememberEmail}
+                  onChange={e => setRememberEmail(e.target.checked)}
+                  className="h-4 w-4 shrink-0 rounded border-gray-300"
+                  style={{ accentColor: secondary }}
+                />
+                <span className="text-sm text-gray-600">Remember my email on this device</span>
+              </label>
 
               {/* Submit */}
               <Button
                 type="submit"
-                className="min-h-12 w-full rounded-xl px-4 py-3 text-lg font-bold transition-opacity hover:opacity-90 sm:min-h-14 sm:px-6 sm:py-3.5 sm:text-xl"
+                className="min-h-12 w-full rounded-xl px-4 py-3 text-base font-bold shadow-lg shadow-black/5 transition-all hover:opacity-90 hover:shadow-xl active:scale-[0.99] sm:min-h-[3.25rem] sm:text-lg"
                 style={{ backgroundColor: primary, color: btnText }}
                 disabled={loginMut.isPending}
               >
                 {loginMut.isPending && (
-                  <Loader2 className="mr-2 h-5 w-5 shrink-0 animate-spin sm:h-6 sm:w-6" />
+                  <Loader2 className="mr-2 h-5 w-5 shrink-0 animate-spin" />
                 )}
                 Sign In
               </Button>
-
-              <div className="flex justify-center">
-                <label className="flex cursor-pointer select-none items-center gap-2">
-                  <input
-                    type="checkbox"
-                    checked={rememberEmail}
-                    onChange={e => setRememberEmail(e.target.checked)}
-                    className="h-4 w-4 shrink-0 rounded border-gray-300"
-                    style={{ accentColor: secondary }}
-                  />
-                  <span className="text-sm text-gray-600">Remember my email on this device</span>
-                </label>
-              </div>
             </form>
 
-            <p className="mt-5 border-t border-gray-100 pt-5 text-center text-sm leading-relaxed text-gray-500">
+            <p className="mt-6 border-t border-gray-100 pt-5 text-center text-sm leading-relaxed text-gray-500">
               New customer?{' '}
               <Link
                 to={storePath('/register')}
-                className="font-semibold hover:underline underline-offset-2"
+                className="font-semibold underline-offset-2 hover:underline"
                 style={{ color: linkColor }}
               >
                 Create an account
               </Link>
             </p>
 
-            <p className="mt-3 text-center">
-              <Link
-                to={storePath('/forgot-password')}
-                className="text-xs font-medium hover:underline transition-colors"
-                style={{ color: linkColor }}
-              >
-                Forgot password?
-              </Link>
-            </p>
-
             {/* Security note */}
-            <div className="flex items-center justify-center gap-1.5 mt-6 text-xs text-gray-400">
-              <ShieldCheck className="w-3.5 h-3.5" />
+            <div className="mt-6 flex items-center justify-center gap-1.5 text-xs text-gray-400">
+              <ShieldCheck className="h-3.5 w-3.5" />
               <span>Secured by KITERP</span>
             </div>
           </div>

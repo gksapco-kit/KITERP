@@ -98,6 +98,75 @@
     --hosp-accent: 162 52% 38%;
   }
 
+  /* KIT ERP color themes — html[data-kit-theme] set by ThemeSync (mint = :root defaults). */
+  :root[data-kit-theme='ocean'] {
+    --primary: 199 89% 48%;
+    --ring: 199 89% 48%;
+    --accent: 199 80% 94%;
+    --accent-foreground: 199 45% 18%;
+    --sidebar-primary: 199 89% 48%;
+    --sidebar-ring: 199 89% 48%;
+    --hero-via: 199 55% 28%;
+    --hero-to: 204 45% 12%;
+  }
+
+  :root[data-kit-theme='indigo'] {
+    --primary: 239 84% 67%;
+    --ring: 239 84% 67%;
+    --accent: 239 80% 95%;
+    --accent-foreground: 239 35% 22%;
+    --sidebar-primary: 239 84% 67%;
+    --sidebar-ring: 239 84% 67%;
+    --hero-via: 239 48% 32%;
+    --hero-to: 243 40% 14%;
+  }
+
+  :root[data-kit-theme='amber'] {
+    --primary: 38 92% 50%;
+    --ring: 38 92% 50%;
+    --accent: 38 90% 93%;
+    --accent-foreground: 32 55% 18%;
+    --sidebar-primary: 38 92% 50%;
+    --sidebar-ring: 38 92% 50%;
+    --hero-via: 32 55% 28%;
+    --hero-to: 28 45% 12%;
+  }
+
+  :root[data-kit-theme='rose'] {
+    --primary: 350 75% 55%;
+    --ring: 350 75% 55%;
+    --accent: 350 85% 95%;
+    --accent-foreground: 350 40% 20%;
+    --sidebar-primary: 350 75% 55%;
+    --sidebar-ring: 350 75% 55%;
+    --hero-via: 350 48% 30%;
+    --hero-to: 350 40% 14%;
+  }
+
+  :root[data-kit-theme='slate'] {
+    --primary: 215 25% 45%;
+    --ring: 215 25% 45%;
+    --accent: 214 22% 93%;
+    --accent-foreground: 215 25% 18%;
+    --sidebar-primary: 215 25% 45%;
+    --sidebar-ring: 215 25% 45%;
+    --hero-via: 215 22% 28%;
+    --hero-to: 222 20% 12%;
+  }
+
+  /* Layout template 2 — soft gray canvas, rounded white cards, sidebar blended with page. */
+  :root[data-kit-template='template2'] {
+    --radius: 1.1rem;
+    --background: 210 16% 95%;
+    --muted: 210 16% 93%;
+    --border: 214 20% 89%;
+    --input: 214 20% 89%;
+    --sidebar-background: 210 16% 95%;
+    --sidebar-background-center: 210 18% 96%;
+    --sidebar-border: 214 20% 90%;
+    --sidebar-accent: 210 16% 91%;
+  }
+
   .dark {
     /* Surfaces aligned to spec: #050A14 bg, #0A0F1A cards, #EBEBF5 text, #222A3A accent, #2B3445 borders */
     --background: 220 61% 5%;
@@ -153,6 +222,54 @@
     --primary-fill: 158 46% 34%;
     --primary-fill-hover: 158 46% 40%;
     --primary-fill-active: 158 46% 28%;
+  }
+
+  .dark[data-kit-theme='ocean'] {
+    --primary-fill: 199 70% 38%;
+    --primary-fill-hover: 199 70% 44%;
+    --primary-fill-active: 199 70% 32%;
+    --hero-via: 199 45% 24%;
+    --hero-to: 204 40% 11%;
+  }
+
+  .dark[data-kit-theme='indigo'] {
+    --primary-fill: 239 55% 48%;
+    --primary-fill-hover: 239 55% 54%;
+    --primary-fill-active: 239 55% 42%;
+    --hero-via: 239 42% 26%;
+    --hero-to: 243 38% 13%;
+  }
+
+  .dark[data-kit-theme='amber'] {
+    --primary-fill: 38 75% 42%;
+    --primary-fill-hover: 38 75% 48%;
+    --primary-fill-active: 38 75% 36%;
+    --hero-via: 32 48% 24%;
+    --hero-to: 28 40% 11%;
+  }
+
+  .dark[data-kit-theme='rose'] {
+    --primary-fill: 350 58% 46%;
+    --primary-fill-hover: 350 58% 52%;
+    --primary-fill-active: 350 58% 40%;
+    --hero-via: 350 42% 24%;
+    --hero-to: 350 38% 13%;
+  }
+
+  .dark[data-kit-theme='slate'] {
+    --primary-fill: 215 22% 38%;
+    --primary-fill-hover: 215 22% 44%;
+    --primary-fill-active: 215 22% 32%;
+    --hero-via: 215 20% 22%;
+    --hero-to: 222 18% 11%;
+  }
+
+  /* Layout template 2 (dark) — deepen the canvas so cards lift off the page. */
+  .dark[data-kit-template='template2'] {
+    --radius: 1.1rem;
+    --background: 220 50% 4%;
+    --sidebar-background: 220 50% 4%;
+    --sidebar-background-center: 221 38% 7%;
   }
 
   * {
@@ -256,6 +373,61 @@
   .btn-brand:hover:not(:disabled) {
     background-color: #52b38f;
   }
+}
+
+/*
+ * Layout template 2 — give surface cards a soft, elevated panel look on the
+ * gray canvas (matches the "Product overview" reference layout).
+ */
+:root[data-kit-template='template2'] main .bg-card,
+:root[data-kit-template='template2'] main .bg-white {
+  box-shadow: 0 1px 2px rgba(16, 24, 40, 0.04), 0 8px 24px -12px rgba(16, 24, 40, 0.12);
+}
+
+:root[data-kit-template='template2'] main .bg-card.shadow-none,
+:root[data-kit-template='template2'] main .bg-white.shadow-none {
+  box-shadow: none;
+}
+
+.dark[data-kit-template='template2'] main .bg-card,
+.dark[data-kit-template='template2'] main .bg-white {
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 8px 24px -12px rgba(0, 0, 0, 0.6);
+}
+
+/* Template 2 — hide the sidebar/header separator lines for a seamless canvas. */
+:root[data-kit-template='template2'] .border-sidebar-border {
+  border-color: transparent !important;
+}
+
+/* Template 2 — sidebar chrome rows use the same flat canvas as the nav panel. */
+:root[data-kit-template='template2'] aside .bg-muted\/30,
+:root[data-kit-template='template2'] aside .bg-muted\/10,
+.dark[data-kit-template='template2'] aside .bg-muted\/30,
+.dark[data-kit-template='template2'] aside .bg-muted\/10,
+.dark[data-kit-template='template2'] aside .dark\:bg-muted\/5 {
+  background-color: hsl(var(--sidebar-background)) !important;
+}
+
+/* Template 2 — top header bar blends into the gray canvas (same as page bg). */
+:root[data-kit-template='template2'] header[class*='bg-card'] {
+  background-color: hsl(var(--background) / 0.8) !important;
+}
+
+.dark[data-kit-template='template2'] header[class*='bg-card'] {
+  background-color: hsl(var(--background) / 0.8) !important;
+}
+
+/* Template 2 — active sidebar nav reads as a soft white pill, not a tinted bar. */
+:root[data-kit-template='template2'] .sidebar-nav-link-active {
+  background-color: hsl(var(--card));
+  border-left-color: transparent;
+  box-shadow: 0 1px 2px rgba(16, 24, 40, 0.06), 0 4px 12px -6px rgba(16, 24, 40, 0.12);
+}
+
+.dark[data-kit-template='template2'] .sidebar-nav-link-active {
+  background-color: hsl(var(--card));
+  border-left-color: transparent;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
 }
 
 /* Vendor /register — full-page signup (no inner scroll trap) */
@@ -735,11 +907,18 @@
     scrollbar-width: thin;
     scrollbar-color: rgba(0, 0, 0, 0.12) transparent;
   }
+  /* Move the scrollbar to the left edge; keep inner content left-to-right. */
+  .sidebar-scroll-left {
+    direction: rtl;
+  }
+  .sidebar-scroll-left > * {
+    direction: ltr;
+  }
   .dark .sidebar-scroll {
     scrollbar-color: rgba(255, 255, 255, 0.12) transparent;
   }
   .sidebar-scroll::-webkit-scrollbar {
-    width: 5px;
+    width: 3px;
   }
   .sidebar-scroll::-webkit-scrollbar-track {
     background: transparent;

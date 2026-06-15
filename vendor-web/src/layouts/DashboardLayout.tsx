@@ -16,7 +16,7 @@ import {
   Landmark, BookMarked, ArrowLeftRight, Scale, Banknote, TrendingUp, Calculator,
   ScrollText, HardDrive, Coins, LineChart, CircleDollarSign, FilePieChart,
   Shuffle, ClipboardCheck, Heart, Layers, Percent, Link2, Wallet2, Sparkles,
-  Lock, ListChecks, Boxes, Gauge, Globe, Newspaper, Moon, Sun, Image,
+  Lock, ListChecks, Boxes, Gauge, Globe, Newspaper, Moon, Sun, Image, Palette,
   UtensilsCrossed, ChefHat, LayoutGrid, RefreshCw, FolderKanban,
   GripVertical, SlidersHorizontal, Database, Search, ExternalLink,
   PanelLeftClose, PanelLeft, Settings2,
@@ -138,6 +138,8 @@ import { vendorApi } from '@/api/vendor'
 import { playTone, type ToneName } from '@/hooks/useNotificationSound'
 import { useBrowserNotifications } from '@/hooks/useBrowserNotifications'
 import { UniversalSearch } from '@/components/UniversalSearch'
+import { KitErpThemePickerModal } from '@/components/KitErpThemePickerModal'
+import { getKitErpThemeOption } from '@/lib/kitErpThemes'
 import { buildNavIndex, type NavSearchEntry } from '@/lib/appSearchIndex'
 import { isHrNavVisible } from '@/lib/hrModuleSettings'
 import {
@@ -1097,6 +1099,7 @@ export default function DashboardLayout() {
   const storePickerRef = useRef<HTMLDivElement>(null)
   const storePickerMenuRef = useRef<HTMLDivElement>(null)
   const [profileOpen, setProfileOpen] = useState(false)
+  const [kitThemePickerOpen, setKitThemePickerOpen] = useState(false)
   const profileMenuRef = useRef<HTMLDivElement>(null)
   const profilePanelRef = useRef<HTMLDivElement>(null)
   const navScrollRef = useRef<HTMLElement>(null)
@@ -1105,6 +1108,8 @@ export default function DashboardLayout() {
 
   const dark = useThemeStore(s => s.dark)
   const toggleDark = useThemeStore(s => s.toggleDark)
+  const colorTheme = useThemeStore(s => s.colorTheme)
+  const activeKitTheme = getKitErpThemeOption(colorTheme)
 
   const { data: storesData, refetch: refetchStores } = useStores()
   const stores = [...(storesData?.stores ?? [])].sort((a, b) => {
@@ -2335,22 +2340,26 @@ export default function DashboardLayout() {
         'flex h-14 w-full shrink-0 items-center border-b border-sidebar-border bg-muted/30',
         showIconOnlyNav ? 'justify-center px-1.5' : 'px-2 sm:px-2.5',
       )}>
-        {/* KIT ERP brand */}
+        {/* KIT ERP brand — dashboard home; icon-only rail click expands sidebar */}
         <button
           type="button"
-          title={showIconOnlyNav ? 'Expand menu' : 'KIT ERP'}
+          title={showIconOnlyNav ? 'Expand menu' : 'KIT ERP — Dashboard'}
           onClick={() => {
-            if (!showIconOnlyNav) return
-            const restore = lastExpandedSidebarWidthPxRef.current
-            setSidebarMode('expanded')
-            setSidebarWidthClamped(restore)
-            persistSidebarWidth(restore)
-            setRailFlyoutSectionId(null)
+            if (showIconOnlyNav) {
+              const restore = lastExpandedSidebarWidthPxRef.current
+              setSidebarMode('expanded')
+              setSidebarWidthClamped(restore)
+              persistSidebarWidth(restore)
+              setRailFlyoutSectionId(null)
+              return
+            }
+            navigate('/')
           }}
           className={cn(
-            'flex min-w-0 flex-1 items-center gap-2 text-left',
-            showIconOnlyNav && 'lg:cursor-pointer lg:justify-center lg:flex-none lg:rounded-lg lg:p-1.5 lg:hover:bg-muted/50',
-            !showIconOnlyNav && 'cursor-default',
+            'flex min-w-0 flex-1 items-center gap-2 rounded-lg text-left transition-colors',
+            showIconOnlyNav
+              ? 'lg:cursor-pointer lg:justify-center lg:flex-none lg:p-1.5 lg:hover:bg-muted/50'
+              : 'cursor-pointer p-1 -m-1 hover:bg-muted/50',
           )}
         >
           <span
@@ -2433,7 +2442,7 @@ export default function DashboardLayout() {
       >
         <nav
           ref={navScrollRef}
-          className="sidebar-scroll sidebar-scroll-intent flex min-h-0 flex-1 flex-col overflow-y-auto px-2 pb-1 pt-0.5"
+          className="sidebar-scroll sidebar-scroll-intent sidebar-scroll-left flex min-h-0 flex-1 flex-col overflow-y-auto px-2 pb-1 pt-0.5"
           aria-label="Main navigation"
         >
           <div className="mb-0.5 flex shrink-0 items-center justify-between gap-2 px-0.5 py-1">
@@ -3257,6 +3266,27 @@ export default function DashboardLayout() {
                             />
                           </button>
                         </div>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setProfileOpen(false)
+                            setKitThemePickerOpen(true)
+                          }}
+                          className="flex w-full items-center gap-3 px-4 py-2 text-sm text-foreground hover:bg-accent"
+                        >
+                          <Palette className="w-4 h-4 text-muted-foreground shrink-0" />
+                          <span className="flex-1 text-left">Change KIT ERP theme</span>
+                          <span className="inline-flex items-center gap-1 shrink-0">
+                            {activeKitTheme.swatches.slice(0, 2).map((color, i) => (
+                              <span
+                                key={`${activeKitTheme.id}-${i}`}
+                                className="h-3 w-3 rounded-full border border-border/80"
+                                style={{ backgroundColor: color }}
+                                aria-hidden
+                              />
+                            ))}
+                          </span>
+                        </button>
                         <Link
                           to="/profile"
                           onClick={() => setProfileOpen(false)}
@@ -3400,6 +3430,11 @@ export default function DashboardLayout() {
           open={searchOpen}
           onClose={() => setSearchOpen(false)}
           navEntries={navSearchIndex}
+        />
+
+        <KitErpThemePickerModal
+          open={kitThemePickerOpen}
+          onClose={() => setKitThemePickerOpen(false)}
         />
 
         {/* Page content */}
