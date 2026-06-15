@@ -13,6 +13,18 @@ export function normalizeLabelKey(label: string): string {
 
 /** Registry keyed by normalized label text (lowercase, no asterisks). */
 export const FIELD_HELP_BY_LABEL: Record<string, FieldHelpCopy> = {
+  // ── Settings · Profile (user account) ──
+  'full name': {
+    hover: 'Your display name across the vendor dashboard.',
+    full:
+      'The name shown on your profile, activity logs, and internal records. On customer or employee forms the same label may map to customer.full_name or employee records.',
+  },
+  'phone number': {
+    hover: 'Mobile or contact number with country code.',
+    full:
+      'Your personal contact number for verification and alerts. Country code is selected automatically in the phone field.',
+  },
+
   // ── Settings · Profile ──
   'business name': {
     hover: 'Legal or registered name (e.g. on invoices).',

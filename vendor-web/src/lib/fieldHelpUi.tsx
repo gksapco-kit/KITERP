@@ -1,7 +1,9 @@
 import { useEffect, useId, useRef, useState, type KeyboardEvent, type MouseEvent, type RefObject } from 'react'
 import { createPortal } from 'react-dom'
+import { Link } from 'react-router-dom'
 import { Wrench, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import type { FieldDbMeta } from '@/lib/fieldDbRegistry'
 
 export const FIELD_HELP_TOOLTIP_FOOTER = (
   <>
@@ -35,8 +37,6 @@ function bindGlobalFieldHelpF1() {
 }
 
 bindGlobalFieldHelpF1()
-
-import type { FieldDbMeta } from '@/lib/fieldDbRegistry'
 
 type FieldHelpUiOptions = {
   hoverHint: string
@@ -217,7 +217,7 @@ export function useFieldHelpUi({
                   <p className="mt-0.5 text-xs text-gray-500">{hoverHint}</p>
                 </div>
                 <div className="flex shrink-0 items-center gap-1">
-                  {dbMeta ? (
+                  {enabled ? (
                     <button
                       type="button"
                       onClick={() => setShowDbMeta((open) => !open)}
@@ -244,25 +244,45 @@ export function useFieldHelpUi({
                 </div>
               </div>
               <div className="space-y-3 px-5 py-4">
-                {showDbMeta && dbMeta ? (
+                {showDbMeta ? (
                   <div className="rounded-lg border border-gray-200 bg-gray-50 px-3 py-2.5 text-xs">
                     <p className="font-medium text-gray-700">Database mapping</p>
-                    <dl className="mt-2 space-y-1.5 font-mono text-[11px] text-gray-800">
-                      <div className="flex gap-2">
-                        <dt className="w-14 shrink-0 text-gray-500">Table</dt>
-                        <dd>{dbMeta.table}</dd>
-                      </div>
-                      <div className="flex gap-2">
-                        <dt className="w-14 shrink-0 text-gray-500">Column</dt>
-                        <dd>{dbMeta.column}</dd>
-                      </div>
-                      {dbMeta.note ? (
+                    {dbMeta ? (
+                      <dl className="mt-2 space-y-1.5 font-mono text-[11px] text-gray-800">
                         <div className="flex gap-2">
-                          <dt className="w-14 shrink-0 text-gray-500">Note</dt>
-                          <dd className="font-sans text-gray-600">{dbMeta.note}</dd>
+                          <dt className="w-14 shrink-0 text-gray-500">Table</dt>
+                          <dd>{dbMeta.table}</dd>
                         </div>
-                      ) : null}
-                    </dl>
+                        <div className="flex gap-2">
+                          <dt className="w-14 shrink-0 text-gray-500">Column</dt>
+                          <dd>{dbMeta.column}</dd>
+                        </div>
+                        {dbMeta.note ? (
+                          <div className="flex gap-2">
+                            <dt className="w-14 shrink-0 text-gray-500">Note</dt>
+                            <dd className="font-sans text-gray-600">{dbMeta.note}</dd>
+                          </div>
+                        ) : null}
+                      </dl>
+                    ) : (
+                      <div className="mt-2 space-y-2 font-sans text-[11px] text-gray-700">
+                        <p>
+                          No column linked to this label yet. In{' '}
+                          <span className="font-medium">System → Models</span>, add a mapping with UI
+                          label:
+                        </p>
+                        <p className="rounded border border-gray-200 bg-white px-2 py-1 font-mono text-gray-900">
+                          {title ?? 'Field label'}
+                        </p>
+                        <Link
+                          to="/system/models"
+                          className="inline-flex font-medium text-primary hover:underline"
+                          onClick={() => setHelpOpen(false)}
+                        >
+                          Open Models →
+                        </Link>
+                      </div>
+                    )}
                   </div>
                 ) : null}
                 <p className="text-sm leading-relaxed text-gray-800">{fullHelp}</p>

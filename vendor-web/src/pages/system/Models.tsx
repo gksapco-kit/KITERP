@@ -698,6 +698,12 @@ export default function ModelsPage() {
 
       {!isLoading && !isError ? (
         <div className="space-y-2">
+          {data?.vendor_resolved === false ? (
+            <p className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
+              Tables and columns are shown, but your account is not linked to a vendor yet — field
+              mappings (+) are unavailable until you join or register a business.
+            </p>
+          ) : null}
           <p className="text-xs text-muted-foreground">
             Showing {filtered.length} of {data?.model_count ?? 0} tables
           </p>

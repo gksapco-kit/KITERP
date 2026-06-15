@@ -341,7 +341,9 @@ function PersonalInfoSection({ open, toggle }: { open: boolean; toggle: () => vo
       <div className="space-y-5 pt-3">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
-            <Label htmlFor="full-name">Full name</Label>
+            <Label htmlFor="full-name" dbTable="user" dbField="full_name">
+              Full name
+            </Label>
             <Input
               id="full-name"
               value={fullName}

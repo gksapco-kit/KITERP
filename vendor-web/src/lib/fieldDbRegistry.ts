@@ -13,6 +13,14 @@ export type FieldDbMeta = {
 
 /** DB column mapping keyed by normalized label / helpKey text. */
 export const FIELD_DB_BY_LABEL: Record<string, FieldDbMeta> = {
+  // ── User profile ──
+  'full name': {
+    table: 'user',
+    column: 'full_name',
+    note: 'Profile field. Not on vendor_user — join user via vendor_user.user_id.',
+  },
+  'phone number': { table: 'user', column: 'phone' },
+
   // ── Settings · vendor profile ──
   'business name': { table: 'vendor', column: 'business_name' },
   'brand name': { table: 'vendor', column: 'display_name' },
@@ -99,6 +107,9 @@ export const COLUMN_SCREENS: Record<string, string[]> = {
   'invoice.status': ['Invoices'],
   'customer.full_name': ['Customers', 'Create Invoice'],
   'customer.email': ['Customers'],
+  'user.full_name': ['Profile · Personal Information'],
+  'user.phone': ['Profile · Personal Information'],
+  'user.email': ['Profile · Personal Information'],
   'product.sku': ['Products'],
   'product.price': ['Products'],
 }
@@ -200,11 +211,62 @@ export function resolveFieldDbMeta({
   const runtime =
     getFieldMappingByLabel(helpKey ?? '') ?? getFieldMappingByLabel(labelText)
   if (runtime) return mappingToDbMeta(runtime)
-  if (helpKey?.trim()) {
-    const byKey = FIELD_DB_BY_LABEL[normalizeLabelKey(helpKey)]
+  const candidates = [helpKey, labelText].filter((v): v is string => Boolean(v?.trim()))
+  for (const raw of candidates) {
+    const byKey = FIELD_DB_BY_LABEL[normalizeLabelKey(raw)]
     if (byKey) return byKey
+    const fromLogic = lookupDbMetaByUiLabel(normalizeLabelKey(raw))
+    if (fromLogic) return fromLogic
+    const fromKeywords = dbMetaFromKeywords(raw)
+    if (fromKeywords) return fromKeywords
   }
-  const normalized = normalizeLabelKey(labelText)
+  return null
+}
+
+function lookupDbMetaByUiLabel(normalized: string): FieldDbMeta | null {
   if (!normalized) return null
-  return FIELD_DB_BY_LABEL[normalized] ?? null
+  for (const entry of COLUMN_BUSINESS_LOGIC.values()) {
+    if (entry.ui_labels.some((l) => normalizeLabelKey(l) === normalized)) {
+      return {
+        table: entry.table,
+        column: entry.column,
+        note: entry.note,
+      }
+    }
+  }
+  return null
+}
+
+function dbMetaFromKeywords(label: string): FieldDbMeta | null {
+  const lower = normalizeLabelKey(label)
+  if (!lower) return null
+  if (lower.includes('full name') || lower === 'contact name') {
+    return {
+      table: 'user',
+      column: 'full_name',
+      note: 'Profile: user.full_name; customer forms: customer.full_name',
+    }
+  }
+  if (lower.includes('email')) {
+    return FIELD_DB_BY_LABEL.email ?? { table: 'user', column: 'email', note: 'Table varies by screen' }
+  }
+  if (lower.includes('phone') || lower.includes('mobile') || lower.includes('whatsapp')) {
+    return { table: 'user', column: 'phone', note: 'Table varies by screen (user, customer, vendor)' }
+  }
+  if (lower.includes('gstin')) {
+    return FIELD_DB_BY_LABEL.gstin ?? null
+  }
+  if (lower.includes('pincode') || lower.includes('postal code') || lower.includes('zip')) {
+    return FIELD_DB_BY_LABEL.pincode ?? FIELD_DB_BY_LABEL['postal code'] ?? null
+  }
+  if (lower.includes('street address')) {
+    return FIELD_DB_BY_LABEL['street address']
+  }
+  if (lower.includes('city')) {
+    return FIELD_DB_BY_LABEL.city
+  }
+  if (lower.includes('state') || lower.includes('province')) {
+    return FIELD_DB_BY_LABEL.state
+  }
+  return null
 }

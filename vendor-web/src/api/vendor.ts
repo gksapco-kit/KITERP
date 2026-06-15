@@ -2048,6 +2048,7 @@ export const vendorApi = {
       api_bound_columns: number
       user_mapped_columns: number
       mappings: SchemaFieldMappingRecord[]
+      vendor_resolved?: boolean
     }
   },
 

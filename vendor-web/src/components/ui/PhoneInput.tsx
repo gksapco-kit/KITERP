@@ -13,6 +13,7 @@ import { useState, useRef, useEffect, useCallback } from 'react'
 import { ChevronDown, Search, CheckCircle2, X } from 'lucide-react'
 import { COUNTRIES, POPULAR_COUNTRIES, type CountryEntry } from '@/data/countries'
 import { cn } from '@/lib/utils'
+import { Label } from '@/components/ui/label'
 import {
   getCachedInferredPhoneCountryIso,
   inferPhoneCountryIsoFromLocation,
@@ -338,11 +339,11 @@ export function PhoneInput({
 
   return (
     <div className={cn('w-full space-y-1', className)}>
-      {label && (
-        <label htmlFor={id} className="block text-sm font-medium text-foreground">
+      {label ? (
+        <Label htmlFor={id} className="block text-sm font-medium text-foreground" helpKey={label}>
           {label}
-        </label>
-      )}
+        </Label>
+      ) : null}
       <div ref={wrapRef} className="relative flex w-full items-stretch gap-0">
         {/* Country picker trigger */}
         <button
