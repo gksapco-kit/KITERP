@@ -1,7 +1,7 @@
 from typing import List, Optional
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -210,3 +210,4 @@ async def delete_field_mapping(
     except ValueError as e:
         await db.rollback()
         raise HTTPException(404, str(e))
+

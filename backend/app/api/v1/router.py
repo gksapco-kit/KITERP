@@ -27,6 +27,7 @@ from app.api.v1 import (
     vendor_marketplace,
     vendor_subscriptions,
     vendor_rentals,
+    admin_schema_catalog,
 )
 
 api_router = APIRouter()
@@ -34,6 +35,7 @@ api_router = APIRouter()
 # ── Platform Auth & Admin ────────────────────────────────────────
 api_router.include_router(auth.router, prefix="/auth", tags=["Authentication"])
 api_router.include_router(admin.router, prefix="/admin", tags=["Admin"])
+api_router.include_router(admin_schema_catalog.router, prefix="/admin/schema", tags=["Admin Schema"])
 
 # ── Vendor Management ────────────────────────────────────────────
 api_router.include_router(vendors.router, prefix="/vendors", tags=["Vendors"])

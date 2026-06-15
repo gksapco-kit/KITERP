@@ -2123,4 +2123,6 @@ export type SchemaColumnRecord = {
   foreign_keys: string[]
   api_bindings?: SchemaApiBinding[]
   user_mapping?: SchemaFieldMappingRecord | null
+  is_virtual?: boolean
+  json_parent?: string | null
 }

@@ -14,6 +14,7 @@ import {
   ScrollText,
   AlertTriangle,
   Menu,
+  Table2,
   X,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -39,6 +40,7 @@ const adminNavItemsSuperuser = [
   { to: '/dashboard/platform-team', icon: Headphones, label: 'Support team' },
   { to: '/dashboard/account-activity', icon: ScrollText, label: 'Account activity' },
   { to: '/dashboard/disputes', icon: AlertTriangle, label: 'Disputes' },
+  { to: '/dashboard/table-data', icon: Table2, label: 'Table Data' },
   { to: '/dashboard/settings', icon: Settings, label: 'Settings' },
 ]
 
