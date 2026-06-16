@@ -14,6 +14,12 @@ export const DEFAULT_LAYOUT_TEMPLATE_IDS = ['light', 'dark'] as const
 /** Legacy theme ids still applied inside Home.tsx section styling. */
 export const LEGACY_HOME_TEMPLATE_IDS = ['light', 'dark', 'atelier', 'verde', 'solace'] as const
 
+/**
+ * storefront_* templates backed by WEBSITE_TEMPLATES blocks (BlockRenderer),
+ * not the legacy React shells in CatalogStorefrontLiveHome.
+ */
+export const BLOCK_BASED_STOREFRONT_TEMPLATE_IDS = ['storefront_grocery'] as const
+
 function branchKey(v: string | null | undefined): string {
   return String(v ?? '').trim().toLowerCase()
 }
@@ -110,8 +116,14 @@ export function isAssignedStorefrontTemplatePending(
   return resolveStorefrontTemplateMode(vendorSettings) === 'per_unit' && branchesLoading
 }
 
+export function isBlockBasedStorefrontTemplateId(id: string | null | undefined): boolean {
+  return typeof id === 'string'
+    && (BLOCK_BASED_STOREFRONT_TEMPLATE_IDS as readonly string[]).includes(id)
+}
+
+/** Legacy React storefront shells (Fashion, Electronics, …) — not block-based Wellness Store. */
 export function isStorefrontCatalogTemplateId(id: string | null | undefined): boolean {
-  return typeof id === 'string' && id.startsWith('storefront_')
+  return typeof id === 'string' && id.startsWith('storefront_') && !isBlockBasedStorefrontTemplateId(id)
 }
 
 export function isLegacyHomeTemplateId(id: string | null | undefined): boolean {
@@ -122,9 +134,10 @@ export function isDefaultLayoutTemplateId(id: string | null | undefined): boolea
   return typeof id === 'string' && (DEFAULT_LAYOUT_TEMPLATE_IDS as readonly string[]).includes(id)
 }
 
-/** Website builder catalog templates (portfolio, verde, …) — block-based, not legacy Home. */
+/** Website builder catalog templates (portfolio, verde, storefront_grocery, …) — block-based, not legacy Home. */
 export function isWebsiteBuilderBlockTemplateId(id: string | null | undefined): boolean {
   if (!id?.trim()) return false
+  if (isBlockBasedStorefrontTemplateId(id)) return true
   if (isDefaultLayoutTemplateId(id)) return false
   if (isStorefrontCatalogTemplateId(id)) return false
   if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) return false

@@ -30,6 +30,7 @@ import AnalyticsInjector from '@/components/builder/AnalyticsInjector'
 import { getWbCatalogTemplateId } from '@/storefront/catalogTemplateIds'
 import { useAssignedStorefrontTemplateId } from '@/hooks/useAssignedStorefrontTemplateId'
 import {
+  isBlockBasedStorefrontTemplateId,
   isDefaultLayoutTemplateId,
   isWebsiteBuilderBlockTemplateId,
   resolveLiveCatalogTemplateId,
@@ -308,18 +309,21 @@ export default function BuilderPage({ slug: forcedSlug, isHome }: BuilderPagePro
     assignedTemplateId && (isDefaultLayoutTemplateId(assignedTemplateId) || isWebsiteBuilderBlockTemplateId(assignedTemplateId))
       ? null
       : resolveLiveCatalogTemplateId(assignedTemplateId, wbCatalogTemplateId)
+  const blockTemplateId =
+    (assignedTemplateId && isWebsiteBuilderBlockTemplateId(assignedTemplateId) ? assignedTemplateId : null)
+    || (wbCatalogTemplateId && isBlockBasedStorefrontTemplateId(wbCatalogTemplateId) ? wbCatalogTemplateId : null)
   // Only fall back to the hardcoded catalog-template React shell when the
   // vendor has NOT yet added any blocks in the builder. Once they save real
   // pages/blocks, the block renderer takes over so custom content is shown.
   const hasSavedBuilderBlocks = Boolean(
     builderSite.pages?.some(p => p.blocks?.length > 0),
   )
-  if (catalogTemplateId && !hasSavedBuilderBlocks && isHomePath) {
-    return <CatalogStorefrontLiveHome catalogTemplateId={catalogTemplateId} />
+  if (blockTemplateId && !hasSavedBuilderBlocks && isHomePath) {
+    return <WebsiteBuilderTemplateLiveHome templateId={blockTemplateId} />
   }
 
-  if (assignedTemplateId && isWebsiteBuilderBlockTemplateId(assignedTemplateId) && !hasSavedBuilderBlocks && isHomePath) {
-    return <WebsiteBuilderTemplateLiveHome templateId={assignedTemplateId} />
+  if (catalogTemplateId && !isBlockBasedStorefrontTemplateId(catalogTemplateId) && !hasSavedBuilderBlocks && isHomePath) {
+    return <CatalogStorefrontLiveHome catalogTemplateId={catalogTemplateId} />
   }
 
   if (assignedTemplateId && isDefaultLayoutTemplateId(assignedTemplateId) && !hasSavedBuilderBlocks && isHomePath) {

@@ -18,9 +18,6 @@ const FashionTemplate = lazy(() =>
 const ElectronicsTemplate = lazy(() =>
   import('@/storefront/templates/ElectronicsTemplate').then((m) => ({ default: m.ElectronicsTemplate })),
 )
-const GroceryTemplate = lazy(() =>
-  import('@/storefront/templates/GroceryTemplate').then((m) => ({ default: m.GroceryTemplate })),
-)
 const RestaurantTemplate = lazy(() =>
   import('@/storefront/templates/RestaurantTemplate').then((m) => ({ default: m.RestaurantTemplate })),
 )
@@ -34,7 +31,6 @@ const LIVE_TEMPLATES: Record<
 > = {
   storefront_fashion: FashionTemplate,
   storefront_electronics: ElectronicsTemplate,
-  storefront_grocery: GroceryTemplate,
   storefront_restaurant: RestaurantTemplate,
   storefront_services: ServicesTemplate,
 }

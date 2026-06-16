@@ -23,13 +23,11 @@ import { getStorefrontApiBaseUrl } from '@/lib/apiBase'
 // ── Business Front template map ──────────────────────────────────────────────────
 const FashionTemplate     = lazy(() => import('@/storefront/templates/FashionTemplate').then(m => ({ default: m.FashionTemplate })))
 const ElectronicsTemplate = lazy(() => import('@/storefront/templates/ElectronicsTemplate').then(m => ({ default: m.ElectronicsTemplate })))
-const GroceryTemplate     = lazy(() => import('@/storefront/templates/GroceryTemplate').then(m => ({ default: m.GroceryTemplate })))
 const ServicesTemplate    = lazy(() => import('@/storefront/templates/ServicesTemplate').then(m => ({ default: m.ServicesTemplate })))
 
 const STOREFRONT_TEMPLATES: Record<string, React.ComponentType<{ config?: StorefrontConfig; basePath?: string }>> = {
   storefront_fashion:     FashionTemplate,
   storefront_electronics: ElectronicsTemplate,
-  storefront_grocery:     GroceryTemplate,
   storefront_services:    ServicesTemplate,
 }
 

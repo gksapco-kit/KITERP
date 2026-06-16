@@ -21,6 +21,10 @@ import {
   resolveLiveCatalogTemplateId,
 } from '@/lib/storefrontTemplateAssignment'
 
+function renderBlockTemplateHome(templateId: string) {
+  return <WebsiteBuilderTemplateLiveHome key={templateId} templateId={templateId} />
+}
+
 function renderAssignedTemplateHome(assignedTemplateId: string) {
   if (isDefaultLayoutTemplateId(assignedTemplateId)) {
     return <Home />
@@ -29,7 +33,7 @@ function renderAssignedTemplateHome(assignedTemplateId: string) {
     return <CatalogStorefrontLiveHome catalogTemplateId={assignedTemplateId} />
   }
   if (isWebsiteBuilderBlockTemplateId(assignedTemplateId)) {
-    return <WebsiteBuilderTemplateLiveHome key={assignedTemplateId} templateId={assignedTemplateId} />
+    return renderBlockTemplateHome(assignedTemplateId)
   }
   return null
 }
@@ -74,6 +78,9 @@ export default function HomeOrBuilder() {
       assignedTemplateId,
       getWbCatalogTemplateId(builderSite.style_config as Record<string, unknown>),
     )
+    if (isWebsiteBuilderBlockTemplateId(catalogId)) {
+      return renderBlockTemplateHome(catalogId)
+    }
     return <CatalogStorefrontLiveHome catalogTemplateId={catalogId} />
   }
 
