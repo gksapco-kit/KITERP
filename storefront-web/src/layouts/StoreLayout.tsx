@@ -15,7 +15,7 @@ import { ThemeProvider, useTheme } from '@/contexts/ThemeContext'
 import { BuilderSiteProvider, useBuilderSite } from '@/contexts/BuilderSiteContext'
 import { getWbCatalogTemplateId } from '@/storefront/catalogTemplateIds'
 import { useAssignedStorefrontTemplateId } from '@/hooks/useAssignedStorefrontTemplateId'
-import { isLegacyHomeTemplateId, resolveLiveCatalogTemplateId } from '@/lib/storefrontTemplateAssignment'
+import { isDefaultLayoutTemplateId, isWebsiteBuilderBlockTemplateId, resolveLiveCatalogTemplateId } from '@/lib/storefrontTemplateAssignment'
 import { useState, useRef, useEffect } from 'react'
 import CrmChatWidget from '@/components/CrmChatWidget'
 import { CustomerNotificationsBell } from '@/components/CustomerNotificationsBell'
@@ -481,10 +481,15 @@ function StoreContent() {
 
   const wbCatalogTemplateId = getWbCatalogTemplateId(builderSite?.style_config as Record<string, unknown> | undefined)
   const catalogTemplateId =
-    assignedTemplateId && isLegacyHomeTemplateId(assignedTemplateId)
+    assignedTemplateId && isDefaultLayoutTemplateId(assignedTemplateId)
       ? null
       : resolveLiveCatalogTemplateId(assignedTemplateId, wbCatalogTemplateId)
-  const usesAssignedLegacyHome = Boolean(assignedTemplateId && isLegacyHomeTemplateId(assignedTemplateId))
+  const usesAssignedLegacyHome = Boolean(
+    assignedTemplateId && isDefaultLayoutTemplateId(assignedTemplateId),
+  )
+  const usesAssignedBlockTemplate = Boolean(
+    assignedTemplateId && isWebsiteBuilderBlockTemplateId(assignedTemplateId),
+  )
 
   const navLinks = [
     { to: storePath('/'), label: 'Home', end: true },
@@ -513,7 +518,8 @@ function StoreContent() {
       isStoreHome &&
       builderSite &&
       !hasSavedBuilderBlocks &&
-      !usesAssignedLegacyHome,
+      !usesAssignedLegacyHome &&
+      !usesAssignedBlockTemplate,
   )
   const builderOwnedLayout = Boolean(builderSite && isStoreHome && hasSavedBuilderBlocks)
 

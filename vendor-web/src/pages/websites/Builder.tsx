@@ -59,6 +59,7 @@ import {
   resolveSiteStoreLink,
   resolveStorefrontLinkMode,
   resolveStorefrontLinksForStoreIds,
+  resolveStorefrontTemplateMode,
 } from '@/lib/liveStorefrontUrl'
 import { getTemplatePreviewPalette } from '@/lib/templateBlockHighlights'
 import { BuilderCanvasProviders } from '@/components/websites/BuilderCanvasProviders'
@@ -11389,6 +11390,7 @@ export default function WebsiteBuilder() {
               resolveStorefrontLinkMode(myVendor?.settings),
               [linkedStoreId.trim()],
               storeList,
+              resolveStorefrontTemplateMode(myVendor?.settings),
             )
             openStorefrontLinks(links)
           }

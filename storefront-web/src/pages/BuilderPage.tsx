@@ -22,13 +22,18 @@ import { useBuilderSite } from '@/contexts/BuilderSiteContext'
 import BlockRenderer from '@/components/builder/BlockRenderer'
 import CatalogStorefrontLiveHome from '@/pages/CatalogStorefrontLiveHome'
 import Home from '@/pages/Home'
+import WebsiteBuilderTemplateLiveHome from '@/pages/WebsiteBuilderTemplateLiveHome'
 import type { LiveItem, PublicBlock, PublicPage, PublicSite } from '@/blocks/registry'
 import { buildPageJsonLd, siteBaseUrl } from '@/blocks/jsonLd'
 import { publicSitesApi } from '@/api/publicSites'
 import AnalyticsInjector from '@/components/builder/AnalyticsInjector'
 import { getWbCatalogTemplateId } from '@/storefront/catalogTemplateIds'
 import { useAssignedStorefrontTemplateId } from '@/hooks/useAssignedStorefrontTemplateId'
-import { isLegacyHomeTemplateId, resolveLiveCatalogTemplateId } from '@/lib/storefrontTemplateAssignment'
+import {
+  isDefaultLayoutTemplateId,
+  isWebsiteBuilderBlockTemplateId,
+  resolveLiveCatalogTemplateId,
+} from '@/lib/storefrontTemplateAssignment'
 
 interface BuilderPageProps {
   /** Force a specific slug (for shell routes like /home). Otherwise reads from URL. */
@@ -187,6 +192,8 @@ export default function BuilderPage({ slug: forcedSlug, isHome }: BuilderPagePro
 
   const branchCode = searchParams.get('branch')
   const slug = forcedSlug ?? params['*'] ?? ''
+  const normalizedSlug = slug.replace(/^\/+|\/+$/g, '')
+  const isHomePath = isHome || normalizedSlug === '' || normalizedSlug === 'home'
   const page = builderSite ? findPage(builderSite, slug, isHome) : null
 
   const blocksForSchema = useMemo(() => page?.blocks || [], [page?.id, page?.blocks])
@@ -298,7 +305,7 @@ export default function BuilderPage({ slug: forcedSlug, isHome }: BuilderPagePro
 
   const wbCatalogTemplateId = getWbCatalogTemplateId(builderSite.style_config as Record<string, unknown>)
   const catalogTemplateId =
-    assignedTemplateId && isLegacyHomeTemplateId(assignedTemplateId)
+    assignedTemplateId && (isDefaultLayoutTemplateId(assignedTemplateId) || isWebsiteBuilderBlockTemplateId(assignedTemplateId))
       ? null
       : resolveLiveCatalogTemplateId(assignedTemplateId, wbCatalogTemplateId)
   // Only fall back to the hardcoded catalog-template React shell when the
@@ -307,11 +314,15 @@ export default function BuilderPage({ slug: forcedSlug, isHome }: BuilderPagePro
   const hasSavedBuilderBlocks = Boolean(
     builderSite.pages?.some(p => p.blocks?.length > 0),
   )
-  if (catalogTemplateId && !hasSavedBuilderBlocks && (isHome || slug === '' || slug === '/')) {
+  if (catalogTemplateId && !hasSavedBuilderBlocks && isHomePath) {
     return <CatalogStorefrontLiveHome catalogTemplateId={catalogTemplateId} />
   }
 
-  if (assignedTemplateId && isLegacyHomeTemplateId(assignedTemplateId) && !hasSavedBuilderBlocks && (isHome || slug === '' || slug === '/')) {
+  if (assignedTemplateId && isWebsiteBuilderBlockTemplateId(assignedTemplateId) && !hasSavedBuilderBlocks && isHomePath) {
+    return <WebsiteBuilderTemplateLiveHome templateId={assignedTemplateId} />
+  }
+
+  if (assignedTemplateId && isDefaultLayoutTemplateId(assignedTemplateId) && !hasSavedBuilderBlocks && isHomePath) {
     return <Home />
   }
 

@@ -33,6 +33,7 @@ type Props = {
   assignPending?: boolean
   onPreview: () => void
   onViewLivePicker?: (links: AppliedTemplateViewLiveLink[]) => void
+  highlightStoreId?: string | null
 }
 
 export function BuilderDraftTemplateCard({
@@ -50,6 +51,7 @@ export function BuilderDraftTemplateCard({
   assignPending,
   onPreview,
   onViewLivePicker,
+  highlightStoreId,
 }: Props) {
   const appliedLabel = resolveSiteAppliedTemplateLabel(site, templates)
   const staticThumb = resolveSiteStaticThumbnail(site, templates)
@@ -65,7 +67,7 @@ export function BuilderDraftTemplateCard({
       onAssign()
       return
     }
-    if (multipleLiveStores && onViewLivePicker) {
+    if (viewLiveLinks.length > 1 && onViewLivePicker) {
       onViewLivePicker(viewLiveLinks)
       return
     }
@@ -275,7 +277,11 @@ export function BuilderDraftTemplateCard({
               <Globe className="h-3 w-3" />
               Edit
             </Link>
-            <AppliedTemplateViewLiveButton links={viewLiveLinks} templateName={site.name} />
+            <AppliedTemplateViewLiveButton
+              links={viewLiveLinks}
+              templateName={site.name}
+              highlightStoreId={highlightStoreId}
+            />
             <button
               type="button"
               onClick={e => {

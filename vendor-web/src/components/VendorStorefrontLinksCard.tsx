@@ -2,7 +2,12 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Store, UserCircle, Copy, ExternalLink, Check, Globe, Settings } from 'lucide-react'
 import { getCustomerStorefrontBaseUrl } from '@/lib/storefrontPreviewUrl'
-import { buildCustomerStoreLink, resolveStorefrontLinkMode } from '@/lib/liveStorefrontUrl'
+import {
+  buildCustomerStoreLink,
+  resolveStorefrontLinkMode,
+  resolveStorefrontTemplateMode,
+  storefrontUrlNeedsBranch,
+} from '@/lib/liveStorefrontUrl'
 import { buildHrEssLoginUrlForUnit, isHrEssLinkVisibleForStore } from '@/lib/hrStorefrontLinks'
 import { readHrModuleSettings } from '@/lib/hrModuleSettings'
 import { cn } from '@/lib/utils'
@@ -199,8 +204,11 @@ export default function VendorStorefrontLinksCard({
 
   const storeBase = getCustomerStorefrontBaseUrl(slug)
   const linkMode = resolveStorefrontLinkMode(vendorSettings)
+  const templateMode = resolveStorefrontTemplateMode(vendorSettings)
   const outlet = (outletCode ?? '').trim()
-  const branchForLink = outlet || (linkMode === 'per_unit' ? undefined : null)
+  const branchForLink =
+    outlet
+    || (storefrontUrlNeedsBranch(linkMode, templateMode) ? undefined : null)
   const storeUrl = buildCustomerStoreLink(slug, branchForLink) ?? storeBase
   const showHr =
     !storeId || isHrEssLinkVisibleForStore(storeId, vendorSettings ?? undefined)

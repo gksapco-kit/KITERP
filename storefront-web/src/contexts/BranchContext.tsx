@@ -28,7 +28,7 @@ export type BranchContextValue = {
 const BranchContext = createContext<BranchContextValue | null>(null)
 
 function branchKey(v: string | null | undefined): string {
-  return String(v ?? '').trim()
+  return String(v ?? '').trim().toLowerCase()
 }
 
 function matchBranch(stores: StoreLocation[], code: string | null): StoreLocation | null {
@@ -74,7 +74,7 @@ export function BranchProvider({ children }: { children: ReactNode }) {
     return () => {
       cancelled = true
     }
-  }, [])
+  }, [branchCode])
 
   useEffect(() => {
     setBranchQueryParam(branchCode)
@@ -86,11 +86,13 @@ export function BranchProvider({ children }: { children: ReactNode }) {
     [branches, branchCode],
   )
 
-  // Branch is "closed" when the URL has a branch code that isn't in the open-branches list
-  // (the public catalog API only returns is_open=true stores)
+  // Branch is closed when the URL points to an unknown unit or one marked is_open=false.
   const isBranchClosed = useMemo(
-    () => !loading && branchCode !== null && selectedBranch === null && branches.length >= 0,
-    [loading, branchCode, selectedBranch, branches.length],
+    () =>
+      !loading
+      && branchCode !== null
+      && (selectedBranch === null || selectedBranch.is_open === false),
+    [loading, branchCode, selectedBranch],
   )
 
   const setBranchCode = useCallback(

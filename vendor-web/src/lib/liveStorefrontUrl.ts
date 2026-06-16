@@ -134,14 +134,27 @@ export function resolveEffectiveStorefrontTemplateId(
   return resolveStoreFrontTemplateId(storeSettings) ?? resolveSingleFrontTemplateId(vendorSettings)
 }
 
-/** Customer store link for a store, honoring the vendor-wide link mode. */
+/** True when the storefront URL must include `?branch=` for the correct BU template/branding. */
+export function storefrontUrlNeedsBranch(
+  linkMode: StorefrontLinkMode,
+  templateMode?: StorefrontTemplateMode,
+): boolean {
+  return linkMode === 'per_unit' || templateMode === 'per_unit'
+}
+
+/** Customer store link for a store, honoring link + template assignment modes. */
 export function customerLinkForStore(
   vendorSlug: string | null | undefined,
   store: { code?: string | null; id: string },
-  mode: StorefrontLinkMode,
+  linkMode: StorefrontLinkMode,
+  templateMode?: StorefrontTemplateMode,
 ): string | null {
-  if (mode === 'single') return buildCustomerStoreLink(vendorSlug)
-  return buildCustomerStoreLink(vendorSlug, branchCodeForStore(store))
+  const slug = vendorSlug?.trim()
+  if (!slug) return null
+  if (storefrontUrlNeedsBranch(linkMode, templateMode)) {
+    return buildCustomerStoreLink(slug, branchCodeForStore(store))
+  }
+  return buildCustomerStoreLink(slug)
 }
 
 type StoreLike = { id: string; code?: string | null }
@@ -150,16 +163,25 @@ export function resolveSiteStoreLink(
   vendorSlug: string | null | undefined,
   site: LiveStorefrontSite & { website_store_id?: string | null },
   stores: StoreLike[] = [],
+  vendorSettings?: Record<string, unknown> | null,
 ): string | null {
   let branchCode: string | null = null
   if (site.website_store_scope === 'store' && site.website_store_id) {
     const store = stores.find(s => s.id === site.website_store_id)
     if (store) branchCode = branchCodeForStore(store)
   }
+  if (branchCode) {
+    return buildCustomerStoreLink(vendorSlug, branchCode)
+  }
+  const linkMode = resolveStorefrontLinkMode(vendorSettings)
+  const templateMode = resolveStorefrontTemplateMode(vendorSettings)
+  if (storefrontUrlNeedsBranch(linkMode, templateMode)) {
+    return null
+  }
   return resolveLiveStorefrontUrl({ vendorSlug, site, branchCode })
 }
 
-export type AppliedTemplateViewLiveLink = { href: string; label: string }
+export type AppliedTemplateViewLiveLink = { href: string; label: string; storeId?: string }
 
 type StoreForViewLive = {
   id: string
@@ -210,12 +232,13 @@ export function resolveAppliedTemplateViewLiveLinks(
 
   if (!isApplied) return []
 
-  if (linkMode === 'single') {
+  const assignedStores = templateMode === 'single' ? stores : catalogAssignedStores
+  const needsBranch = storefrontUrlNeedsBranch(linkMode, templateMode)
+
+  if (!needsBranch) {
     const href = buildCustomerStoreLink(slug)
     return href ? [{ href, label: 'View live BU / Store' }] : []
   }
-
-  const assignedStores = templateMode === 'single' ? stores : catalogAssignedStores
 
   if (assignedStores.length === 0) {
     const href = buildCustomerStoreLink(slug)
@@ -224,15 +247,17 @@ export function resolveAppliedTemplateViewLiveLinks(
 
   if (assignedStores.length === 1) {
     const store = assignedStores[0]
-    const href = customerLinkForStore(slug, store, linkMode)
+    const href = customerLinkForStore(slug, store, linkMode, templateMode)
     const label = `${formatStoreCode(store)} · ${store.name}`
-    return href ? [{ href, label }] : []
+    return href ? [{ href, label, storeId: store.id }] : []
   }
 
   return assignedStores
     .map(store => {
-      const href = customerLinkForStore(slug, store, linkMode)
-      return href ? { href, label: `${formatStoreCode(store)} · ${store.name}` } : null
+      const href = customerLinkForStore(slug, store, linkMode, templateMode)
+      return href
+        ? { href, label: `${formatStoreCode(store)} · ${store.name}`, storeId: store.id }
+        : null
     })
     .filter((link): link is AppliedTemplateViewLiveLink => link != null)
 }
@@ -245,18 +270,21 @@ export function resolveStorefrontLinksForStoreIds(
   linkMode: StorefrontLinkMode,
   storeIds: string[],
   stores: StoreRef[],
+  templateMode?: StorefrontTemplateMode,
 ): AppliedTemplateViewLiveLink[] {
   const slug = vendorSlug?.trim()
   if (!slug || storeIds.length === 0) return []
 
-  if (linkMode === 'single') {
-    const href = buildCustomerStoreLink(slug)
-    return href ? [{ href, label: 'View live BU / Store' }] : []
-  }
-
   const assigned = storeIds
     .map(id => stores.find(s => s.id === id))
     .filter((s): s is StoreRef => s != null)
+
+  const needsBranch = storefrontUrlNeedsBranch(linkMode, templateMode)
+
+  if (!needsBranch) {
+    const href = buildCustomerStoreLink(slug)
+    return href ? [{ href, label: 'View live BU / Store' }] : []
+  }
 
   if (assigned.length === 0) {
     const href = buildCustomerStoreLink(slug)
@@ -265,15 +293,32 @@ export function resolveStorefrontLinksForStoreIds(
 
   return assigned
     .map(store => {
-      const href = customerLinkForStore(slug, store, linkMode)
-      return href ? { href, label: `${formatStoreCode(store)} · ${store.name ?? 'Store'}` } : null
+      const href = customerLinkForStore(slug, store, linkMode, templateMode)
+      return href
+        ? { href, label: `${formatStoreCode(store)} · ${store.name ?? 'Store'}`, storeId: store.id }
+        : null
     })
     .filter((link): link is AppliedTemplateViewLiveLink => link != null)
 }
 
+/** Open each link in a new tab (staggered to reduce popup-blocker issues). */
+export function openAllViewLiveLinks(links: AppliedTemplateViewLiveLink[]): void {
+  if (links.length === 0) return
+  window.open(links[0].href, '_blank', 'noopener,noreferrer')
+  for (let i = 1; i < links.length; i++) {
+    const href = links[i].href
+    window.setTimeout(() => {
+      window.open(href, '_blank', 'noopener,noreferrer')
+    }, i * 250)
+  }
+}
+
+/** Open live storefront link(s). Multiple BUs always show the picker — never auto-pick one. */
 export function openStorefrontLinks(
   links: AppliedTemplateViewLiveLink[],
-  options?: { onMultiple?: (links: AppliedTemplateViewLiveLink[]) => void },
+  options?: {
+    onMultiple?: (links: AppliedTemplateViewLiveLink[]) => void
+  },
 ): void {
   if (links.length === 0) return
   if (links.length === 1) {

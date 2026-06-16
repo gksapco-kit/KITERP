@@ -588,7 +588,7 @@ function StoreLocatorSection({
   }, [branches])
 
   const displayed = useMemo(() => {
-    let list = [...branches]
+    let list = branches.filter(b => b.is_open !== false)
 
     // city filter
     if (filterMode === 'city' && activeCity !== 'All') {

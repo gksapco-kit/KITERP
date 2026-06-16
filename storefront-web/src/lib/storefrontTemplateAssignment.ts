@@ -8,10 +8,14 @@ export const STORE_FRONT_TEMPLATE_KEY = 'front_template_id'
 export type StorefrontLinkMode = 'single' | 'per_unit'
 export type StorefrontTemplateMode = 'single' | 'per_unit'
 
+/** Default business-front layouts rendered by legacy Home.tsx. */
+export const DEFAULT_LAYOUT_TEMPLATE_IDS = ['light', 'dark'] as const
+
+/** Legacy theme ids still applied inside Home.tsx section styling. */
 export const LEGACY_HOME_TEMPLATE_IDS = ['light', 'dark', 'atelier', 'verde', 'solace'] as const
 
 function branchKey(v: string | null | undefined): string {
-  return String(v ?? '').trim()
+  return String(v ?? '').trim().toLowerCase()
 }
 
 export function matchBranchStore(
@@ -66,14 +70,44 @@ export function resolveAssignedStorefrontTemplateId(
   vendorSettings: Record<string, unknown> | null | undefined,
   stores: StoreLocation[],
   branchCode: string | null | undefined,
+  options?: { branchesLoading?: boolean },
 ): string | null {
   const templateMode = resolveStorefrontTemplateMode(vendorSettings)
-  const branchStore = matchBranchStore(stores, branchCode)
-  return resolveEffectiveStorefrontTemplateId(
-    vendorSettings,
-    branchStore?.settings as Record<string, unknown> | undefined,
-    templateMode,
-  )
+
+  if (templateMode === 'single') {
+    return resolveSingleFrontTemplateId(vendorSettings)
+  }
+
+  const branchKeyValue = branchKey(branchCode)
+  if (branchKeyValue) {
+    if (options?.branchesLoading) {
+      return null
+    }
+    const branchStore = matchBranchStore(stores, branchCode)
+    if (!branchStore) {
+      return null
+    }
+    const storeTemplate = resolveStoreFrontTemplateId(
+      branchStore.settings as Record<string, unknown>,
+    )
+    if (storeTemplate) {
+      return storeTemplate
+    }
+    // Per-BU URL with no assignment on this store — do not fall back to vendor default layout.
+    return null
+  }
+
+  return resolveSingleFrontTemplateId(vendorSettings)
+}
+
+/** True while the per-BU assigned template cannot be resolved yet (avoid wrong fallback UI). */
+export function isAssignedStorefrontTemplatePending(
+  vendorSettings: Record<string, unknown> | null | undefined,
+  branchCode: string | null | undefined,
+  branchesLoading: boolean,
+): boolean {
+  if (!branchCode?.trim()) return false
+  return resolveStorefrontTemplateMode(vendorSettings) === 'per_unit' && branchesLoading
 }
 
 export function isStorefrontCatalogTemplateId(id: string | null | undefined): boolean {
@@ -82,6 +116,19 @@ export function isStorefrontCatalogTemplateId(id: string | null | undefined): bo
 
 export function isLegacyHomeTemplateId(id: string | null | undefined): boolean {
   return typeof id === 'string' && (LEGACY_HOME_TEMPLATE_IDS as readonly string[]).includes(id)
+}
+
+export function isDefaultLayoutTemplateId(id: string | null | undefined): boolean {
+  return typeof id === 'string' && (DEFAULT_LAYOUT_TEMPLATE_IDS as readonly string[]).includes(id)
+}
+
+/** Website builder catalog templates (portfolio, verde, …) — block-based, not legacy Home. */
+export function isWebsiteBuilderBlockTemplateId(id: string | null | undefined): boolean {
+  if (!id?.trim()) return false
+  if (isDefaultLayoutTemplateId(id)) return false
+  if (isStorefrontCatalogTemplateId(id)) return false
+  if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) return false
+  return true
 }
 
 export function resolveLiveCatalogTemplateId(

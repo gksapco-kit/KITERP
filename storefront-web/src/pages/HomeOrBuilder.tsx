@@ -1,27 +1,65 @@
 /**
  * HomeOrBuilder — smart home page that picks between:
+ *  - Default layouts (light/dark — legacy Home.tsx)
  *  - React catalog templates (storefront_* — same as /template-browser/:id)
+ *  - Website builder block templates (portfolio, verde, …)
  *  - The BlockRenderer (published builder site without catalog template id)
  *  - The legacy Home.tsx (when no published builder site exists)
  */
+import { Loader2 } from 'lucide-react'
 import { useBuilderSite } from '@/contexts/BuilderSiteContext'
 import BuilderPage from '@/pages/BuilderPage'
 import Home from '@/pages/Home'
 import CatalogStorefrontLiveHome from '@/pages/CatalogStorefrontLiveHome'
+import WebsiteBuilderTemplateLiveHome from '@/pages/WebsiteBuilderTemplateLiveHome'
 import { getWbCatalogTemplateId } from '@/storefront/catalogTemplateIds'
-import { useAssignedStorefrontTemplateId } from '@/hooks/useAssignedStorefrontTemplateId'
+import { useAssignedStorefrontTemplateId, useAssignedStorefrontTemplatePending } from '@/hooks/useAssignedStorefrontTemplateId'
 import {
-  isLegacyHomeTemplateId,
+  isDefaultLayoutTemplateId,
   isStorefrontCatalogTemplateId,
+  isWebsiteBuilderBlockTemplateId,
   resolveLiveCatalogTemplateId,
 } from '@/lib/storefrontTemplateAssignment'
 
-export default function HomeOrBuilder() {
-  const { builderSite, isLoading } = useBuilderSite()
-  const assignedTemplateId = useAssignedStorefrontTemplateId()
+function renderAssignedTemplateHome(assignedTemplateId: string) {
+  if (isDefaultLayoutTemplateId(assignedTemplateId)) {
+    return <Home />
+  }
+  if (isStorefrontCatalogTemplateId(assignedTemplateId)) {
+    return <CatalogStorefrontLiveHome catalogTemplateId={assignedTemplateId} />
+  }
+  if (isWebsiteBuilderBlockTemplateId(assignedTemplateId)) {
+    return <WebsiteBuilderTemplateLiveHome key={assignedTemplateId} templateId={assignedTemplateId} />
+  }
+  return null
+}
 
-  if (isLoading) {
-    return <BuilderPage isHome />
+export default function HomeOrBuilder() {
+  const { builderSite, isLoading: builderSiteLoading } = useBuilderSite()
+  const assignedTemplateId = useAssignedStorefrontTemplateId()
+  const templatePending = useAssignedStorefrontTemplatePending()
+
+  if (templatePending) {
+    return (
+      <div className="min-h-[50vh] flex items-center justify-center">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      </div>
+    )
+  }
+
+  if (assignedTemplateId) {
+    const assignedHome = renderAssignedTemplateHome(assignedTemplateId)
+    if (assignedHome) {
+      return assignedHome
+    }
+  }
+
+  if (builderSiteLoading) {
+    return (
+      <div className="min-h-[50vh] flex items-center justify-center">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      </div>
+    )
   }
 
   if (builderSite) {
@@ -32,19 +70,11 @@ export default function HomeOrBuilder() {
       return <BuilderPage isHome />
     }
 
-    if (assignedTemplateId && isLegacyHomeTemplateId(assignedTemplateId)) {
-      return <Home />
-    }
-
     const catalogId = resolveLiveCatalogTemplateId(
       assignedTemplateId,
       getWbCatalogTemplateId(builderSite.style_config as Record<string, unknown>),
     )
     return <CatalogStorefrontLiveHome catalogTemplateId={catalogId} />
-  }
-
-  if (assignedTemplateId && isStorefrontCatalogTemplateId(assignedTemplateId)) {
-    return <CatalogStorefrontLiveHome catalogTemplateId={assignedTemplateId} />
   }
 
   return <Home />

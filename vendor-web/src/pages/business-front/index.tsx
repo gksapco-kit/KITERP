@@ -148,7 +148,7 @@ export default function BusinessFrontHubPage() {
     } else {
       for (const store of stores) {
         const assignedTemplate = resolveAssignedTemplateForStore(store)
-        const storeLiveUrl = customerLinkForStore(vendor?.slug, store, linkMode)
+        const storeLiveUrl = customerLinkForStore(vendor?.slug, store, linkMode, templateMode)
 
         if (assignedTemplate) {
           storefrontCards.push({

@@ -2,7 +2,7 @@ import { Link } from 'react-router-dom'
 import { ArrowUp } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { PublicSite, StyleConfig, LiveItem } from '@/blocks/registry'
-import { useVendor } from '@/contexts/VendorContext'
+import { useStorePath } from '@/hooks/useStorePath'
 import { BuilderTextField } from '@/components/builder/BuilderTextField'
 import { ColumnFooter } from '@/kit/footer/ColumnFooter'
 import type { FooterColumn } from '@/kit/footer/ColumnFooter'
@@ -60,7 +60,7 @@ function EditableColumnFooter({
   footerClass: string
   primaryColor: string
 }) {
-  const { storePath } = useVendor()
+  const storePath = useStorePath()
 
   return (
     <footer className={cn('border-t mt-8', footerClass)} style={{ backgroundColor: footerBg }}>
@@ -148,7 +148,7 @@ function EditableColumnFooter({
 }
 
 export default function FooterBlock({ site, style, props, liveItems, blockId }: Props) {
-  const { storePath } = useVendor()
+  const storePath = useStorePath()
   const copyright = (props.copyright as string) || `© ${new Date().getFullYear()} ${site.name}. All rights reserved.`
   const brand = (props.brand as string) || site.name
   const description = (props.description as string) || site.description || ''

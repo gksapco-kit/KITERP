@@ -78,23 +78,21 @@ export function resolveBuilderSiteViewLiveLinks(
   )
   if (assignedStores.length === 0) return []
 
-  if (linkMode === 'single') {
-    const href = customerLinkForStore(slug, assignedStores[0], linkMode)
-    return href ? [{ href, label: 'View live BU / Store' }] : []
-  }
+  const templateMode = resolveStorefrontTemplateMode(vendorSettings)
+  const linkModeResolved = linkMode
 
   if (assignedStores.length === 1) {
     const store = assignedStores[0]
-    const href = customerLinkForStore(slug, store, linkMode)
+    const href = customerLinkForStore(slug, store, linkModeResolved, templateMode)
     const label = `${formatStoreCode(store)} · ${store.name ?? 'Store'}`
-    return href ? [{ href, label }] : []
+    return href ? [{ href, label, storeId: store.id }] : []
   }
 
   return assignedStores
     .map(store => {
-      const href = customerLinkForStore(slug, store, linkMode)
+      const href = customerLinkForStore(slug, store, linkModeResolved, templateMode)
       return href
-        ? { href, label: `${formatStoreCode(store)} · ${store.name ?? 'Store'}` }
+        ? { href, label: `${formatStoreCode(store)} · ${store.name ?? 'Store'}`, storeId: store.id }
         : null
     })
     .filter((link): link is AppliedTemplateViewLiveLink => link != null)
@@ -297,19 +295,21 @@ export async function assignCatalogTemplateToStores({
   sites: SiteListItem[]
   stores: StoreLike[]
 }): Promise<void> {
-  for (const storeId of storeIds) {
-    const store = stores.find(s => s.id === storeId)
-    if (!store) continue
+  await Promise.all(
+    storeIds.map(async storeId => {
+      const store = stores.find(s => s.id === storeId)
+      if (!store) return
 
-    const linkedSite = sites.find(
-      s => s.website_store_scope === 'store' && s.website_store_id === storeId,
-    )
-    if (linkedSite) {
-      await unlinkSiteFromStore(linkedSite.id)
-    }
+      const linkedSite = sites.find(
+        s => s.website_store_scope === 'store' && s.website_store_id === storeId,
+      )
+      if (linkedSite) {
+        await unlinkSiteFromStore(linkedSite.id)
+      }
 
-    await vendorApi.updateStore(storeId, {
-      settings: { ...(store.settings ?? {}), [STORE_FRONT_TEMPLATE_KEY]: templateId },
-    })
-  }
+      await vendorApi.updateStore(storeId, {
+        settings: { ...(store.settings ?? {}), [STORE_FRONT_TEMPLATE_KEY]: templateId },
+      })
+    }),
+  )
 }

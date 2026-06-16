@@ -31,11 +31,10 @@ import {
   resolveAppliedTemplateViewLiveLinks,
   resolveSingleFrontTemplateId,
   resolveStorefrontLinkMode,
-  resolveStorefrontLinksForStoreIds,
-  openStorefrontLinks,
   resolveStorefrontTemplateMode,
   resolveStoreFrontTemplateId,
   SINGLE_FRONT_TEMPLATE_KEY,
+  STORE_FRONT_TEMPLATE_KEY,
   STOREFRONT_TEMPLATE_MODE_KEY,
   type StorefrontTemplateMode,
 } from '@/lib/liveStorefrontUrl'
@@ -834,7 +833,9 @@ export default function WebsiteTemplateGalleryPage() {
   const singleFrontBannerRef = useRef<HTMLDivElement>(null)
   const perStoreBannerRef = useRef<HTMLDivElement>(null)
   const { data: sites = [], isLoading: sitesLoading } = useSiteList()
-  const { data: storesData, isLoading: storesLoading } = useStores({ limit: 200 })
+  const storesQueryParams = useMemo(() => ({ limit: 200 }), [])
+  const storesQueryKey = vendorKeys.stores(storesQueryParams)
+  const { data: storesData, isLoading: storesLoading } = useStores(storesQueryParams)
   const stores = storesData?.stores ?? []
   const { data: templates = [], isLoading: templatesLoading } = useWebsiteTemplates()
   const { data: themeConfig, isLoading: themeLoading } = useQuery({
@@ -857,6 +858,11 @@ export default function WebsiteTemplateGalleryPage() {
   const perStoreHighlight = searchParams.get('perStore') === '1'
   const [selectedSiteId, setSelectedSiteId] = useState<string | null>(null)
   const [selectedAssignStoreId, setSelectedAssignStoreId] = useState<string | null>(null)
+  const selectedAssignStoreIdRef = useRef<string | null>(null)
+
+  useEffect(() => {
+    selectedAssignStoreIdRef.current = selectedAssignStoreId
+  }, [selectedAssignStoreId])
 
   const storefrontLinkMode = resolveStorefrontLinkMode(vendor?.settings)
   const storefrontTemplateMode = resolveStorefrontTemplateMode(vendor?.settings)
@@ -902,54 +908,75 @@ export default function WebsiteTemplateGalleryPage() {
     links: AppliedTemplateViewLiveLink[]
   } | null>(null)
 
-  const openLiveAfterStoreAssign = useCallback(
-    (storeIds: string[], templateName: string) => {
-      const links = resolveStorefrontLinksForStoreIds(
-        vendor?.slug,
-        storefrontLinkMode,
-        storeIds,
-        stores,
-      )
-      openStorefrontLinks(links, {
-        onMultiple: picked => setViewLivePicker({ templateName, links: picked }),
+  const openViewLiveLinks = useCallback(
+    (links: AppliedTemplateViewLiveLink[], templateName: string) => {
+      if (links.length === 0) return
+      if (links.length === 1) {
+        window.open(links[0].href, '_blank', 'noopener,noreferrer')
+        return
+      }
+      setViewLivePicker({
+        templateName,
+        links,
       })
     },
-    [vendor?.slug, storefrontLinkMode, stores],
+    [],
   )
 
   const assignTemplateToStores = useMutation({
     mutationFn: async ({
       templateId,
       storeIds,
-      templateName,
     }: {
       templateId: string
       storeIds: string[]
       templateName: string
     }) => {
+      const storesData = queryClient.getQueryData(storesQueryKey) as { stores?: typeof stores } | undefined
+      const freshStores = storesData?.stores ?? stores
+      const freshSites = (queryClient.getQueryData(['websites']) as SiteListItem[] | undefined) ?? (sites as SiteListItem[])
+      const liveSites = freshSites.filter(s => !isTemplateSandboxSite(s))
       await assignCatalogTemplateToStores({
         templateId,
         storeIds,
-        sites: mainSites,
-        stores,
+        sites: liveSites,
+        stores: freshStores,
       })
-      return { templateName }
     },
     onSuccess: (_data, vars) => {
-      queryClient.invalidateQueries({ queryKey: vendorKeys.stores() })
-      queryClient.invalidateQueries({ queryKey: ['websites'] })
+      queryClient.setQueryData(storesQueryKey, (prev: { stores?: typeof stores } | undefined) => {
+        if (!prev?.stores) return prev
+        return {
+          ...prev,
+          stores: prev.stores.map(s =>
+            vars.storeIds.includes(s.id)
+              ? {
+                  ...s,
+                  settings: { ...(s.settings ?? {}), [STORE_FRONT_TEMPLATE_KEY]: vars.templateId },
+                }
+              : s,
+          ),
+        }
+      })
+      void queryClient.invalidateQueries({
+        queryKey: [...vendorKeys.all, 'stores'],
+        refetchType: 'none',
+      })
+      void queryClient.invalidateQueries({ queryKey: ['websites'] })
       toast.success(
         vars.storeIds.length > 1
           ? `Template applied to ${vars.storeIds.length} business units`
-          : 'Template applied — opening live storefront',
+          : 'Template applied to business unit',
       )
-      openLiveAfterStoreAssign(vars.storeIds, vars.templateName)
       setAssignTemplate(null)
       setSearchParams(prev => {
         const next = new URLSearchParams(prev)
         next.delete('perStore')
         return next
       }, { replace: true })
+      window.setTimeout(() => {
+        void queryClient.invalidateQueries({ queryKey: [...vendorKeys.all, 'stores'] })
+      }, 2500)
     },
     onError: () => toast.error('Could not apply template to business units'),
   })
@@ -958,38 +985,62 @@ export default function WebsiteTemplateGalleryPage() {
     mutationFn: async ({
       siteId,
       storeIds,
-      siteName,
     }: {
       siteId: string
       storeIds: string[]
       siteName: string
     }) => {
-      await assignBuilderSiteToStores({ siteId, storeIds, sites: sites as SiteListItem[], stores })
-      return { siteName }
+      const storesData = queryClient.getQueryData(storesQueryKey) as { stores?: typeof stores } | undefined
+      const freshStores = storesData?.stores ?? stores
+      const freshSites = (queryClient.getQueryData(['websites']) as SiteListItem[] | undefined) ?? (sites as SiteListItem[])
+      await assignBuilderSiteToStores({ siteId, storeIds, sites: freshSites, stores: freshStores })
     },
     onSuccess: (_data, vars) => {
-      queryClient.invalidateQueries({ queryKey: vendorKeys.stores() })
-      queryClient.invalidateQueries({ queryKey: ['websites'] })
-      queryClient.invalidateQueries({ queryKey: vendorKeys.me() })
+      void queryClient.invalidateQueries({
+        queryKey: [...vendorKeys.all, 'stores'],
+        refetchType: 'none',
+      })
+      void queryClient.invalidateQueries({ queryKey: ['websites'] })
+      void queryClient.invalidateQueries({ queryKey: vendorKeys.me() })
       toast.success(
         vars.storeIds.length > 1
           ? `Website Builder site linked to ${vars.storeIds.length} business units`
-          : 'Live on storefront — opening your store',
+          : 'Website Builder site linked to business unit',
       )
-      openLiveAfterStoreAssign(vars.storeIds, vars.siteName)
       setAssignBuilderSite(null)
       setSearchParams(prev => {
         const next = new URLSearchParams(prev)
         next.delete('perStore')
         return next
       }, { replace: true })
+      window.setTimeout(() => {
+        void queryClient.invalidateQueries({ queryKey: [...vendorKeys.all, 'stores'] })
+      }, 2500)
     },
     onError: () => toast.error('Could not link draft site to business units'),
   })
 
-  const openStorePicker = useCallback((templateId: string, templateName: string) => {
+  const openStorePicker = useCallback((
+    templateId: string,
+    templateName: string,
+    opts?: { manage?: boolean },
+  ) => {
+    if (assignTemplateToStores.isPending) return
+    const targetStoreId = selectedAssignStoreIdRef.current ?? stores[0]?.id ?? null
+    if (!targetStoreId) {
+      toast.error('Select a business unit in Storefront coverage first.')
+      return
+    }
+    if (!opts?.manage) {
+      assignTemplateToStores.mutate({
+        templateId,
+        storeIds: [targetStoreId],
+        templateName,
+      })
+      return
+    }
     setAssignTemplate({ id: templateId, name: templateName })
-  }, [])
+  }, [stores, assignTemplateToStores])
 
   const openBuilderSiteStorePicker = useCallback((siteId: string, siteName: string, preferStoreId?: string) => {
     if (preferStoreId) setSelectedAssignStoreId(preferStoreId)
@@ -1010,17 +1061,13 @@ export default function WebsiteTemplateGalleryPage() {
       templateName: string,
     ) => {
       if ((e.target as HTMLElement).closest('[data-template-card-action]')) return
-      if (viewLiveLinks.length > 1) {
-        setViewLivePicker({ templateName, links: viewLiveLinks })
-        return
-      }
-      if (viewLiveLinks.length === 1) {
-        window.open(viewLiveLinks[0].href, '_blank', 'noopener,noreferrer')
+      if (viewLiveLinks.length > 0) {
+        openViewLiveLinks(viewLiveLinks, templateName)
         return
       }
       openTemplateBrowserPreview(templateId)
     },
-    [openTemplateBrowserPreview],
+    [openTemplateBrowserPreview, openViewLiveLinks],
   )
 
   const handleSetTemplateMode = useCallback(
@@ -1065,12 +1112,13 @@ export default function WebsiteTemplateGalleryPage() {
 
   useEffect(() => {
     if (storesLoading || stores.length === 0) return
-    const firstId = stores[0].id
     if (storeParam && stores.some(s => s.id === storeParam)) {
       setSelectedAssignStoreId(storeParam)
-    } else {
-      setSelectedAssignStoreId(firstId)
+      return
     }
+    setSelectedAssignStoreId(prev =>
+      prev && stores.some(s => s.id === prev) ? prev : stores[0].id,
+    )
   }, [storesLoading, stores, storeParam])
 
   useEffect(() => {
@@ -1284,7 +1332,14 @@ export default function WebsiteTemplateGalleryPage() {
         perStoreTemplateMode={isPerStoreTemplateMode}
         perStoreUsedCount={storesUsingTemplate(lightPreset.id)}
         assignedStoreNames={storesAssignedToTemplate(stores, lightPreset.id, { sites: mainSites }).map(s => s.name)}
-        onApplyForStore={isPerStoreTemplateMode ? id => openStorePicker(id, lightPreset.name) : undefined}
+        onApplyForStore={
+          isPerStoreTemplateMode
+            ? templateId =>
+                openStorePicker(templateId, lightPreset.name, {
+                  manage: storesUsingTemplate(templateId) > 0,
+                })
+            : undefined
+        }
         applyForStorePending={assignTemplateToStores.isPending}
         viewLiveLinks={resolveAppliedTemplateViewLiveLinks(vendor?.slug, storefrontLinkMode, {
           templateId: lightPreset.id,
@@ -1293,6 +1348,7 @@ export default function WebsiteTemplateGalleryPage() {
           stores,
           builderSites: mainSites,
         })}
+        highlightStoreId={selectedAssignStoreId}
       />
     ) : null
 
@@ -1358,7 +1414,8 @@ export default function WebsiteTemplateGalleryPage() {
         }
         assignPending={assignBuilderSiteToStore.isPending}
         onPreview={() => void openBuilderSiteDraftPreview(site.id)}
-        onViewLivePicker={links => setViewLivePicker({ templateName: site.name, links })}
+        onViewLivePicker={links => openViewLiveLinks(links, site.name)}
+        highlightStoreId={selectedAssignStoreId}
       />
     )
   }
@@ -1526,7 +1583,9 @@ export default function WebsiteTemplateGalleryPage() {
                   <button
                     type="button"
                     disabled={assignTemplateToStores.isPending}
-                    onClick={() => openStorePicker(tpl.id, tpl.name)}
+                    onClick={() =>
+                      openStorePicker(tpl.id, tpl.name, { manage: isApplied })
+                    }
                     className={cn(
                       templateCardActionBtnClass,
                       isApplied
@@ -1562,7 +1621,11 @@ export default function WebsiteTemplateGalleryPage() {
                 </button>
               ) : null}
               {viewLiveLinks.length > 0 ? (
-                <AppliedTemplateViewLiveButton links={viewLiveLinks} templateName={tpl.name} />
+                <AppliedTemplateViewLiveButton
+                  links={viewLiveLinks}
+                  templateName={tpl.name}
+                  highlightStoreId={selectedAssignStoreId}
+                />
               ) : null}
               {!isLiveOnStorefront ? (
                 <button
@@ -1753,6 +1816,7 @@ export default function WebsiteTemplateGalleryPage() {
 
       {assignTemplate ? (
         <StoreTemplatePicker
+          key={`${assignTemplate.id}-${selectedAssignStoreId ?? 'none'}`}
           templateName={assignTemplate.name}
           stores={pickerStores}
           primaryStoreId={selectedAssignStoreId}
@@ -1774,6 +1838,7 @@ export default function WebsiteTemplateGalleryPage() {
           open
           templateName={viewLivePicker.templateName}
           links={viewLivePicker.links}
+          highlightStoreId={selectedAssignStoreId}
           onClose={() => setViewLivePicker(null)}
         />
       ) : null}

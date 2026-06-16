@@ -1,5 +1,6 @@
 import axios, { type InternalAxiosRequestConfig, type AxiosError } from 'axios'
 import { getStorefrontApiBaseUrl } from '@/lib/apiBase'
+import { useAuthStore } from '@/stores/authStore'
 
 const API_URL = getStorefrontApiBaseUrl()
 
@@ -38,8 +39,6 @@ apiClient.interceptors.request.use((config) => {
   const token = localStorage.getItem('customer_access_token')
   if (token) {
     config.headers.Authorization = `Bearer ${token}`
-  } else {
-    console.warn('No customer access token found for request:', config.url)
   }
 
   // SaaS model: send vendor context — prefer in-memory, fallback to localStorage
@@ -79,12 +78,28 @@ function processQueue(error: unknown, token: string | null) {
   failedQueue = []
 }
 
+/** Paths that require a signed-in customer; public catalog/home must not redirect to login. */
+function storefrontPathRequiresLogin(pathname: string): boolean {
+  const match = pathname.match(/^\/store\/[^/]+(\/.*)?$/)
+  if (!match) return false
+  const tail = match[1] ?? ''
+  return /^\/account(\/|$)/.test(tail) || tail === '/checkout'
+}
+
+function clearStaleCustomerAuth() {
+  useAuthStore.getState().logout()
+}
+
 function clearAuthAndRedirect() {
-  localStorage.removeItem('customer_access_token')
-  localStorage.removeItem('customer_refresh_token')
-  localStorage.removeItem('customer-auth-storage')
-  const slug = _vendorSlug || localStorage.getItem('vendor_slug')
-  window.location.href = slug ? `/store/${slug}/login` : '/'
+  clearStaleCustomerAuth()
+  const pathname = window.location.pathname
+  if (!storefrontPathRequiresLogin(pathname)) {
+    // Expired session on a public page — browse as guest; do not hijack to login.
+    return
+  }
+  const slug = getVendorSlug()
+  const search = window.location.search
+  window.location.href = slug ? `/store/${slug}/login${search}` : '/'
 }
 
 apiClient.interceptors.response.use(

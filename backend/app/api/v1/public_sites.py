@@ -229,13 +229,13 @@ async def _resolve_site_by_subdomain(
                 return s
         return None
 
-    branch_key = (branch or "").strip()
+    branch_key = (branch or "").strip().lower()
     if branch_key:
         store_res = await db.execute(select(Store).where(Store.vendor_id == vendor.id))
         store = next(
             (
                 st for st in store_res.scalars().all()
-                if (st.code or "").strip() == branch_key or str(st.id) == branch_key
+                if (st.code or "").strip().lower() == branch_key or str(st.id).lower() == branch_key
             ),
             None,
         )

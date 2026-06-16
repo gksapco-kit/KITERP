@@ -263,7 +263,8 @@ export function useCustomerMe() {
   return useQuery({
     queryKey: storeKeys.me,
     queryFn: async () => { const c = await storeApi.getMe(); setCustomer(c); return c },
-    enabled: !!accessToken, retry: false,
+    enabled: !!accessToken,
+    retry: false,
   })
 }
 

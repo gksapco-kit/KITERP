@@ -254,13 +254,17 @@ async def list_public_stores(
     vendor_id: UUID = Depends(get_vendor_id_from_tenant),
     db: AsyncSession = Depends(get_db),
 ):
-    """Return active store locations for the vendor's business front."""
+    """Return active store locations for the vendor's business front.
+
+    Includes temporarily closed units so ``?branch=`` can resolve per-BU templates
+    and branding; UIs filter on ``is_open`` when listing shoppable locations.
+    """
     from sqlalchemy import select
     from app.models.store import Store
 
     result = await db.execute(
         select(Store)
-        .where(Store.vendor_id == vendor_id, Store.is_active == True, Store.is_open == True)
+        .where(Store.vendor_id == vendor_id, Store.is_active == True)
         .order_by(Store.is_default.desc(), Store.name)
     )
     stores = result.scalars().all()

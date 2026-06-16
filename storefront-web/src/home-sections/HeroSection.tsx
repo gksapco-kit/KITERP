@@ -67,7 +67,7 @@ export function HeroSection({
     const h1 = str(props.headline, theme.hero_title) || 'Quiet objects for loud seasons.'
     const sub = str(props.subtitle, theme.hero_subtitle) || 'A small collection of garments and homewares, made by hand in studios we know by name.'
     const accent = str(props.accent_phrase as string, 'loud')
-    const heroImg = editorialHeroFallback || '/storefront-ui/retail-hero.jpg'
+    const heroImg = imgUrl(editorialHeroFallback || '/storefront-ui/retail-hero.jpg')
     const useCarousel = heroBackgroundUrls.length > 1 && !str(props.bg_image_url as string, '') && !theme.hero_image_url
     return (
       <section className="bg-retail-bg text-retail-ink px-4 sm:px-6 lg:px-10 pt-7 sm:pt-10 pb-10 sm:pb-16 overflow-x-hidden">
@@ -115,7 +115,7 @@ export function HeroSection({
     const raw = str(props.headline, theme.hero_title) || 'Seasonal,\nquietly seasonal.'
     const lines = raw.split(/\n/).map(l => l.trim()).filter(Boolean)
     const accent = str(props.accent_phrase as string, 'seasonal')
-    const heroImg = editorialHeroFallback || '/storefront-ui/restaurant-hero.jpg'
+    const heroImg = imgUrl(editorialHeroFallback || '/storefront-ui/restaurant-hero.jpg')
     const useCarousel = heroBackgroundUrls.length > 1 && !str(props.bg_image_url as string, '') && !theme.hero_image_url
     const line1 = lines[0] || 'Seasonal,'
     const line2 = lines.slice(1).join(' ') || 'quietly seasonal.'
@@ -157,7 +157,7 @@ export function HeroSection({
     const lines = raw.split(/\n/).map(l => l.trim()).filter(Boolean)
     const accent = str(props.accent_phrase as string, 'Patient')
     const sub = str(props.subtitle, theme.hero_subtitle) || 'A 90-bed independent hospital built around the unhurried appointment. Same-day bookings across 14 specialties.'
-    const heroImg = editorialHeroFallback || '/storefront-ui/hospital-hero.jpg'
+    const heroImg = imgUrl(editorialHeroFallback || '/storefront-ui/hospital-hero.jpg')
     const useCarousel = heroBackgroundUrls.length > 1 && !str(props.bg_image_url as string, '') && !theme.hero_image_url
     const lineTail = lines[2] || lines.slice(2).join(' ')
 

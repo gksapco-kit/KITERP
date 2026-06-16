@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate, useLocation, useSearchParams } from 'react-router-dom'
 import { MapPin, ChevronDown, Search, ShoppingBag, User, X } from 'lucide-react'
 import { useVendor } from '@/contexts/VendorContext'
+import { useStorePath } from '@/hooks/useStorePath'
 import { branchDisplayName } from '@/lib/branchStorefrontIdentity'
 import { useCartStore } from '@/stores/cartStore'
 import { useAuthStore } from '@/stores/authStore'
@@ -49,7 +50,8 @@ export default function NavBlock({
   branchCode: branchFromBlocks,
   isEditorCanvas = false,
 }: Props) {
-  const { storePath, vendor, previewShell } = useVendor()
+  const { vendor, previewShell } = useVendor()
+  const storePath = useStorePath()
   const builderCanvas = useBuilderCanvas()
   const navigate = useNavigate()
   const location = useLocation()

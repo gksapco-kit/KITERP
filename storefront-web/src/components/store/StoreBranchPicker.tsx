@@ -17,9 +17,10 @@ type Props = {
 
 export function StoreBranchPicker({ className, compact = false }: Props) {
   const { branches, branchCode, selectedBranch, isBranchClosed, setBranchCode, loading } = useBranch()
+  const openBranches = branches.filter(b => b.is_open !== false)
 
   // Show picker when there are multiple open branches OR when a branch is closed (to let user switch)
-  if (loading || (branches.length <= 1 && !isBranchClosed)) return null
+  if (loading || (openBranches.length <= 1 && !isBranchClosed)) return null
 
   const label = isBranchClosed
     ? 'Store Closed'
@@ -51,7 +52,7 @@ export function StoreBranchPicker({ className, compact = false }: Props) {
           </div>
         )}
         <DropdownMenuItem onClick={() => setBranchCode(null)}>All locations</DropdownMenuItem>
-        {branches.map((b) => (
+        {openBranches.map((b) => (
           <DropdownMenuItem
             key={b.id}
             onClick={() => setBranchCode(b.code || b.id)}

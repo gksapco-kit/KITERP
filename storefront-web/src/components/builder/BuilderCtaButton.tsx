@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import { cn } from '@/lib/utils'
 import { useBuilderCanvas } from '@/contexts/BuilderCanvasContext'
 import { isMultiSelectModifier } from '@/lib/builderMultiSelect'
-import { useVendor } from '@/contexts/VendorContext'
+import { useStorePath } from '@/hooks/useStorePath'
 import { BuilderPositionableField } from '@/components/builder/BuilderPositionableField'
 import { BuilderTextField } from '@/components/builder/BuilderTextField'
 
@@ -28,7 +28,7 @@ export function BuilderCtaButton({
   trailing?: ReactNode
 }) {
   const ctx = useBuilderCanvas()
-  const { storePath } = useVendor()
+  const storePath = useStorePath()
   const isEditor = ctx?.isEditorCanvas && !!blockId
   const isActive = isEditor
     && ctx?.activeBlockId === blockId

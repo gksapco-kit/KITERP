@@ -19,7 +19,7 @@ import { useBuilderCanvas } from '@/contexts/BuilderCanvasContext'
 import { useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { storeApi, type StoreLocation } from '@/api/store'
-import { branchDisplayName, branchWelcomeHeadline } from '@/lib/branchStorefrontIdentity'
+import { branchWelcomeHeadline } from '@/lib/branchStorefrontIdentity'
 import { useBranch } from '@/contexts/BranchContext'
 
 interface Props {
@@ -69,15 +69,21 @@ export default function HeroBlock({ site, style, props, blockType, blockId, bran
     return branches.find((b) => b.code === key || b.id === key) ?? null
   }, [branches, effectiveBranchKey, branchFromContext])
 
-  const defaultHeadline = selectedBranch
-    ? branchWelcomeHeadline(selectedBranch)
-    : sanitizeWellnessBodyCopy((props.headline as string) || site.name || 'Welcome')
-  const headline = sanitizeWellnessBodyCopy(defaultHeadline)
+  const templateHeadline = ((props.headline as string) || '').trim()
+  const headline = sanitizeWellnessBodyCopy(
+    templateHeadline
+      ? templateHeadline
+      : selectedBranch
+        ? branchWelcomeHeadline(selectedBranch)
+        : site.name || 'Welcome',
+  )
   const headlineLine2 = sanitizeWellnessBodyCopy((props.headline_line2 as string) || '')
   const eyebrow = sanitizeWellnessBodyCopy((props.eyebrow as string) || '')
   const eyebrowPlain = props.eyebrow_plain === true
+  const subtitleFromProps = ((props.subtitle as string) || '').trim()
   const subtitle = sanitizeWellnessBodyCopy(
-    (props.subtitle as string) || (selectedBranch?.description ?? site.description) || '',
+    subtitleFromProps
+      || (!templateHeadline && !headlineLine2 ? (selectedBranch?.description ?? '') : ''),
   )
   const ctaPrimary = sanitizeWellnessBodyCopy((props.cta_primary as string) || 'Get Started')
   const ctaSecondaryRaw = (props.cta_secondary as string | null) || null
@@ -465,6 +471,11 @@ export default function HeroBlock({ site, style, props, blockType, blockId, bran
     )
   }
 
+  const centeredImageHeroClass =
+    heroUsesImageBg && !splitSideBySide && !isSplit
+      ? 'relative px-8 py-24 min-h-[72vh] flex items-center justify-center overflow-hidden'
+      : 'relative px-8 py-24'
+
   return (
     <section
       className={
@@ -472,7 +483,7 @@ export default function HeroBlock({ site, style, props, blockType, blockId, bran
           ? 'relative overflow-hidden flex flex-col md:flex-row md:items-stretch'
           : isSplit
             ? 'relative px-8 flex flex-col md:flex-row items-center gap-10 py-16'
-            : 'relative px-8 py-24'
+            : centeredImageHeroClass
       }
       style={
         splitSideBySide
@@ -486,15 +497,25 @@ export default function HeroBlock({ site, style, props, blockType, blockId, bran
             }
       }
     >
-      {isEditorCanvas && heroUsesImageBg && heroImageUrl ? (
+      {heroUsesImageBg && heroImageUrl ? (
         <div className="absolute inset-0 z-0">
-          <BuilderSectionImage
-            blockId={blockId}
-            field="bg_image_url"
-            blockProps={props}
-            src={heroImageUrl}
-            className="absolute inset-0 h-full w-full"
-          />
+          {isEditorCanvas && blockId ? (
+            <BuilderSectionImage
+              blockId={blockId}
+              field="bg_image_url"
+              blockProps={props}
+              src={heroImageUrl}
+              className="absolute inset-0 h-full w-full object-cover"
+            />
+          ) : (
+            <img
+              src={heroImageUrl}
+              alt=""
+              className="absolute inset-0 h-full w-full object-cover"
+              loading="eager"
+              decoding="async"
+            />
+          )}
         </div>
       ) : null}
       {heroUsesImageBg && bgStyle === 'gradient' && (

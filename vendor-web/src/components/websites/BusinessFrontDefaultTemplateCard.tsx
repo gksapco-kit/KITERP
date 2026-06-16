@@ -31,6 +31,7 @@ type Props = {
   onApplyForStore?: (templateId: string) => void
   applyForStorePending?: boolean
   viewLiveLinks?: AppliedTemplateViewLiveLink[]
+  highlightStoreId?: string | null
 }
 
 export function BusinessFrontDefaultTemplateCard({
@@ -49,6 +50,7 @@ export function BusinessFrontDefaultTemplateCard({
   onApplyForStore,
   applyForStorePending,
   viewLiveLinks = [],
+  highlightStoreId,
 }: Props) {
   const qc = useQueryClient()
   const active = resolveBusinessFrontActiveTemplate(themeTemplateId, [preset], sites)
@@ -218,7 +220,11 @@ export function BusinessFrontDefaultTemplateCard({
               </button>
             ) : null}
             {viewLiveLinks.length > 0 ? (
-              <AppliedTemplateViewLiveButton links={viewLiveLinks} templateName={preset.name} />
+              <AppliedTemplateViewLiveButton
+                links={viewLiveLinks}
+                templateName={preset.name}
+                highlightStoreId={highlightStoreId}
+              />
             ) : null}
           </div>
           <button
