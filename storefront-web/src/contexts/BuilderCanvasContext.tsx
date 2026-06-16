@@ -12,6 +12,8 @@ export interface BuilderCanvasContextValue {
   activeCanvasImageTarget?: ActiveCanvasImageTarget | null
   /** Block props for the active block — used to read image fit / focal while rendering. */
   blockPropsForImage?: Record<string, unknown> | null
+  /** Builder canvas CSS scale (fit × zoom) — pointer deltas must be divided by this. */
+  canvasScale?: number
   onSectionImageActivate?: (
     blockId: string,
     field: string,

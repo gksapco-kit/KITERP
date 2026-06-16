@@ -97,3 +97,17 @@ export function sectionPrimaryImageField(
   if (blockType === 'video_embed') return props.thumbnail_url != null ? 'thumbnail_url' : 'thumbnail_url'
   return null
 }
+
+/** When applying a section background photo, also switch into image mode so blocks render it. */
+export function buildSectionImagePropsPatch(
+  field: string,
+  url: string,
+  props: Record<string, unknown>,
+): Record<string, unknown> {
+  const patch: Record<string, unknown> = { [field]: url }
+  if (field === 'bg_image_url') {
+    if (String(props.bg_style ?? '') !== 'image') patch.bg_style = 'image'
+    if (!props.overlay) patch.overlay = true
+  }
+  return patch
+}

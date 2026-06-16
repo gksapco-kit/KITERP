@@ -14,7 +14,7 @@
  * (used everywhere) is never blocked on the builder site fetch.
  */
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react'
-import { Outlet, useParams } from 'react-router-dom'
+import { Outlet, useParams, useSearchParams } from 'react-router-dom'
 import { publicSitesApi } from '@/api/publicSites'
 import { useVendor } from '@/contexts/VendorContext'
 import type { PublicSite } from '@/blocks/registry'
@@ -31,6 +31,8 @@ const BuilderSiteContext = createContext<BuilderSiteContextType>({
 
 export function BuilderSiteProvider({ children }: { children: ReactNode }) {
   const { vendor, vendorSlug } = useVendor()
+  const [searchParams] = useSearchParams()
+  const branchCode = searchParams.get('branch')?.trim() || null
   const [builderSite, setBuilderSite] = useState<PublicSite | null>(null)
   const [isLoading, setIsLoading] = useState(false)
 
@@ -54,13 +56,25 @@ export function BuilderSiteProvider({ children }: { children: ReactNode }) {
 
     if (!subdomain) return
 
+    let cancelled = false
     setIsLoading(true)
+    // Pass the active business unit so each branch resolves to its own
+    // linked storefront site, not the vendor's latest published one.
     publicSitesApi
-      .getBySubdomain(subdomain)
-      .then(site => setBuilderSite(site))
-      .catch(() => setBuilderSite(null))
-      .finally(() => setIsLoading(false))
-  }, [vendor?.slug, vendorSlug])
+      .getBySubdomain(subdomain, branchCode)
+      .then(site => {
+        if (!cancelled) setBuilderSite(site)
+      })
+      .catch(() => {
+        if (!cancelled) setBuilderSite(null)
+      })
+      .finally(() => {
+        if (!cancelled) setIsLoading(false)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [vendor?.slug, vendorSlug, branchCode])
 
   return (
     <BuilderSiteContext.Provider value={{ builderSite, isLoading }}>

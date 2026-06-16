@@ -38,6 +38,7 @@ function FeatureItemImage({
   blockProps,
   className,
   style,
+  allowEmpty = false,
 }: {
   feature: FeatureItem
   index: number
@@ -45,25 +46,29 @@ function FeatureItemImage({
   blockProps: Record<string, unknown>
   className?: string
   style?: CSSProperties
+  allowEmpty?: boolean
 }) {
-  if (!feature.image_url) return null
-  const src = imgUrl(feature.image_url)
+  if (!feature.image_url && !allowEmpty) return null
+  const src = feature.image_url ? imgUrl(feature.image_url) : 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7'
   if (blockId) {
     return (
-      <BuilderSectionImage
-        blockId={blockId}
-        field="image_url"
-        arrayKey="features"
-        index={index}
-        itemField="image_url"
-        blockProps={blockProps}
-        src={src}
-        alt=""
-        className={className}
-        style={style}
-      />
+      <div className={cn('relative overflow-hidden', className)} style={style}>
+        <BuilderSectionImage
+          blockId={blockId}
+          field="image_url"
+          arrayKey="features"
+          index={index}
+          itemField="image_url"
+          blockProps={blockProps}
+          src={src}
+          alt=""
+          empty={!feature.image_url}
+          className="absolute inset-0 h-full w-full object-cover"
+        />
+      </div>
     )
   }
+  if (!feature.image_url) return null
   return <img src={src} alt="" className={className} style={style} loading="lazy" />
 }
 
@@ -227,12 +232,13 @@ export default function FeaturesBlock({ site, style, props, blockType, blockId }
               className={cn('flex gap-4 items-start rounded-2xl border', surface.isDark ? 'border-white/10 bg-white/5' : 'border-gray-100 bg-white')}
               style={{ padding: cardPad }}
             >
-              {feature.image_url ? (
+              {feature.image_url || (blockId && showImages) ? (
                 <FeatureItemImage
                   feature={feature}
                   index={i}
                   blockId={blockId}
                   blockProps={props}
+                  allowEmpty={showImages && !feature.image_url}
                   className={thumbnailShapeClass(imageShape)}
                   style={{ width: iconBox, height: iconBox }}
                 />
@@ -313,24 +319,24 @@ export default function FeaturesBlock({ site, style, props, blockType, blockId }
             )}
             style={{ padding: cardPad }}
           >
-            {showImages && feature.image_url && (
+            {showImages && (feature.image_url || blockId) ? (
               <FeatureItemImage
                 feature={feature}
                 index={i}
                 blockId={blockId}
                 blockProps={props}
+                allowEmpty={!feature.image_url}
                 className={cn(cardImageShapeClass(imageShape), 'mb-4', imageShape === 'circle' && 'max-w-[180px]')}
                 style={{ height: imageShape === 'circle' ? iconBox : Math.round(itemSize * 0.55) }}
               />
-            )}
-            {!feature.image_url && (
+            ) : !feature.image_url ? (
               <div
                 className={cn(iconBoxShapeClass(imageShape), 'flex items-center justify-center mb-4', iconTop && 'mx-auto')}
                 style={{ width: iconBox, height: iconBox, backgroundColor: `${style.primary_color}15`, fontSize: Math.round(iconBox * 0.45) }}
               >
                 {renderFeatureIcon(feature.icon, altIcons[i % altIcons.length])}
               </div>
-            )}
+            ) : null}
             <h3 className="font-semibold mb-2">{sanitizeWellnessBodyCopy(feature.title)}</h3>
             <p className={cn('text-sm leading-relaxed', surface.isDark ? 'text-white/70' : 'text-gray-500')}>{sanitizeWellnessBodyCopy(feature.desc || feature.description)}</p>
           </div>

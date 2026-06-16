@@ -7,6 +7,7 @@ import { toast } from 'sonner'
 import { isAxiosError } from 'axios'
 import {
   Globe, Plus, ExternalLink, Edit3, Trash2, Eye, EyeOff,
+  ChevronRight, ChevronLeft, ChevronDown, Info,
   MoreVertical, Loader2, Layout, FileText, Calendar,
   CheckCircle2, AlertCircle, Sparkles, Rocket, Check, Copy,
   Globe2, ClipboardCopy,
@@ -27,6 +28,8 @@ import {
   GalleryHorizontal,
   Lock,
   Store,
+  Palette,
+  Paintbrush,
   type LucideIcon,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -37,6 +40,17 @@ import type { SiteListItem } from '@/types/websites'
 import { cn } from '@/lib/utils'
 import { extractApiError } from '@/lib/errorMessages'
 import { imageCategoryForBusinessType, stylePresetForBusinessType, getAvailableSetupFeatures, getDefaultSetupFeatures, buildPagesFromSetupFeatures, buildGenerateSitePrompt, type SetupFeatureId, type SetupFeatureOption, resolveWebsiteSetupFromBusinessSettings } from '@/lib/businessSitePresets'
+import {
+  CUSTOM_WEBSITE_PALETTE_ID,
+  DEFAULT_CUSTOM_WEBSITE_PALETTE_COLORS,
+  DEFAULT_WEBSITE_COLOR_PALETTE_ID,
+  getWebsiteColorPaletteLabel,
+  resolveWebsitePaletteColors,
+  WEBSITE_COLOR_PALETTES,
+  WEBSITE_PALETTE_COLOR_FIELDS,
+  type WebsiteColorPaletteId,
+  type WebsitePaletteColors,
+} from '@/lib/websiteColorPalettes'
 import { companyTypeLabel } from '@/data/companyTypes'
 import { useVendorStore } from '@/stores/vendorStore'
 import { resolveSiteStoreLink } from '@/lib/liveStorefrontUrl'
@@ -47,6 +61,7 @@ import { isTemplateSandboxSite } from '@/lib/websiteSandbox'
 import { countSitesWithName, resolveUniqueSiteName, suggestSiteCopyName } from '@/lib/websiteSiteNames'
 import { resolveSiteStaticThumbnail } from '@/lib/websiteSitePreview'
 import { WebsiteSiteGlimpse } from '@/components/websites/WebsiteSiteGlimpse'
+import { WebsiteScopeBadge } from '@/components/websites/WebsiteScopeBadge'
 
 const BUSINESS_PRESETS = [
   {
@@ -164,9 +179,6 @@ const WEBSITE_STORE_SCOPE_OPTIONS: {
     icon: Globe2,
   },
 ]
-
-const WEBSITE_STORE_SCOPE_OPTIONS_MULTI = WEBSITE_STORE_SCOPE_OPTIONS.filter(o => o.id !== 'external')
-const EXTERNAL_SCOPE_OPTION = WEBSITE_STORE_SCOPE_OPTIONS.find(o => o.id === 'external')!
 
 const STATUS_CONFIG = {
   draft:     { label: 'Draft — not live', shortLabel: 'Draft', icon: AlertCircle,  color: 'text-amber-600 bg-amber-50 border-amber-200' },
@@ -340,6 +352,203 @@ function SetupFeaturesPicker({
   )
 }
 
+function ColorPalettePicker({
+  selected,
+  customColors,
+  disabled,
+  onSelect,
+  onCustomColorsChange,
+}: {
+  selected: WebsiteColorPaletteId
+  customColors: WebsitePaletteColors
+  disabled?: boolean
+  onSelect: (id: WebsiteColorPaletteId) => void
+  onCustomColorsChange: (colors: WebsitePaletteColors) => void
+}) {
+  const activeColors = resolveWebsitePaletteColors(selected, customColors)
+  const isCustom = selected === CUSTOM_WEBSITE_PALETTE_ID
+
+  const updateCustomColor = (key: keyof WebsitePaletteColors, value: string) => {
+    onCustomColorsChange({ ...customColors, [key]: value })
+  }
+
+  return (
+    <div className="rounded-2xl border border-gray-200 bg-gradient-to-b from-white to-gray-50/80 overflow-hidden">
+      <div className="px-4 py-3.5 border-b border-gray-100 bg-white/90">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <p className="text-sm font-semibold text-gray-900">Choose your color palette</p>
+            <p className="text-xs text-gray-500 mt-0.5">
+              Pick a preset or draft your own colors for the website. You can fine-tune these in the builder later.
+            </p>
+          </div>
+          <span className="shrink-0 inline-flex items-center rounded-full bg-primary/10 px-2.5 py-1 text-[11px] font-semibold text-primary">
+            {getWebsiteColorPaletteLabel(selected)}
+          </span>
+        </div>
+      </div>
+
+      <div className="p-4 space-y-4">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+          {WEBSITE_COLOR_PALETTES.map(palette => {
+            const checked = selected === palette.id
+            return (
+              <button
+                key={palette.id}
+                type="button"
+                disabled={disabled}
+                onClick={() => onSelect(palette.id)}
+                aria-pressed={checked}
+                className={cn(
+                  'group relative flex flex-col overflow-hidden rounded-xl border-2 text-left transition-all',
+                  'focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:ring-offset-2',
+                  checked
+                    ? 'border-primary shadow-sm shadow-primary/10 ring-1 ring-primary/20'
+                    : 'border-gray-200 bg-white hover:border-primary/30 hover:shadow-sm',
+                  disabled && 'opacity-60 cursor-not-allowed',
+                )}
+              >
+                <div className="flex h-14 items-stretch border-b border-gray-100" aria-hidden>
+                  <span className="flex-[2]" style={{ backgroundColor: palette.colors.primary_color }} />
+                  <span className="flex-1" style={{ backgroundColor: palette.colors.accent_color }} />
+                  <span
+                    className="flex-1 border-l border-gray-100"
+                    style={{ backgroundColor: palette.colors.bg_color }}
+                  />
+                </div>
+                <div className="px-3 py-2.5">
+                  <p className="text-xs font-semibold text-gray-900">{palette.label}</p>
+                  <p className="mt-0.5 text-[11px] text-gray-500 leading-snug line-clamp-2">
+                    {palette.description}
+                  </p>
+                </div>
+                {checked && (
+                  <span className="absolute right-2 top-2 inline-flex h-5 w-5 items-center justify-center rounded-full bg-primary text-white shadow-sm">
+                    <Check className="h-3 w-3 stroke-[3]" aria-hidden />
+                  </span>
+                )}
+              </button>
+            )
+          })}
+
+          <button
+            type="button"
+            disabled={disabled}
+            onClick={() => onSelect(CUSTOM_WEBSITE_PALETTE_ID)}
+            aria-pressed={isCustom}
+            className={cn(
+              'group relative flex flex-col overflow-hidden rounded-xl border-2 border-dashed text-left transition-all',
+              'focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:ring-offset-2',
+              isCustom
+                ? 'border-primary bg-primary/[0.04] shadow-sm shadow-primary/10 ring-1 ring-primary/20'
+                : 'border-gray-300 bg-white hover:border-primary/40 hover:bg-gray-50/80',
+              disabled && 'opacity-60 cursor-not-allowed',
+            )}
+          >
+            <div className="flex h-14 items-stretch border-b border-gray-100" aria-hidden>
+              <span className="flex-[2]" style={{ backgroundColor: customColors.primary_color }} />
+              <span className="flex-1" style={{ backgroundColor: customColors.accent_color }} />
+              <span
+                className="flex-1 border-l border-gray-100"
+                style={{ backgroundColor: customColors.bg_color }}
+              />
+            </div>
+            <div className="px-3 py-2.5">
+              <p className="text-xs font-semibold text-gray-900 flex items-center gap-1.5">
+                <Paintbrush className="h-3.5 w-3.5 text-primary" />
+                Custom palette
+              </p>
+              <p className="mt-0.5 text-[11px] text-gray-500 leading-snug">
+                Draft your own primary, accent, and background colors.
+              </p>
+            </div>
+            {isCustom && (
+              <span className="absolute right-2 top-2 inline-flex h-5 w-5 items-center justify-center rounded-full bg-primary text-white shadow-sm">
+                <Check className="h-3 w-3 stroke-[3]" aria-hidden />
+              </span>
+            )}
+          </button>
+        </div>
+
+        {isCustom && (
+          <div className="rounded-xl border border-primary/20 bg-white p-4 shadow-sm">
+            <div className="flex items-center justify-between gap-3 mb-3">
+              <p className="text-xs font-semibold text-gray-900">Draft your palette</p>
+              <div
+                className="flex h-8 flex-1 max-w-[220px] overflow-hidden rounded-lg border border-gray-200 shadow-inner"
+                aria-hidden
+              >
+                {WEBSITE_PALETTE_COLOR_FIELDS.map(({ key }) => (
+                  <span key={key} className="flex-1" style={{ backgroundColor: customColors[key] }} />
+                ))}
+              </div>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+              {WEBSITE_PALETTE_COLOR_FIELDS.map(({ key, label }) => (
+                <div key={key} className="flex items-center gap-2.5 rounded-lg border border-gray-100 bg-gray-50/80 px-2.5 py-2">
+                  <input
+                    type="color"
+                    value={customColors[key]}
+                    disabled={disabled}
+                    onChange={e => updateCustomColor(key, e.target.value)}
+                    className="h-9 w-9 shrink-0 cursor-pointer rounded-lg border border-gray-200 bg-white p-0.5"
+                    aria-label={`${label} color`}
+                  />
+                  <div className="min-w-0 flex-1">
+                    <label htmlFor={`palette-${key}`} className="block text-xs font-medium text-gray-700">
+                      {label}
+                    </label>
+                    <input
+                      id={`palette-${key}`}
+                      type="text"
+                      value={customColors[key]}
+                      disabled={disabled}
+                      onChange={e => {
+                        const v = e.target.value.trim()
+                        if (/^#[0-9A-Fa-f]{0,6}$/.test(v)) updateCustomColor(key, v)
+                      }}
+                      onBlur={e => {
+                        const v = e.target.value.trim()
+                        if (!/^#[0-9A-Fa-f]{6}$/.test(v)) {
+                          updateCustomColor(key, customColors[key])
+                        }
+                      }}
+                      className="mt-0.5 w-full bg-transparent font-mono text-[11px] text-gray-500 outline-none"
+                      spellCheck={false}
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {!isCustom && (
+          <div
+            className="flex h-10 overflow-hidden rounded-xl border border-gray-200 shadow-inner"
+            aria-label="Selected palette preview"
+          >
+            <span className="flex-[2]" style={{ backgroundColor: activeColors.primary_color }} />
+            <span className="flex-1" style={{ backgroundColor: activeColors.accent_color }} />
+            <span className="flex-1" style={{ backgroundColor: activeColors.bg_color }} />
+            <span className="flex-1 border-l border-gray-100" style={{ backgroundColor: activeColors.surface_color }} />
+            <span className="w-10" style={{ backgroundColor: activeColors.text_color }} />
+          </div>
+        )}
+      </div>
+
+      <div className="px-4 py-3 bg-gray-50/90 border-t border-gray-100">
+        <p className="text-[11px] text-gray-500 leading-relaxed flex items-start gap-2">
+          <Palette className="h-3.5 w-3.5 text-primary shrink-0 mt-0.5" />
+          <span>
+            Your palette applies to buttons, heroes, cards, and CTAs across every generated page.
+          </span>
+        </p>
+      </div>
+    </div>
+  )
+}
+
 function CreateSiteModal({
  onClose }: { onClose: () => void }) {
   const navigate = useNavigate()
@@ -362,9 +571,15 @@ function CreateSiteModal({
     getDefaultSetupFeatures(BUSINESS_PRESETS[0].id, BUSINESS_PRESETS[0].sells),
   )
   const [generating, setGenerating] = useState(false)
+  const [step, setStep] = useState<1 | 2 | 3>(1)
+  const [selectedPaletteId, setSelectedPaletteId] = useState<WebsiteColorPaletteId>(DEFAULT_WEBSITE_COLOR_PALETTE_ID)
+  const [customPaletteColors, setCustomPaletteColors] = useState<WebsitePaletteColors>(
+    DEFAULT_CUSTOM_WEBSITE_PALETTE_COLORS,
+  )
 
   const isExternalScope = websiteStoreScope === 'external'
   const showStoreScopePicker = storeCount > 1
+  const currentScopeOption = WEBSITE_STORE_SCOPE_OPTIONS.find(o => o.id === websiteStoreScope)
   const activeStoreForSettings = websiteStoreScope === 'store' && websiteStoreId
     ? stores.find(s => s.id === websiteStoreId)
     : singleStore ?? stores.find(s => s.is_default) ?? stores[0]
@@ -425,7 +640,13 @@ function CreateSiteModal({
     const siteName = name.trim() || selectedBusiness.defaultName
     const siteDesc = `${selectedBusiness.label} website for ${effectiveSellingMode === 'both' ? 'products and services' : effectiveSellingMode}.`
     const imageCategoryId = imageCategoryForBusinessType(effectiveBusinessType)
-    const stylePreset = stylePresetForBusinessType(effectiveBusinessType)
+    const businessStylePreset = stylePresetForBusinessType(effectiveBusinessType)
+    const paletteColors = resolveWebsitePaletteColors(selectedPaletteId, customPaletteColors)
+    const stylePreset = {
+      ...businessStylePreset,
+      ...paletteColors,
+      color_palette_id: selectedPaletteId,
+    }
     const pages = buildPagesFromSetupFeatures(selectedFeatures, effectiveBusinessType)
     const selectedStore = stores.find(s => s.id === websiteStoreId)
     const resolvedScope = storeCount <= 1 ? 'store' : websiteStoreScope
@@ -473,6 +694,11 @@ function CreateSiteModal({
           business_type: effectiveBusinessType,
           setup_features: selectedFeatures,
         })
+        gen.style_config = {
+          ...(gen.style_config || {}),
+          ...paletteColors,
+          color_palette_id: selectedPaletteId,
+        }
         await websiteApi.aiApplyGeneratedSite(site.id, gen)
         await queryClient.invalidateQueries({ queryKey: ['websites', site.id] })
         await queryClient.invalidateQueries({ queryKey: ['websites'] })
@@ -493,155 +719,258 @@ function CreateSiteModal({
   }
 
   const isLoading = createSite.isPending || generating
+  const step1Incomplete = websiteStoreScope === 'store' && storeCount > 1 && !websiteStoreId
+
+  const handleContinue = () => {
+    if (step1Incomplete) {
+      toast.error('Select a business unit for this website.')
+      return
+    }
+    setStep(2)
+  }
+
+  const handleContinueToPalette = () => {
+    setStep(3)
+  }
+
+  const handlePaletteSelect = (id: WebsiteColorPaletteId) => {
+    if (id === CUSTOM_WEBSITE_PALETTE_ID && selectedPaletteId !== CUSTOM_WEBSITE_PALETTE_ID) {
+      setCustomPaletteColors(resolveWebsitePaletteColors(selectedPaletteId, customPaletteColors))
+    }
+    setSelectedPaletteId(id)
+  }
+
+  const WIZARD_STEPS = 3
 
   return (
     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto" onClick={onClose}>
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl overflow-hidden max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+      <div
+        className={cn(
+          'bg-white rounded-2xl shadow-2xl w-full overflow-hidden max-h-[90vh] overflow-y-auto transition-[max-width] duration-300',
+          step === 1 ? 'max-w-xl' : step === 2 ? 'max-w-4xl' : 'max-w-3xl',
+        )}
+        onClick={e => e.stopPropagation()}
+      >
         {/* Header */}
-        <div className="bg-gradient-to-r from-primary to-info px-6 py-5 text-white flex items-start justify-between gap-3">
-          <div>
-            <h2 className="text-xl font-bold">Create Website</h2>
-            <p className="text-primary-foreground/85 text-sm mt-1">
-              {isExternalScope
-                ? 'External marketing site — pick business type and what you sell.'
-                : 'Store website — business type and catalog come from Business Settings.'}
-            </p>
+        <div className="relative bg-gradient-to-r from-primary to-info px-6 py-5 text-white">
+          <div className="flex items-start justify-between gap-3">
+            <div className="flex items-start gap-3.5">
+              <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-white/15 ring-1 ring-white/25 backdrop-blur-sm">
+                <Globe className="h-5 w-5" />
+              </span>
+              <div>
+                <div className="flex items-center gap-2">
+                  <h2 className="text-xl font-bold leading-tight">Create Website</h2>
+                  <span className="inline-flex items-center rounded-full bg-white/15 px-2 py-0.5 text-[11px] font-semibold tabular-nums">
+                    Step {step} of {WIZARD_STEPS}
+                  </span>
+                </div>
+                <p className="text-primary-foreground/85 text-sm mt-1">
+                  {step === 1
+                    ? 'Choose where this website is used and give it a name.'
+                    : step === 2
+                      ? isExternalScope
+                        ? 'External marketing site — pick business type and what you sell.'
+                        : 'Store website — business type and catalog come from Business Settings.'
+                      : 'Pick a color palette for your draft website.'}
+                </p>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={onClose}
+              className="p-1.5 rounded-lg bg-white/10 hover:bg-white/25 transition-colors shrink-0"
+              aria-label="Close"
+            >
+              <X className="w-5 h-5 text-white" />
+            </button>
           </div>
-          <button
-            type="button"
-            onClick={onClose}
-            className="p-1.5 rounded-lg bg-white/10 hover:bg-white/25 transition-colors shrink-0"
-            aria-label="Close"
-          >
-            <X className="w-5 h-5 text-white" />
-          </button>
+          {/* Step progress */}
+          <div className="mt-4 flex items-center gap-2">
+            {Array.from({ length: WIZARD_STEPS }, (_, i) => i + 1).map(s => (
+              <span
+                key={s}
+                className={cn(
+                  'h-1.5 flex-1 rounded-full transition-all duration-300',
+                  s <= step ? 'bg-white' : 'bg-white/25',
+                )}
+              />
+            ))}
+          </div>
         </div>
 
         <div className="p-6 space-y-5 max-h-[72vh] overflow-y-auto">
+            {step === 1 && (
+            <>
+            {/* Name */}
+            <div>
+              <label htmlFor="website-name" className="flex items-center gap-1.5 text-sm font-semibold text-gray-800 mb-1.5">
+                <span className="flex h-5 w-5 items-center justify-center rounded-md bg-primary/10 text-primary">
+                  <Pencil className="h-3 w-3" />
+                </span>
+                Name your website template
+              </label>
+              <div className="relative">
+                <input
+                  id="website-name"
+                  value={name}
+                  onChange={e => setName(e.target.value)}
+                  placeholder={selectedBusiness.defaultName}
+                  autoFocus
+                  className="w-full rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm shadow-sm transition-colors placeholder:text-gray-400 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                  onKeyDown={e => e.key === 'Enter' && !step1Incomplete && handleContinue()}
+                />
+              </div>
+              <p className="mt-1.5 text-[11px] text-gray-500">This name identifies your website template in the builder and on published pages.</p>
+            </div>
+
             {storeCount === 1 && singleStore && (
-              <div className="rounded-xl border border-primary/20 bg-accent/40 px-4 py-3 text-sm text-gray-700">
-                <p className="font-medium text-gray-900">Website for your business unit</p>
-                <p className="mt-1 text-xs text-gray-600">
-                  <Store className="inline w-3.5 h-3.5 mr-1 -mt-0.5" />
-                  {singleStore.name}
-                  {' · '}
-                  Business type and what you sell are taken from{' '}
-                  <Link to="/settings" className="text-primary underline underline-offset-2" onClick={onClose}>Business Settings</Link>.
-                </p>
-                <button
-                  type="button"
-                  onClick={() => setWebsiteStoreScope('external')}
-                  className="mt-2 text-xs font-medium text-primary hover:underline"
-                >
-                  Need an external marketing site instead?
-                </button>
+              <div className="rounded-xl border border-primary/20 bg-gradient-to-br from-accent/60 to-accent/20 px-4 py-3.5">
+                <div className="flex items-start gap-3">
+                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                    <Store className="h-4 w-4" />
+                  </span>
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold text-gray-900">{singleStore.name}</p>
+                    <p className="mt-0.5 text-xs text-gray-600 leading-relaxed">
+                      Business type and what you sell are taken from{' '}
+                      <Link to="/settings" className="font-medium text-primary underline underline-offset-2" onClick={onClose}>Business Settings</Link>.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => setWebsiteStoreScope('external')}
+                      className="mt-2 inline-flex items-center gap-1 text-xs font-semibold text-primary hover:underline"
+                    >
+                      Need an external marketing site instead?
+                      <ChevronRight className="h-3 w-3" />
+                    </button>
+                  </div>
+                </div>
               </div>
             )}
 
             {showStoreScopePicker && (
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">For which store are you creating the website?</label>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                {WEBSITE_STORE_SCOPE_OPTIONS_MULTI.map(opt => {
-                  const Icon = opt.icon
-                  const selected = websiteStoreScope === opt.id
-                  return (
-                    <button
-                      key={opt.id}
-                      type="button"
-                      onClick={() => setWebsiteStoreScope(opt.id)}
-                      className={cn(
-                        'p-3 rounded-xl border-2 text-left transition-all',
-                        selected ? 'border-primary bg-accent' : 'border-gray-200 hover:border-primary/40 hover:bg-gray-50',
-                      )}
-                    >
-                      <Icon className={cn('w-5 h-5 mb-2', selected ? 'text-primary' : 'text-gray-400')} />
-                      <div className="text-xs font-medium text-gray-800">{opt.label}</div>
-                      <div className="text-xs text-gray-500 mt-0.5 leading-tight">{opt.desc}</div>
-                    </button>
-                  )
-                })}
+              <label htmlFor="website-scope" className="flex items-center gap-1.5 text-sm font-semibold text-gray-800 mb-1.5">
+                <span className="flex h-5 w-5 items-center justify-center rounded-md bg-primary/10 text-primary">
+                  <Globe className="h-3 w-3" />
+                </span>
+                For which store are you creating the website?
+              </label>
+              <div className="relative">
+                {currentScopeOption ? (
+                  <currentScopeOption.icon className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-primary" />
+                ) : null}
+                <select
+                  id="website-scope"
+                  value={websiteStoreScope}
+                  onChange={e => setWebsiteStoreScope(e.target.value as WebsiteStoreScope)}
+                  className="w-full cursor-pointer appearance-none rounded-xl border border-gray-200 bg-white py-2.5 pl-10 pr-10 text-sm font-medium text-gray-800 shadow-sm transition-colors hover:border-gray-300 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                >
+                  {WEBSITE_STORE_SCOPE_OPTIONS.map(opt => (
+                    <option key={opt.id} value={opt.id}>{opt.label}</option>
+                  ))}
+                </select>
+                <ChevronDown className="pointer-events-none absolute right-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
               </div>
+              {currentScopeOption && (
+                <p className="mt-1.5 text-xs text-gray-500 leading-snug">{currentScopeOption.desc}</p>
+              )}
               {websiteStoreScope === 'store' && (
                 <div className="mt-3">
-                  <label className="block text-xs font-medium text-gray-600 mb-1.5">Business unit</label>
-                  <select
-                    value={websiteStoreId}
-                    onChange={e => setWebsiteStoreId(e.target.value)}
-                    className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-                  >
-                    {stores.map(s => (
-                      <option key={s.id} value={s.id}>
-                        {s.name}{s.code ? ` (${s.code})` : ''}
-                      </option>
-                    ))}
-                  </select>
+                  <label htmlFor="website-bu" className="block text-xs font-semibold text-gray-600 mb-1.5">Business unit</label>
+                  <div className="relative">
+                    <Store className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+                    <select
+                      id="website-bu"
+                      value={websiteStoreId}
+                      onChange={e => setWebsiteStoreId(e.target.value)}
+                      className="w-full cursor-pointer appearance-none rounded-xl border border-gray-200 bg-white py-2.5 pl-10 pr-10 text-sm font-medium text-gray-800 shadow-sm transition-colors hover:border-gray-300 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                    >
+                      {stores.map(s => (
+                        <option key={s.id} value={s.id}>
+                          {s.name}{s.code ? ` (${s.code})` : ''}
+                        </option>
+                      ))}
+                    </select>
+                    <ChevronDown className="pointer-events-none absolute right-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+                  </div>
                 </div>
               )}
               {!isExternalScope && (
-                <p className="mt-3 text-xs text-gray-500 rounded-lg bg-gray-50 border border-gray-100 px-3 py-2">
-                  Business type (<strong>{settingsBusinessLabel}</strong>) and what you sell (
-                  <strong>{settingsSellingLabel}</strong>) come from{' '}
-                  <Link to="/settings" className="text-primary underline underline-offset-2" onClick={onClose}>Business Settings</Link>
-                  {websiteStoreScope === 'store' && activeStoreForSettings ? ` for ${activeStoreForSettings.name}` : ''}.
-                </p>
+                <div className="mt-3 flex items-start gap-2 rounded-lg border border-gray-100 bg-gray-50 px-3 py-2.5 text-xs text-gray-500">
+                  <Info className="mt-0.5 h-3.5 w-3.5 shrink-0 text-gray-400" />
+                  <p className="leading-relaxed">
+                    Business type (<strong className="font-semibold text-gray-700">{settingsBusinessLabel}</strong>) and what you sell (
+                    <strong className="font-semibold text-gray-700">{settingsSellingLabel}</strong>) come from{' '}
+                    <Link to="/settings" className="font-medium text-primary underline underline-offset-2" onClick={onClose}>Business Settings</Link>
+                    {websiteStoreScope === 'store' && activeStoreForSettings ? ` for ${activeStoreForSettings.name}` : ''}.
+                  </p>
+                </div>
               )}
-              <button
-                type="button"
-                onClick={() => setWebsiteStoreScope('external')}
-                className={cn(
-                  'mt-3 w-full p-3 rounded-xl border-2 text-left transition-all',
-                  isExternalScope ? 'border-indigo-400 bg-indigo-50' : 'border-dashed border-gray-200 hover:border-indigo-300 hover:bg-gray-50',
-                )}
-              >
-                <Globe2 className={cn('w-5 h-5 mb-2', isExternalScope ? 'text-indigo-600' : 'text-gray-400')} />
-                <div className="text-xs font-medium text-gray-800">{EXTERNAL_SCOPE_OPTION.label}</div>
-                <div className="text-xs text-gray-500 mt-0.5 leading-tight">{EXTERNAL_SCOPE_OPTION.desc}</div>
-              </button>
             </div>
             )}
+            </>
+            )}
 
+            {step === 2 && (
+            <>
             {isExternalScope && (
-            <div className="grid grid-cols-1 lg:grid-cols-[1.1fr_0.9fr] gap-5">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">Choose your business type</label>
-                <div className="grid grid-cols-2 gap-2">
-                  {BUSINESS_PRESETS.map(t => (
-                    <button key={t.id} type="button" onClick={() => { setBusinessType(t.id); setSellingMode(t.sells) }}
-                      className={cn('p-3 rounded-xl border-2 text-left transition-all',
-                        businessType === t.id ? 'border-primary bg-accent' : 'border-gray-200 hover:border-primary/40 hover:bg-gray-50')}>
-                      <div className="text-xl mb-1">{t.icon}</div>
-                      <div className="text-xs font-medium text-gray-800">{t.label}</div>
-                      <div className="text-xs text-gray-500 mt-0.5 leading-tight">{t.desc}</div>
-                    </button>
-                  ))}
-                </div>
-              </div>
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">What do you sell?</label>
-                  <div className="space-y-2">
-                    {SELLING_MODES.map(s => (
-                      <button key={s.id} type="button" onClick={() => setSellingMode(s.id)}
-                        className={cn('w-full p-3 rounded-xl border-2 text-left transition-all',
-                          sellingMode === s.id ? 'border-blue-500 bg-blue-50' : 'border-gray-200 hover:border-blue-300 hover:bg-gray-50')}>
-                        <div className="text-xs font-medium text-gray-800">{s.label}</div>
-                        <div className="text-xs text-gray-500 mt-0.5">{s.desc}</div>
-                      </button>
+                <label htmlFor="biz-type" className="flex items-center gap-1.5 text-sm font-semibold text-gray-800 mb-1.5">
+                  <span className="flex h-5 w-5 items-center justify-center rounded-md bg-primary/10 text-primary">
+                    <Layout className="h-3 w-3" />
+                  </span>
+                  Choose your business type
+                </label>
+                <div className="relative">
+                  <span className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-base leading-none">{selectedBusiness.icon}</span>
+                  <select
+                    id="biz-type"
+                    value={businessType}
+                    onChange={e => {
+                      const t = BUSINESS_PRESETS.find(b => b.id === e.target.value)
+                      if (!t) return
+                      setBusinessType(t.id)
+                      setSellingMode(t.sells)
+                    }}
+                    className="w-full cursor-pointer appearance-none rounded-xl border border-gray-200 bg-white py-2.5 pl-10 pr-10 text-sm font-medium text-gray-800 shadow-sm transition-colors hover:border-gray-300 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                  >
+                    {BUSINESS_PRESETS.map(t => (
+                      <option key={t.id} value={t.id}>{t.icon} {t.label}</option>
                     ))}
-                  </div>
+                  </select>
+                  <ChevronDown className="pointer-events-none absolute right-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
                 </div>
+                <p className="mt-1.5 text-xs text-gray-500 leading-snug">{selectedBusiness.desc}</p>
+              </div>
+              <div>
+                <label htmlFor="sell-mode" className="flex items-center gap-1.5 text-sm font-semibold text-gray-800 mb-1.5">
+                  <span className="flex h-5 w-5 items-center justify-center rounded-md bg-blue-100 text-blue-600">
+                    <ShoppingCart className="h-3 w-3" />
+                  </span>
+                  What do you sell?
+                </label>
+                <div className="relative">
+                  <ShoppingBag className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-blue-500" />
+                  <select
+                    id="sell-mode"
+                    value={sellingMode}
+                    onChange={e => setSellingMode(e.target.value)}
+                    className="w-full cursor-pointer appearance-none rounded-xl border border-gray-200 bg-white py-2.5 pl-10 pr-10 text-sm font-medium text-gray-800 shadow-sm transition-colors hover:border-gray-300 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                  >
+                    {SELLING_MODES.map(s => (
+                      <option key={s.id} value={s.id}>{s.label}</option>
+                    ))}
+                  </select>
+                  <ChevronDown className="pointer-events-none absolute right-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+                </div>
+                <p className="mt-1.5 text-xs text-gray-500 leading-snug">{SELLING_MODES.find(s => s.id === sellingMode)?.desc}</p>
               </div>
             </div>
             )}
 
-            <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-1.5">Name Your Website Template</label>
-              <input value={name} onChange={e => setName(e.target.value)} placeholder={selectedBusiness.defaultName}
-                className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-                onKeyDown={e => e.key === 'Enter' && !isLoading && handleGuidedCreate()} />
-              <p className="text-[11px] text-gray-500 mt-1">This name identifies your website template in the builder and on published pages.</p>
-            </div>
             <SetupFeaturesPicker
               features={availableFeatures}
               selected={selectedFeatures}
@@ -651,12 +980,57 @@ function CreateSiteModal({
               onToggle={toggleFeature}
               onSelectRecommended={() => setSelectedFeatures(getDefaultSetupFeatures(effectiveBusinessType, effectiveSellingMode))}
             />
-            <div className="flex items-center justify-end gap-3">
-              <Button variant="cancel" onClick={onClose} disabled={isLoading}>Cancel</Button>
-              <Button onClick={handleGuidedCreate} disabled={isLoading || (websiteStoreScope === 'store' && storeCount > 1 && !websiteStoreId)} className="bg-primary hover:bg-primary/90 text-white">
-                {isLoading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Sparkles className="w-4 h-4 mr-2" />}
-                {generating ? 'Generating website…' : 'Build My Website'}
-              </Button>
+            </>
+            )}
+
+            {step === 3 && (
+            <ColorPalettePicker
+              selected={selectedPaletteId}
+              customColors={customPaletteColors}
+              disabled={isLoading}
+              onSelect={handlePaletteSelect}
+              onCustomColorsChange={setCustomPaletteColors}
+            />
+            )}
+
+            <div className="-mx-6 -mb-6 mt-1 flex items-center justify-between gap-3 border-t border-gray-100 bg-gray-50/70 px-6 py-4">
+              {step === 1 ? (
+                <>
+                  <p className="hidden text-xs text-gray-400 sm:block">Next: choose your ready-made setup</p>
+                  <div className="ml-auto flex items-center gap-2">
+                    <Button variant="cancel" onClick={onClose} disabled={isLoading}>Cancel</Button>
+                    <Button onClick={handleContinue} disabled={step1Incomplete} className="bg-primary hover:bg-primary/90 text-white">
+                      Continue
+                      <ChevronRight className="w-4 h-4 ml-1.5" />
+                    </Button>
+                  </div>
+                </>
+              ) : step === 2 ? (
+                <>
+                  <Button variant="cancel" onClick={() => setStep(1)} disabled={isLoading}>
+                    <ChevronLeft className="w-4 h-4 mr-1.5" />
+                    Back
+                  </Button>
+                  <div className="flex items-center gap-2">
+                    <p className="hidden text-xs text-gray-400 sm:block">Next: pick your color palette</p>
+                    <Button onClick={handleContinueToPalette} disabled={isLoading} className="bg-primary hover:bg-primary/90 text-white">
+                      Continue
+                      <ChevronRight className="w-4 h-4 ml-1.5" />
+                    </Button>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <Button variant="cancel" onClick={() => setStep(2)} disabled={isLoading}>
+                    <ChevronLeft className="w-4 h-4 mr-1.5" />
+                    Back
+                  </Button>
+                  <Button onClick={handleGuidedCreate} disabled={isLoading} className="bg-primary hover:bg-primary/90 text-white">
+                    {isLoading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Sparkles className="w-4 h-4 mr-2" />}
+                    {generating ? 'Generating website…' : 'Build My Website'}
+                  </Button>
+                </>
+              )}
             </div>
           </div>
       </div>
@@ -1126,6 +1500,14 @@ function SiteCard({
             />
           </div>
         )}
+
+        {/* Scope: what this website was built for */}
+        <div className="mt-2">
+          <WebsiteScopeBadge
+            scope={site.website_store_scope}
+            storeName={site.website_store_name}
+          />
+        </div>
 
         {/* Meta row */}
         <div className="flex items-center gap-2 mt-2 pt-2 border-t border-gray-100 text-[10px] text-gray-500">

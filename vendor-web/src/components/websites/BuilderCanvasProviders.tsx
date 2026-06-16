@@ -31,6 +31,7 @@ export function BuilderCanvasProviders({
   activeTextFields = [],
   activeCanvasImageTarget = null,
   blockPropsForImage = null,
+  canvasScale = 1,
   onSectionImageActivate,
   onTextFieldActivate,
   onTextFieldCommit,
@@ -47,6 +48,7 @@ export function BuilderCanvasProviders({
   activeTextFields?: string[]
   activeCanvasImageTarget?: ActiveCanvasImageTarget | null
   blockPropsForImage?: Record<string, unknown> | null
+  canvasScale?: number
   onSectionImageActivate?: (
     blockId: string,
     field: string,
@@ -107,6 +109,7 @@ export function BuilderCanvasProviders({
     activeTextFields,
     activeCanvasImageTarget,
     blockPropsForImage,
+    canvasScale,
     onSectionImageActivate,
     onTextFieldActivate,
     onTextFieldCommit,
@@ -119,6 +122,7 @@ export function BuilderCanvasProviders({
     activeTextFields,
     activeCanvasImageTarget,
     blockPropsForImage,
+    canvasScale,
     onSectionImageActivate,
     onTextFieldActivate,
     onTextFieldCommit,

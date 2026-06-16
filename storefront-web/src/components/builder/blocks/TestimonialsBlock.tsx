@@ -3,6 +3,7 @@ import type { PublicSite, StyleConfig, LiveItem } from '@/blocks/registry'
 import BlockEmptyPlaceholder from '@/components/builder/BlockEmptyPlaceholder'
 import { BuilderSectionImage } from '@/components/builder/BuilderSectionImage'
 import { BuilderTextField } from '@/components/builder/BuilderTextField'
+import { useBuilderCanvas } from '@/contexts/BuilderCanvasContext'
 import { cn } from '@/lib/utils'
 import { isLiveTestimonialsBound, isTemplateTestimonial } from '@/lib/testimonialPlaceholders'
 import { resolveSectionSurface } from '@/lib/navBlockLayout'
@@ -17,11 +18,51 @@ interface Props {
   blockId?: string
 }
 
+function builderPreviewTestimonials(count: number): LiveItem[] {
+  const names = ['Alex R.', 'Jamie L.', 'Taylor M.', 'Sam K.']
+  return Array.from({ length: count }, (_, i) => ({
+    id: `preview-${i}`,
+    title: names[i] || `Customer ${i + 1}`,
+    subtitle: 'Verified customer',
+    description: 'Your customer quote will appear here.',
+    image_url: null,
+    price: null,
+    price_formatted: null,
+    rating: 5,
+    url: null,
+    meta: {},
+  }))
+}
+
+function staticTestimonialToLiveItem(t: {
+  name: string
+  role?: string
+  company?: string
+  quote: string
+  rating?: number
+  image_url?: string
+  avatar_url?: string
+}, index: number): LiveItem {
+  return {
+    id: t.name || `t-${index}`,
+    title: t.name,
+    subtitle: [t.role, t.company].filter(Boolean).join(', ') || null,
+    description: t.quote,
+    image_url: t.image_url || t.avatar_url || null,
+    price: null,
+    price_formatted: null,
+    rating: t.rating ?? 5,
+    url: null,
+    meta: {},
+  }
+}
+
 function TestimonialCard({
   item,
   style,
   dark,
   compact,
+  largePhoto,
   blockId,
   blockProps,
   testimonialIndex,
@@ -30,10 +71,13 @@ function TestimonialCard({
   style: StyleConfig
   dark?: boolean
   compact?: boolean
+  largePhoto?: boolean
   blockId?: string
   blockProps?: Record<string, unknown>
   testimonialIndex?: number
 }) {
+  const avatarClass = largePhoto ? 'w-14 h-14' : 'w-10 h-10'
+
   return (
     <div className={cn(
       'builder-tile-card rounded-2xl border p-6 relative',
@@ -62,12 +106,15 @@ function TestimonialCard({
             blockProps={blockProps}
             src={item.image_url}
             alt={item.title}
-            className="w-10 h-10 rounded-full object-cover"
+            className={cn(avatarClass, 'rounded-full object-cover')}
           />
         ) : item.image_url ? (
-          <img src={item.image_url} alt={item.title} className="w-10 h-10 rounded-full object-cover" loading="lazy" />
+          <img src={item.image_url} alt={item.title} className={cn(avatarClass, 'rounded-full object-cover')} loading="lazy" />
         ) : (
-          <div className="w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-sm" style={{ backgroundColor: style.primary_color }}>
+          <div
+            className={cn(avatarClass, 'rounded-full flex items-center justify-center text-white font-bold text-sm shrink-0')}
+            style={{ backgroundColor: style.primary_color }}
+          >
             {item.title.charAt(0).toUpperCase()}
           </div>
         )}
@@ -81,43 +128,55 @@ function TestimonialCard({
 }
 
 export default function TestimonialsBlock({ style, props, liveItems, blockId }: Props) {
+  const builderCanvas = useBuilderCanvas()
+  const isEditor = builderCanvas?.isEditorCanvas && !!blockId
   const blockProps = props
   const title = (props.title as string) || 'What Our Customers Say'
-  const sectionTitle = (className: string) => (
-    (title || blockId) ? (
-      <BuilderTextField fieldKey="title" blockId={blockId} blockProps={props} value={title} as="h2" className={className} />
-    ) : null
-  )
   const layout = String(props.layout ?? 'grid')
   const columns = columnsFromProps(props, layout === 'grid' ? 'grid-3' : layout)
   const itemGap = sectionItemGap(props, 24)
   const surface = resolveSectionSurface(props, style)
+  const cardStyle = String(props.card_style ?? '')
+  const compactCards = cardStyle === 'compact' || layout === 'list'
+  const largePhotos = props.show_photos === true
   const liveBound = isLiveTestimonialsBound(props)
   const staticTestis = (props.testimonials as Array<{
     name: string; role?: string; company?: string; quote: string; rating?: number
   }> | undefined) || []
   const manualTestis = staticTestis.filter(t => !isTemplateTestimonial(t))
 
-  const items = liveItems.length > 0
+  const publishedItems = liveItems.length > 0
     ? liveItems
     : liveBound || staticTestis.some(isTemplateTestimonial)
       ? []
-      : manualTestis.map(t => ({
-          id: t.name,
-          title: t.name,
-          subtitle: [t.role, t.company].filter(Boolean).join(', ') || null,
-          description: t.quote,
-          image_url: (t as { image_url?: string; avatar_url?: string }).image_url
-            || (t as { avatar_url?: string }).avatar_url
-            || null,
-          price: null,
-          price_formatted: null,
-          rating: t.rating ?? 5,
-          url: null,
-          meta: {},
-        } as LiveItem))
+      : manualTestis.map(staticTestimonialToLiveItem)
 
-  if (items.length === 0) {
+  const previewCount = layout === 'centered' ? 1 : Math.min(Math.max(columns, 2), 4)
+  const editorPreviewItems = isEditor
+    ? (manualTestis.length > 0
+      ? manualTestis.map(staticTestimonialToLiveItem)
+      : builderPreviewTestimonials(previewCount))
+    : []
+
+  const displayItems = publishedItems.length > 0 ? publishedItems : editorPreviewItems
+  const showingLayoutPreview = isEditor && publishedItems.length === 0 && displayItems.length > 0
+
+  const sectionTitle = (className: string) => (
+    (title || blockId) ? (
+      <BuilderTextField fieldKey="title" blockId={blockId} blockProps={props} value={title} as="h2" className={className} />
+    ) : null
+  )
+
+  const previewHint = showingLayoutPreview ? (
+    <p className={cn(
+      'text-xs text-center mb-8 max-w-lg mx-auto leading-relaxed',
+      surface.isDark ? 'text-white/55' : 'text-gray-400',
+    )}>
+      Layout preview — add reviews in Section Edit or connect live testimonials from your catalog.
+    </p>
+  ) : null
+
+  if (displayItems.length === 0) {
     return (
       <section className="px-4 sm:px-6 lg:px-8 max-w-3xl mx-auto text-center" style={{ background: surface.background, color: surface.color }}>
         <BlockEmptyPlaceholder
@@ -131,24 +190,48 @@ export default function TestimonialsBlock({ style, props, liveItems, blockId }: 
 
   const colClass = sectionGridColumnClass(columns)
   const dark = surface.isDark
+  const masonryColumnClass = columns >= 3
+    ? 'columns-1 sm:columns-2 lg:columns-3'
+    : 'columns-1 sm:columns-2'
 
   if (layout === 'centered') {
-    const item = items[0]
+    const item = displayItems[0]
     return (
-      <section className="px-4 sm:px-6 lg:px-8 max-w-3xl mx-auto text-center" style={{ background: surface.background, color: surface.color }}>
-        {sectionTitle('text-3xl font-bold mb-10')}
-        <TestimonialCard item={item} style={style} dark={dark} blockId={blockId} blockProps={blockProps} testimonialIndex={0} />
+      <section className="py-16 px-4 sm:px-6 lg:px-8 max-w-3xl mx-auto text-center" style={{ background: surface.background, color: surface.color }}>
+        {sectionTitle('text-3xl font-bold mb-4')}
+        {previewHint}
+        <TestimonialCard
+          item={item}
+          style={style}
+          dark={dark}
+          compact={compactCards}
+          largePhoto={largePhotos}
+          blockId={blockId}
+          blockProps={blockProps}
+          testimonialIndex={0}
+        />
       </section>
     )
   }
 
   if (layout === 'list') {
     return (
-      <section className="px-4 sm:px-6 lg:px-8 max-w-3xl mx-auto" style={{ background: surface.background, color: surface.color }}>
-        {sectionTitle('text-3xl font-bold mb-10 text-center')}
+      <section className="py-16 px-4 sm:px-6 lg:px-8 max-w-3xl mx-auto" style={{ background: surface.background, color: surface.color }}>
+        {sectionTitle('text-3xl font-bold mb-4 text-center')}
+        {previewHint}
         <div className="space-y-4" style={{ gap: itemGap }}>
-          {items.map((item, i) => (
-            <TestimonialCard key={item.id} item={item} style={style} dark={dark} compact blockId={blockId} blockProps={blockProps} testimonialIndex={i} />
+          {displayItems.map((item, i) => (
+            <TestimonialCard
+              key={item.id}
+              item={item}
+              style={style}
+              dark={dark}
+              compact
+              largePhoto={largePhotos}
+              blockId={blockId}
+              blockProps={blockProps}
+              testimonialIndex={i}
+            />
           ))}
         </div>
       </section>
@@ -157,12 +240,22 @@ export default function TestimonialsBlock({ style, props, liveItems, blockId }: 
 
   if (layout === 'carousel') {
     return (
-      <section className="px-4" style={{ background: surface.background, color: surface.color }}>
-        {sectionTitle('text-3xl font-bold mb-8 text-center px-4')}
+      <section className="py-16 px-4" style={{ background: surface.background, color: surface.color }}>
+        {sectionTitle('text-3xl font-bold mb-4 text-center px-4')}
+        {previewHint}
         <div className="flex overflow-x-auto pb-4 px-4 snap-x snap-mandatory" style={{ gap: itemGap }}>
-          {items.map(item => (
+          {displayItems.map((item, i) => (
             <div key={item.id} className="snap-start shrink-0 w-80">
-              <TestimonialCard item={item} style={style} dark={dark} blockId={blockId} blockProps={blockProps} testimonialIndex={items.indexOf(item)} />
+              <TestimonialCard
+                item={item}
+                style={style}
+                dark={dark}
+                compact={compactCards}
+                largePhoto={largePhotos}
+                blockId={blockId}
+                blockProps={blockProps}
+                testimonialIndex={i}
+              />
             </div>
           ))}
         </div>
@@ -172,12 +265,22 @@ export default function TestimonialsBlock({ style, props, liveItems, blockId }: 
 
   if (layout === 'masonry') {
     return (
-      <section className="px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto" style={{ background: surface.background, color: surface.color }}>
-        {sectionTitle('text-3xl font-bold mb-10 text-center')}
-        <div className="columns-1 sm:columns-2 gap-6 space-y-6">
-          {items.map(item => (
+      <section className="py-16 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto" style={{ background: surface.background, color: surface.color }}>
+        {sectionTitle('text-3xl font-bold mb-4 text-center')}
+        {previewHint}
+        <div className={cn(masonryColumnClass, 'gap-6 space-y-6')}>
+          {displayItems.map((item, i) => (
             <div key={item.id} className="break-inside-avoid mb-6">
-              <TestimonialCard item={item} style={style} dark={dark} blockId={blockId} blockProps={blockProps} testimonialIndex={items.indexOf(item)} />
+              <TestimonialCard
+                item={item}
+                style={style}
+                dark={dark}
+                compact={compactCards}
+                largePhoto={largePhotos}
+                blockId={blockId}
+                blockProps={blockProps}
+                testimonialIndex={i}
+              />
             </div>
           ))}
         </div>
@@ -187,10 +290,21 @@ export default function TestimonialsBlock({ style, props, liveItems, blockId }: 
 
   return (
     <section className="py-16 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto" style={{ background: surface.background, color: surface.color }}>
-      {sectionTitle('text-3xl font-bold mb-10 text-center')}
+      {sectionTitle('text-3xl font-bold mb-4 text-center')}
+      {previewHint}
       <div className={cn('grid grid-cols-1 sm:grid-cols-2', colClass)} style={{ gap: itemGap }}>
-        {items.map((item, i) => (
-          <TestimonialCard key={item.id} item={item} style={style} dark={dark} blockId={blockId} blockProps={blockProps} testimonialIndex={i} />
+        {displayItems.map((item, i) => (
+          <TestimonialCard
+            key={item.id}
+            item={item}
+            style={style}
+            dark={dark}
+            compact={compactCards}
+            largePhoto={largePhotos}
+            blockId={blockId}
+            blockProps={blockProps}
+            testimonialIndex={i}
+          />
         ))}
       </div>
     </section>

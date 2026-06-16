@@ -367,7 +367,7 @@ export function ColorIdentPickerRow({
   backgroundColor: string
   onTextColorChange: (color: string) => void
   onBackgroundColorChange: (color: string) => void
-  /** Section background — use Edit panel → Design → Section colors instead. */
+  /** Section background — use Section Edit → Design → Colors instead. */
   showBackgroundPicker?: boolean
   size?: ControlSize
   /** Stack T, B, and trailing controls in a narrow column. */

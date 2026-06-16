@@ -1,10 +1,12 @@
 import type { CSSProperties } from 'react'
-import { useVendor } from '@/contexts/VendorContext'
 import { imgUrl, cn } from '@/lib/utils'
 import type { PublicSite, StyleConfig, LiveItem } from '@/blocks/registry'
 import { resolveSectionSurface } from '@/lib/navBlockLayout'
+import { readSectionImageFocal } from '@/lib/sectionImageStyle'
 import { BuilderTextField } from '@/components/builder/BuilderTextField'
 import { BuilderCtaButton } from '@/components/builder/BuilderCtaButton'
+import { BuilderSectionImage } from '@/components/builder/BuilderSectionImage'
+import { useBuilderCanvas } from '@/contexts/BuilderCanvasContext'
 
 interface Props {
   site: PublicSite
@@ -16,7 +18,8 @@ interface Props {
 }
 
 export default function CtaBlock({ style, props, blockId }: Props) {
-  const { storePath } = useVendor()
+  const builderCanvas = useBuilderCanvas()
+  const isEditorCanvas = builderCanvas?.isEditorCanvas && !!blockId
   const headline = (props.headline as string) || 'Ready to Get Started?'
   const subtitle = (props.subtitle as string) || ''
   const ctaLabel = (props.cta_label as string) || 'Get Started'
@@ -28,15 +31,19 @@ export default function CtaBlock({ style, props, blockId }: Props) {
   const bgStyle = String(props.bg_style ?? 'gradient')
   const surface = resolveSectionSurface(props, style)
   const bgImageRaw = props.bg_image_url as string | undefined
-  const usesImageBg = !!bgImageRaw && (bgStyle === 'image' || !!props.overlay)
+  const usesImageBg = !!bgImageRaw
+  const bgImageUrl = bgImageRaw ? imgUrl(bgImageRaw) : undefined
+  const focal = readSectionImageFocal('bg_image_url', props)
 
   const shellStyle: CSSProperties = usesImageBg
-    ? {
-        backgroundImage: `linear-gradient(135deg, rgba(0,0,0,0.55), rgba(0,0,0,0.45)), url(${imgUrl(bgImageRaw)})`,
-        backgroundSize: 'cover',
-        backgroundPosition: 'center',
-        color: '#fff',
-      }
+    ? isEditorCanvas
+      ? { color: '#fff' }
+      : {
+          backgroundImage: `linear-gradient(135deg, rgba(0,0,0,0.55), rgba(0,0,0,0.45)), url(${bgImageUrl})`,
+          backgroundSize: 'cover',
+          backgroundPosition: `${focal.x}% ${focal.y}%`,
+          color: '#fff',
+        }
     : {
         background: surface.background,
         color: surface.color,
@@ -87,10 +94,25 @@ export default function CtaBlock({ style, props, blockId }: Props) {
           isSplit ? 'flex flex-col md:flex-row md:items-center md:justify-between gap-8 text-left' : 'text-center max-w-4xl',
           isCard && 'border-2 shadow-lg',
           isCard && !textLight && 'border-gray-200 bg-white',
+          usesImageBg && 'relative overflow-hidden',
         )}
         style={shellStyle}
       >
-        <div className={isSplit ? 'flex-1 min-w-0' : undefined}>
+        {isEditorCanvas && usesImageBg && bgImageUrl ? (
+          <div className="absolute inset-0 z-0">
+            <BuilderSectionImage
+              blockId={blockId}
+              field="bg_image_url"
+              blockProps={props}
+              src={bgImageUrl}
+              className="absolute inset-0 h-full w-full"
+            />
+          </div>
+        ) : null}
+        {usesImageBg && props.overlay !== false ? (
+          <div className="pointer-events-none absolute inset-0 z-[1] bg-black/45" aria-hidden />
+        ) : null}
+        <div className={cn(isSplit ? 'flex-1 min-w-0' : undefined, usesImageBg && 'relative z-[2]')}>
           <BuilderTextField
             fieldKey="headline"
             blockId={blockId}
@@ -114,9 +136,11 @@ export default function CtaBlock({ style, props, blockId }: Props) {
           )}
           {!isSplit && ctaButtons}
         </div>
-        {isSplit && ctaButtons}
+        {isSplit && <div className={usesImageBg ? 'relative z-[2]' : undefined}>{ctaButtons}</div>}
         {Boolean(props.show_credit_card_note) && !isSplit && (
-          <p className={`text-xs mt-3 ${textLight ? 'text-white/60' : 'text-gray-500'}`}>No credit card required</p>
+          <p className={cn('text-xs mt-3', usesImageBg && 'relative z-[2]', textLight ? 'text-white/60' : 'text-gray-500')}>
+            No credit card required
+          </p>
         )}
       </div>
     </section>

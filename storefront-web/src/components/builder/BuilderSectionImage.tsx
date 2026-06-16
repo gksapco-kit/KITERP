@@ -25,6 +25,7 @@ export function BuilderSectionImage({
   arrayKey,
   index,
   itemField,
+  empty = false,
 }: {
   blockId?: string
   field: string
@@ -37,6 +38,8 @@ export function BuilderSectionImage({
   arrayKey?: string
   index?: number
   itemField?: string
+  /** Editor placeholder when the slot has no image yet. */
+  empty?: boolean
 }) {
   const canvas = useBuilderCanvas()
   const isEditor = canvas?.isEditorCanvas && !!blockId
@@ -99,11 +102,20 @@ export function BuilderSectionImage({
       <img
         src={src}
         alt={alt}
-        className={className}
+        className={cn(className, empty && 'opacity-0')}
         style={{ ...objectStyle, ...style }}
         loading="lazy"
         draggable={false}
       />
+      {empty && isEditor ? (
+        <div
+          className="pointer-events-none absolute inset-0 z-[10] flex flex-col items-center justify-center gap-1 border-2 border-dashed border-primary/35 bg-primary/5 text-primary/70"
+          aria-hidden
+        >
+          <ImageIcon className="h-5 w-5 opacity-60" />
+          <span className="text-[10px] font-semibold uppercase tracking-wide">Add photo</span>
+        </div>
+      ) : null}
       {isEditor && !isActive ? (
         <div
           className="pointer-events-none absolute inset-0 z-[15] border-2 border-dashed border-transparent bg-primary/0 transition-colors group-hover/builder-section-img:border-primary/55 group-hover/builder-section-img:bg-primary/8"

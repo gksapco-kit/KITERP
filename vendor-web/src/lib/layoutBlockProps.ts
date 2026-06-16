@@ -12,6 +12,7 @@ const CONTENT_PROP_KEYS = new Set([
   'logos', '_field_styles', 'video_url', 'form_hint', 'submit_label',
   'show_legal', 'show_credit_card_note', 'service_name', 'target_date', 'html', 'text',
   'plans', 'messages', 'links', 'menu_categories', 'products', 'hidden_kpi_ids',
+  'data_source',
 ])
 
 /** Builder styling that should survive layout preset switches. */
@@ -19,7 +20,7 @@ const STYLE_PRESERVE_PROP_KEYS = new Set([
   'block_shadow', 'padding_top', 'padding_bottom', 'text_color_override', 'bg_color_override',
   'tile_bg', 'tile_accent', 'tile_text', 'tile_border', 'font_size_px', 'text_scale', 'text_transform',
   'top_shape', 'bottom_shape', 'shape_color', 'media_clip', 'min_height', 'item_gap', 'item_size', 'image_shape',
-  'columns', 'content_offset_x', 'content_offset_y',
+  'content_offset_x', 'content_offset_y',
   'content_flip_h', 'content_flip_v', 'content_rotate_deg',
   'section_flip_h', 'section_flip_v', 'section_rotate_deg',
 ])

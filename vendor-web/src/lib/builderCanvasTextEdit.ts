@@ -21,6 +21,22 @@ const NON_EDITABLE_PROP_KEYS = new Set([
   'gradient_to', 'gradient_dir', 'show_legal', 'footer_columns', 'categories',
   'members', 'testimonials', 'stats', 'images', 'nav_links', 'form_fields',
   'category_cards', 'menu_items', 'services', 'products', 'blocks', 'links',
+  // Footer / nav theme tokens (colors & layout — not copy)
+  'footer_bg', 'footer_heading', 'footer_muted', 'footer_border',
+  'nav_bg', 'nav_layout', 'nav_glass', 'nav_elevated', 'nav_compact',
+  'nav_accent_border', 'nav_cta_prominent', 'tile_bg', 'tile_accent', 'tile_text', 'tile_border',
+  'show_newsletter', 'show_search', 'show_cart', 'show_login', 'show_account', 'show_logo',
+  'show_brand_name', 'show_nav_links', 'nav_links_source', 'card_style', 'image_shape',
+  'use_icons', 'show_numbers', 'item_gap', 'compact', 'overlay',
+  '_field_styles', 'section_flip_h', 'section_flip_v', 'section_rotate_deg',
+  'content_offset_x', 'content_offset_y', 'content_flip_h', 'content_flip_v', 'content_rotate_deg',
+  // Section layout / spacing (Props panel sliders — not copy)
+  'padding_top', 'padding_bottom', 'align', 'max_width', 'min_height', 'block_shadow',
+  'font_size_px', 'text_scale', 'text_transform', 'text_color_override', 'bg_color_override',
+  'top_shape', 'bottom_shape', 'shape_color', 'media_clip', 'item_size', 'bg_color',
+  'show_calendar', 'grayscale', 'show_caption', 'show_images', 'image_width', 'show_divider',
+  'color', 'target_date', 'data_source', 'hidden_kpi_ids', 'messages', 'menu_categories',
+  'posts', 'projects', 'logos',
 ])
 
 /** Text fields per block type — mirrors Props panel `commonFields` (content only, not URLs). */
@@ -31,8 +47,8 @@ const BLOCK_TEXT_FIELDS: Record<string, readonly string[]> = {
   cta: ['headline', 'subtitle', 'cta_label', 'text'],
   announcement_bar: ['text'],
   marquee_strip: ['text'],
-  nav: ['brand', 'cta_label'],
-  footer: ['copyright', 'brand'],
+  nav: ['brand', 'cta_label', 'announcement'],
+  footer: ['copyright', 'brand', 'description'],
   newsletter: ['title', 'subtitle', 'cta_label'],
   about_split: ['title', 'subtitle', 'description'],
   features: ['title', 'subtitle'],
@@ -203,6 +219,10 @@ const BLOCK_ITEM_TEXT_SCHEMAS: Record<string, ItemTextSchema> = {
       { key: 'subtitle', label: 'Subtitle' },
     ],
   },
+  footer: {
+    arrayKey: 'footer_columns', itemLabel: 'Column',
+    fields: [{ key: 'title', label: 'Column title' }],
+  },
 }
 
 const BLOCK_ITEM_SCHEMA_ALIASES: Record<string, string> = {
@@ -289,9 +309,29 @@ export function fieldLabelForKey(fieldKey: string): string {
 
 export function isEditablePropKey(key: string): boolean {
   if (NON_EDITABLE_PROP_KEYS.has(key)) return false
+  if (key.startsWith('_')) return false
   if (key.endsWith('_url') || key.endsWith('_id') || key.endsWith('_key')) return false
   if (/color|image|icon|shape|gradient_/i.test(key)) return false
+  // Theme / layout suffixes — e.g. footer_bg, nav_border (not user-facing copy)
+  if (/_bg$|_border$|_muted$|_overlay$|_preset$|_layout$|_style$|_glass$|_elevated$|_compact$|_accent$|_fill$|_stroke$/i.test(key)) {
+    return false
+  }
+  // Spacing, sizing, alignment — edited via design bar / section handles
+  if (/^(padding|margin|gap|min_|max_|font_|item_|block_|align|variant|grayscale|aspect_)/i.test(key)) {
+    return false
+  }
+  if (/^footer_heading$/i.test(key)) return false
+  if (/^show_|^hide_|^is_|^has_|^use_/.test(key)) return false
   return true
+}
+
+/** True when a string value is a CSS color token, not prose copy. */
+export function looksLikeCssColor(value: string): boolean {
+  const s = value.trim()
+  if (!s) return false
+  return /^#[\da-f]{3,8}$/i.test(s)
+    || /^rgba?\([^)]+\)$/i.test(s)
+    || /^hsla?\([^)]+\)$/i.test(s)
 }
 
 export function isMultilineTextField(fieldKey: string): boolean {
@@ -336,7 +376,7 @@ const FIELD_ORDER = [
   'text', 'content', 'caption', 'body', 'badge_text', 'message',
   'cta_primary', 'cta_secondary', 'cta_label', 'submit_label',
   'brand', 'copyright', 'form_hint', 'placeholder', 'service_name',
-  'accept_label', 'decline_label',
+  'accept_label', 'decline_label', 'tagline', 'announcement',
 ] as const
 
 function readPropText(props: Record<string, unknown>, key: string): string | null {
@@ -347,18 +387,42 @@ function readPropText(props: Record<string, unknown>, key: string): string | nul
   return null
 }
 
+/** Top-level props that hold user-written copy (excludes numbers, booleans, objects). */
+function readContentPropText(props: Record<string, unknown>, key: string): string | null {
+  const v = props[key]
+  if (typeof v !== 'string') return null
+  return v
+}
+
 interface NestedFieldKey {
   arrayKey: string
   index: number
   itemKey: string
+  linkIndex?: number
 }
 
 function parseNestedFieldKey(fieldKey: string): NestedFieldKey | null {
   const parts = fieldKey.split('.')
-  if (parts.length !== 3) return null
-  const index = parseInt(parts[1], 10)
-  if (Number.isNaN(index)) return null
-  return { arrayKey: parts[0], index, itemKey: parts[2] }
+  if (parts.length === 3) {
+    const index = parseInt(parts[1], 10)
+    if (Number.isNaN(index)) return null
+    return { arrayKey: parts[0], index, itemKey: parts[2] }
+  }
+  if (parts.length === 4 && parts[2] === 'links') {
+    const index = parseInt(parts[1], 10)
+    const linkIndex = parseInt(parts[3], 10)
+    if (Number.isNaN(index) || Number.isNaN(linkIndex)) return null
+    return { arrayKey: parts[0], index, itemKey: 'links', linkIndex }
+  }
+  return null
+}
+
+function readNestedLinkLabel(link: unknown): string {
+  if (typeof link === 'string') return link
+  if (link && typeof link === 'object') {
+    return readPropText(link as Record<string, unknown>, 'label') ?? ''
+  }
+  return ''
 }
 
 export function readFieldValue(props: Record<string, unknown>, fieldKey: string): string {
@@ -368,6 +432,11 @@ export function readFieldValue(props: Record<string, unknown>, fieldKey: string)
     if (!Array.isArray(arr)) return ''
     const item = arr[nested.index]
     if (!item || typeof item !== 'object') return ''
+    if (nested.itemKey === 'links' && nested.linkIndex != null) {
+      const links = (item as Record<string, unknown>).links
+      if (!Array.isArray(links)) return ''
+      return readNestedLinkLabel(links[nested.linkIndex])
+    }
     return readPropText(item as Record<string, unknown>, nested.itemKey) ?? ''
   }
   return readPropText(props, fieldKey) ?? ''
@@ -388,6 +457,18 @@ export function buildPropPatchFromFieldKey(
   while (arr.length <= nested.index) arr.push({})
   const prev = arr[nested.index]
   const base = prev && typeof prev === 'object' ? { ...(prev as object) } : {}
+  if (nested.itemKey === 'links' && nested.linkIndex != null) {
+    const links = Array.isArray((base as Record<string, unknown>).links)
+      ? [...((base as Record<string, unknown>).links as unknown[])]
+      : []
+    while (links.length <= nested.linkIndex) links.push('')
+    const prevLink = links[nested.linkIndex]
+    links[nested.linkIndex] = prevLink && typeof prevLink === 'object'
+      ? { ...(prevLink as object), label: value }
+      : value
+    arr[nested.index] = { ...base, links }
+    return { [nested.arrayKey]: arr }
+  }
   arr[nested.index] = { ...base, [nested.itemKey]: value }
   return { [nested.arrayKey]: arr }
 }
@@ -398,20 +479,31 @@ export function listSectionTextFields(
   blockType?: string,
 ): SectionTextField[] {
   const topLevelKeys = new Set<string>()
+  const schemaKeys = new Set<string>()
 
   const schema = blockType ? BLOCK_TEXT_FIELDS[blockType] : undefined
   if (schema) {
-    schema.forEach(k => topLevelKeys.add(k))
+    schema.forEach(k => {
+      topLevelKeys.add(k)
+      schemaKeys.add(k)
+    })
   }
 
   COMMON_PROP_KEYS.forEach(k => {
-    if (k in props) topLevelKeys.add(k)
+    if (!(k in props) || !isEditablePropKey(k)) return
+    if (typeof props[k] === 'number' || typeof props[k] === 'boolean') return
+    topLevelKeys.add(k)
   })
 
+  // Only pick up extra string props that look like copy — never layout numbers/colors.
   Object.keys(props).forEach(k => {
-    if (isEditablePropKey(k) && readPropText(props, k) !== null) {
-      topLevelKeys.add(k)
-    }
+    if (!isEditablePropKey(k) || schemaKeys.has(k)) return
+    if ((COMMON_PROP_KEYS as readonly string[]).includes(k as typeof COMMON_PROP_KEYS[number])) return
+    const text = readContentPropText(props, k)
+    if (text === null || !text.trim()) return
+    if (looksLikeCssColor(text)) return
+    if (/^\d+(\.\d+)?$/.test(text.trim())) return
+    topLevelKeys.add(k)
   })
 
   const candidateKeys = [...topLevelKeys]
@@ -442,6 +534,26 @@ export function listSectionTextFields(
             multiline: f.multiline ?? isMultilineTextField(f.key),
           })
         }
+      })
+    }
+  }
+
+  if (blockType === 'footer') {
+    const cols = props.footer_columns
+    if (Array.isArray(cols)) {
+      cols.forEach((col, colIdx) => {
+        if (!col || typeof col !== 'object') return
+        const links = (col as Record<string, unknown>).links
+        if (!Array.isArray(links)) return
+        links.forEach((_, linkIdx) => {
+          const fieldKey = `footer_columns.${colIdx}.links.${linkIdx}`
+          fields.push({
+            fieldKey,
+            label: `Column ${colIdx + 1} — Link ${linkIdx + 1}`,
+            value: readFieldValue(props, fieldKey),
+            multiline: false,
+          })
+        })
       })
     }
   }

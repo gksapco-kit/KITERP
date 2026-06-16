@@ -1,4 +1,5 @@
 import { resolveStoreFrontTemplateId } from '@/lib/liveStorefrontUrl'
+import type { SiteListItem } from '@/types/websites'
 
 type StoreLike = {
   id: string
@@ -6,8 +7,31 @@ type StoreLike = {
   settings?: Record<string, unknown> | null
 }
 
-export function storesAssignedToTemplate(stores: StoreLike[], templateId: string): StoreLike[] {
-  return stores.filter(s => resolveStoreFrontTemplateId(s.settings) === templateId)
+type StoresAssignedOptions = {
+  /** When a store is linked to a published builder site, catalog template assignment is discontinued. */
+  sites?: SiteListItem[]
+}
+
+function storeHasLinkedBuilderSite(storeId: string, sites?: SiteListItem[]): boolean {
+  if (!sites?.length) return false
+  return sites.some(
+    site =>
+      site.is_published
+      && site.website_store_scope === 'store'
+      && site.website_store_id === storeId,
+  )
+}
+
+export function storesAssignedToTemplate(
+  stores: StoreLike[],
+  templateId: string,
+  options?: StoresAssignedOptions,
+): StoreLike[] {
+  return stores.filter(store => {
+    if (resolveStoreFrontTemplateId(store.settings) !== templateId) return false
+    if (storeHasLinkedBuilderSite(store.id, options?.sites)) return false
+    return true
+  })
 }
 
 export function formatAssignedStoresLabel(stores: Pick<StoreLike, 'name'>[], maxVisible = 2): string {

@@ -24,9 +24,17 @@ export const publicSitesApi = {
       .get<PublicSite>(`/website-template/${encodeURIComponent(templateId)}/preview`)
       .then(r => r.data),
 
-  /** Fetch the published site + all pages + blocks for a subdomain. */
-  getBySubdomain: (subdomain: string): Promise<PublicSite> =>
-    publicApi.get<PublicSite>(`/by-subdomain/${encodeURIComponent(subdomain)}`).then(r => r.data),
+  /**
+   * Fetch the published site + all pages + blocks for a subdomain.
+   * Pass `branch` (business unit code or id) so each business unit resolves to
+   * its own linked storefront site instead of the vendor's latest published one.
+   */
+  getBySubdomain: (subdomain: string, branch?: string | null): Promise<PublicSite> =>
+    publicApi
+      .get<PublicSite>(`/by-subdomain/${encodeURIComponent(subdomain)}`, {
+        params: branch ? { branch } : undefined,
+      })
+      .then(r => r.data),
 
   /** Frozen builder snapshot (opaque token). Same JSON shape as getBySubdomain. */
   getPreviewByToken: (token: string): Promise<PublicSite> =>

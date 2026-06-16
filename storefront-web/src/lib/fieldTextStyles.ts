@@ -28,12 +28,33 @@ export const FIELD_OFFSET_MAX_PX = 480
 export const FIELD_WIDTH_MIN_PCT = 25
 export const FIELD_WIDTH_MAX_PCT = 100
 
-/** Minimum vertical space for multiline text boxes. */
+/** Minimum vertical space for multiline text boxes (saved values only). */
 export const FIELD_MIN_HEIGHT_MIN_PX = 40
 export const FIELD_MIN_HEIGHT_MAX_PX = 720
 
+/** Tolerance when snapping resize back to auto-sized content. */
+export const FIELD_RESIZE_SNAP_PX = 4
+
 /** Synthetic field key — moves the whole editable content group in a section. */
 export const CONTENT_GROUP_FIELD_KEY = '__content_group__'
+
+/** Natural content height inside a positionable field wrapper (ignores wrapper min-height). */
+export function measureFieldContentHeight(wrapper: HTMLElement): number {
+  const content = wrapper.querySelector('[data-text-key], [data-builder-cta-shell]') as HTMLElement | null
+  if (content) {
+    return Math.max(1, Math.ceil(content.getBoundingClientRect().height))
+  }
+  return Math.max(1, Math.ceil(wrapper.scrollHeight))
+}
+
+/** Natural content width inside a positionable field wrapper. */
+export function measureFieldContentWidth(wrapper: HTMLElement): number {
+  const content = wrapper.querySelector('[data-text-key], [data-builder-cta-shell]') as HTMLElement | null
+  if (content) {
+    return Math.max(1, Math.ceil(content.scrollWidth))
+  }
+  return Math.max(1, Math.ceil(wrapper.scrollWidth))
+}
 
 export function readFieldOffset(value: unknown): number {
   if (typeof value !== 'number' || !Number.isFinite(value)) return 0

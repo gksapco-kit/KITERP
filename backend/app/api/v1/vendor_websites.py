@@ -373,6 +373,7 @@ async def list_sites(
             applied_template_name=tpl_name,
             website_store_scope=sc.get("website_store_scope"),
             website_store_id=sc.get("website_store_id"),
+            website_store_name=sc.get("website_store_name"),
             created_at=s.created_at, updated_at=s.updated_at,
         ))
     return out
@@ -2821,12 +2822,10 @@ def _apply_modern_design_props(
     props: Dict[str, Any],
     style_cfg: Dict[str, Any],
 ) -> Dict[str, Any]:
-    """Professional layouts, gradients, and wave dividers on generated blocks."""
+    """Professional layouts and gradients on generated blocks (no auto wave dividers)."""
     p = dict(props or {})
     primary = style_cfg.get("primary_color", "#64C3A0")
     secondary = style_cfg.get("secondary_color", "#13624A")
-    surface = style_cfg.get("surface_color", "#ffffff")
-    bg = style_cfg.get("bg_color", "#ffffff")
 
     if block_type in ("hero", "hero_split", "hero_minimal"):
         p["bg_style"] = "gradient"
@@ -2834,17 +2833,12 @@ def _apply_modern_design_props(
         p.setdefault("gradient_to", secondary)
         p.setdefault("gradient_dir", "135deg")
         p.setdefault("layout", "split" if block_type == "hero_split" else p.get("layout", "centered"))
-        p.setdefault("bottom_shape", "wave")
-        p.setdefault("shape_color", surface)
         p.setdefault("padding_bottom", 72)
     elif block_type in (
         "features", "features_alternating", "category_cards", "services_cards",
         "testimonials", "testimonials_grid", "gallery_masonry", "booking_widget",
         "about_split", "stats", "pricing",
     ):
-        p.setdefault("top_shape", "wave_soft")
-        p.setdefault("bottom_shape", "wave_soft")
-        p.setdefault("shape_color", surface)
         p.setdefault("padding_top", 64)
         p.setdefault("padding_bottom", 64)
     elif block_type in ("cta", "cta_split", "contact_form", "newsletter"):
@@ -2852,9 +2846,6 @@ def _apply_modern_design_props(
         p.setdefault("gradient_from", primary)
         p.setdefault("gradient_to", secondary)
         p.setdefault("gradient_dir", "135deg")
-        p.setdefault("top_shape", "wave")
-        p.setdefault("bottom_shape", "wave_soft")
-        p.setdefault("shape_color", bg)
         p.setdefault("padding_top", 72)
         p.setdefault("padding_bottom", 72)
 
@@ -3266,7 +3257,7 @@ Fill in real copy for the business. No placeholder text."""
                 f"Niche: {body.niche or 'auto'}\n"
                 f"Pages: {', '.join(default_pages)}\n"
                 f"Tone: {body.tone}\n"
-                f"Use hero_split with bg_style gradient, category_cards, features with show_images, alternating layouts, testimonials with avatars, gradient CTA sections, top_shape/bottom_shape wave dividers, and block animations fade-in/slide-up."
+                f"Use hero_split with bg_style gradient, category_cards, features with show_images, alternating layouts, testimonials with avatars, gradient CTA sections, and block animations fade-in/slide-up. Do not add top_shape or bottom_shape wave dividers unless explicitly requested."
             )
 
             async with httpx.AsyncClient(timeout=90) as client:

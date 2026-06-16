@@ -4,17 +4,27 @@ import { cn } from '@/lib/utils'
 import {
   CONTENT_GROUP_FIELD_KEY,
   FIELD_MIN_HEIGHT_MAX_PX,
-  FIELD_MIN_HEIGHT_MIN_PX,
   FIELD_OFFSET_MAX_PX,
+  FIELD_RESIZE_SNAP_PX,
   FIELD_WIDTH_MAX_PCT,
   FIELD_WIDTH_MIN_PCT,
   fieldLayoutWrapperStyle,
+  measureFieldContentHeight,
+  measureFieldContentWidth,
   readFieldMinHeight,
   readFieldOffset,
   readFieldWidthPct,
 } from '@/lib/fieldTextStyles'
 import { useBuilderCanvas } from '@/contexts/BuilderCanvasContext'
 import { isMultiSelectModifier } from '@/lib/builderMultiSelect'
+import { mergeDragPreviewTransform, pointerDeltaInCanvas } from '@/lib/canvasPointerDelta'
+import {
+  rectRelativeToBlock,
+  resolveFieldDragSnap,
+  type DragGuideLine,
+  type SnapRect,
+} from '@/lib/canvasFieldDragSnap'
+import { BuilderFieldDragGuides } from '@/components/builder/BuilderFieldDragGuides'
 
 type ResizeAxis = 'width' | 'height' | 'both'
 
@@ -49,7 +59,16 @@ export function BuilderPositionableField({
   const [widthPreviewPx, setWidthPreviewPx] = useState<number | null>(null)
   const [heightPreviewPx, setHeightPreviewPx] = useState<number | null>(null)
   const dragDeltaRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 })
-  const dragStartRef = useRef<{ x: number; y: number; ox: number; oy: number } | null>(null)
+  const dragStartRef = useRef<{
+    x: number
+    y: number
+    ox: number
+    oy: number
+    startRect: SnapRect
+    blockRoot: HTMLElement
+  } | null>(null)
+  const [snapGuides, setSnapGuides] = useState<DragGuideLine[]>([])
+  const [guideBlockRoot, setGuideBlockRoot] = useState<HTMLElement | null>(null)
   const resizeStartRef = useRef<{
     axis: ResizeAxis
     startX: number
@@ -57,9 +76,12 @@ export function BuilderPositionableField({
     startWidth: number
     startHeight: number
     parentWidth: number
+    naturalHeight: number
+    naturalWidth: number
   } | null>(null)
 
   const isEditor = ctx?.isEditorCanvas && !!blockId
+  const canvasScale = ctx?.canvasScale ?? 1
   const isActive = isEditor
     && ctx?.activeBlockId === blockId
     && ((ctx?.activeTextFields ?? []).includes(fieldKey) || ctx?.activeTextField === fieldKey)
@@ -84,6 +106,8 @@ export function BuilderPositionableField({
     dragStartRef.current = null
     dragDeltaRef.current = { x: 0, y: 0 }
     setDragDelta(null)
+    setSnapGuides([])
+    setGuideBlockRoot(null)
     if (!blockId || !ctx?.onTextFieldStylePatch) return
     if (dx === 0 && dy === 0) return
 
@@ -140,16 +164,19 @@ export function BuilderPositionableField({
     const patch: Record<string, unknown> = {}
     if (start.axis === 'width' || start.axis === 'both') {
       const widthPx = widthPreviewPx ?? el.offsetWidth
-      const pct = clampWidthPct(start.parentWidth, widthPx)
-      patch.field_width_pct = pct
+      if (widthPx <= start.naturalWidth + FIELD_RESIZE_SNAP_PX) {
+        patch.field_width_pct = null
+      } else {
+        patch.field_width_pct = clampWidthPct(start.parentWidth, widthPx)
+      }
     }
     if (start.axis === 'height' || start.axis === 'both') {
-      const heightPx = heightPreviewPx ?? el.offsetHeight
-      const minH = Math.max(
-        FIELD_MIN_HEIGHT_MIN_PX,
-        Math.min(FIELD_MIN_HEIGHT_MAX_PX, Math.round(heightPx)),
-      )
-      patch.field_min_height = minH
+      const heightPx = Math.round(heightPreviewPx ?? el.offsetHeight)
+      if (heightPx <= start.naturalHeight + FIELD_RESIZE_SNAP_PX) {
+        patch.field_min_height = null
+      } else {
+        patch.field_min_height = Math.min(FIELD_MIN_HEIGHT_MAX_PX, heightPx)
+      }
     }
 
     resizeStartRef.current = null
@@ -185,6 +212,9 @@ export function BuilderPositionableField({
 
   const handleDragPointerDown = (e: ReactPointerEvent) => {
     if (!isActive || !blockId) return
+    const el = wrapperRef.current
+    const blockRoot = el?.closest('[data-block-id]') as HTMLElement | null
+    if (!el || !blockRoot) return
     e.preventDefault()
     e.stopPropagation()
     dragStartRef.current = {
@@ -192,23 +222,27 @@ export function BuilderPositionableField({
       y: e.clientY,
       ox: storedOffsetX,
       oy: storedOffsetY,
+      startRect: rectRelativeToBlock(el, blockRoot, canvasScale),
+      blockRoot,
     }
     dragDeltaRef.current = { x: 0, y: 0 }
     setDragDelta({ x: 0, y: 0 })
+    setSnapGuides([])
+    setGuideBlockRoot(blockRoot)
     ;(e.currentTarget as HTMLElement).setPointerCapture(e.pointerId)
   }
 
   const handleDragPointerMove = (e: ReactPointerEvent) => {
     const start = dragStartRef.current
-    if (!start) return
+    const el = wrapperRef.current
+    if (!start || !el) return
     e.preventDefault()
     e.stopPropagation()
-    const next = {
-      x: e.clientX - start.x,
-      y: e.clientY - start.y,
-    }
-    dragDeltaRef.current = next
-    setDragDelta(next)
+    const raw = pointerDeltaInCanvas(e.clientX, e.clientY, start.x, start.y, canvasScale)
+    const snapped = resolveFieldDragSnap(el, start.startRect, raw, canvasScale)
+    dragDeltaRef.current = snapped.delta
+    setDragDelta(snapped.delta)
+    setSnapGuides(snapped.guides)
   }
 
   const handleResizePointerDown = (axis: ResizeAxis) => (e: ReactPointerEvent) => {
@@ -225,6 +259,8 @@ export function BuilderPositionableField({
       startWidth: el.offsetWidth,
       startHeight: el.offsetHeight,
       parentWidth: parent.clientWidth,
+      naturalHeight: measureFieldContentHeight(el),
+      naturalWidth: measureFieldContentWidth(el),
     }
     setWidthPreviewPx(el.offsetWidth)
     setHeightPreviewPx(el.offsetHeight)
@@ -236,29 +272,21 @@ export function BuilderPositionableField({
     if (!start) return
     e.preventDefault()
     e.stopPropagation()
-    const dx = e.clientX - start.startX
-    const dy = e.clientY - start.startY
+    const dx = (e.clientX - start.startX) / canvasScale
+    const dy = (e.clientY - start.startY) / canvasScale
     if (start.axis === 'width' || start.axis === 'both') {
-      const minW = Math.max(80, Math.round(start.parentWidth * (FIELD_WIDTH_MIN_PCT / 100)))
       const maxW = start.parentWidth
-      setWidthPreviewPx(Math.max(minW, Math.min(maxW, start.startWidth + dx)))
+      setWidthPreviewPx(Math.max(start.naturalWidth, Math.min(maxW, start.startWidth + dx)))
     }
     if (start.axis === 'height' || start.axis === 'both') {
       setHeightPreviewPx(
         Math.max(
-          FIELD_MIN_HEIGHT_MIN_PX,
+          start.naturalHeight,
           Math.min(FIELD_MIN_HEIGHT_MAX_PX, start.startHeight + dy),
         ),
       )
     }
   }
-
-  const dragPreviewStyle: CSSProperties | undefined = dragDelta
-    ? {
-        left: storedOffsetX + dragDelta.x,
-        top: storedOffsetY + dragDelta.y,
-      }
-    : undefined
 
   const resizePreviewStyle: CSSProperties = {}
   if (widthPreviewPx != null) {
@@ -274,25 +302,28 @@ export function BuilderPositionableField({
     resizePreviewStyle.minHeight = storedMinHeight
   }
 
-  const wrapperStyle = blockProps
-    ? fieldLayoutWrapperStyle(blockProps, fieldKey, { ...dragPreviewStyle, ...resizePreviewStyle }, { inline })
-    : { ...dragPreviewStyle, ...resizePreviewStyle }
+  const baseWrapperStyle = blockProps
+    ? fieldLayoutWrapperStyle(blockProps, fieldKey, { ...resizePreviewStyle }, { inline })
+    : { ...resizePreviewStyle }
+  const wrapperStyle = mergeDragPreviewTransform(baseWrapperStyle, dragDelta)
+  const isDragging = dragDelta != null && (dragDelta.x !== 0 || dragDelta.y !== 0)
 
   const hasCustomWidth = storedWidthPct != null || widthPreviewPx != null
 
   if (!isEditor) return <>{children}</>
 
   const resizeHandleClass =
-    'absolute z-20 flex items-center justify-center rounded-sm border border-primary/50 bg-white text-primary shadow-sm hover:bg-primary/5'
+    'absolute z-20 flex items-center justify-center rounded-sm border border-slate-500/70 bg-white text-slate-700 shadow-sm hover:bg-slate-50'
 
   return (
     <div
       ref={wrapperRef}
       data-field-layout={fieldKey}
       data-builder-field-selected={isActive ? 'true' : undefined}
+      data-field-drag-preview={isDragging ? 'true' : undefined}
       className={cn(
         inline ? 'inline-flex max-w-full' : hasCustomWidth ? 'relative' : 'relative w-fit max-w-full',
-        isActive && 'group/field-pos',
+        isActive && 'group/field-pos z-[2]',
         className,
       )}
       style={wrapperStyle ?? (inline ? { position: 'relative' } : { position: 'relative' })}
@@ -309,9 +340,9 @@ export function BuilderPositionableField({
           type="button"
           title="Drag to move"
           className={cn(
-            'absolute -left-2 -top-2 z-20 flex h-5 w-5 items-center justify-center rounded border border-primary/40 bg-white text-primary shadow-sm',
-            'cursor-move opacity-90 hover:bg-primary/5',
-            dragStartRef.current && 'ring-2 ring-primary/40',
+            'absolute -left-2 -top-2 z-20 flex h-5 w-5 items-center justify-center rounded border border-slate-500/65 bg-white text-slate-700 shadow-sm',
+            'cursor-move opacity-90 hover:bg-slate-50',
+            dragStartRef.current && 'ring-2 ring-slate-400/55',
           )}
           onPointerDown={handleDragPointerDown}
           onPointerMove={handleDragPointerMove}
@@ -363,6 +394,7 @@ export function BuilderPositionableField({
         </>
       )}
       {children}
+      <BuilderFieldDragGuides blockRoot={guideBlockRoot} guides={snapGuides} />
     </div>
   )
 }

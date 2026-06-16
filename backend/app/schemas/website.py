@@ -261,6 +261,7 @@ class SiteListItem(BaseModel):
     applied_template_name: Optional[str] = None
     website_store_scope: Optional[str] = None
     website_store_id: Optional[str] = None
+    website_store_name: Optional[str] = None
     created_at: datetime
     updated_at: datetime
 

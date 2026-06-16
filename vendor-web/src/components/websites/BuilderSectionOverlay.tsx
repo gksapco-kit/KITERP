@@ -307,7 +307,7 @@ export function BuilderSectionPaddingHandles({
   paddingTop: number
   paddingBottom: number
   canvasScale: number
-  /** Hide while a text or image field is the active target — avoids clashing resize handles. */
+  /** Hide while a text/image field is active or a builder modal is open. */
   suppressed?: boolean
   onPaddingPreview: (patch: { padding_top?: number; padding_bottom?: number }) => void
   onPaddingCommit: (patch: { padding_top?: number; padding_bottom?: number }) => void
@@ -316,9 +316,7 @@ export function BuilderSectionPaddingHandles({
   const box = useBuilderSectionBox(blockId, containerRef, undefined, scrollRootRef)
   const hasBox = box != null
   const [screenFrame, setScreenFrame] = useState<SectionScreenFrame | null>(null)
-  // Visible canvas bounds — pills live in a body portal (not clipped by the scroll
-  // container's overflow), so we clip them manually to avoid floating over the
-  // docked toolbar above the canvas or out the bottom.
+  // Visible canvas bounds — hide handle pills when their seam scrolls outside the canvas.
   const [clip, setClip] = useState<{ top: number; bottom: number } | null>(null)
   const [activeEdge, setActiveEdge] = useState<'top' | 'bottom' | null>(null)
   const [dragLabel, setDragLabel] = useState<string | null>(null)
@@ -328,13 +326,6 @@ export function BuilderSectionPaddingHandles({
     startHeight: number
     lastVal: number
     displayY: number
-    // Screen geometry frozen at drag start — the block's screen top and canvas
-    // scale don't change during a vertical padding drag, so re-reading them live
-    // only adds reflow lag that makes the handles/tooltip shimmer.
-    startTop: number
-    startScaleY: number
-    startLeft: number
-    startWidth: number
     rafId: number | null
     pendingPreview: { padding_top?: number; padding_bottom?: number } | null
   } | null>(null)
@@ -412,17 +403,13 @@ export function BuilderSectionPaddingHandles({
     : liveHeight - liveBottom
   const hideBottom = liveHeight < 16 || bottomHandleY - topHandleY < 4
 
-  // While dragging, position against the frozen screen frame captured at drag
-  // start; only fall back to the live (ResizeObserver) measurement when idle.
-  const frameTop = dragging ? drag!.startTop : screenFrame?.top ?? null
-  const frameScaleY = dragging ? drag!.startScaleY : screenFrame?.scaleY ?? null
-  const frameLeft = dragging ? drag!.startLeft : screenFrame?.left ?? null
-  const frameWidth = dragging ? drag!.startWidth : screenFrame?.width ?? null
-  const hasFrame =
-    frameTop != null && frameScaleY != null && frameLeft != null && frameWidth != null
-
-  const topHandleScreenY = hasFrame ? frameTop! + topHandleY * frameScaleY! : null
-  const bottomHandleScreenY = hasFrame ? frameTop! + bottomHandleY * frameScaleY! : null
+  // Screen Y for clip checks — hide handles when the seam scrolls outside the canvas.
+  const topHandleScreenY = screenFrame
+    ? screenFrame.top + topHandleY * screenFrame.scaleY
+    : null
+  const bottomHandleScreenY = screenFrame
+    ? screenFrame.top + bottomHandleY * screenFrame.scaleY
+    : null
 
   // Only show a handle/tooltip when its seam is inside the visible canvas. The pad
   // keeps the pill from poking past the edge (it's centred on the seam).
@@ -462,7 +449,6 @@ export function BuilderSectionPaddingHandles({
     const hit = pointerInBlock(e.clientY, containerRef, blockId)
     if (!hit) return
 
-    const frame = measureBlockScreenFrame(containerRef, blockId)
     const startVal = clampDragPadding(edge === 'top' ? paddingTop : paddingBottom)
     const startY = edge === 'top' ? startVal : hit.height - startVal
 
@@ -472,10 +458,6 @@ export function BuilderSectionPaddingHandles({
       startHeight: hit.height,
       lastVal: startVal,
       displayY: startY,
-      startTop: frame?.top ?? screenFrame?.top ?? 0,
-      startScaleY: frame?.scaleY ?? screenFrame?.scaleY ?? 1,
-      startLeft: frame?.left ?? screenFrame?.left ?? 0,
-      startWidth: frame?.width ?? screenFrame?.width ?? 0,
       rafId: null,
       pendingPreview: null,
     }
@@ -564,32 +546,32 @@ export function BuilderSectionPaddingHandles({
 
   const edges: Array<{
     edge: 'top' | 'bottom'
-    screenY: number | null
     value: number
     label: string
   }> = [
-    { edge: 'top', screenY: topHandleScreenY, value: liveTop, label: 'Section padding top' },
-    { edge: 'bottom', screenY: bottomHandleScreenY, value: liveBottom, label: 'Section padding bottom' },
+    { edge: 'top', value: liveTop, label: 'Section padding top' },
+    { edge: 'bottom', value: liveBottom, label: 'Section padding bottom' },
   ]
 
   const renderHandlePill = (
     edge: 'top' | 'bottom',
-    screenY: number,
+    handleY: number,
     value: number,
     label: string,
   ) => {
     const active = activeEdge === edge
+    const screenY = screenFrame ? screenFrame.top + handleY * screenFrame.scaleY : null
+    if (screenY != null && !withinClip(screenY)) return null
+
     return (
       <div
         key={edge}
         className={cn(
-          'fixed touch-none select-none pointer-events-none',
-          active ? 'z-[99992]' : 'z-[99990]',
+          'absolute left-0 right-0 touch-none select-none pointer-events-none',
+          active ? 'z-[62]' : 'z-[61]',
         )}
         style={{
-          top: screenY,
-          left: frameLeft!,
-          width: frameWidth!,
+          top: handleY,
           transform: 'translateY(-50%)',
         }}
       >
@@ -642,9 +624,8 @@ export function BuilderSectionPaddingHandles({
         />
       )}
 
-      {/* Seam guide lines live in-canvas (below the section toolbar's z-85) so they
-          render behind the floating toolbars instead of a body portal painting over
-          them. The grabbable pill stays in the portal. */}
+      {/* Seam guide lines and handle pills stay in-canvas (absolute) so they scroll
+          with the section and never float over builder modals via a body portal. */}
       <div
         className={cn(
           'pointer-events-none absolute left-0 right-0 z-[59] h-[2px] -translate-y-1/2',
@@ -664,26 +645,21 @@ export function BuilderSectionPaddingHandles({
         />
       )}
 
-      {hasFrame && createPortal(
-        <>
-          {edges.map(({ edge, screenY, value, label }) => {
-            if (edge === 'bottom' && hideBottom) return null
-            if (!withinClip(screenY)) return null
-            return renderHandlePill(edge, screenY!, value, label)
-          })}
-          {dragLabel && activeEdge && withinClip(activeEdge === 'top' ? topHandleScreenY : bottomHandleScreenY) && (
-            <div
-              className="pointer-events-none fixed left-1/2 z-[99993] -translate-x-1/2 -translate-y-1/2 rounded-md bg-gray-900 px-2.5 py-1 text-[11px] font-mono text-white shadow-md"
-              style={{
-                top: activeEdge === 'top' ? topHandleScreenY! : bottomHandleScreenY!,
-                left: frameLeft! + frameWidth! / 2,
-              }}
-            >
-              {dragLabel}
-            </div>
-          )}
-        </>,
-        document.body,
+      {edges.map(({ edge, value, label }) => {
+        if (edge === 'bottom' && hideBottom) return null
+        const handleY = edge === 'top' ? topHandleY : bottomHandleY
+        return renderHandlePill(edge, handleY, value, label)
+      })}
+
+      {dragLabel && activeEdge && withinClip(
+        activeEdge === 'top' ? topHandleScreenY : bottomHandleScreenY,
+      ) && (
+        <div
+          className="pointer-events-none absolute left-1/2 z-[63] -translate-x-1/2 -translate-y-1/2 rounded-md bg-gray-900 px-2.5 py-1 text-[11px] font-mono text-white shadow-md"
+          style={{ top: activeEdge === 'top' ? topHandleY : bottomHandleY }}
+        >
+          {dragLabel}
+        </div>
       )}
     </>
   )

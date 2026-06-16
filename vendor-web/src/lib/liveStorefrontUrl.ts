@@ -177,16 +177,36 @@ export function resolveAppliedTemplateViewLiveLinks(
     templateMode: StorefrontTemplateMode
     singleFrontTemplateId: string | null
     stores: StoreForViewLive[]
+    /** Published builder sites — stores linked to a builder site are excluded from catalog assignment. */
+    builderSites?: Array<{ id: string; is_published?: boolean; website_store_scope?: string | null; website_store_id?: string | null }>
   },
 ): AppliedTemplateViewLiveLink[] {
   const slug = vendorSlug?.trim()
   if (!slug) return []
 
-  const { templateId, templateMode, singleFrontTemplateId, stores } = options
+  const { templateId, templateMode, singleFrontTemplateId, stores, builderSites } = options
+
+  const storeHasLinkedBuilder = (storeId: string) =>
+    builderSites?.some(
+      site =>
+        site.is_published !== false
+        && site.website_store_scope === 'store'
+        && site.website_store_id === storeId,
+    ) ?? false
+
+  const catalogAssignedStores =
+    templateMode === 'single'
+      ? stores
+      : stores.filter(
+          s =>
+            resolveStoreFrontTemplateId(s.settings) === templateId
+            && !storeHasLinkedBuilder(s.id),
+        )
+
   const isApplied =
     templateMode === 'single'
       ? singleFrontTemplateId === templateId
-      : stores.some(s => resolveStoreFrontTemplateId(s.settings) === templateId)
+      : catalogAssignedStores.length > 0
 
   if (!isApplied) return []
 
@@ -195,10 +215,7 @@ export function resolveAppliedTemplateViewLiveLinks(
     return href ? [{ href, label: 'View live BU / Store' }] : []
   }
 
-  const assignedStores =
-    templateMode === 'single'
-      ? stores
-      : stores.filter(s => resolveStoreFrontTemplateId(s.settings) === templateId)
+  const assignedStores = templateMode === 'single' ? stores : catalogAssignedStores
 
   if (assignedStores.length === 0) {
     const href = buildCustomerStoreLink(slug)
@@ -218,4 +235,54 @@ export function resolveAppliedTemplateViewLiveLinks(
       return href ? { href, label: `${formatStoreCode(store)} · ${store.name}` } : null
     })
     .filter((link): link is AppliedTemplateViewLiveLink => link != null)
+}
+
+type StoreRef = { id: string; name?: string; code?: string | null }
+
+/** Customer storefront links right after assigning specific business units. */
+export function resolveStorefrontLinksForStoreIds(
+  vendorSlug: string | null | undefined,
+  linkMode: StorefrontLinkMode,
+  storeIds: string[],
+  stores: StoreRef[],
+): AppliedTemplateViewLiveLink[] {
+  const slug = vendorSlug?.trim()
+  if (!slug || storeIds.length === 0) return []
+
+  if (linkMode === 'single') {
+    const href = buildCustomerStoreLink(slug)
+    return href ? [{ href, label: 'View live BU / Store' }] : []
+  }
+
+  const assigned = storeIds
+    .map(id => stores.find(s => s.id === id))
+    .filter((s): s is StoreRef => s != null)
+
+  if (assigned.length === 0) {
+    const href = buildCustomerStoreLink(slug)
+    return href ? [{ href, label: 'View live BU / Store' }] : []
+  }
+
+  return assigned
+    .map(store => {
+      const href = customerLinkForStore(slug, store, linkMode)
+      return href ? { href, label: `${formatStoreCode(store)} · ${store.name ?? 'Store'}` } : null
+    })
+    .filter((link): link is AppliedTemplateViewLiveLink => link != null)
+}
+
+export function openStorefrontLinks(
+  links: AppliedTemplateViewLiveLink[],
+  options?: { onMultiple?: (links: AppliedTemplateViewLiveLink[]) => void },
+): void {
+  if (links.length === 0) return
+  if (links.length === 1) {
+    window.open(links[0].href, '_blank', 'noopener,noreferrer')
+    return
+  }
+  if (options?.onMultiple) {
+    options.onMultiple(links)
+    return
+  }
+  window.open(links[0].href, '_blank', 'noopener,noreferrer')
 }

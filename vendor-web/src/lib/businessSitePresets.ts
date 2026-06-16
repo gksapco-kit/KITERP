@@ -312,8 +312,8 @@ export function buildGenerateSitePrompt(
     `Business category: ${businessLabel}.`,
     `Selling mode: ${sellingMode} — ${sellingDesc}.`,
     `Include these sections: ${featureLabels.join(', ')}.`,
-    'Design quality: professional layouts, clean UI, smooth fade/slide animations, modern brand gradients on hero and CTA, and soft wave dividers at section top and bottom.',
-    'Use hero_split with bg_style gradient, category cards with photos, features with show_images, alternating layouts, testimonials with avatars, and gradient CTA sections.',
+    'Design quality: professional layouts, clean UI, smooth fade/slide animations, and modern brand gradients on hero and CTA.',
+    'Use hero_split with bg_style gradient, category cards with photos, features with show_images, alternating layouts, testimonials with avatars, and gradient CTA sections. Do not add wave or shape dividers between sections.',
     'Write polished, specific copy using the business name — no lorem ipsum.',
     extraDesc?.trim() ? `Additional context: ${extraDesc.trim()}` : '',
   ].filter(Boolean).join(' ')

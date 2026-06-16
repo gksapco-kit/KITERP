@@ -70,6 +70,9 @@
     --canvas-grid: 158 12% 92%;
     --panel: 0 0% 100%;
     --panel-foreground: 222 20% 12%;
+    /* Builder canvas selection chrome — fixed contrast, not site theme primary */
+    --builder-chrome: 215 28% 32%;
+    --builder-chrome-soft: 215 18% 48%;
     /* Sidebar — neutral rail; mint (--sidebar-primary) on active nav only */
     --sidebar-background: 210 20% 97%;
     --sidebar-foreground: 222 20% 12%;
@@ -1618,15 +1621,21 @@ html[dir='rtl'] [data-sonner-toast][data-styled='true']:has([data-close-button])
 }
 
 [data-builder-cta-active="true"] {
-  outline: 2px solid hsl(var(--primary) / 0.55);
+  outline: 2px solid hsl(var(--builder-chrome) / 0.75);
   outline-offset: 2px;
 }
 
 /* One box for positionable text fields — resize handles attach here */
 [data-field-layout][data-builder-field-selected="true"] {
-  outline: 2px dashed hsl(var(--primary) / 0.55);
-  outline-offset: 2px;
+  outline: 2px dashed hsl(var(--builder-chrome) / 0.9);
+  outline-offset: 3px;
   border-radius: 4px;
+  box-shadow: 0 0 0 1px hsl(var(--builder-chrome) / 0.35);
+}
+
+[data-field-layout][data-field-drag-preview="true"] {
+  transition: none !important;
+  will-change: transform;
 }
 
 /* Built-in section / card photos — inset highlight (not clipped like outline) */

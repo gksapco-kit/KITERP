@@ -4,7 +4,6 @@ export type BuilderEscapeUiState = {
   armedDeleteActive: boolean
   overlayImageActive: boolean
   canvasImageActive: boolean
-  applyPopoverOpen: boolean
   storePopoverOpen: boolean
   hasActiveTextTarget: boolean
   hasSelectedBlock: boolean
@@ -15,7 +14,6 @@ export type BuilderEscapeActions = {
   clearArmedDelete: () => void
   clearOverlayImage: () => void
   clearCanvasImage: () => void
-  closeApplyPopover: () => void
   closeStorePopover: () => void
   clearActiveTextTarget: () => void
   clearSelectedBlock: () => void
@@ -54,10 +52,6 @@ export function dismissBuilderEscapeLayer(
   }
   if (state.canvasImageActive) {
     actions.clearCanvasImage()
-    return true
-  }
-  if (state.applyPopoverOpen) {
-    actions.closeApplyPopover()
     return true
   }
   if (state.storePopoverOpen) {

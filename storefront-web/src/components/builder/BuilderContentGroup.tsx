@@ -8,6 +8,14 @@ import {
   readFieldOffset,
 } from '@/lib/fieldTextStyles'
 import { useBuilderCanvas } from '@/contexts/BuilderCanvasContext'
+import { mergeDragPreviewTransform, pointerDeltaInCanvas } from '@/lib/canvasPointerDelta'
+import {
+  rectRelativeToBlock,
+  resolveFieldDragSnap,
+  type DragGuideLine,
+  type SnapRect,
+} from '@/lib/canvasFieldDragSnap'
+import { BuilderFieldDragGuides } from '@/components/builder/BuilderFieldDragGuides'
 
 /** Wraps editable content in a section — move headline, copy, and CTAs together. */
 export function BuilderContentGroup({
@@ -24,9 +32,19 @@ export function BuilderContentGroup({
   style?: CSSProperties
 }) {
   const ctx = useBuilderCanvas()
+  const canvasScale = ctx?.canvasScale ?? 1
   const [dragDelta, setDragDelta] = useState<{ x: number; y: number } | null>(null)
   const dragDeltaRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 })
-  const dragStartRef = useRef<{ x: number; y: number; ox: number; oy: number } | null>(null)
+  const dragStartRef = useRef<{
+    x: number
+    y: number
+    ox: number
+    oy: number
+    startRect: SnapRect
+    blockRoot: HTMLElement
+  } | null>(null)
+  const [snapGuides, setSnapGuides] = useState<DragGuideLine[]>([])
+  const [guideBlockRoot, setGuideBlockRoot] = useState<HTMLElement | null>(null)
 
   const isEditor = ctx?.isEditorCanvas && !!blockId
   const isActive = isEditor
@@ -49,6 +67,8 @@ export function BuilderContentGroup({
     dragStartRef.current = null
     dragDeltaRef.current = { x: 0, y: 0 }
     setDragDelta(null)
+    setSnapGuides([])
+    setGuideBlockRoot(null)
     if (!blockId || !ctx?.onTextFieldStylePatch) return
     const nextX = Math.max(-FIELD_OFFSET_MAX_PX, Math.min(FIELD_OFFSET_MAX_PX, start.ox + dx))
     const nextY = Math.max(-FIELD_OFFSET_MAX_PX, Math.min(FIELD_OFFSET_MAX_PX, start.oy + dy))
@@ -72,6 +92,9 @@ export function BuilderContentGroup({
 
   const handleDragPointerDown = (e: ReactPointerEvent) => {
     if (!isActive || !blockId) return
+    const el = e.currentTarget.closest('[data-field-layout]') as HTMLElement | null
+    const blockRoot = el?.closest('[data-block-id]') as HTMLElement | null
+    if (!el || !blockRoot) return
     e.preventDefault()
     e.stopPropagation()
     dragStartRef.current = {
@@ -79,29 +102,34 @@ export function BuilderContentGroup({
       y: e.clientY,
       ox: storedOffsetX,
       oy: storedOffsetY,
+      startRect: rectRelativeToBlock(el, blockRoot, canvasScale),
+      blockRoot,
     }
     dragDeltaRef.current = { x: 0, y: 0 }
     setDragDelta({ x: 0, y: 0 })
+    setSnapGuides([])
+    setGuideBlockRoot(blockRoot)
     ;(e.currentTarget as HTMLElement).setPointerCapture(e.pointerId)
   }
 
   const handleDragPointerMove = (e: ReactPointerEvent) => {
     const start = dragStartRef.current
-    if (!start) return
+    const el = e.currentTarget.closest('[data-field-layout]') as HTMLElement | null
+    if (!start || !el) return
     e.preventDefault()
     e.stopPropagation()
-    const next = { x: e.clientX - start.x, y: e.clientY - start.y }
-    dragDeltaRef.current = next
-    setDragDelta(next)
+    const raw = pointerDeltaInCanvas(e.clientX, e.clientY, start.x, start.y, canvasScale)
+    const snapped = resolveFieldDragSnap(el, start.startRect, raw, canvasScale)
+    dragDeltaRef.current = snapped.delta
+    setDragDelta(snapped.delta)
+    setSnapGuides(snapped.guides)
   }
 
-  const dragPreviewStyle: CSSProperties | undefined = dragDelta
-    ? { left: storedOffsetX + dragDelta.x, top: storedOffsetY + dragDelta.y }
-    : undefined
-
-  const wrapperStyle = blockProps
-    ? contentGroupWrapperStyle(blockProps, { ...style, ...dragPreviewStyle })
-    : { ...style, ...dragPreviewStyle }
+  const baseWrapperStyle = blockProps
+    ? contentGroupWrapperStyle(blockProps, style)
+    : style
+  const wrapperStyle = mergeDragPreviewTransform(baseWrapperStyle, dragDelta)
+  const isDragging = dragDelta != null && (dragDelta.x !== 0 || dragDelta.y !== 0)
 
   if (!isEditor) {
     return (
@@ -115,9 +143,10 @@ export function BuilderContentGroup({
     <div
       data-content-group="true"
       data-field-layout={CONTENT_GROUP_FIELD_KEY}
+      data-field-drag-preview={isDragging ? 'true' : undefined}
       className={cn(
         className,
-        isActive && 'ring-1 ring-primary/25 ring-offset-2 rounded-sm',
+        isActive && 'ring-2 ring-primary/50 ring-offset-2 rounded-sm z-[2]',
       )}
       style={wrapperStyle ?? style}
       onMouseDown={(e: React.MouseEvent) => {
@@ -151,6 +180,7 @@ export function BuilderContentGroup({
         </button>
       )}
       {children}
+      <BuilderFieldDragGuides blockRoot={guideBlockRoot} guides={snapGuides} />
     </div>
   )
 }

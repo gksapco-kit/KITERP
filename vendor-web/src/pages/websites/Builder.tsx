@@ -21,7 +21,7 @@ import {
   Maximize2, Minimize2, Move, Pencil, PlusCircle, Upload,
   ZoomIn, ZoomOut,
   Zap, Star, Shield, Phone, Mail, MapPin, Clock, CheckCircle2,
-  ChevronLeft, BarChart3, Users, ShoppingBag, Heart,
+  ChevronLeft, BarChart3, Users, ShoppingBag, Heart, Home,
   PlayCircle, Quote, Award, Briefcase, Camera,
   Type, Square, Columns, Video, Map as MapIcon, MessageSquare,
   Hash, Minus, List, ToggleLeft, Radio, Info,
@@ -48,13 +48,19 @@ import type {
   SiteListItem,
 } from '@/types/websites'
 import { resolveUniqueSiteName, suggestSiteCopyName } from '@/lib/websiteSiteNames'
+import { SITE_THEME_PRESETS } from '@/lib/websiteColorPalettes'
 import { websiteApi } from '@/api/websites'
 import { vendorApi } from '@/api/vendor'
 import { useVendorStore } from '@/stores/vendorStore'
-import { useMyVendor, useStores } from '@/hooks/useVendor'
+import { useMyVendor, useStores, vendorKeys } from '@/hooks/useVendor'
+import { ensureBuilderSiteStorefrontActive } from '@/lib/builderDraftTemplateSites'
+import {
+  openStorefrontLinks,
+  resolveSiteStoreLink,
+  resolveStorefrontLinkMode,
+  resolveStorefrontLinksForStoreIds,
+} from '@/lib/liveStorefrontUrl'
 import { getTemplatePreviewPalette } from '@/lib/templateBlockHighlights'
-import { BUSINESS_UNIT_STORE_LABEL } from '@/lib/businessUnitLabels'
-import { formatStoreCode } from '@/lib/verification'
 import { BuilderCanvasProviders } from '@/components/websites/BuilderCanvasProviders'
 import { CanvasHScrollbar } from '@/components/websites/CanvasHScrollbar'
 import { BuilderCanvasPageRenderer, mergePageStyle } from '@/components/websites/BuilderCanvasPageRenderer'
@@ -141,6 +147,7 @@ import { builderOverlayIconLabel, overlayIconRenderSize, resolveBuilderOverlayIc
 import { SHADOW_PRESETS, SHAPE_OPTIONS } from '@/lib/builderVisualPresets'
 import { blockSupportsMediaClip } from '@storefront/lib/mediaClip'
 import {
+  buildSectionImagePropsPatch,
   sectionPrimaryImageField,
   sectionSupportsBgStyle,
   sectionSupportsContentGroupTransform,
@@ -3757,12 +3764,13 @@ function CatalogGridLayoutControls({
 // ?? Inline Media Picker ???????????????????????????????????????????????????????
 
 function InlineMediaPicker({
-  siteId, value, onChange, label = 'Image',
+  siteId, value, onChange, label = 'Image', onFocus,
 }: {
   siteId: string
   value: string
   onChange: (url: string) => void
   label?: string
+  onFocus?: () => void
 }) {
   const { data: mediaList = [] } = useMedia(siteId)
   const uploadMedia = useUploadMedia(siteId)
@@ -3773,6 +3781,8 @@ function InlineMediaPicker({
   useEffect(() => {
     setUrlInput(value || '')
   }, [value])
+
+  const notifyFocus = () => { onFocus?.() }
 
   const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -3810,7 +3820,7 @@ function InlineMediaPicker({
       <div className="grid grid-cols-3 gap-1.5">
         <button
           type="button"
-          onClick={() => fileRef.current?.click()}
+          onClick={() => { notifyFocus(); fileRef.current?.click() }}
           disabled={uploadMedia.isPending}
           className={cn(actionBtn, 'border-primary/30 text-primary bg-accent/40 hover:bg-accent')}
         >
@@ -3821,7 +3831,7 @@ function InlineMediaPicker({
         </button>
         <button
           type="button"
-          onClick={() => setPanel(p => p === 'library' ? 'none' : 'library')}
+          onClick={() => { notifyFocus(); setPanel(p => p === 'library' ? 'none' : 'library') }}
           className={cn(actionBtn, panel === 'library' ? 'border-emerald-400 bg-emerald-50 text-emerald-700' : 'border-gray-200 text-gray-600 hover:bg-gray-50')}
         >
           <ImageIcon className="w-4 h-4" />
@@ -3830,6 +3840,7 @@ function InlineMediaPicker({
         <button
           type="button"
           onClick={() => {
+            notifyFocus()
             setUrlInput(value || '')
             setPanel(p => p === 'url' ? 'none' : 'url')
           }}
@@ -3904,6 +3915,7 @@ function SubItemEditor({
   readOnly = false,
   connectedBanner,
   onSwitchToManual,
+  onArrayItemImageFocus,
   sections = 'all',
 }: {
   schema: ItemSchema
@@ -3920,12 +3932,20 @@ function SubItemEditor({
   readOnly?: boolean
   connectedBanner?: React.ReactNode
   onSwitchToManual?: () => void
+  onArrayItemImageFocus?: (index: number, itemField: string, arrayKey: string) => void
   /** Split layout vs item list across ribbon tabs */
   sections?: 'all' | 'layout' | 'items'
 }) {
   const [expanded, setExpanded] = useState<Set<number>>(new Set([0]))
   const [dragging, setDragging] = useState<number | null>(null)
   const [over, setOver] = useState<number | null>(null)
+
+  const imageField = schema.fields.find(f => f.type === 'image')
+
+  const notifyItemImageFocus = (idx: number) => {
+    if (!onArrayItemImageFocus || !imageField) return
+    onArrayItemImageFocus(idx, imageField.key, schema.arrayKey)
+  }
 
   const updateItem = (idx: number, patch: Partial<any>) => {
     const next = items.map((it, i) => i === idx ? { ...it, ...patch } : it)
@@ -4072,7 +4092,13 @@ function SubItemEditor({
                 className="flex items-center gap-2 px-3 py-2 cursor-pointer select-none hover:bg-gray-50 transition-colors"
                 onClick={() => setExpanded(e => {
                   const n = new Set(e)
-                  n.has(idx) ? n.delete(idx) : n.add(idx)
+                  const willExpand = !n.has(idx)
+                  if (willExpand) {
+                    n.add(idx)
+                    notifyItemImageFocus(idx)
+                  } else {
+                    n.delete(idx)
+                  }
                   return n
                 })}
               >
@@ -4113,6 +4139,7 @@ function SubItemEditor({
                         siteId={siteId}
                         value={item[field.key] || ''}
                         label={field.label}
+                        onFocus={() => notifyItemImageFocus(idx)}
                         onChange={readOnly ? () => {} : url => updateItem(idx, { [field.key]: url })}
                       />
                     )
@@ -4767,7 +4794,7 @@ function SectionLayoutControls({
 
 function PropsEditor({
   block, onUpdate, onPreview, siteId, pages, onAddPage, onEditPropLink, themeColors,
-  onOpenLayoutPicker, onCycleLayout,
+  onOpenLayoutPicker, onCycleLayout, onArrayItemImageFocus,
 }: {
   block: WebsiteBlock
   onUpdate: (props: Partial<BlockProps>) => void
@@ -4779,6 +4806,7 @@ function PropsEditor({
   themeColors: ThemeColors
   onOpenLayoutPicker?: () => void
   onCycleLayout?: (direction: 'prev' | 'next') => void
+  onArrayItemImageFocus?: (arrayKey: string, index: number, itemField: string) => void
 }) {
   const p = block.props
   const showTileColors = TILE_COLOR_BLOCK_TYPES.has(block.block_type)
@@ -4882,6 +4910,9 @@ function PropsEditor({
         onPreview({ item_size: n } as any)
         onUpdate({ item_size: n } as any)
       }}
+      onArrayItemImageFocus={onArrayItemImageFocus
+        ? (index, itemField, arrayKey) => onArrayItemImageFocus(arrayKey, index, itemField)
+        : undefined}
     />
   ) : null
 
@@ -5075,8 +5106,9 @@ function PropsEditor({
     label: string,
     fallback: string,
     override: string | undefined,
+    compact = false,
   ) => (
-    <div key={key} className="flex items-center gap-2">
+    <div key={key} className={cn('flex items-center gap-2', compact && 'p-2.5 bg-gray-50/80 rounded-lg border border-gray-100')}>
       <input
         type="color"
         value={override || fallback}
@@ -5084,11 +5116,14 @@ function PropsEditor({
           onPreview({ [key]: e.target.value } as any)
           onUpdate({ [key]: e.target.value } as any)
         }}
-        className="w-9 h-9 rounded-lg border border-gray-200 cursor-pointer p-0.5 shrink-0"
+        className={cn(
+          'rounded-lg border border-gray-200 cursor-pointer p-0.5 shrink-0',
+          compact ? 'w-8 h-8' : 'w-9 h-9',
+        )}
       />
       <div className="flex-1 min-w-0">
         <div className="text-xs font-medium text-gray-700">{label}</div>
-        <div className="text-xs text-gray-400 font-mono truncate">
+        <div className={cn('text-gray-400 font-mono truncate', compact ? 'text-[10px]' : 'text-xs')}>
           {override || 'Page default'}
         </div>
       </div>
@@ -5108,14 +5143,64 @@ function PropsEditor({
     </div>
   )
 
-  const sectionColorsPanel = (
+  const sectionAndCardColorsPanel = (
     <SectionPanelGroup
-      title="Section colors"
-      description="Overrides this section only. Page Edit sets the page default."
+      title="Colors"
+      description="Section backdrop & text, plus tile and card tints inside this block. Page Edit sets defaults."
     >
-      <div className="space-y-2 rounded-lg border border-gray-100 bg-gray-50/60 p-2.5">
-        {sectionColorField('bg_color_override', 'Section background', sectionBgFallback, sectionBgOverride)}
-        {sectionColorField('text_color_override', 'Section text', sectionTextFallback, sectionTextOverride)}
+      <div className="space-y-3">
+        <div className="space-y-2">
+          <p className="text-[10px] font-semibold uppercase tracking-wide text-gray-400">Section</p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            {sectionColorField('bg_color_override', 'Section background', sectionBgFallback, sectionBgOverride, true)}
+            {sectionColorField('text_color_override', 'Section text', sectionTextFallback, sectionTextOverride, true)}
+          </div>
+        </div>
+        {showTileColors && (
+          <div className="space-y-2 pt-1 border-t border-gray-100">
+            <p className="text-[10px] font-semibold uppercase tracking-wide text-gray-400">Cards & tiles</p>
+            <div className="grid grid-cols-2 gap-2">
+              {([
+                { key: 'tile_bg' as const, label: 'Card background', hint: 'Tile / card fill' },
+                { key: 'tile_accent' as const, label: 'Accent', hint: 'Highlights & top bar' },
+                { key: 'tile_text' as const, label: 'Card text', hint: 'Titles & body in cards' },
+                { key: 'tile_border' as const, label: 'Border', hint: 'Card outline' },
+              ] as const).map(({ key, label, hint }) => (
+                <div key={key} className="flex items-center gap-2 p-2.5 bg-gray-50/80 rounded-lg border border-gray-100">
+                  <input
+                    type="color"
+                    value={tileColorSwatch((p as any)[key], tileSwatchDefaults[key])}
+                    onChange={e => onUpdate({ [key]: e.target.value } as any)}
+                    className="w-8 h-8 rounded-lg border border-gray-200 cursor-pointer p-0.5 shrink-0"
+                  />
+                  <div className="min-w-0">
+                    <div className="text-xs font-medium text-gray-700">{label}</div>
+                    <div className="text-[10px] text-gray-400 truncate">{hint}</div>
+                  </div>
+                  {(p as any)[key] && (
+                    <button
+                      type="button"
+                      onClick={() => onUpdate({ [key]: null } as any)}
+                      className="text-[10px] text-gray-400 hover:text-red-500 shrink-0"
+                      title="Use page default"
+                    >
+                      Reset
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+            {hasTileColorOverrides(p as BlockColorProps) && (
+              <button
+                type="button"
+                onClick={() => onUpdate({ tile_bg: null, tile_accent: null, tile_text: null, tile_border: null } as any)}
+                className="text-xs text-red-400 hover:text-red-600"
+              >
+                Clear all card colors
+              </button>
+            )}
+          </div>
+        )}
       </div>
     </SectionPanelGroup>
   )
@@ -5182,11 +5267,7 @@ function PropsEditor({
     <div className="flex flex-col min-h-0">
       <div className="shrink-0 px-3 py-2 border-b border-gray-100 bg-white">
         <p className="text-xs font-bold text-gray-900 truncate">{block.label || block.block_type}</p>
-        <p className="text-[10px] text-gray-400">Section settings ? colors, layout, and content</p>
-      </div>
-
-      <div className="shrink-0 px-3 pt-3 pb-3 border-b border-gray-200 bg-gray-50/40">
-        {sectionColorsPanel}
+        <p className="text-[10px] text-gray-400">Section settings — layout, design, and content</p>
       </div>
 
       <SectionEditorRibbon tabs={ribbonTabs} active={editorTab} onChange={setEditorTab} />
@@ -5509,6 +5590,8 @@ function PropsEditor({
 
         {editorTab === 'design' && (
           <>
+      {sectionAndCardColorsPanel}
+
       <SectionPanelGroup
         title="Section appearance"
         description="Background treatment, shadow, and typography for this block."
@@ -5579,48 +5662,6 @@ function PropsEditor({
           </PropsCollapsible>
         </div>
       </SectionPanelGroup>
-
-      {showTileColors && (
-        <SectionPanelGroup
-          title="Card colors"
-          description="Tint tiles and cards inside this section ? not the section backdrop."
-        >
-          <div className="grid grid-cols-2 gap-2">
-            {([
-              { key: 'tile_bg' as const, label: 'Card background', hint: 'Tile / card fill' },
-              { key: 'tile_accent' as const, label: 'Accent', hint: 'Highlights & top bar' },
-              { key: 'tile_text' as const, label: 'Card text', hint: 'Titles & body in cards' },
-              { key: 'tile_border' as const, label: 'Border', hint: 'Card outline' },
-            ] as const).map(({ key, label, hint }) => (
-              <div key={key} className="flex items-center gap-2 p-2.5 bg-gray-50/80 rounded-lg border border-gray-100">
-                <input type="color"
-                  value={tileColorSwatch((p as any)[key], tileSwatchDefaults[key])}
-                  onChange={e => onUpdate({ [key]: e.target.value } as any)}
-                  className="w-8 h-8 rounded-lg border border-gray-200 cursor-pointer p-0.5 shrink-0"
-                />
-                <div className="min-w-0">
-                  <div className="text-xs font-medium text-gray-700">{label}</div>
-                  <div className="text-[10px] text-gray-400 truncate">{hint}</div>
-                </div>
-                {(p as any)[key] && (
-                  <button
-                    type="button"
-                    onClick={() => onUpdate({ [key]: null } as any)}
-                    className="text-[10px] text-red-400 hover:text-red-600 shrink-0"
-                  >?</button>
-                )}
-              </div>
-            ))}
-          </div>
-          {hasTileColorOverrides(p as BlockColorProps) && (
-            <button
-              type="button"
-              onClick={() => onUpdate({ tile_bg: null, tile_accent: null, tile_text: null, tile_border: null } as any)}
-              className="mt-2 text-xs text-red-400 hover:text-red-600"
-            >Clear all card colors</button>
-          )}
-        </SectionPanelGroup>
-      )}
 
       {mediaClipPanel}
           </>
@@ -5723,40 +5764,6 @@ function PropsEditor({
 
 // ?? Style Panel ???????????????????????????????????????????????????????????????
 
-const SITE_THEME_PRESETS = [
-  {
-    label: 'Violet Pro',
-    colors: { primary_color: '#64C3A0', secondary_color: '#13624A', accent_color: '#f59e0b', bg_color: '#f3fbf7', surface_color: '#ffffff', text_color: '#1e1b4b' },
-  },
-  {
-    label: 'Ocean Blue',
-    colors: { primary_color: '#0ea5e9', secondary_color: '#0369a1', accent_color: '#06b6d4', bg_color: '#f0f9ff', surface_color: '#ffffff', text_color: '#0c4a6e' },
-  },
-  {
-    label: 'Midnight',
-    colors: { primary_color: '#6366f1', secondary_color: '#4338ca', accent_color: '#a78bfa', bg_color: '#0f172a', surface_color: '#1e293b', text_color: '#f1f5f9' },
-  },
-  {
-    label: 'Coral Warm',
-    colors: { primary_color: '#f97316', secondary_color: '#ea580c', accent_color: '#fbbf24', bg_color: '#fff7ed', surface_color: '#ffffff', text_color: '#431407' },
-  },
-  {
-    label: 'Forest',
-    colors: { primary_color: '#10b981', secondary_color: '#065f46', accent_color: '#34d399', bg_color: '#f0fdf4', surface_color: '#ffffff', text_color: '#064e3b' },
-  },
-  {
-    label: 'Rose Glam',
-    colors: { primary_color: '#e11d48', secondary_color: '#9f1239', accent_color: '#fb7185', bg_color: '#fff1f2', surface_color: '#ffffff', text_color: '#4c0519' },
-  },
-  {
-    label: 'Steel Dark',
-    colors: { primary_color: '#64748b', secondary_color: '#334155', accent_color: '#38bdf8', bg_color: '#1e293b', surface_color: '#334155', text_color: '#f8fafc' },
-  },
-  {
-    label: 'Candy Pop',
-    colors: { primary_color: '#d946ef', secondary_color: '#a21caf', accent_color: '#f59e0b', bg_color: '#fdf4ff', surface_color: '#ffffff', text_color: '#4a044e' },
-  },
-]
 
 function PagePanel({
   pages,
@@ -5855,7 +5862,7 @@ function PagePanel({
                     onClick={() => onSetHomepage(activePage)}
                     className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg border border-gray-200 bg-white text-[11px] font-semibold text-gray-700 hover:bg-gray-50 transition-colors"
                   >
-                    <span className="text-sm leading-none">??</span>
+                    <Home className="w-3.5 h-3.5" />
                     Set as homepage
                   </button>
                 )}
@@ -5978,8 +5985,6 @@ function PagePanel({
 function StylePanel({
   style, onChange, siteId,
 }: { style: StyleConfig; onChange: (s: Partial<StyleConfig>) => void; siteId: string }) {
-  const [gradientTab, setGradientTab] = useState<'presets' | 'custom'>('presets')
-  const [styleDetailsExpanded, setStyleDetailsExpanded] = useState(true)
   const aiTheme = useAIGenerateTheme(siteId)
 
   const handleAITheme = async () => {
@@ -5998,38 +6003,13 @@ function StylePanel({
 
   return (
     <div className="p-4 space-y-5">
-
-      <div className="pt-1">
-        <div className="text-xs font-bold uppercase tracking-wide text-gray-400 mb-2">Theme and appearance</div>
-        <div className="flex gap-1.5 p-0.5 rounded-xl bg-gray-100 mb-2">
-          <button
-            type="button"
-            onClick={() => setStyleDetailsExpanded(false)}
-            className={cn(
-              'flex-1 py-2 text-xs font-medium rounded-lg transition-all',
-              !styleDetailsExpanded ? 'bg-white text-primary shadow-sm' : 'text-gray-500 hover:text-gray-700',
-            )}
-          >
-            Fewer
-          </button>
-          <button
-            type="button"
-            onClick={() => setStyleDetailsExpanded(true)}
-            className={cn(
-              'flex-1 py-2 text-xs font-medium rounded-lg transition-all',
-              styleDetailsExpanded ? 'bg-white text-primary shadow-sm' : 'text-gray-500 hover:text-gray-700',
-            )}
-          >
-            Expanded
-          </button>
-        </div>
-        {!styleDetailsExpanded && (
-          <p className="text-xs text-gray-400 leading-snug mb-0">Presets, colors, typography, spacing, and dark mode are hidden. Choose Expanded to edit them.</p>
-        )}
+      <div>
+        <div className="text-xs font-bold uppercase tracking-wide text-gray-400 mb-1">Theme and appearance</div>
+        <p className="text-xs text-gray-400 leading-snug">
+          Site-wide defaults. Override per page in Page Edit, or per section in Section Edit → Design.
+        </p>
       </div>
 
-      {styleDetailsExpanded && (
-      <>
       {/* Theme presets */}
       <div>
         <div className="flex items-center gap-2 mb-2">
@@ -6090,95 +6070,11 @@ function StylePanel({
         </div>
       </div>
 
-      {/* Site-wide gradient background */}
-      <div>
-        <div className="text-xs font-bold uppercase tracking-wide text-gray-400 mb-2">Site Gradient</div>
-        <div className="flex gap-1 mb-2">
-          {(['presets','custom'] as const).map(t => (
-            <button key={t}
-              onClick={() => setGradientTab(t)}
-              className={cn('flex-1 py-1 text-xs font-bold rounded border transition-colors',
-                gradientTab === t ? 'bg-primary text-white border-primary' : 'text-gray-500 border-gray-200')}
-            >{t === 'presets' ? 'Presets' : 'Custom'}</button>
-          ))}
-        </div>
-        {gradientTab === 'presets' ? (
-          <div className="grid grid-cols-4 gap-1.5">
-            {GRADIENT_PRESETS.map(g => (
-              <button
-                key={g.label}
-                onClick={() => onChange({ site_gradient: g.value } as any)}
-                title={g.label}
-                className={cn('h-10 rounded-lg border-2 transition-all',
-                  (style as any).site_gradient === g.value ? 'border-primary scale-105 shadow-lg' : 'border-transparent hover:border-primary/40')}
-                style={{ background: g.value }}
-              />
-            ))}
-          </div>
-        ) : (
-          <div className="space-y-2">
-            <div className="grid grid-cols-2 gap-2">
-              <div>
-                <label className="text-xs text-gray-500">From Color</label>
-                <input type="color" value={(style as any).gradient_from || '#64C3A0'}
-                  onChange={e => onChange({ gradient_from: e.target.value } as any)}
-                  className="w-full h-9 rounded border border-gray-200 cursor-pointer p-0.5" />
-              </div>
-              <div>
-                <label className="text-xs text-gray-500">To Color</label>
-                <input type="color" value={(style as any).gradient_to || '#13624A'}
-                  onChange={e => onChange({ gradient_to: e.target.value } as any)}
-                  className="w-full h-9 rounded border border-gray-200 cursor-pointer p-0.5" />
-              </div>
-            </div>
-            <select
-              value={(style as any).gradient_dir || '135deg'}
-              onChange={e => onChange({ gradient_dir: e.target.value } as any)}
-              className="w-full px-2 py-1.5 border border-gray-200 rounded text-xs"
-            >
-              {[['135deg','? Diagonal'],['to right','? Horizontal'],['to bottom','? Vertical'],['to top right','? Top-Right']].map(([v,l]) => (
-                <option key={v} value={v}>{l}</option>
-              ))}
-            </select>
-            <div
-              className="h-10 rounded-lg border border-gray-200"
-              style={{ background: `linear-gradient(${(style as any).gradient_dir || '135deg'}, ${(style as any).gradient_from || '#64C3A0'}, ${(style as any).gradient_to || '#13624A'})` }}
-            />
-          </div>
-        )}
-        {(style as any).site_gradient && (
-          <button
-            onClick={() => onChange({ site_gradient: '' } as any)}
-            className="mt-1.5 text-xs text-gray-400 hover:text-red-500 transition-colors"
-          >? Remove gradient</button>
-        )}
-      </div>
-
-      {/* Shadows */}
-      <div>
-        <div className="text-xs font-bold uppercase tracking-wide text-gray-400 mb-2">Global Shadow Style</div>
-        <div className="grid grid-cols-4 gap-1">
-          {SHADOW_PRESETS.map(sh => (
-            <button
-              key={sh.label}
-              onClick={() => onChange({ shadow_style: sh.value } as any)}
-              title={sh.label}
-              className={cn('py-2 rounded-lg border text-xs font-bold transition-all text-center',
-                (style as any).shadow_style === sh.value ? 'border-primary bg-accent text-primary' : 'border-gray-200 text-gray-500 hover:border-primary/40'
-              )}
-              style={{ boxShadow: sh.value === 'none' ? undefined : sh.value }}
-            >
-              {sh.label}
-            </button>
-          ))}
-        </div>
-      </div>
-
       {/* Typography */}
       <div>
         <div className="text-xs font-bold uppercase tracking-wide text-gray-400 mb-2">Typography</div>
-        <div className="space-y-2">
-          {[{ key: 'font_heading', label: 'Heading Font' }, { key: 'font_body', label: 'Body Font' }].map(({ key, label }) => (
+        <div className="space-y-3">
+          {[{ key: 'font_heading', label: 'Heading font' }, { key: 'font_body', label: 'Body font' }].map(({ key, label }) => (
             <div key={key} className="space-y-1">
               <label className="text-xs font-medium text-gray-600">{label}</label>
               <select
@@ -6191,113 +6087,57 @@ function StylePanel({
               </select>
             </div>
           ))}
-        </div>
-      </div>
-
-      {/* Shape & Spacing */}
-      <div>
-        <div className="text-xs font-bold uppercase tracking-wide text-gray-400 mb-2">Shape & Spacing</div>
-        <div className="space-y-3">
-          {[
-            { label: 'Border Radius', key: 'border_radius', opts: ['sharp','rounded','pill'] },
-            { label: 'Spacing', key: 'spacing', opts: ['compact','comfortable','spacious'] },
-            { label: 'Button Style', key: 'button_style', opts: ['filled','outline','ghost','gradient'] },
-            { label: 'Card Style', key: 'card_style', opts: ['flat','raised','outlined','glass'] },
-            { label: 'Animation', key: 'animation', opts: ['none','subtle','expressive'] },
-          ].map(({ label, key, opts }) => (
-            <div key={key} className="space-y-1">
-              <label className="text-xs font-medium text-gray-600">{label}</label>
-              <div className="grid grid-cols-4 gap-1">
-                {opts.map(v => (
-                  <button
-                    key={v}
-                    onClick={() => onChange({ [key]: v } as any)}
-                    className={cn('py-1.5 text-xs font-bold rounded border transition-colors',
-                      (style as any)[key] === v ? 'bg-primary text-white border-primary' : 'bg-white text-gray-600 border-gray-200 hover:border-primary/40'
-                    )}
-                  >
-                    {v.charAt(0).toUpperCase() + v.slice(1)}
-                  </button>
-                ))}
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* P3.9 Brand Kit ? Typography Scale */}
-      <div>
-        <div className="text-xs font-bold uppercase tracking-wide text-gray-400 mb-3">Typography Scale</div>
-        <div className="space-y-2">
-          {[
-            { key: 'font_family_heading', label: 'Heading Font', opts: FONTS },
-            { key: 'font_family_body', label: 'Body Font', opts: FONTS },
-          ].map(({ key, label, opts }) => (
-            <div key={key}>
-              <label className="text-xs text-gray-500 mb-1 block">{label}</label>
-              <select
-                value={(style as any)[key] || opts[0]}
-                onChange={e => onChange({ [key]: e.target.value } as any)}
-                className="w-full text-xs border border-gray-200 rounded-lg px-2 py-1.5"
-              >
-                {opts.map(o => <option key={o} value={o}>{o}</option>)}
-              </select>
-            </div>
-          ))}
-          {[
-            { key: 'font_size_base', label: 'Base Size', min: 12, max: 20, step: 1, unit: 'px' },
-            { key: 'font_scale_ratio', label: 'Scale Ratio', min: 100, max: 140, step: 5, unit: '%' },
-            { key: 'letter_spacing', label: 'Letter Spacing', min: -2, max: 4, step: 1, unit: 'px' },
-            { key: 'line_height', label: 'Line Height', min: 120, max: 200, step: 10, unit: '%' },
-          ].map(({ key, label, min, max, step, unit }) => (
-            <div key={key} className="flex items-center gap-2">
-              <span className="text-xs text-gray-500 w-20 shrink-0">{label}</span>
-              <input type="range" min={min} max={max} step={step}
-                value={(style as any)[key] || (min + max) / 2}
-                onChange={e => onChange({ [key]: Number(e.target.value) } as any)}
-                className="flex-1 accent-primary h-1" />
-              <span className="text-xs text-gray-400 w-12 text-right">{(style as any)[key] || (min + max) / 2}{unit}</span>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* P3.9 Dark Mode Token */}
-      <div>
-        <div className="text-xs font-bold uppercase tracking-wide text-gray-400 mb-2">Dark Mode</div>
-        <label className="flex items-center gap-2 cursor-pointer">
-          <input
-            type="checkbox"
-            checked={(style as any).dark_mode_enabled || false}
-            onChange={e => onChange({ dark_mode_enabled: e.target.checked } as any)}
-            className="rounded accent-primary"
-          />
-          <span className="text-xs text-gray-600">Enable dark mode toggle for visitors</span>
-        </label>
-        {(style as any).dark_mode_enabled && (
-          <div className="mt-2 space-y-2">
-            {[
-              { key: 'dark_bg_color', label: 'Dark BG' },
-              { key: 'dark_surface_color', label: 'Dark Surface' },
-              { key: 'dark_text_color', label: 'Dark Text' },
-            ].map(({ key, label }) => (
+          {([
+            { key: 'font_size_base' as const, label: 'Body size', min: 12, max: 22, fallback: 16 },
+            { key: 'font_size_heading' as const, label: 'Heading size', min: 24, max: 56, fallback: 40 },
+          ]).map(({ key, label, min, max, fallback }) => {
+            const val = (style[key] as number | undefined) ?? fallback
+            return (
               <div key={key} className="flex items-center gap-2">
+                <span className="text-xs text-gray-500 w-24 shrink-0">{label}</span>
                 <input
-                  type="color"
-                  value={(style as any)[key] || '#1a1a2e'}
-                  onChange={e => onChange({ [key]: e.target.value } as any)}
-                  className="w-8 h-8 rounded border border-gray-200 cursor-pointer p-0.5 flex-shrink-0"
+                  type="range"
+                  min={min}
+                  max={max}
+                  step={1}
+                  value={val}
+                  onChange={e => onChange({ [key]: Number(e.target.value) })}
+                  className="flex-1 accent-primary h-1"
                 />
-                <span className="text-xs text-gray-600">{label}</span>
-                <span className="text-xs text-gray-400 font-mono ml-auto">{(style as any)[key] || '#1a1a2e'}</span>
+                <span className="text-xs text-gray-400 w-10 text-right tabular-nums">{val}px</span>
               </div>
+            )
+          })}
+        </div>
+      </div>
+
+      {/* Shape */}
+      <div>
+        <div className="text-xs font-bold uppercase tracking-wide text-gray-400 mb-2">Shape</div>
+        <div className="space-y-1">
+          <label className="text-xs font-medium text-gray-600">Border radius</label>
+          <div className="grid grid-cols-3 gap-1">
+            {(['sharp', 'rounded', 'pill'] as const).map(v => (
+              <button
+                key={v}
+                type="button"
+                onClick={() => onChange({ border_radius: v })}
+                className={cn(
+                  'py-2 text-xs font-bold rounded border transition-colors',
+                  style.border_radius === v
+                    ? 'bg-primary text-white border-primary'
+                    : 'bg-white text-gray-600 border-gray-200 hover:border-primary/40',
+                )}
+              >
+                {v.charAt(0).toUpperCase() + v.slice(1)}
+              </button>
             ))}
           </div>
-        )}
+        </div>
+        <p className="text-[10px] text-gray-400 mt-2 leading-snug">
+          Shadows, spacing, card style, and animations are set per section in Section Edit → Design.
+        </p>
       </div>
-
-      </>
-      )}
 
     </div>
   )
@@ -7885,12 +7725,11 @@ export default function WebsiteBuilder() {
   const { data: site, isLoading } = useSite(siteId || null)
   useMyVendor()
   const { vendor: myVendor } = useVendorStore()
+  const { data: builderStoresData } = useStores({ limit: 200 })
+  const builderStores = builderStoresData?.stores ?? []
   const updateSite = useUpdateSite(siteId!)
   const overlayLayerUpload = useUploadMedia(siteId!)
   const { data: templates = [] } = useWebsiteTemplates()
-  const { data: storesData } = useStores({ limit: 200 })
-  const businessUnits = storesData?.stores ?? []
-  const hasMultipleBusinessUnits = businessUnits.length > 1
 
   // State
   const [activePageId, setActivePageId] = useState<string | null>(null)
@@ -7963,10 +7802,6 @@ export default function WebsiteBuilder() {
   const [templatePanelSelectedId, setTemplatePanelSelectedId] = useState<string | null>(null)
   const [applyingTemplateInline, setApplyingTemplateInline] = useState(false)
   const [isApplyingToStore, setIsApplyingToStore] = useState(false)
-  const [applyPopoverOpen, setApplyPopoverOpen] = useState(false)
-  const [applyPickerStep, setApplyPickerStep] = useState<'root' | 'units'>('root')
-  const [appliedStoreIds, setAppliedStoreIds] = useState<string[]>([])
-  const applyPopoverRef = useRef<HTMLDivElement>(null)
   const [moreMenuOpen, setMoreMenuOpen] = useState(false)
   const [changeHistoryOpen, setChangeHistoryOpen] = useState(false)
   const moreMenuRef = useRef<HTMLDivElement>(null)
@@ -8048,6 +7883,8 @@ export default function WebsiteBuilder() {
   useEffect(() => { selectedBlockIdRef.current = selectedBlockId }, [selectedBlockId])
   /** Selected canvas image slot(s) ? Shift/Ctrl+click for multi (Media + design bar). */
   const [canvasImageTarget, setCanvasImageTarget] = useState<ActiveCanvasImageTarget | null>(null)
+  const canvasImageTargetRef = useRef<ActiveCanvasImageTarget | null>(null)
+  useEffect(() => { canvasImageTargetRef.current = canvasImageTarget }, [canvasImageTarget])
   const overlayImageUploadRef = useRef<HTMLInputElement>(null)
 
   // ?? Link editor (opened from CTA buttons / overlay buttons) ????????????????
@@ -8280,31 +8117,6 @@ export default function WebsiteBuilder() {
       )
     }
   }, [siteId, site, queryClient])
-
-  useEffect(() => {
-    if (!siteId) {
-      setAppliedStoreIds([])
-      return
-    }
-    try {
-      const raw = localStorage.getItem(`wb-applied-stores-${siteId}`)
-      const parsed = raw ? JSON.parse(raw) : []
-      setAppliedStoreIds(Array.isArray(parsed) ? parsed.filter((x: unknown) => typeof x === 'string') : [])
-    } catch {
-      setAppliedStoreIds([])
-    }
-  }, [siteId])
-
-  useEffect(() => {
-    if (!applyPopoverOpen) return
-    const onDocMouseDown = (e: MouseEvent) => {
-      if (applyPopoverRef.current?.contains(e.target as Node)) return
-      setApplyPopoverOpen(false)
-      setApplyPickerStep('root')
-    }
-    document.addEventListener('mousedown', onDocMouseDown)
-    return () => document.removeEventListener('mousedown', onDocMouseDown)
-  }, [applyPopoverOpen])
 
   useEffect(() => {
     if (!moreMenuOpen) return
@@ -9110,16 +8922,22 @@ export default function WebsiteBuilder() {
     field: string,
     opts?: { arrayKey?: string; index?: number; itemField?: string; additive?: boolean },
   ) => {
+    const isArraySlot = opts?.arrayKey != null && opts.index != null && opts.itemField
     // First click on an unselected section selects the section itself (so the
-    // padding handles show); the image is only entered once its section is already
-    // selected. Mirrors the text-field behaviour and the Escape hierarchy.
+    // padding handles show). Array-item photos (features, team, etc.) also
+    // register the clicked slot in one click so Media apply hits the right item.
     if (selectedBlockId !== blockId && !opts?.additive) {
       setSelectedBlockId(blockId)
       setOverlayImageTarget(null)
-      setCanvasImageTarget(null)
       setActiveTextTarget(null)
       setRightPanel('props')
       setRightCollapsed(false)
+      if (isArraySlot) {
+        skipCanvasImageClearRef.current = true
+        setCanvasImageTarget(toggleCanvasImageSlot(null, blockId, field, opts))
+      } else {
+        setCanvasImageTarget(null)
+      }
       return
     }
     skipCanvasImageClearRef.current = true
@@ -9127,6 +8945,22 @@ export default function WebsiteBuilder() {
     setOverlayImageTarget(null)
     setActiveTextTarget(null)
     setCanvasImageTarget(prev => toggleCanvasImageSlot(prev, blockId, field, opts))
+  }, [selectedBlockId])
+
+  const handleArrayItemImageFocus = useCallback((
+    blockId: string,
+    arrayKey: string,
+    index: number,
+    itemField: string,
+  ) => {
+    skipCanvasImageClearRef.current = true
+    if (blockId !== selectedBlockId) setSelectedBlockId(blockId)
+    setOverlayImageTarget(null)
+    setActiveTextTarget(null)
+    setCanvasImageTarget({
+      blockId,
+      slots: [{ arrayKey, index, itemField }],
+    })
   }, [selectedBlockId])
 
   useEffect(() => {
@@ -9918,7 +9752,6 @@ export default function WebsiteBuilder() {
     armedDeleteActive: false,
     overlayImageActive: false,
     canvasImageActive: false,
-    applyPopoverOpen: false,
     storePopoverOpen: false,
     hasActiveTextTarget: false,
     hasSelectedBlock: false,
@@ -9928,7 +9761,6 @@ export default function WebsiteBuilder() {
     clearArmedDelete: () => {},
     clearOverlayImage: () => {},
     clearCanvasImage: () => {},
-    closeApplyPopover: () => {},
     closeStorePopover: () => {},
     clearActiveTextTarget: () => {},
     clearSelectedBlock: () => {},
@@ -9939,7 +9771,6 @@ export default function WebsiteBuilder() {
     armedDeleteActive: false,
     overlayImageActive: Boolean(overlayImageTarget),
     canvasImageActive: Boolean(canvasImageTarget),
-    applyPopoverOpen,
     storePopoverOpen: storePopover,
     hasActiveTextTarget: Boolean(activeTextTarget),
     hasSelectedBlock: Boolean(selectedBlockId),
@@ -9950,10 +9781,6 @@ export default function WebsiteBuilder() {
     clearArmedDelete: () => {},
     clearOverlayImage: () => setOverlayImageTarget(null),
     clearCanvasImage: () => setCanvasImageTarget(null),
-    closeApplyPopover: () => {
-      setApplyPopoverOpen(false)
-      setApplyPickerStep('root')
-    },
     closeStorePopover: () => setStorePopover(false),
     clearActiveTextTarget: () => setActiveTextTarget(null),
     clearSelectedBlock: () => setSelectedBlockId(null),
@@ -10066,8 +9893,9 @@ export default function WebsiteBuilder() {
     }
 
     // 2) Canvas image target (clicked image on preview)
-    if (canvasImageTarget && canvasImageTarget.blockId === blockId) {
-      const arraySlots = canvasImageArraySlots(canvasImageTarget, blockId)
+    const imageTarget = canvasImageTargetRef.current
+    if (imageTarget && imageTarget.blockId === blockId) {
+      const arraySlots = canvasImageArraySlots(imageTarget, blockId)
       if (arraySlots.length > 0) {
         const { arrayKey, itemField } = arraySlots[0]
         const arr = [...(((block.props as Record<string, unknown>)[arrayKey] as unknown[]) || [])]
@@ -10086,9 +9914,16 @@ export default function WebsiteBuilder() {
         )
         return
       }
-      const propSlot = canvasImageTarget.slots.find(s => s.propField)
+      const propSlot = imageTarget.slots.find(s => s.propField)
       if (propSlot?.propField) {
-        handleUpdateBlockProps(blockId, { [propSlot.propField]: url } as Partial<BlockProps>)
+        handleUpdateBlockProps(
+          blockId,
+          buildSectionImagePropsPatch(
+            propSlot.propField,
+            url,
+            (block.props ?? {}) as Record<string, unknown>,
+          ) as Partial<BlockProps>,
+        )
         toast.success('Image updated')
         return
       }
@@ -10097,15 +9932,18 @@ export default function WebsiteBuilder() {
     // 3) Array-item blocks (testimonials, team, features, gallery, etc.)
     const arrayCfg = BLOCK_ARRAY_IMAGE[block.block_type]
     if (arrayCfg) {
+      const imageTarget = canvasImageTargetRef.current
       const selectedSlots = (
-        canvasImageTarget
-        && canvasImageTarget.blockId === blockId
+        imageTarget
+        && imageTarget.blockId === blockId
       )
-        ? canvasImageArraySlots(canvasImageTarget, blockId).filter(s => s.arrayKey === arrayCfg.arrayKey)
+        ? canvasImageArraySlots(imageTarget, blockId).filter(s => s.arrayKey === arrayCfg.arrayKey)
         : []
-      const targetIndices = new Set(
-        selectedSlots.length > 0 ? selectedSlots.map(s => s.index) : [0],
-      )
+      if (selectedSlots.length === 0) {
+        toast.error('Click the item photo on the canvas, or expand that item in Section Edit and use its Image control.')
+        return
+      }
+      const targetIndices = new Set(selectedSlots.map(s => s.index))
       const maxTargetIdx = Math.max(...targetIndices, 0)
       let arr: Record<string, unknown>[] = ((block.props as Record<string, unknown>)[arrayCfg.arrayKey] as Record<string, unknown>[] | undefined) || []
       if (arr.length > 0) {
@@ -10121,9 +9959,7 @@ export default function WebsiteBuilder() {
         toast.success(
           targetIndices.size > 1
             ? `Image applied to ${targetIndices.size} slots`
-            : targetIndices.has(0) && targetIndices.size === 1 && !canvasImageTarget
-              ? `Image applied to first item. Click an image on the canvas to target another slot.`
-              : `Image applied to slot ${maxTargetIdx + 1}`,
+            : `Image applied to slot ${maxTargetIdx + 1}`,
         )
       } else {
         // No items yet ? create one with the image
@@ -10143,7 +9979,10 @@ export default function WebsiteBuilder() {
       (block.props ?? {}) as Record<string, unknown>,
       BLOCK_IMAGE_FIELD,
     )
-    handleUpdateBlockProps(blockId, { [field]: url } as Partial<BlockProps>)
+    handleUpdateBlockProps(
+      blockId,
+      buildSectionImagePropsPatch(field, url, (block.props ?? {}) as Record<string, unknown>) as Partial<BlockProps>,
+    )
     toast.success('Image applied to block!')
   }, [activePageId, canvasImageTarget, handleUpdateBlockProps])
 
@@ -11507,14 +11346,9 @@ export default function WebsiteBuilder() {
   }, [blocksDirty, styleDirty, siteId, site, activePageId, localStyle])
 
   /** Save current canvas + publish to make the loaded template live on the store. */
-  const handleApplyToStore = useCallback(async (opts?: { storeIds?: string[] }) => {
+  const handleApplyToStore = useCallback(async () => {
     if (!siteId || isApplyingToStore) return
     setIsApplyingToStore(true)
-    setApplyPopoverOpen(false)
-    setApplyPickerStep('root')
-    const targetStoreIds = opts?.storeIds ?? (
-      businessUnits.length === 1 ? [businessUnits[0].id] : businessUnits.map(s => s.id)
-    )
     try {
       // Only persist if there are pending local changes ? avoids redundant API
       // calls when the user clicks Apply immediately after loading a template.
@@ -11528,6 +11362,42 @@ export default function WebsiteBuilder() {
         await websiteApi.updateSite(siteId, { style_config: localStyle as any })
       }
       await websiteApi.publishSite(siteId)
+      const linkedStoreId = site?.website_store_id
+        ?? (localStyle as Record<string, unknown>).website_store_id
+      const linkedStoreScope = site?.website_store_scope
+        ?? (localStyle as Record<string, unknown>).website_store_scope
+      if (linkedStoreScope === 'store' && typeof linkedStoreId === 'string' && linkedStoreId.trim()) {
+        try {
+          const [allSites, storesRes] = await Promise.all([
+            websiteApi.listSites(),
+            vendorApi.listStores({ limit: 200 }),
+          ])
+          const storeList = storesRes.stores ?? []
+          const activated = await ensureBuilderSiteStorefrontActive({
+            siteId,
+            sites: allSites as SiteListItem[],
+            stores: storeList,
+            vendorSettings: myVendor?.settings,
+          })
+          if (activated) {
+            await queryClient.invalidateQueries({ queryKey: vendorKeys.stores() })
+          }
+          const vendorSlug = myVendor?.slug?.trim()
+          if (vendorSlug) {
+            const links = resolveStorefrontLinksForStoreIds(
+              vendorSlug,
+              resolveStorefrontLinkMode(myVendor?.settings),
+              [linkedStoreId.trim()],
+              storeList,
+            )
+            openStorefrontLinks(links)
+          }
+        } catch {
+          toast.message(
+            'Published. If the live store still shows another template, click Assign in Templates.',
+          )
+        }
+      }
       await queryClient.invalidateQueries({ queryKey: ['websites', siteId] })
       await queryClient.invalidateQueries({ queryKey: ['websites'], exact: true })
       setStyleDirty(false)
@@ -11537,26 +11407,16 @@ export default function WebsiteBuilder() {
       setLastSavedAt(new Date())
       setSaveFlash(true)
       setTimeout(() => setSaveFlash(false), 1800)
-      if (targetStoreIds.length > 0) {
-        setAppliedStoreIds(targetStoreIds)
-        localStorage.setItem(`wb-applied-stores-${siteId}`, JSON.stringify(targetStoreIds))
-      }
-      const appliedNames = businessUnits
-        .filter(s => targetStoreIds.includes(s.id))
-        .map(s => s.name)
-      const scopeLabel = appliedNames.length === 0
-        ? 'your store'
-        : appliedNames.length === businessUnits.length && businessUnits.length > 1
-          ? `all ${appliedNames.length} ${BUSINESS_UNIT_STORE_LABEL}s`
-          : appliedNames.join(', ')
-      toast.success(`? Applied ? live on ${scopeLabel} with ${localPages.length} page${localPages.length !== 1 ? 's' : ''}.`)
+      toast.success(
+        `Published — live for customers with ${localPages.length} page${localPages.length !== 1 ? 's' : ''}.`,
+      )
     } catch (err) {
-      toast.error(extractApiError(err, 'Apply to store'))
-      console.error('[Apply to Store]', err)
+      toast.error(extractApiError(err, 'Publish store'))
+      console.error('[Publish store]', err)
     } finally {
       setIsApplyingToStore(false)
     }
-  }, [siteId, isApplyingToStore, blocksDirty, styleDirty, persistAllPagesToServer, persistAllBlocksToServer, localStyle, localPages, queryClient, businessUnits])
+  }, [siteId, isApplyingToStore, blocksDirty, styleDirty, persistAllPagesToServer, persistAllBlocksToServer, localStyle, localPages, queryClient, site, myVendor?.settings])
 
   const isSiteApplied = Boolean(
     site?.is_published && !blocksDirty && !styleDirty && !isApplyingToStore,
@@ -11582,29 +11442,10 @@ export default function WebsiteBuilder() {
     return 'Auto-save on'
   }, [autoSaveEnabled, autoSaveStatus, hasSaveChanges, isSaving, lastSavedAt])
 
-  const openApplyOptions = useCallback(() => {
-    setApplyPickerStep('root')
-    setApplyPopoverOpen(true)
-  }, [])
-
   const handleApplyButtonClick = useCallback(() => {
     if (isApplyingToStore || applyingTemplateInline) return
-    if (hasMultipleBusinessUnits) {
-      openApplyOptions()
-      return
-    }
-    void handleApplyToStore(
-      businessUnits.length === 1 ? { storeIds: [businessUnits[0].id] } : undefined,
-    )
-  }, [isApplyingToStore, applyingTemplateInline, hasMultipleBusinessUnits, openApplyOptions, handleApplyToStore, businessUnits])
-
-  const handleApplyAllBusinessUnits = useCallback(() => {
-    void handleApplyToStore({ storeIds: businessUnits.map(s => s.id) })
-  }, [handleApplyToStore, businessUnits])
-
-  const handleApplySingleBusinessUnit = useCallback((storeId: string) => {
-    void handleApplyToStore({ storeIds: [storeId] })
-  }, [handleApplyToStore])
+    void handleApplyToStore()
+  }, [isApplyingToStore, applyingTemplateInline, handleApplyToStore])
 
   // Add page — optimistic (uses styled prompt)
   const handleAddPage = useCallback(() => {
@@ -11807,17 +11648,26 @@ export default function WebsiteBuilder() {
   // Store test URL — business front /store/:slug resolves vendors via GET /catalog/vendor/{slug} (Vendor.slug),
   // not wb_sites.subdomain. In dev, always use the logged-in vendor's catalog slug so links don't 404.
   const vendorCatalogSlug = myVendor?.slug?.trim() ?? null
-  const siteTestUrl = site
-    ? site.custom_domain
-      ? `https://${site.custom_domain}`
-      : shouldUseLocalStorefrontUrls()
-        ? (vendorCatalogSlug
-            ? `${getStorefrontAppOrigin()}/store/${encodeURIComponent(vendorCatalogSlug)}`
-            : null)
-        : site.subdomain
-          ? `https://${site.subdomain.trim()}.kiterp.com`
-          : null
-    : null
+  const siteTestUrl = useMemo(() => {
+    if (!site) return null
+    const customDomain = site.custom_domain?.trim()
+    if (customDomain) {
+      return customDomain.startsWith('http://') || customDomain.startsWith('https://')
+        ? customDomain
+        : `https://${customDomain}`
+    }
+    if (vendorCatalogSlug) {
+      const scopedLink = resolveSiteStoreLink(vendorCatalogSlug, site, builderStores)
+      if (scopedLink) return scopedLink
+      if (shouldUseLocalStorefrontUrls()) {
+        return `${getStorefrontAppOrigin()}/store/${encodeURIComponent(vendorCatalogSlug)}`
+      }
+    }
+    if (!shouldUseLocalStorefrontUrls() && site.subdomain?.trim()) {
+      return `https://${site.subdomain.trim()}.kiterp.com`
+    }
+    return null
+  }, [site, vendorCatalogSlug, builderStores])
 
   const handleViewStore = useCallback(async () => {
     if (siteTestUrl) {
@@ -12065,6 +11915,14 @@ export default function WebsiteBuilder() {
 
   const connectableBlocks = activeBlocks.filter(b => BLOCK_AUTO_SOURCE[b.block_type as string])
   const disconnectedBlocks = connectableBlocks.filter(b => !normalizeSourceType((b.props as any)?.data_source?.type))
+  const builderModalOpen = Boolean(
+    sectionLayoutPicker
+    || linkEditor
+    || textPrompt
+    || inlineTextEdit
+    || contextMenu
+    || commandPaletteOpen,
+  )
   return (
     <div className="fixed inset-0 flex flex-col bg-gray-100 z-[100]" style={{ fontFamily: 'Inter, sans-serif' }}>
       <input
@@ -12608,101 +12466,30 @@ export default function WebsiteBuilder() {
                       Publish &amp; share
                     </p>
 
-                    {/* Publish store (with multi-unit picker) */}
-                    <div className="relative" ref={applyPopoverRef}>
-                      <button
-                        type="button"
-                        disabled={isApplyingToStore || applyingTemplateInline}
-                        onClick={handleApplyButtonClick}
-                        title={
-                          isSiteApplied
-                            ? 'Your store is live — publish latest changes again'
-                            : 'Save and publish this design so customers can see it on your store'
-                        }
-                        className="flex w-full items-center gap-2.5 px-3 py-2.5 text-left text-xs font-semibold text-gray-700 transition-colors hover:bg-emerald-50 hover:text-emerald-800 disabled:cursor-wait disabled:opacity-60"
-                      >
-                        {isApplyingToStore ? (
-                          <Loader2 className="h-4 w-4 shrink-0 animate-spin text-emerald-600" />
-                        ) : (
-                          <Check className="h-4 w-4 shrink-0 text-emerald-600" />
-                        )}
-                        <span className="flex-1">
-                          {isApplyingToStore ? 'Publishing…' : isSiteApplied ? 'Live on store' : 'Publish store'}
-                          <span className="block text-[10px] font-normal text-gray-400">
-                            Make this design live for customers
-                          </span>
-                        </span>
-                      </button>
-
-                      {applyPopoverOpen && hasMultipleBusinessUnits && (
-                        <div className="absolute right-0 top-full z-[320] mt-1 w-72 rounded-xl border border-gray-200 bg-white text-gray-800 shadow-2xl overflow-hidden">
-                          {applyPickerStep === 'root' ? (
-                            <div className="p-2 space-y-1">
-                              <p className="px-2 pt-1 pb-2 text-[10px] font-bold uppercase tracking-wide text-gray-400">
-                                {isSiteApplied ? 'Apply again' : 'Choose scope'}
-                              </p>
-                              <button
-                                type="button"
-                                onClick={() => void handleApplyAllBusinessUnits()}
-                                className="w-full text-left px-3 py-2.5 rounded-lg text-xs font-semibold hover:bg-emerald-50 hover:text-emerald-800 transition-colors"
-                              >
-                                Apply for all {BUSINESS_UNIT_STORE_LABEL}s
-                                <span className="block text-[10px] font-normal text-gray-400 mt-0.5">
-                                  {businessUnits.length} units
-                                </span>
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => setApplyPickerStep('units')}
-                                className="w-full text-left px-3 py-2.5 rounded-lg text-xs font-semibold hover:bg-gray-50 transition-colors"
-                              >
-                                Choose single {BUSINESS_UNIT_STORE_LABEL}
-                                <span className="block text-[10px] font-normal text-gray-400 mt-0.5">
-                                  Pick one store to apply to
-                                </span>
-                              </button>
-                              {isSiteApplied && appliedStoreIds.length > 0 && (
-                                <p className="px-2 pt-1 text-[10px] text-gray-400 leading-snug">
-                                  Currently applied to{' '}
-                                  {businessUnits.filter(s => appliedStoreIds.includes(s.id)).map(s => s.name).join(', ') || 'selected units'}
-                                </p>
-                              )}
-                            </div>
-                          ) : (
-                            <div className="p-2 space-y-1 max-h-64 overflow-y-auto">
-                              <button
-                                type="button"
-                                onClick={() => setApplyPickerStep('root')}
-                                className="flex items-center gap-1 px-2 py-1.5 text-xs font-medium text-gray-500 hover:text-gray-800"
-                              >
-                                <ChevronLeft className="w-3.5 h-3.5" /> Back
-                              </button>
-                              <p className="px-2 pb-1 text-[10px] font-bold uppercase tracking-wide text-gray-400">
-                                Select {BUSINESS_UNIT_STORE_LABEL}
-                              </p>
-                              {businessUnits.map(unit => (
-                                <button
-                                  key={unit.id}
-                                  type="button"
-                                  onClick={() => handleApplySingleBusinessUnit(unit.id)}
-                                  className={cn(
-                                    'w-full text-left px-3 py-2 rounded-lg text-xs transition-colors',
-                                    appliedStoreIds.includes(unit.id)
-                                      ? 'bg-emerald-50 text-emerald-800 font-semibold hover:bg-emerald-100'
-                                      : 'hover:bg-gray-50 font-medium text-gray-700',
-                                  )}
-                                >
-                                  <span className="block truncate">{unit.name}</span>
-                                  <span className="block text-[10px] font-normal text-gray-400 mt-0.5">
-                                    {formatStoreCode(unit)}
-                                  </span>
-                                </button>
-                              ))}
-                            </div>
-                          )}
-                        </div>
+                    {/* Publish store */}
+                    <button
+                      type="button"
+                      disabled={isApplyingToStore || applyingTemplateInline}
+                      onClick={handleApplyButtonClick}
+                      title={
+                        isSiteApplied
+                          ? 'Your store is live — publish latest changes again'
+                          : 'Save and publish this design so customers can see it on your store'
+                      }
+                      className="flex w-full items-center gap-2.5 px-3 py-2.5 text-left text-xs font-semibold text-gray-700 transition-colors hover:bg-emerald-50 hover:text-emerald-800 disabled:cursor-wait disabled:opacity-60"
+                    >
+                      {isApplyingToStore ? (
+                        <Loader2 className="h-4 w-4 shrink-0 animate-spin text-emerald-600" />
+                      ) : (
+                        <Check className="h-4 w-4 shrink-0 text-emerald-600" />
                       )}
-                    </div>
+                      <span className="flex-1">
+                        {isApplyingToStore ? 'Publishing…' : isSiteApplied ? 'Live on store' : 'Publish store'}
+                        <span className="block text-[10px] font-normal text-gray-400">
+                          Make this design live for customers
+                        </span>
+                      </span>
+                    </button>
 
                     {/* View store / get link (with store popover) */}
                     <div className="relative">
@@ -13576,6 +13363,7 @@ export default function WebsiteBuilder() {
                   vendorSlug={builderVendorSlug || 'preview'}
                   siteName={site?.name}
                   onNavigate={handleNavigateBuilderPage}
+                  canvasScale={effectiveCanvasScale}
                   activeBlockId={selectedBlockId}
                   activeCanvasImageTarget={canvasImageTarget}
                   blockPropsForImage={(() => {
@@ -13754,7 +13542,8 @@ export default function WebsiteBuilder() {
                             paddingBottom={Number((block.props as Record<string, unknown>).padding_bottom ?? 0)}
                             canvasScale={effectiveCanvasScale}
                             suppressed={
-                              Boolean(canvasImageStyleField(canvasImageTarget, block.id))
+                              builderModalOpen
+                              || Boolean(canvasImageStyleField(canvasImageTarget, block.id))
                               || activeTextTarget?.blockId === block.id
                             }
                             onPaddingPreview={patch => handlePreviewBlockProps(block.id, patch as BlockProps)}
@@ -14035,6 +13824,9 @@ export default function WebsiteBuilder() {
                       onEditPropLink={(propKey, anchor) => openLinkEditorForProp(selectedBlock.id, propKey, anchor)}
                       onOpenLayoutPicker={() => openLayoutPickerForBlock(selectedBlock)}
                       onCycleLayout={dir => { void cycleBlockLayout(selectedBlock, dir) }}
+                      onArrayItemImageFocus={(arrayKey, index, itemField) => {
+                        handleArrayItemImageFocus(selectedBlock.id, arrayKey, index, itemField)
+                      }}
                       themeColors={{
                         primary_color: canvasStyle.primary_color || '#64C3A0',
                         text_color: canvasStyle.text_color || '#111827',
@@ -14047,7 +13839,7 @@ export default function WebsiteBuilder() {
                       <div className="text-center py-8">
                         <MousePointerIcon className="w-10 h-10 mx-auto mb-3 text-gray-300" />
                         <p className="text-sm font-semibold text-gray-700">Select a section on the canvas</p>
-                        <p className="text-xs text-gray-400 mt-1">Section colors, layout, and content appear in Section Edit.</p>
+                        <p className="text-xs text-gray-400 mt-1">Colors, layout, and content appear under Section Edit → Design.</p>
                       </div>
                     </div>
                   )

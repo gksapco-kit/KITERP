@@ -135,23 +135,129 @@ async def _cached_set(cache_key: str, data: Dict, ttl: int = 60) -> None:
             pass
 
 
-async def _resolve_site_by_subdomain(subdomain: str, db: AsyncSession) -> Optional[WebsiteSite]:
-    """Find the most-recently-published site for a vendor with this subdomain."""
+def _settings_str(settings: Optional[Dict[str, Any]], key: str) -> Optional[str]:
+    raw = (settings or {}).get(key)
+    return raw.strip() if isinstance(raw, str) and raw.strip() else None
+
+
+def _resolve_template_mode(vendor_settings: Optional[Dict[str, Any]]) -> str:
+    vendor_settings = vendor_settings or {}
+    mode = vendor_settings.get("storefront_template_mode")
+    if mode not in ("single", "per_unit"):
+        mode = "single" if vendor_settings.get("storefront_link_mode") == "single" else "per_unit"
+    return mode
+
+
+def _resolve_effective_template_id(
+    vendor_settings: Optional[Dict[str, Any]],
+    store_settings: Optional[Dict[str, Any]],
+) -> Optional[str]:
+    """
+    Mirror of the vendor/storefront `resolveEffectiveStorefrontTemplateId`.
+
+    A non-empty result means a catalog/legacy template is assigned and must
+    override any linked builder site for the branch.
+    """
+    if _resolve_template_mode(vendor_settings) == "single":
+        return _settings_str(vendor_settings, "single_front_template_id")
+    return (
+        _settings_str(store_settings, "front_template_id")
+        or _settings_str(vendor_settings, "single_front_template_id")
+    )
+
+
+def _store_specific_template_id(
+    vendor_settings: Optional[Dict[str, Any]],
+    store_settings: Optional[Dict[str, Any]],
+) -> Optional[str]:
+    """
+    A catalog/legacy template explicitly assigned to *this* branch (or the
+    shared template in `single` mode). Unlike `_resolve_effective_template_id`,
+    this does NOT include the vendor-wide `single_front_template_id` fallback in
+    `per_unit` mode — so a builder site linked to the store wins over that
+    fallback. Only an explicit per-store assignment overrides the linked site.
+    """
+    if _resolve_template_mode(vendor_settings) == "single":
+        return _settings_str(vendor_settings, "single_front_template_id")
+    return _settings_str(store_settings, "front_template_id")
+
+
+def _site_is_store_scoped(site: WebsiteSite) -> bool:
+    sc = site.style_config or {}
+    return sc.get("website_store_scope") == "store" and bool(sc.get("website_store_id"))
+
+
+async def _resolve_site_by_subdomain(
+    subdomain: str,
+    db: AsyncSession,
+    branch: Optional[str] = None,
+) -> Optional[WebsiteSite]:
+    """
+    Resolve which published site a visitor should see.
+
+    When a `branch` (business unit code or id) is provided, the site linked to
+    that specific store wins, so each business unit shows its own assigned
+    storefront. A catalog/legacy template assigned to the branch overrides any
+    linked builder site (returns None so the catalog/legacy renderer takes over).
+    Falls back to the vendor's default (non store-scoped) published site.
+    """
     from app.models.vendor import Vendor
-    result = await db.execute(
+    from app.models.store import Store
+
+    vendor_res = await db.execute(select(Vendor).where(Vendor.subdomain == subdomain))
+    vendor = vendor_res.scalar_one_or_none()
+    if not vendor:
+        return None
+
+    sites_res = await db.execute(
         select(WebsiteSite)
-        .join(Vendor, Vendor.id == WebsiteSite.vendor_id)
-        .options(
-            selectinload(WebsiteSite.pages).selectinload(WebsitePage.blocks)
-        )
+        .options(selectinload(WebsiteSite.pages).selectinload(WebsitePage.blocks))
         .where(
-            Vendor.subdomain == subdomain,
+            WebsiteSite.vendor_id == vendor.id,
             WebsiteSite.is_published == True,
         )
         .order_by(WebsiteSite.published_at.desc())
-        .limit(1)
     )
-    return result.scalar_one_or_none()
+    sites = list(sites_res.scalars().all())
+    if not sites:
+        return None
+
+    def _linked_site_for_store(store_id: str) -> Optional[WebsiteSite]:
+        for s in sites:
+            sc = s.style_config or {}
+            if sc.get("website_store_scope") == "store" and str(sc.get("website_store_id") or "") == store_id:
+                return s
+        return None
+
+    branch_key = (branch or "").strip()
+    if branch_key:
+        store_res = await db.execute(select(Store).where(Store.vendor_id == vendor.id))
+        store = next(
+            (
+                st for st in store_res.scalars().all()
+                if (st.code or "").strip() == branch_key or str(st.id) == branch_key
+            ),
+            None,
+        )
+        if store is not None:
+            # An explicit per-store (or single-mode shared) catalog/legacy
+            # template overrides any builder site linked to this branch.
+            if _store_specific_template_id(vendor.settings, store.settings):
+                return None
+            # A builder site linked to this branch wins over the vendor-wide
+            # `single_front_template_id` fallback used in per_unit mode.
+            linked = _linked_site_for_store(str(store.id))
+            if linked is not None:
+                return linked
+            # No per-store builder site: honour the vendor-wide template fallback.
+            if _resolve_effective_template_id(vendor.settings, store.settings):
+                return None
+            # Nothing assigned for this branch → fall through to the vendor default.
+
+    # Vendor default: prefer a site that is NOT scoped to a single store so a
+    # store-specific site never leaks onto the shared/global URL.
+    non_scoped = next((s for s in sites if not _site_is_store_scoped(s)), None)
+    return non_scoped or sites[0]
 
 
 async def _load_site_full(site_id: str, db: AsyncSession) -> Optional[WebsiteSite]:
@@ -329,18 +435,27 @@ async def get_builder_preview_by_token(
 @router.get("/by-subdomain/{subdomain}")
 async def get_site_by_subdomain(
     subdomain: str,
+    branch: Optional[str] = None,
     db: AsyncSession = Depends(get_db),
 ):
     """
     Return the published site + all published pages + blocks for a subdomain.
     Used by the business front on page load to determine what to render.
+
+    The optional `branch` (business unit code or id) selects the site linked to
+    that specific store so each business unit renders its own storefront.
     """
-    cache_key = f"pub_site:subdomain:{subdomain}"
+    branch_key = (branch or "").strip()
+    cache_key = (
+        f"pub_site:subdomain:{subdomain}:branch:{branch_key}"
+        if branch_key
+        else f"pub_site:subdomain:{subdomain}"
+    )
     cached = await _cached_get(cache_key)
     if cached:
         return cached
 
-    site = await _resolve_site_by_subdomain(subdomain, db)
+    site = await _resolve_site_by_subdomain(subdomain, db, branch=branch_key or None)
     if not site:
         raise HTTPException(status_code=404, detail="No published site found for this subdomain")
 
@@ -1041,7 +1156,10 @@ async def invalidate_site_cache(subdomain: Optional[str], site_id: str) -> None:
         return
     try:
         if subdomain:
+            # Clear the shared key plus every per-branch variant for this subdomain.
             await redis_client.delete(f"pub_site:subdomain:{subdomain}")
+            async for key in redis_client.scan_iter(f"pub_site:subdomain:{subdomain}:branch:*"):
+                await redis_client.delete(key)
         await redis_client.delete(f"pub_site:info:{site_id}")
         # Flush all live resource caches for this site
         async for key in redis_client.scan_iter(f"pub_live:{site_id}:*"):

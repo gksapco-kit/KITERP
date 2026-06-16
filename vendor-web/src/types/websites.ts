@@ -339,6 +339,7 @@ export interface SiteListItem {
   applied_template_name?: string | null
   website_store_scope?: string | null
   website_store_id?: string | null
+  website_store_name?: string | null
   created_at: string
   updated_at: string
 }
