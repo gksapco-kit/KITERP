@@ -20,7 +20,7 @@ import { storeApi, type StoreLocation } from '@/api/store'
 import type { PublicSite, StyleConfig, LiveItem } from '@/blocks/registry'
 import type { NavLinkItem } from '@/kit/types'
 import { resolveNavBlockShell } from '@/lib/navBlockLayout'
-import { sitePagesToNavLinks } from '@/lib/siteNavPages'
+import { sitePagesToNavLinks, excludeHomeNavLinks } from '@/lib/siteNavPages'
 import { useBuilderCanvas } from '@/contexts/BuilderCanvasContext'
 
 interface Props {
@@ -139,12 +139,11 @@ export default function NavBlock({
     }
     if (deduped.length === 0) {
       deduped.push(
-        { label: 'Home', href: storePath('/') },
         { label: 'Products', href: storePath('/products') },
         { label: 'Services', href: storePath('/services') },
       )
     }
-    return deduped
+    return excludeHomeNavLinks(deduped, storePath)
   }, [showNavLinks, navLinksSource, rawLinks, liveItems, site, storePath])
 
   const forceNavLinksVisible = isEditorCanvas || previewShell === true

@@ -259,7 +259,6 @@ function FooterStandard({ vendor, storePath, theme }: { vendor: any; storePath: 
           <div>
             <h4 className={cn('font-semibold text-sm mb-4', surface.titleClass)}>Shop</h4>
             <div className="space-y-2.5 text-sm">
-              <Link to={storePath('/')} className={cn('block', surface.linkClass)}>Home</Link>
               <Link to={storePath('/products')} className={cn('block', surface.linkClass)}>All Products</Link>
               <Link to={storePath('/services')} className={cn('block', surface.linkClass)}>All Services</Link>
               <Link to={storePath('/policies')} className={cn('block', surface.linkClass)}>Store Policies</Link>
@@ -492,7 +491,6 @@ function StoreContent() {
   )
 
   const navLinks = [
-    { to: storePath('/'), label: 'Home', end: true },
     { to: storePath('/products'), label: 'Products' },
     { to: storePath('/services'), label: 'Services' },
     { to: storePath('/blog'), label: 'Blog' },

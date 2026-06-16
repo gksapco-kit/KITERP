@@ -167,6 +167,7 @@ import DocumentTemplatesPage from '@/pages/document-templates/index'
 import SystemModulesPage from '@/pages/system/Modules'
 import SystemModelsPage from '@/pages/system/Models'
 import SystemTableDataPage from '@/pages/system/TableData'
+import SystemBrowseTablePage from '@/pages/system/BrowseTable'
 import VendorAdminRoute from './VendorAdminRoute'
 import SystemStorefrontDisplayPage from '@/pages/system/StorefrontDisplay'
 import SystemSocialLinksPage from '@/pages/system/SocialLinks'
@@ -321,6 +322,7 @@ export const router = createBrowserRouter([
       { path: 'system/modules', element: <SystemModulesPage /> },
       { path: 'system/models', element: <SystemModelsPage /> },
       { path: 'system/table-data', element: <VendorAdminRoute><SystemTableDataPage /></VendorAdminRoute> },
+      { path: 'system/browse-table', element: <VendorAdminRoute><SystemBrowseTablePage /></VendorAdminRoute> },
       { path: 'system/storefront-display', element: <SystemStorefrontDisplayPage /> },
       { path: 'system/social-links', element: <SystemSocialLinksPage /> },
       {
