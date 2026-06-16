@@ -7,6 +7,7 @@ import { Section } from "../components/Section";
 import { OrderSummary } from "../components/OrderSummary";
 import { useCheckoutConfig } from "../config";
 import { useState } from "react";
+import { toast } from "sonner";
 import { CheckoutActions, CheckoutState } from "../hooks/useCheckoutDemo";
 import { Lock } from "lucide-react";
 
@@ -21,7 +22,11 @@ export function TwoColumnLayout({ state, actions }: Props) {
     <div className="mx-auto grid max-w-6xl grid-cols-1 gap-6 px-4 py-6 md:px-6 lg:grid-cols-[minmax(0,1fr)_minmax(340px,460px)] lg:gap-8">
       <div className="order-2 min-w-0 space-y-4 lg:order-1">
         <Section step={1} title="Contact">
-          <ContactStep customer={state.customer} onChange={actions.setCustomer} />
+          <ContactStep
+            customer={state.customer}
+            onChange={actions.setCustomer}
+            fieldErrors={state.fieldErrors}
+          />
         </Section>
 
         <Section
@@ -47,7 +52,13 @@ export function TwoColumnLayout({ state, actions }: Props) {
               onAddNew={() => setAddingNew(true)}
             />
           ) : (
-            <AddressForm initial={state.shippingAddress} onSubmit={actions.setShippingAddress} hideSubmit />
+            <AddressForm
+              initial={state.shippingAddress}
+              onSubmit={actions.setShippingAddress}
+              onChange={actions.setShippingAddress}
+              hideSubmit
+              fieldErrors={state.fieldErrors}
+            />
           )}
         </Section>
 
@@ -114,8 +125,10 @@ export function TwoColumnLayout({ state, actions }: Props) {
 export function PlaceOrderBar({ state, actions }: Props) {
   const handleClick = async () => {
     const res = await actions.placeOrder();
-    // Navigation is handled by the hook (useStorefrontCheckout) or the demo hook.
-    // Only fall back to hardcoded demo URL if hook returned ok without navigating.
+    if (!res.ok) {
+      if (res.error) toast.error(res.error);
+      return;
+    }
     if (res.ok && !res.orderId) window.location.assign("/order/demo/confirmation");
   };
   return (

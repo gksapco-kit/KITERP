@@ -1,23 +1,34 @@
+import { useMemo } from 'react'
 import { Link } from 'react-router-dom'
-import { ShoppingBag, ChevronRight, ArrowLeft, Loader2 } from 'lucide-react'
+import { ShoppingBag, ChevronRight, ArrowLeft } from 'lucide-react'
 import { LineItem } from '@/checkout/components/LineItem'
 import { OrderSummary } from '@/checkout/components/OrderSummary'
 import { CheckoutConfigProvider } from '@/checkout/config'
-import { useCart, useUpdateCartItem, useRemoveCartItem, useStoreInfo } from '@/hooks/useStore'
+import { buildGuestCart, useCart, useUpdateCartItem, useRemoveCartItem, useStoreInfo } from '@/hooks/useStore'
+import { useAuthStore } from '@/stores/authStore'
+import { useGuestCartStore } from '@/stores/guestCartStore'
+import { useCartStore } from '@/stores/cartStore'
+import { useBranch } from '@/contexts/BranchContext'
 import { useVendor } from '@/contexts/VendorContext'
-import { EmptyCart, TableSkeleton } from '@/kit/states/StateScreens'
+import { TableSkeleton } from '@/kit/states/StateScreens'
 
 export default function CartPage() {
-  const { storePath } = useVendor()
+  const { storePath } = useBranch()
+  const { vendorSlug } = useVendor()
+  const { isAuthenticated } = useAuthStore()
   const { data: storeInfo } = useStoreInfo()
-  const { data: cart, isLoading } = useCart()
+  const { data: serverCart, isLoading } = useCart()
+  const guestItems = useGuestCartStore((s) => s.byVendor[vendorSlug] ?? [])
+  const cartFromStore = useCartStore((s) => s.cart)
   const updateItem = useUpdateCartItem()
   const removeItem = useRemoveCartItem()
+
+  const guestCart = useMemo(() => buildGuestCart(guestItems), [guestItems])
+  const cart = isAuthenticated ? (cartFromStore ?? serverCart) : guestCart
 
   const storeName = storeInfo?.display_name ?? storeInfo?.business_name ?? 'Store'
   const currency = 'INR'
 
-  // Map store cart items to checkout CartItem shape
   const cartItems = ((cart?.items ?? []) as any[]).map((item: Record<string, unknown>, i: number) => ({
     id: String(i),
     productId: String(item.product_id ?? i),
@@ -50,7 +61,7 @@ export default function CartPage() {
 
   const empty = !cartItems.length
 
-  if (isLoading) {
+  if (isLoading && isAuthenticated) {
     return (
       <div className="mx-auto max-w-6xl px-4 py-8">
         <TableSkeleton rows={4} />
@@ -83,16 +94,16 @@ export default function CartPage() {
             <EmptyState storePath={storePath} />
           ) : (
             <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_380px]">
-              {/* Line items */}
               <div className="ck-surface ck-border ck-radius-md p-2 md:p-4">
                 {cartItems.map((item, i) => (
-                  <div key={item.id} className={i > 0 ? 'ck-border-t' : ''}>
+                  <div key={`${item.productId}-${i}`} className={i > 0 ? 'ck-border-t' : ''}>
                     <LineItem
                       item={item}
                       editable
                       onUpdateQuantity={(id, q) => {
-                        if (q <= 0) removeItem.mutate(Number(id))
-                        else updateItem.mutate({ index: Number(id), qty: q })
+                        const index = Number(id)
+                        if (q <= 0) removeItem.mutate(index)
+                        else updateItem.mutate({ index, qty: q })
                       }}
                       onRemove={(id) => removeItem.mutate(Number(id))}
                     />
@@ -105,7 +116,6 @@ export default function CartPage() {
                 </div>
               </div>
 
-              {/* Order summary + CTA */}
               <div>
                 <OrderSummary
                   cart={checkoutCart}

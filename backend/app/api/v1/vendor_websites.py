@@ -2652,7 +2652,7 @@ def _images_for_category(category_id: Optional[str], count: int = 12) -> List[st
 
 
 def _nav_links_from_page_dicts(pages: List[Dict[str, Any]]) -> List[Dict[str, str]]:
-    """Build deduplicated nav links — homepage omitted (logo links home)."""
+    """Build deduplicated nav links — one Home entry only."""
     links: List[Dict[str, str]] = []
     seen: set[str] = set()
     ordered = sorted(
@@ -2660,17 +2660,15 @@ def _nav_links_from_page_dicts(pages: List[Dict[str, Any]]) -> List[Dict[str, st
         key=lambda p: (not p.get("is_homepage"), p.get("sort_order") or 0),
     )
     for pg in ordered:
-        if pg.get("is_homepage"):
-            continue
         if pg.get("show_in_nav") is False:
             continue
-        url = f"/{str(pg.get('slug') or '').strip().lstrip('/')}"
+        url = "/" if pg.get("is_homepage") else f"/{str(pg.get('slug') or '').strip().lstrip('/')}"
         if url == "/home":
             url = "/"
         if url in seen:
             continue
         seen.add(url)
-        label = str(pg.get("title") or pg.get("slug") or "Page")
+        label = "Home" if pg.get("is_homepage") else str(pg.get("title") or pg.get("slug") or "Page")
         links.append({"label": label, "url": url})
     return links
 

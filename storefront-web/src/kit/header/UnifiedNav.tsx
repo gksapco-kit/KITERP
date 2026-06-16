@@ -167,8 +167,8 @@ export function UnifiedNav({
         {afterLogo}
 
         <nav className={cn(
-          'items-center gap-1 ml-2 lg:ml-4 shrink-0',
-          linksLayout === 'always-visible' ? 'flex flex-wrap' : 'hidden md:flex',
+          'items-center gap-1 ml-2 lg:ml-4 min-w-0 flex-1 justify-end',
+          linksLayout === 'always-visible' ? 'flex flex-wrap' : 'hidden md:flex flex-wrap',
         )}>
           {links.map((l) => (
             <Link

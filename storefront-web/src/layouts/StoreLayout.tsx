@@ -9,12 +9,13 @@ import { Button } from '@/components/ui/button'
 import { useCart, useCustomerLogout, useCustomerMe } from '@/hooks/useStore'
 import { UnifiedNav, AnnouncementBar } from '@/kit/header/UnifiedNav'
 import { useAuthStore } from '@/stores/authStore'
-import { useCartStore } from '@/stores/cartStore'
+import { useCartStore, selectCartItemCount } from '@/stores/cartStore'
 import { VendorProvider, useVendor } from '@/contexts/VendorContext'
 import { ThemeProvider, useTheme } from '@/contexts/ThemeContext'
 import { BuilderSiteProvider, useBuilderSite } from '@/contexts/BuilderSiteContext'
 import { getWbCatalogTemplateId } from '@/storefront/catalogTemplateIds'
 import { useAssignedStorefrontTemplateId } from '@/hooks/useAssignedStorefrontTemplateId'
+import { useStorefrontHeaderNav } from '@/hooks/useStorefrontHeaderNav'
 import { isDefaultLayoutTemplateId, isWebsiteBuilderBlockTemplateId, resolveLiveCatalogTemplateId } from '@/lib/storefrontTemplateAssignment'
 import { useState, useRef, useEffect } from 'react'
 import CrmChatWidget from '@/components/CrmChatWidget'
@@ -405,7 +406,7 @@ function StoreContent() {
   const { storePath } = useBranch()
   const assignedTemplateId = useAssignedStorefrontTemplateId()
   const { isAuthenticated, customer } = useAuthStore()
-  const { itemCount } = useCartStore()
+  const cartCount = useCartStore(selectCartItemCount)
   const logout = useCustomerLogout()
   const navigate = useNavigate()
   const theme = useTheme()
@@ -413,6 +414,7 @@ function StoreContent() {
   useCustomerMe()
   useCart()
   useJourneyBeacon(vendor?.id, customer?.id)
+  const { links: headerNavLinks, cta: headerCta } = useStorefrontHeaderNav()
 
   const isHrAuthPage =
     !!vendorSlug &&
@@ -490,27 +492,21 @@ function StoreContent() {
     assignedTemplateId && isWebsiteBuilderBlockTemplateId(assignedTemplateId),
   )
 
-  const navLinks = [
-    { to: storePath('/products'), label: 'Products' },
-    { to: storePath('/services'), label: 'Services' },
-    { to: storePath('/blog'), label: 'Blog' },
-    { to: storePath('/policies'), label: 'Policies' },
-  ]
-
-  const headerStyle = theme.header_style || 'classic'
-  const stickyHeader = theme.sticky_header !== false
-  const showSearch = theme.show_search !== false
-  const footerStyle = theme.footer_style || 'standard'
-  const count = itemCount()
-
-  const builderHomePage = builderSite?.pages?.find(p => p.is_homepage) || builderSite?.pages?.[0]
-  const hasSavedBuilderBlocks = Boolean(builderHomePage?.blocks?.length)
   const isStoreHome =
     !!vendorSlug &&
     (pathname === `/store/${vendorSlug}` || pathname === `/store/${vendorSlug}/`)
   const isBuilderPreview =
     !!vendorSlug &&
     (pathname === `/store/${vendorSlug}/preview` || pathname.startsWith(`/store/${vendorSlug}/preview/`))
+
+  const headerStyle = theme.header_style || 'classic'
+  const stickyHeader = theme.sticky_header !== false
+  const showSearch = theme.show_search !== false
+  const footerStyle = theme.footer_style || 'standard'
+  const count = cartCount
+
+  const builderHomePage = builderSite?.pages?.find(p => p.is_homepage) || builderSite?.pages?.[0]
+  const hasSavedBuilderBlocks = Boolean(builderHomePage?.blocks?.length)
   const catalogHomeLayout = Boolean(
     catalogTemplateId &&
       isStoreHome &&
@@ -520,6 +516,9 @@ function StoreContent() {
       !usesAssignedBlockTemplate,
   )
   const builderOwnedLayout = Boolean(builderSite && isStoreHome && hasSavedBuilderBlocks)
+  const assignedTemplateShellHome = Boolean(
+    assignedTemplateId && isStoreHome && !isDefaultLayoutTemplateId(assignedTemplateId),
+  )
 
   // ─────────────────────────────────────────────────────────────────────────────
   // HEADER — UnifiedNav from kit
@@ -534,7 +533,7 @@ function StoreContent() {
     ? { id: customer.id, name: customer.full_name ?? customer.email ?? '', email: customer.email ?? '' }
     : null
 
-  const kitLinks = navLinks.map((l) => ({ label: l.label, href: l.to }))
+  const kitLinks = headerNavLinks
 
   const logoNode = vendor.logo_url ? (
     <img src={imgUrl(vendor.logo_url)} alt={vendor.display_name} className="h-9 max-w-[160px] object-contain" />
@@ -553,6 +552,7 @@ function StoreContent() {
         afterLogo={<StoreBranchPicker className="hidden sm:inline-flex" />}
         sheetExtra={<StoreBranchPicker className="w-full max-w-none" compact />}
         links={kitLinks}
+        cta={headerCta}
         extraTray={isAuthenticated ? <CustomerNotificationsBell storePath={storePath} /> : undefined}
         showSearch={showSearch}
         showCart
@@ -596,7 +596,7 @@ function StoreContent() {
     )
   }
 
-  if (catalogHomeLayout || builderOwnedLayout || isBuilderPreview) {
+  if (catalogHomeLayout || builderOwnedLayout || assignedTemplateShellHome || isBuilderPreview) {
     return (
       <div className="min-h-screen flex flex-col" style={{ backgroundColor: theme.colors.background, fontFamily: theme.font_body || theme.font }}>
         <main className="flex-1">

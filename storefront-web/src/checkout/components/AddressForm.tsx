@@ -5,8 +5,10 @@ import { useCheckoutConfig } from "../config";
 type Props = {
   initial?: Partial<Address>;
   onSubmit?: (address: Address) => void;
+  onChange?: (address: Address) => void;
   hideSubmit?: boolean;
   formId?: string;
+  fieldErrors?: Record<string, string>;
 };
 
 const COUNTRIES = [
@@ -20,7 +22,14 @@ const COUNTRIES = [
   { code: "JP", name: "Japan" },
 ];
 
-export function AddressForm({ initial, onSubmit, hideSubmit, formId }: Props) {
+function defaultCountry(initial?: Partial<Address>): string {
+  const c = initial?.country?.trim()
+  if (!c) return "IN"
+  if (c.toLowerCase() === "india") return "IN"
+  return c.length === 2 ? c.toUpperCase() : c
+}
+
+export function AddressForm({ initial, onSubmit, onChange, hideSubmit, formId, fieldErrors = {} }: Props) {
   const { requirePhone } = useCheckoutConfig();
   const [v, setV] = useState<Address>({
     fullName: initial?.fullName ?? "",
@@ -30,13 +39,19 @@ export function AddressForm({ initial, onSubmit, hideSubmit, formId }: Props) {
     city: initial?.city ?? "",
     region: initial?.region ?? "",
     postalCode: initial?.postalCode ?? "",
-    country: initial?.country ?? "US",
+    country: defaultCountry(initial),
     phone: initial?.phone ?? "",
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
 
+  const displayErrors = { ...errors, ...fieldErrors };
+
   function update<K extends keyof Address>(key: K, value: Address[K]) {
-    setV((prev) => ({ ...prev, [key]: value }));
+    setV((prev) => {
+      const next = { ...prev, [key]: value }
+      if (hideSubmit) onChange?.(next)
+      return next
+    });
     if (errors[key as string]) setErrors((e) => ({ ...e, [key]: "" }));
   }
 
@@ -63,12 +78,13 @@ export function AddressForm({ initial, onSubmit, hideSubmit, formId }: Props) {
       className="space-y-3"
       noValidate
     >
-      <Field label="Full name" error={errors.fullName}>
+      <Field label="Full name" error={displayErrors.fullName} fieldKey="fullName">
         <input
           className="ck-input"
           autoComplete="name"
           value={v.fullName}
-          aria-invalid={!!errors.fullName}
+          aria-invalid={!!displayErrors.fullName}
+          data-checkout-field="fullName"
           onChange={(e) => update("fullName", e.target.value)}
         />
       </Field>
@@ -82,12 +98,13 @@ export function AddressForm({ initial, onSubmit, hideSubmit, formId }: Props) {
         />
       </Field>
 
-      <Field label="Address" error={errors.line1}>
+      <Field label="Address" error={displayErrors.line1} fieldKey="line1">
         <input
           className="ck-input"
           autoComplete="address-line1"
           value={v.line1}
-          aria-invalid={!!errors.line1}
+          aria-invalid={!!displayErrors.line1}
+          data-checkout-field="line1"
           onChange={(e) => update("line1", e.target.value)}
         />
       </Field>
@@ -101,41 +118,46 @@ export function AddressForm({ initial, onSubmit, hideSubmit, formId }: Props) {
       </Field>
 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-        <Field label="City" error={errors.city}>
+        <Field label="City" error={displayErrors.city} fieldKey="city">
           <input
             className="ck-input"
             autoComplete="address-level2"
             value={v.city}
-            aria-invalid={!!errors.city}
+            aria-invalid={!!displayErrors.city}
+            data-checkout-field="city"
             onChange={(e) => update("city", e.target.value)}
           />
         </Field>
-        <Field label="State / Region" error={errors.region}>
+        <Field label="State / Region" error={displayErrors.region} fieldKey="region">
           <input
             className="ck-input"
             autoComplete="address-level1"
             value={v.region}
-            aria-invalid={!!errors.region}
+            aria-invalid={!!displayErrors.region}
+            data-checkout-field="region"
             onChange={(e) => update("region", e.target.value)}
           />
         </Field>
-        <Field label="Postal code" error={errors.postalCode}>
+        <Field label="Postal code" error={displayErrors.postalCode} fieldKey="postalCode">
           <input
             className="ck-input"
             autoComplete="postal-code"
             value={v.postalCode}
-            aria-invalid={!!errors.postalCode}
+            aria-invalid={!!displayErrors.postalCode}
+            data-checkout-field="postalCode"
             onChange={(e) => update("postalCode", e.target.value)}
           />
         </Field>
       </div>
 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-        <Field label="Country" error={errors.country}>
+        <Field label="Country" error={displayErrors.country} fieldKey="country">
           <select
             className="ck-input"
             autoComplete="country"
             value={v.country}
+            aria-invalid={!!displayErrors.country}
+            data-checkout-field="country"
             onChange={(e) => update("country", e.target.value)}
           >
             {COUNTRIES.map((c) => (
@@ -145,13 +167,14 @@ export function AddressForm({ initial, onSubmit, hideSubmit, formId }: Props) {
             ))}
           </select>
         </Field>
-        <Field label={`Phone${requirePhone ? "" : " (optional)"}`} error={errors.phone}>
+        <Field label={`Phone${requirePhone ? "" : " (optional)"}`} error={displayErrors.phone} fieldKey="phone">
           <input
             className="ck-input"
             autoComplete="tel"
             type="tel"
             value={v.phone}
-            aria-invalid={!!errors.phone}
+            aria-invalid={!!displayErrors.phone}
+            data-checkout-field="phone"
             onChange={(e) => update("phone", e.target.value)}
           />
         </Field>
@@ -169,14 +192,16 @@ export function AddressForm({ initial, onSubmit, hideSubmit, formId }: Props) {
 function Field({
   label,
   error,
+  fieldKey,
   children,
 }: {
   label: string;
   error?: string;
+  fieldKey?: string;
   children: React.ReactNode;
 }) {
   return (
-    <label className="block">
+    <label className="block" data-checkout-field={fieldKey}>
       <span className="ck-label">{label}</span>
       {children}
       {error && <span className="ck-field-error">{error}</span>}

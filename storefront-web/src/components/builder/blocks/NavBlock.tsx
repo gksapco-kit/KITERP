@@ -4,7 +4,8 @@ import { MapPin, ChevronDown, Search, ShoppingBag, User, X } from 'lucide-react'
 import { useVendor } from '@/contexts/VendorContext'
 import { useStorePath } from '@/hooks/useStorePath'
 import { branchDisplayName } from '@/lib/branchStorefrontIdentity'
-import { useCartStore } from '@/stores/cartStore'
+import { useCartStore, selectCartItemCount } from '@/stores/cartStore'
+import { useCart } from '@/hooks/useStore'
 import { useAuthStore } from '@/stores/authStore'
 import { imgUrl, cn } from '@/lib/utils'
 import { AnnouncementBar } from '@/kit/header/UnifiedNav'
@@ -20,7 +21,7 @@ import { storeApi, type StoreLocation } from '@/api/store'
 import type { PublicSite, StyleConfig, LiveItem } from '@/blocks/registry'
 import type { NavLinkItem } from '@/kit/types'
 import { resolveNavBlockShell } from '@/lib/navBlockLayout'
-import { sitePagesToNavLinks, excludeHomeNavLinks } from '@/lib/siteNavPages'
+import { resolveNavBlockLinks } from '@/lib/siteNavPages'
 import { useBuilderCanvas } from '@/contexts/BuilderCanvasContext'
 
 interface Props {
@@ -57,7 +58,8 @@ export default function NavBlock({
   const location = useLocation()
   const [searchParams] = useSearchParams()
   const { isAuthenticated } = useAuthStore()
-  const { itemCount } = useCartStore()
+  const cartCount = useCartStore(selectCartItemCount)
+  useCart()
   const [searchOpen, setSearchOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
 
@@ -116,35 +118,18 @@ export default function NavBlock({
   const rawLinks = (props.nav_links as Array<{ label: string; url: string }> | undefined) || []
 
   const kitLinks: NavLinkItem[] = useMemo(() => {
-    if (!showNavLinks) return []
-    let pageLinks: NavLinkItem[] = []
-    if (navLinksSource === 'manual') {
-      pageLinks = rawLinks.map(l => ({ label: l.label, href: storePath(l.url) }))
-    } else if (navLinksSource === 'site_pages') {
-      pageLinks = sitePagesToNavLinks(site, storePath, 20)
-      if (pageLinks.length === 0 && liveItems.length > 0) {
-        pageLinks = liveItems.map(item => ({ label: item.title, href: storePath(item.url || '/') }))
-      }
-    } else if (liveItems.length > 0) {
-      pageLinks = liveItems.map(item => ({ label: item.title, href: storePath(item.url || '/') }))
-    } else if (rawLinks.length > 0) {
-      pageLinks = rawLinks.map(l => ({ label: l.label, href: storePath(l.url) }))
-    }
-    const deduped: NavLinkItem[] = []
-    const seen = new Set<string>()
-    for (const link of pageLinks) {
-      if (seen.has(link.href)) continue
-      seen.add(link.href)
-      deduped.push(link)
-    }
-    if (deduped.length === 0) {
-      deduped.push(
-        { label: 'Products', href: storePath('/products') },
-        { label: 'Services', href: storePath('/services') },
-      )
-    }
-    return excludeHomeNavLinks(deduped, storePath)
-  }, [showNavLinks, navLinksSource, rawLinks, liveItems, site, storePath])
+    return resolveNavBlockLinks(
+      site,
+      storePath,
+      location.pathname,
+      {
+        show_nav_links: props.show_nav_links as boolean | undefined,
+        nav_links_source: navLinksSource,
+        nav_links: rawLinks,
+      },
+      liveItems.map(item => ({ title: item.title, url: item.url })),
+    )
+  }, [showNavLinks, navLinksSource, rawLinks, liveItems, site, storePath, location.pathname])
 
   const forceNavLinksVisible = isEditorCanvas || previewShell === true
 
@@ -252,18 +237,18 @@ export default function NavBlock({
             aria-label="Cart"
           >
             <ShoppingBag className="w-5 h-5" />
-            {itemCount() > 0 && (
+            {cartCount > 0 && (
               <span className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] px-1 rounded-full bg-primary text-white text-[10px] font-bold flex items-center justify-center">
-                {itemCount()}
+                {cartCount}
               </span>
             )}
           </button>
         ) : (
           <Link to={storePath('/cart')} className="p-2 rounded-lg hover:opacity-70 transition-opacity relative" style={{ color: shell.navTextCol }} aria-label="Cart">
             <ShoppingBag className="w-5 h-5" />
-            {itemCount() > 0 && (
+            {cartCount > 0 && (
               <span className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] px-1 rounded-full bg-primary text-white text-[10px] font-bold flex items-center justify-center">
-                {itemCount()}
+                {cartCount}
               </span>
             )}
           </Link>

@@ -3,17 +3,32 @@ import type { NavLinkItem } from '@/kit/types'
 
 type SitePage = NonNullable<PublicSite['pages']>[number]
 
+export type NavBlockNavProps = {
+  show_nav_links?: boolean
+  nav_links_source?: string
+  nav_links?: Array<{ label: string; url: string }>
+  cta_label?: string | null
+  cta_url?: string | null
+}
+
+export type SitePageNavItem = { title: string; url?: string }
+
 function pageToNavUrl(page: SitePage): string {
   let url = page.is_homepage ? '/' : `/${String(page.slug || '').replace(/^\/+|\/+$/g, '')}`
   if (url === '/home') url = '/'
   return url
 }
 
-/** Homepage is reached via the logo — omit it from header nav links. */
+function stripPath(s: string): string {
+  return s.split('?')[0].split('#')[0].replace(/\/+$/, '') || '/'
+}
+
 export function isStoreHomeNavHref(href: string, storePath: (p: string) => string): boolean {
-  const home = storePath('/')
-  const strip = (s: string) => s.split('?')[0].split('#')[0].replace(/\/+$/, '') || '/'
-  return strip(href) === strip(home)
+  return stripPath(href) === stripPath(storePath('/'))
+}
+
+export function isStoreHomePath(pathname: string, storePath: (p: string) => string): boolean {
+  return stripPath(pathname) === stripPath(storePath('/'))
 }
 
 export function excludeHomeNavLinks(
@@ -21,6 +36,16 @@ export function excludeHomeNavLinks(
   storePath: (p: string) => string,
 ): NavLinkItem[] {
   return links.filter(l => !isStoreHomeNavHref(l.href, storePath))
+}
+
+/** Always show Home as the first nav link (deduped if already present elsewhere). */
+export function applyHomeNavVisibility(
+  links: NavLinkItem[],
+  _pathname: string,
+  storePath: (p: string) => string,
+): NavLinkItem[] {
+  const rest = excludeHomeNavLinks(links, storePath)
+  return [{ label: 'Home', href: storePath('/') }, ...rest]
 }
 
 function pagesToNavItems(pages: SitePage[], storePath: (p: string) => string, limit: number): NavLinkItem[] {
@@ -31,12 +56,11 @@ function pagesToNavItems(pages: SitePage[], storePath: (p: string) => string, li
     return (a.sort_order ?? 0) - (b.sort_order ?? 0)
   })
   for (const page of sorted) {
-    if (page.is_homepage) continue
     const url = pageToNavUrl(page)
     if (seen.has(url)) continue
     seen.add(url)
     items.push({
-      label: page.title || page.slug || 'Page',
+      label: page.is_homepage ? 'Home' : (page.title || page.slug || 'Page'),
       href: storePath(url),
     })
     if (items.length >= limit) break
@@ -59,4 +83,125 @@ export function sitePagesToNavLinks(
   if (items.length > 0) return items
 
   return pagesToNavItems(pages, storePath, limit)
+}
+
+/** Live nav items derived from embedded site pages (same shape NavBlock expects). */
+export function sitePagesToLiveNavItems(site: PublicSite, limit = 20): SitePageNavItem[] {
+  const pages = site.pages || []
+  if (!pages.length) return []
+  const seen = new Set<string>()
+  const items: SitePageNavItem[] = []
+  const sorted = [...pages]
+    .filter(p => p.show_in_nav !== false && p.is_published !== false)
+    .sort((a, b) => {
+      if (a.is_homepage !== b.is_homepage) return a.is_homepage ? -1 : 1
+      return (a.sort_order ?? 0) - (b.sort_order ?? 0)
+    })
+  for (const page of sorted) {
+    const url = pageToNavUrl(page)
+    if (seen.has(url)) continue
+    seen.add(url)
+    items.push({
+      title: page.is_homepage ? 'Home' : (page.title || page.slug || 'Page'),
+      url,
+    })
+    if (items.length >= limit) break
+  }
+  return items
+}
+
+export function pickHomeNavBlockProps(site: PublicSite | null | undefined): NavBlockNavProps {
+  if (!site?.pages?.length) return {}
+  const homePage = site.pages.find(p => p.is_homepage) || site.pages[0]
+  const navBlock = homePage?.blocks?.find(b => b.block_type === 'nav')
+  return (navBlock?.props || {}) as NavBlockNavProps
+}
+
+export function defaultStoreCommerceNavLinks(storePath: (p: string) => string): NavLinkItem[] {
+  return [
+    { label: 'Home', href: storePath('/') },
+    { label: 'Products', href: storePath('/products') },
+    { label: 'Services', href: storePath('/services') },
+    { label: 'Blog', href: storePath('/blog') },
+    { label: 'Policies', href: storePath('/policies') },
+  ]
+}
+
+/** Shared nav link resolution for NavBlock and StoreLayout header. */
+export function resolveNavBlockLinks(
+  site: PublicSite,
+  storePath: (p: string) => string,
+  pathname: string,
+  props: NavBlockNavProps,
+  liveItems: SitePageNavItem[] = [],
+): NavLinkItem[] {
+  const showNavLinks = props.show_nav_links !== false
+  if (!showNavLinks) return []
+
+  const navLinksSource = props.nav_links_source || 'site_pages'
+  const rawLinks = props.nav_links || []
+  let pageLinks: NavLinkItem[] = []
+
+  if (navLinksSource === 'manual') {
+    pageLinks = rawLinks.map(l => ({ label: l.label, href: storePath(l.url) }))
+  } else if (navLinksSource === 'site_pages') {
+    pageLinks = sitePagesToNavLinks(site, storePath, 20)
+    if (pageLinks.length === 0 && liveItems.length > 0) {
+      pageLinks = liveItems.map(item => ({ label: item.title, href: storePath(item.url || '/') }))
+    }
+  } else if (liveItems.length > 0) {
+    pageLinks = liveItems.map(item => ({ label: item.title, href: storePath(item.url || '/') }))
+  } else if (rawLinks.length > 0) {
+    pageLinks = rawLinks.map(l => ({ label: l.label, href: storePath(l.url) }))
+  }
+
+  const deduped: NavLinkItem[] = []
+  const seen = new Set<string>()
+  for (const link of pageLinks) {
+    if (seen.has(link.href)) continue
+    seen.add(link.href)
+    deduped.push(link)
+  }
+
+  if (deduped.length === 0) {
+    deduped.push(
+      { label: 'Home', href: storePath('/') },
+      { label: 'Products', href: storePath('/products') },
+      { label: 'Services', href: storePath('/services') },
+    )
+  }
+
+  // Single-page templates (e.g. Verde) only expose Home in site pages — after hiding
+  // Home on the homepage that would render an empty nav bar.
+  const hasNonHomeLinks = excludeHomeNavLinks(deduped, storePath).length > 0
+  const sourceLinks = hasNonHomeLinks ? deduped : defaultStoreCommerceNavLinks(storePath)
+
+  let links = applyHomeNavVisibility(sourceLinks, pathname, storePath)
+  if (links.length === 0) {
+    links = applyHomeNavVisibility(defaultStoreCommerceNavLinks(storePath), pathname, storePath)
+  }
+  return links
+}
+
+export function resolveStorefrontHeaderNavLinks(
+  site: PublicSite | null | undefined,
+  storePath: (p: string) => string,
+  pathname: string,
+): NavLinkItem[] {
+  if (!site) {
+    return applyHomeNavVisibility(defaultStoreCommerceNavLinks(storePath), pathname, storePath)
+  }
+  const props = pickHomeNavBlockProps(site)
+  const liveItems = sitePagesToLiveNavItems(site)
+  return resolveNavBlockLinks(site, storePath, pathname, props, liveItems)
+}
+
+export function resolveStorefrontHeaderCta(
+  site: PublicSite | null | undefined,
+  storePath: (p: string) => string,
+): { label: string; href: string } | undefined {
+  const props = pickHomeNavBlockProps(site)
+  const label = props.cta_label?.trim()
+  if (!label) return undefined
+  return { label, href: storePath(props.cta_url || '/contact') }
 }

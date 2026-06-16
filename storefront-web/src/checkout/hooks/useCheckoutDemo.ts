@@ -14,6 +14,7 @@ export type CheckoutState = {
   giftMessage: string;
   isPlacing: boolean;
   error?: string;
+  fieldErrors?: Record<string, string>;
 };
 
 export type CheckoutActions = {
@@ -29,7 +30,7 @@ export type CheckoutActions = {
   removeItem: (itemId: string) => void;
   applyCoupon: (code: string) => void;
   removeCoupon: (code: string) => void;
-  placeOrder: () => Promise<{ ok: boolean; orderId?: string; error?: string }>;
+  placeOrder: () => Promise<{ ok: boolean; orderId?: string; error?: string; fieldErrors?: Record<string, string> }>;
 };
 
 export function useCheckoutDemo(): { state: CheckoutState; actions: CheckoutActions } {

@@ -27,6 +27,31 @@ export type BranchContextValue = {
 
 const BranchContext = createContext<BranchContextValue | null>(null)
 
+const BRANCH_SESSION_PREFIX = 'kiterp_store_branch:'
+
+function branchSessionKey(vendorSlug: string): string {
+  return `${BRANCH_SESSION_PREFIX}${vendorSlug}`
+}
+
+function readSavedBranch(vendorSlug: string): string | null {
+  try {
+    const raw = sessionStorage.getItem(branchSessionKey(vendorSlug))?.trim()
+    return raw || null
+  } catch {
+    return null
+  }
+}
+
+function writeSavedBranch(vendorSlug: string, code: string | null) {
+  try {
+    const key = branchSessionKey(vendorSlug)
+    if (!code) sessionStorage.removeItem(key)
+    else sessionStorage.setItem(key, code)
+  } catch {
+    // ignore storage errors (private mode, etc.)
+  }
+}
+
 function branchKey(v: string | null | undefined): string {
   return String(v ?? '').trim().toLowerCase()
 }
@@ -38,7 +63,7 @@ function matchBranch(stores: StoreLocation[], code: string | null): StoreLocatio
 }
 
 export function BranchProvider({ children }: { children: ReactNode }) {
-  const { storePath: vendorStorePath } = useVendor()
+  const { vendorSlug, storePath: vendorStorePath } = useVendor()
   const navigate = useNavigate()
   const location = useLocation()
   const [searchParams] = useSearchParams()
@@ -78,8 +103,27 @@ export function BranchProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     setBranchQueryParam(branchCode)
-    return () => setBranchQueryParam(null)
   }, [branchCode])
+
+  // Remember the selected unit across internal navigation (cart, checkout, etc.).
+  useEffect(() => {
+    if (!vendorSlug) return
+    if (branchCode) {
+      writeSavedBranch(vendorSlug, branchCode)
+    }
+  }, [vendorSlug, branchCode])
+
+  useEffect(() => {
+    if (!vendorSlug || branchCode || loading) return
+    const saved = readSavedBranch(vendorSlug)
+    if (!saved) return
+    const match = matchBranch(branches, saved)
+    if (!match || match.is_open === false) return
+    const next = new URLSearchParams(searchParams)
+    next.set('branch', saved)
+    const qs = next.toString()
+    navigate(`${location.pathname}${qs ? `?${qs}` : ''}`, { replace: true })
+  }, [vendorSlug, branchCode, loading, branches, location.pathname, navigate, searchParams])
 
   const selectedBranch = useMemo(
     () => matchBranch(branches, branchCode),
@@ -101,10 +145,11 @@ export function BranchProvider({ children }: { children: ReactNode }) {
       const trimmed = branchKey(code)
       if (trimmed) next.set('branch', trimmed)
       else next.delete('branch')
+      if (vendorSlug) writeSavedBranch(vendorSlug, trimmed || null)
       const qs = next.toString()
       navigate(`${location.pathname}${qs ? `?${qs}` : ''}`, { replace: true })
     },
-    [location.pathname, navigate, searchParams],
+    [location.pathname, navigate, searchParams, vendorSlug],
   )
 
   const storePath = useCallback(

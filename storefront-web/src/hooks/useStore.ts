@@ -1,10 +1,10 @@
-import { useMemo } from 'react'
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useEffect, useMemo } from 'react'
+import { useQuery, useMutation, useQueryClient, type QueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { storeApi } from '@/api/store'
 import { useAuthStore } from '@/stores/authStore'
 import { useCartStore } from '@/stores/cartStore'
-import { useGuestCartStore } from '@/stores/guestCartStore'
+import { useGuestCartStore, type GuestCartItem } from '@/stores/guestCartStore'
 import { useVendor } from '@/contexts/VendorContext'
 import { apiError, extractApiError } from '@/lib/errorMessages'
 import type { Cart } from '@/types'
@@ -32,6 +32,23 @@ export const storeKeys = {
   rentalAssets: ['store-rentals'] as const,
 }
 
+const EMPTY_GUEST_CART_ITEMS: GuestCartItem[] = []
+
+export function buildGuestCart(items: GuestCartItem[]): Cart {
+  const list = items ?? []
+  const subtotal = list.reduce((s, i) => s + i.price * i.qty, 0)
+  return {
+    id: 'guest_cart',
+    vendor_id: '',
+    customer_id: '',
+    items: list,
+    item_count: list.reduce((s, i) => s + i.qty, 0),
+    subtotal,
+    coupon_code: null,
+    discount_amount: 0,
+  } as Cart
+}
+
 export function useStoreInfo() {
   return useQuery({ queryKey: storeKeys.info, queryFn: storeApi.getStoreInfo, staleTime: 10 * 60 * 1000, retry: false })
 }
@@ -41,7 +58,11 @@ export function useStoreCategories(params?: Record<string, unknown>) {
 }
 
 export function useProducts(params?: Record<string, unknown>) {
-  return useQuery({ queryKey: storeKeys.products(params), queryFn: () => storeApi.listProducts(params) })
+  return useQuery({
+    queryKey: storeKeys.products(params),
+    queryFn: () => storeApi.listProducts(params),
+    placeholderData: (previous) => previous,
+  })
 }
 
 export function useProduct(slug: string) {
@@ -49,63 +70,112 @@ export function useProduct(slug: string) {
 }
 
 export function useServices(params?: Record<string, unknown>) {
-  return useQuery({ queryKey: storeKeys.services(params), queryFn: () => storeApi.listServices(params) })
+  return useQuery({
+    queryKey: storeKeys.services(params),
+    queryFn: () => storeApi.listServices(params),
+    placeholderData: (previous) => previous,
+  })
 }
 
 export function useService(slug: string) {
   return useQuery({ queryKey: storeKeys.service(slug), queryFn: () => storeApi.getService(slug), enabled: !!slug })
 }
 
-function buildGuestCart(items: ReturnType<typeof useGuestCartStore.getState>['byVendor'][string]): Cart {
-  const subtotal = (items ?? []).reduce((s, i) => s + i.price * i.qty, 0)
-  return {
-    id: 'guest_cart',
-    vendor_id: '',
-    customer_id: '',
-    items: items ?? [],
-    item_count: (items ?? []).reduce((s, i) => s + i.qty, 0),
-    subtotal,
-    coupon_code: null,
-    discount_amount: 0,
-  } as Cart
+function syncCartStore(cart: Cart) {
+  useCartStore.getState().setCart(cart)
+}
+
+function applyCartMutation(qc: QueryClient, cart: Cart) {
+  syncCartStore(cart)
+  qc.setQueryData(storeKeys.cart, cart)
+}
+
+function emptyCart(): Cart {
+  return buildGuestCart(EMPTY_GUEST_CART_ITEMS)
+}
+
+/** Clears guest + zustand cart and server cart after checkout. */
+export async function resetCartAfterOrder(qc: QueryClient, vendorSlug?: string) {
+  if (vendorSlug) {
+    useGuestCartStore.getState().clear(vendorSlug)
+  }
+
+  await qc.cancelQueries({ queryKey: storeKeys.cart })
+
+  let cleared = emptyCart()
+  if (useAuthStore.getState().isAuthenticated) {
+    try {
+      cleared = await storeApi.clearCart()
+    } catch {
+      // Keep local empty cart when server clear is unavailable.
+    }
+  }
+
+  syncCartStore(cleared)
+  qc.setQueryData(storeKeys.cart, cleared)
+  void qc.invalidateQueries({
+    predicate: (q) => {
+      const key = q.queryKey[0]
+      return key === 'products' || key === 'services' || key === 'product'
+    },
+  })
 }
 
 // Cart
 export function useCart() {
-  const { setCart } = useCartStore()
   const { isAuthenticated } = useAuthStore()
   const { vendorSlug } = useVendor()
-  const guestItems = useGuestCartStore(s => s.byVendor[vendorSlug] ?? [])
-
+  const guestItems = useGuestCartStore(s => s.byVendor[vendorSlug] ?? EMPTY_GUEST_CART_ITEMS)
   const guestCart = useMemo(() => buildGuestCart(guestItems), [guestItems])
+
+  useEffect(() => {
+    if (!isAuthenticated) {
+      syncCartStore(guestCart)
+    }
+  }, [isAuthenticated, guestCart])
 
   const server = useQuery({
     queryKey: storeKeys.cart,
-    queryFn: async () => { const cart = await storeApi.getCart(); setCart(cart); return cart },
+    queryFn: async () => {
+      const cart = await storeApi.getCart()
+      syncCartStore(cart)
+      return cart
+    },
     enabled: isAuthenticated,
   })
 
+  const cartFromStore = useCartStore((s) => s.cart)
+
   if (!isAuthenticated) {
-    return { ...server, data: guestCart, isLoading: false, isFetched: true, isSuccess: true }
+    return {
+      ...server,
+      data: guestCart,
+      isLoading: false,
+      isFetching: false,
+      isFetched: true,
+      isSuccess: true,
+      status: 'success' as const,
+    }
   }
-  return server
+  return {
+    ...server,
+    data: cartFromStore ?? server.data,
+  }
 }
 
 export function useAddToCart() {
   const qc = useQueryClient()
-  const { isAuthenticated } = useAuthStore()
   const { vendorSlug } = useVendor()
-  const guestStore = useGuestCartStore()
   return useMutation({
     mutationFn: async (item: Parameters<typeof storeApi.addToCart>[0]) => {
-      if (!isAuthenticated) {
-        guestStore.addItem(vendorSlug, item)
-        return buildGuestCart(guestStore.getItems(vendorSlug))
+      if (!useAuthStore.getState().isAuthenticated) {
+        useGuestCartStore.getState().addItem(vendorSlug, item)
+        return buildGuestCart(useGuestCartStore.getState().getItems(vendorSlug))
       }
       return storeApi.addToCart(item)
     },
-    onSuccess: () => {
-      if (isAuthenticated) qc.invalidateQueries({ queryKey: storeKeys.cart })
+    onSuccess: (cart) => {
+      applyCartMutation(qc, cart)
       toast.success('Added to cart!')
     },
     onError: apiError('Could not add item to cart — it may be out of stock'),
@@ -114,38 +184,47 @@ export function useAddToCart() {
 
 export function useUpdateCartItem() {
   const qc = useQueryClient()
-  const { isAuthenticated } = useAuthStore()
   const { vendorSlug } = useVendor()
-  const guestStore = useGuestCartStore()
   return useMutation({
     mutationFn: async ({ index, qty }: { index: number; qty: number }) => {
-      if (!isAuthenticated) {
-        guestStore.updateQty(vendorSlug, index, qty)
-        return buildGuestCart(guestStore.getItems(vendorSlug))
+      if (!useAuthStore.getState().isAuthenticated) {
+        const store = useGuestCartStore.getState()
+        const before = store.getItems(vendorSlug)
+        if (index < 0 || index >= before.length) {
+          throw new Error('Cart item not found')
+        }
+        store.updateQty(vendorSlug, index, qty)
+        return buildGuestCart(store.getItems(vendorSlug))
       }
       return storeApi.updateCartItem(index, qty)
     },
-    onSuccess: () => { if (isAuthenticated) qc.invalidateQueries({ queryKey: storeKeys.cart }) },
+    onSuccess: (cart) => {
+      applyCartMutation(qc, cart)
+    },
+    onError: apiError('Could not update cart quantity'),
   })
 }
 
 export function useRemoveCartItem() {
   const qc = useQueryClient()
-  const { isAuthenticated } = useAuthStore()
   const { vendorSlug } = useVendor()
-  const guestStore = useGuestCartStore()
   return useMutation({
     mutationFn: async (index: number) => {
-      if (!isAuthenticated) {
-        guestStore.removeItem(vendorSlug, index)
-        return buildGuestCart(guestStore.getItems(vendorSlug))
+      if (!useAuthStore.getState().isAuthenticated) {
+        const store = useGuestCartStore.getState()
+        if (index < 0 || index >= store.getItems(vendorSlug).length) {
+          throw new Error('Cart item not found')
+        }
+        store.removeItem(vendorSlug, index)
+        return buildGuestCart(store.getItems(vendorSlug))
       }
       return storeApi.removeCartItem(index)
     },
-    onSuccess: () => {
-      if (isAuthenticated) qc.invalidateQueries({ queryKey: storeKeys.cart })
+    onSuccess: (cart) => {
+      applyCartMutation(qc, cart)
       toast.success('Item removed')
     },
+    onError: apiError('Could not remove item from cart'),
   })
 }
 
@@ -154,8 +233,8 @@ export function useCheckout() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: storeApi.checkout,
-    onSuccess: (order) => {
-      qc.invalidateQueries({ queryKey: storeKeys.cart })
+    onSuccess: async (order) => {
+      await resetCartAfterOrder(qc)
       toast.success(`Order ${order.order_number} placed!`)
       // Navigation handled by calling component using vendor context
     },

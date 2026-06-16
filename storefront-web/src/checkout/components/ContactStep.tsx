@@ -6,10 +6,13 @@ type Props = {
   customer: Partial<Customer>;
   onChange: (next: Partial<Customer>) => void;
   onSignInClick?: () => void;
+  fieldErrors?: Record<string, string>;
 };
 
-export function ContactStep({ customer, onChange, onSignInClick }: Props) {
+export function ContactStep({ customer, onChange, onSignInClick, fieldErrors = {} }: Props) {
   const { allowGuest } = useCheckoutConfig();
+  const showNameFields = customer.isGuest !== false;
+
   return (
     <div className="space-y-3">
       {allowGuest && (
@@ -22,8 +25,35 @@ export function ContactStep({ customer, onChange, onSignInClick }: Props) {
           </button>
         </div>
       )}
-      <label className="block">
-        <span className="ck-label">Email address</span>
+
+      {showNameFields && (
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <Field label="First name" error={fieldErrors.firstName} fieldKey="firstName">
+            <input
+              className="ck-input"
+              autoComplete="given-name"
+              placeholder="First name"
+              value={customer.firstName ?? ""}
+              aria-invalid={!!fieldErrors.firstName}
+              data-checkout-field="firstName"
+              onChange={(e) => onChange({ ...customer, firstName: e.target.value })}
+            />
+          </Field>
+          <Field label="Last name" error={fieldErrors.lastName} fieldKey="lastName">
+            <input
+              className="ck-input"
+              autoComplete="family-name"
+              placeholder="Last name"
+              value={customer.lastName ?? ""}
+              aria-invalid={!!fieldErrors.lastName}
+              data-checkout-field="lastName"
+              onChange={(e) => onChange({ ...customer, lastName: e.target.value })}
+            />
+          </Field>
+        </div>
+      )}
+
+      <Field label="Email address" error={fieldErrors.email} fieldKey="email">
         <div className="relative">
           <Mail
             size={16}
@@ -37,10 +67,32 @@ export function ContactStep({ customer, onChange, onSignInClick }: Props) {
             autoComplete="email"
             placeholder="you@example.com"
             value={customer.email ?? ""}
+            aria-invalid={!!fieldErrors.email}
+            data-checkout-field="email"
             onChange={(e) => onChange({ ...customer, email: e.target.value })}
           />
         </div>
-      </label>
+      </Field>
     </div>
+  );
+}
+
+function Field({
+  label,
+  error,
+  fieldKey,
+  children,
+}: {
+  label: string;
+  error?: string;
+  fieldKey?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <label className="block" data-checkout-field={fieldKey}>
+      <span className="ck-label">{label}</span>
+      {children}
+      {error && <span className="ck-field-error">{error}</span>}
+    </label>
   );
 }

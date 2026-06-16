@@ -99,8 +99,8 @@ export function resolveAssignedStorefrontTemplateId(
     if (storeTemplate) {
       return storeTemplate
     }
-    // Per-BU URL with no assignment on this store — do not fall back to vendor default layout.
-    return null
+    // Branch has no override — use vendor-wide assignment instead of legacy Home.
+    return resolveSingleFrontTemplateId(vendorSettings)
   }
 
   return resolveSingleFrontTemplateId(vendorSettings)

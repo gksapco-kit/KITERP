@@ -12,3 +12,7 @@ export const useCartStore = create<CartState>((set, get) => ({
   setCart: (cart) => set({ cart }),
   itemCount: () => get().cart?.items?.reduce((sum, i) => sum + i.qty, 0) || 0,
 }))
+
+export function selectCartItemCount(state: CartState): number {
+  return state.cart?.items?.reduce((sum, i) => sum + i.qty, 0) ?? 0
+}

@@ -148,14 +148,13 @@ function sitePagesToLiveItems(site: PublicSite, limit: number): LiveItem[] {
       return (a.sort_order ?? 0) - (b.sort_order ?? 0)
     })
   for (const page of sorted) {
-    if (page.is_homepage) continue
-    let url = `/${String(page.slug || '').replace(/^\/+|\/+$/g, '')}`
+    let url = page.is_homepage ? '/' : `/${String(page.slug || '').replace(/^\/+|\/+$/g, '')}`
     if (url === '/home') url = '/'
     if (seen.has(url)) continue
     seen.add(url)
     items.push({
       id: page.id,
-      title: page.title || page.slug || 'Page',
+      title: page.is_homepage ? 'Home' : (page.title || page.slug || 'Page'),
       subtitle: page.slug,
       url,
       meta: {

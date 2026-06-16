@@ -23,7 +23,11 @@ export function AccordionLayout({ state, actions }: { state: CheckoutState; acti
           <AccordionItem value="contact">
             <AccordionTrigger>1. Contact</AccordionTrigger>
             <AccordionContent>
-              <ContactStep customer={state.customer} onChange={actions.setCustomer} />
+              <ContactStep
+                customer={state.customer}
+                onChange={actions.setCustomer}
+                fieldErrors={state.fieldErrors}
+              />
               <button type="button" className="ck-btn-primary mt-4" onClick={() => setOpenItem("address")}>
                 Continue
               </button>
@@ -41,7 +45,13 @@ export function AccordionLayout({ state, actions }: { state: CheckoutState; acti
                   onAddNew={() => setAddingNew(true)}
                 />
               ) : (
-                <AddressForm initial={state.shippingAddress} onSubmit={actions.setShippingAddress} hideSubmit />
+                <AddressForm
+                  initial={state.shippingAddress}
+                  onSubmit={actions.setShippingAddress}
+                  onChange={actions.setShippingAddress}
+                  hideSubmit
+                  fieldErrors={state.fieldErrors}
+                />
               )}
               <button type="button" className="ck-btn-primary mt-4" onClick={() => setOpenItem("shipping")}>
                 Continue

@@ -7,13 +7,13 @@ import { AccordionLayout } from '@/checkout/layouts/AccordionLayout'
 import { CheckoutHeader, CheckoutFooter } from '@/checkout/components/Header'
 import { useStoreBridgeCheckout } from '@/hooks/useStoreBridgeCheckout'
 import { useCart, useStoreInfo } from '@/hooks/useStore'
-import { useVendor } from '@/contexts/VendorContext'
+import { useBranch } from '@/contexts/BranchContext'
 import { useBuilderSite } from '@/contexts/BuilderSiteContext'
 import { buildCheckoutThemeFromSiteStyle } from '@/checkout/buildCheckoutThemeFromSiteStyle'
 import type { StyleConfig } from '@/blocks/registry'
 
 export default function Checkout() {
-  const { storePath } = useVendor()
+  const { storePath } = useBranch()
   const { data: cart, isLoading: cartLoading } = useCart()
   const { data: storeInfo } = useStoreInfo()
   const { builderSite } = useBuilderSite()

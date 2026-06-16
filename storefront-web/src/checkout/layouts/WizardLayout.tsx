@@ -29,7 +29,11 @@ export function WizardLayout({ state, actions }: { state: CheckoutState; actions
           {step === "Information" && (
             <div className="space-y-5">
               <Header title="Contact information" onBack={null} />
-              <ContactStep customer={state.customer} onChange={actions.setCustomer} />
+              <ContactStep
+                customer={state.customer}
+                onChange={actions.setCustomer}
+                fieldErrors={state.fieldErrors}
+              />
               <h3 className="text-sm font-semibold">Shipping address</h3>
               {hasSaved && !addingNew ? (
                 <AddressBook
@@ -39,7 +43,13 @@ export function WizardLayout({ state, actions }: { state: CheckoutState; actions
                   onAddNew={() => setAddingNew(true)}
                 />
               ) : (
-                <AddressForm initial={state.shippingAddress} onSubmit={actions.setShippingAddress} hideSubmit />
+                <AddressForm
+                  initial={state.shippingAddress}
+                  onSubmit={actions.setShippingAddress}
+                  onChange={actions.setShippingAddress}
+                  hideSubmit
+                  fieldErrors={state.fieldErrors}
+                />
               )}
             </div>
           )}

@@ -60,6 +60,12 @@ class InventoryService:
 
         entity.quantity = max(0, qty_after)
 
+        if hasattr(entity, "stock_status"):
+            if entity.quantity <= 0:
+                entity.stock_status = "out_of_stock"
+            elif entity.stock_status == "out_of_stock":
+                entity.stock_status = "in_stock"
+
         movement = InventoryMovement(
             id=uuid_mod.uuid4(),
             vendor_id=vendor_id,
@@ -129,6 +135,12 @@ class InventoryService:
 
         entity.quantity = max(0, qty_after)
 
+        if hasattr(entity, "stock_status"):
+            if entity.quantity <= 0:
+                entity.stock_status = "out_of_stock"
+            elif entity.stock_status == "out_of_stock":
+                entity.stock_status = "in_stock"
+
         movement = InventoryMovement(
             id=uuid_mod.uuid4(),
             vendor_id=vendor_id,
@@ -188,6 +200,11 @@ class InventoryService:
         product = await self.db.get(Product, product_id)
         if product:
             product.quantity = total
+            if product.track_inventory:
+                if total <= 0:
+                    product.stock_status = "out_of_stock"
+                elif product.stock_status == "out_of_stock":
+                    product.stock_status = "in_stock"
 
     async def stock_in(
         self, vendor_id: UUID, product_id: UUID, quantity: int,

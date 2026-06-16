@@ -1,9 +1,15 @@
-import { Link } from "react-router-dom";
-import { CheckCircle2, Mail, Package, MapPin } from "lucide-react";
+import { Link, useParams } from "react-router-dom";
+import { useEffect } from "react";
+import { useQueryClient } from "@tanstack/react-query";
+import { CheckCircle2, Loader2, Mail, MapPin, Package } from "lucide-react";
 import { CheckoutHeader, CheckoutFooter } from "../components/Header";
 import { CheckoutConfigProvider, formatMoney, useCheckoutConfig } from "../config";
-import { mockOrder } from "../mock/data";
 import { LineItem } from "../components/LineItem";
+import { useBranch } from "@/contexts/BranchContext";
+import { useOrder, useCart, resetCartAfterOrder } from "@/hooks/useStore";
+import { useVendor } from "@/contexts/VendorContext";
+import type { CartItem } from "../types";
+import type { Order } from "@/types";
 
 export default function OrderConfirmationPage() {
   return (
@@ -15,7 +21,34 @@ export default function OrderConfirmationPage() {
 
 function Inner() {
   const { locale } = useCheckoutConfig();
-  const order = mockOrder;
+  const { orderId } = useParams<{ orderId: string }>();
+  const { storePath } = useBranch();
+  const { vendorSlug } = useVendor();
+  const qc = useQueryClient();
+  const { data: order, isLoading } = useOrder(orderId ?? "");
+  useCart();
+
+  useEffect(() => {
+    void resetCartAfterOrder(qc, vendorSlug);
+  }, [qc, vendorSlug]);
+
+  if (isLoading) {
+    return (
+      <div className="checkout-root min-h-screen">
+        <CheckoutHeader />
+        <main className="mx-auto flex max-w-3xl justify-center px-4 py-20">
+          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+        </main>
+        <CheckoutFooter />
+      </div>
+    );
+  }
+
+  const resolvedId = order?.id ?? orderId ?? "";
+  const lineItems = order ? mapOrderItems(order) : [];
+  const shipping = order?.shipping_address ?? {};
+  const customerName = String(shipping.full_name ?? shipping.name ?? "there");
+  const customerEmail = String(shipping.email ?? "");
 
   return (
     <div className="checkout-root min-h-screen">
@@ -31,11 +64,14 @@ function Inner() {
           >
             <CheckCircle2 size={28} />
           </div>
-          <h1 className="text-2xl font-semibold md:text-3xl">Thank you, {order.customer.firstName}!</h1>
+          <h1 className="text-2xl font-semibold md:text-3xl">Thank you, {customerName}!</h1>
           <p className="ck-text-muted mt-1 text-sm">
-            Your order <span className="font-medium">{order.number}</span> has been placed.
+            Your order{" "}
+            <span className="font-medium">{order?.order_number ?? resolvedId}</span> has been placed.
           </p>
-          <p className="ck-text-muted mt-1 text-sm">A confirmation email is on its way to {order.customer.email}.</p>
+          {customerEmail ? (
+            <p className="ck-text-muted mt-1 text-sm">A confirmation email is on its way to {customerEmail}.</p>
+          ) : null}
         </div>
 
         <div className="ck-surface ck-border ck-radius-md mb-4 p-4 md:p-6">
@@ -47,41 +83,48 @@ function Inner() {
           </ul>
         </div>
 
-        <div className="ck-surface ck-border ck-radius-md mb-4 p-4 md:p-6">
-          <h2 className="mb-3 text-base font-semibold">Order details</h2>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <Block label="Shipping to">
-              {order.shippingAddress.fullName}
-              <br />
-              {order.shippingAddress.line1}
-              {order.shippingAddress.line2 ? `, ${order.shippingAddress.line2}` : ""}
-              <br />
-              {order.shippingAddress.city}, {order.shippingAddress.region} {order.shippingAddress.postalCode}
-            </Block>
-            <Block label="Payment">{order.paymentSummary.method}</Block>
-            <Block label="Shipping method">{order.shippingMethod.label}</Block>
-            <Block label="Total">{formatMoney(order.cart.total, locale)}</Block>
-          </div>
-        </div>
-
-        <div className="ck-surface ck-border ck-radius-md mb-6 p-4 md:p-6">
-          <h2 className="mb-2 text-base font-semibold">Items</h2>
-          {order.cart.items.map((it, i) => (
-            <div key={it.id} className={i > 0 ? "ck-border-t" : ""}>
-              <LineItem item={it} compact />
+        {order ? (
+          <>
+            <div className="ck-surface ck-border ck-radius-md mb-4 p-4 md:p-6">
+              <h2 className="mb-3 text-base font-semibold">Order details</h2>
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <Block label="Shipping to">
+                  {formatAddress(shipping)}
+                </Block>
+                <Block label="Payment">{order.payment_method ?? order.payment_status ?? "—"}</Block>
+                <Block label="Status">{order.status.replace(/_/g, " ")}</Block>
+                <Block label="Total">{formatMoney({ amount: Math.round(order.total * 100), currency: "INR" }, locale)}</Block>
+              </div>
             </div>
-          ))}
-        </div>
+
+            {lineItems.length > 0 ? (
+              <div className="ck-surface ck-border ck-radius-md mb-6 p-4 md:p-6">
+                <h2 className="mb-2 text-base font-semibold">Items</h2>
+                {lineItems.map((it, i) => (
+                  <div key={it.id} className={i > 0 ? "ck-border-t" : ""}>
+                    <LineItem item={it} compact />
+                  </div>
+                ))}
+              </div>
+            ) : null}
+          </>
+        ) : null}
 
         <div className="flex flex-col gap-3 sm:flex-row">
+          {resolvedId ? (
+            <Link
+              to={storePath(`/order/${resolvedId}/status`)}
+              className="ck-btn-primary no-underline"
+              style={{ width: "auto", padding: "12px 24px", textAlign: "center" }}
+            >
+              Track your order
+            </Link>
+          ) : null}
           <Link
-            to={`/order/${order.id}/status`}
-            className="ck-btn-primary no-underline"
-            style={{ width: "auto", padding: "12px 24px", textAlign: "center" }}
+            to={storePath("/products")}
+            className="ck-btn-secondary no-underline"
+            style={{ textAlign: "center" }}
           >
-            Track your order
-          </Link>
-          <Link to="/" className="ck-btn-secondary no-underline" style={{ textAlign: "center" }}>
             Continue shopping
           </Link>
         </div>
@@ -89,6 +132,33 @@ function Inner() {
       <CheckoutFooter />
     </div>
   );
+}
+
+function mapOrderItems(order: Order): CartItem[] {
+  return (order.items ?? []).map((item, i) => ({
+    id: String(i),
+    productId: item.product_id,
+    name: item.name,
+    imageUrl: item.image_url,
+    unitPrice: { amount: Math.round(Number(item.price) * 100), currency: "INR" },
+    quantity: item.qty,
+  }));
+}
+
+function formatAddress(shipping: Record<string, string>): React.ReactNode {
+  const lines = [
+    shipping.full_name || shipping.name,
+    shipping.street_address || shipping.line1,
+    [shipping.city, shipping.state || shipping.region, shipping.postal_code].filter(Boolean).join(", "),
+    shipping.country,
+  ].filter(Boolean);
+  if (!lines.length) return "—";
+  return lines.map((line, i) => (
+    <span key={i}>
+      {line}
+      {i < lines.length - 1 ? <br /> : null}
+    </span>
+  ));
 }
 
 function NextStep({ icon, title, body }: { icon: React.ReactNode; title: string; body: string }) {

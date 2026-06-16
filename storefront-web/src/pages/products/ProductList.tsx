@@ -5,9 +5,9 @@ import { Input } from '@/components/ui/input'
 import { useProducts, useServices, useStoreCategories } from '@/hooks/useStore'
 import { useAddToCart } from '@/hooks/useStore'
 import { formatCurrency, imgUrl } from '@/lib/utils'
-import type { Product, Service } from '@/types'
+import type { Product, Service, ProductVariant } from '@/types'
 import {
-  Search, ShoppingBag, Loader2, ChevronLeft, ChevronRight,
+  Search, ShoppingBag, ShoppingCart, Loader2, ChevronLeft, ChevronRight,
   Grid3X3, LayoutList, SlidersHorizontal, X, Package, Wrench,
   ChevronDown,
 } from 'lucide-react'
@@ -62,6 +62,26 @@ function flattenCats(cats: StoreCategory[], prefix = ''): { name: string; label:
   return result
 }
 
+/** Match grid ProductCard / bridgeProduct stock logic (variants, stock_status, inventory flags). */
+function variantHasStock(v: ProductVariant, product: Product): boolean {
+  if ((v.stock_status ?? 'in_stock') === 'out_of_stock') return false
+  const track = v.track_inventory ?? product.track_inventory ?? true
+  if (!track) return true
+  if (v.allow_backorders ?? product.allow_backorders) return true
+  return (v.quantity ?? 0) > 0
+}
+
+function productHasStock(product: Product): boolean {
+  const variants = (product.variants || []).filter((v) => v.is_active !== false)
+  if (variants.length > 0) {
+    return variants.some((v) => variantHasStock(v, product))
+  }
+  if (product.stock_status === 'out_of_stock') return false
+  if (product.allow_backorders) return true
+  if (!product.track_inventory) return true
+  return (product.quantity ?? 0) > 0
+}
+
 export default function ProductList() {
   const { storePath } = useBranch()
   const theme = useTheme()
@@ -111,14 +131,15 @@ export default function ProductList() {
     max_price: maxPrice ? parseFloat(maxPrice) : undefined,
   }), [page, search, selectedCategory, minPrice, maxPrice, filterType, pageSize])
 
-  const { data: productsData, isLoading: productsLoading } = useProducts(
+  const { data: productsData, isLoading: productsLoading, isError: productsError, refetch: refetchProducts } = useProducts(
     filterType === 'services' ? undefined : productParams
   )
-  const { data: servicesData, isLoading: servicesLoading } = useServices(
+  const { data: servicesData, isLoading: servicesLoading, isError: servicesError, refetch: refetchServices } = useServices(
     filterType === 'products' ? undefined : serviceParams
   )
 
   const isLoading = productsLoading || servicesLoading
+  const catalogError = productsError || servicesError
 
   // Combine and filter results
   const allCombinedItems = useMemo(() => {
@@ -133,7 +154,7 @@ export default function ProductList() {
     }
     if (inStockOnly) {
       items = items.filter((item) => {
-        if (item.type === 'product') return ((item as Product).quantity ?? 0) > 0 || !(item as Product).track_inventory
+        if (item.type === 'product') return productHasStock(item as Product)
         return true
       })
     }
@@ -504,11 +525,28 @@ export default function ProductList() {
           ) : !combinedItems.length ? (
             <div className="text-center py-20 bg-white rounded-xl border">
               <ShoppingBag className="w-16 h-16 text-gray-200 mx-auto mb-4" />
-              <h3 className="text-lg font-semibold text-gray-900 mb-1">No items found</h3>
-              <p className="text-gray-500 text-sm mb-4">Try adjusting your search or filters</p>
-              {(search || selectedCategory || minPrice || maxPrice || inStockOnly) && (
+              <h3 className="text-lg font-semibold text-gray-900 mb-1">
+                {catalogError ? 'Could not load catalog' : 'No items found'}
+              </h3>
+              <p className="text-gray-500 text-sm mb-4">
+                {catalogError
+                  ? 'Your products are still in the store — try refreshing the page.'
+                  : 'Try adjusting your search or filters'}
+              </p>
+              {catalogError ? (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    void refetchProducts()
+                    void refetchServices()
+                  }}
+                >
+                  Refresh products
+                </Button>
+              ) : (search || selectedCategory || minPrice || maxPrice || inStockOnly) ? (
                 <Button variant="outline" size="sm" onClick={clearFilters}>Clear Filters</Button>
-              )}
+              ) : null}
             </div>
           ) : viewMode === 'grid' ? (
             <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4">
@@ -516,7 +554,7 @@ export default function ProductList() {
                 const isProduct = item.type === 'product'
                 const detailPath = isProduct ? `/products/${item.slug}` : `/services/${item.slug}`
                 const imageUrl = isProduct ? item.images?.[0]?.url : item.image_url
-                const hasStock = isProduct ? ((item.quantity ?? 0) > 0 || !item.track_inventory) : true
+                const hasStock = isProduct ? productHasStock(item as Product) : true
 
                 const variants = isProduct ? (item.variants || []).filter((v: any) => v.is_active !== false) : []
                 const effectivePrice = isProduct
@@ -625,7 +663,7 @@ export default function ProductList() {
                             options: v.attributes || {},
                             price: { amount: Math.round((v.price ?? 0) * 100), currency: v.currency || 'INR' },
                             compareAtPrice: v.compare_at_price ? { amount: Math.round(v.compare_at_price * 100), currency: v.currency || 'INR' } : undefined,
-                            inStock: (v.stock_status ?? 'in_stock') !== 'out_of_stock',
+                            inStock: variantHasStock(v, item as Product),
                           }))
                         : [{ id: `${item.id}-default`, name: 'Default', options: {}, price: { amount: Math.round((item.price ?? 0) * 100), currency: item.currency || 'INR' }, inStock: hasStock }],
                       rating: (item.avg_rating ?? 0) > 0 ? { value: item.avg_rating, count: item.review_count ?? 0 } : undefined,
@@ -735,12 +773,34 @@ export default function ProductList() {
                 const isProduct = item.type === 'product'
                 const detailPath = isProduct ? `/products/${item.slug}` : `/services/${item.slug}`
                 const imageUrl = isProduct ? item.images?.[0]?.url : item.image_url
-                const hasStock = isProduct ? ((item.quantity ?? 0) > 0 || !item.track_inventory) : true
-                
+                const hasStock = isProduct ? productHasStock(item as Product) : true
+                const variants = isProduct ? (item.variants || []).filter((v: any) => v.is_active !== false) : []
+                const effectivePrice = isProduct
+                  ? (item.price > 0 ? item.price : variants.length > 0 ? Math.min(...variants.map((v: any) => v.price)) : 0)
+                  : (item.price || item.price_min || 0)
+                const showFrom = isProduct && item.price === 0 && variants.length > 0
+
+                const handleListAddToCart = async () => {
+                  if (!isProduct || !hasStock) return
+                  try {
+                    await addToCart.mutateAsync({
+                      product_id: item.id,
+                      name: item.name,
+                      qty: 1,
+                      price: effectivePrice,
+                      image_url: imageUrl ? imgUrl(imageUrl) : undefined,
+                    })
+                  } catch {
+                    toast.error('Could not add to cart')
+                  }
+                }
+
                 return (
-                  <Link key={`${item.type}-${item.id}`} to={storePath(detailPath)}
-                    className="group flex gap-4 bg-white rounded-xl border p-4 hover:shadow-md transition-all max-h-[90vh] overflow-y-auto">
-                    <div className="w-32 h-32 sm:w-44 sm:h-44 bg-gray-50 rounded-lg overflow-hidden shrink-0 relative">
+                  <div
+                    key={`${item.type}-${item.id}`}
+                    className="group flex gap-4 bg-white rounded-xl border p-4 hover:shadow-md transition-all max-h-[90vh] overflow-y-auto"
+                  >
+                    <Link to={storePath(detailPath)} className="w-32 h-32 sm:w-44 sm:h-44 bg-gray-50 rounded-lg overflow-hidden shrink-0 relative block">
                       {imageUrl ? (
                         <img src={imgUrl(imageUrl)} alt={item.name} className="w-full h-full object-cover" />
                       ) : (
@@ -751,11 +811,11 @@ export default function ProductList() {
                       <span className="absolute top-2 right-2 text-white text-xs font-bold px-2 py-0.5 rounded bg-[color:var(--color-primary)]">
                         {isProduct ? 'Product' : 'Service'}
                       </span>
-                    </div>
+                    </Link>
                     <div className="flex-1 min-w-0 py-1">
-                      <h3 className={`text-base font-medium text-gray-900 line-clamp-2 ${themeUi.groupHoverTitle}`}>
+                      <Link to={storePath(detailPath)} className={`text-base font-medium text-gray-900 line-clamp-2 block no-underline ${themeUi.groupHoverTitle}`}>
                         {item.name}
-                      </h3>
+                      </Link>
                       {(item.avg_rating ?? 0) > 0 && (
                         <div className="mt-1"><StarRating rating={item.avg_rating!} size="sm" showValue reviewCount={item.review_count} /></div>
                       )}
@@ -763,38 +823,30 @@ export default function ProductList() {
                         <p className="text-sm text-gray-500 mt-2 line-clamp-2">{item.description || item.short_description}</p>
                       )}
                       <div className="mt-3">
-                        {(() => {
-                          if (isProduct) {
-                            const variants = (item.variants || []).filter((v: any) => v.is_active !== false)
-                            const effectivePrice = item.price > 0 ? item.price : variants.length > 0 ? Math.min(...variants.map((v: any) => v.price)) : 0
-                            const showFrom = item.price === 0 && variants.length > 0
-                            return (
+                        {isProduct ? (
+                          <>
+                            {showFrom && <span className="text-sm text-gray-500 mr-1">From</span>}
+                            <span className="text-xl font-bold">{formatCurrency(effectivePrice)}</span>
+                            {item.compare_at_price && item.compare_at_price > effectivePrice && (
                               <>
-                                {showFrom && <span className="text-sm text-gray-500 mr-1">From</span>}
-                                <span className="text-xl font-bold">{formatCurrency(effectivePrice)}</span>
-                                {item.compare_at_price && item.compare_at_price > effectivePrice && (
-                                  <>
-                                    <span className="text-sm text-gray-400 line-through ml-2">{formatCurrency(item.compare_at_price)}</span>
-                                    <span className="text-sm text-red-500 ml-2">
-                                      ({Math.round((1 - effectivePrice / item.compare_at_price) * 100)}% off)
-                                    </span>
-                                  </>
-                                )}
-                                {variants.length > 1 && (
-                                  <span className="text-xs text-gray-500 ml-2">({variants.length} options)</span>
-                                )}
+                                <span className="text-sm text-gray-400 line-through ml-2">{formatCurrency(item.compare_at_price)}</span>
+                                <span className="text-sm text-red-500 ml-2">
+                                  ({Math.round((1 - effectivePrice / item.compare_at_price) * 100)}% off)
+                                </span>
                               </>
-                            )
-                          }
-                          return (
-                            <>
-                              <span className="text-xl font-bold">{formatCurrency(item.price || item.price_min || 0)}</span>
-                              {item.price_min && item.price_max && item.price_min !== item.price_max && (
-                                <span className="text-sm text-gray-500 ml-2">- {formatCurrency(item.price_max)}</span>
-                              )}
-                            </>
-                          )
-                        })()}
+                            )}
+                            {variants.length > 1 && (
+                              <span className="text-xs text-gray-500 ml-2">({variants.length} options)</span>
+                            )}
+                          </>
+                        ) : (
+                          <>
+                            <span className="text-xl font-bold">{formatCurrency(effectivePrice)}</span>
+                            {item.price_min && item.price_max && item.price_min !== item.price_max && (
+                              <span className="text-sm text-gray-500 ml-2">- {formatCurrency(item.price_max)}</span>
+                            )}
+                          </>
+                        )}
                       </div>
                       {isProduct && (
                         <p className="text-xs text-green-600 font-medium mt-1">Free Delivery</p>
@@ -803,7 +855,28 @@ export default function ProductList() {
                         <p className="text-xs text-gray-500 mt-1 capitalize">{item.service_mode.replace('_', ' ')}</p>
                       )}
                     </div>
-                  </Link>
+                    <div className="flex shrink-0 flex-col items-stretch justify-center gap-2 sm:min-w-[140px]">
+                      {isProduct ? (
+                        <Button
+                          size="sm"
+                          className="gap-1.5"
+                          disabled={!hasStock || addToCart.isPending}
+                          onClick={handleListAddToCart}
+                        >
+                          {addToCart.isPending ? (
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                          ) : (
+                            <ShoppingCart className="w-4 h-4" />
+                          )}
+                          {hasStock ? 'Add to cart' : 'Out of stock'}
+                        </Button>
+                      ) : (
+                        <Button size="sm" variant="outline" asChild>
+                          <Link to={storePath(detailPath)}>View service</Link>
+                        </Button>
+                      )}
+                    </div>
+                  </div>
                 )
               })}
             </div>

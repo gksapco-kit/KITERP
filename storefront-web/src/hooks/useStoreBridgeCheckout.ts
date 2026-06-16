@@ -4,13 +4,14 @@
  */
 import { useMemo, useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { useCart, useUpdateCartItem, useRemoveCartItem, useCheckout, useStoreInfo } from './useStore'
+import { useQueryClient } from '@tanstack/react-query'
+import { useCart, useUpdateCartItem, useRemoveCartItem, useCheckout, useStoreInfo, resetCartAfterOrder } from './useStore'
 import { useAuthStore } from '@/stores/authStore'
-import { useGuestCartStore } from '@/stores/guestCartStore'
 import { useVendor } from '@/contexts/VendorContext'
 import { useBranch } from '@/contexts/BranchContext'
 import { storeApi } from '@/api/store'
 import { openRazorpayCheckout, mockRazorpayPay } from '@/lib/razorpay'
+import { validateCheckoutFields, scrollToFirstCheckoutField, type CheckoutFieldErrors } from '@/checkout/validateCheckout'
 import type { Address, Cart, Customer, PaymentSelection, ShippingMethod } from '@/checkout/types'
 
 const FALLBACK_SHIPPING: ShippingMethod[] = [
@@ -42,11 +43,11 @@ function isOnlinePayment(method: 'cod' | 'upi' | 'card'): boolean {
 
 export function useStoreBridgeCheckout() {
   const navigate = useNavigate()
-  const { storePath } = useVendor()
+  const qc = useQueryClient()
+  const { storePath } = useBranch()
   const { customer, isAuthenticated, setTokens, setCustomer } = useAuthStore()
   const { vendorSlug } = useVendor()
   const { branchCode, isBranchClosed } = useBranch()
-  const clearGuestCart = useGuestCartStore(s => s.clear)
   const isGuest = !isAuthenticated
   const { data: cart } = useCart()
   const { data: storeInfo } = useStoreInfo()
@@ -91,7 +92,17 @@ export function useStoreBridgeCheckout() {
   const [couponCode, setCouponCode] = useState<string | null>(null)
   const [previewLoading, setPreviewLoading] = useState(false)
   const [previewError, setPreviewError] = useState<string | undefined>()
+  const [fieldErrors, setFieldErrors] = useState<CheckoutFieldErrors>({})
   const [serverPreview, setServerPreview] = useState<Awaited<ReturnType<typeof storeApi.checkoutPreview>> | null>(null)
+
+  const clearFieldErrors = useCallback((keys: string[]) => {
+    setFieldErrors(prev => {
+      if (!keys.length || !Object.keys(prev).length) return prev
+      const next = { ...prev }
+      for (const key of keys) delete next[key]
+      return next
+    })
+  }, [])
 
   const resolvedAddress: Address | undefined = shippingAddress
     ?? (selectedSavedAddressId !== undefined
@@ -201,6 +212,7 @@ export function useStoreBridgeCheckout() {
         order_id: orderId,
         ...payment,
       })
+      await resetCartAfterOrder(qc, vendorSlug)
       navigate(storePath(`/order/${orderId}/confirmation`))
     }
 
@@ -222,18 +234,23 @@ export function useStoreBridgeCheckout() {
         void finish(response)
       },
     })
-  }, [navigate, storePath, storeName])
+  }, [navigate, storePath, storeName, qc, vendorSlug])
 
   const actions = useMemo(() => ({
-    setCustomer: (c: Partial<Customer>) => setCustomerInfo(c),
+    setCustomer: (c: Partial<Customer>) => {
+      setCustomerInfo(c)
+      clearFieldErrors(['email', 'firstName', 'lastName'])
+    },
 
     setShippingAddress: (a: Address) => {
       setShippingAddressState(a)
       setSelectedSavedAddressId(undefined)
+      clearFieldErrors(['fullName', 'line1', 'city', 'region', 'postalCode', 'country', 'phone', 'shippingAddress'])
     },
     selectSavedAddress: (id: string) => {
       setSelectedSavedAddressId(id)
       setShippingAddressState(undefined)
+      clearFieldErrors(['fullName', 'line1', 'city', 'region', 'postalCode', 'country', 'phone', 'shippingAddress'])
     },
     clearSavedAddress: () => {
       setSelectedSavedAddressId(undefined)
@@ -277,10 +294,29 @@ export function useStoreBridgeCheckout() {
       void refreshPreview(null)
     },
 
-    placeOrder: async (): Promise<{ ok: boolean; orderId?: string; error?: string }> => {
+    placeOrder: async (): Promise<{ ok: boolean; orderId?: string; error?: string; fieldErrors?: CheckoutFieldErrors }> => {
       if (isBranchClosed) {
         return { ok: false, error: 'This store is currently closed. Please check back later or choose another location.' }
       }
+
+      const usingSavedAddress = !isGuest && !!selectedSavedAddressId && !!savedAddresses.length
+      const validationErrors = validateCheckoutFields({
+        customer: customerInfo,
+        shippingAddress: resolvedAddress,
+        isGuest,
+        usingSavedAddress,
+      })
+
+      if (Object.keys(validationErrors).length > 0) {
+        setFieldErrors(validationErrors)
+        scrollToFirstCheckoutField(validationErrors)
+        return {
+          ok: false,
+          error: 'Please fill in all required fields highlighted below.',
+          fieldErrors: validationErrors,
+        }
+      }
+      setFieldErrors({})
 
       const paymentMethod = checkoutToPayment(payment)
       const shippingPayload = {
@@ -325,7 +361,6 @@ export function useStoreBridgeCheckout() {
             if (result.customer) setCustomer(result.customer as any)
           }
           orderId = result.id
-          clearGuestCart(vendorSlug)
         } else {
           const order = await checkoutMutation.mutateAsync({
             shipping_address: shippingPayload,
@@ -337,6 +372,8 @@ export function useStoreBridgeCheckout() {
           })
           orderId = order.id
         }
+
+        await resetCartAfterOrder(qc, vendorSlug)
 
         if (isOnlinePayment(paymentMethod)) {
           await completeOnlinePayment(orderId)
@@ -352,8 +389,8 @@ export function useStoreBridgeCheckout() {
     resolvedAddress, payment, notes, couponCode, shippingMethodId,
     checkoutMutation, navigate, storePath, removeItem, updateItem,
     completeOnlinePayment, refreshPreview, isGuest, customerInfo,
-    cartItemsPayload, setTokens, setCustomer, clearGuestCart, vendorSlug,
-    branchCode, isBranchClosed,
+    cartItemsPayload, setTokens, setCustomer, vendorSlug, qc,
+    branchCode, isBranchClosed, clearFieldErrors, selectedSavedAddressId, savedAddresses,
   ])
 
   return {
@@ -374,6 +411,7 @@ export function useStoreBridgeCheckout() {
       giftMessage,
       isPlacing: checkoutMutation.isPending || previewLoading,
       error: previewError,
+      fieldErrors,
       isBranchClosed,
     },
     actions,

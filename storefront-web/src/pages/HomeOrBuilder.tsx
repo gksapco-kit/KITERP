@@ -8,6 +8,7 @@
  */
 import { Loader2 } from 'lucide-react'
 import { useBuilderSite } from '@/contexts/BuilderSiteContext'
+import { useVendor } from '@/contexts/VendorContext'
 import BuilderPage from '@/pages/BuilderPage'
 import Home from '@/pages/Home'
 import CatalogStorefrontLiveHome from '@/pages/CatalogStorefrontLiveHome'
@@ -19,6 +20,7 @@ import {
   isStorefrontCatalogTemplateId,
   isWebsiteBuilderBlockTemplateId,
   resolveLiveCatalogTemplateId,
+  resolveSingleFrontTemplateId,
 } from '@/lib/storefrontTemplateAssignment'
 
 function renderBlockTemplateHome(templateId: string) {
@@ -40,6 +42,7 @@ function renderAssignedTemplateHome(assignedTemplateId: string) {
 
 export default function HomeOrBuilder() {
   const { builderSite, isLoading: builderSiteLoading } = useBuilderSite()
+  const { vendor } = useVendor()
   const assignedTemplateId = useAssignedStorefrontTemplateId()
   const templatePending = useAssignedStorefrontTemplatePending()
 
@@ -82,6 +85,13 @@ export default function HomeOrBuilder() {
       return renderBlockTemplateHome(catalogId)
     }
     return <CatalogStorefrontLiveHome catalogTemplateId={catalogId} />
+  }
+
+  // Only show legacy Home when no template is assigned anywhere.
+  const vendorTemplateId = resolveSingleFrontTemplateId(vendor?.settings as Record<string, unknown> | undefined)
+  if (vendorTemplateId) {
+    const vendorHome = renderAssignedTemplateHome(vendorTemplateId)
+    if (vendorHome) return vendorHome
   }
 
   return <Home />
