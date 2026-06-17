@@ -45,6 +45,16 @@ class ShippingAddress(BaseModel):
     postal_code: str
     country: str = "India"
     label: Optional[str] = "home"
+    phone: Optional[str] = Field(None, max_length=20)
+
+    @field_validator("phone", mode="before")
+    @classmethod
+    def empty_phone_to_none(cls, v: object) -> Optional[str]:
+        if v is None:
+            return None
+        if isinstance(v, str) and not v.strip():
+            return None
+        return str(v).strip()
 
 
 class OrderItemResponse(BaseModel):
@@ -68,7 +78,23 @@ class CheckoutRequest(BaseModel):
 class GuestCustomerInfo(BaseModel):
     full_name: str = Field(..., min_length=2, max_length=255)
     email: str = Field(..., min_length=3, max_length=255)
-    phone: Optional[str] = Field(None, min_length=10, max_length=20)
+    phone: Optional[str] = Field(None, max_length=20)
+
+    @field_validator("phone", mode="before")
+    @classmethod
+    def empty_phone_to_none(cls, v: object) -> Optional[str]:
+        if v is None:
+            return None
+        if isinstance(v, str) and not v.strip():
+            return None
+        return str(v).strip()
+
+    @field_validator("phone")
+    @classmethod
+    def validate_phone_length(cls, v: Optional[str]) -> Optional[str]:
+        if v is not None and len(v) < 10:
+            raise ValueError("Phone must be at least 10 digits")
+        return v
 
 
 class GuestCartItem(BaseModel):

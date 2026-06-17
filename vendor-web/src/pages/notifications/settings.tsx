@@ -579,8 +579,8 @@ export default function NotificationSettingsPage() {
       <SectionCard id="sec-channels" icon={Bell} iconColor="text-blue-600" title="Delivery Channels" subtitle="Choose how notifications reach you." dimmed={isDisabled}>
         <PreferenceRow icon={Monitor} iconColor="bg-blue-100 text-blue-600" title="In-App" description="Notification inbox in the dashboard." checked={prefs.in_app} onChange={v => set('in_app', v)} />
         <PreferenceRow icon={Mail} iconColor="bg-indigo-100 text-indigo-600" title="Email" description="Sent to your registered email address." checked={prefs.email} onChange={v => set('email', v)} />
-        <PreferenceRow icon={MessageSquare} iconColor="bg-green-100 text-green-600" title="SMS" description="Text message to your phone." checked={prefs.sms} onChange={v => set('sms', v)} badge="Coming soon" disabled />
-        <PreferenceRow icon={MessageCircle} iconColor="bg-emerald-100 text-emerald-600" title="WhatsApp" description="Message via WhatsApp to your linked number." checked={prefs.whatsapp} onChange={v => set('whatsapp', v)} badge="Coming soon" disabled />
+        <PreferenceRow icon={MessageSquare} iconColor="bg-green-100 text-green-600" title="SMS" description="Text message to your phone and customers when orders are placed." checked={prefs.sms} onChange={v => set('sms', v)} />
+        <PreferenceRow icon={MessageCircle} iconColor="bg-emerald-100 text-emerald-600" title="WhatsApp" description="WhatsApp message to your linked number and customers on new orders." checked={prefs.whatsapp} onChange={v => set('whatsapp', v)} />
         <PreferenceRow icon={Smartphone} iconColor="bg-primary/12 text-primary" title="Mobile Push" description="Native push on the mobile app." checked={prefs.push} onChange={v => set('push', v)} badge="Coming soon" disabled />
 
         {/* Browser desktop push — inline permission row */}

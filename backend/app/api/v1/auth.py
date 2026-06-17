@@ -507,17 +507,29 @@ async def update_me(
             updates["full_name"] = name
 
     if payload.phone is not None:
-        phone = payload.phone.strip() or None
-        if phone and phone != current_user.phone:
-            existing = await db.execute(
-                select(User).where(User.phone == phone, User.id != current_user.id)
-            )
-            if existing.scalar_one_or_none():
-                raise HTTPException(status_code=409, detail="Phone number is already in use")
-            updates["phone"] = phone
-            updates["is_phone_verified"] = False
-        elif phone is None:
+        from app.services.sms_service import normalize_e164, is_valid_e164
+        from app.services.user_cleanup import remove_orphan_users_by_phone
+
+        raw = payload.phone.strip() or None
+        if raw is None:
             updates["phone"] = None
+            updates["is_phone_verified"] = False
+        else:
+            phone = normalize_e164(raw)
+            if not is_valid_e164(phone):
+                raise HTTPException(
+                    status_code=422,
+                    detail="Enter a valid mobile number with country code (e.g. +919876543210)",
+                )
+            if _phones_equivalent(phone, current_user.phone):
+                if phone != current_user.phone:
+                    updates["phone"] = phone
+            else:
+                # Reclaim phone from abandoned signups; per-vendor identity allows the same
+                # number on multiple active users, so do not block profile updates globally.
+                await remove_orphan_users_by_phone(db, phone)
+                updates["phone"] = phone
+                updates["is_phone_verified"] = False
 
     if payload.avatar_url is not None:
         url = payload.avatar_url.strip()
@@ -1107,6 +1119,18 @@ def _generate_slug(business_name: str) -> str:
 
 def _vendor_signup_phone_key(phone: str) -> str:
     return re.sub(r"\D", "", phone or "")
+
+
+def _phones_equivalent(a: Optional[str], b: Optional[str]) -> bool:
+    """True when two stored/input phones refer to the same line (E.164 vs local digits)."""
+    da = _vendor_signup_phone_key(a or "")
+    db = _vendor_signup_phone_key(b or "")
+    if not da and not db:
+        return True
+    if da == db:
+        return True
+    shorter, longer = (da, db) if len(da) <= len(db) else (db, da)
+    return len(shorter) >= 10 and longer.endswith(shorter)
 
 
 def _require_valid_mobile(phone: str) -> str:

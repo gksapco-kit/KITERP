@@ -173,6 +173,55 @@ class PaymentGatewayService:
         vendor = await VendorRepository(self.db).get_by_id(payment.vendor_id) if order else None
         return order, vendor
 
+    async def _maybe_send_placement_notifications(
+        self,
+        order: Order,
+        vendor_id: UUID,
+        customer_id: UUID,
+    ) -> None:
+        """Send order confirmation channels once after payment (idempotent)."""
+        result = await self.db.execute(
+            select(Payment).where(Payment.order_id == order.id).order_by(Payment.created_at.desc())
+        )
+        payment = result.scalars().first()
+        gateway_response = dict(payment.gateway_response or {}) if payment else {}
+        if gateway_response.get("placement_notifications_sent"):
+            return
+
+        try:
+            from app.repositories.customer_repo import CustomerRepository
+            from app.services.order_notification_service import send_order_placed_notifications
+
+            vendor = await VendorRepository(self.db).get_by_id(vendor_id)
+            customer = await CustomerRepository(self.db).get_by_vendor_and_id(
+                vendor_id, customer_id,
+            )
+            if not vendor:
+                return
+            log.info(
+                "Sending order confirmation notifications after payment for %s",
+                order.order_number,
+            )
+            await send_order_placed_notifications(
+                self.db,
+                vendor=vendor,
+                order=order,
+                customer=customer,
+            )
+            if payment:
+                payment.gateway_response = {
+                    **gateway_response,
+                    "placement_notifications_sent": True,
+                }
+            await self.db.commit()
+        except Exception as exc:
+            log.warning(
+                "Order confirmation notifications failed after payment for order %s: %s",
+                order.id,
+                exc,
+                exc_info=True,
+            )
+
     async def _finalize_paid_order(
         self,
         order: Order,
@@ -182,8 +231,7 @@ class PaymentGatewayService:
         razorpay_payment_id: str,
     ) -> Order:
         if order.payment_status == "paid":
-            if order.payment_reference == razorpay_payment_id:
-                return order
+            await self._maybe_send_placement_notifications(order, vendor_id, customer_id)
             return order
 
         order.payment_status = "paid"
@@ -249,6 +297,8 @@ class PaymentGatewayService:
         except Exception as exc:
             log.warning("Invoice after Razorpay payment failed for %s: %s", order.id, exc)
 
+        await self._maybe_send_placement_notifications(order, vendor_id, customer_id)
+
         return order
 
     async def confirm_razorpay_payment(
@@ -265,6 +315,7 @@ class PaymentGatewayService:
         if not order or order.customer_id != customer_id:
             raise HTTPException(404, "Order not found")
         if order.payment_status == "paid":
+            await self._maybe_send_placement_notifications(order, vendor_id, customer_id)
             return order
 
         if not self.verify_razorpay_signature(
@@ -298,6 +349,9 @@ class PaymentGatewayService:
             return {"ok": False, "error": "order_not_found"}
 
         if order.payment_status == "paid":
+            await self._maybe_send_placement_notifications(
+                order, order.vendor_id, order.customer_id,
+            )
             return {"ok": True, "order_id": str(order.id), "already_paid": True}
 
         await self._finalize_paid_order(

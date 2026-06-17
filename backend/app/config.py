@@ -65,6 +65,8 @@ class Settings(BaseSettings):
     TWILIO_ACCOUNT_SID: str = ""
     TWILIO_AUTH_TOKEN: str = ""
     TWILIO_FROM_NUMBER: str = ""
+    # E.164 number for WhatsApp sender (code prefixes whatsapp:). Sandbox: +14155238886
+    TWILIO_WHATSAPP_FROM: str = ""
     TWILIO_VERIFY_SERVICE_SID: str = ""
 
     model_config = SettingsConfigDict(

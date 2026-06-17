@@ -253,6 +253,8 @@ class MarketplaceService:
 
         try:
             from app.services.notification_service import NotificationService
+            from app.services.order_notification_service import send_order_placed_notifications
+            from app.repositories.customer_repo import CustomerRepository
 
             vendor = await self.db.get(Vendor, quote.vendor_id)
             await NotificationService(self.db).notify_order_received(
@@ -263,6 +265,16 @@ class MarketplaceService:
                 total=price,
                 order_id=order.id,
             )
+            if vendor:
+                customer = await CustomerRepository(self.db).get_by_vendor_and_id(
+                    quote.vendor_id, customer_id,
+                )
+                await send_order_placed_notifications(
+                    self.db,
+                    vendor=vendor,
+                    order=order,
+                    customer=customer,
+                )
         except Exception:
             pass
         return order

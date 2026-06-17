@@ -11,6 +11,7 @@ import { useVendor } from '@/contexts/VendorContext'
 import { useBranch } from '@/contexts/BranchContext'
 import { storeApi } from '@/api/store'
 import { openRazorpayCheckout, mockRazorpayPay } from '@/lib/razorpay'
+import { extractApiError } from '@/lib/errorMessages'
 import { validateCheckoutFields, scrollToFirstCheckoutField, type CheckoutFieldErrors } from '@/checkout/validateCheckout'
 import type { Address, Cart, Customer, PaymentSelection, ShippingMethod } from '@/checkout/types'
 
@@ -78,6 +79,7 @@ export function useStoreBridgeCheckout() {
     email: customer?.email ?? '',
     firstName: customer?.full_name?.split(' ')[0],
     lastName: customer?.full_name?.split(' ').slice(1).join(' ') || undefined,
+    phone: customer?.phone ?? undefined,
     isGuest,
     savedAddresses: isGuest ? [] : savedAddresses,
   })
@@ -93,6 +95,7 @@ export function useStoreBridgeCheckout() {
   const [previewLoading, setPreviewLoading] = useState(false)
   const [previewError, setPreviewError] = useState<string | undefined>()
   const [fieldErrors, setFieldErrors] = useState<CheckoutFieldErrors>({})
+  const [isPlacingOrder, setIsPlacingOrder] = useState(false)
   const [serverPreview, setServerPreview] = useState<Awaited<ReturnType<typeof storeApi.checkoutPreview>> | null>(null)
 
   const clearFieldErrors = useCallback((keys: string[]) => {
@@ -319,12 +322,19 @@ export function useStoreBridgeCheckout() {
       setFieldErrors({})
 
       const paymentMethod = checkoutToPayment(payment)
+      const checkoutPhone = (
+        resolvedAddress?.phone
+        || customerInfo.phone
+        || customer?.phone
+        || ''
+      ).trim()
       const shippingPayload = {
         street_address: resolvedAddress?.line1 ?? '',
         city: resolvedAddress?.city ?? '',
         state: resolvedAddress?.region ?? '',
         postal_code: resolvedAddress?.postalCode ?? '',
         country: resolvedAddress?.country || 'India',
+        ...(checkoutPhone ? { phone: checkoutPhone } : {}),
       }
 
       if (isGuest) {
@@ -337,16 +347,18 @@ export function useStoreBridgeCheckout() {
         return { ok: false, error: 'Please select a delivery address.' }
       }
 
+      setIsPlacingOrder(true)
       try {
         let orderId: string
 
         if (isGuest) {
           const guestName = [customerInfo.firstName, customerInfo.lastName].filter(Boolean).join(' ').trim()
+          const guestPhone = customerInfo.phone?.trim() || undefined
           const result = await storeApi.guestCheckout({
             customer: {
               full_name: guestName,
               email: customerInfo.email!.trim(),
-              phone: customerInfo.phone,
+              phone: guestPhone,
             },
             items: cartItemsPayload,
             shipping_address: shippingPayload,
@@ -376,13 +388,30 @@ export function useStoreBridgeCheckout() {
         await resetCartAfterOrder(qc, vendorSlug)
 
         if (isOnlinePayment(paymentMethod)) {
-          await completeOnlinePayment(orderId)
+          try {
+            await completeOnlinePayment(orderId)
+          } catch (payErr) {
+            navigate(storePath(`/order/${orderId}/status`))
+            return {
+              ok: false,
+              error: extractApiError(
+                payErr,
+                'Your order was created but payment could not be completed. Open your order page to retry.',
+              ),
+              orderId,
+            }
+          }
         } else {
           navigate(storePath(`/order/${orderId}/confirmation`))
         }
         return { ok: true, orderId }
-      } catch {
-        return { ok: false, error: 'Order placement failed. Please check your details and try again.' }
+      } catch (err) {
+        return {
+          ok: false,
+          error: extractApiError(err, 'Order placement failed. Please check your details and try again.'),
+        }
+      } finally {
+        setIsPlacingOrder(false)
       }
     },
   }), [
@@ -390,7 +419,7 @@ export function useStoreBridgeCheckout() {
     checkoutMutation, navigate, storePath, removeItem, updateItem,
     completeOnlinePayment, refreshPreview, isGuest, customerInfo,
     cartItemsPayload, setTokens, setCustomer, vendorSlug, qc,
-    branchCode, isBranchClosed, clearFieldErrors, selectedSavedAddressId, savedAddresses,
+    branchCode, isBranchClosed, clearFieldErrors, selectedSavedAddressId, savedAddresses, isPlacingOrder,
   ])
 
   return {
@@ -409,7 +438,7 @@ export function useStoreBridgeCheckout() {
       payment,
       notes,
       giftMessage,
-      isPlacing: checkoutMutation.isPending || previewLoading,
+      isPlacing: isPlacingOrder || checkoutMutation.isPending,
       error: previewError,
       fieldErrors,
       isBranchClosed,

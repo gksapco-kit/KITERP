@@ -14,6 +14,8 @@ const storefrontSrc = fs.existsSync(dockerStorefrontSrc)
 const monorepoRoot = path.resolve(__dirname, '..')
 
 const vendorSrc = path.resolve(__dirname, './src')
+/** Trailing slash required so `@storefront/lib/foo` resolves (Vite alias subpath rule). */
+const storefrontSrcPosix = `${storefrontSrc.replace(/\\/g, '/')}/`
 
 function isStorefrontModule(importer?: string): boolean {
   if (!importer) return false
@@ -56,25 +58,24 @@ function resolveAtImport(source: string, importer?: string): string | undefined 
   return resolveModuleFile(path.join(baseDir, rel)) ?? undefined
 }
 
-/** Prefer @storefront/… ids over absolute paths so lazy chunks avoid flaky @fs URLs on Windows. */
-function storefrontAliasId(source: string, importer?: string): string | undefined {
-  if (!source.startsWith('@/')) return undefined
-  if (!isStorefrontModule(importer)) return undefined
-  const file = resolveAtImport(source, importer)
-  if (!file) return undefined
-  const rel = path.relative(storefrontSrc, file).replace(/\\/g, '/')
-  return `@storefront/${rel}`
+/** Resolve explicit `@storefront/…` imports from vendor-web to files under storefront-web/src. */
+function resolveStorefrontImport(source: string): string | undefined {
+  if (!source.startsWith('@storefront/')) return undefined
+  const rel = source.slice('@storefront/'.length)
+  return resolveModuleFile(path.join(storefrontSrc, rel)) ?? undefined
 }
 
-/** Resolve storefront `@/` imports when bundling preview components from storefront-web. */
+/** Resolve storefront `@/` and `@storefront/` imports to real files (not virtual `@storefront/` URLs). */
 function storefrontPreviewImports() {
   return {
     name: 'storefront-preview-imports',
     enforce: 'pre',
     resolveId(source: string, importer?: string) {
+      const storefrontFile = resolveStorefrontImport(source)
+      if (storefrontFile) return storefrontFile
       if (!source.startsWith('@/')) return null
       if (!isStorefrontModule(importer)) return null
-      return storefrontAliasId(source, importer) ?? null
+      return resolveAtImport(source, importer) ?? null
     },
   }
 }
@@ -91,10 +92,10 @@ export default defineConfig({
         find: /^@\/(.+)$/,
         replacement: '$1',
         customResolver(source, importer) {
-          return storefrontAliasId(`@/${source}`, importer) ?? resolveAtImport(`@/${source}`, importer)
+          return resolveAtImport(`@/${source}`, importer)
         },
       },
-      { find: '@storefront', replacement: storefrontSrc },
+      { find: '@storefront', replacement: storefrontSrcPosix },
     ],
   },
   server: {

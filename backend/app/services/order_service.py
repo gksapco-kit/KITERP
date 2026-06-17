@@ -20,6 +20,7 @@ from app.repositories.customer_repo import CustomerRepository
 from app.repositories.payment_repo import PaymentRepository
 from app.services.inventory_service import InventoryService
 from app.services.notification_service import NotificationService
+from app.services.order_notification_service import send_order_placed_notifications
 from app.services.invoice_service import InvoiceService
 from app.services.checkout_service import CheckoutService
 from app.services.coupon_service import CouponService
@@ -207,6 +208,9 @@ class OrderService:
         if customer:
             customer.total_orders = (customer.total_orders or 0) + 1
             customer.total_spent = float(customer.total_spent or 0) + total
+            ship_phone = (data.shipping_address.phone or "").strip()
+            if ship_phone and not (customer.phone or "").strip():
+                customer.phone = ship_phone
 
         # COD: deduct stock and clear cart immediately; online: defer until payment verify
         if not is_online:
@@ -242,7 +246,7 @@ class OrderService:
             except Exception as e:
                 log.warning("Coupon usage record failed for order %s: %s", order.id, e)
 
-        # Send WhatsApp notification to vendor for new order
+        # In-app + email notifications for new order (best-effort)
         try:
             from app.services.vendor_service import VendorService
             vendor_svc = VendorService(self.db)
@@ -257,10 +261,20 @@ class OrderService:
                     total=float(order.total or 0),
                     order_id=order.id,
                 )
+                # Online card/UPI: defer email/SMS/WhatsApp until payment is confirmed
+                # (see PaymentGatewayService._finalize_paid_order).
+                if not is_online:
+                    customer = await self.customer_repo.get_by_vendor_and_id(vendor_id, customer_id)
+                    await send_order_placed_notifications(
+                        self.db,
+                        vendor=vendor,
+                        order=order,
+                        customer=customer,
+                    )
                 # Persist in-app row: checkout already committed; session closes without a commit otherwise.
                 await self.db.commit()
-        except Exception:
-            pass  # Never let notification failure break order creation
+        except Exception as exc:
+            log.warning("Order placement notifications failed for order %s: %s", order.id, exc, exc_info=True)
 
         # Fan-out the `order.placed` webhook to every published wb_site for
         # this vendor so external listeners (Slack / Zapier / fulfillment)
@@ -298,6 +312,7 @@ class OrderService:
             shipping_method_id=data.shipping_method_id,
             notes=data.notes,
             coupon_code=data.coupon_code,
+            branch_code=data.branch_code,
         )
         return await self.checkout(
             vendor_id,

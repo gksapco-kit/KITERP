@@ -62,6 +62,10 @@ class IntegrationRegistry:
         creds = await self._load(vendor_id, "twilio_sms")
         if creds:
             return TwilioSmsAdapter.from_credentials(creds)
+        # CRM Integrations page saves a single "twilio" provider row
+        creds = await self._load(vendor_id, "twilio")
+        if creds:
+            return TwilioSmsAdapter.from_credentials(creds)
         return None
 
     async def get_whatsapp_adapter(self, vendor_id: UUID) -> Optional[WhatsAppAdapter]:
@@ -73,6 +77,16 @@ class IntegrationRegistry:
         meta = await self._load(vendor_id, "meta_whatsapp")
         if meta:
             return MetaWhatsAppAdapter.from_credentials(meta)
+        # CRM Integrations page saves a single "twilio" provider row
+        creds = await self._load(vendor_id, "twilio")
+        if creds:
+            wa_creds = {
+                **creds,
+                "from_number": creds.get("whatsapp_from") or creds.get("from_number"),
+            }
+            adapter = TwilioWhatsAppAdapter.from_credentials(wa_creds)
+            if adapter:
+                return adapter
         return None
 
     async def get_voice_adapter(self, vendor_id: UUID) -> Optional[VoiceAdapter]:

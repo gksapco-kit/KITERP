@@ -230,21 +230,8 @@ export function useRemoveCartItem() {
 
 // Orders
 export function useCheckout() {
-  const qc = useQueryClient()
   return useMutation({
     mutationFn: storeApi.checkout,
-    onSuccess: async (order) => {
-      await resetCartAfterOrder(qc)
-      toast.success(`Order ${order.order_number} placed!`)
-      // Navigation handled by calling component using vendor context
-    },
-    onError: (error: any) => {
-      if (error?.response?.status === 401) {
-        toast.error('Checkout failed: Please log in to complete your purchase')
-      } else {
-        toast.error(extractApiError(error, 'Checkout failed — verify your shipping address and payment details'))
-      }
-    },
   })
 }
 

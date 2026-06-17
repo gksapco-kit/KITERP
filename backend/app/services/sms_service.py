@@ -46,11 +46,18 @@ class SmsResult:
 
 
 def normalize_e164(phone: str) -> str:
-    """Strip formatting and ensure a leading + for Twilio E.164."""
+    """Strip formatting and ensure E.164 for Twilio (+country + number)."""
     raw = (phone or "").strip()
-    if not raw:
+    if not raw or raw in {"-", "—", "N/A", "n/a", "NA"}:
         return ""
     cleaned = re.sub(r"[\s\-().]", "", raw)
+    if not cleaned:
+        return ""
+    # Indian local 10-digit mobile (6–9…) → +91…
+    if re.fullmatch(r"[6-9]\d{9}", cleaned):
+        return f"+91{cleaned}"
+    if cleaned.startswith("91") and len(cleaned) == 12 and cleaned[2] in "6789":
+        return f"+{cleaned}"
     if not cleaned.startswith("+"):
         cleaned = f"+{cleaned.lstrip('+')}"
     return cleaned
