@@ -1640,7 +1640,7 @@ html[dir='rtl'] [data-sonner-toast][data-styled='true']:has([data-close-button])
 
 /* Built-in section / card photos — inset highlight (not clipped like outline) */
 [data-builder-section-image-active="true"] {
-  z-index: 2;
+  z-index: 20;
 }
 
 .builder-canvas-text-field-in-layout[data-builder-text-active="true"] {

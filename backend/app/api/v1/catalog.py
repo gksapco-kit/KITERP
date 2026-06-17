@@ -224,6 +224,7 @@ async def get_vendor_by_slug(
         "business_name": vendor.business_name,
         "display_name": vendor.display_name,
         "slug": vendor.slug,
+        "offering_type": vendor.offering_type or "both",
         "description": vendor.description,
         "logo_url": vendor.logo_url,
         "banner_url": vendor.banner_url,
@@ -311,6 +312,7 @@ def _store_cat_dict(c):
         "name": c.name,
         "slug": c.slug,
         "description": c.description,
+        "image_url": c.image_url,
         "applies_to": c.applies_to,
         "children": [],
     }

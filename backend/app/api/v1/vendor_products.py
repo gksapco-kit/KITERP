@@ -366,6 +366,9 @@ async def list_products(
     status: Optional[str] = Query(None),
     category: Optional[str] = Query(None),
     search: Optional[str] = Query(None),
+    is_visible: Optional[bool] = Query(None, description="Filter by storefront visibility"),
+    product_type: Optional[str] = Query(None),
+    stock: Optional[str] = Query(None, description="in_stock | low_stock | out_of_stock"),
     store_id: Optional[str] = Query(None, description="Filter by business unit availability"),
     vendor_id: UUID = Depends(get_current_vendor_id),
     db: AsyncSession = Depends(get_db),
@@ -387,6 +390,9 @@ async def list_products(
         status=status,
         category=category,
         search=search,
+        is_visible=is_visible,
+        product_type=product_type,
+        stock=stock,
         store_id=sid,
     )
     

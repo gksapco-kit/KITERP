@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
-import { imgUrl } from '@/lib/utils'
+import { cn, imgUrl } from '@/lib/utils'
 import { ensureModelViewerScript } from '@/lib/modelViewerLoader'
 import { Play, Pause, Volume2, VolumeX, Maximize, Box, Camera, RotateCcw, X } from 'lucide-react'
 
@@ -13,12 +13,29 @@ interface MediaItem {
   media_type?: MediaType
 }
 
+export type MediaViewerLayout = 'detail' | 'square'
+
 interface MediaViewerProps {
   items: MediaItem[]
   selectedIndex: number
   onSelect: (i: number) => void
   productName: string
   badges?: React.ReactNode
+  /** `detail` — capped 4:3 hero (default). `square` — full-width square stage. */
+  layout?: MediaViewerLayout
+}
+
+const STAGE_LAYOUT: Record<MediaViewerLayout, { stage: string; image: string; video: string }> = {
+  detail: {
+    stage: 'aspect-[4/3] max-h-[min(420px,55vw)] sm:max-h-[420px] w-full max-w-[560px] mx-auto lg:mx-0',
+    image: 'object-cover',
+    video: 'object-contain p-2',
+  },
+  square: {
+    stage: 'aspect-square w-full',
+    image: 'object-contain p-4',
+    video: 'object-contain p-4',
+  },
 }
 
 declare global {
@@ -41,7 +58,7 @@ declare global {
   }
 }
 
-function VideoPlayer({ url, alt }: { url: string; alt?: string }) {
+function VideoPlayer({ url, alt, videoClassName }: { url: string; alt?: string; videoClassName?: string }) {
   const videoRef = useRef<HTMLVideoElement>(null)
   const [playing, setPlaying] = useState(false)
   const [muted, setMuted] = useState(true)
@@ -57,7 +74,7 @@ function VideoPlayer({ url, alt }: { url: string; alt?: string }) {
       <video
         ref={videoRef}
         src={imgUrl(url)}
-        className="w-full h-full object-contain p-4"
+        className={cn('w-full h-full', videoClassName ?? 'object-contain p-4')}
         muted={muted}
         loop
         playsInline
@@ -81,7 +98,7 @@ function VideoPlayer({ url, alt }: { url: string; alt?: string }) {
   )
 }
 
-function Model3DViewer({ url, alt, poster }: { url: string; alt?: string; poster?: string }) {
+function Model3DViewer({ url, alt, poster, minHeight = 300 }: { url: string; alt?: string; poster?: string; minHeight?: number }) {
   const [arActive, setArActive] = useState(false)
   const [mvReady, setMvReady] = useState(false)
   const [mvError, setMvError] = useState(false)
@@ -102,7 +119,7 @@ function Model3DViewer({ url, alt, poster }: { url: string; alt?: string; poster
 
   if (mvError) {
     return (
-      <div className="w-full h-full min-h-[300px] flex flex-col items-center justify-center gap-2 bg-gray-50 text-center p-6 text-sm text-gray-600">
+      <div className="w-full h-full flex flex-col items-center justify-center gap-2 bg-gray-50 text-center p-6 text-sm text-gray-600" style={{ minHeight }}>
         <Box className="w-10 h-10 text-gray-400" />
         <p>3D preview could not be loaded (network may block the viewer script).</p>
         <a href={imgUrl(url)} download className="text-blue-600 underline font-medium">Download model</a>
@@ -112,7 +129,7 @@ function Model3DViewer({ url, alt, poster }: { url: string; alt?: string; poster
 
   if (!mvReady) {
     return (
-      <div className="w-full h-full min-h-[300px] flex items-center justify-center bg-gray-50 text-sm text-gray-500">
+      <div className="w-full h-full flex items-center justify-center bg-gray-50 text-sm text-gray-500" style={{ minHeight }}>
         Loading 3D viewer…
       </div>
     )
@@ -131,7 +148,7 @@ function Model3DViewer({ url, alt, poster }: { url: string; alt?: string; poster
         poster={poster ? imgUrl(poster) : undefined}
         shadow-intensity="1"
         environment-image="neutral"
-        style={{ width: '100%', height: '100%', minHeight: '300px' }}
+        style={{ width: '100%', height: '100%', minHeight }}
       >
         <button
           slot="ar-button"
@@ -186,24 +203,39 @@ function ThumbnailItem({ item, isSelected, onClick }: { item: MediaItem; isSelec
   )
 }
 
-export default function MediaViewer({ items, selectedIndex, onSelect, productName, badges }: MediaViewerProps) {
+export default function MediaViewer({ items, selectedIndex, onSelect, productName, badges, layout = 'detail' }: MediaViewerProps) {
   const selected = items[selectedIndex]
   const mt = selected?.media_type || 'image'
   const firstImage = items.find(i => (i.media_type || 'image') === 'image')
+  const stage = STAGE_LAYOUT[layout]
+  const modelMinHeight = layout === 'detail' ? 280 : 300
 
   return (
-    <div className="space-y-4">
-      <div className="aspect-square bg-gray-50 rounded-xl overflow-hidden border relative">
+    <div className="space-y-3">
+      <div className={cn('bg-gray-50 rounded-xl overflow-hidden border relative', stage.stage)}>
         {!selected ? (
-          <div className="w-full h-full flex items-center justify-center">
-            <Box className="w-20 h-20 text-gray-200" />
+          <div className="absolute inset-0 flex items-center justify-center">
+            <Box className="w-16 h-16 text-gray-200" />
           </div>
         ) : mt === 'video' ? (
-          <VideoPlayer url={selected.url} alt={selected.alt_text} />
+          <div className="absolute inset-0">
+            <VideoPlayer url={selected.url} alt={selected.alt_text} videoClassName={stage.video} />
+          </div>
         ) : mt === 'model3d' ? (
-          <Model3DViewer url={selected.url} alt={productName} poster={firstImage ? imgUrl(firstImage.url) : undefined} />
+          <div className="absolute inset-0">
+            <Model3DViewer
+              url={selected.url}
+              alt={productName}
+              poster={firstImage ? imgUrl(firstImage.url) : undefined}
+              minHeight={modelMinHeight}
+            />
+          </div>
         ) : (
-          <img src={imgUrl(selected.url)} alt={selected.alt_text || productName} className="w-full h-full object-contain p-4" />
+          <img
+            src={imgUrl(selected.url)}
+            alt={selected.alt_text || productName}
+            className={cn('absolute inset-0 w-full h-full', stage.image)}
+          />
         )}
         {mt === 'image' && badges}
       </div>

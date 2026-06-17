@@ -684,25 +684,8 @@ async def get_live_resource_public(
             items = []
 
     elif resource == "categories":
-        from app.models.vendor_product import Product
-        from app.models.vendor_service import Service
-        prod_rows = (await db.execute(
-            select(Product.category, func.count(Product.id))
-            .where(Product.vendor_id == vendor.id, Product.category.isnot(None))
-            .group_by(Product.category)
-        )).all()
-        svc_rows = (await db.execute(
-            select(Service.category, func.count(Service.id))
-            .where(Service.vendor_id == vendor.id, Service.category.isnot(None))
-            .group_by(Service.category)
-        )).all()
-        seen: Dict[str, int] = {}
-        for cat, cnt in list(prod_rows) + list(svc_rows):
-            if not cat:
-                continue
-            seen[cat] = seen.get(cat, 0) + int(cnt or 0)
-        for cat, cnt in sorted(seen.items(), key=lambda x: -x[1])[:limit]:
-            items.append(_norm_item(id=cat, title=cat, subtitle=f"{cnt} item{'s' if cnt != 1 else ''}", meta={"count": cnt}))
+        from app.services.category_live_feed import build_category_live_items
+        items = await build_category_live_items(db, vendor.id, limit, _norm_item)
 
     elif resource == "pages":
         seen_urls: set[str] = set()

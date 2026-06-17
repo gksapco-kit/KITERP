@@ -3297,7 +3297,11 @@ Fill in real copy for the business. No placeholder text."""
         if "home" not in default_pages:
             default_pages = ["home"] + default_pages
     else:
-        default_pages = ["home", "about", "services", "contact"]
+        default_pages = ["home", "about", "contact"]
+        if selling_mode in ("services", "both"):
+            default_pages.append("services")
+        if selling_mode in ("products", "both"):
+            default_pages.append("products")
         if body.include_pricing and "pricing" not in default_pages:
             default_pages.append("pricing")
         if body.include_blog and "blog" not in default_pages:
@@ -3328,6 +3332,14 @@ Fill in real copy for the business. No placeholder text."""
                 {"block_type": "features_alternating", "label": "Features", "props": {"title": "How It Works"}},
                 {"block_type": "cta",              "label": "CTA", "props": {"headline": "Ready to Work Together?", "cta_label": "Get In Touch"}},
                 {"block_type": "footer",           "label": "Footer", "props": _footer_props_standard()},
+            ]
+        elif slug == "products":
+            page_blocks = [
+                {"block_type": "nav",          "label": "Navigation", "props": {"brand": short_name}},
+                {"block_type": "hero_minimal", "label": "Hero", "props": {"headline": "Our Products", "bg_style": "minimal"}},
+                {"block_type": "product_grid", "label": "Products", "props": {"title": "Shop the catalog", "columns": 4, "show_badges": True}},
+                {"block_type": "cta",          "label": "CTA", "props": {"headline": "Questions about an item?", "cta_label": "Contact us"}},
+                {"block_type": "footer",       "label": "Footer", "props": _footer_props_standard()},
             ]
         elif slug == "pricing":
             page_blocks = [
@@ -3836,30 +3848,8 @@ async def get_live_resource(
             ))
 
     elif resource == "categories":
-        from app.models.vendor_product import Product
-        from app.models.vendor_service import Service
-        prod_rows = (await db.execute(
-            select(Product.category, func.count(Product.id))
-            .where(Product.vendor_id == vendor.id, Product.category.isnot(None))
-            .group_by(Product.category)
-        )).all()
-        svc_rows = (await db.execute(
-            select(Service.category, func.count(Service.id))
-            .where(Service.vendor_id == vendor.id, Service.category.isnot(None))
-            .group_by(Service.category)
-        )).all()
-        seen = {}
-        for cat, cnt in list(prod_rows) + list(svc_rows):
-            if not cat:
-                continue
-            seen[cat] = seen.get(cat, 0) + int(cnt or 0)
-        for cat, cnt in sorted(seen.items(), key=lambda x: -x[1])[:limit]:
-            items.append(_norm_item(
-                id=cat,
-                title=cat,
-                subtitle=f"{cnt} item{'s' if cnt != 1 else ''}",
-                meta={"count": cnt},
-            ))
+        from app.services.category_live_feed import build_category_live_items
+        items = await build_category_live_items(db, vendor.id, limit, _norm_item)
 
     elif resource == "media":
         rows = (await db.execute(

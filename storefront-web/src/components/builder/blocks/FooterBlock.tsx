@@ -1,8 +1,12 @@
-import { Link } from 'react-router-dom'
+import { useCallback, type MouseEvent, type ReactNode } from 'react'
+import { Link, useNavigate } from 'react-router-dom'
 import { ArrowUp } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { PublicSite, StyleConfig, LiveItem } from '@/blocks/registry'
 import { useStorePath } from '@/hooks/useStorePath'
+import { useVendor } from '@/contexts/VendorContext'
+import { useBuilderCanvas } from '@/contexts/BuilderCanvasContext'
+import { isDraftPreviewShellHref } from '@/lib/previewNavRouting'
 import { BuilderTextField } from '@/components/builder/BuilderTextField'
 import { ColumnFooter } from '@/kit/footer/ColumnFooter'
 import type { FooterColumn } from '@/kit/footer/ColumnFooter'
@@ -26,14 +30,21 @@ function linkLabel(link: string | { label?: string; href?: string }): string {
 function normalizeFooterColumns(
   rawCols: RawColumn[] | undefined,
   storePath: (p: string) => string,
+  previewShell = false,
 ): FooterColumn[] {
   if (!Array.isArray(rawCols) || rawCols.length === 0) return []
   return rawCols.map(c => ({
     title: String(c?.title ?? '').trim() || 'Links',
     links: Array.isArray(c?.links)
       ? c.links!.map(x => {
-          if (typeof x === 'string') return { label: x, href: storePath('/') }
-          return { label: x.label ?? '', href: storePath(x.href ?? '/') }
+          if (typeof x === 'string') {
+            return { label: x, href: storePath('/'), external: previewShell || undefined }
+          }
+          return {
+            label: x.label ?? '',
+            href: storePath(x.href ?? '/'),
+            external: previewShell || undefined,
+          }
         })
       : [],
   }))
@@ -149,6 +160,40 @@ function EditableColumnFooter({
 
 export default function FooterBlock({ site, style, props, liveItems, blockId }: Props) {
   const storePath = useStorePath()
+  const navigate = useNavigate()
+  const builderCanvas = useBuilderCanvas()
+  const { previewShell, openBuilderForPage } = useVendor()
+  const isEditor = builderCanvas?.isEditorCanvas === true && !!blockId
+
+  const previewFooterClick = useCallback((e: MouseEvent, href: string) => {
+    if (!previewShell) return
+    e.preventDefault()
+    try {
+      const url = new URL(href, window.location.origin)
+      if (isDraftPreviewShellHref(url.pathname)) {
+        if (url.searchParams.has('route')) {
+          navigate({ pathname: url.pathname, search: url.search })
+          return
+        }
+        openBuilderForPage?.(url.searchParams.get('page'))
+        return
+      }
+    } catch {
+      /* fall through */
+    }
+    navigate(href)
+  }, [previewShell, openBuilderForPage, navigate])
+
+  const FooterLink = useCallback(({ href, className, children }: { href: string; className?: string; children: ReactNode }) => {
+    if (previewShell) {
+      return (
+        <a href={href} className={className} onClick={(e) => previewFooterClick(e, href)}>
+          {children}
+        </a>
+      )
+    }
+    return <Link to={href} className={className}>{children}</Link>
+  }, [previewShell, previewFooterClick])
   const copyright = (props.copyright as string) || `© ${new Date().getFullYear()} ${site.name}. All rights reserved.`
   const brand = (props.brand as string) || site.name
   const description = (props.description as string) || site.description || ''
@@ -166,14 +211,14 @@ export default function FooterBlock({ site, style, props, liveItems, blockId }: 
       : 'border-gray-100'
 
   const rawCols = props.footer_columns as RawColumn[] | undefined
-  const footerColumns = normalizeFooterColumns(rawCols, storePath)
+  const footerColumns = normalizeFooterColumns(rawCols, storePath, previewShell === true)
 
   const navLinks: Array<{ label: string; url: string }> =
     liveItems.length > 0
       ? liveItems.map(item => ({ label: item.title, url: item.url || '/' }))
       : (props.nav_links as Array<{ label: string; url: string }> | undefined) || []
 
-  if (blockId && footerColumns.length > 0 && !isMinimal && !isSimple) {
+  if (isEditor && footerColumns.length > 0 && !isMinimal && !isSimple) {
     return (
       <EditableColumnFooter
         blockId={blockId}
@@ -206,7 +251,7 @@ export default function FooterBlock({ site, style, props, liveItems, blockId }: 
     )
   }
 
-  if (blockId && (isMinimal || isSimple)) {
+  if (isEditor && (isMinimal || isSimple)) {
     return (
       <footer className={cn('border-t mt-8', footerClass)} style={{ backgroundColor: footerBg }}>
         <div className={cn('max-w-7xl mx-auto px-4 py-8 text-center', isCompact && 'py-6')}>
@@ -222,9 +267,9 @@ export default function FooterBlock({ site, style, props, liveItems, blockId }: 
           />
           <div className={cn('flex flex-wrap justify-center gap-x-4 gap-y-2 mb-4', isSimple && 'text-sm')}>
             {navLinks.map((link, i) => (
-              <Link key={i} to={storePath(link.url)} className={cn('hover:opacity-80', isDark || isBrand ? 'text-white/70' : 'text-gray-500')}>
+              <FooterLink key={i} href={storePath(link.url)} className={cn('hover:opacity-80', isDark || isBrand ? 'text-white/70' : 'text-gray-500')}>
                 {link.label}
-              </Link>
+              </FooterLink>
             ))}
           </div>
           <BuilderTextField
@@ -250,9 +295,9 @@ export default function FooterBlock({ site, style, props, liveItems, blockId }: 
           </p>
           <div className={cn('flex flex-wrap justify-center gap-x-4 gap-y-2 mb-4', isSimple && 'text-sm')}>
             {navLinks.map((link, i) => (
-              <Link key={i} to={storePath(link.url)} className={cn('hover:opacity-80', isDark || isBrand ? 'text-white/70' : 'text-gray-500')}>
+              <FooterLink key={i} href={storePath(link.url)} className={cn('hover:opacity-80', isDark || isBrand ? 'text-white/70' : 'text-gray-500')}>
                 {link.label}
-              </Link>
+              </FooterLink>
             ))}
           </div>
           <p className={cn('text-xs', isDark || isBrand ? 'text-white/50' : 'text-gray-400')}>{copyright}</p>
@@ -261,7 +306,7 @@ export default function FooterBlock({ site, style, props, liveItems, blockId }: 
     )
   }
 
-  if (blockId) {
+  if (isEditor) {
     return (
       <footer className={cn('border-t mt-8', footerClass)} style={{ backgroundColor: footerBg }}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
@@ -296,7 +341,7 @@ export default function FooterBlock({ site, style, props, liveItems, blockId }: 
                 <ul className="space-y-2">
                   {navLinks.map((link, i) => (
                     <li key={i}>
-                      <Link to={storePath(link.url)} className="text-sm text-gray-500 hover:text-gray-800 transition-colors">{link.label}</Link>
+                      <FooterLink href={storePath(link.url)} className="text-sm text-gray-500 hover:text-gray-800 transition-colors">{link.label}</FooterLink>
                     </li>
                   ))}
                 </ul>
@@ -337,7 +382,7 @@ export default function FooterBlock({ site, style, props, liveItems, blockId }: 
               <ul className="space-y-2">
                 {navLinks.map((link, i) => (
                   <li key={i}>
-                    <Link to={storePath(link.url)} className="text-sm text-gray-500 hover:text-gray-800 transition-colors">{link.label}</Link>
+                    <FooterLink href={storePath(link.url)} className="text-sm text-gray-500 hover:text-gray-800 transition-colors">{link.label}</FooterLink>
                   </li>
                 ))}
               </ul>
@@ -346,8 +391,8 @@ export default function FooterBlock({ site, style, props, liveItems, blockId }: 
           <div>
             <h4 className="font-semibold text-gray-700 mb-3 text-sm uppercase tracking-wide">Legal</h4>
             <ul className="space-y-2">
-              <li><Link to={storePath('/policies')} className="text-sm text-gray-500 hover:text-gray-800 transition-colors">Privacy Policy</Link></li>
-              <li><Link to={storePath('/policies')} className="text-sm text-gray-500 hover:text-gray-800 transition-colors">Terms of Service</Link></li>
+              <li><FooterLink href={storePath('/policies')} className="text-sm text-gray-500 hover:text-gray-800 transition-colors">Privacy Policy</FooterLink></li>
+              <li><FooterLink href={storePath('/policies')} className="text-sm text-gray-500 hover:text-gray-800 transition-colors">Terms of Service</FooterLink></li>
             </ul>
           </div>
         </div>

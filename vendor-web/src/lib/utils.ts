@@ -53,8 +53,18 @@ function backendOrigin(): string {
  */
 export function mediaUrl(url?: string | null): string {
   if (!url) return ''
+  if (url.startsWith('blob:')) return url
   if (url.startsWith('http://') || url.startsWith('https://') || url.startsWith('data:')) return url
   if (url.startsWith('/business-images')) return url
   const base = backendOrigin()
   return `${base}${url.startsWith('/') ? '' : '/'}${url}`
+}
+
+const IMAGE_FILE_EXTENSIONS = new Set(['jpg', 'jpeg', 'png', 'webp', 'gif', 'svg'])
+
+/** Accept images when the browser omits MIME type (common on Windows). */
+export function isLikelyImageFile(file: File): boolean {
+  if (file.type.startsWith('image/')) return true
+  const ext = file.name.split('.').pop()?.toLowerCase()
+  return !!ext && IMAGE_FILE_EXTENSIONS.has(ext)
 }

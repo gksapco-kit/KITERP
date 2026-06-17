@@ -720,6 +720,7 @@ export interface VendorCategory {
   name: string
   slug: string
   description?: string
+  image_url?: string | null
   applies_to: 'product' | 'service' | 'both'
   is_active: boolean
   sort_order: number

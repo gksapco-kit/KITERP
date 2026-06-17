@@ -10,32 +10,7 @@
  */
 
 import type { StyleConfig } from '@/blocks/registry'
-
-/** Hex #RRGGBB (or #RGB) → "H S% L%" HSL triplet for CSS var() usage. */
-function hexToHsl(hex: string): string {
-  // Normalise short form #RGB → #RRGGBB
-  const full = hex.length === 4
-    ? `#${hex[1]}${hex[1]}${hex[2]}${hex[2]}${hex[3]}${hex[3]}`
-    : hex
-  const r = parseInt(full.slice(1, 3), 16) / 255
-  const g = parseInt(full.slice(3, 5), 16) / 255
-  const b = parseInt(full.slice(5, 7), 16) / 255
-  const max = Math.max(r, g, b)
-  const min = Math.min(r, g, b)
-  let h = 0
-  let s = 0
-  const l = (max + min) / 2
-  if (max !== min) {
-    const d = max - min
-    s = l > 0.5 ? d / (2 - max - min) : d / (max + min)
-    switch (max) {
-      case r: h = ((g - b) / d + (g < b ? 6 : 0)) / 6; break
-      case g: h = ((b - r) / d + 2) / 6; break
-      case b: h = ((r - g) / d + 4) / 6; break
-    }
-  }
-  return `${Math.round(h * 360)} ${Math.round(s * 100)}% ${Math.round(l * 100)}%`
-}
+import { hexToHslChannels, readableTextOnBackground, textOnSolid } from '@/lib/themeColors'
 
 function pickHex(style: Record<string, unknown>, key: string, fallback: string): string {
   const v = style[key]
@@ -60,19 +35,21 @@ export function buildCheckoutThemeFromSiteStyle(
 ): React.CSSProperties {
   const primary    = pickHex(style, 'primary_color',  '#221D1A')
   const accent     = pickHex(style, 'accent_color',   '#E45E25')
-  const bg         = pickHex(style, 'bg_color',       '#ffffff')
-  const surface    = pickHex(style, 'surface_color',  '#f9fafb')
-  const text       = pickHex(style, 'text_color',     primary)
+  const pageBg     = pickHex(style, 'bg_color',       '#ffffff')
+  const surface    = pickHex(style, 'surface_color',  '#ffffff')
+  const text       = readableTextOnBackground(surface, pickHex(style, 'text_color', primary))
+  const primaryFg  = textOnSolid(primary)
   const fontHead   = typeof style.font_heading === 'string' && style.font_heading ? style.font_heading : null
   const fontBody   = typeof style.font_body    === 'string' && style.font_body    ? style.font_body    : null
   const borderRad  = typeof style.border_radius === 'string' ? style.border_radius : 'rounded'
 
   const derived: Record<string, string> = {
-    '--brand-primary':             hexToHsl(primary),
-    '--brand-accent':              hexToHsl(accent),
-    '--surface':                   hexToHsl(bg),
-    '--surface-muted':             hexToHsl(surface),
-    '--text':                      hexToHsl(text),
+    '--brand-primary':             hexToHslChannels(primary) ?? '222 47% 11%',
+    '--brand-primary-foreground':  hexToHslChannels(primaryFg) ?? '0 0% 100%',
+    '--brand-accent':              hexToHslChannels(accent) ?? '16 76% 56%',
+    '--surface':                   hexToHslChannels(surface) ?? '0 0% 100%',
+    '--surface-muted':             hexToHslChannels(pageBg) ?? '220 14% 97%',
+    '--text':                      hexToHslChannels(text) ?? '222 47% 11%',
     ...radiusVars(borderRad),
     ...(fontHead ? { '--font-heading': `'${fontHead}', ui-sans-serif, system-ui, sans-serif` } : {}),
     ...(fontBody ? { '--font-body':    `'${fontBody}', ui-sans-serif, system-ui, sans-serif` } : {}),

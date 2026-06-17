@@ -69,26 +69,26 @@ export const DRAFT_BROWSER_PREVIEW_PATH = '/preview/draft'
 export const DRAFT_PREVIEW_PENDING_PARAM = 'pending'
 
 /**
- * Origin for preview URLs — canonical loopback (127.0.0.1) so builder + preview tabs
- * share localStorage/BroadcastChannel (localhost and 127.0.0.1 are different origins).
+ * Origin for preview tabs opened from this browser session.
+ * Must match the builder tab hostname (localhost vs 127.0.0.1) so opener refs,
+ * postMessage, and localStorage signaling stay on one origin.
  */
 export function getVendorPreviewOrigin(): string {
   if (typeof window === 'undefined') return 'http://127.0.0.1:3001'
   const { protocol, hostname, port } = window.location
-  const host = normalizeLoopbackHostname(hostname)
   const portSuffix = port ? `:${port}` : ''
-  return `${protocol}//${host}${portSuffix}`
+  return `${protocol}//${hostname}${portSuffix}`
 }
 
-/** Canonicalize loopback hostnames so cross-tab preview signaling stays on one origin. */
+/** Rewrite preview URLs to the active vendor-web origin (host + port). */
 export function alignPreviewUrlWithCurrentHost(previewShellUrl: string): string {
   if (typeof window === 'undefined') return previewShellUrl
   try {
     const url = new URL(previewShellUrl)
-    url.hostname = normalizeLoopbackHostname(url.hostname)
-    if (typeof window !== 'undefined' && window.location.port) {
-      url.port = window.location.port
-    }
+    url.protocol = window.location.protocol
+    url.hostname = window.location.hostname
+    if (window.location.port) url.port = window.location.port
+    else url.port = ''
     return url.toString()
   } catch {
     return previewShellUrl
@@ -134,14 +134,14 @@ export function wrapStorefrontPreviewForVendorBrowser(storefrontPreviewUrl: stri
 }
 
 /** Reused preview tab name — repeat clicks navigate the same tab instead of opening new ones. */
-const PREVIEW_WINDOW_NAME = 'kiterp-draft-preview'
+export const PREVIEW_WINDOW_NAME = 'kiterp-draft-preview'
 
 let previewWindowRef: Window | null = null
 
 function buildVendorDraftPreviewPendingUrl(): string {
   const url = new URL(DRAFT_BROWSER_PREVIEW_PATH, getVendorPreviewOrigin())
   url.searchParams.set(DRAFT_PREVIEW_PENDING_PARAM, '1')
-  return alignPreviewUrlWithCurrentHost(url.toString())
+  return url.toString()
 }
 
 /**
@@ -187,11 +187,12 @@ export function navigateDraftPreviewTab(previewShellUrl: string): boolean {
         previewWindowRef.focus()
         delivered = true
       } catch {
-        previewWindowRef = null
+        // Keep previewWindowRef — pending tab may still pick up localStorage / postMessage.
       }
     }
 
-    if (!delivered) {
+    // Only open a new tab when no prepared tab exists (avoids pending + token duplicate tabs).
+    if (!delivered && !previewWindowRef) {
       try {
         const tab = window.open(url, PREVIEW_WINDOW_NAME)
         if (tab) {

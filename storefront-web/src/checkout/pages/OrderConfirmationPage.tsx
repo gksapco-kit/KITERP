@@ -6,6 +6,7 @@ import { CheckoutHeader, CheckoutFooter } from "../components/Header";
 import { CheckoutConfigProvider, formatMoney, useCheckoutConfig } from "../config";
 import { LineItem } from "../components/LineItem";
 import { useBranch } from "@/contexts/BranchContext";
+import { useBuilderSiteCheckoutTheme } from "@/hooks/useBuilderSiteCheckoutTheme";
 import { useOrder, useCart, resetCartAfterOrder } from "@/hooks/useStore";
 import { useVendor } from "@/contexts/VendorContext";
 import type { CartItem } from "../types";
@@ -24,6 +25,7 @@ function Inner() {
   const { orderId } = useParams<{ orderId: string }>();
   const { storePath } = useBranch();
   const { vendorSlug } = useVendor();
+  const checkoutTheme = useBuilderSiteCheckoutTheme();
   const qc = useQueryClient();
   const { data: order, isLoading } = useOrder(orderId ?? "");
   useCart();
@@ -34,7 +36,7 @@ function Inner() {
 
   if (isLoading) {
     return (
-      <div className="checkout-root min-h-screen">
+      <div className="checkout-root min-h-screen" style={checkoutTheme}>
         <CheckoutHeader />
         <main className="mx-auto flex max-w-3xl justify-center px-4 py-20">
           <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
@@ -51,7 +53,7 @@ function Inner() {
   const customerEmail = String(shipping.email ?? "");
 
   return (
-    <div className="checkout-root min-h-screen">
+    <div className="checkout-root min-h-screen" style={checkoutTheme}>
       <CheckoutHeader />
       <main className="mx-auto max-w-3xl px-4 py-8 md:px-6">
         <div

@@ -15,7 +15,7 @@
  *
  * The `BuilderSiteContext` does the heavy lifting of fetching the site once.
  */
-import { useSearchParams, useParams, useNavigate } from 'react-router-dom'
+import { useSearchParams, useParams, useNavigate, Navigate } from 'react-router-dom'
 import { useEffect, useMemo, useState } from 'react'
 import { Loader2 } from 'lucide-react'
 import { useBuilderSite } from '@/contexts/BuilderSiteContext'
@@ -23,6 +23,10 @@ import BlockRenderer from '@/components/builder/BlockRenderer'
 import CatalogStorefrontLiveHome from '@/pages/CatalogStorefrontLiveHome'
 import Home from '@/pages/Home'
 import WebsiteBuilderTemplateLiveHome from '@/pages/WebsiteBuilderTemplateLiveHome'
+import DraftCatalogEmbedBlocked from '@/pages/DraftCatalogEmbedBlocked'
+import { recallDraftEmbedPreviewToken } from '@/lib/draftEmbedPreview'
+import { buildDraftCatalogEmbedStorePath } from '@/lib/draftCatalogEmbed'
+import { useVendor } from '@/contexts/VendorContext'
 import type { LiveItem, PublicBlock, PublicPage, PublicSite } from '@/blocks/registry'
 import { buildPageJsonLd, siteBaseUrl } from '@/blocks/jsonLd'
 import { publicSitesApi } from '@/api/publicSites'
@@ -188,8 +192,11 @@ export default function BuilderPage({ slug: forcedSlug, isHome }: BuilderPagePro
   const { builderSite, isLoading } = useBuilderSite()
   const assignedTemplateId = useAssignedStorefrontTemplateId()
   const [searchParams] = useSearchParams()
-  const params = useParams<{ '*': string }>()
+  const params = useParams<{ '*': string; vendorSlug?: string }>()
   const navigate = useNavigate()
+
+  const draftEmbed = searchParams.get('draft_embed') === '1'
+  const draftPreviewToken = searchParams.get('preview_token')?.trim() || recallDraftEmbedPreviewToken()
 
   const branchCode = searchParams.get('branch')
   const slug = forcedSlug ?? params['*'] ?? ''
@@ -291,6 +298,13 @@ export default function BuilderPage({ slug: forcedSlug, isHome }: BuilderPagePro
       document.getElementById('builder-jsonld')?.remove()
     }
   }, [])
+
+  if (draftEmbed && draftPreviewToken && params.vendorSlug) {
+    return <Navigate to={buildDraftCatalogEmbedStorePath(params.vendorSlug, draftPreviewToken, 'products')} replace />
+  }
+  if (draftEmbed) {
+    return <DraftCatalogEmbedBlocked />
+  }
 
   if (isLoading) {
     return (

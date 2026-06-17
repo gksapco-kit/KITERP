@@ -647,7 +647,7 @@ function CreateSiteModal({
       ...paletteColors,
       color_palette_id: selectedPaletteId,
     }
-    const pages = buildPagesFromSetupFeatures(selectedFeatures, effectiveBusinessType)
+    const pages = buildPagesFromSetupFeatures(selectedFeatures, effectiveSellingMode)
     const selectedStore = stores.find(s => s.id === websiteStoreId)
     const resolvedScope = storeCount <= 1 ? 'store' : websiteStoreScope
     try {

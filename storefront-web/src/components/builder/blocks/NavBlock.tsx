@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState, useCallback } from 'react'
 import { Link, useNavigate, useLocation, useSearchParams } from 'react-router-dom'
 import { MapPin, ChevronDown, Search, ShoppingBag, User, X } from 'lucide-react'
 import { useVendor } from '@/contexts/VendorContext'
@@ -22,6 +22,13 @@ import type { PublicSite, StyleConfig, LiveItem } from '@/blocks/registry'
 import type { NavLinkItem } from '@/kit/types'
 import { resolveNavBlockShell } from '@/lib/navBlockLayout'
 import { resolveNavBlockLinks } from '@/lib/siteNavPages'
+import {
+  builderPageSlugFromNavPath,
+  isDraftPreviewShellHref,
+  resolveStoreNavPathFromHref,
+  shouldOpenCatalogPreviewForNavPath,
+  sitePageSlugSet,
+} from '@/lib/previewNavRouting'
 import { useBuilderCanvas } from '@/contexts/BuilderCanvasContext'
 
 interface Props {
@@ -51,7 +58,7 @@ export default function NavBlock({
   branchCode: branchFromBlocks,
   isEditorCanvas = false,
 }: Props) {
-  const { vendor, previewShell } = useVendor()
+  const { vendor, previewShell, openBuilderForPage } = useVendor()
   const storePath = useStorePath()
   const builderCanvas = useBuilderCanvas()
   const navigate = useNavigate()
@@ -63,13 +70,54 @@ export default function NavBlock({
   const [searchOpen, setSearchOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
 
-  const navigateStorePath = (rawPath: string) => {
+  const sitePageSlugs = useMemo(() => sitePageSlugSet(site), [site])
+
+  const openBuilderPageFromPath = useCallback((rawPath: string) => {
+    if (!openBuilderForPage) return false
+    const pathname = resolveStoreNavPathFromHref(rawPath, storePath)
+    if (shouldOpenCatalogPreviewForNavPath(pathname, sitePageSlugs)) return false
+    openBuilderForPage(builderPageSlugFromNavPath(pathname))
+    return true
+  }, [openBuilderForPage, sitePageSlugs, storePath])
+
+  const navigateStorePath = useCallback((rawPath: string) => {
     if (builderCanvas?.onNavigate) {
       builderCanvas.onNavigate(rawPath)
       return
     }
-    navigate(storePath(rawPath))
-  }
+    if (previewShell && openBuilderPageFromPath(rawPath)) return
+    const href = storePath(rawPath)
+    if (previewShell) {
+      try {
+        const url = new URL(href, window.location.origin)
+        navigate({ pathname: url.pathname, search: url.search })
+        return
+      } catch {
+        /* fall through */
+      }
+    }
+    navigate(href)
+  }, [builderCanvas, storePath, previewShell, openBuilderPageFromPath, navigate])
+
+  const previewNavClick = useCallback((e: React.MouseEvent, href: string) => {
+    if (!previewShell) return
+    e.preventDefault()
+    try {
+      const url = new URL(href, window.location.origin)
+      if (isDraftPreviewShellHref(url.pathname)) {
+        if (url.searchParams.has('route')) {
+          navigate({ pathname: url.pathname, search: url.search })
+          return
+        }
+        openBuilderForPage?.(url.searchParams.get('page'))
+        return
+      }
+    } catch {
+      /* fall through */
+    }
+    if (openBuilderPageFromPath(href)) return
+    navigate(href)
+  }, [previewShell, openBuilderForPage, openBuilderPageFromPath, navigate])
 
   const [branches, setBranches] = useState<StoreLocation[]>([])
 
@@ -128,8 +176,12 @@ export default function NavBlock({
         nav_links: rawLinks,
       },
       liveItems.map(item => ({ title: item.title, url: item.url })),
+      {
+        previewShell: previewShell === true,
+        offeringType: vendor?.offering_type,
+      },
     )
-  }, [showNavLinks, navLinksSource, rawLinks, liveItems, site, storePath, location.pathname])
+  }, [showNavLinks, navLinksSource, rawLinks, liveItems, site, storePath, location.pathname, previewShell, vendor?.offering_type])
 
   const forceNavLinksVisible = isEditorCanvas || previewShell === true
 
@@ -137,7 +189,26 @@ export default function NavBlock({
   const primary = style.primary_color || '#64C3A0'
   const borderRadius = style.border_radius === 'sharp' || style.border_radius === 'none' ? 0 : 8
 
-  const logoNode = (
+  const logoNode = previewShell ? (
+    <a
+      href={storePath('/')}
+      onClick={(e) => previewNavClick(e, storePath('/'))}
+      className="inline-flex items-center gap-2 min-w-0 shrink-0 max-w-[min(100%,220px)]"
+    >
+      {showLogo && logoUrl && (
+        <img
+          src={imgUrl(logoUrl)}
+          alt={brand}
+          className={cn('w-auto object-contain shrink-0', shell.isCompact ? 'h-6 max-w-[100px]' : 'h-8 max-w-[120px]')}
+        />
+      )}
+      {showBrandName && (
+        <span className={cn('font-bold truncate', shell.isCompact ? 'text-sm' : 'text-base')} style={{ color: shell.navBrandCol, fontFamily: style.font_heading }}>
+          {brand}
+        </span>
+      )}
+    </a>
+  ) : (
     <Link to={storePath('/')} className="inline-flex items-center gap-2 min-w-0 shrink-0 max-w-[min(100%,220px)]">
       {showLogo && logoUrl && (
         <img
@@ -161,18 +232,30 @@ export default function NavBlock({
       forceNavLinksVisible ? 'flex' : 'hidden md:flex',
     )}>
       {kitLinks.map(link => (
-        <Link
-          key={link.href}
-          to={link.href}
-          onClick={builderCanvas?.onNavigate ? (e) => {
-            e.preventDefault()
-            builderCanvas.onNavigate!(link.href)
-          } : undefined}
-          className={cn('rounded-md text-sm font-medium hover:opacity-80 transition-opacity whitespace-nowrap', shell.isCompact ? 'px-2 py-1' : 'px-3 py-2')}
-          style={{ color: shell.navTextCol }}
-        >
-          {link.label}
-        </Link>
+        previewShell ? (
+          <a
+            key={link.href}
+            href={link.href}
+            onClick={(e) => previewNavClick(e, link.href)}
+            className={cn('rounded-md text-sm font-medium hover:opacity-80 transition-opacity whitespace-nowrap', shell.isCompact ? 'px-2 py-1' : 'px-3 py-2')}
+            style={{ color: shell.navTextCol }}
+          >
+            {link.label}
+          </a>
+        ) : (
+          <Link
+            key={link.href}
+            to={link.href}
+            onClick={builderCanvas?.onNavigate ? (e) => {
+              e.preventDefault()
+              builderCanvas.onNavigate!(link.href)
+            } : undefined}
+            className={cn('rounded-md text-sm font-medium hover:opacity-80 transition-opacity whitespace-nowrap', shell.isCompact ? 'px-2 py-1' : 'px-3 py-2')}
+            style={{ color: shell.navTextCol }}
+          >
+            {link.label}
+          </Link>
+        )
       ))}
     </nav>
   )
@@ -243,6 +326,21 @@ export default function NavBlock({
               </span>
             )}
           </button>
+        ) : previewShell ? (
+          <a
+            href={storePath('/cart')}
+            onClick={(e) => previewNavClick(e, storePath('/cart'))}
+            className="p-2 rounded-lg hover:opacity-70 transition-opacity relative"
+            style={{ color: shell.navTextCol }}
+            aria-label="Cart"
+          >
+            <ShoppingBag className="w-5 h-5" />
+            {cartCount > 0 && (
+              <span className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] px-1 rounded-full bg-primary text-white text-[10px] font-bold flex items-center justify-center">
+                {cartCount}
+              </span>
+            )}
+          </a>
         ) : (
           <Link to={storePath('/cart')} className="p-2 rounded-lg hover:opacity-70 transition-opacity relative" style={{ color: shell.navTextCol }} aria-label="Cart">
             <ShoppingBag className="w-5 h-5" />
@@ -265,6 +363,16 @@ export default function NavBlock({
           >
             <User className="w-5 h-5" />
           </button>
+        ) : previewShell ? (
+          <a
+            href={storePath(isAuthenticated ? '/account' : '/login')}
+            onClick={(e) => previewNavClick(e, storePath(isAuthenticated ? '/account' : '/login'))}
+            className="p-2 rounded-lg hover:opacity-70 transition-opacity"
+            style={{ color: shell.navTextCol }}
+            aria-label="Account"
+          >
+            <User className="w-5 h-5" />
+          </a>
         ) : (
           <Link to={storePath(isAuthenticated ? '/account' : '/login')} className="p-2 rounded-lg hover:opacity-70 transition-opacity" style={{ color: shell.navTextCol }} aria-label="Account">
             <User className="w-5 h-5" />
@@ -293,22 +401,42 @@ export default function NavBlock({
         </div>
       )}
       {ctaLabel && (
-        <Link
-          to={storePath(ctaUrl)}
-          className={cn(
-            'text-sm font-semibold whitespace-nowrap hover:opacity-90 transition-opacity',
-            shell.isCompact ? 'px-3 py-1.5' : 'px-4 py-2',
-            shell.isTransparentCta && 'ring-2 ring-white/30',
-          )}
-          style={{
-            backgroundColor: primary,
-            borderRadius,
-            color: '#fff',
-            boxShadow: shell.isTransparentCta ? `0 4px 14px ${primary}66` : undefined,
-          }}
-        >
-          {ctaLabel}
-        </Link>
+        previewShell ? (
+          <a
+            href={storePath(ctaUrl)}
+            onClick={(e) => previewNavClick(e, storePath(ctaUrl))}
+            className={cn(
+              'text-sm font-semibold whitespace-nowrap hover:opacity-90 transition-opacity',
+              shell.isCompact ? 'px-3 py-1.5' : 'px-4 py-2',
+              shell.isTransparentCta && 'ring-2 ring-white/30',
+            )}
+            style={{
+              backgroundColor: primary,
+              borderRadius,
+              color: '#fff',
+              boxShadow: shell.isTransparentCta ? `0 4px 14px ${primary}66` : undefined,
+            }}
+          >
+            {ctaLabel}
+          </a>
+        ) : (
+          <Link
+            to={storePath(ctaUrl)}
+            className={cn(
+              'text-sm font-semibold whitespace-nowrap hover:opacity-90 transition-opacity',
+              shell.isCompact ? 'px-3 py-1.5' : 'px-4 py-2',
+              shell.isTransparentCta && 'ring-2 ring-white/30',
+            )}
+            style={{
+              backgroundColor: primary,
+              borderRadius,
+              color: '#fff',
+              boxShadow: shell.isTransparentCta ? `0 4px 14px ${primary}66` : undefined,
+            }}
+          >
+            {ctaLabel}
+          </Link>
+        )
       )}
     </div>
   )

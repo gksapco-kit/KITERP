@@ -1,5 +1,14 @@
 import { useMemo, useState, useRef, useEffect } from 'react'
 import { TableColumnLabel } from '@/components/common/FieldLabel'
+import { CatalogItemStatusCell } from '@/components/common/CatalogItemStatusCell'
+import {
+  CatalogFilterField,
+  CatalogListFiltersPanel,
+  PRODUCT_STATUS_FILTER_OPTIONS,
+  VISIBILITY_FILTER_OPTIONS,
+  type CatalogActiveFilter,
+} from '@/components/catalog/CatalogListFilters'
+import { SERVICE_MODE_OPTIONS, SERVICE_TYPE_OPTIONS } from './serviceCatalogConstants'
 import { createPortal } from 'react-dom'
 import { useNavigate } from 'react-router-dom'
 import { Card, CardContent } from '@/components/ui/card'
@@ -150,7 +159,10 @@ export default function Services() {
   const [searchInput, setSearchInput] = useState('')
   const [search, setSearch] = useState('')
   const [status, setStatus] = useState('')
+  const [visibility, setVisibility] = useState('')
   const [category, setCategory] = useState('')
+  const [serviceType, setServiceType] = useState('')
+  const [serviceMode, setServiceMode] = useState('')
   const [showFilters, setShowFilters] = useState(false)
   const [sortKey, setSortKey] = useState('name')
   const [sortDir, setSortDir] = useState<SortDir>('asc')
@@ -169,12 +181,62 @@ export default function Services() {
     search: search || undefined,
     status: status || undefined,
     category: category || undefined,
+    is_visible: visibility === 'true' ? true : visibility === 'false' ? false : undefined,
+    service_type: serviceType || undefined,
+    service_mode: serviceMode || undefined,
     store_id: selectedStore?.id || undefined,
   })
   const deleteService = useDeleteService()
 
-  const activeFilterCount = [status, category].filter(Boolean).length
-  const clearFilters = () => { setStatus(''); setCategory(''); setPage(1) }
+  const activeFilterCount = [status, visibility, category, serviceType, serviceMode].filter(Boolean).length
+  const clearFilters = () => {
+    setStatus('')
+    setVisibility('')
+    setCategory('')
+    setServiceType('')
+    setServiceMode('')
+    setPage(1)
+  }
+
+  const activeFilters = useMemo((): CatalogActiveFilter[] => {
+    const chips: CatalogActiveFilter[] = []
+    if (status) {
+      chips.push({
+        key: 'status',
+        label: `Status: ${PRODUCT_STATUS_FILTER_OPTIONS.find(o => o.value === status)?.label || status}`,
+        onRemove: () => { setStatus(''); setPage(1) },
+      })
+    }
+    if (visibility) {
+      chips.push({
+        key: 'visibility',
+        label: VISIBILITY_FILTER_OPTIONS.find(o => o.value === visibility)?.label || 'Visibility',
+        onRemove: () => { setVisibility(''); setPage(1) },
+      })
+    }
+    if (category) {
+      chips.push({
+        key: 'category',
+        label: `Category: ${serviceCategories.find((c: { name: string }) => c.name === category)?.name || category}`,
+        onRemove: () => { setCategory(''); setPage(1) },
+      })
+    }
+    if (serviceType) {
+      chips.push({
+        key: 'service_type',
+        label: `Type: ${SERVICE_TYPE_OPTIONS.find(o => o.value === serviceType)?.label || serviceType}`,
+        onRemove: () => { setServiceType(''); setPage(1) },
+      })
+    }
+    if (serviceMode) {
+      chips.push({
+        key: 'service_mode',
+        label: `Mode: ${SERVICE_MODE_OPTIONS.find(o => o.value === serviceMode)?.label || serviceMode}`,
+        onRemove: () => { setServiceMode(''); setPage(1) },
+      })
+    }
+    return chips
+  }, [status, visibility, category, serviceType, serviceMode, serviceCategories])
 
   const displayServices = useMemo(() => {
     if (!data?.items?.length) return []
@@ -240,30 +302,60 @@ export default function Services() {
             </Button>
           </div>
           {showFilters && (
-            <div className="flex flex-wrap items-end gap-3 pt-3 border-t">
-              <div className="space-y-1">
-                <label className="text-xs font-medium text-gray-400 uppercase tracking-wider">Status</label>
-                <select value={status} onChange={e => { setStatus(e.target.value); setPage(1) }}
-                  className="h-9 rounded-lg border border-gray-200 bg-white px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring/30 focus:border-primary/60 transition-shadow">
-                  <option value="">All Statuses</option>
-                  <option value="active">Active</option>
-                  <option value="draft">Draft</option>
-                  <option value="archived">Archived</option>
-                </select>
-              </div>
-              <div className="space-y-1">
-                <label className="text-xs font-medium text-gray-400 uppercase tracking-wider">Category</label>
-                <select value={category} onChange={e => { setCategory(e.target.value); setPage(1) }}
-                  className="h-9 rounded-lg border border-gray-200 bg-white px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring/30 focus:border-primary/60 transition-shadow">
-                  <option value="">All Categories</option>
-                  {serviceCategories.map((c: any) => <option key={c.id} value={c.name}>{c.name}</option>)}
-                </select>
-              </div>
-              {activeFilterCount > 0 && (
-                <Button variant="ghost" size="sm" className="h-9 text-gray-500 gap-1" onClick={clearFilters}>
-                  <X className="w-3.5 h-3.5" />Clear
-                </Button>
-              )}
+            <CatalogListFiltersPanel activeFilters={activeFilters} onClearAll={clearFilters}>
+              <CatalogFilterField
+                label="Status"
+                value={status}
+                onChange={(value) => { setStatus(value); setPage(1) }}
+                options={PRODUCT_STATUS_FILTER_OPTIONS}
+                placeholder="All statuses"
+              />
+              <CatalogFilterField
+                label="Visibility"
+                value={visibility}
+                onChange={(value) => { setVisibility(value); setPage(1) }}
+                options={VISIBILITY_FILTER_OPTIONS}
+                placeholder="All visibility"
+              />
+              <CatalogFilterField
+                label="Category"
+                value={category}
+                onChange={(value) => { setCategory(value); setPage(1) }}
+                options={serviceCategories.map((c: { id: string; name: string }) => ({ value: c.name, label: c.name }))}
+                placeholder="All categories"
+              />
+              <CatalogFilterField
+                label="Service type"
+                value={serviceType}
+                onChange={(value) => { setServiceType(value); setPage(1) }}
+                options={SERVICE_TYPE_OPTIONS}
+                placeholder="All types"
+              />
+              <CatalogFilterField
+                label="Delivery mode"
+                value={serviceMode}
+                onChange={(value) => { setServiceMode(value); setPage(1) }}
+                options={SERVICE_MODE_OPTIONS}
+                placeholder="All modes"
+              />
+            </CatalogListFiltersPanel>
+          )}
+          {!showFilters && activeFilters.length > 0 && (
+            <div className="flex flex-wrap items-center gap-2 pt-1">
+              {activeFilters.map((filter) => (
+                <button
+                  key={filter.key}
+                  type="button"
+                  onClick={filter.onRemove}
+                  className="inline-flex items-center gap-1 rounded-full border border-gray-200 bg-gray-50 px-2.5 py-1 text-xs font-medium text-gray-700 hover:bg-gray-100 transition-colors"
+                >
+                  {filter.label}
+                  <X className="w-3 h-3 text-gray-400" />
+                </button>
+              ))}
+              <Button variant="ghost" size="sm" className="h-7 px-2 text-xs text-gray-500" onClick={clearFilters}>
+                Clear all
+              </Button>
             </div>
           )}
         </CardContent>
@@ -372,10 +464,7 @@ export default function Services() {
                           : <span className="text-gray-300 text-xs">—</span>}
                       </td>
                       <td className="px-4 py-3">
-                        <span className={`px-2 py-0.5 text-xs rounded-full font-semibold ${
-                          service.status === 'active'   ? 'bg-green-100 text-green-700' :
-                          service.status === 'archived' ? 'bg-red-50 text-red-600' : 'bg-gray-100 text-gray-600'
-                        }`}>{service.status}</span>
+                        <CatalogItemStatusCell status={service.status} isVisible={service.is_visible} />
                       </td>
                       <td className="px-5 py-3 text-right" onClick={e => e.stopPropagation()}>
                         <div className="flex gap-1 justify-end items-center">

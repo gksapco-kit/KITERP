@@ -26,6 +26,7 @@ interface Props {
   onCardClick?: (index: number) => void
   wrapCard?: (child: ReactNode, index: number) => ReactNode
   className?: string
+  gridStyle?: CSSProperties
   blockId?: string
   arrayKey?: string
   itemField?: string
@@ -189,6 +190,7 @@ export default function CategoryCardMosaic({
   onCardClick,
   wrapCard,
   className = '',
+  gridStyle,
   blockId,
   arrayKey,
   itemField,
@@ -201,7 +203,7 @@ export default function CategoryCardMosaic({
   return (
     <>
       <style>{WELLNESS_MOTION_CSS}</style>
-      <div className={`wl-mosaic-grid ${className}`.trim()}>
+      <div className={`wl-mosaic-grid ${className}`.trim()} style={gridStyle}>
         {items.map((c, i) => {
           const displayTitle = sanitizeWellnessCategoryTitle(c.title)
           const img = resolveCategoryCardImage(c, i, propImageByTitle)

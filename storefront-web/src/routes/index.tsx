@@ -1,6 +1,8 @@
 import { createBrowserRouter, Navigate, useLocation, useParams } from 'react-router-dom'
 import { useEffect } from 'react'
 import StoreLayout from '@/layouts/StoreLayout'
+import DraftCatalogEmbedShell from '@/layouts/DraftCatalogEmbedShell'
+import DraftCatalogEmbedBlocked from '@/pages/DraftCatalogEmbedBlocked'
 import ProtectedRoute from './ProtectedRoute'
 import ProtectedHrRoute from './ProtectedHrRoute'
 import { useVendor } from '@/contexts/VendorContext'
@@ -92,6 +94,33 @@ function HrPortalLayout() {
   )
 }
 
+/** Catalog shell routes allowed in draft preview — no home, blog, or builder catch-all. */
+const draftCatalogShellChildren = [
+  { path: 'login', element: <Login /> },
+  { path: 'register', element: <Register /> },
+  { path: 'forgot-password', element: <ForgotPassword /> },
+  { path: 'products', element: <ProductList /> },
+  { path: 'products/:slug', element: <ProductDetail /> },
+  { path: 'services', element: <ServiceList /> },
+  { path: 'services/:slug', element: <ServiceDetail /> },
+  { path: 'services/:slug/book', element: <ServiceBookingPage /> },
+  { path: 'cart', element: <CartPage /> },
+  { path: 'checkout', element: <Checkout /> },
+  { path: 'order/:orderId/confirmation', element: <OrderConfirmationPage /> },
+  { path: 'order/:orderId/status', element: <OrderStatusPage /> },
+  { path: 'account', element: <ProtectedRoute><Account /></ProtectedRoute> },
+  { path: 'account/orders', element: <ProtectedRoute><MyOrders /></ProtectedRoute> },
+  { path: 'account/orders/:id', element: <ProtectedRoute><OrderDetail /></ProtectedRoute> },
+  { path: 'account/bookings', element: <ProtectedRoute><MyBookings /></ProtectedRoute> },
+  { path: 'account/profile', element: <ProtectedRoute><ProfileSettings /></ProtectedRoute> },
+  { path: 'account/addresses', element: <ProtectedRoute><AddressesPage /></ProtectedRoute> },
+  { path: 'account/wishlist', element: <ProtectedRoute><MyWishlist /></ProtectedRoute> },
+  { path: 'account/subscriptions', element: <ProtectedRoute><MySubscriptions /></ProtectedRoute> },
+  { path: 'account/marketplace', element: <ProtectedRoute><MyMarketplace /></ProtectedRoute> },
+  { path: 'account/notifications', element: <ProtectedRoute><MyNotifications /></ProtectedRoute> },
+  { path: '*', element: <DraftCatalogEmbedBlocked /> },
+]
+
 export const router = createBrowserRouter([
   // Landing page — vendor directory / entry point
   {
@@ -124,6 +153,14 @@ export const router = createBrowserRouter([
     ],
   },
   // Vendor-specific business front: /store/:vendorSlug/...
+  {
+    path: '/store/:vendorSlug/draft-catalog/:previewToken',
+    element: <DraftCatalogEmbedShell />,
+    children: [
+      { index: true, element: <Navigate to="products" replace /> },
+      ...draftCatalogShellChildren,
+    ],
+  },
   {
     path: '/store/:vendorSlug',
     element: <StoreLayout />,

@@ -7,6 +7,7 @@ export function buildBuilderPublicSite(
   localPages: WebsitePage[],
   localBlocks: Record<string, WebsiteBlock[]>,
   localStyle: StyleConfig,
+  vendorSlug?: string | null,
 ): PublicSite {
   const pagesSorted = [...localPages].sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
   const pages = pagesSorted.map(page => {
@@ -44,9 +45,11 @@ export function buildBuilderPublicSite(
       blocks,
     }
   })
+  const catalogSlug = vendorSlug?.trim() || null
   return {
     id: site.id,
     vendor_id: site.vendor_id,
+    vendor_slug: catalogSlug,
     name: site.name,
     subdomain: site.subdomain,
     custom_domain: site.custom_domain,

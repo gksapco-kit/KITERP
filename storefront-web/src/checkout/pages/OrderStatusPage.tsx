@@ -4,6 +4,7 @@ import { CheckoutHeader, CheckoutFooter } from "../components/Header";
 import { CheckoutConfigProvider, formatMoney, useCheckoutConfig } from "../config";
 import { LineItem } from "../components/LineItem";
 import { useBranch } from "@/contexts/BranchContext";
+import { useBuilderSiteCheckoutTheme } from "@/hooks/useBuilderSiteCheckoutTheme";
 import { useOrder } from "@/hooks/useStore";
 import type { CartItem } from "../types";
 import type { OrderTimelineEvent } from "../types";
@@ -21,11 +22,12 @@ function Inner() {
   const { locale } = useCheckoutConfig();
   const { orderId } = useParams<{ orderId: string }>();
   const { storePath } = useBranch();
+  const checkoutTheme = useBuilderSiteCheckoutTheme();
   const { data: order, isLoading, error } = useOrder(orderId ?? "");
 
   if (isLoading) {
     return (
-      <div className="checkout-root min-h-screen">
+      <div className="checkout-root min-h-screen" style={checkoutTheme}>
         <CheckoutHeader />
         <main className="mx-auto flex max-w-4xl justify-center px-4 py-20">
           <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
@@ -37,7 +39,7 @@ function Inner() {
 
   if (!order || error) {
     return (
-      <div className="checkout-root min-h-screen">
+      <div className="checkout-root min-h-screen" style={checkoutTheme}>
         <CheckoutHeader />
         <main className="mx-auto max-w-4xl px-4 py-16 text-center md:px-6">
           <h1 className="mb-4 text-2xl font-semibold">Order not found</h1>
@@ -55,7 +57,7 @@ function Inner() {
   const timeline = buildTimeline(order);
 
   return (
-    <div className="checkout-root min-h-screen">
+    <div className="checkout-root min-h-screen" style={checkoutTheme}>
       <CheckoutHeader />
       <main className="mx-auto max-w-4xl px-4 py-8 md:px-6">
         <div className="mb-6 flex flex-wrap items-end justify-between gap-3">

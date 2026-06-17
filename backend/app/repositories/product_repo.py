@@ -101,6 +101,9 @@ class ProductRepository(BaseRepository[Product]):
         category: Optional[str] = None,
         search: Optional[str] = None,
         visible_only: bool = False,
+        is_visible: Optional[bool] = None,
+        product_type: Optional[str] = None,
+        stock: Optional[str] = None,
         store_id: Optional[UUID] = None,
     ) -> tuple[List[Product], int]:
         """List products for a vendor with filters."""
@@ -114,11 +117,38 @@ class ProductRepository(BaseRepository[Product]):
             query = query.where(store_filter)
             count_query = count_query.where(store_filter)
 
-        if visible_only:
-            # Treat NULL as visible (column added later; legacy rows have no value set)
+        if is_visible is True or visible_only:
             vis_filter = or_(Product.is_visible.is_(None), Product.is_visible == True)
             query = query.where(vis_filter)
             count_query = count_query.where(vis_filter)
+        elif is_visible is False:
+            query = query.where(Product.is_visible == False)
+            count_query = count_query.where(Product.is_visible == False)
+
+        if product_type:
+            query = query.where(Product.product_type == product_type)
+            count_query = count_query.where(Product.product_type == product_type)
+
+        if stock == "out_of_stock":
+            stock_filter = or_(
+                Product.stock_status.in_(["out_of_stock", "discontinued"]),
+                Product.quantity <= 0,
+            )
+            query = query.where(stock_filter)
+            count_query = count_query.where(stock_filter)
+        elif stock == "low_stock":
+            low_threshold = func.coalesce(Product.low_stock_threshold, 5)
+            stock_filter = and_(Product.quantity > 0, Product.quantity <= low_threshold)
+            query = query.where(stock_filter)
+            count_query = count_query.where(stock_filter)
+        elif stock == "in_stock":
+            low_threshold = func.coalesce(Product.low_stock_threshold, 5)
+            stock_filter = and_(
+                Product.quantity > low_threshold,
+                or_(Product.stock_status.is_(None), Product.stock_status == "in_stock"),
+            )
+            query = query.where(stock_filter)
+            count_query = count_query.where(stock_filter)
 
         if status:
             query = query.where(Product.status == status)

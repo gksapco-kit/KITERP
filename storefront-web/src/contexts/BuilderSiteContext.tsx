@@ -18,6 +18,7 @@ import { Outlet, useParams, useSearchParams } from 'react-router-dom'
 import { publicSitesApi } from '@/api/publicSites'
 import { useVendor } from '@/contexts/VendorContext'
 import type { PublicSite } from '@/blocks/registry'
+import { recallDraftEmbedPreviewToken } from '@/lib/draftEmbedPreview'
 
 interface BuilderSiteContextType {
   builderSite: PublicSite | null
@@ -33,10 +34,32 @@ export function BuilderSiteProvider({ children }: { children: ReactNode }) {
   const { vendor, vendorSlug } = useVendor()
   const [searchParams] = useSearchParams()
   const branchCode = searchParams.get('branch')?.trim() || null
+  const draftEmbed = searchParams.get('draft_embed') === '1'
+  const previewToken =
+    searchParams.get('preview_token')?.trim() || (draftEmbed ? recallDraftEmbedPreviewToken() : null)
   const [builderSite, setBuilderSite] = useState<PublicSite | null>(null)
   const [isLoading, setIsLoading] = useState(false)
 
   useEffect(() => {
+    if (draftEmbed && previewToken) {
+      let cancelled = false
+      setIsLoading(true)
+      publicSitesApi
+        .getPreviewByToken(previewToken)
+        .then(site => {
+          if (!cancelled) setBuilderSite(site)
+        })
+        .catch(() => {
+          if (!cancelled) setBuilderSite(null)
+        })
+        .finally(() => {
+          if (!cancelled) setIsLoading(false)
+        })
+      return () => {
+        cancelled = true
+      }
+    }
+
     if (!vendor && !vendorSlug) return
 
     // Derive subdomain: use the current hostname if it matches *.kiterp.com,
@@ -74,7 +97,7 @@ export function BuilderSiteProvider({ children }: { children: ReactNode }) {
     return () => {
       cancelled = true
     }
-  }, [vendor?.slug, vendorSlug, branchCode])
+  }, [vendor?.slug, vendorSlug, branchCode, draftEmbed, previewToken])
 
   return (
     <BuilderSiteContext.Provider value={{ builderSite, isLoading }}>

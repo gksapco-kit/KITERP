@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useRef, useEffect } from 'react'
 import { SectionLabel } from '@/components/common/FieldLabel'
 import { useEscapeToClose } from '@/hooks/useEscapeToClose'
 import { Card, CardContent } from '@/components/ui/card'
@@ -14,7 +14,10 @@ import { toast } from 'sonner'
 import { processRows, type SortDir } from '@/lib/tableList'
 import type { VendorCategory, CustomField } from '@/types'
 import { useNavigate } from 'react-router-dom'
-import { formatCurrency, mediaUrl, cn } from '@/lib/utils'
+import { formatCurrency, mediaUrl, cn, isLikelyImageFile } from '@/lib/utils'
+import { ImageSourcePicker } from '@/components/common/ImageSourcePicker'
+import { SingleImagePreview } from '@/components/common/CatalogMediaLightbox'
+import { vendorApi } from '@/api/vendor'
 
 const APPLIES_OPTIONS = [
   { value: 'both', label: 'Product & Service' },
@@ -279,12 +282,25 @@ function CategoryDetailPanel({
   return (
     <div className="rounded-xl border bg-white p-5 min-h-[420px] flex flex-col">
       <div className="flex items-start justify-between gap-3 mb-4">
-        <div>
-          <p className="text-xs uppercase tracking-wide text-gray-400 mb-1">
-            {cat.parent_id ? 'Subcategory' : 'Root category'}
-          </p>
-          <h2 className="text-xl font-bold text-gray-900">{cat.name}</h2>
-          {cat.description && <p className="text-sm text-gray-500 mt-1">{cat.description}</p>}
+        <div className="flex items-start gap-4 min-w-0">
+          {cat.image_url ? (
+            <img
+              src={mediaUrl(cat.image_url)}
+              alt=""
+              className="w-16 h-16 rounded-lg object-cover border border-gray-200 shrink-0"
+            />
+          ) : (
+            <div className="w-16 h-16 rounded-lg bg-gray-100 border border-dashed border-gray-200 flex items-center justify-center shrink-0">
+              <FolderTree className="w-6 h-6 text-gray-300" />
+            </div>
+          )}
+          <div className="min-w-0">
+            <p className="text-xs uppercase tracking-wide text-gray-400 mb-1">
+              {cat.parent_id ? 'Subcategory' : 'Root category'}
+            </p>
+            <h2 className="text-xl font-bold text-gray-900">{cat.name}</h2>
+            {cat.description && <p className="text-sm text-gray-500 mt-1">{cat.description}</p>}
+          </div>
         </div>
         <div className="flex flex-wrap gap-1.5 justify-end">
           {appliesBadge(cat.applies_to)}
@@ -517,12 +533,26 @@ export default function CategoriesPage() {
   const [parentId, setParentId] = useState<string | null>(null)
   const [sortOrder, setSortOrder] = useState(0)
   const [customFields, setCustomFields] = useState<CustomField[]>([])
+  const [imageUrl, setImageUrl] = useState<string | null>(null)
+  const [imageUploading, setImageUploading] = useState(false)
+  const localPreviewRef = useRef<string | null>(null)
   const [catalogueId, setCatalogueId] = useState<string | null>(null)
   const [selectedId, setSelectedId] = useState<string | null>(null)
+
+  const clearLocalPreview = () => {
+    if (localPreviewRef.current) {
+      URL.revokeObjectURL(localPreviewRef.current)
+      localPreviewRef.current = null
+    }
+  }
+
+  useEffect(() => () => clearLocalPreview(), [])
 
   const resetForm = () => {
     setShowForm(false); setEditing(null); setName(''); setDescription('')
     setAppliesTo('both'); setParentId(null); setSortOrder(0); setCustomFields([])
+    clearLocalPreview()
+    setImageUrl(null); setImageUploading(false)
   }
 
   useEscapeToClose(resetForm, showForm)
@@ -538,20 +568,60 @@ export default function CategoriesPage() {
   }
 
   const openEdit = (cat: VendorCategory) => {
+    clearLocalPreview()
     setSelectedId(cat.id)
     setEditing(cat); setName(cat.name); setDescription(cat.description || '')
     setAppliesTo(cat.applies_to); setParentId(cat.parent_id || null)
     setSortOrder(cat.sort_order || 0); setCustomFields(cat.custom_fields || [])
+    setImageUrl(cat.image_url || null)
     setShowForm(true)
+  }
+
+  const uploadCategoryImageFile = async (file: File) => {
+    if (!isLikelyImageFile(file)) {
+      toast.error('Please choose an image file (JPEG, PNG, WebP, or GIF)')
+      return
+    }
+    clearLocalPreview()
+    const localPreview = URL.createObjectURL(file)
+    localPreviewRef.current = localPreview
+    setImageUrl(localPreview)
+    setImageUploading(true)
+    try {
+      const data = await vendorApi.uploadCategoryImage(file)
+      const saved = data.image_url || (data as { url?: string }).url
+      if (!saved) throw new Error('No image URL returned')
+      clearLocalPreview()
+      setImageUrl(saved)
+      toast.success('Category image uploaded')
+    } catch {
+      clearLocalPreview()
+      setImageUrl(null)
+      toast.error('Upload failed — try again or pick another image')
+    } finally {
+      setImageUploading(false)
+    }
+  }
+
+  const handleCategoryImageUrl = (url: string) => {
+    const trimmed = url.trim()
+    if (!trimmed) return
+    clearLocalPreview()
+    setImageUrl(trimmed)
   }
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     if (!name.trim()) return
+    if (imageUrl?.startsWith('blob:')) {
+      toast.error('Image is still uploading — wait a moment and try again')
+      return
+    }
 
     const payload: Record<string, unknown> = {
       name: name.trim(),
       description: description.trim() || undefined,
+      image_url: imageUrl || null,
       applies_to: appliesTo,
       parent_id: parentId || undefined,
       sort_order: sortOrder,
@@ -665,6 +735,60 @@ export default function CategoriesPage() {
               <div className="space-y-1.5">
                 <Label>Description</Label>
                 <Input value={description} onChange={e => setDescription(e.target.value)} placeholder="Optional description" />
+              </div>
+
+              <div className="space-y-1.5">
+                <Label>Category Image</Label>
+                <p className="text-xs text-gray-400">Shown on your business front when customers browse categories.</p>
+                <div className="flex flex-wrap items-start gap-4">
+                  <div className="shrink-0">
+                    {imageUrl ? (
+                      <SingleImagePreview
+                        url={imageUrl}
+                        alt="Category image"
+                        resolveUrl={mediaUrl}
+                        className="rounded-lg"
+                        imgClassName="rounded-lg w-32 h-32 object-cover border border-gray-200 bg-gray-50"
+                        editable
+                        onSave={uploadCategoryImageFile}
+                      />
+                    ) : (
+                      <div className="flex h-32 w-32 items-center justify-center rounded-lg border border-dashed border-gray-300 bg-gray-50 text-gray-400">
+                        {imageUploading ? (
+                          <Loader2 className="w-6 h-6 animate-spin" />
+                        ) : (
+                          <FolderTree className="w-8 h-8" />
+                        )}
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex flex-col gap-2 pt-1">
+                    <ImageSourcePicker
+                      title="Category image"
+                      accept="image/jpeg,image/png,image/webp,image/gif"
+                      disabled={createCategory.isPending || updateCategory.isPending}
+                      uploading={imageUploading}
+                      preferDirectUrl
+                      onFile={uploadCategoryImageFile}
+                      onUrl={handleCategoryImageUrl}
+                      buttonClassName="text-xs h-8 border-primary/30 text-primary hover:bg-accent"
+                    />
+                    {imageUrl && (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="text-xs text-red-600 hover:text-red-700 w-fit"
+                        onClick={() => {
+                          clearLocalPreview()
+                          setImageUrl(null)
+                        }}
+                      >
+                        Remove image
+                      </Button>
+                    )}
+                  </div>
+                </div>
               </div>
 
               <CustomFieldsEditor fields={customFields} onChange={setCustomFields} />

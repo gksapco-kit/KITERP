@@ -282,11 +282,17 @@ export function getDefaultSetupFeatures(
 /** Map wizard checkboxes → page slugs sent to the generator. */
 export function buildPagesFromSetupFeatures(
   features: SetupFeatureId[],
-  _businessType: string,
+  sellingMode = 'both',
 ): string[] {
   const pages = new Set<string>(['home'])
   if (features.includes('about_page')) pages.add('about')
-  if (features.includes('services_page') || features.includes('services_sections')) pages.add('services')
+  if (features.includes('products_sections') && (sellingMode === 'products' || sellingMode === 'both')) {
+    pages.add('products')
+  }
+  if ((features.includes('services_page') || features.includes('services_sections'))
+    && (sellingMode === 'services' || sellingMode === 'both')) {
+    pages.add('services')
+  }
   if (features.includes('contact_form')) pages.add('contact')
   if (features.includes('pricing_page')) pages.add('pricing')
   if (features.includes('blog_page')) pages.add('blog')

@@ -1,5 +1,6 @@
 import { toast } from 'sonner'
 import { websiteApi } from '@/api/websites'
+import { vendorApi } from '@/api/vendor'
 import { buildBuilderPublicSite } from '@/lib/builderPublicSite'
 import {
   broadcastPreviewTabError,
@@ -33,7 +34,9 @@ export async function resolveBuilderSiteDraftPreviewUrl(siteId: string): Promise
     }),
   )
   const localStyle = (site.style_config ?? {}) as StyleConfig
-  const payload = buildBuilderPublicSite(site, pages as WebsitePage[], blocksByPage, localStyle)
+  const vendor = await vendorApi.getMyVendor().catch(() => null)
+  const vendorSlug = vendor?.slug?.trim() || null
+  const payload = buildBuilderPublicSite(site, pages as WebsitePage[], blocksByPage, localStyle, vendorSlug)
   const homePage = pages.find(p => p.is_homepage) ?? pages[0]
   const { preview_token } = await websiteApi.createBuilderPreview(siteId, {
     payload: payload as unknown as Record<string, unknown>,

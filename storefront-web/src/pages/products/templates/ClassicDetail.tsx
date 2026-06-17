@@ -17,6 +17,9 @@ import ReviewSection from '@/components/ReviewSection'
 import MerchProductGrid from './MerchProductGrid'
 import MediaViewer from '@/components/MediaViewer'
 import type { ProductDetailTemplateProps } from './types'
+import { themeUi } from '@/lib/themeColors'
+
+const catalogCard = `rounded-xl border ${themeUi.cardSurface} ${themeUi.cardBorder}`
 
 // ── Product Quote Request Modal ───────────────────────────────────
 const FALLBACK_QUOTE_FIELDS: QuoteFormField[] = [
@@ -179,7 +182,7 @@ export default function ClassicDetail(props: ProductDetailTemplateProps) {
         <span className="text-gray-900 font-medium">{product.name}</span>
       </nav>
 
-      <div className="bg-white rounded-xl border p-4 sm:p-6 lg:p-8">
+      <div className={`${catalogCard} p-4 sm:p-6 lg:p-8`}>
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12">
           {/* Media Gallery — variant media takes priority over product media */}
           <MediaViewer
@@ -515,7 +518,7 @@ export default function ClassicDetail(props: ProductDetailTemplateProps) {
       {/* Detail Cards */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-6">
         {product.requires_shipping !== false && (
-          <div className="bg-white rounded-xl border p-5">
+          <div className={`${catalogCard} p-5`}>
             <h3 className="text-sm font-bold text-gray-900 mb-3 flex items-center gap-2"><Truck className="w-4 h-4 text-blue-600" /> Shipping & Delivery</h3>
             <div className="space-y-2.5 text-sm">
               <div className="flex items-start gap-2"><Check className="w-4 h-4 text-green-500 mt-0.5 shrink-0" />
@@ -534,7 +537,7 @@ export default function ClassicDetail(props: ProductDetailTemplateProps) {
         )}
 
         {(returnPolicy || returnDays || isReturnable !== undefined) && (
-          <div className="bg-white rounded-xl border p-5">
+          <div className={`${catalogCard} p-5`}>
             <h3 className="text-sm font-bold text-gray-900 mb-3 flex items-center gap-2"><RefreshCw className="w-4 h-4 text-green-600" /> Return Policy</h3>
             <div className="space-y-2.5 text-sm">
               <div className="flex items-start gap-2">
@@ -552,7 +555,7 @@ export default function ClassicDetail(props: ProductDetailTemplateProps) {
         )}
 
         {(warrantyType || warrantyDays) && (
-          <div className="bg-white rounded-xl border p-5">
+          <div className={`${catalogCard} p-5`}>
             <h3 className="text-sm font-bold text-gray-900 mb-3 flex items-center gap-2"><ShieldCheck className="w-4 h-4 text-primary" /> Warranty</h3>
             <div className="space-y-2.5 text-sm">
               <div className="flex items-start gap-2"><Check className="w-4 h-4 text-green-500 mt-0.5 shrink-0" />
@@ -568,7 +571,7 @@ export default function ClassicDetail(props: ProductDetailTemplateProps) {
 
       {/* Variant / Plan Comparison Table */}
       {hasVariants && activeVariants.length > 1 && (
-        <div className="bg-white rounded-xl border p-4 sm:p-6 lg:p-8 mt-6 overflow-x-auto">
+        <div className={`${catalogCard} p-4 sm:p-6 lg:p-8 mt-6 overflow-x-auto`}>
           <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
             {isSubscription ? <><Repeat className="w-5 h-5 text-primary" /> Compare Plans</> : <><Box className="w-5 h-5" /> Available Options</>}
           </h3>
@@ -664,7 +667,7 @@ export default function ClassicDetail(props: ProductDetailTemplateProps) {
       )}
 
       {specs && (
-        <div className="bg-white rounded-xl border p-4 sm:p-6 lg:p-8 mt-6">
+        <div className={`${catalogCard} p-4 sm:p-6 lg:p-8 mt-6`}>
           <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2"><Box className="w-5 h-5" /> Specifications</h3>
           <div className="divide-y">
             {Object.entries(specs).map(([key, value]) => (
@@ -682,7 +685,7 @@ export default function ClassicDetail(props: ProductDetailTemplateProps) {
       <MerchProductGrid title="You May Also Like" subtitle="Upgrade your experience"
         products={upsellProducts} storePath={storePath} />
 
-      <div className="bg-white rounded-xl border p-4 sm:p-6 lg:p-8 mt-6">
+      <div className={`${catalogCard} p-4 sm:p-6 lg:p-8 mt-6`}>
         <ReviewSection reviewType="product" targetId={product.id} />
       </div>
 

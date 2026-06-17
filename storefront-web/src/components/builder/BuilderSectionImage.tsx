@@ -86,8 +86,9 @@ export function BuilderSectionImage({
   return (
     <div
       className={cn(
-        'group/builder-section-img relative h-full w-full overflow-hidden',
-        isEditor && 'z-[70] cursor-pointer pointer-events-auto',
+        'group/builder-section-img relative z-0 h-full w-full overflow-hidden',
+        isEditor && 'cursor-pointer pointer-events-auto',
+        isEditor && isActive && 'z-[20]',
       )}
       data-builder-section-image={field}
       data-builder-section-image-active={isActive ? 'true' : undefined}

@@ -20,6 +20,7 @@ class CustomFieldSchema(BaseModel):
 class CategoryCreate(BaseModel):
     name: str = Field(..., min_length=2, max_length=100)
     description: Optional[str] = Field(None, max_length=500)
+    image_url: Optional[str] = Field(None, max_length=500)
     applies_to: AppliesTo = AppliesTo.BOTH
     parent_id: Optional[str] = None
     sort_order: int = 0
@@ -29,6 +30,7 @@ class CategoryCreate(BaseModel):
 class CategoryUpdate(BaseModel):
     name: Optional[str] = Field(None, min_length=2, max_length=100)
     description: Optional[str] = Field(None, max_length=500)
+    image_url: Optional[str] = Field(None, max_length=500)
     applies_to: Optional[AppliesTo] = None
     is_active: Optional[bool] = None
     parent_id: Optional[str] = None
@@ -42,6 +44,7 @@ class CategoryResponse(BaseModel):
     name: str
     slug: str
     description: Optional[str] = None
+    image_url: Optional[str] = None
     applies_to: str
     is_active: bool
     parent_id: Optional[str] = None

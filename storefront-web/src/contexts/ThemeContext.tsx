@@ -2,10 +2,12 @@ import { createContext, useContext, useEffect, useMemo, type ReactNode } from 'r
 import { useLocation } from 'react-router-dom'
 import { useVendor } from './VendorContext'
 import { useBranch } from './BranchContext'
+import { useBuilderSite } from './BuilderSiteContext'
+import { mergeSiteStyleIntoTheme } from '@/lib/mergeSiteStyleIntoTheme'
 import {
+  applyBuilderPaletteCssVars,
   hexToHslChannels,
   primaryForegroundHslForHex,
-  textOnSolid,
 } from '@/lib/themeColors'
 import { normalizeStorefrontThemeConfig } from '@/lib/storefrontThemeConfig'
 import { resolveAssignedStorefrontTemplateId } from '@/lib/storefrontTemplateAssignment'
@@ -66,7 +68,9 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   const isHrPortal = /\/hr(\/|$)/.test(pathname)
   const { vendor } = useVendor()
   const { branchCode, branches } = useBranch()
+  const { builderSite } = useBuilderSite()
   const themeConfig = vendor?.theme_config
+  const siteStyle = builderSite?.style_config as Record<string, unknown> | undefined
 
   const theme: ThemeConfig = useMemo(() => {
     const raw = normalizeStorefrontThemeConfig(
@@ -88,7 +92,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
       },
       sections: { ...DEFAULT_THEME.sections, ...(raw.sections as Record<string, boolean> | undefined) },
     }
-    return {
+    const withVendor = {
       ...base,
       template: assignedTemplate ?? ((raw.template as string) === 'dark' ? 'dark' : 'light'),
       font: (raw as { font?: string }).font ?? DEFAULT_THEME.font,
@@ -97,20 +101,13 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
         (raw as { font?: string }).font ??
         DEFAULT_THEME.font_body,
     }
-  }, [themeConfig, vendor?.settings, branches, branchCode])
+    return mergeSiteStyleIntoTheme(withVendor, siteStyle)
+  }, [themeConfig, vendor?.settings, branches, branchCode, siteStyle])
 
   useEffect(() => {
+    applyBuilderPaletteCssVars(theme.colors, siteStyle, theme.template)
+
     const root = document.documentElement
-    root.style.setProperty('--color-primary', theme.colors.primary)
-    root.style.setProperty('--color-secondary', theme.colors.secondary)
-    root.style.setProperty('--color-accent', theme.colors.accent)
-    root.style.setProperty('--color-background', theme.colors.background)
-    const isDarkTemplate = theme.template === 'dark'
-    const textColor = isDarkTemplate ? '#f1f5f9' : theme.colors.secondary
-    const textMuted = isDarkTemplate ? '#cbd5e1' : '#374151'
-    root.style.setProperty('--color-text', textColor)
-    root.style.setProperty('--color-text-muted', textMuted)
-    root.style.setProperty('--color-on-primary', textOnSolid(theme.colors.primary))
     root.style.setProperty('--font-store', theme.font)
     root.style.setProperty('--font-body', theme.font_body || theme.font)
 
@@ -126,8 +123,9 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
       root.style.setProperty('--sidebar-ring', primaryHsl)
     }
 
+    const textOnBg = getComputedStyle(root).getPropertyValue('--color-text-on-bg').trim() || theme.colors.secondary
     document.body.style.backgroundColor = theme.colors.background
-    document.body.style.color = textColor
+    document.body.style.color = textOnBg
     document.body.style.fontFamily = `"${theme.font_body || theme.font}", Inter, system-ui, sans-serif`
 
     const fontsToLoad = [...new Set([theme.font, theme.font_body].filter(f => f && f !== 'Inter' && GOOGLE_FONTS.includes(f)))]
@@ -156,6 +154,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     theme.colors.background,
     theme.font,
     theme.font_body,
+    siteStyle,
   ])
 
   return (

@@ -1,9 +1,11 @@
 import { Link } from 'react-router-dom'
+import type { CSSProperties } from 'react'
 import type { StyleConfig } from '@/blocks/registry'
 import CategoryCardMosaic, { type MosaicCategory } from '@/components/builder/blocks/CategoryCardMosaic'
 import { BuilderTextField } from '@/components/builder/BuilderTextField'
 import { CategoryCardTitle } from '@/components/builder/CategoryCardTitle'
 import { useBuilderCanvas } from '@/contexts/BuilderCanvasContext'
+import { clampCatalogColumns } from '@/lib/catalogCardLayout'
 
 export type WellnessCategory = MosaicCategory
 
@@ -16,6 +18,11 @@ interface Props {
   storePath?: (path: string) => string
   blockId?: string
   blockProps?: Record<string, unknown>
+  maxItems?: number
+  itemGap?: number
+  columns?: number
+  imageHeightPct?: number
+  cardPadding?: number
 }
 
 export default function CategoryCardsWellness({
@@ -27,9 +34,21 @@ export default function CategoryCardsWellness({
   storePath = p => p,
   blockId,
   blockProps,
+  maxItems,
+  itemGap,
+  columns,
+  imageHeightPct,
+  cardPadding,
 }: Props) {
   const builderCanvas = useBuilderCanvas()
   const isEditorCanvas = builderCanvas?.isEditorCanvas && !!blockId
+  const mosaicColumns = clampCatalogColumns(columns ?? 3, 3, 'category_cards')
+  void imageHeightPct
+  void cardPadding
+  const mosaicGridStyle: CSSProperties = {
+    gridTemplateColumns: `repeat(${mosaicColumns}, minmax(0, 1fr))`,
+    ...(itemGap != null ? { gap: itemGap } : {}),
+  }
   const textColor = style.text_color || '#182E20'
   const bg =
     (blockProps?.bg_color_override as string | undefined)
@@ -75,6 +94,8 @@ export default function CategoryCardsWellness({
         arrayKey="categories"
         itemField="image_url"
         blockProps={blockProps}
+        maxItems={maxItems}
+        gridStyle={mosaicGridStyle}
         renderTitle={(displayTitle, i) => (
           <CategoryCardTitle
             index={i}

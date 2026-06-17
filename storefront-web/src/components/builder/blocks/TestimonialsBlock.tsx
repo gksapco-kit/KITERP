@@ -4,6 +4,7 @@ import BlockEmptyPlaceholder from '@/components/builder/BlockEmptyPlaceholder'
 import { BuilderSectionImage } from '@/components/builder/BuilderSectionImage'
 import { BuilderTextField } from '@/components/builder/BuilderTextField'
 import { useBuilderCanvas } from '@/contexts/BuilderCanvasContext'
+import { useVendor } from '@/contexts/VendorContext'
 import { cn } from '@/lib/utils'
 import { isLiveTestimonialsBound, isTemplateTestimonial } from '@/lib/testimonialPlaceholders'
 import { resolveSectionSurface } from '@/lib/navBlockLayout'
@@ -129,7 +130,9 @@ function TestimonialCard({
 
 export default function TestimonialsBlock({ style, props, liveItems, blockId }: Props) {
   const builderCanvas = useBuilderCanvas()
+  const { previewShell } = useVendor()
   const isEditor = builderCanvas?.isEditorCanvas && !!blockId
+  const showDraftPreviewFallback = isEditor || previewShell === true
   const blockProps = props
   const title = (props.title as string) || 'What Our Customers Say'
   const layout = String(props.layout ?? 'grid')
@@ -152,14 +155,14 @@ export default function TestimonialsBlock({ style, props, liveItems, blockId }: 
       : manualTestis.map(staticTestimonialToLiveItem)
 
   const previewCount = layout === 'centered' ? 1 : Math.min(Math.max(columns, 2), 4)
-  const editorPreviewItems = isEditor
+  const draftPreviewItems = showDraftPreviewFallback
     ? (manualTestis.length > 0
       ? manualTestis.map(staticTestimonialToLiveItem)
       : builderPreviewTestimonials(previewCount))
     : []
 
-  const displayItems = publishedItems.length > 0 ? publishedItems : editorPreviewItems
-  const showingLayoutPreview = isEditor && publishedItems.length === 0 && displayItems.length > 0
+  const displayItems = publishedItems.length > 0 ? publishedItems : draftPreviewItems
+  const showingLayoutPreview = isEditor && previewShell !== true && publishedItems.length === 0 && displayItems.length > 0
 
   const sectionTitle = (className: string) => (
     (title || blockId) ? (

@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react'
+import { useState, type CSSProperties, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import { ShoppingBag, Star, ShoppingCart, Check, Loader2, Heart } from 'lucide-react'
 import { useVendor } from '@/contexts/VendorContext'
@@ -69,6 +69,27 @@ function resolveCategoryCardPropData(
     propImageByTitle,
   )
   return { cats, propImageByTitle }
+}
+
+function readCategorySectionLayout(props: Record<string, unknown>) {
+  const cardLayout = readCatalogCardLayout(props, 'category_cards', { defaultColumns: 3 })
+  const limit = Math.min(50, Math.max(1, Number(props.show_count ?? props.max ?? 12) || 12))
+  return { ...cardLayout, limit }
+}
+
+function categoryTitleClass(isMinimal: boolean, isCompact: boolean): string {
+  if (isMinimal) return 'text-xs font-medium text-center line-clamp-2'
+  if (isCompact) return 'text-sm font-medium text-center line-clamp-2'
+  return 'text-base font-medium text-center'
+}
+
+function categoryImageAspectStyle(imageHeightPct: number, isCircle: boolean): CSSProperties | undefined {
+  return isCircle ? undefined : { paddingBottom: `${imageHeightPct}%` }
+}
+
+/** Editorial overlay tiles: map image height % (40–100) to padding-bottom ratio. */
+function categoryEditorialTilePaddingBottom(imageHeightPct: number): number {
+  return Math.round(40 + (Math.min(100, Math.max(40, imageHeightPct)) / 100) * 85)
 }
 
 function CategorySectionHeader({
@@ -157,9 +178,11 @@ export default function ProductGridBlock({ site, style, props, liveItems, blockT
   /** ── Wellness / Vibrant Living category cards (circular images on organic blobs) ── */
   if (
     blockType === 'category_cards'
-    && (props.layout === 'wellness'
-      || (props._image_category_id === 'wellness' && props.layout !== 'banner' && props.layout !== 'strip'))
+    && props.layout === 'wellness'
+    && props.card_style !== 'compact'
+    && props.card_style !== 'minimal'
   ) {
+    const categoryLayout = readCategorySectionLayout(props)
     const eyebrow = (props.eyebrow as string) || ''
     const propCats = (() => {
       const raw = props.categories as { title?: string; image_url?: string }[] | undefined
@@ -191,14 +214,28 @@ export default function ProductGridBlock({ site, style, props, liveItems, blockT
         storePath={storePath}
         blockId={blockId}
         blockProps={props}
+        maxItems={categoryLayout.limit}
+        itemGap={categoryLayout.itemGap}
+        columns={categoryLayout.columns}
+        imageHeightPct={categoryLayout.imageHeightPct}
+        cardPadding={categoryLayout.cardPadding}
       />
     )
   }
 
   /** ── Editorial category cards (matches vendor builder / Fashion browser) ── */
   if (blockType === 'category_cards' && props.layout === 'editorial') {
+    const categoryLayout = readCategorySectionLayout(props)
+    const {
+      columns: editorialColumns,
+      itemGap: editorialGap,
+      imageHeightPct: editorialImageHeight,
+      cardPadding: editorialCardPadding,
+      limit: editorialLimit,
+    } = categoryLayout
     const editorialImageShape = imageShapeFromProps(props)
     const editorialTileWrap = catalogTileImageWrapperClass(editorialImageShape)
+    const editorialTilePadding = categoryEditorialTilePaddingBottom(editorialImageHeight)
     const eyebrow = (props.eyebrow as string) || ''
     const propCats = (() => {
       const raw = props.categories as { title?: string; image_url?: string }[] | undefined
@@ -220,6 +257,8 @@ export default function ProductGridBlock({ site, style, props, liveItems, blockT
       liveItems.length > 0 ? liveItems : propCats,
       propImageByTitle,
     )
+
+    const editorialCardClass = 'group relative isolate overflow-hidden block w-full'
 
     return (
       <section className="py-16 sm:py-20 px-6 sm:px-12 max-w-7xl mx-auto" style={{ backgroundColor: categorySectionBackground(style, props) }}>
@@ -249,12 +288,15 @@ export default function ProductGridBlock({ site, style, props, liveItems, blockT
           </div>
           <span className="text-sm underline opacity-80 cursor-pointer" style={{ color: textColor }}>View all</span>
         </div>
-        <div className="grid md:grid-cols-3 gap-1">
-          {cats.slice(0, 9).map((c, i) => {
+        <div
+          className={cn('grid', CATALOG_GRID_COL_CLASS[editorialColumns] || CATALOG_GRID_COL_CLASS[3])}
+          style={{ gap: editorialGap }}
+        >
+          {cats.slice(0, editorialLimit).map((c, i) => {
             const fallback = resolveCategoryCardImage({ title: c.title, image_url: null }, i, propImageByTitle)
             const cardInner = (
-              <>
-                <div className={cn('absolute inset-0', editorialTileWrap)}>
+              <div className="absolute inset-0">
+                <div className={cn('absolute inset-0 z-0', editorialTileWrap)}>
                   <CategoryEditorialImage
                     src={c.image_url}
                     fallback={fallback}
@@ -267,8 +309,8 @@ export default function ProductGridBlock({ site, style, props, liveItems, blockT
                     blockProps={props}
                   />
                 </div>
-                <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/10 to-transparent pointer-events-none" />
-                <div className="absolute bottom-0 left-0 p-6 text-white">
+                <div className="absolute inset-0 z-[1] bg-gradient-to-t from-black/60 via-black/10 to-transparent pointer-events-none" />
+                <div className="absolute bottom-0 left-0 z-[2] text-white" style={{ padding: editorialCardPadding }}>
                   <CategoryCardTitle
                     index={i}
                     title={c.title}
@@ -280,20 +322,26 @@ export default function ProductGridBlock({ site, style, props, liveItems, blockT
                   />
                   <span className="text-xs uppercase tracking-[0.2em] text-white/80 pointer-events-none">Shop now →</span>
                 </div>
-              </>
+              </div>
             )
             if (isEditorCanvas) {
               return (
                 <div
                   key={`${c.title}-${i}`}
-                  className="group relative aspect-[4/5] overflow-hidden block"
+                  className={editorialCardClass}
+                  style={{ paddingBottom: `${editorialTilePadding}%` }}
                 >
                   {cardInner}
                 </div>
               )
             }
             return (
-              <Link key={`${c.title}-${i}`} to={storePath('/products')} className="group relative aspect-[4/5] overflow-hidden block">
+              <Link
+                key={`${c.title}-${i}`}
+                to={storePath('/products')}
+                className={editorialCardClass}
+                style={{ paddingBottom: `${editorialTilePadding}%` }}
+              >
                 {cardInner}
               </Link>
             )
@@ -305,9 +353,18 @@ export default function ProductGridBlock({ site, style, props, liveItems, blockT
 
   /** ── Category cards — list, strip, banner, overlay, masonry, grid ── */
   if (blockType === 'category_cards') {
+    const categoryLayout = readCategorySectionLayout(props)
+    const {
+      columns: catColumns,
+      itemGap: catGap,
+      imageHeightPct,
+      cardPadding,
+      cardRadius,
+      isMinimalCard,
+      isCompactCard,
+      limit: categoryLimit,
+    } = categoryLayout
     const catLayout = String(props.layout ?? 'grid')
-    const catColumns = clampCatalogColumns(props.columns, 4, blockType)
-    const catGap = Math.max(0, Number(props.item_gap ?? 24) || 24)
     const { cats, propImageByTitle } = resolveCategoryCardPropData(props, liveItems)
     const sectionBg = categorySectionBackground(style, props)
     const darkSection = props.bg_style === 'dark'
@@ -333,7 +390,7 @@ export default function ProductGridBlock({ site, style, props, liveItems, blockT
         <section className="py-16 sm:py-20 px-6 sm:px-12 max-w-3xl mx-auto" style={{ backgroundColor: sectionBg }}>
           <CategorySectionHeader title={title} textColor={sectionText} style={style} blockId={blockId} blockProps={props} />
           <div className="divide-y" style={{ borderColor: `${sectionText}22` }}>
-            {cats.slice(0, 12).map((c, i) => wrapCategoryLink(
+            {cats.slice(0, categoryLimit).map((c, i) => wrapCategoryLink(
               `${c.title}-${i}`,
               <>
                 <div className="flex items-center justify-between py-4 gap-4">
@@ -360,12 +417,16 @@ export default function ProductGridBlock({ site, style, props, liveItems, blockT
         <section className="py-16 sm:py-20 px-6 sm:px-12 max-w-7xl mx-auto" style={{ backgroundColor: sectionBg }}>
           <CategorySectionHeader title={title} textColor={sectionText} style={style} blockId={blockId} blockProps={props} />
           <div className="flex gap-4 overflow-x-auto pb-2 snap-x snap-mandatory" style={{ gap: catGap }}>
-            {cats.slice(0, catColumns).map((c, i) => {
+            {cats.slice(0, categoryLimit).map((c, i) => {
               const fallback = resolveCategoryCardImage({ title: c.title, image_url: null }, i, propImageByTitle)
+              const stripSize = isMinimalCard ? 96 : isCompactCard ? 112 : 140
               return wrapCategoryLink(
                 `${c.title}-${i}`,
                 <>
-                  <div className="relative aspect-square w-[120px] sm:w-[140px] shrink-0 snap-start rounded-lg overflow-hidden bg-gray-100 mb-2">
+                  <div
+                    className={cn('relative shrink-0 snap-start overflow-hidden bg-gray-100 mb-2', cardRadius)}
+                    style={{ width: stripSize, height: stripSize }}
+                  >
                     <CategoryEditorialImage
                       src={c.image_url}
                       fallback={fallback}
@@ -384,11 +445,11 @@ export default function ProductGridBlock({ site, style, props, liveItems, blockT
                     blockId={blockId}
                     blockProps={props}
                     as="span"
-                    className="text-xs font-medium text-center block truncate"
-                    style={{ color: sectionText }}
+                    className={cn(categoryTitleClass(isMinimalCard, isCompactCard), 'block truncate')}
+                    style={{ color: sectionText, paddingTop: Math.max(2, cardPadding / 2) }}
                   />
                 </>,
-                'shrink-0 w-[120px] sm:w-[140px] text-center',
+                isMinimalCard ? 'shrink-0 w-24 text-center' : isCompactCard ? 'shrink-0 w-28 text-center' : 'shrink-0 w-[140px] text-center',
               )
             })}
           </div>
@@ -405,31 +466,37 @@ export default function ProductGridBlock({ site, style, props, liveItems, blockT
             className={cn('grid', CATALOG_GRID_COL_CLASS[bannerCols] || CATALOG_GRID_COL_CLASS[2])}
             style={{ gap: catGap }}
           >
-            {cats.slice(0, bannerCols * 2).map((c, i) => {
+            {cats.slice(0, categoryLimit).map((c, i) => {
               const fallback = resolveCategoryCardImage({ title: c.title, image_url: null }, i, propImageByTitle)
               return wrapCategoryLink(
                 `${c.title}-${i}`,
-                <div className="relative aspect-[21/9] rounded-xl overflow-hidden bg-gray-100">
+                <div
+                  className={cn('relative isolate w-full overflow-hidden bg-gray-100', cardRadius)}
+                  style={categoryImageAspectStyle(Math.max(40, Math.min(56, imageHeightPct * 0.5)), false)}
+                >
                   <CategoryEditorialImage
                     src={c.image_url}
                     fallback={fallback}
                     alt={c.title}
-                    className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                    className="absolute inset-0 z-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
                     blockId={blockId}
                     arrayKey="categories"
                     index={i}
                     itemField="image_url"
                     blockProps={props}
                   />
-                  <div className="absolute inset-0 bg-gradient-to-r from-black/50 to-transparent pointer-events-none" />
-                  <div className="absolute bottom-4 left-4 right-4">
+                  <div className="absolute inset-0 z-[1] bg-gradient-to-r from-black/50 to-transparent pointer-events-none" />
+                  <div className="absolute bottom-4 left-4 right-4 z-[2]" style={{ padding: cardPadding }}>
                     <CategoryCardTitle
                       index={i}
                       title={c.title}
                       blockId={blockId}
                       blockProps={props}
                       as="h3"
-                      className="text-lg sm:text-xl font-semibold text-white"
+                      className={cn(
+                        isMinimalCard ? 'text-sm' : isCompactCard ? 'text-base' : 'text-lg sm:text-xl',
+                        'font-semibold text-white',
+                      )}
                       style={{ fontFamily: style.font_heading }}
                     />
                   </div>
@@ -449,31 +516,37 @@ export default function ProductGridBlock({ site, style, props, liveItems, blockT
             className={cn('grid', CATALOG_GRID_COL_CLASS[catColumns] || CATALOG_GRID_COL_CLASS[3])}
             style={{ gap: catGap }}
           >
-            {cats.slice(0, catColumns * 2).map((c, i) => {
+            {cats.slice(0, categoryLimit).map((c, i) => {
               const fallback = resolveCategoryCardImage({ title: c.title, image_url: null }, i, propImageByTitle)
               return wrapCategoryLink(
                 `${c.title}-${i}`,
-                <div className="relative aspect-[4/5] overflow-hidden rounded-lg bg-gray-100">
+                <div
+                  className={cn('relative isolate w-full overflow-hidden bg-gray-100', cardRadius)}
+                  style={categoryImageAspectStyle(imageHeightPct, false)}
+                >
                   <CategoryEditorialImage
                     src={c.image_url}
                     fallback={fallback}
                     alt={c.title}
-                    className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                    className="absolute inset-0 z-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
                     blockId={blockId}
                     arrayKey="categories"
                     index={i}
                     itemField="image_url"
                     blockProps={props}
                   />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/65 via-black/15 to-transparent pointer-events-none" />
-                  <div className="absolute bottom-0 left-0 right-0 p-4">
+                  <div className="absolute inset-0 z-[1] bg-gradient-to-t from-black/65 via-black/15 to-transparent pointer-events-none" />
+                  <div className="absolute bottom-0 left-0 right-0 z-[2]" style={{ padding: cardPadding }}>
                     <CategoryCardTitle
                       index={i}
                       title={c.title}
                       blockId={blockId}
                       blockProps={props}
                       as="h3"
-                      className="text-base font-semibold text-white"
+                      className={cn(
+                        isMinimalCard ? 'text-sm' : isCompactCard ? 'text-sm' : 'text-base',
+                        'font-semibold text-white',
+                      )}
                       style={{ fontFamily: style.font_heading }}
                     />
                   </div>
@@ -490,17 +563,18 @@ export default function ProductGridBlock({ site, style, props, liveItems, blockT
         <section className="py-16 sm:py-20 px-6 sm:px-12 max-w-7xl mx-auto" style={{ backgroundColor: sectionBg }}>
           <CategorySectionHeader title={title} textColor={sectionText} style={style} blockId={blockId} blockProps={props} />
           <div style={{ columnCount: catColumns, columnGap: catGap }}>
-            {cats.slice(0, catColumns * 3).map((c, i) => {
+            {cats.slice(0, categoryLimit).map((c, i) => {
               const fallback = resolveCategoryCardImage({ title: c.title, image_url: null }, i, propImageByTitle)
               const tall = i % 3 === 0
               return wrapCategoryLink(
                 `${c.title}-${i}`,
                 <>
                   <div
-                    className={cn(
-                      'relative mb-4 break-inside-avoid rounded-lg overflow-hidden bg-gray-100',
-                      tall ? 'aspect-[4/5]' : 'aspect-square',
-                    )}
+                    className={cn('relative w-full break-inside-avoid overflow-hidden bg-gray-100', cardRadius)}
+                    style={{
+                      marginBottom: catGap,
+                      ...categoryImageAspectStyle(tall ? imageHeightPct : Math.max(40, imageHeightPct - 12), false),
+                    }}
                   >
                     <CategoryEditorialImage
                       src={c.image_url}
@@ -520,8 +594,8 @@ export default function ProductGridBlock({ site, style, props, liveItems, blockT
                     blockId={blockId}
                     blockProps={props}
                     as="span"
-                    className="text-sm font-medium block mb-4"
-                    style={{ color: sectionText }}
+                    className={cn(categoryTitleClass(isMinimalCard, isCompactCard), 'block')}
+                    style={{ color: sectionText, marginBottom: catGap, padding: `0 0 ${Math.max(4, cardPadding / 2)}px` }}
                   />
                 </>,
               )
@@ -531,11 +605,10 @@ export default function ProductGridBlock({ site, style, props, liveItems, blockT
       )
     }
 
-    if (catLayout === 'grid' || catLayout === '') {
+    if (catLayout === 'grid' || catLayout === '' || catLayout === 'wellness') {
       const imageShape = imageShapeFromProps(props)
       const isCircle = imageShape === 'circle'
       const tileWrap = catalogTileImageWrapperClass(imageShape)
-      const maxItems = Math.min(cats.length, catColumns * 3)
 
       return (
         <section className="py-16 sm:py-20 px-6 sm:px-12 max-w-7xl mx-auto" style={{ backgroundColor: sectionBg }}>
@@ -544,23 +617,30 @@ export default function ProductGridBlock({ site, style, props, liveItems, blockT
             className={cn('grid', CATALOG_GRID_COL_CLASS[catColumns] || CATALOG_GRID_COL_CLASS[4])}
             style={{ gap: catGap }}
           >
-            {cats.slice(0, maxItems).map((c, i) => {
+            {cats.slice(0, categoryLimit).map((c, i) => {
               const fallback = resolveCategoryCardImage({ title: c.title, image_url: null }, i, propImageByTitle)
               return wrapCategoryLink(
                 `${c.title}-${i}`,
-                <>
+                <div
+                  className={cn(
+                    'builder-tile-card overflow-hidden bg-white border border-gray-100 flex flex-col h-full',
+                    cardRadius,
+                    isMinimalCard ? '' : 'hover:shadow-md transition-shadow',
+                  )}
+                >
                   <div
                     className={cn(
-                      'builder-tile-card relative mb-3 bg-gray-100',
+                      'relative w-full overflow-hidden bg-gray-100',
                       tileWrap,
-                      isCircle ? 'aspect-square max-w-[200px] mx-auto w-full' : 'aspect-[4/5] w-full',
+                      isCircle && 'aspect-square max-w-[min(100%,240px)] mx-auto',
                     )}
+                    style={categoryImageAspectStyle(imageHeightPct, isCircle)}
                   >
                     <CategoryEditorialImage
                       src={c.image_url}
                       fallback={fallback}
                       alt={c.title}
-                      className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                      className="absolute inset-0 z-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
                       blockId={blockId}
                       arrayKey="categories"
                       index={i}
@@ -568,16 +648,18 @@ export default function ProductGridBlock({ site, style, props, liveItems, blockT
                       blockProps={props}
                     />
                   </div>
-                  <CategoryCardTitle
-                    index={i}
-                    title={c.title}
-                    blockId={blockId}
-                    blockProps={props}
-                    as="h3"
-                    className="text-base font-medium text-center"
-                    style={{ fontFamily: style.font_heading, color: sectionText }}
-                  />
-                </>,
+                  <div style={{ padding: cardPadding }}>
+                    <CategoryCardTitle
+                      index={i}
+                      title={c.title}
+                      blockId={blockId}
+                      blockProps={props}
+                      as="h3"
+                      className={categoryTitleClass(isMinimalCard, isCompactCard)}
+                      style={{ fontFamily: style.font_heading, color: sectionText }}
+                    />
+                  </div>
+                </div>,
                 'text-center',
               )
             })}

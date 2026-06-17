@@ -173,6 +173,18 @@ async def upload_vendor_blog_cover(
     return JSONResponse(content={"cover_url": url, "url": url})
 
 
+@router.post("/vendor/category-image")
+async def upload_vendor_category_image(
+    file: UploadFile = File(...),
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Upload a category image. Returns a URL to store in ``image_url`` on the category."""
+    vendor_id = await _get_vendor_id(current_user, db)
+    url = await _save_file(file, f"vendor-category-images/{vendor_id}")
+    return JSONResponse(content={"image_url": url, "url": url})
+
+
 @router.post("/user/avatar")
 async def upload_user_avatar(
     file: UploadFile = File(...),

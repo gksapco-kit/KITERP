@@ -9,7 +9,7 @@ import { useStoreBridgeCheckout } from '@/hooks/useStoreBridgeCheckout'
 import { useCart, useStoreInfo } from '@/hooks/useStore'
 import { useBranch } from '@/contexts/BranchContext'
 import { useBuilderSite } from '@/contexts/BuilderSiteContext'
-import { buildCheckoutThemeFromSiteStyle } from '@/checkout/buildCheckoutThemeFromSiteStyle'
+import { useBuilderSiteCheckoutTheme } from '@/hooks/useBuilderSiteCheckoutTheme'
 import type { StyleConfig } from '@/blocks/registry'
 
 export default function Checkout() {
@@ -27,9 +27,7 @@ export default function Checkout() {
   const paymentMode = (params.get('payment') as PaymentMode) || undefined
   const storeName = (storeInfo as any)?.display_name ?? (storeInfo as any)?.business_name ?? 'Store'
 
-  const checkoutTheme = builderSite?.style_config
-    ? buildCheckoutThemeFromSiteStyle(builderSite.style_config as Partial<StyleConfig> & Record<string, unknown>)
-    : undefined
+  const checkoutTheme = useBuilderSiteCheckoutTheme()
 
   if (cartLoading) {
     return (

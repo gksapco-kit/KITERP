@@ -89,6 +89,9 @@ class ServiceRepository(BaseRepository[Service]):
         category: Optional[str] = None,
         search: Optional[str] = None,
         visible_only: bool = False,
+        is_visible: Optional[bool] = None,
+        service_type: Optional[str] = None,
+        service_mode: Optional[str] = None,
         store_id: Optional[UUID] = None,
     ) -> tuple[List[Service], int]:
         """List services for a vendor with filters."""
@@ -102,11 +105,21 @@ class ServiceRepository(BaseRepository[Service]):
             query = query.where(store_filter)
             count_query = count_query.where(store_filter)
 
-        if visible_only:
-            # Treat NULL as visible (column added later; legacy rows have no value set)
+        if is_visible is True or visible_only:
             vis_filter = or_(Service.is_visible.is_(None), Service.is_visible == True)
             query = query.where(vis_filter)
             count_query = count_query.where(vis_filter)
+        elif is_visible is False:
+            query = query.where(Service.is_visible == False)
+            count_query = count_query.where(Service.is_visible == False)
+
+        if service_type:
+            query = query.where(Service.service_type == service_type)
+            count_query = count_query.where(Service.service_type == service_type)
+
+        if service_mode:
+            query = query.where(Service.service_mode == service_mode)
+            count_query = count_query.where(Service.service_mode == service_mode)
         
         if status:
             query = query.where(Service.status == status)

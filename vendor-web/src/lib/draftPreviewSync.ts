@@ -27,7 +27,9 @@ export type DraftPreviewErrorMessage = {
 
 export type PreviewTabPostMessage = {
   type: typeof PREVIEW_NAV_MESSAGE_TYPE
-  url: string
+  url?: string
+  /** Catalog segment for /preview/draft?route=… when embedded storefront navigates in preview. */
+  route?: string
 }
 
 function canonicalizePreviewNavigateUrl(url: string): string {

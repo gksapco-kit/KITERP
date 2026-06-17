@@ -293,6 +293,9 @@ async def list_services(
     status: Optional[str] = None,
     category: Optional[str] = None,
     search: Optional[str] = None,
+    is_visible: Optional[bool] = Query(None, description="Filter by storefront visibility"),
+    service_type: Optional[str] = Query(None),
+    service_mode: Optional[str] = Query(None),
     store_id: Optional[str] = Query(None, description="Filter by business unit availability"),
     vendor_id: UUID = Depends(get_current_vendor_id),
     db: AsyncSession = Depends(get_db),
@@ -313,6 +316,9 @@ async def list_services(
         status=status,
         category=category,
         search=search,
+        is_visible=is_visible,
+        service_type=service_type,
+        service_mode=service_mode,
         store_id=sid,
     )
 

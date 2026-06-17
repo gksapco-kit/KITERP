@@ -15,6 +15,8 @@ ALLOWED_IMAGE_TYPES = {"image/jpeg", "image/png", "image/webp", "image/gif", "im
 ALLOWED_VIDEO_TYPES = {"video/mp4", "video/webm", "video/quicktime"}
 ALLOWED_3D_TYPES = {"model/gltf-binary", "model/gltf+json", "application/octet-stream"}
 ALLOWED_3D_EXTENSIONS = {".glb", ".gltf"}
+ALLOWED_IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".webp", ".gif", ".svg"}
+ALLOWED_VIDEO_EXTENSIONS = {".mp4", ".webm", ".mov"}
 ALLOWED_TYPES = ALLOWED_IMAGE_TYPES | ALLOWED_VIDEO_TYPES | ALLOWED_3D_TYPES
 
 MAX_IMAGE_SIZE = 5 * 1024 * 1024
@@ -37,11 +39,31 @@ def get_file_service() -> FileService:
 def detect_media_type(file: UploadFile) -> str:
     ct = file.content_type or ""
     ext = ("." + file.filename.rsplit(".", 1)[-1].lower()) if file.filename and "." in file.filename else ""
-    if ct in ALLOWED_VIDEO_TYPES:
+    if ct in ALLOWED_VIDEO_TYPES or ext in ALLOWED_VIDEO_EXTENSIONS:
         return "video"
     if ct in ALLOWED_3D_TYPES or ext in ALLOWED_3D_EXTENSIONS:
         return "model3d"
     return "image"
+
+
+def _file_extension(file: UploadFile) -> str:
+    if not file.filename or "." not in file.filename:
+        return ""
+    return "." + file.filename.rsplit(".", 1)[-1].lower()
+
+
+def _upload_type_allowed(file: UploadFile) -> bool:
+    ct = file.content_type or ""
+    if ct in ALLOWED_TYPES:
+        return True
+    ext = _file_extension(file)
+    if ext in ALLOWED_IMAGE_EXTENSIONS:
+        return True
+    if ext in ALLOWED_VIDEO_EXTENSIONS:
+        return True
+    if ext in ALLOWED_3D_EXTENSIONS:
+        return True
+    return False
 
 
 async def delete_stored_file(file_url: Optional[str]) -> bool:
@@ -52,12 +74,11 @@ async def delete_stored_file(file_url: Optional[str]) -> bool:
 
 async def save_media_file(file: UploadFile, subfolder: str) -> str:
     """Validate type/size and upload catalog/vendor media."""
-    ext = ("." + file.filename.rsplit(".", 1)[-1].lower()) if file.filename and "." in file.filename else ""
-    is_3d = ext in ALLOWED_3D_EXTENSIONS
-    if not is_3d and file.content_type not in ALLOWED_TYPES:
+    ext = _file_extension(file)
+    if not _upload_type_allowed(file):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"File type {file.content_type} not allowed. Supported: images, videos (MP4/WebM), 3D models (GLB/GLTF).",
+            detail=f"File type {file.content_type or 'unknown'} not allowed. Supported: images, videos (MP4/WebM), 3D models (GLB/GLTF).",
         )
 
     contents = await file.read()

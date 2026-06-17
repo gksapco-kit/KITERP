@@ -11,6 +11,7 @@ const dockerStorefrontSrc = '/storefront-web/src'
 const storefrontSrc = fs.existsSync(dockerStorefrontSrc)
   ? dockerStorefrontSrc
   : path.resolve(__dirname, '../storefront-web/src')
+const monorepoRoot = path.resolve(__dirname, '..')
 
 const vendorSrc = path.resolve(__dirname, './src')
 
@@ -55,6 +56,16 @@ function resolveAtImport(source: string, importer?: string): string | undefined 
   return resolveModuleFile(path.join(baseDir, rel)) ?? undefined
 }
 
+/** Prefer @storefront/… ids over absolute paths so lazy chunks avoid flaky @fs URLs on Windows. */
+function storefrontAliasId(source: string, importer?: string): string | undefined {
+  if (!source.startsWith('@/')) return undefined
+  if (!isStorefrontModule(importer)) return undefined
+  const file = resolveAtImport(source, importer)
+  if (!file) return undefined
+  const rel = path.relative(storefrontSrc, file).replace(/\\/g, '/')
+  return `@storefront/${rel}`
+}
+
 /** Resolve storefront `@/` imports when bundling preview components from storefront-web. */
 function storefrontPreviewImports() {
   return {
@@ -63,7 +74,7 @@ function storefrontPreviewImports() {
     resolveId(source: string, importer?: string) {
       if (!source.startsWith('@/')) return null
       if (!isStorefrontModule(importer)) return null
-      return resolveAtImport(source, importer)
+      return storefrontAliasId(source, importer) ?? null
     },
   }
 }
@@ -80,7 +91,7 @@ export default defineConfig({
         find: /^@\/(.+)$/,
         replacement: '$1',
         customResolver(source, importer) {
-          return resolveAtImport(`@/${source}`, importer)
+          return storefrontAliasId(`@/${source}`, importer) ?? resolveAtImport(`@/${source}`, importer)
         },
       },
       { find: '@storefront', replacement: storefrontSrc },
@@ -97,9 +108,19 @@ export default defineConfig({
     hmr: { clientPort: 3001 },
     /** Pre-transform entry files so first browser open is not a 30s+ hang on OneDrive. */
     warmup: {
-      clientFiles: ['./index.html', './src/main.tsx'],
+      clientFiles: [
+        './index.html',
+        './src/main.tsx',
+        '../storefront-web/src/components/builder/BlockRenderer.tsx',
+        '../storefront-web/src/components/builder/blocks/FooterBlock.tsx',
+        '../storefront-web/src/components/builder/blocks/NavBlock.tsx',
+      ],
     },
     ...(useWatchPolling ? { watch: { usePolling: true, interval: 1000 } } : {}),
+    /** storefront-web lives outside vendor-web root — required for @fs lazy chunks in preview. */
+    fs: {
+      allow: [monorepoRoot, storefrontSrc],
+    },
     proxy: {
       '/api': {
         target: BACKEND_URL,

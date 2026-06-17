@@ -10,6 +10,7 @@ import { useGuestCartStore } from '@/stores/guestCartStore'
 import { useCartStore } from '@/stores/cartStore'
 import { useBranch } from '@/contexts/BranchContext'
 import { useVendor } from '@/contexts/VendorContext'
+import { useBuilderSiteCheckoutTheme } from '@/hooks/useBuilderSiteCheckoutTheme'
 import { TableSkeleton } from '@/kit/states/StateScreens'
 
 export default function CartPage() {
@@ -22,6 +23,7 @@ export default function CartPage() {
   const cartFromStore = useCartStore((s) => s.cart)
   const updateItem = useUpdateCartItem()
   const removeItem = useRemoveCartItem()
+  const checkoutTheme = useBuilderSiteCheckoutTheme()
 
   const guestCart = useMemo(() => buildGuestCart(guestItems), [guestItems])
   const cart = isAuthenticated ? (cartFromStore ?? serverCart) : guestCart
@@ -71,7 +73,7 @@ export default function CartPage() {
 
   return (
     <CheckoutConfigProvider config={{ storeName, showCoupon: true, showTrustBadges: true }}>
-      <div className="checkout-root">
+      <div className="checkout-root" style={checkoutTheme}>
         <main className="mx-auto max-w-6xl px-4 py-8 md:px-6">
           <div className="mb-5 flex items-center gap-2 text-sm">
             <Link to={storePath('/')} className="ck-btn-ghost flex items-center gap-1 p-0">

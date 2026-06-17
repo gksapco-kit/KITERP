@@ -13,6 +13,7 @@ import ReviewSection from '@/components/ReviewSection'
 import MerchProductGrid from './MerchProductGrid'
 import MediaViewer from '@/components/MediaViewer'
 import type { ProductDetailTemplateProps } from './types'
+import { themeUi } from '@/lib/themeColors'
 
 type Tab = 'description' | 'specs' | 'shipping' | 'reviews'
 
@@ -314,7 +315,7 @@ export default function ModernDetail(props: ProductDetailTemplateProps) {
 
         {/* Right — Sticky Buy Box */}
         <div className="lg:col-span-3">
-          <div className="lg:sticky lg:top-4 bg-white rounded-2xl border p-5 space-y-4">
+          <div className={`lg:sticky lg:top-4 rounded-2xl border p-5 space-y-4 ${themeUi.cardSurface} ${themeUi.cardBorder}`}>
             {/* Price */}
             <div>
               {displayOfferLabel && displayOnSale && (

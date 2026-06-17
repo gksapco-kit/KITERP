@@ -14,6 +14,7 @@ import { EmptyBookings } from '@/kit/states/StateScreens'
 import { TableSkeleton } from '@/kit/states/StateScreens'
 import type { Service as KitService } from '@/kit/types'
 import { themeUi } from '@/lib/themeColors'
+import { cn } from '@/lib/utils'
 
 const SERVICE_MODE_ICON: Record<string, string> = {
   home_visit: 'Home Visit', on_site: 'On-Site', remote: 'Remote', online: 'Online',
@@ -82,18 +83,18 @@ export default function ServiceList() {
   return (
     <div className="max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8 py-6">
       {/* Breadcrumb */}
-      <nav className="text-sm text-gray-500 mb-5 flex items-center gap-1">
-        <Link to={storePath('/')} className={themeUi.linkHover}>Home</Link>
+      <nav className={`${themeUi.breadcrumbNav} mb-5`}>
+        <Link to={storePath('/')} className={themeUi.linkOnPage}>Home</Link>
         <ChevronRight className="w-3 h-3" />
-        <span className="text-gray-900 font-medium">Services</span>
+        <span className={themeUi.breadcrumbCurrent}>Services</span>
       </nav>
 
       <div className="flex flex-col lg:flex-row gap-6">
         {/* Sidebar */}
         <aside className="hidden lg:block w-64 shrink-0">
-          <div className="bg-white rounded-2xl border-2 border-gray-200 p-5 sticky top-4 shadow-sm max-h-[90vh] overflow-y-auto">
-            <h3 className="font-bold text-sm mb-4 flex items-center gap-2 text-gray-900">
-              <SlidersHorizontal className="w-4 h-4 text-gray-400" /> Filters
+          <div className={`rounded-2xl border p-5 sticky top-4 shadow-sm max-h-[90vh] overflow-y-auto ${themeUi.cardSurface} ${themeUi.cardBorder} ${themeUi.catalogSurface}`}>
+            <h3 className={`font-bold text-sm mb-4 flex items-center gap-2 ${themeUi.titleOnSurface}`}>
+              <SlidersHorizontal className={`w-4 h-4 ${themeUi.mutedOnSurface}`} /> Filters
             </h3>
             <div className="space-y-5">
               <div>
@@ -138,7 +139,7 @@ export default function ServiceList() {
         {/* Main */}
         <div className="flex-1 min-w-0">
           {/* Toolbar */}
-          <div className="bg-white rounded-2xl border border-gray-200/80 p-3 sm:p-4 mb-5 flex items-center justify-between gap-3 flex-wrap shadow-sm max-h-[90vh] overflow-y-auto">
+          <div className={`rounded-2xl border p-3 sm:p-4 mb-5 flex items-center justify-between gap-3 flex-wrap shadow-sm max-h-[90vh] overflow-y-auto ${themeUi.cardSurface} ${themeUi.cardBorder}`}>
             <div className="flex items-center gap-3 flex-wrap">
               <Button variant="outline" size="sm" className="lg:hidden gap-1.5 rounded-lg" onClick={() => setShowFilters(!showFilters)}>
                 <SlidersHorizontal className="w-4 h-4" /> Filters
@@ -165,7 +166,7 @@ export default function ServiceList() {
 
           {/* Mobile Filters */}
           {showFilters && (
-            <div className="lg:hidden bg-white rounded-2xl border border-gray-200/80 p-4 mb-5 space-y-3 shadow-sm max-h-[90vh] overflow-y-auto">
+            <div className={`lg:hidden rounded-2xl border p-4 mb-5 space-y-3 shadow-sm max-h-[90vh] overflow-y-auto ${themeUi.cardSurface} ${themeUi.cardBorder}`}>
               <form onSubmit={(e) => { e.preventDefault(); setSearch(searchInput); setPage(1); setShowFilters(false) }}
                 className="flex gap-2">
                 <Input value={searchInput} onChange={(e) => setSearchInput(e.target.value)}
@@ -215,21 +216,23 @@ export default function ServiceList() {
           {data && data.pages > 1 && (
             <div className="flex items-center justify-center gap-2 mt-8">
               <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage((p) => p - 1)}
-                className="gap-1 rounded-lg">
+                className={cn('gap-1 rounded-lg', themeUi.paginationBtn)}>
                 <ChevronLeft className="w-4 h-4" /> Previous
               </Button>
               {Array.from({ length: Math.min(data.pages, 5) }, (_, i) => {
                 const pageNum = page <= 3 ? i + 1 : page + i - 2
                 if (pageNum < 1 || pageNum > data.pages) return null
+                const isActive = pageNum === page
                 return (
-                  <Button key={pageNum} variant={pageNum === page ? 'default' : 'outline'} size="sm"
-                    onClick={() => setPage(pageNum)} className="w-9 h-9 rounded-lg">
+                  <Button key={pageNum} variant={isActive ? 'default' : 'outline'} size="sm"
+                    onClick={() => setPage(pageNum)}
+                    className={cn('w-9 h-9 rounded-lg', isActive ? themeUi.paginationBtnActive : themeUi.paginationBtn)}>
                     {pageNum}
                   </Button>
                 )
               })}
               <Button variant="outline" size="sm" disabled={page >= data.pages} onClick={() => setPage((p) => p + 1)}
-                className="gap-1 rounded-lg">
+                className={cn('gap-1 rounded-lg', themeUi.paginationBtn)}>
                 Next <ChevronRight className="w-4 h-4" />
               </Button>
             </div>

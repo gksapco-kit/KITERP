@@ -221,6 +221,7 @@ import {
 import { mediaUrl } from '@/lib/utils'
 import { extractApiError, isBuilderPreviewInfraFailure } from '@/lib/errorMessages'
 import { buildDraftPreviewCatalogUrl, parseCatalogStorePath, parseStorefrontEmbedRoute } from '@/lib/catalogStorePaths'
+import { findBuilderPageForNavPath } from '@storefront/lib/previewNavRouting'
 import { recallDraftPreviewToken } from '@/lib/draftPreviewNavigation'
 import {
   isLiveTeamDataSource,
@@ -313,6 +314,11 @@ const BLOCK_CATALOG: BlockDef[] = [
     eyebrow: 'Explore',
     layout: 'wellness',
     columns: 3,
+    show_count: 4,
+    item_gap: 24,
+    card_padding: 16,
+    image_height_pct: 100,
+    card_style: 'default',
     categories: WELLNESS_DEFAULT_CATEGORY_TITLES.map((title, i) => ({
       title,
       image_url: WELLNESS_CATEGORY_FALLBACK_IMAGES[i % WELLNESS_CATEGORY_FALLBACK_IMAGES.length],
@@ -543,8 +549,9 @@ function buildPublicSitePayloadFromLocal(
   localPages: WebsitePage[],
   localBlocks: Record<string, WebsiteBlock[]>,
   localStyle: StyleConfig,
+  vendorSlug?: string | null,
 ): Record<string, unknown> {
-  return buildBuilderPublicSite(site, localPages, localBlocks, localStyle) as unknown as Record<string, unknown>
+  return buildBuilderPublicSite(site, localPages, localBlocks, localStyle, vendorSlug) as unknown as Record<string, unknown>
 }
 
 const FONTS = [...BUILDER_FONT_FAMILIES]
@@ -3609,8 +3616,15 @@ function CatalogGridLayoutControls({
   onPreview: (props: Partial<BlockProps>) => void
 }) {
   const patch = (next: Record<string, unknown>) => {
-    onPreview(next as Partial<BlockProps>)
-    onUpdate(next as Partial<BlockProps>)
+    const merged = { ...next }
+    if (blockType === 'category_cards' && p.layout === 'wellness') {
+      const layoutKeys = ['image_height_pct', 'card_padding', 'item_gap', 'card_style', 'columns', 'compact']
+      if (Object.keys(next).some(k => layoutKeys.includes(k))) {
+        merged.layout = 'grid'
+      }
+    }
+    onPreview(merged as Partial<BlockProps>)
+    onUpdate(merged as Partial<BlockProps>)
   }
 
   const config = getCatalogGridBlockConfig(blockType)
@@ -8589,12 +8603,13 @@ export default function WebsiteBuilder() {
     [localStyle, activePageId],
   )
 
+  const vendorCatalogSlug = myVendor?.slug?.trim() || null
+  const builderVendorSlug = myVendor?.slug?.trim() || site?.subdomain?.trim() || ''
+
   const builderPublicSite = useMemo(() => {
     if (!site) return null
-    return buildBuilderPublicSite(site, localPages, localBlocks, localStyle)
-  }, [site, localPages, localBlocks, localStyle])
-
-  const builderVendorSlug = myVendor?.slug?.trim() || site?.subdomain?.trim() || ''
+    return buildBuilderPublicSite(site, localPages, localBlocks, localStyle, vendorCatalogSlug)
+  }, [site, localPages, localBlocks, localStyle, vendorCatalogSlug])
 
   const openCatalogPreviewFromBuilder = useCallback(async (url: string) => {
     if (!siteId || !site) return
@@ -8604,7 +8619,7 @@ export default function WebsiteBuilder() {
       clearPendingPreviewTabError()
       prepareDraftPreviewTab()
       try {
-        const payload = buildPublicSitePayloadFromLocal(site, localPages, localBlocks, localStyle)
+        const payload = buildPublicSitePayloadFromLocal(site, localPages, localBlocks, localStyle, vendorCatalogSlug)
         const { preview_token } = await websiteApi.createBuilderPreview(siteId, {
           payload,
           label: 'Preview',
@@ -8627,30 +8642,27 @@ export default function WebsiteBuilder() {
       window.open(catalogPreviewUrl, '_blank', 'noopener,noreferrer')
       toast.success('Preview opened in a new tab')
     }
-  }, [siteId, site, localPages, localBlocks, localStyle, activePage?.slug])
+  }, [siteId, site, localPages, localBlocks, localStyle, activePage?.slug, vendorCatalogSlug])
 
   const handleNavigateBuilderPage = useCallback((url: string) => {
     const raw = (url || '/').trim()
     const pathOnly = raw.split('?')[0].split('#')[0]
     const normalized = pathOnly.startsWith('/') ? raw : `/${raw}`
 
+    const target = findBuilderPageForNavPath(pathOnly, localPages)
+    if (target) {
+      setActivePageId(target.id)
+      setSelectedBlockId(null)
+      return
+    }
+
     if (parseStorefrontEmbedRoute(normalized) || parseCatalogStorePath(pathOnly)) {
       void openCatalogPreviewFromBuilder(normalized)
       return
     }
 
-    const cleanUrl = pathOnly
-    const slug = cleanUrl === '/' ? '' : cleanUrl.replace(/^\/+|\/+$/g, '')
-    const target = localPages.find(p => (
-      (p.is_homepage && (cleanUrl === '/' || slug === 'home')) ||
-      p.slug.replace(/^\/+|\/+$/g, '') === slug
-    ))
-    if (target) {
-      setActivePageId(target.id)
-      setSelectedBlockId(null)
-    } else {
-      toast.info(`No builder page found for "${pathOnly}". Add it from the Pages panel or update the nav link.`)
-    }
+    const cleanUrl = pathOnly.replace(/\/+$/, '') || '/'
+    toast.info(`No builder page found for "${cleanUrl}". Add it from the Pages panel or update the nav link.`)
   }, [localPages, openCatalogPreviewFromBuilder])
 
   const handleCanvasTextFieldActivate = useCallback((
@@ -11254,7 +11266,7 @@ export default function WebsiteBuilder() {
           : undefined
         void pushDraftPreviewUpdate(
           siteId,
-          buildPublicSitePayloadFromLocal(site, pages, localBlocksRef.current, localStyle),
+          buildPublicSitePayloadFromLocal(site, pages, localBlocksRef.current, localStyle, vendorCatalogSlug),
           pageSlug,
         ).catch(() => { /* preview tab closed or not open */ })
       }
@@ -11269,7 +11281,7 @@ export default function WebsiteBuilder() {
     }
     setIsSaving(false)
     isSavingRef.current = false
-  }, [siteId, localStyle, styleDirty, blocksDirty, persistAllBlocksToServer, site, activePageId])
+  }, [siteId, localStyle, styleDirty, blocksDirty, persistAllBlocksToServer, site, activePageId, vendorCatalogSlug])
 
   const handleSaveCanvasRef = useRef(handleSaveCanvas)
   useEffect(() => { handleSaveCanvasRef.current = handleSaveCanvas }, [handleSaveCanvas])
@@ -11339,12 +11351,12 @@ export default function WebsiteBuilder() {
         : undefined
       void pushDraftPreviewUpdate(
         siteId,
-        buildPublicSitePayloadFromLocal(site, pages, localBlocksRef.current, localStyle),
+        buildPublicSitePayloadFromLocal(site, pages, localBlocksRef.current, localStyle, vendorCatalogSlug),
         pageSlug,
       ).catch(() => { /* preview tab not open */ })
     }, 3500)
     return () => clearTimeout(timer)
-  }, [blocksDirty, styleDirty, siteId, site, activePageId, localStyle])
+  }, [blocksDirty, styleDirty, siteId, site, activePageId, localStyle, vendorCatalogSlug])
 
   /** Save current canvas + publish to make the loaded template live on the store. */
   const handleApplyToStore = useCallback(async () => {
@@ -11649,7 +11661,6 @@ export default function WebsiteBuilder() {
 
   // Store test URL — business front /store/:slug resolves vendors via GET /catalog/vendor/{slug} (Vendor.slug),
   // not wb_sites.subdomain. In dev, always use the logged-in vendor's catalog slug so links don't 404.
-  const vendorCatalogSlug = myVendor?.slug?.trim() ?? null
   const siteTestUrl = useMemo(() => {
     if (!site) return null
     const customDomain = site.custom_domain?.trim()
@@ -11721,7 +11732,7 @@ export default function WebsiteBuilder() {
     const previewTab = prepareDraftPreviewTab()
     setOpeningBrowserPreview(true)
     try {
-      const payload = buildPublicSitePayloadFromLocal(site, localPages, localBlocks, localStyle)
+      const payload = buildPublicSitePayloadFromLocal(site, localPages, localBlocks, localStyle, vendorSlug)
       const { preview_token } = await websiteApi.createBuilderPreview(siteId, {
         payload,
         label: `Preview ${new Date().toLocaleString()}`,
@@ -11775,11 +11786,6 @@ export default function WebsiteBuilder() {
   ), [])
 
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false)
-  const [liveTime, setLiveTime] = useState(() => new Date())
-  useEffect(() => {
-    const timer = setInterval(() => setLiveTime(new Date()), 1000)
-    return () => clearInterval(timer)
-  }, [])
 
   /** Editable zoom field: null when not editing, otherwise the in-progress text. */
   const [zoomInputDraft, setZoomInputDraft] = useState<string | null>(null)
@@ -12233,21 +12239,6 @@ export default function WebsiteBuilder() {
                 Reset
               </button>
 
-              <button
-                type="button"
-                aria-label="Deselect section"
-                aria-hidden={!selectedBlockId}
-                tabIndex={selectedBlockId ? 0 : -1}
-                onClick={() => setSelectedBlockId(null)}
-                className={cn(
-                  'inline-flex h-6 shrink-0 items-center gap-1.5 rounded-lg px-2 text-[11px] font-semibold leading-none antialiased text-gray-300 bg-gray-700/60 hover:bg-gray-700 transition-colors',
-                  !selectedBlockId && 'invisible pointer-events-none',
-                )}
-              >
-                <X className="w-3 h-3 shrink-0" /> Deselect
-                <BuilderShortcutKbd className="border-gray-600 bg-gray-800 text-gray-400 shadow-none">Esc</BuilderShortcutKbd>
-              </button>
-
               <div className="inline-flex h-6 shrink-0 items-center gap-0.5 rounded-lg border border-gray-600 bg-gray-900/50 px-1">
                 <button
                   type="button"
@@ -12319,13 +12310,20 @@ export default function WebsiteBuilder() {
                 <kbd className="rounded border border-gray-700 bg-gray-900 px-1 py-px text-[9px] font-semibold text-gray-500">⌘K</kbd>
               </button>
 
-              {/* Live clock */}
-              <span
-                className="hidden md:inline-flex h-6 shrink-0 items-center rounded-lg border border-gray-700 bg-gray-900/50 px-2 text-[11px] font-semibold leading-none tabular-nums text-gray-400"
-                title="Current time"
+              <button
+                type="button"
+                aria-label="Deselect section"
+                aria-hidden={!selectedBlockId}
+                tabIndex={selectedBlockId ? 0 : -1}
+                onClick={() => setSelectedBlockId(null)}
+                className={cn(
+                  'inline-flex h-6 shrink-0 items-center gap-1.5 rounded-lg px-2 text-[11px] font-semibold leading-none antialiased text-gray-300 bg-gray-700/60 hover:bg-gray-700 transition-colors',
+                  !selectedBlockId && 'invisible pointer-events-none',
+                )}
               >
-                {liveTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-              </span>
+                <X className="w-3 h-3 shrink-0" /> Deselect
+                <BuilderShortcutKbd className="border-gray-600 bg-gray-800 text-gray-400 shadow-none">Esc</BuilderShortcutKbd>
+              </button>
 
             </div>
           </div>

@@ -20,6 +20,16 @@ import {
 import { toast } from 'sonner'
 import { vendorApi } from '@/api/vendor'
 import { BarcodeScannerModal } from '@/components/scanner/BarcodeScannerModal'
+import { CatalogItemStatusCell } from '@/components/common/CatalogItemStatusCell'
+import {
+  CatalogFilterField,
+  CatalogListFiltersPanel,
+  PRODUCT_STATUS_FILTER_OPTIONS,
+  PRODUCT_STOCK_FILTER_OPTIONS,
+  PRODUCT_TYPE_FILTER_OPTIONS,
+  VISIBILITY_FILTER_OPTIONS,
+  type CatalogActiveFilter,
+} from '@/components/catalog/CatalogListFilters'
 import { useBarcodeScanner } from '@/hooks/useBarcodeScanner'
 import { showBarcodeNotFound } from '@/components/scanner/BarcodeNotFoundToast'
 
@@ -137,7 +147,10 @@ export default function Products() {
   const [search, setSearch] = useState('')
   const [searchInput, setSearchInput] = useState('')
   const [status, setStatus] = useState('')
+  const [visibility, setVisibility] = useState('')
   const [category, setCategory] = useState('')
+  const [productType, setProductType] = useState('')
+  const [stock, setStock] = useState('')
   const [showFilters, setShowFilters] = useState(false)
   const [showScanner, setShowScanner] = useState(false)
   const [scanLoading, setScanLoading] = useState(false)
@@ -158,12 +171,62 @@ export default function Products() {
     search: search || undefined,
     status: status || undefined,
     category: categoryRoot || undefined,
+    is_visible: visibility === 'true' ? true : visibility === 'false' ? false : undefined,
+    product_type: productType || undefined,
+    stock: stock || undefined,
     store_id: selectedStore?.id || undefined,
   })
   const deleteProduct = useDeleteProduct()
 
-  const activeFilterCount = [status, category].filter(Boolean).length
-  const clearFilters = () => { setStatus(''); setCategory(''); setPage(1) }
+  const activeFilterCount = [status, visibility, category, productType, stock].filter(Boolean).length
+  const clearFilters = () => {
+    setStatus('')
+    setVisibility('')
+    setCategory('')
+    setProductType('')
+    setStock('')
+    setPage(1)
+  }
+
+  const activeFilters = useMemo((): CatalogActiveFilter[] => {
+    const chips: CatalogActiveFilter[] = []
+    if (status) {
+      chips.push({
+        key: 'status',
+        label: `Status: ${PRODUCT_STATUS_FILTER_OPTIONS.find(o => o.value === status)?.label || status}`,
+        onRemove: () => { setStatus(''); setPage(1) },
+      })
+    }
+    if (visibility) {
+      chips.push({
+        key: 'visibility',
+        label: VISIBILITY_FILTER_OPTIONS.find(o => o.value === visibility)?.label || 'Visibility',
+        onRemove: () => { setVisibility(''); setPage(1) },
+      })
+    }
+    if (category) {
+      chips.push({
+        key: 'category',
+        label: `Category: ${productCategories.find(c => (c.subcategory ? `${c.category}::${c.subcategory}` : c.category) === category)?.label || category}`,
+        onRemove: () => { setCategory(''); setPage(1) },
+      })
+    }
+    if (productType) {
+      chips.push({
+        key: 'product_type',
+        label: `Type: ${PRODUCT_TYPE_FILTER_OPTIONS.find(o => o.value === productType)?.label || productType}`,
+        onRemove: () => { setProductType(''); setPage(1) },
+      })
+    }
+    if (stock) {
+      chips.push({
+        key: 'stock',
+        label: PRODUCT_STOCK_FILTER_OPTIONS.find(o => o.value === stock)?.label || 'Stock',
+        onRemove: () => { setStock(''); setPage(1) },
+      })
+    }
+    return chips
+  }, [status, visibility, category, productType, stock, productCategories])
 
   const handleBarcodeScan = useCallback(async (code: string) => {
     if (scanLoading) return
@@ -241,34 +304,63 @@ export default function Products() {
           </div>
 
           {showFilters && (
-            <div className="flex flex-wrap items-end gap-3 pt-3 border-t">
-              <div className="space-y-1">
-                <label className="text-xs font-medium text-gray-400 uppercase tracking-wider">Status</label>
-                <select value={status} onChange={(e) => { setStatus(e.target.value); setPage(1) }}
-                  className="h-9 rounded-lg border border-gray-200 bg-white px-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400 transition-shadow">
-                  <option value="">All Statuses</option>
-                  <option value="draft">Draft</option>
-                  <option value="active">Active</option>
-                  <option value="archived">Archived</option>
-                </select>
-              </div>
-              <div className="space-y-1">
-                <label className="text-xs font-medium text-gray-400 uppercase tracking-wider">Category</label>
-                <select value={category} onChange={(e) => { setCategory(e.target.value); setPage(1) }}
-                  className="h-9 rounded-lg border border-gray-200 bg-white px-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400 transition-shadow">
-                  <option value="">All Categories</option>
-                  {productCategories.map(c => (
-                    <option key={c.id} value={c.subcategory ? `${c.category}::${c.subcategory}` : c.category}>
-                      {c.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              {activeFilterCount > 0 && (
-                <Button variant="ghost" size="sm" className="h-9 text-gray-500 gap-1" onClick={clearFilters}>
-                  <X className="w-3.5 h-3.5" />Clear
-                </Button>
-              )}
+            <CatalogListFiltersPanel activeFilters={activeFilters} onClearAll={clearFilters}>
+              <CatalogFilterField
+                label="Status"
+                value={status}
+                onChange={(value) => { setStatus(value); setPage(1) }}
+                options={PRODUCT_STATUS_FILTER_OPTIONS}
+                placeholder="All statuses"
+              />
+              <CatalogFilterField
+                label="Visibility"
+                value={visibility}
+                onChange={(value) => { setVisibility(value); setPage(1) }}
+                options={VISIBILITY_FILTER_OPTIONS}
+                placeholder="All visibility"
+              />
+              <CatalogFilterField
+                label="Category"
+                value={category}
+                onChange={(value) => { setCategory(value); setPage(1) }}
+                options={productCategories.map(c => ({
+                  value: c.subcategory ? `${c.category}::${c.subcategory}` : c.category,
+                  label: c.label,
+                }))}
+                placeholder="All categories"
+              />
+              <CatalogFilterField
+                label="Product type"
+                value={productType}
+                onChange={(value) => { setProductType(value); setPage(1) }}
+                options={PRODUCT_TYPE_FILTER_OPTIONS}
+                placeholder="All types"
+              />
+              <CatalogFilterField
+                label="Stock"
+                value={stock}
+                onChange={(value) => { setStock(value); setPage(1) }}
+                options={PRODUCT_STOCK_FILTER_OPTIONS}
+                placeholder="Any stock"
+              />
+            </CatalogListFiltersPanel>
+          )}
+          {!showFilters && activeFilters.length > 0 && (
+            <div className="flex flex-wrap items-center gap-2 pt-1">
+              {activeFilters.map((filter) => (
+                <button
+                  key={filter.key}
+                  type="button"
+                  onClick={filter.onRemove}
+                  className="inline-flex items-center gap-1 rounded-full border border-gray-200 bg-gray-50 px-2.5 py-1 text-xs font-medium text-gray-700 hover:bg-gray-100 transition-colors"
+                >
+                  {filter.label}
+                  <X className="w-3 h-3 text-gray-400" />
+                </button>
+              ))}
+              <Button variant="ghost" size="sm" className="h-7 px-2 text-xs text-gray-500" onClick={clearFilters}>
+                Clear all
+              </Button>
             </div>
           )}
         </CardContent>
@@ -414,11 +506,7 @@ export default function Products() {
                     })()}
                   </td>
                   <td className="px-4 py-3">
-                    <span className={`px-2 py-0.5 text-xs rounded-full font-semibold whitespace-nowrap ${
-                      product.status === 'active' ? 'bg-green-100 text-green-700' :
-                      product.status === 'archived' ? 'bg-red-50 text-red-600' :
-                      'bg-gray-100 text-gray-700'
-                    }`}>{product.status}</span>
+                    <CatalogItemStatusCell status={product.status} isVisible={product.is_visible} />
                   </td>
                   <td className="px-5 py-3 text-right" onClick={(e) => e.stopPropagation()}>
                     <div className="flex gap-1 justify-end items-center">

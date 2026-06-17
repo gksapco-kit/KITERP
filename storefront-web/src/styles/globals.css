@@ -19,9 +19,21 @@
   }
   body {
     font-family: var(--font-body, Inter), system-ui, sans-serif;
-    color: var(--color-text, hsl(var(--foreground)));
+    color: var(--color-text-on-bg, var(--color-text, hsl(var(--foreground))));
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+  }
+  button,
+  [role='button'],
+  input,
+  select,
+  textarea {
+    color: hsl(var(--foreground));
+  }
+  /* Cards / catalog tiles: readable text on surface, not inherited page text */
+  [class*='catalogGridCard'],
+  [class*='catalogSurface'] {
+    color: var(--color-on-surface);
   }
   svg {
     shape-rendering: geometricPrecision;

@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { AlertTriangle, Loader2, RefreshCw, X } from 'lucide-react'
 import { DraftPreviewRenderer } from '@/components/websites/DraftPreviewRenderer'
-import { fetchPublicPreviewByToken } from '@/lib/publicSitePreview'
+import { fetchPublicPreviewByToken, resolvePreviewVendorSlug } from '@/lib/publicSitePreview'
 import { rememberDraftPreviewToken } from '@/lib/draftPreviewNavigation'
 import {
   subscribeDraftPreviewUpdates,
@@ -78,7 +78,7 @@ function parseTokenFromLegacyTarget(target: string): string | null {
 
 export default function StorefrontBrowserPreviewShell() {
   useCanonicalLoopbackRedirect()
-  const [searchParams] = useSearchParams()
+  const [searchParams, setSearchParams] = useSearchParams()
   const legacyTarget = searchParams.get('target')?.trim() ?? ''
   const token = (searchParams.get('token')?.trim()
     || (legacyTarget ? parseTokenFromLegacyTarget(legacyTarget) : null)
@@ -87,6 +87,17 @@ export default function StorefrontBrowserPreviewShell() {
   const catalogRoute = searchParams.get('route')?.trim() || null
   const pending = searchParams.get(DRAFT_PREVIEW_PENDING_PARAM) === '1'
   const templateTarget = legacyTarget && isAllowedTemplateTarget(legacyTarget) ? legacyTarget : null
+
+  const openBuilderForPage = useCallback((nextPageSlug: string | null) => {
+    setSearchParams(prev => {
+      const next = new URLSearchParams(prev)
+      next.delete('route')
+      const slug = nextPageSlug?.trim().replace(/^\/+/, '')
+      if (slug && slug.toLowerCase() !== 'home') next.set('page', slug)
+      else next.delete('page')
+      return next
+    }, { replace: true })
+  }, [setSearchParams])
 
   const [site, setSite] = useState<Awaited<ReturnType<typeof fetchPublicPreviewByToken>> | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -129,8 +140,17 @@ export default function StorefrontBrowserPreviewShell() {
 
     const onWindowMessage = (ev: MessageEvent<PreviewTabPostMessage>) => {
       if (ev.data?.type !== PREVIEW_NAV_MESSAGE_TYPE) return
-      if (typeof ev.data.url !== 'string') return
-      goToPreview(ev.data.url)
+      if (typeof ev.data.url === 'string') {
+        goToPreview(ev.data.url)
+        return
+      }
+      if (typeof ev.data.route === 'string' && token) {
+        const params = new URLSearchParams(window.location.search)
+        const nextRoute = ev.data.route.trim().replace(/^\/+|\/+$/g, '')
+        if (!nextRoute || params.get('route') === nextRoute) return
+        params.set('route', nextRoute)
+        window.history.replaceState(null, '', `${DRAFT_BROWSER_PREVIEW_PATH}?${params.toString()}`)
+      }
     }
     window.addEventListener('message', onWindowMessage)
 
@@ -218,10 +238,7 @@ export default function StorefrontBrowserPreviewShell() {
     })
   }, [token, loadPreview])
 
-  const vendorSlug = useMemo(
-    () => (site?.subdomain?.trim() || 'preview'),
-    [site?.subdomain],
-  )
+  const vendorSlug = useMemo(() => resolvePreviewVendorSlug(site), [site])
 
   const previewOrigin = getVendorPreviewOrigin()
 
@@ -340,6 +357,7 @@ export default function StorefrontBrowserPreviewShell() {
             catalogRoute={catalogRoute}
             vendorSlug={vendorSlug}
             previewToken={token}
+            onOpenBuilderPage={openBuilderForPage}
           />
         </div>
       )}

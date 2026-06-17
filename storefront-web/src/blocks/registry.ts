@@ -190,6 +190,8 @@ export interface PublicPage {
 export interface PublicSite {
   id: string
   vendor_id: string
+  /** Catalog slug for /store/:slug (Vendor.slug). */
+  vendor_slug?: string | null
   name: string
   subdomain?: string | null
   custom_domain?: string | null

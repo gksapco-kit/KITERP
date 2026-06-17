@@ -3,6 +3,7 @@ import { useLocation } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { useBuilderSite } from '@/contexts/BuilderSiteContext'
 import { useBranch } from '@/contexts/BranchContext'
+import { useVendor } from '@/contexts/VendorContext'
 import { useAssignedStorefrontTemplateId } from '@/hooks/useAssignedStorefrontTemplateId'
 import { publicSitesApi } from '@/api/publicSites'
 import {
@@ -22,6 +23,7 @@ export function useStorefrontHeaderNav(): {
 } {
   const { pathname } = useLocation()
   const { storePath } = useBranch()
+  const { vendor } = useVendor()
   const { builderSite } = useBuilderSite()
   const assignedTemplateId = useAssignedStorefrontTemplateId()
 
@@ -40,8 +42,10 @@ export function useStorefrontHeaderNav(): {
   const site = builderSite ?? templateSite ?? null
 
   const links = useMemo(
-    () => resolveStorefrontHeaderNavLinks(site, storePath, pathname),
-    [site, storePath, pathname],
+    () => resolveStorefrontHeaderNavLinks(site, storePath, pathname, {
+      offeringType: vendor?.offering_type,
+    }),
+    [site, storePath, pathname, vendor?.offering_type],
   )
 
   const cta = useMemo(

@@ -1,9 +1,15 @@
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
+import { useLocation, useParams, useSearchParams } from 'react-router-dom'
 import axios from 'axios'
 import { setVendorContext } from '@/api/client'
 import type { DisplayFields } from '@/types'
 import { getStorefrontApiBaseUrl } from '@/lib/apiBase'
+import {
+  buildDraftCatalogEmbedStorePath,
+  parseDraftCatalogEmbedPath,
+  rememberDraftCatalogPreviewTokenFromPath,
+} from '@/lib/draftCatalogEmbed'
+import { recallDraftEmbedPreviewToken } from '@/lib/draftEmbedPreview'
 
 const API_URL = getStorefrontApiBaseUrl().replace(/\/$/, '')
 
@@ -25,6 +31,7 @@ export interface VendorData {
   display_name: string
   slug: string
   description?: string
+  offering_type?: 'products' | 'services' | 'both'
   logo_url?: string
   banner_url?: string
   theme_config: Record<string, unknown>
@@ -57,6 +64,8 @@ export interface VendorContextType {
   displayFields: DisplayFields
   /** True on vendor-web /preview/draft — show nav links at all breakpoints. */
   previewShell?: boolean
+  /** Switch builder page in /preview/draft without opening catalog iframe. */
+  openBuilderForPage?: (pageSlug: string | null) => void
 }
 
 export const VendorContext = createContext<VendorContextType>({
@@ -69,8 +78,24 @@ export const VendorContext = createContext<VendorContextType>({
 })
 
 export function VendorProvider({ children }: { children: ReactNode }) {
-  const params = useParams<{ vendorSlug: string }>()
-  const navigate = useNavigate()
+  const params = useParams<{ vendorSlug: string; previewToken?: string }>()
+  const { pathname } = useLocation()
+  const [searchParams] = useSearchParams()
+  const draftCatalogFromPath = parseDraftCatalogEmbedPath(pathname)
+  const isDraftCatalogEmbed = Boolean(draftCatalogFromPath)
+  const draftCatalogToken =
+    draftCatalogFromPath?.previewToken?.trim()
+    || params.previewToken?.trim()
+    || ''
+  const draftEmbed = isDraftCatalogEmbed || searchParams.get('draft_embed') === '1'
+  const draftPreviewToken =
+    draftCatalogToken
+    || searchParams.get('preview_token')?.trim()
+    || recallDraftEmbedPreviewToken()
+
+  useEffect(() => {
+    if (isDraftCatalogEmbed) rememberDraftCatalogPreviewTokenFromPath(pathname)
+  }, [isDraftCatalogEmbed, pathname])
   const [vendor, setVendor] = useState<VendorData | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -130,7 +155,16 @@ export function VendorProvider({ children }: { children: ReactNode }) {
 
   const storePath = (path: string) => {
     const clean = path.startsWith('/') ? path : `/${path}`
-    return `/store/${slug}${clean}`
+    if (isDraftCatalogEmbed && draftCatalogToken) {
+      return buildDraftCatalogEmbedStorePath(slug, draftCatalogToken, clean.replace(/^\//, ''))
+    }
+    let href = `/store/${slug}${clean}`
+    if (draftEmbed && draftPreviewToken) {
+      const routeQs = clean.includes('?') ? clean.slice(clean.indexOf('?') + 1) : ''
+      const routePath = clean.split('?')[0].replace(/^\//, '')
+      return buildDraftCatalogEmbedStorePath(slug, draftPreviewToken, routePath + (routeQs ? `?${routeQs}` : ''))
+    }
+    return href
   }
 
   const displayFields = useMemo<DisplayFields>(() => {

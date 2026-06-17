@@ -7,12 +7,15 @@
  *  - The legacy Home.tsx (when no published builder site exists)
  */
 import { Loader2 } from 'lucide-react'
+import { Navigate, useParams, useSearchParams } from 'react-router-dom'
 import { useBuilderSite } from '@/contexts/BuilderSiteContext'
 import { useVendor } from '@/contexts/VendorContext'
 import BuilderPage from '@/pages/BuilderPage'
 import Home from '@/pages/Home'
 import CatalogStorefrontLiveHome from '@/pages/CatalogStorefrontLiveHome'
 import WebsiteBuilderTemplateLiveHome from '@/pages/WebsiteBuilderTemplateLiveHome'
+import { recallDraftEmbedPreviewToken } from '@/lib/draftEmbedPreview'
+import { buildDraftCatalogEmbedStorePath } from '@/lib/draftCatalogEmbed'
 import { getWbCatalogTemplateId } from '@/storefront/catalogTemplateIds'
 import { useAssignedStorefrontTemplateId, useAssignedStorefrontTemplatePending } from '@/hooks/useAssignedStorefrontTemplateId'
 import {
@@ -43,8 +46,16 @@ function renderAssignedTemplateHome(assignedTemplateId: string) {
 export default function HomeOrBuilder() {
   const { builderSite, isLoading: builderSiteLoading } = useBuilderSite()
   const { vendor } = useVendor()
+  const { vendorSlug } = useParams<{ vendorSlug: string }>()
+  const [searchParams] = useSearchParams()
   const assignedTemplateId = useAssignedStorefrontTemplateId()
   const templatePending = useAssignedStorefrontTemplatePending()
+
+  const draftEmbed = searchParams.get('draft_embed') === '1'
+  const draftPreviewToken = searchParams.get('preview_token')?.trim() || recallDraftEmbedPreviewToken()
+  if (draftEmbed && draftPreviewToken && vendorSlug) {
+    return <Navigate to={buildDraftCatalogEmbedStorePath(vendorSlug, draftPreviewToken, 'products')} replace />
+  }
 
   if (templatePending) {
     return (

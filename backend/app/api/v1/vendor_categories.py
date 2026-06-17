@@ -16,6 +16,7 @@ from app.models.vendor_service import Service
 from app.schemas.vendor_category import CategoryCreate, CategoryUpdate
 from app.repositories.vendor_category_repo import VendorCategoryRepository
 from app.services.vendor_service import VendorService
+from app.services.media_upload import delete_stored_file
 
 router = APIRouter()
 
@@ -35,6 +36,7 @@ def _category_to_dict(c: VendorCategory) -> dict:
         "name": c.name,
         "slug": c.slug,
         "description": c.description,
+        "image_url": c.image_url,
         "applies_to": c.applies_to,
         "is_active": c.is_active,
         "sort_order": c.sort_order or 0,
@@ -193,6 +195,7 @@ async def create_category(
         name=data.name,
         slug=slug,
         description=data.description,
+        image_url=data.image_url,
         applies_to=data.applies_to.value,
         sort_order=data.sort_order,
         custom_fields=[f.model_dump() for f in data.custom_fields] if data.custom_fields else [],
@@ -225,6 +228,10 @@ async def update_category(
 
     if data.description is not None:
         category.description = data.description
+    if "image_url" in data.model_fields_set:
+        if category.image_url and data.image_url != category.image_url:
+            await delete_stored_file(category.image_url)
+        category.image_url = data.image_url or None
     if data.applies_to is not None:
         category.applies_to = data.applies_to.value
     if data.is_active is not None:

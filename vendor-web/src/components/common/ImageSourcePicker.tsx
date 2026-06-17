@@ -28,6 +28,8 @@ export type ImageSourcePickerProps = {
   onFiles?: (files: File[]) => void | Promise<void>
   /** Optional: set a URL directly instead of uploading a File. */
   onUrl?: (url: string) => void | Promise<void>
+  /** When true, gallery/URL picks call onUrl directly (no fetch + re-upload). */
+  preferDirectUrl?: boolean
   buttonLabel?: string
   buttonVariant?: 'default' | 'outline' | 'secondary' | 'ghost' | 'destructive' | 'link'
   buttonSize?: 'default' | 'sm' | 'lg' | 'icon'
@@ -69,7 +71,12 @@ async function remoteUrlToFileOrUrl(
   url: string,
   onFile: (file: File) => void | Promise<void>,
   onUrl?: (url: string) => void | Promise<void>,
+  preferDirectUrl?: boolean,
 ) {
+  if (preferDirectUrl && onUrl) {
+    await onUrl(url)
+    return
+  }
   try {
     await onFile(await galleryImageToFile(url))
   } catch {
@@ -91,6 +98,7 @@ export function ImageSourcePicker({
   onFile,
   onFiles,
   onUrl,
+  preferDirectUrl = false,
   buttonLabel = 'Upload image',
   buttonVariant = 'outline',
   buttonSize = 'sm',
@@ -109,14 +117,16 @@ export function ImageSourcePicker({
 
   const handleLocal = () => {
     setOpen(false)
-    fileRef.current?.click()
+    window.requestAnimationFrame(() => {
+      fileRef.current?.click()
+    })
   }
 
   const handleRemote = useCallback(
     async (url: string) => {
-      await remoteUrlToFileOrUrl(url, onFile, onUrl)
+      await remoteUrlToFileOrUrl(url, onFile, onUrl, preferDirectUrl)
     },
-    [onFile, onUrl],
+    [onFile, onUrl, preferDirectUrl],
   )
 
   const handleRemoteMany = useCallback(
@@ -131,12 +141,16 @@ export function ImageSourcePicker({
     e.target.value = ''
     if (!list?.length) return
     const files = Array.from(list)
-    if (files.length > 1 && onFiles) {
-      await onFiles(files)
-    } else if (files.length > 1) {
-      for (const file of files) await onFile(file)
-    } else if (files[0]) {
-      await onFile(files[0])
+    try {
+      if (files.length > 1 && onFiles) {
+        await onFiles(files)
+      } else if (files.length > 1) {
+        for (const file of files) await onFile(file)
+      } else if (files[0]) {
+        await onFile(files[0])
+      }
+    } catch {
+      // Caller should toast; avoid unhandled rejection if they do not.
     }
   }
 
@@ -207,7 +221,9 @@ export function useImageSourcePicker({
 
   const handleLocal = () => {
     setOpen(false)
-    fileRef.current?.click()
+    window.requestAnimationFrame(() => {
+      fileRef.current?.click()
+    })
   }
 
   const handleRemote = useCallback(
@@ -229,12 +245,16 @@ export function useImageSourcePicker({
     e.target.value = ''
     if (!list?.length) return
     const files = Array.from(list)
-    if (files.length > 1 && onFiles) {
-      await onFiles(files)
-    } else if (files.length > 1) {
-      for (const file of files) await onFile(file)
-    } else if (files[0]) {
-      await onFile(files[0])
+    try {
+      if (files.length > 1 && onFiles) {
+        await onFiles(files)
+      } else if (files.length > 1) {
+        for (const file of files) await onFile(file)
+      } else if (files[0]) {
+        await onFile(files[0])
+      }
+    } catch {
+      // Caller should toast; avoid unhandled rejection if they do not.
     }
   }
 

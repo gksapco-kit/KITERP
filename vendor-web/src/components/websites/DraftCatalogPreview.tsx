@@ -1,10 +1,12 @@
 import { ArrowLeft, ShoppingBag, Wrench, User, ShoppingCart } from 'lucide-react'
 import { parseCatalogRouteParam, buildStorefrontCatalogEmbedUrl } from '@/lib/catalogStorePaths'
-import { buildDraftPreviewStorePath } from '@/lib/draftPreviewNavigation'
+import { buildDraftPreviewPageUrl } from '@/lib/draftPreviewNavigation'
 
 function catalogPreviewLabel(catalogRoute: string): { title: string; Icon: typeof ShoppingBag } {
   const base = catalogRoute.split('?')[0].replace(/^\/+|\/+$/g, '')
   if (base === 'cart') return { title: 'Cart', Icon: ShoppingCart }
+  if (base === 'checkout') return { title: 'Checkout', Icon: ShoppingCart }
+  if (base.startsWith('order/') && base.includes('/confirmation')) return { title: 'Order confirmation', Icon: ShoppingBag }
   if (base === 'login' || base === 'register') return { title: 'Sign in', Icon: User }
   if (base.startsWith('account')) return { title: 'Account', Icon: User }
   if (base === 'products') return { title: 'Products', Icon: ShoppingBag }
@@ -38,11 +40,8 @@ export function DraftCatalogPreview({
   previewToken: string
   pageSlug?: string | null
 }) {
-  const embedSrc = buildStorefrontCatalogEmbedUrl(vendorSlug, catalogRoute)
-  const backHref = buildDraftPreviewStorePath(
-    previewToken,
-    pageSlug ? `/${pageSlug.replace(/^\/+/, '')}` : '/',
-  )
+  const embedSrc = buildStorefrontCatalogEmbedUrl(vendorSlug, catalogRoute, previewToken)
+  const backHref = buildDraftPreviewPageUrl(previewToken, pageSlug)
 
   const { title, Icon } = catalogPreviewLabel(catalogRoute)
 

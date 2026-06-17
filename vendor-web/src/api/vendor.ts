@@ -408,6 +408,17 @@ export const vendorApi = {
     return response.data
   },
 
+  /** Category image — returns path to send as ``image_url`` on create/update. */
+  uploadCategoryImage: async (file: File): Promise<{ image_url: string; url?: string }> => {
+    const form = new FormData()
+    form.append('file', file)
+    const response = await apiClient.post('/uploads/vendor/category-image', form, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    })
+    const data = response.data as { image_url?: string; url?: string }
+    return { image_url: data.image_url || data.url || '', url: data.url || data.image_url }
+  },
+
   uploadProductImage: async (productId: string, file: File): Promise<{ id: string; url: string; alt_text: string; position: number; is_primary: boolean; media_type: string }> => {
     const form = new FormData()
     form.append('file', file)

@@ -35,9 +35,13 @@ export function parseStorefrontEmbedRoute(rawPath: string): string | null {
   const qs = queryString ? `?${queryString}` : ''
 
   if (pathname === '/cart') return `cart${qs}`
+  if (pathname === '/checkout') return `checkout${qs}`
   if (pathname === '/login') return `login${qs}`
   if (pathname === '/register') return `register${qs}`
   if (pathname.startsWith('/account')) return `${pathname.slice(1)}${qs}`
+
+  const orderMatch = pathname.match(/^\/order\/([^/]+)\/(confirmation|status)$/)
+  if (orderMatch) return `order/${orderMatch[1]}/${orderMatch[2]}${qs}`
 
   const catalog = parseCatalogStorePath(pathname)
   if (catalog) {
@@ -88,13 +92,27 @@ export function buildDraftPreviewCatalogUrl(
   return url.toString()
 }
 
-/** Storefront URL embedded inside the 3001 preview iframe (not the browser address bar). */
-export function buildStorefrontCatalogEmbedUrl(vendorSlug: string, catalogRoute: string): string {
+/**
+ * Storefront URL embedded inside the 3001 preview iframe (not the browser address bar).
+ * Uses /draft-catalog/:token/… so live template home and builder pages never load.
+ */
+export function buildStorefrontCatalogEmbedUrl(
+  vendorSlug: string,
+  catalogRoute: string,
+  previewToken?: string | null,
+): string {
   const slug = vendorSlug.trim()
+  const token = previewToken?.trim()
+  if (!token) {
+    throw new Error('buildStorefrontCatalogEmbedUrl requires previewToken')
+  }
   const path = catalogRoute.replace(/^\/+|\/+$/g, '')
   const qIdx = path.indexOf('?')
   const routePath = qIdx >= 0 ? path.slice(0, qIdx) : path
   const routeQs = qIdx >= 0 ? path.slice(qIdx + 1) : ''
-  const base = `${getStorefrontAppOrigin()}/store/${encodeURIComponent(slug)}/${routePath}`
-  return routeQs ? `${base}?${routeQs}` : base
+  const base = `${getStorefrontAppOrigin()}/store/${encodeURIComponent(slug)}/draft-catalog/${encodeURIComponent(token)}/${routePath}`
+  if (!routeQs) return base
+  const params = new URLSearchParams(routeQs)
+  const qs = params.toString()
+  return qs ? `${base}?${qs}` : base
 }

@@ -61,8 +61,8 @@ function BookingSlotsPanel({ availability }: { availability: AvailSlot[] }) {
   const allDays = Array.from({ length: 7 }, (_, i) => i)
 
   return (
-    <div className="bg-white rounded-2xl border-2 border-gray-200 p-6 shadow-sm">
-      <h3 className="font-bold text-gray-900 mb-4 flex items-center gap-2 text-sm">
+    <div className={`rounded-2xl border-2 p-6 ${themeUi.cardSurface} ${themeUi.cardBorder} ${themeUi.cardShadow}`}>
+      <h3 className={`font-bold mb-4 flex items-center gap-2 text-sm ${themeUi.textPrimary}`}>
         <Calendar className={`w-4 h-4 ${themeUi.iconPrimary}`} /> Weekly Availability
       </h3>
       <div className="grid grid-cols-4 sm:grid-cols-7 gap-2">
@@ -75,7 +75,7 @@ function BookingSlotsPanel({ availability }: { availability: AvailSlot[] }) {
               className={`rounded-xl p-2.5 text-center text-xs transition-all ${
                 isOpen
                   ? themeUi.gradientDayOpen
-                  : 'bg-gray-50 border-2 border-gray-200 text-gray-500'
+                  : themeUi.dayClosed
               }`}>
               <p className="font-bold text-xs">{label}</p>
               {isOpen ? (
@@ -543,23 +543,23 @@ export default function ServiceDetail() {
   return (
     <div className="max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8 py-6">
       {/* Breadcrumb */}
-      <nav className="text-sm text-gray-500 mb-5 flex items-center gap-1 flex-wrap">
-        <Link to={storePath('/')} className={themeUi.linkHover}>Home</Link>
+      <nav className={`text-sm mb-5 flex items-center gap-1 flex-wrap ${themeUi.pageTextMuted}`}>
+        <Link to={storePath('/')} className={themeUi.linkOnPage}>Home</Link>
         <ChevronRight className="w-3 h-3" />
-        <Link to={storePath('/services')} className={themeUi.linkHover}>Services</Link>
+        <Link to={storePath('/services')} className={themeUi.linkOnPage}>Services</Link>
         {service.category && (
           <>
             <ChevronRight className="w-3 h-3" />
-            <Link to={storePath(`/services?category=${encodeURIComponent(service.category)}`)} className={themeUi.linkHover}>{service.category}</Link>
+            <Link to={storePath(`/services?category=${encodeURIComponent(service.category)}`)} className={themeUi.linkOnPage}>{service.category}</Link>
           </>
         )}
         <ChevronRight className="w-3 h-3" />
-        <span className="text-gray-900 font-medium">{service.name}</span>
+        <span className={`font-medium ${themeUi.pageText}`}>{service.name}</span>
       </nav>
 
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-10">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8 items-start">
         {/* Left — Media Gallery (sticky) */}
-        <div className="lg:col-span-5">
+        <div className="lg:col-span-4">
           <div className="lg:sticky lg:top-4">
             {displayMedia.length > 0 ? (
               <MediaViewer
@@ -567,6 +567,7 @@ export default function ServiceDetail() {
                 selectedIndex={selectedImage}
                 onSelect={setSelectedImage}
                 productName={service.name}
+                layout="detail"
                 badges={
                   <div className="absolute top-3 left-3 flex flex-col gap-1.5">
                     {isSubscription && (
@@ -583,8 +584,8 @@ export default function ServiceDetail() {
                 }
               />
             ) : (
-              <div className={`aspect-square rounded-2xl border border-gray-200/80 flex flex-col items-center justify-center ${themeUi.gradientHeroBr}`}>
-                <Wrench className={`w-20 h-20 mb-3 ${themeUi.iconPlaceholder}`} />
+              <div className={`aspect-[4/3] max-h-[min(420px,55vw)] w-full max-w-[560px] mx-auto lg:mx-0 rounded-2xl border border-gray-200/80 flex flex-col items-center justify-center ${themeUi.gradientHeroBr}`}>
+                <Wrench className={`w-14 h-14 mb-2 ${themeUi.iconPlaceholder}`} />
                 <p className="text-sm text-gray-400">No media available</p>
               </div>
             )}
@@ -592,7 +593,7 @@ export default function ServiceDetail() {
         </div>
 
         {/* Center — Service Info */}
-        <div className="lg:col-span-3 space-y-6">
+        <div className="lg:col-span-5 space-y-6">
           <header className="space-y-3">
           {/* Badges */}
           <div className="flex items-center gap-2 flex-wrap">
@@ -763,8 +764,8 @@ export default function ServiceDetail() {
         </div>
 
         {/* Right — Sidebar */}
-        <div className="lg:col-span-4 min-w-0">
-          <div className="bg-white rounded-2xl border-2 border-gray-200 p-5 sm:p-7 sticky top-4 space-y-6 shadow-md max-h-[90vh] overflow-y-auto">
+        <div className="lg:col-span-3 min-w-0">
+          <div className={`rounded-2xl border-2 p-5 sm:p-7 sticky top-4 space-y-6 shadow-md max-h-[90vh] overflow-y-auto ${themeUi.cardSurface} ${themeUi.cardBorder}`}>
             {/* Mode toggle — shown when vendor enabled both booking & subscription */}
             {hasBothModes && (
               <div className="flex rounded-xl bg-gray-100/90 p-1 gap-1 ring-1 ring-gray-200/70">
@@ -908,26 +909,26 @@ export default function ServiceDetail() {
             )}
 
             {/* Trust badges */}
-            <div className="grid grid-cols-2 gap-2 pt-3 border-t border-gray-100">
-              <div className="flex items-center gap-2 text-xs text-gray-500">
-                <Shield className="w-3.5 h-3.5 text-emerald-500" /> Verified Vendor
+            <div className={`grid grid-cols-2 gap-2 pt-3 border-t ${themeUi.borderPrimaryMuted}`}>
+              <div className={`flex items-center gap-2 text-xs ${themeUi.textSecondaryTone}`}>
+                <Shield className={`w-3.5 h-3.5 ${themeUi.trustIcon}`} /> Verified Vendor
               </div>
-              <div className="flex items-center gap-2 text-xs text-gray-500">
-                <Star className="w-3.5 h-3.5 text-amber-500" /> Quality Assured
+              <div className={`flex items-center gap-2 text-xs ${themeUi.textSecondaryTone}`}>
+                <Star className={`w-3.5 h-3.5 ${themeUi.trustIconAccent}`} /> Quality Assured
               </div>
             </div>
 
             {/* Contact */}
-            <div className="border-t border-gray-100 pt-4 space-y-2.5">
-              <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider">Contact</h4>
+            <div className={`border-t pt-4 space-y-2.5 ${themeUi.borderPrimaryMuted}`}>
+              <h4 className={`text-xs font-bold uppercase tracking-wider ${themeUi.textSecondaryTone}`}>Contact</h4>
               {vendor?.primary_phone && (
-                <a href={`tel:${vendor.primary_phone}`} className={`flex items-center gap-2.5 text-sm text-gray-600 ${themeUi.linkHover}`}>
-                  <Phone className="w-4 h-4" /> {vendor.primary_phone}
+                <a href={`tel:${vendor.primary_phone}`} className={`flex items-center gap-2.5 text-sm ${themeUi.textPrimary} ${themeUi.linkHover}`}>
+                  <Phone className={`w-4 h-4 ${themeUi.iconPrimary}`} /> {vendor.primary_phone}
                 </a>
               )}
               {vendor?.primary_email && (
-                <a href={`mailto:${vendor.primary_email}`} className={`flex items-center gap-2.5 text-sm text-gray-600 ${themeUi.linkHover}`}>
-                  <Mail className="w-4 h-4" /> {vendor.primary_email}
+                <a href={`mailto:${vendor.primary_email}`} className={`flex items-center gap-2.5 text-sm ${themeUi.textPrimary} ${themeUi.linkHover}`}>
+                  <Mail className={`w-4 h-4 ${themeUi.iconPrimary}`} /> {vendor.primary_email}
                 </a>
               )}
             </div>
@@ -950,7 +951,7 @@ export default function ServiceDetail() {
       })()}
 
       {/* Reviews */}
-      <div className="mt-8 bg-white rounded-2xl border border-gray-200/80 p-6 sm:p-8">
+      <div className={`mt-8 rounded-2xl border p-6 sm:p-8 ${themeUi.cardSurface} ${themeUi.cardBorder}`}>
         <ReviewSection reviewType="service" targetId={service.id} />
       </div>
 

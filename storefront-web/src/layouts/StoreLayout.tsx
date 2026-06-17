@@ -1,4 +1,4 @@
-import { Outlet, Link, NavLink, useNavigate, useLocation, useParams } from 'react-router-dom'
+import { Outlet, Link, NavLink, useNavigate, useLocation, useParams, useSearchParams, Navigate } from 'react-router-dom'
 import { cn, imgUrl } from '@/lib/utils'
 import {
   Store, AlertTriangle, Loader2,
@@ -23,6 +23,8 @@ import { CustomerNotificationsBell } from '@/components/CustomerNotificationsBel
 import { useJourneyBeacon } from '@/hooks/useJourneyBeacon'
 import { BranchProvider, useBranch } from '@/contexts/BranchContext'
 import { useEffectiveVendor } from '@/hooks/useEffectiveVendor'
+import { notifyDraftPreviewParentRoute, rememberDraftEmbedPreviewToken, recallDraftEmbedPreviewToken, storefrontPathToDraftEmbedRoute } from '@/lib/draftEmbedPreview'
+import { buildDraftCatalogEmbedStorePath, isDraftCatalogEmbedPath } from '@/lib/draftCatalogEmbed'
 import { StoreBranchPicker } from '@/components/store/StoreBranchPicker'
 
 // ── Shared sub-components ─────────────────────────────────────────────────────
@@ -400,6 +402,14 @@ function FooterFull({ vendor, storePath, theme }: { vendor: any; storePath: (p: 
 function StoreContent() {
   const { pathname } = useLocation()
   const { vendorSlug } = useParams<{ vendorSlug: string }>()
+  const [searchParams] = useSearchParams()
+  const draftCatalogEmbed = searchParams.get('draft_embed') === '1'
+
+  useEffect(() => {
+    if (draftCatalogEmbed && searchParams.get('preview_token')?.trim()) {
+      rememberDraftEmbedPreviewToken(searchParams.get('preview_token')!.trim())
+    }
+  }, [draftCatalogEmbed, searchParams])
   const { builderSite } = useBuilderSite()
   const { isLoading, error } = useVendor()
   const vendor = useEffectiveVendor()
@@ -410,6 +420,29 @@ function StoreContent() {
   const logout = useCustomerLogout()
   const navigate = useNavigate()
   const theme = useTheme()
+
+  const legacyDraftCatalogRedirect = (() => {
+    if (isDraftCatalogEmbedPath(pathname)) return null
+    if (searchParams.get('draft_embed') !== '1') return null
+    const token = searchParams.get('preview_token')?.trim() || recallDraftEmbedPreviewToken()
+    if (!token || !vendorSlug) return null
+    const route = storefrontPathToDraftEmbedRoute(pathname, vendorSlug) || 'products'
+    const next = new URLSearchParams()
+    const branch = searchParams.get('branch')
+    if (branch) next.set('branch', branch)
+    searchParams.forEach((value, key) => {
+      if (key !== 'draft_embed' && key !== 'preview_token' && key !== 'branch') next.set(key, value)
+    })
+    const qs = next.toString()
+    const dest = buildDraftCatalogEmbedStorePath(vendorSlug, token, route)
+    return `${dest}${qs ? `?${qs}` : ''}`
+  })()
+
+  useEffect(() => {
+    if (!draftCatalogEmbed || !vendorSlug) return
+    const route = storefrontPathToDraftEmbedRoute(pathname, vendorSlug)
+    if (route) notifyDraftPreviewParentRoute(route)
+  }, [draftCatalogEmbed, pathname, vendorSlug])
 
   useCustomerMe()
   useCart()
@@ -428,6 +461,10 @@ function StoreContent() {
     (isHrAuthPage ||
       pathname === `/store/${vendorSlug}/hr` ||
       pathname.startsWith(`/store/${vendorSlug}/hr/`))
+
+  if (legacyDraftCatalogRedirect) {
+    return <Navigate to={legacyDraftCatalogRedirect} replace />
+  }
 
   // Sign-in pages must render even while catalog vendor fetch is in flight (or failed).
   if (isLoading && !isHrAuthPage) {
@@ -596,13 +633,13 @@ function StoreContent() {
     )
   }
 
-  if (catalogHomeLayout || builderOwnedLayout || assignedTemplateShellHome || isBuilderPreview) {
+  if (catalogHomeLayout || builderOwnedLayout || assignedTemplateShellHome || isBuilderPreview || draftCatalogEmbed) {
     return (
       <div className="min-h-screen flex flex-col" style={{ backgroundColor: theme.colors.background, fontFamily: theme.font_body || theme.font }}>
         <main className="flex-1">
           <Outlet />
         </main>
-        {!isBuilderPreview && vendor?.id && (
+        {!isBuilderPreview && !draftCatalogEmbed && vendor?.id && (
           <CrmChatWidget
             vendorId={vendor.id}
             vendorName={vendor.display_name}

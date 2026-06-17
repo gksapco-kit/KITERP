@@ -1,5 +1,11 @@
 import type { PublicSite } from '@/blocks/registry'
 import type { NavLinkItem } from '@/kit/types'
+import {
+  defaultCommerceNavLinksForCapabilities,
+  enrichNavLinksWithCatalogCapabilities,
+  pathRelativeToStore,
+  resolveCatalogNavCapabilities,
+} from '@/lib/catalogNavCapabilities'
 
 type SitePage = NonNullable<PublicSite['pages']>[number]
 
@@ -9,6 +15,15 @@ export type NavBlockNavProps = {
   nav_links?: Array<{ label: string; url: string }>
   cta_label?: string | null
   cta_url?: string | null
+}
+
+export type ResolveNavBlockLinksOptions = {
+  /** Vendor-web /preview/draft — never invent default commerce links. */
+  previewShell?: boolean
+  /** Vendor catalog offering: products | services | both */
+  offeringType?: string | null
+  productCount?: number | null
+  serviceCount?: number | null
 }
 
 export type SitePageNavItem = { title: string; url?: string }
@@ -24,7 +39,7 @@ function stripPath(s: string): string {
 }
 
 export function isStoreHomeNavHref(href: string, storePath: (p: string) => string): boolean {
-  return stripPath(href) === stripPath(storePath('/'))
+  return pathRelativeToStore(href, storePath) === '/'
 }
 
 export function isStoreHomePath(pathname: string, storePath: (p: string) => string): boolean {
@@ -118,13 +133,10 @@ export function pickHomeNavBlockProps(site: PublicSite | null | undefined): NavB
 }
 
 export function defaultStoreCommerceNavLinks(storePath: (p: string) => string): NavLinkItem[] {
-  return [
-    { label: 'Home', href: storePath('/') },
-    { label: 'Products', href: storePath('/products') },
-    { label: 'Services', href: storePath('/services') },
-    { label: 'Blog', href: storePath('/blog') },
-    { label: 'Policies', href: storePath('/policies') },
-  ]
+  return defaultCommerceNavLinksForCapabilities(
+    storePath,
+    resolveCatalogNavCapabilities({ offeringType: 'both' }),
+  )
 }
 
 /** Shared nav link resolution for NavBlock and StoreLayout header. */
@@ -134,12 +146,20 @@ export function resolveNavBlockLinks(
   pathname: string,
   props: NavBlockNavProps,
   liveItems: SitePageNavItem[] = [],
+  options?: ResolveNavBlockLinksOptions,
 ): NavLinkItem[] {
+  const previewShell = options?.previewShell === true
   const showNavLinks = props.show_nav_links !== false
   if (!showNavLinks) return []
 
   const navLinksSource = props.nav_links_source || 'site_pages'
   const rawLinks = props.nav_links || []
+  const capabilities = resolveCatalogNavCapabilities({
+    offeringType: options?.offeringType,
+    site,
+    productCount: options?.productCount,
+    serviceCount: options?.serviceCount,
+  })
   let pageLinks: NavLinkItem[] = []
 
   if (navLinksSource === 'manual') {
@@ -163,22 +183,33 @@ export function resolveNavBlockLinks(
     deduped.push(link)
   }
 
-  if (deduped.length === 0) {
-    deduped.push(
-      { label: 'Home', href: storePath('/') },
-      { label: 'Products', href: storePath('/products') },
-      { label: 'Services', href: storePath('/services') },
-    )
+  const autoCatalogNav = navLinksSource !== 'manual'
+  let enriched = autoCatalogNav
+    ? enrichNavLinksWithCatalogCapabilities(deduped, storePath, capabilities, site)
+    : deduped
+
+  if (enriched.length === 0 && !previewShell) {
+    enriched = defaultCommerceNavLinksForCapabilities(storePath, capabilities)
   }
 
   // Single-page templates (e.g. Verde) only expose Home in site pages — after hiding
   // Home on the homepage that would render an empty nav bar.
-  const hasNonHomeLinks = excludeHomeNavLinks(deduped, storePath).length > 0
-  const sourceLinks = hasNonHomeLinks ? deduped : defaultStoreCommerceNavLinks(storePath)
+  const hasNonHomeLinks = excludeHomeNavLinks(enriched, storePath).length > 0
+  const sourceLinks = previewShell
+    ? (enriched.length > 0 ? enriched : [{ label: 'Home', href: storePath('/') }])
+    : (hasNonHomeLinks
+      ? enriched
+      : defaultCommerceNavLinksForCapabilities(storePath, capabilities))
 
   let links = applyHomeNavVisibility(sourceLinks, pathname, storePath)
   if (links.length === 0) {
-    links = applyHomeNavVisibility(defaultStoreCommerceNavLinks(storePath), pathname, storePath)
+    links = applyHomeNavVisibility(
+      previewShell
+        ? [{ label: 'Home', href: storePath('/') }]
+        : defaultCommerceNavLinksForCapabilities(storePath, capabilities),
+      pathname,
+      storePath,
+    )
   }
   return links
 }
@@ -187,13 +218,24 @@ export function resolveStorefrontHeaderNavLinks(
   site: PublicSite | null | undefined,
   storePath: (p: string) => string,
   pathname: string,
+  options?: Pick<ResolveNavBlockLinksOptions, 'offeringType' | 'productCount' | 'serviceCount'>,
 ): NavLinkItem[] {
+  const capabilities = resolveCatalogNavCapabilities({
+    offeringType: options?.offeringType,
+    site,
+    productCount: options?.productCount,
+    serviceCount: options?.serviceCount,
+  })
   if (!site) {
-    return applyHomeNavVisibility(defaultStoreCommerceNavLinks(storePath), pathname, storePath)
+    return applyHomeNavVisibility(
+      defaultCommerceNavLinksForCapabilities(storePath, capabilities),
+      pathname,
+      storePath,
+    )
   }
   const props = pickHomeNavBlockProps(site)
   const liveItems = sitePagesToLiveNavItems(site)
-  return resolveNavBlockLinks(site, storePath, pathname, props, liveItems)
+  return resolveNavBlockLinks(site, storePath, pathname, props, liveItems, options)
 }
 
 export function resolveStorefrontHeaderCta(

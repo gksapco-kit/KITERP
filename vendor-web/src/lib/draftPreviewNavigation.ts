@@ -21,61 +21,86 @@ export function recallDraftPreviewToken(): string {
   }
 }
 
-/** In-preview navigation: always stay on vendor-web /preview/draft with token + optional page slug. */
+/** Builder website page only — never maps /products to a catalog iframe route. */
+export function buildDraftPreviewPageUrl(previewToken: string, pageSlug?: string | null): string {
+  const token = previewToken.trim() || recallDraftPreviewToken()
+  const params = new URLSearchParams()
+  if (token) params.set('token', token)
+  const slug = pageSlug?.trim().replace(/^\/+/, '')
+  if (slug && slug.toLowerCase() !== 'home') {
+    params.set('page', slug)
+  }
+  const qs = params.toString()
+  return qs ? `${DRAFT_BROWSER_PREVIEW_PATH}?${qs}` : DRAFT_BROWSER_PREVIEW_PATH
+}
+
+function appendQueryParams(params: URLSearchParams, queryString: string, skipExisting = false): void {
+  if (!queryString) return
+  new URLSearchParams(queryString).forEach((value, key) => {
+    if (!skipExisting || !params.has(key)) params.set(key, value)
+  })
+}
+
+/** True when the path should open the storefront catalog iframe (not a builder page). */
+function isDraftPreviewCatalogPath(pathname: string): boolean {
+  if (pathname === '/cart' || pathname === '/checkout' || pathname === '/login' || pathname === '/register') return true
+  if (pathname.startsWith('/account')) return true
+  if (/^\/order\/[^/]+\/(confirmation|status)$/.test(pathname)) return true
+  const catalog = parseCatalogStorePath(pathname)
+  if (!catalog) return false
+  // /products/item-slug — catalog detail; bare /products is also the catalog list in preview.
+  return Boolean(catalog.slug) || pathname === '/products' || pathname === '/services' || pathname === '/categories'
+}
+
+/** Strip /store/:vendorSlug prefix when a link targets the live storefront path. */
+function stripLiveStorePrefix(pathname: string): string {
+  const m = pathname.match(/^\/store\/[^/]+(\/.*|$)/)
+  if (!m) return pathname
+  const rest = m[1]
+  return rest && rest !== '/' ? rest.replace(/\/+$/, '') || '/' : '/'
+}
+
+/** In-preview navigation: stay on vendor-web /preview/draft with token + page or catalog route. */
 export function buildDraftPreviewStorePath(previewToken: string, rawPath: string): string {
   const token = previewToken.trim() || recallDraftPreviewToken()
   if (!token) return DRAFT_BROWSER_PREVIEW_PATH
 
   const clean = rawPath.startsWith('/') ? rawPath : `/${rawPath}`
   const qIdx = clean.indexOf('?')
-  const pathname = (qIdx >= 0 ? clean.slice(0, qIdx) : clean).replace(/\/+$/, '') || '/'
+  const pathnameRaw = (qIdx >= 0 ? clean.slice(0, qIdx) : clean).replace(/\/+$/, '') || '/'
+  const pathname = stripLiveStorePrefix(pathnameRaw)
   const queryString = qIdx >= 0 ? clean.slice(qIdx + 1) : ''
 
-  const embedRoute = parseStorefrontEmbedRoute(clean)
-  if (embedRoute) {
+  const pathForEmbed = pathname === pathnameRaw
+    ? clean
+    : `${pathname}${queryString ? `?${queryString}` : ''}`
+
+  if (isDraftPreviewCatalogPath(pathname)) {
+    const embedRoute = parseStorefrontEmbedRoute(pathForEmbed)
+    if (embedRoute) {
+      const params = new URLSearchParams()
+      params.set('token', token)
+      params.set('route', embedRoute.split('?')[0])
+      const embedQs = embedRoute.includes('?') ? embedRoute.slice(embedRoute.indexOf('?') + 1) : ''
+      appendQueryParams(params, embedQs)
+      appendQueryParams(params, queryString, true)
+      return `${DRAFT_BROWSER_PREVIEW_PATH}?${params.toString()}`
+    }
+  }
+
+  if (pathname === '/') {
     const params = new URLSearchParams()
     params.set('token', token)
-    params.set('route', embedRoute.split('?')[0])
-    const embedQs = embedRoute.includes('?') ? embedRoute.slice(embedRoute.indexOf('?') + 1) : ''
-    if (embedQs) {
-      new URLSearchParams(embedQs).forEach((value, key) => {
-        params.set(key, value)
-      })
-    }
-    if (queryString) {
-      new URLSearchParams(queryString).forEach((value, key) => {
-        if (!params.has(key)) params.set(key, value)
-      })
-    }
+    appendQueryParams(params, queryString)
     return `${DRAFT_BROWSER_PREVIEW_PATH}?${params.toString()}`
   }
 
+  const pageSlug = pathname.replace(/^\/+/, '')
   const params = new URLSearchParams()
   params.set('token', token)
-
-  const catalog = parseCatalogStorePath(pathname)
-  if (catalog) {
-    params.set('route', catalog.slug ? `${catalog.kind}/${catalog.slug}` : catalog.kind)
-    if (queryString) {
-      new URLSearchParams(queryString).forEach((value, key) => {
-        params.set(key, value)
-      })
-    }
-    return `${DRAFT_BROWSER_PREVIEW_PATH}?${params.toString()}`
+  if (pageSlug && pageSlug.toLowerCase() !== 'home') {
+    params.set('page', pageSlug)
   }
-
-  if (pathname !== '/') {
-    const pageSlug = pathname.replace(/^\/+/, '')
-    if (pageSlug && pageSlug.toLowerCase() !== 'home') {
-      params.set('page', pageSlug)
-    }
-  }
-
-  if (queryString) {
-    new URLSearchParams(queryString).forEach((value, key) => {
-      params.set(key, value)
-    })
-  }
-
+  appendQueryParams(params, queryString)
   return `${DRAFT_BROWSER_PREVIEW_PATH}?${params.toString()}`
 }

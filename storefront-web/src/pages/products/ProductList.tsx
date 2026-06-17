@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { useProducts, useServices, useStoreCategories } from '@/hooks/useStore'
 import { useAddToCart } from '@/hooks/useStore'
-import { formatCurrency, imgUrl } from '@/lib/utils'
+import { formatCurrency, imgUrl, cn } from '@/lib/utils'
 import type { Product, Service, ProductVariant } from '@/types'
 import {
   Search, ShoppingBag, ShoppingCart, Loader2, ChevronLeft, ChevronRight,
@@ -224,17 +224,17 @@ export default function ProductList() {
   return (
     <div className="max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8 py-6">
       {/* Breadcrumb */}
-      <nav className="text-sm text-gray-500 mb-4">
-        <Link to={storePath('/')} className={themeUi.linkHover}>Home</Link>
-        <span className="mx-2">/</span>
-        <span className="text-gray-900 font-medium">Products</span>
+      <nav className={`${themeUi.breadcrumbNav} mb-4`}>
+        <Link to={storePath('/')} className={themeUi.linkOnPage}>Home</Link>
+        <span className={themeUi.pageTextMuted}>/</span>
+        <span className={themeUi.breadcrumbCurrent}>Products</span>
       </nav>
 
       <div className="flex flex-col lg:flex-row gap-6">
         {/* Sidebar Filters - toggled by Filters button */}
         {showFilters && (
         <aside className="w-full lg:w-64 shrink-0">
-          <div className="bg-white rounded-xl border p-5 sticky top-28">
+          <div className={`rounded-xl border p-5 sticky top-28 ${themeUi.cardSurface} ${themeUi.cardBorder}`}>
             <h3 className="font-bold text-sm mb-4 flex items-center gap-2">
               <SlidersHorizontal className="w-4 h-4" /> Filters
             </h3>
@@ -323,7 +323,7 @@ export default function ProductList() {
         {/* Main content */}
         <div className="flex-1 min-w-0">
           {/* Unified toolbar: search + sort + view + count + active chips */}
-          <div className="mb-4 rounded-xl border border-gray-200/80 bg-white shadow-sm overflow-hidden">
+          <div className={`mb-4 rounded-xl border shadow-sm overflow-hidden ${themeUi.cardSurface} ${themeUi.cardBorder}`}>
             <div className="flex flex-col gap-3 p-3 sm:p-4">
               <div className="flex flex-col lg:flex-row lg:items-center gap-3">
                 <div className="flex flex-wrap items-center gap-2 shrink-0">
@@ -609,7 +609,7 @@ export default function ProductList() {
                   // Minimal card: no heavy border, subtle hover, airy layout
                   return (
                     <Link key={`${item.type}-${item.id}`} to={storePath(detailPath)}
-                      className="group flex flex-col rounded-xl hover:bg-white hover:shadow-md transition-all duration-200 p-1 overflow-hidden">
+                      className={`group flex flex-col rounded-xl hover:shadow-md transition-all duration-200 p-1 overflow-hidden ${themeUi.catalogSurface}`}>
                       <div className="aspect-square bg-gray-100 rounded-lg overflow-hidden relative">
                         {imageUrl ? (
                           <img src={imgUrl(imageUrl)} alt={item.name}
@@ -629,12 +629,12 @@ export default function ProductList() {
                         <p className="text-xs font-medium uppercase tracking-wide mb-1" style={{ color: theme.colors.accent }}>
                           {isProduct ? 'Product' : 'Service'}
                         </p>
-                        <h3 className="text-sm font-medium text-gray-800 line-clamp-2 group-hover:text-gray-900">{item.name}</h3>
+                        <h3 className={`text-sm font-medium line-clamp-2 ${themeUi.titleOnSurface} ${themeUi.groupHoverTitle}`}>{item.name}</h3>
                         {(item.avg_rating ?? 0) > 0 && (
                           <div className="mt-1"><StarRating rating={item.avg_rating!} size="sm" /></div>
                         )}
                         <div className="mt-1.5 flex items-center gap-2">
-                          <span className="text-base font-bold text-gray-900">
+                          <span className={`text-base ${themeUi.priceOnSurface}`}>
                             {showFrom && <span className="text-xs font-normal mr-0.5 text-gray-500">From</span>}
                             {formatCurrency(effectivePrice)}
                           </span>
@@ -696,9 +696,9 @@ export default function ProductList() {
                 }
 
                 // service fallback card
-                return (
+                  return (
                   <Link key={`${item.type}-${item.id}`} to={storePath(detailPath)}
-                    className="group bg-white rounded-xl border hover:shadow-lg transition-all duration-200 overflow-hidden max-h-[90vh] overflow-y-auto">
+                    className={`${themeUi.catalogGridCard} max-h-[90vh] overflow-y-auto`}>
                     <div className="aspect-square bg-gray-50 overflow-hidden relative">
                       {imageUrl ? (
                         <img src={imgUrl(imageUrl)} alt={item.name}
@@ -723,7 +723,7 @@ export default function ProductList() {
                       </span>
                     </div>
                     <div className="p-3 sm:p-4">
-                      <h3 className={`text-sm font-medium text-gray-900 line-clamp-2 min-h-[2.5rem] ${themeUi.groupHoverTitle}`}>
+                      <h3 className={`text-sm font-medium line-clamp-2 min-h-[2.5rem] ${themeUi.titleOnSurface} ${themeUi.groupHoverTitle}`}>
                         {item.name}
                       </h3>
                       {(item.avg_rating ?? 0) > 0 && (
@@ -735,7 +735,7 @@ export default function ProductList() {
                             return (
                               <>
                                 {showFrom && <span className="text-xs text-gray-500 mr-1">From</span>}
-                                <span className="text-lg font-bold">{formatCurrency(effectivePrice)}</span>
+                                <span className={`text-lg ${themeUi.priceOnSurface}`}>{formatCurrency(effectivePrice)}</span>
                                 {item.compare_at_price && item.compare_at_price > effectivePrice && (
                                   <span className="text-sm text-gray-400 line-through ml-2">{formatCurrency(item.compare_at_price)}</span>
                                 )}
@@ -747,7 +747,7 @@ export default function ProductList() {
                           }
                           return (
                             <>
-                              <span className="text-lg font-bold">{formatCurrency(effectivePrice)}</span>
+                              <span className={`text-lg ${themeUi.priceOnSurface}`}>{formatCurrency(effectivePrice)}</span>
                               {item.price_min && item.price_max && item.price_min !== item.price_max && (
                                 <span className="text-sm text-gray-500 ml-1">- {formatCurrency(item.price_max)}</span>
                               )}
@@ -759,7 +759,7 @@ export default function ProductList() {
                         <p className="text-xs text-green-600 font-medium mt-1">Free Delivery</p>
                       )}
                       {!isProduct && item.service_mode && (
-                        <p className="text-xs text-gray-500 mt-1 capitalize">{item.service_mode.replace('_', ' ')}</p>
+                        <p className={`text-xs mt-1 capitalize ${themeUi.mutedOnSurface}`}>{item.service_mode.replace('_', ' ')}</p>
                       )}
                     </div>
                   </Link>
@@ -798,7 +798,7 @@ export default function ProductList() {
                 return (
                   <div
                     key={`${item.type}-${item.id}`}
-                    className="group flex gap-4 bg-white rounded-xl border p-4 hover:shadow-md transition-all max-h-[90vh] overflow-y-auto"
+                    className={`group flex gap-4 rounded-xl border p-4 hover:shadow-md transition-all max-h-[90vh] overflow-y-auto ${themeUi.catalogGridCard}`}
                   >
                     <Link to={storePath(detailPath)} className="w-32 h-32 sm:w-44 sm:h-44 bg-gray-50 rounded-lg overflow-hidden shrink-0 relative block">
                       {imageUrl ? (
@@ -813,20 +813,20 @@ export default function ProductList() {
                       </span>
                     </Link>
                     <div className="flex-1 min-w-0 py-1">
-                      <Link to={storePath(detailPath)} className={`text-base font-medium text-gray-900 line-clamp-2 block no-underline ${themeUi.groupHoverTitle}`}>
+                      <Link to={storePath(detailPath)} className={`text-base font-medium line-clamp-2 block no-underline ${themeUi.titleOnSurface} ${themeUi.groupHoverTitle}`}>
                         {item.name}
                       </Link>
                       {(item.avg_rating ?? 0) > 0 && (
                         <div className="mt-1"><StarRating rating={item.avg_rating!} size="sm" showValue reviewCount={item.review_count} /></div>
                       )}
                       {(item.description || item.short_description) && (
-                        <p className="text-sm text-gray-500 mt-2 line-clamp-2">{item.description || item.short_description}</p>
+                        <p className={`text-sm mt-2 line-clamp-2 ${themeUi.mutedOnSurface}`}>{item.description || item.short_description}</p>
                       )}
                       <div className="mt-3">
                         {isProduct ? (
                           <>
                             {showFrom && <span className="text-sm text-gray-500 mr-1">From</span>}
-                            <span className="text-xl font-bold">{formatCurrency(effectivePrice)}</span>
+                            <span className={`text-xl ${themeUi.priceOnSurface}`}>{formatCurrency(effectivePrice)}</span>
                             {item.compare_at_price && item.compare_at_price > effectivePrice && (
                               <>
                                 <span className="text-sm text-gray-400 line-through ml-2">{formatCurrency(item.compare_at_price)}</span>
@@ -841,7 +841,7 @@ export default function ProductList() {
                           </>
                         ) : (
                           <>
-                            <span className="text-xl font-bold">{formatCurrency(effectivePrice)}</span>
+                            <span className={`text-xl ${themeUi.priceOnSurface}`}>{formatCurrency(effectivePrice)}</span>
                             {item.price_min && item.price_max && item.price_min !== item.price_max && (
                               <span className="text-sm text-gray-500 ml-2">- {formatCurrency(item.price_max)}</span>
                             )}
@@ -852,7 +852,7 @@ export default function ProductList() {
                         <p className="text-xs text-green-600 font-medium mt-1">Free Delivery</p>
                       )}
                       {!isProduct && item.service_mode && (
-                        <p className="text-xs text-gray-500 mt-1 capitalize">{item.service_mode.replace('_', ' ')}</p>
+                        <p className={`text-xs mt-1 capitalize ${themeUi.mutedOnSurface}`}>{item.service_mode.replace('_', ' ')}</p>
                       )}
                     </div>
                     <div className="flex shrink-0 flex-col items-stretch justify-center gap-2 sm:min-w-[140px]">
@@ -886,22 +886,24 @@ export default function ProductList() {
           {totalCount > 12 && (
             <div className="flex items-center justify-center gap-2 mt-8">
               <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage((p) => p - 1)}
-                className="gap-1">
+                className={cn('gap-1', themeUi.paginationBtn)}>
                 <ChevronLeft className="w-4 h-4" /> Previous
               </Button>
               {Array.from({ length: Math.min(Math.ceil(totalCount / 12), 5) }, (_, i) => {
                 const totalPages = Math.ceil(totalCount / 12)
                 const pageNum = page <= 3 ? i + 1 : Math.min(page + i - 2, totalPages)
                 if (pageNum < 1 || pageNum > totalPages) return null
+                const isActive = pageNum === page
                 return (
-                  <Button key={pageNum} variant={pageNum === page ? 'default' : 'outline'} size="sm"
-                    onClick={() => setPage(pageNum)} className="w-9 h-9">
+                  <Button key={pageNum} variant={isActive ? 'default' : 'outline'} size="sm"
+                    onClick={() => setPage(pageNum)}
+                    className={cn('w-9 h-9', isActive ? themeUi.paginationBtnActive : themeUi.paginationBtn)}>
                     {pageNum}
                   </Button>
                 )
               })}
               <Button variant="outline" size="sm" disabled={page >= Math.ceil(totalCount / 12)} onClick={() => setPage((p) => p + 1)}
-                className="gap-1">
+                className={cn('gap-1', themeUi.paginationBtn)}>
                 Next <ChevronRight className="w-4 h-4" />
               </Button>
             </div>

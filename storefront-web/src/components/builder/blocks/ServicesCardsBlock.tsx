@@ -82,6 +82,55 @@ export default function ServicesCardsBlock({ style, props, liveItems, blockId }:
               ? 'text-gray-500 text-xs flex-1 mb-2 line-clamp-2'
               : 'text-gray-500 text-sm flex-1 mb-4 line-clamp-3'
 
+            const mediaNode = imageUrl ? (
+              isList ? (
+                <img
+                  src={imgUrl(imageUrl)}
+                  alt=""
+                  className={thumbnailShapeClass(imageShape)}
+                  style={{ width: iconBox, height: iconBox }}
+                  loading="lazy"
+                />
+              ) : (
+                <div
+                  className="relative w-full overflow-hidden bg-gray-50 shrink-0"
+                  style={{ paddingBottom: `${cardLayout.imageHeightPct}%` }}
+                >
+                  <img
+                    src={imgUrl(imageUrl)}
+                    alt=""
+                    className="absolute inset-0 w-full h-full object-cover"
+                    loading="lazy"
+                  />
+                </div>
+              )
+            ) : isList ? (
+              <div
+                className={cn(iconBoxShapeClass(imageShape), 'flex items-center justify-center shrink-0')}
+                style={{
+                  width: iconBox,
+                  height: iconBox,
+                  backgroundColor: `${style.primary_color}15`,
+                  fontSize: Math.round(iconBox * 0.45),
+                }}
+              >
+                {staticIcon ? renderFeatureIcon(staticIcon, '🛠️') : <Wrench className="w-6 h-6" style={{ color: style.primary_color }} />}
+              </div>
+            ) : (
+              <div
+                className="relative w-full overflow-hidden shrink-0"
+                style={{ paddingBottom: `${cardLayout.imageHeightPct}%`, backgroundColor: `${style.primary_color}12` }}
+              >
+                <div className="absolute inset-0 flex items-center justify-center">
+                  {staticIcon ? (
+                    <span style={{ fontSize: Math.round(iconBox * 0.9) }}>{renderFeatureIcon(staticIcon, '🛠️')}</span>
+                  ) : (
+                    <Wrench className="w-10 h-10" style={{ color: style.primary_color }} />
+                  )}
+                </div>
+              </div>
+            )
+
             return (
               <div
                 key={item.id}
@@ -90,47 +139,13 @@ export default function ServicesCardsBlock({ style, props, liveItems, blockId }:
                   cardLayout.cardRadius,
                   cardLayout.isMinimalCard ? '' : 'hover:shadow-lg hover:-translate-y-1',
                   isList && 'flex-row items-start gap-4',
+                  !isList && 'h-full',
                 )}
                 style={{ padding: isList ? cardLayout.cardPadding : undefined }}
               >
-                {imageUrl ? (
-                  isList ? (
-                    <img
-                      src={imgUrl(imageUrl)}
-                      alt=""
-                      className={thumbnailShapeClass(imageShape)}
-                      style={{ width: iconBox, height: iconBox }}
-                      loading="lazy"
-                    />
-                  ) : (
-                    <div
-                      className="relative w-full overflow-hidden bg-gray-50"
-                      style={{ paddingBottom: `${cardLayout.imageHeightPct}%` }}
-                    >
-                      <img
-                        src={imgUrl(imageUrl)}
-                        alt=""
-                        className="absolute inset-0 w-full h-full object-cover"
-                        loading="lazy"
-                      />
-                    </div>
-                  )
-                ) : (
-                  <div
-                    className={cn(iconBoxShapeClass(imageShape), 'flex items-center justify-center', isList ? 'shrink-0' : 'mx-4 mt-4')}
-                    style={{
-                      width: iconBox,
-                      height: iconBox,
-                      backgroundColor: `${style.primary_color}15`,
-                      fontSize: Math.round(iconBox * 0.45),
-                      margin: isList ? undefined : `${cardLayout.cardPadding}px ${cardLayout.cardPadding}px 0`,
-                    }}
-                  >
-                    {staticIcon ? renderFeatureIcon(staticIcon, '🛠️') : <Wrench className="w-6 h-6" style={{ color: style.primary_color }} />}
-                  </div>
-                )}
+                {mediaNode}
                 <div
-                  className={cn(isList && 'flex-1 min-w-0 flex flex-col')}
+                  className={cn(isList ? 'flex-1 min-w-0 flex flex-col' : 'flex flex-1 flex-col min-h-0')}
                   style={{ padding: isList ? 0 : cardLayout.cardPadding }}
                 >
                   <h3 className={titleClass}>{item.title}</h3>
