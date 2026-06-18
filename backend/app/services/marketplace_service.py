@@ -230,10 +230,13 @@ class MarketplaceService:
                 "marketplace_quote_id": str(quote.id),
             }
         ]
+        from app.services.store_resolver import resolve_store_id as _resolve_txn_store_id
+        mp_store_id = await _resolve_txn_store_id(self.db, quote.vendor_id)
         order = Order(
             order_number=order_number,
             vendor_id=quote.vendor_id,
             customer_id=customer_id,
+            store_id=mp_store_id,
             items=items,
             item_count=1,
             subtotal=Decimal(str(price)),

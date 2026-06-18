@@ -9,6 +9,8 @@ import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
 import { CustomerPicker, type CustomerPickerValue } from '@/components/commission/CustomerPicker'
 import { StaffPicker, type StaffPickerValue } from '@/components/commission/StaffPicker'
+import { BusinessUnitSelect } from '@/components/common/BusinessUnitSelect'
+import { CatalogItemPicker, type CatalogPickerItem } from '@/components/common/CatalogItemPicker'
 import { useCreateProject, useProjects, useProjectsOverview } from '@/hooks/useProjects'
 import { formatDate } from '@/lib/utils'
 import {
@@ -81,6 +83,8 @@ function CreateProjectModal({ onClose }: { onClose: () => void }) {
   })
   const [customer, setCustomer] = useState<CustomerPickerValue | null>(null)
   const [owner, setOwner] = useState<StaffPickerValue | null>(null)
+  const [storeId, setStoreId] = useState('')
+  const [items, setItems] = useState<CatalogPickerItem[]>([])
 
   const submit = (e: React.FormEvent) => {
     e.preventDefault()
@@ -93,6 +97,8 @@ function CreateProjectModal({ onClose }: { onClose: () => void }) {
         end_date: form.end_date || undefined,
         due_date: form.due_date || undefined,
         priority: form.priority,
+        store_id: storeId || undefined,
+        items: items.length ? items : undefined,
         customer_id: customer?.id,
         customer_name: customer?.full_name,
         owner_id: owner?.user_id,
@@ -113,6 +119,11 @@ function CreateProjectModal({ onClose }: { onClose: () => void }) {
           </button>
         </div>
         <form onSubmit={submit} className="p-5 space-y-4">
+          <div className="space-y-1.5">
+            <Label>Business unit</Label>
+            <BusinessUnitSelect value={storeId} onChange={(id) => { setStoreId(id); setItems([]) }} allowAll />
+            <p className="text-[11px] text-muted-foreground">Scopes the products & services you can attach below.</p>
+          </div>
           <div className="space-y-1.5">
             <Label htmlFor="proj-name">Name *</Label>
             <Input
@@ -185,6 +196,10 @@ function CreateProjectModal({ onClose }: { onClose: () => void }) {
             <Label>Project owner (optional)</Label>
             <StaffPicker selected={owner} onSelect={setOwner} />
           </div>
+          <div className="space-y-1.5">
+            <Label>Products & services (optional)</Label>
+            <CatalogItemPicker storeId={storeId} value={items} onChange={setItems} />
+          </div>
           <div className="flex gap-3 pt-2">
             <Button type="button" variant="cancel" className="flex-1" onClick={onClose}>Cancel</Button>
             <Button type="submit" className="flex-1" disabled={create.isPending || !form.name.trim()}>
@@ -202,6 +217,7 @@ export default function ProjectsPage() {
   const navigate = useNavigate()
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState<string>('')
+  const [storeFilter, setStoreFilter] = useState('')
   const [showCreate, setShowCreate] = useState(false)
 
   const { data: overview, isLoading: overviewLoading } = useProjectsOverview()
@@ -210,6 +226,7 @@ export default function ProjectsPage() {
     size: 100,
     search: search.trim() || undefined,
     status: statusFilter || undefined,
+    store_id: storeFilter || undefined,
   })
 
   const projects = useMemo(() => {
@@ -301,6 +318,7 @@ export default function ProjectsPage() {
                 <option key={s} value={s}>{PROJECT_STATUS_LABELS[s]}</option>
               ))}
             </select>
+            <div className="w-52"><BusinessUnitSelect value={storeFilter} onChange={setStoreFilter} allowAll autoSelectDefault={false} /></div>
           </div>
 
           <div className="overflow-x-auto">

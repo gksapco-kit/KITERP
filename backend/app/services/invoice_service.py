@@ -11,6 +11,7 @@ from app.models.order import Order
 from app.models.customer import Customer
 from app.models.pos import POSTransaction
 from app.models.booking import Booking
+from app.services.store_resolver import resolve_store_id as resolve_txn_store_id, get_default_store_id
 
 log = logging.getLogger(__name__)
 
@@ -169,10 +170,18 @@ class InvoiceService:
 
         doc_type = "tax_invoice" if vendor_gst else "bill_of_supply"
 
+        order_uuid = UUID(data["order_id"]) if data.get("order_id") else None
+        store_id = data.get("store_id")
+        if not store_id and order_uuid:
+            linked = await self.db.get(Order, order_uuid)
+            store_id = linked.store_id if linked else None
+        store_id = await resolve_txn_store_id(self.db, vendor_id, store_id=store_id)
+
         invoice = Invoice(
             vendor_id=vendor_id,
             customer_id=UUID(data["customer_id"]) if data.get("customer_id") else None,
-            order_id=UUID(data["order_id"]) if data.get("order_id") else None,
+            order_id=order_uuid,
+            store_id=store_id,
             invoice_number=invoice_number,
             invoice_type=invoice_type,
             document_type=doc_type,
@@ -326,6 +335,7 @@ class InvoiceService:
         status: str = None,
         page: int = 1,
         size: int = 20,
+        store_id: str | UUID = None,
     ):
         conditions = [Invoice.vendor_id == vendor_id]
         if invoice_type:
@@ -334,6 +344,8 @@ class InvoiceService:
             conditions.append(Invoice.invoice_type != exclude_invoice_type)
         if status:
             conditions.append(Invoice.status == status)
+        if store_id:
+            conditions.append(Invoice.store_id == (store_id if isinstance(store_id, UUID) else UUID(str(store_id))))
 
         count_q = select(sqlfunc.count(Invoice.id)).where(and_(*conditions))
         total = (await self.db.execute(count_q)).scalar_one()
@@ -429,10 +441,13 @@ class InvoiceService:
 
         paid = grand if order.payment_status == "paid" else 0
 
+        store_id = order.store_id or await get_default_store_id(self.db, order.vendor_id)
+
         invoice = Invoice(
             vendor_id=order.vendor_id,
             customer_id=order.customer_id,
             order_id=order.id,
+            store_id=store_id,
             order_number=getattr(order, "order_number", None),
             invoice_number=invoice_number,
             invoice_type="invoice",
@@ -537,10 +552,13 @@ class InvoiceService:
         round_off = round(grand) - grand
         grand = round(grand)
 
+        store_id = getattr(txn, "store_id", None) or await get_default_store_id(self.db, txn.vendor_id)
+
         invoice = Invoice(
             vendor_id=txn.vendor_id,
             customer_id=txn.customer_id,
             order_id=order_id,
+            store_id=store_id,
             invoice_number=invoice_number,
             invoice_type="invoice",
             document_type="tax_invoice" if vendor_gst else "bill_of_supply",
@@ -638,10 +656,18 @@ class InvoiceService:
         round_off = round(grand) - grand
         grand = round(grand)
 
+        booking_order_id = getattr(booking, "order_id", None)
+        store_id = None
+        if booking_order_id:
+            linked = await self.db.get(Order, booking_order_id)
+            store_id = linked.store_id if linked else None
+        store_id = store_id or await get_default_store_id(self.db, booking.vendor_id)
+
         invoice = Invoice(
             vendor_id=booking.vendor_id,
             customer_id=booking.customer_id,
-            order_id=getattr(booking, "order_id", None),
+            order_id=booking_order_id,
+            store_id=store_id,
             booking_id=booking.id,
             booking_number=booking.booking_number,
             invoice_number=invoice_number,

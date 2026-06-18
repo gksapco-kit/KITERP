@@ -289,6 +289,21 @@ export const useAuditLog = (params: Record<string, unknown> = {}) =>
   useQuery({ queryKey: KEY('audit', params), queryFn: () => crmApi.listAudit(params) })
 
 // Conversations
+export const useInboxUnreadCount = (enabled = true) =>
+  useQuery({
+    queryKey: KEY('inbox-count'),
+    queryFn: async () => {
+      const [open, awaiting] = await Promise.all([
+        crmApi.listConversations({ status: 'open', page: 1, size: 1 }),
+        crmApi.listConversations({ status: 'awaiting_agent', page: 1, size: 1 }),
+      ])
+      return (open.total ?? 0) + (awaiting.total ?? 0)
+    },
+    enabled,
+    refetchInterval: 30_000,
+    retry: 1,
+  })
+
 export const useConversations = (params: Record<string, unknown> = {}) =>
   useQuery({ queryKey: KEY('conversations', params), queryFn: () => crmApi.listConversations(params) })
 
@@ -304,7 +319,11 @@ export const usePostChatMessage = (id: string) => {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: (body: string) => crmApi.postMessage(id, body),
-    onSuccess: () => qc.invalidateQueries({ queryKey: KEY('conversation', id) }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: KEY('conversation', id) })
+      qc.invalidateQueries({ queryKey: KEY('inbox-count') })
+      qc.invalidateQueries({ queryKey: KEY('conversations') })
+    },
   })
 }
 

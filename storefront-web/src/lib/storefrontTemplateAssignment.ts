@@ -18,7 +18,7 @@ export const LEGACY_HOME_TEMPLATE_IDS = ['light', 'dark', 'atelier', 'verde', 's
  * storefront_* templates backed by WEBSITE_TEMPLATES blocks (BlockRenderer),
  * not the legacy React shells in CatalogStorefrontLiveHome.
  */
-export const BLOCK_BASED_STOREFRONT_TEMPLATE_IDS = ['storefront_grocery'] as const
+export const BLOCK_BASED_STOREFRONT_TEMPLATE_IDS = ['storefront_grocery', 'storefront_supermarket'] as const
 
 function branchKey(v: string | null | undefined): string {
   return String(v ?? '').trim().toLowerCase()
@@ -104,6 +104,33 @@ export function resolveAssignedStorefrontTemplateId(
   }
 
   return resolveSingleFrontTemplateId(vendorSettings)
+}
+
+/**
+ * Catalog/legacy template explicitly assigned to a branch (or shared in single mode).
+ * Does NOT include the vendor-wide `single_front_template_id` fallback in per_unit mode —
+ * mirrors backend `_store_specific_template_id` so a linked builder site can win.
+ */
+export function resolveStoreSpecificAssignedTemplateId(
+  vendorSettings: Record<string, unknown> | null | undefined,
+  stores: StoreLocation[],
+  branchCode: string | null | undefined,
+  options?: { branchesLoading?: boolean },
+): string | null {
+  const templateMode = resolveStorefrontTemplateMode(vendorSettings)
+
+  if (templateMode === 'single') {
+    return resolveSingleFrontTemplateId(vendorSettings)
+  }
+
+  const branchKeyValue = branchKey(branchCode)
+  if (!branchKeyValue) return null
+  if (options?.branchesLoading) return null
+
+  const branchStore = matchBranchStore(stores, branchCode)
+  if (!branchStore) return null
+
+  return resolveStoreFrontTemplateId(branchStore.settings as Record<string, unknown>)
 }
 
 /** True while the per-BU assigned template cannot be resolved yet (avoid wrong fallback UI). */

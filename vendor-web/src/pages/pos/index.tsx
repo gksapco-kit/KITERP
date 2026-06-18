@@ -9,7 +9,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { useProducts, useServices, useInvoiceSettings, vendorKeys } from '@/hooks/useVendor'
+import { useProducts, useServices, useInvoiceSettings, vendorKeys, useMyMembership, useStores } from '@/hooks/useVendor'
 import { vendorApi } from '@/api/vendor'
 import { formatCurrency } from '@/lib/utils'
 import { ResizableTable } from '@/components/table/ResizableTable'
@@ -129,6 +129,16 @@ export default function POS() {
   const [searchParams, setSearchParams] = useSearchParams()
   const tableFromUrl = searchParams.get('table')
   const orderFromUrl = searchParams.get('order')
+
+  // ── Locked business unit (store) — POS operates against the staff member's assigned store ──
+  const { data: myMembership, isLoading: membershipLoading } = useMyMembership()
+  const { data: storesData } = useStores()
+  const lockedStoreId = myMembership?.effective_store_id ?? myMembership?.store_id ?? null
+  const lockedStoreName = useMemo(() => {
+    if (!lockedStoreId) return null
+    const match = (storesData?.stores ?? []).find((s) => s.id === lockedStoreId)
+    return match?.name ?? null
+  }, [lockedStoreId, storesData])
 
   // ── Modifier picker ──────────────────────────────────────────────
   const [modifierPendingItem, setModifierPendingItem] = useState<{
@@ -372,8 +382,8 @@ export default function POS() {
     )
   }, [posOrders, histSortKey, histSortDir])
 
-  const { data: productsData } = useProducts({ size: 500, status: 'active', search: search || undefined })
-  const { data: servicesData } = useServices({ size: 500, status: 'active', search: search || undefined })
+  const { data: productsData } = useProducts({ size: 500, status: 'active', search: search || undefined, store_id: lockedStoreId || undefined })
+  const { data: servicesData } = useServices({ size: 500, status: 'active', search: search || undefined, store_id: lockedStoreId || undefined })
   // Explicitly stamp item_type so POSSearchGrid and addToCart work correctly
   const products = useMemo(
     () => (productsData?.items || []).map((p: any) => ({ ...p, item_type: 'product' as const })),
@@ -385,8 +395,8 @@ export default function POS() {
   )
 
   // Full unfiltered catalog for client-side suggestion matching
-  const { data: allProductsData } = useProducts({ size: 500, status: 'active' })
-  const { data: allServicesData } = useServices({ size: 500, status: 'active' })
+  const { data: allProductsData } = useProducts({ size: 500, status: 'active', store_id: lockedStoreId || undefined })
+  const { data: allServicesData } = useServices({ size: 500, status: 'active', store_id: lockedStoreId || undefined })
   const allCatalogItems = useMemo(() => {
     const prods = (allProductsData?.items || []).map((p: any) => ({ ...p, item_type: 'product' as const }))
     const svcs  = (allServicesData?.items  || []).map((s: any) => ({ ...s, item_type: 'service' as const }))
@@ -828,7 +838,22 @@ export default function POS() {
     [cart, discountType, cartDiscount, couponApplied, loyaltyDiscountValue],
   )
 
-  if (sessionLoading) return <div className="flex justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-gray-400" /></div>
+  if (membershipLoading || sessionLoading) return <div className="flex justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-gray-400" /></div>
+
+  if (!lockedStoreId) {
+    const isPrivileged = myMembership?.role === 'owner' || myMembership?.role === 'admin'
+    return (
+      <div className="flex flex-col items-center justify-center py-20 space-y-4 text-center px-6">
+        <UserX className="w-16 h-16 text-gray-300" />
+        <h2 className="text-xl font-bold text-gray-700">No business unit assigned</h2>
+        <p className="text-gray-500 max-w-md">
+          {isPrivileged
+            ? 'The POS is scoped to a single business unit, but no business unit exists yet. Create one under Business Units / Stores to start billing.'
+            : "The POS is scoped to a single business unit. You are not assigned to one yet, so billing, catalog and stock can't be loaded. Ask an admin to assign you to a store under Team settings."}
+        </p>
+      </div>
+    )
+  }
 
   if (receiptData) return (
     <PostSaleReceipt
@@ -908,6 +933,11 @@ export default function POS() {
         <div className="flex items-center justify-between">
           <h1 className="text-lg font-bold flex items-center gap-2">
             <ShoppingCart className="w-5 h-5 text-blue-600" /> POS Billing
+            {lockedStoreName && (
+              <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200">
+                {lockedStoreName}
+              </span>
+            )}
           </h1>
           <div className="flex items-center gap-2">
             {loyaltyProgram?.is_active && (

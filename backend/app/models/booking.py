@@ -14,6 +14,8 @@ class Booking(Base):
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     vendor_id = Column(UUID(as_uuid=True), ForeignKey("vendor.id"), nullable=False, index=True)
+    # Business unit (store) this booking belongs to.
+    store_id = Column(UUID(as_uuid=True), ForeignKey("store.id", ondelete="SET NULL"), nullable=True, index=True)
     customer_id = Column(UUID(as_uuid=True), ForeignKey("customer.id"), nullable=False, index=True)
     service_id = Column(UUID(as_uuid=True), ForeignKey("service.id"))
 

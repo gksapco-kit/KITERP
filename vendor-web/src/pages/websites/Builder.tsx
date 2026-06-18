@@ -2676,6 +2676,24 @@ function BuilderSectionChromeToolbar({
   onOpenLayoutPicker: () => void
   onCycleLayout: (dir: 'prev' | 'next') => void
 }) {
+  /** After X / minimize, suppress CSS hover-expand until pointer leaves the chrome. */
+  const [hoverPanelDismissed, setHoverPanelDismissed] = useState(false)
+
+  useEffect(() => {
+    if (!minimized) setHoverPanelDismissed(false)
+  }, [minimized])
+
+  const handleMinimizeClick = (e: React.MouseEvent) => {
+    e.stopPropagation()
+    setHoverPanelDismissed(true)
+    if (minimized && !pinned) return
+    onMinimize()
+  }
+
+  const handleChromeMouseLeave = () => {
+    setHoverPanelDismissed(false)
+  }
+
   const showLayout = getSectionLayoutOptions(block.block_type).length > 0
   const iconBtn = 'p-1.5 text-gray-400 hover:text-white transition-colors'
 
@@ -2689,14 +2707,12 @@ function BuilderSectionChromeToolbar({
     <>
       <button
         type="button"
-        onClick={e => { e.stopPropagation(); onMinimize() }}
+        onClick={handleMinimizeClick}
         className={cn(iconBtn, 'hover:text-amber-300 shrink-0')}
         title={
-          minimized && pinned
+          minimized
             ? 'Close toolbar'
-            : minimized
-              ? 'Restore toolbar'
-              : 'Minimize to hover ball'
+            : 'Minimize to hover ball'
         }
       >
         <X className="w-6 h-6" />
@@ -2795,6 +2811,7 @@ function BuilderSectionChromeToolbar({
           positionClassName,
         )}
         onClick={e => e.stopPropagation()}
+        onMouseLeave={handleChromeMouseLeave}
       >
         {!stayOpen ? (
           <div
@@ -2812,7 +2829,8 @@ function BuilderSectionChromeToolbar({
               : cn(
                   'absolute right-0 top-0 origin-top-right',
                   'scale-[0.94] opacity-0 pointer-events-none transition-all duration-150',
-                  'group-hover/section-chrome:scale-100 group-hover/section-chrome:opacity-100 group-hover/section-chrome:pointer-events-auto',
+                  !hoverPanelDismissed &&
+                    'group-hover/section-chrome:scale-100 group-hover/section-chrome:opacity-100 group-hover/section-chrome:pointer-events-auto',
                 ),
           )}
         >
@@ -2828,6 +2846,7 @@ function BuilderSectionChromeToolbar({
       data-builder-section-toolbar
       className={cn(panelClass, 'absolute z-[85] pointer-events-auto transition-all', positionClassName)}
       onClick={e => e.stopPropagation()}
+      onMouseLeave={handleChromeMouseLeave}
     >
       {toolbarBody}
     </div>
@@ -7756,13 +7775,6 @@ export default function WebsiteBuilder() {
     setMinimizedSectionToolbars(prev => {
       const next = new Set(prev)
       next.add(blockId)
-      return next
-    })
-  }, [])
-  const expandSectionToolbar = useCallback((blockId: string) => {
-    setMinimizedSectionToolbars(prev => {
-      const next = new Set(prev)
-      next.delete(blockId)
       return next
     })
   }, [])
@@ -13431,9 +13443,7 @@ export default function WebsiteBuilder() {
                               minimizeSectionToolbar(block.id)
                               return
                             }
-                            if (minimizedSectionToolbars.has(block.id)) {
-                              expandSectionToolbar(block.id)
-                            } else {
+                            if (!minimizedSectionToolbars.has(block.id)) {
                               minimizeSectionToolbar(block.id)
                             }
                           }}

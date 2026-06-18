@@ -47,6 +47,14 @@ export function ColumnFooter({
   const isFull = variant === "full";
   const newsletter = showNewsletter ?? isFull;
   const paymentStrip = showPaymentStrip ?? isFull;
+  const linkColumnGrid =
+    columns.length >= 4
+      ? "sm:grid-cols-2 md:grid-cols-4"
+      : columns.length === 3
+        ? "sm:grid-cols-2 md:grid-cols-3"
+        : columns.length === 2
+          ? "sm:grid-cols-2"
+          : "grid-cols-1";
 
   return (
     <footer className={cn("border-t bg-muted/30", className)} style={style}>
@@ -65,7 +73,7 @@ export function ColumnFooter({
             </div>
           )}
 
-          <div className={cn("grid gap-8 sm:grid-cols-2 md:grid-cols-3", variant === "simple" ? "md:col-span-12" : "md:col-span-8")}>
+          <div className={cn("grid gap-8", linkColumnGrid, variant === "simple" ? "md:col-span-12" : "md:col-span-8")}>
             {columns.map((col) => (
               <div key={col.title}>
                 <h3 className="text-sm font-semibold text-foreground">{col.title}</h3>

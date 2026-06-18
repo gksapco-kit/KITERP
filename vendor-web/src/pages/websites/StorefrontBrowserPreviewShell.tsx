@@ -145,11 +145,22 @@ export default function StorefrontBrowserPreviewShell() {
         return
       }
       if (typeof ev.data.route === 'string' && token) {
-        const params = new URLSearchParams(window.location.search)
         const nextRoute = ev.data.route.trim().replace(/^\/+|\/+$/g, '')
-        if (!nextRoute || params.get('route') === nextRoute) return
-        params.set('route', nextRoute)
-        window.history.replaceState(null, '', `${DRAFT_BROWSER_PREVIEW_PATH}?${params.toString()}`)
+        if (!nextRoute) {
+          setSearchParams(prev => {
+            if (!prev.has('route')) return prev
+            const next = new URLSearchParams(prev)
+            next.delete('route')
+            return next
+          }, { replace: true })
+          return
+        }
+        setSearchParams(prev => {
+          if (prev.get('route') === nextRoute) return prev
+          const next = new URLSearchParams(prev)
+          next.set('route', nextRoute)
+          return next
+        }, { replace: true })
       }
     }
     window.addEventListener('message', onWindowMessage)
@@ -215,7 +226,7 @@ export default function StorefrontBrowserPreviewShell() {
       unsubscribeChannel()
       unsubscribeError()
     }
-  }, [pending, token])
+  }, [pending, token, setSearchParams])
 
   useEffect(() => {
     if (!token) {

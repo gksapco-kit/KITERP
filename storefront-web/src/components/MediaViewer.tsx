@@ -1,7 +1,12 @@
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useMemo } from 'react'
 import { cn, imgUrl } from '@/lib/utils'
 import { ensureModelViewerScript } from '@/lib/modelViewerLoader'
-import { Play, Pause, Volume2, VolumeX, Maximize, Box, Camera, RotateCcw, X } from 'lucide-react'
+import {
+  CatalogMediaLightbox,
+  useCatalogMediaLightbox,
+  type LightboxMediaItem,
+} from '@/components/common/CatalogMediaLightbox'
+import { Play, Pause, Volume2, VolumeX, Maximize, Box, Camera, RotateCcw, X, ZoomIn } from 'lucide-react'
 
 type MediaType = 'image' | 'video' | 'model3d'
 
@@ -210,9 +215,31 @@ export default function MediaViewer({ items, selectedIndex, onSelect, productNam
   const stage = STAGE_LAYOUT[layout]
   const modelMinHeight = layout === 'detail' ? 280 : 300
 
+  const lightboxItems = useMemo<LightboxMediaItem[]>(
+    () => items.map(item => ({
+      id: item.id,
+      url: item.url,
+      media_type: item.media_type,
+      alt_text: item.alt_text,
+    })),
+    [items],
+  )
+  const lightbox = useCatalogMediaLightbox(lightboxItems.length)
+
+  useEffect(() => {
+    if (lightbox.index !== null && lightbox.index !== selectedIndex) {
+      onSelect(lightbox.index)
+    }
+  }, [lightbox.index, selectedIndex, onSelect])
+
+  const openLightbox = () => {
+    if (!selected || lightboxItems.length === 0) return
+    lightbox.open(selectedIndex)
+  }
+
   return (
     <div className="space-y-3">
-      <div className={cn('bg-gray-50 rounded-xl overflow-hidden border relative', stage.stage)}>
+      <div className={cn('bg-gray-50 rounded-xl overflow-hidden border relative group/stage', stage.stage)}>
         {!selected ? (
           <div className="absolute inset-0 flex items-center justify-center">
             <Box className="w-16 h-16 text-gray-200" />
@@ -220,6 +247,14 @@ export default function MediaViewer({ items, selectedIndex, onSelect, productNam
         ) : mt === 'video' ? (
           <div className="absolute inset-0">
             <VideoPlayer url={selected.url} alt={selected.alt_text} videoClassName={stage.video} />
+            <button
+              type="button"
+              onClick={openLightbox}
+              className="absolute top-3 left-3 z-10 rounded-full bg-black/55 p-2 text-white opacity-0 transition-opacity hover:bg-black/70 group-hover/stage:opacity-100 focus:opacity-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/50"
+              aria-label="Open full screen preview"
+            >
+              <Maximize className="w-4 h-4" />
+            </button>
           </div>
         ) : mt === 'model3d' ? (
           <div className="absolute inset-0">
@@ -229,15 +264,40 @@ export default function MediaViewer({ items, selectedIndex, onSelect, productNam
               poster={firstImage ? imgUrl(firstImage.url) : undefined}
               minHeight={modelMinHeight}
             />
+            <button
+              type="button"
+              onClick={openLightbox}
+              className="absolute bottom-3 right-3 z-10 rounded-full bg-black/55 p-2 text-white opacity-0 transition-opacity hover:bg-black/70 group-hover/stage:opacity-100 focus:opacity-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/50"
+              aria-label="Open full screen preview"
+            >
+              <Maximize className="w-4 h-4" />
+            </button>
           </div>
         ) : (
-          <img
-            src={imgUrl(selected.url)}
-            alt={selected.alt_text || productName}
-            className={cn('absolute inset-0 w-full h-full', stage.image)}
-          />
+          <button
+            type="button"
+            onClick={openLightbox}
+            className="absolute inset-0 w-full h-full cursor-zoom-in focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:ring-inset"
+            aria-label={`View ${productName} full size`}
+          >
+            <img
+              src={imgUrl(selected.url)}
+              alt={selected.alt_text || productName}
+              className={cn('absolute inset-0 w-full h-full pointer-events-none', stage.image)}
+            />
+            <span
+              className="pointer-events-none absolute bottom-3 right-3 flex items-center gap-1 rounded-full bg-black/55 px-2.5 py-1.5 text-xs font-medium text-white opacity-0 transition-opacity group-hover/stage:opacity-100"
+            >
+              <ZoomIn className="w-3.5 h-3.5" aria-hidden />
+              Zoom
+            </span>
+          </button>
         )}
-        {mt === 'image' && badges}
+        {mt === 'image' && (
+          <div className="pointer-events-none absolute inset-0 z-[1]">
+            {badges}
+          </div>
+        )}
       </div>
       {items.length > 1 && (
         <div className="flex gap-2 overflow-x-auto scrollbar-hide pb-1">
@@ -246,6 +306,13 @@ export default function MediaViewer({ items, selectedIndex, onSelect, productNam
           ))}
         </div>
       )}
+      <CatalogMediaLightbox
+        items={lightboxItems}
+        index={lightbox.index}
+        onClose={lightbox.close}
+        onPrev={lightbox.goPrev}
+        onNext={lightbox.goNext}
+      />
     </div>
   )
 }

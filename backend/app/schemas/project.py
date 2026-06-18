@@ -55,11 +55,20 @@ class ChecklistItem(BaseModel):
     done: bool = False
 
 
+class ProjectItem(BaseModel):
+    id: str
+    name: str
+    item_type: str = "product"  # product | service
+    sku: Optional[str] = None
+    price: Optional[float] = None
+
+
 class ProjectBase(BaseModel):
     name: str = Field(..., min_length=1, max_length=255)
     description: Optional[str] = None
     status: ProjectStatus = ProjectStatus.PLANNING
     priority: ProjectPriority = ProjectPriority.MEDIUM
+    store_id: Optional[UUID] = None
     customer_id: Optional[UUID] = None
     customer_name: Optional[str] = None
     owner_id: Optional[UUID] = None
@@ -72,6 +81,7 @@ class ProjectBase(BaseModel):
     color: Optional[str] = Field(None, max_length=7)
     tags: Optional[list[str]] = None
     milestones: Optional[list[MilestoneItem]] = None
+    items: Optional[list[ProjectItem]] = None
 
 
 class ProjectCreate(ProjectBase):
@@ -83,6 +93,8 @@ class ProjectUpdate(BaseModel):
     description: Optional[str] = None
     status: Optional[ProjectStatus] = None
     priority: Optional[ProjectPriority] = None
+    store_id: Optional[UUID] = None
+    items: Optional[list[ProjectItem]] = None
     customer_id: Optional[UUID] = None
     customer_name: Optional[str] = None
     owner_id: Optional[UUID] = None

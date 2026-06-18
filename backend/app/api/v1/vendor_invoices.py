@@ -33,6 +33,7 @@ async def _vendor_id(current_user: User = Depends(get_current_active_user), db: 
 def _inv_dict(inv) -> dict:
     return {
         "id": str(inv.id), "vendor_id": str(inv.vendor_id),
+        "store_id": str(inv.store_id) if getattr(inv, "store_id", None) else None,
         "customer_id": str(inv.customer_id) if inv.customer_id else None,
         "order_id": str(inv.order_id) if inv.order_id else None,
         "order_number": getattr(inv, "order_number", None),
@@ -71,11 +72,12 @@ async def list_invoices(
     invoice_type: str = None,
     exclude_invoice_type: str = None,
     status: str = None,
+    store_id: str = None,
     page: int = Query(1, ge=1), size: int = Query(20, ge=1, le=100),
     vid: UUID = Depends(_vendor_id), db: AsyncSession = Depends(get_db),
 ):
     svc = InvoiceService(db)
-    items, total = await svc.list_invoices(vid, invoice_type, exclude_invoice_type, status, page, size)
+    items, total = await svc.list_invoices(vid, invoice_type, exclude_invoice_type, status, page, size, store_id=store_id)
     return JSONResponse(content={
         "items": [_inv_dict(i) for i in items], "total": total,
         "page": page, "size": size, "pages": math.ceil(total / size) if total else 0,

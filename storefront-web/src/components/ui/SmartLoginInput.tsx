@@ -17,6 +17,7 @@ export interface SmartLoginInputProps {
   error?: string
   defaultCountryIso?: string
   className?: string
+  inputClassName?: string
   /** Same row as toggle, above the field (e.g. “Email or Phone”). */
   fieldLabel?: string
   inputId?: string
@@ -30,6 +31,7 @@ export function SmartLoginInput({
   error,
   defaultCountryIso = 'IN',
   className = '',
+  inputClassName = 'h-11 rounded-xl',
   fieldLabel,
   inputId = 'login',
   name = 'login',
@@ -49,10 +51,10 @@ export function SmartLoginInput({
   }
 
   return (
-    <div className={cn(fieldLabel ? 'space-y-1.5' : 'space-y-1', className)}>
+    <div className={cn('space-y-1.5', className)}>
       <div className={cn('flex items-center gap-2', fieldLabel ? 'justify-between' : 'justify-end')}>
         {fieldLabel ? (
-          <Label htmlFor={inputId} className="shrink-0 text-gray-700">
+          <Label htmlFor={inputId} className="shrink-0 text-sm font-medium text-gray-700">
             {fieldLabel}
           </Label>
         ) : null}
@@ -77,6 +79,8 @@ export function SmartLoginInput({
           onChange={onChange}
           error={error}
           defaultCountryIso={defaultCountryIso}
+          className={inputClassName}
+          showErrorMessage={false}
         />
       ) : (
         <>
@@ -90,12 +94,18 @@ export function SmartLoginInput({
               value={value}
               onChange={e => onChange(e.target.value)}
               placeholder="you@example.com or +919876543210"
-              className={`pl-9 h-11 border-gray-300 ${error ? 'border-red-400' : ''}`}
+              className={cn(
+                'pl-9 border-gray-300',
+                inputClassName,
+                error && 'border-red-400 focus-visible:ring-red-200',
+              )}
             />
           </div>
-          {error && <p className="text-xs text-red-500">{error}</p>}
         </>
       )}
+      <p className={cn('text-xs leading-snug min-h-[1.125rem]', error ? 'text-red-600' : 'text-transparent')}>
+        {error || '\u00a0'}
+      </p>
     </div>
   )
 }

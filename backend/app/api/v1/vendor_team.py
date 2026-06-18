@@ -139,6 +139,7 @@ def _member_to_dict(vu: VendorUser) -> dict:
         "role": normalized_vendor_role(vu),
         "role_id": str(vu.role_id) if vu.role_id else None,
         "role_name": vendor_member_role_display_name(vu),
+        "store_id": str(vu.store_id) if getattr(vu, "store_id", None) else None,
         "permissions": perms,
         "is_active": vu.is_active,
         "invited_at": vu.invited_at.isoformat() if vu.invited_at else None,
@@ -213,7 +214,15 @@ async def get_my_membership(
     member = await repo.get_with_details(vu.id)
     if not member:
         raise HTTPException(status_code=404, detail="Membership not found")
-    return JSONResponse(_member_to_dict(member))
+    payload = _member_to_dict(member)
+    # Effective business unit for store-locked surfaces (e.g. POS): explicit
+    # assignment, else owners/admins fall back to the vendor's default store.
+    effective_store_id = member.store_id
+    if not effective_store_id and normalized_vendor_role(member) in ("owner", "admin"):
+        from app.services.store_resolver import get_default_store_id
+        effective_store_id = await get_default_store_id(db, member.vendor_id)
+    payload["effective_store_id"] = str(effective_store_id) if effective_store_id else None
+    return JSONResponse(payload)
 
 
 @router.post("", status_code=201)

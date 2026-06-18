@@ -13,6 +13,8 @@ class POSSession(Base):
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     vendor_id = Column(UUID(as_uuid=True), ForeignKey("vendor.id"), nullable=False, index=True)
+    # Business unit (store) this register session belongs to. One open session per (vendor, store).
+    store_id = Column(UUID(as_uuid=True), ForeignKey("store.id", ondelete="SET NULL"), nullable=True, index=True)
     opened_by = Column(UUID(as_uuid=True), ForeignKey("user.id"), nullable=False)
     closed_by = Column(UUID(as_uuid=True), ForeignKey("user.id"))
 
@@ -38,6 +40,7 @@ class POSSession(Base):
 
     __table_args__ = (
         Index("ix_pos_session_vendor_date", "vendor_id", "session_date"),
+        Index("ix_pos_session_vendor_store_status", "vendor_id", "store_id", "status"),
     )
 
 
@@ -47,6 +50,8 @@ class POSTransaction(Base):
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     vendor_id = Column(UUID(as_uuid=True), ForeignKey("vendor.id"), nullable=False, index=True)
     session_id = Column(UUID(as_uuid=True), ForeignKey("pos_session.id"), nullable=False, index=True)
+    # Business unit (store) this sale is attributed to. Nullable for vendors with no store records.
+    store_id = Column(UUID(as_uuid=True), ForeignKey("store.id", ondelete="SET NULL"), nullable=True, index=True)
     cashier_id = Column(UUID(as_uuid=True), ForeignKey("user.id"), nullable=False)
     customer_id = Column(UUID(as_uuid=True), ForeignKey("customer.id"))
     # Staff credited for the sale (VendorUser.id); used for commission / attribution.
@@ -93,5 +98,6 @@ class POSTransaction(Base):
     __table_args__ = (
         Index("ix_pos_txn_vendor_created", "vendor_id", "created_at"),
         Index("ix_pos_txn_session", "session_id", "created_at"),
+        Index("ix_pos_txn_vendor_store", "vendor_id", "store_id"),
         Index("uq_pos_txn_vendor_number", "vendor_id", "transaction_number", unique=True),
     )

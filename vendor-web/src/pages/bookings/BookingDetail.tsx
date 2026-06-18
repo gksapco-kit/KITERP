@@ -1,5 +1,6 @@
 import { useState, useRef, useMemo } from 'react'
 import { TableColumnLabel } from '@/components/common/FieldLabel'
+import { useStoreName } from '@/components/common/BusinessUnitSelect'
 import { useEscapeToClose } from '@/hooks/useEscapeToClose'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
@@ -114,6 +115,7 @@ export default function BookingDetail() {
     queryFn: () => vendorApi.getBooking(id!),
     enabled: !!id,
   })
+  const storeName = useStoreName((booking as Record<string, unknown>)?.store_id as string | undefined)
 
   // Invoice: try direct invoice_id first (set when booking is completed), then fallback to order lookup
   const invoiceId = (booking as Record<string, unknown>)?.invoice_id as string | undefined
@@ -755,6 +757,12 @@ export default function BookingDetail() {
                   <span className="text-gray-500">Service</span>
                   <span className="font-medium text-right max-w-[60%]">{b.service_name as string}</span>
                 </div>
+                {storeName && (
+                  <div className="flex justify-between">
+                    <span className="text-gray-500">Business unit</span>
+                    <span className="font-medium text-right max-w-[60%]">{storeName}</span>
+                  </div>
+                )}
                 <div className="flex justify-between">
                   <span className="text-gray-500">Payment</span>
                   <span className="capitalize">{b.payment_method as string}</span>

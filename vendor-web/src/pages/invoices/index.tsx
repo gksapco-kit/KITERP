@@ -20,6 +20,7 @@ import {
   MessageCircle, Mail, Smartphone, Copy, Send, Settings2, CalendarDays, Printer, UserPlus,
 } from 'lucide-react'
 import { QuickCreateCustomerModal } from '@/components/customers/QuickCreateCustomerModal'
+import { BusinessUnitSelect } from '@/components/common/BusinessUnitSelect'
 import { QuotationExtraFieldsEditor } from '@/components/quotations/QuotationExtraFieldsEditor'
 import { serializeQuotationExtraFields, type QuotationExtraField } from '@/types/quotation'
 import apiClient from '@/api/client'
@@ -158,6 +159,7 @@ export default function InvoicesPage() {
   const [page, setPage] = useState(1)
   const [typeFilter, setTypeFilter] = useState('')
   const [statusFilter, setStatusFilter] = useState('')
+  const [storeFilter, setStoreFilter] = useState('')
   const [showCreate, setShowCreate] = useState(false)
   const [shareOpenId, setShareOpenId] = useState<string | null>(null)
   const [sortKey, setSortKey] = useState('created_at')
@@ -165,13 +167,14 @@ export default function InvoicesPage() {
   const { data: invSettings } = useInvoiceSettings()
 
   const { data, isLoading } = useQuery({
-    queryKey: ['invoices', page, typeFilter, statusFilter],
+    queryKey: ['invoices', page, typeFilter, statusFilter, storeFilter],
     queryFn: () => vendorApi.listInvoices({
       page,
       size: 15,
       invoice_type: typeFilter || undefined,
       exclude_invoice_type: typeFilter ? undefined : 'estimate',
       status: statusFilter || undefined,
+      store_id: storeFilter || undefined,
     }),
   })
 
@@ -207,6 +210,7 @@ export default function InvoicesPage() {
       </div>
 
       <div className="flex gap-3 items-center">
+        <div className="w-56"><BusinessUnitSelect value={storeFilter} onChange={(id) => { setStoreFilter(id); setPage(1) }} allowAll autoSelectDefault={false} /></div>
         <select className="text-sm border rounded-lg px-3 py-2" value={typeFilter} onChange={e => { setTypeFilter(e.target.value); setPage(1) }}>
           <option value="">All Billing Types</option>
           <option value="invoice">Invoices</option>
@@ -550,11 +554,12 @@ export function CreateInvoiceModal({
   const [custOpen, setCustOpen] = useState(false)
   const [showQuickCreate, setShowQuickCreate] = useState(false)
   const [extraFields, setExtraFields] = useState<QuotationExtraField[]>([])
+  const [storeId, setStoreId] = useState('')
   const isQuotation = defaultType === 'estimate'
 
-  // Catalogue — load products + services once
-  const { data: productsData } = useProducts({ size: 200 })
-  const { data: servicesData } = useServices({ size: 200 })
+  // Catalogue — products + services scoped to the selected business unit
+  const { data: productsData } = useProducts({ size: 200, store_id: storeId || undefined })
+  const { data: servicesData } = useServices({ size: 200, store_id: storeId || undefined })
   const catalogue = useMemo<CatalogueItem[]>(() => {
     const prods = (productsData?.items ?? []).map((p: any) => ({
       id: p.id, name: p.name, kind: 'product' as const,
@@ -615,6 +620,7 @@ export function CreateInvoiceModal({
     try {
       const payload = {
         ...form,
+        store_id: storeId || undefined,
         order_id: form.order_id || undefined,
         items,
         ...(isQuotation ? { extra_fields: serializeQuotationExtraFields(extraFields) } : {}),
@@ -641,6 +647,15 @@ export function CreateInvoiceModal({
           <button type="button" data-escape-close aria-label="Close" onClick={onClose} className="p-1 rounded-lg hover:bg-gray-100"><X className="w-5 h-5" /></button>
         </div>
         <div className="px-6 py-5 space-y-5 max-h-[70vh] overflow-y-auto">
+          {/* Business unit — scopes the product/service catalog */}
+          <div>
+            <Label>Business unit</Label>
+            <div className="mt-1">
+              <BusinessUnitSelect value={storeId} onChange={setStoreId} />
+            </div>
+            <p className="text-[11px] text-gray-400 mt-1">Only products & services available at this business unit can be added.</p>
+          </div>
+
           {/* Customer picker */}
           <div className="relative">
             <Label>Select Customer (optional)</Label>

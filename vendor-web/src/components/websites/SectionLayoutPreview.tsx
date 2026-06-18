@@ -375,20 +375,35 @@ function GridCardsPreview({ variantProps, sampleUrls, withImages = true }: {
   sampleUrls: string[]
   withImages?: boolean
 }) {
+  const layout = String(variantProps.layout ?? '')
   const cols = Number(variantProps.columns) || 3
-  const isList = variantProps.layout === 'list'
-  const colClass = cols >= 4 ? 'grid-cols-4' : cols === 2 ? 'grid-cols-2' : 'grid-cols-3'
+  const effectiveCols =
+    layout === 'grid-4' || cols >= 4 ? 4
+      : layout === 'grid-2' || cols === 2 ? 2
+        : 3
+  const isList = layout === 'list'
+  const isStrip = layout === 'strip'
+  const isMasonry = layout === 'masonry'
+  const isDark = variantProps.bg_style === 'dark'
+  const colClass =
+    effectiveCols >= 4 ? 'grid-cols-4'
+      : effectiveCols === 2 ? 'grid-cols-2'
+        : 'grid-cols-3'
+  const shell = isDark ? 'bg-slate-900' : 'bg-white'
+  const head = isDark ? 'bg-slate-400' : 'bg-slate-500'
+  const line = isDark ? 'bg-slate-600' : 'bg-slate-200'
+  const card = isDark ? 'bg-slate-800 border-slate-700' : 'bg-white border-slate-100'
 
   if (isList) {
     return (
-      <div className="h-full p-2 space-y-1">
-        <Bar w="w-1/3 mx-auto" h="h-1.5" className="bg-slate-500 mb-1" />
+      <div className={cn('h-full p-2 space-y-1', shell)}>
+        <Bar w="w-1/3 mx-auto" h="h-1.5" className={cn(head, 'mb-1')} />
         {[0, 1, 2].map(i => (
-          <div key={i} className="flex gap-1.5 items-center border border-slate-100 rounded p-1 bg-white">
+          <div key={i} className={cn('flex gap-1.5 items-center border rounded p-1', card)}>
             {withImages && <Img src={sampleUrls[i]} className="w-8 h-8 shrink-0" />}
             <div className="flex-1 space-y-0.5">
-              <Bar w="w-2/3" h="h-1" className="bg-slate-400" />
-              <Bar w="w-full" h="h-0.5" className="bg-slate-200" />
+              <Bar w="w-2/3" h="h-1" className={isDark ? 'bg-slate-400' : 'bg-slate-400'} />
+              <Bar w="w-full" h="h-0.5" className={line} />
             </div>
           </div>
         ))}
@@ -396,15 +411,50 @@ function GridCardsPreview({ variantProps, sampleUrls, withImages = true }: {
     )
   }
 
+  if (isStrip) {
+    return (
+      <div className={cn('h-full p-2 flex flex-col gap-1', shell)}>
+        <Bar w="w-1/3 mx-auto" h="h-1.5" className={head} />
+        <div className="flex flex-1 gap-1 items-stretch">
+          {Array.from({ length: effectiveCols }).map(i => (
+            <div key={i} className={cn('flex-1 rounded border p-1 flex flex-col gap-0.5', card)}>
+              {withImages && <Img src={sampleUrls[i]} className="w-full h-6" />}
+              <Bar w="w-3/4 mx-auto" h="h-0.5" className={isDark ? 'bg-slate-400' : 'bg-slate-400'} />
+              <Bar w="w-full" h="h-0.5" className={line} />
+            </div>
+          ))}
+        </div>
+      </div>
+    )
+  }
+
+  if (isMasonry) {
+    return (
+      <div className={cn('h-full p-2', shell)}>
+        <Bar w="w-1/3 mx-auto" h="h-1.5" className={cn(head, 'mb-1')} />
+        <div className="grid grid-cols-3 gap-1 flex-1">
+          {[0, 1, 2, 3, 4, 5].map(i => (
+            <div key={i} className={cn('rounded border p-0.5', card, i % 3 === 0 ? 'row-span-2' : '')}>
+              {withImages && <Img src={sampleUrls[i]} className={cn('w-full', i % 3 === 0 ? 'h-10' : 'h-5')} />}
+              <Bar w="w-3/4 mx-auto" h="h-0.5" className={isDark ? 'bg-slate-400' : 'bg-slate-400'} />
+            </div>
+          ))}
+        </div>
+      </div>
+    )
+  }
+
+  const cellCount = Math.min(effectiveCols, 6)
+
   return (
-    <div className="h-full p-2 flex flex-col gap-1">
-      <Bar w="w-1/3 mx-auto" h="h-1.5" className="bg-slate-500" />
+    <div className={cn('h-full p-2 flex flex-col gap-1', shell)}>
+      <Bar w="w-1/3 mx-auto" h="h-1.5" className={head} />
       <div className={cn('grid flex-1 gap-1', colClass)}>
-        {[0, 1, 2].map(i => (
-          <div key={i} className="rounded border border-slate-100 bg-white p-0.5 flex flex-col gap-0.5 overflow-hidden">
+        {Array.from({ length: cellCount }).map((_, i) => (
+          <div key={i} className={cn('rounded border p-0.5 flex flex-col gap-0.5 overflow-hidden', card)}>
             {withImages && <Img src={sampleUrls[i]} className="w-full h-7" />}
-            <Bar w="w-3/4 mx-auto" h="h-0.5" className="bg-slate-400" />
-            <Bar w="w-full" h="h-0.5" className="bg-slate-200" />
+            <Bar w="w-3/4 mx-auto" h="h-0.5" className={isDark ? 'bg-slate-400' : 'bg-slate-400'} />
+            <Bar w="w-full" h="h-0.5" className={line} />
           </div>
         ))}
       </div>
@@ -499,16 +549,100 @@ function PricingPreview({ variantProps }: { variantProps: Record<string, unknown
 }
 
 function FaqPreview({ variantProps }: { variantProps: Record<string, unknown> }) {
-  const isTwoCol = variantProps.layout === 'two-col'
-  const items = [0, 1, 2, 3]
+  const layout = String(variantProps.layout ?? 'accordion')
+  const columns = Number(variantProps.columns) || 2
+  const isDark = variantProps.bg_style === 'dark'
+  const isCompact = variantProps.compact === true
+  const cardStyle = String(variantProps.card_style ?? '')
+  const showNumbers = variantProps.show_numbers === true
+  const isBordered = cardStyle === 'bordered'
+  const isCard = cardStyle === 'card'
 
-  if (isTwoCol) {
+  const shell = isDark ? 'bg-slate-900' : 'bg-slate-50'
+  const itemBg = isDark ? 'bg-slate-800 border-slate-700' : 'bg-white border-slate-200'
+  const textBar = isDark ? 'bg-slate-300' : 'bg-slate-600'
+  const subBar = isDark ? 'bg-slate-600' : 'bg-slate-200'
+  const gap = isCompact ? 'space-y-0.5' : 'space-y-1'
+  const rowPy = isCompact ? 'py-0.5' : 'py-1'
+  const itemCount = layout === 'grid' ? Math.min(columns, 6) : 4
+
+  const accordionGlyph = (expanded: boolean) => (
+    <div className={cn(
+      'shrink-0 flex items-center justify-center text-[6px] font-bold',
+      isCompact ? 'w-1.5 h-1.5' : 'w-2 h-2',
+      'rounded border',
+      isDark ? 'border-slate-500 text-slate-400' : 'border-slate-300 text-slate-400',
+    )}>
+      {expanded ? '−' : '+'}
+    </div>
+  )
+
+  const accordionRow = (i: number, expanded = false) => (
+    <div
+      key={i}
+      className={cn(
+        'flex justify-between items-center px-1.5',
+        rowPy,
+        itemBg,
+        isCard ? 'rounded-lg shadow-sm border' : 'rounded border',
+        isBordered && 'border-2',
+        expanded && 'ring-1 ring-primary/40',
+      )}
+    >
+      <Bar w="w-4/5" h={isCompact ? 'h-0.5' : 'h-1'} className={textBar} />
+      {accordionGlyph(expanded)}
+    </div>
+  )
+
+  if (layout === 'grid' || layout === 'two-col' || layout === 'two-column') {
+    const colClass = columns >= 3 ? 'grid-cols-3' : 'grid-cols-2'
     return (
-      <div className="h-full p-2 grid grid-cols-2 gap-1">
-        {items.map(i => (
-          <div key={i} className="rounded border border-slate-200 px-1 py-1 flex justify-between items-center bg-white">
-            <Bar w="w-3/4" h="h-0.5" className="bg-slate-400" />
-            <div className="w-1.5 h-1.5 rounded-full bg-slate-300 shrink-0" />
+      <div className={cn('h-full min-h-[72px] p-2', shell)}>
+        <Bar w="w-1/3 mx-auto" h="h-1.5" className={cn(textBar, 'mb-1')} />
+        <div className={cn('grid gap-1', colClass)}>
+          {Array.from({ length: itemCount }).map((_, i) => (
+            <div key={i} className={cn('rounded border p-1 space-y-0.5', itemBg, isCard && 'shadow-sm')}>
+              <Bar w="w-full" h="h-0.5" className={textBar} />
+              <Bar w="w-full" h="h-0.5" className={subBar} />
+            </div>
+          ))}
+        </div>
+      </div>
+    )
+  }
+
+  if (layout === 'split') {
+    return (
+      <div className={cn('h-full min-h-[72px] p-2 flex gap-1.5', shell)}>
+        <div className="w-[38%] space-y-1 pt-0.5">
+          <Bar w="w-full" h="h-2" className={textBar} />
+          <Bar w="w-4/5" h="h-0.5" className={subBar} />
+          <Bar w="w-3/5" h="h-0.5" className={subBar} />
+        </div>
+        <div className={cn('flex-1', gap)}>
+          {[0, 1, 2].map(i => accordionRow(i, i === 0))}
+        </div>
+      </div>
+    )
+  }
+
+  if (layout === 'list') {
+    return (
+      <div className={cn('h-full min-h-[72px] p-2', gap, shell)}>
+        <Bar w="w-1/3 mx-auto" h="h-1.5" className={cn(textBar, 'mb-0.5')} />
+        {[0, 1, 2, 3].map(i => (
+          <div key={i} className={cn('px-1', rowPy, itemBg, isCard && 'rounded-lg shadow-sm border', isBordered && 'border-2')}>
+            <div className="flex gap-0.5 items-start">
+              {showNumbers && (
+                <span className="text-[7px] font-bold text-primary shrink-0 leading-none pt-0.5">
+                  {String(i + 1).padStart(2, '0')}
+                </span>
+              )}
+              <div className="flex-1 space-y-0.5">
+                <Bar w="w-full" h="h-0.5" className={textBar} />
+                <Bar w="w-full" h="h-0.5" className={subBar} />
+              </div>
+            </div>
           </div>
         ))}
       </div>
@@ -516,14 +650,9 @@ function FaqPreview({ variantProps }: { variantProps: Record<string, unknown> })
   }
 
   return (
-    <div className="h-full p-2 space-y-0.5">
-      <Bar w="w-1/3 mx-auto" h="h-1.5" className="bg-slate-500 mb-1" />
-      {items.map(i => (
-        <div key={i} className="rounded border border-slate-200 px-1.5 py-1 flex justify-between items-center bg-white">
-          <Bar w="w-4/5" h="h-0.5" className="bg-slate-500" />
-          <div className="w-2 h-2 rounded border border-slate-300 flex items-center justify-center text-[6px] text-slate-400">+</div>
-        </div>
-      ))}
+    <div className={cn('h-full min-h-[72px] p-2', gap, shell)}>
+      <Bar w="w-1/3 mx-auto" h="h-1.5" className={cn(textBar, 'mb-0.5')} />
+      {[0, 1, 2, 3].map(i => accordionRow(i, i === 0))}
     </div>
   )
 }

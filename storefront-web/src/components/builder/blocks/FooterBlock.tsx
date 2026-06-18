@@ -102,7 +102,18 @@ function EditableColumnFooter({
             )}
           </div>
 
-          <div className="grid gap-8 sm:grid-cols-2 md:grid-cols-4 md:col-span-8">
+          <div
+            className={cn(
+              'grid gap-8 md:col-span-8',
+              (columns.length >= 4
+                ? 'sm:grid-cols-2 md:grid-cols-4'
+                : columns.length === 3
+                  ? 'sm:grid-cols-2 md:grid-cols-3'
+                  : columns.length === 2
+                    ? 'sm:grid-cols-2'
+                    : 'grid-cols-1'),
+            )}
+          >
             {columns.map((col, colIdx) => (
               <div key={colIdx}>
                 <BuilderTextField

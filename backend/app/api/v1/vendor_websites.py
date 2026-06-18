@@ -1851,6 +1851,25 @@ WELLNESS_CATEGORY_TITLES = [
     "Fruit Chews",
 ]
 
+# Futuristic supermarket starter copy (NOVA Mart) — neon, automation-led messaging.
+SUPERMARKET_MARQUEE_TEXT = (
+    "30-minute delivery,AI-powered smart lists,Scan & go checkout,"
+    "Live stock you can trust,Carbon-neutral routes,Members save more"
+)
+
+
+def _supermarket_footer_props() -> Dict[str, Any]:
+    return {
+        "show_legal": True,
+        "copyright": "© 2026 NOVA Mart. Tomorrow's grocery, today.",
+        "footer_columns": [
+            {"title": "Shop", "links": ["Fresh Produce", "Pantry", "Frozen", "Beverages"]},
+            {"title": "Services", "links": ["Same-day Delivery", "Click & Collect", "Smart Lists", "Rewards"]},
+            {"title": "Company", "links": ["About", "Sustainability", "Careers", "Press"]},
+            {"title": "Help", "links": ["Track Order", "Returns", "Contact", "FAQ"]},
+        ],
+    }
+
 
 WEBSITE_TEMPLATES = {
     "portfolio": {
@@ -2133,6 +2152,116 @@ WEBSITE_TEMPLATES = {
                 {"block_type": "nav", "props": {"brand": "Pantry"}},
                 {"block_type": "order_status", "props": {"title": "Track your order", "placeholder": "Enter order number\u2026"}},
                 {"block_type": "footer", "props": _footer_props_standard()},
+            ]},
+        ],
+    },
+    "storefront_supermarket": {
+        "id": "storefront_supermarket",
+        "name": "NOVA Mart",
+        "description": "Futuristic supermarket — dark neon UI, automation-led messaging, dense department grid, live stock, and 30-minute delivery storytelling.",
+        "thumbnail": "https://images.unsplash.com/photo-1604719312566-8912e9227c6a?auto=format&fit=crop&w=800&q=80",
+        "category": "grocery",
+        "tier": "full",
+        "tags": ["Supermarket", "Grocery", "Futuristic", "Delivery", "Smart Store"],
+        "preview_palette": ["#060911", "#22D3EE", "#7C3AED", "#0F1524", "#E8EEF7"],
+        "default_style": {
+            "primary_color": "#0B0F1A", "secondary_color": "#7C3AED", "accent_color": "#22D3EE",
+            "bg_color": "#060911", "surface_color": "#0F1524", "text_color": "#E8EEF7",
+            "font_heading": "Space Grotesk", "font_body": "Manrope",
+            "border_radius": "rounded", "spacing": "comfortable", "animation": "subtle",
+            "shadow_style": "elevated", "button_style": "filled",
+        },
+        "pages": [
+            {"title": "Home", "slug": "home", "page_type": "home", "is_homepage": True, "show_in_nav": True, "blocks": [
+                {"block_type": "announcement_bar", "props": {"text": "\u26a1 30-minute delivery in your zone \u00b7 Free over $40 \u00b7 New members get $15 off", "color": "#7C3AED"}},
+                {"block_type": "nav", "props": {"brand": "NOVA Mart", "show_cart": True, "show_search": True, "cta_label": "Start shopping", "cta_url": "/produce"}},
+                {"block_type": "hero", "props": {
+                    "eyebrow": "The smart supermarket",
+                    "headline": "Groceries, at the",
+                    "headline_line2": "speed of now.",
+                    "subtitle": "Live-stocked aisles, AI shopping lists, and 30-minute delivery powered by autonomous routing. Welcome to the store that thinks ahead.",
+                    "bg_style": "image",
+                    "image_url": "https://images.unsplash.com/photo-1604719312566-8912e9227c6a?auto=format&fit=crop&w=1600&q=80",
+                    "overlay": True, "overlay_opacity": 0.6,
+                    "cta_primary": "Shop departments", "cta_secondary": "See live deals",
+                    "cta_primary_url": "/produce", "cta_secondary_url": "/deals",
+                }},
+                {"block_type": "marquee_strip", "props": {"text": SUPERMARKET_MARQUEE_TEXT}},
+                {"block_type": "category_cards", "props": {
+                    "title": "Shop every aisle",
+                    "eyebrow": "Departments",
+                    "layout": "grid",
+                    "columns": 4,
+                    "categories": [
+                        {"title": "Fresh Produce", "image_url": "https://images.unsplash.com/photo-1610348725531-843dff563e2c?auto=format&fit=crop&w=900&q=80"},
+                        {"title": "Dairy & Eggs", "image_url": "https://images.unsplash.com/photo-1550583724-b2692b85b150?auto=format&fit=crop&w=900&q=80"},
+                        {"title": "Bakery", "image_url": "https://images.unsplash.com/photo-1509440159596-0249088772ff?auto=format&fit=crop&w=900&q=80"},
+                        {"title": "Pantry Staples", "image_url": "https://images.unsplash.com/photo-1584473457409-ae5c91d211dd?auto=format&fit=crop&w=900&q=80"},
+                        {"title": "Frozen Foods", "image_url": "https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&w=900&q=80"},
+                        {"title": "Beverages", "image_url": "https://images.unsplash.com/photo-1556679343-7190518ceeb4?auto=format&fit=crop&w=900&q=80"},
+                        {"title": "Snacks & Treats", "image_url": "https://images.unsplash.com/photo-1606851090756-56d7fd5520ce?auto=format&fit=crop&w=900&q=80"},
+                        {"title": "Household", "image_url": "https://images.unsplash.com/photo-1583947215259-38e31be8751f?auto=format&fit=crop&w=900&q=80"},
+                    ],
+                }},
+                {"block_type": "product_grid", "props": {"title": "Trending in your area", "subtitle": "Ranked live by what neighbours are buying right now.", "columns": 4, "show_badges": True, "layout": "editorial"}},
+                {"block_type": "offer_banner", "props": {"headline": "Flash deals refresh every hour", "subtitle": "Dynamic pricing on overstock and short-dated picks \u2014 grab them before the timer resets.", "cta_label": "Shop deals", "cta_url": "/deals"}},
+                {"block_type": "features", "props": {
+                    "title": "A supermarket that runs itself",
+                    "eyebrow": "Why NOVA",
+                    "layout": "grid-4",
+                    "features": [
+                        {"icon": "Zap", "title": "30-minute delivery", "desc": "Autonomous routing dispatches the moment you check out \u2014 no slots, no waiting."},
+                        {"icon": "Sparkles", "title": "AI smart lists", "desc": "We learn your basket and rebuild it weekly, swapping in better-priced staples."},
+                        {"icon": "ScanLine", "title": "Scan & go", "desc": "Skip the till. Scan with the app and walk out \u2014 payment settles automatically."},
+                        {"icon": "Leaf", "title": "Carbon-neutral", "desc": "Electric fleet and optimised routes offset every order, automatically."},
+                    ],
+                }},
+                {"block_type": "stats", "props": {"stats": [
+                    {"value": "12k+", "label": "SKUs in stock"},
+                    {"value": "28 min", "label": "Avg delivery"},
+                    {"value": "99.2%", "label": "Order accuracy"},
+                    {"value": "24/7", "label": "Always open"},
+                ]}},
+                {"block_type": "testimonials", "props": {"title": "Shoppers who switched"}},
+                {"block_type": "newsletter", "props": {"title": "Get tomorrow's deals tonight", "subtitle": "Drop your email for hyper-local offers, restock alerts, and members-only flash sales.", "cta_label": "Notify me"}},
+                {"block_type": "footer", "props": _supermarket_footer_props()},
+            ]},
+            {"title": "Fresh Produce", "slug": "produce", "page_type": "custom", "show_in_nav": True, "blocks": [
+                {"block_type": "nav", "props": {"brand": "NOVA Mart", "show_cart": True, "show_search": True}},
+                {"block_type": "product_grid", "props": {"title": "Fresh Produce", "subtitle": "Harvested-to-door, restocked live throughout the day.", "columns": 6, "show_badges": True}},
+                {"block_type": "footer", "props": _supermarket_footer_props()},
+            ]},
+            {"title": "Pantry", "slug": "pantry", "page_type": "custom", "show_in_nav": True, "blocks": [
+                {"block_type": "nav", "props": {"brand": "NOVA Mart", "show_cart": True, "show_search": True}},
+                {"block_type": "product_grid", "props": {"title": "Pantry Staples", "columns": 6, "show_badges": True}},
+                {"block_type": "footer", "props": _supermarket_footer_props()},
+            ]},
+            {"title": "Frozen", "slug": "frozen", "page_type": "custom", "show_in_nav": True, "blocks": [
+                {"block_type": "nav", "props": {"brand": "NOVA Mart", "show_cart": True, "show_search": True}},
+                {"block_type": "product_grid", "props": {"title": "Frozen Foods", "columns": 6, "show_badges": True}},
+                {"block_type": "footer", "props": _supermarket_footer_props()},
+            ]},
+            {"title": "Beverages", "slug": "beverages", "page_type": "custom", "show_in_nav": True, "blocks": [
+                {"block_type": "nav", "props": {"brand": "NOVA Mart", "show_cart": True, "show_search": True}},
+                {"block_type": "product_grid", "props": {"title": "Beverages", "columns": 6, "show_badges": True}},
+                {"block_type": "footer", "props": _supermarket_footer_props()},
+            ]},
+            {"title": "Deals", "slug": "deals", "page_type": "custom", "show_in_nav": True, "blocks": [
+                {"block_type": "nav", "props": {"brand": "NOVA Mart", "show_cart": True, "show_search": True}},
+                {"block_type": "offer_banner", "props": {"headline": "Live deals \u2014 prices drop in real time", "subtitle": "Smart pricing on overstock, short-dated, and seasonal lines."}},
+                {"block_type": "countdown", "props": {"title": "Next flash drop", "subtitle": "Hourly resets \u2014 don't miss the next batch."}},
+                {"block_type": "product_grid", "props": {"title": "On sale right now", "columns": 4, "show_badges": True}},
+                {"block_type": "footer", "props": _supermarket_footer_props()},
+            ]},
+            {"title": "Track Order", "slug": "track", "page_type": "custom", "show_in_nav": False, "blocks": [
+                {"block_type": "nav", "props": {"brand": "NOVA Mart"}},
+                {"block_type": "order_status", "props": {"title": "Track your order", "subtitle": "Watch your driver in real time.", "placeholder": "Enter order number\u2026"}},
+                {"block_type": "footer", "props": _supermarket_footer_props()},
+            ]},
+            {"title": "Support", "slug": "support", "page_type": "contact", "show_in_nav": False, "blocks": [
+                {"block_type": "nav", "props": {"brand": "NOVA Mart"}},
+                {"block_type": "contact_form", "props": {"title": "We're here 24/7", "full_page": True}},
+                {"block_type": "footer", "props": _supermarket_footer_props()},
             ]},
         ],
     },
@@ -2513,6 +2642,8 @@ async def apply_template(
             merged.pop("wb_editorial_template_id", None)
             if tid == "storefront_grocery":
                 merged["image_category_id"] = "wellness"
+                merged["business_type"] = merged.get("business_type") or "retail"
+            if tid == "storefront_supermarket":
                 merged["business_type"] = merged.get("business_type") or "retail"
         elif tid in EDITORIAL_WEBSITE_TEMPLATE_IDS:
             merged["wb_editorial_template_id"] = tid

@@ -129,6 +129,8 @@ export interface PhoneInputProps {
   placeholder?: string
   error?: string
   className?: string
+  /** When false, error still styles the field but no message is rendered (parent may show it). */
+  showErrorMessage?: boolean
   /** Defaults to IN. */
   defaultCountryIso?: string
   disabled?: boolean
@@ -143,6 +145,7 @@ export function PhoneInput({
   placeholder,
   error,
   className,
+  showErrorMessage = true,
   defaultCountryIso = 'IN',
   disabled = false,
   id,
@@ -303,7 +306,7 @@ export function PhoneInput({
       </div>
 
       {/* Error / hint */}
-      {error ? (
+      {showErrorMessage && error ? (
         <p className="text-xs text-red-500">{error}</p>
       ) : isOverLimit ? (
         <p className="text-xs text-amber-600">

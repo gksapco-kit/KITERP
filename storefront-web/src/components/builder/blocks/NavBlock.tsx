@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, useCallback } from 'react'
 import { Link, useNavigate, useLocation, useSearchParams } from 'react-router-dom'
-import { MapPin, ChevronDown, Search, ShoppingBag, User, X } from 'lucide-react'
+import { MapPin, ChevronDown, Search, ShoppingBag, User, X, Home } from 'lucide-react'
 import { useVendor } from '@/contexts/VendorContext'
 import { useStorePath } from '@/hooks/useStorePath'
 import { branchDisplayName } from '@/lib/branchStorefrontIdentity'
@@ -18,6 +18,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { storeApi, type StoreLocation } from '@/api/store'
+import { resolveStorefrontLinkMode } from '@/lib/storefrontTemplateAssignment'
 import type { PublicSite, StyleConfig, LiveItem } from '@/blocks/registry'
 import type { NavLinkItem } from '@/kit/types'
 import { resolveNavBlockShell } from '@/lib/navBlockLayout'
@@ -185,41 +186,62 @@ export default function NavBlock({
 
   const forceNavLinksVisible = isEditorCanvas || previewShell === true
 
-  const showBranchPicker = branches.length > 1
+  // Only offer the multi-store selector when the vendor runs a single website
+  // shared across all stores; per-unit websites are tied to one store.
+  const singleWebsiteForAllStores = resolveStorefrontLinkMode(vendor?.settings) === 'single'
+  const showBranchPicker = singleWebsiteForAllStores && branches.length > 1
   const primary = style.primary_color || '#64C3A0'
   const borderRadius = style.border_radius === 'sharp' || style.border_radius === 'none' ? 0 : 8
 
+  const homePath = storePath('/')
+  const showLogoImage = showLogo && logoUrl
+  const showBrandText = showBrandName && brand
+  const showHomeFallback = !showLogoImage && !showBrandText
+
   const logoNode = previewShell ? (
     <a
-      href={storePath('/')}
-      onClick={(e) => previewNavClick(e, storePath('/'))}
+      href={homePath}
+      onClick={(e) => previewNavClick(e, homePath)}
       className="inline-flex items-center gap-2 min-w-0 shrink-0 max-w-[min(100%,220px)]"
+      aria-label={showHomeFallback ? 'Home' : brand}
     >
-      {showLogo && logoUrl && (
+      {showLogoImage && (
         <img
           src={imgUrl(logoUrl)}
           alt={brand}
           className={cn('w-auto object-contain shrink-0', shell.isCompact ? 'h-6 max-w-[100px]' : 'h-8 max-w-[120px]')}
         />
       )}
-      {showBrandName && (
+      {showBrandText && (
         <span className={cn('font-bold truncate', shell.isCompact ? 'text-sm' : 'text-base')} style={{ color: shell.navBrandCol, fontFamily: style.font_heading }}>
           {brand}
         </span>
       )}
+      {showHomeFallback && (
+        <span className={cn('inline-flex items-center gap-1.5 font-semibold', shell.isCompact ? 'text-sm' : 'text-base')} style={{ color: shell.navBrandCol }}>
+          <Home className={cn(shell.isCompact ? 'w-4 h-4' : 'w-5 h-5')} aria-hidden />
+          Home
+        </span>
+      )}
     </a>
   ) : (
-    <Link to={storePath('/')} className="inline-flex items-center gap-2 min-w-0 shrink-0 max-w-[min(100%,220px)]">
-      {showLogo && logoUrl && (
+    <Link to={homePath} className="inline-flex items-center gap-2 min-w-0 shrink-0 max-w-[min(100%,220px)]" aria-label={showHomeFallback ? 'Home' : brand}>
+      {showLogoImage && (
         <img
           src={imgUrl(logoUrl)}
           alt={brand}
           className={cn('w-auto object-contain shrink-0', shell.isCompact ? 'h-6 max-w-[100px]' : 'h-8 max-w-[120px]')}
         />
       )}
-      {showBrandName && (
+      {showBrandText && (
         <span className={cn('font-bold truncate', shell.isCompact ? 'text-sm' : 'text-base')} style={{ color: shell.navBrandCol, fontFamily: style.font_heading }}>
           {brand}
+        </span>
+      )}
+      {showHomeFallback && (
+        <span className={cn('inline-flex items-center gap-1.5 font-semibold', shell.isCompact ? 'text-sm' : 'text-base')} style={{ color: shell.navBrandCol }}>
+          <Home className={cn(shell.isCompact ? 'w-4 h-4' : 'w-5 h-5')} aria-hidden />
+          Home
         </span>
       )}
     </Link>

@@ -12,9 +12,11 @@ import {
   templateBadgeEmeraldClass,
   templateCardActionBtnClass,
   templateCardBodyClass,
+  templateCardCurrentForStoreRibbonClass,
   templateCardMediaHeightClass,
   templateCardPreviewOverlayClass,
   templateCardShellClass,
+  perStoreTemplateActionLabel,
 } from '@/lib/websiteTemplateBadges'
 import type { SiteListItem, WebsiteTemplate } from '@/types/websites'
 
@@ -34,6 +36,10 @@ type Props = {
   onPreview: () => void
   onViewLivePicker?: (links: AppliedTemplateViewLiveLink[]) => void
   highlightStoreId?: string | null
+  contextStoreId?: string | null
+  contextStoreCode?: string | null
+  linkedToContextStore?: boolean
+  appliedToContextStore?: boolean
 }
 
 export function BuilderDraftTemplateCard({
@@ -52,6 +58,10 @@ export function BuilderDraftTemplateCard({
   onPreview,
   onViewLivePicker,
   highlightStoreId,
+  contextStoreId,
+  contextStoreCode,
+  linkedToContextStore = false,
+  appliedToContextStore = false,
 }: Props) {
   const appliedLabel = resolveSiteAppliedTemplateLabel(site, templates)
   const staticThumb = resolveSiteStaticThumbnail(site, templates)
@@ -78,29 +88,48 @@ export function BuilderDraftTemplateCard({
     onPreview()
   }
 
-  const statusLabel = isApplied
-    ? `${perStoreAppliedCount} live`
-    : needsActivation
-      ? 'Needs activation'
-      : liveBlockReason === 'catalog_template_override'
-        ? 'Catalog override'
-        : liveBlockReason === 'single_front_template'
-          ? 'Shared template'
-          : isLinkedToStore
-            ? `${linkedStoreNames.length} assigned`
-            : 'Unused'
+  const linkedToContextStoreResolved = linkedToContextStore
+  const appliedToContextStoreResolved = appliedToContextStore
 
-  const statusTitle = isApplied
-    ? assignedStoreNames.join(', ')
-    : needsActivation
-      ? `Assigned to ${linkedStoreNames.join(', ')}. Click Activate to replace the catalog template on the live storefront.`
-      : liveBlockReason === 'catalog_template_override'
-        ? 'A catalog template is still assigned to this store. Click Activate to switch the live storefront to this site.'
-        : liveBlockReason === 'single_front_template'
-          ? 'A shared catalog template is set for all stores. Change it in template settings or assign per store.'
-          : isLinkedToStore
-            ? linkedStoreNames.join(', ')
-            : 'Assign this site to a business unit to show it on the live storefront.'
+  const statusLabel = contextStoreCode
+    ? appliedToContextStoreResolved
+      ? `Live · ${contextStoreCode}`
+      : linkedToContextStoreResolved && !isApplied
+        ? `Assigned · ${contextStoreCode}`
+        : isApplied
+          ? `${perStoreAppliedCount} other BU${perStoreAppliedCount === 1 ? '' : 's'}`
+          : needsActivation && linkedToContextStoreResolved
+            ? `Activate · ${contextStoreCode}`
+            : isLinkedToStore
+              ? linkedToContextStoreResolved
+                ? `Assigned · ${contextStoreCode}`
+                : `${linkedStoreNames.length} other BU${linkedStoreNames.length === 1 ? '' : 's'}`
+              : 'Unused'
+    : isApplied
+      ? `${perStoreAppliedCount} live`
+      : needsActivation
+        ? 'Needs activation'
+        : liveBlockReason === 'catalog_template_override'
+          ? 'Catalog override'
+          : liveBlockReason === 'single_front_template'
+            ? 'Shared template'
+            : isLinkedToStore
+              ? `${linkedStoreNames.length} assigned`
+              : 'Unused'
+
+  const statusTitle = contextStoreCode && (appliedToContextStoreResolved || linkedToContextStoreResolved)
+    ? `Assigned to ${contextStoreCode}`
+    : isApplied
+      ? assignedStoreNames.join(', ')
+      : needsActivation
+        ? `Assigned to ${linkedStoreNames.join(', ')}. Click Activate to replace the catalog template on the live storefront.`
+        : liveBlockReason === 'catalog_template_override'
+          ? 'A catalog template is still assigned to this store. Click Activate to switch the live storefront to this site.'
+          : liveBlockReason === 'single_front_template'
+            ? 'A shared catalog template is set for all stores. Change it in template settings or assign per store.'
+            : isLinkedToStore
+              ? linkedStoreNames.join(', ')
+              : 'Assign this site to a business unit to show it on the live storefront.'
 
   return (
     <div
@@ -119,10 +148,16 @@ export function BuilderDraftTemplateCard({
       }}
       className={cn(
         templateCardShellClass,
-        showAssignHighlight && 'border-emerald-400 ring-2 ring-emerald-200',
+        showAssignHighlight && 'border-emerald-500 bg-emerald-50/30 ring-2 ring-emerald-300/80',
       )}
+      data-current-for-selected-store={appliedToContextStoreResolved ? 'true' : undefined}
     >
       <div className="relative overflow-hidden">
+        {perStoreTemplateMode && appliedToContextStoreResolved && contextStoreCode ? (
+          <span className={templateCardCurrentForStoreRibbonClass}>
+            Current for {contextStoreCode}
+          </span>
+        ) : null}
         <div className={cn(templateCardMediaHeightClass, 'w-full')}>
           <WebsiteSiteGlimpse
             siteId={site.id}
@@ -163,9 +198,11 @@ export function BuilderDraftTemplateCard({
           >
             <Check className="h-2.5 w-2.5 shrink-0" />
             <span className="truncate">
-              {linkedStoreNames.length === 1
-                ? linkedStoreNames[0]
-                : `${linkedStoreNames.length} BUs / Stores`}
+              {contextStoreCode && (linkedToContextStoreResolved || appliedToContextStoreResolved)
+                ? contextStoreCode
+                : linkedStoreNames.length === 1
+                  ? linkedStoreNames[0]
+                  : `${linkedStoreNames.length} BUs / Stores`}
             </span>
           </span>
         ) : null}
@@ -248,20 +285,24 @@ export function BuilderDraftTemplateCard({
                     : 'border-emerald-200 bg-emerald-50/80 text-emerald-700 hover:border-emerald-300 hover:bg-emerald-100',
                 )}
               >
-                {isApplied ? (
-                  <>
-                    <Check className="h-3 w-3" />
-                    Manage
-                  </>
-                ) : needsActivation ? (
+                {needsActivation ? (
                   <>
                     <Store className="h-3 w-3" />
-                    Activate
+                    Activate{contextStoreCode ? ` · ${contextStoreCode}` : ''}
+                  </>
+                ) : isApplied ? (
+                  <>
+                    <Check className="h-3 w-3" />
+                    {perStoreTemplateActionLabel(contextStoreCode, appliedToContextStoreResolved, true)}
                   </>
                 ) : (
                   <>
                     <Store className="h-3 w-3" />
-                    Assign
+                    {perStoreTemplateActionLabel(
+                      contextStoreCode,
+                      false,
+                      isLinkedToStore && !appliedToContextStoreResolved,
+                    )}
                   </>
                 )}
               </button>

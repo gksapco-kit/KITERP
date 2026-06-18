@@ -17,6 +17,8 @@ class Order(Base):
     order_number = Column(String(20), nullable=False, index=True)
     vendor_id = Column(UUID(as_uuid=True), ForeignKey("vendor.id"), nullable=False, index=True)
     customer_id = Column(UUID(as_uuid=True), ForeignKey("customer.id"), nullable=False, index=True)
+    # Business unit (store) this order is attributed to. Nullable for vendors with no store records.
+    store_id = Column(UUID(as_uuid=True), ForeignKey("store.id", ondelete="SET NULL"), nullable=True, index=True)
 
     # Items snapshot (JSONB array)
     items = Column(JSONB, default=[])
@@ -93,6 +95,7 @@ class Order(Base):
     __table_args__ = (
         Index("ix_order_vendor_status", "vendor_id", "status"),
         Index("ix_order_vendor_created", "vendor_id", "created_at"),
+        Index("ix_order_vendor_store", "vendor_id", "store_id"),
         Index("uq_order_vendor_number", "vendor_id", "order_number", unique=True),
     )
 

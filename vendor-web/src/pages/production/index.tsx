@@ -1,5 +1,6 @@
 import { useState, useMemo, useRef, useCallback, useEffect } from 'react'
 import { TableColumnLabel } from '@/components/common/FieldLabel'
+import { BusinessUnitSelect } from '@/components/common/BusinessUnitSelect'
 import { Label } from '@/components/ui/label'
 import { useEscapeToClose } from '@/hooks/useEscapeToClose'
 import { ModalEscapeHandler } from '@/components/ui/ModalEscapeHandler'
@@ -214,8 +215,10 @@ export default function ProductionOrdersPage() {
   const storeId = selectedStore?.id
   useProductionOrdersBootstrap()
 
-  const { data: productsData }  = useProducts({ page: 1, size: 200 })
-  const { data: servicesData }  = useServices({ page: 1, size: 200 })
+  // Business unit selected in the create form (scopes the catalog below).
+  const [formStoreId, setFormStoreId] = useState('')
+  const { data: productsData }  = useProducts({ page: 1, size: 200, store_id: formStoreId || undefined })
+  const { data: servicesData }  = useServices({ page: 1, size: 200, store_id: formStoreId || undefined })
   const { data: customersData } = useCustomers({ size: 200 })
   const { data: teamData }      = useTeamMembers({ size: 100 })
   const { data: suppliersData } = useSuppliers({ size: 100 })
@@ -493,6 +496,7 @@ export default function ProductionOrdersPage() {
 
   // ── Form helpers ─────────────────────────────────────────────────────────
   function resetForm() {
+    setFormStoreId(selectedStore?.id || '')
     setFormRef(''); setFormTemplate('standard'); setFormPriority('medium')
     setFormTeam(''); setFormTargetDate((() => { const d = new Date(); d.setDate(d.getDate() + 14); return d.toISOString().slice(0, 10) })())
     setFormNotes(''); setFormItems([]); setFormAttachments([])
@@ -615,7 +619,7 @@ export default function ProductionOrdersPage() {
     const payload: Record<string, unknown> = {
       ref,
       type: createType,
-      store_id: storeId || null,
+      store_id: formStoreId || storeId || null,
       template: TEMPLATES.find(t => t.id === formTemplate)?.label || formTemplate,
       status: 'draft',
       progress: 0,
@@ -1583,6 +1587,15 @@ export default function ProductionOrdersPage() {
 
                   {/* Core fields */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="sm:col-span-2">
+                      <label className="block text-xs font-medium text-gray-600 mb-1.5">Business unit</label>
+                      <BusinessUnitSelect
+                        value={formStoreId}
+                        onChange={(id) => { setFormStoreId(id); setFormItems([]) }}
+                        className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-ring"
+                      />
+                      <p className="text-[11px] text-gray-400 mt-1">Only items available at this business unit can be added below.</p>
+                    </div>
                     <div>
                       <label className="block text-xs font-medium text-gray-600 mb-1.5">Work Order Ref</label>
                       <input value={formRef} onChange={e => setFormRef(e.target.value)}

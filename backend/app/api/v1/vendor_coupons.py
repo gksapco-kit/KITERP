@@ -25,6 +25,7 @@ async def _vendor_id(current_user: User = Depends(get_current_active_user), db: 
 def _coupon_dict(c) -> dict:
     return {
         "id": str(c.id), "vendor_id": str(c.vendor_id),
+        "store_id": str(c.store_id) if getattr(c, "store_id", None) else None,
         "code": c.code, "title": c.title, "description": c.description,
         "discount_type": c.discount_type, "discount_value": float(c.discount_value or 0),
         "max_discount": float(c.max_discount) if c.max_discount else None,
@@ -41,9 +42,9 @@ def _coupon_dict(c) -> dict:
 
 
 @router.get("")
-async def list_coupons(is_active: bool = None, page: int = Query(1, ge=1), size: int = Query(20, ge=1, le=100), vid: UUID = Depends(_vendor_id), db: AsyncSession = Depends(get_db)):
+async def list_coupons(is_active: bool = None, store_id: str = None, page: int = Query(1, ge=1), size: int = Query(20, ge=1, le=100), vid: UUID = Depends(_vendor_id), db: AsyncSession = Depends(get_db)):
     svc = CouponService(db)
-    items, total = await svc.list_coupons(vid, is_active, page, size)
+    items, total = await svc.list_coupons(vid, is_active, page, size, store_id=store_id)
     return JSONResponse(content={"items": [_coupon_dict(c) for c in items], "total": total, "page": page, "size": size, "pages": math.ceil(total / size) if total else 0})
 
 

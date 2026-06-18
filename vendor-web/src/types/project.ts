@@ -29,6 +29,8 @@ export interface LinkedTaskSummary {
 export interface Project {
   id: string
   vendor_id: string
+  store_id?: string | null
+  items?: ProjectItemInput[]
   project_number: string
   name: string
   description?: string | null
@@ -99,11 +101,21 @@ export interface ProjectListResponse {
   pages: number
 }
 
+export interface ProjectItemInput {
+  id: string
+  name: string
+  item_type: 'product' | 'service'
+  sku?: string
+  price?: number
+}
+
 export interface ProjectCreateInput {
   name: string
   description?: string
   status?: ProjectStatus
   priority?: ProjectPriority
+  store_id?: string
+  items?: ProjectItemInput[]
   customer_id?: string
   customer_name?: string
   owner_id?: string

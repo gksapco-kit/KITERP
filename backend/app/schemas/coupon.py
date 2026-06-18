@@ -10,6 +10,7 @@ class DiscountType(str, Enum):
 
 class CouponCreate(BaseModel):
     code: str = Field(min_length=3, max_length=50)
+    store_id: Optional[str] = None
     title: Optional[str] = None
     description: Optional[str] = None
     discount_type: DiscountType
@@ -27,6 +28,7 @@ class CouponCreate(BaseModel):
 
 
 class CouponUpdate(BaseModel):
+    store_id: Optional[str] = None
     title: Optional[str] = None
     description: Optional[str] = None
     discount_type: Optional[DiscountType] = None
@@ -51,6 +53,7 @@ class CouponValidate(BaseModel):
 class CouponResponse(BaseModel):
     id: str
     vendor_id: str
+    store_id: Optional[str] = None
     code: str
     title: Optional[str] = None
     description: Optional[str] = None

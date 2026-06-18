@@ -1,6 +1,6 @@
 import { websiteApi } from '@/api/websites'
 import { vendorApi } from '@/api/vendor'
-import { formatStoreCode } from '@/lib/verification'
+import { formatStoreCode, sortStoresByCode } from '@/lib/verification'
 import { isTemplateSandboxSite } from '@/lib/websiteSandbox'
 import {
   customerLinkForStore,
@@ -51,7 +51,7 @@ export function resolveBuilderSiteLiveBlockReason(
     return 'single_front_template'
   }
 
-  if (linked.some(store => resolveStoreFrontTemplateId(store.settings))) {
+  if (linked.some(store => isStoreSpecificCatalogTemplateAssigned(store, vendorSettings))) {
     return 'catalog_template_override'
   }
 
@@ -70,11 +70,13 @@ export function resolveBuilderSiteViewLiveLinks(
   const slug = vendorSlug?.trim()
   if (!slug) return []
 
-  const assignedStores = storesEffectivelyAssignedToBuilderSite(
-    sites,
-    siteId,
-    stores,
-    vendorSettings,
+  const assignedStores = sortStoresByCode(
+    storesEffectivelyAssignedToBuilderSite(
+      sites,
+      siteId,
+      stores,
+      vendorSettings,
+    ),
   )
   if (assignedStores.length === 0) return []
 
@@ -129,6 +131,44 @@ export function listBuilderDraftTemplateSites(sites: SiteListItem[]): SiteListIt
   })
 }
 
+/** Business unit a builder site was created for (when scoped to one store). */
+export function resolveBuilderSiteHomeStoreId(site: SiteListItem): string | null {
+  if (site.website_store_scope !== 'store') return null
+  const storeId = site.website_store_id?.trim()
+  return storeId || null
+}
+
+/** Stores that may receive this builder site — locked to its home unit when set. */
+export function storesEligibleForBuilderSiteAssignment(
+  site: SiteListItem,
+  stores: StoreLike[],
+): StoreLike[] {
+  const homeStoreId = resolveBuilderSiteHomeStoreId(site)
+  if (!homeStoreId) return stores
+  const store = stores.find(s => s.id === homeStoreId)
+  return store ? [store] : []
+}
+
+/** True when a builder site belongs to the given business unit (or has no home unit yet). */
+export function isBuilderSiteVisibleForStore(site: SiteListItem, storeId: string): boolean {
+  const homeStoreId = resolveBuilderSiteHomeStoreId(site)
+  return !homeStoreId || homeStoreId === storeId
+}
+
+export function resolvePublishedBuilderSiteForStore(
+  storeId: string,
+  sites: SiteListItem[],
+): SiteListItem | null {
+  return (
+    sites.find(
+      s =>
+        s.is_published
+        && s.website_store_scope === 'store'
+        && s.website_store_id === storeId,
+    ) ?? null
+  )
+}
+
 export function storesAssignedToBuilderSite(
   sites: SiteListItem[],
   siteId: string,
@@ -138,6 +178,18 @@ export function storesAssignedToBuilderSite(
   if (!site || site.website_store_scope !== 'store' || !site.website_store_id) return []
   const store = stores.find(s => s.id === site.website_store_id)
   return store ? [store] : []
+}
+
+/** True when a catalog template on this store would override the linked builder site. */
+export function isStoreSpecificCatalogTemplateAssigned(
+  store: StoreLike,
+  vendorSettings?: Record<string, unknown> | null,
+): boolean {
+  const templateMode = resolveStorefrontTemplateMode(vendorSettings)
+  if (templateMode === 'single') {
+    return Boolean(resolveSingleFrontTemplateId(vendorSettings))
+  }
+  return Boolean(resolveStoreFrontTemplateId(store.settings))
 }
 
 /** True when a linked builder site is what customers actually see (not overridden by a catalog template). */
@@ -151,11 +203,7 @@ export function isBuilderSiteEffectivelyLiveForStore(
   if (!site || site.website_store_scope !== 'store' || site.website_store_id !== store.id) {
     return false
   }
-  const templateMode = resolveStorefrontTemplateMode(vendorSettings)
-  if (templateMode === 'single' && resolveSingleFrontTemplateId(vendorSettings)) {
-    return false
-  }
-  return !resolveStoreFrontTemplateId(store.settings)
+  return !isStoreSpecificCatalogTemplateAssigned(store, vendorSettings)
 }
 
 export function storesEffectivelyAssignedToBuilderSite(
@@ -194,8 +242,9 @@ export function resolveStorefrontCoverageTemplate(
   templates: WebsiteTemplate[],
   presets: ThemePresetSummary[],
   vendorSettings?: Record<string, unknown> | null,
+  opts?: { publishedBuilderOnly?: boolean },
 ): ResolvedTemplateDisplay | null {
-  const templateMode = resolveStorefrontTemplateMode(vendorSettings)
+  const publishedBuilderOnly = opts?.publishedBuilderOnly ?? false
 
   // A published builder site linked to this store wins (catalog assignment discontinued).
   const linkedSite = sites.find(
@@ -214,7 +263,10 @@ export function resolveStorefrontCoverageTemplate(
     }
   }
 
+  if (publishedBuilderOnly) return null
+
   // An explicit per-store (or single-mode shared) catalog template.
+  const templateMode = resolveStorefrontTemplateMode(vendorSettings)
   const storeSpecificId =
     templateMode === 'single'
       ? resolveSingleFrontTemplateId(vendorSettings)

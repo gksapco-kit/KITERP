@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { MessageCircle, X, Send, Loader2 } from 'lucide-react'
+import { useTheme } from '@/contexts/ThemeContext'
+import { cn } from '@/lib/utils'
 
 const API_URL = (import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000/api/v1').replace(/\/$/, '')
 const VISITOR_KEY = 'asure_visitor_id'
@@ -26,7 +28,26 @@ type Props = {
   themeColor?: string
 }
 
+/** Match OS appearance and storefront dark template. */
+function useChatDarkMode(): boolean {
+  const theme = useTheme()
+  const [prefersDark, setPrefersDark] = useState(() => {
+    if (typeof window === 'undefined') return false
+    return window.matchMedia('(prefers-color-scheme: dark)').matches
+  })
+
+  useEffect(() => {
+    const mq = window.matchMedia('(prefers-color-scheme: dark)')
+    const onChange = () => setPrefersDark(mq.matches)
+    mq.addEventListener('change', onChange)
+    return () => mq.removeEventListener('change', onChange)
+  }, [])
+
+  return theme.template === 'dark' || prefersDark
+}
+
 export default function CrmChatWidget({ vendorId, vendorName, themeColor = '#2563eb' }: Props) {
+  const isDark = useChatDarkMode()
   const [open, setOpen] = useState(false)
   const [messages, setMessages] = useState<Message[]>([])
   const [draft, setDraft] = useState('')
@@ -116,6 +137,13 @@ export default function CrmChatWidget({ vendorId, vendorName, themeColor = '#256
     setIntroDone(true)
   }
 
+  const fieldClass = cn(
+    'h-10 rounded-md border px-3 text-sm outline-none focus:ring-2 focus:ring-primary/30',
+    isDark
+      ? 'border-slate-600 bg-slate-800 text-slate-100 placeholder:text-slate-500'
+      : 'border-gray-200 bg-white text-gray-900 placeholder:text-gray-400',
+  )
+
   if (!vendorId) return null
 
   return (
@@ -132,50 +160,100 @@ export default function CrmChatWidget({ vendorId, vendorName, themeColor = '#256
       )}
 
       {open && (
-        <div className="fixed bottom-5 right-5 z-50 w-80 sm:w-96 h-[520px] max-h-[calc(100vh-40px)] bg-white rounded-2xl shadow-2xl border border-gray-200 flex flex-col overflow-hidden">
+        <div
+          className={cn(
+            'fixed bottom-5 right-5 z-50 w-80 sm:w-96 h-[520px] max-h-[calc(100vh-40px)] rounded-2xl shadow-2xl border flex flex-col overflow-hidden',
+            isDark ? 'bg-slate-900 border-slate-700 text-slate-100' : 'bg-white border-gray-200 text-gray-900',
+          )}
+          style={{ colorScheme: isDark ? 'dark' : 'light' }}
+        >
           <div className="px-4 py-3 text-white flex items-center justify-between" style={{ backgroundColor: themeColor }}>
             <div>
               <p className="text-sm font-semibold">{vendorName || 'Chat with us'}</p>
               <p className="text-xs text-white/80">We typically reply in a few minutes.</p>
             </div>
-            <button onClick={() => setOpen(false)} className="p-1 hover:bg-white/10 rounded">
+            <button
+              type="button"
+              onClick={() => setOpen(false)}
+              className="p-1 hover:bg-white/10 rounded"
+              aria-label="Close chat"
+            >
               <X className="w-5 h-5" />
             </button>
           </div>
 
           {!introDone ? (
-            <form onSubmit={submitIntro} className="flex-1 p-4 flex flex-col gap-3 bg-gray-50">
-              <p className="text-sm text-gray-700">Hi! Tell us a bit about yourself so we can help.</p>
-              <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Your name"
-                className="h-10 rounded-md border border-gray-200 px-3 text-sm" />
-              <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Email (optional)"
-                className="h-10 rounded-md border border-gray-200 px-3 text-sm" />
+            <form
+              onSubmit={submitIntro}
+              className={cn('flex-1 p-4 flex flex-col gap-3', isDark ? 'bg-slate-950' : 'bg-gray-50')}
+            >
+              <p className={cn('text-sm', isDark ? 'text-slate-300' : 'text-gray-700')}>
+                Hi! Tell us a bit about yourself so we can help.
+              </p>
+              <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Your name" className={fieldClass} />
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="Email (optional)"
+                className={fieldClass}
+              />
               <button type="submit" className="h-10 rounded-md text-white text-sm font-medium" style={{ backgroundColor: themeColor }}>
                 Start chat
               </button>
-              <p className="text-xs text-gray-400 text-center">By chatting you accept our privacy policy.</p>
+              <p className={cn('text-xs text-center', isDark ? 'text-slate-500' : 'text-gray-400')}>
+                By chatting you accept our privacy policy.
+              </p>
             </form>
           ) : (
             <>
-              <div className="flex-1 overflow-y-auto p-3 space-y-2 bg-gray-50">
+              <div className={cn('flex-1 overflow-y-auto p-3 space-y-2', isDark ? 'bg-slate-950' : 'bg-gray-50')}>
                 {messages.length === 0 && (
-                  <div className="text-center text-xs text-gray-400 py-6">
+                  <div className={cn('text-center text-xs py-6', isDark ? 'text-slate-500' : 'text-gray-400')}>
                     Send us a message and we'll get back to you shortly.
                   </div>
                 )}
                 {messages.map((m) => {
                   const mine = m.sender === 'customer'
                   const bot = m.sender === 'bot'
+                  const bubbleClass = mine
+                    ? 'text-white'
+                    : bot
+                      ? isDark
+                        ? 'bg-primary/20 border border-primary/35 text-slate-100'
+                        : 'bg-primary/10 border border-primary/20 text-gray-900'
+                      : isDark
+                        ? 'bg-slate-800 border border-slate-600 text-slate-100'
+                        : 'bg-white border border-gray-200 text-gray-900'
+
                   return (
                     <div key={m.id} className={`flex ${mine ? 'justify-end' : 'justify-start'}`}>
-                      <div className={`max-w-[80%] rounded-2xl px-3 py-2 text-sm ${
-                        mine ? 'text-white' :
-                        bot ? 'bg-primary/10 text-primary' :
-                        'bg-white border border-gray-200 text-gray-800'
-                      }`}
-                      style={mine ? { backgroundColor: themeColor } : undefined}>
-                        {bot && <p className="text-xs uppercase font-semibold mb-1 opacity-70">Bot</p>}
-                        <p className="whitespace-pre-wrap">{m.body}</p>
+                      <div
+                        className={cn('max-w-[80%] rounded-2xl px-3 py-2 text-sm', bubbleClass)}
+                        style={mine ? { backgroundColor: themeColor } : undefined}
+                      >
+                        {bot && (
+                          <p
+                            className={cn(
+                              'text-xs uppercase font-semibold mb-1',
+                              isDark ? 'text-slate-300' : 'text-gray-600',
+                            )}
+                          >
+                            Bot
+                          </p>
+                        )}
+                        <p
+                          className={cn(
+                            'whitespace-pre-wrap',
+                            mine
+                              ? 'text-white selection:bg-white/30 selection:text-white'
+                              : isDark
+                                ? 'text-slate-100 selection:bg-primary/40 selection:text-white'
+                                : 'text-gray-900 selection:bg-primary/25 selection:text-gray-900',
+                          )}
+                        >
+                          {m.body}
+                        </p>
                       </div>
                     </div>
                   )
@@ -183,14 +261,22 @@ export default function CrmChatWidget({ vendorId, vendorName, themeColor = '#256
                 <div ref={endRef} />
               </div>
 
-              <div className="border-t p-2 flex gap-2">
-                <input value={draft} onChange={(e) => setDraft(e.target.value)}
+              <div className={cn('border-t p-2 flex gap-2', isDark ? 'border-slate-700 bg-slate-900' : 'border-gray-200 bg-white')}>
+                <input
+                  value={draft}
+                  onChange={(e) => setDraft(e.target.value)}
                   onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send() } }}
                   placeholder="Type a message…"
-                  className="flex-1 h-10 rounded-md border border-gray-200 px-3 text-sm" />
-                <button onClick={send} disabled={!draft.trim() || sending}
-                  className="h-10 w-10 rounded-md text-white flex items-center justify-center disabled:opacity-50"
-                  style={{ backgroundColor: themeColor }}>
+                  className={fieldClass}
+                />
+                <button
+                  type="button"
+                  onClick={send}
+                  disabled={!draft.trim() || sending}
+                  className="h-10 w-10 rounded-md text-white flex items-center justify-center disabled:opacity-50 shrink-0"
+                  style={{ backgroundColor: themeColor }}
+                  aria-label="Send message"
+                >
                   {sending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
                 </button>
               </div>

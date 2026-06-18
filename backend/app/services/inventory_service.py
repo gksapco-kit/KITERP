@@ -9,6 +9,12 @@ from app.models.inventory import InventoryMovement
 from app.models.vendor_product import Product, ProductVariant
 from app.models.store import Store, StoreInventory
 from app.services.catalog_store_scope import product_available_at_store
+from app.services.store_inventory_service import (
+    apply_store_inventory_delta,
+    get_store_inventory_row,
+    sync_product_quantity_from_stores,
+)
+from app.services.store_resolver import get_default_store_id
 
 
 class InventoryService:
@@ -297,6 +303,110 @@ class InventoryService:
             reference_id=reference_id,
             variant_id=variant_id,
             auto_commit=auto_commit,
+        )
+
+    # ── Per-store (business unit) stock — StoreInventory is the source of truth ──
+
+    async def _ensure_store_row(
+        self, vendor_id: UUID, store_id: UUID, product_id: UUID, variant_id: UUID | None,
+    ) -> StoreInventory:
+        """Return the StoreInventory row for this (store, product/variant), seeding
+        it on first touch. New rows are seeded from the product's current global
+        quantity only at the vendor's default store; other stores start at 0 and
+        must be stocked explicitly."""
+        row = await get_store_inventory_row(self.db, store_id, product_id, variant_id, None)
+        if row:
+            return row
+
+        if variant_id:
+            entity = await self.db.get(ProductVariant, variant_id)
+        else:
+            entity = await self.db.get(Product, product_id)
+        seed_qty = 0
+        if entity is not None:
+            default_store = await get_default_store_id(self.db, vendor_id)
+            if default_store and default_store == store_id:
+                seed_qty = int(entity.quantity or 0)
+
+        row = StoreInventory(
+            store_id=store_id,
+            vendor_id=vendor_id,
+            product_id=product_id,
+            variant_id=variant_id,
+            storage_location_id=None,
+            quantity=seed_qty,
+        )
+        self.db.add(row)
+        await self.db.flush()
+        return row
+
+    async def _rollup_after_store_change(
+        self, vendor_id: UUID, product_id: UUID, variant_id: UUID | None,
+    ) -> None:
+        """Keep Product/Variant.quantity in sync as a derived rollup of stores."""
+        await sync_product_quantity_from_stores(self.db, vendor_id, product_id, variant_id)
+        if variant_id:
+            await self._sync_parent_product_quantity(product_id)
+
+    async def _record_store_movement(
+        self, vendor_id: UUID, store_id: UUID, product_id: UUID, variant_id: UUID | None,
+        movement_type: str, signed_qty: int, qty_before: int, qty_after: int,
+        reason: str, reference_type: str | None, reference_id: UUID | None,
+    ) -> InventoryMovement:
+        movement = InventoryMovement(
+            id=uuid_mod.uuid4(),
+            vendor_id=vendor_id,
+            store_id=store_id,
+            product_id=product_id,
+            variant_id=variant_id,
+            movement_type=movement_type,
+            quantity=signed_qty,
+            quantity_before=qty_before,
+            quantity_after=qty_after,
+            reason=reason,
+            reference_type=reference_type or "manual",
+            reference_id=reference_id,
+        )
+        self.db.add(movement)
+        return movement
+
+    async def deduct_for_sale_at_store(
+        self, vendor_id: UUID, store_id: UUID, product_id: UUID, quantity: int,
+        reference_id: UUID | None = None, reference_type: str = "pos_transaction",
+        variant_id: UUID | None = None,
+    ) -> InventoryMovement:
+        """Deduct sold stock from a specific business unit's StoreInventory and
+        re-derive the global product quantity. Never auto-commits (POS owns the txn)."""
+        row = await self._ensure_store_row(vendor_id, store_id, product_id, variant_id)
+        qty_before = int(row.quantity or 0)
+        await apply_store_inventory_delta(
+            self.db, vendor_id, store_id, product_id, variant_id, -abs(quantity),
+        )
+        await self._rollup_after_store_change(vendor_id, product_id, variant_id)
+        return await self._record_store_movement(
+            vendor_id, store_id, product_id, variant_id,
+            movement_type="sale", signed_qty=-abs(quantity),
+            qty_before=qty_before, qty_after=qty_before - abs(quantity),
+            reason="Sold", reference_type=reference_type, reference_id=reference_id,
+        )
+
+    async def return_stock_at_store(
+        self, vendor_id: UUID, store_id: UUID, product_id: UUID, quantity: int,
+        reference_id: UUID | None = None, reference_type: str = "pos_transaction",
+        variant_id: UUID | None = None,
+    ) -> InventoryMovement:
+        """Return stock to a specific business unit and re-derive global quantity."""
+        row = await self._ensure_store_row(vendor_id, store_id, product_id, variant_id)
+        qty_before = int(row.quantity or 0)
+        await apply_store_inventory_delta(
+            self.db, vendor_id, store_id, product_id, variant_id, abs(quantity),
+        )
+        await self._rollup_after_store_change(vendor_id, product_id, variant_id)
+        return await self._record_store_movement(
+            vendor_id, store_id, product_id, variant_id,
+            movement_type="sale_return", signed_qty=abs(quantity),
+            qty_before=qty_before, qty_after=qty_before + abs(quantity),
+            reason="Sale return / order cancel", reference_type=reference_type, reference_id=reference_id,
         )
 
     async def get_movement_history(

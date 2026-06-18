@@ -15,7 +15,7 @@
  *
  * The `BuilderSiteContext` does the heavy lifting of fetching the site once.
  */
-import { useSearchParams, useParams, useNavigate, Navigate } from 'react-router-dom'
+import { useSearchParams, useParams, useNavigate, Navigate, Link } from 'react-router-dom'
 import { useEffect, useMemo, useState } from 'react'
 import { Loader2 } from 'lucide-react'
 import { useBuilderSite } from '@/contexts/BuilderSiteContext'
@@ -33,6 +33,7 @@ import { publicSitesApi } from '@/api/publicSites'
 import AnalyticsInjector from '@/components/builder/AnalyticsInjector'
 import { getWbCatalogTemplateId } from '@/storefront/catalogTemplateIds'
 import { useAssignedStorefrontTemplateId } from '@/hooks/useAssignedStorefrontTemplateId'
+import { useStorePath } from '@/hooks/useStorePath'
 import {
   isBlockBasedStorefrontTemplateId,
   isDefaultLayoutTemplateId,
@@ -194,6 +195,7 @@ export default function BuilderPage({ slug: forcedSlug, isHome }: BuilderPagePro
   const [searchParams] = useSearchParams()
   const params = useParams<{ '*': string; vendorSlug?: string }>()
   const navigate = useNavigate()
+  const storePath = useStorePath()
 
   const draftEmbed = searchParams.get('draft_embed') === '1'
   const draftPreviewToken = searchParams.get('preview_token')?.trim() || recallDraftEmbedPreviewToken()
@@ -350,9 +352,21 @@ export default function BuilderPage({ slug: forcedSlug, isHome }: BuilderPagePro
         <div>
           <h1 className="text-6xl font-bold text-gray-200 mb-4">404</h1>
           <p className="text-gray-500 mb-6">Page not found</p>
-          <button onClick={() => navigate(-1)} className="px-6 py-3 bg-primary text-white rounded-xl font-semibold hover:bg-primary/90">
-            Go Back
-          </button>
+          <div className="flex flex-wrap items-center justify-center gap-3">
+            <Link
+              to={storePath('/')}
+              className="px-6 py-3 bg-primary text-white rounded-xl font-semibold hover:bg-primary/90"
+            >
+              Go to homepage
+            </Link>
+            <button
+              type="button"
+              onClick={() => navigate(-1)}
+              className="px-6 py-3 border border-gray-200 rounded-xl font-semibold text-gray-700 hover:bg-gray-50"
+            >
+              Go back
+            </button>
+          </div>
         </div>
       </div>
     )

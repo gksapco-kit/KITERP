@@ -19,3 +19,22 @@ export const templateCardActionBtnClass =
 
 export const templateCardPreviewOverlayClass =
   'pointer-events-none absolute inset-0 flex items-center justify-center bg-black/0 opacity-0 transition-all duration-200 group-hover/card:bg-black/30 group-hover/card:opacity-100'
+
+/** Ribbon on template cards assigned to the currently selected business unit. */
+export const templateCardCurrentForStoreRibbonClass =
+  'absolute left-0 top-0 z-10 rounded-br-md rounded-tl-2xl bg-emerald-600 px-2 py-0.5 text-[9px] font-extrabold uppercase tracking-wide text-white shadow-sm'
+
+export function perStoreTemplateActionLabel(
+  contextStoreCode: string | null | undefined,
+  assignedToContext: boolean,
+  assignedElsewhere: boolean,
+): string {
+  if (!contextStoreCode) {
+    if (assignedToContext) return 'Manage'
+    if (assignedElsewhere) return 'Assign here'
+    return 'Assign'
+  }
+  if (assignedToContext) return `Manage · ${contextStoreCode}`
+  if (assignedElsewhere) return `Use for ${contextStoreCode}`
+  return `Assign to ${contextStoreCode}`
+}

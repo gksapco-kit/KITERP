@@ -74,7 +74,9 @@ function LayoutOptionCard({
     >
       <div className="relative aspect-[4/3] bg-slate-100 border-b border-gray-100 overflow-hidden">
         {isCommerceBlock ? (
-          <SectionLayoutPreview blockType={def.type} variantProps={merged} sampleUrls={sampleUrls} />
+          <div className="absolute inset-0">
+            <SectionLayoutPreview blockType={def.type} variantProps={merged} sampleUrls={sampleUrls} />
+          </div>
         ) : (
           <div className="absolute inset-2 rounded-md border border-slate-200/80 bg-white shadow-sm overflow-hidden flex flex-col">
             {def.type === 'footer' && (
@@ -97,9 +99,11 @@ function LayoutOptionCard({
             )}
             {def.type !== 'nav' && (
               <div className={cn(
-                def.type === 'footer' ? 'mt-auto shrink-0 min-h-[38%]' : 'flex-1 min-h-0',
+                def.type === 'footer' ? 'mt-auto shrink-0 min-h-[38%] relative' : 'flex-1 min-h-0 relative',
               )}>
-                <SectionLayoutPreview blockType={def.type} variantProps={merged} sampleUrls={sampleUrls} />
+                <div className="absolute inset-0">
+                  <SectionLayoutPreview blockType={def.type} variantProps={merged} sampleUrls={sampleUrls} />
+                </div>
               </div>
             )}
           </div>

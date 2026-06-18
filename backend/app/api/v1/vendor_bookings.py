@@ -36,6 +36,7 @@ def _booking_dict(b: Booking) -> dict:
     return {
         "id": str(b.id),
         "vendor_id": str(b.vendor_id),
+        "store_id": str(b.store_id) if getattr(b, "store_id", None) else None,
         "customer_id": str(b.customer_id) if b.customer_id else None,
         "service_id": str(b.service_id) if b.service_id else None,
         "booking_number": b.booking_number,
@@ -107,6 +108,7 @@ async def list_bookings(
     page: int = Query(1, ge=1),
     size: int = Query(20, ge=1, le=100),
     status: Optional[str] = None,
+    store_id: Optional[str] = None,
     vendor_id: UUID = Depends(_vendor_id),
     db: AsyncSession = Depends(get_db),
 ):
@@ -116,6 +118,11 @@ async def list_bookings(
     if status:
         query = query.where(Booking.status == status)
         count_q = count_q.where(Booking.status == status)
+
+    if store_id:
+        store_uuid = UUID(store_id)
+        query = query.where(Booking.store_id == store_uuid)
+        count_q = count_q.where(Booking.store_id == store_uuid)
 
     total = (await db.execute(count_q)).scalar_one()
     skip = (page - 1) * size

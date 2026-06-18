@@ -1,4 +1,4 @@
-import { ArrowLeft, ShoppingBag, Wrench, User, ShoppingCart } from 'lucide-react'
+import { ShoppingBag, Wrench, User, ShoppingCart, Home } from 'lucide-react'
 import { parseCatalogRouteParam, buildStorefrontCatalogEmbedUrl } from '@/lib/catalogStorePaths'
 import { buildDraftPreviewPageUrl } from '@/lib/draftPreviewNavigation'
 
@@ -52,8 +52,8 @@ export function DraftCatalogPreview({
           href={backHref}
           className="inline-flex items-center gap-1.5 rounded-lg px-2 py-1 text-xs font-semibold text-gray-600 hover:bg-gray-200 hover:text-gray-900"
         >
-          <ArrowLeft className="h-3.5 w-3.5" />
-          Back to site preview
+          <Home className="h-3.5 w-3.5" aria-hidden />
+          Home
         </a>
         <span className="inline-flex items-center gap-1 text-[11px] text-gray-500 truncate">
           <Icon className="h-3 w-3 shrink-0 opacity-70" />

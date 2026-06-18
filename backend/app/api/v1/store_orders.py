@@ -165,10 +165,14 @@ async def request_quote(
     item_id_val = data.product_id if is_product else data.service_id
     item_name = data.product_name if is_product else data.service_name
 
+    from app.services.store_resolver import resolve_store_id as _resolve_txn_store_id
+    quote_store_id = await _resolve_txn_store_id(db, vendor_id)
+
     order = Order(
         order_number=order_number,
         vendor_id=vendor_id,
         customer_id=customer.id,
+        store_id=quote_store_id,
         items=[{
             item_id_key: item_id_val,
             "name": item_name,

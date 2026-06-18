@@ -19,6 +19,23 @@ export function formatStoreCode(store: { code?: string | null; id: string }): st
   return formatShortId('STR', store.id)
 }
 
+/** Sort business units by company code (numeric when possible, then alphanumeric). */
+export function compareStoreCodes(
+  a: { code?: string | null; id: string },
+  b: { code?: string | null; id: string },
+): number {
+  const aNum = parseInt(a.code ?? '', 10)
+  const bNum = parseInt(b.code ?? '', 10)
+  if (!Number.isNaN(aNum) && !Number.isNaN(bNum)) return aNum - bNum
+  if (!Number.isNaN(aNum)) return -1
+  if (!Number.isNaN(bNum)) return 1
+  return formatStoreCode(a).localeCompare(formatStoreCode(b), undefined, { numeric: true })
+}
+
+export function sortStoresByCode<T extends { code?: string | null; id: string }>(stores: T[]): T[] {
+  return [...stores].sort(compareStoreCodes)
+}
+
 /** Choose the best display code for a vendor (slug + UUID slice). */
 export function formatVendorCode(vendor?: Pick<Vendor, 'slug' | 'id'> | null): string {
   if (!vendor) return formatShortId('BUS', undefined)

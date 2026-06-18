@@ -69,6 +69,7 @@ class BookingService:
 
         booking = Booking(
             vendor_id=vendor_id,
+            store_id=UUID(str(data["store_id"])) if data.get("store_id") else None,
             customer_id=customer_id,
             service_id=service_id,
             booking_number=booking_number,

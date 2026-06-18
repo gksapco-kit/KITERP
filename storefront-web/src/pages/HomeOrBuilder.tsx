@@ -17,7 +17,7 @@ import WebsiteBuilderTemplateLiveHome from '@/pages/WebsiteBuilderTemplateLiveHo
 import { recallDraftEmbedPreviewToken } from '@/lib/draftEmbedPreview'
 import { buildDraftCatalogEmbedStorePath } from '@/lib/draftCatalogEmbed'
 import { getWbCatalogTemplateId } from '@/storefront/catalogTemplateIds'
-import { useAssignedStorefrontTemplateId, useAssignedStorefrontTemplatePending } from '@/hooks/useAssignedStorefrontTemplateId'
+import { useAssignedStorefrontTemplateId, useAssignedStorefrontTemplatePending, useStoreSpecificAssignedTemplateId } from '@/hooks/useAssignedStorefrontTemplateId'
 import {
   isDefaultLayoutTemplateId,
   isStorefrontCatalogTemplateId,
@@ -49,6 +49,7 @@ export default function HomeOrBuilder() {
   const { vendorSlug } = useParams<{ vendorSlug: string }>()
   const [searchParams] = useSearchParams()
   const assignedTemplateId = useAssignedStorefrontTemplateId()
+  const storeSpecificTemplateId = useStoreSpecificAssignedTemplateId()
   const templatePending = useAssignedStorefrontTemplatePending()
 
   const draftEmbed = searchParams.get('draft_embed') === '1'
@@ -65,13 +66,6 @@ export default function HomeOrBuilder() {
     )
   }
 
-  if (assignedTemplateId) {
-    const assignedHome = renderAssignedTemplateHome(assignedTemplateId)
-    if (assignedHome) {
-      return assignedHome
-    }
-  }
-
   if (builderSiteLoading) {
     return (
       <div className="min-h-[50vh] flex items-center justify-center">
@@ -80,6 +74,8 @@ export default function HomeOrBuilder() {
     )
   }
 
+  // Linked builder site for this branch wins over vendor-wide template fallback
+  // (matches backend public_sites `_resolve_site_by_subdomain`).
   if (builderSite) {
     const homepage = builderSite.pages?.find(p => p.is_homepage) || builderSite.pages?.[0]
     const hasSavedBuilderBlocks = Boolean(homepage?.blocks?.length)
@@ -88,14 +84,26 @@ export default function HomeOrBuilder() {
       return <BuilderPage isHome />
     }
 
+    if (storeSpecificTemplateId) {
+      const catalogOverride = renderAssignedTemplateHome(storeSpecificTemplateId)
+      if (catalogOverride) return catalogOverride
+    }
+
     const catalogId = resolveLiveCatalogTemplateId(
-      assignedTemplateId,
+      storeSpecificTemplateId ?? assignedTemplateId,
       getWbCatalogTemplateId(builderSite.style_config as Record<string, unknown>),
     )
     if (isWebsiteBuilderBlockTemplateId(catalogId)) {
       return renderBlockTemplateHome(catalogId)
     }
     return <CatalogStorefrontLiveHome catalogTemplateId={catalogId} />
+  }
+
+  if (assignedTemplateId) {
+    const assignedHome = renderAssignedTemplateHome(assignedTemplateId)
+    if (assignedHome) {
+      return assignedHome
+    }
   }
 
   // Only show legacy Home when no template is assigned anywhere.

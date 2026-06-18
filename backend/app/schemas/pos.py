@@ -38,6 +38,8 @@ class POSItem(BaseModel):
 class POSSessionOpen(BaseModel):
     opening_cash: float = Field(default=0, ge=0)
     notes: Optional[str] = None
+    # Privileged roles (owner/admin) may open a session for a chosen business unit.
+    store_id: Optional[str] = None
 
 
 class POSSessionClose(BaseModel):
@@ -47,6 +49,8 @@ class POSSessionClose(BaseModel):
 
 class POSTransactionCreate(BaseModel):
     session_id: str
+    # Privileged roles (owner/admin) may target a specific business unit (memos).
+    store_id: Optional[str] = None
     customer_id: Optional[str] = None
     transaction_type: TransactionType = TransactionType.SALE
     items: List[POSItem]
@@ -90,6 +94,7 @@ class POSTransactionMemoUpdate(BaseModel):
 class POSSessionResponse(BaseModel):
     id: str
     vendor_id: str
+    store_id: Optional[str] = None
     opened_by: str
     closed_by: Optional[str] = None
     session_date: str
@@ -113,6 +118,7 @@ class POSTransactionResponse(BaseModel):
     id: str
     vendor_id: str
     session_id: str
+    store_id: Optional[str] = None
     cashier_id: str
     customer_id: Optional[str] = None
     transaction_number: str

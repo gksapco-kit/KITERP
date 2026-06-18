@@ -155,10 +155,19 @@ export default function TestimonialsBlock({ style, props, liveItems, blockId }: 
       : manualTestis.map(staticTestimonialToLiveItem)
 
   const previewCount = layout === 'centered' ? 1 : Math.min(Math.max(columns, 2), 4)
-  const draftPreviewItems = showDraftPreviewFallback
-    ? (manualTestis.length > 0
+
+  const layoutSampleItems =
+    manualTestis.length > 0
       ? manualTestis.map(staticTestimonialToLiveItem)
-      : builderPreviewTestimonials(previewCount))
+      : builderPreviewTestimonials(previewCount)
+
+  // Draft / editor preview always shows sample cards when there is no published content.
+  const showLayoutSampleOnLive =
+    liveBound && liveItems.length === 0
+    || (staticTestis.some(isTemplateTestimonial) && manualTestis.length === 0)
+
+  const draftPreviewItems = showDraftPreviewFallback || showLayoutSampleOnLive
+    ? layoutSampleItems
     : []
 
   const displayItems = publishedItems.length > 0 ? publishedItems : draftPreviewItems

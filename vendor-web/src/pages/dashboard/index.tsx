@@ -25,7 +25,8 @@ type SalesDayRow = { date: string; orders: number; revenue: number }
 
 export default function Dashboard() {
   const navigate = useNavigate()
-  const { vendor } = useVendorStore()
+  const { vendor, selectedStore } = useVendorStore()
+  const storeId = selectedStore?.id
   const { user } = useAuthStore()
   const isHRAdmin = ['owner', 'admin', 'manager'].includes(user?.vendor_role?.role ?? '')
 
@@ -33,15 +34,15 @@ export default function Dashboard() {
   const { data: hrLeaveData } = useHRLeaveRequests({ status: 'pending', limit: 1 })
   const { data: hrToday } = useHRMyToday()
 
-  const { data: dashboard, isLoading: dashLoading } = useQuery({ queryKey: ['reports', 'dashboard'], queryFn: vendorApi.getDashboardStats })
-  const { data: revenue } = useQuery({ queryKey: ['reports', 'revenue'], queryFn: vendorApi.getRevenueSummary })
-  const { data: topProducts } = useQuery({ queryKey: ['reports', 'top-products'], queryFn: () => vendorApi.getTopProducts(10) })
-  const { data: topCustomers } = useQuery({ queryKey: ['reports', 'top-customers'], queryFn: () => vendorApi.getTopCustomers(10) })
-  const { data: salesByDay } = useQuery({ queryKey: ['reports', 'sales-30'], queryFn: () => vendorApi.getSalesByDay(30) })
-  const { data: ordersByStatus } = useQuery({ queryKey: ['reports', 'orders-status'], queryFn: vendorApi.getOrdersByStatus })
-  const { data: posOrdersData }     = useQuery({ queryKey: ['reports', 'pos-orders'],     queryFn: () => vendorApi.listOrders({ source: 'pos', size: 100 }) })
-  const { data: onlineOrdersData }  = useQuery({ queryKey: ['reports', 'online-orders'],  queryFn: () => vendorApi.listOrders({ size: 100 }) })
-  const { data: bookingsData }      = useQuery({ queryKey: ['reports', 'bookings'],        queryFn: () => vendorApi.listBookings({ size: 100 }) })
+  const { data: dashboard, isLoading: dashLoading } = useQuery({ queryKey: ['reports', 'dashboard', storeId], queryFn: () => vendorApi.getDashboardStats(storeId) })
+  const { data: revenue } = useQuery({ queryKey: ['reports', 'revenue', storeId], queryFn: () => vendorApi.getRevenueSummary(storeId) })
+  const { data: topProducts } = useQuery({ queryKey: ['reports', 'top-products', storeId], queryFn: () => vendorApi.getTopProducts(10, storeId) })
+  const { data: topCustomers } = useQuery({ queryKey: ['reports', 'top-customers', storeId], queryFn: () => vendorApi.getTopCustomers(10, storeId) })
+  const { data: salesByDay } = useQuery({ queryKey: ['reports', 'sales-30', storeId], queryFn: () => vendorApi.getSalesByDay(30, storeId) })
+  const { data: ordersByStatus } = useQuery({ queryKey: ['reports', 'orders-status', storeId], queryFn: () => vendorApi.getOrdersByStatus(storeId) })
+  const { data: posOrdersData }     = useQuery({ queryKey: ['reports', 'pos-orders', storeId],     queryFn: () => vendorApi.listOrders({ source: 'pos', size: 100, store_id: storeId || undefined }) })
+  const { data: onlineOrdersData }  = useQuery({ queryKey: ['reports', 'online-orders', storeId],  queryFn: () => vendorApi.listOrders({ size: 100, store_id: storeId || undefined }) })
+  const { data: bookingsData }      = useQuery({ queryKey: ['reports', 'bookings', storeId],        queryFn: () => vendorApi.listBookings({ size: 100 }) })
   const { data: productData } = useProducts({ page: 1, size: 1 })
   const { data: serviceData } = useServices({ page: 1, size: 1 })
 
@@ -278,7 +279,9 @@ export default function Dashboard() {
       <DashboardWelcomeBanner
         greeting={greeting}
         title={vendor?.display_name || 'Welcome'}
-        description="Here's a complete overview of your store performance. Insights, analytics, and trends at a glance."
+        description={selectedStore
+          ? `Showing performance for ${selectedStore.name}. Insights, analytics, and trends at a glance.`
+          : "Here's a complete overview across all business units. Insights, analytics, and trends at a glance."}
         actions={quickActions}
         onNavigate={(to) => navigate(to)}
       />

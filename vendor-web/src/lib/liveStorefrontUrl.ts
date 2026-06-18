@@ -1,5 +1,5 @@
 import { getCustomerStorefrontBaseUrl } from '@/lib/storefrontPreviewUrl'
-import { formatStoreCode } from '@/lib/verification'
+import { formatStoreCode, sortStoresByCode } from '@/lib/verification'
 
 export type LiveStorefrontSite = {
   custom_domain?: string | null
@@ -232,7 +232,7 @@ export function resolveAppliedTemplateViewLiveLinks(
 
   if (!isApplied) return []
 
-  const assignedStores = templateMode === 'single' ? stores : catalogAssignedStores
+  const assignedStores = sortStoresByCode(templateMode === 'single' ? stores : catalogAssignedStores)
   const needsBranch = storefrontUrlNeedsBranch(linkMode, templateMode)
 
   if (!needsBranch) {
@@ -275,9 +275,11 @@ export function resolveStorefrontLinksForStoreIds(
   const slug = vendorSlug?.trim()
   if (!slug || storeIds.length === 0) return []
 
-  const assigned = storeIds
-    .map(id => stores.find(s => s.id === id))
-    .filter((s): s is StoreRef => s != null)
+  const assigned = sortStoresByCode(
+    storeIds
+      .map(id => stores.find(s => s.id === id))
+      .filter((s): s is StoreRef => s != null),
+  )
 
   const needsBranch = storefrontUrlNeedsBranch(linkMode, templateMode)
 

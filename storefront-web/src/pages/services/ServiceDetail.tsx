@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect } from 'react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
-import { useService, useCreateBooking, useRequestQuote, useAddToCart } from '@/hooks/useStore'
+import { useService, useCreateBooking, useRequestQuote, useCreateSubscription } from '@/hooks/useStore'
 import { useAuthStore } from '@/stores/authStore'
 import { formatCurrency, imgUrl } from '@/lib/utils'
 import {
@@ -103,19 +103,24 @@ function BookingSlotsPanel({ availability }: { availability: AvailSlot[] }) {
 // ── Plan Selector ─────────────────────────────────────────────────
 
 function PlanSelector({
-  plans, currency, selectedId, onSelect,
+  plans, currency, selectedId, onSelect, hidePrice = false, compact = false,
 }: {
   plans: ServicePlan[]; currency: string; selectedId: string | null; onSelect: (id: string) => void
+  hidePrice?: boolean
+  compact?: boolean
 }) {
   const activePlans = plans.filter(p => p.is_active)
   if (activePlans.length === 0) return null
+  const isCompact = compact || hidePrice
 
   return (
     <div>
-      <p className={`text-xs font-bold uppercase tracking-wider mb-3 flex items-center gap-1.5 ${themeUi.textPrimary}`}>
-        <Repeat className="w-3.5 h-3.5" /> Choose a Plan
+      <p className={`font-bold uppercase tracking-wider flex items-center gap-1.5 ${themeUi.textPrimary} ${
+        isCompact ? 'text-[10px] mb-2' : 'text-xs mb-3'
+      }`}>
+        <Repeat className={isCompact ? 'w-3 h-3' : 'w-3.5 h-3.5'} /> Choose a Plan
       </p>
-      <div className="space-y-2.5">
+      <div className={isCompact ? 'space-y-1.5' : 'space-y-2.5'}>
         {activePlans.map(plan => {
           const isSelected = selectedId === plan.id
           const vInterval = plan.subscription_interval || 'monthly'
@@ -128,51 +133,62 @@ function PlanSelector({
 
           return (
             <button key={plan.id} type="button" onClick={() => onSelect(plan.id)}
-              className={`w-full p-4 sm:p-5 rounded-xl border-2 text-left transition-all duration-200 ${
+              className={`w-full rounded-xl border-2 text-left transition-all duration-200 ${
+                isCompact ? 'p-2.5' : hidePrice ? 'p-3.5 sm:p-4' : 'p-4 sm:p-5'
+              } ${
                 isSelected
                   ? 'border-[color:var(--color-secondary)] bg-white shadow-md ring-1 ring-[color:var(--color-secondary)]/20'
-                  : 'border-gray-300 hover:border-gray-400 hover:bg-gray-50/80 bg-white'
+                  : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50/80 bg-white'
               }`}>
-              <div className="flex items-start gap-3">
+              <div className="flex items-start gap-2.5">
                 <div
-                  className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 transition-colors ${
+                  className={`mt-0.5 flex shrink-0 items-center justify-center rounded-full border-2 transition-colors ${
+                    isCompact ? 'h-4 w-4' : 'h-5 w-5'
+                  } ${
                     isSelected
                       ? 'border-[color:var(--color-secondary)] bg-[color:var(--color-secondary)]'
                       : 'border-gray-300 bg-white'
                   }`}
                   aria-hidden
                 >
-                  {isSelected ? <CheckCircle className="w-3.5 h-3.5 text-white" strokeWidth={2.5} /> : null}
+                  {isSelected ? <CheckCircle className={`${isCompact ? 'w-2.5 h-2.5' : 'w-3.5 h-3.5'} text-white`} strokeWidth={2.5} /> : null}
                 </div>
-                <div className="flex flex-1 items-start justify-between gap-4 min-w-0">
+                <div className={`flex flex-1 min-w-0 ${hidePrice ? 'items-center' : 'items-start justify-between gap-4'}`}>
                   <div className="flex-1 min-w-0">
-                    <p className="text-base font-bold text-gray-900 truncate">{plan.name}</p>
-                    <p className="text-sm mt-0.5 text-gray-600">
+                    <p className={`font-bold text-gray-900 truncate ${isCompact ? 'text-sm' : 'text-base'}`}>{plan.name}</p>
+                    <p className={`text-gray-600 ${isCompact ? 'text-xs mt-0' : 'text-sm mt-0.5'}`}>
                       {intervalLabel[vInterval] || vInterval}
                       {vPriceType === 'per_unit' && ` · per ${UOM_LABELS[plan.uom] || plan.uom || 'unit'}`}
                     </p>
-                    {plan.description && (
+                    {plan.description && !isCompact && (
                       <p className="text-sm text-gray-500 mt-1 line-clamp-2">{plan.description}</p>
                     )}
                   </div>
-                  <div className="text-right shrink-0 min-w-[5rem] pl-2">
-                    {plan.price != null ? (
-                      <>
-                        <p className="text-xl font-extrabold text-gray-900">
-                          {formatCurrency(plan.price, currency)}
+                  {!hidePrice && (
+                    <div className="text-right shrink-0 min-w-[5rem] pl-2">
+                      {plan.price != null ? (
+                        <>
+                          <p className="text-xl font-extrabold text-gray-900">
+                            {formatCurrency(plan.price, currency)}
+                          </p>
+                          <p className="text-sm text-gray-500">{vShort}</p>
+                        </>
+                      ) : (
+                        <p className="text-base font-bold text-amber-700 bg-amber-50 border border-amber-200 px-2.5 py-1 rounded-lg">
+                          Quote
                         </p>
-                        <p className="text-sm text-gray-500">{vShort}</p>
-                      </>
-                    ) : (
-                      <p className="text-base font-bold text-amber-700 bg-amber-50 border border-amber-200 px-2.5 py-1 rounded-lg">
-                        Quote
-                      </p>
-                    )}
-                  </div>
+                      )}
+                    </div>
+                  )}
+                  {hidePrice && plan.price == null && (
+                    <span className="shrink-0 text-xs font-semibold text-amber-800 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-full">
+                      Quote
+                    </span>
+                  )}
                 </div>
               </div>
               {(hasTrial || hasSetup || plan.duration_minutes) && (
-                <div className="flex flex-wrap gap-1.5 mt-3 ml-8">
+                <div className={`flex flex-wrap gap-1 ${isCompact ? 'mt-1.5 ml-6' : 'mt-3 ml-8'}`}>
                   {hasTrial && (
                     <span className="text-xs font-medium text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full">
                       {plan.subscription_trial_days}d free trial
@@ -471,7 +487,7 @@ export default function ServiceDetail() {
   const { data: service, isLoading } = useService(slug!)
   const { isAuthenticated, customer } = useAuthStore()
   const navigate = useNavigate()
-  const addToCart = useAddToCart()
+  const createSubscription = useCreateSubscription()
   const [showBooking, setShowBooking] = useState(false)
   const [showQuote, setShowQuote] = useState(false)
   const [selectedPlanId, setSelectedPlanId] = useState<string | null>(null)
@@ -559,7 +575,7 @@ export default function ServiceDetail() {
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8 items-start">
         {/* Left — Media Gallery (sticky) */}
-        <div className="lg:col-span-4">
+        <div className="lg:col-span-3 xl:col-span-3">
           <div className="lg:sticky lg:top-4">
             {displayMedia.length > 0 ? (
               <MediaViewer
@@ -593,7 +609,7 @@ export default function ServiceDetail() {
         </div>
 
         {/* Center — Service Info */}
-        <div className="lg:col-span-5 space-y-6">
+        <div className="lg:col-span-3 xl:col-span-3 space-y-6">
           <header className="space-y-3">
           {/* Badges */}
           <div className="flex items-center gap-2 flex-wrap">
@@ -611,7 +627,7 @@ export default function ServiceDetail() {
               </span>
             )}
             {isSubscription && (
-              <span className={`text-xs font-bold px-2 py-1 rounded-lg flex items-center gap-1 ${themeUi.pillAccentBold}`}>
+              <span className="text-xs font-bold px-2.5 py-1 rounded-lg flex items-center gap-1 bg-[color:var(--color-primary)] text-white">
                 <Repeat className="w-3 h-3" /> Subscription
               </span>
             )}
@@ -626,24 +642,8 @@ export default function ServiceDetail() {
           )}
           </header>
 
-          {/* Pricing */}
-          {isSubscription && selectedPlan ? (
-            <div className={`rounded-xl p-4 border ${themeUi.gradientHero} ${themeUi.borderPrimaryMuted}`}>
-              <div className="flex items-baseline gap-2 flex-wrap">
-                <span className="text-3xl font-extrabold text-gray-900">
-                  {formatCurrency(subscriptionPrice, currency)}
-                </span>
-                <span className="text-sm text-gray-500">
-                  {subscriptionPriceType === 'per_unit'
-                    ? `/${UOM_LABELS[subscriptionUom] || subscriptionUom || 'unit'}`
-                    : (intervalShort[subscriptionInterval] || `/${subscriptionInterval}`)}
-                </span>
-              </div>
-              <p className="text-sm text-gray-500 mt-1">
-                Billed {intervalLabel[subscriptionInterval] || subscriptionInterval} · Inclusive of all taxes
-              </p>
-            </div>
-          ) : (
+          {/* Pricing — one-time / booking only (subscription price lives in sidebar) */}
+          {!isSubscription && (
             <div className="flex items-center gap-3 flex-wrap">
               {unitPrice != null && (
                 <span className="text-3xl font-extrabold text-gray-900">
@@ -661,18 +661,26 @@ export default function ServiceDetail() {
             </div>
           )}
 
+          {isSubscription && subscriptionPrice > 0 && (
+            <p className="text-sm text-gray-500">
+              Choose a plan below — price and billing options are in the panel on the right.
+            </p>
+          )}
+
           {sf.short_description && service.short_description && (
             <p className="text-sm text-gray-600 leading-relaxed">{service.short_description}</p>
           )}
 
           {/* Plan Selector — always shown when plans exist */}
           {activePlans.length > 0 && (
-            <div className="pt-2">
+            <div className="pt-1">
               <PlanSelector
                 plans={activePlans}
                 currency={currency}
                 selectedId={selectedPlanId ?? activePlans[0]?.id ?? null}
                 onSelect={setSelectedPlanId}
+                hidePrice={isSubscription && subscriptionPrice > 0}
+                compact={isSubscription && subscriptionPrice > 0}
               />
             </div>
           )}
@@ -763,9 +771,9 @@ export default function ServiceDetail() {
           )}
         </div>
 
-        {/* Right — Sidebar */}
-        <div className="lg:col-span-3 min-w-0">
-          <div className={`rounded-2xl border-2 p-5 sm:p-7 sticky top-4 space-y-6 shadow-md max-h-[90vh] overflow-y-auto ${themeUi.cardSurface} ${themeUi.cardBorder}`}>
+        {/* Right — Sidebar (wider for subscription scheduling) */}
+        <div className="lg:col-span-6 xl:col-span-6 min-w-0">
+          <div className={`rounded-2xl border p-4 sm:p-5 sticky top-4 space-y-4 shadow-sm max-h-[calc(100vh-2rem)] overflow-y-auto ${themeUi.cardSurface} ${themeUi.cardBorder}`}>
             {/* Mode toggle — shown when vendor enabled both booking & subscription */}
             {hasBothModes && (
               <div className="flex rounded-xl bg-gray-100/90 p-1 gap-1 ring-1 ring-gray-200/70">
@@ -809,28 +817,30 @@ export default function ServiceDetail() {
                   maxCycles={subscriptionBillingCycles}
                   allowedModes={subscriptionScheduleModes}
                   onSubscribe={(config) => {
-                    if (!isAuthenticated) { navigate(storePath('/login')); return }
-                    if (!service) return
-                    const imageUrl =
-                      displayMedia[0]?.url || service.image_url || service.gallery?.[0] || ''
+                    if (!isAuthenticated) {
+                      navigate(storePath('/login'), { state: { from: storePath(`/services/${service.slug}`) } })
+                      return
+                    }
                     const planPart =
                       selectedPlan &&
                       selectedPlan.name.trim().toLowerCase() !== service.name.trim().toLowerCase()
                         ? ` — ${selectedPlan.name}`
                         : ''
                     const name = `${service.name}${planPart} (Subscription, ${config.cycles} cycle${config.cycles !== 1 ? 's' : ''})`
-                    addToCart.mutate(
+                    createSubscription.mutate(
                       {
-                        product_id: service.id,
-                        name,
+                        item_type: 'service',
+                        service_id: service.id,
+                        item_name: name,
+                        interval: config.interval || subscriptionInterval,
+                        price_per_cycle: subscriptionPrice,
                         qty: 1,
-                        price: config.total,
-                        image_url: imageUrl || undefined,
+                        schedule_config: config,
                       },
-                      { onSuccess: () => navigate(storePath('/checkout')) },
+                      { onSuccess: () => navigate(storePath('/account/subscriptions')) },
                     )
                   }}
-                  subscribePending={addToCart.isPending}
+                  subscribePending={createSubscription.isPending}
                 />
                 {canQuote && (
                   <Button variant="outline" className="w-full h-12 font-bold rounded-xl" size="lg"

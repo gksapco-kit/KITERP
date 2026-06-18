@@ -37,6 +37,7 @@ export interface CreateBookingPreFill {
   startTime?: string
   endTime?: string
   staffId?: string
+  storeId?: string
 }
 
 export interface CreateBookingModalProps {
@@ -53,8 +54,12 @@ export function CreateBookingModal({
   const qc = useQueryClient()
   const today = useMemo(() => new Date().toISOString().split('T')[0], [])
 
+  // ── Form state ──────────────────────────────────────────────────────────
+  const [selectedStore, setSelectedStore] = useState(preFill?.storeId ?? '')
+
   // ── Remote data ──────────────────────────────────────────────────────────
-  const { data: svcData } = useServices({ size: 200, status: 'active' })
+  // Services are scoped to the selected business unit.
+  const { data: svcData } = useServices({ size: 200, status: 'active', store_id: selectedStore || undefined })
   const services = (svcData?.items || []) as unknown as Record<string, unknown>[]
 
   const { data: teamData } = useQuery({
@@ -79,7 +84,6 @@ export function CreateBookingModal({
 
   const [selectedService, setSelectedService] = useState(preFill?.serviceId ?? '')
   const [selectedStaff, setSelectedStaff] = useState(preFill?.staffId ?? '')
-  const [selectedStore, setSelectedStore] = useState('')
   const [bookingDate, setBookingDate] = useState(preFill?.date ?? '')
   const [startTime, setStartTime] = useState(preFill?.startTime ?? '')
   const [endTime, setEndTime] = useState(preFill?.endTime ?? '')
@@ -340,7 +344,7 @@ export function CreateBookingModal({
                 <label className="text-xs font-medium text-gray-500 uppercase tracking-wide flex items-center gap-1 mb-1.5">
                   <Building2 className="w-3 h-3 text-primary/70" /> Location
                 </label>
-                <select value={selectedStore} onChange={e => setSelectedStore(e.target.value)}
+                <select value={selectedStore} onChange={e => { setSelectedStore(e.target.value); setSelectedService('') }}
                   className="w-full h-9 px-3 border border-gray-200 rounded-lg text-xs bg-white focus:outline-none focus:ring-2 focus:ring-ring">
                   <option value="">All locations</option>
                   {stores.map((st: any) => (

@@ -73,6 +73,9 @@ export interface TeamMember {
   role: string
   role_id?: string | null
   role_name: string
+  store_id?: string | null
+  /** Resolved business unit for store-locked surfaces (POS): explicit store_id, or default store for owners/admins. Only present on /team/me. */
+  effective_store_id?: string | null
   permissions: string[]
   is_active: boolean
   invited_at?: string | null

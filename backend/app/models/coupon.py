@@ -13,6 +13,8 @@ class Coupon(Base):
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     vendor_id = Column(UUID(as_uuid=True), ForeignKey("vendor.id"), nullable=False, index=True)
+    # Business unit (store) this coupon is scoped to. Null = all business units.
+    store_id = Column(UUID(as_uuid=True), ForeignKey("store.id", ondelete="SET NULL"), nullable=True, index=True)
 
     code = Column(String(50), nullable=False, index=True)
     title = Column(String(255))

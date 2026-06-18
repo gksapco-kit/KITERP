@@ -264,10 +264,13 @@ class ProjectService:
         size: int = 20,
         status_filter: Optional[str] = None,
         search: Optional[str] = None,
+        store_id: Optional[str] = None,
     ) -> tuple[list[dict], int]:
         conditions = [Project.vendor_id == vendor_id]
         if status_filter:
             conditions.append(Project.status == status_filter)
+        if store_id:
+            conditions.append(Project.store_id == (store_id if isinstance(store_id, UUID) else UUID(str(store_id))))
         if search:
             like = f"%{search.strip()}%"
             conditions.append(
@@ -331,11 +334,13 @@ class ProjectService:
         return {
             "id": p.id,
             "vendor_id": p.vendor_id,
+            "store_id": p.store_id,
             "project_number": p.project_number,
             "name": p.name,
             "description": p.description,
             "status": p.status,
             "priority": p.priority,
+            "items": p.items or [],
             "customer_id": p.customer_id,
             "customer_name": p.customer_name,
             "customer_email": customer_email,
@@ -410,6 +415,7 @@ class ProjectService:
 
         project = Project(
             vendor_id=vendor_id,
+            store_id=data.store_id,
             project_number=await self._next_project_number(vendor_id),
             name=data.name,
             description=data.description,
@@ -427,6 +433,7 @@ class ProjectService:
             color=data.color,
             tags=data.tags or [],
             milestones=self._dump_milestones(data.milestones),
+            items=[i.model_dump() for i in data.items] if data.items else [],
         )
         self.db.add(project)
         await self.db.commit()
@@ -464,6 +471,12 @@ class ProjectService:
 
         if "milestones" in updates:
             updates["milestones"] = self._dump_milestones(updates["milestones"])
+
+        if "items" in updates and updates["items"] is not None:
+            updates["items"] = [
+                it.model_dump() if hasattr(it, "model_dump") else it
+                for it in updates["items"]
+            ]
 
         if "customer_id" in updates:
             cust_id, cust_name, _, _ = await self._resolve_customer_fields(

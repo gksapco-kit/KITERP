@@ -82,17 +82,25 @@ class POSService:
 
     # ── Session management ────────────────────────────────────────
 
-    async def open_session(self, vendor_id: UUID, user_id: UUID, opening_cash: float = 0, notes: str = None) -> POSSession:
+    async def open_session(
+        self, vendor_id: UUID, user_id: UUID, store_id: UUID,
+        opening_cash: float = 0, notes: str = None,
+    ) -> POSSession:
         existing = await self.db.execute(
             select(POSSession).where(
-                and_(POSSession.vendor_id == vendor_id, POSSession.status == "open")
+                and_(
+                    POSSession.vendor_id == vendor_id,
+                    POSSession.store_id == store_id,
+                    POSSession.status == "open",
+                )
             )
         )
         if existing.scalar_one_or_none():
-            raise ValueError("There is already an open POS session. Close it first.")
+            raise ValueError("There is already an open POS session for this business unit. Close it first.")
 
         session = POSSession(
             vendor_id=vendor_id,
+            store_id=store_id,
             opened_by=user_id,
             session_date=date.today(),
             opening_cash=opening_cash,
@@ -124,10 +132,14 @@ class POSService:
         await self.db.refresh(session)
         return session
 
-    async def get_open_session(self, vendor_id: UUID) -> POSSession | None:
+    async def get_open_session(self, vendor_id: UUID, store_id: UUID) -> POSSession | None:
         result = await self.db.execute(
             select(POSSession).where(
-                and_(POSSession.vendor_id == vendor_id, POSSession.status == "open")
+                and_(
+                    POSSession.vendor_id == vendor_id,
+                    POSSession.store_id == store_id,
+                    POSSession.status == "open",
+                )
             )
         )
         return result.scalar_one_or_none()
@@ -139,6 +151,7 @@ class POSService:
         vendor_id: UUID,
         session_id: UUID,
         cashier_id: UUID,
+        store_id: UUID,
         items: list,
         payment_methods: list,
         customer_id: UUID = None,
@@ -175,12 +188,17 @@ class POSService:
 
         session_result = await self.db.execute(
             select(POSSession).where(
-                and_(POSSession.id == session_id, POSSession.vendor_id == vendor_id, POSSession.status == "open")
+                and_(
+                    POSSession.id == session_id,
+                    POSSession.vendor_id == vendor_id,
+                    POSSession.store_id == store_id,
+                    POSSession.status == "open",
+                )
             )
         )
         session = session_result.scalar_one_or_none()
         if not session:
-            raise ValueError("No open POS session found")
+            raise ValueError("No open POS session found for this business unit")
 
         # ── Compute line items ──
         subtotal = 0
@@ -252,9 +270,12 @@ class POSService:
             "debit_memo": "completed",
         }
 
+        # store_id is the cashier's locked business unit (resolved at the API layer).
+
         txn = POSTransaction(
             vendor_id=vendor_id,
             session_id=session_id,
+            store_id=store_id,
             cashier_id=cashier_id,
             customer_id=customer_id,
             sales_person_vendor_user_id=sp_vu_id,
@@ -322,13 +343,14 @@ class POSService:
                         product.purchase_count = (product.purchase_count or 0) + 1
                         if not product.track_inventory:
                             raise ValueError("no tracking")
-                        await inv_svc.deduct_for_sale(
+                        await inv_svc.deduct_for_sale_at_store(
                             vendor_id=vendor_id,
+                            store_id=store_id,
                             product_id=UUID(item["product_id"]),
                             quantity=item["qty"],
+                            variant_id=UUID(item["variant_id"]) if item.get("variant_id") else None,
                             reference_id=txn.id,
                             reference_type="pos_transaction",
-                            auto_commit=False,
                         )
                 except Exception as e:
                     log.warning("POS inventory deduction failed for %s: %s", item.get("product_id"), e)
@@ -342,12 +364,13 @@ class POSService:
                         product = await self.db.get(Product, UUID(item["product_id"]))
                         if not product or not product.track_inventory:
                             raise ValueError("product not found or no tracking")
-                        await inv_svc.return_stock(
+                        await inv_svc.return_stock_at_store(
                             vendor_id=vendor_id,
+                            store_id=store_id,
                             product_id=UUID(item["product_id"]),
                             quantity=item["qty"],
+                            variant_id=UUID(item["variant_id"]) if item.get("variant_id") else None,
                             reference_id=txn.id,
-                            auto_commit=False,
                         )
                 except Exception as e:
                     log.warning("POS inventory return failed for %s: %s", item.get("product_id"), e)
@@ -364,6 +387,7 @@ class POSService:
                         order_number=order_number,
                         vendor_id=vendor_id,
                         customer_id=customer_id,
+                        store_id=store_id,
                         items=computed_items,
                         item_count=sum(i["qty"] for i in items),
                         subtotal=subtotal,
@@ -546,6 +570,7 @@ class POSService:
         search: Optional[str] = None,
         transaction_type: Optional[str] = None,
         include_voided: bool = False,
+        store_id: Optional[UUID] = None,
     ) -> Tuple[List[Tuple[POSTransaction, Optional[str], Optional[str], Optional[str]]], int]:
         """
         Return (POSTransaction, customer_name, order_number, invoice_number) tuples.
@@ -555,6 +580,8 @@ class POSService:
         inv_join = Invoice.id == POSTransaction.invoice_id
 
         conditions = [POSTransaction.vendor_id == vendor_id]
+        if store_id:
+            conditions.append(POSTransaction.store_id == store_id)
         if not include_voided:
             conditions.append(or_(POSTransaction.status.is_(None), POSTransaction.status != "voided"))
         if transaction_type:
@@ -621,8 +648,10 @@ class POSService:
         items = result.scalars().all()
         return items, total
 
-    async def get_sessions(self, vendor_id: UUID, status: str = None, page: int = 1, size: int = 20):
+    async def get_sessions(self, vendor_id: UUID, status: str = None, page: int = 1, size: int = 20, store_id: UUID = None):
         conditions = [POSSession.vendor_id == vendor_id]
+        if store_id:
+            conditions.append(POSSession.store_id == store_id)
         if status:
             conditions.append(POSSession.status == status)
 
@@ -703,34 +732,43 @@ class POSService:
     async def _undo_memo_inventory(self, vendor_id: UUID, txn: POSTransaction) -> None:
         inv_svc = InventoryService(self.db)
         ttype = txn.transaction_type
+        store_id = txn.store_id
+        if not store_id:
+            return
         for item in txn.items or []:
             pid = item.get("product_id")
             if not pid or item.get("item_type") == "service":
                 continue
+            vid = UUID(str(item["variant_id"])) if item.get("variant_id") else None
             try:
                 async with self.db.begin_nested():
                     if ttype == "credit_memo":
-                        await inv_svc.deduct_for_sale(
+                        await inv_svc.deduct_for_sale_at_store(
                             vendor_id=vendor_id,
+                            store_id=store_id,
                             product_id=UUID(str(pid)),
                             quantity=int(item.get("qty") or 0),
+                            variant_id=vid,
                             reference_id=txn.id,
                             reference_type="pos_transaction",
-                            auto_commit=False,
                         )
                     elif ttype == "debit_memo":
-                        await inv_svc.return_stock(
+                        await inv_svc.return_stock_at_store(
                             vendor_id=vendor_id,
+                            store_id=store_id,
                             product_id=UUID(str(pid)),
                             quantity=int(item.get("qty") or 0),
+                            variant_id=vid,
                             reference_id=txn.id,
-                            auto_commit=False,
                         )
             except Exception as e:
                 log.warning("void/update memo: inventory undo for %s: %s", pid, e)
 
     async def _apply_memo_inventory(self, vendor_id: UUID, txn: POSTransaction, ttype: str, raw_items: list) -> None:
         inv_svc = InventoryService(self.db)
+        store_id = txn.store_id
+        if not store_id:
+            return
         if ttype in ("sale", "debit_memo"):
             for item in raw_items:
                 if not item.get("product_id") or item.get("item_type") == "service":
@@ -740,13 +778,14 @@ class POSService:
                         product = await self.db.get(Product, UUID(str(item["product_id"])))
                         if not product or not product.track_inventory:
                             raise ValueError("skip")
-                        await inv_svc.deduct_for_sale(
+                        await inv_svc.deduct_for_sale_at_store(
                             vendor_id=vendor_id,
+                            store_id=store_id,
                             product_id=UUID(str(item["product_id"])),
                             quantity=item.get("qty") or 0,
+                            variant_id=UUID(str(item["variant_id"])) if item.get("variant_id") else None,
                             reference_id=txn.id,
                             reference_type="pos_transaction",
-                            auto_commit=False,
                         )
                 except Exception as e:
                     log.warning("memo inv deduct %s: %s", item.get("product_id"), e)
@@ -759,12 +798,13 @@ class POSService:
                         product = await self.db.get(Product, UUID(str(item["product_id"])))
                         if not product or not product.track_inventory:
                             raise ValueError("skip")
-                        await inv_svc.return_stock(
+                        await inv_svc.return_stock_at_store(
                             vendor_id=vendor_id,
+                            store_id=store_id,
                             product_id=UUID(str(item["product_id"])),
                             quantity=item.get("qty") or 0,
+                            variant_id=UUID(str(item["variant_id"])) if item.get("variant_id") else None,
                             reference_id=txn.id,
-                            auto_commit=False,
                         )
                 except Exception as e:
                     log.warning("memo inv return %s: %s", item.get("product_id"), e)

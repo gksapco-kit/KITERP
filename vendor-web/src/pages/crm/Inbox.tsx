@@ -330,6 +330,7 @@ function ChatsTab() {
     if (!selected) return
     await crmApi.closeConversation(selected)
     qc.invalidateQueries({ queryKey: ['crm', 'conversations'] })
+    qc.invalidateQueries({ queryKey: ['crm', 'inbox-count'] })
     qc.invalidateQueries({ queryKey: ['crm', 'conversation', selected] })
   }
 

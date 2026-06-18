@@ -93,3 +93,31 @@ export function apiError(context: string) {
     toast.error(extractApiError(error, context))
   }
 }
+
+/** User-facing login/register errors — never show raw SQL or stack traces in the form. */
+export function formatCustomerAuthError(
+  error: unknown,
+  fallback = 'Could not sign in. Check your email or phone and password.',
+): string {
+  const ax = error as AxiosError<{ detail?: string | ApiErrorDetail[] }>
+  const detail = ax?.response?.data?.detail
+
+  if (typeof detail === 'string') {
+    if (/UndefinedColumn|asyncpg|sqlalchemy|does not exist|traceback/i.test(detail)) {
+      return 'Sign-in is temporarily unavailable. Please try again in a moment.'
+    }
+    if (detail.length <= 120 && !/class\s+['"]/.test(detail)) {
+      return detail
+    }
+  }
+
+  if (ax?.response?.status === 401) {
+    return 'Invalid email, phone, or password.'
+  }
+
+  if (!ax?.response) {
+    return 'Unable to reach the store. Check your connection and try again.'
+  }
+
+  return fallback
+}

@@ -59,9 +59,9 @@ class Customer(Base):
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
     # Relationships
-    orders = relationship("Order", back_populates="customer", lazy="selectin")
-    cart = relationship("Cart", back_populates="customer", uselist=False, lazy="selectin")
-    wishlist = relationship("Wishlist", back_populates="customer", uselist=False, lazy="selectin")
+    orders = relationship("Order", back_populates="customer", lazy="select")
+    cart = relationship("Cart", back_populates="customer", uselist=False, lazy="select")
+    wishlist = relationship("Wishlist", back_populates="customer", uselist=False, lazy="select")
 
     __table_args__ = (
         Index(

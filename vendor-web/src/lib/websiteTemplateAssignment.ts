@@ -1,4 +1,5 @@
 import { resolveStoreFrontTemplateId } from '@/lib/liveStorefrontUrl'
+import { sortStoresByCode } from '@/lib/verification'
 import type { SiteListItem } from '@/types/websites'
 
 type StoreLike = {
@@ -27,11 +28,11 @@ export function storesAssignedToTemplate(
   templateId: string,
   options?: StoresAssignedOptions,
 ): StoreLike[] {
-  return stores.filter(store => {
+  return sortStoresByCode(stores.filter(store => {
     if (resolveStoreFrontTemplateId(store.settings) !== templateId) return false
     if (storeHasLinkedBuilderSite(store.id, options?.sites)) return false
     return true
-  })
+  }))
 }
 
 export function formatAssignedStoresLabel(stores: Pick<StoreLike, 'name'>[], maxVisible = 2): string {

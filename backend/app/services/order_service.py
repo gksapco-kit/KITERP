@@ -26,6 +26,7 @@ from app.services.checkout_service import CheckoutService
 from app.services.coupon_service import CouponService
 from app.repositories.vendor_repo import VendorRepository
 from app.models.store import Store
+from app.services.store_resolver import resolve_store_id as resolve_txn_store_id
 
 log = logging.getLogger(__name__)
 
@@ -148,11 +149,16 @@ class OrderService:
         # Generate order number
         order_number = await self.order_repo.get_next_order_number(vendor_id)
 
+        store_id = await resolve_txn_store_id(
+            self.db, vendor_id, branch=getattr(data, "branch_code", None)
+        )
+
         # Create order
         order = Order(
             order_number=order_number,
             vendor_id=vendor_id,
             customer_id=customer_id,
+            store_id=store_id,
             items=items,
             item_count=sum(i.get("qty", 0) for i in items),
             subtotal=subtotal,

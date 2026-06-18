@@ -94,3 +94,16 @@ export function notifyDraftPreviewParentRoute(route: string): void {
     /* cross-origin or closed parent */
   }
 }
+
+/** From catalog iframe: return to the builder homepage in the parent draft preview tab. */
+export function notifyDraftPreviewHome(): void {
+  if (typeof window === 'undefined' || window.parent === window) return
+  try {
+    window.parent.postMessage(
+      { type: DRAFT_EMBED_PREVIEW_NAV_TYPE, route: '' },
+      window.location.origin,
+    )
+  } catch {
+    /* cross-origin or closed parent */
+  }
+}

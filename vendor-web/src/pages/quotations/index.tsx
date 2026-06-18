@@ -1,5 +1,6 @@
 import { useCallback, useMemo, useState } from 'react'
 import { TableColumnLabel } from '@/components/common/FieldLabel'
+import { BusinessUnitSelect } from '@/components/common/BusinessUnitSelect'
 import { useNavigate } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Card, CardContent } from '@/components/ui/card'
@@ -133,6 +134,7 @@ export default function QuotationsPage() {
   const [searchInput, setSearchInput] = useState('')
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState('')
+  const [storeFilter, setStoreFilter] = useState('')
   const [page, setPage] = useState(1)
   const [sortKey, setSortKey] = useState('created_at')
   const [sortDir, setSortDir] = useState<SortDir>('desc')
@@ -145,15 +147,17 @@ export default function QuotationsPage() {
     size: 100,
     source: 'quote',
     search: search || undefined,
+    store_id: storeFilter || undefined,
   })
 
   const { data: estimatesData, isLoading: estimatesLoading } = useQuery({
-    queryKey: ['quotations', 'estimates', statusFilter, page],
+    queryKey: ['quotations', 'estimates', statusFilter, page, storeFilter],
     queryFn: () => vendorApi.listInvoices({
       page,
       size: 20,
       invoice_type: 'estimate',
       status: statusFilter || undefined,
+      store_id: storeFilter || undefined,
     }),
   })
 
@@ -398,6 +402,7 @@ export default function QuotationsPage() {
               />
             </div>
             <Button type="submit" variant="outline">Search</Button>
+            <div className="sm:w-56"><BusinessUnitSelect value={storeFilter} onChange={(id) => { setStoreFilter(id); setPage(1) }} allowAll autoSelectDefault={false} /></div>
             {statusOptions.length > 1 && (
               <select
                 className="text-sm border rounded-lg px-3 py-2 bg-white"

@@ -137,6 +137,7 @@ import { apiClient } from '@/api/client'
 import { vendorApi } from '@/api/vendor'
 import { playTone, type ToneName } from '@/hooks/useNotificationSound'
 import { useBrowserNotifications } from '@/hooks/useBrowserNotifications'
+import { useInboxUnreadCount } from '@/hooks/useCrm'
 import { UniversalSearch } from '@/components/UniversalSearch'
 import { KitErpThemePickerModal } from '@/components/KitErpThemePickerModal'
 import { getKitErpThemeOption } from '@/lib/kitErpThemes'
@@ -211,6 +212,21 @@ interface NavItem {
   requiresVendorAdmin?: boolean
   /** Full URL — renders as external link (new tab) instead of in-app route */
   externalHref?: string
+}
+
+function navCountBadgeClass(variant: 'nav' | 'flyout' = 'nav') {
+  return variant === 'flyout'
+    ? 'inline-flex h-4 min-w-[1rem] shrink-0 items-center justify-center rounded-full bg-red-500 px-1 text-xs font-bold text-white tabular-nums'
+    : 'ml-0.5 inline-flex h-3.5 min-w-[0.875rem] shrink-0 items-center justify-center rounded-full bg-red-500 px-1 text-xs font-bold text-white tabular-nums'
+}
+
+function NavCountBadge({ count, variant = 'nav' }: { count: number; variant?: 'nav' | 'flyout' }) {
+  if (count <= 0) return null
+  return (
+    <span className={navCountBadgeClass(variant)}>
+      {count > 99 ? '99+' : count}
+    </span>
+  )
 }
 
 /**
@@ -1552,8 +1568,18 @@ export default function DashboardLayout() {
 
   const financeNavVisible = useMemo(() => isFinanceNavVisible(vendorSettings), [vendorSettings])
   const crmNavVisible = useMemo(() => isCrmNavVisible(vendorSettings), [vendorSettings])
+  const { data: inboxCount = 0 } = useInboxUnreadCount(crmNavVisible)
   const commissionNavVisible = useMemo(() => isCommissionNavVisible(vendorSettings), [vendorSettings])
   const controllingNavVisible = useMemo(() => isControllingNavVisible(vendorSettings), [vendorSettings])
+
+  const getNavBadgeCount = useCallback(
+    (to: string) => {
+      if (to === '/notifications') return unreadCount
+      if (to === '/crm/inbox') return inboxCount
+      return 0
+    },
+    [unreadCount, inboxCount],
+  )
 
   const filterItem = useCallback(
     (item: NavItem) => {
@@ -2301,10 +2327,8 @@ export default function DashboardLayout() {
                                   <item.icon className="h-4 w-4" strokeWidth={2} aria-hidden />
                                 </span>
                                 <span className="min-w-0 flex-1 truncate">{item.label}</span>
-                                {item.to === '/notifications' && unreadCount > 0 ? (
-                                  <span className="inline-flex h-4 min-w-[1rem] shrink-0 items-center justify-center rounded-full bg-red-500 px-1 text-xs font-bold text-white">
-                                    {unreadCount > 99 ? '99+' : unreadCount}
-                                  </span>
+                                {getNavBadgeCount(item.to) > 0 ? (
+                                  <NavCountBadge count={getNavBadgeCount(item.to)} variant="flyout" />
                                 ) : isActive ? (
                                   <ChevronRight className="h-3.5 w-3.5 shrink-0 text-sidebar-primary/80" aria-hidden />
                                 ) : null}
@@ -2755,11 +2779,7 @@ export default function DashboardLayout() {
                                                         <item.icon className="h-4 w-4" strokeWidth={2} aria-hidden />
                                                       </span>
                                                       <span className="min-w-0 flex-1 truncate text-left">{item.label}</span>
-                                                      {item.to === '/notifications' && unreadCount > 0 && (
-                                                        <span className="ml-0.5 inline-flex h-3.5 min-w-[0.875rem] shrink-0 items-center justify-center rounded-full bg-red-500 px-1 text-xs font-bold text-white tabular-nums">
-                                                          {unreadCount > 99 ? '99+' : unreadCount}
-                                                        </span>
-                                                      )}
+                                                      <NavCountBadge count={getNavBadgeCount(item.to)} />
                                                     </span>
                                                   )
                                                 }}

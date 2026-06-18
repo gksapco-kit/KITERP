@@ -1,5 +1,6 @@
 import { useState, useCallback, useMemo, useEffect } from 'react'
 import { TableColumnLabel } from '@/components/common/FieldLabel'
+import { useStoreName } from '@/components/common/BusinessUnitSelect'
 import { useParams, useNavigate, useLocation } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { vendorApi } from '@/api/vendor'
@@ -162,6 +163,7 @@ export default function InvoiceDetail() {
   const isQuotation = isQuotationRoute || inv?.invoice_type === 'estimate'
   const listPath = isQuotation ? '/quotations' : '/invoices'
   const shareDocType = isQuotation ? 'quotation' as const : 'invoice' as const
+  const storeName = useStoreName((inv as { store_id?: string } | undefined)?.store_id)
 
   useEffect(() => {
     if (!inv || isLoading || !id) return
@@ -330,9 +332,14 @@ export default function InvoiceDetail() {
               <span className={`px-2.5 py-0.5 rounded-full text-xs font-medium ${tb.bg} ${tb.text}`}>{tb.label}</span>
               <span className={`px-2.5 py-0.5 rounded-full text-xs font-medium ${sb.bg} ${sb.text}`}>{sb.label}</span>
             </div>
-            {inv.financial_year && (
-              <p className="text-xs text-gray-400 mt-0.5">FY {inv.financial_year}</p>
-            )}
+            <div className="flex items-center gap-2 mt-0.5">
+              {inv.financial_year && (
+                <p className="text-xs text-gray-400">FY {inv.financial_year}</p>
+              )}
+              {storeName && (
+                <span className="inline-flex items-center gap-1 text-xs text-gray-500"><Building2 className="w-3 h-3" />{storeName}</span>
+              )}
+            </div>
           </div>
         </div>
         <div className="flex gap-2">

@@ -8,9 +8,13 @@ import { Input } from '@/components/ui/input'
 import { SmartLoginInput } from '@/components/ui/SmartLoginInput'
 import { useCustomerLogin } from '@/hooks/useStore'
 import { useVendor } from '@/contexts/VendorContext'
-import { imgUrl } from '@/lib/utils'
+import { imgUrl, cn } from '@/lib/utils'
 import { isValidEmailOrPhoneLogin } from '@/lib/loginIdentifier'
-import { Loader2, Store, ShieldCheck, Eye, EyeOff, MapPin, Star, Clock } from 'lucide-react'
+import { formatCustomerAuthError } from '@/lib/errorMessages'
+import {
+  Loader2, Store, ShieldCheck, Eye, EyeOff, MapPin, Star, Clock,
+  AlertCircle, ChevronLeft,
+} from 'lucide-react'
 import { useAuthStoreTheme } from './authStoreTheme'
 
 function customerLoginStorageKey(vendorId: string | undefined): string {
@@ -42,8 +46,7 @@ export default function Login() {
   const routeLocation = useLocation()
   const [showPw, setShowPw] = useState(false)
 
-  // Where to go after login — uses the ?from= query param or location state
-  const from = (routeLocation.state as any)?.from
+  const from = (routeLocation.state as { from?: string } | null)?.from
     ?? new URLSearchParams(routeLocation.search).get('from')
     ?? storePath('/')
 
@@ -82,32 +85,27 @@ export default function Login() {
     })
   }
 
-  // Store theme colors (Light/Dark preset from theme_config)
   const { primary, secondary, background, linkColor, btnText, panelGradient, fontFamily } = useAuthStoreTheme()
 
-  const city = vendor?.city
-  const state = vendor?.state
-  const location = [city, state].filter(Boolean).join(', ')
+  const location = [vendor?.city, vendor?.state].filter(Boolean).join(', ')
+  const authError = loginMut.isError ? formatCustomerAuthError(loginMut.error) : null
 
   return (
     <div
-      className="min-h-[calc(100vh-4rem)] flex items-center justify-center px-4 py-10"
+      className="min-h-[calc(100vh-4rem)] flex items-center justify-center px-4 py-8 sm:py-10"
       style={{ backgroundColor: background, fontFamily }}
     >
-      <div className="w-full max-w-4xl overflow-hidden rounded-3xl border border-black/5 bg-white shadow-[0_30px_80px_-30px_rgba(0,0,0,0.35)] flex flex-col md:flex-row animate-in fade-in zoom-in-95 duration-500">
+      <div className="w-full max-w-[920px] overflow-hidden rounded-2xl border border-gray-200/80 bg-white shadow-[0_24px_64px_-24px_rgba(15,23,42,0.28)] flex flex-col md:flex-row animate-in fade-in zoom-in-95 duration-500">
 
         {/* ── Left brand panel ── */}
         <div
-          className="relative flex flex-col items-center justify-center overflow-hidden p-10 md:w-[44%] shrink-0"
+          className="relative flex flex-col items-center justify-center overflow-hidden px-8 py-10 md:w-[42%] shrink-0 min-h-[220px] md:min-h-0"
           style={{ background: panelGradient }}
         >
-          {/* Layered decorative glows */}
           <div className="pointer-events-none absolute -top-20 -left-20 h-64 w-64 rounded-full bg-white/15 blur-2xl" />
           <div className="pointer-events-none absolute -bottom-24 -right-16 h-72 w-72 rounded-full bg-white/10 blur-2xl" />
-          <div className="pointer-events-none absolute top-1/2 -right-8 h-32 w-32 rounded-full bg-white/10" />
-          {/* Subtle grid texture */}
           <div
-            className="pointer-events-none absolute inset-0 opacity-[0.07]"
+            className="pointer-events-none absolute inset-0 opacity-[0.06]"
             style={{
               backgroundImage:
                 'linear-gradient(to right, white 1px, transparent 1px), linear-gradient(to bottom, white 1px, transparent 1px)',
@@ -115,70 +113,73 @@ export default function Login() {
             }}
           />
 
-          <div className="relative z-10 flex flex-col items-center gap-6 text-center">
-            {/* Logo */}
-            <div className="flex h-28 w-28 items-center justify-center rounded-3xl bg-white/15 shadow-2xl ring-1 ring-white/30 backdrop-blur-md">
+          <div className="relative z-10 flex flex-col items-center gap-5 text-center">
+            <div className="flex h-24 w-24 items-center justify-center rounded-2xl bg-white/15 shadow-xl ring-1 ring-white/25 backdrop-blur-sm">
               {vendor?.logo_url ? (
                 <img
                   src={imgUrl(vendor.logo_url)}
                   alt={vendor.display_name}
-                  className="h-24 w-24 rounded-2xl object-cover"
+                  className="h-20 w-20 rounded-xl object-cover"
                 />
               ) : (
-                <Store className="h-12 w-12 text-white" />
+                <Store className="h-10 w-10 text-white" />
               )}
             </div>
 
-            {/* Store name & description */}
             <div className="flex flex-col items-center">
-              <h1 className="text-2xl font-extrabold tracking-tight text-white">
+              <h1 className="text-xl sm:text-2xl font-extrabold tracking-tight text-white">
                 {vendor?.display_name || 'Our Store'}
               </h1>
-              <span className="mt-3 h-px w-12 rounded-full bg-white/40" />
               {vendor?.description && (
-                <p className="mt-3 line-clamp-3 max-w-[230px] text-sm leading-relaxed text-white/75">
+                <p className="mt-2 line-clamp-2 max-w-[240px] text-sm leading-relaxed text-white/75">
                   {vendor.description}
                 </p>
               )}
             </div>
 
-            {/* Location */}
             {location && (
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-white/15 px-3.5 py-1.5 text-xs font-medium text-white/85 ring-1 ring-white/20 backdrop-blur-sm">
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-white/12 px-3 py-1.5 text-xs font-medium text-white/90 ring-1 ring-white/20">
                 <MapPin className="h-3.5 w-3.5 shrink-0" />
                 {location}
               </span>
             )}
 
-            {/* Trust badges */}
-            <div className="mt-1 flex w-full max-w-[230px] flex-col gap-2">
+            <div className="hidden md:flex w-full max-w-[220px] flex-col gap-1.5">
               {[
                 { icon: ShieldCheck, label: 'Secure & private login' },
-                { icon: Star,        label: 'Trusted store' },
-                { icon: Clock,       label: 'Fast checkout' },
+                { icon: Star, label: 'Trusted store' },
+                { icon: Clock, label: 'Fast checkout' },
               ].map(({ icon: Icon, label }) => (
                 <div
                   key={label}
-                  className="flex items-center gap-2.5 rounded-xl bg-white/10 px-3 py-2 text-xs text-white/80 ring-1 ring-white/10 backdrop-blur-sm"
+                  className="flex items-center gap-2 rounded-lg bg-white/10 px-3 py-2 text-xs text-white/85 ring-1 ring-white/10"
                 >
-                  <Icon className="h-4 w-4 shrink-0" />
+                  <Icon className="h-3.5 w-3.5 shrink-0" />
                   <span className="font-medium">{label}</span>
                 </div>
               ))}
             </div>
           </div>
 
-          {/* Powered by */}
-          <p className="absolute bottom-4 text-xs text-white/55">Powered by KITERP</p>
+          <p className="absolute bottom-3 text-[11px] text-white/50">Powered by KITERP</p>
         </div>
 
         {/* ── Right form panel ── */}
-        <div className="flex flex-1 flex-col justify-center bg-white px-8 py-10 sm:px-10">
-          <div className="mx-auto w-full max-w-sm">
-            {/* Heading */}
-            <div className="mb-7">
-              <h2 className="text-3xl font-bold tracking-tight text-gray-900">Welcome back</h2>
-              <p className="mt-1.5 text-sm text-gray-500">
+        <div className="flex flex-1 flex-col bg-white px-6 py-8 sm:px-9 sm:py-9">
+          <div className="mx-auto w-full max-w-[340px] flex-1 flex flex-col">
+            <Link
+              to={storePath('/')}
+              className="mb-6 inline-flex items-center gap-1 text-sm font-medium text-gray-500 transition-colors hover:text-gray-800"
+            >
+              <ChevronLeft className="h-4 w-4" />
+              Back to store
+            </Link>
+
+            <div className="mb-6">
+              <h2 className="text-2xl sm:text-[1.65rem] font-bold tracking-tight text-gray-900">
+                Welcome back
+              </h2>
+              <p className="mt-1 text-sm text-gray-500">
                 Sign in to{' '}
                 <span className="font-semibold text-gray-700">
                   {vendor?.display_name || 'your account'}
@@ -186,11 +187,16 @@ export default function Login() {
               </p>
             </div>
 
-            {/* Error banner */}
-            {loginMut.isError && (
-              <div className="mb-4 rounded-xl border border-red-200 bg-red-50 px-3.5 py-2.5 text-sm text-red-800">
-                {(loginMut.error as { response?: { data?: { detail?: string } } })?.response?.data?.detail
-                  || 'Invalid credentials. Please try again.'}
+            {authError && (
+              <div
+                role="alert"
+                className="mb-5 flex gap-3 rounded-xl border border-red-200 bg-red-50 px-3.5 py-3 text-sm text-red-900"
+              >
+                <AlertCircle className="h-5 w-5 shrink-0 text-red-500 mt-0.5" />
+                <div>
+                  <p className="font-semibold text-red-800">Couldn&apos;t sign in</p>
+                  <p className="mt-0.5 text-red-700/90 leading-snug">{authError}</p>
+                </div>
               </div>
             )}
 
@@ -198,36 +204,34 @@ export default function Login() {
               id="storefront-login-form"
               autoComplete="on"
               onSubmit={handleSubmit(onSubmit)}
-              className="space-y-5"
+              className="space-y-1"
+              noValidate
             >
-              {/* Email or phone */}
-              <div>
-                <Controller
-                  name="login"
-                  control={control}
-                  render={({ field }) => (
-                    <SmartLoginInput
-                      fieldLabel="Email or Phone"
-                      value={field.value ?? ''}
-                      onChange={field.onChange}
-                      error={errors.login?.message as string | undefined}
-                      defaultCountryIso="IN"
-                      className="h-11 rounded-xl"
-                      inputId="login"
-                      name="login"
-                      autoComplete="username"
-                    />
-                  )}
-                />
-              </div>
+              <Controller
+                name="login"
+                control={control}
+                render={({ field }) => (
+                  <SmartLoginInput
+                    fieldLabel="Email or phone"
+                    value={field.value ?? ''}
+                    onChange={field.onChange}
+                    error={errors.login?.message}
+                    defaultCountryIso="IN"
+                    inputId="login"
+                    name="login"
+                    autoComplete="username"
+                  />
+                )}
+              />
 
-              {/* Password */}
-              <div>
-                <div className="mb-1.5 flex items-center justify-between">
-                  <label htmlFor="password" className="block text-sm font-medium text-gray-700">Password</label>
+              <div className="pt-1">
+                <div className="mb-1.5 flex items-center justify-between gap-2">
+                  <label htmlFor="password" className="text-sm font-medium text-gray-700">
+                    Password
+                  </label>
                   <Link
                     to={storePath('/forgot-password')}
-                    className="text-xs font-medium transition-colors hover:underline"
+                    className="text-xs font-semibold transition-colors hover:underline"
                     style={{ color: linkColor }}
                   >
                     Forgot password?
@@ -239,26 +243,30 @@ export default function Login() {
                     type={showPw ? 'text' : 'password'}
                     autoComplete="current-password"
                     placeholder="Enter your password"
-                    className="h-11 rounded-xl border-gray-300 pr-10"
+                    className={`h-11 rounded-xl border-gray-300 pr-11 ${
+                      errors.password ? 'border-red-400 focus-visible:ring-red-200' : ''
+                    }`}
                     {...register('password')}
                   />
                   <button
                     type="button"
-                    onClick={() => setShowPw((v) => !v)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 transition-colors hover:text-gray-600"
+                    onClick={() => setShowPw(v => !v)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 rounded-md p-0.5 text-gray-400 transition-colors hover:text-gray-600"
                     tabIndex={-1}
                     aria-label={showPw ? 'Hide password' : 'Show password'}
                   >
                     {showPw ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                   </button>
                 </div>
-                {errors.password && (
-                  <p className="mt-1 text-xs text-red-500">{errors.password.message as string}</p>
-                )}
+                <p className={cn(
+                  'mt-1 min-h-[1.125rem] text-xs leading-snug',
+                  errors.password ? 'text-red-600' : 'text-transparent',
+                )}>
+                  {errors.password?.message || '\u00a0'}
+                </p>
               </div>
 
-              {/* Remember me */}
-              <label className="flex cursor-pointer select-none items-center gap-2">
+              <label className="flex cursor-pointer select-none items-center gap-2.5 py-1">
                 <input
                   type="checkbox"
                   checked={rememberEmail}
@@ -269,21 +277,20 @@ export default function Login() {
                 <span className="text-sm text-gray-600">Remember my email on this device</span>
               </label>
 
-              {/* Submit */}
               <Button
                 type="submit"
-                className="min-h-12 w-full rounded-xl px-4 py-3 text-base font-bold shadow-lg shadow-black/5 transition-all hover:opacity-90 hover:shadow-xl active:scale-[0.99] sm:min-h-[3.25rem] sm:text-lg"
+                className="mt-4 min-h-12 w-full rounded-xl px-4 py-3 text-base font-bold shadow-md transition-all hover:opacity-95 hover:shadow-lg active:scale-[0.99]"
                 style={{ backgroundColor: primary, color: btnText }}
                 disabled={loginMut.isPending}
               >
                 {loginMut.isPending && (
                   <Loader2 className="mr-2 h-5 w-5 shrink-0 animate-spin" />
                 )}
-                Sign In
+                Sign in
               </Button>
             </form>
 
-            <p className="mt-6 border-t border-gray-100 pt-5 text-center text-sm leading-relaxed text-gray-500">
+            <p className="mt-6 text-center text-sm text-gray-500">
               New customer?{' '}
               <Link
                 to={storePath('/register')}
@@ -294,14 +301,12 @@ export default function Login() {
               </Link>
             </p>
 
-            {/* Security note */}
-            <div className="mt-6 flex items-center justify-center gap-1.5 text-xs text-gray-400">
+            <div className="mt-auto pt-6 flex items-center justify-center gap-1.5 text-xs text-gray-400">
               <ShieldCheck className="h-3.5 w-3.5" />
               <span>Secured by KITERP</span>
             </div>
           </div>
         </div>
-
       </div>
     </div>
   )

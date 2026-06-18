@@ -15,6 +15,8 @@ class Project(Base):
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     vendor_id = Column(UUID(as_uuid=True), ForeignKey("vendor.id", ondelete="CASCADE"), nullable=False, index=True)
+    # Business unit (store) this project belongs to.
+    store_id = Column(UUID(as_uuid=True), ForeignKey("store.id", ondelete="SET NULL"), nullable=True, index=True)
 
     project_number = Column(String(20), nullable=False, index=True)
     name = Column(String(255), nullable=False)
@@ -44,6 +46,8 @@ class Project(Base):
 
     tags = Column(JSONB, default=list)
     milestones = Column(JSONB, default=list)
+    # Catalog products/services associated with this project (scoped to store_id's BU).
+    items = Column(JSONB, default=list)
 
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())

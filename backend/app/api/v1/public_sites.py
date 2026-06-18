@@ -182,9 +182,14 @@ def _store_specific_template_id(
     return _settings_str(store_settings, "front_template_id")
 
 
+def _site_scope(site: WebsiteSite) -> str:
+    """Normalised `website_store_scope` for a site: ``store`` | ``all`` | ``external`` | ``""``."""
+    return str((site.style_config or {}).get("website_store_scope") or "").strip().lower()
+
+
 def _site_is_store_scoped(site: WebsiteSite) -> bool:
     sc = site.style_config or {}
-    return sc.get("website_store_scope") == "store" and bool(sc.get("website_store_id"))
+    return _site_scope(site) == "store" and bool(sc.get("website_store_id"))
 
 
 async def _resolve_site_by_subdomain(
@@ -229,6 +234,23 @@ async def _resolve_site_by_subdomain(
                 return s
         return None
 
+    def _shared_default_site() -> Optional[WebsiteSite]:
+        """
+        The shared/global customer storefront site.
+
+        Never an `external` site (marketing/portfolio sites live on their own
+        custom domain and are "not tied to a store", so they must not hijack the
+        customer store subdomain). Only a non store-scoped ("all stores"/legacy)
+        site qualifies, so a store-specific site never leaks onto the shared URL.
+        """
+        return next(
+            (
+                s for s in sites
+                if _site_scope(s) != "external" and not _site_is_store_scoped(s)
+            ),
+            None,
+        )
+
     branch_key = (branch or "").strip().lower()
     if branch_key:
         store_res = await db.execute(select(Store).where(Store.vendor_id == vendor.id))
@@ -252,12 +274,22 @@ async def _resolve_site_by_subdomain(
             # No per-store builder site: honour the vendor-wide template fallback.
             if _resolve_effective_template_id(vendor.settings, store.settings):
                 return None
-            # Nothing assigned for this branch → fall through to the vendor default.
+            # Nothing assigned for this branch → use the shared/global default.
+            # Never serve a *different* store's store-scoped site for this
+            # branch; only an "all stores" (or legacy) site may stand in.
+            return _shared_default_site()
 
-    # Vendor default: prefer a site that is NOT scoped to a single store so a
-    # store-specific site never leaks onto the shared/global URL.
-    non_scoped = next((s for s in sites if not _site_is_store_scoped(s)), None)
-    return non_scoped or sites[0]
+    # No branch (or an unknown branch): the shared/global customer storefront.
+    shared = _shared_default_site()
+    if shared is not None:
+        return shared
+    # Single-store vendors only ever have a store-scoped site — still serve it
+    # on the bare URL. If only external sites exist, return None so the
+    # catalog/legacy renderer takes over.
+    return next(
+        (s for s in sites if _site_scope(s) != "external" and _site_is_store_scoped(s)),
+        None,
+    )
 
 
 async def _load_site_full(site_id: str, db: AsyncSession) -> Optional[WebsiteSite]:
@@ -1362,10 +1394,13 @@ async def place_storefront_order(
     }
 
     # 4. Persist order
+    from app.services.store_resolver import resolve_store_id as _resolve_txn_store_id
+    sf_store_id = await _resolve_txn_store_id(db, vendor_id)
     order = Order(
         order_number=order_number,
         vendor_id=vendor_id,
         customer_id=customer.id,
+        store_id=sf_store_id,
         items=items_snapshot,
         item_count=sum(i.quantity for i in body.items),
         subtotal=subtotal,

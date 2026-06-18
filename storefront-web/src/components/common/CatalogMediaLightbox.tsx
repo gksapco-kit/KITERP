@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { createPortal } from 'react-dom'
 import {
   Box,
   Check,
@@ -251,10 +252,10 @@ export function CatalogMediaLightbox({
     )
   }
 
-  return (
+  return createPortal(
     <>
       <div
-        className="fixed inset-0 z-[60] flex flex-col bg-black/85"
+        className="fixed inset-0 z-[200] flex flex-col bg-black/90"
         role="dialog"
         aria-modal="true"
         aria-label="Media preview"
@@ -395,7 +396,8 @@ export function CatalogMediaLightbox({
           )}
         </div>
       </div>
-    </>
+    </>,
+    document.body,
   )
 }
 

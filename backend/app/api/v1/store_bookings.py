@@ -90,10 +90,13 @@ async def create_booking(
         slot_label = booking.booking_date.strftime("%d %b %Y")
         if booking.start_time:
             slot_label += f" {booking.start_time.strftime('%H:%M')}"
+        from app.services.store_resolver import resolve_store_id as _resolve_txn_store_id
+        bk_store_id = await _resolve_txn_store_id(db, vendor_id)
         order = Order(
             order_number=order_number,
             vendor_id=vendor_id,
             customer_id=customer.id,
+            store_id=bk_store_id,
             items=[{
                 "service_id": str(booking.service_id) if booking.service_id else None,
                 "name": booking.service_name or "Service",

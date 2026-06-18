@@ -1,6 +1,7 @@
 import { useMemo, useState, useCallback } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { Card, CardContent } from '@/components/ui/card'
+import { useStoreName } from '@/components/common/BusinessUnitSelect'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -239,6 +240,7 @@ function KanbanColumn({
 export default function ProjectDetailPage() {
   const { id } = useParams<{ id: string }>()
   const { data: project, isLoading: projectLoading } = useProject(id)
+  const storeName = useStoreName(project?.store_id)
   const { data: tasks = [], isLoading: tasksLoading } = useProjectTasks(id)
   const updateProject = useUpdateProject()
   const createTask = useCreateProjectTask(id!)
@@ -507,6 +509,7 @@ export default function ProjectDetailPage() {
                   <p className="text-sm text-muted-foreground mt-2 max-w-2xl">{project.description}</p>
                 )}
                 <div className="flex flex-wrap gap-4 mt-3 text-xs text-muted-foreground">
+                  {storeName && <span>Business unit: {storeName}</span>}
                   {project.start_date && <span>Start: {formatDate(project.start_date)}</span>}
                   {project.end_date && <span>End: {formatDate(project.end_date)}</span>}
                   {project.due_date && <span>Due: {formatDate(project.due_date)}</span>}
@@ -526,6 +529,19 @@ export default function ProjectDetailPage() {
                   )}
                   {project.owner_name && <span>Owner: {project.owner_name}</span>}
                 </div>
+                {project.items && project.items.length > 0 && (
+                  <div className="mt-3">
+                    <p className="text-xs font-medium text-muted-foreground mb-1">Products & services</p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {project.items.map((it) => (
+                        <span key={it.id} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-muted text-xs text-foreground">
+                          {it.name}
+                          <span className="text-muted-foreground">· {it.item_type}</span>
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             )}
             {!editing && (

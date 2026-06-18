@@ -8,8 +8,18 @@ from uuid import UUID
 import math
 
 from app.database import get_db
-from app.api.deps import get_current_active_user, require_permission
+from app.api.deps import (
+    get_current_active_user,
+    get_current_vendor_user,
+    normalized_vendor_role,
+    require_permission,
+)
 from app.models.vendor_user import VendorUser
+from app.services.store_resolver import get_default_store_id
+
+# Vendor-wide ("all stores") roles fall back to the default business unit when
+# they have no explicit store assignment, instead of being blocked from the POS.
+_ALL_STORE_ROLES = ("owner", "admin")
 from app.models.user import User
 from app.services.vendor_service import VendorService
 from app.services.pos_service import POSService
@@ -51,9 +61,72 @@ async def _vendor_id(current_user: User = Depends(get_current_active_user), db: 
     return vendor.id
 
 
+async def _compute_locked_store_id(vu: VendorUser, db: AsyncSession) -> UUID:
+    """The business unit the current cashier is locked to.
+
+    Staff are locked to their assigned store. Owners/admins (vendor-wide roles)
+    with no explicit assignment fall back to the vendor's default business unit.
+    Everyone else is blocked until an admin assigns them to a store."""
+    store_id = getattr(vu, "store_id", None)
+    if store_id:
+        return store_id
+
+    if normalized_vendor_role(vu) in _ALL_STORE_ROLES:
+        default_store = await get_default_store_id(db, vu.vendor_id)
+        if default_store:
+            return default_store
+        raise HTTPException(
+            404,
+            "No business unit found. Create a business unit before using the POS.",
+        )
+
+    raise HTTPException(
+        403,
+        "You are not assigned to a business unit. Ask an admin to assign you "
+        "to a store before using the POS.",
+    )
+
+
+async def _locked_store_id(
+    vu: VendorUser = Depends(get_current_vendor_user),
+    db: AsyncSession = Depends(get_db),
+) -> UUID:
+    return await _compute_locked_store_id(vu, db)
+
+
+async def _resolve_request_store_id(
+    vu: VendorUser, db: AsyncSession, requested: Optional[UUID | str],
+) -> UUID:
+    """Resolve the store for a request, allowing privileged roles to override.
+
+    Owners/admins may target any active store of the vendor (used by the
+    memo BU selector). Staff stay locked to their assigned store.
+    """
+    locked = await _compute_locked_store_id(vu, db)
+    if not requested:
+        return locked
+    try:
+        requested_uuid = requested if isinstance(requested, UUID) else UUID(str(requested))
+    except (ValueError, TypeError):
+        return locked
+    if requested_uuid == locked:
+        return locked
+    if normalized_vendor_role(vu) in _ALL_STORE_ROLES:
+        from sqlalchemy import select
+        from app.models.store import Store
+        row = await db.execute(
+            select(Store.id).where(Store.id == requested_uuid, Store.vendor_id == vu.vendor_id)
+        )
+        if row.scalars().first():
+            return requested_uuid
+    return locked
+
+
 def _session_dict(s) -> dict:
     return {
-        "id": str(s.id), "vendor_id": str(s.vendor_id), "opened_by": str(s.opened_by),
+        "id": str(s.id), "vendor_id": str(s.vendor_id),
+        "store_id": str(s.store_id) if getattr(s, "store_id", None) else None,
+        "opened_by": str(s.opened_by),
         "closed_by": str(s.closed_by) if s.closed_by else None,
         "session_date": str(s.session_date), "opening_cash": float(s.opening_cash or 0),
         "closing_cash": float(s.closing_cash) if s.closing_cash is not None else None,
@@ -71,6 +144,7 @@ def _session_dict(s) -> dict:
 def _txn_dict(t, *, order_number: str = None, invoice_number: str = None, invoice_id: str = None) -> dict:
     d = {
         "id": str(t.id), "vendor_id": str(t.vendor_id), "session_id": str(t.session_id),
+        "store_id": str(t.store_id) if getattr(t, "store_id", None) else None,
         "cashier_id": str(t.cashier_id),
         "customer_id": str(t.customer_id) if t.customer_id else None,
         "transaction_number": t.transaction_number, "transaction_type": t.transaction_type,
@@ -115,8 +189,9 @@ async def open_session(
     db: AsyncSession = Depends(get_db),
 ):
     svc = POSService(db)
+    store_id = await _resolve_request_store_id(_perm, db, data.store_id)
     try:
-        s = await svc.open_session(vid, user.id, data.opening_cash, data.notes)
+        s = await svc.open_session(vid, user.id, store_id, data.opening_cash, data.notes)
         return JSONResponse(content=_session_dict(s), status_code=201)
     except ValueError as e:
         raise HTTPException(400, str(e))
@@ -153,18 +228,31 @@ async def close_session(
 
 
 @router.get("/sessions/current")
-async def get_current_session(vid: UUID = Depends(_vendor_id), db: AsyncSession = Depends(get_db)):
+async def get_current_session(
+    store_id: Optional[str] = Query(None),
+    vu: VendorUser = Depends(get_current_vendor_user),
+    vid: UUID = Depends(_vendor_id),
+    db: AsyncSession = Depends(get_db),
+):
     svc = POSService(db)
-    s = await svc.get_open_session(vid)
+    resolved_store = await _resolve_request_store_id(vu, db, store_id)
+    s = await svc.get_open_session(vid, resolved_store)
     if not s:
         return JSONResponse(content={"session": None})
     return JSONResponse(content={"session": _session_dict(s)})
 
 
 @router.get("/sessions")
-async def list_sessions(status: str = None, page: int = Query(1, ge=1), size: int = Query(20, ge=1, le=100), vid: UUID = Depends(_vendor_id), db: AsyncSession = Depends(get_db)):
+async def list_sessions(
+    status: str = None,
+    page: int = Query(1, ge=1),
+    size: int = Query(20, ge=1, le=100),
+    vid: UUID = Depends(_vendor_id),
+    store_id: UUID = Depends(_locked_store_id),
+    db: AsyncSession = Depends(get_db),
+):
     svc = POSService(db)
-    items, total = await svc.get_sessions(vid, status, page, size)
+    items, total = await svc.get_sessions(vid, status, page, size, store_id=store_id)
     return JSONResponse(content={"items": [_session_dict(s) for s in items], "total": total, "page": page, "size": size, "pages": math.ceil(total / size) if total else 0})
 
 
@@ -179,11 +267,13 @@ async def create_transaction(
     db: AsyncSession = Depends(get_db),
 ):
     svc = POSService(db)
+    store_id = await _resolve_request_store_id(_perm, db, data.store_id)
     try:
         items = [i.model_dump() for i in data.items]
         payments = [p.model_dump() for p in data.payment_methods]
         result = await svc.create_transaction(
             vendor_id=vid, session_id=UUID(data.session_id), cashier_id=user.id,
+            store_id=store_id,
             items=items, payment_methods=payments,
             customer_id=UUID(data.customer_id) if data.customer_id else None,
             transaction_type=data.transaction_type.value,
@@ -232,6 +322,7 @@ def _txn_history_row(t, customer_name, order_number, invoice_number) -> dict:
     primary = pms[0].get("method") if pms else None
     return {
         "id": str(t.id),
+        "store_id": str(t.store_id) if getattr(t, "store_id", None) else None,
         "transaction_number": t.transaction_number,
         "order_number": order_number or t.transaction_number,
         "transaction_type": t.transaction_type or "sale",
@@ -267,14 +358,18 @@ async def list_vendor_transactions(
     search: Optional[str] = Query(None),
     transaction_type: Optional[str] = Query(None),
     include_voided: bool = Query(False),
+    store_id: Optional[str] = Query(None),
+    vu: VendorUser = Depends(get_current_vendor_user),
     vid: UUID = Depends(_vendor_id),
     db: AsyncSession = Depends(get_db),
 ):
     svc = POSService(db)
+    store_id = await _resolve_request_store_id(vu, db, store_id)
     skip = (page - 1) * size
     rows, total = await svc.list_vendor_transactions(
         vid, skip=skip, limit=size, search=search,
         transaction_type=transaction_type, include_voided=include_voided,
+        store_id=store_id,
     )
     items = [_txn_history_row(t, cname, onum, inum) for t, cname, onum, inum in rows]
     return JSONResponse(

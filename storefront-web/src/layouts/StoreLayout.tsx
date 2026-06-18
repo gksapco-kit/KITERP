@@ -3,7 +3,7 @@ import { cn, imgUrl } from '@/lib/utils'
 import {
   Store, AlertTriangle, Loader2,
   Phone, Mail, Clock, Facebook, Instagram, Twitter, Youtube, Globe,
-  ArrowUp, Search, User, ChevronDown, Package, LogOut, ShoppingCart, MapPin,
+  ArrowUp, Search, User, ChevronDown, Package, LogOut, ShoppingCart, MapPin, Home,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useCart, useCustomerLogout, useCustomerMe } from '@/hooks/useStore'
@@ -13,17 +13,16 @@ import { useCartStore, selectCartItemCount } from '@/stores/cartStore'
 import { VendorProvider, useVendor } from '@/contexts/VendorContext'
 import { ThemeProvider, useTheme } from '@/contexts/ThemeContext'
 import { BuilderSiteProvider, useBuilderSite } from '@/contexts/BuilderSiteContext'
-import { getWbCatalogTemplateId } from '@/storefront/catalogTemplateIds'
-import { useAssignedStorefrontTemplateId } from '@/hooks/useAssignedStorefrontTemplateId'
+import { useAssignedStorefrontTemplateId, useStoreSpecificAssignedTemplateId } from '@/hooks/useAssignedStorefrontTemplateId'
+import { shouldHideStoreLayoutChrome } from '@/lib/storefrontLayoutChrome'
 import { useStorefrontHeaderNav } from '@/hooks/useStorefrontHeaderNav'
-import { isDefaultLayoutTemplateId, isWebsiteBuilderBlockTemplateId, resolveLiveCatalogTemplateId } from '@/lib/storefrontTemplateAssignment'
 import { useState, useRef, useEffect } from 'react'
 import CrmChatWidget from '@/components/CrmChatWidget'
 import { CustomerNotificationsBell } from '@/components/CustomerNotificationsBell'
 import { useJourneyBeacon } from '@/hooks/useJourneyBeacon'
 import { BranchProvider, useBranch } from '@/contexts/BranchContext'
 import { useEffectiveVendor } from '@/hooks/useEffectiveVendor'
-import { notifyDraftPreviewParentRoute, rememberDraftEmbedPreviewToken, recallDraftEmbedPreviewToken, storefrontPathToDraftEmbedRoute } from '@/lib/draftEmbedPreview'
+import { notifyDraftPreviewParentRoute, notifyDraftPreviewHome, rememberDraftEmbedPreviewToken, recallDraftEmbedPreviewToken, storefrontPathToDraftEmbedRoute } from '@/lib/draftEmbedPreview'
 import { buildDraftCatalogEmbedStorePath, isDraftCatalogEmbedPath } from '@/lib/draftCatalogEmbed'
 import { StoreBranchPicker } from '@/components/store/StoreBranchPicker'
 
@@ -397,6 +396,34 @@ function FooterFull({ vendor, storePath, theme }: { vendor: any; storePath: (p: 
   )
 }
 
+// ── Draft catalog embed chrome ────────────────────────────────────────────────
+
+function DraftEmbedHomeBar({
+  homePath,
+}: {
+  homePath: string
+}) {
+  const inPreviewIframe = typeof window !== 'undefined' && window.parent !== window
+
+  return (
+    <div className="sticky top-0 z-50 flex shrink-0 items-center gap-2 border-b border-gray-200 bg-white/95 px-3 py-2 shadow-sm backdrop-blur-sm">
+      <Link
+        to={homePath}
+        onClick={(e) => {
+          if (inPreviewIframe) {
+            e.preventDefault()
+            notifyDraftPreviewHome()
+          }
+        }}
+        className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-semibold text-gray-800 hover:bg-gray-100 transition-colors"
+      >
+        <Home className="h-4 w-4" aria-hidden />
+        Home
+      </Link>
+    </div>
+  )
+}
+
 // ── Main StoreContent ─────────────────────────────────────────────────────────
 
 function StoreContent() {
@@ -415,6 +442,7 @@ function StoreContent() {
   const vendor = useEffectiveVendor()
   const { storePath } = useBranch()
   const assignedTemplateId = useAssignedStorefrontTemplateId()
+  const storeSpecificTemplateId = useStoreSpecificAssignedTemplateId()
   const { isAuthenticated, customer } = useAuthStore()
   const cartCount = useCartStore(selectCartItemCount)
   const logout = useCustomerLogout()
@@ -517,49 +545,26 @@ function StoreContent() {
     )
   }
 
-  const wbCatalogTemplateId = getWbCatalogTemplateId(builderSite?.style_config as Record<string, unknown> | undefined)
-  const catalogTemplateId =
-    assignedTemplateId && isDefaultLayoutTemplateId(assignedTemplateId)
-      ? null
-      : resolveLiveCatalogTemplateId(assignedTemplateId, wbCatalogTemplateId)
-  const usesAssignedLegacyHome = Boolean(
-    assignedTemplateId && isDefaultLayoutTemplateId(assignedTemplateId),
-  )
-  const usesAssignedBlockTemplate = Boolean(
-    assignedTemplateId && isWebsiteBuilderBlockTemplateId(assignedTemplateId),
-  )
-
-  const isStoreHome =
-    !!vendorSlug &&
-    (pathname === `/store/${vendorSlug}` || pathname === `/store/${vendorSlug}/`)
   const isBuilderPreview =
     !!vendorSlug &&
     (pathname === `/store/${vendorSlug}/preview` || pathname.startsWith(`/store/${vendorSlug}/preview/`))
+
+  const hideStoreChrome = shouldHideStoreLayoutChrome({
+    pathname,
+    storePath,
+    vendorSlug,
+    builderSite,
+    assignedTemplateId,
+    storeSpecificTemplateId,
+    isBuilderPreview,
+    draftCatalogEmbed,
+  })
 
   const headerStyle = theme.header_style || 'classic'
   const stickyHeader = theme.sticky_header !== false
   const showSearch = theme.show_search !== false
   const footerStyle = theme.footer_style || 'standard'
   const count = cartCount
-
-  const builderHomePage = builderSite?.pages?.find(p => p.is_homepage) || builderSite?.pages?.[0]
-  const hasSavedBuilderBlocks = Boolean(builderHomePage?.blocks?.length)
-  const catalogHomeLayout = Boolean(
-    catalogTemplateId &&
-      isStoreHome &&
-      builderSite &&
-      !hasSavedBuilderBlocks &&
-      !usesAssignedLegacyHome &&
-      !usesAssignedBlockTemplate,
-  )
-  const builderOwnedLayout = Boolean(builderSite && isStoreHome && hasSavedBuilderBlocks)
-  const assignedTemplateShellHome = Boolean(
-    assignedTemplateId && isStoreHome && !isDefaultLayoutTemplateId(assignedTemplateId),
-  )
-
-  // ─────────────────────────────────────────────────────────────────────────────
-  // HEADER — UnifiedNav from kit
-  // ─────────────────────────────────────────────────────────────────────────────
 
   const kitNavVariant =
     headerStyle === 'transparent' ? 'transparent'
@@ -633,9 +638,17 @@ function StoreContent() {
     )
   }
 
-  if (catalogHomeLayout || builderOwnedLayout || assignedTemplateShellHome || isBuilderPreview || draftCatalogEmbed) {
+  if (hideStoreChrome) {
+    const previewToken = searchParams.get('preview_token')?.trim() || recallDraftEmbedPreviewToken()
+    const draftEmbedHomePath = vendorSlug && previewToken
+      ? `/store/${encodeURIComponent(vendorSlug)}?preview_token=${encodeURIComponent(previewToken)}`
+      : storePath('/')
+
     return (
       <div className="min-h-screen flex flex-col" style={{ backgroundColor: theme.colors.background, fontFamily: theme.font_body || theme.font }}>
+        {draftCatalogEmbed && (
+          <DraftEmbedHomeBar homePath={draftEmbedHomePath} />
+        )}
         <main className="flex-1">
           <Outlet />
         </main>

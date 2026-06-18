@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useMemo, useLayoutEffect } from 'react'
 import { TableColumnLabel } from '@/components/common/FieldLabel'
+import { BusinessUnitSelect } from '@/components/common/BusinessUnitSelect'
 import { useEscapeToClose } from '@/hooks/useEscapeToClose'
 import { createPortal } from 'react-dom'
 import { ResizableTable } from '@/components/table/ResizableTable'
@@ -8,7 +9,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { useProducts, useServices, useCreateCustomer, vendorKeys } from '@/hooks/useVendor'
+import { useProducts, useServices, useCreateCustomer, vendorKeys, useMyMembership } from '@/hooks/useVendor'
 import { useCompanies, useFiscalYears, usePeriods } from '@/hooks/useFinance'
 import type { Company } from '@/types/finance'
 import { PhoneInput } from '@/components/ui/PhoneInput'
@@ -201,6 +202,7 @@ export default function CreditDebitMemos() {
   const [histSortKey, setHistSortKey] = useState('created_at')
   const [histSortDir, setHistSortDir] = useState<SortDir>('desc')
   const [histTypeFilter, setHistTypeFilter] = useState<string>('')
+  const [histStoreFilter, setHistStoreFilter] = useState('')
   const [includeVoided, setIncludeVoided] = useState(false)
   const [editingMemoId, setEditingMemoId] = useState<string | null>(null)
   const [memoRowBusyId, setMemoRowBusyId] = useState<string | null>(null)
@@ -211,18 +213,30 @@ export default function CreditDebitMemos() {
   const [session, setSession] = useState<Record<string, unknown> | null>(null)
   const [sessionLoading, setSessionLoading] = useState(true)
 
+  // Business unit (catalog store) the memo is posted to / scoped by.
+  const { data: myMembership } = useMyMembership()
+  const [memoStoreId, setMemoStoreId] = useState('')
+  const isStoreLocked = !(myMembership?.role === 'owner' || myMembership?.role === 'admin')
+
+  // Default to the user's effective/assigned store once membership loads.
   useEffect(() => {
-    vendorApi.posGetCurrentSession().then((data) => {
+    const eff = myMembership?.effective_store_id ?? myMembership?.store_id ?? ''
+    if (eff && !memoStoreId) setMemoStoreId(eff)
+  }, [myMembership, memoStoreId])
+
+  useEffect(() => {
+    setSessionLoading(true)
+    vendorApi.posGetCurrentSession(memoStoreId ? { store_id: memoStoreId } : undefined).then((data) => {
       setSession(data.session)
       setSessionLoading(false)
     }).catch(() => setSessionLoading(false))
-  }, [])
+  }, [memoStoreId])
 
   const { data: memosData, isLoading: memosLoading } = useQuery({
     queryKey: [
       ...vendorKeys.all,
       'memos',
-      { page: histPage, size: histPageSize, search: histSearch, type: histTypeFilter, includeVoided },
+      { page: histPage, size: histPageSize, search: histSearch, type: histTypeFilter, includeVoided, store: histStoreFilter },
     ],
     queryFn: () => {
       const transactionType = histTypeFilter || 'credit_memo,debit_memo'
@@ -232,6 +246,7 @@ export default function CreditDebitMemos() {
         search: histSearch.trim() || undefined,
         transaction_type: transactionType,
         include_voided: includeVoided,
+        store_id: histStoreFilter || undefined,
       })
     },
   })
@@ -257,13 +272,13 @@ export default function CreditDebitMemos() {
 
   const totalHistPages = Math.max(1, Math.ceil((memosData?.total || 0) / histPageSize))
 
-  const { data: productsData } = useProducts({ size: 500, status: 'active', search: search || undefined })
-  const { data: servicesData } = useServices({ size: 500, status: 'active', search: search || undefined })
+  const { data: productsData } = useProducts({ size: 500, status: 'active', search: search || undefined, store_id: memoStoreId || undefined })
+  const { data: servicesData } = useServices({ size: 500, status: 'active', search: search || undefined, store_id: memoStoreId || undefined })
   const products = productsData?.items || []
   const services = servicesData?.items || []
 
-  const { data: allProductsData } = useProducts({ size: 500, status: 'active' })
-  const { data: allServicesData } = useServices({ size: 500, status: 'active' })
+  const { data: allProductsData } = useProducts({ size: 500, status: 'active', store_id: memoStoreId || undefined })
+  const { data: allServicesData } = useServices({ size: 500, status: 'active', store_id: memoStoreId || undefined })
   const allProductsList = allProductsData?.items || []
   const allServicesList = allServicesData?.items || []
 
@@ -815,6 +830,7 @@ export default function CreditDebitMemos() {
               <option value="credit_memo">Credit Memos</option>
               <option value="debit_memo">Debit Memos</option>
             </select>
+            <div className="w-48"><BusinessUnitSelect value={histStoreFilter} onChange={(id) => { setHistStoreFilter(id); setHistPage(1) }} allowAll autoSelectDefault={false} disabled={isStoreLocked} /></div>
             <label className="flex items-center gap-2 text-xs text-gray-600 cursor-pointer select-none">
               <input
                 type="checkbox"
@@ -1018,6 +1034,22 @@ export default function CreditDebitMemos() {
               >
                 <FileMinus className="w-4 h-4" /> Debit
               </button>
+            </div>
+
+            <div className="mt-5 rounded-xl border border-slate-200/90 bg-white p-4 sm:p-5">
+              <p className="text-[0.65rem] font-bold uppercase tracking-[0.12em] text-slate-500">Business unit (catalog)</p>
+              <p className="text-xs text-slate-500 mt-1 mb-3 max-w-3xl">
+                {isStoreLocked
+                  ? 'Products and services are restricted to your assigned business unit.'
+                  : 'Choose the business unit to post this memo to. Only its products and services can be added.'}
+              </p>
+              <div className="max-w-sm">
+                <BusinessUnitSelect
+                  value={memoStoreId}
+                  onChange={(id) => { setMemoStoreId(id); setCart([]) }}
+                  disabled={isStoreLocked}
+                />
+              </div>
             </div>
 
             <div className="mt-5 rounded-xl border border-slate-200/90 bg-slate-50/50 p-4 sm:p-5">
@@ -1730,6 +1762,7 @@ export default function CreditDebitMemos() {
         <MemoPaymentModal
           total={grandTotal}
           sessionId={session?.id as string | undefined}
+          storeId={memoStoreId || undefined}
           editTxnId={editingMemoId}
           cart={cart}
           discountType={discountType}
@@ -1764,9 +1797,10 @@ export default function CreditDebitMemos() {
 // ── Payment Modal ────────────────────────────────────────────────
 
 function MemoPaymentModal({
- total, sessionId, editTxnId, cart, discountType, discountValue, memoMode, originalTxnId, selectedCustomer, notes, onClose, onComplete }: {
+ total, sessionId, storeId, editTxnId, cart, discountType, discountValue, memoMode, originalTxnId, selectedCustomer, notes, onClose, onComplete }: {
   total: number
   sessionId?: string
+  storeId?: string
   editTxnId: string | null
   cart: MemoItem[]; discountType: string; discountValue: number
   memoMode: MemoMode; originalTxnId?: string; selectedCustomer?: { id: string; full_name: string } | null
@@ -1824,6 +1858,7 @@ function MemoPaymentModal({
       }
       const result = await vendorApi.posCreateTransaction({
         session_id: sessionId as string,
+        store_id: storeId || undefined,
         transaction_type: memoMode,
         customer_id: selectedCustomer?.id || undefined,
         items: buildItems(),

@@ -2,7 +2,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { Check, ExternalLink, Store } from 'lucide-react'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
-import { templateBadgeEmeraldClass, templateBadgeVioletClass, templateCardActionBtnClass, templateCardBodyClass, templateCardMediaHeightClass, templateCardPreviewOverlayClass, templateCardShellClass } from '@/lib/websiteTemplateBadges'
+import { templateBadgeEmeraldClass, templateBadgeVioletClass, templateCardActionBtnClass, templateCardBodyClass, templateCardCurrentForStoreRibbonClass, templateCardMediaHeightClass, templateCardPreviewOverlayClass, templateCardShellClass, perStoreTemplateActionLabel } from '@/lib/websiteTemplateBadges'
 import type { AppliedTemplateViewLiveLink } from '@/lib/liveStorefrontUrl'
 import { AppliedTemplateViewLiveButton } from '@/components/websites/AppliedTemplateViewLiveButton'
 import { vendorApi } from '@/api/vendor'
@@ -28,6 +28,9 @@ type Props = {
   perStoreTemplateMode?: boolean
   perStoreUsedCount?: number
   assignedStoreNames?: string[]
+  assignedStoreCodes?: string[]
+  contextStoreCode?: string | null
+  assignedToContextStore?: boolean
   onApplyForStore?: (templateId: string) => void
   applyForStorePending?: boolean
   viewLiveLinks?: AppliedTemplateViewLiveLink[]
@@ -47,6 +50,9 @@ export function BusinessFrontDefaultTemplateCard({
   perStoreTemplateMode,
   perStoreUsedCount,
   assignedStoreNames = [],
+  assignedStoreCodes = [],
+  contextStoreCode,
+  assignedToContextStore = false,
   onApplyForStore,
   applyForStorePending,
   viewLiveLinks = [],
@@ -70,6 +76,10 @@ export function BusinessFrontDefaultTemplateCard({
     onError: () => toast.error('Could not apply theme preset'),
   })
 
+  const perStoreHighlight = perStoreTemplateMode && contextStoreCode
+    ? assignedToContextStore
+    : (perStoreUsedCount ?? 0) > 0
+
   return (
     <div
       title={storeUrl ? (live ? `Click to view live ${preset.name}` : `Click to open ${preset.name} store`) : undefined}
@@ -80,9 +90,16 @@ export function BusinessFrontDefaultTemplateCard({
       className={cn(
         templateCardShellClass,
         live && 'border-primary ring-2 ring-primary/20',
+        perStoreTemplateMode && perStoreHighlight && 'border-emerald-500 bg-emerald-50/30 ring-2 ring-emerald-300/80',
       )}
+      data-current-for-selected-store={perStoreTemplateMode && assignedToContextStore ? 'true' : undefined}
     >
       <div className="relative overflow-hidden">
+        {perStoreTemplateMode && assignedToContextStore && contextStoreCode ? (
+          <span className={templateCardCurrentForStoreRibbonClass}>
+            Current for {contextStoreCode}
+          </span>
+        ) : null}
         <div
           className={cn(templateCardMediaHeightClass, 'w-full transition-transform duration-300 group-hover/card:scale-[1.03]')}
           style={{
@@ -126,10 +143,16 @@ export function BusinessFrontDefaultTemplateCard({
           {perStoreTemplateMode && (perStoreUsedCount ?? 0) > 0 && (
             <span
               className={cn('shrink min-w-0', templateBadgeEmeraldClass)}
-              title={assignedStoreNames.join(', ')}
+              title={assignedStoreCodes.length
+                ? assignedStoreCodes.join(', ')
+                : assignedStoreNames.join(', ')}
             >
               <span className="truncate">
-                {(perStoreUsedCount ?? 0) === 1 ? assignedStoreNames[0] : `${perStoreUsedCount} BUs / Stores`}
+                {assignedToContextStore && contextStoreCode
+                  ? contextStoreCode
+                  : (perStoreUsedCount ?? 0) === 1
+                    ? (assignedStoreCodes[0] ?? assignedStoreNames[0])
+                    : `${perStoreUsedCount} BUs / Stores`}
               </span>
             </span>
           )}
@@ -150,7 +173,22 @@ export function BusinessFrontDefaultTemplateCard({
         <div className="flex items-start justify-between gap-2">
           <div className="min-w-0 truncate text-sm font-extrabold text-gray-900 transition-colors group-hover/card:text-primary">{preset.name}</div>
           {(singleTemplateMode || perStoreTemplateMode) ? (() => {
-            const applied = singleTemplateMode ? Boolean(isSingleTemplateSelected) : (perStoreUsedCount ?? 0) > 0
+            const applied = singleTemplateMode
+              ? Boolean(isSingleTemplateSelected)
+              : contextStoreCode
+                ? assignedToContextStore
+                : (perStoreUsedCount ?? 0) > 0
+            const perStoreLabel = contextStoreCode
+              ? assignedToContextStore
+                ? `Live · ${contextStoreCode}`
+                : (perStoreUsedCount ?? 0) > 0
+                  ? `${perStoreUsedCount} other BU${(perStoreUsedCount ?? 0) === 1 ? '' : 's'}`
+                  : 'Unused'
+              : (perStoreUsedCount ?? 0) > 0
+                ? `${perStoreUsedCount} live`
+                : live
+                  ? 'Default live'
+                  : 'Unused'
             return (
               <span
                 className={cn(
@@ -159,7 +197,9 @@ export function BusinessFrontDefaultTemplateCard({
                     ? (singleTemplateMode ? 'text-violet-700' : 'text-emerald-700')
                     : 'text-gray-400',
                 )}
-                title={perStoreTemplateMode && applied ? assignedStoreNames.join(', ') : undefined}
+                title={perStoreTemplateMode && applied
+                  ? (assignedStoreCodes.length ? assignedStoreCodes.join(', ') : assignedStoreNames.join(', '))
+                  : undefined}
               >
                 <span
                   className={cn(
@@ -171,11 +211,7 @@ export function BusinessFrontDefaultTemplateCard({
                 />
                 {singleTemplateMode
                   ? applied ? 'Live all' : live ? 'Default live' : 'Unused'
-                  : applied
-                    ? `${perStoreUsedCount} live`
-                    : live
-                      ? 'Default live'
-                      : 'Unused'}
+                  : perStoreLabel}
               </span>
             )
           })() : live ? (
@@ -216,7 +252,11 @@ export function BusinessFrontDefaultTemplateCard({
                 )}
               >
                 {(perStoreUsedCount ?? 0) > 0 ? <Check className="h-3 w-3" /> : <Store className="h-3 w-3" />}
-                {(perStoreUsedCount ?? 0) > 0 ? 'Manage' : 'Assign'}
+                {perStoreTemplateActionLabel(
+                  contextStoreCode,
+                  assignedToContextStore,
+                  (perStoreUsedCount ?? 0) > 0,
+                )}
               </button>
             ) : null}
             {viewLiveLinks.length > 0 ? (

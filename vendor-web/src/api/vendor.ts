@@ -807,8 +807,8 @@ export const vendorApi = {
     const response = await apiClient.post(`/vendors/me/pos/sessions/${sessionId}/close`, data)
     return response.data
   },
-  posGetCurrentSession: async () => {
-    const response = await apiClient.get('/vendors/me/pos/sessions/current')
+  posGetCurrentSession: async (params?: Record<string, unknown>) => {
+    const response = await apiClient.get('/vendors/me/pos/sessions/current', { params })
     return response.data
   },
   posListSessions: async (params?: Record<string, unknown>) => {
@@ -1138,28 +1138,29 @@ export const vendorApi = {
   },
 
   // ── Reports ───────────────────────────────────────────────────
-  getDashboardStats: async () => {
-    const response = await apiClient.get('/vendors/me/reports/dashboard')
+  // store_id scopes results to a business unit; omit/undefined = all units.
+  getDashboardStats: async (storeId?: string) => {
+    const response = await apiClient.get('/vendors/me/reports/dashboard', { params: { store_id: storeId || undefined } })
     return response.data
   },
-  getSalesByDay: async (days?: number) => {
-    const response = await apiClient.get('/vendors/me/reports/sales-by-day', { params: { days } })
+  getSalesByDay: async (days?: number, storeId?: string) => {
+    const response = await apiClient.get('/vendors/me/reports/sales-by-day', { params: { days, store_id: storeId || undefined } })
     return response.data
   },
-  getTopProducts: async (limit?: number) => {
-    const response = await apiClient.get('/vendors/me/reports/top-products', { params: { limit } })
+  getTopProducts: async (limit?: number, storeId?: string) => {
+    const response = await apiClient.get('/vendors/me/reports/top-products', { params: { limit, store_id: storeId || undefined } })
     return response.data
   },
-  getTopCustomers: async (limit?: number) => {
-    const response = await apiClient.get('/vendors/me/reports/top-customers', { params: { limit } })
+  getTopCustomers: async (limit?: number, storeId?: string) => {
+    const response = await apiClient.get('/vendors/me/reports/top-customers', { params: { limit, store_id: storeId || undefined } })
     return response.data
   },
-  getOrdersByStatus: async () => {
-    const response = await apiClient.get('/vendors/me/reports/orders-by-status')
+  getOrdersByStatus: async (storeId?: string) => {
+    const response = await apiClient.get('/vendors/me/reports/orders-by-status', { params: { store_id: storeId || undefined } })
     return response.data
   },
-  getRevenueSummary: async () => {
-    const response = await apiClient.get('/vendors/me/reports/revenue-summary')
+  getRevenueSummary: async (storeId?: string) => {
+    const response = await apiClient.get('/vendors/me/reports/revenue-summary', { params: { store_id: storeId || undefined } })
     return response.data
   },
 

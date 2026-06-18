@@ -22,6 +22,7 @@ class CouponService:
 
         coupon = Coupon(
             vendor_id=vendor_id,
+            store_id=UUID(str(data["store_id"])) if data.get("store_id") else None,
             code=data["code"].upper(),
             title=data.get("title"),
             description=data.get("description"),
@@ -53,6 +54,8 @@ class CouponService:
 
         for key, value in data.items():
             if value is not None and hasattr(coupon, key) and key not in ("id", "vendor_id", "code"):
+                if key == "store_id":
+                    value = UUID(str(value))
                 setattr(coupon, key, value)
 
         await self.db.commit()
@@ -69,10 +72,12 @@ class CouponService:
         await self.db.delete(coupon)
         await self.db.commit()
 
-    async def list_coupons(self, vendor_id: UUID, is_active: bool = None, page: int = 1, size: int = 20):
+    async def list_coupons(self, vendor_id: UUID, is_active: bool = None, page: int = 1, size: int = 20, store_id=None):
         conditions = [Coupon.vendor_id == vendor_id]
         if is_active is not None:
             conditions.append(Coupon.is_active == is_active)
+        if store_id:
+            conditions.append(Coupon.store_id == (store_id if isinstance(store_id, UUID) else UUID(str(store_id))))
 
         count_q = select(sqlfunc.count(Coupon.id)).where(and_(*conditions))
         total = (await self.db.execute(count_q)).scalar_one()

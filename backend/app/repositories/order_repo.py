@@ -86,6 +86,7 @@ class OrderRepository(BaseRepository[Order]):
         status: Optional[str] = None,
         search: Optional[str] = None,
         source: Optional[str] = None,
+        store_id: Optional[UUID] = None,
     ) -> Tuple[List[Order], int]:
         cust = aliased(Customer)
         query = (
@@ -108,6 +109,10 @@ class OrderRepository(BaseRepository[Order]):
         if source:
             query = query.where(Order.source == source)
             count_query = count_query.where(Order.source == source)
+
+        if store_id:
+            query = query.where(Order.store_id == store_id)
+            count_query = count_query.where(Order.store_id == store_id)
 
         if search:
             like = f"%{search}%"

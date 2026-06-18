@@ -7,6 +7,8 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { useBranch } from '@/contexts/BranchContext'
+import { useVendor } from '@/contexts/VendorContext'
+import { resolveStorefrontLinkMode } from '@/lib/storefrontTemplateAssignment'
 import { cn } from '@/lib/utils'
 
 type Props = {
@@ -16,8 +18,15 @@ type Props = {
 }
 
 export function StoreBranchPicker({ className, compact = false }: Props) {
+  const { vendor } = useVendor()
   const { branches, branchCode, selectedBranch, isBranchClosed, setBranchCode, loading } = useBranch()
   const openBranches = branches.filter(b => b.is_open !== false)
+
+  // Only offer the multi-store selector when the vendor runs a single website
+  // shared across all stores. In per-unit mode each store has its own website,
+  // so there is nothing to switch between.
+  const singleWebsiteForAllStores = resolveStorefrontLinkMode(vendor?.settings) === 'single'
+  if (!singleWebsiteForAllStores) return null
 
   // Show picker when there are multiple open branches OR when a branch is closed (to let user switch)
   if (loading || (openBranches.length <= 1 && !isBranchClosed)) return null

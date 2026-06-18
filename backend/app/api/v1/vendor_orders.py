@@ -133,6 +133,7 @@ async def list_orders(
     status_filter: Optional[str] = Query(None, alias="status"),
     source: Optional[str] = Query(None),
     search: Optional[str] = None,
+    store_id: Optional[str] = Query(None),
     current_user: User = Depends(get_current_active_user),
     db: AsyncSession = Depends(get_db),
 ):
@@ -141,6 +142,13 @@ async def list_orders(
     repo = OrderRepository(db)
     skip = (page - 1) * size
 
+    store_uuid = None
+    if store_id:
+        try:
+            store_uuid = UUID(store_id)
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Invalid store_id")
+
     items, total = await repo.list_by_vendor(
         vendor_id=vendor_id,
         skip=skip,
@@ -148,6 +156,7 @@ async def list_orders(
         status=status_filter,
         search=search,
         source=source,
+        store_id=store_uuid,
     )
 
     return JSONResponse(content={
