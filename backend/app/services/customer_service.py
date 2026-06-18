@@ -158,14 +158,44 @@ class CustomerService:
 
         if data.full_name is not None:
             customer.full_name = data.full_name
+        if data.email is not None:
+            new_email = str(data.email).strip().lower() if str(data.email).strip() else None
+            current_email = (customer.email or "").strip().lower() or None
+            if new_email != current_email:
+                if new_email:
+                    existing_email = await self.repo.get_by_vendor_and_email(vendor_id, new_email)
+                    if existing_email and existing_email.id != customer.id:
+                        raise HTTPException(
+                            status_code=status.HTTP_400_BAD_REQUEST,
+                            detail="Email already registered for this store",
+                        )
+                customer.email = new_email
         if data.phone is not None:
-            customer.phone = data.phone
+            from app.services.sms_service import normalize_e164, is_valid_e164
+
+            raw = (data.phone or "").strip()
+            if not raw:
+                customer.phone = None
+            else:
+                phone = normalize_e164(raw)
+                if not is_valid_e164(phone):
+                    raise HTTPException(
+                        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                        detail="Enter a valid mobile number (e.g. 9703200341 or +919703200341)",
+                    )
+                customer.phone = phone
         if data.avatar_url is not None:
             customer.avatar_url = data.avatar_url
         if data.shipping_addresses is not None:
             customer.shipping_addresses = [a.model_dump() for a in data.shipping_addresses]
         if data.default_address_index is not None:
             customer.default_address_index = data.default_address_index
+
+        if not (customer.email or "").strip() and not (customer.phone or "").strip():
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="Keep at least one of email or phone on your account",
+            )
 
         await self.db.commit()
         await self.db.refresh(customer)

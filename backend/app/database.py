@@ -1686,3 +1686,93 @@ async def ensure_pm_tables() -> None:
     async with engine.begin() as conn:
         for s in stmts:
             await conn.execute(text(s))
+
+
+async def ensure_txn_store_id_columns() -> None:
+    """
+    Add store_id to order, pos_transaction, invoice, booking (Alembic ms003_txn_store_id).
+
+    Idempotent when that migration was not applied to the database in use.
+    Columns are committed first; FK/index/backfill run in a follow-up transaction.
+    """
+    if "postgresql" not in settings.DATABASE_URL.lower():
+        return
+
+    column_stmts = [
+        'ALTER TABLE "order" ADD COLUMN IF NOT EXISTS store_id UUID',
+        "ALTER TABLE pos_transaction ADD COLUMN IF NOT EXISTS store_id UUID",
+        "ALTER TABLE invoice ADD COLUMN IF NOT EXISTS store_id UUID",
+        "ALTER TABLE booking ADD COLUMN IF NOT EXISTS store_id UUID",
+    ]
+    fk_specs = (
+        ("fk_order_store", '"order"', "store_id"),
+        ("fk_pos_txn_store", "pos_transaction", "store_id"),
+        ("fk_invoice_store", "invoice", "store_id"),
+        ("fk_booking_store", "booking", "store_id"),
+    )
+    index_stmts = [
+        'CREATE INDEX IF NOT EXISTS ix_order_vendor_store ON "order" (vendor_id, store_id)',
+        "CREATE INDEX IF NOT EXISTS ix_pos_txn_vendor_store ON pos_transaction (vendor_id, store_id)",
+        "CREATE INDEX IF NOT EXISTS ix_invoice_vendor_store ON invoice (vendor_id, store_id)",
+        "CREATE INDEX IF NOT EXISTS ix_booking_vendor_store ON booking (vendor_id, store_id)",
+    ]
+    backfill = """
+    UPDATE {table} AS t
+    SET store_id = sub.store_id
+    FROM (
+        SELECT DISTINCT ON (s.vendor_id) s.vendor_id, s.id AS store_id
+        FROM store s
+        WHERE s.is_active = true
+        ORDER BY s.vendor_id, s.is_default DESC, s.created_at ASC
+    ) AS sub
+    WHERE t.vendor_id = sub.vendor_id AND t.store_id IS NULL;
+    """
+
+    async with engine.begin() as conn:
+        for stmt in column_stmts:
+            await conn.execute(text(stmt))
+
+    try:
+        async with engine.begin() as conn:
+            store_ok = await conn.scalar(
+                text(
+                    "SELECT EXISTS ("
+                    "SELECT 1 FROM information_schema.tables "
+                    "WHERE table_schema = 'public' AND table_name = 'store'"
+                    ")"
+                )
+            )
+            if not store_ok:
+                logger.warning(
+                    "ensure_txn_store_id_columns: store table missing; "
+                    "store_id columns added, skipping FK/backfill"
+                )
+                return
+            for fk_name, table, column in fk_specs:
+                await conn.execute(
+                    text(
+                        f"""
+                        DO $$
+                        BEGIN
+                            IF NOT EXISTS (
+                                SELECT 1 FROM pg_constraint WHERE conname = '{fk_name}'
+                            ) THEN
+                                ALTER TABLE {table}
+                                ADD CONSTRAINT {fk_name}
+                                FOREIGN KEY ({column}) REFERENCES store(id) ON DELETE SET NULL;
+                            END IF;
+                        END $$;
+                        """
+                    )
+                )
+            for stmt in index_stmts:
+                await conn.execute(text(stmt))
+            for table in ('"order"', "pos_transaction", "invoice", "booking"):
+                await conn.execute(text(backfill.format(table=table)))
+    except Exception:
+        logger.exception(
+            "ensure_txn_store_id_columns: FK/index/backfill failed; store_id columns remain"
+        )
+        return
+
+    logger.info("ensure_txn_store_id_columns: order/pos/invoice/booking store_id ready")

@@ -26,6 +26,10 @@ _TWILIO_USER_HINTS: dict[int, str] = {
         "On a Twilio trial account, verify the recipient number under "
         "Phone Numbers → Verified Caller IDs."
     ),
+    63038: (
+        "Twilio daily message limit reached (50/day on trial). "
+        "Upgrade your Twilio account or wait until tomorrow."
+    ),
     21408: "SMS is not enabled for this region in your Twilio account.",
     20003: "Twilio authentication failed — check Account SID and Auth Token.",
 }

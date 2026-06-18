@@ -123,7 +123,10 @@ export default function CartDrawerBlock({ style, props, liveItems }: Props) {
                             type="button"
                             aria-label="Decrease quantity"
                             disabled={item.qty <= 1 || updateItem.isPending}
-                            onClick={() => updateItem.mutate({ index: idx, qty: item.qty - 1 })}
+                            onClick={() => {
+                              if (item.qty <= 1) return
+                              updateItem.mutate({ index: idx, qty: item.qty - 1 })
+                            }}
                             className="w-7 h-7 inline-flex items-center justify-center border rounded hover:bg-gray-50 disabled:opacity-40"
                           >
                             <Minus className="w-3.5 h-3.5" />

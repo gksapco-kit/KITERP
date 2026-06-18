@@ -202,16 +202,21 @@ class PaymentGatewayService:
                 "Sending order confirmation notifications after payment for %s",
                 order.order_number,
             )
-            await send_order_placed_notifications(
+            delivery = await send_order_placed_notifications(
                 self.db,
                 vendor=vendor,
                 order=order,
                 customer=customer,
             )
-            if payment:
+            if payment and delivery.should_mark_placement_sent():
                 payment.gateway_response = {
                     **gateway_response,
                     "placement_notifications_sent": True,
+                }
+            elif payment and delivery.pending_channels:
+                payment.gateway_response = {
+                    **gateway_response,
+                    "placement_sms_whatsapp_pending": delivery.pending_channels,
                 }
             await self.db.commit()
         except Exception as exc:

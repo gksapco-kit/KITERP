@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useRef, useState, useEffect } from "react";
 import { Camera, Trash2, Pencil, Plus, Star, Share2, Grid, List as ListIcon, ShoppingCart } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -19,6 +19,13 @@ export function ProfileEdit({ user, onSave }: { user: AccountUser; onSave?: (u: 
   const [phone, setPhone] = useState(user.phone ?? "");
   const [avatarUrl, setAvatarUrl] = useState(user.avatarUrl);
   const fileRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    setName(user.name);
+    setEmail(user.email);
+    setPhone(user.phone ?? "");
+    setAvatarUrl(user.avatarUrl);
+  }, [user.id, user.name, user.email, user.phone, user.avatarUrl]);
 
   const onAvatar = (e: React.ChangeEvent<HTMLInputElement>) => {
     const f = e.target.files?.[0]; if (!f) return;

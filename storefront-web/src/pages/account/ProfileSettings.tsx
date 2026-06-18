@@ -31,6 +31,7 @@ export default function ProfileSettings() {
     try {
       const saved = await storeApi.updateMe({
         full_name: updated.name,
+        email: updated.email.trim() || undefined,
         phone: updated.phone || undefined,
         avatar_url: updated.avatarUrl || undefined,
       })

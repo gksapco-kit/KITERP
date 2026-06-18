@@ -9,6 +9,7 @@ from app.services.order_notification_service import (
     vendor_order_sms_enabled,
     vendor_order_whatsapp_enabled,
     _customer_phone,
+    _pick_vendor_phone,
 )
 
 
@@ -89,3 +90,15 @@ def test_customer_phone_prefers_profile_over_shipping():
     )
     order = SimpleNamespace(shipping_address={"phone": "9182895301"})
     assert _customer_phone(customer, order) == "9652502965"
+
+
+def test_resolve_vendor_phone_priority():
+    assert _pick_vendor_phone(
+        support="9703200341", owner="+919703200341", primary="9652502965",
+    ) == "9703200341"
+    assert _pick_vendor_phone(
+        support=None, owner="+919703200341", primary="9652502965",
+    ) == "+919703200341"
+    assert _pick_vendor_phone(
+        support=None, owner=None, primary="9652502965",
+    ) == "9652502965"

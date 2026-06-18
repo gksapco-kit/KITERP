@@ -3,9 +3,11 @@ from __future__ import annotations
 
 import html
 import logging
-from typing import Any, Optional
+from dataclasses import dataclass, field
+from typing import Any, Literal, Optional
 from uuid import UUID
 
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import get_settings
@@ -17,6 +19,32 @@ from app.services.email_service import send_email
 from app.services.sms_service import SmsService, is_valid_e164, normalize_e164
 
 log = logging.getLogger(__name__)
+
+# Twilio errors where retry later may succeed (daily cap, unverified trial number).
+_RETRYABLE_TWILIO_CODES = frozenset({63038, 21608})
+
+ChannelOutcome = Literal["sent", "skipped", "failed", "failed_retryable"]
+
+
+@dataclass
+class OrderNotificationResult:
+    """Tracks whether enabled SMS/WhatsApp channels were delivered."""
+
+    sms_whatsapp_complete: bool = True
+    pending_channels: list[str] = field(default_factory=list)
+
+    def should_mark_placement_sent(self) -> bool:
+        return self.sms_whatsapp_complete
+
+
+def _is_retryable_twilio_error(
+    code: Optional[int] = None,
+    message: Optional[str] = None,
+) -> bool:
+    if code in _RETRYABLE_TWILIO_CODES:
+        return True
+    msg = (message or "").lower()
+    return "63038" in msg or "50 daily messages" in msg or "daily messages limit" in msg
 
 
 def _vendor_notification_settings(vendor: Vendor) -> dict[str, Any]:
@@ -104,11 +132,52 @@ def _storefront_order_status_url(vendor: Vendor, order_id: UUID) -> str:
     return f"https://{slug}.{settings.BASE_DOMAIN}/order/{order_id}/status"
 
 
-def _vendor_phone(vendor: Vendor) -> str:
-    raw = (vendor.support_phone or vendor.primary_phone or "").strip()
-    if raw in {"-", "—", "N/A", "n/a", "NA"}:
-        return ""
-    return raw
+async def _fetch_vendor_owner_phone(db: AsyncSession, vendor_id: UUID) -> str:
+    """Phone from vendor owner profile (Dashboard → Personal Information)."""
+    from app.models.user import User
+    from app.models.vendor_user import VendorUser
+
+    result = await db.execute(
+        select(User.phone)
+        .join(VendorUser, VendorUser.user_id == User.id)
+        .where(
+            VendorUser.vendor_id == vendor_id,
+            VendorUser.role == "owner",
+            VendorUser.is_active.is_(True),
+        )
+        .limit(1)
+    )
+    return (result.scalar_one_or_none() or "").strip()
+
+
+def _pick_vendor_phone(
+    *,
+    support: Optional[str] = None,
+    owner: Optional[str] = None,
+    primary: Optional[str] = None,
+    sms_phone: Optional[str] = None,
+    contact_phone: Optional[str] = None,
+) -> str:
+    """Sync helper — priority for vendor order SMS/WhatsApp destination."""
+    for raw in (sms_phone, contact_phone, support, owner, primary):
+        found = _valid_phone(str(raw or ""))
+        if found:
+            return found
+    return ""
+
+
+async def _resolve_vendor_phone(db: AsyncSession, vendor: Vendor) -> str:
+    """Resolve vendor SMS/WhatsApp destination."""
+    settings = dict(vendor.settings or {})
+    notif = settings.get("notifications") or {}
+    owner_phone = await _fetch_vendor_owner_phone(db, vendor.id)
+    return _pick_vendor_phone(
+        sms_phone=str(notif.get("sms_phone") or ""),
+        contact_phone=str(notif.get("contact_phone") or ""),
+        support=vendor.support_phone,
+        owner=owner_phone,
+        primary=vendor.primary_phone,
+    )
 
 
 def _valid_phone(raw: str) -> str:
@@ -258,11 +327,11 @@ async def _send_sms_message(
     body: str,
     recipient_label: str,
     order_number: str,
-) -> None:
+) -> ChannelOutcome:
     phone = normalize_e164(to_phone)
     if not phone or not is_valid_e164(phone):
         log.warning("Order SMS skipped — invalid phone for %s on order %s", recipient_label, order_number)
-        return
+        return "skipped"
 
     masked = phone[-4:].rjust(len(phone), "*") if len(phone) > 4 else "****"
 
@@ -276,7 +345,7 @@ async def _send_sms_message(
                     "Order confirmation SMS sent via platform Twilio to %s (%s) for order %s",
                     recipient_label, masked, order_number,
                 )
-                return
+                return "sent"
             log.warning("Platform SMS failed for %s on order %s: %s", recipient_label, order_number, result.twilio_message)
             if result.twilio_code == 21608:
                 log.warning(
@@ -284,6 +353,12 @@ async def _send_sms_message(
                     "or upgrade the account.",
                     masked,
                 )
+            if _is_retryable_twilio_error(result.twilio_code, result.twilio_message):
+                log.warning(
+                    "Twilio limit/verification block — SMS not sent to %s for order %s (will retry).",
+                    recipient_label, order_number,
+                )
+                return "failed_retryable"
         except Exception as exc:
             log.warning("Platform SMS error for %s on order %s: %s", recipient_label, order_number, exc)
 
@@ -297,18 +372,21 @@ async def _send_sms_message(
                     "Order confirmation SMS sent via vendor integration to %s (%s) for order %s",
                     recipient_label, masked, order_number,
                 )
-                return
+                return "sent"
             log.warning(
                 "Vendor SMS integration failed for %s on order %s: %s",
                 recipient_label, order_number, result.get("error"),
             )
+            if _is_retryable_twilio_error(message=str(result.get("error") or "")):
+                return "failed_retryable"
         except Exception as exc:
             log.warning("Vendor SMS integration error for %s on order %s: %s", recipient_label, order_number, exc)
 
     if not platform_sms.is_configured:
         log.info("[sms:dev] -> %s | order=%s | %s", masked, order_number, body[:300])
-    else:
-        log.warning("Order SMS not delivered to %s for order %s", recipient_label, order_number)
+        return "sent"
+    log.warning("Order SMS not delivered to %s for order %s", recipient_label, order_number)
+    return "failed"
 
 
 async def _send_whatsapp_message(
@@ -319,11 +397,11 @@ async def _send_whatsapp_message(
     body: str,
     recipient_label: str,
     order_number: str,
-) -> None:
+) -> ChannelOutcome:
     phone = normalize_e164(to_phone)
     if not phone or not is_valid_e164(phone):
         log.warning("Order WhatsApp skipped — invalid phone for %s on order %s", recipient_label, order_number)
-        return
+        return "skipped"
 
     masked = phone[-4:].rjust(len(phone), "*") if len(phone) > 4 else "****"
 
@@ -346,17 +424,19 @@ async def _send_whatsapp_message(
                     "Order confirmation WhatsApp sent via platform Twilio to %s (%s) for order %s",
                     recipient_label, masked, order_number,
                 )
-                return
+                return "sent"
+            err = str(result.get("error") or "")
             log.warning(
                 "Platform WhatsApp failed for %s on order %s: %s",
-                recipient_label, order_number, result.get("error"),
+                recipient_label, order_number, err,
             )
-            err = str(result.get("error") or "")
             if "Channel" in err or "From address" in err:
                 log.warning(
                     "Enable Twilio WhatsApp Sandbox in Twilio Console → Messaging → Try it out, "
                     "set TWILIO_WHATSAPP_FROM=+14155238886, and have recipients join the sandbox on WhatsApp.",
                 )
+            if _is_retryable_twilio_error(message=err):
+                return "failed_retryable"
         except Exception as exc:
             log.warning("Platform WhatsApp error for %s on order %s: %s", recipient_label, order_number, exc)
 
@@ -370,11 +450,13 @@ async def _send_whatsapp_message(
                     "Order confirmation WhatsApp sent via vendor integration to %s (%s) for order %s",
                     recipient_label, masked, order_number,
                 )
-                return
+                return "sent"
             log.warning(
                 "Vendor WhatsApp integration failed for %s on order %s: %s",
                 recipient_label, order_number, result.get("error"),
             )
+            if _is_retryable_twilio_error(message=str(result.get("error") or "")):
+                return "failed_retryable"
         except Exception as exc:
             log.warning("Vendor WhatsApp integration error for %s on order %s: %s", recipient_label, order_number, exc)
 
@@ -384,10 +466,19 @@ async def _send_whatsapp_message(
             "(e.g. whatsapp:+14155238886 for Twilio sandbox) or connect a vendor WhatsApp integration",
             recipient_label, order_number,
         )
-    else:
-        log.warning("Order WhatsApp not delivered to %s for order %s", recipient_label, order_number)
+        return "skipped"
+    log.warning("Order WhatsApp not delivered to %s for order %s", recipient_label, order_number)
     if settings.DEBUG:
         log.info("[whatsapp:dev] -> %s | order=%s | %s", masked, order_number, body[:300])
+    return "failed"
+
+
+def _record_channel_outcome(result: OrderNotificationResult, label: str, outcome: ChannelOutcome) -> None:
+    if outcome in ("sent", "skipped"):
+        return
+    result.sms_whatsapp_complete = False
+    if outcome == "failed_retryable":
+        result.pending_channels.append(label)
 
 
 async def _send_order_emails(
@@ -501,6 +592,7 @@ async def _send_order_sms(
     order: Order,
     customer: Optional[Customer],
     ctx: dict[str, Any],
+    result: OrderNotificationResult,
 ) -> None:
     order_number = ctx["order_number"]
     total = ctx["total"]
@@ -509,13 +601,13 @@ async def _send_order_sms(
     customer_prefs = (customer.notification_preferences or {}) if customer else {}
 
     if vendor_order_sms_enabled(vendor):
-        vendor_phone = _vendor_phone(vendor)
+        vendor_phone = await _resolve_vendor_phone(db, vendor)
         if vendor_phone:
             body = (
                 f"KITERP: New order #{order_number} from {customer_name}. "
                 f"Total ₹{total:,.2f}. View: {ctx['vendor_url']}"
             )
-            await _send_sms_message(
+            outcome = await _send_sms_message(
                 db,
                 vendor_id=vendor.id,
                 to_phone=vendor_phone,
@@ -523,6 +615,7 @@ async def _send_order_sms(
                 recipient_label="vendor",
                 order_number=order_number,
             )
+            _record_channel_outcome(result, "vendor_sms", outcome)
         else:
             log.warning("Vendor order SMS skipped — no phone on vendor %s", vendor.id)
 
@@ -538,7 +631,7 @@ async def _send_order_sms(
                 f"{store_name}: Your order #{order_number} is confirmed. "
                 f"Total ₹{total:,.2f}. Track: {ctx['track_url']}"
             )
-            await _send_sms_message(
+            outcome = await _send_sms_message(
                 db,
                 vendor_id=vendor.id,
                 to_phone=customer_phone,
@@ -546,6 +639,7 @@ async def _send_order_sms(
                 recipient_label="customer",
                 order_number=order_number,
             )
+            _record_channel_outcome(result, "customer_sms", outcome)
         else:
             log.warning("Customer order SMS skipped — no phone on order %s", order_number)
     elif vendor_order_sms_enabled(vendor):
@@ -564,6 +658,7 @@ async def _send_order_whatsapp(
     order: Order,
     customer: Optional[Customer],
     ctx: dict[str, Any],
+    result: OrderNotificationResult,
 ) -> None:
     order_number = ctx["order_number"]
     total = ctx["total"]
@@ -573,7 +668,7 @@ async def _send_order_whatsapp(
     customer_prefs = (customer.notification_preferences or {}) if customer else {}
 
     if vendor_order_whatsapp_enabled(vendor):
-        vendor_phone = _vendor_phone(vendor)
+        vendor_phone = await _resolve_vendor_phone(db, vendor)
         if vendor_phone:
             body = (
                 f"🛒 *New order received*\n\n"
@@ -583,7 +678,7 @@ async def _send_order_whatsapp(
                 f"Status: {status_label}\n\n"
                 f"View order: {ctx['vendor_url']}"
             )
-            await _send_whatsapp_message(
+            outcome = await _send_whatsapp_message(
                 db,
                 vendor_id=vendor.id,
                 to_phone=vendor_phone,
@@ -591,6 +686,7 @@ async def _send_order_whatsapp(
                 recipient_label="vendor",
                 order_number=order_number,
             )
+            _record_channel_outcome(result, "vendor_whatsapp", outcome)
         else:
             log.warning("Vendor order WhatsApp skipped — no phone on vendor %s", vendor.id)
 
@@ -613,7 +709,7 @@ async def _send_order_whatsapp(
                 f"{ctx['payment_note']}\n\n"
                 f"Track your order: {ctx['track_url']}"
             )
-            await _send_whatsapp_message(
+            outcome = await _send_whatsapp_message(
                 db,
                 vendor_id=vendor.id,
                 to_phone=customer_phone,
@@ -621,6 +717,7 @@ async def _send_order_whatsapp(
                 recipient_label="customer",
                 order_number=order_number,
             )
+            _record_channel_outcome(result, "customer_whatsapp", outcome)
         else:
             log.warning("Customer order WhatsApp skipped — no phone on order %s", order_number)
 
@@ -631,12 +728,20 @@ async def send_order_placed_notifications(
     vendor: Vendor,
     order: Order,
     customer: Optional[Customer] = None,
-) -> None:
+) -> OrderNotificationResult:
     """Send order confirmation via email, SMS, and WhatsApp when toggles allow it."""
+    delivery = OrderNotificationResult()
     ctx = _order_context(vendor, order, customer)
     await _send_order_emails(vendor=vendor, order=order, customer=customer, ctx=ctx)
-    await _send_order_sms(db, vendor=vendor, order=order, customer=customer, ctx=ctx)
-    await _send_order_whatsapp(db, vendor=vendor, order=order, customer=customer, ctx=ctx)
+    await _send_order_sms(db, vendor=vendor, order=order, customer=customer, ctx=ctx, result=delivery)
+    await _send_order_whatsapp(db, vendor=vendor, order=order, customer=customer, ctx=ctx, result=delivery)
+    if delivery.pending_channels:
+        log.warning(
+            "Order %s SMS/WhatsApp pending retry for: %s",
+            ctx["order_number"],
+            ", ".join(delivery.pending_channels),
+        )
+    return delivery
 
 
 # Backwards-compatible alias

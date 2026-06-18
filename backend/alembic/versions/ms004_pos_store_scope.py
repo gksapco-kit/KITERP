@@ -10,10 +10,11 @@ Makes the POS business-unit aware:
   * store_inventory becomes the source of truth for POS stock. Existing
     product / variant quantities are seeded into the vendor's default store so
     no stock is lost when POS starts deducting per-store.
+
+Idempotent where columns/constraints may already exist from partial runs.
 """
 from alembic import op
 import sqlalchemy as sa
-from sqlalchemy.dialects.postgresql import UUID
 
 revision = 'ms004_pos_store_scope'
 down_revision = 'ms003_txn_store_id'
@@ -70,13 +71,37 @@ WHERE p.track_inventory = true AND v.is_active = true
 
 
 def upgrade():
-    op.add_column('pos_session', sa.Column('store_id', UUID(as_uuid=True), nullable=True))
-    op.create_foreign_key('fk_pos_session_store', 'pos_session', 'store', ['store_id'], ['id'], ondelete='SET NULL')
-    op.create_index('ix_pos_session_vendor_store_status', 'pos_session', ['vendor_id', 'store_id', 'status'])
+    bind = op.get_bind()
+    if bind.dialect.name != "postgresql":
+        return
 
-    op.execute(_BACKFILL_SESSION)
-    op.execute(_SEED_PRODUCTS)
-    op.execute(_SEED_VARIANTS)
+    op.execute(sa.text("ALTER TABLE pos_session ADD COLUMN IF NOT EXISTS store_id UUID"))
+    op.execute(
+        sa.text(
+            """
+            DO $$
+            BEGIN
+                IF NOT EXISTS (
+                    SELECT 1 FROM pg_constraint WHERE conname = 'fk_pos_session_store'
+                ) THEN
+                    ALTER TABLE pos_session
+                    ADD CONSTRAINT fk_pos_session_store
+                    FOREIGN KEY (store_id) REFERENCES store(id) ON DELETE SET NULL;
+                END IF;
+            END $$;
+            """
+        )
+    )
+    op.execute(
+        sa.text(
+            "CREATE INDEX IF NOT EXISTS ix_pos_session_vendor_store_status "
+            "ON pos_session (vendor_id, store_id, status)"
+        )
+    )
+
+    op.execute(sa.text(_BACKFILL_SESSION))
+    op.execute(sa.text(_SEED_PRODUCTS))
+    op.execute(sa.text(_SEED_VARIANTS))
 
 
 def downgrade():

@@ -1,32 +1,22 @@
-import { useMemo } from 'react'
 import { Link } from 'react-router-dom'
 import { ShoppingBag, ChevronRight, ArrowLeft } from 'lucide-react'
 import { LineItem } from '@/checkout/components/LineItem'
 import { OrderSummary } from '@/checkout/components/OrderSummary'
 import { CheckoutConfigProvider } from '@/checkout/config'
-import { buildGuestCart, useCart, useUpdateCartItem, useRemoveCartItem, useStoreInfo } from '@/hooks/useStore'
+import { useCart, useUpdateCartItem, useRemoveCartItem, useStoreInfo } from '@/hooks/useStore'
 import { useAuthStore } from '@/stores/authStore'
-import { useGuestCartStore } from '@/stores/guestCartStore'
-import { useCartStore } from '@/stores/cartStore'
 import { useBranch } from '@/contexts/BranchContext'
-import { useVendor } from '@/contexts/VendorContext'
 import { useBuilderSiteCheckoutTheme } from '@/hooks/useBuilderSiteCheckoutTheme'
 import { TableSkeleton } from '@/kit/states/StateScreens'
 
 export default function CartPage() {
   const { storePath } = useBranch()
-  const { vendorSlug } = useVendor()
   const { isAuthenticated } = useAuthStore()
   const { data: storeInfo } = useStoreInfo()
-  const { data: serverCart, isLoading } = useCart()
-  const guestItems = useGuestCartStore((s) => s.byVendor[vendorSlug] ?? [])
-  const cartFromStore = useCartStore((s) => s.cart)
+  const { data: cart, isLoading } = useCart()
   const updateItem = useUpdateCartItem()
   const removeItem = useRemoveCartItem()
   const checkoutTheme = useBuilderSiteCheckoutTheme()
-
-  const guestCart = useMemo(() => buildGuestCart(guestItems), [guestItems])
-  const cart = isAuthenticated ? (cartFromStore ?? serverCart) : guestCart
 
   const storeName = storeInfo?.display_name ?? storeInfo?.business_name ?? 'Store'
   const currency = 'INR'
@@ -104,10 +94,14 @@ export default function CartPage() {
                       editable
                       onUpdateQuantity={(id, q) => {
                         const index = Number(id)
+                        if (Number.isNaN(index)) return
                         if (q <= 0) removeItem.mutate(index)
                         else updateItem.mutate({ index, qty: q })
                       }}
-                      onRemove={(id) => removeItem.mutate(Number(id))}
+                      onRemove={(id) => {
+                        const index = Number(id)
+                        if (!Number.isNaN(index)) removeItem.mutate(index)
+                      }}
                     />
                   </div>
                 ))}

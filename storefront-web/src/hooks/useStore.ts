@@ -188,20 +188,50 @@ export function useUpdateCartItem() {
   return useMutation({
     mutationFn: async ({ index, qty }: { index: number; qty: number }) => {
       if (!useAuthStore.getState().isAuthenticated) {
-        const store = useGuestCartStore.getState()
-        const before = store.getItems(vendorSlug)
-        if (index < 0 || index >= before.length) {
+        const items = useGuestCartStore.getState().getItems(vendorSlug)
+        if (index < 0 || index >= items.length) {
           throw new Error('Cart item not found')
         }
-        store.updateQty(vendorSlug, index, qty)
-        return buildGuestCart(store.getItems(vendorSlug))
+        return buildGuestCart(items)
       }
       return storeApi.updateCartItem(index, qty)
+    },
+    onMutate: async ({ index, qty }) => {
+      await qc.cancelQueries({ queryKey: storeKeys.cart })
+
+      if (!useAuthStore.getState().isAuthenticated) {
+        const store = useGuestCartStore.getState()
+        const before = store.getItems(vendorSlug)
+        if (index < 0 || index >= before.length) return {}
+        const snap = before.map((i) => ({ ...i }))
+        store.updateQty(vendorSlug, index, qty)
+        applyCartMutation(qc, buildGuestCart(store.getItems(vendorSlug)))
+        return { guestSnap: snap, vendorSlug }
+      }
+
+      const previous = qc.getQueryData<Cart>(storeKeys.cart) ?? useCartStore.getState().cart ?? null
+      if (previous?.items && index >= 0 && index < previous.items.length) {
+        const items = previous.items.map((item, i) =>
+          i === index ? { ...item, qty } : item,
+        )
+        applyCartMutation(qc, { ...previous, items } as Cart)
+      }
+      return { previous }
     },
     onSuccess: (cart) => {
       applyCartMutation(qc, cart)
     },
-    onError: apiError('Could not update cart quantity'),
+    onError: (err, _vars, context) => {
+      if (context?.guestSnap && context.vendorSlug) {
+        useGuestCartStore.setState((state) => ({
+          byVendor: { ...state.byVendor, [context.vendorSlug]: context.guestSnap },
+        }))
+        applyCartMutation(qc, buildGuestCart(context.guestSnap))
+      } else if (context?.previous) {
+        applyCartMutation(qc, context.previous)
+      }
+      apiError('Could not update cart quantity')(err)
+    },
   })
 }
 

@@ -538,6 +538,8 @@ async def update_me(
     if updates:
         for key, value in updates.items():
             setattr(current_user, key, value)
+        if "phone" in updates:
+            await _sync_owner_phone_to_vendors(db, current_user.id, current_user.phone)
         db.add(current_user)
         await db.commit()
         await db.refresh(current_user)
@@ -1131,6 +1133,27 @@ def _phones_equivalent(a: Optional[str], b: Optional[str]) -> bool:
         return True
     shorter, longer = (da, db) if len(da) <= len(db) else (db, da)
     return len(shorter) >= 10 and longer.endswith(shorter)
+
+
+async def _sync_owner_phone_to_vendors(
+    db: AsyncSession,
+    user_id: UUID,
+    phone: Optional[str],
+) -> None:
+    """Keep vendor.primary_phone aligned with owner profile phone for order alerts."""
+    if not phone:
+        return
+    result = await db.execute(
+        select(Vendor)
+        .join(VendorUser, VendorUser.vendor_id == Vendor.id)
+        .where(
+            VendorUser.user_id == user_id,
+            VendorUser.role == "owner",
+            VendorUser.is_active.is_(True),
+        )
+    )
+    for vendor in result.scalars().all():
+        vendor.primary_phone = phone
 
 
 def _require_valid_mobile(phone: str) -> str:

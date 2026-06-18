@@ -39,7 +39,10 @@ class CartRepository(BaseRepository[Cart]):
         return cart
 
     async def clear_cart(self, cart: Cart) -> Cart:
+        from sqlalchemy.orm.attributes import flag_modified
+
         cart.items = []
+        flag_modified(cart, "items")
         cart.coupon_code = None
         cart.discount_amount = 0
         await self.db.commit()

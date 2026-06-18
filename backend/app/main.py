@@ -32,6 +32,7 @@ from app.database import (
     ensure_reservation_schema,
     ensure_user_contact_not_globally_unique,
     ensure_user_platform_staff_role_column,
+    ensure_txn_store_id_columns,
 )
 from app.middleware.tenant import TenantMiddleware
 from app.middleware.audit import CrmAuditMiddleware
@@ -72,6 +73,7 @@ async def lifespan(app: FastAPI):
     await ensure_reservation_schema()
     await ensure_user_contact_not_globally_unique()
     await ensure_user_platform_staff_role_column()
+    await ensure_txn_store_id_columns()
     await connect_redis()
     yield
     await close_redis()

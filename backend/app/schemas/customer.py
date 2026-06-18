@@ -39,6 +39,7 @@ class CustomerPasswordChange(BaseModel):
 
 class CustomerUpdate(BaseModel):
     full_name: Optional[str] = Field(None, min_length=2, max_length=255)
+    email: Optional[EmailStr] = None
     phone: Optional[str] = Field(None, min_length=10, max_length=20)
     avatar_url: Optional[str] = None
     shipping_addresses: Optional[List[AddressItem]] = None
