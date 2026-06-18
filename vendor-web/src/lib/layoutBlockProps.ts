@@ -91,10 +91,11 @@ export function mergeLayoutBlockProps(
   }
 
   if (blockType === 'footer') {
-    for (const key of ['footer_style', 'footer_bg', 'footer_heading', 'footer_muted', 'footer_border', 'columns', 'show_newsletter'] as const) {
+    for (const key of ['footer_style', 'footer_bg', 'footer_heading', 'footer_muted', 'footer_border', 'columns', 'show_newsletter', 'show_social'] as const) {
       if (key in layoutShell) merged[key] = layoutShell[key]
     }
     const theme = resolveFooterTheme({ ...layoutShell, ...propsOverride }, fallback)
+    const socialLinks = merged.social_links
     return {
       ...merged,
       footer_style: theme.layoutMode,
@@ -104,6 +105,15 @@ export function mergeLayoutBlockProps(
       footer_border: theme.footerBorder,
       columns: theme.columnCount,
       show_newsletter: theme.showNewsletter,
+      show_social: theme.showSocial,
+      social_links: socialLinks && typeof socialLinks === 'object'
+        ? socialLinks
+        : {
+            twitter: '',
+            facebook: '',
+            instagram: '',
+            youtube: '',
+          },
     } as BlockProps
   }
 
@@ -127,7 +137,7 @@ export function mergeLayoutBlockProps(
     'footer_style', 'nav_style', 'nav_bg', 'nav_layout', 'nav_glass', 'nav_elevated', 'nav_compact',
     'nav_accent_border', 'nav_cta_prominent', 'show_search', 'show_cart', 'image_position', 'card_style', 'filterable', 'compact',
     'variant', 'padding_top', 'padding_bottom', 'align', 'show_calendar', 'grayscale',
-    'aspect_ratio', 'show_caption', 'show_newsletter', 'cta_square', 'eyebrow_plain',
+    'aspect_ratio', 'show_caption', 'show_newsletter', 'show_social', 'cta_square', 'eyebrow_plain',
     'item_gap', 'max_width', 'show_images', 'bg_color', 'show_annual_toggle', 'card_style',
     'image_shape', 'use_icons', 'show_numbers', 'item_gap', 'footer_bg', 'footer_heading', 'footer_muted', 'footer_border',
     'color', 'show_close', 'image_width', 'show_divider',

@@ -42,8 +42,9 @@ function isDraftPreviewPath(pathname: string): boolean {
       return
     }
   }
-  if (path === '/auth/handoff') return
+  // Draft preview must use the same canonical loopback host as the builder (see storefrontPreviewUrl).
   if (isDraftPreviewPath(path)) return
+  if (path === '/auth/handoff') return
 
   const params = new URLSearchParams(window.location.search)
   const token = params.get('token')

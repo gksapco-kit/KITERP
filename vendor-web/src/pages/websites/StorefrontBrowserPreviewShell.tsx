@@ -32,17 +32,6 @@ import { cn } from '@/lib/utils'
 /** Match builder API timeout so slow snapshots do not false-positive. */
 const PENDING_PREVIEW_TIMEOUT_MS = 120_000
 
-/** Redirect localhost/[::1] → 127.0.0.1 so cross-tab localStorage works on Windows. */
-function useCanonicalLoopbackRedirect(): void {
-  useEffect(() => {
-    const host = window.location.hostname
-    if (host !== 'localhost' && host !== '[::1]') return
-    const url = new URL(window.location.href)
-    url.hostname = '127.0.0.1'
-    window.location.replace(url.toString())
-  }, [])
-}
-
 function isAllowedTemplateTarget(raw: string): boolean {
   try {
     const url = new URL(raw)
@@ -77,7 +66,6 @@ function parseTokenFromLegacyTarget(target: string): string | null {
 }
 
 export default function StorefrontBrowserPreviewShell() {
-  useCanonicalLoopbackRedirect()
   const [searchParams, setSearchParams] = useSearchParams()
   const legacyTarget = searchParams.get('target')?.trim() ?? ''
   const token = (searchParams.get('token')?.trim()

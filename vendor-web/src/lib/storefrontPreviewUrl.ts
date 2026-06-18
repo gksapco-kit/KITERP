@@ -1,8 +1,9 @@
 import {
   broadcastPreviewTabNavigate,
+  clearPendingPreviewTabNavigate,
   PREVIEW_NAV_MESSAGE_TYPE,
 } from '@/lib/draftPreviewSync'
-import { normalizeLoopbackHostname } from '@/lib/loopbackHost'
+import { isSameLoopbackOrigin, normalizeLoopbackHostname, normalizeLoopbackOrigin } from '@/lib/loopbackHost'
 
 /** True when the dashboard is opened on a loopback host (vite dev, vite preview, etc.). */
 function isLoopbackDashboardHost(): boolean {
@@ -70,23 +71,23 @@ export const DRAFT_PREVIEW_PENDING_PARAM = 'pending'
 
 /**
  * Origin for preview tabs opened from this browser session.
- * Must match the builder tab hostname (localhost vs 127.0.0.1) so opener refs,
- * postMessage, and localStorage signaling stay on one origin.
+ * Always canonicalize loopback (127.0.0.1) so builder + preview share one origin.
  */
 export function getVendorPreviewOrigin(): string {
   if (typeof window === 'undefined') return 'http://127.0.0.1:3001'
-  const { protocol, hostname, port } = window.location
+  const { protocol, port } = window.location
+  const hostname = normalizeLoopbackHostname(window.location.hostname)
   const portSuffix = port ? `:${port}` : ''
   return `${protocol}//${hostname}${portSuffix}`
 }
 
-/** Rewrite preview URLs to the active vendor-web origin (host + port). */
+/** Rewrite preview URLs to the canonical vendor-web origin (loopback → 127.0.0.1). */
 export function alignPreviewUrlWithCurrentHost(previewShellUrl: string): string {
   if (typeof window === 'undefined') return previewShellUrl
   try {
     const url = new URL(previewShellUrl)
     url.protocol = window.location.protocol
-    url.hostname = window.location.hostname
+    url.hostname = normalizeLoopbackHostname(window.location.hostname)
     if (window.location.port) url.port = window.location.port
     else url.port = ''
     return url.toString()
@@ -137,6 +138,44 @@ export function wrapStorefrontPreviewForVendorBrowser(storefrontPreviewUrl: stri
 export const PREVIEW_WINDOW_NAME = 'kiterp-draft-preview'
 
 let previewWindowRef: Window | null = null
+/** Set when prepareDraftPreviewTab runs; navigate must not open a second tab in that case. */
+let previewPrepareActive = false
+
+function closePreviewWindowRef(): void {
+  if (!previewWindowRef || previewWindowRef.closed) {
+    previewWindowRef = null
+    return
+  }
+  try {
+    previewWindowRef.close()
+  } catch {
+    /* cross-origin or already gone */
+  }
+  previewWindowRef = null
+}
+
+function postMessageToPreviewTab(url: string, targetOrigin: string): boolean {
+  if (!previewWindowRef || previewWindowRef.closed) return false
+  try {
+    previewWindowRef.postMessage({ type: PREVIEW_NAV_MESSAGE_TYPE, url }, targetOrigin)
+    previewWindowRef.focus()
+    return true
+  } catch {
+    previewWindowRef = null
+    return false
+  }
+}
+
+function postMessageToPreviewTabLoopback(url: string): boolean {
+  if (!previewWindowRef || previewWindowRef.closed) return false
+  const targetOrigin = new URL(url).origin
+  if (postMessageToPreviewTab(url, targetOrigin)) return true
+  if (typeof window !== 'undefined' && isSameLoopbackOrigin(window.location.origin, targetOrigin)) {
+    return postMessageToPreviewTab(url, normalizeLoopbackOrigin(window.location.origin))
+      || postMessageToPreviewTab(url, '*')
+  }
+  return false
+}
 
 function buildVendorDraftPreviewPendingUrl(): string {
   const url = new URL(DRAFT_BROWSER_PREVIEW_PATH, getVendorPreviewOrigin())
@@ -150,14 +189,25 @@ function buildVendorDraftPreviewPendingUrl(): string {
  */
 export function prepareDraftPreviewTab(): Window | null {
   const pendingUrl = buildVendorDraftPreviewPendingUrl()
+  previewPrepareActive = true
   try {
     if (previewWindowRef && !previewWindowRef.closed) {
+      const targetOrigin = new URL(pendingUrl).origin
       try {
-        previewWindowRef.location.replace(pendingUrl)
-        previewWindowRef.focus()
-        return previewWindowRef
+        if (isSameLoopbackOrigin(window.location.origin, targetOrigin)) {
+          previewWindowRef.location.replace(pendingUrl)
+        } else if (!postMessageToPreviewTabLoopback(pendingUrl)) {
+          closePreviewWindowRef()
+        } else {
+          previewWindowRef.focus()
+          return previewWindowRef
+        }
+        if (previewWindowRef && !previewWindowRef.closed) {
+          previewWindowRef.focus()
+          return previewWindowRef
+        }
       } catch {
-        previewWindowRef = null
+        closePreviewWindowRef()
       }
     }
     const tab = window.open(pendingUrl, PREVIEW_WINDOW_NAME)
@@ -167,6 +217,7 @@ export function prepareDraftPreviewTab(): Window | null {
     }
     return tab
   } catch {
+    previewPrepareActive = false
     return null
   }
 }
@@ -176,23 +227,31 @@ export function navigateDraftPreviewTab(previewShellUrl: string): boolean {
   const url = alignPreviewUrlWithCurrentHost(previewShellUrl)
   let delivered = false
   try {
-    // Cross-tab fallback: localStorage + BroadcastChannel (works when opener ref is blocked).
-    broadcastPreviewTabNavigate(url)
+    const targetOrigin = new URL(url).origin
 
     if (previewWindowRef && !previewWindowRef.closed) {
+      delivered = postMessageToPreviewTabLoopback(url)
+    }
+
+    // Same-origin fast path when the opener may set location directly.
+    if (previewWindowRef && !previewWindowRef.closed && isSameLoopbackOrigin(window.location.origin, targetOrigin)) {
       try {
-        const targetOrigin = new URL(url).origin
-        previewWindowRef.postMessage({ type: PREVIEW_NAV_MESSAGE_TYPE, url }, targetOrigin)
         previewWindowRef.location.replace(url)
         previewWindowRef.focus()
         delivered = true
       } catch {
-        // Keep previewWindowRef — pending tab may still pick up localStorage / postMessage.
+        /* postMessage + storage fallback below */
       }
     }
 
-    // Only open a new tab when no prepared tab exists (avoids pending + token duplicate tabs).
-    if (!delivered && !previewWindowRef) {
+    // Cross-tab fallback for pending shell / lost opener ref (same canonical origin).
+    broadcastPreviewTabNavigate(url)
+    if (previewPrepareActive) {
+      delivered = true
+    }
+
+    // Only open a new tab when prepare did not run and we have no live preview window.
+    if (!delivered && !previewPrepareActive && (!previewWindowRef || previewWindowRef.closed)) {
       try {
         const tab = window.open(url, PREVIEW_WINDOW_NAME)
         if (tab) {
@@ -205,8 +264,12 @@ export function navigateDraftPreviewTab(previewShellUrl: string): boolean {
       }
     }
 
+    if (delivered) clearPendingPreviewTabNavigate()
+
+    previewPrepareActive = false
     return delivered
   } catch {
+    previewPrepareActive = false
     return false
   }
 }

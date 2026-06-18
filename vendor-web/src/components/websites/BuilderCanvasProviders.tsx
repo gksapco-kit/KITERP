@@ -38,6 +38,7 @@ export function BuilderCanvasProviders({
   onTextFieldStylePatch,
   onTextFieldBatchStylePatch,
   onNavigate,
+  onPropLinkEdit,
   children,
 }: {
   siteId: string
@@ -66,6 +67,11 @@ export function BuilderCanvasProviders({
     patchesByField: Record<string, Record<string, unknown>>,
   ) => void
   onNavigate?: (url: string) => void
+  onPropLinkEdit?: (
+    blockId: string,
+    propKey: string,
+    anchor: { x: number; y: number },
+  ) => void
   children: ReactNode
 }) {
   const vendorValue = useMemo<VendorContextType>(() => {
@@ -116,6 +122,7 @@ export function BuilderCanvasProviders({
     onTextFieldStylePatch,
     onTextFieldBatchStylePatch,
     onNavigate,
+    onPropLinkEdit,
   }), [
     activeBlockId,
     activeTextField,
@@ -129,6 +136,7 @@ export function BuilderCanvasProviders({
     onTextFieldStylePatch,
     onTextFieldBatchStylePatch,
     onNavigate,
+    onPropLinkEdit,
   ])
 
   return (

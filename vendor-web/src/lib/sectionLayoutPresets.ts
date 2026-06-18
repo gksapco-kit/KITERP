@@ -192,9 +192,9 @@ export const BLOCK_QUICK_PRESETS: Record<string, SectionLayoutPreset[]> = {
       desc: p.desc,
       props: { ...p.props },
     })),
-    { label: 'Dark Minimal', desc: 'Dark centered minimal footer', props: { footer_style: 'minimal', columns: 1, footer_bg: '#0f172a', footer_heading: '#f8fafc', footer_muted: '#94a3b8', footer_border: '#334155' } },
-    { label: 'Brand Compact', desc: 'Brand color, two columns', props: { footer_style: 'compact', columns: 2, footer_bg: '#64C3A0', footer_heading: '#ffffff', footer_muted: 'rgba(255,255,255,0.85)', footer_border: 'rgba(255,255,255,0.2)' } },
-    { label: 'Mega Dark', desc: 'Dark mega footer + newsletter', props: { footer_style: 'mega', columns: 4, show_newsletter: true, footer_bg: '#0f172a', footer_heading: '#f8fafc', footer_muted: '#94a3b8', footer_border: '#334155' } },
+    { label: 'Dark Minimal', desc: 'Dark centered minimal footer', props: { footer_style: 'minimal', columns: 1, show_social: false, footer_bg: '#0f172a', footer_heading: '#f8fafc', footer_muted: '#94a3b8', footer_border: '#334155' } },
+    { label: 'Brand Compact', desc: 'Brand color, two columns', props: { footer_style: 'compact', columns: 2, show_social: true, footer_bg: '#64C3A0', footer_heading: '#ffffff', footer_muted: 'rgba(255,255,255,0.85)', footer_border: 'rgba(255,255,255,0.2)' } },
+    { label: 'Mega Dark', desc: 'Dark mega footer + newsletter', props: { footer_style: 'mega', columns: 4, show_newsletter: true, show_social: true, footer_bg: '#0f172a', footer_heading: '#f8fafc', footer_muted: '#94a3b8', footer_border: '#334155' } },
   ],
   newsletter: [
     { label: 'Inline Bar', desc: 'Horizontal email bar', props: { layout: 'inline' } },

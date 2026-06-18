@@ -1,6 +1,5 @@
 import { useCallback, type MouseEvent, type ReactNode } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { ArrowUp } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { PublicSite, StyleConfig, LiveItem } from '@/blocks/registry'
 import { useStorePath } from '@/hooks/useStorePath'
@@ -8,8 +7,14 @@ import { useVendor } from '@/contexts/VendorContext'
 import { useBuilderCanvas } from '@/contexts/BuilderCanvasContext'
 import { isDraftPreviewShellHref } from '@/lib/previewNavRouting'
 import { BuilderTextField } from '@/components/builder/BuilderTextField'
+import { BuilderSocialIcon } from '@/components/builder/BuilderSocialIcon'
 import { ColumnFooter } from '@/kit/footer/ColumnFooter'
 import type { FooterColumn } from '@/kit/footer/ColumnFooter'
+import {
+  FOOTER_SOCIAL_PLATFORMS,
+  normalizeFooterSocialLinks,
+  type FooterSocialPlatform,
+} from '@/kit/footer/footerSocial'
 
 interface Props {
   site: PublicSite
@@ -60,6 +65,8 @@ function EditableColumnFooter({
   footerBg,
   footerClass,
   primaryColor,
+  showSocial,
+  socialLinks,
 }: {
   blockId: string
   blockProps: Record<string, unknown>
@@ -70,6 +77,8 @@ function EditableColumnFooter({
   footerBg: string
   footerClass: string
   primaryColor: string
+  showSocial: boolean
+  socialLinks: Partial<Record<FooterSocialPlatform, string>>
 }) {
   const storePath = useStorePath()
 
@@ -99,6 +108,18 @@ function EditableColumnFooter({
                 className="mt-3 text-sm text-gray-500 max-w-sm"
                 placeholder="Short site description"
               />
+            )}
+            {showSocial && (
+              <div className="mt-4 flex items-center gap-2">
+                {FOOTER_SOCIAL_PLATFORMS.map(({ key }) => (
+                  <BuilderSocialIcon
+                    key={key}
+                    blockId={blockId}
+                    platform={key}
+                    url={socialLinks[key] || ''}
+                  />
+                ))}
+              </div>
             )}
           </div>
 
@@ -145,7 +166,7 @@ function EditableColumnFooter({
           </div>
         </div>
 
-        <div className="mt-10 flex flex-col-reverse md:flex-row md:items-center md:justify-between gap-4 border-t border-gray-200 pt-6">
+        <div className="mt-10 border-t border-gray-200 pt-6">
           <BuilderTextField
             fieldKey="copyright"
             blockId={blockId}
@@ -155,14 +176,6 @@ function EditableColumnFooter({
             className="text-xs text-gray-400"
             placeholder="Copyright line"
           />
-          <button
-            type="button"
-            onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
-            className="inline-flex h-9 w-9 items-center justify-center rounded-md border border-gray-200 bg-white text-gray-600 hover:bg-gray-50"
-            aria-label="Back to top"
-          >
-            <ArrowUp className="h-4 w-4" />
-          </button>
         </div>
       </div>
     </footer>
@@ -173,7 +186,7 @@ export default function FooterBlock({ site, style, props, liveItems, blockId }: 
   const storePath = useStorePath()
   const navigate = useNavigate()
   const builderCanvas = useBuilderCanvas()
-  const { previewShell, openBuilderForPage } = useVendor()
+  const { previewShell, openBuilderForPage, vendor } = useVendor()
   const isEditor = builderCanvas?.isEditorCanvas === true && !!blockId
 
   const previewFooterClick = useCallback((e: MouseEvent, href: string) => {
@@ -223,6 +236,12 @@ export default function FooterBlock({ site, style, props, liveItems, blockId }: 
 
   const rawCols = props.footer_columns as RawColumn[] | undefined
   const footerColumns = normalizeFooterColumns(rawCols, storePath, previewShell === true)
+  const showSocial = props.show_social !== false
+  const socialLinks = normalizeFooterSocialLinks({
+    ...(vendor?.social_links as Record<string, string> | undefined),
+    ...(props.social_links as Record<string, string> | undefined),
+  })
+  const showAllSocialIcons = isEditor || previewShell === true
 
   const navLinks: Array<{ label: string; url: string }> =
     liveItems.length > 0
@@ -241,6 +260,8 @@ export default function FooterBlock({ site, style, props, liveItems, blockId }: 
         footerBg={footerBg}
         footerClass={footerClass}
         primaryColor={style.primary_color}
+        showSocial={showSocial}
+        socialLinks={socialLinks}
       />
     )
   }
@@ -253,9 +274,10 @@ export default function FooterBlock({ site, style, props, liveItems, blockId }: 
         description={description || undefined}
         columns={footerColumns}
         copyright={copyright}
-        showSocial={false}
+        showSocial={showSocial}
+        socialLinks={socialLinks}
+        showAllSocialIcons={showAllSocialIcons}
         showNewsletter={props.show_newsletter === true || footerStyle === 'mega'}
-        showBackToTop
         className={footerClass}
         style={{ backgroundColor: footerBg }}
       />

@@ -88,6 +88,7 @@ export function DraftPreviewRenderer({
       sitePageSlugs={sitePageSlugs}
       openBuilderForPage={onOpenBuilderPage}
       offeringType={offeringType}
+      socialLinks={vendor?.social_links}
     >
       <LiveDataFetchProvider fetcher={liveFetcher}>
         <BlockRenderer

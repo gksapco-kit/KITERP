@@ -1,8 +1,12 @@
+import type { CSSProperties, ReactNode } from "react";
 import { Link } from "react-router-dom";
-import { Facebook, Instagram, Twitter, Youtube, Linkedin, ArrowUp } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import {
+  FOOTER_SOCIAL_PLATFORMS,
+  type FooterSocialPlatform,
+} from "@/kit/footer/footerSocial";
 
 export interface FooterColumn {
   title: string;
@@ -16,20 +20,15 @@ export interface ColumnFooterProps {
   columns: FooterColumn[];
   copyright?: string;
   showSocial?: boolean;
+  socialLinks?: Partial<Record<FooterSocialPlatform, string>>;
+  /** When true, render all social icons (used in builder canvas). */
+  showAllSocialIcons?: boolean;
+  renderSocialIcon?: (platform: FooterSocialPlatform, url: string) => ReactNode;
   showNewsletter?: boolean;
   showPaymentStrip?: boolean;
-  showBackToTop?: boolean;
   className?: string;
-  style?: React.CSSProperties;
+  style?: CSSProperties;
 }
-
-const socialLinks = [
-  { Icon: Facebook, href: "#", label: "Facebook" },
-  { Icon: Instagram, href: "#", label: "Instagram" },
-  { Icon: Twitter, href: "#", label: "Twitter" },
-  { Icon: Youtube, href: "#", label: "Youtube" },
-  { Icon: Linkedin, href: "#", label: "LinkedIn" },
-];
 
 export function ColumnFooter({
   variant = "standard",
@@ -38,15 +37,20 @@ export function ColumnFooter({
   columns,
   copyright = `© ${new Date().getFullYear()} Acme ERP. All rights reserved.`,
   showSocial = true,
+  socialLinks,
+  showAllSocialIcons = false,
+  renderSocialIcon,
   showNewsletter,
   showPaymentStrip,
-  showBackToTop = true,
   className,
   style,
 }: ColumnFooterProps) {
   const isFull = variant === "full";
   const newsletter = showNewsletter ?? isFull;
   const paymentStrip = showPaymentStrip ?? isFull;
+  const visibleSocial = FOOTER_SOCIAL_PLATFORMS.filter(({ key }) =>
+    showAllSocialIcons || Boolean(socialLinks?.[key]?.trim()),
+  );
   const linkColumnGrid =
     columns.length >= 4
       ? "sm:grid-cols-2 md:grid-cols-4"
@@ -64,6 +68,39 @@ export function ColumnFooter({
             <div className="md:col-span-4">
               <div className="text-lg font-semibold">{brand}</div>
               {description && <p className="mt-3 text-sm text-muted-foreground max-w-sm">{description}</p>}
+              {showSocial && visibleSocial.length > 0 && (
+                <div className="mt-4 flex items-center gap-2">
+                  {visibleSocial.map(({ key, label, Icon }) => {
+                    const url = socialLinks?.[key]?.trim() || '';
+                    if (renderSocialIcon) {
+                      return <span key={key}>{renderSocialIcon(key, url)}</span>;
+                    }
+                    if (!url) {
+                      return (
+                        <span
+                          key={key}
+                          aria-label={label}
+                          className="text-muted-foreground/35"
+                        >
+                          <Icon className="h-4 w-4" />
+                        </span>
+                      );
+                    }
+                    return (
+                      <a
+                        key={key}
+                        href={url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        aria-label={label}
+                        className="text-muted-foreground hover:text-foreground"
+                      >
+                        <Icon className="h-4 w-4" />
+                      </a>
+                    );
+                  })}
+                </div>
+              )}
               {newsletter && (
                 <form className="mt-5 flex gap-2 max-w-sm" onSubmit={(e) => e.preventDefault()}>
                   <Input type="email" placeholder="you@example.com" required />
@@ -111,30 +148,8 @@ export function ColumnFooter({
           </div>
         )}
 
-        <div className="mt-10 flex flex-col-reverse md:flex-row md:items-center md:justify-between gap-4 border-t pt-6">
+        <div className="mt-10 border-t pt-6">
           <p className="text-xs text-muted-foreground">{copyright}</p>
-          <div className="flex items-center gap-3">
-            {showSocial && socialLinks.map(({ Icon, href, label }) => (
-              <a
-                key={label}
-                href={href}
-                aria-label={label}
-                className="text-muted-foreground hover:text-foreground"
-              >
-                <Icon className="h-4 w-4" />
-              </a>
-            ))}
-            {showBackToTop && (
-              <Button
-                size="icon"
-                variant="outline"
-                onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
-                aria-label="Back to top"
-              >
-                <ArrowUp />
-              </Button>
-            )}
-          </div>
         </div>
       </div>
     </footer>

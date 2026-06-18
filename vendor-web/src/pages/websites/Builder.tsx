@@ -271,6 +271,13 @@ const BLOCK_CATALOG: BlockDef[] = [
   { type: 'footer', label: 'Footer', icon: Layout, desc: 'Site footer with links and copyright', category: 'structure', defaultProps: {
     copyright: '? 2026 My Store. All rights reserved.',
     show_legal: true,
+    show_social: true,
+    social_links: {
+      twitter: '',
+      facebook: '',
+      instagram: '',
+      youtube: '',
+    },
     footer_columns: [
       { title: 'Shop', links: ['All products', 'Categories', 'Offers'] },
       { title: 'Help', links: ['Contact', 'Shipping', 'Returns'] },
@@ -5360,6 +5367,56 @@ function PropsEditor({
         </PropsCollapsible>
       )}
 
+      {block.block_type === 'footer' && p.show_social !== false && (
+        <PropsCollapsible
+          title="Social media"
+          preview={Object.values((p.social_links as Record<string, string>) || {}).filter(Boolean).length
+            ? `${Object.values((p.social_links as Record<string, string>) || {}).filter(Boolean).length} linked`
+            : 'Click icons on canvas to add URLs'}
+        >
+          <p className="text-xs text-gray-400 leading-snug mb-2">
+            Click a social icon on the footer canvas, or edit URLs here.
+          </p>
+          {[
+            { key: 'twitter', label: 'Twitter / X' },
+            { key: 'facebook', label: 'Facebook' },
+            { key: 'instagram', label: 'Instagram' },
+            { key: 'youtube', label: 'YouTube' },
+          ].map(({ key, label }) => (
+            <div key={key} className="flex items-center gap-1.5">
+              <span className="w-20 shrink-0 text-xs text-gray-500">{label}</span>
+              <input
+                type="url"
+                value={String((p.social_links as Record<string, string> | undefined)?.[key] || '')}
+                placeholder={`https://${key}.com/your-page`}
+                onChange={e => {
+                  const next = { ...((p.social_links as Record<string, string>) || {}) }
+                  const val = e.target.value.trim()
+                  if (val) next[key] = val
+                  else delete next[key]
+                  onUpdate({ social_links: next } as any)
+                }}
+                className="flex-1 min-w-0 px-2 py-1.5 border border-gray-200 rounded text-xs font-mono"
+              />
+              {onEditPropLink && (
+                <button
+                  type="button"
+                  onMouseDown={e => {
+                    e.preventDefault()
+                    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect()
+                    onEditPropLink(`social_links.${key}`, { x: rect.left, y: rect.bottom + 6 })
+                  }}
+                  className="shrink-0 p-1.5 rounded border border-gray-200 text-gray-500 hover:text-primary hover:border-primary/40"
+                  title="Open link picker"
+                >
+                  <Link2 className="w-3 h-3" />
+                </button>
+              )}
+            </div>
+          ))}
+        </PropsCollapsible>
+      )}
+
       {block.block_type === 'nav' && (
         <PropsCollapsible
           title="Navigation links"
@@ -7895,6 +7952,7 @@ export default function WebsiteBuilder() {
   const skipServerHydrateRef = useRef(0)
   const styleDirtyRef = useRef(false)    // mirror for style dirty flag
   const [openingBrowserPreview, setOpeningBrowserPreview] = useState(false)
+  const openingBrowserPreviewRef = useRef(false)
   const [trashedPages, setTrashedPages] = useState<PageTrashItem[]>([])
   const [trashLoading, setTrashLoading] = useState(false)
   const [lastSavedAt, setLastSavedAt] = useState<Date | null>(null)
@@ -10283,6 +10341,32 @@ export default function WebsiteBuilder() {
     const block = (blocksMap[pageId] || []).find(b => b.id === blockId)
     if (!block) return
     const p = block.props as any
+
+    if (propKey.startsWith('social_links.')) {
+      const platform = propKey.split('.')[1] || ''
+      const socialLinks = { ...(p?.social_links || {}) }
+      const currentValue: LinkValue = {
+        type: socialLinks[platform] ? 'url' : 'none',
+        target: socialLinks[platform] || '',
+        label: platform.charAt(0).toUpperCase() + platform.slice(1),
+        openInNewTab: true,
+      }
+      setLinkEditor({
+        anchor,
+        value: currentValue,
+        save: (v) => {
+          const next = { ...(p?.social_links || {}) }
+          if (v.type === 'none' || !v.target.trim()) {
+            delete next[platform]
+          } else {
+            next[platform] = v.target.trim()
+          }
+          handleUpdateBlockProps(blockId, { social_links: next } as any)
+        },
+      })
+      return
+    }
+
     const resolved = (() => {
       if (propKey === 'cta_label' || propKey === 'cta_url') {
         return { labelPropKey: 'cta_label', urlKey: 'cta_url', metaKey: 'cta' }
@@ -11724,26 +11808,27 @@ export default function WebsiteBuilder() {
   }, [siteTestUrl, openTextPrompt, updateSite])
 
   const handleOpenBrowserPreview = useCallback(async () => {
-    if (!siteId || !site) return
-    // /store/:vendorSlug must match Vendor.slug (catalog), never wb_sites.subdomain alone.
-    let vendorSlug = myVendor?.slug?.trim() ?? ''
-    if (!vendorSlug) {
-      try {
-        const v = await vendorApi.getMyVendor()
-        vendorSlug = v.slug?.trim() ?? ''
-      } catch {
-        /* noop */
-      }
-    }
-    if (!vendorSlug) {
-      toast.error('Could not resolve your vendor store slug. Open the dashboard home once, then try again.')
-      return
-    }
+    if (!siteId || !site || openingBrowserPreviewRef.current) return
+    openingBrowserPreviewRef.current = true
+    setOpeningBrowserPreview(true)
     clearPendingPreviewTabNavigate()
     clearPendingPreviewTabError()
     const previewTab = prepareDraftPreviewTab()
-    setOpeningBrowserPreview(true)
     try {
+      // /store/:vendorSlug must match Vendor.slug (catalog), never wb_sites.subdomain alone.
+      let vendorSlug = myVendor?.slug?.trim() ?? ''
+      if (!vendorSlug) {
+        try {
+          const v = await vendorApi.getMyVendor()
+          vendorSlug = v.slug?.trim() ?? ''
+        } catch {
+          /* noop */
+        }
+      }
+      if (!vendorSlug) {
+        toast.error('Could not resolve your vendor store slug. Open the dashboard home once, then try again.')
+        return
+      }
       const payload = buildPublicSitePayloadFromLocal(site, localPages, localBlocks, localStyle, vendorSlug)
       const { preview_token } = await websiteApi.createBuilderPreview(siteId, {
         payload,
@@ -11774,6 +11859,7 @@ export default function WebsiteBuilder() {
       // Stop the opened preview tab from hanging on "Preparing…" forever.
       broadcastPreviewTabError(message)
     } finally {
+      openingBrowserPreviewRef.current = false
       setOpeningBrowserPreview(false)
     }
   }, [siteId, site, myVendor, localPages, localBlocks, localStyle, activePage, siteTestUrl])
@@ -13390,6 +13476,7 @@ export default function WebsiteBuilder() {
                   onTextFieldCommit={handleCanvasTextFieldCommit}
                   onTextFieldStylePatch={handleCanvasTextFieldStylePatch}
                   onTextFieldBatchStylePatch={handleCanvasTextFieldBatchStylePatch}
+                  onPropLinkEdit={(blockId, propKey, anchor) => openLinkEditorForProp(blockId, propKey, anchor)}
                 >
                 <>
                   <div

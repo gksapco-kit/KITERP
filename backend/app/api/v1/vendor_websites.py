@@ -1813,6 +1813,13 @@ def _footer_props_standard() -> Dict[str, Any]:
     """Full multi-column footer — stored on each block so preview/business front match template data (no UI-side defaults)."""
     return {
         "show_legal": True,
+        "show_social": True,
+        "social_links": {
+            "twitter": "",
+            "facebook": "",
+            "instagram": "",
+            "youtube": "",
+        },
         "copyright": "© 2026 Your Company. All rights reserved.",
         "footer_columns": [
             {"title": "Company", "links": ["About", "Careers", "Contact"]},

@@ -73,7 +73,18 @@ function FooterPreview({ variantProps }: { variantProps: Record<string, unknown>
           <Bar w="w-6" h="h-2" className="bg-primary/60" />
         </div>
       )}
-      <div className={cn('grid gap-1.5 mb-2', cols >= 4 ? 'grid-cols-4' : cols === 2 ? 'grid-cols-2' : 'grid-cols-3')}>
+      <div className={cn('grid gap-1.5 mb-2', cols >= 4 ? 'grid-cols-5' : cols === 2 ? 'grid-cols-3' : 'grid-cols-4')}>
+        <div className="space-y-0.5">
+          <Bar w="w-3/4" h="h-1.5" className={head} />
+          <Bar w="w-full" h="h-0.5" className={link} />
+          {variantProps.show_social !== false && (
+            <div className="flex gap-0.5 pt-0.5">
+              {[0, 1, 2, 3].map(i => (
+                <div key={i} className={cn('w-1.5 h-1.5 rounded-sm', isDark ? 'bg-slate-600' : isBrand ? 'bg-white/40' : 'bg-slate-300')} />
+              ))}
+            </div>
+          )}
+        </div>
         {Array.from({ length: Math.min(cols, 4) }).map((_, col) => (
           <div key={col} className="space-y-0.5">
             <Bar w="w-3/4" h="h-1.5" className={head} />
@@ -82,7 +93,10 @@ function FooterPreview({ variantProps }: { variantProps: Record<string, unknown>
         ))}
       </div>
       <div className={cn('h-px w-full', line)} />
-      <Bar w="w-1/3 mx-auto mt-1.5" h="h-1" className={link} />
+      <div className="flex items-center justify-between gap-1 mt-1.5 px-0.5">
+        <Bar w="w-1/3" h="h-1" className={link} />
+        <div className={cn('w-2 h-2 rounded-sm', isDark ? 'bg-slate-600' : isBrand ? 'bg-white/40' : 'bg-slate-300')} />
+      </div>
     </div>
   )
 }

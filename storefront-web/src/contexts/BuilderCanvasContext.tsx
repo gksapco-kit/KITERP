@@ -33,6 +33,12 @@ export interface BuilderCanvasContextValue {
   ) => void
   /** Intercept header / storefront links in the builder canvas. */
   onNavigate?: (url: string) => void
+  /** Open the link editor for a block prop (e.g. social_links.twitter). */
+  onPropLinkEdit?: (
+    blockId: string,
+    propKey: string,
+    anchor: { x: number; y: number },
+  ) => void
 }
 
 const BuilderCanvasContext = createContext<BuilderCanvasContextValue | null>(null)

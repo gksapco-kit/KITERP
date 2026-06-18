@@ -19,6 +19,7 @@ export interface ResolvedFooterTheme {
   centered: boolean
   compact: boolean
   showNewsletter: boolean
+  showSocial: boolean
 }
 
 const STYLE_DEFAULTS: Record<
@@ -34,6 +35,7 @@ const STYLE_DEFAULTS: Record<
     centered: false,
     compact: false,
     showNewsletter: false,
+    showSocial: true,
   }),
   dark: () => ({
     footerBg: '#0f172a',
@@ -44,6 +46,7 @@ const STYLE_DEFAULTS: Record<
     centered: false,
     compact: false,
     showNewsletter: false,
+    showSocial: true,
   }),
   minimal: (fb) => ({
     footerBg: fb.surface_color || fb.bg_color || '#f8fafc',
@@ -54,6 +57,7 @@ const STYLE_DEFAULTS: Record<
     centered: true,
     compact: false,
     showNewsletter: false,
+    showSocial: false,
   }),
   brand: (fb) => ({
     footerBg: fb.primary_color || '#13624A',
@@ -64,6 +68,7 @@ const STYLE_DEFAULTS: Record<
     centered: false,
     compact: false,
     showNewsletter: false,
+    showSocial: true,
   }),
   compact: (fb) => ({
     footerBg: fb.bg_color || '#ffffff',
@@ -74,6 +79,7 @@ const STYLE_DEFAULTS: Record<
     centered: false,
     compact: true,
     showNewsletter: false,
+    showSocial: true,
   }),
   mega: (fb) => ({
     footerBg: fb.bg_color || '#ffffff',
@@ -84,6 +90,7 @@ const STYLE_DEFAULTS: Record<
     centered: false,
     compact: false,
     showNewsletter: true,
+    showSocial: true,
   }),
   simple: (fb) => ({
     footerBg: fb.bg_color || '#ffffff',
@@ -94,6 +101,7 @@ const STYLE_DEFAULTS: Record<
     centered: true,
     compact: true,
     showNewsletter: false,
+    showSocial: false,
   }),
 }
 
@@ -115,6 +123,7 @@ export function resolveFooterTheme(
     centered: base.centered,
     compact: base.compact,
     showNewsletter: 'show_newsletter' in props ? props.show_newsletter === true : base.showNewsletter,
+    showSocial: 'show_social' in props ? props.show_social !== false : base.showSocial,
   }
 }
 
@@ -129,6 +138,7 @@ export const FOOTER_LAYOUT_PRESETS = [
     props: {
       footer_style: 'columns',
       columns: 4,
+      show_social: true,
       footer_bg: '#ffffff',
       footer_heading: '#111827',
       footer_muted: '#374151',
@@ -141,6 +151,7 @@ export const FOOTER_LAYOUT_PRESETS = [
     props: {
       footer_style: 'minimal',
       columns: 1,
+      show_social: false,
       footer_bg: '#f8fafc',
       footer_heading: '#111827',
       footer_muted: '#64748b',
@@ -153,6 +164,7 @@ export const FOOTER_LAYOUT_PRESETS = [
     props: {
       footer_style: 'dark',
       columns: 4,
+      show_social: true,
       footer_bg: '#0f172a',
       footer_heading: '#f8fafc',
       footer_muted: '#94a3b8',
@@ -165,6 +177,7 @@ export const FOOTER_LAYOUT_PRESETS = [
     props: {
       footer_style: 'brand',
       columns: 3,
+      show_social: true,
       footer_heading: '#ffffff',
       footer_muted: 'rgba(255,255,255,0.88)',
       footer_border: 'rgba(255,255,255,0.22)',
@@ -176,6 +189,7 @@ export const FOOTER_LAYOUT_PRESETS = [
     props: {
       footer_style: 'compact',
       columns: 2,
+      show_social: true,
       footer_bg: '#ffffff',
       footer_heading: '#111827',
       footer_muted: '#64748b',
@@ -189,6 +203,7 @@ export const FOOTER_LAYOUT_PRESETS = [
       footer_style: 'mega',
       columns: 4,
       show_newsletter: true,
+      show_social: true,
       footer_bg: '#ffffff',
       footer_heading: '#111827',
       footer_muted: '#374151',
@@ -201,6 +216,7 @@ export const FOOTER_LAYOUT_PRESETS = [
     props: {
       footer_style: 'simple',
       columns: 0,
+      show_social: false,
       footer_bg: '#ffffff',
       footer_heading: '#111827',
       footer_muted: '#64748b',
