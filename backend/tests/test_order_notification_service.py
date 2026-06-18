@@ -102,3 +102,22 @@ def test_resolve_vendor_phone_priority():
     assert _pick_vendor_phone(
         support=None, owner=None, primary="9652502965",
     ) == "9652502965"
+
+
+def test_customer_order_sms_body_is_compact_for_trial():
+    from app.services.order_notification_service import _customer_order_sms_body
+
+    body = _customer_order_sms_body("last house - hyd", "ORD-00027", 999.0)
+    assert "Track:" not in body
+    assert "₹" not in body
+    assert "127.0.0.1" not in body
+    assert len(body) <= 120
+
+
+def test_vendor_order_whatsapp_body_is_compact():
+    from app.services.order_notification_service import _vendor_order_whatsapp_body
+
+    body = _vendor_order_whatsapp_body("ORD-00028", "Ravi Kumar", 1998.0)
+    assert "127.0.0.1" not in body
+    assert "₹" not in body
+    assert "New order received" in body

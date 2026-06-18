@@ -1,6 +1,7 @@
 """Order placement notifications — email, SMS, and WhatsApp driven by vendor settings."""
 from __future__ import annotations
 
+import asyncio
 import html
 import logging
 from dataclasses import dataclass, field
@@ -20,8 +21,8 @@ from app.services.sms_service import SmsService, is_valid_e164, normalize_e164
 
 log = logging.getLogger(__name__)
 
-# Twilio errors where retry later may succeed (daily cap, unverified trial number).
-_RETRYABLE_TWILIO_CODES = frozenset({63038, 21608})
+# Twilio errors where retry later may succeed (daily cap, unverified trial number, WA sandbox).
+_RETRYABLE_TWILIO_CODES = frozenset({63038, 21608, 63016})
 
 ChannelOutcome = Literal["sent", "skipped", "failed", "failed_retryable"]
 
@@ -44,7 +45,43 @@ def _is_retryable_twilio_error(
     if code in _RETRYABLE_TWILIO_CODES:
         return True
     msg = (message or "").lower()
-    return "63038" in msg or "50 daily messages" in msg or "daily messages limit" in msg
+    return "63038" in msg or "50 daily messages" in msg or "daily messages limit" in msg or "63016" in msg
+
+
+async def _fetch_twilio_message_status(
+    account_sid: str,
+    auth_token: str,
+    message_sid: str,
+) -> tuple[str, Optional[int]]:
+    import httpx
+
+    async with httpx.AsyncClient(timeout=10.0) as client:
+        resp = await client.get(
+            f"https://api.twilio.com/2010-04-01/Accounts/{account_sid}/Messages/{message_sid}.json",
+            auth=(account_sid, auth_token),
+        )
+    if resp.status_code != 200:
+        return "", None
+    data = resp.json()
+    code = data.get("error_code")
+    return str(data.get("status") or ""), int(code) if code else None
+
+
+def _log_whatsapp_delivery_hint(recipient_label: str, masked: str, error_code: Optional[int]) -> None:
+    if error_code == 63016:
+        log.warning(
+            "WhatsApp to %s (%s) undelivered — this phone must join the Twilio WhatsApp sandbox "
+            "(open WhatsApp on that device, message +1 415 523 8886 with: join <sandbox-code>).",
+            recipient_label,
+            masked,
+        )
+        return
+    log.warning(
+        "WhatsApp to %s (%s) undelivered (Twilio error %s).",
+        recipient_label,
+        masked,
+        error_code or "unknown",
+    )
 
 
 def _vendor_notification_settings(vendor: Vendor) -> dict[str, Any]:
@@ -294,6 +331,78 @@ def _payment_status_note(order: Order) -> str:
     return "Payment is pending — we will confirm once it is completed."
 
 
+def _compact_sms_amount(total: float) -> str:
+    """GSM-7 friendly amount — avoid ₹ which forces UCS-2 and burns trial segments."""
+    amount = float(total or 0)
+    if amount == int(amount):
+        return f"Rs {int(amount)}"
+    return f"Rs {amount:.2f}"
+
+
+def _customer_order_sms_body(store_name: str, order_number: str, total: float) -> str:
+    """Short GSM-7 body for Twilio trial (error 30044 if too long / too many segments)."""
+    name = (store_name or "Store").strip()
+    if len(name) > 22:
+        name = name[:22].rstrip() + "."
+    return (
+        f"Order #{order_number} confirmed at {name}. "
+        f"{_compact_sms_amount(total)}. See your account for details."
+    )
+
+
+def _vendor_order_sms_body(
+    order_number: str,
+    customer_name: str,
+    total: float,
+) -> str:
+    """Compact vendor alert — omit long localhost URLs that break trial segment limits."""
+    buyer = (customer_name or "Customer").strip()
+    if len(buyer) > 20:
+        buyer = buyer[:20].rstrip() + "."
+    return (
+        f"KITERP: New order #{order_number} from {buyer}. "
+        f"{_compact_sms_amount(total)}. Open your dashboard."
+    )
+
+
+def _vendor_order_whatsapp_body(
+    order_number: str,
+    customer_name: str,
+    total: float,
+) -> str:
+    buyer = (customer_name or "Customer").strip()
+    if len(buyer) > 24:
+        buyer = buyer[:24].rstrip() + "."
+    return (
+        f"New order received\n"
+        f"Order: #{order_number}\n"
+        f"Customer: {buyer}\n"
+        f"{_compact_sms_amount(total)}\n"
+        f"Open your KITERP dashboard to view details."
+    )
+
+
+def _customer_order_whatsapp_body(
+    store_name: str,
+    order_number: str,
+    total: float,
+    customer_name: str,
+) -> str:
+    name = (store_name or "Store").strip()
+    if len(name) > 28:
+        name = name[:28].rstrip() + "."
+    greet = (customer_name or "there").strip()
+    if len(greet) > 24:
+        greet = greet[:24].rstrip() + "."
+    return (
+        f"Order confirmed\n"
+        f"Hi {greet}, thank you for shopping at {name}.\n"
+        f"Order: #{order_number}\n"
+        f"{_compact_sms_amount(total)}\n"
+        f"Check your account for order updates."
+    )
+
+
 def _order_context(
     vendor: Vendor,
     order: Order,
@@ -420,6 +529,17 @@ async def _send_whatsapp_message(
         try:
             result = await adapter.send(to=phone, body=body)
             if result.get("ok"):
+                message_sid = result.get("id")
+                if message_sid:
+                    await asyncio.sleep(3)
+                    status, error_code = await _fetch_twilio_message_status(
+                        account_sid, auth_token, message_sid,
+                    )
+                    if status in {"undelivered", "failed"}:
+                        _log_whatsapp_delivery_hint(recipient_label, masked, error_code)
+                        if error_code in _RETRYABLE_TWILIO_CODES:
+                            return "failed_retryable"
+                        return "failed"
                 log.info(
                     "Order confirmation WhatsApp sent via platform Twilio to %s (%s) for order %s",
                     recipient_label, masked, order_number,
@@ -603,10 +723,7 @@ async def _send_order_sms(
     if vendor_order_sms_enabled(vendor):
         vendor_phone = await _resolve_vendor_phone(db, vendor)
         if vendor_phone:
-            body = (
-                f"KITERP: New order #{order_number} from {customer_name}. "
-                f"Total ₹{total:,.2f}. View: {ctx['vendor_url']}"
-            )
+            body = _vendor_order_sms_body(order_number, customer_name, total)
             outcome = await _send_sms_message(
                 db,
                 vendor_id=vendor.id,
@@ -627,10 +744,7 @@ async def _send_order_sms(
                 order_number,
                 customer_phone[-4:] if len(customer_phone) >= 4 else "****",
             )
-            body = (
-                f"{store_name}: Your order #{order_number} is confirmed. "
-                f"Total ₹{total:,.2f}. Track: {ctx['track_url']}"
-            )
+            body = _customer_order_sms_body(store_name, order_number, total)
             outcome = await _send_sms_message(
                 db,
                 vendor_id=vendor.id,
@@ -664,20 +778,12 @@ async def _send_order_whatsapp(
     total = ctx["total"]
     store_name = ctx["store_name"]
     customer_name = ctx["customer_name"]
-    status_label = ctx["status_label"]
     customer_prefs = (customer.notification_preferences or {}) if customer else {}
 
     if vendor_order_whatsapp_enabled(vendor):
         vendor_phone = await _resolve_vendor_phone(db, vendor)
         if vendor_phone:
-            body = (
-                f"🛒 *New order received*\n\n"
-                f"Order: *#{order_number}*\n"
-                f"Customer: {customer_name}\n"
-                f"Total: ₹{total:,.2f}\n"
-                f"Status: {status_label}\n\n"
-                f"View order: {ctx['vendor_url']}"
-            )
+            body = _vendor_order_whatsapp_body(order_number, customer_name, total)
             outcome = await _send_whatsapp_message(
                 db,
                 vendor_id=vendor.id,
@@ -699,16 +805,7 @@ async def _send_order_whatsapp(
                 customer_phone[-4:] if len(customer_phone) >= 4 else "****",
             )
             greet = (customer.full_name or "there").strip() if customer else "there"
-            body = (
-                f"✅ *Order confirmed*\n\n"
-                f"Hi {greet},\n"
-                f"Thank you for shopping at *{store_name}*.\n\n"
-                f"Order: *#{order_number}*\n"
-                f"Total: ₹{total:,.2f}\n"
-                f"Status: {status_label}\n"
-                f"{ctx['payment_note']}\n\n"
-                f"Track your order: {ctx['track_url']}"
-            )
+            body = _customer_order_whatsapp_body(store_name, order_number, total, greet)
             outcome = await _send_whatsapp_message(
                 db,
                 vendor_id=vendor.id,

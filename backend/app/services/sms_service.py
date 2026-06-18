@@ -30,6 +30,10 @@ _TWILIO_USER_HINTS: dict[int, str] = {
         "Twilio daily message limit reached (50/day on trial). "
         "Upgrade your Twilio account or wait until tomorrow."
     ),
+    30044: (
+        "SMS too long for Twilio trial account. "
+        "Upgrade Twilio or use a shorter message template."
+    ),
     21408: "SMS is not enabled for this region in your Twilio account.",
     20003: "Twilio authentication failed — check Account SID and Auth Token.",
 }
