@@ -3778,7 +3778,7 @@ async def get_live_resource(
     """
     vendor = await _get_vendor(db, user)
     site = await _get_site(db, site_id, vendor.id)
-    limit = max(1, min(limit, 50))
+    limit = max(1, min(limit, 200))
 
     items: List[Dict[str, Any]] = []
     meta: Dict[str, Any] = {}

@@ -24,9 +24,15 @@ export function isInlineEditTag(tagName: string | undefined): boolean {
 export const FIELD_OFFSET_STEP_PX = 8
 export const FIELD_OFFSET_MAX_PX = 480
 
-/** Text box width as % of the section content column (builder resize handles). */
+/**
+ * Text box width as % of its parent content column (builder resize handles).
+ * The max exceeds 100% so a box can be dragged wider than its (often narrow,
+ * centered) column out to the section's content edge. The actual upper bound is
+ * the section width, enforced in pixels while dragging; this ceiling just caps
+ * the stored value for unusually narrow columns inside very wide sections.
+ */
 export const FIELD_WIDTH_MIN_PCT = 25
-export const FIELD_WIDTH_MAX_PCT = 100
+export const FIELD_WIDTH_MAX_PCT = 1000
 
 /** Minimum vertical space for multiline text boxes (saved values only). */
 export const FIELD_MIN_HEIGHT_MIN_PX = 40
@@ -71,6 +77,28 @@ export function readFieldMinHeight(value: unknown): number | null {
   const n = Math.round(value)
   if (n <= 0) return null
   return Math.max(FIELD_MIN_HEIGHT_MIN_PX, Math.min(FIELD_MIN_HEIGHT_MAX_PX, n))
+}
+
+/** True when the field has an explicit resized box width (not auto / fit-content). */
+export function fieldHasConstrainedBoxWidth(fs: Record<string, unknown>): boolean {
+  return readFieldWidthPct(fs.field_width_pct) != null
+}
+
+/** Typography/layout rules so text stays inside a resized box (unless nowrap is explicit). */
+export function fieldConstrainedTextLayoutStyle(fs: Record<string, unknown>): CSSProperties {
+  if (!fieldHasConstrainedBoxWidth(fs) || fs.text_wrap === false) return {}
+  return {
+    display: 'block',
+    width: '100%',
+    maxWidth: '100%',
+    minWidth: 0,
+    boxSizing: 'border-box',
+    overflowWrap: 'break-word',
+    wordBreak: 'break-word',
+    ...(fs.text_wrap === true || fs.text_wrap == null
+      ? { whiteSpace: 'pre-wrap' as const }
+      : {}),
+  }
 }
 
 export function readFlipFlag(value: unknown): boolean {
@@ -150,6 +178,14 @@ export function fieldTextStyle(
   base: CSSProperties = {},
 ): CSSProperties {
   const fs = fieldStyleEntry(props, fieldKey)
+  const wrapStyle =
+    fs.text_wrap === true
+      ? { whiteSpace: 'pre-wrap' as const, overflowWrap: 'break-word' as const }
+      : fs.text_wrap === false
+        ? { whiteSpace: 'nowrap' as const }
+        : fieldHasConstrainedBoxWidth(fs)
+          ? { whiteSpace: 'pre-wrap' as const, overflowWrap: 'break-word' as const, wordBreak: 'break-word' as const }
+          : {}
   return {
     ...base,
     ...(typeof fs.text_color_override === 'string' ? { color: fs.text_color_override } : {}),
@@ -175,11 +211,7 @@ export function fieldTextStyle(
     ...(fs.text_align === 'left' || fs.text_align === 'center' || fs.text_align === 'right'
       ? { textAlign: fs.text_align as CSSProperties['textAlign'] }
       : {}),
-    ...(fs.text_wrap === true
-      ? { whiteSpace: 'pre-wrap' as const, overflowWrap: 'break-word' as const }
-      : fs.text_wrap === false
-        ? { whiteSpace: 'nowrap' as const }
-        : {}),
+    ...wrapStyle,
     ...(typeof fs.line_height_ratio === 'number' && fs.line_height_ratio > 0
       ? { lineHeight: fs.line_height_ratio }
       : {}),
@@ -189,6 +221,7 @@ export function fieldTextStyle(
     ...(typeof fs.paragraph_space_after_px === 'number'
       ? { marginBottom: `${Math.max(0, Math.round(fs.paragraph_space_after_px))}px` }
       : {}),
+    ...fieldConstrainedTextLayoutStyle(fs),
   }
 }
 
@@ -223,6 +256,8 @@ export function fieldLayoutWrapperStyle(
 
   return {
     position: 'relative',
+    boxSizing: 'border-box',
+    ...(widthPct != null || boxMinHeight != null ? { minWidth: 0 } : {}),
     ...(inline
       ? { display: 'inline-flex', maxWidth: '100%' }
       : widthPct != null
@@ -339,8 +374,25 @@ export function buildFieldStylesCss(
         layoutRules.push(
           `width: ${widthPct}% !important`,
           `max-width: ${widthPct}% !important`,
+          'min-width: 0 !important',
+          'box-sizing: border-box !important',
         )
-        textRules.push('max-width: 100% !important', 'width: 100% !important')
+        if (fs.text_wrap !== false) {
+          textRules.push(
+            'display: block !important',
+            'max-width: 100% !important',
+            'width: 100% !important',
+            'min-width: 0 !important',
+            'box-sizing: border-box !important',
+            'overflow-wrap: break-word !important',
+            'word-break: break-word !important',
+          )
+          if (fs.text_wrap === true || fs.text_wrap == null) {
+            textRules.push('white-space: pre-wrap !important')
+          }
+        } else {
+          textRules.push('max-width: 100% !important', 'width: 100% !important', 'min-width: 0 !important')
+        }
       }
 
       const boxMinHeight = readFieldMinHeight(fs.field_min_height)

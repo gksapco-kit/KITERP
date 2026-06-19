@@ -268,6 +268,15 @@ export const BLOCK_QUICK_PRESETS: Record<string, SectionLayoutPreset[]> = {
     { label: 'Minimal Cards', desc: 'Image + title only', props: { columns: 4, card_style: 'minimal' } },
     { label: 'Dark Shop Grid', desc: 'Products on dark surface', props: { columns: 4, bg_style: 'dark' } },
   ],
+  product_detail: [
+    { label: 'Classic Split', desc: 'Photo left, details right', props: { layout: 'split', image_position: 'left' } },
+    { label: 'Details Left', desc: 'Details left, photo right', props: { layout: 'split', image_position: 'right' } },
+    { label: 'Gallery Stacked', desc: 'Large photo above details', props: { layout: 'stacked' } },
+    { label: 'Minimal Clean', desc: 'Whitespace-first, no badges', props: { layout: 'minimal', image_position: 'left' } },
+    { label: 'Bordered Card', desc: 'Product inside elevated card', props: { layout: 'card', image_position: 'left' } },
+    { label: 'Dark Premium', desc: 'Details on dark surface', props: { layout: 'split', image_position: 'left', bg_style: 'dark' } },
+    { label: 'Spotlight Hero', desc: 'Full-bleed photo with overlay', props: { layout: 'hero' } },
+  ],
   category_cards: [
     { label: 'Wellness Mosaic', desc: 'Animated mix of circles, squares & portraits', props: { layout: 'wellness', columns: 3 } },
     { label: 'Editorial 3-Col', desc: 'Shop-by-category editorial', props: { layout: 'editorial', columns: 3 } },

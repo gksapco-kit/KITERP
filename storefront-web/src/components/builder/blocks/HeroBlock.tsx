@@ -15,6 +15,7 @@ import { BuilderSectionImage } from '@/components/builder/BuilderSectionImage'
 import { BuilderContentGroup } from '@/components/builder/BuilderContentGroup'
 import { MediaClipFrame } from '@/components/builder/MediaClipFrame'
 import { hasMediaClip } from '@/lib/mediaClip'
+import { readSectionImageLayer } from '@/lib/sectionImageStyle'
 import { useBuilderCanvas } from '@/contexts/BuilderCanvasContext'
 import { useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
@@ -318,11 +319,16 @@ export default function HeroBlock({ site, style, props, blockType, blockId, bran
     </div>
   )
 
+  const sideImageBehindText = isSplit && readSectionImageLayer('image_url', props) === 'back'
+
   const renderSideImage = (panelClass?: string) => {
     if (!isSplit) return null
+    // "Send to back" drops the image panel below the text panel (z-index 1) so
+    // overflowing headlines sit on top of the photo instead of behind it.
+    const layerZ = sideImageBehindText ? 'z-0' : 'z-10'
     const panelCls = panelClass || (splitSideBySide
-      ? `relative z-10 w-full ${imagePanelWidth} min-h-[420px] md:min-h-[640px]`
-      : 'relative z-10 w-full flex-1 md:w-auto')
+      ? `relative ${layerZ} w-full ${imagePanelWidth} min-h-[420px] md:min-h-[640px]`
+      : `relative ${layerZ} w-full flex-1 md:w-auto`)
     return (
       <div
         className={panelCls}

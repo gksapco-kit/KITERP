@@ -576,7 +576,7 @@ async def get_live_resource_public(
     if not vendor:
         raise HTTPException(status_code=404, detail="Vendor not found")
 
-    limit = max(1, min(limit, 50))
+    limit = max(1, min(limit, 200))
     items: List[Dict[str, Any]] = []
 
     if resource == "products":

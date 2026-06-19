@@ -170,10 +170,14 @@ export function resolveFieldDragSnap(
   if (!blockRoot) return { delta: rawDelta, guides: [] }
 
   const targets = collectFieldSnapTargets(blockRoot, wrapperEl, canvasScale)
-  const contentEl = blockRoot.querySelector('.builder-block-content') as HTMLElement | null
-  if (contentEl) {
-    targets.push(rectRelativeToBlock(contentEl, blockRoot, canvasScale))
-  }
+  // Section-relative target so a field can always snap to the section's
+  // centre/edges — not just to sibling fields. Prefer an explicit content box if
+  // one exists; otherwise fall back to the section root, which is present in
+  // every block. (Without this fallback the guides only appeared in sections that
+  // happened to have a `.builder-block-content` element — i.e. none of them.)
+  const contentEl =
+    (blockRoot.querySelector('.builder-block-content') as HTMLElement | null) ?? blockRoot
+  targets.push(rectRelativeToBlock(contentEl, blockRoot, canvasScale))
 
   const snapped = snapFieldDragDelta(startRect, rawDelta.x, rawDelta.y, targets)
   return { delta: { x: snapped.dx, y: snapped.dy }, guides: snapped.guides }

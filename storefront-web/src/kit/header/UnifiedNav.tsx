@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { Search, ShoppingCart, User, Menu, LogIn, UserPlus, Package, LogOut, Bell } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -14,6 +14,10 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
+import {
+  isNavLinkActive,
+  resolveCurrentNavActiveKey,
+} from "@/lib/siteNavPages";
 import type { AccountUser, NavLinkItem } from "../types";
 
 export interface UnifiedNavProps {
@@ -51,6 +55,8 @@ export interface UnifiedNavProps {
     profile?: string;
     notifications?: string;
   };
+  /** Store path prefix helper — enables active nav link highlighting. */
+  storePath?: (p: string) => string;
 }
 
 export function UnifiedNav({
@@ -73,9 +79,29 @@ export function UnifiedNav({
   onSearch,
   onSignOut,
   accountPaths = {},
+  storePath,
 }: UnifiedNavProps) {
   const [q, setQ] = useState("");
   const location = useLocation();
+
+  const currentNavKey = useMemo(() => {
+    if (!storePath) return null;
+    return resolveCurrentNavActiveKey(location, storePath);
+  }, [location.pathname, location.search, storePath]);
+
+  const navLinkClass = (href: string, mobile = false) => {
+    const active = storePath && currentNavKey
+      ? isNavLinkActive(href, currentNavKey, storePath)
+      : false;
+    return cn(
+      mobile ? "px-3 py-2 rounded-md text-base" : "px-3 py-2 rounded-md text-base font-medium",
+      active
+        ? "font-semibold text-primary bg-primary/10"
+        : mobile
+          ? "hover:bg-muted"
+          : "text-foreground hover:bg-muted",
+    );
+  };
 
   const p = {
     signIn: accountPaths.signIn ?? "/sign-in",
@@ -120,7 +146,12 @@ export function UnifiedNav({
             <SheetHeader><SheetTitle>Menu</SheetTitle></SheetHeader>
             <nav className="mt-6 flex flex-col gap-1">
               {links.map((l) => (
-                <Link key={l.href} to={l.href} className="px-3 py-2 rounded-md hover:bg-muted text-base">
+                <Link
+                  key={l.href}
+                  to={l.href}
+                  className={navLinkClass(l.href, true)}
+                  aria-current={storePath && currentNavKey && isNavLinkActive(l.href, currentNavKey, storePath) ? 'page' : undefined}
+                >
                   {l.label}
                 </Link>
               ))}
@@ -174,7 +205,8 @@ export function UnifiedNav({
             <Link
               key={l.href}
               to={l.href}
-              className="px-3 py-2 rounded-md text-base text-foreground hover:bg-muted font-medium"
+              className={navLinkClass(l.href)}
+              aria-current={storePath && currentNavKey && isNavLinkActive(l.href, currentNavKey, storePath) ? 'page' : undefined}
             >
               {l.label}
             </Link>

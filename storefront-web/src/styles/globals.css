@@ -520,6 +520,15 @@ html[dir='rtl'] [data-sonner-toast][data-styled='true']:has([data-close-button])
   }
 }
 
+/* Long unbroken strings (pasted gibberish, URLs, long names) must wrap inside the
+   block instead of spilling out of cards/sections. `anywhere` (unlike `break-word`)
+   also shrinks the text's intrinsic min-content width, so cards in a grid/flex track
+   stop blowing the column out. overflow-wrap is inherited, so it cascades to all text. */
+.builder-block,
+.builder-block * {
+  overflow-wrap: anywhere;
+}
+
 .builder-block--has-shadow {
   overflow: visible;
   isolation: isolate;
@@ -527,5 +536,27 @@ html[dir='rtl'] [data-sonner-toast][data-styled='true']:has([data-close-button])
 
 .builder-canvas-text-field-multiline {
   display: block;
+  white-space: pre-wrap;
+}
+
+/* Positionable text fields must respect their layout box (resize handles + saved width). */
+[data-field-layout] {
+  box-sizing: border-box;
+}
+
+[data-field-layout] > .builder-canvas-text-field-in-layout {
+  display: block;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+[data-field-layout][data-field-width-constrained] > .builder-canvas-text-field-in-layout {
+  width: 100%;
+  overflow-wrap: break-word;
+  word-break: break-word;
+}
+
+[data-field-layout][data-field-width-constrained] > .builder-canvas-text-field-in-layout.builder-canvas-text-field-multiline {
   white-space: pre-wrap;
 }

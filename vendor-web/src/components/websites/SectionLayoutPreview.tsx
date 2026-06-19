@@ -736,6 +736,67 @@ function CtaPreview({ variantProps, sampleUrls }: { variantProps: Record<string,
   )
 }
 
+function ProductDetailPreview({ variantProps, sampleUrls }: { variantProps: Record<string, unknown>; sampleUrls: string[] }) {
+  const layout = String(variantProps.layout ?? 'split')
+  const dark = String(variantProps.bg_style ?? '') === 'dark'
+  const imageRight = String(variantProps.image_position ?? 'left') === 'right'
+  const minimal = layout === 'minimal'
+  const img = sampleUrls[0]
+
+  const detailBars = (centered: boolean, onDark: boolean) => (
+    <div className={cn('flex flex-1 flex-col justify-center gap-1', centered && 'items-center')}>
+      <Bar w="w-3/4" h="h-1.5" className={onDark ? 'bg-white/80' : 'bg-slate-700'} />
+      <Bar w="w-1/3" h="h-2" className="bg-primary/70" />
+      <Bar w="w-full" h="h-0.5" className={onDark ? 'bg-white/30' : 'bg-slate-300'} />
+      <Bar w="w-5/6" h="h-0.5" className={onDark ? 'bg-white/30' : 'bg-slate-300'} />
+      <Bar w="w-1/2" h="h-2" className="bg-primary/60 mt-0.5" />
+    </div>
+  )
+
+  if (layout === 'hero') {
+    return (
+      <div className="relative h-full overflow-hidden p-3">
+        <Img src={img} className="absolute inset-0 h-full w-full rounded-none object-cover" />
+        <div className="absolute inset-0 bg-black/55" />
+        <div className="relative z-10 flex h-full flex-col justify-center gap-1">{detailBars(false, true)}</div>
+      </div>
+    )
+  }
+
+  if (layout === 'stacked') {
+    return (
+      <div className={cn('flex h-full flex-col gap-1 p-3', dark && 'bg-slate-900')}>
+        <Img src={img} className="h-1/2 w-2/3 mx-auto" />
+        {detailBars(true, dark)}
+      </div>
+    )
+  }
+
+  const cols = (
+    <>
+      {imageRight ? (
+        <>{detailBars(false, dark)}<Img src={img} className="w-2/5 self-center" /></>
+      ) : (
+        <><Img src={img} className="w-2/5 self-center" />{detailBars(false, dark)}</>
+      )}
+    </>
+  )
+
+  if (layout === 'card') {
+    return (
+      <div className={cn('h-full p-2', dark && 'bg-slate-900')}>
+        <div className={cn('flex h-full gap-2 rounded-lg border p-2', dark ? 'border-white/15 bg-slate-800/60' : 'border-slate-200 bg-white shadow-sm')}>
+          {cols}
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className={cn('flex h-full gap-2 p-3', dark && 'bg-slate-900', minimal && 'gap-3')}>{cols}</div>
+  )
+}
+
 function NewsletterPreview({ variantProps, sampleUrls }: { variantProps: Record<string, unknown>; sampleUrls: string[] }) {
   const layout = String(variantProps.layout ?? 'inline')
   const img = sampleUrls[0]
@@ -1312,6 +1373,8 @@ export function SectionLayoutPreview({ blockType, variantProps, sampleUrls }: Pr
       return <ContactFormPreview variantProps={variantProps} sampleUrls={sampleUrls} />
     case 'cta':
       return <CtaPreview variantProps={variantProps} sampleUrls={sampleUrls} />
+    case 'product_detail':
+      return <ProductDetailPreview variantProps={variantProps} sampleUrls={sampleUrls} />
     case 'newsletter':
       return <NewsletterPreview variantProps={variantProps} sampleUrls={sampleUrls} />
     case 'team_grid':

@@ -10,6 +10,7 @@ const LS_PLACEMENTS_V2 = 'kiterp.vendor.sidebar.nav-placements-v2'
 export const NAV_PINNED_SECTION_HOME: Record<string, string> = {
   '/business-front': 'website-management',
   '/websites': 'website-management',
+  '/websites/seo': 'website-management',
   '/websites/templates': 'website-management',
   '/blog': 'website-management',
 }
@@ -17,7 +18,8 @@ export const NAV_PINNED_SECTION_HOME: Record<string, string> = {
 /** When pinning, insert after this sibling route when it exists in that section. */
 const NAV_PINNED_INSERT_AFTER: Record<string, string> = {
   '/websites': '/business-front',
-  '/websites/templates': '/websites',
+  '/websites/seo': '/websites',
+  '/websites/templates': '/websites/seo',
   '/blog': '/websites/templates',
 }
 
@@ -222,7 +224,13 @@ export function reconcileNavPlacements(
   }
 
   // Website routes always live under Website Management (avoids losing items after drag-and-drop).
-  const websiteManagementOrder = ['/business-front', '/websites', '/websites/templates', '/blog']
+  const websiteManagementOrder = [
+    '/business-front',
+    '/websites',
+    '/websites/seo',
+    '/websites/templates',
+    '/blog',
+  ]
   const websiteManagementRoutes = websiteManagementOrder.filter((to) => validTos.has(to))
   if (websiteManagementRoutes.length && out['website-management']) {
     for (const sid of Object.keys(out)) {

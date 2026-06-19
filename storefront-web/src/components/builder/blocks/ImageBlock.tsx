@@ -3,7 +3,7 @@ import type { PublicSite, StyleConfig, LiveItem } from '@/blocks/registry'
 import BlockEmptyPlaceholder from '@/components/builder/BlockEmptyPlaceholder'
 import { BuilderTextField } from '@/components/builder/BuilderTextField'
 import { cn, imgUrl } from '@/lib/utils'
-import { imageShapeFromProps } from '@/lib/sectionItemLayout'
+import { imageShapeFromProps, imageShapeRadiusClass } from '@/lib/sectionItemLayout'
 import { BuilderSectionImage } from '@/components/builder/BuilderSectionImage'
 import { MediaClipFrame } from '@/components/builder/MediaClipFrame'
 import { hasMediaClip } from '@/lib/mediaClip'
@@ -51,17 +51,17 @@ export default function ImageBlock({ style, props, blockId }: Props) {
         className={cn(
           'w-full',
           layout === 'full' ? 'max-h-[480px]' : 'max-h-96',
-          imageShape === 'circle' && 'aspect-square max-w-md mx-auto rounded-full object-cover',
-          imageShape === 'square' && 'rounded-sm',
+          !clipped && imageShape === 'circle' && 'aspect-square max-w-md mx-auto object-cover',
+          // Explicit shapes use a radius class; the default "rounded" keeps the theme radius below.
+          !clipped && imageShape !== 'rounded' && imageShapeRadiusClass(imageShape),
         )}
         style={{
-          borderRadius: imageShape === 'circle' || clipped
+          // Only the theme "rounded" shape uses the site border radius; explicit shapes win via class.
+          borderRadius: clipped || imageShape !== 'rounded'
             ? undefined
-            : !clipped && layout !== 'full'
+            : layout !== 'full'
               ? cardRadius
-              : layout === 'full'
-                ? 0
-                : 0,
+              : 0,
         }}
       />
     </MediaClipFrame>

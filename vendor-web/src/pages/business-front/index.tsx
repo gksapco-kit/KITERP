@@ -3,7 +3,7 @@ import { useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import {
   Globe, Layout, SlidersHorizontal,
-  Sparkles, Newspaper, Link2,
+  Sparkles, Newspaper, Link2, Search,
 } from 'lucide-react'
 import { vendorApi } from '@/api/vendor'
 import { useSiteList, useWebsiteTemplates } from '@/hooks/useWebsites'
@@ -264,6 +264,13 @@ export default function BusinessFrontHubPage() {
       description: 'Posts and articles on your public storefront.',
       to: '/blog',
       icon: Newspaper,
+    },
+    {
+      title: 'SEO Management',
+      shortTitle: 'SEO',
+      description: 'Google titles, meta descriptions, and social share previews.',
+      to: publishedSite ? `/websites/seo?siteId=${publishedSite.id}` : '/websites/seo',
+      icon: Search,
     },
     {
       title: 'Business Front Display',

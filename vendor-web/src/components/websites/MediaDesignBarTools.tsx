@@ -2,7 +2,6 @@ import { ImageIcon, Upload } from 'lucide-react'
 import { MediaClipPicker, mediaClipActiveLabel } from '@/components/websites/MediaClipPicker'
 import { cn } from '@/lib/utils'
 import { sectionSupportsMediaClip } from '@storefront/lib/designBarCapabilities'
-import { visualTabShell } from '@/components/websites/designBarVisualUi'
 import type { BlockProps } from '@/types/websites'
 
 export function MediaDesignBarTools({
@@ -28,22 +27,8 @@ export function MediaDesignBarTools({
   const clipLabel = mediaClipActiveLabel((blockProps as { media_clip?: string }).media_clip)
 
   return (
-    <div className={cn(visualTabShell, 'gap-2 px-1')}>
-      {supportsClip ? (
-        <div className="flex min-w-0 shrink-0 flex-col gap-1 rounded-md border border-gray-200 bg-white px-2 py-1.5">
-          <div className="text-[9px] font-bold uppercase tracking-wide text-gray-400">Clip shape</div>
-          <MediaClipPicker
-            compact
-            value={(blockProps as { media_clip?: string }).media_clip}
-            onChange={clip => onUpdate({ media_clip: clip } as Partial<BlockProps>)}
-          />
-          {clipLabel && clipLabel !== 'None' ? (
-            <div className="text-[10px] text-primary font-semibold">{clipLabel}</div>
-          ) : null}
-        </div>
-      ) : null}
-
-      <div className="flex min-w-0 flex-wrap items-center gap-1">
+    <div className="flex min-w-0 flex-1 flex-col gap-2 py-1">
+      <div className="flex min-w-0 shrink-0 flex-wrap items-center gap-1">
         {onPickImage ? (
           <button
             type="button"
@@ -78,15 +63,34 @@ export function MediaDesignBarTools({
         ) : null}
       </div>
 
-      <p className="min-w-[12rem] text-[10px] leading-snug text-gray-500">
-        {canvasImageField
-          ? 'Image selected — use General or Visual for focal, zoom, and fit.'
-          : primaryImageField
-            ? 'Click the section photo on the canvas, or use Upload / Library above.'
-            : 'Use Upload or Library for images. Clip shapes apply wherever this section shows photo or video.'}
-        {' '}More assets live in the right panel{' '}
-        <span className="font-semibold text-gray-600">Media</span> tab.
-      </p>
+      {supportsClip ? (
+        <div className={cn('min-w-0 rounded-lg border border-gray-200 bg-gray-50/80 px-2.5 py-2')}>
+          <div className="mb-2">
+            <div className="text-[10px] font-bold uppercase tracking-wide text-gray-500">
+              Media clip frames
+            </div>
+            <p className="text-[10px] leading-snug text-gray-400">
+              Crop photos and video with angled or organic shapes. Hover a tile for the full name.
+            </p>
+            {clipLabel ? (
+              <p className="mt-0.5 text-[10px] font-semibold text-primary">Selected: {clipLabel}</p>
+            ) : null}
+          </div>
+          <MediaClipPicker
+            embedded
+            value={(blockProps as { media_clip?: string }).media_clip}
+            onChange={clip => onUpdate({ media_clip: clip } as Partial<BlockProps>)}
+          />
+        </div>
+      ) : (
+        <p className="min-w-[12rem] text-[10px] leading-snug text-gray-500">
+          {canvasImageField
+            ? 'Image selected — use General or Visual for focal, zoom, and fit.'
+            : primaryImageField
+              ? 'Click the section photo on the canvas, or use Upload / Library above.'
+              : 'Use Upload or Library for images in this section.'}
+        </p>
+      )}
     </div>
   )
 }

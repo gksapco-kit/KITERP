@@ -34,6 +34,7 @@ import AnalyticsInjector from '@/components/builder/AnalyticsInjector'
 import { getWbCatalogTemplateId } from '@/storefront/catalogTemplateIds'
 import { useAssignedStorefrontTemplateId } from '@/hooks/useAssignedStorefrontTemplateId'
 import { useStorePath } from '@/hooks/useStorePath'
+import { withSharedShellBlocks } from '@/lib/storefrontLayoutChrome'
 import {
   isBlockBasedStorefrontTemplateId,
   isDefaultLayoutTemplateId,
@@ -206,6 +207,10 @@ export default function BuilderPage({ slug: forcedSlug, isHome }: BuilderPagePro
   const isHomePath = isHome || normalizedSlug === '' || normalizedSlug === 'home'
   const page = builderSite ? findPage(builderSite, slug, isHome) : null
 
+  const renderedBlocks = useMemo(
+    () => (page ? withSharedShellBlocks(builderSite, page) : []),
+    [builderSite, page],
+  )
   const blocksForSchema = useMemo(() => page?.blocks || [], [page?.id, page?.blocks])
   const liveDataMap = useLiveDataMap(blocksForSchema, builderSite?.id)
 
@@ -375,7 +380,7 @@ export default function BuilderPage({ slug: forcedSlug, isHome }: BuilderPagePro
   return (
     <>
       <AnalyticsInjector site={builderSite} />
-      <BlockRenderer blocks={page.blocks} site={builderSite} pageId={page.id} branchCode={branchCode} />
+      <BlockRenderer blocks={renderedBlocks} site={builderSite} pageId={page.id} branchCode={branchCode} />
     </>
   )
 }

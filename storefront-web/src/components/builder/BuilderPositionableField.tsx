@@ -1,9 +1,10 @@
-import { useCallback, useEffect, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react'
 import { Move } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import {
   CONTENT_GROUP_FIELD_KEY,
   FIELD_MIN_HEIGHT_MAX_PX,
+  FIELD_MIN_HEIGHT_MIN_PX,
   FIELD_OFFSET_MAX_PX,
   FIELD_RESIZE_SNAP_PX,
   FIELD_WIDTH_MAX_PCT,
@@ -28,10 +29,42 @@ import { BuilderFieldDragGuides } from '@/components/builder/BuilderFieldDragGui
 
 type ResizeAxis = 'width' | 'height' | 'both'
 
-function clampWidthPct(parentWidth: number, widthPx: number): number {
+function clampWidthPct(parentWidth: number, widthPx: number, maxWidthPx: number): number {
   if (parentWidth <= 0) return FIELD_WIDTH_MAX_PCT
+  // The box may be wider than its column (pct > 100), but never past the section
+  // edge — derive the ceiling from the available width measured at drag start.
+  const ceilPct = Math.min(
+    FIELD_WIDTH_MAX_PCT,
+    Math.max(FIELD_WIDTH_MIN_PCT, Math.round((maxWidthPx / parentWidth) * 100)),
+  )
   const pct = Math.round((widthPx / parentWidth) * 100)
-  return Math.max(FIELD_WIDTH_MIN_PCT, Math.min(FIELD_WIDTH_MAX_PCT, pct))
+  return Math.max(FIELD_WIDTH_MIN_PCT, Math.min(ceilPct, pct))
+}
+
+/**
+ * Largest width (px) the box may be dragged to: out to the section's right
+ * content edge from the box's current left, so it can exceed its (often narrow)
+ * column without spilling past the section. Falls back to the column width.
+ */
+function maxResizeWidthPx(
+  wrapper: HTMLElement,
+  parentWidth: number,
+  canvasScale: number,
+): number {
+  const blockRoot = wrapper.closest('[data-block-id]') as HTMLElement | null
+  if (!blockRoot) return parentWidth
+  const rootRect = blockRoot.getBoundingClientRect()
+  const elRect = wrapper.getBoundingClientRect()
+  const scale = canvasScale > 0 ? canvasScale : 1
+  const padRight = parseFloat(getComputedStyle(blockRoot).paddingRight) || 0
+  const available = (rootRect.right - elRect.left) / scale - padRight
+  return Math.max(parentWidth, Math.round(available))
+}
+
+/** Smallest box width (px) the user can drag to — lets long text wrap to multiple lines. */
+function minResizeWidthPx(parentWidth: number): number {
+  if (parentWidth <= 0) return 48
+  return Math.max(48, Math.round((parentWidth * FIELD_WIDTH_MIN_PCT) / 100))
 }
 
 /** Drag handle + offset wrapper for canvas fields (text, buttons, etc.). */
@@ -76,6 +109,7 @@ export function BuilderPositionableField({
     startWidth: number
     startHeight: number
     parentWidth: number
+    maxWidth: number
     naturalHeight: number
     naturalWidth: number
   } | null>(null)
@@ -164,18 +198,32 @@ export function BuilderPositionableField({
     const patch: Record<string, unknown> = {}
     if (start.axis === 'width' || start.axis === 'both') {
       const widthPx = widthPreviewPx ?? el.offsetWidth
-      if (widthPx <= start.naturalWidth + FIELD_RESIZE_SNAP_PX) {
+      // Snap back to auto (fit the column) only when the box is ~column width AND
+      // the content already fits inside the column on its own. Otherwise store an
+      // explicit width — which may be wider than the column (pct > 100), capped at
+      // the section edge by clampWidthPct.
+      const atColumnWidth = Math.abs(widthPx - start.parentWidth) <= FIELD_RESIZE_SNAP_PX
+      const contentFitsInColumn = start.naturalWidth <= start.parentWidth - FIELD_RESIZE_SNAP_PX
+      if (atColumnWidth && contentFitsInColumn) {
         patch.field_width_pct = null
       } else {
-        patch.field_width_pct = clampWidthPct(start.parentWidth, widthPx)
+        patch.field_width_pct = clampWidthPct(start.parentWidth, widthPx, start.maxWidth)
+      }
+      if (patch.field_width_pct != null && fieldStyle.text_wrap !== false) {
+        patch.text_wrap = true
       }
     }
     if (start.axis === 'height' || start.axis === 'both') {
       const heightPx = Math.round(heightPreviewPx ?? el.offsetHeight)
-      if (heightPx <= start.naturalHeight + FIELD_RESIZE_SNAP_PX) {
+      // Snap to auto-height only when near the natural content height; allow both
+      // taller (extra space) and shorter (clipped) explicit heights to persist.
+      if (Math.abs(heightPx - start.naturalHeight) <= FIELD_RESIZE_SNAP_PX) {
         patch.field_min_height = null
       } else {
-        patch.field_min_height = Math.min(FIELD_MIN_HEIGHT_MAX_PX, heightPx)
+        patch.field_min_height = Math.max(
+          FIELD_MIN_HEIGHT_MIN_PX,
+          Math.min(FIELD_MIN_HEIGHT_MAX_PX, heightPx),
+        )
       }
     }
 
@@ -209,6 +257,28 @@ export function BuilderPositionableField({
       window.removeEventListener('pointercancel', onUp)
     }
   }, [finishResize, widthPreviewPx, heightPreviewPx])
+
+  // Apply the live resize preview imperatively with `!important` so it tracks the
+  // cursor smoothly. The committed width is injected as a `width: X% !important`
+  // rule (see buildFieldStylesCss); a plain inline style loses to it, which would
+  // pin the box at its saved size mid-drag and only snap on release. Clearing the
+  // properties when the preview ends hands control back to the injected rule.
+  useLayoutEffect(() => {
+    const el = wrapperRef.current
+    if (!el) return
+    if (widthPreviewPx != null) {
+      el.style.setProperty('width', `${widthPreviewPx}px`, 'important')
+      el.style.setProperty('max-width', `${widthPreviewPx}px`, 'important')
+    } else {
+      el.style.removeProperty('width')
+      el.style.removeProperty('max-width')
+    }
+    if (heightPreviewPx != null) {
+      el.style.setProperty('min-height', `${heightPreviewPx}px`, 'important')
+    } else {
+      el.style.removeProperty('min-height')
+    }
+  }, [widthPreviewPx, heightPreviewPx])
 
   const handleDragPointerDown = (e: ReactPointerEvent) => {
     if (!isActive || !blockId) return
@@ -259,6 +329,7 @@ export function BuilderPositionableField({
       startWidth: el.offsetWidth,
       startHeight: el.offsetHeight,
       parentWidth: parent.clientWidth,
+      maxWidth: maxResizeWidthPx(el, parent.clientWidth, canvasScale),
       naturalHeight: measureFieldContentHeight(el),
       naturalWidth: measureFieldContentWidth(el),
     }
@@ -275,13 +346,14 @@ export function BuilderPositionableField({
     const dx = (e.clientX - start.startX) / canvasScale
     const dy = (e.clientY - start.startY) / canvasScale
     if (start.axis === 'width' || start.axis === 'both') {
-      const maxW = start.parentWidth
-      setWidthPreviewPx(Math.max(start.naturalWidth, Math.min(maxW, start.startWidth + dx)))
+      const maxW = start.maxWidth
+      const minW = minResizeWidthPx(start.parentWidth)
+      setWidthPreviewPx(Math.max(minW, Math.min(maxW, start.startWidth + dx)))
     }
     if (start.axis === 'height' || start.axis === 'both') {
       setHeightPreviewPx(
         Math.max(
-          start.naturalHeight,
+          FIELD_MIN_HEIGHT_MIN_PX,
           Math.min(FIELD_MIN_HEIGHT_MAX_PX, start.startHeight + dy),
         ),
       )
@@ -292,9 +364,13 @@ export function BuilderPositionableField({
   if (widthPreviewPx != null) {
     resizePreviewStyle.width = widthPreviewPx
     resizePreviewStyle.maxWidth = widthPreviewPx
+    resizePreviewStyle.minWidth = 0
+    resizePreviewStyle.boxSizing = 'border-box'
   } else if (storedWidthPct != null) {
     resizePreviewStyle.width = `${storedWidthPct}%`
     resizePreviewStyle.maxWidth = `${storedWidthPct}%`
+    resizePreviewStyle.minWidth = 0
+    resizePreviewStyle.boxSizing = 'border-box'
   }
   if (heightPreviewPx != null) {
     resizePreviewStyle.minHeight = heightPreviewPx
@@ -309,6 +385,7 @@ export function BuilderPositionableField({
   const isDragging = dragDelta != null && (dragDelta.x !== 0 || dragDelta.y !== 0)
 
   const hasCustomWidth = storedWidthPct != null || widthPreviewPx != null
+  const isWidthConstrained = hasCustomWidth || widthPreviewPx != null
 
   if (!isEditor) return <>{children}</>
 
@@ -319,10 +396,11 @@ export function BuilderPositionableField({
     <div
       ref={wrapperRef}
       data-field-layout={fieldKey}
+      data-field-width-constrained={isWidthConstrained ? 'true' : undefined}
       data-builder-field-selected={isActive ? 'true' : undefined}
       data-field-drag-preview={isDragging ? 'true' : undefined}
       className={cn(
-        inline ? 'inline-flex max-w-full' : hasCustomWidth ? 'relative' : 'relative w-fit max-w-full',
+        inline ? 'inline-flex max-w-full' : hasCustomWidth ? 'relative min-w-0 max-w-full' : 'relative w-fit max-w-full min-w-0',
         isActive && 'group/field-pos z-[2]',
         className,
       )}

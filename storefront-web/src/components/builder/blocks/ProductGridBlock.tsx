@@ -73,7 +73,7 @@ function resolveCategoryCardPropData(
 
 function readCategorySectionLayout(props: Record<string, unknown>) {
   const cardLayout = readCatalogCardLayout(props, 'category_cards', { defaultColumns: 3 })
-  const limit = Math.min(50, Math.max(1, Number(props.show_count ?? props.max ?? 12) || 12))
+  const limit = Math.min(200, Math.max(1, Number(props.show_count ?? props.max ?? 12) || 12))
   return { ...cardLayout, limit }
 }
 

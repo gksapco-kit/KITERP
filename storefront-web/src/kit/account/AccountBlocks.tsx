@@ -227,7 +227,15 @@ export function WishlistPage({ items: initial, onMoveToCart }: { items: Wishlist
           <div className={cn(view === "grid" ? "grid gap-4 sm:grid-cols-2 lg:grid-cols-3" : "flex flex-col gap-3")}>
             {items.map((p) => (
               <div key={p.id} className={cn("rounded-md border overflow-hidden", view === "list" && "flex")}>
-                <img src={p.image} alt={p.name} className={cn("object-cover", view === "list" ? "h-28 w-28 shrink-0" : "aspect-square w-full")} />
+                <div className={cn("relative overflow-hidden bg-muted", view === "list" ? "h-28 w-28 shrink-0" : "aspect-[4/3] w-full")}>
+                  {p.image ? (
+                    <img src={p.image} alt={p.name} className="absolute inset-0 h-full w-full object-cover" />
+                  ) : (
+                    <div className="absolute inset-0 flex items-center justify-center text-muted-foreground">
+                      <ShoppingCart className="h-7 w-7 opacity-25" />
+                    </div>
+                  )}
+                </div>
                 <div className="p-3 flex-1 flex flex-col">
                   <div className="text-sm font-medium line-clamp-1">{p.name}</div>
                   <div className="text-sm font-semibold mt-1">{formatPrice(p.price)}</div>

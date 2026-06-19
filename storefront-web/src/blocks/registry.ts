@@ -88,7 +88,7 @@ export const BLOCK_CATALOG: BlockDef[] = [
   { type: 'personalization_block', label: 'Personalization Block', desc: 'Show different content by device / location / referral', category: 'advanced', defaultProps: { default_content: 'Default message for all visitors', mobile_content: 'Tap to get started on mobile!', rule: 'device' } },
 
   // P1 Commerce blocks
-  { type: 'product_detail', label: 'Product Detail', desc: 'Gallery, variants, add-to-cart for a single product', category: 'ecommerce', defaultProps: { show_variants: true, show_reviews: true }, liveResource: 'products' },
+  { type: 'product_detail', label: 'Product Detail', desc: 'Gallery, variants, add-to-cart for a single product', category: 'ecommerce', defaultProps: { show_variants: true, show_reviews: true, layout: 'split', image_position: 'left' }, liveResource: 'products' },
   { type: 'cart_drawer', label: 'Cart Drawer', desc: 'Slide-out cart panel with upsells', category: 'erp', defaultProps: { title: 'Your Cart', show_upsells: true } },
   { type: 'checkout_form', label: 'Checkout Form', desc: 'Address, shipping, payment fields', category: 'erp', defaultProps: { allow_cod: true, show_tip: false } },
   { type: 'search_bar', label: 'Search Bar', desc: 'Autosuggest product/service search', category: 'ecommerce', defaultProps: { placeholder: 'Search products & services...', show_filters: true } },

@@ -28,12 +28,22 @@ export function ProductCard({
   return (
     <Card className={cn("overflow-hidden group", horizontal && "flex")}>
       <Link to={`/products/${product.slug}`} className={cn("block relative", horizontal ? "w-44 shrink-0" : "")}>
-        <img
-          src={product.image}
-          alt={product.name}
-          loading="lazy"
-          className={cn("w-full object-cover transition-transform group-hover:scale-105", horizontal ? "h-full" : "aspect-square")}
-        />
+        {/* Fixed-ratio frame on the wrapper (not the <img>) so cards stay even in
+            height even when a product has no image — the image just covers the frame. */}
+        <div className={cn("relative w-full overflow-hidden bg-muted", horizontal ? "h-full" : "aspect-[4/3]")}>
+          {product.image ? (
+            <img
+              src={product.image}
+              alt={product.name}
+              loading="lazy"
+              className="absolute inset-0 h-full w-full object-cover transition-transform group-hover:scale-105"
+            />
+          ) : (
+            <div className="absolute inset-0 flex items-center justify-center text-muted-foreground">
+              <ShoppingCart className="h-8 w-8 opacity-25" />
+            </div>
+          )}
+        </div>
         {showTags && product.tags?.[0] && (
           <Badge className="absolute top-2 left-2 capitalize">{product.tags[0]}</Badge>
         )}

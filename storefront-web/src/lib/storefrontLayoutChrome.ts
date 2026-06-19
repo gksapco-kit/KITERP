@@ -1,4 +1,4 @@
-import type { PublicSite } from '@/blocks/registry'
+import type { PublicBlock, PublicPage, PublicSite } from '@/blocks/registry'
 import { getWbCatalogTemplateId } from '@/storefront/catalogTemplateIds'
 import { isStoreHomePath } from '@/lib/siteNavPages'
 import {
@@ -45,6 +45,61 @@ export function pageHasNavBlock(
   return Boolean(
     blocks?.some(b => b.block_type === 'nav' && b.visible !== false),
   )
+}
+
+/** Header shell blocks (announcement + nav) from the site homepage — shared across catalog preview. */
+export function siteShellBlocks(site: PublicSite | null | undefined) {
+  const home = builderSiteHomePage(site)
+  if (!home?.blocks?.length) return { homePage: home, blocks: [] as NonNullable<typeof home.blocks> }
+  const blocks = home.blocks.filter(
+    b => b.visible !== false && (b.block_type === 'nav' || b.block_type === 'announcement_bar'),
+  )
+  return { homePage: home, blocks }
+}
+
+/** True when the site exposes a navigation block on its homepage (the shared header source). */
+export function siteHasNavShell(site: PublicSite | null | undefined): boolean {
+  return siteShellBlocks(site).blocks.some(b => b.block_type === 'nav')
+}
+
+/**
+ * Returns the blocks to render for a page, guaranteeing a consistent site-wide
+ * header/footer: when a page does not carry its own nav, the homepage's
+ * announcement + nav blocks are prepended; when it has no footer, the homepage
+ * footer is appended. This keeps the header "stable" on every page even if the
+ * builder data never seeded a nav/footer onto that page.
+ */
+export function withSharedShellBlocks(
+  site: PublicSite | null | undefined,
+  page: Pick<PublicPage, 'id' | 'is_homepage' | 'blocks'> | null | undefined,
+): PublicBlock[] {
+  const pageBlocks = page?.blocks ?? []
+  if (!site || !page || page.is_homepage) return pageBlocks
+
+  const home = builderSiteHomePage(site)
+  if (!home || home.id === page.id) return pageBlocks
+  const homeBlocks = home.blocks ?? []
+
+  const hasNav = pageBlocks.some(b => b.block_type === 'nav' && b.visible !== false)
+  const hasFooter = pageBlocks.some(b => b.block_type === 'footer' && b.visible !== false)
+
+  const leading: PublicBlock[] = []
+  if (!hasNav) {
+    for (const b of homeBlocks) {
+      if (b.visible !== false && (b.block_type === 'announcement_bar' || b.block_type === 'nav')) {
+        leading.push(b)
+      }
+    }
+  }
+
+  const trailing: PublicBlock[] = []
+  if (!hasFooter) {
+    const footer = homeBlocks.find(b => b.block_type === 'footer' && b.visible !== false)
+    if (footer) trailing.push(footer)
+  }
+
+  if (leading.length === 0 && trailing.length === 0) return pageBlocks
+  return [...leading, ...pageBlocks, ...trailing]
 }
 
 function isShellRelativePath(rel: string): boolean {
@@ -134,7 +189,9 @@ export function shouldHideStoreLayoutChrome(input: StoreChromeHideInput): boolea
     const slug = resolveBuilderPageSlug(input.pathname, input.vendorSlug)
     if (slug) {
       const page = findBuilderPageBySlug(site, slug)
-      if (pageHasNavBlock(page?.blocks)) return true
+      // The page owns the header when it has its own nav block, OR when it will
+      // inherit the homepage's shared nav shell (see withSharedShellBlocks).
+      if (page && (pageHasNavBlock(page.blocks) || siteHasNavShell(site))) return true
     }
   }
 

@@ -13,7 +13,9 @@ import {
   imageShapeFromProps,
   sectionGridColumnClass,
   sectionItemGap,
+  sectionItemSize,
 } from '@/lib/sectionItemLayout'
+import { arrayItemImageFrameStyle, arrayItemImageRenderStyle } from '@/lib/sectionImageStyle'
 
 interface Props { site: PublicSite; style: StyleConfig; props: Record<string, unknown>; liveItems: LiveItem[]; branchCode?: string | null; blockId?: string }
 
@@ -25,16 +27,27 @@ export default function GalleryMasonryBlock({ style, props, liveItems, blockId }
   const layout = String(props.layout ?? 'grid')
   const columns = columnsFromProps(props, layout === 'featured' ? 'grid-3' : layout)
   const itemGap = sectionItemGap(props, 12)
+  // Only drive an explicit tile height once the owner actually uses the "Card size"
+  // slider — otherwise keep the natural aspect-ratio tiles so existing galleries are unchanged.
+  const hasItemSize = props.item_size != null && props.item_size !== ''
+  const itemSize = hasItemSize ? sectionItemSize(props, 160) : undefined
   const imageShape = imageShapeFromProps(props, 'rounded')
   const tileWrap = catalogTileImageWrapperClass(imageShape)
   const tileImg = catalogTileImageClass(imageShape)
   const propImages = Array.isArray(props.images)
-    ? (props.images as { src?: string; alt?: string }[]).filter(img => img?.src)
+    ? (props.images as { src?: string; alt?: string }[])
+        .map((img, rawIndex) => ({ img, rawIndex }))
+        .filter(entry => typeof entry.img?.src === 'string' && entry.img.src)
     : []
   const liveImages = liveItems.filter(i => i.image_url).map(i => ({ url: i.image_url as string, alt: i.title }))
   const images = propImages.length > 0
-    ? propImages.map(img => ({ url: img.src as string, alt: img.alt || '' }))
-    : liveImages
+    ? propImages.map(({ img, rawIndex }) => ({
+        url: img.src as string,
+        alt: img.alt || '',
+        item: img as Record<string, unknown>,
+        index: rawIndex,
+      }))
+    : liveImages.map((li, i) => ({ url: li.url, alt: li.alt, item: undefined as Record<string, unknown> | undefined, index: i }))
 
   if (images.length === 0) {
     return (
@@ -48,16 +61,22 @@ export default function GalleryMasonryBlock({ style, props, liveItems, blockId }
     )
   }
 
-  const Img = ({ url, alt, className, index }: { url: string; alt: string; className?: string; index: number }) => {
+  const Img = ({ url, alt, className, index, item, heightPx }: { url: string; alt: string; className?: string; index: number; item?: Record<string, unknown>; heightPx?: number }) => {
     const resolved = imgUrl(url)
+    // Circle tiles stay square; everything else honours the "Card size" slider (item_size).
+    const useFixedHeight = heightPx != null && imageShape !== 'circle'
     const shellClass = cn(
       'relative w-full overflow-hidden',
       tileWrap,
       imageShape === 'circle' && 'aspect-square max-w-[min(100%,280px)] mx-auto',
     )
+    const frameStyle = {
+      ...(item ? arrayItemImageFrameStyle(item) : {}),
+      ...(useFixedHeight ? { height: heightPx } : {}),
+    }
     if (isEditorCanvas) {
       return (
-        <div className={cn(shellClass, className)}>
+        <div className={cn(shellClass, className)} style={frameStyle}>
           <BuilderSectionImage
             blockId={blockId}
             field="image_url"
@@ -73,11 +92,12 @@ export default function GalleryMasonryBlock({ style, props, liveItems, blockId }
       )
     }
     return (
-      <div className={cn(shellClass, className)} onClick={() => setLightbox(url)}>
+      <div className={cn(shellClass, className)} style={frameStyle} onClick={() => setLightbox(url)}>
         <img
           src={resolved}
           alt={alt}
           className={cn('absolute inset-0 h-full w-full cursor-pointer hover:opacity-90', tileImg)}
+          style={item ? arrayItemImageRenderStyle(item, props) : undefined}
           loading="lazy"
         />
       </div>
@@ -91,15 +111,15 @@ export default function GalleryMasonryBlock({ style, props, liveItems, blockId }
       )}
       {layout === 'featured' ? (
         <div className="grid grid-cols-3 grid-rows-2 max-w-5xl mx-auto min-h-[320px]" style={{ gap: itemGap }}>
-          <Img url={images[0].url} alt={images[0].alt} index={0} className="col-span-2 row-span-2 h-full min-h-[280px] rounded-xl" />
+          <Img url={images[0].url} alt={images[0].alt} index={images[0].index} item={images[0].item} className="col-span-2 row-span-2 h-full min-h-[280px] rounded-xl" />
           {images.slice(1, 3).map((img, i) => (
-            <Img key={i} url={img.url} alt={img.alt} index={i + 1} className="h-full min-h-[130px]" />
+            <Img key={i} url={img.url} alt={img.alt} index={img.index} item={img.item} className="h-full min-h-[130px]" />
           ))}
         </div>
       ) : layout === 'masonry' ? (
         <div className={cn('columns-2 sm:columns-3 gap-4 space-y-4 max-w-5xl mx-auto', columns >= 4 && 'lg:columns-4', columns >= 5 && 'lg:columns-5')} style={{ columnGap: itemGap }}>
           {images.map((img, i) => (
-            <Img key={i} url={img.url} alt={img.alt} index={i} className="break-inside-avoid mb-4" />
+            <Img key={i} url={img.url} alt={img.alt} index={img.index} item={img.item} heightPx={itemSize ?? 240} className="break-inside-avoid mb-4" />
           ))}
         </div>
       ) : (
@@ -109,8 +129,10 @@ export default function GalleryMasonryBlock({ style, props, liveItems, blockId }
               key={i}
               url={img.url}
               alt={img.alt}
-              index={i}
-              className={columns <= 2 ? 'aspect-[4/3]' : 'aspect-square'}
+              index={img.index}
+              item={img.item}
+              heightPx={itemSize}
+              className={itemSize != null ? undefined : columns <= 2 ? 'aspect-[4/3]' : 'aspect-square'}
             />
           ))}
         </div>

@@ -356,11 +356,12 @@ export function useOrder(id: string) {
   })
 }
 
-export function useOrderStats() {
+export function useOrderStats(enabled = true) {
   return useQuery({
     queryKey: vendorKeys.orderStats(),
     queryFn: vendorApi.getOrderStats,
     staleTime: 30 * 1000,
+    enabled,
   })
 }
 

@@ -22,6 +22,7 @@ import {
 import {
   DRAFT_BROWSER_PREVIEW_PATH,
   DRAFT_PREVIEW_PENDING_PARAM,
+  PREVIEW_PENDING_READY_TYPE,
   alignPreviewUrlWithCurrentHost,
   getStorefrontAppOrigin,
   getVendorPreviewOrigin,
@@ -29,8 +30,16 @@ import {
 import { isSameLoopbackOrigin } from '@/lib/loopbackHost'
 import { cn } from '@/lib/utils'
 
-/** Match builder API timeout so slow snapshots do not false-positive. */
-const PENDING_PREVIEW_TIMEOUT_MS = 120_000
+/** Allow time for slow preview snapshots; pending tab retries delivery on mount. */
+const PENDING_PREVIEW_TIMEOUT_MS = 90_000
+
+function requestPreviewDeliveryFromOpener(): void {
+  try {
+    window.opener?.postMessage({ type: PREVIEW_PENDING_READY_TYPE }, '*')
+  } catch {
+    /* cross-origin or closed opener */
+  }
+}
 
 function isAllowedTemplateTarget(raw: string): boolean {
   try {
@@ -119,6 +128,13 @@ export default function StorefrontBrowserPreviewShell() {
   }, [token])
 
   useEffect(() => {
+    if (!pending || token) return
+    requestPreviewDeliveryFromOpener()
+    const retryId = window.setInterval(requestPreviewDeliveryFromOpener, 2000)
+    return () => window.clearInterval(retryId)
+  }, [pending, token])
+
+  useEffect(() => {
     const goToPreview = (navUrl: string) => {
       const canonical = alignPreviewUrlWithCurrentHost(navUrl)
       if (!isAllowedPreviewNavigateUrl(canonical)) return
@@ -191,11 +207,11 @@ export default function StorefrontBrowserPreviewShell() {
         }
         if (Date.now() - startedAt > PENDING_PREVIEW_TIMEOUT_MS) {
           setPendingError(
-            'Preview is taking too long. Return to the builder tab and click "Preview in Browser" again. '
-            + 'If this keeps happening, confirm the backend is running and run alembic upgrade web006.',
+            'Preview is taking too long. Keep the builder tab open, then click "Check again" or re-open Preview in Browser from the builder. '
+            + 'If this keeps happening, confirm the API is running on http://127.0.0.1:8000.',
           )
         }
-      }, 200)
+      }, 100)
       return () => {
         window.clearInterval(pollId)
         window.removeEventListener('message', onWindowMessage)
@@ -254,8 +270,12 @@ export default function StorefrontBrowserPreviewShell() {
               onClick={() => {
                 setPendingError(null)
                 clearPendingPreviewTabError()
+                requestPreviewDeliveryFromOpener()
                 const nav = peekPendingPreviewTabNavigate()
-                if (nav) window.location.replace(alignPreviewUrlWithCurrentHost(nav))
+                if (nav) {
+                  window.location.replace(alignPreviewUrlWithCurrentHost(nav))
+                  return
+                }
               }}
               className="inline-flex items-center gap-2 rounded-lg border border-gray-600 px-4 py-2 text-sm font-semibold text-white hover:bg-gray-800"
             >

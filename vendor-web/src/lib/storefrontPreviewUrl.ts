@@ -1,6 +1,5 @@
 import {
   broadcastPreviewTabNavigate,
-  clearPendingPreviewTabNavigate,
   PREVIEW_NAV_MESSAGE_TYPE,
 } from '@/lib/draftPreviewSync'
 import { isSameLoopbackOrigin, normalizeLoopbackHostname, normalizeLoopbackOrigin } from '@/lib/loopbackHost'
@@ -137,9 +136,44 @@ export function wrapStorefrontPreviewForVendorBrowser(storefrontPreviewUrl: stri
 /** Reused preview tab name — repeat clicks navigate the same tab instead of opening new ones. */
 export const PREVIEW_WINDOW_NAME = 'kiterp-draft-preview'
 
+/** Pending shell asks the builder tab to re-deliver the preview URL (handles load race). */
+export const PREVIEW_PENDING_READY_TYPE = 'kiterp-preview-pending-ready'
+
 let previewWindowRef: Window | null = null
 /** Set when prepareDraftPreviewTab runs; navigate must not open a second tab in that case. */
 let previewPrepareActive = false
+/** Last URL handed to navigateDraftPreviewTab — retried when the pending tab finishes loading. */
+let lastPreviewNavigateUrl: string | null = null
+
+function rememberLastPreviewNavigateUrl(url: string): void {
+  lastPreviewNavigateUrl = url
+}
+
+function retryLastPreviewNavigateDelivery(): void {
+  if (!lastPreviewNavigateUrl) return
+  broadcastPreviewTabNavigate(lastPreviewNavigateUrl)
+  reacquirePreviewWindowRef()
+  if (!previewWindowRef || previewWindowRef.closed) return
+  try {
+    const targetOrigin = new URL(lastPreviewNavigateUrl).origin
+    if (isSameLoopbackOrigin(window.location.origin, targetOrigin)) {
+      previewWindowRef.location.replace(lastPreviewNavigateUrl)
+      previewWindowRef.focus()
+    }
+  } catch {
+    /* localStorage poll + postMessage remain the fallback */
+  }
+  postMessageToPreviewTabLoopback(lastPreviewNavigateUrl)
+}
+
+/** Listen for the pending preview tab signalling it is ready to receive the token URL. */
+export function initPreviewTabOpenerBridge(): void {
+  if (typeof window === 'undefined') return
+  window.addEventListener('message', (ev: MessageEvent<{ type?: string }>) => {
+    if (ev.data?.type !== PREVIEW_PENDING_READY_TYPE) return
+    retryLastPreviewNavigateDelivery()
+  })
+}
 
 function closePreviewWindowRef(): void {
   if (!previewWindowRef || previewWindowRef.closed) {
@@ -222,50 +256,55 @@ export function prepareDraftPreviewTab(): Window | null {
   }
 }
 
+function reacquirePreviewWindowRef(): void {
+  if (previewWindowRef && !previewWindowRef.closed) return
+  // Do not window.open('', PREVIEW_WINDOW_NAME) — on some browsers that navigates the
+  // existing preview tab to about:blank and breaks the pending shell.
+}
+
 /** Navigate the prepared preview tab (safe to call after async work). */
 export function navigateDraftPreviewTab(previewShellUrl: string): boolean {
   const url = alignPreviewUrlWithCurrentHost(previewShellUrl)
-  let delivered = false
+  rememberLastPreviewNavigateUrl(url)
+  reacquirePreviewWindowRef()
+  let locationNavigated = false
   try {
     const targetOrigin = new URL(url).origin
 
-    if (previewWindowRef && !previewWindowRef.closed) {
-      delivered = postMessageToPreviewTabLoopback(url)
-    }
+    // Always persist for the pending tab to poll — never clear from the builder side.
+    broadcastPreviewTabNavigate(url)
 
-    // Same-origin fast path when the opener may set location directly.
+    // Same-origin location.replace is the most reliable handoff when the tab exists.
     if (previewWindowRef && !previewWindowRef.closed && isSameLoopbackOrigin(window.location.origin, targetOrigin)) {
       try {
         previewWindowRef.location.replace(url)
         previewWindowRef.focus()
-        delivered = true
+        locationNavigated = true
       } catch {
-        /* postMessage + storage fallback below */
+        /* localStorage poll + postMessage below */
       }
     }
 
-    // Cross-tab fallback for pending shell / lost opener ref (same canonical origin).
-    broadcastPreviewTabNavigate(url)
-    if (previewPrepareActive) {
-      delivered = true
+    // postMessage can fire before the pending shell mounts — treat as best-effort only.
+    if (previewWindowRef && !previewWindowRef.closed) {
+      postMessageToPreviewTabLoopback(url)
     }
 
     // Only open a new tab when prepare did not run and we have no live preview window.
-    if (!delivered && !previewPrepareActive && (!previewWindowRef || previewWindowRef.closed)) {
+    if (!locationNavigated && !previewPrepareActive && (!previewWindowRef || previewWindowRef.closed)) {
       try {
         const tab = window.open(url, PREVIEW_WINDOW_NAME)
         if (tab) {
           previewWindowRef = tab
           tab.focus()
-          delivered = true
+          locationNavigated = true
         }
       } catch {
         /* popup blocked */
       }
     }
 
-    if (delivered) clearPendingPreviewTabNavigate()
-
+    const delivered = locationNavigated || previewPrepareActive
     previewPrepareActive = false
     return delivered
   } catch {

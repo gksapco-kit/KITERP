@@ -154,7 +154,7 @@ function sitePagesToLiveItems(site: PublicSite, limit: number): LiveItem[] {
     seen.add(url)
     items.push({
       id: page.id,
-      title: page.is_homepage ? 'Home' : (page.title || page.slug || 'Page'),
+      title: page.title?.trim() || (page.is_homepage ? 'Home' : (page.slug || 'Page')),
       subtitle: page.slug,
       url,
       meta: {
@@ -395,6 +395,15 @@ export function SingleBlock({
       : 0
   const sectionMinHeight = Math.max(minHeightPx, overlayMinH)
 
+  // Whole-section size — scales the section AND everything inside it (text, media,
+  // padding) while still reflowing layout (unlike transform: scale, which would
+  // leave gaps/overlap). `zoom` is the only CSS that grows the section's footprint.
+  const sectionScaleRaw = p.section_scale as number | undefined
+  const sectionScale =
+    typeof sectionScaleRaw === 'number' && Number.isFinite(sectionScaleRaw) && sectionScaleRaw > 0 && sectionScaleRaw !== 1
+      ? Math.min(2, Math.max(0.5, sectionScaleRaw))
+      : undefined
+
   const wrapperStyle: CSSProperties = {}
   if (block.animation_delay) wrapperStyle.animationDelay = `${block.animation_delay}ms`
   if (textTransformCss) wrapperStyle.textTransform = textTransformCss
@@ -478,7 +487,15 @@ export function SingleBlock({
           ${fieldStyleCss}
         `}</style>
       )}
-      {inner}
+      {sectionScale ? (
+        // Scale is applied to an inner wrapper (NOT the measured .builder-block
+        // element) so the builder's selection/handle overlay — which reads
+        // offsetWidth/getBoundingClientRect on the outer element — stays aligned.
+        // `zoom` still reflows, so the outer element grows/shrinks to fit.
+        <div style={{ zoom: sectionScale } as CSSProperties}>{inner}</div>
+      ) : (
+        inner
+      )}
       {overlays.length > 0 && !isEditorCanvas ? <BlockOverlayLayers overlays={overlays} /> : null}
       {bottomShape && bottomShape !== 'none' && (
         <SectionShapeDivider shape={bottomShape} fillColor={shapeColor} position="bottom" />
@@ -510,6 +527,21 @@ interface BlockRendererProps {
   pageId?: string | null
   /** Query-string branch code for branch-scoped visibility. */
   branchCode?: string | null
+}
+
+const SHELL_BLOCK_TYPES = new Set(['nav', 'announcement_bar'])
+
+/** Leading announcement/nav blocks stay outside overflow-x-clip so sticky headers work. */
+function splitLeadingShellBlocks(blocks: PublicBlock[]) {
+  const shellBlocks: PublicBlock[] = []
+  let index = 0
+  while (index < blocks.length) {
+    const blockType = blocks[index]?.block_type
+    if (!blockType || !SHELL_BLOCK_TYPES.has(blockType)) break
+    shellBlocks.push(blocks[index])
+    index += 1
+  }
+  return { shellBlocks, contentBlocks: blocks.slice(index) }
 }
 
 export default function BlockRenderer({ blocks, site, pageId, branchCode }: BlockRendererProps) {
@@ -553,16 +585,28 @@ export default function BlockRenderer({ blocks, site, pageId, branchCode }: Bloc
     )
   }
 
+  const { shellBlocks, contentBlocks } = splitLeadingShellBlocks(visibleBlocks)
+
+  const pageStyle = {
+    backgroundColor: style.bg_color,
+    color: style.text_color,
+    fontFamily: style.font_body,
+    fontSize: style.font_size_base ? `${style.font_size_base}px` : undefined,
+  } as const
+
+  const renderBlock = (block: PublicBlock) => (
+    <SingleBlock
+      key={`${block.id}:${blockLayoutKey(block.props as Record<string, unknown>)}`}
+      block={block}
+      site={site}
+      style={style}
+      branchCode={branchCode}
+      pageBlocks={visibleBlocks}
+    />
+  )
+
   return (
-    <div
-      className="builder-page min-w-0 overflow-x-clip"
-      style={{
-        backgroundColor: style.bg_color,
-        color: style.text_color,
-        fontFamily: style.font_body,
-        fontSize: style.font_size_base ? `${style.font_size_base}px` : undefined,
-      }}
-    >
+    <div className="builder-page min-w-0" style={pageStyle}>
       {(style.font_heading || style.font_size_heading) && (
         <style>{`
           .builder-page h1,
@@ -573,16 +617,14 @@ export default function BlockRenderer({ blocks, site, pageId, branchCode }: Bloc
           }
         `}</style>
       )}
-      {visibleBlocks.map(block => (
-        <SingleBlock
-          key={`${block.id}:${blockLayoutKey(block.props as Record<string, unknown>)}`}
-          block={block}
-          site={site}
-          style={style}
-          branchCode={branchCode}
-          pageBlocks={visibleBlocks}
-        />
-      ))}
+      {shellBlocks.length > 0 && (
+        <div className="sticky top-0 z-50 w-full">
+          {shellBlocks.map(renderBlock)}
+        </div>
+      )}
+      <div className="builder-page-content min-w-0 overflow-x-clip">
+        {contentBlocks.map(renderBlock)}
+      </div>
     </div>
   )
 }

@@ -1269,6 +1269,15 @@
   --hosp-accent: 162 52% 38%;
 }
 
+/* Long unbroken strings (pasted gibberish, URLs, long names) must wrap inside the
+   block instead of spilling out of cards/sections. `anywhere` (unlike `break-word`)
+   also shrinks the text's intrinsic min-content width, so cards in a grid/flex track
+   stop blowing the column out. overflow-wrap is inherited, so it cascades to all text. */
+.builder-block,
+.builder-block * {
+  overflow-wrap: anywhere;
+}
+
 /** Per-section shadow from builder "Block Shadow" — avoid clipping glow on canvas. */
 .builder-block--has-shadow {
   overflow: visible;

@@ -1,5 +1,7 @@
 /** Image shape + layout helpers for features_alternating blocks. */
 
+import { imageShapeRadiusClass, type ImageShape } from '@/lib/sectionItemLayout'
+
 export function alternatingRowFlip(
   index: number,
   imagePosition: string,
@@ -23,16 +25,18 @@ export function alternatingImageClassNames(opts: {
       ? 'w-40 h-40 sm:w-48 sm:h-48 object-cover rounded-full shadow-lg ring-4 ring-white/70 mx-auto lg:mx-0'
       : 'w-full max-w-xs sm:max-w-sm aspect-square object-cover rounded-full shadow-lg ring-4 ring-white/70 mx-auto lg:mx-0'
   }
+  // Full-bleed images stay edge-to-edge (no corner shaping).
+  const radius = fullBleed ? 'rounded-none' : imageShapeRadiusClass(imageShape as ImageShape)
   if (imageShape === 'square') {
     return fullBleed
       ? 'w-full aspect-[16/10] object-cover rounded-none shadow-md'
       : compact
-        ? 'w-full max-h-44 aspect-square object-cover rounded-md shadow-md mx-auto lg:mx-0'
-        : 'w-full max-w-md aspect-square object-cover rounded-lg shadow-md mx-auto lg:mx-0'
+        ? `w-full max-h-44 aspect-square object-cover ${radius} shadow-md mx-auto lg:mx-0`
+        : `w-full max-w-md aspect-square object-cover ${radius} shadow-md mx-auto lg:mx-0`
   }
   return fullBleed
     ? 'w-full aspect-[16/10] object-cover rounded-none shadow-lg'
     : compact
-      ? 'w-full max-h-48 aspect-[4/3] object-cover rounded-xl shadow-lg mx-auto lg:max-w-none'
-      : 'w-full aspect-[4/3] object-cover rounded-2xl shadow-[0_20px_50px_-20px_rgba(39,72,50,0.35)] mx-auto lg:max-w-none'
+      ? `w-full max-h-48 aspect-[4/3] object-cover ${radius} shadow-lg mx-auto lg:max-w-none`
+      : `w-full aspect-[4/3] object-cover ${radius} shadow-[0_20px_50px_-20px_rgba(39,72,50,0.35)] mx-auto lg:max-w-none`
 }

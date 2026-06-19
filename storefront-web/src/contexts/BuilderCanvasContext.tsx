@@ -33,6 +33,9 @@ export interface BuilderCanvasContextValue {
   ) => void
   /** Intercept header / storefront links in the builder canvas. */
   onNavigate?: (url: string) => void
+  /** Builder canvas: which website page is shown (nav active highlight). */
+  activePageSlug?: string | null
+  activePageIsHomepage?: boolean
   /** Open the link editor for a block prop (e.g. social_links.twitter). */
   onPropLinkEdit?: (
     blockId: string,

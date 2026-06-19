@@ -136,6 +136,17 @@ export const SETTINGS_SECTION_ENTRIES: NavSearchEntry[] = [
     ],
   },
   {
+    kind: 'nav', id: 'seo-management',
+    label: 'SEO Management',
+    description: 'Website Management → Google titles, meta descriptions, and social previews',
+    section: 'Website Management', sectionId: 'website-management',
+    to: '/websites/seo',
+    keywords: [
+      'seo', 'search', 'google', 'meta title', 'meta description', 'og image',
+      'social preview', 'keywords', 'search listing',
+    ],
+  },
+  {
     kind: 'nav', id: 'settings-main',
     label: 'Settings',
     description: 'My Kit → Business Unit / Store settings',

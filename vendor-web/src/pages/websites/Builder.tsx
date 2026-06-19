@@ -18,7 +18,7 @@ import {
   Loader2, ChevronRight, MoreVertical, MoreHorizontal, History, Lightbulb, PanelLeft, PanelRight,
   Wand2, AlertTriangle, Download, ExternalLink, RefreshCw,
   Bold, Italic, Link2,
-  Maximize2, Minimize2, Move, Pencil, PlusCircle, Upload,
+  Minimize2, Move, Pencil, PlusCircle, Upload,
   ZoomIn, ZoomOut,
   Zap, Star, Shield, Phone, Mail, MapPin, Clock, CheckCircle2,
   ChevronLeft, BarChart3, Users, ShoppingBag, Heart, Home,
@@ -35,7 +35,6 @@ import {
   useUpdateSite,
   useWebsiteTemplates,
   useAIGenerateTheme, useMedia, useUploadMedia, useSaveExternalUrl,
-  useAIGenerateSEO, useAISuggestBlocks,
   useRedirects, useCreateRedirect, useDeleteRedirect,
   useEnableHeadless, useDisableHeadless,
 } from '@/hooks/useWebsites'
@@ -69,6 +68,7 @@ import {
   BuilderSectionOverlay,
   BuilderSectionPaddingHandles,
 } from '@/components/websites/BuilderSectionOverlay'
+import { SectionSizeControl } from '@/components/websites/SectionSizeControl'
 import {
   FontSizePxControl,
   FontFamilyControl,
@@ -136,24 +136,22 @@ import {
   type FormatPaintStyle,
 } from '@/lib/builderFormatPainter'
 import { MediaStudioPanel } from '@/components/websites/MediaStudioPanel'
-import { MediaClipPicker } from '@/components/websites/MediaClipPicker'
 import { DesignBarDropdownPortal } from '@/components/websites/DesignBarDropdownPortal'
 import { VisualDesignBarTools } from '@/components/websites/VisualDesignBarTools'
 import { OverlayIconPicker } from '@/components/websites/OverlayIconPicker'
 import { OverlayTransformControls } from '@/components/websites/OverlayTransformControls'
 import { SectionImageControls } from '@/components/websites/SectionImageControls'
+import { InsertLayerButton } from '@/components/websites/InsertLayerButton'
 import type { OverlayLayerItem } from '@/lib/builderOverlayVisual'
 import { overlayImageImgStyle } from '@storefront/lib/overlayImageStyle'
 import { builderOverlayIconLabel, overlayIconRenderSize, resolveBuilderOverlayIcon } from '@storefront/lib/builderOverlayIcons'
 import { SHADOW_PRESETS, SHAPE_OPTIONS } from '@/lib/builderVisualPresets'
-import { blockSupportsMediaClip } from '@storefront/lib/mediaClip'
 import {
   buildSectionImagePropsPatch,
   sectionPrimaryImageField,
   sectionSupportsBgStyle,
   sectionSupportsContentGroupTransform,
   sectionSupportsEdgeShapes,
-  sectionSupportsMediaClip,
 } from '@storefront/lib/designBarCapabilities'
 import {
   canvasImageArraySlots,
@@ -163,6 +161,7 @@ import {
 } from '@storefront/lib/canvasImageTarget'
 import { MediaDesignBarTools } from '@/components/websites/MediaDesignBarTools'
 import { SingleImagePreview } from '@/components/common/CatalogMediaLightbox'
+import { useImageSourcePicker } from '@/components/common/ImageSourcePicker'
 import { SectionLayoutPickerModal } from '@/components/websites/SectionLayoutPickerModal'
 import { BuilderTipsButton } from '@/components/websites/BuilderTipsButton'
 import { BuilderCommandPalette, type CommandPaletteBlockDef } from '@/components/websites/BuilderCommandPalette'
@@ -220,7 +219,8 @@ import {
 } from '@/lib/storefrontPreviewUrl'
 import { mediaUrl } from '@/lib/utils'
 import { extractApiError, isBuilderPreviewInfraFailure } from '@/lib/errorMessages'
-import { buildDraftPreviewCatalogUrl, parseCatalogStorePath, parseStorefrontEmbedRoute } from '@/lib/catalogStorePaths'
+import { parseCatalogStorePath, parseStorefrontEmbedRoute } from '@/lib/catalogStorePaths'
+import { DraftCatalogPreview } from '@/components/websites/DraftCatalogPreview'
 import { findBuilderPageForNavPath } from '@storefront/lib/previewNavRouting'
 import { recallDraftPreviewToken } from '@/lib/draftPreviewNavigation'
 import {
@@ -229,12 +229,12 @@ import {
   liveItemToPropMember,
   teamPropMembers,
 } from '@/lib/teamGridContent'
-import { broadcastPreviewTabError, clearPendingPreviewTabError, clearPendingPreviewTabNavigate, pushDraftPreviewUpdate, rememberDraftPreviewSession } from '@/lib/draftPreviewSync'
+import { broadcastPreviewTabError, clearPendingPreviewTabError, clearPendingPreviewTabNavigate, PREVIEW_NAV_MESSAGE_TYPE, pushDraftPreviewUpdate, rememberDraftPreviewSession } from '@/lib/draftPreviewSync'
 import {
   WELLNESS_CATEGORY_FALLBACK_IMAGES,
   WELLNESS_DEFAULT_CATEGORY_TITLES,
 } from '@storefront/lib/wellnessCategoryStyle'
-import { IMAGE_SHAPE_OPTIONS } from '@storefront/lib/sectionItemLayout'
+import { IMAGE_SHAPE_OPTIONS, imageShapeRadiusClass } from '@storefront/lib/sectionItemLayout'
 import { buildFieldStylesCss, fieldTextStyle, CONTENT_GROUP_FIELD_KEY, FIELD_OFFSET_STEP_PX, hasInlineHtml, readFieldOffset, readFlipFlag, readRotateDeg } from '@storefront/lib/fieldTextStyles'
 import { BUILDER_FONT_FAMILIES, ensureBuilderFontLoaded } from '@storefront/lib/builderFontFamilies'
 import {
@@ -1548,12 +1548,14 @@ function ContextMenu({ open, x, y, actions, onClose }: {
 function PageActionsMenu({
   page,
   pageCount,
+  onRename,
   onSetHomepage,
   onDuplicate,
   onDelete,
 }: {
   page: WebsitePage
   pageCount: number
+  onRename: () => void
   onSetHomepage: () => void
   onDuplicate: () => void
   onDelete: () => void
@@ -1624,6 +1626,7 @@ function PageActionsMenu({
       </button>
       {open && (
         <div className="absolute top-full right-0 mt-1 w-52 bg-white border border-gray-200 rounded-xl shadow-xl py-1.5 z-40">
+          {menuItem('Rename page', onRename, <Pencil className="w-3.5 h-3.5" />)}
           {!page.is_homepage && menuItem('Set as homepage', onSetHomepage, <span className="text-sm leading-none">??</span>)}
           {menuItem('Duplicate page', onDuplicate, <Copy className="w-3.5 h-3.5" />)}
           <div className="my-1 border-t border-gray-100" />
@@ -2877,7 +2880,7 @@ function buildNavLinksFromPages(pages: WebsitePage[]): { label: string; url: str
     if (seenUrls.has(url)) continue
     seenUrls.add(url)
 
-    const label = pg.is_homepage ? 'Home' : (pg.title?.trim() || pg.slug || 'Page')
+    const label = pg.title?.trim() || (pg.is_homepage ? 'Home' : pg.slug) || 'Page'
     links.push({ label, url })
   }
 
@@ -3391,7 +3394,8 @@ const ITEM_SCHEMAS: Record<string, ItemSchema> = {
   },
   trust_logos: {
     arrayKey: 'logos', itemLabel: 'Logo',
-    defaultItem: { name: 'Brand', image_url: '' },
+    // Logos default to "contain" so varied aspect ratios are not cropped by the section-image toolbar.
+    defaultItem: { name: 'Brand', image_url: '', image_fit: 'contain' },
     fields: [
       { key: 'image_url', label: 'Logo Image', type: 'image' },
       { key: 'name',      label: 'Brand Name', type: 'text' },
@@ -3534,6 +3538,11 @@ function getCatalogGridBlockConfig(blockType: string): CatalogGridBlockConfig {
 }
 
 const CATALOG_GRID_COLUMN_MAX = 12
+// Max items a single catalog section can show. Kept in lockstep with the backend
+// live endpoint cap and the storefront block clamp. Sane ceiling for one section —
+// large catalogs should use a dedicated listing page with pagination, not 1000s
+// of cards rendered in a single block.
+const CATALOG_GRID_COUNT_MAX = 200
 
 function catalogColumnOptionsFor(blockType: string): number[] {
   const min = getCatalogGridBlockConfig(blockType).columnMin
@@ -3660,7 +3669,7 @@ function CatalogGridLayoutControls({
   const gap = Math.min(80, Math.max(0, Number(p.item_gap ?? 24) || 0))
   const imageHeightPct = Math.min(100, Math.max(40, Number(p.image_height_pct ?? 100) || 100))
   const cardPadding = Math.min(32, Math.max(4, Number(p.card_padding ?? 16) || 16))
-  const showCount = Math.min(50, Math.max(1, Number(
+  const showCount = Math.min(CATALOG_GRID_COUNT_MAX, Math.max(1, Number(
     config.itemCountKeys.map(k => p[k]).find(v => v != null && v !== '') ?? 12,
   ) || 12))
   const cardStyle = String(p.card_style ?? 'default')
@@ -3751,7 +3760,7 @@ function CatalogGridLayoutControls({
         label={config.itemCountLabel}
         value={showCount}
         min={1}
-        max={50}
+        max={CATALOG_GRID_COUNT_MAX}
         step={1}
         onChange={patchShowCount}
       />
@@ -4073,7 +4082,7 @@ function SubItemEditor({
             <span className="text-xs font-medium text-gray-600">Card size</span>
             <span className="text-xs font-mono text-primary font-bold">{itemSize}px</span>
           </div>
-          <input type="range" min={80} max={320} step={8} value={itemSize}
+          <input type="range" min={80} max={480} step={8} value={itemSize}
             onChange={e => onItemSizeChange(Number(e.target.value))}
             className="w-full accent-primary h-1.5" />
         </div>
@@ -4861,12 +4870,14 @@ function PropsEditor({
   // Spacing sliders ? read from block.props (where onUpdate writes)
   const [paddingTop, setPaddingTop] = useState<number>((p as any).padding_top ?? 0)
   const [paddingBottom, setPaddingBottom] = useState<number>((p as any).padding_bottom ?? 0)
+  const [sectionScale, setSectionScale] = useState<number>((p as any).section_scale ?? 1)
 
   // Sync spacing when block changes
   useEffect(() => {
     setPaddingTop((p as any).padding_top ?? 0)
     setPaddingBottom((p as any).padding_bottom ?? 0)
-  }, [block.id, (p as any).padding_top, (p as any).padding_bottom])
+    setSectionScale((p as any).section_scale ?? 1)
+  }, [block.id, (p as any).padding_top, (p as any).padding_bottom, (p as any).section_scale])
 
   const itemSchema = ITEM_SCHEMAS[block.block_type]
     ?? (block.block_type === 'features_alternating' ? ITEM_SCHEMAS.features : undefined)
@@ -5122,7 +5133,6 @@ function PropsEditor({
 
   const sectionLayoutCount = getSectionLayoutOptions(block.block_type).length
   const hasImageShape = IMAGE_SHAPE_BLOCK_TYPES.has(block.block_type)
-  const hasMediaClip = blockSupportsMediaClip(block.block_type)
   const hasMediaPanel = isHeroBlock || p.bg_style === 'image' || p.image_url !== undefined || block.block_type === 'nav'
 
   const ribbonTabs = useMemo(() => ([
@@ -5255,11 +5265,7 @@ function PropsEditor({
       <div className="grid grid-cols-3 gap-1.5">
         {IMAGE_SHAPE_OPTIONS.map(opt => {
           const active = String((p as any).image_shape ?? (block.block_type === 'team_grid' ? 'circle' : 'rounded')) === opt.value
-          const previewClass = opt.value === 'circle'
-            ? 'rounded-full'
-            : opt.value === 'square'
-              ? 'rounded-sm'
-              : 'rounded-lg'
+          const previewClass = imageShapeRadiusClass(opt.value)
           return (
             <button
               key={opt.value}
@@ -5282,26 +5288,6 @@ function PropsEditor({
         })}
       </div>
     </div>
-  )
-
-  const mediaClipPicker = hasMediaClip && (
-    <MediaClipPicker
-      value={(p as any).media_clip}
-      embedded
-      onChange={clip => {
-        onPreview({ media_clip: clip } as any)
-        onUpdate({ media_clip: clip } as any)
-      }}
-    />
-  )
-
-  const mediaClipPanel = hasMediaClip && (
-    <SectionPanelGroup
-      title="Media clip frames"
-      description="Crop photos and video with angled or organic shapes. Hover a tile for the full name."
-    >
-      {mediaClipPicker}
-    </SectionPanelGroup>
   )
 
   return (
@@ -5578,7 +5564,50 @@ function PropsEditor({
         </PropsCollapsible>
       )}
 
-      <PropsCollapsible title="Section Spacing" preview={`?${paddingTop}px ?${paddingBottom}px`}>
+      <PropsCollapsible title="Section Spacing" preview={`?${paddingTop}px ?${paddingBottom}px${sectionScale !== 1 ? ` · ${Math.round(sectionScale * 100)}%` : ''}`}>
+        <div className="space-y-1 pb-2 mb-1 border-b border-gray-100">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-medium text-gray-600">Section size</span>
+            <div className="flex items-center gap-1.5">
+              <input
+                type="number"
+                min={50} max={200} step={5}
+                value={Math.round(sectionScale * 100)}
+                onChange={e => {
+                  const pct = Math.max(50, Math.min(200, Number(e.target.value) || 100))
+                  const n = Number((pct / 100).toFixed(2))
+                  setSectionScale(n)
+                  onUpdate({ section_scale: n } as any)
+                }}
+                className="w-14 px-1.5 py-0.5 border border-gray-200 rounded text-xs font-mono text-center focus:outline-none focus:ring-1 focus:ring-ring"
+              />
+              <span className="text-xs text-gray-400">%</span>
+            </div>
+          </div>
+          <div className="relative">
+            <input
+              type="range" min={50} max={200} step={5}
+              value={Math.round(sectionScale * 100)}
+              onInput={e => {
+                const n = Number((Number((e.target as HTMLInputElement).value) / 100).toFixed(2))
+                setSectionScale(n)
+                onPreview({ section_scale: n } as any)
+              }}
+              onChange={e => {
+                const n = Number((Number(e.target.value) / 100).toFixed(2))
+                setSectionScale(n)
+                onUpdate({ section_scale: n } as any)
+              }}
+              className="w-full accent-primary h-2 rounded-full cursor-pointer"
+            />
+            <div className="flex justify-between mt-0.5 px-0.5">
+              {[50, 100, 150, 200].map(v => (
+                <span key={v} className="text-[8px] text-gray-300 font-mono">{v}%</span>
+              ))}
+            </div>
+          </div>
+          <p className="text-[10px] leading-tight text-gray-400">Scales the whole section — text, images and spacing — up or down.</p>
+        </div>
         {([
           { label: 'Padding Top', key: 'padding_top', val: paddingTop, set: setPaddingTop },
           { label: 'Padding Bottom', key: 'padding_bottom', val: paddingBottom, set: setPaddingBottom },
@@ -5753,14 +5782,11 @@ function PropsEditor({
           </PropsCollapsible>
         </div>
       </SectionPanelGroup>
-
-      {mediaClipPanel}
           </>
         )}
 
         {editorTab === 'media' && (
           <>
-      {mediaClipPanel ?? mediaClipPicker}
       {heroImageField}
       {bgImageField}
       {imageUrlField}
@@ -6637,7 +6663,8 @@ const FONT_SCALE_STEPS: [string, number][] = [
 ]
 
 const DESIGN_BAR_TABS = ['general', 'visual', 'media'] as const
-type DesignBarTabId = (typeof DESIGN_BAR_TABS)[number]
+// 'image' is a contextual tab — only present while a section/card image is selected.
+type DesignBarTabId = (typeof DESIGN_BAR_TABS)[number] | 'image'
 
 const CANVAS_DESIGN_WIDTH: Record<DeviceMode, number> = {
   desktop: 1440,
@@ -6719,7 +6746,6 @@ function BlockDesignBar({ block, onUpdate, onInsertAfter, onOpenLinkEditorForOve
   const clearBtnRef = useRef<HTMLButtonElement>(null)
   const formatPaintClickTimerRef = useRef<number | null>(null)
   const p = block.props
-  const blockSupportsMediaClip = sectionSupportsMediaClip(block.block_type)
   const supportsContentGroup = sectionSupportsContentGroupTransform(String(block.block_type))
   const primaryImageField = sectionPrimaryImageField(String(block.block_type), p as Record<string, unknown>)
   const fieldStyles = ((p as any)._field_styles || {}) as Record<string, Record<string, unknown>>
@@ -6787,8 +6813,8 @@ function BlockDesignBar({ block, onUpdate, onInsertAfter, onOpenLinkEditorForOve
       if (isInput) return
       if (multiFieldSelection) return
       if (activeTextField && activeTextField !== CONTENT_GROUP_FIELD_KEY) return
-      // Layer or section image selected on General ? arrow keys adjust, not switch tabs
-      if ((selectedOverlay || canvasImageField) && designBarTab === 'general') return
+      // Layer or section image selected ? arrow keys adjust, not switch tabs
+      if ((selectedOverlay || canvasImageField) && (designBarTab === 'general' || designBarTab === 'image')) return
       e.preventDefault()
       const idx = DESIGN_BAR_TABS.indexOf(designBarTab)
       const nextIdx = e.key === 'ArrowLeft'
@@ -6799,6 +6825,19 @@ function BlockDesignBar({ block, onUpdate, onInsertAfter, onOpenLinkEditorForOve
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   }, [activeTextField, multiFieldSelection, designBarTab, selectedOverlay, canvasImageField])
+
+  // Open the contextual Image tab when an image gets selected; fall back to General
+  // when it is deselected so we never leave the user on an empty Image tab.
+  const imageTabActive = !!canvasImageField && !selectedOverlay
+  const prevImageTabActiveRef = useRef(false)
+  useEffect(() => {
+    if (imageTabActive && !prevImageTabActiveRef.current) {
+      setDesignBarTab('image')
+    } else if (!imageTabActive && designBarTab === 'image') {
+      setDesignBarTab('general')
+    }
+    prevImageTabActiveRef.current = imageTabActive
+  }, [imageTabActive, designBarTab])
 
   const patchSelectedFieldStyles = (patch: Record<string, unknown>, keys = selectedEditableFields) => {
     if (!keys.length) return
@@ -7197,11 +7236,21 @@ function BlockDesignBar({ block, onUpdate, onInsertAfter, onOpenLinkEditorForOve
         role="tablist"
         aria-label="Section design tools"
       >
-        {([
-          { id: 'general' as const, label: 'General' },
-          { id: 'visual' as const, label: 'Visual' },
-          { id: 'media' as const, label: 'Media' },
-        ]).map(tab => (
+        {(([
+          { id: 'general', label: 'General' },
+          { id: 'visual', label: 'Visual' },
+          ...(canvasImageField && !selectedOverlay
+            ? [{
+                id: 'image',
+                label: canvasImageSlots && canvasImageSlots.length > 1
+                  ? `${canvasImageSlots.length} images`
+                  : canvasImageSlots?.length
+                    ? 'Card image'
+                    : 'Section image',
+              }]
+            : []),
+          { id: 'media', label: 'Media' },
+        ]) as { id: DesignBarTabId; label: string }[]).map(tab => (
           <button
             key={tab.id}
             type="button"
@@ -7230,8 +7279,10 @@ function BlockDesignBar({ block, onUpdate, onInsertAfter, onOpenLinkEditorForOve
             : 'Media tools'
       }
       className={cn(
-        'z-[80] flex min-h-[2.25rem] gap-0 overflow-x-auto overflow-y-visible bg-white px-1 py-0.5',
-        'items-center',
+        'z-[80] flex gap-0 bg-white px-1 py-0.5',
+        designBarTab === 'media'
+          ? 'max-h-[min(26rem,55vh)] flex-col items-stretch overflow-x-hidden overflow-y-auto'
+          : 'min-h-[2.25rem] items-center overflow-x-auto overflow-y-visible',
         docked
           ? 'relative w-full border-b border-primary/20'
           : floating
@@ -7243,6 +7294,13 @@ function BlockDesignBar({ block, onUpdate, onInsertAfter, onOpenLinkEditorForOve
       {designBarTab === 'general' && (
         <>
       <div className="flex min-w-0 flex-1 items-center gap-0.5 overflow-x-auto">
+      <div className="flex shrink-0 items-center pr-1">
+        <InsertLayerButton
+          overlayCount={overlayCount}
+          onAddOverlay={addOverlayElement}
+          onClearOverlays={() => onUpdate({ overlays: [] } as Partial<BlockProps>)}
+        />
+      </div>
       {/* Edit + clipboard */}
       <div className="flex shrink-0 items-center gap-0.5">
         <div className="flex h-14 w-[3.75rem] shrink-0 gap-px">
@@ -7581,25 +7639,6 @@ function BlockDesignBar({ block, onUpdate, onInsertAfter, onOpenLinkEditorForOve
             variant="compact"
           />
         </div>
-      ) : canvasImageField ? (
-        <div className="flex shrink-0 flex-col self-center rounded-md border border-gray-200 bg-white px-0.5 py-0.5">
-          <div className="border-b border-gray-200 px-1.5 py-px text-center text-[7px] font-bold uppercase tracking-wide text-primary/80">
-            {canvasImageSlots && canvasImageSlots.length > 1
-              ? `${canvasImageSlots.length} card images`
-              : canvasImageSlots?.length
-                ? 'Card image'
-                : 'Section image'}
-          </div>
-          <SectionImageControls
-            imageField={canvasImageField}
-            arraySlots={canvasImageSlots}
-            blockProps={p as Record<string, unknown>}
-            blockType={String(block.block_type)}
-            onUpdate={patch => onUpdate(patch as Partial<BlockProps>)}
-            onPickImage={onSectionImagePick}
-            onOpenLibrary={onSectionImageLibrary}
-          />
-        </div>
       ) : (
       <LayoutTransformPositionGroup
         scopeMode={transformScope}
@@ -7701,56 +7740,23 @@ function BlockDesignBar({ block, onUpdate, onInsertAfter, onOpenLinkEditorForOve
         <span className="hidden md:inline text-[10px] text-gray-400 font-mono truncate max-w-[5rem]" title={block.label || block.block_type}>
           {block.label || block.block_type}
         </span>
-        {(onUndo || onRedo) && (
-          <div className="flex items-center gap-px shrink-0">
-            <button
-              type="button"
-              disabled={!canUndo}
-              onClick={onUndo}
-              title="Undo (Ctrl+Z)"
-              className={cn(
-                'flex items-center justify-center w-6 h-6 rounded transition-colors',
-                canUndo ? 'text-gray-700 hover:bg-gray-100' : 'text-gray-300 cursor-not-allowed',
-              )}
-            >
-              <Undo2 className="w-3.5 h-3.5" />
-            </button>
-            <button
-              type="button"
-              disabled={!canRedo}
-              onClick={onRedo}
-              title="Redo (Ctrl+Y)"
-              className={cn(
-                'flex items-center justify-center w-6 h-6 rounded transition-colors',
-                canRedo ? 'text-gray-700 hover:bg-gray-100' : 'text-gray-300 cursor-not-allowed',
-              )}
-            >
-              <Redo2 className="w-3.5 h-3.5" />
-            </button>
-          </div>
-        )}
       </div>
         </>
       )}
 
-      {designBarTab === 'visual' && canvasImageField && !selectedOverlay ? (
-        <div className="flex shrink-0 flex-col self-center rounded-md border border-gray-200 bg-white px-0.5 py-0.5">
-          <div className="border-b border-gray-200 px-1.5 py-px text-center text-[7px] font-bold uppercase tracking-wide text-primary/80">
-            {canvasImageSlots && canvasImageSlots.length > 1
-              ? `${canvasImageSlots.length} card images`
-              : canvasImageSlots?.length
-                ? 'Card image'
-                : 'Section image'}
+      {designBarTab === 'image' && canvasImageField && !selectedOverlay ? (
+        <div className="flex min-w-0 flex-1 items-center gap-1 px-1">
+          <div className="flex shrink-0 items-center self-center rounded-md border border-gray-200 bg-white px-0.5 py-0.5">
+            <SectionImageControls
+              imageField={canvasImageField}
+              arraySlots={canvasImageSlots}
+              blockProps={p as Record<string, unknown>}
+              blockType={String(block.block_type)}
+              onUpdate={patch => onUpdate(patch as Partial<BlockProps>)}
+              onPickImage={onSectionImagePick}
+              onOpenLibrary={onSectionImageLibrary}
+            />
           </div>
-          <SectionImageControls
-            imageField={canvasImageField}
-            arraySlots={canvasImageSlots}
-            blockProps={p as Record<string, unknown>}
-            blockType={String(block.block_type)}
-            onUpdate={patch => onUpdate(patch as Partial<BlockProps>)}
-            onPickImage={onSectionImagePick}
-            onOpenLibrary={onSectionImageLibrary}
-          />
         </div>
       ) : null}
 
@@ -7760,7 +7766,6 @@ function BlockDesignBar({ block, onUpdate, onInsertAfter, onOpenLinkEditorForOve
           blockProps={p as Record<string, unknown>}
           blockAnimation={block.animation}
           blockAnimationDelay={block.animation_delay}
-          blockSupportsMediaClip={blockSupportsMediaClip}
           overlayCount={overlayCount}
           selectedOverlay={selectedOverlay}
           blockBackgroundColor={blockBackgroundColor}
@@ -7858,6 +7863,13 @@ export default function WebsiteBuilder() {
     fieldKey: string | null,
     opts?: { clientX?: number; clientY?: number },
   ) => boolean>(() => false)
+  // Lets the canvas capture-click handler drive image-frame selection without a
+  // forward reference (handleSectionImageActivate is defined further down).
+  const handleSectionImageActivateRef = useRef<(
+    blockId: string,
+    field: string,
+    opts?: { arrayKey?: string; index?: number; itemField?: string; additive?: boolean },
+  ) => void>(() => {})
   const openInlineTextEditForSelectedRef = useRef<(anchorX?: number, anchorY?: number) => void>(() => {})
   const dismissBuilderUiRef = useRef<() => void>(() => {})
   const [inlineTextEdit, setInlineTextEdit] = useState<InlineTextEditSession | null>(null)
@@ -7877,7 +7889,7 @@ export default function WebsiteBuilder() {
     return () => el.removeAttribute('data-builder-inline-edit-target')
   }, [inlineTextEdit?.blockId])
   const [device, setDevice] = useState<DeviceMode>('desktop')
-  const [leftPanel, setLeftPanel] = useState<'blocks' | 'pages' | 'templates' | 'media' | 'settings' | 'seo'>(() => {
+  const [leftPanel, setLeftPanel] = useState<'blocks' | 'pages' | 'templates' | 'media' | 'settings'>(() => {
     const sp = new URLSearchParams(window.location.search)
     if (sp.get('templateMode') === 'true') return 'templates'
     return 'blocks'
@@ -7970,7 +7982,6 @@ export default function WebsiteBuilder() {
   const [canvasImageTarget, setCanvasImageTarget] = useState<ActiveCanvasImageTarget | null>(null)
   const canvasImageTargetRef = useRef<ActiveCanvasImageTarget | null>(null)
   useEffect(() => { canvasImageTargetRef.current = canvasImageTarget }, [canvasImageTarget])
-  const overlayImageUploadRef = useRef<HTMLInputElement>(null)
 
   // ?? Link editor (opened from CTA buttons / overlay buttons) ????????????????
   const [linkEditor, setLinkEditor] = useState<
@@ -8681,13 +8692,29 @@ export default function WebsiteBuilder() {
     return buildBuilderPublicSite(site, localPages, localBlocks, localStyle, vendorCatalogSlug)
   }, [site, localPages, localBlocks, localStyle, vendorCatalogSlug])
 
-  const openCatalogPreviewFromBuilder = useCallback(async (url: string) => {
+  // Catalog/commerce pages (product detail, service detail, cart, checkout…) are not
+  // block-based builder pages — they're storefront route templates. Instead of popping
+  // them open in a separate preview tab, we embed the draft-catalog storefront route
+  // directly inside the builder canvas so the user never leaves the builder.
+  const [canvasCatalogRoute, setCanvasCatalogRoute] = useState<string | null>(null)
+  const [canvasCatalogToken, setCanvasCatalogToken] = useState<string | null>(null)
+  const [canvasCatalogLoading, setCanvasCatalogLoading] = useState(false)
+
+  const exitCanvasCatalog = useCallback(() => {
+    setCanvasCatalogRoute(null)
+    setCanvasCatalogLoading(false)
+  }, [])
+
+  const showCatalogInCanvas = useCallback(async (url: string) => {
     if (!siteId || !site) return
+    const raw = (url || '/').trim()
+    const normalized = raw.startsWith('/') ? raw : `/${raw}`
+    const embedRoute = parseStorefrontEmbedRoute(normalized)
+    if (!embedRoute) return
+
     let previewToken = recallDraftPreviewToken()
     if (!previewToken) {
-      clearPendingPreviewTabNavigate()
-      clearPendingPreviewTabError()
-      prepareDraftPreviewTab()
+      setCanvasCatalogLoading(true)
       try {
         const payload = buildPublicSitePayloadFromLocal(site, localPages, localBlocks, localStyle, vendorCatalogSlug)
         const { preview_token } = await websiteApi.createBuilderPreview(siteId, {
@@ -8697,22 +8724,16 @@ export default function WebsiteBuilder() {
         rememberDraftPreviewSession(siteId, preview_token)
         previewToken = preview_token
       } catch (err) {
-        toast.error(extractApiError(err, 'Could not open preview'))
-        broadcastPreviewTabError(extractApiError(err, 'Preview failed'))
+        toast.error(extractApiError(err, 'Could not open catalog page'))
+        setCanvasCatalogLoading(false)
         return
       }
     }
-    const pageSlug = activePage?.slug
-    const catalogPreviewUrl = buildDraftPreviewCatalogUrl(previewToken, url, pageSlug)
-    if (!catalogPreviewUrl) return
-    const delivered = navigateDraftPreviewTab(catalogPreviewUrl)
-    if (delivered) {
-      toast.success('Product / service detail opened in preview')
-    } else {
-      window.open(catalogPreviewUrl, '_blank', 'noopener,noreferrer')
-      toast.success('Preview opened in a new tab')
-    }
-  }, [siteId, site, localPages, localBlocks, localStyle, activePage?.slug, vendorCatalogSlug])
+    setCanvasCatalogToken(previewToken)
+    setCanvasCatalogRoute(embedRoute)
+    setCanvasCatalogLoading(false)
+    setSelectedBlockId(null)
+  }, [siteId, site, localPages, localBlocks, localStyle, vendorCatalogSlug])
 
   const handleNavigateBuilderPage = useCallback((url: string) => {
     const raw = (url || '/').trim()
@@ -8721,19 +8742,46 @@ export default function WebsiteBuilder() {
 
     const target = findBuilderPageForNavPath(pathOnly, localPages)
     if (target) {
+      exitCanvasCatalog()
       setActivePageId(target.id)
       setSelectedBlockId(null)
       return
     }
 
     if (parseStorefrontEmbedRoute(normalized) || parseCatalogStorePath(pathOnly)) {
-      void openCatalogPreviewFromBuilder(normalized)
+      void showCatalogInCanvas(normalized)
       return
     }
 
     const cleanUrl = pathOnly.replace(/\/+$/, '') || '/'
     toast.info(`No builder page found for "${cleanUrl}". Add it from the Pages panel or update the nav link.`)
-  }, [localPages, openCatalogPreviewFromBuilder])
+  }, [localPages, showCatalogInCanvas, exitCanvasCatalog])
+
+  // Keep the embedded catalog view in sync with navigation that happens *inside* the
+  // iframe (clicking a product card, the cart icon, "continue shopping", etc.). The
+  // storefront embed posts its route to its parent window via postMessage.
+  useEffect(() => {
+    if (!canvasCatalogRoute) return
+    const onMessage = (ev: MessageEvent) => {
+      const data = ev.data as { type?: string; route?: string } | null
+      if (!data || data.type !== PREVIEW_NAV_MESSAGE_TYPE || typeof data.route !== 'string') return
+      const nextRoute = data.route.trim().replace(/^\/+|\/+$/g, '')
+      if (!nextRoute) {
+        // The embed asked to return home → drop back to the active builder page.
+        exitCanvasCatalog()
+        return
+      }
+      setCanvasCatalogRoute(prev => (prev === nextRoute ? prev : nextRoute))
+    }
+    window.addEventListener('message', onMessage)
+    return () => window.removeEventListener('message', onMessage)
+  }, [canvasCatalogRoute, exitCanvasCatalog])
+
+  // Switching to a different builder page (Pages panel, nav, etc.) leaves the catalog view.
+  useEffect(() => {
+    setCanvasCatalogRoute(null)
+    setCanvasCatalogLoading(false)
+  }, [activePageId])
 
   const handleCanvasTextFieldActivate = useCallback((
     blockId: string,
@@ -8754,7 +8802,33 @@ export default function WebsiteBuilder() {
     const fieldKey = resolveCanvasFieldKeyFromTarget(e.target)
     const isFieldClick = isCanvasFieldClickTarget(e.target)
 
-    if (target.closest('[data-overlay-root],[data-overlay-toolbar],[data-builder-section-image],[data-builder-section-toolbar],[data-section-padding-handle],[data-section-min-height-handle]')) return
+    if (target.closest('[data-overlay-root],[data-overlay-toolbar],[data-builder-section-toolbar],[data-section-padding-handle],[data-section-min-height-handle],[data-section-scale-handle]')) return
+
+    // Image frames own their selection. Drive it from this always-firing capture click
+    // so a single click reliably selects the image slot. The frame's own pointerdown can
+    // be missed during canvas re-renders / cross-package HMR, which previously left users
+    // needing a second click to select an image.
+    const sectionImageEl = target.closest('[data-builder-section-image]') as HTMLElement | null
+    if (sectionImageEl) {
+      const imgBlockId = (sectionImageEl.closest('[data-block-id]') as HTMLElement | null)
+        ?.getAttribute('data-block-id')
+      const imgField = sectionImageEl.getAttribute('data-builder-section-image')
+      if (imgBlockId && imgField) {
+        e.preventDefault()
+        e.stopPropagation()
+        const arrayKey = sectionImageEl.getAttribute('data-builder-image-array-key') || undefined
+        const indexAttr = sectionImageEl.getAttribute('data-builder-image-index')
+        const itemField = sectionImageEl.getAttribute('data-builder-image-item-field') || undefined
+        handleSectionImageActivateRef.current(imgBlockId, imgField, {
+          arrayKey,
+          index: indexAttr != null ? Number(indexAttr) : undefined,
+          itemField,
+          additive: e.shiftKey || e.metaKey || e.ctrlKey,
+        })
+      }
+      return
+    }
+
     if (target.closest('[contenteditable="true"], [data-builder-inline-edit-target="true"]')) return
 
     const blockRoot = target.closest('[data-block-id]') as HTMLElement | null
@@ -9005,22 +9079,20 @@ export default function WebsiteBuilder() {
     field: string,
     opts?: { arrayKey?: string; index?: number; itemField?: string; additive?: boolean },
   ) => {
-    const isArraySlot = opts?.arrayKey != null && opts.index != null && opts.itemField
-    // First click on an unselected section selects the section itself (so the
-    // padding handles show). Array-item photos (features, team, etc.) also
-    // register the clicked slot in one click so Media apply hits the right item.
+    // A click that lands on an image frame is an explicit request to edit THAT
+    // image, so select the slot in a single click — even when its section was not
+    // selected yet. The section is selected at the same time (padding handles stay
+    // reachable via Escape). Previously only array-item photos (team, features,
+    // logos) selected on the first click while whole-section images (hero, section
+    // image) needed a second click.
     if (selectedBlockId !== blockId && !opts?.additive) {
+      skipCanvasImageClearRef.current = true
       setSelectedBlockId(blockId)
       setOverlayImageTarget(null)
       setActiveTextTarget(null)
       setRightPanel('props')
       setRightCollapsed(false)
-      if (isArraySlot) {
-        skipCanvasImageClearRef.current = true
-        setCanvasImageTarget(toggleCanvasImageSlot(null, blockId, field, opts))
-      } else {
-        setCanvasImageTarget(null)
-      }
+      setCanvasImageTarget(toggleCanvasImageSlot(null, blockId, field, opts))
       return
     }
     skipCanvasImageClearRef.current = true
@@ -9029,6 +9101,8 @@ export default function WebsiteBuilder() {
     setActiveTextTarget(null)
     setCanvasImageTarget(prev => toggleCanvasImageSlot(prev, blockId, field, opts))
   }, [selectedBlockId])
+
+  handleSectionImageActivateRef.current = handleSectionImageActivate
 
   const handleArrayItemImageFocus = useCallback((
     blockId: string,
@@ -10093,9 +10167,27 @@ export default function WebsiteBuilder() {
     }
   }, [siteId, overlayLayerUpload, applyMediaUrlToSelection])
 
-  const openOverlayImageFilePicker = useCallback(() => {
-    overlayImageUploadRef.current?.click()
-  }, [])
+  const sectionMediaPicker = useImageSourcePicker({
+    title: 'Image',
+    showGallery: true,
+    onFile: uploadImageFileToSelection,
+    onUrl: url => {
+      applyMediaUrlToSelection(url, {
+        blockId: selectedBlockIdRef.current ?? undefined,
+        overlayTarget: overlayImageTargetRef.current,
+      })
+    },
+  })
+
+  const openSectionMediaPicker = useCallback(() => {
+    if (!selectedBlockIdRef.current) {
+      toast.error('Select a section on the canvas first')
+      return
+    }
+    sectionMediaPicker.openPicker()
+  }, [sectionMediaPicker.openPicker])
+
+  const openOverlayImageFilePicker = openSectionMediaPicker
 
   const openOverlayImageUrlPrompt = useCallback(() => {
     if (!selectedBlock || !overlayImageTarget || overlayImageTarget.blockId !== selectedBlock.id) return
@@ -10163,12 +10255,6 @@ export default function WebsiteBuilder() {
       },
     })
   }, [selectedBlock, overlayImageTarget, openTextPrompt, handleUpdateBlockProps])
-
-  const handleOverlayImageFileInputChange = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    e.target.value = ''
-    if (file) await uploadImageFileToSelection(file)
-  }, [uploadImageFileToSelection])
 
   // Delete block ? optimistic; callers show a confirmation dialog before invoking with force.
   const handleDeleteBlock = useCallback(async (
@@ -10576,7 +10662,18 @@ export default function WebsiteBuilder() {
         id: 'media',
         label: 'Images & media upload',
         icon: ImageIcon,
-        onSelect: () => { setLeftPanel('media'); setLeftCollapsed(false) },
+        onSelect: () => {
+          setLeftPanel('media')
+          setLeftCollapsed(false)
+          const primaryField = sectionPrimaryImageField(
+            String(block.block_type),
+            (block.props ?? {}) as Record<string, unknown>,
+          )
+          if (primaryField) {
+            handleSectionImageActivate(block.id, primaryField)
+          }
+          openSectionMediaPicker()
+        },
       },
       { id: 'div2', label: '', divider: true },
       {
@@ -10617,7 +10714,7 @@ export default function WebsiteBuilder() {
       },
     ]
     setContextMenu({ x: e.clientX, y: e.clientY, actions })
-  }, [handleUpdateBlockProps, confirmDeleteBlock, handleDuplicateBlock, openInlineTextEditForBlock, openLayoutPickerForBlock])
+  }, [handleUpdateBlockProps, confirmDeleteBlock, handleDuplicateBlock, openInlineTextEditForBlock, openLayoutPickerForBlock, openSectionMediaPicker, handleSectionImageActivate])
 
   const handleCanvasBlockContextMenuCapture = useCallback((e: React.MouseEvent) => {
     const target = e.target as HTMLElement
@@ -11755,6 +11852,50 @@ export default function WebsiteBuilder() {
     }
   }, [siteId])
 
+  const handleRenamePage = useCallback((page: WebsitePage) => {
+    if (!siteId) return
+    openTextPrompt({
+      title: 'Rename page',
+      subtitle: 'Changes the name shown in the builder and navigation menu. The page URL stays the same.',
+      placeholder: 'e.g. About Us, Services, Contact…',
+      initialValue: page.title,
+      confirmLabel: 'Save name',
+      minLength: 1,
+      maxLength: 120,
+      onSave: async (value) => {
+        const title = value.trim()
+        if (!title || title === page.title) return
+        const backupPages = localPagesRef.current
+        const nextPages = backupPages.map(p => (p.id === page.id ? { ...p, title } : p))
+        localPagesRef.current = nextPages
+        setLocalPages(nextPages)
+        skipServerHydrateRef.current = Date.now()
+        if (site) {
+          queryClient.setQueryData<WebsiteSite>(['websites', siteId], old => {
+            if (!old) return old
+            return { ...old, pages: old.pages.map(p => (p.id === page.id ? { ...p, title } : p)) }
+          })
+        }
+        try {
+          if (isPersistedPageId(page.id)) {
+            await websiteApi.updatePage(siteId, page.id, { title } as any)
+          }
+          toast.success('Page renamed')
+        } catch (err) {
+          localPagesRef.current = backupPages
+          setLocalPages(backupPages)
+          if (site) {
+            queryClient.setQueryData<WebsiteSite>(['websites', siteId], old => {
+              if (!old) return old
+              return { ...old, pages: old.pages.map(p => (p.id === page.id ? { ...p, title: page.title } : p)) }
+            })
+          }
+          toast.error(extractApiError(err, 'Failed to rename page'))
+        }
+      },
+    })
+  }, [siteId, site, openTextPrompt, queryClient])
+
   // Store test URL — business front /store/:slug resolves vendors via GET /catalog/vendor/{slug} (Vendor.slug),
   // not wb_sites.subdomain. In dev, always use the logged-in vendor's catalog slug so links don't 404.
   const siteTestUrl = useMemo(() => {
@@ -11826,7 +11967,9 @@ export default function WebsiteBuilder() {
         }
       }
       if (!vendorSlug) {
-        toast.error('Could not resolve your vendor store slug. Open the dashboard home once, then try again.')
+        const message = 'Could not resolve your vendor store slug. Open the dashboard home once, then try again.'
+        toast.error(message)
+        broadcastPreviewTabError(message)
         return
       }
       const payload = buildPublicSitePayloadFromLocal(site, localPages, localBlocks, localStyle, vendorSlug)
@@ -12031,13 +12174,8 @@ export default function WebsiteBuilder() {
   )
   return (
     <div className="fixed inset-0 flex flex-col bg-gray-100 z-[100]" style={{ fontFamily: 'Inter, sans-serif' }}>
-      <input
-        ref={overlayImageUploadRef}
-        type="file"
-        accept="image/*"
-        className="hidden"
-        onChange={handleOverlayImageFileInputChange}
-      />
+      {sectionMediaPicker.fileInput}
+      {sectionMediaPicker.modal}
 
       {/* Global Link Editor popup (for CTA buttons / overlay buttons) */}
       {linkEditor && (
@@ -12146,6 +12284,13 @@ export default function WebsiteBuilder() {
         onOpenPanel={(panel) => {
           setLeftPanel(panel)
           setLeftCollapsed(false)
+        }}
+        onOpenSeoManagement={() => {
+          const params = new URLSearchParams()
+          if (siteId) params.set('siteId', siteId)
+          if (activePageId) params.set('pageId', activePageId)
+          const qs = params.toString()
+          navigate(`/websites/seo${qs ? `?${qs}` : ''}`)
         }}
         onOpenRightPanel={(panel) => {
           setRightPanel(panel)
@@ -12780,7 +12925,6 @@ export default function WebsiteBuilder() {
                   { id: 'templates' as const, icon: Sparkles, label: 'Templates' },
                   { id: 'media' as const, icon: ImageIcon, label: 'Media' },
                   { id: 'settings' as const, icon: Globe, label: 'Site' },
-                  { id: 'seo' as const, icon: Search, label: 'SEO' },
                 ] as const).map(({ id, icon: Icon, label }) => (
                     <button
                       key={id}
@@ -12961,6 +13105,7 @@ export default function WebsiteBuilder() {
                             <PageActionsMenu
                               page={page}
                               pageCount={countPersistedPages(localPages)}
+                              onRename={() => { handleRenamePage(page) }}
                               onSetHomepage={() => { void handleSetHomepage(page) }}
                               onDuplicate={() => { void handleDuplicatePage(page) }}
                               onDelete={() => handleDeletePage(page.id, page.title)}
@@ -13241,39 +13386,6 @@ export default function WebsiteBuilder() {
                   <SiteSettingsPanel siteId={siteId!} site={site} />
                 )}
 
-                {leftPanel === 'seo' && site && (
-                  <SEOPanel
-                    siteId={siteId!}
-                    activePage={activePage}
-                    site={site}
-                    onSavePage={(data) => {
-                      if (!activePage) return
-                      websiteApi.updatePage(siteId!, activePage.id, data as any)
-                        .then(updated => {
-                          setLocalPages(prev => prev.map(p =>
-                            p.id === activePage.id ? { ...p, ...data, ...updated } : p,
-                          ))
-                          queryClient.setQueryData<WebsiteSite>(['websites', siteId!], old => {
-                            if (!old) return old
-                            return { ...old, pages: old.pages.map(p => p.id === activePage.id ? { ...p, ...data, ...updated } : p) }
-                          })
-                          toast.success('SEO settings saved!')
-                        })
-                        .catch(() => toast.error('Save failed'))
-                    }}
-                    onSaveSite={(data) => {
-                      websiteApi.updateSite(siteId!, data as any)
-                        .then(updated => {
-                          queryClient.setQueryData<WebsiteSite>(['websites', siteId!], old =>
-                            old ? { ...old, ...data, ...updated } : old,
-                          )
-                          toast.success('Site SEO settings saved!')
-                        })
-                        .catch(() => toast.error('Save failed'))
-                    }}
-                  />
-                )}
-
               </div>
             </>
           )}
@@ -13387,10 +13499,44 @@ export default function WebsiteBuilder() {
           {/* Scrollable canvas preview */}
           <div
             ref={canvasMainRef}
-            className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden"
+            className="relative flex-1 min-h-0 overflow-y-auto overflow-x-hidden"
             onDragOver={handleCanvasDragOver}
             onDrop={handleDropOnCanvas}
           >
+
+          {/* Embedded catalog / commerce page (product, service, cart, checkout…) shown
+              in-place instead of opening a separate preview tab. */}
+          {(canvasCatalogRoute || canvasCatalogLoading) && (
+            <div className="absolute inset-0 z-40 flex flex-col bg-white">
+              <div className="flex shrink-0 items-center gap-3 border-b border-gray-200 bg-gray-50 px-3 py-2">
+                <button
+                  type="button"
+                  onClick={exitCanvasCatalog}
+                  className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-3 py-1.5 text-xs font-semibold text-white shadow-sm hover:opacity-90"
+                >
+                  <ArrowLeft className="h-3.5 w-3.5" aria-hidden />
+                  Back to editor
+                </button>
+                <span className="inline-flex min-w-0 items-center gap-1.5 text-xs font-medium text-gray-500">
+                  <Eye className="h-3.5 w-3.5 shrink-0 opacity-60" aria-hidden />
+                  <span className="truncate">Store page preview — this page isn’t edited here, use the live data above.</span>
+                </span>
+              </div>
+              {canvasCatalogRoute && canvasCatalogToken ? (
+                <DraftCatalogPreview
+                  vendorSlug={builderVendorSlug || vendorCatalogSlug || 'preview'}
+                  catalogRoute={canvasCatalogRoute}
+                  previewToken={canvasCatalogToken}
+                  hideBreadcrumb
+                />
+              ) : (
+                <div className="flex flex-1 items-center justify-center gap-2 text-sm text-gray-400">
+                  <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+                  Loading store page…
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Canvas area — scales full design width to fit available editor space */}
           <div
@@ -13461,6 +13607,8 @@ export default function WebsiteBuilder() {
                   vendorSlug={builderVendorSlug || 'preview'}
                   siteName={site?.name}
                   onNavigate={handleNavigateBuilderPage}
+                  activePageSlug={activePage?.slug ?? null}
+                  activePageIsHomepage={Boolean(activePage?.is_homepage)}
                   canvasScale={effectiveCanvasScale}
                   activeBlockId={selectedBlockId}
                   activeCanvasImageTarget={canvasImageTarget}
@@ -13655,7 +13803,7 @@ export default function WebsiteBuilder() {
                           <div
                             data-section-min-height-handle
                             title="Minimum section height (not padding) — drag or clear in Layout → More"
-                            className="absolute bottom-1 right-2 z-[55] flex h-4 w-4 items-center justify-center rounded border-2 border-amber-400 bg-white shadow-sm cursor-ns-resize pointer-events-auto hover:bg-amber-50"
+                            className="absolute bottom-0 right-2 translate-y-[calc(100%+4px)] z-[55] flex h-4 w-4 items-center justify-center rounded border-2 border-amber-400 bg-white shadow-sm cursor-ns-resize pointer-events-auto hover:bg-amber-50"
                             onMouseDown={e => {
                               e.preventDefault()
                               e.stopPropagation()
@@ -13678,6 +13826,20 @@ export default function WebsiteBuilder() {
                           >
                             <span className="block h-0.5 w-2 rounded-full bg-ring/70" />
                           </div>
+                        )}
+
+                        {selectedBlockId === block.id
+                          && !canvasImageStyleField(canvasImageTarget, block.id)
+                          && activeTextTarget?.blockId !== block.id && (
+                          <SectionSizeControl
+                            blockId={block.id}
+                            containerRef={builderPageRootRef}
+                            scrollRootRef={canvasMainRef}
+                            scale={Number((block.props as Record<string, unknown>).section_scale ?? 1) || 1}
+                            canvasScale={effectiveCanvasScale}
+                            onPreview={next => handlePreviewBlockProps(block.id, { section_scale: next } as BlockProps)}
+                            onCommit={next => handleUpdateBlockProps(block.id, { section_scale: next } as BlockProps)}
+                          />
                         )}
                       </BuilderSectionOverlay>
                     ))}
@@ -14462,210 +14624,6 @@ function RobotsTxtEditor({ siteId, site }: { siteId: string; site: WebsiteSite }
           <p className="text-xs text-gray-400">
             This is served at your domain's /robots.txt. The sitemap URL is automatically appended if not present.
           </p>
-        </div>
-      )}
-    </div>
-  )
-}
-
-
-// ── SEO Panel ─────────────────────────────────────────────────────────────────
-
-function SEOPanel({
-  siteId, activePage, site, onSavePage, onSaveSite,
-}: {
-  siteId: string
-  activePage: WebsitePage | null
-  site: WebsiteSite
-  onSavePage: (data: Record<string, string>) => void
-  onSaveSite: (data: Record<string, string>) => void
-}) {
-  const [tab, setTab] = useState<'page' | 'site'>('page')
-  const [seoTitle, setSeoTitle] = useState(activePage?.seo_title || '')
-  const [seoDesc, setSeoDesc] = useState(activePage?.seo_description || '')
-  const [ogImage, setOgImage] = useState(activePage?.og_image_url || '')
-  const [siteTitle, setSiteTitle] = useState((site as any).seo_title || '')
-  const [siteDesc, setSiteDesc] = useState((site as any).seo_description || '')
-  const [siteKw, setSiteKw] = useState((site as any).seo_keywords || '')
-  const [aiResult, setAiResult] = useState<any>(null)
-  const aiSEO = useAIGenerateSEO(siteId)
-  const suggestBlocks = useAISuggestBlocks(siteId)
-  const [suggestResult, setSuggestResult] = useState<any>(null)
-
-  // Sync when page changes
-  useEffect(() => {
-    setSeoTitle(activePage?.seo_title || '')
-    setSeoDesc(activePage?.seo_description || '')
-    setOgImage(activePage?.og_image_url || '')
-  }, [activePage?.id])
-
-  const handleAIGenerate = async () => {
-    if (!activePage) return
-    try {
-      const r = await aiSEO.mutateAsync({
-        page_title: activePage.title,
-        page_type: activePage.page_type,
-        site_description: (site as any).description || site.name,
-      })
-      setAiResult(r)
-      toast.success('SEO generated by AI!')
-    } catch {
-      toast.error('AI SEO generation failed')
-    }
-  }
-
-  const applyAI = () => {
-    if (!aiResult) return
-    setSeoTitle(aiResult.seo_title)
-    setSeoDesc(aiResult.seo_description)
-    setAiResult(null)
-  }
-
-  const handleSuggestBlocks = async () => {
-    if (!activePage) return
-    try {
-      const r = await suggestBlocks.mutateAsync({
-        page_type: activePage.page_type,
-        industry: (site as any).description ? undefined : 'general',
-      })
-      setSuggestResult(r)
-    } catch {
-      toast.error('Block suggestion failed')
-    }
-  }
-
-  const titleLen = seoTitle.length
-  const descLen = seoDesc.length
-
-  return (
-    <div className="p-4 space-y-4">
-      <div className="rounded-xl border border-sky-100 bg-sky-50/80 px-3 py-2.5 text-[11px] text-gray-600 leading-snug">
-        <strong className="font-semibold text-gray-800">Search listing</strong> controls the title and short description people see in Google and when your link is shared on social media.
-      </div>
-
-      {/* Tab switcher */}
-      <div className="flex bg-gray-100 rounded-xl p-0.5 gap-0.5">
-        {(['page', 'site'] as const).map(t => (
-          <button key={t} onClick={() => setTab(t)} className={cn('flex-1 py-1.5 rounded-lg text-xs font-medium transition-colors', tab === t ? 'bg-white text-gray-800 shadow-sm' : 'text-gray-500 hover:text-gray-700')}>
-            {t === 'page' ? '📄 This page' : '🌐 Whole site'}
-          </button>
-        ))}
-      </div>
-
-      {tab === 'page' && activePage && (
-        <div className="space-y-3">
-          {/* AI generate */}
-          <button
-            onClick={handleAIGenerate}
-            disabled={aiSEO.isPending}
-            className="w-full py-2 bg-gradient-to-r from-primary to-info text-white text-xs font-bold rounded-xl flex items-center justify-center gap-2 hover:opacity-90 transition-opacity"
-          >
-            {aiSEO.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
-            Write search text with AI
-          </button>
-
-          {/* AI result preview */}
-          {aiResult && (
-            <div className="p-3 bg-accent border border-primary/30 rounded-xl space-y-2">
-              <div className="text-xs font-bold text-primary uppercase tracking-wide">AI Suggestion</div>
-              <div className="space-y-1">
-                <p className="text-xs font-medium text-gray-700">Title: {aiResult.seo_title}</p>
-                <p className="text-xs text-gray-600 line-clamp-2">{aiResult.seo_description}</p>
-                <p className="text-xs text-primary">Focus: <strong>{aiResult.focus_keyword}</strong></p>
-              </div>
-              <div className="flex gap-2">
-                <button onClick={applyAI} className="flex-1 py-1.5 bg-primary text-white text-xs font-bold rounded-lg">Apply</button>
-                <button onClick={() => setAiResult(null)} className="px-3 py-1.5 bg-white border border-gray-200 text-gray-500 text-xs rounded-lg">Dismiss</button>
-              </div>
-            </div>
-          )}
-
-          <div className="space-y-1">
-            <div className="flex justify-between">
-              <label className="text-xs font-medium text-gray-700">Title in Google results</label>
-              <span className={cn('text-xs', titleLen > 60 ? 'text-red-500' : titleLen > 50 ? 'text-amber-500' : 'text-gray-400')}>{titleLen}/60</span>
-            </div>
-            <input value={seoTitle} onChange={e => setSeoTitle(e.target.value)} placeholder={`${activePage.title} | ${site.name}`} className="w-full px-3 py-2 border border-gray-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-ring" />
-          </div>
-
-          <div className="space-y-1">
-            <div className="flex justify-between">
-              <label className="text-xs font-medium text-gray-700">Short summary for Google</label>
-              <span className={cn('text-xs', descLen > 160 ? 'text-red-500' : descLen > 140 ? 'text-amber-500' : 'text-gray-400')}>{descLen}/160</span>
-            </div>
-            <textarea value={seoDesc} onChange={e => setSeoDesc(e.target.value)} placeholder="Describe this page in 150-160 characters..." rows={3} className="w-full px-3 py-2 border border-gray-200 rounded-xl text-xs resize-none focus:outline-none focus:ring-2 focus:ring-ring" />
-          </div>
-
-          <div className="space-y-1">
-            <label className="text-xs font-medium text-gray-700">Share image (social media preview)</label>
-            <input value={ogImage} onChange={e => setOgImage(e.target.value)} placeholder="https://... or /uploads/..." className="w-full px-3 py-2 border border-gray-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-ring" />
-            {ogImage && <img src={mediaUrl(ogImage)} className="w-full h-20 object-cover rounded-xl border border-gray-100 mt-1" alt="OG preview" onError={e => { (e.target as HTMLImageElement).style.display = 'none' }} />}
-          </div>
-
-          {/* SERP preview */}
-          <div className="p-3 bg-white border border-gray-200 rounded-xl">
-            <div className="text-xs text-gray-400 mb-1.5 font-semibold uppercase tracking-wide">Search Preview</div>
-            <div className="text-xs text-blue-700 font-semibold truncate">{seoTitle || `${activePage.title} | ${site.name}`}</div>
-            <div className="text-xs text-green-700">{(site as any).custom_domain || `${site.name?.toLowerCase().replace(/\s/g, '')}.site`}/{activePage.slug}</div>
-            <div className="text-xs text-gray-600 mt-0.5 line-clamp-2">{seoDesc || 'No meta description set. Add one to improve search ranking.'}</div>
-          </div>
-
-          <button
-            onClick={() => onSavePage({ seo_title: seoTitle, seo_description: seoDesc, og_image_url: ogImage })}
-            className="w-full py-2 bg-gray-800 text-white text-xs font-bold rounded-xl hover:bg-gray-700 transition-colors flex items-center justify-center gap-2"
-          >
-            <Save className="w-3.5 h-3.5" /> Save search settings
-          </button>
-
-          {/* AI section suggestions */}
-          <div className="border-t border-gray-100 pt-3 space-y-2">
-            <div className="text-xs font-medium text-gray-700 flex items-center gap-1.5">
-              <Zap className="w-3.5 h-3.5 text-primary/80" /> AI section ideas
-            </div>
-            <button onClick={handleSuggestBlocks} disabled={suggestBlocks.isPending} className="w-full py-2 border border-primary/30 text-primary text-xs font-medium rounded-xl hover:bg-accent flex items-center justify-center gap-2">
-              {suggestBlocks.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
-              Suggest sections for this page
-            </button>
-            {suggestResult && (
-              <div className="space-y-1.5">
-                <p className="text-xs text-gray-500 italic">{suggestResult.reasoning}</p>
-                <div className="space-y-1">
-                  {suggestResult.blocks?.map((b: any, i: number) => (
-                    <div key={i} className="flex items-start gap-2 p-2 bg-gray-50 rounded-lg">
-                      <span className="text-xs font-bold text-primary shrink-0">{i + 1}.</span>
-                      <div>
-                        <div className="text-xs font-medium text-gray-700">{b.label}</div>
-                        <div className="text-xs text-gray-400">{b.reason}</div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-
-      {tab === 'site' && (
-        <div className="space-y-3">
-          <div className="space-y-1">
-            <label className="text-xs font-medium text-gray-700">Default title in Google</label>
-            <input value={siteTitle} onChange={e => setSiteTitle(e.target.value)} placeholder={site.name} className="w-full px-3 py-2 border border-gray-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-ring" />
-          </div>
-          <div className="space-y-1">
-            <label className="text-xs font-medium text-gray-700">Default summary for Google</label>
-            <textarea value={siteDesc} onChange={e => setSiteDesc(e.target.value)} placeholder="Overall site description for search engines..." rows={3} className="w-full px-3 py-2 border border-gray-200 rounded-xl text-xs resize-none focus:outline-none focus:ring-2 focus:ring-ring" />
-          </div>
-          <div className="space-y-1">
-            <label className="text-xs font-medium text-gray-700">Keywords (comma-separated)</label>
-            <input value={siteKw} onChange={e => setSiteKw(e.target.value)} placeholder="keyword1, keyword2, keyword3..." className="w-full px-3 py-2 border border-gray-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-ring" />
-          </div>
-          <button
-            onClick={() => onSaveSite({ seo_title: siteTitle, seo_description: siteDesc, seo_keywords: siteKw })}
-            className="w-full py-2 bg-gray-800 text-white text-xs font-bold rounded-xl hover:bg-gray-700 transition-colors flex items-center justify-center gap-2"
-          >
-            <Save className="w-3.5 h-3.5" /> Save site search settings
-          </button>
         </div>
       )}
     </div>

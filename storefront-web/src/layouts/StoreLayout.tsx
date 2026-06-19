@@ -591,6 +591,7 @@ function StoreContent() {
       <UnifiedNav
         logo={logoNode}
         logoHomeTo={storePath('/')}
+        storePath={storePath}
         afterLogo={<StoreBranchPicker className="hidden sm:inline-flex" />}
         sheetExtra={<StoreBranchPicker className="w-full max-w-none" compact />}
         links={kitLinks}

@@ -34,11 +34,14 @@ export function DraftCatalogPreview({
   catalogRoute,
   previewToken,
   pageSlug,
+  hideBreadcrumb = false,
 }: {
   vendorSlug: string
   catalogRoute: string
   previewToken: string
   pageSlug?: string | null
+  /** When the builder nav block is rendered above the iframe, hide the minimal breadcrumb bar. */
+  hideBreadcrumb?: boolean
 }) {
   const embedSrc = buildStorefrontCatalogEmbedUrl(vendorSlug, catalogRoute, previewToken)
   const backHref = buildDraftPreviewPageUrl(previewToken, pageSlug)
@@ -46,25 +49,27 @@ export function DraftCatalogPreview({
   const { title, Icon } = catalogPreviewLabel(catalogRoute)
 
   return (
-    <div className="flex min-h-[70vh] flex-col bg-white">
-      <div className="flex shrink-0 items-center gap-2 border-b border-gray-200 bg-gray-50 px-3 py-2">
-        <a
-          href={backHref}
-          className="inline-flex items-center gap-1.5 rounded-lg px-2 py-1 text-xs font-semibold text-gray-600 hover:bg-gray-200 hover:text-gray-900"
-        >
-          <Home className="h-3.5 w-3.5" aria-hidden />
-          Home
-        </a>
-        <span className="inline-flex items-center gap-1 text-[11px] text-gray-500 truncate">
-          <Icon className="h-3 w-3 shrink-0 opacity-70" />
-          {title}
-        </span>
-      </div>
+    <div className="flex min-h-0 flex-1 flex-col bg-white">
+      {!hideBreadcrumb && (
+        <div className="flex shrink-0 items-center gap-2 border-b border-gray-200 bg-gray-50 px-3 py-2">
+          <a
+            href={backHref}
+            className="inline-flex items-center gap-1.5 rounded-lg px-2 py-1 text-xs font-semibold text-gray-600 hover:bg-gray-200 hover:text-gray-900"
+          >
+            <Home className="h-3.5 w-3.5" aria-hidden />
+            Home
+          </a>
+          <span className="inline-flex items-center gap-1 text-[11px] text-gray-500 truncate">
+            <Icon className="h-3 w-3 shrink-0 opacity-70" />
+            {title}
+          </span>
+        </div>
+      )}
       <iframe
         src={embedSrc}
         title={`Catalog preview: ${title}`}
-        className="min-h-0 flex-1 w-full border-0 bg-white"
-        style={{ minHeight: 'calc(100vh - 120px)' }}
+        className="min-h-0 w-full flex-1 border-0 bg-white"
+        style={{ minHeight: hideBreadcrumb ? 'calc(100vh - 180px)' : 'calc(100vh - 120px)' }}
       />
     </div>
   )

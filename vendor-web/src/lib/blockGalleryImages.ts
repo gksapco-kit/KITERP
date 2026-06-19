@@ -126,6 +126,16 @@ export function blockUsesGalleryImages(blockType: string, _props?: Record<string
   return blockSupportsGalleryCategory(blockType)
 }
 
+/**
+ * True only for images this builder auto-applies (the local pack under
+ * `/business-images/…` or the Unsplash stock fallbacks). User uploads and any
+ * manually-entered URL return false so a layout/style switch never clobbers them.
+ */
+export function isAutoCategoryImageUrl(url: unknown): boolean {
+  if (typeof url !== 'string' || !url) return false
+  return url.startsWith('/business-images/') || url.includes('images.unsplash.com')
+}
+
 export function applyCategoryImagesToBlockProps(
   blockType: string,
   props: Record<string, unknown>,
@@ -140,7 +150,13 @@ export function applyCategoryImagesToBlockProps(
   let idx = 0
   const nextUrl = () => urls[idx++ % urls.length]
 
-  const shouldFill = (field: string) => forceRefresh || !next[field]
+  // Refresh empty slots, and on forceRefresh swap previously auto-applied images —
+  // but always keep a user's own uploaded/entered image.
+  const shouldFill = (field: string) => {
+    const current = next[field]
+    if (!current) return true
+    return forceRefresh && isAutoCategoryImageUrl(current)
+  }
 
   if (blockType.includes('hero')) {
     const needsBg = heroUsesBackgroundImage(blockType, next)
@@ -182,7 +198,10 @@ export function applyCategoryImagesToBlockProps(
     const items: Record<string, unknown>[] = []
     for (let i = 0; i < targetCount; i++) {
       const base = existing[i] ? { ...existing[i] } : {}
-      if (fillAllImages || !base[arrayCfg.itemField]) {
+      const current = base[arrayCfg.itemField]
+      // Keep the user's own image; only fill empties or refresh prior auto images.
+      const keepUserImage = !!current && !isAutoCategoryImageUrl(current)
+      if (!current || (fillAllImages && !keepUserImage)) {
         base[arrayCfg.itemField] = nextUrl()
       }
       if (arrayCfg.itemField === 'src' && !base.alt) base.alt = 'Gallery image'
@@ -205,10 +224,17 @@ export function applyCategoryImagesToBlockProps(
         image_url: urls[i % urls.length],
       }))
     } else {
-      next.categories = existing.map((cat, i) => ({
-        ...cat,
-        image_url: forceRefresh ? urls[i % urls.length] : (cat.image_url || urls[i % urls.length]),
-      }))
+      next.categories = existing.map((cat, i) => {
+        const keepUserImage = !!cat.image_url && !isAutoCategoryImageUrl(cat.image_url)
+        return {
+          ...cat,
+          image_url: keepUserImage
+            ? cat.image_url
+            : forceRefresh
+              ? urls[i % urls.length]
+              : (cat.image_url || urls[i % urls.length]),
+        }
+      })
     }
   }
 

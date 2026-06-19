@@ -4,6 +4,7 @@ import { BuilderSectionImage } from '@/components/builder/BuilderSectionImage'
 import { BuilderTextField } from '@/components/builder/BuilderTextField'
 import { cn } from '@/lib/utils'
 import { imgUrl } from '@/lib/utils'
+import { arrayItemImageFrameStyle } from '@/lib/sectionImageStyle'
 import { resolveSectionSurface } from '@/lib/navBlockLayout'
 import {
   cardImageShapeClass,
@@ -50,9 +51,10 @@ function FeatureItemImage({
 }) {
   if (!feature.image_url && !allowEmpty) return null
   const src = feature.image_url ? imgUrl(feature.image_url) : 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7'
+  const frameStyle = { ...style, ...arrayItemImageFrameStyle(feature as Record<string, unknown>) }
   if (blockId) {
     return (
-      <div className={cn('relative overflow-hidden', className)} style={style}>
+      <div className={cn('relative overflow-hidden', className)} style={frameStyle}>
         <BuilderSectionImage
           blockId={blockId}
           field="image_url"
@@ -69,7 +71,7 @@ function FeatureItemImage({
     )
   }
   if (!feature.image_url) return null
-  return <img src={src} alt="" className={className} style={style} loading="lazy" />
+  return <img src={src} alt="" className={className} style={frameStyle} loading="lazy" />
 }
 
 interface Props {

@@ -12,10 +12,11 @@ import { RootErrorBoundary } from './components/RootErrorBoundary'
 import { useAuthStore } from './stores/authStore'
 import { initGlobalEscapeHandler } from './lib/escapeCloseRegistry'
 import { resolveApiBaseUrl } from './lib/apiBase'
-import { DRAFT_BROWSER_PREVIEW_PATH } from './lib/storefrontPreviewUrl'
+import { DRAFT_BROWSER_PREVIEW_PATH, initPreviewTabOpenerBridge } from './lib/storefrontPreviewUrl'
 import './styles/globals.css'
 
 initGlobalEscapeHandler()
+initPreviewTabOpenerBridge()
 
 const queryClient = createAppQueryClient()
 attachAutoRefreshInterceptor(apiClient)

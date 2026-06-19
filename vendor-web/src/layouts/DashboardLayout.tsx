@@ -129,7 +129,7 @@ import { useThemeStore } from '@/stores/themeStore'
 import { useVendorStore } from '@/stores/vendorStore'
 import { getStorefrontAppOrigin } from '@/lib/storefrontPreviewUrl'
 import { useESSProfile } from '@/hooks/useVendor'
-import { useMyVendor, useMyPlan, useStores } from '@/hooks/useVendor'
+import { useMyVendor, useMyPlan, useStores, useOrderStats } from '@/hooks/useVendor'
 import { useBusinessUnitScopeLabel } from '@/hooks/useBusinessUnitScope'
 import { Button } from '@/components/ui/button'
 import { useQuery, useMutation } from '@tanstack/react-query'
@@ -474,6 +474,7 @@ const allSections: NavSection[] = [
     items: [
       { to: '/business-front', icon: LayoutDashboard, label: 'Dashboard', alwaysShow: true },
       { to: '/websites', icon: Globe, label: 'Website Builder', alwaysShow: true },
+      { to: '/websites/seo', icon: Search, label: 'SEO Management', alwaysShow: true },
       { to: '/websites/templates', icon: Sparkles, label: 'Website Templates', alwaysShow: true },
       { to: '/blog', icon: Newspaper, label: 'Blog Manager', alwaysShow: true },
     ],
@@ -971,6 +972,7 @@ const pageTitles: Record<string, string> = {
   '/invoices/templates': 'Invoice Templates',
   '/purchase-orders/templates': 'PO Templates',
   '/websites': 'Website Builder',
+  '/websites/seo': 'SEO Management',
   '/websites/templates': 'Website Templates',
   '/blog': 'Blog Manager',
   '/finance/basic': 'Finance',
@@ -1572,13 +1574,18 @@ export default function DashboardLayout() {
   const commissionNavVisible = useMemo(() => isCommissionNavVisible(vendorSettings), [vendorSettings])
   const controllingNavVisible = useMemo(() => isControllingNavVisible(vendorSettings), [vendorSettings])
 
+  const canViewOrders = isOwnerOrAdmin || permissions.includes('orders.view')
+  const { data: orderStats } = useOrderStats(canViewOrders)
+  const pendingOrderCount = orderStats?.pending_orders ?? 0
+
   const getNavBadgeCount = useCallback(
     (to: string) => {
       if (to === '/notifications') return unreadCount
       if (to === '/crm/inbox') return inboxCount
+      if (to === '/orders') return pendingOrderCount
       return 0
     },
-    [unreadCount, inboxCount],
+    [unreadCount, inboxCount, pendingOrderCount],
   )
 
   const filterItem = useCallback(

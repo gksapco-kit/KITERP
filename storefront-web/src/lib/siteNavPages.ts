@@ -53,14 +53,19 @@ export function excludeHomeNavLinks(
   return links.filter(l => !isStoreHomeNavHref(l.href, storePath))
 }
 
-/** Always show Home as the first nav link (deduped if already present elsewhere). */
+/**
+ * Always show the home link first (deduped if already present elsewhere).
+ * Preserves a custom home-page label (e.g. a renamed homepage) when one exists,
+ * falling back to "Home" only when no home link carries a label.
+ */
 export function applyHomeNavVisibility(
   links: NavLinkItem[],
   _pathname: string,
   storePath: (p: string) => string,
 ): NavLinkItem[] {
+  const existingHome = links.find(l => isStoreHomeNavHref(l.href, storePath))
   const rest = excludeHomeNavLinks(links, storePath)
-  return [{ label: 'Home', href: storePath('/') }, ...rest]
+  return [{ label: existingHome?.label?.trim() || 'Home', href: storePath('/') }, ...rest]
 }
 
 function pagesToNavItems(pages: SitePage[], storePath: (p: string) => string, limit: number): NavLinkItem[] {
@@ -75,7 +80,7 @@ function pagesToNavItems(pages: SitePage[], storePath: (p: string) => string, li
     if (seen.has(url)) continue
     seen.add(url)
     items.push({
-      label: page.is_homepage ? 'Home' : (page.title || page.slug || 'Page'),
+      label: page.title?.trim() || (page.is_homepage ? 'Home' : (page.slug || 'Page')),
       href: storePath(url),
     })
     if (items.length >= limit) break
@@ -117,7 +122,7 @@ export function sitePagesToLiveNavItems(site: PublicSite, limit = 20): SitePageN
     if (seen.has(url)) continue
     seen.add(url)
     items.push({
-      title: page.is_homepage ? 'Home' : (page.title || page.slug || 'Page'),
+      title: page.title?.trim() || (page.is_homepage ? 'Home' : (page.slug || 'Page')),
       url,
     })
     if (items.length >= limit) break
@@ -246,4 +251,36 @@ export function resolveStorefrontHeaderCta(
   const label = props.cta_label?.trim()
   if (!label) return undefined
   return { label, href: storePath(props.cta_url || '/contact') }
+}
+
+/** Canonical storefront path for comparing nav link active state (/, /about, /products, …). */
+export function resolveNavActiveKey(
+  hrefOrLocation: string,
+  storePath: (p: string) => string,
+): string {
+  const relative = pathRelativeToStore(hrefOrLocation, storePath)
+  const clean = relative.split('?')[0].split('#')[0].replace(/\/+$/, '') || '/'
+  const lower = clean.toLowerCase()
+  return lower === '/home' ? '/' : clean
+}
+
+export function resolveCurrentNavActiveKey(
+  location: { pathname: string; search: string },
+  storePath: (p: string) => string,
+  editorPage?: { slug?: string | null; isHomepage?: boolean } | null,
+): string {
+  if (editorPage) {
+    const slug = editorPage.slug?.trim().replace(/^\/+/, '').toLowerCase()
+    if (editorPage.isHomepage || !slug || slug === 'home') return '/'
+    return `/${slug}`
+  }
+  return resolveNavActiveKey(`${location.pathname}${location.search}`, storePath)
+}
+
+export function isNavLinkActive(
+  linkHref: string,
+  currentKey: string,
+  storePath: (p: string) => string,
+): boolean {
+  return resolveNavActiveKey(linkHref, storePath) === currentKey
 }

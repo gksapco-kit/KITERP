@@ -69,8 +69,9 @@ export interface BuilderCommandPaletteProps {
   onSetDevice: (d: 'desktop' | 'tablet' | 'mobile') => void
   onSetZoom: (z: number) => void
   onFitZoom: () => void
-  onOpenPanel: (panel: 'blocks' | 'pages' | 'templates' | 'media' | 'settings' | 'seo') => void
+  onOpenPanel: (panel: 'blocks' | 'pages' | 'templates' | 'media' | 'settings') => void
   onOpenRightPanel: (panel: 'props' | 'style' | 'data') => void
+  onOpenSeoManagement?: () => void
   onOpenHelp: () => void
 }
 
@@ -118,7 +119,7 @@ export function BuilderCommandPalette(props: BuilderCommandPaletteProps) {
     onUndo, onRedo, onSave, onPreview,
     onDuplicateBlock, onDeleteBlock, onDeselectBlock,
     onSetDevice, onSetZoom, onFitZoom,
-    onOpenPanel, onOpenRightPanel, onOpenHelp,
+    onOpenPanel, onOpenRightPanel, onOpenSeoManagement, onOpenHelp,
   } = props
 
   const [query, setQuery] = useState('')
@@ -248,7 +249,6 @@ export function BuilderCommandPalette(props: BuilderCommandPaletteProps) {
       { id: 'templates', label: 'Templates panel', icon: Sparkles, color: 'text-amber-500' },
       { id: 'media', label: 'Media panel', icon: ImageIcon, color: 'text-pink-500' },
       { id: 'settings', label: 'Site settings', icon: Globe, color: 'text-teal-500' },
-      { id: 'seo', label: 'SEO panel', icon: Search, color: 'text-orange-500' },
     ]
     for (const p of panels) {
       items.push({
@@ -258,6 +258,16 @@ export function BuilderCommandPalette(props: BuilderCommandPaletteProps) {
         icon: p.icon,
         iconColor: p.color,
         run: () => { onOpenPanel(p.id); onClose() },
+      })
+    }
+    if (onOpenSeoManagement) {
+      items.push({
+        id: 'panel:seo-management',
+        group: 'Open panel',
+        label: 'SEO Management',
+        icon: Search,
+        iconColor: 'text-orange-500',
+        run: () => { onOpenSeoManagement(); onClose() },
       })
     }
     items.push({

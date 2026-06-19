@@ -39,6 +39,8 @@ export function BuilderCanvasProviders({
   onTextFieldBatchStylePatch,
   onNavigate,
   onPropLinkEdit,
+  activePageSlug = null,
+  activePageIsHomepage = false,
   children,
 }: {
   siteId: string
@@ -72,6 +74,8 @@ export function BuilderCanvasProviders({
     propKey: string,
     anchor: { x: number; y: number },
   ) => void
+  activePageSlug?: string | null
+  activePageIsHomepage?: boolean
   children: ReactNode
 }) {
   const vendorValue = useMemo<VendorContextType>(() => {
@@ -123,6 +127,8 @@ export function BuilderCanvasProviders({
     onTextFieldBatchStylePatch,
     onNavigate,
     onPropLinkEdit,
+    activePageSlug,
+    activePageIsHomepage,
   }), [
     activeBlockId,
     activeTextField,
@@ -137,6 +143,8 @@ export function BuilderCanvasProviders({
     onTextFieldBatchStylePatch,
     onNavigate,
     onPropLinkEdit,
+    activePageSlug,
+    activePageIsHomepage,
   ])
 
   return (

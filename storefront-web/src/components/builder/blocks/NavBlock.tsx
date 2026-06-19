@@ -22,7 +22,11 @@ import { resolveStorefrontLinkMode } from '@/lib/storefrontTemplateAssignment'
 import type { PublicSite, StyleConfig, LiveItem } from '@/blocks/registry'
 import type { NavLinkItem } from '@/kit/types'
 import { resolveNavBlockShell } from '@/lib/navBlockLayout'
-import { resolveNavBlockLinks } from '@/lib/siteNavPages'
+import {
+  isNavLinkActive,
+  resolveCurrentNavActiveKey,
+  resolveNavBlockLinks,
+} from '@/lib/siteNavPages'
 import {
   builderPageSlugFromNavPath,
   isDraftPreviewShellHref,
@@ -184,6 +188,27 @@ export default function NavBlock({
     )
   }, [showNavLinks, navLinksSource, rawLinks, liveItems, site, storePath, location.pathname, previewShell, vendor?.offering_type])
 
+  const currentNavKey = useMemo(
+    () => resolveCurrentNavActiveKey(
+      location,
+      storePath,
+      isEditorCanvas
+        ? {
+            slug: builderCanvas?.activePageSlug,
+            isHomepage: builderCanvas?.activePageIsHomepage,
+          }
+        : null,
+    ),
+    [
+      location.pathname,
+      location.search,
+      storePath,
+      isEditorCanvas,
+      builderCanvas?.activePageSlug,
+      builderCanvas?.activePageIsHomepage,
+    ],
+  )
+
   const forceNavLinksVisible = isEditorCanvas || previewShell === true
 
   // Only offer the multi-store selector when the vendor runs a single website
@@ -192,6 +217,24 @@ export default function NavBlock({
   const showBranchPicker = singleWebsiteForAllStores && branches.length > 1
   const primary = style.primary_color || '#64C3A0'
   const borderRadius = style.border_radius === 'sharp' || style.border_radius === 'none' ? 0 : 8
+
+  const navLinkClass = (href: string, compact: boolean) => {
+    const active = isNavLinkActive(href, currentNavKey, storePath)
+    return cn(
+      'rounded-md text-sm font-medium transition-colors whitespace-nowrap',
+      compact ? 'px-2 py-1' : 'px-3 py-2',
+      active
+        ? 'font-semibold underline decoration-2 underline-offset-4'
+        : 'hover:opacity-80',
+    )
+  }
+
+  const navLinkStyle = (href: string): React.CSSProperties => {
+    const active = isNavLinkActive(href, currentNavKey, storePath)
+    return active
+      ? { color: primary }
+      : { color: shell.navTextCol }
+  }
 
   const homePath = storePath('/')
   const showLogoImage = showLogo && logoUrl
@@ -259,8 +302,9 @@ export default function NavBlock({
             key={link.href}
             href={link.href}
             onClick={(e) => previewNavClick(e, link.href)}
-            className={cn('rounded-md text-sm font-medium hover:opacity-80 transition-opacity whitespace-nowrap', shell.isCompact ? 'px-2 py-1' : 'px-3 py-2')}
-            style={{ color: shell.navTextCol }}
+            className={navLinkClass(link.href, shell.isCompact)}
+            style={navLinkStyle(link.href)}
+            aria-current={isNavLinkActive(link.href, currentNavKey, storePath) ? 'page' : undefined}
           >
             {link.label}
           </a>
@@ -272,8 +316,9 @@ export default function NavBlock({
               e.preventDefault()
               builderCanvas.onNavigate!(link.href)
             } : undefined}
-            className={cn('rounded-md text-sm font-medium hover:opacity-80 transition-opacity whitespace-nowrap', shell.isCompact ? 'px-2 py-1' : 'px-3 py-2')}
-            style={{ color: shell.navTextCol }}
+            className={navLinkClass(link.href, shell.isCompact)}
+            style={navLinkStyle(link.href)}
+            aria-current={isNavLinkActive(link.href, currentNavKey, storePath) ? 'page' : undefined}
           >
             {link.label}
           </Link>
@@ -468,8 +513,9 @@ export default function NavBlock({
       {announcement && <AnnouncementBar message={announcement} />}
       <header
         className={cn(
-          'sticky top-0 z-40 w-full',
+          'w-full',
           shell.isGlass && 'backdrop-blur-md',
+          shell.navBg === 'transparent' && 'bg-background/80',
         )}
         style={{
           backgroundColor: shell.navBg === 'transparent' ? undefined : shell.navBg,

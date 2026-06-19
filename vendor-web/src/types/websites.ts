@@ -473,7 +473,7 @@ export interface MediaAdjustments {
 
 // Builder UI types
 export type DeviceMode = 'desktop' | 'tablet' | 'mobile'
-export type BuilderPanel = 'blocks' | 'pages' | 'layers' | 'style' | 'ai' | 'media' | 'seo' | 'settings'
+export type BuilderPanel = 'blocks' | 'pages' | 'layers' | 'style' | 'ai' | 'media' | 'settings'
 export type RightPanel = 'props' | 'style' | 'ai' | 'media-studio'
 
 export interface BlockCategory {

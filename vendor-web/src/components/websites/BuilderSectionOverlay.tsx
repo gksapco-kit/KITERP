@@ -572,7 +572,11 @@ export function BuilderSectionPaddingHandles({
         )}
         style={{
           top: handleY,
-          transform: 'translateY(-50%)',
+          // Sit just outside the section's outer edge (above the top / below the bottom)
+          // so the pill never floats over the section content.
+          transform: edge === 'top'
+            ? 'translateY(calc(-50% - 14px))'
+            : 'translateY(calc(-50% + 14px))',
         }}
       >
         <div
@@ -647,8 +651,11 @@ export function BuilderSectionPaddingHandles({
 
       {edges.map(({ edge, value, label }) => {
         if (edge === 'bottom' && hideBottom) return null
-        const handleY = edge === 'top' ? topHandleY : bottomHandleY
-        return renderHandlePill(edge, handleY, value, label)
+        // Anchor the drag pill to the section's outer edge (top/bottom border) rather
+        // than the padding seam, so it sits just outside the content. The seam guide
+        // lines above still mark the actual padding amount.
+        const edgeY = edge === 'top' ? 0 : liveHeight
+        return renderHandlePill(edge, edgeY, value, label)
       })}
 
       {dragLabel && activeEdge && withinClip(
