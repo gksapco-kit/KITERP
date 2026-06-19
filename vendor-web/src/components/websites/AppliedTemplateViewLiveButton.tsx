@@ -7,7 +7,7 @@ import type { AppliedTemplateViewLiveLink } from '@/lib/liveStorefrontUrl'
 import { openAllViewLiveLinks } from '@/lib/liveStorefrontUrl'
 
 export const templateCardIconActionClass =
-  'inline-flex h-7 w-7 shrink-0 cursor-pointer items-center justify-center rounded-md border border-gray-200 text-gray-600 transition-colors hover:border-primary/35 hover:bg-primary/10 hover:text-primary'
+  'inline-flex h-7 w-7 shrink-0 cursor-pointer items-center justify-center rounded-md border border-gray-200 text-gray-600 transition-colors hover:border-primary/35 hover:bg-primary/10 hover:text-primary dark:border-border dark:text-muted-foreground dark:hover:bg-primary/15'
 
 type PickerProps = {
   open: boolean

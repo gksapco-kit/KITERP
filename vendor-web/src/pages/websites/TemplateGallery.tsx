@@ -82,7 +82,9 @@ const formatCategoryLabel = (cat: string) => {
 const categoryChipClass = (active: boolean) =>
   cn(
     'shrink-0 rounded-full px-2.5 py-1 text-xs font-bold transition-colors whitespace-nowrap',
-    active ? 'bg-primary text-white shadow-sm' : 'bg-gray-100 text-gray-600 hover:bg-gray-200',
+    active
+      ? 'bg-primary text-white shadow-sm'
+      : 'bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-muted dark:text-muted-foreground dark:hover:bg-accent',
   )
 
 function TemplateCategoryFilters({
@@ -177,7 +179,7 @@ function TemplateCategoryFilters({
               <ChevronDown className={cn('h-3.5 w-3.5 shrink-0 transition-transform', moreOpen && 'rotate-180')} />
             </button>
             {moreOpen ? (
-              <div className="absolute right-0 top-full z-20 mt-1 min-w-[9rem] rounded-xl border border-gray-200 bg-white py-1 shadow-lg">
+              <div className="absolute right-0 top-full z-20 mt-1 min-w-[9rem] rounded-xl border border-gray-200 bg-white py-1 shadow-lg dark:border-border dark:bg-card">
                 {overflow.map(cat => (
                   <button
                     key={cat}
@@ -632,7 +634,7 @@ function TemplateGallerySection({
 }) {
   return (
     <section className="mb-5 last:mb-0">
-      <h2 className="mb-2 text-[10px] font-bold uppercase tracking-wide text-gray-400">{title}</h2>
+      <h2 className="mb-2 text-[10px] font-bold uppercase tracking-wide text-muted-foreground">{title}</h2>
       <div className={TEMPLATE_GRID_CLASS}>{children}</div>
     </section>
   )
@@ -803,7 +805,7 @@ function PerStoreTemplateContext({
   onJumpToTemplate?: () => void
 }) {
   return (
-    <div className="mb-3 rounded-xl border border-emerald-200/80 bg-gradient-to-r from-emerald-50/90 to-white p-3 shadow-sm">
+    <div className="mb-3 rounded-xl border border-emerald-200/80 bg-gradient-to-r from-emerald-50/90 to-white p-3 shadow-sm dark:border-emerald-800/40 dark:from-emerald-950/60 dark:to-card">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0 flex-1">
           <p className="inline-flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wide text-emerald-700">
@@ -835,7 +837,7 @@ function PerStoreTemplateContext({
           <button
             type="button"
             onClick={onJumpToTemplate}
-            className="inline-flex shrink-0 items-center gap-1 rounded-lg border border-emerald-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-emerald-800 transition-colors hover:bg-emerald-50"
+            className="inline-flex shrink-0 items-center gap-1 rounded-lg border border-emerald-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-emerald-800 transition-colors hover:bg-emerald-50 dark:border-emerald-700/50 dark:bg-card dark:text-emerald-300 dark:hover:bg-emerald-950/50"
           >
             <ArrowDown className="h-3.5 w-3.5" />
             Jump to template
@@ -1002,7 +1004,7 @@ function StorefrontCoverage({
     <div
       ref={innerRef}
       className={cn(
-        'mb-3 rounded-xl border bg-white p-2.5 shadow-sm sm:p-3',
+        'mb-3 rounded-xl border bg-white p-2.5 shadow-sm sm:p-3 dark:border-border dark:bg-card',
         isSingle ? 'border-violet-200/70' : 'border-emerald-200/70',
         highlight && (isSingle ? 'ring-2 ring-violet-200' : 'ring-2 ring-emerald-200'),
       )}
@@ -2151,7 +2153,7 @@ export default function WebsiteTemplateGalleryPage() {
   }
 
   return (
-    <div className="min-h-[calc(100vh-4rem)] bg-gradient-to-b from-accent/70 to-gray-50/80">
+    <div className="min-h-[calc(100vh-4rem)] bg-gradient-to-b from-accent/70 to-gray-50/80 dark:from-background dark:to-muted/40">
       <div className="mx-auto max-w-6xl px-4 py-5 sm:px-6 sm:py-6">
         <div className="mb-4 flex flex-wrap items-start justify-between gap-x-3 gap-y-2">
           <div className="flex min-w-0 items-center gap-2.5">
@@ -2203,7 +2205,7 @@ export default function WebsiteTemplateGalleryPage() {
           />
         ) : null}
 
-        <div className="mb-3 rounded-xl border border-gray-200/80 bg-white p-2.5 shadow-sm sm:p-3">
+        <div className="mb-3 rounded-xl border border-gray-200/80 bg-white p-2.5 shadow-sm sm:p-3 dark:border-border dark:bg-card">
           <div className="flex flex-col gap-2 lg:flex-row lg:items-center">
             <Link
               to="/websites"
@@ -2219,7 +2221,7 @@ export default function WebsiteTemplateGalleryPage() {
                 value={templateSearch}
                 onChange={e => setTemplateSearch(e.target.value)}
                 placeholder="Search templates…"
-                className="w-full rounded-lg border border-gray-200 py-1.5 pl-8 pr-8 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                className="w-full rounded-lg border border-gray-200 bg-background py-1.5 pl-8 pr-8 text-sm focus:outline-none focus:ring-2 focus:ring-ring dark:border-border"
               />
               {templateSearch ? (
                 <button
@@ -2241,7 +2243,7 @@ export default function WebsiteTemplateGalleryPage() {
         </div>
 
         {!busy && !legacyPresetsBusy ? (
-          <p className="mb-2 text-xs font-medium text-gray-500">
+          <p className="mb-2 text-xs font-medium text-muted-foreground">
             {visibleTemplateCount} template
             {visibleTemplateCount === 1 ? '' : 's'}
             {templateCategory !== 'all' ? ` in ${formatCategoryLabel(templateCategory)}` : ''}
@@ -2279,7 +2281,7 @@ export default function WebsiteTemplateGalleryPage() {
         )}
 
         {!busy && !legacyPresetsBusy && visibleTemplateCount === 0 && (
-          <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-gray-200 bg-white/60 px-6 py-12 text-center">
+          <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-gray-200 bg-white/60 px-6 py-12 text-center dark:border-border dark:bg-card/60">
             <span className="mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-gray-100 text-gray-400">
               <Search className="h-5 w-5" />
             </span>
