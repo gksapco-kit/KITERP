@@ -1,6 +1,6 @@
 import { getBackendHealthUrl } from '@/lib/apiBase'
 
-export { getBackendHealthUrl } from '@/lib/apiBase'
+export { getBackendHealthUrl }
 
 export async function checkBackendReachable(ms = 8000): Promise<boolean> {
   const url = getBackendHealthUrl()
