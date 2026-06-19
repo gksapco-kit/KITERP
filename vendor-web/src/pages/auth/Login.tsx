@@ -51,7 +51,7 @@ function getUnreachableApiMessage(): string {
     return 'Cannot sign in — the API on port 8000 is not reachable. Start Docker Desktop, then run: docker compose up -d postgres redis backend'
   }
   const healthUrl = getBackendHealthUrl()
-  return `Cannot sign in — the API is not reachable. Open ${healthUrl} (expect ${'{"status":"healthy"}'}), then on the server run: docker compose -f docker-compose.prod.yml --env-file .env.config logs backend`
+  return `Cannot sign in — the API is not reachable. Open ${healthUrl} (expect {"status":"healthy"}), then on the server run: docker compose -f docker-compose.prod.yml --env-file .env.config logs backend`
 }
 
 function isLocalDevHost(): boolean {
