@@ -889,8 +889,13 @@ export default function ServiceForm() {
     setCatalogStoreIds(service.store_ids || [])
   }, [service, reset])
 
+  const pendingPreviewsRef = useRef<string[]>([])
+  pendingPreviewsRef.current = pendingPreviews
+
   useEffect(() => {
-    return () => { pendingPreviews.forEach(URL.revokeObjectURL) }
+    return () => {
+      pendingPreviewsRef.current.forEach(URL.revokeObjectURL)
+    }
   }, [])
 
   const onSubmit = async (raw: FormData) => {
@@ -1058,7 +1063,7 @@ export default function ServiceForm() {
 
   const handleMediaUpload = useCallback(async (file: File) => {
     if (!id) return
-    try { await vendorApi.uploadServiceMedia(id, file); qc.invalidateQueries({ queryKey: ['vendor', 'service', id] }); toast.success('Media uploaded') }
+    try { await vendorApi.uploadServiceMedia(id, file); qc.invalidateQueries({ queryKey: ['vendor', 'service', id] }); qc.invalidateQueries({ queryKey: ['vendor', 'services'] }); toast.success('Media uploaded') }
     catch { toast.error('Failed to upload media') }
   }, [id, qc])
 

@@ -15,6 +15,7 @@ import { processRows, type SortDir } from '@/lib/tableList'
 import type { VendorCategory, CustomField } from '@/types'
 import { useNavigate } from 'react-router-dom'
 import { formatCurrency, mediaUrl, cn, isLikelyImageFile } from '@/lib/utils'
+import { resolveBusinessGalleryDisplayUrl } from '@/data/businessImagePack'
 import { ImageSourcePicker } from '@/components/common/ImageSourcePicker'
 import { SingleImagePreview } from '@/components/common/CatalogMediaLightbox'
 import { vendorApi } from '@/api/vendor'
@@ -51,7 +52,11 @@ function appliesBadge(v: string) {
     service: { bg: 'bg-accent', text: 'text-primary', label: 'Service' },
   }
   const s = map[v] || map.both
-  return <span className={`px-2 py-0.5 text-xs rounded-full font-medium ${s.bg} ${s.text}`}>{s.label}</span>
+  return (
+    <span className={`inline-flex shrink-0 whitespace-nowrap px-2 py-0.5 text-xs rounded-full font-medium ${s.bg} ${s.text}`}>
+      {s.label}
+    </span>
+  )
 }
 
 function findInTree(cats: VendorCategory[], id: string): VendorCategory | null {
@@ -67,6 +72,41 @@ function findInTree(cats: VendorCategory[], id: string): VendorCategory | null {
 
 function countDescendants(cat: VendorCategory): number {
   return (cat.children || []).reduce((n, c) => n + 1 + countDescendants(c), 0)
+}
+
+function CategoryImageThumb({ url, className }: { url: string; className?: string }) {
+  const [failed, setFailed] = useState(false)
+  const resolved = mediaUrl(resolveBusinessGalleryDisplayUrl(url))
+
+  useEffect(() => {
+    setFailed(false)
+  }, [url])
+
+  if (failed) {
+    return (
+      <div className={cn('flex items-center justify-center rounded-lg border border-dashed border-gray-200 bg-gray-100', className)}>
+        <FolderTree className="h-6 w-6 text-gray-300" />
+      </div>
+    )
+  }
+
+  return (
+    <img
+      src={resolved}
+      alt=""
+      className={className}
+      onError={(e) => {
+        const el = e.currentTarget
+        const galleryFallback = resolveBusinessGalleryDisplayUrl(url)
+        const fallbackSrc = mediaUrl(galleryFallback)
+        if (galleryFallback !== url && el.src !== fallbackSrc) {
+          el.src = fallbackSrc
+          return
+        }
+        setFailed(true)
+      }}
+    />
+  )
 }
 
 // ── Nested bullet-tree node (vertical grouping, not table rows) ──
@@ -281,32 +321,35 @@ function CategoryDetailPanel({
 
   return (
     <div className="rounded-xl border bg-white p-5 min-h-[420px] flex flex-col">
-      <div className="flex items-start justify-between gap-3 mb-4">
-        <div className="flex items-start gap-4 min-w-0">
-          {cat.image_url ? (
-            <img
-              src={mediaUrl(cat.image_url)}
-              alt=""
-              className="w-16 h-16 rounded-lg object-cover border border-gray-200 shrink-0"
-            />
-          ) : (
-            <div className="w-16 h-16 rounded-lg bg-gray-100 border border-dashed border-gray-200 flex items-center justify-center shrink-0">
-              <FolderTree className="w-6 h-6 text-gray-300" />
-            </div>
-          )}
-          <div className="min-w-0">
-            <p className="text-xs uppercase tracking-wide text-gray-400 mb-1">
-              {cat.parent_id ? 'Subcategory' : 'Root category'}
-            </p>
-            <h2 className="text-xl font-bold text-gray-900">{cat.name}</h2>
-            {cat.description && <p className="text-sm text-gray-500 mt-1">{cat.description}</p>}
+      <div className="mb-4 flex gap-4">
+        {cat.image_url ? (
+          <CategoryImageThumb
+            url={cat.image_url}
+            className="h-16 w-16 shrink-0 rounded-lg border border-gray-200 object-cover"
+          />
+        ) : (
+          <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-lg border border-dashed border-gray-200 bg-gray-100">
+            <FolderTree className="h-6 w-6 text-gray-300" />
           </div>
-        </div>
-        <div className="flex flex-wrap gap-1.5 justify-end">
-          {appliesBadge(cat.applies_to)}
-          <span className={`px-2 py-0.5 text-xs rounded-full font-medium ${cat.is_active ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
-            {cat.is_active ? 'Active' : 'Inactive'}
-          </span>
+        )}
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-start justify-between gap-x-3 gap-y-2">
+            <div className="min-w-0">
+              <p className="mb-1 text-xs uppercase tracking-wide text-gray-400">
+                {cat.parent_id ? 'Subcategory' : 'Root category'}
+              </p>
+              <h2 className="text-xl font-bold text-gray-900 break-words">{cat.name}</h2>
+            </div>
+            <div className="flex shrink-0 flex-wrap items-center justify-end gap-1.5">
+              {appliesBadge(cat.applies_to)}
+              <span className={`inline-flex shrink-0 whitespace-nowrap px-2 py-0.5 text-xs rounded-full font-medium ${cat.is_active ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
+                {cat.is_active ? 'Active' : 'Inactive'}
+              </span>
+            </div>
+          </div>
+          {cat.description && (
+            <p className="mt-2 text-sm leading-relaxed text-gray-500 break-words">{cat.description}</p>
+          )}
         </div>
       </div>
 
@@ -746,7 +789,7 @@ export default function CategoriesPage() {
                       <SingleImagePreview
                         url={imageUrl}
                         alt="Category image"
-                        resolveUrl={mediaUrl}
+                        resolveUrl={(u) => mediaUrl(resolveBusinessGalleryDisplayUrl(u))}
                         className="rounded-lg"
                         imgClassName="rounded-lg w-32 h-32 object-cover border border-gray-200 bg-gray-50"
                         editable
@@ -768,7 +811,6 @@ export default function CategoriesPage() {
                       accept="image/jpeg,image/png,image/webp,image/gif"
                       disabled={createCategory.isPending || updateCategory.isPending}
                       uploading={imageUploading}
-                      preferDirectUrl
                       onFile={uploadCategoryImageFile}
                       onUrl={handleCategoryImageUrl}
                       buttonClassName="text-xs h-8 border-primary/30 text-primary hover:bg-accent"

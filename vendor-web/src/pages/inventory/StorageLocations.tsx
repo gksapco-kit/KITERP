@@ -97,7 +97,7 @@ function LocationRow({ loc, level, onEdit, onAddSub, onDelete }: {
 
   return (
     <>
-      <tr className="hover:bg-gray-50 group">
+      <tr className="hover:bg-gray-50">
         <td className="px-4 py-3" style={{ paddingLeft: `${16 + indent}px` }}>
           <div className="flex items-center gap-2">
             {hasChildren ? (
@@ -126,7 +126,7 @@ function LocationRow({ loc, level, onEdit, onAddSub, onDelete }: {
           </span>
         </td>
         <td className="px-4 py-3 text-right">
-          <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+          <div className="flex items-center justify-end gap-1">
             <Button variant="ghost" size="sm" title="Add sub-location" onClick={() => onAddSub(loc.id)}>
               <Plus className="w-4 h-4 text-green-500" />
             </Button>

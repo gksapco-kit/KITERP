@@ -13,10 +13,12 @@ import { ModalHeader, ModalOverlay, ModalPanel, ModalBody, ModalFooter } from '@
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { cn } from '@/lib/utils'
+import { apiClient } from '@/api/client'
 import {
   BUSINESS_IMAGE_CATEGORIES,
   BUSINESS_IMAGES,
   IMAGE_CATEGORY_GROUPS,
+  businessImageByGalleryUrl,
   categoriesInGroup,
   imagesForCategory,
   type BusinessImageCategory,
@@ -36,6 +38,8 @@ type Props = {
   deviceHint?: string
   /** When true, gallery allows selecting multiple images before adding. */
   galleryMultiSelect?: boolean
+  /** When set, "From this device" uses a native label→input association (most reliable). */
+  deviceInputId?: string
   onChooseLocal: () => void
   onChooseGalleryUrl: (url: string) => void | Promise<void>
   /** Batch gallery pick (used when galleryMultiSelect is true). */
@@ -61,6 +65,7 @@ export function MediaUploadPickerModal({
   showGallery = true,
   deviceHint,
   galleryMultiSelect = false,
+  deviceInputId,
   onChooseLocal,
   onChooseGalleryUrl,
   onChooseGalleryUrls,
@@ -118,9 +123,11 @@ export function MediaUploadPickerModal({
   const clearSelection = () => setSelectedUrls(new Set())
 
   const handleLocal = () => {
-    resetAndClose()
     onChooseLocal()
   }
+
+  const devicePickerClassName =
+    'flex items-start gap-3 rounded-lg border border-border bg-card px-3 py-3 text-left transition-colors hover:border-primary/40 hover:bg-primary/5 cursor-pointer'
 
   const handleGalleryPick = async (url: string) => {
     setApplying(true)
@@ -214,21 +221,35 @@ export function MediaUploadPickerModal({
 
           {step === 'menu' && (
             <div className="grid gap-2 p-4 sm:p-5 pt-4 sm:grid-cols-1">
-              <button
-                type="button"
-                onClick={handleLocal}
-                className="flex items-start gap-3 rounded-lg border border-border bg-card px-3 py-3 text-left transition-colors hover:border-primary/40 hover:bg-primary/5"
-              >
-                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
-                  <HardDrive className="h-5 w-5" />
-                </span>
-                <span className="min-w-0">
-                  <span className="block text-sm font-semibold text-foreground">From this device</span>
-                  <span className="mt-0.5 block text-xs text-muted-foreground">
-                    {deviceHint ?? 'Choose a PNG or JPG from your computer or phone.'}
+              {deviceInputId ? (
+                <label htmlFor={deviceInputId} className={devicePickerClassName} onClick={(e) => e.stopPropagation()}>
+                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                    <HardDrive className="h-5 w-5" />
                   </span>
-                </span>
-              </button>
+                  <span className="min-w-0">
+                    <span className="block text-sm font-semibold text-foreground">From this device</span>
+                    <span className="mt-0.5 block text-xs text-muted-foreground">
+                      {deviceHint ?? 'Choose a PNG or JPG from your computer or phone.'}
+                    </span>
+                  </span>
+                </label>
+              ) : (
+                <button
+                  type="button"
+                  onClick={handleLocal}
+                  className={devicePickerClassName}
+                >
+                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                    <HardDrive className="h-5 w-5" />
+                  </span>
+                  <span className="min-w-0">
+                    <span className="block text-sm font-semibold text-foreground">From this device</span>
+                    <span className="mt-0.5 block text-xs text-muted-foreground">
+                      {deviceHint ?? 'Choose a PNG or JPG from your computer or phone.'}
+                    </span>
+                  </span>
+                </button>
+              )}
 
               {showGallery ? (
                 <button
@@ -476,17 +497,83 @@ export function MediaUploadPickerModal({
   )
 }
 
+async function blobLooksLikeImage(blob: Blob): Promise<boolean> {
+  if (blob.type.startsWith('image/')) return true
+  const head = new Uint8Array(await blob.slice(0, 16).arrayBuffer())
+  if (head.length < 2) return false
+  if (head[0] === 0xff && head[1] === 0xd8) return true
+  if (head[0] === 0x89 && head[1] === 0x50 && head[2] === 0x4e && head[3] === 0x47) return true
+  if (head[0] === 0x47 && head[1] === 0x49 && head[2] === 0x46) return true
+  if (head[0] === 0x52 && head[1] === 0x49 && head[2] === 0x46 && head[3] === 0x46) return true
+  const prefix = new TextDecoder().decode(head).trimStart()
+  return !prefix.startsWith('<') && !prefix.startsWith('{')
+}
+
+function filenameFromUrl(url: string): string {
+  try {
+    const base = new URL(url).pathname.split('/').pop()?.split('?')[0] || 'image.jpg'
+    return base.includes('.') ? base : `${base}.jpg`
+  } catch {
+    const tail = url.split('/').pop()?.split('?')[0] || 'image.jpg'
+    return tail.includes('.') ? tail : `${tail}.jpg`
+  }
+}
+
+async function proxyImageToFile(url: string): Promise<File> {
+  const res = await apiClient.post('/uploads/proxy-image', { url: url.trim() }, { responseType: 'blob', timeout: 60000 })
+  const blob = res.data as Blob
+  if (!(await blobLooksLikeImage(blob))) {
+    throw new Error('Response was not an image')
+  }
+  const type = blob.type.startsWith('image/') ? blob.type : 'image/jpeg'
+  return new File([blob], filenameFromUrl(url), { type })
+}
+
+/** Resolve gallery paths, remote http(s) URLs, or local assets into a File for upload APIs. */
+export async function remoteImageToFile(url: string): Promise<File> {
+  const trimmed = url.trim()
+  if (!trimmed) throw new Error('Image URL is required')
+  if (trimmed.startsWith('/business-images') || businessImageByGalleryUrl(trimmed)) {
+    return galleryImageToFile(trimmed)
+  }
+  if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
+    return proxyImageToFile(trimmed)
+  }
+  return galleryImageToFile(trimmed)
+}
+
 /** Fetch a gallery/static image into a File for upload APIs. */
 export async function galleryImageToFile(galleryPath: string): Promise<File> {
-  const src =
-    galleryPath.startsWith('http://') || galleryPath.startsWith('https://') || galleryPath.startsWith('data:')
-      ? galleryPath
-      : `${window.location.origin}${galleryPath.startsWith('/') ? galleryPath : `/${galleryPath}`}`
-  const res = await fetch(src)
-  if (!res.ok) throw new Error(`Could not load image (${res.status})`)
-  const blob = await res.blob()
-  const name = galleryPath.split('/').pop() || 'image.jpg'
-  return new File([blob], name, { type: blob.type || 'image/jpeg' })
+  const biz = businessImageByGalleryUrl(galleryPath)
+  const candidates = [
+    ...(biz?.fallbackUrl ? [biz.fallbackUrl] : []),
+    galleryPath,
+  ].filter((path, index, all) => path && all.indexOf(path) === index)
+
+  let lastError: Error | null = null
+  for (const path of candidates) {
+    try {
+      const src =
+        path.startsWith('http://') || path.startsWith('https://') || path.startsWith('data:')
+          ? path
+          : `${window.location.origin}${path.startsWith('/') ? path : `/${path}`}`
+      const res = await fetch(src)
+      if (!res.ok) {
+        lastError = new Error(`Could not load image (${res.status})`)
+        continue
+      }
+      const blob = await res.blob()
+      if (!(await blobLooksLikeImage(blob))) {
+        lastError = new Error('Response was not an image')
+        continue
+      }
+      const name = filenameFromUrl(path.startsWith('http') ? path : `https://local${path.startsWith('/') ? path : `/${path}`}`)
+      return new File([blob], name, { type: blob.type.startsWith('image/') ? blob.type : 'image/jpeg' })
+    } catch (err) {
+      lastError = err instanceof Error ? err : new Error('Could not load image')
+    }
+  }
+  throw lastError ?? new Error('Could not load image')
 }
 
 /** Resolve logo/banner paths for display (uploads vs local gallery assets). */

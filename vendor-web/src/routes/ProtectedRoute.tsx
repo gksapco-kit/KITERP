@@ -29,7 +29,11 @@ export default function ProtectedRoute({ children }: { children: React.ReactNode
 
   if (!accessToken || timedOut) return <Navigate to="/login" state={{ from: location }} replace />
   if (waitingOnSession) return <PageLoading />
-  if (isError || !isAuthenticated) return <Navigate to="/login" state={{ from: location }} replace />
+  if (isError) {
+    logout()
+    return <Navigate to="/login" state={{ from: location }} replace />
+  }
+  if (!isAuthenticated) return <Navigate to="/login" state={{ from: location }} replace />
 
   return <>{children}</>
 }

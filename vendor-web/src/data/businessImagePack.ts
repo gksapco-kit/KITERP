@@ -591,3 +591,30 @@ export function categoryById(categoryId: string): BusinessImageCategory | undefi
 export function totalImageCount(): number {
   return BUSINESS_IMAGES.length
 }
+
+function normalizeGalleryPath(url: string): string {
+  const trimmed = url.trim()
+  if (!trimmed) return trimmed
+  if (trimmed.startsWith('/business-images')) return trimmed
+  try {
+    const parsed = new URL(trimmed, 'http://local')
+    if (parsed.pathname.startsWith('/business-images')) return parsed.pathname
+  } catch {
+    // not a URL
+  }
+  const idx = trimmed.indexOf('/business-images/')
+  if (idx >= 0) return trimmed.slice(idx)
+  return trimmed
+}
+
+export function businessImageByGalleryUrl(url: string): BusinessImage | undefined {
+  const normalized = normalizeGalleryPath(url)
+  return BUSINESS_IMAGES.find((img) => img.url === normalized || img.url === url)
+}
+
+/** When the local `/business-images/` pack is missing, use the remote stock fallback for display/fetch. */
+export function resolveBusinessGalleryDisplayUrl(url: string): string {
+  const normalized = normalizeGalleryPath(url)
+  if (!normalized.startsWith('/business-images')) return url
+  return businessImageByGalleryUrl(normalized)?.fallbackUrl ?? url
+}

@@ -80,12 +80,50 @@ function storefrontPreviewImports() {
   }
 }
 
+const vendorImporter = path.resolve(__dirname, 'src/main.tsx')
+
+/**
+ * Storefront sources are mounted outside vendor-web in Docker (`/storefront-web`).
+ * Node resolution from those files does not reach `/app/node_modules`, so bare imports
+ * must be resolved from vendor-web's tree. Use Vite's resolver (not raw file paths) so
+ * optimizeDeps pre-bundling applies — raw ESM entries break deps like use-sync-external-store.
+ */
+function resolveStorefrontBareImports() {
+  return {
+    name: 'resolve-storefront-bare-imports',
+    enforce: 'pre',
+    async resolveId(source: string, importer?: string) {
+      if (!importer || !isStorefrontModule(importer)) return null
+      if (source.startsWith('.') || source.startsWith('/') || source.startsWith('\0')) return null
+      if (source.startsWith('@/') || source.startsWith('@storefront/')) return null
+      const resolved = await this.resolve(source, vendorImporter, { skipSelf: true })
+      return resolved?.id ?? null
+    },
+  }
+}
+
 // Polling is for Docker bind-mounts / network FS. On Windows + OneDrive it makes dev painfully slow.
 const useWatchPolling = process.env.VITE_WATCH_POLLING === '1'
 
 export default defineConfig({
-  plugins: [storefrontPreviewImports(), react()],
+  plugins: [storefrontPreviewImports(), resolveStorefrontBareImports(), react()],
   base: publicBasePath,
+  optimizeDeps: {
+    include: [
+      'zustand',
+      'zustand/middleware',
+      '@radix-ui/react-dialog',
+      '@radix-ui/react-dropdown-menu',
+      '@radix-ui/react-avatar',
+      '@radix-ui/react-switch',
+      '@radix-ui/react-select',
+      '@radix-ui/react-tabs',
+      '@radix-ui/react-label',
+      '@radix-ui/react-slot',
+      'use-sync-external-store/shim/with-selector',
+      'use-sync-external-store/shim',
+    ],
+  },
   resolve: {
     alias: [
       {

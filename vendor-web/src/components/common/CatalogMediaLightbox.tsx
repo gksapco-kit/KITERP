@@ -9,6 +9,7 @@ import {
   Film,
   FlipHorizontal,
   FlipVertical,
+  Image as ImageIcon,
   Loader2,
   RotateCcw,
   RotateCw,
@@ -524,6 +525,12 @@ export function ClickableImageButton({
   imgClassName?: string
   onClick: () => void
 }) {
+  const [broken, setBroken] = useState(false)
+
+  useEffect(() => {
+    setBroken(false)
+  }, [src])
+
   return (
     <button
       type="button"
@@ -534,7 +541,13 @@ export function ClickableImageButton({
         className,
       )}
     >
-      <img src={src} alt={alt} className={imgClassName} />
+      {broken ? (
+        <div className={cn('flex items-center justify-center bg-gray-100 text-gray-400', imgClassName)}>
+          <ImageIcon className="h-8 w-8" />
+        </div>
+      ) : (
+        <img src={src} alt={alt} className={imgClassName} onError={() => setBroken(true)} />
+      )}
     </button>
   )
 }

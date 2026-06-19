@@ -404,7 +404,8 @@ function SummaryTab({ data, loading, stores, selectedStoreId, onAction, onViewHi
           onSortDirChange={setSd}
           className="rounded-t-xl"
         />
-        <ResizableTable tableId="inventory-stock" defaultWidths={[240, 110, 110, 110, 110, ...stores.map(() => 90), 90, 80]}>
+        <div className="overflow-x-auto">
+        <ResizableTable tableId="inventory-stock-v2" defaultWidths={[240, 110, 110, 110, 110, ...stores.map(() => 90), 100, 300]}>
           <thead>
             <tr className="border-b bg-gray-50">
               <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase"><TableColumnLabel>Product / Variant</TableColumnLabel></th>
@@ -450,7 +451,7 @@ function SummaryTab({ data, loading, stores, selectedStoreId, onAction, onViewHi
                     <td className="px-6 py-4 text-sm text-gray-500">{item.sku || '-'}</td>
                     <td className="px-6 py-4 text-sm text-gray-400 font-mono text-xs">-</td>
                     <td className="px-6 py-4 text-sm text-right text-gray-500">-</td>
-                    <td className="px-6 py-4 text-sm text-right font-medium">{item.current_quantity}</td>
+                    <td className="px-6 py-4 text-sm text-right font-medium whitespace-nowrap">{item.current_quantity}</td>
                     {selectedStoreId === 'all' && stores.map(s => {
                       const sq = item.store_quantities?.find(q => q.store_id === s.id)
                       return (
@@ -459,7 +460,7 @@ function SummaryTab({ data, loading, stores, selectedStoreId, onAction, onViewHi
                         </td>
                       )
                     })}
-                    <td className="px-6 py-4 text-center">
+                    <td className="px-6 py-4 text-center whitespace-nowrap">
                       {item.is_low_stock ? (
                         <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-amber-50 text-amber-700">
                           <AlertTriangle className="w-3 h-3" />Low
@@ -468,8 +469,8 @@ function SummaryTab({ data, loading, stores, selectedStoreId, onAction, onViewHi
                         <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-green-50 text-green-700">OK</span>
                       )}
                     </td>
-                    <td className="px-6 py-4 text-right">
-                      <div className="flex gap-1 justify-end">
+                    <td className="px-6 py-4 text-right whitespace-nowrap">
+                      <div className="inline-flex flex-nowrap items-center justify-end gap-1">
                         <Button variant="ghost" size="sm" className="text-gray-500 text-xs" onClick={() => onViewHistory(item.product_id)}>
                           <History className="w-3 h-3 mr-1" />History
                         </Button>
@@ -503,10 +504,10 @@ function SummaryTab({ data, loading, stores, selectedStoreId, onAction, onViewHi
                         {selectedStoreId === 'all' && stores.map(s => (
                           <td key={s.id} className="px-4 py-3 text-sm text-right text-gray-300">—</td>
                         ))}
-                        <td className="px-6 py-3 text-center">
+                        <td className="px-6 py-3 text-center whitespace-nowrap">
                           <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${statusColor}`}>{statusLabel}</span>
                         </td>
-                        <td className="px-6 py-3 text-right">
+                        <td className="px-6 py-3 text-right whitespace-nowrap">
                           <Button variant="ghost" size="sm" className="text-green-600 text-xs" onClick={() => onAction(item.product_id, `${item.product_name} — ${v.name}`, 'stock-in', v.id)}>+ In</Button>
                         </td>
                       </tr>
@@ -517,6 +518,7 @@ function SummaryTab({ data, loading, stores, selectedStoreId, onAction, onViewHi
             })}
           </tbody>
         </ResizableTable>
+        </div>
       </CardContent>
     </Card>
   )

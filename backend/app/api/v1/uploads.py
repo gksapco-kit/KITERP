@@ -4,8 +4,8 @@ File upload endpoints for product and service images.
 Uses FileService (S3 when configured, else backend/uploads/).
 """
 import uuid
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, status
-from fastapi.responses import JSONResponse
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, status, Body
+from fastapi.responses import JSONResponse, Response
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from uuid import UUID
@@ -24,6 +24,9 @@ from app.services.media_upload import (
     save_crm_document,
     delete_stored_file,
     detect_media_type,
+    fetch_image_bytes_from_url,
+    _extension_from_content_type,
+    _extension_from_bytes,
     ALLOWED_IMAGE_TYPES,
 )
 
@@ -40,6 +43,26 @@ async def _get_vendor_id(user: User, db: AsyncSession) -> UUID:
 
 async def _save_file(file: UploadFile, subfolder: str) -> str:
     return await save_media_file(file, subfolder)
+
+
+@router.post("/proxy-image")
+async def proxy_image_from_url(
+    body: dict = Body(...),
+    current_user: User = Depends(get_current_active_user),
+):
+    """Fetch a remote image server-side and return the bytes for catalog uploads."""
+    url = (body.get("url") or "").strip()
+    if not url:
+        raise HTTPException(status_code=400, detail="url is required")
+
+    image_bytes, content_type = await fetch_image_bytes_from_url(url)
+    ext = _extension_from_content_type(content_type) or _extension_from_bytes(image_bytes) or ".jpg"
+    filename = f"remote{ext}"
+    return Response(
+        content=image_bytes,
+        media_type=content_type if content_type.startswith("image/") else "image/jpeg",
+        headers={"Content-Disposition": f'inline; filename="{filename}"'},
+    )
 
 
 # ── Vendor Logo & Banner ──────────────────────────────────────────

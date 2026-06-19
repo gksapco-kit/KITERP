@@ -46,10 +46,66 @@ def detect_media_type(file: UploadFile) -> str:
     return "image"
 
 
+def _sanitize_upload_filename(filename: str) -> str:
+    name = filename.strip().replace("\\", "/").split("/")[-1]
+    if "?" in name:
+        name = name.split("?", 1)[0]
+    return name
+
+
 def _file_extension(file: UploadFile) -> str:
-    if not file.filename or "." not in file.filename:
+    if not file.filename:
         return ""
-    return "." + file.filename.rsplit(".", 1)[-1].lower()
+    name = _sanitize_upload_filename(file.filename)
+    if "." not in name:
+        return ""
+    return "." + name.rsplit(".", 1)[-1].lower()
+
+
+def _extension_from_content_type(content_type: str) -> str:
+    ct = (content_type or "").split(";")[0].strip().lower()
+    return {
+        "image/jpeg": ".jpg",
+        "image/jpg": ".jpg",
+        "image/png": ".png",
+        "image/webp": ".webp",
+        "image/gif": ".gif",
+        "image/svg+xml": ".svg",
+        "video/mp4": ".mp4",
+        "video/webm": ".webm",
+        "video/quicktime": ".mov",
+    }.get(ct, "")
+
+
+def _extension_from_bytes(body: bytes) -> str:
+    if len(body) < 4:
+        return ""
+    if body[:2] == b"\xff\xd8":
+        return ".jpg"
+    if body[:4] == b"\x89PNG":
+        return ".png"
+    if body[:3] == b"GIF":
+        return ".gif"
+    if body[:4] == b"RIFF" and len(body) >= 12 and body[8:12] == b"WEBP":
+        return ".webp"
+    return ""
+
+
+def _normalize_extension(ext: str, content_type: str, body: bytes, media: str) -> str:
+    ext = (ext or "").strip().lower()
+    if "?" in ext:
+        ext = ext.split("?", 1)[0]
+    allowed = ALLOWED_IMAGE_EXTENSIONS | ALLOWED_VIDEO_EXTENSIONS | ALLOWED_3D_EXTENSIONS
+    if ext in allowed:
+        return ext
+    inferred = _extension_from_content_type(content_type) or _extension_from_bytes(body)
+    if inferred in allowed:
+        return inferred
+    if media == "video":
+        return ".mp4"
+    if media == "model3d":
+        return ".glb"
+    return ".jpg"
 
 
 def _upload_type_allowed(file: UploadFile) -> bool:
@@ -64,6 +120,21 @@ def _upload_type_allowed(file: UploadFile) -> bool:
     if ext in ALLOWED_3D_EXTENSIONS:
         return True
     return False
+
+
+def _looks_like_image(body: bytes) -> bool:
+    if len(body) < 4:
+        return False
+    if body[:2] == b"\xff\xd8":
+        return True
+    if body[:4] == b"\x89PNG":
+        return True
+    if body[:3] == b"GIF":
+        return True
+    if body[:4] == b"RIFF" and len(body) >= 12 and body[8:12] == b"WEBP":
+        return True
+    stripped = body.lstrip()
+    return not stripped.startswith((b"<", b"{", b"["))
 
 
 async def delete_stored_file(file_url: Optional[str]) -> bool:
@@ -90,7 +161,19 @@ async def save_media_file(file: UploadFile, subfolder: str) -> str:
             detail=f"File too large. Max {max_size // (1024 * 1024)} MB for {media}.",
         )
 
-    return await get_file_service().upload_file(file, subfolder, content=contents)
+    if media == "image" and not _looks_like_image(contents):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Uploaded file is not a valid image.",
+        )
+
+    ext = _normalize_extension(ext, file.content_type or "", contents, media)
+    return await get_file_service().upload_bytes(
+        contents,
+        subfolder,
+        ext,
+        file.content_type or "application/octet-stream",
+    )
 
 
 async def save_image_file(
@@ -210,3 +293,50 @@ async def save_expense_receipt(file: UploadFile, vendor_id: UUID) -> dict:
         content=contents,
     )
     return {"url": url, "filename": file.filename or "receipt"}
+
+
+async def fetch_image_bytes_from_url(url: str) -> tuple[bytes, str]:
+    """Download a remote image server-side (avoids browser CORS limits)."""
+    from urllib.parse import urlparse
+
+    import httpx
+
+    parsed = urlparse(url.strip())
+    if parsed.scheme not in ("http", "https"):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Only http(s) image URLs are supported.",
+        )
+
+    async with httpx.AsyncClient(follow_redirects=True, timeout=30.0) as client:
+        try:
+            response = await client.get(
+                url.strip(),
+                headers={"User-Agent": "KIT-ERP/1.0", "Accept": "image/*,*/*"},
+            )
+        except httpx.RequestError as exc:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Could not fetch image URL: {exc}",
+            ) from exc
+
+    if response.status_code >= 400:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Could not fetch image (HTTP {response.status_code}).",
+        )
+
+    body = response.content
+    if len(body) > MAX_IMAGE_SIZE:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Image too large. Max {MAX_IMAGE_SIZE // (1024 * 1024)} MB.",
+        )
+    if not _looks_like_image(body):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="URL did not return a valid image.",
+        )
+
+    content_type = (response.headers.get("content-type") or "image/jpeg").split(";")[0].strip()
+    return body, content_type

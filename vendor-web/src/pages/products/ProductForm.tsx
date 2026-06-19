@@ -2548,9 +2548,14 @@ export default function ProductForm() {
     }
   }, [product])
 
+  const pendingPreviewsRef = useRef<string[]>([])
+  pendingPreviewsRef.current = pendingPreviews
+
   useEffect(() => {
-    return () => { pendingPreviews.forEach(URL.revokeObjectURL) }
-  }, [pendingPreviews])
+    return () => {
+      pendingPreviewsRef.current.forEach(URL.revokeObjectURL)
+    }
+  }, [])
 
   const addPendingFiles = (files: FileList | File[] | null) => {
     if (!files || (Array.isArray(files) ? files.length === 0 : files.length === 0)) return
@@ -2842,6 +2847,7 @@ export default function ProductForm() {
     try {
       await vendorApi.uploadProductImage(id, file)
       qc.invalidateQueries({ queryKey: ['vendor', 'product', id] })
+      qc.invalidateQueries({ queryKey: ['vendor', 'products'] })
       toast.success(`${label} uploaded`)
     } catch (err: any) {
       const msg = err?.response?.data?.detail || err?.message || 'Upload failed'
@@ -3192,7 +3198,7 @@ export default function ProductForm() {
           />
         )}
         onSave={handleSubmit(onSubmit, onFormInvalid)}
-        saveLabel={isEdit ? 'Save Product' : 'Create Product'}
+        saveLabel={isEdit ? 'Update Product' : 'Create Product'}
         isSaving={isSaving}
         isEdit={isEdit}
         onDelete={handleDeleteProduct}
@@ -5090,7 +5096,7 @@ export default function ProductForm() {
           <Button type="button" variant="cancel" size="sm" onClick={() => navigate('/products')}>Cancel</Button>
           <Button type="submit" disabled={isSaving} size="sm">
             {isSaving && <Loader2 className="w-4 h-4 mr-1.5 animate-spin" />}
-            {isEdit ? 'Save Product' : 'Create Product'}
+            {isEdit ? 'Update Product' : 'Create Product'}
           </Button>
         </div>
       </form>

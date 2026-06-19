@@ -16,12 +16,14 @@ type CatalogFilterFieldProps = {
 
 export function CatalogFilterField({ label, value, onChange, options, placeholder = 'All' }: CatalogFilterFieldProps) {
   return (
-    <div className="space-y-1 min-w-[9.5rem]">
-      <label className="text-xs font-medium text-gray-400 uppercase tracking-wider">{label}</label>
+    <div className="flex min-w-[9.5rem] flex-col gap-1.5">
+      <label className="block text-xs font-medium leading-none text-gray-400 uppercase tracking-wider">
+        {label}
+      </label>
       <select
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className={catalogFilterSelectClass}
+        className={`${catalogFilterSelectClass} w-full`}
       >
         <option value="">{placeholder}</option>
         {options.map((opt) => (
@@ -44,8 +46,8 @@ type CatalogListFiltersPanelProps = {
 
 export function CatalogListFiltersPanel({ activeFilters, onClearAll, children }: CatalogListFiltersPanelProps) {
   return (
-    <div className="space-y-3 pt-3 border-t">
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-3">
+    <div className="space-y-3 border-t pt-3">
+      <div className="flex flex-wrap items-end gap-3">
         {children}
       </div>
       {activeFilters.length > 0 && (

@@ -1,8 +1,8 @@
-import { useMemo, useState } from 'react'
-import { ChevronDown, ChevronRight } from 'lucide-react'
+import { useMemo } from 'react'
 import { cn } from '@/lib/utils'
 import type { VendorCategory } from '@/types'
-import { categoryNodeToFields, findCategoryNode } from '@/lib/categoryHierarchy'
+import { flattenCategoryTree, findCategoryNode } from '@/lib/categoryHierarchy'
+import { formSelectClass } from '@/components/common/FormSectionNav'
 
 interface Props {
   tree: VendorCategory[]
@@ -11,68 +11,12 @@ interface Props {
   onChange: (category: string, subcategory: string) => void
   className?: string
   emptyLabel?: string
+  placeholder?: string
 }
 
-function TreeNode({
-  node,
-  tree,
-  level,
-  selectedId,
-  onSelect,
-}: {
-  node: VendorCategory
-  tree: VendorCategory[]
-  level: number
-  selectedId: string | null
-  onSelect: (node: VendorCategory) => void
-}) {
-  const hasChildren = (node.children?.length ?? 0) > 0
-  const [open, setOpen] = useState(level < 2)
-  const isSelected = selectedId === node.id
-
-  return (
-    <div>
-      <div
-        className="flex items-center gap-1"
-        style={{ paddingLeft: `${level * 16}px` }}
-      >
-        {hasChildren ? (
-          <button
-            type="button"
-            onClick={() => setOpen(v => !v)}
-            className="p-0.5 rounded hover:bg-gray-200 text-gray-400 shrink-0"
-            aria-label={open ? 'Collapse' : 'Expand'}
-          >
-            {open ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />}
-          </button>
-        ) : (
-          <span className="w-[18px] shrink-0" />
-        )}
-        <button
-          type="button"
-          onClick={() => onSelect(node)}
-          className={cn(
-            'flex-1 text-left px-2 py-1.5 rounded text-sm transition-colors',
-            isSelected
-              ? 'bg-blue-50 text-blue-800 font-medium ring-1 ring-blue-200'
-              : 'text-gray-700 hover:bg-gray-50',
-          )}
-        >
-          <span className={level === 0 ? 'font-medium' : ''}>{node.name}</span>
-        </button>
-      </div>
-      {open && hasChildren && node.children!.map(child => (
-        <TreeNode
-          key={child.id}
-          node={child}
-          tree={tree}
-          level={level + 1}
-          selectedId={selectedId}
-          onSelect={onSelect}
-        />
-      ))}
-    </div>
-  )
+function formatOptionLabel(category: string, subcategory: string): string {
+  if (!subcategory) return category
+  return `${category} › ${subcategory.split(' / ').join(' › ')}`
 }
 
 export function CategoryHierarchyPicker({
@@ -82,17 +26,15 @@ export function CategoryHierarchyPicker({
   onChange,
   className,
   emptyLabel = 'No categories yet. Create categories under Inventory → Categories.',
+  placeholder = 'Select category…',
 }: Props) {
+  const options = useMemo(() => flattenCategoryTree(tree), [tree])
+
   const selectedNode = useMemo(
     () => findCategoryNode(tree, category, subcategory),
     [tree, category, subcategory],
   )
-  const selectedId = selectedNode?.id ?? null
-
-  const handleSelect = (node: VendorCategory) => {
-    const fields = categoryNodeToFields(tree, node)
-    onChange(fields.category, fields.subcategory)
-  }
+  const selectedId = selectedNode?.id ?? ''
 
   if (!tree.length) {
     return (
@@ -103,17 +45,21 @@ export function CategoryHierarchyPicker({
   }
 
   return (
-    <div className={cn('rounded-lg border bg-white max-h-52 overflow-y-auto p-2', className)}>
-      {tree.map(node => (
-        <TreeNode
-          key={node.id}
-          node={node}
-          tree={tree}
-          level={0}
-          selectedId={selectedId}
-          onSelect={handleSelect}
-        />
+    <select
+      className={cn(formSelectClass, 'w-full', className)}
+      value={selectedId}
+      onChange={(e) => {
+        const opt = options.find((o) => o.id === e.target.value)
+        if (opt) onChange(opt.category, opt.subcategory)
+        else onChange('', '')
+      }}
+    >
+      <option value="">{placeholder}</option>
+      {options.map((opt) => (
+        <option key={opt.id} value={opt.id}>
+          {formatOptionLabel(opt.category, opt.subcategory)}
+        </option>
       ))}
-    </div>
+    </select>
   )
 }

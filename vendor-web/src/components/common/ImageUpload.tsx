@@ -65,7 +65,7 @@ interface ProductImageUploadProps {
   disabled?: boolean
 }
 
-const ACCEPT = 'image/jpeg,image/png,image/webp,image/gif,video/mp4,video/webm,video/quicktime,.glb,.gltf'
+const ACCEPT = 'image/*,image/jpeg,image/png,image/webp,image/gif,video/mp4,video/webm,video/quicktime,.glb,.gltf'
 export const MEDIA_ACCEPT = ACCEPT
 
 const MEDIA_DEVICE_HINT = 'Images, videos, or 3D models (JPG, PNG, WebP, GIF, MP4, WebM, MOV, GLB/GLTF) from your device.'
@@ -305,19 +305,11 @@ function CatalogMediaDropzone({
   uploading,
   onDrop,
   onClick,
-  pickerFileInput,
-  inputRef,
-  onInputChange,
-  accept,
 }: {
   disabled?: boolean
   uploading?: boolean
   onDrop: (e: React.DragEvent) => void
   onClick: () => void
-  pickerFileInput: React.ReactNode
-  inputRef: React.RefObject<HTMLInputElement | null>
-  onInputChange: (files: FileList | null) => void
-  accept: string
 }) {
   return (
     <div
@@ -337,22 +329,11 @@ function CatalogMediaDropzone({
       <p className={catalogMediaCompact.dropzoneTitle}>
         {uploading ? 'Uploading…' : 'Click or drag here'}
       </p>
-      <input
-        ref={inputRef}
-        type="file"
-        multiple
-        accept={accept}
-        className="hidden"
-        onChange={(e) => onInputChange(e.target.files)}
-        disabled={disabled}
-      />
-      {pickerFileInput}
     </div>
   )
 }
 
 export function ProductImageUpload({ images, onUpload, onDelete, onSetPrimary, onReorder, onEditImage, disabled }: ProductImageUploadProps) {
-  const inputRef = useRef<HTMLInputElement>(null)
   const [uploading, setUploading] = useState(false)
 
   const sortedImages = useMemo(
@@ -380,7 +361,6 @@ export function ProductImageUpload({ images, onUpload, onDelete, onSetPrimary, o
   const handleFiles = useCallback((files: FileList | null) => {
     if (!files?.length) return
     void processFiles(Array.from(files))
-    if (inputRef.current) inputRef.current.value = ''
   }, [processFiles])
 
   const handlePickerFile = useCallback(async (file: File) => {
@@ -412,16 +392,13 @@ export function ProductImageUpload({ images, onUpload, onDelete, onSetPrimary, o
   return (
     <div className={catalogMediaCompact.root}>
       {pickerModal}
+      {pickerFileInput}
       <div className={catalogMediaCompact.row}>
         <CatalogMediaDropzone
           disabled={disabled}
           uploading={uploading}
           onDrop={handleDrop}
           onClick={() => !disabled && !uploading && openPicker()}
-          pickerFileInput={pickerFileInput}
-          inputRef={inputRef}
-          onInputChange={handleFiles}
-          accept={ACCEPT}
         />
 
         {sortedImages.length > 0 && (
@@ -503,7 +480,6 @@ interface ServiceMediaUploadProps {
 }
 
 export function ServiceMediaUpload({ media, onUpload, onDelete, onSetPrimary, onReorder, onEditMedia, disabled }: ServiceMediaUploadProps) {
-  const inputRef = useRef<HTMLInputElement>(null)
   const [uploading, setUploading] = useState(false)
 
   const sortedMedia = useMemo(
@@ -531,7 +507,6 @@ export function ServiceMediaUpload({ media, onUpload, onDelete, onSetPrimary, on
   const handleFiles = useCallback((files: FileList | null) => {
     if (!files?.length) return
     void processFiles(Array.from(files))
-    if (inputRef.current) inputRef.current.value = ''
   }, [processFiles])
 
   const handlePickerFile = useCallback(async (file: File) => {
@@ -559,16 +534,13 @@ export function ServiceMediaUpload({ media, onUpload, onDelete, onSetPrimary, on
   return (
     <div className={catalogMediaCompact.root}>
       {pickerModal}
+      {pickerFileInput}
       <div className={catalogMediaCompact.row}>
         <CatalogMediaDropzone
           disabled={disabled}
           uploading={uploading}
           onDrop={handleDrop}
           onClick={() => !disabled && !uploading && openPicker()}
-          pickerFileInput={pickerFileInput}
-          inputRef={inputRef}
-          onInputChange={handleFiles}
-          accept={ACCEPT}
         />
 
         {sortedMedia.length > 0 && (
@@ -657,7 +629,6 @@ export function VariantMediaUpload({
   disabled,
   pickerTitle = 'Variant media',
 }: VariantMediaUploadProps) {
-  const inputRef = useRef<HTMLInputElement>(null)
   const [uploading, setUploading] = useState(false)
 
   const sortedMedia = useMemo(
@@ -685,7 +656,6 @@ export function VariantMediaUpload({
   const handleFiles = useCallback((files: FileList | null) => {
     if (!files?.length) return
     void processFiles(Array.from(files))
-    if (inputRef.current) inputRef.current.value = ''
   }, [processFiles])
 
   const handlePickerFile = useCallback(async (file: File) => {
@@ -713,16 +683,13 @@ export function VariantMediaUpload({
   return (
     <div className={catalogMediaCompact.root}>
       {pickerModal}
+      {pickerFileInput}
       <div className={catalogMediaCompact.row}>
         <CatalogMediaDropzone
           disabled={disabled}
           uploading={uploading}
           onDrop={handleDrop}
           onClick={() => !disabled && !uploading && openPicker()}
-          pickerFileInput={pickerFileInput}
-          inputRef={inputRef}
-          onInputChange={handleFiles}
-          accept={ACCEPT}
         />
 
         {sortedMedia.length > 0 && (
@@ -894,14 +861,11 @@ export function StagedMediaUpload({
   pickerTitle = 'Media',
   disabled,
 }: StagedMediaUploadProps) {
-  const inputRef = useRef<HTMLInputElement>(null)
-
   const thumbDrag = useThumbDragReorder(onReorderFiles)
 
   const handleFiles = useCallback((fileList: FileList | null) => {
     if (!fileList?.length) return
     onAddFiles(Array.from(fileList))
-    if (inputRef.current) inputRef.current.value = ''
   }, [onAddFiles])
 
   const handlePickerFile = useCallback((file: File) => {
@@ -929,16 +893,13 @@ export function StagedMediaUpload({
   return (
     <div className={catalogMediaCompact.root}>
       {pickerModal}
+      {pickerFileInput}
       <div className={catalogMediaCompact.row}>
         <CatalogMediaDropzone
           disabled={disabled}
           uploading={false}
           onDrop={handleDrop}
           onClick={() => !disabled && openPicker()}
-          pickerFileInput={pickerFileInput}
-          inputRef={inputRef}
-          onInputChange={handleFiles}
-          accept={ACCEPT}
         />
         {files.length > 0 && (
           <CatalogMediaLightboxHost

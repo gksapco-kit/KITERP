@@ -179,6 +179,7 @@ export default function Products() {
   const deleteProduct = useDeleteProduct()
 
   const activeFilterCount = [status, visibility, category, productType, stock].filter(Boolean).length
+  const hasActiveQuery = Boolean(search.trim() || activeFilterCount > 0)
   const clearFilters = () => {
     setStatus('')
     setVisibility('')
@@ -408,15 +409,36 @@ export default function Products() {
             <tbody className="divide-y divide-gray-100">
               {isLoading ? (
                 <tr><td colSpan={7} className="px-6 py-16 text-center"><Loader2 className="w-6 h-6 animate-spin mx-auto text-gray-400" /></td></tr>
-              ) : !data?.items?.length ? (
+              ) : !displayProducts.length ? (
                 <tr>
                   <td colSpan={7} className="px-6 py-16 text-center">
                     <Package className="w-12 h-12 text-gray-200 mx-auto mb-3" />
-                    <p className="text-sm font-medium text-gray-500 mb-1">No products yet</p>
-                    <p className="text-xs text-gray-400 mb-4">Create your first product to get started</p>
-                    <Button size="sm" onClick={() => navigate('/products/new')} className="gap-1.5">
-                      <Plus className="w-3.5 h-3.5" /> Add Product
-                    </Button>
+                    {hasActiveQuery ? (
+                      <>
+                        <p className="text-sm font-medium text-gray-500 mb-1">No products found</p>
+                        <p className="text-xs text-gray-400 mb-4">
+                          {search.trim()
+                            ? `No results for "${search.trim()}". Try a different search or clear your filters.`
+                            : 'No products match your current filters. Try adjusting or clearing them.'}
+                        </p>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="gap-1.5"
+                          onClick={() => { setSearch(''); setSearchInput(''); clearFilters() }}
+                        >
+                          Clear search & filters
+                        </Button>
+                      </>
+                    ) : (
+                      <>
+                        <p className="text-sm font-medium text-gray-500 mb-1">No products yet</p>
+                        <p className="text-xs text-gray-400 mb-4">Create your first product to get started</p>
+                        <Button size="sm" onClick={() => navigate('/products/new')} className="gap-1.5">
+                          <Plus className="w-3.5 h-3.5" /> Add Product
+                        </Button>
+                      </>
+                    )}
                   </td>
                 </tr>
               ) : displayProducts.map((product) => {

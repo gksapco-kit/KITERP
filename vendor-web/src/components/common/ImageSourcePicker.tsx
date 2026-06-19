@@ -1,11 +1,14 @@
-import { useCallback, useRef, useState, type ReactNode } from 'react'
+import { useCallback, useId, useRef, useState, type ReactNode } from 'react'
 import { Loader2, Upload } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import {
-  galleryImageToFile,
+  remoteImageToFile,
   MediaUploadPickerModal,
 } from '@/components/common/MediaUploadPickerModal'
+
+/** Hidden but still activatable via programmatic .click() (display:none breaks some browsers). */
+const PICKER_FILE_INPUT_CLASS = 'fixed left-[-9999px] top-0 h-px w-px opacity-0 overflow-hidden'
 
 export type ImageSourcePickerTriggerProps = {
   open: () => void
@@ -48,7 +51,7 @@ async function remoteUrlsToFiles(
   const files: File[] = []
   for (const url of urls) {
     try {
-      files.push(await galleryImageToFile(url))
+      files.push(await remoteImageToFile(url))
     } catch {
       if (onUrl) {
         await onUrl(url)
@@ -78,7 +81,7 @@ async function remoteUrlToFileOrUrl(
     return
   }
   try {
-    await onFile(await galleryImageToFile(url))
+    await onFile(await remoteImageToFile(url))
   } catch {
     if (onUrl) {
       await onUrl(url)
@@ -108,6 +111,7 @@ export function ImageSourcePicker({
   children,
 }: ImageSourcePickerProps) {
   const [open, setOpen] = useState(false)
+  const fileInputId = useId()
   const fileRef = useRef<HTMLInputElement>(null)
 
   const openPicker = useCallback(() => {
@@ -116,10 +120,7 @@ export function ImageSourcePicker({
   }, [disabled, uploading])
 
   const handleLocal = () => {
-    setOpen(false)
-    window.requestAnimationFrame(() => {
-      fileRef.current?.click()
-    })
+    fileRef.current?.click()
   }
 
   const handleRemote = useCallback(
@@ -138,9 +139,9 @@ export function ImageSourcePicker({
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const list = e.target.files
-    e.target.value = ''
     if (!list?.length) return
     const files = Array.from(list)
+    e.target.value = ''
     try {
       if (files.length > 1 && onFiles) {
         await onFiles(files)
@@ -149,6 +150,7 @@ export function ImageSourcePicker({
       } else if (files[0]) {
         await onFile(files[0])
       }
+      setOpen(false)
     } catch {
       // Caller should toast; avoid unhandled rejection if they do not.
     }
@@ -179,11 +181,12 @@ export function ImageSourcePicker({
       )}
 
       <input
+        id={fileInputId}
         ref={fileRef}
         type="file"
         accept={accept}
         multiple={galleryMultiSelect}
-        className="hidden"
+        className={PICKER_FILE_INPUT_CLASS}
         onChange={handleFileChange}
       />
 
@@ -194,6 +197,7 @@ export function ImageSourcePicker({
         showGallery={showGallery}
         deviceHint={deviceHint}
         galleryMultiSelect={galleryMultiSelect}
+        deviceInputId={fileInputId}
         onChooseLocal={handleLocal}
         onChooseGalleryUrl={handleRemote}
         onChooseGalleryUrls={galleryMultiSelect ? handleRemoteMany : undefined}
@@ -215,15 +219,13 @@ export function useImageSourcePicker({
   onUrl,
 }: Pick<ImageSourcePickerProps, 'title' | 'accept' | 'showGallery' | 'galleryMultiSelect' | 'deviceHint' | 'onFile' | 'onFiles' | 'onUrl'>) {
   const [open, setOpen] = useState(false)
+  const fileInputId = useId()
   const fileRef = useRef<HTMLInputElement>(null)
 
   const openPicker = useCallback(() => setOpen(true), [])
 
   const handleLocal = () => {
-    setOpen(false)
-    window.requestAnimationFrame(() => {
-      fileRef.current?.click()
-    })
+    fileRef.current?.click()
   }
 
   const handleRemote = useCallback(
@@ -242,9 +244,9 @@ export function useImageSourcePicker({
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const list = e.target.files
-    e.target.value = ''
     if (!list?.length) return
     const files = Array.from(list)
+    e.target.value = ''
     try {
       if (files.length > 1 && onFiles) {
         await onFiles(files)
@@ -253,6 +255,7 @@ export function useImageSourcePicker({
       } else if (files[0]) {
         await onFile(files[0])
       }
+      setOpen(false)
     } catch {
       // Caller should toast; avoid unhandled rejection if they do not.
     }
@@ -260,11 +263,12 @@ export function useImageSourcePicker({
 
   const fileInput = (
     <input
+      id={fileInputId}
       ref={fileRef}
       type="file"
       accept={accept}
       multiple={galleryMultiSelect}
-      className="hidden"
+      className={PICKER_FILE_INPUT_CLASS}
       onChange={handleFileChange}
     />
   )
@@ -277,6 +281,7 @@ export function useImageSourcePicker({
       showGallery={showGallery}
       deviceHint={deviceHint}
       galleryMultiSelect={galleryMultiSelect}
+      deviceInputId={fileInputId}
       onChooseLocal={handleLocal}
       onChooseGalleryUrl={handleRemote}
       onChooseGalleryUrls={galleryMultiSelect ? handleRemoteMany : undefined}
