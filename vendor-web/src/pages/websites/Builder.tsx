@@ -31,6 +31,12 @@ import {
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import {
+  collectOverlayTargets,
+  snapOverlayDrag,
+  snapOverlayResize,
+  type OverlayGuideLine,
+} from '@/lib/overlayAlignmentSnap'
+import {
   useSite,
   useUpdateSite,
   useWebsiteTemplates,
@@ -1933,9 +1939,66 @@ function OverlayEditToolbar({
   const isIcon = item.type === 'icon'
   const hasLink = item.type === 'button' || item.type === 'badge' || item.type === 'text' || isImage || isIcon
   const isLinked = !!(item.linkType && item.linkType !== 'none')
-  const placeToolbarAbove = item.h > 220
-  const toolbarTop = placeToolbarAbove ? 0 : item.h + 8
   const showCanvasToolbar = true
+
+  // Floating, free-moving panel: it is rendered to <body> via a portal and
+  // positioned with its own viewport coordinates so it is NOT tied to the
+  // inserted element. The user can drag it anywhere by its header handle.
+  const panelRef = useRef<HTMLDivElement>(null)
+  const [panelPos, setPanelPos] = useState<{ top: number; left: number } | null>(null)
+
+  // Seed the initial position next to the selected element (once per selection).
+  useEffect(() => {
+    const width = OVERLAY_TOOLBAR_WIDTH_PX
+    const margin = 12
+    const host = document.querySelector(`[data-overlay-id="${CSS.escape(item.id)}"]`)
+    const rect = host?.getBoundingClientRect()
+    let left: number
+    let top: number
+    if (rect) {
+      if (rect.right + margin + width <= window.innerWidth) {
+        left = rect.right + margin
+        top = rect.top
+      } else if (rect.left - margin - width >= 0) {
+        left = rect.left - margin - width
+        top = rect.top
+      } else {
+        left = Math.min(window.innerWidth - width - 8, Math.max(8, rect.left))
+        top = rect.bottom + margin
+      }
+    } else {
+      left = window.innerWidth - width - 24
+      top = 96
+    }
+    left = Math.max(8, Math.min(window.innerWidth - width - 8, left))
+    top = Math.max(8, Math.min(window.innerHeight - 80, top))
+    setPanelPos({ top, left })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [item.id])
+
+  const startPanelDrag = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation()
+    e.preventDefault()
+    const panel = panelRef.current
+    if (!panel) return
+    const rect = panel.getBoundingClientRect()
+    const offsetX = e.clientX - rect.left
+    const offsetY = e.clientY - rect.top
+    const onMove = (mv: MouseEvent) => {
+      const w = panel.offsetWidth
+      const left = Math.max(8, Math.min(window.innerWidth - w - 8, mv.clientX - offsetX))
+      const top = Math.max(8, Math.min(window.innerHeight - 40, mv.clientY - offsetY))
+      setPanelPos({ top, left })
+    }
+    const onUp = () => {
+      document.body.style.userSelect = ''
+      document.removeEventListener('mousemove', onMove)
+      document.removeEventListener('mouseup', onUp)
+    }
+    document.body.style.userSelect = 'none'
+    document.addEventListener('mousemove', onMove)
+    document.addEventListener('mouseup', onUp)
+  }, [])
 
   const stopToolbarEvent = (e: React.SyntheticEvent) => {
     e.stopPropagation()
@@ -1986,28 +2049,45 @@ function OverlayEditToolbar({
   const toolbarBtn =
     'flex h-8 w-full min-w-0 items-center justify-center rounded-lg transition-colors'
 
-  if (!showCanvasToolbar) return null
+  if (!showCanvasToolbar || !panelPos) return null
 
-  return (
+  return createPortal(
     <div
+      ref={panelRef}
       data-overlay-toolbar
+      data-builder-floating-ui
       role="toolbar"
       aria-label="Overlay element options"
       className={cn(
-        'absolute left-0 z-[25] box-border overflow-hidden rounded-xl border p-2.5 backdrop-blur-sm',
+        'fixed z-[1000] box-border flex max-h-[calc(100vh-24px)] flex-col overflow-hidden rounded-xl border backdrop-blur-sm',
         overlayToolbarUi.panel,
       )}
       style={{
-        top: toolbarTop,
+        top: panelPos.top,
+        left: panelPos.left,
         width: OVERLAY_TOOLBAR_WIDTH_PX,
-        ...(placeToolbarAbove ? { transform: 'translateY(calc(-100% - 8px))' } : {}),
       }}
       onMouseDown={stopToolbarEvent}
       onPointerDown={stopToolbarEvent}
       onClick={stopToolbarEvent}
       onDoubleClick={stopToolbarEvent}
     >
-      <div className="space-y-2">
+      {/* Draggable header ? lets the user move this panel anywhere on screen,
+          independent of the element it edits. */}
+      <div
+        data-overlay-toolbar-handle
+        onMouseDown={startPanelDrag}
+        className={cn(
+          'flex cursor-move select-none items-center gap-1.5 border-b px-2.5 py-1.5',
+          overlayToolbarUi.footer,
+        )}
+        title="Drag to move this panel"
+      >
+        <GripVertical className="h-3.5 w-3.5 shrink-0 opacity-70" />
+        <span className="text-[11px] font-semibold capitalize">{item.type} settings</span>
+        <Move className="ml-auto h-3.5 w-3.5 shrink-0 opacity-50" />
+      </div>
+      <div className="space-y-2 overflow-y-auto p-2.5">
         <OverlayToolbarSection title="Position & size">
           <OverlayTransformControls
             item={item}
@@ -2190,12 +2270,13 @@ function OverlayEditToolbar({
         </div>
       )}
       </div>
-    </div>
+    </div>,
+    document.body,
   )
 }
 
 function OverlayElement({
-  item, isSelected, containerRef, blockBackgroundColor, onSelect, onUpdate, onDelete,
+  item, isSelected, containerRef, blockBackgroundColor, siblings, onDragGuides, onSelect, onUpdate, onDelete,
   onOpenAiForImage, onOpenMediaForImage, onPickLocalImage, onImageFileDrop,
   onEditLink, onContextMenu, onRequestText, onBringToFront, onSendToBack,
 }: {
@@ -2203,6 +2284,10 @@ function OverlayElement({
   isSelected: boolean
   containerRef: React.RefObject<HTMLDivElement>
   blockBackgroundColor?: string
+  /** Other overlays on the same canvas — used as alignment snap targets. */
+  siblings?: BlockOverlayItem[]
+  /** Publish live alignment guide lines while dragging/resizing ([] to clear). */
+  onDragGuides?: (guides: OverlayGuideLine[]) => void
   onSelect: () => void
   onUpdate: (u: Partial<BlockOverlayItem>) => void
   onDelete: () => void
@@ -2271,24 +2356,32 @@ function OverlayElement({
       }
       const cw = container?.clientWidth || 800
       const ch = container?.clientHeight || 400
+      const rawX = Math.max(0, Math.min(cw - item.w, mv.clientX - startX))
+      const rawY = Math.max(0, Math.min(ch - 20, mv.clientY - startY))
+      // Snap to sibling overlays + the container's edges/center, Figma-style.
+      const targets = collectOverlayTargets(siblings ?? [], cw, ch)
+      const snapped = snapOverlayDrag({ x: rawX, y: rawY, w: item.w, h: item.h }, targets)
+      onDragGuides?.(snapped.guides)
       onUpdate({
-        x: Math.max(0, Math.min(cw - item.w, mv.clientX - startX)),
-        y: Math.max(0, Math.min(ch - 20, mv.clientY - startY)),
+        x: Math.max(0, Math.min(cw - item.w, snapped.x)),
+        y: Math.max(0, Math.min(ch - 20, snapped.y)),
       })
     }
     const onUp = () => {
       document.body.style.cursor = ''
+      onDragGuides?.([])
       document.removeEventListener('mousemove', onMove)
       document.removeEventListener('mouseup', onUp)
     }
     document.addEventListener('mousemove', onMove)
     document.addEventListener('mouseup', onUp)
-  }, [textEditing, item.x, item.y, item.w, containerRef, onUpdate])
+  }, [textEditing, item.x, item.y, item.w, item.h, containerRef, onUpdate, siblings, onDragGuides])
 
   const startResize = useCallback((e: React.MouseEvent, handle: string) => {
     e.stopPropagation(); e.preventDefault()
     const sx = e.clientX, sy = e.clientY
     const ox = item.x, oy = item.y, ow = item.w, oh = item.h
+    const container = containerRef.current
     document.body.style.cursor = OVERLAY_RESIZE_CURSORS[handle]
     const onMove = (mv: MouseEvent) => {
       const dx = mv.clientX - sx, dy = mv.clientY - sy
@@ -2297,11 +2390,17 @@ function OverlayElement({
       if (handle.includes('w')) { nx = ox + dx; nw = Math.max(40, ow - dx) }
       if (handle.includes('s')) nh = Math.max(20, oh + dy)
       if (handle.includes('n')) { ny = oy + dy; nh = Math.max(20, oh - dy) }
-      onUpdate({ x: nx, y: ny, w: nw, h: nh })
+      // Snap the edge(s) being dragged to nearby siblings / container edges.
+      const cw = container?.clientWidth || 800
+      const ch = container?.clientHeight || 400
+      const targets = collectOverlayTargets(siblings ?? [], cw, ch)
+      const snapped = snapOverlayResize({ x: nx, y: ny, w: nw, h: nh }, targets, handle)
+      onDragGuides?.(snapped.guides)
+      onUpdate({ x: snapped.x, y: snapped.y, w: snapped.w, h: snapped.h })
     }
-    const onUp = () => { document.body.style.cursor = ''; document.removeEventListener('mousemove', onMove); document.removeEventListener('mouseup', onUp) }
+    const onUp = () => { document.body.style.cursor = ''; onDragGuides?.([]); document.removeEventListener('mousemove', onMove); document.removeEventListener('mouseup', onUp) }
     document.addEventListener('mousemove', onMove); document.addEventListener('mouseup', onUp)
-  }, [item.x, item.y, item.w, item.h, onUpdate])
+  }, [item.x, item.y, item.w, item.h, containerRef, onUpdate, siblings, onDragGuides])
 
   const renderContent = () => {
     const fillFallback = defaultOverlayFillColor(item.type)
@@ -2528,6 +2627,7 @@ function BlockOverlayCanvas({
   }) => void
 }) {
   const [internalSelectedId, setInternalSelectedId] = useState<string | null>(null)
+  const [dragGuides, setDragGuides] = useState<OverlayGuideLine[]>([])
   const containerRef = useRef<HTMLDivElement>(null)
   const isControlled = controlledSelectedId !== undefined
   const selectedId = isControlled ? controlledSelectedId : internalSelectedId
@@ -2617,6 +2717,8 @@ function BlockOverlayCanvas({
             isSelected={isEditing && selectedId === item.id}
             containerRef={containerRef as React.RefObject<HTMLDivElement>}
             blockBackgroundColor={blockBackgroundColor}
+            siblings={overlays.filter(o => o.id !== item.id)}
+            onDragGuides={setDragGuides}
             onSelect={() => setSelected(item.id)}
             onUpdate={updates => updateItem(item.id, updates)}
             onDelete={() => deleteItem(item.id)}
@@ -2642,6 +2744,26 @@ function BlockOverlayCanvas({
           />
         </div>
       ))}
+      {/* Figma-style alignment guides shown live while dragging / resizing. */}
+      {isEditing && dragGuides.length > 0 ? (
+        <div className="pointer-events-none absolute inset-0 z-[90] overflow-visible" aria-hidden>
+          {dragGuides.map((guide, index) =>
+            guide.axis === 'x' ? (
+              <div
+                key={`x-${index}-${guide.value}`}
+                className="absolute w-px bg-fuchsia-500 shadow-[0_0_0_1px_rgba(255,255,255,0.85)]"
+                style={{ left: guide.value, top: guide.start, height: Math.max(1, guide.end - guide.start) }}
+              />
+            ) : (
+              <div
+                key={`y-${index}-${guide.value}`}
+                className="absolute h-px bg-fuchsia-500 shadow-[0_0_0_1px_rgba(255,255,255,0.85)]"
+                style={{ top: guide.value, left: guide.start, width: Math.max(1, guide.end - guide.start) }}
+              />
+            ),
+          )}
+        </div>
+      ) : null}
     </div>
   )
 }
