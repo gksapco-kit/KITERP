@@ -178,6 +178,7 @@ class ProductCreate(BaseModel):
     # Basic
     name: str = Field(..., min_length=2, max_length=255)
     slug: Optional[str] = None
+    material_code: Optional[str] = Field(None, max_length=40)
     description: Optional[str] = None
     short_description: Optional[str] = Field(None, max_length=500)
     brand: Optional[str] = Field(None, max_length=255)
@@ -293,6 +294,7 @@ class ProductCreate(BaseModel):
 class ProductUpdate(BaseModel):
     # Basic
     name: Optional[str] = Field(None, min_length=2, max_length=255)
+    material_code: Optional[str] = Field(None, max_length=40)
     description: Optional[str] = None
     short_description: Optional[str] = Field(None, max_length=500)
     brand: Optional[str] = Field(None, max_length=255)
@@ -412,6 +414,7 @@ class ProductResponse(BaseModel):
     # Basic
     name: str
     slug: str
+    material_code: Optional[str] = None
     description: Optional[str] = None
     short_description: Optional[str] = None
     brand: Optional[str] = None

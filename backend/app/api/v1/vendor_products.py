@@ -26,6 +26,7 @@ from app.services.vendor_service import VendorService
 from app.repositories.product_repo import ProductRepository
 from app.services.media_upload import save_media_file, detect_media_type
 from app.services.catalog_store_scope import sync_product_stores
+from app.services.material_code import generate_product_material_code
 
 from datetime import date as date_type, datetime
 
@@ -77,6 +78,7 @@ def _product_to_dict(p) -> dict:
         # Basic
         "name": p.name,
         "slug": p.slug,
+        "material_code": p.material_code,
         "description": p.description,
         "short_description": p.short_description,
         "brand": p.brand,
@@ -442,6 +444,10 @@ async def create_product(
     store_ids = data.store_ids or []
     fields["store_scope"] = store_scope
     fields["slug"] = slug
+    material_code = (data.material_code or "").strip()
+    if not material_code:
+        material_code = await generate_product_material_code(db, vendor_id)
+    fields["material_code"] = material_code
     fields["vendor_id"] = vendor_id
     fields["created_by"] = current_user.id
     fields["updated_by"] = current_user.id
@@ -537,6 +543,17 @@ async def update_product(
     variants_payload = update_data.pop("variants", None)
     store_ids_payload = update_data.pop("store_ids", None)
     _coerce_date_fields(update_data)
+
+    # Material code is auto-assigned and must never be blanked. Trim it when
+    # provided, drop empty values, and backfill legacy products that lack one.
+    if "material_code" in update_data:
+        mc = (update_data.get("material_code") or "").strip()
+        if mc:
+            update_data["material_code"] = mc
+        else:
+            update_data.pop("material_code")
+    if not product.material_code and "material_code" not in update_data:
+        update_data["material_code"] = await generate_product_material_code(db, vendor_id)
 
     # Build change diff for audit history
     # Fields that are internal/noisy and should never appear in user-visible history

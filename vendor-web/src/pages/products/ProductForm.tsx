@@ -135,6 +135,7 @@ const schema = z.object({
   // Basic
   name: z.string().min(2, 'Product name must be at least 2 characters').max(255, 'Product name cannot exceed 255 characters'),
   slug: z.string().max(255).regex(/^[a-z0-9-]*$/, 'Slug can only contain lowercase letters, numbers, and hyphens').optional().or(z.literal('')),
+  material_code: z.string().max(40).optional().or(z.literal('')),
   description: optStr,
   short_description: z.string().max(500, 'Short description cannot exceed 500 characters').optional().or(z.literal('')),
   brand: optStr,
@@ -1004,6 +1005,7 @@ function ProductDisplay({ product, onEdit, onBack, priceRules = [], merchMapping
           </div>
           <div className={formDisplayCompact.fieldGrid}>
             <DisplayField label="Product Name" value={product.name} />
+            <DisplayField label="Material Code" value={product.material_code ? <span className="font-mono text-gray-700">{product.material_code}</span> : undefined} />
             <DisplayField label="Brand" value={product.brand} />
             <DisplayField label="Type" value={<span className="px-2 py-0.5 text-xs rounded-full font-medium bg-blue-50 text-blue-700 capitalize">{product.product_type || 'physical'}</span>} />
             <DisplayField label="Category" value={product.category} />
@@ -2123,6 +2125,7 @@ export default function ProductForm() {
     resolver: zodResolver(schema),
     defaultValues: {
       status: 'active', quantity: 0, price: 0, currency: 'INR', product_type: 'physical', uom: 'piece',
+      material_code: '',
       is_taxable: true, track_inventory: true, is_returnable: true, requires_shipping: true,
       weight_unit: 'kg', length_unit: 'cm', width_unit: 'cm', height_unit: 'cm',
       is_visible: true, low_stock_threshold: 5, stock_status: 'in_stock',
@@ -2415,6 +2418,7 @@ export default function ProductForm() {
     if (!product) return
     reset({
       name: product.name, slug: toSlug(product.slug),
+      material_code: product.material_code || '',
       description: product.description || '', short_description: product.short_description || '',
       brand: product.brand || '', product_type: product.product_type || 'physical',
       category: product.category || '', subcategory: product.subcategory || '',
@@ -3233,6 +3237,33 @@ export default function ProductForm() {
                 </select>
               </FormField>
               <FormField label="Tags (comma separated)"><Input {...register('tags')} placeholder="tag1, tag2, tag3" /></FormField>
+              <FormField label="Material Code">
+                <div className="space-y-1">
+                  <div className="relative">
+                    <Hash className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-gray-400" />
+                    <Input
+                      {...register('material_code')}
+                      readOnly
+                      placeholder="Auto-generated on save"
+                      className="w-full min-w-0 cursor-default bg-gray-50 pl-8 pr-9 font-mono text-gray-700"
+                    />
+                    {isEdit && watch('material_code') ? (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          navigator.clipboard?.writeText(String(getValues('material_code') || ''))
+                          toast.success('Material code copied')
+                        }}
+                        className="absolute right-1.5 top-1/2 -translate-y-1/2 rounded p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+                        title="Copy material code"
+                      >
+                        <Copy className="h-3.5 w-3.5" />
+                      </button>
+                    ) : null}
+                  </div>
+                  <p className="text-xs text-gray-400">Unique item code, assigned automatically.</p>
+                </div>
+              </FormField>
             </div>
             {/* Product type context banner */}
             {productType && productType !== 'physical' && (

@@ -1,7 +1,7 @@
 # app/models/vendor_service.py
 from sqlalchemy import (
     Column, String, Text, Boolean, DateTime, Date,
-    ForeignKey, Numeric, Integer, Float, Index
+    ForeignKey, Numeric, Integer, Float, Index, text
 )
 from sqlalchemy.dialects.postgresql import UUID, JSONB
 from sqlalchemy.orm import relationship
@@ -21,6 +21,8 @@ class Service(Base):
     # ── Basic Info ────────────────────────────────────────────────
     name = Column(String(255), nullable=False)
     slug = Column(String(255), nullable=False)
+    # Unique, human-readable material/item code auto-assigned on creation (e.g. SVC-00001)
+    material_code = Column(String(40))
     description = Column(Text)
     short_description = Column(String(500))
     brand = Column(String(255))
@@ -132,6 +134,12 @@ class Service(Base):
     __table_args__ = (
         Index("idx_service_vendor", "vendor_id"),
         Index("idx_service_slug", "vendor_id", "slug", unique=True),
+        Index(
+            "idx_service_material_code",
+            "vendor_id", "material_code",
+            unique=True,
+            postgresql_where=text("material_code IS NOT NULL"),
+        ),
         Index("idx_service_status", "status"),
         Index("idx_service_category", "category"),
         Index("idx_service_type", "service_type"),

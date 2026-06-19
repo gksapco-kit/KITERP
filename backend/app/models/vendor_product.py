@@ -1,7 +1,7 @@
 # app/models/vendor_product.py
 from sqlalchemy import (
     Column, String, Text, Boolean, DateTime, Date,
-    ForeignKey, Numeric, Integer, Index
+    ForeignKey, Numeric, Integer, Index, text
 )
 from sqlalchemy.dialects.postgresql import UUID, JSONB
 from sqlalchemy.orm import relationship
@@ -19,6 +19,8 @@ class Product(Base):
     # ── Basic Info ────────────────────────────────────────────────
     name = Column(String(255), nullable=False)
     slug = Column(String(255), nullable=False)
+    # Unique, human-readable material/item code auto-assigned on creation (e.g. MAT-00001)
+    material_code = Column(String(40))
     description = Column(Text)
     short_description = Column(String(500))
     brand = Column(String(255))
@@ -147,6 +149,12 @@ class Product(Base):
     __table_args__ = (
         Index("idx_product_vendor", "vendor_id"),
         Index("idx_product_slug", "vendor_id", "slug", unique=True),
+        Index(
+            "idx_product_material_code",
+            "vendor_id", "material_code",
+            unique=True,
+            postgresql_where=text("material_code IS NOT NULL"),
+        ),
         Index("idx_product_status", "status"),
         Index("idx_product_category", "category"),
         Index("idx_product_brand", "brand"),

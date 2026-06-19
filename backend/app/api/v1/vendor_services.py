@@ -19,6 +19,7 @@ from app.schemas.vendor_service import (
 from app.services.vendor_service import VendorService
 from app.repositories.service_repo import ServiceRepository
 from app.services.catalog_store_scope import sync_service_stores
+from app.services.material_code import generate_service_material_code
 
 from datetime import date as date_type, datetime
 
@@ -126,6 +127,7 @@ def _service_to_dict(s) -> dict:
         # Basic
         "name": s.name,
         "slug": s.slug,
+        "material_code": s.material_code,
         "description": s.description,
         "short_description": s.short_description,
         "brand": s.brand,
@@ -358,6 +360,10 @@ async def create_service(
             fields[key] = val.value
 
     fields["slug"] = slug
+    material_code = (data.material_code or "").strip()
+    if not material_code:
+        material_code = await generate_service_material_code(db, vendor_id)
+    fields["material_code"] = material_code
     fields["vendor_id"] = vendor_id
     fields["created_by"] = current_user.id
     fields["updated_by"] = current_user.id
@@ -438,6 +444,17 @@ async def update_service(
     plans_data = update_data.pop("plans", None)
     store_ids_payload = update_data.pop("store_ids", None)
     _coerce_date_fields(update_data)
+
+    # Material code is auto-assigned and must never be blanked. Trim it when
+    # provided, drop empty values, and backfill legacy services that lack one.
+    if "material_code" in update_data:
+        mc = (update_data.get("material_code") or "").strip()
+        if mc:
+            update_data["material_code"] = mc
+        else:
+            update_data.pop("material_code")
+    if not svc.material_code and "material_code" not in update_data:
+        update_data["material_code"] = await generate_service_material_code(db, vendor_id)
 
     # Build change diff for audit history
     # Fields that are internal/noisy and should never appear in user-visible history

@@ -186,6 +186,7 @@ export interface Product {
   // Basic
   name: string
   slug: string
+  material_code?: string
   description?: string
   short_description?: string
   brand?: string
@@ -429,6 +430,7 @@ export interface Service {
   // Basic
   name: string
   slug: string
+  material_code?: string
   description?: string
   short_description?: string
   brand?: string

@@ -30,7 +30,7 @@ import {
   Clock, Eye, Search, Puzzle, BarChart3, Edit2, History,
   Calendar, MapPin, Star, Globe, Tag, Repeat, Plus, Trash2,
   GripVertical, Film, Box, Image as ImageIcon, Copy, MessageSquare, ToggleRight, Info, Layers, Pencil, FileDown,
-  Printer, Store,
+  Printer, Store, Hash,
 } from 'lucide-react'
 import {
   BOOKING_DOC_TYPES, getServiceDocTemplates, setServiceDocTemplates,
@@ -97,6 +97,7 @@ const optInt = z.coerce.number().int().optional().or(z.literal('').transform(() 
 const schema = z.object({
   name: z.string().min(2, 'Name must be at least 2 characters').max(255, 'Service name cannot exceed 255 characters'),
   slug: z.string().max(255).regex(/^[a-z0-9-]*$/, 'Slug: lowercase, numbers, hyphens only').optional().or(z.literal('')),
+  material_code: z.string().max(40).optional().or(z.literal('')),
   description: optStr,
   short_description: z.string().max(500, 'Short description cannot exceed 500 characters').optional().or(z.literal('')),
   brand: optStr,
@@ -660,6 +661,7 @@ export default function ServiceForm() {
     resolver: zodResolver(schema),
     defaultValues: {
       status: 'active', price_type: 'fixed', currency: 'INR', uom: 'per_session',
+      material_code: '',
       service_mode: 'in_store', service_type: 'one_time', is_taxable: true,
       requires_booking: true, is_visible: true, buffer_minutes: 0,
       service_capacity: 1, max_bookings_per_slot: 1, advance_booking_days: 30,
@@ -727,6 +729,7 @@ export default function ServiceForm() {
     if (!service) return
     reset({
       name: service.name, slug: toSlug(service.slug),
+      material_code: service.material_code || '',
       description: service.description || '', short_description: service.short_description || '',
       brand: service.brand || '', service_type: service.service_type || 'one_time',
       category: service.category || '', subcategory: service.subcategory || '',
@@ -1302,6 +1305,7 @@ export default function ServiceForm() {
             )}
 
             <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+              <DisplayField label="Material Code" value={service.material_code ? <span className="font-mono text-gray-700">{service.material_code}</span> : undefined} />
               <DisplayField label="Service Mode" value={modeLbl} />
               <DisplayField label="Category" value={service.category} />
               <DisplayField label="Subcategory" value={service.subcategory} />
@@ -1789,6 +1793,33 @@ export default function ServiceForm() {
             <div className={formEditLayout.fieldGridWide}>
               <FormField label="Service Name" name="name" required>
                 <Input {...register('name')} placeholder="e.g. AC Repair & Service" />
+              </FormField>
+              <FormField label="Material Code">
+                <div className="space-y-1">
+                  <div className="relative">
+                    <Hash className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-gray-400" />
+                    <Input
+                      {...register('material_code')}
+                      readOnly
+                      placeholder="Auto-generated on save"
+                      className="w-full min-w-0 cursor-default bg-gray-50 pl-8 pr-9 font-mono text-gray-700"
+                    />
+                    {isEdit && watch('material_code') ? (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          navigator.clipboard?.writeText(String(watch('material_code') || ''))
+                          toast.success('Material code copied')
+                        }}
+                        className="absolute right-1.5 top-1/2 -translate-y-1/2 rounded p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+                        title="Copy material code"
+                      >
+                        <Copy className="h-3.5 w-3.5" />
+                      </button>
+                    ) : null}
+                  </div>
+                  <p className="text-xs text-gray-400">Unique item code, assigned automatically.</p>
+                </div>
               </FormField>
               <div className="sm:col-span-2 space-y-1.5">
                 <Label>Category</Label>
