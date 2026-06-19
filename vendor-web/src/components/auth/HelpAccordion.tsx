@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Phone, MessageCircle, HelpCircle, ChevronDown, ChevronUp } from 'lucide-react'
-import { cn } from '@/lib/utils'
+import { cn, focusRingClassName } from '@/lib/utils'
 
 const SUPPORT_PHONE = import.meta.env.VITE_SUPPORT_PHONE as string | undefined
 const SUPPORT_CHAT_URL = import.meta.env.VITE_SUPPORT_CHAT_URL as string | undefined
@@ -9,14 +9,16 @@ const SUPPORT_CHAT_URL = import.meta.env.VITE_SUPPORT_CHAT_URL as string | undef
 export function HelpAccordion() {
   const [open, setOpen] = useState(false)
   return (
-    <div className="border border-gray-200 rounded-xl overflow-hidden">
+    <div className="border border-gray-200 rounded-xl">
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
         className={cn(
-          'w-full flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 transition-colors',
+          'w-full flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 transition-colors rounded-xl',
+          focusRingClassName,
           open ? 'bg-accent' : 'hover:bg-gray-50',
         )}
+        aria-expanded={open}
       >
         <HelpCircle className="w-4 h-4 text-primary/80 shrink-0" />
         <span className="flex-1 text-left">Help &amp; Support</span>
@@ -27,7 +29,10 @@ export function HelpAccordion() {
         <div className="px-4 py-3 border-t border-gray-100 bg-gray-50 space-y-1.5">
           <Link
             to="/forgot-password"
-            className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-gray-700 hover:bg-white hover:shadow-sm transition-all"
+            className={cn(
+              'flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-gray-700 hover:bg-white hover:shadow-sm transition-all',
+              focusRingClassName,
+            )}
           >
             <span className="text-base">🔑</span>
             <div>
@@ -39,7 +44,10 @@ export function HelpAccordion() {
           {SUPPORT_PHONE ? (
             <a
               href={`tel:${SUPPORT_PHONE.replace(/[^\d+]/g, '')}`}
-              className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-gray-700 hover:bg-white hover:shadow-sm transition-all"
+              className={cn(
+                'flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-gray-700 hover:bg-white hover:shadow-sm transition-all',
+                focusRingClassName,
+              )}
             >
               <Phone className="w-4 h-4 text-primary shrink-0" />
               <div>
@@ -50,7 +58,10 @@ export function HelpAccordion() {
           ) : (
             <a
               href="mailto:support@kiterp.com"
-              className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-gray-700 hover:bg-white hover:shadow-sm transition-all"
+              className={cn(
+                'flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-gray-700 hover:bg-white hover:shadow-sm transition-all',
+                focusRingClassName,
+              )}
             >
               <Phone className="w-4 h-4 text-primary shrink-0" />
               <div>
@@ -64,7 +75,10 @@ export function HelpAccordion() {
             href={SUPPORT_CHAT_URL || 'mailto:support@kiterp.com'}
             target={SUPPORT_CHAT_URL ? '_blank' : undefined}
             rel="noopener noreferrer"
-            className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-gray-700 hover:bg-white hover:shadow-sm transition-all"
+            className={cn(
+              'flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-gray-700 hover:bg-white hover:shadow-sm transition-all',
+              focusRingClassName,
+            )}
           >
             <MessageCircle className="w-4 h-4 text-emerald-600 shrink-0" />
             <div>

@@ -5,6 +5,10 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }
 
+/** Keyboard focus ring for buttons, links, and dropdown triggers (inset — not clipped by overflow-hidden). */
+export const focusRingClassName =
+  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring focus-visible:border-primary'
+
 export function formatCurrency(amount: number, currency: string = 'INR'): string {
   return new Intl.NumberFormat('en-IN', {
     style: 'currency',

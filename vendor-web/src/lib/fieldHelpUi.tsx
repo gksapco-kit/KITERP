@@ -300,7 +300,8 @@ export function useFieldHelpUi({
   const interactiveProps = enabled
     ? {
         role: 'button' as const,
-        tabIndex: 0,
+        // Keep labels out of sequential tab order — inputs, buttons, and links only.
+        tabIndex: -1,
         className:
           'inline-flex cursor-pointer items-center gap-1 rounded-sm outline-none hover:text-gray-900 focus-visible:ring-2 focus-visible:ring-primary/40',
         onMouseEnter: handlePointerEnter,

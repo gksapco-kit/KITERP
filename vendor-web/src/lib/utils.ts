@@ -6,6 +6,10 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }
 
+/** Keyboard focus ring for buttons, links, and dropdown triggers (inset so rings aren't clipped by overflow-hidden). */
+export const focusRingClassName =
+  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring focus-visible:border-primary'
+
 /** Close modal only when clicking the dimmed backdrop, not when events bubble from inputs inside the panel. */
 export function onModalBackdropClick(onClose: () => void) {
   return (e: MouseEvent<HTMLDivElement>) => {

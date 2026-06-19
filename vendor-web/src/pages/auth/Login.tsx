@@ -15,7 +15,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import {
   Loader2, Eye, EyeOff, Lock, Phone, MessageCircle, HelpCircle, ChevronDown, ChevronUp, ServerOff, RefreshCw, Store,
 } from 'lucide-react'
-import { cn } from '@/lib/utils'
+import { cn, focusRingClassName } from '@/lib/utils'
 import { formatFormFieldError } from '@/lib/formFieldErrors'
 import { checkBackendReachable, getBackendHealthUrl } from '@/lib/apiHealth'
 import { resolveApiBaseUrl } from '@/lib/apiBase'
@@ -51,7 +51,7 @@ function getUnreachableApiMessage(): string {
     return 'Cannot sign in — the API on port 8000 is not reachable. Start Docker Desktop, then run: docker compose up -d postgres redis backend'
   }
   const healthUrl = getBackendHealthUrl()
-  return `Cannot sign in — the API is not reachable. Open ${healthUrl} (expect {"status":"healthy"}), then on the server run: docker compose -f docker-compose.prod.yml --env-file .env.config logs backend`
+  return `Cannot sign in — the API is not reachable. Open ${healthUrl} (expect ${'{"status":"healthy"}'}), then on the server run: docker compose -f docker-compose.prod.yml --env-file .env.config logs backend`
 }
 
 function isLocalDevHost(): boolean {
@@ -322,7 +322,7 @@ export default function Login() {
 
           <div className="w-full space-y-1">
             <div className="flex min-h-[1.745625rem] items-center justify-between gap-2">
-              <Label htmlFor="password" className="text-xs font-medium text-foreground">
+              <Label htmlFor="password" autoHelp={false} className="text-xs font-medium text-foreground">
                 Password
               </Label>
               <span className="invisible shrink-0 select-none whitespace-nowrap text-xs font-medium text-foreground" aria-hidden>
@@ -402,48 +402,17 @@ export default function Login() {
           </div>
         </form>
 
-        <div className="space-y-[0.748125rem] border-t border-border pt-[0.9975rem]">
-          <div className="flex flex-wrap items-center justify-center gap-2">
-            <span className="text-[0.8625rem] font-semibold text-muted-foreground">No account yet?</span>
-            <Link
-              to="/register"
-              className={cn(
-                'inline-flex items-center justify-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition-all',
-                'bg-gradient-to-r from-sky-50 to-blue-50 text-[hsl(204.42deg_94.86%_48.34%)]',
-                'border border-sky-200/60',
-                'hover:from-sky-100 hover:to-blue-100 hover:border-sky-300/80 hover:underline',
-                'focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2',
-              )}
-            >
-              <Store className="h-3.5 w-3.5 shrink-0" aria-hidden />
-              Create your business
-            </Link>
-          </div>
-
-          <div className="text-center">
-            <Link
-              to="/forgot-password"
-              className={cn(
-                'inline-block rounded-md px-2 py-1 text-xs font-medium transition-colors',
-                LOGIN_LINK_COLOR,
-                'hover:bg-[hsl(204.42deg_94.86%_48.34%_/_0.08)]',
-                'focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2',
-              )}
-            >
-              Forgot password?
-            </Link>
-          </div>
-        </div>
-
-        {/* Help accordion */}
-        <div className="mt-1 overflow-hidden rounded-lg border border-border">
+        {/* Help accordion — before footer links so Tab reaches it after the checkbox */}
+        <div className="mt-1 rounded-lg border border-border">
           <button
             type="button"
             onClick={() => setHelpOpen((v) => !v)}
             className={cn(
-              'w-full flex items-center gap-1.5 px-3 py-2 text-xs font-medium text-foreground transition-colors',
+              'w-full flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-medium text-foreground transition-colors',
+              focusRingClassName,
               helpOpen ? 'bg-accent' : 'hover:bg-muted/60',
             )}
+            aria-expanded={helpOpen}
           >
             <HelpCircle className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
             <span className="flex-1 text-left">Help &amp; Support</span>
@@ -460,6 +429,7 @@ export default function Login() {
                 className={cn(
                   'flex items-center gap-2 px-2 py-1.5 rounded-lg',
                   'text-xs text-foreground hover:bg-background/80 hover:shadow-sm transition-all',
+                  focusRingClassName,
                 )}
               >
                 <span className="text-sm">🔑</span>
@@ -476,6 +446,7 @@ export default function Login() {
                   className={cn(
                     'flex items-center gap-2 px-2 py-1.5 rounded-lg',
                     'text-xs text-foreground hover:bg-background/80 hover:shadow-sm transition-all',
+                    focusRingClassName,
                   )}
                 >
                   <Phone className="w-3.5 h-3.5 text-primary shrink-0" />
@@ -490,6 +461,7 @@ export default function Login() {
                   className={cn(
                     'flex items-center gap-2 px-2 py-1.5 rounded-lg',
                     'text-xs text-foreground hover:bg-background/80 hover:shadow-sm transition-all',
+                    focusRingClassName,
                   )}
                 >
                   <Phone className="w-3.5 h-3.5 text-primary shrink-0" />
@@ -508,6 +480,7 @@ export default function Login() {
                 className={cn(
                   'flex items-center gap-2 px-2 py-1.5 rounded-lg',
                   'text-xs text-foreground hover:bg-background/80 hover:shadow-sm transition-all',
+                  focusRingClassName,
                 )}
               >
                 <MessageCircle className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
@@ -520,6 +493,39 @@ export default function Login() {
               </a>
             </div>
           )}
+        </div>
+
+        <div className="space-y-[0.748125rem] border-t border-border pt-[0.9975rem]">
+          <div className="flex flex-wrap items-center justify-center gap-2">
+            <span className="text-[0.8625rem] font-semibold text-muted-foreground">No account yet?</span>
+            <Link
+              to="/register"
+              className={cn(
+                'inline-flex items-center justify-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition-all',
+                'bg-gradient-to-r from-sky-50 to-blue-50 text-[hsl(204.42deg_94.86%_48.34%)]',
+                'border border-sky-200/60',
+                'hover:from-sky-100 hover:to-blue-100 hover:border-sky-300/80 hover:underline',
+                focusRingClassName,
+              )}
+            >
+              <Store className="h-3.5 w-3.5 shrink-0" aria-hidden />
+              Create your business
+            </Link>
+          </div>
+
+          <div className="text-center">
+            <Link
+              to="/forgot-password"
+              className={cn(
+                'inline-block rounded-md px-2 py-1 text-xs font-medium transition-colors',
+                LOGIN_LINK_COLOR,
+                'hover:bg-[hsl(204.42deg_94.86%_48.34%_/_0.08)]',
+                focusRingClassName,
+              )}
+            >
+              Forgot password?
+            </Link>
+          </div>
         </div>
       </CardContent>
     </Card>

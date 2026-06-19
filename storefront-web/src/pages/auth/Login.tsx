@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input'
 import { SmartLoginInput } from '@/components/ui/SmartLoginInput'
 import { useCustomerLogin } from '@/hooks/useStore'
 import { useVendor } from '@/contexts/VendorContext'
-import { imgUrl, cn } from '@/lib/utils'
+import { imgUrl, cn, focusRingClassName } from '@/lib/utils'
 import { isValidEmailOrPhoneLogin } from '@/lib/loginIdentifier'
 import { formatCustomerAuthError } from '@/lib/errorMessages'
 import {
@@ -231,7 +231,7 @@ export default function Login() {
                   </label>
                   <Link
                     to={storePath('/forgot-password')}
-                    className="text-xs font-semibold transition-colors hover:underline"
+                    className={cn('text-xs font-semibold transition-colors hover:underline rounded-md', focusRingClassName)}
                     style={{ color: linkColor }}
                   >
                     Forgot password?

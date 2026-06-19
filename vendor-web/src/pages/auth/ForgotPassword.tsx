@@ -17,7 +17,7 @@ import {
   extractAuthApiDetail,
   resetCodeWasIssued,
 } from '@/lib/otpAuth'
-import { cn } from '@/lib/utils'
+import { cn, focusRingClassName } from '@/lib/utils'
 
 const SUPPORT_PHONE = import.meta.env.VITE_SUPPORT_PHONE as string | undefined
 const SUPPORT_CHAT_URL = import.meta.env.VITE_SUPPORT_CHAT_URL as string | undefined
@@ -40,6 +40,7 @@ function MethodTab({
       onClick={onClick}
       className={cn(
         'flex-1 flex items-center justify-center gap-2 py-2.5 text-sm font-semibold rounded-lg transition-all',
+        focusRingClassName,
         active ? 'bg-white shadow-sm text-primary' : 'text-gray-500 hover:text-gray-700',
       )}
     >
@@ -59,7 +60,7 @@ function PwField({
   const [show, setShow] = useState(false)
   return (
     <div className="space-y-1.5">
-      <Label htmlFor={id}>{label}</Label>
+      <Label htmlFor={id} autoHelp={false}>{label}</Label>
       <div className="relative">
         <Input
           id={id}
@@ -200,7 +201,7 @@ export default function ForgotPassword() {
     <Card>
       <CardHeader className="pb-3">
         <div className="flex items-center gap-2 mb-1">
-          <Link to="/login" className="text-gray-400 hover:text-gray-600 transition-colors" title="Back to login">
+          <Link to="/login" className={cn('text-gray-400 hover:text-gray-600 transition-colors rounded-md', focusRingClassName)} title="Back to login">
             <ArrowLeft className="w-4 h-4" />
           </Link>
           <CardTitle className="text-xl">Reset Password</CardTitle>
@@ -248,7 +249,7 @@ export default function ForgotPassword() {
             <form onSubmit={onRequestCode} className="space-y-4">
               {method === 'email' ? (
                 <div className="space-y-1.5">
-                  <Label htmlFor="fp-email">Email address</Label>
+                  <Label htmlFor="fp-email" autoHelp={false}>Email address</Label>
                   <div className="relative">
                     <Mail className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
                     <Input
@@ -267,7 +268,7 @@ export default function ForgotPassword() {
                 </div>
               ) : (
                 <div className="space-y-1">
-                  <Label>Phone number</Label>
+                  <Label autoHelp={false}>Phone number</Label>
                   <PhoneInput
                     id="fp-phone"
                     value={phone}
@@ -317,7 +318,7 @@ export default function ForgotPassword() {
 
             {/* 6-box OTP input */}
             <div className="space-y-1.5">
-              <Label>{method === 'email' ? '6-digit reset code' : '6-digit OTP'}</Label>
+              <Label autoHelp={false}>{method === 'email' ? '6-digit reset code' : '6-digit OTP'}</Label>
               <div className="flex gap-2">
                 {Array.from({ length: 6 }).map((_, i) => (
                   <input

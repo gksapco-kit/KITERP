@@ -109,6 +109,29 @@ img.leaflet-tile {
   svg.lucide {
     stroke-width: 2;
   }
+  /* Keyboard focus — inset ring stays visible inside overflow-hidden / bordered panels */
+  :focus {
+    outline: none;
+  }
+  button:focus-visible,
+  a:focus-visible,
+  select:focus-visible,
+  textarea:focus-visible,
+  input:focus-visible,
+  summary:focus-visible,
+  [role='button']:focus-visible,
+  [role='combobox']:focus-visible,
+  [role='menuitem']:focus-visible,
+  [role='tab']:focus-visible {
+    @apply ring-2 ring-inset ring-ring;
+  }
+  button:focus-visible,
+  a:focus-visible,
+  select:focus-visible,
+  [role='button']:focus-visible,
+  [role='combobox']:focus-visible {
+    @apply border-primary;
+  }
 }
 
 @layer components {

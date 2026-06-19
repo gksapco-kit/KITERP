@@ -8,7 +8,7 @@ import { PhoneInput } from '@/components/ui/PhoneInput'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Mail, Phone } from 'lucide-react'
-import { cn } from '@/lib/utils'
+import { cn, focusRingClassName } from '@/lib/utils'
 import { inferLoginUiPhoneMode } from '@/lib/loginIdentifier'
 
 export interface SmartLoginInputProps {
@@ -60,7 +60,10 @@ export function SmartLoginInput({
         ) : null}
         <button
           type="button"
-          className="inline-flex shrink-0 items-center gap-1 text-xs font-medium text-[color:var(--color-secondary)] hover:underline"
+          className={cn(
+            'inline-flex shrink-0 items-center gap-1 text-xs font-medium text-[color:var(--color-secondary)] hover:underline rounded-md',
+            focusRingClassName,
+          )}
           onClick={handleToggle}
         >
           {isPhone ? (

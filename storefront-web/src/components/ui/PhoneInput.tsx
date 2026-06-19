@@ -6,7 +6,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
 import { ChevronDown, Search, CheckCircle2, X } from 'lucide-react'
 import { COUNTRIES, POPULAR_COUNTRIES, type CountryEntry } from '@/data/countries'
-import { cn } from '@/lib/utils'
+import { cn, focusRingClassName } from '@/lib/utils'
 
 // ── Order: popular first ───────────────────────────────────────────────────
 const popularSet = new Set(POPULAR_COUNTRIES)
@@ -245,6 +245,7 @@ export function PhoneInput({
           onClick={() => setDropOpen(v => !v)}
           className={cn(
             'flex items-center gap-1.5 px-3 py-0 rounded-l-lg border border-r-0 bg-gray-50 hover:bg-gray-100 transition-colors shrink-0 text-sm h-11',
+            focusRingClassName,
             dropOpen ? 'border-blue-500 ring-1 ring-blue-400 z-10' : 'border-gray-300',
             error && 'border-red-400',
             disabled && 'opacity-50 cursor-not-allowed',

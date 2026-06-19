@@ -10,6 +10,7 @@ import { Label } from '@/components/ui/label'
 import type { AxiosError } from 'axios'
 
 import { formatLoginError, useLogin } from '@/hooks/useAuth'
+import { cn, focusRingClassName } from '@/lib/utils'
 
 /** Align with backend auth_service._PHONE_RE */
 const PHONE_RE = /^\+?\d{7,15}$/
@@ -90,7 +91,7 @@ export default function Login() {
       <div className="flex justify-end">
         <Link
           to="/forgot-password"
-          className="text-sm font-medium text-primary hover:underline"
+          className={cn('text-sm font-medium text-primary hover:underline rounded-sm', focusRingClassName)}
         >
           Forgot password?
         </Link>

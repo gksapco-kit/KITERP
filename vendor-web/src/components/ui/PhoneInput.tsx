@@ -12,7 +12,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
 import { ChevronDown, Search, CheckCircle2, X } from 'lucide-react'
 import { COUNTRIES, POPULAR_COUNTRIES, type CountryEntry } from '@/data/countries'
-import { cn } from '@/lib/utils'
+import { cn, focusRingClassName } from '@/lib/utils'
 import { Label } from '@/components/ui/label'
 import {
   getCachedInferredPhoneCountryIso,
@@ -340,7 +340,7 @@ export function PhoneInput({
   return (
     <div className={cn('w-full space-y-1', className)}>
       {label ? (
-        <Label htmlFor={id} className="block text-sm font-medium text-foreground" helpKey={label}>
+        <Label htmlFor={id} autoHelp={false} className="block text-sm font-medium text-foreground" helpKey={label}>
           {label}
         </Label>
       ) : null}
@@ -352,6 +352,7 @@ export function PhoneInput({
           onClick={() => setDropOpen(v => !v)}
           className={cn(
             'flex items-center rounded-l-md border border-r-0 bg-muted hover:bg-muted/80 text-foreground transition-colors shrink-0',
+            focusRingClassName,
             compactCountry
               ? 'w-[3.5rem] min-w-[3.5rem] justify-center gap-0 px-1 py-2'
               : cn(
