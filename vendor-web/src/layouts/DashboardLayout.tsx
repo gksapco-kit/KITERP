@@ -191,9 +191,10 @@ import {
   saveNavPlacementsState,
   buildDefaultPlacementsFromSections,
   reconcileNavPlacements,
+  RESET_USER_NAV_ORDER_EVENT,
   type NavOrderScope,
 } from '@/layouts/sidebarNavOrder'
-import { RESET_USER_NAV_ORDER_EVENT } from '@/lib/userNavOrder'
+import { formatBadgeCount, countBadgeCircleClass } from '@/lib/countBadge'
 
 interface NavItem {
   to: string
@@ -214,17 +215,22 @@ interface NavItem {
   externalHref?: string
 }
 
-function navCountBadgeClass(variant: 'nav' | 'flyout' = 'nav') {
-  return variant === 'flyout'
-    ? 'inline-flex h-4 min-w-[1rem] shrink-0 items-center justify-center rounded-full bg-red-500 px-1 text-xs font-bold text-white tabular-nums'
-    : 'ml-0.5 inline-flex h-3.5 min-w-[0.875rem] shrink-0 items-center justify-center rounded-full bg-red-500 px-1 text-xs font-bold text-white tabular-nums'
+function navCountBadgeClass(variant: 'nav' | 'flyout' = 'nav', count: number) {
+  return cn(countBadgeCircleClass(count), variant === 'nav' && 'ml-0.5')
+}
+
+function headerNotificationBadgeClass(count: number) {
+  return cn(
+    'absolute -top-0.5 -right-0.5 border border-border shadow-sm',
+    countBadgeCircleClass(count, 'red', 'sm'),
+  )
 }
 
 function NavCountBadge({ count, variant = 'nav' }: { count: number; variant?: 'nav' | 'flyout' }) {
   if (count <= 0) return null
   return (
-    <span className={navCountBadgeClass(variant)}>
-      {count > 99 ? '99+' : count}
+    <span className={navCountBadgeClass(variant, count)}>
+      {formatBadgeCount(count)}
     </span>
   )
 }
@@ -3181,8 +3187,8 @@ export default function DashboardLayout() {
               >
                 <Bell className="h-5 w-5" />
                 {unreadCount > 0 && (
-                  <span className="absolute top-1 right-1 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-red-500 px-1 text-xs font-bold leading-none text-white ring-2 ring-background">
-                    {unreadCount > 99 ? '99+' : unreadCount}
+                  <span className={headerNotificationBadgeClass(unreadCount)}>
+                    {formatBadgeCount(unreadCount)}
                   </span>
                 )}
               </Link>
@@ -3337,8 +3343,8 @@ export default function DashboardLayout() {
                           <Bell className="w-4 h-4 text-muted-foreground" />
                           <span className="flex-1">Notifications</span>
                           {unreadCount > 0 && (
-                            <span className="inline-flex items-center justify-center min-w-[18px] h-4 px-1 rounded-full bg-red-500 text-white text-xs font-bold">
-                              {unreadCount > 99 ? '99+' : unreadCount}
+                            <span className={countBadgeCircleClass(unreadCount)}>
+                              {formatBadgeCount(unreadCount)}
                             </span>
                           )}
                         </Link>

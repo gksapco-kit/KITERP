@@ -331,3 +331,5 @@ export function clearSavedNavOrder(scope?: NavOrderScope | null) {
     /* ignore */
   }
 }
+
+export { RESET_USER_NAV_ORDER_EVENT } from '@/lib/userNavOrder'

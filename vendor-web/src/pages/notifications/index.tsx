@@ -12,6 +12,7 @@ import {
   Search, X, SlidersHorizontal, ArrowUpDown, ChevronDown,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { countBadgeCircleClass, formatBadgeCount } from '@/lib/countBadge'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -242,7 +243,7 @@ export default function NotificationsPage() {
               type="button"
               onClick={() => setActiveType(isActive ? null : t)}
               className={cn(
-                'flex min-h-[5.5rem] flex-col rounded-xl border p-3 text-left transition-all',
+                'relative flex min-h-[5.5rem] flex-col rounded-xl border p-3 text-left transition-all',
                 isActive
                   ? cn('ring-1', meta.activeRing)
                   : 'border-border bg-card hover:border-primary/30 hover:bg-accent/40 dark:hover:bg-secondary/40',
@@ -251,24 +252,22 @@ export default function NotificationsPage() {
               <div className={cn('mb-2 inline-flex rounded-lg p-1.5', meta.color)}>
                 <Icon className="h-3.5 w-3.5" />
               </div>
-              <div className="mt-auto flex items-end justify-between gap-1">
-                <div>
-                  <p className="text-xs font-medium leading-tight text-muted-foreground">{meta.label}</p>
-                  <p
-                    className={cn(
-                      'text-xl font-bold leading-tight',
-                      byType.total > 0 ? 'text-foreground' : 'text-muted-foreground/50',
-                    )}
-                  >
-                    {byType.total}
-                  </p>
-                </div>
-                {byType.unread > 0 && (
-                  <span className="mb-0.5 inline-flex items-center justify-center min-w-[18px] h-4 px-1 rounded-full bg-red-500 text-white text-xs font-bold">
-                    {byType.unread}
-                  </span>
-                )}
+              <div className="mt-auto">
+                <p className="text-xs font-medium leading-tight text-muted-foreground">{meta.label}</p>
+                <p
+                  className={cn(
+                    'text-xl font-bold leading-tight',
+                    byType.total > 0 ? 'text-foreground' : 'text-muted-foreground/50',
+                  )}
+                >
+                  {byType.total}
+                </p>
               </div>
+              {byType.unread > 0 && (
+                <span className={cn('absolute bottom-2 right-2', countBadgeCircleClass(byType.unread))}>
+                  {formatBadgeCount(byType.unread)}
+                </span>
+              )}
             </button>
           )
         })}
@@ -310,8 +309,8 @@ export default function NotificationsPage() {
             <SlidersHorizontal className="h-4 w-4" />
             Filter
             {activeFiltersCount > 0 && (
-              <span className="absolute -right-1.5 -top-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-primary text-xs font-bold text-primary-foreground">
-                {activeFiltersCount}
+              <span className={cn('absolute -right-1.5 -top-1.5', countBadgeCircleClass(activeFiltersCount, 'primary'))}>
+                {formatBadgeCount(activeFiltersCount)}
               </span>
             )}
           </button>
