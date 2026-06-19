@@ -492,14 +492,36 @@
 /* Template 2 — active sidebar nav reads as a soft white pill, not a tinted bar. */
 :root[data-kit-template='template2'] .sidebar-nav-link-active {
   background-color: hsl(var(--card));
-  border-left-color: transparent;
-  box-shadow: 0 1px 2px rgba(16, 24, 40, 0.06), 0 4px 12px -6px rgba(16, 24, 40, 0.12);
+  border-radius: 9999px;
+  box-shadow:
+    inset 0.25rem 0 0 0 hsl(var(--sidebar-primary)),
+    0 1px 2px rgba(16, 24, 40, 0.06),
+    0 4px 12px -6px rgba(16, 24, 40, 0.12);
 }
 
 .dark[data-kit-template='template2'] .sidebar-nav-link-active {
   background-color: hsl(var(--card));
-  border-left-color: transparent;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+  border-radius: 9999px;
+  box-shadow:
+    inset 0.25rem 0 0 0 hsl(var(--sidebar-primary)),
+    0 1px 2px rgba(0, 0, 0, 0.4);
+}
+
+:root[data-kit-template='template2'] .sidebar-nav-section-active-collapsed {
+  background-color: hsl(var(--card));
+  border-radius: 0.5rem;
+  box-shadow:
+    inset 0.1875rem 0 0 0 hsl(var(--sidebar-primary)),
+    0 1px 2px rgba(16, 24, 40, 0.06),
+    0 4px 12px -6px rgba(16, 24, 40, 0.1);
+}
+
+.dark[data-kit-template='template2'] .sidebar-nav-section-active-collapsed {
+  background-color: hsl(var(--card));
+  border-radius: 0.5rem;
+  box-shadow:
+    inset 0.1875rem 0 0 0 hsl(var(--sidebar-primary)),
+    0 1px 2px rgba(0, 0, 0, 0.35);
 }
 
 /* Vendor /register — full-page signup (no inner scroll trap) */
@@ -1061,27 +1083,91 @@
   .scrollbar-none::-webkit-scrollbar {
     display: none;
   }
-  /* Active sidebar leaf — 40% mint tint; solid darker left accent for contrast */
+  /* Active sidebar leaf — inset accent follows the capsule curve on the left */
+  .sidebar-nav-link-active,
+  .sidebar-nav-kb-focus {
+    border-radius: 9999px;
+  }
   .sidebar-nav-link-active {
-    background-color: color-mix(
+    --nav-leaf-accent: hsl(158 55% 36%);
+    --nav-leaf-fill: color-mix(
       in srgb,
       hsl(var(--sidebar-primary)) 40%,
       hsl(var(--sidebar-background)) 60%
     );
-    border-left-color: hsl(158 55% 36%);
-    border-left-style: solid;
-    box-shadow: none;
+    background-color: var(--nav-leaf-fill);
+    box-shadow: inset 0.25rem 0 0 0 var(--nav-leaf-accent);
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     text-rendering: geometricPrecision;
   }
   .dark .sidebar-nav-link-active {
-    background-color: color-mix(
+    --nav-leaf-accent: hsl(158 48% 52%);
+    --nav-leaf-fill: color-mix(
       in srgb,
       hsl(var(--sidebar-primary)) 40%,
       hsl(var(--sidebar-background)) 60%
     );
-    border-left-color: hsl(158 48% 52%);
+    background-color: var(--nav-leaf-fill);
+    box-shadow: inset 0.25rem 0 0 0 var(--nav-leaf-accent);
+  }
+  /* Keyboard focus on sidebar leaves */
+  .sidebar-nav-kb-focus {
+    --nav-leaf-accent: hsl(158 55% 36% / 0.55);
+    --nav-leaf-fill: color-mix(
+      in srgb,
+      hsl(var(--sidebar-primary)) 18%,
+      hsl(var(--sidebar-background)) 82%
+    );
+    background-color: var(--nav-leaf-fill);
+    box-shadow: inset 0.25rem 0 0 0 var(--nav-leaf-accent);
+    outline: none;
+  }
+  .dark .sidebar-nav-kb-focus {
+    --nav-leaf-accent: hsl(158 48% 52% / 0.6);
+    --nav-leaf-fill: color-mix(
+      in srgb,
+      hsl(var(--sidebar-primary)) 20%,
+      hsl(var(--sidebar-background)) 80%
+    );
+    background-color: var(--nav-leaf-fill);
+    box-shadow: inset 0.25rem 0 0 0 var(--nav-leaf-accent);
+  }
+  .sidebar-nav-kb-focus-active {
+    box-shadow:
+      inset 0.25rem 0 0 0 var(--nav-leaf-accent),
+      inset 0 0 0 1px hsl(var(--sidebar-primary) / 0.22);
+  }
+  .dark .sidebar-nav-kb-focus-active {
+    box-shadow:
+      inset 0.25rem 0 0 0 var(--nav-leaf-accent),
+      inset 0 0 0 1px hsl(var(--sidebar-primary) / 0.28);
+  }
+  .sidebar-nav-kb-focus-section {
+    background-color: hsl(var(--muted) / 0.35);
+    box-shadow: inset 0 0 0 1px hsl(var(--sidebar-primary) / 0.14);
+  }
+  /* Collapsed module row that still contains the active page */
+  .sidebar-nav-section-active-collapsed {
+    background-color: color-mix(
+      in srgb,
+      hsl(var(--sidebar-primary)) 30%,
+      hsl(var(--sidebar-background)) 70%
+    );
+    border-radius: 0.5rem;
+    box-shadow:
+      inset 0.1875rem 0 0 0 hsl(158 55% 36%),
+      inset 0 0 0 1px hsl(var(--sidebar-primary) / 0.18);
+  }
+  .dark .sidebar-nav-section-active-collapsed {
+    background-color: color-mix(
+      in srgb,
+      hsl(var(--sidebar-primary)) 32%,
+      hsl(var(--sidebar-background)) 68%
+    );
+    box-shadow:
+      inset 0.1875rem 0 0 0 hsl(158 48% 52%),
+      inset 0 0 0 1px hsl(var(--sidebar-primary) / 0.24);
   }
 
   /* Side menu — edge color matches --sidebar-background; center is lighter */

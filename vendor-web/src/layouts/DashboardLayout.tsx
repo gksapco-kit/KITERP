@@ -1,4 +1,4 @@
-import { useState, useEffect, useLayoutEffect, useRef, useMemo, useCallback, type CSSProperties, type ReactNode, type ElementType } from 'react'
+import { useState, useEffect, useLayoutEffect, useRef, useMemo, useCallback, type CSSProperties, type KeyboardEvent, type ReactNode, type ElementType } from 'react'
 import { useEscapeToClose } from '@/hooks/useEscapeToClose'
 import { useViewportAnchoredPanel } from '@/hooks/useViewportAnchoredPanel'
 import { createPortal } from 'react-dom'
@@ -194,6 +194,20 @@ import {
   RESET_USER_NAV_ORDER_EVENT,
   type NavOrderScope,
 } from '@/layouts/sidebarNavOrder'
+import {
+  buildRailFlyoutTree,
+  buildRailNavTree,
+  buildSidebarNavTree,
+  flyoutFocusKey,
+  grpFocusKey,
+  isSidebarTypingTarget,
+  itemFocusKey,
+  railFocusKey,
+  resolveSidebarNavKeyAction,
+  secFocusKey,
+  type SidebarNavAction,
+  type SidebarNavNode,
+} from '@/layouts/sidebarKeyboardNav'
 import { formatBadgeCount, countBadgeCircleClass } from '@/lib/countBadge'
 
 interface NavItem {
@@ -836,9 +850,9 @@ function SortableItemShell({
 
 /** Active leaf — opaque color-mix fill (see .sidebar-nav-link-active); no shadow/ring blur */
 const navLinkActive =
-  'sidebar-nav-link-active border-l-4 font-medium text-foreground rounded-lg shadow-none ring-0'
+  'sidebar-nav-link-active font-medium text-foreground ring-0'
 const navLinkInactive =
-  'border-l-4 border-transparent font-normal text-sidebar-foreground rounded-lg hover:bg-sidebar-accent hover:text-sidebar-accent-foreground active:opacity-90'
+  'font-normal text-sidebar-foreground rounded-lg hover:bg-sidebar-accent hover:text-sidebar-accent-foreground active:opacity-90'
 
 /** Icon-rail flyout menu items */
 const RAIL_FLYOUT_ITEM =
@@ -882,19 +896,25 @@ const NAV_FONT_GROUP = 'font-medium'
 const NAV_FONT_TAB = 'font-medium'
 /** Section row fills — light tint on the full row */
 const NAV_SECTION_BG_ACTIVE = 'bg-muted/25'
-const NAV_SECTION_BG_ACTIVE_COLLAPSED = 'bg-muted/20'
+const NAV_SECTION_BG_ACTIVE_COLLAPSED = 'sidebar-nav-section-active-collapsed'
 const NAV_SECTION_BG_HOVER = 'hover:bg-muted/22'
 /** Module icon tiles — solid fill + ring so icons read at small viewports / low zoom */
 const NAV_SECTION_ICON_BG =
   'rounded-md bg-muted text-muted-foreground ring-1 ring-border/50 dark:bg-zinc-800 dark:ring-border/45'
 const NAV_SECTION_ICON_BG_ACTIVE =
   'bg-secondary text-foreground ring-border/60 dark:bg-sidebar-accent dark:text-sidebar-accent-foreground dark:ring-border/55'
+/** Keyboard focus — CSS classes (see globals.css); no border-l on rounded rows */
+const navSectionKbFocus = 'sidebar-nav-kb-focus-section'
+const navGroupKbFocus = 'bg-muted/25 text-foreground'
+const navLinkKbFocus = 'sidebar-nav-kb-focus'
+const navLinkKbFocusActive = 'sidebar-nav-kb-focus-active'
+const navRailKbFocus = 'ring-2 ring-inset ring-sidebar-primary/30'
 
 /**
  * Nested nav tree — mint rail + elbows; whole-pixel strokes (crisp when zoomed out).
  * Trunk x from panel left = 30px (see SortableSectionShell layout).
  */
-const NAV_TREE_PANEL_CLASS = '[--tree-x:1.875rem]'
+const NAV_TREE_PANEL_CLASS = '[--tree-x:1.875rem] [--tree-link-gap:0.5rem]'
 /** Indented rail for nested group children (Cost Planning, Production Orders, …). */
 const NAV_TREE_SUB_PANEL_CLASS = '[--tree-sub-x:2.75rem]'
 const navTreeTrunkLine =
@@ -902,11 +922,36 @@ const navTreeTrunkLine =
 /** Short trunk scoped to a subgroup block only (not the whole module). */
 const navTreeSubgroupTrunk =
   'pointer-events-none absolute left-[calc(var(--tree-sub-x)-0.5px)] top-0 bottom-0 z-0 w-px bg-sidebar-primary'
-/** Rounded elbow toward row content; whole-pixel box (no translate blur). */
+/** Horizontal stub from trunk toward row — stops before the highlight pill (see --tree-link-gap). */
 const navTreeElbowLine =
-  'pointer-events-none absolute left-[calc(var(--tree-x)-0.5px)] top-[calc(50%-8px)] z-0 h-2 w-2 rounded-bl-[4px] border-b border-l border-sidebar-primary'
+  'pointer-events-none absolute left-[calc(var(--tree-x)-0.5px)] top-1/2 z-0 h-px w-[var(--tree-link-gap)] -translate-y-1/2 bg-sidebar-primary'
 const navTreeSubElbowLine =
-  'pointer-events-none absolute left-[calc(var(--tree-sub-x)-0.5px)] top-[calc(50%-8px)] z-0 h-2 w-2 rounded-bl-[4px] border-b border-l border-sidebar-primary'
+  'pointer-events-none absolute left-[calc(var(--tree-sub-x)-0.5px)] top-1/2 z-0 h-px w-[var(--tree-link-gap)] -translate-y-1/2 bg-sidebar-primary'
+/** Shared layout + state classes for sidebar leaf links. */
+function navItemLinkClass(
+  item: NavItem,
+  opts: { isActive: boolean; isKbFocused: boolean; tree: 'section' | 'sub' },
+) {
+  const { isActive, isKbFocused, tree } = opts
+  const isHighlighted = isActive || isKbFocused
+  return cn(
+    'relative z-[1] group/nav flex min-w-0 flex-1 items-center gap-1.5 outline-none focus-visible:outline-none',
+    isHighlighted
+      ? 'min-h-[1.75rem] rounded-full py-1 pl-3.5 pr-3'
+      : cn('rounded-lg pl-2.5 pr-2.5', NAV_ROW_MIN_H, NAV_ROW_PAD_Y),
+    tree === 'sub'
+      ? 'ml-[calc(var(--tree-sub-x)+var(--tree-link-gap)-1.25rem)]'
+      : 'ml-[calc(var(--tree-x)+var(--tree-link-gap)-1.25rem)]',
+    item.labelSize ?? 'text-sm',
+    'leading-snug',
+    navRowTransition,
+    isActive
+      ? cn(navLinkActive, isKbFocused && navLinkKbFocusActive)
+      : isKbFocused
+        ? cn(navLinkInactive, navLinkKbFocus)
+        : navLinkInactive,
+  )
+}
 
 type NavItemBlock =
   | { kind: 'items'; entries: { item: NavItem; idx: number }[] }
@@ -1135,6 +1180,9 @@ export default function DashboardLayout() {
   const navScrollRef = useRef<HTMLElement>(null)
   const sectionScrollAnchors = useRef<Map<string, HTMLDivElement>>(new Map())
   const pendingScrollSectionId = useRef<string | null>(null)
+  /** Arrow-key focus target in the sidebar module tree */
+  const [navFocusKey, setNavFocusKey] = useState<string | null>(null)
+  const navFocusRefs = useRef(new Map<string, HTMLElement>())
 
   const dark = useThemeStore(s => s.dark)
   const toggleDark = useThemeStore(s => s.toggleDark)
@@ -2238,6 +2286,138 @@ export default function DashboardLayout() {
     ? (orderedNavItemsBySectionId.get(railFlyoutSection.id) ?? railFlyoutSection.items)
     : []
 
+  const registerNavFocusRef = useCallback((key: string, el: HTMLElement | null) => {
+    if (el) navFocusRefs.current.set(key, el)
+    else navFocusRefs.current.delete(key)
+  }, [])
+
+  const sidebarNavNodes = useMemo(
+    () =>
+      buildSidebarNavTree(
+        orderedVisibleSections,
+        orderedNavItemsBySectionId,
+        collapsedSections,
+        collapsedGroups,
+        buildNavItemBlocks,
+        effectiveNavGroupLabels,
+      ),
+    [orderedVisibleSections, orderedNavItemsBySectionId, collapsedSections, collapsedGroups],
+  )
+
+  const railNavNodes = useMemo(
+    () => buildRailNavTree(orderedVisibleSections),
+    [orderedVisibleSections],
+  )
+
+  const railFlyoutNavNodes = useMemo(
+    () =>
+      railFlyoutSectionId
+        ? buildRailFlyoutTree(railFlyoutSectionId, railFlyoutItems)
+        : [],
+    [railFlyoutSectionId, railFlyoutItems],
+  )
+
+  const openRailFlyout = useCallback(
+    (sectionId: string) => {
+      const btn = railSectionButtonRefs.current.get(sectionId)
+      if (!btn) return
+      const rect = btn.getBoundingClientRect()
+      const section = orderedVisibleSections.find((s) => s.id === sectionId)
+      const items = section
+        ? (orderedNavItemsBySectionId.get(section.id) ?? section.items)
+        : []
+      const groupCount = new Set(
+        effectiveNavGroupLabels(items).filter((g): g is string => Boolean(g)),
+      ).size
+      const estimatedH = estimateRailFlyoutHeight(items.length, groupCount)
+      const maxTop = Math.max(8, window.innerHeight - estimatedH - 8)
+      const top = Math.min(Math.max(8, rect.top - 6), maxTop)
+      setRailFlyoutTop(top)
+      setRailFlyoutSectionId(sectionId)
+    },
+    [orderedVisibleSections, orderedNavItemsBySectionId],
+  )
+
+  const applySidebarNavAction = useCallback(
+    (action: SidebarNavAction) => {
+      switch (action.type) {
+        case 'focus':
+          setNavFocusKey(action.key)
+          break
+        case 'expandSection':
+          setCollapsedSections((prev) => {
+            if (prev[action.title] === false) return prev
+            pendingScrollSectionId.current = action.sectionId
+            return { ...prev, [action.title]: false }
+          })
+          setNavFocusKey(secFocusKey(action.sectionId))
+          break
+        case 'collapseSection':
+          setCollapsedSections((prev) => ({ ...prev, [action.title]: true }))
+          setNavFocusKey(secFocusKey(action.sectionId))
+          break
+        case 'expandGroup':
+          setCollapsedGroups((prev) => ({ ...prev, [action.grpKey]: false }))
+          setNavFocusKey(grpFocusKey(action.grpKey))
+          break
+        case 'collapseGroup':
+          setCollapsedGroups((prev) => ({ ...prev, [action.grpKey]: true }))
+          setNavFocusKey(grpFocusKey(action.grpKey))
+          break
+        case 'openRailFlyout':
+          openRailFlyout(action.sectionId)
+          setNavFocusKey(railFocusKey(action.sectionId))
+          break
+        case 'closeRailFlyout':
+          setRailFlyoutSectionId(null)
+          if (action.focusKey) setNavFocusKey(action.focusKey)
+          break
+      }
+    },
+    [openRailFlyout],
+  )
+
+  const handleSidebarNavKeyDown = useCallback(
+    (e: KeyboardEvent<HTMLElement>, nodes: Array<SidebarNavNode>) => {
+      if (navReorderMode || !nodes.length) return
+      if (isSidebarTypingTarget(e.target)) return
+      const navigationKeys = ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Home', 'End']
+      if (!navigationKeys.includes(e.key)) return
+
+      const focusedInTree =
+        e.currentTarget.contains(document.activeElement) ||
+        navFocusKey != null
+      if (!focusedInTree && e.key !== 'ArrowDown' && e.key !== 'ArrowUp') return
+
+      const action = resolveSidebarNavKeyAction(e.key, nodes, navFocusKey, {
+        collapsedSections,
+        collapsedGroups,
+        railFlyoutSectionId,
+        railFlyoutFirstKey: railFlyoutNavNodes[0]?.key ?? null,
+      })
+      if (!action) return
+      e.preventDefault()
+      e.stopPropagation()
+      applySidebarNavAction(action)
+    },
+    [
+      navReorderMode,
+      navFocusKey,
+      collapsedSections,
+      collapsedGroups,
+      railFlyoutSectionId,
+      applySidebarNavAction,
+    ],
+  )
+
+  useLayoutEffect(() => {
+    if (!navFocusKey) return
+    const el = navFocusRefs.current.get(navFocusKey)
+    if (!el) return
+    el.focus({ preventScroll: true })
+    el.scrollIntoView({ block: 'nearest', inline: 'nearest' })
+  }, [navFocusKey, collapsedSections, collapsedGroups, railFlyoutSectionId])
+
   const RailFlyoutSectionIcon = railFlyoutSection?.icon
 
   const railFlyoutMenu =
@@ -2253,6 +2433,7 @@ export default function DashboardLayout() {
               ref={railFlyoutRef}
               role="menu"
               aria-label={railFlyoutSection.title}
+              onKeyDown={(e) => handleSidebarNavKeyDown(e, railFlyoutNavNodes)}
               className={cn(
                 'fixed z-[70] flex w-[min(18rem,calc(100vw-5.5rem))] max-h-[min(32rem,calc(100dvh-1rem))] flex-col overflow-hidden',
                 'rounded-xl border border-border/80 bg-card shadow-xl ring-1 ring-black/[0.04] dark:ring-white/10',
@@ -2283,6 +2464,7 @@ export default function DashboardLayout() {
                     const gl = flyoutGroups[itemIdx]
                     const prevGl = itemIdx > 0 ? flyoutGroups[itemIdx - 1] : null
                     const showGroupHeader = Boolean(gl) && gl !== prevGl
+                    const flyItemKey = flyoutFocusKey(railFlyoutSectionId, item.to)
                     return (
                       <div key={`${item.to}-${item.label}`} className={showGroupHeader && itemIdx > 0 ? 'mt-1' : undefined}>
                         {showGroupHeader && gl ? (
@@ -2301,32 +2483,47 @@ export default function DashboardLayout() {
                             rel="noopener noreferrer"
                             role="menuitem"
                             title={item.label}
+                            ref={(el) => registerNavFocusRef(flyItemKey, el)}
+                            onFocus={() => setNavFocusKey(flyItemKey)}
                             onClick={() => {
                               setRailFlyoutSectionId(null)
                               closeMobileSidebar()
                             }}
-                            className={cn(RAIL_FLYOUT_ITEM, RAIL_FLYOUT_ITEM_IDLE)}
+                            className={cn(
+                              RAIL_FLYOUT_ITEM,
+                              RAIL_FLYOUT_ITEM_IDLE,
+                              navFocusKey === flyItemKey && 'sidebar-nav-kb-focus',
+                            )}
                           >
                             <item.icon className="h-4 w-4 shrink-0 text-muted-foreground" strokeWidth={2} aria-hidden />
                             <span className="min-w-0 flex-1 truncate">{item.label}</span>
                             <ExternalLink className="h-3.5 w-3.5 shrink-0 text-muted-foreground/60" aria-hidden />
                           </a>
                         ) : (
+                          (() => {
+                            const flyRowClass = cn(
+                              RAIL_FLYOUT_ITEM,
+                              navFocusKey === flyItemKey && 'sidebar-nav-kb-focus',
+                            )
+                            return (
                           <NavLink
                             to={item.to}
                             role="menuitem"
                             title={item.label}
+                            ref={(el) => registerNavFocusRef(flyItemKey, el)}
+                            onFocus={() => setNavFocusKey(flyItemKey)}
                             onClick={() => {
                               setRailFlyoutSectionId(null)
                               closeMobileSidebar()
                             }}
-                            className="block rounded-lg outline-none"
+                            className={({ isActive }) =>
+                              cn('block rounded-lg outline-none', isActive && 'sidebar-nav-link-active')
+                            }
                           >
                             {({ isActive }) => (
                               <span
                                 className={cn(
-                                  RAIL_FLYOUT_ITEM,
-                                  isActive ? RAIL_FLYOUT_ITEM_ACTIVE : RAIL_FLYOUT_ITEM_IDLE,
+                                  isActive ? RAIL_FLYOUT_ITEM_ACTIVE : flyRowClass,
                                 )}
                               >
                                 <span
@@ -2348,6 +2545,8 @@ export default function DashboardLayout() {
                               </span>
                             )}
                           </NavLink>
+                            )
+                          })()
                         )}
                       </div>
                     )
@@ -2424,17 +2623,24 @@ export default function DashboardLayout() {
       {/* Icon rail — desktop semi-collapsed mode */}
       <nav
         aria-label="Module icons"
+        tabIndex={navReorderMode ? undefined : 0}
         className={cn(
-          'hidden min-h-0 flex-1 flex-col gap-0.5 overflow-y-auto py-1',
+          'hidden min-h-0 flex-1 flex-col gap-0.5 overflow-y-auto py-1 outline-none',
           showIconOnlyNav && 'lg:flex',
           !showIconOnlyNav && 'lg:hidden',
         )}
+        onFocus={(e) => {
+          if (e.target !== e.currentTarget || navFocusKey || !railNavNodes[0]) return
+          setNavFocusKey(railNavNodes[0].key)
+        }}
+        onKeyDown={(e) => handleSidebarNavKeyDown(e, railNavNodes)}
       >
         {orderedVisibleSections.map((section) => {
           const SectionIcon = section.icon
           const items = orderedNavItemsBySectionId.get(section.id) ?? section.items
           const sectionHasActive = items.some((it) => activeNavTo === it.to)
           const flyoutOpen = railFlyoutSectionId === section.id
+          const sectionRailKey = railFocusKey(section.id)
           return (
             <div key={section.id} className="flex justify-center px-1.5">
               <button
@@ -2442,11 +2648,13 @@ export default function DashboardLayout() {
                 ref={(node) => {
                   if (node) railSectionButtonRefs.current.set(section.id, node)
                   else railSectionButtonRefs.current.delete(section.id)
+                  registerNavFocusRef(sectionRailKey, node)
                 }}
                 title={section.titleTooltip ?? section.title}
                 aria-label={section.title}
                 aria-expanded={flyoutOpen}
                 aria-haspopup="menu"
+                onFocus={() => setNavFocusKey(sectionRailKey)}
                 onClick={() => toggleRailSection(section.id)}
                 className={cn(
                   RAIL_ICON_BTN_CLASS,
@@ -2455,6 +2663,7 @@ export default function DashboardLayout() {
                   'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/35',
                   (sectionHasActive || flyoutOpen) &&
                     'bg-sidebar-primary text-sidebar-primary-foreground shadow-sm hover:bg-sidebar-primary/90 hover:text-sidebar-primary-foreground',
+                  navFocusKey === sectionRailKey && navRailKbFocus,
                 )}
               >
                 <SectionIcon className={cn(RAIL_ICON_CLASS)} strokeWidth={2} aria-hidden />
@@ -2486,8 +2695,14 @@ export default function DashboardLayout() {
       >
         <nav
           ref={navScrollRef}
-          className="sidebar-scroll sidebar-scroll-intent sidebar-scroll-left flex min-h-0 flex-1 flex-col overflow-y-auto px-2 pb-1 pt-0.5"
+          tabIndex={navReorderMode ? undefined : 0}
+          className="sidebar-scroll sidebar-scroll-intent sidebar-scroll-left flex min-h-0 flex-1 flex-col overflow-y-auto px-2 pb-1 pt-0.5 outline-none"
           aria-label="Main navigation"
+          onFocus={(e) => {
+            if (e.target !== e.currentTarget || navFocusKey || !sidebarNavNodes[0]) return
+            setNavFocusKey(sidebarNavNodes[0].key)
+          }}
+          onKeyDown={(e) => handleSidebarNavKeyDown(e, sidebarNavNodes)}
         >
           <div className="mb-0.5 flex shrink-0 items-center justify-between gap-2 px-0.5 py-1">
             <span className={cn('text-xs uppercase tracking-wide text-muted-foreground/80', NAV_FONT_TAB)}>
@@ -2558,6 +2773,7 @@ export default function DashboardLayout() {
               const sectionPanelId = `nav-section-${section.id}`
               const sortLocked = !navReorderMode
               const secDnd = secDndId(section.id)
+              const sectionFocusKey = secFocusKey(section.id)
               const activeSec = navActiveDndId ? parseSecDndId(navActiveDndId) : null
               const activeIt = navActiveDndId ? parseItmDndId(navActiveDndId) : null
               const outlineSectionDrop =
@@ -2598,8 +2814,10 @@ export default function DashboardLayout() {
                           type="button"
                           title={section.titleTooltip ?? section.title}
                           id={`${sectionPanelId}-trigger`}
+                          ref={(el) => registerNavFocusRef(sectionFocusKey, el)}
                           aria-expanded={!isSectionCollapsed}
                           aria-controls={sectionPanelId}
+                          onFocus={() => setNavFocusKey(sectionFocusKey)}
                           className={cn(
                             'group/sec flex min-w-0 flex-1 items-center gap-1.5 rounded-lg px-1 text-left',
                             NAV_ROW_MIN_H,
@@ -2607,10 +2825,11 @@ export default function DashboardLayout() {
                             navRowTransition,
                             sectionHasActive && !isSectionCollapsed
                               ? cn(NAV_SECTION_BG_ACTIVE, 'text-foreground')
-                              : sectionHasActive
+                              : sectionHasActive && isSectionCollapsed
                                 ? cn(NAV_SECTION_BG_ACTIVE_COLLAPSED, 'text-foreground')
                                 : cn('text-muted-foreground hover:text-foreground', NAV_SECTION_BG_HOVER),
                             'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/35 focus-visible:ring-offset-1 focus-visible:ring-offset-background',
+                            navFocusKey === sectionFocusKey && navSectionKbFocus,
                           )}
                           onClick={() => toggleSection(section.title, section.id)}
                         >
@@ -2642,8 +2861,11 @@ export default function DashboardLayout() {
                           <span className="flex h-7 w-6 shrink-0 items-center justify-center pr-1" aria-hidden>
                             <ChevronDown
                               className={cn(
-                                'h-4 w-4 text-muted-foreground/70 transition-transform duration-200 ease-out motion-reduce:transition-none',
+                                'h-4 w-4 transition-transform duration-200 ease-out motion-reduce:transition-none',
                                 isSectionCollapsed ? '-rotate-90' : 'rotate-180',
+                                sectionHasActive && isSectionCollapsed
+                                  ? 'text-[hsl(158_55%_36%)] dark:text-[hsl(158_48%_52%)]'
+                                  : 'text-muted-foreground/70',
                               )}
                             />
                           </span>
@@ -2695,6 +2917,9 @@ export default function DashboardLayout() {
                                   ) => {
                                     const elbow = tree === 'sub' ? navTreeSubElbowLine : navTreeElbowLine
                                     const thisItemDndId = itmDndId(section.id, item.to)
+                                    const itemKey = itemFocusKey(section.id, item.to)
+                                    const isItemActive = activeNavTo === item.to
+                                    const isItemKbFocused = navFocusKey === itemKey
                                     return (
                                       <SortableItemShell
                                         key={item.to + item.label}
@@ -2738,64 +2963,47 @@ export default function DashboardLayout() {
                                                 target="_blank"
                                                 rel="noopener noreferrer"
                                                 title={`${item.label} (opens in new tab)`}
+                                                ref={(el) => registerNavFocusRef(itemKey, el)}
                                                 tabIndex={isSectionCollapsed || tabIndexOff ? -1 : undefined}
+                                                onFocus={() => setNavFocusKey(itemKey)}
                                                 onClick={() => setSidebarOpen(false)}
-                                                className="group/nav flex min-w-0 flex-1 rounded-lg pl-5 outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring/45 focus-visible:ring-offset-0"
+                                                className={navItemLinkClass(item, {
+                                                  isActive: false,
+                                                  isKbFocused: isItemKbFocused,
+                                                  tree,
+                                                })}
                                               >
-                                                <span
-                                                  className={cn(
-                                                    'relative z-[1] flex min-w-0 flex-1 items-center gap-1.5 rounded-lg pl-1 pr-2',
-                                                    NAV_ROW_MIN_H,
-                                                    NAV_ROW_PAD_Y,
-                                                    item.labelSize ?? 'text-sm',
-                                                    'leading-snug',
-                                                    navRowTransition,
-                                                    navLinkInactive,
-                                                  )}
-                                                >
-                                                  <span className={cn(NAV_ICON_COL, 'text-muted-foreground/80 group-hover/nav:text-foreground')}>
-                                                    <item.icon className="h-4 w-4" strokeWidth={2} aria-hidden />
-                                                  </span>
-                                                  <span className="min-w-0 flex-1 truncate text-left">{item.label}</span>
+                                                <span className={cn(NAV_ICON_COL, 'text-muted-foreground/80 group-hover/nav:text-foreground')}>
+                                                  <item.icon className="h-4 w-4" strokeWidth={2} aria-hidden />
                                                 </span>
+                                                <span className="min-w-0 flex-1 truncate text-left">{item.label}</span>
                                               </a>
                                             ) : (
                                               <NavLink
                                                 to={item.to}
                                                 title={item.label}
+                                                ref={(el) => registerNavFocusRef(itemKey, el)}
                                                 tabIndex={isSectionCollapsed || tabIndexOff ? -1 : undefined}
+                                                onFocus={() => setNavFocusKey(itemKey)}
                                                 onClick={() => setSidebarOpen(false)}
-                                                className="group/nav flex min-w-0 flex-1 rounded-lg pl-5 outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring/45 focus-visible:ring-offset-0"
+                                                className={navItemLinkClass(item, {
+                                                  isActive: isItemActive,
+                                                  isKbFocused: isItemKbFocused,
+                                                  tree,
+                                                })}
                                               >
-                                                {() => {
-                                                  const isActive = activeNavTo === item.to
-                                                  return (
-                                                    <span
-                                                      className={cn(
-                                                        'relative z-[1] flex min-w-0 flex-1 items-center gap-1.5 rounded-lg pl-1 pr-2',
-                                                        NAV_ROW_MIN_H,
-                                                        NAV_ROW_PAD_Y,
-                                                        item.labelSize ?? 'text-sm',
-                                                        'leading-snug',
-                                                        navRowTransition,
-                                                        isActive ? navLinkActive : navLinkInactive,
-                                                      )}
-                                                    >
-                                                      <span
-                                                        className={cn(
-                                                          NAV_ICON_COL,
-                                                          isActive
-                                                            ? 'text-inherit'
-                                                            : 'text-muted-foreground/80 group-hover/nav:text-inherit',
-                                                        )}
-                                                      >
-                                                        <item.icon className="h-4 w-4" strokeWidth={2} aria-hidden />
-                                                      </span>
-                                                      <span className="min-w-0 flex-1 truncate text-left">{item.label}</span>
-                                                      <NavCountBadge count={getNavBadgeCount(item.to)} />
-                                                    </span>
-                                                  )
-                                                }}
+                                                <span
+                                                  className={cn(
+                                                    NAV_ICON_COL,
+                                                    isItemActive
+                                                      ? 'text-inherit'
+                                                      : 'text-muted-foreground/80 group-hover/nav:text-inherit',
+                                                  )}
+                                                >
+                                                  <item.icon className="h-4 w-4" strokeWidth={2} aria-hidden />
+                                                </span>
+                                                <span className="min-w-0 flex-1 truncate text-left">{item.label}</span>
+                                                <NavCountBadge count={getNavBadgeCount(item.to)} />
                                               </NavLink>
                                             )}
                                           </div>
@@ -2819,12 +3027,15 @@ export default function DashboardLayout() {
                                     const groupHasActive = block.entries.some(
                                       ({ item }) => activeNavTo === item.to,
                                     )
+                                    const groupFocusKey = grpFocusKey(block.grpKey)
 
                                     return (
                                       <div key={block.grpKey} className={cn('relative', blockIdx > 0 && 'mt-0.5')}>
                                         <button
                                           type="button"
+                                          ref={(el) => registerNavFocusRef(groupFocusKey, el)}
                                           tabIndex={isSectionCollapsed ? -1 : undefined}
+                                          onFocus={() => setNavFocusKey(groupFocusKey)}
                                           onClick={() => toggleGroup(block.grpKey)}
                                           aria-expanded={!isGroupCollapsed}
                                           className={cn(
@@ -2836,6 +3047,7 @@ export default function DashboardLayout() {
                                             'text-muted-foreground/80 hover:bg-muted/20 hover:text-foreground',
                                             'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/35 focus-visible:ring-offset-1 focus-visible:ring-offset-background',
                                             groupHasActive && cn(NAV_FONT_SECTION_ACTIVE, 'text-foreground'),
+                                            navFocusKey === groupFocusKey && navGroupKbFocus,
                                           )}
                                         >
                                           <span aria-hidden className={navTreeElbowLine} />
