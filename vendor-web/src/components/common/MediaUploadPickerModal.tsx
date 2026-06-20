@@ -545,9 +545,10 @@ export async function remoteImageToFile(url: string): Promise<File> {
 /** Fetch a gallery/static image into a File for upload APIs. */
 export async function galleryImageToFile(galleryPath: string): Promise<File> {
   const biz = businessImageByGalleryUrl(galleryPath)
+  // Match the gallery grid: primary local path first, remote stock fallback only if missing.
   const candidates = [
-    ...(biz?.fallbackUrl ? [biz.fallbackUrl] : []),
     galleryPath,
+    ...(biz?.fallbackUrl && biz.fallbackUrl !== galleryPath ? [biz.fallbackUrl] : []),
   ].filter((path, index, all) => path && all.indexOf(path) === index)
 
   let lastError: Error | null = null

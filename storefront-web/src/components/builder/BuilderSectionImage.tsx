@@ -1,10 +1,9 @@
-import type { CSSProperties, MouseEvent } from 'react'
+import type { CSSProperties } from 'react'
 import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { ImageIcon } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { isCanvasImageSlotSelected } from '@/lib/canvasImageTarget'
-import { isMultiSelectModifier } from '@/lib/builderMultiSelect'
 import { useBuilderCanvas } from '@/contexts/BuilderCanvasContext'
 import {
   readArrayItemFromBlockProps,
@@ -118,18 +117,6 @@ export function BuilderSectionImage({
     ? undefined
     : sectionImageOverlayCss(readSectionImageOverlay(styleField, styleProps))
 
-  const onActivate = (e: MouseEvent | PointerEvent) => {
-    if (!isEditor || !blockId) return
-    e.stopPropagation()
-    e.preventDefault()
-    const additive = isMultiSelectModifier(e)
-    if (isArraySlot) {
-      canvas.onSectionImageActivate?.(blockId, field, { arrayKey, index, itemField, additive })
-    } else {
-      canvas.onSectionImageActivate?.(blockId, field, { additive })
-    }
-  }
-
   return (
     <div
       ref={frameRef}
@@ -140,14 +127,14 @@ export function BuilderSectionImage({
       )}
       style={decorStyle}
       data-builder-section-image={field}
+      {...(isArraySlot ? {
+        'data-builder-image-array-key': arrayKey,
+        'data-builder-image-index': String(index),
+        'data-builder-image-item-field': itemField,
+      } : {})}
       data-builder-section-image-active={isActive ? 'true' : undefined}
       data-builder-field-selected={isActive ? 'true' : undefined}
       aria-selected={isActive}
-      onPointerDown={isEditor ? e => {
-        if (e.button !== 0) return
-        e.stopPropagation()
-        onActivate(e)
-      } : undefined}
     >
       <img
         src={src}

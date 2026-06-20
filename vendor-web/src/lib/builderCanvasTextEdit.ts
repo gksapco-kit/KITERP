@@ -6,7 +6,7 @@ import {
   getSelectionFontSizePx,
   hasActiveInlineTextSelection,
 } from '@storefront/lib/builderInlineTextSelection'
-import { CONTENT_GROUP_FIELD_KEY } from '@storefront/lib/fieldTextStyles'
+import { CONTENT_GROUP_FIELD_KEY, fieldStyleEntry, isInlinePositionField } from '@storefront/lib/fieldTextStyles'
 import { extractFormatPaintStyleFromRange, extractFormatPaintStyleFromElement, resolveFormatPaintStyle } from './builderFormatPainter'
 import type { FormatPaintStyle } from './builderFormatPainter'
 
@@ -779,6 +779,41 @@ export function getCanvasFieldComputedFontSizePx(
   return Math.round(px)
 }
 
+function cssColorToHex(color: string): string {
+  const trimmed = color.trim()
+  if (trimmed.startsWith('#')) {
+    return trimmed.length >= 7 ? trimmed.slice(0, 7) : trimmed
+  }
+  const m = trimmed.match(/rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)/i)
+  if (!m) return trimmed
+  const hex = (n: string) => Number(n).toString(16).padStart(2, '0')
+  return `#${hex(m[1])}${hex(m[2])}${hex(m[3])}`
+}
+
+/** Live CTA shell fill / border from the rendered button (theme defaults until overridden). */
+export function getCanvasCtaShellComputedStyle(
+  blockId: string,
+  fieldKey: string,
+): { field_bg_color?: string; field_border_color?: string } {
+  const fieldEl = document.querySelector(
+    `[data-block-id="${CSS.escape(blockId)}"] [data-text-key="${CSS.escape(fieldKey)}"]`,
+  ) as HTMLElement | null
+  const shell = fieldEl?.closest('[data-builder-cta-shell]') as HTMLElement | null
+  if (!shell) return {}
+  const cs = window.getComputedStyle(shell)
+  const out: { field_bg_color?: string; field_border_color?: string } = {}
+  const bg = cs.backgroundColor
+  if (bg && bg !== 'rgba(0, 0, 0, 0)' && bg !== 'transparent') {
+    out.field_bg_color = cssColorToHex(bg)
+  }
+  const bw = parseFloat(cs.borderTopWidth)
+  const bc = cs.borderTopColor
+  if (Number.isFinite(bw) && bw > 0 && bc && bc !== 'rgba(0, 0, 0, 0)') {
+    out.field_border_color = cssColorToHex(bc)
+  }
+  return out
+}
+
 function resolveToolbarSelectionRange(blockId: string, fieldKey: string): Range | null {
   const fieldEl = document.querySelector(
     `[data-block-id="${CSS.escape(blockId)}"] [data-text-key="${CSS.escape(fieldKey)}"]`,
@@ -818,6 +853,12 @@ export function resolveToolbarTypographyDisplay(
   font_family: string | null
   font_size_px: number | null
   text_color_override: string | null
+  field_bg_color: string | null
+  field_border_color: string | null
+  text_align: string | null
+  vertical_align: string | null
+  text_wrap: boolean | null
+  line_height_ratio: number | null
 } {
   if (!fieldKey) {
     const resolved = resolveFormatPaintStyle({ blockProps, fieldKey: null })
@@ -831,11 +872,28 @@ export function resolveToolbarTypographyDisplay(
           : null,
       text_color_override:
         typeof resolved.text_color_override === 'string' ? resolved.text_color_override : null,
+      field_bg_color: null,
+      field_border_color: null,
+      text_align: typeof resolved.text_align === 'string' ? resolved.text_align : null,
+      vertical_align: typeof resolved.vertical_align === 'string' ? resolved.vertical_align : null,
+      text_wrap: typeof resolved.text_wrap === 'boolean' ? resolved.text_wrap : null,
+      line_height_ratio:
+        typeof resolved.line_height_ratio === 'number' ? resolved.line_height_ratio : null,
     }
   }
 
   if (fieldKey === CONTENT_GROUP_FIELD_KEY) {
-    return { font_family: null, font_size_px: null, text_color_override: null }
+    return {
+      font_family: null,
+      font_size_px: null,
+      text_color_override: null,
+      field_bg_color: null,
+      field_border_color: null,
+      text_align: null,
+      vertical_align: null,
+      text_wrap: null,
+      line_height_ratio: null,
+    }
   }
 
   const fieldEl = document.querySelector(
@@ -909,9 +967,40 @@ export function resolveToolbarTypographyDisplay(
   }
 
   const text_color_override =
-    typeof resolved.text_color_override === 'string' ? resolved.text_color_override : null
+    typeof resolved.text_color_override === 'string'
+      ? cssColorToHex(resolved.text_color_override)
+      : null
 
-  return { font_family, font_size_px, text_color_override }
+  let field_bg_color: string | null = null
+  let field_border_color: string | null = null
+  if (isInlinePositionField(fieldKey)) {
+    const fs = fieldStyleEntry(blockProps, fieldKey)
+    field_bg_color = typeof fs.field_bg_color === 'string' ? fs.field_bg_color : null
+    field_border_color = typeof fs.field_border_color === 'string' ? fs.field_border_color : null
+    const shellComputed = getCanvasCtaShellComputedStyle(blockId, fieldKey)
+    if (!field_bg_color && shellComputed.field_bg_color) field_bg_color = shellComputed.field_bg_color
+    if (!field_border_color && shellComputed.field_border_color) {
+      field_border_color = shellComputed.field_border_color
+    }
+  }
+
+  const text_align = typeof resolved.text_align === 'string' ? resolved.text_align : null
+  const vertical_align = typeof resolved.vertical_align === 'string' ? resolved.vertical_align : null
+  const text_wrap = typeof resolved.text_wrap === 'boolean' ? resolved.text_wrap : null
+  const line_height_ratio =
+    typeof resolved.line_height_ratio === 'number' ? resolved.line_height_ratio : null
+
+  return {
+    font_family,
+    font_size_px,
+    text_color_override,
+    field_bg_color,
+    field_border_color,
+    text_align,
+    vertical_align,
+    text_wrap,
+    line_height_ratio,
+  }
 }
 
 /** Font family shown in the design-bar picker (selection, caret, field styles, or computed). */

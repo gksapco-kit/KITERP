@@ -16,6 +16,7 @@ export type BlockOverlayItem = {
   linkLabel?: string
   openInNewTab?: boolean
   fontSize?: number
+  fontFamily?: string
   fontWeight?: string
   italic?: boolean
   color?: string
@@ -79,6 +80,26 @@ export function resolveOverlayLinkHref(
 
   const internal = (path: string) => storePath(path.startsWith('/') ? path : `/${path}`)
 
+  // The builder saves a fully-resolved value in `linkTarget` (e.g. "/services/foo",
+  // "?branch=code", "/stores?branch=a,b"). Treat that as canonical so overlay links
+  // round-trip the same way section data-source links do (which use the item's full
+  // `url`). We still tolerate a bare slug/code for backwards compatibility.
+  const catalogPath = (collection: string) =>
+    internal(target.startsWith('/') ? target : `/${collection}/${target}`)
+
+  // Set the `branch` query param on a store path that may ALREADY carry one
+  // (storePath is branch-aware on multi-store sites, so a naive append would
+  // produce "/store/x?branch=a?branch=b"). Accepts the serialized query the
+  // builder saves ("?branch=code") or a bare code/list and overwrites the param.
+  const withBranch = (basePath: string, codes: string) => {
+    const value = codes.replace(/^\??branch=/, '')
+    if (!value) return basePath
+    const [path, existingQuery = ''] = basePath.split('?')
+    const params = new URLSearchParams(existingQuery)
+    params.set('branch', value)
+    return `${path}?${params.toString()}`
+  }
+
   switch (type) {
     case 'url':
       return target
@@ -87,15 +108,26 @@ export function resolveOverlayLinkHref(
     case 'scroll':
       return target.startsWith('#') ? target : `#${target}`
     case 'product':
-      return internal(`/products/${target}`)
+      return catalogPath('products')
     case 'service':
-      return internal(`/services/${target}`)
+      return catalogPath('services')
     case 'category':
-      return internal(`/categories/${target}`)
+      return catalogPath('categories')
+    case 'team_member':
+      // Builder saves a full path ("/team/{id}") or the item's url.
+      return internal(target)
+    case 'testimonial':
+      // Builder saves "#testimonial-{id}"; tolerate a bare id too.
+      return target.startsWith('#') ? target : `#testimonial-${target}`
     case 'store':
-      return `${storePath('/')}?branch=${encodeURIComponent(target)}`
-    case 'stores_multi':
-      return `${storePath('/stores')}?branch=${encodeURIComponent(target)}`
+      return withBranch(storePath('/'), target)
+    case 'stores_multi': {
+      // Builder saves a full path ("/stores?branch=a,b") or just the bare list.
+      const [rawPath, rawQuery = ''] = target.split('?')
+      const codes = rawQuery ? rawQuery.replace(/^branch=/, '') : (target.startsWith('/') ? '' : target)
+      const basePath = target.startsWith('/') ? internal(rawPath || '/stores') : storePath('/stores')
+      return codes ? withBranch(basePath, codes) : basePath
+    }
     case 'store_locator':
       return internal('/stores')
     case 'email':

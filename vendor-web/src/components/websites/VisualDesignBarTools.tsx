@@ -12,6 +12,7 @@ import { InsertLayerButton } from '@/components/websites/InsertLayerButton'
 import { ScrollAnimationControls } from '@/components/websites/ScrollAnimationControls'
 import { OverlayLayerVisualControls } from '@/components/websites/OverlayLayerVisualControls'
 import { OverlayIconsRibbonButton } from '@/components/websites/OverlayIconPicker'
+import { MediaDesignBarStrip } from '@/components/websites/MediaDesignBarTools'
 import {
   visualMenuTrigger,
   visualSectionGrid,
@@ -20,6 +21,7 @@ import {
 import { animationOptionLabel } from '@storefront/lib/builderScrollAnimations'
 import { sectionSupportsBgStyle, sectionSupportsEdgeShapes } from '@storefront/lib/designBarCapabilities'
 import type { OverlayLayerItem } from '@/lib/builderOverlayVisual'
+import type { OverlayBox } from '@/lib/overlayAlignmentSnap'
 import type { BlockProps } from '@/types/websites'
 
 type VisualDropdown = 'insert' | 'icons' | 'anim' | 'origins' | 'shadow' | 'background' | null
@@ -73,6 +75,9 @@ export function VisualDesignBarTools({
   blockAnimationDelay,
   overlayCount,
   selectedOverlay,
+  overlaySiblings,
+  overlayContainerWidth,
+  overlayContainerHeight,
   blockBackgroundColor,
   onUpdate,
   onUpdateOverlay,
@@ -86,6 +91,11 @@ export function VisualDesignBarTools({
   onOverlayEditDescription,
   onOverlayBringToFront,
   onOverlaySendToBack,
+  primaryImageField,
+  canvasImageField,
+  onSectionImagePick,
+  onSectionImageLibrary,
+  onFocusPrimaryImage,
 }: {
   blockType: string
   blockProps: Record<string, unknown>
@@ -93,6 +103,9 @@ export function VisualDesignBarTools({
   blockAnimationDelay?: number
   overlayCount: number
   selectedOverlay?: OverlayLayerItem | null
+  overlaySiblings?: OverlayBox[]
+  overlayContainerWidth?: number
+  overlayContainerHeight?: number
   blockBackgroundColor?: string
   onUpdate: (patch: Partial<BlockProps>) => void
   onUpdateOverlay?: (patch: Partial<OverlayLayerItem>) => void
@@ -106,6 +119,11 @@ export function VisualDesignBarTools({
   onOverlayEditDescription?: () => void
   onOverlayBringToFront?: () => void
   onOverlaySendToBack?: () => void
+  primaryImageField?: string | null
+  canvasImageField?: string | null
+  onSectionImagePick?: () => void
+  onSectionImageLibrary?: () => void
+  onFocusPrimaryImage?: () => void
 }) {
   const p = blockProps
   const showEdgeShapes = sectionSupportsEdgeShapes(blockType)
@@ -176,6 +194,9 @@ export function VisualDesignBarTools({
   const sectionGrid = (
     <>
       {quickInsertStrip}
+      {/* Section-level styling menus are hidden while a layer is selected so the bar
+          shows only controls that act on the selected layer. */}
+      {hasLayer ? null : (
       <div className={visualSectionGrid}>
       <SectionMenuBtn
         btnRef={animBtnRef}
@@ -227,12 +248,28 @@ export function VisualDesignBarTools({
         <span className="h-7 w-[3.1rem] shrink-0" aria-hidden />
       )}
       </div>
+      )}
     </>
   )
 
   return (
     <div className={visualTabShell}>
       {sectionGrid}
+
+      {!hasLayer ? (
+        <div className="flex shrink-0 items-center gap-1 border-l border-gray-200 pl-1">
+          <MediaDesignBarStrip
+            blockType={blockType}
+            blockProps={blockProps}
+            primaryImageField={primaryImageField}
+            canvasImageField={canvasImageField}
+            onUpdate={onUpdate}
+            onOpenMediaLibrary={onSectionImageLibrary}
+            onPickImage={onSectionImagePick}
+            onFocusPrimaryImage={onFocusPrimaryImage}
+          />
+        </div>
+      ) : null}
 
       {hasLayer ? (
         <OverlayLayerVisualControls
@@ -247,6 +284,9 @@ export function VisualDesignBarTools({
           onEditLink={onOverlayEditLink}
           onEditText={onOverlayEditText}
           onEditDescription={onOverlayEditDescription}
+          siblings={overlaySiblings}
+          containerWidth={overlayContainerWidth}
+          containerHeight={overlayContainerHeight}
         />
       ) : null}
 

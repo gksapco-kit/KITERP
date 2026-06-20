@@ -1,7 +1,9 @@
 import { useMemo } from 'react'
+import { Link } from 'react-router-dom'
 import { Calendar } from 'lucide-react'
 import type { PublicSite, StyleConfig } from '@/blocks/registry'
 import { BuilderTextField } from '@/components/builder/BuilderTextField'
+import { useStorePath } from '@/hooks/useStorePath'
 
 interface Props {
   site: PublicSite
@@ -21,6 +23,7 @@ interface Props {
  * "no posts yet" tile so admins immediately see something is wired up.
  */
 export default function BlogGridBlock({ site, style, props, blockId }: Props) {
+  const storePath = useStorePath()
   const title = (props.title as string) || 'Latest Posts'
   const cols = Math.min(Math.max(Number(props.columns ?? 3) || 3, 1), 4)
 
@@ -81,7 +84,7 @@ export default function BlogGridBlock({ site, style, props, blockId }: Props) {
             key={p.id}
             className="group builder-tile-card rounded-2xl border border-gray-200 hover:border-gray-300 overflow-hidden bg-white transition-shadow hover:shadow-md"
           >
-            <a href={p.url} className="flex flex-col h-full">
+            <Link to={storePath(p.url)} className="flex flex-col h-full">
               <div className="aspect-[16/9] overflow-hidden bg-gray-100">
                 {p.image_url ? (
                   <img
@@ -110,7 +113,7 @@ export default function BlogGridBlock({ site, style, props, blockId }: Props) {
                   Read more →
                 </span>
               </div>
-            </a>
+            </Link>
           </article>
         ))}
       </div>

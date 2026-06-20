@@ -6,6 +6,7 @@ import {
   remoteImageToFile,
   MediaUploadPickerModal,
 } from '@/components/common/MediaUploadPickerModal'
+import { resolveBusinessGalleryDisplayUrl } from '@/data/businessImagePack'
 
 /** Hidden but still activatable via programmatic .click() (display:none breaks some browsers). */
 const PICKER_FILE_INPUT_CLASS = 'fixed left-[-9999px] top-0 h-px w-px opacity-0 overflow-hidden'
@@ -84,7 +85,7 @@ async function remoteUrlToFileOrUrl(
     await onFile(await remoteImageToFile(url))
   } catch {
     if (onUrl) {
-      await onUrl(url)
+      await onUrl(resolveBusinessGalleryDisplayUrl(url))
       return
     }
     throw new Error('Could not load image')

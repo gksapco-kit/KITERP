@@ -31,6 +31,7 @@ export type OverlayLayerItem = {
   linkLabel?: string
   color?: string
   fontSize?: number
+  fontFamily?: string
   description?: string
   shadow?: boolean
   opacity?: number

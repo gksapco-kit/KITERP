@@ -218,6 +218,7 @@ export function BuilderSectionOverlay({
   /** Section photo is the active target — soften full-section ring so the image highlight reads clearly. */
   imageSelected?: boolean
   saving?: boolean
+  /** False when section is hidden from the live site (still shown in builder). */
   visible?: boolean
   dropBefore?: boolean
   dropAfter?: boolean
@@ -232,6 +233,7 @@ export function BuilderSectionOverlay({
   scrollRootRef?: RefObject<HTMLElement | null>
 }) {
   const box = useBuilderSectionBox(blockId, containerRef, revision, scrollRootRef)
+  const isHidden = !visible
 
   if (!box) return null
 
@@ -240,17 +242,18 @@ export function BuilderSectionOverlay({
       className={cn(
         'absolute group pointer-events-none',
         interactive && 'pointer-events-auto cursor-pointer',
-        selected
-          ? saving
-            ? 'ring-2 ring-inset ring-amber-400'
-            : imageSelected
-              ? 'ring-1 ring-inset ring-primary/30'
-              : 'ring-2 ring-inset ring-ring'
-          : interactive && 'hover:ring-2 hover:ring-inset hover:ring-ring/60',
+        isHidden
+          ? 'ring-1 ring-inset ring-amber-400/70'
+          : selected
+            ? saving
+              ? 'ring-2 ring-inset ring-amber-400'
+              : imageSelected
+                ? 'ring-1 ring-inset ring-primary/30'
+                : 'ring-2 ring-inset ring-ring'
+            : interactive && 'hover:ring-2 hover:ring-inset hover:ring-ring/60',
         dropBefore && 'border-t-4 border-primary',
         dropAfter && 'border-b-4 border-primary',
         dragging && 'opacity-50',
-        !visible && 'opacity-40',
         className,
       )}
       style={{
@@ -600,7 +603,7 @@ export function BuilderSectionPaddingHandles({
           >
             <span className="block h-px w-2 rounded-full bg-primary/70 shrink-0" />
             <span className="text-[7px] font-bold uppercase tracking-wide text-primary/80 whitespace-nowrap">
-              {edge === 'top' ? '↑ space' : '↓ space'}
+              {edge === 'top' ? '↑' : '↓'} {value}px
             </span>
           </div>
         </div>

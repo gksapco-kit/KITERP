@@ -258,7 +258,7 @@ export function SectionSizeControl({
     <div
       data-section-scale-handle
       className={cn(
-        'group/scale pointer-events-auto fixed z-[100000] flex -translate-x-full items-center gap-0.5 rounded-full border border-primary/20 bg-white/95 p-0.5 shadow-lg ring-1 ring-black/5 backdrop-blur-sm',
+        'group/scale pointer-events-auto fixed z-[100008] flex -translate-x-full items-center gap-0.5 rounded-full border border-primary/20 bg-white/95 p-0.5 shadow-lg ring-1 ring-black/5 backdrop-blur-sm',
         frame.placement === 'inline' && '-translate-y-1/2',
         frame.placement === 'above' && '-translate-y-full',
       )}

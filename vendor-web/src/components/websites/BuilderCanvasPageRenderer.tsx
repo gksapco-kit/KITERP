@@ -33,7 +33,18 @@ export function BuilderCanvasPageRenderer({
       id: page.id,
       is_homepage: isHomepage || page.is_homepage,
       blocks: pageBlocks,
-    }).filter(b => b.visible !== false)
+    }).map(b => {
+      if (b.visible !== false) return b
+      // Builder still renders hidden sections so authors can select and unhide them.
+      return {
+        ...b,
+        visible: true,
+        props: {
+          ...(b.props as Record<string, unknown>),
+          __builder_hidden_section: true,
+        },
+      }
+    })
   }, [publicSite, blocks, pageId, isHomepage])
 
   return (

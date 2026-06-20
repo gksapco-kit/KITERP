@@ -36,6 +36,7 @@ import {
   snapOverlayResize,
   type OverlayGuideLine,
 } from '@/lib/overlayAlignmentSnap'
+import { placeAnchoredPanel, placeContextMenu } from '@/lib/builderFloatingUiPlacement'
 import {
   useSite,
   useUpdateSite,
@@ -145,10 +146,15 @@ import { MediaStudioPanel } from '@/components/websites/MediaStudioPanel'
 import { DesignBarDropdownPortal } from '@/components/websites/DesignBarDropdownPortal'
 import { VisualDesignBarTools } from '@/components/websites/VisualDesignBarTools'
 import { OverlayIconPicker } from '@/components/websites/OverlayIconPicker'
-import { OverlayTransformControls } from '@/components/websites/OverlayTransformControls'
+import { OverlayTypographyToolbar } from '@/components/websites/OverlayTypographyToolbar'
 import { SectionImageControls } from '@/components/websites/SectionImageControls'
 import { InsertLayerButton } from '@/components/websites/InsertLayerButton'
-import type { OverlayLayerItem } from '@/lib/builderOverlayVisual'
+import {
+  overlayHasFillControls,
+  overlayHasTextControls,
+  overlayLayerTypeLabel,
+  type OverlayLayerItem,
+} from '@/lib/builderOverlayVisual'
 import { overlayImageImgStyle } from '@storefront/lib/overlayImageStyle'
 import { builderOverlayIconLabel, overlayIconRenderSize, resolveBuilderOverlayIcon } from '@storefront/lib/builderOverlayIcons'
 import { SHADOW_PRESETS, SHAPE_OPTIONS } from '@/lib/builderVisualPresets'
@@ -162,10 +168,11 @@ import {
 import {
   canvasImageArraySlots,
   canvasImageStyleField,
+  slotKey,
   toggleCanvasImageSlot,
   type ActiveCanvasImageTarget,
+  type CanvasImageSlot,
 } from '@storefront/lib/canvasImageTarget'
-import { MediaDesignBarTools } from '@/components/websites/MediaDesignBarTools'
 import { SingleImagePreview } from '@/components/common/CatalogMediaLightbox'
 import { useImageSourcePicker } from '@/components/common/ImageSourcePicker'
 import { SectionLayoutPickerModal } from '@/components/websites/SectionLayoutPickerModal'
@@ -210,6 +217,7 @@ import {
   getRecommendedDataSources,
   getOtherDataSources,
   BLOCK_REQUIRED_DATA_SOURCE,
+  STATIC_DATA_SOURCE_TYPE,
   type LayoutPickerDataSourceChoice,
 } from '@/lib/blockDataSources'
 import { mergeLayoutBlockProps } from '@/lib/layoutBlockProps'
@@ -241,8 +249,8 @@ import {
   WELLNESS_DEFAULT_CATEGORY_TITLES,
 } from '@storefront/lib/wellnessCategoryStyle'
 import { IMAGE_SHAPE_OPTIONS, imageShapeRadiusClass } from '@storefront/lib/sectionItemLayout'
-import { buildFieldStylesCss, fieldTextStyle, CONTENT_GROUP_FIELD_KEY, FIELD_OFFSET_STEP_PX, hasInlineHtml, readFieldOffset, readFlipFlag, readRotateDeg } from '@storefront/lib/fieldTextStyles'
-import { BUILDER_FONT_FAMILIES, ensureBuilderFontLoaded } from '@storefront/lib/builderFontFamilies'
+import { buildFieldStylesCss, fieldTextStyle, CONTENT_GROUP_FIELD_KEY, FIELD_OFFSET_STEP_PX, hasInlineHtml, isInlinePositionField, readFieldOffset, readFlipFlag, readRotateDeg } from '@storefront/lib/fieldTextStyles'
+import { BUILDER_FONT_FAMILIES, ensureBuilderFontLoaded, builderFontPreviewStyle } from '@storefront/lib/builderFontFamilies'
 import {
   applyInlineTextSelectionStyle,
   applyInlineTextStyleAtPoint,
@@ -258,7 +266,13 @@ import {
   pinInlineTextSelectionBeforeToolbarAction,
   restoreSavedInlineSelection,
 } from '@storefront/lib/builderInlineTextSelection'
-import { mergeBlockSectionStyles, readRawBlockStyleOverrides, resolveBreakpointStyleOverrides } from '@storefront/lib/blockStyleOverrides'
+import {
+  mergeBlockSectionStyles,
+  readRawBlockStyleOverrides,
+  resolveBlockSectionPadding,
+  resolveBreakpointStyleOverrides,
+  stripSectionPaddingFromStyleOverrides,
+} from '@storefront/lib/blockStyleOverrides'
 
 // ?? Block definitions catalog ?????????????????????????????????????????????????
 
@@ -621,6 +635,7 @@ export interface BlockOverlayItem {
   linkLabel?: string             // human-readable label (e.g. "Espresso ? ?180")
   openInNewTab?: boolean
   fontSize?: number
+  fontFamily?: string
   fontWeight?: string
   italic?: boolean
   color?: string
@@ -637,6 +652,12 @@ export interface BlockOverlayItem {
   bgFill?: 'solid' | 'none'
   /** Lucide icon id when type is `icon`. */
   iconName?: string
+}
+
+function overlayTextFontStyle(item: BlockOverlayItem): React.CSSProperties {
+  if (!item.fontFamily) return {}
+  ensureBuilderFontLoaded(item.fontFamily)
+  return builderFontPreviewStyle(item.fontFamily)
 }
 
 function isOverlayNoFill(item: BlockOverlayItem): boolean {
@@ -770,8 +791,29 @@ function TextPromptPopup({
   const [val, setVal] = useState(initialValue || '')
   const [submitting, setSubmitting] = useState(false)
   const { ref, pos, headerMouseDown } = useDraggablePopup(open)
+  /** Frozen once when opened — avoids jumping when obstacle detection sees this panel. */
+  const [fixedPlacement, setFixedPlacement] = useState<{ top: number; left: number } | null>(null)
   useEscapeToClose(onClose, open)
   useEffect(() => { if (open) setVal(initialValue || '') }, [open, initialValue])
+
+  useEffect(() => {
+    if (!open) {
+      setFixedPlacement(null)
+      return
+    }
+    const panelW = 380
+    const panelH = multiline ? 280 : 240
+    if (anchor) {
+      setFixedPlacement(placeContextMenu(anchor, panelW, panelH))
+      return
+    }
+    const vw = window.innerWidth
+    const vh = window.innerHeight
+    setFixedPlacement({
+      left: Math.max(12, (vw - panelW) / 2),
+      top: Math.min(vh * 0.32, vh - panelH - 12),
+    })
+  }, [open, anchor?.x, anchor?.y, multiline])
 
   if (!open) return null
 
@@ -799,10 +841,18 @@ function TextPromptPopup({
   }
 
   const style: React.CSSProperties = pos
-    ? { position: 'fixed', top: pos.y, left: pos.x, zIndex: 100000 }
-    : anchor
-      ? { position: 'fixed', top: Math.min(anchor.y, (typeof window !== 'undefined' ? window.innerHeight : 768) - 300), left: Math.min(anchor.x, (typeof window !== 'undefined' ? window.innerWidth : 1024) - 400), zIndex: 100000 }
-      : { position: 'fixed', top: '40%', left: '50%', transform: 'translate(-50%, -50%)', zIndex: 100000 }
+    ? { position: 'fixed', top: pos.y, left: pos.x, zIndex: 100020 }
+    : fixedPlacement
+      ? { position: 'fixed', top: fixedPlacement.top, left: fixedPlacement.left, zIndex: 100020 }
+      : { position: 'fixed', top: '40%', left: '50%', transform: 'translate(-50%, -50%)', zIndex: 100020 }
+
+  const textFieldProps = {
+    spellCheck: false,
+    autoComplete: 'off' as const,
+    autoCorrect: 'off' as const,
+    autoCapitalize: 'off' as const,
+    'data-ms-editor': 'false',
+  }
 
   return (
     <>
@@ -849,6 +899,7 @@ function TextPromptPopup({
               maxLength={maxLength}
               rows={4}
               className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-ring resize-none"
+              {...textFieldProps}
               onKeyDown={e => {
                 if (e.key === 'Escape') onClose()
                 if (e.key === 'Enter' && (e.metaKey || e.ctrlKey) && canSubmit) { e.preventDefault(); commit() }
@@ -862,11 +913,11 @@ function TextPromptPopup({
               placeholder={placeholder}
               maxLength={maxLength}
               className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+              {...textFieldProps}
               onKeyDown={e => {
                 if (e.key === 'Escape') onClose()
                 if (e.key === 'Enter' && canSubmit) { e.preventDefault(); commit() }
               }}
-              onFocus={e => e.currentTarget.select()}
             />
           ))}
           {!confirmOnly && helpText && (
@@ -877,7 +928,14 @@ function TextPromptPopup({
           )}
         </div>
         <div className="flex items-center gap-2 px-4 py-3 border-t border-gray-100 bg-gray-50">
-          <button onClick={onClose} disabled={submitting} className="btn-cancel flex-1 py-2 rounded-lg text-xs font-medium text-gray-600 border border-[#ffc954] disabled:opacity-50">Cancel</button>
+          <button
+            type="button"
+            onClick={onClose}
+            disabled={submitting}
+            className="flex-1 rounded-lg border border-gray-300 bg-white py-2 text-xs font-semibold text-gray-700 transition-colors hover:bg-gray-100 disabled:opacity-50"
+          >
+            Cancel
+          </button>
           {secondaryLabel && onSecondary && (
             <button
               onClick={() => { void commitSecondary() }}
@@ -1061,6 +1119,19 @@ function LinkEditorPopup({
     if (type === 'phone' && finalTarget && !finalTarget.startsWith('tel:')) finalTarget = `tel:${finalTarget}`
     if (type === 'whatsapp' && finalTarget && !finalTarget.startsWith('http')) finalTarget = `https://wa.me/${finalTarget.replace(/\D/g, '')}`
     if (type === 'scroll' && finalTarget && !finalTarget.startsWith('#')) finalTarget = `#${finalTarget}`
+    // External URLs: a bare domain ("example.com") would otherwise be treated as an
+    // internal store path on the storefront. Prepend a scheme so it resolves as a
+    // real external link, while leaving site-relative paths and anchors untouched.
+    if (type === 'url' && finalTarget
+      && !/^(https?:|mailto:|tel:)/i.test(finalTarget)
+      && !finalTarget.startsWith('/')
+      && !finalTarget.startsWith('#')
+      && !finalTarget.startsWith('//')) {
+      finalTarget = `https://${finalTarget}`
+    }
+    // Don't persist a catalog/page/media pick that hasn't actually selected a target,
+    // which would render as a dead link on the published site.
+    if (currentMeta?.resource && !finalTarget) return
     onSave({ type, target: finalTarget, label, openInNewTab: openNew })
     onClose()
   }
@@ -1464,6 +1535,7 @@ export interface ContextMenuAction {
   label: string
   icon?: React.ElementType
   danger?: boolean
+  accent?: boolean
   divider?: boolean
   disabled?: boolean
   shortcut?: string
@@ -1479,21 +1551,31 @@ function ContextMenu({ open, x, y, actions, onClose }: {
   onClose: () => void
 }) {
   const [submenu, setSubmenu] = useState<string | null>(null)
+  const { ref, pos, headerMouseDown } = useDraggablePopup(open)
   useEscapeToClose(onClose, open)
+
+  useEffect(() => {
+    if (open) setSubmenu(null)
+  }, [open, x, y])
+
   useEffect(() => {
     if (!open) return
-    const h = () => onClose()
-    window.addEventListener('click', h)
-    return () => {
-      window.removeEventListener('click', h)
+    const h = (e: MouseEvent) => {
+      const target = e.target as Node
+      if (ref.current?.contains(target)) return
+      onClose()
     }
-  }, [open, onClose])
+    window.addEventListener('mousedown', h)
+    return () => window.removeEventListener('mousedown', h)
+  }, [open, onClose, ref])
 
   if (!open) return null
-  const vw = typeof window !== 'undefined' ? window.innerWidth : 1024
   const vh = typeof window !== 'undefined' ? window.innerHeight : 768
-  const left = Math.min(x, vw - 240)
-  const top = Math.min(y, vh - Math.max(200, actions.length * 30))
+  const menuWidth = 224
+  const menuHeight = Math.min(Math.max(200, (actions.length + 1) * 34 + 56), vh - 24)
+  const initial = placeContextMenu({ x, y }, menuWidth, menuHeight)
+  const menuLeft = pos?.x ?? initial.left
+  const menuTop = pos?.y ?? initial.top
 
   const renderAction = (a: ContextMenuAction) => {
     if (a.divider) return <div key={a.id} className="my-1 border-t border-gray-100" />
@@ -1512,7 +1594,7 @@ function ContextMenu({ open, x, y, actions, onClose }: {
         }}
         className={cn(
           'w-full flex items-center gap-2.5 px-3 py-1.5 text-left text-xs font-medium rounded-md transition-colors',
-          a.danger ? 'text-red-600 hover:bg-red-50' : 'text-gray-700 hover:bg-accent hover:text-primary',
+          a.danger ? 'text-red-600 hover:bg-red-50' : a.accent ? 'text-primary bg-accent/40 hover:bg-accent' : 'text-gray-700 hover:bg-accent hover:text-primary',
           a.disabled && 'opacity-40 cursor-not-allowed hover:bg-transparent',
         )}
       >
@@ -1528,17 +1610,57 @@ function ContextMenu({ open, x, y, actions, onClose }: {
 
   return (
     <div
+      ref={ref}
       data-builder-floating-ui
-      style={{ position: 'fixed', top, left, zIndex: 100001 }}
-      className="w-56 bg-white border border-gray-200 rounded-xl shadow-2xl py-1.5 animate-in fade-in zoom-in-95 duration-100 max-h-[90vh] overflow-y-auto"
+      style={{ position: 'fixed', top: menuTop, left: menuLeft, zIndex: 100015 }}
+      className="w-56 overflow-hidden rounded-xl border border-gray-200 bg-white shadow-2xl animate-in fade-in zoom-in-95 duration-100"
       onClick={e => e.stopPropagation()}
       onContextMenu={e => { e.preventDefault(); e.stopPropagation() }}
     >
-      {actions.map(renderAction)}
+      <div
+        className="flex cursor-grab select-none items-center gap-1.5 border-b border-gray-100 bg-gray-50/90 px-2 py-1.5 active:cursor-grabbing"
+        onMouseDown={headerMouseDown}
+        title="Drag to move this menu"
+      >
+        <GripVertical className="h-3.5 w-3.5 shrink-0 text-gray-400" />
+        <span className="min-w-0 flex-1 truncate text-[10px] font-semibold uppercase tracking-wide text-gray-500">
+          Actions
+        </span>
+        <button
+          type="button"
+          aria-label="Close menu"
+          title="Close"
+          onClick={e => {
+            e.stopPropagation()
+            onClose()
+          }}
+          className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-gray-500 transition-colors hover:bg-gray-200 hover:text-gray-800"
+        >
+          <X className="h-3.5 w-3.5" />
+        </button>
+      </div>
+
+      <div className="max-h-[min(70vh,420px)] overflow-y-auto py-1.5">
+        {actions.map(renderAction)}
+      </div>
+
+      <div className="border-t border-gray-100 px-1.5 py-1.5">
+        <button
+          type="button"
+          onClick={e => {
+            e.stopPropagation()
+            onClose()
+          }}
+          className="flex w-full items-center justify-center rounded-md px-3 py-2 text-xs font-semibold text-gray-600 transition-colors hover:bg-gray-100"
+        >
+          Cancel
+        </button>
+      </div>
+
       {activeSub && (
         <div
-          style={{ position: 'fixed', top, left: left + 224, zIndex: 100002 }}
-          className="w-52 bg-white border border-gray-200 rounded-xl shadow-2xl py-1.5 max-h-[90vh] overflow-y-auto"
+          style={{ position: 'fixed', top: menuTop, left: menuLeft + menuWidth + 4, zIndex: 100016 }}
+          className="w-52 max-h-[70vh] overflow-y-auto rounded-xl border border-gray-200 bg-white py-1.5 shadow-2xl"
           onClick={e => e.stopPropagation()}
         >
           {activeSub.map(renderAction)}
@@ -1653,43 +1775,67 @@ function DeletedPagesPanel({
   onRefresh,
   loading,
   alwaysShow = false,
+  variant = 'panel',
 }: {
   items: PageTrashItem[]
   onRestore: (id: string, title: string) => void
   onRefresh?: () => void | Promise<void>
   loading?: boolean
-  /** When true, show the section even if trash is empty (Page tab). */
+  /** When true, show the section even if trash is empty. */
   alwaysShow?: boolean
+  /** `menu` — embedded under More → Tools; `panel` — standalone amber card. */
+  variant?: 'panel' | 'menu'
 }) {
+  const isMenu = variant === 'menu'
   if (!alwaysShow && !loading && items.length === 0) return null
 
   return (
-    <div className={cn('rounded-xl border border-amber-100 bg-amber-50/60 px-3 py-2.5 space-y-2', alwaysShow ? 'mt-1' : 'mt-2')}>
-      <div className="flex items-center justify-between gap-2">
-        <div className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wide text-amber-800 min-w-0">
-          <Trash2 className="w-3 h-3 shrink-0" />
-          Recently deleted
-          {items.length > 0 && (
-            <span className="rounded-full bg-amber-200/80 px-1.5 py-0.5 text-[9px] font-bold tabular-nums">
-              {items.length}
-            </span>
+    <div
+      className={cn(
+        'space-y-2',
+        isMenu
+          ? 'px-3 py-2.5'
+          : cn('rounded-xl border border-amber-100 bg-amber-50/60 px-3 py-2.5', alwaysShow ? 'mt-1' : 'mt-2'),
+      )}
+    >
+      {!isMenu && (
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wide text-amber-800 min-w-0">
+            <Trash2 className="w-3 h-3 shrink-0" />
+            Recently deleted
+            {items.length > 0 && (
+              <span className="rounded-full bg-amber-200/80 px-1.5 py-0.5 text-[9px] font-bold tabular-nums">
+                {items.length}
+              </span>
+            )}
+          </div>
+          {onRefresh && (
+            <button
+              type="button"
+              onClick={() => void onRefresh()}
+              disabled={loading}
+              className="shrink-0 inline-flex items-center gap-1 rounded-md border border-amber-200 bg-white px-2 py-1 text-[10px] font-semibold text-amber-900 hover:bg-amber-50 transition-colors disabled:opacity-50"
+            >
+              <RefreshCw className={cn('w-3 h-3', loading && 'animate-spin')} />
+              Refresh
+            </button>
           )}
         </div>
-        {onRefresh && (
-          <button
-            type="button"
-            onClick={() => void onRefresh()}
-            disabled={loading}
-            className="shrink-0 inline-flex items-center gap-1 rounded-md border border-amber-200 bg-white px-2 py-1 text-[10px] font-semibold text-amber-900 hover:bg-amber-50 transition-colors disabled:opacity-50"
-          >
-            <RefreshCw className={cn('w-3 h-3', loading && 'animate-spin')} />
-            Refresh
-          </button>
-        )}
-      </div>
-      <p className="text-[10px] text-amber-900/70 leading-snug">
+      )}
+      <p className={cn('text-[10px] leading-snug', isMenu ? 'text-gray-500' : 'text-amber-900/70')}>
         Pages stay here for 7 days, then are removed permanently.
       </p>
+      {isMenu && onRefresh && (
+        <button
+          type="button"
+          onClick={() => void onRefresh()}
+          disabled={loading}
+          className="inline-flex items-center gap-1 rounded-md border border-gray-200 bg-white px-2 py-1 text-[10px] font-semibold text-gray-600 hover:bg-gray-50 transition-colors disabled:opacity-50"
+        >
+          <RefreshCw className={cn('w-3 h-3', loading && 'animate-spin')} />
+          Refresh
+        </button>
+      )}
       {loading && items.length === 0 && (
         <p className="text-[10px] text-gray-500 flex items-center gap-1.5">
           <Loader2 className="w-3 h-3 animate-spin" /> Loading deleted pages?
@@ -1697,7 +1843,9 @@ function DeletedPagesPanel({
       )}
       {!loading && items.length === 0 && (
         <p className="text-[10px] text-gray-500 leading-snug">
-          No deleted pages right now. Use <strong>Move to trash</strong> above to remove a page ? it will appear here.
+          {isMenu
+            ? 'No deleted pages right now. Use Move to trash on a page to remove it — it will appear here.'
+            : <>No deleted pages right now. Use <strong>Move to trash</strong> above to remove a page ? it will appear here.</>}
         </p>
       )}
       {items.length > 0 && (
@@ -1731,10 +1879,10 @@ function DeletedPagesPanel({
 
 /** Clicks on builder popovers / overlay UI must not clear overlay selection. */
 const BUILDER_OVERLAY_UI_SELECTOR =
-  '[data-overlay-root],[data-overlay-toolbar],[data-builder-section-image],[data-builder-section-toolbar],[data-builder-floating-ui],[data-block-design-bar],[data-block-design-bar-dropdown]'
+  '[data-overlay-root],[data-overlay-toolbar],[data-builder-section-image],[data-builder-section-toolbar],[data-builder-floating-ui],[data-block-design-bar],[data-block-design-bar-dropdown],[data-kiterp-modal]'
 
-/** Fixed width ? layout never reflows when link state or labels change. */
-const OVERLAY_TOOLBAR_WIDTH_PX = 320
+/** Fixed width — layout never reflows when link state or labels change. */
+const OVERLAY_TOOLBAR_WIDTH_PX = 336
 
 /** Shared classes ? light default, `dark:` when dashboard theme is dark (html.dark). */
 const overlayToolbarUi = {
@@ -1761,17 +1909,23 @@ function OverlayToolbarField({
   label,
   children,
   className,
+  compact = false,
 }: {
   label: string
   children: React.ReactNode
   className?: string
+  compact?: boolean
 }) {
   return (
-    <div className={cn('flex min-w-0 flex-col gap-1', className)}>
-      <span className={cn('truncate text-[10px] font-semibold uppercase tracking-wider leading-none', overlayToolbarUi.fieldLabel)}>
+    <div className={cn('flex min-w-0 flex-col', compact ? 'gap-0.5' : 'gap-1', className)}>
+      <span className={cn(
+        'truncate font-semibold uppercase tracking-wider leading-none',
+        compact ? 'text-[9px]' : 'text-[10px]',
+        overlayToolbarUi.fieldLabel,
+      )}>
         {label}
       </span>
-      <div className="flex min-h-8 min-w-0 items-center">{children}</div>
+      <div className={cn('flex min-w-0 items-center', compact ? 'min-h-7' : 'min-h-8')}>{children}</div>
     </div>
   )
 }
@@ -1779,13 +1933,21 @@ function OverlayToolbarField({
 function OverlayToolbarSection({
   title,
   children,
+  compact = false,
 }: {
   title: string
   children: React.ReactNode
+  compact?: boolean
 }) {
   return (
-    <div className={cn('rounded-lg border px-2 py-2', overlayToolbarUi.section)}>
-      <p className={cn('mb-2 text-[10px] font-semibold uppercase tracking-wider', overlayToolbarUi.sectionTitle)}>{title}</p>
+    <div className={cn('rounded-lg border', compact ? 'px-1.5 py-1' : 'px-2 py-2', overlayToolbarUi.section)}>
+      <p className={cn(
+        'font-semibold uppercase tracking-wider',
+        compact ? 'mb-1 text-[9px]' : 'mb-2 text-[10px]',
+        overlayToolbarUi.sectionTitle,
+      )}>
+        {title}
+      </p>
       {children}
     </div>
   )
@@ -1837,6 +1999,7 @@ function OverlayToolbarNumberInput({
   min,
   max,
   fallback,
+  step = 1,
   onCommit,
   onStopBubble,
 }: {
@@ -1845,10 +2008,13 @@ function OverlayToolbarNumberInput({
   min: number
   max: number
   fallback: number
+  step?: number
   onCommit: (n: number) => void
   onStopBubble: (e: React.SyntheticEvent) => void
 }) {
   const [draft, setDraft] = useState(String(value))
+  const stepperCell =
+    'flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-gray-300 bg-white text-gray-700 transition-colors hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:hover:bg-gray-700'
 
   useEffect(() => {
     setDraft(String(value))
@@ -1871,30 +2037,58 @@ function OverlayToolbarNumberInput({
     onCommit(clamped)
   }, [draft, fallback, max, min, onCommit, value])
 
+  const bump = (delta: number) => {
+    const base = Number(draft)
+    const current = Number.isFinite(base) ? base : value
+    const clamped = Math.min(max, Math.max(min, Math.round(current + delta)))
+    setDraft(String(clamped))
+    onCommit(clamped)
+  }
+
   return (
     <OverlayToolbarField label={label}>
-      <input
-        type="text"
-        inputMode="numeric"
-        value={draft}
-        onChange={e => setDraft(e.target.value.replace(/\D/g, ''))}
-        onBlur={commit}
-        onKeyDown={e => {
-          onStopBubble(e)
-          if (e.key === 'Enter') {
-            e.preventDefault()
-            ;(e.currentTarget as HTMLInputElement).blur()
-          }
-        }}
-        onMouseDown={onStopBubble}
-        onClick={onStopBubble}
-        onDoubleClick={onStopBubble}
-        className={cn(
-          'h-8 w-full min-w-0 rounded-md border text-center text-xs font-semibold focus:outline-none focus:ring-2',
-          overlayToolbarUi.input,
-        )}
-        title={`${label} (px) ? press Enter to apply`}
-      />
+      <div className="flex w-full min-w-0 items-center gap-0.5">
+        <button
+          type="button"
+          className={stepperCell}
+          onMouseDown={onStopBubble}
+          onClick={() => bump(-step)}
+          aria-label={`Decrease ${label}`}
+        >
+          <Minus className="h-3 w-3" />
+        </button>
+        <input
+          type="text"
+          inputMode="numeric"
+          value={draft}
+          onChange={e => setDraft(e.target.value.replace(/\D/g, ''))}
+          onBlur={commit}
+          onKeyDown={e => {
+            onStopBubble(e)
+            if (e.key === 'Enter') {
+              e.preventDefault()
+              ;(e.currentTarget as HTMLInputElement).blur()
+            }
+          }}
+          onMouseDown={onStopBubble}
+          onClick={onStopBubble}
+          onDoubleClick={onStopBubble}
+          className={cn(
+            'h-7 min-w-0 flex-1 rounded-md border text-center text-[11px] font-semibold tabular-nums focus:outline-none focus:ring-2',
+            overlayToolbarUi.input,
+          )}
+          title={`${label} — use −/+ or type a value`}
+        />
+        <button
+          type="button"
+          className={stepperCell}
+          onMouseDown={onStopBubble}
+          onClick={() => bump(step)}
+          aria-label={`Increase ${label}`}
+        >
+          <Plus className="h-3 w-3" />
+        </button>
+      </div>
     </OverlayToolbarField>
   )
 }
@@ -1911,6 +2105,10 @@ function OverlayEditToolbar({
   onPickLocalImage,
   onBringToFront,
   onSendToBack,
+  onDismiss,
+  containerRef,
+  siblings,
+  onShowGuides,
 }: {
   item: BlockOverlayItem
   onUpdate: (u: Partial<BlockOverlayItem>) => void
@@ -1933,6 +2131,10 @@ function OverlayEditToolbar({
   onPickLocalImage?: () => void
   onBringToFront?: () => void
   onSendToBack?: () => void
+  onDismiss?: () => void
+  containerRef?: React.RefObject<HTMLDivElement>
+  siblings?: BlockOverlayItem[]
+  onShowGuides?: (guides: OverlayGuideLine[]) => void
 }) {
   const hasTextControls = item.type === 'text' || item.type === 'button' || item.type === 'badge'
   const isImage = item.type === 'image'
@@ -1946,6 +2148,22 @@ function OverlayEditToolbar({
   // inserted element. The user can drag it anywhere by its header handle.
   const panelRef = useRef<HTMLDivElement>(null)
   const [panelPos, setPanelPos] = useState<{ top: number; left: number } | null>(null)
+  const [containerSize, setContainerSize] = useState({ w: 800, h: 400 })
+
+  useLayoutEffect(() => {
+    const el = containerRef?.current
+    if (!el) return
+    const update = () => setContainerSize({ w: el.clientWidth || 800, h: el.clientHeight || 400 })
+    update()
+    const ro = new ResizeObserver(update)
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [containerRef, item.id])
+
+  const siblingBoxes = useMemo(
+    () => (siblings ?? []).map(o => ({ x: o.x, y: o.y, w: o.w, h: o.h })),
+    [siblings],
+  )
 
   // Seed the initial position next to the selected element (once per selection).
   useEffect(() => {
@@ -1975,6 +2193,15 @@ function OverlayEditToolbar({
     setPanelPos({ top, left })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [item.id])
+
+  const textPromptAnchor = useCallback((): { x: number; y: number } => {
+    const panel = panelRef.current
+    if (panel) {
+      const rect = panel.getBoundingClientRect()
+      return { x: Math.max(12, rect.left - OVERLAY_TOOLBAR_WIDTH_PX - 24), y: rect.top }
+    }
+    return { x: window.innerWidth / 2 - 190, y: window.innerHeight / 3 }
+  }, [])
 
   const startPanelDrag = useCallback((e: React.MouseEvent) => {
     e.stopPropagation()
@@ -2012,12 +2239,11 @@ function OverlayEditToolbar({
       return
     }
     if (!onRequestText) return
-    const rect = e.currentTarget.getBoundingClientRect()
     onRequestText({
-      title: `Edit ${item.type} label`,
+      title: `Edit ${item.type} text`,
       placeholder: item.type === 'button' ? 'e.g. Book Now' : 'e.g. NEW',
       initialValue: item.text || '',
-      anchor: { x: rect.left, y: rect.bottom + 6 },
+      anchor: textPromptAnchor(),
       onSave: v => onUpdate({ text: v }),
     })
   }
@@ -2033,7 +2259,6 @@ function OverlayEditToolbar({
   const openDescription = (e: React.MouseEvent<HTMLButtonElement>) => {
     e.stopPropagation()
     if (!onRequestText) return
-    const rect = e.currentTarget.getBoundingClientRect()
     onRequestText({
       title: 'Button description',
       subtitle: 'Shown as tooltip on hover and used for screen-reader labels.',
@@ -2041,13 +2266,13 @@ function OverlayEditToolbar({
       initialValue: item.description || '',
       multiline: true,
       maxLength: 160,
-      anchor: { x: rect.left, y: rect.bottom + 6 },
+      anchor: textPromptAnchor(),
       onSave: v => onUpdate({ description: v }),
     })
   }
 
   const toolbarBtn =
-    'flex h-8 w-full min-w-0 items-center justify-center rounded-lg transition-colors'
+    'flex h-7 w-full min-w-0 items-center justify-center rounded-lg transition-colors'
 
   if (!showCanvasToolbar || !panelPos) return null
 
@@ -2059,7 +2284,7 @@ function OverlayEditToolbar({
       role="toolbar"
       aria-label="Overlay element options"
       className={cn(
-        'fixed z-[1000] box-border flex max-h-[calc(100vh-24px)] flex-col overflow-hidden rounded-xl border backdrop-blur-sm',
+        'fixed z-[100010] box-border flex flex-col overflow-visible rounded-xl border backdrop-blur-sm',
         overlayToolbarUi.panel,
       )}
       style={{
@@ -2078,95 +2303,78 @@ function OverlayEditToolbar({
         data-overlay-toolbar-handle
         onMouseDown={startPanelDrag}
         className={cn(
-          'flex cursor-move select-none items-center gap-1.5 border-b px-2.5 py-1.5',
+          'flex cursor-move select-none items-center gap-1.5 border-b px-2 py-1',
           overlayToolbarUi.footer,
         )}
         title="Drag to move this panel"
       >
         <GripVertical className="h-3.5 w-3.5 shrink-0 opacity-70" />
         <span className="text-[11px] font-semibold capitalize">{item.type} settings</span>
-        <Move className="ml-auto h-3.5 w-3.5 shrink-0 opacity-50" />
+        <div className="ml-auto flex items-center gap-1">
+          <Move className="h-3.5 w-3.5 shrink-0 opacity-50" />
+          {onDismiss ? (
+            <button
+              type="button"
+              aria-label="Close settings"
+              title="Close"
+              onMouseDown={e => e.stopPropagation()}
+              onClick={e => {
+                e.stopPropagation()
+                onDismiss()
+              }}
+              className="flex h-6 w-6 items-center justify-center rounded-md text-gray-500 transition-colors hover:bg-gray-200/80 hover:text-gray-800 dark:hover:bg-gray-700"
+            >
+              <X className="h-3.5 w-3.5" />
+            </button>
+          ) : null}
+        </div>
       </div>
-      <div className="space-y-2 overflow-y-auto p-2.5">
-        <OverlayToolbarSection title="Position & size">
-          <OverlayTransformControls
-            item={item}
-            onUpdate={onUpdate}
-            onBringToFront={onBringToFront}
-            onSendToBack={onSendToBack}
-            variant="toolbar"
-            onStopBubble={stopToolbarEvent}
-          />
-        </OverlayToolbarSection>
+      <div className="space-y-1 p-2">
+        {/* Position, size & align are owned by the docked Visual tab. This floating
+            panel keeps only the advanced fine-tuning controls (precise numeric
+            inputs, link/description) so nothing is duplicated. */}
 
         {/* Typography */}
         {hasTextControls && (
-          <OverlayToolbarSection title="Text">
-            <div className="grid grid-cols-2 gap-2">
-              <OverlayToolbarField label="Color">
-                <OverlayToolbarColorSwatch
-                  value={item.color || '#111827'}
-                  onChange={color => onUpdate({ color })}
-                  onStopBubble={stopToolbarEvent}
-                  title="Text color"
-                />
-              </OverlayToolbarField>
-              <OverlayToolbarNumberInput
-                label="Size (px)"
-                value={item.fontSize ?? 16}
-                min={8}
-                max={120}
-                fallback={16}
-                onCommit={n => onUpdate({ fontSize: n })}
-                onStopBubble={stopToolbarEvent}
-              />
-            </div>
+          <OverlayToolbarSection title="Text" compact>
+            <OverlayTypographyToolbar
+              item={item}
+              blockBackgroundColor={blockBackgroundColor}
+              onUpdate={onUpdate}
+              onStopBubble={stopToolbarEvent}
+            />
           </OverlayToolbarSection>
         )}
 
         {isIcon && (
-          <OverlayToolbarSection title="Icon">
-            <div className="grid grid-cols-2 gap-2">
-              <OverlayToolbarField label="Icon">
-                <div onMouseDown={stopToolbarEvent} onClick={stopToolbarEvent}>
-                  <OverlayIconPicker
-                    value={item.iconName}
-                    onChange={iconName => onUpdate({ iconName })}
-                  />
-                </div>
-              </OverlayToolbarField>
-              <OverlayToolbarField label="Color">
-                <OverlayToolbarColorSwatch
-                  value={item.color || '#111827'}
-                  onChange={color => onUpdate({ color })}
-                  onStopBubble={stopToolbarEvent}
-                  title="Icon color"
-                />
-              </OverlayToolbarField>
-              <OverlayToolbarNumberInput
-                label="Size (px)"
-                value={item.fontSize ?? 32}
-                min={12}
-                max={160}
-                fallback={32}
-                onCommit={n => onUpdate({ fontSize: n })}
-                onStopBubble={stopToolbarEvent}
+          <OverlayToolbarSection title="Icon" compact>
+            <OverlayTypographyToolbar
+              item={item}
+              blockBackgroundColor={blockBackgroundColor}
+              onUpdate={onUpdate}
+              onStopBubble={stopToolbarEvent}
+              showAlign={false}
+            />
+            <div className="mt-1" onMouseDown={stopToolbarEvent} onClick={stopToolbarEvent}>
+              <OverlayIconPicker
+                value={item.iconName}
+                onChange={iconName => onUpdate({ iconName })}
               />
             </div>
           </OverlayToolbarSection>
         )}
 
         {isImage && (
-          <OverlayToolbarSection title="Image">
-            <div className="grid grid-cols-2 gap-1.5">
+          <OverlayToolbarSection title="Image" compact>
+            <div className={cn('grid gap-1', hasLink && onEditLink ? 'grid-cols-3' : 'grid-cols-2')}>
               {onPickLocalImage ? (
                 <button
                   type="button"
                   onClick={e => { e.stopPropagation(); onPickLocalImage() }}
-                  className={cn(toolbarBtn, 'gap-1 bg-sky-600 text-white hover:bg-sky-500 text-[10px] font-semibold')}
+                  className={cn(toolbarBtn, 'gap-1 bg-sky-600 text-white hover:bg-sky-500 text-[9px] font-semibold')}
                   title="Upload image"
                 >
-                  <Upload className="h-3.5 w-3.5 shrink-0" />
+                  <Upload className="h-3 w-3 shrink-0" />
                   Upload
                 </button>
               ) : null}
@@ -2174,15 +2382,33 @@ function OverlayEditToolbar({
                 <button
                   type="button"
                   onClick={e => { e.stopPropagation(); onOpenMediaForImage() }}
-                  className={cn(toolbarBtn, 'gap-1 bg-emerald-600 text-white hover:bg-emerald-500 text-[10px] font-semibold')}
+                  className={cn(toolbarBtn, 'gap-1 bg-emerald-600 text-white hover:bg-emerald-500 text-[9px] font-semibold')}
                   title="Media library"
                 >
-                  <ImageIcon className="h-3.5 w-3.5 shrink-0" />
+                  <ImageIcon className="h-3 w-3 shrink-0" />
                   Library
                 </button>
               ) : null}
+              {hasLink && onEditLink ? (
+                <button
+                  type="button"
+                  data-overlay-link-btn
+                  onClick={openLinkEditor}
+                  className={cn(
+                    toolbarBtn,
+                    isLinked ? 'bg-emerald-600 text-white hover:bg-emerald-500' : overlayToolbarUi.actionMuted,
+                  )}
+                  title={
+                    isLinked
+                      ? `Linked: ${item.linkType} — ${item.linkLabel || item.linkTarget}`
+                      : 'Add link'
+                  }
+                >
+                  <Link2 className="h-3.5 w-3.5 shrink-0" />
+                </button>
+              ) : null}
             </div>
-            <div className="mt-2 grid grid-cols-3 gap-2">
+            <div className="mt-1 grid grid-cols-4 gap-1">
               <OverlayToolbarNumberInput
                 label="Zoom %"
                 value={item.imageScale ?? 100}
@@ -2201,13 +2427,13 @@ function OverlayEditToolbar({
                 onCommit={n => onUpdate({ borderRadius: n })}
                 onStopBubble={stopToolbarEvent}
               />
-              <OverlayToolbarField label="Shadow">
+              <OverlayToolbarField label="Shadow" compact>
                 <button
                   type="button"
                   onClick={() => onUpdate({ shadow: !item.shadow })}
                   className={cn(
                     toolbarBtn,
-                    'text-[10px] font-semibold',
+                    'text-[9px] font-semibold',
                     item.shadow ? 'bg-primary text-white' : overlayToolbarUi.actionMuted,
                   )}
                 >
@@ -2227,8 +2453,8 @@ function OverlayEditToolbar({
           </OverlayToolbarSection>
         )}
 
-      {(hasTextControls || isIcon || isImage || (hasLink && onEditLink) || ((item.type === 'button' || item.type === 'badge') && onRequestText)) && (
-        <div className="mt-2 grid grid-cols-3 gap-1.5">
+      {(hasTextControls || isIcon || ((item.type === 'button' || item.type === 'badge') && onRequestText) || (hasLink && onEditLink && !isImage)) && (
+        <div className="grid grid-cols-3 gap-1">
           {hasTextControls ? (
             <button
               type="button"
@@ -2238,8 +2464,8 @@ function OverlayEditToolbar({
             >
               <Type className="h-4 w-4 shrink-0" />
             </button>
-          ) : <div className="h-8" aria-hidden />}
-          {hasLink && onEditLink ? (
+          ) : <div className="h-7" aria-hidden />}
+          {hasLink && onEditLink && !isImage ? (
             <button
               type="button"
               data-overlay-link-btn
@@ -2256,7 +2482,7 @@ function OverlayEditToolbar({
             >
               <Link2 className="h-4 w-4 shrink-0" />
             </button>
-          ) : (isImage ? null : <div className="h-8" aria-hidden />)}
+          ) : (isImage ? null : <div className="h-7" aria-hidden />)}
           {(item.type === 'button' || item.type === 'badge') && onRequestText ? (
             <button
               type="button"
@@ -2266,7 +2492,7 @@ function OverlayEditToolbar({
             >
               <Info className="h-4 w-4 shrink-0" />
             </button>
-          ) : <div className="h-8" aria-hidden />}
+          ) : <div className="h-7" aria-hidden />}
         </div>
       )}
       </div>
@@ -2276,12 +2502,15 @@ function OverlayEditToolbar({
 }
 
 function OverlayElement({
-  item, isSelected, containerRef, blockBackgroundColor, siblings, onDragGuides, onSelect, onUpdate, onDelete,
+  item, isSelected, settingsPanelOpen = false, onCloseSettingsPanel,
+  containerRef, blockBackgroundColor, siblings, onDragGuides, onSelect, onUpdate, onDelete,
   onOpenAiForImage, onOpenMediaForImage, onPickLocalImage, onImageFileDrop,
-  onEditLink, onContextMenu, onRequestText, onBringToFront, onSendToBack,
+  onEditLink, onContextMenu, onRequestText, onBringToFront, onSendToBack, onDismiss,
 }: {
   item: BlockOverlayItem
   isSelected: boolean
+  settingsPanelOpen?: boolean
+  onCloseSettingsPanel?: () => void
   containerRef: React.RefObject<HTMLDivElement>
   blockBackgroundColor?: string
   /** Other overlays on the same canvas — used as alignment snap targets. */
@@ -2294,11 +2523,12 @@ function OverlayElement({
   onOpenAiForImage?: () => void
   onOpenMediaForImage?: () => void
   onPickLocalImage?: () => void
-  onImageFileDrop?: (file: File) => void
+  onImageFileDrop?: (file: File, overlayTarget?: { blockId: string; overlayId: string }) => void
   onEditLink?: (anchor: { x: number; y: number }) => void
   onContextMenu?: (e: React.MouseEvent) => void
   onBringToFront?: () => void
   onSendToBack?: () => void
+  onDismiss?: () => void
   // Open the styled text prompt (title/prompt/placeholder/current value)
   onRequestText?: (opts: {
     title: string
@@ -2428,6 +2658,7 @@ function OverlayElement({
               color: item.color || '#111827', textAlign: item.align || 'left',
               padding: '6px 10px', display: 'flex', alignItems: 'center', wordBreak: 'break-word',
               outline: textEditing ? '2px solid #64C3A0' : 'none', cursor: textEditing ? 'text' : 'move',
+              ...overlayTextFontStyle(item),
             }}
           />
         )
@@ -2438,7 +2669,7 @@ function OverlayElement({
           </div>
         ) : (
           <div
-            style={{ ...commonStyle, backgroundColor: resolveOverlayBackground(item, '#f3f4f6'), display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 6, cursor: 'move' }}
+            style={{ ...commonStyle, backgroundColor: resolveOverlayBackground(item, '#f3f4f6'), display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 6, cursor: isSelected ? 'pointer' : 'move' }}
             onDragOver={onImageFileDrop ? e => { e.preventDefault(); e.stopPropagation() } : undefined}
             onDrop={onImageFileDrop ? e => {
               e.preventDefault(); e.stopPropagation()
@@ -2447,7 +2678,9 @@ function OverlayElement({
             } : undefined}
           >
             <svg viewBox="0 0 24 24" style={{ width: 28, height: 28, fill: '#9ca3af' }}><path d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zm-8.5-5.5l2.5 3.01L18 12l4 5H6l3.5-4.5z"/></svg>
-            <span style={{ fontSize: 11, color: '#9ca3af', textAlign: 'center' }}>Right-click to upload or replace</span>
+            <span style={{ fontSize: 11, color: '#9ca3af', textAlign: 'center', padding: '0 8px', lineHeight: 1.35 }}>
+              Click to upload · drop image · or right-click for options
+            </span>
           </div>
         )
       case 'button': {
@@ -2458,7 +2691,7 @@ function OverlayElement({
             style={{ ...commonStyle, backgroundColor: resolveOverlayBackground(item, '#64C3A0'), display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative' }}
             title={item.description || (hasLink ? `Link ? ${item.linkLabel || item.linkTarget}` : 'Click to edit')}
           >
-            <span style={{ fontSize: item.fontSize || 14, fontWeight: item.fontWeight || 'bold', color: item.color || '#ffffff' }}>
+            <span style={{ fontSize: item.fontSize || 14, fontWeight: item.fontWeight || 'bold', color: item.color || '#ffffff', ...overlayTextFontStyle(item) }}>
               {item.text || 'Button'}
             </span>
             {/* Link badge hidden while selected ? toolbar shows Linked / Add link instead */}
@@ -2479,7 +2712,7 @@ function OverlayElement({
       case 'badge':
         return (
           <div style={{ ...commonStyle, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: resolveOverlayBackground(item, '#64C3A0') }}>
-            <span style={{ fontSize: item.fontSize || 12, fontWeight: 'bold', color: item.color || '#ffffff', whiteSpace: 'nowrap' }}>
+            <span style={{ fontSize: item.fontSize || 12, fontWeight: 'bold', color: item.color || '#ffffff', whiteSpace: 'nowrap', ...overlayTextFontStyle(item) }}>
               {item.text || 'Badge'}
             </span>
           </div>
@@ -2526,15 +2759,22 @@ function OverlayElement({
       }}
       onClick={e => {
         e.stopPropagation()
-        if (dragMovedRef.current || isSelected) return
-        onSelect()
+        if (dragMovedRef.current) return
+        if (!isSelected) {
+          onSelect()
+          return
+        }
+        if (item.type === 'image' && !item.src && onPickLocalImage) {
+          onPickLocalImage()
+        }
       }}
       onMouseDown={e => {
         const t = e.target as HTMLElement
         if (t.closest('[data-overlay-toolbar],[data-overlay-delete],[data-overlay-resize-handle]')) return
         if (t.closest('input,textarea,select')) return
         if (!isSelected) onSelect()
-        if (!textEditing) startDrag(e)
+        // Empty image layers use click/drop to upload — skip drag so the click isn't eaten.
+        if (!textEditing && !(item.type === 'image' && !item.src)) startDrag(e)
       }}
       onContextMenu={e => { if (onContextMenu) { e.preventDefault(); e.stopPropagation(); onSelect(); onContextMenu(e) } }}
       onDoubleClick={e => {
@@ -2547,21 +2787,27 @@ function OverlayElement({
       }}
     >
       {renderContent()}
-      {isSelected && !textEditing && (
+      {isSelected && settingsPanelOpen && !textEditing ? (
+        <OverlayEditToolbar
+          item={item}
+          onUpdate={onUpdate}
+          blockBackgroundColor={blockBackgroundColor}
+          onEditLink={onEditLink}
+          onRequestText={onRequestText}
+          onStartTextEdit={() => setTextEditing(true)}
+          onOpenAiForImage={onOpenAiForImage}
+          onOpenMediaForImage={onOpenMediaForImage}
+          onPickLocalImage={onPickLocalImage}
+          onBringToFront={onBringToFront}
+          onSendToBack={onSendToBack}
+          onDismiss={onCloseSettingsPanel ?? onDismiss}
+          containerRef={containerRef}
+          siblings={siblings}
+          onShowGuides={onDragGuides}
+        />
+      ) : null}
+      {isSelected && !textEditing ? (
         <>
-          <OverlayEditToolbar
-            item={item}
-            onUpdate={onUpdate}
-            blockBackgroundColor={blockBackgroundColor}
-            onEditLink={onEditLink}
-            onRequestText={onRequestText}
-            onStartTextEdit={() => setTextEditing(true)}
-            onOpenAiForImage={onOpenAiForImage}
-            onOpenMediaForImage={onOpenMediaForImage}
-            onPickLocalImage={onPickLocalImage}
-            onBringToFront={onBringToFront}
-            onSendToBack={onSendToBack}
-          />
           {/* Selection ring */}
           <div style={{ position: 'absolute', inset: -2, border: '2px solid #64C3A0', borderRadius: 3, pointerEvents: 'none', zIndex: 1 }} />
           {/* Resize handles */}
@@ -2579,7 +2825,7 @@ function OverlayElement({
               }}
             />
           ))}
-          {/* Delete ? kept inside the box so it stays above the block design bar */}
+          {/* Delete — kept inside the box so it stays above the block design bar */}
           <button
             type="button"
             data-overlay-delete
@@ -2590,7 +2836,7 @@ function OverlayElement({
             <X className="h-4 w-4" />
           </button>
         </>
-      )}
+      ) : null}
     </div>
   )
 }
@@ -2598,6 +2844,8 @@ function OverlayElement({
 function BlockOverlayCanvas({
   blockId,
   overlays, isEditing, blockBackgroundColor, onUpdate, onOverlaySelectionChange, selectedOverlayId: controlledSelectedId,
+  settingsPanelOverlayId,
+  onCloseSettingsPanel,
   onOpenAiImageTools, onOpenMediaLibrary,
   onPickLocalImage, onImageFileDrop, onEditLinkForOverlay, onOverlayContextMenu, onRequestText,
 }: {
@@ -2609,10 +2857,13 @@ function BlockOverlayCanvas({
   onOverlaySelectionChange?: (selectedId: string | null, blockId?: string | null) => void
   /** When set, canvas selection follows parent state (ribbon / context menu). */
   selectedOverlayId?: string | null
+  /** Overlay id whose floating settings panel is open (context menu only). */
+  settingsPanelOverlayId?: string | null
+  onCloseSettingsPanel?: () => void
   onOpenAiImageTools?: () => void
   onOpenMediaLibrary?: () => void
-  onPickLocalImage?: () => void
-  onImageFileDrop?: (file: File) => void
+  onPickLocalImage?: (overlayTarget?: { blockId: string; overlayId: string }) => void
+  onImageFileDrop?: (file: File, overlayTarget?: { blockId: string; overlayId: string }) => void
   onEditLinkForOverlay?: (item: BlockOverlayItem, anchor: { x: number; y: number }) => void
   onOverlayContextMenu?: (item: BlockOverlayItem, e: React.MouseEvent) => void
   onRequestText?: (opts: {
@@ -2700,6 +2951,7 @@ function BlockOverlayCanvas({
   return (
     <div
       ref={containerRef}
+      data-overlay-canvas
       style={{
         position: 'absolute', inset: 0, zIndex: 78,
         // Container itself never blocks clicks ? lets them pass through to the
@@ -2715,6 +2967,8 @@ function BlockOverlayCanvas({
           <OverlayElement
             item={item}
             isSelected={isEditing && selectedId === item.id}
+            settingsPanelOpen={settingsPanelOverlayId === item.id}
+            onCloseSettingsPanel={onCloseSettingsPanel}
             containerRef={containerRef as React.RefObject<HTMLDivElement>}
             blockBackgroundColor={blockBackgroundColor}
             siblings={overlays.filter(o => o.id !== item.id)}
@@ -2726,10 +2980,18 @@ function BlockOverlayCanvas({
             onOpenMediaForImage={item.type === 'image' && onOpenMediaLibrary
               ? () => { onOverlaySelectionChange?.(item.id); onOpenMediaLibrary() }
               : undefined}
-            onPickLocalImage={item.type === 'image' && onPickLocalImage
-              ? () => { onOverlaySelectionChange?.(item.id); onPickLocalImage() }
+            onPickLocalImage={item.type === 'image' && onPickLocalImage && blockId
+              ? () => {
+                  onOverlaySelectionChange?.(item.id, blockId)
+                  onPickLocalImage({ blockId, overlayId: item.id })
+                }
               : undefined}
-            onImageFileDrop={item.type === 'image' ? onImageFileDrop : undefined}
+            onImageFileDrop={item.type === 'image' && onImageFileDrop && blockId
+              ? (file) => {
+                  onOverlaySelectionChange?.(item.id, blockId)
+                  onImageFileDrop(file, { blockId, overlayId: item.id })
+                }
+              : undefined}
             onEditLink={onEditLinkForOverlay ? (anchor) => onEditLinkForOverlay(item, anchor) : undefined}
             onContextMenu={onOverlayContextMenu ? (e) => onOverlayContextMenu(item, e) : undefined}
             onRequestText={onRequestText}
@@ -2741,6 +3003,7 @@ function BlockOverlayCanvas({
               const minZ = Math.min(10, ...overlays.map(o => o.zIndex || 10))
               updateItem(item.id, { zIndex: minZ - 1 })
             }}
+            onDismiss={onCloseSettingsPanel}
           />
         </div>
       ))}
@@ -2752,13 +3015,13 @@ function BlockOverlayCanvas({
               <div
                 key={`x-${index}-${guide.value}`}
                 className="absolute w-px bg-fuchsia-500 shadow-[0_0_0_1px_rgba(255,255,255,0.85)]"
-                style={{ left: guide.value, top: guide.start, height: Math.max(1, guide.end - guide.start) }}
+                style={{ left: guide.value, top: guide.start, height: Math.max(1, guide.end - guide.start), zIndex: 95 }}
               />
             ) : (
               <div
                 key={`y-${index}-${guide.value}`}
                 className="absolute h-px bg-fuchsia-500 shadow-[0_0_0_1px_rgba(255,255,255,0.85)]"
-                style={{ top: guide.value, left: guide.start, width: Math.max(1, guide.end - guide.start) }}
+                style={{ top: guide.value, left: guide.start, width: Math.max(1, guide.end - guide.start), zIndex: 95 }}
               />
             ),
           )}
@@ -2785,6 +3048,7 @@ function BuilderSectionChromeToolbar({
   onMoveBlock,
   onDuplicate,
   onDelete,
+  onToggleVisibility,
   onReorderPointerDown,
   onOpenLayoutPicker,
   onCycleLayout,
@@ -2804,6 +3068,7 @@ function BuilderSectionChromeToolbar({
   onMoveBlock: (dir: 'top' | 'up' | 'down' | 'bottom') => void
   onDuplicate: () => void
   onDelete: () => void
+  onToggleVisibility?: () => void
   onReorderPointerDown: (e: React.PointerEvent) => void
   onOpenLayoutPicker: () => void
   onCycleLayout: (dir: 'prev' | 'next') => void
@@ -2828,6 +3093,7 @@ function BuilderSectionChromeToolbar({
 
   const showLayout = getSectionLayoutOptions(block.block_type).length > 0
   const iconBtn = 'p-1.5 text-gray-400 hover:text-white transition-colors'
+  const isHidden = block.visible === false
 
   const dataSourceTitle = dsConnectedLabel
     ? `Connected to ${dsConnectedLabel} ? click to edit`
@@ -2906,6 +3172,30 @@ function BuilderSectionChromeToolbar({
       <button type="button" onClick={e => { e.stopPropagation(); onDuplicate() }} className={iconBtn} title="Duplicate (Ctrl+D)">
         <Copy className="w-7 h-7" />
       </button>
+      {onToggleVisibility ? (
+        isHidden ? (
+          <button
+            type="button"
+            onClick={e => { e.stopPropagation(); onToggleVisibility() }}
+            title="Unhide section — show on your live site again"
+            className={cn(
+              iconBtn,
+              'rounded-md bg-amber-500/25 text-amber-200 ring-1 ring-amber-400/50 hover:bg-amber-500/35 hover:text-white shrink-0 px-2',
+            )}
+          >
+            <Eye className="w-6 h-6" />
+          </button>
+        ) : (
+          <button
+            type="button"
+            onClick={e => { e.stopPropagation(); onToggleVisibility() }}
+            title="Hide section from live site"
+            className={cn(iconBtn, 'hover:text-amber-200 shrink-0')}
+          >
+            <EyeOff className="w-7 h-7" />
+          </button>
+        )
+      ) : null}
       <button
         type="button"
         onClick={e => { e.stopPropagation(); onDelete() }}
@@ -4989,17 +5279,26 @@ function PropsEditor({
     tile_border: `${themeColors.primary_color}33`,
   }
 
-  // Spacing sliders ? read from block.props (where onUpdate writes)
-  const [paddingTop, setPaddingTop] = useState<number>((p as any).padding_top ?? 0)
-  const [paddingBottom, setPaddingBottom] = useState<number>((p as any).padding_bottom ?? 0)
+  // Spacing sliders — effective padding matches canvas (props + style_overrides).
+  const effectiveSectionPadding = resolveBlockSectionPadding(block)
+  const [paddingTop, setPaddingTop] = useState<number>(effectiveSectionPadding.paddingTop)
+  const [paddingBottom, setPaddingBottom] = useState<number>(effectiveSectionPadding.paddingBottom)
   const [sectionScale, setSectionScale] = useState<number>((p as any).section_scale ?? 1)
+
+  const pushSectionPadding = (patch: { padding_top?: number; padding_bottom?: number }, preview: boolean) => {
+    const cleared = stripSectionPaddingFromStyleOverrides(readRawBlockStyleOverrides(block))
+    const payload = { ...patch, style_overrides: cleared } as Partial<BlockProps>
+    if (preview) onPreview(payload)
+    else onUpdate(payload)
+  }
 
   // Sync spacing when block changes
   useEffect(() => {
-    setPaddingTop((p as any).padding_top ?? 0)
-    setPaddingBottom((p as any).padding_bottom ?? 0)
+    const eff = resolveBlockSectionPadding(block)
+    setPaddingTop(eff.paddingTop)
+    setPaddingBottom(eff.paddingBottom)
     setSectionScale((p as any).section_scale ?? 1)
-  }, [block.id, (p as any).padding_top, (p as any).padding_bottom, (p as any).section_scale])
+  }, [block.id, block.props, block.style_overrides, (p as any).section_scale])
 
   const itemSchema = ITEM_SCHEMAS[block.block_type]
     ?? (block.block_type === 'features_alternating' ? ITEM_SCHEMAS.features : undefined)
@@ -5745,7 +6044,7 @@ function PropsEditor({
                   onChange={e => {
                     const n = Math.max(0, Math.min(320, Number(e.target.value) || 0))
                     set(n)
-                    onUpdate({ [key]: n } as any)
+                    pushSectionPadding({ [key]: n }, false)
                   }}
                   className="w-14 px-1.5 py-0.5 border border-gray-200 rounded text-xs font-mono text-center focus:outline-none focus:ring-1 focus:ring-ring"
                 />
@@ -5759,12 +6058,12 @@ function PropsEditor({
                 onInput={e => {
                   const n = Number((e.target as HTMLInputElement).value)
                   set(n)
-                  onPreview({ [key]: n } as any)
+                  pushSectionPadding({ [key]: n }, true)
                 }}
                 onChange={e => {
                   const n = Number(e.target.value)
                   set(n)
-                  onUpdate({ [key]: n } as any)
+                  pushSectionPadding({ [key]: n }, false)
                 }}
                 className="w-full accent-primary h-2 rounded-full cursor-pointer"
               />
@@ -6013,10 +6312,6 @@ function PagePanel({
   onDeletePage,
   onDuplicatePage,
   onSetHomepage,
-  trashedPages = [],
-  trashLoading = false,
-  onRestorePage,
-  onRefreshTrash,
 }: {
   pages: WebsitePage[]
   activePageId: string | null
@@ -6026,10 +6321,6 @@ function PagePanel({
   onDeletePage?: (pageId: string, pageTitle: string) => void
   onDuplicatePage?: (page: WebsitePage) => void
   onSetHomepage?: (page: WebsitePage) => void
-  trashedPages?: PageTrashItem[]
-  trashLoading?: boolean
-  onRestorePage?: (pageId: string, pageTitle: string) => void
-  onRefreshTrash?: () => void | Promise<void>
 }) {
   const activePage = pages.find(p => p.id === activePageId) || null
   const pageOverrides = activePageId ? (siteStyle.page_styles?.[activePageId] || {}) : {}
@@ -6204,18 +6495,6 @@ function PagePanel({
             </button>
           )}
         </>
-      )}
-
-      {onRestorePage && (
-        <div className="pt-4 mt-2 border-t border-gray-100">
-          <DeletedPagesPanel
-            alwaysShow
-            items={trashedPages}
-            loading={trashLoading}
-            onRestore={onRestorePage}
-            onRefresh={onRefreshTrash}
-          />
-        </div>
       )}
     </div>
   )
@@ -6511,8 +6790,9 @@ function DataSourcePanel({
       </div>
       <p className="text-xs text-gray-400">Link <strong>{block.label || block.block_type}</strong> to live catalog data or an external feed.</p>
 
-      {/* Auto-connect CTA (if block has a suggested source and isn't already connected) */}
-      {BLOCK_AUTO_SOURCE[block.block_type as string] && !ds?.type && (
+      {/* Auto-connect CTA (if block has a suggested source and isn't already connected).
+          A static/disconnected block has `normalizedDsType === null`, so the CTA returns. */}
+      {BLOCK_AUTO_SOURCE[block.block_type as string] && !normalizedDsType && (
         <button
           onClick={handleAutoConnect}
           className="w-full flex items-center justify-center gap-2 py-2.5 rounded-lg bg-gradient-to-r from-primary to-emerald-700 text-white text-xs font-bold hover:opacity-90 transition-opacity"
@@ -6532,7 +6812,7 @@ function DataSourcePanel({
           </span>
           <span className="ml-auto text-xs text-emerald-600 font-semibold">{liveItems.length} live</span>
           {!connectionRequired && (
-            <button onClick={() => onUpdate(null)} className="text-xs text-red-500 hover:text-red-700">Disconnect</button>
+            <button onClick={() => onUpdate({ type: STATIC_DATA_SOURCE_TYPE })} className="text-xs text-red-500 hover:text-red-700">Disconnect</button>
           )}
         </div>
       )}
@@ -6784,7 +7064,7 @@ const FONT_SCALE_STEPS: [string, number][] = [
   ['XS', 0.75], ['S', 0.875], ['M', 1], ['L', 1.125], ['XL', 1.25], ['2X', 1.5],
 ]
 
-const DESIGN_BAR_TABS = ['general', 'visual', 'media'] as const
+const DESIGN_BAR_TABS = ['general', 'visual'] as const
 // 'image' is a contextual tab — only present while a section/card image is selected.
 type DesignBarTabId = (typeof DESIGN_BAR_TABS)[number] | 'image'
 
@@ -6891,6 +7171,17 @@ function BlockDesignBar({ block, onUpdate, onInsertAfter, onOpenLinkEditorForOve
       cancelAnimationFrame(raf)
       raf = requestAnimationFrame(() => setTypographyDisplayTick(n => n + 1))
     }
+    bump()
+    return () => cancelAnimationFrame(raf)
+  }, [activeTextField, block.id, selectedOverlayId])
+
+  useEffect(() => {
+    if (!activeTextField || activeTextField === CONTENT_GROUP_FIELD_KEY) return
+    let raf = 0
+    const bump = () => {
+      cancelAnimationFrame(raf)
+      raf = requestAnimationFrame(() => setTypographyDisplayTick(n => n + 1))
+    }
     document.addEventListener('selectionchange', bump)
     const blockEl = document.querySelector(`[data-block-id="${CSS.escape(block.id)}"]`)
     blockEl?.addEventListener('builder-inline-text-commit', bump)
@@ -6902,10 +7193,36 @@ function BlockDesignBar({ block, onUpdate, onInsertAfter, onOpenLinkEditorForOve
   }, [activeTextField, block.id])
 
   const overlays = ((p as Record<string, unknown>).overlays as BlockOverlayItem[]) || []
-  // Keep the active tab when switching sections (General / Visual / Media).
+  // Keep the active tab when switching sections (General / Visual).
   const selectedOverlay = selectedOverlayId
     ? overlays.find(o => o.id === selectedOverlayId) ?? null
     : null
+  const [overlayCanvasSize, setOverlayCanvasSize] = useState({ w: 800, h: 400 })
+
+  useLayoutEffect(() => {
+    if (!selectedOverlay) return
+    const canvas = document.querySelector(
+      `[data-block-id="${CSS.escape(block.id)}"] [data-overlay-canvas]`,
+    ) as HTMLElement | null
+    if (!canvas) return
+    const update = () => {
+      setOverlayCanvasSize({
+        w: canvas.clientWidth || 800,
+        h: canvas.clientHeight || 400,
+      })
+    }
+    update()
+    const ro = new ResizeObserver(update)
+    ro.observe(canvas)
+    return () => ro.disconnect()
+  }, [block.id, selectedOverlay?.id])
+
+  const overlaySiblingBoxes = useMemo(
+    () => overlays
+      .filter(o => o.id !== selectedOverlay?.id)
+      .map(o => ({ x: o.x, y: o.y, w: o.w, h: o.h })),
+    [overlays, selectedOverlay?.id],
+  )
 
   const updateSelectedOverlay = (patch: Partial<OverlayLayerItem>) => {
     if (!selectedOverlayId) return
@@ -6960,6 +7277,22 @@ function BlockDesignBar({ block, onUpdate, onInsertAfter, onOpenLinkEditorForOve
     }
     prevImageTabActiveRef.current = imageTabActive
   }, [imageTabActive, designBarTab])
+
+  useEffect(() => {
+    if ((designBarTab as string) === 'media') setDesignBarTab('visual')
+  }, [designBarTab])
+
+  // The Visual tab owns all layer (overlay) controls, so jump there automatically
+  // when a layer gets selected. We only switch on selection (not deselection) so we
+  // never yank the user off a tab they intentionally opened.
+  const prevOverlaySelectedRef = useRef(false)
+  useEffect(() => {
+    const layerSelected = !!selectedOverlay
+    if (layerSelected && !prevOverlaySelectedRef.current) {
+      setDesignBarTab('visual')
+    }
+    prevOverlaySelectedRef.current = layerSelected
+  }, [selectedOverlay])
 
   const patchSelectedFieldStyles = (patch: Record<string, unknown>, keys = selectedEditableFields) => {
     if (!keys.length) return
@@ -7144,7 +7477,11 @@ function BlockDesignBar({ block, onUpdate, onInsertAfter, onOpenLinkEditorForOve
   }
 
   const typographySource = activeTextField && activeTextField !== CONTENT_GROUP_FIELD_KEY
-    ? { ...(p as Record<string, unknown>), ...(fieldStyles[activeTextField] || {}) }
+    ? resolveFormatPaintStyle({
+        blockProps: p as Record<string, unknown>,
+        fieldKey: activeTextField,
+        computed: getCanvasFieldComputedFormatPaintStyle(block.id, activeTextField),
+      })
     : activeTextField === CONTENT_GROUP_FIELD_KEY
       ? {
           field_offset_x: (p as any).content_offset_x,
@@ -7161,15 +7498,87 @@ function BlockDesignBar({ block, onUpdate, onInsertAfter, onOpenLinkEditorForOve
     p as Record<string, unknown>,
     activeTextField ?? null,
   )
+  const isCtaField = Boolean(activeTextField && isInlinePositionField(activeTextField))
   const toolbarFontFamily = toolbarLiveTypography.font_family
   const toolbarTypography = {
     ...typographySource,
+    ...(toolbarLiveTypography.font_family ? { font_family: toolbarLiveTypography.font_family } : {}),
     ...(toolbarLiveTypography.font_size_px != null
       ? { font_size_px: toolbarLiveTypography.font_size_px }
       : {}),
     ...(toolbarLiveTypography.text_color_override
       ? { text_color_override: toolbarLiveTypography.text_color_override }
       : {}),
+    ...(toolbarLiveTypography.text_align ? { text_align: toolbarLiveTypography.text_align } : {}),
+    ...(toolbarLiveTypography.vertical_align ? { vertical_align: toolbarLiveTypography.vertical_align } : {}),
+    ...(toolbarLiveTypography.text_wrap != null ? { text_wrap: toolbarLiveTypography.text_wrap } : {}),
+    ...(toolbarLiveTypography.line_height_ratio != null
+      ? { line_height_ratio: toolbarLiveTypography.line_height_ratio }
+      : {}),
+    ...(toolbarLiveTypography.field_bg_color ? { field_bg_color: toolbarLiveTypography.field_bg_color } : {}),
+    ...(toolbarLiveTypography.field_border_color
+      ? { field_border_color: toolbarLiveTypography.field_border_color }
+      : {}),
+  }
+
+  const toolbarTextColor =
+    toolbarLiveTypography.text_color_override
+    || (toolbarTypography as Record<string, unknown>).text_color_override as string | undefined
+    || '#111827'
+  const toolbarBgColor = isCtaField
+    ? (toolbarLiveTypography.field_bg_color
+      || (toolbarTypography as Record<string, unknown>).field_bg_color as string | undefined
+      || blockBackgroundColor
+      || '#ffffff')
+    : ((p as Record<string, unknown>).bg_color_override as string | undefined
+      || blockBackgroundColor
+      || '#ffffff')
+
+  const applyToolbarTextColor = (color: string) => {
+    if (selectedOverlay && (overlayHasTextControls(selectedOverlay) || selectedOverlay.type === 'icon')) {
+      updateSelectedOverlay({ color })
+      return
+    }
+    updateTextStyle({ text_color_override: color })
+  }
+
+  const applyToolbarBackgroundColor = (color: string) => {
+    if (selectedOverlay && overlayHasFillControls(selectedOverlay)) {
+      updateSelectedOverlay({ bgFill: 'solid', bgColor: color })
+      return
+    }
+    if (isCtaField && activeTextField) {
+      updateTextStyle({ field_bg_color: color })
+      return
+    }
+    onUpdate({ bg_color_override: color } as Partial<BlockProps>)
+  }
+
+  const inheritedOverlayStyle = (overlayType: BlockOverlayItem['type']): Partial<BlockOverlayItem> => {
+    const patch: Partial<BlockOverlayItem> = {}
+    const fontPx = (toolbarTypography as Record<string, unknown>).font_size_px
+    if (overlayHasTextControls({ type: overlayType } as BlockOverlayItem) || overlayType === 'icon') {
+      patch.color = toolbarTextColor
+      if (toolbarFontFamily) patch.fontFamily = toolbarFontFamily
+      if (typeof fontPx === 'number' && Number.isFinite(fontPx) && fontPx > 0) {
+        patch.fontSize = Math.round(fontPx)
+      }
+    }
+    if (overlayType === 'text') {
+      patch.bgFill = 'none'
+      patch.bgColor = 'transparent'
+    } else if (overlayHasFillControls({ type: overlayType } as BlockOverlayItem)) {
+      patch.bgFill = 'solid'
+      patch.bgColor = overlayType === 'button' || overlayType === 'badge'
+        ? toolbarBgColor
+        : overlayType === 'box'
+          ? toolbarBgColor
+          : (OVERLAY_DEFAULTS[overlayType]?.bgColor ?? toolbarBgColor)
+      if ((overlayType === 'button' || overlayType === 'badge') && patch.color === patch.bgColor) {
+        patch.color = '#ffffff'
+      }
+    }
+    return patch
   }
 
   const startFormatPaint = (sticky: boolean) => {
@@ -7311,6 +7720,7 @@ function BlockDesignBar({ block, onUpdate, onInsertAfter, onOpenLinkEditorForOve
       w: (defaults as any).w || 200,
       h: (defaults as any).h || 80,
       ...defaults,
+      ...inheritedOverlayStyle(overlayType as BlockOverlayItem['type']),
       ...initialPatch,
     }
     onUpdate({ overlays: [...currentOverlays, newItem] } as any)
@@ -7371,7 +7781,6 @@ function BlockDesignBar({ block, onUpdate, onInsertAfter, onOpenLinkEditorForOve
                     : 'Section image',
               }]
             : []),
-          { id: 'media', label: 'Media' },
         ]) as { id: DesignBarTabId; label: string }[]).map(tab => (
           <button
             key={tab.id}
@@ -7398,13 +7807,12 @@ function BlockDesignBar({ block, onUpdate, onInsertAfter, onOpenLinkEditorForOve
           ? 'General tools'
           : designBarTab === 'visual'
             ? 'Visual tools'
-            : 'Media tools'
+            : designBarTab === 'image'
+              ? 'Image tools'
+              : 'Media tools'
       }
       className={cn(
-        'z-[80] flex gap-0 bg-white px-1 py-0.5',
-        designBarTab === 'media'
-          ? 'max-h-[min(26rem,55vh)] flex-col items-stretch overflow-x-hidden overflow-y-auto'
-          : 'min-h-[2.25rem] items-center overflow-x-auto overflow-y-visible',
+        'z-[80] flex gap-0 bg-white px-1 py-0.5 min-h-[2.25rem] items-center overflow-x-auto overflow-y-visible',
         docked
           ? 'relative w-full border-b border-primary/20'
           : floating
@@ -7423,7 +7831,9 @@ function BlockDesignBar({ block, onUpdate, onInsertAfter, onOpenLinkEditorForOve
           onClearOverlays={() => onUpdate({ overlays: [] } as Partial<BlockProps>)}
         />
       </div>
-      {/* Edit + clipboard */}
+      {/* Edit + clipboard ? inline section text only, hidden when an overlay layer is selected */}
+      {!selectedOverlay ? (
+      <>
       <div className="flex shrink-0 items-center gap-0.5">
         <div className="flex h-14 w-[3.75rem] shrink-0 gap-px">
           <button
@@ -7569,8 +7979,9 @@ function BlockDesignBar({ block, onUpdate, onInsertAfter, onOpenLinkEditorForOve
       </div>
 
       <div className="w-px h-10 bg-gray-200 shrink-0" />
+      </>
+      ) : null}
 
-      {!selectedOverlay ? (
       <div
         {...{ [BUILDER_TYPOGRAPHY_TOOLBAR_ATTR]: true }}
         className={typographyToolbarBox}
@@ -7601,11 +8012,11 @@ function BlockDesignBar({ block, onUpdate, onInsertAfter, onOpenLinkEditorForOve
           <ColorIdentPickerRow
             vertical
             size="compact"
-            textColor={(toolbarTypography as any).text_color_override || '#111827'}
-            backgroundColor={(p as any).bg_color_override || '#ffffff'}
-            onTextColorChange={c => updateTextStyle({ text_color_override: c })}
-            onBackgroundColorChange={c => onUpdate({ bg_color_override: c } as any)}
-            showBackgroundPicker={false}
+            textColor={toolbarTextColor}
+            backgroundColor={toolbarBgColor}
+            onTextColorChange={applyToolbarTextColor}
+            onBackgroundColorChange={applyToolbarBackgroundColor}
+            showBackgroundPicker={isCtaField || !selectedOverlay}
             trailing={
               <>
                 <button
@@ -7746,22 +8157,7 @@ function BlockDesignBar({ block, onUpdate, onInsertAfter, onOpenLinkEditorForOve
           }
         />
       </div>
-      ) : null}
 
-      {selectedOverlay ? (
-        <div className="flex shrink-0 flex-col self-center overflow-hidden rounded-md border border-gray-200 bg-white px-0.5 py-0.5">
-          <div className="border-b border-gray-200 px-1.5 py-px text-center text-[7px] font-bold uppercase tracking-wide text-primary/80">
-            Layer ? position & size
-          </div>
-          <OverlayTransformControls
-            item={selectedOverlay}
-            onUpdate={updateSelectedOverlay}
-            onBringToFront={bringSelectedOverlayFront}
-            onSendToBack={sendSelectedOverlayBack}
-            variant="compact"
-          />
-        </div>
-      ) : (
       <LayoutTransformPositionGroup
         scopeMode={transformScope}
         showGroup={supportsContentGroup}
@@ -7855,7 +8251,6 @@ function BlockDesignBar({ block, onUpdate, onInsertAfter, onOpenLinkEditorForOve
           onReset: resetTransform,
         }}
       />
-      )}
       </div>
 
       <div className="flex shrink-0 items-center gap-1 border-l border-gray-200 pl-1">
@@ -7890,6 +8285,9 @@ function BlockDesignBar({ block, onUpdate, onInsertAfter, onOpenLinkEditorForOve
           blockAnimationDelay={block.animation_delay}
           overlayCount={overlayCount}
           selectedOverlay={selectedOverlay}
+          overlaySiblings={overlaySiblingBoxes}
+          overlayContainerWidth={overlayCanvasSize.w}
+          overlayContainerHeight={overlayCanvasSize.h}
           blockBackgroundColor={blockBackgroundColor}
           onUpdate={onUpdate}
           onUpdateOverlay={selectedOverlay ? updateSelectedOverlay : undefined}
@@ -7907,18 +8305,10 @@ function BlockDesignBar({ block, onUpdate, onInsertAfter, onOpenLinkEditorForOve
           onOverlayEditDescription={selectedOverlay ? onOverlayEditDescription : undefined}
           onOverlayBringToFront={selectedOverlay ? bringSelectedOverlayFront : undefined}
           onOverlaySendToBack={selectedOverlay ? sendSelectedOverlayBack : undefined}
-        />
-      )}
-
-      {designBarTab === 'media' && (
-        <MediaDesignBarTools
-          blockType={String(block.block_type)}
-          blockProps={p as Record<string, unknown>}
           primaryImageField={primaryImageField}
           canvasImageField={canvasImageField}
-          onUpdate={onUpdate}
-          onOpenMediaLibrary={onSectionImageLibrary}
-          onPickImage={onSectionImagePick}
+          onSectionImagePick={onSectionImagePick}
+          onSectionImageLibrary={onSectionImageLibrary}
           onFocusPrimaryImage={onFocusPrimaryImage}
         />
       )}
@@ -8095,8 +8485,15 @@ export default function WebsiteBuilder() {
   const [savingBlockId, setSavingBlockId] = useState<string | null>(null)
   /** Selected in-canvas image overlay (for AI / Media apply). */
   const [overlayImageTarget, setOverlayImageTarget] = useState<{ blockId: string; overlayId: string } | null>(null)
+  /** Floating position/size/text panel — opened from overlay context menu only. */
+  const [overlaySettingsPanelId, setOverlaySettingsPanelId] = useState<string | null>(null)
   const overlayImageTargetRef = useRef<{ blockId: string; overlayId: string } | null>(null)
-  const skipCanvasImageClearRef = useRef(false)
+  /** Survives overlay deselect while the media picker / upload is in flight. */
+  const pendingOverlayUploadRef = useRef<{ blockId: string; overlayId: string } | null>(null)
+  /** When switching blocks via image click, keep the new image selection for that block only. */
+  const preserveCanvasImageForBlockRef = useRef<string | null>(null)
+  /** Suppress duplicate activate calls from the same pointer gesture (pointerdown + click). */
+  const lastSectionImageActivateRef = useRef<{ key: string; ts: number } | null>(null)
   const selectedBlockIdRef = useRef<string | null>(null)
   useEffect(() => { overlayImageTargetRef.current = overlayImageTarget }, [overlayImageTarget])
   useEffect(() => { selectedBlockIdRef.current = selectedBlockId }, [selectedBlockId])
@@ -8776,8 +9173,10 @@ export default function WebsiteBuilder() {
         const heroPosition = selBlock && /^hero(_split|_minimal)?$/.test(String(selBlock.block_type))
         const fieldPosition = activeTextTarget?.blockId === selectedBlockId
           && editableFieldKeys(activeTextTarget).length > 0
-        if (heroPosition || fieldPosition) {
-          // FieldPositionNudge listens in capture phase ? skip section reorder.
+        const layerSelected = overlayImageTarget?.blockId === selectedBlockId
+          && !!overlayImageTarget?.overlayId
+        if (heroPosition || fieldPosition || layerSelected) {
+          // FieldPositionNudge / OverlayTransformControls listen in capture phase — skip section reorder.
           return
         }
       }
@@ -8795,7 +9194,7 @@ export default function WebsiteBuilder() {
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedBlockId, activePageId, localBlocks, handleUndo, handleRedo, activeTextTarget])
+  }, [selectedBlockId, activePageId, localBlocks, handleUndo, handleRedo, activeTextTarget, overlayImageTarget])
 
   const activePage = useMemo(() =>
     localPages.find(p => p.id === activePageId) || null
@@ -9155,7 +9554,7 @@ export default function WebsiteBuilder() {
   }, [sortedSitePages])
 
   useEffect(() => {
-    setOverlayImageTarget(null)
+    setOverlayImageTarget(prev => (prev && prev.blockId !== selectedBlockId ? null : prev))
   }, [selectedBlockId])
 
   const applyToImageLayer = useMemo(() => {
@@ -9179,28 +9578,59 @@ export default function WebsiteBuilder() {
     return selectedBlock.label || selectedBlock.block_type.replace(/_/g, ' ')
   }, [selectedBlockId, selectedBlock, applyToImageLayer, canvasImageTarget])
 
-  const onOverlayLayerPicked = useCallback((overlayId: string | null, blockId?: string | null) => {
+  const onOverlayLayerPicked = useCallback((
+    overlayId: string | null,
+    blockId?: string | null,
+    opts?: { keepSettingsPanel?: boolean },
+  ) => {
     const bid = blockId ?? selectedBlockId
     if (!bid) {
+      overlayImageTargetRef.current = null
       setOverlayImageTarget(null)
       setCanvasImageTarget(null)
+      setOverlaySettingsPanelId(null)
       return
     }
     if (blockId && blockId !== selectedBlockId) {
       setSelectedBlockId(blockId)
     }
-    setOverlayImageTarget(overlayId ? { blockId: bid, overlayId } : null)
+    const next = overlayId ? { blockId: bid, overlayId } : null
+    overlayImageTargetRef.current = next
+    setOverlayImageTarget(next)
     if (overlayId) {
       setCanvasImageTarget(null)
       setActiveTextTarget(null)
     }
+    if (!opts?.keepSettingsPanel) {
+      setOverlaySettingsPanelId(null)
+    }
   }, [selectedBlockId])
+
+  const openOverlaySettingsPanel = useCallback((overlayId: string, blockId: string) => {
+    onOverlayLayerPicked(overlayId, blockId, { keepSettingsPanel: true })
+    setOverlaySettingsPanelId(overlayId)
+  }, [onOverlayLayerPicked])
+
+  const closeOverlaySettingsPanel = useCallback(() => {
+    setOverlaySettingsPanelId(null)
+  }, [])
 
   const handleSectionImageActivate = useCallback((
     blockId: string,
     field: string,
     opts?: { arrayKey?: string; index?: number; itemField?: string; additive?: boolean },
   ) => {
+    const slot: CanvasImageSlot = (
+      opts?.arrayKey != null && opts.index != null && opts.itemField
+    )
+      ? { arrayKey: opts.arrayKey, index: opts.index, itemField: opts.itemField }
+      : { propField: field }
+    const activateKey = `${blockId}:${slotKey(slot)}:${opts?.additive ? 'a' : 's'}`
+    const now = Date.now()
+    const last = lastSectionImageActivateRef.current
+    if (last && last.key === activateKey && now - last.ts < 120) return
+    lastSectionImageActivateRef.current = { key: activateKey, ts: now }
+
     // A click that lands on an image frame is an explicit request to edit THAT
     // image, so select the slot in a single click — even when its section was not
     // selected yet. The section is selected at the same time (padding handles stay
@@ -9208,7 +9638,7 @@ export default function WebsiteBuilder() {
     // logos) selected on the first click while whole-section images (hero, section
     // image) needed a second click.
     if (selectedBlockId !== blockId && !opts?.additive) {
-      skipCanvasImageClearRef.current = true
+      preserveCanvasImageForBlockRef.current = blockId
       setSelectedBlockId(blockId)
       setOverlayImageTarget(null)
       setActiveTextTarget(null)
@@ -9217,7 +9647,7 @@ export default function WebsiteBuilder() {
       setCanvasImageTarget(toggleCanvasImageSlot(null, blockId, field, opts))
       return
     }
-    skipCanvasImageClearRef.current = true
+    if (blockId !== selectedBlockId) preserveCanvasImageForBlockRef.current = blockId
     if (blockId !== selectedBlockId) setSelectedBlockId(blockId)
     setOverlayImageTarget(null)
     setActiveTextTarget(null)
@@ -9232,7 +9662,7 @@ export default function WebsiteBuilder() {
     index: number,
     itemField: string,
   ) => {
-    skipCanvasImageClearRef.current = true
+    if (blockId !== selectedBlockId) preserveCanvasImageForBlockRef.current = blockId
     if (blockId !== selectedBlockId) setSelectedBlockId(blockId)
     setOverlayImageTarget(null)
     setActiveTextTarget(null)
@@ -9243,8 +9673,8 @@ export default function WebsiteBuilder() {
   }, [selectedBlockId])
 
   useEffect(() => {
-    if (skipCanvasImageClearRef.current) {
-      skipCanvasImageClearRef.current = false
+    if (preserveCanvasImageForBlockRef.current === selectedBlockId) {
+      preserveCanvasImageForBlockRef.current = null
       return
     }
     setCanvasImageTarget(null)
@@ -9262,6 +9692,10 @@ export default function WebsiteBuilder() {
     def: BlockDef,
     nextProps: BlockProps,
     blocksSnapshot: Record<string, WebsiteBlock[]>,
+    // Only flip the whole canvas back to "clean" when this layout apply was the
+    // only pending change. If other blocks still have unsaved edits, we leave the
+    // dirty flag set so the debounced full auto-save flushes them too.
+    markAllClean = true,
   ) => {
     if (!siteId) return
     const updates: { pageId: string; tempId?: string; saved?: WebsiteBlock }[] = []
@@ -9308,10 +9742,12 @@ export default function WebsiteBuilder() {
       )
     }
     skipServerHydrateRef.current = Date.now()
-    setBlocksDirty(false)
-    blocksDirtyRef.current = false
     setLastSavedAt(new Date())
-    setAutoSaveStatus('synced')
+    if (markAllClean) {
+      setBlocksDirty(false)
+      blocksDirtyRef.current = false
+      setAutoSaveStatus('synced')
+    }
   }, [siteId, site, queryClient])
 
   const persistSingleBlockPropsNow = useCallback(async (
@@ -9319,6 +9755,8 @@ export default function WebsiteBuilder() {
     blockId: string,
     nextProps: BlockProps,
     blocksSnapshot: Record<string, WebsiteBlock[]>,
+    // See persistStructureLayoutNow: keep the canvas dirty when other edits remain.
+    markAllClean = true,
   ) => {
     if (!siteId) return
     const block = (blocksSnapshot[pageId] || []).find(b => b.id === blockId)
@@ -9349,10 +9787,12 @@ export default function WebsiteBuilder() {
       await websiteApi.updateBlock(siteId, pageId, blockId, { props: nextProps } as any)
     }
     skipServerHydrateRef.current = Date.now()
-    setBlocksDirty(false)
-    blocksDirtyRef.current = false
     setLastSavedAt(new Date())
-    setAutoSaveStatus('synced')
+    if (markAllClean) {
+      setBlocksDirty(false)
+      blocksDirtyRef.current = false
+      setAutoSaveStatus('synced')
+    }
   }, [siteId, scrollCanvasToBlock])
 
   const applyLayoutToBlock = useCallback(async (
@@ -9366,6 +9806,9 @@ export default function WebsiteBuilder() {
     const isStructure = GLOBAL_STRUCTURE_BLOCK_TYPES.has(def.type)
     const prev = localBlocksRef.current
     const pages = localPagesRef.current
+    // Capture whether other edits were already pending *before* this layout apply.
+    // If so, the targeted persist below must not mark the whole canvas clean.
+    const hadPendingEdits = blocksDirtyRef.current
 
     skipServerHydrateRef.current = Date.now()
     setBlocksDirty(true)
@@ -9463,9 +9906,9 @@ export default function WebsiteBuilder() {
 
     try {
       if (isStructure) {
-        await persistStructureLayoutNow(def, mergedFinalProps, nextMap)
+        await persistStructureLayoutNow(def, mergedFinalProps, nextMap, !hadPendingEdits)
       } else {
-        await persistSingleBlockPropsNow(targetPageId, resolvedBlockId, mergedFinalProps, nextMap)
+        await persistSingleBlockPropsNow(targetPageId, resolvedBlockId, mergedFinalProps, nextMap, !hadPendingEdits)
       }
     } catch {
       setBlocksDirty(true)
@@ -9866,6 +10309,33 @@ export default function WebsiteBuilder() {
     })
   }, [activePageId, scheduleEditorHistorySnapshot])
 
+  const setBlockVisibility = useCallback((blockId: string, visible: boolean) => {
+    handleUpdateBlockProps(blockId, { visible } as Partial<BlockProps>)
+    if (visible) {
+      toast.success('Section unhidden — it will appear on your live site again')
+    } else {
+      toast.success('Section hidden — collapsed to a thin bar in the builder. Unhide from the bar or Pages list.')
+    }
+  }, [handleUpdateBlockProps])
+
+  const applySectionPaddingPatch = useCallback((
+    blockId: string,
+    patch: { padding_top?: number; padding_bottom?: number },
+    persist: boolean,
+  ) => {
+    const pages = localPagesRef.current
+    const pageId = findPageIdForBlock(localBlocksRef.current, pages, blockId, activePageId)
+    if (!pageId) return
+    const block = (localBlocksRef.current[pageId] || []).find(b => b.id === blockId)
+    if (!block) return
+    const update = {
+      ...patch,
+      style_overrides: stripSectionPaddingFromStyleOverrides(readRawBlockStyleOverrides(block)),
+    } as Partial<BlockProps>
+    if (persist) handleUpdateBlockProps(blockId, update)
+    else handlePreviewBlockProps(blockId, update)
+  }, [activePageId, handleUpdateBlockProps, handlePreviewBlockProps])
+
   const handleCanvasTextFieldCommit = useCallback((blockId: string, fieldKey: string, value: string) => {
     const pageId = findPageIdForBlock(localBlocksRef.current, localPagesRef.current, blockId, activePageId)
     const block = pageId ? (localBlocksRef.current[pageId] || []).find(b => b.id === blockId) : null
@@ -10169,6 +10639,8 @@ export default function WebsiteBuilder() {
         toast.success('Image applied to layer!')
         return
       }
+      toast.error('Could not find that overlay layer — select it and try again.')
+      return
     }
 
     // 2) Canvas image target (clicked image on preview)
@@ -10265,44 +10737,84 @@ export default function WebsiteBuilder() {
     toast.success('Image applied to block!')
   }, [activePageId, canvasImageTarget, handleUpdateBlockProps])
 
-  const uploadImageFileToSelection = useCallback(async (file: File) => {
-    if (!siteId) return
+  const resolveOverlayUploadTarget = useCallback(() => (
+    pendingOverlayUploadRef.current ?? overlayImageTargetRef.current
+  ), [])
+
+  const clearPendingOverlayUpload = useCallback(() => {
+    pendingOverlayUploadRef.current = null
+  }, [])
+
+  const uploadImageFileToSelection = useCallback(async (
+    file: File,
+    overlayTarget?: { blockId: string; overlayId: string },
+  ) => {
+    if (!siteId) {
+      toast.error('Save the site first before uploading images')
+      return
+    }
     if (!file.type.startsWith('image/')) {
       toast.error('Please use an image file (JPG, PNG, WebP, ?)')
       return
+    }
+    if (overlayTarget) {
+      overlayImageTargetRef.current = overlayTarget
+      setOverlayImageTarget(overlayTarget)
+      pendingOverlayUploadRef.current = overlayTarget
+      if (selectedBlockIdRef.current !== overlayTarget.blockId) {
+        setSelectedBlockId(overlayTarget.blockId)
+      }
     }
     if (!selectedBlockIdRef.current) {
       toast.error('Select a block on the canvas first')
       return
     }
-    const capturedBlockId = selectedBlockIdRef.current
-    const capturedOverlayTarget = overlayImageTargetRef.current
+    const capturedBlockId = overlayTarget?.blockId ?? selectedBlockIdRef.current
+    const capturedOverlayTarget = overlayTarget ?? resolveOverlayUploadTarget()
     try {
       const saved = await overlayLayerUpload.mutateAsync(file)
       const uploadedUrl = saved.original_url || (saved as { url?: string }).url || ''
+      if (!uploadedUrl) {
+        toast.error('Upload finished but no image URL was returned')
+        return
+      }
       applyMediaUrlToSelection(uploadedUrl, {
         blockId: capturedBlockId,
         overlayTarget: capturedOverlayTarget,
       })
     } catch {
       toast.error('Upload failed ? try a smaller file or check your connection')
+    } finally {
+      clearPendingOverlayUpload()
     }
-  }, [siteId, overlayLayerUpload, applyMediaUrlToSelection])
+  }, [siteId, overlayLayerUpload, applyMediaUrlToSelection, resolveOverlayUploadTarget, clearPendingOverlayUpload])
 
   const sectionMediaPicker = useImageSourcePicker({
     title: 'Image',
     showGallery: true,
     onFile: uploadImageFileToSelection,
     onUrl: url => {
+      const overlayTarget = resolveOverlayUploadTarget()
       applyMediaUrlToSelection(url, {
-        blockId: selectedBlockIdRef.current ?? undefined,
-        overlayTarget: overlayImageTargetRef.current,
+        blockId: overlayTarget?.blockId ?? selectedBlockIdRef.current ?? undefined,
+        overlayTarget,
       })
+      clearPendingOverlayUpload()
     },
   })
 
-  const openSectionMediaPicker = useCallback(() => {
-    if (!selectedBlockIdRef.current) {
+  const openSectionMediaPicker = useCallback((overlayTarget?: { blockId: string; overlayId: string }) => {
+    if (overlayTarget) {
+      overlayImageTargetRef.current = overlayTarget
+      setOverlayImageTarget(overlayTarget)
+      pendingOverlayUploadRef.current = overlayTarget
+      if (selectedBlockIdRef.current !== overlayTarget.blockId) {
+        setSelectedBlockId(overlayTarget.blockId)
+      }
+    } else {
+      pendingOverlayUploadRef.current = null
+    }
+    if (!selectedBlockIdRef.current && !overlayTarget?.blockId) {
       toast.error('Select a section on the canvas first')
       return
     }
@@ -10821,9 +11333,10 @@ export default function WebsiteBuilder() {
       },
       {
         id: 'toggle',
-        label: block.visible === false ? 'Show section' : 'Hide section',
+        label: block.visible === false ? 'Unhide section' : 'Hide section',
         icon: block.visible === false ? Eye : EyeOff,
-        onSelect: () => handleUpdateBlockProps(block.id, { visible: !(block.visible !== false) } as any),
+        accent: block.visible === false,
+        onSelect: () => setBlockVisibility(block.id, block.visible === false),
       },
       { id: 'div3', label: '', divider: true },
       {
@@ -10836,7 +11349,7 @@ export default function WebsiteBuilder() {
       },
     ]
     setContextMenu({ x: e.clientX, y: e.clientY, actions })
-  }, [handleUpdateBlockProps, confirmDeleteBlock, handleDuplicateBlock, openInlineTextEditForBlock, openLayoutPickerForBlock, openSectionMediaPicker, handleSectionImageActivate])
+  }, [setBlockVisibility, confirmDeleteBlock, handleDuplicateBlock, openInlineTextEditForBlock, openLayoutPickerForBlock, openSectionMediaPicker, handleSectionImageActivate])
 
   const handleCanvasBlockContextMenuCapture = useCallback((e: React.MouseEvent) => {
     const target = e.target as HTMLElement
@@ -10881,7 +11394,23 @@ export default function WebsiteBuilder() {
     setSelectedBlockId(blockId)
     onOverlayLayerPicked(item.id, blockId)
     const isLinkable = item.type === 'button' || item.type === 'badge' || item.type === 'text' || item.type === 'image'
+    const textPromptAnchor = (): { x: number; y: number } => {
+      const toolbar = document.querySelector('[data-overlay-toolbar]')
+      if (toolbar) {
+        const rect = toolbar.getBoundingClientRect()
+        return { x: Math.max(12, rect.left - 404), y: rect.top }
+      }
+      const placed = placeAnchoredPanel({ x: e.clientX, y: e.clientY }, 380, 280)
+      return { x: placed.left, y: placed.top }
+    }
     const actions: ContextMenuAction[] = [
+      {
+        id: 'layer-settings',
+        label: `${overlayLayerTypeLabel(item.type)} settings`,
+        icon: SlidersHorizontal,
+        onSelect: () => openOverlaySettingsPanel(item.id, blockId),
+      },
+      { id: 'div-settings', label: '', divider: true },
       ...(item.type === 'text' || item.type === 'button' || item.type === 'badge' ? [{
         id: 'edit-text',
         label: 'Edit text?',
@@ -10941,7 +11470,7 @@ export default function WebsiteBuilder() {
           icon: Upload,
           onSelect: () => {
             onOverlayLayerPicked(item.id, blockId)
-            openOverlayImageFilePicker()
+            openOverlayImageFilePicker({ blockId, overlayId: item.id })
           },
         },
         {
@@ -11038,11 +11567,12 @@ export default function WebsiteBuilder() {
           if (overlayImageTarget?.blockId === blockId && overlayImageTarget.overlayId === item.id) {
             onOverlayLayerPicked(null, blockId)
           }
+          setOverlaySettingsPanelId(null)
         },
       },
     ]
     setContextMenu({ x: e.clientX, y: e.clientY, actions })
-  }, [activePageId, localBlocks, handleUpdateBlockProps, openLinkEditorForOverlay, openTextPrompt, openOverlayImageFilePicker, openMediaFromCanvas, onOverlayLayerPicked, overlayImageTarget])
+  }, [activePageId, localBlocks, handleUpdateBlockProps, openLinkEditorForOverlay, openTextPrompt, openOverlayImageFilePicker, openMediaFromCanvas, onOverlayLayerPicked, overlayImageTarget, openOverlaySettingsPanel])
 
   // Reorder ? local only until Save (same as block prop edits)
   const applyReorderForPage = useCallback((pageId: string, reordered: WebsiteBlock[]) => {
@@ -11318,7 +11848,7 @@ export default function WebsiteBuilder() {
   const toggleBlockVisibility = (blockId: string, pageId: string) => {
     const block = (localBlocks[pageId] || []).find(b => b.id === blockId)
     if (!block) return
-    handleUpdateBlockProps(blockId, { visible: block.visible === false } as Partial<BlockProps>)
+    setBlockVisibility(blockId, block.visible === false)
   }
 
   const toggleSectionPageExpanded = (pageId: string) => {
@@ -11678,11 +12208,10 @@ export default function WebsiteBuilder() {
     if (!siteId || isApplyingToStore) return
     setIsApplyingToStore(true)
     try {
-      // Only persist if there are pending local changes ? avoids redundant API
-      // calls when the user clicks Apply immediately after loading a template.
-      if (blocksDirty || styleDirty) {
-        await persistAllPagesToServer()
-      }
+      // Always flush page metadata (order, nav visibility, per-page SEO, publish
+      // state) before going live. Publish is infrequent and this call is idempotent,
+      // so it closes the gap where page-only edits never reached the server.
+      await persistAllPagesToServer()
       if (blocksDirty) {
         await persistAllBlocksToServer()
       }
@@ -11837,12 +12366,6 @@ export default function WebsiteBuilder() {
     void loadTrashedPages()
   }, [loadTrashedPages])
 
-  useEffect(() => {
-    if (rightPanel === 'page' && siteId) {
-      void loadTrashedPages()
-    }
-  }, [rightPanel, siteId, loadTrashedPages])
-
   const handleDeletePage = useCallback((pageId: string, pageTitle: string) => {
     const target = localPages.find(p => p.id === pageId)
     if (!target) return
@@ -11873,13 +12396,14 @@ export default function WebsiteBuilder() {
           syncEditorPagesFromSite(fresh)
           const trash = await loadTrashedPages()
           if (!trash.some(p => p.id === pageId)) {
-            toast.error('Page was removed but did not appear in Recently deleted. Click Refresh below or reload the builder.')
+            toast.error('Page was removed but did not appear in Recently deleted. Open More → Recently deleted and click Refresh.')
             return
           }
+          setMoreMenuOpen(true)
           toast.success(
             isHome
               ? `"${pageTitle}" moved to trash — another page is now home`
-              : `"${pageTitle}" moved to trash — restore within 7 days in Recently deleted`,
+              : `"${pageTitle}" moved to trash — restore within 7 days under More → Recently deleted`,
           )
         } catch (err) {
           setLocalPages(backupPages)
@@ -12809,7 +13333,16 @@ export default function WebsiteBuilder() {
               <div className="relative shrink-0" ref={moreMenuRef}>
                 <button
                   type="button"
-                  onClick={() => { setMoreMenuOpen(v => !v); setChangeHistoryOpen(false) }}
+                  onClick={() => {
+                    setMoreMenuOpen(v => {
+                      const opening = !v
+                      if (opening) {
+                        setChangeHistoryOpen(false)
+                        void loadTrashedPages()
+                      }
+                      return opening
+                    })
+                  }}
                   title="More — publish, view store, change history"
                   aria-haspopup="menu"
                   aria-expanded={moreMenuOpen}
@@ -12822,11 +13355,16 @@ export default function WebsiteBuilder() {
                 >
                   <MoreHorizontal className="h-3.5 w-3.5 shrink-0" />
                   More
+                  {trashedPages.length > 0 && (
+                    <span className="rounded-full bg-amber-500 px-1.5 py-0.5 text-[9px] font-bold leading-none text-white tabular-nums">
+                      {trashedPages.length}
+                    </span>
+                  )}
                   <ChevronDown className={cn('h-3 w-3 shrink-0 transition-transform', moreMenuOpen && 'rotate-180')} />
                 </button>
 
                 {moreMenuOpen && (
-                  <div className="absolute right-0 top-full z-[300] mt-1.5 w-72 rounded-xl border border-gray-200 bg-white text-gray-800 shadow-2xl">
+                  <div className="absolute right-0 top-full z-[300] mt-1.5 w-72 max-h-[min(70vh,520px)] overflow-y-auto rounded-xl border border-gray-200 bg-white text-gray-800 shadow-2xl">
                     <p className="px-3 pt-2.5 pb-1 text-[10px] font-bold uppercase tracking-wide text-gray-400">
                       Publish &amp; share
                     </p>
@@ -12936,10 +13474,38 @@ export default function WebsiteBuilder() {
                       </span>
                     </button>
 
+                    {/* Recently deleted pages (7-day trash) — always visible in Tools */}
+                    <div className="border-t border-gray-100 bg-amber-50/40">
+                      <div className="flex items-center gap-2.5 px-3 py-2.5">
+                        <Trash2 className="h-4 w-4 shrink-0 text-amber-600" />
+                        <span className="flex-1 text-xs font-semibold text-gray-700">
+                          Recently deleted
+                          {trashedPages.length > 0 && (
+                            <span className="ml-1.5 rounded-full bg-amber-100 px-1.5 py-0.5 text-[9px] font-bold tabular-nums text-amber-800">
+                              {trashedPages.length}
+                            </span>
+                          )}
+                          <span className="block text-[10px] font-normal text-gray-400">
+                            Restore pages removed in the last 7 days
+                          </span>
+                        </span>
+                      </div>
+                      <DeletedPagesPanel
+                        variant="menu"
+                        alwaysShow
+                        items={trashedPages}
+                        loading={trashLoading}
+                        onRestore={handleRestorePage}
+                        onRefresh={loadTrashedPages}
+                      />
+                    </div>
+
                     {/* Change history (restore previous edits) */}
                     <button
                       type="button"
-                      onClick={() => setChangeHistoryOpen(v => !v)}
+                      onClick={() => {
+                        setChangeHistoryOpen(v => !v)
+                      }}
                       aria-expanded={changeHistoryOpen}
                       className="flex w-full items-center gap-2.5 px-3 py-2.5 text-left text-xs font-semibold text-gray-700 transition-colors hover:bg-gray-50"
                     >
@@ -13071,9 +13637,6 @@ export default function WebsiteBuilder() {
                 onDismiss={() => {
                   dismissBuilderWelcome()
                   setBuilderWelcomeDismissed(true)
-                }}
-                onRestore={() => {
-                  restoreBuilderCoachMarks()
                 }}
               />
 
@@ -13257,9 +13820,10 @@ export default function WebsiteBuilder() {
                                         ? 'border-primary/50 bg-accent ring-1 ring-primary/20'
                                         : isDragTarget
                                           ? 'border-primary/40 bg-accent'
-                                          : 'border-gray-100 bg-white hover:border-primary/30 hover:bg-accent/70',
+                                          : isVisible
+                                            ? 'border-gray-100 bg-white hover:border-primary/30 hover:bg-accent/70'
+                                            : 'border-amber-200/80 bg-amber-50/70 hover:border-amber-300 hover:bg-amber-50',
                                       sidebarDraggedPageId === page.id && sidebarDraggedIdx === idx ? 'opacity-40' : 'opacity-100',
-                                      !isVisible && !isSelected && 'opacity-60',
                                     )}
                                   >
                                     <GripVertical className="w-3 h-3 text-gray-300 cursor-grab shrink-0" />
@@ -13277,10 +13841,15 @@ export default function WebsiteBuilder() {
                                       </div>
                                       <span className={cn(
                                         'text-xs font-medium leading-tight truncate',
-                                        isVisible ? 'text-gray-700' : 'text-gray-400',
+                                        isVisible ? 'text-gray-700' : 'text-amber-900/80',
                                       )}>
                                         {label}
                                       </span>
+                                      {!isVisible ? (
+                                        <span className="shrink-0 rounded px-1 py-0.5 text-[8px] font-bold uppercase tracking-wide bg-amber-200/80 text-amber-900">
+                                          Hidden
+                                        </span>
+                                      ) : null}
                                     </button>
                                     <div className={cn(
                                       'flex items-center gap-0 shrink-0 transition-opacity',
@@ -13296,16 +13865,26 @@ export default function WebsiteBuilder() {
                                         <Trash2 className="w-3 h-3 text-red-400" />
                                       </button>
                                     </div>
-                                    <button
-                                      type="button"
-                                      onClick={() => toggleBlockVisibility(block.id, page.id)}
-                                      className="shrink-0 p-0.5"
-                                      title={isVisible ? 'Hide section' : 'Show section'}
-                                    >
-                                      {isVisible
-                                        ? <Eye className="w-3.5 h-3.5 text-primary/70 hover:text-primary" />
-                                        : <EyeOff className="w-3.5 h-3.5 text-amber-400 hover:text-amber-600" />}
-                                    </button>
+                                    {!isVisible ? (
+                                      <button
+                                        type="button"
+                                        onClick={() => setBlockVisibility(block.id, true)}
+                                        className="shrink-0 inline-flex items-center gap-0.5 rounded-md border border-amber-300 bg-white px-1.5 py-0.5 text-[10px] font-bold text-amber-800 hover:bg-amber-100 transition-colors"
+                                        title="Unhide section"
+                                      >
+                                        <Eye className="w-3 h-3 shrink-0" />
+                                        Unhide
+                                      </button>
+                                    ) : (
+                                      <button
+                                        type="button"
+                                        onClick={() => toggleBlockVisibility(block.id, page.id)}
+                                        className="shrink-0 p-0.5"
+                                        title="Hide section"
+                                      >
+                                        <Eye className="w-3.5 h-3.5 text-primary/70 hover:text-primary" />
+                                      </button>
+                                    )}
                                   </div>
                                 )
                               })}
@@ -13554,7 +14133,7 @@ export default function WebsiteBuilder() {
                     {formatPaintBrush
                       ? `Copy formatting — click text to apply (${formatPaintStyleSummary(formatPaintBrush.style)})${formatPaintBrush.sticky ? ' · apply to several' : ''}`
                       : overlayImageTarget?.blockId === block.id && overlayImageTarget.overlayId
-                        ? 'Decorative layer selected — use the toolbar below to move, resize, or style it'
+                        ? 'Layer selected — use toolbar tabs below, or right-click for options'
                         : canvasImageTarget?.blockId === block.id && canvasImageStyleField(canvasImageTarget, block.id)
                           ? (() => {
                               const slots = canvasImageArraySlots(canvasImageTarget, block.id)
@@ -13570,7 +14149,7 @@ export default function WebsiteBuilder() {
                           : `${catalogBlockLabel(block)} selected — double-click text to edit, or use the toolbar below`}
                   </span>
                   <span className="hidden sm:inline text-[10px] text-gray-400 shrink-0">
-                    Toolbar tabs: General · Media · Visual
+                    Toolbar tabs: General · Visual (includes media)
                   </span>
                 </div>
                 <BlockDesignBar
@@ -13837,6 +14416,7 @@ export default function WebsiteBuilder() {
                           onMoveBlock={dir => handleMoveBlock(block.id, dir)}
                           onDuplicate={() => handleDuplicateBlock(block.id)}
                           onDelete={() => confirmDeleteBlock(block.id)}
+                          onToggleVisibility={() => setBlockVisibility(block.id, block.visible === false)}
                           onReorderPointerDown={e => handleBlockReorderPointerDown(e, idx)}
                           onOpenLayoutPicker={() => openLayoutPickerForBlock(block)}
                           onCycleLayout={dir => { void cycleBlockLayout(block, dir) }}
@@ -13886,6 +14466,12 @@ export default function WebsiteBuilder() {
                               ? overlayImageTarget.overlayId
                               : null
                           }
+                          settingsPanelOverlayId={
+                            block.id === selectedBlockId && overlayImageTarget?.blockId === block.id
+                              ? overlaySettingsPanelId
+                              : null
+                          }
+                          onCloseSettingsPanel={closeOverlaySettingsPanel}
                           onOpenAiImageTools={undefined}
                           onOpenMediaLibrary={block.id === selectedBlockId ? openMediaFromCanvas : undefined}
                           onPickLocalImage={block.id === selectedBlockId ? openOverlayImageFilePicker : undefined}
@@ -13899,24 +14485,27 @@ export default function WebsiteBuilder() {
                           onRequestText={block.id === selectedBlockId ? openTextPrompt : undefined}
                         />
 
-                        {selectedBlockId === block.id && (
+                        {selectedBlockId === block.id && (() => {
+                          const { paddingTop, paddingBottom } = resolveBlockSectionPadding(block)
+                          return (
                           <BuilderSectionPaddingHandles
                             blockId={block.id}
                             containerRef={builderPageRootRef}
                             scrollRootRef={canvasMainRef}
                             revision={canvasBlocksRevision}
-                            paddingTop={Number((block.props as Record<string, unknown>).padding_top ?? 0)}
-                            paddingBottom={Number((block.props as Record<string, unknown>).padding_bottom ?? 0)}
+                            paddingTop={paddingTop}
+                            paddingBottom={paddingBottom}
                             canvasScale={effectiveCanvasScale}
                             suppressed={
                               builderModalOpen
                               || Boolean(canvasImageStyleField(canvasImageTarget, block.id))
                               || activeTextTarget?.blockId === block.id
                             }
-                            onPaddingPreview={patch => handlePreviewBlockProps(block.id, patch as BlockProps)}
-                            onPaddingCommit={patch => handleUpdateBlockProps(block.id, patch as BlockProps)}
+                            onPaddingPreview={patch => applySectionPaddingPatch(block.id, patch, false)}
+                            onPaddingCommit={patch => applySectionPaddingPatch(block.id, patch, true)}
                           />
-                        )}
+                          )
+                        })()}
 
                         {selectedBlockId === block.id
                           && Number((block.props as Record<string, unknown>).min_height ?? 0) > 0
@@ -13952,7 +14541,10 @@ export default function WebsiteBuilder() {
 
                         {selectedBlockId === block.id
                           && !canvasImageStyleField(canvasImageTarget, block.id)
-                          && activeTextTarget?.blockId !== block.id && (
+                          && activeTextTarget?.blockId !== block.id
+                          && !(overlayImageTarget?.blockId === block.id && overlayImageTarget?.overlayId)
+                          && !textPrompt
+                          && !contextMenu && (
                           <SectionSizeControl
                             blockId={block.id}
                             containerRef={builderPageRootRef}
@@ -14236,10 +14828,6 @@ export default function WebsiteBuilder() {
                     onDeletePage={handleDeletePage}
                     onDuplicatePage={page => { void handleDuplicatePage(page) }}
                     onSetHomepage={page => { void handleSetHomepage(page) }}
-                    trashedPages={trashedPages}
-                    trashLoading={trashLoading}
-                    onRestorePage={handleRestorePage}
-                    onRefreshTrash={loadTrashedPages}
                   />
                 )}
 

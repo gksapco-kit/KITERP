@@ -142,7 +142,7 @@ export const websiteApi = {
     apiClient.post<WebsiteSite>(`${base}/${siteId}/headless/disable`).then(r => r.data),
 
   // Live data feeds (unified read-only endpoint the builder's blocks bind to).
-  getLive: <T = LiveItem>(siteId: string, resource: LiveResource, params?: { limit?: number }) =>
+  getLive: <T = LiveItem>(siteId: string, resource: LiveResource, params?: { limit?: number; ids?: string }) =>
     apiClient.get<{ resource: LiveResource; items: T[]; count: number; site_id: string; vendor_id: string }>(
       `${base}/${siteId}/live/${resource}`,
       { params },

@@ -548,13 +548,31 @@ async def get_live_resource_public(
     site_id: str,
     resource: str,
     limit: int = 12,
+    ids: Optional[str] = None,
     db: AsyncSession = Depends(get_db),
 ):
     """
     Public live data feed — same shape as the authenticated /live/{resource}
     endpoint on the vendor side but resolved through site_id rather than auth.
+
+    `ids` is an optional comma-separated list of item ids used to render a
+    hand-curated subset of a feed (the builder's "selected items" picker). When
+    present for an id-based resource we fetch exactly those rows instead of just
+    the most recent `limit`, so curated picks outside the top window still show.
     """
-    cache_key = f"pub_live:{site_id}:{resource}:{limit}"
+    # Parse the curated id subset (best-effort; ignore malformed ids).
+    selected_ids: List[UUID] = []
+    if ids:
+        for raw in ids.split(","):
+            raw = raw.strip()
+            if not raw:
+                continue
+            try:
+                selected_ids.append(UUID(raw))
+            except ValueError:
+                continue
+
+    cache_key = f"pub_live:{site_id}:{resource}:{limit}:{','.join(str(i) for i in selected_ids)}"
     cached = await _cached_get(cache_key)
     if cached:
         return cached
@@ -585,9 +603,11 @@ async def get_live_resource_public(
             select(Product)
             .options(selectinload(Product.images))
             .where(Product.vendor_id == vendor.id, Product.is_visible.is_(True))
-            .order_by(Product.is_featured.desc(), Product.created_at.desc())
-            .limit(limit)
         )
+        if selected_ids:
+            q = q.where(Product.id.in_(selected_ids)).limit(len(selected_ids))
+        else:
+            q = q.order_by(Product.is_featured.desc(), Product.created_at.desc()).limit(limit)
         rows = (await db.execute(q)).scalars().all()
         for p in rows:
             img = None
@@ -619,12 +639,11 @@ async def get_live_resource_public(
 
     elif resource == "services":
         from app.models.vendor_service import Service
-        q = (
-            select(Service)
-            .where(Service.vendor_id == vendor.id)
-            .order_by(Service.created_at.desc())
-            .limit(limit)
-        )
+        q = select(Service).where(Service.vendor_id == vendor.id)
+        if selected_ids:
+            q = q.where(Service.id.in_(selected_ids)).limit(len(selected_ids))
+        else:
+            q = q.order_by(Service.created_at.desc()).limit(limit)
         rows = (await db.execute(q)).scalars().all()
         for s in rows:
             items.append(_norm_item(
@@ -829,6 +848,51 @@ async def get_live_resource_public(
                 url=(f"?branch={s.code}" if s.code else f"?branch={str(s.id)}"),
                 meta={"code": s.code, "phone": s.phone, "email": s.email, "is_default": bool(s.is_default), "city": city, "state": state, "address": addr},
             ))
+
+    elif resource == "media":
+        rows = (await db.execute(
+            select(WebsiteMedia)
+            .where(WebsiteMedia.site_id == UUID(site_id))
+            .order_by(WebsiteMedia.created_at.desc())
+            .limit(limit)
+        )).scalars().all()
+        for m in rows:
+            items.append(_norm_item(
+                id=str(m.id),
+                title=m.filename or "",
+                image_url=m.thumbnail_url or m.adjusted_url or m.original_url,
+                url=m.original_url,
+                meta={
+                    "file_type": m.file_type,
+                    "file_size": m.file_size,
+                    "width": m.width,
+                    "height": m.height,
+                },
+            ))
+
+    elif resource == "customers":
+        # Public social-proof feed (e.g. trust_logos). Only brand-safe fields are
+        # exposed — never spend totals / order counts, which are private.
+        from app.models.customer import Customer
+        q = (
+            select(Customer)
+            .where(Customer.vendor_id == vendor.id, Customer.is_active.is_(True))
+            .order_by(Customer.total_spent.desc())
+            .limit(limit)
+        )
+        rows = (await db.execute(q)).scalars().all()
+        for c in rows:
+            items.append(_norm_item(
+                id=str(c.id),
+                title=c.company_name or c.full_name or "Customer",
+                image_url=c.avatar_url,
+            ))
+
+    elif resource in ("orders", "bookings"):
+        # Intentionally not exposed on the public storefront: order/booking records
+        # contain customer PII. Return an empty feed so storefront blocks degrade
+        # gracefully (to static content) instead of erroring.
+        items = []
 
     else:
         raise HTTPException(status_code=400, detail=f"Unknown live resource: {resource}")

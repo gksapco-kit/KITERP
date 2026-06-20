@@ -4,6 +4,7 @@ import { cn } from '@/lib/utils'
 import { useBuilderCanvas } from '@/contexts/BuilderCanvasContext'
 import { isMultiSelectModifier } from '@/lib/builderMultiSelect'
 import { useStorePath } from '@/hooks/useStorePath'
+import { fieldCtaShellStyle } from '@/lib/fieldTextStyles'
 import { BuilderPositionableField } from '@/components/builder/BuilderPositionableField'
 import { BuilderTextField } from '@/components/builder/BuilderTextField'
 
@@ -55,6 +56,10 @@ export function BuilderCtaButton({
     isEditor && 'cursor-pointer',
   )
 
+  const shellStyle = blockProps && blockId
+    ? fieldCtaShellStyle(blockProps, fieldKey, style)
+    : style
+
   if (isEditor) {
     return (
       <BuilderPositionableField
@@ -70,7 +75,7 @@ export function BuilderCtaButton({
           data-builder-cta-active={isActive ? 'true' : undefined}
           data-builder-field-selected={isActive ? 'true' : undefined}
           className={buttonClass}
-          style={style}
+          style={shellStyle}
           onMouseDown={(e: React.MouseEvent) => e.stopPropagation()}
           onClick={(e: React.MouseEvent) => {
             if ((e.target as HTMLElement).closest('[data-text-key]')) return
@@ -85,8 +90,24 @@ export function BuilderCtaButton({
     )
   }
 
+  const target = (href || '').trim()
+  // External / protocol links (http, mailto, tel, protocol-relative) and in-page
+  // anchors must NOT be run through `storePath` or a router <Link>, otherwise the
+  // store path prefix corrupts them (e.g. `mailto:x` -> `/store/slug/mailto:x`).
+  const isProtocol = /^(https?:|mailto:|tel:)/i.test(target) || target.startsWith('//')
+  const isAnchor = target.startsWith('#')
+  if (isProtocol || isAnchor) {
+    return (
+      <a href={target} className={buttonClass} style={style}>
+        {label}
+        {trailing}
+      </a>
+    )
+  }
+  // Query-only targets (e.g. `?branch=code`) attach to the store home.
+  const to = target.startsWith('?') ? `${storePath('/')}${target}` : storePath(target || '/')
   return (
-    <Link to={storePath(href)} className={buttonClass} style={style}>
+    <Link to={to} className={buttonClass} style={style}>
       {label}
       {trailing}
     </Link>

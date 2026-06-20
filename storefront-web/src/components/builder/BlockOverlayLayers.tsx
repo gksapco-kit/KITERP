@@ -13,6 +13,13 @@ import {
   type BlockOverlayItem,
 } from '@/lib/blockOverlays'
 import { builderOverlayIconLabel, overlayIconRenderSize, resolveBuilderOverlayIcon } from '@/lib/builderOverlayIcons'
+import { builderFontPreviewStyle, ensureBuilderFontLoaded } from '@/lib/builderFontFamilies'
+
+function overlayTextFontStyle(item: BlockOverlayItem): CSSProperties {
+  if (!item.fontFamily) return {}
+  ensureBuilderFontLoaded(item.fontFamily)
+  return builderFontPreviewStyle(item.fontFamily)
+}
 
 function OverlayLinkWrap({
   item,
@@ -96,6 +103,7 @@ function OverlayLayerContent({ item }: { item: BlockOverlayItem }) {
             display: 'flex',
             alignItems: 'center',
             wordBreak: 'break-word',
+            ...overlayTextFontStyle(item),
           }}
         >
           {item.text || ''}
@@ -147,6 +155,7 @@ function OverlayLayerContent({ item }: { item: BlockOverlayItem }) {
               fontSize: item.fontSize || 14,
               fontWeight: item.fontWeight || 'bold',
               color: item.color || '#ffffff',
+              ...overlayTextFontStyle(item),
             }}
           >
             {item.text || 'Button'}
@@ -172,6 +181,7 @@ function OverlayLayerContent({ item }: { item: BlockOverlayItem }) {
               fontWeight: 'bold',
               color: item.color || '#ffffff',
               whiteSpace: 'nowrap',
+              ...overlayTextFontStyle(item),
             }}
           >
             {item.text || 'Badge'}
@@ -241,7 +251,7 @@ function OverlayLayer({ item }: { item: BlockOverlayItem }) {
         pointerEvents: 'auto',
       }}
     >
-      {linked && (item.type === 'image' || item.type === 'button' || item.type === 'text' || item.type === 'badge' || item.type === 'icon') ? (
+      {linked && (item.type === 'image' || item.type === 'button' || item.type === 'text' || item.type === 'badge' || item.type === 'icon' || item.type === 'box') ? (
         <OverlayLinkWrap item={item}>{body}</OverlayLinkWrap>
       ) : (
         body

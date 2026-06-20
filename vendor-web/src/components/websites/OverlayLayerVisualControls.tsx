@@ -11,7 +11,9 @@ import {
   type OverlayLayerItem,
 } from '@/lib/builderOverlayVisual'
 import { OverlayTransformControls } from '@/components/websites/OverlayTransformControls'
+import { OverlayAlignControls } from '@/components/websites/OverlayAlignControls'
 import { OverlayIconPicker } from '@/components/websites/OverlayIconPicker'
+import type { OverlayBox } from '@/lib/overlayAlignmentSnap'
 import {
   visualActionBtn,
   visualChip,
@@ -100,6 +102,9 @@ export function OverlayLayerVisualControls({
   onEditLink,
   onEditText,
   onEditDescription,
+  siblings,
+  containerWidth,
+  containerHeight,
 }: {
   item: OverlayLayerItem
   blockBackgroundColor?: string
@@ -112,6 +117,9 @@ export function OverlayLayerVisualControls({
   onEditLink?: () => void
   onEditText?: () => void
   onEditDescription?: () => void
+  siblings?: OverlayBox[]
+  containerWidth?: number
+  containerHeight?: number
 }) {
   const noFill = isOverlayNoFill(item)
   const hasFillControls = overlayHasFillControls(item)
@@ -359,15 +367,32 @@ export function OverlayLayerVisualControls({
     </>
   )
 
+  const hasContainer = !!(containerWidth && containerHeight)
+
   return (
     <div className={cn(visualLayerCol)}>
-      <OverlayTransformControls
-        item={item}
-        onUpdate={onUpdate}
-        onBringToFront={onBringToFront}
-        onSendToBack={onSendToBack}
-        variant="compact"
-      />
+      <div className={visualRow}>
+        <OverlayTransformControls
+          item={item}
+          onUpdate={onUpdate}
+          onBringToFront={onBringToFront}
+          onSendToBack={onSendToBack}
+          variant="compact"
+          siblings={siblings}
+          containerWidth={containerWidth}
+          containerHeight={containerHeight}
+          keyboardShortcuts
+        />
+        {hasContainer ? (
+          <OverlayAlignControls
+            item={item}
+            containerWidth={containerWidth!}
+            containerHeight={containerHeight!}
+            onUpdate={onUpdate}
+            variant="compact"
+          />
+        ) : null}
+      </div>
       <div className={visualRow}>{row1}</div>
       <div className={visualRow}>{row2}</div>
     </div>

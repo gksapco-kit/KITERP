@@ -96,3 +96,42 @@ export function mergeBlockSectionStyles(
     fontSizeClass: blockStyleFontSizeClass(overrides.font_size),
   }
 }
+
+/** Effective section padding — matches BlockRenderer (props + style_overrides). */
+export function resolveBlockSectionPadding(
+  block: { props?: Record<string, unknown>; style_overrides?: Record<string, unknown> },
+  breakpoint: BreakpointStyleKey = 'desktop',
+): { paddingTop: number; paddingBottom: number } {
+  const props = (block.props ?? {}) as Record<string, unknown>
+  const overrides = resolveBreakpointStyleOverrides(readRawBlockStyleOverrides(block), breakpoint)
+  const { paddingTop, paddingBottom } = mergeBlockSectionStyles(props, overrides)
+  return { paddingTop, paddingBottom }
+}
+
+function stripPaddingKeys(layer: Record<string, unknown>): Record<string, unknown> {
+  const next = { ...layer }
+  delete next.padding_top
+  delete next.padding_bottom
+  return next
+}
+
+/**
+ * Remove padding from style_overrides so canvas / panel edits to block.props.padding_*
+ * are not overridden by stale breakpoint padding (avoids "0px handle, 64px gap" bugs).
+ */
+export function stripSectionPaddingFromStyleOverrides(
+  raw: Record<string, unknown> | null | undefined,
+): Record<string, unknown> {
+  if (!raw || !Object.keys(raw).length) return {}
+  if (isBreakpointNested(raw)) {
+    const next: Record<string, unknown> = { ...raw }
+    for (const bp of BREAKPOINT_KEYS) {
+      const layer = raw[bp]
+      if (layer && typeof layer === 'object' && !Array.isArray(layer)) {
+        next[bp] = stripPaddingKeys(layer as Record<string, unknown>)
+      }
+    }
+    return next
+  }
+  return stripPaddingKeys(raw)
+}

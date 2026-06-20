@@ -136,7 +136,7 @@ export function transformStyleFromRecord(record: Record<string, unknown>): CSSPr
   return transformStyleFromValues(record.flip_h, record.flip_v, record.rotate_deg)
 }
 
-function fieldStyleEntry(
+export function fieldStyleEntry(
   props: Record<string, unknown>,
   fieldKey: string,
 ): Record<string, unknown> {
@@ -228,6 +228,24 @@ export function fieldTextStyle(
 export function isInlinePositionField(fieldKey: string): boolean {
   const leaf = fieldKey.includes('.') ? fieldKey.split('.').pop()! : fieldKey
   return leaf === 'cta_primary' || leaf === 'cta_secondary' || leaf === 'cta_label' || leaf === 'cta'
+}
+
+/** CTA / button shell colors from `_field_styles` layered on theme defaults. */
+export function fieldCtaShellStyle(
+  props: Record<string, unknown>,
+  fieldKey: string,
+  base: CSSProperties = {},
+): CSSProperties {
+  const fs = fieldStyleEntry(props, fieldKey)
+  return {
+    ...base,
+    ...(typeof fs.field_bg_color === 'string' && fs.field_bg_color
+      ? { backgroundColor: fs.field_bg_color }
+      : {}),
+    ...(typeof fs.field_border_color === 'string' && fs.field_border_color
+      ? { borderColor: fs.field_border_color }
+      : {}),
+  }
 }
 
 /** Flex wrapper for vertical alignment and/or free position offset within the section. */

@@ -41,29 +41,13 @@ const STEPS = [
 export function BuilderWelcomePanel({
   dismissed,
   onDismiss,
-  onRestore,
   className,
 }: {
   dismissed: boolean
   onDismiss: () => void
-  onRestore?: () => void
   className?: string
 }) {
-  if (dismissed) {
-    return (
-      <button
-        type="button"
-        onClick={() => onRestore?.()}
-        className={cn(
-          'mx-3 mt-2 mb-1 w-[calc(100%-1.5rem)] rounded-lg border border-primary/20 bg-accent/30 px-3 py-2 text-left text-[10px] text-primary/90 hover:bg-accent/50 transition-colors',
-          className,
-        )}
-      >
-        <span className="font-semibold">Start here guide hidden</span>
-        <span className="text-primary/70"> — tap to show quick start again</span>
-      </button>
-    )
-  }
+  if (dismissed) return null
 
   return (
     <div className={cn('mx-3 mt-3 mb-1 rounded-xl border border-primary/25 bg-gradient-to-br from-accent/80 to-white p-3 shadow-sm', className)}>

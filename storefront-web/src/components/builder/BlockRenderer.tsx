@@ -13,12 +13,12 @@
  *  - Unknown block types render a neutral placeholder in dev, nothing in prod.
  */
 import { lazy, Suspense, useEffect, useMemo, useState, type CSSProperties } from 'react'
-import { Link, useLocation } from 'react-router-dom'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 import type { PublicBlock, PublicSite, LiveItem, StyleConfig } from '@/blocks/registry'
 import { DEFAULT_STYLE } from '@/blocks/registry'
 import { publicSitesApi } from '@/api/publicSites'
-import { useVendor } from '@/contexts/VendorContext'
 import { useLiveDataFetch } from '@/contexts/LiveDataFetchContext'
+import { useStorePath } from '@/hooks/useStorePath'
 import { useBuilderCanvas } from '@/contexts/BuilderCanvasContext'
 import NavBlock from '@/components/builder/blocks/NavBlock'
 import FooterBlock from '@/components/builder/blocks/FooterBlock'
@@ -174,7 +174,14 @@ function useLiveData(block: PublicBlock, site: PublicSite, limit = 12) {
   const sourceType = typeof dataSource?.type === 'string'
     ? dataSource.type.replace(/^internal_/, '')
     : undefined
-  const resource = (sourceType && sourceType !== 'external_api' ? sourceType : BLOCK_LIVE_RESOURCE[block.block_type] || inferCommerceLiveResource(block.block_type)) as LiveResource | undefined
+  // Explicit "off" sources (static/disconnected, none, or an external feed we
+  // don't render client-side) must NOT fall back to the block's default live
+  // resource — otherwise a disconnected block keeps pulling live data. An ABSENT
+  // data_source still auto-binds to the default resource (unchanged behavior).
+  const liveDisabled = sourceType === 'static' || sourceType === 'none' || sourceType === 'external_api'
+  const resource = (liveDisabled
+    ? undefined
+    : (sourceType || BLOCK_LIVE_RESOURCE[block.block_type] || inferCommerceLiveResource(block.block_type))) as LiveResource | undefined
   const effectiveLimit = Number(dataSource?.limit ?? limit) || limit
   const embeddedPagesKey = resource === 'pages'
     ? (site.pages || []).map(p => `${p.id}:${p.slug}:${p.title}:${p.show_in_nav}:${p.is_homepage}`).join('|')
@@ -231,12 +238,38 @@ export function SingleBlock({
   branchCode,
   pageBlocks,
 }: Omit<BlockProps, 'liveData'> & { pageBlocks?: PublicBlock[] }) {
-  const { storePath } = useVendor()
+  const storePath = useStorePath()
+  const navigate = useNavigate()
   const customFetch = useLiveDataFetch()
   const builderCanvas = useBuilderCanvas()
   const isEditorCanvas = builderCanvas?.isEditorCanvas ?? false
   const liveItems = useLiveData(block, site, (block.props.show_count as number | undefined) || 12)
   const p = block.props as Record<string, unknown>
+
+  if (isEditorCanvas && p.__builder_hidden_section) {
+    const label = block.label || block.block_type.replace(/_/g, ' ')
+    const sfBid = `sf${block.id.replace(/-/g, '')}`
+    return (
+      <div
+        data-sf-bid={sfBid}
+        data-block-id={block.id}
+        data-builder-hidden-section
+        className="builder-block builder-block--editor-hidden w-full"
+      >
+        <div
+          className="flex items-center justify-between gap-3 border-y border-amber-200 bg-amber-50 px-3 py-1.5 text-amber-900"
+          role="status"
+          aria-label={`Hidden section: ${label}`}
+        >
+          <span className="flex shrink-0 items-center gap-1.5 text-[10px] font-bold uppercase tracking-wide text-amber-700">
+            <span className="inline-block h-2 w-2 rounded-full bg-amber-400" aria-hidden />
+            Hidden section
+          </span>
+          <span className="min-w-0 truncate text-[11px] font-medium text-amber-900/85">{label}</span>
+        </div>
+      </div>
+    )
+  }
 
   const commonProps = {
     site,
@@ -281,7 +314,9 @@ export function SingleBlock({
       case 'product_reviews':  return <Suspense fallback={<BlockSkeleton />}><ProductReviewsBlock {...commonProps} /></Suspense>
       case 'team_grid':
       case 'team_list':        return <Suspense fallback={<BlockSkeleton />}><TeamGridBlock {...commonProps} /></Suspense>
-      case 'stats':            return <Suspense fallback={<BlockSkeleton />}><StatsBlock {...commonProps} /></Suspense>
+      case 'stats':
+      case 'counters':
+      case 'impact_stats':     return <Suspense fallback={<BlockSkeleton />}><StatsBlock {...commonProps} /></Suspense>
       case 'cta':              return <Suspense fallback={<BlockSkeleton />}><CtaBlock {...commonProps} /></Suspense>
       case 'contact_form':     return <Suspense fallback={<BlockSkeleton />}><ContactFormBlock {...commonProps} /></Suspense>
       case 'map_embed':
@@ -428,16 +463,35 @@ export function SingleBlock({
   const fieldStyleCss = buildFieldStylesCss('data-sf-bid', sfBid, p)
   const blockLink = typeof p.block_link_url === 'string' ? p.block_link_url.trim() : ''
   const blockLinkNewTab = Boolean(p.block_link_new_tab)
-  const resolvedBlockLink = blockLink
-    ? blockLink.startsWith('http') || blockLink.startsWith('mailto:') || blockLink.startsWith('tel:') || blockLink.startsWith('#')
-      ? blockLink
+  // Match BuilderCtaButton / overlay resolver: external/mailto/tel/# stay raw; internal
+  // paths go through branch-aware storePath; query-only targets attach to store home.
+  const resolvedBlockLink = (() => {
+    if (!blockLink) return null
+    const isProtocol = /^(https?:|mailto:|tel:)/i.test(blockLink) || blockLink.startsWith('//')
+    const isAnchor = blockLink.startsWith('#')
+    if (isProtocol || isAnchor) return { kind: 'external' as const, target: blockLink }
+    const internal = blockLink.startsWith('?')
+      ? `${storePath('/')}${blockLink}`
       : storePath(blockLink.startsWith('/') ? blockLink : `/${blockLink}`)
-    : ''
+    return { kind: 'internal' as const, target: internal }
+  })()
   const activateBlockLink = (eventTarget: EventTarget | null) => {
     if (!resolvedBlockLink || !(eventTarget instanceof HTMLElement)) return
     if (eventTarget.closest('a, button, input, textarea, select, label, [role="button"]')) return
-    if (blockLinkNewTab) window.open(resolvedBlockLink, '_blank', 'noopener,noreferrer')
-    else window.location.href = resolvedBlockLink
+    const { kind, target } = resolvedBlockLink
+    if (blockLinkNewTab) {
+      window.open(target, '_blank', 'noopener,noreferrer')
+      return
+    }
+    if (kind === 'internal') {
+      navigate(target)
+      return
+    }
+    if (target.startsWith('#')) {
+      window.location.hash = target
+      return
+    }
+    window.location.href = target
   }
 
   return (
@@ -446,7 +500,7 @@ export function SingleBlock({
       data-block-id={block.id}
       role={resolvedBlockLink ? 'link' : undefined}
       tabIndex={resolvedBlockLink ? 0 : undefined}
-      aria-label={resolvedBlockLink ? `Open ${resolvedBlockLink}` : undefined}
+      aria-label={resolvedBlockLink ? `Open ${blockLink}` : undefined}
       onClick={resolvedBlockLink ? e => activateBlockLink(e.target) : undefined}
       onKeyDown={resolvedBlockLink ? e => {
         if (e.key === 'Enter' || e.key === ' ') {

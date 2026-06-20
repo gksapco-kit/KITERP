@@ -9,6 +9,8 @@ export const FORMAT_PAINT_STYLE_KEYS = [
   'font_size_px',
   'text_scale',
   'text_color_override',
+  'field_bg_color',
+  'field_border_color',
   'font_family',
   'font_style',
   'text_transform',
@@ -81,7 +83,27 @@ export function hasFormatPaintStyle(style: FormatPaintStyle): boolean {
   return Object.keys(style).length > 0
 }
 
-/** Merge block props with per-field `_field_styles` entry. */
+const SECTION_TYPOGRAPHY_FALLBACK_KEYS: FormatPaintStyleKey[] = [
+  'font_size_px',
+  'text_scale',
+  'text_color_override',
+  'font_family',
+  'font_style',
+  'text_transform',
+  'text_align',
+  'vertical_align',
+  'text_wrap',
+  'line_height_ratio',
+  'paragraph_space_before_px',
+  'paragraph_space_after_px',
+  'field_offset_x',
+  'field_offset_y',
+  'flip_h',
+  'flip_v',
+  'rotate_deg',
+]
+
+/** Merge per-field `_field_styles` with section-level typography fallbacks (not whole block props). */
 export function mergeFieldTypographyRecord(
   blockProps: Record<string, unknown>,
   fieldKey: string | null | undefined,
@@ -90,7 +112,14 @@ export function mergeFieldTypographyRecord(
     return mapContentGroupToFormatRecord(blockProps)
   }
   const fieldStyles = (blockProps._field_styles as Record<string, Record<string, unknown>>) || {}
-  return { ...blockProps, ...(fieldStyles[fieldKey] || {}) }
+  const fieldEntry = fieldStyles[fieldKey] || {}
+  const sectionFallback: Record<string, unknown> = {}
+  for (const key of SECTION_TYPOGRAPHY_FALLBACK_KEYS) {
+    if (fieldEntry[key] != null && fieldEntry[key] !== '') continue
+    const v = blockProps[key]
+    if (v != null && v !== '') sectionFallback[key] = v
+  }
+  return { ...sectionFallback, ...fieldEntry }
 }
 
 function mapContentGroupToFormatRecord(blockProps: Record<string, unknown>): Record<string, unknown> {
@@ -149,11 +178,14 @@ export function resolveFormatPaintStyle(input: {
 
   const merged = mergeFieldTypographyRecord(input.blockProps, input.fieldKey)
   let style = extractFormatPaintStyle(merged)
-  if (hasFormatPaintStyle(style)) return style
 
   if (input.computed && hasFormatPaintStyle(input.computed)) {
-    style = { ...style, ...input.computed }
-    return extractFormatPaintStyle({ ...merged, ...style })
+    const computed = extractFormatPaintStyle(input.computed)
+    for (const key of FORMAT_PAINT_STYLE_KEYS) {
+      if ((style[key] == null || style[key] === '') && computed[key] != null && computed[key] !== '') {
+        style[key] = computed[key]
+      }
+    }
   }
 
   return style
