@@ -1,4 +1,4 @@
-"""Order placement notifications — email, SMS, and WhatsApp driven by vendor settings."""
+"""Order placement notifications — email, SMS, and WhatsApp driven by Create Messages (BU config)."""
 from __future__ import annotations
 
 import asyncio
@@ -20,6 +20,7 @@ from app.models.store import Store
 from app.models.vendor import Vendor
 from app.services.email_service import send_email
 from app.services.message_config_service import (
+    default_message_config,
     get_message_config,
     get_event_email_addresses,
     get_event_phone_numbers,
@@ -133,50 +134,41 @@ def _customer_sms_allowed(customer_prefs: Optional[dict[str, Any]]) -> bool:
     return _customer_order_updates_allowed(prefs)
 
 
-def _bu_customer_channels(message_config: Optional[dict[str, Any]]) -> Optional[dict[str, Any]]:
-    """Return BU customer channel prefs when order is tied to a store; else None."""
-    if message_config is None:
-        return None
-    channels = message_config.get("customer_channels")
-    return channels if isinstance(channels, dict) else {}
-
-
-def _bu_vendor_channels(message_config: Optional[dict[str, Any]]) -> Optional[dict[str, Any]]:
-    """Return BU vendor channel prefs when order is tied to a store; else None."""
-    if message_config is None:
-        return None
-    channels = message_config.get("vendor_channels")
-    return channels if isinstance(channels, dict) else {}
+def _order_message_channels(
+    message_config: Optional[dict[str, Any]],
+) -> tuple[dict[str, Any], dict[str, Any]]:
+    """Vendor/customer channel prefs from Create Messages (BU config or defaults)."""
+    cfg = message_config if message_config is not None else default_message_config()
+    vendor_channels = cfg.get("vendor_channels")
+    customer_channels = cfg.get("customer_channels")
+    return (
+        vendor_channels if isinstance(vendor_channels, dict) else {},
+        customer_channels if isinstance(customer_channels, dict) else {},
+    )
 
 
 def vendor_bu_order_email_enabled(
     vendor: Vendor,
     message_config: Optional[dict[str, Any]] = None,
 ) -> bool:
-    bu = _bu_vendor_channels(message_config)
-    if bu is not None:
-        return bool(bu.get("email", True))
-    return vendor_order_email_enabled(vendor)
+    vendor_channels, _ = _order_message_channels(message_config)
+    return bool(vendor_channels.get("email", True))
 
 
 def vendor_bu_order_sms_enabled(
     vendor: Vendor,
     message_config: Optional[dict[str, Any]] = None,
 ) -> bool:
-    bu = _bu_vendor_channels(message_config)
-    if bu is not None:
-        return bool(bu.get("sms", False))
-    return vendor_order_sms_enabled(vendor)
+    vendor_channels, _ = _order_message_channels(message_config)
+    return bool(vendor_channels.get("sms", False))
 
 
 def vendor_bu_order_whatsapp_enabled(
     vendor: Vendor,
     message_config: Optional[dict[str, Any]] = None,
 ) -> bool:
-    bu = _bu_vendor_channels(message_config)
-    if bu is not None:
-        return bool(bu.get("whatsapp", False))
-    return vendor_order_whatsapp_enabled(vendor)
+    vendor_channels, _ = _order_message_channels(message_config)
+    return bool(vendor_channels.get("whatsapp", False))
 
 
 def customer_order_email_enabled(
@@ -184,12 +176,8 @@ def customer_order_email_enabled(
     customer_prefs: Optional[dict[str, Any]] = None,
     message_config: Optional[dict[str, Any]] = None,
 ) -> bool:
-    bu_channels = _bu_customer_channels(message_config)
-    if bu_channels is not None:
-        if not bu_channels.get("email", True):
-            return False
-        return _customer_order_updates_allowed(customer_prefs)
-    if not vendor_order_email_enabled(vendor):
+    _, customer_channels = _order_message_channels(message_config)
+    if not customer_channels.get("email", True):
         return False
     return _customer_order_updates_allowed(customer_prefs)
 
@@ -199,12 +187,8 @@ def customer_order_sms_enabled(
     customer_prefs: Optional[dict[str, Any]] = None,
     message_config: Optional[dict[str, Any]] = None,
 ) -> bool:
-    bu_channels = _bu_customer_channels(message_config)
-    if bu_channels is not None:
-        if not bu_channels.get("sms", False):
-            return False
-        return _customer_sms_allowed(customer_prefs)
-    if not vendor_order_sms_enabled(vendor):
+    _, customer_channels = _order_message_channels(message_config)
+    if not customer_channels.get("sms", False):
         return False
     return _customer_sms_allowed(customer_prefs)
 
@@ -214,12 +198,8 @@ def customer_order_whatsapp_enabled(
     customer_prefs: Optional[dict[str, Any]] = None,
     message_config: Optional[dict[str, Any]] = None,
 ) -> bool:
-    bu_channels = _bu_customer_channels(message_config)
-    if bu_channels is not None:
-        if not bu_channels.get("whatsapp", False):
-            return False
-        return _customer_order_updates_allowed(customer_prefs)
-    if not vendor_order_whatsapp_enabled(vendor):
+    _, customer_channels = _order_message_channels(message_config)
+    if not customer_channels.get("whatsapp", False):
         return False
     return _customer_order_updates_allowed(customer_prefs)
 
@@ -788,14 +768,12 @@ async def _send_order_emails(
         else:
             log.warning("Vendor order email skipped — no email recipients for vendor %s", vendor.id)
     else:
-        bu = _bu_vendor_channels(ctx.get("message_config"))
-        if bu is not None and not bu.get("email", True):
+        vendor_channels, _ = _order_message_channels(ctx.get("message_config"))
+        if not vendor_channels.get("email", True):
             log.info(
-                "Vendor order email skipped — BU vendor notification preferences (email off) for order %s",
+                "Vendor order email skipped — Create Messages vendor email off for order %s",
                 order_number,
             )
-        elif bu is None and not vendor_order_email_enabled(vendor):
-            log.info("Vendor order email skipped — vendor email notifications off for order %s", order_number)
 
     customer_prefs = (customer.notification_preferences or {}) if customer else {}
     message_config = ctx.get("message_config")
@@ -846,16 +824,14 @@ async def _send_order_emails(
         else:
             log.warning("Customer order email skipped — no email for customer on order %s", order_number)
     else:
-        bu = _bu_customer_channels(message_config)
-        if bu is not None and not bu.get("email", True):
+        _, customer_channels = _order_message_channels(message_config)
+        if not customer_channels.get("email", True):
             log.info(
-                "Customer order email skipped — BU customer notification preferences (email off) for order %s",
+                "Customer order email skipped — Create Messages customer email off for order %s",
                 order_number,
             )
         elif not _customer_order_updates_allowed(customer_prefs):
             log.info("Customer order email skipped — customer opted out for order %s", order_number)
-        elif bu is None and not vendor_order_email_enabled(vendor):
-            log.info("Customer order email skipped — vendor email notifications off for order %s", order_number)
 
 
 async def _send_order_sms(
@@ -891,14 +867,12 @@ async def _send_order_sms(
         else:
             log.warning("Vendor order SMS skipped — no phone recipients for vendor %s", vendor.id)
     else:
-        bu = _bu_vendor_channels(message_config)
-        if bu is not None and not bu.get("sms", False):
+        vendor_channels, _ = _order_message_channels(message_config)
+        if not vendor_channels.get("sms", False):
             log.info(
-                "Vendor order SMS skipped — BU vendor notification preferences (SMS off) for order %s",
+                "Vendor order SMS skipped — Create Messages vendor SMS off for order %s",
                 order_number,
             )
-        elif bu is None and not vendor_order_sms_enabled(vendor):
-            log.info("Vendor order SMS skipped — vendor SMS notifications off for order %s", order_number)
 
     if customer_order_sms_enabled(vendor, customer_prefs, message_config):
         customer_phone = _customer_phone(customer, order)
@@ -921,10 +895,10 @@ async def _send_order_sms(
         else:
             log.warning("Customer order SMS skipped — no phone on order %s", order_number)
     else:
-        bu = _bu_customer_channels(message_config)
-        if bu is not None and not bu.get("sms", False):
+        _, customer_channels = _order_message_channels(message_config)
+        if not customer_channels.get("sms", False):
             log.info(
-                "Customer order SMS skipped — BU customer notification preferences (SMS off) for order %s",
+                "Customer order SMS skipped — Create Messages customer SMS off for order %s",
                 order_number,
             )
         elif not _customer_sms_allowed(customer_prefs):
@@ -932,8 +906,6 @@ async def _send_order_sms(
                 "Customer order SMS skipped — customer opted out or disabled for order %s",
                 order_number,
             )
-        elif bu is None and not vendor_order_sms_enabled(vendor):
-            log.info("Customer order SMS skipped — vendor SMS notifications off for order %s", order_number)
 
 
 async def _send_order_whatsapp(
@@ -969,14 +941,12 @@ async def _send_order_whatsapp(
         else:
             log.warning("Vendor order WhatsApp skipped — no phone recipients for vendor %s", vendor.id)
     else:
-        bu = _bu_vendor_channels(message_config)
-        if bu is not None and not bu.get("whatsapp", False):
+        vendor_channels, _ = _order_message_channels(message_config)
+        if not vendor_channels.get("whatsapp", False):
             log.info(
-                "Vendor order WhatsApp skipped — BU vendor notification preferences (WhatsApp off) for order %s",
+                "Vendor order WhatsApp skipped — Create Messages vendor WhatsApp off for order %s",
                 order_number,
             )
-        elif bu is None and not vendor_order_whatsapp_enabled(vendor):
-            log.info("Vendor order WhatsApp skipped — vendor WhatsApp notifications off for order %s", order_number)
 
     if customer_order_whatsapp_enabled(vendor, customer_prefs, message_config):
         customer_phone = _customer_phone(customer, order)
@@ -1000,16 +970,14 @@ async def _send_order_whatsapp(
         else:
             log.warning("Customer order WhatsApp skipped — no phone on order %s", order_number)
     else:
-        bu = _bu_customer_channels(message_config)
-        if bu is not None and not bu.get("whatsapp", False):
+        _, customer_channels = _order_message_channels(message_config)
+        if not customer_channels.get("whatsapp", False):
             log.info(
-                "Customer order WhatsApp skipped — BU customer notification preferences (WhatsApp off) for order %s",
+                "Customer order WhatsApp skipped — Create Messages customer WhatsApp off for order %s",
                 order_number,
             )
         elif not _customer_order_updates_allowed(customer_prefs):
             log.info("Customer order WhatsApp skipped — customer opted out for order %s", order_number)
-        elif bu is None and not vendor_order_whatsapp_enabled(vendor):
-            log.info("Customer order WhatsApp skipped — vendor WhatsApp notifications off for order %s", order_number)
 
 
 async def send_order_placed_notifications(

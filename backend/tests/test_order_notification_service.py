@@ -46,9 +46,10 @@ def test_vendor_order_whatsapp_follows_whatsapp_toggle():
     assert vendor_order_whatsapp_enabled(_vendor(notifications={"whatsapp": False})) is False
 
 
-def test_customer_order_email_respects_vendor_toggle():
+def test_customer_order_email_ignores_vendor_notification_toggle():
+    """Order emails use Create Messages defaults, not Notification Settings channels."""
     v = _vendor(notifications={"email": False})
-    assert customer_order_email_enabled(v, {"orderUpdates": True}) is False
+    assert customer_order_email_enabled(v, {"orderUpdates": True}) is True
 
 
 def test_customer_order_email_opt_out():
@@ -95,6 +96,12 @@ def test_vendor_bu_email_on_when_bu_enabled_even_if_vendor_email_off():
     v = _vendor(notifications={"email": False})
     bu = {"vendor_channels": {"email": True, "sms": False, "whatsapp": False}}
     assert vendor_bu_order_email_enabled(v, bu) is True
+
+
+def test_vendor_bu_email_uses_create_messages_defaults_without_bu_config():
+    v = _vendor(notifications={"email": False, "notifications_enabled": False})
+    assert vendor_bu_order_email_enabled(v, None) is True
+    assert vendor_bu_order_sms_enabled(v, None) is False
 
 
 def test_vendor_bu_email_off_when_bu_email_disabled():

@@ -31,6 +31,17 @@ def sendgrid_api_key() -> str:
     return ""
 
 
+def email_is_configured() -> bool:
+    """True when platform email can be sent (SendGrid API or SMTP with credentials)."""
+    settings = get_settings()
+    if sendgrid_api_key():
+        return True
+    host = (settings.SMTP_HOST or "").strip()
+    if not host:
+        return False
+    return bool((settings.SMTP_PASSWORD or "").strip() or (settings.SMTP_USER or "").strip())
+
+
 async def send_email(
     to: str,
     subject: str,

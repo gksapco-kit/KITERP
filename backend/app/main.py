@@ -75,6 +75,17 @@ async def lifespan(app: FastAPI):
     await ensure_user_platform_staff_role_column()
     await ensure_txn_store_id_columns()
     await connect_redis()
+    from app.services.email_service import email_is_configured, sendgrid_api_key
+
+    if email_is_configured():
+        via = "SendGrid API" if sendgrid_api_key() else "SMTP"
+        logger.info("Email delivery configured (%s). Order emails and OTP will send.", via)
+    else:
+        logger.warning(
+            "Email delivery NOT configured — set SENDGRID_API_KEY or SMTP_HOST/SMTP_PASSWORD "
+            "in backend/.env, then restart the backend. Until then, emails are logged only "
+            "and OTP codes appear as dev_hint in the UI."
+        )
     yield
     await close_redis()
 
@@ -215,14 +226,15 @@ async def global_exception_handler(request: Request, exc: Exception):
 
 @app.get("/health")
 async def health_check():
-    from app.services.email_service import sendgrid_api_key
+    from app.services.email_service import email_is_configured, sendgrid_api_key
 
-    sg_key = sendgrid_api_key()
-    smtp_host = (settings.SMTP_HOST or "").strip()
-    email_otp_ready = bool(sg_key) or bool(smtp_host and (settings.SMTP_PASSWORD or "").strip())
+    configured = email_is_configured()
     return {
         "status": "healthy",
-        "email_otp_configured": email_otp_ready,
+        "email_otp_configured": configured,
+        "email_provider": (
+            "sendgrid" if sendgrid_api_key() else "smtp" if configured else "none"
+        ),
     }
 
 

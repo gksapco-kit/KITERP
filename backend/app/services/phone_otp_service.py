@@ -141,9 +141,8 @@ class OtpService:
 
     @property
     def uses_app_email(self) -> bool:
-        from app.services.email_service import sendgrid_api_key
-
-        return bool((settings.SMTP_HOST or "").strip()) or bool(sendgrid_api_key())
+        from app.services.email_service import email_is_configured
+        return email_is_configured()
 
     @property
     def uses_smtp_email(self) -> bool:

@@ -814,9 +814,9 @@ def _expires_at(seconds: int = CODE_TTL_SECONDS) -> datetime:
 
 
 def _smtp_dev_mode() -> bool:
-    """True when no real SMTP is configured — codes are returned as dev_hint."""
-    from app.config import get_settings
-    return not bool((get_settings().SMTP_HOST or "").strip())
+    """True when no real email provider is configured — codes are returned as dev_hint."""
+    from app.services.email_service import email_is_configured
+    return not email_is_configured()
 
 
 def _check_cooldown(prev_expires_at: Optional[datetime]) -> None:
