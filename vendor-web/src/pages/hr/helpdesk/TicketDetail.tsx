@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { ArrowLeft, Send, Lock } from 'lucide-react'
+import { Select } from '@/components/ui/select'
 import { useHRTicket, useAddTicketComment, useUpdateTicket } from '@/hooks/useVendor'
 import type { HelpdeskTicket, HelpdeskTicketComment } from '@/types'
 
@@ -44,10 +45,12 @@ export default function TicketDetailPage() {
             <span className={`text-xs px-1.5 py-0.5 rounded ml-2 ${stat.color}`}>{stat.label}</span>
           </p>
         </div>
-        <select value={t.status} onChange={e => update.mutate({ id: t.id, data: { status: e.target.value } })}
-          className="border rounded px-2 py-1 text-sm">
-          {Object.entries(STATUS).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
-        </select>
+        <Select
+          value={t.status}
+          onChange={v => update.mutate({ id: t.id, data: { status: v } })}
+          className="w-36"
+          options={Object.entries(STATUS).map(([k, v]) => ({ value: k, label: v.label }))}
+        />
       </div>
 
       {t.description && (
@@ -56,7 +59,7 @@ export default function TicketDetailPage() {
         </div>
       )}
 
-      <div className="bg-white border rounded-xl shadow-sm max-h-[90vh] overflow-y-auto">
+      <div className="bg-card border border-border text-foreground rounded-xl shadow-2xl max-h-[90vh] overflow-y-auto">
         <div className="p-3 border-b text-sm font-semibold text-gray-700">Replies</div>
         <ul className="divide-y">
           {comments.length === 0 ? (

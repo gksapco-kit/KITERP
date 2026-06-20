@@ -5,6 +5,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Select, selectOptionsWithBlank } from '@/components/ui/select'
 import {
   useCategoryTree, useCreateCategory, useUpdateCategory, useDeleteCategory,
   useCategoryCatalogues,
@@ -34,7 +35,7 @@ const FIELD_TYPES = [
   { value: 'boolean', label: 'Yes/No' },
 ]
 
-const selectCls = 'flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring'
+const selectCls = 'h-10 text-sm'
 
 function shareCategory(cat: { name: string; description?: string; applies_to?: string }, action: 'copy' | 'whatsapp' | 'email' | 'native') {
   const text = `Browse our ${cat.name} category${cat.description ? ` - ${cat.description}` : ''}`
@@ -231,30 +232,36 @@ function CategoryTreeExplorer({
   onSortDirChange: (v: SortDir) => void
 }) {
   return (
-    <div className="rounded-xl border bg-slate-50/80 p-4 min-h-[420px]">
+    <div className="rounded-xl border border-border bg-card p-4 min-h-[420px]">
       <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
         <div className="flex items-center gap-2">
-          <FolderTree className="w-4 h-4 text-blue-600" />
-          <span className="text-sm font-semibold text-gray-800">Category tree</span>
+          <FolderTree className="w-4 h-4 text-primary" />
+          <span className="text-sm font-semibold text-foreground">Category tree</span>
         </div>
         <div className="flex items-center gap-2">
-          <select
+          <Select
             value={sortKey}
-            onChange={e => onSortKeyChange(e.target.value)}
-            className="h-7 rounded border border-gray-200 bg-white px-2 text-xs"
-          >
-            <option value="name">Name</option>
-            <option value="applies_to">Applies To</option>
-            <option value="status">Status</option>
-          </select>
-          <select
+            onChange={onSortKeyChange}
+            options={[
+              { value: 'name', label: 'Name' },
+              { value: 'applies_to', label: 'Applies To' },
+              { value: 'status', label: 'Status' },
+            ]}
+            aria-label="Sort by"
+            className="h-8 text-xs"
+            wrapperClassName="min-w-[6rem]"
+          />
+          <Select
             value={sortDir}
-            onChange={e => onSortDirChange(e.target.value as SortDir)}
-            className="h-7 rounded border border-gray-200 bg-white px-2 text-xs"
-          >
-            <option value="asc">A → Z</option>
-            <option value="desc">Z → A</option>
-          </select>
+            onChange={(v) => onSortDirChange(v as SortDir)}
+            options={[
+              { value: 'asc', label: 'A → Z' },
+              { value: 'desc', label: 'Z → A' },
+            ]}
+            aria-label="Sort direction"
+            className="h-8 text-xs"
+            wrapperClassName="min-w-[5rem]"
+          />
           <Button type="button" size="sm" variant="outline" className="h-7 text-xs gap-1" onClick={onAddRoot}>
             <Plus className="w-3 h-3" /> Root
           </Button>
@@ -264,7 +271,7 @@ function CategoryTreeExplorer({
       {categories.length === 0 ? (
         <div className="py-12 text-center">
           <FolderTree className="w-10 h-10 text-gray-300 mx-auto mb-2" />
-          <p className="text-sm text-gray-500">No categories yet.</p>
+          <p className="text-sm text-muted-foreground">No categories yet.</p>
           <Button type="button" size="sm" className="mt-3 gap-1" onClick={onAddRoot}>
             <Plus className="w-3.5 h-3.5" /> Add root category
           </Button>
@@ -274,7 +281,7 @@ function CategoryTreeExplorer({
           {categories.map(root => (
             <li
               key={root.id}
-              className="rounded-lg border border-gray-200 bg-white shadow-sm px-3 py-2"
+              className="rounded-lg border border-border bg-card shadow-sm px-3 py-2"
             >
               <CategoryTreeBranch
                 cat={root}
@@ -306,10 +313,10 @@ function CategoryDetailPanel({
 }) {
   if (!cat) {
     return (
-      <div className="rounded-xl border border-dashed bg-white p-8 flex flex-col items-center justify-center min-h-[420px] text-center">
-        <FolderTree className="w-12 h-12 text-gray-200 mb-3" />
-        <p className="text-sm font-medium text-gray-600">Select a category in the tree</p>
-        <p className="text-xs text-gray-400 mt-1 max-w-xs">
+      <div className="rounded-xl border border-dashed border-border bg-card p-8 flex flex-col items-center justify-center min-h-[420px] text-center">
+        <FolderTree className="w-12 h-12 text-muted-foreground/40 mb-3" />
+        <p className="text-sm font-medium text-foreground">Select a category in the tree</p>
+        <p className="text-xs text-muted-foreground mt-1 max-w-xs">
           Click any folder in the tree on the left. Use the + button on a category to add subcategories beneath it.
         </p>
       </div>
@@ -320,7 +327,7 @@ function CategoryDetailPanel({
   const descCount = countDescendants(cat)
 
   return (
-    <div className="rounded-xl border bg-white p-5 min-h-[420px] flex flex-col">
+    <div className="rounded-xl border border-border bg-card p-5 min-h-[420px] flex flex-col">
       <div className="mb-4 flex gap-4">
         {cat.image_url ? (
           <CategoryImageThumb
@@ -428,9 +435,9 @@ function CatalogueDrawer({
   const navigate = useNavigate()
 
   return (
-    <div className="fixed inset-0 z-50 flex justify-end bg-black/30" onClick={onClose}>
-      <div className="w-full max-w-lg bg-white shadow-xl overflow-y-auto" onClick={e => e.stopPropagation()}>
-        <div className="flex items-center justify-between px-6 py-4 border-b sticky top-0 bg-white z-10">
+    <div data-kiterp-modal className="fixed inset-0 z-50 flex justify-end bg-black/50 backdrop-blur-sm" onClick={onClose}>
+      <div className="w-full max-w-lg bg-card border-l border-border text-foreground shadow-2xl overflow-y-auto" onClick={e => e.stopPropagation()}>
+        <div className="flex items-center justify-between px-6 py-4 border-b border-border sticky top-0 bg-card z-10">
           <div>
             <h2 className="text-lg font-semibold">Catalogue</h2>
             {data?.category && <p className="text-sm text-gray-500">{data.category.name}</p>}
@@ -534,11 +541,13 @@ function CustomFieldsEditor({ fields, onChange }: { fields: CustomField[]; onCha
         <div key={i} className="flex items-start gap-2 p-3 rounded-lg border bg-gray-50">
           <div className="flex-1 grid grid-cols-3 gap-2">
             <Input placeholder="Field name" value={f.name} onChange={e => updateField(i, { name: e.target.value })} className="h-8 text-sm" />
-            <select value={f.type} onChange={e => updateField(i, { type: e.target.value, options: e.target.value === 'select' || e.target.value === 'multiselect' ? f.options || [] : undefined })}
+            <Select
+              value={f.type}
+              onChange={(v) => updateField(i, { type: v, options: v === 'select' || v === 'multiselect' ? f.options || [] : undefined })}
+              options={FIELD_TYPES.map(t => ({ value: t.value, label: t.label }))}
+              aria-label="Field type"
               className={`${selectCls} h-8 text-sm`}
-            >
-              {FIELD_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
-            </select>
+            />
             {(f.type === 'select' || f.type === 'multiselect') && (
               <Input placeholder="Options (comma separated)" value={(f.options || []).join(', ')}
                 onChange={e => updateField(i, { options: e.target.value.split(',').map(s => s.trim()).filter(Boolean) })}
@@ -741,13 +750,16 @@ export default function CategoriesPage() {
                 <div className="space-y-1.5 sm:col-span-2">
                   <Label>Parent Category</Label>
                   {editing ? (
-                    <select value={parentId || ''} onChange={e => setParentId(e.target.value || null)} className={selectCls}>
-                      <option value="">— Root (top-level) —</option>
-                      {flatOptions
+                    <Select
+                      value={parentId || ''}
+                      onChange={(v) => setParentId(v || null)}
+                      options={selectOptionsWithBlank('— Root (top-level) —', flatOptions
                         .filter(o => o.id !== editing.id)
-                        .map(o => <option key={o.id} value={o.id}>{o.label}</option>)
-                      }
-                    </select>
+                        .map(o => ({ value: o.id, label: o.label })))}
+                      placeholder="— Root (top-level) —"
+                      aria-label="Parent category"
+                      className={selectCls}
+                    />
                   ) : (
                     <>
                       <div className="flex h-10 items-center rounded-md border border-input bg-muted/40 px-3 text-sm text-gray-700">
@@ -765,9 +777,13 @@ export default function CategoriesPage() {
                 </div>
                 <div className="space-y-1.5">
                   <Label>Applies To</Label>
-                  <select value={appliesTo} onChange={e => setAppliesTo(e.target.value)} className={selectCls}>
-                    {APPLIES_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-                  </select>
+                  <Select
+                    value={appliesTo}
+                    onChange={setAppliesTo}
+                    options={APPLIES_OPTIONS.map(o => ({ value: o.value, label: o.label }))}
+                    aria-label="Applies to"
+                    className={selectCls}
+                  />
                 </div>
                 <div className="space-y-1.5">
                   <Label>Sort Order</Label>

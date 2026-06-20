@@ -11,6 +11,7 @@ import {
   SlidersHorizontal, Eye, List, Download, RefreshCw,
   ArrowUpRight, ArrowDownLeft, CalendarDays,
 } from 'lucide-react'
+import { Input } from '@/components/ui/input'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type Account = {
@@ -38,7 +39,7 @@ interface AccountTypeConfig {
 const DEFAULT_CONFIG: AccountTypeConfig[] = [
   {
     type: 'Asset',
-    color: 'bg-blue-100 text-blue-700',
+    color: 'bg-blue-100 text-blue-700 dark:bg-blue-950/50 dark:text-blue-300',
     normalBalance: 'Debit',
     statement: 'Balance Sheet',
     codeRangeStart: 1000,
@@ -47,7 +48,7 @@ const DEFAULT_CONFIG: AccountTypeConfig[] = [
   },
   {
     type: 'Liability',
-    color: 'bg-red-100 text-red-700',
+    color: 'bg-red-100 text-red-700 dark:bg-red-950/50 dark:text-red-300',
     normalBalance: 'Credit',
     statement: 'Balance Sheet',
     codeRangeStart: 2000,
@@ -56,7 +57,7 @@ const DEFAULT_CONFIG: AccountTypeConfig[] = [
   },
   {
     type: 'Equity',
-    color: 'bg-primary/12 text-primary',
+    color: 'bg-primary/12 text-primary dark:bg-primary/20 dark:text-primary',
     normalBalance: 'Credit',
     statement: 'Balance Sheet',
     codeRangeStart: 3000,
@@ -65,7 +66,7 @@ const DEFAULT_CONFIG: AccountTypeConfig[] = [
   },
   {
     type: 'Income',
-    color: 'bg-green-100 text-green-700',
+    color: 'bg-green-100 text-green-700 dark:bg-green-950/50 dark:text-green-300',
     normalBalance: 'Credit',
     statement: 'Income Statement',
     codeRangeStart: 4000,
@@ -74,7 +75,7 @@ const DEFAULT_CONFIG: AccountTypeConfig[] = [
   },
   {
     type: 'Expense',
-    color: 'bg-orange-100 text-orange-700',
+    color: 'bg-orange-100 text-orange-700 dark:bg-orange-950/50 dark:text-orange-300',
     normalBalance: 'Debit',
     statement: 'Income Statement',
     codeRangeStart: 5000,
@@ -98,14 +99,14 @@ function saveConfig(cfg: AccountTypeConfig[]) {
 }
 
 const BADGE_OPTIONS = [
-  { label: 'Blue',   value: 'bg-blue-100 text-blue-700' },
-  { label: 'Red',    value: 'bg-red-100 text-red-700' },
-  { label: 'Brand', value: 'bg-primary/12 text-primary' },
-  { label: 'Green',  value: 'bg-green-100 text-green-700' },
-  { label: 'Orange', value: 'bg-orange-100 text-orange-700' },
-  { label: 'Yellow', value: 'bg-yellow-100 text-yellow-700' },
-  { label: 'Teal',   value: 'bg-teal-100 text-teal-700' },
-  { label: 'Gray',   value: 'bg-gray-100 text-gray-700' },
+  { label: 'Blue',   value: 'bg-blue-100 text-blue-700 dark:bg-blue-950/50 dark:text-blue-300' },
+  { label: 'Red',    value: 'bg-red-100 text-red-700 dark:bg-red-950/50 dark:text-red-300' },
+  { label: 'Brand', value: 'bg-primary/12 text-primary dark:bg-primary/20' },
+  { label: 'Green',  value: 'bg-green-100 text-green-700 dark:bg-green-950/50 dark:text-green-300' },
+  { label: 'Orange', value: 'bg-orange-100 text-orange-700 dark:bg-orange-950/50 dark:text-orange-300' },
+  { label: 'Yellow', value: 'bg-yellow-100 text-yellow-700 dark:bg-yellow-950/50 dark:text-yellow-300' },
+  { label: 'Teal',   value: 'bg-teal-100 text-teal-700 dark:bg-teal-950/50 dark:text-teal-300' },
+  { label: 'Gray',   value: 'bg-muted text-muted-foreground' },
 ]
 
 // ─── Account tree rendering ───────────────────────────────────────────────────
@@ -120,47 +121,47 @@ function AccountRow({
   const [open, setOpen] = useState(depth < 2)
   const hasChildren = !!children
   const cfg = config.find(c => c.type === acc.account_type)
-  const badgeClass = cfg?.color ?? 'bg-gray-100 text-gray-600'
+  const badgeClass = cfg?.color ?? 'bg-muted text-muted-foreground'
 
   return (
     <div>
       <div
-        className="flex items-center gap-2 px-3 py-2.5 hover:bg-primary/10/40 rounded-lg cursor-pointer group transition-colors"
+        className="flex items-center gap-2 px-3 py-2.5 hover:bg-muted/30 rounded-lg cursor-pointer group transition-colors"
         style={{ paddingLeft: `${12 + depth * 20}px` }}
         onClick={() => onView(acc)}
       >
         <span className="w-5 shrink-0" onClick={e => { e.stopPropagation(); hasChildren && setOpen(o => !o) }}>
           {hasChildren
             ? open
-              ? <ChevronDown className="w-4 h-4 text-gray-400" />
-              : <ChevronRight className="w-4 h-4 text-gray-400" />
+              ? <ChevronDown className="w-4 h-4 text-muted-foreground" />
+              : <ChevronRight className="w-4 h-4 text-muted-foreground" />
             : <span className="w-4 inline-block" />}
         </span>
-        <span className="font-mono text-xs text-gray-400 w-14 shrink-0">{acc.code}</span>
-        <span className="flex-1 text-sm text-gray-800 font-medium">{acc.name}</span>
+        <span className="font-mono text-xs text-muted-foreground w-14 shrink-0">{acc.code}</span>
+        <span className="flex-1 text-sm text-foreground font-medium">{acc.name}</span>
         {acc.account_subtype && (
-          <span className="text-xs text-gray-400 hidden sm:block shrink-0">{acc.account_subtype}</span>
+          <span className="text-xs text-muted-foreground hidden sm:block shrink-0">{acc.account_subtype}</span>
         )}
         <span className={`text-xs px-2 py-0.5 rounded-full font-medium shrink-0 ${badgeClass}`}>
           {acc.account_type}
         </span>
         {!acc.is_active && (
-          <span className="text-xs text-red-400 bg-red-50 px-1.5 py-0.5 rounded-full shrink-0">Inactive</span>
+          <span className="text-xs text-red-400 bg-red-50 dark:bg-red-950/40 px-1.5 py-0.5 rounded-full shrink-0">Inactive</span>
         )}
         {acc.is_system && (
-          <Shield className="w-3 h-3 text-gray-300 shrink-0" />
+          <Shield className="w-3 h-3 text-muted-foreground/50 shrink-0" />
         )}
         <div className="flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
           <button
             onClick={e => { e.stopPropagation(); onView(acc) }}
-            className="p-1 text-gray-400 hover:text-primary rounded"
+            className="p-1 text-muted-foreground hover:text-primary rounded"
             title="View details"
           >
             <Eye className="w-3.5 h-3.5" />
           </button>
           <button
             onClick={e => { e.stopPropagation(); onEdit(acc) }}
-            className="p-1 text-gray-400 hover:text-primary rounded"
+            className="p-1 text-muted-foreground hover:text-primary rounded"
             title="Edit"
           >
             <Pencil className="w-3.5 h-3.5" />
@@ -223,7 +224,7 @@ function AccountDetailDrawer({
   }[]
 
   const cfg = config.find(c => c.type === account.account_type)
-  const badgeClass = cfg?.color ?? 'bg-gray-100 text-gray-600'
+  const badgeClass = cfg?.color ?? 'bg-muted text-muted-foreground'
   const parent = allAccounts.find(a => a.id === account.parent_id)
   const childAccounts = allAccounts.filter(a => a.parent_id === account.id)
   const statLabel = cfg?.statement === 'Balance Sheet' ? 'Balance Sheet'
@@ -259,47 +260,47 @@ function AccountDetailDrawer({
   }
 
   const DetailRow = ({ label, value, mono }: { label: string; value: React.ReactNode; mono?: boolean }) => (
-    <div className="flex items-start justify-between gap-4 py-2.5 border-b border-gray-50 last:border-0">
-      <span className="text-xs text-gray-500 shrink-0 w-40">{label}</span>
-      <span className={`text-xs text-right font-medium text-gray-800 ${mono ? 'font-mono' : ''}`}>{value ?? '—'}</span>
+    <div className="flex items-start justify-between gap-4 py-2.5 border-b border-border/50 last:border-0">
+      <span className="text-xs text-muted-foreground shrink-0 w-40">{label}</span>
+      <span className={`text-xs text-right font-medium text-foreground ${mono ? 'font-mono' : ''}`}>{value ?? '—'}</span>
     </div>
   )
 
   return (
-    <div className="fixed inset-0 z-50 flex">
+    <div data-kiterp-modal className="fixed inset-0 z-50 flex">
       <div className="flex-1 bg-black/25" onClick={onClose} />
-      <div className="w-full max-w-2xl bg-white h-full shadow-2xl flex flex-col overflow-hidden border-l border-gray-200">
+      <div className="w-full max-w-2xl bg-card border-l border-border text-foreground h-full shadow-2xl flex flex-col overflow-hidden">
 
         {/* ── Drawer header ── */}
-        <div className="px-6 py-4 border-b bg-white flex items-start justify-between gap-3">
+        <div className="px-6 py-4 border-b bg-card flex items-start justify-between gap-3">
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
               <span className={`text-xs font-bold px-2.5 py-1 rounded-full ${badgeClass}`}>
                 {account.account_type}
               </span>
               {account.account_subtype && (
-                <span className="text-xs text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full">
+                <span className="text-xs text-muted-foreground bg-muted px-2 py-0.5 rounded-full">
                   {account.account_subtype}
                 </span>
               )}
               {account.is_system && (
-                <span className="flex items-center gap-1 text-xs text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">
+                <span className="flex items-center gap-1 text-xs text-muted-foreground bg-muted px-2 py-0.5 rounded-full">
                   <Shield className="w-2.5 h-2.5" /> System
                 </span>
               )}
             </div>
             <div className="flex items-baseline gap-2 mt-1.5">
-              <span className="font-mono text-sm text-gray-400 shrink-0">{account.code}</span>
-              <h2 className="font-bold text-xl text-gray-900 leading-tight">{account.name}</h2>
+              <span className="font-mono text-sm text-muted-foreground shrink-0">{account.code}</span>
+              <h2 className="font-bold text-xl text-foreground leading-tight">{account.name}</h2>
             </div>
             <div className="flex items-center gap-2 mt-1">
               {account.is_active
                 ? <span className="flex items-center gap-1 text-xs text-green-600"><CheckCircle2 className="w-3 h-3" /> Active</span>
                 : <span className="flex items-center gap-1 text-xs text-red-500"><XCircle className="w-3 h-3" /> Inactive</span>}
-              <span className="text-gray-300">·</span>
-              <span className="text-xs text-gray-500">{account.currency || 'INR'}</span>
-              <span className="text-gray-300">·</span>
-              <span className="text-xs text-gray-500">{normBal} Normal</span>
+              <span className="text-muted-foreground/50">·</span>
+              <span className="text-xs text-muted-foreground">{account.currency || 'INR'}</span>
+              <span className="text-muted-foreground/50">·</span>
+              <span className="text-xs text-muted-foreground">{normBal} Normal</span>
             </div>
           </div>
           <div className="flex gap-1.5 shrink-0">
@@ -309,14 +310,14 @@ function AccountDetailDrawer({
             >
               <Pencil className="w-3 h-3" /> Edit
             </button>
-            <button type="button" aria-label="Close" onClick={onClose} className="p-1.5 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100">
+            <button type="button" aria-label="Close" onClick={onClose} className="p-1.5 text-muted-foreground hover:text-muted-foreground rounded-lg hover:bg-muted/50">
                 <X className="w-4 h-4" />
             </button>
           </div>
         </div>
 
         {/* ── Tabs ── */}
-        <div className="flex border-b border-gray-200 px-6 bg-white shrink-0">
+        <div className="flex border-b border-border px-6 bg-card shrink-0">
           {[
             { id: 'details', label: 'Account Details', icon: BookOpen },
             { id: 'transactions', label: 'Ledger / Transactions', icon: List },
@@ -327,7 +328,7 @@ function AccountDetailDrawer({
               className={`flex items-center gap-1.5 px-4 py-3 text-sm font-medium border-b-2 transition-colors -mb-px ${
                 tab === t.id
                   ? 'border-primary text-primary'
-                  : 'border-transparent text-gray-500 hover:text-gray-800'
+                  : 'border-transparent text-muted-foreground hover:text-foreground'
               }`}
             >
               <t.icon className="w-3.5 h-3.5" />
@@ -343,8 +344,8 @@ function AccountDetailDrawer({
           {tab === 'details' && (
             <div className="space-y-1 pb-6">
               {account.description && (
-                <div className="px-6 py-3 bg-gray-50 border-b border-gray-100">
-                  <p className="text-xs text-gray-600 leading-relaxed">{account.description}</p>
+                <div className="px-6 py-3 bg-muted/30 border-b border-border">
+                  <p className="text-xs text-muted-foreground leading-relaxed">{account.description}</p>
                 </div>
               )}
 
@@ -352,9 +353,9 @@ function AccountDetailDrawer({
               <div className="px-6 pt-4 pb-1">
                 <div className="flex items-center gap-2 mb-3">
                   <BookOpen className="w-3.5 h-3.5 text-indigo-500" />
-                  <h3 className="text-xs font-bold text-gray-600 uppercase tracking-wide">Account Details</h3>
+                  <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-wide">Account Details</h3>
                 </div>
-                <div className="rounded-xl border border-gray-100 overflow-hidden bg-white">
+                <div className="rounded-xl border border-border overflow-hidden bg-card">
                   <DetailRow label="Account Code" value={account.code} mono />
                   <DetailRow label="Account Name" value={account.name} />
                   <DetailRow label="Type" value={
@@ -368,15 +369,15 @@ function AccountDetailDrawer({
                   <DetailRow label="Reconcilable" value={
                     account.is_reconcilable
                       ? <span className="text-green-600 flex items-center gap-1"><CheckCircle2 className="w-3 h-3" /> Yes</span>
-                      : <span className="text-gray-400">No</span>
+                      : <span className="text-muted-foreground">No</span>
                   } />
                   <DetailRow label="Parent Account" value={
                     parent
                       ? <span className="flex items-center gap-1.5">
-                          <span className="font-mono text-gray-400 text-xs">{parent.code}</span>
+                          <span className="font-mono text-muted-foreground text-xs">{parent.code}</span>
                           <span>{parent.name}</span>
                         </span>
-                      : <span className="text-gray-400 italic">Root account</span>
+                      : <span className="text-muted-foreground italic">Root account</span>
                   } />
                 </div>
               </div>
@@ -385,9 +386,9 @@ function AccountDetailDrawer({
               <div className="px-6 pt-3 pb-1">
                 <div className="flex items-center gap-2 mb-3">
                   <BarChart2 className="w-3.5 h-3.5 text-indigo-500" />
-                  <h3 className="text-xs font-bold text-gray-600 uppercase tracking-wide">Reporting</h3>
+                  <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-wide">Reporting</h3>
                 </div>
-                <div className="rounded-xl border border-gray-100 overflow-hidden bg-white">
+                <div className="rounded-xl border border-border overflow-hidden bg-card">
                   <DetailRow label="Financial Statement" value={
                     <span className="flex items-center gap-1.5">
                       {cfg?.statement === 'Balance Sheet'
@@ -419,12 +420,12 @@ function AccountDetailDrawer({
               <div className="px-6 pt-3 pb-1">
                 <div className="flex items-center gap-2 mb-3">
                   <Tag className="w-3.5 h-3.5 text-indigo-500" />
-                  <h3 className="text-xs font-bold text-gray-600 uppercase tracking-wide">Classification</h3>
+                  <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-wide">Classification</h3>
                 </div>
                 <div className="flex flex-wrap gap-2">
                   <span className={`text-xs px-2.5 py-1 rounded-full font-medium ${badgeClass}`}>{account.account_type}</span>
                   {account.account_subtype && (
-                    <span className="text-xs px-2.5 py-1 rounded-full font-medium bg-gray-100 text-gray-600">{account.account_subtype}</span>
+                    <span className="text-xs px-2.5 py-1 rounded-full font-medium bg-muted text-muted-foreground">{account.account_subtype}</span>
                   )}
                   <span className={`text-xs px-2.5 py-1 rounded-full font-medium ${normBal === 'Debit' ? 'bg-orange-50 text-orange-700' : 'bg-blue-50 text-blue-700'}`}>
                     {normBal} Normal
@@ -432,12 +433,12 @@ function AccountDetailDrawer({
                   <span className={`text-xs px-2.5 py-1 rounded-full font-medium ${
                     cfg?.statement === 'Balance Sheet' ? 'bg-accent text-primary'
                       : cfg?.statement === 'Income Statement' ? 'bg-green-50 text-green-700'
-                      : 'bg-gray-50 text-gray-600'
+                      : 'bg-muted/30 text-muted-foreground'
                   }`}>
                     {cfg?.statement === 'Balance Sheet' ? 'Balance Sheet' : cfg?.statement === 'Income Statement' ? 'P&L' : 'None'}
                   </span>
                   {account.is_reconcilable && <span className="text-xs px-2.5 py-1 rounded-full font-medium bg-teal-50 text-teal-700">Reconcilable</span>}
-                  {account.is_system && <span className="text-xs px-2.5 py-1 rounded-full font-medium bg-gray-100 text-gray-500">System</span>}
+                  {account.is_system && <span className="text-xs px-2.5 py-1 rounded-full font-medium bg-muted text-muted-foreground">System</span>}
                 </div>
               </div>
 
@@ -446,16 +447,16 @@ function AccountDetailDrawer({
                 <div className="px-6 pt-3 pb-1">
                   <div className="flex items-center gap-2 mb-3">
                     <ChevronRight className="w-3.5 h-3.5 text-indigo-500" />
-                    <h3 className="text-xs font-bold text-gray-600 uppercase tracking-wide">Sub-Accounts ({childAccounts.length})</h3>
+                    <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-wide">Sub-Accounts ({childAccounts.length})</h3>
                   </div>
-                  <div className="rounded-xl border border-gray-100 divide-y divide-gray-50 overflow-hidden">
+                  <div className="rounded-xl border border-border divide-y divide-border overflow-hidden">
                     {childAccounts.map(ch => {
                       const chCfg = config.find(c => c.type === ch.account_type)
                       return (
-                        <div key={ch.id} className="flex items-center gap-3 px-4 py-2 hover:bg-gray-50">
-                          <span className="font-mono text-xs text-gray-400 w-14">{ch.code}</span>
-                          <span className="flex-1 text-xs text-gray-700">{ch.name}</span>
-                          <span className={`text-xs px-1.5 py-0.5 rounded-full ${chCfg?.color ?? 'bg-gray-100 text-gray-500'}`}>
+                        <div key={ch.id} className="flex items-center gap-3 px-4 py-2 hover:bg-muted/30">
+                          <span className="font-mono text-xs text-muted-foreground w-14">{ch.code}</span>
+                          <span className="flex-1 text-xs text-foreground">{ch.name}</span>
+                          <span className={`text-xs px-1.5 py-0.5 rounded-full ${chCfg?.color ?? 'bg-muted text-muted-foreground'}`}>
                             {ch.account_subtype || ch.account_type}
                           </span>
                         </div>
@@ -470,16 +471,16 @@ function AccountDetailDrawer({
                 <div className="px-6 pt-3 pb-4">
                   <div className="flex items-center gap-2 mb-3">
                     <Activity className="w-3.5 h-3.5 text-indigo-500" />
-                    <h3 className="text-xs font-bold text-gray-600 uppercase tracking-wide">Related Accounts</h3>
+                    <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-wide">Related Accounts</h3>
                   </div>
-                  <div className="rounded-xl border border-gray-100 divide-y divide-gray-50 overflow-hidden">
+                  <div className="rounded-xl border border-border divide-y divide-border overflow-hidden">
                     {siblings.map(sib => (
-                      <div key={sib.id} className="flex items-center gap-3 px-4 py-2 text-xs text-gray-600">
-                        <span className="font-mono text-gray-400 w-14">{sib.code}</span>
+                      <div key={sib.id} className="flex items-center gap-3 px-4 py-2 text-xs text-muted-foreground">
+                        <span className="font-mono text-muted-foreground w-14">{sib.code}</span>
                         <span className="flex-1">{sib.name}</span>
                       </div>
                     ))}
-                    {siblings.length === 5 && <p className="px-4 py-1.5 text-xs text-gray-400 italic">…and more</p>}
+                    {siblings.length === 5 && <p className="px-4 py-1.5 text-xs text-muted-foreground italic">…and more</p>}
                   </div>
                 </div>
               )}
@@ -490,27 +491,27 @@ function AccountDetailDrawer({
           {tab === 'transactions' && (
             <div className="flex flex-col h-full">
               {/* Date range + actions bar */}
-              <div className="px-6 py-3 bg-gray-50 border-b border-gray-200 flex items-center gap-3 flex-wrap shrink-0">
-                <CalendarDays className="w-3.5 h-3.5 text-gray-400 shrink-0" />
+              <div className="px-6 py-3 bg-muted/30 border-b border-border flex items-center gap-3 flex-wrap shrink-0">
+                <CalendarDays className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
                 <div className="flex items-center gap-2">
-                  <label className="text-xs text-gray-500">From</label>
+                  <label className="text-xs text-muted-foreground">From</label>
                   <input
                     type="date" value={fromDate}
                     onChange={e => setFromDate(e.target.value)}
-                    className="border border-gray-200 rounded-lg px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-primary bg-white"
+                    className="border border-input rounded-lg px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-ring bg-background text-foreground"
                   />
                 </div>
                 <div className="flex items-center gap-2">
-                  <label className="text-xs text-gray-500">To</label>
+                  <label className="text-xs text-muted-foreground">To</label>
                   <input
                     type="date" value={toDate}
                     onChange={e => setToDate(e.target.value)}
-                    className="border border-gray-200 rounded-lg px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-primary bg-white"
+                    className="border border-input rounded-lg px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-ring bg-background text-foreground"
                   />
                 </div>
                 <button
                   onClick={() => refetchLedger()}
-                  className="flex items-center gap-1 px-2.5 py-1.5 border border-gray-300 rounded-lg text-xs text-gray-600 hover:bg-white"
+                  className="flex items-center gap-1 px-2.5 py-1.5 border border-border rounded-lg text-xs text-muted-foreground hover:bg-card"
                 >
                   <RefreshCw className="w-3 h-3" /> Refresh
                 </button>
@@ -518,7 +519,7 @@ function AccountDetailDrawer({
                 <button
                   onClick={exportCSV}
                   disabled={ledger.length === 0}
-                  className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-gray-300 rounded-lg text-xs text-gray-600 hover:bg-gray-50 disabled:opacity-40"
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-card border border-border rounded-lg text-xs text-muted-foreground hover:bg-muted/30 disabled:opacity-40"
                 >
                   <Download className="w-3 h-3" /> Export CSV
                 </button>
@@ -526,33 +527,33 @@ function AccountDetailDrawer({
 
               {/* Summary KPI row */}
               {ledger.length > 0 && (
-                <div className="px-6 py-3 grid grid-cols-3 gap-3 border-b border-gray-100 shrink-0">
-                  <div className="rounded-xl border border-gray-100 bg-white p-3">
+                <div className="px-6 py-3 grid grid-cols-3 gap-3 border-b border-border shrink-0">
+                  <div className="rounded-xl border border-border bg-card p-3">
                     <div className="flex items-center gap-1.5 mb-1">
                       <ArrowUpRight className="w-3.5 h-3.5 text-indigo-500" />
-                      <span className="text-xs font-bold text-gray-500 uppercase tracking-wide">Total Debit</span>
+                      <span className="text-xs font-bold text-muted-foreground uppercase tracking-wide">Total Debit</span>
                     </div>
-                    <p className="font-mono font-bold text-sm text-gray-900">{fmtCcy(totalDebit)}</p>
-                    <p className="text-xs text-gray-400">{ledger.filter(r => r.debit > 0).length} entries</p>
+                    <p className="font-mono font-bold text-sm text-foreground">{fmtCcy(totalDebit)}</p>
+                    <p className="text-xs text-muted-foreground">{ledger.filter(r => r.debit > 0).length} entries</p>
                   </div>
-                  <div className="rounded-xl border border-gray-100 bg-white p-3">
+                  <div className="rounded-xl border border-border bg-card p-3">
                     <div className="flex items-center gap-1.5 mb-1">
                       <ArrowDownLeft className="w-3.5 h-3.5 text-primary/80" />
-                      <span className="text-xs font-bold text-gray-500 uppercase tracking-wide">Total Credit</span>
+                      <span className="text-xs font-bold text-muted-foreground uppercase tracking-wide">Total Credit</span>
                     </div>
-                    <p className="font-mono font-bold text-sm text-gray-900">{fmtCcy(totalCredit)}</p>
-                    <p className="text-xs text-gray-400">{ledger.filter(r => r.credit > 0).length} entries</p>
+                    <p className="font-mono font-bold text-sm text-foreground">{fmtCcy(totalCredit)}</p>
+                    <p className="text-xs text-muted-foreground">{ledger.filter(r => r.credit > 0).length} entries</p>
                   </div>
-                  <div className="rounded-xl border border-gray-100 bg-white p-3">
+                  <div className="rounded-xl border border-border bg-card p-3">
                     <div className="flex items-center gap-1.5 mb-1">
                       <Activity className="w-3.5 h-3.5 text-green-500" />
-                      <span className="text-xs font-bold text-gray-500 uppercase tracking-wide">Closing Bal.</span>
+                      <span className="text-xs font-bold text-muted-foreground uppercase tracking-wide">Closing Bal.</span>
                     </div>
-                    <p className={`font-mono font-bold text-sm ${closingBalance >= 0 ? 'text-gray-900' : 'text-red-600'}`}>
+                    <p className={`font-mono font-bold text-sm ${closingBalance >= 0 ? 'text-foreground' : 'text-red-600'}`}>
                       {fmtCcy(Math.abs(closingBalance))}
                       {closingBalance < 0 && <span className="text-xs ml-1 text-red-400">Cr</span>}
                     </p>
-                    <p className="text-xs text-gray-400">{ledger.length} transactions</p>
+                    <p className="text-xs text-muted-foreground">{ledger.length} transactions</p>
                   </div>
                 </div>
               )}
@@ -560,55 +561,55 @@ function AccountDetailDrawer({
               {/* Transactions table */}
               <div className="flex-1 overflow-auto">
                 {ledgerLoading ? (
-                  <div className="flex items-center justify-center h-40 text-gray-500 text-sm">
+                  <div className="flex items-center justify-center h-40 text-muted-foreground text-sm">
                     <RefreshCw className="w-4 h-4 animate-spin mr-2" /> Loading transactions…
                   </div>
                 ) : ledger.length === 0 ? (
-                  <div className="flex flex-col items-center justify-center h-40 text-gray-400 gap-2">
+                  <div className="flex flex-col items-center justify-center h-40 text-muted-foreground gap-2">
                     <List className="w-8 h-8 opacity-30" />
                     <p className="text-sm">No posted transactions in this period</p>
                     <p className="text-xs">Adjust the date range or post journal entries to this account</p>
                   </div>
                 ) : (
                   <table className="w-full text-xs">
-                    <thead className="bg-gray-50 border-b border-gray-200 sticky top-0 z-10">
+                    <thead className="bg-muted/30 border-b border-border sticky top-0 z-10">
                       <tr>
-                        <th className="px-4 py-2.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wide whitespace-nowrap"><TableColumnLabel>Date</TableColumnLabel></th>
-                        <th className="px-3 py-2.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wide whitespace-nowrap"><TableColumnLabel>Entry No</TableColumnLabel></th>
-                        <th className="px-3 py-2.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wide"><TableColumnLabel>Narration</TableColumnLabel></th>
-                        <th className="px-3 py-2.5 text-xs font-medium text-gray-500 uppercase tracking-wide whitespace-nowrap"><TableColumnLabel>Source</TableColumnLabel></th>
-                        <th className="px-3 py-2.5 text-right text-xs font-medium text-gray-500 uppercase tracking-wide whitespace-nowrap"><TableColumnLabel>Debit</TableColumnLabel></th>
-                        <th className="px-3 py-2.5 text-right text-xs font-medium text-gray-500 uppercase tracking-wide whitespace-nowrap"><TableColumnLabel>Credit</TableColumnLabel></th>
-                        <th className="px-4 py-2.5 text-right text-xs font-medium text-gray-500 uppercase tracking-wide whitespace-nowrap"><TableColumnLabel>Balance</TableColumnLabel></th>
+                        <th className="px-4 py-2.5 text-left text-xs font-medium text-muted-foreground uppercase tracking-wide whitespace-nowrap"><TableColumnLabel>Date</TableColumnLabel></th>
+                        <th className="px-3 py-2.5 text-left text-xs font-medium text-muted-foreground uppercase tracking-wide whitespace-nowrap"><TableColumnLabel>Entry No</TableColumnLabel></th>
+                        <th className="px-3 py-2.5 text-left text-xs font-medium text-muted-foreground uppercase tracking-wide"><TableColumnLabel>Narration</TableColumnLabel></th>
+                        <th className="px-3 py-2.5 text-xs font-medium text-muted-foreground uppercase tracking-wide whitespace-nowrap"><TableColumnLabel>Source</TableColumnLabel></th>
+                        <th className="px-3 py-2.5 text-right text-xs font-medium text-muted-foreground uppercase tracking-wide whitespace-nowrap"><TableColumnLabel>Debit</TableColumnLabel></th>
+                        <th className="px-3 py-2.5 text-right text-xs font-medium text-muted-foreground uppercase tracking-wide whitespace-nowrap"><TableColumnLabel>Credit</TableColumnLabel></th>
+                        <th className="px-4 py-2.5 text-right text-xs font-medium text-muted-foreground uppercase tracking-wide whitespace-nowrap"><TableColumnLabel>Balance</TableColumnLabel></th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-gray-50">
+                    <tbody className="divide-y divide-border">
                       {ledger.map((row, i) => (
                         <tr key={i} className={`hover:bg-primary/10/30 transition-colors ${row.debit > 0 ? '' : 'bg-accent/20'}`}>
-                          <td className="px-4 py-2.5 text-gray-500 whitespace-nowrap font-mono text-xs">{row.date}</td>
+                          <td className="px-4 py-2.5 text-muted-foreground whitespace-nowrap font-mono text-xs">{row.date}</td>
                           <td className="px-3 py-2.5 whitespace-nowrap">
                             <span className="font-mono font-semibold text-primary">{row.entry_no}</span>
                           </td>
-                          <td className="px-3 py-2.5 text-gray-700 max-w-[160px]">
+                          <td className="px-3 py-2.5 text-foreground max-w-[160px]">
                             <span className="line-clamp-2 leading-snug">{row.narration || '—'}</span>
                           </td>
                           <td className="px-3 py-2.5 text-center">
-                            <span className="text-xs px-1.5 py-0.5 rounded-full bg-gray-100 text-gray-500 whitespace-nowrap">
+                            <span className="text-xs px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground whitespace-nowrap">
                               {SOURCE_LABELS[row.source_type] || row.source_type}
                             </span>
                           </td>
                           <td className="px-3 py-2.5 text-right font-mono">
                             {row.debit > 0
-                              ? <span className="text-gray-900 font-medium">{fmtCcy(row.debit)}</span>
-                              : <span className="text-gray-300">—</span>}
+                              ? <span className="text-foreground font-medium">{fmtCcy(row.debit)}</span>
+                              : <span className="text-muted-foreground/50">—</span>}
                           </td>
                           <td className="px-3 py-2.5 text-right font-mono">
                             {row.credit > 0
-                              ? <span className="text-gray-900 font-medium">{fmtCcy(row.credit)}</span>
-                              : <span className="text-gray-300">—</span>}
+                              ? <span className="text-foreground font-medium">{fmtCcy(row.credit)}</span>
+                              : <span className="text-muted-foreground/50">—</span>}
                           </td>
                           <td className="px-4 py-2.5 text-right font-mono whitespace-nowrap">
-                            <span className={row.balance < 0 ? 'text-red-600' : 'text-gray-900'}>
+                            <span className={row.balance < 0 ? 'text-red-600' : 'text-foreground'}>
                               {fmtCcy(Math.abs(row.balance))}
                               {row.balance < 0 && <span className="text-xs ml-0.5 text-red-400">Cr</span>}
                             </span>
@@ -617,13 +618,13 @@ function AccountDetailDrawer({
                       ))}
                     </tbody>
                     {/* Totals footer */}
-                    <tfoot className="bg-gray-50 border-t-2 border-gray-200 sticky bottom-0">
+                    <tfoot className="bg-muted/30 border-t-2 border-border sticky bottom-0">
                       <tr>
-                        <td colSpan={4} className="px-4 py-2.5 text-xs font-bold text-gray-700 text-right">Totals</td>
-                        <td className="px-3 py-2.5 text-right font-mono font-bold text-gray-900">{fmtCcy(totalDebit)}</td>
-                        <td className="px-3 py-2.5 text-right font-mono font-bold text-gray-900">{fmtCcy(totalCredit)}</td>
+                        <td colSpan={4} className="px-4 py-2.5 text-xs font-bold text-foreground text-right">Totals</td>
+                        <td className="px-3 py-2.5 text-right font-mono font-bold text-foreground">{fmtCcy(totalDebit)}</td>
+                        <td className="px-3 py-2.5 text-right font-mono font-bold text-foreground">{fmtCcy(totalCredit)}</td>
                         <td className="px-4 py-2.5 text-right font-mono font-bold">
-                          <span className={closingBalance < 0 ? 'text-red-600' : 'text-gray-900'}>
+                          <span className={closingBalance < 0 ? 'text-red-600' : 'text-foreground'}>
                             {fmtCcy(Math.abs(closingBalance))}
                             {closingBalance < 0 && <span className="text-xs ml-0.5">Cr</span>}
                           </span>
@@ -716,22 +717,22 @@ function ConfigPanel({
   const handleReset = () => { setLocal(JSON.parse(JSON.stringify(DEFAULT_CONFIG))) }
 
   return (
-    <div className="fixed inset-0 z-50 flex">
+    <div data-kiterp-modal className="fixed inset-0 z-50 flex">
       {/* Backdrop */}
       <div className="flex-1 bg-black/30" onClick={onClose} />
 
       {/* Drawer */}
-      <div className="w-full max-w-xl bg-white h-full shadow-2xl flex flex-col overflow-hidden">
+      <div className="w-full max-w-xl bg-card border-l border-border text-foreground h-full shadow-2xl flex flex-col overflow-hidden">
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b bg-gray-50">
+        <div className="flex items-center justify-between px-6 py-4 border-b bg-muted/30">
           <div className="flex items-center gap-2">
             <Settings2 className="w-5 h-5 text-primary" />
             <div>
-              <h2 className="font-semibold text-gray-900">Account Type Configuration</h2>
-              <p className="text-xs text-gray-500 mt-0.5">Define subtypes, code ranges and accounting rules per type</p>
+              <h2 className="font-semibold text-foreground">Account Type Configuration</h2>
+              <p className="text-xs text-muted-foreground mt-0.5">Define subtypes, code ranges and accounting rules per type</p>
             </div>
           </div>
-          <button type="button" aria-label="Close" onClick={onClose} className="p-1.5 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100">
+          <button type="button" aria-label="Close" onClick={onClose} className="p-1.5 text-muted-foreground hover:text-muted-foreground rounded-lg hover:bg-muted/50">
                 <X className="w-5 h-5" />
           </button>
         </div>
@@ -751,16 +752,16 @@ function ConfigPanel({
           {local.map(cfg => {
             const isExpanded = expandedType === cfg.type
             return (
-              <div key={cfg.type} className="border border-gray-200 rounded-xl overflow-hidden">
+              <div key={cfg.type} className="border border-border rounded-xl overflow-hidden">
                 {/* Type header row */}
                 <button
                   onClick={() => setExpandedType(isExpanded ? null : cfg.type)}
-                  className={`w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-gray-50 transition-colors ${overlapErrors[cfg.type] ? 'bg-red-50 hover:bg-red-50' : ''}`}
+                  className={`w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-muted/30 transition-colors ${overlapErrors[cfg.type] ? 'bg-red-50 hover:bg-red-50' : ''}`}
                 >
                   <span className={`text-xs font-medium px-2.5 py-1 rounded-full ${cfg.color}`}>
                     {cfg.type}
                   </span>
-                  <span className="flex-1 text-xs text-gray-500">
+                  <span className="flex-1 text-xs text-muted-foreground">
                     {cfg.codeRangeStart}–{cfg.codeRangeEnd} &nbsp;·&nbsp; {cfg.normalBalance} &nbsp;·&nbsp; {cfg.statement}
                   </span>
                   {overlapErrors[cfg.type] && (
@@ -768,14 +769,14 @@ function ConfigPanel({
                       ⚠ {overlapErrors[cfg.type]}
                     </span>
                   )}
-                  <span className="text-xs text-gray-400">{cfg.subtypes.length} subtypes</span>
+                  <span className="text-xs text-muted-foreground">{cfg.subtypes.length} subtypes</span>
                   {isExpanded
-                    ? <ChevronUp className="w-4 h-4 text-gray-400 shrink-0" />
-                    : <ChevronDown className="w-4 h-4 text-gray-400 shrink-0" />}
+                    ? <ChevronUp className="w-4 h-4 text-muted-foreground shrink-0" />
+                    : <ChevronDown className="w-4 h-4 text-muted-foreground shrink-0" />}
                 </button>
 
                 {isExpanded && (
-                  <div className="px-4 pb-4 pt-2 border-t border-gray-100 space-y-4">
+                  <div className="px-4 pb-4 pt-2 border-t border-border space-y-4">
 
                     {/* Range overlap error banner */}
                     {overlapErrors[cfg.type] && (
@@ -790,40 +791,40 @@ function ConfigPanel({
                     {/* Row 1: code range + normal balance + statement */}
                     <div className="grid grid-cols-2 gap-3">
                       <div>
-                        <label className="block text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">Code Range Start</label>
+                        <label className="block text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">Code Range Start</label>
                         <input
                           type="number"
                           value={cfg.codeRangeStart}
                           onChange={e => update(cfg.type, { codeRangeStart: Number(e.target.value) })}
-                          className={`w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 ${overlapErrors[cfg.type] ? 'border-red-300 focus:ring-red-300 bg-red-50' : 'border-gray-200 focus:ring-primary'}`}
+                          className={`w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 ${overlapErrors[cfg.type] ? 'border-red-300 focus:ring-red-300 bg-red-50' : 'border-border focus:ring-primary'}`}
                         />
                       </div>
                       <div>
-                        <label className="block text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">Code Range End</label>
+                        <label className="block text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">Code Range End</label>
                         <input
                           type="number"
                           value={cfg.codeRangeEnd}
                           onChange={e => update(cfg.type, { codeRangeEnd: Number(e.target.value) })}
-                          className={`w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 ${overlapErrors[cfg.type] ? 'border-red-300 focus:ring-red-300 bg-red-50' : 'border-gray-200 focus:ring-primary'}`}
+                          className={`w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 ${overlapErrors[cfg.type] ? 'border-red-300 focus:ring-red-300 bg-red-50' : 'border-border focus:ring-primary'}`}
                         />
                       </div>
                       <div>
-                        <label className="block text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">Normal Balance</label>
+                        <label className="block text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">Normal Balance</label>
                         <select
                           value={cfg.normalBalance}
                           onChange={e => update(cfg.type, { normalBalance: e.target.value as NormalBalance })}
-                          className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                          className="w-full border border-input rounded-lg px-3 py-2 text-sm bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
                         >
                           <option>Debit</option>
                           <option>Credit</option>
                         </select>
                       </div>
                       <div>
-                        <label className="block text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">Financial Statement</label>
+                        <label className="block text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">Financial Statement</label>
                         <select
                           value={cfg.statement}
                           onChange={e => update(cfg.type, { statement: e.target.value as Statement })}
-                          className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                          className="w-full border border-input rounded-lg px-3 py-2 text-sm bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
                         >
                           <option>Balance Sheet</option>
                           <option>Income Statement</option>
@@ -834,13 +835,13 @@ function ConfigPanel({
 
                     {/* Badge colour */}
                     <div>
-                      <label className="block text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">Badge Colour</label>
+                      <label className="block text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2">Badge Colour</label>
                       <div className="flex flex-wrap gap-2">
                         {BADGE_OPTIONS.map(opt => (
                           <button
                             key={opt.value}
                             onClick={() => update(cfg.type, { color: opt.value })}
-                            className={`text-xs px-2.5 py-1 rounded-full font-medium border-2 transition-all ${opt.value} ${cfg.color === opt.value ? 'border-gray-800 scale-110' : 'border-transparent'}`}
+                            className={`text-xs px-2.5 py-1 rounded-full font-medium border-2 transition-all ${opt.value} ${cfg.color === opt.value ? 'border-foreground scale-110' : 'border-transparent'}`}
                           >
                             {opt.label}
                           </button>
@@ -851,7 +852,7 @@ function ConfigPanel({
                     {/* Subtypes */}
                     <div>
                       <div className="flex items-center justify-between mb-2">
-                        <Label className="text-xs font-medium text-gray-500 uppercase tracking-wide">Subtypes</Label>
+                        <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Subtypes</Label>
                         <button
                           onClick={() => addSubtype(cfg.type)}
                           className="flex items-center gap-1 text-xs text-primary hover:text-primary/80 font-medium"
@@ -861,7 +862,7 @@ function ConfigPanel({
                       </div>
                       <div className="space-y-1.5">
                         {cfg.subtypes.length === 0 && (
-                          <p className="text-xs text-gray-400 italic">No subtypes defined. Add one above.</p>
+                          <p className="text-xs text-muted-foreground italic">No subtypes defined. Add one above.</p>
                         )}
                         {cfg.subtypes.map((st, idx) => (
                           <div key={idx} className="flex items-center gap-2 group">
@@ -869,28 +870,28 @@ function ConfigPanel({
                               <button
                                 onClick={() => idx > 0 && moveSubtype(cfg.type, idx, idx - 1)}
                                 disabled={idx === 0}
-                                className="p-0.5 text-gray-300 hover:text-gray-500 disabled:opacity-20"
+                                className="p-0.5 text-muted-foreground/50 hover:text-muted-foreground disabled:opacity-20"
                               >
                                 <ChevronUp className="w-3 h-3" />
                               </button>
                               <button
                                 onClick={() => idx < cfg.subtypes.length - 1 && moveSubtype(cfg.type, idx, idx + 1)}
                                 disabled={idx === cfg.subtypes.length - 1}
-                                className="p-0.5 text-gray-300 hover:text-gray-500 disabled:opacity-20"
+                                className="p-0.5 text-muted-foreground/50 hover:text-muted-foreground disabled:opacity-20"
                               >
                                 <ChevronDown className="w-3 h-3" />
                               </button>
                             </div>
-                            <GripVertical className="w-3.5 h-3.5 text-gray-300" />
+                            <GripVertical className="w-3.5 h-3.5 text-muted-foreground/50" />
                             <input
                               value={st}
                               onChange={e => updateSubtype(cfg.type, idx, e.target.value)}
-                              className="flex-1 border border-gray-200 rounded-lg px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                              className="flex-1 border border-border rounded-lg px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
                               placeholder="Subtype name"
                             />
                             <button
                               onClick={() => removeSubtype(cfg.type, idx)}
-                              className="p-1 text-gray-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
+                              className="p-1 text-muted-foreground/50 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
                             >
                               <Trash2 className="w-3.5 h-3.5" />
                             </button>
@@ -906,7 +907,7 @@ function ConfigPanel({
         </div>
 
         {/* Footer */}
-        <div className="px-6 py-4 border-t bg-gray-50 space-y-3">
+        <div className="px-6 py-4 border-t bg-muted/30 space-y-3">
           {hasErrors && (
             <div className="flex items-center gap-2 p-2.5 bg-red-50 border border-red-200 rounded-lg">
               <span className="text-red-500 text-sm">⚠</span>
@@ -918,19 +919,19 @@ function ConfigPanel({
           <div className="flex items-center justify-between gap-3">
             <button
               onClick={handleReset}
-              className="text-xs text-gray-500 hover:text-gray-700 underline underline-offset-2"
+              className="text-xs text-muted-foreground hover:text-foreground underline underline-offset-2"
             >
               Reset to defaults
             </button>
             <div className="flex gap-2">
-              <button onClick={onClose} className="btn-cancel px-4 py-2 text-sm border border-gray-300 rounded-lg text-gray-600">Cancel</button>
+              <button onClick={onClose} className="btn-cancel px-4 py-2 text-sm border border-border rounded-lg text-muted-foreground">Cancel</button>
               <button
                 onClick={handleSave}
                 disabled={hasErrors}
                 title={hasErrors ? 'Fix range conflicts first' : undefined}
                 className={`px-4 py-2 text-sm rounded-lg font-medium transition-all ${
                   hasErrors
-                    ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                    ? 'bg-muted text-muted-foreground cursor-not-allowed'
                     : 'bg-primary text-white hover:bg-primary/90'
                 }`}
               >
@@ -1029,19 +1030,19 @@ export default function ChartOfAccounts() {
       {/* ── Header ── */}
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Chart of Accounts</h1>
-          <p className="text-sm text-gray-500 mt-0.5">{allAccounts.length} accounts · {filtered.length} shown</p>
+          <h1 className="text-2xl font-bold text-foreground">Chart of Accounts</h1>
+          <p className="text-sm text-muted-foreground mt-0.5">{allAccounts.length} accounts · {filtered.length} shown</p>
         </div>
         <div className="flex gap-2 flex-wrap">
           <button
             onClick={() => setShowConfig(true)}
-            className="flex items-center gap-1.5 px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-700 hover:bg-gray-50"
+            className="flex items-center gap-1.5 px-3 py-2 border border-border rounded-lg text-sm text-foreground hover:bg-muted/30"
           >
             <Settings2 className="w-4 h-4" /> Configure
           </button>
           <button
             onClick={() => seedMut.mutate(undefined)} disabled={seedMut.isPending}
-            className="px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+            className="px-3 py-2 border border-border rounded-lg text-sm text-foreground hover:bg-muted/30 disabled:opacity-50"
           >
             {seedMut.isPending ? 'Seeding…' : 'Seed Default COA'}
           </button>
@@ -1063,13 +1064,13 @@ export default function ChartOfAccounts() {
             className={`rounded-xl border p-3 text-left transition-all ${
               typeFilter === c.type
                 ? 'border-primary/60 bg-primary/10 shadow-sm'
-                : 'border-gray-200 bg-white hover:border-gray-300 hover:bg-gray-50'
+                : 'border-border bg-card hover:border-border hover:bg-muted/30'
             }`}
           >
             <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${c.color}`}>{c.type}</span>
-            <p className="mt-2 text-xl font-bold text-gray-900">{c.count}</p>
-            <p className="text-xs text-gray-400 mt-0.5">{c.codeRangeStart}–{c.codeRangeEnd}</p>
-            <p className="text-xs text-gray-400">{c.normalBalance} · {c.statement === 'Balance Sheet' ? 'BS' : c.statement === 'Income Statement' ? 'P&L' : '—'}</p>
+            <p className="mt-2 text-xl font-bold text-foreground">{c.count}</p>
+            <p className="text-xs text-muted-foreground mt-0.5">{c.codeRangeStart}–{c.codeRangeEnd}</p>
+            <p className="text-xs text-muted-foreground">{c.normalBalance} · {c.statement === 'Balance Sheet' ? 'BS' : c.statement === 'Income Statement' ? 'P&L' : '—'}</p>
           </button>
         ))}
       </div>
@@ -1078,13 +1079,14 @@ export default function ChartOfAccounts() {
       <div className="space-y-2">
         <div className="flex gap-2 flex-wrap">
           <div className="flex-1 min-w-48 relative">
-            <input
-              value={search} onChange={e => setSearch(e.target.value)}
+            <Input
+              value={search}
+              onChange={e => setSearch(e.target.value)}
               placeholder="Search by name or code…"
-              className="w-full border border-gray-300 rounded-lg pl-3 pr-8 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+              className="pr-8 bg-background"
             />
             {search && (
-              <button type="button" aria-label="Close" onClick={() => setSearch('')} className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+              <button type="button" aria-label="Close" onClick={() => setSearch('')} className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground z-[1]">
                 <X className="w-3.5 h-3.5" />
               </button>
             )}
@@ -1097,8 +1099,8 @@ export default function ChartOfAccounts() {
                 onClick={() => { setTypeFilter(t); setSubtypeFilter('All') }}
                 className={`px-3 py-2 rounded-lg text-sm transition-colors ${
                   typeFilter === t
-                    ? 'bg-primary text-white'
-                    : 'border border-gray-300 text-gray-600 hover:bg-gray-50'
+                    ? 'bg-primary text-primary-foreground font-medium'
+                    : 'text-muted-foreground hover:text-foreground hover:bg-muted/35'
                 }`}
               >
                 {t}
@@ -1111,7 +1113,7 @@ export default function ChartOfAccounts() {
             className={`flex items-center gap-1.5 px-3 py-2 border rounded-lg text-sm transition-colors ${
               showAdvancedFilter || activeFilters > 0
                 ? 'border-primary/60 bg-primary/10 text-primary'
-                : 'border-gray-300 text-gray-600 hover:bg-gray-50'
+                : 'border-border text-muted-foreground hover:bg-muted/30'
             }`}
           >
             <SlidersHorizontal className="w-4 h-4" />
@@ -1126,16 +1128,16 @@ export default function ChartOfAccounts() {
 
         {/* Advanced filter row */}
         {showAdvancedFilter && (
-          <div className="flex gap-3 flex-wrap items-center p-3 bg-gray-50 rounded-xl border border-gray-200">
-            <Filter className="w-3.5 h-3.5 text-gray-400 shrink-0" />
+          <div className="flex gap-3 flex-wrap items-center p-3 bg-muted/30 rounded-xl border border-border">
+            <Filter className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
 
             {/* Subtype */}
             <div className="flex items-center gap-1.5">
-              <label className="text-xs text-gray-500 whitespace-nowrap">Subtype</label>
+              <label className="text-xs text-muted-foreground whitespace-nowrap">Subtype</label>
               <select
                 value={subtypeFilter}
                 onChange={e => setSubtypeFilter(e.target.value)}
-                className="border border-gray-200 rounded-lg px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-primary bg-white"
+                className="border border-input rounded-lg px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-ring bg-background text-foreground"
               >
                 <option value="All">All subtypes</option>
                 {availableSubtypes.map(st => <option key={st} value={st}>{st}</option>)}
@@ -1144,11 +1146,11 @@ export default function ChartOfAccounts() {
 
             {/* Status */}
             <div className="flex items-center gap-1.5">
-              <label className="text-xs text-gray-500">Status</label>
+              <label className="text-xs text-muted-foreground">Status</label>
               <select
                 value={statusFilter}
                 onChange={e => setStatusFilter(e.target.value as any)}
-                className="border border-gray-200 rounded-lg px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-primary bg-white"
+                className="border border-input rounded-lg px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-ring bg-background text-foreground"
               >
                 <option value="All">All</option>
                 <option value="Active">Active</option>
@@ -1158,11 +1160,11 @@ export default function ChartOfAccounts() {
 
             {/* Financial statement */}
             <div className="flex items-center gap-1.5">
-              <label className="text-xs text-gray-500 whitespace-nowrap">Statement</label>
+              <label className="text-xs text-muted-foreground whitespace-nowrap">Statement</label>
               <select
                 value={statementFilter}
                 onChange={e => setStatementFilter(e.target.value)}
-                className="border border-gray-200 rounded-lg px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-primary bg-white"
+                className="border border-input rounded-lg px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-ring bg-background text-foreground"
               >
                 <option value="All">All</option>
                 <option value="BS">Balance Sheet</option>
@@ -1183,9 +1185,9 @@ export default function ChartOfAccounts() {
       </div>
 
       {/* ── Account tree ── */}
-      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+      <div className="bg-card rounded-xl border border-border overflow-hidden">
         {/* Column headers */}
-        <div className="grid text-xs font-medium text-gray-400 uppercase tracking-wide px-3 py-2 bg-gray-50 border-b border-gray-100"
+        <div className="grid text-xs font-medium text-muted-foreground uppercase tracking-wide px-3 py-2 bg-muted/30 border-b border-border"
           style={{ gridTemplateColumns: '20px 56px 1fr auto auto auto' }}>
           <span />
           <span>Code</span>
@@ -1196,10 +1198,10 @@ export default function ChartOfAccounts() {
         </div>
         <div className="p-2">
           {isLoading
-            ? <p className="text-sm text-gray-500 p-4">Loading…</p>
+            ? <p className="text-sm text-muted-foreground p-4">Loading…</p>
             : filtered.length === 0
               ? (
-                <div className="text-center py-12 text-gray-500">
+                <div className="text-center py-12 text-muted-foreground">
                   <p className="text-sm">
                     {allAccounts.length === 0
                       ? 'No accounts yet. Seed the default COA or add accounts manually.'
@@ -1221,25 +1223,25 @@ export default function ChartOfAccounts() {
 
       {/* ── Add / Edit modal ── */}
       {showModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 overflow-y-auto" onClick={() => setShowModal(false)}>
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-md p-6 space-y-4 max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+        <div data-kiterp-modal className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm overflow-y-auto" onClick={() => setShowModal(false)}>
+          <div className="bg-card border border-border text-foreground rounded-xl shadow-2xl w-full max-w-md p-6 space-y-4 max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between">
               <h2 className="font-semibold text-lg">{editing ? 'Edit Account' : 'New Account'}</h2>
-              <button type="button" aria-label="Close" onClick={() => setShowModal(false)} className="p-1 text-gray-400 hover:text-gray-600">
+              <button type="button" aria-label="Close" onClick={() => setShowModal(false)} className="p-1 text-muted-foreground hover:text-muted-foreground">
                 <X className="w-4 h-4" />
               </button>
             </div>
 
             {/* Type first — drives subtype list */}
             <div>
-              <Label className="block text-xs font-medium text-gray-600 mb-1">Type</Label>
+              <Label className="block text-xs font-medium text-muted-foreground mb-1">Type</Label>
               <div className="grid grid-cols-5 gap-1">
                 {config.map(c => (
                   <button
                     key={c.type}
                     onClick={() => setForm(f => ({ ...f, account_type: c.type, account_subtype: '' }))}
                     className={`py-1.5 rounded-lg text-xs font-medium border-2 transition-all ${c.color} ${
-                      form.account_type === c.type ? 'border-gray-800' : 'border-transparent'
+                      form.account_type === c.type ? 'border-foreground' : 'border-transparent'
                     }`}
                   >
                     {c.type}
@@ -1250,11 +1252,11 @@ export default function ChartOfAccounts() {
 
             {/* Subtype dropdown — options come from config */}
             <div>
-              <Label className="block text-xs font-medium text-gray-600 mb-1">Subtype</Label>
+              <Label className="block text-xs font-medium text-muted-foreground mb-1">Subtype</Label>
               <select
                 value={form.account_subtype}
                 onChange={e => setForm(f => ({ ...f, account_subtype: e.target.value }))}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                className="w-full border border-input rounded-lg px-3 py-2 text-sm bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
               >
                 <option value="">— None —</option>
                 {activeSubtypes.map(st => <option key={st} value={st}>{st}</option>)}
@@ -1268,12 +1270,12 @@ export default function ChartOfAccounts() {
               { label: 'Description', key: 'description', placeholder: 'Optional description' },
             ].map(({ label, key, placeholder }) => (
               <div key={key}>
-                <Label className="block text-xs font-medium text-gray-600 mb-1">{label}</Label>
+                <Label className="block text-xs font-medium text-muted-foreground mb-1">{label}</Label>
                 <input
                   value={(form as Record<string, string>)[key]}
                   onChange={e => setForm(f => ({ ...f, [key]: e.target.value }))}
                   placeholder={placeholder}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                  className="w-full border border-input rounded-lg px-3 py-2 text-sm bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
                 />
               </div>
             ))}
@@ -1282,14 +1284,14 @@ export default function ChartOfAccounts() {
             {(() => {
               const c = config.find(cc => cc.type === form.account_type)
               return c ? (
-                <p className="text-xs text-gray-400">
+                <p className="text-xs text-muted-foreground">
                   Suggested range for <strong>{c.type}</strong>: {c.codeRangeStart}–{c.codeRangeEnd} · Normal balance: {c.normalBalance}
                 </p>
               ) : null
             })()}
 
             <div className="flex justify-end gap-2 pt-1">
-              <button onClick={() => setShowModal(false)} className="btn-cancel px-4 py-2 text-sm text-gray-600 border border-gray-300 rounded-lg">
+              <button onClick={() => setShowModal(false)} className="btn-cancel px-4 py-2 text-sm text-muted-foreground border border-border rounded-lg">
                 Cancel
               </button>
               <button

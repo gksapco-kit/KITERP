@@ -400,7 +400,7 @@ export default function Register() {
   return (
     <>
     <VendorSignupShell signInHref="/login">
-              <div className="w-full rounded-xl border border-slate-200/80 bg-white p-3.5 shadow-sm md:p-4">
+              <div className="w-full rounded-xl border border-border/80 bg-white p-3.5 shadow-sm md:p-4">
                 <div className="mb-2">
                   <h2 className="text-lg font-bold tracking-tight text-slate-900 md:text-xl">Create your business</h2>
                   <p className="mt-0.5 text-xs text-slate-500">Fill in the details below to get started.</p>
@@ -522,15 +522,15 @@ export default function Register() {
                   </div>
                 </form>
 
-                <div className="mt-3 flex flex-wrap items-center justify-center gap-2 border-t border-slate-100 pt-3">
-                  <span className="text-[0.8625rem] font-semibold text-slate-500">Already have an account?</span>
+                <div className="mt-3 flex flex-wrap items-center justify-center gap-2 border-t border-border pt-3">
+                  <span className="text-[0.8625rem] font-semibold text-muted-foreground">Already have an account?</span>
                   <Link
                     to="/login"
                     className={cn(
                       'inline-flex items-center justify-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition-all',
-                      'bg-gradient-to-r from-sky-50 to-blue-50 text-[hsl(204.42deg_94.86%_48.34%)]',
-                      'border border-sky-200/60',
-                      'hover:from-sky-100 hover:to-blue-100 hover:border-sky-300/80 hover:underline',
+                      'border border-primary/30 bg-primary/10 text-primary',
+                      'hover:border-primary/45 hover:bg-primary/15 hover:underline',
+                      'dark:border-primary/35 dark:bg-primary/15 dark:hover:bg-primary/20',
                       'focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2',
                     )}
                   >
@@ -563,7 +563,7 @@ export default function Register() {
           }}
         >
           <div
-            className="relative w-full max-w-md rounded-2xl bg-white shadow-2xl border border-slate-200/80 p-6 sm:p-8"
+            className="relative w-full max-w-md rounded-2xl bg-white shadow-2xl border border-border/80 p-6 sm:p-8"
             onMouseDown={(e) => e.stopPropagation()}
           >
             <button

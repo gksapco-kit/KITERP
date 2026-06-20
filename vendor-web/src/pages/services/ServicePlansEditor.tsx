@@ -54,21 +54,21 @@ const TOGGLE_ON_BG: Record<ToggleTone, string> = {
 const SECTION_TONE = {
   booking: {
     icon: CalendarClock,
-    iconColor: 'text-indigo-600',
-    labelOn: 'text-indigo-900',
-    panel: 'border-indigo-200/90 bg-indigo-50/45',
+    iconColor: 'text-indigo-600 dark:text-indigo-400',
+    labelOn: 'text-indigo-900 dark:text-indigo-100',
+    panel: 'border-indigo-200/90 bg-indigo-50/45 dark:border-indigo-500/30 dark:bg-indigo-950/40',
   },
   availability: {
     icon: Calendar,
-    iconColor: 'text-cyan-600',
-    labelOn: 'text-cyan-900',
-    panel: 'border-cyan-200/90 bg-cyan-50/45',
+    iconColor: 'text-cyan-600 dark:text-cyan-400',
+    labelOn: 'text-cyan-900 dark:text-cyan-100',
+    panel: 'border-cyan-200/90 bg-cyan-50/45 dark:border-cyan-500/30 dark:bg-cyan-950/40',
   },
   lifecycle: {
     icon: Clock,
-    iconColor: 'text-rose-600',
-    labelOn: 'text-rose-900',
-    panel: 'border-rose-200/90 bg-rose-50/45',
+    iconColor: 'text-rose-600 dark:text-rose-400',
+    labelOn: 'text-rose-900 dark:text-rose-100',
+    panel: 'border-rose-200/90 bg-rose-50/45 dark:border-rose-500/30 dark:bg-rose-950/40',
   },
 } as const
 
@@ -88,7 +88,7 @@ function Toggle({ label, checked, onChange, tone = 'default', className }: {
         onClick={() => onChange(!checked)}
         className={cn(
           'relative inline-flex h-5 w-9 shrink-0 rounded-full border-2 border-transparent transition-colors',
-          checked ? TOGGLE_ON_BG[tone] : 'bg-gray-200',
+          checked ? TOGGLE_ON_BG[tone] : 'bg-muted',
         )}
       >
         <span className={cn(
@@ -98,9 +98,9 @@ function Toggle({ label, checked, onChange, tone = 'default', className }: {
       </button>
       {label ? (
         <span className={cn(
-          'text-xs text-gray-700 sm:text-sm',
-          checked && tone === 'tax' && 'font-medium text-amber-900',
-          checked && tone === 'active' && 'font-medium text-emerald-900',
+          'text-xs text-foreground sm:text-sm',
+          checked && tone === 'tax' && 'font-medium text-amber-900 dark:text-amber-200',
+          checked && tone === 'active' && 'font-medium text-emerald-900 dark:text-emerald-200',
         )}>
           {label}
         </span>
@@ -127,7 +127,7 @@ function SectionEnablePanel({
   return (
     <div className={cn(
       'rounded-lg border p-2 transition-colors sm:p-2.5',
-      checked ? cfg.panel : 'border-gray-200/80 bg-white/50',
+      checked ? cfg.panel : 'border-border bg-muted/25 dark:bg-card/60',
     )}>
       <div className={cn(
         'flex gap-2 sm:gap-3',
@@ -138,10 +138,10 @@ function SectionEnablePanel({
           checked && children ? 'sm:w-[9.5rem] sm:flex-col sm:items-start sm:gap-2 sm:pt-0.5' : 'w-full',
         )}>
           <div className="flex min-w-0 items-center gap-2">
-            <Icon className={cn('h-4 w-4 shrink-0', checked ? cfg.iconColor : 'text-gray-400')} />
+            <Icon className={cn('h-4 w-4 shrink-0', checked ? cfg.iconColor : 'text-muted-foreground')} />
             <span className={cn(
               'text-sm font-semibold',
-              checked ? cfg.labelOn : 'text-gray-600',
+              checked ? cfg.labelOn : 'text-muted-foreground',
             )}>
               {label}
             </span>
@@ -151,7 +151,7 @@ function SectionEnablePanel({
         {checked && children ? (
           <div className={cn(
             'min-w-0 flex-1 space-y-1.5',
-            'sm:border-l sm:border-gray-200/70 sm:pl-3',
+            'sm:border-l sm:border-border sm:pl-3',
           )}>
             {children}
           </div>
@@ -626,17 +626,27 @@ export function ServicePlansEditor({
                           <p className={variantFormUi.sectionHeading}>Service</p>
                           <div className={cn('grid grid-cols-3 items-end', variantFormUi.grid)}>
                             <FormField label="Frequency">
-                              <div className="inline-flex w-full overflow-hidden rounded-lg border border-gray-200 text-xs">
+                              <div className="inline-flex w-full overflow-hidden rounded-lg border border-border text-xs">
                                 <button
                                   type="button"
-                                  className={`flex-1 px-3 py-1.5 font-medium ${plan.service_frequency === 'once' ? 'bg-primary text-white' : 'text-gray-500 hover:bg-gray-50'}`}
+                                  className={cn(
+                                    'flex-1 px-3 py-1.5 font-medium transition-colors',
+                                    plan.service_frequency === 'once'
+                                      ? 'bg-primary text-white'
+                                      : 'text-muted-foreground hover:bg-accent',
+                                  )}
                                   onClick={() => updatePlan(idx, { service_frequency: 'once' })}
                                 >
                                   Once
                                 </button>
                                 <button
                                   type="button"
-                                  className={`flex-1 px-3 py-1.5 font-medium ${plan.service_frequency === 'recurring' ? 'bg-primary text-white' : 'text-gray-500 hover:bg-gray-50'}`}
+                                  className={cn(
+                                    'flex-1 px-3 py-1.5 font-medium transition-colors',
+                                    plan.service_frequency === 'recurring'
+                                      ? 'bg-primary text-white'
+                                      : 'text-muted-foreground hover:bg-accent',
+                                  )}
                                   onClick={() => updatePlan(idx, { service_frequency: 'recurring' })}
                                 >
                                   Recurring
@@ -675,14 +685,20 @@ export function ServicePlansEditor({
                               <div className="inline-flex overflow-hidden rounded border border-primary/30 text-xs">
                                 <button
                                   type="button"
-                                  className={`px-2.5 py-1 font-medium ${plan.price_type === 'per_cycle' ? 'bg-primary text-white' : 'text-gray-500 hover:bg-accent'}`}
+                                  className={cn(
+                                    'px-2.5 py-1 font-medium transition-colors',
+                                    plan.price_type === 'per_cycle' ? 'bg-primary text-white' : 'text-muted-foreground hover:bg-accent',
+                                  )}
                                   onClick={() => updatePlan(idx, { price_type: 'per_cycle' })}
                                 >
                                   Per Cycle
                                 </button>
                                 <button
                                   type="button"
-                                  className={`px-2.5 py-1 font-medium ${plan.price_type === 'per_unit' ? 'bg-primary text-white' : 'text-gray-500 hover:bg-accent'}`}
+                                  className={cn(
+                                    'px-2.5 py-1 font-medium transition-colors',
+                                    plan.price_type === 'per_unit' ? 'bg-primary text-white' : 'text-muted-foreground hover:bg-accent',
+                                  )}
                                   onClick={() => updatePlan(idx, { price_type: 'per_unit' })}
                                 >
                                   Per UOM
@@ -747,11 +763,12 @@ export function ServicePlansEditor({
                                         if (next.length === 0) return
                                         updatePlan(idx, { subscription_schedule_modes: next })
                                       }}
-                                      className={`rounded-full border px-2.5 py-1 text-xs font-medium transition-colors ${
+                                      className={cn(
+                                        'rounded-full border px-2.5 py-1 text-xs font-medium transition-colors',
                                         active
                                           ? 'border-primary bg-primary text-white'
-                                          : 'border-gray-200 bg-white text-gray-400 hover:border-primary/40 hover:text-primary'
-                                      }`}
+                                          : 'border-border bg-card text-muted-foreground hover:border-primary/40 hover:text-primary',
+                                      )}
                                     >
                                       {opt.label}
                                     </button>
@@ -880,7 +897,7 @@ export function ServicePlansEditor({
                     type="button"
                     variant="outline"
                     size="sm"
-                    className="rounded-full border-gray-200 bg-white px-4 text-gray-700 shadow-sm hover:bg-gray-50"
+                    className="rounded-full px-4"
                     onClick={() => insertPlanAt(idx + 1)}
                   >
                     <Plus className="mr-1 h-4 w-4" />

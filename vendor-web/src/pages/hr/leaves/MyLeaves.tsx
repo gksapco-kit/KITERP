@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { Label } from '@/components/ui/label'
+import { Select, selectOptionsWithBlank } from '@/components/ui/select'
 import { Plus, Plane } from 'lucide-react'
 import { useHRMyLeaves, useSubmitLeaveRequest, useCancelLeave, useHRLeavePolicies } from '@/hooks/useVendor'
 import type { LeaveBalance, LeaveRequest } from '@/types'
@@ -44,7 +45,7 @@ export default function MyLeavesPage() {
       {/* Balances */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
         {balances.map(b => (
-          <div key={b.id} className="bg-white rounded-xl border shadow-sm p-4 max-h-[90vh] overflow-y-auto">
+          <div key={b.id} className="bg-card border border-border text-foreground rounded-xl shadow-2xl p-4 max-h-[90vh] overflow-y-auto">
             <p className="text-xs font-medium text-gray-500">{b.leave_policy?.name ?? 'Leave'}</p>
             <p className="text-2xl font-bold text-blue-600 mt-1">{Number(b.available).toFixed(1)}</p>
             <p className="text-xs text-gray-400">of {Number(b.allocated).toFixed(0)} days</p>
@@ -60,15 +61,20 @@ export default function MyLeavesPage() {
 
       {/* Apply form */}
       {showForm && (
-        <form onSubmit={handleSubmit} className="bg-white rounded-xl border shadow-sm p-5 mb-6 space-y-4 max-h-[90vh] overflow-y-auto">
+        <form onSubmit={handleSubmit} className="bg-card border border-border text-foreground rounded-xl shadow-2xl p-5 mb-6 space-y-4 max-h-[90vh] overflow-y-auto">
           <h3 className="font-semibold text-gray-900">New Leave Request</h3>
           <div className="grid grid-cols-2 gap-3">
             <div>
               <Label className="block text-xs font-medium text-gray-600 mb-1" required>Leave Type</Label>
-              <select required className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none" value={form.leave_policy_id} onChange={e => setForm(f => ({ ...f, leave_policy_id: e.target.value }))}>
-                <option value="">— Select —</option>
-                {policies.map((p: any) => <option key={p.id} value={p.id}>{p.name}</option>)}
-              </select>
+              <Select
+                value={form.leave_policy_id}
+                onChange={v => setForm(f => ({ ...f, leave_policy_id: v }))}
+                placeholder="— Select —"
+                options={selectOptionsWithBlank(
+                  '— Select —',
+                  policies.map((p: any) => ({ value: p.id, label: p.name })),
+                )}
+              />
             </div>
             <div>
               <Label className="block text-xs font-medium text-gray-600 mb-1">Days</Label>
@@ -101,7 +107,7 @@ export default function MyLeavesPage() {
       )}
 
       {/* Request history */}
-      <div className="bg-white rounded-xl border shadow-sm overflow-hidden max-h-[90vh] overflow-y-auto">
+      <div className="bg-card border border-border text-foreground rounded-xl shadow-2xl overflow-hidden max-h-[90vh] overflow-y-auto">
         <div className="px-4 py-3 border-b">
           <h3 className="font-semibold text-gray-900">Leave History</h3>
         </div>

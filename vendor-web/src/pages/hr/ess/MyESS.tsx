@@ -117,7 +117,7 @@ function Section({
   title, icon: Icon, children,
 }: { title: string; icon: React.ElementType; children: React.ReactNode }) {
   return (
-    <div className="bg-white border rounded-xl shadow-sm overflow-hidden max-h-[90vh] overflow-y-auto">
+    <div className="bg-card border border-border text-foreground rounded-xl shadow-2xl overflow-hidden max-h-[90vh] overflow-y-auto">
       <div className="flex items-center gap-2 p-3 border-b bg-gray-50">
         <Icon className="w-4 h-4 text-gray-500" />
         <h2 className="text-sm font-semibold text-gray-700">{title}</h2>

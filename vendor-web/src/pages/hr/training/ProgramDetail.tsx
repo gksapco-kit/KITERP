@@ -1,5 +1,6 @@
 import { onModalBackdropClick } from '@/lib/utils'
 import { InlineFieldLabel } from '@/components/common/InlineFieldLabel'
+import { Select } from '@/components/ui/select'
 import { useState } from 'react'
 import { useEscapeToClose } from '@/hooks/useEscapeToClose'
 import { useParams, Link } from 'react-router-dom'
@@ -57,7 +58,7 @@ export default function ProgramDetailPage() {
           courses.map((c, idx) => {
             const Icon = CONTENT_ICONS[c.content_type] ?? FileText
             return (
-              <div key={c.id} className="bg-white border rounded-xl shadow-sm p-4 max-h-[90vh] overflow-y-auto">
+              <div key={c.id} className="bg-card border border-border text-foreground rounded-xl shadow-2xl p-4 max-h-[90vh] overflow-y-auto">
                 <div className="flex items-start gap-3">
                   <div className="w-8 h-8 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center text-sm font-bold shrink-0">
                     {idx + 1}
@@ -150,7 +151,7 @@ function CourseModal({
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 overflow-y-auto" onClick={onModalBackdropClick(onClose)}>
-      <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-auto">
+      <div className="bg-card border border-border text-foreground rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-auto">
         <div className="flex items-center justify-between p-4 border-b sticky top-0 bg-white">
           <h2 className="text-lg font-bold">{course ? 'Edit Course' : 'Add Course'}</h2>
           <button type="button" aria-label="Close" onClick={onClose}><X className="w-5 h-5 text-gray-400" /></button>
@@ -166,14 +167,17 @@ function CourseModal({
                 onChange={e => setForm({ ...form, sequence: Number(e.target.value) })} />
             </Field>
             <Field label="Type">
-              <select className="w-full border rounded px-3 py-2 text-sm" value={form.content_type}
-                onChange={e => setForm({ ...form, content_type: e.target.value as TrainingCourse['content_type'] })}>
-                <option value="text">Text / Article</option>
-                <option value="video">Video</option>
-                <option value="pdf">PDF</option>
-                <option value="quiz">Quiz</option>
-                <option value="scorm">SCORM</option>
-              </select>
+              <Select
+                value={form.content_type}
+                onChange={v => setForm({ ...form, content_type: v as TrainingCourse['content_type'] })}
+                options={[
+                  { value: 'text', label: 'Text / Article' },
+                  { value: 'video', label: 'Video' },
+                  { value: 'pdf', label: 'PDF' },
+                  { value: 'quiz', label: 'Quiz' },
+                  { value: 'scorm', label: 'SCORM' },
+                ]}
+              />
             </Field>
             <Field label="Duration (min)">
               <input type="number" className="w-full border rounded px-3 py-2 text-sm"
@@ -226,13 +230,17 @@ function CourseModal({
                       placeholder="Question text" value={q.question}
                       onChange={e => setQuestions(questions.map(x => x.id === q.id ? { ...x, question: e.target.value } : x))} />
                     <div className="flex gap-2 mb-2">
-                      <select className="border rounded px-2 py-1 text-xs" value={q.question_type}
-                        onChange={e => setQuestions(questions.map(x =>
-                          x.id === q.id ? { ...x, question_type: e.target.value as QuizQuestion['question_type'] } : x))}>
-                        <option value="single">Single answer</option>
-                        <option value="multi">Multiple answers</option>
-                        <option value="true_false">True / False</option>
-                      </select>
+                      <Select
+                        className="w-36"
+                        value={q.question_type}
+                        onChange={v => setQuestions(questions.map(x =>
+                          x.id === q.id ? { ...x, question_type: v as QuizQuestion['question_type'] } : x))}
+                        options={[
+                          { value: 'single', label: 'Single answer' },
+                          { value: 'multi', label: 'Multiple answers' },
+                          { value: 'true_false', label: 'True / False' },
+                        ]}
+                      />
                       <input type="number" className="border rounded px-2 py-1 text-xs w-20" placeholder="Points"
                         value={q.points ?? 1} onChange={e => setQuestions(questions.map(x =>
                           x.id === q.id ? { ...x, points: Number(e.target.value) } : x))} />

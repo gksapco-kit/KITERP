@@ -1145,7 +1145,7 @@ export function LineSpacingMenuContent({
         type="button"
         onClick={() => onLineHeightChange(null)}
         className={cn(
-          'flex w-full items-center gap-2 border-t border-gray-100 px-3 text-left font-medium text-gray-600 transition-colors hover:bg-gray-50',
+          'flex w-full items-center gap-2 border-t border-border bg-muted/25 px-3 text-left font-medium text-gray-600 transition-colors hover:bg-gray-50',
           s.caseBtn,
         )}
       >

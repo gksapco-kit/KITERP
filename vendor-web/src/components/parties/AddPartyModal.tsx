@@ -34,6 +34,7 @@ import {
 } from 'lucide-react'
 import { COUNTRIES, POPULAR_COUNTRIES, type CountryEntry } from '@/data/countries'
 import { PhoneInput } from '@/components/ui/PhoneInput'
+import { cn } from '@/lib/utils'
 import { useImageSourcePicker } from '@/components/common/ImageSourcePicker'
 import { SingleImagePreview } from '@/components/common/CatalogMediaLightbox'
 
@@ -692,15 +693,18 @@ function CountryPicker({ value, onChange, mode, className = '' }: CountryPickerP
       <button
         type="button"
         onClick={() => setOpen(v => !v)}
-        className="flex items-center gap-1 text-xs bg-gray-50 border border-gray-200 rounded-lg px-2 py-2 hover:bg-gray-100 transition-colors whitespace-nowrap focus:outline-none focus:ring-2 focus:ring-primary"
+        className={cn(
+          'inline-flex h-10 w-full items-center justify-center gap-1.5 rounded-md border border-input bg-muted px-2.5 text-xs text-foreground transition-colors whitespace-nowrap hover:bg-muted/80 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+          className,
+        )}
       >
-        <span className="text-base leading-none">{currentEntry?.flag}</span>
-        {mode === 'dialCode' && <span className="font-medium text-gray-700">{currentEntry?.dialCode}</span>}
-        {mode === 'name' && <span className="font-medium text-gray-700 max-w-[90px] truncate">{currentEntry?.name}</span>}
-        <ChevronDown className="w-3 h-3 text-gray-400" />
+        <span className="inline-flex h-4 shrink-0 items-center justify-center text-sm leading-none">{currentEntry?.flag}</span>
+        {mode === 'dialCode' && <span className="font-mono text-xs font-medium leading-none tabular-nums">{currentEntry?.dialCode}</span>}
+        {mode === 'name' && <span className="max-w-[90px] truncate text-xs font-medium leading-none">{currentEntry?.name}</span>}
+        <ChevronDown className="h-3.5 w-3.5 shrink-0 self-center text-muted-foreground" aria-hidden />
       </button>
       {open && (
-        <div className="absolute z-50 mt-1 w-64 bg-white border border-gray-200 rounded-xl shadow-xl overflow-hidden max-h-[90vh] overflow-y-auto">
+        <div className="absolute z-50 mt-1 w-64 bg-popover text-popover-foreground border border-border rounded-xl shadow-xl overflow-hidden max-h-[90vh] overflow-y-auto">
           <div className="p-2 border-b">
             <input
               ref={inputRef}
@@ -1498,11 +1502,11 @@ export function AddPartyModal({
 
   return (
     <>
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 overflow-y-auto" onClick={onClose}>
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-[720px] max-h-[92vh] overflow-y-auto">
+    <div data-kiterp-modal className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 overflow-y-auto" onClick={onClose}>
+      <div className="bg-card border border-border text-foreground rounded-2xl shadow-2xl w-full max-w-[720px] max-h-[92vh] overflow-y-auto">
 
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b sticky top-0 bg-white z-10">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-border sticky top-0 bg-card z-10">
           <div className="flex items-center gap-2">
             <User className="w-5 h-5 text-primary" />
             <div>
@@ -1528,7 +1532,7 @@ export function AddPartyModal({
               {isLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin mr-1" /> : null}
               {submitLabel}
             </Button>
-            <button type="button" aria-label="Close" onClick={onClose} className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors ml-1">
+            <button type="button" aria-label="Close" onClick={onClose} className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors ml-1">
               <X className="w-5 h-5 text-gray-500" />
             </button>
           </div>
@@ -2394,7 +2398,7 @@ export function AddPartyModal({
     {showSuggestions && suggestions.length > 0 && dropdownRect && createPortal(
       <div
         style={{ position: 'fixed', top: dropdownRect.top, left: dropdownRect.left, width: dropdownRect.width, zIndex: 9999 }}
-        className="bg-white border border-gray-200 rounded-xl shadow-2xl overflow-hidden max-h-[90vh] overflow-y-auto"
+        className="bg-popover text-popover-foreground border border-border rounded-xl shadow-2xl overflow-hidden max-h-[90vh] overflow-y-auto"
         onMouseDown={e => e.stopPropagation()}
       >
         <div className="flex items-center gap-2 px-3 py-2 bg-amber-50 border-b border-amber-100">

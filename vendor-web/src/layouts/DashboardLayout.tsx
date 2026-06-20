@@ -335,9 +335,9 @@ function UniversalSaveToolbarButton() {
   )
 }
 
-/** Shared pill styling for top-bar controls (matches business-unit picker). */
+/** Shared pill styling for top-bar controls (matches sidebar section row corners). */
 const headerBarPillClass =
-  'flex h-8 shrink-0 items-center rounded-full border border-border bg-muted text-xs font-medium text-muted-foreground'
+  'flex h-8 shrink-0 items-center rounded-lg border border-border bg-muted text-xs font-medium text-muted-foreground'
 
 const headerBarPillInteractiveClass = cn(headerBarPillClass, 'hover:bg-muted/80 hover:border-primary/30')
 
@@ -820,7 +820,7 @@ function SortableItemShell({
   })
   const style: CSSProperties = {
     transform: CSS.Transform.toString(transform),
-    transition,
+    transition: isDragging ? transition : undefined,
     zIndex: isDragging ? 2 : undefined,
     opacity: hideSourceWhileDragging && isDragging ? 0 : undefined,
   }
@@ -848,18 +848,19 @@ function SortableItemShell({
   )
 }
 
-/** Active leaf — opaque color-mix fill (see .sidebar-nav-link-active); no shadow/ring blur */
+/** Active leaf — theme cap on outer pill curve (see .sidebar-nav-link-active). */
 const navLinkActive =
   'sidebar-nav-link-active font-medium text-foreground ring-0'
 const navLinkInactive =
-  'font-normal text-sidebar-foreground rounded-lg hover:bg-sidebar-accent hover:text-sidebar-accent-foreground active:opacity-90'
+  'font-normal text-sidebar-foreground rounded-lg hover:bg-sidebar-accent hover:text-sidebar-accent-foreground dark:hover:bg-muted/35 dark:hover:text-foreground active:opacity-90'
 
-/** Icon-rail flyout menu items */
+/** Icon-rail flyout menu items — dedicated styles (not sidebar tree cap). */
 const RAIL_FLYOUT_ITEM =
-  'flex w-full min-w-0 items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-sm transition-colors outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring/45'
-const RAIL_FLYOUT_ITEM_ACTIVE =
-  'sidebar-nav-link-active font-medium text-foreground shadow-none ring-0'
-const RAIL_FLYOUT_ITEM_IDLE = 'font-normal text-foreground hover:bg-muted/70'
+  'sidebar-nav-rail-flyout-item flex w-full min-w-0 items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm outline-none transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring/45'
+const RAIL_FLYOUT_ITEM_ACTIVE = 'sidebar-nav-rail-flyout-item-active font-medium text-foreground'
+const RAIL_FLYOUT_ITEM_IDLE = 'font-normal text-foreground'
+const RAIL_FLYOUT_ITEM_FOCUS = 'sidebar-nav-rail-flyout-item-focus'
+const RAIL_FLYOUT_ICON_ACTIVE = 'sidebar-nav-rail-flyout-icon-active'
 
 /** Icon-rail flyout height estimate — must include header, footer, and list padding for viewport clamping. */
 function estimateRailFlyoutHeight(itemCount: number, groupCount: number): number {
@@ -874,7 +875,8 @@ function estimateRailFlyoutHeight(itemCount: number, groupCount: number): number
   return Math.min(natural, viewportCap, designCap)
 }
 
-const navRowTransition = 'transition-[background-color,color,border-color] duration-150 ease-out motion-reduce:transition-none'
+const navRowTransition = 'transition-[color,opacity] duration-75 ease-out motion-reduce:transition-none'
+const navSubRowTransition = 'transition-[color,opacity] duration-75 ease-out motion-reduce:transition-none'
 const navExpandTransition =
   'transition-[grid-template-rows] duration-200 ease-[cubic-bezier(0.33,1,0.68,1)] motion-reduce:transition-none'
 
@@ -897,12 +899,10 @@ const NAV_FONT_TAB = 'font-medium'
 /** Section row fills — light tint on the full row */
 const NAV_SECTION_BG_ACTIVE = 'bg-muted/25'
 const NAV_SECTION_BG_ACTIVE_COLLAPSED = 'sidebar-nav-section-active-collapsed'
-const NAV_SECTION_BG_HOVER = 'hover:bg-muted/22'
-/** Module icon tiles — solid fill + ring so icons read at small viewports / low zoom */
-const NAV_SECTION_ICON_BG =
-  'rounded-md bg-muted text-muted-foreground ring-1 ring-border/50 dark:bg-zinc-800 dark:ring-border/45'
-const NAV_SECTION_ICON_BG_ACTIVE =
-  'bg-secondary text-foreground ring-border/60 dark:bg-sidebar-accent dark:text-sidebar-accent-foreground dark:ring-border/55'
+const NAV_SECTION_BG_HOVER = 'hover:bg-muted/22 dark:hover:bg-muted/30'
+/** Module icon tiles — theme hover lift via .sidebar-nav-icon-tile (globals.css). */
+const NAV_SECTION_ICON_BG = 'sidebar-nav-icon-tile'
+const NAV_SECTION_ICON_BG_ACTIVE = 'sidebar-nav-icon-tile-active'
 /** Keyboard focus — CSS classes (see globals.css); no border-l on rounded rows */
 const navSectionKbFocus = 'sidebar-nav-kb-focus-section'
 const navGroupKbFocus = 'bg-muted/25 text-foreground'
@@ -917,6 +917,8 @@ const navRailKbFocus = 'ring-2 ring-inset ring-sidebar-primary/30'
 const NAV_TREE_PANEL_CLASS = '[--tree-x:1.875rem] [--tree-link-gap:0.5rem]'
 /** Indented rail for nested group children (Cost Planning, Production Orders, …). */
 const NAV_TREE_SUB_PANEL_CLASS = '[--tree-sub-x:2.75rem]'
+/** Template 2 — compact merged submodule list (tight pill stack). */
+const NAV_SUB_STACK = 'sidebar-nav-sub-stack'
 const navTreeTrunkLine =
   'pointer-events-none absolute left-[calc(var(--tree-x)-0.5px)] top-0 bottom-2 z-0 w-px bg-sidebar-primary'
 /** Short trunk scoped to a subgroup block only (not the whole module). */
@@ -934,17 +936,23 @@ function navItemLinkClass(
 ) {
   const { isActive, isKbFocused, tree } = opts
   const isHighlighted = isActive || isKbFocused
+  const isSubTree = tree === 'sub'
+  /** Submodule rows keep one pill geometry so the active cap swaps without layout shift. */
+  const subRowShape = 'min-h-[1.625rem] rounded-full py-1 pl-3.5 pr-3'
+
   return cn(
     'relative z-[1] group/nav flex min-w-0 flex-1 items-center gap-1.5 outline-none focus-visible:outline-none',
-    isHighlighted
-      ? 'min-h-[1.75rem] rounded-full py-1 pl-3.5 pr-3'
-      : cn('rounded-lg pl-2.5 pr-2.5', NAV_ROW_MIN_H, NAV_ROW_PAD_Y),
+    isSubTree
+      ? cn(subRowShape, isHighlighted && 'relative z-[2]')
+      : isHighlighted
+        ? 'relative z-[2] min-h-[1.75rem] rounded-full py-1 pl-3.5 pr-3'
+        : cn('rounded-lg pl-2.5 pr-2.5', NAV_ROW_MIN_H, NAV_ROW_PAD_Y),
     tree === 'sub'
       ? 'ml-[calc(var(--tree-sub-x)+var(--tree-link-gap)-1.25rem)]'
       : 'ml-[calc(var(--tree-x)+var(--tree-link-gap)-1.25rem)]',
     item.labelSize ?? 'text-sm',
     'leading-snug',
-    navRowTransition,
+    isSubTree ? navSubRowTransition : navRowTransition,
     isActive
       ? cn(navLinkActive, isKbFocused && navLinkKbFocusActive)
       : isKbFocused
@@ -1155,6 +1163,8 @@ export default function DashboardLayout() {
   )
   /** Section id for floating submenu when sidebar is in icon-rail mode. */
   const [railFlyoutSectionId, setRailFlyoutSectionId] = useState<string | null>(null)
+  /** Icon under the pointer — suppresses route highlight so only one rail tile reads as selected. */
+  const [railHoverSectionId, setRailHoverSectionId] = useState<string | null>(null)
   const [railFlyoutTop, setRailFlyoutTop] = useState(56)
   const railFlyoutRef = useRef<HTMLDivElement>(null)
   const railSectionButtonRefs = useRef<Map<string, HTMLButtonElement>>(new Map())
@@ -1187,6 +1197,8 @@ export default function DashboardLayout() {
   const dark = useThemeStore(s => s.dark)
   const toggleDark = useThemeStore(s => s.toggleDark)
   const colorTheme = useThemeStore(s => s.colorTheme)
+  const layoutTemplate = useThemeStore(s => s.layoutTemplate)
+  const isTemplate2 = layoutTemplate === 'template2'
   const activeKitTheme = getKitErpThemeOption(colorTheme)
 
   const { data: storesData, refetch: refetchStores } = useStores()
@@ -1438,6 +1450,7 @@ export default function DashboardLayout() {
 
   useEffect(() => {
     setRailFlyoutSectionId(null)
+    setRailHoverSectionId(null)
   }, [location.pathname, location.search])
 
   useEffect(() => {
@@ -2143,11 +2156,11 @@ export default function DashboardLayout() {
                     }}
                     className="flex min-w-0 flex-1 items-center gap-2.5 text-left"
                   >
-                    <div className="relative shrink-0">
+                    <div className={cn('relative shrink-0', !isOpen && 'opacity-50')}>
                       <BusinessUnitLogoThumb
                         store={s}
                         vendor={vendor}
-                        className={cn('h-7 w-7 rounded-md bg-muted', !isOpen && 'opacity-50')}
+                        className="h-7 w-7"
                         iconClassName="h-3.5 w-3.5 text-muted-foreground"
                       />
                       {!isOpen && !isFav && (
@@ -2274,6 +2287,7 @@ export default function DashboardLayout() {
       const maxTop = Math.max(8, window.innerHeight - estimatedH - 8)
       const top = Math.min(Math.max(8, rect.top - 6), maxTop)
       setRailFlyoutTop(top)
+      setRailHoverSectionId(null)
       setRailFlyoutSectionId((prev) => (prev === sectionId ? null : sectionId))
     },
     [orderedVisibleSections, orderedNavItemsBySectionId],
@@ -2455,7 +2469,7 @@ export default function DashboardLayout() {
               </div>
 
               <div
-                className="sidebar-scroll min-h-0 flex-1 overflow-y-auto overscroll-contain p-1.5 [scrollbar-gutter:stable]"
+                className="sidebar-scroll sidebar-nav-rail-flyout-list min-h-0 flex-1 overflow-y-auto overscroll-contain p-1.5 [scrollbar-gutter:stable]"
                 aria-label={`${railFlyoutSection.title} pages`}
               >
                 {(() => {
@@ -2492,7 +2506,7 @@ export default function DashboardLayout() {
                             className={cn(
                               RAIL_FLYOUT_ITEM,
                               RAIL_FLYOUT_ITEM_IDLE,
-                              navFocusKey === flyItemKey && 'sidebar-nav-kb-focus',
+                              navFocusKey === flyItemKey && RAIL_FLYOUT_ITEM_FOCUS,
                             )}
                           >
                             <item.icon className="h-4 w-4 shrink-0 text-muted-foreground" strokeWidth={2} aria-hidden />
@@ -2501,10 +2515,7 @@ export default function DashboardLayout() {
                           </a>
                         ) : (
                           (() => {
-                            const flyRowClass = cn(
-                              RAIL_FLYOUT_ITEM,
-                              navFocusKey === flyItemKey && 'sidebar-nav-kb-focus',
-                            )
+                            const isKbFocused = navFocusKey === flyItemKey
                             return (
                           <NavLink
                             to={item.to}
@@ -2516,22 +2527,22 @@ export default function DashboardLayout() {
                               setRailFlyoutSectionId(null)
                               closeMobileSidebar()
                             }}
-                            className={({ isActive }) =>
-                              cn('block rounded-lg outline-none', isActive && 'sidebar-nav-link-active')
-                            }
+                            className="block outline-none"
                           >
                             {({ isActive }) => (
                               <span
                                 className={cn(
-                                  isActive ? RAIL_FLYOUT_ITEM_ACTIVE : flyRowClass,
+                                  RAIL_FLYOUT_ITEM,
+                                  isActive ? RAIL_FLYOUT_ITEM_ACTIVE : RAIL_FLYOUT_ITEM_IDLE,
+                                  isKbFocused && RAIL_FLYOUT_ITEM_FOCUS,
                                 )}
                               >
                                 <span
                                   className={cn(
-                                    'flex h-7 w-7 shrink-0 items-center justify-center rounded-md',
+                                    'flex h-7 w-7 shrink-0 items-center justify-center',
                                     isActive
-                                      ? 'bg-sidebar-primary/20 text-sidebar-primary'
-                                      : 'bg-muted/50 text-muted-foreground',
+                                      ? RAIL_FLYOUT_ICON_ACTIVE
+                                      : 'sidebar-nav-icon-tile sidebar-nav-icon-tile-hoverable',
                                   )}
                                 >
                                   <item.icon className="h-4 w-4" strokeWidth={2} aria-hidden />
@@ -2625,10 +2636,11 @@ export default function DashboardLayout() {
         aria-label="Module icons"
         tabIndex={navReorderMode ? undefined : 0}
         className={cn(
-          'hidden min-h-0 flex-1 flex-col gap-0.5 overflow-y-auto py-1 outline-none',
+          'hidden min-h-0 flex-1 flex-col gap-1.5 overflow-y-auto py-2 outline-none',
           showIconOnlyNav && 'lg:flex',
           !showIconOnlyNav && 'lg:hidden',
         )}
+        onMouseLeave={() => setRailHoverSectionId(null)}
         onFocus={(e) => {
           if (e.target !== e.currentTarget || navFocusKey || !railNavNodes[0]) return
           setNavFocusKey(railNavNodes[0].key)
@@ -2640,9 +2652,13 @@ export default function DashboardLayout() {
           const items = orderedNavItemsBySectionId.get(section.id) ?? section.items
           const sectionHasActive = items.some((it) => activeNavTo === it.to)
           const flyoutOpen = railFlyoutSectionId === section.id
+          const isRailActive =
+            railFlyoutSectionId != null
+              ? flyoutOpen
+              : railHoverSectionId == null && sectionHasActive
           const sectionRailKey = railFocusKey(section.id)
           return (
-            <div key={section.id} className="flex justify-center px-1.5">
+            <div key={section.id} className="flex justify-center px-1.5 py-0.5">
               <button
                 type="button"
                 ref={(node) => {
@@ -2654,15 +2670,18 @@ export default function DashboardLayout() {
                 aria-label={section.title}
                 aria-expanded={flyoutOpen}
                 aria-haspopup="menu"
+                aria-current={isRailActive ? 'true' : undefined}
                 onFocus={() => setNavFocusKey(sectionRailKey)}
+                onMouseEnter={() => setRailHoverSectionId(section.id)}
+                onMouseLeave={() => {
+                  setRailHoverSectionId((prev) => (prev === section.id ? null : prev))
+                }}
                 onClick={() => toggleRailSection(section.id)}
                 className={cn(
                   RAIL_ICON_BTN_CLASS,
-                  'transition-colors',
-                  'text-muted-foreground hover:bg-muted/60 hover:text-foreground',
+                  'sidebar-nav-rail-btn',
                   'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/35',
-                  (sectionHasActive || flyoutOpen) &&
-                    'bg-sidebar-primary text-sidebar-primary-foreground shadow-sm hover:bg-sidebar-primary/90 hover:text-sidebar-primary-foreground',
+                  isRailActive && 'sidebar-nav-rail-btn-active',
                   navFocusKey === sectionRailKey && navRailKbFocus,
                 )}
               >
@@ -2824,7 +2843,10 @@ export default function DashboardLayout() {
                             NAV_ROW_PAD_Y,
                             navRowTransition,
                             sectionHasActive && !isSectionCollapsed
-                              ? cn(NAV_SECTION_BG_ACTIVE, 'text-foreground')
+                              ? cn(
+                                  isTemplate2 ? 'sidebar-nav-section-active-expanded px-2' : NAV_SECTION_BG_ACTIVE,
+                                  'text-foreground',
+                                )
                               : sectionHasActive && isSectionCollapsed
                                 ? cn(NAV_SECTION_BG_ACTIVE_COLLAPSED, 'text-foreground')
                                 : cn('text-muted-foreground hover:text-foreground', NAV_SECTION_BG_HOVER),
@@ -2863,8 +2885,8 @@ export default function DashboardLayout() {
                               className={cn(
                                 'h-4 w-4 transition-transform duration-200 ease-out motion-reduce:transition-none',
                                 isSectionCollapsed ? '-rotate-90' : 'rotate-180',
-                                sectionHasActive && isSectionCollapsed
-                                  ? 'text-[hsl(158_55%_36%)] dark:text-[hsl(158_48%_52%)]'
+                                sectionHasActive && (isSectionCollapsed || isTemplate2)
+                                  ? 'text-primary'
                                   : 'text-muted-foreground/70',
                               )}
                             />
@@ -2891,7 +2913,8 @@ export default function DashboardLayout() {
                         >
                           <div
                             className={cn(
-                              'relative ml-1 space-y-px py-1',
+                              'relative ml-1 py-1',
+                              isTemplate2 && 'py-0.5',
                               NAV_TREE_PANEL_CLASS,
                               NAV_TREE_SUB_PANEL_CLASS,
                             )}
@@ -2905,7 +2928,7 @@ export default function DashboardLayout() {
                               items={orderedItems.map((i) => itmDndId(section.id, i.to))}
                               strategy={verticalListSortingStrategy}
                             >
-                              <div className="space-y-px">
+                              <div className={cn(isTemplate2 ? NAV_SUB_STACK : 'space-y-px')}>
                                 {(() => {
                                   const itemGroups = effectiveNavGroupLabels(orderedItems)
                                   const blocks = buildNavItemBlocks(orderedItems, itemGroups, section.title)
@@ -2918,7 +2941,7 @@ export default function DashboardLayout() {
                                     const elbow = tree === 'sub' ? navTreeSubElbowLine : navTreeElbowLine
                                     const thisItemDndId = itmDndId(section.id, item.to)
                                     const itemKey = itemFocusKey(section.id, item.to)
-                                    const isItemActive = activeNavTo === item.to
+                                    const routeActive = activeNavTo === item.to
                                     const isItemKbFocused = navFocusKey === itemKey
                                     return (
                                       <SortableItemShell
@@ -2973,7 +2996,7 @@ export default function DashboardLayout() {
                                                   tree,
                                                 })}
                                               >
-                                                <span className={cn(NAV_ICON_COL, 'text-muted-foreground/80 group-hover/nav:text-foreground')}>
+                                                <span className={cn(NAV_ICON_COL, 'text-muted-foreground/80 group-hover/nav:text-sidebar-primary')}>
                                                   <item.icon className="h-4 w-4" strokeWidth={2} aria-hidden />
                                                 </span>
                                                 <span className="min-w-0 flex-1 truncate text-left">{item.label}</span>
@@ -2986,24 +3009,33 @@ export default function DashboardLayout() {
                                                 tabIndex={isSectionCollapsed || tabIndexOff ? -1 : undefined}
                                                 onFocus={() => setNavFocusKey(itemKey)}
                                                 onClick={() => setSidebarOpen(false)}
-                                                className={navItemLinkClass(item, {
-                                                  isActive: isItemActive,
-                                                  isKbFocused: isItemKbFocused,
-                                                  tree,
-                                                })}
+                                                className={({ isPending }) =>
+                                                  navItemLinkClass(item, {
+                                                    isActive: routeActive || isPending,
+                                                    isKbFocused: isItemKbFocused,
+                                                    tree,
+                                                  })
+                                                }
                                               >
+                                                {({ isPending }) => {
+                                                  const isItemActive = routeActive || isPending
+                                                  return (
+                                                    <>
                                                 <span
                                                   className={cn(
                                                     NAV_ICON_COL,
                                                     isItemActive
                                                       ? 'text-inherit'
-                                                      : 'text-muted-foreground/80 group-hover/nav:text-inherit',
+                                                      : 'text-muted-foreground/80 group-hover/nav:text-sidebar-primary',
                                                   )}
                                                 >
                                                   <item.icon className="h-4 w-4" strokeWidth={2} aria-hidden />
                                                 </span>
                                                 <span className="min-w-0 flex-1 truncate text-left">{item.label}</span>
                                                 <NavCountBadge count={getNavBadgeCount(item.to)} />
+                                                    </>
+                                                  )
+                                                }}
                                               </NavLink>
                                             )}
                                           </div>
@@ -3015,7 +3047,7 @@ export default function DashboardLayout() {
                                   return blocks.map((block, blockIdx) => {
                                     if (block.kind === 'items') {
                                       return (
-                                        <div key={`sec-items-${blockIdx}`} className="relative space-y-px">
+                                        <div key={`sec-items-${blockIdx}`} className={cn('relative', isTemplate2 ? NAV_SUB_STACK : 'space-y-px')}>
                                           {block.entries.map(({ item }) =>
                                             renderNavRow(item, 'section', isSectionCollapsed),
                                           )}
@@ -3067,7 +3099,7 @@ export default function DashboardLayout() {
                                           </span>
                                         </button>
                                         {!isGroupCollapsed && (
-                                          <div className="relative ml-[calc(var(--tree-sub-x)-var(--tree-x))] space-y-px">
+                                          <div className={cn('relative ml-[calc(var(--tree-sub-x)-var(--tree-x))]', isTemplate2 ? NAV_SUB_STACK : 'space-y-px')}>
                                             <span aria-hidden className={navTreeSubgroupTrunk} />
                                             {block.entries.map(({ item }) =>
                                               renderNavRow(item, 'sub', isSectionCollapsed),
@@ -3366,14 +3398,17 @@ export default function DashboardLayout() {
                     <BusinessUnitLogoThumb
                       store={rowForHeader}
                       vendor={vendor}
-                      className={cn('h-5 w-5', storePillActive && 'ring-1 ring-white/25')}
+                      variant={storePillActive ? 'onPrimary' : 'default'}
+                      className="h-6 w-6"
                       iconClassName={cn('h-3.5 w-3.5 shrink-0', storePillActive ? 'text-white' : 'text-current')}
                     />
                   ) : (
                     <span
                       className={cn(
-                        'flex h-5 w-5 shrink-0 items-center justify-center rounded-md',
-                        storePillActive ? 'bg-white/20 text-white' : 'bg-muted text-muted-foreground',
+                        'flex h-6 w-6 shrink-0 items-center justify-center rounded-md ring-1 ring-inset',
+                        storePillActive
+                          ? 'bg-white/15 text-white ring-white/25'
+                          : 'bg-muted text-muted-foreground ring-border/45',
                       )}
                       aria-hidden
                     >

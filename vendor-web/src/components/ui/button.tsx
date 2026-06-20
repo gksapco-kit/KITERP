@@ -24,26 +24,26 @@ const buttonVariants = cva(
 
         // Secondary outlined — crisp border, subtle hover
         outline:
-          'border border-gray-200 bg-white text-gray-700 shadow-sm ' +
-          'hover:bg-gray-50 hover:border-gray-300 hover:text-gray-900 ' +
-          'active:bg-gray-100 active:scale-[0.98]',
+          'border border-border bg-card text-foreground shadow-sm ' +
+          'hover:bg-accent hover:border-border hover:text-foreground ' +
+          'active:bg-muted active:scale-[0.98]',
 
         // Dismiss / cancel — amber (#ffc954)
         cancel:
-          'border border-[#ffc954] bg-[#ffc954] text-gray-700 shadow-sm ' +
+          'border border-[#ffc954] bg-[#ffc954] text-gray-800 shadow-sm ' +
           'hover:bg-[#ffc954]/90 hover:border-[#ffc954]/90 hover:text-gray-900 ' +
           'active:bg-[#ffc954]/85 active:scale-[0.98]',
 
         // Neutral fill
         secondary:
-          'bg-gray-100 text-gray-700 ' +
-          'hover:bg-gray-200 active:bg-gray-300 active:scale-[0.98]',
+          'bg-muted text-foreground ' +
+          'hover:bg-muted/80 active:bg-muted/70 active:scale-[0.98]',
 
         // Ghost — no background until hovered
         ghost:
-          'text-gray-600 ' +
-          'hover:bg-gray-100 hover:text-gray-900 ' +
-          'active:bg-gray-200',
+          'text-muted-foreground ' +
+          'hover:bg-muted hover:text-foreground ' +
+          'active:bg-muted/80',
 
         // Soft — tinted surface using `--accent` / primary
         soft:

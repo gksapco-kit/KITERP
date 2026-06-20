@@ -18,16 +18,16 @@ export default function CommissionLayout() {
   if (isRoot) {
     return (
       <div className="p-6 max-w-5xl mx-auto">
-        <h1 className="text-2xl font-bold text-gray-900 mb-2">Sales Commission</h1>
-        <p className="text-gray-500 mb-8">Configure and manage commission earners, plans, accruals and payouts.</p>
+        <h1 className="text-2xl font-bold text-foreground mb-2">Sales Commission</h1>
+        <p className="text-muted-foreground mb-8">Configure and manage commission earners, plans, accruals and payouts.</p>
         <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
           {NAV.map(({ to, label, icon: Icon }) => (
             <NavLink key={to} to={to}
-              className="group bg-white border border-gray-200 rounded-xl p-6 hover:border-primary/40 hover:shadow-sm transition-all max-h-[90vh] overflow-y-auto">
+              className="group bg-card border border-border rounded-xl p-6 hover:border-primary/40 hover:shadow-sm transition-all">
               <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center mb-4 group-hover:bg-primary/20">
                 <Icon className="h-6 w-6 text-primary" />
               </div>
-              <h3 className="font-semibold text-gray-900">{label}</h3>
+              <h3 className="font-semibold text-foreground">{label}</h3>
             </NavLink>
           ))}
         </div>
@@ -37,7 +37,7 @@ export default function CommissionLayout() {
 
   return (
     <div className="flex flex-col h-full">
-      <div className="bg-white px-4 sm:px-6 lg:border-b lg:border-gray-200">
+      <div className="bg-card px-4 sm:px-6 lg:border-b lg:border-border">
         <div className="flex gap-0.5 overflow-x-auto scrollbar-none">
           {NAV.map(({ to, label, icon: Icon }) => (
             <NavLink
@@ -48,11 +48,11 @@ export default function CommissionLayout() {
                   'relative flex shrink-0 items-center gap-2 px-3 py-3 text-sm font-medium whitespace-nowrap transition-colors sm:px-4',
                   'border-b-2 lg:-mb-px',
                   isActive
-                    ? 'z-[1] border-[#64c3a0] text-[#64c3a0]'
+                    ? 'z-[1] border-primary text-primary'
                     : cn(
-                        'text-gray-500 hover:text-gray-800',
-                        'max-lg:border-gray-200 max-lg:hover:border-gray-300',
-                        'lg:border-transparent lg:hover:border-gray-300',
+                        'text-muted-foreground hover:text-foreground',
+                        'max-lg:border-border max-lg:hover:border-border/80',
+                        'lg:border-transparent lg:hover:border-border',
                       ),
                 )
               }
@@ -63,7 +63,7 @@ export default function CommissionLayout() {
           ))}
         </div>
       </div>
-      <div className="flex-1 overflow-auto bg-gray-50">
+      <div className="flex-1 overflow-auto bg-background">
         <Outlet />
       </div>
     </div>

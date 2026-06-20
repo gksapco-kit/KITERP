@@ -184,7 +184,7 @@ export default function FieldRuleConfig() {
       </div>
 
       {showAdd && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 overflow-y-auto" onClick={() => setShowAdd(false)}>
+        <div data-kiterp-modal className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm overflow-y-auto" onClick={() => setShowAdd(false)}>
           <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-5 space-y-4 max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
 
             <div className="flex items-start justify-between gap-3 mb-4">
@@ -194,7 +194,7 @@ export default function FieldRuleConfig() {
               <button type="button" aria-label="Close"
                 type="button"
                 onClick={() => setShowAdd(false)}
-                className="p-1.5 rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors shrink-0"
+                className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors shrink-0"
                 aria-label="Close"
               >
                 <X className="w-5 h-5" />

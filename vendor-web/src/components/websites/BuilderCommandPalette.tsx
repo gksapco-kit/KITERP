@@ -432,7 +432,7 @@ export function BuilderCommandPalette(props: BuilderCommandPaletteProps) {
 
       {/* Palette */}
       <div
-        className="fixed left-1/2 top-[10%] z-[501] w-full max-w-xl -translate-x-1/2 rounded-2xl border border-gray-200 bg-white shadow-2xl overflow-hidden"
+        className="fixed left-1/2 top-[10%] z-[501] w-full max-w-xl -translate-x-1/2 rounded-2xl border border-border bg-card text-foreground shadow-2xl overflow-hidden"
         onMouseDown={e => e.stopPropagation()}
       >
         {/* Search input */}

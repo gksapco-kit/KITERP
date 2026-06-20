@@ -54,7 +54,7 @@ export default function PolicyDetailPage() {
         <h2 className="text-sm font-bold uppercase text-gray-700 mb-3">
           Acknowledgements ({acks.length})
         </h2>
-        <div className="bg-white border rounded-xl shadow-sm overflow-hidden max-h-[90vh] overflow-y-auto">
+        <div className="bg-card border border-border text-foreground rounded-xl shadow-2xl overflow-hidden max-h-[90vh] overflow-y-auto">
           {acks.length === 0 ? (
             <div className="p-6 text-center text-gray-400 text-sm">No acknowledgements yet.</div>
           ) : (

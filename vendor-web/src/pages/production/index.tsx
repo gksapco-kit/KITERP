@@ -2,6 +2,7 @@ import { useState, useMemo, useRef, useCallback, useEffect } from 'react'
 import { TableColumnLabel } from '@/components/common/FieldLabel'
 import { BusinessUnitSelect } from '@/components/common/BusinessUnitSelect'
 import { Label } from '@/components/ui/label'
+import { Select, selectOptionsWithBlank } from '@/components/ui/select'
 import { useEscapeToClose } from '@/hooks/useEscapeToClose'
 import { ModalEscapeHandler } from '@/components/ui/ModalEscapeHandler'
 import { useNavigate } from 'react-router-dom'
@@ -935,7 +936,7 @@ export default function ProductionOrdersPage() {
                   </div>
                   <div className="flex items-center gap-1.5">
                     <button onClick={() => setMrpOrder(order)} title="Material Requirement Plan"
-                      className="p-1.5 hover:bg-indigo-100 rounded-lg text-indigo-600 transition-colors flex items-center gap-1 text-xs font-medium px-2">
+                      className="flex items-center gap-1 rounded-lg p-1.5 px-2 text-xs font-medium text-primary transition-colors hover:bg-muted hover:text-foreground dark:hover:bg-muted/70 dark:hover:text-foreground">
                       <BarChart3 className="w-3.5 h-3.5" /> MRP
                     </button>
                     <button onClick={() => exportXLS(order)} title="Export Excel"
@@ -1018,10 +1019,13 @@ export default function ProductionOrdersPage() {
                         {editStatus !== '' && (
                           <div className="space-y-2 pt-2 border-t">
                             <div className="flex gap-2">
-                              <select value={editStatus} onChange={e => setEditStatus(e.target.value as POStatus)}
-                                className="flex-1 border border-gray-200 rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-ring">
-                                {Object.entries(STATUS_CONFIG).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
-                              </select>
+                              <Select
+                                value={editStatus}
+                                onChange={(v) => setEditStatus(v as POStatus)}
+                                options={Object.entries(STATUS_CONFIG).map(([k, v]) => ({ value: k, label: v.label }))}
+                                aria-label="Production order status"
+                                className="flex-1"
+                              />
                               <input type="number" min={0} max={100} value={editProgress} onChange={e => setEditProgress(Number(e.target.value))}
                                 className="w-24 border border-gray-200 rounded-lg px-2 py-1.5 text-xs text-center focus:outline-none focus:ring-2 focus:ring-ring" placeholder="Progress%" />
                               <button onClick={() => applyStatusEdit(order)} className="bg-primary text-white px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-primary/90">Save</button>
@@ -1507,7 +1511,7 @@ export default function ProductionOrdersPage() {
 
       {/* ── Create Order Drawer ──────────────────────────────────────────────── */}
       {showCreate && (
-        <div data-kiterp-modal className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm overflow-y-auto" onClick={() => { setShowCreate(false); setCreateType(null) }}>
+        <div data-kiterp-modal className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm backdrop-blur-sm overflow-y-auto" onClick={() => { setShowCreate(false); setCreateType(null) }}>
           <ModalEscapeHandler onClose={closeCreateModal} />
           <div className="bg-card rounded-2xl shadow-2xl w-full max-w-2xl max-h-[92vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
 
@@ -1603,11 +1607,18 @@ export default function ProductionOrdersPage() {
                     </div>
                     <div>
                       <label className="block text-xs font-medium text-gray-600 mb-1.5">Priority</label>
-                      <select value={formPriority} onChange={e => setFormPriority(e.target.value as Priority)}
-                        className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring">
-                        <option value="low">🟢 Low</option><option value="medium">🔵 Medium</option>
-                        <option value="high">🟠 High</option><option value="urgent">🔴 Urgent</option>
-                      </select>
+                      <Select
+                        value={formPriority}
+                        onChange={(v) => setFormPriority(v as Priority)}
+                        options={[
+                          { value: 'low', label: '🟢 Low' },
+                          { value: 'medium', label: '🔵 Medium' },
+                          { value: 'high', label: '🟠 High' },
+                          { value: 'urgent', label: '🔴 Urgent' },
+                        ]}
+                        aria-label="Priority"
+                        className="w-full"
+                      />
                     </div>
                     <div>
                       <label className="block text-xs font-medium text-gray-600 mb-1.5">Production Team</label>
@@ -2135,7 +2146,7 @@ function ProductionOrderCard({
               <button
                 onClick={onMRP}
                 title="Material Requirement Plan"
-                className="flex items-center gap-1 text-xs font-medium text-indigo-600 hover:bg-indigo-50 px-2 py-1 rounded-lg transition-colors"
+                className="flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-medium text-primary transition-colors hover:bg-muted hover:text-foreground dark:hover:bg-muted/70 dark:hover:text-foreground"
               >
                 <BarChart3 className="w-3.5 h-3.5" /> MRP
               </button>

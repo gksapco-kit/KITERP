@@ -3,6 +3,7 @@ import { TableColumnLabel } from '@/components/common/FieldLabel'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { Select, selectOptionsWithBlank } from '@/components/ui/select'
 import { Badge } from '@/components/ui/badge'
 import { useCampaigns, useSaveCampaign, useEmailTemplates, useSegments } from '@/hooks/useCrm'
 import { crmApi, type Campaign, type CampaignStep } from '@/api/crm'
@@ -88,26 +89,39 @@ function CampaignForm({ campaign, onClose }: { campaign?: Campaign; onClose: () 
         </Field>
         <div className="grid grid-cols-2 gap-3">
           <Field label="Type">
-            <select value={form.type} onChange={e => setForm(p => ({ ...p, type: e.target.value }))} className={inputCls}>
-              <option value="broadcast">Broadcast (one-shot)</option>
-              <option value="drip">Drip sequence</option>
-              <option value="trigger">Trigger-based</option>
-            </select>
+            <Select
+              value={form.type}
+              onChange={v => setForm(p => ({ ...p, type: v }))}
+              options={[
+                { value: 'broadcast', label: 'Broadcast (one-shot)' },
+                { value: 'drip', label: 'Drip sequence' },
+                { value: 'trigger', label: 'Trigger-based' },
+              ]}
+            />
           </Field>
           <Field label="Channel">
-            <select value={form.channel} onChange={e => setForm(p => ({ ...p, channel: e.target.value }))} className={inputCls}>
-              <option value="email">Email</option>
-              <option value="sms">SMS</option>
-              <option value="whatsapp">WhatsApp</option>
-            </select>
+            <Select
+              value={form.channel}
+              onChange={v => setForm(p => ({ ...p, channel: v }))}
+              options={[
+                { value: 'email', label: 'Email' },
+                { value: 'sms', label: 'SMS' },
+                { value: 'whatsapp', label: 'WhatsApp' },
+              ]}
+            />
           </Field>
         </div>
         {form.type !== 'drip' && (
           <Field label="Email template">
-            <select value={form.template_id} onChange={e => setForm(p => ({ ...p, template_id: e.target.value }))} className={inputCls}>
-              <option value="">— Select template —</option>
-              {tplList.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
-            </select>
+            <Select
+              value={form.template_id}
+              onChange={v => setForm(p => ({ ...p, template_id: v }))}
+              placeholder="— Select template —"
+              options={selectOptionsWithBlank(
+                '— Select template —',
+                tplList.map(t => ({ value: t.id, label: t.name })),
+              )}
+            />
           </Field>
         )}
         {form.type === 'drip' && (
@@ -120,12 +134,15 @@ function CampaignForm({ campaign, onClose }: { campaign?: Campaign; onClose: () 
           </Field>
         )}
         <Field label="Audience segment">
-          <select value={form.segment_id} onChange={e => setForm(p => ({ ...p, segment_id: e.target.value }))} className={inputCls}>
-            <option value="">— All contacts —</option>
-            {(segments ?? []).map(s => (
-              <option key={s.id} value={s.id}>{s.name} ({s.contact_count})</option>
-            ))}
-          </select>
+          <Select
+            value={form.segment_id}
+            onChange={v => setForm(p => ({ ...p, segment_id: v }))}
+            placeholder="— All contacts —"
+            options={selectOptionsWithBlank(
+              '— All contacts —',
+              (segments ?? []).map(s => ({ value: s.id, label: `${s.name} (${s.contact_count})` })),
+            )}
+          />
         </Field>
         <Field label="Schedule send (optional)">
           <CrmDateTimeField

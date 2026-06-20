@@ -1,5 +1,8 @@
-import { onModalBackdropClick } from '@/lib/utils'
+import { onModalBackdropClick, cn } from '@/lib/utils'
+import { Button } from '@/components/ui/button'
+import { hrInputClass, hrTabActiveClass, hrTabInactiveClass, hrStatusBadge, hrEmptyStateClass, hrCardClass } from '../hrFormUi'
 import { InlineFieldLabel } from '@/components/common/InlineFieldLabel'
+import { Select } from '@/components/ui/select'
 import { useState } from 'react'
 import { useEscapeToClose } from '@/hooks/useEscapeToClose'
 import { Megaphone, Plus, Pencil, Trash2, X, Pin } from 'lucide-react'
@@ -9,9 +12,9 @@ import {
 import type { Announcement } from '@/types'
 
 const STATUS: Record<string, { label: string; color: string }> = {
-  draft:     { label: 'Draft',     color: 'bg-gray-100 text-gray-600' },
-  published: { label: 'Published', color: 'bg-green-100 text-green-700' },
-  archived:  { label: 'Archived',  color: 'bg-gray-200 text-gray-700' },
+  draft:     { label: 'Draft',     color: hrStatusBadge.draft },
+  published: { label: 'Published', color: hrStatusBadge.published },
+  archived:  { label: 'Archived',  color: hrStatusBadge.archived },
 }
 
 export default function AnnouncementsPage() {
@@ -24,53 +27,52 @@ export default function AnnouncementsPage() {
     <div className="p-6 max-w-5xl mx-auto">
       <div className="flex items-center justify-between mb-5">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Announcements</h1>
-          <p className="text-sm text-gray-500 mt-1">Broadcast Company News, Updates And Notices</p>
+          <h1 className="text-2xl font-bold text-foreground">Announcements</h1>
+          <p className="mt-1 text-sm text-muted-foreground">Broadcast Company News, Updates And Notices</p>
         </div>
-        <button onClick={() => setShowNew(true)}
-          className="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 text-sm font-medium">
-          <Plus className="w-4 h-4" /> New Announcement
-        </button>
+        <Button type="button" onClick={() => setShowNew(true)}>
+          <Plus className="h-4 w-4" /> New Announcement
+        </Button>
       </div>
 
       {isLoading ? (
-        <div className="bg-white border rounded-xl p-8 text-center text-gray-400" onClick={e => e.stopPropagation()}>Loading…</div>
+        <div className={cn(hrCardClass, 'p-8 text-center text-muted-foreground')} onClick={e => e.stopPropagation()}>Loading…</div>
       ) : (list as Announcement[]).length === 0 ? (
-        <div className="bg-white border rounded-xl p-12 text-center">
-          <Megaphone className="w-10 h-10 text-gray-300 mx-auto mb-3" />
-          <p className="text-gray-500">No announcements yet.</p>
+        <div className={hrEmptyStateClass}>
+          <Megaphone className="mx-auto mb-3 h-10 w-10 text-muted-foreground/50" />
+          <p className="text-muted-foreground">No announcements yet.</p>
         </div>
       ) : (
         <div className="space-y-3">
           {(list as Announcement[]).map(a => {
             const stat = STATUS[a.status] ?? STATUS.draft
             return (
-              <div key={a.id} className="bg-white border rounded-xl shadow-sm p-4 max-h-[90vh] overflow-y-auto">
+              <div key={a.id} className={cn(hrCardClass, 'max-h-[90vh] overflow-y-auto p-4 shadow-sm')}>
                 <div className="flex items-start gap-3">
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-1 flex-wrap">
-                      {a.pinned && <Pin className="w-3 h-3 text-orange-500 shrink-0" />}
-                      <h3 className="font-semibold text-gray-900">{a.title}</h3>
-                      <span className={`text-xs px-1.5 py-0.5 rounded ${stat.color}`}>{stat.label}</span>
-                      <span className="text-xs px-1.5 py-0.5 rounded bg-blue-100 text-blue-700 uppercase">
+                  <div className="min-w-0 flex-1">
+                    <div className="mb-1 flex flex-wrap items-center gap-2">
+                      {a.pinned && <Pin className="h-3 w-3 shrink-0 text-orange-500" />}
+                      <h3 className="font-semibold text-foreground">{a.title}</h3>
+                      <span className={`rounded px-1.5 py-0.5 text-xs ${stat.color}`}>{stat.label}</span>
+                      <span className="rounded bg-primary/15 px-1.5 py-0.5 text-xs uppercase text-primary">
                         {a.category ?? 'general'}
                       </span>
                     </div>
-                    <p className="text-sm text-gray-700 line-clamp-2 whitespace-pre-line">{a.body}</p>
-                    <p className="text-xs text-gray-400 mt-1.5">
+                    <p className="line-clamp-2 whitespace-pre-line text-sm text-muted-foreground">{a.body}</p>
+                    <p className="mt-1.5 text-xs text-muted-foreground">
                       Audience: {a.audience ?? 'all'}
                       {a.publish_at && <> · Publish {new Date(a.publish_at).toLocaleString()}</>}
                       {a.expires_at && <> · Expires {new Date(a.expires_at).toLocaleString()}</>}
                     </p>
                   </div>
-                  <div className="flex gap-1 shrink-0">
-                    <button onClick={() => setEditing(a)} className="p-1.5 text-gray-400 hover:text-blue-600">
-                      <Pencil className="w-4 h-4" />
+                  <div className="flex shrink-0 gap-1">
+                    <button type="button" onClick={() => setEditing(a)} className="p-1.5 text-muted-foreground hover:text-primary">
+                      <Pencil className="h-4 w-4" />
                     </button>
-                    <button
+                    <button type="button"
                       onClick={() => { if (confirm(`Delete announcement "${a.title}"?`)) del.mutate(a.id) }}
-                      className="p-1.5 text-gray-400 hover:text-red-600">
-                      <Trash2 className="w-4 h-4" />
+                      className="p-1.5 text-muted-foreground hover:text-destructive">
+                      <Trash2 className="h-4 w-4" />
                     </button>
                   </div>
                 </div>
@@ -115,57 +117,67 @@ function AnnouncementModal({
   }
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 overflow-y-auto" onClick={onModalBackdropClick(onClose)}>
-      <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-auto">
-        <div className="flex items-center justify-between p-4 border-b">
-          <h2 className="text-lg font-bold">{item ? 'Edit Announcement' : 'New Announcement'}</h2>
-          <button type="button" aria-label="Close" onClick={onClose}><X className="w-5 h-5 text-gray-400" /></button>
+    <div data-kiterp-modal className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-black/50 p-4" onClick={onModalBackdropClick(onClose)}>
+      <div className="max-h-[90vh] w-full max-w-lg overflow-auto rounded-xl border border-border bg-card text-foreground shadow-2xl">
+        <div className="flex items-center justify-between border-b border-border p-4">
+          <h2 className="text-lg font-bold text-foreground">{item ? 'Edit Announcement' : 'New Announcement'}</h2>
+          <button type="button" aria-label="Close" onClick={onClose} className="text-muted-foreground hover:text-foreground"><X className="h-5 w-5" /></button>
         </div>
-        <div className="p-4 space-y-3">
+        <div className="space-y-3 p-4">
           <Field label="Title *">
-            <input className="w-full border rounded px-3 py-2 text-sm" value={form.title}
+            <input className={hrInputClass} value={form.title}
               onChange={e => setForm({ ...form, title: e.target.value })} />
           </Field>
           <Field label="Body *">
-            <textarea className="w-full border rounded px-3 py-2 text-sm" rows={5} value={form.body}
+            <textarea className={cn(hrInputClass, 'min-h-[7rem] resize-y')} rows={5} value={form.body}
               onChange={e => setForm({ ...form, body: e.target.value })} />
           </Field>
           <div className="grid grid-cols-2 gap-3">
             <Field label="Category">
-              <select className="w-full border rounded px-3 py-2 text-sm" value={form.category}
-                onChange={e => setForm({ ...form, category: e.target.value })}>
-                <option value="general">General</option>
-                <option value="policy">Policy</option>
-                <option value="event">Event</option>
-                <option value="hr">HR</option>
-                <option value="urgent">Urgent</option>
-              </select>
+              <Select
+                value={form.category}
+                onChange={(v) => setForm({ ...form, category: v })}
+                options={[
+                  { value: 'general', label: 'General' },
+                  { value: 'policy', label: 'Policy' },
+                  { value: 'event', label: 'Event' },
+                  { value: 'hr', label: 'HR' },
+                  { value: 'urgent', label: 'Urgent' },
+                ]}
+                aria-label="Category"
+                className="w-full"
+              />
             </Field>
             <Field label="Audience">
-              <select className="w-full border rounded px-3 py-2 text-sm" value={form.audience}
-                onChange={e => setForm({ ...form, audience: e.target.value })}>
-                <option value="all">All</option>
-                <option value="department">By department</option>
-                <option value="store">By store</option>
-                <option value="designation">By designation</option>
-              </select>
+              <Select
+                value={form.audience}
+                onChange={(v) => setForm({ ...form, audience: v })}
+                options={[
+                  { value: 'all', label: 'All' },
+                  { value: 'department', label: 'By department' },
+                  { value: 'store', label: 'By store' },
+                  { value: 'designation', label: 'By designation' },
+                ]}
+                aria-label="Audience"
+                className="w-full"
+              />
             </Field>
           </div>
           <Field label="Cover image URL">
-            <input className="w-full border rounded px-3 py-2 text-sm" value={form.cover_image_url}
+            <input className={hrInputClass} value={form.cover_image_url}
               onChange={e => setForm({ ...form, cover_image_url: e.target.value })} />
           </Field>
           <Field label="Attachment URL">
-            <input className="w-full border rounded px-3 py-2 text-sm" value={form.attachment_url}
+            <input className={hrInputClass} value={form.attachment_url}
               onChange={e => setForm({ ...form, attachment_url: e.target.value })} />
           </Field>
           <div className="grid grid-cols-2 gap-3">
             <Field label="Publish at">
-              <input type="datetime-local" className="w-full border rounded px-3 py-2 text-sm"
+              <input type="datetime-local" className={hrInputClass}
                 value={form.publish_at} onChange={e => setForm({ ...form, publish_at: e.target.value })} />
             </Field>
             <Field label="Expires at">
-              <input type="datetime-local" className="w-full border rounded px-3 py-2 text-sm"
+              <input type="datetime-local" className={hrInputClass}
                 value={form.expires_at} onChange={e => setForm({ ...form, expires_at: e.target.value })} />
             </Field>
           </div>
@@ -175,21 +187,25 @@ function AnnouncementModal({
                 onChange={e => setForm({ ...form, pinned: e.target.checked })} /> Pin to top
             </label>
             <Field label="Status">
-              <select className="border rounded px-3 py-2 text-sm" value={form.status}
-                onChange={e => setForm({ ...form, status: e.target.value as Announcement['status'] })}>
-                <option value="draft">Draft</option>
-                <option value="published">Published</option>
-                <option value="archived">Archived</option>
-              </select>
+              <Select
+                value={form.status}
+                onChange={(v) => setForm({ ...form, status: v as Announcement['status'] })}
+                options={[
+                  { value: 'draft', label: 'Draft' },
+                  { value: 'published', label: 'Published' },
+                  { value: 'archived', label: 'Archived' },
+                ]}
+                aria-label="Status"
+                className="w-full"
+              />
             </Field>
           </div>
         </div>
-        <div className="flex justify-end gap-2 p-4 border-t bg-gray-50">
-          <button onClick={onClose} className="btn-cancel px-4 py-2 text-sm border rounded-lg text-gray-700">Cancel</button>
-          <button onClick={submit} disabled={!form.title.trim() || !form.body.trim() || create.isPending || update.isPending}
-            className="px-4 py-2 text-sm bg-primary text-white rounded-lg hover:bg-primary/90 disabled:opacity-50">
+        <div className="flex justify-end gap-2 border-t border-border p-4">
+          <Button type="button" variant="outline" onClick={onClose}>Cancel</Button>
+          <Button type="button" onClick={submit} disabled={!form.title.trim() || !form.body.trim() || create.isPending || update.isPending}>
             {item ? 'Save' : 'Publish'}
-          </button>
+          </Button>
         </div>
       </div>
     </div>
@@ -199,7 +215,7 @@ function AnnouncementModal({
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div>
-      <InlineFieldLabel label={label} className="block text-xs font-medium text-gray-700 mb-1" />
+      <InlineFieldLabel label={label} className="mb-1 block text-xs font-medium text-muted-foreground" />
       {children}
     </div>
   )

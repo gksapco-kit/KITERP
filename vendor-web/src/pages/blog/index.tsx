@@ -16,6 +16,27 @@ import {
 } from '@/hooks/useBlog'
 import type { BlogPost, BlogPostCreate, BlogPostUpdate } from '@/api/blog'
 
+// ── shared dark-mode chrome ───────────────────────────────────────────────────
+
+const blogLabelClass = 'text-xs font-medium text-muted-foreground block mb-1'
+const blogLabelClassSpaced = 'text-xs font-medium text-muted-foreground block mb-1.5'
+
+const blogInputClass =
+  'w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring [color-scheme:dark]'
+
+const blogInputCompactClass =
+  'w-full rounded-lg border border-input bg-background px-2.5 py-1.5 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring [color-scheme:dark]'
+
+const blogSearchClass =
+  'h-10 w-full rounded-xl border border-input bg-background pl-9 pr-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring [color-scheme:dark]'
+
+const blogFilterActiveClass = 'border-primary bg-primary text-primary-foreground'
+const blogFilterInactiveClass =
+  'border-border bg-background text-muted-foreground hover:bg-muted/50 hover:text-foreground'
+
+const blogStatusPublishedClass = 'bg-green-500/15 text-green-700 dark:text-green-300'
+const blogStatusDraftClass = 'bg-amber-500/15 text-amber-700 dark:text-amber-300'
+
 // ── helpers ───────────────────────────────────────────────────────────────────
 
 function fmtDate(iso?: string | null) {
@@ -102,26 +123,31 @@ function BlogEditor({ initial, onSave, onCancel, saving }: EditorProps) {
   return (
     <form onSubmit={handleSubmit} className="flex flex-col h-full">
       {/* Top bar */}
-      <div className="flex items-center gap-3 px-5 py-3 border-b bg-white shrink-0">
-        <button type="button" onClick={onCancel} className="p-1.5 rounded-lg hover:bg-gray-100">
-          <ChevronLeft className="w-4 h-4 text-gray-500" />
+      <div className="flex items-center gap-3 border-b border-border bg-card px-5 py-3 shrink-0">
+        <button
+          type="button"
+          onClick={onCancel}
+          className="rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+        >
+          <ChevronLeft className="h-4 w-4" />
         </button>
-        <h2 className="text-sm font-semibold text-gray-800 flex-1">
+        <h2 className="flex-1 text-sm font-semibold text-foreground">
           {initial ? 'Edit Post' : 'New Post'}
         </h2>
         <div className="flex items-center gap-2">
           <button
             type="button"
             onClick={() => setIsPublished(p => !p)}
-            className={cn('flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors',
+            className={cn(
+              'flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors',
               isPublished
-                ? 'bg-green-50 text-green-700 border-green-200 hover:bg-green-100'
-                : 'bg-gray-50 text-gray-600 border-gray-200 hover:bg-gray-100'
+                ? 'border-primary/30 bg-primary/10 text-primary hover:bg-primary/15'
+                : 'border-border bg-muted/40 text-muted-foreground hover:bg-muted',
             )}
           >
             {isPublished ? <><Eye className="w-3.5 h-3.5" /> Published</> : <><EyeOff className="w-3.5 h-3.5" /> Draft</>}
           </button>
-          <Button type="submit" size="sm" disabled={saving} className="gap-1.5 text-xs bg-primary hover:bg-primary/90 text-white">
+          <Button type="submit" size="sm" disabled={saving} className="gap-1.5 text-xs">
             {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
             {saving ? 'Saving…' : 'Save'}
           </Button>
@@ -134,49 +160,49 @@ function BlogEditor({ initial, onSave, onCancel, saving }: EditorProps) {
         <div className="flex-1 overflow-y-auto p-5 space-y-4">
           {/* Title */}
           <div>
-            <label className="text-xs font-medium text-gray-600 block mb-1">Post Title *</label>
+            <label className={blogLabelClass}>Post Title *</label>
             <input
               value={title}
               onChange={e => handleTitleChange(e.target.value)}
               placeholder="Your compelling blog title…"
-              className="w-full text-xl font-bold border-0 border-b-2 border-gray-200 focus:border-primary outline-none py-2 bg-transparent placeholder:text-gray-300"
+              className="w-full border-0 border-b-2 border-border bg-transparent py-2 text-xl font-bold text-foreground outline-none placeholder:text-muted-foreground/50 focus:border-primary"
               required
             />
           </div>
 
           {/* Excerpt */}
           <div>
-            <label className="text-xs font-medium text-gray-600 block mb-1">Excerpt / Summary</label>
+            <label className={blogLabelClass}>Excerpt / Summary</label>
             <textarea
               value={excerpt}
               onChange={e => setExcerpt(e.target.value)}
               placeholder="A short description shown in blog listings…"
               rows={2}
-              className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-ring resize-none"
+              className={cn(blogInputClass, 'resize-none')}
             />
           </div>
 
           {/* Content */}
           <div>
-            <div className="flex items-center justify-between mb-1">
-              <label className="text-xs font-medium text-gray-600">Content (Markdown or plain text)</label>
-              <span className="text-xs text-gray-400">~{readingMins} min read · {wordCount(content)} words</span>
+            <div className="mb-1 flex items-center justify-between">
+              <label className={blogLabelClass}>Content (Markdown or plain text)</label>
+              <span className="text-xs text-muted-foreground">~{readingMins} min read · {wordCount(content)} words</span>
             </div>
             <textarea
               value={content}
               onChange={e => setContent(e.target.value)}
               placeholder={`Write your blog post here.\n\nYou can use Markdown:\n## Heading\n**bold**, *italic*, [link](url)\n- bullet list`}
               rows={18}
-              className="w-full text-sm font-mono border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-ring resize-none leading-relaxed"
+              className={cn(blogInputClass, 'resize-none font-mono leading-relaxed')}
             />
           </div>
         </div>
 
         {/* Sidebar */}
-        <div className="w-64 shrink-0 border-l bg-gray-50 overflow-y-auto p-4 space-y-5">
+        <div className="w-64 shrink-0 overflow-y-auto border-l border-border bg-muted/30 p-4 space-y-5">
           {/* Cover image */}
           <div>
-            <label className="text-xs font-medium text-gray-600 block mb-1.5">Cover image</label>
+            <label className={blogLabelClassSpaced}>Cover image</label>
             <ImageSourcePicker
               title="Cover image"
               accept="image/jpeg,image/png,image/webp,image/gif"
@@ -184,15 +210,15 @@ function BlogEditor({ initial, onSave, onCancel, saving }: EditorProps) {
               uploading={coverUploading}
               onFile={uploadCoverFile}
               onUrl={(url) => setCoverUrl(url)}
-              buttonClassName="w-full text-xs mb-2 h-8 border-primary/30 text-primary hover:bg-accent"
+              buttonClassName="mb-2 h-8 w-full border-primary/30 text-xs text-primary hover:bg-accent"
             />
             {coverUrl && (
               <SingleImagePreview
                 url={coverUrl}
                 alt="Cover image"
                 resolveUrl={mediaUrl}
-                className="mt-2 rounded-lg w-full"
-                imgClassName="rounded-lg w-full h-28 object-cover border border-gray-100"
+                className="mt-2 w-full rounded-lg"
+                imgClassName="h-28 w-full rounded-lg border border-border object-cover"
                 editable
                 onSave={uploadCoverFile}
               />
@@ -201,50 +227,50 @@ function BlogEditor({ initial, onSave, onCancel, saving }: EditorProps) {
 
           {/* Slug */}
           <div>
-            <label className="text-xs font-medium text-gray-600 block mb-1.5">URL Slug</label>
+            <label className={blogLabelClassSpaced}>URL Slug</label>
             <input
               value={slug}
               onChange={e => setSlug(e.target.value)}
               placeholder="my-post-slug"
-              className="w-full py-1.5 px-2.5 text-xs font-mono border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-ring"
+              className={cn(blogInputCompactClass, 'font-mono')}
             />
           </div>
 
           {/* Author */}
           <div>
-            <label className="text-xs font-medium text-gray-600 block mb-1.5">Author Name</label>
+            <label className={blogLabelClassSpaced}>Author Name</label>
             <input
               value={authorName}
               onChange={e => setAuthorName(e.target.value)}
               placeholder="Your Name"
-              className="w-full py-1.5 px-2.5 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-ring"
+              className={blogInputCompactClass}
             />
           </div>
 
           {/* Category */}
           <div>
-            <label className="text-xs font-medium text-gray-600 block mb-1.5">Category</label>
+            <label className={blogLabelClassSpaced}>Category</label>
             <input
               value={category}
               onChange={e => setCategory(e.target.value)}
               placeholder="e.g. Product, News"
-              className="w-full py-1.5 px-2.5 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-ring"
+              className={blogInputCompactClass}
             />
           </div>
 
           {/* Tags */}
           <div>
-            <label className="text-xs font-medium text-gray-600 block mb-1.5">Tags (comma-separated)</label>
+            <label className={blogLabelClassSpaced}>Tags (comma-separated)</label>
             <input
               value={tagsRaw}
               onChange={e => setTagsRaw(e.target.value)}
               placeholder="tips, guide, product"
-              className="w-full py-1.5 px-2.5 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-ring"
+              className={blogInputCompactClass}
             />
             {tagsRaw && (
-              <div className="flex flex-wrap gap-1 mt-1.5">
+              <div className="mt-1.5 flex flex-wrap gap-1">
                 {tagsRaw.split(',').map(t => t.trim()).filter(Boolean).map(t => (
-                  <span key={t} className="text-xs bg-primary/10 text-primary px-1.5 py-0.5 rounded-full">{t}</span>
+                  <span key={t} className="rounded-full bg-primary/10 px-1.5 py-0.5 text-xs text-primary">{t}</span>
                 ))}
               </div>
             )}
@@ -252,7 +278,7 @@ function BlogEditor({ initial, onSave, onCancel, saving }: EditorProps) {
 
           {/* Status info */}
           {initial && (
-            <div className="text-xs text-gray-400 space-y-1 border-t pt-3">
+            <div className="space-y-1 border-t border-border pt-3 text-xs text-muted-foreground">
               <div>Created: {fmtDate(initial.created_at)}</div>
               {initial.published_at && <div>Published: {fmtDate(initial.published_at)}</div>}
             </div>
@@ -287,7 +313,7 @@ export default function BlogManagerPage() {
 
   if (editingPost) {
     return (
-      <div className="h-screen flex flex-col bg-white">
+      <div className="flex h-screen flex-col bg-background">
         <BlogEditor
           initial={editingPost === 'new' ? undefined : editingPost}
           onSave={handleSave}
@@ -310,31 +336,34 @@ export default function BlogManagerPage() {
             <Newspaper className="w-5 h-5 text-primary" />
           </div>
           <div>
-            <h1 className="text-xl font-bold text-gray-900">Blog Manager</h1>
-            <p className="text-sm text-gray-500">{total} post{total !== 1 ? 's' : ''} total</p>
+            <h1 className="text-xl font-bold text-foreground">Blog Manager</h1>
+            <p className="text-sm text-muted-foreground">{total} post{total !== 1 ? 's' : ''} total</p>
           </div>
         </div>
         <Button
           onClick={() => setEditingPost('new')}
-          className="sm:ml-auto gap-2 bg-primary hover:bg-primary/90 text-white"
+          className="sm:ml-auto gap-2"
         >
           <Plus className="w-4 h-4" /> New Post
         </Button>
       </div>
 
       {/* Filters */}
-      <div className="flex flex-col sm:flex-row gap-3 mb-5">
+      <div className="mb-5 flex flex-col gap-3 sm:flex-row">
         <div className="relative flex-1">
-          <Search className="absolute left-3 top-2.5 w-4 h-4 text-gray-400" />
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <input
             value={search}
             onChange={e => setSearch(e.target.value)}
             placeholder="Search posts…"
-            className="w-full pl-9 pr-3 py-2 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-ring"
+            className={blogSearchClass}
           />
           {search && (
-            <button onClick={() => setSearch('')} className="absolute right-3 top-2.5">
-              <X className="w-4 h-4 text-gray-400 hover:text-gray-600" />
+            <button
+              onClick={() => setSearch('')}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+            >
+              <X className="h-4 w-4" />
             </button>
           )}
         </div>
@@ -343,10 +372,9 @@ export default function BlogManagerPage() {
             <button
               key={String(val)}
               onClick={() => setFilterPublished(val)}
-              className={cn('px-3 py-1.5 rounded-lg text-sm font-medium border transition-colors',
-                filterPublished === val
-                  ? 'bg-primary text-white border-primary'
-                  : 'text-gray-600 border-gray-200 hover:bg-gray-50'
+              className={cn(
+                'h-10 rounded-lg border px-3 text-sm font-medium transition-colors',
+                filterPublished === val ? blogFilterActiveClass : blogFilterInactiveClass,
               )}
             >
               {val === undefined ? 'All' : val ? 'Published' : 'Drafts'}
@@ -358,14 +386,14 @@ export default function BlogManagerPage() {
       {/* List */}
       {isLoading ? (
         <div className="flex justify-center py-20">
-          <Loader2 className="w-8 h-8 animate-spin text-primary/70" />
+          <Loader2 className="h-8 w-8 animate-spin text-primary/70" />
         </div>
       ) : posts.length === 0 ? (
-        <div className="text-center py-20 border-2 border-dashed border-gray-200 rounded-2xl">
-          <BookOpen className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-          <h3 className="text-gray-500 font-medium">No posts yet</h3>
-          <p className="text-sm text-gray-400 mt-1 mb-4">Create your first blog post to engage your customers</p>
-          <Button onClick={() => setEditingPost('new')} size="sm" className="gap-2 bg-primary hover:bg-primary/90 text-white">
+        <div className="rounded-2xl border-2 border-dashed border-border py-20 text-center">
+          <BookOpen className="mx-auto mb-3 h-12 w-12 text-muted-foreground/40" />
+          <h3 className="font-medium text-muted-foreground">No posts yet</h3>
+          <p className="mt-1 mb-4 text-sm text-muted-foreground/80">Create your first blog post to engage your customers</p>
+          <Button onClick={() => setEditingPost('new')} size="sm" className="gap-2">
             <Plus className="w-4 h-4" /> Create Post
           </Button>
         </div>
@@ -377,49 +405,50 @@ export default function BlogManagerPage() {
             return (
             <div
               key={post.id}
-              className="flex gap-4 bg-white rounded-2xl border border-gray-100 hover:border-primary/30 hover:shadow-sm transition-all p-4 max-h-[90vh] overflow-y-auto"
+              className="flex max-h-[90vh] gap-4 overflow-y-auto rounded-2xl border border-border bg-card p-4 transition-all hover:border-primary/30 hover:shadow-sm"
             >
               {/* Cover thumbnail */}
               {post.cover_url ? (
-                <img src={mediaUrl(post.cover_url)} alt="" className="w-20 h-20 sm:w-24 sm:h-24 rounded-xl object-cover shrink-0" />
+                <img src={mediaUrl(post.cover_url)} alt="" className="h-20 w-20 shrink-0 rounded-xl object-cover sm:h-24 sm:w-24" />
               ) : (
-                <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-xl bg-gray-100 flex items-center justify-center shrink-0">
-                  <Newspaper className="w-8 h-8 text-gray-300" />
+                <div className="flex h-20 w-20 shrink-0 items-center justify-center rounded-xl bg-muted sm:h-24 sm:w-24">
+                  <Newspaper className="h-8 w-8 text-muted-foreground/40" />
                 </div>
               )}
 
               {/* Content */}
-              <div className="flex-1 min-w-0">
-                <div className="flex items-start gap-2 flex-wrap">
-                  <h3 className="text-sm font-semibold text-gray-900 flex-1 min-w-0 line-clamp-1">{post.title}</h3>
-                  <span className={cn('shrink-0 text-xs font-bold px-2 py-0.5 rounded-full',
-                    post.is_published ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'
+              <div className="min-w-0 flex-1">
+                <div className="flex flex-wrap items-start gap-2">
+                  <h3 className="line-clamp-1 min-w-0 flex-1 text-sm font-semibold text-foreground">{post.title}</h3>
+                  <span className={cn(
+                    'shrink-0 rounded-full px-2 py-0.5 text-xs font-bold',
+                    post.is_published ? blogStatusPublishedClass : blogStatusDraftClass,
                   )}>
                     {post.is_published ? 'Published' : 'Draft'}
                   </span>
                 </div>
                 {post.excerpt && (
-                  <p className="text-xs text-gray-500 mt-1 line-clamp-2">{post.excerpt}</p>
+                  <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">{post.excerpt}</p>
                 )}
-                <div className="flex items-center gap-3 mt-2 flex-wrap text-xs text-gray-400">
+                <div className="mt-2 flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
                   {post.category && (
                     <span className="flex items-center gap-1">
-                      <Tag className="w-3 h-3" />{post.category}
+                      <Tag className="h-3 w-3" />{post.category}
                     </span>
                   )}
                   {post.reading_minutes && (
                     <span className="flex items-center gap-1">
-                      <Clock className="w-3 h-3" />{post.reading_minutes} min
+                      <Clock className="h-3 w-3" />{post.reading_minutes} min
                     </span>
                   )}
                   <span className="flex items-center gap-1">
-                    <Calendar className="w-3 h-3" />
+                    <Calendar className="h-3 w-3" />
                     {post.is_published ? fmtDate(post.published_at) : `Updated ${fmtDate(post.updated_at)}`}
                   </span>
                   {post.tags.length > 0 && (
-                    <span className="flex items-center gap-1 flex-wrap">
+                    <span className="flex flex-wrap items-center gap-1">
                       {post.tags.slice(0, 3).map(t => (
-                        <span key={t} className="bg-gray-100 px-1.5 py-0.5 rounded-full">{t}</span>
+                        <span key={t} className="rounded-full bg-muted px-1.5 py-0.5">{t}</span>
                       ))}
                     </span>
                   )}
@@ -427,7 +456,7 @@ export default function BlogManagerPage() {
               </div>
 
               {/* Actions — explicit publish labels (icon-only EyeOff read as “hidden”, not publish). */}
-              <div className="flex items-center gap-2 shrink-0 flex-wrap justify-end">
+              <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
                 {post.is_published ? (
                   <Button
                     type="button"
@@ -435,7 +464,7 @@ export default function BlogManagerPage() {
                     size="sm"
                     disabled={publishBusy}
                     title="Remove post from your public blog"
-                    className="h-8 gap-1.5 text-xs font-medium border-amber-200 text-amber-800 hover:bg-amber-50"
+                    className="h-8 gap-1.5 border-amber-500/30 text-xs font-medium text-amber-700 hover:bg-amber-500/10 dark:text-amber-300"
                     onClick={() => publishMutation.mutate({ id: post.id, publish: false })}
                   >
                     {publishBusy ? (
@@ -451,7 +480,7 @@ export default function BlogManagerPage() {
                     size="sm"
                     disabled={publishBusy}
                     title="Make this post visible on your business front blog"
-                    className="h-8 gap-1.5 text-xs font-medium bg-emerald-600 hover:bg-emerald-700 text-white"
+                    className="h-8 gap-1.5 text-xs font-medium"
                     onClick={() => publishMutation.mutate({ id: post.id, publish: true })}
                   >
                     {publishBusy ? (
@@ -464,30 +493,33 @@ export default function BlogManagerPage() {
                 )}
                 <button
                   onClick={() => setEditingPost(post)}
-                  className="p-2 rounded-lg text-gray-400 hover:bg-accent hover:text-primary transition-colors"
+                  className="rounded-lg p-2 text-muted-foreground transition-colors hover:bg-accent hover:text-primary"
                   title="Edit post"
                 >
-                  <Pencil className="w-4 h-4" />
+                  <Pencil className="h-4 w-4" />
                 </button>
                 {deleteConfirmId === post.id ? (
                   <div className="flex items-center gap-1">
                     <button
                       onClick={() => { deleteMutation.mutate(post.id); setDeleteConfirmId(null) }}
-                      className="px-2 py-1 text-xs font-medium bg-red-600 text-white rounded-lg hover:bg-red-700"
+                      className="rounded-lg bg-destructive px-2 py-1 text-xs font-medium text-destructive-foreground hover:bg-destructive/90"
                     >
                       Confirm
                     </button>
-                    <button onClick={() => setDeleteConfirmId(null)} className="p-1 text-gray-400 hover:text-gray-600">
-                      <X className="w-3.5 h-3.5" />
+                    <button
+                      onClick={() => setDeleteConfirmId(null)}
+                      className="p-1 text-muted-foreground hover:text-foreground"
+                    >
+                      <X className="h-3.5 w-3.5" />
                     </button>
                   </div>
                 ) : (
                   <button
                     onClick={() => setDeleteConfirmId(post.id)}
-                    className="p-2 rounded-lg text-gray-400 hover:bg-red-50 hover:text-red-500 transition-colors"
+                    className="rounded-lg p-2 text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
                     title="Delete post"
                   >
-                    <Trash2 className="w-4 h-4" />
+                    <Trash2 className="h-4 w-4" />
                   </button>
                 )}
               </div>

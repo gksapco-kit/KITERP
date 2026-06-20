@@ -2,15 +2,16 @@ import { useCallback, useEffect, useState } from 'react'
 import { useMutation, useQueryClient, useQuery } from '@tanstack/react-query'
 import * as api from '@/api/finance'
 import { cn } from '@/lib/utils'
+import { Select } from '@/components/ui/select'
 import { Lock, Unlock, XCircle, Loader2, ChevronRight, ChevronDown } from 'lucide-react'
 import { finKeys } from '@/hooks/useFinance'
 import { formatIsoDate, isAuditWindowAfterFyEnd } from '@/lib/fiscalYearPreview'
 import { toast } from 'sonner'
 
 const STATUS: Record<string, { label: string; cls: string }> = {
-  open: { label: 'Open', cls: 'bg-emerald-100 text-emerald-800' },
-  locked: { label: 'Locked', cls: 'bg-amber-100 text-amber-800' },
-  closed: { label: 'Closed', cls: 'bg-slate-200 text-slate-700' },
+  open: { label: 'Open', cls: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-300' },
+  locked: { label: 'Locked', cls: 'bg-amber-100 text-amber-800 dark:bg-amber-950/50 dark:text-amber-300' },
+  closed: { label: 'Closed', cls: 'bg-muted text-muted-foreground' },
 }
 
 type FyRow = {
@@ -150,31 +151,31 @@ export default function CompanyFiscalRow({
   return (
     <div
       className={cn(
-        'border border-slate-200 rounded-lg overflow-hidden bg-white',
-        expanded && 'ring-1 ring-emerald-200/80',
+        'border border-border rounded-lg overflow-hidden bg-card',
+        expanded && 'ring-1 ring-primary/30',
       )}
     >
       <button
         type="button"
         onClick={() => { setExpanded(e => !e) }}
-        className="w-full flex items-center gap-3 px-4 py-3 text-left bg-slate-50/80 hover:bg-slate-100/80 transition-colors"
+        className="w-full flex items-center gap-3 px-4 py-3 text-left bg-muted/25 hover:bg-muted/40 transition-colors"
         aria-expanded={expanded}
       >
         <ChevronRight
-          className={cn('w-5 h-5 text-slate-500 shrink-0 transition-transform', expanded && 'rotate-90')}
+          className={cn('w-5 h-5 text-muted-foreground shrink-0 transition-transform', expanded && 'rotate-90')}
         />
         <div className="flex-1 min-w-0">
-          <p className="text-sm font-semibold text-slate-900">
-            <span className="font-mono text-indigo-700">{company.code}</span>
-            <span className="text-slate-400 mx-1.5">·</span>
+          <p className="text-sm font-semibold text-foreground">
+            <span className="font-mono text-primary">{company.code}</span>
+            <span className="text-muted-foreground mx-1.5">·</span>
             {company.name}
           </p>
-          <p className="text-xs text-slate-500 mt-0.5">
+          <p className="text-xs text-muted-foreground mt-0.5">
             {nCal === 0
               ? 'No fiscal calendars linked yet — use Add calendar to create one.'
               : `${nCal} linked calendar${nCal === 1 ? '' : 's'}`}
             {currentMeta?.is_current && fy && (
-              <span className="ml-2 text-emerald-700 font-medium">
+              <span className="ml-2 text-emerald-600 dark:text-emerald-400 font-medium">
                 · Current: [{fy.variant_code ?? '—'}] {fy.name}
               </span>
             )}
@@ -183,71 +184,69 @@ export default function CompanyFiscalRow({
       </button>
 
       {expanded && (
-        <div className="border-t border-slate-200 px-4 py-4 space-y-4 bg-white">
+        <div className="border-t border-border px-4 py-4 space-y-4 bg-card">
           {fiscalYears.length === 0 ? null : (
             <>
               <div>
-                <label className="text-xs font-bold text-slate-500 uppercase">Fiscal year for this business unit</label>
-                <select
+                <label className="text-xs font-bold text-muted-foreground uppercase">Fiscal year for this business unit</label>
+                <Select
                   value={fyId}
-                  onChange={e => { setFyId(e.target.value) }}
-                  className="mt-1 w-full max-w-2xl border border-slate-200 rounded-lg px-3 py-2 text-sm"
-                >
-                  {fiscalYears.map(f => (
-                    <option key={f.id} value={f.id}>
-                      [{f.variant_code ?? '—'}] {f.name} ({f.start_date} – {f.end_date})
-                      {f.companies?.find(c => c.company_id === company.id)?.is_current ? ' — current' : ''}
-                    </option>
-                  ))}
-                </select>
+                  onChange={setFyId}
+                  options={fiscalYears.map(f => ({
+                    value: f.id,
+                    label: `[${f.variant_code ?? '—'}] ${f.name} (${f.start_date} – ${f.end_date})${f.companies?.find(c => c.company_id === company.id)?.is_current ? ' — current' : ''}`,
+                  }))}
+                  aria-label="Fiscal year for this business unit"
+                  className="mt-1 w-full max-w-2xl"
+                />
                 {fy && (
-                  <p className="text-xs text-slate-500 mt-1">Range: {fy.start_date} to {fy.end_date}</p>
+                  <p className="text-xs text-muted-foreground mt-1">Range: {fy.start_date} to {fy.end_date}</p>
                 )}
               </div>
 
               <form
                 onSubmit={onAddAudit}
-                className="bg-slate-50 border border-slate-200 rounded-lg p-3 space-y-2"
+                className="bg-muted/30 border border-border rounded-lg p-3 space-y-2"
               >
-                <h4 className="text-xs font-medium text-slate-800">Add audit / adjustment period</h4>
-                <p className="text-xs text-slate-600">
-                  Use <strong className="text-slate-700">Save</strong> at the top or bottom of this page to store the
+                <h4 className="text-xs font-medium text-foreground">Add audit / adjustment period</h4>
+                <p className="text-xs text-muted-foreground">
+                  Use <strong className="text-foreground">Save</strong> at the top or bottom of this page to store the
                   period. Post-close window, starting after{' '}
                   {fy ? <strong>{formatIsoDate(fy.end_date)}</strong> : 'FY end'}. A range that spans
                   more than one month is stored as one period per month.
                 </p>
                 <div className="grid sm:grid-cols-3 gap-2">
                   <input
-                    className="border border-slate-200 rounded-lg px-2 py-1.5 text-sm"
+                    className="border border-input bg-background text-foreground rounded-lg px-2 py-1.5 text-sm placeholder:text-muted-foreground"
                     value={addAuditName}
                     onChange={e => { setAddAuditName(e.target.value) }}
                     placeholder="Label"
                   />
                   <input
                     type="date"
-                    className="border border-slate-200 rounded-lg px-2 py-1.5 text-sm"
+                    className="border border-input bg-background text-foreground rounded-lg px-2 py-1.5 text-sm [color-scheme:light] dark:[color-scheme:dark]"
                     value={addAuditStart}
                     onChange={e => { setAddAuditStart(e.target.value) }}
                   />
                   <input
                     type="date"
-                    className="border border-slate-200 rounded-lg px-2 py-1.5 text-sm"
+                    className="border border-input bg-background text-foreground rounded-lg px-2 py-1.5 text-sm [color-scheme:light] dark:[color-scheme:dark]"
                     value={addAuditEnd}
                     onChange={e => { setAddAuditEnd(e.target.value) }}
                   />
                 </div>
-                <p className="text-xs text-slate-500">Press Enter in a field to save (same as Save on this page).</p>
+                <p className="text-xs text-muted-foreground">Press Enter in a field to save (same as Save on this page).</p>
               </form>
 
               {perLoad && (
-                <div className="flex items-center gap-2 text-sm text-slate-500">
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
                   <Loader2 className="w-4 h-4 animate-spin" /> Loading periods…
                 </div>
               )}
 
               {!perLoad && fyId && (
                 <div>
-                  <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wide mb-2">Periods</h4>
+                  <h4 className="text-xs font-bold text-muted-foreground uppercase tracking-wide mb-2">Periods</h4>
                   <ul className="space-y-2 max-h-96 overflow-y-auto pr-0.5">
                     {(periods as { id: string; name: string; start_date: string; end_date: string; status: string; period_number?: number; period_kind?: string }[]).map(p => {
                       const st = STATUS[p.status] || STATUS.open
@@ -257,15 +256,15 @@ export default function CompanyFiscalRow({
                       return (
                         <li
                           key={p.id}
-                          className="rounded-lg border border-slate-200 bg-white shadow-sm overflow-hidden"
+                          className="rounded-lg border border-border bg-card shadow-sm overflow-hidden"
                         >
                           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4 px-4 py-3">
                             <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1">
                               <div className="flex flex-wrap items-baseline gap-2">
-                                <span className="text-sm font-semibold text-slate-800">
+                                <span className="text-sm font-semibold text-foreground">
                                   {p.name}
                                   {p.period_number != null && (
-                                    <span className="text-slate-500 font-normal">{' '}#{p.period_number}</span>
+                                    <span className="text-muted-foreground font-normal">{' '}#{p.period_number}</span>
                                   )}
                                 </span>
                                 {isAudit && (
@@ -276,7 +275,7 @@ export default function CompanyFiscalRow({
                                   </span>
                                 )}
                               </div>
-                              <span className="text-sm text-slate-600 font-mono tabular-nums sm:border-l sm:border-slate-200 sm:pl-3">
+                              <span className="text-sm text-muted-foreground font-mono tabular-nums sm:border-l sm:border-border sm:pl-3">
                                 {p.start_date} - {p.end_date}
                               </span>
                             </div>
@@ -285,7 +284,7 @@ export default function CompanyFiscalRow({
                                 className={cn(
                                   'inline-flex text-xs font-medium px-2.5 py-0.5 rounded-full border',
                                   st.cls,
-                                  p.status === 'open' ? 'border-emerald-200/80' : 'border-transparent',
+                                  p.status === 'open' ? 'border-emerald-200/80 dark:border-emerald-800' : 'border-transparent',
                                 )}
                               >
                                 {st.label}
@@ -297,7 +296,7 @@ export default function CompanyFiscalRow({
                                       type="button"
                                       disabled={busy}
                                       onClick={() => { if (confirm('Lock this period? Posting to this range will be blocked.')) lockMut.mutate(p.id) }}
-                                      className="inline-flex items-center gap-1 text-xs font-medium px-2.5 py-1.5 rounded-md border-2 border-amber-300 bg-amber-50 text-amber-900 hover:bg-amber-100 disabled:opacity-50"
+                                      className="inline-flex items-center gap-1 text-xs font-medium px-2.5 py-1.5 rounded-md border-2 border-amber-300 dark:border-amber-700 bg-amber-50 dark:bg-amber-950/40 text-amber-900 dark:text-amber-200 hover:bg-amber-100 dark:hover:bg-amber-950/60 disabled:opacity-50"
                                     >
                                       <Lock className="w-3.5 h-3.5" />
                                       Lock
@@ -306,7 +305,7 @@ export default function CompanyFiscalRow({
                                       type="button"
                                       disabled={busy}
                                       onClick={() => { if (confirm('Close this period? You can still reopen for corrections with admin rights.')) closeMut.mutate(p.id) }}
-                                      className="inline-flex items-center gap-1 text-xs font-medium px-2.5 py-1.5 rounded-md border border-slate-300 bg-slate-100/80 text-slate-800 hover:bg-slate-200/80 disabled:opacity-50"
+                                      className="inline-flex items-center gap-1 text-xs font-medium px-2.5 py-1.5 rounded-md border border-border bg-muted/40 text-foreground hover:bg-muted/60 disabled:opacity-50"
                                     >
                                       <XCircle className="w-3.5 h-3.5" />
                                       Close
@@ -318,7 +317,7 @@ export default function CompanyFiscalRow({
                                     type="button"
                                     disabled={busy}
                                     onClick={() => { if (confirm('Reopen this period for new postings?')) reopenMut.mutate(p.id) }}
-                                    className="inline-flex items-center gap-1 text-xs font-medium px-2.5 py-1.5 rounded-md border border-emerald-200 bg-emerald-50 text-emerald-800 hover:bg-emerald-100 disabled:opacity-50"
+                                    className="inline-flex items-center gap-1 text-xs font-medium px-2.5 py-1.5 rounded-md border border-emerald-200 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-800 dark:text-emerald-300 hover:bg-emerald-100 dark:hover:bg-emerald-950/60 disabled:opacity-50"
                                   >
                                     <Unlock className="w-3.5 h-3.5" />
                                     Reopen
@@ -327,7 +326,7 @@ export default function CompanyFiscalRow({
                                 <button
                                   type="button"
                                   onClick={() => { setPeriodDetailId(showDetail ? null : p.id) }}
-                                  className="p-1.5 rounded-md text-slate-400 hover:text-slate-600 hover:bg-slate-100 -mr-1"
+                                  className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted -mr-1"
                                   aria-expanded={showDetail}
                                   title={showDetail ? 'Hide details' : 'Show details'}
                                 >
@@ -339,10 +338,10 @@ export default function CompanyFiscalRow({
                             </div>
                           </div>
                           {showDetail && (
-                            <div className="border-t border-slate-100 bg-slate-50/80 px-4 py-2.5 text-xs text-slate-600">
+                            <div className="border-t border-border bg-muted/25 px-4 py-2.5 text-xs text-muted-foreground">
                               <p>
-                                <span className="font-semibold text-slate-500">Period ID:</span>{' '}
-                                <code className="text-xs text-slate-700">{p.id}</code>
+                                <span className="font-semibold text-foreground">Period ID:</span>{' '}
+                                <code className="text-xs text-foreground">{p.id}</code>
                               </p>
                               <p className="mt-1">
                                 {isAudit
@@ -355,7 +354,7 @@ export default function CompanyFiscalRow({
                       )
                     })}
                     {periods.length === 0 && !perLoad && (
-                      <li className="rounded-lg border border-dashed border-slate-200 px-4 py-8 text-center text-sm text-slate-500">
+                      <li className="rounded-lg border border-dashed border-border px-4 py-8 text-center text-sm text-muted-foreground">
                         No periods for this year.
                       </li>
                     )}

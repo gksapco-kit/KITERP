@@ -203,7 +203,7 @@ export function useFieldHelpUi({
             role="presentation"
           >
             <div
-              className="w-full max-w-md overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-2xl"
+              className="w-full max-w-md overflow-hidden rounded-2xl border border-border bg-card text-foreground shadow-2xl"
               role="dialog"
               aria-labelledby={titleId}
               aria-modal="true"

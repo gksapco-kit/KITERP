@@ -78,7 +78,7 @@ function LayoutOptionCard({
             <SectionLayoutPreview blockType={def.type} variantProps={merged} sampleUrls={sampleUrls} />
           </div>
         ) : (
-          <div className="absolute inset-2 rounded-md border border-slate-200/80 bg-white shadow-sm overflow-hidden flex flex-col">
+          <div className="absolute inset-2 rounded-md border border-border/80 bg-white shadow-sm overflow-hidden flex flex-col">
             {def.type === 'footer' && (
               <div className="flex-1 min-h-0 bg-gradient-to-b from-slate-50 to-white p-1 space-y-0.5">
                 <div className="h-1.5 w-1/3 mx-auto rounded bg-slate-200" />
@@ -332,7 +332,7 @@ export function SectionLayoutPickerModal({
       <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[99998]" onClick={onClose} aria-hidden />
       <div className="fixed inset-0 z-[99999] flex items-center justify-center p-3 sm:p-4 pointer-events-none">
         <div
-          className="pointer-events-auto w-full max-w-5xl max-h-[90vh] bg-white rounded-2xl shadow-2xl overflow-hidden flex flex-col"
+          className="pointer-events-auto w-full max-w-5xl max-h-[90vh] bg-card border border-border text-foreground rounded-2xl shadow-2xl overflow-hidden flex flex-col"
           onClick={e => e.stopPropagation()}
           role="dialog"
           aria-modal="true"

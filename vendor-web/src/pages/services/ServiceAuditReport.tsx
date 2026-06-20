@@ -2,6 +2,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { TableColumnLabel } from '@/components/common/FieldLabel'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
+import { Select, selectOptionsWithBlank } from '@/components/ui/select'
 import { useService } from '@/hooks/useVendor'
 import { formatDateTime } from '@/lib/utils'
 import { useState, useMemo, useRef, useEffect } from 'react'
@@ -302,7 +303,7 @@ export default function ServiceAuditReport() {
               <FileDown className="w-4 h-4" />Download<ChevronDown className="w-3.5 h-3.5" />
             </Button>
             {showExportMenu && (
-              <div className="absolute right-0 top-full mt-1 w-52 bg-white rounded-lg border shadow-lg z-50 py-1 max-h-[90vh] overflow-y-auto">
+              <div className="absolute right-0 top-full mt-1 w-52 bg-popover text-popover-foreground rounded-lg border border-border shadow-lg z-50 py-1 max-h-[90vh] overflow-y-auto">
                 <button className="w-full flex items-center gap-2.5 px-3 py-2.5 text-sm text-gray-700 hover:bg-gray-50" onClick={() => { downloadFile(buildCsvContent(filteredRows, service), `${service.slug || service.name}-audit.csv`, 'text/csv;charset=utf-8;'); setShowExportMenu(false); toast.success('CSV downloaded') }}>
                   <FileDown className="w-4 h-4 text-green-600" /> Download as CSV
                 </button>
@@ -323,7 +324,7 @@ export default function ServiceAuditReport() {
               <Share2 className="w-4 h-4" />Share<ChevronDown className="w-3.5 h-3.5" />
             </Button>
             {showShareMenu && (
-              <div className="absolute right-0 top-full mt-1 w-48 bg-white rounded-lg border shadow-lg z-50 py-1 max-h-[90vh] overflow-y-auto">
+              <div className="absolute right-0 top-full mt-1 w-48 bg-popover text-popover-foreground rounded-lg border border-border shadow-lg z-50 py-1 max-h-[90vh] overflow-y-auto">
                 <button className="w-full flex items-center gap-2.5 px-3 py-2.5 text-sm text-gray-700 hover:bg-gray-50" onClick={() => { shareReport(service, filteredRows, 'copy'); setShowShareMenu(false) }}><Copy className="w-4 h-4 text-gray-400" /> Copy to Clipboard</button>
                 <button className="w-full flex items-center gap-2.5 px-3 py-2.5 text-sm text-gray-700 hover:bg-gray-50" onClick={() => { shareReport(service, filteredRows, 'whatsapp'); setShowShareMenu(false) }}><MessageCircle className="w-4 h-4 text-green-500" /> WhatsApp</button>
                 <button className="w-full flex items-center gap-2.5 px-3 py-2.5 text-sm text-gray-700 hover:bg-gray-50" onClick={() => { shareReport(service, filteredRows, 'email'); setShowShareMenu(false) }}><Mail className="w-4 h-4 text-blue-500" /> Email</button>
@@ -396,11 +397,11 @@ export default function ServiceAuditReport() {
                   <th className="text-left px-4 py-2.5"><button className="flex items-center gap-1 text-xs font-medium text-gray-500 uppercase hover:text-gray-800" onClick={() => toggleSort('newValue')}>New Value <SortIcon col="newValue" /></button></th>
                 </tr>
                 <tr className="border-b bg-gray-50/30">
-                  <th className="px-4 py-1.5"><select value={filterVersion} onChange={e => setFilterVersion(e.target.value)} className="w-full h-7 rounded border border-gray-200 bg-white px-1.5 text-xs text-gray-600 font-normal"><option value="">All</option>{uniqueVersions.map(v => <option key={v} value={v}>{v}</option>)}</select></th>
+                  <th className="px-4 py-1.5"><Select value={filterVersion} onChange={setFilterVersion} options={selectOptionsWithBlank('All', uniqueVersions.map(v => ({ value: v, label: v })))} placeholder="All" aria-label="Filter version" className="h-7 text-xs font-normal" /></th>
                   <th className="px-4 py-1.5" />
-                  <th className="px-4 py-1.5"><select value={filterUser} onChange={e => setFilterUser(e.target.value)} className="w-full h-7 rounded border border-gray-200 bg-white px-1.5 text-xs text-gray-600 font-normal"><option value="">All</option>{uniqueUsers.map(u => <option key={u} value={u}>{u}</option>)}</select></th>
-                  <th className="px-4 py-1.5"><select value={filterAction} onChange={e => setFilterAction(e.target.value as any)} className="w-full h-7 rounded border border-gray-200 bg-white px-1.5 text-xs text-gray-600 font-normal"><option value="">All</option><option value="Created">Created</option><option value="Updated">Updated</option></select></th>
-                  <th className="px-4 py-1.5"><select value={filterField} onChange={e => setFilterField(e.target.value)} className="w-full h-7 rounded border border-gray-200 bg-white px-1.5 text-xs text-gray-600 font-normal"><option value="">All</option>{uniqueFields.map(f => <option key={f} value={f}>{f}</option>)}</select></th>
+                  <th className="px-4 py-1.5"><Select value={filterUser} onChange={setFilterUser} options={selectOptionsWithBlank('All', uniqueUsers.map(u => ({ value: u, label: u })))} placeholder="All" aria-label="Filter user" className="h-7 text-xs font-normal" /></th>
+                  <th className="px-4 py-1.5"><Select value={filterAction} onChange={(v) => setFilterAction(v as any)} options={selectOptionsWithBlank('All', [{ value: 'Created', label: 'Created' }, { value: 'Updated', label: 'Updated' }])} placeholder="All" aria-label="Filter action" className="h-7 text-xs font-normal" /></th>
+                  <th className="px-4 py-1.5"><Select value={filterField} onChange={setFilterField} options={selectOptionsWithBlank('All', uniqueFields.map(f => ({ value: f, label: f })))} placeholder="All" aria-label="Filter field" className="h-7 text-xs font-normal" /></th>
                   <th className="px-4 py-1.5"><input type="text" placeholder="Search..." value={searchOld} onChange={e => setSearchOld(e.target.value)} className="w-full h-7 rounded border border-gray-200 bg-white px-2 text-xs text-gray-600 font-normal placeholder:text-gray-300 focus:outline-none focus:ring-1 focus:ring-blue-400" /></th>
                   <th className="px-4 py-1.5"><input type="text" placeholder="Search..." value={searchNew} onChange={e => setSearchNew(e.target.value)} className="w-full h-7 rounded border border-gray-200 bg-white px-2 text-xs text-gray-600 font-normal placeholder:text-gray-300 focus:outline-none focus:ring-1 focus:ring-blue-400" /></th>
                 </tr>

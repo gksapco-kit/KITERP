@@ -363,9 +363,9 @@ function SupplierEditModal({
   }, [name, contactName, email, phone, street, city, addrState, postalCode, notes, gstin, panNumber, openingBalance, supplier.id, updateMut, onClose])
 
   return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 overflow-y-auto" onClick={onClose}>
-      <div className="bg-white rounded-xl shadow-xl w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
-        <div className="flex items-center justify-between px-6 py-4 border-b sticky top-0 bg-white z-10">
+    <div data-kiterp-modal className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 overflow-y-auto" onClick={onClose}>
+      <div className="bg-card border border-border text-foreground rounded-xl shadow-2xl w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+        <div className="flex items-center justify-between px-6 py-4 border-b border-border sticky top-0 bg-card z-10">
           <h2 className="text-lg font-semibold">Edit Supplier / Vendor</h2>
           <button type="button" aria-label="Close" onClick={onClose} className="p-1 rounded-lg hover:bg-gray-100">
                 <X className="w-5 h-5" /></button>
@@ -496,9 +496,9 @@ function CustomerEditModal({
   }, [fullName, companyName, email, phone, gstin, panNumber, openingBalance, street, city, addrState, pincode, customer.id, updateMut, onClose])
 
   return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 overflow-y-auto" onClick={onClose}>
-      <div className="bg-white rounded-xl shadow-xl w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
-        <div className="flex items-center justify-between px-6 py-4 border-b sticky top-0 bg-white z-10">
+    <div data-kiterp-modal className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 overflow-y-auto" onClick={onClose}>
+      <div className="bg-card border border-border text-foreground rounded-xl shadow-2xl w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+        <div className="flex items-center justify-between px-6 py-4 border-b border-border sticky top-0 bg-card z-10">
           <h2 className="text-lg font-semibold">Edit Customer</h2>
           <button type="button" aria-label="Close" onClick={onClose} className="p-1 rounded-lg hover:bg-gray-100">
                 <X className="w-5 h-5" /></button>
@@ -623,11 +623,11 @@ function MasterDataDrawer({
     record.companyName || (bal !== undefined && bal !== 0))
 
   return (
-    <div className="fixed inset-0 z-50 flex justify-end bg-black/30" onClick={onClose}>
-      <div className="w-full max-w-xl bg-white shadow-xl overflow-y-auto" onClick={e => e.stopPropagation()}>
+    <div data-kiterp-modal className="fixed inset-0 z-50 flex justify-end bg-black/50 backdrop-blur-sm" onClick={onClose}>
+      <div className="w-full max-w-xl bg-card border-l border-border text-foreground shadow-2xl overflow-y-auto" onClick={e => e.stopPropagation()}>
 
         {/* ── Header ── */}
-        <div className="flex items-center justify-between px-6 py-4 border-b sticky top-0 bg-white z-10">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-border sticky top-0 bg-card z-10">
           <div className="flex items-center gap-3">
             {(() => {
               const storedAvatar = localStorage.getItem(`md_avatar_${record.id}`)
@@ -932,8 +932,8 @@ function MasterDataDrawer({
 
       {/* Soft Delete confirmation */}
       {confirmSoftDel && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 overflow-y-auto" onClick={() => setConfirmSoftDel(false)}>
-          <div className="bg-white rounded-xl shadow-2xl p-6 max-w-sm w-full mx-4 max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+        <div data-kiterp-modal className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 overflow-y-auto" onClick={() => setConfirmSoftDel(false)}>
+          <div className="bg-card border border-border text-foreground rounded-xl shadow-2xl p-6 max-w-sm w-full mx-4 max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
             <div className="flex items-center gap-3 mb-4">
               <div className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center shrink-0">
                 <AlertTriangle className="w-5 h-5 text-red-600" />
@@ -959,9 +959,9 @@ function MasterDataDrawer({
 
       {/* Hard Delete confirmation (suppliers only) */}
       {confirmHardDel && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 overflow-y-auto"
+        <div data-kiterp-modal className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 overflow-y-auto"
           onClick={() => { setConfirmHardDel(false); setHardDelInput('') }}>
-          <div className="bg-white rounded-xl shadow-2xl p-6 max-w-sm w-full mx-4 max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+          <div className="bg-card border border-border text-foreground rounded-xl shadow-2xl p-6 max-w-sm w-full mx-4 max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
             <div className="flex items-center gap-3 mb-4">
               <div className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center shrink-0">
                 <Trash className="w-5 h-5 text-red-700" />

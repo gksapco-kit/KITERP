@@ -10,6 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Select, selectOptionsWithBlank } from '@/components/ui/select'
 import {
   useProducts,
   useInventorySummary,
@@ -138,16 +139,19 @@ export default function Inventory() {
           {stores.length > 0 && (
             <div className="flex items-center gap-2 mt-1.5">
               <Store className="w-4 h-4 text-gray-400" />
-              <select
+              <Select
                 value={selectedStoreId}
-                onChange={e => setSelectedStoreId(e.target.value)}
-                className="text-sm border rounded-md px-2 py-1 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white"
-              >
-                <option value="all">All Stores (Global)</option>
-                {stores.map(s => (
-                  <option key={s.id} value={s.id}>{s.name}{s.code ? ` · ${s.code}` : ''}</option>
-                ))}
-              </select>
+                onChange={setSelectedStoreId}
+                options={[
+                  { value: 'all', label: 'All Stores (Global)' },
+                  ...stores.map(s => ({
+                    value: s.id,
+                    label: `${s.name}${s.code ? ` · ${s.code}` : ''}`,
+                  })),
+                ]}
+                aria-label="Store filter"
+                className="text-sm"
+              />
             </div>
           )}
         </div>
@@ -173,43 +177,43 @@ export default function Inventory() {
 
       {/* Per-store inventory panel */}
       {selectedStoreId !== 'all' && (
-        <Card className="border-indigo-200 bg-indigo-50/30">
+        <Card className="border-primary/30 bg-primary/5 dark:bg-primary/10">
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm flex items-center gap-2 text-indigo-700">
+            <CardTitle className="text-sm flex items-center gap-2 text-primary">
               <Store className="w-4 h-4" />
               {stores.find(s => s.id === selectedStoreId)?.name} — Store Inventory
             </CardTitle>
           </CardHeader>
           <CardContent className="p-0">
             {storeInvLoading ? (
-              <div className="flex items-center justify-center h-24"><Loader2 className="w-5 h-5 animate-spin text-gray-400" /></div>
+              <div className="flex items-center justify-center h-24"><Loader2 className="w-5 h-5 animate-spin text-muted-foreground" /></div>
             ) : !storeInventory?.items?.length ? (
-              <p className="text-sm text-gray-500 text-center py-8">No inventory set for this store yet. Use the <a href="/stores" className="text-indigo-600 underline">Stores page</a> to manage stock levels.</p>
+              <p className="text-sm text-muted-foreground text-center py-8">No inventory set for this store yet. Use the <a href="/stores" className="text-primary underline">Stores page</a> to manage stock levels.</p>
             ) : (
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
-                  <thead className="bg-indigo-100/50">
+                  <thead className="bg-muted/40">
                     <tr>
-                      <th className="text-left px-4 py-2 font-medium text-gray-600"><TableColumnLabel>Product</TableColumnLabel></th>
-                      <th className="text-left px-4 py-2 font-medium text-gray-600"><TableColumnLabel>SKU</TableColumnLabel></th>
-                      <th className="text-left px-4 py-2 font-medium text-gray-600"><TableColumnLabel>Location</TableColumnLabel></th>
-                      <th className="text-right px-4 py-2 font-medium text-gray-600"><TableColumnLabel>Qty</TableColumnLabel></th>
-                      <th className="text-right px-4 py-2 font-medium text-gray-600"><TableColumnLabel>Min Stock</TableColumnLabel></th>
-                      <th className="text-right px-4 py-2 font-medium text-gray-600"><TableColumnLabel>Status</TableColumnLabel></th>
+                      <th className="text-left px-4 py-2 font-medium text-muted-foreground"><TableColumnLabel>Product</TableColumnLabel></th>
+                      <th className="text-left px-4 py-2 font-medium text-muted-foreground"><TableColumnLabel>SKU</TableColumnLabel></th>
+                      <th className="text-left px-4 py-2 font-medium text-muted-foreground"><TableColumnLabel>Location</TableColumnLabel></th>
+                      <th className="text-right px-4 py-2 font-medium text-muted-foreground"><TableColumnLabel>Qty</TableColumnLabel></th>
+                      <th className="text-right px-4 py-2 font-medium text-muted-foreground"><TableColumnLabel>Min Stock</TableColumnLabel></th>
+                      <th className="text-right px-4 py-2 font-medium text-muted-foreground"><TableColumnLabel>Status</TableColumnLabel></th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y bg-white">
+                  <tbody className="divide-y divide-border bg-card">
                     {storeInventory.items.map(item => (
-                      <tr key={item.id} className="hover:bg-gray-50">
-                        <td className="px-4 py-2">{item.product_name}</td>
-                        <td className="px-4 py-2 text-gray-400 font-mono text-xs">{item.product_sku ?? '—'}</td>
-                        <td className="px-4 py-2 text-gray-600 text-xs">{item.storage_location_name ?? '—'}</td>
-                        <td className="px-4 py-2 text-right font-semibold">{item.quantity}</td>
-                        <td className="px-4 py-2 text-right text-gray-500">{item.low_stock_threshold}</td>
+                      <tr key={item.id} className="hover:bg-muted/30">
+                        <td className="px-4 py-2 text-foreground">{item.product_name}</td>
+                        <td className="px-4 py-2 text-muted-foreground font-mono text-xs">{item.product_sku ?? '—'}</td>
+                        <td className="px-4 py-2 text-muted-foreground text-xs">{item.storage_location_name ?? '—'}</td>
+                        <td className="px-4 py-2 text-right font-semibold text-foreground">{item.quantity}</td>
+                        <td className="px-4 py-2 text-right text-muted-foreground">{item.low_stock_threshold}</td>
                         <td className="px-4 py-2 text-right">
                           {item.quantity <= item.low_stock_threshold
-                            ? <span className="bg-red-100 text-red-700 text-xs px-2 py-0.5 rounded-full">Low</span>
-                            : <span className="bg-green-100 text-green-700 text-xs px-2 py-0.5 rounded-full">OK</span>
+                            ? <span className="bg-red-100 text-red-700 dark:bg-red-950/50 dark:text-red-300 text-xs px-2 py-0.5 rounded-full">Low</span>
+                            : <span className="bg-green-100 text-green-700 dark:bg-green-950/50 dark:text-green-300 text-xs px-2 py-0.5 rounded-full">OK</span>
                           }
                         </td>
                       </tr>
@@ -915,17 +919,15 @@ function StockModal({
     stockIn, stockOut, adjust, onClose,
   ])
 
-  const selectClass = "flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 overflow-y-auto" onClick={onClose}>
+    <div data-kiterp-modal className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 overflow-y-auto" onClick={onClose}>
       <div
-        className="bg-white rounded-xl shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto"
+        className="bg-card border border-border text-foreground rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-center justify-between px-6 py-4 border-b sticky top-0 bg-white z-10">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-border sticky top-0 bg-card z-10">
           <h2 className="text-lg font-semibold">{title}</h2>
-          <button type="button" aria-label="Close" onClick={onClose} className="p-1 rounded-lg hover:bg-gray-100"><X className="w-5 h-5" /></button>
+          <button type="button" aria-label="Close" onClick={onClose} className="p-1 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground"><X className="w-5 h-5" /></button>
         </div>
         <form onSubmit={handleSubmit} className="px-6 py-5 space-y-5">
 
@@ -935,17 +937,16 @@ function StockModal({
             {prefillProductName && prefillProductId ? (
               <p className="text-sm font-medium text-gray-900 bg-gray-50 rounded-lg px-3 py-2">{prefillProductName}</p>
             ) : (
-              <select
-                className={selectClass}
+              <Select
                 value={productId}
-                onChange={(e) => { setProductId(e.target.value); setVariantId(''); setPurchaseOrderId(''); setShowAllPOs(false) }}
-                required
-              >
-                <option value="">Select a product...</option>
-                {products.map((p) => (
-                  <option key={p.id} value={p.id}>{p.name}{p.sku ? ` (${p.sku})` : ''}</option>
-                ))}
-              </select>
+                onChange={(v) => { setProductId(v); setVariantId(''); setPurchaseOrderId(''); setShowAllPOs(false) }}
+                options={selectOptionsWithBlank('Select a product...', products.map((p) => ({
+                  value: p.id,
+                  label: `${p.name}${p.sku ? ` (${p.sku})` : ''}`,
+                })))}
+                placeholder="Select a product..."
+                aria-label="Product"
+              />
             )}
           </div>
 
@@ -953,16 +954,16 @@ function StockModal({
           {productVariants.length > 0 && (
             <div className="space-y-1.5">
               <Label>Variant <span className="text-gray-400 text-xs">(optional — leave blank for product-level)</span></Label>
-              <select
-                className={selectClass}
+              <Select
                 value={variantId}
-                onChange={(e) => setVariantId(e.target.value)}
-              >
-                <option value="">All / Product-level</option>
-                {productVariants.map((v: any) => (
-                  <option key={v.id} value={v.id}>{v.name}{v.sku ? ` · ${v.sku}` : ''}{v.barcode ? ` · ${v.barcode}` : ''}</option>
-                ))}
-              </select>
+                onChange={setVariantId}
+                options={selectOptionsWithBlank('All / Product-level', productVariants.map((v: any) => ({
+                  value: v.id,
+                  label: `${v.name}${v.sku ? ` · ${v.sku}` : ''}${v.barcode ? ` · ${v.barcode}` : ''}`,
+                })))}
+                placeholder="All / Product-level"
+                aria-label="Variant"
+              />
             </div>
           )}
 
@@ -983,12 +984,16 @@ function StockModal({
           {stores.length > 0 && (
             <div className="space-y-1.5">
               <Label>Business Unit <span className="text-gray-400 text-xs">(which store receives or ships this stock)</span></Label>
-              <select className={selectClass} value={storeId} onChange={e => { setStoreId(e.target.value); setStorageLocationId('') }}>
-                <option value="">Global / All Stores</option>
-                {stores.map(s => (
-                  <option key={s.id} value={s.id}>{s.name}{s.code ? ` · ${s.code}` : ''}</option>
-                ))}
-              </select>
+              <Select
+                value={storeId}
+                onChange={(v) => { setStoreId(v); setStorageLocationId('') }}
+                options={selectOptionsWithBlank('Global / All Stores', stores.map(s => ({
+                  value: s.id,
+                  label: `${s.name}${s.code ? ` · ${s.code}` : ''}`,
+                })))}
+                placeholder="Global / All Stores"
+                aria-label="Business unit"
+              />
             </div>
           )}
 
@@ -999,7 +1004,6 @@ function StockModal({
                 storeId={storeId}
                 value={storageLocationId}
                 onChange={setStorageLocationId}
-                className={selectClass}
               />
             </div>
           )}
@@ -1014,16 +1018,13 @@ function StockModal({
                   {/* Supplier */}
                   <div className="space-y-1.5">
                     <Label>Supplier</Label>
-                    <select
-                      className={selectClass}
+                    <Select
                       value={supplierId}
-                      onChange={(e) => { setSupplierId(e.target.value); setPurchaseOrderId('') }}
-                    >
-                      <option value="">— None —</option>
-                      {suppliers.map((s) => (
-                        <option key={s.id} value={s.id}>{s.name}</option>
-                      ))}
-                    </select>
+                      onChange={(v) => { setSupplierId(v); setPurchaseOrderId('') }}
+                      options={selectOptionsWithBlank('— None —', suppliers.map((s) => ({ value: s.id, label: s.name })))}
+                      placeholder="— None —"
+                      aria-label="Supplier"
+                    />
                   </div>
 
                   {/* Purchase Order */}
@@ -1044,23 +1045,16 @@ function StockModal({
                           : `All open POs (${allPOs.length})`}
                       </button>
                     </div>
-                    <select
-                      className={selectClass}
+                    <Select
                       value={purchaseOrderId}
-                      onChange={(e) => setPurchaseOrderId(e.target.value)}
-                    >
-                      <option value="">— None —</option>
-                      {filteredPOs.length === 0 ? (
-                        <option disabled value="">
-                          {showAllPOs ? 'No open POs found' : 'No POs for this product'}
-                        </option>
-                      ) : filteredPOs.map((po) => (
-                        <option key={po.id} value={po.id}>
-                          {po.po_number}{po.supplier_name ? ` · ${po.supplier_name}` : ''}
-                          {!showAllPOs ? '' : po.items?.some((i: any) => i.product_id === productId) ? ' ✓' : ''}
-                        </option>
-                      ))}
-                    </select>
+                      onChange={setPurchaseOrderId}
+                      options={selectOptionsWithBlank('— None —', filteredPOs.map((po) => ({
+                        value: po.id,
+                        label: `${po.po_number}${po.supplier_name ? ` · ${po.supplier_name}` : ''}${!showAllPOs ? '' : po.items?.some((i: any) => i.product_id === productId) ? ' ✓' : ''}`,
+                      })))}
+                      placeholder={filteredPOs.length === 0 ? (showAllPOs ? 'No open POs found' : 'No POs for this product') : '— None —'}
+                      aria-label="Purchase order"
+                    />
                     {!showAllPOs && filteredPOs.length === 0 && productId && (
                       <p className="text-xs text-gray-400">
                         No POs contain this product.{' '}
@@ -1338,8 +1332,8 @@ function BulkUploadModal({
   const errorCount = results.filter((r) => r.status === 'error').length
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 overflow-y-auto" onClick={onClose}>
-      <div className="bg-white rounded-xl shadow-xl w-full max-w-2xl mx-4 max-h-[85vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
+    <div data-kiterp-modal className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 overflow-y-auto" onClick={onClose}>
+      <div className="bg-card border border-border text-foreground rounded-xl shadow-2xl w-full max-w-2xl mx-4 max-h-[85vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between px-6 py-4 border-b shrink-0">
           <h2 className="text-lg font-semibold flex items-center gap-2">
             <FileSpreadsheet className="w-5 h-5 text-primary" />

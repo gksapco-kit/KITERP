@@ -1,5 +1,9 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
+import { formLabelClass } from '@/components/common/FormSectionNav'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Select } from '@/components/ui/select'
 import { useEscapeToClose } from '@/hooks/useEscapeToClose'
 import { Plus, Search, Edit2, Trash2, UserCheck, Building2, CreditCard, X } from 'lucide-react'
 import { toast } from 'sonner'
@@ -33,10 +37,19 @@ const LINK_DESCRIPTIONS: Record<LinkType, string> = {
 }
 
 const STATUS_COLORS: Record<string, string> = {
-  active: 'bg-green-100 text-green-700',
-  inactive: 'bg-gray-100 text-gray-600',
-  suspended: 'bg-red-100 text-red-700',
+  active: 'bg-emerald-500/15 text-emerald-800 dark:text-emerald-300',
+  inactive: 'bg-muted text-muted-foreground',
+  suspended: 'bg-red-500/15 text-red-800 dark:text-red-300',
 }
+
+const TABLE_ICON_BTN =
+  'rounded-md p-1 text-muted-foreground hover:bg-muted hover:text-foreground dark:hover:bg-muted/70'
+
+const TYPE_TILE_INACTIVE =
+  'border-border text-muted-foreground hover:border-primary/40 hover:text-foreground'
+
+const FIELD_INPUT =
+  'w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring'
 
 const PAYOUT_METHODS = [
   { value: 'bank_transfer', label: 'Bank Transfer' },
@@ -276,71 +289,78 @@ export default function PayeesPage() {
     <div className="p-6 max-w-6xl mx-auto">
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-xl font-semibold text-gray-900">Commission Payees</h1>
-          <p className="text-sm text-gray-500 mt-0.5">Manage earners — staff, agents, contractors, partners, customers</p>
+          <h1 className="text-xl font-semibold text-foreground">Commission Payees</h1>
+          <p className="text-sm text-muted-foreground mt-0.5">Manage earners — staff, agents, contractors, partners, customers</p>
         </div>
-        <button onClick={openCreate} className="flex items-center gap-2 bg-primary text-primary-foreground px-4 py-2 rounded-lg text-sm font-medium hover:bg-primary/90">
+        <Button onClick={openCreate} className="gap-2">
           <Plus className="h-4 w-4" /> Add Payee
-        </button>
+        </Button>
       </div>
 
       {/* Search */}
       <div className="relative mb-4">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-        <input value={search} onChange={e => setSearch(e.target.value)}
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none z-10" />
+        <Input
+          value={search}
+          onChange={e => setSearch(e.target.value)}
           placeholder="Search by name, phone, or ID…"
-          className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+          className="pl-10 bg-background border-input"
+        />
       </div>
 
       {/* Table */}
-      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+      <div className="bg-card rounded-xl border border-border overflow-hidden">
         <table className="w-full text-sm">
-          <thead className="bg-gray-50 border-b border-gray-200">
+          <thead className="bg-muted/40 border-b border-border">
             <tr>
               {['Name / Code', 'Contact', 'Type', 'Payout', 'Status', ''].map(h => (
-                <th key={h} className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wide">{h}</th>
+                <th key={h} className="text-left px-4 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wide">{h}</th>
               ))}
             </tr>
           </thead>
-          <tbody className="divide-y divide-gray-100">
+          <tbody className="divide-y divide-border">
             {isLoading ? (
-              <tr><td colSpan={6} className="text-center py-12 text-gray-400">Loading…</td></tr>
+              <tr><td colSpan={6} className="text-center py-12 text-muted-foreground">Loading…</td></tr>
             ) : filtered.length === 0 ? (
-              <tr><td colSpan={6} className="text-center py-12 text-gray-400">No payees found</td></tr>
+              <tr><td colSpan={6} className="text-center py-12 text-muted-foreground">No payees found</td></tr>
             ) : filtered.map(p => (
-              <tr key={p.id} className="hover:bg-gray-50">
+              <tr key={p.id} className="hover:bg-muted/30 transition-colors">
                 <td className="px-4 py-3">
                   <div className="flex items-center gap-2">
                     <div className="w-8 h-8 rounded-full bg-primary/15 flex items-center justify-center flex-shrink-0">
                       <UserCheck className="h-4 w-4 text-primary" />
                     </div>
                     <div>
-                      <div className="font-medium text-gray-900">{p.display_name}</div>
-                      {p.code && <div className="text-xs text-gray-500">{p.code}</div>}
+                      <div className="font-medium text-foreground">{p.display_name}</div>
+                      {p.code && <div className="text-xs text-muted-foreground">{p.code}</div>}
                     </div>
                   </div>
                 </td>
-                <td className="px-4 py-3 text-gray-600">
+                <td className="px-4 py-3 text-muted-foreground">
                   <div>{p.phone || '—'}</div>
-                  {p.email && <div className="text-xs text-gray-400">{p.email}</div>}
+                  {p.email && <div className="text-xs text-muted-foreground/80">{p.email}</div>}
                 </td>
                 <td className="px-4 py-3">
                   <span className="px-2 py-0.5 bg-primary/10 text-primary rounded text-xs">
                     {LINK_LABELS[p.link_type as LinkType] || p.link_type}
                   </span>
                 </td>
-                <td className="px-4 py-3 text-gray-600 capitalize text-xs">
+                <td className="px-4 py-3 text-muted-foreground capitalize text-xs">
                   {p.default_payout_method.replace(/_/g, ' ')}
                 </td>
                 <td className="px-4 py-3">
-                  <span className={`px-2 py-0.5 rounded text-xs font-medium ${STATUS_COLORS[p.status] || 'bg-gray-100 text-gray-600'}`}>
+                  <span className={`px-2 py-0.5 rounded text-xs font-medium ${STATUS_COLORS[p.status] || 'bg-muted text-muted-foreground'}`}>
                     {p.status}
                   </span>
                 </td>
                 <td className="px-4 py-3">
-                  <div className="flex items-center gap-2 justify-end">
-                    <button onClick={() => openEdit(p)} className="text-gray-400 hover:text-primary"><Edit2 className="h-4 w-4" /></button>
-                    <button onClick={() => handleDelete(p.id)} className="text-gray-400 hover:text-red-600"><Trash2 className="h-4 w-4" /></button>
+                  <div className="flex items-center gap-1 justify-end">
+                    <button type="button" onClick={() => openEdit(p)} className={TABLE_ICON_BTN} aria-label="Edit payee">
+                      <Edit2 className="h-4 w-4" />
+                    </button>
+                    <button type="button" onClick={() => handleDelete(p.id)} className={`${TABLE_ICON_BTN} hover:text-red-500 dark:hover:text-red-400`} aria-label="Deactivate payee">
+                      <Trash2 className="h-4 w-4" />
+                    </button>
                   </div>
                 </td>
               </tr>
@@ -354,7 +374,7 @@ export default function PayeesPage() {
         <div className="flex justify-center gap-2 mt-4">
           {Array.from({ length: pages }, (_, i) => (
             <button key={i} onClick={() => setPage(i + 1)}
-              className={`px-3 py-1 rounded text-sm ${page === i + 1 ? 'bg-primary text-white' : 'border border-gray-200 hover:bg-gray-50'}`}>
+              className={`px-3 py-1 rounded text-sm transition-colors ${page === i + 1 ? 'bg-primary text-primary-foreground' : 'border border-border text-muted-foreground hover:bg-muted hover:text-foreground'}`}>
               {i + 1}
             </button>
           ))}
@@ -363,23 +383,23 @@ export default function PayeesPage() {
 
       {/* ── Dialog ── */}
       {showForm && (
-        <div
-          className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4 overflow-y-auto"
+        <div data-kiterp-modal
+          className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto"
           onClick={closeForm}
         >
           <div
-            className="bg-white rounded-xl w-full max-w-lg shadow-xl my-auto max-h-[90vh] overflow-y-auto"
+            className="bg-card border border-border text-foreground rounded-xl w-full max-w-lg shadow-2xl my-auto max-h-[90vh] overflow-y-auto"
             onClick={e => e.stopPropagation()}
           >
-            <div className="p-5 border-b border-gray-100 flex items-start justify-between gap-3">
+            <div className="p-5 border-b border-border flex items-start justify-between gap-3">
               <div className="min-w-0">
-                <h2 className="font-semibold text-gray-900">{editing ? 'Edit Payee' : 'Add Payee'}</h2>
-                <p className="text-xs text-gray-400 mt-0.5">Fields marked <span className="text-red-500">*</span> are required</p>
+                <h2 className="font-semibold text-foreground">{editing ? 'Edit Payee' : 'Add Payee'}</h2>
+                <p className="text-xs text-muted-foreground mt-0.5">Fields marked <span className="text-red-500">*</span> are required</p>
               </div>
               <button
                 type="button"
                 onClick={closeForm}
-                className="p-1.5 rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors shrink-0"
+                className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors shrink-0"
                 aria-label="Close"
               >
                 <X className="w-5 h-5" />
@@ -390,17 +410,17 @@ export default function PayeesPage() {
 
               {/* 1. Type selector */}
               <div>
-                <Label className="block text-xs font-medium text-gray-700 mb-2">Payee Type</Label>
+                <Label className={`block mb-2 ${formLabelClass}`}>Payee Type</Label>
                 <div className="grid grid-cols-2 gap-2">
                   {LINK_TYPES.map(lt => (
                     <button key={lt} type="button" onClick={() => onLinkTypeChange(lt)}
                       className={`text-left px-3 py-2.5 rounded-lg border text-sm transition-colors ${
                         form.link_type === lt
                           ? 'border-primary bg-primary/10 text-primary'
-                          : 'border-gray-200 hover:border-primary/40 text-gray-700'
+                          : TYPE_TILE_INACTIVE
                       }`}>
                       <div className="font-medium">{LINK_LABELS[lt]}</div>
-                      <div className="text-xs text-gray-400 mt-0.5 leading-tight">{LINK_DESCRIPTIONS[lt]}</div>
+                      <div className="text-xs text-muted-foreground mt-0.5 leading-tight">{LINK_DESCRIPTIONS[lt]}</div>
                     </button>
                   ))}
                 </div>
@@ -409,54 +429,59 @@ export default function PayeesPage() {
               {/* 2. Master picker */}
               {form.link_type === 'vendor_user' && (
                 <div>
-                  <Label className="block text-xs font-medium text-gray-700 mb-1">Select Staff Member</Label>
+                  <Label className={`block mb-1 ${formLabelClass}`}>Select Staff Member</Label>
                   <StaffPicker selected={selectedStaff} onSelect={onStaffSelect} />
                 </div>
               )}
               {form.link_type === 'supplier' && (
                 <div>
-                  <Label className="block text-xs font-medium text-gray-700 mb-1">Select Supplier / Contractor</Label>
+                  <Label className={`block mb-1 ${formLabelClass}`}>Select Supplier / Contractor</Label>
                   <SupplierPicker selected={selectedSupplier} onSelect={onSupplierSelect} />
                 </div>
               )}
               {form.link_type === 'customer' && (
                 <div>
-                  <Label className="block text-xs font-medium text-gray-700 mb-1">Select Customer</Label>
+                  <Label className={`block mb-1 ${formLabelClass}`}>Select Customer</Label>
                   <CustomerPicker selected={selectedCustomer} onSelect={onCustomerSelect} />
                 </div>
               )}
 
               {/* 3. Core identity fields */}
               <div>
-                <Label className="block text-xs font-medium text-gray-700 mb-1" required>
+                <Label className={`block mb-1 ${formLabelClass}`} required>
                   Display Name
                 </Label>
                 <input value={form.display_name} onChange={e => set('display_name', e.target.value)}
                   placeholder="Name shown on payout reports"
-                  className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+                  className={FIELD_INPUT} />
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <Label className="block text-xs font-medium text-gray-700 mb-1">Phone</Label>
+                  <Label className={`block mb-1 ${formLabelClass}`}>Phone</Label>
                   <input value={form.phone} onChange={e => set('phone', e.target.value)} placeholder="9xxxxxxxxx"
-                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+                    className={FIELD_INPUT} />
                 </div>
                 <div>
-                  <Label className="block text-xs font-medium text-gray-700 mb-1">Email</Label>
+                  <Label className={`block mb-1 ${formLabelClass}`}>Email</Label>
                   <input type="email" value={form.email} onChange={e => set('email', e.target.value)} placeholder="name@example.com"
-                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+                    className={FIELD_INPUT} />
                 </div>
               </div>
 
               <div>
-                <Label className="block text-xs font-medium text-gray-700 mb-1">Status</Label>
-                <select value={form.status} onChange={e => set('status', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary">
-                  <option value="active">Active</option>
-                  <option value="inactive">Inactive</option>
-                  <option value="suspended">Suspended</option>
-                </select>
+                <Label className={`block mb-1 ${formLabelClass}`}>Status</Label>
+                <Select
+                  value={form.status}
+                  onChange={(v) => set('status', v)}
+                  options={[
+                    { value: 'active', label: 'Active' },
+                    { value: 'inactive', label: 'Inactive' },
+                    { value: 'suspended', label: 'Suspended' },
+                  ]}
+                  aria-label="Status"
+                  className="w-full"
+                />
               </div>
 
               {/* 4. Payout section — logic:
@@ -465,10 +490,10 @@ export default function PayeesPage() {
                     - "Different account" → show payout method selector + corresponding inputs.
                   - External/agent payees (no master): show payout method selector + inputs directly.
               */}
-              <div className="border border-gray-200 rounded-lg overflow-hidden">
-                <div className="bg-gray-50 px-4 py-2.5 flex items-center gap-2 border-b border-gray-200">
-                  <Building2 className="h-4 w-4 text-gray-500" />
-                  <span className="text-sm font-medium text-gray-700">Payout Details</span>
+              <div className="border border-border rounded-lg overflow-hidden">
+                <div className="bg-muted/40 px-4 py-2.5 flex items-center gap-2 border-b border-border">
+                  <Building2 className="h-4 w-4 text-muted-foreground" />
+                  <span className="text-sm font-medium text-foreground">Payout Details</span>
                 </div>
                 <div className="p-4 space-y-4">
 
@@ -480,10 +505,10 @@ export default function PayeesPage() {
                         className={`px-3 py-2.5 rounded-lg border text-sm text-left transition-colors ${
                           bank.bank_source === 'master'
                             ? 'border-primary bg-primary/10 text-primary'
-                            : 'border-gray-200 text-gray-600 hover:border-primary/40'
+                            : `${TYPE_TILE_INACTIVE} border`
                         }`}>
                         <div className="font-medium">Use master bank</div>
-                        <div className="text-xs text-gray-400 mt-0.5">
+                        <div className="text-xs text-muted-foreground mt-0.5">
                           Same bank as the linked {LINK_LABELS[form.link_type].toLowerCase()}
                         </div>
                       </button>
@@ -492,10 +517,10 @@ export default function PayeesPage() {
                         className={`px-3 py-2.5 rounded-lg border text-sm text-left transition-colors ${
                           bank.bank_source === 'custom'
                             ? 'border-primary bg-primary/10 text-primary'
-                            : 'border-gray-200 text-gray-600 hover:border-primary/40'
+                            : `${TYPE_TILE_INACTIVE} border`
                         }`}>
                         <div className="font-medium">Different account</div>
-                        <div className="text-xs text-gray-400 mt-0.5">Use a separate account for commission payouts</div>
+                        <div className="text-xs text-muted-foreground mt-0.5">Use a separate account for commission payouts</div>
                       </button>
                     </div>
                   )}
@@ -504,20 +529,20 @@ export default function PayeesPage() {
                   {hasmaster && bank.bank_source === 'master' && (
                     <>
                       {masterBankQuery.isLoading && editing && (
-                        <p className="text-sm text-gray-400">Loading bank details…</p>
+                        <p className="text-sm text-muted-foreground">Loading bank details…</p>
                       )}
                       {previewBank && Object.keys(previewBank).length > 0 && (
                         <div className="rounded-lg bg-primary/10 border border-primary/30 px-4 py-3 space-y-1.5">
                           {previewBank.bank_name && (
                             <div className="flex gap-2 text-sm">
-                              <span className="text-gray-500 w-28 flex-shrink-0">Bank</span>
-                              <span className="font-medium text-gray-800">{previewBank.bank_name}</span>
+                              <span className="text-muted-foreground w-28 flex-shrink-0">Bank</span>
+                              <span className="font-medium text-foreground">{previewBank.bank_name}</span>
                             </div>
                           )}
                           {previewBank.account_number && (
                             <div className="flex gap-2 text-sm">
-                              <span className="text-gray-500 w-28 flex-shrink-0">Account No.</span>
-                              <span className="font-medium text-gray-800">
+                              <span className="text-muted-foreground w-28 flex-shrink-0">Account No.</span>
+                              <span className="font-medium text-foreground">
                                 {'•'.repeat(Math.max(0, previewBank.account_number.length - 4))}
                                 {previewBank.account_number.slice(-4)}
                               </span>
@@ -525,20 +550,20 @@ export default function PayeesPage() {
                           )}
                           {previewBank.account_holder_name && (
                             <div className="flex gap-2 text-sm">
-                              <span className="text-gray-500 w-28 flex-shrink-0">Holder</span>
-                              <span className="font-medium text-gray-800">{previewBank.account_holder_name}</span>
+                              <span className="text-muted-foreground w-28 flex-shrink-0">Holder</span>
+                              <span className="font-medium text-foreground">{previewBank.account_holder_name}</span>
                             </div>
                           )}
                           {previewBank.ifsc_code && (
                             <div className="flex gap-2 text-sm">
-                              <span className="text-gray-500 w-28 flex-shrink-0">IFSC</span>
-                              <span className="font-medium text-gray-800">{previewBank.ifsc_code}</span>
+                              <span className="text-muted-foreground w-28 flex-shrink-0">IFSC</span>
+                              <span className="font-medium text-foreground">{previewBank.ifsc_code}</span>
                             </div>
                           )}
                           {previewBank.account_type && (
                             <div className="flex gap-2 text-sm">
-                              <span className="text-gray-500 w-28 flex-shrink-0">Account Type</span>
-                              <span className="font-medium text-gray-800 capitalize">{previewBank.account_type}</span>
+                              <span className="text-muted-foreground w-28 flex-shrink-0">Account Type</span>
+                              <span className="font-medium text-foreground capitalize">{previewBank.account_type}</span>
                             </div>
                           )}
                           <p className="text-xs text-primary pt-1">From the linked master record. Edit there to update.</p>
@@ -552,14 +577,14 @@ export default function PayeesPage() {
                     <>
                       {/* Payout method selector */}
                       <div>
-                        <Label className="block text-xs font-medium text-gray-700 mb-2">Payout Method</Label>
+                        <Label className={`block mb-2 ${formLabelClass}`}>Payout Method</Label>
                         <div className="grid grid-cols-5 gap-1">
                           {PAYOUT_METHODS.map(m => (
                             <button key={m.value} type="button" onClick={() => set('default_payout_method', m.value)}
                               className={`py-2 rounded-lg border text-xs font-medium transition-colors ${
                                 form.default_payout_method === m.value
                                   ? 'border-primary bg-primary/10 text-primary'
-                                  : 'border-gray-200 text-gray-600 hover:border-primary/40'
+                                  : TYPE_TILE_INACTIVE
                               }`}>
                               {m.label}
                             </button>
@@ -572,29 +597,29 @@ export default function PayeesPage() {
                         <div className="space-y-3">
                           <div className="grid grid-cols-2 gap-3">
                             <div>
-                              <Label className="block text-xs font-medium text-gray-700 mb-1">Bank Name</Label>
+                              <Label className={`block mb-1 ${formLabelClass}`}>Bank Name</Label>
                               <input value={bank.bank_name} onChange={e => setB('bank_name', e.target.value)}
                                 placeholder="e.g. HDFC Bank"
-                                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+                                className={FIELD_INPUT} />
                             </div>
                             <div>
-                              <Label className="block text-xs font-medium text-gray-700 mb-1">IFSC Code</Label>
+                              <Label className={`block mb-1 ${formLabelClass}`}>IFSC Code</Label>
                               <input value={bank.ifsc_code} onChange={e => setB('ifsc_code', e.target.value.toUpperCase())}
                                 placeholder="HDFC0001234"
-                                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+                                className={FIELD_INPUT} />
                             </div>
                           </div>
                           <div>
-                            <Label className="block text-xs font-medium text-gray-700 mb-1">Account Number</Label>
+                            <Label className={`block mb-1 ${formLabelClass}`}>Account Number</Label>
                             <input value={bank.account_number} onChange={e => setB('account_number', e.target.value)}
                               placeholder="Enter account number"
-                              className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+                              className={FIELD_INPUT} />
                           </div>
                           <div>
-                            <Label className="block text-xs font-medium text-gray-700 mb-1">Account Holder Name</Label>
+                            <Label className={`block mb-1 ${formLabelClass}`}>Account Holder Name</Label>
                             <input value={bank.account_holder_name} onChange={e => setB('account_holder_name', e.target.value)}
                               placeholder="As per bank records"
-                              className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+                              className={FIELD_INPUT} />
                           </div>
                         </div>
                       )}
@@ -602,10 +627,10 @@ export default function PayeesPage() {
                       {/* UPI inputs */}
                       {form.default_payout_method === 'upi' && (
                         <div>
-                          <Label className="block text-xs font-medium text-gray-700 mb-1">UPI ID</Label>
+                          <Label className={`block mb-1 ${formLabelClass}`}>UPI ID</Label>
                           <input value={bank.upi_id} onChange={e => setB('upi_id', e.target.value)}
                             placeholder="name@upi or 9xxxxxxx@paytm"
-                            className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+                            className={FIELD_INPUT} />
                         </div>
                       )}
 
@@ -613,24 +638,27 @@ export default function PayeesPage() {
                       {form.default_payout_method === 'wallet' && (
                         <div className="space-y-3">
                           <div>
-                            <Label className="block text-xs font-medium text-gray-700 mb-1">Wallet Provider</Label>
-                            <select value={bank.wallet_provider} onChange={e => setB('wallet_provider', e.target.value)}
-                              className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary">
-                              {WALLET_PROVIDERS.map(w => <option key={w} value={w}>{w}</option>)}
-                            </select>
+                            <Label className={`block mb-1 ${formLabelClass}`}>Wallet Provider</Label>
+                            <Select
+                              value={bank.wallet_provider}
+                              onChange={(v) => setB('wallet_provider', v)}
+                              options={WALLET_PROVIDERS.map(w => ({ value: w, label: w }))}
+                              aria-label="Wallet provider"
+                              className="w-full"
+                            />
                           </div>
                           <div>
-                            <Label className="block text-xs font-medium text-gray-700 mb-1">Wallet ID / Phone</Label>
+                            <Label className={`block mb-1 ${formLabelClass}`}>Wallet ID / Phone</Label>
                             <input value={bank.wallet_id} onChange={e => setB('wallet_id', e.target.value)}
                               placeholder="Registered phone or wallet ID"
-                              className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+                              className={FIELD_INPUT} />
                           </div>
                         </div>
                       )}
 
                       {/* Cash / Cheque — no extra inputs */}
                       {(form.default_payout_method === 'cash' || form.default_payout_method === 'cheque') && (
-                        <div className="bg-gray-50 rounded-lg px-4 py-3 text-sm text-gray-500 flex items-center gap-2">
+                        <div className="bg-muted/40 rounded-lg px-4 py-3 text-sm text-muted-foreground flex items-center gap-2">
                           <CreditCard className="h-4 w-4" />
                           {form.default_payout_method === 'cash'
                             ? 'Cash payouts — no additional payment details needed.'
@@ -646,13 +674,13 @@ export default function PayeesPage() {
               {/* Advanced */}
               <CollapsibleSection title="Advanced">
                 <div>
-                  <Label className="block text-xs font-medium text-gray-700 mb-1">Code (optional)</Label>
+                  <Label className={`block mb-1 ${formLabelClass}`}>Code (optional)</Label>
                   <input value={form.code} onChange={e => set('code', e.target.value)} placeholder="e.g. AGT-001"
-                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
-                  <p className="text-xs text-gray-400 mt-1">Short reference printed on payout statements.</p>
+                    className={FIELD_INPUT} />
+                  <p className="text-xs text-muted-foreground mt-1">Short reference printed on payout statements.</p>
                 </div>
                 <div>
-                  <Label className="block text-xs font-medium text-gray-700 mb-1">{form.link_type === 'external' ? 'External / Agent ID' : 'Master Record ID'}</Label>
+                  <Label className={`block mb-1 ${formLabelClass}`}>{form.link_type === 'external' ? 'External / Agent ID' : 'Master Record ID'}</Label>
                   <input
                     value={form.external_user_id}
                     onChange={e => set('external_user_id', e.target.value)}
@@ -660,28 +688,27 @@ export default function PayeesPage() {
                     readOnly={form.link_type !== 'external'}
                     className={`w-full px-3 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary ${
                       form.link_type !== 'external'
-                        ? 'border-gray-100 bg-gray-50 text-gray-500 cursor-default'
-                        : 'border-gray-200'
+                        ? 'border-border bg-muted/40 text-muted-foreground cursor-default'
+                        : 'border-input'
                     }`}
                   />
                   {form.link_type !== 'external' && (
-                    <p className="text-xs text-gray-400 mt-1">Automatically set to the master record's ID when a record is selected.</p>
+                    <p className="text-xs text-muted-foreground mt-1">Automatically set to the master record's ID when a record is selected.</p>
                   )}
                 </div>
                 <div>
-                  <Label className="block text-xs font-medium text-gray-700 mb-1">Currency</Label>
+                  <Label className={`block mb-1 ${formLabelClass}`}>Currency</Label>
                   <input value={form.currency} onChange={e => set('currency', e.target.value)} maxLength={3}
-                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+                    className={FIELD_INPUT} />
                 </div>
               </CollapsibleSection>
             </div>
 
-            <div className="p-4 border-t border-gray-100 flex gap-3 justify-end">
-              <button onClick={closeForm} className="btn-cancel px-4 py-2 text-sm border border-gray-200 rounded-lg">Cancel</button>
-              <button onClick={handleSave} disabled={create.isPending || update.isPending}
-                className="px-4 py-2 text-sm bg-primary text-white rounded-lg hover:bg-primary/90 disabled:opacity-50">
+            <div className="p-4 border-t border-border bg-muted/25 flex gap-3 justify-end">
+              <Button type="button" variant="cancel" onClick={closeForm}>Cancel</Button>
+              <Button onClick={handleSave} disabled={create.isPending || update.isPending}>
                 {create.isPending || update.isPending ? 'Saving…' : 'Save'}
-              </button>
+              </Button>
             </div>
           </div>
         </div>

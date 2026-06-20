@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { Select, selectOptionsWithBlank } from '@/components/ui/select'
 import { Badge } from '@/components/ui/badge'
 import { useConversations, useConversation, usePostChatMessage } from '@/hooks/useCrm'
 import { crmApi } from '@/api/crm'
@@ -226,30 +227,29 @@ function FormSubmissionsTab() {
         {/* Site selector */}
         <div className="flex items-center gap-2 bg-white border border-gray-200 rounded-xl px-3 py-2 text-sm">
           <Globe className="w-4 h-4 text-gray-400 shrink-0" />
-          <select
+          <Select
             value={selectedSiteId}
-            onChange={e => { setSelectedSiteId(e.target.value); setPage(0) }}
-            className="text-sm text-gray-700 bg-transparent focus:outline-none pr-2 max-w-[200px]"
-          >
-            {sites.map(s => (
-              <option key={s.id} value={s.id}>{s.name}</option>
-            ))}
-          </select>
+            onChange={(v) => { setSelectedSiteId(v); setPage(0) }}
+            options={sites.map(s => ({ value: s.id, label: s.name }))}
+            aria-label="Website filter"
+            className="max-w-[200px] border-0 bg-transparent shadow-none"
+          />
         </div>
 
         {/* Form type filter */}
         <div className="flex items-center gap-2 bg-white border border-gray-200 rounded-xl px-3 py-2 text-sm">
           <Filter className="w-4 h-4 text-gray-400 shrink-0" />
-          <select
+          <Select
             value={formType}
-            onChange={e => { setFormType(e.target.value); setPage(0) }}
-            className="text-sm text-gray-700 bg-transparent focus:outline-none pr-2"
-          >
-            <option value="">All form types</option>
-            {Object.entries(FORM_TYPE_LABELS).map(([id, label]) => (
-              <option key={id} value={id}>{label}</option>
-            ))}
-          </select>
+            onChange={(v) => { setFormType(v); setPage(0) }}
+            options={selectOptionsWithBlank('All form types', Object.entries(FORM_TYPE_LABELS).map(([id, label]) => ({
+              value: id,
+              label,
+            })))}
+            placeholder="All form types"
+            aria-label="Form type filter"
+            className="border-0 bg-transparent shadow-none"
+          />
         </div>
 
         <span className="text-sm text-gray-500">{total} submission{total !== 1 ? 's' : ''}</span>

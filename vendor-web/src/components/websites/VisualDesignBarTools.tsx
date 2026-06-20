@@ -295,7 +295,7 @@ export function VisualDesignBarTools({
         open={openMenu === 'anim'}
         anchorRef={animBtnRef}
         menuRef={menuRef}
-        className="bg-white border border-gray-200 rounded-xl shadow-2xl p-2 w-[14rem] max-h-[90vh] overflow-y-auto"
+        className="bg-popover text-popover-foreground border border-border rounded-xl shadow-2xl p-2 w-[14rem] max-h-[90vh] overflow-y-auto"
       >
         <ScrollAnimationControls
           variant="compact"
@@ -310,7 +310,7 @@ export function VisualDesignBarTools({
         open={openMenu === 'origins'}
         anchorRef={originsBtnRef}
         menuRef={menuRef}
-        className="bg-white border border-gray-200 rounded-xl shadow-2xl p-2 w-[15rem] max-h-[90vh] overflow-y-auto"
+        className="bg-popover text-popover-foreground border border-border rounded-xl shadow-2xl p-2 w-[15rem] max-h-[90vh] overflow-y-auto"
       >
         <div className="mb-1.5 text-[10px] font-bold uppercase tracking-wide text-gray-400">Top</div>
         <div className="mb-2 grid grid-cols-3 gap-1">
@@ -365,7 +365,7 @@ export function VisualDesignBarTools({
         open={openMenu === 'shadow'}
         anchorRef={shadowBtnRef}
         menuRef={menuRef}
-        className="bg-white border border-gray-200 rounded-xl shadow-2xl p-2 w-[13rem] max-h-[90vh] overflow-y-auto"
+        className="bg-popover text-popover-foreground border border-border rounded-xl shadow-2xl p-2 w-[13rem] max-h-[90vh] overflow-y-auto"
       >
         <div className="grid grid-cols-2 gap-1">
           {SHADOW_PRESETS.map(sh => (
@@ -396,7 +396,7 @@ export function VisualDesignBarTools({
           open={openMenu === 'background'}
           anchorRef={bgBtnRef}
           menuRef={menuRef}
-          className="bg-white border border-gray-200 rounded-xl shadow-2xl p-2 w-[11rem]"
+          className="bg-popover text-popover-foreground border border-border rounded-xl shadow-2xl p-2 w-[11rem]"
         >
           <div className="grid grid-cols-2 gap-1">
             {BG_STYLE_OPTIONS.map(opt => (

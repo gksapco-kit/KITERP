@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Select } from '@/components/ui/select'
 import { PhoneInput } from '@/components/ui/PhoneInput'
 import { vendorApi } from '@/api/vendor'
 import { toast } from 'sonner'
@@ -201,22 +202,17 @@ export function QuotationExtraFieldsEditor({
                     onChange={e => updateField(field.id, { label: e.target.value })}
                     className="flex-1 h-8 text-sm bg-white"
                   />
-                  <select
-                    className="text-sm border rounded-lg px-2 py-1.5 h-8 bg-white shrink-0"
+                  <Select
+                    className="w-28 shrink-0"
+                    triggerClassName="h-8 text-sm"
                     value={field.type}
-                    onChange={e => {
-                      const nextType = e.target.value as QuotationExtraFieldType
-                      updateField(field.id, {
-                        type: nextType,
-                        value: '',
-                        values: nextType === 'image' ? [] : undefined,
-                      })
-                    }}
-                  >
-                    {QUOTATION_EXTRA_FIELD_TYPES.map(t => (
-                      <option key={t.value} value={t.value}>{t.label}</option>
-                    ))}
-                  </select>
+                    onChange={nextType => updateField(field.id, {
+                      type: nextType as QuotationExtraFieldType,
+                      value: '',
+                      values: nextType === 'image' ? [] : undefined,
+                    })}
+                    options={QUOTATION_EXTRA_FIELD_TYPES.map(t => ({ value: t.value, label: t.label }))}
+                  />
                   <button
                     type="button"
                     onClick={() => removeField(field.id)}

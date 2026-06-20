@@ -1,4 +1,6 @@
+import { cn } from '@/lib/utils'
 import { EMPLOYEE_MASTER_TABS, EMPLOYEE_OPS_TABS, type EmployeeTabId } from './employeeMasterTabs'
+import { hrTabActiveClass, hrTabInactiveClass } from '../hrFormUi'
 
 export function EmployeeTabBar({
   activeTab,
@@ -7,8 +9,14 @@ export function EmployeeTabBar({
   activeTab: EmployeeTabId
   onTabChange: (id: EmployeeTabId) => void
 }) {
+  const tabBtn = (isActive: boolean) =>
+    cn(
+      'flex min-w-[72px] flex-1 flex-col items-center justify-center gap-1 border-b-2 py-2.5 text-xs font-medium transition-colors focus:outline-none focus-visible:ring-0',
+      isActive ? hrTabActiveClass : hrTabInactiveClass,
+    )
+
   return (
-    <div className="flex shrink-0 border-b overflow-x-auto bg-white rounded-t-xl">
+    <div className="flex shrink-0 overflow-x-auto rounded-t-xl border-b border-border bg-card">
       {EMPLOYEE_MASTER_TABS.map(tab => {
         const isActive = activeTab === tab.id
         return (
@@ -16,18 +24,14 @@ export function EmployeeTabBar({
             key={tab.id}
             type="button"
             onClick={() => onTabChange(tab.id)}
-            className={`flex min-w-[72px] flex-1 flex-col items-center justify-center gap-1 py-2.5 text-xs font-medium border-b-2 transition-colors ${
-              isActive
-                ? 'border-blue-600 text-blue-600 bg-blue-50/40'
-                : 'border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-50'
-            }`}
+            className={tabBtn(isActive)}
           >
-            <tab.icon className="w-4 h-4 shrink-0" />
+            <tab.icon className="h-4 w-4 shrink-0" />
             <span className="whitespace-nowrap px-1">{tab.label}</span>
           </button>
         )
       })}
-      <div className="w-px shrink-0 bg-gray-200 self-stretch my-1" aria-hidden />
+      <div className="my-1 w-px shrink-0 self-stretch bg-border" aria-hidden />
       {EMPLOYEE_OPS_TABS.map(tab => {
         const isActive = activeTab === tab.id
         return (
@@ -35,13 +39,9 @@ export function EmployeeTabBar({
             key={tab.id}
             type="button"
             onClick={() => onTabChange(tab.id)}
-            className={`flex min-w-[72px] flex-1 flex-col items-center justify-center gap-1 py-2.5 text-xs font-medium border-b-2 transition-colors ${
-              isActive
-                ? 'border-blue-600 text-blue-600 bg-blue-50/40'
-                : 'border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-50'
-            }`}
+            className={tabBtn(isActive)}
           >
-            <tab.icon className="w-4 h-4 shrink-0" />
+            <tab.icon className="h-4 w-4 shrink-0" />
             <span className="whitespace-nowrap px-1">{tab.label}</span>
           </button>
         )

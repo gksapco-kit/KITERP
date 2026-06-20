@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { Select } from '@/components/ui/select'
 import { Badge } from '@/components/ui/badge'
 import { useWorkflows, useSaveWorkflow, useEmailTemplates } from '@/hooks/useCrm'
 import { useTeamMembers } from '@/hooks/useVendor'
@@ -80,10 +81,11 @@ function WorkflowForm({ wf, onClose }: { wf?: Workflow; onClose: () => void }) {
           <Input value={form.description} onChange={e => setForm(p => ({ ...p, description: e.target.value }))} placeholder="What does this automate?" />
         </Field>
         <Field label="When to run" required>
-          <select value={form.trigger} onChange={e => setForm(p => ({ ...p, trigger: e.target.value }))}
-            className={inputCls}>
-            {WORKFLOW_TRIGGERS.map(t => <option key={t.id} value={t.id}>{t.label}</option>)}
-          </select>
+          <Select
+            value={form.trigger}
+            onChange={v => setForm(p => ({ ...p, trigger: v }))}
+            options={WORKFLOW_TRIGGERS.map(t => ({ value: t.id, label: t.label }))}
+          />
         </Field>
         <Field label="Then do">
           <WorkflowStepBuilder
@@ -95,12 +97,15 @@ function WorkflowForm({ wf, onClose }: { wf?: Workflow; onClose: () => void }) {
         </Field>
         <div className="grid grid-cols-2 gap-3">
           <Field label="Status">
-            <select value={form.status} onChange={e => setForm(p => ({ ...p, status: e.target.value }))}
-              className={inputCls}>
-              <option value="draft">Draft</option>
-              <option value="active">Active</option>
-              <option value="paused">Paused</option>
-            </select>
+            <Select
+              value={form.status}
+              onChange={v => setForm(p => ({ ...p, status: v }))}
+              options={[
+                { value: 'draft', label: 'Draft' },
+                { value: 'active', label: 'Active' },
+                { value: 'paused', label: 'Paused' },
+              ]}
+            />
           </Field>
           <label className="flex items-center gap-2 mt-7 text-sm">
             <input type="checkbox" checked={form.requires_approval} onChange={e => setForm(p => ({ ...p, requires_approval: e.target.checked }))} />

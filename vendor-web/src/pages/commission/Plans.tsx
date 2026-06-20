@@ -4,14 +4,18 @@ import { Plus, Edit2, ChevronDown, ChevronRight, ToggleLeft, ToggleRight, X } fr
 import { toast } from 'sonner'
 import { usePlans, useCreatePlan, useUpdatePlan, useDeletePlan, useCreateRule, useUpdateRule, useDeleteRule } from '@/hooks/useCommission'
 import { RuleBuilder } from '@/components/commission/RuleBuilder'
+import { formLabelClass, formTextareaClass } from '@/components/common/FormSectionNav'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Select } from '@/components/ui/select'
 import type { CommissionPlan, CommissionRule } from '@/types/commission'
 
 const PAYEE_SCOPES = ['any', 'employee', 'vendor', 'contractor', 'agent', 'customer']
 const STATUS_COLORS: Record<string, string> = {
-  active: 'bg-green-100 text-green-700',
-  inactive: 'bg-gray-100 text-gray-500',
-  draft: 'bg-yellow-100 text-yellow-700',
+  active: 'bg-emerald-500/15 text-emerald-800 dark:text-emerald-300',
+  inactive: 'bg-muted text-muted-foreground',
+  draft: 'bg-amber-500/15 text-amber-800 dark:text-amber-300',
 }
 
 export default function PlansPage() {
@@ -109,37 +113,37 @@ export default function PlansPage() {
     <div className="p-6 max-w-5xl mx-auto">
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-xl font-semibold text-gray-900">Commission Plans</h1>
-          <p className="text-sm text-gray-500 mt-0.5">Define rule-based plans that drive accrual calculations</p>
+          <h1 className="text-xl font-semibold text-foreground">Commission Plans</h1>
+          <p className="text-sm text-muted-foreground mt-0.5">Define rule-based plans that drive accrual calculations</p>
         </div>
-        <button onClick={openCreate} className="flex items-center gap-2 bg-primary text-primary-foreground px-4 py-2 rounded-lg text-sm font-medium hover:bg-primary/90">
+        <Button onClick={openCreate} className="gap-2">
           <Plus className="h-4 w-4" /> New Plan
-        </button>
+        </Button>
       </div>
 
       {isLoading ? (
-        <div className="text-center py-16 text-gray-400">Loading…</div>
+        <div className="text-center py-16 text-muted-foreground">Loading…</div>
       ) : plans.length === 0 ? (
-        <div className="text-center py-16 text-gray-400 border-2 border-dashed border-gray-200 rounded-xl">
-          <p className="font-medium">No commission plans yet</p>
+        <div className="text-center py-16 text-muted-foreground border-2 border-dashed border-border rounded-xl">
+          <p className="font-medium text-foreground">No commission plans yet</p>
           <p className="text-sm mt-1">Create your first plan to start tracking commissions</p>
         </div>
       ) : (
         <div className="space-y-3">
           {plans.map(plan => (
-            <div key={plan.id} className="bg-white border border-gray-200 rounded-xl overflow-hidden">
+            <div key={plan.id} className="bg-card border border-border rounded-xl overflow-hidden">
               <div className="flex items-center justify-between px-5 py-4">
                 <div className="flex items-center gap-4 flex-1 min-w-0">
-                  <button onClick={() => setExpanded(expanded === plan.id ? null : plan.id)} className="text-gray-400">
+                  <button onClick={() => setExpanded(expanded === plan.id ? null : plan.id)} className="text-muted-foreground hover:text-foreground">
                     {expanded === plan.id ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
                   </button>
                   <div className="min-w-0">
-                    <div className="flex items-center gap-2">
-                      <span className="font-semibold text-gray-900">{plan.name}</span>
-                      <span className="text-xs text-gray-400 font-mono">{plan.code}</span>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="font-semibold text-foreground">{plan.name}</span>
+                      <span className="text-xs text-muted-foreground font-mono">{plan.code}</span>
                       <span className={`px-2 py-0.5 rounded text-xs font-medium ${STATUS_COLORS[plan.status]}`}>{plan.status}</span>
                     </div>
-                    <div className="text-xs text-gray-500 mt-0.5 flex items-center gap-3">
+                    <div className="text-xs text-muted-foreground mt-0.5 flex items-center gap-3 flex-wrap">
                       <span>Scope: {plan.payee_scope}</span>
                       <span>Priority: {plan.priority}</span>
                       <span>{plan.rules?.length || 0} rules</span>
@@ -148,34 +152,34 @@ export default function PlansPage() {
                   </div>
                 </div>
                 <div className="flex items-center gap-3">
-                  <button onClick={() => toggleStatus(plan)} className="text-gray-400 hover:text-gray-700">
+                  <button onClick={() => toggleStatus(plan)} className="text-muted-foreground hover:text-foreground">
                     {plan.status === 'active'
-                      ? <ToggleRight className="h-5 w-5 text-green-500" />
+                      ? <ToggleRight className="h-5 w-5 text-emerald-500 dark:text-emerald-400" />
                       : <ToggleLeft className="h-5 w-5" />}
                   </button>
-                  <button onClick={() => openEdit(plan)} className="text-gray-400 hover:text-primary">
+                  <button onClick={() => openEdit(plan)} className="text-muted-foreground hover:text-primary">
                     <Edit2 className="h-4 w-4" />
                   </button>
                 </div>
               </div>
               {expanded === plan.id && (
-                <div className="border-t border-gray-100 px-5 py-4">
-                  {plan.description && <p className="text-sm text-gray-600 mb-3">{plan.description}</p>}
-                  <div className="text-xs text-gray-500 flex gap-4 mb-3">
+                <div className="border-t border-border px-5 py-4 bg-muted/20">
+                  {plan.description && <p className="text-sm text-muted-foreground mb-3">{plan.description}</p>}
+                  <div className="text-xs text-muted-foreground flex gap-4 mb-3">
                     {plan.effective_from && <span>From: {plan.effective_from}</span>}
                     {plan.effective_to && <span>To: {plan.effective_to}</span>}
                   </div>
                   {(plan.rules || []).length === 0 ? (
-                    <p className="text-sm text-gray-400">No rules defined</p>
+                    <p className="text-sm text-muted-foreground">No rules defined</p>
                   ) : (
                     <div className="space-y-2">
                       {(plan.rules || []).map((rule, i) => (
-                        <div key={rule.id || i} className="flex items-center gap-3 text-sm bg-gray-50 rounded-lg px-3 py-2">
-                          <span className="font-medium text-gray-700">{rule.name || `Rule ${i + 1}`}</span>
-                          <span className="text-gray-500 capitalize">{rule.calculation_type?.replace('_', ' ')}</span>
+                        <div key={rule.id || i} className="flex items-center gap-3 text-sm bg-muted/40 rounded-lg px-3 py-2">
+                          <span className="font-medium text-foreground">{rule.name || `Rule ${i + 1}`}</span>
+                          <span className="text-muted-foreground capitalize">{rule.calculation_type?.replace('_', ' ')}</span>
                           {rule.value_numeric != null && <span className="text-primary font-medium">{rule.value_numeric}%</span>}
                           {rule.value_currency != null && <span className="text-primary font-medium">₹{rule.value_currency}</span>}
-                          <span className="text-gray-400 ml-auto">Ch: {rule.channel}</span>
+                          <span className="text-muted-foreground ml-auto">Ch: {rule.channel}</span>
                         </div>
                       ))}
                     </div>
@@ -190,19 +194,20 @@ export default function PlansPage() {
       {/* Plan Form Modal */}
       {showForm && (
         <div
-          className="fixed inset-0 z-50 bg-black/40 flex items-start justify-center p-4 overflow-y-auto"
+          data-kiterp-modal
+          className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-start justify-center p-4 overflow-y-auto"
           onClick={closeForm}
         >
           <div
-            className="bg-white rounded-xl w-full max-w-2xl shadow-xl my-8 max-h-[90vh] overflow-y-auto"
+            className="bg-card border border-border text-foreground rounded-xl w-full max-w-2xl shadow-2xl my-8 max-h-[90vh] overflow-y-auto"
             onClick={e => e.stopPropagation()}
           >
-            <div className="p-5 border-b border-gray-100 flex items-start justify-between gap-3">
-              <h2 className="font-semibold text-gray-900">{editing ? 'Edit Plan' : 'New Commission Plan'}</h2>
+            <div className="p-5 border-b border-border flex items-start justify-between gap-3">
+              <h2 className="font-semibold text-foreground">{editing ? 'Edit Plan' : 'New Commission Plan'}</h2>
               <button
                 type="button"
                 onClick={closeForm}
-                className="p-1.5 rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors shrink-0"
+                className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors shrink-0"
                 aria-label="Close"
               >
                 <X className="w-5 h-5" />
@@ -212,63 +217,92 @@ export default function PlansPage() {
               <div className="grid grid-cols-2 gap-4">
                 {[{ key: 'code', label: 'Code' }, { key: 'name', label: 'Name' }].map(f => (
                   <div key={f.key}>
-                    <Label required className="block text-xs font-medium text-gray-700 mb-1">
+                    <Label required className={`block mb-1 ${formLabelClass}`}>
                       {f.label}
                     </Label>
-                    <input value={String(form[f.key] || '')} onChange={e => setForm(p => ({ ...p, [f.key]: e.target.value }))}
-                      className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm" />
+                    <Input
+                      value={String(form[f.key] || '')}
+                      onChange={e => setForm(p => ({ ...p, [f.key]: e.target.value }))}
+                      className="h-9"
+                    />
                   </div>
                 ))}
               </div>
               <div>
-                <Label className="block text-xs font-medium text-gray-700 mb-1">Description</Label>
-                <textarea value={String(form.description || '')} onChange={e => setForm(p => ({ ...p, description: e.target.value }))}
-                  rows={2} className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm" />
+                <Label className={`block mb-1 ${formLabelClass}`}>Description</Label>
+                <textarea
+                  value={String(form.description || '')}
+                  onChange={e => setForm(p => ({ ...p, description: e.target.value }))}
+                  rows={2}
+                  className={formTextareaClass}
+                />
               </div>
               <div className="grid grid-cols-3 gap-4">
                 <div>
-                  <Label className="block text-xs font-medium text-gray-700 mb-1">Status</Label>
-                  <select value={String(form.status)} onChange={e => setForm(p => ({ ...p, status: e.target.value }))} className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm">
-                    {['active', 'inactive', 'draft'].map(s => <option key={s} value={s}>{s}</option>)}
-                  </select>
+                  <Label className={`block mb-1 ${formLabelClass}`}>Status</Label>
+                  <Select
+                    value={String(form.status)}
+                    onChange={(v) => setForm(p => ({ ...p, status: v }))}
+                    options={['active', 'inactive', 'draft'].map(s => ({ value: s, label: s }))}
+                    aria-label="Plan status"
+                    className="w-full"
+                  />
                 </div>
                 <div>
-                  <Label className="block text-xs font-medium text-gray-700 mb-1">Payee Scope</Label>
-                  <select value={String(form.payee_scope)} onChange={e => setForm(p => ({ ...p, payee_scope: e.target.value }))} className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm">
-                    {PAYEE_SCOPES.map(s => <option key={s} value={s}>{s}</option>)}
-                  </select>
+                  <Label className={`block mb-1 ${formLabelClass}`}>Payee Scope</Label>
+                  <Select
+                    value={String(form.payee_scope)}
+                    onChange={(v) => setForm(p => ({ ...p, payee_scope: v }))}
+                    options={PAYEE_SCOPES.map(s => ({ value: s, label: s }))}
+                    aria-label="Payee scope"
+                    className="w-full"
+                  />
                 </div>
                 <div>
-                  <Label className="block text-xs font-medium text-gray-700 mb-1">Priority</Label>
-                  <input type="number" value={Number(form.priority)} onChange={e => setForm(p => ({ ...p, priority: parseInt(e.target.value) || 10 }))} className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm" />
+                  <Label className={`block mb-1 ${formLabelClass}`}>Priority</Label>
+                  <Input
+                    type="number"
+                    value={Number(form.priority)}
+                    onChange={e => setForm(p => ({ ...p, priority: parseInt(e.target.value) || 10 }))}
+                    className="h-9"
+                  />
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 {[{ key: 'effective_from', label: 'Effective From' }, { key: 'effective_to', label: 'Effective To' }].map(f => (
                   <div key={f.key}>
-                    <Label className="block text-xs font-medium text-gray-700 mb-1">{f.label}</Label>
-                    <input type="date" value={String(form[f.key] || '')} onChange={e => setForm(p => ({ ...p, [f.key]: e.target.value }))}
-                      className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm" />
+                    <Label className={`block mb-1 ${formLabelClass}`}>{f.label}</Label>
+                    <Input
+                      type="date"
+                      value={String(form[f.key] || '')}
+                      onChange={e => setForm(p => ({ ...p, [f.key]: e.target.value }))}
+                      className="h-9"
+                    />
                   </div>
                 ))}
               </div>
               <div className="flex items-center gap-2">
-                <input type="checkbox" id="stackable" checked={Boolean(form.stackable)} onChange={e => setForm(p => ({ ...p, stackable: e.target.checked }))} />
-                <label htmlFor="stackable" className="text-sm text-gray-700">Stackable (multiple plans can fire on same sale)</label>
+                <input
+                  type="checkbox"
+                  id="stackable"
+                  checked={Boolean(form.stackable)}
+                  onChange={e => setForm(p => ({ ...p, stackable: e.target.checked }))}
+                  className="rounded border-input accent-primary"
+                />
+                <label htmlFor="stackable" className="text-sm text-muted-foreground">Stackable (multiple plans can fire on same sale)</label>
               </div>
 
-              <hr className="border-gray-100" />
+              <hr className="border-border" />
               <div>
-                <h3 className="text-sm font-semibold text-gray-800 mb-3">Rules</h3>
+                <h3 className="text-sm font-semibold text-foreground mb-3">Rules</h3>
                 <RuleBuilder rules={rules} onChange={setRules as (r: (Partial<CommissionRule> & { _key?: string })[]) => void} />
               </div>
             </div>
-            <div className="p-4 border-t border-gray-100 flex gap-3 justify-end">
-              <button onClick={closeForm} className="btn-cancel px-4 py-2 text-sm border border-gray-200 rounded-lg">Cancel</button>
-              <button onClick={handleSave} disabled={create.isPending || update.isPending}
-                className="px-4 py-2 text-sm bg-primary text-white rounded-lg hover:bg-primary/90 disabled:opacity-50">
+            <div className="p-4 border-t border-border bg-muted/25 flex gap-3 justify-end">
+              <Button type="button" variant="cancel" onClick={closeForm}>Cancel</Button>
+              <Button onClick={handleSave} disabled={create.isPending || update.isPending}>
                 {create.isPending || update.isPending ? 'Saving…' : 'Save Plan'}
-              </button>
+              </Button>
             </div>
           </div>
         </div>

@@ -5,6 +5,7 @@ import { vendorApi } from '@/api/vendor'
 import type { ModifierGroup, ModifierOption } from '@/api/vendor'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { Select } from '@/components/ui/select'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 import { formatCurrency } from '@/lib/utils'
@@ -130,14 +131,15 @@ function ModifierGroupRow({ productId, group, onDelete }: { productId: string; g
           {group.name}
         </button>
         {/* selection_type toggle */}
-        <select
-          className="text-xs border rounded px-2 py-1 bg-white"
+        <Select
+          className="w-28"
           value={group.selection_type}
-          onChange={e => updateGroup.mutate({ selection_type: e.target.value as 'single' | 'multiple' })}
-        >
-          <option value="single">Pick one</option>
-          <option value="multiple">Pick many</option>
-        </select>
+          onChange={v => updateGroup.mutate({ selection_type: v as 'single' | 'multiple' })}
+          options={[
+            { value: 'single', label: 'Pick one' },
+            { value: 'multiple', label: 'Pick many' },
+          ]}
+        />
         <label className="flex items-center gap-1 text-xs text-gray-500">
           <input
             type="checkbox"

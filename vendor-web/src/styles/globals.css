@@ -317,6 +317,8 @@
   .dark[data-kit-template='template2'] {
     --radius: 1.1rem;
     --background: 220 50% 4%;
+    --card: 221 38% 9%;
+    --popover: 221 38% 9%;
     --muted: 221 24% 17%;
     --border: 221 24% 22%;
     --input: 221 24% 22%;
@@ -375,6 +377,27 @@
   [role='combobox']:focus-visible {
     @apply border-primary;
   }
+
+  /* Native <select> — closed field + OS dropdown list (all themes) */
+  select {
+    color-scheme: light;
+  }
+  .dark select {
+    color-scheme: dark;
+  }
+  select option {
+    background-color: hsl(var(--popover));
+    color: hsl(var(--popover-foreground));
+  }
+  select option:checked {
+    background-color: hsl(var(--primary));
+    color: hsl(var(--primary-foreground));
+  }
+  select option:hover,
+  select option:focus {
+    background-color: hsl(var(--accent));
+    color: hsl(var(--accent-foreground));
+  }
 }
 
 @layer components {
@@ -420,8 +443,12 @@
 
   /* Native selects — use on pages that still use raw <select> */
   .form-select {
-    @apply h-9 rounded-md border border-input bg-background px-2.5 py-1.5 text-sm text-foreground
+    @apply inline-flex h-10 items-center rounded-md border border-input bg-background px-2.5 py-0 text-sm leading-none text-foreground
            focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring focus-visible:border-primary disabled:cursor-not-allowed disabled:opacity-50;
+    color-scheme: light;
+  }
+  .dark .form-select {
+    color-scheme: dark;
   }
 
   /* Pill toggle chip — day selectors, filter chips */
@@ -466,6 +493,14 @@
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 8px 24px -12px rgba(0, 0, 0, 0.6);
 }
 
+/* Template 1 dark — subtle card lift on the flat canvas */
+.dark[data-kit-template='default'] main .bg-card:not(.shadow-none),
+.dark:not([data-kit-template]) main .bg-card:not(.shadow-none) {
+  box-shadow:
+    0 1px 2px rgba(0, 0, 0, 0.28),
+    inset 0 1px 0 hsl(var(--border) / 0.35);
+}
+
 /* Template 2 — hide the sidebar/header separator lines for a seamless canvas. */
 :root[data-kit-template='template2'] .border-sidebar-border {
   border-color: transparent !important;
@@ -489,39 +524,102 @@
   background-color: hsl(var(--background) / 0.8) !important;
 }
 
-/* Template 2 — active sidebar nav reads as a soft white pill, not a tinted bar. */
+/* Template 2 — active sidebar nav: card fill layer + shared theme cap pseudos. */
 :root[data-kit-template='template2'] .sidebar-nav-link-active {
-  background-color: hsl(var(--card));
-  border-radius: 9999px;
+  --nav-leaf-fill: hsl(var(--card));
   box-shadow:
-    inset 0.25rem 0 0 0 hsl(var(--sidebar-primary)),
     0 1px 2px rgba(16, 24, 40, 0.06),
     0 4px 12px -6px rgba(16, 24, 40, 0.12);
 }
 
 .dark[data-kit-template='template2'] .sidebar-nav-link-active {
-  background-color: hsl(var(--card));
-  border-radius: 9999px;
-  box-shadow:
-    inset 0.25rem 0 0 0 hsl(var(--sidebar-primary)),
-    0 1px 2px rgba(0, 0, 0, 0.4);
+  box-shadow: none;
 }
 
 :root[data-kit-template='template2'] .sidebar-nav-section-active-collapsed {
-  background-color: hsl(var(--card));
-  border-radius: 0.5rem;
+  --nav-leaf-fill: hsl(var(--card));
   box-shadow:
-    inset 0.1875rem 0 0 0 hsl(var(--sidebar-primary)),
     0 1px 2px rgba(16, 24, 40, 0.06),
     0 4px 12px -6px rgba(16, 24, 40, 0.1);
 }
 
-.dark[data-kit-template='template2'] .sidebar-nav-section-active-collapsed {
-  background-color: hsl(var(--card));
-  border-radius: 0.5rem;
+/* Template 2 — expanded module row when a child route is active (pill + theme cap). */
+:root[data-kit-template='template2'] .sidebar-nav-section-active-expanded {
+  --nav-leaf-fill: hsl(var(--card));
   box-shadow:
-    inset 0.1875rem 0 0 0 hsl(var(--sidebar-primary)),
-    0 1px 2px rgba(0, 0, 0, 0.35);
+    0 1px 2px rgba(16, 24, 40, 0.06),
+    0 4px 12px -6px rgba(16, 24, 40, 0.1);
+}
+
+.dark[data-kit-template='template2'] .sidebar-nav-section-active-expanded {
+  --nav-leaf-fill: color-mix(
+    in srgb,
+    hsl(var(--sidebar-primary)) 22%,
+    hsl(var(--sidebar-background)) 78%
+  );
+  box-shadow: none;
+}
+
+/* Template 2 — merged submodule list: tight vertical stack, pill rows, tree rail. */
+:root[data-kit-template='template2'] .sidebar-nav-sub-stack {
+  --tree-link-gap: 0.375rem;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.dark[data-kit-template='template2'] .sidebar-nav-sub-stack {
+  gap: 1px;
+}
+
+/* Inactive submodule rows — plain text (no pill); only active gets the cap pill. */
+:root[data-kit-template='template2'] .sidebar-nav-sub-stack .group\/nav:not(.sidebar-nav-link-active) {
+  min-height: 1.625rem;
+  border-radius: 9999px;
+  background: transparent;
+  box-shadow: none;
+  color: hsl(var(--muted-foreground));
+  transition: color 75ms ease-out;
+}
+
+.dark[data-kit-template='template2'] .sidebar-nav-sub-stack .group\/nav:not(.sidebar-nav-link-active) {
+  background: transparent;
+  box-shadow: none;
+  color: hsl(var(--muted-foreground));
+}
+
+:root[data-kit-template='template2'] .sidebar-nav-sub-stack .group\/nav:not(.sidebar-nav-link-active):hover {
+  background: hsl(var(--muted) / 0.35);
+  color: hsl(var(--foreground));
+}
+
+.dark[data-kit-template='template2'] .sidebar-nav-sub-stack .group\/nav:not(.sidebar-nav-link-active):hover {
+  background: hsl(var(--muted) / 0.28);
+  color: hsl(var(--foreground));
+}
+
+/* Active cap swaps instantly — no fade between sibling submenu items. */
+:root[data-kit-template='template2'] .sidebar-nav-sub-stack .sidebar-nav-link-active,
+.dark[data-kit-template='template2'] .sidebar-nav-sub-stack .sidebar-nav-link-active,
+:root[data-kit-template='template2'] .sidebar-nav-sub-stack .sidebar-nav-link-active::before,
+:root[data-kit-template='template2'] .sidebar-nav-sub-stack .sidebar-nav-link-active::after,
+.dark[data-kit-template='template2'] .sidebar-nav-sub-stack .sidebar-nav-link-active::before,
+.dark[data-kit-template='template2'] .sidebar-nav-sub-stack .sidebar-nav-link-active::after {
+  transition: none;
+}
+
+/* Active submodule — card fill + theme cap (see shared pseudos). */
+.dark[data-kit-template='template2'] .sidebar-nav-sub-stack .sidebar-nav-link-active {
+  --nav-leaf-fill: color-mix(
+    in srgb,
+    hsl(var(--sidebar-primary)) 34%,
+    hsl(var(--card)) 66%
+  );
+}
+
+/* Submodule row — compact stack spacing. */
+:root[data-kit-template='template2'] .sidebar-nav-sub-stack > div > div.relative.flex {
+  min-height: 1.625rem;
 }
 
 /* Vendor /register — full-page signup (no inner scroll trap) */
@@ -580,7 +678,16 @@
 .dark .border-gray-100,
 .dark .border-slate-200,
 .dark .border-slate-100,
-.dark .border-slate-200\/90 {
+.dark .border-slate-200\/90,
+.dark .border-gray-200\/90,
+.dark .border-gray-200\/80,
+.dark .border-gray-200\/70,
+.dark .border-gray-200\/60 {
+  border-color: hsl(var(--border)) !important;
+}
+
+.dark .border-gray-300,
+.dark .hover\:border-gray-300:hover {
   border-color: hsl(var(--border)) !important;
 }
 
@@ -591,9 +698,25 @@
   border-color: hsl(var(--border));
 }
 
+.dark select,
+select option {
+  color-scheme: inherit;
+}
+
 .dark select option {
-  background-color: hsl(var(--card));
-  color: hsl(var(--foreground));
+  background-color: hsl(var(--popover));
+  color: hsl(var(--popover-foreground));
+}
+
+.dark select option:checked {
+  background-color: hsl(var(--primary));
+  color: hsl(var(--primary-foreground));
+}
+
+.dark select option:hover,
+.dark select option:focus {
+  background-color: hsl(var(--accent));
+  color: hsl(var(--accent-foreground));
 }
 
 .dark .hover\:bg-white:hover,
@@ -603,6 +726,20 @@
 
 .dark .hover\:bg-gray-100:hover {
   background-color: hsl(var(--muted)) !important;
+}
+
+.dark .hover\:text-gray-700:hover,
+.dark .hover\:text-gray-800:hover,
+.dark .hover\:text-gray-900:hover {
+  color: hsl(var(--foreground)) !important;
+}
+
+.dark .btn-cancel {
+  color: hsl(220 25% 16%) !important;
+}
+
+.dark .btn-cancel:hover {
+  color: hsl(220 30% 10%) !important;
 }
 
 .dark .disabled\:bg-slate-50:disabled {
@@ -847,6 +984,22 @@
   --tw-gradient-to: hsl(var(--muted) / 0.8) var(--tw-gradient-to-position) !important;
 }
 
+.dark .to-gray-50 {
+  --tw-gradient-to: hsl(var(--muted)) var(--tw-gradient-to-position) !important;
+}
+
+.dark .from-gray-50 {
+  --tw-gradient-from: hsl(var(--muted)) var(--tw-gradient-from-position) !important;
+  --tw-gradient-to: hsl(var(--muted) / 0) var(--tw-gradient-to-position) !important;
+  --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to) !important;
+}
+
+.dark .from-white {
+  --tw-gradient-from: hsl(var(--card)) var(--tw-gradient-from-position) !important;
+  --tw-gradient-to: hsl(var(--card) / 0) var(--tw-gradient-to-position) !important;
+  --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to) !important;
+}
+
 .dark .from-emerald-50\/90 {
   --tw-gradient-from: hsl(152 32% 14% / 0.9) var(--tw-gradient-from-position) !important;
   --tw-gradient-to: hsl(152 32% 14% / 0) var(--tw-gradient-to-position) !important;
@@ -1083,65 +1236,98 @@
   .scrollbar-none::-webkit-scrollbar {
     display: none;
   }
-  /* Active sidebar leaf — inset accent follows the capsule curve on the left */
+  /* Active sidebar leaf — theme cap on the outer pill curve (two-layer fill). */
   .sidebar-nav-link-active,
   .sidebar-nav-kb-focus {
-    border-radius: 9999px;
-  }
-  .sidebar-nav-link-active {
-    --nav-leaf-accent: hsl(158 55% 36%);
+    --nav-accent-w: 0.3125rem;
+    --nav-accent-color: hsl(var(--sidebar-primary));
     --nav-leaf-fill: color-mix(
       in srgb,
       hsl(var(--sidebar-primary)) 40%,
       hsl(var(--sidebar-background)) 60%
     );
-    background-color: var(--nav-leaf-fill);
-    box-shadow: inset 0.25rem 0 0 0 var(--nav-leaf-accent);
+    position: relative;
+    isolation: isolate;
+    overflow: hidden;
+    border-radius: 9999px;
+    background: transparent;
+    border: none;
+    box-shadow: none;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     text-rendering: geometricPrecision;
   }
-  .dark .sidebar-nav-link-active {
-    --nav-leaf-accent: hsl(158 48% 52%);
+  .sidebar-nav-link-active::before,
+  .sidebar-nav-kb-focus::before,
+  .sidebar-nav-section-active-collapsed::before,
+  .sidebar-nav-section-active-expanded::before,
+  .form-section-nav-active::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    background: var(--nav-accent-color);
+    pointer-events: none;
+    z-index: 0;
+  }
+  .sidebar-nav-link-active::after,
+  .sidebar-nav-kb-focus::after,
+  .sidebar-nav-section-active-collapsed::after,
+  .sidebar-nav-section-active-expanded::after,
+  .form-section-nav-active::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    left: var(--nav-accent-w);
+    border-radius: inherit;
+    background: var(--nav-leaf-fill);
+    pointer-events: none;
+    z-index: 1;
+  }
+  .sidebar-nav-link-active > *,
+  .sidebar-nav-kb-focus > *,
+  .sidebar-nav-section-active-collapsed > *,
+  .sidebar-nav-section-active-expanded > *,
+  .form-section-nav-active > * {
+    position: relative;
+    z-index: 2;
+  }
+  .dark .sidebar-nav-link-active,
+  .dark .sidebar-nav-kb-focus {
     --nav-leaf-fill: color-mix(
       in srgb,
       hsl(var(--sidebar-primary)) 40%,
       hsl(var(--sidebar-background)) 60%
     );
-    background-color: var(--nav-leaf-fill);
-    box-shadow: inset 0.25rem 0 0 0 var(--nav-leaf-accent);
   }
-  /* Keyboard focus on sidebar leaves */
   .sidebar-nav-kb-focus {
-    --nav-leaf-accent: hsl(158 55% 36% / 0.55);
+    --nav-accent-color: hsl(var(--sidebar-primary) / 0.55);
     --nav-leaf-fill: color-mix(
       in srgb,
       hsl(var(--sidebar-primary)) 18%,
       hsl(var(--sidebar-background)) 82%
     );
-    background-color: var(--nav-leaf-fill);
-    box-shadow: inset 0.25rem 0 0 0 var(--nav-leaf-accent);
     outline: none;
   }
   .dark .sidebar-nav-kb-focus {
-    --nav-leaf-accent: hsl(158 48% 52% / 0.6);
+    --nav-accent-color: hsl(var(--sidebar-primary) / 0.65);
     --nav-leaf-fill: color-mix(
       in srgb,
       hsl(var(--sidebar-primary)) 20%,
       hsl(var(--sidebar-background)) 80%
     );
-    background-color: var(--nav-leaf-fill);
-    box-shadow: inset 0.25rem 0 0 0 var(--nav-leaf-accent);
+  }
+  .sidebar-nav-link-active.sidebar-nav-kb-focus,
+  .sidebar-nav-kb-focus-active {
+    --nav-accent-color: hsl(var(--sidebar-primary));
   }
   .sidebar-nav-kb-focus-active {
-    box-shadow:
-      inset 0.25rem 0 0 0 var(--nav-leaf-accent),
-      inset 0 0 0 1px hsl(var(--sidebar-primary) / 0.22);
+    box-shadow: inset 0 0 0 1px hsl(var(--sidebar-primary) / 0.22);
   }
   .dark .sidebar-nav-kb-focus-active {
-    box-shadow:
-      inset 0.25rem 0 0 0 var(--nav-leaf-accent),
-      inset 0 0 0 1px hsl(var(--sidebar-primary) / 0.28);
+    box-shadow: inset 0 0 0 1px hsl(var(--sidebar-primary) / 0.28);
   }
   .sidebar-nav-kb-focus-section {
     background-color: hsl(var(--muted) / 0.35);
@@ -1149,25 +1335,206 @@
   }
   /* Collapsed module row that still contains the active page */
   .sidebar-nav-section-active-collapsed {
-    background-color: color-mix(
+    --nav-accent-w: 0.25rem;
+    --nav-accent-color: hsl(var(--sidebar-primary));
+    --nav-leaf-fill: color-mix(
       in srgb,
       hsl(var(--sidebar-primary)) 30%,
       hsl(var(--sidebar-background)) 70%
     );
+    position: relative;
+    isolation: isolate;
+    overflow: hidden;
     border-radius: 0.5rem;
-    box-shadow:
-      inset 0.1875rem 0 0 0 hsl(158 55% 36%),
-      inset 0 0 0 1px hsl(var(--sidebar-primary) / 0.18);
+    background: transparent;
+    box-shadow: inset 0 0 0 1px hsl(var(--sidebar-primary) / 0.18);
   }
   .dark .sidebar-nav-section-active-collapsed {
-    background-color: color-mix(
+    --nav-leaf-fill: color-mix(
       in srgb,
       hsl(var(--sidebar-primary)) 32%,
       hsl(var(--sidebar-background)) 68%
     );
+    box-shadow: inset 0 0 0 1px hsl(var(--sidebar-primary) / 0.24);
+  }
+
+  /* Expanded module row (Template 2) — same cap treatment, full pill shape. */
+  .sidebar-nav-section-active-expanded {
+    --nav-accent-w: 0.3125rem;
+    --nav-accent-color: hsl(var(--sidebar-primary));
+    --nav-leaf-fill: color-mix(
+      in srgb,
+      hsl(var(--sidebar-primary)) 26%,
+      hsl(var(--sidebar-background)) 74%
+    );
+    position: relative;
+    isolation: isolate;
+    overflow: hidden;
+    border-radius: 9999px;
+    background: transparent;
+    box-shadow: none;
+  }
+
+  .dark .sidebar-nav-section-active-expanded {
+    --nav-leaf-fill: color-mix(
+      in srgb,
+      hsl(var(--sidebar-primary)) 28%,
+      hsl(var(--sidebar-background)) 72%
+    );
+    box-shadow: none;
+  }
+
+  /* Form page section nav — same theme cap on outer rounded corner as main sidebar. */
+  .form-section-nav-active {
+    --nav-accent-w: 0.25rem;
+    --nav-accent-color: hsl(var(--primary));
+    --nav-leaf-fill: color-mix(
+      in srgb,
+      hsl(var(--primary)) 40%,
+      hsl(var(--background)) 60%
+    );
+    position: relative;
+    isolation: isolate;
+    overflow: hidden;
+    border-radius: 0.5rem;
+    background: transparent;
+    border: none;
+    box-shadow: none;
+  }
+  .dark .form-section-nav-active {
+    --nav-leaf-fill: color-mix(
+      in srgb,
+      hsl(var(--primary)) 40%,
+      hsl(var(--background)) 60%
+    );
+  }
+
+  /* Sidebar module icon tile — default, hover lift (all themes). */
+  .sidebar-nav-icon-tile {
+    border-radius: 0.375rem;
+    background-color: hsl(var(--muted));
+    color: hsl(var(--muted-foreground));
+    box-shadow: 0 0 0 1px hsl(var(--border) / 0.55);
+    transition:
+      background-color 150ms ease-out,
+      color 150ms ease-out,
+      box-shadow 150ms ease-out;
+  }
+  .dark .sidebar-nav-icon-tile {
+    background-color: hsl(var(--muted) / 0.55);
+    box-shadow: 0 0 0 1px hsl(var(--border) / 0.45);
+  }
+  .sidebar-nav-icon-tile-active {
+    background-color: hsl(var(--secondary));
+    color: hsl(var(--foreground));
+    box-shadow: 0 0 0 1px hsl(var(--border) / 0.6);
+  }
+  .dark .sidebar-nav-icon-tile-active {
+    background-color: hsl(var(--sidebar-accent));
+    color: hsl(var(--sidebar-accent-foreground));
+    box-shadow: 0 0 0 1px hsl(var(--border) / 0.55);
+  }
+  /* Light mode only — pale accent lift. */
+  :root:not(.dark) .group\/sec:hover .sidebar-nav-icon-tile:not(.sidebar-nav-icon-tile-active),
+  :root:not(.dark) .sidebar-nav-icon-tile-hoverable:hover:not(.sidebar-nav-icon-tile-active) {
+    background-color: hsl(var(--accent));
+    color: hsl(var(--sidebar-primary));
+    box-shadow: 0 0 0 1px hsl(var(--sidebar-primary) / 0.28);
+  }
+  /* Dark: no white/pale fill — dark tile + theme icon + ring only. */
+  .dark .group\/sec:hover .sidebar-nav-icon-tile:not(.sidebar-nav-icon-tile-active),
+  .dark .sidebar-nav-icon-tile-hoverable:hover:not(.sidebar-nav-icon-tile-active) {
+    background-color: hsl(var(--muted) / 0.65);
+    color: hsl(var(--sidebar-primary));
+    box-shadow: 0 0 0 1px hsl(var(--sidebar-primary) / 0.55);
+  }
+
+  /* Collapsed icon rail — inset hover ring keeps tiles visually separated. */
+  .sidebar-nav-rail-btn {
+    border-radius: 0.5rem;
+    color: hsl(var(--muted-foreground));
+    transition:
+      background-color 120ms ease-out,
+      color 120ms ease-out,
+      box-shadow 120ms ease-out;
+  }
+  :root:not(.dark) .sidebar-nav-rail-btn:hover:not(.sidebar-nav-rail-btn-active) {
+    background-color: hsl(var(--accent));
+    color: hsl(var(--sidebar-primary));
+    box-shadow: inset 0 0 0 1px hsl(var(--sidebar-primary) / 0.28);
+  }
+  .dark .sidebar-nav-rail-btn:hover:not(.sidebar-nav-rail-btn-active) {
+    background-color: hsl(var(--muted) / 0.65);
+    color: hsl(var(--sidebar-primary));
+    box-shadow: inset 0 0 0 1px hsl(var(--sidebar-primary) / 0.55);
+  }
+  .sidebar-nav-rail-btn-active {
+    background-color: hsl(var(--sidebar-primary));
+    color: hsl(var(--sidebar-primary-foreground));
+    box-shadow: none;
+    transition: none;
+  }
+  .sidebar-nav-rail-btn-active:hover {
+    background-color: hsl(var(--sidebar-primary) / 0.92);
+    color: hsl(var(--sidebar-primary-foreground));
+    box-shadow: none;
+  }
+
+  /* Icon-rail flyout submenu — flat pill rows (no tree cap / left stripe). */
+  .sidebar-nav-rail-flyout-list {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+  .sidebar-nav-rail-flyout-item {
+    border-radius: 0.625rem;
+    transition:
+      background-color 120ms ease-out,
+      color 120ms ease-out,
+      box-shadow 120ms ease-out;
+  }
+  :root:not(.dark) .sidebar-nav-rail-flyout-item:hover:not(.sidebar-nav-rail-flyout-item-active) {
+    background-color: hsl(var(--muted) / 0.55);
+  }
+  .dark .sidebar-nav-rail-flyout-item:hover:not(.sidebar-nav-rail-flyout-item-active) {
+    background-color: hsl(var(--muted) / 0.38);
+  }
+  .sidebar-nav-rail-flyout-item-active {
+    background-color: color-mix(
+      in srgb,
+      hsl(var(--sidebar-primary)) 14%,
+      hsl(var(--card)) 86%
+    );
+    color: hsl(var(--foreground));
+    font-weight: 500;
+    box-shadow: inset 0 0 0 1px hsl(var(--sidebar-primary) / 0.24);
+  }
+  .dark .sidebar-nav-rail-flyout-item-active {
+    background-color: color-mix(
+      in srgb,
+      hsl(var(--sidebar-primary)) 20%,
+      hsl(var(--card)) 80%
+    );
+    box-shadow: inset 0 0 0 1px hsl(var(--sidebar-primary) / 0.32);
+  }
+  .sidebar-nav-rail-flyout-item-focus {
+    outline: none;
+    box-shadow: inset 0 0 0 2px hsl(var(--sidebar-primary) / 0.38);
+  }
+  .sidebar-nav-rail-flyout-item-active.sidebar-nav-rail-flyout-item-focus {
     box-shadow:
-      inset 0.1875rem 0 0 0 hsl(158 48% 52%),
-      inset 0 0 0 1px hsl(var(--sidebar-primary) / 0.24);
+      inset 0 0 0 1px hsl(var(--sidebar-primary) / 0.32),
+      inset 0 0 0 2px hsl(var(--sidebar-primary) / 0.22);
+  }
+  .sidebar-nav-rail-flyout-icon-active {
+    border-radius: 0.375rem;
+    background-color: hsl(var(--sidebar-primary) / 0.22);
+    color: hsl(var(--sidebar-primary));
+    box-shadow: inset 0 0 0 1px hsl(var(--sidebar-primary) / 0.28);
+  }
+  .dark .sidebar-nav-rail-flyout-icon-active {
+    background-color: hsl(var(--sidebar-primary) / 0.28);
+    box-shadow: inset 0 0 0 1px hsl(var(--sidebar-primary) / 0.35);
   }
 
   /* Side menu — edge color matches --sidebar-background; center is lighter */
@@ -1945,4 +2312,75 @@ html[dir='rtl'] [data-sonner-toast][data-styled='true']:has([data-close-button])
 /* Partial-word color/size spans from the design bar */
 [data-inline-style="true"] {
   text-decoration: inherit;
+}
+
+/* ── Modal / dialog dark-mode normalization (inline modals + shared shells) ── */
+@layer components {
+  [data-kiterp-modal] input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]),
+  [data-kiterp-modal] textarea,
+  [data-kiterp-modal] select {
+    @apply border-input bg-background text-foreground placeholder:text-muted-foreground;
+  }
+
+  [data-kiterp-modal] input[type="date"],
+  [data-kiterp-modal] input[type="datetime-local"],
+  [data-kiterp-modal] input[type="time"],
+  [data-kiterp-modal] input[type="month"],
+  [data-kiterp-modal] input[type="week"] {
+    color-scheme: light;
+  }
+
+  .dark [data-kiterp-modal] input[type="date"],
+  .dark [data-kiterp-modal] input[type="datetime-local"],
+  .dark [data-kiterp-modal] input[type="time"],
+  .dark [data-kiterp-modal] input[type="month"],
+  .dark [data-kiterp-modal] input[type="week"] {
+    color-scheme: dark;
+  }
+
+  .dark [data-kiterp-modal] .text-gray-900,
+  .dark [data-kiterp-modal] .text-gray-800 {
+    @apply text-foreground;
+  }
+
+  .dark [data-kiterp-modal] .text-gray-700,
+  .dark [data-kiterp-modal] .text-gray-600,
+  .dark [data-kiterp-modal] .text-gray-500,
+  .dark [data-kiterp-modal] .text-gray-400 {
+    @apply text-muted-foreground;
+  }
+
+  .dark [data-kiterp-modal] .border-gray-100,
+  .dark [data-kiterp-modal] .border-gray-200 {
+    @apply border-border;
+  }
+
+  .dark [data-kiterp-modal] .bg-gray-50 {
+    @apply bg-muted/40;
+  }
+
+  .dark [data-kiterp-modal] .bg-gray-100 {
+    @apply bg-muted/50;
+  }
+
+  .dark [data-kiterp-modal] hr.border-gray-100,
+  .dark [data-kiterp-modal] hr.border-gray-200 {
+    @apply border-border;
+  }
+
+  .dark [data-kiterp-modal] .hover\:bg-gray-100:hover {
+    @apply bg-muted text-foreground;
+  }
+
+  /* Single border on themed selects — wrapper is layout-only. */
+  [data-kiterp-modal] button.form-select {
+    @apply border border-input bg-background;
+  }
+
+  /* Form fields — label spacing; avoid double chrome with Input/Select inside FormField. */
+  [data-field] > label + div > .form-select,
+  [data-field] > label + div > input:not([type='checkbox']):not([type='radio']),
+  [data-field] > label + div > textarea {
+    @apply w-full;
+  }
 }

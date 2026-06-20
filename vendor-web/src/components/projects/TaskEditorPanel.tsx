@@ -77,7 +77,7 @@ export function TaskEditorPanel({ task, allTasks, onClose, onSave, saving }: Pro
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex justify-end bg-black/40" onClick={onClose}>
+    <div data-kiterp-modal className="fixed inset-0 z-50 flex justify-end bg-black/50 backdrop-blur-sm" onClick={onClose}>
       <div
         className="w-full max-w-md h-full bg-card border-l border-border shadow-xl overflow-y-auto"
         onClick={(e) => e.stopPropagation()}

@@ -3,6 +3,7 @@ import { TableColumnLabel } from '@/components/common/FieldLabel'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { Select } from '@/components/ui/select'
 import { Badge } from '@/components/ui/badge'
 import {
   useActivities, useSaveActivity, useCompleteActivity,
@@ -155,29 +156,35 @@ function ActivityForm({ onClose }: { onClose: () => void }) {
       <form onSubmit={submit} className="space-y-2.5">
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
           <Field label="Type" required>
-            <select
+            <Select
               value={form.type}
-              onChange={e => setForm(p => ({ ...p, type: e.target.value, type_other: e.target.value === 'other' ? p.type_other : '' }))}
-              className={inputCls}
-            >
-              {TYPES.map(t => <option key={t.id} value={t.id}>{t.label}</option>)}
-            </select>
+              onChange={v => setForm(p => ({ ...p, type: v, type_other: v === 'other' ? p.type_other : '' }))}
+              options={TYPES.map(t => ({ value: t.id, label: t.label }))}
+            />
           </Field>
           <Field label="Priority">
-            <select value={form.priority} onChange={e => set('priority', e.target.value)} className={inputCls}>
-              <option value="low">Low</option>
-              <option value="medium">Medium</option>
-              <option value="high">High</option>
-              <option value="urgent">Urgent</option>
-            </select>
+            <Select
+              value={form.priority}
+              onChange={v => set('priority', v)}
+              options={[
+                { value: 'low', label: 'Low' },
+                { value: 'medium', label: 'Medium' },
+                { value: 'high', label: 'High' },
+                { value: 'urgent', label: 'Urgent' },
+              ]}
+            />
           </Field>
           <Field label="Status">
-            <select value={form.status} onChange={e => set('status', e.target.value)} className={inputCls}>
-              <option value="open">Open</option>
-              <option value="in_progress">In progress</option>
-              <option value="completed">Completed</option>
-              <option value="cancelled">Cancelled</option>
-            </select>
+            <Select
+              value={form.status}
+              onChange={v => set('status', v)}
+              options={[
+                { value: 'open', label: 'Open' },
+                { value: 'in_progress', label: 'In progress' },
+                { value: 'completed', label: 'Completed' },
+                { value: 'cancelled', label: 'Cancelled' },
+              ]}
+            />
           </Field>
         </div>
         {form.type === 'other' && (

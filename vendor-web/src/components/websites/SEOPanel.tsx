@@ -5,6 +5,9 @@ import { cn, mediaUrl } from '@/lib/utils'
 import { useAIGenerateSEO, useAISuggestBlocks } from '@/hooks/useWebsites'
 import type { WebsitePage, WebsiteSite } from '@/types/websites'
 
+const seoFieldClass =
+  'w-full rounded-xl border border-input bg-background px-3 py-2 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring'
+
 export function SEOPanel({
   siteId,
   activePage,
@@ -89,19 +92,21 @@ export function SEOPanel({
 
   return (
     <div className="space-y-4">
-      <div className="rounded-xl border border-sky-100 bg-sky-50/80 px-3 py-2.5 text-[11px] text-gray-600 leading-snug">
-        <strong className="font-semibold text-gray-800">Search listing</strong> controls the title and short description people see in Google and when your link is shared on social media.
+      <div className="rounded-xl border border-primary/20 bg-primary/5 px-3 py-2.5 text-[11px] leading-snug text-muted-foreground dark:bg-primary/10">
+        <strong className="font-semibold text-foreground">Search listing</strong> controls the title and short description people see in Google and when your link is shared on social media.
       </div>
 
-      <div className="flex bg-gray-100 rounded-xl p-0.5 gap-0.5">
+      <div className="flex gap-0.5 rounded-xl bg-muted/60 p-0.5">
         {(['page', 'site'] as const).map(t => (
           <button
             key={t}
             type="button"
             onClick={() => setTab(t)}
             className={cn(
-              'flex-1 py-1.5 rounded-lg text-xs font-medium transition-colors',
-              tab === t ? 'bg-white text-gray-800 shadow-sm' : 'text-gray-500 hover:text-gray-700',
+              'flex-1 rounded-lg py-1.5 text-xs font-medium transition-colors',
+              tab === t
+                ? 'bg-card text-foreground shadow-sm'
+                : 'text-muted-foreground hover:text-foreground',
             )}
           >
             {t === 'page' ? '📄 This page' : '🌐 Whole site'}
@@ -110,7 +115,7 @@ export function SEOPanel({
       </div>
 
       {tab === 'page' && !activePage && (
-        <div className="rounded-xl border border-dashed border-gray-200 bg-gray-50 px-4 py-8 text-center text-sm text-gray-500">
+        <div className="rounded-xl border border-dashed border-border bg-muted/30 px-4 py-8 text-center text-sm text-muted-foreground">
           Select a page above to edit its search title, summary, and share image.
         </div>
       )}
@@ -121,79 +126,79 @@ export function SEOPanel({
             type="button"
             onClick={handleAIGenerate}
             disabled={aiSEO.isPending}
-            className="w-full py-2 bg-gradient-to-r from-primary to-info text-white text-xs font-bold rounded-xl flex items-center justify-center gap-2 hover:opacity-90 transition-opacity"
+            className="flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-primary to-info py-2 text-xs font-bold text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-60"
           >
             {aiSEO.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
             Write search text with AI
           </button>
 
           {aiResult && (
-            <div className="p-3 bg-accent border border-primary/30 rounded-xl space-y-2">
-              <div className="text-xs font-bold text-primary uppercase tracking-wide">AI Suggestion</div>
+            <div className="space-y-2 rounded-xl border border-primary/30 bg-accent p-3">
+              <div className="text-xs font-bold uppercase tracking-wide text-primary">AI Suggestion</div>
               <div className="space-y-1">
-                <p className="text-xs font-medium text-gray-700">Title: {aiResult.seo_title}</p>
-                <p className="text-xs text-gray-600 line-clamp-2">{aiResult.seo_description}</p>
+                <p className="text-xs font-medium text-foreground">Title: {aiResult.seo_title}</p>
+                <p className="line-clamp-2 text-xs text-muted-foreground">{aiResult.seo_description}</p>
                 <p className="text-xs text-primary">Focus: <strong>{aiResult.focus_keyword}</strong></p>
               </div>
               <div className="flex gap-2">
-                <button type="button" onClick={applyAI} className="flex-1 py-1.5 bg-primary text-white text-xs font-bold rounded-lg">Apply</button>
-                <button type="button" onClick={() => setAiResult(null)} className="px-3 py-1.5 bg-white border border-gray-200 text-gray-500 text-xs rounded-lg">Dismiss</button>
+                <button type="button" onClick={applyAI} className="flex-1 rounded-lg bg-primary py-1.5 text-xs font-bold text-primary-foreground">Apply</button>
+                <button type="button" onClick={() => setAiResult(null)} className="rounded-lg border border-border bg-background px-3 py-1.5 text-xs text-muted-foreground hover:text-foreground">Dismiss</button>
               </div>
             </div>
           )}
 
           <div className="space-y-1">
             <div className="flex justify-between">
-              <label className="text-xs font-medium text-gray-700">Title in Google results</label>
-              <span className={cn('text-xs', titleLen > 60 ? 'text-red-500' : titleLen > 50 ? 'text-amber-500' : 'text-gray-400')}>{titleLen}/60</span>
+              <label className="text-xs font-medium text-foreground">Title in Google results</label>
+              <span className={cn('text-xs', titleLen > 60 ? 'text-destructive' : titleLen > 50 ? 'text-warning' : 'text-muted-foreground')}>{titleLen}/60</span>
             </div>
             <input
               value={seoTitle}
               onChange={e => setSeoTitle(e.target.value)}
               placeholder={`${activePage.title} | ${site.name}`}
-              className="w-full px-3 py-2 border border-gray-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-ring"
+              className={seoFieldClass}
             />
           </div>
 
           <div className="space-y-1">
             <div className="flex justify-between">
-              <label className="text-xs font-medium text-gray-700">Short summary for Google</label>
-              <span className={cn('text-xs', descLen > 160 ? 'text-red-500' : descLen > 140 ? 'text-amber-500' : 'text-gray-400')}>{descLen}/160</span>
+              <label className="text-xs font-medium text-foreground">Short summary for Google</label>
+              <span className={cn('text-xs', descLen > 160 ? 'text-destructive' : descLen > 140 ? 'text-warning' : 'text-muted-foreground')}>{descLen}/160</span>
             </div>
             <textarea
               value={seoDesc}
               onChange={e => setSeoDesc(e.target.value)}
               placeholder="Describe this page in 150-160 characters..."
               rows={3}
-              className="w-full px-3 py-2 border border-gray-200 rounded-xl text-xs resize-none focus:outline-none focus:ring-2 focus:ring-ring"
+              className={cn(seoFieldClass, 'resize-none')}
             />
           </div>
 
           <div className="space-y-1">
-            <label className="text-xs font-medium text-gray-700">Share image (social media preview)</label>
+            <label className="text-xs font-medium text-foreground">Share image (social media preview)</label>
             <input
               value={ogImage}
               onChange={e => setOgImage(e.target.value)}
               placeholder="https://... or /uploads/..."
-              className="w-full px-3 py-2 border border-gray-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-ring"
+              className={seoFieldClass}
             />
             {ogImage && (
               <img
                 src={mediaUrl(ogImage)}
-                className="w-full h-20 object-cover rounded-xl border border-gray-100 mt-1"
+                className="mt-1 h-20 w-full rounded-xl border border-border object-cover"
                 alt="OG preview"
                 onError={e => { (e.target as HTMLImageElement).style.display = 'none' }}
               />
             )}
           </div>
 
-          <div className="p-3 bg-white border border-gray-200 rounded-xl">
-            <div className="text-xs text-gray-400 mb-1.5 font-semibold uppercase tracking-wide">Search Preview</div>
-            <div className="text-xs text-blue-700 font-semibold truncate">{seoTitle || `${activePage.title} | ${site.name}`}</div>
-            <div className="text-xs text-green-700">
+          <div className="rounded-xl border border-border bg-muted/30 p-3">
+            <div className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Search Preview</div>
+            <div className="truncate text-xs font-semibold text-info">{seoTitle || `${activePage.title} | ${site.name}`}</div>
+            <div className="text-xs text-success">
               {(site as { custom_domain?: string }).custom_domain || `${site.name?.toLowerCase().replace(/\s/g, '')}.site`}/{activePage.slug}
             </div>
-            <div className="text-xs text-gray-600 mt-0.5 line-clamp-2">
+            <div className="mt-0.5 line-clamp-2 text-xs text-muted-foreground">
               {seoDesc || 'No meta description set. Add one to improve search ranking.'}
             </div>
           </div>
@@ -201,34 +206,34 @@ export function SEOPanel({
           <button
             type="button"
             onClick={() => onSavePage({ seo_title: seoTitle, seo_description: seoDesc, og_image_url: ogImage })}
-            className="w-full py-2 bg-gray-800 text-white text-xs font-bold rounded-xl hover:bg-gray-700 transition-colors flex items-center justify-center gap-2"
+            className="flex w-full items-center justify-center gap-2 rounded-xl bg-primary py-2 text-xs font-bold text-primary-foreground transition-colors hover:bg-primary/90"
           >
             <Save className="w-3.5 h-3.5" /> Save search settings
           </button>
 
-          <div className="border-t border-gray-100 pt-3 space-y-2">
-            <div className="text-xs font-medium text-gray-700 flex items-center gap-1.5">
-              <Zap className="w-3.5 h-3.5 text-primary/80" /> AI section ideas
+          <div className="space-y-2 border-t border-border pt-3">
+            <div className="flex items-center gap-1.5 text-xs font-medium text-foreground">
+              <Zap className="h-3.5 w-3.5 text-primary/80" /> AI section ideas
             </div>
             <button
               type="button"
               onClick={handleSuggestBlocks}
               disabled={suggestBlocks.isPending}
-              className="w-full py-2 border border-primary/30 text-primary text-xs font-medium rounded-xl hover:bg-accent flex items-center justify-center gap-2"
+              className="flex w-full items-center justify-center gap-2 rounded-xl border border-primary/30 py-2 text-xs font-medium text-primary hover:bg-accent"
             >
               {suggestBlocks.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
               Suggest sections for this page
             </button>
             {suggestResult && (
               <div className="space-y-1.5">
-                <p className="text-xs text-gray-500 italic">{suggestResult.reasoning}</p>
+                <p className="text-xs italic text-muted-foreground">{suggestResult.reasoning}</p>
                 <div className="space-y-1">
                   {suggestResult.blocks?.map((b, i) => (
-                    <div key={i} className="flex items-start gap-2 p-2 bg-gray-50 rounded-lg">
-                      <span className="text-xs font-bold text-primary shrink-0">{i + 1}.</span>
+                    <div key={i} className="flex items-start gap-2 rounded-lg bg-muted/40 p-2">
+                      <span className="shrink-0 text-xs font-bold text-primary">{i + 1}.</span>
                       <div>
-                        <div className="text-xs font-medium text-gray-700">{b.label}</div>
-                        <div className="text-xs text-gray-400">{b.reason}</div>
+                        <div className="text-xs font-medium text-foreground">{b.label}</div>
+                        <div className="text-xs text-muted-foreground">{b.reason}</div>
                       </div>
                     </div>
                   ))}
@@ -242,37 +247,37 @@ export function SEOPanel({
       {tab === 'site' && (
         <div className="space-y-3">
           <div className="space-y-1">
-            <label className="text-xs font-medium text-gray-700">Default title in Google</label>
+            <label className="text-xs font-medium text-foreground">Default title in Google</label>
             <input
               value={siteTitle}
               onChange={e => setSiteTitle(e.target.value)}
               placeholder={site.name}
-              className="w-full px-3 py-2 border border-gray-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-ring"
+              className={seoFieldClass}
             />
           </div>
           <div className="space-y-1">
-            <label className="text-xs font-medium text-gray-700">Default summary for Google</label>
+            <label className="text-xs font-medium text-foreground">Default summary for Google</label>
             <textarea
               value={siteDesc}
               onChange={e => setSiteDesc(e.target.value)}
               placeholder="Overall site description for search engines..."
               rows={3}
-              className="w-full px-3 py-2 border border-gray-200 rounded-xl text-xs resize-none focus:outline-none focus:ring-2 focus:ring-ring"
+              className={cn(seoFieldClass, 'resize-none')}
             />
           </div>
           <div className="space-y-1">
-            <label className="text-xs font-medium text-gray-700">Keywords (comma-separated)</label>
+            <label className="text-xs font-medium text-foreground">Keywords (comma-separated)</label>
             <input
               value={siteKw}
               onChange={e => setSiteKw(e.target.value)}
               placeholder="keyword1, keyword2, keyword3..."
-              className="w-full px-3 py-2 border border-gray-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-ring"
+              className={seoFieldClass}
             />
           </div>
           <button
             type="button"
             onClick={() => onSaveSite({ seo_title: siteTitle, seo_description: siteDesc, seo_keywords: siteKw })}
-            className="w-full py-2 bg-gray-800 text-white text-xs font-bold rounded-xl hover:bg-gray-700 transition-colors flex items-center justify-center gap-2"
+            className="flex w-full items-center justify-center gap-2 rounded-xl bg-primary py-2 text-xs font-bold text-primary-foreground transition-colors hover:bg-primary/90"
           >
             <Save className="w-3.5 h-3.5" /> Save site search settings
           </button>

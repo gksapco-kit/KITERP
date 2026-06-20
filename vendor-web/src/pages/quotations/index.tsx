@@ -6,6 +6,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { Select } from '@/components/ui/select'
 import { vendorApi } from '@/api/vendor'
 import { useOrders, useUpdateOrderStatus, useQuotationSettings } from '@/hooks/useVendor'
 import { formatCurrency, formatDate } from '@/lib/utils'
@@ -404,15 +405,12 @@ export default function QuotationsPage() {
             <Button type="submit" variant="outline">Search</Button>
             <div className="sm:w-56"><BusinessUnitSelect value={storeFilter} onChange={(id) => { setStoreFilter(id); setPage(1) }} allowAll autoSelectDefault={false} /></div>
             {statusOptions.length > 1 && (
-              <select
-                className="text-sm border rounded-lg px-3 py-2 bg-white"
+              <Select
                 value={statusFilter}
-                onChange={(e) => { setStatusFilter(e.target.value); setPage(1) }}
-              >
-                {statusOptions.map((o) => (
-                  <option key={o.value || 'all'} value={o.value}>{o.label}</option>
-                ))}
-              </select>
+                onChange={(v) => { setStatusFilter(v); setPage(1) }}
+                options={statusOptions.map((o) => ({ value: o.value, label: o.label }))}
+                aria-label="Status filter"
+              />
             )}
           </form>
         </CardContent>

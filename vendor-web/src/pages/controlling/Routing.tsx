@@ -69,7 +69,7 @@ const wcTypeBadge = (t: string) => {
 
 function SectionHeader({ children }: { children: React.ReactNode }) {
   return (
-    <div className="px-5 py-3 bg-gray-50 border-b border-gray-100 flex items-center justify-between">
+    <div className="px-5 py-3 bg-gray-50 border-b border-border flex items-center justify-between">
       <h2 className="text-sm font-semibold text-gray-800">{children}</h2>
     </div>
   )
@@ -133,7 +133,7 @@ function WorkCentersPanel({ companyId }: { companyId: string }) {
 
   return (
     <div className="rounded-xl border border-gray-200 bg-white overflow-hidden">
-      <div className="px-5 py-3 bg-gray-50 border-b border-gray-100 flex items-center justify-between">
+      <div className="px-5 py-3 bg-gray-50 border-b border-border flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Cpu className="w-4 h-4 text-blue-500" />
           <h2 className="text-sm font-semibold text-gray-800">Work Centres</h2>
@@ -562,7 +562,7 @@ export default function RoutingPage() {
 
       {/* ── Routing headers ───────────────────────────────────────────── */}
       <div className="rounded-xl border border-gray-200 bg-white overflow-hidden">
-        <div className="px-5 py-3 bg-gray-50 border-b border-gray-100 flex items-center justify-between">
+        <div className="px-5 py-3 bg-gray-50 border-b border-border flex items-center justify-between">
           <div className="flex items-center gap-2">
             <GitBranch className="w-4 h-4 text-primary/80" />
             <h2 className="text-sm font-semibold text-gray-800">Routings</h2>

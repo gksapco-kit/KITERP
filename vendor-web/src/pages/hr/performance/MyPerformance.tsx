@@ -33,7 +33,7 @@ export default function MyPerformancePage() {
         <h2 className="text-sm font-bold uppercase text-gray-700 mb-3 flex items-center gap-2">
           <Target className="w-4 h-4" /> My Goals ({goals.length})
         </h2>
-        <div className="bg-white border rounded-xl shadow-sm overflow-hidden max-h-[90vh] overflow-y-auto">
+        <div className="bg-card border border-border text-foreground rounded-xl shadow-2xl overflow-hidden max-h-[90vh] overflow-y-auto">
           {goals.length === 0 ? (
             <div className="p-8 text-center text-gray-400 text-sm">No goals set yet.</div>
           ) : (
@@ -74,7 +74,7 @@ export default function MyPerformancePage() {
         <h2 className="text-sm font-bold uppercase text-gray-700 mb-3 flex items-center gap-2">
           <ClipboardList className="w-4 h-4" /> My Reviews ({reviews.length})
         </h2>
-        <div className="bg-white border rounded-xl shadow-sm overflow-hidden max-h-[90vh] overflow-y-auto">
+        <div className="bg-card border border-border text-foreground rounded-xl shadow-2xl overflow-hidden max-h-[90vh] overflow-y-auto">
           {reviews.length === 0 ? (
             <div className="p-8 text-center text-gray-400 text-sm">No reviews assigned.</div>
           ) : (

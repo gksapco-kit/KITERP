@@ -33,6 +33,7 @@ import {
   type LucideIcon,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { Select } from '@/components/ui/select'
 import { useSiteList, useCreateSite, useDeleteSite, usePublishSite, useUnpublishSite, useUpdateSite, useWebsiteTemplates } from '@/hooks/useWebsites'
 import { useStores } from '@/hooks/useVendor'
 import { websiteApi } from '@/api/websites'
@@ -746,7 +747,7 @@ function CreateSiteModal({
     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto" onClick={onClose}>
       <div
         className={cn(
-          'bg-white rounded-2xl shadow-2xl w-full overflow-hidden max-h-[90vh] overflow-y-auto transition-[max-width] duration-300',
+          'bg-card border border-border text-foreground rounded-2xl shadow-2xl w-full overflow-hidden max-h-[90vh] overflow-y-auto transition-[max-width] duration-300',
           step === 1 ? 'max-w-xl' : step === 2 ? 'max-w-4xl' : 'max-w-3xl',
         )}
         onClick={e => e.stopPropagation()}
@@ -859,19 +860,16 @@ function CreateSiteModal({
               </label>
               <div className="relative">
                 {currentScopeOption ? (
-                  <currentScopeOption.icon className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-primary" />
+                  <currentScopeOption.icon className="pointer-events-none absolute left-3.5 top-1/2 z-10 h-4 w-4 -translate-y-1/2 text-primary" />
                 ) : null}
-                <select
+                <Select
                   id="website-scope"
                   value={websiteStoreScope}
-                  onChange={e => setWebsiteStoreScope(e.target.value as WebsiteStoreScope)}
-                  className="w-full cursor-pointer appearance-none rounded-xl border border-gray-200 bg-white py-2.5 pl-10 pr-10 text-sm font-medium text-gray-800 shadow-sm transition-colors hover:border-gray-300 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-                >
-                  {WEBSITE_STORE_SCOPE_OPTIONS.map(opt => (
-                    <option key={opt.id} value={opt.id}>{opt.label}</option>
-                  ))}
-                </select>
-                <ChevronDown className="pointer-events-none absolute right-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+                  onChange={(v) => setWebsiteStoreScope(v as WebsiteStoreScope)}
+                  options={WEBSITE_STORE_SCOPE_OPTIONS.map(opt => ({ value: opt.id, label: opt.label }))}
+                  aria-label="Website store scope"
+                  className="w-full rounded-xl py-2.5 pl-10 pr-3 text-sm font-medium shadow-sm"
+                />
               </div>
               {currentScopeOption && (
                 <p className="mt-1.5 text-xs text-gray-500 leading-snug">{currentScopeOption.desc}</p>
@@ -880,20 +878,18 @@ function CreateSiteModal({
                 <div className="mt-3">
                   <label htmlFor="website-bu" className="block text-xs font-semibold text-gray-600 mb-1.5">Business unit</label>
                   <div className="relative">
-                    <Store className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-                    <select
+                    <Store className="pointer-events-none absolute left-3.5 top-1/2 z-10 h-4 w-4 -translate-y-1/2 text-gray-400" />
+                    <Select
                       id="website-bu"
                       value={websiteStoreId}
-                      onChange={e => setWebsiteStoreId(e.target.value)}
-                      className="w-full cursor-pointer appearance-none rounded-xl border border-gray-200 bg-white py-2.5 pl-10 pr-10 text-sm font-medium text-gray-800 shadow-sm transition-colors hover:border-gray-300 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-                    >
-                      {stores.map(s => (
-                        <option key={s.id} value={s.id}>
-                          {s.name}{s.code ? ` (${s.code})` : ''}
-                        </option>
-                      ))}
-                    </select>
-                    <ChevronDown className="pointer-events-none absolute right-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+                      onChange={setWebsiteStoreId}
+                      options={stores.map(s => ({
+                        value: s.id,
+                        label: `${s.name}${s.code ? ` (${s.code})` : ''}`,
+                      }))}
+                      aria-label="Business unit"
+                      className="w-full rounded-xl py-2.5 pl-10 pr-3 text-sm font-medium shadow-sm"
+                    />
                   </div>
                 </div>
               )}
@@ -925,23 +921,20 @@ function CreateSiteModal({
                   Choose your business type
                 </label>
                 <div className="relative">
-                  <span className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-base leading-none">{selectedBusiness.icon}</span>
-                  <select
+                  <span className="pointer-events-none absolute left-3.5 top-1/2 z-10 -translate-y-1/2 text-base leading-none">{selectedBusiness.icon}</span>
+                  <Select
                     id="biz-type"
                     value={businessType}
-                    onChange={e => {
-                      const t = BUSINESS_PRESETS.find(b => b.id === e.target.value)
+                    onChange={(v) => {
+                      const t = BUSINESS_PRESETS.find(b => b.id === v)
                       if (!t) return
                       setBusinessType(t.id)
                       setSellingMode(t.sells)
                     }}
-                    className="w-full cursor-pointer appearance-none rounded-xl border border-gray-200 bg-white py-2.5 pl-10 pr-10 text-sm font-medium text-gray-800 shadow-sm transition-colors hover:border-gray-300 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-                  >
-                    {BUSINESS_PRESETS.map(t => (
-                      <option key={t.id} value={t.id}>{t.icon} {t.label}</option>
-                    ))}
-                  </select>
-                  <ChevronDown className="pointer-events-none absolute right-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+                    options={BUSINESS_PRESETS.map(t => ({ value: t.id, label: `${t.icon} ${t.label}` }))}
+                    aria-label="Business type"
+                    className="w-full rounded-xl py-2.5 pl-10 pr-3 text-sm font-medium shadow-sm"
+                  />
                 </div>
                 <p className="mt-1.5 text-xs text-gray-500 leading-snug">{selectedBusiness.desc}</p>
               </div>
@@ -953,18 +946,15 @@ function CreateSiteModal({
                   What do you sell?
                 </label>
                 <div className="relative">
-                  <ShoppingBag className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-blue-500" />
-                  <select
+                  <ShoppingBag className="pointer-events-none absolute left-3.5 top-1/2 z-10 h-4 w-4 -translate-y-1/2 text-blue-500" />
+                  <Select
                     id="sell-mode"
                     value={sellingMode}
-                    onChange={e => setSellingMode(e.target.value)}
-                    className="w-full cursor-pointer appearance-none rounded-xl border border-gray-200 bg-white py-2.5 pl-10 pr-10 text-sm font-medium text-gray-800 shadow-sm transition-colors hover:border-gray-300 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
-                  >
-                    {SELLING_MODES.map(s => (
-                      <option key={s.id} value={s.id}>{s.label}</option>
-                    ))}
-                  </select>
-                  <ChevronDown className="pointer-events-none absolute right-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+                    onChange={setSellingMode}
+                    options={SELLING_MODES.map(s => ({ value: s.id, label: s.label }))}
+                    aria-label="Selling mode"
+                    className="w-full rounded-xl py-2.5 pl-10 pr-3 text-sm font-medium shadow-sm"
+                  />
                 </div>
                 <p className="mt-1.5 text-xs text-gray-500 leading-snug">{SELLING_MODES.find(s => s.id === sellingMode)?.desc}</p>
               </div>
@@ -1061,9 +1051,9 @@ function RenameSiteModal({
   if (!open) return null
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div data-kiterp-modal className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/40" onClick={onClose} />
-      <div className="relative w-full max-w-md rounded-2xl bg-white shadow-2xl border border-gray-200 overflow-hidden">
+      <div className="relative w-full max-w-md rounded-2xl bg-card text-foreground shadow-2xl border border-border overflow-hidden">
         <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
           <div>
             <h2 className="text-base font-bold text-gray-900">Rename website</h2>
@@ -1133,9 +1123,9 @@ function CopySiteSaveAsModal({
   if (!open) return null
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div data-kiterp-modal className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/40" onClick={onClose} />
-      <div className="relative w-full max-w-md rounded-2xl bg-white shadow-2xl border border-gray-200 overflow-hidden">
+      <div className="relative w-full max-w-md rounded-2xl bg-card text-foreground shadow-2xl border border-border overflow-hidden">
         <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
           <div>
             <h2 className="text-base font-bold text-gray-900">Copy template / Save As</h2>
@@ -1420,7 +1410,7 @@ function SiteCard({
                   zIndex: 9999,
                   transform: menuPos.openUp ? 'translateY(-100%)' : undefined,
                 }}
-                className="w-52 bg-white border border-gray-200 rounded-xl shadow-xl py-1 max-h-[min(90vh,20rem)] overflow-y-auto"
+                className="w-52 bg-popover text-popover-foreground border border-border rounded-xl shadow-xl py-1 max-h-[min(90vh,20rem)] overflow-y-auto"
               >
                 <button
                   type="button"

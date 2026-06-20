@@ -7,7 +7,12 @@
           var raw = localStorage.getItem('vendor-ui-theme')
           if (!raw) return
           var o = JSON.parse(raw)
-          if (o && o.state && o.state.dark) document.documentElement.classList.add('dark')
+          var state = o && o.state
+          if (!state) return
+          var root = document.documentElement
+          if (state.dark) root.classList.add('dark')
+          if (state.colorTheme) root.dataset.kitTheme = state.colorTheme
+          if (state.layoutTemplate) root.dataset.kitTemplate = state.layoutTemplate
         } catch (e) {}
       })()
     </script>

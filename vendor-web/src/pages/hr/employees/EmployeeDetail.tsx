@@ -2146,7 +2146,7 @@ export default function EmployeeDetailPage() {
         </div>
       )}
 
-      <div className="bg-white rounded-xl border shadow-sm overflow-hidden max-h-[90vh] overflow-y-auto">
+      <div className="bg-card border border-border text-foreground rounded-xl shadow-2xl overflow-hidden max-h-[90vh] overflow-y-auto">
         <EmployeeTabBar activeTab={activeTab} onTabChange={setTab} />
         <div className="p-6">
           {activeTab === 'identity' && (

@@ -494,7 +494,7 @@ export function UniversalSearch({
   if (!open) return null
 
   return (
-    <div
+    <div data-kiterp-modal
       className="fixed inset-0 z-50 flex items-start justify-center pt-[8vh] px-4"
       onKeyDown={onKeyDown}
     >

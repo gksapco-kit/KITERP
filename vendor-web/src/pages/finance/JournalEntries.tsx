@@ -83,36 +83,39 @@ function AccountCombobox({
   }
 
   const TYPE_COLORS: Record<string, string> = {
-    Asset: 'bg-blue-100 text-blue-700',
-    Liability: 'bg-red-100 text-red-700',
-    Equity: 'bg-primary/12 text-primary',
-    Income: 'bg-green-100 text-green-700',
-    Expense: 'bg-orange-100 text-orange-700',
+    Asset: 'bg-blue-500/15 text-blue-700 dark:text-blue-300',
+    Liability: 'bg-red-500/15 text-red-700 dark:text-red-300',
+    Equity: 'bg-primary/15 text-primary',
+    Income: 'bg-green-500/15 text-green-700 dark:text-green-300',
+    Expense: 'bg-orange-500/15 text-orange-700 dark:text-orange-300',
   }
+
+  const lineInputClass =
+    'w-full rounded-lg border border-input bg-background px-2 py-1.5 text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-ring'
 
   return (
     <div ref={ref} className="relative">
       <div className="relative">
-        <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3 text-gray-400 pointer-events-none" />
+        <Search className="pointer-events-none absolute left-2 top-1/2 h-3 w-3 -translate-y-1/2 text-muted-foreground" />
         <input
           value={selected ? `${selected.code} · ${selected.name}` : q}
           onChange={e => { setQ(e.target.value); setSelected(null); onChange(''); setOpen(true) }}
           onFocus={() => setOpen(true)}
           placeholder={placeholder}
-          className="w-full border border-gray-200 rounded-lg pl-6 pr-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-primary"
+          className={cn(lineInputClass, 'pl-6 pr-2')}
         />
       </div>
       {open && results.length > 0 && (
-        <div className="absolute z-50 top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-xl shadow-xl max-h-56 overflow-y-auto">
+        <div className="absolute z-50 top-full left-0 right-0 mt-1 bg-popover text-popover-foreground border border-border rounded-xl shadow-xl max-h-56 overflow-y-auto">
           {results.map(acc => (
             <button
               key={acc.id}
               onClick={() => select(acc)}
-              className="w-full flex items-center gap-2 px-3 py-2 hover:bg-primary/10 text-left transition-colors"
+              className="flex w-full items-center gap-2 px-3 py-2 text-left transition-colors hover:bg-accent"
             >
-              <span className="font-mono text-xs text-gray-400 w-12 shrink-0">{acc.code}</span>
-              <span className="flex-1 text-xs text-gray-800 truncate">{acc.name}</span>
-              <span className={cn('text-xs px-1.5 py-0.5 rounded-full font-semibold shrink-0', TYPE_COLORS[acc.account_type] || 'bg-gray-100 text-gray-600')}>
+              <span className="w-12 shrink-0 font-mono text-xs text-muted-foreground">{acc.code}</span>
+              <span className="flex-1 truncate text-xs text-foreground">{acc.name}</span>
+              <span className={cn('shrink-0 rounded-full px-1.5 py-0.5 text-xs font-semibold', TYPE_COLORS[acc.account_type] || 'bg-muted text-muted-foreground')}>
                 {acc.account_type}
               </span>
             </button>
@@ -161,7 +164,7 @@ function RefDocSearch({
         className="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-primary"
       />
       {open && results.length > 0 && (
-        <div className="absolute z-50 top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-xl shadow-xl max-h-40 overflow-y-auto">
+        <div className="absolute z-50 top-full left-0 right-0 mt-1 bg-popover text-popover-foreground border border-border rounded-xl shadow-xl max-h-40 overflow-y-auto">
           {results.map(r => (
             <button key={r.id} onClick={() => { onChange(r.id, r.no); setQ(r.label); setOpen(false) }}
               className="w-full px-3 py-2 text-left text-xs hover:bg-primary/10">
@@ -398,7 +401,7 @@ function JEDrawer({
 
   return (
     <>
-    <div className="fixed inset-0 z-50 flex">
+    <div data-kiterp-modal className="fixed inset-0 z-50 flex">
       <div className="flex-1 bg-black/30" onClick={onClose} />
       <div className="w-full max-w-5xl bg-gray-50 h-full shadow-2xl flex flex-col overflow-hidden">
 
@@ -614,22 +617,22 @@ function JEDrawer({
             </div>
 
             {/* ── Line Items ── */}
-            <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-              <div className="flex items-center justify-between px-5 py-3 border-b border-gray-100">
+            <div className="overflow-hidden rounded-xl border border-border bg-card">
+              <div className="flex items-center justify-between border-b border-border px-5 py-3">
                 <div className="flex items-center gap-2">
-                  <span className="text-sm font-semibold text-gray-800">Line Items</span>
-                  <span className="text-xs text-gray-400">{lines.length} lines</span>
+                  <span className="text-sm font-semibold text-foreground">Line Items</span>
+                  <span className="text-xs text-muted-foreground">{lines.length} lines</span>
                 </div>
                 <button
                   onClick={addLine}
-                  className="flex items-center gap-1.5 text-xs text-primary hover:text-primary/80 font-medium px-2.5 py-1.5 rounded-lg hover:bg-primary/10"
+                  className="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-medium text-primary hover:bg-primary/10 hover:text-primary/80"
                 >
                   <Plus className="w-3.5 h-3.5" /> Add Line
                 </button>
               </div>
 
               {/* Column headers */}
-              <div className="grid text-xs font-bold text-gray-400 uppercase tracking-wide px-4 py-2 bg-gray-50 border-b border-gray-100"
+              <div className="grid border-b border-border bg-muted/30 px-4 py-2 text-xs font-bold uppercase tracking-wide text-muted-foreground"
                 style={{ gridTemplateColumns: '2fr 1.5fr 80px 80px 24px' }}>
                 <span>Account</span>
                 <span>Description</span>
@@ -638,12 +641,12 @@ function JEDrawer({
                 <span />
               </div>
 
-              <div className="divide-y divide-gray-50">
+              <div className="divide-y divide-border">
                 {lines.map((ln, idx) => (
                   <div key={ln._key} className="group">
                     {/* Main line row */}
                     <div
-                      className="grid items-center gap-2 px-4 py-2 hover:bg-gray-50/80 cursor-pointer"
+                      className="grid cursor-pointer items-center gap-2 px-4 py-2 hover:bg-muted/30"
                       style={{ gridTemplateColumns: '2fr 1.5fr 80px 80px 24px' }}
                     >
                       <AccountCombobox
@@ -660,7 +663,7 @@ function JEDrawer({
                         value={ln.description || ''}
                         onChange={e => setLine(ln._key, { description: e.target.value })}
                         placeholder="Line description"
-                        className="border border-gray-200 rounded-lg px-2 py-1.5 text-xs w-full focus:outline-none focus:ring-2 focus:ring-primary"
+                        className="w-full rounded-lg border border-input bg-background px-2 py-1.5 text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
                       />
                       <input
                         type="number"
@@ -668,7 +671,7 @@ function JEDrawer({
                         value={ln.debit || ''}
                         onChange={e => setLine(ln._key, { debit: Number(e.target.value), credit: 0 })}
                         placeholder="0.00"
-                        className="border border-gray-200 rounded-lg px-2 py-1.5 text-xs text-right w-full focus:outline-none focus:ring-2 focus:ring-primary"
+                        className="w-full rounded-lg border border-input bg-background px-2 py-1.5 text-right text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
                       />
                       <input
                         type="number"
@@ -676,11 +679,11 @@ function JEDrawer({
                         value={ln.credit || ''}
                         onChange={e => setLine(ln._key, { credit: Number(e.target.value), debit: 0 })}
                         placeholder="0.00"
-                        className="border border-gray-200 rounded-lg px-2 py-1.5 text-xs text-right w-full focus:outline-none focus:ring-2 focus:ring-primary"
+                        className="w-full rounded-lg border border-input bg-background px-2 py-1.5 text-right text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
                       />
                       <button
                         onClick={() => setExpandedLine(expandedLine === ln._key ? null : ln._key)}
-                        className="p-1 text-gray-300 hover:text-indigo-500 transition-colors"
+                        className="p-1 text-muted-foreground transition-colors hover:text-primary"
                         title="More fields"
                       >
                         {expandedLine === ln._key
@@ -852,8 +855,10 @@ function JEDrawer({
 
               {/* Balance footer */}
               <div className={cn(
-                'flex items-center justify-between px-5 py-3 border-t text-sm font-mono font-semibold',
-                isBalanced ? 'bg-green-50 border-green-200 text-green-700' : 'bg-red-50 border-red-200 text-red-700'
+                'flex items-center justify-between border-t px-5 py-3 font-mono text-sm font-semibold',
+                isBalanced
+                  ? 'border-green-500/30 bg-green-500/10 text-green-700 dark:text-green-400'
+                  : 'border-destructive/30 bg-destructive/10 text-destructive',
               )}>
                 <div className="flex items-center gap-4">
                   <span>Debit: {fmt(totalDebit)}</span>
@@ -981,9 +986,9 @@ function JEDrawer({
     </div>
 
     {savePreview && (
-      <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/40 overflow-y-auto" onClick={onClose}>
-        <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full max-h-[85vh] overflow-hidden flex flex-col" onClick={e => e.stopPropagation()}>
-          <div className="px-6 py-4 border-b border-gray-100 flex items-start justify-between gap-3">
+      <div data-kiterp-modal className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm overflow-y-auto" onClick={onClose}>
+        <div className="bg-card border border-border text-foreground rounded-2xl shadow-2xl max-w-lg w-full max-h-[85vh] overflow-hidden flex flex-col" onClick={e => e.stopPropagation()}>
+          <div className="px-6 py-4 border-b border-border flex items-start justify-between gap-3">
             <div className="flex items-center gap-2">
               <div className="w-9 h-9 rounded-xl bg-emerald-100 flex items-center justify-center">
                 <CheckCircle className="w-5 h-5 text-emerald-600" />
@@ -1059,7 +1064,7 @@ function JEDrawer({
               </div>
             )}
           </div>
-          <div className="px-6 py-4 border-t border-gray-100 flex justify-end">
+          <div className="px-6 py-4 border-t border-border bg-muted/25 flex justify-end">
             <button
               type="button"
               onClick={() => { setSavePreview(null); onClose() }}
@@ -1081,8 +1086,8 @@ function JEDetail({
   const { data: je, isLoading } = useJournalEntry(jeId)
 
   if (isLoading) return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 overflow-y-auto">
-      <div className="bg-white rounded-xl p-8 text-gray-500 text-sm">Loading…</div>
+    <div data-kiterp-modal className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm overflow-y-auto">
+      <div className="bg-card border border-border text-foreground rounded-xl p-8 text-muted-foreground text-sm">Loading…</div>
     </div>
   )
   if (!je) return null
@@ -1090,9 +1095,9 @@ function JEDetail({
   const jed = je as unknown as JournalEntry
 
   return (
-    <div className="fixed inset-0 z-50 flex">
+    <div data-kiterp-modal className="fixed inset-0 z-50 flex">
       <div className="flex-1 bg-black/30" onClick={onClose} />
-      <div className="w-full max-w-3xl bg-white h-full shadow-2xl flex flex-col overflow-hidden">
+      <div className="w-full max-w-3xl bg-card border-l border-border text-foreground h-full shadow-2xl flex flex-col overflow-hidden">
         <div className="flex items-center justify-between px-6 py-4 border-b">
           <div>
             <h2 className="font-semibold text-gray-900">Journal Entry — {jed.entry_no}</h2>

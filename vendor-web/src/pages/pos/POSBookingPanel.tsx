@@ -243,7 +243,7 @@ export function POSBookingPanel({
       onClick={onClose}
     >
       <div
-        className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl max-h-[92vh] flex flex-col overflow-hidden"
+        className="bg-card border border-border text-foreground rounded-2xl shadow-2xl w-full max-w-3xl max-h-[92vh] flex flex-col overflow-hidden"
         onClick={e => e.stopPropagation()}
       >
 
@@ -622,8 +622,8 @@ export function POSBookingPanel({
 
       {/* ── Over-duration confirmation popup ── */}
       {showConfirm && overriddenPrice !== null && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 overflow-y-auto" onClick={() => setShowConfirm(false)}>
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6 space-y-5 max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+        <div data-kiterp-modal className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 overflow-y-auto" onClick={() => setShowConfirm(false)}>
+          <div className="bg-card border border-border text-foreground rounded-2xl shadow-2xl w-full max-w-md p-6 space-y-5 max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
             <div className="flex items-start gap-4">
               <div className="w-11 h-11 rounded-2xl bg-amber-100 flex items-center justify-center shrink-0">
                 <AlertTriangle className="w-6 h-6 text-amber-500" />

@@ -1,4 +1,5 @@
 import { useEffect, useMemo } from 'react'
+import { ThemeSelect, type ThemeSelectOption } from '@/components/common/ThemeSelect'
 import { useStores } from '@/hooks/useVendor'
 import { useVendorStore } from '@/stores/vendorStore'
 import type { StoreRecord } from '@/api/vendor'
@@ -44,7 +45,7 @@ interface BusinessUnitSelectProps {
   id?: string
 }
 
-/** Single business-unit (store) selector for creation forms. */
+/** Single business-unit (store) selector — themed custom list (not native OS dropdown). */
 export function BusinessUnitSelect({
   value,
   onChange,
@@ -63,25 +64,33 @@ export function BusinessUnitSelect({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [defaultId, value, allowAll, autoSelectDefault])
 
+  const options = useMemo((): ThemeSelectOption[] => {
+    const list: ThemeSelectOption[] = []
+    if (allowAll) {
+      list.push({ value: '', label: 'All business units', hint: 'No filter applied' })
+    }
+    for (const s of stores) {
+      const label = s.code ? `${s.code} — ${s.name}` : s.name
+      const suffix = s.is_default ? ' (default)' : ''
+      list.push({
+        value: s.id,
+        label: `${label}${suffix}`,
+        hint: s.description || undefined,
+      })
+    }
+    return list
+  }, [stores, allowAll])
+
   return (
-    <select
+    <ThemeSelect
       id={id}
       value={value}
+      onChange={onChange}
+      options={options}
+      placeholder={allowAll ? 'All business units' : 'Select a business unit…'}
       disabled={disabled}
-      onChange={(e) => onChange(e.target.value)}
-      className={
-        className ??
-        'w-full h-9 px-3 border border-gray-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-ring disabled:bg-gray-50 disabled:text-gray-500'
-      }
-    >
-      {allowAll && <option value="">All business units</option>}
-      {!allowAll && !value && <option value="">Select a business unit…</option>}
-      {stores.map((s) => (
-        <option key={s.id} value={s.id}>
-          {s.code ? `${s.code} — ${s.name}` : s.name}
-          {s.is_default ? ' (default)' : ''}
-        </option>
-      ))}
-    </select>
+      className={className}
+      aria-label="Business unit"
+    />
   )
 }

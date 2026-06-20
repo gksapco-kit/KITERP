@@ -116,12 +116,12 @@ export default function ExpenseClaimDetailDrawer({
   const empName = employee ? employeeDisplayName(employee) : employeeId.slice(0, 8)
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex justify-end bg-black/40"
+    <div data-kiterp-modal
+      className="fixed inset-0 z-50 flex justify-end bg-black/50 backdrop-blur-sm"
       onClick={onModalBackdropClick(onClose)}
     >
       <div
-        className="w-full max-w-lg h-full bg-white shadow-2xl flex flex-col overflow-hidden"
+        className="w-full max-w-lg h-full bg-card border-l border-border text-foreground shadow-2xl flex flex-col overflow-hidden"
         onClick={e => e.stopPropagation()}
       >
         <div className="flex items-center justify-between px-5 py-4 border-b shrink-0">

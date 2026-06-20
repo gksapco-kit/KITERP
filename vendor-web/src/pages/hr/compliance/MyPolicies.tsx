@@ -22,7 +22,7 @@ export default function MyPoliciesPage() {
       ) : (
         <div className="space-y-3">
           {(pending as Policy[]).map(p => (
-            <div key={p.id} className="bg-white border rounded-xl shadow-sm p-5 max-h-[90vh] overflow-y-auto">
+            <div key={p.id} className="bg-card border border-border text-foreground rounded-xl shadow-2xl p-5 max-h-[90vh] overflow-y-auto">
               <div className="flex items-start justify-between gap-4">
                 <div className="flex-1 min-w-0">
                   <h3 className="text-lg font-semibold text-gray-900">{p.title}</h3>

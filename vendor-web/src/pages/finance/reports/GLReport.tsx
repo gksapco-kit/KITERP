@@ -14,6 +14,7 @@ import {
   FileText, AlertCircle,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { Select } from '@/components/ui/select'
 import * as api from '@/api/client'
 import axios from '@/lib/axios'
 
@@ -120,12 +121,15 @@ const SOURCE_LABELS: Record<string, string> = {
 }
 
 const TYPE_COLORS: Record<string, string> = {
-  Asset: 'bg-blue-50 text-blue-700',
-  Liability: 'bg-red-50 text-red-700',
-  Equity: 'bg-accent text-primary',
-  Income: 'bg-green-50 text-green-700',
-  Expense: 'bg-orange-50 text-orange-700',
+  Asset: 'bg-blue-500/15 text-blue-700 dark:text-blue-300',
+  Liability: 'bg-red-500/15 text-red-700 dark:text-red-300',
+  Equity: 'bg-primary/15 text-primary',
+  Income: 'bg-green-500/15 text-green-700 dark:text-green-300',
+  Expense: 'bg-orange-500/15 text-orange-700 dark:text-orange-300',
 }
+
+const filterControlClass =
+  'h-10 rounded-lg border border-input bg-background px-2.5 text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-ring [color-scheme:dark]'
 
 function fmt(n: number) {
   return new Intl.NumberFormat('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n)
@@ -198,12 +202,12 @@ function MasterSearch({
 
   if (dim.id === 'contractor' || dim.id === 'freelancer') {
     return (
-      <div className="flex items-center gap-2 p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-700">
-        <AlertCircle className="w-4 h-4 shrink-0" />
+      <div className="flex items-center gap-2 rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-amber-800 dark:bg-amber-950/30 dark:text-amber-200">
+        <AlertCircle className="h-4 w-4 shrink-0" />
         Enter the party ID directly — contractor/freelancer records are posted manually via journal entries.
         <input
           placeholder="Paste party UUID…"
-          className="ml-2 flex-1 border border-amber-300 rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-amber-300 bg-white"
+          className={cn(filterControlClass, 'ml-2 min-w-0 flex-1')}
           onChange={e => {
             const v = e.target.value.trim()
             if (v.length === 36) onSelect({ id: v, name: v })
@@ -216,32 +220,32 @@ function MasterSearch({
   return (
     <div className="relative">
       <div className="relative">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+        <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
         <input
           value={selected ? (selected.label || selected.name) : q}
           onChange={e => handleInput(e.target.value)}
           onFocus={() => { setOpen(true); if (!results.length) search(q) }}
           placeholder={`Search ${dim.label}…`}
-          className="w-full border border-gray-300 rounded-xl pl-9 pr-9 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+          className={cn(filterControlClass, 'w-full rounded-xl pl-9 pr-9 text-sm')}
         />
         {(selected || q) && (
           <button onClick={() => { onSelect(null); setQ(''); setResults([]) }}
-            className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
             <X className="w-3.5 h-3.5" />
           </button>
         )}
       </div>
       {open && !selected && (results.length > 0 || loading) && (
-        <div className="absolute z-20 top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-xl shadow-xl max-h-56 overflow-y-auto">
-          {loading && <p className="px-4 py-3 text-xs text-gray-400">Searching…</p>}
+        <div className="absolute z-20 top-full left-0 right-0 mt-1 bg-popover text-popover-foreground border border-border rounded-xl shadow-xl max-h-56 overflow-y-auto">
+          {loading && <p className="px-4 py-3 text-xs text-muted-foreground">Searching…</p>}
           {results.map(r => (
             <button
               key={r.id}
               onClick={() => select(r)}
-              className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-primary/10 text-left transition-colors border-b border-gray-50 last:border-0"
+              className="flex w-full items-center gap-3 border-b border-border px-4 py-2.5 text-left transition-colors last:border-0 hover:bg-accent"
             >
-              {r.code && <span className="font-mono text-xs text-gray-400 w-16 shrink-0">{r.code}</span>}
-              <span className="flex-1 text-sm text-gray-800">{r.name}</span>
+              {r.code && <span className="w-16 shrink-0 font-mono text-xs text-muted-foreground">{r.code}</span>}
+              <span className="flex-1 text-sm text-foreground">{r.name}</span>
             </button>
           ))}
         </div>
@@ -299,95 +303,95 @@ function LedgerTable({
       <table className="w-full text-xs whitespace-nowrap">
         <thead className="bg-muted border-b border-border sticky top-0 z-10">
           <tr>
-            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wide"><TableColumnLabel>Date</TableColumnLabel></th>
-            <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wide"><TableColumnLabel>Entry No</TableColumnLabel></th>
+            <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-muted-foreground"><TableColumnLabel>Date</TableColumnLabel></th>
+            <th className="px-3 py-3 text-left text-xs font-medium uppercase tracking-wide text-muted-foreground"><TableColumnLabel>Entry No</TableColumnLabel></th>
             {showAccount && (
-              <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wide"><TableColumnLabel>Account</TableColumnLabel></th>
+              <th className="px-3 py-3 text-left text-xs font-medium uppercase tracking-wide text-muted-foreground"><TableColumnLabel>Account</TableColumnLabel></th>
             )}
-            <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wide max-w-[200px]"><TableColumnLabel>Narration</TableColumnLabel></th>
-            <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wide"><TableColumnLabel>Ref Doc</TableColumnLabel></th>
-            <th className="px-3 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wide"><TableColumnLabel>Source</TableColumnLabel></th>
-            <th className="px-3 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wide"><TableColumnLabel>Debit</TableColumnLabel></th>
-            <th className="px-3 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wide"><TableColumnLabel>Credit</TableColumnLabel></th>
-            <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wide"><TableColumnLabel>Balance</TableColumnLabel></th>
+            <th className="max-w-[200px] px-3 py-3 text-left text-xs font-medium uppercase tracking-wide text-muted-foreground"><TableColumnLabel>Narration</TableColumnLabel></th>
+            <th className="px-3 py-3 text-left text-xs font-medium uppercase tracking-wide text-muted-foreground"><TableColumnLabel>Ref Doc</TableColumnLabel></th>
+            <th className="px-3 py-3 text-center text-xs font-medium uppercase tracking-wide text-muted-foreground"><TableColumnLabel>Source</TableColumnLabel></th>
+            <th className="px-3 py-3 text-right text-xs font-medium uppercase tracking-wide text-muted-foreground"><TableColumnLabel>Debit</TableColumnLabel></th>
+            <th className="px-3 py-3 text-right text-xs font-medium uppercase tracking-wide text-muted-foreground"><TableColumnLabel>Credit</TableColumnLabel></th>
+            <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wide text-muted-foreground"><TableColumnLabel>Balance</TableColumnLabel></th>
           </tr>
         </thead>
-        <tbody className="divide-y divide-gray-50">
+        <tbody className="divide-y divide-border">
           {rows.map((row, i) => (
             <tr
               key={i}
               className={cn(
-                'transition-colors hover:bg-primary/10/30 group',
-                row.debit > 0 ? '' : 'bg-accent/10',
+                'group transition-colors hover:bg-muted/30',
+                row.debit > 0 ? '' : 'bg-muted/15',
               )}
             >
-              <td className="px-4 py-2.5 font-mono text-gray-500 text-xs">{row.date}</td>
+              <td className="px-4 py-2.5 font-mono text-xs text-muted-foreground">{row.date}</td>
               <td className="px-3 py-2.5">
                 <span className="font-mono font-semibold text-primary">{row.entry_no}</span>
               </td>
               {showAccount && (
                 <td className="px-3 py-2.5">
                   <div className="flex items-center gap-1.5">
-                    <span className="font-mono text-xs text-gray-400">{row.account_code}</span>
-                    <span className="text-gray-700 max-w-[120px] truncate">{row.account_name}</span>
+                    <span className="font-mono text-xs text-muted-foreground">{row.account_code}</span>
+                    <span className="max-w-[120px] truncate text-foreground">{row.account_name}</span>
                     {row.account_type && (
-                      <span className={cn('text-xs px-1.5 py-0.5 rounded-full font-semibold hidden group-hover:inline',
-                        TYPE_COLORS[row.account_type] || 'bg-gray-100 text-gray-500')}>
+                      <span className={cn('hidden rounded-full px-1.5 py-0.5 text-xs font-semibold group-hover:inline',
+                        TYPE_COLORS[row.account_type] || 'bg-muted text-muted-foreground')}>
                         {row.account_type}
                       </span>
                     )}
                   </div>
                 </td>
               )}
-              <td className="px-3 py-2.5 max-w-[200px]">
-                <span className="text-gray-700 line-clamp-2 leading-snug whitespace-normal">{row.narration || '—'}</span>
+              <td className="max-w-[200px] px-3 py-2.5">
+                <span className="line-clamp-2 whitespace-normal leading-snug text-foreground">{row.narration || '—'}</span>
               </td>
               <td className="px-3 py-2.5">
                 {row.ref_doc_type
-                  ? <span className="text-xs text-gray-500">{row.ref_doc_type}: {row.ref_doc_no || '—'}</span>
-                  : <span className="text-gray-200">—</span>}
+                  ? <span className="text-xs text-muted-foreground">{row.ref_doc_type}: {row.ref_doc_no || '—'}</span>
+                  : <span className="text-muted-foreground/40">—</span>}
               </td>
               <td className="px-3 py-2.5 text-center">
-                <span className="text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-500">
+                <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
                   {SOURCE_LABELS[row.source_type] || row.source_type}
                 </span>
               </td>
               <td className="px-3 py-2.5 text-right font-mono">
                 {row.debit > 0
-                  ? <span className="font-semibold text-gray-900">{fmt(row.debit)}</span>
-                  : <span className="text-gray-200">—</span>}
+                  ? <span className="font-semibold text-foreground">{fmt(row.debit)}</span>
+                  : <span className="text-muted-foreground/40">—</span>}
               </td>
               <td className="px-3 py-2.5 text-right font-mono">
                 {row.credit > 0
-                  ? <span className="font-semibold text-gray-900">{fmt(row.credit)}</span>
-                  : <span className="text-gray-200">—</span>}
+                  ? <span className="font-semibold text-foreground">{fmt(row.credit)}</span>
+                  : <span className="text-muted-foreground/40">—</span>}
               </td>
               <td className="px-4 py-2.5 text-right font-mono">
-                <span className={cn('font-semibold', row.balance < 0 ? 'text-red-600' : 'text-gray-900')}>
+                <span className={cn('font-semibold', row.balance < 0 ? 'text-destructive' : 'text-foreground')}>
                   {fmt(Math.abs(row.balance))}
-                  {row.balance < 0 && <span className="text-xs ml-0.5 opacity-70">Cr</span>}
+                  {row.balance < 0 && <span className="ml-0.5 text-xs opacity-70">Cr</span>}
                 </span>
               </td>
             </tr>
           ))}
         </tbody>
-        <tfoot className="bg-gray-50 border-t-2 border-gray-300 sticky bottom-0">
+        <tfoot className="sticky bottom-0 border-t-2 border-border bg-muted/40">
           <tr>
-            <td colSpan={showAccount ? 6 : 5} className="px-4 py-3 text-xs font-bold text-gray-600 text-right">
+            <td colSpan={showAccount ? 6 : 5} className="px-4 py-3 text-right text-xs font-bold text-muted-foreground">
               Totals ({rows.length} entries)
             </td>
-            <td className="px-3 py-3 text-right font-mono font-bold text-gray-900">
+            <td className="px-3 py-3 text-right font-mono font-bold text-foreground">
               {fmt(rows.reduce((s, r) => s + r.debit, 0))}
             </td>
-            <td className="px-3 py-3 text-right font-mono font-bold text-gray-900">
+            <td className="px-3 py-3 text-right font-mono font-bold text-foreground">
               {fmt(rows.reduce((s, r) => s + r.credit, 0))}
             </td>
             <td className="px-4 py-3 text-right font-mono font-bold">
               {(() => {
                 const bal = rows.length ? rows[rows.length - 1].balance : 0
                 return (
-                  <span className={bal < 0 ? 'text-red-600' : 'text-gray-900'}>
-                    {fmt(Math.abs(bal))}{bal < 0 && <span className="text-xs ml-0.5">Cr</span>}
+                  <span className={bal < 0 ? 'text-destructive' : 'text-foreground'}>
+                    {fmt(Math.abs(bal))}{bal < 0 && <span className="ml-0.5 text-xs">Cr</span>}
                   </span>
                 )
               })()}
@@ -600,28 +604,28 @@ export default function GLReport() {
 
         {/* ── Left sidebar: dimension picker ── */}
         <div className="w-56 bg-card border-r border-border flex flex-col shrink-0 overflow-y-auto">
-          <div className="px-4 py-3 border-b border-gray-100">
-            <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">Report By</p>
+          <div className="border-b border-border px-4 py-3">
+            <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Report By</p>
           </div>
-          <nav className="py-2 space-y-0.5 px-2">
+          <nav className="space-y-0.5 px-2 py-2">
             {DIMENSIONS.map(d => (
               <button
                 key={d.id}
                 onClick={() => switchDim(d.id)}
                 className={cn(
-                  'w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left text-sm transition-all',
+                  'flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm transition-all',
                   activeDim === d.id
-                    ? 'bg-primary/10 text-primary font-semibold'
+                    ? 'bg-primary/10 font-semibold text-primary'
                     : 'text-muted-foreground hover:bg-accent',
                 )}
               >
-                <d.icon className={cn('w-4 h-4 shrink-0', activeDim === d.id ? 'text-primary' : 'text-gray-400')} />
+                <d.icon className={cn('h-4 w-4 shrink-0', activeDim === d.id ? 'text-primary' : 'text-muted-foreground')} />
                 {d.label}
               </button>
             ))}
           </nav>
-          <div className="mt-auto px-4 py-3 border-t border-gray-100">
-            <p className="text-xs text-gray-400 leading-snug">{dim.description}</p>
+          <div className="mt-auto border-t border-border px-4 py-3">
+            <p className="text-xs leading-snug text-muted-foreground">{dim.description}</p>
           </div>
         </div>
 
@@ -629,37 +633,39 @@ export default function GLReport() {
         <div className="flex-1 overflow-auto flex flex-col">
 
           {/* ── Controls bar ── */}
-          <div className="bg-card border-b border-border px-6 py-3 flex items-center gap-3 flex-wrap shrink-0">
+          <div className="flex shrink-0 flex-wrap items-center gap-3 border-b border-border bg-card px-6 py-3">
             {/* Dimension badge */}
-            <span className={cn('text-xs font-bold px-2.5 py-1 rounded-full border', dim.color)}>
+            <span className={cn('rounded-full border px-2.5 py-1 text-xs font-bold', dim.color)}>
               {dim.label}
             </span>
 
             {/* Master search */}
-            <div className="flex-1 min-w-64">
+            <div className="min-w-64 flex-1">
               <MasterSearch dim={dim} selected={selectedRecord} onSelect={setSelectedRecord} />
             </div>
 
             {/* Date range */}
-            <div className="flex items-center gap-2 shrink-0">
-              <CalendarDays className="w-3.5 h-3.5 text-gray-400" />
+            <div className="flex shrink-0 items-center gap-2">
+              <CalendarDays className="h-3.5 w-3.5 text-muted-foreground" />
               <input
                 type="date" value={fromDate}
                 onChange={e => setFromDate(e.target.value)}
-                className="border border-gray-300 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-primary"
+                className={filterControlClass}
               />
-              <span className="text-gray-400 text-xs">→</span>
+              <span className="text-xs text-muted-foreground">→</span>
               <input
                 type="date" value={toDate}
                 onChange={e => setToDate(e.target.value)}
-                className="border border-gray-300 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-primary"
+                className={filterControlClass}
               />
             </div>
 
             {/* Quick presets */}
-            <select
-              onChange={e => {
-                const v = e.target.value
+            <Select
+              className="w-32"
+              triggerClassName="text-xs"
+              value=""
+              onChange={v => {
                 const d = new Date()
                 if (v === 'this_month') {
                   setFromDate(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-01`)
@@ -680,20 +686,19 @@ export default function GLReport() {
                   setFromDate(qStart.toISOString().slice(0, 10)); setToDate(today())
                 }
               }}
-              defaultValue=""
-              className="border border-gray-300 rounded-lg px-2 py-1.5 text-xs focus:outline-none bg-white text-gray-600"
-            >
-              <option value="" disabled>Preset…</option>
-              <option value="this_month">This Month</option>
-              <option value="last_month">Last Month</option>
-              <option value="this_q">This Quarter</option>
-              <option value="this_fy">This FY</option>
-              <option value="last_fy">Last FY</option>
-            </select>
+              placeholder="Preset…"
+              options={[
+                { value: 'this_month', label: 'This Month' },
+                { value: 'last_month', label: 'Last Month' },
+                { value: 'this_q', label: 'This Quarter' },
+                { value: 'this_fy', label: 'This FY' },
+                { value: 'last_fy', label: 'Last FY' },
+              ]}
+            />
 
             <button
               onClick={() => refetch()}
-              className="flex items-center gap-1.5 px-3 py-1.5 border border-gray-300 rounded-lg text-xs text-muted-foreground hover:bg-accent"
+              className="flex h-10 items-center gap-1.5 rounded-lg border border-input px-3 text-xs text-muted-foreground hover:bg-accent"
             >
               <RefreshCw className="w-3 h-3" /> Refresh
             </button>
@@ -701,7 +706,7 @@ export default function GLReport() {
             {rows.length > 0 && (
               <button
                 onClick={exportCSV}
-                className="flex items-center gap-1.5 px-3 py-1.5 bg-primary text-white rounded-lg text-xs font-medium hover:bg-primary/90"
+                className="flex h-10 items-center gap-1.5 rounded-lg bg-primary px-3 text-xs font-medium text-primary-foreground hover:bg-primary/90"
               >
                 <Download className="w-3 h-3" /> Export CSV
               </button>
@@ -773,14 +778,14 @@ export default function GLReport() {
             ) : (
               <div className="bg-card rounded-xl border border-border overflow-hidden mt-4">
                 {/* Selected record header */}
-                <div className="flex items-center gap-3 px-4 py-3 border-b border-gray-100 bg-gray-50">
-                  <dim.icon className="w-4 h-4 text-gray-400" />
+                <div className="flex items-center gap-3 border-b border-border bg-muted/30 px-4 py-3">
+                  <dim.icon className="h-4 w-4 text-muted-foreground" />
                   <div>
-                    <p className="text-sm font-semibold text-gray-900">
-                      {selectedRecord.code && <span className="font-mono text-gray-400 mr-2">{selectedRecord.code}</span>}
+                    <p className="text-sm font-semibold text-foreground">
+                      {selectedRecord.code && <span className="mr-2 font-mono text-muted-foreground">{selectedRecord.code}</span>}
                       {selectedRecord.name}
                     </p>
-                    <p className="text-xs text-gray-400">{dim.label} · {rows.length} posted transactions</p>
+                    <p className="text-xs text-muted-foreground">{dim.label} · {rows.length} posted transactions</p>
                   </div>
                 </div>
                 <LedgerTable rows={rows} showAccount={showAccountCol} isLoading={isLoading} />

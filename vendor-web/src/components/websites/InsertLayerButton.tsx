@@ -59,7 +59,7 @@ export function InsertLayerButton({
         open={open}
         anchorRef={btnRef}
         menuRef={menuRef}
-        className="bg-white border border-gray-200 rounded-xl shadow-2xl overflow-hidden w-[17rem] max-h-[90vh] overflow-y-auto"
+        className="bg-popover text-popover-foreground border border-border rounded-xl shadow-2xl overflow-hidden w-[17rem] max-h-[90vh] overflow-y-auto"
       >
         <div className="px-2.5 py-2 bg-accent border-b border-primary/20">
           <div className="text-[11px] font-bold text-primary">Insert layer</div>
@@ -86,7 +86,7 @@ export function InsertLayerButton({
           ))}
         </div>
         {overlayCount > 0 ? (
-          <div className="flex items-center justify-between border-t border-gray-100 px-2.5 py-1.5">
+          <div className="flex items-center justify-between border-t border-border bg-muted/25 px-2.5 py-1.5">
             <span className="text-[10px] text-gray-500">{overlayCount} layer{overlayCount !== 1 ? 's' : ''}</span>
             <button
               type="button"

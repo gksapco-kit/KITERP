@@ -1,4 +1,6 @@
-import { onModalBackdropClick } from '@/lib/utils'
+import { onModalBackdropClick, cn } from '@/lib/utils'
+import { Button } from '@/components/ui/button'
+import { hrInputClass, hrSelectClass, hrTabActiveClass, hrTabInactiveClass, hrTableHeadClass, hrStatusBadge, hrLabelClass, hrEmptyStateClass, hrCardClass } from '../hrFormUi'
 import { Label } from '@/components/ui/label'
 import { useState } from 'react'
 import { useEscapeToClose } from '@/hooks/useEscapeToClose'
@@ -14,18 +16,18 @@ import type { JobPosting, Candidate, InterviewRound, HRDepartment, HRDesignation
 import type { StoreRecord } from '@/api/vendor'
 
 const JOB_STATUS: Record<string, { label: string; color: string }> = {
-  draft:   { label: 'Draft',   color: 'bg-gray-100 text-gray-600' },
-  open:    { label: 'Open',    color: 'bg-green-100 text-green-700' },
-  closed:  { label: 'Closed',  color: 'bg-red-100 text-red-700' },
-  on_hold: { label: 'On Hold', color: 'bg-yellow-100 text-yellow-700' },
+  draft:   { label: 'Draft',   color: hrStatusBadge.draft },
+  open:    { label: 'Open',    color: hrStatusBadge.open },
+  closed:  { label: 'Closed',  color: hrStatusBadge.closed },
+  on_hold: { label: 'On Hold', color: hrStatusBadge.on_hold },
 }
 
 const INTV_STATUS: Record<string, { label: string; color: string }> = {
-  scheduled:   { label: 'Scheduled',   color: 'bg-blue-100 text-blue-700' },
-  completed:   { label: 'Completed',   color: 'bg-green-100 text-green-700' },
-  no_show:     { label: 'No Show',     color: 'bg-red-100 text-red-700' },
-  cancelled:   { label: 'Cancelled',   color: 'bg-gray-100 text-gray-600' },
-  rescheduled: { label: 'Rescheduled', color: 'bg-amber-100 text-amber-700' },
+  scheduled:   { label: 'Scheduled',   color: hrStatusBadge.scheduled },
+  completed:   { label: 'Completed',   color: hrStatusBadge.completed },
+  no_show:     { label: 'No Show',     color: hrStatusBadge.failed },
+  cancelled:   { label: 'Cancelled',   color: hrStatusBadge.cancelled },
+  rescheduled: { label: 'Rescheduled', color: hrStatusBadge.on_hold },
 }
 
 // ── Job Modal ─────────────────────────────────────────────────────────
@@ -81,47 +83,47 @@ function JobModal({
   }
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4 overflow-y-auto" onClick={onModalBackdropClick(onClose)}>
-      <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
-        <div className="flex items-center justify-between px-5 py-3 border-b">
-          <h2 className="text-lg font-semibold">{existing ? 'Edit Job' : 'New Job Posting'}</h2>
-          <button type="button" aria-label="Close" onClick={onClose} className="p-1 hover:bg-gray-100 rounded"><X className="w-4 h-4" /></button>
+    <div data-kiterp-modal className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto" onClick={onModalBackdropClick(onClose)}>
+      <div className="bg-card border border-border text-foreground rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+        <div className="flex items-center justify-between border-b border-border px-5 py-3">
+          <h2 className="text-lg font-semibold text-foreground">{existing ? 'Edit Job' : 'New Job Posting'}</h2>
+          <button type="button" aria-label="Close" onClick={onClose} className="rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground"><X className="h-4 w-4" /></button>
         </div>
-        <form onSubmit={submit} className="p-5 space-y-4">
+        <form onSubmit={submit} className="space-y-4 p-5">
           <div>
-            <Label className="text-xs font-medium text-gray-600 uppercase" required>Title</Label>
+            <Label className={hrLabelClass} required>Title</Label>
             <input required value={form.title} onChange={e => set('title', e.target.value)}
-              className="w-full mt-1 px-3 py-2 border rounded-lg text-sm" placeholder="e.g. Senior Software Engineer" />
+              className={cn(hrInputClass, 'mt-1')} placeholder="e.g. Senior Software Engineer" />
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <Label className="text-xs font-medium text-gray-600 uppercase">Department</Label>
+              <Label className={hrLabelClass}>Department</Label>
               <select value={form.department_id || ''} onChange={e => set('department_id', e.target.value)}
-                className="w-full mt-1 px-3 py-2 border rounded-lg text-sm">
+                className={cn(hrInputClass, 'mt-1')}>
                 <option value="">— None —</option>
                 {(depts as HRDepartment[]).map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
               </select>
             </div>
             <div>
-              <Label className="text-xs font-medium text-gray-600 uppercase">Designation</Label>
+              <Label className={hrLabelClass}>Designation</Label>
               <select value={form.designation_id || ''} onChange={e => set('designation_id', e.target.value)}
-                className="w-full mt-1 px-3 py-2 border rounded-lg text-sm">
+                className={cn(hrInputClass, 'mt-1')}>
                 <option value="">— None —</option>
                 {(desigs as HRDesignation[]).map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
               </select>
             </div>
             <div>
-              <Label className="text-xs font-medium text-gray-600 uppercase">Store</Label>
+              <Label className={hrLabelClass}>Store</Label>
               <select value={form.store_id || ''} onChange={e => set('store_id', e.target.value)}
-                className="w-full mt-1 px-3 py-2 border rounded-lg text-sm">
+                className={cn(hrInputClass, 'mt-1')}>
                 <option value="">— Any —</option>
                 {stores.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
               </select>
             </div>
             <div>
-              <Label className="text-xs font-medium text-gray-600 uppercase">Employment Type</Label>
+              <Label className={hrLabelClass}>Employment Type</Label>
               <select value={form.employment_type} onChange={e => set('employment_type', e.target.value)}
-                className="w-full mt-1 px-3 py-2 border rounded-lg text-sm">
+                className={cn(hrInputClass, 'mt-1')}>
                 <option value="full_time">Full-time</option>
                 <option value="part_time">Part-time</option>
                 <option value="contract">Contract</option>
@@ -130,57 +132,56 @@ function JobModal({
               </select>
             </div>
             <div>
-              <Label className="text-xs font-medium text-gray-600 uppercase">Openings</Label>
+              <Label className={hrLabelClass}>Openings</Label>
               <input type="number" min={1} value={form.openings} onChange={e => set('openings', Number(e.target.value))}
-                className="w-full mt-1 px-3 py-2 border rounded-lg text-sm" />
+                className={cn(hrInputClass, 'mt-1')} />
             </div>
             <div>
-              <Label className="text-xs font-medium text-gray-600 uppercase">Location</Label>
+              <Label className={hrLabelClass}>Location</Label>
               <input value={form.location} onChange={e => set('location', e.target.value)}
-                className="w-full mt-1 px-3 py-2 border rounded-lg text-sm" placeholder="City, Remote, etc." />
+                className={cn(hrInputClass, 'mt-1')} placeholder="City, Remote, etc." />
             </div>
             <div>
-              <Label className="text-xs font-medium text-gray-600 uppercase">Salary Min</Label>
+              <Label className={hrLabelClass}>Salary Min</Label>
               <input type="number" value={form.salary_min} onChange={e => set('salary_min', e.target.value)}
-                className="w-full mt-1 px-3 py-2 border rounded-lg text-sm" />
+                className={cn(hrInputClass, 'mt-1')} />
             </div>
             <div>
-              <Label className="text-xs font-medium text-gray-600 uppercase">Salary Max</Label>
+              <Label className={hrLabelClass}>Salary Max</Label>
               <input type="number" value={form.salary_max} onChange={e => set('salary_max', e.target.value)}
-                className="w-full mt-1 px-3 py-2 border rounded-lg text-sm" />
+                className={cn(hrInputClass, 'mt-1')} />
             </div>
           </div>
           <div>
-            <Label className="text-xs font-medium text-gray-600 uppercase">Description</Label>
+            <Label className={hrLabelClass}>Description</Label>
             <textarea rows={3} value={form.description} onChange={e => set('description', e.target.value)}
-              className="w-full mt-1 px-3 py-2 border rounded-lg text-sm" />
+              className={cn(hrInputClass, 'mt-1 min-h-[5rem] resize-y')} />
           </div>
           <div>
-            <Label className="text-xs font-medium text-gray-600 uppercase">Requirements</Label>
+            <Label className={hrLabelClass}>Requirements</Label>
             <textarea rows={3} value={form.requirements} onChange={e => set('requirements', e.target.value)}
-              className="w-full mt-1 px-3 py-2 border rounded-lg text-sm" />
+              className={cn(hrInputClass, 'mt-1 min-h-[5rem] resize-y')} />
           </div>
           <div>
-            <Label className="text-xs font-medium text-gray-600 uppercase">Benefits</Label>
+            <Label className={hrLabelClass}>Benefits</Label>
             <textarea rows={2} value={form.benefits} onChange={e => set('benefits', e.target.value)}
-              className="w-full mt-1 px-3 py-2 border rounded-lg text-sm" />
+              className={cn(hrInputClass, 'mt-1 min-h-[4rem] resize-y')} />
           </div>
           <div>
-            <Label className="text-xs font-medium text-gray-600 uppercase">Status</Label>
+            <Label className={hrLabelClass}>Status</Label>
             <select value={form.status} onChange={e => set('status', e.target.value as JobPosting['status'])}
-              className="w-full mt-1 px-3 py-2 border rounded-lg text-sm">
+              className={cn(hrSelectClass, 'mt-1 w-full')}>
               <option value="draft">Draft</option>
               <option value="open">Open (live)</option>
               <option value="on_hold">On Hold</option>
               <option value="closed">Closed</option>
             </select>
           </div>
-          <div className="flex justify-end gap-2 pt-3 border-t">
-            <button type="button" onClick={onClose} className="btn-cancel px-4 py-2 text-sm border rounded-lg">Cancel</button>
-            <button type="submit" disabled={create.isPending || update.isPending}
-              className="px-4 py-2 text-sm bg-primary text-white rounded-lg hover:bg-primary/90 disabled:opacity-50">
+          <div className="flex justify-end gap-2 border-t border-border pt-3">
+            <Button type="button" variant="outline" onClick={onClose}>Cancel</Button>
+            <Button type="submit" disabled={create.isPending || update.isPending}>
               {create.isPending || update.isPending ? 'Saving…' : (existing ? 'Save changes' : 'Create job')}
-            </button>
+            </Button>
           </div>
         </form>
       </div>
@@ -220,73 +221,73 @@ function CandidateModal({
   }
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4 overflow-y-auto">
-      <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-        <div className="flex items-center justify-between px-5 py-3 border-b">
-          <h2 className="text-lg font-semibold">Add Candidate</h2>
-          <button type="button" aria-label="Close" onClick={onClose} className="p-1 hover:bg-gray-100 rounded">
-                <X className="w-4 h-4" /></button>
+    <div data-kiterp-modal className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
+      <div className="bg-card border border-border text-foreground rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+        <div className="flex items-center justify-between border-b border-border px-5 py-3">
+          <h2 className="text-lg font-semibold text-foreground">Add Candidate</h2>
+          <button type="button" aria-label="Close" onClick={onClose} className="rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground">
+                <X className="h-4 w-4" /></button>
         </div>
         <form onSubmit={submit} className="p-5 space-y-3">
           <div>
-            <Label className="text-xs font-medium text-gray-600 uppercase" required>Full Name</Label>
+            <Label className={hrLabelClass} required>Full Name</Label>
             <input required value={form.full_name} onChange={e => setForm({ ...form, full_name: e.target.value })}
-              className="w-full mt-1 px-3 py-2 border rounded-lg text-sm" />
+              className={cn(hrInputClass, 'mt-1')} />
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <Label className="text-xs font-medium text-gray-600 uppercase">Email</Label>
+              <Label className={hrLabelClass}>Email</Label>
               <input type="email" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })}
-                className="w-full mt-1 px-3 py-2 border rounded-lg text-sm" />
+                className={cn(hrInputClass, 'mt-1')} />
             </div>
             <div>
-              <Label className="text-xs font-medium text-gray-600 uppercase">Phone</Label>
+              <Label className={hrLabelClass}>Phone</Label>
               <input value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })}
-                className="w-full mt-1 px-3 py-2 border rounded-lg text-sm" />
+                className={cn(hrInputClass, 'mt-1')} />
             </div>
             <div>
-              <Label className="text-xs font-medium text-gray-600 uppercase">Current Company</Label>
+              <Label className={hrLabelClass}>Current Company</Label>
               <input value={form.current_company} onChange={e => setForm({ ...form, current_company: e.target.value })}
-                className="w-full mt-1 px-3 py-2 border rounded-lg text-sm" />
+                className={cn(hrInputClass, 'mt-1')} />
             </div>
             <div>
-              <Label className="text-xs font-medium text-gray-600 uppercase">Current Designation</Label>
+              <Label className={hrLabelClass}>Current Designation</Label>
               <input value={form.current_designation} onChange={e => setForm({ ...form, current_designation: e.target.value })}
-                className="w-full mt-1 px-3 py-2 border rounded-lg text-sm" />
+                className={cn(hrInputClass, 'mt-1')} />
             </div>
             <div>
-              <Label className="text-xs font-medium text-gray-600 uppercase">Experience (yrs)</Label>
+              <Label className={hrLabelClass}>Experience (yrs)</Label>
               <input type="number" step="0.5" value={form.total_experience_years}
                 onChange={e => setForm({ ...form, total_experience_years: e.target.value })}
-                className="w-full mt-1 px-3 py-2 border rounded-lg text-sm" />
+                className={cn(hrInputClass, 'mt-1')} />
             </div>
             <div>
-              <Label className="text-xs font-medium text-gray-600 uppercase">Notice Period (days)</Label>
+              <Label className={hrLabelClass}>Notice Period (days)</Label>
               <input type="number" value={form.notice_period_days}
                 onChange={e => setForm({ ...form, notice_period_days: e.target.value })}
-                className="w-full mt-1 px-3 py-2 border rounded-lg text-sm" />
+                className={cn(hrInputClass, 'mt-1')} />
             </div>
             <div>
-              <Label className="text-xs font-medium text-gray-600 uppercase">Current CTC</Label>
+              <Label className={hrLabelClass}>Current CTC</Label>
               <input type="number" value={form.current_ctc}
                 onChange={e => setForm({ ...form, current_ctc: e.target.value })}
-                className="w-full mt-1 px-3 py-2 border rounded-lg text-sm" />
+                className={cn(hrInputClass, 'mt-1')} />
             </div>
             <div>
-              <Label className="text-xs font-medium text-gray-600 uppercase">Expected CTC</Label>
+              <Label className={hrLabelClass}>Expected CTC</Label>
               <input type="number" value={form.expected_ctc}
                 onChange={e => setForm({ ...form, expected_ctc: e.target.value })}
-                className="w-full mt-1 px-3 py-2 border rounded-lg text-sm" />
+                className={cn(hrInputClass, 'mt-1')} />
             </div>
             <div>
-              <Label className="text-xs font-medium text-gray-600 uppercase">Location</Label>
+              <Label className={hrLabelClass}>Location</Label>
               <input value={form.location} onChange={e => setForm({ ...form, location: e.target.value })}
-                className="w-full mt-1 px-3 py-2 border rounded-lg text-sm" />
+                className={cn(hrInputClass, 'mt-1')} />
             </div>
             <div>
-              <Label className="text-xs font-medium text-gray-600 uppercase">Source</Label>
+              <Label className={hrLabelClass}>Source</Label>
               <select value={form.source} onChange={e => setForm({ ...form, source: e.target.value })}
-                className="w-full mt-1 px-3 py-2 border rounded-lg text-sm">
+                className={cn(hrInputClass, 'mt-1')}>
                 <option value="direct">Direct</option>
                 <option value="linkedin">LinkedIn</option>
                 <option value="naukri">Naukri</option>
@@ -297,26 +298,25 @@ function CandidateModal({
             </div>
           </div>
           <div>
-            <Label className="text-xs font-medium text-gray-600 uppercase">Resume URL</Label>
+            <Label className={hrLabelClass}>Resume URL</Label>
             <input value={form.resume_url} onChange={e => setForm({ ...form, resume_url: e.target.value })}
-              className="w-full mt-1 px-3 py-2 border rounded-lg text-sm" placeholder="https://..." />
+              className={cn(hrInputClass, 'mt-1')} placeholder="https://..." />
           </div>
           <div>
-            <Label className="text-xs font-medium text-gray-600 uppercase">Skills (comma-separated)</Label>
+            <Label className={hrLabelClass}>Skills (comma-separated)</Label>
             <input value={form.skills} onChange={e => setForm({ ...form, skills: e.target.value })}
-              className="w-full mt-1 px-3 py-2 border rounded-lg text-sm" placeholder="React, TypeScript, Node" />
+              className={cn(hrInputClass, 'mt-1')} placeholder="React, TypeScript, Node" />
           </div>
           <div>
-            <Label className="text-xs font-medium text-gray-600 uppercase">Notes</Label>
+            <Label className={hrLabelClass}>Notes</Label>
             <textarea rows={2} value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })}
-              className="w-full mt-1 px-3 py-2 border rounded-lg text-sm" />
+              className={cn(hrInputClass, 'mt-1')} />
           </div>
-          <div className="flex justify-end gap-2 pt-3 border-t">
-            <button type="button" onClick={onClose} className="btn-cancel px-4 py-2 text-sm border rounded-lg">Cancel</button>
-            <button type="submit" disabled={create.isPending}
-              className="px-4 py-2 text-sm bg-primary text-white rounded-lg hover:bg-primary/90 disabled:opacity-50">
+          <div className="flex justify-end gap-2 border-t border-border pt-3">
+            <Button type="button" variant="outline" onClick={onClose}>Cancel</Button>
+            <Button type="submit" disabled={create.isPending}>
               {create.isPending ? 'Saving…' : 'Add candidate'}
-            </button>
+            </Button>
           </div>
         </form>
       </div>
@@ -334,22 +334,23 @@ export default function RecruitmentPage() {
     <div className="p-6">
       <div className="flex items-center justify-between mb-5">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Recruitment</h1>
-          <p className="text-sm text-gray-500 mt-1">Manage Jobs, Candidates And Interviews</p>
+          <h1 className="text-2xl font-bold text-foreground">Recruitment</h1>
+          <p className="mt-1 text-sm text-muted-foreground">Manage Jobs, Candidates And Interviews</p>
         </div>
       </div>
 
-      <div className="flex border-b mb-5 gap-1">
+      <div className="mb-5 flex gap-1 border-b border-border">
         {[
           { k: 'jobs',       label: 'Jobs',       icon: Briefcase },
           { k: 'candidates', label: 'Candidates', icon: Users },
           { k: 'interviews', label: 'Interviews', icon: Calendar },
         ].map(t => (
           <button key={t.k} onClick={() => setTab(t.k as TabKey)}
-            className={`flex items-center gap-2 px-4 py-2 text-sm font-medium border-b-2 -mb-px ${
-              tab === t.k ? 'border-blue-600 text-blue-700' : 'border-transparent text-gray-500 hover:text-gray-700'
-            }`}>
-            <t.icon className="w-4 h-4" /> {t.label}
+            className={cn(
+              '-mb-px flex items-center gap-2 border-b-2 px-4 py-2 text-sm font-medium transition-colors focus:outline-none',
+              tab === t.k ? hrTabActiveClass : hrTabInactiveClass,
+            )}>
+            <t.icon className="h-4 w-4" /> {t.label}
           </button>
         ))}
       </div>
@@ -372,30 +373,29 @@ function JobsTab() {
     <div>
       <div className="flex items-center justify-between mb-3">
         <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)}
-          className="px-3 py-2 border rounded-lg text-sm">
+          className={cn(hrSelectClass, 'w-auto')}>
           <option value="">All statuses</option>
           <option value="draft">Draft</option>
           <option value="open">Open</option>
           <option value="on_hold">On Hold</option>
           <option value="closed">Closed</option>
         </select>
-        <button onClick={() => setShowNew(true)}
-          className="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 text-sm font-medium">
-          <Plus className="w-4 h-4" /> New Job
-        </button>
+        <Button type="button" onClick={() => setShowNew(true)}>
+          <Plus className="h-4 w-4" /> New Job
+        </Button>
       </div>
 
-      <div className="bg-white border rounded-xl shadow-sm overflow-hidden max-h-[90vh] overflow-y-auto">
+      <div className="bg-card border border-border text-foreground rounded-xl shadow-2xl overflow-hidden max-h-[90vh] overflow-y-auto">
         {isLoading ? (
-          <div className="p-8 text-center text-gray-400">Loading…</div>
+          <div className="p-8 text-center text-muted-foreground">Loading…</div>
         ) : (jobs as JobPosting[]).length === 0 ? (
-          <div className="p-12 text-center">
-            <Briefcase className="w-10 h-10 text-gray-300 mx-auto mb-3" />
-            <p className="text-gray-500">No job postings yet.</p>
+          <div className={hrEmptyStateClass}>
+            <Briefcase className="mx-auto mb-3 h-10 w-10 text-muted-foreground/50" />
+            <p className="text-muted-foreground">No job postings yet.</p>
           </div>
         ) : (
           <table className="w-full">
-            <thead className="bg-gray-50 border-b text-xs uppercase text-gray-500">
+            <thead className={hrTableHeadClass}>
               <tr>
                 {['Title', 'Department / Designation', 'Type', 'Openings', 'Location', 'Status', 'Actions'].map(h =>
                   <th key={h} className="text-left py-3 px-4 font-medium">{h}</th>)}
@@ -405,37 +405,37 @@ function JobsTab() {
               {(jobs as JobPosting[]).map(job => {
                 const cfg = JOB_STATUS[job.status] ?? JOB_STATUS.draft
                 return (
-                  <tr key={job.id} className="border-b hover:bg-gray-50">
+                  <tr key={job.id} className="border-b border-border hover:bg-muted/30">
                     <td className="py-3 px-4">
-                      <Link to={`/hr/recruitment/jobs/${job.id}`} className="text-sm font-medium text-blue-700 hover:underline">
+                      <Link to={`/hr/recruitment/jobs/${job.id}`} className="text-sm font-medium text-primary hover:underline">
                         {job.title}
                       </Link>
                       {job.public_slug && (
-                        <p className="text-xs text-gray-400 mt-0.5">/{job.public_slug}</p>
+                        <p className="mt-0.5 text-xs text-muted-foreground">/{job.public_slug}</p>
                       )}
                     </td>
-                    <td className="py-3 px-4 text-sm text-gray-600">
+                    <td className="py-3 px-4 text-sm text-muted-foreground">
                       {job.department?.name ?? '—'}
-                      {job.designation && <span className="text-gray-400"> · {job.designation.name}</span>}
+                      {job.designation && <span className="text-muted-foreground/70"> · {job.designation.name}</span>}
                     </td>
-                    <td className="py-3 px-4 text-sm text-gray-600">{job.employment_type}</td>
-                    <td className="py-3 px-4 text-sm text-gray-600">{job.openings}</td>
-                    <td className="py-3 px-4 text-sm text-gray-600">{job.location ?? '—'}</td>
+                    <td className="py-3 px-4 text-sm text-muted-foreground">{job.employment_type}</td>
+                    <td className="py-3 px-4 text-sm text-muted-foreground">{job.openings}</td>
+                    <td className="py-3 px-4 text-sm text-muted-foreground">{job.location ?? '—'}</td>
                     <td className="py-3 px-4">
                       <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${cfg.color}`}>{cfg.label}</span>
                     </td>
                     <td className="py-3 px-4">
                       <div className="flex items-center gap-1">
                         <Link to={`/hr/recruitment/jobs/${job.id}`}
-                          className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg" title="Pipeline">
+                          className="rounded-lg p-1.5 text-muted-foreground hover:bg-primary/10 hover:text-primary" title="Pipeline">
                           <ExternalLink className="w-4 h-4" />
                         </Link>
                         <button onClick={() => setEditing(job)}
-                          className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg" title="Edit">
+                          className="rounded-lg p-1.5 text-muted-foreground hover:bg-primary/10 hover:text-primary" title="Edit">
                           <Pencil className="w-4 h-4" />
                         </button>
                         <button onClick={() => { if (confirm('Delete this job?')) deleteJob.mutate(job.id) }}
-                          className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg" title="Delete">
+                          className="rounded-lg p-1.5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive" title="Delete">
                           <Trash2 className="w-4 h-4" />
                         </button>
                       </div>
@@ -464,27 +464,26 @@ function CandidatesTab() {
     <div>
       <div className="flex items-center justify-between mb-3">
         <div className="relative">
-          <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search by name, email, phone…"
-            className="pl-9 pr-3 py-2 border rounded-lg text-sm w-72" />
+            className={cn(hrInputClass, 'w-72 pl-9')} />
         </div>
-        <button onClick={() => setShowNew(true)}
-          className="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 text-sm font-medium">
-          <Plus className="w-4 h-4" /> Add Candidate
-        </button>
+        <Button type="button" onClick={() => setShowNew(true)}>
+          <Plus className="h-4 w-4" /> Add Candidate
+        </Button>
       </div>
 
-      <div className="bg-white border rounded-xl shadow-sm overflow-hidden max-h-[90vh] overflow-y-auto">
+      <div className="bg-card border border-border text-foreground rounded-xl shadow-2xl overflow-hidden max-h-[90vh] overflow-y-auto">
         {isLoading ? (
-          <div className="p-8 text-center text-gray-400">Loading…</div>
+          <div className="p-8 text-center text-muted-foreground">Loading…</div>
         ) : (candidates as Candidate[]).length === 0 ? (
-          <div className="p-12 text-center">
-            <Users className="w-10 h-10 text-gray-300 mx-auto mb-3" />
-            <p className="text-gray-500">No candidates yet.</p>
+          <div className={hrEmptyStateClass}>
+            <Users className="mx-auto mb-3 h-10 w-10 text-muted-foreground/50" />
+            <p className="text-muted-foreground">No candidates yet.</p>
           </div>
         ) : (
           <table className="w-full">
-            <thead className="bg-gray-50 border-b text-xs uppercase text-gray-500">
+            <thead className={hrTableHeadClass}>
               <tr>
                 {['Name', 'Contact', 'Current Role', 'Experience', 'CTC (Cur / Exp)', 'Source', 'Actions'].map(h =>
                   <th key={h} className="text-left py-3 px-4 font-medium">{h}</th>)}
@@ -492,33 +491,33 @@ function CandidatesTab() {
             </thead>
             <tbody>
               {(candidates as Candidate[]).map(c => (
-                <tr key={c.id} className="border-b hover:bg-gray-50">
+                <tr key={c.id} className="border-b border-border hover:bg-muted/30">
                   <td className="py-3 px-4">
-                    <p className="text-sm font-medium text-gray-900">{c.full_name}</p>
-                    {c.location && <p className="text-xs text-gray-400">{c.location}</p>}
+                    <p className="text-sm font-medium text-foreground">{c.full_name}</p>
+                    {c.location && <p className="text-xs text-muted-foreground">{c.location}</p>}
                   </td>
-                  <td className="py-3 px-4 text-xs text-gray-600">
+                  <td className="py-3 px-4 text-xs text-muted-foreground">
                     {c.email && <p>{c.email}</p>}
                     {c.phone && <p>{c.phone}</p>}
                   </td>
-                  <td className="py-3 px-4 text-sm text-gray-600">
+                  <td className="py-3 px-4 text-sm text-muted-foreground">
                     {c.current_designation ?? '—'}
-                    {c.current_company && <p className="text-xs text-gray-400">@ {c.current_company}</p>}
+                    {c.current_company && <p className="text-xs text-muted-foreground">@ {c.current_company}</p>}
                   </td>
-                  <td className="py-3 px-4 text-sm text-gray-600">
+                  <td className="py-3 px-4 text-sm text-muted-foreground">
                     {c.total_experience_years ? `${c.total_experience_years} yrs` : '—'}
-                    {c.notice_period_days != null && <p className="text-xs text-gray-400">{c.notice_period_days} d notice</p>}
+                    {c.notice_period_days != null && <p className="text-xs text-muted-foreground">{c.notice_period_days} d notice</p>}
                   </td>
-                  <td className="py-3 px-4 text-sm text-gray-600">
+                  <td className="py-3 px-4 text-sm text-muted-foreground">
                     {c.current_ctc != null ? `₹${Number(c.current_ctc).toLocaleString()}` : '—'}
-                    {c.expected_ctc != null && <span className="text-gray-400"> → ₹{Number(c.expected_ctc).toLocaleString()}</span>}
+                    {c.expected_ctc != null && <span className="text-muted-foreground/70"> → ₹{Number(c.expected_ctc).toLocaleString()}</span>}
                   </td>
                   <td className="py-3 px-4 text-xs">
-                    <span className="px-2 py-0.5 rounded-full bg-gray-100 text-gray-600">{c.source ?? 'direct'}</span>
+                    <span className={cn('rounded-full px-2 py-0.5', hrStatusBadge.draft)}>{c.source ?? 'direct'}</span>
                   </td>
                   <td className="py-3 px-4">
                     <button onClick={() => { if (confirm('Delete candidate?')) deleteCand.mutate(c.id) }}
-                      className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg" title="Delete">
+                      className="rounded-lg p-1.5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive" title="Delete">
                       <Trash2 className="w-4 h-4" />
                     </button>
                   </td>
@@ -542,27 +541,27 @@ function InterviewsTab() {
   return (
     <div>
       <div className="flex items-center gap-2 mb-3">
-        <button onClick={() => setUpcoming(true)}
-          className={`px-3 py-1.5 text-sm rounded-lg ${upcoming ? 'bg-primary text-white' : 'bg-white border text-gray-600'}`}>
+        <button type="button" onClick={() => setUpcoming(true)}
+          className={cn('rounded-lg px-3 py-1.5 text-sm transition-colors', upcoming ? 'bg-primary text-primary-foreground' : 'border border-border bg-background text-muted-foreground hover:text-foreground')}>
           Upcoming
         </button>
-        <button onClick={() => setUpcoming(false)}
-          className={`px-3 py-1.5 text-sm rounded-lg ${!upcoming ? 'bg-primary text-white' : 'bg-white border text-gray-600'}`}>
+        <button type="button" onClick={() => setUpcoming(false)}
+          className={cn('rounded-lg px-3 py-1.5 text-sm transition-colors', !upcoming ? 'bg-primary text-primary-foreground' : 'border border-border bg-background text-muted-foreground hover:text-foreground')}>
           All
         </button>
       </div>
 
-      <div className="bg-white border rounded-xl shadow-sm overflow-hidden max-h-[90vh] overflow-y-auto">
+      <div className="bg-card border border-border text-foreground rounded-xl shadow-2xl overflow-hidden max-h-[90vh] overflow-y-auto">
         {isLoading ? (
-          <div className="p-8 text-center text-gray-400">Loading…</div>
+          <div className="p-8 text-center text-muted-foreground">Loading…</div>
         ) : (interviews as InterviewRound[]).length === 0 ? (
-          <div className="p-12 text-center">
-            <Calendar className="w-10 h-10 text-gray-300 mx-auto mb-3" />
-            <p className="text-gray-500">No interviews scheduled.</p>
+          <div className={hrEmptyStateClass}>
+            <Calendar className="mx-auto mb-3 h-10 w-10 text-muted-foreground/50" />
+            <p className="text-muted-foreground">No interviews scheduled.</p>
           </div>
         ) : (
           <table className="w-full">
-            <thead className="bg-gray-50 border-b text-xs uppercase text-gray-500">
+            <thead className={hrTableHeadClass}>
               <tr>
                 {['When', 'Round', 'Candidate', 'Job', 'Mode', 'Status', 'Result', 'Actions'].map(h =>
                   <th key={h} className="text-left py-3 px-4 font-medium">{h}</th>)}
@@ -573,29 +572,29 @@ function InterviewsTab() {
                 const cfg = INTV_STATUS[iv.status] ?? INTV_STATUS.scheduled
                 const app = iv.application
                 return (
-                  <tr key={iv.id} className="border-b hover:bg-gray-50">
-                    <td className="py-3 px-4 text-sm text-gray-600">
+                  <tr key={iv.id} className="border-b border-border hover:bg-muted/30">
+                    <td className="py-3 px-4 text-sm text-muted-foreground">
                       {iv.scheduled_at ? new Date(iv.scheduled_at).toLocaleString() : '—'}
-                      {iv.duration_min ? <p className="text-xs text-gray-400">{iv.duration_min} min</p> : null}
+                      {iv.duration_min ? <p className="text-xs text-muted-foreground">{iv.duration_min} min</p> : null}
                     </td>
                     <td className="py-3 px-4 text-sm">
-                      <p className="font-medium">R{iv.round_number}</p>
-                      <p className="text-xs text-gray-400">{iv.round_name ?? ''}</p>
+                      <p className="font-medium text-foreground">R{iv.round_number}</p>
+                      <p className="text-xs text-muted-foreground">{iv.round_name ?? ''}</p>
                     </td>
-                    <td className="py-3 px-4 text-sm text-gray-700">{app?.candidate?.full_name ?? '—'}</td>
-                    <td className="py-3 px-4 text-sm text-gray-600">{app?.job_posting?.title ?? '—'}</td>
-                    <td className="py-3 px-4 text-xs text-gray-500">{iv.mode ?? '—'}</td>
+                    <td className="py-3 px-4 text-sm text-foreground">{app?.candidate?.full_name ?? '—'}</td>
+                    <td className="py-3 px-4 text-sm text-muted-foreground">{app?.job_posting?.title ?? '—'}</td>
+                    <td className="py-3 px-4 text-xs text-muted-foreground">{iv.mode ?? '—'}</td>
                     <td className="py-3 px-4">
                       <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${cfg.color}`}>{cfg.label}</span>
                     </td>
-                    <td className="py-3 px-4 text-xs text-gray-500">
+                    <td className="py-3 px-4 text-xs text-muted-foreground">
                       {iv.recommendation ? `${iv.recommendation}${iv.rating ? ` (${iv.rating}/5)` : ''}` : '—'}
                     </td>
                     <td className="py-3 px-4">
                       {iv.status === 'scheduled' && (
                         <select onChange={e => updateIv.mutate({ id: iv.id, data: { status: e.target.value } })}
                           defaultValue=""
-                          className="text-xs border rounded px-2 py-1">
+                          className={cn(hrSelectClass, 'h-8 w-auto px-2 text-xs')}>
                           <option value="" disabled>Mark…</option>
                           <option value="completed">Completed</option>
                           <option value="no_show">No Show</option>

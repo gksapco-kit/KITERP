@@ -887,7 +887,7 @@ export function MediaStudioPanel({
           onClick={closeToolsModal}
         >
           <div
-            className="flex w-full max-w-5xl max-h-[min(90vh,860px)] flex-col overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-2xl animate-in zoom-in-95 duration-150"
+            className="flex w-full max-w-5xl max-h-[min(90vh,860px)] flex-col overflow-hidden rounded-2xl border border-border bg-card text-foreground shadow-2xl animate-in zoom-in-95 duration-150"
             onClick={e => e.stopPropagation()}
             onPointerDown={e => e.stopPropagation()}
           >
@@ -1257,7 +1257,7 @@ export function MediaStudioPanel({
           onClick={closeBakePreviewModal}
         >
           <div
-            className="flex w-full max-w-5xl flex-col overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-2xl animate-in zoom-in-95 duration-150"
+            className="flex w-full max-w-5xl flex-col overflow-hidden rounded-2xl border border-border bg-card text-foreground shadow-2xl animate-in zoom-in-95 duration-150"
             onClick={e => e.stopPropagation()}
             onPointerDown={e => e.stopPropagation()}
           >

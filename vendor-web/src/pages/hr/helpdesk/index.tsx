@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { LifeBuoy, ExternalLink } from 'lucide-react'
+import { Select, selectOptionsWithBlank } from '@/components/ui/select'
 import { useHRTickets } from '@/hooks/useVendor'
 import type { HelpdeskTicket } from '@/types'
 
@@ -27,14 +28,18 @@ export default function HelpdeskPage() {
           <h1 className="text-2xl font-bold text-gray-900">Helpdesk &amp; Grievances</h1>
           <p className="text-sm text-gray-500 mt-1">Track And Resolve Employee Tickets</p>
         </div>
-        <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)}
-          className="border rounded px-3 py-2 text-sm">
-          <option value="">All statuses</option>
-          {Object.entries(STATUS).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
-        </select>
+        <Select
+          value={statusFilter}
+          onChange={setStatusFilter}
+          className="w-40"
+          options={selectOptionsWithBlank(
+            'All statuses',
+            Object.entries(STATUS).map(([k, v]) => ({ value: k, label: v.label })),
+          )}
+        />
       </div>
 
-      <div className="bg-white border rounded-xl shadow-sm overflow-hidden max-h-[90vh] overflow-y-auto">
+      <div className="bg-card border border-border text-foreground rounded-xl shadow-2xl overflow-hidden max-h-[90vh] overflow-y-auto">
         {isLoading ? (
           <div className="p-8 text-center text-gray-400">Loading…</div>
         ) : (tickets as HelpdeskTicket[]).length === 0 ? (

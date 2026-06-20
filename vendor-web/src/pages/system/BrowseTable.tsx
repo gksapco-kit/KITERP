@@ -5,6 +5,7 @@ import { ChevronLeft, ChevronRight, Database, Loader2 } from 'lucide-react'
 import { vendorApi, type SchemaModelRecord } from '@/api/vendor'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { Select, selectOptionsWithBlank } from '@/components/ui/select'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { useAuthStore } from '@/stores/authStore'
 import { useIsVendorAdmin } from '@/hooks/usePermissions'
@@ -149,19 +150,16 @@ export default function BrowseTablePage() {
               <label htmlFor="browse-table-select" className="text-xs font-medium text-muted-foreground">
                 Table
               </label>
-              <select
+              <Select
                 id="browse-table-select"
                 value={browseTable}
-                onChange={(e) => updateParams({ table: e.target.value, q: '', page: 1 })}
-                className="h-10 w-full min-w-0 rounded-md border border-input bg-background px-3 font-mono text-sm"
-              >
-                <option value="">Select a table…</option>
-                {tableOptions.map((m) => (
-                  <option key={m.table} value={m.table}>
-                    {m.table} — {m.domain}
-                  </option>
-                ))}
-              </select>
+                onChange={v => updateParams({ table: v, q: '', page: 1 })}
+                placeholder="Select a table…"
+                options={selectOptionsWithBlank(
+                  'Select a table…',
+                  tableOptions.map(m => ({ value: m.table, label: `${m.table} — ${m.domain}` })),
+                )}
+              />
             </div>
           </div>
           <div className="min-w-0 space-y-2">

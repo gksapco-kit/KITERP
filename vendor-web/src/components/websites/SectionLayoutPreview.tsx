@@ -69,7 +69,7 @@ function FooterPreview({ variantProps }: { variantProps: Record<string, unknown>
       {isMega && (
         <div className="mb-2 pb-2 border-b border-slate-200/40 flex gap-1 items-center">
           <Bar w="w-1/3" h="h-1" className={head} />
-          <Bar w="flex-1" h="h-2" className={isDark ? 'bg-slate-800 border border-slate-600' : 'bg-white border border-slate-200'} />
+          <Bar w="flex-1" h="h-2" className={isDark ? 'bg-slate-800 border border-slate-600' : 'bg-white border border-border'} />
           <Bar w="w-6" h="h-2" className="bg-primary/60" />
         </div>
       )}
@@ -526,7 +526,7 @@ function TestimonialsPreview({ variantProps, sampleUrls }: { variantProps: Recor
   return (
     <div className="h-full p-2 grid gap-1" style={{ gridTemplateColumns: `repeat(${cols}, 1fr)` }}>
       {[0, 1, 2].map(i => (
-        <div key={i} className="rounded border border-slate-200 bg-white p-1.5 flex flex-col gap-0.5">
+        <div key={i} className="rounded border border-border bg-white p-1.5 flex flex-col gap-0.5">
           <div className="flex items-center gap-1">
             <Img src={sampleUrls[i]} className="w-4 h-4 rounded-full shrink-0" />
             <div className="flex gap-0.5">{[0, 1, 2, 3, 4].map(s => <div key={s} className="w-1 h-1 rounded-full bg-amber-400" />)}</div>
@@ -674,7 +674,7 @@ function FaqPreview({ variantProps }: { variantProps: Record<string, unknown> })
 function ContactFormPreview({ variantProps, sampleUrls }: { variantProps: Record<string, unknown>; sampleUrls: string[] }) {
   const layout = String(variantProps.layout ?? 'split')
   const img = sampleUrls[0]
-  const field = (h = 'h-2') => <Bar w="w-full" h={h} className="bg-white border border-slate-200" />
+  const field = (h = 'h-2') => <Bar w="w-full" h={h} className="bg-white border border-border" />
 
   if (layout === 'centered') {
     return (
@@ -690,7 +690,7 @@ function ContactFormPreview({ variantProps, sampleUrls }: { variantProps: Record
     return (
       <div className="h-full p-2 flex flex-col gap-1 bg-slate-50">
         <div className="flex-1 space-y-0.5">{field()}{field()}{field('h-3')}{<Bar w="w-2/3" h="h-2" className="bg-primary/60" />}</div>
-        <Img src={img} className="h-1/3 w-full rounded border border-slate-200" />
+        <Img src={img} className="h-1/3 w-full rounded border border-border" />
       </div>
     )
   }
@@ -806,7 +806,7 @@ function NewsletterPreview({ variantProps, sampleUrls }: { variantProps: Record<
         <Img src={img} className="w-2/5 h-full rounded-none object-cover" />
         <div className="flex-1 flex flex-col justify-center gap-1 p-2">
           <Bar w="w-3/4" h="h-1.5" className="bg-slate-600" />
-          <div className="flex gap-0.5"><Bar w="flex-1" h="h-2" className="bg-white border border-slate-200" /><Bar w="w-8" h="h-2" className="bg-primary/60" /></div>
+          <div className="flex gap-0.5"><Bar w="flex-1" h="h-2" className="bg-white border border-border" /><Bar w="w-8" h="h-2" className="bg-primary/60" /></div>
         </div>
       </div>
     )
@@ -815,9 +815,9 @@ function NewsletterPreview({ variantProps, sampleUrls }: { variantProps: Record<
     return (
       <div className="h-full p-3 flex items-center justify-center bg-slate-50 relative overflow-hidden">
         {img && <Img src={img} className="absolute inset-0 w-full h-full rounded-none object-cover opacity-15" />}
-        <div className="w-4/5 rounded-lg border border-slate-200 bg-white/95 p-2 space-y-1 shadow-sm relative z-10">
+        <div className="w-4/5 rounded-lg border border-border bg-white/95 p-2 space-y-1 shadow-sm relative z-10">
           <Bar w="w-2/3 mx-auto" h="h-1.5" className="bg-slate-600" />
-          <div className="flex gap-0.5"><Bar w="flex-1" h="h-2" className="bg-slate-50 border border-slate-200" /><Bar w="w-8" h="h-2" className="bg-primary/60" /></div>
+          <div className="flex gap-0.5"><Bar w="flex-1" h="h-2" className="bg-slate-50 border border-border" /><Bar w="w-8" h="h-2" className="bg-primary/60" /></div>
         </div>
       </div>
     )
@@ -826,7 +826,7 @@ function NewsletterPreview({ variantProps, sampleUrls }: { variantProps: Record<
     <div className="h-full flex items-center justify-center gap-1 px-2 bg-primary/10 relative overflow-hidden">
       {img && <Img src={img} className="absolute inset-0 w-full h-full rounded-none object-cover opacity-20" />}
       <Bar w="w-1/4" h="h-1" className="bg-slate-600 shrink-0 relative z-10" />
-      <Bar w="flex-1" h="h-2" className="bg-white border border-slate-200 relative z-10" />
+      <Bar w="flex-1" h="h-2" className="bg-white border border-border relative z-10" />
       <Bar w="w-10" h="h-2" className="bg-primary/60 shrink-0 relative z-10" />
     </div>
   )
@@ -1024,7 +1024,7 @@ function VariantPreview({
   const isCommerce = blockType.startsWith('commerce.')
 
   const tile = (i: number, cls?: string) => (
-    <div key={i} className={cn('rounded border border-slate-200 bg-white overflow-hidden', cls)}>
+    <div key={i} className={cn('rounded border border-border bg-white overflow-hidden', cls)}>
       {img ? <Img src={sampleUrls[i % sampleUrls.length]} className="w-full h-5" /> : <div className="w-full h-5 bg-slate-200" />}
       <div className="p-0.5 space-y-0.5">
         <Bar w="w-3/4" h="h-0.5" className="bg-slate-500" />
@@ -1072,7 +1072,7 @@ function VariantPreview({
   if (variant === 'card') {
     return (
       <div className="h-full p-2 flex items-center justify-center bg-slate-100">
-        <div className="w-4/5 rounded-lg border border-slate-200 bg-white shadow-sm p-2 space-y-1">
+        <div className="w-4/5 rounded-lg border border-border bg-white shadow-sm p-2 space-y-1">
           {img && <Img src={img} className="w-full h-8 rounded" />}
           <Bar w="w-2/3" h="h-1" className="bg-slate-600" />
           <Bar w="w-full" h="h-0.5" className="bg-slate-200" />
@@ -1137,7 +1137,7 @@ function VariantPreview({
         <Bar w="w-1/3" h="h-1" className="bg-slate-500" />
         <div className="grid grid-cols-7 gap-0.5 flex-1">
           {Array.from({ length: 14 }).map((_, i) => (
-            <div key={i} className={cn('rounded-sm h-2', i === 9 ? 'bg-primary/60' : 'bg-white border border-slate-200')} />
+            <div key={i} className={cn('rounded-sm h-2', i === 9 ? 'bg-primary/60' : 'bg-white border border-border')} />
           ))}
         </div>
       </div>
@@ -1163,8 +1163,8 @@ function VariantPreview({
   if (isCommerce) {
     return (
       <div className="h-full p-2 flex gap-1 bg-slate-50">
-        <div className="flex-1 space-y-0.5">{[0, 1, 2].map(i => <Bar key={i} w="w-full" h="h-1.5" className="bg-white border border-slate-200" />)}</div>
-        <div className="w-2/5 rounded border border-slate-200 bg-white p-1 space-y-0.5">
+        <div className="flex-1 space-y-0.5">{[0, 1, 2].map(i => <Bar key={i} w="w-full" h="h-1.5" className="bg-white border border-border" />)}</div>
+        <div className="w-2/5 rounded border border-border bg-white p-1 space-y-0.5">
           <Bar w="w-full" h="h-0.5" className="bg-slate-400" />
           <Bar w="w-full" h="h-2" className="bg-primary/60" />
         </div>
@@ -1221,7 +1221,7 @@ function SpacingPreview({ variantProps }: { variantProps: Record<string, unknown
   if (isCard) {
     return (
       <div className={cn('h-full p-2 flex items-center justify-center', shell)}>
-        <div className="w-4/5 rounded-lg border border-slate-200 bg-white shadow-sm p-2">{content}</div>
+        <div className="w-4/5 rounded-lg border border-border bg-white shadow-sm p-2">{content}</div>
       </div>
     )
   }
@@ -1289,7 +1289,7 @@ function CountdownPreview({ variantProps }: { variantProps: Record<string, unkno
   const style = String(variantProps.style ?? 'boxes')
   const isDark = variantProps.bg_style === 'dark' || variantProps.bg_style === 'gradient'
   const shell = isDark ? 'bg-slate-900' : 'bg-slate-50'
-  const unit = isDark ? 'bg-slate-800 border border-slate-600' : 'bg-white border border-slate-200'
+  const unit = isDark ? 'bg-slate-800 border border-slate-600' : 'bg-white border border-border'
   const num = isDark ? 'bg-slate-300' : 'bg-slate-700'
 
   if (style === 'inline') {

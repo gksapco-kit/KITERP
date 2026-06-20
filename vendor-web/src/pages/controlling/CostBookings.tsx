@@ -7,6 +7,7 @@ import { TableColumnLabel } from '@/components/common/FieldLabel'
 import { Link } from 'react-router-dom'
 import { ExternalLink, Receipt, TrendingDown, TrendingUp, DollarSign } from 'lucide-react'
 import { useCompanies } from '@/hooks/useFinance'
+import { Select } from '@/components/ui/select'
 import { useManufacturingOrders } from '@/hooks/useControlling'
 import { formatCurrency } from '@/lib/utils'
 
@@ -134,15 +135,17 @@ export default function CostBookingsPage() {
       {/* Filters */}
       <div className="flex flex-wrap gap-3">
         {companies.length > 1 && (
-          <select value={activeCo} onChange={e => setCompanyId(e.target.value)}
-            className="rounded-lg border border-gray-200 px-3 py-2 text-sm bg-white">
-            {companies.map(c => <option key={c.id} value={c.id}>{c.code} — {c.name}</option>)}
-          </select>
+          <Select
+            value={activeCo}
+            onChange={setCompanyId}
+            options={companies.map(c => ({ value: c.id, label: `${c.code} — ${c.name}` }))}
+          />
         )}
-        <select value={bookingType} onChange={e => setBookingType(e.target.value)}
-          className="rounded-lg border border-gray-200 px-3 py-2 text-sm bg-white">
-          {BOOKING_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
-        </select>
+        <Select
+          value={bookingType}
+          onChange={setBookingType}
+          options={BOOKING_TYPES.map(t => ({ value: t.value, label: t.label }))}
+        />
       </div>
 
       {/* Booking by type summary */}

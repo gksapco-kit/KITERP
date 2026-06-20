@@ -6,6 +6,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Select, selectOptionsWithBlank } from '@/components/ui/select'
 import { Badge } from '@/components/ui/badge'
 import { CustomerPicker, type CustomerPickerValue } from '@/components/commission/CustomerPicker'
 import { StaffPicker, type StaffPickerValue } from '@/components/commission/StaffPicker'
@@ -110,7 +111,7 @@ function CreateProjectModal({ onClose }: { onClose: () => void }) {
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40">
+    <div data-kiterp-modal className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
       <div className="w-full max-w-lg rounded-xl border border-border bg-card shadow-xl">
         <div className="flex items-center justify-between px-5 py-4 border-b border-border">
           <h2 className="text-lg font-semibold text-foreground">New Project</h2>
@@ -176,16 +177,17 @@ function CreateProjectModal({ onClose }: { onClose: () => void }) {
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="proj-priority">Priority</Label>
-              <select
+              <Select
                 id="proj-priority"
                 value={form.priority}
-                onChange={(e) => setForm((p) => ({ ...p, priority: e.target.value as ProjectPriority }))}
-                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-              >
-                {(Object.keys(PROJECT_PRIORITY_LABELS) as ProjectPriority[]).map((k) => (
-                  <option key={k} value={k}>{PROJECT_PRIORITY_LABELS[k]}</option>
-                ))}
-              </select>
+                onChange={(v) => setForm((p) => ({ ...p, priority: v as ProjectPriority }))}
+                options={(Object.keys(PROJECT_PRIORITY_LABELS) as ProjectPriority[]).map((k) => ({
+                  value: k,
+                  label: PROJECT_PRIORITY_LABELS[k],
+                }))}
+                aria-label="Priority"
+                className="w-full"
+              />
             </div>
           </div>
           <div className="space-y-1.5">
@@ -308,16 +310,16 @@ export default function ProjectsPage() {
                 className="pl-9"
               />
             </div>
-            <select
+            <Select
               value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-              className="h-10 rounded-md border border-input bg-background px-3 text-sm"
-            >
-              <option value="">All statuses</option>
-              {(Object.keys(PROJECT_STATUS_LABELS) as ProjectStatus[]).map((s) => (
-                <option key={s} value={s}>{PROJECT_STATUS_LABELS[s]}</option>
-              ))}
-            </select>
+              onChange={setStatusFilter}
+              options={selectOptionsWithBlank('All statuses', (Object.keys(PROJECT_STATUS_LABELS) as ProjectStatus[]).map((s) => ({
+                value: s,
+                label: PROJECT_STATUS_LABELS[s],
+              })))}
+              placeholder="All statuses"
+              aria-label="Status filter"
+            />
             <div className="w-52"><BusinessUnitSelect value={storeFilter} onChange={setStoreFilter} allowAll autoSelectDefault={false} /></div>
           </div>
 

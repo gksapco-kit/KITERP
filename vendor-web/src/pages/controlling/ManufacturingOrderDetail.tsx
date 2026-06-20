@@ -609,7 +609,7 @@ export default function ManufacturingOrderDetailPage() {
 
       {tab === 'movements' && (
         <div className="rounded-xl border border-gray-200 bg-white overflow-hidden">
-          <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
+          <div className="px-5 py-4 border-b border-border flex items-center justify-between">
             <h3 className="font-medium text-gray-800">Goods Movements</h3>
             <Link to="/controlling/goods-movements" className="text-xs text-primary hover:underline">View all →</Link>
           </div>
@@ -654,7 +654,7 @@ export default function ManufacturingOrderDetailPage() {
 
       {tab === 'confirmations' && (
         <div className="rounded-xl border border-gray-200 bg-white overflow-hidden">
-          <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
+          <div className="px-5 py-4 border-b border-border flex items-center justify-between">
             <h3 className="font-medium text-gray-800">Activity Confirmations (Time Entries)</h3>
             <Link to="/controlling/activity-confirmations" className="text-xs text-primary hover:underline">View all →</Link>
           </div>
@@ -700,7 +700,7 @@ export default function ManufacturingOrderDetailPage() {
       {/* Status transition modal */}
       {showTransition && (
         <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4 overflow-y-auto" onClick={() => setShowTransition(false)}>
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-6 space-y-4 max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+          <div className="bg-card border border-border text-foreground rounded-2xl shadow-2xl w-full max-w-md p-6 space-y-4 max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
 
             <div className="flex items-start justify-between gap-3 mb-4">
 
@@ -709,7 +709,7 @@ export default function ManufacturingOrderDetailPage() {
               <button type="button" aria-label="Close"
                 type="button"
                 onClick={() => setShowTransition(false)}
-                className="p-1.5 rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors shrink-0"
+                className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors shrink-0"
                 aria-label="Close"
               >
                 <X className="w-5 h-5" />

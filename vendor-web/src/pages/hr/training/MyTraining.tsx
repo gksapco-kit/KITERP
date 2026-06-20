@@ -38,7 +38,7 @@ export default function MyTrainingPage() {
           {list.map(e => {
             const stat = STATUS[e.status] ?? STATUS.enrolled
             return (
-              <div key={e.id} className="bg-white border rounded-xl shadow-sm overflow-hidden max-h-[90vh] overflow-y-auto">
+              <div key={e.id} className="bg-card border border-border text-foreground rounded-xl shadow-2xl overflow-hidden max-h-[90vh] overflow-y-auto">
                 {e.program?.cover_image_url ? (
                   <img src={e.program.cover_image_url} alt={e.program.name} className="w-full h-32 object-cover" />
                 ) : (

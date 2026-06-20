@@ -2,17 +2,24 @@ import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import { ArrowLeft, Loader2, MoreVertical, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { Select } from '@/components/ui/select'
 import { cn } from '@/lib/utils'
 import { formEditLayout } from '@/components/common/FormSectionNav'
 
-function statusSelectClass(status: string) {
+const STATUS_OPTIONS = [
+  { value: 'active', label: 'Active' },
+  { value: 'draft', label: 'Draft' },
+  { value: 'archived', label: 'Archived' },
+]
+
+function statusTriggerClass(status: string) {
   return cn(
-    'h-9 min-w-[5.5rem] rounded-md border px-2.5 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500 sm:px-3',
+    'h-9 min-w-[5.5rem] rounded-md border px-2.5 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-ring sm:px-3 [color-scheme:light] dark:[color-scheme:dark]',
     status === 'active'
-      ? 'border-green-300 bg-green-50 text-green-700'
+      ? 'border-green-500/40 bg-green-500/10 text-green-700 dark:text-green-300'
       : status === 'archived'
-        ? 'border-red-300 bg-red-50 text-red-600'
-        : 'border-gray-300 bg-gray-50 text-gray-700',
+        ? 'border-red-500/40 bg-red-500/10 text-red-600 dark:text-red-300'
+        : 'border-border bg-muted/40 text-foreground',
   )
 }
 
@@ -83,16 +90,14 @@ export function CatalogEditStickyBar({
   }, [menuOpen])
 
   const statusSelect = (
-    <select
+    <Select
       value={status}
-      onChange={(e) => onStatusChange(e.target.value)}
-      className={statusSelectClass(status)}
+      onChange={onStatusChange}
+      options={STATUS_OPTIONS}
       aria-label="Status"
-    >
-      <option value="active">Active</option>
-      <option value="draft">Draft</option>
-      <option value="archived">Archived</option>
-    </select>
+      className="min-w-[5.5rem] w-auto"
+      triggerClassName={statusTriggerClass(status)}
+    />
   )
 
   const deleteButton = isEdit && onDelete ? (
@@ -121,7 +126,7 @@ export function CatalogEditStickyBar({
         type="button"
         variant="outline"
         size="sm"
-        className="gap-1.5 border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700"
+        className="gap-1.5 border-red-500/35 text-red-600 hover:bg-red-500/10 hover:text-red-700 dark:text-red-400 dark:hover:bg-red-500/15"
         onClick={() => setConfirmDelete(true)}
       >
         <Trash2 className="h-3.5 w-3.5" />
@@ -149,7 +154,7 @@ export function CatalogEditStickyBar({
             zIndex: 9999,
             transform: menuPos.openUp ? 'translateY(-100%)' : undefined,
           }}
-          className="w-52 rounded-lg border bg-white py-2 shadow-lg animate-in fade-in-0 zoom-in-95"
+          className="w-52 rounded-lg border border-border bg-popover py-2 text-popover-foreground shadow-lg animate-in fade-in-0 zoom-in-95"
         >
           <div className="space-y-2 px-3 pb-2">
             <p className="text-[0.625rem] font-semibold uppercase tracking-wide text-muted-foreground">Status</p>
@@ -187,7 +192,7 @@ export function CatalogEditStickyBar({
               ) : (
                 <button
                   type="button"
-                  className="flex w-full items-center gap-2.5 px-3 py-2 text-sm text-red-600 hover:bg-red-50"
+                  className="flex w-full items-center gap-2.5 px-3 py-2 text-sm text-red-600 hover:bg-red-500/10 dark:text-red-400 dark:hover:bg-red-500/15"
                   onClick={() => setConfirmDelete(true)}
                 >
                   <Trash2 className="h-4 w-4" /> Delete
@@ -204,11 +209,11 @@ export function CatalogEditStickyBar({
     <div className={formEditLayout.stickyBar}>
       <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1.5">
         <div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-3">
-          <Button variant="ghost" size="sm" className="shrink-0" onClick={onBack}>
+          <Button variant="ghost" size="sm" className="shrink-0 text-foreground" onClick={onBack}>
             <ArrowLeft className="mr-1 h-4 w-4" />
             {backLabel}
           </Button>
-          <h1 className="min-w-0 truncate text-base font-bold sm:text-xl">{title}</h1>
+          <h1 className="min-w-0 truncate text-base font-bold text-foreground sm:text-xl">{title}</h1>
         </div>
 
         <div className="hidden shrink-0 items-center gap-2 sm:flex sm:gap-3">
@@ -224,7 +229,7 @@ export function CatalogEditStickyBar({
             ref={triggerRef}
             type="button"
             aria-label="More actions"
-            className="inline-flex h-8 w-8 items-center justify-center rounded-md text-gray-500 hover:bg-gray-100"
+            className="inline-flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground hover:bg-muted/60 hover:text-foreground"
             onClick={() => {
               setMenuOpen((v) => !v)
               setConfirmDelete(false)

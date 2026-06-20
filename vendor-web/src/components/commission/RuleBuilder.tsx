@@ -1,5 +1,8 @@
 import { useState } from 'react'
+import { formLabelClass } from '@/components/common/FormSectionNav'
+import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Select } from '@/components/ui/select'
 import { Plus, Trash2, ChevronDown, ChevronUp } from 'lucide-react'
 import type { CommissionRule } from '@/types/commission'
 
@@ -55,31 +58,31 @@ export function RuleBuilder({ rules, onChange }: RuleBuilderProps) {
         const key = getKey(rule, idx)
         const isOpen = expanded === key
         return (
-          <div key={key} className="border border-gray-200 rounded-lg overflow-hidden">
+          <div key={key} className="border border-border rounded-lg overflow-hidden bg-card">
             {/* Header */}
             <div
-              className="flex items-center justify-between px-4 py-3 bg-gray-50 cursor-pointer"
+              className="flex items-center justify-between px-4 py-3 bg-muted/40 cursor-pointer hover:bg-muted/60 transition-colors"
               onClick={() => setExpanded(isOpen ? null : key)}
             >
               <div className="flex items-center gap-3">
-                <span className="text-xs font-medium text-gray-400">#{idx + 1}</span>
-                <span className="text-sm font-medium text-gray-800">
+                <span className="text-xs font-medium text-muted-foreground">#{idx + 1}</span>
+                <span className="text-sm font-medium text-foreground">
                   {rule.name || CALC_TYPES.find(c => c.value === rule.calculation_type)?.label || 'Rule'}
                 </span>
-                <span className={`px-1.5 py-0.5 rounded text-xs font-medium ${rule.is_active ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
+                <span className={`px-1.5 py-0.5 rounded text-xs font-medium ${rule.is_active ? 'bg-emerald-500/15 text-emerald-800 dark:text-emerald-300' : 'bg-muted text-muted-foreground'}`}>
                   {rule.is_active ? 'Active' : 'Inactive'}
                 </span>
               </div>
               <div className="flex items-center gap-2">
-                <button type="button" onClick={e => { e.stopPropagation(); removeRule(idx) }} className="text-red-400 hover:text-red-600">
+                <button type="button" onClick={e => { e.stopPropagation(); removeRule(idx) }} className="text-red-500/80 hover:text-red-500 dark:text-red-400 dark:hover:text-red-300">
                   <Trash2 className="h-3.5 w-3.5" />
                 </button>
-                {isOpen ? <ChevronUp className="h-4 w-4 text-gray-400" /> : <ChevronDown className="h-4 w-4 text-gray-400" />}
+                {isOpen ? <ChevronUp className="h-4 w-4 text-muted-foreground" /> : <ChevronDown className="h-4 w-4 text-muted-foreground" />}
               </div>
             </div>
 
             {isOpen && (
-              <div className="p-4 space-y-4 border-t border-gray-100">
+              <div className="p-4 space-y-4 border-t border-border bg-card">
                 <div className="grid grid-cols-2 gap-4">
                   <Field label="Rule Name" value={rule.name || ''} onChange={v => updateRule(idx, { name: v })} />
                   <FieldNum label="Priority" value={rule.priority || 10} onChange={v => updateRule(idx, { priority: v })} />
@@ -87,14 +90,12 @@ export function RuleBuilder({ rules, onChange }: RuleBuilderProps) {
 
                 {/* Calculation */}
                 <div>
-                  <Label className="block text-xs font-medium text-gray-700 mb-1">Calculation Type</Label>
-                  <select
-                    value={rule.calculation_type}
-                    onChange={e => updateRule(idx, { calculation_type: e.target.value as CommissionRule['calculation_type'] })}
-                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm"
-                  >
-                    {CALC_TYPES.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
-                  </select>
+                  <Label className={`block mb-1 ${formLabelClass}`}>Calculation Type</Label>
+                  <Select
+                    value={rule.calculation_type ?? 'percentage'}
+                    onChange={v => updateRule(idx, { calculation_type: v as CommissionRule['calculation_type'] })}
+                    options={CALC_TYPES}
+                  />
                 </div>
 
                 {/* Dynamic value inputs */}
@@ -126,21 +127,25 @@ export function RuleBuilder({ rules, onChange }: RuleBuilderProps) {
                   </div>
                 )}
 
-                <hr className="border-gray-100" />
+                <hr className="border-border" />
 
                 {/* Match conditions */}
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <Label className="block text-xs font-medium text-gray-700 mb-1">Channel</Label>
-                    <select value={rule.channel || 'any'} onChange={e => updateRule(idx, { channel: e.target.value })} className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm">
-                      {CHANNELS.map(c => <option key={c} value={c}>{c}</option>)}
-                    </select>
+                    <Label className={`block mb-1 ${formLabelClass}`}>Channel</Label>
+                    <Select
+                      value={rule.channel || 'any'}
+                      onChange={v => updateRule(idx, { channel: v })}
+                      options={CHANNELS.map(c => ({ value: c, label: c }))}
+                    />
                   </div>
                   <div>
-                    <Label className="block text-xs font-medium text-gray-700 mb-1">Applies To</Label>
-                    <select value={rule.applies_to || 'all'} onChange={e => updateRule(idx, { applies_to: e.target.value })} className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm">
-                      {['all', 'product', 'service', 'category'].map(v => <option key={v} value={v}>{v}</option>)}
-                    </select>
+                    <Label className={`block mb-1 ${formLabelClass}`}>Applies To</Label>
+                    <Select
+                      value={rule.applies_to || 'all'}
+                      onChange={v => updateRule(idx, { applies_to: v })}
+                      options={['all', 'product', 'service', 'category'].map(v => ({ value: v, label: v }))}
+                    />
                   </div>
                 </div>
 
@@ -159,24 +164,34 @@ export function RuleBuilder({ rules, onChange }: RuleBuilderProps) {
                 {/* Aggregation */}
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <Label className="block text-xs font-medium text-gray-700 mb-1">Window Type</Label>
-                    <select value={rule.window_type || 'per_line'} onChange={e => updateRule(idx, { window_type: e.target.value })} className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm">
-                      {WINDOW_TYPES.map(w => <option key={w} value={w}>{w}</option>)}
-                    </select>
+                    <Label className={`block mb-1 ${formLabelClass}`}>Window Type</Label>
+                    <Select
+                      value={rule.window_type || 'per_line'}
+                      onChange={v => updateRule(idx, { window_type: v })}
+                      options={WINDOW_TYPES.map(w => ({ value: w, label: w }))}
+                    />
                   </div>
                   {rule.window_type === 'per_period' && (
                     <div>
-                      <Label className="block text-xs font-medium text-gray-700 mb-1">Period</Label>
-                      <select value={rule.period || 'month'} onChange={e => updateRule(idx, { period: e.target.value })} className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm">
-                        {PERIODS.map(p => <option key={p} value={p}>{p}</option>)}
-                      </select>
+                      <Label className={`block mb-1 ${formLabelClass}`}>Period</Label>
+                      <Select
+                        value={rule.period || 'month'}
+                        onChange={v => updateRule(idx, { period: v })}
+                        options={PERIODS.map(p => ({ value: p, label: p }))}
+                      />
                     </div>
                   )}
                 </div>
 
                 <div className="flex items-center gap-2">
-                  <input type="checkbox" id={`active-${key}`} checked={rule.is_active !== false} onChange={e => updateRule(idx, { is_active: e.target.checked })} />
-                  <label htmlFor={`active-${key}`} className="text-sm text-gray-700">Active</label>
+                  <input
+                    type="checkbox"
+                    id={`active-${key}`}
+                    checked={rule.is_active !== false}
+                    onChange={e => updateRule(idx, { is_active: e.target.checked })}
+                    className="rounded border-input accent-primary"
+                  />
+                  <label htmlFor={`active-${key}`} className="text-sm text-muted-foreground">Active</label>
                 </div>
               </div>
             )}
@@ -184,7 +199,7 @@ export function RuleBuilder({ rules, onChange }: RuleBuilderProps) {
         )
       })}
       <button type="button" onClick={addRule}
-        className="flex items-center gap-2 text-sm text-blue-600 hover:text-blue-800 font-medium">
+        className="flex items-center gap-2 text-sm text-primary hover:text-primary/80 font-medium">
         <Plus className="h-4 w-4" /> Add Rule
       </button>
     </div>
@@ -194,8 +209,8 @@ export function RuleBuilder({ rules, onChange }: RuleBuilderProps) {
 function Field({ label, value, onChange }: { label: string; value: string; onChange: (v: string) => void }) {
   return (
     <div>
-      <Label className="block text-xs font-medium text-gray-700 mb-1">{label}</Label>
-      <input value={value} onChange={e => onChange(e.target.value)} className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm" />
+      <Label className={`block mb-1 ${formLabelClass}`}>{label}</Label>
+      <Input value={value} onChange={e => onChange(e.target.value)} className="h-9" />
     </div>
   )
 }
@@ -203,13 +218,13 @@ function Field({ label, value, onChange }: { label: string; value: string; onCha
 function FieldNum({ label, value, onChange, step }: { label: string; value: number | string; onChange: (v: number) => void; step?: string }) {
   return (
     <div>
-      <Label className="block text-xs font-medium text-gray-700 mb-1">{label}</Label>
-      <input
+      <Label className={`block mb-1 ${formLabelClass}`}>{label}</Label>
+      <Input
         type="number"
         step={step || '1'}
         value={value}
         onChange={e => onChange(parseFloat(e.target.value) || 0)}
-        className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm"
+        className="h-9"
       />
     </div>
   )

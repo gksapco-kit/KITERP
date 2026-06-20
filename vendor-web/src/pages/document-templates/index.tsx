@@ -37,13 +37,13 @@ interface DocTemplateType {
 }
 
 const TEMPLATE_TYPES: DocTemplateType[] = [
-  { id: 'prescription',    label: 'Doctor Prescription', desc: 'Rx pads with patient, diagnosis & medication details', icon: Stethoscope,   color: 'text-blue-600',   bg: 'bg-blue-50',   category: 'Healthcare' },
-  { id: 'sop',             label: 'SOP / Procedure',     desc: 'Standard Operating Procedure with steps & approvals',  icon: ClipboardList,  color: 'text-primary', bg: 'bg-accent', category: 'Operations' },
-  { id: 'work_order',      label: 'Work Order',          desc: 'Job card for services, repairs & maintenance tasks',   icon: Wrench,         color: 'text-orange-600', bg: 'bg-orange-50', category: 'Operations' },
-  { id: 'delivery_challan',label: 'Delivery Challan',    desc: 'Shipment document listing items being dispatched',     icon: Truck,          color: 'text-teal-600',   bg: 'bg-teal-50',   category: 'Logistics' },
-  { id: 'quality_report',  label: 'Quality Report',      desc: 'QC inspection checklist & test results document',      icon: FileCheck,      color: 'text-green-600',  bg: 'bg-green-50',  category: 'Operations' },
-  { id: 'meeting_minutes', label: 'Meeting Minutes',     desc: 'Meeting summary with attendees & action items',        icon: BookOpen,       color: 'text-rose-600',   bg: 'bg-rose-50',   category: 'Admin' },
-  { id: 'hr_letter',       label: 'HR Letter',           desc: 'Offer, appraisal, warning & experience letters',       icon: Users,          color: 'text-cyan-600',   bg: 'bg-cyan-50',   category: 'HR' },
+  { id: 'prescription', label: 'Doctor Prescription', desc: 'Rx pads with patient, diagnosis & medication details', icon: Stethoscope, color: 'text-blue-600 dark:text-blue-300', bg: 'bg-blue-500/15 dark:bg-blue-500/20', category: 'Healthcare' },
+  { id: 'sop', label: 'SOP / Procedure', desc: 'Standard Operating Procedure with steps & approvals', icon: ClipboardList, color: 'text-primary', bg: 'bg-primary/12 dark:bg-primary/20', category: 'Operations' },
+  { id: 'work_order', label: 'Work Order', desc: 'Job card for services, repairs & maintenance tasks', icon: Wrench, color: 'text-orange-600 dark:text-orange-300', bg: 'bg-orange-500/15 dark:bg-orange-500/20', category: 'Operations' },
+  { id: 'delivery_challan', label: 'Delivery Challan', desc: 'Shipment document listing items being dispatched', icon: Truck, color: 'text-teal-600 dark:text-teal-300', bg: 'bg-teal-500/15 dark:bg-teal-500/20', category: 'Logistics' },
+  { id: 'quality_report', label: 'Quality Report', desc: 'QC inspection checklist & test results document', icon: FileCheck, color: 'text-green-600 dark:text-green-300', bg: 'bg-green-500/15 dark:bg-green-500/20', category: 'Operations' },
+  { id: 'meeting_minutes', label: 'Meeting Minutes', desc: 'Meeting summary with attendees & action items', icon: BookOpen, color: 'text-rose-600 dark:text-rose-300', bg: 'bg-rose-500/15 dark:bg-rose-500/20', category: 'Admin' },
+  { id: 'hr_letter', label: 'HR Letter', desc: 'Offer, appraisal, warning & experience letters', icon: Users, color: 'text-cyan-600 dark:text-cyan-300', bg: 'bg-cyan-500/15 dark:bg-cyan-500/20', category: 'HR' },
 ]
 
 /** Billing & procurement templates — open the dedicated full template editors. */
@@ -53,8 +53,8 @@ const LINKED_TEMPLATE_TYPES = [
     label: 'Invoice Templates',
     desc: 'GST invoices, receipts & customer billing — themes, branding & PDF layout',
     icon: FileText,
-    color: 'text-blue-600',
-    bg: 'bg-blue-50',
+    color: 'text-blue-600 dark:text-blue-300',
+    bg: 'bg-blue-500/15 dark:bg-blue-500/20',
     category: 'Sales',
     href: '/invoices/templates',
   },
@@ -63,8 +63,8 @@ const LINKED_TEMPLATE_TYPES = [
     label: 'Quotation Templates',
     desc: 'Sales estimates & price quotes — print/PDF layout for quotations',
     icon: ScrollText,
-    color: 'text-indigo-600',
-    bg: 'bg-indigo-50',
+    color: 'text-indigo-600 dark:text-indigo-300',
+    bg: 'bg-indigo-500/15 dark:bg-indigo-500/20',
     category: 'Sales',
     href: '/quotations/templates',
   },
@@ -73,8 +73,8 @@ const LINKED_TEMPLATE_TYPES = [
     label: 'Purchase Order Templates',
     desc: 'Supplier purchase orders — themes, branding & print settings',
     icon: ShoppingCart,
-    color: 'text-amber-600',
-    bg: 'bg-amber-50',
+    color: 'text-amber-600 dark:text-amber-300',
+    bg: 'bg-amber-500/15 dark:bg-amber-500/20',
     category: 'Purchasing',
     href: '/purchase-orders/templates',
   },
@@ -995,10 +995,10 @@ export default function DocumentTemplatesPage() {
     return (
       <div className="space-y-6">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-            <FileText className="w-6 h-6 text-indigo-600" /> Document Templates
+          <h1 className="flex items-center gap-2 text-2xl font-bold text-foreground">
+            <FileText className="h-6 w-6 text-primary" /> Document Templates
           </h1>
-          <p className="text-sm text-gray-500 mt-1">
+          <p className="mt-1 text-sm text-muted-foreground">
             Configure and preview printable templates for your business documents — including invoices, quotations,
             purchase orders, prescriptions, SOPs, and more.
           </p>
@@ -1006,8 +1006,8 @@ export default function DocumentTemplatesPage() {
 
         {categories.map(cat => (
           <div key={cat}>
-            <h2 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">{cat}</h2>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+            <h2 className="mb-3 text-xs font-bold uppercase tracking-widest text-muted-foreground">{cat}</h2>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
               {LINKED_TEMPLATE_TYPES.filter(t => t.category === cat).map(tmpl => {
                 const Icon = tmpl.icon
                 return (
@@ -1015,15 +1015,15 @@ export default function DocumentTemplatesPage() {
                     key={tmpl.id}
                     type="button"
                     onClick={() => navigate(tmpl.href)}
-                    className="group text-left bg-white border border-gray-200 rounded-2xl p-5 hover:border-indigo-300 hover:shadow-md transition-all relative"
+                    className="group relative rounded-2xl border border-border bg-card p-5 text-left transition-all hover:border-primary/40 hover:shadow-md dark:hover:shadow-none dark:hover:ring-1 dark:hover:ring-primary/25"
                   >
-                    <div className={`w-10 h-10 rounded-xl ${tmpl.bg} flex items-center justify-center mb-3`}>
-                      <Icon className={`w-5 h-5 ${tmpl.color}`} />
+                    <div className={`mb-3 flex h-10 w-10 items-center justify-center rounded-xl ${tmpl.bg}`}>
+                      <Icon className={`h-5 w-5 ${tmpl.color}`} />
                     </div>
-                    <h3 className="font-bold text-gray-900 text-sm mb-1">{tmpl.label}</h3>
-                    <p className="text-xs text-gray-500 leading-relaxed">{tmpl.desc}</p>
-                    <div className="mt-3 flex items-center gap-1 text-xs font-medium text-indigo-600 group-hover:gap-2 transition-all">
-                      <Eye className="w-3.5 h-3.5" /> Configure & Preview
+                    <h3 className="mb-1 text-sm font-bold text-foreground">{tmpl.label}</h3>
+                    <p className="text-xs leading-relaxed text-muted-foreground">{tmpl.desc}</p>
+                    <div className="mt-3 flex items-center gap-1 text-xs font-medium text-primary transition-all group-hover:gap-2">
+                      <Eye className="h-3.5 w-3.5" /> Configure & Preview
                     </div>
                   </button>
                 )
@@ -1032,20 +1032,23 @@ export default function DocumentTemplatesPage() {
                 const Icon = tmpl.icon
                 const saved = !!allSettings[tmpl.id]
                 return (
-                  <button key={tmpl.id} onClick={() => { setActiveType(tmpl.id); setSettingsTab('design') }}
-                    className="group text-left bg-white border border-gray-200 rounded-2xl p-5 hover:border-indigo-300 hover:shadow-md transition-all relative max-h-[90vh] overflow-y-auto">
+                  <button
+                    key={tmpl.id}
+                    onClick={() => { setActiveType(tmpl.id); setSettingsTab('design') }}
+                    className="group relative max-h-[90vh] overflow-y-auto rounded-2xl border border-border bg-card p-5 text-left transition-all hover:border-primary/40 hover:shadow-md dark:hover:shadow-none dark:hover:ring-1 dark:hover:ring-primary/25"
+                  >
                     {saved && (
-                      <span className="absolute top-3 right-3 text-xs font-bold bg-green-100 text-green-700 px-1.5 py-0.5 rounded-full flex items-center gap-1">
-                        <Check className="w-2.5 h-2.5" /> Saved
+                      <span className="absolute right-3 top-3 flex items-center gap-1 rounded-full bg-green-500/15 px-1.5 py-0.5 text-xs font-bold text-green-700 dark:text-green-300">
+                        <Check className="h-2.5 w-2.5" /> Saved
                       </span>
                     )}
-                    <div className={`w-10 h-10 rounded-xl ${tmpl.bg} flex items-center justify-center mb-3`}>
-                      <Icon className={`w-5 h-5 ${tmpl.color}`} />
+                    <div className={`mb-3 flex h-10 w-10 items-center justify-center rounded-xl ${tmpl.bg}`}>
+                      <Icon className={`h-5 w-5 ${tmpl.color}`} />
                     </div>
-                    <h3 className="font-bold text-gray-900 text-sm mb-1">{tmpl.label}</h3>
-                    <p className="text-xs text-gray-500 leading-relaxed">{tmpl.desc}</p>
-                    <div className="mt-3 flex items-center gap-1 text-xs font-medium text-indigo-600 group-hover:gap-2 transition-all">
-                      <Eye className="w-3.5 h-3.5" /> Configure & Preview
+                    <h3 className="mb-1 text-sm font-bold text-foreground">{tmpl.label}</h3>
+                    <p className="text-xs leading-relaxed text-muted-foreground">{tmpl.desc}</p>
+                    <div className="mt-3 flex items-center gap-1 text-xs font-medium text-primary transition-all group-hover:gap-2">
+                      <Eye className="h-3.5 w-3.5" /> Configure & Preview
                     </div>
                   </button>
                 )
@@ -1062,25 +1065,25 @@ export default function DocumentTemplatesPage() {
   return (
     <div className="space-y-0">
       {/* Top bar */}
-      <div className="flex items-center justify-between pb-4 border-b mb-6">
+      <div className="mb-6 flex items-center justify-between border-b border-border pb-4">
         <div className="flex items-center gap-3">
           <Button variant="ghost" size="sm" onClick={() => setActiveType(null)}>
-            <ArrowLeft className="w-4 h-4" />
+            <ArrowLeft className="h-4 w-4" />
           </Button>
-          <div className={`w-9 h-9 rounded-xl ${activeTemplateType!.bg} flex items-center justify-center`}>
-            <Icon className={`w-4.5 h-4.5 ${activeTemplateType!.color}`} />
+          <div className={`flex h-9 w-9 items-center justify-center rounded-xl ${activeTemplateType!.bg}`}>
+            <Icon className={`h-4.5 w-4.5 ${activeTemplateType!.color}`} />
           </div>
           <div>
-            <h1 className="text-lg font-bold text-gray-900">{activeTemplateType!.label} Template</h1>
-            <p className="text-xs text-gray-500">{activeTemplateType!.desc}</p>
+            <h1 className="text-lg font-bold text-foreground">{activeTemplateType!.label} Template</h1>
+            <p className="text-xs text-muted-foreground">{activeTemplateType!.desc}</p>
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline" onClick={handleReset} className="gap-1.5 text-gray-500 text-sm">
-            <RotateCcw className="w-3.5 h-3.5" /> Reset
+          <Button variant="outline" onClick={handleReset} className="gap-1.5 text-sm text-muted-foreground">
+            <RotateCcw className="h-3.5 w-3.5" /> Reset
           </Button>
-          <Button onClick={handleSave} className="gap-2 bg-indigo-600 hover:bg-indigo-700 text-sm">
-            <Check className="w-4 h-4" /> Save Template
+          <Button onClick={handleSave} className="gap-2 text-sm">
+            <Check className="h-4 w-4" /> Save Template
           </Button>
         </div>
       </div>

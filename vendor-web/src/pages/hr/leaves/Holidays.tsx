@@ -39,7 +39,7 @@ export default function HolidaysPage() {
       </div>
 
       {showAdd && (
-        <form onSubmit={handleAdd} className="bg-white rounded-xl border shadow-sm p-4 mb-4 space-y-3 max-h-[90vh] overflow-y-auto">
+        <form onSubmit={handleAdd} className="bg-card border border-border text-foreground rounded-xl shadow-2xl p-4 mb-4 space-y-3 max-h-[90vh] overflow-y-auto">
           <h3 className="font-semibold text-sm">New Holiday</h3>
           <div className="grid grid-cols-2 gap-3">
             <div>
@@ -72,7 +72,7 @@ export default function HolidaysPage() {
       ) : (
         <div className="space-y-4">
           {Object.entries(grouped).map(([month, items]) => (
-            <div key={month} className="bg-white rounded-xl border shadow-sm overflow-hidden max-h-[90vh] overflow-y-auto">
+            <div key={month} className="bg-card border border-border text-foreground rounded-xl shadow-2xl overflow-hidden max-h-[90vh] overflow-y-auto">
               <div className="px-4 py-2 bg-gray-50 border-b">
                 <h3 className="font-semibold text-sm text-gray-700">{month}</h3>
               </div>

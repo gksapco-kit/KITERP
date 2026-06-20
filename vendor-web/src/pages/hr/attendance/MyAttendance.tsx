@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { LogIn, LogOut, Clock, CheckCircle, XCircle } from 'lucide-react'
+import { Select } from '@/components/ui/select'
 import { useHRMyToday, useHRClockIn, useHRClockOut, useHRAttendance } from '@/hooks/useVendor'
 
 export default function MyAttendancePage() {
@@ -106,11 +107,15 @@ export default function MyAttendancePage() {
       <div className="bg-white rounded-xl border shadow-sm max-h-[90vh] overflow-y-auto">
         <div className="p-4 border-b flex items-center gap-3">
           <h3 className="font-semibold text-gray-900">Monthly History</h3>
-          <select className="ml-auto border rounded-lg px-3 py-1.5 text-sm" value={month} onChange={e => setMonth(parseInt(e.target.value))}>
-            {Array.from({ length: 12 }, (_, i) => i + 1).map(m => (
-              <option key={m} value={m}>{new Date(year, m - 1).toLocaleDateString('en-IN', { month: 'long' })}</option>
-            ))}
-          </select>
+          <Select
+            className="ml-auto w-36"
+            value={String(month)}
+            onChange={v => setMonth(parseInt(v))}
+            options={Array.from({ length: 12 }, (_, i) => i + 1).map(m => ({
+              value: String(m),
+              label: new Date(year, m - 1).toLocaleDateString('en-IN', { month: 'long' }),
+            }))}
+          />
         </div>
         {records.length === 0 ? (
           <div className="p-8 text-center text-gray-400">No records for this month.</div>

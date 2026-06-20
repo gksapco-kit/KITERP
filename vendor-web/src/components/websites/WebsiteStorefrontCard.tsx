@@ -77,7 +77,7 @@ export function WebsiteStorefrontCard({
   return (
     <div
       className={cn(
-        'flex h-full flex-col rounded-xl border border-gray-200 bg-white shadow-sm overflow-hidden',
+        'flex h-full flex-col overflow-hidden rounded-xl border border-border bg-card shadow-sm dark:shadow-none dark:ring-1 dark:ring-border/50',
         className,
       )}
     >
@@ -102,18 +102,18 @@ export function WebsiteStorefrontCard({
           </span>
         ) : null}
         {templateName ? (
-          <span className="absolute bottom-2 left-2 right-2 inline-flex items-center gap-1 max-w-[calc(100%-1rem)] rounded-full bg-white/95 px-2 py-0.5 text-[10px] font-extrabold text-gray-800 shadow-sm">
-            <Sparkles className="w-2.5 h-2.5 text-primary shrink-0" />
+          <span className="absolute bottom-2 left-2 right-2 inline-flex max-w-[calc(100%-1rem)] items-center gap-1 rounded-full border border-border/60 bg-card/95 px-2 py-0.5 text-[10px] font-extrabold text-foreground shadow-sm backdrop-blur-sm dark:bg-card/90">
+            <Sparkles className="h-2.5 w-2.5 shrink-0 text-primary" />
             <span className="truncate">{templateName}</span>
           </span>
         ) : null}
       </div>
-      <div className="flex flex-1 flex-col p-3 min-h-0">
-        <h3 className="text-sm font-bold text-gray-900 truncate">{name}</h3>
-        <p className="text-xs text-gray-500 mt-0.5 line-clamp-2 leading-snug flex-1">{description}</p>
+      <div className="flex min-h-0 flex-1 flex-col p-3">
+        <h3 className="truncate text-sm font-bold text-foreground">{name}</h3>
+        <p className="mt-0.5 line-clamp-2 flex-1 text-xs leading-snug text-muted-foreground">{description}</p>
 
         {liveUrl && !isBuilderDraft ? (
-          <div className="mt-2 flex items-center gap-1 rounded-md border border-gray-200 bg-gray-50 px-2 py-1.5">
+          <div className="mt-2 flex items-center gap-1 rounded-md border border-border bg-muted/40 px-2 py-1.5 dark:bg-muted/25">
             <a
               href={liveUrl}
               target="_blank"
@@ -127,8 +127,8 @@ export function WebsiteStorefrontCard({
               type="button"
               onClick={() => void copyLink()}
               className={cn(
-                'inline-flex h-6 w-6 shrink-0 items-center justify-center rounded border border-gray-200 bg-white text-gray-500 hover:text-gray-800',
-                copied && 'border-emerald-200 text-emerald-700',
+                'inline-flex h-6 w-6 shrink-0 items-center justify-center rounded border border-border bg-background text-muted-foreground hover:text-foreground dark:bg-card',
+                copied && 'border-emerald-500/40 text-emerald-600 dark:text-emerald-400',
               )}
               title={copied ? 'Copied' : 'Copy store link'}
               aria-label="Copy store link"

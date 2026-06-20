@@ -96,7 +96,7 @@ export function ModifierPickerModal({ item, onConfirm, onClose, confirmLabel = '
   return (
     <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 overflow-y-auto" onClick={onClose}>
       <div
-        className="bg-white rounded-xl shadow-xl w-full max-w-sm mx-4 max-h-[85vh] flex flex-col"
+        className="bg-card border border-border text-foreground rounded-xl shadow-2xl w-full max-w-sm mx-4 max-h-[85vh] flex flex-col"
         onClick={e => e.stopPropagation()}
       >
         <div className="flex items-center justify-between px-5 py-4 border-b">

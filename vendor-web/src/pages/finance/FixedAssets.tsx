@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { Label } from '@/components/ui/label'
+import { Select } from '@/components/ui/select'
 import { useEscapeToClose } from '@/hooks/useEscapeToClose'
 import { useAssets, useCreateAsset, useRunDepreciation, useDisposeAsset, useAssetCategories, useCreateAssetCategory } from '@/hooks/useFinance'
 import { Plus, Zap, Trash2, X } from 'lucide-react'
@@ -117,8 +118,8 @@ export default function FixedAssets() {
       )}
 
       {showNew && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 overflow-y-auto" onClick={() => setShowNew(false)}>
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-lg p-6 space-y-4 max-h-[80vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+        <div data-kiterp-modal className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 overflow-y-auto" onClick={() => setShowNew(false)}>
+          <div className="bg-card border border-border text-foreground rounded-xl shadow-2xl w-full max-w-lg p-6 space-y-4 max-h-[80vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
 
             <div className="flex items-start justify-between gap-3 mb-4">
 
@@ -127,7 +128,7 @@ export default function FixedAssets() {
               <button type="button" aria-label="Close"
                 type="button"
                 onClick={() => setShowNew(false)}
-                className="p-1.5 rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors shrink-0"
+                className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors shrink-0"
                 aria-label="Close"
               >
                 <X className="w-5 h-5" />
@@ -155,11 +156,14 @@ export default function FixedAssets() {
             </div>
             <div>
               <Label className="block text-xs font-medium text-gray-600 mb-1">Depreciation Method</Label>
-              <select value={form.depreciation_method} onChange={e => setForm(f => ({ ...f, depreciation_method: e.target.value }))}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
-                <option value="straight_line">Straight Line</option>
-                <option value="wdv">Written Down Value</option>
-              </select>
+              <Select
+                value={form.depreciation_method}
+                onChange={v => setForm(f => ({ ...f, depreciation_method: v }))}
+                options={[
+                  { value: 'straight_line', label: 'Straight Line' },
+                  { value: 'wdv', label: 'Written Down Value' },
+                ]}
+              />
             </div>
             <div className="flex justify-end gap-2 pt-2">
               <button onClick={() => setShowNew(false)} className="btn-cancel px-4 py-2 text-sm border border-gray-300 rounded-lg">Cancel</button>

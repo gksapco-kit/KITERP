@@ -5,6 +5,7 @@ import { useNavigate } from 'react-router-dom'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { Select } from '@/components/ui/select'
 import { Label } from '@/components/ui/label'
 import { vendorApi } from '@/api/vendor'
 import { PhoneInput } from '@/components/ui/PhoneInput'
@@ -26,23 +27,26 @@ import { serializeQuotationExtraFields, type QuotationExtraField } from '@/types
 import apiClient from '@/api/client'
 import { TableToolbar } from '@/components/table/TableToolbar'
 import { processRows, type SortDir } from '@/lib/tableList'
-import { printInvoice } from '@/lib/invoiceTemplates'
+import { ThemeSelect } from '@/components/common/ThemeSelect'
 import type { InvoiceSettings } from '@/lib/invoiceTemplates'
 
-const statusBadge: Record<string, { bg: string; text: string }> = {
-  draft: { bg: 'bg-gray-100', text: 'text-gray-700' },
-  sent: { bg: 'bg-blue-50', text: 'text-blue-700' },
-  paid: { bg: 'bg-green-50', text: 'text-green-700' },
-  partially_paid: { bg: 'bg-amber-50', text: 'text-amber-700' },
-  overdue: { bg: 'bg-red-50', text: 'text-red-700' },
-  cancelled: { bg: 'bg-gray-50', text: 'text-gray-500' },
+const TABLE_ICON_BTN =
+  'text-muted-foreground hover:bg-muted hover:text-foreground dark:hover:bg-muted/70 dark:hover:text-foreground'
+
+const statusBadge: Record<string, string> = {
+  draft: 'bg-muted text-muted-foreground',
+  sent: 'bg-blue-500/15 text-blue-800 dark:text-blue-300',
+  paid: 'bg-emerald-500/15 text-emerald-800 dark:text-emerald-300',
+  partially_paid: 'bg-amber-500/15 text-amber-800 dark:text-amber-300',
+  overdue: 'bg-red-500/15 text-red-800 dark:text-red-300',
+  cancelled: 'bg-muted text-muted-foreground',
 }
 
-const typeBadge: Record<string, { bg: string; text: string; label: string }> = {
-  estimate: { bg: 'bg-accent', text: 'text-primary', label: 'Estimate' },
-  invoice: { bg: 'bg-blue-50', text: 'text-blue-700', label: 'Invoice' },
-  receipt: { bg: 'bg-green-50', text: 'text-green-700', label: 'Receipt' },
-  credit_note: { bg: 'bg-red-50', text: 'text-red-700', label: 'Credit Note' },
+const typeBadge: Record<string, { badge: string; label: string }> = {
+  estimate: { badge: 'bg-primary/12 text-primary', label: 'Estimate' },
+  invoice: { badge: 'bg-blue-500/15 text-blue-800 dark:text-blue-300', label: 'Invoice' },
+  receipt: { badge: 'bg-emerald-500/15 text-emerald-800 dark:text-emerald-300', label: 'Receipt' },
+  credit_note: { badge: 'bg-red-500/15 text-red-800 dark:text-red-300', label: 'Credit Note' },
 }
 
 async function downloadInvoicePdf(id: string, invoiceNumber: string) {
@@ -86,7 +90,7 @@ function ShareMenu({ invoice, onClose }: {
     {
       label: 'WhatsApp',
       icon: MessageCircle,
-      color: 'text-green-600 hover:bg-green-50',
+      color: 'text-green-600 hover:bg-green-500/10 dark:text-green-400 dark:hover:bg-green-500/15',
       onClick: () => {
         window.open(`https://wa.me/${cleanPhone}?text=${encodeURIComponent(msg)}`, '_blank')
         onClose()
@@ -95,7 +99,7 @@ function ShareMenu({ invoice, onClose }: {
     {
       label: 'Email',
       icon: Mail,
-      color: 'text-blue-600 hover:bg-blue-50',
+      color: 'text-blue-600 hover:bg-blue-500/10 dark:text-blue-400 dark:hover:bg-blue-500/15',
       onClick: () => {
         const subject = encodeURIComponent(`Invoice ${invoice.invoice_number}`)
         const body = encodeURIComponent(msg)
@@ -116,7 +120,7 @@ function ShareMenu({ invoice, onClose }: {
     {
       label: 'Copy Text',
       icon: Copy,
-      color: 'text-gray-600 hover:bg-gray-50',
+      color: 'text-muted-foreground hover:bg-muted/60',
       onClick: async () => {
         await navigator.clipboard.writeText(msg)
         toast.success('Invoice message copied to clipboard')
@@ -126,7 +130,7 @@ function ShareMenu({ invoice, onClose }: {
     ...('share' in navigator ? [{
       label: 'More Options',
       icon: Send,
-      color: 'text-amber-600 hover:bg-amber-50',
+      color: 'text-amber-600 hover:bg-amber-500/10 dark:text-amber-400 dark:hover:bg-amber-500/15',
       onClick: async () => {
         try {
           await navigator.share({ title: `Invoice ${invoice.invoice_number}`, text: msg })
@@ -137,7 +141,7 @@ function ShareMenu({ invoice, onClose }: {
   ]
 
   return (
-    <div ref={ref} className="absolute right-0 top-full mt-1 z-50 bg-white rounded-xl shadow-xl border w-48 py-1 animate-in fade-in zoom-in-95 duration-100 max-h-[90vh] overflow-y-auto">
+    <div ref={ref} className="absolute right-0 top-full mt-1 z-50 bg-popover text-popover-foreground rounded-xl shadow-xl border border-border w-48 py-1 animate-in fade-in zoom-in-95 duration-100 max-h-[90vh] overflow-y-auto">
       <FormColumnLabel className="px-3 py-1.5">Share via</FormColumnLabel>
       {shareOptions.map((opt) => (
         <button
@@ -202,7 +206,7 @@ export default function InvoicesPage() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-gray-900">Invoices & Billing</h1>
+        <h1 className="text-2xl font-bold text-foreground">Invoices & Billing</h1>
         <div className="flex gap-2">
           <Button variant="outline" onClick={() => navigate('/invoices/templates')} className="gap-2"><Settings2 className="w-4 h-4" />Templates</Button>
           <Button onClick={() => setShowCreate(true)} className="gap-2"><Plus className="w-4 h-4" />New Invoice</Button>
@@ -211,20 +215,32 @@ export default function InvoicesPage() {
 
       <div className="flex gap-3 items-center">
         <div className="w-56"><BusinessUnitSelect value={storeFilter} onChange={(id) => { setStoreFilter(id); setPage(1) }} allowAll autoSelectDefault={false} /></div>
-        <select className="text-sm border rounded-lg px-3 py-2" value={typeFilter} onChange={e => { setTypeFilter(e.target.value); setPage(1) }}>
-          <option value="">All Billing Types</option>
-          <option value="invoice">Invoices</option>
-          <option value="receipt">Receipts</option>
-          <option value="credit_note">Credit Notes</option>
-        </select>
-        <select className="text-sm border rounded-lg px-3 py-2" value={statusFilter} onChange={e => { setStatusFilter(e.target.value); setPage(1) }}>
-          <option value="">All Status</option>
-          <option value="draft">Draft</option>
-          <option value="sent">Sent</option>
-          <option value="paid">Paid</option>
-          <option value="partially_paid">Partial</option>
-          <option value="overdue">Overdue</option>
-        </select>
+        <ThemeSelect
+          value={typeFilter}
+          onChange={(v) => { setTypeFilter(v); setPage(1) }}
+          placeholder="All Billing Types"
+          aria-label="Billing type"
+          options={[
+            { value: '', label: 'All Billing Types' },
+            { value: 'invoice', label: 'Invoices' },
+            { value: 'receipt', label: 'Receipts' },
+            { value: 'credit_note', label: 'Credit Notes' },
+          ]}
+        />
+        <ThemeSelect
+          value={statusFilter}
+          onChange={(v) => { setStatusFilter(v); setPage(1) }}
+          placeholder="All Status"
+          aria-label="Status"
+          options={[
+            { value: '', label: 'All Status' },
+            { value: 'draft', label: 'Draft' },
+            { value: 'sent', label: 'Sent' },
+            { value: 'paid', label: 'Paid' },
+            { value: 'partially_paid', label: 'Partial' },
+            { value: 'overdue', label: 'Overdue' },
+          ]}
+        />
       </div>
 
       <Card>
@@ -250,32 +266,32 @@ export default function InvoicesPage() {
           />
           <ResizableTable tableId="invoices" defaultWidths={[120, 120, 90, 160, 90, 90, 90, 100, 80]}>
             <thead>
-              <tr className="border-b bg-gray-50">
-                <th className="text-left px-5 py-3 text-xs font-medium text-gray-500 uppercase"><TableColumnLabel>Invoice #</TableColumnLabel></th>
-                <th className="text-left px-5 py-3 text-xs font-medium text-gray-500 uppercase"><TableColumnLabel>Reference</TableColumnLabel></th>
-                <th className="text-left px-5 py-3 text-xs font-medium text-gray-500 uppercase"><TableColumnLabel>Type</TableColumnLabel></th>
-                <th className="text-left px-5 py-3 text-xs font-medium text-gray-500 uppercase"><TableColumnLabel>Customer</TableColumnLabel></th>
-                <th className="text-right px-5 py-3 text-xs font-medium text-gray-500 uppercase"><TableColumnLabel>Total</TableColumnLabel></th>
-                <th className="text-right px-5 py-3 text-xs font-medium text-gray-500 uppercase"><TableColumnLabel>Due</TableColumnLabel></th>
-                <th className="text-center px-5 py-3 text-xs font-medium text-gray-500 uppercase"><TableColumnLabel>Status</TableColumnLabel></th>
-                <th className="text-left px-5 py-3 text-xs font-medium text-gray-500 uppercase"><TableColumnLabel>Date</TableColumnLabel></th>
-                <th className="text-center px-5 py-3 text-xs font-medium text-gray-500 uppercase"><TableColumnLabel>Actions</TableColumnLabel></th>
+              <tr className="border-b border-border bg-muted/40">
+                <th className="text-left px-5 py-3 text-xs font-medium text-muted-foreground uppercase"><TableColumnLabel>Invoice #</TableColumnLabel></th>
+                <th className="text-left px-5 py-3 text-xs font-medium text-muted-foreground uppercase"><TableColumnLabel>Reference</TableColumnLabel></th>
+                <th className="text-left px-5 py-3 text-xs font-medium text-muted-foreground uppercase"><TableColumnLabel>Type</TableColumnLabel></th>
+                <th className="text-left px-5 py-3 text-xs font-medium text-muted-foreground uppercase"><TableColumnLabel>Customer</TableColumnLabel></th>
+                <th className="text-right px-5 py-3 text-xs font-medium text-muted-foreground uppercase"><TableColumnLabel>Total</TableColumnLabel></th>
+                <th className="text-right px-5 py-3 text-xs font-medium text-muted-foreground uppercase"><TableColumnLabel>Due</TableColumnLabel></th>
+                <th className="text-center px-5 py-3 text-xs font-medium text-muted-foreground uppercase"><TableColumnLabel>Status</TableColumnLabel></th>
+                <th className="text-left px-5 py-3 text-xs font-medium text-muted-foreground uppercase"><TableColumnLabel>Date</TableColumnLabel></th>
+                <th className="text-center px-5 py-3 text-xs font-medium text-muted-foreground uppercase"><TableColumnLabel>Actions</TableColumnLabel></th>
               </tr>
             </thead>
             <tbody className="divide-y">
               {isLoading ? (
-                <tr><td colSpan={9} className="py-12 text-center"><Loader2 className="w-6 h-6 animate-spin mx-auto text-gray-400" /></td></tr>
+                <tr><td colSpan={9} className="py-12 text-center"><Loader2 className="w-6 h-6 animate-spin mx-auto text-muted-foreground" /></td></tr>
               ) : !data?.items?.length ? (
-                <tr><td colSpan={9} className="py-12 text-center text-sm text-gray-500">No invoices yet</td></tr>
+                <tr><td colSpan={9} className="py-12 text-center text-sm text-muted-foreground">No invoices yet</td></tr>
               ) : displayInvoices.map((inv: InvRow) => {
                 const tb = typeBadge[(inv.invoice_type as string)] || typeBadge.invoice
                 const sb = statusBadge[(inv.status as string)] || statusBadge.draft
                 return (
-                  <tr key={inv.id as string} className="hover:bg-gray-50">
+                  <tr key={inv.id as string} className="transition-colors hover:bg-muted/40">
                     <td className="px-5 py-3 text-sm font-medium">
                       <button
                         onClick={() => navigate(`/invoices/${inv.id}`)}
-                        className="text-blue-600 hover:text-blue-800 hover:underline"
+                        className="text-primary hover:text-primary/80 hover:underline"
                       >
                         {inv.invoice_number as string}
                       </button>
@@ -284,7 +300,7 @@ export default function InvoicesPage() {
                       {inv.booking_id ? (
                         <button
                           onClick={() => navigate(`/bookings/${inv.booking_id}`)}
-                          className="flex items-center gap-1 text-xs font-mono text-indigo-600 hover:text-indigo-800 hover:underline"
+                          className="flex items-center gap-1 text-xs font-mono text-primary hover:text-primary/80 hover:underline"
                           title="Open booking"
                         >
                           <CalendarDays className="w-3.5 h-3.5" />
@@ -293,46 +309,52 @@ export default function InvoicesPage() {
                       ) : inv.order_id ? (
                         <button
                           onClick={() => navigate(`/orders/${inv.order_id}`)}
-                          className="flex items-center gap-1 text-xs font-mono text-blue-600 hover:text-blue-800 hover:underline"
+                          className="flex items-center gap-1 text-xs font-mono text-primary hover:text-primary/80 hover:underline"
                           title="Open order"
                         >
                           <FileText className="w-3.5 h-3.5" />
                           {(inv.order_number as string) || (inv.order_id as string)}
                         </button>
                       ) : (
-                        <span className="text-xs text-gray-400">—</span>
+                        <span className="text-xs text-muted-foreground">—</span>
                       )}
                     </td>
-                    <td className="px-5 py-3"><span className={`px-2 py-0.5 rounded-full text-xs font-medium ${tb.bg} ${tb.text}`}>{tb.label}</span></td>
-                    <td className="px-5 py-3 text-sm text-gray-600">{(inv.customer_name as string) || '-'}</td>
-                    <td className="px-5 py-3 text-sm text-right font-medium">{formatCurrency(inv.total as number)}</td>
-                    <td className="px-5 py-3 text-sm text-right">{(inv.balance_due as number) > 0 ? <span className="text-red-600 font-medium">{formatCurrency(inv.balance_due as number)}</span> : <span className="text-green-600">Paid</span>}</td>
-                    <td className="px-5 py-3 text-center"><span className={`px-2 py-0.5 rounded-full text-xs font-medium ${sb.bg} ${sb.text}`}>{inv.status as string}</span></td>
-                    <td className="px-5 py-3 text-sm text-gray-500">{formatDate(inv.created_at as string)}</td>
+                    <td className="px-5 py-3"><span className={`px-2 py-0.5 rounded-full text-xs font-medium ${tb.badge}`}>{tb.label}</span></td>
+                    <td className="px-5 py-3 text-sm text-foreground">{(inv.customer_name as string) || '-'}</td>
+                    <td className="px-5 py-3 text-sm text-right font-medium text-foreground">{formatCurrency(inv.total as number)}</td>
+                    <td className="px-5 py-3 text-sm text-right">{(inv.balance_due as number) > 0 ? <span className="text-red-600 dark:text-red-400 font-medium">{formatCurrency(inv.balance_due as number)}</span> : <span className="text-emerald-600 dark:text-emerald-400">Paid</span>}</td>
+                    <td className="px-5 py-3 text-center"><span className={`px-2 py-0.5 rounded-full text-xs font-medium capitalize ${sb}`}>{inv.status as string}</span></td>
+                    <td className="px-5 py-3 text-sm text-muted-foreground">{formatDate(inv.created_at as string)}</td>
                     <td className="px-5 py-3">
                       <div className="flex items-center justify-center gap-1">
-                        <button
+                        <Button
+                          variant="ghost"
+                          size="icon-sm"
                           onClick={() => navigate(`/invoices/${inv.id}`)}
                           title="View invoice"
-                          className="p-1.5 rounded-lg hover:bg-indigo-50 text-indigo-600 transition-colors"
+                          className={TABLE_ICON_BTN}
                         >
                           <Eye className="w-4 h-4" />
-                        </button>
-                        <button
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon-sm"
                           onClick={() => printInvoice(inv as Record<string, unknown>, (invSettings || {}) as Partial<InvoiceSettings>, window.location.origin)}
                           title="Print / Save as PDF"
-                          className="p-1.5 rounded-lg hover:bg-blue-50 text-blue-600 transition-colors"
+                          className={TABLE_ICON_BTN}
                         >
                           <Printer className="w-4 h-4" />
-                        </button>
+                        </Button>
                         <div className="relative">
-                          <button
+                          <Button
+                            variant="ghost"
+                            size="icon-sm"
                             onClick={() => setShareOpenId(shareOpenId === (inv.id as string) ? null : (inv.id as string))}
                             title="Share invoice"
-                            className="p-1.5 rounded-lg hover:bg-green-50 text-green-600 transition-colors"
+                            className={TABLE_ICON_BTN}
                           >
                             <Share2 className="w-4 h-4" />
-                          </button>
+                          </Button>
                           {shareOpenId === (inv.id as string) && (
                             <ShareMenu
                               invoice={{
@@ -358,7 +380,7 @@ export default function InvoicesPage() {
 
       {data && data.pages > 1 && (
         <div className="flex items-center justify-between">
-          <p className="text-sm text-gray-500">Page {page} of {data.pages}</p>
+          <p className="text-sm text-muted-foreground">Page {page} of {data.pages}</p>
           <div className="flex gap-2">
             <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage(page - 1)}><ChevronLeft className="w-4 h-4" /></Button>
             <Button variant="outline" size="sm" disabled={page >= data.pages} onClick={() => setPage(page + 1)}><ChevronRight className="w-4 h-4" /></Button>
@@ -431,7 +453,7 @@ function ItemSearchRow({
         </div>
 
         {open && (
-          <div className="absolute left-0 right-0 top-full mt-1 bg-white border border-gray-200 rounded-xl shadow-xl z-50 overflow-hidden max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+          <div className="absolute left-0 right-0 top-full mt-1 bg-popover text-popover-foreground border border-border rounded-xl shadow-xl z-50 overflow-hidden max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
             {/* Tabs */}
             <div className="flex border-b bg-gray-50 px-2 pt-1.5 gap-1">
               {(['all', 'product', 'service'] as const).map(t => (
@@ -637,7 +659,7 @@ export function CreateInvoiceModal({
   return (
     <div data-kiterp-modal className="fixed inset-0 z-50 flex items-start justify-center bg-black/50 overflow-y-auto py-8" onClick={onClose}>
       <div
-        className={`bg-white rounded-xl shadow-xl w-full mx-4 max-h-[90vh] overflow-y-auto ${isQuotation ? 'max-w-5xl' : 'max-w-3xl'}`}
+        className={`bg-card border border-border text-foreground rounded-xl shadow-2xl w-full mx-4 max-h-[90vh] overflow-y-auto ${isQuotation ? 'max-w-5xl' : 'max-w-3xl'}`}
         onClick={e => e.stopPropagation()}
       >
         <div className="flex items-center justify-between px-6 py-4 border-b">
@@ -709,9 +731,15 @@ export function CreateInvoiceModal({
             {defaultType === 'invoice' ? (
               <div className="sm:col-span-3">
                 <Label>Type</Label>
-                <select className="w-full mt-1 text-sm border rounded-lg px-3 py-2" value={form.invoice_type} onChange={e => setForm({ ...form, invoice_type: e.target.value as 'invoice' | 'estimate' | 'credit_note' })}>
-                  <option value="estimate">Estimate</option><option value="invoice">Invoice</option><option value="credit_note">Credit Note</option>
-                </select>
+                <Select
+                  value={form.invoice_type}
+                  onChange={v => setForm({ ...form, invoice_type: v as 'invoice' | 'estimate' | 'credit_note' })}
+                  options={[
+                    { value: 'estimate', label: 'Estimate' },
+                    { value: 'invoice', label: 'Invoice' },
+                    { value: 'credit_note', label: 'Credit Note' },
+                  ]}
+                />
               </div>
             ) : (
               <div>

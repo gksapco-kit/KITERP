@@ -5,6 +5,7 @@ import { useNavigate } from 'react-router-dom'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { Select } from '@/components/ui/select'
 import { useProducts, useDeleteProduct, useCategoryTree } from '@/hooks/useVendor'
 import { useVendorStore } from '@/stores/vendorStore'
 import { flattenCategoryTree, filterCategoryTree } from '@/lib/categoryHierarchy'
@@ -82,7 +83,7 @@ function MoreMenu({ product, onDelete }: { product: Product; onDelete: () => voi
     <div
       ref={menuRef}
       style={{ position: 'absolute', top: pos.top, right: pos.right, zIndex: 9999, transform: pos.openUp ? 'translateY(-100%)' : undefined }}
-      className="w-44 bg-white rounded-lg border shadow-lg py-1 animate-in fade-in-0 zoom-in-95 max-h-[min(90vh,24rem)] overflow-y-auto"
+      className="w-44 bg-popover text-popover-foreground rounded-lg border border-border shadow-lg py-1 animate-in fade-in-0 zoom-in-95 max-h-[min(90vh,24rem)] overflow-y-auto"
     >
       <button className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
         onClick={() => { shareProduct(product, 'copy'); setOpen(false) }}>
@@ -557,13 +558,13 @@ export default function Products() {
                 </span>
                 <div className="flex items-center gap-1.5">
                   <span className="text-[12px] text-gray-400">Rows per page</span>
-                  <select
-                    value={pageSize}
-                    onChange={(e) => { setPageSize(Number(e.target.value)); setPage(1) }}
-                    className="h-7 rounded-md border border-gray-200 bg-white px-2 text-[12px] text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400"
-                  >
-                    {[10, 25, 50, 100].map(n => <option key={n} value={n}>{n}</option>)}
-                  </select>
+                  <Select
+                    value={String(pageSize)}
+                    onChange={(v) => { setPageSize(Number(v)); setPage(1) }}
+                    options={[10, 25, 50, 100].map(n => ({ value: String(n), label: String(n) }))}
+                    aria-label="Rows per page"
+                    className="h-7 min-w-[4rem] text-xs"
+                  />
                 </div>
               </div>
               <div className="flex items-center gap-1">

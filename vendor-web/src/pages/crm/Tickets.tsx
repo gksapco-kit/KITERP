@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { Select } from '@/components/ui/select'
 import { Badge } from '@/components/ui/badge'
 import { useTickets, useSaveTicket } from '@/hooks/useCrm'
 import { useHREmployees, useMyMembership } from '@/hooks/useVendor'
@@ -139,23 +140,25 @@ function TicketForm({ onClose }: { onClose: () => void }) {
       <form onSubmit={submit} className="space-y-2.5">
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
           <Field label="Type" required>
-            <select
+            <Select
               value={form.type}
-              onChange={e => setForm(p => ({ ...p, type: e.target.value, type_other: e.target.value === 'other' ? p.type_other : '' }))}
-              className={inputCls}
-            >
-              {TICKET_TYPES.map(t => <option key={t.id} value={t.id}>{t.label}</option>)}
-            </select>
+              onChange={v => setForm(p => ({ ...p, type: v, type_other: v === 'other' ? p.type_other : '' }))}
+              options={TICKET_TYPES.map(t => ({ value: t.id, label: t.label }))}
+            />
           </Field>
           <Field label="Priority">
-            <select value={form.priority} onChange={e => set('priority', e.target.value)} className={inputCls}>
-              {PRIORITIES.map(p => <option key={p} value={p}>{p}</option>)}
-            </select>
+            <Select
+              value={form.priority}
+              onChange={v => set('priority', v)}
+              options={PRIORITIES.map(p => ({ value: p, label: p }))}
+            />
           </Field>
           <Field label="Status">
-            <select value={form.status} onChange={e => set('status', e.target.value)} className={inputCls}>
-              {STATUSES.map(s => <option key={s} value={s}>{s.replace(/_/g, ' ')}</option>)}
-            </select>
+            <Select
+              value={form.status}
+              onChange={v => set('status', v)}
+              options={STATUSES.map(s => ({ value: s, label: s.replace(/_/g, ' ') }))}
+            />
           </Field>
         </div>
 
@@ -174,9 +177,11 @@ function TicketForm({ onClose }: { onClose: () => void }) {
             <Input value={form.subject} onChange={e => set('subject', e.target.value)} placeholder="Brief summary" className="h-9" />
           </Field>
           <Field label="Source">
-            <select value={form.source} onChange={e => set('source', e.target.value)} className={inputCls}>
-              {SOURCES.map(s => <option key={s} value={s}>{s}</option>)}
-            </select>
+            <Select
+              value={form.source}
+              onChange={v => set('source', v)}
+              options={SOURCES.map(s => ({ value: s, label: s }))}
+            />
           </Field>
         </div>
 

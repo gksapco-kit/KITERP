@@ -327,7 +327,7 @@ export default function InternalOrdersPage() {
               </div>
 
               {isExpanded && (
-                <div className="px-5 pb-5 border-t border-gray-100 pt-4">
+                <div className="px-5 pb-5 border-t border-border bg-muted/25 pt-4">
                   <BudgetPanel orderId={row.order_id} companyId={activeCo} />
                 </div>
               )}
@@ -339,15 +339,15 @@ export default function InternalOrdersPage() {
       {/* Create modal */}
       {showCreate && (
         <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4 overflow-y-auto" onClick={() => setShowCreate(false)}>
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
-            <div className="p-6 border-b border-gray-100 flex items-start justify-between gap-3">
+          <div className="bg-card border border-border text-foreground rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+            <div className="p-6 border-b border-border flex items-start justify-between gap-3">
               <h2 className="text-lg font-semibold flex items-center gap-2">
                 <Target className="w-5 h-5 text-primary" /> New Internal / Project Order
               </h2>
               <button
                 type="button"
                 onClick={() => setShowCreate(false)}
-                className="p-1.5 rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors shrink-0"
+                className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors shrink-0"
                 aria-label="Close"
               >
                 <X className="w-5 h-5" />

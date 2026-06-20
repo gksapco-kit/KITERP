@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { Select, selectOptionsWithBlank } from '@/components/ui/select'
 import { Badge } from '@/components/ui/badge'
 import { useContacts, useLeads } from '@/hooks/useCrm'
 import { crmApi, type AiInsight } from '@/api/crm'
@@ -60,28 +61,47 @@ export default function AIInsightsPage() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
             <div>
               <label className="text-xs font-medium text-gray-700">Entity type</label>
-              <select value={entityType} onChange={e => { setEntityType(e.target.value as EntityType); setEntityId(''); setInsights(null) }}
-                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm mt-1">
-                <option value="contact">Contact</option>
-                <option value="lead">Lead</option>
-                <option value="deal">Deal</option>
-                <option value="account">Account</option>
-              </select>
+              <Select
+                value={entityType}
+                onChange={v => { setEntityType(v as EntityType); setEntityId(''); setInsights(null) }}
+                options={[
+                  { value: 'contact', label: 'Contact' },
+                  { value: 'lead', label: 'Lead' },
+                  { value: 'deal', label: 'Deal' },
+                  { value: 'account', label: 'Account' },
+                ]}
+              />
             </div>
             <div className="md:col-span-2">
               <label className="text-xs font-medium text-gray-700">{entityType} ID</label>
               {entityType === 'contact' ? (
-                <select value={entityId} onChange={e => { setEntityId(e.target.value); load(e.target.value) }}
-                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm mt-1">
-                  <option value="">— Select contact —</option>
-                  {contacts?.items?.map(c => <option key={c.id} value={c.id}>{[c.first_name, c.last_name].filter(Boolean).join(' ') || c.email}</option>)}
-                </select>
+                <Select
+                  className="mt-1"
+                  value={entityId}
+                  onChange={v => { setEntityId(v); load(v) }}
+                  placeholder="— Select contact —"
+                  options={selectOptionsWithBlank(
+                    '— Select contact —',
+                    (contacts?.items ?? []).map(c => ({
+                      value: c.id,
+                      label: [c.first_name, c.last_name].filter(Boolean).join(' ') || c.email || c.id,
+                    })),
+                  )}
+                />
               ) : entityType === 'lead' ? (
-                <select value={entityId} onChange={e => { setEntityId(e.target.value); load(e.target.value) }}
-                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm mt-1">
-                  <option value="">— Select lead —</option>
-                  {leads?.items?.map(l => <option key={l.id} value={l.id}>{[l.first_name, l.last_name].filter(Boolean).join(' ') || l.email || l.company}</option>)}
-                </select>
+                <Select
+                  className="mt-1"
+                  value={entityId}
+                  onChange={v => { setEntityId(v); load(v) }}
+                  placeholder="— Select lead —"
+                  options={selectOptionsWithBlank(
+                    '— Select lead —',
+                    (leads?.items ?? []).map(l => ({
+                      value: l.id,
+                      label: [l.first_name, l.last_name].filter(Boolean).join(' ') || l.email || l.company || l.id,
+                    })),
+                  )}
+                />
               ) : (
                 <Input value={entityId} onChange={e => setEntityId(e.target.value)} placeholder="Paste UUID" className="mt-1" />
               )}

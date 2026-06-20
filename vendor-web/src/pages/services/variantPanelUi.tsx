@@ -75,27 +75,19 @@ function variantAccentBarGradient(color: string, active: boolean): string {
   return `linear-gradient(to bottom, ${ui} 0%, color-mix(in srgb, ${ui} 35%, white) 100%)`
 }
 
-function variantPanelSurface(color: string, active: boolean): string {
-  if (!active) return 'linear-gradient(to bottom, rgb(243 244 246) 0%, white 100%)'
-  if (isLightAccentColor(color)) {
-    return 'linear-gradient(to bottom, rgb(241 245 249) 0%, rgb(248 250 252) 30%, white 100%)'
-  }
-  if (color.startsWith('#') && color.length >= 7) {
-    const r = parseInt(color.slice(1, 3), 16)
-    const g = parseInt(color.slice(3, 5), 16)
-    const b = parseInt(color.slice(5, 7), 16)
-    return `linear-gradient(to bottom, rgba(${r},${g},${b},0.14) 0%, rgba(${r},${g},${b},0.06) 28%, rgba(255,255,255,0.98) 72%, white 100%)`
-  }
-  return `linear-gradient(to bottom, color-mix(in srgb, ${color} 14%, white) 0%, color-mix(in srgb, ${color} 5%, white) 28%, white 100%)`
+function variantPanelSurfaceClass(active: boolean): string {
+  return active
+    ? 'bg-gradient-to-b from-muted/40 via-card to-card dark:from-primary/[0.07] dark:via-card dark:to-card'
+    : 'bg-gradient-to-b from-muted/25 to-card dark:from-muted/15 dark:to-card'
 }
 
 export const variantFormUi = {
-  body: 'space-y-1 [&_label]:font-semibold [&_label]:text-gray-700',
+  body: 'space-y-1 [&_label]:font-semibold [&_label]:text-foreground',
   grid: 'gap-1.5',
-  sectionRule: 'pt-1.5 border-t border-gray-200/90',
-  sectionHeading: 'text-[11px] font-semibold uppercase tracking-wide text-gray-800',
-  mediaHeading: 'text-[11px] font-semibold uppercase tracking-wide text-indigo-900 flex items-center gap-1.5',
-  mediaHint: 'font-normal normal-case tracking-normal text-gray-500',
+  sectionRule: 'pt-1.5 border-t border-border',
+  sectionHeading: 'text-[11px] font-semibold uppercase tracking-wide text-muted-foreground',
+  mediaHeading: 'text-[11px] font-semibold uppercase tracking-wide text-primary flex items-center gap-1.5',
+  mediaHint: 'font-normal normal-case tracking-normal text-muted-foreground',
 } as const
 
 export function FormTintPanel({
@@ -127,10 +119,7 @@ export function FormTintPanel({
           style={{ background: variantAccentBarGradient(accentColor, active) }}
           aria-hidden
         />
-        <div
-          className="flex min-w-0 flex-1 flex-col"
-          style={{ background: variantPanelSurface(accentColor, active) }}
-        >
+        <div className={cn('flex min-w-0 flex-1 flex-col', variantPanelSurfaceClass(active))}>
           {header}
           {children ? (
             <div className="px-2 pb-1.5 pt-0 sm:px-2.5">{children}</div>
@@ -147,10 +136,7 @@ export function FormTintPanel({
         style={{ background: variantAccentBarGradient(accentColor, active) }}
         aria-hidden
       />
-      <div
-        className="flex min-w-0 flex-1 flex-col"
-        style={{ background: variantPanelSurface(accentColor, active) }}
-      >
+      <div className={cn('flex min-w-0 flex-1 flex-col', variantPanelSurfaceClass(active))}>
         {header ?? ((title || Icon) && (
           <div className="mb-0.5 flex items-center gap-1.5 px-2 py-1.5 sm:px-2.5">
             {Icon && <Icon className="h-4 w-4 shrink-0" style={{ color: accentColor }} />}

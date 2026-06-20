@@ -21,6 +21,7 @@ import {
 } from '@/api/vendor'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { Select, selectOptionsWithBlank } from '@/components/ui/select'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { lookupColumnBusinessLogic } from '@/lib/fieldDbRegistry'
 import FieldMappingModal, { mappingRecordToForm } from '@/pages/system/FieldMappingModal'
@@ -638,27 +639,26 @@ export default function ModelsPage() {
                 className="pl-9"
               />
             </div>
-            <select
+            <Select
+              className="sm:w-52"
               value={domain}
-              onChange={(e) => setDomain(e.target.value)}
-              className="h-10 rounded-md border border-input bg-background px-3 text-sm sm:w-52"
-            >
-              {domains.map((d) => (
-                <option key={d} value={d}>
-                  {d === 'all' ? 'All business domains' : d}
-                </option>
-              ))}
-            </select>
-            <select
+              onChange={setDomain}
+              options={domains.map(d => ({
+                value: d,
+                label: d === 'all' ? 'All business domains' : d,
+              }))}
+            />
+            <Select
+              className="sm:w-52"
               value={columnFilter}
-              onChange={(e) => setColumnFilter(e.target.value as ColumnFilter)}
-              className="h-10 rounded-md border border-input bg-background px-3 text-sm sm:w-52"
-            >
-              <option value="all">All columns</option>
-              <option value="needs_wiring">Needs wiring (no UI + no API)</option>
-              <option value="no_ui">No UI label mapping</option>
-              <option value="no_api">Not exposed in API</option>
-            </select>
+              onChange={v => setColumnFilter(v as ColumnFilter)}
+              options={[
+                { value: 'all', label: 'All columns' },
+                { value: 'needs_wiring', label: 'Needs wiring (no UI + no API)' },
+                { value: 'no_ui', label: 'No UI label mapping' },
+                { value: 'no_api', label: 'Not exposed in API' },
+              ]}
+            />
             <Button type="button" variant="outline" className="shrink-0" onClick={exportJson}>
               <Download className="mr-2 h-4 w-4" />
               Export JSON

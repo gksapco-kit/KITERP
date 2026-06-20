@@ -56,21 +56,30 @@ export const formEditLayout = {
     'flex w-full items-center justify-between gap-1.5 px-2 py-1 text-left sm:px-2.5',
   sectionContent: 'border-t px-2 pb-1.5 pt-0 sm:px-2.5',
   stickyBar:
-    'sticky top-14 z-20 mb-1 border-b bg-white/95 px-2 py-1 shadow-sm backdrop-blur sm:px-2.5',
+    'sticky top-14 z-20 mb-1 border-b border-border bg-card/95 px-2 py-1 text-foreground shadow-sm backdrop-blur sm:px-2.5',
   variantCard: 'space-y-1 rounded-xl px-3 py-2 sm:px-3.5 sm:py-2.5',
 } as const
 
 export const formSelectClass =
-  'flex h-8 min-h-8 w-full rounded-md border border-input bg-background px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-ring sm:h-9 sm:px-2.5 sm:text-sm'
+  'form-select flex h-8 min-h-8 w-full items-center px-2 py-0 text-xs focus:outline-none focus:ring-2 focus:ring-ring sm:h-10 sm:px-2.5 sm:text-sm [color-scheme:light] dark:[color-scheme:dark]'
+
+/** @deprecated Prefer `Select` from `@/components/ui/select` — native fallback only */
+export const nativeFormSelectClass = formSelectClass
+
+/** Compact filter / toolbar native selects — prefer `Select` from `@/components/ui/select` */
+export const filterSelectClass =
+  'form-select inline-flex h-10 min-w-[8rem] items-center px-2.5 py-0 text-sm focus:outline-none focus:ring-2 focus:ring-ring [color-scheme:light] dark:[color-scheme:dark]'
+
+export { Select, selectOptionsWithBlank, type SelectOption } from '@/components/ui/select'
 
 export const formTextareaClass =
   'flex w-full min-h-[2.25rem] resize-y rounded-md border border-input bg-background px-2 py-1 text-xs placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:min-h-[2.5rem] sm:px-2.5 sm:text-sm'
 
 export const formFieldShellClass =
-  'space-y-0.5 rounded-md border border-transparent px-1 py-0.5 -mx-1 transition-colors focus-within:border-primary/35 focus-within:bg-primary/[0.04] focus-within:ring-1 focus-within:ring-primary/25'
+  'space-y-1 min-w-0 rounded-md border border-transparent transition-colors'
 
 export const formLabelClass =
-  'text-[0.6875rem] font-medium leading-tight text-muted-foreground sm:text-xs'
+  'block text-[0.6875rem] font-medium leading-snug text-muted-foreground sm:text-xs mb-0.5'
 
 /** Red border on inputs inside a field that failed validation. */
 export const formFieldInvalidChildClass =
@@ -165,7 +174,7 @@ export function FormField({
       data-field={fieldName}
       className={cn(
         formFieldShellClass,
-        invalid && 'border-red-300/80 bg-red-50/40 focus-within:border-red-400 focus-within:ring-red-200/80',
+        invalid && 'rounded-md border border-red-300/80 bg-red-50/40 dark:bg-red-950/25 dark:border-red-800/80 px-2 py-1.5 focus-within:border-red-400',
         className,
       )}
     >
@@ -207,7 +216,7 @@ export function handleFormInvalid(
 
 /** Shrinks default Input heights inside a form column without touching every field. */
 export const formInputScopeClass =
-  '[&_input:not([type=checkbox]):not([type=radio])]:h-8 [&_input:not([type=checkbox]):not([type=radio])]:min-h-8 [&_input:not([type=checkbox]):not([type=radio])]:py-1 [&_input:not([type=checkbox]):not([type=radio])]:text-xs sm:[&_input:not([type=checkbox]):not([type=radio])]:h-9 sm:[&_input:not([type=checkbox]):not([type=radio])]:text-sm'
+  '[&_input:not([type=checkbox]):not([type=radio])]:h-8 [&_input:not([type=checkbox]):not([type=radio])]:min-h-8 [&_input:not([type=checkbox]):not([type=radio])]:py-1 [&_input:not([type=checkbox]):not([type=radio])]:text-xs sm:[&_input:not([type=checkbox]):not([type=radio])]:h-9 sm:[&_input:not([type=checkbox]):not([type=radio])]:text-sm [&_[data-phone-input]_button]:h-8 [&_[data-phone-input]_input]:h-8 sm:[&_[data-phone-input]_button]:h-9 sm:[&_[data-phone-input]_input]:h-9'
 
 /** CSS class to highlight a section card when it is the active scroll target. */
 export function formSectionSurfaceClass(active: boolean): string {
@@ -579,22 +588,15 @@ export function FormSectionNav({
                   : undefined
               }
               className={cn(
-                'group relative flex w-full flex-col rounded-md py-1.5 pl-2.5 pr-2 text-left text-[0.7rem] leading-tight sm:text-xs',
+                'group relative flex w-full flex-col rounded-lg py-1.5 pl-2.5 pr-2 text-left text-[0.7rem] leading-tight sm:text-xs',
                 isCurrent
-                  ? 'bg-primary/10 font-medium text-foreground dark:bg-primary/15'
+                  ? 'form-section-nav-active font-medium text-foreground'
                   : isOpen
                     ? 'text-foreground hover:bg-muted/50'
                     : 'text-muted-foreground hover:bg-muted/40 hover:text-foreground',
               )}
             >
-              {isCurrent ? (
-                <span
-                  aria-hidden
-                  className="absolute bottom-1.5 left-0 top-1.5 w-[2px] rounded-r-full bg-primary"
-                />
-              ) : null}
-
-              <span className="flex w-full items-center gap-1.5">
+              <span className="relative z-[1] flex w-full items-center gap-1.5">
                 {!isCurrent ? (
                   <span className="shrink-0" aria-hidden>
                     {hasError ? (
@@ -633,7 +635,7 @@ export function FormSectionNav({
               {showActiveHintInNav && isCurrent && sec.hint && (
                 <p
                   id={`form-nav-hint-${sec.key}`}
-                  className="mt-0.5 line-clamp-2 pl-[1.35rem] pr-0.5 text-[0.55rem] font-normal leading-snug text-muted-foreground sm:text-[0.58rem]"
+                  className="relative z-[1] mt-0.5 line-clamp-2 pl-[1.35rem] pr-0.5 text-[0.55rem] font-normal leading-snug text-muted-foreground sm:text-[0.58rem]"
                 >
                   {sec.hint}
                 </p>

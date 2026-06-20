@@ -5,6 +5,7 @@ import { useSearchParams } from 'react-router-dom'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { Select, selectOptionsWithBlank } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
 import { Badge } from '@/components/ui/badge'
 import { useContacts, useSaveContact } from '@/hooks/useCrm'
@@ -22,14 +23,18 @@ function SalesPersonSelect({ value, onChange }: { value: string; onChange: (v: s
   const team = useTeamMembers({ size: 100 })
   const members = team.data?.items ?? []
   return (
-    <select value={value} onChange={e => onChange(e.target.value)} className={inputCls}>
-      <option value="">— None —</option>
-      {members.filter(m => m.user_id).map(m => (
-        <option key={m.user_id} value={m.user_id!}>
-          {m.user?.full_name || m.user?.email || m.role_name || 'Member'}
-        </option>
-      ))}
-    </select>
+    <Select
+      value={value}
+      onChange={onChange}
+      placeholder="— None —"
+      options={selectOptionsWithBlank(
+        '— None —',
+        members.filter(m => m.user_id).map(m => ({
+          value: m.user_id!,
+          label: m.user?.full_name || m.user?.email || m.role_name || 'Member',
+        })),
+      )}
+    />
   )
 }
 
@@ -184,10 +189,12 @@ function ContactForm({
           <>
             <div className="grid grid-cols-[96px_1fr_1fr] gap-3">
               <Field label="Salutation">
-                <select value={form.salutation} onChange={e => setForm(p => ({ ...p, salutation: e.target.value }))} className={inputCls}>
-                  <option value="">—</option>
-                  {SALUTATIONS.map(s => <option key={s} value={s}>{s}</option>)}
-                </select>
+                <Select
+                  value={form.salutation}
+                  onChange={v => setForm(p => ({ ...p, salutation: v }))}
+                  placeholder="—"
+                  options={selectOptionsWithBlank('—', SALUTATIONS.map(s => ({ value: s, label: s })))}
+                />
               </Field>
               <Field label="First name" required>
                 <Input value={form.first_name} onChange={e => setForm(p => ({ ...p, first_name: e.target.value }))} />
@@ -201,16 +208,15 @@ function ContactForm({
             </Field>
             {!parentCompanyId && (
               <Field label="Company">
-                <select
+                <Select
                   value={form.parent_contact_id}
-                  onChange={e => setForm(p => ({ ...p, parent_contact_id: e.target.value }))}
-                  className={inputCls}
-                >
-                  <option value="">— None —</option>
-                  {companies.map(c => (
-                    <option key={c.id} value={c.id}>{c.first_name}</option>
-                  ))}
-                </select>
+                  onChange={v => setForm(p => ({ ...p, parent_contact_id: v }))}
+                  placeholder="— None —"
+                  options={selectOptionsWithBlank(
+                    '— None —',
+                    companies.map(c => ({ value: c.id, label: c.first_name })),
+                  )}
+                />
               </Field>
             )}
           </>
@@ -237,10 +243,13 @@ function ContactForm({
           </Field>
           <Field label="Phone">
             <div className="flex gap-2">
-              <select value={form.phone_cc} onChange={e => setForm(p => ({ ...p, phone_cc: e.target.value }))}
-                aria-label="Country code" className="h-10 shrink-0 rounded-md border border-input bg-background px-2 text-sm">
-                {COUNTRY_CODES.map(code => <option key={code} value={code}>{code}</option>)}
-              </select>
+              <Select
+                className="w-24 shrink-0"
+                value={form.phone_cc}
+                onChange={v => setForm(p => ({ ...p, phone_cc: v }))}
+                aria-label="Country code"
+                options={COUNTRY_CODES.map(code => ({ value: code, label: code }))}
+              />
               <Input type="tel" value={form.phone} onChange={e => setForm(p => ({ ...p, phone: e.target.value }))} placeholder="98765 43210" />
             </div>
           </Field>
@@ -258,14 +267,18 @@ function ContactForm({
 
         <div className="grid grid-cols-2 gap-3">
           <Field label="Lifecycle stage">
-            <select value={form.lifecycle_stage} onChange={e => setForm(p => ({ ...p, lifecycle_stage: e.target.value }))} className={inputCls}>
-              <option value="subscriber">Subscriber</option>
-              <option value="lead">Lead</option>
-              <option value="mql">MQL</option>
-              <option value="sql">SQL</option>
-              <option value="customer">Customer</option>
-              <option value="evangelist">Evangelist</option>
-            </select>
+            <Select
+              value={form.lifecycle_stage}
+              onChange={v => setForm(p => ({ ...p, lifecycle_stage: v }))}
+              options={[
+                { value: 'subscriber', label: 'Subscriber' },
+                { value: 'lead', label: 'Lead' },
+                { value: 'mql', label: 'MQL' },
+                { value: 'sql', label: 'SQL' },
+                { value: 'customer', label: 'Customer' },
+                { value: 'evangelist', label: 'Evangelist' },
+              ]}
+            />
           </Field>
           <Field label="Lead source">
             <Input value={form.lead_source} onChange={e => setForm(p => ({ ...p, lead_source: e.target.value }))} placeholder="website, referral…" />

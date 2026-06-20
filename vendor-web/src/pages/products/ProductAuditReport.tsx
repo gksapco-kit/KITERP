@@ -3,6 +3,7 @@ import { TableColumnLabel } from '@/components/common/FieldLabel'
 import { ResizableTable } from '@/components/table/ResizableTable'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
+import { Select, selectOptionsWithBlank } from '@/components/ui/select'
 import { useProduct } from '@/hooks/useVendor'
 import { formatDateTime } from '@/lib/utils'
 import { useState, useMemo, useRef, useEffect } from 'react'
@@ -370,7 +371,7 @@ export default function ProductAuditReport() {
               <ChevronDown className="w-3.5 h-3.5" />
             </Button>
             {showExportMenu && (
-              <div className="absolute right-0 top-full mt-1 w-52 bg-white rounded-lg border shadow-lg z-50 py-1 max-h-[90vh] overflow-y-auto">
+              <div className="absolute right-0 top-full mt-1 w-52 bg-popover text-popover-foreground rounded-lg border border-border shadow-lg z-50 py-1 max-h-[90vh] overflow-y-auto">
                 <button
                   className="w-full flex items-center gap-2.5 px-3 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
                   onClick={() => { downloadFile(buildCsvContent(filteredRows, product), `${slug}-audit.csv`, 'text/csv;charset=utf-8;'); setShowExportMenu(false); toast.success('CSV downloaded') }}
@@ -415,7 +416,7 @@ export default function ProductAuditReport() {
               <ChevronDown className="w-3.5 h-3.5" />
             </Button>
             {showShareMenu && (
-              <div className="absolute right-0 top-full mt-1 w-48 bg-white rounded-lg border shadow-lg z-50 py-1 max-h-[90vh] overflow-y-auto">
+              <div className="absolute right-0 top-full mt-1 w-48 bg-popover text-popover-foreground rounded-lg border border-border shadow-lg z-50 py-1 max-h-[90vh] overflow-y-auto">
                 <button
                   className="w-full flex items-center gap-2.5 px-3 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
                   onClick={() => { shareReport(product, filteredRows, 'copy'); setShowShareMenu(false) }}
@@ -522,30 +523,40 @@ export default function ProductAuditReport() {
                 {/* Inline filter row */}
                 <tr className="border-b bg-gray-50/30">
                   <th className="px-4 py-1.5">
-                    <select value={filterVersion} onChange={e => setFilterVersion(e.target.value)} className="w-full h-7 rounded border border-gray-200 bg-white px-1.5 text-xs text-gray-600 font-normal">
-                      <option value="">All</option>
-                      {uniqueVersions.map(v => <option key={v} value={v}>{v}</option>)}
-                    </select>
+                    <Select
+                      value={filterVersion}
+                      onChange={setFilterVersion}
+                      triggerClassName="h-7 text-xs"
+                      options={selectOptionsWithBlank('All', uniqueVersions.map(v => ({ value: v, label: v })))}
+                    />
                   </th>
                   <th className="px-4 py-1.5" />
                   <th className="px-4 py-1.5">
-                    <select value={filterUser} onChange={e => setFilterUser(e.target.value)} className="w-full h-7 rounded border border-gray-200 bg-white px-1.5 text-xs text-gray-600 font-normal">
-                      <option value="">All</option>
-                      {uniqueUsers.map(u => <option key={u} value={u}>{u}</option>)}
-                    </select>
+                    <Select
+                      value={filterUser}
+                      onChange={setFilterUser}
+                      triggerClassName="h-7 text-xs"
+                      options={selectOptionsWithBlank('All', uniqueUsers.map(u => ({ value: u, label: u })))}
+                    />
                   </th>
                   <th className="px-4 py-1.5">
-                    <select value={filterAction} onChange={e => setFilterAction(e.target.value as any)} className="w-full h-7 rounded border border-gray-200 bg-white px-1.5 text-xs text-gray-600 font-normal">
-                      <option value="">All</option>
-                      <option value="Created">Created</option>
-                      <option value="Updated">Updated</option>
-                    </select>
+                    <Select
+                      value={filterAction}
+                      onChange={v => setFilterAction(v as '' | 'Created' | 'Updated')}
+                      triggerClassName="h-7 text-xs"
+                      options={selectOptionsWithBlank('All', [
+                        { value: 'Created', label: 'Created' },
+                        { value: 'Updated', label: 'Updated' },
+                      ])}
+                    />
                   </th>
                   <th className="px-4 py-1.5">
-                    <select value={filterField} onChange={e => setFilterField(e.target.value)} className="w-full h-7 rounded border border-gray-200 bg-white px-1.5 text-xs text-gray-600 font-normal">
-                      <option value="">All</option>
-                      {uniqueFields.map(f => <option key={f} value={f}>{f}</option>)}
-                    </select>
+                    <Select
+                      value={filterField}
+                      onChange={setFilterField}
+                      triggerClassName="h-7 text-xs"
+                      options={selectOptionsWithBlank('All', uniqueFields.map(f => ({ value: f, label: f })))}
+                    />
                   </th>
                   <th className="px-4 py-1.5">
                     <input

@@ -3,6 +3,7 @@ import { useEscapeToClose } from '@/hooks/useEscapeToClose'
 import { Link } from 'react-router-dom'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
+import { Select } from '@/components/ui/select'
 import { apiClient } from '@/api/client'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useVendorStore } from '@/stores/vendorStore'
@@ -63,12 +64,12 @@ const DEFAULT: NotificationPreferences = {
 // ── EVENT definitions ─────────────────────────────────────────────────────────
 
 const EVENTS = [
-  { key: 'new_orders',    label: 'New Orders',    icon: ShoppingCart, color: 'bg-blue-100 text-blue-600' },
-  { key: 'order_updates', label: 'Order Updates', icon: ShoppingCart, color: 'bg-sky-100 text-sky-600' },
-  { key: 'low_stock',     label: 'Low Stock',     icon: Package,      color: 'bg-orange-100 text-orange-600' },
-  { key: 'payments',      label: 'Payments',      icon: CreditCard,   color: 'bg-green-100 text-green-600' },
-  { key: 'new_reviews',   label: 'New Reviews',   icon: Star,         color: 'bg-yellow-100 text-yellow-600' },
-  { key: 'system_updates',label: 'System',        icon: AlertTriangle,color: 'bg-primary/12 text-primary' },
+  { key: 'new_orders', label: 'New Orders', icon: ShoppingCart, color: 'bg-blue-500/15 text-blue-600 dark:bg-blue-500/20 dark:text-blue-300' },
+  { key: 'order_updates', label: 'Order Updates', icon: ShoppingCart, color: 'bg-sky-500/15 text-sky-600 dark:bg-sky-500/20 dark:text-sky-300' },
+  { key: 'low_stock', label: 'Low Stock', icon: Package, color: 'bg-orange-500/15 text-orange-600 dark:bg-orange-500/20 dark:text-orange-300' },
+  { key: 'payments', label: 'Payments', icon: CreditCard, color: 'bg-green-500/15 text-green-600 dark:bg-green-500/20 dark:text-green-300' },
+  { key: 'new_reviews', label: 'New Reviews', icon: Star, color: 'bg-amber-500/15 text-amber-600 dark:bg-amber-500/20 dark:text-amber-300' },
+  { key: 'system_updates', label: 'System', icon: AlertTriangle, color: 'bg-primary/12 text-primary dark:bg-primary/20 dark:text-primary' },
 ] as const
 
 const DAYS_SHORT = ['mon','tue','wed','thu','fri','sat','sun'] as const
@@ -167,8 +168,8 @@ function PreferenceRow({ icon: Icon, iconColor, title, description, checked, onC
   return (
     <div className="border-b border-border py-3 last:border-0">
       <div className="flex items-start justify-between gap-3">
-        <div className="flex min-w-0 flex-1 gap-3">
-          <div className={cn('mt-0.5 shrink-0 rounded-lg p-2', iconColor)}>
+        <div className="flex min-w-0 flex-1 items-start gap-3">
+          <div className={cn('flex h-9 w-9 shrink-0 items-center justify-center rounded-lg', iconColor)}>
             <Icon className="h-4 w-4" />
           </div>
           <div className="min-w-0 flex-1">
@@ -225,32 +226,30 @@ function PermissionBadge({ status }: { status: string }) {
 
 // ── Per-event tone select (native, grouped, includes custom when file exists) ──
 
-function ToneSelect({ value, onChange }: {
-  value: string; onChange: (v: string) => void
+function ToneSelect({ value, onChange, id }: {
+  value: string; onChange: (v: string) => void; id?: string
 }) {
+  const toneOptions = [
+    { value: '', label: 'Default tone' },
+    ...TONE_CATEGORIES.flatMap(cat => {
+      const tones = TONE_OPTIONS.filter(t =>
+        t.category === cat.key &&
+        t.value !== 'silent' &&
+        t.value !== 'local'
+      )
+      return tones.map(t => ({ value: t.value, label: t.label, group: cat.label }))
+    }),
+  ]
   return (
-    <select
+    <Select
+      id={id}
       value={value}
-      onChange={e => onChange(e.target.value)}
-      className="max-w-[140px] rounded-lg border border-input bg-background px-2 py-1.5 text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-    >
-      <option value="">Default tone</option>
-      {TONE_CATEGORIES.map(cat => {
-        const tones = TONE_OPTIONS.filter(t =>
-          t.category === cat.key &&
-          t.value !== 'silent' &&
-          t.value !== 'local'
-        )
-        if (!tones.length) return null
-        return (
-          <optgroup key={cat.key} label={cat.label}>
-            {tones.map(t => (
-              <option key={t.value} value={t.value}>{t.label}</option>
-            ))}
-          </optgroup>
-        )
-      })}
-    </select>
+      onChange={onChange}
+      options={toneOptions}
+      placeholder="Default tone"
+      aria-label="Notification tone"
+      className="min-w-[9.5rem] flex-1 sm:max-w-[11rem] sm:flex-none"
+    />
   )
 }
 
@@ -271,23 +270,23 @@ function ToneDropdown({ value, onChange, volume }: {
       <button
         type="button"
         onClick={() => setOpen(v => !v)}
-        className="w-full flex items-center justify-between gap-2 px-3 py-2.5 border border-gray-200 rounded-xl bg-white hover:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-400 transition-colors"
+        className="flex w-full items-center justify-between gap-2 rounded-xl border border-input bg-background px-3 py-2.5 transition-colors hover:border-primary/40 focus:outline-none focus:ring-2 focus:ring-ring"
       >
-        <div className="flex items-center gap-2 min-w-0">
-          <Music2 className="w-4 h-4 text-blue-500 shrink-0" />
+        <div className="flex min-w-0 items-center gap-2">
+          <Music2 className="h-4 w-4 shrink-0 text-primary" />
           <div className="min-w-0 text-left">
-            <p className="text-sm font-medium text-gray-900 truncate">{selected?.label ?? 'Select tone'}</p>
-            <p className="text-xs text-gray-400 truncate">{selected?.description}</p>
+            <p className="truncate text-sm font-medium text-foreground">{selected?.label ?? 'Select tone'}</p>
+            <p className="truncate text-xs text-muted-foreground">{selected?.description}</p>
           </div>
         </div>
-        <ChevronDown className={`w-4 h-4 text-gray-400 shrink-0 transition-transform ${open ? 'rotate-180' : ''}`} />
+        <ChevronDown className={cn('h-4 w-4 shrink-0 text-muted-foreground transition-transform', open && 'rotate-180')} />
       </button>
 
       {open && (
         <>
           <div className="fixed inset-0 z-10" onClick={close} />
-          <div className="absolute left-0 right-0 top-full mt-1 z-20 bg-white border border-gray-200 rounded-xl shadow-xl overflow-hidden max-h-[90vh] overflow-y-auto">
-            <div className="max-h-64 overflow-y-auto divide-y divide-gray-50">
+          <div className="absolute left-0 right-0 top-full z-20 mt-1 max-h-[90vh] overflow-hidden overflow-y-auto rounded-xl border border-border bg-popover shadow-xl">
+            <div className="max-h-64 divide-y divide-border overflow-y-auto">
                 {TONE_CATEGORIES.map(cat => {
                 const tones = TONE_OPTIONS.filter(t =>
                   t.category === cat.key && t.value !== 'local'
@@ -295,35 +294,38 @@ function ToneDropdown({ value, onChange, volume }: {
                 if (!tones.length) return null
                 return (
                   <div key={cat.key}>
-                    <div className="px-3 py-1.5 bg-gray-50 sticky top-0 z-10">
-                      <p className="text-xs font-bold uppercase tracking-widest text-gray-400">{cat.label}</p>
+                    <div className="sticky top-0 z-10 bg-muted/80 px-3 py-1.5 backdrop-blur-sm">
+                      <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground">{cat.label}</p>
                     </div>
                     {tones.map(t => (
                       <div
                         key={t.value}
-                        className={`flex items-center justify-between px-3 py-2.5 cursor-pointer hover:bg-blue-50 transition-colors ${value === t.value ? 'bg-blue-50' : ''}`}
+                        className={cn(
+                          'flex cursor-pointer items-center justify-between px-3 py-2.5 transition-colors hover:bg-accent',
+                          value === t.value && 'bg-accent',
+                        )}
                         onClick={() => { onChange(t.value); close() }}
                       >
-                        <div className="flex items-center gap-2 min-w-0 flex-1">
+                        <div className="flex min-w-0 flex-1 items-center gap-2">
                           {value === t.value
-                            ? <CheckCircle className="w-3.5 h-3.5 text-blue-600 shrink-0" />
-                            : <span className="w-3.5 h-3.5 shrink-0" />
+                            ? <CheckCircle className="h-3.5 w-3.5 shrink-0 text-primary" />
+                            : <span className="h-3.5 w-3.5 shrink-0" />
                           }
                           <div className="min-w-0">
-                            <p className={`text-sm font-medium truncate ${value === t.value ? 'text-blue-700' : 'text-gray-900'}`}>
+                            <p className={cn('truncate text-sm font-medium', value === t.value ? 'text-primary' : 'text-foreground')}>
                               {t.label}
                             </p>
-                            <p className="text-xs text-gray-400 truncate">{t.description}</p>
+                            <p className="truncate text-xs text-muted-foreground">{t.description}</p>
                           </div>
                         </div>
                         {t.value !== 'silent' && t.value !== 'local' && (
                           <button
                             type="button"
                             onClick={e => { e.stopPropagation(); playTone(t.value, volume) }}
-                            className="ml-2 p-1.5 rounded-lg text-gray-400 hover:text-blue-600 hover:bg-blue-100 transition-colors shrink-0"
+                            className="ml-2 shrink-0 rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-primary"
                             title={`Preview ${t.label}`}
                           >
-                            <Play className="w-3 h-3" />
+                            <Play className="h-3 w-3" />
                           </button>
                         )}
                       </div>
@@ -587,7 +589,7 @@ export default function NotificationSettingsPage() {
         <div className="border-t border-border py-3">
           <div className="flex items-start justify-between gap-3">
             <div className="flex min-w-0 flex-1 gap-3">
-              <div className="mt-0.5 shrink-0 rounded-lg bg-primary/15 p-2 text-primary ring-1 ring-inset ring-primary/25 dark:bg-primary/20">
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/15 text-primary ring-1 ring-inset ring-primary/25 dark:bg-primary/20">
                 <BellRing className="h-4 w-4" />
               </div>
               <div className="min-w-0 flex-1">
@@ -618,34 +620,41 @@ export default function NotificationSettingsPage() {
       {/* ── Notification Events + per-event tone ─────────────────────────── */}
       <SectionCard id="sec-events" icon={Zap} iconColor="text-orange-500" title="Notification Events" subtitle="Choose which events trigger an alert and set a custom tone per event." dimmed={isDisabled}>
         {EVENTS.map(ev => (
-        <div className="border-t border-border py-3 last:border-0">
+        <div key={ev.key} className="border-t border-border py-3 last:border-0">
           <div className="flex items-start justify-between gap-3">
-            <div className="flex min-w-0 flex-1 gap-3">
-              <div className={cn('mt-0.5 shrink-0 rounded-lg p-2', ev.color)}>
+            <div className="flex min-w-0 flex-1 items-start gap-3">
+              <div className={cn('flex h-9 w-9 shrink-0 items-center justify-center rounded-lg', ev.color)}>
                 <ev.icon className="h-4 w-4" />
               </div>
               <div className="min-w-0 flex-1">
                 <p className="text-sm font-medium text-foreground">{ev.label}</p>
-                <div className="mt-2 flex flex-wrap items-center gap-2">
-                  <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Tone</span>
+                <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1.5">
+                  <label
+                    htmlFor={`tone-${ev.key}`}
+                    className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground"
+                  >
+                    Tone
+                  </label>
                   <ToneSelect
+                    id={`tone-${ev.key}`}
                     value={prefs.per_event_tones[ev.key] ?? ''}
                     onChange={v => set('per_event_tones', { ...prefs.per_event_tones, [ev.key]: v })}
                   />
-                  {(prefs.per_event_tones[ev.key]) && (
+                  {prefs.per_event_tones[ev.key] ? (
                     <button
                       type="button"
                       onClick={() => playTone((prefs.per_event_tones[ev.key] as ToneName), prefs.volume)}
-                      className="text-muted-foreground transition-colors hover:text-primary"
-                      title="Preview"
+                      className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-border text-muted-foreground transition-colors hover:border-primary/30 hover:bg-accent hover:text-primary"
+                      title="Preview tone"
+                      aria-label={`Preview tone for ${ev.label}`}
                     >
                       <Play className="h-3.5 w-3.5" />
                     </button>
-                  )}
+                  ) : null}
                 </div>
               </div>
             </div>
-            <div className="shrink-0 pt-0.5">
+            <div className="shrink-0 pt-1">
               <Toggle
                 checked={prefs[ev.key as keyof NotificationPreferences] as boolean}
                 onChange={v => set(ev.key as keyof NotificationPreferences, v as never)}
@@ -1061,21 +1070,22 @@ export default function NotificationSettingsPage() {
                         : 'border-gray-200 bg-white text-gray-600'
                     }`}
                   />
-                  <select
+                  <Select
                     value={REPEAT_OPTION_VALUES.includes(prefs.repeat_interval_min) ? customRepeatUnit : minutesToUnit(prefs.repeat_interval_min).unit}
-                    onChange={e => {
-                      const unit = e.target.value as RepeatUnit
-                      setCustomRepeatUnit(unit)
+                    onChange={(unit) => {
+                      setCustomRepeatUnit(unit as RepeatUnit)
                       const num = REPEAT_OPTION_VALUES.includes(prefs.repeat_interval_min) ? customRepeatVal : minutesToUnit(prefs.repeat_interval_min).val
-                      set('repeat_interval_min', num * UNIT_MULTIPLIERS[unit])
+                      set('repeat_interval_min', num * UNIT_MULTIPLIERS[unit as RepeatUnit])
                     }}
-                    className="text-xs border border-gray-200 rounded-lg px-2 py-1.5 bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-rose-400"
-                  >
-                    <option value="min">min</option>
-                    <option value="hr">hr</option>
-                    <option value="day">day</option>
-                    <option value="week">week</option>
-                  </select>
+                    options={[
+                      { value: 'min', label: 'min' },
+                      { value: 'hr', label: 'hr' },
+                      { value: 'day', label: 'day' },
+                      { value: 'week', label: 'week' },
+                    ]}
+                    aria-label="Repeat interval unit"
+                    className="text-xs"
+                  />
                 </div>
                 {!REPEAT_OPTION_VALUES.includes(prefs.repeat_interval_min) && (
                   <p className="text-xs text-rose-500 mt-1.5 font-medium">

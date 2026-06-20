@@ -8,6 +8,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Select } from '@/components/ui/select'
 import { vendorApi } from '@/api/vendor'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { formatCurrency, formatDate } from '@/lib/utils'
@@ -238,8 +239,8 @@ function CouponModal({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 overflow-y-auto" onClick={onClose}>
-      <div className="bg-white rounded-xl shadow-xl w-full max-w-md mx-4 max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+    <div data-kiterp-modal className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 overflow-y-auto" onClick={onClose}>
+      <div className="bg-card border border-border text-foreground rounded-xl shadow-2xl w-full max-w-md mx-4 max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between px-6 py-4 border-b">
           <h2 className="text-lg font-semibold">{mode === 'create' ? 'New Coupon' : 'Edit Coupon'}</h2>
           <button type="button" aria-label="Close" onClick={onClose} className="p-1 rounded-lg hover:bg-gray-100"><X className="w-5 h-5" /></button>
@@ -259,9 +260,16 @@ function CouponModal({
           <div><Label>Description</Label><Input className="mt-1" value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} placeholder="Get 20% off on all products" /></div>
           <div className="grid grid-cols-2 gap-3">
             <div><Label>Discount Type</Label>
-              <select className="w-full mt-1 text-sm border rounded-lg px-3 py-2" value={form.discount_type} onChange={e => setForm({ ...form, discount_type: e.target.value })}>
-                <option value="percentage">Percentage (%)</option><option value="flat">Flat Amount (₹)</option>
-              </select>
+              <Select
+                value={form.discount_type}
+                onChange={(v) => setForm({ ...form, discount_type: v })}
+                options={[
+                  { value: 'percentage', label: 'Percentage (%)' },
+                  { value: 'flat', label: 'Flat Amount (₹)' },
+                ]}
+                aria-label="Discount type"
+                className="mt-1"
+              />
             </div>
             <div><Label>Discount Value</Label><Input type="number" className="mt-1" min={0} value={form.discount_value} onChange={e => setForm({ ...form, discount_value: Number(e.target.value) })} /></div>
           </div>
@@ -275,12 +283,18 @@ function CouponModal({
           </div>
           <div>
             <Label>Applies to</Label>
-            <select className="w-full mt-1 text-sm border rounded-lg px-3 py-2" value={form.applicable_to} onChange={e => setForm({ ...form, applicable_to: e.target.value })}>
-              <option value="all">All products & services</option>
-              <option value="products">Specific products</option>
-              <option value="services">Specific services</option>
-              <option value="specific">Specific products & services</option>
-            </select>
+            <Select
+              value={form.applicable_to}
+              onChange={(v) => setForm({ ...form, applicable_to: v })}
+              options={[
+                { value: 'all', label: 'All products & services' },
+                { value: 'products', label: 'Specific products' },
+                { value: 'services', label: 'Specific services' },
+                { value: 'specific', label: 'Specific products & services' },
+              ]}
+              aria-label="Applies to"
+              className="mt-1"
+            />
           </div>
           {isSpecific && (
             <div>

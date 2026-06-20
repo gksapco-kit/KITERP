@@ -1,5 +1,6 @@
 import { Search } from 'lucide-react'
 import { Input } from '@/components/ui/input'
+import { ThemeSelect } from '@/components/common/ThemeSelect'
 import type { SortDir } from '@/lib/tableList'
 
 export type TableSortOption = { value: string; label: string }
@@ -35,16 +36,13 @@ export function TableToolbar({
   className = '',
   extra,
 }: Props) {
-  const selectCls =
-    'h-9 rounded-md border border-input bg-background px-2.5 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring min-w-[8rem]'
-
   return (
     <div
       className={`flex flex-col sm:flex-row gap-3 flex-wrap items-stretch sm:items-center border-b border-border bg-muted/40 px-4 py-3 ${className}`}
     >
       {!hideSearch && (
         <div className="relative flex-1 min-w-[200px] max-w-md">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
           <Input
             value={search}
             onChange={(e) => onSearchChange(e.target.value)}
@@ -57,27 +55,23 @@ export function TableToolbar({
       <div className="flex flex-wrap items-center gap-2 sm:ml-auto">
         {hint && <span className="text-xs text-muted-foreground hidden md:inline max-w-[14rem]">{hint}</span>}
         <span className="text-xs font-medium text-muted-foreground">Sort</span>
-        <select
+        <ThemeSelect
           value={sortKey}
-          onChange={(e) => onSortKeyChange(e.target.value)}
-          className={selectCls}
+          onChange={onSortKeyChange}
+          options={sortOptions.map((o) => ({ value: o.value, label: o.label }))}
           aria-label="Sort by column"
-        >
-          {sortOptions.map((o) => (
-            <option key={o.value} value={o.value}>
-              {o.label}
-            </option>
-          ))}
-        </select>
-        <select
+          className="min-w-[8rem]"
+        />
+        <ThemeSelect
           value={sortDir}
-          onChange={(e) => onSortDirChange(e.target.value as SortDir)}
-          className={selectCls}
+          onChange={(v) => onSortDirChange(v as SortDir)}
+          options={[
+            { value: 'asc', label: 'A → Z / Low → High' },
+            { value: 'desc', label: 'Z → A / High → Low' },
+          ]}
           aria-label="Sort direction"
-        >
-          <option value="asc">A → Z / Low → High</option>
-          <option value="desc">Z → A / High → Low</option>
-        </select>
+          className="min-w-[8rem]"
+        />
         {extra}
       </div>
     </div>

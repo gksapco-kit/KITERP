@@ -11,6 +11,7 @@ import { apiClient } from '@/api/client'
 import { useServices } from '@/hooks/useVendor'
 import { formatCurrency } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
+import { Select, selectOptionsWithBlank } from '@/components/ui/select'
 import { toast } from 'sonner'
 import { extractApiError } from '@/lib/errorMessages'
 import {
@@ -19,6 +20,7 @@ import {
   Loader2, Check, CalendarCheck2,
 } from 'lucide-react'
 import type { Customer } from '@/types'
+import { bookingModalUi as bm } from './bookingModalUi'
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 function tMins(t: string) { const [h, m] = t.split(':').map(Number); return h * 60 + m }
@@ -219,7 +221,7 @@ export function CreateBookingModal({
       onClick={onClose}
     >
       <div
-        className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[94vh] flex flex-col overflow-hidden"
+        className={`${bm.shell} w-full max-w-4xl max-h-[94vh] flex flex-col overflow-hidden`}
         onClick={e => e.stopPropagation()}
       >
         {/* Header */}
@@ -241,20 +243,20 @@ export function CreateBookingModal({
         {/* Body — three columns */}
         <div className="flex-1 overflow-hidden flex min-h-0">
           {/* ── COL 1: Who & What ──────────────────────────────────────────── */}
-          <div className="w-64 shrink-0 border-r overflow-y-auto px-4 py-5 space-y-4">
-            <p className="text-xs font-bold uppercase tracking-widest text-primary/80">Who &amp; What</p>
+          <div className={`w-64 shrink-0 border-r border-border overflow-y-auto px-4 py-5 space-y-4 ${bm.colMuted}`}>
+            <p className={bm.sectionTitle}>Who &amp; What</p>
 
             {/* Customer */}
             <div>
-              <Label className="text-xs font-medium text-gray-500 uppercase tracking-wide block mb-1.5" required>Customer</Label>
+              <Label className={`${bm.fieldLabel} block mb-1.5`} required>Customer</Label>
               {selectedCustomer ? (
                 <div className="flex items-center gap-2 p-2 bg-accent border border-primary/30 rounded-xl">
                   <div className="w-7 h-7 rounded-full bg-primary text-white flex items-center justify-center text-xs font-bold shrink-0">
                     {selectedCustomer.full_name[0].toUpperCase()}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-xs font-medium text-gray-900 truncate">{selectedCustomer.full_name}</p>
-                    <p className="text-xs text-gray-500 truncate">{selectedCustomer.phone || selectedCustomer.email}</p>
+                    <p className={bm.nameTextSm}>{selectedCustomer.full_name}</p>
+                    <p className={bm.metaText}>{selectedCustomer.phone || selectedCustomer.email}</p>
                   </div>
                   <div className="flex flex-col gap-0.5">
                     <a href={`/customers/${selectedCustomer.id}`} target="_blank" rel="noopener noreferrer"
@@ -269,27 +271,27 @@ export function CreateBookingModal({
                 </div>
               ) : (
                 <div className="relative">
-                  <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
+                  <Search className={`absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 ${bm.iconMuted}`} />
                   <input
                     placeholder="Search name, phone, email…"
                     value={custSearch}
                     onChange={e => setCustSearch(e.target.value)}
                     onFocus={() => custResults.length && setShowCustDropdown(true)}
                     autoComplete="off"
-                    className="w-full h-9 pl-8 pr-3 border border-gray-200 rounded-lg text-xs bg-white focus:outline-none focus:ring-2 focus:ring-ring"
+                    className={bm.inputSearch}
                   />
                   {showCustDropdown && custResults.length > 0 && (
-                    <div className="absolute z-10 w-full mt-1 bg-white border rounded-xl shadow-xl max-h-48 overflow-y-auto">
+                    <div className={bm.dropdown}>
                       {custResults.map(c => (
                         <button key={c.id}
-                          className="w-full text-left px-3 py-2 hover:bg-accent flex items-center gap-2 border-b border-gray-50 last:border-0"
+                          className={bm.dropdownItem}
                           onClick={() => { setSelectedCustomer(c); setShowCustDropdown(false); setCustSearch('') }}>
                           <div className="w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
                             <span className="text-xs font-bold text-primary">{c.full_name[0].toUpperCase()}</span>
                           </div>
                           <div className="flex-1 min-w-0">
-                            <p className="text-xs font-medium truncate">{c.full_name}</p>
-                            <p className="text-xs text-gray-400 truncate">{c.phone || c.email}</p>
+                            <p className={`${bm.nameTextSm} truncate`}>{c.full_name}</p>
+                            <p className={bm.metaText}>{c.phone || c.email}</p>
                           </div>
                         </button>
                       ))}
@@ -301,23 +303,22 @@ export function CreateBookingModal({
 
             {/* Service */}
             <div>
-              <Label className="text-xs font-medium text-gray-500 uppercase tracking-wide block mb-1.5" required>Service</Label>
-              <select
-                className="w-full h-9 px-3 border border-gray-200 rounded-lg text-xs bg-white focus:outline-none focus:ring-2 focus:ring-ring"
+              <Label className={`${bm.fieldLabel} block mb-1.5`} required>Service</Label>
+              <Select
                 value={selectedService}
-                onChange={e => handleServiceChange(e.target.value)}
-              >
-                <option value="">Select a service…</option>
-                {services.map(s => (
-                  <option key={s.id as string} value={s.id as string}>
-                    {s.name as string}{s.duration_minutes ? ` (${s.duration_minutes}m)` : ''}
-                  </option>
-                ))}
-              </select>
+                onChange={handleServiceChange}
+                options={selectOptionsWithBlank('Select a service…', services.map(s => ({
+                  value: s.id as string,
+                  label: `${s.name as string}${s.duration_minutes ? ` (${s.duration_minutes}m)` : ''}`,
+                })))}
+                placeholder="Select a service…"
+                aria-label="Service"
+                className={bm.input}
+              />
               {selectedSvc && svcDuration > 0 && (
                 <p className="text-xs text-primary flex items-center gap-1 mt-1">
                   <Hourglass className="w-2.5 h-2.5" /> {fmtDur(svcDuration)}
-                  {(selectedSvc.price as number) > 0 && <span className="ml-auto text-gray-500">{formatCurrency(selectedSvc.price as number)}</span>}
+                  {(selectedSvc.price as number) > 0 && <span className={`ml-auto ${bm.hint}`}>{formatCurrency(selectedSvc.price as number)}</span>}
                 </p>
               )}
             </div>
@@ -325,53 +326,66 @@ export function CreateBookingModal({
             {/* Who Serves */}
             {teamMembers.length > 0 && (
               <div>
-                <label className="text-xs font-medium text-gray-500 uppercase tracking-wide flex items-center gap-1 mb-1.5">
+                <label className={`${bm.fieldLabel} flex items-center gap-1 mb-1.5`}>
                   <Users className="w-3 h-3 text-primary/70" /> Who Serves
                 </label>
-                <select value={selectedStaff} onChange={e => setSelectedStaff(e.target.value)}
-                  className="w-full h-9 px-3 border border-gray-200 rounded-lg text-xs bg-white focus:outline-none focus:ring-2 focus:ring-ring">
-                  <option value="">Any available</option>
-                  {teamMembers.map((m: any) => (
-                    <option key={m.id} value={m.id}>{m.full_name || m.name}</option>
-                  ))}
-                </select>
+                <Select
+                  value={selectedStaff}
+                  onChange={setSelectedStaff}
+                  options={selectOptionsWithBlank('Any available', teamMembers.map((m: any) => ({
+                    value: m.id,
+                    label: m.full_name || m.name,
+                  })))}
+                  placeholder="Any available"
+                  aria-label="Who serves"
+                  className={bm.input}
+                />
               </div>
             )}
 
             {/* Store/Location */}
             {stores.length > 1 && (
               <div>
-                <label className="text-xs font-medium text-gray-500 uppercase tracking-wide flex items-center gap-1 mb-1.5">
+                <label className={`${bm.fieldLabel} flex items-center gap-1 mb-1.5`}>
                   <Building2 className="w-3 h-3 text-primary/70" /> Location
                 </label>
-                <select value={selectedStore} onChange={e => { setSelectedStore(e.target.value); setSelectedService('') }}
-                  className="w-full h-9 px-3 border border-gray-200 rounded-lg text-xs bg-white focus:outline-none focus:ring-2 focus:ring-ring">
-                  <option value="">All locations</option>
-                  {stores.map((st: any) => (
-                    <option key={st.id} value={st.id}>{st.name}</option>
-                  ))}
-                </select>
+                <Select
+                  value={selectedStore}
+                  onChange={(v) => { setSelectedStore(v); setSelectedService('') }}
+                  options={selectOptionsWithBlank('All locations', stores.map((st: any) => ({
+                    value: st.id,
+                    label: st.name,
+                  })))}
+                  placeholder="All locations"
+                  aria-label="Location"
+                  className={bm.input}
+                />
               </div>
             )}
 
             {/* Payment */}
             <div>
-              <Label className="text-xs font-medium text-gray-500 uppercase tracking-wide block mb-1.5">Payment</Label>
-              <select value={paymentMethod} onChange={e => setPaymentMethod(e.target.value)}
-                className="w-full h-9 px-3 border border-gray-200 rounded-lg text-xs bg-white focus:outline-none focus:ring-2 focus:ring-ring">
-                <option value="cod">Cash on Delivery</option>
-                <option value="cash">Cash</option>
-                <option value="upi">UPI</option>
-                <option value="card">Card</option>
-                <option value="online">Online</option>
-              </select>
+              <Label className={`${bm.fieldLabel} block mb-1.5`}>Payment</Label>
+              <Select
+                value={paymentMethod}
+                onChange={setPaymentMethod}
+                options={[
+                  { value: 'cod', label: 'Cash on Delivery' },
+                  { value: 'cash', label: 'Cash' },
+                  { value: 'upi', label: 'UPI' },
+                  { value: 'card', label: 'Card' },
+                  { value: 'online', label: 'Online' },
+                ]}
+                aria-label="Payment method"
+                className={bm.input}
+              />
             </div>
 
             {/* Notes */}
             <div>
-              <Label className="text-xs font-medium text-gray-500 uppercase tracking-wide block mb-1.5">Notes</Label>
+              <Label className={`${bm.fieldLabel} block mb-1.5`}>Notes</Label>
               <textarea
-                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-xs bg-white resize-none focus:outline-none focus:ring-2 focus:ring-ring"
+                className={bm.textarea}
                 rows={3}
                 value={notes}
                 onChange={e => setNotes(e.target.value)}
@@ -381,19 +395,19 @@ export function CreateBookingModal({
           </div>
 
           {/* ── COL 2: When ────────────────────────────────────────────────── */}
-          <div className="w-56 shrink-0 border-r overflow-y-auto px-4 py-5 space-y-4 bg-gray-50/40">
-            <p className="text-xs font-bold uppercase tracking-widest text-primary/80">When</p>
+          <div className={`w-56 shrink-0 border-r border-border overflow-y-auto px-4 py-5 space-y-4 ${bm.colMuted}`}>
+            <p className={bm.sectionTitle}>When</p>
 
             {/* Date */}
             <div>
-              <label className="text-xs font-medium text-gray-500 uppercase tracking-wide flex items-center gap-1 mb-1.5">
+              <label className={`${bm.fieldLabel} flex items-center gap-1 mb-1.5`}>
                 <CalendarDays className="w-3 h-3 text-primary/70" /> Date *
               </label>
               <input type="date" value={bookingDate} min={today}
                 onChange={e => setBookingDate(e.target.value)}
-                className="w-full h-9 px-3 border border-gray-200 rounded-lg text-xs bg-white focus:outline-none focus:ring-2 focus:ring-ring" />
+                className={bm.input} />
               {bookingDate && (
-                <p className="text-xs text-gray-400 mt-1">
+                <p className={`${bm.hint} mt-1`}>
                   {new Date(bookingDate + 'T00:00:00').toLocaleDateString('en-IN', { weekday: 'long', day: '2-digit', month: 'short' })}
                 </p>
               )}
@@ -401,19 +415,19 @@ export function CreateBookingModal({
 
             {/* Start + End time */}
             <div>
-              <label className="text-xs font-medium text-gray-500 uppercase tracking-wide flex items-center gap-1 mb-1.5">
+              <label className={`${bm.fieldLabel} flex items-center gap-1 mb-1.5`}>
                 <Clock className="w-3 h-3 text-primary/70" /> Time Slot
               </label>
               <div className="grid grid-cols-2 gap-2">
                 <div>
-                  <p className="text-xs text-gray-400 mb-0.5">Start</p>
+                  <p className={`${bm.hint} mb-0.5`}>Start</p>
                   <input type="time" value={startTime} onChange={e => handleStartChange(e.target.value)}
-                    className="w-full h-9 px-2 border border-gray-200 rounded-lg text-xs bg-white focus:outline-none focus:ring-2 focus:ring-ring" />
+                    className={bm.input} />
                 </div>
                 <div>
-                  <p className="text-xs text-gray-400 mb-0.5">End</p>
+                  <p className={`${bm.hint} mb-0.5`}>End</p>
                   <input type="time" value={endTime} onChange={e => setEndTime(e.target.value)}
-                    className="w-full h-9 px-2 border border-gray-200 rounded-lg text-xs bg-white focus:outline-none focus:ring-2 focus:ring-ring" />
+                    className={bm.input} />
                 </div>
               </div>
               {svcDuration > 0 && startTime && (
@@ -426,46 +440,46 @@ export function CreateBookingModal({
 
             {/* Slot status */}
             {selectedDuration > 0 && (
-              <div className={`rounded-xl border px-3 py-2.5 ${hasConflict ? 'bg-red-50 border-red-200' : 'bg-emerald-50 border-emerald-200'}`}>
+              <div className={`rounded-xl border px-3 py-2.5 ${hasConflict ? bm.conflictAlert : bm.availableAlert}`}>
                 <div className="flex items-center gap-1.5 mb-1">
                   {hasConflict
                     ? <AlertTriangle className="w-3.5 h-3.5 text-red-500" />
                     : <CheckCircle className="w-3.5 h-3.5 text-emerald-500" />}
-                  <span className={`text-xs font-bold uppercase tracking-wide ${hasConflict ? 'text-red-500' : 'text-emerald-600'}`}>
+                  <span className={`text-xs font-bold uppercase tracking-wide ${hasConflict ? bm.conflictTitle : bm.availableTitle}`}>
                     {hasConflict ? 'Time Conflict' : 'Slot Available'}
                   </span>
                 </div>
-                <p className={`text-xs font-medium ${hasConflict ? 'text-red-700' : 'text-emerald-700'}`}>
+                <p className={`text-xs font-medium ${hasConflict ? bm.conflictBody : bm.availableBody}`}>
                   {fmt12(startTime)} – {fmt12(endTime)}
                 </p>
-                <p className={`text-xs mt-0.5 ${hasConflict ? 'text-red-400' : 'text-emerald-500'}`}>
+                <p className={`text-xs mt-0.5 ${hasConflict ? bm.conflictHint : bm.availableHint}`}>
                   {hasConflict ? 'Overlaps an existing booking' : fmtDur(selectedDuration)}
                 </p>
               </div>
             )}
 
             {/* Ready checklist */}
-            <div className="rounded-xl border border-gray-100 bg-white p-3 space-y-1.5">
-              <p className="text-xs font-bold uppercase tracking-widest text-gray-400 mb-2">Ready?</p>
+            <div className={bm.checklist}>
+              <p className={bm.checklistTitle}>Ready?</p>
               {readyChecks.map(item => (
                 <div key={item.label} className="flex items-center gap-2">
-                  <div className={`w-3.5 h-3.5 rounded-full flex items-center justify-center shrink-0 ${item.ok ? 'bg-emerald-500' : 'bg-gray-200'}`}>
+                  <div className={item.ok ? bm.checklistDone : bm.checklistPending}>
                     {item.ok && <Check className="w-2 h-2 text-white" />}
                   </div>
-                  <span className={`text-xs ${item.ok ? 'text-gray-700 font-medium' : 'text-gray-400'}`}>{item.label}</span>
+                  <span className={item.ok ? bm.checklistTextDone : bm.checklistTextPending}>{item.label}</span>
                 </div>
               ))}
             </div>
           </div>
 
           {/* ── COL 3: Availability ─────────────────────────────────────────── */}
-          <div className="flex-1 min-w-0 overflow-y-auto px-4 py-5 space-y-4">
+          <div className={`flex-1 min-w-0 overflow-y-auto px-4 py-5 space-y-4 ${bm.colMain}`}>
             <div className="flex items-center justify-between">
-              <p className="text-xs font-bold uppercase tracking-widest text-primary/80">Availability</p>
+              <p className={`${bm.sectionTitle} mb-0`}>Availability</p>
               {dateSlotsLoading
-                ? <Loader2 className="w-3.5 h-3.5 animate-spin text-gray-400" />
+                ? <Loader2 className={`w-3.5 h-3.5 animate-spin ${bm.iconMuted}`} />
                 : bookingDate && (
-                  <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${activeSlots.length === 0 ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-600'}`}>
+                  <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${activeSlots.length === 0 ? bm.badgeClear : 'bg-muted text-muted-foreground'}`}>
                     <Users className="w-3 h-3 inline mr-0.5" />{activeSlots.length} booked
                   </span>
                 )
@@ -475,9 +489,9 @@ export function CreateBookingModal({
             {/* Timeline */}
             {bookingDate && (
               <div>
-                <div className="relative h-10 bg-gray-100 rounded-xl overflow-hidden border border-gray-200">
+                <div className={bm.timeline}>
                   {[8, 11, 14, 17, 20, 22].map(h => (
-                    <div key={h} className="absolute top-0 bottom-0 w-px bg-gray-200"
+                    <div key={h} className={bm.timelineTick}
                       style={{ left: `${((h*60-SLOT_START)/SLOT_SPAN)*100}%` }} />
                   ))}
                   {selFromPct !== null && selToPct !== null && selectedDuration > 0 && (
@@ -497,12 +511,12 @@ export function CreateBookingModal({
                 </div>
                 <div className="flex justify-between mt-1 px-0.5">
                   {['8AM','11AM','2PM','5PM','8PM','10PM'].map(l => (
-                    <span key={l} className="text-xs text-gray-400">{l}</span>
+                    <span key={l} className={bm.timelineLabel}>{l}</span>
                   ))}
                 </div>
                 <div className="flex items-center gap-4 mt-2">
-                  <div className="flex items-center gap-1.5"><div className="w-3 h-2.5 rounded bg-rose-500 opacity-75"/><span className="text-xs text-gray-500">Booked</span></div>
-                  {selectedDuration > 0 && <div className="flex items-center gap-1.5"><div className={`w-3 h-2.5 rounded border-2 ${hasConflict ? 'bg-red-400/30 border-red-500' : 'bg-primary/50/30 border-primary'}`}/><span className="text-xs text-gray-500">Your slot</span></div>}
+                  <div className="flex items-center gap-1.5"><div className="w-3 h-2.5 rounded bg-rose-500 opacity-75"/><span className={bm.hint}>Booked</span></div>
+                  {selectedDuration > 0 && <div className="flex items-center gap-1.5"><div className={`w-3 h-2.5 rounded border-2 ${hasConflict ? 'bg-red-400/30 border-red-500' : 'bg-primary/50/30 border-primary'}`}/><span className={bm.hint}>Your slot</span></div>}
                 </div>
               </div>
             )}
@@ -510,39 +524,44 @@ export function CreateBookingModal({
             {/* Slot list */}
             <div className="space-y-1.5 max-h-64 overflow-y-auto pr-0.5">
               {!bookingDate && (
-                <div className="flex flex-col items-center justify-center py-12 text-center">
-                  <CalendarDays className="w-8 h-8 text-gray-200 mb-2" />
-                  <p className="text-xs text-gray-400">Pick a date to see availability</p>
+                <div className={bm.emptyCol}>
+                  <CalendarDays className="w-8 h-8 text-muted-foreground/40 mb-2" />
+                  <p className={bm.hint}>Pick a date to see availability</p>
                 </div>
               )}
               {bookingDate && !dateSlotsLoading && activeSlots.length === 0 && (
                 <div className="flex flex-col items-center justify-center py-8 text-center">
-                  <div className="w-10 h-10 rounded-full bg-emerald-100 flex items-center justify-center mb-2">
+                  <div className={`${bm.emptyStateIcon} w-10 h-10`}>
                     <CheckCircle className="w-5 h-5 text-emerald-500" />
                   </div>
-                  <p className="text-xs font-medium text-gray-600">All clear!</p>
-                  <p className="text-xs text-gray-400 mt-0.5">No bookings on this date</p>
+                  <p className="text-xs font-medium text-foreground">All clear!</p>
+                  <p className={`${bm.hint} mt-0.5`}>No bookings on this date</p>
                 </div>
               )}
               {!dateSlotsLoading && activeSlots.map((slot: any) => {
                 const dot: Record<string, string> = { pending: 'bg-amber-400', confirmed: 'bg-blue-400', in_progress: 'bg-primary/70', completed: 'bg-green-400' }
-                const badge: Record<string, string> = { pending: 'bg-amber-100 text-amber-700', confirmed: 'bg-blue-100 text-blue-700', in_progress: 'bg-primary/12 text-primary', completed: 'bg-green-100 text-green-700' }
+                const badge: Record<string, string> = {
+                  pending: bm.statusPending,
+                  confirmed: bm.statusConfirmed,
+                  in_progress: bm.statusInProgress,
+                  completed: bm.statusCompleted,
+                }
                 const label: Record<string, string> = { pending: 'Pending', confirmed: 'Confirmed', in_progress: 'In Progress', completed: 'Completed' }
                 return (
-                  <div key={slot.id} className="flex items-center gap-2.5 bg-gray-50 border border-gray-100 rounded-xl px-3 py-2.5">
+                  <div key={slot.id} className={`flex items-center gap-2.5 rounded-xl px-3 py-2.5 border ${bm.rowDefault}`}>
                     <div className="w-7 h-7 rounded-full bg-gradient-to-br from-primary to-primary flex items-center justify-center shrink-0">
                       <span className="text-xs font-bold text-white">
                         {(slot.customer_name || 'G').trim().split(' ').map((w: string) => w[0]).join('').slice(0,2).toUpperCase()}
                       </span>
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-xs font-medium text-gray-800 truncate">{slot.customer_name || 'Guest'}</p>
-                      <p className="text-xs text-gray-500 flex items-center gap-1">
+                      <p className={`${bm.nameTextSm} truncate`}>{slot.customer_name || 'Guest'}</p>
+                      <p className={`${bm.hint} flex items-center gap-1`}>
                         <Clock className="w-3 h-3" />{slot.start_time?.slice(0,5)}{slot.end_time ? ` – ${slot.end_time.slice(0,5)}` : ''}
                       </p>
                     </div>
-                    <span className={`text-xs font-medium px-2 py-0.5 rounded-full flex items-center gap-1 ${badge[slot.status] || 'bg-gray-100 text-gray-500'}`}>
-                      <span className={`w-1.5 h-1.5 rounded-full inline-block ${dot[slot.status] || 'bg-gray-300'}`} />
+                    <span className={`text-xs font-medium px-2 py-0.5 rounded-full flex items-center gap-1 ${badge[slot.status] || bm.statusDefault}`}>
+                      <span className={`w-1.5 h-1.5 rounded-full inline-block ${dot[slot.status] || 'bg-muted-foreground/40'}`} />
                       {label[slot.status] || slot.status}
                     </span>
                   </div>
@@ -553,7 +572,7 @@ export function CreateBookingModal({
         </div>
 
         {/* Footer */}
-        <div className="border-t bg-gray-50 px-6 py-4 flex items-center gap-3 shrink-0">
+        <div className={`${bm.footer} py-4`}>
           <Button variant="cancel" className="h-10 px-5" onClick={onClose} disabled={creating}>
             Cancel
           </Button>
@@ -561,17 +580,17 @@ export function CreateBookingModal({
           {/* Summary pills */}
           <div className="hidden sm:flex items-center gap-2 flex-wrap">
             {selectedCustomer && (
-              <span className="text-xs bg-primary/10 text-primary px-2.5 py-1 rounded-full font-semibold">
+              <span className={bm.summaryPill}>
                 {selectedCustomer.full_name}
               </span>
             )}
             {selectedSvc && (
-              <span className="text-xs bg-blue-100 text-blue-700 px-2.5 py-1 rounded-full font-semibold">
+              <span className={bm.summaryPill}>
                 {selectedSvc.name as string}
               </span>
             )}
             {bookingDate && (
-              <span className="text-xs bg-emerald-100 text-emerald-700 px-2.5 py-1 rounded-full font-semibold">
+              <span className={bm.summaryPill}>
                 {new Date(bookingDate+'T00:00:00').toLocaleDateString('en-IN', { day:'2-digit', month:'short' })}
                 {startTime && ` · ${fmt12(startTime)}`}
               </span>

@@ -1,5 +1,9 @@
 import { useState, useMemo } from 'react'
+import { formLabelClass } from '@/components/common/FormSectionNav'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Select, selectOptionsWithBlank } from '@/components/ui/select'
 import { useEscapeToClose } from '@/hooks/useEscapeToClose'
 import { Plus, Edit2, X, Filter, ChevronDown } from 'lucide-react'
 import { toast } from 'sonner'
@@ -12,6 +16,24 @@ import { PayeeSelector } from '@/components/commission/PayeeSelector'
 import { CollapsibleSection } from '@/components/commission/CollapsibleSection'
 import type { CommissionAssignment, CommissionPayee } from '@/types/commission'
 import { extractApiError } from '@/lib/errorMessages'
+import {
+  commissionEmptyCell,
+  commissionFieldInput,
+  commissionFilterBtn,
+  commissionFilterPanel,
+  commissionPageSub,
+  commissionPageTitle,
+  commissionPaginationActive,
+  commissionPaginationInactive,
+  commissionRowHover,
+  commissionStatusActive,
+  commissionStatusInactive,
+  commissionTableIconBtn,
+  commissionTableShellScroll,
+  commissionTbody,
+  commissionThead,
+  commissionTh,
+} from '@/pages/commission/commissionUi'
 
 const LINK_TYPE_OPTIONS: { value: string; label: string }[] = [
   { value: '', label: 'All payee types' },
@@ -162,8 +184,8 @@ export default function AssignmentsPage() {
     <div className="p-6 max-w-7xl mx-auto">
       <div className="flex items-center justify-between mb-4">
         <div>
-          <h1 className="text-xl font-semibold text-gray-900">Assignments</h1>
-          <p className="text-sm text-gray-500 mt-0.5">
+          <h1 className={commissionPageTitle}>Assignments</h1>
+          <p className={commissionPageSub}>
             Link payees to commission plans with scope and weighting · {total} match{total === 1 ? '' : 'es'}
           </p>
         </div>
@@ -171,125 +193,123 @@ export default function AssignmentsPage() {
           <button
             type="button"
             onClick={() => setShowFilters(s => !s)}
-            className="flex items-center gap-2 border border-gray-200 px-3 py-2 rounded-lg text-sm hover:bg-gray-50"
+            className={commissionFilterBtn}
           >
             <Filter className="h-4 w-4" /> Filters <ChevronDown className="h-3 w-3" />
           </button>
-          <button type="button" onClick={openCreate} className="btn-brand">
+          <Button type="button" onClick={openCreate} className="gap-2">
             <Plus className="h-4 w-4" /> Assign
-          </button>
+          </Button>
         </div>
       </div>
 
       {showFilters && (
-        <div className="bg-white border border-gray-200 rounded-xl p-4 mb-4 space-y-4">
+        <div className={commissionFilterPanel}>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
             <div className="lg:col-span-2">
-              <Label className="block text-xs font-medium text-gray-700 mb-1">Search</Label>
-              <input
+              <Label className={`block mb-1 ${formLabelClass}`}>Search</Label>
+              <Input
                 value={filters.search}
                 onChange={e => { setFilters(f => ({ ...f, search: e.target.value })); setPage(1) }}
                 placeholder="Payee name, email, phone, or employee code"
-                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm"
               />
             </div>
             <div>
-              <Label className="block text-xs font-medium text-gray-700 mb-1">Payee</Label>
-              <select
+              <Label className={`block mb-1 ${formLabelClass}`}>Payee</Label>
+              <Select
                 value={filters.payee_id}
-                onChange={e => { setFilters(f => ({ ...f, payee_id: e.target.value })); setPage(1) }}
-                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm"
-              >
-                <option value="">All payees</option>
-                {payeeOptions.map(p => (
-                  <option key={p.id} value={p.id}>{p.display_name}</option>
-                ))}
-              </select>
+                onChange={(v) => { setFilters(f => ({ ...f, payee_id: v })); setPage(1) }}
+                options={selectOptionsWithBlank('All payees', payeeOptions.map(p => ({
+                  value: p.id,
+                  label: p.display_name,
+                })))}
+                placeholder="All payees"
+                aria-label="Payee filter"
+                className="w-full"
+              />
             </div>
             <div>
-              <Label className="block text-xs font-medium text-gray-700 mb-1">Plan</Label>
-              <select
+              <Label className={`block mb-1 ${formLabelClass}`}>Plan</Label>
+              <Select
                 value={filters.plan_id}
-                onChange={e => { setFilters(f => ({ ...f, plan_id: e.target.value })); setPage(1) }}
-                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm"
-              >
-                <option value="">All plans</option>
-                {plans.map(p => (
-                  <option key={p.id} value={p.id}>{p.name} ({p.code})</option>
-                ))}
-              </select>
+                onChange={(v) => { setFilters(f => ({ ...f, plan_id: v })); setPage(1) }}
+                options={selectOptionsWithBlank('All plans', plans.map(p => ({
+                  value: p.id,
+                  label: `${p.name} (${p.code})`,
+                })))}
+                placeholder="All plans"
+                aria-label="Plan filter"
+                className="w-full"
+              />
             </div>
             <div>
-              <Label className="block text-xs font-medium text-gray-700 mb-1">Store / branch</Label>
-              <select
+              <Label className={`block mb-1 ${formLabelClass}`}>Store / branch</Label>
+              <Select
                 value={filters.store_id}
-                onChange={e => { setFilters(f => ({ ...f, store_id: e.target.value })); setPage(1) }}
-                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm"
-              >
-                <option value="">Any store</option>
-                {stores.map(s => (
-                  <option key={s.id} value={s.id}>{s.name}{s.code ? ` (${s.code})` : ''}</option>
-                ))}
-              </select>
+                onChange={(v) => { setFilters(f => ({ ...f, store_id: v })); setPage(1) }}
+                options={selectOptionsWithBlank('Any store', stores.map(s => ({
+                  value: s.id,
+                  label: `${s.name}${s.code ? ` (${s.code})` : ''}`,
+                })))}
+                placeholder="Any store"
+                aria-label="Store filter"
+                className="w-full"
+              />
             </div>
             <div>
-              <Label className="block text-xs font-medium text-gray-700 mb-1">Status</Label>
-              <select
+              <Label className={`block mb-1 ${formLabelClass}`}>Status</Label>
+              <Select
                 value={filters.is_active}
-                onChange={e => { setFilters(f => ({ ...f, is_active: e.target.value })); setPage(1) }}
-                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm"
-              >
-                <option value="">Active &amp; inactive</option>
-                <option value="true">Active only</option>
-                <option value="false">Inactive only</option>
-              </select>
+                onChange={(v) => { setFilters(f => ({ ...f, is_active: v })); setPage(1) }}
+                options={[
+                  { value: '', label: 'Active & inactive' },
+                  { value: 'true', label: 'Active only' },
+                  { value: 'false', label: 'Inactive only' },
+                ]}
+                aria-label="Status filter"
+                className="w-full"
+              />
             </div>
             <div>
-              <Label className="block text-xs font-medium text-gray-700 mb-1">Payee type</Label>
-              <select
+              <Label className={`block mb-1 ${formLabelClass}`}>Payee type</Label>
+              <Select
                 value={filters.link_type}
-                onChange={e => { setFilters(f => ({ ...f, link_type: e.target.value })); setPage(1) }}
-                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm"
-              >
-                {LINK_TYPE_OPTIONS.map(o => (
-                  <option key={o.value || 'all'} value={o.value}>{o.label}</option>
-                ))}
-              </select>
+                onChange={(v) => { setFilters(f => ({ ...f, link_type: v })); setPage(1) }}
+                options={LINK_TYPE_OPTIONS.map(o => ({ value: o.value, label: o.label }))}
+                aria-label="Payee type filter"
+                className="w-full"
+              />
             </div>
             <div>
-              <Label className="block text-xs font-medium text-gray-700 mb-1">Plan code</Label>
-              <input
+              <Label className={`block mb-1 ${formLabelClass}`}>Plan code</Label>
+              <Input
                 value={filters.plan_code}
                 onChange={e => { setFilters(f => ({ ...f, plan_code: e.target.value })); setPage(1) }}
                 placeholder="e.g. DEFAULT"
-                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm"
               />
             </div>
             <div>
-              <Label className="block text-xs font-medium text-gray-700 mb-1">Plan name</Label>
-              <input
+              <Label className={`block mb-1 ${formLabelClass}`}>Plan name</Label>
+              <Input
                 value={filters.plan_name}
                 onChange={e => { setFilters(f => ({ ...f, plan_name: e.target.value })); setPage(1) }}
                 placeholder="Contains…"
-                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm"
               />
             </div>
             <div>
-              <Label className="block text-xs font-medium text-gray-700 mb-1">Location</Label>
-              <input
+              <Label className={`block mb-1 ${formLabelClass}`}>Location</Label>
+              <Input
                 value={filters.location}
                 onChange={e => { setFilters(f => ({ ...f, location: e.target.value })); setPage(1) }}
                 placeholder="Assignment location"
-                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm"
               />
             </div>
             <div>
-              <Label className="block text-xs font-medium text-gray-700 mb-1">Group</Label>
-              <input
+              <Label className={`block mb-1 ${formLabelClass}`}>Group</Label>
+              <Input
                 value={filters.group_name}
                 onChange={e => { setFilters(f => ({ ...f, group_name: e.target.value })); setPage(1) }}
                 placeholder="Group name"
-                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm"
               />
             </div>
           </div>
@@ -305,20 +325,20 @@ export default function AssignmentsPage() {
         </div>
       )}
 
-      <div className="bg-white rounded-xl border border-gray-200 overflow-x-auto">
+      <div className={commissionTableShellScroll}>
         <table className="w-full text-sm min-w-[900px]">
-          <thead className="bg-gray-50 border-b border-gray-200">
+          <thead className={commissionThead}>
             <tr>
               {['Payee', 'Employee ID', 'Plan', 'Weight', 'Valid period', 'Scope', 'Status', ''].map(h => (
-                <th key={h} className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wide">{h}</th>
+                <th key={h} className={commissionTh}>{h}</th>
               ))}
             </tr>
           </thead>
-          <tbody className="divide-y divide-gray-100">
+          <tbody className={commissionTbody}>
             {isLoading ? (
-              <tr><td colSpan={8} className="text-center py-12 text-gray-400">Loading…</td></tr>
+              <tr><td colSpan={8} className={commissionEmptyCell}>Loading…</td></tr>
             ) : assignments.length === 0 ? (
-              <tr><td colSpan={8} className="text-center py-12 text-gray-400">No assignments match your filters</td></tr>
+              <tr><td colSpan={8} className={commissionEmptyCell}>No assignments match your filters</td></tr>
             ) : assignments.map(a => {
               const sId = (a as unknown as Record<string, string>).store_id
               const scope = [
@@ -329,44 +349,47 @@ export default function AssignmentsPage() {
               const displayName = a.payee_display_name || `${a.payee_id.slice(0, 8)}…`
               const planLabel = a.plan_name || planNameFallback(a.plan_id)
               const planSub = a.plan_code ? (
-                <span className="text-xs text-gray-400 font-mono">{a.plan_code}</span>
+                <span className="text-xs text-muted-foreground font-mono">{a.plan_code}</span>
               ) : null
               return (
-                <tr key={a.id} className="hover:bg-gray-50">
+                <tr key={a.id} className={commissionRowHover}>
                   <td className="px-4 py-3">
-                    <div className="font-medium text-gray-900">{displayName}</div>
-                    <div className="text-xs text-gray-500 mt-0.5 flex flex-wrap gap-x-2 gap-y-0.5">
+                    <div className="font-medium text-foreground">{displayName}</div>
+                    <div className="text-xs text-muted-foreground mt-0.5 flex flex-wrap gap-x-2 gap-y-0.5">
                       {a.payee_email && <span>{a.payee_email}</span>}
                       {a.payee_phone && <span>{a.payee_phone}</span>}
                       {a.payee_link_type && (
-                        <span className="text-xs uppercase tracking-wide text-gray-400 border border-gray-200 rounded px-1">
+                        <span className="text-xs uppercase tracking-wide text-muted-foreground border border-border rounded px-1">
                           {a.payee_link_type.replace('_', ' ')}
                         </span>
                       )}
                     </div>
                   </td>
-                  <td className="px-4 py-3 text-gray-700 font-mono text-xs">
+                  <td className="px-4 py-3 text-foreground font-mono text-xs">
                     {a.employee_id ?? '—'}
                   </td>
                   <td className="px-4 py-3">
-                    <div className="text-gray-800">{planLabel}</div>
+                    <div className="text-foreground">{planLabel}</div>
                     {planSub}
                   </td>
-                  <td className="px-4 py-3">{a.weight_percent}%</td>
-                  <td className="px-4 py-3 text-gray-500 text-xs">
+                  <td className="px-4 py-3 text-foreground">{a.weight_percent}%</td>
+                  <td className="px-4 py-3 text-muted-foreground text-xs">
                     {a.valid_from || '—'} → {a.valid_to || '∞'}
                   </td>
-                  <td className="px-4 py-3 text-gray-500">{scope || '—'}</td>
+                  <td className="px-4 py-3 text-muted-foreground">{scope || '—'}</td>
                   <td className="px-4 py-3">
-                    <span className={`px-2 py-0.5 rounded text-xs font-medium ${a.is_active ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
+                    <span className={`px-2 py-0.5 rounded text-xs font-medium ${a.is_active ? commissionStatusActive : commissionStatusInactive}`}>
                       {a.is_active ? 'Active' : 'Inactive'}
                     </span>
                   </td>
                   <td className="px-4 py-3">
-                    <div className="flex gap-2 justify-end">
-                      <button type="button" onClick={() => openEdit(a)} className="text-gray-400 hover:text-primary"><Edit2 className="h-4 w-4" /></button>
-                      <button type="button" aria-label="Close" type="button" onClick={() => handleDeactivate(a.id)} className="text-gray-400 hover:text-red-600">
-                <X className="h-4 w-4" /></button>
+                    <div className="flex gap-1 justify-end">
+                      <button type="button" onClick={() => openEdit(a)} className={`${commissionTableIconBtn} hover:text-primary`} aria-label="Edit assignment">
+                        <Edit2 className="h-4 w-4" />
+                      </button>
+                      <button type="button" onClick={() => handleDeactivate(a.id)} className={`${commissionTableIconBtn} hover:text-red-500 dark:hover:text-red-400`} aria-label="Deactivate assignment">
+                        <X className="h-4 w-4" />
+                      </button>
                     </div>
                   </td>
                 </tr>
@@ -383,33 +406,33 @@ export default function AssignmentsPage() {
               key={i}
               type="button"
               onClick={() => setPage(i + 1)}
-              className={`px-3 py-1 rounded text-sm ${page === i + 1 ? 'bg-primary text-white' : 'border border-gray-200 hover:bg-gray-50'}`}
+              className={page === i + 1 ? commissionPaginationActive : commissionPaginationInactive}
             >
               {i + 1}
             </button>
           ))}
-          {pages > 15 && <span className="text-xs text-gray-500 self-center px-2">… {pages} pages</span>}
+          {pages > 15 && <span className="text-xs text-muted-foreground self-center px-2">… {pages} pages</span>}
         </div>
       )}
 
       {showForm && (
-        <div
-          className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4 overflow-y-auto"
+        <div data-kiterp-modal
+          className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto"
           onClick={closeForm}
         >
           <div
-            className="bg-white rounded-xl w-full max-w-md shadow-xl my-auto max-h-[90vh] overflow-y-auto"
+            className="bg-card border border-border text-foreground rounded-xl w-full max-w-md shadow-2xl my-auto max-h-[90vh] overflow-y-auto"
             onClick={e => e.stopPropagation()}
           >
-            <div className="p-5 border-b border-gray-100 flex items-start justify-between gap-3">
+            <div className="p-5 border-b border-border flex items-start justify-between gap-3">
               <div className="min-w-0">
-                <h2 className="font-semibold text-gray-900">{editing ? 'Edit Assignment' : 'New Assignment'}</h2>
-                <p className="text-xs text-gray-400 mt-0.5">Fields marked <span className="text-red-500">*</span> are required</p>
+                <h2 className="font-semibold text-foreground">{editing ? 'Edit Assignment' : 'New Assignment'}</h2>
+                <p className="text-xs text-muted-foreground mt-0.5">Fields marked <span className="text-red-500">*</span> are required</p>
               </div>
               <button
                 type="button"
                 onClick={closeForm}
-                className="p-1.5 rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors shrink-0"
+                className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors shrink-0"
                 aria-label="Close"
               >
                 <X className="w-5 h-5" />
@@ -420,87 +443,92 @@ export default function AssignmentsPage() {
 
               {!editing && (
                 <div>
-                  <Label className="block text-xs font-medium text-gray-700 mb-1" required>Payee</Label>
+                  <Label className={`block mb-1 ${formLabelClass}`} required>Payee</Label>
                   <PayeeSelector onChange={p => setSelectedPayee(p)} />
                 </div>
               )}
 
               <div>
-                <Label className="block text-xs font-medium text-gray-700 mb-1" required>Commission Plan</Label>
-                <select value={String(form.plan_id)} onChange={e => set('plan_id', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary">
-                  <option value="">Select plan…</option>
-                  {plans.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-                </select>
+                <Label className={`block mb-1 ${formLabelClass}`} required>Commission Plan</Label>
+                <Select
+                  value={String(form.plan_id)}
+                  onChange={(v) => set('plan_id', v)}
+                  options={selectOptionsWithBlank('Select plan…', plans.map(p => ({ value: p.id, label: p.name })))}
+                  placeholder="Select plan…"
+                  aria-label="Commission plan"
+                  className="w-full"
+                />
               </div>
 
               <div>
-                <Label className="block text-xs font-medium text-gray-700 mb-1">Weight (%)</Label>
-                <input type="number" min="0" max="100" step="0.01"
+                <Label className={`block mb-1 ${formLabelClass}`}>Weight (%)</Label>
+                <Input type="number" min="0" max="100" step="0.01"
                   value={Number(form.weight_percent)}
                   onChange={e => set('weight_percent', parseFloat(e.target.value) || 100)}
-                  className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
-                <p className="text-xs text-gray-400 mt-1">100% means this payee earns the full commission. Split assignments should sum to 100.</p>
+                  className="h-9" />
+                <p className="text-xs text-muted-foreground mt-1">100% means this payee earns the full commission. Split assignments should sum to 100.</p>
               </div>
 
               <div className="flex items-center gap-2">
                 <input type="checkbox" id="assign-active" checked={Boolean(form.is_active)}
                   onChange={e => set('is_active', e.target.checked)}
-                  className="rounded" />
-                <label htmlFor="assign-active" className="text-sm text-gray-700">Active</label>
+                  className="rounded border-input accent-primary" />
+                <label htmlFor="assign-active" className="text-sm text-muted-foreground">Active</label>
               </div>
 
               <CollapsibleSection title="Scope & Validity">
                 <div className="grid grid-cols-2 gap-4">
                   {[{ k: 'valid_from', l: 'Valid From' }, { k: 'valid_to', l: 'Valid To' }].map(f => (
                     <div key={f.k}>
-                      <Label className="block text-xs font-medium text-gray-700 mb-1">{f.l}</Label>
-                      <input type="date" value={String(form[f.k] || '')} onChange={e => set(f.k, e.target.value)}
-                        className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+                      <Label className={`block mb-1 ${formLabelClass}`}>{f.l}</Label>
+                      <Input type="date" value={String(form[f.k] || '')} onChange={e => set(f.k, e.target.value)} className="h-9" />
                     </div>
                   ))}
                 </div>
 
                 <div>
-                  <Label className="block text-xs font-medium text-gray-700 mb-1">Store / Branch</Label>
-                  <select value={String(form.store_id || '')} onChange={e => set('store_id', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary">
-                    <option value="">All stores (no restriction)</option>
-                    {stores.map(s => <option key={s.id} value={s.id}>{s.name}{s.code ? ` (${s.code})` : ''}</option>)}
-                  </select>
+                  <Label className={`block mb-1 ${formLabelClass}`}>Store / Branch</Label>
+                  <Select
+                    value={String(form.store_id || '')}
+                    onChange={(v) => set('store_id', v)}
+                    options={selectOptionsWithBlank('All stores (no restriction)', stores.map(s => ({
+                      value: s.id,
+                      label: `${s.name}${s.code ? ` (${s.code})` : ''}`,
+                    })))}
+                    placeholder="All stores (no restriction)"
+                    aria-label="Store or branch"
+                    className="w-full"
+                  />
                 </div>
 
                 <div>
-                  <Label className="block text-xs font-medium text-gray-700 mb-1">Team ID</Label>
-                  <input value={String(form.team_id || '')} onChange={e => set('team_id', e.target.value)}
-                    placeholder="Team UUID (optional)"
-                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+                  <Label className={`block mb-1 ${formLabelClass}`}>Team ID</Label>
+                  <Input value={String(form.team_id || '')} onChange={e => set('team_id', e.target.value)}
+                    placeholder="Team UUID (optional)" />
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
                   {[{ k: 'location', l: 'Location' }, { k: 'group_name', l: 'Group' }].map(f => (
                     <div key={f.k}>
-                      <Label className="block text-xs font-medium text-gray-700 mb-1">{f.l}</Label>
-                      <input value={String(form[f.k] || '')} onChange={e => set(f.k, e.target.value)}
-                        className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+                      <Label className={`block mb-1 ${formLabelClass}`}>{f.l}</Label>
+                      <Input value={String(form[f.k] || '')} onChange={e => set(f.k, e.target.value)} />
                     </div>
                   ))}
                 </div>
 
                 <div>
-                  <Label className="block text-xs font-medium text-gray-700 mb-1">Notes</Label>
+                  <Label className={`block mb-1 ${formLabelClass}`}>Notes</Label>
                   <textarea rows={2} value={String(form.notes || '')} onChange={e => set('notes', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+                    className={commissionFieldInput} />
                 </div>
               </CollapsibleSection>
             </div>
 
-            <div className="p-4 border-t border-gray-100 flex gap-3 justify-end">
-              <button type="button" onClick={closeForm} className="btn-cancel px-4 py-2 text-sm border border-gray-200 rounded-lg">Cancel</button>
-              <button type="button" onClick={handleSave} disabled={create.isPending || update.isPending}
-                className="btn-brand disabled:opacity-50">
+            <div className="p-4 border-t border-border bg-muted/25 flex gap-3 justify-end">
+              <Button type="button" variant="cancel" onClick={closeForm}>Cancel</Button>
+              <Button type="button" onClick={handleSave} disabled={create.isPending || update.isPending}>
                 {create.isPending || update.isPending ? 'Saving…' : 'Save'}
-              </button>
+              </Button>
             </div>
           </div>
         </div>

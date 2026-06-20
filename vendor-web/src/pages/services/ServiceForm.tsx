@@ -220,11 +220,11 @@ function Toggle({ label, checked, onChange, small }: {
     <label className="flex items-center gap-2 cursor-pointer select-none">
       <button type="button" role="switch" aria-checked={checked} onClick={() => onChange(!checked)}
         className={`relative inline-flex shrink-0 rounded-full border-2 border-transparent transition-colors
-          ${small ? 'h-5 w-9' : 'h-6 w-11'} ${checked ? 'bg-primary' : 'bg-gray-200'}`}>
-        <span className={`pointer-events-none inline-block rounded-full bg-white shadow-sm transform transition-transform
+          ${small ? 'h-5 w-9' : 'h-6 w-11'} ${checked ? 'bg-primary' : 'bg-muted'}`}>
+        <span className={`pointer-events-none inline-block rounded-full bg-background shadow-sm transform transition-transform
           ${small ? 'h-4 w-4' : 'h-5 w-5'} ${checked ? (small ? 'translate-x-4' : 'translate-x-5') : 'translate-x-0'}`} />
       </button>
-      <span className={`text-gray-700 ${small ? 'text-xs' : 'text-sm'}`}>{label}</span>
+      <span className={`text-foreground ${small ? 'text-xs' : 'text-sm'}`}>{label}</span>
     </label>
   )
 }
@@ -481,7 +481,12 @@ function AvailabilityEditor({ availability, onChange }: {
     }))
   }
 
-  const timeCls = "h-7 rounded border border-gray-200 px-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-blue-400 w-[5.5rem]"
+  const timeCls = cn(
+    'h-8 w-[6.25rem] shrink-0 rounded-md border border-border bg-background px-2.5 pr-7',
+    'text-xs text-foreground [color-scheme:dark]',
+    'focus:outline-none focus:ring-1 focus:ring-primary/50',
+    '[&::-webkit-calendar-picker-indicator]:cursor-pointer [&::-webkit-calendar-picker-indicator]:opacity-60',
+  )
 
   return (
     <div className="space-y-1.5">
@@ -489,29 +494,61 @@ function AvailabilityEditor({ availability, onChange }: {
         const daySlots = slotsForDay(day)
         const isOn = isDayOn(day)
         return (
-          <div key={day} className={`rounded-lg border px-3 py-2 transition-colors ${isOn ? 'border-blue-100 bg-blue-50/30' : 'border-gray-100 bg-gray-50/50'}`}>
-            <div className="flex items-center gap-3">
-              <button type="button" onClick={() => toggleDay(day)}
-                className={`relative inline-flex h-5 w-9 shrink-0 rounded-full border-2 border-transparent transition-colors ${isOn ? 'bg-primary' : 'bg-gray-200'}`}>
-                <span className={`pointer-events-none inline-block h-4 w-4 rounded-full bg-white shadow-sm transform transition-transform ${isOn ? 'translate-x-4' : 'translate-x-0'}`} />
+          <div
+            key={day}
+            className={cn(
+              'rounded-lg border px-3 py-2.5 transition-colors',
+              isOn
+                ? 'border-primary/25 bg-primary/[0.06] dark:bg-primary/[0.08]'
+                : 'border-border bg-muted/20 opacity-90',
+            )}
+          >
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-2 sm:flex-nowrap">
+              <button
+                type="button"
+                onClick={() => toggleDay(day)}
+                className={cn(
+                  'relative inline-flex h-5 w-9 shrink-0 rounded-full border-2 border-transparent transition-colors',
+                  isOn ? 'bg-primary' : 'bg-muted',
+                )}
+              >
+                <span className={cn(
+                  'pointer-events-none inline-block h-4 w-4 rounded-full bg-white shadow-sm transition-transform',
+                  isOn ? 'translate-x-4' : 'translate-x-0',
+                )} />
               </button>
-              <span className={`w-8 text-xs font-medium ${isOn ? 'text-gray-700' : 'text-gray-300'}`}>{dayLabel}</span>
-              {!isOn && <span className="text-xs text-gray-300">Closed</span>}
+              <span className={cn(
+                'w-8 shrink-0 text-xs font-medium',
+                isOn ? 'text-foreground' : 'text-muted-foreground',
+              )}>
+                {dayLabel}
+              </span>
+              {!isOn && <span className="text-xs text-muted-foreground">Closed</span>}
               {isOn && (
-                <div className="flex-1 space-y-1.5">
+                <div className="min-w-0 flex-1 space-y-1.5">
                   {daySlots.filter(s => s.is_available).map((slot, si) => (
-                    <div key={si} className="flex items-center gap-2">
-                      <input type="time" value={slot.start_time}
+                    <div key={si} className="flex flex-wrap items-center gap-x-2.5 gap-y-1">
+                      <input
+                        type="time"
+                        value={slot.start_time}
                         onChange={e => updateSlotTime(day, si, 'start_time', e.target.value)}
-                        className={timeCls} />
-                      <span className="text-xs text-gray-400">–</span>
-                      <input type="time" value={slot.end_time}
+                        className={timeCls}
+                      />
+                      <span className="text-xs text-muted-foreground">–</span>
+                      <input
+                        type="time"
+                        value={slot.end_time}
                         onChange={e => updateSlotTime(day, si, 'end_time', e.target.value)}
-                        className={timeCls} />
+                        className={timeCls}
+                      />
                       {daySlots.filter(s => s.is_available).length > 1 && (
-                        <button type="button" aria-label="Close" onClick={() => removeSlot(day, si)}
-                          className="p-0.5 text-gray-300 hover:text-red-500 transition-colors">
-                <X className="w-3.5 h-3.5" />
+                        <button
+                          type="button"
+                          aria-label="Close"
+                          onClick={() => removeSlot(day, si)}
+                          className="p-0.5 text-muted-foreground transition-colors hover:text-destructive"
+                        >
+                          <X className="h-3.5 w-3.5" />
                         </button>
                       )}
                     </div>
@@ -519,9 +556,12 @@ function AvailabilityEditor({ availability, onChange }: {
                 </div>
               )}
               {isOn && (
-                <button type="button" onClick={() => addSlot(day)}
-                  className="text-blue-600 hover:text-blue-700 text-xs font-medium flex items-center gap-0.5 shrink-0">
-                  <Plus className="w-3 h-3" /> Slot
+                <button
+                  type="button"
+                  onClick={() => addSlot(day)}
+                  className="flex shrink-0 items-center gap-0.5 text-xs font-medium text-primary hover:text-primary/80"
+                >
+                  <Plus className="h-3 w-3" /> Slot
                 </button>
               )}
             </div>
@@ -1238,16 +1278,16 @@ export default function ServiceForm() {
         <div className={formEditLayout.stickyBar}>
           <div className="flex flex-wrap items-center justify-between gap-2 sm:gap-3">
             <div className="flex min-w-0 flex-wrap items-center gap-2 sm:gap-3">
-              <Button variant="ghost" size="sm" className="h-8 px-2" onClick={() => navigate('/services')}>
+              <Button variant="ghost" size="sm" className="h-8 px-2 text-foreground" onClick={() => navigate('/services')}>
                 <ArrowLeft className="w-4 h-4 mr-1" />Back
               </Button>
-              <h1 className="truncate text-base font-bold sm:text-xl">{service.name}</h1>
+              <h1 className="truncate text-base font-bold text-foreground sm:text-xl">{service.name}</h1>
               <span className={`px-2.5 py-0.5 text-xs rounded-full font-medium ${
-                service.status === 'active' ? 'bg-green-100 text-green-700' :
-                service.status === 'archived' ? 'bg-red-50 text-red-600' : 'bg-gray-100 text-gray-600'
+                service.status === 'active' ? 'bg-green-500/15 text-green-700 dark:text-green-300' :
+                service.status === 'archived' ? 'bg-red-500/10 text-red-600 dark:text-red-300' : 'bg-muted text-muted-foreground'
               }`}>{service.status}</span>
               <span className="text-xs px-2 py-0.5 rounded-full bg-primary/12 text-primary font-medium">{typeLbl}</span>
-              {!service.is_visible && <span className="text-xs px-2 py-0.5 rounded-full bg-yellow-100 text-yellow-700 font-medium">Hidden</span>}
+              {!service.is_visible && <span className="text-xs px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-700 dark:text-amber-300 font-medium">Hidden</span>}
             </div>
             <Button onClick={() => setViewMode(false)} size="sm" className="h-8 gap-1.5 shrink-0">
               <Edit2 className="w-3.5 h-3.5" />Edit Service
@@ -1963,8 +2003,8 @@ export default function ServiceForm() {
                 <div className="mt-4 space-y-3">
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <div>
-                      <p className="text-sm font-semibold text-gray-800">Booking Availability</p>
-                      <p className="text-xs text-gray-400">Set your weekly availability for customer bookings. Plans can override these slots.</p>
+                      <p className="text-sm font-semibold text-foreground">Booking Availability</p>
+                      <p className="text-xs text-muted-foreground">Set your weekly availability for customer bookings. Plans can override these slots.</p>
                     </div>
                     <label className="flex cursor-pointer select-none items-center gap-2">
                       <button
@@ -1972,11 +2012,17 @@ export default function ServiceForm() {
                         role="switch"
                         aria-checked={isAllDay}
                         onClick={toggleAllDay}
-                        className={`relative inline-flex h-5 w-9 shrink-0 rounded-full border-2 border-transparent transition-colors ${isAllDay ? 'bg-primary' : 'bg-gray-200'}`}
+                        className={cn(
+                          'relative inline-flex h-5 w-9 shrink-0 rounded-full border-2 border-transparent transition-colors',
+                          isAllDay ? 'bg-primary' : 'bg-muted',
+                        )}
                       >
-                        <span className={`pointer-events-none inline-block h-4 w-4 rounded-full bg-white shadow-sm transform transition-transform ${isAllDay ? 'translate-x-4' : 'translate-x-0'}`} />
+                        <span className={cn(
+                          'pointer-events-none inline-block h-4 w-4 rounded-full bg-white shadow-sm transition-transform',
+                          isAllDay ? 'translate-x-4' : 'translate-x-0',
+                        )} />
                       </button>
-                      <span className="text-xs font-medium text-gray-600">Available all day (24 hrs)</span>
+                      <span className="text-xs font-medium text-muted-foreground">Available all day (24 hrs)</span>
                     </label>
                   </div>
                   <AvailabilityEditor availability={serviceAvailability} onChange={setServiceAvailability} />

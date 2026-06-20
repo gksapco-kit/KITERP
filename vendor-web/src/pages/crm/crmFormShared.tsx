@@ -1,5 +1,6 @@
 import { useMemo, useRef, useState } from 'react'
 import { Input } from '@/components/ui/input'
+import { Select, selectOptionsWithBlank } from '@/components/ui/select'
 import { useContacts } from '@/hooks/useCrm'
 import { useTeamMembers } from '@/hooks/useVendor'
 import type { EmployeeProfile, TeamMember } from '@/types'
@@ -136,19 +137,19 @@ function ForValueControl({
   const selected = options.find(o => o.value === value)
 
   return (
-    <select
+    <Select
       value={value}
-      onChange={e => onSelect(e.target.value)}
+      onChange={onSelect}
       disabled={!ptype || loading}
-      required={required && !!ptype}
+      options={[
+        { value: '', label: !ptype ? '—' : loading ? 'Loading…' : 'Select…' },
+        ...(value && !selected ? [{ value, label: value.includes(':') ? 'Selected record' : value }] : []),
+        ...options,
+      ]}
+      placeholder={!ptype ? '—' : loading ? 'Loading…' : 'Select…'}
+      aria-label="Participant record"
       className={inputCls}
-    >
-      <option value="">{!ptype ? '—' : loading ? 'Loading…' : 'Select…'}</option>
-      {value && !selected && (
-        <option value={value}>{value.includes(':') ? 'Selected record' : value}</option>
-      )}
-      {options.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-    </select>
+    />
   )
 }
 
@@ -204,13 +205,13 @@ export function CrmPeopleRow({
   return (
     <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
       <Field label="For">
-        <select
+        <Select
           value={participantType}
-          onChange={e => onParticipantTypeChange(e.target.value)}
+          onChange={onParticipantTypeChange}
+          options={PARTICIPANT_TYPES.map(r => ({ value: r.id, label: r.label }))}
+          aria-label="Participant type"
           className={inputCls}
-        >
-          {PARTICIPANT_TYPES.map(r => <option key={r.id || 'none'} value={r.id}>{r.label}</option>)}
-        </select>
+        />
       </Field>
       <Field label={recordLabel} required={recordRequired}>
         <ForValueControl
@@ -223,17 +224,19 @@ export function CrmPeopleRow({
         />
       </Field>
       <Field label="Responsible" required={responsibleRequired}>
-        <select
+        <Select
           value={responsible}
-          onChange={e => onResponsible(e.target.value)}
+          onChange={onResponsible}
+          options={[
+            { value: meName, label: `${meName} (me)` },
+            ...employees.filter(e => empDisplayName(e) !== meName).map(e => ({
+              value: empDisplayName(e),
+              label: empDisplayName(e),
+            })),
+          ]}
+          aria-label="Responsible person"
           className={inputCls}
-          required={responsibleRequired}
-        >
-          <option value={meName}>{meName} (me)</option>
-          {employees.filter(e => empDisplayName(e) !== meName).map(e => (
-            <option key={e.id} value={empDisplayName(e)}>{empDisplayName(e)}</option>
-          ))}
-        </select>
+        />
       </Field>
     </div>
   )
@@ -281,12 +284,17 @@ export function MonitorSection({
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
       <Field label="Monitor">
-        <select value={managerId} onChange={e => onManager(e.target.value)} className={inputCls}>
-          <option value="">— None —</option>
-          {employees.map(e => (
-            <option key={e.id} value={e.id}>{empOptionLabel(e)}</option>
-          ))}
-        </select>
+        <Select
+          value={managerId}
+          onChange={onManager}
+          options={selectOptionsWithBlank('— None —', employees.map(e => ({
+            value: e.id,
+            label: empOptionLabel(e),
+          })))}
+          placeholder="— None —"
+          aria-label="Monitor"
+          className={inputCls}
+        />
       </Field>
       <Field label="Also watch">
         <div className="space-y-1.5">

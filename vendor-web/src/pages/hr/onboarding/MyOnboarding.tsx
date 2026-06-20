@@ -1,3 +1,4 @@
+import { Select } from '@/components/ui/select'
 import { useMyChecklist, useUpdateOnbTask } from '@/hooks/useVendor'
 import type { OnboardingChecklist, OnboardingTask } from '@/types'
 import { CheckCircle2, Circle, Clock as ClockIcon, ListChecks } from 'lucide-react'
@@ -66,10 +67,12 @@ export default function MyOnboardingPage() {
                   {t.category && `${t.category} · `}{t.due_date && `Due ${t.due_date}`}
                 </p>
               </div>
-              <select value={t.status} onChange={e => update.mutate({ id: t.id, data: { status: e.target.value } })}
-                className="text-xs border rounded px-2 py-1">
-                {Object.entries(TASK_STATUS).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
-              </select>
+              <Select
+                value={t.status}
+                onChange={v => update.mutate({ id: t.id, data: { status: v } })}
+                className="w-28"
+                options={Object.entries(TASK_STATUS).map(([k, v]) => ({ value: k, label: v.label }))}
+              />
             </div>
           )
         })}

@@ -166,7 +166,7 @@ export function BOMEditor({ productId, productName }: BOMEditorProps) {
                         </button>
 
                         {showPicker === idx && (
-                          <div className="absolute top-full left-0 z-50 mt-1 w-72 bg-white border border-gray-200 rounded-xl shadow-xl max-h-[90vh] overflow-y-auto">
+                          <div className="absolute top-full left-0 z-50 mt-1 w-72 bg-popover text-popover-foreground border border-border rounded-xl shadow-xl max-h-[90vh] overflow-y-auto">
                             <div className="p-2 border-b flex items-center gap-2">
                               <Search className="w-3.5 h-3.5 text-gray-400 shrink-0" />
                               <input

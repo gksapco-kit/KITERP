@@ -1066,14 +1066,14 @@ export default function POS() {
 
             {/* ── Suggestion Dropdown ── */}
             {showSuggestions && search.trim().length >= 2 && (
-              <div className="absolute top-full left-0 right-0 mt-1 z-50 bg-white border border-gray-200 rounded-xl shadow-xl overflow-hidden max-h-80 overflow-y-auto">
+              <div className="absolute top-full left-0 right-0 mt-1 z-50 bg-popover text-popover-foreground border border-border rounded-xl shadow-xl overflow-hidden max-h-80 overflow-y-auto">
                 {suggestions.length === 0 ? (
                   <div className="px-4 py-3 text-sm text-gray-400 text-center">
                     No matches for "<span className="font-medium text-gray-600">{search}</span>"
                   </div>
                 ) : (
                   <>
-                    <div className="px-3 py-1.5 text-xs font-medium text-gray-400 uppercase tracking-wide bg-gray-50 border-b border-gray-100 flex items-center justify-between">
+                    <div className="px-3 py-1.5 text-xs font-medium text-gray-400 uppercase tracking-wide bg-gray-50 border-b border-border flex items-center justify-between">
                       <span>{suggestions.length} match{suggestions.length !== 1 ? 'es' : ''}</span>
                       <span className="text-xs text-gray-300 normal-case font-normal">↑↓ navigate · Enter to add</span>
                     </div>
@@ -1803,7 +1803,7 @@ export default function POS() {
       {/* Variant Picker Modal — shown when catalog product has variants */}
       {variantPickerProduct && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 overflow-y-auto" onClick={() => setVariantPickerProduct(null)}>
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-sm mx-4 max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+          <div className="bg-card border border-border text-foreground rounded-xl shadow-2xl w-full max-w-sm mx-4 max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between px-4 py-3 border-b">
               <div>
                 <h3 className="font-semibold text-gray-900 text-sm">{variantPickerProduct.name}</h3>
@@ -2093,8 +2093,8 @@ function PaymentModal({
   ]
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 overflow-y-auto" onClick={onClose}>
-      <div className="bg-white rounded-xl shadow-xl w-full max-w-md mx-4 max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+    <div data-kiterp-modal className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 overflow-y-auto" onClick={onClose}>
+      <div className="bg-card border border-border text-foreground rounded-xl shadow-2xl w-full max-w-md mx-4 max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
         <div className={`flex items-center justify-between px-6 py-4 border-b ${
           txnMode === 'return' ? 'bg-red-50' : ''
         }`}>
@@ -2479,7 +2479,7 @@ function PostSaleReceipt({ data, invSettings, vendor, posSettings, onClose, onNe
 
   return (
     <div className="max-w-lg mx-auto py-8 space-y-6">
-      <div className="bg-white rounded-2xl border shadow-lg overflow-hidden max-h-[90vh] overflow-y-auto">
+      <div className="bg-card border border-border text-foreground rounded-2xl shadow-2xl overflow-hidden max-h-[90vh] overflow-y-auto">
         <div className={`px-6 py-5 text-center ${txnMode === 'return' ? 'bg-red-50' : 'bg-green-50'}`}>
           <div className={`w-14 h-14 rounded-full mx-auto mb-3 flex items-center justify-center ${txnMode === 'return' ? 'bg-red-100' : 'bg-green-100'}`}>
             <Check className={`w-7 h-7 ${txnMode === 'return' ? 'text-red-600' : 'text-green-600'}`} />
@@ -3775,7 +3775,7 @@ function POSInvoiceSettingsModal({
 
   return (
     <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center overflow-y-auto" onClick={onClose}>
-      <div className="bg-white rounded-xl shadow-2xl w-full max-w-5xl mx-4 max-h-[92vh] flex flex-col overflow-hidden" onClick={e => e.stopPropagation()}>
+      <div className="bg-card border border-border text-foreground rounded-xl shadow-2xl w-full max-w-5xl mx-4 max-h-[92vh] flex flex-col overflow-hidden" onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between px-6 py-3.5 border-b bg-gray-50">
           <div>
             <h2 className="font-semibold text-gray-900 flex items-center gap-2">
@@ -4322,7 +4322,7 @@ function ModifierPickerModal({
 
   return (
     <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 overflow-y-auto" onClick={onClose}>
-      <div className="bg-white rounded-xl shadow-xl w-full max-w-sm mx-4 max-h-[85vh] flex flex-col" onClick={e => e.stopPropagation()}>
+      <div className="bg-card border border-border text-foreground rounded-xl shadow-2xl w-full max-w-sm mx-4 max-h-[85vh] flex flex-col" onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between px-5 py-4 border-b">
           <div>
             <h3 className="font-semibold text-gray-900 text-sm">{item.name}</h3>

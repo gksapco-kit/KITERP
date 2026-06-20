@@ -2,6 +2,7 @@ import { useMemo } from 'react'
 import { useStorageLocationTree } from '@/hooks/useVendor'
 import type { StorageLocation } from '@/types'
 import { Loader2 } from 'lucide-react'
+import { Select, type SelectOption } from '@/components/ui/select'
 
 function flattenLocations(
   nodes: StorageLocation[],
@@ -36,40 +37,39 @@ export function StorageLocationSelect({
 }: Props) {
   const { data, isLoading } = useStorageLocationTree(storeId || null)
 
-  const options = useMemo(
-    () => flattenLocations(data?.locations ?? []),
-    [data?.locations],
-  )
+  const options = useMemo((): SelectOption[] => {
+    const flat = flattenLocations(data?.locations ?? [])
+    const list: SelectOption[] = allowEmpty ? [{ value: '', label: emptyLabel }] : []
+    return [...list, ...flat.map((o) => ({ value: o.id, label: o.label }))]
+  }, [data?.locations, allowEmpty, emptyLabel])
 
   if (!storeId) {
     return (
-      <p className="text-xs text-gray-400">Select a business unit first to pick a storage location.</p>
+      <p className="text-xs text-muted-foreground">Select a business unit first to pick a storage location.</p>
     )
   }
 
   if (isLoading) {
-    return <Loader2 className="w-4 h-4 animate-spin text-gray-300" />
+    return <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
   }
 
-  if (options.length === 0) {
+  if (options.length <= (allowEmpty ? 1 : 0)) {
     return (
-      <p className="text-xs text-gray-400">
+      <p className="text-xs text-muted-foreground">
         No storage locations for this unit.{' '}
-        <a href="/storage-locations" className="text-indigo-600 underline">Create locations</a>
+        <a href="/storage-locations" className="text-primary underline">Create locations</a>
       </p>
     )
   }
 
   return (
-    <select
-      className={className}
+    <Select
       value={value}
-      onChange={e => onChange(e.target.value)}
-    >
-      {allowEmpty && <option value="">{emptyLabel}</option>}
-      {options.map(o => (
-        <option key={o.id} value={o.id}>{o.label}</option>
-      ))}
-    </select>
+      onChange={onChange}
+      options={options}
+      placeholder={emptyLabel}
+      aria-label="Storage location"
+      className={className}
+    />
   )
 }

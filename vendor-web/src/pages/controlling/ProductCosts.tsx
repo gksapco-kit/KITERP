@@ -13,10 +13,16 @@ import {
   useApplyOverheadToCostVersion,
   useOverheadPools,
 } from '@/hooks/useControlling'
-import { formatCurrency } from '@/lib/utils'
+import { formatCurrency, cn } from '@/lib/utils'
 import { toast } from 'sonner'
 import { ArrowLeft, Boxes, RefreshCw, Plus, GitBranch, Layers, ChevronDown, ChevronRight } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+
+const fieldClass =
+  'rounded-lg border border-input bg-background px-2 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring [color-scheme:dark]'
+const labelClass = 'flex flex-col gap-1 text-xs text-muted-foreground'
+const selectClass = cn(fieldClass, 'min-w-[180px]')
+const cardClass = 'rounded-xl border border-border bg-card p-4 space-y-3'
 
 export default function ControllingProductCostsPage() {
   const { data: companies = [] } = useCompanies()
@@ -106,19 +112,19 @@ export default function ControllingProductCostsPage() {
       </div>
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
+          <h1 className="flex items-center gap-2 text-2xl font-bold text-foreground">
             <Boxes className="w-7 h-7 text-primary" /> Product Cost Planning
           </h1>
-          <p className="text-sm text-gray-500 mt-1">Standard Costs, BOM Explosion, Material / Activity / Overhead Breakdown.</p>
+          <p className="mt-1 text-sm text-muted-foreground">Standard Costs, BOM Explosion, Material / Activity / Overhead Breakdown.</p>
         </div>
-        <div className="flex flex-wrap gap-2 items-end">
+        <div className="flex flex-wrap items-end gap-2">
           {companies.length > 0 && (
-            <label className="flex flex-col gap-1 text-xs text-gray-600">
+            <label className={labelClass}>
               Company
               <select
                 value={activeCo}
                 onChange={e => setCompanyId(e.target.value)}
-                className="rounded-lg border border-gray-200 px-3 py-2 text-sm bg-white min-w-[180px]"
+                className={selectClass}
               >
                 {companies.map(c => (
                   <option key={c.id} value={c.id}>{c.code}</option>
@@ -133,15 +139,15 @@ export default function ControllingProductCostsPage() {
       </div>
 
       {showNew && (
-        <div className="rounded-xl border border-gray-200 bg-white p-4 space-y-3">
-          <h3 className="font-semibold text-gray-800">New cost version</h3>
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
-            <label className="text-xs text-gray-600 flex flex-col gap-1">
+        <div className={cardClass}>
+          <h3 className="font-semibold text-foreground">New cost version</h3>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-4">
+            <label className={labelClass}>
               Product
               <select
                 value={form.product_id}
                 onChange={e => setForm(f => ({ ...f, product_id: e.target.value }))}
-                className="rounded-lg border border-gray-200 px-2 py-2 text-sm"
+                className={fieldClass}
               >
                 <option value="">Select…</option>
                 {products.map(p => (
@@ -149,48 +155,48 @@ export default function ControllingProductCostsPage() {
                 ))}
               </select>
             </label>
-            <label className="text-xs text-gray-600 flex flex-col gap-1">
+            <label className={labelClass}>
               Version code
               <input
                 value={form.version_code}
                 onChange={e => setForm(f => ({ ...f, version_code: e.target.value }))}
-                className="rounded-lg border border-gray-200 px-2 py-2 text-sm"
+                className={fieldClass}
               />
             </label>
-            <label className="text-xs text-gray-600 flex flex-col gap-1">
+            <label className={labelClass}>
               Valid from
               <input
                 type="date"
                 value={form.valid_from}
                 onChange={e => setForm(f => ({ ...f, valid_from: e.target.value }))}
-                className="rounded-lg border border-gray-200 px-2 py-2 text-sm"
+                className={fieldClass}
               />
             </label>
-            <label className="text-xs text-gray-600 flex flex-col gap-1">
+            <label className={labelClass}>
               Status
               <select
                 value={form.status}
                 onChange={e => setForm(f => ({ ...f, status: e.target.value }))}
-                className="rounded-lg border border-gray-200 px-2 py-2 text-sm"
+                className={fieldClass}
               >
                 <option value="draft">draft</option>
                 <option value="active">active</option>
               </select>
             </label>
           </div>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2 pt-1">
             <Button type="button" onClick={onCreate} disabled={createCost.isPending}>Create</Button>
-            <Button type="button" variant="cancel" onClick={() => setShowNew(false)}>Cancel</Button>
+            <Button type="button" variant="outline" onClick={() => setShowNew(false)}>Cancel</Button>
           </div>
         </div>
       )}
 
-      <div className="rounded-xl border border-gray-200 bg-white overflow-hidden">
+      <div className="overflow-hidden rounded-xl border border-border bg-card">
         {isLoading ? (
-          <div className="p-8 text-gray-500">Loading…</div>
+          <div className="p-8 text-muted-foreground">Loading…</div>
         ) : (
           <table className="w-full text-sm">
-            <thead className="bg-gray-50 text-left text-gray-600">
+            <thead className="bg-muted/40 text-left text-muted-foreground">
               <tr>
                 <th className="px-4 py-3 font-medium" />
                 <th className="px-4 py-3 font-medium"><TableColumnLabel>Version</TableColumnLabel></th>
@@ -206,7 +212,7 @@ export default function ControllingProductCostsPage() {
             </thead>
             <tbody>
               {versions.length === 0 ? (
-                <tr><td colSpan={10} className="px-4 py-8 text-center text-gray-500">No cost versions yet.</td></tr>
+                <tr><td colSpan={10} className="px-4 py-8 text-center text-muted-foreground">No cost versions yet.</td></tr>
               ) : (
                 (versions as Array<{
                   id: string; version_code: string; product_id: string; status: string
@@ -224,23 +230,29 @@ export default function ControllingProductCostsPage() {
                   const indirectPools = pools.filter(p => p.overhead_type !== 'direct')
                   return (
                     <>
-                      <tr key={v.id} className={`border-t border-gray-100 cursor-pointer ${isExpanded ? 'bg-accent/60' : 'hover:bg-gray-50'}`}
+                      <tr key={v.id} className={cn(
+                        'cursor-pointer border-t border-border',
+                        isExpanded ? 'bg-primary/10' : 'hover:bg-muted/30',
+                      )}
                         onClick={() => setExpandedId(isExpanded ? null : v.id)}>
-                        <td className="px-3 py-3 text-gray-400">
-                          {isExpanded ? <ChevronDown className="w-4 h-4 text-primary/80" /> : <ChevronRight className="w-4 h-4" />}
+                        <td className="px-3 py-3 text-muted-foreground">
+                          {isExpanded ? <ChevronDown className="w-4 h-4 text-primary" /> : <ChevronRight className="w-4 h-4" />}
                         </td>
-                        <td className="px-4 py-3 font-medium text-gray-900">{v.version_code}</td>
-                        <td className="px-4 py-3 text-gray-700">{pname}</td>
+                        <td className="px-4 py-3 font-medium text-foreground">{v.version_code}</td>
+                        <td className="px-4 py-3 text-foreground">{pname}</td>
                         <td className="px-4 py-3">
-                          <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${
-                            v.status === 'active' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-700'
-                          }`}>{v.status}</span>
+                          <span className={cn(
+                            'rounded-full px-2 py-0.5 text-xs font-medium',
+                            v.status === 'active'
+                              ? 'bg-green-500/15 text-green-700 dark:text-green-300'
+                              : 'bg-muted text-muted-foreground',
+                          )}>{v.status}</span>
                         </td>
-                        <td className="px-4 py-3 text-right tabular-nums text-gray-600">{formatCurrency(Number(v.material_total_planned ?? 0))}</td>
+                        <td className="px-4 py-3 text-right tabular-nums text-muted-foreground">{formatCurrency(Number(v.material_total_planned ?? 0))}</td>
                         <td className="px-4 py-3 text-right tabular-nums text-primary">{formatCurrency(Number(v.activity_total_planned ?? 0))}</td>
-                        <td className="px-4 py-3 text-right tabular-nums text-blue-600">{formatCurrency(Number(v.direct_overhead_total_planned ?? 0))}</td>
-                        <td className="px-4 py-3 text-right tabular-nums text-amber-600">{formatCurrency(Number(v.indirect_overhead_total_planned ?? 0))}</td>
-                        <td className="px-4 py-3 text-right tabular-nums font-semibold text-gray-900">
+                        <td className="px-4 py-3 text-right tabular-nums text-blue-600 dark:text-blue-400">{formatCurrency(Number(v.direct_overhead_total_planned ?? 0))}</td>
+                        <td className="px-4 py-3 text-right tabular-nums text-amber-600 dark:text-amber-400">{formatCurrency(Number(v.indirect_overhead_total_planned ?? 0))}</td>
+                        <td className="px-4 py-3 text-right tabular-nums font-semibold text-foreground">
                           {formatCurrency(Number(v.rolled_up_unit_cost))}
                         </td>
                         <td className="px-4 py-3 text-right space-x-2" onClick={e => e.stopPropagation()}>
@@ -255,24 +267,24 @@ export default function ControllingProductCostsPage() {
                       </tr>
 
                       {isExpanded && (
-                        <tr key={`${v.id}-detail`} className="bg-gray-50/60">
-                          <td colSpan={10} className="px-6 py-4 space-y-5">
+                        <tr key={`${v.id}-detail`} className="bg-muted/20">
+                          <td colSpan={10} className="space-y-5 px-6 py-4">
 
                             {/* ── Routing & Overhead selectors ─────────────────── */}
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
 
                               {/* Routing selector */}
-                              <div className="rounded-xl border border-gray-200 bg-white p-4 space-y-3">
+                              <div className={cardClass}>
                                 <div className="flex items-center gap-2">
-                                  <GitBranch className="w-4 h-4 text-primary/80" />
-                                  <h3 className="text-sm font-semibold text-gray-800">Routing selection</h3>
+                                  <GitBranch className="h-4 w-4 text-primary" />
+                                  <h3 className="text-sm font-semibold text-foreground">Routing selection</h3>
                                 </div>
-                                <p className="text-xs text-gray-400">
+                                <p className="text-xs text-muted-foreground">
                                   Select an active routing to auto-generate labor, machine and direct overhead lines.
                                 </p>
                                 <select
                                   defaultValue={v.routing_id ?? ''}
-                                  className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm bg-white"
+                                  className={cn(fieldClass, 'w-full px-3')}
                                   onChange={async e => {
                                     try {
                                       await setRouting.mutateAsync({ versionId: v.id, routing_id: e.target.value || null })
@@ -287,30 +299,30 @@ export default function ControllingProductCostsPage() {
                                   ))}
                                 </select>
                                 {linkedRouting && (
-                                  <p className="text-xs text-emerald-600 font-medium">
+                                  <p className="text-xs font-medium text-green-600 dark:text-green-400">
                                     ✓ Linked: {linkedRouting.code} v{linkedRouting.version}
                                   </p>
                                 )}
                               </div>
 
                               {/* Indirect overhead application */}
-                              <div className="rounded-xl border border-gray-200 bg-white p-4 space-y-3">
+                              <div className={cardClass}>
                                 <div className="flex items-center gap-2">
-                                  <Layers className="w-4 h-4 text-amber-500" />
-                                  <h3 className="text-sm font-semibold text-gray-800">Apply indirect overhead</h3>
+                                  <Layers className="h-4 w-4 text-amber-500" />
+                                  <h3 className="text-sm font-semibold text-foreground">Apply indirect overhead</h3>
                                 </div>
-                                <p className="text-xs text-gray-400">
+                                <p className="text-xs text-muted-foreground">
                                   Apply active indirect overhead pools using their absorption formula.
                                 </p>
                                 {indirectPools.length === 0 ? (
-                                  <p className="text-xs text-gray-400">No indirect overhead pools configured.</p>
+                                  <p className="text-xs text-muted-foreground">No indirect overhead pools configured.</p>
                                 ) : (
-                                  <div className="space-y-1 text-xs text-gray-600 max-h-24 overflow-auto">
+                                  <div className="max-h-24 space-y-1 overflow-auto text-xs text-muted-foreground">
                                     {indirectPools.map(p => (
                                       <div key={p.id} className="flex items-center gap-2">
-                                        <span className="w-2 h-2 rounded-full bg-amber-400 shrink-0" />
-                                        <span className="font-mono text-amber-700">{p.code}</span>
-                                        <span className="text-gray-500">{p.name}</span>
+                                        <span className="h-2 w-2 shrink-0 rounded-full bg-amber-400" />
+                                        <span className="font-mono text-amber-600 dark:text-amber-400">{p.code}</span>
+                                        <span>{p.name}</span>
                                       </div>
                                     ))}
                                   </div>
@@ -330,12 +342,12 @@ export default function ControllingProductCostsPage() {
                             </div>
 
                             {/* ── Costing sheet ─────────────────────────────────── */}
-                            <div className="rounded-xl border border-gray-200 bg-white overflow-hidden">
-                              <div className="px-4 py-3 bg-gray-50 border-b border-gray-100">
-                                <h3 className="text-sm font-semibold text-gray-800">Standard costing sheet</h3>
+                            <div className="overflow-hidden rounded-xl border border-border bg-card">
+                              <div className="border-b border-border bg-muted/30 px-4 py-3">
+                                <h3 className="text-sm font-semibold text-foreground">Standard costing sheet</h3>
                               </div>
                               <table className="w-full text-xs">
-                                <thead className="bg-gray-50 text-gray-500">
+                                <thead className="bg-muted/30 text-muted-foreground">
                                   <tr>
                                     <th className="px-3 py-2 text-left font-medium"><TableColumnLabel>Category</TableColumnLabel></th>
                                     <th className="px-3 py-2 text-left font-medium"><TableColumnLabel>Description</TableColumnLabel></th>
@@ -345,9 +357,9 @@ export default function ControllingProductCostsPage() {
                                     <th className="px-3 py-2 text-right font-medium"><TableColumnLabel>% of total</TableColumnLabel></th>
                                   </tr>
                                 </thead>
-                                <tbody className="divide-y divide-gray-100">
+                                <tbody className="divide-y divide-border">
                                   {(v.lines ?? []).length === 0 && (
-                                    <tr><td colSpan={6} className="px-3 py-6 text-center text-gray-400">
+                                    <tr><td colSpan={6} className="px-3 py-6 text-center text-muted-foreground">
                                       No lines yet — roll-up BOM and/or link a routing.
                                     </td></tr>
                                   )}
@@ -357,39 +369,39 @@ export default function ControllingProductCostsPage() {
                                     const catTotal = catLines.reduce((s, ln) => s + Number(ln.amount_planned), 0)
                                     const total = Number(v.rolled_up_unit_cost) || 1
                                     const catBadge: Record<string, string> = {
-                                      material: 'bg-blue-100 text-blue-700',
-                                      activity: 'bg-primary/10 text-primary',
-                                      direct_overhead: 'bg-sky-100 text-sky-700',
-                                      indirect_overhead: 'bg-amber-100 text-amber-700',
-                                      scrap: 'bg-red-100 text-red-500',
-                                      other: 'bg-gray-100 text-gray-500',
+                                      material: 'bg-blue-500/15 text-blue-700 dark:text-blue-300',
+                                      activity: 'bg-primary/15 text-primary',
+                                      direct_overhead: 'bg-sky-500/15 text-sky-700 dark:text-sky-300',
+                                      indirect_overhead: 'bg-amber-500/15 text-amber-700 dark:text-amber-300',
+                                      scrap: 'bg-red-500/15 text-red-600 dark:text-red-300',
+                                      other: 'bg-muted text-muted-foreground',
                                     }
                                     return (
                                       <>
                                         {catLines.map((ln, i) => (
-                                          <tr key={ln.id} className="hover:bg-gray-50">
+                                          <tr key={ln.id} className="hover:bg-muted/25">
                                             <td className="px-3 py-1.5">
                                               {i === 0 && (
-                                                <span className={`text-xs font-bold px-1.5 py-0.5 rounded-full uppercase ${catBadge[cat]}`}>
+                                                <span className={cn('rounded-full px-1.5 py-0.5 text-xs font-bold uppercase', catBadge[cat])}>
                                                   {cat.replace(/_/g, ' ')}
                                                 </span>
                                               )}
                                             </td>
-                                            <td className="px-3 py-1.5 text-gray-700">{ln.description ?? '—'}</td>
-                                            <td className="px-3 py-1.5 text-right tabular-nums text-gray-500">{Number(ln.qty_planned).toFixed(4)}</td>
-                                            <td className="px-3 py-1.5 text-right tabular-nums text-gray-500">{formatCurrency(Number(ln.rate_planned))}</td>
-                                            <td className="px-3 py-1.5 text-right tabular-nums font-medium text-gray-800">{formatCurrency(Number(ln.amount_planned))}</td>
-                                            <td className="px-3 py-1.5 text-right tabular-nums text-gray-400">
+                                            <td className="px-3 py-1.5 text-foreground">{ln.description ?? '—'}</td>
+                                            <td className="px-3 py-1.5 text-right tabular-nums text-muted-foreground">{Number(ln.qty_planned).toFixed(4)}</td>
+                                            <td className="px-3 py-1.5 text-right tabular-nums text-muted-foreground">{formatCurrency(Number(ln.rate_planned))}</td>
+                                            <td className="px-3 py-1.5 text-right tabular-nums font-medium text-foreground">{formatCurrency(Number(ln.amount_planned))}</td>
+                                            <td className="px-3 py-1.5 text-right tabular-nums text-muted-foreground">
                                               {((Number(ln.amount_planned) / total) * 100).toFixed(1)}%
                                             </td>
                                           </tr>
                                         ))}
-                                        <tr className={`border-t border-dashed border-gray-200 ${catBadge[cat].split(' ')[0]}/10`}>
-                                          <td colSpan={4} className={`px-3 py-1 text-right text-xs font-bold uppercase ${catBadge[cat].split(' ')[1]}`}>
+                                        <tr className="border-t border-dashed border-border">
+                                          <td colSpan={4} className={cn('px-3 py-1 text-right text-xs font-bold uppercase', catBadge[cat].split(' ').slice(1).join(' '))}>
                                             {cat.replace(/_/g, ' ')} subtotal
                                           </td>
-                                          <td className="px-3 py-1 text-right tabular-nums font-bold text-gray-900">{formatCurrency(catTotal)}</td>
-                                          <td className="px-3 py-1 text-right tabular-nums text-gray-500 text-xs">
+                                          <td className="px-3 py-1 text-right tabular-nums font-bold text-foreground">{formatCurrency(catTotal)}</td>
+                                          <td className="px-3 py-1 text-right tabular-nums text-xs text-muted-foreground">
                                             {((catTotal / total) * 100).toFixed(1)}%
                                           </td>
                                         </tr>
@@ -398,15 +410,15 @@ export default function ControllingProductCostsPage() {
                                   })}
                                 </tbody>
                                 {(v.lines ?? []).length > 0 && (
-                                  <tfoot className="bg-gray-50 border-t-2 border-gray-200">
+                                  <tfoot className="border-t-2 border-border bg-muted/30">
                                     <tr>
-                                      <td colSpan={4} className="px-3 py-2 font-bold text-gray-800 text-xs uppercase">
+                                      <td colSpan={4} className="px-3 py-2 text-xs font-bold uppercase text-foreground">
                                         Total standard cost / unit
                                       </td>
-                                      <td className="px-3 py-2 text-right font-bold text-gray-900 tabular-nums">
+                                      <td className="px-3 py-2 text-right font-bold tabular-nums text-foreground">
                                         {formatCurrency(Number(v.rolled_up_unit_cost))}
                                       </td>
-                                      <td className="px-3 py-2 text-right text-gray-400 text-xs">100%</td>
+                                      <td className="px-3 py-2 text-right text-xs text-muted-foreground">100%</td>
                                     </tr>
                                   </tfoot>
                                 )}

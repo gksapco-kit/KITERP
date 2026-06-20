@@ -1,13 +1,22 @@
 import type { MouseEvent, ReactNode } from 'react'
 import { X } from 'lucide-react'
 import { cn, onModalBackdropClick } from '@/lib/utils'
+import {
+  modalBodyClass,
+  modalCloseBtnClass,
+  modalFooterClass,
+  modalHeaderClass,
+  modalOverlayCenterClass,
+  modalPanelClass,
+  modalTitleClass,
+} from '@/lib/modalUi'
 import { useEscapeToClose } from '@/hooks/useEscapeToClose'
 
 export function ModalEscHint({ className }: { className?: string }) {
   return (
     <kbd
       className={cn(
-        'hidden sm:inline-flex items-center rounded border border-gray-200 bg-gray-50 px-1.5 py-0.5 text-[0.65rem] font-medium text-gray-500 shadow-sm',
+        'hidden sm:inline-flex items-center rounded border border-border bg-muted px-1.5 py-0.5 text-[0.65rem] font-medium text-muted-foreground shadow-sm',
         className,
       )}
     >
@@ -33,7 +42,7 @@ export function ModalCloseButton({
         data-escape-close
         onClick={onClose}
         className={cn(
-          'p-1.5 rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors',
+          modalCloseBtnClass,
           className,
         )}
         aria-label="Close"
@@ -58,10 +67,7 @@ export function ModalOverlay({
   return (
     <div
       data-kiterp-modal
-      className={cn(
-        'fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 overflow-y-auto',
-        className,
-      )}
+      className={cn(modalOverlayCenterClass, className)}
       onClick={onModalBackdropClick(onClose)}
     >
       {children}
@@ -80,10 +86,7 @@ export function ModalPanel({
 }) {
   return (
     <div
-      className={cn(
-        'bg-white rounded-xl shadow-xl w-full my-auto max-h-[min(90dvh,calc(100vh-2rem))] flex flex-col overflow-hidden',
-        className,
-      )}
+      className={cn(modalPanelClass, className)}
       onClick={onClick ?? (e => e.stopPropagation())}
     >
       {children}
@@ -113,7 +116,7 @@ export function ModalFooter({
   className?: string
 }) {
   return (
-    <div className={cn('shrink-0', className)}>
+    <div className={cn(modalFooterClass, className)}>
       {children}
     </div>
   )
@@ -131,10 +134,10 @@ export function ModalHeader({
   className?: string
 }) {
   return (
-    <div className={cn('flex items-start justify-between gap-3', className)}>
+    <div className={cn(modalHeaderClass, className)}>
       <div className="min-w-0">
         {typeof title === 'string' ? (
-          <h2 className="font-semibold text-lg text-gray-900">{title}</h2>
+          <h2 className={modalTitleClass}>{title}</h2>
         ) : (
           title
         )}

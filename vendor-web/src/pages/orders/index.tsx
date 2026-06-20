@@ -5,6 +5,7 @@ import { useVendorStore } from '@/stores/vendorStore'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { Select, selectOptionsWithBlank } from '@/components/ui/select'
 import { useOrders, useUpdateOrderStatus, useOrderReservations, useStores } from '@/hooks/useVendor'
 import { MRPReportModal } from '@/components/mrp/MRPReportModal'
 import type { MRPItem } from '@/components/mrp/MRPReportModal'
@@ -32,17 +33,28 @@ const statusFilters = [
 
 const statusStyle: Record<string, string> = {
   quote_requested: 'bg-primary/10 text-primary',
-  pending: 'bg-yellow-100 text-yellow-700',
-  confirmed: 'bg-blue-100 text-blue-700',
-  processing: 'bg-indigo-100 text-indigo-700',
+  pending: 'bg-yellow-500/15 text-yellow-800 dark:text-yellow-300',
+  confirmed: 'bg-blue-500/15 text-blue-800 dark:text-blue-300',
+  processing: 'bg-indigo-500/15 text-indigo-800 dark:text-indigo-300',
   shipped: 'bg-primary/12 text-primary',
-  delivered: 'bg-green-100 text-green-700',
-  cancelled: 'bg-red-100 text-red-700',
-  return_requested: 'bg-amber-100 text-amber-700',
-  exchange_requested: 'bg-amber-100 text-amber-700',
-  returned: 'bg-orange-100 text-orange-700',
-  exchanged: 'bg-indigo-100 text-indigo-700',
-  refunded: 'bg-gray-100 text-gray-700',
+  delivered: 'bg-green-500/15 text-green-800 dark:text-green-300',
+  cancelled: 'bg-red-500/15 text-red-800 dark:text-red-300',
+  return_requested: 'bg-amber-500/15 text-amber-800 dark:text-amber-300',
+  exchange_requested: 'bg-amber-500/15 text-amber-800 dark:text-amber-300',
+  returned: 'bg-orange-500/15 text-orange-800 dark:text-orange-300',
+  exchanged: 'bg-indigo-500/15 text-indigo-800 dark:text-indigo-300',
+  refunded: 'bg-muted text-muted-foreground',
+}
+
+/** Table row icon buttons — muted tile + clear icon on hover (all themes). */
+const TABLE_ICON_BTN =
+  'text-muted-foreground hover:bg-muted hover:text-foreground dark:hover:bg-muted/70 dark:hover:text-foreground'
+
+const SOURCE_BADGE: Record<string, string> = {
+  online: 'bg-blue-500/15 text-blue-800 dark:text-blue-300',
+  pos: 'bg-emerald-500/15 text-emerald-800 dark:text-emerald-300',
+  booking: 'bg-primary/12 text-primary',
+  quote: 'bg-primary/10 text-primary',
 }
 
 const statusLabel: Record<string, string> = {
@@ -246,16 +258,14 @@ export default function Orders() {
                 <Download className="w-3.5 h-3.5" />Download CSV
               </Button>
               <div className="flex items-center gap-1.5">
-                <select
+                <Select
                   value={bulkStatus}
-                  onChange={(e) => setBulkStatus(e.target.value)}
-                  className="h-8 rounded-md border border-gray-300 bg-white px-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                >
-                  <option value="">Change Status…</option>
-                  {bulkStatusOptions.map((o) => (
-                    <option key={o.value} value={o.value}>{o.label}</option>
-                  ))}
-                </select>
+                  onChange={setBulkStatus}
+                  options={selectOptionsWithBlank('Change Status…', bulkStatusOptions)}
+                  placeholder="Change Status…"
+                  aria-label="Bulk status change"
+                  className="h-8 min-w-[10rem]"
+                />
                 <Button
                   variant="default"
                   size="sm"
@@ -291,35 +301,34 @@ export default function Orders() {
           />
           <ResizableTable tableId="orders" defaultWidths={[40, 130, 150, 80, 90, 90, 100, 100, 80]}>
             <thead>
-              <tr className="border-b bg-gray-50">
+              <tr className="border-b border-border bg-muted/40">
                 <th className="w-10 px-4 py-3">
                   <input
                     type="checkbox"
                     checked={allSelected}
                     onChange={toggleSelectAll}
-                    className="h-4 w-4 rounded border-gray-300 accent-blue-600"
+                    className="h-4 w-4 rounded border-input accent-primary"
                   />
                 </th>
-                <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase"><TableColumnLabel>Order</TableColumnLabel></th>
-                <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase"><TableColumnLabel>Customer</TableColumnLabel></th>
-                <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase"><TableColumnLabel>Items</TableColumnLabel></th>
-                <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase"><TableColumnLabel>Total</TableColumnLabel></th>
-                <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase"><TableColumnLabel>Source</TableColumnLabel></th>
-                <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase"><TableColumnLabel>Status</TableColumnLabel></th>
-                <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase"><TableColumnLabel>Date</TableColumnLabel></th>
-                <th className="text-right px-6 py-3 text-xs font-medium text-gray-500 uppercase"><TableColumnLabel>Action</TableColumnLabel></th>
+                <th className="px-6 py-3 text-left text-xs font-medium uppercase text-muted-foreground"><TableColumnLabel>Order</TableColumnLabel></th>
+                <th className="px-6 py-3 text-left text-xs font-medium uppercase text-muted-foreground"><TableColumnLabel>Customer</TableColumnLabel></th>
+                <th className="px-6 py-3 text-left text-xs font-medium uppercase text-muted-foreground"><TableColumnLabel>Items</TableColumnLabel></th>
+                <th className="px-6 py-3 text-left text-xs font-medium uppercase text-muted-foreground"><TableColumnLabel>Total</TableColumnLabel></th>
+                <th className="px-6 py-3 text-left text-xs font-medium uppercase text-muted-foreground"><TableColumnLabel>Source</TableColumnLabel></th>
+                <th className="px-6 py-3 text-left text-xs font-medium uppercase text-muted-foreground"><TableColumnLabel>Status</TableColumnLabel></th>
+                <th className="px-6 py-3 text-left text-xs font-medium uppercase text-muted-foreground"><TableColumnLabel>Date</TableColumnLabel></th>
+                <th className="px-6 py-3 text-right text-xs font-medium uppercase text-muted-foreground"><TableColumnLabel>Action</TableColumnLabel></th>
               </tr>
             </thead>
-            <tbody className="divide-y">
+            <tbody className="divide-y divide-border">
               {isLoading ? (
-                <tr><td colSpan={9} className="px-6 py-12 text-center"><Loader2 className="w-6 h-6 animate-spin mx-auto text-gray-400" /></td></tr>
+                <tr><td colSpan={9} className="px-6 py-12 text-center"><Loader2 className="mx-auto h-6 w-6 animate-spin text-muted-foreground" /></td></tr>
               ) : !data?.items?.length ? (
-                <tr><td colSpan={9} className="px-6 py-12 text-center text-sm text-gray-500">No orders found</td></tr>
+                <tr><td colSpan={9} className="px-6 py-12 text-center text-sm text-muted-foreground">No orders found</td></tr>
               ) : displayOrders.map((order) => {
-                const srcStyle: Record<string, string> = { online: 'bg-blue-100 text-blue-700', pos: 'bg-emerald-100 text-emerald-700', booking: 'bg-primary/12 text-primary', quote: 'bg-primary/10 text-primary' }
                 const src = order.source || 'online'
                 return (
-                <tr key={order.id} className="hover:bg-gray-50 cursor-pointer" onClick={() => {
+                <tr key={order.id} className="cursor-pointer transition-colors hover:bg-muted/40" onClick={() => {
                     if (order.source === 'booking') {
                       const bookingId = (order.items?.[0] as unknown as Record<string, unknown>)?.booking_id as string | undefined
                       if (bookingId) { navigate(`/bookings/${bookingId}`); return }
@@ -331,39 +340,39 @@ export default function Orders() {
                       type="checkbox"
                       checked={selectedIds.has(order.id)}
                       onChange={() => toggleRow(order.id)}
-                      className="h-4 w-4 rounded border-gray-300 accent-blue-600"
+                      className="h-4 w-4 rounded border-input accent-primary"
                     />
                   </td>
                   <td className="px-6 py-4">
                     {order.source === 'booking' && (order.items?.[0] as unknown as Record<string, unknown>)?.booking_number ? (
-                      <p className="text-sm font-medium text-indigo-700 font-mono">
+                      <p className="font-mono text-sm font-medium text-primary">
                         {(order.items[0] as unknown as Record<string, unknown>).booking_number as string}
                       </p>
                     ) : (
-                      <p className="text-sm font-medium">{order.order_number}</p>
+                      <p className="text-sm font-medium text-foreground">{order.order_number}</p>
                     )}
                   </td>
                   <td className="px-6 py-4">
-                    <p className="text-sm font-medium">{order.customer_name || 'Unknown'}</p>
-                    <p className="text-xs text-gray-500">{order.customer_email || ''}</p>
+                    <p className="text-sm font-medium text-foreground">{order.customer_name || 'Unknown'}</p>
+                    <p className="text-xs text-muted-foreground">{order.customer_email || ''}</p>
                   </td>
-                  <td className="px-6 py-4 text-sm text-gray-500">{order.item_count} items</td>
-                  <td className="px-6 py-4 text-sm font-medium">{formatCurrency(order.total)}</td>
+                  <td className="px-6 py-4 text-sm text-muted-foreground">{order.item_count} items</td>
+                  <td className="px-6 py-4 text-sm font-medium text-foreground">{formatCurrency(order.total)}</td>
                   <td className="px-6 py-4">
-                    <span className={`px-2 py-0.5 text-xs rounded-full font-medium uppercase ${srcStyle[src] || 'bg-gray-100'}`}>{src}</span>
+                    <span className={`rounded-full px-2 py-0.5 text-xs font-medium uppercase ${SOURCE_BADGE[src] || 'bg-muted text-muted-foreground'}`}>{src}</span>
                   </td>
                   <td className="px-6 py-4">
-                    <div className="flex items-center gap-1.5 flex-wrap">
-                      <span className={`px-2 py-0.5 text-xs rounded-full font-medium capitalize ${statusStyle[order.status] || 'bg-gray-100'}`}>{statusLabel[order.status] || order.status}</span>
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      <span className={`rounded-full px-2 py-0.5 text-xs font-medium capitalize ${statusStyle[order.status] || 'bg-muted text-muted-foreground'}`}>{statusLabel[order.status] || order.status}</span>
                       <OrderReservationBadge orderId={order.id} />
                     </div>
                   </td>
-                  <td className="px-6 py-4 text-sm text-gray-500">{formatDate(order.created_at)}</td>
+                  <td className="px-6 py-4 text-sm text-muted-foreground">{formatDate(order.created_at)}</td>
                   <td className="px-6 py-4 text-right" onClick={e => e.stopPropagation()}>
                     <div className="flex items-center justify-end gap-1">
                       <Button
                         variant="ghost"
-                        size="sm"
+                        size="icon-sm"
                         title="Material Requirement Plan"
                         onClick={e => {
                           e.stopPropagation()
@@ -375,11 +384,11 @@ export default function Orders() {
                             })
                           setMrpOrder({ id: order.id, order_number: order.order_number, items: mrpItems })
                         }}
-                        className="text-indigo-600 hover:text-indigo-800 hover:bg-indigo-50"
+                        className={TABLE_ICON_BTN}
                       >
-                        <BarChart3 className="w-4 h-4" />
+                        <BarChart3 className="h-4 w-4" />
                       </Button>
-                      <Button variant="ghost" size="sm"><Eye className="w-4 h-4" /></Button>
+                      <Button variant="ghost" size="icon-sm" className={TABLE_ICON_BTN}><Eye className="h-4 w-4" /></Button>
                     </div>
                   </td>
                 </tr>
@@ -389,8 +398,8 @@ export default function Orders() {
           </ResizableTable>
 
           {data && data.pages > 1 && (
-            <div className="flex items-center justify-between px-6 py-4 border-t bg-gray-50">
-              <p className="text-sm text-gray-500">Page {data.page} of {data.pages}</p>
+            <div className="flex items-center justify-between border-t border-border bg-muted/25 px-6 py-4">
+              <p className="text-sm text-muted-foreground">Page {data.page} of {data.pages}</p>
               <div className="flex gap-2">
                 <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage(p => p - 1)}><ChevronLeft className="w-4 h-4 mr-1" />Prev</Button>
                 <Button variant="outline" size="sm" disabled={page >= data.pages} onClick={() => setPage(p => p + 1)}>Next<ChevronRight className="w-4 h-4 ml-1" /></Button>

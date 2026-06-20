@@ -26,7 +26,7 @@ export function SectionEditorRibbon({
 
   return (
     <div
-      className="shrink-0 border-b border-gray-200 bg-gradient-to-b from-gray-50 to-white"
+      className="shrink-0 border-b border-border bg-gradient-to-b from-muted/50 to-card"
       role="tablist"
       aria-label="Section editor"
     >
@@ -43,11 +43,11 @@ export function SectionEditorRibbon({
               className={cn(
                 'relative shrink-0 min-w-[4.25rem] px-2.5 py-2 flex flex-col items-center gap-0.5 rounded-t-lg border border-b-0 transition-colors',
                 selected
-                  ? 'bg-white text-primary border-gray-200 shadow-[0_-1px_0_0_white] z-[1] -mb-px'
-                  : 'text-gray-500 border-transparent hover:text-gray-800 hover:bg-white/70',
+                  ? 'z-[1] -mb-px border-border bg-card text-primary shadow-[0_-1px_0_0_hsl(var(--card))]'
+                  : 'border-transparent text-muted-foreground hover:bg-card/70 hover:text-foreground',
               )}
             >
-              <Icon className={cn('w-4 h-4', selected ? 'text-primary' : 'text-gray-400')} />
+              <Icon className={cn('w-4 h-4', selected ? 'text-primary' : 'text-muted-foreground')} />
               <span className={cn('text-[10px] font-semibold leading-none', selected && 'text-primary')}>
                 {label}
               </span>

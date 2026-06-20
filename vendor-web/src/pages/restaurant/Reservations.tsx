@@ -10,6 +10,7 @@ import { vendorApi } from '@/api/vendor'
 import type { ReservationItem } from '@/api/vendor'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { Select, selectOptionsWithBlank } from '@/components/ui/select'
 import { PhoneInput } from '@/components/ui/PhoneInput'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
@@ -263,16 +264,17 @@ function ReservationRow({
           {seatOpen && (
             <div className="rounded-lg border bg-white p-3 space-y-2">
               <p className="text-xs font-medium text-gray-700">Assign a free table and open order</p>
-              <select
-                className="w-full h-9 rounded-md border px-2 text-sm"
+              <Select
                 value={seatTableId}
-                onChange={e => setSeatTableId(e.target.value)}
-              >
-                <option value="">Select table…</option>
-                {freeTables.map(t => (
-                  <option key={t.id} value={t.id}>{t.label} ({t.capacity} seats)</option>
-                ))}
-              </select>
+                onChange={setSeatTableId}
+                options={selectOptionsWithBlank('Select table…', freeTables.map(t => ({
+                  value: t.id,
+                  label: `${t.label} (${t.capacity} seats)`,
+                })))}
+                placeholder="Select table…"
+                aria-label="Table"
+                className="w-full"
+              />
               {freeTables.length === 0 && <p className="text-xs text-amber-700">No free tables — clear one on the floor first.</p>}
               <div className="flex gap-2 justify-end">
                 <Button size="sm" variant="outline" onClick={() => setSeatOpen(false)}>Cancel</Button>

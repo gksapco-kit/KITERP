@@ -318,16 +318,16 @@ export default function BusinessFrontHubPage() {
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <div className="min-w-0">
           <p className="text-[11px] font-semibold uppercase tracking-wide text-primary">Website Management</p>
-          <h1 className="text-xl font-bold tracking-tight text-gray-900">Dashboard</h1>
+          <h1 className="text-xl font-bold tracking-tight text-foreground">Dashboard</h1>
         </div>
-        <p className="text-xs text-gray-500 sm:max-w-sm sm:text-right">
+        <p className="text-xs text-muted-foreground sm:max-w-sm sm:text-right">
           Manage storefronts, builder sites, and public links from one place.
         </p>
       </div>
 
       <nav
         aria-label="Website tools"
-        className="rounded-xl border border-gray-200/80 bg-white px-2 py-2 shadow-sm"
+        className="rounded-xl border border-border bg-card px-2 py-2 shadow-sm dark:shadow-none dark:ring-1 dark:ring-border/60"
       >
         <ul className="grid grid-cols-2 gap-1.5 sm:grid-cols-3 lg:grid-cols-5">
           {websiteToolLinks.map(item => (
@@ -336,21 +336,25 @@ export default function BusinessFrontHubPage() {
                 to={item.to}
                 title={item.description}
                 className={cn(
-                  'flex min-h-[3.25rem] items-center gap-2 rounded-lg px-2.5 py-2 transition-colors hover:bg-accent/60',
-                  item.primary && 'bg-primary/5 ring-1 ring-inset ring-primary/15',
+                  'flex min-h-[3.25rem] items-center gap-2 rounded-lg px-2.5 py-2 transition-colors',
+                  'hover:bg-accent/60 dark:hover:bg-accent/35',
+                  item.primary &&
+                    'bg-primary/10 ring-1 ring-inset ring-primary/20 dark:bg-primary/12 dark:ring-primary/35',
                 )}
               >
                 <span
                   className={cn(
                     'inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg',
-                    item.primary ? 'bg-primary/15 text-primary' : 'bg-gray-100 text-gray-600',
+                    item.primary
+                      ? 'bg-primary/15 text-primary dark:bg-primary/20'
+                      : 'bg-muted text-muted-foreground dark:bg-secondary',
                   )}
                 >
                   <item.icon className="h-4 w-4" />
                 </span>
                 <span className="min-w-0 text-left">
-                  <span className="block truncate text-xs font-semibold text-gray-900">{item.shortTitle}</span>
-                  <span className="hidden truncate text-[10px] text-gray-500 xl:block">{item.title}</span>
+                  <span className="block truncate text-xs font-semibold text-foreground">{item.shortTitle}</span>
+                  <span className="hidden truncate text-[10px] text-muted-foreground xl:block">{item.title}</span>
                 </span>
               </Link>
             </li>
@@ -360,10 +364,10 @@ export default function BusinessFrontHubPage() {
 
       <section aria-labelledby="storefronts-heading">
         <div className="mb-2 flex items-baseline justify-between gap-3">
-          <h2 id="storefronts-heading" className="text-sm font-bold text-gray-900">
+          <h2 id="storefronts-heading" className="text-sm font-bold text-foreground">
             Storefronts
           </h2>
-          <p className="text-[11px] font-medium text-gray-500">
+          <p className="text-[11px] font-medium text-muted-foreground">
             {storefrontCards.length} live
           </p>
         </div>
@@ -391,16 +395,16 @@ export default function BusinessFrontHubPage() {
 
       {builderDraftCards.length > 0 ? (
         <>
-          <div className="border-t border-gray-200/90 pt-1" role="separator" aria-hidden="true" />
+          <div className="border-t border-border pt-1" role="separator" aria-hidden="true" />
           <section aria-labelledby="builder-drafts-heading">
             <div className="mb-2 flex items-baseline justify-between gap-3">
               <div className="min-w-0">
-                <h2 id="builder-drafts-heading" className="text-sm font-bold text-gray-900">
+                <h2 id="builder-drafts-heading" className="text-sm font-bold text-foreground">
                   Website Builder
                 </h2>
-                <p className="text-[11px] text-gray-500">Draft sites — preview before going live</p>
+                <p className="text-[11px] text-muted-foreground">Draft sites — preview before going live</p>
               </div>
-              <p className="shrink-0 text-[11px] font-medium text-gray-500">
+              <p className="shrink-0 text-[11px] font-medium text-muted-foreground">
                 {builderDraftCards.length} draft{builderDraftCards.length === 1 ? '' : 's'}
               </p>
             </div>

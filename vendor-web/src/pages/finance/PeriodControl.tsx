@@ -65,18 +65,18 @@ export default function PeriodControl() {
   )
 
   if (compLoad) {
-    return <div className="p-8 text-sm text-slate-500">Loading business units…</div>
+    return <div className="p-8 text-sm text-muted-foreground">Loading business units…</div>
   }
 
   return (
     <div className="p-6 max-w-5xl">
       <div className="mb-6 flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900 flex items-center gap-2">
+          <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
             <Calendar className="w-7 h-7 text-primary" />
             GL posting periods
           </h1>
-          <p className="text-sm text-slate-500 mt-1 max-w-2xl">
+          <p className="text-sm text-muted-foreground mt-1 max-w-2xl">
             Only business units with a <strong>linked</strong> calendar appear here. Expand a row to pick the year and
             control periods. Use <strong>Add calendar</strong> to create and link a new fiscal year. Use{' '}
             <strong>Save</strong> to store pending audit / adjustment lines.
@@ -86,7 +86,7 @@ export default function PeriodControl() {
           <button
             type="button"
             onClick={savePendingAuditForms}
-            className="inline-flex items-center gap-2 text-sm font-medium bg-[#64C3A0] text-white rounded-lg px-4 py-2.5 hover:bg-[#64C3A0]/90 shadow-sm"
+            className="inline-flex items-center gap-2 text-sm font-medium bg-primary text-primary-foreground rounded-lg px-4 py-2.5 hover:bg-primary/90 shadow-sm"
             title="Save completed audit / adjustment forms in expanded company sections"
           >
             <Save className="w-4 h-4" />
@@ -95,7 +95,7 @@ export default function PeriodControl() {
           <button
             type="button"
             onClick={() => { setCreateOpen(true) }}
-            className="inline-flex items-center gap-2 text-sm font-medium bg-primary text-white rounded-lg px-4 py-2.5 hover:bg-primary/90 shadow-sm"
+            className="inline-flex items-center gap-2 text-sm font-medium border border-border bg-background text-foreground rounded-lg px-4 py-2.5 hover:bg-muted/40 shadow-sm"
           >
             <Plus className="w-4 h-4" />
             Add calendar
@@ -103,8 +103,8 @@ export default function PeriodControl() {
         </div>
       </div>
 
-      <div className="mb-2 flex items-center gap-2 text-xs text-slate-500">
-        <ListTree className="w-4 h-4 text-indigo-500" />
+      <div className="mb-2 flex items-center gap-2 text-xs text-muted-foreground">
+        <ListTree className="w-4 h-4 text-primary" />
         {allFyLoad && <span>Loading calendars…</span>}
         {!allFyLoad && (
           <span>
@@ -115,12 +115,12 @@ export default function PeriodControl() {
 
       <div className="space-y-2 mb-6">
         {companyList.length === 0 && (
-          <p className="text-sm text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+          <p className="text-sm text-amber-900 dark:text-amber-200 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 rounded-lg px-3 py-2">
             No business units found. Add a company in Finance / master data, then return here.
           </p>
         )}
         {companyList.length > 0 && !allFyLoad && companiesWithCalendars.length === 0 && (
-          <p className="text-sm text-slate-600 bg-slate-50 border border-slate-200 rounded-lg px-3 py-3">
+          <p className="text-sm text-muted-foreground bg-muted/30 border border-border rounded-lg px-3 py-3">
             No business units have a fiscal calendar yet. Use <strong>Add calendar</strong> to create one and link it
             to a business unit — it will show up in this list after it&rsquo;s linked.
           </p>
@@ -139,7 +139,7 @@ export default function PeriodControl() {
         <button
           type="button"
           onClick={savePendingAuditForms}
-          className="inline-flex items-center gap-2 text-sm font-medium bg-[#64C3A0] text-white rounded-lg px-4 py-2.5 hover:bg-[#64C3A0]/90 shadow-sm"
+          className="inline-flex items-center gap-2 text-sm font-medium bg-primary text-primary-foreground rounded-lg px-4 py-2.5 hover:bg-primary/90 shadow-sm"
           title="Save completed audit / adjustment forms in expanded company sections"
         >
           <Save className="w-4 h-4" />
@@ -147,7 +147,7 @@ export default function PeriodControl() {
         </button>
       </div>
 
-      <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50/80 p-4 text-sm text-amber-900 flex gap-2">
+      <div className="mt-4 rounded-xl border border-amber-200 dark:border-amber-800 bg-amber-50/80 dark:bg-amber-950/35 p-4 text-sm text-amber-950 dark:text-amber-100 flex gap-2">
         <AlertTriangle className="w-5 h-5 shrink-0" />
         <p>
           Posting to a period that is <strong>not open</strong> is blocked. Audit windows are <strong>after the FY

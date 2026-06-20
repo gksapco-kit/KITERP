@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { Label } from '@/components/ui/label'
+import { Select } from '@/components/ui/select'
 import { useEscapeToClose } from '@/hooks/useEscapeToClose'
 import { useBudgets, useCreateBudget, useBudgetVariance, useForecasts, useCreateForecast } from '@/hooks/useFinance'
 import { Plus, BarChart3, X } from 'lucide-react'
@@ -130,12 +131,12 @@ export default function BudgetsForecast() {
       )}
 
       {showNewBudget && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 overflow-y-auto"
+        <div data-kiterp-modal
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 overflow-y-auto"
           onClick={closeNewBudget}
         >
           <div
-            className="bg-white rounded-xl shadow-xl w-full max-w-md p-6 space-y-4 max-h-[90vh] overflow-y-auto"
+            className="bg-card border border-border text-foreground rounded-xl shadow-2xl w-full max-w-md p-6 space-y-4 max-h-[90vh] overflow-y-auto"
             onClick={e => e.stopPropagation()}
           >
             <div className="flex items-start justify-between gap-3">
@@ -143,7 +144,7 @@ export default function BudgetsForecast() {
               <button
                 type="button"
                 onClick={closeNewBudget}
-                className="p-1.5 rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors shrink-0"
+                className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors shrink-0"
                 aria-label="Close"
               >
                 <X className="w-5 h-5" />
@@ -162,10 +163,11 @@ export default function BudgetsForecast() {
             ))}
             <div>
               <Label className="block text-xs font-medium text-gray-600 mb-1">Scope</Label>
-              <select value={budgetForm.scope} onChange={e => setBudgetForm(f => ({ ...f, scope: e.target.value }))}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
-                {['company', 'store', 'department'].map(s => <option key={s}>{s}</option>)}
-              </select>
+              <Select
+                value={budgetForm.scope}
+                onChange={v => setBudgetForm(f => ({ ...f, scope: v }))}
+                options={['company', 'store', 'department'].map(s => ({ value: s, label: s }))}
+              />
             </div>
             <div className="flex justify-end gap-2">
               <button onClick={closeNewBudget} className="btn-cancel px-4 py-2 text-sm border border-gray-300 rounded-lg">Cancel</button>

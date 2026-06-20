@@ -378,18 +378,10 @@ function variantAccentBarGradient(color: string, active: boolean): string {
   return `linear-gradient(to bottom, ${ui} 0%, color-mix(in srgb, ${ui} 35%, white) 100%)`
 }
 
-function variantPanelSurface(color: string, active: boolean): string {
-  if (!active) return 'linear-gradient(to bottom, rgb(243 244 246) 0%, white 100%)'
-  if (isLightAccentColor(color)) {
-    return 'linear-gradient(to bottom, rgb(241 245 249) 0%, rgb(248 250 252) 30%, white 100%)'
-  }
-  if (color.startsWith('#') && color.length >= 7) {
-    const r = parseInt(color.slice(1, 3), 16)
-    const g = parseInt(color.slice(3, 5), 16)
-    const b = parseInt(color.slice(5, 7), 16)
-    return `linear-gradient(to bottom, rgba(${r},${g},${b},0.14) 0%, rgba(${r},${g},${b},0.06) 28%, rgba(255,255,255,0.98) 72%, white 100%)`
-  }
-  return `linear-gradient(to bottom, color-mix(in srgb, ${color} 14%, white) 0%, color-mix(in srgb, ${color} 5%, white) 28%, white 100%)`
+function variantPanelSurfaceClass(active: boolean): string {
+  return active
+    ? 'bg-gradient-to-b from-muted/40 via-card to-card dark:from-primary/[0.07] dark:via-card dark:to-card'
+    : 'bg-gradient-to-b from-muted/25 to-card dark:from-muted/15 dark:to-card'
 }
 
 /** Soft panel like Basic / Media — tinted background + left accent, no outer box border. */
@@ -422,10 +414,7 @@ function FormTintPanel({
           style={{ background: variantAccentBarGradient(accentColor, active) }}
           aria-hidden
         />
-        <div
-          className="flex min-w-0 flex-1 flex-col"
-          style={{ background: variantPanelSurface(accentColor, active) }}
-        >
+        <div className={cn('flex min-w-0 flex-1 flex-col', variantPanelSurfaceClass(active))}>
           {header}
           {children ? (
             <div className="px-2 pb-1.5 pt-0 sm:px-2.5">{children}</div>
@@ -442,10 +431,7 @@ function FormTintPanel({
         style={{ background: variantAccentBarGradient(accentColor, active) }}
         aria-hidden
       />
-      <div
-        className="flex min-w-0 flex-1 flex-col"
-        style={{ background: variantPanelSurface(accentColor, active) }}
-      >
+      <div className={cn('flex min-w-0 flex-1 flex-col', variantPanelSurfaceClass(active))}>
       {header ?? ((title || Icon) && (
         <div className="mb-0.5 flex items-center gap-1.5 px-2 py-1.5 sm:px-2.5">
           {Icon && <Icon className="h-4 w-4 shrink-0" style={{ color: accentColor }} />}
@@ -469,12 +455,12 @@ const GENERATE_OPTIONS_ACCENT = '#0D9488'
 
 /** Compact variant/plan editor — tighter gaps, clearer section labels. */
 const variantFormUi = {
-  body: 'space-y-1 [&_label]:font-semibold [&_label]:text-gray-700',
+  body: 'space-y-1 [&_label]:font-semibold [&_label]:text-foreground',
   grid: 'gap-1.5',
-  sectionRule: 'pt-1.5 border-t border-gray-200/90',
-  sectionHeading: 'text-[11px] font-semibold uppercase tracking-wide text-gray-800',
-  mediaHeading: 'text-[11px] font-semibold uppercase tracking-wide text-indigo-900 flex items-center gap-1.5',
-  mediaHint: 'font-normal normal-case tracking-normal text-gray-500',
+  sectionRule: 'pt-1.5 border-t border-border',
+  sectionHeading: 'text-[11px] font-semibold uppercase tracking-wide text-muted-foreground',
+  mediaHeading: 'text-[11px] font-semibold uppercase tracking-wide text-primary flex items-center gap-1.5',
+  mediaHint: 'font-normal normal-case tracking-normal text-muted-foreground',
 } as const
 
 function InputWithSuffix({ suffix, className, ...props }: React.ComponentProps<typeof Input> & { suffix: string }) {
@@ -505,11 +491,11 @@ function Toggle({ label, checked, onChange }: {
         role="switch"
         aria-checked={checked}
         onClick={() => onChange(!checked)}
-        className={`relative inline-flex h-5 w-9 shrink-0 rounded-full border-2 border-transparent transition-colors ${checked ? 'bg-primary' : 'bg-gray-200'}`}
+        className={`relative inline-flex h-5 w-9 shrink-0 rounded-full border-2 border-transparent transition-colors ${checked ? 'bg-primary' : 'bg-muted'}`}
       >
-        <span className={`pointer-events-none inline-block h-4 w-4 rounded-full bg-white shadow-sm transform transition-transform ${checked ? 'translate-x-4' : 'translate-x-0'}`} />
+        <span className={`pointer-events-none inline-block h-4 w-4 rounded-full bg-background shadow-sm transform transition-transform ${checked ? 'translate-x-4' : 'translate-x-0'}`} />
       </button>
-      <span className="text-xs text-gray-700 sm:text-sm">{label}</span>
+      <span className="text-xs text-foreground sm:text-sm">{label}</span>
     </label>
   )
 }
@@ -1555,25 +1541,25 @@ function ProductDisplay({ product, onEdit, onBack, priceRules = [], merchMapping
               const rows = merchMappings.filter(m => m.relation_type === relType)
               if (rows.length === 0) return null
               const meta = relType === 'cross_sell'
-                ? { title: 'Cross-sell (Related Items)', bgBadge: 'bg-emerald-100 text-emerald-700', border: 'border-emerald-200 bg-emerald-50/30' }
-                : { title: 'Upsell (Upgrade Options)', bgBadge: 'bg-amber-100 text-amber-700', border: 'border-amber-200 bg-amber-50/30' }
+                ? { title: 'Cross-sell (Related Items)', bgBadge: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300', border: 'border-emerald-200/60 bg-emerald-500/10 dark:border-emerald-800/50 dark:bg-emerald-950/30' }
+                : { title: 'Upsell (Upgrade Options)', bgBadge: 'bg-amber-100 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300', border: 'border-amber-200/60 bg-amber-500/10 dark:border-amber-800/50 dark:bg-amber-950/30' }
               return (
                 <div key={relType} className={`rounded-xl border p-4 space-y-2 ${meta.border}`}>
                   <div className="flex items-center justify-between mb-2">
-                    <p className="text-sm font-semibold text-gray-800">{meta.title}</p>
+                    <p className="text-sm font-semibold text-foreground">{meta.title}</p>
                     <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${meta.bgBadge}`}>{rows.length}</span>
                   </div>
                   <div className="space-y-2">
                     {rows.map((row, i) => {
                       const targetProd = allProducts.find(p => p.id === row.target_product_id)
                       return (
-                        <div key={i} className="flex items-center gap-3 text-sm bg-white rounded-lg border px-3 py-2">
-                          <span className="text-gray-500 text-xs w-20 shrink-0">{row.target_type === 'category' ? 'Category' : 'Product'}</span>
-                          <span className="font-medium flex-1 truncate">
+                        <div key={i} className="flex items-center gap-3 text-sm bg-card rounded-lg border border-border px-3 py-2">
+                          <span className="text-muted-foreground text-xs w-20 shrink-0">{row.target_type === 'category' ? 'Category' : 'Product'}</span>
+                          <span className="font-medium flex-1 truncate text-foreground">
                             {row.target_type === 'category' ? row.target_category : (targetProd ? targetProd.name : row.target_product_id)}
                           </span>
-                          <span className="text-xs px-1.5 py-0.5 rounded bg-gray-100 text-gray-500">{row.trigger_stage}</span>
-                          {row.priority > 0 && <span className="text-xs text-gray-400">P{row.priority}</span>}
+                          <span className="text-xs px-1.5 py-0.5 rounded bg-muted text-muted-foreground">{row.trigger_stage}</span>
+                          {row.priority > 0 && <span className="text-xs text-muted-foreground">P{row.priority}</span>}
                         </div>
                       )
                     })}
@@ -3472,7 +3458,7 @@ export default function ProductForm() {
                     <div
                       className={cn(
                         'flex flex-wrap items-center justify-between gap-x-2 gap-y-1.5 px-2 py-1.5 sm:px-2.5 cursor-pointer select-none',
-                        isActive ? 'hover:bg-black/[0.03]' : 'hover:bg-black/[0.04]',
+                        isActive ? 'hover:bg-muted/30' : 'hover:bg-muted/20',
                       )}
                       onClick={() => toggleVariant(index)}
                     >
@@ -3496,15 +3482,13 @@ export default function ProductForm() {
                           placeholder={isSubscriptionType ? `Plan ${index + 1}` : `Variant ${index + 1}`}
                           className={cn(
                             'h-8 min-w-[7rem] max-w-[12rem] flex-1 text-sm font-semibold',
-                            lightAccent
-                              ? 'bg-white border-gray-300 text-gray-800'
-                              : 'bg-white/70 border-white/60',
-                            !isActive && 'text-gray-500',
+                            'bg-background border-border text-foreground',
+                            !isActive && 'text-muted-foreground',
                           )}
                           style={isActive && !lightAccent ? { color: uiAccent } : undefined}
                         />
                         {!isActive && (
-                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-200/80 text-gray-600 shrink-0">Inactive</span>
+                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-muted text-muted-foreground shrink-0">Inactive</span>
                         )}
                         <div
                           className="flex items-center gap-1.5 shrink-0"
@@ -3535,8 +3519,8 @@ export default function ProductForm() {
                             })}
                             placeholder="#FFFFFF"
                             className={cn(
-                              'h-7 py-0 leading-none text-xs w-[5.25rem] shrink-0 font-mono uppercase tracking-tight text-gray-800',
-                              'border border-gray-300 bg-white',
+                              'h-7 py-0 leading-none text-xs w-[5.25rem] shrink-0 font-mono uppercase tracking-tight',
+                              'border border-input bg-background text-foreground',
                               'focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-gray-500',
                             )}
                             aria-label="Color hex code"
@@ -3650,8 +3634,8 @@ export default function ProductForm() {
                                   }}
                                   className={`px-2.5 py-1 rounded-full text-xs font-medium border transition-colors ${
                                     active
-                                      ? 'bg-primary text-white border-primary'
-                                      : 'bg-white text-gray-400 border-gray-200 hover:border-primary/40 hover:text-primary'
+                                      ? 'bg-primary text-primary-foreground border-primary'
+                                      : 'bg-background text-muted-foreground border-border hover:border-primary/40 hover:text-primary'
                                   }`}>
                                   {opt.label}
                                 </button>
@@ -3839,7 +3823,7 @@ export default function ProductForm() {
                       </div>
                     </div>
                     {/* Identity — label & color are in the variant header row */}
-                    <div className={cn('grid grid-cols-2 md:grid-cols-3 pt-1.5 border-t border-gray-200/90', variantFormUi.grid)}>
+                    <div className={cn('grid grid-cols-2 md:grid-cols-3 pt-1.5 border-t border-border', variantFormUi.grid)}>
                       <FormField label="SKU"><Input {...register(`variants.${index}.sku`)} placeholder="Optional" /></FormField>
                       <FormField label="Barcode"><Input {...register(`variants.${index}.barcode`)} placeholder="Optional" /></FormField>
                       <FormField label="UOM">
@@ -3860,7 +3844,7 @@ export default function ProductForm() {
                       <div className={cn('grid grid-cols-2 md:grid-cols-4', variantFormUi.grid)}>
                         <FormField label="Qty on hand">
                           <Input type="number" min="0" {...register(`variants.${index}.quantity`)}
-                            className="border-indigo-200 bg-indigo-50/60 font-semibold" />
+                            className="font-semibold bg-primary/10 border-primary/30 dark:bg-primary/15 dark:border-primary/40" />
                         </FormField>
                         <FormField label="Low stock Alert at"><Input type="number" min="0" {...register(`variants.${index}.low_stock_threshold`)} /></FormField>
                         <FormField label="Status">
@@ -4873,14 +4857,24 @@ export default function ProductForm() {
               const categories = [...new Set(availableProducts.map(p => p.category || 'Uncategorized'))].sort()
 
               return (
-                <div key={relType} className="border rounded-xl overflow-hidden">
-                  <div className={`px-4 py-3 bg-gradient-to-r ${relType === 'cross_sell' ? 'from-emerald-50 to-white' : 'from-amber-50 to-white'} border-b`}>
+                <div key={relType} className="border border-border rounded-xl overflow-hidden bg-card">
+                  <div className={cn(
+                    'px-4 py-3 border-b',
+                    relType === 'cross_sell'
+                      ? 'bg-emerald-500/10 dark:bg-emerald-950/35 border-emerald-200/50 dark:border-emerald-800/50'
+                      : 'bg-amber-500/10 dark:bg-amber-950/35 border-amber-200/50 dark:border-amber-800/50',
+                  )}>
                     <div className="flex items-center justify-between">
                       <div>
-                        <p className="text-sm font-semibold text-gray-800">{meta.title}</p>
-                        <p className="text-xs text-gray-500">{meta.desc}</p>
+                        <p className="text-sm font-semibold text-foreground">{meta.title}</p>
+                        <p className="text-xs text-muted-foreground">{meta.desc}</p>
                       </div>
-                      <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${meta.bgBadge}`}>{rows.length}</span>
+                      <span className={cn(
+                        'text-xs font-medium px-2 py-0.5 rounded-full',
+                        relType === 'cross_sell'
+                          ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300'
+                          : 'bg-amber-100 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300',
+                      )}>{rows.length}</span>
                     </div>
                   </div>
                   <div className="p-4 space-y-3">
@@ -4890,23 +4884,23 @@ export default function ProductForm() {
                         ? availableProducts.filter(p => (p.category || 'Uncategorized') === row.target_category).length
                         : 0
                       return (
-                        <div key={row._idx} className="border rounded-lg p-3 space-y-3 bg-gray-50/50">
+                        <div key={row._idx} className="border border-border rounded-lg p-3 space-y-3 bg-muted/25 dark:bg-muted/15">
                           <div className="flex items-start gap-3">
                             <div className="flex-1 space-y-2">
                               {/* Product / Category toggle */}
                               <div className="flex items-center gap-1">
-                                <label className="text-xs font-medium text-gray-600 mr-2">Target</label>
+                                <label className="text-xs font-medium text-muted-foreground mr-2">Target</label>
                                 <button
                                   type="button"
                                   onClick={() => updateMerchMapping(row._idx, { target_type: 'product', target_category: '' })}
-                                  className={`px-3 py-1 text-xs font-medium rounded-l-md border transition-colors ${row.target_type === 'product' ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'}`}
+                                  className={`px-3 py-1 text-xs font-medium rounded-l-md border transition-colors ${row.target_type === 'product' ? 'bg-primary text-primary-foreground border-primary' : 'bg-background text-muted-foreground border-border hover:bg-muted/40'}`}
                                 >
                                   Product
                                 </button>
                                 <button
                                   type="button"
                                   onClick={() => updateMerchMapping(row._idx, { target_type: 'category', target_product_id: '' })}
-                                  className={`px-3 py-1 text-xs font-medium rounded-r-md border border-l-0 transition-colors ${row.target_type === 'category' ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'}`}
+                                  className={`px-3 py-1 text-xs font-medium rounded-r-md border border-l-0 transition-colors ${row.target_type === 'category' ? 'bg-primary text-primary-foreground border-primary' : 'bg-background text-muted-foreground border-border hover:bg-muted/40'}`}
                                 >
                                   Category
                                 </button>
@@ -4918,7 +4912,7 @@ export default function ProductForm() {
                                   <select
                                     value={row.target_product_id}
                                     onChange={e => updateMerchMapping(row._idx, { target_product_id: e.target.value })}
-                                    className="w-full border rounded-md px-3 py-1.5 text-sm bg-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                                    className={cn(selectCls, 'w-full')}
                                   >
                                     <option value="">Select a product…</option>
                                     {categories.map(cat => (
@@ -4929,14 +4923,14 @@ export default function ProductForm() {
                                       </optgroup>
                                     ))}
                                   </select>
-                                  {targetProd && <p className="text-xs text-gray-400">SKU: {targetProd.sku || '—'}</p>}
+                                  {targetProd && <p className="text-xs text-muted-foreground">SKU: {targetProd.sku || '—'}</p>}
                                 </div>
                               ) : (
                                 <div className="space-y-1">
                                   <select
                                     value={row.target_category}
                                     onChange={e => updateMerchMapping(row._idx, { target_category: e.target.value })}
-                                    className="w-full border rounded-md px-3 py-1.5 text-sm bg-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                                    className={cn(selectCls, 'w-full')}
                                   >
                                     <option value="">Select a category…</option>
                                     {categories.map(cat => (
@@ -4947,14 +4941,14 @@ export default function ProductForm() {
                                     ))}
                                   </select>
                                   {row.target_category && (
-                                    <p className="text-xs text-gray-400">
+                                    <p className="text-xs text-muted-foreground">
                                       All products in "{row.target_category}" ({catProductCount} product{catProductCount !== 1 ? 's' : ''})
                                     </p>
                                   )}
                                 </div>
                               )}
                             </div>
-                            <button type="button" onClick={() => removeMerchMapping(row._idx)} className="mt-5 p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded transition-colors">
+                            <button type="button" onClick={() => removeMerchMapping(row._idx)} className="mt-5 p-1.5 text-muted-foreground hover:text-red-500 hover:bg-red-500/10 rounded transition-colors">
                               <Trash2 className="w-4 h-4" />
                             </button>
                           </div>
@@ -4962,11 +4956,11 @@ export default function ProductForm() {
                           <div className="grid grid-cols-3 gap-3">
                             {/* Trigger Stage */}
                             <div className="space-y-1">
-                              <label className="text-xs font-medium text-gray-600">Trigger Stage</label>
+                              <label className="text-xs font-medium text-muted-foreground">Trigger Stage</label>
                               <select
                                 value={row.trigger_stage}
                                 onChange={e => updateMerchMapping(row._idx, { trigger_stage: e.target.value as 'PDP' | 'CART' | 'CHECKOUT' })}
-                                className="w-full border rounded-md px-3 py-1.5 text-sm bg-white focus:ring-2 focus:ring-indigo-500"
+                                className={cn(selectCls, 'w-full')}
                               >
                                 <option value="PDP">PDP (Product Page)</option>
                                 <option value="CART">CART</option>
@@ -4976,23 +4970,23 @@ export default function ProductForm() {
 
                             {/* Priority */}
                             <div className="space-y-1">
-                              <label className="text-xs font-medium text-gray-600">Priority</label>
+                              <label className="text-xs font-medium text-muted-foreground">Priority</label>
                               <input
                                 type="number"
                                 min={0}
                                 value={row.priority}
                                 onChange={e => updateMerchMapping(row._idx, { priority: Number(e.target.value) || 0 })}
-                                className="w-full border rounded-md px-3 py-1.5 text-sm focus:ring-2 focus:ring-indigo-500"
+                                className={cn(selectCls, 'w-full')}
                               />
                             </div>
 
                             {/* Bundle (optional) */}
                             <div className="space-y-1">
-                              <label className="text-xs font-medium text-gray-600">Bundle (opt.)</label>
+                              <label className="text-xs font-medium text-muted-foreground">Bundle (opt.)</label>
                               <select
                                 value={row.bundle_id || ''}
                                 onChange={e => updateMerchMapping(row._idx, { bundle_id: e.target.value || undefined })}
-                                className="w-full border rounded-md px-3 py-1.5 text-sm bg-white focus:ring-2 focus:ring-indigo-500"
+                                className={cn(selectCls, 'w-full')}
                               >
                                 <option value="">None</option>
                                 {bundles.map(b => (
@@ -5008,7 +5002,7 @@ export default function ProductForm() {
                     <button
                       type="button"
                       onClick={() => addMerchMapping(relType)}
-                      className={`w-full border-2 border-dashed rounded-lg py-2.5 text-sm font-medium transition-colors flex items-center justify-center gap-2 ${relType === 'cross_sell' ? 'border-emerald-300 text-emerald-600 hover:bg-emerald-50' : 'border-amber-300 text-amber-600 hover:bg-amber-50'}`}
+                      className={`w-full border-2 border-dashed rounded-lg py-2.5 text-sm font-medium transition-colors flex items-center justify-center gap-2 ${relType === 'cross_sell' ? 'border-emerald-300/70 dark:border-emerald-700 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/10 dark:hover:bg-emerald-950/40' : 'border-amber-300/70 dark:border-amber-700 text-amber-600 dark:text-amber-400 hover:bg-amber-500/10 dark:hover:bg-amber-950/40'}`}
                     >
                       <Plus className="w-4 h-4" /> Add {relType === 'cross_sell' ? 'Cross-sell' : 'Upsell'} Link
                     </button>
@@ -5019,10 +5013,10 @@ export default function ProductForm() {
 
             {/* ── Quick-reference: bundles ── */}
             {bundles.length > 0 && (
-              <div className="border rounded-xl p-4 bg-gray-50/50 space-y-2">
+              <div className="border border-border rounded-xl p-4 bg-muted/25 dark:bg-muted/15 space-y-2">
                 <div className="flex items-center gap-2">
-                  <ShoppingBag className="w-4 h-4 text-gray-500" />
-                  <p className="text-sm font-semibold text-gray-700">Available Bundles</p>
+                  <ShoppingBag className="w-4 h-4 text-muted-foreground" />
+                  <p className="text-sm font-semibold text-foreground">Available Bundles</p>
                 </div>
                 <div className="flex flex-wrap gap-2">
                   {bundles.map(b => (
@@ -5036,12 +5030,12 @@ export default function ProductForm() {
                     </span>
                   ))}
                 </div>
-                <p className="text-xs text-gray-400">Bundles can be linked to any cross-sell or upsell mapping above.</p>
+                <p className="text-xs text-muted-foreground">Bundles can be linked to any cross-sell or upsell mapping above.</p>
               </div>
             )}
 
             {/* ── Legend ── */}
-            <div className="grid grid-cols-3 gap-3 text-xs text-gray-500 pt-2 border-t">
+            <div className="grid grid-cols-3 gap-3 text-xs text-muted-foreground pt-2 border-t border-border">
               <div><span className="font-semibold text-gray-700">PDP</span> — Product Detail Page</div>
               <div><span className="font-semibold text-gray-700">CART</span> — Shopping Cart</div>
               <div><span className="font-semibold text-gray-700">CHECKOUT</span> — Checkout Flow</div>

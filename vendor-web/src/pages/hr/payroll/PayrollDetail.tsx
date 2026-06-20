@@ -20,12 +20,12 @@ function DeleteConfirmModal({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 overflow-y-auto" onClick={onModalBackdropClick(onClose)}>
-      <div className="bg-white rounded-xl shadow-2xl w-full max-w-sm p-6 relative max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+    <div data-kiterp-modal className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm overflow-y-auto" onClick={onModalBackdropClick(onClose)}>
+      <div className="bg-card border border-border text-foreground rounded-xl shadow-2xl w-full max-w-sm p-6 relative max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
         <button
           type="button"
           onClick={onClose}
-          className="absolute top-4 right-4 p-1.5 rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors"
+          className="absolute top-4 right-4 p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
           aria-label="Close"
         >
           <X className="w-5 h-5" />
@@ -165,7 +165,7 @@ export default function PayrollDetailPage() {
       </div>
 
       {/* Entries */}
-      <div className="bg-white rounded-xl border shadow-sm overflow-hidden max-h-[90vh] overflow-y-auto">
+      <div className="bg-card border border-border text-foreground rounded-xl shadow-2xl overflow-hidden max-h-[90vh] overflow-y-auto">
         <div className="px-4 py-3 border-b flex items-center justify-between">
           <h3 className="font-semibold text-gray-900">Employee Payslips</h3>
           <span className="text-xs text-gray-400">{entries.length} entries</span>

@@ -1,5 +1,6 @@
 import { onModalBackdropClick } from '@/lib/utils'
 import { InlineFieldLabel } from '@/components/common/InlineFieldLabel'
+import { Select } from '@/components/ui/select'
 import { useState } from 'react'
 import { useEscapeToClose } from '@/hooks/useEscapeToClose'
 import { Receipt, Plus, X, Send, Trash2, Pencil } from 'lucide-react'
@@ -35,7 +36,7 @@ export default function MyExpensesPage() {
         </button>
       </div>
 
-      <div className="bg-white border rounded-xl shadow-sm overflow-hidden max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+      <div className="bg-card border border-border text-foreground rounded-xl shadow-2xl overflow-hidden max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
         {isLoading ? (
           <div className="p-8 text-center text-gray-400">Loading…</div>
         ) : (claims as ExpenseClaim[]).length === 0 ? (
@@ -132,7 +133,7 @@ function ExpenseModal({
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 overflow-y-auto" onClick={onModalBackdropClick(onClose)}>
-      <div className="bg-white rounded-xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-auto">
+      <div className="bg-card border border-border text-foreground rounded-xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-auto">
         <div className="flex items-center justify-between p-4 border-b">
           <h2 className="text-lg font-bold">{claim ? 'Edit Claim' : 'New Claim'}</h2>
           <button type="button" aria-label="Close" onClick={onClose}><X className="w-5 h-5 text-gray-400" /></button>
@@ -144,15 +145,20 @@ function ExpenseModal({
           </Field>
           <div className="grid grid-cols-2 gap-3">
             <Field label="Category">
-              <select className="w-full border rounded px-3 py-2 text-sm" value={form.category}
-                onChange={e => setForm({ ...form, category: e.target.value })}>
-                <option value="travel">Travel</option>
-                <option value="meals">Meals</option>
-                <option value="lodging">Lodging</option>
-                <option value="supplies">Supplies</option>
-                <option value="training">Training</option>
-                <option value="other">Other</option>
-              </select>
+              <Select
+                value={form.category}
+                onChange={(v) => setForm({ ...form, category: v })}
+                options={[
+                  { value: 'travel', label: 'Travel' },
+                  { value: 'meals', label: 'Meals' },
+                  { value: 'lodging', label: 'Lodging' },
+                  { value: 'supplies', label: 'Supplies' },
+                  { value: 'training', label: 'Training' },
+                  { value: 'other', label: 'Other' },
+                ]}
+                aria-label="Expense category"
+                className="w-full"
+              />
             </Field>
             <Field label="Date">
               <input type="date" className="w-full border rounded px-3 py-2 text-sm"

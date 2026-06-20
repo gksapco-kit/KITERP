@@ -1,4 +1,5 @@
 ﻿import type { VendorRole } from '@/types'
+import { Select } from '@/components/ui/select'
 
 export type AssignableTeamRoles = {
   builtin_roles: { slug: string; name: string }[]
@@ -40,37 +41,21 @@ export function TeamRoleSelect({
   const activeCustom = custom.filter((r) => r.is_active)
   const inactiveCustom = custom.filter((r) => !r.is_active)
 
+  const options = [
+    ...builtin.map((r) => ({ value: r.slug, label: r.name, group: 'Built-in roles' })),
+    ...activeCustom.map((r) => ({ value: r.id, label: r.name, group: 'Custom roles' })),
+    ...inactiveCustom.map((r) => ({ value: r.id, label: `${r.name} (inactive)`, group: 'Custom roles (inactive)' })),
+  ]
+
   return (
-    <select
-      className={className}
+    <Select
       value={value}
-      onChange={(e) => onChange(e.target.value)}
+      onChange={onChange}
+      options={options}
       disabled={disabled}
-    >
-      {builtin.length > 0 && (
-        <optgroup label="Built-in roles">
-          {builtin.map((r) => (
-            <option key={r.slug} value={r.slug}>{r.name}</option>
-          ))}
-        </optgroup>
-      )}
-      {activeCustom.length > 0 && (
-        <optgroup label="Custom roles">
-          {activeCustom.map((r) => (
-            <option key={r.id} value={r.id}>{r.name}</option>
-          ))}
-        </optgroup>
-      )}
-      {inactiveCustom.length > 0 && (
-        <optgroup label="Custom roles (inactive)">
-          {inactiveCustom.map((r) => (
-            <option key={r.id} value={r.id} disabled>
-              {r.name} (inactive)
-            </option>
-          ))}
-        </optgroup>
-      )}
-    </select>
+      aria-label="Team role"
+      className={className}
+    />
   )
 }
 

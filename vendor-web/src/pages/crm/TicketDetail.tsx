@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
+import { Select } from '@/components/ui/select'
 import { useTicket, useTicketComments, useAddTicketComment, useSaveTicket } from '@/hooks/useCrm'
 import { ArrowLeft, Loader2, Lock, Send, AlertTriangle } from 'lucide-react'
 import { formatDateTime } from '@/lib/utils'
@@ -44,16 +45,18 @@ export default function TicketDetailPage() {
           <h1 className="text-2xl font-bold text-gray-900">{ticket.subject}</h1>
         </div>
         <div className="flex gap-2 items-center flex-wrap">
-          <select
+          <Select
+            className="w-28"
             value={ticket.priority === 'medium' ? 'normal' : ticket.priority}
-            onChange={e => save.mutate({ id: ticket.id, data: { priority: e.target.value } })}
-            className="h-9 rounded-md border border-input bg-white px-3 text-sm">
-            {PRIORITIES.map(p => <option key={p} value={p}>{p}</option>)}
-          </select>
-          <select value={ticket.status} onChange={e => save.mutate({ id: ticket.id, data: { status: e.target.value } })}
-            className="h-9 rounded-md border border-input bg-white px-3 text-sm">
-            {STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
-          </select>
+            onChange={v => save.mutate({ id: ticket.id, data: { priority: v } })}
+            options={PRIORITIES.map(p => ({ value: p, label: p }))}
+          />
+          <Select
+            className="w-32"
+            value={ticket.status}
+            onChange={v => save.mutate({ id: ticket.id, data: { status: v } })}
+            options={STATUSES.map(s => ({ value: s, label: s }))}
+          />
           {ticket.sla_breached && <Badge variant="destructive"><AlertTriangle className="w-3 h-3" /> SLA breached</Badge>}
         </div>
       </div>

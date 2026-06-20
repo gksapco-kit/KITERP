@@ -1,4 +1,16 @@
-import { onModalBackdropClick } from '@/lib/utils'
+import { onModalBackdropClick, cn } from '@/lib/utils'
+import { Button } from '@/components/ui/button'
+import {
+  hrInputClass,
+  hrSelectClass,
+  hrInfoBannerClass,
+  hrTabActiveClass,
+  hrTabInactiveClass,
+  hrTableHeadClass,
+  hrStatIconClass,
+  hrStatusBadge,
+  hrLabelClass,
+} from '../hrFormUi'
 import { SectionLabel } from '@/components/common/FieldLabel'
 import { TableColumnLabel } from '@/components/common/FieldLabel'
 import { Label } from '@/components/ui/label'
@@ -26,10 +38,10 @@ import { EMPLOYEE_MASTER_TABS, type EmployeeMasterTabId } from './employeeMaster
 // ── Status / type helpers ────────────────────────────────────────
 
 const STATUS_COLORS: Record<string, string> = {
-  active: 'bg-green-100 text-green-700',
-  on_notice: 'bg-yellow-100 text-yellow-700',
-  exited: 'bg-red-100 text-red-700',
-  probation: 'bg-blue-100 text-blue-700',
+  active: hrStatusBadge.active,
+  on_notice: hrStatusBadge.on_notice,
+  exited: hrStatusBadge.exited,
+  probation: hrStatusBadge.probation,
 }
 
 const DEFAULT_EMP_TYPES = [
@@ -100,10 +112,10 @@ function Section({ icon: Icon, title, children, collapsible = false }: {
       <button
         type="button"
         onClick={() => collapsible && setOpen(v => !v)}
-        className={`w-full flex items-center justify-between px-4 py-3 bg-gray-50 text-sm font-semibold text-gray-700 ${collapsible ? 'hover:bg-gray-100 cursor-pointer' : 'cursor-default'}`}
+        className={`flex w-full items-center justify-between border-b border-border bg-muted/40 px-4 py-3 text-sm font-semibold text-foreground ${collapsible ? 'cursor-pointer hover:bg-muted/60' : 'cursor-default'}`}
       >
-        <span className="flex items-center gap-2"><Icon className="w-4 h-4 text-blue-500" />{title}</span>
-        {collapsible && (open ? <ChevronUp className="w-4 h-4 text-gray-400" /> : <ChevronDown className="w-4 h-4 text-gray-400" />)}
+        <span className="flex items-center gap-2"><Icon className="h-4 w-4 text-primary" />{title}</span>
+        {collapsible && (open ? <ChevronUp className="h-4 w-4 text-muted-foreground" /> : <ChevronDown className="h-4 w-4 text-muted-foreground" />)}
       </button>
       {open && <div className="p-4 space-y-3">{children}</div>}
     </div>
@@ -126,18 +138,18 @@ function FamilyMemberRow({
   onRemove: () => void
 }) {
   return (
-    <div className="border rounded-lg p-3 space-y-2 bg-gray-50">
+    <div className="space-y-2 rounded-lg border border-border bg-muted/20 p-3">
       <div className="flex items-center justify-between mb-1">
-        <span className="text-xs font-medium text-gray-500">Member {index + 1}</span>
+        <span className="text-xs font-medium text-muted-foreground">Member {index + 1}</span>
         <button type="button" onClick={onRemove} className="text-red-400 hover:text-red-600 p-0.5">
           <Trash2 className="w-3.5 h-3.5" />
         </button>
       </div>
       <div className="grid grid-cols-2 gap-2">
         <div>
-          <Label className="block text-xs text-gray-500 mb-0.5" required>Name</Label>
+          <Label className="mb-0.5 block text-xs text-muted-foreground" required>Name</Label>
           <input
-            className="w-full border rounded-md px-2 py-1.5 text-sm focus:ring-2 focus:ring-blue-500 outline-none bg-white"
+            className={hrInputClass}
             value={member.name}
             onChange={e => onChange({ ...member, name: e.target.value })}
             placeholder="Full name"
@@ -145,9 +157,9 @@ function FamilyMemberRow({
           />
         </div>
         <div>
-          <Label className="block text-xs text-gray-500 mb-0.5" required>Relation</Label>
+          <Label className="mb-0.5 block text-xs text-muted-foreground" required>Relation</Label>
           <select
-            className="w-full border rounded-md px-2 py-1.5 text-sm focus:ring-2 focus:ring-blue-500 outline-none bg-white"
+            className={hrInputClass}
             value={member.relation}
             onChange={e => onChange({ ...member, relation: e.target.value })}
             required
@@ -159,25 +171,25 @@ function FamilyMemberRow({
           </select>
         </div>
         <div>
-          <Label className="block text-xs text-gray-500 mb-0.5">Date of Birth</Label>
+          <Label className="mb-0.5 block text-xs text-muted-foreground">Date of Birth</Label>
           <input
             type="date"
-            className="w-full border rounded-md px-2 py-1.5 text-sm focus:ring-2 focus:ring-blue-500 outline-none bg-white"
+            className={hrInputClass}
             value={member.dob ?? ''}
             onChange={e => onChange({ ...member, dob: e.target.value })}
           />
         </div>
         <div>
-          <Label className="block text-xs text-gray-500 mb-0.5">Phone</Label>
+          <Label className="mb-0.5 block text-xs text-muted-foreground">Phone</Label>
           <PhoneInput
             value={member.phone ?? ''}
             onChange={v => onChange({ ...member, phone: v })}
           />
         </div>
         <div>
-          <Label className="block text-xs text-gray-500 mb-0.5">Gender</Label>
+          <Label className="mb-0.5 block text-xs text-muted-foreground">Gender</Label>
           <select
-            className="w-full border rounded-md px-2 py-1.5 text-sm focus:ring-2 focus:ring-blue-500 outline-none bg-white"
+            className={hrInputClass}
             value={member.gender ?? ''}
             onChange={e => onChange({ ...member, gender: e.target.value })}
           >
@@ -188,9 +200,9 @@ function FamilyMemberRow({
           </select>
         </div>
         <div>
-          <Label className="block text-xs text-gray-500 mb-0.5">Blood Group</Label>
+          <Label className="mb-0.5 block text-xs text-muted-foreground">Blood Group</Label>
           <select
-            className="w-full border rounded-md px-2 py-1.5 text-sm focus:ring-2 focus:ring-blue-500 outline-none bg-white"
+            className={hrInputClass}
             value={member.blood_group ?? ''}
             onChange={e => onChange({ ...member, blood_group: e.target.value })}
           >
@@ -425,37 +437,37 @@ function AddEmployeeModal({
 
   return (
     <>
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 overflow-y-auto" onClick={onModalBackdropClick(onClose)}>
-        <div className="bg-white rounded-2xl shadow-2xl w-full max-w-[960px] flex flex-col overflow-hidden" onClick={e => e.stopPropagation()}>
+      <div data-kiterp-modal className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 overflow-y-auto" onClick={onModalBackdropClick(onClose)}>
+        <div className="bg-card border border-border text-foreground rounded-2xl shadow-2xl w-full max-w-[960px] flex flex-col overflow-hidden" onClick={e => e.stopPropagation()}>
 
           {/* Header */}
-          <div className="flex items-center justify-between px-6 py-4 border-b shrink-0">
+          <div className="flex shrink-0 items-center justify-between border-b border-border px-6 py-4">
             <div className="flex items-center gap-2">
-              <UserPlus className="w-5 h-5 text-blue-600" />
+              <UserPlus className="h-5 w-5 text-primary" />
               <div>
-                <h2 className="text-lg font-semibold text-gray-900">Add Employee</h2>
-                <p className="text-xs text-gray-400">Create a full employee profile</p>
+                <h2 className="text-lg font-semibold text-foreground">Add Employee</h2>
+                <p className="text-xs text-muted-foreground">Create a full employee profile</p>
               </div>
             </div>
             <div className="flex items-center gap-2">
-              <button type="button" onClick={onClose} className="btn-cancel px-3 py-1.5 text-sm border rounded-lg">Cancel</button>
-              <button
+              <Button type="button" variant="outline" size="sm" onClick={onClose}>Cancel</Button>
+              <Button
                 type="submit"
                 form="add-employee-form"
+                size="sm"
                 disabled={createEmployee.isPending || !employeeFullName.trim() || (!personalEmail.trim() && !personalPhone.trim())}
-                className="flex items-center gap-1.5 px-4 py-1.5 text-sm bg-primary text-white rounded-lg hover:bg-primary/90 disabled:opacity-50"
               >
-                {createEmployee.isPending && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                {createEmployee.isPending && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
                 {createEmployee.isPending ? 'Creating…' : 'Create Profile'}
-              </button>
-              <button type="button" aria-label="Close" onClick={onClose} className="p-1.5 hover:bg-gray-100 rounded-lg ml-1">
-                <X className="w-5 h-5 text-gray-500" />
+              </Button>
+              <button type="button" aria-label="Close" onClick={onClose} className="ml-1 rounded-lg p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground">
+                <X className="h-5 w-5" />
               </button>
             </div>
           </div>
 
           {/* Tab bar */}
-          <div className="flex shrink-0 border-b">
+          <div className="flex shrink-0 border-b border-border">
             {EMPLOYEE_MASTER_TABS.map(tab => {
               const isActive = activeTab === tab.id
               return (
@@ -463,13 +475,12 @@ function AddEmployeeModal({
                   key={tab.id}
                   type="button"
                   onClick={() => setActiveTab(tab.id)}
-                  className={`flex-1 flex flex-col items-center justify-center gap-1 py-2.5 text-xs font-medium border-b-2 transition-colors ${
-                    isActive
-                      ? 'border-blue-600 text-blue-600 bg-blue-50/40'
-                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-50'
-                  }`}
+                  className={cn(
+                    'flex flex-1 flex-col items-center justify-center gap-1 border-b-2 py-2.5 text-xs font-medium transition-colors focus:outline-none',
+                    isActive ? hrTabActiveClass : hrTabInactiveClass,
+                  )}
                 >
-                  <tab.icon className="w-4 h-4 shrink-0" />
+                  <tab.icon className="h-4 w-4 shrink-0" />
                   <span className="whitespace-nowrap">{tab.label}</span>
                 </button>
               )
@@ -482,17 +493,17 @@ function AddEmployeeModal({
             {/* Tab: Identity & Assignment */}
             {activeTab === 'identity' && (
               <div className="space-y-4">
-                <div className="rounded-lg border border-blue-100 bg-blue-50/60 px-3 py-2 text-xs text-blue-800">
+                <div className={hrInfoBannerClass}>
                   HR records payroll and employment data only. Grant portal login and roles from
                   <strong className="mx-1">Staff Access Control</strong> when the employee needs system access.
                 </div>
                 <div>
-                  <label className="text-xs font-medium text-gray-600">
-                    Full Name <span className="text-red-500">*</span>
+                  <label className="text-xs font-medium text-muted-foreground">
+                    Full Name <span className="text-destructive">*</span>
                   </label>
                   <input
                     required
-                    className="mt-1 w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
+                    className={cn(hrInputClass, 'mt-1')}
                     placeholder="John Smith"
                     value={employeeFullName}
                     onChange={e => setEmployeeFullName(e.target.value)}
@@ -500,25 +511,25 @@ function AddEmployeeModal({
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-xs font-medium text-gray-600 mb-1">
-                      Personal Email <span className="text-gray-400 font-normal">(email or phone required)</span>
+                    <label className="mb-1 block text-xs font-medium text-muted-foreground">
+                      Personal Email <span className="font-normal text-muted-foreground/80">(email or phone required)</span>
                     </label>
                     <input
                       type="email"
-                      className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
+                      className={hrInputClass}
                       placeholder="personal@email.com"
                       value={personalEmail}
                       onChange={e => setPersonalEmail(e.target.value)}
                     />
                   </div>
                   <div>
-                    <Label className="block text-xs font-medium text-gray-600 mb-1">Personal Phone</Label>
+                    <Label className="mb-1 block text-xs font-medium text-muted-foreground">Personal Phone</Label>
                     <PhoneInput value={personalPhone} onChange={setPersonalPhone} placeholder="Personal mobile" />
                   </div>
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-xs font-medium text-gray-600 mb-1 flex items-center gap-1">
+                    <label className="mb-1 block text-xs font-medium text-muted-foreground flex items-center gap-1">
                       <Building2 className="w-3 h-3" /> Employer / Business Entity
                     </label>
                     <select
@@ -534,20 +545,20 @@ function AddEmployeeModal({
                   </div>
                   <div>
                     <div className="flex items-center justify-between mb-1">
-                      <label className="text-xs font-medium text-gray-600">Employee ID</label>
+                      <label className="text-xs font-medium text-muted-foreground">Employee ID</label>
                       {/* Toggle between auto and manual */}
-                      <div className="flex bg-gray-100 rounded-md p-0.5 text-xs">
+                      <div className="flex rounded-md bg-muted p-0.5 text-xs">
                         <button
                           type="button"
                           onClick={() => { setEmployeeIdManual(false); setEmployeeIdOverride('') }}
-                          className={`px-2 py-0.5 rounded transition-colors ${!employeeIdManual ? 'bg-white shadow text-blue-600 font-medium' : 'text-gray-500 hover:text-gray-700'}`}
+                          className={cn('rounded px-2 py-0.5 transition-colors', !employeeIdManual ? 'bg-background font-medium text-primary shadow-sm' : 'text-muted-foreground hover:text-foreground')}
                         >
                           Auto
                         </button>
                         <button
                           type="button"
                           onClick={() => setEmployeeIdManual(true)}
-                          className={`px-2 py-0.5 rounded transition-colors ${employeeIdManual ? 'bg-white shadow text-blue-600 font-medium' : 'text-gray-500 hover:text-gray-700'}`}
+                          className={cn('rounded px-2 py-0.5 transition-colors', employeeIdManual ? 'bg-background font-medium text-primary shadow-sm' : 'text-muted-foreground hover:text-foreground')}
                         >
                           Manual
                         </button>
@@ -556,18 +567,18 @@ function AddEmployeeModal({
                     {employeeIdManual ? (
                       <input
                         autoFocus
-                        className="w-full border border-blue-400 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none font-mono"
+                        className={cn(hrInputClass, 'border-primary/40 font-mono')}
                         placeholder="e.g. Hyd001"
                         value={employeeIdOverride}
                         onChange={e => setEmployeeIdOverride(e.target.value)}
                       />
                     ) : (
-                      <div className="flex items-center gap-2 border border-gray-200 bg-gray-50 rounded-lg px-3 py-2 text-sm font-mono text-gray-500 select-none">
-                        <span className="text-gray-400 text-xs">System</span>
-                        <span className="font-medium text-gray-700">{nextCodeData?.next_code ?? '—'}</span>
+                      <div className="flex select-none items-center gap-2 rounded-lg border border-border bg-muted/30 px-3 py-2 font-mono text-sm text-muted-foreground">
+                        <span className="text-xs text-muted-foreground/70">System</span>
+                        <span className="font-medium text-foreground">{nextCodeData?.next_code ?? '—'}</span>
                       </div>
                     )}
-                    <p className="text-xs text-gray-400 mt-0.5">
+                    <p className="mt-0.5 text-xs text-muted-foreground">
                       {employeeIdManual
                         ? 'You are entering a custom ID. System will still assign an internal code.'
                         : `Will auto-assign: ${nextCodeData?.next_code ?? '…'}`}
@@ -577,31 +588,31 @@ function AddEmployeeModal({
 
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <Label className="block text-xs font-medium text-gray-600 mb-1">Department</Label>
+                    <Label className="mb-1 block text-xs font-medium text-muted-foreground">Department</Label>
                     <div className="flex gap-1">
                       <select className="flex-1 border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none" value={departmentId} onChange={e => setDepartmentId(e.target.value)}>
                         <option value="">— None —</option>
                         {departments.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
                       </select>
-                      <button type="button" title="Create department" onClick={() => setShowDeptModal(true)} className="px-2 border rounded-lg text-blue-600 hover:bg-blue-50 flex items-center">
+                      <button type="button" title="Create department" onClick={() => setShowDeptModal(true)} className="flex items-center rounded-lg border border-border px-2 text-primary hover:bg-primary/10">
                         <Plus className="w-3.5 h-3.5" />
                       </button>
                     </div>
                   </div>
                   <div>
-                    <Label className="block text-xs font-medium text-gray-600 mb-1">Designation</Label>
+                    <Label className="mb-1 block text-xs font-medium text-muted-foreground">Designation</Label>
                     <div className="flex gap-1">
                       <select className="flex-1 border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none" value={designationId} onChange={e => setDesignationId(e.target.value)}>
                         <option value="">— None —</option>
                         {designations.map((d: HRDesignation) => <option key={d.id} value={d.id}>{d.name}</option>)}
                       </select>
-                      <button type="button" title="Create designation" onClick={() => setShowDesigModal(true)} className="px-2 border rounded-lg text-blue-600 hover:bg-blue-50 flex items-center">
+                      <button type="button" title="Create designation" onClick={() => setShowDesigModal(true)} className="flex items-center rounded-lg border border-border px-2 text-primary hover:bg-primary/10">
                         <Plus className="w-3.5 h-3.5" />
                       </button>
                     </div>
                   </div>
                   <div>
-                    <Label className="block text-xs font-medium text-gray-600 mb-1">Employment Type</Label>
+                    <Label className="mb-1 block text-xs font-medium text-muted-foreground">Employment Type</Label>
                     {showNewEmpType ? (
                       <div className="flex gap-1">
                         <input
@@ -613,26 +624,26 @@ function AddEmployeeModal({
                           onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addEmpType() } if (e.key === 'Escape') setShowNewEmpType(false) }}
                         />
                         <button type="button" onClick={addEmpType} className="px-3 py-2 text-sm bg-primary text-white rounded-lg hover:bg-primary/90">Add</button>
-                        <button type="button" aria-label="Close" onClick={() => setShowNewEmpType(false)} className="px-2 py-2 border rounded-lg hover:bg-gray-50">
-                <X className="w-3.5 h-3.5 text-gray-400" /></button>
+                        <button type="button" aria-label="Close" onClick={() => setShowNewEmpType(false)} className="rounded-lg border border-border px-2 py-2 hover:bg-muted">
+                <X className="h-3.5 w-3.5 text-muted-foreground" /></button>
                       </div>
                     ) : (
                       <div className="flex gap-1">
                         <select className="flex-1 border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none" value={employmentType} onChange={e => setEmploymentType(e.target.value)}>
                           {empTypeOptions.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
                         </select>
-                        <button type="button" title="Add custom employment type" onClick={() => setShowNewEmpType(true)} className="px-2 border rounded-lg text-blue-600 hover:bg-blue-50 flex items-center">
+                        <button type="button" title="Add custom employment type" onClick={() => setShowNewEmpType(true)} className="flex items-center rounded-lg border border-border px-2 text-primary hover:bg-primary/10">
                           <Plus className="w-3.5 h-3.5" />
                         </button>
                       </div>
                     )}
                   </div>
                   <div>
-                    <Label className="block text-xs font-medium text-gray-600 mb-1">Date of Joining</Label>
+                    <Label className="mb-1 block text-xs font-medium text-muted-foreground">Date of Joining</Label>
                     <input type="date" className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none" value={dateOfJoining} onChange={e => setDateOfJoining(e.target.value)} />
                   </div>
                   <div>
-                    <label className="block text-xs font-medium text-gray-600 mb-1">Last Working Day <span className="text-gray-400 font-normal">(LWD)</span></label>
+                    <label className="mb-1 block text-xs font-medium text-muted-foreground">Last Working Day <span className="font-normal text-muted-foreground/70">(LWD)</span></label>
                     <input type="date" className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none" value={lwd} onChange={e => setLwd(e.target.value)} />
                   </div>
                 </div>
@@ -646,7 +657,7 @@ function AddEmployeeModal({
                 <section>
                   <div className="flex items-center gap-2 mb-3">
                     <KeyRound className="w-4 h-4 text-primary" />
-                    <h3 className="font-semibold text-gray-900">POS PIN</h3>
+                    <h3 className="font-semibold text-foreground">POS PIN</h3>
                   </div>
                   <div className="relative w-48">
                     <input
@@ -659,19 +670,19 @@ function AddEmployeeModal({
                       value={posPin}
                       onChange={e => setPosPin(e.target.value.replace(/\D/g, '').slice(0, 6))}
                     />
-                    <button type="button" onClick={() => setShowPin(v => !v)} className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+                    <button type="button" onClick={() => setShowPin(v => !v)} className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
                       {showPin ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                     </button>
                   </div>
-                  <p className="text-xs text-gray-400 mt-1.5">4–6 digits. Used at POS terminals for quick login.</p>
+                  <p className="mt-1.5 text-xs text-muted-foreground">4–6 digits. Used at POS terminals for quick login.</p>
                 </section>
                 {/* Portal note */}
                 <section className="pt-4 border-t">
                   <div className="flex items-center gap-2 mb-2">
                     <LogIn className="w-4 h-4 text-primary" />
-                    <h3 className="font-semibold text-gray-900">HR / ESS portal</h3>
+                    <h3 className="font-semibold text-foreground">HR / ESS portal</h3>
                   </div>
-                  <div className="rounded-lg border border-blue-100 bg-blue-50/60 px-3 py-2.5 text-sm text-blue-800 max-w-lg">
+                  <div className={cn(hrInfoBannerClass, 'max-w-lg')}>
                     Portal access (login email + password) is managed separately under <strong>Staff Access Control</strong> after the profile is created. The employee code you assign will also work as a login username.
                   </div>
                 </section>
@@ -684,7 +695,7 @@ function AddEmployeeModal({
                 <AddressFields label="Current Address" addr={currentAddr} onChange={setCurrentAddr} />
                 <div className="flex items-center gap-2">
                   <input type="checkbox" id="same-addr" checked={sameAsCurrent} onChange={e => setSameAsCurrent(e.target.checked)} className="rounded" />
-                  <label htmlFor="same-addr" className="text-xs text-gray-600 cursor-pointer">Permanent address same as current</label>
+                  <label htmlFor="same-addr" className="cursor-pointer text-xs text-muted-foreground">Permanent address same as current</label>
                 </div>
                 {!sameAsCurrent && <AddressFields label="Permanent Address" addr={permanentAddr} onChange={setPermanentAddr} />}
               </div>
@@ -694,26 +705,26 @@ function AddEmployeeModal({
             {activeTab === 'bank' && (
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <Label className="block text-xs font-medium text-gray-600 mb-1">Bank Name</Label>
+                  <Label className="mb-1 block text-xs font-medium text-muted-foreground">Bank Name</Label>
                   <input className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none" placeholder="e.g. State Bank of India" value={bankName} onChange={e => setBankName(e.target.value)} />
                 </div>
                 <div>
-                  <Label className="block text-xs font-medium text-gray-600 mb-1">Account Type</Label>
+                  <Label className="mb-1 block text-xs font-medium text-muted-foreground">Account Type</Label>
                   <select className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none" value={accountType} onChange={e => setAccountType(e.target.value)}>
                     <option value="savings">Savings</option>
                     <option value="current">Current</option>
                   </select>
                 </div>
                 <div className="col-span-2">
-                  <Label className="block text-xs font-medium text-gray-600 mb-1">Account Holder Name</Label>
+                  <Label className="mb-1 block text-xs font-medium text-muted-foreground">Account Holder Name</Label>
                   <input className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none" placeholder="As per bank records" value={accountHolderName} onChange={e => setAccountHolderName(e.target.value)} />
                 </div>
                 <div>
-                  <Label className="block text-xs font-medium text-gray-600 mb-1">Account Number</Label>
+                  <Label className="mb-1 block text-xs font-medium text-muted-foreground">Account Number</Label>
                   <input className="w-full border rounded-lg px-3 py-2 text-sm font-mono focus:ring-2 focus:ring-blue-500 outline-none" placeholder="Account number" value={accountNumber} onChange={e => setAccountNumber(e.target.value.replace(/\D/g, ''))} />
                 </div>
                 <div>
-                  <Label className="block text-xs font-medium text-gray-600 mb-1">IFSC Code</Label>
+                  <Label className="mb-1 block text-xs font-medium text-muted-foreground">IFSC Code</Label>
                   <input className="w-full border rounded-lg px-3 py-2 text-sm font-mono uppercase focus:ring-2 focus:ring-blue-500 outline-none" placeholder="SBIN0001234" maxLength={11} value={ifscCode} onChange={e => setIfscCode(e.target.value.toUpperCase())} />
                 </div>
               </div>
@@ -723,19 +734,19 @@ function AddEmployeeModal({
             {activeTab === 'kyc' && (
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <Label className="block text-xs font-medium text-gray-600 mb-1">PAN Number</Label>
+                  <Label className="mb-1 block text-xs font-medium text-muted-foreground">PAN Number</Label>
                   <input className="w-full border rounded-lg px-3 py-2 text-sm font-mono uppercase focus:ring-2 focus:ring-blue-500 outline-none" placeholder="ABCDE1234F" maxLength={10} value={panNumber} onChange={e => setPanNumber(e.target.value.toUpperCase())} />
                 </div>
                 <div>
-                  <Label className="block text-xs font-medium text-gray-600 mb-1">Aadhaar Number</Label>
+                  <Label className="mb-1 block text-xs font-medium text-muted-foreground">Aadhaar Number</Label>
                   <input className="w-full border rounded-lg px-3 py-2 text-sm font-mono focus:ring-2 focus:ring-blue-500 outline-none" placeholder="12 digits" maxLength={12} value={aadhaarNumber} onChange={e => setAadhaarNumber(e.target.value.replace(/\D/g, '').slice(0, 12))} />
                 </div>
                 <div>
-                  <Label className="block text-xs font-medium text-gray-600 mb-1">UAN (PF Number)</Label>
+                  <Label className="mb-1 block text-xs font-medium text-muted-foreground">UAN (PF Number)</Label>
                   <input className="w-full border rounded-lg px-3 py-2 text-sm font-mono focus:ring-2 focus:ring-blue-500 outline-none" placeholder="Universal Account Number" value={uanNumber} onChange={e => setUanNumber(e.target.value)} />
                 </div>
                 <div>
-                  <Label className="block text-xs font-medium text-gray-600 mb-1">ESI Number</Label>
+                  <Label className="mb-1 block text-xs font-medium text-muted-foreground">ESI Number</Label>
                   <input className="w-full border rounded-lg px-3 py-2 text-sm font-mono focus:ring-2 focus:ring-blue-500 outline-none" placeholder="Employee State Insurance No." value={esiNumber} onChange={e => setEsiNumber(e.target.value)} />
                 </div>
               </div>
@@ -746,11 +757,11 @@ function AddEmployeeModal({
               <div className="space-y-4">
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <Label className="block text-xs font-medium text-gray-600 mb-1">Date of Birth</Label>
+                    <Label className="mb-1 block text-xs font-medium text-muted-foreground">Date of Birth</Label>
                     <input type="date" className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none" value={dateOfBirth} onChange={e => setDateOfBirth(e.target.value)} />
                   </div>
                   <div>
-                    <Label className="block text-xs font-medium text-gray-600 mb-1">Gender</Label>
+                    <Label className="mb-1 block text-xs font-medium text-muted-foreground">Gender</Label>
                     <select className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none" value={gender} onChange={e => setGender(e.target.value)}>
                       <option value="">—</option>
                       <option value="male">Male</option>
@@ -760,14 +771,14 @@ function AddEmployeeModal({
                     </select>
                   </div>
                   <div>
-                    <Label className="block text-xs font-medium text-gray-600 mb-1">Blood Group</Label>
+                    <Label className="mb-1 block text-xs font-medium text-muted-foreground">Blood Group</Label>
                     <select className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none" value={bloodGroup} onChange={e => setBloodGroup(e.target.value)}>
                       <option value="">—</option>
                       {['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'].map(g => <option key={g} value={g}>{g}</option>)}
                     </select>
                   </div>
                   <div>
-                    <Label className="block text-xs font-medium text-gray-600 mb-1">Marital Status</Label>
+                    <Label className="mb-1 block text-xs font-medium text-muted-foreground">Marital Status</Label>
                     <select className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none" value={maritalStatus} onChange={e => setMaritalStatus(e.target.value)}>
                       <option value="">—</option>
                       <option value="single">Single</option>
@@ -777,7 +788,7 @@ function AddEmployeeModal({
                     </select>
                   </div>
                   <div>
-                    <Label className="block text-xs font-medium text-gray-600 mb-1">Nationality</Label>
+                    <Label className="mb-1 block text-xs font-medium text-muted-foreground">Nationality</Label>
                     <input className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none" value={nationality} onChange={e => setNationality(e.target.value)} />
                   </div>
                 </div>
@@ -785,15 +796,15 @@ function AddEmployeeModal({
                   <SectionLabel className="mb-3">Emergency Contact</SectionLabel>
                   <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <Label className="block text-xs font-medium text-gray-600 mb-1">Name</Label>
+                      <Label className="mb-1 block text-xs font-medium text-muted-foreground">Name</Label>
                       <input className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none" value={emergencyName} onChange={e => setEmergencyName(e.target.value)} />
                     </div>
                     <div>
-                      <Label className="block text-xs font-medium text-gray-600 mb-1">Phone</Label>
+                      <Label className="mb-1 block text-xs font-medium text-muted-foreground">Phone</Label>
                       <PhoneInput value={emergencyPhone} onChange={setEmergencyPhone} placeholder="Emergency contact" />
                     </div>
                     <div className="col-span-2">
-                      <Label className="block text-xs font-medium text-gray-600 mb-1">Relation</Label>
+                      <Label className="mb-1 block text-xs font-medium text-muted-foreground">Relation</Label>
                       <input className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none" placeholder="e.g. Spouse, Parent, Sibling" value={emergencyRelation} onChange={e => setEmergencyRelation(e.target.value)} />
                     </div>
                   </div>
@@ -805,7 +816,7 @@ function AddEmployeeModal({
             {activeTab === 'family' && (
               <div className="space-y-3">
                 {familyMembers.length === 0 && (
-                  <p className="text-sm text-gray-400 text-center py-4">No family members added yet.</p>
+                  <p className="py-4 text-center text-sm text-muted-foreground">No family members added yet.</p>
                 )}
                 {familyMembers.map((m, i) => (
                   <FamilyMemberRow
@@ -819,7 +830,7 @@ function AddEmployeeModal({
                 <button
                   type="button"
                   onClick={addFamilyMember}
-                  className="w-full flex items-center justify-center gap-2 py-2 border-2 border-dashed border-gray-300 rounded-lg text-sm text-gray-500 hover:border-blue-400 hover:text-blue-600 transition-colors"
+                  className="flex w-full items-center justify-center gap-2 rounded-lg border-2 border-dashed border-border py-2 text-sm text-muted-foreground transition-colors hover:border-primary hover:text-primary"
                 >
                   <Plus className="w-4 h-4" /> Add Family Member
                 </button>
@@ -833,20 +844,20 @@ function AddEmployeeModal({
                 {documents.length > 0 && (
                   <div className="space-y-2">
                     {documents.map((doc, i) => (
-                      <div key={i} className="flex items-center gap-3 p-3 border rounded-lg bg-gray-50 hover:bg-gray-100 transition-colors">
+                      <div key={i} className="flex items-center gap-3 rounded-lg border border-border bg-muted/20 p-3 transition-colors hover:bg-muted/40">
                         <div className="w-9 h-9 rounded-lg bg-blue-100 flex items-center justify-center shrink-0">
                           <File className="w-4 h-4 text-blue-600" />
                         </div>
                         <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium text-gray-800 truncate">{doc.label}</p>
-                          <p className="text-xs text-gray-400 truncate">
+                          <p className="truncate text-sm font-medium text-foreground">{doc.label}</p>
+                          <p className="truncate text-xs text-muted-foreground">
                             {DOC_TYPES.find(t => t.value === doc.type)?.label} · {doc.file.name} · {formatBytes(doc.file.size)}
                           </p>
                         </div>
                         <button
                           type="button"
                           onClick={() => removeDocument(i)}
-                          className="p-1.5 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors shrink-0"
+                          className="shrink-0 rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
                         >
                           <Trash2 className="w-4 h-4" />
                         </button>
@@ -857,13 +868,13 @@ function AddEmployeeModal({
 
                 {/* Add document form */}
                 {showDocForm ? (
-                  <div className="border rounded-xl p-4 bg-blue-50/30 space-y-3">
-                    <p className="text-xs font-medium text-gray-600 uppercase tracking-wide">New Document</p>
+                  <div className={cn(hrInfoBannerClass, 'space-y-3 rounded-xl p-4')}>
+                    <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">New Document</p>
                     <div className="grid grid-cols-2 gap-3">
                       <div>
-                        <Label className="block text-xs font-medium text-gray-600 mb-1">Document Type</Label>
+                        <Label className="mb-1 block text-xs font-medium text-muted-foreground">Document Type</Label>
                         <select
-                          className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none bg-white"
+                          className={hrInputClass}
                           value={docType}
                           onChange={e => setDocType(e.target.value)}
                         >
@@ -871,9 +882,9 @@ function AddEmployeeModal({
                         </select>
                       </div>
                       <div>
-                        <label className="block text-xs font-medium text-gray-600 mb-1">Label <span className="text-gray-400 font-normal">(optional)</span></label>
+                        <label className="mb-1 block text-xs font-medium text-muted-foreground">Label <span className="font-normal text-muted-foreground/70">(optional)</span></label>
                         <input
-                          className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none bg-white"
+                          className={hrInputClass}
                           placeholder="e.g. Aadhaar Front Side"
                           value={docLabel}
                           onChange={e => setDocLabel(e.target.value)}
@@ -881,8 +892,8 @@ function AddEmployeeModal({
                       </div>
                     </div>
                     <div>
-                      <label className="block text-xs font-medium text-gray-600 mb-1">File <span className="text-red-500">*</span></label>
-                      <label className="flex flex-col items-center justify-center w-full h-28 border-2 border-dashed rounded-xl cursor-pointer bg-white hover:bg-blue-50 hover:border-blue-400 transition-colors">
+                      <label className="mb-1 block text-xs font-medium text-muted-foreground">File <span className="text-red-500">*</span></label>
+                      <label className="flex h-28 w-full cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed border-border bg-background transition-colors hover:border-primary hover:bg-primary/5">
                         <input
                           type="file"
                           className="sr-only"
@@ -891,12 +902,12 @@ function AddEmployeeModal({
                         />
                         {docFile ? (
                           <div className="flex flex-col items-center gap-1">
-                            <File className="w-6 h-6 text-blue-500" />
-                            <p className="text-sm font-medium text-gray-700 truncate max-w-xs">{docFile.name}</p>
-                            <p className="text-xs text-gray-400">{formatBytes(docFile.size)}</p>
+                            <File className="h-6 w-6 text-primary" />
+                            <p className="max-w-xs truncate text-sm font-medium text-foreground">{docFile.name}</p>
+                            <p className="text-xs text-muted-foreground">{formatBytes(docFile.size)}</p>
                           </div>
                         ) : (
-                          <div className="flex flex-col items-center gap-1.5 text-gray-400">
+                          <div className="flex flex-col items-center gap-1.5 text-muted-foreground">
                             <Upload className="w-6 h-6" />
                             <p className="text-sm">Click to upload or drag & drop</p>
                             <p className="text-xs">PDF, JPG, PNG, DOCX — max 10 MB</p>
@@ -905,16 +916,19 @@ function AddEmployeeModal({
                       </label>
                     </div>
                     <div className="flex items-center justify-between pt-1">
-                      <button
+                      <Button
                         type="button"
+                        variant="outline"
+                        size="sm"
                         onClick={() => { setShowDocForm(false); setDocFile(null); setDocLabel('') }}
-                        className="btn-cancel px-3 py-1.5 text-sm border rounded-lg text-gray-600"
                       >
                         Cancel
-                      </button>
+                      </Button>
                       <div className="flex items-center gap-2">
-                        <button
+                        <Button
                           type="button"
+                          variant="outline"
+                          size="sm"
                           onClick={() => {
                             addDocument()
                             setShowDocForm(true)
@@ -923,18 +937,17 @@ function AddEmployeeModal({
                             setDocFile(null)
                           }}
                           disabled={!docFile}
-                          className="flex items-center gap-1.5 px-4 py-1.5 text-sm border border-blue-600 text-blue-600 rounded-lg hover:bg-blue-50 disabled:opacity-40 transition-colors"
                         >
-                          <Plus className="w-3.5 h-3.5" /> Save &amp; Add More
-                        </button>
-                        <button
+                          <Plus className="h-3.5 w-3.5" /> Save &amp; Add More
+                        </Button>
+                        <Button
                           type="button"
+                          size="sm"
                           onClick={addDocument}
                           disabled={!docFile}
-                          className="flex items-center gap-1.5 px-4 py-1.5 text-sm bg-primary text-white rounded-lg hover:bg-primary/90 disabled:opacity-40 transition-colors"
                         >
-                          <Plus className="w-3.5 h-3.5" /> Save
-                        </button>
+                          <Plus className="h-3.5 w-3.5" /> Save
+                        </Button>
                       </div>
                     </div>
                   </div>
@@ -942,14 +955,14 @@ function AddEmployeeModal({
                   <button
                     type="button"
                     onClick={() => setShowDocForm(true)}
-                    className="w-full flex items-center justify-center gap-2 py-3 border-2 border-dashed border-gray-300 rounded-xl text-sm text-gray-500 hover:border-blue-400 hover:text-blue-600 transition-colors"
+                    className="flex w-full items-center justify-center gap-2 rounded-xl border-2 border-dashed border-border py-3 text-sm text-muted-foreground transition-colors hover:border-primary hover:text-primary"
                   >
                     <Upload className="w-4 h-4" /> Upload Document
                   </button>
                 )}
 
                 {documents.length === 0 && !showDocForm && (
-                  <p className="text-center text-xs text-gray-400 -mt-2">
+                  <p className="-mt-2 text-center text-xs text-muted-foreground">
                     Upload ID proofs, certificates, offer letters and more.
                   </p>
                 )}
@@ -959,7 +972,7 @@ function AddEmployeeModal({
             {/* Tab: Notes */}
             {activeTab === 'notes' && (
               <div>
-                <Label className="block text-xs font-medium text-gray-600 mb-1">Internal Notes</Label>
+                <Label className="mb-1 block text-xs font-medium text-muted-foreground">Internal Notes</Label>
                 <textarea
                   rows={6}
                   className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none resize-none"
@@ -1031,128 +1044,127 @@ export default function EmployeesPage() {
     <div className="p-6">
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Employees</h1>
-          <p className="text-sm text-gray-500 mt-1">{total} total employee profiles</p>
+          <h1 className="text-2xl font-bold text-foreground">Employees</h1>
+          <p className="mt-1 text-sm text-muted-foreground">{total} total employee profiles</p>
         </div>
         <div className="flex items-center gap-2">
-          <button
+          <Button
+            type="button"
+            variant="outline"
             onClick={() => seed.mutate(30)}
             disabled={seed.isPending}
             title="Insert 10 sample employees with 30 days of attendance data into this vendor"
-            className="flex items-center gap-2 px-3 py-2 border border-dashed border-gray-300 text-gray-500 rounded-lg hover:border-blue-400 hover:text-blue-600 text-sm disabled:opacity-50 transition-colors"
+            className="border-dashed"
           >
             {seed.isPending ? (
-              <Loader2 className="w-4 h-4 animate-spin" />
+              <Loader2 className="h-4 w-4 animate-spin" />
             ) : (
-              <Users className="w-4 h-4" />
+              <Users className="h-4 w-4" />
             )}
             {seed.isPending ? 'Seeding…' : 'Seed Test Data'}
-          </button>
-          <button
-            onClick={() => setShowModal(true)}
-            className="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 text-sm font-medium"
-          >
-            <Plus className="w-4 h-4" /> Add Employee
-          </button>
+          </Button>
+          <Button type="button" onClick={() => setShowModal(true)}>
+            <Plus className="h-4 w-4" /> Add Employee
+          </Button>
         </div>
       </div>
 
       {/* Stats cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
+      <div className="mb-6 grid grid-cols-2 gap-4 sm:grid-cols-4">
         {[
           { label: 'Total', value: stats.total, icon: Users, color: 'blue' },
           { label: 'Active', value: stats.active, icon: UserCheck, color: 'green' },
           { label: 'On Notice', value: stats.on_notice, icon: Clock, color: 'yellow' },
           { label: 'Probation', value: stats.probation, icon: UserX, color: 'purple' },
         ].map(({ label, value, icon: Icon, color }) => (
-          <div key={label} className="bg-white rounded-xl border p-4 shadow-sm max-h-[90vh] overflow-y-auto">
-            <div className={`inline-flex p-2 rounded-lg bg-${color}-50 mb-2`}>
-              <Icon className={`w-5 h-5 text-${color}-600`} />
+          <div key={label} className="rounded-xl border border-border bg-card p-4">
+            <div className={cn('mb-2 inline-flex rounded-lg p-2', hrStatIconClass[color])}>
+              <Icon className="h-5 w-5" />
             </div>
-            <p className="text-2xl font-bold text-gray-900">{value}</p>
-            <p className="text-sm text-gray-500">{label}</p>
+            <p className="text-2xl font-bold text-foreground">{value}</p>
+            <p className="text-sm text-muted-foreground">{label}</p>
           </div>
         ))}
       </div>
 
       {/* Filters */}
-      <div className="bg-white rounded-xl border shadow-sm p-4 mb-4 flex flex-wrap gap-3 max-h-[90vh] overflow-y-auto">
-        <div className="relative flex-1 min-w-48">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+      <div className="mb-4 flex flex-wrap items-center gap-3 rounded-xl border border-border bg-card p-4">
+        <div className="relative min-w-48 flex-1">
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <input
-            className="w-full pl-9 pr-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none"
+            className={cn(hrInputClass, 'pl-9')}
             placeholder="Search employees…"
             value={search}
             onChange={e => setSearch(e.target.value)}
           />
         </div>
-        <select className="border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none" value={deptFilter} onChange={e => setDeptFilter(e.target.value)}>
+        <select className={cn(hrSelectClass, 'min-w-[10rem]')} value={deptFilter} onChange={e => setDeptFilter(e.target.value)}>
           <option value="">All Departments</option>
           {departments.map((d: HRDepartment) => <option key={d.id} value={d.id}>{d.name}</option>)}
         </select>
-        <select className="border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none" value={statusFilter} onChange={e => setStatusFilter(e.target.value)}>
+        <select className={cn(hrSelectClass, 'min-w-[10rem]')} value={statusFilter} onChange={e => setStatusFilter(e.target.value)}>
           <option value="">All Statuses</option>
           <option value="active">Active</option>
           <option value="probation">Probation</option>
           <option value="on_notice">On Notice</option>
           <option value="exited">Exited</option>
         </select>
-        <select className="border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none" value={typeFilter} onChange={e => setTypeFilter(e.target.value)}>
+        <select className={cn(hrSelectClass, 'min-w-[10rem]')} value={typeFilter} onChange={e => setTypeFilter(e.target.value)}>
           <option value="">All Types</option>
           {allEmpTypes.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
         </select>
       </div>
 
       {/* Table */}
-      <div className="bg-white rounded-xl border shadow-sm overflow-hidden max-h-[90vh] overflow-y-auto">
+      <div className="overflow-hidden rounded-xl border border-border bg-card">
         {isLoading ? (
-          <div className="p-8 text-center text-gray-400">Loading…</div>
+          <div className="p-8 text-center text-muted-foreground">Loading…</div>
         ) : employees.length === 0 ? (
           <div className="p-12 text-center">
-            <Users className="w-10 h-10 text-gray-300 mx-auto mb-3" />
-            <p className="text-gray-500">No employees found.</p>
+            <Users className="mx-auto mb-3 h-10 w-10 text-muted-foreground/40" />
+            <p className="text-muted-foreground">No employees found.</p>
           </div>
         ) : (
           <table className="w-full">
-            <thead className="bg-gray-50 border-b">
+            <thead className={hrTableHeadClass}>
               <tr>
-                <th className="text-left py-3 px-4 text-xs font-medium text-gray-500 uppercase tracking-wide"><TableColumnLabel>Employee</TableColumnLabel></th>
-                <th className="text-left py-3 px-4 text-xs font-medium text-gray-500 uppercase tracking-wide"><TableColumnLabel>Department</TableColumnLabel></th>
-                <th className="text-left py-3 px-4 text-xs font-medium text-gray-500 uppercase tracking-wide"><TableColumnLabel>Designation</TableColumnLabel></th>
-                <th className="text-left py-3 px-4 text-xs font-medium text-gray-500 uppercase tracking-wide"><TableColumnLabel>Type</TableColumnLabel></th>
-                <th className="text-left py-3 px-4 text-xs font-medium text-gray-500 uppercase tracking-wide"><TableColumnLabel>Status</TableColumnLabel></th>
-                <th className="py-3 px-4" />
+                <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide"><TableColumnLabel>Employee</TableColumnLabel></th>
+                <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide"><TableColumnLabel>Department</TableColumnLabel></th>
+                <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide"><TableColumnLabel>Designation</TableColumnLabel></th>
+                <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide"><TableColumnLabel>Type</TableColumnLabel></th>
+                <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide"><TableColumnLabel>Status</TableColumnLabel></th>
+                <th className="px-4 py-3" />
               </tr>
             </thead>
-            <tbody>
+            <tbody className="divide-y divide-border">
               {employees.map(emp => {
                 const name = employeeDisplayName(emp)
                 return (
                   <tr
                     key={emp.id}
-                    className="border-b hover:bg-gray-50 transition-colors cursor-pointer"
+                    className="cursor-pointer transition-colors hover:bg-muted/30"
                     onClick={() => navigate(`/hr/employees/${emp.id}`)}
                   >
-                    <td className="py-3 px-4">
+                    <td className="px-4 py-3">
                       <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-700 font-semibold text-sm">
+                        <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/15 text-sm font-semibold text-primary">
                           {name[0]?.toUpperCase() ?? emp.employee_code?.[0]}
                         </div>
                         <div>
-                          <p className="font-medium text-sm text-gray-900">{name}</p>
-                          <p className="text-xs text-gray-500">{emp.employee_code_custom ?? emp.employee_code}</p>
+                          <p className="text-sm font-medium text-foreground">{name}</p>
+                          <p className="text-xs text-muted-foreground">{emp.employee_code_custom ?? emp.employee_code}</p>
                         </div>
                       </div>
                     </td>
-                    <td className="py-3 px-4 text-sm text-gray-600">{emp.department?.name ?? '—'}</td>
-                    <td className="py-3 px-4 text-sm text-gray-600">{emp.designation?.name ?? '—'}</td>
-                    <td className="py-3 px-4">
-                      <span className="text-xs bg-gray-100 text-gray-700 px-2 py-0.5 rounded-full">
+                    <td className="px-4 py-3 text-sm text-muted-foreground">{emp.department?.name ?? '—'}</td>
+                    <td className="px-4 py-3 text-sm text-muted-foreground">{emp.designation?.name ?? '—'}</td>
+                    <td className="px-4 py-3">
+                      <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
                         {empTypeLabel(emp.employment_type)}
                       </span>
                     </td>
-                    <td className="py-3 px-4">
-                      <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${STATUS_COLORS[emp.status] ?? 'bg-gray-100 text-gray-600'}`}>
+                    <td className="px-4 py-3">
+                      <span className={cn('rounded-full px-2 py-0.5 text-xs font-medium', STATUS_COLORS[emp.status] ?? 'bg-muted text-muted-foreground')}>
                         {emp.status.replace('_', ' ')}
                       </span>
                     </td>

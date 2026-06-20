@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { Label } from '@/components/ui/label'
+import { Select } from '@/components/ui/select'
 import { useEscapeToClose } from '@/hooks/useEscapeToClose'
 import { useTaxReturns, useCreateTaxReturn, useComputeTaxReturn, useFileTaxReturn, useTaxCodes, useCreateTaxCode } from '@/hooks/useFinance'
 import { Plus, Calculator, Send, X } from 'lucide-react'
@@ -139,8 +140,8 @@ export default function TaxReturns() {
       )}
 
       {showNew && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 overflow-y-auto" onClick={() => setShowNew(false)}>
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-md p-6 space-y-4 max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+        <div data-kiterp-modal className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 overflow-y-auto" onClick={() => setShowNew(false)}>
+          <div className="bg-card border border-border text-foreground rounded-xl shadow-2xl w-full max-w-md p-6 space-y-4 max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
 
             <div className="flex items-start justify-between gap-3 mb-4">
 
@@ -149,7 +150,7 @@ export default function TaxReturns() {
               <button type="button" aria-label="Close"
                 type="button"
                 onClick={() => setShowNew(false)}
-                className="p-1.5 rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors shrink-0"
+                className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors shrink-0"
                 aria-label="Close"
               >
                 <X className="w-5 h-5" />
@@ -158,10 +159,11 @@ export default function TaxReturns() {
             </div>
             <div>
               <Label className="block text-xs font-medium text-gray-600 mb-1">Return Type</Label>
-              <select value={returnForm.return_type} onChange={e => setReturnForm(f => ({ ...f, return_type: e.target.value }))}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
-                {['GSTR1', 'GSTR3B', 'TDS', 'Income'].map(t => <option key={t}>{t}</option>)}
-              </select>
+              <Select
+                value={returnForm.return_type}
+                onChange={v => setReturnForm(f => ({ ...f, return_type: v }))}
+                options={['GSTR1', 'GSTR3B', 'TDS', 'Income'].map(t => ({ value: t, label: t }))}
+              />
             </div>
             {[
               { label: 'Period Start', key: 'period_start', type: 'date' },
@@ -189,8 +191,8 @@ export default function TaxReturns() {
       )}
 
       {showNewCode && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 overflow-y-auto" onClick={() => setShowNewCode(false)}>
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-md p-6 space-y-4 max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+        <div data-kiterp-modal className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 overflow-y-auto" onClick={() => setShowNewCode(false)}>
+          <div className="bg-card border border-border text-foreground rounded-xl shadow-2xl w-full max-w-md p-6 space-y-4 max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
 
             <div className="flex items-start justify-between gap-3 mb-4">
 
@@ -199,7 +201,7 @@ export default function TaxReturns() {
               <button type="button" aria-label="Close"
                 type="button"
                 onClick={() => setShowNewCode(false)}
-                className="p-1.5 rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors shrink-0"
+                className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors shrink-0"
                 aria-label="Close"
               >
                 <X className="w-5 h-5" />
@@ -219,10 +221,11 @@ export default function TaxReturns() {
               ))}
               <div>
                 <Label className="block text-xs font-medium text-gray-600 mb-1">Tax Type</Label>
-                <select value={codeForm.tax_type} onChange={e => setCodeForm(f => ({ ...f, tax_type: e.target.value }))}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
-                  {['CGST', 'SGST', 'IGST', 'TDS', 'TCS', 'Income'].map(t => <option key={t}>{t}</option>)}
-                </select>
+                <Select
+                  value={codeForm.tax_type}
+                  onChange={v => setCodeForm(f => ({ ...f, tax_type: v }))}
+                  options={['CGST', 'SGST', 'IGST', 'TDS', 'TCS', 'Income'].map(t => ({ value: t, label: t }))}
+                />
               </div>
             </div>
             <div className="flex justify-end gap-2">

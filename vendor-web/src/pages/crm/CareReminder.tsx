@@ -267,15 +267,15 @@ function ComposeModal({
   const ChIcon = chMeta.icon
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 overflow-y-auto" onClick={onClose}>
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[92vh] flex flex-col" onClick={e => e.stopPropagation()}>
+    <div data-kiterp-modal className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 overflow-y-auto" onClick={onClose}>
+      <div className="bg-card border border-border text-foreground rounded-2xl shadow-2xl w-full max-w-2xl max-h-[92vh] flex flex-col" onClick={e => e.stopPropagation()}>
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b shrink-0">
           <div className="flex items-center gap-2">
             <Heart className="w-5 h-5 text-primary" />
             <h2 className="text-lg font-semibold">{editing ? 'Edit Reminder' : 'New Care & Reminder'}</h2>
           </div>
-          <button type="button" aria-label="Close" onClick={onClose} className="p-1.5 hover:bg-gray-100 rounded-lg"><X className="w-5 h-5 text-gray-500" /></button>
+          <button type="button" aria-label="Close" onClick={onClose} className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted"><X className="w-5 h-5 text-gray-500" /></button>
         </div>
 
         {/* Steps indicator */}

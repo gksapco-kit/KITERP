@@ -26,12 +26,12 @@ import { toast } from 'sonner'
 
 const SUPPORT_PHONE = import.meta.env.VITE_SUPPORT_PHONE as string | undefined
 const SUPPORT_CHAT_URL = import.meta.env.VITE_SUPPORT_CHAT_URL as string | undefined
-/** Hyperlink color on vendor login (matches design spec). */
+/** Hyperlink color on vendor login — follows theme primary. */
 const LOGIN_LINK_COLOR =
-  'text-[hsl(204.42deg_94.86%_48.34%)] underline-offset-2 hover:underline hover:opacity-90'
+  'text-primary underline-offset-2 hover:underline hover:opacity-90'
 const LOGIN_LINK_TOGGLE = cn(
-  'text-[hsl(204.42deg_94.86%_48.34%)]',
-  'hover:bg-[hsl(204.42deg_94.86%_48.34%_/_0.12)]',
+  'text-primary',
+  'hover:bg-primary/10 dark:hover:bg-primary/15',
 )
 
 const schema = z.object({
@@ -502,9 +502,9 @@ export default function Login() {
               to="/register"
               className={cn(
                 'inline-flex items-center justify-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition-all',
-                'bg-gradient-to-r from-sky-50 to-blue-50 text-[hsl(204.42deg_94.86%_48.34%)]',
-                'border border-sky-200/60',
-                'hover:from-sky-100 hover:to-blue-100 hover:border-sky-300/80 hover:underline',
+                'border border-primary/30 bg-primary/10 text-primary',
+                'hover:border-primary/45 hover:bg-primary/15 hover:underline',
+                'dark:border-primary/35 dark:bg-primary/15 dark:hover:bg-primary/20',
                 focusRingClassName,
               )}
             >
@@ -519,7 +519,7 @@ export default function Login() {
               className={cn(
                 'inline-block rounded-md px-2 py-1 text-xs font-medium transition-colors',
                 LOGIN_LINK_COLOR,
-                'hover:bg-[hsl(204.42deg_94.86%_48.34%_/_0.08)]',
+                'hover:bg-primary/10 dark:hover:bg-primary/15',
                 focusRingClassName,
               )}
             >

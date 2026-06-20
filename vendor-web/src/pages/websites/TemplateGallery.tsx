@@ -1110,7 +1110,7 @@ function StorefrontCoverage({
         </div>
       )}
 
-      <div className="mt-2 flex flex-wrap items-center justify-between gap-x-3 gap-y-0.5 border-t border-gray-100 pt-2 text-[10px]">
+      <div className="mt-2 flex flex-wrap items-center justify-between gap-x-3 gap-y-0.5 border-t border-border bg-muted/25 pt-2 text-[10px]">
         <Link
           to="/settings"
           className={cn(

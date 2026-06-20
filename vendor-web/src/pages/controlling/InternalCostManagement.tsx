@@ -79,7 +79,7 @@ function CostCenterCard({ name, totalActual, byCategory }: {
           </div>
         ))}
       </div>
-      <div className="border-t border-gray-100 pt-2 flex justify-between text-xs">
+      <div className="border-t border-border bg-muted/25 pt-2 flex justify-between text-xs">
         <span className="text-gray-500">Total actual spend</span>
         <span className="font-bold text-gray-900">{formatCurrency(totalActual)}</span>
       </div>

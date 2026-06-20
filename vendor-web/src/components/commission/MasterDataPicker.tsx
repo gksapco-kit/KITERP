@@ -108,7 +108,7 @@ export function MasterDataPicker({ placeholder = 'Search…', selected, onSearch
         {loading && <ChevronDown className="h-4 w-4 text-gray-400 animate-pulse" />}
       </div>
       {open && options.length > 0 && (
-        <div className="absolute z-50 mt-1 w-full bg-white border border-gray-200 rounded-lg shadow-lg max-h-48 overflow-y-auto">
+        <div className="absolute z-50 mt-1 w-full bg-popover text-popover-foreground border border-border rounded-lg shadow-lg max-h-48 overflow-y-auto">
           {options.map(opt => (
             <button
               key={opt.id}
@@ -128,7 +128,7 @@ export function MasterDataPicker({ placeholder = 'Search…', selected, onSearch
         </div>
       )}
       {open && !loading && options.length === 0 && query.trim() && (
-        <div className="absolute z-50 mt-1 w-full bg-white border border-gray-200 rounded-lg shadow-lg px-4 py-3 text-sm text-gray-500 max-h-[90vh] overflow-y-auto">
+        <div className="absolute z-50 mt-1 w-full bg-popover text-popover-foreground border border-border rounded-lg shadow-lg px-4 py-3 text-sm text-gray-500 max-h-[90vh] overflow-y-auto">
           No results found
         </div>
       )}

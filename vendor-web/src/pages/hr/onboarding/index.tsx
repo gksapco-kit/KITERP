@@ -103,7 +103,7 @@ function ChecklistCard({ checklist, expanded, onToggle }: { checklist: Onboardin
     : checklist.status === 'overdue' ? 'bg-red-100 text-red-700' : 'bg-blue-100 text-blue-700'
 
   return (
-    <div className="bg-white border rounded-xl shadow-sm max-h-[90vh] overflow-y-auto">
+    <div className="bg-card border border-border text-foreground rounded-xl shadow-2xl max-h-[90vh] overflow-y-auto">
       <div onClick={onToggle} className="flex items-center justify-between p-4 cursor-pointer hover:bg-gray-50">
         <div>
           <p className="text-sm font-semibold text-gray-900">Employee #{checklist.employee_id.slice(0, 8)}</p>
@@ -176,8 +176,8 @@ function StartChecklistModal({
     onClose()
   }
   return (
-    <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4 overflow-y-auto" onClick={onModalBackdropClick(onClose)}>
-      <div className="bg-white rounded-xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-y-auto">
+    <div data-kiterp-modal className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto" onClick={onModalBackdropClick(onClose)}>
+      <div className="bg-card border border-border text-foreground rounded-xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between px-5 py-3 border-b">
           <h2 className="text-lg font-semibold">Start Onboarding</h2>
           <button type="button" aria-label="Close" onClick={onClose} className="p-1 hover:bg-gray-100 rounded"><X className="w-4 h-4" /></button>
@@ -239,7 +239,7 @@ function TemplatesTab() {
           <Plus className="w-4 h-4" /> New Template
         </button>
       </div>
-      <div className="bg-white border rounded-xl shadow-sm overflow-hidden max-h-[90vh] overflow-y-auto">
+      <div className="bg-card border border-border text-foreground rounded-xl shadow-2xl overflow-hidden max-h-[90vh] overflow-y-auto">
         {isLoading ? (
           <div className="p-8 text-center text-gray-400">Loading…</div>
         ) : (templates as OnboardingTemplate[]).length === 0 ? (
@@ -343,8 +343,8 @@ function TemplateModal({
   }
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4 overflow-y-auto">
-      <div className="bg-white rounded-xl shadow-2xl w-full max-w-3xl max-h-[90vh] overflow-y-auto">
+    <div data-kiterp-modal className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
+      <div className="bg-card border border-border text-foreground rounded-xl shadow-2xl w-full max-w-3xl max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between px-5 py-3 border-b">
           <h2 className="text-lg font-semibold">{existing ? 'Edit Template' : 'New Onboarding Template'}</h2>
           <button type="button" aria-label="Close" onClick={onClose} className="p-1 hover:bg-gray-100 rounded">

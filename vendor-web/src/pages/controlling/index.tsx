@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom'
 import { useCompanies } from '@/hooks/useFinance'
 import { useControllingDashboard, useWipSummary } from '@/hooks/useControlling'
 import { useState, useMemo } from 'react'
+import { Select } from '@/components/ui/select'
 import { formatCurrency } from '@/lib/utils'
 import { Boxes, Factory, Gauge, Layers, ArrowRight, Package, Clock, GitMerge, CalendarClock, FolderOpen } from 'lucide-react'
 
@@ -38,15 +39,12 @@ export default function ControllingDashboardPage() {
         {companies.length > 0 && (
           <label className="flex flex-col gap-1 text-xs text-gray-600">
             Business unit
-            <select
+            <Select
+              className="min-w-[200px]"
               value={activeCo}
-              onChange={e => setCompanyId(e.target.value)}
-              className="rounded-lg border border-gray-200 px-3 py-2 text-sm bg-white min-w-[200px]"
-            >
-              {companies.map(c => (
-                <option key={c.id} value={c.id}>{c.code} — {c.name}</option>
-              ))}
-            </select>
+              onChange={setCompanyId}
+              options={companies.map(c => ({ value: c.id, label: `${c.code} — ${c.name}` }))}
+            />
           </label>
         )}
       </div>

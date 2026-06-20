@@ -3,6 +3,7 @@ import { TableColumnLabel } from '@/components/common/FieldLabel'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { Select } from '@/components/ui/select'
 import { Badge } from '@/components/ui/badge'
 import { useKbArticles, useSaveKb } from '@/hooks/useCrm'
 import { Plus, Loader2, BookOpen, Eye, ThumbsUp, Edit3 } from 'lucide-react'
@@ -45,12 +46,15 @@ function KbForm({ article, onClose }: { article?: KbArticle; onClose: () => void
         <div className="grid grid-cols-2 gap-3">
           <Field label="Slug"><Input value={form.slug} onChange={e => setForm(p => ({ ...p, slug: e.target.value }))} placeholder="auto from title" /></Field>
           <Field label="Status">
-            <select value={form.status} onChange={e => setForm(p => ({ ...p, status: e.target.value }))}
-              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm">
-              <option value="draft">Draft</option>
-              <option value="published">Published</option>
-              <option value="archived">Archived</option>
-            </select>
+            <Select
+              value={form.status}
+              onChange={v => setForm(p => ({ ...p, status: v }))}
+              options={[
+                { value: 'draft', label: 'Draft' },
+                { value: 'published', label: 'Published' },
+                { value: 'archived', label: 'Archived' },
+              ]}
+            />
           </Field>
         </div>
         <Field label="Summary"><Input value={form.summary} onChange={e => setForm(p => ({ ...p, summary: e.target.value }))} /></Field>

@@ -4,6 +4,8 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import * as api from '@/api/finance'
 import { Loader2, Save, Shield, Info, X } from 'lucide-react'
 import { toast } from 'sonner'
+import { Button } from '@/components/ui/button'
+import { cn } from '@/lib/utils'
 import {
   buildDefaultVariantCode,
   computeFiscalYearPreview,
@@ -144,68 +146,62 @@ export default function CreateCalendarModal({
 
   if (!open) return null
 
+  const fieldClass = 'mt-0.5 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground [color-scheme:dark]'
+  const labelClass = 'text-xs font-bold uppercase text-muted-foreground'
+
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 overflow-y-auto"
+    <div data-kiterp-modal
+      className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-black/60 p-4"
       role="dialog"
       aria-modal="true"
       aria-labelledby="create-cal-title"
       onClick={e => { if (e.target === e.currentTarget) onClose() }}
     >
       <div
-        className="bg-white rounded-xl shadow-xl max-w-3xl w-full max-h-[min(90vh,900px)] flex flex-col border border-slate-200"
+        className="flex max-h-[min(90vh,900px)] w-full max-w-3xl flex-col rounded-xl border border-border bg-card text-foreground shadow-2xl"
         onClick={e => e.stopPropagation()}
       >
-        <div className="sticky top-0 z-10 flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 bg-white px-4 py-3 shrink-0">
-          <h2 id="create-cal-title" className="text-lg font-semibold text-slate-900 min-w-0">
+        <div className="sticky top-0 z-10 flex shrink-0 flex-wrap items-center justify-between gap-2 border-b border-border bg-card px-4 py-3">
+          <h2 id="create-cal-title" className="min-w-0 text-lg font-semibold text-foreground">
             New fiscal calendar
           </h2>
-          <div className="flex items-center gap-2 ml-auto">
-            <button
-              type="button"
-              onClick={onClose}
-              className="btn-cancel px-3 py-2 text-sm font-medium text-slate-700 border border-slate-200 rounded-lg"
-            >Cancel</button>
-            <button
-              type="submit"
-              form={formId}
-              disabled={createFyMut.isPending}
-              className="inline-flex items-center gap-2 text-sm font-medium bg-[#64C3A0] text-white rounded-lg px-3 py-2 hover:bg-[#64C3A0]/90 disabled:opacity-50"
-            >
-              {createFyMut.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+          <div className="ml-auto flex items-center gap-2">
+            <Button type="button" variant="outline" size="sm" onClick={onClose}>Cancel</Button>
+            <Button type="submit" form={formId} size="sm" disabled={createFyMut.isPending}>
+              {createFyMut.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
               {createFyMut.isPending ? 'Saving…' : 'Save'}
-            </button>
+            </Button>
             <button
               type="button"
               onClick={onClose}
-              className="p-1.5 rounded-lg text-slate-500 hover:bg-slate-100 hover:text-slate-800"
+              className="rounded-lg p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground"
               aria-label="Close"
             >
-              <X className="w-5 h-5" />
+              <X className="h-5 w-5" />
             </button>
           </div>
         </div>
-        <form id={formId} onSubmit={onSubmit} className="p-4 space-y-3 overflow-y-auto min-h-0 flex-1">
-          <p className="text-xs text-slate-600">
-            Set <strong>fiscal pattern</strong> and year, link to one or all business units, optional post-close audit.
+        <form id={formId} onSubmit={onSubmit} className="min-h-0 flex-1 space-y-3 overflow-y-auto p-4">
+          <p className="text-xs text-muted-foreground">
+            Set <strong className="text-foreground">fiscal pattern</strong> and year, link to one or all business units, optional post-close audit.
             Internal code is set from your pattern and dates.
           </p>
           <div>
-            <label className="text-xs font-bold text-slate-500 uppercase">Fiscal pattern</label>
+            <label className={labelClass}>Fiscal pattern</label>
             <select
               value={tpl}
               onChange={e => { setTpl(e.target.value as typeof tpl) }}
-              className="mt-0.5 w-full border border-slate-200 rounded-lg px-3 py-2 text-sm"
+              className={fieldClass}
             >
               {TEMPLATES.map(t => (
                 <option key={t.id} value={t.id}>{t.label}</option>
               ))}
             </select>
           </div>
-          <label className="flex items-start gap-2 text-sm text-slate-800 max-w-xl cursor-pointer">
+          <label className="flex max-w-xl cursor-pointer items-start gap-2 text-sm text-foreground">
             <input
               type="checkbox"
-              className="mt-0.5 rounded border-slate-300"
+              className="mt-0.5 rounded border-input"
               checked={createForAllCompanies}
               onChange={e => {
                 setCreateForAllCompanies(e.target.checked)
@@ -218,11 +214,11 @@ export default function CreateCalendarModal({
             </span>
           </label>
           <div>
-            <label className="text-xs font-bold text-slate-500 uppercase">Business unit</label>
+            <label className={labelClass}>Business unit</label>
             <select
               value={createAssignCompanyId}
               onChange={e => { setCreateAssignCompanyId(e.target.value) }}
-              className="mt-0.5 w-full border border-slate-200 rounded-lg px-3 py-2 text-sm max-w-md disabled:bg-slate-100 disabled:text-slate-500"
+              className={cn(fieldClass, 'max-w-md disabled:bg-muted disabled:text-muted-foreground')}
               disabled={createForAllCompanies}
               required={!createForAllCompanies}
             >
@@ -234,56 +230,56 @@ export default function CreateCalendarModal({
               ))}
             </select>
             {createForAllCompanies && (
-              <p className="text-xs text-emerald-800 mt-1">
+              <p className="mt-1 text-xs text-primary">
                 One shared calendar; linked to all listed business units.
               </p>
             )}
           </div>
           {tpl !== 'custom' && (
             <div>
-              <label className="text-xs font-bold text-slate-500 uppercase">Start year of FY</label>
+              <label className={labelClass}>Start year of FY</label>
               <input
                 type="number"
-                className="mt-0.5 w-full max-w-xs border border-slate-200 rounded-lg px-3 py-2 text-sm"
+                className={cn(fieldClass, 'max-w-xs')}
                 value={yearAnchor}
                 onChange={e => { setYearAnchor(Number(e.target.value)) }}
                 min={1970}
                 max={2200}
               />
               {tpl === 'apr_mar' && (
-                <p className="text-xs text-slate-500 mt-1">
-                  Apr–Mar: <strong>April</strong> year (e.g. 2026 → 1 Apr 2026–31 Mar 2027).
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Apr–Mar: <strong className="text-foreground">April</strong> year (e.g. 2026 → 1 Apr 2026–31 Mar 2027).
                 </p>
               )}
               {tpl === 'jul_jun' && (
-                <p className="text-xs text-slate-500 mt-1">
-                  Jul–Jun: <strong>July</strong> year (e.g. 2026 → 1 Jul 2026–30 Jun 2027).
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Jul–Jun: <strong className="text-foreground">July</strong> year (e.g. 2026 → 1 Jul 2026–30 Jun 2027).
                 </p>
               )}
               {tpl === 'jan_dec' && (
-                <p className="text-xs text-slate-500 mt-1">
-                  Calendar year <strong>{yearAnchor}</strong>.
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Calendar year <strong className="text-foreground">{yearAnchor}</strong>.
                 </p>
               )}
             </div>
           )}
           {tpl === 'custom' && (
-            <div className="grid sm:grid-cols-2 gap-3 max-w-xl">
+            <div className="grid max-w-xl gap-3 sm:grid-cols-2">
               <div>
-                <label className="text-xs font-bold text-slate-500 uppercase">Fiscal start</label>
+                <label className={labelClass}>Fiscal start</label>
                 <input
                   type="date"
-                  className="mt-0.5 w-full border border-slate-200 rounded-lg px-3 py-2 text-sm"
+                  className={fieldClass}
                   value={customStart}
                   onChange={e => { setCustomStart(e.target.value) }}
                   required
                 />
               </div>
               <div>
-                <label className="text-xs font-bold text-slate-500 uppercase">Fiscal end</label>
+                <label className={labelClass}>Fiscal end</label>
                 <input
                   type="date"
-                  className="mt-0.5 w-full border border-slate-200 rounded-lg px-3 py-2 text-sm"
+                  className={fieldClass}
                   value={customEnd}
                   onChange={e => { setCustomEnd(e.target.value) }}
                   required
@@ -292,56 +288,56 @@ export default function CreateCalendarModal({
             </div>
           )}
           {newFyPreview && (
-            <div className="rounded-lg border border-sky-200 bg-sky-50/90 px-3 py-2.5 text-sm text-sky-950 flex gap-2">
-              <Info className="w-4 h-4 shrink-0 mt-0.5" aria-hidden />
+            <div className="flex gap-2 rounded-lg border border-sky-500/30 bg-sky-500/10 px-3 py-2.5 text-sm text-foreground dark:bg-sky-950/40">
+              <Info className="mt-0.5 h-4 w-4 shrink-0 text-sky-600 dark:text-sky-400" aria-hidden />
               <div>
                 <p className="font-semibold">Preview</p>
-                <p className="text-xs mt-0.5">
-                  <span className="font-medium">{newFyPreview.label}</span>
+                <p className="mt-0.5 text-xs text-muted-foreground">
+                  <span className="font-medium text-foreground">{newFyPreview.label}</span>
                   {' · '}
                   {formatIsoDate(newFyPreview.start)} — {formatIsoDate(newFyPreview.end)}
                 </p>
-                <p className="text-xs text-sky-900/85 mt-1">
-                  <strong>Audit</strong> (below) is post-close: the day <strong>after</strong> this range ends.
+                <p className="mt-1 text-xs text-muted-foreground">
+                  <strong className="text-foreground">Audit</strong> (below) is post-close: the day <strong className="text-foreground">after</strong> this range ends.
                 </p>
               </div>
             </div>
           )}
-          <div className="border border-dashed border-amber-200 rounded-lg p-3 bg-amber-50/40 space-y-2">
-            <p className="text-xs font-medium text-amber-900 flex items-center gap-1.5">
-              <Shield className="w-3.5 h-3.5" />
+          <div className="space-y-2 rounded-lg border border-dashed border-amber-500/35 bg-amber-500/10 p-3 dark:bg-amber-950/25">
+            <p className="flex items-center gap-1.5 text-xs font-medium text-amber-900 dark:text-amber-200">
+              <Shield className="h-3.5 w-3.5" />
               Optional audit / adjustment (on create)
             </p>
-            <div className="grid sm:grid-cols-3 gap-2 text-sm">
+            <div className="grid gap-2 text-sm sm:grid-cols-3">
               <input
                 placeholder="Label e.g. Audit-1"
-                className="border border-slate-200 rounded px-2 py-1.5"
+                className="rounded-lg border border-input bg-background px-2 py-2 text-sm text-foreground"
                 value={auditName}
                 onChange={e => { setAuditName(e.target.value) }}
               />
               <input
                 type="date"
-                className="border border-slate-200 rounded px-2 py-1.5"
+                className="rounded-lg border border-input bg-background px-2 py-2 text-sm text-foreground [color-scheme:dark]"
                 value={auditStart}
                 onChange={e => { setAuditStart(e.target.value) }}
               />
               <input
                 type="date"
-                className="border border-slate-200 rounded px-2 py-1.5"
+                className="rounded-lg border border-input bg-background px-2 py-2 text-sm text-foreground [color-scheme:dark]"
                 value={auditEnd}
                 onChange={e => { setAuditEnd(e.target.value) }}
               />
             </div>
-            <p className="text-xs text-amber-900/80">
+            <p className="text-xs text-amber-900/80 dark:text-amber-200/80">
               A date range spanning more than one month is stored as one audit period per month.
             </p>
             {auditOutOfRangeCreate && (
-              <p className="text-xs text-red-700 font-medium" role="alert">
+              <p className="text-xs font-medium text-destructive" role="alert">
                 {auditOutOfRangeCreate}
               </p>
             )}
           </div>
-          <label className="flex items-center gap-2 text-sm text-slate-700">
+          <label className="flex items-center gap-2 text-sm text-foreground">
             <input
               type="checkbox"
               checked={createAssignAsCurrent}
@@ -349,22 +345,6 @@ export default function CreateCalendarModal({
             />
             Set as <strong>current</strong> fiscal year for each linked business unit
           </label>
-          <div className="sticky bottom-0 z-10 -mx-4 -mb-4 mt-2 flex flex-wrap items-center justify-end gap-2 border-t border-slate-200 bg-slate-50/95 px-4 py-3 backdrop-blur sm:rounded-b-xl">
-            <button
-              type="button"
-              onClick={onClose}
-              className="btn-cancel px-4 py-2 text-sm font-medium text-slate-700 border border-slate-200 rounded-lg"
-            >Cancel</button>
-            <button
-              type="submit"
-              disabled={createFyMut.isPending}
-              className="inline-flex items-center gap-2 text-sm font-medium bg-[#64C3A0] text-white rounded-lg px-4 py-2 hover:bg-[#64C3A0]/90 disabled:opacity-50"
-              aria-label="Save fiscal calendar and link to selected business units"
-            >
-              {createFyMut.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-              {createFyMut.isPending ? 'Saving…' : 'Save'}
-            </button>
-          </div>
         </form>
       </div>
     </div>

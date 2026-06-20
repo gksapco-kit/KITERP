@@ -1270,7 +1270,7 @@ export default function ReportsPage() {
             <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform ${selectorOpen ? 'rotate-180' : ''}`} />
           </button>
           {selectorOpen && (
-            <div className="absolute left-0 top-full mt-2 w-[380px] bg-white border border-gray-200 rounded-2xl shadow-xl z-50 overflow-hidden max-h-[90vh] overflow-y-auto">
+            <div className="absolute left-0 top-full mt-2 w-[380px] bg-popover text-popover-foreground border border-border rounded-2xl shadow-xl z-50 overflow-hidden max-h-[90vh] overflow-y-auto">
               <div className="px-3 pt-3 pb-2 border-b">
                 <div className="flex items-center gap-2 bg-gray-50 rounded-xl px-3 py-2">
                   <Search className="w-3.5 h-3.5 text-gray-400 shrink-0" />
@@ -2231,7 +2231,7 @@ export default function ReportsPage() {
                     <Settings2 className="w-3.5 h-3.5" /> Columns
                   </button>
                   {mrpColsOpen && (
-                    <div className="absolute right-0 top-full mt-2 bg-white border border-gray-200 rounded-2xl shadow-xl z-50 p-3 min-w-[200px] max-h-[90vh] overflow-y-auto">
+                    <div className="absolute right-0 top-full mt-2 bg-popover text-popover-foreground border border-border rounded-2xl shadow-xl z-50 p-3 min-w-[200px] max-h-[90vh] overflow-y-auto">
                       <p className="text-xs font-bold text-gray-500 uppercase mb-2">Optional Columns</p>
                       {MRP_OPTIONAL_COLS.map(col => (
                         <label key={col.id} className="flex items-center gap-2 py-1.5 cursor-pointer hover:bg-gray-50 rounded-lg px-1">
@@ -2257,7 +2257,7 @@ export default function ReportsPage() {
                     <Download className="w-3.5 h-3.5" /> Export &amp; Share
                   </button>
                   {mrpShareOpen && (
-                    <div className="absolute right-0 top-full mt-2 bg-white border border-gray-200 rounded-2xl shadow-xl z-50 p-2 min-w-[210px] space-y-0.5 max-h-[90vh] overflow-y-auto">
+                    <div className="absolute right-0 top-full mt-2 bg-popover text-popover-foreground border border-border rounded-2xl shadow-xl z-50 p-2 min-w-[210px] space-y-0.5 max-h-[90vh] overflow-y-auto">
                       <button onClick={() => { exportMrpCSV(); setMrpShareOpen(false) }}
                         className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl hover:bg-gray-50 text-xs text-gray-700 font-medium">
                         <Download className="w-3.5 h-3.5 text-gray-500" /> Download CSV
@@ -2546,8 +2546,8 @@ export default function ReportsPage() {
 
       {/* ── Purchase Order Modal (enhanced) ─────────────────────────────── */}
       {poModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm overflow-y-auto" onClick={() => setPoModal(false)}>
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+        <div data-kiterp-modal className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm backdrop-blur-sm overflow-y-auto" onClick={() => setPoModal(false)}>
+          <div className="bg-card border border-border text-foreground rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
             <div className="flex items-center gap-3 px-6 py-5 border-b bg-gradient-to-r from-blue-50 to-indigo-50">
               <div className="p-2 bg-blue-100 rounded-xl"><Truck className="w-5 h-5 text-blue-600" /></div>
               <div className="flex-1">
@@ -2560,7 +2560,7 @@ export default function ReportsPage() {
                     <button type="button" aria-label="Close"
                 type="button"
                 onClick={() => setPoModal(false)}
-                className="p-1.5 rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors shrink-0"
+                className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors shrink-0"
                 aria-label="Close"
               >
                 <X className="w-5 h-5" />
@@ -2690,8 +2690,8 @@ export default function ReportsPage() {
 
       {/* ── Production Plan Modal ─────────────────────────────────────────── */}
       {prodModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm overflow-y-auto" onClick={() => setProdModal(false)}>
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl max-h-[92vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+        <div data-kiterp-modal className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm backdrop-blur-sm overflow-y-auto" onClick={() => setProdModal(false)}>
+          <div className="bg-card border border-border text-foreground rounded-2xl shadow-2xl w-full max-w-3xl max-h-[92vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
             {/* Header */}
             <div className="flex items-center gap-3 px-6 py-4 border-b bg-gradient-to-r from-accent to-primary/10 sticky top-0 z-10">
               <div className="p-2 bg-primary/12 rounded-xl"><Factory className="w-5 h-5 text-primary" /></div>

@@ -1,11 +1,20 @@
 import { type ReactNode, type FormEvent } from 'react'
 import { useEscapeToClose } from '@/hooks/useEscapeToClose'
 import { onModalBackdropClick } from '@/lib/utils'
+import {
+  modalBodyPadClass,
+  modalCloseBtnClass,
+  modalHeaderStickyClass,
+  modalOverlayCenterClass,
+  modalPanel2xlClass,
+  modalTitleClass,
+} from '@/lib/modalUi'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent } from '@/components/ui/card'
 import { Loader2, X, Search, ChevronLeft, ChevronRight } from 'lucide-react'
+import { cn } from '@/lib/utils'
 
 export function CrmModal({
   title, onClose, children, maxW = 'max-w-lg', headerActions,
@@ -13,21 +22,21 @@ export function CrmModal({
   useEscapeToClose(onClose)
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 overflow-y-auto" onClick={onModalBackdropClick(onClose)}>
+    <div data-kiterp-modal className={modalOverlayCenterClass} onClick={onModalBackdropClick(onClose)}>
       <div
-        className={`bg-white rounded-2xl shadow-2xl w-full ${maxW} max-h-[90vh] overflow-y-auto`}
+        className={cn(modalPanel2xlClass, maxW)}
         onClick={e => e.stopPropagation()}
       >
-        <div className="flex items-center justify-between gap-3 px-6 py-4 border-b sticky top-0 bg-white z-10">
-          <h2 className="text-lg font-semibold truncate">{title}</h2>
+        <div className={modalHeaderStickyClass}>
+          <h2 className={cn(modalTitleClass, 'truncate')}>{title}</h2>
           <div className="flex items-center gap-2 shrink-0">
             {headerActions}
-            <button type="button" aria-label="Close" onClick={onClose} className="p-1.5 hover:bg-gray-100 rounded-lg">
-              <X className="w-5 h-5 text-gray-500" />
+            <button type="button" aria-label="Close" onClick={onClose} className={modalCloseBtnClass}>
+              <X className="w-5 h-5" />
             </button>
           </div>
         </div>
-        <div className="p-6">{children}</div>
+        <div className={modalBodyPadClass}>{children}</div>
       </div>
     </div>
   )
@@ -52,7 +61,7 @@ export function SearchBar({
       <CardContent className="pt-6">
         <form onSubmit={onSubmit} className="flex gap-2">
           <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
             <Input value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} className="pl-10" />
           </div>
           <Button type="submit" variant="outline">Search</Button>
@@ -67,8 +76,8 @@ export function Pager({
 }: { page: number; pages: number; total: number; onPage: (p: number) => void }) {
   if (pages <= 1) return null
   return (
-    <div className="flex items-center justify-between px-6 py-3 border-t bg-gray-50">
-      <span className="text-xs text-gray-500">Page {page} of {pages} ({total} total)</span>
+    <div className="flex items-center justify-between px-6 py-3 border-t border-border bg-muted/30">
+      <span className="text-xs text-muted-foreground">Page {page} of {pages} ({total} total)</span>
       <div className="flex gap-1">
         <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => onPage(page - 1)}>
           <ChevronLeft className="w-4 h-4" />
@@ -84,7 +93,7 @@ export function Pager({
 export function LoadingRow({ cols }: { cols: number }) {
   return (
     <tr><td colSpan={cols} className="px-6 py-12 text-center">
-      <Loader2 className="w-6 h-6 animate-spin mx-auto text-gray-400" />
+      <Loader2 className="w-6 h-6 animate-spin mx-auto text-muted-foreground" />
     </td></tr>
   )
 }
@@ -94,7 +103,7 @@ export function EmptyRow({
 }: { cols: number; message: string; action?: ReactNode }) {
   return (
     <tr><td colSpan={cols} className="px-6 py-16 text-center">
-      <p className="text-sm text-gray-500 mb-3">{message}</p>
+      <p className="text-sm text-muted-foreground mb-3">{message}</p>
       {action}
     </td></tr>
   )

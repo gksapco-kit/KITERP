@@ -3,6 +3,7 @@ import { TableColumnLabel } from '@/components/common/FieldLabel'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { Select } from '@/components/ui/select'
 import { Badge } from '@/components/ui/badge'
 import { useLeads, useSaveLead, useConvertLead } from '@/hooks/useCrm'
 import { crmApi, type Lead } from '@/api/crm'
@@ -57,10 +58,11 @@ function LeadForm({ onClose }: { onClose: () => void }) {
             <Input value={form.source} onChange={e => setForm(p => ({ ...p, source: e.target.value }))} placeholder="website, ads, referral" />
           </Field>
           <Field label="Status">
-            <select value={form.status} onChange={e => setForm(p => ({ ...p, status: e.target.value }))}
-              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm">
-              {STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
-            </select>
+            <Select
+              value={form.status}
+              onChange={v => setForm(p => ({ ...p, status: v }))}
+              options={STATUSES.map(s => ({ value: s, label: s }))}
+            />
           </Field>
         </div>
         <Field label="Notes">

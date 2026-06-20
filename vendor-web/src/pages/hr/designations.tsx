@@ -25,7 +25,7 @@ export default function DesignationsPage() {
         </button>
       </div>
 
-      <div className="bg-white rounded-xl border shadow-sm overflow-hidden max-h-[90vh] overflow-y-auto">
+      <div className="bg-card border border-border text-foreground rounded-xl shadow-2xl overflow-hidden max-h-[90vh] overflow-y-auto">
         {isLoading ? (
           <div className="p-8 text-center text-gray-400">Loading…</div>
         ) : designations.length === 0 ? (

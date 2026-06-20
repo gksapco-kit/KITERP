@@ -46,7 +46,7 @@ export default function CycleDetailPage() {
         <StatCard label="Completed" value={`${completionPct}%`} />
       </div>
 
-      <div className="bg-white border rounded-xl shadow-sm overflow-hidden max-h-[90vh] overflow-y-auto">
+      <div className="bg-card border border-border text-foreground rounded-xl shadow-2xl overflow-hidden max-h-[90vh] overflow-y-auto">
         {total === 0 ? (
           <div className="p-12 text-center">
             <ClipboardList className="w-10 h-10 text-gray-300 mx-auto mb-3" />

@@ -8,6 +8,7 @@ import type { StoreRecord } from '@/api/vendor'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Select, selectOptionsWithBlank } from '@/components/ui/select'
 import { PhoneInput } from '@/components/ui/PhoneInput'
 import { Card, CardContent } from '@/components/ui/card'
 import {
@@ -150,7 +151,7 @@ function StoreModal({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 overflow-y-auto" onClick={onClose}>
+    <div data-kiterp-modal className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 overflow-y-auto" onClick={onClose}>
       <div
         className="bg-card text-card-foreground border border-border rounded-xl shadow-2xl w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto"
         onClick={e => e.stopPropagation()}
@@ -289,8 +290,8 @@ function TransferModal({
   })
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 overflow-y-auto">
-      <div className="bg-white rounded-xl shadow-2xl w-full max-w-md mx-4 max-h-[90vh] overflow-y-auto">
+    <div data-kiterp-modal className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 overflow-y-auto">
+      <div className="bg-card border border-border text-foreground rounded-xl shadow-2xl w-full max-w-md mx-4 max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between p-5 border-b">
           <h2 className="text-lg font-semibold flex items-center gap-2"><ArrowLeftRight className="w-5 h-5" />Stock Transfer</h2>
           <button type="button" aria-label="Close" onClick={onClose}>
@@ -304,27 +305,39 @@ function TransferModal({
           )}
           <div>
             <Label>From Store</Label>
-            <select value={fromStore} onChange={e => setFromStore(e.target.value)}
-              className="mt-1 w-full rounded-md border border-input px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring">
-              <option value="">Select source store…</option>
-              {stores.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-            </select>
+            <Select
+              value={fromStore}
+              onChange={setFromStore}
+              options={selectOptionsWithBlank('Select source store…', stores.map(s => ({ value: s.id, label: s.name })))}
+              placeholder="Select source store…"
+              aria-label="From store"
+              className="mt-1"
+            />
           </div>
           <div>
             <Label>To Store</Label>
-            <select value={toStore} onChange={e => setToStore(e.target.value)}
-              className="mt-1 w-full rounded-md border border-input px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring">
-              <option value="">Select destination store…</option>
-              {stores.filter(s => s.id !== fromStore).map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-            </select>
+            <Select
+              value={toStore}
+              onChange={setToStore}
+              options={selectOptionsWithBlank('Select destination store…', stores.filter(s => s.id !== fromStore).map(s => ({ value: s.id, label: s.name })))}
+              placeholder="Select destination store…"
+              aria-label="To store"
+              className="mt-1"
+            />
           </div>
           <div>
             <Label>Product</Label>
-            <select value={product} onChange={e => setProduct(e.target.value)}
-              className="mt-1 w-full rounded-md border border-input px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring">
-              <option value="">Select product…</option>
-              {products.map(p => <option key={p.id} value={p.id}>{p.name}{p.sku ? ` (${p.sku})` : ''}</option>)}
-            </select>
+            <Select
+              value={product}
+              onChange={setProduct}
+              options={selectOptionsWithBlank('Select product…', products.map(p => ({
+                value: p.id,
+                label: `${p.name}${p.sku ? ` (${p.sku})` : ''}`,
+              })))}
+              placeholder="Select product…"
+              aria-label="Product"
+              className="mt-1"
+            />
           </div>
           <div>
             <Label>Quantity</Label>
@@ -390,11 +403,18 @@ function StoreCard({
       <CardContent className="flex flex-col gap-1 px-1.5 pb-1.5 pt-1.5">
         {/* Row 1: icon | code+name | badges */}
         <div className="flex items-start gap-1.5">
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md overflow-hidden border border-border bg-muted">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-md ring-1 ring-inset ring-border/45 bg-muted">
             {visual.logoUrl ? (
               <img src={visual.logoUrl} alt="" className="h-full w-full object-cover" />
             ) : (
-              <visual.Icon className="h-6 w-6 text-primary" strokeWidth={1.75} />
+              <span
+                className={cn(
+                  'flex h-full w-full items-center justify-center bg-gradient-to-br text-white',
+                  visual.gradientClass,
+                )}
+              >
+                <visual.Icon className="h-5 w-5" strokeWidth={1.75} />
+              </span>
             )}
           </div>
           <div className="min-w-0 flex-1 pt-0.5">

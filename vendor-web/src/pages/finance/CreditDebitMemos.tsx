@@ -977,7 +977,7 @@ export default function CreditDebitMemos() {
         </div>
 
         <div
-          className="bg-white border border-slate-200/90 shadow-sm text-slate-900"
+          className="bg-white border border-border/90 shadow-sm text-slate-900"
           style={{ boxShadow: '0 1px 0 rgba(0,0,0,.06), 0 12px 32px -12px rgba(15,23,42,.12)' }}
          onClick={e => e.stopPropagation()}>
           <div className="px-6 sm:px-8 pt-6 pb-4 border-b border-slate-200/80">
@@ -999,7 +999,7 @@ export default function CreditDebitMemos() {
                   <Label className="text-[0.65rem] font-bold uppercase tracking-wide text-slate-500 block">Document date</Label>
                   <input
                     type="date"
-                    className="mt-0.5 font-mono text-sm tabular-nums font-medium text-slate-800 border border-slate-200 rounded-md px-2 py-1 bg-white"
+                    className="mt-0.5 font-mono text-sm tabular-nums font-medium text-slate-800 border border-border rounded-md px-2 py-1 bg-white"
                     value={documentDate}
                     onChange={e => setDocumentDate(e.target.value)}
                   />
@@ -1008,7 +1008,7 @@ export default function CreditDebitMemos() {
                   <Label className="text-[0.65rem] font-bold uppercase tracking-wide text-slate-500 block">Posting date</Label>
                   <input
                     type="date"
-                    className="mt-0.5 font-mono text-sm tabular-nums font-medium text-slate-800 border border-slate-200 rounded-md px-2 py-1 bg-white"
+                    className="mt-0.5 font-mono text-sm tabular-nums font-medium text-slate-800 border border-border rounded-md px-2 py-1 bg-white"
                     value={postingDate}
                     onChange={e => setPostingDate(e.target.value)}
                   />
@@ -1036,7 +1036,7 @@ export default function CreditDebitMemos() {
               </button>
             </div>
 
-            <div className="mt-5 rounded-xl border border-slate-200/90 bg-white p-4 sm:p-5">
+            <div className="mt-5 rounded-xl border border-border/90 bg-white p-4 sm:p-5">
               <p className="text-[0.65rem] font-bold uppercase tracking-[0.12em] text-slate-500">Business unit (catalog)</p>
               <p className="text-xs text-slate-500 mt-1 mb-3 max-w-3xl">
                 {isStoreLocked
@@ -1052,7 +1052,7 @@ export default function CreditDebitMemos() {
               </div>
             </div>
 
-            <div className="mt-5 rounded-xl border border-slate-200/90 bg-slate-50/50 p-4 sm:p-5">
+            <div className="mt-5 rounded-xl border border-border/90 bg-slate-50/50 p-4 sm:p-5">
               <p className="text-[0.65rem] font-bold uppercase tracking-[0.12em] text-slate-500">Posting &amp; company</p>
               <p className="text-xs text-slate-500 mt-1 mb-3 max-w-3xl">Business unit, currency, and GL period for this document. Shown for control and included in the memo record on finalise.</p>
               {companiesList.length === 0 ? (
@@ -1064,7 +1064,7 @@ export default function CreditDebitMemos() {
                   <div>
                     <Label className="text-xs text-slate-600">Business unit (code)</Label>
                     <select
-                      className="mt-1 w-full h-9 text-sm border border-slate-200 rounded-md bg-white"
+                      className="mt-1 w-full h-9 text-sm border border-border rounded-md bg-white"
                       value={headerCompanyId}
                       onChange={(e) => {
                         setHeaderCompanyId(e.target.value)
@@ -1085,7 +1085,7 @@ export default function CreditDebitMemos() {
                   <div>
                     <Label className="text-xs text-slate-600">Currency</Label>
                     <input
-                      className="mt-1 w-full h-9 text-sm border border-slate-200 rounded-md px-2 font-mono uppercase"
+                      className="mt-1 w-full h-9 text-sm border border-border rounded-md px-2 font-mono uppercase"
                       value={headerCurrency}
                       onChange={(e) => setHeaderCurrency(e.target.value.toUpperCase())}
                       placeholder="INR"
@@ -1096,7 +1096,7 @@ export default function CreditDebitMemos() {
                   <div>
                     <Label className="text-xs text-slate-600">Fiscal year</Label>
                     <select
-                      className="mt-1 w-full h-9 text-sm border border-slate-200 rounded-md bg-white"
+                      className="mt-1 w-full h-9 text-sm border border-border rounded-md bg-white"
                       value={headerFiscalYearId}
                       onChange={(e) => {
                         setHeaderFiscalYearId(e.target.value)
@@ -1112,7 +1112,7 @@ export default function CreditDebitMemos() {
                   <div>
                     <Label className="text-xs text-slate-600">Posting period</Label>
                     <select
-                      className="mt-1 w-full h-9 text-sm border border-slate-200 rounded-md bg-white disabled:bg-slate-50"
+                      className="mt-1 w-full h-9 text-sm border border-border rounded-md bg-white disabled:bg-slate-50"
                       value={headerPeriodId}
                       onChange={(e) => setHeaderPeriodId(e.target.value)}
                       disabled={!headerFiscalYearId}
@@ -1131,7 +1131,7 @@ export default function CreditDebitMemos() {
                   <div className="sm:col-span-2 xl:col-span-4">
                     <Label className="text-xs text-slate-600">Header text</Label>
                     <input
-                      className="mt-1 w-full h-9 text-sm border border-slate-200 rounded-md px-2"
+                      className="mt-1 w-full h-9 text-sm border border-border rounded-md px-2"
                       value={headerText}
                       onChange={(e) => setHeaderText(e.target.value)}
                       placeholder="Printed or internal document title / descriptor"
@@ -1151,7 +1151,7 @@ export default function CreditDebitMemos() {
                     {(soSearching || soOrderLoading) && <Loader2 className="absolute right-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400 animate-spin" />}
                     <input
                       type="text"
-                      className="w-full h-10 pl-8 pr-9 text-sm border border-slate-200 rounded-lg bg-white shadow-sm"
+                      className="w-full h-10 pl-8 pr-9 text-sm border border-border rounded-lg bg-white shadow-sm"
                       placeholder="Order # — search, select, or Load lines"
                       value={salesOrderRef}
                       onChange={e => {
@@ -1198,7 +1198,7 @@ export default function CreditDebitMemos() {
                   </div>
                 )}
                 {soDropOpen && soDebounced.length >= 2 && (
-                  <div className="absolute left-0 right-0 top-full mt-1 bg-white border border-slate-200 rounded-lg shadow-lg z-40 max-h-56 overflow-y-auto">
+                  <div className="absolute left-0 right-0 top-full mt-1 bg-white border border-border rounded-lg shadow-lg z-40 max-h-56 overflow-y-auto">
                     {soSearching ? (
                       <div className="py-3 text-center text-xs text-slate-500 flex items-center justify-center gap-2">
                         <Loader2 className="w-4 h-4 animate-spin" /> Searching…
@@ -1297,7 +1297,7 @@ export default function CreditDebitMemos() {
                           <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
                           {refSearching && <Loader2 className="absolute right-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400 animate-spin" />}
                           <input
-                            className="w-full h-9 pl-8 pr-8 text-sm border border-slate-200 rounded-md bg-white"
+                            className="w-full h-9 pl-8 pr-8 text-sm border border-border rounded-md bg-white"
                             placeholder="Order #, invoice #, or customer…"
                             value={refLookup}
                             onChange={(e) => { setRefLookup(e.target.value); setRefDropOpen(true) }}
@@ -1314,7 +1314,7 @@ export default function CreditDebitMemos() {
                         </Button>
                       </div>
                       {refDropOpen && refLookup.trim().length >= 2 && (
-                        <div className="absolute left-0 right-0 top-full mt-1 bg-white border border-slate-200 rounded-lg shadow-lg z-40 max-h-56 overflow-y-auto">
+                        <div className="absolute left-0 right-0 top-full mt-1 bg-white border border-border rounded-lg shadow-lg z-40 max-h-56 overflow-y-auto">
                           {refSearching ? (
                             <div className="py-3 text-center text-xs text-slate-500 flex items-center justify-center gap-2">
                               <Loader2 className="w-4 h-4 animate-spin" /> Searching…
@@ -1350,7 +1350,7 @@ export default function CreditDebitMemos() {
           <div className="px-6 sm:px-8 py-4 border-b border-slate-100">
             <p className="text-[0.65rem] font-bold uppercase tracking-wide text-slate-500 mb-2">Customer</p>
             {selectedCustomer ? (
-              <div className="flex items-center justify-between border border-slate-200 rounded-md px-3 py-2.5 bg-slate-50/50">
+              <div className="flex items-center justify-between border border-border rounded-md px-3 py-2.5 bg-slate-50/50">
                 <div className="flex items-center gap-2 text-sm min-w-0">
                   <User className="w-4 h-4 text-slate-600 shrink-0" />
                   <span className="font-medium text-slate-900 truncate">{selectedCustomer.full_name}</span>
@@ -1371,10 +1371,10 @@ export default function CreditDebitMemos() {
                     onFocus={() => customerResults.length > 0 && setShowCustomerDropdown(true)}
                     onBlur={() => setTimeout(() => setShowCustomerDropdown(false), 200)}
                     placeholder="Search customer by name or phone…"
-                    className="w-full h-9 pl-8 pr-3 text-sm border border-slate-200 rounded-md"
+                    className="w-full h-9 pl-8 pr-3 text-sm border border-border rounded-md"
                   />
                   {showCustomerDropdown && customerResults.length > 0 && (
-                    <div className="absolute left-0 right-0 top-full mt-1 bg-white border border-slate-200 rounded-md shadow z-30 max-h-40 overflow-y-auto">
+                    <div className="absolute left-0 right-0 top-full mt-1 bg-white border border-border rounded-md shadow z-30 max-h-40 overflow-y-auto">
                       {customerResults.map(c => (
                         <button
                           type="button"
@@ -1410,7 +1410,7 @@ export default function CreditDebitMemos() {
             </div>
 
             {catalogOpen && (
-              <div className="mb-3 mx-1 sm:mx-2 p-3 rounded-md border border-slate-200 bg-slate-50/60 space-y-2">
+              <div className="mb-3 mx-1 sm:mx-2 p-3 rounded-md border border-border bg-slate-50/60 space-y-2">
                 <div className="flex gap-1 rounded-md bg-slate-100/90 p-0.5 w-fit">
                   {(['all', 'products', 'services'] as const).map((f) => (
                     <button
@@ -1487,7 +1487,7 @@ export default function CreditDebitMemos() {
                             <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400 pointer-events-none" />
                             <input
                               data-memo-line-input={idx}
-                              className="w-full min-w-[12rem] text-sm h-9 pl-8 pr-2 border border-slate-200 rounded-md bg-white shadow-sm hover:border-slate-300 focus:border-slate-400 focus:ring-2 focus:ring-slate-200/80 focus:outline-none"
+                              className="w-full min-w-[12rem] text-sm h-9 pl-8 pr-2 border border-border rounded-md bg-white shadow-sm hover:border-slate-300 focus:border-slate-400 focus:ring-2 focus:ring-slate-200/80 focus:outline-none"
                               value={item.name}
                               onChange={e => { updateLine(idx, { name: e.target.value }); setParticularsOpenIdx(idx) }}
                               onFocus={() => { setParticularsOpenIdx(idx) }}
@@ -1513,7 +1513,7 @@ export default function CreditDebitMemos() {
                         <input
                           type="number"
                           min={1}
-                          className="w-14 text-right text-sm border border-slate-200 rounded px-1 py-0.5 tabular-nums"
+                          className="w-14 text-right text-sm border border-border rounded px-1 py-0.5 tabular-nums"
                           value={item.qty}
                           onChange={e => updateLine(idx, { qty: Math.max(1, Number(e.target.value) || 1) })}
                         />
@@ -1523,7 +1523,7 @@ export default function CreditDebitMemos() {
                           type="number"
                           min={0}
                           step="0.01"
-                          className="w-full max-w-[6.5rem] text-right text-sm border border-slate-200 rounded px-1 py-0.5 tabular-nums"
+                          className="w-full max-w-[6.5rem] text-right text-sm border border-border rounded px-1 py-0.5 tabular-nums"
                           value={item.price}
                           onChange={e => updateLine(idx, { price: Math.max(0, Number(e.target.value) || 0) })}
                         />
@@ -1532,7 +1532,7 @@ export default function CreditDebitMemos() {
                         <input
                           type="number"
                           min={0}
-                          className="w-16 text-right text-sm border border-slate-200 rounded px-1 py-0.5 tabular-nums"
+                          className="w-16 text-right text-sm border border-border rounded px-1 py-0.5 tabular-nums"
                           value={item.discount}
                           onChange={e => updateLine(idx, { discount: Math.max(0, Number(e.target.value) || 0) })}
                         />
@@ -1541,7 +1541,7 @@ export default function CreditDebitMemos() {
                         <input
                           type="number"
                           min={0}
-                          className="w-14 text-right text-sm border border-slate-200 rounded px-1 py-0.5 tabular-nums"
+                          className="w-14 text-right text-sm border border-border rounded px-1 py-0.5 tabular-nums"
                           value={item.tax_rate}
                           onChange={e => updateLine(idx, { tax_rate: Math.max(0, Number(e.target.value) || 0) })}
                         />
@@ -1558,7 +1558,7 @@ export default function CreditDebitMemos() {
               </table>
             </div>
 
-            <details className="group mt-3 rounded-xl border border-slate-200 bg-gradient-to-b from-slate-50/80 to-white open:shadow-sm">
+            <details className="group mt-3 rounded-xl border border-border bg-gradient-to-b from-slate-50/80 to-white open:shadow-sm">
               <summary className="flex cursor-pointer list-none items-center gap-2 px-3 py-2.5 text-xs font-medium text-slate-700">
                 <History className="w-4 h-4 text-slate-500" />
                 Document activity (audit trail)
@@ -1593,7 +1593,7 @@ export default function CreditDebitMemos() {
               <div>
                 <Label className="text-xs text-slate-500">Header discount</Label>
                 <div className="mt-1 flex items-center gap-2">
-                  <select className="text-xs border border-slate-200 rounded h-8 px-2" value={discountType} onChange={e => setDiscountType(e.target.value as 'flat' | 'percentage')}>
+                  <select className="text-xs border border-border rounded h-8 px-2" value={discountType} onChange={e => setDiscountType(e.target.value as 'flat' | 'percentage')}>
                     <option value="flat">Flat</option>
                     <option value="percentage">%</option>
                   </select>
@@ -1607,7 +1607,7 @@ export default function CreditDebitMemos() {
                   value={memoNotes}
                   onChange={e => setMemoNotes(e.target.value)}
                   placeholder="Reason / internal reference"
-                  className="mt-1 w-full h-8 text-sm border border-slate-200 rounded-md px-2"
+                  className="mt-1 w-full h-8 text-sm border border-border rounded-md px-2"
                 />
               </div>
             </div>
@@ -1660,7 +1660,7 @@ export default function CreditDebitMemos() {
               }}
             />
             <div
-              className="fixed z-[110] flex min-w-[20rem] max-w-[min(28rem,100vw-1rem)] max-h-[24rem] flex-col overflow-hidden rounded-xl border border-slate-200/90 bg-white shadow-2xl ring-1 ring-slate-300/20"
+              className="fixed z-[110] flex min-w-[20rem] max-w-[min(28rem,100vw-1rem)] max-h-[24rem] flex-col overflow-hidden rounded-xl border border-border/90 bg-white shadow-2xl ring-1 ring-slate-300/20"
               style={{
                 top: pickerBox.top,
                 left: pickerBox.left,
@@ -1736,7 +1736,7 @@ export default function CreditDebitMemos() {
 
       {showQuickCreate && (
         <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center overflow-y-auto" onClick={() => setShowQuickCreate(false)}>
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-sm mx-4 p-5 space-y-4 max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+          <div className="bg-card border border-border text-foreground rounded-xl shadow-2xl w-full max-w-sm mx-4 p-5 space-y-4 max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between">
               <h3 className="font-semibold flex items-center gap-2"><UserPlus className="w-5 h-5 text-emerald-600" /> New customer</h3>
               <button type="button" aria-label="Close" type="button" onClick={() => setShowQuickCreate(false)} className="p-1 rounded hover:bg-slate-100">
@@ -1891,8 +1891,8 @@ function MemoPaymentModal({
   ]
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 overflow-y-auto" onClick={onClose}>
-      <div className="bg-white rounded-xl shadow-xl w-full max-w-md mx-4 max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+    <div data-kiterp-modal className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 overflow-y-auto" onClick={onClose}>
+      <div className="bg-card border border-border text-foreground rounded-xl shadow-2xl w-full max-w-md mx-4 max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
         <div className={`flex items-center justify-between px-6 py-4 border-b ${isCredit ? 'bg-orange-50' : 'bg-blue-50'}`}>
           <div>
             <h2 className="text-lg font-semibold">
@@ -1985,7 +1985,7 @@ function MemoReceipt({ data, onClose, onNewMemo }: {
 
   return (
     <div className="max-w-lg mx-auto py-8 space-y-6">
-      <div className="bg-white rounded-2xl border shadow-lg overflow-hidden max-h-[90vh] overflow-y-auto">
+      <div className="bg-card border border-border text-foreground rounded-2xl shadow-2xl overflow-hidden max-h-[90vh] overflow-y-auto">
         <div className={`px-6 py-5 text-center ${isCredit ? 'bg-orange-50' : 'bg-blue-50'}`}>
           <div className={`w-14 h-14 rounded-full mx-auto mb-3 flex items-center justify-center ${isCredit ? 'bg-orange-100' : 'bg-blue-100'}`}>
             <Check className={`w-7 h-7 ${isCredit ? 'text-orange-600' : 'text-blue-600'}`} />

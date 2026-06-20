@@ -5,6 +5,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Select, selectOptionsWithBlank } from '@/components/ui/select'
 import {
   useStores,
   useStorageLocationTree,
@@ -19,7 +20,7 @@ import {
 import { ResizableTable } from '@/components/table/ResizableTable'
 import type { StorageLocation, CustomField } from '@/types'
 
-const selectCls = 'flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring'
+const selectCls = 'h-10 text-sm'
 
 const FIELD_TYPES = [
   { value: 'text', label: 'Text' },
@@ -55,13 +56,13 @@ function CustomFieldsEditor({ fields, onChange }: { fields: CustomField[]; onCha
         <div key={i} className="flex items-start gap-2 p-3 rounded-lg border bg-gray-50">
           <div className="flex-1 grid grid-cols-3 gap-2">
             <Input placeholder="Field name" value={f.name} onChange={e => updateField(i, { name: e.target.value })} className="h-8 text-sm" />
-            <select
+            <Select
               value={f.type}
-              onChange={e => updateField(i, { type: e.target.value, options: e.target.value === 'select' || e.target.value === 'multiselect' ? f.options || [] : undefined })}
+              onChange={(v) => updateField(i, { type: v, options: v === 'select' || v === 'multiselect' ? f.options || [] : undefined })}
+              options={FIELD_TYPES.map(t => ({ value: t.value, label: t.label }))}
+              aria-label="Field type"
               className={`${selectCls} h-8 text-sm`}
-            >
-              {FIELD_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
-            </select>
+            />
             {(f.type === 'select' || f.type === 'multiselect') && (
               <Input
                 placeholder="Options (comma separated)"
@@ -289,8 +290,8 @@ export default function StorageLocationsPage() {
       <Card>
         <CardContent className="p-4">
           <div className="flex flex-wrap items-end gap-4">
-            <div className="min-w-[220px]">
-              <Label className="text-xs text-gray-500 mb-1 block flex items-center gap-1.5">
+            <div className="min-w-[220px] space-y-1.5">
+              <Label className="text-xs text-muted-foreground flex items-center gap-1.5">
                 <Store className="w-3.5 h-3.5" /> Business Unit
               </Label>
               {storesLoading ? (
@@ -298,15 +299,15 @@ export default function StorageLocationsPage() {
               ) : stores.length === 0 ? (
                 <p className="text-sm text-gray-400">No business units yet. Create one under Finance → Business Units.</p>
               ) : (
-                <select
+                <Select
                   value={selectedStoreId || ''}
-                  onChange={e => setSelectedStoreId(e.target.value)}
-                  className={selectCls}
-                >
-                  {stores.map(s => (
-                    <option key={s.id} value={s.id}>{s.name}{s.code ? ` (${s.code})` : ''}</option>
-                  ))}
-                </select>
+                  onChange={setSelectedStoreId}
+                  options={stores.map(s => ({
+                    value: s.id,
+                    label: `${s.name}${s.code ? ` (${s.code})` : ''}`,
+                  }))}
+                  aria-label="Store"
+                />
               )}
             </div>
             {selectedStore && (
@@ -372,41 +373,45 @@ export default function StorageLocationsPage() {
       </Card>
 
       {showForm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={resetForm}>
-          <div className="w-full max-w-lg bg-white rounded-xl shadow-xl max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
-            <div className="flex items-center justify-between px-6 py-4 border-b sticky top-0 bg-white z-10">
+        <div data-kiterp-modal className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4" onClick={resetForm}>
+          <div className="w-full max-w-lg bg-card border border-border text-foreground rounded-xl shadow-2xl max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between px-6 py-4 border-b border-border sticky top-0 bg-card z-10">
               <h2 className="text-lg font-semibold">{editing ? 'Edit Storage Location' : 'New Storage Location'}</h2>
               <button type="button" aria-label="Close" onClick={resetForm} className="p-1.5 rounded-lg hover:bg-gray-100">
                 <X className="w-5 h-5" />
               </button>
             </div>
             <form onSubmit={handleSubmit} className="p-6 space-y-4">
-              <div>
+              <div className="space-y-1.5">
                 <Label>Name *</Label>
                 <Input value={name} onChange={e => setName(e.target.value)} placeholder="e.g. Main Warehouse, Aisle A, Shelf 3" required />
               </div>
               <div className="grid grid-cols-2 gap-3">
-                <div>
+                <div className="space-y-1.5">
                   <Label>Code</Label>
                   <Input value={code} onChange={e => setCode(e.target.value)} placeholder="WH-01" />
                 </div>
-                <div>
+                <div className="space-y-1.5">
                   <Label>Sort order</Label>
                   <Input type="number" value={sortOrder} onChange={e => setSortOrder(Number(e.target.value))} />
                 </div>
               </div>
-              <div>
+              <div className="space-y-1.5">
                 <Label>Description</Label>
                 <Input value={description} onChange={e => setDescription(e.target.value)} placeholder="Optional notes" />
               </div>
-              <div>
+              <div className="space-y-1.5">
                 <Label>Parent location</Label>
-                <select value={parentId || ''} onChange={e => setParentId(e.target.value || null)} className={selectCls}>
-                  <option value="">None (root location)</option>
-                  {flatOptions.map(o => (
-                    <option key={o.id} value={o.id}>{o.label}</option>
-                  ))}
-                </select>
+                <Select
+                  value={parentId || ''}
+                  onChange={(v) => setParentId(v || null)}
+                  options={selectOptionsWithBlank('None (root location)', flatOptions.map(o => ({
+                    value: o.id,
+                    label: o.label,
+                  })))}
+                  placeholder="None (root location)"
+                  aria-label="Parent location"
+                />
               </div>
               <CustomFieldsEditor fields={customFields} onChange={setCustomFields} />
               <div className="flex justify-end gap-2 pt-2">

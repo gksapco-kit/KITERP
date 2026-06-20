@@ -254,7 +254,7 @@ export function CatalogMediaLightbox({
 
   return (
     <>
-      <div
+      <div data-kiterp-modal
         className="fixed inset-0 z-[60] flex flex-col bg-black/85"
         role="dialog"
         aria-modal="true"

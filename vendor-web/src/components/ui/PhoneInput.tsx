@@ -65,6 +65,28 @@ function parseFullPhone(
   return { country: defaultCountry, number: digitsOnly(stripped) }
 }
 
+// ── Shared row chrome (matches Input h-10) ───────────────────────────────────
+
+const phoneInputUi = {
+  row: 'relative flex w-full items-stretch',
+  rowHeight: {
+    default: 'h-10',
+    comfortable: 'h-[calc(2.75rem*0.95)]',
+    comfortableDense: 'h-[calc(2.75rem*0.95*0.76)]',
+    compact: 'h-8 sm:h-9',
+  },
+  countryTrigger:
+    'inline-flex shrink-0 items-center justify-center rounded-l-md border border-r-0 border-input bg-muted text-foreground transition-colors hover:bg-muted/80',
+  numberField:
+    'w-full rounded-r-md border border-input bg-background text-foreground outline-none transition-all placeholder:text-muted-foreground',
+} as const
+
+function phoneRowHeight(comfortable: boolean, dense: boolean, compact: boolean): string {
+  if (compact) return phoneInputUi.rowHeight.compact
+  if (!comfortable) return phoneInputUi.rowHeight.default
+  return dense ? phoneInputUi.rowHeight.comfortableDense : phoneInputUi.rowHeight.comfortable
+}
+
 // ── CountryDropdown ────────────────────────────────────────────────────────
 
 function CountryDropdown({
@@ -172,6 +194,8 @@ export interface PhoneInputProps {
   subtleFeedback?: boolean
   /** Narrow country-code trigger so the number field gets more width (forms, modals). */
   compactCountry?: boolean
+  /** Match compact form density (h-8 / sm:h-9) used in dense grids. */
+  compact?: boolean
 }
 
 export function PhoneInput({
@@ -191,6 +215,7 @@ export function PhoneInput({
   dense = false,
   subtleFeedback = false,
   compactCountry = false,
+  compact = false,
 }: PhoneInputProps) {
   const defaultCountry =
     COUNTRIES.find(c => c.iso === defaultCountryIso) ??
@@ -336,6 +361,21 @@ export function PhoneInput({
   const maxDigits = getMaxDigits(country)
   const isOverLimit = localNumber.length > maxDigits
   const isFull = localNumber.length === maxDigits && maxDigits <= 12
+  const rowH = phoneRowHeight(comfortable, dense, compact)
+  const textSize = compact
+    ? 'text-xs sm:text-sm'
+    : comfortable
+      ? dense
+        ? 'text-xs'
+        : 'text-[0.95rem]'
+      : 'text-sm'
+  const chevronSize = compact
+    ? 'h-3 w-3'
+    : comfortable
+      ? dense
+        ? 'h-3.5 w-3.5'
+        : 'h-4 w-4'
+      : 'h-3.5 w-3.5'
 
   return (
     <div className={cn('w-full space-y-1', className)}>
@@ -344,57 +384,51 @@ export function PhoneInput({
           {label}
         </Label>
       ) : null}
-      <div ref={wrapRef} className="relative flex w-full items-stretch gap-0">
+      <div ref={wrapRef} className={phoneInputUi.row} data-phone-input="">
         {/* Country picker trigger */}
         <button
           type="button"
           disabled={disabled}
           onClick={() => setDropOpen(v => !v)}
+          aria-label={`Country code ${country.dialCode}`}
           className={cn(
-            'flex items-center rounded-l-md border border-r-0 bg-muted hover:bg-muted/80 text-foreground transition-colors shrink-0',
+            phoneInputUi.countryTrigger,
+            rowH,
             focusRingClassName,
             compactCountry
-              ? 'w-[3.5rem] min-w-[3.5rem] justify-center gap-0 px-1 py-2'
-              : cn(
-                  'gap-1.5',
-                  comfortable
-                    ? (
-                        dense
-                          ? 'min-h-[calc(2.75rem*0.95*0.76)] gap-1.5 px-2.5 text-xs'
-                          : 'min-h-[calc(2.75rem*0.95)] gap-2 px-3 text-[0.95rem]'
-                      )
-                    : 'px-2.5 py-2 text-sm',
-                ),
-            dropOpen ? 'border-primary ring-1 ring-ring z-10' : 'border-input',
+              ? 'min-w-[4.25rem] gap-0.5 px-2'
+              : 'gap-1 px-2.5',
+            dropOpen ? 'border-primary ring-1 ring-ring z-10' : '',
             error && 'border-destructive',
             disabled && 'opacity-50 cursor-not-allowed',
           )}
         >
           {!compactCountry && (
-            <span className={cn(
-              'leading-none',
-              comfortable ? (dense ? 'text-sm' : 'text-base') : 'text-base',
-            )}>{country.flag}</span>
+            <span
+              className={cn(
+                'inline-flex shrink-0 items-center justify-center leading-none',
+                compact ? 'h-3.5 w-4 text-sm' : comfortable ? (dense ? 'h-3.5 w-4 text-sm' : 'h-4 w-5 text-base') : 'h-4 w-5 text-base',
+              )}
+              aria-hidden
+            >
+              {country.flag}
+            </span>
           )}
-          <span
-            className={cn(
-              'font-mono text-foreground leading-none',
-              compactCountry ? 'text-[11px]' : comfortable ? (dense ? 'text-xs' : 'text-sm') : 'text-xs',
-            )}
-          >
+          <span className={cn('font-mono tabular-nums leading-none', textSize, compactCountry && 'text-[11px]')}>
             {country.dialCode}
           </span>
           <ChevronDown
             className={cn(
-              'text-muted-foreground transition-transform shrink-0',
-              compactCountry ? 'w-2 h-2' : comfortable ? (dense ? 'w-3.5 h-3.5' : 'w-4 h-4') : 'w-3 h-3',
+              'shrink-0 self-center text-muted-foreground transition-transform',
+              chevronSize,
               dropOpen && 'rotate-180',
             )}
+            aria-hidden
           />
         </button>
 
         {/* Number input */}
-        <div className="relative flex-1">
+        <div className="relative min-w-0 flex-1">
           <input
             id={id}
             name={name}
@@ -408,16 +442,12 @@ export function PhoneInput({
             onBlur={handleBlur}
             placeholder={placeholder ?? (country.iso === 'IN' ? '98765 43210' : 'Phone number')}
             className={cn(
-              'w-full h-full rounded-r-md border outline-none transition-all bg-background text-foreground placeholder:text-muted-foreground',
-              comfortable
-                ? (
-                    dense
-                      ? 'min-h-[calc(2.75rem*0.95*0.76)] px-2.5 py-1 text-xs'
-                      : 'min-h-[calc(2.75rem*0.95)] px-3 py-2 text-[0.95rem]'
-                  )
-                : 'px-3 py-2 text-sm',
+              phoneInputUi.numberField,
+              rowH,
+              textSize,
+              compact ? 'px-2.5 sm:px-3' : comfortable ? (dense ? 'px-2.5' : 'px-3') : 'px-3',
               'focus:ring-2 focus:ring-ring focus:border-primary',
-              error ? 'border-destructive bg-destructive/10' : 'border-input',
+              error ? 'border-destructive bg-destructive/10' : '',
               isOverLimit && 'border-amber-500 bg-amber-500/10 dark:bg-amber-500/15',
               isFull && !error && !subtleFeedback && 'border-green-600 bg-green-500/10 dark:border-green-500 dark:bg-green-500/15',
               isFull && !error && subtleFeedback && 'border-input',

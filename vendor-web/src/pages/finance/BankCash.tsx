@@ -1,8 +1,10 @@
 import { useState, useRef } from 'react'
 import { Label } from '@/components/ui/label'
+import { Select } from '@/components/ui/select'
 import { useEscapeToClose } from '@/hooks/useEscapeToClose'
 import { useBankAccounts, useCreateBankAccount, useStatements, useUploadStatementCSV, useReconciliations, useCreateReconciliation, useAutoMatch } from '@/hooks/useFinance'
 import { Plus, Upload, Shuffle, X } from 'lucide-react'
+import { Button } from '@/components/ui/button'
 
 function fmt(n: number) {
   return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(n)
@@ -131,11 +133,13 @@ export default function BankCash() {
       {tab === 'Reconciliation' && (
         <div className="space-y-4">
           <div className="flex gap-2">
-            <button onClick={() => createReconMut.mutate({ bank_account_id: selectedBankId, reconciliation_date: new Date().toISOString().slice(0,10) })}
+            <Button
+              onClick={() => createReconMut.mutate({ bank_account_id: selectedBankId, reconciliation_date: new Date().toISOString().slice(0,10) })}
               disabled={!selectedBankId || createReconMut.isPending}
-              className="flex items-center gap-1 px-4 py-2 bg-green-600 text-white rounded-lg text-sm hover:bg-green-700 disabled:opacity-50">
+              className="gap-1"
+            >
               <Plus className="w-4 h-4" /> {createReconMut.isPending ? 'Creating…' : 'New Reconciliation'}
-            </button>
+            </Button>
           </div>
           <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
             <table className="w-full text-sm">
@@ -180,12 +184,12 @@ export default function BankCash() {
       )}
 
       {showNewAccount && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 overflow-y-auto"
+        <div data-kiterp-modal
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 overflow-y-auto"
           onClick={closeNewAccount}
         >
           <div
-            className="bg-white rounded-xl shadow-xl w-full max-w-md p-6 space-y-4 max-h-[90vh] overflow-y-auto"
+            className="bg-card border border-border text-foreground rounded-xl shadow-2xl w-full max-w-md p-6 space-y-4 max-h-[90vh] overflow-y-auto"
             onClick={e => e.stopPropagation()}
           >
             <div className="flex items-start justify-between gap-3">
@@ -193,7 +197,7 @@ export default function BankCash() {
               <button
                 type="button"
                 onClick={closeNewAccount}
-                className="p-1.5 rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors shrink-0"
+                className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors shrink-0"
                 aria-label="Close"
               >
                 <X className="w-5 h-5" />
@@ -215,10 +219,11 @@ export default function BankCash() {
             ))}
             <div>
               <Label className="block text-xs font-medium text-gray-600 mb-1">Type</Label>
-              <select value={accountForm.account_type} onChange={e => setAccountForm(f => ({ ...f, account_type: e.target.value }))}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
-                {['bank', 'cash', 'credit_card', 'wallet'].map(t => <option key={t}>{t}</option>)}
-              </select>
+              <Select
+                value={accountForm.account_type}
+                onChange={v => setAccountForm(f => ({ ...f, account_type: v }))}
+                options={['bank', 'cash', 'credit_card', 'wallet'].map(t => ({ value: t, label: t }))}
+              />
             </div>
             <div className="flex justify-end gap-2">
               <button onClick={closeNewAccount} className="btn-cancel px-4 py-2 text-sm border border-gray-300 rounded-lg">Cancel</button>

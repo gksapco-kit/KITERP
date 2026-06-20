@@ -7,6 +7,7 @@ import { TableColumnLabel } from '@/components/common/FieldLabel'
 import { Link } from 'react-router-dom'
 import { ExternalLink, TrendingDown, TrendingUp, Minus } from 'lucide-react'
 import { useCompanies } from '@/hooks/useFinance'
+import { Select, selectOptionsWithBlank } from '@/components/ui/select'
 import { useManufacturingOrders } from '@/hooks/useControlling'
 import { formatCurrency } from '@/lib/utils'
 import { cn } from '@/lib/utils'
@@ -221,21 +222,41 @@ export default function VarianceAnalysisPage() {
       {/* Filters */}
       <div className="flex flex-wrap gap-3">
         {companies.length > 1 && (
-          <select value={activeCo} onChange={e => setCompanyId(e.target.value)} className={filterSelectCls}>
-            {companies.map(c => <option key={c.id} value={c.id}>{c.code}</option>)}
-          </select>
+          <Select
+            className="min-w-[10rem]"
+            value={activeCo}
+            onChange={setCompanyId}
+            options={companies.map(c => ({ value: c.id, label: c.code }))}
+          />
         )}
-        <select value={kindFilter} onChange={e => setKindFilter(e.target.value)} className={filterSelectCls}>
-          {ORDER_KINDS.map(k => <option key={k} value={k}>{k || 'All kinds'}</option>)}
-        </select>
-        <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} className={filterSelectCls}>
-          {STATUSES.map(s => <option key={s} value={s}>{s || 'All statuses'}</option>)}
-        </select>
-        <select value={sortBy} onChange={e => setSortBy(e.target.value as typeof sortBy)} className={filterSelectCls}>
-          <option value="variance">Sort: largest variance first</option>
-          <option value="actual">Sort: highest actual cost</option>
-          <option value="order_no">Sort: order number</option>
-        </select>
+        <Select
+          className="min-w-[10rem]"
+          value={kindFilter}
+          onChange={setKindFilter}
+          options={selectOptionsWithBlank(
+            'All kinds',
+            ORDER_KINDS.filter(Boolean).map(k => ({ value: k, label: k })),
+          )}
+        />
+        <Select
+          className="min-w-[10rem]"
+          value={statusFilter}
+          onChange={setStatusFilter}
+          options={selectOptionsWithBlank(
+            'All statuses',
+            STATUSES.filter(Boolean).map(s => ({ value: s, label: s })),
+          )}
+        />
+        <Select
+          className="min-w-[10rem]"
+          value={sortBy}
+          onChange={v => setSortBy(v as typeof sortBy)}
+          options={[
+            { value: 'variance', label: 'Sort: largest variance first' },
+            { value: 'actual', label: 'Sort: highest actual cost' },
+            { value: 'order_no', label: 'Sort: order number' },
+          ]}
+        />
       </div>
 
       {/* Orders grid */}

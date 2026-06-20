@@ -8,6 +8,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Select, selectOptionsWithBlank } from '@/components/ui/select'
 import { apiClient } from '@/api/client'
 import { vendorApi } from '@/api/vendor'
 import type { Customer } from '@/types'
@@ -28,6 +29,7 @@ import {
   ExternalLink, CalendarClock, RotateCcw, Grid3X3, Building2,
 } from 'lucide-react'
 import { extractApiError } from '@/lib/errorMessages'
+import { bookingModalUi as bm } from './bookingModalUi'
 
 // ── Slot-picker helpers (mirrors POSBookingPanel logic) ──────────────────────
 function timeToMins(t: string) { const [h, m] = t.split(':').map(Number); return h * 60 + m }
@@ -71,12 +73,12 @@ function SlotActionCard({ slot: s, overdue, dimmed, onConfirm, onStart, onComple
   const canAct = !dimmed && !['completed', 'cancelled', 'no_show'].includes(status)
 
   const rowBg = overdue
-    ? 'border-orange-200 bg-orange-50'
+    ? bm.rowOverdue
     : dimmed
-      ? 'border-gray-100 bg-gray-50/50 opacity-60'
-      : 'border-gray-100 bg-white hover:bg-accent/60'
+      ? bm.rowDimmed
+      : bm.rowDefault
 
-  const avatarCls = overdue ? 'bg-orange-400' : dimmed ? 'bg-gray-300' : 'bg-gradient-to-br from-primary to-emerald-700'
+  const avatarCls = overdue ? 'bg-orange-400' : dimmed ? 'bg-muted-foreground/40' : 'bg-gradient-to-br from-primary to-emerald-700'
   const statusDotColor = SLOT_STATUS_DOT[status] || 'bg-gray-300'
 
   return (
@@ -91,14 +93,14 @@ function SlotActionCard({ slot: s, overdue, dimmed, onConfirm, onStart, onComple
         {/* Name + slot details */}
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-1.5">
-            <p className="text-xs font-bold text-gray-900 truncate leading-tight">
+            <p className="text-xs font-bold text-foreground truncate leading-tight">
               {(s.customer_name as string) || 'Guest'}
             </p>
-            {overdue && <span className="text-xs px-1 py-0 rounded bg-orange-100 text-orange-600 font-bold shrink-0">OD</span>}
-            {dimmed && <span className="text-xs px-1 py-0 rounded bg-gray-100 text-gray-400 font-bold shrink-0">OS</span>}
+            {overdue && <span className="text-xs px-1 py-0 rounded bg-orange-500/15 text-orange-600 dark:text-orange-400 font-bold shrink-0">OD</span>}
+            {dimmed && <span className="text-xs px-1 py-0 rounded bg-muted text-muted-foreground font-bold shrink-0">OS</span>}
           </div>
           <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
-            <span className="text-xs text-gray-400 flex items-center gap-0.5 shrink-0">
+            <span className="text-xs text-muted-foreground flex items-center gap-0.5 shrink-0">
               <Clock className="w-2 h-2" />
               {overdue && s.booking_date ? `${s.booking_date} · ` : ''}
               {(s.start_time as string)?.slice(0, 5)}{s.end_time ? `–${(s.end_time as string).slice(0, 5)}` : ''}
@@ -109,7 +111,7 @@ function SlotActionCard({ slot: s, overdue, dimmed, onConfirm, onStart, onComple
               </span>
             )}
             {!!s.assigned_staff_name && (
-              <span className="text-xs text-gray-300 truncate max-w-[70px]">· {s.assigned_staff_name as string}</span>
+              <span className="text-xs text-muted-foreground/70 truncate max-w-[70px]">· {s.assigned_staff_name as string}</span>
             )}
           </div>
         </div>
@@ -118,11 +120,11 @@ function SlotActionCard({ slot: s, overdue, dimmed, onConfirm, onStart, onComple
         <div className="flex items-center gap-1 shrink-0">
           {/* Status pill */}
           <span className={`flex items-center gap-0.5 text-xs font-bold px-1.5 py-0.5 rounded-full ${
-            status === 'pending'     ? 'bg-amber-100 text-amber-700' :
-            status === 'confirmed'   ? 'bg-blue-100 text-blue-700' :
-            status === 'in_progress' ? 'bg-primary/12 text-primary' :
-            status === 'completed'   ? 'bg-emerald-100 text-emerald-700' :
-            'bg-gray-100 text-gray-500'
+            status === 'pending'     ? bm.statusPending :
+            status === 'confirmed'   ? bm.statusConfirmed :
+            status === 'in_progress' ? bm.statusInProgress :
+            status === 'completed'   ? bm.statusCompleted :
+            bm.statusDefault
           }`}>
             <span className={`w-1.5 h-1.5 rounded-full ${statusDotColor} shrink-0`} />
             {status === 'in_progress' ? 'Active' : status.charAt(0).toUpperCase() + status.slice(1).replace('_', ' ')}
@@ -157,19 +159,19 @@ function SlotActionCard({ slot: s, overdue, dimmed, onConfirm, onStart, onComple
           {/* Secondary icon actions */}
           {canAct && (status === 'confirmed' || status === 'in_progress') && (
             <button onClick={onNoShow} disabled={isPending} title="No Show"
-              className="p-1 rounded-md hover:bg-gray-200 text-gray-400 hover:text-gray-700 disabled:opacity-50 transition-colors">
+              className={bm.iconBtn}>
               <UserX className="w-3 h-3" />
             </button>
           )}
           {canAct && (
             <button onClick={onReschedule} disabled={isPending} title="Reschedule"
-              className="p-1 rounded-md hover:bg-blue-100 text-blue-400 hover:text-blue-600 disabled:opacity-50 transition-colors">
+              className={bm.iconBtnInfo}>
               <RotateCcw className="w-3 h-3" />
             </button>
           )}
           {canAct && (
             <button onClick={onCancel} disabled={isPending} title="Cancel"
-              className="p-1 rounded-md hover:bg-red-100 text-red-400 hover:text-red-600 disabled:opacity-50 transition-colors">
+              className={bm.iconBtnDanger}>
               <Ban className="w-3 h-3" />
             </button>
           )}
@@ -241,17 +243,17 @@ function SlotPickerPopup({
   }
 
   const stateStyle: Record<string, string> = {
-    available: 'bg-emerald-50 border-emerald-200 text-emerald-700 hover:bg-emerald-100 cursor-pointer',
-    conflict:  'bg-rose-100 border-rose-300 text-rose-500 cursor-not-allowed opacity-70',
-    other:     'bg-amber-50 border-amber-200 text-amber-600 hover:bg-amber-100 cursor-pointer',
-    selected:  'bg-primary border-primary text-white cursor-pointer',
-    past:      'bg-gray-50 border-gray-100 text-gray-300 cursor-not-allowed',
+    available: bm.slotGridAvailable,
+    conflict:  bm.slotGridConflict,
+    other:     bm.slotGridOther,
+    selected:  'bg-primary border-primary text-primary-foreground cursor-pointer',
+    past:      bm.slotGridPast,
   }
 
   return (
     <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 overflow-y-auto"
       onClick={onClose}>
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden max-h-[90vh] overflow-y-auto"
+      <div className={bm.slotPickerShell}
         onClick={e => e.stopPropagation()}>
 
         {/* Header */}
@@ -268,17 +270,17 @@ function SlotPickerPopup({
         </div>
 
         {/* Legend */}
-        <div className="flex items-center gap-4 px-4 py-2 border-b bg-gray-50">
+        <div className={bm.slotPickerLegend}>
           {[
             { color: 'bg-emerald-400', label: 'Available' },
             { color: 'bg-primary', label: 'Selected' },
             { color: 'bg-rose-400', label: 'Conflict' },
             { color: 'bg-amber-400', label: 'Other staff' },
-            { color: 'bg-gray-200', label: 'Past / N/A' },
+            { color: 'bg-muted-foreground/40', label: 'Past / N/A' },
           ].map(l => (
             <div key={l.label} className="flex items-center gap-1">
               <div className={`w-2.5 h-2.5 rounded-sm ${l.color}`} />
-              <span className="text-xs text-gray-500">{l.label}</span>
+              <span className={`text-xs ${bm.hint}`}>{l.label}</span>
             </div>
           ))}
         </div>
@@ -305,11 +307,11 @@ function SlotPickerPopup({
         </div>
 
         {/* Footer */}
-        <div className="px-4 py-2.5 border-t bg-gray-50 flex items-center justify-between">
-          <p className="text-xs text-gray-400">
+        <div className={bm.slotPickerFooter}>
+          <p className={bm.hint}>
             {cells.filter(c => c.state === 'available').length} slots available
           </p>
-          <button onClick={onClose} className="text-xs text-gray-500 hover:text-gray-700 font-medium">Close</button>
+          <button onClick={onClose} className={`text-xs ${bm.hint} hover:text-foreground font-medium transition-colors`}>Close</button>
         </div>
       </div>
     </div>
@@ -753,7 +755,7 @@ export default function BookingsPage() {
           onClick={closeCreateModal}
         >
           <div
-            className="bg-white rounded-2xl shadow-2xl w-full max-w-5xl max-h-[94vh] flex flex-col overflow-hidden"
+            className={`${bm.shell} w-full max-w-5xl max-h-[94vh] flex flex-col overflow-hidden`}
             onClick={e => e.stopPropagation()}
           >
             {/* ── Header ── */}
@@ -782,15 +784,15 @@ export default function BookingsPage() {
             <div className="flex-1 overflow-hidden flex min-h-0">
 
               {/* COL 1 — Who & What (narrow) */}
-              <div className="shrink-0 flex flex-col overflow-y-auto bg-gray-50/60"
+              <div className={`shrink-0 flex flex-col overflow-y-auto ${bm.colMuted}`}
                 style={{ width: modalWidths[0], minWidth: 160 }}>
                 <div className="px-5 pt-5 pb-2">
-                  <p className="text-xs font-bold uppercase tracking-widest text-primary/80 mb-4">Who &amp; What</p>
+                  <p className={bm.sectionTitle}>Who &amp; What</p>
 
                   {/* Customer */}
                   <div className="mb-4">
                     <div className="flex items-center justify-between mb-1.5">
-                      <Label className="text-xs font-medium text-gray-500 uppercase tracking-wide" required>Customer</Label>
+                      <Label className={bm.fieldLabel} required>Customer</Label>
                       {!selectedCustomer && (
                         <button
                           type="button"
@@ -808,8 +810,8 @@ export default function BookingsPage() {
                           {selectedCustomer.full_name[0].toUpperCase()}
                         </div>
                         <div className="flex-1 min-w-0">
-                          <p className="text-sm font-semibold text-gray-900 truncate">{selectedCustomer.full_name}</p>
-                          <p className="text-xs text-gray-500 truncate">{selectedCustomer.phone || selectedCustomer.email}</p>
+                          <p className={bm.nameText}>{selectedCustomer.full_name}</p>
+                          <p className={bm.metaText}>{selectedCustomer.phone || selectedCustomer.email}</p>
                         </div>
                         <div className="flex flex-col gap-0.5">
                           <a href={`/customers/${selectedCustomer.id}`} target="_blank" rel="noopener noreferrer"
@@ -824,27 +826,27 @@ export default function BookingsPage() {
                       </div>
                     ) : (
                       <div className="relative">
-                        <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
+                        <Search className={`absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 ${bm.iconMuted}`} />
                         <input
                           placeholder="Search name, phone, email…"
                           value={custSearch}
                           onChange={e => setCustSearch(e.target.value)}
                           onFocus={() => custResults.length && setShowCustDropdown(true)}
                           autoComplete="off"
-                          className="w-full h-9 pl-8 pr-3 border border-gray-200 rounded-lg text-xs bg-white focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent"
+                          className={bm.inputSearch}
                         />
                         {showCustDropdown && custResults.length > 0 && (
-                          <div className="absolute z-10 w-full mt-1 bg-white border rounded-xl shadow-xl max-h-48 overflow-y-auto">
+                          <div className={bm.dropdown}>
                             {custResults.map(c => (
                               <button key={c.id}
-                                className="w-full text-left px-3 py-2 hover:bg-accent flex items-center gap-2 border-b border-gray-50 last:border-0"
+                                className={bm.dropdownItem}
                                 onClick={() => { setSelectedCustomer(c); setShowCustDropdown(false); setCustSearch('') }}>
                                 <div className="w-7 h-7 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
                                   <span className="text-xs font-bold text-primary">{c.full_name[0].toUpperCase()}</span>
                                 </div>
                                 <div className="flex-1 min-w-0">
-                                  <p className="text-xs font-medium text-gray-900 truncate">{c.full_name}</p>
-                                  <p className="text-xs text-gray-400 truncate">{c.phone || c.email}</p>
+                                  <p className={bm.nameTextSm}>{c.full_name}</p>
+                                  <p className={bm.metaText}>{c.phone || c.email}</p>
                                 </div>
                               </button>
                             ))}
@@ -856,12 +858,10 @@ export default function BookingsPage() {
 
                   {/* Service */}
                   <div className="mb-4">
-                    <Label className="text-xs font-medium text-gray-500 uppercase tracking-wide block mb-1.5" required>Service</Label>
-                    <select
-                      className="w-full h-9 px-3 border border-gray-200 rounded-lg text-xs bg-white focus:outline-none focus:ring-2 focus:ring-ring"
+                    <Label className={`${bm.fieldLabel} block mb-1.5`} required>Service</Label>
+                    <Select
                       value={selectedService}
-                      onChange={e => {
-                        const svcId = e.target.value
+                      onChange={(svcId) => {
                         setSelectedService(svcId)
                         setEndTime('')
                         if (startTime && svcId) {
@@ -870,14 +870,14 @@ export default function BookingsPage() {
                           if (dur > 0) setEndTime(minsToTime(Math.min(timeToMins(startTime) + dur, 23 * 60 + 59)))
                         }
                       }}
-                    >
-                      <option value="">Select a service…</option>
-                      {services.map(s => (
-                        <option key={s.id as string} value={s.id as string}>
-                          {s.name as string}{s.duration_minutes ? ` (${s.duration_minutes}m)` : ''}
-                        </option>
-                      ))}
-                    </select>
+                      options={selectOptionsWithBlank('Select a service…', services.map(s => ({
+                        value: s.id as string,
+                        label: `${s.name as string}${s.duration_minutes ? ` (${s.duration_minutes}m)` : ''}`,
+                      })))}
+                      placeholder="Select a service…"
+                      aria-label="Service"
+                      className={bm.input}
+                    />
                     {selectedSvc && (
                       <div className="flex items-center justify-between mt-1.5">
                         {svcDuration > 0 && (
@@ -886,7 +886,7 @@ export default function BookingsPage() {
                           </span>
                         )}
                         {(selectedSvc.price as number) > 0 && (
-                          <span className="text-xs font-medium text-gray-600">{formatCurrency(selectedSvc.price as number)}</span>
+                          <span className="text-xs font-medium text-foreground">{formatCurrency(selectedSvc.price as number)}</span>
                         )}
                       </div>
                     )}
@@ -895,27 +895,24 @@ export default function BookingsPage() {
                   {/* Service Provider */}
                   {serviceProviders.length > 0 && (
                     <div className="mb-4">
-                      <label className="text-xs font-medium text-gray-500 uppercase tracking-wide block mb-1.5">
+                      <label className={`${bm.fieldLabel} block mb-1.5`}>
                         <Users className="w-3 h-3 inline mr-1 text-primary/70" />Service Provider (optional)
                       </label>
-                      <select value={selectedStaff} onChange={e => setSelectedStaff(e.target.value)}
-                        className="w-full h-9 px-3 border border-gray-200 rounded-lg text-xs bg-white focus:outline-none focus:ring-2 focus:ring-ring">
-                        <option value="">— Any available provider —</option>
-                        {/* Group by category */}
-                        {['Internal Staff', 'Contractor', 'Partner', 'External Employee', 'Supplier / Vendor'].map(cat => {
-                          const members = serviceProviders.filter(p => p.category === cat)
-                          if (!members.length) return null
-                          return (
-                            <optgroup key={cat} label={`── ${cat} ──`}>
-                              {members.map(p => (
-                                <option key={p.id} value={p.id}>
-                                  {p.name}{p.category === 'Internal Staff' ? ` (${p.subCategory})` : ''}
-                                </option>
-                              ))}
-                            </optgroup>
-                          )
-                        })}
-                      </select>
+                      <Select
+                        value={selectedStaff}
+                        onChange={setSelectedStaff}
+                        options={[
+                          { value: '', label: '— Any available provider —' },
+                          ...serviceProviders.map(p => ({
+                            value: p.id,
+                            label: `${p.name}${p.category === 'Internal Staff' ? ` (${p.subCategory})` : ''}`,
+                            group: p.category,
+                          })),
+                        ]}
+                        placeholder="— Any available provider —"
+                        aria-label="Service provider"
+                        className={bm.input}
+                      />
                       {selectedStaff && (() => {
                         const sp = serviceProviders.find(p => p.id === selectedStaff)
                         if (!sp) return null
@@ -923,7 +920,7 @@ export default function BookingsPage() {
                           <div className="mt-1.5 flex items-center gap-1.5">
                             <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border ${
                               sp.isExternal
-                                ? 'bg-amber-50 text-amber-700 border-amber-200'
+                                ? bm.externalBadge
                                 : 'bg-accent text-primary border-primary/30'
                             }`}>
                               {sp.isExternal ? '🔗 ' : '👤 '}{sp.category}
@@ -938,37 +935,46 @@ export default function BookingsPage() {
                   {/* Store / Location */}
                   {stores.length > 1 && (
                     <div className="mb-4">
-                      <label className="text-xs font-medium text-gray-500 uppercase tracking-wide block mb-1.5">
+                      <label className={`${bm.fieldLabel} block mb-1.5`}>
                         <Building2 className="w-3 h-3 inline mr-1 text-primary/70" />Location
                       </label>
-                      <select value={selectedStore} onChange={e => { setSelectedStore(e.target.value); setSelectedService('') }}
-                        className="w-full h-9 px-3 border border-gray-200 rounded-lg text-xs bg-white focus:outline-none focus:ring-2 focus:ring-ring">
-                        <option value="">All locations</option>
-                        {stores.map((st: any) => (
-                          <option key={st.id} value={st.id}>{st.name}</option>
-                        ))}
-                      </select>
+                      <Select
+                        value={selectedStore}
+                        onChange={(v) => { setSelectedStore(v); setSelectedService('') }}
+                        options={selectOptionsWithBlank('All locations', stores.map((st: any) => ({
+                          value: st.id,
+                          label: st.name,
+                        })))}
+                        placeholder="All locations"
+                        aria-label="Location"
+                        className={bm.input}
+                      />
                     </div>
                   )}
 
                   {/* Payment */}
                   <div className="mb-4">
-                    <Label className="text-xs font-medium text-gray-500 uppercase tracking-wide block mb-1.5">Payment</Label>
-                    <select value={paymentMethod} onChange={e => setPaymentMethod(e.target.value)}
-                      className="w-full h-9 px-3 border border-gray-200 rounded-lg text-xs bg-white focus:outline-none focus:ring-2 focus:ring-ring">
-                      <option value="cod">Cash on Delivery</option>
-                      <option value="cash">Cash</option>
-                      <option value="upi">UPI</option>
-                      <option value="card">Card</option>
-                      <option value="online">Online</option>
-                    </select>
+                    <Label className={`${bm.fieldLabel} block mb-1.5`}>Payment</Label>
+                    <Select
+                      value={paymentMethod}
+                      onChange={setPaymentMethod}
+                      options={[
+                        { value: 'cod', label: 'Cash on Delivery' },
+                        { value: 'cash', label: 'Cash' },
+                        { value: 'upi', label: 'UPI' },
+                        { value: 'card', label: 'Card' },
+                        { value: 'online', label: 'Online' },
+                      ]}
+                      aria-label="Payment method"
+                      className={bm.input}
+                    />
                   </div>
 
                   {/* Notes */}
                   <div>
-                    <Label className="text-xs font-medium text-gray-500 uppercase tracking-wide block mb-1.5">Notes</Label>
+                    <Label className={`${bm.fieldLabel} block mb-1.5`}>Notes</Label>
                     <textarea
-                      className="w-full px-3 py-2 border border-gray-200 rounded-lg text-xs bg-white resize-none focus:outline-none focus:ring-2 focus:ring-ring"
+                      className={bm.textarea}
                       rows={3}
                       value={notes}
                       onChange={e => setNotes(e.target.value)}
@@ -978,27 +984,27 @@ export default function BookingsPage() {
                 </div>
               </div>
 
-              <DragHandle onMouseDown={e => startModalResize(0, e.clientX)} className="border-x border-gray-100 bg-gray-50/60" />
+              <DragHandle onMouseDown={e => startModalResize(0, e.clientX)} className={bm.dragHandle} />
 
               {/* COL 2 — When (scheduling) */}
-              <div className="shrink-0 flex flex-col overflow-y-auto bg-white"
+              <div className={`shrink-0 flex flex-col overflow-y-auto ${bm.colMain}`}
                 style={{ width: modalWidths[1], minWidth: 160 }}>
                 <div className="px-5 pt-5 pb-3">
-                  <p className="text-xs font-bold uppercase tracking-widest text-primary/80 mb-4">When</p>
+                  <p className={bm.sectionTitle}>When</p>
 
                   {/* Date */}
                   <div className="mb-4">
-                    <label className="text-xs font-medium text-gray-500 uppercase tracking-wide flex items-center gap-1 mb-1.5">
+                    <label className={`${bm.fieldLabel} flex items-center gap-1 mb-1.5`}>
                       <CalendarDays className="w-3 h-3 text-primary/70" /> Date *
                     </label>
                     <input type="date" value={bookingDate} min={today}
                       onChange={e => setBookingDate(e.target.value)}
-                      className="w-full h-9 px-3 border border-gray-200 rounded-lg text-xs bg-gray-50 focus:outline-none focus:ring-2 focus:ring-ring" />
+                      className={bm.input} />
                   </div>
 
                   {/* Time Slot — Picker button + manual inputs */}
                   <div className="mb-3">
-                    <label className="text-xs font-medium text-gray-500 uppercase tracking-wide flex items-center gap-1 mb-1.5">
+                    <label className={`${bm.fieldLabel} flex items-center gap-1 mb-1.5`}>
                       <Clock className="w-3 h-3 text-primary/70" /> Time Slot
                     </label>
 
@@ -1010,11 +1016,11 @@ export default function BookingsPage() {
                       className={`w-full h-10 flex items-center justify-between px-3 rounded-xl border-2 font-semibold text-xs transition-all mb-2 ${
                         startTime
                           ? hasConflict
-                            ? 'border-red-400 bg-red-50 text-red-700'
-                            : 'border-primary/60 bg-accent text-primary'
+                            ? bm.slotTriggerConflict
+                            : bm.slotTriggerOk
                           : bookingDate
-                            ? 'border-dashed border-gray-300 bg-gray-50 text-gray-500 hover:border-primary/60 hover:text-primary'
-                            : 'border-dashed border-gray-200 bg-gray-50 text-gray-300 cursor-not-allowed'
+                            ? bm.slotTriggerEmpty
+                            : bm.slotTriggerDisabled
                       }`}
                     >
                       <div className="flex items-center gap-2">
@@ -1030,20 +1036,20 @@ export default function BookingsPage() {
 
                     {/* Manual override inputs */}
                     <details className="group">
-                      <summary className="text-xs text-gray-400 cursor-pointer select-none hover:text-primary font-medium list-none flex items-center gap-1">
+                      <summary className={`${bm.hint} cursor-pointer select-none hover:text-primary font-medium list-none flex items-center gap-1`}>
                         <span className="group-open:hidden">▸</span><span className="hidden group-open:inline">▾</span>
                         Manual entry
                       </summary>
                       <div className="mt-2 space-y-1.5">
                         <div className="flex items-center gap-2">
-                          <span className="text-xs text-gray-400 w-8 shrink-0">Start</span>
+                          <span className={`${bm.hint} w-8 shrink-0`}>Start</span>
                           <input type="time" value={startTime} onChange={e => handleStartTimeChange(e.target.value)}
-                            className="flex-1 h-8 px-2 border border-gray-200 rounded-lg text-xs bg-gray-50 focus:outline-none focus:ring-2 focus:ring-ring" />
+                            className={bm.inputTime} />
                         </div>
                         <div className="flex items-center gap-2">
-                          <span className="text-xs text-gray-400 w-8 shrink-0">End</span>
+                          <span className={`${bm.hint} w-8 shrink-0`}>End</span>
                           <input type="time" value={endTime} onChange={e => setEndTime(e.target.value)}
-                            className="flex-1 h-8 px-2 border border-gray-200 rounded-lg text-xs bg-gray-50 focus:outline-none focus:ring-2 focus:ring-ring" />
+                            className={bm.inputTime} />
                         </div>
                         {svcDuration > 0 && startTime && (
                           <button type="button" onClick={applyStandardDuration}
@@ -1058,19 +1064,19 @@ export default function BookingsPage() {
                   {/* Slot status badge */}
                   {selectedDuration > 0 && startTime && endTime && (
                     <div className={`rounded-xl border px-3 py-2.5 flex items-start gap-2.5 mb-3 ${
-                      hasConflict ? 'bg-red-50 border-red-200' : 'bg-emerald-50 border-emerald-200'
+                      hasConflict ? bm.conflictAlert : bm.availableAlert
                     }`}>
                       {hasConflict
                         ? <AlertTriangle className="w-4 h-4 text-red-500 shrink-0 mt-0.5" />
                         : <CheckCircle className="w-4 h-4 text-emerald-500 shrink-0 mt-0.5" />}
                       <div>
-                        <p className={`text-xs font-bold uppercase tracking-wide ${hasConflict ? 'text-red-500' : 'text-emerald-600'}`}>
+                        <p className={`text-xs font-bold uppercase tracking-wide ${hasConflict ? bm.conflictTitle : bm.availableTitle}`}>
                           {hasConflict ? 'Time Conflict' : 'Slot Available'}
                         </p>
-                        <p className={`text-xs font-medium ${hasConflict ? 'text-red-700' : 'text-emerald-700'}`}>
+                        <p className={`text-xs font-medium ${hasConflict ? bm.conflictBody : bm.availableBody}`}>
                           {fmtTime12(startTime)} – {fmtTime12(endTime)}
                         </p>
-                        <p className={`text-xs ${hasConflict ? 'text-red-400' : 'text-emerald-500'}`}>
+                        <p className={`text-xs ${hasConflict ? bm.conflictHint : bm.availableHint}`}>
                           {hasConflict ? 'Overlaps an existing booking' : fmtDur(selectedDuration)}
                         </p>
                       </div>
@@ -1078,8 +1084,8 @@ export default function BookingsPage() {
                   )}
 
                   {/* Completion checklist */}
-                  <div className="rounded-xl border border-gray-100 bg-gray-50 p-3 space-y-1.5">
-                    <p className="text-xs font-bold uppercase tracking-widest text-gray-400 mb-2">Ready?</p>
+                  <div className={bm.checklist}>
+                    <p className={bm.checklistTitle}>Ready?</p>
                     {[
                       { label: 'Customer selected', ok: !!selectedCustomer },
                       { label: 'Service selected', ok: !!selectedService },
@@ -1088,26 +1094,26 @@ export default function BookingsPage() {
                       { label: 'No conflicts', ok: !hasConflict },
                     ].map(item => (
                       <div key={item.label} className="flex items-center gap-2">
-                        <div className={`w-3.5 h-3.5 rounded-full flex items-center justify-center shrink-0 ${item.ok ? 'bg-emerald-500' : 'bg-gray-200'}`}>
+                        <div className={item.ok ? bm.checklistDone : bm.checklistPending}>
                           {item.ok && <Check className="w-2 h-2 text-white" />}
                         </div>
-                        <span className={`text-xs ${item.ok ? 'text-gray-700 font-medium' : 'text-gray-400'}`}>{item.label}</span>
+                        <span className={item.ok ? bm.checklistTextDone : bm.checklistTextPending}>{item.label}</span>
                       </div>
                     ))}
                   </div>
                 </div>
               </div>
 
-              <DragHandle onMouseDown={e => startModalResize(1, e.clientX)} className="border-x border-gray-100 bg-white" />
+              <DragHandle onMouseDown={e => startModalResize(1, e.clientX)} className={bm.dragHandleMain} />
 
               {/* COL 3 — Availability panel */}
-              <div className="flex-1 min-w-0 flex flex-col overflow-y-auto bg-white">
+              <div className={`flex-1 min-w-0 flex flex-col overflow-y-auto ${bm.colMain}`}>
                 <div className="px-5 pt-5 pb-3 space-y-4">
                   <div className="flex items-center justify-between flex-wrap gap-2">
                     <div>
-                      <p className="text-xs font-bold uppercase tracking-widest text-primary/80">Availability</p>
+                      <p className={`${bm.sectionTitle} mb-0`}>Availability</p>
                       {(selectedStaff || selectedStore) && (
-                        <p className="text-xs text-gray-400 mt-0.5">
+                        <p className={`${bm.hint} mt-0.5`}>
                           {selectedStaff && `Provider: ${serviceProviders.find(p => p.id === selectedStaff)?.name || '—'}`}
                           {selectedStaff && selectedStore && ' · '}
                           {selectedStore && `Store: ${(stores.find((s: any) => s.id === selectedStore) as any)?.name}`}
@@ -1116,7 +1122,7 @@ export default function BookingsPage() {
                     </div>
                     {bookingDate && (
                       dateSlotsLoading
-                        ? <Loader2 className="w-3.5 h-3.5 animate-spin text-gray-400" />
+                        ? <Loader2 className={`w-3.5 h-3.5 animate-spin ${bm.iconMuted}`} />
                         : <div className="flex items-center gap-1.5 flex-wrap">
                             <button
                               type="button"
@@ -1129,14 +1135,14 @@ export default function BookingsPage() {
                               onClick={() => setShowAllSlots(v => !v)}
                               className={`flex items-center gap-1 text-xs font-medium px-2 py-1 rounded-lg transition-colors ${
                                 showAllSlots
-                                  ? 'bg-indigo-600 text-white'
-                                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                                  ? bm.filterBtnActive
+                                  : bm.filterBtnInactive
                               }`}>
                               <Users className="w-3 h-3" />
                               {showAllSlots ? 'All Bookings' : 'Filtered'}
                             </button>
                             <span className={`text-xs font-medium px-2 py-0.5 rounded-full flex items-center gap-1 ${
-                              filteredSlots.length === 0 ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'
+                              filteredSlots.length === 0 ? bm.badgeClear : bm.badgeBusy
                             }`}>
                               {filteredSlots.length}/{activeSlots.length}
                             </span>
@@ -1145,18 +1151,18 @@ export default function BookingsPage() {
                   </div>
 
                   {!bookingDate ? (
-                    <div className="flex flex-col items-center justify-center py-16 text-center text-gray-400">
-                      <CalendarDays className="w-12 h-12 mb-3 text-gray-200" />
-                      <p className="text-sm font-medium text-gray-400">Pick a date first</p>
-                      <p className="text-xs text-gray-300 mt-1">Availability for the selected date will appear here</p>
+                    <div className={bm.emptyCol}>
+                      <CalendarDays className={bm.emptyColIcon} />
+                      <p className="text-sm font-medium text-muted-foreground">Pick a date first</p>
+                      <p className={`${bm.hint} mt-1 opacity-80`}>Availability for the selected date will appear here</p>
                     </div>
                   ) : (
                     <>
                       {/* Timeline */}
                       <div>
-                        <div className="relative h-10 bg-gray-100 rounded-xl overflow-hidden border border-gray-200">
+                        <div className={bm.timeline}>
                           {[8, 11, 14, 17, 20, 22].map(h => (
-                            <div key={h} className="absolute top-0 bottom-0 w-px bg-gray-200/80"
+                            <div key={h} className={bm.timelineTick}
                               style={{ left: `${((h * 60 - SLOT_START) / SLOT_SPAN) * 100}%` }} />
                           ))}
                           {startTime && endTime && selectedDuration > 0 && (() => {
@@ -1180,19 +1186,19 @@ export default function BookingsPage() {
                         </div>
                         <div className="flex justify-between mt-1 px-0.5">
                           {['8AM', '11AM', '2PM', '5PM', '8PM', '10PM'].map(l => (
-                            <span key={l} className="text-xs text-gray-400">{l}</span>
+                            <span key={l} className={bm.timelineLabel}>{l}</span>
                           ))}
                         </div>
                         <div className="flex items-center gap-4 mt-1.5 flex-wrap">
-                          <div className="flex items-center gap-1.5"><div className="w-3 h-2 rounded-sm bg-rose-500 opacity-70" /><span className="text-xs text-gray-400">Booked{selectedStaff ? ` (${serviceProviders.find(p=>p.id===selectedStaff)?.name||'same provider'})` : ''}</span></div>
-                          {selectedStaff && <div className="flex items-center gap-1.5"><div className="w-3 h-2 rounded-sm bg-amber-400 opacity-70" /><span className="text-xs text-gray-400">Other provider</span></div>}
-                          {selectedDuration > 0 && <div className="flex items-center gap-1.5"><div className={`w-3 h-2 rounded-sm border ${hasConflict ? 'bg-red-400/30 border-red-500' : 'bg-primary/50/40 border-primary'}`} /><span className="text-xs text-gray-400">Your slot</span></div>}
+                          <div className="flex items-center gap-1.5"><div className="w-3 h-2 rounded-sm bg-rose-500 opacity-70" /><span className={bm.timelineLabel}>Booked{selectedStaff ? ` (${serviceProviders.find(p=>p.id===selectedStaff)?.name||'same provider'})` : ''}</span></div>
+                          {selectedStaff && <div className="flex items-center gap-1.5"><div className="w-3 h-2 rounded-sm bg-amber-400 opacity-70" /><span className={bm.timelineLabel}>Other provider</span></div>}
+                          {selectedDuration > 0 && <div className="flex items-center gap-1.5"><div className={`w-3 h-2 rounded-sm border ${hasConflict ? 'bg-red-400/30 border-red-500' : 'bg-primary/50/40 border-primary'}`} /><span className={bm.timelineLabel}>Your slot</span></div>}
                         </div>
                       </div>
 
                       {/* Slot cards — filtered by customer/service/staff unless "All" is on */}
                       <div className="space-y-1 max-h-72 overflow-y-auto pr-0.5">
-                        {dateSlotsLoading && <div className="flex justify-center py-6"><Loader2 className="w-5 h-5 animate-spin text-gray-300" /></div>}
+                        {dateSlotsLoading && <div className="flex justify-center py-6"><Loader2 className={`w-5 h-5 animate-spin ${bm.iconMuted}`} /></div>}
                         {!dateSlotsLoading && filteredSlots.length === 0 && (
                           <div className="flex flex-col items-center py-8 text-center">
                             {activeSlots.length > 0 && !showAllSlots ? (
@@ -1200,8 +1206,8 @@ export default function BookingsPage() {
                                 <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center mb-2">
                                   <Search className="w-4 h-4 text-primary/70" />
                                 </div>
-                                <p className="text-xs font-medium text-gray-600">No matching bookings</p>
-                                <p className="text-xs text-gray-400 mt-1">
+                                <p className="text-xs font-medium text-foreground">No matching bookings</p>
+                                <p className={`${bm.hint} mt-1`}>
                                   {activeSlots.length} booking{activeSlots.length > 1 ? 's' : ''} exist on this date
                                 </p>
                                 <button type="button" onClick={() => setShowAllSlots(true)}
@@ -1211,11 +1217,11 @@ export default function BookingsPage() {
                               </>
                             ) : (
                               <>
-                                <div className="w-9 h-9 rounded-full bg-emerald-100 flex items-center justify-center mb-2">
+                                <div className={bm.emptyStateIcon}>
                                   <CheckCircle className="w-4 h-4 text-emerald-500" />
                                 </div>
-                                <p className="text-xs font-medium text-gray-600">All clear!</p>
-                                <p className="text-xs text-gray-400">No bookings on this date</p>
+                                <p className="text-xs font-medium text-foreground">All clear!</p>
+                                <p className={bm.hint}>No bookings on this date</p>
                               </>
                             )}
                           </div>
@@ -1270,30 +1276,30 @@ export default function BookingsPage() {
             </div>
 
             {/* ── Footer ── */}
-            <div className="border-t bg-gray-50/80 px-6 py-3 flex items-center gap-3 shrink-0">
+            <div className={bm.footer}>
               {/* Summary pill */}
               <div className="flex items-center gap-3 flex-1">
                 {selectedCustomer && (
-                  <span className="flex items-center gap-1.5 text-xs text-gray-600 bg-white border border-gray-200 rounded-full px-3 py-1">
+                  <span className={bm.summaryPill}>
                     <User className="w-3 h-3 text-primary/80" />
                     {selectedCustomer.full_name}
                   </span>
                 )}
                 {selectedSvc && (
-                  <span className="flex items-center gap-1.5 text-xs text-gray-600 bg-white border border-gray-200 rounded-full px-3 py-1">
+                  <span className={bm.summaryPill}>
                     <Hourglass className="w-3 h-3 text-primary/80" />
                     {selectedSvc.name as string}
                   </span>
                 )}
                 {bookingDate && startTime && (
-                  <span className="flex items-center gap-1.5 text-xs text-gray-600 bg-white border border-gray-200 rounded-full px-3 py-1">
+                  <span className={bm.summaryPill}>
                     <Clock className="w-3 h-3 text-primary/80" />
                     {bookingDate} · {fmtTime12(startTime)}
                   </span>
                 )}
               </div>
               <button type="button" title="Reset column widths" onClick={resetModalWidths}
-                className="text-xs text-gray-400 hover:text-primary font-medium transition-colors px-1">
+                className={`text-xs ${bm.hint} hover:text-primary font-medium transition-colors px-1`}>
                 ⊟ Reset layout
               </button>
               <Button variant="cancel" className="h-9 px-4 text-sm" onClick={closeCreateModal}>Cancel</Button>
@@ -1313,33 +1319,33 @@ export default function BookingsPage() {
       {/* Reschedule Modal */}
       {rescheduleTarget && (
         <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/50 backdrop-blur-sm overflow-y-auto">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-xs mx-4 p-5 space-y-4 max-h-[90vh] overflow-y-auto">
+          <div className={`${bm.shell} w-full max-w-xs mx-4 p-5 space-y-4 max-h-[90vh] overflow-y-auto`}>
             <div className="flex items-center justify-between">
-              <h3 className="font-bold text-gray-900 flex items-center gap-2">
-                <RotateCcw className="w-4 h-4 text-blue-600" />
+              <h3 className="font-bold text-foreground flex items-center gap-2">
+                <RotateCcw className="w-4 h-4 text-primary" />
                 Reschedule #{rescheduleTarget.number || '—'}
               </h3>
               <button type="button" aria-label="Close" onClick={() => { setRescheduleTarget(null); setRescheduleDate(''); setRescheduleTime('') }}
-                className="p-1.5 rounded-lg hover:bg-gray-100 transition-colors">
-                <X className="w-4 h-4 text-gray-400" />
+                className={`p-1.5 rounded-lg ${bm.iconBtn}`}>
+                <X className="w-4 h-4" />
               </button>
             </div>
             <div className="space-y-3">
               <div>
-                <label className="text-xs font-medium text-gray-600 flex items-center gap-1.5 mb-1">
+                <label className={`${bm.fieldLabel} flex items-center gap-1.5 mb-1 normal-case`}>
                   <CalendarDays className="w-3.5 h-3.5 text-primary/70" /> New Date *
                 </label>
                 <input type="date" min={today} value={rescheduleDate}
                   onChange={e => setRescheduleDate(e.target.value)}
-                  className="w-full h-10 px-3 border border-gray-200 rounded-xl text-sm bg-gray-50 focus:outline-none focus:ring-2 focus:ring-ring" />
+                  className={`${bm.input} h-10 text-sm rounded-xl`} />
               </div>
               <div>
-                <label className="text-xs font-medium text-gray-600 flex items-center gap-1.5 mb-1">
+                <label className={`${bm.fieldLabel} flex items-center gap-1.5 mb-1 normal-case`}>
                   <Clock className="w-3.5 h-3.5 text-primary/70" /> New Start Time
                 </label>
                 <input type="time" value={rescheduleTime}
                   onChange={e => setRescheduleTime(e.target.value)}
-                  className="w-full h-10 px-3 border border-gray-200 rounded-xl text-sm bg-gray-50 focus:outline-none focus:ring-2 focus:ring-ring" />
+                  className={`${bm.input} h-10 text-sm rounded-xl`} />
               </div>
             </div>
             <div className="flex gap-2 pt-1">
@@ -1360,7 +1366,7 @@ export default function BookingsPage() {
 
       {/* Cancel Reason Modal */}
       {cancelTarget && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 overflow-y-auto">
+        <div data-kiterp-modal className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm overflow-y-auto">
           <Card className="w-full max-w-md mx-4">
             <CardContent className="pt-6 space-y-4">
               <div className="flex items-center justify-between">

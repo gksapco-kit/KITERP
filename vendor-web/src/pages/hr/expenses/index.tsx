@@ -8,6 +8,7 @@ import {
 import { employeeDisplayName } from '@/lib/hrEmployeeDisplay'
 import type { EmployeeProfile, ExpenseClaim } from '@/types'
 import ExpenseClaimDetailDrawer from './ExpenseClaimDetailDrawer'
+import { Select, selectOptionsWithBlank } from '@/components/ui/select'
 
 const STATUS: Record<string, { label: string; color: string }> = {
   draft:     { label: 'Draft',     color: 'bg-gray-100 text-gray-600' },
@@ -71,11 +72,15 @@ export default function ExpensesPage() {
             Click a row for employee documents, receipts, and claims. Rejection comments are shown in ESS.
           </p>
         </div>
-        <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)}
-          className="border rounded px-3 py-2 text-sm">
-          <option value="">All statuses</option>
-          {Object.entries(STATUS).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
-        </select>
+        <Select
+          value={statusFilter}
+          onChange={setStatusFilter}
+          className="w-40"
+          options={selectOptionsWithBlank(
+            'All statuses',
+            Object.entries(STATUS).map(([k, v]) => ({ value: k, label: v.label })),
+          )}
+        />
       </div>
 
       <div className="bg-white border rounded-xl shadow-sm min-w-0 max-h-[90vh] overflow-y-auto">

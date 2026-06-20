@@ -56,7 +56,7 @@ export default function BusinessUnitDetailPanel({ store, embeddedInSettings = fa
           <BusinessUnitLogoThumb
             store={store}
             vendor={vendor}
-            className="h-8 w-8 rounded-md border border-border bg-muted shadow-sm"
+            className="h-8 w-8"
             iconClassName="h-4 w-4"
             fallbackGradientClass={visual.gradientClass}
           />

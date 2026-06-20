@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { Select } from '@/components/ui/select'
 import { Badge } from '@/components/ui/badge'
 import { useKanban, useMoveDeal, usePipelines, useSaveDeal, useForecast } from '@/hooks/useCrm'
 import { useHREmployees } from '@/hooks/useVendor'
@@ -100,10 +101,12 @@ function DealForm({ pipelineId, stageId, onClose }: { pipelineId: string; stageI
             </div>
             <div className="w-36 shrink-0">
               <Field label="Currency">
-                <select value={form.currency} onChange={e => setForm(p => ({ ...p, currency: e.target.value }))}
-                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm">
-                  {CURRENCIES.map(c => <option key={c.code} value={c.code}>{c.symbol} {c.code}</option>)}
-                </select>
+                <Select
+                  className="w-36 shrink-0"
+                  value={form.currency}
+                  onChange={v => setForm(p => ({ ...p, currency: v }))}
+                  options={CURRENCIES.map(c => ({ value: c.code, label: `${c.symbol} ${c.code}` }))}
+                />
               </Field>
             </div>
           </div>
@@ -114,10 +117,11 @@ function DealForm({ pipelineId, stageId, onClose }: { pipelineId: string; stageI
           )}
         </div>
         <Field label="Stage">
-          <select value={form.stage_id} onChange={e => setForm(p => ({ ...p, stage_id: e.target.value }))}
-            className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm">
-            {pipeline?.stages?.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-          </select>
+          <Select
+            value={form.stage_id}
+            onChange={v => setForm(p => ({ ...p, stage_id: v }))}
+            options={(pipeline?.stages ?? []).map(s => ({ value: s.id, label: s.name }))}
+          />
         </Field>
         <Field label="Expected close">
           <CrmDateTimeField
@@ -130,13 +134,18 @@ function DealForm({ pipelineId, stageId, onClose }: { pipelineId: string; stageI
         <Field label="Deal owner">
           <div className="relative">
             <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
-            <select value={form.owner} onChange={e => setForm(p => ({ ...p, owner: e.target.value }))}
-              className="flex h-10 w-full rounded-md border border-input bg-background pl-9 pr-3 py-2 text-sm">
-              <option value={meName}>{meName} (me)</option>
-              {employees.filter(e => empName(e) !== meName).map(e => (
-                <option key={e.id} value={empName(e)}>{empName(e)}</option>
-              ))}
-            </select>
+            <Select
+              className="pl-9"
+              value={form.owner}
+              onChange={v => setForm(p => ({ ...p, owner: v }))}
+              options={[
+                { value: meName, label: `${meName} (me)` },
+                ...employees.filter(e => empName(e) !== meName).map(e => ({
+                  value: empName(e),
+                  label: empName(e),
+                })),
+              ]}
+            />
           </div>
         </Field>
         <Field label="Description">
@@ -263,10 +272,12 @@ export default function PipelinePage() {
           <h1 className="text-2xl font-bold text-gray-900">Sales Pipeline</h1>
         </div>
         <div className="flex items-center gap-2">
-          <select value={pipelineId} onChange={e => setPipelineId(e.target.value)}
-            className="flex h-9 rounded-md border border-input bg-white px-3 text-sm">
-            {pipelines.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-          </select>
+          <Select
+            className="w-48"
+            value={pipelineId}
+            onChange={setPipelineId}
+            options={(pipelines ?? []).map(p => ({ value: p.id, label: p.name }))}
+          />
           <Button onClick={() => setShowCreate({})}>
             <Plus className="w-4 h-4 mr-2" /> Add deal
           </Button>

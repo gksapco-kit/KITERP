@@ -6,6 +6,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Select, selectOptionsWithBlank } from '@/components/ui/select'
 import {
   usePurchaseOrders, useCreatePurchaseOrder, useSuppliers, useProducts, useServices,
   useCreateSupplier,
@@ -499,8 +500,8 @@ function CreatePOModal({
   }, [canSubmit, supplierId, items, expectedDate, notes, createMut, onClose, navigate])
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 overflow-y-auto" onClick={onClose}>
-      <div className="bg-white rounded-xl shadow-xl w-full max-w-2xl mx-4 max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+    <div data-kiterp-modal className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 overflow-y-auto" onClick={onClose}>
+      <div className="bg-card border border-border text-foreground rounded-xl shadow-2xl w-full max-w-2xl mx-4 max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between px-6 py-4 border-b">
           <div>
             <h2 className="text-lg font-semibold">New Purchase Order</h2>
@@ -528,17 +529,14 @@ function CreatePOModal({
                   <UserPlus className="w-3 h-3" /> New Supplier
                 </button>
               </div>
-              <select
-                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+              <Select
                 value={supplierId}
-                onChange={(e) => setSupplierId(e.target.value)}
-                required
-              >
-                <option value="">Select supplier...</option>
-                {suppliersData?.items?.map((s) => (
-                  <option key={s.id} value={s.id}>{s.name}</option>
-                ))}
-              </select>
+                onChange={setSupplierId}
+                options={selectOptionsWithBlank('Select supplier...', (suppliersData?.items ?? []).map((s) => ({ value: s.id, label: s.name })))}
+                placeholder="Select supplier..."
+                aria-label="Supplier"
+                className="w-full"
+              />
 
               {/* Quick-create supplier inline panel */}
               {showQuickSupplier && (
@@ -621,28 +619,26 @@ function CreatePOModal({
                   <div key={idx} className="border rounded-lg p-3 space-y-2.5 bg-gray-50/50">
                     {/* Row 1: product selector + remove button */}
                     <div className="flex gap-2 items-start">
-                      <select
-                        className="flex h-9 flex-1 rounded-md border border-input bg-background px-3 py-2 text-sm"
+                      <Select
                         value={item.product_id}
-                        onChange={(e) => updateItem(idx, 'product_id', e.target.value)}
-                        required
-                      >
-                        <option value="">Product / Service...</option>
-                        {products.length > 0 && (
-                          <optgroup label="Products">
-                            {products.map((p) => (
-                              <option key={p.id} value={p.id}>{p.name}{p.sku ? ` (${p.sku})` : ''}</option>
-                            ))}
-                          </optgroup>
-                        )}
-                        {services.length > 0 && (
-                          <optgroup label="Services">
-                            {services.map((s) => (
-                              <option key={s.id} value={s.id}>{s.name}</option>
-                            ))}
-                          </optgroup>
-                        )}
-                      </select>
+                        onChange={(v) => updateItem(idx, 'product_id', v)}
+                        options={[
+                          { value: '', label: 'Product / Service...' },
+                          ...products.map((p) => ({
+                            value: p.id,
+                            label: `${p.name}${p.sku ? ` (${p.sku})` : ''}`,
+                            group: 'Products',
+                          })),
+                          ...services.map((s) => ({
+                            value: s.id,
+                            label: s.name,
+                            group: 'Services',
+                          })),
+                        ]}
+                        placeholder="Product / Service..."
+                        aria-label="Product or service"
+                        className="flex-1"
+                      />
                       {items.length > 1 && (
                         <Button type="button" variant="ghost" size="sm" className="h-9 w-9 p-0 text-red-400 hover:text-red-600 shrink-0" onClick={() => removeItem(idx)}>
                           <Trash2 className="w-4 h-4" />
@@ -654,18 +650,17 @@ function CreatePOModal({
                     {hasVariants && (
                       <div className="flex gap-2 items-center">
                         <span className="text-xs text-gray-500 shrink-0 w-14">Variant</span>
-                        <select
-                          className="flex h-8 flex-1 rounded-md border border-blue-200 bg-blue-50/40 px-2.5 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+                        <Select
                           value={item.variant_id}
-                          onChange={(e) => updateItem(idx, 'variant_id', e.target.value)}
-                        >
-                          <option value="">— All / Product-level —</option>
-                          {variants.map((v) => (
-                            <option key={v.id} value={v.id}>
-                              {v.name}{v.sku ? ` · ${v.sku}` : ''}{v.barcode ? ` · ${v.barcode}` : ''}
-                            </option>
-                          ))}
-                        </select>
+                          onChange={(v) => updateItem(idx, 'variant_id', v)}
+                          options={selectOptionsWithBlank('— All / Product-level —', variants.map((v) => ({
+                            value: v.id,
+                            label: `${v.name}${v.sku ? ` · ${v.sku}` : ''}${v.barcode ? ` · ${v.barcode}` : ''}`,
+                          })))}
+                          placeholder="— All / Product-level —"
+                          aria-label="Variant"
+                          className="flex-1"
+                        />
                         {selectedVariant?.barcode && (
                           <span className="text-xs text-gray-400 font-mono shrink-0 hidden sm:block">{selectedVariant.barcode}</span>
                         )}

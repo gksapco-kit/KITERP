@@ -3,6 +3,7 @@ import { X, Globe, Link2, Mail, Copy, ExternalLink, AlertCircle, BadgeCheck, Plu
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Select, selectOptionsWithBlank } from '@/components/ui/select'
 import { toast } from 'sonner'
 import type { Vendor } from '@/types'
 import type { UseMutationResult } from '@tanstack/react-query'
@@ -132,10 +133,14 @@ export function ExternalDomainModal({ vendor, onClose, onSave }: Props) {
                 </div>
                 <div className="space-y-1">
                   <Label className="text-xs font-medium">Registrar <span className="text-red-500">*</span></Label>
-                  <select value={registrar} onChange={e => setRegistrar(e.target.value)} className={selectCls}>
-                    <option value="">Select registrar…</option>
-                    {REGISTRAR_OPTIONS.map(r => <option key={r} value={r}>{r}</option>)}
-                  </select>
+                  <Select
+                    value={registrar}
+                    onChange={setRegistrar}
+                    options={selectOptionsWithBlank('Select registrar…', REGISTRAR_OPTIONS.map(r => ({ value: r, label: r })))}
+                    placeholder="Select registrar…"
+                    aria-label="Registrar"
+                    className={selectCls}
+                  />
                 </div>
               </div>
 

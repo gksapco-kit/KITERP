@@ -312,7 +312,7 @@ export function WebsiteTemplatePreviewModal({
 
   return (
     <div className={cn('fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto', zIndexClass)}>
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-5xl overflow-hidden max-h-[min(900px,95vh)] flex flex-col">
+      <div className="bg-card border border-border text-foreground rounded-2xl shadow-2xl w-full max-w-5xl overflow-hidden max-h-[min(900px,95vh)] flex flex-col">
         {/* Header */}
         <div className="relative z-20 flex shrink-0 items-start gap-4 border-b border-gray-100 p-5">
           <div className="w-36 h-24 rounded-xl overflow-hidden bg-gray-100 shrink-0 border border-gray-200">

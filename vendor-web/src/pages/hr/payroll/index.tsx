@@ -1,5 +1,6 @@
 import { onModalBackdropClick } from '@/lib/utils'
 import { Label } from '@/components/ui/label'
+import { Select } from '@/components/ui/select'
 import { useState } from 'react'
 import { useEscapeToClose } from '@/hooks/useEscapeToClose'
 import { Link } from 'react-router-dom'
@@ -29,12 +30,12 @@ function ProcessWizard({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 overflow-y-auto" onClick={onModalBackdropClick(onClose)}>
-      <div className="bg-white rounded-xl shadow-2xl w-full max-w-md p-6 relative max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+    <div data-kiterp-modal className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm overflow-y-auto" onClick={onModalBackdropClick(onClose)}>
+      <div className="bg-card border border-border text-foreground rounded-xl shadow-2xl w-full max-w-md p-6 relative max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
         <button
           type="button"
           onClick={onClose}
-          className="absolute top-4 right-4 p-1.5 rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors"
+          className="absolute top-4 right-4 p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
           aria-label="Close"
         >
           <X className="w-5 h-5" />
@@ -48,17 +49,22 @@ function ProcessWizard({
             <div className="grid grid-cols-2 gap-3 mb-6">
               <div>
                 <Label className="block text-xs font-medium text-gray-700 mb-1">Month</Label>
-                <select className="w-full border rounded-lg px-3 py-2 text-sm" value={month} onChange={e => setMonth(parseInt(e.target.value))}>
-                  {Array.from({ length: 12 }, (_, i) => i + 1).map(m => (
-                    <option key={m} value={m}>{new Date(year, m - 1).toLocaleDateString('en-IN', { month: 'long' })}</option>
-                  ))}
-                </select>
+                <Select
+                  value={String(month)}
+                  onChange={v => setMonth(parseInt(v))}
+                  options={Array.from({ length: 12 }, (_, i) => i + 1).map(m => ({
+                    value: String(m),
+                    label: new Date(year, m - 1).toLocaleDateString('en-IN', { month: 'long' }),
+                  }))}
+                />
               </div>
               <div>
                 <Label className="block text-xs font-medium text-gray-700 mb-1">Year</Label>
-                <select className="w-full border rounded-lg px-3 py-2 text-sm" value={year} onChange={e => setYear(parseInt(e.target.value))}>
-                  {[now.getFullYear() - 1, now.getFullYear()].map(y => <option key={y} value={y}>{y}</option>)}
-                </select>
+                <Select
+                  value={String(year)}
+                  onChange={v => setYear(parseInt(v))}
+                  options={[now.getFullYear() - 1, now.getFullYear()].map(y => ({ value: String(y), label: String(y) }))}
+                />
               </div>
             </div>
             <div className="flex justify-end gap-3">
@@ -100,12 +106,12 @@ function DeleteConfirmModal({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 overflow-y-auto" onClick={onModalBackdropClick(onClose)}>
-      <div className="bg-white rounded-xl shadow-2xl w-full max-w-sm p-6 relative max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+    <div data-kiterp-modal className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm overflow-y-auto" onClick={onModalBackdropClick(onClose)}>
+      <div className="bg-card border border-border text-foreground rounded-xl shadow-2xl w-full max-w-sm p-6 relative max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
         <button
           type="button"
           onClick={onClose}
-          className="absolute top-4 right-4 p-1.5 rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors"
+          className="absolute top-4 right-4 p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
           aria-label="Close"
         >
           <X className="w-5 h-5" />
@@ -161,7 +167,7 @@ export default function PayrollPage() {
         </button>
       </div>
 
-      <div className="bg-white rounded-xl border shadow-sm overflow-hidden max-h-[90vh] overflow-y-auto">
+      <div className="bg-card border border-border text-foreground rounded-xl shadow-2xl overflow-hidden max-h-[90vh] overflow-y-auto">
         {isLoading ? (
           <div className="p-8 text-center text-gray-400">Loading…</div>
         ) : runs.length === 0 ? (

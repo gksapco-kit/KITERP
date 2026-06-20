@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { Download, BarChart2 } from 'lucide-react'
+import { Select } from '@/components/ui/select'
 import { useHRAttendanceReport, useHREmployees } from '@/hooks/useVendor'
 import type { AttendanceSummary } from '@/types'
 
@@ -46,15 +47,22 @@ export default function AttendanceReportPage() {
         </button>
       </div>
 
-      <div className="bg-white rounded-xl border shadow-sm p-4 mb-4 flex gap-3 max-h-[90vh] overflow-y-auto">
-        <select className="border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none" value={month} onChange={e => setMonth(parseInt(e.target.value))}>
-          {Array.from({ length: 12 }, (_, i) => i + 1).map(m => (
-            <option key={m} value={m}>{new Date(year, m - 1).toLocaleDateString('en-IN', { month: 'long' })}</option>
-          ))}
-        </select>
-        <select className="border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none" value={year} onChange={e => setYear(parseInt(e.target.value))}>
-          {[now.getFullYear() - 1, now.getFullYear()].map(y => <option key={y} value={y}>{y}</option>)}
-        </select>
+      <div className="bg-card border border-border text-foreground rounded-xl shadow-2xl p-4 mb-4 flex gap-3 max-h-[90vh] overflow-y-auto">
+        <Select
+          className="w-36"
+          value={String(month)}
+          onChange={v => setMonth(parseInt(v))}
+          options={Array.from({ length: 12 }, (_, i) => i + 1).map(m => ({
+            value: String(m),
+            label: new Date(year, m - 1).toLocaleDateString('en-IN', { month: 'long' }),
+          }))}
+        />
+        <Select
+          className="w-24"
+          value={String(year)}
+          onChange={v => setYear(parseInt(v))}
+          options={[now.getFullYear() - 1, now.getFullYear()].map(y => ({ value: String(y), label: String(y) }))}
+        />
       </div>
 
       <div className="bg-white rounded-xl border shadow-sm overflow-x-auto max-h-[90vh] overflow-y-auto">

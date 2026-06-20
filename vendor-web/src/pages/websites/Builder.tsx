@@ -194,6 +194,7 @@ import {
   type SectionEditorTabId,
 } from '@/components/websites/SectionEditorRibbon'
 import { SectionPanelGroup } from '@/components/websites/SectionPanelGroup'
+import { builderPanelUi } from '@/components/websites/builderPanelUi'
 import {
   applyCategoryImagesToBlockProps,
   blockSupportsGalleryCategory,
@@ -861,7 +862,7 @@ function TextPromptPopup({
         ref={ref}
         data-builder-floating-ui
         style={style}
-        className="w-[380px] max-w-[92vw] bg-white border border-gray-200 rounded-2xl shadow-2xl overflow-hidden max-h-[90vh] overflow-y-auto"
+        className="w-[380px] max-w-[92vw] bg-card border border-border text-foreground rounded-2xl shadow-2xl overflow-hidden max-h-[90vh] overflow-y-auto"
         onClick={e => e.stopPropagation()}
         onMouseDown={e => e.stopPropagation()}
       >
@@ -1187,7 +1188,7 @@ function LinkEditorPopup({
         ref={ref}
         data-builder-floating-ui
         style={style}
-        className="w-[460px] max-w-[94vw] bg-white border border-gray-200 rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[80vh]"
+        className="w-[460px] max-w-[94vw] bg-card border border-border text-foreground rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[80vh]"
         onClick={e => e.stopPropagation()}
         onMouseDown={e => e.stopPropagation()}
       >
@@ -1613,7 +1614,7 @@ function ContextMenu({ open, x, y, actions, onClose }: {
       ref={ref}
       data-builder-floating-ui
       style={{ position: 'fixed', top: menuTop, left: menuLeft, zIndex: 100015 }}
-      className="w-56 overflow-hidden rounded-xl border border-gray-200 bg-white shadow-2xl animate-in fade-in zoom-in-95 duration-100"
+      className="w-56 overflow-hidden rounded-xl border border-border bg-popover text-popover-foreground shadow-2xl animate-in fade-in zoom-in-95 duration-100"
       onClick={e => e.stopPropagation()}
       onContextMenu={e => { e.preventDefault(); e.stopPropagation() }}
     >
@@ -1644,7 +1645,7 @@ function ContextMenu({ open, x, y, actions, onClose }: {
         {actions.map(renderAction)}
       </div>
 
-      <div className="border-t border-gray-100 px-1.5 py-1.5">
+      <div className="border-t border-border bg-muted/25 px-1.5 py-1.5">
         <button
           type="button"
           onClick={e => {
@@ -1753,7 +1754,7 @@ function PageActionsMenu({
         <span>Actions</span>
       </button>
       {open && (
-        <div className="absolute top-full right-0 mt-1 w-52 bg-white border border-gray-200 rounded-xl shadow-xl py-1.5 z-40">
+        <div className="absolute top-full right-0 mt-1 w-52 bg-popover text-popover-foreground border border-border rounded-xl shadow-xl py-1.5 z-40">
           {menuItem('Rename page', onRename, <Pencil className="w-3.5 h-3.5" />)}
           {!page.is_homepage && menuItem('Set as homepage', onSetHomepage, <span className="text-sm leading-none">??</span>)}
           {menuItem('Duplicate page', onDuplicate, <Copy className="w-3.5 h-3.5" />)}
@@ -1792,19 +1793,18 @@ function DeletedPagesPanel({
   return (
     <div
       className={cn(
-        'space-y-2',
         isMenu
-          ? 'px-3 py-2.5'
-          : cn('rounded-xl border border-amber-100 bg-amber-50/60 px-3 py-2.5', alwaysShow ? 'mt-1' : 'mt-2'),
+          ? builderPanelUi.trashSectionBody
+          : cn(builderPanelUi.trashPanelStandalone, 'space-y-2', alwaysShow ? 'mt-1' : 'mt-2'),
       )}
     >
       {!isMenu && (
         <div className="flex items-center justify-between gap-2">
-          <div className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wide text-amber-800 min-w-0">
-            <Trash2 className="w-3 h-3 shrink-0" />
+          <div className="flex min-w-0 items-center gap-1.5 text-[10px] font-bold uppercase tracking-wide text-foreground">
+            <Trash2 className="w-3 h-3 shrink-0 text-amber-600 dark:text-amber-400" />
             Recently deleted
             {items.length > 0 && (
-              <span className="rounded-full bg-amber-200/80 px-1.5 py-0.5 text-[9px] font-bold tabular-nums">
+              <span className={builderPanelUi.amberBadge}>
                 {items.length}
               </span>
             )}
@@ -1814,7 +1814,7 @@ function DeletedPagesPanel({
               type="button"
               onClick={() => void onRefresh()}
               disabled={loading}
-              className="shrink-0 inline-flex items-center gap-1 rounded-md border border-amber-200 bg-white px-2 py-1 text-[10px] font-semibold text-amber-900 hover:bg-amber-50 transition-colors disabled:opacity-50"
+              className={builderPanelUi.btnGhost}
             >
               <RefreshCw className={cn('w-3 h-3', loading && 'animate-spin')} />
               Refresh
@@ -1822,7 +1822,7 @@ function DeletedPagesPanel({
           )}
         </div>
       )}
-      <p className={cn('text-[10px] leading-snug', isMenu ? 'text-gray-500' : 'text-amber-900/70')}>
+      <p className={cn(builderPanelUi.hint, isMenu ? '' : 'text-foreground/70')}>
         Pages stay here for 7 days, then are removed permanently.
       </p>
       {isMenu && onRefresh && (
@@ -1830,31 +1830,31 @@ function DeletedPagesPanel({
           type="button"
           onClick={() => void onRefresh()}
           disabled={loading}
-          className="inline-flex items-center gap-1 rounded-md border border-gray-200 bg-white px-2 py-1 text-[10px] font-semibold text-gray-600 hover:bg-gray-50 transition-colors disabled:opacity-50"
+          className={builderPanelUi.btnGhost}
         >
           <RefreshCw className={cn('w-3 h-3', loading && 'animate-spin')} />
           Refresh
         </button>
       )}
       {loading && items.length === 0 && (
-        <p className="text-[10px] text-gray-500 flex items-center gap-1.5">
-          <Loader2 className="w-3 h-3 animate-spin" /> Loading deleted pages?
+        <p className={cn(builderPanelUi.hint, 'flex items-center gap-1.5')}>
+          <Loader2 className="w-3 h-3 animate-spin" /> Loading deleted pages…
         </p>
       )}
       {!loading && items.length === 0 && (
-        <p className="text-[10px] text-gray-500 leading-snug">
+        <p className={builderPanelUi.hint}>
           {isMenu
             ? 'No deleted pages right now. Use Move to trash on a page to remove it — it will appear here.'
-            : <>No deleted pages right now. Use <strong>Move to trash</strong> above to remove a page ? it will appear here.</>}
+            : <>No deleted pages right now. Use <strong className="font-semibold text-foreground">Move to trash</strong> above to remove a page — it will appear here.</>}
         </p>
       )}
       {items.length > 0 && (
         <ul className="space-y-1.5">
           {items.map(item => (
-            <li key={item.id} className="flex items-center gap-2 rounded-lg border border-amber-100 bg-white px-2 py-1.5">
+            <li key={item.id} className={builderPanelUi.trashListItem}>
               <div className="min-w-0 flex-1">
-                <div className="text-[11px] font-semibold text-gray-800 truncate" title={item.title}>{item.title}</div>
-                <div className="text-[10px] text-gray-500">
+                <div className={builderPanelUi.trashItemTitle} title={item.title}>{item.title}</div>
+                <div className={builderPanelUi.trashItemMeta}>
                   {item.days_remaining <= 0
                     ? 'Purging soon'
                     : `${item.days_remaining} day${item.days_remaining === 1 ? '' : 's'} left to restore`}
@@ -4707,22 +4707,22 @@ function PropsCollapsible({
   return (
     <details
       className={cn(
-        'group rounded-lg border overflow-hidden transition-colors',
+        'group overflow-hidden transition-colors',
         accent
-          ? 'border-primary/30 bg-primary/5 shadow-sm'
-          : 'border-gray-200 bg-white shadow-sm hover:border-gray-300',
+          ? 'rounded-lg border border-primary/30 bg-primary/5 shadow-sm'
+          : builderPanelUi.collapsible,
       )}
     >
       <summary
         className={cn(
           'list-none cursor-pointer flex items-center gap-2 px-3 py-2.5 transition-colors [&::-webkit-details-marker]:hidden',
-          accent ? 'hover:bg-primary/10' : 'hover:bg-gray-50/80',
+          accent ? 'hover:bg-primary/10' : builderPanelUi.collapsibleSummary,
         )}
       >
         <span
           className={cn(
             'text-xs font-semibold shrink-0',
-            accent ? 'text-primary' : 'text-gray-800',
+            accent ? 'text-primary' : builderPanelUi.collapsibleTitle,
           )}
         >
           {title}
@@ -4733,10 +4733,10 @@ function PropsCollapsible({
             className={cn(
               'shrink-0 max-w-[45%] truncate rounded-full px-2 py-0.5 text-[10px] font-medium',
               preview === 'Empty'
-                ? 'bg-gray-50 text-gray-300 italic'
+                ? 'bg-muted/50 text-muted-foreground/60 italic'
                 : accent
                   ? 'bg-primary/15 text-primary'
-                  : 'bg-gray-100 text-gray-500',
+                  : 'bg-muted text-muted-foreground',
             )}
           >
             {preview}
@@ -6340,11 +6340,11 @@ function PagePanel({
         type="color"
         value={(pageOverrides[key] as string) || (effective[key as keyof StyleConfig] as string) || fallback}
         onChange={e => activePageId && onPageStyleChange(activePageId, { [key]: e.target.value })}
-        className="w-9 h-9 rounded-lg border border-gray-200 cursor-pointer p-0.5 shrink-0"
+        className={builderPanelUi.colorInput}
       />
       <div className="flex-1 min-w-0">
-        <div className="text-xs font-medium text-gray-700">{label}</div>
-        <div className="text-xs text-gray-400 font-mono truncate">
+        <div className={builderPanelUi.label}>{label}</div>
+        <div className={cn(builderPanelUi.mono, 'truncate')}>
           {(pageOverrides[key] as string) || 'Site default'}
         </div>
       </div>
@@ -6352,7 +6352,7 @@ function PagePanel({
         <button
           type="button"
           onClick={() => onPageStyleChange(activePageId, { [key]: undefined } as PageStyleOverrides)}
-          className="text-[10px] text-gray-400 hover:text-red-500 shrink-0"
+          className="shrink-0 text-[10px] text-muted-foreground hover:text-destructive"
           title="Use site default"
         >
           Reset
@@ -6364,7 +6364,7 @@ function PagePanel({
   return (
     <div className="p-4 space-y-5">
       {!activePage ? (
-        <p className="text-xs text-gray-400 text-center py-6">Select a page to edit its appearance.</p>
+        <p className={cn(builderPanelUi.hintXs, 'text-center py-6')}>Select a page to edit its appearance.</p>
       ) : (
         <>
           <div className="rounded-xl bg-accent/60 border border-primary/15 px-3 py-2">
@@ -6383,14 +6383,14 @@ function PagePanel({
           </div>
 
           {(onDeletePage || onDuplicatePage || onSetHomepage) && (
-            <div className="rounded-xl border border-gray-200 bg-gray-50/80 p-3 space-y-2">
-              <div className="text-xs font-bold text-gray-700">Manage page</div>
+            <div className={cn(builderPanelUi.cardSurfaceMuted, 'space-y-2 p-3')}>
+              <div className={builderPanelUi.title}>Manage page</div>
               <div className="flex flex-wrap gap-2">
                 {!activePage.is_homepage && onSetHomepage && (
                   <button
                     type="button"
                     onClick={() => onSetHomepage(activePage)}
-                    className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg border border-gray-200 bg-white text-[11px] font-semibold text-gray-700 hover:bg-gray-50 transition-colors"
+                    className={builderPanelUi.btnSecondary}
                   >
                     <Home className="w-3.5 h-3.5" />
                     Set as homepage
@@ -6400,7 +6400,7 @@ function PagePanel({
                   <button
                     type="button"
                     onClick={() => onDuplicatePage(activePage)}
-                    className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg border border-gray-200 bg-white text-[11px] font-semibold text-gray-700 hover:bg-gray-50 transition-colors"
+                    className={builderPanelUi.btnSecondary}
                   >
                     <Copy className="w-3.5 h-3.5" />
                     Duplicate
@@ -6411,21 +6411,21 @@ function PagePanel({
                 canDelete ? (
                   <>
                     {activePage.is_homepage && (
-                      <p className="text-[11px] text-gray-500 leading-snug px-1 mb-2">
+                      <p className={cn(builderPanelUi.hint, 'px-1 mb-2')}>
                         The next page in your list will become the new homepage.
                       </p>
                     )}
                     <button
                       type="button"
                       onClick={() => onDeletePage(activePage.id, activePage.title)}
-                      className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-lg border border-red-200 bg-white text-xs font-semibold text-red-600 hover:bg-red-50 hover:border-red-300 transition-colors"
+                      className={cn(builderPanelUi.btnDanger, 'w-full px-3 py-2.5')}
                     >
                       <Trash2 className="w-3.5 h-3.5" />
                       Move to trash
                     </button>
                   </>
                 ) : (
-                  <p className="text-[11px] text-gray-500 leading-snug px-1">{deleteBlockedReason}</p>
+                  <p className={cn(builderPanelUi.hint, 'px-1')}>{deleteBlockedReason}</p>
                 )
               )}
             </div>
@@ -6435,7 +6435,7 @@ function PagePanel({
             title="Page colors"
             description="Defaults for every section on this page unless a section overrides them."
           >
-            <div className="space-y-2 rounded-lg border border-gray-100 bg-gray-50/60 p-2.5">
+            <div className={cn(builderPanelUi.mutedSurface, 'space-y-2 p-2.5')}>
               {colorField('bg_color', 'Background', siteStyle.bg_color)}
               {colorField('surface_color', 'Surface / cards', siteStyle.surface_color)}
               {colorField('text_color', 'Text', siteStyle.text_color)}
@@ -6443,18 +6443,18 @@ function PagePanel({
           </SectionPanelGroup>
 
           <div>
-            <div className="text-xs font-bold uppercase tracking-wide text-gray-400 mb-2">Typography</div>
+            <div className={cn(builderPanelUi.eyebrow, 'mb-2')}>Typography</div>
             <div className="space-y-2">
               {([
                 { key: 'font_heading' as const, label: 'Heading font' },
                 { key: 'font_body' as const, label: 'Body font' },
               ]).map(({ key, label }) => (
                 <div key={key} className="space-y-1">
-                  <label className="text-xs font-medium text-gray-600">{label}</label>
+                  <label className={builderPanelUi.label}>{label}</label>
                   <select
                     value={(pageOverrides[key] as string) || (effective[key] as string)}
                     onChange={e => onPageStyleChange(activePage.id, { [key]: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-xs"
+                    className={builderPanelUi.select}
                     style={{ fontFamily: (pageOverrides[key] as string) || (effective[key] as string) }}
                   >
                     {FONTS.map(f => <option key={f} value={f} style={{ fontFamily: f }}>{f}</option>)}
@@ -6468,7 +6468,7 @@ function PagePanel({
                 const val = (pageOverrides[key] as number | undefined) ?? fallback
                 return (
                   <div key={key} className="flex items-center gap-2">
-                    <span className="text-xs text-gray-500 w-20 shrink-0">{label}</span>
+                    <span className={cn(builderPanelUi.hintXs, 'w-20 shrink-0')}>{label}</span>
                     <input
                       type="range"
                       min={min}
@@ -6478,7 +6478,7 @@ function PagePanel({
                       onChange={e => onPageStyleChange(activePage.id, { [key]: Number(e.target.value) })}
                       className="flex-1 accent-primary h-1"
                     />
-                    <span className="text-xs text-gray-400 w-10 text-right tabular-nums">{val}px</span>
+                    <span className={cn(builderPanelUi.mono, 'w-10 text-right tabular-nums')}>{val}px</span>
                   </div>
                 )
               })}
@@ -6489,7 +6489,7 @@ function PagePanel({
             <button
               type="button"
               onClick={() => onClearPageStyle(activePage.id)}
-              className="w-full py-2 rounded-xl border border-gray-200 text-xs font-medium text-gray-600 hover:bg-gray-50"
+              className={cn(builderPanelUi.btnSecondary, 'w-full justify-center py-2 text-xs font-medium')}
             >
               Reset page to site defaults
             </button>
@@ -6522,8 +6522,8 @@ function StylePanel({
   return (
     <div className="p-4 space-y-5">
       <div>
-        <div className="text-xs font-bold uppercase tracking-wide text-gray-400 mb-1">Theme and appearance</div>
-        <p className="text-xs text-gray-400 leading-snug">
+        <div className={cn(builderPanelUi.eyebrow, 'mb-1')}>Theme and appearance</div>
+        <p className={cn(builderPanelUi.hintXs, 'leading-snug')}>
           Site-wide defaults. Override per page in Page Edit, or per section in Section Edit → Design.
         </p>
       </div>
@@ -6531,7 +6531,7 @@ function StylePanel({
       {/* Theme presets */}
       <div>
         <div className="flex items-center gap-2 mb-2">
-          <div className="text-xs font-bold uppercase tracking-wide text-gray-400 flex-1">Theme Presets</div>
+          <div className={cn(builderPanelUi.eyebrow, 'mb-0 flex-1')}>Theme Presets</div>
           <button
             onClick={handleAITheme}
             disabled={aiTheme.isPending}
@@ -6554,7 +6554,7 @@ function StylePanel({
                 <div style={{ background: t.colors.accent_color }} />
                 <div style={{ background: t.colors.bg_color, border: '1px solid #e5e7eb' }} />
               </div>
-              <div className="text-xs font-medium text-gray-500 text-center py-0.5 bg-white">{t.label}</div>
+              <div className="text-xs font-medium text-muted-foreground text-center py-0.5 bg-card">{t.label}</div>
             </button>
           ))}
         </div>
@@ -6562,7 +6562,7 @@ function StylePanel({
 
       {/* Colors */}
       <div>
-        <div className="text-xs font-bold uppercase tracking-wide text-gray-400 mb-3">Colors</div>
+        <div className={cn(builderPanelUi.eyebrow, 'mb-3')}>Colors</div>
         <div className="space-y-2">
           {[
             { key: 'primary_color', label: 'Primary' },
@@ -6577,11 +6577,11 @@ function StylePanel({
                 type="color"
                 value={(style as any)[key] || '#000000'}
                 onChange={e => onChange({ [key]: e.target.value } as any)}
-                className="w-9 h-9 rounded-lg border border-gray-200 cursor-pointer p-0.5 flex-shrink-0"
+                className={builderPanelUi.colorInput}
               />
               <div className="flex-1 min-w-0">
-                <div className="text-xs font-medium text-gray-700">{label}</div>
-                <div className="text-xs text-gray-400 font-mono">{(style as any)[key]}</div>
+                <div className={builderPanelUi.label}>{label}</div>
+                <div className={builderPanelUi.mono}>{(style as any)[key]}</div>
               </div>
             </div>
           ))}
@@ -7940,7 +7940,7 @@ function BlockDesignBar({ block, onUpdate, onInsertAfter, onOpenLinkEditorForOve
             open={showClear}
             anchorRef={clearBtnRef}
             menuRef={dropdownRef}
-            className="min-w-[240px] overflow-hidden rounded-xl border border-gray-200 bg-white shadow-2xl"
+            className="min-w-[240px] overflow-hidden rounded-xl border border-border bg-popover text-popover-foreground shadow-2xl"
           >
             <div className="px-3 py-2 border-b border-gray-100 bg-gray-50">
               <div className="text-xs font-bold text-gray-800">Clear</div>
@@ -8041,7 +8041,7 @@ function BlockDesignBar({ block, onUpdate, onInsertAfter, onOpenLinkEditorForOve
                   open={showCase}
                   anchorRef={caseBtnRef}
                   menuRef={dropdownRef}
-                  className="min-w-[220px] overflow-hidden rounded-lg border border-gray-200 bg-white shadow-2xl"
+                  className="min-w-[220px] overflow-hidden rounded-lg border border-border bg-popover text-popover-foreground shadow-2xl"
                 >
                   <TextCaseList
                     size="compact"
@@ -13264,7 +13264,7 @@ export default function WebsiteBuilder() {
                     </button>
                   ))}
 
-                  <div className="border-t border-gray-100 px-3 py-2.5">
+                  <div className="border-t border-border bg-muted/25 px-3 py-2.5">
                     <label className="block text-[10px] font-semibold uppercase tracking-wide text-gray-400 mb-1.5">
                       Canvas width (px)
                     </label>
@@ -13364,8 +13364,8 @@ export default function WebsiteBuilder() {
                 </button>
 
                 {moreMenuOpen && (
-                  <div className="absolute right-0 top-full z-[300] mt-1.5 w-72 max-h-[min(70vh,520px)] overflow-y-auto rounded-xl border border-gray-200 bg-white text-gray-800 shadow-2xl">
-                    <p className="px-3 pt-2.5 pb-1 text-[10px] font-bold uppercase tracking-wide text-gray-400">
+                  <div className={cn('absolute right-0 top-full z-[300] mt-1.5 w-72 max-h-[min(70vh,520px)] overflow-y-auto rounded-xl', builderPanelUi.popover)}>
+                    <p className={cn(builderPanelUi.eyebrow, 'px-3 pt-2.5 pb-1')}>
                       Publish &amp; share
                     </p>
 
@@ -13379,16 +13379,16 @@ export default function WebsiteBuilder() {
                           ? 'Your store is live — publish latest changes again'
                           : 'Save and publish this design so customers can see it on your store'
                       }
-                      className="flex w-full items-center gap-2.5 px-3 py-2.5 text-left text-xs font-semibold text-gray-700 transition-colors hover:bg-emerald-50 hover:text-emerald-800 disabled:cursor-wait disabled:opacity-60"
+                      className={cn(builderPanelUi.menuItem, 'hover:bg-emerald-500/10 hover:text-emerald-700 dark:hover:text-emerald-300 disabled:cursor-wait disabled:opacity-60')}
                     >
                       {isApplyingToStore ? (
-                        <Loader2 className="h-4 w-4 shrink-0 animate-spin text-emerald-600" />
+                        <Loader2 className="h-4 w-4 shrink-0 animate-spin text-emerald-600 dark:text-emerald-400" />
                       ) : (
-                        <Check className="h-4 w-4 shrink-0 text-emerald-600" />
+                        <Check className="h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
                       )}
                       <span className="flex-1">
                         {isApplyingToStore ? 'Publishing…' : isSiteApplied ? 'Live on store' : 'Publish store'}
-                        <span className="block text-[10px] font-normal text-gray-400">
+                        <span className={builderPanelUi.menuItemHint}>
                           Make this design live for customers
                         </span>
                       </span>
@@ -13400,28 +13400,28 @@ export default function WebsiteBuilder() {
                         type="button"
                         onClick={handleViewStore}
                         title={siteTestUrl ?? 'Set a subdomain to get a test link'}
-                        className="flex w-full items-center gap-2.5 px-3 py-2.5 text-left text-xs font-semibold text-gray-700 transition-colors hover:bg-gray-50"
+                        className={builderPanelUi.menuItem}
                       >
                         <ExternalLink className="h-4 w-4 shrink-0 text-primary" />
                         <span className="flex-1">
                           {siteTestUrl ? 'View store' : 'Get link'}
-                          <span className="block text-[10px] font-normal text-gray-400">
+                          <span className={builderPanelUi.menuItemHint}>
                             {siteTestUrl ? 'Open or copy your store link' : 'Set a subdomain to get a link'}
                           </span>
                         </span>
                       </button>
 
                       {storePopover && siteTestUrl && (
-                        <div className="absolute right-0 top-full z-[320] mt-1 w-80 rounded-xl border border-gray-200 bg-white text-gray-800 shadow-2xl p-4">
+                        <div className={cn('absolute right-0 top-full z-[320] mt-1 w-80 rounded-xl p-4', builderPanelUi.popover)}>
                           <div className="flex items-center justify-between mb-3">
-                            <div className="text-xs font-bold uppercase tracking-wide text-gray-400">
+                            <div className={builderPanelUi.eyebrow}>
                               {site.is_published ? '✅ Live URL' : '🔒 Preview URL (not live)'}
                             </div>
                             {site.is_published && (
-                              <span className="text-xs bg-emerald-100 text-emerald-700 font-bold px-2 py-0.5 rounded-full">PUBLISHED</span>
+                              <span className="text-xs bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 font-bold px-2 py-0.5 rounded-full">PUBLISHED</span>
                             )}
                           </div>
-                          <div className="flex items-center gap-2 bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 mb-3">
+                          <div className={cn('flex items-center gap-2 rounded-lg px-3 py-2 mb-3', builderPanelUi.mutedSurface)}>
                             <Globe className="w-3.5 h-3.5 text-primary/80 shrink-0" />
                             <span className="text-xs text-primary font-mono truncate flex-1">{siteTestUrl}</span>
                           </div>
@@ -13432,13 +13432,13 @@ export default function WebsiteBuilder() {
                                 toast.success('Link copied to clipboard!')
                                 setStorePopover(false)
                               }}
-                              className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg border border-gray-200 text-gray-700 text-xs font-medium hover:bg-gray-50 transition-colors"
+                              className={cn(builderPanelUi.btnSecondary, 'flex-1 justify-center px-3 py-2 text-xs font-medium')}
                             >
                               <Copy className="w-3.5 h-3.5" /> Copy URL
                             </button>
                             <button
                               onClick={() => { window.open(siteTestUrl, '_blank'); setStorePopover(false) }}
-                              className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-primary hover:bg-blue-500 text-white text-xs font-medium transition-colors"
+                              className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-primary hover:bg-primary/90 text-primary-foreground text-xs font-medium transition-colors"
                             >
                               <ExternalLink className="w-3.5 h-3.5" /> Open ↗
                             </button>
@@ -13447,8 +13447,8 @@ export default function WebsiteBuilder() {
                       )}
                     </div>
 
-                    <div className="my-1 border-t border-gray-100" />
-                    <p className="px-3 pt-1 pb-1 text-[10px] font-bold uppercase tracking-wide text-gray-400">
+                    <div className={cn('my-1 border-t', builderPanelUi.divider)} />
+                    <p className={cn(builderPanelUi.eyebrow, 'px-3 pt-1 pb-1')}>
                       Tools
                     </p>
 
@@ -13463,29 +13463,29 @@ export default function WebsiteBuilder() {
                       }
                       onClick={() => { setMoreMenuOpen(false); handleCopyTemplateSaveAs() }}
                       title="Save a copy of this site as a new website in Website Builder"
-                      className="flex w-full items-center gap-2.5 px-3 py-2.5 text-left text-xs font-semibold text-gray-700 transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+                      className={builderPanelUi.menuItem}
                     >
                       <ClipboardCopy className="h-4 w-4 shrink-0 text-primary" />
                       <span className="flex-1">
                         Copy template / Save As
-                        <span className="block text-[10px] font-normal text-gray-400">
+                        <span className={builderPanelUi.menuItemHint}>
                           Duplicate this site under a new name
                         </span>
                       </span>
                     </button>
 
                     {/* Recently deleted pages (7-day trash) — always visible in Tools */}
-                    <div className="border-t border-gray-100 bg-amber-50/40">
-                      <div className="flex items-center gap-2.5 px-3 py-2.5">
-                        <Trash2 className="h-4 w-4 shrink-0 text-amber-600" />
-                        <span className="flex-1 text-xs font-semibold text-gray-700">
+                    <div className={builderPanelUi.trashSection}>
+                      <div className={builderPanelUi.trashSectionHeader}>
+                        <Trash2 className={cn('h-4 w-4 shrink-0', builderPanelUi.amberIcon)} />
+                        <span className="flex-1 text-xs font-semibold text-foreground">
                           Recently deleted
                           {trashedPages.length > 0 && (
-                            <span className="ml-1.5 rounded-full bg-amber-100 px-1.5 py-0.5 text-[9px] font-bold tabular-nums text-amber-800">
+                            <span className={cn(builderPanelUi.amberBadge, 'ml-1.5')}>
                               {trashedPages.length}
                             </span>
                           )}
-                          <span className="block text-[10px] font-normal text-gray-400">
+                          <span className={cn(builderPanelUi.menuItemHint, 'text-muted-foreground')}>
                             Restore pages removed in the last 7 days
                           </span>
                         </span>
@@ -13507,22 +13507,22 @@ export default function WebsiteBuilder() {
                         setChangeHistoryOpen(v => !v)
                       }}
                       aria-expanded={changeHistoryOpen}
-                      className="flex w-full items-center gap-2.5 px-3 py-2.5 text-left text-xs font-semibold text-gray-700 transition-colors hover:bg-gray-50"
+                      className={builderPanelUi.menuItem}
                     >
                       <History className="h-4 w-4 shrink-0 text-primary" />
                       <span className="flex-1">
                         Change history
-                        <span className="block text-[10px] font-normal text-gray-400">
+                        <span className={builderPanelUi.menuItemHint}>
                           Restore a previous version of this session
                         </span>
                       </span>
-                      <ChevronDown className={cn('h-3.5 w-3.5 shrink-0 text-gray-400 transition-transform', changeHistoryOpen && 'rotate-180')} />
+                      <ChevronDown className={cn('h-3.5 w-3.5 shrink-0 text-muted-foreground transition-transform', changeHistoryOpen && 'rotate-180')} />
                     </button>
 
                     {changeHistoryOpen && (
-                      <div className="max-h-60 overflow-y-auto border-t border-gray-100 bg-gray-50/60" data-history-version={historyVersion}>
+                      <div className={cn('max-h-60 overflow-y-auto border-t', builderPanelUi.divider, builderPanelUi.mutedSurface, 'rounded-none border-x-0 border-b-0')} data-history-version={historyVersion}>
                         {historyStack.current.length === 0 ? (
-                          <p className="px-3 py-4 text-center text-[11px] text-gray-400">
+                          <p className={cn(builderPanelUi.hint, 'px-3 py-4 text-center')}>
                             No changes recorded yet. Edits you make will appear here.
                           </p>
                         ) : (
@@ -13543,19 +13543,19 @@ export default function WebsiteBuilder() {
                                 onClick={() => { restoreHistoryTo(idx); setChangeHistoryOpen(false); setMoreMenuOpen(false) }}
                                 className={cn(
                                   'flex w-full items-center gap-2.5 px-3 py-2 text-left transition-colors',
-                                  isCurrent ? 'cursor-default bg-primary/5' : 'hover:bg-white',
+                                  isCurrent ? 'cursor-default bg-primary/10' : 'hover:bg-muted/50',
                                 )}
                               >
                                 <span className={cn(
                                   'h-1.5 w-1.5 shrink-0 rounded-full',
-                                  isCurrent ? 'bg-primary' : 'bg-gray-300',
+                                  isCurrent ? 'bg-primary' : 'bg-muted-foreground/40',
                                 )} />
                                 <span className="flex-1 min-w-0">
-                                  <span className="block truncate text-[11px] font-semibold text-gray-700">
+                                  <span className="block truncate text-[11px] font-semibold text-foreground">
                                     {label}
                                     {isCurrent && <span className="ml-1.5 text-[9px] font-bold uppercase text-primary">Current</span>}
                                   </span>
-                                  <span className="block text-[10px] font-normal text-gray-400">
+                                  <span className={builderPanelUi.menuItemHint}>
                                     {ts ? new Date(ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : `Step ${idx + 1}`}
                                   </span>
                                 </span>
@@ -13588,7 +13588,7 @@ export default function WebsiteBuilder() {
 
         {/* ── LEFT PANEL ──────────────────────────────────────────────── */}
         <aside
-          className={cn('flex flex-col bg-white border-r border-gray-200 shrink-0', leftCollapsed ? 'w-10' : '')}
+          className={cn('flex flex-col border-r shrink-0', builderPanelUi.shell, leftCollapsed ? 'w-10' : '')}
           style={leftCollapsed ? undefined : { width: leftWidth }}
         >
           {leftCollapsed ? (
@@ -13596,7 +13596,7 @@ export default function WebsiteBuilder() {
               type="button"
               onClick={() => setLeftCollapsed(false)}
               title="Open panel — Sections, Pages, Templates, Media, Site"
-              className="flex-1 flex flex-col items-center justify-center gap-2 py-3 hover:bg-gray-50 text-gray-400 hover:text-gray-600"
+              className="flex-1 flex flex-col items-center justify-center gap-2 py-3 text-muted-foreground hover:text-foreground hover:bg-muted/40"
             >
               <PanelLeft className="w-4 h-4" />
               <span className="text-[9px] font-semibold writing-mode-vertical text-center leading-tight px-0.5" style={{ writingMode: 'vertical-rl' }}>
@@ -13606,7 +13606,7 @@ export default function WebsiteBuilder() {
           ) : (
             <>
               {/* Left panel tabs */}
-              <div className="flex items-center border-b border-gray-100 shrink-0 overflow-x-auto hide-scrollbar">
+              <div className={cn('flex items-center border-b shrink-0 overflow-x-auto hide-scrollbar', builderPanelUi.divider)}>
                 {([
                   { id: 'blocks' as const, icon: Layout, label: 'Sections' },
                   { id: 'pages' as const, icon: FileText, label: 'Pages' },
@@ -13620,14 +13620,14 @@ export default function WebsiteBuilder() {
                       title={label}
                       className={cn(
                         'min-w-[3.25rem] shrink-0 py-2 px-1 flex flex-col items-center gap-0.5 text-[10px] font-medium transition-colors',
-                        leftPanel === id ? 'text-primary border-b-2 border-primary' : 'text-gray-400 hover:text-gray-600',
+                        leftPanel === id ? builderPanelUi.tabActive : builderPanelUi.tabInactive,
                       )}
                     >
                       <Icon className="w-4 h-4" />
                       <span>{label}</span>
                     </button>
                   ))}
-                <button onClick={() => setLeftCollapsed(true)} className="ml-auto px-2 py-2.5 text-gray-300 hover:text-gray-500 shrink-0">
+                <button onClick={() => setLeftCollapsed(true)} className="ml-auto px-2 py-2.5 text-muted-foreground/70 hover:text-muted-foreground shrink-0">
                   <ChevronLeft className="w-3 h-3" />
                 </button>
               </div>
@@ -13798,7 +13798,7 @@ export default function WebsiteBuilder() {
                           </div>
 
                           {isExpanded && (
-                            <div className="px-1.5 pb-1.5 space-y-0.5 border-t border-gray-100 pt-1">
+                            <div className="px-1.5 pb-1.5 space-y-0.5 border-t border-border bg-muted/25 pt-1">
                               {entries.map(({ block, idx }) => {
                                 const def = getBlockCatalogDef(block.block_type)
                                 const Icon = def?.icon ?? Square
@@ -14749,18 +14749,18 @@ export default function WebsiteBuilder() {
 
         {/* ── RIGHT PANEL ──────────────────────────────────────────────── */}
         <aside
-          className={cn('flex flex-col bg-white border-l border-gray-200 shrink-0', rightCollapsed ? 'w-10' : '')}
+          className={cn('flex flex-col border-l shrink-0', builderPanelUi.shell, rightCollapsed ? 'w-10' : '')}
           style={rightCollapsed ? undefined : { width: rightWidth }}
         >
           {rightCollapsed ? (
-            <button onClick={() => setRightCollapsed(false)} className="flex-1 flex items-center justify-center hover:bg-gray-50 text-gray-400 hover:text-gray-600">
+            <button onClick={() => setRightCollapsed(false)} className="flex-1 flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted/40">
               <PanelRight className="w-4 h-4" />
             </button>
           ) : (
             <>
               {/* Right panel tabs */}
-              <div className="flex items-center border-b border-gray-100 shrink-0 overflow-x-auto hide-scrollbar">
-                <button onClick={() => setRightCollapsed(true)} className="px-2 py-2.5 text-gray-300 hover:text-gray-500 shrink-0">
+              <div className={cn('flex items-center border-b shrink-0 overflow-x-auto hide-scrollbar', builderPanelUi.divider)}>
+                <button onClick={() => setRightCollapsed(true)} className="px-2 py-2.5 text-muted-foreground/70 hover:text-muted-foreground shrink-0">
                   <ChevronRight className="w-3 h-3" />
                 </button>
                 {([
@@ -14775,7 +14775,7 @@ export default function WebsiteBuilder() {
                     title={hint}
                     className={cn(
                       'min-w-[4.25rem] shrink-0 py-2 px-1 flex flex-col items-center gap-0.5 transition-colors antialiased subpixel-antialiased',
-                      rightPanel === id ? 'text-primary border-b-2 border-primary bg-accent' : 'text-gray-400 hover:text-gray-600 hover:bg-gray-50',
+                      rightPanel === id ? builderPanelUi.tabActive : builderPanelUi.tabInactive,
                     )}
                   >
                     <Icon className="w-4 h-4" />
@@ -14810,9 +14810,9 @@ export default function WebsiteBuilder() {
                   ) : (
                     <div className="p-4 space-y-4">
                       <div className="text-center py-8">
-                        <MousePointerIcon className="w-10 h-10 mx-auto mb-3 text-gray-300" />
-                        <p className="text-sm font-semibold text-gray-700">Select a section on the canvas</p>
-                        <p className="text-xs text-gray-400 mt-1">Colors, layout, and content appear under Section Edit → Design.</p>
+                        <MousePointerIcon className="w-10 h-10 mx-auto mb-3 text-muted-foreground/50" />
+                        <p className="text-sm font-semibold text-foreground">Select a section on the canvas</p>
+                        <p className={cn(builderPanelUi.hintXs, 'mt-1')}>Colors, layout, and content appear under Section Edit → Design.</p>
                       </div>
                     </div>
                   )

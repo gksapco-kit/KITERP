@@ -137,7 +137,7 @@ function PreviewModal({
   }
 
   return (
-    <div
+    <div data-kiterp-modal
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm overflow-y-auto"
       onClick={onClose}
       role="presentation"

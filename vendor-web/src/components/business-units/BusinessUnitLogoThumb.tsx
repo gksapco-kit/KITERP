@@ -2,8 +2,8 @@ import { Store, type LucideIcon } from 'lucide-react'
 import type { StoreRecord } from '@/api/vendor'
 import { cn } from '@/lib/utils'
 import { getBusinessUnitVisual } from '@/lib/businessUnitVisuals'
-import { resolveBrandingImageUrl } from '@/components/common/MediaUploadPickerModal'
 import { resolveBrandingMode } from '@/lib/brandingMode'
+import { resolveBrandingImageUrl } from '@/components/common/MediaUploadPickerModal'
 
 type Props = {
   store?: StoreRecord | null
@@ -11,6 +11,8 @@ type Props = {
   vendorLogoUrl?: string | null
   /** When true, show vendor profile logo before per-unit settings logo */
   preferVendorLogo?: boolean
+  /** Primary-filled toolbar pill — flat tile instead of gradient */
+  variant?: 'default' | 'onPrimary'
   className?: string
   iconClassName?: string
   fallbackIcon?: LucideIcon
@@ -42,6 +44,7 @@ export function BusinessUnitLogoThumb({
   vendor,
   vendorLogoUrl,
   preferVendorLogo = false,
+  variant = 'default',
   className = 'h-5 w-5',
   iconClassName = 'h-3.5 w-3.5 shrink-0',
   fallbackIcon: FallbackIcon,
@@ -51,26 +54,33 @@ export function BusinessUnitLogoThumb({
   const visual = store ? getBusinessUnitVisual(store, vendor, mode) : null
   const Icon = FallbackIcon ?? visual?.Icon ?? Store
   const logoUrl = resolveBusinessUnitLogoUrl(store, vendor, { preferVendorLogo, vendorLogoUrl })
+  const tileBase =
+    'flex shrink-0 items-center justify-center overflow-hidden rounded-md ring-1 ring-inset ring-border/45'
 
   if (logoUrl) {
     return (
-      <span
-        className={cn(
-          'flex shrink-0 items-center justify-center overflow-hidden rounded-md bg-muted',
-          className,
-        )}
-      >
+      <span className={cn(tileBase, 'bg-muted', className)}>
         <img src={logoUrl} alt="" className="h-full w-full object-cover" loading="lazy" />
       </span>
     )
   }
 
-  if (fallbackGradientClass) {
+  if (variant === 'onPrimary') {
+    return (
+      <span className={cn(tileBase, 'bg-white/15 text-white ring-white/25', className)}>
+        <Icon className={iconClassName} strokeWidth={1.75} aria-hidden />
+      </span>
+    )
+  }
+
+  const gradientClass = fallbackGradientClass ?? visual?.gradientClass
+  if (gradientClass) {
     return (
       <span
         className={cn(
-          'flex shrink-0 items-center justify-center overflow-hidden rounded-md bg-gradient-to-br text-primary',
-          fallbackGradientClass,
+          tileBase,
+          'bg-gradient-to-br text-white',
+          gradientClass,
           className,
         )}
       >
@@ -80,7 +90,7 @@ export function BusinessUnitLogoThumb({
   }
 
   return (
-    <span className={cn('flex shrink-0 items-center justify-center', className)}>
+    <span className={cn(tileBase, 'bg-muted text-muted-foreground', className)}>
       <Icon className={iconClassName} aria-hidden />
     </span>
   )
