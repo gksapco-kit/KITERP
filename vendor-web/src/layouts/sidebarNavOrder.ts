@@ -269,12 +269,12 @@ export function reconcileNavPlacements(
     '/document-templates',
     '/system/modules',
     '/system/messages',
+    '/team',
+    '/roles',
     '/system/models',
     '/system/table-data',
     '/system/browse-table',
     '/system/assets/images',
-    '/team',
-    '/roles',
   ]
   const systemRoutes = [...validTos].filter((to) => home.get(to) === 'system')
   if (systemRoutes.length && out.system) {
