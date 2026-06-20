@@ -243,12 +243,12 @@ export const SETTINGS_SECTION_ENTRIES: NavSearchEntry[] = [
   },
   {
     kind: 'nav', id: 'settings-messages',
-    label: 'Create Messages',
-    description: 'System Configuration → Create Messages — BU notification recipients',
+    label: 'Message Center',
+    description: 'System Configuration → Message Center — BU notification recipients',
     section: 'System Configuration', sectionId: 'system',
     to: '/system/messages',
     keywords: [
-      'create messages', 'message config', 'notification recipients', 'email recipients',
+      'message center', 'create messages', 'message config', 'notification recipients', 'email recipients',
       'sms recipients', 'whatsapp recipients', 'customer notifications', 'business unit messages',
       'order notifications', 'notification preferences', 'message configuration',
     ],

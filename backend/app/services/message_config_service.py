@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import re
 import uuid
+from datetime import datetime, timezone
 from typing import Any, Optional
 
 from pydantic import BaseModel, EmailStr, Field, field_validator
@@ -29,6 +30,17 @@ NOTIFICATION_EVENT_TYPES = (
     "order_status_updates",
     "customer_inquiries",
     "system_notifications",
+)
+
+CUSTOMER_TEMPLATE_CHANNELS = frozenset({"email", "sms", "whatsapp"})
+
+CUSTOMER_TEMPLATE_PLACEHOLDERS = (
+    "{customer_name}",
+    "{store_name}",
+    "{order_number}",
+    "{total}",
+    "{status}",
+    "{payment_note}",
 )
 
 
@@ -77,6 +89,31 @@ class VendorChannelsSchema(BaseModel):
 class EventRecipientsSchema(BaseModel):
     email_recipients: list[EmailRecipientSchema] = Field(default_factory=list)
     phone_recipients: list[PhoneRecipientSchema] = Field(default_factory=list)
+    customer_templates: list["CustomerMessageTemplateSchema"] = Field(default_factory=list)
+
+
+class CustomerMessageTemplateSchema(BaseModel):
+    id: str = Field(..., min_length=1, max_length=64)
+    name: str = Field(..., min_length=1, max_length=120)
+    subject: Optional[str] = Field(None, max_length=200)
+    message: str = Field(..., min_length=1, max_length=4000)
+    start_at: str = Field(..., min_length=10, max_length=40)
+    end_at: str = Field(..., min_length=10, max_length=40)
+    channels: list[str] = Field(default_factory=lambda: ["email", "sms", "whatsapp"])
+    enabled: bool = True
+
+    @field_validator("id", mode="before")
+    @classmethod
+    def _strip_id(cls, v: Any) -> str:
+        return str(v or "").strip()
+
+    @field_validator("channels")
+    @classmethod
+    def _normalize_channels(cls, v: Any) -> list[str]:
+        if not isinstance(v, list):
+            return ["email", "sms", "whatsapp"]
+        out = [str(c).strip().lower() for c in v if str(c).strip().lower() in CUSTOMER_TEMPLATE_CHANNELS]
+        return out or ["email", "sms", "whatsapp"]
 
 
 class EventsSchema(BaseModel):
@@ -119,7 +156,36 @@ def _dedupe_phones(recipients: list[dict[str, Any]]) -> list[dict[str, Any]]:
 
 
 def _empty_event_recipients() -> dict[str, Any]:
-    return {"email_recipients": [], "phone_recipients": []}
+    return {"email_recipients": [], "phone_recipients": [], "customer_templates": []}
+
+
+def _parse_template_datetime(value: str) -> datetime:
+    raw = (value or "").strip().replace("Z", "+00:00")
+    dt = datetime.fromisoformat(raw)
+    if dt.tzinfo is None:
+        return dt.replace(tzinfo=timezone.utc)
+    return dt.astimezone(timezone.utc)
+
+
+def _normalize_customer_templates(templates: list[Any]) -> list[dict[str, Any]]:
+    """Validate and sort customer message templates for an event."""
+    if not isinstance(templates, list):
+        return []
+    normalized: list[dict[str, Any]] = []
+    for item in templates:
+        if not isinstance(item, dict):
+            continue
+        try:
+            parsed = CustomerMessageTemplateSchema.model_validate(item)
+            start = _parse_template_datetime(parsed.start_at)
+            end = _parse_template_datetime(parsed.end_at)
+            if end < start:
+                continue
+            normalized.append(parsed.model_dump())
+        except Exception:
+            continue
+    normalized.sort(key=lambda t: (_parse_template_datetime(t["start_at"]), t.get("name") or ""))
+    return normalized
 
 
 def _migrate_legacy_config(raw: dict[str, Any]) -> dict[str, Any]:
@@ -135,6 +201,7 @@ def _migrate_legacy_config(raw: dict[str, Any]) -> dict[str, Any]:
             events[event_type] = {
                 "email_recipients": legacy_emails,
                 "phone_recipients": legacy_phones,
+                "customer_templates": [],
             }
         else:
             events[event_type] = _empty_event_recipients()
@@ -154,6 +221,7 @@ def _normalize_events_dict(events: dict[str, Any]) -> dict[str, Any]:
         normalized[event_type] = {
             "email_recipients": emails,
             "phone_recipients": phones,
+            "customer_templates": _normalize_customer_templates(list(block.get("customer_templates") or [])),
         }
     return normalized
 
@@ -245,3 +313,58 @@ _EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 
 def is_valid_email_loose(value: str) -> bool:
     return bool(_EMAIL_RE.match((value or "").strip()))
+
+
+def render_customer_template_text(template: str, context: dict[str, Any]) -> str:
+    """Replace known placeholders in a customer message template."""
+    out = template or ""
+    mapping = {
+        "{customer_name}": str(context.get("customer_name") or "Customer"),
+        "{store_name}": str(context.get("store_name") or "Your store"),
+        "{order_number}": str(context.get("order_number") or ""),
+        "{total}": str(context.get("total") or ""),
+        "{status}": str(context.get("status") or ""),
+        "{payment_note}": str(context.get("payment_note") or ""),
+    }
+    for key, value in mapping.items():
+        out = out.replace(key, value)
+    return out
+
+
+def resolve_active_customer_template(
+    message_config: Optional[dict[str, Any]],
+    event_type: str,
+    channel: str,
+    *,
+    at: Optional[datetime] = None,
+) -> Optional[dict[str, Any]]:
+    """Return the best-matching scheduled customer template for a channel at a given time."""
+    block = get_event_block(message_config, event_type)
+    templates = block.get("customer_templates") or []
+    if not isinstance(templates, list) or not templates:
+        return None
+    now = at or datetime.now(timezone.utc)
+    if now.tzinfo is None:
+        now = now.replace(tzinfo=timezone.utc)
+    channel = (channel or "").strip().lower()
+    candidates: list[tuple[float, datetime, dict[str, Any]]] = []
+    for raw in templates:
+        if not isinstance(raw, dict) or raw.get("enabled") is False:
+            continue
+        channels = raw.get("channels") or ["email", "sms", "whatsapp"]
+        if channel not in [str(c).lower() for c in channels]:
+            continue
+        try:
+            start = _parse_template_datetime(str(raw.get("start_at") or ""))
+            end = _parse_template_datetime(str(raw.get("end_at") or ""))
+        except Exception:
+            continue
+        if not (start <= now <= end):
+            continue
+        duration_hours = max((end - start).total_seconds() / 3600.0, 0.01)
+        candidates.append((duration_hours, start, raw))
+    if not candidates:
+        return None
+    # Prefer the narrowest active window; tie-break by latest start time.
+    candidates.sort(key=lambda row: (row[0], -row[1].timestamp()))
+    return candidates[0][2]

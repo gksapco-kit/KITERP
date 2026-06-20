@@ -578,18 +578,18 @@ export default function NotificationSettingsPage() {
         <div className="flex-1 min-w-0 flex flex-col gap-4">
 
       {/* ── Delivery Channels ─────────────────────────────────────────────── */}
-      <SectionCard id="sec-channels" icon={Bell} iconColor="text-blue-600" title="Delivery Channels" subtitle="In-app and browser alerts. Order email, SMS, and WhatsApp are configured in Create Messages." dimmed={isDisabled}>
+      <SectionCard id="sec-channels" icon={Bell} iconColor="text-blue-600" title="Delivery Channels" subtitle="In-app and browser alerts. Order email, SMS, and WhatsApp are configured in Message Center." dimmed={isDisabled}>
         <div className="mb-3 rounded-lg border border-border bg-muted/40 px-3 py-2.5 text-xs text-muted-foreground">
           Order confirmation email, SMS, and WhatsApp for your team and customers are managed per business unit in{' '}
           <Link to="/system/messages" className="font-medium text-primary hover:underline">
-            System Configuration → Create Messages
+            System Configuration → Message Center
           </Link>
           .
         </div>
         <PreferenceRow icon={Monitor} iconColor="bg-blue-100 text-blue-600" title="In-App" description="Notification inbox in the dashboard." checked={prefs.in_app} onChange={v => set('in_app', v)} />
-        <PreferenceRow icon={Mail} iconColor="bg-indigo-100 text-indigo-600" title="Email" description="Order and customer emails — configure recipients and toggles in Create Messages." checked={prefs.email} onChange={() => {}} disabled badge="Create Messages" />
-        <PreferenceRow icon={MessageSquare} iconColor="bg-green-100 text-green-600" title="SMS" description="Order text alerts — configure recipients and toggles in Create Messages." checked={prefs.sms} onChange={() => {}} disabled badge="Create Messages" />
-        <PreferenceRow icon={MessageCircle} iconColor="bg-emerald-100 text-emerald-600" title="WhatsApp" description="Order WhatsApp alerts — configure recipients and toggles in Create Messages." checked={prefs.whatsapp} onChange={() => {}} disabled badge="Create Messages" />
+        <PreferenceRow icon={Mail} iconColor="bg-indigo-100 text-indigo-600" title="Email" description="Order and customer emails — configure recipients and toggles in Message Center." checked={prefs.email} onChange={() => {}} disabled badge="Message Center" />
+        <PreferenceRow icon={MessageSquare} iconColor="bg-green-100 text-green-600" title="SMS" description="Order text alerts — configure recipients and toggles in Message Center." checked={prefs.sms} onChange={() => {}} disabled badge="Message Center" />
+        <PreferenceRow icon={MessageCircle} iconColor="bg-emerald-100 text-emerald-600" title="WhatsApp" description="Order WhatsApp alerts — configure recipients and toggles in Message Center." checked={prefs.whatsapp} onChange={() => {}} disabled badge="Message Center" />
         <PreferenceRow icon={Smartphone} iconColor="bg-primary/12 text-primary" title="Mobile Push" description="Native push on the mobile app." checked={prefs.push} onChange={v => set('push', v)} badge="Coming soon" disabled />
 
         {/* Browser desktop push — inline permission row */}

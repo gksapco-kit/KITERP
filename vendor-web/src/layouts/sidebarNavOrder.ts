@@ -262,7 +262,7 @@ export function reconcileNavPlacements(
     out.restaurant = [...ordered, ...rest]
   }
 
-  // System Configuration routes keep canonical order (Create Messages before Database group).
+  // System Configuration routes keep canonical order (Message Center before Database group).
   const systemConfigurationOrder = [
     '/system/storefront-display',
     '/system/social-links',

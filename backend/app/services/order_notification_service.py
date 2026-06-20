@@ -24,6 +24,8 @@ from app.services.message_config_service import (
     get_message_config,
     get_event_email_addresses,
     get_event_phone_numbers,
+    resolve_active_customer_template,
+    render_customer_template_text,
 )
 from app.services.sms_service import SmsService, is_valid_e164, normalize_e164
 
@@ -380,6 +382,44 @@ def _payment_status_note(order: Order) -> str:
     if order.payment_method == "cod":
         return "Payment: Cash on delivery."
     return "Payment is pending — we will confirm once it is completed."
+
+
+def _customer_template_context(ctx: dict[str, Any], *, customer_name: str) -> dict[str, Any]:
+    total = ctx.get("total")
+    if isinstance(total, (int, float)):
+        total_str = f"₹{float(total):,.2f}"
+    else:
+        total_str = str(total or "")
+    return {
+        "customer_name": customer_name,
+        "store_name": ctx.get("store_name") or "Your store",
+        "order_number": ctx.get("order_number") or "",
+        "total": total_str,
+        "status": ctx.get("status_label") or "",
+        "payment_note": ctx.get("payment_note") or "",
+    }
+
+
+def _render_customer_template_message(
+    message_config: Optional[dict[str, Any]],
+    event_type: str,
+    channel: str,
+    ctx: dict[str, Any],
+    *,
+    customer_name: str,
+) -> Optional[tuple[str, str]]:
+    """Return (subject, body) when an active scheduled template exists; else None."""
+    active = resolve_active_customer_template(message_config, event_type, channel)
+    if not active:
+        return None
+    template_ctx = _customer_template_context(ctx, customer_name=customer_name)
+    message = render_customer_template_text(str(active.get("message") or ""), template_ctx).strip()
+    if not message:
+        return None
+    default_subject = f"Order #{template_ctx['order_number']} confirmed — {template_ctx['store_name']}"
+    subject_raw = str(active.get("subject") or default_subject)
+    subject = render_customer_template_text(subject_raw, template_ctx).strip() or default_subject
+    return subject, message
 
 
 def _compact_sms_amount(total: float) -> str:
@@ -781,19 +821,40 @@ async def _send_order_emails(
         customer_email = (customer.email or "").strip() if customer else ""
         if customer_email:
             greet_name = (customer.full_name or "there").strip() if customer else "there"
-            body = (
-                f"<p style='margin:0 0 12px; font-size:14px; color:#4b5563;'>"
-                f"Hi {html.escape(greet_name)},</p>"
-                f"<p style='margin:0 0 12px; font-size:14px; color:#4b5563;'>"
-                f"Thank you for your order at <strong>{html.escape(store_name)}</strong>. "
-                f"We have received it and will keep you updated.</p>"
-                f"<p style='margin:0 0 8px; font-size:14px; color:#111827;'>"
-                f"<strong>Order:</strong> #{html.escape(order_number)}<br>"
-                f"<strong>Status:</strong> {html.escape(status_label)}<br>"
-                f"<strong>Total:</strong> ₹{total:,.2f}<br>"
-                f"<strong>{html.escape(ctx['payment_note'])}</strong></p>"
-                f"{_format_items_rows(items)}"
+            template_ctx = _customer_template_context(ctx, customer_name=greet_name)
+            custom = _render_customer_template_message(
+                message_config, "new_orders", "email", ctx, customer_name=greet_name,
             )
+            if custom:
+                subject, rendered = custom
+                body = (
+                    f"<p style='margin:0 0 12px; font-size:14px; color:#4b5563; white-space:pre-line;'>"
+                    f"{html.escape(rendered)}</p>"
+                    f"{_format_items_rows(items)}"
+                )
+                text = rendered
+            else:
+                subject = f"Order #{order_number} confirmed — {store_name}"
+                body = (
+                    f"<p style='margin:0 0 12px; font-size:14px; color:#4b5563;'>"
+                    f"Hi {html.escape(greet_name)},</p>"
+                    f"<p style='margin:0 0 12px; font-size:14px; color:#4b5563;'>"
+                    f"Thank you for your order at <strong>{html.escape(store_name)}</strong>. "
+                    f"We have received it and will keep you updated.</p>"
+                    f"<p style='margin:0 0 8px; font-size:14px; color:#111827;'>"
+                    f"<strong>Order:</strong> #{html.escape(order_number)}<br>"
+                    f"<strong>Status:</strong> {html.escape(status_label)}<br>"
+                    f"<strong>Total:</strong> ₹{total:,.2f}<br>"
+                    f"<strong>{html.escape(ctx['payment_note'])}</strong></p>"
+                    f"{_format_items_rows(items)}"
+                )
+                text = (
+                    f"Hi {greet_name},\n\n"
+                    f"Your order #{order_number} at {store_name} has been placed.\n"
+                    f"Total: ₹{total:,.2f}\n"
+                    f"Status: {status_label}\n"
+                    f"{ctx['payment_note']}\n"
+                )
             html_doc = _email_layout(
                 brand=store_name,
                 title="Order confirmation",
@@ -801,17 +862,10 @@ async def _send_order_emails(
                 cta_label="Track your order",
                 cta_href=ctx["track_url"],
             )
-            text = (
-                f"Hi {greet_name},\n\n"
-                f"Your order #{order_number} at {store_name} has been placed.\n"
-                f"Total: ₹{total:,.2f}\n"
-                f"Status: {status_label}\n"
-                f"{ctx['payment_note']}\n"
-            )
             try:
                 sent = await send_email(
                     to=customer_email,
-                    subject=f"Order #{order_number} confirmed — {store_name}",
+                    subject=subject,
                     html=html_doc,
                     text=text,
                 )
@@ -882,7 +936,11 @@ async def _send_order_sms(
                 order_number,
                 customer_phone[-4:] if len(customer_phone) >= 4 else "****",
             )
-            body = _customer_order_sms_body(store_name, order_number, total)
+            greet = (customer.full_name or "Customer").strip() if customer else "Customer"
+            custom = _render_customer_template_message(
+                message_config, "new_orders", "sms", ctx, customer_name=greet,
+            )
+            body = custom[1] if custom else _customer_order_sms_body(store_name, order_number, total)
             outcome = await _send_sms_message(
                 db,
                 vendor_id=vendor.id,
@@ -957,7 +1015,10 @@ async def _send_order_whatsapp(
                 customer_phone[-4:] if len(customer_phone) >= 4 else "****",
             )
             greet = (customer.full_name or "there").strip() if customer else "there"
-            body = _customer_order_whatsapp_body(store_name, order_number, total, greet)
+            custom = _render_customer_template_message(
+                message_config, "new_orders", "whatsapp", ctx, customer_name=greet,
+            )
+            body = custom[1] if custom else _customer_order_whatsapp_body(store_name, order_number, total, greet)
             outcome = await _send_whatsapp_message(
                 db,
                 vendor_id=vendor.id,

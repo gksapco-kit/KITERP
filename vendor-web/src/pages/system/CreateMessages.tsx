@@ -7,19 +7,90 @@ import { Label } from '@/components/ui/label'
 import { PhoneInput } from '@/components/ui/PhoneInput'
 import { useStoreMessageConfig, useUpdateStoreMessageConfig } from '@/hooks/useVendor'
 import type {
+  CustomerMessageTemplate,
   EventRecipients,
   MessageEmailRecipient,
   MessagePhoneRecipient,
   NotificationEventType,
   StoreMessageConfig,
 } from '@/api/vendor'
+import { Textarea } from '@/components/ui/textarea'
 import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
 import {
   Mail, MessageCircle, MessageSquare, Loader2, Plus, Pencil, Trash2,
   ShoppingCart, AlertTriangle, Building2, Users, UsersRound,
-  Phone, Smartphone, Package,
+  Phone, Smartphone, Package, FileText, Eye, Calendar,
 } from 'lucide-react'
+
+const TEMPLATE_CHANNELS = [
+  { key: 'email' as const, label: 'Email' },
+  { key: 'sms' as const, label: 'SMS' },
+  { key: 'whatsapp' as const, label: 'WhatsApp' },
+]
+
+const TEMPLATE_PLACEHOLDERS = [
+  '{customer_name}', '{store_name}', '{order_number}', '{total}', '{status}', '{payment_note}',
+]
+
+const DEFAULT_TEMPLATE_MESSAGE =
+  'Hi {customer_name},\n\nThank you for your order at {store_name}.\nOrder #{order_number} — {total}\n{payment_note}'
+
+function toDatetimeLocal(iso: string): string {
+  if (!iso) return ''
+  const d = new Date(iso)
+  if (Number.isNaN(d.getTime())) return ''
+  const pad = (n: number) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
+}
+
+function fromDatetimeLocal(local: string): string {
+  if (!local) return ''
+  const d = new Date(local)
+  if (Number.isNaN(d.getTime())) return ''
+  return d.toISOString()
+}
+
+function defaultTemplateWindow(): { start: string; end: string } {
+  const start = new Date()
+  start.setMinutes(0, 0, 0)
+  const end = new Date(start)
+  end.setDate(end.getDate() + 30)
+  end.setHours(23, 59, 0, 0)
+  return { start: start.toISOString(), end: end.toISOString() }
+}
+
+function formatScheduleRange(start: string, end: string): string {
+  const fmt = (iso: string) => {
+    const d = new Date(iso)
+    if (Number.isNaN(d.getTime())) return iso
+    return d.toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })
+  }
+  return `${fmt(start)} → ${fmt(end)}`
+}
+
+function isTemplateActive(t: CustomerMessageTemplate, now = new Date()): boolean {
+  if (t.enabled === false) return false
+  const start = new Date(t.start_at)
+  const end = new Date(t.end_at)
+  return !Number.isNaN(start.getTime()) && !Number.isNaN(end.getTime()) && now >= start && now <= end
+}
+
+function applyTemplateTokens(text: string, storeName: string): string {
+  const sample: Record<string, string> = {
+    customer_name: 'Ravi Kumar',
+    store_name: storeName || 'Your Store',
+    order_number: 'ORD-00031',
+    total: '₹999.00',
+    status: 'Pending',
+    payment_note: 'Payment received.',
+  }
+  let out = text
+  for (const [key, value] of Object.entries(sample)) {
+    out = out.split(`{${key}}`).join(value)
+  }
+  return out
+}
 
 const EVENT_KEYS: NotificationEventType[] = [
   'new_orders',
@@ -72,7 +143,7 @@ const VENDOR_CHANNELS = [
 ]
 
 function emptyEventRecipients(): EventRecipients {
-  return { email_recipients: [], phone_recipients: [] }
+  return { email_recipients: [], phone_recipients: [], customer_templates: [] }
 }
 
 function defaultConfig(): StoreMessageConfig {
@@ -106,6 +177,7 @@ function normalizeConfig(raw: StoreMessageConfig | Record<string, unknown>): Sto
     base.events[key] = {
       email_recipients: events[key]?.email_recipients || [],
       phone_recipients: events[key]?.phone_recipients || [],
+      customer_templates: events[key]?.customer_templates || [],
     }
   }
   base.customer_channels = (legacy.customer_channels as StoreMessageConfig['customer_channels']) || base.customer_channels
@@ -145,12 +217,15 @@ function newId() {
 type EmailModalState = { open: boolean; eventKey: NotificationEventType; editing?: MessageEmailRecipient }
 type PhoneModalState = { open: boolean; eventKey: NotificationEventType; editing?: MessagePhoneRecipient }
 type DeleteConfirmState = {
-  type: 'email' | 'phone'
+  type: 'email' | 'phone' | 'template'
   eventKey: NotificationEventType
   id: string
   value: string
   eventLabel: string
 }
+
+type TemplateModalState = { open: boolean; eventKey: NotificationEventType; editing?: CustomerMessageTemplate }
+type TemplatePreviewState = { open: boolean; template: CustomerMessageTemplate; eventLabel: string }
 
 export default function CreateMessagesPage() {
   const { defaultId } = useDefaultBusinessUnitId()
@@ -165,6 +240,17 @@ export default function CreateMessagesPage() {
   const [deleteConfirm, setDeleteConfirm] = useState<DeleteConfirmState | null>(null)
   const [emailForm, setEmailForm] = useState({ email: '', label: '' })
   const [phoneForm, setPhoneForm] = useState({ phone: '', label: '' })
+  const [templateModal, setTemplateModal] = useState<TemplateModalState | null>(null)
+  const [templatePreview, setTemplatePreview] = useState<TemplatePreviewState | null>(null)
+  const [templateForm, setTemplateForm] = useState({
+    name: '',
+    subject: '',
+    message: DEFAULT_TEMPLATE_MESSAGE,
+    startLocal: '',
+    endLocal: '',
+    channels: ['email', 'sms', 'whatsapp'] as Array<'email' | 'sms' | 'whatsapp'>,
+    enabled: true,
+  })
 
   useEffect(() => {
     if (!storeId && defaultId) setStoreId(defaultId)
@@ -262,10 +348,15 @@ export default function CreateMessagesPage() {
         ...block,
         email_recipients: block.email_recipients.filter((r) => r.id !== deleteConfirm.id),
       })
-    } else {
+    } else if (deleteConfirm.type === 'phone') {
       patchEvent(deleteConfirm.eventKey, {
         ...block,
         phone_recipients: block.phone_recipients.filter((r) => r.id !== deleteConfirm.id),
+      })
+    } else {
+      patchEvent(deleteConfirm.eventKey, {
+        ...block,
+        customer_templates: (block.customer_templates || []).filter((t) => t.id !== deleteConfirm.id),
       })
     }
     setDeleteConfirm(null)
@@ -299,6 +390,97 @@ export default function CreateMessagesPage() {
     setPhoneModal(null)
   }
 
+  const openAddTemplate = (eventKey: NotificationEventType) => {
+    const win = defaultTemplateWindow()
+    setTemplateForm({
+      name: '',
+      subject: 'Order #{order_number} confirmed — {store_name}',
+      message: DEFAULT_TEMPLATE_MESSAGE,
+      startLocal: toDatetimeLocal(win.start),
+      endLocal: toDatetimeLocal(win.end),
+      channels: ['email', 'sms', 'whatsapp'],
+      enabled: true,
+    })
+    setTemplateModal({ open: true, eventKey })
+  }
+
+  const openEditTemplate = (eventKey: NotificationEventType, item: CustomerMessageTemplate) => {
+    setTemplateForm({
+      name: item.name,
+      subject: item.subject || '',
+      message: item.message,
+      startLocal: toDatetimeLocal(item.start_at),
+      endLocal: toDatetimeLocal(item.end_at),
+      channels: item.channels?.length ? [...item.channels] : ['email', 'sms', 'whatsapp'],
+      enabled: item.enabled !== false,
+    })
+    setTemplateModal({ open: true, eventKey, editing: item })
+  }
+
+  const saveTemplate = () => {
+    if (!templateModal) return
+    const name = templateForm.name.trim()
+    const message = templateForm.message.trim()
+    const start_at = fromDatetimeLocal(templateForm.startLocal)
+    const end_at = fromDatetimeLocal(templateForm.endLocal)
+    if (!name) {
+      toast.error('Enter a template name')
+      return
+    }
+    if (!message) {
+      toast.error('Enter a message body')
+      return
+    }
+    if (!start_at || !end_at) {
+      toast.error('Set valid start and end date/time')
+      return
+    }
+    if (new Date(end_at) < new Date(start_at)) {
+      toast.error('End date/time must be after start')
+      return
+    }
+    if (templateForm.channels.length === 0) {
+      toast.error('Select at least one channel')
+      return
+    }
+    const block = config.events[templateModal.eventKey]
+    const templates = block.customer_templates || []
+    const payload: CustomerMessageTemplate = {
+      id: templateModal.editing?.id || newId(),
+      name,
+      subject: templateForm.subject.trim() || undefined,
+      message,
+      start_at,
+      end_at,
+      channels: templateForm.channels,
+      enabled: templateForm.enabled,
+    }
+    const nextTemplates = templateModal.editing
+      ? templates.map((t) => (t.id === templateModal.editing!.id ? payload : t))
+      : [...templates, payload]
+    patchEvent(templateModal.eventKey, { ...block, customer_templates: nextTemplates })
+    setTemplateModal(null)
+  }
+
+  const requestDeleteTemplate = (eventKey: NotificationEventType, item: CustomerMessageTemplate) => {
+    const eventLabel = NOTIFICATION_TYPES.find((e) => e.key === eventKey)?.label ?? eventKey
+    setDeleteConfirm({
+      type: 'template',
+      eventKey,
+      id: item.id,
+      value: item.name,
+      eventLabel,
+    })
+  }
+
+  const toggleTemplateChannel = (key: 'email' | 'sms' | 'whatsapp') => {
+    setTemplateForm((f) => {
+      const has = f.channels.includes(key)
+      const channels = has ? f.channels.filter((c) => c !== key) : [...f.channels, key]
+      return { ...f, channels }
+    })
+  }
+
   const setCustomerChannel = (key: keyof StoreMessageConfig['customer_channels'], value: boolean) => {
     persistConfig({
       ...config,
@@ -317,14 +499,16 @@ export default function CreateMessagesPage() {
     ? NOTIFICATION_TYPES.find((e) => e.key === emailModal.eventKey)?.label
     : phoneModal
       ? NOTIFICATION_TYPES.find((e) => e.key === phoneModal.eventKey)?.label
-      : ''
+      : templateModal
+        ? NOTIFICATION_TYPES.find((e) => e.key === templateModal.eventKey)?.label
+        : ''
 
   return (
     <div className="max-w-4xl mx-auto space-y-6 pb-10">
       <div>
-        <h1 className="text-2xl font-bold text-foreground">Create Messages</h1>
+        <h1 className="text-2xl font-bold text-foreground">Message Center</h1>
         <p className="text-sm text-muted-foreground mt-1 max-w-2xl">
-          Configure separate email and phone recipients for each notification type per business unit.
+          Configure recipients, scheduled customer message templates, and channel preferences per business unit.
           Changes save automatically.
         </p>
       </div>
@@ -448,6 +632,86 @@ export default function CreateMessagesPage() {
                             </div>
                           </div>
                         ))}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Customer message templates (scheduled) */}
+                  <div className="space-y-3 border-t border-border pt-5">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2">
+                          <FileText className="w-4 h-4 text-violet-600" />
+                          <span className="text-sm font-medium text-foreground">Customer Message Templates</span>
+                        </div>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          Customise what customers receive on this business unit. When multiple templates overlap,
+                          the narrowest date range wins. Only the active template is sent.
+                        </p>
+                      </div>
+                      <Button type="button" variant="outline" size="sm" className="gap-1.5 shrink-0" onClick={() => openAddTemplate(evt.key)}>
+                        <Plus className="w-3.5 h-3.5" /> Add Template
+                      </Button>
+                    </div>
+                    <p className="text-[11px] text-muted-foreground">
+                      Placeholders: {TEMPLATE_PLACEHOLDERS.join(', ')}
+                    </p>
+                    {(block.customer_templates || []).length === 0 ? (
+                      <p className="text-xs text-muted-foreground py-3 text-center border border-dashed border-border rounded-lg">
+                        No templates — default system message is used for customers.
+                      </p>
+                    ) : (
+                      <div className="space-y-2">
+                        {(block.customer_templates || []).map((t) => {
+                          const active = isTemplateActive(t)
+                          return (
+                            <div key={t.id} className="rounded-lg border border-border px-3 py-2.5">
+                              <div className="flex items-start justify-between gap-3">
+                                <div className="min-w-0 flex-1">
+                                  <div className="flex flex-wrap items-center gap-2">
+                                    <p className="text-sm font-medium text-foreground">{t.name}</p>
+                                    <span className={cn(
+                                      'text-[10px] font-semibold uppercase tracking-wide px-1.5 py-0.5 rounded',
+                                      active ? 'bg-emerald-500/15 text-emerald-700' : 'bg-muted text-muted-foreground',
+                                    )}>
+                                      {active ? 'Active now' : 'Scheduled'}
+                                    </span>
+                                  </div>
+                                  <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
+                                    <Calendar className="w-3 h-3 shrink-0" />
+                                    {formatScheduleRange(t.start_at, t.end_at)}
+                                  </p>
+                                  <p className="text-xs text-muted-foreground mt-0.5">
+                                    Channels: {(t.channels || []).map((c) => c.toUpperCase()).join(', ')}
+                                  </p>
+                                  <p className="text-xs text-foreground/80 mt-1 line-clamp-2 whitespace-pre-line">{t.message}</p>
+                                </div>
+                                <div className="flex items-center gap-1 shrink-0">
+                                  <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-8 w-8"
+                                    title="Preview"
+                                    onClick={() => setTemplatePreview({
+                                      open: true,
+                                      template: t,
+                                      eventLabel: evt.label,
+                                    })}
+                                  >
+                                    <Eye className="w-3.5 h-3.5" />
+                                  </Button>
+                                  <Button type="button" variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEditTemplate(evt.key, t)}>
+                                    <Pencil className="w-3.5 h-3.5" />
+                                  </Button>
+                                  <Button type="button" variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => requestDeleteTemplate(evt.key, t)}>
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                  </Button>
+                                </div>
+                              </div>
+                            </div>
+                          )
+                        })}
                       </div>
                     )}
                   </div>
@@ -600,10 +864,16 @@ export default function CreateMessagesPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
           <div className="w-full max-w-md rounded-xl border border-border bg-background shadow-xl">
             <div className="px-5 py-4 border-b border-border">
-              <h2 className="text-base font-semibold text-foreground">Delete recipient?</h2>
+              <h2 className="text-base font-semibold text-foreground">
+                {deleteConfirm.type === 'template' ? 'Delete template?' : 'Delete recipient?'}
+              </h2>
               <p className="text-xs text-muted-foreground mt-1">
-                Remove this {deleteConfirm.type === 'email' ? 'email' : 'phone number'} from{' '}
-                <strong>{deleteConfirm.eventLabel}</strong>? This cannot be undone.
+                {deleteConfirm.type === 'template' ? (
+                  <>Remove template <strong>{deleteConfirm.value}</strong> from <strong>{deleteConfirm.eventLabel}</strong>?</>
+                ) : (
+                  <>Remove this {deleteConfirm.type === 'email' ? 'email' : 'phone number'} from{' '}
+                  <strong>{deleteConfirm.eventLabel}</strong>? This cannot be undone.</>
+                )}
               </p>
             </div>
             <div className="px-5 py-4">
@@ -616,6 +886,159 @@ export default function CreateMessagesPage() {
               <Button type="button" variant="destructive" onClick={confirmDelete}>
                 Delete
               </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {templateModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="w-full max-w-lg rounded-xl border border-border bg-background shadow-xl max-h-[90vh] overflow-y-auto">
+            <div className="px-5 py-4 border-b border-border">
+              <h2 className="text-base font-semibold text-foreground">
+                {templateModal.editing ? 'Edit Customer Template' : 'Add Customer Template'}
+              </h2>
+              <p className="text-xs text-muted-foreground mt-0.5">For: {activeEventLabel} · {storeLabel}</p>
+            </div>
+            <div className="px-5 py-4 space-y-4">
+              <div className="space-y-1.5">
+                <Label>Template name</Label>
+                <Input
+                  value={templateForm.name}
+                  onChange={(e) => setTemplateForm((f) => ({ ...f, name: e.target.value }))}
+                  placeholder="e.g. Festival greeting"
+                  autoFocus
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Email subject (optional)</Label>
+                <Input
+                  value={templateForm.subject}
+                  onChange={(e) => setTemplateForm((f) => ({ ...f, subject: e.target.value }))}
+                  placeholder="Order #{order_number} confirmed — {store_name}"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Message</Label>
+                <Textarea
+                  value={templateForm.message}
+                  onChange={(e) => setTemplateForm((f) => ({ ...f, message: e.target.value }))}
+                  rows={6}
+                  placeholder={DEFAULT_TEMPLATE_MESSAGE}
+                />
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label>Start date & time</Label>
+                  <Input
+                    type="datetime-local"
+                    value={templateForm.startLocal}
+                    onChange={(e) => setTemplateForm((f) => ({ ...f, startLocal: e.target.value }))}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label>End date & time</Label>
+                  <Input
+                    type="datetime-local"
+                    value={templateForm.endLocal}
+                    onChange={(e) => setTemplateForm((f) => ({ ...f, endLocal: e.target.value }))}
+                  />
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label>Channels</Label>
+                <div className="flex flex-wrap gap-2">
+                  {TEMPLATE_CHANNELS.map((ch) => (
+                    <button
+                      key={ch.key}
+                      type="button"
+                      onClick={() => toggleTemplateChannel(ch.key)}
+                      className={cn(
+                        'rounded-md border px-3 py-1.5 text-xs font-medium transition-colors',
+                        templateForm.channels.includes(ch.key)
+                          ? 'border-primary bg-primary/10 text-primary'
+                          : 'border-border text-muted-foreground hover:bg-muted',
+                      )}
+                    >
+                      {ch.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div className="flex items-center justify-between rounded-lg border border-border px-3 py-2">
+                <div>
+                  <p className="text-sm font-medium text-foreground">Enabled</p>
+                  <p className="text-xs text-muted-foreground">Disabled templates are never selected</p>
+                </div>
+                <Toggle
+                  checked={templateForm.enabled}
+                  onChange={(v) => setTemplateForm((f) => ({ ...f, enabled: v }))}
+                />
+              </div>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="gap-1.5"
+                onClick={() => setTemplatePreview({
+                  open: true,
+                  template: {
+                    id: 'preview',
+                    name: templateForm.name || 'Preview',
+                    subject: templateForm.subject,
+                    message: templateForm.message,
+                    start_at: fromDatetimeLocal(templateForm.startLocal) || new Date().toISOString(),
+                    end_at: fromDatetimeLocal(templateForm.endLocal) || new Date().toISOString(),
+                    channels: templateForm.channels,
+                    enabled: templateForm.enabled,
+                  },
+                  eventLabel: activeEventLabel,
+                })}
+              >
+                <Eye className="w-3.5 h-3.5" /> Preview message
+              </Button>
+            </div>
+            <div className="flex justify-end gap-2 px-5 py-4 border-t border-border">
+              <Button type="button" variant="outline" onClick={() => setTemplateModal(null)}>Cancel</Button>
+              <Button type="button" onClick={saveTemplate}>
+                {templateModal.editing ? 'Update' : 'Add'}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {templatePreview && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 p-4">
+          <div className="w-full max-w-md rounded-xl border border-border bg-background shadow-xl">
+            <div className="px-5 py-4 border-b border-border">
+              <h2 className="text-base font-semibold text-foreground">Message preview</h2>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                {templatePreview.template.name} · {templatePreview.eventLabel} · {storeLabel}
+              </p>
+            </div>
+            <div className="px-5 py-4 space-y-3">
+              <div>
+                <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground mb-1">Email subject</p>
+                <p className="text-sm text-foreground">
+                  {applyTemplateTokens(
+                    templatePreview.template.subject || 'Order #{order_number} confirmed — {store_name}',
+                    storeLabel,
+                  )}
+                </p>
+              </div>
+              <div>
+                <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground mb-1">Message body</p>
+                <div className="rounded-lg border border-border bg-muted/30 px-3 py-2.5 text-sm text-foreground whitespace-pre-line">
+                  {applyTemplateTokens(templatePreview.template.message, storeLabel)}
+                </div>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Schedule: {formatScheduleRange(templatePreview.template.start_at, templatePreview.template.end_at)}
+              </p>
+            </div>
+            <div className="flex justify-end px-5 py-4 border-t border-border">
+              <Button type="button" onClick={() => setTemplatePreview(null)}>Close</Button>
             </div>
           </div>
         </div>

@@ -149,9 +149,21 @@ export type NotificationEventType =
   | 'customer_inquiries'
   | 'system_notifications'
 
+export interface CustomerMessageTemplate {
+  id: string
+  name: string
+  subject?: string
+  message: string
+  start_at: string
+  end_at: string
+  channels: Array<'email' | 'sms' | 'whatsapp'>
+  enabled?: boolean
+}
+
 export interface EventRecipients {
   email_recipients: MessageEmailRecipient[]
   phone_recipients: MessagePhoneRecipient[]
+  customer_templates?: CustomerMessageTemplate[]
 }
 
 export interface CustomerChannelPrefs {

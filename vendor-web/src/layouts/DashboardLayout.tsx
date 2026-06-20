@@ -691,7 +691,7 @@ const allSections: NavSection[] = [
       { to: '/system/social-links', icon: Globe, label: 'Social & Web Links', alwaysShow: true },
       { to: '/document-templates', icon: LayoutTemplate, label: 'Document Templates', alwaysShow: true },
       { to: '/system/modules', icon: Layers, label: 'Module Settings', alwaysShow: true },
-      { to: '/system/messages', icon: MessageSquare, label: 'Create Messages', alwaysShow: true },
+      { to: '/system/messages', icon: MessageSquare, label: 'Message Center', alwaysShow: true },
       { to: '/team', icon: UsersRound, label: 'Staff Access Control', requiresPermission: 'team.view' },
       { to: '/roles', icon: ShieldCheck, label: 'Roles', requiresPermission: 'roles.view' },
       { to: '/system/models', icon: Database, label: 'Models', alwaysShow: true, groupLabel: 'Database', groupColor: 'indigo' },
