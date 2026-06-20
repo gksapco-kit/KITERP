@@ -370,6 +370,25 @@
   [role='tab']:focus-visible {
     @apply ring-2 ring-inset ring-ring;
   }
+  input:focus-visible,
+  textarea:focus-visible {
+    @apply border-primary;
+  }
+
+  /* Suppress browser autofill tint inside fields */
+  input:-webkit-autofill,
+  input:-webkit-autofill:hover,
+  input:-webkit-autofill:focus,
+  input:-webkit-autofill:active,
+  textarea:-webkit-autofill,
+  textarea:-webkit-autofill:hover,
+  textarea:-webkit-autofill:focus,
+  textarea:-webkit-autofill:active {
+    -webkit-box-shadow: 0 0 0 1000px hsl(var(--background)) inset;
+    -webkit-text-fill-color: hsl(var(--foreground));
+    caret-color: hsl(var(--foreground));
+    transition: background-color 99999s ease-out 0s;
+  }
   button:focus-visible,
   a:focus-visible,
   select:focus-visible,
@@ -2382,5 +2401,32 @@ html[dir='rtl'] [data-sonner-toast][data-styled='true']:has([data-close-button])
   [data-field] > label + div > input:not([type='checkbox']):not([type='radio']),
   [data-field] > label + div > textarea {
     @apply w-full;
+  }
+}
+
+@layer utilities {
+  /*
+   * App-wide form control focus — single inset ring, no offset halo.
+   * Overrides per-page focus:ring-* / ring-offset on native fields.
+   */
+  input:not([type='checkbox']):not([type='radio']):not([type='range']):not([type='file']):not([type='hidden']):not([type='button']):not([type='submit']):not([type='reset']):not([type='image']):focus,
+  input:not([type='checkbox']):not([type='radio']):not([type='range']):not([type='file']):not([type='hidden']):not([type='button']):not([type='submit']):not([type='reset']):not([type='image']):focus-visible,
+  textarea:focus,
+  textarea:focus-visible,
+  select:focus,
+  select:focus-visible {
+    outline: none !important;
+    --tw-ring-offset-width: 0px !important;
+    --tw-ring-offset-shadow: 0 0 #0000 !important;
+    --tw-ring-inset: inset !important;
+    box-shadow: inset 0 0 0 2px hsl(var(--ring)) !important;
+    border-color: hsl(var(--primary)) !important;
+  }
+
+  .form-field-focus-within:focus-within {
+    outline: none;
+    --tw-ring-offset-width: 0px;
+    box-shadow: inset 0 0 0 2px hsl(var(--ring));
+    border-color: hsl(var(--primary));
   }
 }

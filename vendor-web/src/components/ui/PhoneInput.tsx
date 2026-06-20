@@ -446,7 +446,7 @@ export function PhoneInput({
               rowH,
               textSize,
               compact ? 'px-2.5 sm:px-3' : comfortable ? (dense ? 'px-2.5' : 'px-3') : 'px-3',
-              'focus:ring-2 focus:ring-ring focus:border-primary',
+              focusRingClassName,
               error ? 'border-destructive bg-destructive/10' : '',
               isOverLimit && 'border-amber-500 bg-amber-500/10 dark:bg-amber-500/15',
               isFull && !error && !subtleFeedback && 'border-green-600 bg-green-500/10 dark:border-green-500 dark:bg-green-500/15',

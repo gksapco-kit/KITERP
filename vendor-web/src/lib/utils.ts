@@ -10,6 +10,16 @@ export function cn(...inputs: ClassValue[]) {
 export const focusRingClassName =
   'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring focus-visible:border-primary'
 
+/**
+ * Base chrome for native inputs / textareas / selects.
+ * Focus ring is applied globally (globals.css) — do not add ring-offset on fields.
+ */
+export const formFieldClassName =
+  'border border-input bg-background text-foreground placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-50 [color-scheme:light] dark:[color-scheme:dark]'
+
+/** Alias — inset focus for custom triggers that are not native inputs. */
+export const formFieldFocusClassName = focusRingClassName
+
 /** Close modal only when clicking the dimmed backdrop, not when events bubble from inputs inside the panel. */
 export function onModalBackdropClick(onClose: () => void) {
   return (e: MouseEvent<HTMLDivElement>) => {
