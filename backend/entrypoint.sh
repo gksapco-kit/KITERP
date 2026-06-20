@@ -50,7 +50,15 @@ async def main() -> None:
     conn = await asyncpg.connect(dsn)
     try:
         await conn.execute(
-            "ALTER TABLE IF EXISTS alembic_version "
+            """
+            CREATE TABLE IF NOT EXISTS alembic_version (
+                version_num VARCHAR(255) NOT NULL,
+                CONSTRAINT alembic_version_pkc PRIMARY KEY (version_num)
+            )
+            """
+        )
+        await conn.execute(
+            "ALTER TABLE alembic_version "
             "ALTER COLUMN version_num TYPE VARCHAR(255)"
         )
     finally:

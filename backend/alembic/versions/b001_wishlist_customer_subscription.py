@@ -1,6 +1,6 @@
 """wishlist and customer_subscription tables
 
-Revision ID: b001_wishlist_customer_subscription
+Revision ID: b001_wishlist_cust_sub
 Revises: p2a3d4d5o6n7
 Create Date: 2026-06-05
 """
@@ -8,7 +8,7 @@ from alembic import op
 import sqlalchemy as sa
 from sqlalchemy.dialects.postgresql import UUID, JSONB
 
-revision = "b001_wishlist_customer_subscription"
+revision = "b001_wishlist_cust_sub"
 down_revision = "p2a3d4d5o6n7"
 branch_labels = None
 depends_on = None

@@ -1,7 +1,7 @@
 """Tier C+ — notification prefs, 2FA, rentals, order disputes
 
 Revision ID: c001_tier_c_plus
-Revises: b001_wishlist_customer_subscription
+Revises: b001_wishlist_cust_sub
 Create Date: 2026-06-05
 """
 from alembic import op
@@ -10,7 +10,7 @@ from sqlalchemy import inspect
 from sqlalchemy.dialects.postgresql import UUID
 
 revision = "c001_tier_c_plus"
-down_revision = "b001_wishlist_customer_subscription"
+down_revision = "b001_wishlist_cust_sub"
 branch_labels = None
 depends_on = None
 

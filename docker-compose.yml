@@ -162,7 +162,7 @@ services:
     container_name: kiterp-vendor
     restart: unless-stopped
     ports:
-      - "127.0.0.1:3001:3001"
+      - "127.0.0.1:13001:3001"
     environment:
       - BACKEND_URL=http://backend:8000
       - VITE_API_URL=http://127.0.0.1:8000/api/v1
