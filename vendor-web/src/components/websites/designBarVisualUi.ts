@@ -29,11 +29,18 @@ export const visualMeta =
     'flex items-center px-1.5 tabular-nums text-[8px] font-medium text-gray-400 border-r border-gray-200 shrink-0',
   )
 
-/** Fixed-width section dropdown trigger (right column). */
+/** Section / media dropdown trigger — icon + short label, auto width. */
 export const visualSectionBtn =
   cn(
     VISUAL_TAB_ROW_H,
-    'relative flex w-[3.1rem] shrink-0 items-center justify-center gap-0.5 rounded-md border border-gray-200 bg-white px-0.5 text-[8px] font-bold leading-tight transition-colors hover:bg-accent',
+    'relative flex shrink-0 items-center gap-1 rounded-md border border-gray-200 bg-white px-2 text-[9px] font-semibold leading-none whitespace-nowrap transition-colors hover:bg-accent',
+  )
+
+/** Primary insert action — same height as the rest of the visual bar. */
+export const visualInsertBtn =
+  cn(
+    VISUAL_TAB_ROW_H,
+    'flex shrink-0 items-center gap-1 rounded-md border px-2 text-[10px] font-bold leading-none whitespace-nowrap transition-colors',
   )
 
 export function visualActionBtn(variant: 'sky' | 'emerald' | 'primary' | 'muted' | 'link') {
@@ -81,19 +88,24 @@ export const visualStepperCell =
 export const visualStepperValue =
   cn(
     VISUAL_TAB_ROW_H,
-    'flex min-w-[1.35rem] max-w-[2.1rem] shrink-0 items-center justify-center border-r border-gray-200 bg-white px-0.5 text-[8px] font-bold tabular-nums text-gray-800',
+    'flex w-[1.75rem] shrink-0 items-center justify-center overflow-hidden border-r border-gray-200 bg-white px-0.5 text-[8px] font-bold tabular-nums text-gray-800',
   )
 
-export const visualRow = 'flex min-h-[1.75rem] flex-nowrap items-center gap-px'
+export const visualRow = 'flex min-h-[1.75rem] flex-nowrap items-center gap-0.5'
 
-/** Section tool grid — fixed left column, 3×2. */
-export const visualSectionGrid =
-  'grid shrink-0 grid-cols-3 grid-rows-2 gap-px content-start border-r border-gray-200 pr-1'
+export const visualRowWrap = 'flex min-h-[1.75rem] flex-wrap items-center gap-0.5'
+
+/** Vertical divider between control groups in the visual bar. */
+export const visualGroupDivider = 'mx-0.5 h-7 w-px shrink-0 self-center bg-gray-200'
+
+/** Section styling menus — single horizontal row. */
+export const visualSectionRow =
+  'flex shrink-0 flex-wrap items-center gap-1 border-r border-gray-200 pr-1.5'
 
 export const visualTabShell = cn(
-  'flex min-w-0 flex-1 items-center gap-1 py-0',
+  'flex min-w-0 flex-1 flex-wrap items-center gap-1.5 py-0.5',
   VISUAL_TAB_MIN_H,
 )
 
 export const visualLayerCol =
-  'flex min-w-0 flex-1 flex-col justify-center gap-px'
+  'flex min-w-0 flex-1 flex-col justify-center gap-1'

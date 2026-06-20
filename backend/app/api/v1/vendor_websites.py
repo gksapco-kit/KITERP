@@ -3766,7 +3766,6 @@ async def get_live_resource(
     site_id: str,
     resource: str,
     limit: int = 12,
-    ids: Optional[str] = None,
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_active_user),
 ):
@@ -3776,24 +3775,10 @@ async def get_live_resource(
     Supported resources:
       - products, services, testimonials, team, customers, orders,
         bookings, categories, media, pages, profile, kpis
-
-    `ids` is an optional comma-separated list used to fetch a hand-curated
-    subset (the builder's "selected items" picker) rather than the latest `limit`.
     """
     vendor = await _get_vendor(db, user)
     site = await _get_site(db, site_id, vendor.id)
     limit = max(1, min(limit, 200))
-
-    selected_ids: List[UUID] = []
-    if ids:
-        for raw in ids.split(","):
-            raw = raw.strip()
-            if not raw:
-                continue
-            try:
-                selected_ids.append(UUID(raw))
-            except ValueError:
-                continue
 
     items: List[Dict[str, Any]] = []
     meta: Dict[str, Any] = {}
@@ -3804,11 +3789,9 @@ async def get_live_resource(
             select(Product)
             .options(selectinload(Product.images))
             .where(Product.vendor_id == vendor.id, Product.is_visible.is_(True))
+            .order_by(Product.is_featured.desc(), Product.created_at.desc())
+            .limit(limit)
         )
-        if selected_ids:
-            q = q.where(Product.id.in_(selected_ids)).limit(len(selected_ids))
-        else:
-            q = q.order_by(Product.is_featured.desc(), Product.created_at.desc()).limit(limit)
         rows = (await db.execute(q)).scalars().all()
         for p in rows:
             img = None
@@ -3840,11 +3823,12 @@ async def get_live_resource(
 
     elif resource == "services":
         from app.models.vendor_service import Service
-        q = select(Service).where(Service.vendor_id == vendor.id)
-        if selected_ids:
-            q = q.where(Service.id.in_(selected_ids)).limit(len(selected_ids))
-        else:
-            q = q.order_by(Service.created_at.desc()).limit(limit)
+        q = (
+            select(Service)
+            .where(Service.vendor_id == vendor.id)
+            .order_by(Service.created_at.desc())
+            .limit(limit)
+        )
         rows = (await db.execute(q)).scalars().all()
         for s in rows:
             items.append(_norm_item(

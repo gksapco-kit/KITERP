@@ -17,7 +17,7 @@ import {
   type OverlayGuideLine,
 } from '@/lib/overlayAlignmentSnap'
 import type { OverlayLayerItem } from '@/lib/builderOverlayVisual'
-import { visualActionBtn, visualPanel } from '@/components/websites/designBarVisualUi'
+import { visualActionBtn, visualIconBtn, visualPanel } from '@/components/websites/designBarVisualUi'
 
 type OverlayPatch = Partial<Pick<OverlayLayerItem, 'x' | 'y'>>
 
@@ -75,12 +75,48 @@ export function OverlayAlignControls({
   const cell =
     variant === 'toolbar'
       ? 'flex h-6 w-full items-center justify-center rounded-md border border-gray-300 bg-white text-gray-700 transition-colors hover:bg-primary/10 hover:text-primary dark:border-gray-600 dark:bg-gray-800'
-      : cn(visualActionBtn('muted'), 'h-6 w-6 px-0')
+      : 'flex h-full min-h-0 w-full items-center justify-center bg-white text-gray-600 transition-colors hover:bg-primary/10 hover:text-primary'
 
   const gridClass =
     variant === 'toolbar'
       ? 'grid grid-cols-3 gap-0.5'
-      : cn(visualPanel, 'grid grid-cols-3 gap-0 overflow-hidden p-0')
+      : 'grid h-full min-h-0 flex-1 grid-cols-3 grid-rows-2 gap-px bg-gray-200'
+
+  if (variant === 'compact') {
+    return (
+      <div
+        className={cn(visualPanel, 'inline-flex h-7 shrink-0 items-stretch overflow-hidden p-0')}
+        role="group"
+        aria-label="Align in section"
+      >
+        <div className={gridClass}>
+          {GRID_ALIGNS.map(({ id, label, Icon }) => (
+            <button
+              key={id}
+              type="button"
+              title={label}
+              aria-label={label}
+              className={cell}
+              onMouseDown={onStopBubble}
+              onClick={() => applyAlign(id)}
+            >
+              <Icon className="h-2.5 w-2.5" />
+            </button>
+          ))}
+        </div>
+        <button
+          type="button"
+          title="Center in section"
+          aria-label="Center in section"
+          className={cn(visualIconBtn(), 'w-7 shrink-0 rounded-none border-0 border-l border-gray-200 px-0')}
+          onMouseDown={onStopBubble}
+          onClick={() => applyAlign('center')}
+        >
+          <Move className="h-2.5 w-2.5" />
+        </button>
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-1">
@@ -103,18 +139,12 @@ export function OverlayAlignControls({
         type="button"
         title="Center in section — pink guides appear while dragging"
         aria-label="Center in section"
-        className={cn(cell, variant === 'toolbar' && 'h-6 w-full gap-1 text-[9px] font-semibold')}
+        className={cn(cell, 'h-6 w-full gap-1 text-[9px] font-semibold')}
         onMouseDown={onStopBubble}
         onClick={() => applyAlign('center')}
       >
-        {variant === 'toolbar' ? (
-          <>
-            <AlignCenter className="h-3 w-3 shrink-0" />
-            Center
-          </>
-        ) : (
-          <Move className="h-3 w-3" />
-        )}
+        <AlignCenter className="h-3 w-3 shrink-0" />
+        Center
       </button>
     </div>
   )

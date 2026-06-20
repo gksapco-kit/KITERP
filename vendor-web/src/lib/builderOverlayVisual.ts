@@ -32,6 +32,7 @@ export type OverlayLayerItem = {
   color?: string
   fontSize?: number
   fontFamily?: string
+  align?: 'left' | 'center' | 'right'
   description?: string
   shadow?: boolean
   opacity?: number

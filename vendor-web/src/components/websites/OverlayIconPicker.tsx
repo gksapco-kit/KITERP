@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type RefObject } from 'react'
+import { ChevronDown } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { registerEscapeHandler } from '@/lib/escapeCloseRegistry'
 import { DesignBarDropdownPortal } from '@/components/websites/DesignBarDropdownPortal'
@@ -8,7 +9,7 @@ import {
   builderOverlayIconLabel,
   resolveBuilderOverlayIcon,
 } from '@storefront/lib/builderOverlayIcons'
-import { visualActionBtn, visualPanelCell } from '@/components/websites/designBarVisualUi'
+import { visualActionBtn, visualPanelCell, visualSectionBtn } from '@/components/websites/designBarVisualUi'
 
 export function OverlayIconPickerMenu({
   open,
@@ -184,12 +185,13 @@ export function OverlayIconsRibbonButton({
         title="Icons — add or change icon on this section"
         onClick={toggle}
         className={cn(
-          'relative flex h-7 w-[3.1rem] shrink-0 items-center justify-center gap-0.5 rounded-md border border-gray-200 bg-white px-0.5 text-[8px] font-bold leading-tight transition-colors hover:bg-accent',
+          visualSectionBtn,
           (active || menuOpen) && 'border-primary/40 bg-primary/10 text-primary ring-1 ring-primary/30',
         )}
       >
-        <PreviewIcon className="h-3 w-3 shrink-0" />
-        <span className="truncate text-center">Icons</span>
+        <PreviewIcon className="h-3.5 w-3.5 shrink-0" />
+        <span>Icons</span>
+        <ChevronDown className={cn('h-3 w-3 shrink-0 opacity-50', menuOpen && 'rotate-180')} />
       </button>
 
       <OverlayIconPickerMenu

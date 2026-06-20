@@ -41,9 +41,8 @@ export function DraftPreviewRenderer({
 
   /** Draft sites are not published — public /live/* returns 404; use vendor auth like the builder canvas. */
   const liveFetcher = useMemo<LiveDataFetcher>(() => {
-    return async (siteId, resource, limit, params) => {
-      const ids = typeof params?.ids === 'string' ? params.ids : undefined
-      const r = await websiteApi.getLive(siteId, resource as LiveResource, { limit, ids })
+    return async (siteId, resource, limit) => {
+      const r = await websiteApi.getLive(siteId, resource as LiveResource, { limit })
       return r.items ?? []
     }
   }, [])

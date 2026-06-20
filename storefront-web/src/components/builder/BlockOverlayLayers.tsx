@@ -251,7 +251,7 @@ function OverlayLayer({ item }: { item: BlockOverlayItem }) {
         pointerEvents: 'auto',
       }}
     >
-      {linked && (item.type === 'image' || item.type === 'button' || item.type === 'text' || item.type === 'badge' || item.type === 'icon' || item.type === 'box') ? (
+      {linked && (item.type === 'image' || item.type === 'button' || item.type === 'text' || item.type === 'badge' || item.type === 'icon') ? (
         <OverlayLinkWrap item={item}>{body}</OverlayLinkWrap>
       ) : (
         body

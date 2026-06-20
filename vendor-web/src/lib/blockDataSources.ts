@@ -96,17 +96,8 @@ export function inferCommerceAutoSource(blockType: string): LiveResource | undef
   return undefined
 }
 
-/**
- * Sentinel stored on a block whose data source was explicitly turned off
- * (disconnected / "static content"). Distinct from an absent data_source,
- * which still auto-binds to the block's default live resource.
- */
-export const STATIC_DATA_SOURCE_TYPE = 'static'
-
 export function normalizeSourceType(t: unknown): DataSourceId | null {
   if (typeof t !== 'string') return null
-  // Treat the explicit "off" sentinels as not-a-live-source.
-  if (t === STATIC_DATA_SOURCE_TYPE || t === 'none') return null
   if (t.startsWith('internal_')) return t.slice(9) as LiveResource
   return t as DataSourceId
 }
@@ -160,14 +151,12 @@ export type LayoutPickerDataSourceChoice = {
 export function resolveLayoutPickerDataSource(
   blockType: string,
   choice: LayoutPickerDataSourceChoice | undefined,
-): { data_source?: { type: LiveResource | typeof STATIC_DATA_SOURCE_TYPE; auto: boolean } | null } {
+): { data_source?: { type: LiveResource; auto: boolean } | null } {
   const meta = getBlockDataConnectionMeta(blockType)
   if (!meta.canConnect) return {}
 
   const connect = meta.connectionRequired || (choice?.connect ?? meta.defaultConnect)
-  // Opting out writes the explicit static sentinel so the storefront stops
-  // pulling live data (an absent data_source would still auto-bind).
-  if (!connect) return { data_source: { type: STATIC_DATA_SOURCE_TYPE, auto: false } }
+  if (!connect) return { data_source: null }
 
   const sourceType = (choice?.sourceType || meta.primarySource) as LiveResource | null
   if (!sourceType || sourceType === 'external_api') return {}

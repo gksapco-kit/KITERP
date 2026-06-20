@@ -6,8 +6,8 @@ import { cn } from '@/lib/utils'
 import { registerEscapeHandler } from '@/lib/escapeCloseRegistry'
 import {
   visualActionBtn,
+  visualMenuTrigger,
   visualPanel,
-  visualSectionBtn,
 } from '@/components/websites/designBarVisualUi'
 import { sectionSupportsMediaClip } from '@storefront/lib/designBarCapabilities'
 import type { BlockProps } from '@/types/websites'
@@ -62,9 +62,9 @@ export function MediaDesignBarStrip({
             type="button"
             title="Upload image to this section"
             onClick={onPickImage}
-            className={visualActionBtn('sky')}
+            className={cn(visualActionBtn('sky'), 'gap-1 px-2')}
           >
-            <Upload className="h-3 w-3 shrink-0" />
+            <Upload className="h-3.5 w-3.5 shrink-0" />
             <span>Upload</span>
           </button>
         ) : null}
@@ -73,9 +73,9 @@ export function MediaDesignBarStrip({
             type="button"
             title="Open media library"
             onClick={onOpenMediaLibrary}
-            className={visualActionBtn('emerald')}
+            className={cn(visualActionBtn('emerald'), 'gap-1 px-2')}
           >
-            <ImageIcon className="h-3 w-3 shrink-0" />
+            <ImageIcon className="h-3.5 w-3.5 shrink-0" />
             <span>Library</span>
           </button>
         ) : null}
@@ -84,7 +84,7 @@ export function MediaDesignBarStrip({
             type="button"
             title="Select this section's image on the canvas for focal & zoom tools"
             onClick={onFocusPrimaryImage}
-            className={visualActionBtn('primary')}
+            className={cn(visualActionBtn('primary'), 'gap-1 px-2')}
           >
             <span>Select</span>
           </button>
@@ -95,20 +95,16 @@ export function MediaDesignBarStrip({
         <button
           ref={clipsBtnRef}
           type="button"
-          title="Crop photos and video with angled or organic clip shapes"
+          title={clipLabel ? `Clip: ${clipLabel}` : 'Crop photos and video with angled or organic clip shapes'}
           onClick={toggleClips}
           className={cn(
-            visualSectionBtn,
-            'min-w-[3.75rem] max-w-[5.5rem]',
-            (hasClip || openMenu === 'clips') && 'border-primary/40 bg-primary/10 text-primary',
-            !hasClip && openMenu !== 'clips' && 'text-gray-500',
+            visualMenuTrigger(hasClip || openMenu === 'clips'),
+            openMenu === 'clips' && 'ring-1 ring-primary/30',
           )}
         >
-          <Scissors className="h-3 w-3 shrink-0" />
-          <span className="min-w-0 truncate text-center">
-            {clipLabel ?? 'Clips'}
-          </span>
-          <ChevronDown className={cn('h-2.5 w-2.5 shrink-0 opacity-60', openMenu === 'clips' && 'rotate-180')} />
+          <Scissors className="h-3.5 w-3.5 shrink-0" />
+          <span>{clipLabel ?? 'Clips'}</span>
+          <ChevronDown className={cn('h-3 w-3 shrink-0 opacity-50', openMenu === 'clips' && 'rotate-180')} />
         </button>
       ) : null}
 

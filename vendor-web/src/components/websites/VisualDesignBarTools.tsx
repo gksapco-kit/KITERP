@@ -12,10 +12,9 @@ import { InsertLayerButton } from '@/components/websites/InsertLayerButton'
 import { ScrollAnimationControls } from '@/components/websites/ScrollAnimationControls'
 import { OverlayLayerVisualControls } from '@/components/websites/OverlayLayerVisualControls'
 import { OverlayIconsRibbonButton } from '@/components/websites/OverlayIconPicker'
-import { MediaDesignBarStrip } from '@/components/websites/MediaDesignBarTools'
 import {
   visualMenuTrigger,
-  visualSectionGrid,
+  visualSectionRow,
   visualTabShell,
 } from '@/components/websites/designBarVisualUi'
 import { animationOptionLabel } from '@storefront/lib/builderScrollAnimations'
@@ -91,11 +90,6 @@ export function VisualDesignBarTools({
   onOverlayEditDescription,
   onOverlayBringToFront,
   onOverlaySendToBack,
-  primaryImageField,
-  canvasImageField,
-  onSectionImagePick,
-  onSectionImageLibrary,
-  onFocusPrimaryImage,
 }: {
   blockType: string
   blockProps: Record<string, unknown>
@@ -119,11 +113,6 @@ export function VisualDesignBarTools({
   onOverlayEditDescription?: () => void
   onOverlayBringToFront?: () => void
   onOverlaySendToBack?: () => void
-  primaryImageField?: string | null
-  canvasImageField?: string | null
-  onSectionImagePick?: () => void
-  onSectionImageLibrary?: () => void
-  onFocusPrimaryImage?: () => void
 }) {
   const p = blockProps
   const showEdgeShapes = sectionSupportsEdgeShapes(blockType)
@@ -197,7 +186,7 @@ export function VisualDesignBarTools({
       {/* Section-level styling menus are hidden while a layer is selected so the bar
           shows only controls that act on the selected layer. */}
       {hasLayer ? null : (
-      <div className={visualSectionGrid}>
+      <div className={visualSectionRow}>
       <SectionMenuBtn
         btnRef={animBtnRef}
         title="Scroll effects"
@@ -255,21 +244,6 @@ export function VisualDesignBarTools({
   return (
     <div className={visualTabShell}>
       {sectionGrid}
-
-      {!hasLayer ? (
-        <div className="flex shrink-0 items-center gap-1 border-l border-gray-200 pl-1">
-          <MediaDesignBarStrip
-            blockType={blockType}
-            blockProps={blockProps}
-            primaryImageField={primaryImageField}
-            canvasImageField={canvasImageField}
-            onUpdate={onUpdate}
-            onOpenMediaLibrary={onSectionImageLibrary}
-            onPickImage={onSectionImagePick}
-            onFocusPrimaryImage={onFocusPrimaryImage}
-          />
-        </div>
-      ) : null}
 
       {hasLayer ? (
         <OverlayLayerVisualControls

@@ -173,6 +173,7 @@ import {
   type ActiveCanvasImageTarget,
   type CanvasImageSlot,
 } from '@storefront/lib/canvasImageTarget'
+import { MediaDesignBarStrip } from '@/components/websites/MediaDesignBarTools'
 import { SingleImagePreview } from '@/components/common/CatalogMediaLightbox'
 import { useImageSourcePicker } from '@/components/common/ImageSourcePicker'
 import { SectionLayoutPickerModal } from '@/components/websites/SectionLayoutPickerModal'
@@ -218,7 +219,6 @@ import {
   getRecommendedDataSources,
   getOtherDataSources,
   BLOCK_REQUIRED_DATA_SOURCE,
-  STATIC_DATA_SOURCE_TYPE,
   type LayoutPickerDataSourceChoice,
 } from '@/lib/blockDataSources'
 import { mergeLayoutBlockProps } from '@/lib/layoutBlockProps'
@@ -249,7 +249,7 @@ import {
   WELLNESS_CATEGORY_FALLBACK_IMAGES,
   WELLNESS_DEFAULT_CATEGORY_TITLES,
 } from '@storefront/lib/wellnessCategoryStyle'
-import { IMAGE_SHAPE_OPTIONS, imageShapeRadiusClass } from '@storefront/lib/sectionItemLayout'
+import { IMAGE_SHAPE_OPTIONS, imageShapeRadiusClass, type ImageShape } from '@storefront/lib/sectionItemLayout'
 import { buildFieldStylesCss, fieldTextStyle, CONTENT_GROUP_FIELD_KEY, FIELD_OFFSET_STEP_PX, hasInlineHtml, isInlinePositionField, readFieldOffset, readFlipFlag, readRotateDeg } from '@storefront/lib/fieldTextStyles'
 import { BUILDER_FONT_FAMILIES, ensureBuilderFontLoaded, builderFontPreviewStyle } from '@storefront/lib/builderFontFamilies'
 import {
@@ -285,6 +285,22 @@ interface BlockDef {
   category: string
   defaultProps: BlockProps
 }
+
+const CATEGORY_CARDS_WELLNESS_DEFAULTS = {
+  title: 'Shop by category',
+  eyebrow: 'Explore',
+  layout: 'wellness',
+  columns: 3,
+  show_count: 4,
+  item_gap: 24,
+  card_padding: 16,
+  image_height_pct: 100,
+  card_style: 'default',
+  categories: WELLNESS_DEFAULT_CATEGORY_TITLES.map((title: string, i: number) => ({
+    title,
+    image_url: WELLNESS_CATEGORY_FALLBACK_IMAGES[i % WELLNESS_CATEGORY_FALLBACK_IMAGES.length],
+  })),
+} as unknown as BlockProps
 
 const BLOCK_CATALOG: BlockDef[] = [
   // Structure
@@ -337,21 +353,7 @@ const BLOCK_CATALOG: BlockDef[] = [
   { type: 'social_links', label: 'Social Links', icon: Globe, desc: 'Social media icon links', category: 'social', defaultProps: { title: 'Follow Us', social_links: { twitter: 'https://twitter.com', instagram: 'https://instagram.com', linkedin: 'https://linkedin.com' } } },
   { type: 'countdown', label: 'Countdown Timer', icon: Clock, desc: 'Countdown to a date/event', category: 'conversion', get defaultProps() { return { title: 'Launch In', target_date: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString() } } },
   { type: 'product_grid', label: 'Product Grid', icon: ShoppingBag, desc: 'Display products from your catalog', category: 'ecommerce', defaultProps: { title: 'Featured Products', columns: 4, show_badges: true } },
-  { type: 'category_cards', label: 'Category Cards', icon: Layers, desc: 'Animated wellness mosaic ? circles, squares & portraits', category: 'ecommerce', defaultProps: {
-    title: 'Shop by category',
-    eyebrow: 'Explore',
-    layout: 'wellness',
-    columns: 3,
-    show_count: 4,
-    item_gap: 24,
-    card_padding: 16,
-    image_height_pct: 100,
-    card_style: 'default',
-    categories: WELLNESS_DEFAULT_CATEGORY_TITLES.map((title, i) => ({
-      title,
-      image_url: WELLNESS_CATEGORY_FALLBACK_IMAGES[i % WELLNESS_CATEGORY_FALLBACK_IMAGES.length],
-    })),
-  } },
+  { type: 'category_cards', label: 'Category Cards', icon: Layers, desc: 'Animated wellness mosaic ? circles, squares & portraits', category: 'ecommerce', defaultProps: CATEGORY_CARDS_WELLNESS_DEFAULTS },
   { type: 'menu_grid', label: 'Menu / Catalog', icon: List, desc: 'Restaurant-style menu grid', category: 'food', defaultProps: { title: 'Our Menu', categories: ['Starters', 'Mains', 'Desserts', 'Drinks'] } },
   { type: 'about_split', label: 'About Split', icon: Columns, desc: 'About section with image and text', category: 'about', defaultProps: { title: 'About us', subtitle: 'Our story', description: 'Tell customers who you are, what you sell, and why they can trust you.' } },
   { type: 'services_cards', label: 'Services Cards', icon: Briefcase, desc: 'Service offering cards', category: 'content', defaultProps: { title: 'Our services', columns: 3, features: [{ icon: 'Zap', title: 'Consultation', desc: 'Expert advice tailored to your needs.' }, { icon: 'Shield', title: 'Installation', desc: 'Professional setup you can rely on.' }, { icon: 'Star', title: 'Support', desc: 'Friendly help after you buy.' }] } },
@@ -648,6 +650,8 @@ export interface BlockOverlayItem {
   zIndex?: number
   shadow?: boolean
   align?: 'left' | 'center' | 'right'
+  /** Zoom within layer frame (25–400, default 100). */
+  imageScale?: number
   objectFit?: 'cover' | 'contain' | 'fill'
   /** When `'none'`, fill is transparent so the block/page background shows through. */
   bgFill?: 'solid' | 'none'
@@ -1536,7 +1540,6 @@ export interface ContextMenuAction {
   label: string
   icon?: React.ElementType
   danger?: boolean
-  accent?: boolean
   divider?: boolean
   disabled?: boolean
   shortcut?: string
@@ -1595,7 +1598,7 @@ function ContextMenu({ open, x, y, actions, onClose }: {
         }}
         className={cn(
           'w-full flex items-center gap-2.5 px-3 py-1.5 text-left text-xs font-medium rounded-md transition-colors',
-          a.danger ? 'text-red-600 hover:bg-red-50' : a.accent ? 'text-primary bg-accent/40 hover:bg-accent' : 'text-gray-700 hover:bg-accent hover:text-primary',
+          a.danger ? 'text-red-600 hover:bg-red-50' : 'text-gray-700 hover:bg-accent hover:text-primary',
           a.disabled && 'opacity-40 cursor-not-allowed hover:bg-transparent',
         )}
       >
@@ -2338,7 +2341,7 @@ function OverlayEditToolbar({
         {hasTextControls && (
           <OverlayToolbarSection title="Text" compact>
             <OverlayTypographyToolbar
-              item={item}
+              item={{ align: 'left', ...item }}
               blockBackgroundColor={blockBackgroundColor}
               onUpdate={onUpdate}
               onStopBubble={stopToolbarEvent}
@@ -2349,7 +2352,7 @@ function OverlayEditToolbar({
         {isIcon && (
           <OverlayToolbarSection title="Icon" compact>
             <OverlayTypographyToolbar
-              item={item}
+              item={{ align: 'left', ...item }}
               blockBackgroundColor={blockBackgroundColor}
               onUpdate={onUpdate}
               onStopBubble={stopToolbarEvent}
@@ -3048,7 +3051,6 @@ function BuilderSectionChromeToolbar({
   onMoveBlock,
   onDuplicate,
   onDelete,
-  onToggleVisibility,
   onReorderPointerDown,
   onOpenLayoutPicker,
   onCycleLayout,
@@ -3068,7 +3070,6 @@ function BuilderSectionChromeToolbar({
   onMoveBlock: (dir: 'top' | 'up' | 'down' | 'bottom') => void
   onDuplicate: () => void
   onDelete: () => void
-  onToggleVisibility?: () => void
   onReorderPointerDown: (e: React.PointerEvent) => void
   onOpenLayoutPicker: () => void
   onCycleLayout: (dir: 'prev' | 'next') => void
@@ -3093,7 +3094,6 @@ function BuilderSectionChromeToolbar({
 
   const showLayout = getSectionLayoutOptions(block.block_type).length > 0
   const iconBtn = 'p-1.5 text-gray-400 hover:text-white transition-colors'
-  const isHidden = block.visible === false
 
   const dataSourceTitle = dsConnectedLabel
     ? `Connected to ${dsConnectedLabel} ? click to edit`
@@ -3172,30 +3172,6 @@ function BuilderSectionChromeToolbar({
       <button type="button" onClick={e => { e.stopPropagation(); onDuplicate() }} className={iconBtn} title="Duplicate (Ctrl+D)">
         <Copy className="w-7 h-7" />
       </button>
-      {onToggleVisibility ? (
-        isHidden ? (
-          <button
-            type="button"
-            onClick={e => { e.stopPropagation(); onToggleVisibility() }}
-            title="Unhide section — show on your live site again"
-            className={cn(
-              iconBtn,
-              'rounded-md bg-amber-500/25 text-amber-200 ring-1 ring-amber-400/50 hover:bg-amber-500/35 hover:text-white shrink-0 px-2',
-            )}
-          >
-            <Eye className="w-6 h-6" />
-          </button>
-        ) : (
-          <button
-            type="button"
-            onClick={e => { e.stopPropagation(); onToggleVisibility() }}
-            title="Hide section from live site"
-            className={cn(iconBtn, 'hover:text-amber-200 shrink-0')}
-          >
-            <EyeOff className="w-7 h-7" />
-          </button>
-        )
-      ) : null}
       <button
         type="button"
         onClick={e => { e.stopPropagation(); onDelete() }}
@@ -5686,7 +5662,7 @@ function PropsEditor({
       <div className="grid grid-cols-3 gap-1.5">
         {IMAGE_SHAPE_OPTIONS.map(opt => {
           const active = String((p as any).image_shape ?? (block.block_type === 'team_grid' ? 'circle' : 'rounded')) === opt.value
-          const previewClass = imageShapeRadiusClass(opt.value)
+          const previewClass = imageShapeRadiusClass(opt.value as ImageShape)
           return (
             <button
               key={opt.value}
@@ -6312,6 +6288,10 @@ function PagePanel({
   onDeletePage,
   onDuplicatePage,
   onSetHomepage,
+  trashedPages = [],
+  trashLoading = false,
+  onRestorePage,
+  onRefreshTrash,
 }: {
   pages: WebsitePage[]
   activePageId: string | null
@@ -6321,6 +6301,10 @@ function PagePanel({
   onDeletePage?: (pageId: string, pageTitle: string) => void
   onDuplicatePage?: (page: WebsitePage) => void
   onSetHomepage?: (page: WebsitePage) => void
+  trashedPages?: PageTrashItem[]
+  trashLoading?: boolean
+  onRestorePage?: (pageId: string, pageTitle: string) => void
+  onRefreshTrash?: () => void | Promise<void>
 }) {
   const activePage = pages.find(p => p.id === activePageId) || null
   const pageOverrides = activePageId ? (siteStyle.page_styles?.[activePageId] || {}) : {}
@@ -6495,6 +6479,18 @@ function PagePanel({
             </button>
           )}
         </>
+      )}
+
+      {onRestorePage && (
+        <div className="pt-4 mt-2 border-t border-gray-100">
+          <DeletedPagesPanel
+            alwaysShow
+            items={trashedPages}
+            loading={trashLoading}
+            onRestore={onRestorePage}
+            onRefresh={onRefreshTrash}
+          />
+        </div>
       )}
     </div>
   )
@@ -6790,9 +6786,8 @@ function DataSourcePanel({
       </div>
       <p className="text-xs text-gray-400">Link <strong>{block.label || block.block_type}</strong> to live catalog data or an external feed.</p>
 
-      {/* Auto-connect CTA (if block has a suggested source and isn't already connected).
-          A static/disconnected block has `normalizedDsType === null`, so the CTA returns. */}
-      {BLOCK_AUTO_SOURCE[block.block_type as string] && !normalizedDsType && (
+      {/* Auto-connect CTA (if block has a suggested source and isn't already connected) */}
+      {BLOCK_AUTO_SOURCE[block.block_type as string] && !ds?.type && (
         <button
           onClick={handleAutoConnect}
           className="w-full flex items-center justify-center gap-2 py-2.5 rounded-lg bg-gradient-to-r from-primary to-emerald-700 text-white text-xs font-bold hover:opacity-90 transition-opacity"
@@ -6812,7 +6807,7 @@ function DataSourcePanel({
           </span>
           <span className="ml-auto text-xs text-emerald-600 font-semibold">{liveItems.length} live</span>
           {!connectionRequired && (
-            <button onClick={() => onUpdate({ type: STATIC_DATA_SOURCE_TYPE })} className="text-xs text-red-500 hover:text-red-700">Disconnect</button>
+            <button onClick={() => onUpdate(null)} className="text-xs text-red-500 hover:text-red-700">Disconnect</button>
           )}
         </div>
       )}
@@ -7064,7 +7059,7 @@ const FONT_SCALE_STEPS: [string, number][] = [
   ['XS', 0.75], ['S', 0.875], ['M', 1], ['L', 1.125], ['XL', 1.25], ['2X', 1.5],
 ]
 
-const DESIGN_BAR_TABS = ['general', 'visual'] as const
+const DESIGN_BAR_TABS = ['general', 'visual', 'media'] as const
 // 'image' is a contextual tab — only present while a section/card image is selected.
 type DesignBarTabId = (typeof DESIGN_BAR_TABS)[number] | 'image'
 
@@ -7193,7 +7188,7 @@ function BlockDesignBar({ block, onUpdate, onInsertAfter, onOpenLinkEditorForOve
   }, [activeTextField, block.id])
 
   const overlays = ((p as Record<string, unknown>).overlays as BlockOverlayItem[]) || []
-  // Keep the active tab when switching sections (General / Visual).
+  // Keep the active tab when switching sections (General / Visual / Media).
   const selectedOverlay = selectedOverlayId
     ? overlays.find(o => o.id === selectedOverlayId) ?? null
     : null
@@ -7254,8 +7249,9 @@ function BlockDesignBar({ block, onUpdate, onInsertAfter, onOpenLinkEditorForOve
       if (activeTextField && activeTextField !== CONTENT_GROUP_FIELD_KEY) return
       // Layer or section image selected ? arrow keys adjust, not switch tabs
       if ((selectedOverlay || canvasImageField) && (designBarTab === 'general' || designBarTab === 'image')) return
+      if (designBarTab === 'image') return
       e.preventDefault()
-      const idx = DESIGN_BAR_TABS.indexOf(designBarTab)
+      const idx = DESIGN_BAR_TABS.indexOf(designBarTab as (typeof DESIGN_BAR_TABS)[number])
       const nextIdx = e.key === 'ArrowLeft'
         ? (idx - 1 + DESIGN_BAR_TABS.length) % DESIGN_BAR_TABS.length
         : (idx + 1) % DESIGN_BAR_TABS.length
@@ -7277,10 +7273,6 @@ function BlockDesignBar({ block, onUpdate, onInsertAfter, onOpenLinkEditorForOve
     }
     prevImageTabActiveRef.current = imageTabActive
   }, [imageTabActive, designBarTab])
-
-  useEffect(() => {
-    if ((designBarTab as string) === 'media') setDesignBarTab('visual')
-  }, [designBarTab])
 
   // The Visual tab owns all layer (overlay) controls, so jump there automatically
   // when a layer gets selected. We only switch on selection (not deselection) so we
@@ -7442,7 +7434,8 @@ function BlockDesignBar({ block, onUpdate, onInsertAfter, onOpenLinkEditorForOve
       ? selectedEditableFields
       : null
     if (batchKeys) {
-      if (opts?.fontSizeDelta != null) {
+      const fontSizeDelta = opts?.fontSizeDelta
+      if (fontSizeDelta != null) {
         const nextStyles = { ...fieldStyles }
         batchKeys.forEach(k => {
           const cur = (fieldStyles[k] as any)?.font_size_px as number | undefined
@@ -7454,7 +7447,7 @@ function BlockDesignBar({ block, onUpdate, onInsertAfter, onOpenLinkEditorForOve
             ...(fieldStyles[k] || {}),
             font_size_px: Math.min(
               FONT_SIZE_PX_MAX,
-              Math.max(FONT_SIZE_PX_MIN, base + opts.fontSizeDelta),
+              Math.max(FONT_SIZE_PX_MIN, base + fontSizeDelta),
             ),
             text_scale: null,
           }
@@ -7706,15 +7699,15 @@ function BlockDesignBar({ block, onUpdate, onInsertAfter, onOpenLinkEditorForOve
   const addOverlayElement = (
     type: string,
     anchor?: { x: number; y: number },
-    initialPatch?: Partial<BlockOverlayItem>,
+    initialPatch?: Partial<OverlayLayerItem>,
   ) => {
     const defaults = OVERLAY_DEFAULTS[type] || {}
     const currentOverlays: BlockOverlayItem[] = ((p as any).overlays as BlockOverlayItem[]) || []
     const overlayType = (type === 'link' || type === 'db_link' || type === 'store') ? 'button' : type
     const newId = `ov-${Date.now()}`
-    const newItem: BlockOverlayItem = {
+    const newItem = {
       id: newId,
-      type: overlayType as any,
+      type: overlayType as BlockOverlayItem['type'],
       x: 20 + currentOverlays.length * 12,
       y: 20 + currentOverlays.length * 12,
       w: (defaults as any).w || 200,
@@ -7722,7 +7715,7 @@ function BlockDesignBar({ block, onUpdate, onInsertAfter, onOpenLinkEditorForOve
       ...defaults,
       ...inheritedOverlayStyle(overlayType as BlockOverlayItem['type']),
       ...initialPatch,
-    }
+    } as BlockOverlayItem
     onUpdate({ overlays: [...currentOverlays, newItem] } as any)
     onSelectOverlay?.(newId)
     if ((type === 'link' || type === 'db_link' || type === 'store') && onOpenLinkEditorForOverlay) {
@@ -7781,6 +7774,7 @@ function BlockDesignBar({ block, onUpdate, onInsertAfter, onOpenLinkEditorForOve
                     : 'Section image',
               }]
             : []),
+          ...(!selectedOverlay ? [{ id: 'media', label: 'Media' }] : []),
         ]) as { id: DesignBarTabId; label: string }[]).map(tab => (
           <button
             key={tab.id}
@@ -7807,12 +7801,13 @@ function BlockDesignBar({ block, onUpdate, onInsertAfter, onOpenLinkEditorForOve
           ? 'General tools'
           : designBarTab === 'visual'
             ? 'Visual tools'
-            : designBarTab === 'image'
-              ? 'Image tools'
-              : 'Media tools'
+            : 'Media tools'
       }
       className={cn(
-        'z-[80] flex gap-0 bg-white px-1 py-0.5 min-h-[2.25rem] items-center overflow-x-auto overflow-y-visible',
+        'z-[80] flex gap-0 bg-white px-1 py-0.5',
+        designBarTab === 'media'
+          ? 'max-h-[min(26rem,55vh)] flex-col items-stretch overflow-x-hidden overflow-y-auto'
+          : 'min-h-[2.25rem] items-center overflow-x-auto overflow-y-visible',
         docked
           ? 'relative w-full border-b border-primary/20'
           : floating
@@ -8305,10 +8300,18 @@ function BlockDesignBar({ block, onUpdate, onInsertAfter, onOpenLinkEditorForOve
           onOverlayEditDescription={selectedOverlay ? onOverlayEditDescription : undefined}
           onOverlayBringToFront={selectedOverlay ? bringSelectedOverlayFront : undefined}
           onOverlaySendToBack={selectedOverlay ? sendSelectedOverlayBack : undefined}
+        />
+      )}
+
+      {designBarTab === 'media' && !selectedOverlay && (
+        <MediaDesignBarStrip
+          blockType={String(block.block_type)}
+          blockProps={p as Record<string, unknown>}
           primaryImageField={primaryImageField}
           canvasImageField={canvasImageField}
-          onSectionImagePick={onSectionImagePick}
-          onSectionImageLibrary={onSectionImageLibrary}
+          onUpdate={onUpdate}
+          onOpenMediaLibrary={onSectionImageLibrary}
+          onPickImage={onSectionImagePick}
           onFocusPrimaryImage={onFocusPrimaryImage}
         />
       )}
@@ -8638,7 +8641,7 @@ export default function WebsiteBuilder() {
   const [dropTarget, setDropTarget] = useState<{ idx: number; before: boolean } | null>(null)
   const [draggingBlockIdx, setDraggingBlockIdx] = useState<number | null>(null)
   const draggingBlockIdxRef = useRef<number | null>(null)
-  const canvasMainRef = useRef<HTMLElement | null>(null)
+  const canvasMainRef = useRef<HTMLDivElement | null>(null)
 
   const scrollCanvasToBlock = useCallback((blockId: string) => {
     requestAnimationFrame(() => {
@@ -9651,7 +9654,7 @@ export default function WebsiteBuilder() {
     if (blockId !== selectedBlockId) setSelectedBlockId(blockId)
     setOverlayImageTarget(null)
     setActiveTextTarget(null)
-    setCanvasImageTarget(prev => toggleCanvasImageSlot(prev, blockId, field, opts))
+    setCanvasImageTarget((prev: ActiveCanvasImageTarget | null) => toggleCanvasImageSlot(prev, blockId, field, opts))
   }, [selectedBlockId])
 
   handleSectionImageActivateRef.current = handleSectionImageActivate
@@ -9692,10 +9695,6 @@ export default function WebsiteBuilder() {
     def: BlockDef,
     nextProps: BlockProps,
     blocksSnapshot: Record<string, WebsiteBlock[]>,
-    // Only flip the whole canvas back to "clean" when this layout apply was the
-    // only pending change. If other blocks still have unsaved edits, we leave the
-    // dirty flag set so the debounced full auto-save flushes them too.
-    markAllClean = true,
   ) => {
     if (!siteId) return
     const updates: { pageId: string; tempId?: string; saved?: WebsiteBlock }[] = []
@@ -9742,12 +9741,10 @@ export default function WebsiteBuilder() {
       )
     }
     skipServerHydrateRef.current = Date.now()
+    setBlocksDirty(false)
+    blocksDirtyRef.current = false
     setLastSavedAt(new Date())
-    if (markAllClean) {
-      setBlocksDirty(false)
-      blocksDirtyRef.current = false
-      setAutoSaveStatus('synced')
-    }
+    setAutoSaveStatus('synced')
   }, [siteId, site, queryClient])
 
   const persistSingleBlockPropsNow = useCallback(async (
@@ -9755,8 +9752,6 @@ export default function WebsiteBuilder() {
     blockId: string,
     nextProps: BlockProps,
     blocksSnapshot: Record<string, WebsiteBlock[]>,
-    // See persistStructureLayoutNow: keep the canvas dirty when other edits remain.
-    markAllClean = true,
   ) => {
     if (!siteId) return
     const block = (blocksSnapshot[pageId] || []).find(b => b.id === blockId)
@@ -9787,12 +9782,10 @@ export default function WebsiteBuilder() {
       await websiteApi.updateBlock(siteId, pageId, blockId, { props: nextProps } as any)
     }
     skipServerHydrateRef.current = Date.now()
+    setBlocksDirty(false)
+    blocksDirtyRef.current = false
     setLastSavedAt(new Date())
-    if (markAllClean) {
-      setBlocksDirty(false)
-      blocksDirtyRef.current = false
-      setAutoSaveStatus('synced')
-    }
+    setAutoSaveStatus('synced')
   }, [siteId, scrollCanvasToBlock])
 
   const applyLayoutToBlock = useCallback(async (
@@ -9806,9 +9799,6 @@ export default function WebsiteBuilder() {
     const isStructure = GLOBAL_STRUCTURE_BLOCK_TYPES.has(def.type)
     const prev = localBlocksRef.current
     const pages = localPagesRef.current
-    // Capture whether other edits were already pending *before* this layout apply.
-    // If so, the targeted persist below must not mark the whole canvas clean.
-    const hadPendingEdits = blocksDirtyRef.current
 
     skipServerHydrateRef.current = Date.now()
     setBlocksDirty(true)
@@ -9906,9 +9896,9 @@ export default function WebsiteBuilder() {
 
     try {
       if (isStructure) {
-        await persistStructureLayoutNow(def, mergedFinalProps, nextMap, !hadPendingEdits)
+        await persistStructureLayoutNow(def, mergedFinalProps, nextMap)
       } else {
-        await persistSingleBlockPropsNow(targetPageId, resolvedBlockId, mergedFinalProps, nextMap, !hadPendingEdits)
+        await persistSingleBlockPropsNow(targetPageId, resolvedBlockId, mergedFinalProps, nextMap)
       }
     } catch {
       setBlocksDirty(true)
@@ -10309,15 +10299,6 @@ export default function WebsiteBuilder() {
     })
   }, [activePageId, scheduleEditorHistorySnapshot])
 
-  const setBlockVisibility = useCallback((blockId: string, visible: boolean) => {
-    handleUpdateBlockProps(blockId, { visible } as Partial<BlockProps>)
-    if (visible) {
-      toast.success('Section unhidden — it will appear on your live site again')
-    } else {
-      toast.success('Section hidden — collapsed to a thin bar in the builder. Unhide from the bar or Pages list.')
-    }
-  }, [handleUpdateBlockProps])
-
   const applySectionPaddingPatch = useCallback((
     blockId: string,
     patch: { padding_top?: number; padding_bottom?: number },
@@ -10665,7 +10646,7 @@ export default function WebsiteBuilder() {
         )
         return
       }
-      const propSlot = imageTarget.slots.find(s => s.propField)
+      const propSlot = imageTarget.slots.find((s: CanvasImageSlot) => s.propField)
       if (propSlot?.propField) {
         handleUpdateBlockProps(
           blockId,
@@ -10688,13 +10669,17 @@ export default function WebsiteBuilder() {
         imageTarget
         && imageTarget.blockId === blockId
       )
-        ? canvasImageArraySlots(imageTarget, blockId).filter(s => s.arrayKey === arrayCfg.arrayKey)
+        ? canvasImageArraySlots(imageTarget, blockId).filter((s: CanvasImageSlot) => s.arrayKey === arrayCfg.arrayKey)
         : []
       if (selectedSlots.length === 0) {
         toast.error('Click the item photo on the canvas, or expand that item in Section Edit and use its Image control.')
         return
       }
-      const targetIndices = new Set(selectedSlots.map(s => s.index))
+      const targetIndices = new Set(
+        selectedSlots
+          .map((s: CanvasImageSlot) => s.index)
+          .filter((idx): idx is number => typeof idx === 'number'),
+      )
       const maxTargetIdx = Math.max(...targetIndices, 0)
       let arr: Record<string, unknown>[] = ((block.props as Record<string, unknown>)[arrayCfg.arrayKey] as Record<string, unknown>[] | undefined) || []
       if (arr.length > 0) {
@@ -11333,10 +11318,9 @@ export default function WebsiteBuilder() {
       },
       {
         id: 'toggle',
-        label: block.visible === false ? 'Unhide section' : 'Hide section',
+        label: block.visible === false ? 'Show section' : 'Hide section',
         icon: block.visible === false ? Eye : EyeOff,
-        accent: block.visible === false,
-        onSelect: () => setBlockVisibility(block.id, block.visible === false),
+        onSelect: () => handleUpdateBlockProps(block.id, { visible: !(block.visible !== false) } as any),
       },
       { id: 'div3', label: '', divider: true },
       {
@@ -11349,7 +11333,7 @@ export default function WebsiteBuilder() {
       },
     ]
     setContextMenu({ x: e.clientX, y: e.clientY, actions })
-  }, [setBlockVisibility, confirmDeleteBlock, handleDuplicateBlock, openInlineTextEditForBlock, openLayoutPickerForBlock, openSectionMediaPicker, handleSectionImageActivate])
+  }, [handleUpdateBlockProps, confirmDeleteBlock, handleDuplicateBlock, openInlineTextEditForBlock, openLayoutPickerForBlock, openSectionMediaPicker, handleSectionImageActivate])
 
   const handleCanvasBlockContextMenuCapture = useCallback((e: React.MouseEvent) => {
     const target = e.target as HTMLElement
@@ -11848,7 +11832,7 @@ export default function WebsiteBuilder() {
   const toggleBlockVisibility = (blockId: string, pageId: string) => {
     const block = (localBlocks[pageId] || []).find(b => b.id === blockId)
     if (!block) return
-    setBlockVisibility(blockId, block.visible === false)
+    handleUpdateBlockProps(blockId, { visible: block.visible === false } as Partial<BlockProps>)
   }
 
   const toggleSectionPageExpanded = (pageId: string) => {
@@ -12208,10 +12192,11 @@ export default function WebsiteBuilder() {
     if (!siteId || isApplyingToStore) return
     setIsApplyingToStore(true)
     try {
-      // Always flush page metadata (order, nav visibility, per-page SEO, publish
-      // state) before going live. Publish is infrequent and this call is idempotent,
-      // so it closes the gap where page-only edits never reached the server.
-      await persistAllPagesToServer()
+      // Only persist if there are pending local changes ? avoids redundant API
+      // calls when the user clicks Apply immediately after loading a template.
+      if (blocksDirty || styleDirty) {
+        await persistAllPagesToServer()
+      }
       if (blocksDirty) {
         await persistAllBlocksToServer()
       }
@@ -12219,10 +12204,10 @@ export default function WebsiteBuilder() {
         await websiteApi.updateSite(siteId, { style_config: localStyle as any })
       }
       await websiteApi.publishSite(siteId)
-      const linkedStoreId = site?.website_store_id
-        ?? (localStyle as Record<string, unknown>).website_store_id
-      const linkedStoreScope = site?.website_store_scope
-        ?? (localStyle as Record<string, unknown>).website_store_scope
+      const siteStoreMeta = site as (WebsiteSite & Pick<SiteListItem, 'website_store_id' | 'website_store_scope'>) | undefined
+      const styleStoreMeta = localStyle as unknown as Record<string, unknown>
+      const linkedStoreId = siteStoreMeta?.website_store_id ?? styleStoreMeta.website_store_id
+      const linkedStoreScope = siteStoreMeta?.website_store_scope ?? styleStoreMeta.website_store_scope
       if (linkedStoreScope === 'store' && typeof linkedStoreId === 'string' && linkedStoreId.trim()) {
         try {
           const [allSites, storesRes] = await Promise.all([
@@ -12362,9 +12347,17 @@ export default function WebsiteBuilder() {
     }
   }, [siteId])
 
+  const refreshTrashedPages = useCallback(() => { void loadTrashedPages() }, [loadTrashedPages])
+
   useEffect(() => {
     void loadTrashedPages()
   }, [loadTrashedPages])
+
+  useEffect(() => {
+    if (rightPanel === 'page' && siteId) {
+      void loadTrashedPages()
+    }
+  }, [rightPanel, siteId, loadTrashedPages])
 
   const handleDeletePage = useCallback((pageId: string, pageTitle: string) => {
     const target = localPages.find(p => p.id === pageId)
@@ -12396,14 +12389,13 @@ export default function WebsiteBuilder() {
           syncEditorPagesFromSite(fresh)
           const trash = await loadTrashedPages()
           if (!trash.some(p => p.id === pageId)) {
-            toast.error('Page was removed but did not appear in Recently deleted. Open More → Recently deleted and click Refresh.')
+            toast.error('Page was removed but did not appear in Recently deleted. Click Refresh below or reload the builder.')
             return
           }
-          setMoreMenuOpen(true)
           toast.success(
             isHome
               ? `"${pageTitle}" moved to trash — another page is now home`
-              : `"${pageTitle}" moved to trash — restore within 7 days under More → Recently deleted`,
+              : `"${pageTitle}" moved to trash — restore within 7 days in Recently deleted`,
           )
         } catch (err) {
           setLocalPages(backupPages)
@@ -13333,16 +13325,7 @@ export default function WebsiteBuilder() {
               <div className="relative shrink-0" ref={moreMenuRef}>
                 <button
                   type="button"
-                  onClick={() => {
-                    setMoreMenuOpen(v => {
-                      const opening = !v
-                      if (opening) {
-                        setChangeHistoryOpen(false)
-                        void loadTrashedPages()
-                      }
-                      return opening
-                    })
-                  }}
+                  onClick={() => { setMoreMenuOpen(v => !v); setChangeHistoryOpen(false) }}
                   title="More — publish, view store, change history"
                   aria-haspopup="menu"
                   aria-expanded={moreMenuOpen}
@@ -13355,11 +13338,6 @@ export default function WebsiteBuilder() {
                 >
                   <MoreHorizontal className="h-3.5 w-3.5 shrink-0" />
                   More
-                  {trashedPages.length > 0 && (
-                    <span className="rounded-full bg-amber-500 px-1.5 py-0.5 text-[9px] font-bold leading-none text-white tabular-nums">
-                      {trashedPages.length}
-                    </span>
-                  )}
                   <ChevronDown className={cn('h-3 w-3 shrink-0 transition-transform', moreMenuOpen && 'rotate-180')} />
                 </button>
 
@@ -13496,16 +13474,14 @@ export default function WebsiteBuilder() {
                         items={trashedPages}
                         loading={trashLoading}
                         onRestore={handleRestorePage}
-                        onRefresh={loadTrashedPages}
+                        onRefresh={refreshTrashedPages}
                       />
                     </div>
 
                     {/* Change history (restore previous edits) */}
                     <button
                       type="button"
-                      onClick={() => {
-                        setChangeHistoryOpen(v => !v)
-                      }}
+                      onClick={() => setChangeHistoryOpen(v => !v)}
                       aria-expanded={changeHistoryOpen}
                       className={builderPanelUi.menuItem}
                     >
@@ -13692,7 +13668,9 @@ export default function WebsiteBuilder() {
 
                     <div className="flex-1 overflow-y-auto p-3 space-y-3">
                       <div>
-                        <FormColumnLabel className="tracking-wide px-1 mb-2">Add Section{sectionSearchLower || sectionCategory !== 'all' ? ` · ${filteredCatalogBlocks.length}` : ''}</FormColumnLabel>
+                        <FormColumnLabel className="tracking-wide px-1 mb-2">
+                          {`Add Section${sectionSearchLower || sectionCategory !== 'all' ? ` · ${filteredCatalogBlocks.length}` : ''}`}
+                        </FormColumnLabel>
                         <p className="text-[11px] text-gray-400 px-1 mb-2 leading-snug">
                           Click to add a section after your selection (or at the end).
                           <strong className="font-medium text-gray-500"> Move ↑↓</strong> reorders on the page;
@@ -13728,7 +13706,9 @@ export default function WebsiteBuilder() {
                 {leftPanel === 'pages' && (
                   <div className="flex-1 overflow-y-auto p-3 space-y-1.5">
                     <div className="px-1 mb-1">
-                      <FormColumnLabel className="tracking-wide">{localPages.length} page{localPages.length !== 1 ? 's' : ''}</FormColumnLabel>
+                      <FormColumnLabel className="tracking-wide">
+                        {`${localPages.length} page${localPages.length !== 1 ? 's' : ''}`}
+                      </FormColumnLabel>
                       <p className="text-[11px] text-gray-400 mt-0.5 leading-snug">
                         Open <strong className="font-semibold text-gray-500">Actions</strong> on a page to duplicate or delete it.
                       </p>
@@ -13820,10 +13800,9 @@ export default function WebsiteBuilder() {
                                         ? 'border-primary/50 bg-accent ring-1 ring-primary/20'
                                         : isDragTarget
                                           ? 'border-primary/40 bg-accent'
-                                          : isVisible
-                                            ? 'border-gray-100 bg-white hover:border-primary/30 hover:bg-accent/70'
-                                            : 'border-amber-200/80 bg-amber-50/70 hover:border-amber-300 hover:bg-amber-50',
+                                          : 'border-gray-100 bg-white hover:border-primary/30 hover:bg-accent/70',
                                       sidebarDraggedPageId === page.id && sidebarDraggedIdx === idx ? 'opacity-40' : 'opacity-100',
+                                      !isVisible && !isSelected && 'opacity-60',
                                     )}
                                   >
                                     <GripVertical className="w-3 h-3 text-gray-300 cursor-grab shrink-0" />
@@ -13841,15 +13820,10 @@ export default function WebsiteBuilder() {
                                       </div>
                                       <span className={cn(
                                         'text-xs font-medium leading-tight truncate',
-                                        isVisible ? 'text-gray-700' : 'text-amber-900/80',
+                                        isVisible ? 'text-gray-700' : 'text-gray-400',
                                       )}>
                                         {label}
                                       </span>
-                                      {!isVisible ? (
-                                        <span className="shrink-0 rounded px-1 py-0.5 text-[8px] font-bold uppercase tracking-wide bg-amber-200/80 text-amber-900">
-                                          Hidden
-                                        </span>
-                                      ) : null}
                                     </button>
                                     <div className={cn(
                                       'flex items-center gap-0 shrink-0 transition-opacity',
@@ -13865,26 +13839,16 @@ export default function WebsiteBuilder() {
                                         <Trash2 className="w-3 h-3 text-red-400" />
                                       </button>
                                     </div>
-                                    {!isVisible ? (
-                                      <button
-                                        type="button"
-                                        onClick={() => setBlockVisibility(block.id, true)}
-                                        className="shrink-0 inline-flex items-center gap-0.5 rounded-md border border-amber-300 bg-white px-1.5 py-0.5 text-[10px] font-bold text-amber-800 hover:bg-amber-100 transition-colors"
-                                        title="Unhide section"
-                                      >
-                                        <Eye className="w-3 h-3 shrink-0" />
-                                        Unhide
-                                      </button>
-                                    ) : (
-                                      <button
-                                        type="button"
-                                        onClick={() => toggleBlockVisibility(block.id, page.id)}
-                                        className="shrink-0 p-0.5"
-                                        title="Hide section"
-                                      >
-                                        <Eye className="w-3.5 h-3.5 text-primary/70 hover:text-primary" />
-                                      </button>
-                                    )}
+                                    <button
+                                      type="button"
+                                      onClick={() => toggleBlockVisibility(block.id, page.id)}
+                                      className="shrink-0 p-0.5"
+                                      title={isVisible ? 'Hide section' : 'Show section'}
+                                    >
+                                      {isVisible
+                                        ? <Eye className="w-3.5 h-3.5 text-primary/70 hover:text-primary" />
+                                        : <EyeOff className="w-3.5 h-3.5 text-amber-400 hover:text-amber-600" />}
+                                    </button>
                                   </div>
                                 )
                               })}
@@ -14149,7 +14113,7 @@ export default function WebsiteBuilder() {
                           : `${catalogBlockLabel(block)} selected — double-click text to edit, or use the toolbar below`}
                   </span>
                   <span className="hidden sm:inline text-[10px] text-gray-400 shrink-0">
-                    Toolbar tabs: General · Visual (includes media)
+                    Toolbar tabs: General · Media · Visual
                   </span>
                 </div>
                 <BlockDesignBar
@@ -14362,7 +14326,7 @@ export default function WebsiteBuilder() {
                         dropBefore={dropTarget?.idx === idx && dropTarget.before}
                         dropAfter={dropTarget?.idx === idx && !dropTarget.before}
                         dragging={draggingBlockIdx === idx}
-                        interactive={draggingBlockIdx !== null || draggingNewBlock}
+                        interactive={draggingBlockIdx !== null || draggingNewBlock !== null}
                         onContextMenu={e => { e.preventDefault(); openBlockContextMenu(block, e) }}
                         onDragOver={e => handleDragOverBlock(e, idx)}
                         onDrop={e => handleDropOnBlock(e, idx)}
@@ -14416,7 +14380,6 @@ export default function WebsiteBuilder() {
                           onMoveBlock={dir => handleMoveBlock(block.id, dir)}
                           onDuplicate={() => handleDuplicateBlock(block.id)}
                           onDelete={() => confirmDeleteBlock(block.id)}
-                          onToggleVisibility={() => setBlockVisibility(block.id, block.visible === false)}
                           onReorderPointerDown={e => handleBlockReorderPointerDown(e, idx)}
                           onOpenLayoutPicker={() => openLayoutPickerForBlock(block)}
                           onCycleLayout={dir => { void cycleBlockLayout(block, dir) }}
@@ -14828,6 +14791,10 @@ export default function WebsiteBuilder() {
                     onDeletePage={handleDeletePage}
                     onDuplicatePage={page => { void handleDuplicatePage(page) }}
                     onSetHomepage={page => { void handleSetHomepage(page) }}
+                    trashedPages={trashedPages}
+                    trashLoading={trashLoading}
+                    onRestorePage={handleRestorePage}
+                    onRefreshTrash={refreshTrashedPages}
                   />
                 )}
 

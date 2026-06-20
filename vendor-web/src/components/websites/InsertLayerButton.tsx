@@ -4,6 +4,7 @@ import { cn } from '@/lib/utils'
 import { registerEscapeHandler } from '@/lib/escapeCloseRegistry'
 import { VISUAL_INSERT_TYPES } from '@/lib/builderVisualPresets'
 import { DesignBarDropdownPortal } from '@/components/websites/DesignBarDropdownPortal'
+import { visualInsertBtn } from '@/components/websites/designBarVisualUi'
 import type { OverlayLayerItem } from '@/lib/builderOverlayVisual'
 
 /**
@@ -36,17 +37,17 @@ export function InsertLayerButton({
         title="Insert a layer — text, image, icon, button or shape"
         onClick={() => setOpen(o => !o)}
         className={cn(
-          'flex h-9 shrink-0 items-center gap-1.5 rounded-lg border px-3 text-xs font-bold transition-colors',
+          visualInsertBtn,
           open
             ? 'border-primary bg-primary text-white shadow-sm'
             : 'border-primary/30 bg-primary/10 text-primary hover:bg-primary/15',
         )}
       >
-        <Plus className="h-4 w-4 shrink-0" />
+        <Plus className="h-3.5 w-3.5 shrink-0" />
         <span>Insert</span>
         {overlayCount > 0 ? (
           <span className={cn(
-            'rounded-full px-1 text-[9px] font-black',
+            'rounded-full px-1 text-[8px] font-black leading-none',
             open ? 'bg-white/25 text-white' : 'bg-primary/20 text-primary',
           )}>
             {overlayCount}
