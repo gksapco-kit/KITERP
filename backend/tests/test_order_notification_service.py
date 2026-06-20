@@ -5,6 +5,9 @@ from app.services.order_notification_service import (
     customer_order_email_enabled,
     customer_order_sms_enabled,
     customer_order_whatsapp_enabled,
+    vendor_bu_order_email_enabled,
+    vendor_bu_order_sms_enabled,
+    vendor_bu_order_whatsapp_enabled,
     vendor_order_email_enabled,
     vendor_order_sms_enabled,
     vendor_order_whatsapp_enabled,
@@ -56,6 +59,54 @@ def test_customer_order_email_opt_out():
 
 def test_customer_order_email_enabled_when_vendor_on():
     assert customer_order_email_enabled(_vendor(), {}) is True
+
+
+def test_customer_order_email_uses_bu_prefs_when_store_configured():
+    v = _vendor(notifications={"email": False})
+    bu = {"customer_channels": {"email": True, "sms": False, "whatsapp": False}}
+    assert customer_order_email_enabled(v, {}, bu) is True
+
+
+def test_customer_order_email_off_when_bu_email_disabled():
+    v = _vendor()
+    bu = {"customer_channels": {"email": False, "sms": True, "whatsapp": True}}
+    assert customer_order_email_enabled(v, {}, bu) is False
+
+
+def test_customer_order_sms_on_when_bu_sms_enabled_even_if_vendor_sms_off():
+    v = _vendor(notifications={"sms": False})
+    bu = {"customer_channels": {"email": True, "sms": True, "whatsapp": False}}
+    assert customer_order_sms_enabled(v, {"smsEnabled": True}, bu) is True
+
+
+def test_customer_order_sms_off_when_bu_sms_disabled():
+    v = _vendor(notifications={"sms": True})
+    bu = {"customer_channels": {"email": True, "sms": False, "whatsapp": True}}
+    assert customer_order_sms_enabled(v, {"smsEnabled": True}, bu) is False
+
+
+def test_customer_order_whatsapp_on_when_bu_whatsapp_enabled():
+    v = _vendor(notifications={"whatsapp": False})
+    bu = {"customer_channels": {"email": True, "sms": False, "whatsapp": True}}
+    assert customer_order_whatsapp_enabled(v, {"orderUpdates": True}, bu) is True
+
+
+def test_vendor_bu_email_on_when_bu_enabled_even_if_vendor_email_off():
+    v = _vendor(notifications={"email": False})
+    bu = {"vendor_channels": {"email": True, "sms": False, "whatsapp": False}}
+    assert vendor_bu_order_email_enabled(v, bu) is True
+
+
+def test_vendor_bu_email_off_when_bu_email_disabled():
+    v = _vendor()
+    bu = {"vendor_channels": {"email": False, "sms": True, "whatsapp": True}}
+    assert vendor_bu_order_email_enabled(v, bu) is False
+
+
+def test_vendor_bu_sms_on_when_bu_sms_enabled():
+    v = _vendor(notifications={"sms": False})
+    bu = {"vendor_channels": {"email": True, "sms": True, "whatsapp": False}}
+    assert vendor_bu_order_sms_enabled(v, bu) is True
 
 
 def test_customer_order_sms_respects_sms_enabled_pref():

@@ -51,6 +51,7 @@ export const vendorKeys = {
   reservations: (orderType: string, orderId: string) => [...vendorKeys.all, 'reservations', orderType, orderId] as const,
   /** Business units / outlets — use with useStores; invalidate `[...vendorKeys.all, 'stores']` after mutations. */
   stores: (params?: Record<string, unknown>) => [...vendorKeys.all, 'stores', params] as const,
+  messageConfig: (storeId: string) => [...vendorKeys.all, 'message-config', storeId] as const,
   // HR keys
   hrDepartments: () => [...vendorKeys.all, 'hr-departments'] as const,
   hrDesignations: () => [...vendorKeys.all, 'hr-designations'] as const,
@@ -1302,6 +1303,29 @@ export function useUpdateStore() {
       toast.success('Business unit address saved')
     },
     onError: apiError('Could not save business unit address'),
+  })
+}
+
+export function useStoreMessageConfig(storeId: string) {
+  return useQuery({
+    queryKey: vendorKeys.messageConfig(storeId),
+    queryFn: () => vendorApi.getStoreMessageConfig(storeId),
+    enabled: Boolean(storeId),
+    staleTime: 0,
+  })
+}
+
+export function useUpdateStoreMessageConfig(storeId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (data: import('@/api/vendor').StoreMessageConfig) =>
+      vendorApi.updateStoreMessageConfig(storeId, data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: vendorKeys.messageConfig(storeId) })
+      qc.invalidateQueries({ queryKey: vendorKeys.stores() })
+      toast.success('Message configuration saved')
+    },
+    onError: apiError('Could not save message configuration'),
   })
 }
 

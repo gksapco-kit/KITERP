@@ -48,7 +48,7 @@ export function useStoreBridgeCheckout() {
   const { storePath } = useBranch()
   const { customer, isAuthenticated, setTokens, setCustomer } = useAuthStore()
   const { vendorSlug } = useVendor()
-  const { branchCode, isBranchClosed } = useBranch()
+  const { branchCode, isBranchClosed, selectedBranch } = useBranch()
   const isGuest = !isAuthenticated
   const { data: cart } = useCart()
   const { data: storeInfo } = useStoreInfo()
@@ -367,6 +367,7 @@ export function useStoreBridgeCheckout() {
             notes: notes || undefined,
             coupon_code: couponCode ?? undefined,
             branch_code: branchCode ?? undefined,
+            store_id: selectedBranch?.id ?? undefined,
           })
           if (result.access_token && result.refresh_token) {
             setTokens({ access_token: result.access_token, refresh_token: result.refresh_token, token_type: 'bearer' })
@@ -381,6 +382,7 @@ export function useStoreBridgeCheckout() {
             notes: notes || undefined,
             coupon_code: couponCode ?? undefined,
             branch_code: branchCode ?? undefined,
+            store_id: selectedBranch?.id ?? undefined,
           })
           orderId = order.id
         }

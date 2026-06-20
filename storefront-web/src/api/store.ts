@@ -191,6 +191,7 @@ export const storeApi = {
     notes?: string
     coupon_code?: string
     branch_code?: string
+    store_id?: string
   }) => {
     const res = await apiClient.post('/store/orders/guest-checkout', data)
     return res.data
@@ -271,6 +272,7 @@ export const storeApi = {
     notes?: string
     coupon_code?: string
     branch_code?: string
+    store_id?: string
   }): Promise<Order> => {
     const res = await apiClient.post('/store/orders/checkout', data); return res.data
   },

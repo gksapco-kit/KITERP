@@ -8,7 +8,7 @@ from app.api.v1 import (
     vendor_pos, vendor_invoices, vendor_invoice_templates, vendor_coupons,
     vendor_reports, vendor_template,
     vendor_bookings, vendor_projects, vendor_notifications, vendor_merchandising, vendor_loyalty,
-    vendor_mrp, vendor_hr, vendor_hr_extra, vendor_stores, vendor_production,
+    vendor_mrp, vendor_hr, vendor_hr_extra, vendor_stores, vendor_message_config, vendor_production,
     catalog, admin, app_builds,
     store_auth, store_hr, store_cart, store_checkout, store_orders, store_notifications, store_reviews, store_coupons,
     store_bookings, store_wishlist, store_marketplace, store_subscriptions, store_rentals,
@@ -72,6 +72,7 @@ api_router.include_router(vendor_mrp.router, prefix="/vendors/me", tags=["Vendor
 api_router.include_router(vendor_hr.router, prefix="/vendors/me/hr", tags=["Vendor HR"])
 api_router.include_router(vendor_hr_extra.router, prefix="/vendors/me/hr", tags=["Vendor HR Extra"])
 api_router.include_router(vendor_stores.router, prefix="/vendors/me", tags=["Vendor Stores"])
+api_router.include_router(vendor_message_config.router, prefix="/vendors/me", tags=["Vendor Message Config"])
 api_router.include_router(vendor_production.router, prefix="/vendors/me", tags=["Production Orders"])
 api_router.include_router(vendor_marketplace.router, prefix="/vendors/me/marketplace", tags=["Vendor Marketplace"])
 api_router.include_router(vendor_subscriptions.router, prefix="/vendors/me/subscriptions", tags=["Customer Subscriptions"])

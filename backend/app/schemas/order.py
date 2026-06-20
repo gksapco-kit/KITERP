@@ -73,6 +73,7 @@ class CheckoutRequest(BaseModel):
     notes: Optional[str] = Field(None, max_length=500)
     coupon_code: Optional[str] = Field(None, max_length=50)
     branch_code: Optional[str] = Field(None, max_length=100)
+    store_id: Optional[str] = Field(None, max_length=36)
 
 
 class GuestCustomerInfo(BaseModel):
@@ -115,6 +116,7 @@ class GuestCheckoutRequest(BaseModel):
     notes: Optional[str] = Field(None, max_length=500)
     coupon_code: Optional[str] = Field(None, max_length=50)
     branch_code: Optional[str] = Field(None, max_length=100)
+    store_id: Optional[str] = Field(None, max_length=36)
 
 
 class QuoteRequest(BaseModel):

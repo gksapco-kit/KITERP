@@ -691,6 +691,7 @@ const allSections: NavSection[] = [
       { to: '/system/social-links', icon: Globe, label: 'Social & Web Links', alwaysShow: true },
       { to: '/document-templates', icon: LayoutTemplate, label: 'Document Templates', alwaysShow: true },
       { to: '/system/modules', icon: Layers, label: 'Module Settings', alwaysShow: true },
+      { to: '/system/messages', icon: MessageSquare, label: 'Create Messages', alwaysShow: true },
       { to: '/system/models', icon: Database, label: 'Models', alwaysShow: true, groupLabel: 'Database', groupColor: 'indigo' },
       { to: '/system/table-data', icon: Table2, label: 'Table Data', requiresVendorAdmin: true },
       { to: '/system/browse-table', icon: List, label: 'Browse Table', requiresVendorAdmin: true },

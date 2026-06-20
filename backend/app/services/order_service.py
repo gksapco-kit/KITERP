@@ -150,7 +150,10 @@ class OrderService:
         order_number = await self.order_repo.get_next_order_number(vendor_id)
 
         store_id = await resolve_txn_store_id(
-            self.db, vendor_id, branch=getattr(data, "branch_code", None)
+            self.db,
+            vendor_id,
+            store_id=getattr(data, "store_id", None),
+            branch=getattr(data, "branch_code", None),
         )
 
         # Create order
@@ -319,6 +322,7 @@ class OrderService:
             notes=data.notes,
             coupon_code=data.coupon_code,
             branch_code=data.branch_code,
+            store_id=getattr(data, "store_id", None),
         )
         return await self.checkout(
             vendor_id,

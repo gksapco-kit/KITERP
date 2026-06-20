@@ -9,14 +9,21 @@ from typing import Any, Literal, Optional
 from uuid import UUID
 
 from sqlalchemy import select
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import get_settings
 from app.integrations.registry import IntegrationRegistry
 from app.models.customer import Customer
 from app.models.order import Order
+from app.models.store import Store
 from app.models.vendor import Vendor
 from app.services.email_service import send_email
+from app.services.message_config_service import (
+    get_message_config,
+    get_event_email_addresses,
+    get_event_phone_numbers,
+)
 from app.services.sms_service import SmsService, is_valid_e164, normalize_e164
 
 log = logging.getLogger(__name__)
@@ -126,10 +133,62 @@ def _customer_sms_allowed(customer_prefs: Optional[dict[str, Any]]) -> bool:
     return _customer_order_updates_allowed(prefs)
 
 
+def _bu_customer_channels(message_config: Optional[dict[str, Any]]) -> Optional[dict[str, Any]]:
+    """Return BU customer channel prefs when order is tied to a store; else None."""
+    if message_config is None:
+        return None
+    channels = message_config.get("customer_channels")
+    return channels if isinstance(channels, dict) else {}
+
+
+def _bu_vendor_channels(message_config: Optional[dict[str, Any]]) -> Optional[dict[str, Any]]:
+    """Return BU vendor channel prefs when order is tied to a store; else None."""
+    if message_config is None:
+        return None
+    channels = message_config.get("vendor_channels")
+    return channels if isinstance(channels, dict) else {}
+
+
+def vendor_bu_order_email_enabled(
+    vendor: Vendor,
+    message_config: Optional[dict[str, Any]] = None,
+) -> bool:
+    bu = _bu_vendor_channels(message_config)
+    if bu is not None:
+        return bool(bu.get("email", True))
+    return vendor_order_email_enabled(vendor)
+
+
+def vendor_bu_order_sms_enabled(
+    vendor: Vendor,
+    message_config: Optional[dict[str, Any]] = None,
+) -> bool:
+    bu = _bu_vendor_channels(message_config)
+    if bu is not None:
+        return bool(bu.get("sms", False))
+    return vendor_order_sms_enabled(vendor)
+
+
+def vendor_bu_order_whatsapp_enabled(
+    vendor: Vendor,
+    message_config: Optional[dict[str, Any]] = None,
+) -> bool:
+    bu = _bu_vendor_channels(message_config)
+    if bu is not None:
+        return bool(bu.get("whatsapp", False))
+    return vendor_order_whatsapp_enabled(vendor)
+
+
 def customer_order_email_enabled(
     vendor: Vendor,
     customer_prefs: Optional[dict[str, Any]] = None,
+    message_config: Optional[dict[str, Any]] = None,
 ) -> bool:
+    bu_channels = _bu_customer_channels(message_config)
+    if bu_channels is not None:
+        if not bu_channels.get("email", True):
+            return False
+        return _customer_order_updates_allowed(customer_prefs)
     if not vendor_order_email_enabled(vendor):
         return False
     return _customer_order_updates_allowed(customer_prefs)
@@ -138,7 +197,13 @@ def customer_order_email_enabled(
 def customer_order_sms_enabled(
     vendor: Vendor,
     customer_prefs: Optional[dict[str, Any]] = None,
+    message_config: Optional[dict[str, Any]] = None,
 ) -> bool:
+    bu_channels = _bu_customer_channels(message_config)
+    if bu_channels is not None:
+        if not bu_channels.get("sms", False):
+            return False
+        return _customer_sms_allowed(customer_prefs)
     if not vendor_order_sms_enabled(vendor):
         return False
     return _customer_sms_allowed(customer_prefs)
@@ -147,7 +212,13 @@ def customer_order_sms_enabled(
 def customer_order_whatsapp_enabled(
     vendor: Vendor,
     customer_prefs: Optional[dict[str, Any]] = None,
+    message_config: Optional[dict[str, Any]] = None,
 ) -> bool:
+    bu_channels = _bu_customer_channels(message_config)
+    if bu_channels is not None:
+        if not bu_channels.get("whatsapp", False):
+            return False
+        return _customer_order_updates_allowed(customer_prefs)
     if not vendor_order_whatsapp_enabled(vendor):
         return False
     return _customer_order_updates_allowed(customer_prefs)
@@ -403,12 +474,70 @@ def _customer_order_whatsapp_body(
     )
 
 
+async def _resolve_order_message_config(
+    db: AsyncSession,
+    order: Order,
+) -> tuple[Optional[dict[str, Any]], str]:
+    """Load BU message config and store display name when order has a store."""
+    store_name = ""
+    message_config: Optional[dict[str, Any]] = None
+    if not order.store_id:
+        return message_config, store_name
+    # Always read the latest store.settings from DB (not session cache).
+    result = await db.execute(
+        select(Store)
+        .where(Store.id == order.store_id)
+        .execution_options(populate_existing=True)
+    )
+    store = result.scalar_one_or_none()
+    if not store:
+        return message_config, store_name
+    store_name = (store.name or "").strip()
+    message_config = get_message_config(store)
+    return message_config, store_name
+
+
+def _vendor_email_recipients(
+    vendor: Vendor,
+    message_config: Optional[dict[str, Any]],
+    event_type: str = "new_orders",
+) -> list[str]:
+    if message_config:
+        emails = get_event_email_addresses(message_config, event_type)
+        if emails:
+            return emails
+    fallback = (vendor.support_email or vendor.primary_email or "").strip()
+    return [fallback] if fallback else []
+
+
+async def _vendor_phone_recipients(
+    db: AsyncSession,
+    vendor: Vendor,
+    message_config: Optional[dict[str, Any]],
+    event_type: str = "new_orders",
+) -> list[str]:
+    if message_config:
+        phones = get_event_phone_numbers(message_config, event_type)
+        if phones:
+            return phones
+    fallback = await _resolve_vendor_phone(db, vendor)
+    return [fallback] if fallback else []
+
+
 def _order_context(
     vendor: Vendor,
     order: Order,
     customer: Optional[Customer],
+    *,
+    store_name_override: str = "",
+    message_config: Optional[dict[str, Any]] = None,
 ) -> dict[str, Any]:
-    store_name = vendor.display_name or vendor.business_name or "Your store"
+    store_name = (
+        store_name_override
+        or vendor.display_name
+        or vendor.business_name
+        or "Your store"
+    )
     order_number = order.order_number or str(order.id)[:8]
     total = float(order.total or 0)
     status_label = (order.status or "pending").replace("_", " ").title()
@@ -425,6 +554,7 @@ def _order_context(
         "track_url": _storefront_order_status_url(vendor, order.id),
         "vendor_url": _vendor_dashboard_order_url(vendor, order.id),
         "payment_note": _payment_status_note(order),
+        "message_config": message_config,
     }
 
 
@@ -615,9 +745,10 @@ async def _send_order_emails(
     customer_name = ctx["customer_name"]
     items = ctx["items"]
 
-    if vendor_order_email_enabled(vendor):
-        vendor_email = (vendor.support_email or vendor.primary_email or "").strip()
-        if vendor_email:
+    if vendor_bu_order_email_enabled(vendor, ctx.get("message_config")):
+        message_config = ctx.get("message_config")
+        vendor_emails = _vendor_email_recipients(vendor, message_config, "new_orders")
+        if vendor_emails:
             body = (
                 f"<p style='margin:0 0 12px; font-size:14px; color:#4b5563;'>"
                 f"A new order has been placed on your store.</p>"
@@ -640,24 +771,35 @@ async def _send_order_emails(
                 f"Total: ₹{total:,.2f}\n"
                 f"Status: {status_label}\n"
             )
-            try:
-                sent = await send_email(
-                    to=vendor_email,
-                    subject=f"New order #{order_number} — {store_name}",
-                    html=html_doc,
-                    text=text,
-                )
-                if sent:
-                    log.info("Order confirmation email sent to vendor %s for order %s", vendor_email, order_number)
-                else:
-                    log.info("Order confirmation email logged (dev/no SMTP) for vendor %s", vendor_email)
-            except Exception as exc:
-                log.warning("Vendor order email failed for %s: %s", vendor_email, exc)
+            for vendor_email in vendor_emails:
+                try:
+                    sent = await send_email(
+                        to=vendor_email,
+                        subject=f"New order #{order_number} — {store_name}",
+                        html=html_doc,
+                        text=text,
+                    )
+                    if sent:
+                        log.info("Order confirmation email sent to vendor %s for order %s", vendor_email, order_number)
+                    else:
+                        log.info("Order confirmation email logged (dev/no SMTP) for vendor %s", vendor_email)
+                except Exception as exc:
+                    log.warning("Vendor order email failed for %s: %s", vendor_email, exc)
         else:
-            log.warning("Vendor order email skipped — no email on vendor %s", vendor.id)
+            log.warning("Vendor order email skipped — no email recipients for vendor %s", vendor.id)
+    else:
+        bu = _bu_vendor_channels(ctx.get("message_config"))
+        if bu is not None and not bu.get("email", True):
+            log.info(
+                "Vendor order email skipped — BU vendor notification preferences (email off) for order %s",
+                order_number,
+            )
+        elif bu is None and not vendor_order_email_enabled(vendor):
+            log.info("Vendor order email skipped — vendor email notifications off for order %s", order_number)
 
     customer_prefs = (customer.notification_preferences or {}) if customer else {}
-    if customer_order_email_enabled(vendor, customer_prefs):
+    message_config = ctx.get("message_config")
+    if customer_order_email_enabled(vendor, customer_prefs, message_config):
         customer_email = (customer.email or "").strip() if customer else ""
         if customer_email:
             greet_name = (customer.full_name or "there").strip() if customer else "there"
@@ -703,6 +845,17 @@ async def _send_order_emails(
                 log.warning("Customer order email failed for %s: %s", customer_email, exc)
         else:
             log.warning("Customer order email skipped — no email for customer on order %s", order_number)
+    else:
+        bu = _bu_customer_channels(message_config)
+        if bu is not None and not bu.get("email", True):
+            log.info(
+                "Customer order email skipped — BU customer notification preferences (email off) for order %s",
+                order_number,
+            )
+        elif not _customer_order_updates_allowed(customer_prefs):
+            log.info("Customer order email skipped — customer opted out for order %s", order_number)
+        elif bu is None and not vendor_order_email_enabled(vendor):
+            log.info("Customer order email skipped — vendor email notifications off for order %s", order_number)
 
 
 async def _send_order_sms(
@@ -719,24 +872,35 @@ async def _send_order_sms(
     store_name = ctx["store_name"]
     customer_name = ctx["customer_name"]
     customer_prefs = (customer.notification_preferences or {}) if customer else {}
+    message_config = ctx.get("message_config")
 
-    if vendor_order_sms_enabled(vendor):
-        vendor_phone = await _resolve_vendor_phone(db, vendor)
-        if vendor_phone:
+    if vendor_bu_order_sms_enabled(vendor, message_config):
+        vendor_phones = await _vendor_phone_recipients(db, vendor, message_config, "new_orders")
+        if vendor_phones:
             body = _vendor_order_sms_body(order_number, customer_name, total)
-            outcome = await _send_sms_message(
-                db,
-                vendor_id=vendor.id,
-                to_phone=vendor_phone,
-                body=body,
-                recipient_label="vendor",
-                order_number=order_number,
-            )
-            _record_channel_outcome(result, "vendor_sms", outcome)
+            for idx, vendor_phone in enumerate(vendor_phones):
+                outcome = await _send_sms_message(
+                    db,
+                    vendor_id=vendor.id,
+                    to_phone=vendor_phone,
+                    body=body,
+                    recipient_label=f"vendor_{idx + 1}",
+                    order_number=order_number,
+                )
+                _record_channel_outcome(result, f"vendor_sms_{idx + 1}", outcome)
         else:
-            log.warning("Vendor order SMS skipped — no phone on vendor %s", vendor.id)
+            log.warning("Vendor order SMS skipped — no phone recipients for vendor %s", vendor.id)
+    else:
+        bu = _bu_vendor_channels(message_config)
+        if bu is not None and not bu.get("sms", False):
+            log.info(
+                "Vendor order SMS skipped — BU vendor notification preferences (SMS off) for order %s",
+                order_number,
+            )
+        elif bu is None and not vendor_order_sms_enabled(vendor):
+            log.info("Vendor order SMS skipped — vendor SMS notifications off for order %s", order_number)
 
-    if customer_order_sms_enabled(vendor, customer_prefs):
+    if customer_order_sms_enabled(vendor, customer_prefs, message_config):
         customer_phone = _customer_phone(customer, order)
         if customer_phone:
             log.info(
@@ -756,13 +920,20 @@ async def _send_order_sms(
             _record_channel_outcome(result, "customer_sms", outcome)
         else:
             log.warning("Customer order SMS skipped — no phone on order %s", order_number)
-    elif vendor_order_sms_enabled(vendor):
-        log.info(
-            "Customer order SMS skipped — customer opted out or disabled for order %s",
-            order_number,
-        )
     else:
-        log.info("Customer order SMS skipped — vendor SMS notifications off for order %s", order_number)
+        bu = _bu_customer_channels(message_config)
+        if bu is not None and not bu.get("sms", False):
+            log.info(
+                "Customer order SMS skipped — BU customer notification preferences (SMS off) for order %s",
+                order_number,
+            )
+        elif not _customer_sms_allowed(customer_prefs):
+            log.info(
+                "Customer order SMS skipped — customer opted out or disabled for order %s",
+                order_number,
+            )
+        elif bu is None and not vendor_order_sms_enabled(vendor):
+            log.info("Customer order SMS skipped — vendor SMS notifications off for order %s", order_number)
 
 
 async def _send_order_whatsapp(
@@ -779,24 +950,35 @@ async def _send_order_whatsapp(
     store_name = ctx["store_name"]
     customer_name = ctx["customer_name"]
     customer_prefs = (customer.notification_preferences or {}) if customer else {}
+    message_config = ctx.get("message_config")
 
-    if vendor_order_whatsapp_enabled(vendor):
-        vendor_phone = await _resolve_vendor_phone(db, vendor)
-        if vendor_phone:
+    if vendor_bu_order_whatsapp_enabled(vendor, message_config):
+        vendor_phones = await _vendor_phone_recipients(db, vendor, message_config, "new_orders")
+        if vendor_phones:
             body = _vendor_order_whatsapp_body(order_number, customer_name, total)
-            outcome = await _send_whatsapp_message(
-                db,
-                vendor_id=vendor.id,
-                to_phone=vendor_phone,
-                body=body,
-                recipient_label="vendor",
-                order_number=order_number,
-            )
-            _record_channel_outcome(result, "vendor_whatsapp", outcome)
+            for idx, vendor_phone in enumerate(vendor_phones):
+                outcome = await _send_whatsapp_message(
+                    db,
+                    vendor_id=vendor.id,
+                    to_phone=vendor_phone,
+                    body=body,
+                    recipient_label=f"vendor_{idx + 1}",
+                    order_number=order_number,
+                )
+                _record_channel_outcome(result, f"vendor_whatsapp_{idx + 1}", outcome)
         else:
-            log.warning("Vendor order WhatsApp skipped — no phone on vendor %s", vendor.id)
+            log.warning("Vendor order WhatsApp skipped — no phone recipients for vendor %s", vendor.id)
+    else:
+        bu = _bu_vendor_channels(message_config)
+        if bu is not None and not bu.get("whatsapp", False):
+            log.info(
+                "Vendor order WhatsApp skipped — BU vendor notification preferences (WhatsApp off) for order %s",
+                order_number,
+            )
+        elif bu is None and not vendor_order_whatsapp_enabled(vendor):
+            log.info("Vendor order WhatsApp skipped — vendor WhatsApp notifications off for order %s", order_number)
 
-    if customer_order_whatsapp_enabled(vendor, customer_prefs):
+    if customer_order_whatsapp_enabled(vendor, customer_prefs, message_config):
         customer_phone = _customer_phone(customer, order)
         if customer_phone:
             log.info(
@@ -817,6 +999,17 @@ async def _send_order_whatsapp(
             _record_channel_outcome(result, "customer_whatsapp", outcome)
         else:
             log.warning("Customer order WhatsApp skipped — no phone on order %s", order_number)
+    else:
+        bu = _bu_customer_channels(message_config)
+        if bu is not None and not bu.get("whatsapp", False):
+            log.info(
+                "Customer order WhatsApp skipped — BU customer notification preferences (WhatsApp off) for order %s",
+                order_number,
+            )
+        elif not _customer_order_updates_allowed(customer_prefs):
+            log.info("Customer order WhatsApp skipped — customer opted out for order %s", order_number)
+        elif bu is None and not vendor_order_whatsapp_enabled(vendor):
+            log.info("Customer order WhatsApp skipped — vendor WhatsApp notifications off for order %s", order_number)
 
 
 async def send_order_placed_notifications(
@@ -828,7 +1021,28 @@ async def send_order_placed_notifications(
 ) -> OrderNotificationResult:
     """Send order confirmation via email, SMS, and WhatsApp when toggles allow it."""
     delivery = OrderNotificationResult()
-    ctx = _order_context(vendor, order, customer)
+    fresh_order = await db.get(Order, order.id)
+    if fresh_order:
+        order = fresh_order
+    message_config, store_name = await _resolve_order_message_config(db, order)
+    if order.store_id and message_config:
+        bu_emails = get_event_email_addresses(message_config, "new_orders")
+        bu_phones = get_event_phone_numbers(message_config, "new_orders")
+        if bu_emails or bu_phones:
+            log.info(
+                "Order %s notifications using BU config (store_id=%s): %d email(s), %d phone(s)",
+                order.order_number or order.id,
+                order.store_id,
+                len(bu_emails),
+                len(bu_phones),
+            )
+    ctx = _order_context(
+        vendor,
+        order,
+        customer,
+        store_name_override=store_name,
+        message_config=message_config,
+    )
     await _send_order_emails(vendor=vendor, order=order, customer=customer, ctx=ctx)
     await _send_order_sms(db, vendor=vendor, order=order, customer=customer, ctx=ctx, result=delivery)
     await _send_order_whatsapp(db, vendor=vendor, order=order, customer=customer, ctx=ctx, result=delivery)

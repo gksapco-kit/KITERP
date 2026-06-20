@@ -131,6 +131,43 @@ export interface StoreRecord {
   staff?: StoreStaffMember[]
 }
 
+export interface MessageEmailRecipient {
+  id: string
+  email: string
+  label?: string
+}
+
+export interface MessagePhoneRecipient {
+  id: string
+  phone: string
+  label?: string
+}
+
+export type NotificationEventType =
+  | 'new_orders'
+  | 'order_status_updates'
+  | 'customer_inquiries'
+  | 'system_notifications'
+
+export interface EventRecipients {
+  email_recipients: MessageEmailRecipient[]
+  phone_recipients: MessagePhoneRecipient[]
+}
+
+export interface CustomerChannelPrefs {
+  email: boolean
+  sms: boolean
+  whatsapp: boolean
+}
+
+export type VendorChannelPrefs = CustomerChannelPrefs
+
+export interface StoreMessageConfig {
+  events: Record<NotificationEventType, EventRecipients>
+  vendor_channels: VendorChannelPrefs
+  customer_channels: CustomerChannelPrefs
+}
+
 export interface StoreInventoryItem {
   id: string
   product_id: string
@@ -2022,6 +2059,14 @@ export const vendorApi = {
   assignStaffStore: async (data: { staff_id: string; store_id: string | null }) => {
     const r = await apiClient.post('/vendors/me/stores/assign-staff', data)
     return r.data
+  },
+  getStoreMessageConfig: async (storeId: string) => {
+    const r = await apiClient.get(`/vendors/me/stores/${storeId}/message-config`)
+    return r.data as { store_id: string; store_name: string; message_config: StoreMessageConfig }
+  },
+  updateStoreMessageConfig: async (storeId: string, data: StoreMessageConfig) => {
+    const r = await apiClient.put(`/vendors/me/stores/${storeId}/message-config`, data)
+    return r.data as { store: StoreRecord; message_config: StoreMessageConfig; message: string }
   },
 
   // ── Production orders ────────────────────────────────────────────
