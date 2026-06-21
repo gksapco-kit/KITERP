@@ -1,5 +1,5 @@
-import { onModalBackdropClick } from '@/lib/utils'
 import { Label } from '@/components/ui/label'
+import { ModalBody, ModalFooter, ModalHeader, ModalOverlay, ModalPanel } from '@/components/ui/Modal'
 import { useState } from 'react'
 import { useEscapeToClose } from '@/hooks/useEscapeToClose'
 import { Link } from 'react-router-dom'
@@ -175,80 +175,92 @@ function PolicyModal({
   }
 
   return (
+<<<<<<< Updated upstream
     <div data-kiterp-modal className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto" onClick={onModalBackdropClick(onClose)}>
       <div className="bg-card border border-border text-foreground rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between px-5 py-3 border-b">
           <h2 className="text-lg font-semibold">{existing ? `Edit Policy (v${existing.version})` : 'New Policy'}</h2>
           <button type="button" aria-label="Close" onClick={onClose} className="p-1 hover:bg-gray-100 rounded"><X className="w-4 h-4" /></button>
+=======
+    <ModalOverlay onClose={onClose}>
+      <ModalPanel className="max-w-2xl">
+        <div className="shrink-0 border-b px-5 py-3">
+          <ModalHeader
+            title={existing ? `Edit Policy (v${existing.version})` : 'New Policy'}
+            onClose={onClose}
+          />
+>>>>>>> Stashed changes
         </div>
-        <form onSubmit={submit} className="p-5 space-y-3">
-          <div>
-            <Label className="text-xs font-medium text-gray-600 uppercase" required>Title</Label>
-            <input required value={form.title} onChange={e => setForm({ ...form, title: e.target.value })}
-              className="w-full mt-1 px-3 py-2 border rounded-lg text-sm" />
-          </div>
-          <div className="grid grid-cols-2 gap-3">
+        <form onSubmit={submit} className="flex min-h-0 flex-1 flex-col">
+          <ModalBody className="space-y-3 p-5">
             <div>
-              <Label className="text-xs font-medium text-gray-600 uppercase">Category</Label>
-              <input value={form.category} onChange={e => setForm({ ...form, category: e.target.value })}
-                className="w-full mt-1 px-3 py-2 border rounded-lg text-sm" placeholder="e.g. Code of Conduct" />
+              <Label className="text-xs font-medium text-gray-600 uppercase" required>Title</Label>
+              <input required value={form.title} onChange={e => setForm({ ...form, title: e.target.value })}
+                className="w-full mt-1 px-3 py-2 border rounded-lg text-sm" />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label className="text-xs font-medium text-gray-600 uppercase">Category</Label>
+                <input value={form.category} onChange={e => setForm({ ...form, category: e.target.value })}
+                  className="w-full mt-1 px-3 py-2 border rounded-lg text-sm" placeholder="e.g. Code of Conduct" />
+              </div>
+              <div>
+                <Label className="text-xs font-medium text-gray-600 uppercase">Audience</Label>
+                <select value={form.audience} onChange={e => setForm({ ...form, audience: e.target.value })}
+                  className="w-full mt-1 px-3 py-2 border rounded-lg text-sm">
+                  <option value="all">All employees</option>
+                  <option value="department">Specific department</option>
+                  <option value="designation">Specific designation</option>
+                </select>
+              </div>
+              <div>
+                <Label className="text-xs font-medium text-gray-600 uppercase">Effective From</Label>
+                <input type="date" value={form.effective_from} onChange={e => setForm({ ...form, effective_from: e.target.value })}
+                  className="w-full mt-1 px-3 py-2 border rounded-lg text-sm" />
+              </div>
+              <div>
+                <Label className="text-xs font-medium text-gray-600 uppercase">Expires On</Label>
+                <input type="date" value={form.expires_on} onChange={e => setForm({ ...form, expires_on: e.target.value })}
+                  className="w-full mt-1 px-3 py-2 border rounded-lg text-sm" />
+              </div>
             </div>
             <div>
-              <Label className="text-xs font-medium text-gray-600 uppercase">Audience</Label>
-              <select value={form.audience} onChange={e => setForm({ ...form, audience: e.target.value })}
-                className="w-full mt-1 px-3 py-2 border rounded-lg text-sm">
-                <option value="all">All employees</option>
-                <option value="department">Specific department</option>
-                <option value="designation">Specific designation</option>
-              </select>
-            </div>
-            <div>
-              <Label className="text-xs font-medium text-gray-600 uppercase">Effective From</Label>
-              <input type="date" value={form.effective_from} onChange={e => setForm({ ...form, effective_from: e.target.value })}
+              <Label className="text-xs font-medium text-gray-600 uppercase">Summary</Label>
+              <textarea rows={2} value={form.summary} onChange={e => setForm({ ...form, summary: e.target.value })}
                 className="w-full mt-1 px-3 py-2 border rounded-lg text-sm" />
             </div>
             <div>
-              <Label className="text-xs font-medium text-gray-600 uppercase">Expires On</Label>
-              <input type="date" value={form.expires_on} onChange={e => setForm({ ...form, expires_on: e.target.value })}
-                className="w-full mt-1 px-3 py-2 border rounded-lg text-sm" />
+              <Label className="text-xs font-medium text-gray-600 uppercase">Body (HTML/Markdown)</Label>
+              <textarea rows={10} value={form.body} onChange={e => setForm({ ...form, body: e.target.value })}
+                className="w-full mt-1 px-3 py-2 border rounded-lg text-sm font-mono" />
             </div>
-          </div>
-          <div>
-            <Label className="text-xs font-medium text-gray-600 uppercase">Summary</Label>
-            <textarea rows={2} value={form.summary} onChange={e => setForm({ ...form, summary: e.target.value })}
-              className="w-full mt-1 px-3 py-2 border rounded-lg text-sm" />
-          </div>
-          <div>
-            <Label className="text-xs font-medium text-gray-600 uppercase">Body (HTML/Markdown)</Label>
-            <textarea rows={10} value={form.body} onChange={e => setForm({ ...form, body: e.target.value })}
-              className="w-full mt-1 px-3 py-2 border rounded-lg text-sm font-mono" />
-          </div>
-          <div>
-            <Label className="text-xs font-medium text-gray-600 uppercase">Attachment URL</Label>
-            <input value={form.attachment_url} onChange={e => setForm({ ...form, attachment_url: e.target.value })}
-              className="w-full mt-1 px-3 py-2 border rounded-lg text-sm" placeholder="https://…" />
-          </div>
-          <label className="flex items-center gap-2 text-sm">
-            <input type="checkbox" checked={form.requires_acknowledgement}
-              onChange={e => setForm({ ...form, requires_acknowledgement: e.target.checked })} />
-            Requires acknowledgement
-          </label>
-          {existing && existing.status === 'published' && (
-            <label className="flex items-center gap-2 text-sm bg-amber-50 border border-amber-200 rounded p-2">
-              <input type="checkbox" checked={bumpVersion} onChange={e => setBumpVersion(e.target.checked)} />
-              Bump version (clears existing acknowledgements, requires re-ack)
+            <div>
+              <Label className="text-xs font-medium text-gray-600 uppercase">Attachment URL</Label>
+              <input value={form.attachment_url} onChange={e => setForm({ ...form, attachment_url: e.target.value })}
+                className="w-full mt-1 px-3 py-2 border rounded-lg text-sm" placeholder="https://…" />
+            </div>
+            <label className="flex items-center gap-2 text-sm">
+              <input type="checkbox" checked={form.requires_acknowledgement}
+                onChange={e => setForm({ ...form, requires_acknowledgement: e.target.checked })} />
+              Requires acknowledgement
             </label>
-          )}
-          <div className="flex justify-end gap-2 pt-3 border-t">
+            {existing && existing.status === 'published' && (
+              <label className="flex items-center gap-2 text-sm bg-amber-50 border border-amber-200 rounded p-2">
+                <input type="checkbox" checked={bumpVersion} onChange={e => setBumpVersion(e.target.checked)} />
+                Bump version (clears existing acknowledgements, requires re-ack)
+              </label>
+            )}
+          </ModalBody>
+          <ModalFooter className="flex justify-end gap-2 border-t bg-white px-5 py-3">
             <button type="button" onClick={onClose} className="btn-cancel px-4 py-2 text-sm border rounded-lg">Cancel</button>
             <button type="submit" disabled={create.isPending || update.isPending}
               className="px-4 py-2 text-sm bg-primary text-white rounded-lg hover:bg-primary/90 disabled:opacity-50">
               {create.isPending || update.isPending ? 'Saving…' : 'Save'}
             </button>
-          </div>
+          </ModalFooter>
         </form>
-      </div>
-    </div>
+      </ModalPanel>
+    </ModalOverlay>
   )
 }
 
