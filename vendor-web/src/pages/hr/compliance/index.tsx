@@ -1,7 +1,6 @@
 import { Label } from '@/components/ui/label'
 import { ModalBody, ModalFooter, ModalHeader, ModalOverlay, ModalPanel } from '@/components/ui/Modal'
 import { useState } from 'react'
-import { useEscapeToClose } from '@/hooks/useEscapeToClose'
 import { Link } from 'react-router-dom'
 import {
   Plus, Trash2, X, Pencil, Send, FileText, ShieldCheck, Award, Activity, Download, ExternalLink,
@@ -74,7 +73,7 @@ function PoliciesTab() {
           <Plus className="w-4 h-4" /> New Policy
         </button>
       </div>
-      <div className="bg-card border border-border text-foreground rounded-xl shadow-2xl overflow-hidden max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+      <div className="bg-card border border-border rounded-xl overflow-hidden">
         {isLoading ? (
           <div className="p-8 text-center text-gray-400">Loading…</div>
         ) : (policies as Policy[]).length === 0 ? (
@@ -175,14 +174,9 @@ function PolicyModal({
   }
 
   return (
-    <div data-kiterp-modal className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto" onClick={onModalBackdropClick(onClose)}>
-      <div className="bg-card border border-border text-foreground rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-        <div className="flex items-center justify-between px-5 py-3 border-b">
-          <h2 className="text-lg font-semibold">{existing ? `Edit Policy (v${existing.version})` : 'New Policy'}</h2>
-          <button type="button" aria-label="Close" onClick={onClose} className="p-1 hover:bg-gray-100 rounded"><X className="w-4 h-4" /></button>
     <ModalOverlay onClose={onClose}>
-      <ModalPanel className="max-w-2xl">
-        <div className="shrink-0 border-b px-5 py-3">
+      <ModalPanel className="max-w-2xl max-h-[90vh]">
+        <div className="shrink-0 border-b border-border px-5 py-3">
           <ModalHeader
             title={existing ? `Edit Policy (v${existing.version})` : 'New Policy'}
             onClose={onClose}
@@ -248,7 +242,7 @@ function PolicyModal({
               </label>
             )}
           </ModalBody>
-          <ModalFooter className="flex justify-end gap-2 border-t bg-white px-5 py-3">
+          <ModalFooter className="flex justify-end gap-2 border-t border-border bg-card px-5 py-3">
             <button type="button" onClick={onClose} className="btn-cancel px-4 py-2 text-sm border rounded-lg">Cancel</button>
             <button type="submit" disabled={create.isPending || update.isPending}
               className="px-4 py-2 text-sm bg-primary text-white rounded-lg hover:bg-primary/90 disabled:opacity-50">
@@ -297,7 +291,7 @@ function CertificationsTab() {
           <Plus className="w-4 h-4" /> New Certification
         </button>
       </div>
-      <div className="bg-card border border-border text-foreground rounded-xl shadow-2xl overflow-hidden max-h-[90vh] overflow-y-auto">
+      <div className="bg-card border border-border rounded-xl overflow-hidden">
         {isLoading ? (
           <div className="p-8 text-center text-gray-400">Loading…</div>
         ) : (certs as ComplianceCertification[]).length === 0 ? (
@@ -499,7 +493,7 @@ function AuditTab() {
           <Download className="w-4 h-4" /> Export CSV
         </button>
       </div>
-      <div className="bg-card border border-border text-foreground rounded-xl shadow-2xl overflow-hidden max-h-[90vh] overflow-y-auto">
+      <div className="bg-card border border-border rounded-xl overflow-hidden">
         {isLoading ? (
           <div className="p-8 text-center text-gray-400">Loading…</div>
         ) : (logs as ComplianceAuditLog[]).length === 0 ? (

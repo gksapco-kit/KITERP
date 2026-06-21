@@ -310,26 +310,16 @@ export default function PayeesPage() {
       </div>
 
       {/* Table */}
-<<<<<<< Updated upstream
-      <div className="bg-card rounded-xl border border-border overflow-hidden">
-        <table className="w-full text-sm">
+      <div className="bg-card rounded-xl border border-border overflow-x-auto">
+        <table className="w-full min-w-[720px] text-sm table-fixed">
           <thead className="bg-muted/40 border-b border-border">
             <tr>
-              {['Name / Code', 'Contact', 'Type', 'Payout', 'Status', ''].map(h => (
-                <th key={h} className="text-left px-4 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wide">{h}</th>
-              ))}
-=======
-      <div className="bg-white rounded-xl border border-gray-200 overflow-x-auto">
-        <table className="w-full min-w-[720px] text-sm table-fixed">
-          <thead className="bg-gray-50 border-b border-gray-200">
-            <tr>
-              <th className="w-[28%] text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wide">Name / Code</th>
-              <th className="w-[22%] text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wide">Contact</th>
-              <th className="w-[18%] text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wide">Type</th>
-              <th className="w-[14%] text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wide">Payout</th>
-              <th className="w-[10%] text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wide">Status</th>
-              <th className="w-[8%] text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wide" />
->>>>>>> Stashed changes
+              <th className="w-[28%] text-left px-4 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wide">Name / Code</th>
+              <th className="w-[22%] text-left px-4 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wide">Contact</th>
+              <th className="w-[18%] text-left px-4 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wide">Type</th>
+              <th className="w-[14%] text-left px-4 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wide">Payout</th>
+              <th className="w-[10%] text-left px-4 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wide">Status</th>
+              <th className="w-[8%] text-left px-4 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wide" />
             </tr>
           </thead>
           <tbody className="divide-y divide-border">
@@ -344,46 +334,26 @@ export default function PayeesPage() {
                     <div className="w-8 h-8 rounded-full bg-primary/15 flex items-center justify-center flex-shrink-0">
                       <UserCheck className="h-4 w-4 text-primary" />
                     </div>
-<<<<<<< Updated upstream
-                    <div>
-                      <div className="font-medium text-foreground">{p.display_name}</div>
-                      {p.code && <div className="text-xs text-muted-foreground">{p.code}</div>}
+                    <div className="min-w-0">
+                      <div className="font-medium text-foreground truncate" title={p.display_name}>{p.display_name}</div>
+                      {p.code && <div className="text-xs text-muted-foreground truncate" title={p.code}>{p.code}</div>}
                     </div>
                   </div>
                 </td>
                 <td className="px-4 py-3 text-muted-foreground">
-                  <div>{p.phone || '—'}</div>
-                  {p.email && <div className="text-xs text-muted-foreground/80">{p.email}</div>}
-=======
-                    <div className="min-w-0">
-                      <div className="font-medium text-gray-900 truncate" title={p.display_name}>{p.display_name}</div>
-                      {p.code && <div className="text-xs text-gray-500 truncate" title={p.code}>{p.code}</div>}
-                    </div>
-                  </div>
-                </td>
-                <td className="px-4 py-3 text-gray-600">
                   <div className="truncate" title={p.phone || undefined}>{p.phone || '—'}</div>
-                  {p.email && <div className="text-xs text-gray-400 truncate" title={p.email}>{p.email}</div>}
->>>>>>> Stashed changes
+                  {p.email && <div className="text-xs text-muted-foreground/80 truncate" title={p.email}>{p.email}</div>}
                 </td>
                 <td className="px-4 py-3 whitespace-nowrap">
                   <span className="inline-flex shrink-0 whitespace-nowrap px-2 py-0.5 bg-primary/10 text-primary rounded text-xs">
                     {LINK_LABELS[p.link_type as LinkType] || p.link_type}
                   </span>
                 </td>
-<<<<<<< Updated upstream
-                <td className="px-4 py-3 text-muted-foreground capitalize text-xs">
-                  {p.default_payout_method.replace(/_/g, ' ')}
-                </td>
-                <td className="px-4 py-3">
-                  <span className={`px-2 py-0.5 rounded text-xs font-medium ${STATUS_COLORS[p.status] || 'bg-muted text-muted-foreground'}`}>
-=======
-                <td className="px-4 py-3 text-gray-600 capitalize text-xs whitespace-nowrap">
+                <td className="px-4 py-3 text-muted-foreground capitalize text-xs whitespace-nowrap">
                   {p.default_payout_method.replace(/_/g, ' ')}
                 </td>
                 <td className="px-4 py-3 whitespace-nowrap">
-                  <span className={`inline-flex shrink-0 whitespace-nowrap px-2 py-0.5 rounded text-xs font-medium ${STATUS_COLORS[p.status] || 'bg-gray-100 text-gray-600'}`}>
->>>>>>> Stashed changes
+                  <span className={`inline-flex shrink-0 whitespace-nowrap px-2 py-0.5 rounded text-xs font-medium ${STATUS_COLORS[p.status] || 'bg-muted text-muted-foreground'}`}>
                     {p.status}
                   </span>
                 </td>
@@ -417,42 +387,18 @@ export default function PayeesPage() {
 
       {/* ── Dialog ── */}
       {showForm && (
-<<<<<<< Updated upstream
-        <div data-kiterp-modal
-          className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto"
-          onClick={closeForm}
-        >
-          <div
-            className="bg-card border border-border text-foreground rounded-xl w-full max-w-lg shadow-2xl my-auto max-h-[90vh] overflow-y-auto"
-            onClick={e => e.stopPropagation()}
-          >
-            <div className="p-5 border-b border-border flex items-start justify-between gap-3">
-              <div className="min-w-0">
-                <h2 className="font-semibold text-foreground">{editing ? 'Edit Payee' : 'Add Payee'}</h2>
-                <p className="text-xs text-muted-foreground mt-0.5">Fields marked <span className="text-red-500">*</span> are required</p>
-              </div>
-              <button
-                type="button"
-                onClick={closeForm}
-                className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors shrink-0"
-                aria-label="Close"
-              >
-                <X className="w-5 h-5" />
-              </button>
-=======
         <ModalOverlay onClose={closeForm}>
-          <ModalPanel className="max-w-lg">
-            <div className="shrink-0 border-b border-gray-100 px-5 py-3">
+          <ModalPanel className="max-w-lg max-h-[90vh]">
+            <div className="shrink-0 border-b border-border px-5 py-3">
               <ModalHeader
                 title={editing ? 'Edit Payee' : 'Add Payee'}
                 subtitle={
-                  <p className="mt-0.5 text-xs text-gray-400">
+                  <p className="mt-0.5 text-xs text-muted-foreground">
                     Fields marked <span className="text-red-500">*</span> are required
                   </p>
                 }
                 onClose={closeForm}
               />
->>>>>>> Stashed changes
             </div>
 
             <ModalBody className="space-y-4 p-5">
@@ -753,26 +699,14 @@ export default function PayeesPage() {
               </CollapsibleSection>
             </ModalBody>
 
-<<<<<<< Updated upstream
-            <div className="p-4 border-t border-border bg-muted/25 flex gap-3 justify-end">
+            <ModalFooter className="flex justify-end gap-3">
               <Button type="button" variant="cancel" onClick={closeForm}>Cancel</Button>
               <Button onClick={handleSave} disabled={create.isPending || update.isPending}>
                 {create.isPending || update.isPending ? 'Saving…' : 'Save'}
               </Button>
-            </div>
-          </div>
-        </div>
-=======
-            <ModalFooter className="flex justify-end gap-3 border-t border-gray-100 bg-white px-4 py-4">
-              <button type="button" onClick={closeForm} className="btn-cancel rounded-lg border border-gray-200 px-4 py-2 text-sm">Cancel</button>
-              <button type="button" onClick={handleSave} disabled={create.isPending || update.isPending}
-                className="rounded-lg bg-primary px-4 py-2 text-sm text-white hover:bg-primary/90 disabled:opacity-50">
-                {create.isPending || update.isPending ? 'Saving…' : 'Save'}
-              </button>
             </ModalFooter>
           </ModalPanel>
         </ModalOverlay>
->>>>>>> Stashed changes
       )}
     </div>
   )

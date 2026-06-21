@@ -110,13 +110,6 @@ function CreateProjectModal({ onClose }: { onClose: () => void }) {
   }
 
   return (
-    <div data-kiterp-modal className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-      <div className="w-full max-w-lg rounded-xl border border-border bg-card shadow-xl">
-        <div className="flex items-center justify-between px-5 py-4 border-b border-border">
-          <h2 className="text-lg font-semibold text-foreground">New Project</h2>
-          <button type="button" onClick={onClose} className="p-1 rounded-md hover:bg-muted text-muted-foreground">
-            <X className="w-5 h-5" />
-          </button>
     <ModalOverlay onClose={onClose}>
       <ModalPanel className="max-w-lg">
         <div className="shrink-0 border-b border-border px-5 py-3">
@@ -181,36 +174,22 @@ function CreateProjectModal({ onClose }: { onClose: () => void }) {
               </div>
               <div className="space-y-1.5">
                 <Label htmlFor="proj-priority">Priority</Label>
-                <select
+                <Select
                   id="proj-priority"
                   value={form.priority}
-                  onChange={(e) => setForm((p) => ({ ...p, priority: e.target.value as ProjectPriority }))}
-                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                >
-                  {(Object.keys(PROJECT_PRIORITY_LABELS) as ProjectPriority[]).map((k) => (
-                    <option key={k} value={k}>{PROJECT_PRIORITY_LABELS[k]}</option>
-                  ))}
-                </select>
+                  onChange={(v) => setForm((p) => ({ ...p, priority: v as ProjectPriority }))}
+                  options={(Object.keys(PROJECT_PRIORITY_LABELS) as ProjectPriority[]).map((k) => ({
+                    value: k,
+                    label: PROJECT_PRIORITY_LABELS[k],
+                  }))}
+                  aria-label="Priority"
+                  className="w-full"
+                />
               </div>
             </div>
             <div className="space-y-1.5">
-<<<<<<< Updated upstream
-              <Label htmlFor="proj-priority">Priority</Label>
-              <Select
-                id="proj-priority"
-                value={form.priority}
-                onChange={(v) => setForm((p) => ({ ...p, priority: v as ProjectPriority }))}
-                options={(Object.keys(PROJECT_PRIORITY_LABELS) as ProjectPriority[]).map((k) => ({
-                  value: k,
-                  label: PROJECT_PRIORITY_LABELS[k],
-                }))}
-                aria-label="Priority"
-                className="w-full"
-              />
-=======
               <Label>Customer (optional)</Label>
               <CustomerPicker selected={customer} onSelect={setCustomer} />
->>>>>>> Stashed changes
             </div>
             <div className="space-y-1.5">
               <Label>Project owner (optional)</Label>

@@ -338,8 +338,10 @@ def _generate_plain_pdf(invoice) -> bytes:
 
     offs.append(len(pdf)); pdf += b"1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj\n"
     offs.append(len(pdf)); pdf += b"2 0 obj<</Type/Pages/Kids[3 0 R]/Count 1>>endobj\n"
-    offs.append(len(pdf)); pdf += (b"3 0 obj<</Type/Page/Parent 2 0 R/MediaBox[0 0 595 842]"
-                                   b"/Contents 4 0 R/Resources<</Font<</F1 5 0 R>>>>>>endobj\n")
+    offs.append(len(pdf)); pdf += (
+        b"3 0 obj<</Type/Page/Parent 2 0 R/MediaBox[0 0 595 842]"
+        b"/Contents 4 0 R/Resources<</Font<</F1 5 0 R>>" + b">>" * 3 + b"endobj\n"
+    )
     offs.append(len(pdf)); pdf += f"4 0 obj<</Length {sl}>>stream\n".encode(); pdf += stream; pdf += b"endstream\nendobj\n"
     offs.append(len(pdf)); pdf += b"5 0 obj<</Type/Font/Subtype/Type1/BaseFont/Courier>>endobj\n"
 
