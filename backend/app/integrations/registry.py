@@ -82,7 +82,7 @@ class IntegrationRegistry:
         if creds:
             wa_creds = {
                 **creds,
-                "from_number": creds.get("whatsapp_from") or creds.get("from_number"),
+                "from_number": creds.get("whatsapp_from") or "",
             }
             adapter = TwilioWhatsAppAdapter.from_credentials(wa_creds)
             if adapter:

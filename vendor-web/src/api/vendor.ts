@@ -180,6 +180,19 @@ export interface StoreMessageConfig {
   customer_channels: CustomerChannelPrefs
 }
 
+export type DeliveryChannelStatus = {
+  ready: boolean
+  provider?: string | null
+  missing: string[]
+}
+
+export type MessageDeliveryStatus = {
+  email: DeliveryChannelStatus
+  sms: DeliveryChannelStatus
+  whatsapp: DeliveryChannelStatus
+  integrations_url: string
+}
+
 export interface StoreInventoryItem {
   id: string
   product_id: string
@@ -2075,6 +2088,10 @@ export const vendorApi = {
   getStoreMessageConfig: async (storeId: string) => {
     const r = await apiClient.get(`/vendors/me/stores/${storeId}/message-config`)
     return r.data as { store_id: string; store_name: string; message_config: StoreMessageConfig }
+  },
+  getMessageDeliveryStatus: async () => {
+    const r = await apiClient.get('/vendors/me/message-delivery-status')
+    return r.data as MessageDeliveryStatus
   },
   updateStoreMessageConfig: async (storeId: string, data: StoreMessageConfig) => {
     const r = await apiClient.put(`/vendors/me/stores/${storeId}/message-config`, data)

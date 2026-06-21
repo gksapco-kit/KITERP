@@ -726,6 +726,41 @@ class IntegrationUpdate(BaseModel):
     credentials: Optional[dict] = None
 
 
+class IntegrationTestRequest(BaseModel):
+    provider: str
+    credentials: Optional[dict] = None
+    settings: Optional[dict] = None
+    test_email: Optional[str] = None
+    test_phone: Optional[str] = None
+    integration_id: Optional[UUID] = None
+
+
+class IntegrationTestResponse(BaseModel):
+    ok: bool = True
+    message: str
+
+
+class IntegrationDefaultsResponse(BaseModel):
+    provider: str
+    configured: bool = False
+    credentials: dict = {}
+    settings: dict = {}
+    key_source: Optional[str] = None
+
+
+class DeliveryChannelStatus(BaseModel):
+    ready: bool = False
+    provider: Optional[str] = None
+    missing: list[str] = []
+
+
+class DeliveryStatusResponse(BaseModel):
+    email: DeliveryChannelStatus
+    sms: DeliveryChannelStatus
+    whatsapp: DeliveryChannelStatus
+    integrations_url: str = "/crm/integrations"
+
+
 class IntegrationResponse(BaseModel):
     model_config = ORM
     id: UUID
@@ -738,6 +773,16 @@ class IntegrationResponse(BaseModel):
     last_error: Optional[str] = None
     created_at: datetime
     updated_at: datetime
+
+
+class IntegrationFormResponse(BaseModel):
+    id: UUID
+    provider: str
+    label: Optional[str] = None
+    status: str
+    settings: dict = {}
+    credentials: dict = {}
+    stored_secrets: list[str] = []
 
 
 # ── AI insights / Audit / Chat / Journey ─────────────────────────────────────

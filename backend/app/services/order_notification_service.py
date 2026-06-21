@@ -18,7 +18,7 @@ from app.models.customer import Customer
 from app.models.order import Order
 from app.models.store import Store
 from app.models.vendor import Vendor
-from app.services.email_service import send_email
+from app.services.email_service import send_email_for_vendor
 from app.services.message_config_service import (
     default_message_config,
     get_message_config,
@@ -81,7 +81,8 @@ def _log_whatsapp_delivery_hint(recipient_label: str, masked: str, error_code: O
     if error_code == 63016:
         log.warning(
             "WhatsApp to %s (%s) undelivered — this phone must join the Twilio WhatsApp sandbox "
-            "(open WhatsApp on that device, message +1 415 523 8886 with: join <sandbox-code>).",
+            "(open WhatsApp on that device, message +1 415 523 8886 with: join <sandbox-code> "
+            "from Twilio Console → Messaging → Try WhatsApp).",
             recipient_label,
             masked,
         )
@@ -92,6 +93,74 @@ def _log_whatsapp_delivery_hint(recipient_label: str, masked: str, error_code: O
         masked,
         error_code or "unknown",
     )
+
+
+def _format_whatsapp_from(raw: str) -> str:
+    value = (raw or "").strip()
+    if not value:
+        return ""
+    if value.startswith("whatsapp:"):
+        return value
+    phone = normalize_e164(value)
+    return f"whatsapp:{phone}" if phone else ""
+
+
+async def _attempt_twilio_whatsapp_send(
+    *,
+    account_sid: str,
+    auth_token: str,
+    wa_from_raw: str,
+    to_phone: str,
+    body: str,
+    recipient_label: str,
+    masked: str,
+    order_number: str,
+    via_label: str,
+) -> ChannelOutcome:
+    from app.integrations.twilio import TwilioWhatsAppAdapter
+
+    wa_from = _format_whatsapp_from(wa_from_raw)
+    if not wa_from:
+        return "skipped"
+
+    adapter = TwilioWhatsAppAdapter(account_sid, auth_token, wa_from)
+    try:
+        result = await adapter.send(to=to_phone, body=body)
+        if not result.get("ok"):
+            err = str(result.get("error") or "")
+            log.warning(
+                "WhatsApp failed via %s for %s on order %s: %s",
+                via_label, recipient_label, order_number, err,
+            )
+            if "Channel" in err or "From address" in err or "63016" in err:
+                log.warning(
+                    "Set whatsapp_from to your Twilio WhatsApp sender (sandbox: +14155238886). "
+                    "Each recipient must join the sandbox on WhatsApp before messages arrive.",
+                )
+            if _is_retryable_twilio_error(message=err):
+                return "failed_retryable"
+            return "failed"
+
+        message_sid = result.get("id")
+        if message_sid:
+            await asyncio.sleep(3)
+            status, error_code = await _fetch_twilio_message_status(
+                account_sid, auth_token, message_sid,
+            )
+            if status in {"undelivered", "failed"}:
+                _log_whatsapp_delivery_hint(recipient_label, masked, error_code)
+                if error_code in _RETRYABLE_TWILIO_CODES:
+                    return "failed_retryable"
+                return "failed"
+
+        log.info(
+            "Order confirmation WhatsApp sent via %s to %s (%s) for order %s",
+            via_label, recipient_label, masked, order_number,
+        )
+        return "sent"
+    except Exception as exc:
+        log.warning("WhatsApp error via %s for %s on order %s: %s", via_label, recipient_label, order_number, exc)
+        return "failed"
 
 
 def _vendor_notification_settings(vendor: Vendor) -> dict[str, Any]:
@@ -594,7 +663,27 @@ async def _send_sms_message(
 
     masked = phone[-4:].rjust(len(phone), "*") if len(phone) > 4 else "****"
 
-    # Prefer platform Twilio from .env (same credentials used for OTP / system SMS).
+    registry = IntegrationRegistry(db)
+    adapter = await registry.get_sms_adapter(vendor_id)
+    if adapter:
+        try:
+            result = await adapter.send(to=phone, body=body)
+            if result.get("ok"):
+                log.info(
+                    "Order confirmation SMS sent via vendor integration to %s (%s) for order %s",
+                    recipient_label, masked, order_number,
+                )
+                return "sent"
+            log.warning(
+                "Vendor SMS integration failed for %s on order %s: %s",
+                recipient_label, order_number, result.get("error"),
+            )
+            if _is_retryable_twilio_error(message=str(result.get("error") or "")):
+                return "failed_retryable"
+        except Exception as exc:
+            log.warning("Vendor SMS integration error for %s on order %s: %s", recipient_label, order_number, exc)
+
+    # Fall back to platform Twilio from .env when no vendor integration is configured.
     platform_sms = SmsService()
     if platform_sms.is_configured:
         try:
@@ -621,27 +710,7 @@ async def _send_sms_message(
         except Exception as exc:
             log.warning("Platform SMS error for %s on order %s: %s", recipient_label, order_number, exc)
 
-    registry = IntegrationRegistry(db)
-    adapter = await registry.get_sms_adapter(vendor_id)
-    if adapter:
-        try:
-            result = await adapter.send(to=phone, body=body)
-            if result.get("ok"):
-                log.info(
-                    "Order confirmation SMS sent via vendor integration to %s (%s) for order %s",
-                    recipient_label, masked, order_number,
-                )
-                return "sent"
-            log.warning(
-                "Vendor SMS integration failed for %s on order %s: %s",
-                recipient_label, order_number, result.get("error"),
-            )
-            if _is_retryable_twilio_error(message=str(result.get("error") or "")):
-                return "failed_retryable"
-        except Exception as exc:
-            log.warning("Vendor SMS integration error for %s on order %s: %s", recipient_label, order_number, exc)
-
-    if not platform_sms.is_configured:
+    if not platform_sms.is_configured and not adapter:
         log.info("[sms:dev] -> %s | order=%s | %s", masked, order_number, body[:300])
         return "sent"
     log.warning("Order SMS not delivered to %s for order %s", recipient_label, order_number)
@@ -664,79 +733,94 @@ async def _send_whatsapp_message(
 
     masked = phone[-4:].rjust(len(phone), "*") if len(phone) > 4 else "****"
 
-    # Prefer platform Twilio WhatsApp from .env (same account as SMS).
     settings = get_settings()
-    account_sid = (settings.TWILIO_ACCOUNT_SID or "").strip()
-    auth_token = (settings.TWILIO_AUTH_TOKEN or "").strip()
-    wa_from_raw = (settings.TWILIO_WHATSAPP_FROM or "").strip()
-    wa_from = ""
-    if wa_from_raw:
-        wa_from = wa_from_raw if wa_from_raw.startswith("whatsapp:") else f"whatsapp:{normalize_e164(wa_from_raw)}"
-    if account_sid and auth_token and wa_from:
-        from app.integrations.twilio import TwilioWhatsAppAdapter
+    platform_sid = (settings.TWILIO_ACCOUNT_SID or "").strip()
+    platform_token = (settings.TWILIO_AUTH_TOKEN or "").strip()
+    platform_wa_from = (settings.TWILIO_WHATSAPP_FROM or "").strip()
 
-        adapter = TwilioWhatsAppAdapter(account_sid, auth_token, wa_from)
-        try:
-            result = await adapter.send(to=phone, body=body)
-            if result.get("ok"):
-                message_sid = result.get("id")
-                if message_sid:
-                    await asyncio.sleep(3)
-                    status, error_code = await _fetch_twilio_message_status(
-                        account_sid, auth_token, message_sid,
-                    )
-                    if status in {"undelivered", "failed"}:
-                        _log_whatsapp_delivery_hint(recipient_label, masked, error_code)
-                        if error_code in _RETRYABLE_TWILIO_CODES:
-                            return "failed_retryable"
-                        return "failed"
-                log.info(
-                    "Order confirmation WhatsApp sent via platform Twilio to %s (%s) for order %s",
-                    recipient_label, masked, order_number,
-                )
-                return "sent"
-            err = str(result.get("error") or "")
-            log.warning(
-                "Platform WhatsApp failed for %s on order %s: %s",
-                recipient_label, order_number, err,
-            )
-            if "Channel" in err or "From address" in err:
-                log.warning(
-                    "Enable Twilio WhatsApp Sandbox in Twilio Console → Messaging → Try it out, "
-                    "set TWILIO_WHATSAPP_FROM=+14155238886, and have recipients join the sandbox on WhatsApp.",
-                )
-            if _is_retryable_twilio_error(message=err):
-                return "failed_retryable"
-        except Exception as exc:
-            log.warning("Platform WhatsApp error for %s on order %s: %s", recipient_label, order_number, exc)
-
+    # Prefer vendor Twilio integration (same as SMS).
     registry = IntegrationRegistry(db)
-    adapter = await registry.get_whatsapp_adapter(vendor_id)
-    if adapter:
-        try:
-            result = await adapter.send(to=phone, body=body)
-            if result.get("ok"):
-                log.info(
-                    "Order confirmation WhatsApp sent via vendor integration to %s (%s) for order %s",
-                    recipient_label, masked, order_number,
+    wa_creds = await registry._load(vendor_id, "twilio")
+    if wa_creds:
+        account_sid = (wa_creds.get("account_sid") or "").strip()
+        auth_token = (wa_creds.get("auth_token") or "").strip()
+        wa_from_raw = (wa_creds.get("whatsapp_from") or platform_wa_from or "").strip()
+        if account_sid and auth_token:
+            if not wa_from_raw:
+                log.warning(
+                    "Order WhatsApp skipped for %s on order %s — set whatsapp_from in CRM → Integrations → Twilio "
+                    "(Twilio sandbox: +14155238886). SMS from_number alone cannot send WhatsApp.",
+                    recipient_label, order_number,
                 )
-                return "sent"
-            log.warning(
-                "Vendor WhatsApp integration failed for %s on order %s: %s",
-                recipient_label, order_number, result.get("error"),
-            )
-            if _is_retryable_twilio_error(message=str(result.get("error") or "")):
-                return "failed_retryable"
-        except Exception as exc:
-            log.warning("Vendor WhatsApp integration error for %s on order %s: %s", recipient_label, order_number, exc)
+            else:
+                outcome = await _attempt_twilio_whatsapp_send(
+                    account_sid=account_sid,
+                    auth_token=auth_token,
+                    wa_from_raw=wa_from_raw,
+                    to_phone=phone,
+                    body=body,
+                    recipient_label=recipient_label,
+                    masked=masked,
+                    order_number=order_number,
+                    via_label="vendor Twilio integration",
+                )
+                if outcome == "sent":
+                    return "sent"
+                if outcome == "failed_retryable":
+                    return "failed_retryable"
+                if outcome != "skipped":
+                    return outcome
 
-    if not (account_sid and auth_token and wa_from):
+    # Fall back to platform Twilio WhatsApp from .env.
+    if platform_sid and platform_token and platform_wa_from:
+        outcome = await _attempt_twilio_whatsapp_send(
+            account_sid=platform_sid,
+            auth_token=platform_token,
+            wa_from_raw=platform_wa_from,
+            to_phone=phone,
+            body=body,
+            recipient_label=recipient_label,
+            masked=masked,
+            order_number=order_number,
+            via_label="platform Twilio",
+        )
+        if outcome == "sent":
+            return "sent"
+        if outcome == "failed_retryable":
+            return "failed_retryable"
+        if outcome != "skipped":
+            return outcome
+
+    # Meta WhatsApp Cloud API (if configured separately from Twilio).
+    from app.integrations.meta_whatsapp import MetaWhatsAppAdapter
+
+    meta_creds = await registry._load(vendor_id, "meta_whatsapp")
+    if meta_creds:
+        meta_adapter = MetaWhatsAppAdapter.from_credentials(meta_creds)
+        if meta_adapter:
+            try:
+                result = await meta_adapter.send(to=phone, body=body)
+                if result.get("ok"):
+                    log.info(
+                        "Order confirmation WhatsApp sent via Meta integration to %s (%s) for order %s",
+                        recipient_label, masked, order_number,
+                    )
+                    return "sent"
+                log.warning(
+                    "Meta WhatsApp integration failed for %s on order %s: %s",
+                    recipient_label, order_number, result.get("error"),
+                )
+            except Exception as exc:
+                log.warning("Meta WhatsApp integration error for %s on order %s: %s", recipient_label, order_number, exc)
+
+    if not platform_wa_from and not (wa_creds and wa_creds.get("whatsapp_from")):
         log.warning(
-            "Order WhatsApp not sent to %s for order %s — set TWILIO_WHATSAPP_FROM in .env "
-            "(e.g. whatsapp:+14155238886 for Twilio sandbox) or connect a vendor WhatsApp integration",
+            "Order WhatsApp not sent to %s for order %s — set whatsapp_from in CRM → Integrations → Twilio "
+            "(e.g. +14155238886 for sandbox) and have the recipient join the Twilio WhatsApp sandbox.",
             recipient_label, order_number,
         )
         return "skipped"
+
     log.warning("Order WhatsApp not delivered to %s for order %s", recipient_label, order_number)
     if settings.DEBUG:
         log.info("[whatsapp:dev] -> %s | order=%s | %s", masked, order_number, body[:300])
@@ -793,7 +877,9 @@ async def _send_order_emails(
             )
             for vendor_email in vendor_emails:
                 try:
-                    sent = await send_email(
+                    sent = await send_email_for_vendor(
+                        db,
+                        vendor.id,
                         to=vendor_email,
                         subject=f"New order #{order_number} — {store_name}",
                         html=html_doc,
@@ -863,7 +949,9 @@ async def _send_order_emails(
                 cta_href=ctx["track_url"],
             )
             try:
-                sent = await send_email(
+                sent = await send_email_for_vendor(
+                    db,
+                    vendor.id,
                     to=customer_email,
                     subject=subject,
                     html=html_doc,

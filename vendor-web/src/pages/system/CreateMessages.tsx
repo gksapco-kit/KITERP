@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { PhoneInput } from '@/components/ui/PhoneInput'
-import { useStoreMessageConfig, useUpdateStoreMessageConfig } from '@/hooks/useVendor'
+import { useStoreMessageConfig, useUpdateStoreMessageConfig, useMessageDeliveryStatus } from '@/hooks/useVendor'
 import type {
   CustomerMessageTemplate,
   EventRecipients,
@@ -20,8 +20,9 @@ import { toast } from 'sonner'
 import {
   Mail, MessageCircle, MessageSquare, Loader2, Plus, Pencil, Trash2,
   ShoppingCart, AlertTriangle, Building2, Users, UsersRound,
-  Phone, Smartphone, Package, FileText, Eye, Calendar,
+  Phone, Smartphone, Package, FileText, Eye, Calendar, CheckCircle2, Plug, ExternalLink,
 } from 'lucide-react'
+import { Link } from 'react-router-dom'
 
 const TEMPLATE_CHANNELS = [
   { key: 'email' as const, label: 'Email' },
@@ -231,6 +232,7 @@ export default function CreateMessagesPage() {
   const { defaultId } = useDefaultBusinessUnitId()
   const [storeId, setStoreId] = useState('')
   const { data, isLoading } = useStoreMessageConfig(storeId)
+  const { data: deliveryStatus } = useMessageDeliveryStatus()
   const saveConfig = useUpdateStoreMessageConfig(storeId)
 
   const [config, setConfig] = useState<StoreMessageConfig>(defaultConfig())
@@ -536,6 +538,56 @@ export default function CreateMessagesPage() {
         </CardContent>
       </Card>
 
+      {deliveryStatus && (
+        <Card className="border-dashed">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base flex items-center gap-2">
+              <Plug className="w-4 h-4 text-blue-600" />
+              Delivery providers
+            </CardTitle>
+            <p className="text-xs text-muted-foreground">
+              Email uses SMTP/SendGrid. SMS and WhatsApp need a separate Twilio (or Meta) setup in CRM → Integrations — not included with email.
+            </p>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            {([
+              { key: 'email' as const, label: 'Email', icon: Mail },
+              { key: 'sms' as const, label: 'SMS', icon: Smartphone },
+              { key: 'whatsapp' as const, label: 'WhatsApp', icon: MessageCircle },
+            ]).map(({ key, label, icon: Icon }) => {
+              const ch = deliveryStatus[key]
+              return (
+                <div key={key} className="flex items-start justify-between gap-3 rounded-lg border border-border px-3 py-2.5">
+                  <div className="flex items-start gap-2 min-w-0">
+                    <Icon className={cn('w-4 h-4 mt-0.5 shrink-0', ch.ready ? 'text-green-600' : 'text-amber-600')} />
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium">{label}</p>
+                      {ch.ready ? (
+                        <p className="text-xs text-green-600 flex items-center gap-1">
+                          <CheckCircle2 className="w-3 h-3" /> Ready{ch.provider ? ` (${ch.provider})` : ''}
+                        </p>
+                      ) : (
+                        <ul className="text-xs text-amber-700 mt-0.5 list-disc pl-4 space-y-0.5">
+                          {ch.missing.map(m => <li key={m}>{m}</li>)}
+                        </ul>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )
+            })}
+            {(!deliveryStatus.sms.ready || !deliveryStatus.whatsapp.ready) && (
+              <Button asChild variant="outline" size="sm" className="mt-2 gap-1.5">
+                <Link to="/crm/integrations">
+                  Set up SMS / WhatsApp in Integrations
+                  <ExternalLink className="w-3.5 h-3.5" />
+                </Link>
+              </Button>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
       {isLoading && storeId ? (
         <div className="flex items-center justify-center py-16 text-muted-foreground gap-2">
           <Loader2 className="w-5 h-5 animate-spin" />
@@ -736,21 +788,32 @@ export default function CreateMessagesPage() {
               </div>
             </CardHeader>
             <CardContent className="space-y-3">
-              {VENDOR_CHANNELS.map((ch) => (
+              {VENDOR_CHANNELS.map((ch) => {
+                const delivery = ch.key === 'email' ? deliveryStatus?.email : ch.key === 'sms' ? deliveryStatus?.sms : deliveryStatus?.whatsapp
+                const providerReady = !deliveryStatus
+                  ? true
+                  : ch.key === 'email'
+                    ? deliveryStatus.email.ready
+                    : Boolean(delivery?.ready)
+                return (
                 <div key={ch.key} className="flex items-center justify-between gap-4 rounded-lg border border-border px-4 py-3">
                   <div className="flex items-center gap-3 min-w-0">
                     <ch.icon className={cn('w-4 h-4 shrink-0', ch.iconClass)} />
                     <div>
                       <p className="text-sm font-medium text-foreground">{ch.label}</p>
                       <p className="text-xs text-muted-foreground">{ch.description}</p>
+                      {deliveryStatus && !providerReady && delivery?.missing?.[0] && (
+                        <p className="text-xs text-amber-700 mt-1">{delivery.missing[0]}</p>
+                      )}
                     </div>
                   </div>
                   <Toggle
                     checked={config.vendor_channels[ch.key]}
                     onChange={(v) => setVendorChannel(ch.key, v)}
+                    disabled={deliveryStatus ? !providerReady : false}
                   />
                 </div>
-              ))}
+              )})}
             </CardContent>
           </Card>
 
@@ -770,21 +833,32 @@ export default function CreateMessagesPage() {
               </div>
             </CardHeader>
             <CardContent className="space-y-3">
-              {CUSTOMER_CHANNELS.map((ch) => (
+              {CUSTOMER_CHANNELS.map((ch) => {
+                const delivery = ch.key === 'email' ? deliveryStatus?.email : ch.key === 'sms' ? deliveryStatus?.sms : deliveryStatus?.whatsapp
+                const providerReady = !deliveryStatus
+                  ? true
+                  : ch.key === 'email'
+                    ? deliveryStatus.email.ready
+                    : Boolean(delivery?.ready)
+                return (
                 <div key={ch.key} className="flex items-center justify-between gap-4 rounded-lg border border-border px-4 py-3">
                   <div className="flex items-center gap-3 min-w-0">
                     <ch.icon className={cn('w-4 h-4 shrink-0', ch.iconClass)} />
                     <div>
                       <p className="text-sm font-medium text-foreground">{ch.label}</p>
                       <p className="text-xs text-muted-foreground">{ch.description}</p>
+                      {deliveryStatus && !providerReady && delivery?.missing?.[0] && (
+                        <p className="text-xs text-amber-700 mt-1">{delivery.missing[0]}</p>
+                      )}
                     </div>
                   </div>
                   <Toggle
                     checked={config.customer_channels[ch.key]}
                     onChange={(v) => setCustomerChannel(ch.key, v)}
+                    disabled={deliveryStatus ? !providerReady : false}
                   />
                 </div>
-              ))}
+              )})}
             </CardContent>
           </Card>
         </>

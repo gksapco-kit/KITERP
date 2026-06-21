@@ -1,13 +1,15 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { useIntegrations, useUpsertIntegration } from '@/hooks/useCrm'
 import { crmApi, type Integration } from '@/api/crm'
-import { Plus, Loader2, Plug, CheckCircle2, AlertTriangle, Trash2 } from 'lucide-react'
+import { Plus, Loader2, Plug, CheckCircle2, AlertTriangle, Trash2, Zap, Eye, EyeOff } from 'lucide-react'
 import { CrmModal, Field } from './_shared'
 import { useQueryClient } from '@tanstack/react-query'
+import { toast } from 'sonner'
+import { extractApiError } from '@/lib/errorMessages'
 
 const PROVIDERS = [
   { id: 'sendgrid', label: 'SendGrid (Email)', credentials: ['api_key'], settings: ['from_email', 'from_name'] },
@@ -19,32 +21,239 @@ const PROVIDERS = [
   { id: 'outlook_calendar', label: 'Outlook Calendar', credentials: ['client_id', 'client_secret', 'refresh_token'], settings: ['calendar_id'] },
 ]
 
-function IntegrationForm({ providerId, onClose }: { providerId: string; onClose: () => void }) {
+const SETTING_HINTS: Record<string, Record<string, string>> = {
+  twilio: {
+    from_number: 'SMS only — your Twilio phone number (e.g. +14704999996)',
+    whatsapp_from: 'WhatsApp only — required for WhatsApp (Twilio sandbox: +14155238886). Not the same as from_number.',
+    voice_caller_id: 'Optional caller ID for voice calls',
+  },
+}
+
+const TESTABLE = new Set(['sendgrid', 'smtp', 'twilio'])
+const DELETE_CONFIRM_PHRASE = 'DELETE'
+
+function isSecretField(key: string) {
+  return key.includes('password') || key.includes('token') || key.includes('secret') || key.includes('key')
+}
+
+function settingsToForm(settings: Record<string, unknown> | undefined): Record<string, string> {
+  if (!settings) return {}
+  return Object.fromEntries(
+    Object.entries(settings).map(([k, v]) => [k, v == null ? '' : String(v)]),
+  )
+}
+
+function CredentialInput({
+  fieldKey,
+  providerId,
+  secret,
+  value,
+  placeholder,
+  onChange,
+}: {
+  fieldKey: string
+  providerId: string
+  secret: boolean
+  value: string
+  placeholder?: string
+  onChange: (value: string) => void
+}) {
+  const [show, setShow] = useState(false)
+
+  return (
+    <div className="relative">
+      <Input
+        type={secret && !show ? 'password' : 'text'}
+        autoComplete={secret ? 'new-password' : 'off'}
+        name={`kiterp-${providerId}-${fieldKey}`}
+        data-1p-ignore="true"
+        data-lpignore="true"
+        value={value}
+        placeholder={placeholder}
+        className={secret ? 'pr-10' : undefined}
+        onChange={e => onChange(e.target.value)}
+      />
+      {secret && (
+        <button
+          type="button"
+          tabIndex={-1}
+          aria-label={show ? 'Hide value' : 'Show value'}
+          onClick={() => setShow(v => !v)}
+          className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+        >
+          {show ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+        </button>
+      )}
+    </div>
+  )
+}
+
+function IntegrationForm({
+  providerId,
+  existing,
+  onClose,
+}: {
+  providerId: string
+  existing?: Integration
+  onClose: () => void
+}) {
   const provider = PROVIDERS.find(p => p.id === providerId)!
   const upsert = useUpsertIntegration()
   const [creds, setCreds] = useState<Record<string, string>>({})
-  const [settings, setSettings] = useState<Record<string, string>>({})
-  const [label, setLabel] = useState(provider.label)
+  const [settings, setSettings] = useState<Record<string, string>>(() =>
+    settingsToForm(existing?.settings),
+  )
+  const [label, setLabel] = useState(existing?.label || provider.label)
+  const [testEmail, setTestEmail] = useState('')
+  const [testPhone, setTestPhone] = useState('')
+  const [testing, setTesting] = useState(false)
+  const [testOk, setTestOk] = useState(false)
+  const [loadingDefaults, setLoadingDefaults] = useState(true)
+  const [envKeySource, setEnvKeySource] = useState<string | null>(null)
+
+  useEffect(() => {
+    let cancelled = false
+    setLoadingDefaults(true)
+
+    const load = async () => {
+      try {
+        if (existing?.id) {
+          const form = await crmApi.getIntegrationForm(existing.id)
+          if (cancelled) return
+          setLabel(form.label || provider.label)
+          setSettings(settingsToForm(form.settings))
+          setCreds(form.credentials || {})
+          return
+        }
+
+        const defaults = await crmApi.getIntegrationDefaults(provider.id)
+        if (cancelled) return
+        if (defaults.key_source) setEnvKeySource(defaults.key_source)
+        if (defaults.credentials && Object.keys(defaults.credentials).length > 0) {
+          setCreds(defaults.credentials)
+        }
+        if (defaults.settings && Object.keys(defaults.settings).length > 0) {
+          setSettings(prev => ({ ...defaults.settings, ...prev }))
+        }
+      } catch {
+        if (!cancelled && existing?.settings) {
+          setSettings(settingsToForm(existing.settings))
+        }
+      } finally {
+        if (!cancelled) setLoadingDefaults(false)
+      }
+    }
+
+    void load()
+    return () => { cancelled = true }
+  }, [existing, provider.id, provider.label])
+
+  const markDirty = () => setTestOk(false)
+
+  const credentialsForApi = (): Record<string, string> => {
+    const out: Record<string, string> = {}
+    for (const [key, value] of Object.entries(creds)) {
+      const trimmed = (value || '').trim()
+      if (!trimmed) continue
+      out[key] = trimmed
+    }
+    return out
+  }
+
+  const reloadFromEnv = async () => {
+    try {
+      const defaults = await crmApi.getIntegrationDefaults(provider.id)
+      if (defaults.credentials) setCreds(defaults.credentials)
+      if (defaults.settings) setSettings(prev => ({ ...prev, ...defaults.settings }))
+      if (defaults.key_source) setEnvKeySource(defaults.key_source)
+      setTestOk(false)
+      toast.success('Loaded credentials from backend/.env')
+    } catch {
+      toast.error('Could not load .env defaults — check backend/.env and restart the API')
+    }
+  }
+
+  const runTest = async () => {
+    setTesting(true)
+    try {
+      const result = await crmApi.testIntegration({
+        provider: provider.id,
+        credentials: credentialsForApi(),
+        settings,
+        test_email: testEmail || undefined,
+        test_phone: testPhone || undefined,
+        integration_id: existing?.id,
+      })
+      setTestOk(true)
+      toast.success(result.message || 'Connection verified')
+    } catch (err) {
+      setTestOk(false)
+      toast.error(extractApiError(err, 'Connection test failed'))
+    } finally {
+      setTesting(false)
+    }
+  }
 
   const submit = (e: React.FormEvent) => {
     e.preventDefault()
     upsert.mutate(
-      { provider: provider.id, label, credentials: creds, settings },
-      { onSuccess: onClose },
+      { provider: provider.id, label, credentials: credentialsForApi(), settings },
+      {
+        onSuccess: () => {
+          toast.success(existing ? 'Integration updated' : 'Integration connected')
+          onClose()
+        },
+        onError: err => toast.error(extractApiError(err, 'Could not save integration')),
+      },
     )
   }
 
+  const showEmailTest = provider.id === 'sendgrid' || provider.id === 'smtp'
+  const showPhoneTest = provider.id === 'twilio'
+
   return (
     <CrmModal title={`Connect ${provider.label}`} onClose={onClose}>
-      <form onSubmit={submit} className="space-y-3">
-        <Field label="Label"><Input value={label} onChange={e => setLabel(e.target.value)} /></Field>
+      {loadingDefaults ? (
+        <div className="flex justify-center py-10">
+          <Loader2 className="w-6 h-6 animate-spin text-gray-400" />
+        </div>
+      ) : (
+      <form onSubmit={submit} className="space-y-3" autoComplete="off">
+        <Field label="Label">
+          <Input value={label} onChange={e => { setLabel(e.target.value); markDirty() }} />
+        </Field>
         {provider.credentials.length > 0 && (
           <div className="space-y-2">
             <p className="text-xs font-medium uppercase text-gray-500">Credentials (encrypted at rest)</p>
+            {!existing && envKeySource && (provider.id === 'smtp' || provider.id === 'sendgrid') && (
+              <p className="text-xs text-blue-600">
+                Pre-filled from backend/.env ({envKeySource}). Restart the API after changing .env.
+              </p>
+            )}
+            {(provider.id === 'smtp' || provider.id === 'sendgrid') && (
+              <Button type="button" variant="ghost" size="sm" className="h-7 px-2 text-xs" onClick={reloadFromEnv}>
+                Reload from backend/.env
+              </Button>
+            )}
             {provider.credentials.map(k => (
               <Field key={k} label={k}>
-                <Input type={k.includes('password') || k.includes('token') || k.includes('secret') || k.includes('key') ? 'password' : 'text'}
-                  value={creds[k] || ''} onChange={e => setCreds(p => ({ ...p, [k]: e.target.value }))} />
+                <CredentialInput
+                  fieldKey={k}
+                  providerId={provider.id}
+                  secret={isSecretField(k)}
+                  value={creds[k] || ''}
+                  placeholder={
+                    provider.id === 'smtp' && k === 'host'
+                      ? 'smtp.sendgrid.net'
+                      : provider.id === 'smtp' && k === 'username'
+                        ? 'apikey'
+                        : undefined
+                  }
+                  onChange={value => {
+                    setCreds(p => ({ ...p, [k]: value }))
+                    markDirty()
+                  }}
+                />
               </Field>
             ))}
           </div>
@@ -54,11 +263,62 @@ function IntegrationForm({ providerId, onClose }: { providerId: string; onClose:
             <p className="text-xs font-medium uppercase text-gray-500">Settings</p>
             {provider.settings.map(k => (
               <Field key={k} label={k}>
-                <Input value={settings[k] || ''} onChange={e => setSettings(p => ({ ...p, [k]: e.target.value }))} />
+                <Input
+                  value={settings[k] || ''}
+                  onChange={e => { setSettings(p => ({ ...p, [k]: e.target.value })); markDirty() }}
+                />
+                {SETTING_HINTS[provider.id]?.[k] && (
+                  <p className="text-xs text-muted-foreground mt-1">{SETTING_HINTS[provider.id][k]}</p>
+                )}
               </Field>
             ))}
           </div>
         )}
+
+        {TESTABLE.has(provider.id) && (
+          <div className="space-y-2 rounded-lg border border-dashed border-gray-200 bg-gray-50/80 p-3">
+            <p className="text-xs font-medium uppercase text-gray-500">Test connection</p>
+            {showEmailTest && (
+              <Field label="Send test email to">
+                <Input
+                  type="email"
+                  placeholder="you@example.com"
+                  value={testEmail}
+                  onChange={e => setTestEmail(e.target.value)}
+                />
+              </Field>
+            )}
+            {showPhoneTest && (
+              <Field label="Send test SMS to (E.164)">
+                <Input
+                  type="tel"
+                  placeholder="+919876543210"
+                  value={testPhone}
+                  onChange={e => setTestPhone(e.target.value)}
+                />
+              </Field>
+            )}
+            <Button
+              type="button"
+              variant="outline"
+              className="w-full"
+              disabled={testing}
+              onClick={runTest}
+            >
+              {testing
+                ? <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                : <Zap className="w-4 h-4 mr-2" />}
+              Test connection
+            </Button>
+            {testOk && (
+              <p className="text-xs text-green-600 flex items-center gap-1">
+                <CheckCircle2 className="w-3.5 h-3.5" />
+                Connection verified — you can save now.
+              </p>
+            )}
+          </div>
+        )}
+
         <div className="flex gap-3 pt-2">
           <Button type="button" variant="cancel" className="flex-1" onClick={onClose}>Cancel</Button>
           <Button type="submit" className="flex-1" disabled={upsert.isPending}>
@@ -67,6 +327,83 @@ function IntegrationForm({ providerId, onClose }: { providerId: string; onClose:
           </Button>
         </div>
       </form>
+      )}
+    </CrmModal>
+  )
+}
+
+function DeleteIntegrationModal({
+  integration,
+  providerLabel,
+  onClose,
+  onDeleted,
+}: {
+  integration: Integration
+  providerLabel: string
+  onClose: () => void
+  onDeleted: () => void
+}) {
+  const [confirmText, setConfirmText] = useState('')
+  const [deleting, setDeleting] = useState(false)
+  const canDelete = confirmText.trim().toUpperCase() === DELETE_CONFIRM_PHRASE && !deleting
+
+  const handleDelete = async () => {
+    if (!canDelete) return
+    setDeleting(true)
+    try {
+      await crmApi.deleteIntegration(integration.id)
+      toast.success('Integration disconnected')
+      onDeleted()
+      onClose()
+    } catch (err) {
+      toast.error(extractApiError(err, 'Could not disconnect integration'))
+    } finally {
+      setDeleting(false)
+    }
+  }
+
+  return (
+    <CrmModal title="Disconnect integration?" onClose={onClose} maxW="max-w-md">
+      <div className="space-y-4">
+        <div className="flex items-start gap-3 rounded-lg border border-red-200 bg-red-50/80 px-3 py-2.5 dark:border-red-900 dark:bg-red-950/30">
+          <AlertTriangle className="w-5 h-5 text-red-600 shrink-0 mt-0.5" />
+          <div className="min-w-0">
+            <p className="text-sm text-foreground">
+              You are about to remove <strong>{integration.label || providerLabel}</strong>.
+            </p>
+            <p className="text-xs text-muted-foreground mt-1">
+              Saved credentials will be deleted. Email, SMS, and WhatsApp may stop working until you connect again.
+            </p>
+          </div>
+        </div>
+
+        <Field label={`Type ${DELETE_CONFIRM_PHRASE} to confirm`}>
+          <Input
+            value={confirmText}
+            onChange={e => setConfirmText(e.target.value)}
+            placeholder={DELETE_CONFIRM_PHRASE}
+            autoComplete="off"
+            autoFocus
+            className="font-mono text-sm"
+          />
+        </Field>
+
+        <div className="flex gap-3 pt-1">
+          <Button type="button" variant="cancel" className="flex-1" onClick={onClose} disabled={deleting}>
+            Cancel
+          </Button>
+          <Button
+            type="button"
+            variant="destructive"
+            className="flex-1"
+            disabled={!canDelete}
+            onClick={handleDelete}
+          >
+            {deleting ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Trash2 className="w-4 h-4 mr-2" />}
+            Delete
+          </Button>
+        </div>
+      </div>
     </CrmModal>
   )
 }
@@ -75,12 +412,7 @@ export default function IntegrationsPage() {
   const qc = useQueryClient()
   const { data, isLoading } = useIntegrations()
   const [adding, setAdding] = useState<string | null>(null)
-
-  const remove = async (id: string) => {
-    if (!confirm('Disconnect this integration?')) return
-    await crmApi.deleteIntegration(id)
-    qc.invalidateQueries({ queryKey: ['crm', 'integrations'] })
-  }
+  const [deleteTarget, setDeleteTarget] = useState<{ integration: Integration; providerLabel: string } | null>(null)
 
   const connectedById: Record<string, Integration> = {}
   data?.forEach(i => {
@@ -122,7 +454,12 @@ export default function IntegrationsPage() {
                       {conn ? 'Reconfigure' : 'Connect'}
                     </Button>
                     {conn && (
-                      <Button variant="ghost" size="sm" onClick={() => remove(conn.id)}>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        title="Disconnect integration"
+                        onClick={() => setDeleteTarget({ integration: conn, providerLabel: p.label })}
+                      >
                         <Trash2 className="w-4 h-4 text-red-500" />
                       </Button>
                     )}
@@ -134,7 +471,22 @@ export default function IntegrationsPage() {
         </div>
       )}
 
-      {adding && <IntegrationForm providerId={adding} onClose={() => setAdding(null)} />}
+      {adding && (
+        <IntegrationForm
+          providerId={adding}
+          existing={connectedById[adding]}
+          onClose={() => setAdding(null)}
+        />
+      )}
+
+      {deleteTarget && (
+        <DeleteIntegrationModal
+          integration={deleteTarget.integration}
+          providerLabel={deleteTarget.providerLabel}
+          onClose={() => setDeleteTarget(null)}
+          onDeleted={() => qc.invalidateQueries({ queryKey: ['crm', 'integrations'] })}
+        />
+      )}
     </div>
   )
 }

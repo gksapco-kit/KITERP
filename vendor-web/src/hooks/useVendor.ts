@@ -52,6 +52,7 @@ export const vendorKeys = {
   /** Business units / outlets — use with useStores; invalidate `[...vendorKeys.all, 'stores']` after mutations. */
   stores: (params?: Record<string, unknown>) => [...vendorKeys.all, 'stores', params] as const,
   messageConfig: (storeId: string) => [...vendorKeys.all, 'message-config', storeId] as const,
+  messageDeliveryStatus: () => [...vendorKeys.all, 'message-delivery-status'] as const,
   // HR keys
   hrDepartments: () => [...vendorKeys.all, 'hr-departments'] as const,
   hrDesignations: () => [...vendorKeys.all, 'hr-designations'] as const,
@@ -1312,6 +1313,14 @@ export function useStoreMessageConfig(storeId: string) {
     queryFn: () => vendorApi.getStoreMessageConfig(storeId),
     enabled: Boolean(storeId),
     staleTime: 0,
+  })
+}
+
+export function useMessageDeliveryStatus() {
+  return useQuery({
+    queryKey: vendorKeys.messageDeliveryStatus(),
+    queryFn: () => vendorApi.getMessageDeliveryStatus(),
+    staleTime: 30_000,
   })
 }
 

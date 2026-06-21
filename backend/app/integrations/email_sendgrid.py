@@ -11,6 +11,40 @@ from app.integrations.base import EmailAdapter
 logger = logging.getLogger(__name__)
 
 
+def parse_sendgrid_error(raw: str, status_code: int = 0) -> str:
+    """Turn SendGrid JSON error bodies into short, actionable messages."""
+    import json
+
+    text = (raw or "").strip()
+    try:
+        data = json.loads(text)
+        errors = data.get("errors") or []
+        messages = [str(e.get("message", "")).strip() for e in errors if e.get("message")]
+        if messages:
+            combined = " ".join(messages)
+            lower = combined.lower()
+            if status_code == 401 or "authorization grant" in lower or "unauthorized" in lower:
+                return (
+                    "SendGrid API key is invalid, expired, or revoked. "
+                    "Create a new key in SendGrid → Settings → API Keys "
+                    "(enable Mail Send), then paste it in the password or API key field."
+                )
+            if "sender" in lower or "from address" in lower or "verified" in lower:
+                return (
+                    f"SendGrid rejected the sender address: {combined}. "
+                    "Verify your from_email as a Single Sender or Domain in SendGrid."
+                )
+            return combined
+    except (json.JSONDecodeError, TypeError, AttributeError):
+        pass
+    if status_code == 401:
+        return (
+            "SendGrid API key is invalid, expired, or revoked. "
+            "Create a new key in SendGrid → Settings → API Keys."
+        )
+    return text[:300] if text else "SendGrid send failed."
+
+
 class SendGridEmailAdapter(EmailAdapter):
     provider = "sendgrid"
 
@@ -22,12 +56,12 @@ class SendGridEmailAdapter(EmailAdapter):
     @classmethod
     def from_credentials(cls, creds: dict[str, Any] | None) -> "SendGridEmailAdapter | None":
         creds = creds or {}
-        api_key = creds.get("api_key")
-        if not api_key:
+        api_key = (creds.get("api_key") or creds.get("password") or "").strip()
+        if not api_key.startswith("SG."):
             return None
         return cls(
             api_key=api_key,
-            from_addr=creds.get("from") or "noreply@example.com",
+            from_addr=creds.get("from") or creds.get("from_email") or "noreply@example.com",
             from_name=creds.get("from_name"),
         )
 
@@ -57,7 +91,11 @@ class SendGridEmailAdapter(EmailAdapter):
                 )
             if resp.status_code in (200, 202):
                 return {"ok": True, "provider": self.provider, "id": resp.headers.get("X-Message-Id")}
-            return {"ok": False, "provider": self.provider, "error": resp.text[:300]}
+            return {
+                "ok": False,
+                "provider": self.provider,
+                "error": parse_sendgrid_error(resp.text, resp.status_code),
+            }
         except Exception as e:
             logger.warning("SendGrid send failed: %s", e)
             return {"ok": False, "provider": self.provider, "error": str(e)}

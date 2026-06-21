@@ -31,9 +31,9 @@ class SmtpEmailAdapter(EmailAdapter):
         return cls(
             host=host,
             port=int(creds.get("port") or settings.SMTP_PORT or 587),
-            user=creds.get("user") or settings.SMTP_USER,
+            user=creds.get("user") or creds.get("username") or settings.SMTP_USER,
             password=creds.get("password") or settings.SMTP_PASSWORD,
-            from_addr=creds.get("from") or settings.FROM_EMAIL,
+            from_addr=creds.get("from") or creds.get("from_email") or settings.FROM_EMAIL,
             use_tls=bool(creds.get("use_tls", True)),
         )
 
@@ -63,6 +63,7 @@ class SmtpEmailAdapter(EmailAdapter):
                 username=self.user or None,
                 password=self.password or None,
                 start_tls=self.use_tls,
+                timeout=30,
             )
             return {"ok": True, "provider": self.provider}
         except Exception as e:

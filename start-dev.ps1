@@ -54,7 +54,7 @@ function Stop-DockerWebContainers {
 }
 
 function Wait-BackendHealthy {
-    param([int]$TimeoutSeconds = 90)
+    param([int]$TimeoutSeconds = 180)
     $deadline = (Get-Date).AddSeconds($TimeoutSeconds)
     while ((Get-Date) -lt $deadline) {
         try {

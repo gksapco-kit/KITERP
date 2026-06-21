@@ -14,6 +14,8 @@ from app.services.message_config_service import (
     merge_message_config_into_store_settings,
     validate_and_normalize_message_config,
 )
+from app.services.integration_defaults_service import get_delivery_status
+from app.services.crm.services import IntegrationService
 
 router = APIRouter()
 
@@ -22,6 +24,29 @@ class MessageConfigUpdate(BaseModel):
     events: dict[str, Any] = {}
     vendor_channels: dict[str, bool] = {}
     customer_channels: dict[str, bool] = {}
+
+
+class DeliveryChannelStatus(BaseModel):
+    ready: bool = False
+    provider: str | None = None
+    missing: list[str] = []
+
+
+class DeliveryStatusResponse(BaseModel):
+    email: DeliveryChannelStatus
+    sms: DeliveryChannelStatus
+    whatsapp: DeliveryChannelStatus
+    integrations_url: str = "/crm/integrations"
+
+
+@router.get("/message-delivery-status", response_model=DeliveryStatusResponse)
+async def get_message_delivery_status(
+    vendor_id: UUID = Depends(_get_vendor_id),
+    db: AsyncSession = Depends(get_db),
+):
+    """Which delivery channels are configured (integrations + platform .env)."""
+    integrations = await IntegrationService(db).list(vendor_id)
+    return DeliveryStatusResponse(**get_delivery_status(integrations))
 
 
 @router.get("/stores/{store_id}/message-config")

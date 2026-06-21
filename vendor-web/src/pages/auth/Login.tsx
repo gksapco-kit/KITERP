@@ -48,7 +48,7 @@ const SAVED_LOGIN_KEY = 'kiterp_vendor_saved_login'
 
 function getUnreachableApiMessage(): string {
   if (import.meta.env.DEV) {
-    return 'Cannot sign in — the API on port 8000 is not reachable. Start Docker Desktop, then run: docker compose up -d postgres redis backend'
+    return 'Cannot sign in — the API on port 8000 is not reachable. If you just saved backend code, wait ~30s for reload, then retry. Otherwise start Docker and run: docker compose up -d postgres redis backend'
   }
   const healthUrl = getBackendHealthUrl()
   return `Cannot sign in — the API is not reachable. Open ${healthUrl} (expect {"status":"healthy"}), then on the server run: docker compose -f docker-compose.prod.yml --env-file .env.config logs backend`
@@ -161,6 +161,13 @@ export default function Login() {
     runHealth()
   }, [])
 
+  // Dev: backend reloads on file save (uvicorn --reload) — keep retrying instead of showing a hard error.
+  useEffect(() => {
+    if (!import.meta.env.DEV || apiOk !== false || checkingApi) return undefined
+    const id = window.setInterval(() => runHealth(), 5000)
+    return () => window.clearInterval(id)
+  }, [apiOk, checkingApi])
+
   const showOffline = apiOk === false
 
   const submitLogin = (login: string, password: string, vendorSlug?: string) => {
@@ -206,7 +213,7 @@ export default function Login() {
                 <p className="font-semibold text-red-900 dark:text-red-100">API server is not reachable</p>
                 <p className="text-red-800/90 dark:text-red-200/90 text-xs mt-1">
                   {isLocalDevHost()
-                    ? <>The vendor app cannot talk to the backend. Start the API (port <strong>8000</strong>), then use <em>Retry check</em> or refresh the page.</>
+                    ? <>The backend on port <strong>8000</strong> is down or still restarting after a code change. Wait a moment, click <em>Retry check</em>, or confirm Docker + <code className="bg-red-100/80 dark:bg-red-950/80 px-1 rounded">vendor-web npm run dev</code> are running.</>
                     : <>The vendor app cannot reach the API through this site. Confirm the backend container is running, then use <em>Retry check</em>.</>}
                 </p>
                 {isLocalDevHost() ? (
@@ -258,7 +265,8 @@ export default function Login() {
         )}
         {apiOk === null && checkingApi && (
           <p className="text-xs text-muted-foreground flex items-center gap-1.5">
-            <Loader2 className="w-3.5 h-3.5 animate-spin" /> Checking API…
+            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+            Checking API… {import.meta.env.DEV ? '(up to ~30s while backend reloads)' : ''}
           </p>
         )}
 

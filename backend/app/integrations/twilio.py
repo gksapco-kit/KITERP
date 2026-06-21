@@ -66,10 +66,13 @@ class TwilioWhatsAppAdapter(TwilioBase, WhatsAppAdapter):
         creds = creds or {}
         if not creds.get("account_sid") or not creds.get("auth_token"):
             return None
+        wa_from = (creds.get("whatsapp_from") or creds.get("from_number") or "").strip()
+        if not wa_from:
+            return None
         return cls(
             account_sid=creds["account_sid"],
             auth_token=creds["auth_token"],
-            from_number=creds.get("from_number"),
+            from_number=wa_from,
         )
 
     async def send(self, *, to: str, body: str) -> dict[str, Any]:

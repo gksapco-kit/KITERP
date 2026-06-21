@@ -590,11 +590,37 @@ export const crmApi = {
 
   // Integrations
   listIntegrations: () => apiClient.get<Integration[]>(`${BASE}/integrations`).then(r => r.data),
+  getIntegrationForm: (id: string) =>
+    apiClient.get<{
+      id: string
+      provider: string
+      label?: string | null
+      status: string
+      settings: Record<string, string>
+      credentials: Record<string, string>
+      stored_secrets: string[]
+    }>(`${BASE}/integrations/${id}/form`).then(r => r.data),
+  getIntegrationDefaults: (provider: string) =>
+    apiClient.get<{
+      provider: string
+      configured: boolean
+      credentials: Record<string, string>
+      settings: Record<string, string>
+      key_source?: string | null
+    }>(`${BASE}/integrations/defaults`, { params: { provider } }).then(r => r.data),
   upsertIntegration: (data: { provider: string; label?: string; settings?: Record<string, unknown>; credentials?: Record<string, unknown> }) =>
     apiClient.post<Integration>(`${BASE}/integrations`, data).then(r => r.data),
   updateIntegration: (id: string, data: Partial<Integration> & { credentials?: Record<string, unknown> }) =>
     apiClient.put<Integration>(`${BASE}/integrations/${id}`, data).then(r => r.data),
   deleteIntegration: (id: string) => apiClient.delete(`${BASE}/integrations/${id}`),
+  testIntegration: (data: {
+    provider: string
+    credentials?: Record<string, unknown>
+    settings?: Record<string, unknown>
+    test_email?: string
+    test_phone?: string
+    integration_id?: string
+  }) => apiClient.post<{ ok: boolean; message: string }>(`${BASE}/integrations/test`, data, { timeout: 60000 }).then(r => r.data),
 
   // Reports
   reportOverview: (params: { range?: string } = {}) =>

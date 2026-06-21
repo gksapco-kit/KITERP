@@ -1257,23 +1257,52 @@ class IntegrationService:
         return obj
 
     async def upsert(self, vendor_id: UUID, data) -> CrmIntegration:
+        from app.core.encryption import decrypt_json
+        from app.services.integration_defaults_service import merge_platform_defaults
+
+        incoming_creds = data.credentials or {}
+        incoming_settings = data.settings or {}
+        platform_creds, platform_settings = merge_platform_defaults(
+            data.provider, {}, {},
+        )
+
         existing = await self.repo.get_by_provider(vendor_id, data.provider)
         if existing:
             existing.label = data.label or existing.label
-            existing.settings = data.settings or existing.settings or {}
+            merged_settings = dict(platform_settings)
+            merged_settings.update({k: v for k, v in (existing.settings or {}).items() if v})
+            merged_settings.update({k: v for k, v in incoming_settings.items() if v})
+            existing.settings = merged_settings
             if data.credentials:
-                existing.encrypted_credentials = encrypt_json(data.credentials)
+                old = decrypt_json(existing.encrypted_credentials) or {}
+                merged = dict(old)
+                for key, value in incoming_creds.items():
+                    if value is None:
+                        continue
+                    if isinstance(value, str) and not value.strip():
+                        continue
+                    merged[key] = value.strip() if isinstance(value, str) else value
+                for key, value in platform_creds.items():
+                    if key in {"password", "auth_token", "api_key"}:
+                        continue
+                    if not str(merged.get(key) or "").strip() and value:
+                        merged[key] = value
+                existing.encrypted_credentials = encrypt_json(merged)
             existing.status = "connected"
             existing.last_error = None
             await self.db.commit()
             await self.db.refresh(existing)
             return existing
+
+        merged_creds, merged_settings = merge_platform_defaults(
+            data.provider, incoming_creds, incoming_settings,
+        )
         obj = CrmIntegration(
             vendor_id=vendor_id,
             provider=data.provider,
             label=data.label,
-            settings=data.settings or {},
-            encrypted_credentials=encrypt_json(data.credentials) if data.credentials else None,
+            settings=merged_settings or {},
+            encrypted_credentials=encrypt_json(merged_creds) if merged_creds else None,
         )
         self.db.add(obj)
         await self.db.commit()

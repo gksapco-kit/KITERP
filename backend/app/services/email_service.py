@@ -12,8 +12,10 @@ from __future__ import annotations
 import logging
 from email.message import EmailMessage
 from typing import Optional
+from uuid import UUID
 
 import httpx
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import get_settings
 
@@ -31,6 +33,16 @@ def sendgrid_api_key() -> str:
     return ""
 
 
+def resolve_effective_sendgrid_key(creds: dict | None = None) -> str:
+    """Same key resolution for CRM integrations and platform email (.env)."""
+    creds = creds or {}
+    for field in ("api_key", "password"):
+        val = (creds.get(field) or "").strip()
+        if val.startswith("SG."):
+            return val
+    return sendgrid_api_key()
+
+
 def email_is_configured() -> bool:
     """True when platform email can be sent (SendGrid API or SMTP with credentials)."""
     settings = get_settings()
@@ -40,6 +52,31 @@ def email_is_configured() -> bool:
     if not host:
         return False
     return bool((settings.SMTP_PASSWORD or "").strip() or (settings.SMTP_USER or "").strip())
+
+
+async def send_email_for_vendor(
+    db: AsyncSession,
+    vendor_id: UUID,
+    to: str,
+    subject: str,
+    html: str,
+    text: Optional[str] = None,
+) -> bool:
+    """Send email using the vendor CRM integration when configured, else platform .env."""
+    from app.integrations.registry import IntegrationRegistry
+
+    registry = IntegrationRegistry(db)
+    adapter = await registry.get_email_adapter(vendor_id)
+    if adapter:
+        result = await adapter.send(to=to, subject=subject, html=html, text=text)
+        if result.get("ok"):
+            logger.info("Email sent via vendor integration to %s (subject=%r)", to, subject)
+            return True
+        logger.warning(
+            "Vendor email integration failed for %s: %s — falling back to platform email",
+            to, result.get("error"),
+        )
+    return await send_email(to=to, subject=subject, html=html, text=text)
 
 
 async def send_email(

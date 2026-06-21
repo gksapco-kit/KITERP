@@ -17,7 +17,8 @@ from app.models.vendor_user import VendorUser
 from app.schemas.crm.schemas import (
     CampaignCreate, CampaignResponse, CampaignStepResponse, CampaignUpdate,
     ContactResponse, EmailTemplateCreate, EmailTemplateResponse,
-    IntegrationCreate, IntegrationResponse, IntegrationUpdate,
+    IntegrationCreate, IntegrationDefaultsResponse, IntegrationFormResponse,
+    IntegrationResponse, IntegrationTestRequest, IntegrationTestResponse, IntegrationUpdate,
     PaginatedResponse, SegmentCreate, SegmentResponse,
     WorkflowCreate, WorkflowResponse, WorkflowRunResponse, WorkflowUpdate,
 )
@@ -25,6 +26,9 @@ from app.services.crm.services import (
     CampaignService, EmailTemplateService, IntegrationService,
     SegmentService, WorkflowService,
 )
+from app.services.integration_defaults_service import get_platform_integration_defaults
+from app.services.integration_form_service import build_integration_form_payload
+from app.services.integration_test_service import test_integration_connection
 
 router = APIRouter()
 
@@ -322,6 +326,43 @@ async def list_integrations(
 ):
     items = await IntegrationService(db).list(vu.vendor_id)
     return [IntegrationResponse.model_validate(i) for i in items]
+
+
+@router.get("/integrations/{integration_id}/form", response_model=IntegrationFormResponse)
+async def get_integration_form(
+    integration_id: UUID,
+    vu: VendorUser = Depends(require_permission("crm.integrations.manage")),
+    db: AsyncSession = Depends(get_db),
+):
+    obj = await IntegrationService(db).get(vu.vendor_id, integration_id)
+    return IntegrationFormResponse(**build_integration_form_payload(obj))
+
+
+@router.get("/integrations/defaults", response_model=IntegrationDefaultsResponse)
+async def integration_platform_defaults(
+    provider: str = Query(..., min_length=1),
+    vu: VendorUser = Depends(require_permission("crm.integrations.manage")),
+):
+    return IntegrationDefaultsResponse(**get_platform_integration_defaults(provider))
+
+
+@router.post("/integrations/test", response_model=IntegrationTestResponse)
+async def test_integration(
+    data: IntegrationTestRequest,
+    vu: VendorUser = Depends(require_permission("crm.integrations.manage")),
+    db: AsyncSession = Depends(get_db),
+):
+    result = await test_integration_connection(
+        db,
+        vu.vendor_id,
+        provider=data.provider,
+        credentials=data.credentials,
+        settings=data.settings,
+        test_email=data.test_email,
+        test_phone=data.test_phone,
+        integration_id=data.integration_id,
+    )
+    return IntegrationTestResponse(**result)
 
 
 @router.post("/integrations", response_model=IntegrationResponse,
