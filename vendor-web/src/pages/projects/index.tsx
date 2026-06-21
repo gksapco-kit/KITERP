@@ -110,7 +110,6 @@ function CreateProjectModal({ onClose }: { onClose: () => void }) {
   }
 
   return (
-<<<<<<< Updated upstream
     <div data-kiterp-modal className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
       <div className="w-full max-w-lg rounded-xl border border-border bg-card shadow-xl">
         <div className="flex items-center justify-between px-5 py-4 border-b border-border">
@@ -118,12 +117,10 @@ function CreateProjectModal({ onClose }: { onClose: () => void }) {
           <button type="button" onClick={onClose} className="p-1 rounded-md hover:bg-muted text-muted-foreground">
             <X className="w-5 h-5" />
           </button>
-=======
     <ModalOverlay onClose={onClose}>
       <ModalPanel className="max-w-lg">
         <div className="shrink-0 border-b border-border px-5 py-3">
           <ModalHeader title="New Project" onClose={onClose} />
->>>>>>> Stashed changes
         </div>
         <form onSubmit={submit} className="flex min-h-0 flex-1 flex-col">
           <ModalBody className="space-y-4 p-5">

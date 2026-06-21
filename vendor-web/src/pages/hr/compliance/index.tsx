@@ -175,13 +175,11 @@ function PolicyModal({
   }
 
   return (
-<<<<<<< Updated upstream
     <div data-kiterp-modal className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto" onClick={onModalBackdropClick(onClose)}>
       <div className="bg-card border border-border text-foreground rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between px-5 py-3 border-b">
           <h2 className="text-lg font-semibold">{existing ? `Edit Policy (v${existing.version})` : 'New Policy'}</h2>
           <button type="button" aria-label="Close" onClick={onClose} className="p-1 hover:bg-gray-100 rounded"><X className="w-4 h-4" /></button>
-=======
     <ModalOverlay onClose={onClose}>
       <ModalPanel className="max-w-2xl">
         <div className="shrink-0 border-b px-5 py-3">
@@ -189,7 +187,6 @@ function PolicyModal({
             title={existing ? `Edit Policy (v${existing.version})` : 'New Policy'}
             onClose={onClose}
           />
->>>>>>> Stashed changes
         </div>
         <form onSubmit={submit} className="flex min-h-0 flex-1 flex-col">
           <ModalBody className="space-y-3 p-5">
