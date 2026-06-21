@@ -4,8 +4,9 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select } from '@/components/ui/select'
+import { ModalBody, ModalFooter, ModalHeader, ModalOverlay, ModalPanel } from '@/components/ui/Modal'
 import { useEscapeToClose } from '@/hooks/useEscapeToClose'
-import { Plus, Search, Edit2, Trash2, UserCheck, Building2, CreditCard, X } from 'lucide-react'
+import { Plus, Search, Edit2, Trash2, UserCheck, Building2, CreditCard } from 'lucide-react'
 import { toast } from 'sonner'
 import {
   usePayees, useCreatePayee, useUpdatePayee, useDeletePayee, usePayeeMasterBank,
@@ -309,13 +310,16 @@ export default function PayeesPage() {
       </div>
 
       {/* Table */}
-      <div className="bg-card rounded-xl border border-border overflow-hidden">
-        <table className="w-full text-sm">
+      <div className="bg-card rounded-xl border border-border overflow-x-auto">
+        <table className="w-full min-w-[720px] text-sm table-fixed">
           <thead className="bg-muted/40 border-b border-border">
             <tr>
-              {['Name / Code', 'Contact', 'Type', 'Payout', 'Status', ''].map(h => (
-                <th key={h} className="text-left px-4 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wide">{h}</th>
-              ))}
+              <th className="w-[28%] text-left px-4 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wide">Name / Code</th>
+              <th className="w-[22%] text-left px-4 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wide">Contact</th>
+              <th className="w-[18%] text-left px-4 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wide">Type</th>
+              <th className="w-[14%] text-left px-4 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wide">Payout</th>
+              <th className="w-[10%] text-left px-4 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wide">Status</th>
+              <th className="w-[8%] text-left px-4 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wide" />
             </tr>
           </thead>
           <tbody className="divide-y divide-border">
@@ -326,30 +330,30 @@ export default function PayeesPage() {
             ) : filtered.map(p => (
               <tr key={p.id} className="hover:bg-muted/30 transition-colors">
                 <td className="px-4 py-3">
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 min-w-0">
                     <div className="w-8 h-8 rounded-full bg-primary/15 flex items-center justify-center flex-shrink-0">
                       <UserCheck className="h-4 w-4 text-primary" />
                     </div>
-                    <div>
-                      <div className="font-medium text-foreground">{p.display_name}</div>
-                      {p.code && <div className="text-xs text-muted-foreground">{p.code}</div>}
+                    <div className="min-w-0">
+                      <div className="font-medium text-foreground truncate" title={p.display_name}>{p.display_name}</div>
+                      {p.code && <div className="text-xs text-muted-foreground truncate" title={p.code}>{p.code}</div>}
                     </div>
                   </div>
                 </td>
                 <td className="px-4 py-3 text-muted-foreground">
-                  <div>{p.phone || '—'}</div>
-                  {p.email && <div className="text-xs text-muted-foreground/80">{p.email}</div>}
+                  <div className="truncate" title={p.phone || undefined}>{p.phone || '—'}</div>
+                  {p.email && <div className="text-xs text-muted-foreground/80 truncate" title={p.email}>{p.email}</div>}
                 </td>
-                <td className="px-4 py-3">
-                  <span className="px-2 py-0.5 bg-primary/10 text-primary rounded text-xs">
+                <td className="px-4 py-3 whitespace-nowrap">
+                  <span className="inline-flex shrink-0 whitespace-nowrap px-2 py-0.5 bg-primary/10 text-primary rounded text-xs">
                     {LINK_LABELS[p.link_type as LinkType] || p.link_type}
                   </span>
                 </td>
-                <td className="px-4 py-3 text-muted-foreground capitalize text-xs">
+                <td className="px-4 py-3 text-muted-foreground capitalize text-xs whitespace-nowrap">
                   {p.default_payout_method.replace(/_/g, ' ')}
                 </td>
-                <td className="px-4 py-3">
-                  <span className={`px-2 py-0.5 rounded text-xs font-medium ${STATUS_COLORS[p.status] || 'bg-muted text-muted-foreground'}`}>
+                <td className="px-4 py-3 whitespace-nowrap">
+                  <span className={`inline-flex shrink-0 whitespace-nowrap px-2 py-0.5 rounded text-xs font-medium ${STATUS_COLORS[p.status] || 'bg-muted text-muted-foreground'}`}>
                     {p.status}
                   </span>
                 </td>
@@ -383,30 +387,21 @@ export default function PayeesPage() {
 
       {/* ── Dialog ── */}
       {showForm && (
-        <div data-kiterp-modal
-          className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto"
-          onClick={closeForm}
-        >
-          <div
-            className="bg-card border border-border text-foreground rounded-xl w-full max-w-lg shadow-2xl my-auto max-h-[90vh] overflow-y-auto"
-            onClick={e => e.stopPropagation()}
-          >
-            <div className="p-5 border-b border-border flex items-start justify-between gap-3">
-              <div className="min-w-0">
-                <h2 className="font-semibold text-foreground">{editing ? 'Edit Payee' : 'Add Payee'}</h2>
-                <p className="text-xs text-muted-foreground mt-0.5">Fields marked <span className="text-red-500">*</span> are required</p>
-              </div>
-              <button
-                type="button"
-                onClick={closeForm}
-                className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors shrink-0"
-                aria-label="Close"
-              >
-                <X className="w-5 h-5" />
-              </button>
+        <ModalOverlay onClose={closeForm}>
+          <ModalPanel className="max-w-lg max-h-[90vh]">
+            <div className="shrink-0 border-b border-border px-5 py-3">
+              <ModalHeader
+                title={editing ? 'Edit Payee' : 'Add Payee'}
+                subtitle={
+                  <p className="mt-0.5 text-xs text-muted-foreground">
+                    Fields marked <span className="text-red-500">*</span> are required
+                  </p>
+                }
+                onClose={closeForm}
+              />
             </div>
 
-            <div className="p-5 space-y-4 max-h-[75vh] overflow-y-auto">
+            <ModalBody className="space-y-4 p-5">
 
               {/* 1. Type selector */}
               <div>
@@ -702,16 +697,16 @@ export default function PayeesPage() {
                     className={FIELD_INPUT} />
                 </div>
               </CollapsibleSection>
-            </div>
+            </ModalBody>
 
-            <div className="p-4 border-t border-border bg-muted/25 flex gap-3 justify-end">
+            <ModalFooter className="flex justify-end gap-3">
               <Button type="button" variant="cancel" onClick={closeForm}>Cancel</Button>
               <Button onClick={handleSave} disabled={create.isPending || update.isPending}>
                 {create.isPending || update.isPending ? 'Saving…' : 'Save'}
               </Button>
-            </div>
-          </div>
-        </div>
+            </ModalFooter>
+          </ModalPanel>
+        </ModalOverlay>
       )}
     </div>
   )

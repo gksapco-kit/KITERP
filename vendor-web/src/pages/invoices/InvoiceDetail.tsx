@@ -321,30 +321,30 @@ export default function InvoiceDetail() {
   return (
     <div className="space-y-6 max-w-5xl">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <Button variant="ghost" size="sm" onClick={() => navigate(listPath)}>
+      <div className="space-y-4">
+        <div className="flex items-start gap-3">
+          <Button variant="ghost" size="sm" className="shrink-0 mt-0.5" onClick={() => navigate(listPath)}>
             <ArrowLeft className="w-4 h-4" />
           </Button>
-          <div>
-            <div className="flex items-center gap-2">
+          <div className="min-w-0 flex-1">
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
               <h1 className="text-2xl font-bold text-gray-900">{inv.invoice_number}</h1>
-              <span className={`px-2.5 py-0.5 rounded-full text-xs font-medium ${tb.bg} ${tb.text}`}>{tb.label}</span>
-              <span className={`px-2.5 py-0.5 rounded-full text-xs font-medium ${sb.bg} ${sb.text}`}>{sb.label}</span>
+              <div className="flex items-center gap-2.5">
+                <span className={`px-2.5 py-0.5 rounded-full text-xs font-medium ${tb.bg} ${tb.text}`}>{tb.label}</span>
+                <span className={`px-2.5 py-0.5 rounded-full text-xs font-medium ${sb.bg} ${sb.text}`}>{sb.label}</span>
+              </div>
             </div>
-            <div className="flex items-center gap-2 mt-0.5">
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-2">
               {inv.financial_year && (
                 <p className="text-xs text-gray-400">FY {inv.financial_year}</p>
               )}
               {storeName && (
-                <span className="inline-flex items-center gap-1 text-xs text-gray-500"><Building2 className="w-3 h-3" />{storeName}</span>
+                <span className="inline-flex items-center gap-1.5 text-xs text-gray-500"><Building2 className="w-3 h-3" />{storeName}</span>
               )}
             </div>
           </div>
-        </div>
-        <div className="flex gap-2">
-          {isEditing ? (
-            <>
+          {isEditing && (
+            <div className="flex shrink-0 gap-3">
               <Button variant="cancel" size="sm" onClick={cancelEditing} disabled={updateInvoice.isPending}>
                 <X className="w-4 h-4 mr-1.5" /> Cancel
               </Button>
@@ -356,69 +356,70 @@ export default function InvoiceDetail() {
                 )}
                 Save
               </Button>
-            </>
-          ) : (
-            <>
-              <Button variant="outline" size="sm" onClick={startEditing}>
-                <Pencil className="w-4 h-4 mr-1.5" /> Edit
-              </Button>
-              <Button variant="outline" size="sm"
-                disabled={settingsLoading}
-                onClick={() => printWithTemplate(inv as Record<string, unknown>, effectiveSettings(inv as Record<string, unknown>))}>
-                {settingsLoading ? <Loader2 className="w-4 h-4 mr-1.5 animate-spin" /> : <Printer className="w-4 h-4 mr-1.5" />} Print
-              </Button>
-              <Button variant="outline" size="sm"
-                disabled={settingsLoading}
-                onClick={() => downloadInvoicePdf(inv as Record<string, unknown>, effectiveSettings(inv as Record<string, unknown>))}>
-                {settingsLoading ? <Loader2 className="w-4 h-4 mr-1.5 animate-spin" /> : <Download className="w-4 h-4 mr-1.5 text-red-500" />} Download PDF
-              </Button>
-              <Button variant="outline" size="sm" onClick={() => {
-                const msg = buildShareMessage({
-                  type: shareDocType,
-                  number: inv.invoice_number as string,
-                  vendorName: inv.vendor_name as string || '',
-                  customerOrSupplier: inv.customer_name as string || '',
-                  total: inv.total as number,
-                  date: inv.created_at ? new Date(inv.created_at as string).toLocaleDateString('en-IN') : '',
-                  status: inv.status as string,
-                  items: (inv.items as Array<Record<string,unknown>>)?.map(i => ({
-                    name: String(i.name || ''), qty: Number(i.qty || i.quantity || 0), amount: Number(i.total || 0),
-                  })),
-                })
-                shareViaWhatsApp(msg, inv.customer_phone as string)
-              }}>
-                <MessageCircle className="w-4 h-4 mr-1.5 text-green-600" /> WhatsApp
-              </Button>
-              <Button variant="outline" size="sm" onClick={() => {
-                const msg = buildShareMessage({
-                  type: shareDocType,
-                  number: inv.invoice_number as string,
-                  vendorName: inv.vendor_name as string || '',
-                  customerOrSupplier: inv.customer_name as string || '',
-                  total: inv.total as number,
-                  date: inv.created_at ? new Date(inv.created_at as string).toLocaleDateString('en-IN') : '',
-                })
-                shareViaSms(msg, inv.customer_phone as string)
-              }}>
-                <MessageSquare className="w-4 h-4 mr-1.5 text-amber-600" /> SMS
-              </Button>
-              <Button variant="outline" size="sm" onClick={() => {
-                const docLabel = isQuotation ? 'Quotation' : 'Invoice'
-                if (navigator.share) {
-                  navigator.share({ title: `${docLabel} ${inv.invoice_number}`, text: `${docLabel} ${inv.invoice_number} — Total: ₹${inv.total}` }).catch(() => {})
-                } else {
-                  navigator.clipboard.writeText(`${docLabel}: ${inv.invoice_number}\nTotal: ₹${inv.total}\nCustomer: ${inv.customer_name}`)
-                  toast.success(`${docLabel} details copied!`)
-                }
-              }}>
-                <Share2 className="w-4 h-4 mr-1.5 text-primary" /> Share
-              </Button>
-              <Button variant="outline" size="sm" onClick={() => navigate(isQuotation ? '/quotations/templates' : '/invoices/templates')}>
-                <Settings2 className="w-4 h-4 mr-1.5" /> {isQuotation ? 'Templates' : 'Settings'}
-              </Button>
-            </>
+            </div>
           )}
         </div>
+        {!isEditing && (
+          <div className="flex flex-wrap gap-2.5 pl-11">
+            <Button variant="outline" size="sm" onClick={startEditing}>
+              <Pencil className="w-4 h-4 mr-1.5" /> Edit
+            </Button>
+            <Button variant="outline" size="sm"
+              disabled={settingsLoading}
+              onClick={() => printWithTemplate(inv as Record<string, unknown>, effectiveSettings(inv as Record<string, unknown>))}>
+              {settingsLoading ? <Loader2 className="w-4 h-4 mr-1.5 animate-spin" /> : <Printer className="w-4 h-4 mr-1.5" />} Print
+            </Button>
+            <Button variant="outline" size="sm"
+              disabled={settingsLoading}
+              onClick={() => downloadInvoicePdf(inv as Record<string, unknown>, effectiveSettings(inv as Record<string, unknown>))}>
+              {settingsLoading ? <Loader2 className="w-4 h-4 mr-1.5 animate-spin" /> : <Download className="w-4 h-4 mr-1.5 text-red-500" />} Download PDF
+            </Button>
+            <Button variant="outline" size="sm" onClick={() => {
+              const msg = buildShareMessage({
+                type: shareDocType,
+                number: inv.invoice_number as string,
+                vendorName: inv.vendor_name as string || '',
+                customerOrSupplier: inv.customer_name as string || '',
+                total: inv.total as number,
+                date: inv.created_at ? new Date(inv.created_at as string).toLocaleDateString('en-IN') : '',
+                status: inv.status as string,
+                items: (inv.items as Array<Record<string,unknown>>)?.map(i => ({
+                  name: String(i.name || ''), qty: Number(i.qty || i.quantity || 0), amount: Number(i.total || 0),
+                })),
+              })
+              shareViaWhatsApp(msg, inv.customer_phone as string)
+            }}>
+              <MessageCircle className="w-4 h-4 mr-1.5 text-green-600" /> WhatsApp
+            </Button>
+            <Button variant="outline" size="sm" onClick={() => {
+              const msg = buildShareMessage({
+                type: shareDocType,
+                number: inv.invoice_number as string,
+                vendorName: inv.vendor_name as string || '',
+                customerOrSupplier: inv.customer_name as string || '',
+                total: inv.total as number,
+                date: inv.created_at ? new Date(inv.created_at as string).toLocaleDateString('en-IN') : '',
+              })
+              shareViaSms(msg, inv.customer_phone as string)
+            }}>
+              <MessageSquare className="w-4 h-4 mr-1.5 text-amber-600" /> SMS
+            </Button>
+            <Button variant="outline" size="sm" onClick={() => {
+              const docLabel = isQuotation ? 'Quotation' : 'Invoice'
+              if (navigator.share) {
+                navigator.share({ title: `${docLabel} ${inv.invoice_number}`, text: `${docLabel} ${inv.invoice_number} — Total: ₹${inv.total}` }).catch(() => {})
+              } else {
+                navigator.clipboard.writeText(`${docLabel}: ${inv.invoice_number}\nTotal: ₹${inv.total}\nCustomer: ${inv.customer_name}`)
+                toast.success(`${docLabel} details copied!`)
+              }
+            }}>
+              <Share2 className="w-4 h-4 mr-1.5 text-primary" /> Share
+            </Button>
+            <Button variant="outline" size="sm" onClick={() => navigate(isQuotation ? '/quotations/templates' : '/invoices/templates')}>
+              <Settings2 className="w-4 h-4 mr-1.5" /> {isQuotation ? 'Templates' : 'Settings'}
+            </Button>
+          </div>
+        )}
       </div>
 
       {/* Two-column: Customer & Vendor info */}

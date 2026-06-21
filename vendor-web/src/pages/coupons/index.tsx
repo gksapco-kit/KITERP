@@ -132,7 +132,8 @@ export default function CouponsPage() {
             <span className="text-xs text-gray-500">Business unit</span>
             <div className="w-56"><BusinessUnitSelect value={storeFilter} onChange={(id) => { setStoreFilter(id); setPage(1) }} allowAll autoSelectDefault={false} /></div>
           </div>
-          <ResizableTable tableId="coupons" defaultWidths={[150, 140, 120, 110, 80, 80, 120, 80]}>
+          <div className="overflow-x-auto">
+          <ResizableTable tableId="coupons-v2" defaultWidths={[150, 140, 120, 110, 80, 80, 100, 220]}>
             <thead>
               <tr className="border-b bg-gray-50">
                 <th className="text-left px-5 py-3 text-xs font-medium text-gray-500 uppercase"><TableColumnLabel>Code</TableColumnLabel></th>
@@ -162,21 +163,22 @@ export default function CouponsPage() {
                       {c.is_active ? <ToggleRight className="w-6 h-6 text-green-500 mx-auto" /> : <ToggleLeft className="w-6 h-6 text-gray-400 mx-auto" />}
                     </button>
                   </td>
-                  <td className="px-5 py-3 text-sm text-gray-500">{c.expires_at ? formatDate(c.expires_at as string) : 'Never'}</td>
-                  <td className="px-5 py-3 text-right">
-                    <div className="flex gap-0.5 justify-end">
-                      <Button variant="ghost" size="sm" title="Copy code" onClick={() => copyCouponCode(c.code as string)}><Copy className="w-4 h-4 text-gray-500" /></Button>
-                      <Button variant="ghost" size="sm" title="Share via WhatsApp" onClick={() => shareViaWhatsApp(c)}><MessageCircle className="w-4 h-4 text-green-600" /></Button>
-                      <Button variant="ghost" size="sm" title="Share via Email" onClick={() => shareViaEmail(c)}><Mail className="w-4 h-4 text-blue-600" /></Button>
-                      <Button variant="ghost" size="sm" title="Share" onClick={() => shareViaNative(c)}><Share2 className="w-4 h-4 text-primary" /></Button>
-                      <Button variant="ghost" size="sm" title="Edit" onClick={() => setModal({ mode: 'edit', coupon: c })}><Pencil className="w-4 h-4" /></Button>
-                      <Button variant="ghost" size="sm" className="text-red-500" title="Delete" onClick={() => { if (confirm('Delete this coupon?')) deleteCoupon.mutate(c.id as string) }}><Trash2 className="w-4 h-4" /></Button>
+                  <td className="px-5 py-3 text-sm text-gray-500 truncate overflow-hidden">{c.expires_at ? formatDate(c.expires_at as string) : 'Never'}</td>
+                  <td className="px-3 py-3 text-right whitespace-nowrap overflow-hidden">
+                    <div className="inline-flex items-center gap-0.5 justify-end">
+                      <Button variant="ghost" size="sm" className="h-8 w-8 p-0 shrink-0" title="Copy code" onClick={() => copyCouponCode(c.code as string)}><Copy className="w-4 h-4 text-gray-500" /></Button>
+                      <Button variant="ghost" size="sm" className="h-8 w-8 p-0 shrink-0" title="Share via WhatsApp" onClick={() => shareViaWhatsApp(c)}><MessageCircle className="w-4 h-4 text-green-600" /></Button>
+                      <Button variant="ghost" size="sm" className="h-8 w-8 p-0 shrink-0" title="Share via Email" onClick={() => shareViaEmail(c)}><Mail className="w-4 h-4 text-blue-600" /></Button>
+                      <Button variant="ghost" size="sm" className="h-8 w-8 p-0 shrink-0" title="Share" onClick={() => shareViaNative(c)}><Share2 className="w-4 h-4 text-primary" /></Button>
+                      <Button variant="ghost" size="sm" className="h-8 w-8 p-0 shrink-0" title="Edit" onClick={() => setModal({ mode: 'edit', coupon: c })}><Pencil className="w-4 h-4" /></Button>
+                      <Button variant="ghost" size="sm" className="h-8 w-8 p-0 shrink-0 text-red-500" title="Delete" onClick={() => { if (confirm('Delete this coupon?')) deleteCoupon.mutate(c.id as string) }}><Trash2 className="w-4 h-4" /></Button>
                     </div>
                   </td>
                 </tr>
               ))}
             </tbody>
           </ResizableTable>
+          </div>
         </CardContent>
       </Card>
 

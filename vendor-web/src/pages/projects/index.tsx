@@ -1,8 +1,8 @@
 import { useMemo, useState } from 'react'
 import { TableColumnLabel } from '@/components/common/FieldLabel'
 import { useNavigate } from 'react-router-dom'
-import { useEscapeToClose } from '@/hooks/useEscapeToClose'
 import { Card, CardContent } from '@/components/ui/card'
+import { ModalBody, ModalFooter, ModalHeader, ModalOverlay, ModalPanel } from '@/components/ui/Modal'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -15,7 +15,7 @@ import { CatalogItemPicker, type CatalogPickerItem } from '@/components/common/C
 import { useCreateProject, useProjects, useProjectsOverview } from '@/hooks/useProjects'
 import { formatDate } from '@/lib/utils'
 import {
-  FolderKanban, Plus, Loader2, Search, X, CheckCircle2, AlertTriangle,
+  FolderKanban, Plus, Loader2, Search, CheckCircle2, AlertTriangle,
   ListTodo, Activity,
 } from 'lucide-react'
 import type { Project, ProjectPriority, ProjectStatus } from '@/types/project'
@@ -72,7 +72,6 @@ const priorityBadgeVariant: Record<ProjectPriority, 'secondary' | 'soft' | 'warn
 }
 
 function CreateProjectModal({ onClose }: { onClose: () => void }) {
-  useEscapeToClose(onClose)
   const create = useCreateProject()
   const [form, setForm] = useState({
     name: '',
@@ -111,107 +110,106 @@ function CreateProjectModal({ onClose }: { onClose: () => void }) {
   }
 
   return (
-    <div data-kiterp-modal className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-      <div className="w-full max-w-lg rounded-xl border border-border bg-card shadow-xl">
-        <div className="flex items-center justify-between px-5 py-4 border-b border-border">
-          <h2 className="text-lg font-semibold text-foreground">New Project</h2>
-          <button type="button" onClick={onClose} className="p-1 rounded-md hover:bg-muted text-muted-foreground">
-            <X className="w-5 h-5" />
-          </button>
+    <ModalOverlay onClose={onClose}>
+      <ModalPanel className="max-w-lg">
+        <div className="shrink-0 border-b border-border px-5 py-3">
+          <ModalHeader title="New Project" onClose={onClose} />
         </div>
-        <form onSubmit={submit} className="p-5 space-y-4">
-          <div className="space-y-1.5">
-            <Label>Business unit</Label>
-            <BusinessUnitSelect value={storeId} onChange={(id) => { setStoreId(id); setItems([]) }} allowAll />
-            <p className="text-[11px] text-muted-foreground">Scopes the products & services you can attach below.</p>
-          </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="proj-name">Name *</Label>
-            <Input
-              id="proj-name"
-              value={form.name}
-              onChange={(e) => setForm((p) => ({ ...p, name: e.target.value }))}
-              placeholder="Website redesign"
-              autoFocus
-            />
-          </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="proj-desc">Description</Label>
-            <textarea
-              id="proj-desc"
-              value={form.description}
-              onChange={(e) => setForm((p) => ({ ...p, description: e.target.value }))}
-              className="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-              placeholder="Brief scope or goals"
-            />
-          </div>
-          <div className="grid grid-cols-2 gap-3">
+        <form onSubmit={submit} className="flex min-h-0 flex-1 flex-col">
+          <ModalBody className="space-y-4 p-5">
             <div className="space-y-1.5">
-              <Label htmlFor="proj-start">Start date</Label>
+              <Label>Business unit</Label>
+              <BusinessUnitSelect value={storeId} onChange={(id) => { setStoreId(id); setItems([]) }} allowAll />
+              <p className="text-[11px] text-muted-foreground">Scopes the products & services you can attach below.</p>
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="proj-name">Name *</Label>
               <Input
-                id="proj-start"
-                type="date"
-                value={form.start_date}
-                onChange={(e) => setForm((p) => ({ ...p, start_date: e.target.value }))}
+                id="proj-name"
+                value={form.name}
+                onChange={(e) => setForm((p) => ({ ...p, name: e.target.value }))}
+                placeholder="Website redesign"
+                autoFocus
               />
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="proj-end">End date</Label>
-              <Input
-                id="proj-end"
-                type="date"
-                value={form.end_date}
-                onChange={(e) => setForm((p) => ({ ...p, end_date: e.target.value }))}
+              <Label htmlFor="proj-desc">Description</Label>
+              <textarea
+                id="proj-desc"
+                value={form.description}
+                onChange={(e) => setForm((p) => ({ ...p, description: e.target.value }))}
+                className="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                placeholder="Brief scope or goals"
               />
             </div>
-          </div>
-          <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label htmlFor="proj-start">Start date</Label>
+                <Input
+                  id="proj-start"
+                  type="date"
+                  value={form.start_date}
+                  onChange={(e) => setForm((p) => ({ ...p, start_date: e.target.value }))}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="proj-end">End date</Label>
+                <Input
+                  id="proj-end"
+                  type="date"
+                  value={form.end_date}
+                  onChange={(e) => setForm((p) => ({ ...p, end_date: e.target.value }))}
+                />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label htmlFor="proj-due">Due date</Label>
+                <Input
+                  id="proj-due"
+                  type="date"
+                  value={form.due_date}
+                  onChange={(e) => setForm((p) => ({ ...p, due_date: e.target.value }))}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="proj-priority">Priority</Label>
+                <Select
+                  id="proj-priority"
+                  value={form.priority}
+                  onChange={(v) => setForm((p) => ({ ...p, priority: v as ProjectPriority }))}
+                  options={(Object.keys(PROJECT_PRIORITY_LABELS) as ProjectPriority[]).map((k) => ({
+                    value: k,
+                    label: PROJECT_PRIORITY_LABELS[k],
+                  }))}
+                  aria-label="Priority"
+                  className="w-full"
+                />
+              </div>
+            </div>
             <div className="space-y-1.5">
-              <Label htmlFor="proj-due">Due date</Label>
-              <Input
-                id="proj-due"
-                type="date"
-                value={form.due_date}
-                onChange={(e) => setForm((p) => ({ ...p, due_date: e.target.value }))}
-              />
+              <Label>Customer (optional)</Label>
+              <CustomerPicker selected={customer} onSelect={setCustomer} />
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="proj-priority">Priority</Label>
-              <Select
-                id="proj-priority"
-                value={form.priority}
-                onChange={(v) => setForm((p) => ({ ...p, priority: v as ProjectPriority }))}
-                options={(Object.keys(PROJECT_PRIORITY_LABELS) as ProjectPriority[]).map((k) => ({
-                  value: k,
-                  label: PROJECT_PRIORITY_LABELS[k],
-                }))}
-                aria-label="Priority"
-                className="w-full"
-              />
+              <Label>Project owner (optional)</Label>
+              <StaffPicker selected={owner} onSelect={setOwner} />
             </div>
-          </div>
-          <div className="space-y-1.5">
-            <Label>Customer (optional)</Label>
-            <CustomerPicker selected={customer} onSelect={setCustomer} />
-          </div>
-          <div className="space-y-1.5">
-            <Label>Project owner (optional)</Label>
-            <StaffPicker selected={owner} onSelect={setOwner} />
-          </div>
-          <div className="space-y-1.5">
-            <Label>Products & services (optional)</Label>
-            <CatalogItemPicker storeId={storeId} value={items} onChange={setItems} />
-          </div>
-          <div className="flex gap-3 pt-2">
-            <Button type="button" variant="cancel" className="flex-1" onClick={onClose}>Cancel</Button>
-            <Button type="submit" className="flex-1" disabled={create.isPending || !form.name.trim()}>
+            <div className="space-y-1.5">
+              <Label>Products & services (optional)</Label>
+              <CatalogItemPicker storeId={storeId} value={items} onChange={setItems} />
+            </div>
+          </ModalBody>
+          <ModalFooter className="flex justify-end gap-3 border-t border-border bg-card px-4 py-4">
+            <Button type="button" variant="cancel" onClick={onClose}>Cancel</Button>
+            <Button type="submit" disabled={create.isPending || !form.name.trim()}>
               {create.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Plus className="w-4 h-4 mr-2" />}
               Create
             </Button>
-          </div>
+          </ModalFooter>
         </form>
-      </div>
-    </div>
+      </ModalPanel>
+    </ModalOverlay>
   )
 }
 
