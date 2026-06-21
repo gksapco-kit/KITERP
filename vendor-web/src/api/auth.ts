@@ -125,6 +125,15 @@ export const authApi = {
     const response = await apiClient.post('/auth/2fa/disable', { code })
     return response.data
   },
+
+  sendAccountDeleteOtp: async (password: string): Promise<OtpSendResponse> => {
+    const response = await apiClient.post('/auth/me/delete/send-otp', { password })
+    return response.data
+  },
+
+  deleteAccount: async (code: string): Promise<void> => {
+    await apiClient.delete('/auth/me', { data: { code } })
+  },
 }
 
 export interface VendorSignupPayload {

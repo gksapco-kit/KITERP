@@ -20,6 +20,7 @@ SENSITIVE_COLUMNS = frozenset(
         "totp_secret",
         "verification_code",
         "email_change_code",
+        "account_delete_code",
         "portal_temp_password",
         "jwt_secret",
         "secret",

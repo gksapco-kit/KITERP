@@ -18,6 +18,7 @@ import {
   resolveTemplateDisplay,
   type ResolvedTemplateDisplay,
 } from '@/lib/websiteAppliedTemplate'
+import { storesAssignedToTemplate } from '@/lib/websiteTemplateAssignment'
 import { resolveSiteStaticThumbnail } from '@/lib/websiteSitePreview'
 import type { ThemePresetSummary } from '@/lib/businessFrontActiveTemplate'
 import type { SiteListItem, WebsiteSite, WebsiteTemplate } from '@/types/websites'
@@ -70,13 +71,17 @@ export function resolveBuilderSiteViewLiveLinks(
   const slug = vendorSlug?.trim()
   if (!slug) return []
 
-  const assignedStores = sortStoresByCode(
+  const linkedLive = sortStoresByCode(
     storesEffectivelyAssignedToBuilderSite(
       sites,
       siteId,
       stores,
       vendorSettings,
     ),
+  )
+  const catalogAssigned = storesAssignedToTemplate(stores, siteId, { sites })
+  const assignedStores = sortStoresByCode(
+    [...linkedLive, ...catalogAssigned.filter(s => !linkedLive.some(l => l.id === s.id))],
   )
   if (assignedStores.length === 0) return []
 
@@ -152,7 +157,10 @@ export function storesEligibleForBuilderSiteAssignment(
 /** True when a builder site belongs to the given business unit (or has no home unit yet). */
 export function isBuilderSiteVisibleForStore(site: SiteListItem, storeId: string): boolean {
   const homeStoreId = resolveBuilderSiteHomeStoreId(site)
-  return !homeStoreId || homeStoreId === storeId
+  if (!homeStoreId) return true
+  if (homeStoreId === storeId) return true
+  // Published store-scoped sites stay visible so other BUs can adopt the same design.
+  return site.is_published
 }
 
 export function resolvePublishedBuilderSiteForStore(
@@ -203,6 +211,13 @@ export function isBuilderSiteEffectivelyLiveForStore(
   if (!site || site.website_store_scope !== 'store' || site.website_store_id !== store.id) {
     return false
   }
+  const templateMode = resolveStorefrontTemplateMode(vendorSettings)
+  const assignedTemplateId = resolveEffectiveStorefrontTemplateId(
+    vendorSettings,
+    store.settings,
+    templateMode,
+  )
+  if (assignedTemplateId === siteId) return true
   return !isStoreSpecificCatalogTemplateAssigned(store, vendorSettings)
 }
 
@@ -272,13 +287,13 @@ export function resolveStorefrontCoverageTemplate(
       ? resolveSingleFrontTemplateId(vendorSettings)
       : resolveStoreFrontTemplateId(store.settings)
   if (storeSpecificId) {
-    return resolveTemplateDisplay(storeSpecificId, templates, presets)
+    return resolveTemplateDisplay(storeSpecificId, templates, presets, sites)
   }
 
   // Finally, the vendor-wide single fallback (per_unit mode) if configured.
   const fallbackId = resolveEffectiveStorefrontTemplateId(vendorSettings, store.settings, templateMode)
   if (fallbackId) {
-    return resolveTemplateDisplay(fallbackId, templates, presets)
+    return resolveTemplateDisplay(fallbackId, templates, presets, sites)
   }
 
   return null

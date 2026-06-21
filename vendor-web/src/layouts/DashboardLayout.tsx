@@ -335,9 +335,9 @@ function UniversalSaveToolbarButton() {
   )
 }
 
-/** Shared pill styling for top-bar controls (matches sidebar section row corners). */
+/** Shared pill styling for top-bar controls (full capsule shape in Template 2). */
 const headerBarPillClass =
-  'flex h-8 shrink-0 items-center rounded-lg border border-border bg-muted text-xs font-medium text-muted-foreground'
+  'header-bar-pill flex h-8 shrink-0 items-center rounded-full border border-border bg-muted text-xs font-medium text-muted-foreground'
 
 const headerBarPillInteractiveClass = cn(headerBarPillClass, 'hover:bg-muted/80 hover:border-primary/30')
 
@@ -3406,7 +3406,7 @@ export default function DashboardLayout() {
                   ) : (
                     <span
                       className={cn(
-                        'flex h-6 w-6 shrink-0 items-center justify-center rounded-md ring-1 ring-inset',
+                        'flex h-6 w-6 shrink-0 items-center justify-center rounded-full ring-1 ring-inset',
                         storePillActive
                           ? 'bg-white/15 text-white ring-white/25'
                           : 'bg-muted text-muted-foreground ring-border/45',
@@ -3431,7 +3431,10 @@ export default function DashboardLayout() {
 
               <Link
                 to="/notifications"
-                className="relative flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-border bg-muted text-muted-foreground hover:bg-muted/80 hover:border-primary/30"
+                className={cn(
+                  headerBarPillInteractiveClass,
+                  'relative h-8 w-8 justify-center px-0',
+                )}
               >
                 <Bell className="h-5 w-5" />
                 {unreadCount > 0 && (

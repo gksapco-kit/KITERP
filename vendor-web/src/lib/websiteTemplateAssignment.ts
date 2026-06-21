@@ -35,6 +35,32 @@ export function storesAssignedToTemplate(
   }))
 }
 
+/** Stores using a builder site design — direct link and/or catalog template id on the store. */
+export function storesUsingBuilderSiteDesign(
+  sites: SiteListItem[],
+  siteId: string,
+  stores: StoreLike[],
+): StoreLike[] {
+  const byId = new Map<string, StoreLike>()
+  for (const store of stores) {
+    const linked = sites.some(
+      s =>
+        s.id === siteId
+        && s.is_published
+        && s.website_store_scope === 'store'
+        && s.website_store_id === store.id,
+    )
+    if (linked) {
+      byId.set(store.id, store)
+      continue
+    }
+    if (resolveStoreFrontTemplateId(store.settings) === siteId && !storeHasLinkedBuilderSite(store.id, sites)) {
+      byId.set(store.id, store)
+    }
+  }
+  return sortStoresByCode([...byId.values()])
+}
+
 export function formatAssignedStoresLabel(stores: Pick<StoreLike, 'name'>[], maxVisible = 2): string {
   if (stores.length === 0) return ''
   if (stores.length === 1) return stores[0].name

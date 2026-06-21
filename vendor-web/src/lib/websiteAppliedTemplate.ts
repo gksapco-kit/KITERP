@@ -53,11 +53,12 @@ export type ResolvedTemplateDisplay = {
   gradient?: string
 }
 
-/** Resolve display info for a template id (builder template or legacy preset). */
+/** Resolve display info for a template id (builder site, catalog template, or legacy preset). */
 export function resolveTemplateDisplay(
   templateId: string | null | undefined,
   templates: WebsiteTemplate[] = [],
   presets: ThemePresetSummary[] = [],
+  sites: Pick<SiteListItem, 'id' | 'name' | 'applied_template_id' | 'applied_template_name' | 'description'>[] = [],
 ): ResolvedTemplateDisplay | null {
   const tid = templateId?.trim()
   if (!tid) return null
@@ -68,6 +69,15 @@ export function resolveTemplateDisplay(
       name: tpl.name,
       description: tpl.description,
       thumbnail: tpl.thumbnail,
+    }
+  }
+  const site = sites.find(s => s.id === tid)
+  if (site) {
+    const name = resolveSiteAppliedTemplateLabel(site, templates) ?? site.name
+    return {
+      id: site.id,
+      name,
+      description: site.description ?? undefined,
     }
   }
   const preset = presets.find(p => p.id === tid)
@@ -87,9 +97,10 @@ export function resolveTemplateDisplay(
       gradient,
     }
   }
+  const readable = tid.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
   return {
     id: tid,
-    name: tid,
+    name: /^[0-9a-f-]{36}$/i.test(tid) ? 'Website template' : readable,
     description: 'Storefront template',
   }
 }

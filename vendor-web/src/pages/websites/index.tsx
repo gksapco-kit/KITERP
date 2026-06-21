@@ -1201,7 +1201,7 @@ function SiteCard({
   const menuRef = useRef<HTMLDivElement>(null)
   const [menuPos, setMenuPos] = useState({ top: 0, right: 0, openUp: false })
 
-  const testUrl = resolveSiteStoreLink(vendor?.slug, site, stores)
+  const testUrl = resolveSiteStoreLink(vendor?.slug, site, stores, vendor?.settings)
 
   useEscapeToClose(() => setMenuOpen(false), menuOpen)
 

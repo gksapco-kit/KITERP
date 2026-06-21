@@ -3,20 +3,25 @@ import { Link } from 'react-router-dom'
 import { cn } from '@/lib/utils'
 import { WebsiteSiteGlimpse } from '@/components/websites/WebsiteSiteGlimpse'
 import { AppliedTemplateViewLiveButton, templateCardIconActionClass } from '@/components/websites/AppliedTemplateViewLiveButton'
-import { resolveSiteAppliedTemplateLabel } from '@/lib/websiteAppliedTemplate'
 import { resolveSiteStaticThumbnail } from '@/lib/websiteSitePreview'
-import { WebsiteScopeBadge } from '@/components/websites/WebsiteScopeBadge'
 import type { BuilderSiteLiveBlockReason } from '@/lib/builderDraftTemplateSites'
 import type { AppliedTemplateViewLiveLink } from '@/lib/liveStorefrontUrl'
 import {
   templateBadgeEmeraldClass,
-  templateCardActionBtnClass,
+  templateBadgeVioletClass,
+  templateCardActionClusterClass,
+  templateCardActionRowClass,
+  templateCardActivePillClass,
   templateCardBodyClass,
   templateCardCurrentForStoreRibbonClass,
+  templateCardMediaChipClass,
   templateCardMediaHeightClass,
   templateCardPreviewOverlayClass,
+  templateCardPrimaryActionClass,
+  templateCardSelectedClass,
   templateCardShellClass,
   perStoreTemplateActionLabel,
+  singleTemplateActionLabel,
 } from '@/lib/websiteTemplateBadges'
 import type { SiteListItem, WebsiteTemplate } from '@/types/websites'
 
@@ -31,6 +36,10 @@ type Props = {
   viewLiveLinks?: AppliedTemplateViewLiveLink[]
   showAssignHighlight: boolean
   perStoreTemplateMode?: boolean
+  singleTemplateMode?: boolean
+  isSingleTemplateSelected?: boolean
+  onUseForAllStores?: () => void
+  useForAllStoresPending?: boolean
   onAssign?: () => void
   assignPending?: boolean
   onPreview: () => void
@@ -53,6 +62,10 @@ export function BuilderDraftTemplateCard({
   viewLiveLinks = [],
   showAssignHighlight,
   perStoreTemplateMode,
+  singleTemplateMode,
+  isSingleTemplateSelected = false,
+  onUseForAllStores,
+  useForAllStoresPending,
   onAssign,
   assignPending,
   onPreview,
@@ -63,13 +76,14 @@ export function BuilderDraftTemplateCard({
   linkedToContextStore = false,
   appliedToContextStore = false,
 }: Props) {
-  const appliedLabel = resolveSiteAppliedTemplateLabel(site, templates)
   const staticThumb = resolveSiteStaticThumbnail(site, templates)
   const pageCount = site.page_count ?? 0
   const isApplied = perStoreAppliedCount > 0
   const isLinkedToStore = linkedStoreNames.length > 0
-  const needsActivation = isLinkedToStore && !isApplied && liveBlockReason === 'catalog_template_override'
   const isLiveOnStorefront = viewLiveLinks.length > 0
+  const needsActivation = isLinkedToStore
+    && !isLiveOnStorefront
+    && liveBlockReason === 'catalog_template_override'
   const multipleLiveStores = viewLiveLinks.length > 1
 
   const handleCardClick = () => {
@@ -131,6 +145,11 @@ export function BuilderDraftTemplateCard({
               ? linkedStoreNames.join(', ')
               : 'Assign this site to a business unit to show it on the live storefront.'
 
+  const showTopAssignmentBadge = !(
+    (singleTemplateMode && isSingleTemplateSelected)
+    || (perStoreTemplateMode && appliedToContextStoreResolved)
+  )
+
   return (
     <div
       title={
@@ -148,7 +167,8 @@ export function BuilderDraftTemplateCard({
       }}
       className={cn(
         templateCardShellClass,
-        showAssignHighlight && 'border-emerald-500 bg-emerald-50/30 ring-2 ring-emerald-300/80',
+        showAssignHighlight && perStoreTemplateMode && templateCardSelectedClass,
+        showAssignHighlight && singleTemplateMode && templateCardSelectedClass,
       )}
       data-current-for-selected-store={appliedToContextStoreResolved ? 'true' : undefined}
     >
@@ -188,11 +208,16 @@ export function BuilderDraftTemplateCard({
             )}
           </span>
         </div>
-        {isLinkedToStore ? (
+        {singleTemplateMode && isSingleTemplateSelected && showTopAssignmentBadge ? (
+          <span className={cn('absolute right-1.5 top-1.5 max-w-[70%]', templateBadgeVioletClass)} title="Active storefront template for all business units">
+            <Check className="h-2.5 w-2.5 shrink-0" />
+            <span className="truncate">All stores</span>
+          </span>
+        ) : isLinkedToStore && showTopAssignmentBadge ? (
           <span
             className={cn(
-              'absolute right-2 top-2 max-w-[70%]',
-              isApplied ? templateBadgeEmeraldClass : 'inline-flex items-center gap-1 rounded-full bg-amber-500/95 px-2 py-0.5 text-[9px] font-bold text-white shadow-sm',
+              'absolute right-1.5 top-1.5 max-w-[70%]',
+              isApplied ? templateBadgeEmeraldClass : 'inline-flex items-center gap-1 rounded-full bg-amber-500/95 px-1.5 py-px text-[9px] font-bold text-white shadow-sm',
             )}
             title={isApplied ? assignedStoreNames.join(', ') : linkedStoreNames.join(', ')}
           >
@@ -202,27 +227,14 @@ export function BuilderDraftTemplateCard({
                 ? contextStoreCode
                 : linkedStoreNames.length === 1
                   ? linkedStoreNames[0]
-                  : `${linkedStoreNames.length} BUs / Stores`}
+                  : `${linkedStoreNames.length} units`}
             </span>
           </span>
         ) : null}
-        <div className="absolute bottom-1.5 left-1.5 right-1.5 flex items-center justify-between gap-1.5">
-          <div className="flex min-w-0 flex-1 items-center gap-1 overflow-hidden">
-            <span className="shrink-0 rounded-full bg-primary/90 px-1.5 py-0 text-[9px] font-semibold text-white">
-              Website Builder
-            </span>
-            <span className="shrink-0 rounded-full bg-emerald-600/90 px-1.5 py-0 text-[9px] font-extrabold uppercase tracking-wide text-white">
-              Published
-            </span>
-            {appliedLabel ? (
-              <span className="min-w-0 truncate rounded-full bg-white/80 px-1.5 py-0 text-[9px] font-semibold uppercase text-gray-700">
-                {appliedLabel}
-              </span>
-            ) : null}
-            <span className="shrink-0 rounded-full bg-white/80 px-1.5 py-0 text-[9px] font-semibold text-gray-700">
-              {pageCount} pg
-            </span>
-          </div>
+        <div className="absolute bottom-1 left-1.5 right-1.5 flex items-end justify-between gap-1">
+          <span className={templateCardMediaChipClass}>
+            Builder · {pageCount} pg
+          </span>
         </div>
       </div>
       <div className={templateCardBodyClass}>
@@ -230,7 +242,27 @@ export function BuilderDraftTemplateCard({
           <div className="min-w-0 truncate text-sm font-extrabold text-gray-900 transition-colors group-hover/card:text-primary">
             {site.name}
           </div>
-          {perStoreTemplateMode ? (
+          {singleTemplateMode ? (
+            <span
+              className={cn(
+                'inline-flex shrink-0 items-center gap-1 text-[10px] font-semibold',
+                isSingleTemplateSelected ? 'text-violet-700' : 'text-gray-400',
+              )}
+              title={
+                isSingleTemplateSelected
+                  ? 'This Website Builder site is the live template for every business unit'
+                  : 'Not selected — click Use for all stores to apply'
+              }
+            >
+              <span
+                className={cn(
+                  'h-1.5 w-1.5 shrink-0 rounded-full',
+                  isSingleTemplateSelected ? 'bg-violet-500' : 'bg-gray-300',
+                )}
+              />
+              {isSingleTemplateSelected ? 'Live all stores' : 'Not applied'}
+            </span>
+          ) : perStoreTemplateMode ? (
             <span
               className={cn(
                 'inline-flex shrink-0 items-center gap-1 text-[10px] font-semibold',
@@ -260,63 +292,83 @@ export function BuilderDraftTemplateCard({
             </span>
           ) : null}
         </div>
-        <p className="mt-0.5 line-clamp-1 text-[11px] leading-snug text-gray-500">
-          {site.description?.trim()
+        <p className="line-clamp-2 text-[10px] leading-snug text-gray-500">
+          {singleTemplateMode && !isSingleTemplateSelected
+            ? 'Assign to your live store — apply for all business units.'
+            : site.description?.trim()
             || (needsActivation
-              ? `Assigned to ${linkedStoreNames[0] ?? 'store'} — click Activate to go live on the storefront.`
+              ? `Activate for ${linkedStoreNames[0] ?? 'store'} to replace catalog template.`
               : liveBlockReason === 'catalog_template_override'
-                ? 'Published, but a catalog template still controls this store — click Activate.'
-                : 'Published Website Builder site — assign to a business unit.')}
+                ? 'Catalog template still controls this store — activate to go live.'
+                : site.website_store_scope === 'store' && site.website_store_name
+                  ? `Built for ${site.website_store_name}.`
+                  : 'Assign to your live store — pick a business unit below.')}
         </p>
-        <div className="mt-1.5">
-          <WebsiteScopeBadge scope={site.website_store_scope} storeName={site.website_store_name} />
-        </div>
-        <div className="mt-1.5 flex flex-wrap items-center justify-end gap-1.5" data-template-card-action>
-          <div className="inline-flex items-center gap-1">
-            {perStoreTemplateMode && onAssign ? (
+        <div className={templateCardActionRowClass} data-template-card-action>
+          {singleTemplateMode && onUseForAllStores ? (
+            isSingleTemplateSelected ? (
+              <span className={templateCardActivePillClass} title="Active for all business units">
+                <Check className="h-3 w-3 shrink-0" />
+                {singleTemplateActionLabel(true)}
+              </span>
+            ) : (
               <button
                 type="button"
-                disabled={assignPending}
-                onClick={onAssign}
+                disabled={useForAllStoresPending}
+                onClick={onUseForAllStores}
                 className={cn(
-                  templateCardActionBtnClass,
-                  isApplied
-                    ? 'border-emerald-200 bg-emerald-50 text-emerald-600 hover:border-emerald-300 hover:bg-emerald-100'
-                    : 'border-emerald-200 bg-emerald-50/80 text-emerald-700 hover:border-emerald-300 hover:bg-emerald-100',
+                  templateCardPrimaryActionClass,
+                  'border-violet-200 bg-violet-50/80 text-violet-700 hover:border-violet-300 hover:bg-violet-100',
                 )}
               >
-                {needsActivation ? (
-                  <>
-                    <Store className="h-3 w-3" />
-                    Activate{contextStoreCode ? ` · ${contextStoreCode}` : ''}
-                  </>
-                ) : isApplied ? (
-                  <>
-                    <Check className="h-3 w-3" />
-                    {perStoreTemplateActionLabel(contextStoreCode, appliedToContextStoreResolved, true)}
-                  </>
-                ) : (
-                  <>
-                    <Store className="h-3 w-3" />
-                    {perStoreTemplateActionLabel(
-                      contextStoreCode,
-                      false,
-                      isLinkedToStore && !appliedToContextStoreResolved,
-                    )}
-                  </>
-                )}
+                <Store className="h-3 w-3 shrink-0" />
+                {singleTemplateActionLabel(false)}
               </button>
-            ) : null}
+            )
+          ) : null}
+          {perStoreTemplateMode && onAssign ? (
+            <button
+              type="button"
+              disabled={assignPending}
+              onClick={onAssign}
+              className={cn(
+                templateCardPrimaryActionClass,
+                appliedToContextStoreResolved && !needsActivation
+                  ? 'border-2 border-primary bg-primary/10 text-primary hover:border-primary hover:bg-primary/15'
+                  : 'border-emerald-200 bg-emerald-50/80 text-emerald-700 hover:border-emerald-300 hover:bg-emerald-100',
+              )}
+            >
+              {needsActivation ? (
+                <>
+                  <Store className="h-3 w-3 shrink-0" />
+                  Activate{contextStoreCode ? ` · ${contextStoreCode}` : ''}
+                </>
+              ) : appliedToContextStoreResolved ? (
+                <>
+                  <Check className="h-3 w-3 shrink-0" />
+                  {perStoreTemplateActionLabel(contextStoreCode, true, true)}
+                </>
+              ) : (
+                <>
+                  <Store className="h-3 w-3 shrink-0" />
+                  {perStoreTemplateActionLabel(
+                    contextStoreCode,
+                    false,
+                    isApplied || (isLinkedToStore && !appliedToContextStoreResolved),
+                  )}
+                </>
+              )}
+            </button>
+          ) : null}
+          <div className={templateCardActionClusterClass}>
             <Link
               to={`/websites/${site.id}`}
               onClick={e => e.stopPropagation()}
-              className={cn(
-                templateCardActionBtnClass,
-                'border-gray-200 bg-white text-gray-700 hover:border-gray-300 hover:bg-gray-50',
-              )}
+              className={templateCardIconActionClass}
+              title="Edit in Website Builder"
+              aria-label="Edit in Website Builder"
             >
               <Globe className="h-3 w-3" />
-              Edit
             </Link>
             <AppliedTemplateViewLiveButton
               links={viewLiveLinks}
@@ -333,7 +385,7 @@ export function BuilderDraftTemplateCard({
               title="Preview published site"
               aria-label="Preview published site"
             >
-              <Eye className="h-3.5 w-3.5" />
+              <Eye className="h-3 w-3" />
             </button>
           </div>
         </div>

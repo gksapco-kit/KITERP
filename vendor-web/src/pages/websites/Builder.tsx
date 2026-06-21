@@ -66,6 +66,9 @@ import {
   resolveStorefrontLinkMode,
   resolveStorefrontLinksForStoreIds,
   resolveStorefrontTemplateMode,
+  buildCustomerStoreLink,
+  customerLinkForStore,
+  storefrontUrlNeedsBranch,
 } from '@/lib/liveStorefrontUrl'
 import { getTemplatePreviewPalette } from '@/lib/templateBlockHighlights'
 import { BuilderCanvasProviders } from '@/components/websites/BuilderCanvasProviders'
@@ -8484,6 +8487,8 @@ export default function WebsiteBuilder() {
   const [trashLoading, setTrashLoading] = useState(false)
   const [lastSavedAt, setLastSavedAt] = useState<Date | null>(null)
   const [storePopover, setStorePopover] = useState(false)
+  const viewStoreAnchorRef = useRef<HTMLButtonElement>(null)
+  const [storePopoverRect, setStorePopoverRect] = useState<{ top: number; right: number } | null>(null)
   // ?? Block-level saving indicator ???????????????????????????????????????????
   const [savingBlockId, setSavingBlockId] = useState<string | null>(null)
   /** Selected in-canvas image overlay (for AI / Media apply). */
@@ -8735,6 +8740,29 @@ export default function WebsiteBuilder() {
       )
     }
   }, [siteId, site, queryClient])
+
+  useEffect(() => {
+    if (!moreMenuOpen) {
+      setStorePopover(false)
+      setStorePopoverRect(null)
+    }
+  }, [moreMenuOpen])
+
+  useEffect(() => {
+    if (!storePopover) return
+    const onReposition = () => {
+      const el = viewStoreAnchorRef.current
+      if (!el) return
+      const rect = el.getBoundingClientRect()
+      setStorePopoverRect({ top: rect.bottom + 4, right: window.innerWidth - rect.right })
+    }
+    window.addEventListener('resize', onReposition)
+    window.addEventListener('scroll', onReposition, true)
+    return () => {
+      window.removeEventListener('resize', onReposition)
+      window.removeEventListener('scroll', onReposition, true)
+    }
+  }, [storePopover])
 
   useEffect(() => {
     if (!moreMenuOpen) return
@@ -10511,7 +10539,10 @@ export default function WebsiteBuilder() {
     clearArmedDelete: () => {},
     clearOverlayImage: () => setOverlayImageTarget(null),
     clearCanvasImage: () => setCanvasImageTarget(null),
-    closeStorePopover: () => setStorePopover(false),
+    closeStorePopover: () => {
+      setStorePopover(false)
+      setStorePopoverRect(null)
+    },
     clearActiveTextTarget: () => setActiveTextTarget(null),
     clearSelectedBlock: () => setSelectedBlockId(null),
   }
@@ -12538,6 +12569,7 @@ export default function WebsiteBuilder() {
   // not wb_sites.subdomain. In dev, always use the logged-in vendor's catalog slug so links don't 404.
   const siteTestUrl = useMemo(() => {
     if (!site) return null
+    const vendorSettings = myVendor?.settings ?? null
     const customDomain = site.custom_domain?.trim()
     if (customDomain) {
       return customDomain.startsWith('http://') || customDomain.startsWith('https://')
@@ -12545,8 +12577,23 @@ export default function WebsiteBuilder() {
         : `https://${customDomain}`
     }
     if (vendorCatalogSlug) {
-      const scopedLink = resolveSiteStoreLink(vendorCatalogSlug, site, builderStores)
+      const scopedLink = resolveSiteStoreLink(vendorCatalogSlug, site, builderStores, vendorSettings)
       if (scopedLink) return scopedLink
+
+      const linkMode = resolveStorefrontLinkMode(vendorSettings)
+      const templateMode = resolveStorefrontTemplateMode(vendorSettings)
+      if (!storefrontUrlNeedsBranch(linkMode, templateMode)) {
+        return buildCustomerStoreLink(vendorCatalogSlug)
+      }
+
+      const linkedStore =
+        site.website_store_scope === 'store' && site.website_store_id
+          ? builderStores.find(s => s.id === site.website_store_id)
+          : builderStores[0]
+      if (linkedStore) {
+        return customerLinkForStore(vendorCatalogSlug, linkedStore, linkMode, templateMode)
+      }
+
       if (shouldUseLocalStorefrontUrls()) {
         return `${getStorefrontAppOrigin()}/store/${encodeURIComponent(vendorCatalogSlug)}`
       }
@@ -12555,11 +12602,21 @@ export default function WebsiteBuilder() {
       return `https://${site.subdomain.trim()}.kiterp.com`
     }
     return null
-  }, [site, vendorCatalogSlug, builderStores])
+  }, [site, vendorCatalogSlug, builderStores, myVendor?.settings])
 
   const handleViewStore = useCallback(async () => {
     if (siteTestUrl) {
-      setStorePopover(v => !v)
+      if (storePopover) {
+        setStorePopover(false)
+        setStorePopoverRect(null)
+      } else {
+        const el = viewStoreAnchorRef.current
+        if (el) {
+          const rect = el.getBoundingClientRect()
+          setStorePopoverRect({ top: rect.bottom + 4, right: window.innerWidth - rect.right })
+        }
+        setStorePopover(true)
+      }
     } else {
       openTextPrompt({
         title: 'Set a test domain',
@@ -12584,7 +12641,7 @@ export default function WebsiteBuilder() {
         },
       })
     }
-  }, [siteTestUrl, openTextPrompt, updateSite])
+  }, [siteTestUrl, storePopover, openTextPrompt, updateSite])
 
   const handleOpenBrowserPreview = useCallback(async () => {
     if (!siteId || !site || openingBrowserPreviewRef.current) return
@@ -12865,6 +12922,74 @@ export default function WebsiteBuilder() {
           onSecondary={textPrompt.onSecondary ? async () => { await textPrompt.onSecondary!() } : undefined}
           onClose={() => setTextPrompt(null)}
         />
+      )}
+
+      {storePopover && siteTestUrl && storePopoverRect && site && createPortal(
+        <>
+          <div
+            className="fixed inset-0 z-[310]"
+            aria-hidden
+            onClick={() => {
+              setStorePopover(false)
+              setStorePopoverRect(null)
+            }}
+          />
+          <div
+            role="dialog"
+            aria-label={site.is_published ? 'Live store URL' : 'Preview store URL'}
+            className={cn('fixed z-[320] w-[min(18rem,calc(100vw-1rem))] rounded-xl border p-3 shadow-2xl', builderPanelUi.popover)}
+            style={{ top: storePopoverRect.top, right: storePopoverRect.right }}
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="mb-2 flex items-center justify-between gap-2">
+              <div className={builderPanelUi.eyebrow}>
+                {site.is_published ? 'Live URL' : 'Preview URL'}
+              </div>
+              {site.is_published ? (
+                <span className="rounded-full bg-emerald-500/15 px-1.5 py-px text-[9px] font-bold uppercase text-emerald-700 dark:text-emerald-300">
+                  Published
+                </span>
+              ) : null}
+            </div>
+            <div className={cn('mb-2 rounded-lg px-2 py-1.5', builderPanelUi.mutedSurface)}>
+              <div className="flex items-start gap-1.5">
+                <Globe className="mt-0.5 h-3 w-3 shrink-0 text-muted-foreground" />
+                <span
+                  className="min-w-0 flex-1 break-all font-mono text-[10px] leading-snug text-foreground"
+                  title={siteTestUrl}
+                >
+                  {siteTestUrl}
+                </span>
+              </div>
+            </div>
+            <div className="flex gap-1.5">
+              <button
+                type="button"
+                onClick={async () => {
+                  await navigator.clipboard.writeText(siteTestUrl).catch(() => {})
+                  toast.success('Link copied to clipboard!')
+                  setStorePopover(false)
+                  setStorePopoverRect(null)
+                }}
+                className={cn(builderPanelUi.btnSecondary, 'flex-1 justify-center px-2 py-1.5 text-[10px] font-medium')}
+              >
+                <Copy className="h-3 w-3" /> Copy
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  window.open(siteTestUrl, '_blank')
+                  setStorePopover(false)
+                  setStorePopoverRect(null)
+                }}
+                className="flex flex-1 items-center justify-center gap-1 rounded-lg bg-primary px-2 py-1.5 text-[10px] font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+              >
+                <ExternalLink className="h-3 w-3" /> Open
+              </button>
+            </div>
+          </div>
+        </>,
+        document.body,
       )}
 
       {sectionLayoutPicker && site && (
@@ -13344,10 +13469,10 @@ export default function WebsiteBuilder() {
                 {moreMenuOpen && (
                   <div className={cn('absolute right-0 top-full z-[300] mt-1.5 w-72 max-h-[min(70vh,520px)] overflow-y-auto rounded-xl', builderPanelUi.popover)}>
                     <p className={cn(builderPanelUi.eyebrow, 'px-3 pt-2.5 pb-1')}>
-                      Publish &amp; share
+                      Ready for Live &amp; share
                     </p>
 
-                    {/* Publish store */}
+                    {/* Ready for Live */}
                     <button
                       type="button"
                       disabled={isApplyingToStore || applyingTemplateInline}
@@ -13355,7 +13480,7 @@ export default function WebsiteBuilder() {
                       title={
                         isSiteApplied
                           ? 'Your store is live — publish latest changes again'
-                          : 'Save and publish this design so customers can see it on your store'
+                          : 'Move this design to Website templates, then assign or publish to go live'
                       }
                       className={cn(builderPanelUi.menuItem, 'hover:bg-emerald-500/10 hover:text-emerald-700 dark:hover:text-emerald-300 disabled:cursor-wait disabled:opacity-60')}
                     >
@@ -13365,16 +13490,19 @@ export default function WebsiteBuilder() {
                         <Check className="h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
                       )}
                       <span className="flex-1">
-                        {isApplyingToStore ? 'Publishing…' : isSiteApplied ? 'Live on store' : 'Publish store'}
+                        {isApplyingToStore ? 'Publishing…' : isSiteApplied ? 'Live on store' : 'Ready for Live'}
                         <span className={builderPanelUi.menuItemHint}>
-                          Make this design live for customers
+                          {isSiteApplied
+                            ? 'Republish to push updates live'
+                            : 'Moves to Website templates — assign or publish to go live'}
                         </span>
                       </span>
                     </button>
 
-                    {/* View store / get link (with store popover) */}
+                    {/* View store / get link (popover portaled outside scroll menu) */}
                     <div className="relative">
                       <button
+                        ref={viewStoreAnchorRef}
                         type="button"
                         onClick={handleViewStore}
                         title={siteTestUrl ?? 'Set a subdomain to get a test link'}
@@ -13388,41 +13516,6 @@ export default function WebsiteBuilder() {
                           </span>
                         </span>
                       </button>
-
-                      {storePopover && siteTestUrl && (
-                        <div className={cn('absolute right-0 top-full z-[320] mt-1 w-80 rounded-xl p-4', builderPanelUi.popover)}>
-                          <div className="flex items-center justify-between mb-3">
-                            <div className={builderPanelUi.eyebrow}>
-                              {site.is_published ? '✅ Live URL' : '🔒 Preview URL (not live)'}
-                            </div>
-                            {site.is_published && (
-                              <span className="text-xs bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 font-bold px-2 py-0.5 rounded-full">PUBLISHED</span>
-                            )}
-                          </div>
-                          <div className={cn('flex items-center gap-2 rounded-lg px-3 py-2 mb-3', builderPanelUi.mutedSurface)}>
-                            <Globe className="w-3.5 h-3.5 text-primary/80 shrink-0" />
-                            <span className="text-xs text-primary font-mono truncate flex-1">{siteTestUrl}</span>
-                          </div>
-                          <div className="flex gap-2">
-                            <button
-                              onClick={async () => {
-                                await navigator.clipboard.writeText(siteTestUrl).catch(() => {})
-                                toast.success('Link copied to clipboard!')
-                                setStorePopover(false)
-                              }}
-                              className={cn(builderPanelUi.btnSecondary, 'flex-1 justify-center px-3 py-2 text-xs font-medium')}
-                            >
-                              <Copy className="w-3.5 h-3.5" /> Copy URL
-                            </button>
-                            <button
-                              onClick={() => { window.open(siteTestUrl, '_blank'); setStorePopover(false) }}
-                              className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-primary hover:bg-primary/90 text-primary-foreground text-xs font-medium transition-colors"
-                            >
-                              <ExternalLink className="w-3.5 h-3.5" /> Open ↗
-                            </button>
-                          </div>
-                        </div>
-                      )}
                     </div>
 
                     <div className={cn('my-1 border-t', builderPanelUi.divider)} />

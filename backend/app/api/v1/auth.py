@@ -168,6 +168,14 @@ class PasswordChangeRequest(BaseModel):
     new_password: str = Field(..., min_length=8, max_length=128)
 
 
+class AccountDeleteSendOtpRequest(BaseModel):
+    password: str = Field(..., min_length=1)
+
+
+class AccountDeleteRequest(BaseModel):
+    code: str = Field(..., min_length=6, max_length=6)
+
+
 class EmailChangeRequestPayload(BaseModel):
     new_email: EmailStr
     password: str = Field(..., min_length=1)
@@ -568,6 +576,123 @@ async def change_password(
     await db.commit()
 
     return {"success": True, "message": "Password changed successfully"}
+
+
+@router.post("/me/delete/send-otp")
+async def send_account_delete_otp(
+    payload: AccountDeleteSendOtpRequest,
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Verify password and send a one-time code before permanent account deletion."""
+    from app.services.phone_otp_service import OtpService, TWILIO_VERIFY_EMAIL_MARKER, TWILIO_VERIFY_MARKER
+    from app.services.user_account_service import UserAccountService
+
+    await UserAccountService(db).validate_delete_password(current_user, payload.password)
+
+    if not current_user.email and not current_user.phone:
+        raise HTTPException(
+            status_code=400,
+            detail="Add an email or phone number to your profile before deleting your account.",
+        )
+
+    _check_cooldown(getattr(current_user, "account_delete_expires_at", None))
+
+    expires = _expires_at()
+    otp_svc = OtpService()
+    code = _generate_code()
+
+    if current_user.email:
+        email = current_user.email.lower()
+        dispatch = await otp_svc.send_and_store_code(email, channel="email", purpose="account deletion")
+        code = dispatch.stored_code or code
+        current_user.account_delete_code = (
+            TWILIO_VERIFY_EMAIL_MARKER if dispatch.verify_marker else dispatch.stored_code or code
+        )
+        destination = _mask_email(email)
+        channel = "email"
+        extra = _otp_email_extra_fields(
+            email_sent=dispatch.result.sent,
+            email_configured=otp_svc.is_email_configured,
+            code=code,
+            log_tag="account-delete:dev",
+            email=email,
+            email_error=dispatch.result.user_message(
+                fallback="Could not send verification email. Try again or contact support.",
+            ),
+        )
+    else:
+        phone = current_user.phone or ""
+        dispatch = await otp_svc.send_and_store_code(phone, channel="sms", purpose="account deletion")
+        code = dispatch.stored_code or code
+        current_user.account_delete_code = (
+            TWILIO_VERIFY_MARKER if dispatch.verify_marker else dispatch.stored_code or code
+        )
+        destination = phone
+        channel = "phone"
+        extra = _otp_sms_extra_fields(
+            sms_sent=dispatch.result.sent,
+            sms_configured=otp_svc.is_sms_configured,
+            code=code,
+            log_tag="account-delete:dev",
+            phone=phone,
+            sms_error=dispatch.result.user_message(
+                fallback="Could not send verification SMS. Try again or contact support.",
+            ),
+        )
+
+    current_user.account_delete_expires_at = expires
+    db.add(current_user)
+    await db.commit()
+
+    return {
+        "sent": True,
+        "channel": channel,
+        "to": destination,
+        "expires_at": expires.isoformat(),
+        **extra,
+    }
+
+
+@router.delete("/me", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_me(
+    payload: AccountDeleteRequest,
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Permanently delete the current user's login after OTP confirmation."""
+    from app.services.phone_otp_service import OtpService, is_twilio_email_verify_stored, is_twilio_verify_stored
+    from app.services.user_account_service import UserAccountService
+
+    if not current_user.account_delete_code:
+        raise HTTPException(
+            status_code=400,
+            detail="Confirm your password first to receive a verification code.",
+        )
+    if current_user.account_delete_expires_at and current_user.account_delete_expires_at < datetime.now(timezone.utc):
+        raise HTTPException(status_code=400, detail="Verification code has expired. Confirm your password again.")
+
+    code_ok = False
+    stored = current_user.account_delete_code
+    if is_twilio_email_verify_stored(stored) and current_user.email:
+        check = await OtpService().verify_otp(current_user.email, payload.code, channel="email")
+        code_ok = check.approved
+    elif is_twilio_verify_stored(stored) and current_user.phone:
+        check = await OtpService().verify_otp(current_user.phone, payload.code, channel="sms")
+        code_ok = check.approved
+    elif stored == payload.code:
+        code_ok = True
+
+    if not code_ok:
+        raise HTTPException(status_code=400, detail="Invalid verification code")
+
+    current_user.account_delete_code = None
+    current_user.account_delete_expires_at = None
+    db.add(current_user)
+    await db.flush()
+
+    await UserAccountService(db).delete_my_account_confirmed(current_user)
+    return None
 
 
 # ── Password reset (forgot password) ──────────────────────────────────────

@@ -15,6 +15,7 @@ from app.api.deps import get_current_superuser, get_current_platform_staff
 from app.models.user import User
 from app.models.vendor import Vendor
 from app.models.vendor_rm_query import VendorRmQuery
+from app.models.user_contact_change_request import UserContactChangeRequest
 from app.models.vendor_plan import VendorPlan
 from app.models.restaurant import RestaurantOrder, RestaurantKOT, RestaurantTable, RestaurantReservation
 from app.models.pos import POSTransaction
@@ -731,6 +732,166 @@ async def patch_vendor_rm_query_status(
         body=row.body,
         status=row.status,
         created_at=row.created_at.isoformat() if row.created_at else None,
+    )
+
+
+class UserContactChangeAdminRow(BaseModel):
+    id: str
+    user_id: str
+    user_name: Optional[str] = None
+    user_email: Optional[str] = None
+    vendor_id: str
+    vendor_display_name: Optional[str] = None
+    field_type: str
+    current_value: str
+    requested_value: str
+    reason: Optional[str] = None
+    status: str
+    review_notes: Optional[str] = None
+    created_at: Optional[str] = None
+    resolved_at: Optional[str] = None
+
+
+class UserContactChangeAdminListResponse(BaseModel):
+    items: List[UserContactChangeAdminRow]
+    total: int
+    page: int
+    size: int
+    pages: int
+
+
+class UserContactChangeReviewPatch(BaseModel):
+    action: Literal["approve", "reject"]
+    review_notes: Optional[str] = Field(None, max_length=2000)
+
+
+@router.get("/user-contact-change-requests", response_model=UserContactChangeAdminListResponse)
+async def list_user_contact_change_requests(
+    page: int = Query(1, ge=1),
+    size: int = Query(20, ge=1, le=100),
+    status_filter: Optional[str] = Query(None, alias="status"),
+    vendor_id: Optional[UUID] = None,
+    current_user: User = Depends(get_current_platform_staff),
+    db: AsyncSession = Depends(get_db),
+):
+    rm_scope = relationship_manager_list_scope(current_user)
+    filters = []
+    if rm_scope is not None:
+        filters.append(Vendor.relationship_manager_user_id == rm_scope)
+    if vendor_id is not None:
+        filters.append(UserContactChangeRequest.vendor_id == vendor_id)
+    if status_filter:
+        filters.append(UserContactChangeRequest.status == status_filter)
+
+    count_stmt = (
+        select(func.count())
+        .select_from(UserContactChangeRequest)
+        .join(Vendor, UserContactChangeRequest.vendor_id == Vendor.id)
+        .join(User, UserContactChangeRequest.user_id == User.id)
+    )
+    list_stmt = (
+        select(UserContactChangeRequest)
+        .join(Vendor, UserContactChangeRequest.vendor_id == Vendor.id)
+        .join(User, UserContactChangeRequest.user_id == User.id)
+        .options(
+            selectinload(UserContactChangeRequest.vendor),
+            selectinload(UserContactChangeRequest.user),
+        )
+    )
+    for f in filters:
+        count_stmt = count_stmt.where(f)
+        list_stmt = list_stmt.where(f)
+
+    total = (await db.execute(count_stmt)).scalar_one()
+    skip = (page - 1) * size
+    list_stmt = (
+        list_stmt.order_by(UserContactChangeRequest.created_at.desc())
+        .offset(skip)
+        .limit(size)
+    )
+    rows = list((await db.execute(list_stmt)).scalars().all())
+
+    items: List[UserContactChangeAdminRow] = []
+    for r in rows:
+        u = r.user
+        v = r.vendor
+        items.append(
+            UserContactChangeAdminRow(
+                id=str(r.id),
+                user_id=str(r.user_id),
+                user_name=(u.full_name or "").strip() if u else None,
+                user_email=u.email if u else None,
+                vendor_id=str(r.vendor_id),
+                vendor_display_name=v.display_name if v else None,
+                field_type=r.field_type,
+                current_value=r.current_value,
+                requested_value=r.requested_value,
+                reason=r.reason,
+                status=r.status,
+                review_notes=r.review_notes,
+                created_at=r.created_at.isoformat() if r.created_at else None,
+                resolved_at=r.resolved_at.isoformat() if r.resolved_at else None,
+            )
+        )
+
+    return UserContactChangeAdminListResponse(
+        items=items,
+        total=total,
+        page=page,
+        size=size,
+        pages=math.ceil(total / size) if total > 0 else 0,
+    )
+
+
+@router.patch("/user-contact-change-requests/{request_id}", response_model=UserContactChangeAdminRow)
+async def review_user_contact_change_request(
+    request_id: UUID,
+    body: UserContactChangeReviewPatch,
+    current_user: User = Depends(get_current_platform_staff),
+    db: AsyncSession = Depends(get_db),
+):
+    from app.api.v1.vendor_contact_change import apply_contact_change_request
+
+    result = await db.execute(
+        select(UserContactChangeRequest)
+        .where(UserContactChangeRequest.id == request_id)
+        .options(
+            selectinload(UserContactChangeRequest.vendor),
+            selectinload(UserContactChangeRequest.user),
+        )
+    )
+    row = result.scalar_one_or_none()
+    if not row:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Request not found")
+    vendor = row.vendor
+    if not vendor:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Vendor not found")
+
+    await ensure_vendor_visible_to_platform_staff(current_user, vendor)
+
+    row = await apply_contact_change_request(
+        db,
+        row,
+        current_user,
+        approve=body.action == "approve",
+        review_notes=body.review_notes,
+    )
+    u = await db.get(User, row.user_id)
+    return UserContactChangeAdminRow(
+        id=str(row.id),
+        user_id=str(row.user_id),
+        user_name=(u.full_name or "").strip() if u else None,
+        user_email=u.email if u else None,
+        vendor_id=str(row.vendor_id),
+        vendor_display_name=vendor.display_name,
+        field_type=row.field_type,
+        current_value=row.current_value,
+        requested_value=row.requested_value,
+        reason=row.reason,
+        status=row.status,
+        review_notes=row.review_notes,
+        created_at=row.created_at.isoformat() if row.created_at else None,
+        resolved_at=row.resolved_at.isoformat() if row.resolved_at else None,
     )
 
 

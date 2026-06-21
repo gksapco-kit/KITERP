@@ -1,10 +1,10 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { Check, ExternalLink, Store } from 'lucide-react'
+import { Check, ExternalLink, Pencil, Store } from 'lucide-react'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
-import { templateBadgeEmeraldClass, templateBadgeVioletClass, templateCardActionBtnClass, templateCardBodyClass, templateCardCurrentForStoreRibbonClass, templateCardMediaHeightClass, templateCardPreviewOverlayClass, templateCardShellClass, perStoreTemplateActionLabel } from '@/lib/websiteTemplateBadges'
+import { templateBadgeEmeraldClass, templateBadgeVioletClass, templateCardActionBtnClass, templateCardActionClusterClass, templateCardActionRowClass, templateCardActivePillClass, templateCardBodyClass, templateCardCurrentForStoreRibbonClass, templateCardMediaHeightClass, templateCardPreviewOverlayClass, templateCardPrimaryActionClass, templateCardSelectedClass, templateCardShellClass, perStoreTemplateActionLabel, singleTemplateActionLabel } from '@/lib/websiteTemplateBadges'
 import type { AppliedTemplateViewLiveLink } from '@/lib/liveStorefrontUrl'
-import { AppliedTemplateViewLiveButton } from '@/components/websites/AppliedTemplateViewLiveButton'
+import { AppliedTemplateViewLiveButton, templateCardIconActionClass } from '@/components/websites/AppliedTemplateViewLiveButton'
 import { vendorApi } from '@/api/vendor'
 import { getCustomerStorefrontBaseUrl } from '@/lib/storefrontPreviewUrl'
 import {
@@ -82,15 +82,19 @@ export function BusinessFrontDefaultTemplateCard({
 
   return (
     <div
-      title={storeUrl ? (live ? `Click to view live ${preset.name}` : `Click to open ${preset.name} store`) : undefined}
-      onClick={storeUrl ? (e) => {
+      title={live && storeUrl ? `Click to view live ${preset.name}` : `Click to customize ${preset.name}`}
+      onClick={(e) => {
         if ((e.target as HTMLElement).closest('[data-template-card-action]')) return
-        window.open(storeUrl, '_blank', 'noopener,noreferrer')
-      } : undefined}
+        if (live && storeUrl) {
+          window.open(storeUrl, '_blank', 'noopener,noreferrer')
+        } else {
+          onCustomize()
+        }
+      }}
       className={cn(
         templateCardShellClass,
-        live && 'border-primary ring-2 ring-primary/20',
-        perStoreTemplateMode && perStoreHighlight && 'border-emerald-500 bg-emerald-50/30 ring-2 ring-emerald-300/80',
+        live && 'border-primary ring-1 ring-primary/20',
+        perStoreTemplateMode && perStoreHighlight && templateCardSelectedClass,
       )}
       data-current-for-selected-store={perStoreTemplateMode && assignedToContextStore ? 'true' : undefined}
     >
@@ -109,23 +113,21 @@ export function BusinessFrontDefaultTemplateCard({
           }}
         />
         <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/50 via-black/5 to-transparent" />
-        {storeUrl ? (
-          <div className={templateCardPreviewOverlayClass}>
-            <span className="inline-flex items-center gap-1 rounded-full bg-white/95 px-2 py-1 text-[10px] font-bold text-gray-900 shadow-md">
-              {live ? (
-                <>
-                  <ExternalLink className="h-3 w-3" />
-                  View live site
-                </>
-              ) : (
-                <>
-                  <ExternalLink className="h-3 w-3" />
-                  View store
-                </>
-              )}
-            </span>
-          </div>
-        ) : null}
+        <div className={templateCardPreviewOverlayClass}>
+          <span className="inline-flex items-center gap-1 rounded-full bg-white/95 px-2 py-1 text-[10px] font-bold text-gray-900 shadow-md">
+            {live ? (
+              <>
+                <ExternalLink className="h-3 w-3" />
+                View live site
+              </>
+            ) : (
+              <>
+                <Pencil className="h-3 w-3" />
+                Customize
+              </>
+            )}
+          </span>
+        </div>
         <div className="absolute left-1.5 top-1.5 flex max-w-[calc(100%-0.75rem)] flex-nowrap items-center gap-1 overflow-hidden">
           <span className="shrink-0 whitespace-nowrap rounded-full bg-white/90 px-1.5 py-0 text-[9px] font-extrabold uppercase tracking-wide text-gray-800">
             Default layout
@@ -218,47 +220,52 @@ export function BusinessFrontDefaultTemplateCard({
             <span className="shrink-0 text-[10px] font-semibold text-primary">In use</span>
           ) : null}
         </div>
-        <p className="mt-0.5 line-clamp-1 text-[11px] leading-snug text-gray-500">
+        <p className="line-clamp-2 text-[10px] leading-snug text-gray-500">
           {preset.description || 'Section-based home when no Website Builder site is published.'}
         </p>
-        <div className="mt-1.5 flex flex-wrap items-center justify-end gap-1.5" data-template-card-action>
-          <div className="inline-flex items-center gap-1">
-            {singleTemplateMode && onUseForAllStores ? (
+        <div className={templateCardActionRowClass} data-template-card-action>
+          {singleTemplateMode && onUseForAllStores ? (
+            isSingleTemplateSelected ? (
+              <span className={templateCardActivePillClass}>
+                <Check className="h-3 w-3 shrink-0" />
+                {singleTemplateActionLabel(true)}
+              </span>
+            ) : (
               <button
                 type="button"
-                disabled={isSingleTemplateSelected || useForAllStoresPending}
+                disabled={useForAllStoresPending}
                 onClick={() => onUseForAllStores(preset.id, preset.name)}
                 className={cn(
-                  templateCardActionBtnClass,
-                  isSingleTemplateSelected
-                    ? 'cursor-default border-violet-200 bg-violet-50 text-violet-600'
-                    : 'border-violet-200 bg-violet-50/80 text-violet-700 hover:border-violet-300 hover:bg-violet-100',
+                  templateCardPrimaryActionClass,
+                  'border-violet-200 bg-violet-50/80 text-violet-700 hover:border-violet-300 hover:bg-violet-100',
                 )}
               >
-                {isSingleTemplateSelected ? <Check className="h-3 w-3" /> : <Store className="h-3 w-3" />}
-                {isSingleTemplateSelected ? 'Applied' : 'All stores'}
+                <Store className="h-3 w-3 shrink-0" />
+                {singleTemplateActionLabel(false)}
               </button>
-            ) : null}
-            {perStoreTemplateMode && onApplyForStore ? (
-              <button
-                type="button"
-                disabled={applyForStorePending}
-                onClick={() => onApplyForStore(preset.id)}
-                className={cn(
-                  templateCardActionBtnClass,
-                  (perStoreUsedCount ?? 0) > 0
-                    ? 'border-emerald-200 bg-emerald-50 text-emerald-600 hover:border-emerald-300 hover:bg-emerald-100'
-                    : 'border-emerald-200 bg-emerald-50/80 text-emerald-700 hover:border-emerald-300 hover:bg-emerald-100',
-                )}
-              >
-                {(perStoreUsedCount ?? 0) > 0 ? <Check className="h-3 w-3" /> : <Store className="h-3 w-3" />}
-                {perStoreTemplateActionLabel(
-                  contextStoreCode,
-                  assignedToContextStore,
-                  (perStoreUsedCount ?? 0) > 0,
-                )}
-              </button>
-            ) : null}
+            )
+          ) : null}
+          {perStoreTemplateMode && onApplyForStore ? (
+            <button
+              type="button"
+              disabled={applyForStorePending}
+              onClick={() => onApplyForStore(preset.id)}
+              className={cn(
+                templateCardPrimaryActionClass,
+                assignedToContextStore
+                  ? 'border-2 border-primary bg-primary/10 text-primary hover:border-primary hover:bg-primary/15'
+                  : 'border-emerald-200 bg-emerald-50/80 text-emerald-700 hover:border-emerald-300 hover:bg-emerald-100',
+              )}
+            >
+              {assignedToContextStore ? <Check className="h-3 w-3 shrink-0" /> : <Store className="h-3 w-3 shrink-0" />}
+              {perStoreTemplateActionLabel(
+                contextStoreCode,
+                assignedToContextStore,
+                (perStoreUsedCount ?? 0) > 0,
+              )}
+            </button>
+          ) : null}
+          <div className={templateCardActionClusterClass}>
             {viewLiveLinks.length > 0 ? (
               <AppliedTemplateViewLiveButton
                 links={viewLiveLinks}
@@ -266,34 +273,25 @@ export function BusinessFrontDefaultTemplateCard({
                 highlightStoreId={highlightStoreId}
               />
             ) : null}
+            <button
+              type="button"
+              onClick={onCustomize}
+              className={templateCardActionBtnClass}
+              title="Customize theme"
+            >
+              Customize
+            </button>
+            {!live && active.kind !== 'website_builder' ? (
+              <button
+                type="button"
+                disabled={applyPreset.isPending}
+                onClick={() => applyPreset.mutate(preset.id)}
+                className={cn(templateCardActionBtnClass, 'border-transparent bg-primary text-white hover:opacity-90')}
+              >
+                Apply
+              </button>
+            ) : null}
           </div>
-          <button
-            type="button"
-            onClick={onCustomize}
-            className={cn(templateCardActionBtnClass, 'border-gray-200 text-gray-700 hover:border-primary/35 hover:bg-primary/10 hover:text-primary')}
-          >
-            Customize
-          </button>
-          <button
-            type="button"
-            disabled={live || applyPreset.isPending || active.kind === 'website_builder'}
-            title={
-              active.kind === 'website_builder'
-                ? 'Unpublish your Website Builder site to switch default themes'
-                : live
-                  ? 'Already active on your store'
-                  : undefined
-            }
-            onClick={() => applyPreset.mutate(preset.id)}
-            className={cn(
-              templateCardActionBtnClass,
-              live || active.kind === 'website_builder'
-                ? 'cursor-not-allowed border-transparent bg-gray-100 text-gray-400'
-                : 'border-transparent bg-primary text-white hover:opacity-90',
-            )}
-          >
-            {live ? 'In use' : 'Use theme'}
-          </button>
         </div>
       </div>
     </div>

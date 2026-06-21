@@ -1,4 +1,4 @@
-﻿import type { VendorRole } from '@/types'
+import type { VendorRole } from '@/types'
 import { Select } from '@/components/ui/select'
 
 export type AssignableTeamRoles = {
@@ -94,7 +94,7 @@ export function AccessWindowFields(props: {
       ) : null}
       <Box className="grid grid-cols-2 gap-3">
         <Box>
-          <Label className="block text-sm font-medium text-gray-700 mb-1">Access start</Label>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Access start</label>
           <input
             type="date"
             disabled={disabled}

@@ -206,3 +206,27 @@ export function useLogout() {
     toast.success('Logged out successfully')
   }
 }
+
+export function useRequestAccountDeleteOtp() {
+  return useMutation({
+    mutationFn: (password: string) => authApi.sendAccountDeleteOtp(password),
+    onError: apiError('Could not send verification code'),
+  })
+}
+
+export function useDeleteAccount() {
+  const navigate = useNavigate()
+  const queryClient = useQueryClient()
+  const { logout } = useAuthStore()
+
+  return useMutation({
+    mutationFn: (code: string) => authApi.deleteAccount(code),
+    onSuccess: () => {
+      logout()
+      queryClient.clear()
+      navigate('/login')
+      toast.success('Your account has been deleted')
+    },
+    onError: apiError('Could not delete account'),
+  })
+}

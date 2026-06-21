@@ -18,10 +18,10 @@ type ScopeMeta = {
 
 const SCOPE_META: Record<WebsiteScope, ScopeMeta> = {
   all: {
-    label: 'Shared by all business units',
-    shortLabel: 'All units',
+    label: 'Website build scope — shared design for all business units (not the same as “applied” template)',
+    shortLabel: 'Built for all units',
     icon: Globe,
-    className: 'border-blue-200 bg-blue-50 text-blue-700',
+    className: 'border-slate-200 bg-slate-50 text-slate-600',
   },
   store: {
     label: 'Built for a specific business unit',

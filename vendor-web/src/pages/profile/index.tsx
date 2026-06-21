@@ -7,11 +7,17 @@ import { Label } from '@/components/ui/label'
 import { PhoneInput } from '@/components/ui/PhoneInput'
 import { useAuthStore } from '@/stores/authStore'
 import {
-  useMe, useUpdateMe, useChangePassword, useUploadAvatar, useLogout,
+  useMe, useUpdateMe, useChangePassword, useUploadAvatar, useLogout, useDeleteAccount, useRequestAccountDeleteOtp,
   useResendEmailVerification, useVerifyEmailCode,
-  useRequestEmailChange, useConfirmEmailChange,
   useSendPhoneOtp, useVerifyPhoneOtp,
 } from '@/hooks/useAuth'
+import {
+  useMyContactChangeRequests,
+  useCreateContactChangeRequest,
+  useCancelContactChangeRequest,
+  pendingContactChange,
+} from '@/hooks/useContactChange'
+import type { ContactChangeRequestRow, ContactFieldType } from '@/api/contactChange'
 import { authApi } from '@/api/auth'
 import { useMyVendor, useVendorDocuments, useUploadVendorDocument, useSubmitVendorForReview } from '@/hooks/useVendor'
 import {
@@ -19,11 +25,10 @@ import {
   KeyRound, Eye, EyeOff, CheckCircle2, AlertCircle,
   Activity, LogOut, Bell, Store as StoreIcon, UsersRound, CreditCard, ShieldAlert,
   Lock, Clock, Monitor, Smartphone, Calendar, FileCheck2, Upload, Hash, FileText,
-  ExternalLink, RefreshCcw, Info,
+  ExternalLink, RefreshCcw, Info, X, Trash2,
 } from 'lucide-react'
-import { cn } from '@/lib/utils'
+import { cn, mediaUrl } from '@/lib/utils'
 import { useImageSourcePicker } from '@/components/common/ImageSourcePicker'
-import { SingleImagePreview } from '@/components/common/CatalogMediaLightbox'
 import { CollapsibleSection } from '@/components/common/CollapsibleSection'
 import { toast } from 'sonner'
 import {
@@ -34,14 +39,7 @@ import {
 import type { VendorDocumentType } from '@/types'
 import type { OtpSendResponse } from '@/api/auth'
 
-const API_BASE = (import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1').replace('/api/v1', '')
-function mediaUrl(url?: string | null) {
-  if (!url) return ''
-  if (url.startsWith('http')) return url
-  return `${API_BASE}${url}`
-}
-
-type Section = 'identifiers' | 'personal' | 'verify' | 'security' | 'business' | 'role' | 'activity'
+type Section = 'identifiers' | 'personal' | 'security' | 'business' | 'role' | 'activity'
 
 export default function ProfilePage() {
   useMe()
@@ -77,10 +75,6 @@ export default function ProfilePage() {
         <PersonalInfoSection
           open={openSection === 'personal'}
           toggle={() => toggle('personal')}
-        />
-        <VerificationSection
-          open={openSection === 'verify'}
-          toggle={() => toggle('verify')}
         />
         <SecuritySection
           open={openSection === 'security'}
@@ -187,95 +181,120 @@ function ProfileHero() {
 
   const role = user?.vendor_role?.role_name || 'Member'
 
+  const businessLevel = vendorVerificationLevel(vendor)
+  const businessLabel =
+    businessLevel === 'verified' ? 'verified'
+    : businessLevel === 'in_review' ? 'in review'
+    : businessLevel === 'rejected' ? 'rejected'
+    : 'unverified'
+
   return (
-    <Card className="overflow-hidden">
-      <div className="bg-gradient-to-br from-primary via-primary to-info h-24" />
-      <CardContent className="p-6 -mt-12">
-        <div className="flex flex-col sm:flex-row sm:items-end gap-5">
-          <div className="relative shrink-0">
-            <div className="w-24 h-24 rounded-2xl bg-gradient-to-br from-primary to-info ring-4 ring-white shadow-lg flex items-center justify-center text-white text-3xl font-bold overflow-hidden">
-              {user?.avatar_url ? (
-                <SingleImagePreview
-                  url={user.avatar_url}
-                  resolveUrl={mediaUrl}
-                  alt={user.full_name || 'Profile photo'}
-                  editable
-                  onSave={async (file) => { uploadAvatarFile(file) }}
-                  className="h-full w-full"
-                  imgClassName="h-full w-full object-cover"
-                />
-              ) : (
-                <span>{initials}</span>
-              )}
-            </div>
+    <Card className="overflow-hidden border-border/80 shadow-sm">
+      <div className="h-20 sm:h-24 bg-[linear-gradient(135deg,hsl(var(--primary))_0%,hsl(var(--hero-via))_48%,hsl(var(--hero-to))_100%)]" />
+
+      <CardContent className="px-4 pb-5 pt-0 sm:px-6">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:gap-5 -mt-11 sm:-mt-12">
+          <div className="relative shrink-0 self-start sm:self-auto">
             <button
               type="button"
               onClick={onPickFile}
               disabled={upload.isPending}
+              aria-label={user?.avatar_url ? 'Change profile photo' : 'Add profile photo'}
               className={cn(
-                'absolute bottom-0 right-0 w-8 h-8 rounded-full bg-white border border-gray-200 shadow-md flex items-center justify-center hover:bg-gray-50 transition-colors',
-                upload.isPending && 'opacity-70 cursor-not-allowed',
+                'group relative flex h-[5.5rem] w-[5.5rem] sm:h-24 sm:w-24 items-center justify-center overflow-hidden rounded-full',
+                'bg-[linear-gradient(140deg,hsl(var(--primary))_0%,hsl(var(--hero-via))_45%,hsl(var(--hero-to))_100%)]',
+                'text-white shadow-lg ring-4 ring-card transition-shadow hover:shadow-xl focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/40',
+                upload.isPending && 'cursor-wait opacity-80',
               )}
-              title="Change photo"
             >
-              {upload.isPending ? (
-                <Loader2 className="w-4 h-4 text-primary animate-spin" />
+              {user?.avatar_url ? (
+                <img
+                  src={mediaUrl(user.avatar_url)}
+                  alt={user.full_name || 'Profile photo'}
+                  className="h-full w-full object-cover"
+                />
               ) : (
-                <Camera className="w-4 h-4 text-primary" />
+                <span className="text-2xl font-bold tracking-tight sm:text-3xl">{initials}</span>
               )}
+
+              <span
+                className={cn(
+                  'absolute inset-0 flex flex-col items-center justify-center gap-0.5 rounded-full bg-black/45 text-white transition-opacity',
+                  upload.isPending ? 'opacity-100' : 'opacity-0 group-hover:opacity-100 group-focus-visible:opacity-100',
+                )}
+              >
+                {upload.isPending ? (
+                  <Loader2 className="h-5 w-5 animate-spin" aria-hidden />
+                ) : (
+                  <>
+                    <Camera className="h-4 w-4" aria-hidden />
+                    <span className="text-[10px] font-medium leading-none">
+                      {user?.avatar_url ? 'Change' : 'Add photo'}
+                    </span>
+                  </>
+                )}
+              </span>
             </button>
             {fileInput}
             {modal}
           </div>
 
-          <div className="flex-1 min-w-0">
-            <div className="flex flex-wrap items-center gap-2">
-              <h2 className="text-xl font-bold text-gray-900 truncate">{user?.full_name}</h2>
-              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-medium bg-accent text-primary border border-primary/30">
-                <ShieldCheck className="w-3 h-3" />
-                {role}
-              </span>
+          <div className="min-w-0 flex-1 space-y-3 pb-0.5">
+            <div className="space-y-1">
+              <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                <h2 className="truncate text-xl font-bold leading-tight text-foreground">{user?.full_name}</h2>
+                <span className="inline-flex items-center gap-1 rounded-full border border-primary/25 bg-accent px-2.5 py-0.5 text-[11px] font-medium text-primary">
+                  <ShieldCheck className="h-3 w-3 shrink-0" aria-hidden />
+                  {role}
+                </span>
+              </div>
+              {user?.email && (
+                <p className="truncate text-sm text-muted-foreground" title={user.email}>
+                  {user.email}
+                </p>
+              )}
             </div>
-            <p className="text-sm text-gray-500 mt-1 truncate">{user?.email}</p>
 
-            <div className="flex flex-wrap items-center gap-2 mt-3">
-              <VerifiedChip
-                label="Email"
-                verified={!!user?.is_email_verified}
-              />
-              <VerifiedChip
-                label="Phone"
-                verified={!!user?.is_phone_verified}
-              />
-              <VerifiedBadge level={vendorVerificationLevel(vendor)} label={`Business ${vendorVerificationLevel(vendor) === 'verified' ? 'verified' : vendorVerificationLevel(vendor) === 'in_review' ? 'in review' : vendorVerificationLevel(vendor) === 'rejected' ? 'rejected' : 'unverified'}`} />
+            <div className="flex flex-wrap items-center gap-1.5">
+              <VerifiedChip label="Email" verified={!!user?.is_email_verified} />
+              <VerifiedChip label="Phone" verified={!!user?.is_phone_verified} />
+              <VerifiedBadge level={businessLevel} label={`Business ${businessLabel}`} />
               {memberSince && (
-                <span className="inline-flex items-center gap-1 text-xs text-gray-500">
-                  <Calendar className="w-3 h-3" />
+                <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground">
+                  <Calendar className="h-3 w-3 shrink-0" aria-hidden />
                   Member since {memberSince}
                 </span>
               )}
             </div>
 
-            <div className="flex flex-wrap items-center gap-1.5 mt-3">
+            <div className="flex flex-wrap items-center gap-1.5">
               {user?.id && (
                 <IdChip label="User" code={formatShortId('USR', user.id)} fullValue={user.id} />
               )}
               {vendor && (
-                <IdChip
-                  label="Business"
-                  code={formatVendorCode(vendor)}
-                  fullValue={vendor.id}
-                />
+                <IdChip label="Business" code={formatVendorCode(vendor)} fullValue={vendor.id} />
               )}
             </div>
           </div>
 
-          <div className="hidden sm:block">
-            <Button variant="outline" size="sm" onClick={onPickFile} disabled={upload.isPending}>
+          <div className="shrink-0 sm:pb-1">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={onPickFile}
+              disabled={upload.isPending}
+              className="h-9 w-full sm:w-auto"
+            >
               {upload.isPending ? (
-                <><Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" /> Uploading…</>
+                <>
+                  <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" aria-hidden />
+                  Uploading…
+                </>
               ) : (
-                <><Camera className="w-3.5 h-3.5 mr-1.5" /> Change photo</>
+                <>
+                  <Camera className="mr-1.5 h-3.5 w-3.5" aria-hidden />
+                  {user?.avatar_url ? 'Change photo' : 'Add photo'}
+                </>
               )}
             </Button>
           </div>
@@ -287,117 +306,139 @@ function ProfileHero() {
 
 function VerifiedChip({ label, verified }: { label: string; verified: boolean }) {
   return verified ? (
-    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs font-medium bg-green-50 text-green-700 border border-green-200">
-      <CheckCircle2 className="w-3 h-3" />
+    <span className="inline-flex items-center gap-1 rounded-full border border-green-200/80 bg-green-50 px-2 py-0.5 text-[11px] font-medium text-green-700">
+      <CheckCircle2 className="h-3 w-3 shrink-0" aria-hidden />
       {label} verified
     </span>
   ) : (
-    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs font-medium bg-amber-50 text-amber-700 border border-amber-200">
-      <AlertCircle className="w-3 h-3" />
+    <span className="inline-flex items-center gap-1 rounded-full border border-amber-200/80 bg-amber-50 px-2 py-0.5 text-[11px] font-medium text-amber-700">
+      <AlertCircle className="h-3 w-3 shrink-0" aria-hidden />
       {label} not verified
     </span>
   )
 }
 
+function splitPersonName(fullName: string): { firstName: string; lastName: string } {
+  const trimmed = fullName.trim()
+  if (!trimmed) return { firstName: '', lastName: '' }
+  const parts = trimmed.split(/\s+/)
+  if (parts.length === 1) return { firstName: parts[0], lastName: '' }
+  return { firstName: parts[0], lastName: parts.slice(1).join(' ') }
+}
+
+function joinPersonName(firstName: string, lastName: string): string {
+  return [firstName.trim(), lastName.trim()].filter(Boolean).join(' ')
+}
+
 function PersonalInfoSection({ open, toggle }: { open: boolean; toggle: () => void }) {
   const { user } = useAuthStore()
   const update = useUpdateMe()
-  const [fullName, setFullName] = useState(user?.full_name || '')
+  const level = userVerificationLevel(user)
+  const [firstName, setFirstName] = useState('')
+  const [lastName, setLastName] = useState('')
   const [phone, setPhone] = useState(user?.phone || '')
 
   useEffect(() => {
-    setFullName(user?.full_name || '')
+    const { firstName: first, lastName: last } = splitPersonName(user?.full_name || '')
+    setFirstName(first)
+    setLastName(last)
     setPhone(user?.phone || '')
   }, [user?.full_name, user?.phone])
 
+  const savedFullName = (user?.full_name || '').trim()
+  const draftFullName = joinPersonName(firstName, lastName)
+
   const dirty =
-    fullName.trim() !== (user?.full_name || '').trim() ||
+    draftFullName !== savedFullName ||
     (phone || '') !== (user?.phone || '')
 
   const onSave = () => {
-    if (!fullName.trim()) {
-      toast.error('Full name is required')
+    if (!firstName.trim()) {
+      toast.error('First name is required')
+      return
+    }
+    const full_name = joinPersonName(firstName, lastName)
+    if (full_name.length < 2) {
+      toast.error('Name must be at least 2 characters')
       return
     }
     update.mutate({
-      full_name: fullName.trim(),
+      full_name,
       phone: phone.trim() || null,
     })
   }
 
   const onReset = () => {
-    setFullName(user?.full_name || '')
+    const { firstName: first, lastName: last } = splitPersonName(user?.full_name || '')
+    setFirstName(first)
+    setLastName(last)
     setPhone(user?.phone || '')
   }
 
   return (
     <SectionWrapper
-      title="Personal Information"
-      subtitle="Your name and contact details"
+      title="Contact Information"
+      subtitle="Your name, contact details, and verification"
       icon={UserIcon}
       open={open}
       toggle={toggle}
+      badge={<VerifiedBadge level={level} />}
     >
-      <div className="space-y-5 pt-3">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <Label htmlFor="full-name" dbTable="user" dbField="full_name">
-              Full name
-            </Label>
-            <Input
-              id="full-name"
-              value={fullName}
-              onChange={(e) => setFullName(e.target.value)}
-              placeholder="Your full name"
-              maxLength={120}
-            />
-          </div>
-          <div>
-            <Label htmlFor="email">Email</Label>
-            <div className="relative">
-              <Mail className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
-              <Input
-                id="email"
-                value={user?.email || ''}
-                readOnly
-                disabled
-                className="pl-9 bg-gray-50 text-gray-600"
-              />
-            </div>
-            <p className="text-xs text-gray-400 mt-1">
-              To change your email, use the <span className="font-medium">Verification &amp; contact</span> section below.
+      <div className="space-y-2 pt-0.5">
+        {dirty && (
+          <UnsavedChangesBar
+            onSave={onSave}
+            onReset={onReset}
+            saving={update.isPending}
+          />
+        )}
+
+        <div className="overflow-hidden rounded-xl border border-border/60 bg-muted/10">
+          <div className="border-b border-border/50 bg-muted/20 px-3 py-1">
+            <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+              Profile & contact
             </p>
           </div>
-        </div>
+          <div className="space-y-2.5 p-2.5">
+            <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-2">
+              <div>
+                <Label htmlFor="first-name" dbTable="user" dbField="full_name" className="text-xs">
+                  First name
+                </Label>
+                <Input
+                  id="first-name"
+                  value={firstName}
+                  onChange={(e) => setFirstName(e.target.value)}
+                  placeholder="First name"
+                  maxLength={60}
+                  autoComplete="given-name"
+                  className="mt-0.5 h-9"
+                />
+              </div>
+              <div>
+                <Label htmlFor="last-name" className="text-xs">
+                  Last name
+                </Label>
+                <Input
+                  id="last-name"
+                  value={lastName}
+                  onChange={(e) => setLastName(e.target.value)}
+                  placeholder="Last name"
+                  maxLength={60}
+                  autoComplete="family-name"
+                  className="mt-0.5 h-9"
+                />
+              </div>
+            </div>
 
-        <div>
-          <PhoneInput
-            id="phone"
-            label="Phone number"
-            value={phone}
-            onChange={setPhone}
-            placeholder="Mobile number"
-          />
-        </div>
+            <EmailFieldWithVerification />
 
-        <div className="flex items-center justify-end gap-2 pt-2 border-t">
-          {dirty && (
-            <Button variant="cancel" size="sm" onClick={onReset} disabled={update.isPending}>
-              Cancel
-            </Button>
-          )}
-          <Button
-            size="sm"
-            onClick={onSave}
-            disabled={!dirty || update.isPending}
-            className="bg-primary hover:bg-primary/90"
-          >
-            {update.isPending ? (
-              <><Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" /> Saving…</>
-            ) : (
-              <><Save className="w-3.5 h-3.5 mr-1.5" /> Save changes</>
-            )}
-          </Button>
+            <PhoneFieldWithVerification
+              phone={phone}
+              onPhoneChange={setPhone}
+              phoneDirty={(phone || '') !== (user?.phone || '')}
+            />
+          </div>
         </div>
       </div>
     </SectionWrapper>
@@ -968,320 +1009,527 @@ function IdentifiersSection({ open, toggle }: { open: boolean; toggle: () => voi
   )
 }
 
-// ── Verification (email + phone OTP + change-email) ─────────────────
-function VerificationSection({ open, toggle }: { open: boolean; toggle: () => void }) {
-  const { user } = useAuthStore()
-  const level = userVerificationLevel(user)
+const verifyOtpInputClass =
+  'h-8 w-[8.25rem] shrink-0 rounded-full border border-input bg-background px-3 text-center text-xs font-mono tracking-wide'
+const verifyPillBtnClass = 'h-8 shrink-0 rounded-full px-2.5 text-xs'
+
+function UnsavedChangesBar({
+  onSave,
+  onReset,
+  saving,
+}: {
+  onSave: () => void
+  onReset: () => void
+  saving: boolean
+}) {
   return (
-    <SectionWrapper
-      title="Verification & Contact"
-      subtitle="Verify your email and phone, or change your email address"
-      icon={ShieldCheck}
-      open={open}
-      toggle={toggle}
-      badge={<VerifiedBadge level={level} />}
+    <div className="flex flex-col gap-2 rounded-xl border border-amber-200/80 bg-amber-50/90 px-3 py-2.5 sm:flex-row sm:items-center sm:justify-between dark:border-amber-500/30 dark:bg-amber-500/10">
+      <p className="flex items-center gap-1.5 text-xs font-medium text-amber-900 dark:text-amber-100">
+        <AlertCircle className="h-3.5 w-3.5 shrink-0" />
+        You have unsaved changes
+      </p>
+      <div className="flex shrink-0 items-center justify-end gap-2">
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={onReset}
+          disabled={saving}
+          className="h-8 rounded-full px-3 text-xs"
+        >
+          Discard
+        </Button>
+        <Button
+          size="sm"
+          onClick={onSave}
+          disabled={saving}
+          className="h-8 rounded-full px-3 text-xs"
+        >
+          {saving ? (
+            <><Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> Saving…</>
+          ) : (
+            <><Save className="mr-1.5 h-3.5 w-3.5" /> Save changes</>
+          )}
+        </Button>
+      </div>
+    </div>
+  )
+}
+
+function ContactFieldWithVerify({
+  label,
+  htmlFor,
+  headerExtra,
+  field,
+  verify,
+  footer,
+}: {
+  label: string
+  htmlFor?: string
+  headerExtra?: ReactNode
+  field: ReactNode
+  verify?: ReactNode
+  footer?: ReactNode
+}) {
+  return (
+    <div className="space-y-1">
+      <div className="flex items-center justify-between gap-2">
+        <Label htmlFor={htmlFor} className="text-xs">{label}</Label>
+        {headerExtra}
+      </div>
+      <div className="grid grid-cols-1 items-center gap-1.5 sm:grid-cols-[minmax(0,1fr)_auto] sm:gap-x-2">
+        <div className="min-w-0">{field}</div>
+        {verify ? (
+          <div className="flex min-h-9 shrink-0 flex-wrap items-center gap-1 sm:flex-nowrap sm:justify-end">
+            {verify}
+          </div>
+        ) : null}
+      </div>
+      {footer ? <div className="pt-0.5">{footer}</div> : null}
+    </div>
+  )
+}
+
+function VerificationOtpActions({
+  code,
+  onCodeChange,
+  placeholder,
+  sendLabel,
+  onSend,
+  onVerify,
+  sendPending,
+  verifyPending,
+  sendDisabled,
+  verifyDisabled,
+}: {
+  code: string
+  onCodeChange: (value: string) => void
+  placeholder: string
+  sendLabel: string
+  onSend: () => void
+  onVerify: () => void
+  sendPending: boolean
+  verifyPending: boolean
+  sendDisabled?: boolean
+  verifyDisabled?: boolean
+}) {
+  return (
+    <>
+      <Input
+        inputMode="numeric"
+        maxLength={6}
+        placeholder={placeholder}
+        value={code}
+        onChange={(e) => onCodeChange(e.target.value.replace(/\D/g, '').slice(0, 6))}
+        className={verifyOtpInputClass}
+      />
+      <Button
+        size="sm"
+        variant="outline"
+        onClick={onSend}
+        disabled={sendPending || sendDisabled}
+        className={verifyPillBtnClass}
+      >
+        {sendPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCcw className="mr-1 h-3.5 w-3.5" />}
+        {sendLabel}
+      </Button>
+      <Button
+        size="sm"
+        onClick={onVerify}
+        disabled={verifyPending || verifyDisabled || code.length !== 6}
+        className={verifyPillBtnClass}
+      >
+        {verifyPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : 'Verify'}
+      </Button>
+    </>
+  )
+}
+
+function ChangeContactLink({
+  label,
+  onClick,
+  disabled,
+}: {
+  label: string
+  onClick: () => void
+  disabled?: boolean
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      className="text-xs font-medium text-primary hover:underline disabled:cursor-not-allowed disabled:opacity-50"
     >
-      <div className="pt-3 space-y-4">
-        <EmailVerifyCard />
-        <PhoneVerifyCard />
-        <EmailChangeCard />
+      {label}
+    </button>
+  )
+}
+
+function PendingContactChangeBanner({
+  request,
+  onCancel,
+  cancelling,
+}: {
+  request: ContactChangeRequestRow
+  onCancel: () => void
+  cancelling: boolean
+}) {
+  const label = request.field_type === 'email' ? 'email' : 'phone number'
+  return (
+    <div className="rounded-lg border border-amber-200/80 bg-amber-50/80 px-2.5 py-2 dark:border-amber-500/30 dark:bg-amber-500/10">
+      <div className="flex flex-col gap-1.5 sm:flex-row sm:items-center sm:justify-between">
+        <p className="min-w-0 text-xs text-amber-900 dark:text-amber-100">
+          <span className="font-medium">Pending {label} change</span>
+          <span className="text-amber-800/90 dark:text-amber-100/90"> · {request.requested_value}</span>
+        </p>
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          onClick={onCancel}
+          disabled={cancelling}
+          className="h-7 shrink-0 self-end rounded-full px-2.5 text-xs sm:self-auto"
+        >
+          {cancelling ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : 'Cancel'}
+        </Button>
       </div>
-    </SectionWrapper>
+    </div>
   )
 }
 
-function EmailVerifyCard() {
-  const { user } = useAuthStore()
-  const send = useResendEmailVerification()
-  const verify = useVerifyEmailCode()
-  const [code, setCode] = useState('')
-  const [hint, setHint] = useState<string | undefined>()
-
-  const onSend = () => {
-    send.mutate(undefined, {
-      onSuccess: (res: OtpSendResponse) => {
-        if (res.dev_hint) {
-          setHint(res.dev_hint)
-          setCode(res.dev_hint)
-        }
-      },
-    })
-  }
-  const onVerify = () => {
-    if (code.length !== 6) return
-    verify.mutate(code, {
-      onSuccess: () => { setCode(''); setHint(undefined) },
-    })
-  }
-
-  if (user?.is_email_verified) {
-    return (
-      <VerifyRow
-        icon={Mail}
-        title="Email"
-        value={user.email || ''}
-        action={<VerifiedBadge level="verified" size="md" />}
-      />
-    )
-  }
-
-  return (
-    <VerifyRow
-      icon={Mail}
-      title="Email"
-      value={user?.email || 'No email on file'}
-      action={
-        <div className="flex flex-col sm:flex-row gap-2 items-stretch sm:items-center">
-          <Input
-            inputMode="numeric"
-            maxLength={6}
-            placeholder="6-digit code"
-            value={code}
-            onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
-            className="w-32 font-mono tracking-widest text-center"
-          />
-          <div className="flex gap-2">
-            <Button size="sm" variant="outline" onClick={onSend} disabled={send.isPending || !user?.email}>
-              {send.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCcw className="w-3.5 h-3.5 mr-1" />}
-              Send code
-            </Button>
-            <Button size="sm" onClick={onVerify} disabled={verify.isPending || code.length !== 6}>
-              {verify.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : 'Verify'}
-            </Button>
-          </div>
-        </div>
-      }
-      footer={
-        hint ? (
-          <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded px-2 py-1 mt-2">
-            Dev mode — no SMTP configured. Auto-filled code: <span className="font-mono font-semibold">{hint}</span>
-          </p>
-        ) : null
-      }
-    />
-  )
-}
-
-function PhoneVerifyCard() {
-  const { user } = useAuthStore()
-  const send = useSendPhoneOtp()
-  const verify = useVerifyPhoneOtp()
-  const [code, setCode] = useState('')
-  const [hint, setHint] = useState<string | undefined>()
-
-  const onSend = () => {
-    send.mutate(undefined, {
-      onSuccess: (res: OtpSendResponse) => {
-        if (res.dev_hint) {
-          setHint(res.dev_hint)
-          setCode(res.dev_hint)
-        }
-      },
-    })
-  }
-  const onVerify = () => {
-    if (code.length !== 6) return
-    verify.mutate(code, {
-      onSuccess: () => { setCode(''); setHint(undefined) },
-    })
-  }
-
-  if (user?.is_phone_verified) {
-    return (
-      <VerifyRow
-        icon={PhoneIcon}
-        title="Phone"
-        value={user.phone || ''}
-        action={<VerifiedBadge level="verified" size="md" />}
-      />
-    )
-  }
-
-  return (
-    <VerifyRow
-      icon={PhoneIcon}
-      title="Phone"
-      value={user?.phone || 'No phone on file'}
-      action={
-        <div className="flex flex-col sm:flex-row gap-2 items-stretch sm:items-center">
-          <Input
-            inputMode="numeric"
-            maxLength={6}
-            placeholder="6-digit OTP"
-            value={code}
-            onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
-            className="w-32 font-mono tracking-widest text-center"
-          />
-          <div className="flex gap-2">
-            <Button size="sm" variant="outline" onClick={onSend} disabled={send.isPending || !user?.phone}>
-              {send.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCcw className="w-3.5 h-3.5 mr-1" />}
-              Send OTP
-            </Button>
-            <Button size="sm" onClick={onVerify} disabled={verify.isPending || code.length !== 6}>
-              {verify.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : 'Verify'}
-            </Button>
-          </div>
-        </div>
-      }
-      footer={
-        <>
-          {hint && (
-            <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded px-2 py-1 mt-2">
-              Dev mode — no SMS provider configured. Auto-filled OTP: <span className="font-mono font-semibold">{hint}</span>
-            </p>
-          )}
-          {!user?.phone && (
-            <p className="text-xs text-gray-500 mt-2">
-              Add a phone number above in Personal Information first.
-            </p>
-          )}
-        </>
-      }
-    />
-  )
-}
-
-function EmailChangeCard() {
-  const request = useRequestEmailChange()
-  const confirm = useConfirmEmailChange()
-  const [step, setStep] = useState<'idle' | 'code'>('idle')
-  const [newEmail, setNewEmail] = useState('')
+function ContactChangeRequestPanel({
+  fieldType,
+  onClose,
+}: {
+  fieldType: ContactFieldType
+  onClose: () => void
+}) {
+  const create = useCreateContactChangeRequest()
+  const [newValue, setNewValue] = useState('')
   const [password, setPassword] = useState('')
-  const [code, setCode] = useState('')
-  const [hint, setHint] = useState<string | undefined>()
+  const [reason, setReason] = useState('')
 
-  const onRequest = (e: React.FormEvent) => {
+  const isEmail = fieldType === 'email'
+  const title = isEmail ? 'Request email change' : 'Request phone number change'
+  const Icon = isEmail ? Mail : PhoneIcon
+
+  const onSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-    if (!newEmail.includes('@') || password.length < 1) return
-    request.mutate(
-      { new_email: newEmail.trim().toLowerCase(), password },
+    if (!password || !newValue.trim()) return
+    if (isEmail && !newValue.includes('@')) return
+    create.mutate(
       {
-        onSuccess: (res: OtpSendResponse) => {
-          setStep('code')
-          if (res.dev_hint) {
-            setHint(res.dev_hint)
-            setCode(res.dev_hint)
-          }
-        },
+        field_type: fieldType,
+        new_value: newValue.trim(),
+        reason: reason.trim() || undefined,
+        password,
       },
+      { onSuccess: () => onClose() },
     )
   }
 
-  const onConfirm = (e: React.FormEvent) => {
-    e.preventDefault()
-    if (code.length !== 6) return
-    confirm.mutate(code, {
-      onSuccess: () => {
-        setStep('idle')
-        setNewEmail(''); setPassword(''); setCode(''); setHint(undefined)
-      },
-    })
-  }
-
   return (
-    <div className="rounded-lg border border-gray-200 p-4 bg-white">
-      <div className="flex items-center gap-2 mb-3">
-        <Mail className="w-4 h-4 text-primary" />
-        <h4 className="text-sm font-semibold text-gray-900">Change email address</h4>
+    <div className="mt-1.5 rounded-lg border border-border/60 bg-background/80 p-2.5">
+      <div className="mb-2 flex items-center justify-between gap-2">
+        <p className="flex items-center gap-1 text-xs font-semibold text-foreground">
+          <Icon className="h-3.5 w-3.5 text-primary" />
+          {title}
+        </p>
+        <button
+          type="button"
+          onClick={onClose}
+          className="rounded-full p-0.5 text-muted-foreground hover:bg-muted hover:text-foreground"
+          aria-label="Close change request form"
+        >
+          <X className="h-3.5 w-3.5" />
+        </button>
       </div>
 
-      {step === 'idle' ? (
-        <form onSubmit={onRequest} className="grid grid-cols-1 md:grid-cols-2 gap-3">
+      <form onSubmit={onSubmit} className="space-y-2">
+        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
           <div>
-            <Label htmlFor="new-email">New email</Label>
-            <Input
-              id="new-email"
-              type="email"
-              value={newEmail}
-              onChange={(e) => setNewEmail(e.target.value)}
-              placeholder="new.email@example.com"
-            />
+            <Label htmlFor={`new-${fieldType}`} className="text-xs">
+              {isEmail ? 'New email' : 'New phone'}
+            </Label>
+            {isEmail ? (
+              <Input
+                id={`new-${fieldType}`}
+                type="email"
+                value={newValue}
+                onChange={(e) => setNewValue(e.target.value)}
+                placeholder="new.email@example.com"
+                className="mt-0.5 h-9"
+              />
+            ) : (
+              <div className="mt-0.5">
+                <PhoneInput
+                  id={`new-${fieldType}`}
+                  value={newValue}
+                  onChange={setNewValue}
+                  placeholder="New mobile number"
+                  compact
+                  compactCountry
+                  subtleFeedback
+                />
+              </div>
+            )}
           </div>
           <div>
-            <Label htmlFor="cur-pwd-email">Current password</Label>
+            <Label htmlFor={`pwd-${fieldType}`} className="text-xs">Current password</Label>
             <Input
-              id="cur-pwd-email"
+              id={`pwd-${fieldType}`}
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              placeholder="Confirm with password"
+              placeholder="Confirm identity"
+              className="mt-0.5 h-9"
             />
           </div>
-          <div className="md:col-span-2 flex justify-end">
-            <Button type="submit" size="sm" disabled={request.isPending || !newEmail.includes('@') || !password}>
-              {request.isPending ? <><Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" /> Sending…</> : 'Send confirmation code'}
-            </Button>
+        </div>
+        <div className="grid grid-cols-1 gap-2 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
+          <div>
+            <Label htmlFor={`reason-${fieldType}`} className="text-xs">
+              Reason (optional)
+            </Label>
+            <Input
+              id={`reason-${fieldType}`}
+              value={reason}
+              onChange={(e) => setReason(e.target.value)}
+              placeholder="Why are you changing this?"
+              className="mt-0.5 h-9"
+              maxLength={500}
+            />
           </div>
-        </form>
-      ) : (
-        <form onSubmit={onConfirm} className="space-y-3">
-          <p className="text-xs text-gray-600">
-            We sent a 6-digit code to <span className="font-semibold">{newEmail}</span>. Enter it below to swap your email.
-          </p>
-          <div className="flex flex-wrap items-end gap-2">
-            <div>
-              <Label htmlFor="email-change-code">Confirmation code</Label>
-              <Input
-                id="email-change-code"
-                inputMode="numeric"
-                maxLength={6}
-                value={code}
-                onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                className="w-36 font-mono tracking-widest text-center"
-              />
-            </div>
-            <Button type="submit" size="sm" disabled={confirm.isPending || code.length !== 6}>
-              {confirm.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : 'Confirm'}
-            </Button>
-            <Button
-              type="button"
-              size="sm"
-              variant="ghost"
-              onClick={() => { setStep('idle'); setCode(''); setHint(undefined) }}
-            >
+          <div className="flex shrink-0 items-center justify-end gap-1.5">
+            <Button type="button" variant="ghost" size="sm" onClick={onClose} className="h-8 rounded-full px-2.5 text-xs">
               Cancel
             </Button>
+            <Button
+              type="submit"
+              size="sm"
+              disabled={create.isPending || !password || !newValue.trim() || (isEmail && !newValue.includes('@'))}
+              className="h-8 rounded-full px-2.5 text-xs"
+            >
+              {create.isPending ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : (
+                'Submit'
+              )}
+            </Button>
           </div>
-          {hint && (
-            <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded px-2 py-1">
+        </div>
+      </form>
+    </div>
+  )
+}
+
+function EmailFieldWithVerification() {
+  const { user } = useAuthStore()
+  const send = useResendEmailVerification()
+  const verify = useVerifyEmailCode()
+  const { data: changeRequests } = useMyContactChangeRequests()
+  const cancelChange = useCancelContactChangeRequest()
+  const [code, setCode] = useState('')
+  const [hint, setHint] = useState<string | undefined>()
+  const [showChangeForm, setShowChangeForm] = useState(false)
+  const pendingEmail = pendingContactChange(changeRequests, 'email')
+
+  const onSend = () => {
+    send.mutate(undefined, {
+      onSuccess: (res: OtpSendResponse) => {
+        if (res.dev_hint) {
+          setHint(res.dev_hint)
+          setCode(res.dev_hint)
+        }
+      },
+    })
+  }
+  const onVerify = () => {
+    if (code.length !== 6) return
+    verify.mutate(code, {
+      onSuccess: () => { setCode(''); setHint(undefined) },
+    })
+  }
+
+  return (
+    <div className="space-y-1.5">
+      <ContactFieldWithVerify
+        label="Email"
+        htmlFor="email"
+        headerExtra={
+          user?.is_email_verified && !showChangeForm && !pendingEmail ? (
+            <ChangeContactLink
+              label="Change email"
+              onClick={() => setShowChangeForm(true)}
+            />
+          ) : null
+        }
+        field={
+          <div className="relative">
+            <Mail className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              id="email"
+              value={user?.email || ''}
+              readOnly
+              disabled
+              className="h-9 bg-muted/40 pl-9 text-muted-foreground"
+            />
+          </div>
+        }
+        verify={
+          user?.is_email_verified ? (
+            <VerifiedBadge level="verified" size="md" />
+          ) : (
+            <VerificationOtpActions
+              code={code}
+              onCodeChange={setCode}
+              placeholder="6-digit code"
+              sendLabel="Send code"
+              onSend={onSend}
+              onVerify={onVerify}
+              sendPending={send.isPending}
+              verifyPending={verify.isPending}
+              sendDisabled={!user?.email}
+            />
+          )
+        }
+        footer={
+          hint ? (
+            <p className="rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-xs text-amber-700">
               Dev mode — auto-filled code: <span className="font-mono font-semibold">{hint}</span>
             </p>
-          )}
-        </form>
+          ) : null
+        }
+      />
+
+      {pendingEmail && (
+        <PendingContactChangeBanner
+          request={pendingEmail}
+          onCancel={() => cancelChange.mutate(pendingEmail.id)}
+          cancelling={cancelChange.isPending}
+        />
+      )}
+
+      {showChangeForm && !pendingEmail && (
+        <ContactChangeRequestPanel fieldType="email" onClose={() => setShowChangeForm(false)} />
       )}
     </div>
   )
 }
 
-function VerifyRow({
-  icon: Icon, title, value, action, footer,
+function PhoneFieldWithVerification({
+  phone,
+  onPhoneChange,
+  phoneDirty,
 }: {
-  icon: ElementType
-  title: string
-  value: string
-  action: ReactNode
-  footer?: ReactNode
+  phone: string
+  onPhoneChange: (value: string) => void
+  phoneDirty: boolean
 }) {
+  const { user } = useAuthStore()
+  const send = useSendPhoneOtp()
+  const verify = useVerifyPhoneOtp()
+  const { data: changeRequests } = useMyContactChangeRequests()
+  const cancelChange = useCancelContactChangeRequest()
+  const [code, setCode] = useState('')
+  const [hint, setHint] = useState<string | undefined>()
+  const [showChangeForm, setShowChangeForm] = useState(false)
+  const pendingPhone = pendingContactChange(changeRequests, 'phone')
+
+  const onSend = () => {
+    send.mutate(undefined, {
+      onSuccess: (res: OtpSendResponse) => {
+        if (res.dev_hint) {
+          setHint(res.dev_hint)
+          setCode(res.dev_hint)
+        }
+      },
+    })
+  }
+  const onVerify = () => {
+    if (code.length !== 6) return
+    verify.mutate(code, {
+      onSuccess: () => { setCode(''); setHint(undefined) },
+    })
+  }
+
+  const verifyBlocked = phoneDirty || !user?.phone
+  const verifyHint = phoneDirty
+    ? 'Save your phone number before verifying.'
+    : !user?.phone
+      ? 'Add a phone number and save it first.'
+      : null
+
   return (
-    <div className="rounded-lg border border-gray-200 p-4 bg-white">
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
-        <div className="flex items-center gap-3 min-w-0">
-          <div className="w-9 h-9 rounded-lg bg-accent flex items-center justify-center shrink-0">
-            <Icon className="w-4 h-4 text-primary" />
-          </div>
-          <div className="min-w-0">
-            <p className="text-sm font-semibold text-gray-900">{title}</p>
-            <p className="text-xs text-gray-500 truncate">{value || '—'}</p>
-          </div>
-        </div>
-        <div className="shrink-0">{action}</div>
-      </div>
-      {footer}
+    <div className="space-y-1.5">
+      <ContactFieldWithVerify
+        label="Phone number"
+        htmlFor="phone"
+        headerExtra={
+          user?.is_phone_verified && !showChangeForm && !pendingPhone ? (
+            <ChangeContactLink
+              label="Change phone number"
+              onClick={() => setShowChangeForm(true)}
+            />
+          ) : null
+        }
+        field={
+        <PhoneInput
+          id="phone"
+          value={phone}
+          onChange={onPhoneChange}
+          placeholder="Mobile number"
+          compact
+          compactCountry
+          subtleFeedback
+        />
+      }
+      verify={
+        user?.is_phone_verified ? (
+          <VerifiedBadge level="verified" size="md" />
+        ) : (
+          <VerificationOtpActions
+            code={code}
+            onCodeChange={setCode}
+            placeholder="6-digit OTP"
+            sendLabel="Send OTP"
+            onSend={onSend}
+            onVerify={onVerify}
+            sendPending={send.isPending}
+            verifyPending={verify.isPending}
+            sendDisabled={verifyBlocked}
+          />
+        )
+      }
+      footer={
+        <>
+          {verifyHint && !user?.is_phone_verified && (
+            <p className="text-xs text-muted-foreground">{verifyHint}</p>
+          )}
+          {hint && (
+            <p className="rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-xs text-amber-700">
+              Dev mode — auto-filled OTP: <span className="font-mono font-semibold">{hint}</span>
+            </p>
+          )}
+        </>
+      }
+      />
+
+      {pendingPhone && (
+        <PendingContactChangeBanner
+          request={pendingPhone}
+          onCancel={() => cancelChange.mutate(pendingPhone.id)}
+          cancelling={cancelChange.isPending}
+        />
+      )}
+
+      {showChangeForm && !pendingPhone && (
+        <ContactChangeRequestPanel fieldType="phone" onClose={() => setShowChangeForm(false)} />
+      )}
     </div>
   )
 }
 
-// ── Business verification (KYC documents + submit for review) ───────
 function BusinessVerificationSection({ open, toggle }: { open: boolean; toggle: () => void }) {
   const { data: vendor, isLoading: vendorLoading } = useMyVendor()
   const { data: docs, isLoading: docsLoading } = useVendorDocuments()
@@ -1450,6 +1698,63 @@ function DocumentRow({
 
 function DangerZone() {
   const logout = useLogout()
+  const requestDeleteOtp = useRequestAccountDeleteOtp()
+  const deleteAccount = useDeleteAccount()
+  const [showDeleteForm, setShowDeleteForm] = useState(false)
+  const [deleteStep, setDeleteStep] = useState<'password' | 'otp'>('password')
+  const [deletePassword, setDeletePassword] = useState('')
+  const [deleteCode, setDeleteCode] = useState('')
+  const [otpHint, setOtpHint] = useState<string | null>(null)
+  const [otpDestination, setOtpDestination] = useState<string | null>(null)
+  const [otpChannel, setOtpChannel] = useState<'email' | 'phone' | null>(null)
+
+  const onSendDeleteOtp = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!deletePassword) return
+    requestDeleteOtp.mutate(deletePassword, {
+      onSuccess: (res) => {
+        setDeleteStep('otp')
+        setOtpDestination(res.to)
+        setOtpChannel(res.channel)
+        setDeleteCode('')
+        setOtpHint(res.dev_hint ?? null)
+        if (res.dev_hint) setDeleteCode(res.dev_hint)
+        toast.success(`Verification code sent to ${res.to}`)
+      },
+    })
+  }
+
+  const onConfirmDelete = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (deleteCode.length !== 6) return
+    deleteAccount.mutate(deleteCode)
+  }
+
+  const onResendDeleteOtp = () => {
+    if (!deletePassword) return
+    requestDeleteOtp.mutate(deletePassword, {
+      onSuccess: (res) => {
+        setOtpDestination(res.to)
+        setOtpChannel(res.channel)
+        setOtpHint(res.dev_hint ?? null)
+        if (res.dev_hint) setDeleteCode(res.dev_hint)
+        toast.success(`New code sent to ${res.to}`)
+      },
+    })
+  }
+
+  const closeDeleteForm = () => {
+    setShowDeleteForm(false)
+    setDeleteStep('password')
+    setDeletePassword('')
+    setDeleteCode('')
+    setOtpHint(null)
+    setOtpDestination(null)
+    setOtpChannel(null)
+  }
+
+  const deleteBusy = requestDeleteOtp.isPending || deleteAccount.isPending
+
   return (
     <Card className="border-red-200">
       <CardContent className="p-5">
@@ -1457,20 +1762,169 @@ function DangerZone() {
           <ShieldAlert className="w-4 h-4 text-red-500" />
           <h3 className="text-sm font-semibold text-red-700">Danger zone</h3>
         </div>
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 rounded-lg border border-red-200 bg-red-50/40">
-          <div className="min-w-0">
-            <p className="text-sm font-medium text-gray-900">Sign out</p>
-            <p className="text-xs text-gray-500">End your current session on this device.</p>
+        <div className="space-y-3">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 rounded-lg border border-red-200 bg-red-50/40">
+            <div className="min-w-0">
+              <p className="text-sm font-medium text-gray-900">Sign out</p>
+              <p className="text-xs text-gray-500">End your current session on this device.</p>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={logout}
+              className="text-red-600 border-red-300 hover:bg-red-50 hover:text-red-700 shrink-0"
+            >
+              <LogOut className="w-3.5 h-3.5 mr-1.5" />
+              Sign out
+            </Button>
           </div>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={logout}
-            className="text-red-600 border-red-300 hover:bg-red-50 hover:text-red-700 shrink-0"
-          >
-            <LogOut className="w-3.5 h-3.5 mr-1.5" />
-            Sign out
-          </Button>
+
+          <div className="rounded-lg border border-red-200 bg-red-50/40 p-3">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div className="min-w-0">
+                <p className="text-sm font-medium text-gray-900">Delete account</p>
+                <p className="text-xs text-gray-500">
+                  Permanently delete your login and any business accounts you own with no customer orders.
+                </p>
+              </div>
+              {!showDeleteForm && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowDeleteForm(true)}
+                  className="text-red-700 border-red-300 hover:bg-red-100 hover:text-red-800 shrink-0"
+                >
+                  <Trash2 className="w-3.5 h-3.5 mr-1.5" />
+                  Delete account
+                </Button>
+              )}
+            </div>
+
+            {showDeleteForm && deleteStep === 'password' && (
+              <form onSubmit={onSendDeleteOtp} className="mt-3 space-y-2 border-t border-red-200/80 pt-3">
+                <p className="text-xs text-red-800">
+                  This cannot be undone. Enter your password — we&apos;ll send a verification code to confirm deletion.
+                </p>
+                <div className="grid grid-cols-1 gap-2 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
+                  <div>
+                    <Label htmlFor="delete-account-password" className="text-xs">
+                      Current password
+                    </Label>
+                    <Input
+                      id="delete-account-password"
+                      type="password"
+                      value={deletePassword}
+                      onChange={(e) => setDeletePassword(e.target.value)}
+                      placeholder="Your password"
+                      autoComplete="current-password"
+                      className="mt-0.5 h-9"
+                    />
+                  </div>
+                  <div className="flex shrink-0 items-center justify-end gap-1.5">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={closeDeleteForm}
+                      disabled={deleteBusy}
+                      className="h-8 rounded-full px-2.5 text-xs"
+                    >
+                      Cancel
+                    </Button>
+                    <Button
+                      type="submit"
+                      size="sm"
+                      disabled={deleteBusy || !deletePassword}
+                      className="h-8 rounded-full bg-red-600 px-2.5 text-xs hover:bg-red-700"
+                    >
+                      {requestDeleteOtp.isPending ? (
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      ) : (
+                        'Send verification code'
+                      )}
+                    </Button>
+                  </div>
+                </div>
+              </form>
+            )}
+
+            {showDeleteForm && deleteStep === 'otp' && (
+              <form onSubmit={onConfirmDelete} className="mt-3 space-y-2 border-t border-red-200/80 pt-3">
+                <p className="text-xs text-red-800">
+                  Enter the 6-digit code sent to{' '}
+                  <span className="font-medium">{otpDestination}</span>
+                  {otpChannel === 'email' ? ' (email)' : otpChannel === 'phone' ? ' (SMS)' : ''}.
+                </p>
+                {otpHint && (
+                  <p className="text-[11px] text-amber-800 bg-amber-50 border border-amber-200 rounded-md px-2 py-1">
+                    Dev mode: code is <span className="font-mono font-semibold">{otpHint}</span>
+                  </p>
+                )}
+                <div className="grid grid-cols-1 gap-2 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
+                  <div>
+                    <Label htmlFor="delete-account-otp" className="text-xs">
+                      Verification code
+                    </Label>
+                    <Input
+                      id="delete-account-otp"
+                      inputMode="numeric"
+                      maxLength={6}
+                      value={deleteCode}
+                      onChange={(e) => setDeleteCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                      placeholder="6-digit code"
+                      autoComplete="one-time-code"
+                      className="mt-0.5 h-9 font-mono tracking-widest"
+                    />
+                  </div>
+                  <div className="flex shrink-0 flex-wrap items-center justify-end gap-1.5">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        setDeleteStep('password')
+                        setDeleteCode('')
+                        setOtpHint(null)
+                      }}
+                      disabled={deleteBusy}
+                      className="h-8 rounded-full px-2.5 text-xs"
+                    >
+                      Back
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={onResendDeleteOtp}
+                      disabled={deleteBusy || !deletePassword}
+                      className="h-8 rounded-full px-2.5 text-xs"
+                    >
+                      {requestDeleteOtp.isPending ? (
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      ) : (
+                        <>
+                          <RefreshCcw className="mr-1 h-3.5 w-3.5" />
+                          Resend
+                        </>
+                      )}
+                    </Button>
+                    <Button
+                      type="submit"
+                      size="sm"
+                      disabled={deleteBusy || deleteCode.length !== 6}
+                      className="h-8 rounded-full bg-red-600 px-2.5 text-xs hover:bg-red-700"
+                    >
+                      {deleteAccount.isPending ? (
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      ) : (
+                        'Delete permanently'
+                      )}
+                    </Button>
+                  </div>
+                </div>
+              </form>
+            )}
+          </div>
         </div>
       </CardContent>
     </Card>

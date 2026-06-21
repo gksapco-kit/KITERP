@@ -134,6 +134,8 @@ async def ensure_user_platform_staff_role_column() -> None:
         'ALTER TABLE "user" ADD COLUMN IF NOT EXISTS pending_email VARCHAR(255)',
         'ALTER TABLE "user" ADD COLUMN IF NOT EXISTS email_change_code VARCHAR(6)',
         'ALTER TABLE "user" ADD COLUMN IF NOT EXISTS email_change_expires_at TIMESTAMPTZ',
+        'ALTER TABLE "user" ADD COLUMN IF NOT EXISTS account_delete_code VARCHAR(64)',
+        'ALTER TABLE "user" ADD COLUMN IF NOT EXISTS account_delete_expires_at TIMESTAMPTZ',
         'ALTER TABLE "user" ADD COLUMN IF NOT EXISTS platform_staff_job_role VARCHAR(32)',
         'ALTER TABLE "user" ADD COLUMN IF NOT EXISTS platform_staff_manager_id UUID',
         'CREATE INDEX IF NOT EXISTS ix_user_platform_staff_job_role ON "user" (platform_staff_job_role)',
@@ -1776,3 +1778,34 @@ async def ensure_txn_store_id_columns() -> None:
         return
 
     logger.info("ensure_txn_store_id_columns: order/pos/invoice/booking store_id ready")
+
+
+async def ensure_user_contact_change_request_table() -> None:
+    """Contact change approval requests (email/phone) for verified vendor users."""
+    if "postgresql" not in settings.DATABASE_URL.lower():
+        return
+    stmts = [
+        """
+        CREATE TABLE IF NOT EXISTS user_contact_change_request (
+            id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+            user_id UUID NOT NULL REFERENCES "user"(id) ON DELETE CASCADE,
+            vendor_id UUID NOT NULL REFERENCES vendor(id) ON DELETE CASCADE,
+            field_type VARCHAR(20) NOT NULL,
+            current_value VARCHAR(255) NOT NULL,
+            requested_value VARCHAR(255) NOT NULL,
+            reason TEXT,
+            status VARCHAR(20) NOT NULL DEFAULT 'pending',
+            reviewed_by_user_id UUID REFERENCES "user"(id) ON DELETE SET NULL,
+            review_notes TEXT,
+            created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+            updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+            resolved_at TIMESTAMPTZ
+        )
+        """,
+        "CREATE INDEX IF NOT EXISTS ix_user_contact_change_request_user ON user_contact_change_request(user_id)",
+        "CREATE INDEX IF NOT EXISTS ix_user_contact_change_request_vendor ON user_contact_change_request(vendor_id)",
+        "CREATE INDEX IF NOT EXISTS ix_user_contact_change_request_status ON user_contact_change_request(status)",
+    ]
+    async with engine.begin() as conn:
+        for s in stmts:
+            await conn.execute(text(s))
