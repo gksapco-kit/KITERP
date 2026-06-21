@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Check, Copy, ExternalLink, Eye, Loader2, Sparkles } from 'lucide-react'
+import { Check, Copy, ExternalLink, Eye, LayoutTemplate, Loader2, Sparkles } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { WebsiteSiteGlimpse } from '@/components/websites/WebsiteSiteGlimpse'
@@ -9,20 +9,16 @@ import type { WebsiteTemplate } from '@/types/websites'
 type Props = {
   name: string
   description: string
+  storeCode?: string | null
   builderTo: string
   liveUrl?: string | null
   live?: boolean
   draft?: boolean
-  /** When set, shows Preview instead of View live store (Website Builder drafts). */
   previewSiteId?: string
   onPreview?: (siteId: string) => void | Promise<void>
-  /** When set, primary action opens theme customizer instead of the website builder. */
-  onChangeTheme?: () => void
   templateName?: string | null
   templateThumbnail?: string | null
-  /** When set, loads homepage hero/section images for the card preview. */
   thumbnailSiteId?: string | null
-  /** Live customer store URL for default/legacy storefront cards. */
   livePreviewUrl?: string | null
   vendorSlug?: string | null
   previewTemplates?: WebsiteTemplate[]
@@ -30,16 +26,26 @@ type Props = {
   className?: string
 }
 
+function shortStoreUrl(url: string): string {
+  try {
+    const parsed = new URL(url)
+    if (parsed.pathname === '/' || !parsed.pathname) return parsed.host
+    return `${parsed.host}${parsed.pathname}`
+  } catch {
+    return url
+  }
+}
+
 export function WebsiteStorefrontCard({
   name,
   description,
+  storeCode,
   builderTo,
   liveUrl = null,
   live,
   draft,
   previewSiteId,
   onPreview,
-  onChangeTheme,
   templateName,
   templateThumbnail,
   thumbnailSiteId,
@@ -75,13 +81,14 @@ export function WebsiteStorefrontCard({
   }
 
   return (
-    <div
+    <article
       className={cn(
-        'flex h-full flex-col overflow-hidden rounded-xl border border-border bg-card shadow-sm dark:shadow-none dark:ring-1 dark:ring-border/50',
+        'group/card flex h-full flex-col overflow-hidden rounded-lg border bg-card shadow-sm transition-shadow hover:shadow-md dark:shadow-none dark:ring-1 dark:ring-border/50',
+        live ? 'border-primary/35 ring-1 ring-primary/15' : 'border-border',
         className,
       )}
     >
-      <div className="relative h-24 shrink-0 overflow-hidden">
+      <div className="relative h-16 shrink-0 overflow-hidden bg-muted/20">
         <WebsiteSiteGlimpse
           siteId={thumbnailSiteId}
           vendorSlug={vendorSlug}
@@ -89,56 +96,86 @@ export function WebsiteStorefrontCard({
           fallbackGradient={fallbackGradient}
           livePreviewUrl={livePreviewUrl}
           templates={previewTemplates}
-          className="absolute inset-0"
+          className="absolute inset-0 transition-transform duration-300 group-hover/card:scale-[1.03]"
         />
+        <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/45 via-transparent to-transparent opacity-80" />
         {live ? (
-          <span className="absolute top-2 left-2 text-[9px] uppercase tracking-wide font-extrabold bg-primary text-white rounded-full px-1.5 py-0.5">
+          <span className="absolute left-1.5 top-1.5 rounded-full bg-primary px-1.5 py-px text-[8px] font-extrabold uppercase tracking-wide text-white shadow-sm">
             Live
           </span>
         ) : null}
         {draft && !live ? (
-          <span className="absolute top-2 left-2 text-[9px] uppercase tracking-wide font-extrabold bg-amber-500 text-white rounded-full px-1.5 py-0.5">
+          <span className="absolute left-1.5 top-1.5 rounded-full bg-amber-500 px-1.5 py-px text-[8px] font-extrabold uppercase tracking-wide text-white shadow-sm">
             Draft
           </span>
         ) : null}
+        {liveUrl && !isBuilderDraft ? (
+          <a
+            href={liveUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="absolute inset-0 flex items-center justify-center bg-black/0 opacity-0 transition-all group-hover/card:bg-black/25 group-hover/card:opacity-100"
+            title="Open live storefront"
+          >
+            <span className="inline-flex items-center gap-1 rounded-full bg-white/95 px-2 py-0.5 text-[10px] font-bold text-gray-900 shadow-md">
+              <ExternalLink className="h-3 w-3" />
+              View live
+            </span>
+          </a>
+        ) : null}
         {templateName ? (
-          <span className="absolute bottom-2 left-2 right-2 inline-flex max-w-[calc(100%-1rem)] items-center gap-1 rounded-full border border-border/60 bg-card/95 px-2 py-0.5 text-[10px] font-extrabold text-foreground shadow-sm backdrop-blur-sm dark:bg-card/90">
-            <Sparkles className="h-2.5 w-2.5 shrink-0 text-primary" />
+          <span
+            className="absolute bottom-1 left-1 right-1 inline-flex max-w-[calc(100%-0.5rem)] items-center gap-0.5 rounded-full border border-border/60 bg-card/95 px-1.5 py-px text-[9px] font-semibold text-foreground shadow-sm backdrop-blur-sm dark:bg-card/90"
+            title={templateName}
+          >
+            <Sparkles className="h-2 w-2 shrink-0 text-primary" />
             <span className="truncate">{templateName}</span>
           </span>
         ) : null}
       </div>
-      <div className="flex min-h-0 flex-1 flex-col p-3">
-        <h3 className="truncate text-sm font-bold text-foreground">{name}</h3>
-        <p className="mt-0.5 line-clamp-2 flex-1 text-xs leading-snug text-muted-foreground">{description}</p>
+
+      <div className="flex min-h-0 flex-1 flex-col p-2">
+        <div className="flex items-start gap-1.5">
+          {storeCode ? (
+            <span className="mt-0.5 shrink-0 rounded bg-muted px-1 py-px font-mono text-[9px] font-bold text-muted-foreground">
+              {storeCode}
+            </span>
+          ) : null}
+          <h3 className="min-w-0 flex-1 truncate text-xs font-bold leading-tight text-foreground" title={name}>
+            {name}
+          </h3>
+        </div>
+        <p className="mt-0.5 line-clamp-2 min-h-[1.75rem] text-[10px] leading-snug text-muted-foreground" title={description}>
+          {description}
+        </p>
 
         {liveUrl && !isBuilderDraft ? (
-          <div className="mt-2 flex items-center gap-1 rounded-md border border-border bg-muted/40 px-2 py-1.5 dark:bg-muted/25">
+          <div className="mt-1.5 flex items-center gap-1 rounded-md border border-border bg-muted/30 px-1.5 py-1 dark:bg-muted/20">
             <a
               href={liveUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="min-w-0 flex-1 truncate font-mono text-[10px] text-primary hover:underline"
+              className="min-w-0 flex-1 truncate font-mono text-[9px] text-primary hover:underline"
               title={liveUrl}
             >
-              {liveUrl}
+              {shortStoreUrl(liveUrl)}
             </a>
             <button
               type="button"
               onClick={() => void copyLink()}
               className={cn(
-                'inline-flex h-6 w-6 shrink-0 items-center justify-center rounded border border-border bg-background text-muted-foreground hover:text-foreground dark:bg-card',
+                'inline-flex h-5 w-5 shrink-0 items-center justify-center rounded border border-border bg-background text-muted-foreground hover:text-foreground dark:bg-card',
                 copied && 'border-emerald-500/40 text-emerald-600 dark:text-emerald-400',
               )}
-              title={copied ? 'Copied' : 'Copy store link'}
+              title={copied ? 'Copied' : 'Copy full link'}
               aria-label="Copy store link"
             >
-              {copied ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
+              {copied ? <Check className="h-2.5 w-2.5" /> : <Copy className="h-2.5 w-2.5" />}
             </button>
           </div>
         ) : null}
 
-        <div className={cn('grid grid-cols-2 gap-1.5', liveUrl && !isBuilderDraft ? 'mt-2' : 'mt-2.5')}>
+        <div className="mt-auto grid grid-cols-2 gap-1 pt-1.5">
           {isBuilderDraft && previewSiteId && onPreview ? (
             <Button
               variant="outline"
@@ -146,45 +183,38 @@ export function WebsiteStorefrontCard({
               type="button"
               disabled={previewing}
               onClick={() => void handlePreview()}
-              className="h-8 px-2 text-[11px] gap-1"
+              className="h-7 px-1.5 text-[10px] gap-0.5"
             >
               {previewing ? (
-                <Loader2 className="w-3 h-3 shrink-0 animate-spin" />
+                <Loader2 className="h-2.5 w-2.5 shrink-0 animate-spin" />
               ) : (
-                <Eye className="w-3 h-3 shrink-0" />
+                <Eye className="h-2.5 w-2.5 shrink-0" />
               )}
               <span className="truncate">{previewing ? 'Opening…' : 'Preview'}</span>
             </Button>
           ) : liveUrl ? (
-            <Button variant="outline" size="sm" asChild className="h-8 px-2 text-[11px] gap-1">
+            <Button variant="outline" size="sm" asChild className="h-7 px-1.5 text-[10px] gap-0.5">
               <a href={liveUrl} target="_blank" rel="noopener noreferrer">
-                <ExternalLink className="w-3 h-3 shrink-0" />
-                <span className="truncate">View live store</span>
+                <ExternalLink className="h-2.5 w-2.5 shrink-0" />
+                <span className="truncate">View live</span>
               </a>
             </Button>
           ) : (
-            <span />
-          )}
-          {onChangeTheme ? (
-            <Button
-              size="sm"
-              type="button"
-              onClick={onChangeTheme}
-              className={cn('h-8 px-2 text-[11px]', (!liveUrl || isBuilderDraft) && !previewSiteId && 'col-span-2')}
-            >
-              Change Theme
-            </Button>
-          ) : (
-            <Button
-              size="sm"
-              asChild
-              className={cn('h-8 px-2 text-[11px]', (!liveUrl || isBuilderDraft) && !previewSiteId && 'col-span-2')}
-            >
-              <Link to={builderTo}>Open builder</Link>
+            <Button variant="outline" size="sm" asChild className="h-7 px-1.5 text-[10px] gap-0.5">
+              <Link to={builderTo}>
+                <ExternalLink className="h-2.5 w-2.5 shrink-0" />
+                <span className="truncate">Open</span>
+              </Link>
             </Button>
           )}
+          <Button size="sm" asChild className="h-7 px-1.5 text-[10px]">
+            <Link to="/websites/templates">
+              <LayoutTemplate className="h-2.5 w-2.5 shrink-0" />
+              <span className="truncate">Templates</span>
+            </Link>
+          </Button>
         </div>
       </div>
-    </div>
+    </article>
   )
 }

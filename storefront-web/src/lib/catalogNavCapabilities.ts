@@ -125,13 +125,19 @@ export function resolveCatalogNavCapabilities(input: ResolveCatalogNavCapabiliti
 export function navLinksIncludeCatalogPath(
   links: NavLinkItem[],
   storePath: (p: string) => string,
-  kind: 'products' | 'services',
+  kind: 'products' | 'services' | 'blog',
 ): boolean {
   for (const link of links) {
     if (!link?.href) continue
     const rel = pathRelativeToStore(link.href, storePath).toLowerCase()
     const firstSeg = rel.replace(/^\//, '').split('/')[0] || ''
     const label = link.label || ''
+    if (kind === 'blog') {
+      if (rel === '/blog' || rel.startsWith('/blog/')) return true
+      if (firstSeg === 'blog') return true
+      if (/blog|news|articles?/i.test(label)) return true
+      continue
+    }
     if (kind === 'products') {
       if (rel === '/products' || rel.startsWith('/products/')) return true
       if (PRODUCT_PAGE_SLUGS.has(firstSeg)) return true
@@ -197,6 +203,19 @@ export function enrichNavLinksWithCatalogCapabilities(
     deduped.push(link)
   }
   return deduped
+}
+
+/** Blog posts live at `/blog` (Blog Manager) — add when missing from builder page nav. */
+export function enrichNavLinksWithBlogLink(
+  links: NavLinkItem[],
+  storePath: (p: string) => string,
+): NavLinkItem[] {
+  if (navLinksIncludeCatalogPath(links, storePath, 'blog')) return links
+  const out = [...links]
+  const contactIdx = out.findIndex(l => pathRelativeToStore(l.href, storePath).toLowerCase() === '/contact')
+  const insertIdx = contactIdx >= 0 ? contactIdx : out.length
+  out.splice(insertIdx, 0, { label: 'Blog', href: storePath('/blog') })
+  return out
 }
 
 export function defaultCommerceNavLinksForCapabilities(

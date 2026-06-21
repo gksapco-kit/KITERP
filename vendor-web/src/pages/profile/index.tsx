@@ -218,12 +218,12 @@ function ProfileHero() {
               )}
 
               <span
-                className={cn(
+              className={cn(
                   'absolute inset-0 flex flex-col items-center justify-center gap-0.5 rounded-full bg-black/45 text-white transition-opacity',
                   upload.isPending ? 'opacity-100' : 'opacity-0 group-hover:opacity-100 group-focus-visible:opacity-100',
-                )}
-              >
-                {upload.isPending ? (
+              )}
+            >
+              {upload.isPending ? (
                   <Loader2 className="h-5 w-5 animate-spin" aria-hidden />
                 ) : (
                   <>
@@ -245,9 +245,9 @@ function ProfileHero() {
                 <h2 className="truncate text-xl font-bold leading-tight text-foreground">{user?.full_name}</h2>
                 <span className="inline-flex items-center gap-1 rounded-full border border-primary/25 bg-accent px-2.5 py-0.5 text-[11px] font-medium text-primary">
                   <ShieldCheck className="h-3 w-3 shrink-0" aria-hidden />
-                  {role}
-                </span>
-              </div>
+                {role}
+              </span>
+            </div>
               {user?.email && (
                 <p className="truncate text-sm text-muted-foreground" title={user.email}>
                   {user.email}
@@ -401,11 +401,11 @@ function PersonalInfoSection({ open, toggle }: { open: boolean; toggle: () => vo
           </div>
           <div className="space-y-2.5 p-2.5">
             <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-2">
-              <div>
+          <div>
                 <Label htmlFor="first-name" dbTable="user" dbField="full_name" className="text-xs">
                   First name
-                </Label>
-                <Input
+            </Label>
+            <Input
                   id="first-name"
                   value={firstName}
                   onChange={(e) => setFirstName(e.target.value)}
@@ -413,13 +413,13 @@ function PersonalInfoSection({ open, toggle }: { open: boolean; toggle: () => vo
                   maxLength={60}
                   autoComplete="given-name"
                   className="mt-0.5 h-9"
-                />
-              </div>
-              <div>
+            />
+          </div>
+          <div>
                 <Label htmlFor="last-name" className="text-xs">
                   Last name
                 </Label>
-                <Input
+              <Input
                   id="last-name"
                   value={lastName}
                   onChange={(e) => setLastName(e.target.value)}
@@ -428,8 +428,8 @@ function PersonalInfoSection({ open, toggle }: { open: boolean; toggle: () => vo
                   autoComplete="family-name"
                   className="mt-0.5 h-9"
                 />
-              </div>
-            </div>
+          </div>
+        </div>
 
             <EmailFieldWithVerification />
 
@@ -437,8 +437,8 @@ function PersonalInfoSection({ open, toggle }: { open: boolean; toggle: () => vo
               phone={phone}
               onPhoneChange={setPhone}
               phoneDirty={(phone || '') !== (user?.phone || '')}
-            />
-          </div>
+          />
+        </div>
         </div>
       </div>
     </SectionWrapper>
@@ -1351,7 +1351,7 @@ function EmailFieldWithVerification() {
     })
   }
 
-  return (
+    return (
     <div className="space-y-1.5">
       <ContactFieldWithVerify
         label="Email"
@@ -1367,15 +1367,15 @@ function EmailFieldWithVerification() {
         field={
           <div className="relative">
             <Mail className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
+          <Input
               id="email"
               value={user?.email || ''}
               readOnly
               disabled
               className="h-9 bg-muted/40 pl-9 text-muted-foreground"
             />
-          </div>
-        }
+        </div>
+      }
         verify={
           user?.is_email_verified ? (
             <VerifiedBadge level="verified" size="md" />
@@ -1392,15 +1392,15 @@ function EmailFieldWithVerification() {
               sendDisabled={!user?.email}
             />
           )
-        }
-        footer={
-          hint ? (
+      }
+      footer={
+        hint ? (
             <p className="rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-xs text-amber-700">
               Dev mode — auto-filled code: <span className="font-mono font-semibold">{hint}</span>
-            </p>
-          ) : null
-        }
-      />
+          </p>
+        ) : null
+      }
+    />
 
       {pendingEmail && (
         <PendingContactChangeBanner
@@ -1460,7 +1460,7 @@ function PhoneFieldWithVerification({
       ? 'Add a phone number and save it first.'
       : null
 
-  return (
+    return (
     <div className="space-y-1.5">
       <ContactFieldWithVerify
         label="Phone number"
@@ -1513,7 +1513,7 @@ function PhoneFieldWithVerification({
           )}
         </>
       }
-      />
+    />
 
       {pendingPhone && (
         <PendingContactChangeBanner
@@ -1763,20 +1763,20 @@ function DangerZone() {
           <h3 className="text-sm font-semibold text-red-700">Danger zone</h3>
         </div>
         <div className="space-y-3">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 rounded-lg border border-red-200 bg-red-50/40">
-            <div className="min-w-0">
-              <p className="text-sm font-medium text-gray-900">Sign out</p>
-              <p className="text-xs text-gray-500">End your current session on this device.</p>
-            </div>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={logout}
-              className="text-red-600 border-red-300 hover:bg-red-50 hover:text-red-700 shrink-0"
-            >
-              <LogOut className="w-3.5 h-3.5 mr-1.5" />
-              Sign out
-            </Button>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 rounded-lg border border-red-200 bg-red-50/40">
+          <div className="min-w-0">
+            <p className="text-sm font-medium text-gray-900">Sign out</p>
+            <p className="text-xs text-gray-500">End your current session on this device.</p>
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={logout}
+            className="text-red-600 border-red-300 hover:bg-red-50 hover:text-red-700 shrink-0"
+          >
+            <LogOut className="w-3.5 h-3.5 mr-1.5" />
+            Sign out
+          </Button>
           </div>
 
           <div className="rounded-lg border border-red-200 bg-red-50/40 p-3">

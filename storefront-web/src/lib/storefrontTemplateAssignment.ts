@@ -20,6 +20,18 @@ export const LEGACY_HOME_TEMPLATE_IDS = ['light', 'dark', 'atelier', 'verde', 's
  */
 export const BLOCK_BASED_STOREFRONT_TEMPLATE_IDS = ['storefront_grocery', 'storefront_supermarket'] as const
 
+const BUILDER_SITE_UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
+/** Published Website Builder site id stored in template settings (not a catalog template slug). */
+export function isBuilderSiteTemplateId(id: string | null | undefined): boolean {
+  return typeof id === 'string' && BUILDER_SITE_UUID_RE.test(id.trim())
+}
+
+/** Catalog/legacy template slug — not a builder site UUID. */
+export function isCatalogStorefrontTemplateId(id: string | null | undefined): boolean {
+  return Boolean(id?.trim()) && !isBuilderSiteTemplateId(id)
+}
+
 function branchKey(v: string | null | undefined): string {
   return String(v ?? '').trim().toLowerCase()
 }

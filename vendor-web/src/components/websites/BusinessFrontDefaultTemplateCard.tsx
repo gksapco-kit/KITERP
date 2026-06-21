@@ -19,7 +19,7 @@ type Props = {
   sites: { id: string; name: string; is_published: boolean }[]
   vendorSlug: string | undefined
   onCustomize: () => void
-  /** When single template mode: show "Use for all stores". */
+  /** When single template mode: show "Assign · all". */
   singleTemplateMode?: boolean
   isSingleTemplateSelected?: boolean
   onUseForAllStores?: (templateId: string, templateName: string) => void
@@ -80,13 +80,36 @@ export function BusinessFrontDefaultTemplateCard({
     ? assignedToContextStore
     : (perStoreUsedCount ?? 0) > 0
 
+  const canAssignToContext = Boolean(
+    perStoreTemplateMode && onApplyForStore && contextStoreCode && !assignedToContextStore,
+  )
+  const canAssignSingleAll = Boolean(
+    singleTemplateMode && onUseForAllStores && !isSingleTemplateSelected,
+  )
+  const showAssignOverlay = canAssignToContext || canAssignSingleAll
+  const assignOverlayLabel = canAssignSingleAll
+    ? singleTemplateActionLabel(false)
+    : contextStoreCode
+      ? perStoreTemplateActionLabel(contextStoreCode, false, (perStoreUsedCount ?? 0) > 0)
+      : 'Assign'
+
   return (
     <div
-      title={live && storeUrl ? `Click to view live ${preset.name}` : `Click to customize ${preset.name}`}
+      title={
+        live && storeUrl
+          ? `Click to view live ${preset.name}`
+          : showAssignOverlay
+            ? `${assignOverlayLabel} — ${preset.name}`
+            : `Click to customize ${preset.name}`
+      }
       onClick={(e) => {
         if ((e.target as HTMLElement).closest('[data-template-card-action]')) return
         if (live && storeUrl) {
           window.open(storeUrl, '_blank', 'noopener,noreferrer')
+        } else if (canAssignSingleAll && onUseForAllStores) {
+          onUseForAllStores(preset.id, preset.name)
+        } else if (canAssignToContext && onApplyForStore) {
+          onApplyForStore(preset.id)
         } else {
           onCustomize()
         }
@@ -119,6 +142,11 @@ export function BusinessFrontDefaultTemplateCard({
               <>
                 <ExternalLink className="h-3 w-3" />
                 View live site
+              </>
+            ) : showAssignOverlay ? (
+              <>
+                <Store className="h-3 w-3" />
+                {assignOverlayLabel}
               </>
             ) : (
               <>

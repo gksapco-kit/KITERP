@@ -1,5 +1,5 @@
-import { Check, ExternalLink, Eye, Globe, Store } from 'lucide-react'
-import { Link } from 'react-router-dom'
+import { Check, ExternalLink, Eye, Globe, Pencil, Store } from 'lucide-react'
+import { Link, useNavigate } from 'react-router-dom'
 import { cn } from '@/lib/utils'
 import { WebsiteSiteGlimpse } from '@/components/websites/WebsiteSiteGlimpse'
 import { AppliedTemplateViewLiveButton, templateCardIconActionClass } from '@/components/websites/AppliedTemplateViewLiveButton'
@@ -76,19 +76,40 @@ export function BuilderDraftTemplateCard({
   linkedToContextStore = false,
   appliedToContextStore = false,
 }: Props) {
+  const navigate = useNavigate()
   const staticThumb = resolveSiteStaticThumbnail(site, templates)
   const pageCount = site.page_count ?? 0
   const isApplied = perStoreAppliedCount > 0
   const isLinkedToStore = linkedStoreNames.length > 0
+  const isAssigned = isSingleTemplateSelected || isApplied || isLinkedToStore
   const isLiveOnStorefront = viewLiveLinks.length > 0
   const needsActivation = isLinkedToStore
     && !isLiveOnStorefront
     && liveBlockReason === 'catalog_template_override'
+  const isAssignedNotLive = isAssigned && !isLiveOnStorefront && !needsActivation
   const multipleLiveStores = viewLiveLinks.length > 1
+  const canAssignToContext = Boolean(
+    perStoreTemplateMode && onAssign && contextStoreCode && !appliedToContextStore && !needsActivation,
+  )
+  const canAssignSingleAll = Boolean(singleTemplateMode && onUseForAllStores && !isSingleTemplateSelected)
+  const showAssignOverlay = canAssignToContext || canAssignSingleAll
+  const assignOverlayLabel = singleTemplateMode && !isSingleTemplateSelected
+    ? singleTemplateActionLabel(false)
+    : contextStoreCode
+      ? perStoreTemplateActionLabel(contextStoreCode, false, isApplied || isLinkedToStore)
+      : 'Assign'
 
   const handleCardClick = () => {
     if (needsActivation && onAssign) {
       onAssign()
+      return
+    }
+    if (canAssignToContext && onAssign) {
+      onAssign()
+      return
+    }
+    if (canAssignSingleAll && onUseForAllStores) {
+      onUseForAllStores()
       return
     }
     if (viewLiveLinks.length > 1 && onViewLivePicker) {
@@ -97,6 +118,10 @@ export function BuilderDraftTemplateCard({
     }
     if (viewLiveLinks.length === 1) {
       window.open(viewLiveLinks[0].href, '_blank', 'noopener,noreferrer')
+      return
+    }
+    if (isAssignedNotLive) {
+      navigate(`/websites/${site.id}`)
       return
     }
     onPreview()
@@ -155,11 +180,15 @@ export function BuilderDraftTemplateCard({
       title={
         needsActivation
           ? `Activate and open live storefront for ${site.name}`
-          : multipleLiveStores
-            ? `View live site — pick from ${viewLiveLinks.length} business units`
-            : isLiveOnStorefront
-              ? `View live site for ${site.name}`
-              : `Preview ${site.name}`
+          : showAssignOverlay
+            ? `${assignOverlayLabel} — ${site.name}`
+            : multipleLiveStores
+              ? `View live site — pick from ${viewLiveLinks.length} business units`
+              : isLiveOnStorefront
+                ? `View live site for ${site.name}`
+                : isAssignedNotLive
+                  ? `Open ${site.name} in Website Builder`
+                  : `Preview ${site.name}`
       }
       onClick={e => {
         if ((e.target as HTMLElement).closest('[data-template-card-action]')) return
@@ -195,10 +224,20 @@ export function BuilderDraftTemplateCard({
                 <ExternalLink className="h-3 w-3" />
                 Activate & view live
               </>
+            ) : showAssignOverlay ? (
+              <>
+                <Store className="h-3 w-3" />
+                {assignOverlayLabel}
+              </>
             ) : isLiveOnStorefront ? (
               <>
                 <ExternalLink className="h-3 w-3" />
                 {multipleLiveStores ? `View live site (${viewLiveLinks.length})` : 'View live site'}
+              </>
+            ) : isAssignedNotLive ? (
+              <>
+                <Pencil className="h-3 w-3" />
+                Open in builder
               </>
             ) : (
               <>
@@ -251,7 +290,7 @@ export function BuilderDraftTemplateCard({
               title={
                 isSingleTemplateSelected
                   ? 'This Website Builder site is the live template for every business unit'
-                  : 'Not selected — click Use for all stores to apply'
+                  : 'Not selected — click Assign · all to apply'
               }
             >
               <span
@@ -260,7 +299,7 @@ export function BuilderDraftTemplateCard({
                   isSingleTemplateSelected ? 'bg-violet-500' : 'bg-gray-300',
                 )}
               />
-              {isSingleTemplateSelected ? 'Live all stores' : 'Not applied'}
+              {isSingleTemplateSelected ? 'Assigned all' : 'Not applied'}
             </span>
           ) : perStoreTemplateMode ? (
             <span
@@ -307,7 +346,7 @@ export function BuilderDraftTemplateCard({
         <div className={templateCardActionRowClass} data-template-card-action>
           {singleTemplateMode && onUseForAllStores ? (
             isSingleTemplateSelected ? (
-              <span className={templateCardActivePillClass} title="Active for all business units">
+              <span className={templateCardActivePillClass} title="Assigned for all business units">
                 <Check className="h-3 w-3 shrink-0" />
                 {singleTemplateActionLabel(true)}
               </span>

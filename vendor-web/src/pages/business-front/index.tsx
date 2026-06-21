@@ -3,7 +3,7 @@ import { useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import {
   Globe, Layout, SlidersHorizontal,
-  Sparkles, Newspaper, Link2, Search,
+  Sparkles, Newspaper, Link2, Search, ChevronRight, Palette,
 } from 'lucide-react'
 import { vendorApi } from '@/api/vendor'
 import { useSiteList, useWebsiteTemplates } from '@/hooks/useWebsites'
@@ -11,7 +11,6 @@ import { useStores } from '@/hooks/useVendor'
 import { useVendorStore } from '@/stores/vendorStore'
 import { resolveBusinessFrontActiveTemplate } from '@/lib/businessFrontActiveTemplate'
 import { buildCustomerStoreLink, customerLinkForStore, resolveEffectiveStorefrontTemplateId, resolveStorefrontLinkMode, resolveStorefrontTemplateMode } from '@/lib/liveStorefrontUrl'
-import { openBuilderSiteDraftPreview } from '@/lib/openBuilderSiteDraftPreview'
 import { isTemplateSandboxSite } from '@/lib/websiteSandbox'
 import { WebsiteStorefrontCard } from '@/components/websites/WebsiteStorefrontCard'
 import { StoreThemeCustomizerDialog } from '@/components/websites/StoreThemeCustomizerDialog'
@@ -21,6 +20,7 @@ import {
   resolveTemplateDisplay,
 } from '@/lib/websiteAppliedTemplate'
 import { resolveSiteStaticThumbnail } from '@/lib/websiteSitePreview'
+import { formatStoreCode } from '@/lib/verification'
 import type { SiteListItem } from '@/types/websites'
 import { cn, mediaUrl } from '@/lib/utils'
 
@@ -36,6 +36,7 @@ type HubLink = {
 type StorefrontCardModel = {
   key: string
   name: string
+  storeCode: string | null
   description: string
   builderTo: string
   liveUrl: string | null
@@ -47,18 +48,6 @@ type StorefrontCardModel = {
   fallbackGradient: string | null
 }
 
-type BuilderDraftCardModel = {
-  key: string
-  siteId: string
-  name: string
-  description: string
-  builderTo: string
-  templateName: string
-  templateThumbnail: string | null
-  thumbnailSiteId: string
-  fallbackGradient: string | null
-}
-
 function presetPreviewGradient(preset: { colors?: Record<string, string> } | undefined): string | null {
   const colors = preset?.colors
   if (!colors) return null
@@ -66,6 +55,16 @@ function presetPreviewGradient(preset: { colors?: Record<string, string> } | und
   const end = colors.secondary?.trim() || colors.background?.trim()
   if (start && end && start !== end) return `linear-gradient(135deg, ${start}, ${end})`
   return start || end || null
+}
+
+function storefrontDescription(
+  store: { description?: string | null; is_default?: boolean },
+  isSingleTemplateMode: boolean,
+): string {
+  if (store.description?.trim()) return store.description.trim()
+  if (isSingleTemplateMode) return 'Shared storefront template for all business units.'
+  if (store.is_default) return 'Default business unit · customer-facing storefront.'
+  return 'Business unit storefront for this outlet.'
 }
 
 export default function BusinessFrontHubPage() {
@@ -96,6 +95,7 @@ export default function BusinessFrontHubPage() {
   const linkMode = resolveStorefrontLinkMode(vendor?.settings)
   const templateMode = resolveStorefrontTemplateMode(vendor?.settings)
   const isSingleTemplateMode = templateMode === 'single'
+  const showLegacyThemeCustomizer = activeFront.kind === 'legacy_preset'
 
   const legacyPresets = presetsData?.presets ?? []
   const mainStorefrontTemplate = resolveMainStorefrontTemplateLabel(config?.template, legacyPresets)
@@ -110,9 +110,8 @@ export default function BusinessFrontHubPage() {
     return resolveTemplateDisplay(assignedId, websiteTemplates, legacyPresets)
   }
 
-  const { storefrontCards, builderDraftCards } = useMemo(() => {
-    const storefrontCards: StorefrontCardModel[] = []
-    const builderDraftCards: BuilderDraftCardModel[] = []
+  const storefrontCards = useMemo(() => {
+    const cards: StorefrontCardModel[] = []
 
     const sitesByStoreId = new Map<string, SiteListItem>()
     for (const site of mainSites) {
@@ -130,9 +129,10 @@ export default function BusinessFrontHubPage() {
 
     if (stores.length === 0) {
       const thumbSite = publishedSite as SiteListItem | undefined
-      storefrontCards.push({
+      cards.push({
         key: 'main-storefront',
         name: 'Main Storefront',
+        storeCode: null,
         description: 'The primary storefront for your business.',
         builderTo: publishedSite ? `/websites/${publishedSite.id}` : '/websites/templates',
         liveUrl: commonLiveUrl,
@@ -149,20 +149,14 @@ export default function BusinessFrontHubPage() {
       for (const store of stores) {
         const assignedTemplate = resolveAssignedTemplateForStore(store)
         const storeLiveUrl = customerLinkForStore(vendor?.slug, store, linkMode, templateMode)
+        const storeCode = formatStoreCode(store)
 
         if (assignedTemplate) {
-          storefrontCards.push({
+          cards.push({
             key: `bu-${store.id}`,
             name: store.name,
-            description:
-              store.description?.trim()
-              || (isSingleTemplateMode
-                ? (linkMode === 'single'
-                  ? 'Default business unit · shared template for all units.'
-                  : 'Uses the shared template assigned for all business units.')
-                : (store.is_default
-                  ? 'Default business unit · customer-facing storefront.'
-                  : 'Business unit storefront for this outlet.')),
+            storeCode,
+            description: storefrontDescription(store, isSingleTemplateMode),
             builderTo: '/websites/templates',
             liveUrl: storeLiveUrl,
             live: store.is_default && activeFront.kind === 'legacy_preset',
@@ -184,14 +178,11 @@ export default function BusinessFrontHubPage() {
         const defaultPublishedThumb = store.is_default ? (publishedSite as SiteListItem | undefined) : undefined
         const thumbSite = linkedSite ?? defaultPublishedThumb
         const useLiveIframe = !linkedSite && !(store.is_default && publishedSite)
-        storefrontCards.push({
+        cards.push({
           key: `bu-${store.id}`,
           name: store.name,
-          description:
-            store.description?.trim() ||
-            (store.is_default
-              ? 'Default business unit · customer-facing storefront.'
-              : 'Business unit storefront for this outlet.'),
+          storeCode,
+          description: storefrontDescription(store, isSingleTemplateMode),
           builderTo: linkedSite
             ? `/websites/${linkedSite.id}`
             : publishedSite
@@ -215,25 +206,7 @@ export default function BusinessFrontHubPage() {
       }
     }
 
-    for (const site of mainSites) {
-      if (site.website_store_scope === 'store' && site.website_store_id && sitesByStoreId.has(site.website_store_id)) {
-        continue
-      }
-      const templateName = resolveSiteAppliedTemplateLabel(site, websiteTemplates) ?? 'Custom website'
-      builderDraftCards.push({
-        key: site.id,
-        siteId: site.id,
-        name: site.name,
-        description: site.description?.trim() || 'Website Builder draft — preview before publishing.',
-        builderTo: `/websites/${site.id}`,
-        templateName,
-        templateThumbnail: resolveSiteStaticThumbnail(site, websiteTemplates),
-        thumbnailSiteId: site.id,
-        fallbackGradient: null,
-      })
-    }
-
-    return { storefrontCards, builderDraftCards }
+    return cards
   }, [
     activeFront,
     commonLiveUrl,
@@ -246,8 +219,12 @@ export default function BusinessFrontHubPage() {
     stores,
     linkMode,
     templateMode,
+    isSingleTemplateMode,
     vendor?.settings,
+    legacyPresets,
   ])
+
+  const liveStorefrontCount = storefrontCards.filter(card => card.live).length
 
   const websiteToolLinks: HubLink[] = [
     {
@@ -259,11 +236,11 @@ export default function BusinessFrontHubPage() {
       primary: true,
     },
     {
-      title: 'Blog Manager',
-      shortTitle: 'Blog',
-      description: 'Posts and articles on your public storefront.',
-      to: '/blog',
-      icon: Newspaper,
+      title: 'Website Templates',
+      shortTitle: 'Templates',
+      description: 'Assign themes and Website Builder layouts to each business unit.',
+      to: '/websites/templates',
+      icon: Sparkles,
     },
     {
       title: 'SEO Management',
@@ -271,6 +248,13 @@ export default function BusinessFrontHubPage() {
       description: 'Google titles, meta descriptions, and social share previews.',
       to: publishedSite ? `/websites/seo?siteId=${publishedSite.id}` : '/websites/seo',
       icon: Search,
+    },
+    {
+      title: 'Blog Manager',
+      shortTitle: 'Blog',
+      description: 'Posts and articles on your public storefront.',
+      to: '/blog',
+      icon: Newspaper,
     },
     {
       title: 'Business Front Display',
@@ -286,65 +270,58 @@ export default function BusinessFrontHubPage() {
       to: '/system/social-links',
       icon: Link2,
     },
-    {
-      title: 'Website Templates',
-      shortTitle: 'Templates',
-      description: 'Default store themes, colors & layout, and full-site layouts.',
-      to: '/websites/templates',
-      icon: Sparkles,
-    },
   ]
 
-  const storefrontColCount = Math.min(Math.max(storefrontCards.length, 1), 5)
-  const storefrontGridClass = {
-    1: 'lg:grid-cols-1',
-    2: 'lg:grid-cols-2',
-    3: 'lg:grid-cols-3',
-    4: 'lg:grid-cols-4',
-    5: 'lg:grid-cols-5',
-  }[storefrontColCount as 1 | 2 | 3 | 4 | 5]
-
-  const builderColCount = Math.min(Math.max(builderDraftCards.length, 1), 5)
-  const builderGridClass = {
-    1: 'lg:grid-cols-1',
-    2: 'lg:grid-cols-2',
-    3: 'lg:grid-cols-3',
-    4: 'lg:grid-cols-4',
-    5: 'lg:grid-cols-5',
-  }[builderColCount as 1 | 2 | 3 | 4 | 5]
-
   return (
-    <div className="mx-auto max-w-[1600px] space-y-3 pb-2">
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+    <div className="mx-auto max-w-[1600px] space-y-4 pb-4">
+      <header className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0">
           <p className="text-[11px] font-semibold uppercase tracking-wide text-primary">Website Management</p>
-          <h1 className="text-xl font-bold tracking-tight text-foreground">Dashboard</h1>
+          <h1 className="text-xl font-bold tracking-tight text-foreground sm:text-2xl">Dashboard</h1>
+          <p className="mt-1 max-w-xl text-xs leading-relaxed text-muted-foreground">
+            Manage storefronts, builder sites, and public customer links from one place.
+          </p>
         </div>
-        <p className="text-xs text-muted-foreground sm:max-w-sm sm:text-right">
-          Manage storefronts, builder sites, and public links from one place.
-        </p>
-      </div>
+        <div className="flex flex-wrap items-center gap-2 sm:justify-end">
+          <span className="inline-flex items-center rounded-full border border-border bg-muted/40 px-2.5 py-1 text-[11px] font-medium text-muted-foreground">
+            {storefrontCards.length} storefront{storefrontCards.length === 1 ? '' : 's'}
+          </span>
+          {liveStorefrontCount > 0 ? (
+            <span className="inline-flex items-center rounded-full border border-primary/25 bg-primary/10 px-2.5 py-1 text-[11px] font-semibold text-primary">
+              {liveStorefrontCount} live
+            </span>
+          ) : null}
+          {showLegacyThemeCustomizer ? (
+            <ButtonLike
+              onClick={() => setThemeCustomizerOpen(true)}
+              icon={Palette}
+              label="Theme colors"
+            />
+          ) : null}
+          <ButtonLike to="/websites/templates" icon={Sparkles} label="Manage templates" primary />
+        </div>
+      </header>
 
       <nav
         aria-label="Website tools"
-        className="rounded-xl border border-border bg-card px-2 py-2 shadow-sm dark:shadow-none dark:ring-1 dark:ring-border/60"
+        className="rounded-xl border border-border bg-card p-2 shadow-sm dark:shadow-none dark:ring-1 dark:ring-border/60"
       >
-        <ul className="grid grid-cols-2 gap-1.5 sm:grid-cols-3 lg:grid-cols-5">
+        <ul className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
           {websiteToolLinks.map(item => (
             <li key={item.to}>
               <Link
                 to={item.to}
                 title={item.description}
                 className={cn(
-                  'flex min-h-[3.25rem] items-center gap-2 rounded-lg px-2.5 py-2 transition-colors',
-                  'hover:bg-accent/60 dark:hover:bg-accent/35',
+                  'group flex min-h-[4.25rem] items-start gap-2.5 rounded-lg border border-transparent px-2.5 py-2.5 transition-all',
+                  'hover:border-border hover:bg-accent/50 dark:hover:bg-accent/30',
                   item.primary &&
-                    'bg-primary/10 ring-1 ring-inset ring-primary/20 dark:bg-primary/12 dark:ring-primary/35',
+                    'border-primary/20 bg-primary/[0.06] ring-1 ring-inset ring-primary/15 dark:bg-primary/10',
                 )}
               >
                 <span
                   className={cn(
-                    'inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg',
+                    'inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg',
                     item.primary
                       ? 'bg-primary/15 text-primary dark:bg-primary/20'
                       : 'bg-muted text-muted-foreground dark:bg-secondary',
@@ -352,9 +329,14 @@ export default function BusinessFrontHubPage() {
                 >
                   <item.icon className="h-4 w-4" />
                 </span>
-                <span className="min-w-0 text-left">
-                  <span className="block truncate text-xs font-semibold text-foreground">{item.shortTitle}</span>
-                  <span className="hidden truncate text-[10px] text-muted-foreground xl:block">{item.title}</span>
+                <span className="min-w-0 flex-1 pt-0.5">
+                  <span className="flex items-center gap-1">
+                    <span className="truncate text-sm font-semibold text-foreground">{item.shortTitle}</span>
+                    <ChevronRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />
+                  </span>
+                  <span className="mt-0.5 line-clamp-2 text-[11px] leading-snug text-muted-foreground">
+                    {item.description}
+                  </span>
                 </span>
               </Link>
             </li>
@@ -362,79 +344,107 @@ export default function BusinessFrontHubPage() {
         </ul>
       </nav>
 
-      <section aria-labelledby="storefronts-heading">
-        <div className="mb-2 flex items-baseline justify-between gap-3">
-          <h2 id="storefronts-heading" className="text-sm font-bold text-foreground">
-            Storefronts
-          </h2>
-          <p className="text-[11px] font-medium text-muted-foreground">
-            {storefrontCards.length} live
-          </p>
+      <section
+        aria-labelledby="storefronts-heading"
+        className="rounded-xl border border-border bg-card p-3 shadow-sm dark:shadow-none dark:ring-1 dark:ring-border/60"
+      >
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+          <div>
+            <h2 id="storefronts-heading" className="text-sm font-bold text-foreground">
+              Storefronts
+            </h2>
+            <p className="mt-0.5 text-[11px] text-muted-foreground">
+              {isSingleTemplateMode
+                ? 'One shared template across all business units.'
+                : 'Each business unit can use its own customer-facing template.'}
+            </p>
+          </div>
+          <Link
+            to="/websites/templates"
+            className="inline-flex items-center gap-1 rounded-full border border-border px-2.5 py-1 text-[11px] font-semibold text-foreground transition-colors hover:bg-muted/60"
+          >
+            Assign templates
+            <ChevronRight className="h-3.5 w-3.5" />
+          </Link>
         </div>
-        <div className={cn('grid grid-cols-1 gap-3 sm:grid-cols-2', storefrontGridClass)}>
-          {storefrontCards.map(card => (
-            <WebsiteStorefrontCard
-              key={card.key}
-              name={card.name}
-              description={card.description}
-              builderTo={card.builderTo}
-              liveUrl={card.liveUrl}
-              live={card.live}
-              onChangeTheme={() => setThemeCustomizerOpen(true)}
-              templateName={card.templateName}
-              templateThumbnail={card.templateThumbnail}
-              thumbnailSiteId={card.thumbnailSiteId}
-              livePreviewUrl={card.livePreviewUrl}
-              vendorSlug={vendor?.slug}
-              previewTemplates={websiteTemplates}
-              fallbackGradient={card.fallbackGradient}
-            />
-          ))}
-        </div>
-      </section>
 
-      {builderDraftCards.length > 0 ? (
-        <>
-          <div className="border-t border-border pt-1" role="separator" aria-hidden="true" />
-          <section aria-labelledby="builder-drafts-heading">
-            <div className="mb-2 flex items-baseline justify-between gap-3">
-              <div className="min-w-0">
-                <h2 id="builder-drafts-heading" className="text-sm font-bold text-foreground">
-                  Website Builder
-                </h2>
-                <p className="text-[11px] text-muted-foreground">Draft sites — preview before going live</p>
-              </div>
-              <p className="shrink-0 text-[11px] font-medium text-muted-foreground">
-                {builderDraftCards.length} draft{builderDraftCards.length === 1 ? '' : 's'}
-              </p>
-            </div>
-            <div className={cn('grid grid-cols-1 gap-3 sm:grid-cols-2', builderGridClass)}>
-              {builderDraftCards.map(card => (
-                <WebsiteStorefrontCard
-                  key={card.key}
-                  name={card.name}
-                  description={card.description}
-                  builderTo={card.builderTo}
-                  draft
-                  previewSiteId={card.siteId}
-                  onPreview={openBuilderSiteDraftPreview}
-                  templateName={card.templateName}
-                  templateThumbnail={card.templateThumbnail}
-                  thumbnailSiteId={card.thumbnailSiteId}
-                  vendorSlug={vendor?.slug}
-                  previewTemplates={websiteTemplates}
-                  fallbackGradient={card.fallbackGradient}
-                />
-              ))}
-            </div>
-          </section>
-        </>
-      ) : null}
+        {storefrontCards.length === 0 ? (
+          <div className="rounded-lg border border-dashed border-border bg-muted/20 px-4 py-8 text-center">
+            <p className="text-sm font-semibold text-foreground">No storefronts yet</p>
+            <p className="mt-1 text-xs text-muted-foreground">Add a business unit or publish a website to get started.</p>
+            <Link
+              to="/websites/templates"
+              className="mt-3 inline-flex items-center gap-1 rounded-full bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground hover:opacity-90"
+            >
+              Open templates
+              <ChevronRight className="h-3.5 w-3.5" />
+            </Link>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
+            {storefrontCards.map(card => (
+              <WebsiteStorefrontCard
+                key={card.key}
+                name={card.name}
+                storeCode={card.storeCode}
+                description={card.description}
+                builderTo={card.builderTo}
+                liveUrl={card.liveUrl}
+                live={card.live}
+                templateName={card.templateName}
+                templateThumbnail={card.templateThumbnail}
+                thumbnailSiteId={card.thumbnailSiteId}
+                livePreviewUrl={card.livePreviewUrl}
+                vendorSlug={vendor?.slug}
+                previewTemplates={websiteTemplates}
+                fallbackGradient={card.fallbackGradient}
+              />
+            ))}
+          </div>
+        )}
+      </section>
 
       <StoreThemeCustomizerDialog
         open={themeCustomizerOpen}
         onClose={() => setThemeCustomizerOpen(false)}
       />
     </div>
+  )
+}
+
+function ButtonLike({
+  to,
+  onClick,
+  icon: Icon,
+  label,
+  primary,
+}: {
+  to?: string
+  onClick?: () => void
+  icon: typeof Globe
+  label: string
+  primary?: boolean
+}) {
+  const className = cn(
+    'inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold transition-colors',
+    primary
+      ? 'bg-primary text-primary-foreground hover:opacity-90'
+      : 'border border-border bg-background text-foreground hover:bg-muted/60',
+  )
+
+  if (to) {
+    return (
+      <Link to={to} className={className}>
+        <Icon className="h-3.5 w-3.5" />
+        {label}
+      </Link>
+    )
+  }
+
+  return (
+    <button type="button" onClick={onClick} className={className}>
+      <Icon className="h-3.5 w-3.5" />
+      {label}
+    </button>
   )
 }

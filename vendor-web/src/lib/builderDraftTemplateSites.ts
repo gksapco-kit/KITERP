@@ -4,6 +4,8 @@ import { formatStoreCode, sortStoresByCode } from '@/lib/verification'
 import { isTemplateSandboxSite } from '@/lib/websiteSandbox'
 import {
   customerLinkForStore,
+  isBuilderSiteTemplateId,
+  isCatalogStorefrontTemplateId,
   resolveEffectiveStorefrontTemplateId,
   resolveSingleFrontTemplateId,
   resolveStoreFrontTemplateId,
@@ -48,7 +50,7 @@ export function resolveBuilderSiteLiveBlockReason(
   if (linked.length === 0) return 'not_linked'
 
   const templateMode = resolveStorefrontTemplateMode(vendorSettings)
-  if (templateMode === 'single' && resolveSingleFrontTemplateId(vendorSettings)) {
+  if (templateMode === 'single' && isCatalogStorefrontTemplateId(resolveSingleFrontTemplateId(vendorSettings))) {
     return 'single_front_template'
   }
 
@@ -194,10 +196,11 @@ export function isStoreSpecificCatalogTemplateAssigned(
   vendorSettings?: Record<string, unknown> | null,
 ): boolean {
   const templateMode = resolveStorefrontTemplateMode(vendorSettings)
-  if (templateMode === 'single') {
-    return Boolean(resolveSingleFrontTemplateId(vendorSettings))
-  }
-  return Boolean(resolveStoreFrontTemplateId(store.settings))
+  const raw =
+    templateMode === 'single'
+      ? resolveSingleFrontTemplateId(vendorSettings)
+      : resolveStoreFrontTemplateId(store.settings)
+  return isCatalogStorefrontTemplateId(raw)
 }
 
 /** True when a linked builder site is what customers actually see (not overridden by a catalog template). */
