@@ -59,10 +59,10 @@ export function perStoreTemplateActionLabel(
     return 'Assign'
   }
   if (assignedToContext) return `Manage · ${contextStoreCode}`
-  if (assignedElsewhere) return `Use · ${contextStoreCode}`
+  if (assignedElsewhere) return `Assign · ${contextStoreCode}`
   return `Assign · ${contextStoreCode}`
 }
 
 export function singleTemplateActionLabel(isSelected: boolean): string {
-  return isSelected ? 'Active · all' : 'Use for all'
+  return isSelected ? 'Assigned · all' : 'Assign · all'
 }

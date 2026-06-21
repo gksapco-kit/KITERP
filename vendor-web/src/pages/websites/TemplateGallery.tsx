@@ -646,8 +646,8 @@ function TemplateGallerySection({
     <section className="mb-3 last:mb-0">
       <div
         className={cn(
-          'mb-1.5',
-          description ? 'flex flex-wrap items-baseline gap-x-2 gap-y-0.5' : undefined,
+          'mb-2',
+          description ? 'flex flex-wrap items-baseline gap-x-3 gap-y-1' : undefined,
         )}
       >
         <h2 className="shrink-0 text-xs font-bold uppercase tracking-wide text-muted-foreground sm:text-sm">
@@ -866,7 +866,7 @@ function CoverageThumb({
   className?: string
 }) {
   return (
-    <span className={cn('h-9 w-12 shrink-0 overflow-hidden rounded-md border border-black/5 bg-white', className)}>
+    <span className={cn('h-11 w-[4.75rem] shrink-0 overflow-hidden rounded-md border border-black/5 bg-white', className)}>
       <WebsiteSiteGlimpse
         siteId={siteId}
         vendorSlug={vendorSlug}
@@ -903,7 +903,7 @@ function CoverageStoreCard({
           : `${store.code} · ${store.name} — no template assigned`
       }
       className={cn(
-        'relative flex w-full min-w-0 items-center gap-1.5 overflow-hidden rounded-md border px-1.5 py-1 text-left transition-colors',
+        'relative flex w-full min-w-0 items-center gap-2.5 overflow-hidden rounded-md border px-2.5 py-2 text-left transition-colors',
         active
           ? coverageStoreSelectedClass
           : hasAssignment
@@ -921,7 +921,7 @@ function CoverageStoreCard({
         <span className="flex min-w-0 items-center gap-1">
           <span
             className={cn(
-              'truncate font-mono text-[10px] font-bold tracking-wide',
+              'truncate font-mono text-xs font-bold tracking-wide',
               active ? 'text-primary' : 'text-gray-800',
             )}
             title={store.code}
@@ -929,20 +929,20 @@ function CoverageStoreCard({
             {store.code}
           </span>
           {store.is_default ? (
-            <span className="shrink-0 rounded bg-gray-100 px-0.5 text-[7px] font-bold uppercase leading-none text-gray-500">
+            <span className="shrink-0 rounded bg-gray-100 px-1 py-0.5 text-[9px] font-bold uppercase leading-none text-gray-500">
               DEF
             </span>
           ) : null}
         </span>
         {hasAssignment ? (
           <span
-            className="block truncate text-[10px] font-semibold leading-tight text-gray-700"
+            className="block truncate text-xs font-semibold leading-tight text-gray-700"
             title={store.template?.name}
           >
             {store.template?.name}
           </span>
         ) : (
-          <span className="block truncate text-[10px] font-medium text-gray-500">No template</span>
+          <span className="block truncate text-xs font-medium text-gray-500">No template</span>
         )}
       </span>
     </button>
@@ -961,13 +961,13 @@ function CoverageStepHint({
 }) {
   return (
     <span
-      className={cn('inline-flex flex-wrap items-center gap-0.5 text-[10px] leading-snug text-gray-500', className)}
+      className={cn('inline-flex flex-wrap items-center gap-1.5 text-xs leading-snug text-gray-500 sm:text-sm', className)}
       title={title}
     >
       {steps.map((step, index) => (
         <Fragment key={index}>
           {index > 0 ? (
-            <ChevronRight className="h-3 w-3 shrink-0 text-gray-400" aria-hidden />
+            <ChevronRight className="h-3.5 w-3.5 shrink-0 text-gray-400" aria-hidden />
           ) : null}
           <span>{step}</span>
         </Fragment>
@@ -1011,38 +1011,38 @@ function StorefrontCoverage({
     <div
       ref={innerRef}
       className={cn(
-        'mb-1.5 rounded-lg border border-gray-200/90 bg-white p-1.5 shadow-sm dark:border-border dark:bg-card',
+        'mb-1.5 rounded-lg border border-gray-200/90 bg-white p-3 shadow-sm dark:border-border dark:bg-card',
         highlight && 'border-l-2 border-l-primary',
       )}
     >
-      <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1">
-        <div className="flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-0.5">
-          <h2 className="inline-flex items-center gap-1 text-xs font-bold text-gray-900">
-            <Store className="h-3 w-3 text-primary" />
+      <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
+        <div className="flex min-w-0 flex-wrap items-center gap-x-2.5 gap-y-1.5">
+          <h2 className="inline-flex items-center gap-2 text-sm font-bold text-gray-900">
+            <Store className="h-4 w-4 text-primary" />
             Storefront coverage
           </h2>
-          <span className="rounded bg-gray-100 px-1.5 py-px text-[9px] font-bold uppercase tracking-wide text-gray-600">
-            {isSingle ? 'One for all' : 'Per BU'}
+          <span className="rounded-md bg-gray-100 px-2.5 py-1 text-[11px] font-semibold text-gray-600 sm:text-xs">
+            {isSingle ? 'One template assigned for all BUs' : 'One template per BU'}
           </span>
           {!isSingle && unassignedCount > 0 ? (
-            <span className="inline-flex items-center gap-0.5 text-[10px] font-semibold text-amber-700">
-              <AlertTriangle className="h-2.5 w-2.5" />
+            <span className="inline-flex items-center gap-1 text-xs font-semibold text-amber-700">
+              <AlertTriangle className="h-3.5 w-3.5" />
               {unassignedCount} need template
             </span>
           ) : null}
         </div>
         <Link
           to="/settings"
-          className="shrink-0 text-[10px] font-medium text-blue-600 underline decoration-blue-600/70 underline-offset-2 hover:text-blue-800 hover:decoration-blue-800 visited:text-blue-700"
+          className="shrink-0 text-xs font-medium text-blue-600 underline decoration-blue-600/70 underline-offset-2 hover:text-blue-800 hover:decoration-blue-800 visited:text-blue-700"
         >
           {isSingleLinkMode ? 'Shared URL' : 'Per-unit URLs'} · settings
         </Link>
       </div>
 
       {!isSingle && activeStore ? (
-        <div className="mt-1 flex flex-wrap items-center justify-between gap-x-2 gap-y-0.5 rounded-md border-2 border-primary/30 bg-primary/[0.05] px-2 py-1 ring-1 ring-primary/20">
-          <p className="inline-flex min-w-0 flex-1 items-center gap-1.5 truncate text-[11px] leading-snug text-gray-700">
-            <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-primary" aria-hidden />
+        <div className="mt-3 flex flex-wrap items-center justify-between gap-x-3 gap-y-2 rounded-md border border-gray-200 bg-white px-3 py-2">
+          <p className="inline-flex min-w-0 flex-1 items-center gap-2.5 truncate text-xs leading-snug text-gray-700 sm:text-sm">
+            <span className="h-2 w-2 shrink-0 rounded-full bg-gray-500" aria-hidden />
             <span className="min-w-0 truncate">
               <span className="font-bold text-gray-900">{activeStore.code}</span>
               <span className="text-gray-400"> · </span>
@@ -1051,7 +1051,7 @@ function StorefrontCoverage({
                 <>
                   <span className="text-gray-400"> → </span>
                   <span className="font-semibold text-gray-900">{activeStore.template.name}</span>
-                  <span className={cn('ml-1.5 inline-flex rounded-full px-1.5 py-px text-[9px] font-semibold', coverageStatusBadgeClass(activeStore.status))}>
+                  <span className={cn('ml-2 inline-flex rounded-full px-2.5 py-0.5 text-[10px] font-semibold sm:text-xs', coverageStatusBadgeClass(activeStore.status))}>
                     {activeStore.status === 'live_builder' ? 'Live' : 'Assigned'}
                   </span>
                 </>
@@ -1081,8 +1081,8 @@ function StorefrontCoverage({
 
       {isSingle ? (
         singleTemplate ? (
-          <div className="mt-1 overflow-hidden rounded-lg border border-gray-200 bg-white">
-            <div className="flex min-w-0 flex-1 items-center gap-2 px-2 py-1.5">
+          <div className="mt-3 overflow-hidden rounded-lg border border-gray-200 bg-white">
+            <div className="flex min-w-0 flex-1 items-center gap-3 px-3 py-2.5">
               <CoverageThumb
                 template={singleTemplate}
                 siteId={singleTemplateSiteId}
@@ -1090,13 +1090,13 @@ function StorefrontCoverage({
                 templates={templates}
               />
               <div className="min-w-0 flex-1">
-                <div className="flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-0.5">
-                  <span className="truncate text-xs font-bold text-gray-900">{singleTemplate.name}</span>
-                  <span className="rounded bg-gray-100 px-1.5 py-px text-[9px] font-semibold text-gray-600">
-                    All {total} unit{total === 1 ? '' : 's'}
+                <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1">
+                  <span className="truncate text-sm font-bold text-gray-900">{singleTemplate.name}</span>
+                  <span className="rounded-md bg-gray-100 px-2.5 py-1 text-[11px] font-semibold text-gray-600 sm:text-xs">
+                    Assigned for all {total} BU{total === 1 ? '' : 's'}
                   </span>
                 </div>
-                <p className="mt-0.5 text-[10px] text-gray-500">
+                <p className="mt-1 text-xs text-gray-500 sm:text-sm">
                   Shared live template for every business unit
                 </p>
               </div>
@@ -1105,21 +1105,21 @@ function StorefrontCoverage({
                 steps={[
                   'Shared template',
                   'Pick one below',
-                  <span key="action" className="font-semibold text-gray-700">Use for all stores</span>,
+                  <span key="action" className="font-semibold text-gray-700">Assign · all</span>,
                 ]}
               />
             </div>
           </div>
         ) : (
-          <div className="mt-1 flex items-center gap-2 rounded-md border border-dashed border-gray-300 bg-white px-2 py-1.5">
+          <div className="mt-3 flex items-center gap-3 rounded-md border border-dashed border-gray-300 bg-white px-3 py-2">
             <CoverageThumb template={null} vendorSlug={vendorSlug} templates={templates} />
-            <p className="min-w-0 flex-1 text-[11px] text-amber-800">
-              No template — use <span className="font-semibold">Use for all stores</span> below
+            <p className="min-w-0 flex-1 text-xs text-amber-800 sm:text-sm">
+              No template — click <span className="font-semibold">Assign · all</span> below
             </p>
           </div>
         )
       ) : (
-        <div className="mt-1 grid grid-cols-2 gap-1 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
+        <div className="mt-3 grid grid-cols-1 gap-2 min-[480px]:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
           {coverageStores.map(store => (
             <CoverageStoreCard
               key={store.id}
@@ -2048,6 +2048,14 @@ export default function WebsiteTemplateGalleryPage() {
         : `${perStoreAppliedCount} BUs / Stores`
     const isLiveOnStorefront = viewLiveLinks.length > 0
     const multipleLiveStores = viewLiveLinks.length > 1
+    const canAssignSingleAll = isSingleTemplateMode && !isSingleTemplateSelected
+    const canAssignPerStore = isPerStoreTemplateMode && Boolean(selectedAssignStoreCode) && !assignedToSelectedStore
+    const showAssignOverlay = canAssignSingleAll || canAssignPerStore
+    const assignOverlayLabel = canAssignSingleAll
+      ? singleTemplateActionLabel(false)
+      : selectedAssignStoreCode
+        ? perStoreTemplateActionLabel(selectedAssignStoreCode, false, perStoreAppliedCount > 0)
+        : 'Assign'
     const showTopAssignmentBadge = !(
       (isSingleTemplateMode && isSingleTemplateSelected)
       || (isPerStoreTemplateMode && assignedToSelectedStore)
@@ -2056,13 +2064,30 @@ export default function WebsiteTemplateGalleryPage() {
       <div
         key={tpl.id}
         title={
-          multipleLiveStores
-            ? `View live site — pick from ${viewLiveLinks.length} business units`
-            : isLiveOnStorefront
-              ? `View live site for ${tpl.name}`
-              : `Preview ${tpl.name}`
+          showAssignOverlay
+            ? `${assignOverlayLabel} — ${tpl.name}`
+            : multipleLiveStores
+              ? `View live site — pick from ${viewLiveLinks.length} business units`
+              : isLiveOnStorefront
+                ? `View live site for ${tpl.name}`
+                : `Preview ${tpl.name}`
         }
-        onClick={e => handleTemplateCardSurfaceClick(e, tpl.id, viewLiveLinks, tpl.name)}
+        onClick={e => {
+          if ((e.target as HTMLElement).closest('[data-template-card-action]')) return
+          if (canAssignSingleAll) {
+            requestUseForAllStores(tpl.id, tpl.name)
+            return
+          }
+          if (canAssignPerStore) {
+            openStorePicker(tpl.id, tpl.name)
+            return
+          }
+          if (viewLiveLinks.length > 0) {
+            openViewLiveLinks(viewLiveLinks, tpl.name)
+            return
+          }
+          openTemplateBrowserPreview(tpl.id)
+        }}
         data-current-for-selected-store={assignedToSelectedStore ? 'true' : undefined}
         className={cn(
           templateCardShellClass,
@@ -2082,7 +2107,12 @@ export default function WebsiteTemplateGalleryPage() {
           <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/50 via-black/5 to-transparent" />
           <div className={templateCardPreviewOverlayClass}>
             <span className="inline-flex items-center gap-1 rounded-full bg-white/95 px-2 py-1 text-[10px] font-bold text-gray-900 shadow-md">
-              {isLiveOnStorefront ? (
+              {showAssignOverlay ? (
+                <>
+                  <Store className="h-3 w-3" />
+                  {assignOverlayLabel}
+                </>
+              ) : isLiveOnStorefront ? (
                 <>
                   <ExternalLink className="h-3 w-3" />
                   {multipleLiveStores ? `View live site (${viewLiveLinks.length})` : 'View live site'}
@@ -2361,7 +2391,7 @@ export default function WebsiteTemplateGalleryPage() {
           </div>
         )}
         {!busy && !legacyPresetsBusy && (
-          <div className="space-y-1">
+          <div className="space-y-2">
             {hasLiveSection ? (
               <TemplateGallerySection
                 title="Assigned templates"

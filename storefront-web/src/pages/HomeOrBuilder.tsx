@@ -19,6 +19,8 @@ import { buildDraftCatalogEmbedStorePath } from '@/lib/draftCatalogEmbed'
 import { getWbCatalogTemplateId } from '@/storefront/catalogTemplateIds'
 import { useAssignedStorefrontTemplateId, useAssignedStorefrontTemplatePending, useStoreSpecificAssignedTemplateId } from '@/hooks/useAssignedStorefrontTemplateId'
 import {
+  isBlockBasedStorefrontTemplateId,
+  isBuilderSiteTemplateId,
   isDefaultLayoutTemplateId,
   isStorefrontCatalogTemplateId,
   isWebsiteBuilderBlockTemplateId,
@@ -31,6 +33,9 @@ function renderBlockTemplateHome(templateId: string) {
 }
 
 function renderAssignedTemplateHome(assignedTemplateId: string) {
+  if (isBuilderSiteTemplateId(assignedTemplateId)) {
+    return null
+  }
   if (isDefaultLayoutTemplateId(assignedTemplateId)) {
     return <Home />
   }

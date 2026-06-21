@@ -122,6 +122,18 @@ export function resolveStoreFrontTemplateId(
   return typeof raw === 'string' && raw.trim() ? raw.trim() : null
 }
 
+/** Published Website Builder site id stored in template settings (not a catalog template slug). */
+const BUILDER_SITE_UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
+export function isBuilderSiteTemplateId(id: string | null | undefined): boolean {
+  return typeof id === 'string' && BUILDER_SITE_UUID_RE.test(id.trim())
+}
+
+/** Catalog/legacy template slug (light, storefront_*, portfolio, …) — not a builder site UUID. */
+export function isCatalogStorefrontTemplateId(id: string | null | undefined): boolean {
+  return Boolean(id?.trim()) && !isBuilderSiteTemplateId(id)
+}
+
 /** Effective template id for a store given vendor + store settings and template mode. */
 export function resolveEffectiveStorefrontTemplateId(
   vendorSettings: Record<string, unknown> | null | undefined,

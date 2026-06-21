@@ -2,6 +2,7 @@ import type { PublicSite } from '@/blocks/registry'
 import type { NavLinkItem } from '@/kit/types'
 import {
   defaultCommerceNavLinksForCapabilities,
+  enrichNavLinksWithBlogLink,
   enrichNavLinksWithCatalogCapabilities,
   pathRelativeToStore,
   resolveCatalogNavCapabilities,
@@ -192,6 +193,10 @@ export function resolveNavBlockLinks(
   let enriched = autoCatalogNav
     ? enrichNavLinksWithCatalogCapabilities(deduped, storePath, capabilities, site)
     : deduped
+
+  if (!previewShell) {
+    enriched = enrichNavLinksWithBlogLink(enriched, storePath)
+  }
 
   if (enriched.length === 0 && !previewShell) {
     enriched = defaultCommerceNavLinksForCapabilities(storePath, capabilities)

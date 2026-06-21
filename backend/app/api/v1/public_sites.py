@@ -140,6 +140,35 @@ def _settings_str(settings: Optional[Dict[str, Any]], key: str) -> Optional[str]
     return raw.strip() if isinstance(raw, str) and raw.strip() else None
 
 
+def _is_uuid_string(value: Optional[str]) -> bool:
+    if not value:
+        return False
+    try:
+        UUID(value)
+        return True
+    except (ValueError, AttributeError, TypeError):
+        return False
+
+
+def _is_catalog_storefront_template_id(template_id: Optional[str]) -> bool:
+    """Catalog/legacy template ids (light, storefront_*, …) — not a builder site UUID."""
+    return bool(template_id and not _is_uuid_string(template_id))
+
+
+async def _try_load_assigned_builder_site(
+    template_id: Optional[str],
+    vendor_id: UUID,
+    db: AsyncSession,
+) -> Optional[WebsiteSite]:
+    """Load a published builder site referenced by UUID in template settings."""
+    if not _is_uuid_string(template_id):
+        return None
+    site = await _load_site_full(template_id, db)
+    if site and site.vendor_id == vendor_id:
+        return site
+    return None
+
+
 def _resolve_template_mode(vendor_settings: Optional[Dict[str, Any]]) -> str:
     vendor_settings = vendor_settings or {}
     mode = vendor_settings.get("storefront_template_mode")
@@ -262,24 +291,44 @@ async def _resolve_site_by_subdomain(
             None,
         )
         if store is not None:
-            # An explicit per-store (or single-mode shared) catalog/legacy
-            # template overrides any builder site linked to this branch.
-            if _store_specific_template_id(vendor.settings, store.settings):
+            specific_tid = _store_specific_template_id(vendor.settings, store.settings)
+
+            # Catalog/legacy templates (light, storefront_*, …) override builder sites.
+            if _is_catalog_storefront_template_id(specific_tid):
                 return None
-            # A builder site linked to this branch wins over the vendor-wide
-            # `single_front_template_id` fallback used in per_unit mode.
+
+            # A builder site linked to this branch wins over a shared UUID assignment.
             linked = _linked_site_for_store(str(store.id))
             if linked is not None:
                 return linked
-            # No per-store builder site: honour the vendor-wide template fallback.
-            if _resolve_effective_template_id(vendor.settings, store.settings):
-                return None
+
+            # Same Website Builder site assigned to all stores via UUID in settings.
+            assigned_site = await _try_load_assigned_builder_site(specific_tid, vendor.id, db)
+            if assigned_site is not None:
+                return assigned_site
+
+            # Per-unit mode: vendor-wide template fallback when the branch has no override.
+            effective_tid = _resolve_effective_template_id(vendor.settings, store.settings)
+            if effective_tid and effective_tid != specific_tid:
+                if _is_catalog_storefront_template_id(effective_tid):
+                    return None
+                assigned_site = await _try_load_assigned_builder_site(effective_tid, vendor.id, db)
+                if assigned_site is not None:
+                    return assigned_site
+
             # Nothing assigned for this branch → use the shared/global default.
             # Never serve a *different* store's store-scoped site for this
             # branch; only an "all stores" (or legacy) site may stand in.
             return _shared_default_site()
 
-    # No branch (or an unknown branch): the shared/global customer storefront.
+    # No branch (or an unknown branch): honour vendor-wide builder site UUID assignment.
+    single_tid = _settings_str(vendor.settings, "single_front_template_id")
+    if _is_uuid_string(single_tid):
+        assigned_site = await _try_load_assigned_builder_site(single_tid, vendor.id, db)
+        if assigned_site is not None:
+            return assigned_site
+
+    # The shared/global customer storefront.
     shared = _shared_default_site()
     if shared is not None:
         return shared
