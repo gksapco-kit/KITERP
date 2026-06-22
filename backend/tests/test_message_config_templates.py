@@ -3,7 +3,9 @@ from datetime import datetime, timezone, timedelta
 
 from app.services.message_config_service import (
     render_customer_template_text,
+    render_vendor_template_text,
     resolve_active_customer_template,
+    resolve_active_vendor_template,
 )
 
 
@@ -70,3 +72,37 @@ def test_render_customer_template_text():
         {"customer_name": "Ravi", "order_number": "ORD-1", "store_name": "Store"},
     )
     assert text == "Hi Ravi, order ORD-1 at Store"
+
+
+def test_resolve_active_vendor_template():
+    now = datetime(2026, 6, 23, 12, 0, tzinfo=timezone.utc)
+    cfg = {
+        "events": {
+            "new_orders": {
+                "email_recipients": [],
+                "phone_recipients": [],
+                "customer_templates": [],
+                "vendor_templates": [
+                    {
+                        "id": "v1",
+                        "name": "Team alert",
+                        "message": "Order {order_number} from {customer_name}",
+                        "start_at": "2026-06-01T00:00:00Z",
+                        "end_at": "2026-06-30T23:59:59Z",
+                        "channels": ["sms"],
+                        "enabled": True,
+                    },
+                ],
+            },
+        },
+        "vendor_channels": {"email": True, "sms": True, "whatsapp": False},
+        "customer_channels": {"email": True, "sms": False, "whatsapp": False},
+    }
+    active = resolve_active_vendor_template(cfg, "new_orders", "sms", at=now)
+    assert active is not None
+    assert active["id"] == "v1"
+    rendered = render_vendor_template_text(
+        active["message"],
+        {"order_number": "ORD-9", "customer_name": "Ravi", "store_name": "Store", "total": "Rs 100", "status": "Pending"},
+    )
+    assert rendered == "Order ORD-9 from Ravi"

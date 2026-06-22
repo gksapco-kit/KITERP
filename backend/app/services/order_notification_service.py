@@ -25,7 +25,9 @@ from app.services.message_config_service import (
     get_event_email_addresses,
     get_event_phone_numbers,
     resolve_active_customer_template,
+    resolve_active_vendor_template,
     render_customer_template_text,
+    render_vendor_template_text,
 )
 from app.services.sms_service import SmsService, is_valid_e164, normalize_e164
 
@@ -501,6 +503,45 @@ def _render_customer_template_message(
     return subject, message
 
 
+def _vendor_template_context(ctx: dict[str, Any], *, channel: str = "email") -> dict[str, Any]:
+    total = ctx.get("total")
+    if isinstance(total, (int, float)):
+        total_str = (
+            _compact_sms_amount(float(total))
+            if channel == "sms"
+            else f"₹{float(total):,.2f}"
+        )
+    else:
+        total_str = str(total or "")
+    return {
+        "customer_name": ctx.get("customer_name") or "Customer",
+        "store_name": ctx.get("store_name") or "Your store",
+        "order_number": ctx.get("order_number") or "",
+        "total": total_str,
+        "status": ctx.get("status_label") or "",
+    }
+
+
+def _render_vendor_template_message(
+    message_config: Optional[dict[str, Any]],
+    event_type: str,
+    channel: str,
+    ctx: dict[str, Any],
+) -> Optional[tuple[str, str]]:
+    """Return (subject, body) when an active vendor template exists; else None."""
+    active = resolve_active_vendor_template(message_config, event_type, channel)
+    if not active:
+        return None
+    template_ctx = _vendor_template_context(ctx, channel=channel)
+    message = render_vendor_template_text(str(active.get("message") or ""), template_ctx).strip()
+    if not message:
+        return None
+    default_subject = f"New order #{template_ctx['order_number']} — {template_ctx['store_name']}"
+    subject_raw = str(active.get("subject") or default_subject)
+    subject = render_vendor_template_text(subject_raw, template_ctx).strip() or default_subject
+    return subject, message
+
+
 def _compact_sms_amount(total: float) -> str:
     """GSM-7 friendly amount — avoid ₹ which forces UCS-2 and burns trial segments."""
     amount = float(total or 0)
@@ -949,16 +990,32 @@ async def _send_order_emails(
         message_config = ctx.get("message_config")
         vendor_emails = _vendor_email_recipients(vendor, message_config, "new_orders")
         if vendor_emails:
-            body = (
-                f"<p style='margin:0 0 12px; font-size:14px; color:#4b5563;'>"
-                f"A new order has been placed on your store.</p>"
-                f"<p style='margin:0 0 8px; font-size:14px; color:#111827;'>"
-                f"<strong>Order:</strong> #{html.escape(order_number)}<br>"
-                f"<strong>Customer:</strong> {html.escape(customer_name)}<br>"
-                f"<strong>Status:</strong> {html.escape(status_label)}<br>"
-                f"<strong>Total:</strong> ₹{total:,.2f}</p>"
-                f"{_format_items_rows(items)}"
-            )
+            custom = _render_vendor_template_message(message_config, "new_orders", "email", ctx)
+            if custom:
+                subject, rendered = custom
+                body = (
+                    f"<p style='margin:0 0 12px; font-size:14px; color:#4b5563; white-space:pre-line;'>"
+                    f"{html.escape(rendered)}</p>"
+                    f"{_format_items_rows(items)}"
+                )
+                text = rendered
+            else:
+                subject = f"New order #{order_number} — {store_name}"
+                body = (
+                    f"<p style='margin:0 0 12px; font-size:14px; color:#4b5563;'>"
+                    f"A new order has been placed on your store.</p>"
+                    f"<p style='margin:0 0 8px; font-size:14px; color:#111827;'>"
+                    f"<strong>Order:</strong> #{html.escape(order_number)}<br>"
+                    f"<strong>Customer:</strong> {html.escape(customer_name)}<br>"
+                    f"<strong>Status:</strong> {html.escape(status_label)}<br>"
+                    f"<strong>Total:</strong> ₹{total:,.2f}</p>"
+                    f"{_format_items_rows(items)}"
+                )
+                text = (
+                    f"New order #{order_number} from {customer_name}.\n"
+                    f"Total: ₹{total:,.2f}\n"
+                    f"Status: {status_label}\n"
+                )
             html_doc = _email_layout(
                 brand=store_name,
                 title="New order received",
@@ -966,18 +1023,13 @@ async def _send_order_emails(
                 cta_label="View order",
                 cta_href=ctx["vendor_url"],
             )
-            text = (
-                f"New order #{order_number} from {customer_name}.\n"
-                f"Total: ₹{total:,.2f}\n"
-                f"Status: {status_label}\n"
-            )
             for vendor_email in vendor_emails:
                 try:
                     sent = await send_email_for_vendor(
                         db,
                         vendor.id,
                         to=vendor_email,
-                        subject=f"New order #{order_number} — {store_name}",
+                        subject=subject,
                         html=html_doc,
                         text=text,
                     )
@@ -1091,7 +1143,13 @@ async def _send_order_sms(
     if vendor_bu_order_sms_enabled(vendor, message_config):
         vendor_phones = await _vendor_phone_recipients(db, vendor, message_config, "new_orders")
         if vendor_phones:
-            body = _vendor_order_sms_body(order_number, customer_name, total)
+            custom = _render_vendor_template_message(message_config, "new_orders", "sms", ctx)
+            default_sms = _vendor_order_sms_body(order_number, customer_name, total)
+            body = (
+                _prepare_order_sms_body(custom[1], fallback=default_sms)
+                if custom
+                else default_sms
+            )
             for idx, vendor_phone in enumerate(vendor_phones):
                 outcome = await _send_sms_message(
                     db,
@@ -1100,6 +1158,7 @@ async def _send_order_sms(
                     body=body,
                     recipient_label=f"vendor_{idx + 1}",
                     order_number=order_number,
+                    compact_fallback=default_sms,
                 )
                 _record_channel_outcome(result, f"vendor_sms_{idx + 1}", outcome)
         else:
@@ -1175,7 +1234,8 @@ async def _send_order_whatsapp(
     if vendor_bu_order_whatsapp_enabled(vendor, message_config):
         vendor_phones = await _vendor_phone_recipients(db, vendor, message_config, "new_orders")
         if vendor_phones:
-            body = _vendor_order_whatsapp_body(order_number, customer_name, total)
+            custom = _render_vendor_template_message(message_config, "new_orders", "whatsapp", ctx)
+            body = custom[1] if custom else _vendor_order_whatsapp_body(order_number, customer_name, total)
             for idx, vendor_phone in enumerate(vendor_phones):
                 outcome = await _send_whatsapp_message(
                     db,

@@ -43,6 +43,14 @@ CUSTOMER_TEMPLATE_PLACEHOLDERS = (
     "{payment_note}",
 )
 
+VENDOR_TEMPLATE_PLACEHOLDERS = (
+    "{customer_name}",
+    "{store_name}",
+    "{order_number}",
+    "{total}",
+    "{status}",
+)
+
 
 class EmailRecipientSchema(BaseModel):
     id: str = Field(..., min_length=1, max_length=64)
@@ -90,6 +98,7 @@ class EventRecipientsSchema(BaseModel):
     email_recipients: list[EmailRecipientSchema] = Field(default_factory=list)
     phone_recipients: list[PhoneRecipientSchema] = Field(default_factory=list)
     customer_templates: list["CustomerMessageTemplateSchema"] = Field(default_factory=list)
+    vendor_templates: list["CustomerMessageTemplateSchema"] = Field(default_factory=list)
 
 
 class CustomerMessageTemplateSchema(BaseModel):
@@ -156,7 +165,12 @@ def _dedupe_phones(recipients: list[dict[str, Any]]) -> list[dict[str, Any]]:
 
 
 def _empty_event_recipients() -> dict[str, Any]:
-    return {"email_recipients": [], "phone_recipients": [], "customer_templates": []}
+    return {
+        "email_recipients": [],
+        "phone_recipients": [],
+        "customer_templates": [],
+        "vendor_templates": [],
+    }
 
 
 def _parse_template_datetime(value: str) -> datetime:
@@ -167,8 +181,8 @@ def _parse_template_datetime(value: str) -> datetime:
     return dt.astimezone(timezone.utc)
 
 
-def _normalize_customer_templates(templates: list[Any]) -> list[dict[str, Any]]:
-    """Validate and sort customer message templates for an event."""
+def _normalize_message_templates(templates: list[Any]) -> list[dict[str, Any]]:
+    """Validate and sort scheduled message templates for an event."""
     if not isinstance(templates, list):
         return []
     normalized: list[dict[str, Any]] = []
@@ -188,6 +202,14 @@ def _normalize_customer_templates(templates: list[Any]) -> list[dict[str, Any]]:
     return normalized
 
 
+def _normalize_customer_templates(templates: list[Any]) -> list[dict[str, Any]]:
+    return _normalize_message_templates(templates)
+
+
+def _normalize_vendor_templates(templates: list[Any]) -> list[dict[str, Any]]:
+    return _normalize_message_templates(templates)
+
+
 def _migrate_legacy_config(raw: dict[str, Any]) -> dict[str, Any]:
     """Convert flat email/phone lists into per-event structure."""
     if "events" in raw and isinstance(raw["events"], dict):
@@ -202,6 +224,7 @@ def _migrate_legacy_config(raw: dict[str, Any]) -> dict[str, Any]:
                 "email_recipients": legacy_emails,
                 "phone_recipients": legacy_phones,
                 "customer_templates": [],
+                "vendor_templates": [],
             }
         else:
             events[event_type] = _empty_event_recipients()
@@ -222,6 +245,7 @@ def _normalize_events_dict(events: dict[str, Any]) -> dict[str, Any]:
             "email_recipients": emails,
             "phone_recipients": phones,
             "customer_templates": _normalize_customer_templates(list(block.get("customer_templates") or [])),
+            "vendor_templates": _normalize_vendor_templates(list(block.get("vendor_templates") or [])),
         }
     return normalized
 
@@ -331,16 +355,28 @@ def render_customer_template_text(template: str, context: dict[str, Any]) -> str
     return out
 
 
-def resolve_active_customer_template(
-    message_config: Optional[dict[str, Any]],
-    event_type: str,
+def render_vendor_template_text(template: str, context: dict[str, Any]) -> str:
+    """Replace known placeholders in a vendor/team alert template."""
+    out = template or ""
+    mapping = {
+        "{customer_name}": str(context.get("customer_name") or "Customer"),
+        "{store_name}": str(context.get("store_name") or "Your store"),
+        "{order_number}": str(context.get("order_number") or ""),
+        "{total}": str(context.get("total") or ""),
+        "{status}": str(context.get("status") or ""),
+    }
+    for key, value in mapping.items():
+        out = out.replace(key, value)
+    return out
+
+
+def _resolve_active_template_from_list(
+    templates: list[Any],
     channel: str,
     *,
     at: Optional[datetime] = None,
 ) -> Optional[dict[str, Any]]:
-    """Return the best-matching scheduled customer template for a channel at a given time."""
-    block = get_event_block(message_config, event_type)
-    templates = block.get("customer_templates") or []
+    """Return the best-matching scheduled template for a channel at a given time."""
     if not isinstance(templates, list) or not templates:
         return None
     now = at or datetime.now(timezone.utc)
@@ -365,6 +401,29 @@ def resolve_active_customer_template(
         candidates.append((duration_hours, start, raw))
     if not candidates:
         return None
-    # Prefer the narrowest active window; tie-break by latest start time.
     candidates.sort(key=lambda row: (row[0], -row[1].timestamp()))
     return candidates[0][2]
+
+
+def resolve_active_customer_template(
+    message_config: Optional[dict[str, Any]],
+    event_type: str,
+    channel: str,
+    *,
+    at: Optional[datetime] = None,
+) -> Optional[dict[str, Any]]:
+    """Return the best-matching scheduled customer template for a channel at a given time."""
+    block = get_event_block(message_config, event_type)
+    return _resolve_active_template_from_list(block.get("customer_templates") or [], channel, at=at)
+
+
+def resolve_active_vendor_template(
+    message_config: Optional[dict[str, Any]],
+    event_type: str,
+    channel: str,
+    *,
+    at: Optional[datetime] = None,
+) -> Optional[dict[str, Any]]:
+    """Return the best-matching scheduled vendor/team template for a channel at a given time."""
+    block = get_event_block(message_config, event_type)
+    return _resolve_active_template_from_list(block.get("vendor_templates") or [], channel, at=at)

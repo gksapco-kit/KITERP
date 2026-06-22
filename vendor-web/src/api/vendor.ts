@@ -160,10 +160,14 @@ export interface CustomerMessageTemplate {
   enabled?: boolean
 }
 
+/** Scheduled message template — same shape for customer and vendor/team alerts. */
+export type MessageTemplate = CustomerMessageTemplate
+
 export interface EventRecipients {
   email_recipients: MessageEmailRecipient[]
   phone_recipients: MessagePhoneRecipient[]
-  customer_templates?: CustomerMessageTemplate[]
+  customer_templates?: MessageTemplate[]
+  vendor_templates?: MessageTemplate[]
 }
 
 export interface CustomerChannelPrefs {

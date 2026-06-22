@@ -1,16 +1,16 @@
-import { useEffect, useMemo, useState, useCallback } from 'react'
+import { useEffect, useMemo, useState, useCallback, type ElementType, type ReactNode } from 'react'
 import { BusinessUnitSelect, useDefaultBusinessUnitId } from '@/components/common/BusinessUnitSelect'
+import { CollapsibleSection } from '@/components/common/CollapsibleSection'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { PhoneInput } from '@/components/ui/PhoneInput'
 import { useStoreMessageConfig, useUpdateStoreMessageConfig, useMessageDeliveryStatus } from '@/hooks/useVendor'
 import type {
-  CustomerMessageTemplate,
   EventRecipients,
   MessageEmailRecipient,
   MessagePhoneRecipient,
+  MessageTemplate,
   NotificationEventType,
   StoreMessageConfig,
 } from '@/api/vendor'
@@ -20,7 +20,7 @@ import { toast } from 'sonner'
 import {
   Mail, MessageCircle, MessageSquare, Loader2, Plus, Pencil, Trash2,
   ShoppingCart, AlertTriangle, Building2, Users, UsersRound,
-  Phone, Smartphone, Package, FileText, Eye, Calendar, CheckCircle2, Plug, ExternalLink,
+  Phone, Smartphone, Package, FileText, Eye, Calendar, CheckCircle2, Plug, ExternalLink, ChevronDown,
 } from 'lucide-react'
 import { Link } from 'react-router-dom'
 
@@ -34,8 +34,15 @@ const TEMPLATE_PLACEHOLDERS = [
   '{customer_name}', '{store_name}', '{order_number}', '{total}', '{status}', '{payment_note}',
 ]
 
+const VENDOR_TEMPLATE_PLACEHOLDERS = [
+  '{customer_name}', '{store_name}', '{order_number}', '{total}', '{status}',
+]
+
 const DEFAULT_TEMPLATE_MESSAGE =
   'Hi {customer_name},\n\nThank you for your order at {store_name}.\nOrder #{order_number} — {total}\n{payment_note}'
+
+const DEFAULT_VENDOR_TEMPLATE_MESSAGE =
+  'New order #{order_number} at {store_name}.\nCustomer: {customer_name}\nTotal: {total}\nStatus: {status}'
 
 function toDatetimeLocal(iso: string): string {
   if (!iso) return ''
@@ -70,22 +77,34 @@ function formatScheduleRange(start: string, end: string): string {
   return `${fmt(start)} → ${fmt(end)}`
 }
 
-function isTemplateActive(t: CustomerMessageTemplate, now = new Date()): boolean {
+function isTemplateActive(t: MessageTemplate, now = new Date()): boolean {
   if (t.enabled === false) return false
   const start = new Date(t.start_at)
   const end = new Date(t.end_at)
   return !Number.isNaN(start.getTime()) && !Number.isNaN(end.getTime()) && now >= start && now <= end
 }
 
-function applyTemplateTokens(text: string, storeName: string): string {
-  const sample: Record<string, string> = {
-    customer_name: 'Ravi Kumar',
-    store_name: storeName || 'Your Store',
-    order_number: 'ORD-00031',
-    total: '₹999.00',
-    status: 'Pending',
-    payment_note: 'Payment received.',
-  }
+function applyTemplateTokens(
+  text: string,
+  storeName: string,
+  audience: 'customer' | 'vendor' = 'customer',
+): string {
+  const sample: Record<string, string> = audience === 'customer'
+    ? {
+        customer_name: 'Ravi Kumar',
+        store_name: storeName || 'Your Store',
+        order_number: 'ORD-00031',
+        total: '₹999.00',
+        status: 'Pending',
+        payment_note: 'Payment received.',
+      }
+    : {
+        customer_name: 'Ravi Kumar',
+        store_name: storeName || 'Your Store',
+        order_number: 'ORD-00031',
+        total: '₹999.00',
+        status: 'Pending',
+      }
   let out = text
   for (const [key, value] of Object.entries(sample)) {
     out = out.split(`{${key}}`).join(value)
@@ -144,7 +163,7 @@ const VENDOR_CHANNELS = [
 ]
 
 function emptyEventRecipients(): EventRecipients {
-  return { email_recipients: [], phone_recipients: [], customer_templates: [] }
+  return { email_recipients: [], phone_recipients: [], customer_templates: [], vendor_templates: [] }
 }
 
 function defaultConfig(): StoreMessageConfig {
@@ -179,6 +198,7 @@ function normalizeConfig(raw: StoreMessageConfig | Record<string, unknown>): Sto
       email_recipients: events[key]?.email_recipients || [],
       phone_recipients: events[key]?.phone_recipients || [],
       customer_templates: events[key]?.customer_templates || [],
+      vendor_templates: events[key]?.vendor_templates || [],
     }
   }
   base.customer_channels = (legacy.customer_channels as StoreMessageConfig['customer_channels']) || base.customer_channels
@@ -211,6 +231,74 @@ function Toggle({ checked, onChange, disabled }: { checked: boolean; onChange: (
   )
 }
 
+function eventBlockSummary(block: EventRecipients): string {
+  const parts: string[] = []
+  if (block.email_recipients.length) parts.push(`${block.email_recipients.length} email`)
+  if (block.phone_recipients.length) parts.push(`${block.phone_recipients.length} phone`)
+  const vendorCount = block.vendor_templates?.length ?? 0
+  const customerCount = block.customer_templates?.length ?? 0
+  if (vendorCount) parts.push(`${vendorCount} vendor tmpl`)
+  if (customerCount) parts.push(`${customerCount} customer tmpl`)
+  return parts.length ? parts.join(' · ') : 'No recipients or templates'
+}
+
+function MessageExpandableSection({
+  title,
+  icon: Icon,
+  iconClassName,
+  hint,
+  open,
+  onToggle,
+  headerAction,
+  children,
+}: {
+  title: string
+  icon: ElementType
+  iconClassName?: string
+  hint?: string
+  open: boolean
+  onToggle: () => void
+  headerAction?: ReactNode
+  children: ReactNode
+}) {
+  return (
+    <div className="overflow-hidden rounded-lg border border-border/70 bg-card">
+      <div className={cn('flex items-center gap-1', open && 'border-b border-border/50 bg-muted/10')}>
+        <button
+          type="button"
+          onClick={onToggle}
+          aria-expanded={open}
+          className="flex min-w-0 flex-1 items-center gap-2 px-3 py-2.5 text-left transition-colors hover:bg-muted/30"
+        >
+          <Icon className={cn('h-4 w-4 shrink-0', iconClassName)} />
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-medium text-foreground">{title}</p>
+            {hint && !open ? (
+              <p className="mt-0.5 truncate text-xs text-muted-foreground">{hint}</p>
+            ) : null}
+          </div>
+          <ChevronDown
+            className={cn(
+              'h-4 w-4 shrink-0 text-muted-foreground transition-transform duration-200',
+              open && 'rotate-180',
+            )}
+          />
+        </button>
+        {headerAction ? (
+          <div
+            className="shrink-0 pr-2"
+            onMouseDown={(e) => e.stopPropagation()}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {headerAction}
+          </div>
+        ) : null}
+      </div>
+      {open ? <div className="space-y-3 px-3 py-3">{children}</div> : null}
+    </div>
+  )
+}
+
 function newId() {
   return crypto.randomUUID()
 }
@@ -219,14 +307,25 @@ type EmailModalState = { open: boolean; eventKey: NotificationEventType; editing
 type PhoneModalState = { open: boolean; eventKey: NotificationEventType; editing?: MessagePhoneRecipient }
 type DeleteConfirmState = {
   type: 'email' | 'phone' | 'template'
+  templateAudience?: 'customer' | 'vendor'
   eventKey: NotificationEventType
   id: string
   value: string
   eventLabel: string
 }
 
-type TemplateModalState = { open: boolean; eventKey: NotificationEventType; editing?: CustomerMessageTemplate }
-type TemplatePreviewState = { open: boolean; template: CustomerMessageTemplate; eventLabel: string }
+type TemplateModalState = {
+  open: boolean
+  eventKey: NotificationEventType
+  audience: 'customer' | 'vendor'
+  editing?: MessageTemplate
+}
+type TemplatePreviewState = {
+  open: boolean
+  template: MessageTemplate
+  eventLabel: string
+  audience: 'customer' | 'vendor'
+}
 
 export default function CreateMessagesPage() {
   const { defaultId } = useDefaultBusinessUnitId()
@@ -253,6 +352,12 @@ export default function CreateMessagesPage() {
     channels: ['email', 'sms', 'whatsapp'] as Array<'email' | 'sms' | 'whatsapp'>,
     enabled: true,
   })
+  const [openSections, setOpenSections] = useState<Record<string, boolean>>({})
+
+  const isSectionOpen = (key: string) => openSections[key] === true
+  const toggleSection = (key: string) => {
+    setOpenSections((prev) => ({ ...prev, [key]: !prev[key] }))
+  }
 
   useEffect(() => {
     if (!storeId && defaultId) setStoreId(defaultId)
@@ -356,9 +461,10 @@ export default function CreateMessagesPage() {
         phone_recipients: block.phone_recipients.filter((r) => r.id !== deleteConfirm.id),
       })
     } else {
+      const templateKey = deleteConfirm.templateAudience === 'vendor' ? 'vendor_templates' : 'customer_templates'
       patchEvent(deleteConfirm.eventKey, {
         ...block,
-        customer_templates: (block.customer_templates || []).filter((t) => t.id !== deleteConfirm.id),
+        [templateKey]: (block[templateKey] || []).filter((t) => t.id !== deleteConfirm.id),
       })
     }
     setDeleteConfirm(null)
@@ -392,21 +498,27 @@ export default function CreateMessagesPage() {
     setPhoneModal(null)
   }
 
-  const openAddTemplate = (eventKey: NotificationEventType) => {
+  const openAddTemplate = (eventKey: NotificationEventType, audience: 'customer' | 'vendor') => {
     const win = defaultTemplateWindow()
     setTemplateForm({
       name: '',
-      subject: 'Order #{order_number} confirmed — {store_name}',
-      message: DEFAULT_TEMPLATE_MESSAGE,
+      subject: audience === 'vendor'
+        ? 'New order #{order_number} — {store_name}'
+        : 'Order #{order_number} confirmed — {store_name}',
+      message: audience === 'vendor' ? DEFAULT_VENDOR_TEMPLATE_MESSAGE : DEFAULT_TEMPLATE_MESSAGE,
       startLocal: toDatetimeLocal(win.start),
       endLocal: toDatetimeLocal(win.end),
       channels: ['email', 'sms', 'whatsapp'],
       enabled: true,
     })
-    setTemplateModal({ open: true, eventKey })
+    setTemplateModal({ open: true, eventKey, audience })
   }
 
-  const openEditTemplate = (eventKey: NotificationEventType, item: CustomerMessageTemplate) => {
+  const openEditTemplate = (
+    eventKey: NotificationEventType,
+    item: MessageTemplate,
+    audience: 'customer' | 'vendor',
+  ) => {
     setTemplateForm({
       name: item.name,
       subject: item.subject || '',
@@ -416,7 +528,7 @@ export default function CreateMessagesPage() {
       channels: item.channels?.length ? [...item.channels] : ['email', 'sms', 'whatsapp'],
       enabled: item.enabled !== false,
     })
-    setTemplateModal({ open: true, eventKey, editing: item })
+    setTemplateModal({ open: true, eventKey, audience, editing: item })
   }
 
   const saveTemplate = () => {
@@ -446,8 +558,9 @@ export default function CreateMessagesPage() {
       return
     }
     const block = config.events[templateModal.eventKey]
-    const templates = block.customer_templates || []
-    const payload: CustomerMessageTemplate = {
+    const templateKey = templateModal.audience === 'vendor' ? 'vendor_templates' : 'customer_templates'
+    const templates = block[templateKey] || []
+    const payload: MessageTemplate = {
       id: templateModal.editing?.id || newId(),
       name,
       subject: templateForm.subject.trim() || undefined,
@@ -460,14 +573,19 @@ export default function CreateMessagesPage() {
     const nextTemplates = templateModal.editing
       ? templates.map((t) => (t.id === templateModal.editing!.id ? payload : t))
       : [...templates, payload]
-    patchEvent(templateModal.eventKey, { ...block, customer_templates: nextTemplates })
+    patchEvent(templateModal.eventKey, { ...block, [templateKey]: nextTemplates })
     setTemplateModal(null)
   }
 
-  const requestDeleteTemplate = (eventKey: NotificationEventType, item: CustomerMessageTemplate) => {
+  const requestDeleteTemplate = (
+    eventKey: NotificationEventType,
+    item: MessageTemplate,
+    audience: 'customer' | 'vendor',
+  ) => {
     const eventLabel = NOTIFICATION_TYPES.find((e) => e.key === eventKey)?.label ?? eventKey
     setDeleteConfirm({
       type: 'template',
+      templateAudience: audience,
       eventKey,
       id: item.id,
       value: item.name,
@@ -510,46 +628,44 @@ export default function CreateMessagesPage() {
       <div>
         <h1 className="text-2xl font-bold text-foreground">Message Center</h1>
         <p className="text-sm text-muted-foreground mt-1 max-w-2xl">
-          Configure recipients, scheduled customer message templates, and channel preferences per business unit.
+          Configure recipients, scheduled vendor and customer message templates, and channel preferences per business unit.
           Changes save automatically.
         </p>
       </div>
 
-      <Card>
-        <CardHeader className="pb-3">
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/12 text-primary ring-1 ring-inset ring-primary/20">
-              <Building2 className="h-5 w-5" strokeWidth={2} />
-            </div>
-            <CardTitle className="text-base">Business Unit</CardTitle>
-          </div>
-        </CardHeader>
-        <CardContent>
-          <div className="max-w-sm space-y-1.5">
-            <Label>Select business unit</Label>
-            <BusinessUnitSelect
-              value={storeId}
-              onChange={(id) => setStoreId(id)}
-            />
-            <p className="text-xs text-muted-foreground">
-              Message settings apply only to the selected unit ({storeLabel}).
-            </p>
-          </div>
-        </CardContent>
-      </Card>
+      <CollapsibleSection
+        title="Business Unit"
+        icon={Building2}
+        subtitle={storeLabel}
+        helpText="Message settings apply only to the selected unit."
+        open={isSectionOpen('business-unit')}
+        toggle={() => toggleSection('business-unit')}
+      >
+        <div className="max-w-sm space-y-1.5">
+          <Label>Select business unit</Label>
+          <BusinessUnitSelect
+            value={storeId}
+            onChange={(id) => setStoreId(id)}
+          />
+        </div>
+      </CollapsibleSection>
 
       {deliveryStatus && (
-        <Card className="border-dashed">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-base flex items-center gap-2">
-              <Plug className="w-4 h-4 text-blue-600" />
-              Delivery providers
-            </CardTitle>
-            <p className="text-xs text-muted-foreground">
-              Email uses SMTP/SendGrid. SMS and WhatsApp need a separate Twilio (or Meta) setup in System Configuration → Integrations — not included with email.
-            </p>
-          </CardHeader>
-          <CardContent className="space-y-2">
+        <CollapsibleSection
+          title="Delivery providers"
+          icon={Plug}
+          subtitle={
+            [
+              deliveryStatus.email.ready ? 'Email ready' : 'Email setup needed',
+              deliveryStatus.sms.ready ? 'SMS ready' : 'SMS setup needed',
+              deliveryStatus.whatsapp.ready ? 'WhatsApp ready' : 'WhatsApp setup needed',
+            ].join(' · ')
+          }
+          helpText="Email uses SMTP/SendGrid. SMS and WhatsApp need Twilio or Meta in Integrations."
+          open={isSectionOpen('delivery')}
+          toggle={() => toggleSection('delivery')}
+        >
+          <div className="space-y-2">
             {([
               { key: 'email' as const, label: 'Email', icon: Mail },
               { key: 'sms' as const, label: 'SMS', icon: Smartphone },
@@ -584,8 +700,8 @@ export default function CreateMessagesPage() {
                 </Link>
               </Button>
             )}
-          </CardContent>
-        </Card>
+          </div>
+        </CollapsibleSection>
       )}
 
       {isLoading && storeId ? (
@@ -597,31 +713,35 @@ export default function CreateMessagesPage() {
         <>
           {NOTIFICATION_TYPES.map((evt) => {
             const block = config.events[evt.key]
+            const eventKey = evt.key
             return (
-              <Card key={evt.key}>
-                <CardHeader className="pb-3">
-                  <div className="flex items-start gap-3">
-                    <div className={cn('flex h-10 w-10 shrink-0 items-center justify-center rounded-lg ring-1 ring-inset', evt.color)}>
-                      <evt.icon className="h-5 w-5" strokeWidth={2} />
-                    </div>
-                    <div className="min-w-0">
-                      <CardTitle className="text-base">{evt.label}</CardTitle>
-                      <p className="text-xs text-muted-foreground mt-0.5">{evt.description}</p>
-                    </div>
-                  </div>
-                </CardHeader>
-                <CardContent className="space-y-5">
-                  {/* Email recipients for this event */}
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between gap-3">
-                      <div className="flex items-center gap-2">
-                        <Mail className="w-4 h-4 text-blue-600" />
-                        <span className="text-sm font-medium text-foreground">Email Recipients</span>
-                      </div>
-                      <Button type="button" variant="outline" size="sm" className="gap-1.5" onClick={() => openAddEmail(evt.key)}>
+              <CollapsibleSection
+                key={eventKey}
+                title={evt.label}
+                icon={evt.icon}
+                subtitle={eventBlockSummary(block)}
+                helpText={evt.description}
+                open={isSectionOpen(`event:${eventKey}`)}
+                toggle={() => toggleSection(`event:${eventKey}`)}
+              >
+                <div className="space-y-3">
+                  <MessageExpandableSection
+                    title="Email Recipients"
+                    icon={Mail}
+                    iconClassName="text-blue-600"
+                    hint={
+                      block.email_recipients.length
+                        ? `${block.email_recipients.length} recipient(s)`
+                        : 'Uses vendor support email when empty'
+                    }
+                    open={isSectionOpen(`event:${eventKey}:email`)}
+                    onToggle={() => toggleSection(`event:${eventKey}:email`)}
+                    headerAction={
+                      <Button type="button" variant="outline" size="sm" className="gap-1.5" onClick={() => openAddEmail(eventKey)}>
                         <Plus className="w-3.5 h-3.5" /> Add Email
                       </Button>
-                    </div>
+                    }
+                  >
                     {block.email_recipients.length === 0 ? (
                       <p className="text-xs text-muted-foreground py-3 text-center border border-dashed border-border rounded-lg">
                         No email recipients for {evt.label.toLowerCase()}.
@@ -636,10 +756,10 @@ export default function CreateMessagesPage() {
                               {r.label && <p className="text-xs text-muted-foreground">{r.label}</p>}
                             </div>
                             <div className="flex items-center gap-1 shrink-0">
-                              <Button type="button" variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEditEmail(evt.key, r)}>
+                              <Button type="button" variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEditEmail(eventKey, r)}>
                                 <Pencil className="w-3.5 h-3.5" />
                               </Button>
-                              <Button type="button" variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => requestDeleteEmail(evt.key, r)}>
+                              <Button type="button" variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => requestDeleteEmail(eventKey, r)}>
                                 <Trash2 className="w-3.5 h-3.5" />
                               </Button>
                             </div>
@@ -647,20 +767,25 @@ export default function CreateMessagesPage() {
                         ))}
                       </div>
                     )}
-                  </div>
+                  </MessageExpandableSection>
 
-                  {/* Phone recipients for this event */}
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between gap-3">
-                      <div className="flex items-center gap-2">
-                        <Phone className="w-4 h-4 text-emerald-600" />
-                        <span className="text-sm font-medium text-foreground">Phone Recipients</span>
-                        <span className="text-[10px] text-muted-foreground">(SMS & WhatsApp)</span>
-                      </div>
-                      <Button type="button" variant="outline" size="sm" className="gap-1.5" onClick={() => openAddPhone(evt.key)}>
+                  <MessageExpandableSection
+                    title="Phone Recipients"
+                    icon={Phone}
+                    iconClassName="text-emerald-600"
+                    hint={
+                      block.phone_recipients.length
+                        ? `${block.phone_recipients.length} recipient(s) · SMS & WhatsApp`
+                        : 'Uses vendor contact phone when empty'
+                    }
+                    open={isSectionOpen(`event:${eventKey}:phone`)}
+                    onToggle={() => toggleSection(`event:${eventKey}:phone`)}
+                    headerAction={
+                      <Button type="button" variant="outline" size="sm" className="gap-1.5" onClick={() => openAddPhone(eventKey)}>
                         <Plus className="w-3.5 h-3.5" /> Add Phone
                       </Button>
-                    </div>
+                    }
+                  >
                     {block.phone_recipients.length === 0 ? (
                       <p className="text-xs text-muted-foreground py-3 text-center border border-dashed border-border rounded-lg">
                         No phone recipients for {evt.label.toLowerCase()}.
@@ -675,10 +800,10 @@ export default function CreateMessagesPage() {
                               {r.label && <p className="text-xs text-muted-foreground">{r.label}</p>}
                             </div>
                             <div className="flex items-center gap-1 shrink-0">
-                              <Button type="button" variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEditPhone(evt.key, r)}>
+                              <Button type="button" variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEditPhone(eventKey, r)}>
                                 <Pencil className="w-3.5 h-3.5" />
                               </Button>
-                              <Button type="button" variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => requestDeletePhone(evt.key, r)}>
+                              <Button type="button" variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => requestDeletePhone(eventKey, r)}>
                                 <Trash2 className="w-3.5 h-3.5" />
                               </Button>
                             </div>
@@ -686,25 +811,112 @@ export default function CreateMessagesPage() {
                         ))}
                       </div>
                     )}
-                  </div>
+                  </MessageExpandableSection>
 
-                  {/* Customer message templates (scheduled) */}
-                  <div className="space-y-3 border-t border-border pt-5">
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="min-w-0">
-                        <div className="flex items-center gap-2">
-                          <FileText className="w-4 h-4 text-violet-600" />
-                          <span className="text-sm font-medium text-foreground">Customer Message Templates</span>
-                        </div>
-                        <p className="text-xs text-muted-foreground mt-1">
-                          Customise what customers receive on this business unit. When multiple templates overlap,
-                          the narrowest date range wins. Only the active template is sent.
-                        </p>
-                      </div>
-                      <Button type="button" variant="outline" size="sm" className="gap-1.5 shrink-0" onClick={() => openAddTemplate(evt.key)}>
+                  <MessageExpandableSection
+                    title="Vendor Message Templates"
+                    icon={UsersRound}
+                    iconClassName="text-emerald-600"
+                    hint={
+                      (block.vendor_templates || []).length
+                        ? `${block.vendor_templates!.length} template(s) · team alerts`
+                        : 'Default system alert for your team'
+                    }
+                    open={isSectionOpen(`event:${eventKey}:vendor-templates`)}
+                    onToggle={() => toggleSection(`event:${eventKey}:vendor-templates`)}
+                    headerAction={
+                      <Button type="button" variant="outline" size="sm" className="gap-1.5 shrink-0" onClick={() => openAddTemplate(eventKey, 'vendor')}>
                         <Plus className="w-3.5 h-3.5" /> Add Template
                       </Button>
-                    </div>
+                    }
+                  >
+                    <p className="text-xs text-muted-foreground">
+                      Customise alerts sent to your team. When templates overlap, the narrowest date range wins.
+                    </p>
+                    <p className="text-[11px] text-muted-foreground">
+                      Placeholders: {VENDOR_TEMPLATE_PLACEHOLDERS.join(', ')}
+                    </p>
+                    {(block.vendor_templates || []).length === 0 ? (
+                      <p className="text-xs text-muted-foreground py-3 text-center border border-dashed border-border rounded-lg">
+                        No templates — default system alert is used for your team.
+                      </p>
+                    ) : (
+                      <div className="space-y-2">
+                        {(block.vendor_templates || []).map((t) => {
+                          const active = isTemplateActive(t)
+                          return (
+                            <div key={t.id} className="rounded-lg border border-border px-3 py-2.5">
+                              <div className="flex items-start justify-between gap-3">
+                                <div className="min-w-0 flex-1">
+                                  <div className="flex flex-wrap items-center gap-2">
+                                    <p className="text-sm font-medium text-foreground">{t.name}</p>
+                                    <span className={cn(
+                                      'text-[10px] font-semibold uppercase tracking-wide px-1.5 py-0.5 rounded',
+                                      active ? 'bg-emerald-500/15 text-emerald-700' : 'bg-muted text-muted-foreground',
+                                    )}>
+                                      {active ? 'Active now' : 'Scheduled'}
+                                    </span>
+                                  </div>
+                                  <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
+                                    <Calendar className="w-3 h-3 shrink-0" />
+                                    {formatScheduleRange(t.start_at, t.end_at)}
+                                  </p>
+                                  <p className="text-xs text-muted-foreground mt-0.5">
+                                    Channels: {(t.channels || []).map((c) => c.toUpperCase()).join(', ')}
+                                  </p>
+                                  <p className="text-xs text-foreground/80 mt-1 line-clamp-2 whitespace-pre-line">{t.message}</p>
+                                </div>
+                                <div className="flex items-center gap-1 shrink-0">
+                                  <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-8 w-8"
+                                    title="Preview"
+                                    onClick={() => setTemplatePreview({
+                                      open: true,
+                                      template: t,
+                                      eventLabel: evt.label,
+                                      audience: 'vendor',
+                                    })}
+                                  >
+                                    <Eye className="w-3.5 h-3.5" />
+                                  </Button>
+                                  <Button type="button" variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEditTemplate(eventKey, t, 'vendor')}>
+                                    <Pencil className="w-3.5 h-3.5" />
+                                  </Button>
+                                  <Button type="button" variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => requestDeleteTemplate(eventKey, t, 'vendor')}>
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                  </Button>
+                                </div>
+                              </div>
+                            </div>
+                          )
+                        })}
+                      </div>
+                    )}
+                  </MessageExpandableSection>
+
+                  <MessageExpandableSection
+                    title="Customer Message Templates"
+                    icon={FileText}
+                    iconClassName="text-violet-600"
+                    hint={
+                      (block.customer_templates || []).length
+                        ? `${block.customer_templates!.length} template(s) · customer messages`
+                        : 'Default system message for customers'
+                    }
+                    open={isSectionOpen(`event:${eventKey}:customer-templates`)}
+                    onToggle={() => toggleSection(`event:${eventKey}:customer-templates`)}
+                    headerAction={
+                      <Button type="button" variant="outline" size="sm" className="gap-1.5 shrink-0" onClick={() => openAddTemplate(eventKey, 'customer')}>
+                        <Plus className="w-3.5 h-3.5" /> Add Template
+                      </Button>
+                    }
+                  >
+                    <p className="text-xs text-muted-foreground">
+                      Customise what customers receive. When templates overlap, the narrowest date range wins.
+                    </p>
                     <p className="text-[11px] text-muted-foreground">
                       Placeholders: {TEMPLATE_PLACEHOLDERS.join(', ')}
                     </p>
@@ -749,14 +961,15 @@ export default function CreateMessagesPage() {
                                       open: true,
                                       template: t,
                                       eventLabel: evt.label,
+                                      audience: 'customer',
                                     })}
                                   >
                                     <Eye className="w-3.5 h-3.5" />
                                   </Button>
-                                  <Button type="button" variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEditTemplate(evt.key, t)}>
+                                  <Button type="button" variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEditTemplate(eventKey, t, 'customer')}>
                                     <Pencil className="w-3.5 h-3.5" />
                                   </Button>
-                                  <Button type="button" variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => requestDeleteTemplate(evt.key, t)}>
+                                  <Button type="button" variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => requestDeleteTemplate(eventKey, t, 'customer')}>
                                     <Trash2 className="w-3.5 h-3.5" />
                                   </Button>
                                 </div>
@@ -766,28 +979,21 @@ export default function CreateMessagesPage() {
                         })}
                       </div>
                     )}
-                  </div>
-                </CardContent>
-              </Card>
+                  </MessageExpandableSection>
+                </div>
+              </CollapsibleSection>
             )
           })}
 
-          <Card>
-            <CardHeader className="pb-3">
-              <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-emerald-500/12 text-emerald-600 ring-1 ring-inset ring-emerald-500/20">
-                  <UsersRound className="h-5 w-5" strokeWidth={2} />
-                </div>
-                <div>
-                  <CardTitle className="text-base">Vendor Notification Preferences</CardTitle>
-                  <p className="text-xs text-muted-foreground mt-0.5">
-                    Controls which channels send <strong>new order alerts</strong> to your team (recipients above).
-                    Active: <strong>{activeVendorChannels}</strong>
-                  </p>
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent className="space-y-3">
+          <CollapsibleSection
+            title="Vendor Notification Preferences"
+            icon={UsersRound}
+            subtitle={`Active: ${activeVendorChannels}`}
+            helpText="Controls which channels send new order alerts to your team."
+            open={isSectionOpen('vendor-prefs')}
+            toggle={() => toggleSection('vendor-prefs')}
+          >
+            <div className="space-y-3">
               {VENDOR_CHANNELS.map((ch) => {
                 const delivery = ch.key === 'email' ? deliveryStatus?.email : ch.key === 'sms' ? deliveryStatus?.sms : deliveryStatus?.whatsapp
                 const providerReady = !deliveryStatus
@@ -814,25 +1020,18 @@ export default function CreateMessagesPage() {
                   />
                 </div>
               )})}
-            </CardContent>
-          </Card>
+            </div>
+          </CollapsibleSection>
 
-          <Card>
-            <CardHeader className="pb-3">
-              <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-violet-500/12 text-violet-600 ring-1 ring-inset ring-violet-500/20">
-                  <Users className="h-5 w-5" strokeWidth={2} />
-                </div>
-                <div>
-                  <CardTitle className="text-base">Customer Notification Preferences</CardTitle>
-                  <p className="text-xs text-muted-foreground mt-0.5">
-                    Controls which channels send <strong>order confirmation</strong> messages to customers on this business unit.
-                    Active: <strong>{activeCustomerChannels}</strong>
-                  </p>
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent className="space-y-3">
+          <CollapsibleSection
+            title="Customer Notification Preferences"
+            icon={Users}
+            subtitle={`Active: ${activeCustomerChannels}`}
+            helpText="Controls which channels send order confirmation messages to customers."
+            open={isSectionOpen('customer-prefs')}
+            toggle={() => toggleSection('customer-prefs')}
+          >
+            <div className="space-y-3">
               {CUSTOMER_CHANNELS.map((ch) => {
                 const delivery = ch.key === 'email' ? deliveryStatus?.email : ch.key === 'sms' ? deliveryStatus?.sms : deliveryStatus?.whatsapp
                 const providerReady = !deliveryStatus
@@ -859,8 +1058,8 @@ export default function CreateMessagesPage() {
                   />
                 </div>
               )})}
-            </CardContent>
-          </Card>
+            </div>
+          </CollapsibleSection>
         </>
       )}
 
@@ -970,7 +1169,9 @@ export default function CreateMessagesPage() {
           <div className="w-full max-w-lg rounded-xl border border-border bg-background shadow-xl max-h-[90vh] overflow-y-auto">
             <div className="px-5 py-4 border-b border-border">
               <h2 className="text-base font-semibold text-foreground">
-                {templateModal.editing ? 'Edit Customer Template' : 'Add Customer Template'}
+                {templateModal.editing
+                  ? (templateModal.audience === 'vendor' ? 'Edit Vendor Template' : 'Edit Customer Template')
+                  : (templateModal.audience === 'vendor' ? 'Add Vendor Template' : 'Add Customer Template')}
               </h2>
               <p className="text-xs text-muted-foreground mt-0.5">For: {activeEventLabel} · {storeLabel}</p>
             </div>
@@ -989,7 +1190,9 @@ export default function CreateMessagesPage() {
                 <Input
                   value={templateForm.subject}
                   onChange={(e) => setTemplateForm((f) => ({ ...f, subject: e.target.value }))}
-                  placeholder="Order #{order_number} confirmed — {store_name}"
+                  placeholder={templateModal.audience === 'vendor'
+                    ? 'New order #{order_number} — {store_name}'
+                    : 'Order #{order_number} confirmed — {store_name}'}
                 />
               </div>
               <div className="space-y-1.5">
@@ -998,7 +1201,9 @@ export default function CreateMessagesPage() {
                   value={templateForm.message}
                   onChange={(e) => setTemplateForm((f) => ({ ...f, message: e.target.value }))}
                   rows={6}
-                  placeholder={DEFAULT_TEMPLATE_MESSAGE}
+                  placeholder={templateModal.audience === 'vendor'
+                    ? DEFAULT_VENDOR_TEMPLATE_MESSAGE
+                    : DEFAULT_TEMPLATE_MESSAGE}
                 />
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -1066,7 +1271,8 @@ export default function CreateMessagesPage() {
                     channels: templateForm.channels,
                     enabled: templateForm.enabled,
                   },
-                  eventLabel: activeEventLabel,
+                  eventLabel: activeEventLabel || 'Event',
+                  audience: templateModal.audience,
                 })}
               >
                 <Eye className="w-3.5 h-3.5" /> Preview message
@@ -1096,15 +1302,20 @@ export default function CreateMessagesPage() {
                 <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground mb-1">Email subject</p>
                 <p className="text-sm text-foreground">
                   {applyTemplateTokens(
-                    templatePreview.template.subject || 'Order #{order_number} confirmed — {store_name}',
+                    templatePreview.template.subject || (
+                      templatePreview.audience === 'vendor'
+                        ? 'New order #{order_number} — {store_name}'
+                        : 'Order #{order_number} confirmed — {store_name}'
+                    ),
                     storeLabel,
+                    templatePreview.audience,
                   )}
                 </p>
               </div>
               <div>
                 <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground mb-1">Message body</p>
                 <div className="rounded-lg border border-border bg-muted/30 px-3 py-2.5 text-sm text-foreground whitespace-pre-line">
-                  {applyTemplateTokens(templatePreview.template.message, storeLabel)}
+                  {applyTemplateTokens(templatePreview.template.message, storeLabel, templatePreview.audience)}
                 </div>
               </div>
               <p className="text-xs text-muted-foreground">
