@@ -209,6 +209,12 @@ export function resolveSidebarNavKeyAction(
           sectionId: current.sectionId,
         }
       }
+      // Collapsed — move to previous main module row only (not into another module's sub-items).
+      for (let i = idx - 1; i >= 0; i--) {
+        if (nodes[i].kind === 'section') {
+          return { type: 'focus', key: nodes[i].key }
+        }
+      }
       return null
     }
     if (current.kind === 'group') {

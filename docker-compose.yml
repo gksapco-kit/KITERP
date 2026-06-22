@@ -143,7 +143,7 @@ services:
     container_name: kiterp-admin
     restart: unless-stopped
     ports:
-      - "3000:3000"
+      - "127.0.0.1:3000:3000"
     environment:
       # Vite dev proxy runs inside this container — use Compose DNS, not 127.0.0.1
       - BACKEND_PROXY_TARGET=http://backend:8000
@@ -153,7 +153,8 @@ services:
       - ./frontend:/app
       - /app/node_modules
     depends_on:
-      - backend
+      backend:
+        condition: service_healthy
 
   vendor-web:
     build:
@@ -174,7 +175,8 @@ services:
       - ./storefront-web:/storefront-web:ro
       - /app/node_modules
     depends_on:
-      - backend
+      backend:
+        condition: service_healthy
 
   storefront-web:
     build:
@@ -191,7 +193,8 @@ services:
       - ./storefront-web:/app
       - /app/node_modules
     depends_on:
-      - backend
+      backend:
+        condition: service_healthy
 
 volumes:
   postgres_data:

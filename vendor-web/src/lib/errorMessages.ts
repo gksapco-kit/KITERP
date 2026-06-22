@@ -73,6 +73,27 @@ export function isBuilderPreviewInfraFailure(error: unknown): boolean {
   return s.includes('wb_builder_previews') || (s.includes('relation') && s.includes('does not exist'))
 }
 
+/** True when axios failed before receiving any HTTP response (proxy down, backend reloading, offline). */
+export function isAxiosNetworkError(error: unknown): boolean {
+  const ax = error as AxiosError
+  if (ax?.response) return false
+  const code = ax?.code ?? ''
+  const msg = ax?.message ?? ''
+  return (
+    code === 'ERR_NETWORK'
+    || code === 'ECONNABORTED'
+    || msg.includes('Network Error')
+    || msg.toLowerCase().includes('timeout')
+  )
+}
+
+/** True when the server rejected credentials or the session is invalid. */
+export function isAxiosAuthError(error: unknown): boolean {
+  const ax = error as AxiosError
+  const status = ax?.response?.status
+  return status === 401 || status === 403
+}
+
 export function extractApiError(error: unknown, context: string): string {
   const ax = error as AxiosError<{
     detail?: string | ApiErrorDetail[]

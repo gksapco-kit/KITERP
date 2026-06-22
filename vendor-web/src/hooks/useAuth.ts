@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
 import { authApi, type VendorSignupPayload } from '@/api/auth'
 import { useAuthStore } from '@/stores/authStore'
-import { apiError } from '@/lib/errorMessages'
+import { apiError, isAxiosAuthError, isAxiosNetworkError } from '@/lib/errorMessages'
 import { clearVendorRegisterDraft } from '@/lib/vendorRegisterDraft'
 
 export const authKeys = {
@@ -21,7 +21,16 @@ export function useMe() {
       return user
     },
     enabled: !!accessToken,
-    retry: false,
+    retry: (failureCount, error) => {
+      if (isAxiosAuthError(error)) return false
+      if (isAxiosNetworkError(error)) {
+        return failureCount < (import.meta.env.DEV ? 10 : 2)
+      }
+      return failureCount < 1
+    },
+    retryDelay: (attempt) => Math.min(1500 * 2 ** attempt, 8000),
+    // Avoid logout loops when switching tabs during a backend reload.
+    refetchOnWindowFocus: import.meta.env.PROD,
   })
 }
 
@@ -143,7 +152,7 @@ export function useConfirmEmailChange() {
 // ── Phone OTP ────────────────────────────────────────────────────────
 export function useSendPhoneOtp() {
   return useMutation({
-    mutationFn: authApi.sendPhoneOtp,
+    mutationFn: (phone?: string) => authApi.sendPhoneOtp(phone),
     onSuccess: (res) => {
       const where = res.to ? ` to ${res.to}` : ''
       toast.success(`OTP sent${where}`)

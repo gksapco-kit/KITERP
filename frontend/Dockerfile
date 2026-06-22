@@ -20,7 +20,7 @@ COPY . .
 
 EXPOSE 3000
 
-CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0"]
+CMD ["npm", "run", "dev:vite", "--", "--host", "0.0.0.0"]
 
 # ---------- Stage 3: Build ----------
 FROM node:20-alpine AS build

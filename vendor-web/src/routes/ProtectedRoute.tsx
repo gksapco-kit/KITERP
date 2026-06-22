@@ -2,24 +2,28 @@ import { useState, useEffect } from 'react'
 import { Navigate, useLocation } from 'react-router-dom'
 import { useAuthStore } from '@/stores/authStore'
 import { useMe } from '@/hooks/useAuth'
+import { useAuthHydrated } from '@/hooks/useAuthHydrated'
 import { PageLoading } from '@/components/common/Loading'
+import { isAxiosAuthError, isAxiosNetworkError } from '@/lib/errorMessages'
 
-// Hard timeout: if /auth/me hasn't resolved after 10s, treat as unauthenticated
-const AUTH_TIMEOUT_MS = 10_000
+const AUTH_TIMEOUT_MS = import.meta.env.DEV ? 60_000 : 10_000
 
 export default function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const location = useLocation()
+  const hydrated = useAuthHydrated()
   const { accessToken, isAuthenticated, logout } = useAuthStore()
   const me = useMe()
-  const { isError, data: meData, isPending, isFetching } = me
+  const { isError, error, data: meData, isPending, isFetching, refetch } = me
   const [timedOut, setTimedOut] = useState(false)
 
-  /** Wait only until the first /auth/me result — avoids relying on `isLoading` semantics across RQ versions. */
+  const networkFailure = isError && isAxiosNetworkError(error)
+  const authFailure = isError && isAxiosAuthError(error)
+
   const waitingOnSession =
     Boolean(accessToken) && !isError && meData === undefined && (isPending || isFetching)
 
   useEffect(() => {
-    if (!waitingOnSession) return
+    if (!waitingOnSession) return undefined
     const id = setTimeout(() => {
       logout()
       setTimedOut(true)
@@ -27,9 +31,22 @@ export default function ProtectedRoute({ children }: { children: React.ReactNode
     return () => clearTimeout(id)
   }, [waitingOnSession, logout])
 
+  // Dev: backend uvicorn --reload briefly drops connections — retry instead of logging out.
+  useEffect(() => {
+    if (!import.meta.env.DEV || !networkFailure || !accessToken) return undefined
+    const id = window.setInterval(() => void refetch(), 3000)
+    return () => window.clearInterval(id)
+  }, [networkFailure, accessToken, refetch])
+
+  if (!hydrated) return <PageLoading />
+
   if (!accessToken || timedOut) return <Navigate to="/login" state={{ from: location }} replace />
-  if (waitingOnSession) return <PageLoading />
-  if (isError) {
+  if (waitingOnSession || networkFailure) {
+    return (
+      <PageLoading />
+    )
+  }
+  if (authFailure || isError) {
     logout()
     return <Navigate to="/login" state={{ from: location }} replace />
   }

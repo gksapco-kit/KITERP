@@ -13,17 +13,27 @@ import { formatPrice } from "../mock";
 
 /* ---------------- Profile Edit ---------------- */
 
+function phoneForDisplay(stored: string | null | undefined): string {
+  const raw = (stored ?? "").trim();
+  if (!raw) return "";
+  const digits = raw.replace(/\D/g, "");
+  if (digits.length === 12 && digits.startsWith("91") && /^[6789]/.test(digits.slice(2))) {
+    return digits.slice(2);
+  }
+  return digits || raw;
+}
+
 export function ProfileEdit({ user, onSave }: { user: AccountUser; onSave?: (u: AccountUser) => void }) {
   const [name, setName] = useState(user.name);
   const [email, setEmail] = useState(user.email);
-  const [phone, setPhone] = useState(user.phone ?? "");
+  const [phone, setPhone] = useState(() => phoneForDisplay(user.phone));
   const [avatarUrl, setAvatarUrl] = useState(user.avatarUrl);
   const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     setName(user.name);
     setEmail(user.email);
-    setPhone(user.phone ?? "");
+    setPhone(phoneForDisplay(user.phone));
     setAvatarUrl(user.avatarUrl);
   }, [user.id, user.name, user.email, user.phone, user.avatarUrl]);
 
@@ -53,7 +63,7 @@ export function ProfileEdit({ user, onSave }: { user: AccountUser; onSave?: (u: 
           <div className="grid sm:grid-cols-2 gap-3">
             <div><Label htmlFor="pf-name">Full name</Label><Input id="pf-name" value={name} onChange={(e) => setName(e.target.value)} className="mt-1" /></div>
             <div><Label htmlFor="pf-email">Email</Label><Input id="pf-email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} className="mt-1" /></div>
-            <div className="sm:col-span-2"><Label htmlFor="pf-phone">Phone</Label><Input id="pf-phone" value={phone} onChange={(e) => setPhone(e.target.value)} className="mt-1" /></div>
+            <div className="sm:col-span-2"><Label htmlFor="pf-phone">Phone</Label><Input id="pf-phone" type="tel" inputMode="numeric" autoComplete="tel" value={phone} onChange={(e) => setPhone(e.target.value.replace(/\D/g, "").slice(0, 10))} placeholder="Mobile number" className="mt-1" /></div>
           </div>
           <Button type="submit">Save changes</Button>
         </form>

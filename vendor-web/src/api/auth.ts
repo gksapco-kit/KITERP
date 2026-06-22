@@ -79,8 +79,8 @@ export const authApi = {
   },
 
   // ── Phone OTP (dev-mode SMS) ──────────────────────────────────────
-  sendPhoneOtp: async (): Promise<OtpSendResponse> => {
-    const response = await apiClient.post('/auth/phone/send-otp')
+  sendPhoneOtp: async (phone?: string): Promise<OtpSendResponse> => {
+    const response = await apiClient.post('/auth/phone/send-otp', phone ? { phone } : {})
     return response.data
   },
 

@@ -258,10 +258,11 @@ def customer_order_sms_enabled(
     customer_prefs: Optional[dict[str, Any]] = None,
     message_config: Optional[dict[str, Any]] = None,
 ) -> bool:
+    """Order confirmation SMS follows BU toggle + order-update opt-out (same as email/WhatsApp)."""
     _, customer_channels = _order_message_channels(message_config)
     if not customer_channels.get("sms", False):
         return False
-    return _customer_sms_allowed(customer_prefs)
+    return _customer_order_updates_allowed(customer_prefs)
 
 
 def customer_order_whatsapp_enabled(
@@ -453,10 +454,19 @@ def _payment_status_note(order: Order) -> str:
     return "Payment is pending — we will confirm once it is completed."
 
 
-def _customer_template_context(ctx: dict[str, Any], *, customer_name: str) -> dict[str, Any]:
+def _customer_template_context(
+    ctx: dict[str, Any],
+    *,
+    customer_name: str,
+    channel: str = "email",
+) -> dict[str, Any]:
     total = ctx.get("total")
     if isinstance(total, (int, float)):
-        total_str = f"₹{float(total):,.2f}"
+        total_str = (
+            _compact_sms_amount(float(total))
+            if channel == "sms"
+            else f"₹{float(total):,.2f}"
+        )
     else:
         total_str = str(total or "")
     return {
@@ -481,7 +491,7 @@ def _render_customer_template_message(
     active = resolve_active_customer_template(message_config, event_type, channel)
     if not active:
         return None
-    template_ctx = _customer_template_context(ctx, customer_name=customer_name)
+    template_ctx = _customer_template_context(ctx, customer_name=customer_name, channel=channel)
     message = render_customer_template_text(str(active.get("message") or ""), template_ctx).strip()
     if not message:
         return None
@@ -497,6 +507,51 @@ def _compact_sms_amount(total: float) -> str:
     if amount == int(amount):
         return f"Rs {int(amount)}"
     return f"Rs {amount:.2f}"
+
+
+_SMS_MAX_GSM_LEN = 120
+
+
+def _prepare_order_sms_body(text: str, *, fallback: str) -> str:
+    """Length-capped GSM-7 SMS body (Twilio trial rejects long / UCS-2 messages)."""
+    raw = (text or "").strip().replace("\r\n", "\n")
+    if not raw:
+        return fallback
+    cleaned = (
+        raw.replace("₹", "Rs")
+        .replace("—", "-")
+        .replace("–", "-")
+        .replace("…", "...")
+    )
+    cleaned = " ".join(cleaned.split())
+    if len(cleaned) > _SMS_MAX_GSM_LEN:
+        return fallback
+    if any(ord(ch) > 127 for ch in cleaned):
+        return fallback
+    return cleaned
+
+
+def _sms_failure_is_length_limit(*, code: Optional[int] = None, message: Optional[str] = None) -> bool:
+    if code == 30044:
+        return True
+    msg = (message or "").lower()
+    return "30044" in msg or "too long" in msg or "maximum length" in msg
+
+
+def _log_customer_sms_twilio_hint(masked: str, *, code: Optional[int] = None, message: Optional[str] = None) -> None:
+    if code == 21608 or (message and "21608" in message):
+        log.warning(
+            "Customer order SMS blocked — Twilio trial accounts must verify the customer "
+            "phone at console.twilio.com → Phone Numbers → Verified Caller IDs, or upgrade "
+            "the account. Recipient: %s",
+            masked,
+        )
+    elif _sms_failure_is_length_limit(code=code, message=message):
+        log.warning(
+            "Customer order SMS rejected as too long for Twilio trial — sent compact fallback instead. "
+            "Recipient: %s",
+            masked,
+        )
 
 
 def _customer_order_sms_body(store_name: str, order_number: str, total: float) -> str:
@@ -655,6 +710,7 @@ async def _send_sms_message(
     body: str,
     recipient_label: str,
     order_number: str,
+    compact_fallback: Optional[str] = None,
 ) -> ChannelOutcome:
     phone = normalize_e164(to_phone)
     if not phone or not is_valid_e164(phone):
@@ -662,57 +718,96 @@ async def _send_sms_message(
         return "skipped"
 
     masked = phone[-4:].rjust(len(phone), "*") if len(phone) > 4 else "****"
+    bodies = [body]
+    if compact_fallback and compact_fallback.strip() and compact_fallback.strip() != body.strip():
+        bodies.append(compact_fallback.strip())
 
     registry = IntegrationRegistry(db)
     adapter = await registry.get_sms_adapter(vendor_id)
-    if adapter:
-        try:
-            result = await adapter.send(to=phone, body=body)
-            if result.get("ok"):
-                log.info(
-                    "Order confirmation SMS sent via vendor integration to %s (%s) for order %s",
-                    recipient_label, masked, order_number,
-                )
-                return "sent"
-            log.warning(
-                "Vendor SMS integration failed for %s on order %s: %s",
-                recipient_label, order_number, result.get("error"),
-            )
-            if _is_retryable_twilio_error(message=str(result.get("error") or "")):
-                return "failed_retryable"
-        except Exception as exc:
-            log.warning("Vendor SMS integration error for %s on order %s: %s", recipient_label, order_number, exc)
-
-    # Fall back to platform Twilio from .env when no vendor integration is configured.
     platform_sms = SmsService()
-    if platform_sms.is_configured:
-        try:
-            result = await platform_sms.send_sms(phone, body)
-            if result.sent:
-                log.info(
-                    "Order confirmation SMS sent via platform Twilio to %s (%s) for order %s",
-                    recipient_label, masked, order_number,
-                )
-                return "sent"
-            log.warning("Platform SMS failed for %s on order %s: %s", recipient_label, order_number, result.twilio_message)
-            if result.twilio_code == 21608:
+    last_code: Optional[int] = None
+    last_message: Optional[str] = None
+    saw_retryable = False
+
+    for attempt_idx, attempt_body in enumerate(bodies):
+        if attempt_idx > 0:
+            log.info(
+                "Retrying order SMS with compact body for %s on order %s",
+                recipient_label,
+                order_number,
+            )
+
+        if adapter:
+            try:
+                result = await adapter.send(to=phone, body=attempt_body)
+                if result.get("ok"):
+                    log.info(
+                        "Order confirmation SMS sent via vendor integration to %s (%s) for order %s",
+                        recipient_label, masked, order_number,
+                    )
+                    return "sent"
+                last_code = result.get("code")
+                last_message = str(result.get("error") or "")
                 log.warning(
-                    "Twilio trial: verify recipient %s at twilio.com/console/phone-numbers/verified "
-                    "or upgrade the account.",
-                    masked,
+                    "Vendor SMS integration failed for %s on order %s: %s",
+                    recipient_label, order_number, last_message,
                 )
-            if _is_retryable_twilio_error(result.twilio_code, result.twilio_message):
+                if _is_retryable_twilio_error(code=last_code, message=last_message):
+                    saw_retryable = True
+                if attempt_idx == 0 and len(bodies) > 1 and _sms_failure_is_length_limit(
+                    code=last_code, message=last_message,
+                ):
+                    continue
+            except Exception as exc:
                 log.warning(
-                    "Twilio limit/verification block — SMS not sent to %s for order %s (will retry).",
-                    recipient_label, order_number,
+                    "Vendor SMS integration error for %s on order %s: %s",
+                    recipient_label, order_number, exc,
                 )
-                return "failed_retryable"
-        except Exception as exc:
-            log.warning("Platform SMS error for %s on order %s: %s", recipient_label, order_number, exc)
+
+        if platform_sms.is_configured:
+            try:
+                result = await platform_sms.send_sms(phone, attempt_body)
+                if result.sent:
+                    log.info(
+                        "Order confirmation SMS sent via platform Twilio to %s (%s) for order %s",
+                        recipient_label, masked, order_number,
+                    )
+                    return "sent"
+                last_code = result.twilio_code
+                last_message = result.twilio_message
+                log.warning(
+                    "Platform SMS failed for %s on order %s: %s",
+                    recipient_label, order_number, last_message,
+                )
+                if result.twilio_code == 21608:
+                    log.warning(
+                        "Twilio trial: verify recipient %s at twilio.com/console/phone-numbers/verified "
+                        "or upgrade the account.",
+                        masked,
+                    )
+                if _is_retryable_twilio_error(result.twilio_code, result.twilio_message):
+                    saw_retryable = True
+                if attempt_idx == 0 and len(bodies) > 1 and _sms_failure_is_length_limit(
+                    code=result.twilio_code, message=result.twilio_message,
+                ):
+                    continue
+            except Exception as exc:
+                log.warning("Platform SMS error for %s on order %s: %s", recipient_label, order_number, exc)
+
+    if recipient_label == "customer":
+        _log_customer_sms_twilio_hint(masked, code=last_code, message=last_message)
 
     if not platform_sms.is_configured and not adapter:
         log.info("[sms:dev] -> %s | order=%s | %s", masked, order_number, body[:300])
         return "sent"
+
+    if saw_retryable:
+        log.warning(
+            "Twilio limit/verification block — SMS not sent to %s for order %s.",
+            recipient_label, order_number,
+        )
+        return "failed_retryable"
+
     log.warning("Order SMS not delivered to %s for order %s", recipient_label, order_number)
     return "failed"
 
@@ -836,6 +931,7 @@ def _record_channel_outcome(result: OrderNotificationResult, label: str, outcome
 
 
 async def _send_order_emails(
+    db: AsyncSession,
     *,
     vendor: Vendor,
     order: Order,
@@ -1028,7 +1124,12 @@ async def _send_order_sms(
             custom = _render_customer_template_message(
                 message_config, "new_orders", "sms", ctx, customer_name=greet,
             )
-            body = custom[1] if custom else _customer_order_sms_body(store_name, order_number, total)
+            default_sms = _customer_order_sms_body(store_name, order_number, total)
+            body = (
+                _prepare_order_sms_body(custom[1], fallback=default_sms)
+                if custom
+                else default_sms
+            )
             outcome = await _send_sms_message(
                 db,
                 vendor_id=vendor.id,
@@ -1036,6 +1137,7 @@ async def _send_order_sms(
                 body=body,
                 recipient_label="customer",
                 order_number=order_number,
+                compact_fallback=default_sms,
             )
             _record_channel_outcome(result, "customer_sms", outcome)
         else:
@@ -1047,9 +1149,9 @@ async def _send_order_sms(
                 "Customer order SMS skipped — Create Messages customer SMS off for order %s",
                 order_number,
             )
-        elif not _customer_sms_allowed(customer_prefs):
+        elif not _customer_order_updates_allowed(customer_prefs):
             log.info(
-                "Customer order SMS skipped — customer opted out or disabled for order %s",
+                "Customer order SMS skipped — customer opted out of order updates for order %s",
                 order_number,
             )
 
@@ -1160,7 +1262,7 @@ async def send_order_placed_notifications(
         store_name_override=store_name,
         message_config=message_config,
     )
-    await _send_order_emails(vendor=vendor, order=order, customer=customer, ctx=ctx)
+    await _send_order_emails(db, vendor=vendor, order=order, customer=customer, ctx=ctx)
     await _send_order_sms(db, vendor=vendor, order=order, customer=customer, ctx=ctx, result=delivery)
     await _send_order_whatsapp(db, vendor=vendor, order=order, customer=customer, ctx=ctx, result=delivery)
     if delivery.pending_channels:

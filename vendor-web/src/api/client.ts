@@ -1,6 +1,7 @@
 import axios, { AxiosInstance, AxiosError, InternalAxiosRequestConfig } from 'axios'
 import { useVendorStore } from '@/stores/vendorStore'
 import { resolveApiBaseUrl } from '@/lib/apiBase'
+import { isAxiosNetworkError } from '@/lib/errorMessages'
 
 const API_URL = resolveApiBaseUrl()
 
@@ -58,6 +59,7 @@ apiClient.interceptors.response.use(
     if (error.response?.status === 401 && originalRequest && !originalRequest._retry && !isAuthEndpoint) {
       originalRequest._retry = true
 
+      let refreshFailedAuth = false
       if (!isRefreshing) {
         isRefreshing = true
         try {
@@ -74,11 +76,18 @@ apiClient.interceptors.response.use(
             isRefreshing = false
             return apiClient(originalRequest)
           }
-        } catch {
-          // Refresh failed — fall through to logout redirect
+          refreshFailedAuth = true
+        } catch (refreshErr) {
+          isRefreshing = false
+          if (isAxiosNetworkError(refreshErr)) {
+            return Promise.reject(error)
+          }
+          refreshFailedAuth = true
         }
         isRefreshing = false
       }
+
+      if (!refreshFailedAuth) return Promise.reject(error)
 
       // Only redirect if not already on an auth page (login / register / forgot-password)
       const onAuthPage = /\/(login|register|forgot-password|auth\/handoff)/.test(
@@ -91,6 +100,11 @@ apiClient.interceptors.response.use(
         localStorage.removeItem('vendor-store-data')
         window.location.href = '/login'
       }
+    }
+
+    // Backend reload / proxy blip — never treat as logout.
+    if (isAxiosNetworkError(error)) {
+      return Promise.reject(error)
     }
     return Promise.reject(error)
   }

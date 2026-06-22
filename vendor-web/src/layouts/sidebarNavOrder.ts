@@ -14,6 +14,7 @@ export const NAV_PINNED_SECTION_HOME: Record<string, string> = {
   '/websites/templates': 'website-management',
   '/blog': 'website-management',
   '/system/messages': 'system',
+  '/crm/integrations': 'system',
 }
 
 /** When pinning, insert after this sibling route when it exists in that section. */
@@ -22,7 +23,8 @@ const NAV_PINNED_INSERT_AFTER: Record<string, string> = {
   '/websites/seo': '/websites',
   '/websites/templates': '/websites/seo',
   '/blog': '/websites/templates',
-  '/system/messages': '/system/modules',
+  '/system/messages': '/crm/integrations',
+  '/crm/integrations': '/system/modules',
 }
 
 export type NavOrderScope = {
@@ -262,19 +264,20 @@ export function reconcileNavPlacements(
     out.restaurant = [...ordered, ...rest]
   }
 
-  // System Configuration routes keep canonical order (Message Center before Database group).
+  // System Configuration routes keep canonical order (Create Messages before Database group).
   const systemConfigurationOrder = [
     '/system/storefront-display',
     '/system/social-links',
     '/document-templates',
     '/system/modules',
+    '/crm/integrations',
     '/system/messages',
-    '/team',
-    '/roles',
     '/system/models',
     '/system/table-data',
     '/system/browse-table',
     '/system/assets/images',
+    '/team',
+    '/roles',
   ]
   const systemRoutes = [...validTos].filter((to) => home.get(to) === 'system')
   if (systemRoutes.length && out.system) {

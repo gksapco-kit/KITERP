@@ -4,7 +4,6 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { PhoneInput } from '@/components/ui/PhoneInput'
 import { useAuthStore } from '@/stores/authStore'
 import {
   useMe, useUpdateMe, useChangePassword, useUploadAvatar, useLogout, useDeleteAccount, useRequestAccountDeleteOtp,
@@ -330,31 +329,64 @@ function joinPersonName(firstName: string, lastName: string): string {
   return [firstName.trim(), lastName.trim()].filter(Boolean).join(' ')
 }
 
+function phoneForDisplay(stored: string | null | undefined): string {
+  const raw = (stored ?? '').trim()
+  if (!raw) return ''
+  const digits = raw.replace(/\D/g, '')
+  if (digits.length === 12 && digits.startsWith('91') && /^[6789]/.test(digits.slice(2))) {
+    return digits.slice(2)
+  }
+  return digits || raw
+}
+
+function phonesEquivalent(a: string, b: string): boolean {
+  const da = phoneForDisplay(a)
+  const db = phoneForDisplay(b)
+  if (!da && !db) return true
+  if (!da || !db) return false
+  if (da === db) return true
+  const shorter = da.length <= db.length ? da : db
+  const longer = da.length <= db.length ? db : da
+  return shorter.length >= 10 && longer.endsWith(shorter)
+}
+
 function PersonalInfoSection({ open, toggle }: { open: boolean; toggle: () => void }) {
   const { user } = useAuthStore()
   const update = useUpdateMe()
   const level = userVerificationLevel(user)
   const [firstName, setFirstName] = useState('')
   const [lastName, setLastName] = useState('')
-  const [phone, setPhone] = useState(user?.phone || '')
+  const [phone, setPhone] = useState(() => phoneForDisplay(user?.phone))
+  const [phoneVerifiedReadyToSave, setPhoneVerifiedReadyToSave] = useState(false)
 
   useEffect(() => {
     const { firstName: first, lastName: last } = splitPersonName(user?.full_name || '')
     setFirstName(first)
     setLastName(last)
-    setPhone(user?.phone || '')
+    setPhone(phoneForDisplay(user?.phone))
   }, [user?.full_name, user?.phone])
 
   const savedFullName = (user?.full_name || '').trim()
   const draftFullName = joinPersonName(firstName, lastName)
+  const phoneChanged = !phonesEquivalent(phone, user?.phone || '')
 
   const dirty =
     draftFullName !== savedFullName ||
-    (phone || '') !== (user?.phone || '')
+    phoneChanged ||
+    (Boolean(phone.trim()) && !user?.is_phone_verified)
+
+  const phoneNeedsVerification =
+    Boolean(phone.trim()) && (phoneChanged || !user?.is_phone_verified)
+
+  const canSave = (dirty || phoneVerifiedReadyToSave) && !phoneNeedsVerification
 
   const onSave = () => {
     if (!firstName.trim()) {
       toast.error('First name is required')
+      return
+    }
+    if (phoneNeedsVerification) {
+      toast.error('Verify your phone number with OTP before saving changes')
       return
     }
     const full_name = joinPersonName(firstName, lastName)
@@ -362,17 +394,25 @@ function PersonalInfoSection({ open, toggle }: { open: boolean; toggle: () => vo
       toast.error('Name must be at least 2 characters')
       return
     }
-    update.mutate({
-      full_name,
-      phone: phone.trim() || null,
-    })
+    update.mutate(
+      {
+        full_name,
+        phone: phone.trim() || null,
+      },
+      {
+        onSuccess: () => {
+          setPhoneVerifiedReadyToSave(false)
+        },
+      },
+    )
   }
 
   const onReset = () => {
     const { firstName: first, lastName: last } = splitPersonName(user?.full_name || '')
     setFirstName(first)
     setLastName(last)
-    setPhone(user?.phone || '')
+    setPhone(phoneForDisplay(user?.phone))
+    setPhoneVerifiedReadyToSave(false)
   }
 
   return (
@@ -385,13 +425,20 @@ function PersonalInfoSection({ open, toggle }: { open: boolean; toggle: () => vo
       badge={<VerifiedBadge level={level} />}
     >
       <div className="space-y-2 pt-0.5">
-        {dirty && (
-          <UnsavedChangesBar
-            onSave={onSave}
-            onReset={onReset}
-            saving={update.isPending}
-          />
-        )}
+        <UnsavedChangesBar
+          dirty={dirty || phoneVerifiedReadyToSave}
+          onSave={onSave}
+          onReset={onReset}
+          saving={update.isPending}
+          saveDisabled={!canSave}
+          saveHint={
+            phoneNeedsVerification
+              ? 'Verify your phone with OTP before you can save changes.'
+              : phoneVerifiedReadyToSave
+                ? 'Phone verified — click Save changes to finish.'
+                : undefined
+          }
+        />
 
         <div className="overflow-hidden rounded-xl border border-border/60 bg-muted/10">
           <div className="border-b border-border/50 bg-muted/20 px-3 py-1">
@@ -435,8 +482,12 @@ function PersonalInfoSection({ open, toggle }: { open: boolean; toggle: () => vo
 
             <PhoneFieldWithVerification
               phone={phone}
-              onPhoneChange={setPhone}
-              phoneDirty={(phone || '') !== (user?.phone || '')}
+              onPhoneChange={(value) => {
+                setPhone(value)
+                setPhoneVerifiedReadyToSave(false)
+              }}
+              phoneDirty={phoneChanged}
+              onPhoneVerified={() => setPhoneVerifiedReadyToSave(true)}
           />
         </div>
         </div>
@@ -1009,31 +1060,63 @@ function IdentifiersSection({ open, toggle }: { open: boolean; toggle: () => voi
   )
 }
 
-const verifyOtpInputClass =
-  'h-8 w-[8.25rem] shrink-0 rounded-full border border-input bg-background px-3 text-center text-xs font-mono tracking-wide'
-const verifyPillBtnClass = 'h-8 shrink-0 rounded-full px-2.5 text-xs'
+const verifyRowHeight = 'h-8 sm:h-9'
+const verifyOtpInputClass = cn(
+  verifyRowHeight,
+  'w-[7.25rem] shrink-0 rounded-md border border-input bg-background px-2 text-center text-xs font-mono tracking-[0.18em] shadow-none focus-visible:ring-2 focus-visible:ring-ring',
+)
+const verifyActionBtnClass = cn(
+  verifyRowHeight,
+  'shrink-0 rounded-md px-2.5 text-xs font-medium',
+)
+const verifyActionsWrapClass = cn(
+  'flex min-h-8 shrink-0 flex-wrap items-center gap-1.5 sm:min-h-9 sm:flex-nowrap',
+)
 
 function UnsavedChangesBar({
+  dirty,
   onSave,
   onReset,
   saving,
+  saveDisabled,
+  saveHint,
 }: {
+  dirty: boolean
   onSave: () => void
   onReset: () => void
   saving: boolean
+  saveDisabled?: boolean
+  saveHint?: string
 }) {
   return (
-    <div className="flex flex-col gap-2 rounded-xl border border-amber-200/80 bg-amber-50/90 px-3 py-2.5 sm:flex-row sm:items-center sm:justify-between dark:border-amber-500/30 dark:bg-amber-500/10">
-      <p className="flex items-center gap-1.5 text-xs font-medium text-amber-900 dark:text-amber-100">
-        <AlertCircle className="h-3.5 w-3.5 shrink-0" />
-        You have unsaved changes
-      </p>
+    <div className={cn(
+      'flex flex-col gap-2 rounded-xl border px-3 py-2.5 sm:flex-row sm:items-center sm:justify-between',
+      dirty
+        ? 'border-amber-200/80 bg-amber-50/90 dark:border-amber-500/30 dark:bg-amber-500/10'
+        : 'border-border/60 bg-muted/20',
+    )}>
+      <div className="space-y-1">
+        <p className={cn(
+          'flex items-center gap-1.5 text-xs font-medium',
+          dirty ? 'text-amber-900 dark:text-amber-100' : 'text-muted-foreground',
+        )}>
+          {dirty ? (
+            <AlertCircle className="h-3.5 w-3.5 shrink-0" />
+          ) : (
+            <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-primary" />
+          )}
+          {dirty ? 'You have unsaved changes' : 'No unsaved changes'}
+        </p>
+        {saveHint ? (
+          <p className="text-xs text-amber-800/90 dark:text-amber-100/80">{saveHint}</p>
+        ) : null}
+      </div>
       <div className="flex shrink-0 items-center justify-end gap-2">
         <Button
           variant="ghost"
           size="sm"
           onClick={onReset}
-          disabled={saving}
+          disabled={saving || !dirty}
           className="h-8 rounded-full px-3 text-xs"
         >
           Discard
@@ -1041,7 +1124,7 @@ function UnsavedChangesBar({
         <Button
           size="sm"
           onClick={onSave}
-          disabled={saving}
+          disabled={saving || saveDisabled}
           className="h-8 rounded-full px-3 text-xs"
         >
           {saving ? (
@@ -1076,15 +1159,15 @@ function ContactFieldWithVerify({
         <Label htmlFor={htmlFor} className="text-xs">{label}</Label>
         {headerExtra}
       </div>
-      <div className="grid grid-cols-1 items-center gap-1.5 sm:grid-cols-[minmax(0,1fr)_auto] sm:gap-x-2">
+      <div className="grid grid-cols-1 gap-2 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-start sm:gap-x-2">
         <div className="min-w-0">{field}</div>
         {verify ? (
-          <div className="flex min-h-9 shrink-0 flex-wrap items-center gap-1 sm:flex-nowrap sm:justify-end">
+          <div className={verifyActionsWrapClass}>
             {verify}
           </div>
         ) : null}
       </div>
-      {footer ? <div className="pt-0.5">{footer}</div> : null}
+      {footer ? <div className="space-y-1 pt-1">{footer}</div> : null}
     </div>
   )
 }
@@ -1113,7 +1196,7 @@ function VerificationOtpActions({
   verifyDisabled?: boolean
 }) {
   return (
-    <>
+    <div className="flex flex-wrap items-center gap-1.5">
       <Input
         inputMode="numeric"
         maxLength={6}
@@ -1121,26 +1204,33 @@ function VerificationOtpActions({
         value={code}
         onChange={(e) => onCodeChange(e.target.value.replace(/\D/g, '').slice(0, 6))}
         className={verifyOtpInputClass}
+        aria-label={placeholder}
       />
       <Button
+        type="button"
         size="sm"
         variant="outline"
         onClick={onSend}
         disabled={sendPending || sendDisabled}
-        className={verifyPillBtnClass}
+        className={cn(verifyActionBtnClass, 'gap-1.5')}
       >
-        {sendPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCcw className="mr-1 h-3.5 w-3.5" />}
+        {sendPending ? (
+          <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin" />
+        ) : (
+          <RefreshCcw className="h-3.5 w-3.5 shrink-0" />
+        )}
         {sendLabel}
       </Button>
       <Button
+        type="button"
         size="sm"
         onClick={onVerify}
         disabled={verifyPending || verifyDisabled || code.length !== 6}
-        className={verifyPillBtnClass}
+        className={verifyActionBtnClass}
       >
         {verifyPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : 'Verify'}
       </Button>
-    </>
+    </div>
   )
 }
 
@@ -1261,17 +1351,16 @@ function ContactChangeRequestPanel({
                 className="mt-0.5 h-9"
               />
             ) : (
-              <div className="mt-0.5">
-                <PhoneInput
-                  id={`new-${fieldType}`}
-                  value={newValue}
-                  onChange={setNewValue}
-                  placeholder="New mobile number"
-                  compact
-                  compactCountry
-                  subtleFeedback
-                />
-              </div>
+              <Input
+                id={`new-${fieldType}`}
+                type="tel"
+                inputMode="numeric"
+                autoComplete="tel"
+                value={newValue}
+                onChange={(e) => setNewValue(e.target.value.replace(/\D/g, '').slice(0, 10))}
+                placeholder="Mobile number"
+                className="mt-0.5 h-9"
+              />
             )}
           </div>
           <div>
@@ -1372,13 +1461,15 @@ function EmailFieldWithVerification() {
               value={user?.email || ''}
               readOnly
               disabled
-              className="h-9 bg-muted/40 pl-9 text-muted-foreground"
+              className="h-8 bg-muted/40 pl-9 text-muted-foreground sm:h-9"
             />
         </div>
       }
         verify={
           user?.is_email_verified ? (
-            <VerifiedBadge level="verified" size="md" />
+            <div className={cn('flex items-center', verifyRowHeight)}>
+              <VerifiedBadge level="verified" size="sm" />
+            </div>
           ) : (
             <VerificationOtpActions
               code={code}
@@ -1421,111 +1512,135 @@ function PhoneFieldWithVerification({
   phone,
   onPhoneChange,
   phoneDirty,
+  onPhoneVerified,
 }: {
   phone: string
   onPhoneChange: (value: string) => void
   phoneDirty: boolean
+  onPhoneVerified?: () => void
 }) {
-  const { user } = useAuthStore()
+  const { user, setUser } = useAuthStore()
   const send = useSendPhoneOtp()
   const verify = useVerifyPhoneOtp()
-  const { data: changeRequests } = useMyContactChangeRequests()
-  const cancelChange = useCancelContactChangeRequest()
   const [code, setCode] = useState('')
   const [hint, setHint] = useState<string | undefined>()
-  const [showChangeForm, setShowChangeForm] = useState(false)
-  const pendingPhone = pendingContactChange(changeRequests, 'phone')
+  const [stagingPhone, setStagingPhone] = useState(false)
 
-  const onSend = () => {
-    send.mutate(undefined, {
-      onSuccess: (res: OtpSendResponse) => {
+  const phoneDigits = phone.replace(/\D/g, '')
+  const hasValidPhone = phoneDigits.length === 10
+  const phoneChanged = phoneDirty
+  const showVerifiedBadge = Boolean(user?.is_phone_verified && !phoneChanged && phone.trim())
+  const needsOtp = Boolean(phone.trim()) && (!user?.is_phone_verified || phoneChanged)
+
+  const onSend = async () => {
+    if (!hasValidPhone) {
+      toast.error('Enter a valid mobile number first')
+      return
+    }
+    setStagingPhone(true)
+    send.mutate(phone.trim(), {
+      onSuccess: async (res: OtpSendResponse) => {
         if (res.dev_hint) {
           setHint(res.dev_hint)
           setCode(res.dev_hint)
         }
+        try {
+          const me = await authApi.getMe()
+          setUser(me)
+          if (me.phone) onPhoneChange(phoneForDisplay(me.phone))
+        } catch {
+          /* OTP sent; profile refresh is best-effort */
+        }
+      },
+      onSettled: () => {
+        setStagingPhone(false)
       },
     })
   }
   const onVerify = () => {
     if (code.length !== 6) return
     verify.mutate(code, {
-      onSuccess: () => { setCode(''); setHint(undefined) },
+      onSuccess: (updatedUser) => {
+        setCode('')
+        setHint(undefined)
+        setUser(updatedUser)
+        if (updatedUser.phone) {
+          onPhoneChange(phoneForDisplay(updatedUser.phone))
+        }
+        onPhoneVerified?.()
+      },
     })
   }
 
-  const verifyBlocked = phoneDirty || !user?.phone
-  const verifyHint = phoneDirty
-    ? 'Save your phone number before verifying.'
-    : !user?.phone
-      ? 'Add a phone number and save it first.'
-      : null
+  const verifyBlocked = !hasValidPhone || stagingPhone || send.isPending
+  const verifyHint = !phone.trim()
+    ? 'Clear the field to remove your number, or enter a new one and verify with OTP.'
+    : !hasValidPhone
+      ? 'Enter a valid mobile number, then tap Send OTP.'
+      : needsOtp
+        ? 'Send OTP to verify this number, then save your profile.'
+        : null
 
-    return (
+  return (
     <div className="space-y-1.5">
       <ContactFieldWithVerify
         label="Phone number"
         htmlFor="phone"
         headerExtra={
-          user?.is_phone_verified && !showChangeForm && !pendingPhone ? (
-            <ChangeContactLink
-              label="Change phone number"
-              onClick={() => setShowChangeForm(true)}
-            />
+          phone.trim() ? (
+            <button
+              type="button"
+              onClick={() => onPhoneChange('')}
+              className="text-xs font-medium text-muted-foreground hover:text-destructive"
+            >
+              Remove
+            </button>
           ) : null
         }
         field={
-        <PhoneInput
-          id="phone"
-          value={phone}
-          onChange={onPhoneChange}
-          placeholder="Mobile number"
-          compact
-          compactCountry
-          subtleFeedback
-        />
-      }
-      verify={
-        user?.is_phone_verified ? (
-          <VerifiedBadge level="verified" size="md" />
-        ) : (
-          <VerificationOtpActions
-            code={code}
-            onCodeChange={setCode}
-            placeholder="6-digit OTP"
-            sendLabel="Send OTP"
-            onSend={onSend}
-            onVerify={onVerify}
-            sendPending={send.isPending}
-            verifyPending={verify.isPending}
-            sendDisabled={verifyBlocked}
+          <Input
+            id="phone"
+            type="tel"
+            inputMode="numeric"
+            autoComplete="tel"
+            value={phone}
+            onChange={(e) => onPhoneChange(e.target.value.replace(/\D/g, '').slice(0, 10))}
+            placeholder="Mobile number"
+            className={cn(verifyRowHeight, 'font-mono tabular-nums')}
           />
-        )
-      }
-      footer={
-        <>
-          {verifyHint && !user?.is_phone_verified && (
-            <p className="text-xs text-muted-foreground">{verifyHint}</p>
-          )}
-          {hint && (
-            <p className="rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-xs text-amber-700">
-              Dev mode — auto-filled OTP: <span className="font-mono font-semibold">{hint}</span>
-            </p>
-          )}
-        </>
-      }
-    />
-
-      {pendingPhone && (
-        <PendingContactChangeBanner
-          request={pendingPhone}
-          onCancel={() => cancelChange.mutate(pendingPhone.id)}
-          cancelling={cancelChange.isPending}
-        />
-      )}
-
-      {showChangeForm && !pendingPhone && (
-        <ContactChangeRequestPanel fieldType="phone" onClose={() => setShowChangeForm(false)} />
-      )}
+        }
+        verify={
+          showVerifiedBadge ? (
+            <div className={cn('flex items-center', verifyRowHeight)}>
+              <VerifiedBadge level="verified" size="sm" />
+            </div>
+          ) : needsOtp ? (
+            <VerificationOtpActions
+              code={code}
+              onCodeChange={setCode}
+              placeholder="6-digit OTP"
+              sendLabel="Send OTP"
+              onSend={onSend}
+              onVerify={onVerify}
+              sendPending={send.isPending || stagingPhone}
+              verifyPending={verify.isPending}
+              sendDisabled={verifyBlocked}
+            />
+          ) : null
+        }
+        footer={
+          <>
+            {verifyHint ? (
+              <p className="text-xs text-muted-foreground">{verifyHint}</p>
+            ) : null}
+            {hint ? (
+              <p className="rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-xs text-amber-700">
+                Dev mode — auto-filled OTP: <span className="font-mono font-semibold">{hint}</span>
+              </p>
+            ) : null}
+          </>
+        }
+      />
     </div>
   )
 }

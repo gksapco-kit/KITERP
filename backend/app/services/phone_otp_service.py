@@ -6,12 +6,16 @@ import logging
 import re
 import secrets
 from dataclasses import dataclass
-from typing import Literal, Optional
+from typing import Literal, Optional, TYPE_CHECKING
 
 import httpx
 
 from app.config import settings
 from app.services.sms_service import SmsService, normalize_e164, is_valid_e164
+
+if TYPE_CHECKING:
+    from uuid import UUID
+    from sqlalchemy.ext.asyncio import AsyncSession
 
 log = logging.getLogger(__name__)
 
@@ -129,6 +133,79 @@ class OtpService:
     def is_configured(self) -> bool:
         return self.is_sms_configured or self.is_email_configured
 
+    async def is_sms_configured_with_vendor(
+        self,
+        db: "AsyncSession | None" = None,
+        vendor_id: "UUID | None" = None,
+    ) -> bool:
+        if self.is_sms_configured:
+            return True
+        if db is not None and vendor_id is not None:
+            from app.integrations.registry import IntegrationRegistry
+
+            adapter = await IntegrationRegistry(db).get_sms_adapter(vendor_id)
+            return adapter is not None and bool(adapter.from_number)
+        return False
+
+    async def is_email_configured_with_vendor(
+        self,
+        db: "AsyncSession | None" = None,
+        vendor_id: "UUID | None" = None,
+    ) -> bool:
+        if self.is_email_configured:
+            return True
+        if db is not None and vendor_id is not None:
+            from app.integrations.registry import IntegrationRegistry
+
+            adapter = await IntegrationRegistry(db).get_email_adapter(vendor_id)
+            return adapter is not None
+        return False
+
+    async def _send_sms_via_vendor_integration(
+        self,
+        db: "AsyncSession",
+        vendor_id: "UUID",
+        to: str,
+        code: str,
+        *,
+        purpose: str,
+    ) -> OtpSendResult:
+        from app.integrations.registry import IntegrationRegistry
+
+        adapter = await IntegrationRegistry(db).get_sms_adapter(vendor_id)
+        if not adapter or not adapter.from_number:
+            return OtpSendResult(sent=False, channel="phone")
+        body = f"Your KITERP {purpose} code is {code}. It expires in 10 minutes."
+        result = await adapter.send(to=to, body=body)
+        if result.get("ok"):
+            log.info("OTP SMS sent via vendor integration to %s", to[-4:].rjust(len(to), "*"))
+            return OtpSendResult(sent=True, channel="phone", via_verify=False)
+        return OtpSendResult(
+            sent=False,
+            channel="phone",
+            twilio_message=result.get("error"),
+        )
+
+    async def _send_email_via_vendor_integration(
+        self,
+        db: "AsyncSession",
+        vendor_id: "UUID",
+        to: str,
+        code: str,
+        *,
+        purpose: str,
+    ) -> OtpSendResult:
+        from app.services.email_service import send_verification_code_email_for_vendor
+
+        sent = await send_verification_code_email_for_vendor(
+            db,
+            vendor_id,
+            to,
+            code,
+            purpose=self._email_purpose_key(purpose),
+        )
+        return OtpSendResult(sent=sent, channel="email", via_verify=False)
+
     def _auth(self) -> tuple[str, str]:
         return self.account_sid, self.auth_token
 
@@ -169,11 +246,19 @@ class OtpService:
         channel: OtpChannel,
         purpose: str,
         code: str,
+        db: "AsyncSession | None" = None,
+        vendor_id: "UUID | None" = None,
     ) -> OtpSendResult:
         if channel == "email":
             to = normalize_email(to)
             if not is_valid_email(to):
                 return OtpSendResult(sent=False, channel="email", twilio_message="Invalid email address")
+            if db is not None and vendor_id is not None:
+                vendor_result = await self._send_email_via_vendor_integration(
+                    db, vendor_id, to, code, purpose=purpose,
+                )
+                if vendor_result.sent:
+                    return vendor_result
             # Prefer app-controlled email (SMTP/SendGrid) so we set subject + template.
             # Twilio Verify email uses the SendGrid integration template and often ships with no subject.
             if self.uses_app_email:
@@ -201,6 +286,12 @@ class OtpService:
         to = normalize_e164(to)
         if not is_valid_e164(to):
             return OtpSendResult(sent=False, channel="phone", twilio_message="Invalid phone number")
+        if db is not None and vendor_id is not None:
+            vendor_result = await self._send_sms_via_vendor_integration(
+                db, vendor_id, to, code, purpose=purpose,
+            )
+            if vendor_result.sent:
+                return vendor_result
         if self.uses_verify:
             verify_result = await self._send_via_verify(to, channel="sms")
             if verify_result.sent:
@@ -221,9 +312,24 @@ class OtpService:
             )
         return OtpSendResult(sent=False, channel="phone")
 
-    async def send_and_store_code(self, to: str, *, channel: OtpChannel, purpose: str) -> OtpDispatch:
+    async def send_and_store_code(
+        self,
+        to: str,
+        *,
+        channel: OtpChannel,
+        purpose: str,
+        db: "AsyncSession | None" = None,
+        vendor_id: "UUID | None" = None,
+    ) -> OtpDispatch:
         code = generate_otp_code()
-        result = await self.send_otp(to, channel=channel, purpose=purpose, code=code)
+        result = await self.send_otp(
+            to,
+            channel=channel,
+            purpose=purpose,
+            code=code,
+            db=db,
+            vendor_id=vendor_id,
+        )
         if result.sent and result.via_verify:
             return OtpDispatch(result=result, stored_code=None)
         if result.sent:

@@ -34,8 +34,8 @@ Set-Location $PROJECT_ROOT
 
 switch ($Command) {
     "dev" {
-        Write-Host "Starting KITERP in DEVELOPMENT mode..." -ForegroundColor Cyan
-        docker compose up --build -d
+        Write-Host "Starting KITERP in DEVELOPMENT mode (full Docker stack)..." -ForegroundColor Cyan
+        docker compose up --build -d postgres redis backend frontend vendor-web storefront-web
         Write-Host "Starting localhost bridge (3001/3002)..." -ForegroundColor Cyan
         npm install --no-audit --no-fund 2>$null | Out-Null
         Start-Process -WindowStyle Hidden -FilePath "node" -ArgumentList "scripts/localhost-bridge.mjs" -WorkingDirectory $PROJECT_ROOT

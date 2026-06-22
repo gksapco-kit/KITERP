@@ -203,18 +203,24 @@ def _strip_html(html: str) -> str:
     return re.sub(r"<[^>]+>", "", html)
 
 
-async def send_verification_code_email(to: str, code: str, purpose: str = "verify") -> bool:
-    """Send a 6-digit verification code via email."""
+def _verification_email_content(purpose: str) -> tuple[str, str]:
     if purpose == "change":
-        subject = "Confirm your new KITERP email address"
-        intro = "Use this code to confirm your new email address on your KITERP account."
-    elif purpose in ("reset", "password"):
-        subject = "Reset your KITERP password"
-        intro = "Use this code to reset your KITERP account password."
-    else:
-        subject = "Your KITERP verification code"
-        intro = "Use this code to verify your email address on your KITERP account."
+        return (
+            "Confirm your new KITERP email address",
+            "Use this code to confirm your new email address on your KITERP account.",
+        )
+    if purpose in ("reset", "password"):
+        return (
+            "Reset your KITERP password",
+            "Use this code to reset your KITERP account password.",
+        )
+    return (
+        "Your KITERP verification code",
+        "Use this code to verify your email address on your KITERP account.",
+    )
 
+
+def _verification_email_bodies(intro: str, code: str) -> tuple[str, str]:
     html = f"""\
 <!doctype html>
 <html>
@@ -253,4 +259,38 @@ async def send_verification_code_email(to: str, code: str, purpose: str = "verif
         f"If you didn't request this, you can safely ignore this email.\n\n"
         f"— KITERP Team"
     )
+    return html, text
+
+
+async def send_verification_code_email(to: str, code: str, purpose: str = "verify") -> bool:
+    """Send a 6-digit verification code via email."""
+    subject, intro = _verification_email_content(purpose)
+    html, text = _verification_email_bodies(intro, code)
+    return await send_email(to=to, subject=subject, html=html, text=text)
+
+
+async def send_verification_code_email_for_vendor(
+    db: AsyncSession,
+    vendor_id: UUID,
+    to: str,
+    code: str,
+    purpose: str = "verify",
+) -> bool:
+    """Send OTP email via vendor CRM integration when configured, else platform .env."""
+    from app.integrations.registry import IntegrationRegistry
+
+    subject, intro = _verification_email_content(purpose)
+    html, text = _verification_email_bodies(intro, code)
+    registry = IntegrationRegistry(db)
+    adapter = await registry.get_email_adapter(vendor_id)
+    if adapter:
+        result = await adapter.send(to=to, subject=subject, html=html, text=text)
+        if result.get("ok"):
+            logger.info("Verification email sent via vendor integration to %s", to)
+            return True
+        logger.warning(
+            "Vendor email integration failed for %s: %s — falling back to platform email",
+            to,
+            result.get("error"),
+        )
     return await send_email(to=to, subject=subject, html=html, text=text)

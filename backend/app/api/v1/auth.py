@@ -185,6 +185,10 @@ class CodePayload(BaseModel):
     code: str = Field(..., min_length=6, max_length=6)
 
 
+class PhoneOtpSendRequest(BaseModel):
+    phone: Optional[str] = Field(None, max_length=24)
+
+
 def user_to_dict(user: User) -> dict:
     """Safely convert SQLAlchemy User model to a JSON-serializable dict."""
     return {
@@ -697,6 +701,17 @@ async def delete_me(
 
 # ── Password reset (forgot password) ──────────────────────────────────────
 
+async def _vendor_id_for_otp_delivery(db: AsyncSession, user: User) -> Optional[UUID]:
+    """Prefer the user's most recent active vendor membership for CRM integration delivery."""
+    result = await db.execute(
+        select(VendorUser.vendor_id)
+        .where(VendorUser.user_id == user.id, VendorUser.is_active.is_(True))
+        .order_by(VendorUser.created_at.desc())
+        .limit(1)
+    )
+    return result.scalar_one_or_none()
+
+
 class ForgotPasswordRequest(BaseModel):
     email: EmailStr
 
@@ -738,8 +753,15 @@ async def forgot_password(
     expires = datetime.now(timezone.utc) + timedelta(seconds=600)
     from app.services.phone_otp_service import OtpService, TWILIO_VERIFY_EMAIL_MARKER, generate_otp_code
 
+    vendor_id = await _vendor_id_for_otp_delivery(db, user)
     otp_svc = OtpService()
-    dispatch = await otp_svc.send_and_store_code(email, channel="email", purpose="password reset")
+    dispatch = await otp_svc.send_and_store_code(
+        email,
+        channel="email",
+        purpose="password reset",
+        db=db,
+        vendor_id=vendor_id,
+    )
     if not dispatch.result.sent:
         if settings.DEBUG:
             code = generate_otp_code()
@@ -749,7 +771,7 @@ async def forgot_password(
             await db.commit()
             logger.info("[forgot-password-email:dev] email=%s code=%s", email, code)
             return {"sent": True, "to": email, "dev_hint": code}
-        if otp_svc.is_email_configured:
+        if await otp_svc.is_email_configured_with_vendor(db, vendor_id):
             raise HTTPException(
                 status_code=503,
                 detail=dispatch.result.user_message(
@@ -839,7 +861,14 @@ async def forgot_password_phone(
 
     expires = datetime.now(timezone.utc) + timedelta(seconds=600)
     otp_svc = OtpService()
-    dispatch = await otp_svc.send_and_store_code(phone, channel="sms", purpose="password reset")
+    vendor_id = await _vendor_id_for_otp_delivery(db, user)
+    dispatch = await otp_svc.send_and_store_code(
+        phone,
+        channel="sms",
+        purpose="password reset",
+        db=db,
+        vendor_id=vendor_id,
+    )
     if not dispatch.result.sent:
         if settings.DEBUG:
             code = dispatch.stored_code or generate_otp_code()
@@ -849,7 +878,7 @@ async def forgot_password_phone(
             await db.commit()
             logger.info("[forgot-password-phone:dev] phone_suffix=%s code=%s", phone[-4:], code)
             return {"sent": True, "to": _mask_phone(phone), "dev_hint": code}
-        if otp_svc.is_sms_configured:
+        if await otp_svc.is_sms_configured_with_vendor(db, vendor_id):
             raise HTTPException(
                 status_code=503,
                 detail=dispatch.result.user_message(
@@ -1141,24 +1170,49 @@ async def confirm_email_change(
 
 @router.post("/phone/send-otp")
 async def send_phone_otp(
+    payload: PhoneOtpSendRequest = PhoneOtpSendRequest(),
     current_user: User = Depends(get_current_active_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Generate an OTP for the current user's phone (dev mode — code is returned in response)."""
-    if not current_user.phone:
-        raise HTTPException(status_code=400, detail="No phone number on file")
-    if current_user.is_phone_verified:
+    """Send OTP to verify the user's phone. Accepts an optional draft ``phone`` from the profile form."""
+    from app.services.sms_service import normalize_e164, is_valid_e164
+
+    draft = (payload.phone or "").strip()
+    if draft:
+        phone = normalize_e164(draft)
+        if not is_valid_e164(phone):
+            raise HTTPException(
+                status_code=422,
+                detail="Enter a valid mobile number with country code (e.g. +919876543210)",
+            )
+        if not _phones_equivalent(phone, current_user.phone):
+            from app.services.user_cleanup import remove_orphan_users_by_phone
+
+            await remove_orphan_users_by_phone(db, phone)
+            current_user.phone = phone
+            current_user.is_phone_verified = False
+    else:
+        if not current_user.phone:
+            raise HTTPException(status_code=400, detail="No phone number on file")
+        phone = normalize_e164(current_user.phone or "")
+
+    if current_user.is_phone_verified and _phones_equivalent(phone, current_user.phone):
         raise HTTPException(status_code=400, detail="Phone is already verified")
 
     _check_cooldown(current_user.verification_code_expires_at)
 
     expires = _expires_at()
     from app.services.phone_otp_service import OtpService, TWILIO_VERIFY_MARKER
-    from app.services.sms_service import normalize_e164
 
-    phone = normalize_e164(current_user.phone or "")
+    vendor_id = await _vendor_id_for_otp_delivery(db, current_user)
     otp_svc = OtpService()
-    dispatch = await otp_svc.send_and_store_code(phone, channel="sms", purpose="phone verification")
+    dispatch = await otp_svc.send_and_store_code(
+        phone,
+        channel="sms",
+        purpose="phone verification",
+        db=db,
+        vendor_id=vendor_id,
+    )
     code = dispatch.stored_code or _generate_code()
     if dispatch.verify_marker:
         current_user.verification_code = TWILIO_VERIFY_MARKER
@@ -1170,7 +1224,7 @@ async def send_phone_otp(
 
     extra = _otp_sms_extra_fields(
         sms_sent=dispatch.result.sent,
-        sms_configured=otp_svc.is_sms_configured,
+        sms_configured=await otp_svc.is_sms_configured_with_vendor(db, vendor_id),
         code=code,
         log_tag="phone-otp:dev",
         phone=phone,

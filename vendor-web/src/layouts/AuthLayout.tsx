@@ -1,9 +1,12 @@
 import { Outlet, Navigate, useLocation } from 'react-router-dom'
 import { useAuthStore } from '@/stores/authStore'
+import { useAuthHydrated } from '@/hooks/useAuthHydrated'
 import { Store } from 'lucide-react'
 import { marketingHomeUrl } from '@/lib/appUrls'
+import { PageLoading } from '@/components/common/Loading'
 
 export default function AuthLayout() {
+  const hydrated = useAuthHydrated()
   const { isAuthenticated, accessToken } = useAuthStore()
   const location = useLocation()
   const homeHref = marketingHomeUrl()
@@ -15,6 +18,7 @@ export default function AuthLayout() {
   const narrowLoginColumn = location.pathname.replace(/\/+$/, '') === '/login'
   // Require a real access token so stale `isAuthenticated` from persisted state alone cannot
   // bounce /login ↔ / with ProtectedRoute (blank thrash after localStorage was cleared elsewhere).
+  if (!hydrated) return <PageLoading />
   if (isAuthenticated && accessToken && !isVendorHandoffRoute) return <Navigate to="/" replace />
 
   return (

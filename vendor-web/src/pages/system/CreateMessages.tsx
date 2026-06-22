@@ -546,7 +546,7 @@ export default function CreateMessagesPage() {
               Delivery providers
             </CardTitle>
             <p className="text-xs text-muted-foreground">
-              Email uses SMTP/SendGrid. SMS and WhatsApp need a separate Twilio (or Meta) setup in CRM → Integrations — not included with email.
+              Email uses SMTP/SendGrid. SMS and WhatsApp need a separate Twilio (or Meta) setup in System Configuration → Integrations — not included with email.
             </p>
           </CardHeader>
           <CardContent className="space-y-2">

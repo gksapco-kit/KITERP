@@ -116,10 +116,11 @@ def test_vendor_bu_sms_on_when_bu_sms_enabled():
     assert vendor_bu_order_sms_enabled(v, bu) is True
 
 
-def test_customer_order_sms_respects_sms_enabled_pref():
+def test_customer_order_sms_follows_bu_toggle_and_order_updates():
     v = _vendor(notifications={"sms": True})
-    assert customer_order_sms_enabled(v, {"smsEnabled": True}) is True
-    assert customer_order_sms_enabled(v, {"smsEnabled": False}) is False
+    bu = {"customer_channels": {"email": True, "sms": True, "whatsapp": False}}
+    assert customer_order_sms_enabled(v, {"smsEnabled": False}, bu) is True
+    assert customer_order_sms_enabled(v, {"orderUpdates": False}, bu) is False
 
 
 def test_customer_order_whatsapp_respects_order_updates():
@@ -170,6 +171,19 @@ def test_customer_order_sms_body_is_compact_for_trial():
     assert "₹" not in body
     assert "127.0.0.1" not in body
     assert len(body) <= 120
+
+
+def test_prepare_order_sms_body_uses_fallback_for_long_or_unicode():
+    from app.services.order_notification_service import (
+        _customer_order_sms_body,
+        _prepare_order_sms_body,
+    )
+
+    fallback = _customer_order_sms_body("Store", "ORD-1", 100.0)
+    long_text = "Hi {name}, " + ("thanks " * 30)
+    assert _prepare_order_sms_body(long_text, fallback=fallback) == fallback
+    assert _prepare_order_sms_body("Total ₹999", fallback=fallback) == fallback
+    assert _prepare_order_sms_body("Order ORD-1 confirmed", fallback=fallback) == "Order ORD-1 confirmed"
 
 
 def test_vendor_order_whatsapp_body_is_compact():

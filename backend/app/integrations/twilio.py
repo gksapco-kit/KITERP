@@ -7,6 +7,7 @@ from typing import Any
 import httpx
 
 from app.integrations.base import SmsAdapter, VoiceAdapter, WhatsAppAdapter
+from app.services.sms_service import normalize_e164
 
 logger = logging.getLogger(__name__)
 
@@ -39,20 +40,29 @@ class TwilioSmsAdapter(TwilioBase, SmsAdapter):
         )
 
     async def send(self, *, to: str, body: str, from_number: str | None = None) -> dict[str, Any]:
-        sender = from_number or self.from_number
+        sender = normalize_e164(from_number or self.from_number or "")
+        to_normalized = normalize_e164(to)
         if not sender:
             return {"ok": False, "provider": self.provider, "error": "no_from_number"}
+        if not to_normalized:
+            return {"ok": False, "provider": self.provider, "error": "invalid_to_number"}
         try:
             async with httpx.AsyncClient(timeout=15.0) as client:
                 resp = await client.post(
                     f"{self.api_base}/Accounts/{self.account_sid}/Messages.json",
                     auth=self.auth,
-                    data={"From": sender, "To": to, "Body": body},
+                    data={"From": sender, "To": to_normalized, "Body": body},
                 )
             data = resp.json() if resp.content else {}
             if resp.status_code in (200, 201):
                 return {"ok": True, "provider": self.provider, "id": data.get("sid")}
-            return {"ok": False, "provider": self.provider, "error": data.get("message") or resp.text[:300]}
+            code = data.get("code")
+            return {
+                "ok": False,
+                "provider": self.provider,
+                "error": data.get("message") or resp.text[:300],
+                "code": int(code) if code else None,
+            }
         except Exception as e:
             logger.warning("Twilio SMS failed: %s", e)
             return {"ok": False, "provider": self.provider, "error": str(e)}

@@ -510,41 +510,45 @@ export function UniversalSearch({
 
         {/* Search input row */}
         <div className="flex items-center gap-2 sm:gap-3 px-4 py-3 border-b border-border">
-          <Search className="w-5 h-5 shrink-0 text-muted-foreground" aria-hidden />
           <div
+            data-kiterp-search-input
             className={cn(
-              'relative min-w-0 flex-1 rounded-lg px-2 py-1 transition-shadow',
-              'focus-within:ring-2 focus-within:ring-primary/25 focus-within:ring-offset-0',
+              'flex min-w-0 flex-1 items-center gap-2 sm:gap-3 rounded-xl border border-border/50 bg-muted/20 px-3 py-2',
+              'transition-[border-color,background-color,box-shadow] duration-150',
             )}
           >
-            <input
-              ref={inputRef}
-              type="text"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder={tab === 'navigate' ? 'Search pages, reports, settings…' : 'Search products, orders, customers…'}
-              className={cn(
-                'w-full bg-transparent text-sm text-foreground placeholder:text-muted-foreground outline-none',
-                'focus-visible:ring-0 focus-visible:ring-offset-0',
-                query && 'pr-8',
-              )}
-              autoComplete="off"
-              spellCheck={false}
-            />
-            <button
-              type="button"
-              onClick={() => {
-                setQuery('')
-                inputRef.current?.focus()
-              }}
-              aria-label="Clear search"
-              className={cn(
-                'absolute right-1 top-1/2 -translate-y-1/2 rounded-md p-1 text-muted-foreground transition-opacity hover:bg-muted hover:text-foreground',
-                query ? 'pointer-events-auto opacity-100' : 'pointer-events-none opacity-0',
-              )}
-            >
-              <X className="h-4 w-4" />
-            </button>
+            <Search className="h-5 w-5 shrink-0 text-muted-foreground" aria-hidden />
+            <div className="relative min-w-0 flex-1">
+              <input
+                ref={inputRef}
+                type="text"
+                data-kiterp-no-field-focus
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder={tab === 'navigate' ? 'Search pages, reports, settings…' : 'Search products, orders, customers…'}
+                className={cn(
+                  'w-full border-0 bg-transparent p-0 text-sm text-foreground shadow-none outline-none',
+                  'placeholder:text-muted-foreground',
+                  query && 'pr-8',
+                )}
+                autoComplete="off"
+                spellCheck={false}
+              />
+              <button
+                type="button"
+                onClick={() => {
+                  setQuery('')
+                  inputRef.current?.focus()
+                }}
+                aria-label="Clear search"
+                className={cn(
+                  'absolute right-0 top-1/2 -translate-y-1/2 rounded-md p-1 text-muted-foreground transition-opacity hover:bg-muted hover:text-foreground',
+                  query ? 'pointer-events-auto opacity-100' : 'pointer-events-none opacity-0',
+                )}
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
           </div>
           <div className="hidden shrink-0 sm:flex items-center gap-1.5">
             <kbd className="inline-flex items-center gap-1 rounded border border-border bg-muted px-2 py-0.5 text-xs font-mono text-muted-foreground">

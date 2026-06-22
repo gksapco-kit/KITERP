@@ -145,7 +145,6 @@ export default function ForgotPassword() {
           return
         }
         setDevHint(res.data?.dev_hint ?? undefined)
-        if (res.data?.dev_hint) setCode(res.data.dev_hint)
         setMaskedTarget(emailVal)
         toast.success('Reset code sent — check your email')
         setStep('code')
@@ -158,7 +157,6 @@ export default function ForgotPassword() {
           return
         }
         setDevHint(res.data?.dev_hint ?? undefined)
-        if (res.data?.dev_hint) setCode(res.data.dev_hint)
         setMaskedTarget(phoneVal)
         toast.success('Reset OTP sent to your phone')
         setStep('code')
@@ -278,10 +276,7 @@ export default function ForgotPassword() {
                     placeholder="Mobile number"
                   />
                   <p className="text-xs text-gray-400">
-                    We'll send a 6-digit OTP to this number.{' '}
-                    <span className="text-amber-600 font-medium">
-                      Dev mode: OTP shown in-app (no SMS sent).
-                    </span>
+                    We'll send a 6-digit OTP to this number.
                   </p>
                 </div>
               )}
@@ -311,7 +306,7 @@ export default function ForgotPassword() {
                   {method === 'email' ? 'no SMTP configured' : 'no SMS provider'}.
                   Your code is{' '}
                   <span className="font-mono font-bold tracking-widest text-amber-900">{devHint}</span>
-                  {' '}(auto-filled below).
+                  {' '}(for local testing only).
                 </p>
               </div>
             )}

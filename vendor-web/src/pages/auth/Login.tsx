@@ -20,7 +20,7 @@ import { formatFormFieldError } from '@/lib/formFieldErrors'
 import { checkBackendReachable, getBackendHealthUrl } from '@/lib/apiHealth'
 import { resolveApiBaseUrl } from '@/lib/apiBase'
 import { isValidEmailOrPhoneLogin } from '@/lib/loginIdentifier'
-import { extractApiError, parseAmbiguousVendorLogin, parseRequires2fa, type AmbiguousVendorOption } from '@/lib/errorMessages'
+import { extractApiError, parseAmbiguousVendorLogin, parseRequires2fa, isAxiosNetworkError, type AmbiguousVendorOption } from '@/lib/errorMessages'
 import type { AxiosError } from 'axios'
 import { toast } from 'sonner'
 
@@ -112,7 +112,7 @@ export default function Login() {
       }
       navigate('/')
     },
-    onError: (err) => {
+    onError: async (err) => {
       const amb = parseAmbiguousVendorLogin(err)
       if (amb) {
         setAmbiguousVendors(amb.vendors)
@@ -124,14 +124,20 @@ export default function Login() {
       }
       const ax = err as AxiosError
       const status = ax.response?.status
-      const backendUnreachable =
-        apiOk === false ||
-        !ax.response ||
-        status === 502 ||
-        status === 503 ||
-        ax.code === 'ERR_NETWORK'
+      const liveReachable = await checkBackendReachable({
+        retries: import.meta.env.DEV ? 4 : 1,
+        retryDelayMs: 1000,
+        timeoutMs: 4000,
+      })
+      if (liveReachable) setApiOk(true)
+      const backendUnreachable = !liveReachable || status === 502 || status === 503
       if (backendUnreachable) {
+        if (!liveReachable) setApiOk(false)
         toast.error(getUnreachableApiMessage())
+        return
+      }
+      if (isAxiosNetworkError(ax)) {
+        toast.error('Connection interrupted — try again in a moment')
         return
       }
       toast.error(extractApiError(err, 'Login failed — check your email/phone and password'))
@@ -148,9 +154,13 @@ export default function Login() {
   const [apiOk, setApiOk] = useState<boolean | null>(null)
   const [checkingApi, setCheckingApi] = useState(false)
 
-  const runHealth = () => {
-    setCheckingApi(true)
-    setApiOk(null)
+  const runHealth = (background = false) => {
+    if (!background) {
+      setCheckingApi(true)
+      setApiOk(null)
+    } else {
+      setCheckingApi(true)
+    }
     void checkBackendReachable().then((ok) => {
       setApiOk(ok)
       setCheckingApi(false)
@@ -164,7 +174,7 @@ export default function Login() {
   // Dev: backend reloads on file save (uvicorn --reload) — keep retrying instead of showing a hard error.
   useEffect(() => {
     if (!import.meta.env.DEV || apiOk !== false || checkingApi) return undefined
-    const id = window.setInterval(() => runHealth(), 5000)
+    const id = window.setInterval(() => runHealth(true), 5000)
     return () => window.clearInterval(id)
   }, [apiOk, checkingApi])
 

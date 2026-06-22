@@ -335,9 +335,9 @@ function UniversalSaveToolbarButton() {
   )
 }
 
-/** Shared pill styling for top-bar controls (full capsule shape in Template 2). */
+/** Shared pill styling for top-bar controls (matches sidebar section row corners). */
 const headerBarPillClass =
-  'header-bar-pill flex h-8 shrink-0 items-center rounded-full border border-border bg-muted text-xs font-medium text-muted-foreground'
+  'flex h-8 shrink-0 items-center rounded-lg border border-border bg-muted text-xs font-medium text-muted-foreground'
 
 const headerBarPillInteractiveClass = cn(headerBarPillClass, 'hover:bg-muted/80 hover:border-primary/30')
 
@@ -655,7 +655,6 @@ const allSections: NavSection[] = [
       { to: '/crm/care-reminder', icon: Heart, label: 'Care & Reminders', requiresPermission: 'crm.view' },
       { to: '/crm/workflows', icon: Workflow, label: 'Workflows', requiresPermission: 'crm.workflows.manage' },
       { to: '/crm/ai', icon: Bot, label: 'AI Insights', requiresPermission: 'crm.ai.use' },
-      { to: '/crm/integrations', icon: Plug, label: 'Integrations', requiresPermission: 'crm.integrations.manage' },
       { to: '/crm/reports', icon: BarChart3, label: 'CRM Reports', requiresPermission: 'crm.reports.view' },
       { to: '/crm/audit', icon: History, label: 'Audit Log', requiresPermission: 'crm.audit.view' },
     ],
@@ -691,13 +690,14 @@ const allSections: NavSection[] = [
       { to: '/system/social-links', icon: Globe, label: 'Social & Web Links', alwaysShow: true },
       { to: '/document-templates', icon: LayoutTemplate, label: 'Document Templates', alwaysShow: true },
       { to: '/system/modules', icon: Layers, label: 'Module Settings', alwaysShow: true },
-      { to: '/system/messages', icon: MessageSquare, label: 'Message Center', alwaysShow: true },
-      { to: '/team', icon: UsersRound, label: 'Staff Access Control', requiresPermission: 'team.view' },
-      { to: '/roles', icon: ShieldCheck, label: 'Roles', requiresPermission: 'roles.view' },
+      { to: '/crm/integrations', icon: Plug, label: 'Integrations', requiresPermission: 'crm.integrations.manage' },
+      { to: '/system/messages', icon: MessageSquare, label: 'Create Messages', alwaysShow: true },
       { to: '/system/models', icon: Database, label: 'Models', alwaysShow: true, groupLabel: 'Database', groupColor: 'indigo' },
       { to: '/system/table-data', icon: Table2, label: 'Table Data', requiresVendorAdmin: true },
       { to: '/system/browse-table', icon: List, label: 'Browse Table', requiresVendorAdmin: true },
       { to: '/system/assets/images', icon: Image, label: 'Images', alwaysShow: true, groupLabel: 'Gallery', groupColor: 'violet' },
+      { to: '/team', icon: UsersRound, label: 'Staff Access Control', requiresPermission: 'team.view' },
+      { to: '/roles', icon: ShieldCheck, label: 'Roles', requiresPermission: 'roles.view' },
     ],
   },
 ]
@@ -921,15 +921,15 @@ const NAV_TREE_SUB_PANEL_CLASS = '[--tree-sub-x:2.75rem]'
 /** Template 2 — compact merged submodule list (tight pill stack). */
 const NAV_SUB_STACK = 'sidebar-nav-sub-stack'
 const navTreeTrunkLine =
-  'pointer-events-none absolute left-[calc(var(--tree-x)-0.5px)] top-0 bottom-2 z-0 w-px bg-sidebar-primary'
+  'sidebar-nav-tree-trunk pointer-events-none absolute left-[calc(var(--tree-x)-0.5px)] top-0 bottom-2 z-0 w-px bg-sidebar-primary'
 /** Short trunk scoped to a subgroup block only (not the whole module). */
 const navTreeSubgroupTrunk =
-  'pointer-events-none absolute left-[calc(var(--tree-sub-x)-0.5px)] top-0 bottom-0 z-0 w-px bg-sidebar-primary'
-/** Horizontal stub from trunk toward row — stops before the highlight pill (see --tree-link-gap). */
-const navTreeElbowLine =
-  'pointer-events-none absolute left-[calc(var(--tree-x)-0.5px)] top-1/2 z-0 h-px w-[var(--tree-link-gap)] -translate-y-1/2 bg-sidebar-primary'
-const navTreeSubElbowLine =
-  'pointer-events-none absolute left-[calc(var(--tree-sub-x)-0.5px)] top-1/2 z-0 h-px w-[var(--tree-link-gap)] -translate-y-1/2 bg-sidebar-primary'
+  'sidebar-nav-tree-trunk pointer-events-none absolute left-[calc(var(--tree-sub-x)-0.5px)] top-0 bottom-0 z-0 w-px bg-sidebar-primary'
+/** Rounded elbow from vertical trunk toward each row (see .sidebar-nav-tree-elbow). */
+const navTreeElbowBase =
+  'sidebar-nav-tree-elbow pointer-events-none absolute top-1/2 z-[1] -translate-y-full'
+const navTreeElbowLine = cn(navTreeElbowBase, 'sidebar-nav-tree-elbow-section')
+const navTreeSubElbowLine = cn(navTreeElbowBase, 'sidebar-nav-tree-elbow-sub')
 /** Shared layout + state classes for sidebar leaf links. */
 function navItemLinkClass(
   item: NavItem,
@@ -1191,6 +1191,8 @@ export default function DashboardLayout() {
   const navScrollRef = useRef<HTMLElement>(null)
   const sectionScrollAnchors = useRef<Map<string, HTMLDivElement>>(new Map())
   const pendingScrollSectionId = useRef<string | null>(null)
+  /** After keyboard collapse, keep focus on the module row without scrollIntoView jump. */
+  const skipNavFocusScrollRef = useRef(false)
   /** Arrow-key focus target in the sidebar module tree */
   const [navFocusKey, setNavFocusKey] = useState<string | null>(null)
   const navFocusRefs = useRef(new Map<string, HTMLElement>())
@@ -2368,6 +2370,7 @@ export default function DashboardLayout() {
           setNavFocusKey(secFocusKey(action.sectionId))
           break
         case 'collapseSection':
+          skipNavFocusScrollRef.current = true
           setCollapsedSections((prev) => ({ ...prev, [action.title]: true }))
           setNavFocusKey(secFocusKey(action.sectionId))
           break
@@ -2430,7 +2433,10 @@ export default function DashboardLayout() {
     const el = navFocusRefs.current.get(navFocusKey)
     if (!el) return
     el.focus({ preventScroll: true })
-    el.scrollIntoView({ block: 'nearest', inline: 'nearest' })
+    if (!skipNavFocusScrollRef.current) {
+      el.scrollIntoView({ block: 'nearest', inline: 'nearest' })
+    }
+    skipNavFocusScrollRef.current = false
   }, [navFocusKey, collapsedSections, collapsedGroups, railFlyoutSectionId])
 
   const RailFlyoutSectionIcon = railFlyoutSection?.icon
@@ -3406,7 +3412,7 @@ export default function DashboardLayout() {
                   ) : (
                     <span
                       className={cn(
-                        'flex h-6 w-6 shrink-0 items-center justify-center rounded-full ring-1 ring-inset',
+                        'flex h-6 w-6 shrink-0 items-center justify-center rounded-md ring-1 ring-inset',
                         storePillActive
                           ? 'bg-white/15 text-white ring-white/25'
                           : 'bg-muted text-muted-foreground ring-border/45',
@@ -3431,10 +3437,7 @@ export default function DashboardLayout() {
 
               <Link
                 to="/notifications"
-                className={cn(
-                  headerBarPillInteractiveClass,
-                  'relative h-8 w-8 justify-center px-0',
-                )}
+                className="relative flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-border bg-muted text-muted-foreground hover:bg-muted/80 hover:border-primary/30"
               >
                 <Bell className="h-5 w-5" />
                 {unreadCount > 0 && (
