@@ -31,7 +31,7 @@ import { ThemeSelect } from '@/components/common/ThemeSelect'
 import type { InvoiceSettings } from '@/lib/invoiceTemplates'
 
 const TABLE_ICON_BTN =
-  'text-muted-foreground hover:bg-muted hover:text-foreground dark:hover:bg-muted/70 dark:hover:text-foreground'
+  'inline-flex shrink-0 items-center justify-center rounded-md p-1 text-muted-foreground hover:bg-muted hover:text-foreground dark:hover:bg-muted/70 dark:hover:text-foreground'
 
 const statusBadge: Record<string, string> = {
   draft: 'bg-muted text-muted-foreground',
@@ -166,12 +166,22 @@ export default function InvoicesPage() {
   const [storeFilter, setStoreFilter] = useState('')
   const [showCreate, setShowCreate] = useState(false)
   const [shareOpenId, setShareOpenId] = useState<string | null>(null)
+  const [searchInput, setSearchInput] = useState('')
+  const [search, setSearch] = useState('')
   const [sortKey, setSortKey] = useState('created_at')
   const [sortDir, setSortDir] = useState<SortDir>('desc')
   const { data: invSettings } = useInvoiceSettings()
 
+  useEffect(() => {
+    const t = setTimeout(() => {
+      setSearch(searchInput.trim())
+      setPage(1)
+    }, 300)
+    return () => clearTimeout(t)
+  }, [searchInput])
+
   const { data, isLoading } = useQuery({
-    queryKey: ['invoices', page, typeFilter, statusFilter, storeFilter],
+    queryKey: ['invoices', page, typeFilter, statusFilter, storeFilter, search],
     queryFn: () => vendorApi.listInvoices({
       page,
       size: 15,
@@ -179,6 +189,7 @@ export default function InvoicesPage() {
       exclude_invoice_type: typeFilter ? undefined : 'estimate',
       status: statusFilter || undefined,
       store_id: storeFilter || undefined,
+      search: search || undefined,
     }),
   })
 
@@ -203,6 +214,9 @@ export default function InvoicesPage() {
     )
   }, [data?.items, sortKey, sortDir])
 
+  const total = data?.total ?? 0
+  const pages = data?.pages ?? 1
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -213,43 +227,48 @@ export default function InvoicesPage() {
         </div>
       </div>
 
-      <div className="flex gap-3 items-center">
-        <div className="w-56"><BusinessUnitSelect value={storeFilter} onChange={(id) => { setStoreFilter(id); setPage(1) }} allowAll autoSelectDefault={false} /></div>
-        <ThemeSelect
-          value={typeFilter}
-          onChange={(v) => { setTypeFilter(v); setPage(1) }}
-          placeholder="All Billing Types"
-          aria-label="Billing type"
-          options={[
-            { value: '', label: 'All Billing Types' },
-            { value: 'invoice', label: 'Invoices' },
-            { value: 'receipt', label: 'Receipts' },
-            { value: 'credit_note', label: 'Credit Notes' },
-          ]}
-        />
-        <ThemeSelect
-          value={statusFilter}
-          onChange={(v) => { setStatusFilter(v); setPage(1) }}
-          placeholder="All Status"
-          aria-label="Status"
-          options={[
-            { value: '', label: 'All Status' },
-            { value: 'draft', label: 'Draft' },
-            { value: 'sent', label: 'Sent' },
-            { value: 'paid', label: 'Paid' },
-            { value: 'partially_paid', label: 'Partial' },
-            { value: 'overdue', label: 'Overdue' },
-          ]}
-        />
-      </div>
-
       <Card>
         <CardContent className="p-0">
           <TableToolbar
-            search=""
-            onSearchChange={() => {}}
-            hideSearch
-            hint="Sorting applies to the current page."
+            search={searchInput}
+            onSearchChange={setSearchInput}
+            searchPlaceholder="Search customer, invoice #, phone…"
+            searchWrapperClassName="w-80 min-w-[18rem]"
+            leading={(
+              <>
+                <div className="w-[9.5rem] shrink-0">
+                  <BusinessUnitSelect value={storeFilter} onChange={(id) => { setStoreFilter(id); setPage(1) }} allowAll autoSelectDefault={false} />
+                </div>
+                <ThemeSelect
+                  value={typeFilter}
+                  onChange={(v) => { setTypeFilter(v); setPage(1) }}
+                  placeholder="All Billing Types"
+                  aria-label="Billing type"
+                  wrapperClassName="w-[8.5rem] shrink-0"
+                  options={[
+                    { value: '', label: 'All Billing Types' },
+                    { value: 'invoice', label: 'Invoices' },
+                    { value: 'receipt', label: 'Receipts' },
+                    { value: 'credit_note', label: 'Credit Notes' },
+                  ]}
+                />
+                <ThemeSelect
+                  value={statusFilter}
+                  onChange={(v) => { setStatusFilter(v); setPage(1) }}
+                  placeholder="All Status"
+                  aria-label="Status"
+                  wrapperClassName="w-[7.5rem] shrink-0"
+                  options={[
+                    { value: '', label: 'All Status' },
+                    { value: 'draft', label: 'Draft' },
+                    { value: 'sent', label: 'Sent' },
+                    { value: 'paid', label: 'Paid' },
+                    { value: 'partially_paid', label: 'Partial' },
+                    { value: 'overdue', label: 'Overdue' },
+                  ]}
+                />
+              </>
+            )}
             sortOptions={[
               { value: 'created_at', label: 'Date' },
               { value: 'invoice_number', label: 'Invoice #' },
@@ -264,7 +283,7 @@ export default function InvoicesPage() {
             onSortKeyChange={setSortKey}
             onSortDirChange={setSortDir}
           />
-          <ResizableTable tableId="invoices" defaultWidths={[120, 120, 90, 160, 90, 90, 90, 100, 80]}>
+          <ResizableTable tableId="invoices" defaultWidths={[120, 120, 90, 160, 90, 90, 90, 100, 100]}>
             <thead>
               <tr className="border-b border-border bg-muted/40">
                 <th className="text-left px-5 py-3 text-xs font-medium text-muted-foreground uppercase"><TableColumnLabel>Invoice #</TableColumnLabel></th>
@@ -275,14 +294,14 @@ export default function InvoicesPage() {
                 <th className="text-right px-5 py-3 text-xs font-medium text-muted-foreground uppercase"><TableColumnLabel>Due</TableColumnLabel></th>
                 <th className="text-center px-5 py-3 text-xs font-medium text-muted-foreground uppercase"><TableColumnLabel>Status</TableColumnLabel></th>
                 <th className="text-left px-5 py-3 text-xs font-medium text-muted-foreground uppercase"><TableColumnLabel>Date</TableColumnLabel></th>
-                <th className="text-center px-5 py-3 text-xs font-medium text-muted-foreground uppercase"><TableColumnLabel>Actions</TableColumnLabel></th>
+                <th className="text-center px-2 py-3 text-xs font-medium text-muted-foreground uppercase"><TableColumnLabel>Actions</TableColumnLabel></th>
               </tr>
             </thead>
             <tbody className="divide-y">
               {isLoading ? (
                 <tr><td colSpan={9} className="py-12 text-center"><Loader2 className="w-6 h-6 animate-spin mx-auto text-muted-foreground" /></td></tr>
               ) : !data?.items?.length ? (
-                <tr><td colSpan={9} className="py-12 text-center text-sm text-muted-foreground">No invoices yet</td></tr>
+                <tr><td colSpan={9} className="py-12 text-center text-sm text-muted-foreground">{search ? 'No invoices match your search' : 'No invoices yet'}</td></tr>
               ) : displayInvoices.map((inv: InvRow) => {
                 const tb = typeBadge[(inv.invoice_type as string)] || typeBadge.invoice
                 const sb = statusBadge[(inv.status as string)] || statusBadge.draft
@@ -325,36 +344,36 @@ export default function InvoicesPage() {
                     <td className="px-5 py-3 text-sm text-right">{(inv.balance_due as number) > 0 ? <span className="text-red-600 dark:text-red-400 font-medium">{formatCurrency(inv.balance_due as number)}</span> : <span className="text-emerald-600 dark:text-emerald-400">Paid</span>}</td>
                     <td className="px-5 py-3 text-center"><span className={`px-2 py-0.5 rounded-full text-xs font-medium capitalize ${sb}`}>{inv.status as string}</span></td>
                     <td className="px-5 py-3 text-sm text-muted-foreground">{formatDate(inv.created_at as string)}</td>
-                    <td className="px-5 py-3">
+                    <td className="px-2 py-3">
                       <div className="flex items-center justify-center gap-1">
-                        <Button
-                          variant="ghost"
-                          size="icon-sm"
+                        <button
+                          type="button"
                           onClick={() => navigate(`/invoices/${inv.id}`)}
                           title="View invoice"
                           className={TABLE_ICON_BTN}
+                          aria-label="View invoice"
                         >
                           <Eye className="w-4 h-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon-sm"
+                        </button>
+                        <button
+                          type="button"
                           onClick={() => printInvoice(inv as Record<string, unknown>, (invSettings || {}) as Partial<InvoiceSettings>, window.location.origin)}
                           title="Print / Save as PDF"
                           className={TABLE_ICON_BTN}
+                          aria-label="Print invoice"
                         >
                           <Printer className="w-4 h-4" />
-                        </Button>
-                        <div className="relative">
-                          <Button
-                            variant="ghost"
-                            size="icon-sm"
+                        </button>
+                        <span className="relative inline-flex">
+                          <button
+                            type="button"
                             onClick={() => setShareOpenId(shareOpenId === (inv.id as string) ? null : (inv.id as string))}
                             title="Share invoice"
                             className={TABLE_ICON_BTN}
+                            aria-label="Share invoice"
                           >
                             <Share2 className="w-4 h-4" />
-                          </Button>
+                          </button>
                           {shareOpenId === (inv.id as string) && (
                             <ShareMenu
                               invoice={{
@@ -367,7 +386,7 @@ export default function InvoicesPage() {
                               onClose={() => setShareOpenId(null)}
                             />
                           )}
-                        </div>
+                        </span>
                       </div>
                     </td>
                   </tr>
@@ -375,18 +394,27 @@ export default function InvoicesPage() {
               })}
             </tbody>
           </ResizableTable>
+
+          {!isLoading && total > 0 && (
+            <div className="flex items-center justify-between border-t border-border bg-muted/25 px-4 py-3 flex-wrap gap-3">
+              <p className="text-sm text-muted-foreground">
+                Page {page} of {pages} · {total} invoice{total === 1 ? '' : 's'}
+                {search ? ` matching "${search}"` : ''}
+              </p>
+              {pages > 1 && (
+                <div className="flex gap-2">
+                  <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage(p => p - 1)}>
+                    <ChevronLeft className="w-4 h-4 mr-1" />Prev
+                  </Button>
+                  <Button variant="outline" size="sm" disabled={page >= pages} onClick={() => setPage(p => p + 1)}>
+                    Next<ChevronRight className="w-4 h-4 ml-1" />
+                  </Button>
+                </div>
+              )}
+            </div>
+          )}
         </CardContent>
       </Card>
-
-      {data && data.pages > 1 && (
-        <div className="flex items-center justify-between">
-          <p className="text-sm text-muted-foreground">Page {page} of {data.pages}</p>
-          <div className="flex gap-2">
-            <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage(page - 1)}><ChevronLeft className="w-4 h-4" /></Button>
-            <Button variant="outline" size="sm" disabled={page >= data.pages} onClick={() => setPage(page + 1)}><ChevronRight className="w-4 h-4" /></Button>
-          </div>
-        </div>
-      )}
 
       {showCreate && <CreateInvoiceModal onClose={() => setShowCreate(false)} onCreated={() => { qc.invalidateQueries({ queryKey: ['invoices'] }); setShowCreate(false) }} />}
     </div>
@@ -659,7 +687,7 @@ export function CreateInvoiceModal({
   return (
     <div data-kiterp-modal className="fixed inset-0 z-50 flex items-start justify-center bg-black/50 overflow-y-auto py-8" onClick={onClose}>
       <div
-        className={`bg-card border border-border text-foreground rounded-xl shadow-2xl w-full mx-4 max-h-[90vh] overflow-y-auto ${isQuotation ? 'max-w-5xl' : 'max-w-3xl'}`}
+        className="bg-card border border-border text-foreground rounded-xl shadow-2xl w-full mx-4 max-w-3xl max-h-[90vh] overflow-y-auto"
         onClick={e => e.stopPropagation()}
       >
         <div className="flex items-center justify-between px-6 py-4 border-b">

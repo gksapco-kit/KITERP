@@ -478,6 +478,18 @@ export function useUpdateCustomer() {
   })
 }
 
+export function useDeleteCustomer() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) => vendorApi.deleteCustomer(id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: [...vendorKeys.all, 'customers'] })
+      toast.success('Customer deleted')
+    },
+    onError: apiError('Could not delete customer — they may have linked orders'),
+  })
+}
+
 // ── Reviews ────────────────────────────────────────────────────
 export function useReviews(params?: Record<string, unknown>) {
   return useQuery({
@@ -616,9 +628,9 @@ export function useRemoveTeamMember() {
     mutationFn: (id: string) => vendorApi.removeTeamMember(id),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['vendor', 'team'] })
-      toast.success('Team member removed')
+      toast.success('Team member deleted')
     },
-    onError: apiError('Could not remove team member — they may be the only admin'),
+    onError: apiError('Could not delete team member — they may be referenced by other records'),
   })
 }
 
@@ -743,8 +755,8 @@ export function useDeleteSupplier() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: (id: string) => vendorApi.deleteSupplier(id),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['vendor', 'suppliers'] }); toast.success('Supplier deactivated') },
-    onError: apiError('Could not deactivate supplier — they may have open purchase orders'),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['vendor', 'suppliers'] }); toast.success('Supplier deleted') },
+    onError: apiError('Could not delete supplier — they may have linked purchase orders'),
   })
 }
 

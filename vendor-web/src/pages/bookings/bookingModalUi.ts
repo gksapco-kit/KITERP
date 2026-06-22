@@ -45,7 +45,7 @@ export const bookingModalUi = {
   badgeBusy: 'bg-amber-500/15 text-amber-700 dark:text-amber-300',
   emptyStateIcon: 'w-9 h-9 rounded-full bg-emerald-500/15 flex items-center justify-center mb-2',
   slotPickerShell:
-    'bg-card rounded-2xl shadow-2xl border border-border w-full max-w-md overflow-hidden max-h-[90vh] overflow-y-auto text-foreground',
+    'bg-card rounded-2xl shadow-2xl border border-border w-full max-w-2xl overflow-hidden max-h-[90vh] overflow-y-auto text-foreground',
   slotPickerLegend: 'flex items-center gap-4 px-4 py-2 border-b border-border bg-muted/25',
   slotPickerFooter: 'px-4 py-2.5 border-t border-border bg-muted/25 flex items-center justify-between',
   slotConflictBadge: 'border-red-500/40 bg-red-500/10',

@@ -4,6 +4,7 @@ from uuid import UUID
 from datetime import datetime, timezone, date
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, and_
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import selectinload
 from fastapi import HTTPException, status
 
@@ -42,6 +43,18 @@ class SupplierService:
         await self.db.commit()
         await self.db.refresh(supplier)
         return supplier
+
+    async def delete(self, vendor_id: UUID, supplier_id: UUID) -> None:
+        supplier = await self._get(vendor_id, supplier_id)
+        try:
+            await self.db.delete(supplier)
+            await self.db.commit()
+        except IntegrityError:
+            await self.db.rollback()
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Cannot delete supplier — they have linked purchase orders",
+            )
 
     async def get(self, vendor_id: UUID, supplier_id: UUID) -> Supplier:
         return await self._get(vendor_id, supplier_id)

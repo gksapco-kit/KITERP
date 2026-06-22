@@ -1,5 +1,16 @@
 import { cn } from '@/lib/utils'
 
+/** Modal max-width scale — three steps wider than typical dialog defaults for form-heavy UIs */
+export const modalWidthSm = 'max-w-xl'
+export const modalWidthMd = 'max-w-2xl'
+export const modalWidthLg = 'max-w-3xl'
+export const modalWidthXl = 'max-w-4xl'
+export const modalWidth2xl = 'max-w-5xl'
+export const modalWidth3xl = 'max-w-6xl'
+export const modalWidth4xl = 'max-w-7xl'
+export const modalWidth5xl = 'max-w-7xl'
+export const modalDefaultMaxWidth = modalWidthLg
+
 /** Full-screen modal backdrop */
 export const modalOverlayClass =
   'fixed inset-0 z-50 flex items-start justify-center bg-black/50 backdrop-blur-sm p-4 overflow-y-auto'
@@ -10,7 +21,7 @@ export const modalOverlayCenterClass =
 
 /** Standard dialog panel shell */
 export const modalPanelClass =
-  'bg-card border border-border text-foreground rounded-xl shadow-2xl w-full my-auto max-h-[min(90dvh,calc(100vh-2rem))] flex flex-col overflow-hidden'
+  `bg-card border border-border text-foreground rounded-xl shadow-2xl w-full ${modalDefaultMaxWidth} my-auto max-h-[min(90dvh,calc(100vh-2rem))] flex flex-col overflow-hidden`
 
 export const modalPanel2xlClass =
   'bg-card border border-border text-foreground rounded-2xl shadow-2xl w-full max-h-[90vh] overflow-y-auto flex flex-col'

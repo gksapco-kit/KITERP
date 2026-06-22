@@ -114,13 +114,45 @@ function AddressBlock({ label, address }: { label: string; address?: Record<stri
   )
 }
 
+function lineTaxRate(item: Record<string, unknown>): number {
+  const direct = Number(item.tax_rate || item.gst_rate || 0)
+  if (direct > 0) return direct
+  const igst = Number(item.igst_rate || 0)
+  if (igst > 0) return igst
+  return Number(item.cgst_rate || 0) + Number(item.sgst_rate || 0)
+}
+
+function lineTaxable(item: Record<string, unknown>): number {
+  const qty = Number(item.qty || item.quantity || 0)
+  const rate = Number(item.rate || item.price || 0)
+  const discount = Number(item.discount || 0)
+  return qty * rate - discount
+}
+
+function lineTaxAmount(item: Record<string, unknown>): number {
+  const fromGst = Number(item.cgst_amt || 0) + Number(item.sgst_amt || 0) + Number(item.igst_amt || 0)
+  if (fromGst > 0) return fromGst
+  const taxable = lineTaxable(item)
+  const taxRate = lineTaxRate(item)
+  if (taxRate <= 0) return 0
+  return taxable * taxRate / 100
+}
+
+function lineAmount(item: Record<string, unknown>): number {
+  const taxable = lineTaxable(item)
+  const tax = lineTaxAmount(item)
+  if (tax > 0) return taxable + tax
+  const stored = Number(item.total || 0)
+  return stored > 0 ? stored : taxable
+}
+
 function parseLineItems(rawItems: Array<Record<string, unknown>>): LineItem[] {
   return rawItems.map(item => ({
     name: String(item.name || item.description || ''),
     hsn_sac: String(item.hsn_sac || item.hsn_code || item.sac_code || ''),
     qty: Number(item.qty || item.quantity || 0),
     rate: Number(item.rate || item.price || 0),
-    tax_rate: Number(item.tax_rate || item.gst_rate || 0),
+    tax_rate: lineTaxRate(item),
   }))
 }
 
@@ -205,9 +237,34 @@ export default function InvoiceDetail() {
     hsn_sac: (r) => String(r.hsn_sac || r.hsn_code || r.sac_code || ''),
     qty: (r) => Number(r.qty || r.quantity || 0),
     rate: (r) => Number(r.rate || r.price || 0),
-    tax_rate: (r) => Number(r.tax_rate || r.gst_rate || 0),
-    amount: (r) => Number(r.qty || r.quantity || 0) * Number(r.rate || r.price || 0),
+    tax_rate: (r) => lineTaxRate(r),
+    amount: (r) => lineAmount(r),
   }), [])
+
+  const viewTotals = useMemo(() => {
+    if (!inv) {
+      return { subtotal: 0, totalTax: 0, total: 0, balanceDue: 0, roundOff: 0, useComputed: false }
+    }
+    const items = (inv.items || []) as Array<Record<string, unknown>>
+    let computedSubtotal = 0
+    let computedTax = 0
+    for (const item of items) {
+      computedSubtotal += Number(item.qty || item.quantity || 0) * Number(item.rate || item.price || 0)
+      computedTax += lineTaxAmount(item)
+    }
+    const storedTax = Number(inv.total_tax || 0)
+    const useComputed = storedTax === 0 && computedTax > 0
+    const discount = Number(inv.discount_amount || 0)
+    const subtotal = useComputed ? computedSubtotal : Number(inv.subtotal || 0)
+    const totalTax = useComputed ? computedTax : storedTax
+    const roundOff = useComputed ? 0 : Number(inv.round_off || 0)
+    const total = useComputed
+      ? Math.round(subtotal - discount + totalTax)
+      : Number(inv.total || 0)
+    const amountPaid = Number(inv.amount_paid || 0)
+    const balanceDue = useComputed ? total - amountPaid : Number(inv.balance_due || 0)
+    return { subtotal, totalTax, total, balanceDue, roundOff, useComputed }
+  }, [inv])
 
   const sortedViewItems = useMemo(
     () => processRows(inv?.items as Record<string, unknown>[] | undefined, '', () => [], sortKey, sortDir, viewAccessors),
@@ -636,8 +693,8 @@ export default function InvoiceDetail() {
               ) : sortedViewItems.map((item, idx) => {
                 const qty = Number(item.qty || item.quantity || 0)
                 const rate = Number(item.rate || item.price || 0)
-                const taxRate = Number(item.tax_rate || item.gst_rate || 0)
-                const lineTotal = qty * rate
+                const taxRate = lineTaxRate(item)
+                const lineTotal = lineAmount(item)
                 return (
                   <tr key={idx} className="hover:bg-gray-50">
                     <td className="px-5 py-3 text-sm text-gray-400">{idx + 1}</td>
@@ -679,7 +736,7 @@ export default function InvoiceDetail() {
             <>
               <div className="flex justify-between text-sm">
                 <span className="text-gray-500">Subtotal</span>
-                <span className="font-medium">{formatCurrency(inv.subtotal)}</span>
+                <span className="font-medium">{formatCurrency(viewTotals.subtotal)}</span>
               </div>
               {inv.discount_amount > 0 && (
                 <div className="flex justify-between text-sm">
@@ -687,7 +744,7 @@ export default function InvoiceDetail() {
                   <span className="text-red-500">-{formatCurrency(inv.discount_amount)}</span>
                 </div>
               )}
-              {inv.is_gst && !inv.is_inter_state && (
+              {inv.is_gst && !inv.is_inter_state && !viewTotals.useComputed && (
                 <>
                   {inv.cgst_amount > 0 && (
                     <div className="flex justify-between text-sm">
@@ -703,29 +760,29 @@ export default function InvoiceDetail() {
                   )}
                 </>
               )}
-              {inv.is_gst && inv.is_inter_state && inv.igst_amount > 0 && (
+              {inv.is_gst && inv.is_inter_state && !viewTotals.useComputed && inv.igst_amount > 0 && (
                 <div className="flex justify-between text-sm">
                   <span className="text-gray-500">IGST</span>
                   <span>{formatCurrency(inv.igst_amount)}</span>
                 </div>
               )}
-              {inv.total_tax > 0 && (
+              {viewTotals.totalTax > 0 && (
                 <div className="flex justify-between text-sm">
                   <span className="text-gray-500">Total Tax</span>
-                  <span>{formatCurrency(inv.total_tax)}</span>
+                  <span>{formatCurrency(viewTotals.totalTax)}</span>
                 </div>
               )}
-              {inv.round_off !== 0 && (
+              {viewTotals.roundOff !== 0 && (
                 <div className="flex justify-between text-sm">
                   <span className="text-gray-500">Round Off</span>
-                  <span>{formatCurrency(inv.round_off)}</span>
+                  <span>{formatCurrency(viewTotals.roundOff)}</span>
                 </div>
               )}
               <div className="flex justify-between text-base font-bold pt-2 border-t">
                 <span className="flex items-center gap-1"><IndianRupee className="w-4 h-4" /> Total</span>
-                <span>{formatCurrency(inv.total)}</span>
+                <span>{formatCurrency(viewTotals.total)}</span>
               </div>
-              {!isQuotation && (inv.amount_paid > 0 || inv.balance_due > 0) && (
+              {!isQuotation && (inv.amount_paid > 0 || viewTotals.balanceDue > 0) && (
                 <>
                   <div className="flex justify-between text-sm pt-1">
                     <span className="text-gray-500">Amount Paid</span>
@@ -733,8 +790,8 @@ export default function InvoiceDetail() {
                   </div>
                   <div className="flex justify-between text-sm">
                     <span className="text-gray-500">Balance Due</span>
-                    <span className={`font-bold ${inv.balance_due > 0 ? 'text-red-600' : 'text-green-600'}`}>
-                      {formatCurrency(inv.balance_due)}
+                    <span className={`font-bold ${viewTotals.balanceDue > 0 ? 'text-red-600' : 'text-green-600'}`}>
+                      {formatCurrency(viewTotals.balanceDue)}
                     </span>
                   </div>
                 </>

@@ -8,6 +8,7 @@ import {
   modalOverlayCenterClass,
   modalPanel2xlClass,
   modalTitleClass,
+  modalWidthLg,
 } from '@/lib/modalUi'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -17,7 +18,7 @@ import { Loader2, X, Search, ChevronLeft, ChevronRight } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 export function CrmModal({
-  title, onClose, children, maxW = 'max-w-lg', headerActions,
+  title, onClose, children, maxW = modalWidthLg, headerActions,
 }: { title: ReactNode; onClose: () => void; children: ReactNode; maxW?: string; headerActions?: ReactNode }) {
   useEscapeToClose(onClose)
 

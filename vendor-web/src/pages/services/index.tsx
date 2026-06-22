@@ -167,9 +167,8 @@ export default function Services() {
   const [sortKey, setSortKey] = useState('name')
   const [sortDir, setSortDir] = useState<SortDir>('asc')
 
-  // Debounce search input → API call
   useEffect(() => {
-    const t = setTimeout(() => { setSearch(searchInput); setPage(1) }, 300)
+    const t = setTimeout(() => { setSearch(searchInput.trim()); setPage(1) }, 300)
     return () => clearTimeout(t)
   }, [searchInput])
 
@@ -285,6 +284,7 @@ export default function Services() {
                   autoComplete="off"
                   autoCorrect="off"
                   spellCheck={false}
+                  aria-label="Search services"
                 />
                 {searchInput && (
                   <button

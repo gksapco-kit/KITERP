@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { formLabelClass } from '@/components/common/FormSectionNav'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -6,7 +6,7 @@ import { Label } from '@/components/ui/label'
 import { Select } from '@/components/ui/select'
 import { ModalBody, ModalFooter, ModalHeader, ModalOverlay, ModalPanel } from '@/components/ui/Modal'
 import { useEscapeToClose } from '@/hooks/useEscapeToClose'
-import { Plus, Search, Edit2, Trash2, UserCheck, Building2, CreditCard } from 'lucide-react'
+import { Plus, Search, Edit2, Trash2, UserCheck, Building2, CreditCard, ToggleLeft, ToggleRight } from 'lucide-react'
 import { toast } from 'sonner'
 import {
   usePayees, useCreatePayee, useUpdatePayee, useDeletePayee, usePayeeMasterBank,
@@ -17,6 +17,12 @@ import { SupplierPicker, type SupplierPickerValue } from '@/components/commissio
 import { CustomerPicker, type CustomerPickerValue } from '@/components/commission/CustomerPicker'
 import { CollapsibleSection } from '@/components/commission/CollapsibleSection'
 import { extractApiError } from '@/lib/errorMessages'
+import { isValidPhoneNumber, isValidEmail } from '@/lib/loginIdentifier'
+import { PhoneInput } from '@/components/ui/PhoneInput'
+import {
+  commissionPaginationActive,
+  commissionPaginationInactive,
+} from '@/pages/commission/commissionUi'
 
 // ─── constants ────────────────────────────────────────────────────────────────
 
@@ -35,12 +41,6 @@ const LINK_DESCRIPTIONS: Record<LinkType, string> = {
   supplier: 'Pick from your suppliers / contractors list',
   customer: 'Pick from your customer master',
   external: 'Agent or partner not in any master list',
-}
-
-const STATUS_COLORS: Record<string, string> = {
-  active: 'bg-emerald-500/15 text-emerald-800 dark:text-emerald-300',
-  inactive: 'bg-muted text-muted-foreground',
-  suspended: 'bg-red-500/15 text-red-800 dark:text-red-300',
 }
 
 const TABLE_ICON_BTN =
@@ -113,6 +113,8 @@ export default function PayeesPage() {
   const [editing, setEditing] = useState<CommissionPayee | null>(null)
   const [form, setForm] = useState<FormState>(emptyForm())
   const [bank, setBank] = useState<BankFields>(emptyBank())
+  const [phoneError, setPhoneError] = useState('')
+  const [emailError, setEmailError] = useState('')
 
   // master picker selections
   const [selectedStaff, setSelectedStaff] = useState<StaffPickerValue | null>(null)
@@ -127,13 +129,26 @@ export default function PayeesPage() {
   )
   const masterBank = masterBankQuery.data
 
-  const { data, isLoading } = usePayees({ page, size: 20 })
+  const apiParams = useMemo(() => {
+    const p: Record<string, unknown> = { page, size: 20 }
+    const q = search.trim()
+    if (q) p.search = q
+    return p
+  }, [page, search])
+
+  const { data, isLoading } = usePayees(apiParams)
   const create = useCreatePayee()
   const update = useUpdatePayee()
   const remove = useDeletePayee()
 
   const items = data?.items || []
+  const total = data?.total ?? 0
   const pages = data?.pages || 1
+  const pageWindowStart = Math.max(1, Math.min(page - 2, pages - 4))
+  const pageNumbers = Array.from(
+    { length: Math.min(5, pages) },
+    (_, i) => pageWindowStart + i,
+  ).filter(pg => pg >= 1 && pg <= pages)
 
   const set = (k: keyof FormState, v: string) => setForm(p => ({ ...p, [k]: v }))
   const setB = (k: keyof BankFields, v: string) => setBank(p => ({ ...p, [k]: v }))
@@ -162,6 +177,8 @@ export default function PayeesPage() {
     setForm(emptyForm())
     setBank(emptyBank())
     setSelectedStaff(null); setSelectedSupplier(null); setSelectedCustomer(null)
+    setPhoneError('')
+    setEmailError('')
     setShowForm(true)
   }
 
@@ -193,6 +210,8 @@ export default function PayeesPage() {
     if (p.link_type === 'customer' && ext.customer_id) {
       setSelectedCustomer({ id: ext.customer_id, full_name: p.display_name, phone: p.phone, email: p.email })
     } else setSelectedCustomer(null)
+    setPhoneError('')
+    setEmailError('')
     setShowForm(true)
   }
 
@@ -235,11 +254,22 @@ export default function PayeesPage() {
 
   const handleSave = async () => {
     if (!form.display_name.trim()) return toast.error('Display Name is required')
+    const trimmedEmail = form.email.trim()
+    if (form.phone.trim() && !isValidPhoneNumber(form.phone)) {
+      setPhoneError('Enter a valid phone number with country code')
+      return toast.error('Enter a valid phone number with country code')
+    }
+    if (!isValidEmail(trimmedEmail)) {
+      setEmailError('Enter a valid email address')
+      return toast.error('Enter a valid email address')
+    }
+    setPhoneError('')
+    setEmailError('')
     const payload: Record<string, unknown> = {
       ...form,
       display_name: form.display_name.trim(),
-      phone: form.phone || null,
-      email: form.email || null,
+      phone: form.phone.trim() || null,
+      email: trimmedEmail || null,
       code: form.code || null,
       external_user_id: form.external_user_id || null,
       vendor_user_id: form.vendor_user_id || null,
@@ -269,16 +299,28 @@ export default function PayeesPage() {
     }
   }
 
-  const handleDelete = async (id: string) => {
-    if (!confirm('Deactivate this payee?')) return
-    try { await remove.mutateAsync(id); toast.success('Payee deactivated') }
-    catch { toast.error('Failed to deactivate') }
+  const handleToggleStatus = async (p: CommissionPayee) => {
+    const isActive = p.status === 'active'
+    const nextStatus = isActive ? 'inactive' : 'active'
+    const label = isActive ? 'deactivate' : 'activate'
+    if (!confirm(`${isActive ? 'Deactivate' : 'Activate'} this payee?`)) return
+    try {
+      await update.mutateAsync({ id: p.id, data: { status: nextStatus } })
+      toast.success(`Payee ${label}d`)
+    } catch (err) {
+      toast.error(extractApiError(err, `Failed to ${label} payee`))
+    }
   }
 
-  const filtered = items.filter(p =>
-    !search || p.display_name.toLowerCase().includes(search.toLowerCase()) ||
-    (p.phone || '').includes(search) || (p.external_user_id || '').includes(search)
-  )
+  const handleDelete = async (id: string) => {
+    if (!confirm('Delete this payee permanently? This cannot be undone.')) return
+    try {
+      await remove.mutateAsync(id)
+      toast.success('Payee deleted')
+    } catch (err) {
+      toast.error(extractApiError(err, 'Failed to delete payee'))
+    }
+  }
 
   // ── bank preview helper ───────────────────────────────────────────────────
 
@@ -303,7 +345,7 @@ export default function PayeesPage() {
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none z-10" />
         <Input
           value={search}
-          onChange={e => setSearch(e.target.value)}
+          onChange={e => { setSearch(e.target.value); setPage(1) }}
           placeholder="Search by name, phone, or ID…"
           className="pl-10 bg-background border-input"
         />
@@ -325,9 +367,9 @@ export default function PayeesPage() {
           <tbody className="divide-y divide-border">
             {isLoading ? (
               <tr><td colSpan={6} className="text-center py-12 text-muted-foreground">Loading…</td></tr>
-            ) : filtered.length === 0 ? (
+            ) : items.length === 0 ? (
               <tr><td colSpan={6} className="text-center py-12 text-muted-foreground">No payees found</td></tr>
-            ) : filtered.map(p => (
+            ) : items.map(p => (
               <tr key={p.id} className="hover:bg-muted/30 transition-colors">
                 <td className="px-4 py-3">
                   <div className="flex items-center gap-2 min-w-0">
@@ -353,16 +395,24 @@ export default function PayeesPage() {
                   {p.default_payout_method.replace(/_/g, ' ')}
                 </td>
                 <td className="px-4 py-3 whitespace-nowrap">
-                  <span className={`inline-flex shrink-0 whitespace-nowrap px-2 py-0.5 rounded text-xs font-medium ${STATUS_COLORS[p.status] || 'bg-muted text-muted-foreground'}`}>
-                    {p.status}
-                  </span>
+                  <button
+                    type="button"
+                    onClick={() => handleToggleStatus(p)}
+                    title={p.status === 'active' ? 'Active — click to deactivate' : 'Inactive — click to activate'}
+                    className="inline-flex items-center text-muted-foreground hover:text-foreground transition-colors"
+                    aria-label={p.status === 'active' ? 'Deactivate payee' : 'Activate payee'}
+                  >
+                    {p.status === 'active'
+                      ? <ToggleRight className="h-6 w-6 text-emerald-500 dark:text-emerald-400" />
+                      : <ToggleLeft className="h-6 w-6 text-muted-foreground" />}
+                  </button>
                 </td>
                 <td className="px-4 py-3">
                   <div className="flex items-center gap-1 justify-end">
                     <button type="button" onClick={() => openEdit(p)} className={TABLE_ICON_BTN} aria-label="Edit payee">
                       <Edit2 className="h-4 w-4" />
                     </button>
-                    <button type="button" onClick={() => handleDelete(p.id)} className={`${TABLE_ICON_BTN} hover:text-red-500 dark:hover:text-red-400`} aria-label="Deactivate payee">
+                    <button type="button" onClick={() => handleDelete(p.id)} className={`${TABLE_ICON_BTN} hover:text-red-500 dark:hover:text-red-400`} aria-label="Delete payee">
                       <Trash2 className="h-4 w-4" />
                     </button>
                   </div>
@@ -374,14 +424,54 @@ export default function PayeesPage() {
       </div>
 
       {/* Pagination */}
-      {pages > 1 && (
-        <div className="flex justify-center gap-2 mt-4">
-          {Array.from({ length: pages }, (_, i) => (
-            <button key={i} onClick={() => setPage(i + 1)}
-              className={`px-3 py-1 rounded text-sm transition-colors ${page === i + 1 ? 'bg-primary text-primary-foreground' : 'border border-border text-muted-foreground hover:bg-muted hover:text-foreground'}`}>
-              {i + 1}
-            </button>
-          ))}
+      {!isLoading && total > 0 && (
+        <div className="flex items-center justify-between mt-4 flex-wrap gap-3">
+          <span className="text-xs text-muted-foreground">
+            Page {page} of {pages} · {total} payee{total === 1 ? '' : 's'}
+            {search.trim() ? ` matching "${search.trim()}"` : ''}
+          </span>
+          {pages > 1 && (
+            <div className="flex items-center gap-1 flex-wrap">
+              <button
+                type="button"
+                disabled={page <= 1}
+                onClick={() => setPage(p => p - 1)}
+                className={`${commissionPaginationInactive} disabled:opacity-40 disabled:cursor-not-allowed`}
+              >
+                ← Prev
+              </button>
+              {pageWindowStart > 1 && (
+                <>
+                  <button type="button" onClick={() => setPage(1)} className={commissionPaginationInactive}>1</button>
+                  {pageWindowStart > 2 && <span className="px-1 text-xs text-muted-foreground">…</span>}
+                </>
+              )}
+              {pageNumbers.map(pg => (
+                <button
+                  key={pg}
+                  type="button"
+                  onClick={() => setPage(pg)}
+                  className={page === pg ? commissionPaginationActive : commissionPaginationInactive}
+                >
+                  {pg}
+                </button>
+              ))}
+              {pageWindowStart + 4 < pages && (
+                <>
+                  {pageWindowStart + 5 < pages && <span className="px-1 text-xs text-muted-foreground">…</span>}
+                  <button type="button" onClick={() => setPage(pages)} className={commissionPaginationInactive}>{pages}</button>
+                </>
+              )}
+              <button
+                type="button"
+                disabled={page >= pages}
+                onClick={() => setPage(p => p + 1)}
+                className={`${commissionPaginationInactive} disabled:opacity-40 disabled:cursor-not-allowed`}
+              >
+                Next →
+              </button>
+            </div>
+          )}
         </div>
       )}
 
@@ -454,13 +544,25 @@ export default function PayeesPage() {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <Label className={`block mb-1 ${formLabelClass}`}>Phone</Label>
-                  <input value={form.phone} onChange={e => set('phone', e.target.value)} placeholder="9xxxxxxxxx"
-                    className={FIELD_INPUT} />
+                  <PhoneInput
+                    value={form.phone}
+                    onChange={v => { set('phone', v); setPhoneError('') }}
+                    defaultCountryIso="IN"
+                    inferCountryFromLocation
+                    compactCountry
+                    error={phoneError}
+                  />
                 </div>
                 <div>
                   <Label className={`block mb-1 ${formLabelClass}`}>Email</Label>
-                  <input type="email" value={form.email} onChange={e => set('email', e.target.value)} placeholder="name@example.com"
-                    className={FIELD_INPUT} />
+                  <input
+                    type="email"
+                    value={form.email}
+                    onChange={e => { set('email', e.target.value); setEmailError('') }}
+                    placeholder="name@example.com"
+                    className={`${FIELD_INPUT}${emailError ? ' border-destructive bg-destructive/10' : ''}`}
+                  />
+                  {emailError && <p className="text-xs text-destructive mt-1">{emailError}</p>}
                 </div>
               </div>
 

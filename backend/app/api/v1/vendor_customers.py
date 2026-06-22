@@ -395,6 +395,28 @@ async def update_customer(
     return _customer_dict(customer)
 
 
+@router.delete("/{customer_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_customer(
+    customer_id: UUID,
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db),
+):
+    vendor_id = await _get_vendor_id(current_user, db)
+    repo = CustomerRepository(db)
+    customer = await repo.get_by_vendor_and_id(vendor_id, customer_id)
+    if not customer:
+        raise HTTPException(status_code=404, detail="Customer not found")
+    try:
+        await db.delete(customer)
+        await db.commit()
+    except IntegrityError:
+        await db.rollback()
+        raise HTTPException(
+            status_code=409,
+            detail="Cannot delete customer — they have orders or other linked records",
+        )
+
+
 @router.get("/{customer_id}", response_model=CustomerResponse)
 async def get_customer(
     customer_id: UUID,

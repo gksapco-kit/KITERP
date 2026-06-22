@@ -20,6 +20,10 @@ type Props = {
   hint?: string
   className?: string
   extra?: React.ReactNode
+  /** Filters or controls shown on the left (e.g. business unit, status) */
+  leading?: React.ReactNode
+  /** Width/layout classes for the search field wrapper */
+  searchWrapperClassName?: string
 }
 
 export function TableToolbar({
@@ -35,42 +39,49 @@ export function TableToolbar({
   hint,
   className = '',
   extra,
+  leading,
+  searchWrapperClassName = 'w-48 min-w-[9rem]',
 }: Props) {
   return (
     <div
-      className={`flex flex-col sm:flex-row gap-3 flex-wrap items-stretch sm:items-center border-b border-border bg-muted/40 px-4 py-3 ${className}`}
+      className={`flex flex-nowrap items-center gap-3 overflow-x-auto border-b border-border bg-muted/40 px-4 py-3 ${className}`}
     >
+      {leading && (
+        <div className="flex flex-nowrap items-center gap-3 shrink-0">
+          {leading}
+        </div>
+      )}
       {!hideSearch && (
-        <div className="relative flex-1 min-w-[200px] max-w-md">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
+        <div className={`relative shrink-0 ${searchWrapperClassName}`}>
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none z-10" />
           <Input
             value={search}
             onChange={(e) => onSearchChange(e.target.value)}
             placeholder={searchPlaceholder}
-            className="pl-10 h-9"
+            className="pl-10 h-9 w-full"
             aria-label="Filter table"
           />
         </div>
       )}
-      <div className="flex flex-wrap items-center gap-2 sm:ml-auto">
-        {hint && <span className="text-xs text-muted-foreground hidden md:inline max-w-[14rem]">{hint}</span>}
-        <span className="text-xs font-medium text-muted-foreground">Sort</span>
+      <div className="flex flex-nowrap items-center gap-2 ml-auto shrink-0 pl-1">
+        {hint && <span className="text-xs text-muted-foreground hidden xl:inline whitespace-nowrap">{hint}</span>}
+        <span className="text-xs font-medium text-muted-foreground whitespace-nowrap">Sort</span>
         <ThemeSelect
           value={sortKey}
           onChange={onSortKeyChange}
           options={sortOptions.map((o) => ({ value: o.value, label: o.label }))}
           aria-label="Sort by column"
-          className="min-w-[8rem]"
+          wrapperClassName="w-[7.5rem] shrink-0"
         />
         <ThemeSelect
           value={sortDir}
           onChange={(v) => onSortDirChange(v as SortDir)}
           options={[
-            { value: 'asc', label: 'A → Z / Low → High' },
-            { value: 'desc', label: 'Z → A / High → Low' },
+            { value: 'asc', label: 'Low → High' },
+            { value: 'desc', label: 'High → Low' },
           ]}
           aria-label="Sort direction"
-          className="min-w-[8rem]"
+          wrapperClassName="w-[7.5rem] shrink-0"
         />
         {extra}
       </div>

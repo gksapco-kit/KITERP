@@ -9,7 +9,7 @@ import {
   Users, Plus, Shield, Mail, UserCheck,
   UserX, Pencil, Trash2, X, Phone,
   CheckCircle2, AlertCircle, RefreshCw, KeyRound, Store, UserCog,
-  ExternalLink, Calendar, ChevronRight,
+  ExternalLink, Calendar, ChevronRight, ToggleLeft, ToggleRight,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Select, selectOptionsWithBlank } from '@/components/ui/select'
@@ -251,8 +251,14 @@ export default function TeamPage() {
     setEditMember(null)
   }
 
+  const handleToggleStatus = (member: TeamMember) => {
+    const nextActive = !member.is_active
+    if (!confirm(`${nextActive ? 'Activate' : 'Deactivate'} ${member.full_name || 'this team member'}?`)) return
+    updateMutation.mutate({ id: member.id, data: { is_active: nextActive } })
+  }
+
   const handleRemove = (memberId: string) => {
-    if (confirm('Are you sure you want to remove this team member?')) {
+    if (confirm('Delete this team member permanently? This cannot be undone.')) {
       removeMutation.mutate(memberId)
     }
   }
@@ -416,8 +422,20 @@ export default function TeamPage() {
                         </span>
                       )}
                     </td>
-                    <td className="px-6 py-4">
-                      {member.is_active ? (
+                    <td className="px-6 py-4" onClick={e => e.stopPropagation()}>
+                      {canManageTeam && member.role !== 'owner' && member.user_id !== user?.id ? (
+                        <button
+                          type="button"
+                          onClick={() => handleToggleStatus(member)}
+                          title={member.is_active ? 'Active — click to deactivate' : 'Inactive — click to activate'}
+                          className="inline-flex items-center text-gray-400 hover:text-gray-700 transition-colors"
+                          aria-label={member.is_active ? 'Deactivate team member' : 'Activate team member'}
+                        >
+                          {member.is_active
+                            ? <ToggleRight className="w-6 h-6 text-green-500" />
+                            : <ToggleLeft className="w-6 h-6 text-gray-400" />}
+                        </button>
+                      ) : member.is_active ? (
                         <span className="inline-flex items-center gap-1 text-green-600 text-xs font-medium">
                           <UserCheck className="w-3.5 h-3.5" /> Active
                         </span>
@@ -464,7 +482,7 @@ export default function TeamPage() {
                               <button
                                 onClick={() => handleRemove(member.id)}
                                 className="p-1.5 rounded hover:bg-red-50 text-red-500"
-                                title="Remove"
+                                title="Delete permanently"
                               >
                                 <Trash2 className="w-4 h-4" />
                               </button>
@@ -1044,7 +1062,7 @@ function MemberDetailDrawer({
               className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium text-red-600 hover:bg-red-50 transition-colors border border-red-100"
             >
               <Trash2 className="w-4 h-4" />
-              Remove
+              Delete
             </button>
           )}
           <div className="flex-1" />

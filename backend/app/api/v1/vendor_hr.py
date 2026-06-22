@@ -50,13 +50,27 @@ class DeptUpdate(BaseModel):
 
 
 class DesigIn(BaseModel):
-    name: str = Field(..., max_length=100)
-    level: int = 1
+    name: str = Field(..., min_length=2, max_length=100)
+    level: int = Field(1, ge=1, le=20)
+
+    @field_validator("name", mode="before")
+    @classmethod
+    def strip_name(cls, v: object) -> str:
+        return str(v or "").strip()
+
 
 class DesigUpdate(BaseModel):
-    name: Optional[str] = None
-    level: Optional[int] = None
+    name: Optional[str] = Field(None, min_length=2, max_length=100)
+    level: Optional[int] = Field(None, ge=1, le=20)
     is_active: Optional[bool] = None
+
+    @field_validator("name", mode="before")
+    @classmethod
+    def strip_name(cls, v: object) -> Optional[str]:
+        if v is None:
+            return None
+        s = str(v).strip()
+        return s or None
 
 
 class EmployeeIn(BaseModel):

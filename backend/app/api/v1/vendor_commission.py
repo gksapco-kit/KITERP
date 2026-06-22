@@ -13,6 +13,7 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import select, and_, or_, func as sqlfunc, desc
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_vendor_user, require_permission, get_db
@@ -95,6 +96,7 @@ async def list_payees(
     size: int = Query(20, ge=1, le=100),
     status: Optional[str] = None,
     link_type: Optional[str] = None,
+    search: Optional[str] = Query(None, description="Payee name, email, phone, code, or external ID"),
     vu: VendorUser = Depends(require_permission("commission.read")),
     db: AsyncSession = Depends(get_db),
 ):
@@ -103,6 +105,17 @@ async def list_payees(
         conditions.append(CommissionPayee.status == status)
     if link_type:
         conditions.append(CommissionPayee.link_type == link_type)
+    if search and search.strip():
+        term = f"%{search.strip()}%"
+        conditions.append(
+            or_(
+                CommissionPayee.display_name.ilike(term),
+                CommissionPayee.email.ilike(term),
+                CommissionPayee.phone.ilike(term),
+                CommissionPayee.code.ilike(term),
+                CommissionPayee.external_user_id.ilike(term),
+            )
+        )
 
     total = (await db.execute(
         select(sqlfunc.count()).select_from(CommissionPayee).where(and_(*conditions))
@@ -147,7 +160,7 @@ async def update_payee(
     db: AsyncSession = Depends(get_db),
 ):
     p = await _fetch_payee(db, vu.vendor_id, payee_id)
-    for k, v in data.model_dump(exclude_none=True).items():
+    for k, v in data.model_dump(exclude_unset=True).items():
         setattr(p, k, v)
     await db.commit()
     await db.refresh(p)
@@ -161,8 +174,15 @@ async def delete_payee(
     db: AsyncSession = Depends(get_db),
 ):
     p = await _fetch_payee(db, vu.vendor_id, payee_id)
-    p.status = "inactive"
-    await db.commit()
+    try:
+        await db.delete(p)
+        await db.commit()
+    except IntegrityError:
+        await db.rollback()
+        raise HTTPException(
+            409,
+            "Cannot delete this payee — they have commission accruals or payout records",
+        )
 
 
 @router.get("/payees/{payee_id}/master-bank")
@@ -285,9 +305,30 @@ async def create_plan(
     vu: VendorUser = Depends(require_permission("commission.manage")),
     db: AsyncSession = Depends(get_db),
 ):
-    plan = CommissionPlan(vendor_id=vu.vendor_id, **data.model_dump())
+    code = data.code.strip()
+    if not code:
+        raise HTTPException(400, "Plan code is required")
+    existing = await db.execute(
+        select(CommissionPlan).where(
+            CommissionPlan.vendor_id == vu.vendor_id,
+            CommissionPlan.code == code,
+        )
+    )
+    if existing.scalar_one_or_none():
+        raise HTTPException(
+            409,
+            f'A commission plan with code "{code}" already exists. Use a unique code.',
+        )
+    plan = CommissionPlan(vendor_id=vu.vendor_id, **{**data.model_dump(), "code": code})
     db.add(plan)
-    await db.commit()
+    try:
+        await db.commit()
+    except IntegrityError:
+        await db.rollback()
+        raise HTTPException(
+            409,
+            f'A commission plan with code "{code}" already exists. Use a unique code.',
+        )
     await db.refresh(plan)
     return _d(plan)
 
@@ -315,9 +356,36 @@ async def update_plan(
     db: AsyncSession = Depends(get_db),
 ):
     plan = await _fetch_plan(db, vu.vendor_id, plan_id)
-    for k, v in data.model_dump(exclude_none=True).items():
+    if data.code is not None:
+        code = data.code.strip()
+        if not code:
+            raise HTTPException(400, "Plan code is required")
+        existing = await db.execute(
+            select(CommissionPlan).where(
+                CommissionPlan.vendor_id == vu.vendor_id,
+                CommissionPlan.code == code,
+                CommissionPlan.id != plan_id,
+            )
+        )
+        if existing.scalar_one_or_none():
+            raise HTTPException(
+                409,
+                f'A commission plan with code "{code}" already exists. Use a unique code.',
+            )
+    updates = data.model_dump(exclude_unset=True)
+    if "code" in updates and updates["code"] is not None:
+        updates["code"] = updates["code"].strip()
+    for k, v in updates.items():
         setattr(plan, k, v)
-    await db.commit()
+    try:
+        await db.commit()
+    except IntegrityError:
+        await db.rollback()
+        conflict_code = updates.get("code", plan.code)
+        raise HTTPException(
+            409,
+            f'A commission plan with code "{conflict_code}" already exists. Use a unique code.',
+        )
     await db.refresh(plan)
     return _d(plan)
 
@@ -329,8 +397,15 @@ async def delete_plan(
     db: AsyncSession = Depends(get_db),
 ):
     plan = await _fetch_plan(db, vu.vendor_id, plan_id)
-    plan.status = "inactive"
-    await db.commit()
+    try:
+        await db.delete(plan)
+        await db.commit()
+    except IntegrityError:
+        await db.rollback()
+        raise HTTPException(
+            409,
+            "Cannot delete this plan — it is referenced by commission accruals or other records",
+        )
 
 
 async def _fetch_plan(db, vendor_id, plan_id) -> CommissionPlan:
@@ -558,7 +633,7 @@ async def delete_assignment(
     a = result.scalar_one_or_none()
     if not a:
         raise HTTPException(404, "Assignment not found")
-    a.is_active = False
+    await db.delete(a)
     await db.commit()
 
 

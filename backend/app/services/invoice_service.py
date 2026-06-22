@@ -1,6 +1,6 @@
 import logging
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func as sqlfunc, and_
+from sqlalchemy import select, func as sqlfunc, and_, or_
 from uuid import UUID
 from datetime import date, datetime
 import math
@@ -85,7 +85,13 @@ class InvoiceService:
         fy_short = fy.replace("-", "")
         return f"{prefix}/{fy_short}/{seq:04d}"
 
-    def _compute_tax(self, items: list, is_inter_state: bool, vendor_gst_registered: bool):
+    def _compute_tax(
+        self,
+        items: list,
+        is_inter_state: bool,
+        vendor_gst_registered: bool,
+        invoice_type: str = "invoice",
+    ):
         computed = []
         total_cgst = total_sgst = total_igst = total_taxable = 0
 
@@ -93,18 +99,19 @@ class InvoiceService:
             qty = item.get("qty", 0)
             rate = item.get("rate", 0)
             discount = item.get("discount", 0)
-            tax_rate = item.get("tax_rate", 0) if vendor_gst_registered else 0
+            user_tax_rate = float(item.get("tax_rate", 0) or 0)
+            apply_tax = user_tax_rate
 
             line_total = qty * rate
             taxable = line_total - discount
 
             if is_inter_state:
-                igst_rate = tax_rate
+                igst_rate = apply_tax
                 igst_amt = round(taxable * igst_rate / 100, 2)
                 cgst_rate = cgst_amt = sgst_rate = sgst_amt = 0
                 total_igst += igst_amt
             else:
-                half = tax_rate / 2
+                half = apply_tax / 2
                 cgst_rate = half
                 sgst_rate = half
                 cgst_amt = round(taxable * cgst_rate / 100, 2)
@@ -130,7 +137,7 @@ class InvoiceService:
                 "sgst_amt": float(sgst_amt),
                 "igst_rate": igst_rate,
                 "igst_amt": float(igst_amt),
-                "tax_rate": tax_rate,
+                "tax_rate": user_tax_rate,
                 "total": float(taxable + line_tax),
             })
 
@@ -159,7 +166,9 @@ class InvoiceService:
         vendor_gst = bool(vendor.gstin)
 
         raw_items = data.get("items", [])
-        computed_items, taxable, cgst, sgst, igst = self._compute_tax(raw_items, is_inter_state, vendor_gst)
+        computed_items, taxable, cgst, sgst, igst = self._compute_tax(
+            raw_items, is_inter_state, vendor_gst, invoice_type
+        )
 
         subtotal = sum(i["qty"] * i["rate"] for i in raw_items)
         discount_amount = data.get("discount_amount", 0)
@@ -252,7 +261,10 @@ class InvoiceService:
             vendor_result = await self.db.execute(select(Vendor).where(Vendor.id == vendor_id))
             vendor = vendor_result.scalar_one_or_none()
             computed, taxable, cgst, sgst, igst = self._compute_tax(
-                data["items"], invoice.is_inter_state, bool(vendor and vendor.gstin)
+                data["items"],
+                invoice.is_inter_state,
+                bool(vendor and vendor.gstin),
+                invoice.invoice_type,
             )
             invoice.items = computed
             invoice.item_count = len(computed)
@@ -336,6 +348,7 @@ class InvoiceService:
         page: int = 1,
         size: int = 20,
         store_id: str | UUID = None,
+        search: str = None,
     ):
         conditions = [Invoice.vendor_id == vendor_id]
         if invoice_type:
@@ -346,6 +359,18 @@ class InvoiceService:
             conditions.append(Invoice.status == status)
         if store_id:
             conditions.append(Invoice.store_id == (store_id if isinstance(store_id, UUID) else UUID(str(store_id))))
+        if search and search.strip():
+            term = f"%{search.strip()}%"
+            conditions.append(
+                or_(
+                    Invoice.customer_name.ilike(term),
+                    Invoice.invoice_number.ilike(term),
+                    Invoice.customer_email.ilike(term),
+                    Invoice.customer_phone.ilike(term),
+                    Invoice.order_number.ilike(term),
+                    Invoice.booking_number.ilike(term),
+                )
+            )
 
         count_q = select(sqlfunc.count(Invoice.id)).where(and_(*conditions))
         total = (await self.db.execute(count_q)).scalar_one()

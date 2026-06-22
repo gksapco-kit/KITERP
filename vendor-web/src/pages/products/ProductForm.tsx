@@ -2784,6 +2784,16 @@ export default function ProductForm() {
         } catch { /* best-effort */ }
       }
 
+      const productName = String(data.name || '').trim()
+      if (productName) {
+        const nameTaken = allProducts.some(
+          (p) => p.name.trim().toLowerCase() === productName.toLowerCase() && (!isEdit || p.id !== id),
+        )
+        if (nameTaken) {
+          toast.error('A product with this name already exists')
+          return
+        }
+      }
 
       if (isEdit) {
         await updateProduct.mutateAsync({ id: id!, data })
@@ -2818,7 +2828,7 @@ export default function ProductForm() {
         setPendingFiles([])
         setPendingPreviews([])
         setPendingPrimaryIndex(0)
-        navigate(`/products/${newProduct.id}?edit=true`, { replace: true })
+        navigate('/products')
       }
     } catch (err) {
       // Mutations already toast via apiError(); avoid duplicate “Request failed with status code …”

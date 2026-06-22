@@ -3,12 +3,12 @@
  * Unified view of all party records with full CRUD, detail drawer,
  * status management, PO history, and CSV export.
  */
-import { useState, useMemo, useCallback, useEffect, useRef } from 'react'
+import { useState, useMemo, useCallback, useEffect, useRef, type MouseEvent } from 'react'
 import { useEscapeToClose } from '@/hooks/useEscapeToClose'
 import { useNavigate } from 'react-router-dom'
 import {
   useCustomers, useSuppliers,
-  useUpdateSupplier, useDeleteSupplier, useUpdateCustomer,
+  useUpdateSupplier, useDeleteSupplier, useUpdateCustomer, useDeleteCustomer,
   usePurchaseOrders,
 } from '@/hooks/useVendor'
 import { AddPartyModal } from '@/components/parties/AddPartyModal'
@@ -23,10 +23,12 @@ import {
   Search, Plus, Download, Users, Truck, Briefcase, Link2, HardHat,
   CheckCircle2, PauseCircle, Ban, XCircle, ChevronDown, ChevronUp,
   Filter, RefreshCw, ArrowUpDown, X, Pencil, Trash2, Trash,
+  ToggleLeft, ToggleRight,
   Mail, Phone, MapPin, Calendar, ClipboardList, Package, FileText,
   ArrowRight, Building2, AlertCircle, RotateCcw, ShieldAlert, AlertTriangle,
   Loader2, IndianRupee, ShoppingBag, TrendingUp,
 } from 'lucide-react'
+import { toast } from 'sonner'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -1044,6 +1046,10 @@ export default function MasterDataReport() {
   // Data — fetch all records (no pagination limit) so client-side filtering/sorting works on the full set
   const { data: custData, isLoading: custLoading } = useCustomers({ size: 10000 })
   const { data: suppData, isLoading: suppLoading } = useSuppliers({ size: 10000 })
+  const updateCustomer = useUpdateCustomer()
+  const updateSupplier = useUpdateSupplier()
+  const deleteCustomer = useDeleteCustomer()
+  const deleteSupplier = useDeleteSupplier()
   const isLoading = custLoading || suppLoading
 
   // Normalise both datasets into MasterRecord[]
@@ -1254,6 +1260,35 @@ export default function MasterDataReport() {
 
   const openDrawer = (r: MasterRecord) => setViewingRecord(r)
   const openEdit   = (r: MasterRecord) => { setViewingRecord(null); setEditingRecord(r) }
+
+  const handleToggleStatus = async (r: MasterRecord, e: MouseEvent) => {
+    e.stopPropagation()
+    const nextActive = !r.isActive
+    if (!confirm(`${nextActive ? 'Activate' : 'Deactivate'} "${r.name}"?`)) return
+    try {
+      if (r.kind === 'supplier') {
+        await updateSupplier.mutateAsync({ id: r.id, data: { is_active: nextActive } })
+      } else {
+        await updateCustomer.mutateAsync({ id: r.id, data: { is_active: nextActive } })
+      }
+    } catch {
+      toast.error('Failed to update status')
+    }
+  }
+
+  const handleDelete = async (r: MasterRecord, e: MouseEvent) => {
+    e.stopPropagation()
+    if (!confirm(`Delete "${r.name}" permanently? This cannot be undone.`)) return
+    try {
+      if (r.kind === 'supplier') {
+        await deleteSupplier.mutateAsync(r.id)
+      } else {
+        await deleteCustomer.mutateAsync(r.id)
+      }
+    } catch {
+      toast.error('Failed to delete record')
+    }
+  }
 
   return (
     <div className="space-y-5">
@@ -1687,7 +1722,6 @@ export default function MasterDataReport() {
               </thead>
               <tbody className="divide-y divide-gray-100">
                 {pageRows.map(r => {
-                  const cfg = STATUS_CFG[r.masterStatus] as { label: string; bg: string; text: string; dot: string }
                   const bal = r.balance ?? 0
                   return (
                     <tr key={`${r.kind}-${r.id}`}
@@ -1776,10 +1810,18 @@ export default function MasterDataReport() {
                             </td>
                           )
                           case 'status': return (
-                            <td key="status" className="px-4 py-3">
-                              <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${cfg.bg} ${cfg.text}`}>
-                                <span className={`w-1.5 h-1.5 rounded-full ${cfg.dot}`} /> {cfg.label}
-                              </span>
+                            <td key="status" className="px-4 py-3" onClick={e => e.stopPropagation()}>
+                              <button
+                                type="button"
+                                onClick={(e) => handleToggleStatus(r, e)}
+                                title={r.isActive ? 'Active — click to deactivate' : 'Inactive — click to activate'}
+                                className="inline-flex items-center text-gray-400 hover:text-gray-700 transition-colors"
+                                aria-label={r.isActive ? 'Deactivate record' : 'Activate record'}
+                              >
+                                {r.isActive
+                                  ? <ToggleRight className="w-6 h-6 text-green-500" />
+                                  : <ToggleLeft className="w-6 h-6 text-gray-400" />}
+                              </button>
                             </td>
                           )
                           case 'added': return (
@@ -1799,9 +1841,8 @@ export default function MasterDataReport() {
                                   className="p-1.5 rounded-lg text-gray-400 hover:text-blue-600 hover:bg-blue-50 transition-colors">
                                   <Pencil className="w-3.5 h-3.5" />
                                 </button>
-                                <button onClick={() => { if (r.isActive) setViewingRecord(r) }}
-                                  title={r.isActive ? 'Status / Deactivate' : 'Inactive'}
-                                  className={`p-1.5 rounded-lg transition-colors ${r.isActive ? 'text-gray-400 hover:text-red-600 hover:bg-red-50' : 'text-gray-200 cursor-default'}`}>
+                                <button onClick={(e) => handleDelete(r, e)} title="Delete permanently"
+                                  className="p-1.5 rounded-lg text-gray-400 hover:text-red-600 hover:bg-red-50 transition-colors">
                                   <Trash2 className="w-3.5 h-3.5" />
                                 </button>
                               </div>

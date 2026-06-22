@@ -8,11 +8,14 @@ import string
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field, EmailStr
+from sqlalchemy import update
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
 from app.models.user import User
 from app.models.vendor_user import VendorUser
+from app.models.hr import EmployeeProfile
 from app.models.vendor_role import DEFAULT_ROLE_PERMISSIONS, ALL_PERMISSIONS
 from app.api.deps import (
     get_current_active_user,
@@ -445,7 +448,7 @@ async def remove_team_member(
     vu: VendorUser = Depends(require_permission("team.manage")),
     db: AsyncSession = Depends(get_db),
 ):
-    """Remove a team member (deactivate)."""
+    """Permanently remove a team member from this vendor."""
     repo = VendorUserRepository(db)
     member = await repo.get_with_details(member_id)
     if not member or member.vendor_id != vu.vendor_id:
@@ -455,9 +458,21 @@ async def remove_team_member(
     if member.user_id == vu.user_id:
         raise HTTPException(status_code=400, detail="Cannot remove yourself.")
 
-    member.is_active = False
-    await db.commit()
-    return JSONResponse({"message": "Team member removed"})
+    await db.execute(
+        update(EmployeeProfile)
+        .where(EmployeeProfile.vendor_user_id == member.id)
+        .values(vendor_user_id=None)
+    )
+    try:
+        await db.delete(member)
+        await db.commit()
+    except IntegrityError:
+        await db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Cannot delete team member — they are referenced by other records",
+        )
+    return JSONResponse({"message": "Team member deleted"})
 
 
 # ── OTP verification ──────────────────────────────────────────────────────────

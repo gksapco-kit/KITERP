@@ -342,6 +342,12 @@ async def create_service(
 ):
     repo = ServiceRepository(db)
 
+    if await repo.name_exists(vendor_id, data.name):
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="A service with this name already exists",
+        )
+
     slug = data.slug or slugify(data.name, lowercase=True)
     if await repo.slug_exists(vendor_id, slug):
         slug = f"{slug}-{str(uuid_mod.uuid4())[:8]}"
@@ -444,6 +450,14 @@ async def update_service(
     plans_data = update_data.pop("plans", None)
     store_ids_payload = update_data.pop("store_ids", None)
     _coerce_date_fields(update_data)
+
+    if "name" in update_data and await repo.name_exists(
+        vendor_id, str(update_data["name"]), exclude_id=service_id
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="A service with this name already exists",
+        )
 
     # Material code is auto-assigned and must never be blanked. Trim it when
     # provided, drop empty values, and backfill legacy services that lack one.

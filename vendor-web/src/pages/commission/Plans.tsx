@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useEscapeToClose } from '@/hooks/useEscapeToClose'
-import { Plus, Edit2, ChevronDown, ChevronRight, ToggleLeft, ToggleRight, X } from 'lucide-react'
+import { Plus, Edit2, ChevronDown, ChevronRight, ToggleLeft, ToggleRight, X, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { usePlans, useCreatePlan, useUpdatePlan, useDeletePlan, useCreateRule, useUpdateRule, useDeleteRule } from '@/hooks/useCommission'
 import { RuleBuilder } from '@/components/commission/RuleBuilder'
@@ -10,6 +10,8 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select } from '@/components/ui/select'
 import type { CommissionPlan, CommissionRule } from '@/types/commission'
+import { extractApiError } from '@/lib/errorMessages'
+import { commissionTableIconBtn } from '@/pages/commission/commissionUi'
 
 const PAYEE_SCOPES = ['any', 'employee', 'vendor', 'contractor', 'agent', 'customer']
 const STATUS_COLORS: Record<string, string> = {
@@ -27,6 +29,7 @@ export default function PlansPage() {
     priority: 10, stackable: false, effective_from: '', effective_to: '',
   })
   const [rules, setRules] = useState<CommissionRule[]>([])
+  const [codeError, setCodeError] = useState('')
 
   const { data, isLoading } = usePlans()
   const create = useCreatePlan()
@@ -43,6 +46,7 @@ export default function PlansPage() {
     setForm({ code: '', name: '', description: '', status: 'active', payee_scope: 'any',
       priority: 10, stackable: false, effective_from: '', effective_to: '' })
     setRules([])
+    setCodeError('')
     setShowForm(true)
   }
 
@@ -58,13 +62,26 @@ export default function PlansPage() {
       stackable: plan.stackable, effective_from: plan.effective_from || '', effective_to: plan.effective_to || '',
     })
     setRules(plan.rules || [])
+    setCodeError('')
     setShowForm(true)
   }
 
   const handleSave = async () => {
-    if (!form.code || !form.name) return toast.error('Code and name are required')
+    const code = String(form.code || '').trim()
+    if (!code || !form.name) return toast.error('Code and name are required')
+    if (!editing && plans.some(p => p.code.trim().toLowerCase() === code.toLowerCase())) {
+      const msg = `A plan with code "${code}" already exists. Use a unique code.`
+      setCodeError(msg)
+      return toast.error(msg)
+    }
+    if (editing && plans.some(p => p.id !== editing.id && p.code.trim().toLowerCase() === code.toLowerCase())) {
+      const msg = `A plan with code "${code}" already exists. Use a unique code.`
+      setCodeError(msg)
+      return toast.error(msg)
+    }
+    setCodeError('')
     try {
-      const payload = { ...form, effective_from: form.effective_from || null, effective_to: form.effective_to || null }
+      const payload = { ...form, code, effective_from: form.effective_from || null, effective_to: form.effective_to || null }
       let plan: CommissionPlan
       if (editing) {
         plan = await update.mutateAsync({ id: editing.id, data: payload })
@@ -94,8 +111,10 @@ export default function PlansPage() {
         toast.success('Plan created')
       }
       setShowForm(false)
-    } catch {
-      toast.error('Failed to save plan')
+    } catch (err) {
+      const msg = extractApiError(err, 'Failed to save plan')
+      toast.error(msg)
+      if (msg.toLowerCase().includes('code')) setCodeError(msg.replace(/^Failed to save plan:\s*/i, ''))
     }
   }
 
@@ -106,6 +125,17 @@ export default function PlansPage() {
       toast.success(`Plan ${newStatus}`)
     } catch {
       toast.error('Failed to update status')
+    }
+  }
+
+  const handleDelete = async (plan: CommissionPlan) => {
+    if (!confirm(`Delete plan "${plan.name}" permanently? This cannot be undone.`)) return
+    try {
+      await deletePlan.mutateAsync(plan.id)
+      if (expanded === plan.id) setExpanded(null)
+      toast.success('Plan deleted')
+    } catch (err) {
+      toast.error(extractApiError(err, 'Failed to delete plan'))
     }
   }
 
@@ -151,14 +181,33 @@ export default function PlansPage() {
                     </div>
                   </div>
                 </div>
-                <div className="flex items-center gap-3">
-                  <button onClick={() => toggleStatus(plan)} className="text-muted-foreground hover:text-foreground">
+                <div className="flex items-center gap-1">
+                  <button
+                    type="button"
+                    onClick={() => toggleStatus(plan)}
+                    className={commissionTableIconBtn}
+                    aria-label={plan.status === 'active' ? 'Deactivate plan' : 'Activate plan'}
+                  >
                     {plan.status === 'active'
                       ? <ToggleRight className="h-5 w-5 text-emerald-500 dark:text-emerald-400" />
                       : <ToggleLeft className="h-5 w-5" />}
                   </button>
-                  <button onClick={() => openEdit(plan)} className="text-muted-foreground hover:text-primary">
+                  <button
+                    type="button"
+                    onClick={() => openEdit(plan)}
+                    className={`${commissionTableIconBtn} hover:text-primary`}
+                    aria-label="Edit plan"
+                  >
                     <Edit2 className="h-4 w-4" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleDelete(plan)}
+                    className={`${commissionTableIconBtn} hover:text-red-500 dark:hover:text-red-400`}
+                    aria-label="Delete plan"
+                    disabled={deletePlan.isPending}
+                  >
+                    <Trash2 className="h-4 w-4" />
                   </button>
                 </div>
               </div>
@@ -222,9 +271,15 @@ export default function PlansPage() {
                     </Label>
                     <Input
                       value={String(form[f.key] || '')}
-                      onChange={e => setForm(p => ({ ...p, [f.key]: e.target.value }))}
-                      className="h-9"
+                      onChange={e => {
+                        setForm(p => ({ ...p, [f.key]: e.target.value }))
+                        if (f.key === 'code') setCodeError('')
+                      }}
+                      className={`h-9${f.key === 'code' && codeError ? ' border-destructive bg-destructive/10' : ''}`}
                     />
+                    {f.key === 'code' && codeError && (
+                      <p className="text-xs text-destructive mt-1">{codeError}</p>
+                    )}
                   </div>
                 ))}
               </div>

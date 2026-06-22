@@ -6,6 +6,7 @@ from uuid import UUID
 from datetime import date, datetime, timedelta
 from decimal import Decimal
 
+from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi import HTTPException, status
 
@@ -58,17 +59,57 @@ class HRService:
 
     # ─────────────────── Designations ────────────────────────────────
 
+    async def _validate_designation(
+        self,
+        vendor_id: UUID,
+        name: str,
+        level: int,
+        *,
+        exclude_id: UUID | None = None,
+    ) -> tuple[str, int]:
+        clean_name = (name or "").strip()
+        if len(clean_name) < 2:
+            raise HTTPException(status_code=400, detail="Designation title must be at least 2 characters")
+        if level < 1 or level > 20:
+            raise HTTPException(status_code=400, detail="Seniority level must be between 1 and 20")
+        q = select(Designation).where(
+            Designation.vendor_id == vendor_id,
+            func.lower(Designation.name) == clean_name.lower(),
+            Designation.level == level,
+            Designation.is_active == True,
+        )
+        if exclude_id:
+            q = q.where(Designation.id != exclude_id)
+        existing = (await self.db.execute(q)).scalar_one_or_none()
+        if existing:
+            raise HTTPException(
+                status_code=409,
+                detail=f'Designation "{clean_name}" at level L{level} already exists',
+            )
+        return clean_name, level
+
     async def list_designations(self, vendor_id: UUID) -> List[Designation]:
         return await self.desig_repo.list(vendor_id)
 
     async def create_designation(self, vendor_id: UUID, data: dict) -> Designation:
-        return await self.desig_repo.create(vendor_id, data)
+        name = data.get("name", "")
+        level = data.get("level", 1)
+        clean_name, clean_level = await self._validate_designation(vendor_id, name, level)
+        return await self.desig_repo.create(
+            vendor_id, {**data, "name": clean_name, "level": clean_level}
+        )
 
     async def update_designation(self, desig_id: UUID, vendor_id: UUID, data: dict) -> Designation:
         desig = await self.desig_repo.get(desig_id, vendor_id)
         if not desig:
             raise HTTPException(status_code=404, detail="Designation not found")
-        return await self.desig_repo.update(desig, data)
+        name = data.get("name", desig.name)
+        level = data.get("level", desig.level)
+        clean_name, clean_level = await self._validate_designation(
+            vendor_id, name, level, exclude_id=desig_id
+        )
+        payload = {**data, "name": clean_name, "level": clean_level}
+        return await self.desig_repo.update(desig, payload)
 
     async def delete_designation(self, desig_id: UUID, vendor_id: UUID) -> None:
         desig = await self.desig_repo.get(desig_id, vendor_id)

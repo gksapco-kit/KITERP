@@ -25,3 +25,19 @@ export function isValidEmailOrPhoneLogin(val: string): boolean {
   const digits = t.replace(/\D/g, '')
   return digits.length >= 7 && digits.length <= 15
 }
+
+/** Phone from PhoneInput (+country code). Empty is valid when the field is optional. */
+export function isValidPhoneNumber(val: string): boolean {
+  const t = val.trim()
+  if (!t) return true
+  if (!/^\+?[0-9\s().-]+$/.test(t)) return false
+  const digits = t.replace(/\D/g, '')
+  return digits.length >= 10 && digits.length <= 15
+}
+
+/** Empty is valid when the field is optional. */
+export function isValidEmail(val: string): boolean {
+  const t = val.trim()
+  if (!t) return true
+  return z.string().email().safeParse(t).success
+}

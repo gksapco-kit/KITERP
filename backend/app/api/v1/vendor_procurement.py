@@ -158,8 +158,8 @@ async def delete_supplier(
     db: AsyncSession = Depends(get_db),
 ):
     svc = SupplierService(db)
-    await svc.deactivate(vendor_id, supplier_id)
-    return JSONResponse(content={"detail": "Supplier deactivated"})
+    await svc.delete(vendor_id, supplier_id)
+    return JSONResponse(content={"detail": "Supplier deleted"})
 
 
 # ══════════════════════════════════════════════════════════════════

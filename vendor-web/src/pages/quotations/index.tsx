@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { TableColumnLabel } from '@/components/common/FieldLabel'
 import { BusinessUnitSelect } from '@/components/common/BusinessUnitSelect'
 import { useNavigate } from 'react-router-dom'
@@ -143,6 +143,14 @@ export default function QuotationsPage() {
   const [createPrefill, setCreatePrefill] = useState<ReturnType<typeof buildEstimatePrefill> | undefined>()
   const [actingId, setActingId] = useState<string | null>(null)
 
+  useEffect(() => {
+    const t = setTimeout(() => {
+      setSearch(searchInput.trim())
+      setPage(1)
+    }, 300)
+    return () => clearTimeout(t)
+  }, [searchInput])
+
   const { data: ordersData, isLoading: ordersLoading } = useOrders({
     page: 1,
     size: 100,
@@ -152,13 +160,14 @@ export default function QuotationsPage() {
   })
 
   const { data: estimatesData, isLoading: estimatesLoading } = useQuery({
-    queryKey: ['quotations', 'estimates', statusFilter, page, storeFilter],
+    queryKey: ['quotations', 'estimates', statusFilter, page, storeFilter, search],
     queryFn: () => vendorApi.listInvoices({
       page,
       size: 20,
       invoice_type: 'estimate',
       status: statusFilter || undefined,
       store_id: storeFilter || undefined,
+      search: search || undefined,
     }),
   })
 
@@ -389,10 +398,7 @@ export default function QuotationsPage() {
 
       <Card>
         <CardContent className="pt-6 space-y-3">
-          <form
-            onSubmit={(e) => { e.preventDefault(); setSearch(searchInput); setPage(1) }}
-            className="flex flex-col sm:flex-row gap-3"
-          >
+          <div className="flex flex-col sm:flex-row gap-3">
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
               <Input
@@ -400,9 +406,9 @@ export default function QuotationsPage() {
                 value={searchInput}
                 onChange={(e) => setSearchInput(e.target.value)}
                 className="pl-10"
+                aria-label="Search quotations"
               />
             </div>
-            <Button type="submit" variant="outline">Search</Button>
             <div className="sm:w-56"><BusinessUnitSelect value={storeFilter} onChange={(id) => { setStoreFilter(id); setPage(1) }} allowAll autoSelectDefault={false} /></div>
             {statusOptions.length > 1 && (
               <Select
@@ -412,7 +418,7 @@ export default function QuotationsPage() {
                 aria-label="Status filter"
               />
             )}
-          </form>
+          </div>
         </CardContent>
       </Card>
 

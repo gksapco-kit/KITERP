@@ -329,20 +329,22 @@ export default function BookingDetail() {
         )}
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 min-w-0">
         {/* LEFT: main content */}
-        <div className="lg:col-span-2 space-y-5">
+        <div className="lg:col-span-2 space-y-5 min-w-0">
 
           {/* Status Timeline */}
           <Card>
-            <CardContent className="p-5">
+            <CardContent className="p-5 min-w-0 overflow-hidden">
               <h3 className="text-sm font-semibold text-gray-700 mb-4">Booking Progress</h3>
               {isCancelled ? (
-                <div className="bg-red-50 border border-red-200 rounded-xl p-4 flex items-center gap-3">
-                  <Ban className="w-6 h-6 text-red-500 shrink-0" />
-                  <div>
+                <div className="bg-red-50 border border-red-200 rounded-xl p-4 flex items-start gap-3 min-w-0 overflow-hidden">
+                  <Ban className="w-6 h-6 text-red-500 shrink-0 mt-0.5" />
+                  <div className="min-w-0 flex-1">
                     <p className="font-semibold text-red-700 capitalize">{b.status as string === 'no_show' ? 'No Show' : 'Cancelled'}</p>
-                    {b.cancel_reason && <p className="text-sm text-red-600 mt-0.5">{b.cancel_reason as string}</p>}
+                    {b.cancel_reason && (
+                      <p className="text-sm text-red-600 mt-0.5 break-all whitespace-pre-wrap">{b.cancel_reason as string}</p>
+                    )}
                   </div>
                 </div>
               ) : (
@@ -440,7 +442,7 @@ export default function BookingDetail() {
 
           {/* Followups / Communications */}
           <Card>
-            <CardContent className="p-5">
+            <CardContent className="p-5 min-w-0 overflow-hidden">
               <div className="flex items-center gap-2 mb-4">
                 <MessageSquare className="w-4 h-4 text-gray-400" />
                 <h3 className="text-sm font-semibold text-gray-700">Notes & Followups</h3>
@@ -499,7 +501,7 @@ export default function BookingDetail() {
                             </span>
                             <span className="text-gray-400 text-xs">{formatDateTime(f.created_at as string)}</span>
                           </div>
-                          <p className="text-gray-700 mt-0.5">{f.content as string}</p>
+                          <p className="text-gray-700 mt-0.5 break-all whitespace-pre-wrap">{f.content as string}</p>
                         </div>
                       </div>
                     )
@@ -698,31 +700,33 @@ export default function BookingDetail() {
           {/* Status History */}
           {statusHistory.length > 0 && (
             <Card>
-              <CardContent className="p-5">
+              <CardContent className="p-5 min-w-0 overflow-hidden">
                 <div className="flex items-center gap-2 mb-4">
                   <Clock className="w-4 h-4 text-gray-400" />
                   <h3 className="text-sm font-semibold text-gray-700">Status History</h3>
                 </div>
-                <div className="relative pl-5 space-y-4">
+                <div className="relative pl-5 space-y-4 min-w-0 overflow-hidden">
                   <div className="absolute left-[9px] top-1 bottom-1 w-0.5 bg-gray-100" />
                   {[...statusHistory].reverse().map((h, i) => (
-                    <div key={i} className="relative flex items-start gap-3">
-                      <div className="absolute left-[-14px] top-1.5 w-2.5 h-2.5 rounded-full bg-blue-400 border-2 border-white ring-2 ring-blue-100" />
-                      <div className="flex-1 min-w-0">
+                    <div key={i} className="relative flex items-start gap-3 min-w-0">
+                      <div className="absolute left-[-14px] top-1.5 w-2.5 h-2.5 rounded-full bg-blue-400 border-2 border-white ring-2 ring-blue-100 shrink-0" />
+                      <div className="flex-1 min-w-0 overflow-hidden">
                         <div className="flex items-center gap-2 flex-wrap">
                           {h.from_status && (
                             <span className={`px-1.5 py-0.5 rounded text-xs font-medium capitalize ${STATUS_BADGE[h.from_status as string]?.bg || 'bg-gray-100'} ${STATUS_BADGE[h.from_status as string]?.text || 'text-gray-600'}`}>
                               {STATUS_BADGE[h.from_status as string]?.label || h.from_status as string}
                             </span>
                           )}
-                          {h.from_status && <ChevronRight className="w-3 h-3 text-gray-300" />}
+                          {h.from_status && <ChevronRight className="w-3 h-3 text-gray-300 shrink-0" />}
                           <span className={`px-1.5 py-0.5 rounded text-xs font-medium capitalize ${STATUS_BADGE[h.to_status as string]?.bg || 'bg-gray-100'} ${STATUS_BADGE[h.to_status as string]?.text || 'text-gray-600'}`}>
                             {STATUS_BADGE[h.to_status as string]?.label || h.to_status as string}
                           </span>
                           <span className="text-xs text-gray-400">{formatDateTime(h.changed_at as string)}</span>
                         </div>
-                        {h.changed_by_name && <p className="text-xs text-gray-500 mt-0.5">by {h.changed_by_name as string}</p>}
-                        {h.note && <p className="text-xs text-gray-400 mt-0.5 italic">"{h.note as string}"</p>}
+                        {h.changed_by_name && <p className="text-xs text-gray-500 mt-0.5 break-words">by {h.changed_by_name as string}</p>}
+                        {h.note && (
+                          <p className="text-xs text-gray-400 mt-0.5 italic break-all whitespace-pre-wrap">"{h.note as string}"</p>
+                        )}
                       </div>
                     </div>
                   ))}
@@ -733,7 +737,7 @@ export default function BookingDetail() {
         </div>
 
         {/* RIGHT: sidebar */}
-        <div className="space-y-4">
+        <div className="space-y-4 min-w-0">
           {/* Booking Info */}
           <Card>
             <CardContent className="p-5 space-y-3">
@@ -773,27 +777,28 @@ export default function BookingDetail() {
 
           {/* Customer Info */}
           <Card>
-            <CardContent className="p-5">
+            <CardContent className="p-5 min-w-0 overflow-hidden">
               <h3 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
                 <User className="w-4 h-4 text-gray-400" /> Customer
               </h3>
-              <div className="space-y-2 text-sm">
-                <p className="font-semibold text-gray-900">{b.customer_name as string}</p>
+              <div className="space-y-2 text-sm min-w-0">
+                <p className="font-semibold text-gray-900 break-words">{b.customer_name as string}</p>
                 {b.customer_email && (
-                  <a href={`mailto:${b.customer_email}`} className="flex items-center gap-2 text-gray-500 hover:text-blue-600">
-                    <Mail className="w-3.5 h-3.5 shrink-0" /> {b.customer_email as string}
+                  <a href={`mailto:${b.customer_email}`} className="flex items-start gap-2 text-gray-500 hover:text-blue-600 min-w-0">
+                    <Mail className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+                    <span className="break-all">{b.customer_email as string}</span>
                   </a>
                 )}
                 {b.customer_phone && (
-                  <a href={`tel:${b.customer_phone}`} className="flex items-center gap-2 text-gray-500 hover:text-blue-600">
+                  <a href={`tel:${b.customer_phone}`} className="flex items-center gap-2 text-gray-500 hover:text-blue-600 min-w-0">
                     <Phone className="w-3.5 h-3.5 shrink-0" /> {b.customer_phone as string}
                   </a>
                 )}
               </div>
               {b.notes && (
-                <div className="mt-3 pt-3 border-t">
+                <div className="mt-3 pt-3 border-t min-w-0">
                   <p className="text-xs text-gray-500 mb-1">Customer Notes</p>
-                  <p className="text-sm text-gray-700 italic">"{b.notes as string}"</p>
+                  <p className="text-sm text-gray-700 italic break-all whitespace-pre-wrap">"{b.notes as string}"</p>
                 </div>
               )}
             </CardContent>
@@ -928,21 +933,21 @@ export default function BookingDetail() {
           {/* Delivery Notes (shown after completion) */}
           {b.delivery_notes && (
             <Card>
-              <CardContent className="p-5">
+              <CardContent className="p-5 min-w-0 overflow-hidden">
                 <h3 className="text-sm font-semibold text-gray-700 mb-2">Delivery Notes</h3>
-                <p className="text-sm text-gray-700">{b.delivery_notes as string}</p>
+                <p className="text-sm text-gray-700 break-all whitespace-pre-wrap">{b.delivery_notes as string}</p>
               </CardContent>
             </Card>
           )}
 
           {/* Internal Notes */}
           <Card>
-            <CardContent className="p-5">
+            <CardContent className="p-5 min-w-0 overflow-hidden">
               <h3 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
                 <StickyNote className="w-4 h-4 text-gray-400" /> Internal Notes
               </h3>
               <textarea
-                className="w-full px-3 py-2 border rounded-lg text-sm resize-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="w-full min-w-0 max-w-full px-3 py-2 border rounded-lg text-sm resize-none overflow-x-hidden break-all whitespace-pre-wrap focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 rows={3}
                 placeholder="Private notes visible only to your team…"
                 defaultValue={savedInternalNotes}

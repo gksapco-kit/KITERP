@@ -8,7 +8,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { useService, useCreateService, useUpdateService, useDeleteService, useCategoryTree, useStores } from '@/hooks/useVendor'
+import { useService, useServices, useCreateService, useUpdateService, useDeleteService, useCategoryTree, useStores } from '@/hooks/useVendor'
 import { vendorApi } from '@/api/vendor'
 import { mediaUrl, cn } from '@/lib/utils'
 import {
@@ -592,6 +592,8 @@ export default function ServiceForm() {
   const isEdit = !!id
 
   const { data: service, isLoading } = useService(id || '')
+  const { data: allServicesData } = useServices({ size: 500 })
+  const allServices = (allServicesData?.items || []) as Array<{ id: string; name: string }>
   const createService = useCreateService()
   const updateService = useUpdateService()
   const deleteService = useDeleteService()
@@ -1071,9 +1073,20 @@ export default function ServiceForm() {
         if (data[k] === '' || data[k] === undefined) delete data[k]
       }
 
+      const serviceName = String(data.name || '').trim()
+      if (serviceName) {
+        const nameTaken = allServices.some(
+          (s) => s.name.trim().toLowerCase() === serviceName.toLowerCase() && (!isEdit || s.id !== id),
+        )
+        if (nameTaken) {
+          toast.error('A service with this name already exists')
+          return
+        }
+      }
+
       if (isEdit) {
         await updateService.mutateAsync({ id, data })
-        setViewMode(true)
+        navigate('/services')
       } else {
         const newService = await createService.mutateAsync(data)
         // Persist selected print doc templates now that we have a service ID
@@ -1097,7 +1110,7 @@ export default function ServiceForm() {
         setPendingFiles([])
         setPendingPreviews([])
         setPendingPrimaryIndex(0)
-        navigate(`/services/${newService.id}?mode=view`, { replace: true })
+        navigate('/services')
       }
     } finally {
       setIsSaving(false)

@@ -52,6 +52,9 @@ const statusBadge: Record<string, { bg: string; text: string; label: string }> =
   no_show: { bg: 'bg-gray-100 dark:bg-gray-800', text: 'text-gray-700 dark:text-gray-300', label: 'No Show' },
 }
 
+const BOOKING_ACTIONS_ROW = 'inline-flex flex-nowrap items-center justify-end gap-1 shrink-0'
+const BOOKING_ICON_BTN = 'inline-flex shrink-0 h-8 w-8 items-center justify-center rounded-lg border disabled:opacity-40 transition-colors'
+
 // ── Compact horizontal booking card ─────────────────────────────────────────
 interface SlotActionCardProps {
   slot: Record<string, unknown>
@@ -1451,7 +1454,7 @@ export default function BookingsPage() {
                 onSortKeyChange={setSortKey}
                 onSortDirChange={setSortDir}
               />
-              <ResizableTable tableId="bookings" defaultWidths={[120, 160, 150, 100, 100, 90, 110, 80]}>
+              <ResizableTable tableId="bookings-v2" defaultWidths={[120, 160, 150, 100, 100, 90, 110, 220]}>
                 <thead>
                   <tr className="border-b bg-gray-50">
                     <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase"><TableColumnLabel>Booking #</TableColumnLabel></th>
@@ -1461,7 +1464,7 @@ export default function BookingsPage() {
                     <th className="text-center px-6 py-3 text-xs font-medium text-gray-500 uppercase"><TableColumnLabel>Status</TableColumnLabel></th>
                     <th className="text-right px-6 py-3 text-xs font-medium text-gray-500 uppercase"><TableColumnLabel>Total</TableColumnLabel></th>
                     <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase"><TableColumnLabel>Created</TableColumnLabel></th>
-                    <th className="text-right px-6 py-3 text-xs font-medium text-gray-500 uppercase"><TableColumnLabel>Actions</TableColumnLabel></th>
+                    <th className="text-right px-2 py-3 text-xs font-medium text-gray-500 uppercase"><TableColumnLabel>Actions</TableColumnLabel></th>
                   </tr>
                 </thead>
                 <tbody className="divide-y">
@@ -1481,7 +1484,7 @@ export default function BookingsPage() {
                         </td>
                         <td className="px-6 py-4 text-sm text-right font-medium">{formatCurrency((b.total as number) || (b.service_price as number) || 0)}</td>
                         <td className="px-6 py-4 text-sm text-gray-500">{b.created_at ? formatDate(b.created_at as string) : '-'}</td>
-                        <td className="px-4 py-3 text-right">
+                        <td className="px-2 py-3 text-right" onClick={(e) => e.stopPropagation()}>
                           {(() => {
                             const bId = b.id as string
                             const bNum = (b.booking_number as string) || ''
@@ -1492,52 +1495,52 @@ export default function BookingsPage() {
                             const onCancel = () => setCancelTarget({ id: bId, number: bNum })
 
                             if (b.status === 'pending') return (
-                              <div className="flex gap-1.5 justify-end items-center">
-                                <Button size="sm" variant="outline" className="h-8 text-xs gap-1.5 font-semibold text-emerald-700 border-emerald-300 bg-emerald-50 hover:bg-emerald-100" onClick={() => handleStatusChange(bId, 'confirmed')} disabled={isPend}>
+                              <div className={BOOKING_ACTIONS_ROW}>
+                                <Button size="sm" variant="outline" className="h-8 shrink-0 px-2.5 text-xs gap-1 font-semibold text-emerald-700 border-emerald-300 bg-emerald-50 hover:bg-emerald-100" onClick={() => handleStatusChange(bId, 'confirmed')} disabled={isPend}>
                                   <Check className="w-3.5 h-3.5" /> Confirm
                                 </Button>
-                                <button title="Reschedule" disabled={isPend} onClick={onReschedule}
-                                  className="h-8 w-8 flex items-center justify-center rounded-lg border border-blue-200 text-blue-500 hover:bg-blue-50 disabled:opacity-40 transition-colors">
+                                <button type="button" title="Reschedule" disabled={isPend} onClick={onReschedule}
+                                  className={`${BOOKING_ICON_BTN} border-blue-200 text-blue-500 hover:bg-blue-50`}>
                                   <RotateCcw className="w-3.5 h-3.5" />
                                 </button>
-                                <button title="Cancel" disabled={isPend} onClick={onCancel}
-                                  className="h-8 w-8 flex items-center justify-center rounded-lg border border-red-200 text-red-500 hover:bg-red-50 disabled:opacity-40 transition-colors">
+                                <button type="button" title="Cancel" disabled={isPend} onClick={onCancel}
+                                  className={`${BOOKING_ICON_BTN} border-red-200 text-red-500 hover:bg-red-50`}>
                                   <Ban className="w-3.5 h-3.5" />
                                 </button>
                               </div>
                             )
 
                             if (b.status === 'confirmed') return (
-                              <div className="flex gap-1.5 justify-end items-center">
-                                <Button size="sm" variant="outline" className="h-8 text-xs gap-1.5 font-semibold text-primary border-primary/40 bg-accent hover:bg-primary/12" onClick={() => handleStatusChange(bId, 'in_progress')} disabled={isPend}>
+                              <div className={BOOKING_ACTIONS_ROW}>
+                                <Button size="sm" variant="outline" className="h-8 shrink-0 px-2.5 text-xs gap-1 font-semibold text-primary border-primary/40 bg-accent hover:bg-primary/12" onClick={() => handleStatusChange(bId, 'in_progress')} disabled={isPend}>
                                   <Play className="w-3.5 h-3.5" /> Start
                                 </Button>
-                                <button title="No Show" disabled={isPend} onClick={() => handleStatusChange(bId, 'no_show')}
-                                  className="h-8 w-8 flex items-center justify-center rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-100 disabled:opacity-40 transition-colors">
+                                <button type="button" title="No Show" disabled={isPend} onClick={() => handleStatusChange(bId, 'no_show')}
+                                  className={`${BOOKING_ICON_BTN} border-gray-200 text-gray-500 hover:bg-gray-100`}>
                                   <UserX className="w-3.5 h-3.5" />
                                 </button>
-                                <button title="Reschedule" disabled={isPend} onClick={onReschedule}
-                                  className="h-8 w-8 flex items-center justify-center rounded-lg border border-blue-200 text-blue-500 hover:bg-blue-50 disabled:opacity-40 transition-colors">
+                                <button type="button" title="Reschedule" disabled={isPend} onClick={onReschedule}
+                                  className={`${BOOKING_ICON_BTN} border-blue-200 text-blue-500 hover:bg-blue-50`}>
                                   <RotateCcw className="w-3.5 h-3.5" />
                                 </button>
-                                <button title="Cancel" disabled={isPend} onClick={onCancel}
-                                  className="h-8 w-8 flex items-center justify-center rounded-lg border border-red-200 text-red-500 hover:bg-red-50 disabled:opacity-40 transition-colors">
+                                <button type="button" title="Cancel" disabled={isPend} onClick={onCancel}
+                                  className={`${BOOKING_ICON_BTN} border-red-200 text-red-500 hover:bg-red-50`}>
                                   <Ban className="w-3.5 h-3.5" />
                                 </button>
                               </div>
                             )
 
                             if (b.status === 'in_progress') return (
-                              <div className="flex gap-1.5 justify-end items-center">
-                                <Button size="sm" variant="outline" className="h-8 text-xs gap-1.5 font-semibold text-emerald-700 border-emerald-300 bg-emerald-50 hover:bg-emerald-100" onClick={() => handleStatusChange(bId, 'completed')} disabled={isPend}>
+                              <div className={BOOKING_ACTIONS_ROW}>
+                                <Button size="sm" variant="outline" className="h-8 shrink-0 px-2.5 text-xs gap-1 font-semibold text-emerald-700 border-emerald-300 bg-emerald-50 hover:bg-emerald-100" onClick={() => handleStatusChange(bId, 'completed')} disabled={isPend}>
                                   <CheckCircle className="w-3.5 h-3.5" /> Complete
                                 </Button>
-                                <button title="No Show" disabled={isPend} onClick={() => handleStatusChange(bId, 'no_show')}
-                                  className="h-8 w-8 flex items-center justify-center rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-100 disabled:opacity-40 transition-colors">
+                                <button type="button" title="No Show" disabled={isPend} onClick={() => handleStatusChange(bId, 'no_show')}
+                                  className={`${BOOKING_ICON_BTN} border-gray-200 text-gray-500 hover:bg-gray-100`}>
                                   <UserX className="w-3.5 h-3.5" />
                                 </button>
-                                <button title="Cancel" disabled={isPend} onClick={onCancel}
-                                  className="h-8 w-8 flex items-center justify-center rounded-lg border border-red-200 text-red-500 hover:bg-red-50 disabled:opacity-40 transition-colors">
+                                <button type="button" title="Cancel" disabled={isPend} onClick={onCancel}
+                                  className={`${BOOKING_ICON_BTN} border-red-200 text-red-500 hover:bg-red-50`}>
                                   <Ban className="w-3.5 h-3.5" />
                                 </button>
                               </div>

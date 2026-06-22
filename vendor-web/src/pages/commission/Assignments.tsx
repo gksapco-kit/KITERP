@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, selectOptionsWithBlank } from '@/components/ui/select'
 import { useEscapeToClose } from '@/hooks/useEscapeToClose'
-import { Plus, Edit2, X, Filter, ChevronDown } from 'lucide-react'
+import { Plus, Edit2, X, Filter, ChevronDown, Trash2, ToggleLeft, ToggleRight } from 'lucide-react'
 import { toast } from 'sonner'
 import {
   useAssignments, useCreateAssignment, useUpdateAssignment, useDeleteAssignment,
@@ -26,8 +26,6 @@ import {
   commissionPaginationActive,
   commissionPaginationInactive,
   commissionRowHover,
-  commissionStatusActive,
-  commissionStatusInactive,
   commissionTableIconBtn,
   commissionTableShellScroll,
   commissionTbody,
@@ -97,6 +95,11 @@ export default function AssignmentsPage() {
   const assignments = assignData?.items || []
   const total = assignData?.total ?? 0
   const pages = assignData?.pages ?? 1
+  const pageWindowStart = Math.max(1, Math.min(page - 2, pages - 4))
+  const pageNumbers = Array.from(
+    { length: Math.min(5, pages) },
+    (_, i) => pageWindowStart + i,
+  ).filter(pg => pg >= 1 && pg <= pages)
   const plans = planData?.items || []
   const stores = storesData?.stores || []
   const payeeOptions = payeeListData?.items || []
@@ -167,13 +170,25 @@ export default function AssignmentsPage() {
     }
   }
 
-  const handleDeactivate = async (id: string) => {
-    if (!confirm('Deactivate this assignment?')) return
+  const handleToggleStatus = async (a: CommissionAssignment) => {
+    const nextActive = !a.is_active
+    const label = nextActive ? 'activate' : 'deactivate'
+    if (!confirm(`${nextActive ? 'Activate' : 'Deactivate'} this assignment?`)) return
+    try {
+      await update.mutateAsync({ id: a.id, data: { is_active: nextActive } })
+      toast.success(`Assignment ${label}d`)
+    } catch (err) {
+      toast.error(extractApiError(err, `Failed to ${label} assignment`))
+    }
+  }
+
+  const handleDelete = async (id: string) => {
+    if (!confirm('Delete this assignment permanently? This cannot be undone.')) return
     try {
       await remove.mutateAsync(id)
-      toast.success('Assignment deactivated')
+      toast.success('Assignment deleted')
     } catch (err) {
-      toast.error(extractApiError(err, 'Failed to deactivate'))
+      toast.error(extractApiError(err, 'Failed to delete assignment'))
     }
   }
 
@@ -378,17 +393,25 @@ export default function AssignmentsPage() {
                   </td>
                   <td className="px-4 py-3 text-muted-foreground">{scope || '—'}</td>
                   <td className="px-4 py-3">
-                    <span className={`px-2 py-0.5 rounded text-xs font-medium ${a.is_active ? commissionStatusActive : commissionStatusInactive}`}>
-                      {a.is_active ? 'Active' : 'Inactive'}
-                    </span>
+                    <button
+                      type="button"
+                      onClick={() => handleToggleStatus(a)}
+                      title={a.is_active ? 'Active — click to deactivate' : 'Inactive — click to activate'}
+                      className="inline-flex items-center text-muted-foreground hover:text-foreground transition-colors"
+                      aria-label={a.is_active ? 'Deactivate assignment' : 'Activate assignment'}
+                    >
+                      {a.is_active
+                        ? <ToggleRight className="h-6 w-6 text-emerald-500 dark:text-emerald-400" />
+                        : <ToggleLeft className="h-6 w-6 text-muted-foreground" />}
+                    </button>
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex gap-1 justify-end">
                       <button type="button" onClick={() => openEdit(a)} className={`${commissionTableIconBtn} hover:text-primary`} aria-label="Edit assignment">
                         <Edit2 className="h-4 w-4" />
                       </button>
-                      <button type="button" onClick={() => handleDeactivate(a.id)} className={`${commissionTableIconBtn} hover:text-red-500 dark:hover:text-red-400`} aria-label="Deactivate assignment">
-                        <X className="h-4 w-4" />
+                      <button type="button" onClick={() => handleDelete(a.id)} className={`${commissionTableIconBtn} hover:text-red-500 dark:hover:text-red-400`} aria-label="Delete assignment">
+                        <Trash2 className="h-4 w-4" />
                       </button>
                     </div>
                   </td>
@@ -399,19 +422,54 @@ export default function AssignmentsPage() {
         </table>
       </div>
 
-      {pages > 1 && (
-        <div className="flex justify-center gap-2 mt-4 flex-wrap">
-          {Array.from({ length: Math.min(pages, 15) }, (_, i) => (
-            <button
-              key={i}
-              type="button"
-              onClick={() => setPage(i + 1)}
-              className={page === i + 1 ? commissionPaginationActive : commissionPaginationInactive}
-            >
-              {i + 1}
-            </button>
-          ))}
-          {pages > 15 && <span className="text-xs text-muted-foreground self-center px-2">… {pages} pages</span>}
+      {!isLoading && total > 0 && (
+        <div className="flex items-center justify-between mt-4 flex-wrap gap-3">
+          <span className="text-xs text-muted-foreground">
+            Page {page} of {pages} · {total} assignment{total === 1 ? '' : 's'}
+            {filters.search.trim() ? ` matching "${filters.search.trim()}"` : ''}
+          </span>
+          {pages > 1 && (
+            <div className="flex items-center gap-1 flex-wrap">
+              <button
+                type="button"
+                disabled={page <= 1}
+                onClick={() => setPage(p => p - 1)}
+                className={`${commissionPaginationInactive} disabled:opacity-40 disabled:cursor-not-allowed`}
+              >
+                ← Prev
+              </button>
+              {pageWindowStart > 1 && (
+                <>
+                  <button type="button" onClick={() => setPage(1)} className={commissionPaginationInactive}>1</button>
+                  {pageWindowStart > 2 && <span className="px-1 text-xs text-muted-foreground">…</span>}
+                </>
+              )}
+              {pageNumbers.map(pg => (
+                <button
+                  key={pg}
+                  type="button"
+                  onClick={() => setPage(pg)}
+                  className={page === pg ? commissionPaginationActive : commissionPaginationInactive}
+                >
+                  {pg}
+                </button>
+              ))}
+              {pageWindowStart + 4 < pages && (
+                <>
+                  {pageWindowStart + 5 < pages && <span className="px-1 text-xs text-muted-foreground">…</span>}
+                  <button type="button" onClick={() => setPage(pages)} className={commissionPaginationInactive}>{pages}</button>
+                </>
+              )}
+              <button
+                type="button"
+                disabled={page >= pages}
+                onClick={() => setPage(p => p + 1)}
+                className={`${commissionPaginationInactive} disabled:opacity-40 disabled:cursor-not-allowed`}
+              >
+                Next →
+              </button>
+            </div>
+          )}
         </div>
       )}
 

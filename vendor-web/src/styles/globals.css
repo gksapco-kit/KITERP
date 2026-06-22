@@ -2455,4 +2455,78 @@ html[dir='rtl'] [data-sonner-toast][data-styled='true']:has([data-close-button])
     box-shadow: inset 0 0 0 2px hsl(var(--ring));
     border-color: hsl(var(--primary));
   }
+
+  /*
+   * Modal panel widths — three Tailwind steps wider than class names suggest.
+   * Capped to viewport so panels never overflow horizontally on small screens.
+   */
+  [data-kiterp-modal] > [class~='max-w-sm'],
+  .fixed.inset-0 > .shadow-2xl[class~='max-w-sm'],
+  .fixed.inset-0 > [class~='max-w-sm'][class*='rounded-xl'],
+  .fixed.inset-0 > [class~='max-w-sm'][class*='rounded-2xl'] {
+    max-width: min(36rem, calc(100vw - 2rem)) !important;
+  }
+
+  [data-kiterp-modal] > [class~='max-w-md'],
+  .fixed.inset-0 > .shadow-2xl[class~='max-w-md'],
+  .fixed.inset-0 > [class~='max-w-md'][class*='rounded-xl'],
+  .fixed.inset-0 > [class~='max-w-md'][class*='rounded-2xl'] {
+    max-width: min(42rem, calc(100vw - 2rem)) !important;
+  }
+
+  [data-kiterp-modal] > [class~='max-w-lg'],
+  .fixed.inset-0 > .shadow-2xl[class~='max-w-lg'],
+  .fixed.inset-0 > [class~='max-w-lg'][class*='rounded-xl'],
+  .fixed.inset-0 > [class~='max-w-lg'][class*='rounded-2xl'] {
+    max-width: min(48rem, calc(100vw - 2rem)) !important;
+  }
+
+  [data-kiterp-modal] > [class~='max-w-xl'],
+  .fixed.inset-0 > .shadow-2xl[class~='max-w-xl'],
+  .fixed.inset-0 > [class~='max-w-xl'][class*='rounded-xl'],
+  .fixed.inset-0 > [class~='max-w-xl'][class*='rounded-2xl'] {
+    max-width: min(56rem, calc(100vw - 2rem)) !important;
+  }
+
+  [data-kiterp-modal] > [class~='max-w-2xl'],
+  .fixed.inset-0 > .shadow-2xl[class~='max-w-2xl'],
+  .fixed.inset-0 > [class~='max-w-2xl'][class*='rounded-xl'],
+  .fixed.inset-0 > [class~='max-w-2xl'][class*='rounded-2xl'] {
+    max-width: min(64rem, calc(100vw - 2rem)) !important;
+  }
+
+  [data-kiterp-modal] > [class~='max-w-3xl'],
+  .fixed.inset-0 > .shadow-2xl[class~='max-w-3xl'],
+  .fixed.inset-0 > [class~='max-w-3xl'][class*='rounded-xl'],
+  .fixed.inset-0 > [class~='max-w-3xl'][class*='rounded-2xl'] {
+    max-width: min(72rem, calc(100vw - 2rem)) !important;
+  }
+
+  [data-kiterp-modal] > [class~='max-w-4xl'],
+  .fixed.inset-0 > .shadow-2xl[class~='max-w-4xl'],
+  .fixed.inset-0 > [class~='max-w-4xl'][class*='rounded-xl'],
+  .fixed.inset-0 > [class~='max-w-4xl'][class*='rounded-2xl'] {
+    max-width: min(80rem, calc(100vw - 2rem)) !important;
+  }
+
+  [data-kiterp-modal] > [class~='max-w-5xl'],
+  .fixed.inset-0 > .shadow-2xl[class~='max-w-5xl'],
+  .fixed.inset-0 > [class~='max-w-5xl'][class*='rounded-xl'],
+  .fixed.inset-0 > [class~='max-w-5xl'][class*='rounded-2xl'] {
+    max-width: min(88rem, calc(100vw - 2rem)) !important;
+  }
+
+  [data-kiterp-modal] > [class~='max-w-6xl'],
+  .fixed.inset-0 > .shadow-2xl[class~='max-w-6xl'],
+  .fixed.inset-0 > [class~='max-w-6xl'][class*='rounded-xl'],
+  .fixed.inset-0 > [class~='max-w-6xl'][class*='rounded-2xl'] {
+    max-width: min(96rem, calc(100vw - 2rem)) !important;
+  }
+
+  [data-kiterp-modal] > [class~='max-w-7xl'],
+  .fixed.inset-0 > .shadow-2xl[class~='max-w-7xl'],
+  .fixed.inset-0 > [class~='max-w-7xl'][class*='rounded-xl'],
+  .fixed.inset-0 > [class~='max-w-7xl'][class*='rounded-2xl'] {
+    max-width: min(96rem, calc(100vw - 2rem)) !important;
+  }
 }

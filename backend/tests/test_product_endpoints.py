@@ -155,16 +155,31 @@ async def test_create_product_auto_slug(client: AsyncClient, test_vendor: Vendor
 
 
 @pytest.mark.asyncio
-async def test_create_product_duplicate_slug_appends_suffix(
+async def test_create_product_duplicate_name_rejected(
     client: AsyncClient, test_vendor: Vendor
 ):
-    """Two products with the same name get different slugs."""
+    """Two products with the same name are not allowed."""
     payload = {"name": "Dupe Name", "price": 10}
     r1 = await client.post(BASE, data={"product_data": json.dumps(payload)})
     r2 = await client.post(BASE, data={"product_data": json.dumps(payload)})
     assert r1.status_code == 201
-    assert r2.status_code == 201
-    assert r1.json()["slug"] != r2.json()["slug"]
+    assert r2.status_code == 409
+    assert "name" in r2.json()["detail"].lower()
+
+
+@pytest.mark.asyncio
+async def test_create_product_duplicate_name_case_insensitive(
+    client: AsyncClient, test_vendor: Vendor
+):
+    """Duplicate name check is case-insensitive."""
+    r1 = await client.post(
+        BASE, data={"product_data": json.dumps({"name": "Widget Pro", "price": 10})}
+    )
+    r2 = await client.post(
+        BASE, data={"product_data": json.dumps({"name": "widget pro", "price": 12})}
+    )
+    assert r1.status_code == 201
+    assert r2.status_code == 409
 
 
 @pytest.mark.asyncio

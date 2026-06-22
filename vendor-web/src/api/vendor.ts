@@ -718,6 +718,10 @@ export const vendorApi = {
     return response.data
   },
 
+  deleteCustomer: async (id: string): Promise<void> => {
+    await apiClient.delete(`/vendors/me/customers/${id}`)
+  },
+
   gstLookup: async (gstin: string): Promise<Record<string, unknown>> => {
     const response = await apiClient.get('/vendors/me/customers/gst-lookup', { params: { gstin } })
     return response.data

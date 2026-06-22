@@ -166,6 +166,14 @@ export default function Products() {
   const categoryRoot = category.includes('::') ? category.split('::')[0] : category
   const categorySub = category.includes('::') ? category.split('::').slice(1).join('::') : ''
 
+  useEffect(() => {
+    const t = setTimeout(() => {
+      setSearch(searchInput.trim())
+      setPage(1)
+    }, 300)
+    return () => clearTimeout(t)
+  }, [searchInput])
+
   const { data, isLoading } = useProducts({
     page,
     size: pageSize,
@@ -292,13 +300,16 @@ export default function Products() {
       <Card className="border-gray-200/80">
         <CardContent className="pt-5 pb-4 space-y-3">
           <div className="flex gap-2">
-            <form onSubmit={(e) => { e.preventDefault(); setSearch(searchInput); setPage(1) }} className="flex gap-2 flex-1">
-              <div className="relative flex-1">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                <Input placeholder="Search products..." value={searchInput} onChange={(e) => setSearchInput(e.target.value)} className="pl-10" />
-              </div>
-              <Button type="submit" variant="outline">Search</Button>
-            </form>
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+              <Input
+                placeholder="Search products..."
+                value={searchInput}
+                onChange={(e) => setSearchInput(e.target.value)}
+                className="pl-10"
+                aria-label="Search products"
+              />
+            </div>
             <Button type="button" variant="outline" className="gap-2" onClick={() => setShowFilters(!showFilters)}>
               <Filter className="w-4 h-4" />Filters
               {activeFilterCount > 0 && <span className="ml-1 px-1.5 py-0.5 text-xs leading-none font-bold bg-primary text-white rounded-full">{activeFilterCount}</span>}

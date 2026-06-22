@@ -91,6 +91,27 @@ class ProductRepository(BaseRepository[Product]):
         
         result = await self.db.execute(query)
         return result.scalar_one() > 0
+
+    async def name_exists(
+        self,
+        vendor_id: UUID,
+        name: str,
+        exclude_id: Optional[UUID] = None,
+    ) -> bool:
+        """Check if a product name already exists for this vendor (case-insensitive)."""
+        normalized = (name or "").strip().lower()
+        if not normalized:
+            return False
+        query = select(func.count()).select_from(Product).where(
+            and_(
+                Product.vendor_id == vendor_id,
+                func.lower(Product.name) == normalized,
+            )
+        )
+        if exclude_id:
+            query = query.where(Product.id != exclude_id)
+        result = await self.db.execute(query)
+        return result.scalar_one() > 0
     
     async def list_by_vendor(
         self,

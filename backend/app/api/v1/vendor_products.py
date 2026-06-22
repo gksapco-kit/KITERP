@@ -435,6 +435,12 @@ async def create_product(
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, jsonable_encoder(e.errors()))
     repo = ProductRepository(db)
 
+    if await repo.name_exists(vendor_id, data.name):
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="A product with this name already exists",
+        )
+
     slug = data.slug or slugify(data.name, lowercase=True)
     if await repo.slug_exists(vendor_id, slug):
         slug = f"{slug}-{str(uuid_mod.uuid4())[:8]}"
@@ -543,6 +549,14 @@ async def update_product(
     variants_payload = update_data.pop("variants", None)
     store_ids_payload = update_data.pop("store_ids", None)
     _coerce_date_fields(update_data)
+
+    if "name" in update_data and await repo.name_exists(
+        vendor_id, str(update_data["name"]), exclude_id=product_id
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="A product with this name already exists",
+        )
 
     # Material code is auto-assigned and must never be blanked. Trim it when
     # provided, drop empty values, and backfill legacy products that lack one.

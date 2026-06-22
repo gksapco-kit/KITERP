@@ -73,11 +73,15 @@ async def list_invoices(
     exclude_invoice_type: str = None,
     status: str = None,
     store_id: str = None,
+    search: str = None,
     page: int = Query(1, ge=1), size: int = Query(20, ge=1, le=100),
     vid: UUID = Depends(_vendor_id), db: AsyncSession = Depends(get_db),
 ):
     svc = InvoiceService(db)
-    items, total = await svc.list_invoices(vid, invoice_type, exclude_invoice_type, status, page, size, store_id=store_id)
+    items, total = await svc.list_invoices(
+        vid, invoice_type, exclude_invoice_type, status, page, size,
+        store_id=store_id, search=search,
+    )
     return JSONResponse(content={
         "items": [_inv_dict(i) for i in items], "total": total,
         "page": page, "size": size, "pages": math.ceil(total / size) if total else 0,
