@@ -139,7 +139,7 @@ export function BuilderSectionImage({
       <img
         src={src}
         alt={alt}
-        className={cn(className, empty && 'opacity-0')}
+        className={cn('block min-h-0 min-w-0', className, empty && 'opacity-0')}
         style={{ ...objectStyle, ...style }}
         loading="lazy"
         draggable={false}

@@ -2,7 +2,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { Check, ExternalLink, Pencil, Store } from 'lucide-react'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
-import { templateBadgeEmeraldClass, templateBadgeVioletClass, templateCardActionBtnClass, templateCardActionClusterClass, templateCardActionRowClass, templateCardActivePillClass, templateCardBodyClass, templateCardCurrentForStoreRibbonClass, templateCardMediaHeightClass, templateCardPreviewOverlayClass, templateCardPrimaryActionClass, templateCardSelectedClass, templateCardShellClass, perStoreTemplateActionLabel, singleTemplateActionLabel } from '@/lib/websiteTemplateBadges'
+import { templateBadgeEmeraldClass, templateCardActionBtnClass, templateCardActionClusterClass, templateCardActionRowClass, templateCardActivePillClass, templateCardAssignPillClass, templateCardBodyClass, templateCardCurrentForStoreRibbonClass, templateCardMediaHeightClass, templateCardPreviewOverlayClass, templateCardPrimaryActionClass, templateCardSelectedClass, templateCardShellClass, perStoreTemplateActionLabel, singleTemplateActionLabel, systemTemplateGalleryStatusLabel, systemTemplateGalleryStatusTitle } from '@/lib/websiteTemplateBadges'
 import type { AppliedTemplateViewLiveLink } from '@/lib/liveStorefrontUrl'
 import { AppliedTemplateViewLiveButton, templateCardIconActionClass } from '@/components/websites/AppliedTemplateViewLiveButton'
 import { vendorApi } from '@/api/vendor'
@@ -166,7 +166,7 @@ export function BusinessFrontDefaultTemplateCard({
             </span>
           )}
           {singleTemplateMode && isSingleTemplateSelected && (
-            <span className={cn('shrink min-w-0', templateBadgeVioletClass)} title="All stores">
+            <span className={cn('shrink min-w-0', templateBadgeEmeraldClass)} title="All stores">
               <span className="truncate">All stores</span>
             </span>
           )}
@@ -211,9 +211,7 @@ export function BusinessFrontDefaultTemplateCard({
             const perStoreLabel = contextStoreCode
               ? assignedToContextStore
                 ? `Live · ${contextStoreCode}`
-                : (perStoreUsedCount ?? 0) > 0
-                  ? `${perStoreUsedCount} other BU${(perStoreUsedCount ?? 0) === 1 ? '' : 's'}`
-                  : 'Unused'
+                : systemTemplateGalleryStatusLabel
               : (perStoreUsedCount ?? 0) > 0
                 ? `${perStoreUsedCount} live`
                 : live
@@ -224,18 +222,20 @@ export function BusinessFrontDefaultTemplateCard({
                 className={cn(
                   'inline-flex shrink-0 items-center gap-1 text-[10px] font-semibold',
                   applied || live
-                    ? (singleTemplateMode ? 'text-violet-700' : 'text-emerald-700')
+                    ? (singleTemplateMode ? 'text-primary' : 'text-emerald-700')
                     : 'text-gray-400',
                 )}
                 title={perStoreTemplateMode && applied
                   ? (assignedStoreCodes.length ? assignedStoreCodes.join(', ') : assignedStoreNames.join(', '))
-                  : undefined}
+                  : perStoreTemplateMode && contextStoreCode && !assignedToContextStore
+                    ? systemTemplateGalleryStatusTitle(contextStoreCode, assignedStoreNames)
+                    : undefined}
               >
                 <span
                   className={cn(
                     'h-1.5 w-1.5 shrink-0 rounded-full',
                     applied || live
-                      ? (singleTemplateMode ? 'bg-violet-500' : 'bg-emerald-500')
+                      ? (singleTemplateMode ? 'bg-primary' : 'bg-emerald-500')
                       : 'bg-gray-300',
                   )}
                 />
@@ -263,10 +263,7 @@ export function BusinessFrontDefaultTemplateCard({
                 type="button"
                 disabled={useForAllStoresPending}
                 onClick={() => onUseForAllStores(preset.id, preset.name)}
-                className={cn(
-                  templateCardPrimaryActionClass,
-                  'border-violet-200 bg-violet-50/80 text-violet-700 hover:border-violet-300 hover:bg-violet-100',
-                )}
+                className={templateCardAssignPillClass}
               >
                 <Store className="h-3 w-3 shrink-0" />
                 {singleTemplateActionLabel(false)}
@@ -279,10 +276,9 @@ export function BusinessFrontDefaultTemplateCard({
               disabled={applyForStorePending}
               onClick={() => onApplyForStore(preset.id)}
               className={cn(
-                templateCardPrimaryActionClass,
                 assignedToContextStore
-                  ? 'border-2 border-primary bg-primary/10 text-primary hover:border-primary hover:bg-primary/15'
-                  : 'border-emerald-200 bg-emerald-50/80 text-emerald-700 hover:border-emerald-300 hover:bg-emerald-100',
+                  ? templateCardActivePillClass
+                  : templateCardAssignPillClass,
               )}
             >
               {assignedToContextStore ? <Check className="h-3 w-3 shrink-0" /> : <Store className="h-3 w-3 shrink-0" />}

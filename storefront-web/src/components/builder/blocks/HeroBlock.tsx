@@ -21,6 +21,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { storeApi, type StoreLocation } from '@/api/store'
 import { branchWelcomeHeadline } from '@/lib/branchStorefrontIdentity'
+import { useEffectiveVendor } from '@/hooks/useEffectiveVendor'
 import { useBranch } from '@/contexts/BranchContext'
 
 interface Props {
@@ -44,6 +45,7 @@ function borderRadiusPx(style: StyleConfig): number {
 export default function HeroBlock({ site, style, props, blockType, blockId, branchCode: branchFromBlocks }: Props) {
   const canvas = useBuilderCanvas()
   const isEditorCanvas = canvas?.isEditorCanvas && !!blockId
+  const effectiveVendor = useEffectiveVendor()
   const [searchParams] = useSearchParams()
   const { selectedBranch: branchFromContext } = useBranch()
   const [branches, setBranches] = useState<StoreLocation[]>([])
@@ -70,13 +72,16 @@ export default function HeroBlock({ site, style, props, blockType, blockId, bran
     return branches.find((b) => b.code === key || b.id === key) ?? null
   }, [branches, effectiveBranchKey, branchFromContext])
 
+  const brandName = effectiveVendor?.display_name?.trim() || 'Welcome'
   const templateHeadline = ((props.headline as string) || '').trim()
   const headline = sanitizeWellnessBodyCopy(
     templateHeadline
       ? templateHeadline
       : selectedBranch
-        ? branchWelcomeHeadline(selectedBranch)
-        : site.name || 'Welcome',
+        ? branchWelcomeHeadline(selectedBranch, effectiveVendor ?? undefined)
+        : brandName !== 'Welcome'
+          ? `Welcome to ${brandName}`
+          : 'Welcome',
   )
   const headlineLine2 = sanitizeWellnessBodyCopy((props.headline_line2 as string) || '')
   const eyebrow = sanitizeWellnessBodyCopy((props.eyebrow as string) || '')
@@ -179,12 +184,11 @@ export default function HeroBlock({ site, style, props, blockType, blockId, bran
   const heroText = panelUsesDarkText ? '#fff' : style.text_color
   const heroSubText = panelUsesDarkText ? 'rgba(255,255,255,0.82)' : `${style.text_color}cc`
 
-  const textPanelWidth = wideImage ? 'md:w-[40%]' : 'md:w-1/2'
-  const imagePanelWidth = wideImage ? 'md:w-[60%]' : 'md:w-1/2'
-
   const squareCta = props.cta_square === true || style.border_radius === 'sharp' || style.border_radius === 'none'
   const ctaRadius = squareCta ? 0 : borderRadiusPx(style)
-  const ctaPadClass = squareCta ? 'px-7 h-12 inline-flex items-center' : 'px-6 py-3'
+  const ctaPadClass = squareCta
+    ? 'px-7 h-12 inline-flex items-center justify-center box-border'
+    : 'px-6 h-12 inline-flex items-center justify-center box-border'
 
   const hasFashionHeadline = !!headlineLine2 || eyebrowPlain
 
@@ -198,7 +202,7 @@ export default function HeroBlock({ site, style, props, blockType, blockId, bran
           fieldKey="eyebrow"
           as="span"
           value={eyebrow}
-          className="text-xs uppercase tracking-[0.3em] opacity-70 mb-2 block"
+          className="text-xs uppercase tracking-[0.3em] opacity-70 block"
           style={{ color: heroText }}
         />
       )
@@ -210,7 +214,7 @@ export default function HeroBlock({ site, style, props, blockType, blockId, bran
         fieldKey="eyebrow"
         as="span"
         value={eyebrow}
-        className="inline-block text-xs font-bold uppercase tracking-widest px-3 py-1 rounded-full mb-2"
+        className="inline-block text-xs font-bold uppercase tracking-widest px-3 py-1 rounded-full"
         style={{
           backgroundColor: panelUsesDarkText ? 'rgba(255,255,255,0.15)' : `${style.accent_color}22`,
           color: panelUsesDarkText ? '#fff' : style.accent_color,
@@ -235,8 +239,11 @@ export default function HeroBlock({ site, style, props, blockType, blockId, bran
           className={
             isSplit
               ? hasFashionHeadline
-                ? 'font-semibold leading-[0.95] text-balance text-[clamp(1.65rem,4vw_+_0.45rem,2.65rem)] sm:text-[clamp(2rem,4.5vw_+_0.45rem,3.25rem)] lg:text-[clamp(2.35rem,5vw_+_0.5rem,3.75rem)] mb-5'
-                : 'text-4xl sm:text-5xl md:text-6xl font-semibold leading-[0.95] mb-5'
+                ? cn(
+                    'font-semibold leading-[0.95] text-balance text-[clamp(1.65rem,4vw_+_0.45rem,2.65rem)] sm:text-[clamp(2rem,4.5vw_+_0.45rem,3.25rem)] lg:text-[clamp(2.35rem,5vw_+_0.5rem,3.75rem)]',
+                    !splitSideBySide && 'mb-5',
+                  )
+                : cn('text-4xl sm:text-5xl md:text-6xl font-semibold leading-[0.95]', !splitSideBySide && 'mb-5')
               : 'text-3xl font-extrabold leading-tight mb-5'
           }
         >
@@ -275,7 +282,7 @@ export default function HeroBlock({ site, style, props, blockType, blockId, bran
         value={headline}
         className={
           isSplit
-            ? 'text-4xl sm:text-5xl md:text-6xl font-extrabold leading-tight mb-5'
+            ? cn('text-4xl sm:text-5xl md:text-6xl font-extrabold leading-tight', !splitSideBySide && 'mb-5')
             : 'text-3xl sm:text-4xl lg:text-5xl font-extrabold leading-tight mb-5'
         }
         style={headlineBaseStyle}
@@ -284,7 +291,7 @@ export default function HeroBlock({ site, style, props, blockType, blockId, bran
   }
 
   const renderCtas = (centered = false) => (
-    <div className={`flex gap-3 flex-wrap pt-1 items-start ${centered ? 'justify-center' : ''}`}>
+    <div className={`flex gap-3 flex-wrap items-center ${centered ? 'justify-center' : ''}`}>
       {ctaPrimary && (
         <BuilderCtaButton
           fieldKey="cta_primary"
@@ -327,7 +334,7 @@ export default function HeroBlock({ site, style, props, blockType, blockId, bran
     // overflowing headlines sit on top of the photo instead of behind it.
     const layerZ = sideImageBehindText ? 'z-0' : 'z-10'
     const panelCls = panelClass || (splitSideBySide
-      ? `relative ${layerZ} w-full ${imagePanelWidth} min-h-[420px] md:min-h-[640px]`
+      ? `relative ${layerZ} h-full min-h-[280px] w-full min-w-0${showDivider ? ' md:border-l md:border-black/10' : ''}`
       : `relative ${layerZ} w-full flex-1 md:w-auto`)
     return (
       <div
@@ -338,7 +345,7 @@ export default function HeroBlock({ site, style, props, blockType, blockId, bran
           clip={mediaClip}
           className={
             splitSideBySide || panelClass
-              ? 'absolute inset-0 min-h-[420px] md:min-h-[640px]'
+              ? 'absolute inset-0 h-full w-full'
               : 'w-full'
           }
           style={
@@ -348,22 +355,24 @@ export default function HeroBlock({ site, style, props, blockType, blockId, bran
           }
         >
           {sideImageUrl ? (
-            <BuilderSectionImage
-              blockId={blockId}
-              field="image_url"
-              blockProps={props}
-              src={sideImageUrl}
-              className={
-                splitSideBySide || panelClass
-                  ? 'absolute inset-0 h-full w-full min-h-[420px] md:min-h-[640px]'
-                  : cn('w-full h-full', !clippedMedia && 'shadow-2xl rounded-2xl')
-              }
-            />
+            <div className={splitSideBySide || panelClass ? 'absolute inset-0' : 'h-full w-full'}>
+              <BuilderSectionImage
+                blockId={blockId}
+                field="image_url"
+                blockProps={props}
+                src={sideImageUrl}
+                className={
+                  splitSideBySide || panelClass
+                    ? 'block h-full w-full object-cover object-center'
+                    : cn('w-full h-full', !clippedMedia && 'shadow-2xl rounded-2xl')
+                }
+              />
+            </div>
           ) : (
             <div
               className={
                 splitSideBySide || panelClass
-                  ? 'absolute inset-0 min-h-[420px] md:min-h-[640px] flex items-center justify-center'
+                  ? 'absolute inset-0 flex h-full w-full items-center justify-center'
                   : cn('w-full h-56 flex items-center justify-center', !clippedMedia && 'rounded-2xl')
               }
               style={{
@@ -388,10 +397,10 @@ export default function HeroBlock({ site, style, props, blockType, blockId, bran
         className={
           opts?.className
           ?? (splitSideBySide
-            ? `space-y-5 relative z-10 flex-1 ${textPanelWidth} px-6 sm:px-12 py-16 lg:py-28 flex flex-col justify-center max-w-xl md:max-w-none`
+            ? `relative z-10 flex h-full min-h-[280px] w-full min-w-0 flex-col items-start justify-center gap-5 px-6 sm:px-10 lg:px-14 py-12 lg:py-16`
             : isSplit
-              ? 'space-y-5 relative z-10 flex-1 max-w-xl'
-              : 'space-y-5 relative z-10 text-center max-w-3xl mx-auto')
+              ? 'relative z-10 flex flex-1 max-w-xl flex-col gap-5'
+              : 'relative z-10 mx-auto flex max-w-3xl flex-col gap-5 text-center')
         }
         style={opts?.style ?? (splitSideBySide ? { ...splitTextPanelStyle(), zIndex: 1 } : { zIndex: 1 })}
       >
@@ -415,10 +424,6 @@ export default function HeroBlock({ site, style, props, blockType, blockId, bran
       </BuilderContentGroup>
     )
   }
-
-  const dividerEl = showDivider && splitSideBySide ? (
-    <div className="hidden md:block w-px bg-black/10 shrink-0 self-stretch" aria-hidden />
-  ) : null
 
   if (isStacked) {
     return (
@@ -486,7 +491,10 @@ export default function HeroBlock({ site, style, props, blockType, blockId, bran
     <section
       className={
         splitSideBySide
-          ? 'relative overflow-hidden flex flex-col md:flex-row md:items-stretch'
+          ? cn(
+              'relative grid min-h-[min(420px,72vh)] grid-cols-1 overflow-hidden md:min-h-[min(560px,78vh)] md:items-stretch',
+              wideImage ? 'md:grid-cols-[2fr_3fr]' : 'md:grid-cols-2',
+            )
           : isSplit
             ? 'relative px-8 flex flex-col md:flex-row items-center gap-10 py-16'
             : centeredImageHeroClass
@@ -534,13 +542,11 @@ export default function HeroBlock({ site, style, props, blockType, blockId, bran
       {splitSideBySide && imageOnLeft ? (
         <>
           {renderSideImage()}
-          {dividerEl}
           {renderTextPanel()}
         </>
       ) : splitSideBySide ? (
         <>
           {renderTextPanel()}
-          {dividerEl}
           {renderSideImage()}
         </>
       ) : (

@@ -1,9 +1,10 @@
 import { useCallback, type MouseEvent, type ReactNode } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { cn } from '@/lib/utils'
+import { cn, imgUrl } from '@/lib/utils'
 import type { PublicSite, StyleConfig, LiveItem } from '@/blocks/registry'
 import { useStorePath } from '@/hooks/useStorePath'
 import { useVendor } from '@/contexts/VendorContext'
+import { useEffectiveVendor } from '@/hooks/useEffectiveVendor'
 import { useBuilderCanvas } from '@/contexts/BuilderCanvasContext'
 import { isDraftPreviewShellHref } from '@/lib/previewNavRouting'
 import { BuilderTextField } from '@/components/builder/BuilderTextField'
@@ -187,6 +188,7 @@ export default function FooterBlock({ site, style, props, liveItems, blockId }: 
   const navigate = useNavigate()
   const builderCanvas = useBuilderCanvas()
   const { previewShell, openBuilderForPage, vendor } = useVendor()
+  const effectiveVendor = useEffectiveVendor()
   const isEditor = builderCanvas?.isEditorCanvas === true && !!blockId
 
   const previewFooterClick = useCallback((e: MouseEvent, href: string) => {
@@ -218,8 +220,10 @@ export default function FooterBlock({ site, style, props, liveItems, blockId }: 
     }
     return <Link to={href} className={className}>{children}</Link>
   }, [previewShell, previewFooterClick])
-  const copyright = (props.copyright as string) || `© ${new Date().getFullYear()} ${site.name}. All rights reserved.`
-  const brand = (props.brand as string) || site.name
+  const brandName = effectiveVendor?.display_name?.trim() || vendor?.display_name?.trim() || 'Store'
+  const logoUrl = effectiveVendor?.logo_url?.trim() || vendor?.logo_url?.trim() || null
+  const copyright = (props.copyright as string) || `© ${new Date().getFullYear()} ${brandName}. All rights reserved.`
+  const brand = brandName
   const description = (props.description as string) || site.description || ''
   const footerBg = (props.footer_bg as string) || style.surface_color || '#f9fafb'
   const footerStyle = String(props.footer_style ?? 'columns')
@@ -402,8 +406,8 @@ export default function FooterBlock({ site, style, props, liveItems, blockId }: 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-8 mb-8">
           <div className={cn('md:col-span-2', isCompact && 'md:col-span-1')}>
-            {site.logo_url ? (
-              <img src={site.logo_url} alt={site.name} className="h-8 w-auto object-contain mb-3" />
+            {logoUrl ? (
+              <img src={imgUrl(logoUrl)} alt={brand} className="h-8 w-auto object-contain mb-3" />
             ) : (
               <p className="text-xl font-bold mb-3" style={{ color: style.primary_color }}>{brand}</p>
             )}

@@ -1,23 +1,16 @@
-import { useEffect, useMemo, useState, useCallback } from 'react'
-import { Link, useNavigate, useLocation, useSearchParams } from 'react-router-dom'
-import { MapPin, ChevronDown, Search, ShoppingBag, User, X, Home } from 'lucide-react'
+import { useMemo, useState, useCallback } from 'react'
+import { Link, useNavigate, useLocation } from 'react-router-dom'
+import { Search, ShoppingBag, User, X, Home } from 'lucide-react'
 import { useVendor } from '@/contexts/VendorContext'
+import { useEffectiveVendor } from '@/hooks/useEffectiveVendor'
 import { useStorePath } from '@/hooks/useStorePath'
-import { branchDisplayName } from '@/lib/branchStorefrontIdentity'
 import { useCartStore, selectCartItemCount } from '@/stores/cartStore'
 import { useCart } from '@/hooks/useStore'
 import { useAuthStore } from '@/stores/authStore'
 import { imgUrl, cn } from '@/lib/utils'
 import { AnnouncementBar } from '@/kit/header/UnifiedNav'
-import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu'
-import { storeApi, type StoreLocation } from '@/api/store'
+import { StoreBranchPicker } from '@/components/store/StoreBranchPicker'
 import { resolveStorefrontLinkMode } from '@/lib/storefrontTemplateAssignment'
 import type { PublicSite, StyleConfig, LiveItem } from '@/blocks/registry'
 import type { NavLinkItem } from '@/kit/types'
@@ -45,30 +38,20 @@ interface Props {
   isEditorCanvas?: boolean
 }
 
-function resolveLogoUrl(props: Record<string, unknown>, site: PublicSite, vendorLogo?: string | null) {
-  return (
-    (props.brand_logo as string | null | undefined)
-    || (props.logo_url as string | null | undefined)
-    || site.logo_url
-    || vendorLogo
-    || null
-  )
-}
-
 export default function NavBlock({
   site,
   style,
   props,
   liveItems,
-  branchCode: branchFromBlocks,
+  branchCode: _branchFromBlocks,
   isEditorCanvas = false,
 }: Props) {
   const { vendor, previewShell, openBuilderForPage } = useVendor()
+  const effectiveVendor = useEffectiveVendor()
   const storePath = useStorePath()
   const builderCanvas = useBuilderCanvas()
   const navigate = useNavigate()
   const location = useLocation()
-  const [searchParams] = useSearchParams()
   const { isAuthenticated } = useAuthStore()
   const cartCount = useCartStore(selectCartItemCount)
   useCart()
@@ -124,38 +107,8 @@ export default function NavBlock({
     navigate(href)
   }, [previewShell, openBuilderForPage, openBuilderPageFromPath, navigate])
 
-  const [branches, setBranches] = useState<StoreLocation[]>([])
-
-  useEffect(() => {
-    let cancelled = false
-    storeApi.listBranches()
-      .then(r => { if (!cancelled) setBranches(r.stores || []) })
-      .catch(() => { if (!cancelled) setBranches([]) })
-    return () => { cancelled = true }
-  }, [])
-
-  const urlBranch = searchParams.get('branch')
-  const effectiveBranch = urlBranch || branchFromBlocks || null
-
-  const setBranchParam = (code: string | null) => {
-    const next = new URLSearchParams(searchParams)
-    if (code) next.set('branch', code)
-    else next.delete('branch')
-    const qs = next.toString()
-    navigate(`${location.pathname}${qs ? `?${qs}` : ''}`, { replace: true })
-  }
-
-  const selectedBranch = useMemo(() => {
-    if (!effectiveBranch || !branches.length) return null
-    return branches.find(b => b.code === effectiveBranch || b.id === effectiveBranch) ?? null
-  }, [branches, effectiveBranch])
-
-  const brand = (props.brand as string) || (selectedBranch ? branchDisplayName(selectedBranch) : null) || site.name || vendor?.display_name || 'Store'
-  const logoUrl = resolveLogoUrl(
-    props,
-    site,
-    selectedBranch?.settings?.logo_url || vendor?.logo_url,
-  )
+  const brand = effectiveVendor?.display_name?.trim() || vendor?.display_name?.trim() || 'Store'
+  const logoUrl = effectiveVendor?.logo_url?.trim() || vendor?.logo_url?.trim() || null
   const showLogo = props.show_logo !== false && !!logoUrl
   const showBrandName = props.show_brand_name !== false
   const showNavLinks = props.show_nav_links !== false
@@ -214,7 +167,7 @@ export default function NavBlock({
   // Only offer the multi-store selector when the vendor runs a single website
   // shared across all stores; per-unit websites are tied to one store.
   const singleWebsiteForAllStores = resolveStorefrontLinkMode(vendor?.settings) === 'single'
-  const showBranchPicker = singleWebsiteForAllStores && branches.length > 1
+  const showBranchPicker = singleWebsiteForAllStores
   const primary = style.primary_color || '#64C3A0'
   const borderRadius = style.border_radius === 'sharp' || style.border_radius === 'none' ? 0 : 8
 
@@ -448,23 +401,7 @@ export default function NavBlock({
       )}
       {showBranchPicker && !shell.isCentered && (
         <div className="hidden md:flex items-center shrink-0">
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="sm" className="h-9 gap-1.5 max-w-[160px] font-normal" aria-label="Choose store location">
-                <MapPin className="h-3.5 w-3.5 shrink-0 opacity-70" />
-                <span className="truncate">{selectedBranch?.name || 'All locations'}</span>
-                <ChevronDown className="h-3.5 w-3.5 shrink-0 opacity-60" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="start" className="w-56">
-              <DropdownMenuItem onClick={() => setBranchParam(null)}>All locations</DropdownMenuItem>
-              {branches.map(b => (
-                <DropdownMenuItem key={b.id} onClick={() => setBranchParam(b.code || b.id)}>
-                  {b.name}
-                </DropdownMenuItem>
-              ))}
-            </DropdownMenuContent>
-          </DropdownMenu>
+          <StoreBranchPicker />
         </div>
       )}
       {ctaLabel && (

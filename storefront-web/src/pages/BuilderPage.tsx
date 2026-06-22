@@ -34,7 +34,8 @@ import AnalyticsInjector from '@/components/builder/AnalyticsInjector'
 import { getWbCatalogTemplateId } from '@/storefront/catalogTemplateIds'
 import { useAssignedStorefrontTemplateId } from '@/hooks/useAssignedStorefrontTemplateId'
 import { useStorePath } from '@/hooks/useStorePath'
-import { withSharedShellBlocks } from '@/lib/storefrontLayoutChrome'
+import { withSharedShellBlocks, stripSharedShellBlocksFromPage } from '@/lib/storefrontLayoutChrome'
+import { useLayoutOwnsShell } from '@/contexts/LayoutOwnsShellContext'
 import {
   isBlockBasedStorefrontTemplateId,
   isDefaultLayoutTemplateId,
@@ -205,11 +206,18 @@ export default function BuilderPage({ slug: forcedSlug, isHome }: BuilderPagePro
   const slug = forcedSlug ?? params['*'] ?? ''
   const normalizedSlug = slug.replace(/^\/+|\/+$/g, '')
   const isHomePath = isHome || normalizedSlug === '' || normalizedSlug === 'home'
+  const layoutOwnsShell = useLayoutOwnsShell()
   const page = builderSite ? findPage(builderSite, slug, isHome) : null
 
   const renderedBlocks = useMemo(
-    () => (page ? withSharedShellBlocks(builderSite, page) : []),
-    [builderSite, page],
+    () => {
+      if (!page) return []
+      if (layoutOwnsShell) {
+        return stripSharedShellBlocksFromPage(page.blocks ?? [])
+      }
+      return withSharedShellBlocks(builderSite, page)
+    },
+    [builderSite, page, layoutOwnsShell],
   )
   const blocksForSchema = useMemo(() => page?.blocks || [], [page?.id, page?.blocks])
   const liveDataMap = useLiveDataMap(blocksForSchema, builderSite?.id)

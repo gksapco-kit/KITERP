@@ -62,6 +62,16 @@ function matchBranch(stores: StoreLocation[], code: string | null): StoreLocatio
   return stores.find((s) => branchKey(s.code) === key || branchKey(s.id) === key) ?? null
 }
 
+export function BranchPreviewProvider({
+  value,
+  children,
+}: {
+  value: BranchContextValue
+  children: ReactNode
+}) {
+  return <BranchContext.Provider value={value}>{children}</BranchContext.Provider>
+}
+
 export function BranchProvider({ children }: { children: ReactNode }) {
   const { vendorSlug, storePath: vendorStorePath } = useVendor()
   const navigate = useNavigate()
@@ -84,7 +94,6 @@ export function BranchProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     let cancelled = false
-    setLoading(true)
     storeApi
       .listBranches()
       .then((r) => {

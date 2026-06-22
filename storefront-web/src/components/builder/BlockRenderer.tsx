@@ -103,6 +103,12 @@ function BlockSkeleton() {
   return <div className="w-full py-8 bg-gray-50 animate-pulse rounded" />
 }
 
+/** Shell / chrome blocks load without a skeleton pulse. */
+const SUSPENSE_NULL_FALLBACK_BLOCKS = new Set([
+  'nav', 'footer', 'announcement_bar', 'marquee_strip',
+  'search_bar', 'cookie_consent', 'recently_viewed', 'cart_drawer',
+])
+
 // ── Live data hook ─────────────────────────────────────────────────────────
 
 type LiveResource = 'products' | 'services' | 'testimonials' | 'team' | 'kpis' | 'profile' | 'pages' | 'categories' | 'customers' | 'orders' | 'bookings' | 'media' | 'stores'
@@ -251,73 +257,69 @@ export function SingleBlock({
 
   const inner = (() => {
     if (block.block_type.includes('.')) {
-      return (
-        <Suspense fallback={<BlockSkeleton />}>
-          <CommerceLibraryBlock {...commonProps} blockType={block.block_type} />
-        </Suspense>
-      )
+      return <CommerceLibraryBlock {...commonProps} blockType={block.block_type} />
     }
     switch (block.block_type) {
-      case 'nav':              return <Suspense fallback={null}><NavBlock {...commonProps} /></Suspense>
-      case 'footer':           return <Suspense fallback={null}><FooterBlock {...commonProps} /></Suspense>
-      case 'announcement_bar': return <Suspense fallback={null}><AnnouncementBarBlock {...commonProps} /></Suspense>
-      case 'marquee_strip':    return <Suspense fallback={null}><MarqueeStripBlock style={style} props={p} /></Suspense>
+      case 'nav':              return <NavBlock {...commonProps} />
+      case 'footer':           return <FooterBlock {...commonProps} />
+      case 'announcement_bar': return <AnnouncementBarBlock {...commonProps} />
+      case 'marquee_strip':    return <MarqueeStripBlock style={style} props={p} />
       case 'hero':
       case 'hero_split':
-      case 'hero_minimal':     return <Suspense fallback={<BlockSkeleton />}><HeroBlock {...commonProps} blockType={block.block_type} /></Suspense>
+      case 'hero_minimal':     return <HeroBlock {...commonProps} blockType={block.block_type} />
       case 'features':
       case 'features_alternating':
-      case 'features_icons':   return <Suspense fallback={<BlockSkeleton />}><FeaturesBlock {...commonProps} blockType={block.block_type} /></Suspense>
-      case 'product_detail':   return <Suspense fallback={<BlockSkeleton />}><ProductDetailBlock {...commonProps} /></Suspense>
-      case 'checkout_form':    return <Suspense fallback={<BlockSkeleton />}><CheckoutFormBlock {...commonProps} /></Suspense>
+      case 'features_icons':   return <FeaturesBlock {...commonProps} blockType={block.block_type} />
+      case 'product_detail':   return <ProductDetailBlock {...commonProps} />
+      case 'checkout_form':    return <CheckoutFormBlock {...commonProps} />
       case 'product_grid':
       case 'menu_grid':
       case 'category_cards':
-      case 'related_products': return <Suspense fallback={<BlockSkeleton />}><ProductGridBlock {...commonProps} blockType={block.block_type} /></Suspense>
+      case 'related_products': return <ProductGridBlock {...commonProps} blockType={block.block_type} />
       case 'services_cards':
-      case 'services_list':    return <Suspense fallback={<BlockSkeleton />}><ServicesCardsBlock {...commonProps} /></Suspense>
+      case 'services_list':    return <ServicesCardsBlock {...commonProps} />
       case 'testimonials':
-      case 'testimonials_grid': return <Suspense fallback={<BlockSkeleton />}><TestimonialsBlock {...commonProps} /></Suspense>
-      case 'product_reviews':  return <Suspense fallback={<BlockSkeleton />}><ProductReviewsBlock {...commonProps} /></Suspense>
+      case 'testimonials_grid': return <TestimonialsBlock {...commonProps} />
+      case 'product_reviews':  return <ProductReviewsBlock {...commonProps} />
       case 'team_grid':
-      case 'team_list':        return <Suspense fallback={<BlockSkeleton />}><TeamGridBlock {...commonProps} /></Suspense>
-      case 'stats':            return <Suspense fallback={<BlockSkeleton />}><StatsBlock {...commonProps} /></Suspense>
-      case 'cta':              return <Suspense fallback={<BlockSkeleton />}><CtaBlock {...commonProps} /></Suspense>
-      case 'contact_form':     return <Suspense fallback={<BlockSkeleton />}><ContactFormBlock {...commonProps} /></Suspense>
+      case 'team_list':        return <TeamGridBlock {...commonProps} />
+      case 'stats':            return <StatsBlock {...commonProps} />
+      case 'cta':              return <CtaBlock {...commonProps} />
+      case 'contact_form':     return <ContactFormBlock {...commonProps} />
       case 'map_embed':
-      case 'map_contact':      return <Suspense fallback={<BlockSkeleton />}><MapEmbedBlock {...commonProps} /></Suspense>
-      case 'faq':              return <Suspense fallback={<BlockSkeleton />}><FaqBlock {...commonProps} /></Suspense>
-      case 'pricing':          return <Suspense fallback={<BlockSkeleton />}><PricingBlock {...commonProps} /></Suspense>
-      case 'rich_text':        return <Suspense fallback={<BlockSkeleton />}><RichTextBlock {...commonProps} /></Suspense>
-      case 'image_block':      return <Suspense fallback={<BlockSkeleton />}><ImageBlock {...commonProps} /></Suspense>
-      case 'video_embed':      return <Suspense fallback={<BlockSkeleton />}><VideoEmbedBlock {...commonProps} /></Suspense>
+      case 'map_contact':      return <MapEmbedBlock {...commonProps} />
+      case 'faq':              return <FaqBlock {...commonProps} />
+      case 'pricing':          return <PricingBlock {...commonProps} />
+      case 'rich_text':        return <RichTextBlock {...commonProps} />
+      case 'image_block':      return <ImageBlock {...commonProps} />
+      case 'video_embed':      return <VideoEmbedBlock {...commonProps} />
       case 'gallery_masonry':
       case 'gallery_grid':
       case 'image_gallery':
-      case 'portfolio_grid':   return <Suspense fallback={<BlockSkeleton />}><GalleryMasonryBlock {...commonProps} /></Suspense>
-      case 'social_links':     return <Suspense fallback={<BlockSkeleton />}><SocialLinksBlock {...commonProps} /></Suspense>
-      case 'countdown':        return <Suspense fallback={<BlockSkeleton />}><CountdownBlock {...commonProps} /></Suspense>
-      case 'newsletter':       return <Suspense fallback={<BlockSkeleton />}><NewsletterBlock {...commonProps} /></Suspense>
-      case 'trust_logos':      return <Suspense fallback={<BlockSkeleton />}><TrustLogosBlock {...commonProps} /></Suspense>
-      case 'timeline':         return <Suspense fallback={<BlockSkeleton />}><TimelineBlock {...commonProps} /></Suspense>
-      case 'about_split':      return <Suspense fallback={<BlockSkeleton />}><AboutSplitBlock {...commonProps} /></Suspense>
-      case 'booking_widget':        return <Suspense fallback={<BlockSkeleton />}><BookingWidgetBlock {...commonProps} /></Suspense>
-      case 'booking_slot_picker':   return <Suspense fallback={<BlockSkeleton />}><BookingSlotPickerBlock {...commonProps} /></Suspense>
-      case 'live_stock':       return <Suspense fallback={<BlockSkeleton />}><LiveStockBlock {...commonProps} /></Suspense>
-      case 'order_status':     return <Suspense fallback={<BlockSkeleton />}><OrderStatusBlock {...commonProps} /></Suspense>
+      case 'portfolio_grid':   return <GalleryMasonryBlock {...commonProps} />
+      case 'social_links':     return <SocialLinksBlock {...commonProps} />
+      case 'countdown':        return <CountdownBlock {...commonProps} />
+      case 'newsletter':       return <NewsletterBlock {...commonProps} />
+      case 'trust_logos':      return <TrustLogosBlock {...commonProps} />
+      case 'timeline':         return <TimelineBlock {...commonProps} />
+      case 'about_split':      return <AboutSplitBlock {...commonProps} />
+      case 'booking_widget':        return <BookingWidgetBlock {...commonProps} />
+      case 'booking_slot_picker':   return <BookingSlotPickerBlock {...commonProps} />
+      case 'live_stock':       return <LiveStockBlock {...commonProps} />
+      case 'order_status':     return <OrderStatusBlock {...commonProps} />
       case 'coupon_banner':
       case 'offer_banner':
-      case 'promo_strip':      return <Suspense fallback={<BlockSkeleton />}><CouponBannerBlock {...commonProps} /></Suspense>
-      case 'payment_methods_strip': return <Suspense fallback={<BlockSkeleton />}><PaymentMethodsStripBlock {...commonProps} /></Suspense>
-      case 'search_bar':       return <Suspense fallback={null}><SearchBarBlock {...commonProps} /></Suspense>
-      case 'cookie_consent':   return <Suspense fallback={null}><CookieConsentBlock {...commonProps} /></Suspense>
-      case 'recently_viewed':  return <Suspense fallback={null}><RecentlyViewedBlock {...commonProps} /></Suspense>
-      case 'product_filters':  return <Suspense fallback={<BlockSkeleton />}><ProductFiltersBlock {...commonProps} /></Suspense>
+      case 'promo_strip':      return <CouponBannerBlock {...commonProps} />
+      case 'payment_methods_strip': return <PaymentMethodsStripBlock {...commonProps} />
+      case 'search_bar':       return <SearchBarBlock {...commonProps} />
+      case 'cookie_consent':   return <CookieConsentBlock {...commonProps} />
+      case 'recently_viewed':  return <RecentlyViewedBlock {...commonProps} />
+      case 'product_filters':  return <ProductFiltersBlock {...commonProps} />
       case 'blog_grid':
       case 'blog_featured':
-      case 'blog_list':        return <Suspense fallback={<BlockSkeleton />}><BlogGridBlock {...commonProps} /></Suspense>
-      case 'cart_drawer':      return <Suspense fallback={null}><CartDrawerBlock {...commonProps} /></Suspense>
-      case 'live_quote':       return <Suspense fallback={<BlockSkeleton />}><LiveQuoteBlock {...commonProps} /></Suspense>
+      case 'blog_list':        return <BlogGridBlock {...commonProps} />
+      case 'cart_drawer':      return <CartDrawerBlock {...commonProps} />
+      case 'live_quote':       return <LiveQuoteBlock {...commonProps} />
       case 'ab_test_block':
       case 'personalization_block':
         return (
@@ -433,6 +435,18 @@ export function SingleBlock({
       ? blockLink
       : storePath(blockLink.startsWith('/') ? blockLink : `/${blockLink}`)
     : ''
+  const blockSuspenseFallback = SUSPENSE_NULL_FALLBACK_BLOCKS.has(block.block_type)
+    ? null
+    : <BlockSkeleton />
+  const overlayLayers = overlays.length > 0 && !isEditorCanvas
+    ? <BlockOverlayLayers overlays={overlays} />
+    : null
+  const blockBody = (
+    <>
+      {inner}
+      {overlayLayers}
+    </>
+  )
   const activateBlockLink = (eventTarget: EventTarget | null) => {
     if (!resolvedBlockLink || !(eventTarget instanceof HTMLElement)) return
     if (eventTarget.closest('a, button, input, textarea, select, label, [role="button"]')) return
@@ -492,11 +506,12 @@ export function SingleBlock({
         // element) so the builder's selection/handle overlay — which reads
         // offsetWidth/getBoundingClientRect on the outer element — stays aligned.
         // `zoom` still reflows, so the outer element grows/shrinks to fit.
-        <div style={{ zoom: sectionScale } as CSSProperties}>{inner}</div>
+        <div style={{ zoom: sectionScale } as CSSProperties}>
+          <Suspense fallback={blockSuspenseFallback}>{blockBody}</Suspense>
+        </div>
       ) : (
-        inner
+        <Suspense fallback={blockSuspenseFallback}>{blockBody}</Suspense>
       )}
-      {overlays.length > 0 && !isEditorCanvas ? <BlockOverlayLayers overlays={overlays} /> : null}
       {bottomShape && bottomShape !== 'none' && (
         <SectionShapeDivider shape={bottomShape} fillColor={shapeColor} position="bottom" />
       )}

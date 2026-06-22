@@ -5,6 +5,10 @@ export const templateBadgeVioletClass =
 export const templateBadgeEmeraldClass =
   'inline-flex max-w-[calc(100%-0.75rem)] items-center gap-0.5 truncate whitespace-nowrap rounded-full border border-emerald-200 bg-emerald-50/95 px-1.5 py-px text-[9px] font-extrabold uppercase tracking-wide text-emerald-700 shadow-sm'
 
+/** Neutral badge for templates/sites not yet assigned to a storefront. */
+export const templateBadgeNeutralClass =
+  'inline-flex max-w-[calc(100%-0.75rem)] items-center gap-0.5 truncate whitespace-nowrap rounded-full border border-gray-200 bg-gray-50/95 px-1.5 py-px text-[9px] font-extrabold uppercase tracking-wide text-gray-600 shadow-sm'
+
 /** Shared shell for Website Templates gallery cards — pointer + lift on hover. */
 export const templateCardShellClass =
   'group/card flex cursor-pointer flex-col overflow-hidden rounded-xl border border-gray-200/90 bg-white text-left shadow-sm transition-all duration-200 ease-out hover:border-primary/55 hover:ring-2 hover:ring-primary/20 hover:shadow-[0_10px_28px_rgba(19,98,74,0.12)] motion-safe:hover:-translate-y-0.5 dark:border-border dark:bg-card dark:hover:shadow-[0_10px_28px_rgba(0,0,0,0.3)]'
@@ -24,8 +28,13 @@ export const templateCardActionBtnClass =
 export const templateCardPrimaryActionClass =
   'inline-flex min-w-0 max-w-[58%] flex-1 cursor-pointer items-center justify-center gap-0.5 truncate rounded-md border px-1.5 py-0.5 text-[10px] font-bold transition-colors'
 
+/** Assigned / live on the storefront — green primary. */
 export const templateCardActivePillClass =
-  'inline-flex min-w-0 max-w-[58%] flex-1 items-center justify-center gap-0.5 truncate rounded-md border border-violet-200 bg-violet-50 px-1.5 py-0.5 text-[10px] font-bold text-violet-600'
+  'inline-flex min-w-0 max-w-[58%] flex-1 items-center justify-center gap-0.5 truncate rounded-md border-2 border-primary bg-primary/10 px-1.5 py-0.5 text-[10px] font-bold text-primary'
+
+/** Not assigned yet — neutral call to action. */
+export const templateCardAssignPillClass =
+  'inline-flex min-w-0 max-w-[58%] flex-1 cursor-pointer items-center justify-center gap-0.5 truncate rounded-md border border-gray-200 bg-gray-50 px-1.5 py-0.5 text-[10px] font-bold text-gray-600 transition-colors hover:border-gray-300 hover:bg-gray-100'
 
 export const templateCardActivePillEmeraldClass =
   'inline-flex min-w-0 max-w-[58%] flex-1 items-center justify-center gap-0.5 truncate rounded-md border-2 border-primary bg-primary/10 px-1.5 py-0.5 text-[10px] font-bold text-primary'
@@ -65,4 +74,20 @@ export function perStoreTemplateActionLabel(
 
 export function singleTemplateActionLabel(isSelected: boolean): string {
   return isSelected ? 'Assigned · all' : 'Assign · all'
+}
+
+/** Gallery status when a pre-built template/site is not tied to the selected business unit. */
+export const systemTemplateGalleryStatusLabel = 'System template'
+
+export function systemTemplateGalleryStatusTitle(
+  contextStoreCode?: string | null,
+  liveElsewhereNames?: string[],
+): string {
+  const liveNote = liveElsewhereNames?.filter(Boolean).length
+    ? ` Live on ${liveElsewhereNames.join(', ')}.`
+    : ''
+  const unitNote = contextStoreCode?.trim()
+    ? ` Not assigned to ${contextStoreCode.trim()}.`
+    : ''
+  return `Pre-built layout ready in the system.${liveNote}${unitNote} Preview to explore.`
 }

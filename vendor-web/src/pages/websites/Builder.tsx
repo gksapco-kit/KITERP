@@ -59,12 +59,10 @@ import { websiteApi } from '@/api/websites'
 import { vendorApi } from '@/api/vendor'
 import { useVendorStore } from '@/stores/vendorStore'
 import { useMyVendor, useStores, vendorKeys } from '@/hooks/useVendor'
-import { ensureBuilderSiteStorefrontActive } from '@/lib/builderDraftTemplateSites'
+import { isBuilderSiteAssignedToAnyStore } from '@/lib/builderDraftTemplateSites'
 import {
-  openStorefrontLinks,
   resolveSiteStoreLink,
   resolveStorefrontLinkMode,
-  resolveStorefrontLinksForStoreIds,
   resolveStorefrontTemplateMode,
   buildCustomerStoreLink,
   customerLinkForStore,
@@ -199,6 +197,7 @@ import {
 } from '@/components/websites/SectionEditorRibbon'
 import { SectionPanelGroup } from '@/components/websites/SectionPanelGroup'
 import { builderPanelUi } from '@/components/websites/builderPanelUi'
+import { BuilderSiteInputParametersModal } from '@/components/websites/BuilderSiteInputParametersModal'
 import {
   applyCategoryImagesToBlockProps,
   blockSupportsGalleryCategory,
@@ -3381,6 +3380,17 @@ function pagesNavKey(pages: WebsitePage[]): string {
 
 const GLOBAL_STRUCTURE_BLOCK_TYPES = new Set(['announcement_bar', 'nav', 'footer'])
 
+function blocksByPageFingerprint(blocksByPage: Record<string, WebsiteBlock[]>): string {
+  return JSON.stringify(
+    Object.entries(blocksByPage)
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([pageId, blocks]) => [
+        pageId,
+        blocks.map(b => `${b.id}:${b.block_type}:${b.sort_order}`).join(','),
+      ]),
+  )
+}
+
 /** After layout apply / structure edits, ignore server block hydration for this long. */
 const SKIP_SERVER_HYDRATE_MS = 30_000
 
@@ -3540,75 +3550,108 @@ function relocateExistingStructureBlock(
   return next.map((b, i) => ({ ...b, sort_order: i }))
 }
 
-function ensureStructureBlocksOnAllPages(
+function resolveHomePage(pages: WebsitePage[]): WebsitePage | undefined {
+  return pages.find(p => p.is_homepage) || pages[0]
+}
+
+/** Nav / announcement / footer live on the homepage only — strip duplicates elsewhere. */
+function ensureStructureBlockOnHomepage(
   blocksByPage: Record<string, WebsiteBlock[]>,
   pages: WebsitePage[],
   sourceBlock: WebsiteBlock,
   blockType: string,
 ): Record<string, WebsiteBlock[]> {
   if (!GLOBAL_STRUCTURE_BLOCK_TYPES.has(blockType)) return blocksByPage
+  const home = resolveHomePage(pages)
+  if (!home) return blocksByPage
+
   let next = { ...blocksByPage }
   for (const page of pages) {
+    if (page.id === home.id) continue
     const blocks = next[page.id] || []
-    const relocated = relocateExistingStructureBlock(blocks, blockType, -1)
-    if (relocated) {
-      next = { ...next, [page.id]: relocated }
-      continue
+    const filtered = blocks.filter(b => b.block_type !== blockType)
+    if (filtered.length !== blocks.length) {
+      next[page.id] = filtered.map((b, i) => ({ ...b, sort_order: i }))
     }
-    if (blocks.some(b => b.block_type === blockType)) continue
-    const clone: WebsiteBlock = {
-      ...sourceBlock,
-      id: `temp-${blockType}-${page.id}-${Date.now()}`,
-      page_id: page.id,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    }
-    next = { ...next, [page.id]: insertBlockAtIndex(blocks, clone, blockType, -1) }
   }
+
+  const homeBlocks = next[home.id] || []
+  const relocated = relocateExistingStructureBlock(homeBlocks, blockType, -1)
+  if (relocated) {
+    next[home.id] = relocated
+    return next
+  }
+  if (homeBlocks.some(b => b.block_type === blockType)) return next
+
+  const clone: WebsiteBlock = {
+    ...sourceBlock,
+    id: `temp-${blockType}-${home.id}-${Date.now()}`,
+    page_id: home.id,
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  }
+  next[home.id] = insertBlockAtIndex(homeBlocks, clone, blockType, -1)
   return next
 }
 
-/** Copy global structure blocks (nav / footer / announcement) onto a newly created page. */
+/** New pages are content-only; homepage nav/footer is injected at preview/live time. */
 function seedStructureBlocksForNewPage(
-  blocksByPage: Record<string, WebsiteBlock[]>,
-  pages: WebsitePage[],
-  newPageId: string,
+  _blocksByPage: Record<string, WebsiteBlock[]>,
+  _pages: WebsitePage[],
+  _newPageId: string,
 ): WebsiteBlock[] {
-  let pageBlocks: WebsiteBlock[] = []
-  for (const type of ['announcement_bar', 'nav', 'footer'] as const) {
-    let source: WebsiteBlock | undefined
-    for (const page of pages) {
-      if (page.id === newPageId) continue
-      source = (blocksByPage[page.id] || []).find(b => b.block_type === type)
-      if (source) break
-    }
-    if (!source) continue
-    const clone: WebsiteBlock = {
-      ...source,
-      id: `temp-${type}-${newPageId}-${Date.now()}`,
-      page_id: newPageId,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    }
-    pageBlocks = insertBlockAtIndex(pageBlocks, clone, type, -1)
-  }
-  return pageBlocks
+  return []
 }
 
+function consolidateStructureBlocksOnHomepage(
+  blocksByPage: Record<string, WebsiteBlock[]>,
+  pages: WebsitePage[],
+): Record<string, WebsiteBlock[]> {
+  const home = resolveHomePage(pages)
+  if (!home) return blocksByPage
+
+  let next: Record<string, WebsiteBlock[]> = { ...blocksByPage }
+
+  for (const type of ['announcement_bar', 'nav', 'footer'] as const) {
+    let canonical: WebsiteBlock | undefined = (next[home.id] || []).find(b => b.block_type === type)
+    if (!canonical) {
+      for (const page of pages) {
+        canonical = (next[page.id] || []).find(b => b.block_type === type)
+        if (canonical) break
+      }
+    }
+
+    for (const page of pages) {
+      if (page.id === home.id) continue
+      const blocks = next[page.id] || []
+      const filtered = blocks.filter(b => b.block_type !== type)
+      if (filtered.length !== blocks.length) {
+        next[page.id] = filtered.map((b, i) => ({ ...b, sort_order: i }))
+      }
+    }
+
+    if (!canonical) continue
+
+    let homeBlocks = (next[home.id] || []).filter(b => b.block_type !== type)
+    homeBlocks = insertBlockAtIndex(
+      homeBlocks,
+      { ...canonical, page_id: home.id },
+      type,
+      -1,
+    )
+    const relocated = relocateExistingStructureBlock(homeBlocks, type, -1)
+    next[home.id] = relocated || homeBlocks
+  }
+
+  return next
+}
+
+/** @deprecated alias — structure blocks are consolidated on the homepage. */
 function normalizeAllStructureBlocks(
   blocksByPage: Record<string, WebsiteBlock[]>,
   pages: WebsitePage[],
 ): Record<string, WebsiteBlock[]> {
-  let next = { ...blocksByPage }
-  for (const page of pages) {
-    let pageBlocks = (next[page.id] || []).slice().sort((a, b) => a.sort_order - b.sort_order)
-    for (const type of ['announcement_bar', 'nav', 'footer'] as const) {
-      const relocated = relocateExistingStructureBlock(pageBlocks, type, -1)
-      if (relocated) pageBlocks = relocated
-    }
-    next = { ...next, [page.id]: pageBlocks }
-  }
-  return next
+  return consolidateStructureBlocksOnHomepage(blocksByPage, pages)
 }
 
 /** Find a global structure block (nav / footer / announcement bar) on any page. */
@@ -3624,6 +3667,11 @@ function findStructureBlockInMap(
       if (found?.block_type === blockType) return { block: found, pageId: page.id }
     }
   }
+  const home = resolveHomePage(pages)
+  if (home) {
+    const homeBlock = (blocksByPage[home.id] || []).find(b => b.block_type === blockType)
+    if (homeBlock) return { block: homeBlock, pageId: home.id }
+  }
   for (const page of pages) {
     const found = (blocksByPage[page.id] || []).find(b => b.block_type === blockType)
     if (found) return { block: found, pageId: page.id }
@@ -3631,23 +3679,17 @@ function findStructureBlockInMap(
   return undefined
 }
 
-/** Apply layout props to a structure block on every page (add missing clones). */
+/** Apply layout props to the homepage structure block (single source of truth). */
 function applyStructureLayoutToAllPages(
   blocksByPage: Record<string, WebsiteBlock[]>,
   pages: WebsitePage[],
   blockType: string,
   def: { label: string },
   finalProps: BlockProps,
-  activePageId: string,
+  _activePageId: string,
   sourceBlock: WebsiteBlock,
 ): Record<string, WebsiteBlock[]> {
   const stamp = new Date().toISOString()
-  let next: Record<string, WebsiteBlock[]> = { ...blocksByPage }
-  for (const page of pages) {
-    next[page.id] = (next[page.id] || []).map(b =>
-      b.block_type === blockType ? { ...b, props: finalProps, updated_at: stamp } : b,
-    )
-  }
   const template: WebsiteBlock = {
     ...sourceBlock,
     block_type: blockType as WebsiteBlock['block_type'],
@@ -3655,13 +3697,14 @@ function applyStructureLayoutToAllPages(
     props: finalProps,
     updated_at: stamp,
   }
-  next = ensureStructureBlocksOnAllPages(next, pages, template, blockType)
-  for (const page of pages) {
-    next[page.id] = (next[page.id] || []).map(b =>
+  let next = ensureStructureBlockOnHomepage(blocksByPage, pages, template, blockType)
+  const home = resolveHomePage(pages)
+  if (home) {
+    next[home.id] = (next[home.id] || []).map(b =>
       b.block_type === blockType ? { ...b, props: finalProps, updated_at: stamp } : b,
     )
   }
-  return next
+  return consolidateStructureBlocksOnHomepage(next, pages)
 }
 
 
@@ -7095,7 +7138,7 @@ function BuilderShortcutKbd({ children, className }: { children: React.ReactNode
   )
 }
 
-function BlockDesignBar({ block, onUpdate, onInsertAfter, onOpenLinkEditorForOverlay, activeTextField, activeTextFields = [], onActivateTextField, onEditText, onEscapeDismiss, onUndo, onRedo, canUndo, canRedo, formatPaintActive, formatPaintSticky, onFormatPaintStart, onFormatPaintCancel, selectedOverlayId, canvasImageField, canvasImageSlots, onSectionImagePick, onSectionImageLibrary, onFocusPrimaryImage, onSelectOverlay, blockBackgroundColor, onOverlayPickImage, onOverlayOpenLibrary, onOverlaySetImageUrl, onOverlayEditText, onOverlayEditDescription, floating = false, docked = false }: {
+function BlockDesignBar({ block, onUpdate, onInsertAfter, onOpenLinkEditorForOverlay, activeTextField, activeTextFields = [], onActivateTextField, onEditText, onEscapeDismiss, onUndo, onRedo, canUndo, canRedo, formatPaintActive, formatPaintSticky, onFormatPaintStart, onFormatPaintCancel, selectedOverlayId, canvasImageField, canvasImageSlots, onSectionImagePick, onSectionImageLibrary, onFocusPrimaryImage, onSelectOverlay, blockBackgroundColor, onOverlayPickImage, onOverlayOpenLibrary, onOverlaySetImageUrl, onOverlayEditText, onOverlayEditDescription, floating = false, docked = false, selectionHint }: {
   block: WebsiteBlock
   onUpdate: (p: Partial<BlockProps>) => void
   onInsertAfter: (type: string) => void
@@ -7132,6 +7175,8 @@ function BlockDesignBar({ block, onUpdate, onInsertAfter, onOpenLinkEditorForOve
   floating?: boolean
   /** Fixed strip below the canvas toolbar (stable; does not overlap page content). */
   docked?: boolean
+  /** Context hint shown beside General / Visual / Media tabs when docked. */
+  selectionHint?: string
 }) {
   const [designBarTab, setDesignBarTab] = useState<DesignBarTabId>('general')
   const [showCase, setShowCase] = useState(false)
@@ -7760,10 +7805,11 @@ function BlockDesignBar({ block, onUpdate, onInsertAfter, onOpenLinkEditorForOve
   return (
     <div className="flex flex-col shrink-0" data-block-design-bar>
       <div
-        className="flex items-center gap-0.5 px-2 py-0.5 border-b border-gray-100 bg-gray-50/90"
+        className="flex items-center gap-2 px-2 py-0.5 border-b border-gray-100 bg-gray-50/90"
         role="tablist"
         aria-label="Section design tools"
       >
+        <div className="flex shrink-0 items-center gap-0.5">
         {(([
           { id: 'general', label: 'General' },
           { id: 'visual', label: 'Visual' },
@@ -7795,6 +7841,12 @@ function BlockDesignBar({ block, onUpdate, onInsertAfter, onOpenLinkEditorForOve
             {tab.label}
           </button>
         ))}
+        </div>
+        {docked && selectionHint ? (
+          <span className="min-w-0 flex-1 truncate border-l border-gray-200 pl-2 text-[11px] font-medium text-primary/90">
+            {selectionHint}
+          </span>
+        ) : null}
       </div>
     <div
       ref={barRef}
@@ -8407,7 +8459,7 @@ export default function WebsiteBuilder() {
     return () => el.removeAttribute('data-builder-inline-edit-target')
   }, [inlineTextEdit?.blockId])
   const [device, setDevice] = useState<DeviceMode>('desktop')
-  const [leftPanel, setLeftPanel] = useState<'blocks' | 'pages' | 'templates' | 'media' | 'settings'>(() => {
+  const [leftPanel, setLeftPanel] = useState<'blocks' | 'pages' | 'templates' | 'media'>(() => {
     const sp = new URLSearchParams(window.location.search)
     if (sp.get('templateMode') === 'true') return 'templates'
     return 'blocks'
@@ -8415,8 +8467,10 @@ export default function WebsiteBuilder() {
   const [templateListSearch, setTemplateListSearch] = useState('')
   const [templatePanelSelectedId, setTemplatePanelSelectedId] = useState<string | null>(null)
   const [applyingTemplateInline, setApplyingTemplateInline] = useState(false)
-  const [isApplyingToStore, setIsApplyingToStore] = useState(false)
+  const [isStorefrontTemplateToggling, setIsStorefrontTemplateToggling] = useState(false)
   const [moreMenuOpen, setMoreMenuOpen] = useState(false)
+  const [inputParamsOpen, setInputParamsOpen] = useState(false)
+  const [siteSettingsOpen, setSiteSettingsOpen] = useState(false)
   const [changeHistoryOpen, setChangeHistoryOpen] = useState(false)
   const moreMenuRef = useRef<HTMLDivElement>(null)
   const [deviceDropdownOpen, setDeviceDropdownOpen] = useState(false)
@@ -8488,6 +8542,7 @@ export default function WebsiteBuilder() {
   const [lastSavedAt, setLastSavedAt] = useState<Date | null>(null)
   const [storePopover, setStorePopover] = useState(false)
   const viewStoreAnchorRef = useRef<HTMLButtonElement>(null)
+  const storePopoverRef = useRef<HTMLDivElement>(null)
   const [storePopoverRect, setStorePopoverRect] = useState<{ top: number; right: number } | null>(null)
   // ?? Block-level saving indicator ???????????????????????????????????????????
   const [savingBlockId, setSavingBlockId] = useState<string | null>(null)
@@ -8767,7 +8822,10 @@ export default function WebsiteBuilder() {
   useEffect(() => {
     if (!moreMenuOpen) return
     const onDocMouseDown = (e: MouseEvent) => {
-      if (moreMenuRef.current?.contains(e.target as Node)) return
+      const target = e.target as Node
+      if (moreMenuRef.current?.contains(target)) return
+      // Popover is portaled to document.body — ignore clicks inside it so Copy/Open fire before close.
+      if (storePopoverRef.current?.contains(target)) return
       setMoreMenuOpen(false)
       setChangeHistoryOpen(false)
     }
@@ -8841,14 +8899,15 @@ export default function WebsiteBuilder() {
       nextBlocks[page.id] = page.blocks.slice().sort((a, b) => a.sort_order - b.sort_order)
     })
     const normalized = normalizeAllStructureBlocks(nextBlocks, nextSite.pages)
+    const consolidatedShell = blocksByPageFingerprint(nextBlocks) !== blocksByPageFingerprint(normalized)
     setLocalBlocks(syncNavLinksInBlockMap(normalized, nextSite.pages))
     const homepage = nextSite.pages.find(p => p.is_homepage) || nextSite.pages[0]
     setActivePageId(homepage?.id ?? null)
     setSelectedBlockId(null)
     setActiveTextTarget(null)
     setStyleDirty(false)
-    setBlocksDirty(false)
-    blocksDirtyRef.current = false
+    setBlocksDirty(consolidatedShell)
+    blocksDirtyRef.current = consolidatedShell
     styleDirtyRef.current = false
     historyStack.current = [JSON.parse(JSON.stringify(syncNavLinksInBlockMap(normalized, nextSite.pages)))]
     historyMeta.current = [Date.now()]
@@ -8867,7 +8926,12 @@ export default function WebsiteBuilder() {
     normalized.forEach(page => {
       nextBlocks[page.id] = (page.blocks || []).slice().sort((a, b) => a.sort_order - b.sort_order)
     })
-    const synced = syncNavLinksInBlockMap(normalizeAllStructureBlocks(nextBlocks, normalized), normalized)
+    const consolidated = normalizeAllStructureBlocks(nextBlocks, normalized)
+    const synced = syncNavLinksInBlockMap(consolidated, normalized)
+    if (blocksByPageFingerprint(nextBlocks) !== blocksByPageFingerprint(consolidated)) {
+      blocksDirtyRef.current = true
+      setBlocksDirty(true)
+    }
     localBlocksRef.current = synced
     setLocalBlocks(synced)
     queryClient.setQueryData<WebsiteSite>(['websites', siteId!], { ...fresh, pages: normalized })
@@ -8908,8 +8972,6 @@ export default function WebsiteBuilder() {
       setApplyingTemplateInline(false)
     }
   }, [siteId, queryClient, hydrateEditorFromSite])
-
-  // handleApplyToStore is defined after handleSaveCanvas ? see below
 
   const handleClearTemplateSandbox = useCallback(async () => {
     if (!siteId || !isTemplateMode) return
@@ -9056,7 +9118,12 @@ export default function WebsiteBuilder() {
             const serverBlocks = page.blocks.slice().sort((a, b) => a.sort_order - b.sort_order)
             next[page.id] = serverBlocks
           })
+          const beforeFp = blocksByPageFingerprint(next)
           const normalized = normalizeAllStructureBlocks(next, site.pages)
+          if (beforeFp !== blocksByPageFingerprint(normalized)) {
+            blocksDirtyRef.current = true
+            setBlocksDirty(true)
+          }
           return syncNavLinksInBlockMap(normalized, site.pages)
         })
       }
@@ -9243,6 +9310,43 @@ export default function WebsiteBuilder() {
     if (!site) return null
     return buildBuilderPublicSite(site, localPages, localBlocks, localStyle, vendorCatalogSlug)
   }, [site, localPages, localBlocks, localStyle, vendorCatalogSlug])
+
+  const builderBusinessProfile = useMemo(() => {
+    if (!myVendor) return null
+    return {
+      id: myVendor.id,
+      business_name: myVendor.business_name,
+      display_name: myVendor.display_name,
+      slug: myVendor.slug,
+      description: myVendor.description,
+      offering_type: myVendor.offering_type,
+      logo_url: myVendor.logo_url,
+      banner_url: myVendor.banner_url,
+      theme_config: myVendor.theme_config,
+      primary_email: myVendor.primary_email,
+      primary_phone: myVendor.primary_phone,
+      support_email: myVendor.support_email,
+      support_phone: myVendor.support_phone,
+      social_links: myVendor.social_links,
+      settings: myVendor.settings,
+    }
+  }, [myVendor])
+
+  const builderPreviewStore = useMemo(() => {
+    if (!site || builderStores.length === 0) return null
+    const linked =
+      site.website_store_scope === 'store' && site.website_store_id
+        ? builderStores.find((s) => s.id === site.website_store_id)
+        : builderStores[0]
+    if (!linked) return null
+    return {
+      id: linked.id,
+      name: linked.name,
+      code: linked.code,
+      description: linked.description,
+      settings: linked.settings,
+    }
+  }, [site, builderStores])
 
   // Catalog/commerce pages (product detail, service detail, cart, checkout…) are not
   // block-based builder pages — they're storefront route templates. Instead of popping
@@ -10075,21 +10179,27 @@ export default function WebsiteBuilder() {
     setRightCollapsed(false)
     scrollCanvasToBlock(tempId)
 
-    // 2. Persist in background (active page first; clones on other pages save with Save/Apply)
+    // 2. Persist in background (structure blocks always save on the homepage)
+    const homePage = resolveHomePage(pages)
+    const persistPageId = isStructure && homePage ? homePage.id : activePageId
+    const persistBlocks = isStructure && homePage ? (next[homePage.id] || []) : pageBlocks
+    const persistSortOrder = persistBlocks.findIndex(b => b.id === tempId)
     try {
-      const saved = await websiteApi.createBlock(siteId!, activePageId, {
+      const saved = await websiteApi.createBlock(siteId!, persistPageId, {
         block_type: def.type, label: def.label,
         props: initialProps, style_overrides: {},
         visible: true, visible_on_mobile: true, visible_on_tablet: true, visible_on_desktop: true,
-        sort_order: pageBlocks.findIndex(b => b.id === tempId),
+        sort_order: persistSortOrder >= 0 ? persistSortOrder : persistBlocks.length,
       } as any)
       setLocalBlocks(prev => {
         let updated: Record<string, WebsiteBlock[]> = {
           ...prev,
-          [activePageId]: (prev[activePageId] || []).map(b => b.id === tempId ? saved : b),
+          [persistPageId]: (prev[persistPageId] || [])
+            .filter(b => b.block_type !== def.type || b.id === tempId)
+            .map(b => b.id === tempId ? saved : b),
         }
         if (isStructure) {
-          updated = ensureStructureBlocksOnAllPages(updated, localPagesRef.current, saved, def.type)
+          updated = consolidateStructureBlocksOnHomepage(updated, localPagesRef.current)
         }
         localBlocksRef.current = updated
         if (site) {
@@ -10099,6 +10209,9 @@ export default function WebsiteBuilder() {
         }
         return updated
       })
+      if (isStructure && homePage && homePage.id !== activePageId) {
+        setActivePageId(homePage.id)
+      }
       setSelectedBlockId(saved.id)
       scrollCanvasToBlock(saved.id)
       if (replacedBlockId && !replacedBlockId.startsWith('temp-')) {
@@ -10111,8 +10224,8 @@ export default function WebsiteBuilder() {
       toast.success(
         replacedBlockId
           ? `${def.label} replaced selected section`
-          : isStructure && pages.length > 1
-            ? `${def.label} added ? synced to all pages`
+          : isStructure
+            ? `${def.label} updated site-wide header`
             : `${def.label} added`,
       )
     } catch {
@@ -12218,83 +12331,54 @@ export default function WebsiteBuilder() {
     return () => clearTimeout(timer)
   }, [blocksDirty, styleDirty, siteId, site, activePageId, localStyle, vendorCatalogSlug])
 
-  /** Save current canvas + publish to make the loaded template live on the store. */
-  const handleApplyToStore = useCallback(async () => {
-    if (!siteId || isApplyingToStore) return
-    setIsApplyingToStore(true)
+  /** Save canvas, then enable or disable this design in Website templates. */
+  const handleToggleStorefrontTemplate = useCallback(async () => {
+    if (!siteId || isStorefrontTemplateToggling || !site) return
+    const enabling = !site.is_published
+    setIsStorefrontTemplateToggling(true)
     try {
-      // Only persist if there are pending local changes ? avoids redundant API
-      // calls when the user clicks Apply immediately after loading a template.
-      if (blocksDirty || styleDirty) {
-        await persistAllPagesToServer()
-      }
-      if (blocksDirty) {
-        await persistAllBlocksToServer()
-      }
-      if (styleDirty) {
-        await websiteApi.updateSite(siteId, { style_config: localStyle as any })
-      }
-      await websiteApi.publishSite(siteId)
-      const siteStoreMeta = site as (WebsiteSite & Pick<SiteListItem, 'website_store_id' | 'website_store_scope'>) | undefined
-      const styleStoreMeta = localStyle as unknown as Record<string, unknown>
-      const linkedStoreId = siteStoreMeta?.website_store_id ?? styleStoreMeta.website_store_id
-      const linkedStoreScope = siteStoreMeta?.website_store_scope ?? styleStoreMeta.website_store_scope
-      if (linkedStoreScope === 'store' && typeof linkedStoreId === 'string' && linkedStoreId.trim()) {
-        try {
-          const [allSites, storesRes] = await Promise.all([
-            websiteApi.listSites(),
-            vendorApi.listStores({ limit: 200 }),
-          ])
-          const storeList = storesRes.stores ?? []
-          const activated = await ensureBuilderSiteStorefrontActive({
-            siteId,
-            sites: allSites as SiteListItem[],
-            stores: storeList,
-            vendorSettings: myVendor?.settings,
-          })
-          if (activated) {
-            await queryClient.invalidateQueries({ queryKey: vendorKeys.stores() })
-          }
-          const vendorSlug = myVendor?.slug?.trim()
-          if (vendorSlug) {
-            const links = resolveStorefrontLinksForStoreIds(
-              vendorSlug,
-              resolveStorefrontLinkMode(myVendor?.settings),
-              [linkedStoreId.trim()],
-              storeList,
-              resolveStorefrontTemplateMode(myVendor?.settings),
-            )
-            openStorefrontLinks(links)
-          }
-        } catch {
-          toast.message(
-            'Published. If the live store still shows another template, click Assign in Templates.',
-          )
+      if (enabling) {
+        if (blocksDirty || styleDirty) {
+          await persistAllPagesToServer()
         }
+        if (blocksDirty) {
+          await persistAllBlocksToServer()
+        }
+        if (styleDirty) {
+          await websiteApi.updateSite(siteId, { style_config: localStyle as any })
+        }
+        await websiteApi.publishSite(siteId)
+        setStyleDirty(false)
+        setBlocksDirty(false)
+        blocksDirtyRef.current = false
+        styleDirtyRef.current = false
+        setLastSavedAt(new Date())
+        setSaveFlash(true)
+        setTimeout(() => setSaveFlash(false), 1800)
+        toast.success('Enabled — assign this design in Website templates')
+      } else {
+        await websiteApi.unpublishSite(siteId)
+        toast.success('Disabled — hidden from Website templates')
       }
       await queryClient.invalidateQueries({ queryKey: ['websites', siteId] })
       await queryClient.invalidateQueries({ queryKey: ['websites'], exact: true })
-      setStyleDirty(false)
-      setBlocksDirty(false)
-      blocksDirtyRef.current = false
-      styleDirtyRef.current = false
-      setLastSavedAt(new Date())
-      setSaveFlash(true)
-      setTimeout(() => setSaveFlash(false), 1800)
-      toast.success(
-        `Published — live for customers with ${localPages.length} page${localPages.length !== 1 ? 's' : ''}.`,
-      )
     } catch (err) {
-      toast.error(extractApiError(err, 'Publish store'))
-      console.error('[Publish store]', err)
+      toast.error(extractApiError(err, enabling ? 'Enable for storefront' : 'Disable from templates'))
+      console.error('[Toggle storefront template]', err)
     } finally {
-      setIsApplyingToStore(false)
+      setIsStorefrontTemplateToggling(false)
     }
-  }, [siteId, isApplyingToStore, blocksDirty, styleDirty, persistAllPagesToServer, persistAllBlocksToServer, localStyle, localPages, queryClient, site, myVendor?.settings])
-
-  const isSiteApplied = Boolean(
-    site?.is_published && !blocksDirty && !styleDirty && !isApplyingToStore,
-  )
+  }, [
+    siteId,
+    site,
+    isStorefrontTemplateToggling,
+    blocksDirty,
+    styleDirty,
+    persistAllPagesToServer,
+    persistAllBlocksToServer,
+    localStyle,
+    queryClient,
+  ])
 
   const hasSaveChanges = styleDirty || blocksDirty
   const isCanvasSaved = !hasSaveChanges && !isSaving
@@ -12315,11 +12399,6 @@ export default function WebsiteBuilder() {
     }
     return 'Auto-save on'
   }, [autoSaveEnabled, autoSaveStatus, hasSaveChanges, isSaving, lastSavedAt])
-
-  const handleApplyButtonClick = useCallback(() => {
-    if (isApplyingToStore || applyingTemplateInline) return
-    void handleApplyToStore()
-  }, [isApplyingToStore, applyingTemplateInline, handleApplyToStore])
 
   // Add page — optimistic (uses styled prompt)
   const handleAddPage = useCallback(() => {
@@ -12604,8 +12683,15 @@ export default function WebsiteBuilder() {
     return null
   }, [site, vendorCatalogSlug, builderStores, myVendor?.settings])
 
+  const siteAssignedToBus = useMemo(
+    () => (site ? isBuilderSiteAssignedToAnyStore(site, builderStores, myVendor?.settings) : false),
+    [site, builderStores, myVendor?.settings],
+  )
+
+  const canViewStoreLink = Boolean(siteAssignedToBus && siteTestUrl)
+
   const handleViewStore = useCallback(async () => {
-    if (siteTestUrl) {
+    if (canViewStoreLink && siteTestUrl) {
       if (storePopover) {
         setStorePopover(false)
         setStorePopoverRect(null)
@@ -12641,7 +12727,7 @@ export default function WebsiteBuilder() {
         },
       })
     }
-  }, [siteTestUrl, storePopover, openTextPrompt, updateSite])
+  }, [canViewStoreLink, siteTestUrl, storePopover, openTextPrompt, updateSite])
 
   const handleOpenBrowserPreview = useCallback(async () => {
     if (!siteId || !site || openingBrowserPreviewRef.current) return
@@ -12924,7 +13010,7 @@ export default function WebsiteBuilder() {
         />
       )}
 
-      {storePopover && siteTestUrl && storePopoverRect && site && createPortal(
+      {storePopover && canViewStoreLink && siteTestUrl && storePopoverRect && site && createPortal(
         <>
           <div
             className="fixed inset-0 z-[310]"
@@ -12935,6 +13021,7 @@ export default function WebsiteBuilder() {
             }}
           />
           <div
+            ref={storePopoverRef}
             role="dialog"
             aria-label={site.is_published ? 'Live store URL' : 'Preview store URL'}
             className={cn('fixed z-[320] w-[min(18rem,calc(100vw-1rem))] rounded-xl border p-3 shadow-2xl', builderPanelUi.popover)}
@@ -13045,6 +13132,10 @@ export default function WebsiteBuilder() {
         onSetZoom={(z) => setCanvasZoom(z)}
         onFitZoom={() => { setCanvasZoom(1); if (canvasMainRef.current) canvasMainRef.current.scrollLeft = 0 }}
         onOpenPanel={(panel) => {
+          if (panel === 'settings') {
+            setSiteSettingsOpen(true)
+            return
+          }
           setLeftPanel(panel)
           setLeftCollapsed(false)
         }}
@@ -13111,7 +13202,7 @@ export default function WebsiteBuilder() {
                   </span>
                 </div>
                 <span className={cn('text-[11px] px-2 py-0.5 rounded-full font-semibold leading-none antialiased', site.is_published ? 'bg-emerald-500/20 text-emerald-400 ring-1 ring-emerald-500/40' : 'bg-gray-700 text-gray-400')}>
-                  {site.is_published ? 'Live for customers' : 'Not live yet'}
+                  {site.is_published ? 'Ready to assign' : 'Not in templates'}
                 </span>
               </div>
             )}
@@ -13469,54 +13560,78 @@ export default function WebsiteBuilder() {
                 {moreMenuOpen && (
                   <div className={cn('absolute right-0 top-full z-[300] mt-1.5 w-72 max-h-[min(70vh,520px)] overflow-y-auto rounded-xl', builderPanelUi.popover)}>
                     <p className={cn(builderPanelUi.eyebrow, 'px-3 pt-2.5 pb-1')}>
-                      Ready for Live &amp; share
+                      Website templates
                     </p>
 
-                    {/* Ready for Live */}
-                    <button
-                      type="button"
-                      disabled={isApplyingToStore || applyingTemplateInline}
-                      onClick={handleApplyButtonClick}
-                      title={
-                        isSiteApplied
-                          ? 'Your store is live — publish latest changes again'
-                          : 'Move this design to Website templates, then assign or publish to go live'
-                      }
-                      className={cn(builderPanelUi.menuItem, 'hover:bg-emerald-500/10 hover:text-emerald-700 dark:hover:text-emerald-300 disabled:cursor-wait disabled:opacity-60')}
-                    >
-                      {isApplyingToStore ? (
-                        <Loader2 className="h-4 w-4 shrink-0 animate-spin text-emerald-600 dark:text-emerald-400" />
-                      ) : (
-                        <Check className="h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
+                    <div
+                      className={cn(
+                        builderPanelUi.menuItem,
+                        'cursor-default justify-between gap-3 hover:bg-transparent',
+                        site?.is_published && 'bg-emerald-500/5',
                       )}
-                      <span className="flex-1">
-                        {isApplyingToStore ? 'Publishing…' : isSiteApplied ? 'Live on store' : 'Ready for Live'}
-                        <span className={builderPanelUi.menuItemHint}>
-                          {isSiteApplied
-                            ? 'Republish to push updates live'
-                            : 'Moves to Website templates — assign or publish to go live'}
-                        </span>
-                      </span>
-                    </button>
-
-                    {/* View store / get link (popover portaled outside scroll menu) */}
-                    <div className="relative">
-                      <button
-                        ref={viewStoreAnchorRef}
-                        type="button"
-                        onClick={handleViewStore}
-                        title={siteTestUrl ?? 'Set a subdomain to get a test link'}
-                        className={builderPanelUi.menuItem}
-                      >
-                        <ExternalLink className="h-4 w-4 shrink-0 text-primary" />
-                        <span className="flex-1">
-                          {siteTestUrl ? 'View store' : 'Get link'}
+                    >
+                      <div className="flex min-w-0 flex-1 items-start gap-2.5">
+                        {isStorefrontTemplateToggling ? (
+                          <Loader2 className="h-4 w-4 shrink-0 animate-spin text-emerald-600 dark:text-emerald-400" />
+                        ) : (
+                          <StoreIcon className={cn(
+                            'h-4 w-4 shrink-0',
+                            site?.is_published ? 'text-emerald-600 dark:text-emerald-400' : 'text-muted-foreground',
+                          )} />
+                        )}
+                        <span className="min-w-0 flex-1">
+                          Assign to storefront
                           <span className={builderPanelUi.menuItemHint}>
-                            {siteTestUrl ? 'Open or copy your store link' : 'Set a subdomain to get a link'}
+                            {site?.is_published
+                              ? 'Showing in Website templates — assign to a business unit'
+                              : 'Turn on to show in Website templates'}
                           </span>
                         </span>
+                      </div>
+                      <button
+                        type="button"
+                        role="switch"
+                        aria-checked={!!site?.is_published}
+                        aria-label={site?.is_published ? 'Disable for storefront assign' : 'Enable for storefront assign'}
+                        disabled={isStorefrontTemplateToggling || applyingTemplateInline || !siteId}
+                        onClick={() => void handleToggleStorefrontTemplate()}
+                        className={cn(
+                          'relative inline-flex h-5 w-9 shrink-0 items-center rounded-full border transition-colors',
+                          site?.is_published
+                            ? 'border-emerald-500/60 bg-emerald-500'
+                            : 'border-gray-300 bg-gray-200 dark:border-gray-600 dark:bg-gray-700',
+                          (isStorefrontTemplateToggling || applyingTemplateInline) && 'cursor-wait opacity-60',
+                        )}
+                      >
+                        <span
+                          className={cn(
+                            'inline-block h-3.5 w-3.5 rounded-full bg-white shadow transition-transform',
+                            site?.is_published ? 'translate-x-[18px]' : 'translate-x-0.5',
+                          )}
+                        />
                       </button>
                     </div>
+
+                    {/* View store — only when this template is assigned to a business unit */}
+                    {canViewStoreLink ? (
+                      <div className="relative">
+                        <button
+                          ref={viewStoreAnchorRef}
+                          type="button"
+                          onClick={handleViewStore}
+                          title={siteTestUrl ?? undefined}
+                          className={builderPanelUi.menuItem}
+                        >
+                          <ExternalLink className="h-4 w-4 shrink-0 text-primary" />
+                          <span className="flex-1">
+                            View store
+                            <span className={builderPanelUi.menuItemHint}>
+                              Open or copy your store link
+                            </span>
+                          </span>
+                        </button>
+                      </div>
+                    ) : null}
 
                     <div className={cn('my-1 border-t', builderPanelUi.divider)} />
                     <p className={cn(builderPanelUi.eyebrow, 'px-3 pt-1 pb-1')}>
@@ -13541,6 +13656,38 @@ export default function WebsiteBuilder() {
                         Copy template / Save As
                         <span className={builderPanelUi.menuItemHint}>
                           Duplicate this site under a new name
+                        </span>
+                      </span>
+                    </button>
+
+                    <button
+                      type="button"
+                      disabled={!siteId || !site}
+                      onClick={() => { setMoreMenuOpen(false); setInputParamsOpen(true) }}
+                      title="View and edit template setup inputs"
+                      className={builderPanelUi.menuItem}
+                    >
+                      <SlidersHorizontal className="h-4 w-4 shrink-0 text-primary" />
+                      <span className="flex-1">
+                        Input parameters
+                        <span className={builderPanelUi.menuItemHint}>
+                          Edit name, scope, sections, and palette
+                        </span>
+                      </span>
+                    </button>
+
+                    <button
+                      type="button"
+                      disabled={!siteId || !site}
+                      onClick={() => { setMoreMenuOpen(false); setSiteSettingsOpen(true) }}
+                      title="Site language, branding, redirects, and headless API"
+                      className={builderPanelUi.menuItem}
+                    >
+                      <Globe className="h-4 w-4 shrink-0 text-primary" />
+                      <span className="flex-1">
+                        Site
+                        <span className={builderPanelUi.menuItemHint}>
+                          Language, branding, redirects &amp; more
                         </span>
                       </span>
                     </button>
@@ -13664,7 +13811,7 @@ export default function WebsiteBuilder() {
             <button
               type="button"
               onClick={() => setLeftCollapsed(false)}
-              title="Open panel — Sections, Pages, Templates, Media, Site"
+              title="Open panel — Sections, Pages, Templates, Media"
               className="flex-1 flex flex-col items-center justify-center gap-2 py-3 text-muted-foreground hover:text-foreground hover:bg-muted/40"
             >
               <PanelLeft className="w-4 h-4" />
@@ -13681,7 +13828,6 @@ export default function WebsiteBuilder() {
                   { id: 'pages' as const, icon: FileText, label: 'Pages' },
                   { id: 'templates' as const, icon: Sparkles, label: 'Templates' },
                   { id: 'media' as const, icon: ImageIcon, label: 'Media' },
-                  { id: 'settings' as const, icon: Globe, label: 'Site' },
                 ] as const).map(({ id, icon: Icon, label }) => (
                     <button
                       key={id}
@@ -14140,10 +14286,6 @@ export default function WebsiteBuilder() {
                   />
                 )}
 
-                {leftPanel === 'settings' && site && (
-                  <SiteSettingsPanel siteId={siteId!} site={site} />
-                )}
-
               </div>
             </>
           )}
@@ -14183,34 +14325,28 @@ export default function WebsiteBuilder() {
               : []
             const multiFieldSelectionOnBlock = canvasFieldKeys.length > 1
             const selectedCount = canvasFieldKeys.length
+            const selectionHint = formatPaintBrush
+              ? `Copy formatting — click text to apply (${formatPaintStyleSummary(formatPaintBrush.style)})${formatPaintBrush.sticky ? ' · apply to several' : ''}`
+              : overlayImageTarget?.blockId === block.id && overlayImageTarget.overlayId
+                ? 'Layer selected — use the tabs here, or right-click for options'
+                : canvasImageTarget?.blockId === block.id && canvasImageStyleField(canvasImageTarget, block.id)
+                  ? (() => {
+                      const slots = canvasImageArraySlots(canvasImageTarget, block.id)
+                      if (slots.length > 1) {
+                        return `${slots.length} photos selected — toolbar changes apply to all`
+                      }
+                      return slots.length
+                        ? 'Photo selected — zoom and crop in General / Visual, or replace in Media'
+                        : 'Section photo selected — adjust zoom, position, or height here'
+                    })()
+                  : multiFieldSelectionOnBlock
+                    ? `${selectedCount} text areas selected — toolbar applies to all`
+                    : `${catalogBlockLabel(block)} selected — double-click text to edit`
             return (
               <div className="shrink-0 z-10 bg-white border-b border-gray-200 shadow-sm">
-                <div className="flex items-center justify-between gap-2 px-3 py-1 bg-accent/40 border-b border-primary/10">
-                  <span className="text-[11px] font-medium text-primary/90 truncate">
-                    {formatPaintBrush
-                      ? `Copy formatting — click text to apply (${formatPaintStyleSummary(formatPaintBrush.style)})${formatPaintBrush.sticky ? ' · apply to several' : ''}`
-                      : overlayImageTarget?.blockId === block.id && overlayImageTarget.overlayId
-                        ? 'Layer selected — use toolbar tabs below, or right-click for options'
-                        : canvasImageTarget?.blockId === block.id && canvasImageStyleField(canvasImageTarget, block.id)
-                          ? (() => {
-                              const slots = canvasImageArraySlots(canvasImageTarget, block.id)
-                              if (slots.length > 1) {
-                                return `${slots.length} photos selected — toolbar changes apply to all`
-                              }
-                              return slots.length
-                                ? 'Photo selected — zoom and crop in General / Visual, or replace in Media'
-                                : 'Section photo selected — adjust zoom, position, or height in the toolbar below'
-                            })()
-                          : multiFieldSelectionOnBlock
-                          ? `${selectedCount} text areas selected — toolbar applies to all`
-                          : `${catalogBlockLabel(block)} selected — double-click text to edit, or use the toolbar below`}
-                  </span>
-                  <span className="hidden sm:inline text-[10px] text-gray-400 shrink-0">
-                    Toolbar tabs: General · Media · Visual
-                  </span>
-                </div>
                 <BlockDesignBar
                   docked
+                  selectionHint={selectionHint}
                   block={block}
                   onUpdate={updates => handleUpdateBlockProps(block.id, updates)}
                   onInsertAfter={type => handleAddBlockAfter(type)}
@@ -14364,6 +14500,8 @@ export default function WebsiteBuilder() {
                   siteId={siteId!}
                   vendorSlug={builderVendorSlug || 'preview'}
                   siteName={site?.name}
+                  businessProfile={builderBusinessProfile}
+                  previewStore={builderPreviewStore}
                   onNavigate={handleNavigateBuilderPage}
                   activePageSlug={activePage?.slug ?? null}
                   activePageIsHomepage={Boolean(activePage?.is_homepage)}
@@ -14416,6 +14554,7 @@ export default function WebsiteBuilder() {
                         }
                         saving={savingBlockId === block.id}
                         visible={block.visible !== false}
+                        shellHeader={block.block_type === 'nav' || block.block_type === 'announcement_bar'}
                         dropBefore={dropTarget?.idx === idx && dropTarget.before}
                         dropAfter={dropTarget?.idx === idx && !dropTarget.before}
                         dragging={draggingBlockIdx === idx}
@@ -14942,6 +15081,81 @@ export default function WebsiteBuilder() {
           )}
         </aside>
       </div>
+
+      {site && siteId ? (
+        <BuilderSiteInputParametersModal
+          open={inputParamsOpen}
+          onClose={() => setInputParamsOpen(false)}
+          site={site}
+          siteId={siteId}
+          stores={builderStores}
+          vendor={myVendor}
+          onStyleSaved={(style, savedName) => {
+            setLocalStyle(prev => ({ ...prev, ...style }))
+            setStyleDirty(true)
+            if (savedName !== site.name) {
+              queryClient.setQueryData(['websites', siteId], (prev: WebsiteSite | undefined) =>
+                prev ? { ...prev, name: savedName, style_config: style } : prev,
+              )
+            }
+          }}
+        />
+      ) : null}
+
+      {site && siteId ? (
+        <SiteSettingsModal
+          open={siteSettingsOpen}
+          onClose={() => setSiteSettingsOpen(false)}
+          siteId={siteId}
+          site={site}
+        />
+      ) : null}
+    </div>
+  )
+}
+
+// ── Site Settings Modal ───────────────────────────────────────────────────────
+
+function SiteSettingsModal({
+  open,
+  onClose,
+  siteId,
+  site,
+}: {
+  open: boolean
+  onClose: () => void
+  siteId: string
+  site: WebsiteSite
+}) {
+  useEscapeToClose(onClose, open)
+
+  if (!open) return null
+
+  return (
+    <div data-kiterp-modal className="fixed inset-0 z-[120] flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose} />
+      <div
+        className="relative flex max-h-[90vh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl border border-border bg-card text-foreground shadow-2xl"
+        onClick={e => e.stopPropagation()}
+      >
+        <div className="flex items-start justify-between gap-3 border-b border-gray-100 px-5 py-4 shrink-0">
+          <div>
+            <h2 className="text-base font-bold text-gray-900">Site settings</h2>
+            <p className="mt-0.5 text-xs text-gray-500">
+              Language, branding, redirects, and optional headless API.
+            </p>
+          </div>
+          <button
+            type="button"
+            aria-label="Close"
+            onClick={onClose}
+            className="rounded-lg p-1.5 text-gray-400 transition-colors hover:bg-gray-100"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+        <SiteSettingsPanel siteId={siteId} site={site} layout="modal" />
+      </div>
     </div>
   )
 }
@@ -14964,7 +15178,15 @@ const CURRENCIES = [
   { code: 'AUD', symbol: 'A$', label: 'Australian Dollar' }, { code: 'SGD', symbol: 'S$', label: 'Singapore Dollar' },
 ]
 
-function SiteSettingsPanel({ siteId, site }: { siteId: string; site: WebsiteSite }) {
+function SiteSettingsPanel({
+  siteId,
+  site,
+  layout = 'sidebar',
+}: {
+  siteId: string
+  site: WebsiteSite
+  layout?: 'sidebar' | 'modal'
+}) {
   const [tab, setTab] = useState<'i18n' | 'analytics' | 'redirects' | 'headless'>('i18n')
 
   const [lang, setLang] = useState((site as any).language || 'en')
@@ -15047,8 +15269,8 @@ function SiteSettingsPanel({ siteId, site }: { siteId: string; site: WebsiteSite
   }
 
   return (
-    <div className="h-full flex flex-col">
-      <div className="flex items-center border-b border-gray-100 shrink-0 px-1 py-1 gap-0.5">
+    <div className={cn('flex flex-col', layout === 'sidebar' ? 'h-full' : 'min-h-0 flex-1')}>
+      <div className="flex shrink-0 items-center gap-0.5 border-b border-gray-100 px-1 py-1">
         {([
           { id: 'i18n', label: 'Language' },
           { id: 'analytics', label: 'Branding & Analytics' },
@@ -15062,7 +15284,7 @@ function SiteSettingsPanel({ siteId, site }: { siteId: string; site: WebsiteSite
         ))}
       </div>
 
-      <div className="flex-1 overflow-y-auto p-4 space-y-4">
+      <div className={cn('flex-1 overflow-y-auto p-4 space-y-4', layout === 'modal' && 'max-h-[min(70vh,640px)]')}>
         {/* I18N TAB */}
         {tab === 'i18n' && (
           <>

@@ -210,6 +210,7 @@ export function BuilderSectionOverlay({
   onDrop,
   children,
   scrollRootRef,
+  shellHeader,
 }: {
   blockId: string
   containerRef: RefObject<HTMLElement | null>
@@ -228,6 +229,8 @@ export function BuilderSectionOverlay({
   onContextMenu: (e: React.MouseEvent) => void
   onDragOver: (e: React.DragEvent) => void
   onDrop: (e: React.DragEvent) => void
+  /** Nav / announcement bar live in a sticky z-50 shell — chrome must stack above it. */
+  shellHeader?: boolean
   children?: ReactNode
   /** Canvas scroll container — keeps selection chrome aligned while panning. */
   scrollRootRef?: RefObject<HTMLElement | null>
@@ -236,6 +239,10 @@ export function BuilderSectionOverlay({
   const isHidden = !visible
 
   if (!box) return null
+
+  const overlayZIndex = shellHeader
+    ? (selected ? 100 : 90)
+    : (selected ? 50 : 40)
 
   return (
     <div
@@ -261,7 +268,7 @@ export function BuilderSectionOverlay({
         left: box.left,
         width: box.width,
         height: box.height,
-        zIndex: selected ? 50 : 40,
+        zIndex: overlayZIndex,
       }}
       onContextMenu={interactive ? onContextMenu : undefined}
       onDragOver={interactive ? onDragOver : undefined}

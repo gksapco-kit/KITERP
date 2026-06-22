@@ -138,6 +138,8 @@ type Props = {
   className?: string
   /** Coverage target BU — highlighted in picker when template is on multiple units. */
   highlightStoreId?: string | null
+  /** Render as a labeled button instead of icon-only. */
+  showLabel?: boolean
 }
 
 export function AppliedTemplateViewLiveButton({
@@ -145,6 +147,7 @@ export function AppliedTemplateViewLiveButton({
   templateName = 'Template',
   className,
   highlightStoreId,
+  showLabel = false,
 }: Props) {
   const [pickerOpen, setPickerOpen] = useState(false)
 
@@ -156,13 +159,19 @@ export function AppliedTemplateViewLiveButton({
         href={links[0].href}
         target="_blank"
         rel="noopener noreferrer"
-        className={cn(templateCardIconActionClass, className)}
+        className={cn(
+          showLabel
+            ? 'inline-flex min-w-0 flex-1 items-center justify-center gap-1 rounded-md border px-2 py-1'
+            : templateCardIconActionClass,
+          className,
+        )}
         title="View live site"
         aria-label="View live site"
         data-template-card-action
         onClick={e => e.stopPropagation()}
       >
-        <ExternalLink className="h-3 w-3 shrink-0" />
+        <ExternalLink className={cn('shrink-0', showLabel ? 'h-3 w-3' : 'h-3 w-3')} />
+        {showLabel ? <span className="truncate">View live</span> : null}
       </a>
     )
   }
@@ -176,11 +185,17 @@ export function AppliedTemplateViewLiveButton({
           e.stopPropagation()
           setPickerOpen(true)
         }}
-        className={cn(templateCardIconActionClass, className)}
+        className={cn(
+          showLabel
+            ? 'inline-flex min-w-0 flex-1 items-center justify-center gap-1 rounded-md border px-2 py-1'
+            : templateCardIconActionClass,
+          className,
+        )}
         title={`View live site — choose from ${links.length} business units`}
         aria-label={`View live site — choose from ${links.length} business units`}
       >
         <ExternalLink className="h-3 w-3 shrink-0" />
+        {showLabel ? <span className="truncate">View live ({links.length})</span> : null}
       </button>
       <ViewLiveLinksPickerModal
         open={pickerOpen}

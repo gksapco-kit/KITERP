@@ -28,8 +28,8 @@ export function StoreBranchPicker({ className, compact = false }: Props) {
   const singleWebsiteForAllStores = resolveStorefrontLinkMode(vendor?.settings) === 'single'
   if (!singleWebsiteForAllStores) return null
 
-  // Show picker when there are multiple open branches OR when a branch is closed (to let user switch)
-  if (loading || (openBranches.length <= 1 && !isBranchClosed)) return null
+  // Hide only when loaded and a picker is not needed (single location, etc.).
+  if (!loading && openBranches.length <= 1 && !isBranchClosed) return null
 
   const label = isBranchClosed
     ? 'Store Closed'

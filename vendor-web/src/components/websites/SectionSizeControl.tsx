@@ -21,7 +21,7 @@ const HOLD_INTERVAL_MS = 60
 /** Keep the pill from hugging the very top/bottom edge of the visible canvas. */
 const VIEWPORT_PAD = 16
 /** Estimated pill height (px) — used to decide inline vs above/below placement. */
-const PILL_HEIGHT_PX = 34
+const PILL_HEIGHT_PX = 26
 /** Gap between the pill and the section edge when placed outside. */
 const EXTERNAL_GAP_PX = 8
 /** Sections shorter than this get the pill above or below instead of beside. */
@@ -258,7 +258,7 @@ export function SectionSizeControl({
     <div
       data-section-scale-handle
       className={cn(
-        'group/scale pointer-events-auto fixed z-[100008] flex -translate-x-full items-center gap-0.5 rounded-full border border-primary/20 bg-white/95 p-0.5 shadow-lg ring-1 ring-black/5 backdrop-blur-sm',
+        'group/scale pointer-events-auto fixed z-[100008] flex -translate-x-full items-center gap-0 rounded-full border border-primary/20 bg-white/95 p-0.5 shadow-md ring-1 ring-black/5 backdrop-blur-sm',
         frame.placement === 'inline' && '-translate-y-1/2',
         frame.placement === 'above' && '-translate-y-full',
       )}
@@ -276,13 +276,13 @@ export function SectionSizeControl({
         onPointerLeave={stopHold}
         onMouseDown={e => { e.preventDefault(); e.stopPropagation() }}
         onClick={e => e.stopPropagation()}
-        className="flex h-6 w-6 items-center justify-center rounded-full text-primary transition-colors hover:bg-primary/10 active:scale-90 disabled:opacity-25 disabled:hover:bg-transparent"
+        className="flex h-4 w-4 items-center justify-center rounded-full text-primary transition-colors hover:bg-primary/10 active:scale-90 disabled:opacity-25 disabled:hover:bg-transparent"
       >
-        <Minus className="h-3.5 w-3.5" />
+        <Minus className="h-2.5 w-2.5" />
       </button>
       <div
         title="Drag to scale the whole section (content + media)"
-        className="flex cursor-ew-resize select-none items-center gap-1.5 rounded-full px-1.5 py-0.5 transition-colors hover:bg-primary/5"
+        className="flex cursor-ew-resize select-none items-center gap-1 rounded-full px-1 py-0.5 transition-colors hover:bg-primary/5"
         onMouseDown={e => {
           e.preventDefault()
           e.stopPropagation()
@@ -310,13 +310,13 @@ export function SectionSizeControl({
           document.addEventListener('mouseup', onUp)
         }}
       >
-        <span className="flex h-5 w-5 items-center justify-center rounded-full bg-gradient-to-br from-primary to-primary/70 text-white shadow-sm">
-          <Maximize2 className="h-2.5 w-2.5" />
+        <span className="flex h-4 w-4 items-center justify-center rounded-full bg-gradient-to-br from-primary to-primary/70 text-white shadow-sm">
+          <Maximize2 className="h-2 w-2" />
         </span>
         <span className="flex flex-col items-start leading-none">
-          <span className="text-[6.5px] font-bold uppercase tracking-[0.08em] text-primary/50">Section size</span>
-          <span className="text-[12px] font-extrabold tabular-nums text-gray-900">
-            {pct}<span className="text-[9px] font-bold text-gray-400">%</span>
+          <span className="text-[5.5px] font-bold uppercase tracking-[0.08em] text-primary/50">Section size</span>
+          <span className="text-[10px] font-extrabold tabular-nums text-gray-900">
+            {pct}<span className="text-[8px] font-bold text-gray-400">%</span>
           </span>
         </span>
       </div>
@@ -330,9 +330,9 @@ export function SectionSizeControl({
         onPointerLeave={stopHold}
         onMouseDown={e => { e.preventDefault(); e.stopPropagation() }}
         onClick={e => e.stopPropagation()}
-        className="flex h-6 w-6 items-center justify-center rounded-full text-primary transition-colors hover:bg-primary/10 active:scale-90 disabled:opacity-25 disabled:hover:bg-transparent"
+        className="flex h-4 w-4 items-center justify-center rounded-full text-primary transition-colors hover:bg-primary/10 active:scale-90 disabled:opacity-25 disabled:hover:bg-transparent"
       >
-        <Plus className="h-3.5 w-3.5" />
+        <Plus className="h-2.5 w-2.5" />
       </button>
     </div>,
     document.body,

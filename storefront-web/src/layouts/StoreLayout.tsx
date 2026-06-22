@@ -14,7 +14,9 @@ import { VendorProvider, useVendor } from '@/contexts/VendorContext'
 import { ThemeProvider, useTheme } from '@/contexts/ThemeContext'
 import { BuilderSiteProvider, useBuilderSite } from '@/contexts/BuilderSiteContext'
 import { useAssignedStorefrontTemplateId, useStoreSpecificAssignedTemplateId } from '@/hooks/useAssignedStorefrontTemplateId'
-import { shouldHideStoreLayoutChrome } from '@/lib/storefrontLayoutChrome'
+import { shouldHideStoreLayoutChrome, siteHasNavShell } from '@/lib/storefrontLayoutChrome'
+import { BuilderSiteShellChrome } from '@/components/builder/BuilderSiteShellChrome'
+import { LayoutOwnsShellProvider } from '@/contexts/LayoutOwnsShellContext'
 import { useStorefrontHeaderNav } from '@/hooks/useStorefrontHeaderNav'
 import { useState, useRef, useEffect } from 'react'
 import CrmChatWidget from '@/components/CrmChatWidget'
@@ -645,22 +647,33 @@ function StoreContent() {
       ? `/store/${encodeURIComponent(vendorSlug)}?preview_token=${encodeURIComponent(previewToken)}`
       : storePath('/')
 
+    const layoutOwnsShell = Boolean(
+      vendorSlug
+      && siteHasNavShell(builderSite)
+      && !isBuilderPreview
+      && !draftCatalogEmbed,
+    )
+
     return (
-      <div className="min-h-screen flex flex-col" style={{ backgroundColor: theme.colors.background, fontFamily: theme.font_body || theme.font }}>
-        {draftCatalogEmbed && (
-          <DraftEmbedHomeBar homePath={draftEmbedHomePath} />
-        )}
-        <main className="flex-1">
-          <Outlet />
-        </main>
-        {!isBuilderPreview && !draftCatalogEmbed && vendor?.id && (
-          <CrmChatWidget
-            vendorId={vendor.id}
-            vendorName={vendor.display_name}
-            themeColor={theme.colors.primary}
-          />
-        )}
-      </div>
+      <LayoutOwnsShellProvider value={layoutOwnsShell}>
+        <div className="min-h-screen flex flex-col" style={{ backgroundColor: theme.colors.background, fontFamily: theme.font_body || theme.font }}>
+          {draftCatalogEmbed && (
+            <DraftEmbedHomeBar homePath={draftEmbedHomePath} />
+          )}
+          {layoutOwnsShell && <BuilderSiteShellChrome part="header" />}
+          <main className="flex-1">
+            <Outlet />
+          </main>
+          {layoutOwnsShell && <BuilderSiteShellChrome part="footer" />}
+          {!isBuilderPreview && !draftCatalogEmbed && vendor?.id && (
+            <CrmChatWidget
+              vendorId={vendor.id}
+              vendorName={vendor.display_name}
+              themeColor={theme.colors.primary}
+            />
+          )}
+        </div>
+      </LayoutOwnsShellProvider>
     )
   }
 

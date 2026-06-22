@@ -19,8 +19,12 @@ import { openBuilderSiteDraftPreview } from '@/lib/openBuilderSiteDraftPreview'
 import {
   assignBuilderSiteToStores,
   assignCatalogTemplateToStores,
+  isBuilderSiteAssignableForStore,
   isBuilderSiteAssignedToStore,
+  isBuilderSiteInAssignedTemplatesSection,
   isBuilderSiteVisibleForStore,
+  isBuilderSiteEffectivelyLive,
+  isBuilderSiteStorefrontAssigned,
   isStoreSpecificCatalogTemplateAssigned,
   listBuilderDraftTemplateSites,
   resolveBuilderSiteHomeStoreId,
@@ -30,6 +34,7 @@ import {
   resolveBuilderSiteViewLiveLinks,
   resolveStorefrontCoverageTemplate,
   storesEffectivelyAssignedToBuilderSite,
+  storesUsingBuilderSiteDesign,
 } from '@/lib/builderDraftTemplateSites'
 import {
   customerLinkForStore,
@@ -52,15 +57,15 @@ import {
   resolveBusinessFrontActiveTemplate,
   type ThemePresetSummary,
 } from '@/lib/businessFrontActiveTemplate'
-import { storesAssignedToTemplate, storesUsingBuilderSiteDesign } from '@/lib/websiteTemplateAssignment'
+import { storesAssignedToTemplate } from '@/lib/websiteTemplateAssignment'
 import {
   perStoreTemplateActionLabel,
   templateBadgeEmeraldClass,
-  templateBadgeVioletClass,
   templateCardActionBtnClass,
   templateCardActionClusterClass,
   templateCardActionRowClass,
   templateCardActivePillClass,
+  templateCardAssignPillClass,
   templateCardBodyClass,
   templateCardCurrentForStoreRibbonClass,
   templateCardMediaChipClass,
@@ -71,6 +76,8 @@ import {
   coverageStoreSelectedClass,
   templateCardShellClass,
   singleTemplateActionLabel,
+  systemTemplateGalleryStatusLabel,
+  systemTemplateGalleryStatusTitle,
 } from '@/lib/websiteTemplateBadges'
 import { vendorApi } from '@/api/vendor'
 import { useVendorStore } from '@/stores/vendorStore'
@@ -739,7 +746,11 @@ function resolveStoreCoverageState(
       && s.website_store_id === store.id,
   )
 
-  if (linkedSite && !isStoreSpecificCatalogTemplateAssigned(store, vendorSettings)) {
+  if (
+    linkedSite
+    && isBuilderSiteStorefrontAssigned(linkedSite)
+    && !isStoreSpecificCatalogTemplateAssigned(store, vendorSettings)
+  ) {
     const name = resolveSiteAppliedTemplateLabel(linkedSite, templates) ?? linkedSite.name
     const template = {
       id: linkedSite.id,
@@ -1695,8 +1706,7 @@ export default function WebsiteTemplateGalleryPage() {
     const liveBD: SiteListItem[] = []
     const draftBD: SiteListItem[] = []
     for (const site of storeScopedBuilderDrafts) {
-      const isActiveSingleTemplate = isSingleTemplateMode && singleFrontTemplateId === site.id
-      if (isBuilderSiteAssignedToStore(mainSites, site.id, stores) || isActiveSingleTemplate) {
+      if (isBuilderSiteInAssignedTemplatesSection(site, mainSites, stores, vendor?.settings)) {
         liveBD.push(site)
       } else {
         draftBD.push(site)
@@ -1726,14 +1736,22 @@ export default function WebsiteTemplateGalleryPage() {
       }
       const aAssigned = storesEffectivelyAssignedToBuilderSite(mainSites, a.id, stores, vendor?.settings)
         .some(s => s.id === selectedAssignStoreId)
-        || storesAssignedToBuilderSite(mainSites, a.id, stores).some(s => s.id === selectedAssignStoreId)
       const bAssigned = storesEffectivelyAssignedToBuilderSite(mainSites, b.id, stores, vendor?.settings)
         .some(s => s.id === selectedAssignStoreId)
-        || storesAssignedToBuilderSite(mainSites, b.id, stores).some(s => s.id === selectedAssignStoreId)
       if (aAssigned !== bAssigned) return aAssigned ? -1 : 1
       return (a.name || '').localeCompare(b.name || '')
     }
+    const sortDraftBuilderByAssignable = (a: SiteListItem, b: SiteListItem) => {
+      if (!isPerStoreTemplateMode || !selectedAssignStoreId) {
+        return (a.name || '').localeCompare(b.name || '')
+      }
+      const aAssignable = isBuilderSiteAssignableForStore(a, selectedAssignStoreId)
+      const bAssignable = isBuilderSiteAssignableForStore(b, selectedAssignStoreId)
+      if (aAssignable !== bAssignable) return aAssignable ? -1 : 1
+      return (a.name || '').localeCompare(b.name || '')
+    }
     liveBD.sort(sortBuilderBySelectedBu)
+    draftBD.sort(sortDraftBuilderByAssignable)
     return {
       liveBuilderDrafts: liveBD,
       draftBuilderDrafts: draftBD,
@@ -1781,7 +1799,8 @@ export default function WebsiteTemplateGalleryPage() {
     for (const site of liveBuilderDrafts) {
       const assignedToSelected = Boolean(
         selectedAssignStoreId
-        && storesUsingBuilderSiteDesign(mainSites, site.id, stores).some(s => s.id === selectedAssignStoreId),
+        && storesEffectivelyAssignedToBuilderSite(mainSites, site.id, stores, vendor?.settings)
+          .some(s => s.id === selectedAssignStoreId),
       )
       entries.push({
         type: 'builder',
@@ -1874,31 +1893,39 @@ export default function WebsiteTemplateGalleryPage() {
 
   const renderBuilderDraftCard = (site: SiteListItem) => {
     const linkedStores = storesAssignedToBuilderSite(mainSites, site.id, stores)
-    const allAssignedStores = storesUsingBuilderSiteDesign(mainSites, site.id, stores)
+    const allAssignedStores = storesUsingBuilderSiteDesign(mainSites, site.id, stores, vendor?.settings)
     const perStoreAppliedCount = allAssignedStores.length
     const linkedStoreNames = linkedStores.map(s => s.name ?? '')
     const homeStoreId = resolveBuilderSiteHomeStoreId(site)
-    const linkedToSelectedStore = Boolean(
-      selectedAssignStoreId && linkedStores.some(s => s.id === selectedAssignStoreId),
-    )
+    const builtForSelectedStore = isBuilderSiteAssignableForStore(site, selectedAssignStoreId)
+    const canAssignForSelectedStore = builtForSelectedStore
     const assignedToSelectedStore = Boolean(
-      selectedAssignStoreId && allAssignedStores.some(s => s.id === selectedAssignStoreId),
+      selectedAssignStoreId
+      && allAssignedStores.some(s => s.id === selectedAssignStoreId),
     )
     const catalogOnlyOnSelected = Boolean(
       selectedAssignStoreId
       && allAssignedStores.some(s => s.id === selectedAssignStoreId)
       && !linkedStores.some(s => s.id === selectedAssignStoreId),
     )
-    const showAssignHighlight = isPerStoreTemplateMode && (linkedToSelectedStore || assignedToSelectedStore)
+    const showAssignHighlight = isPerStoreTemplateMode && assignedToSelectedStore
     const isSingleTemplateSelected = singleFrontTemplateId === site.id
-    const viewLiveLinks = resolveBuilderSiteViewLiveLinks(
-      vendor?.slug,
-      storefrontLinkMode,
+    const isLiveOnStorefront = isBuilderSiteEffectivelyLive(
       mainSites,
       site.id,
       stores,
       vendor?.settings,
     )
+    const viewLiveLinks = isLiveOnStorefront
+      ? resolveBuilderSiteViewLiveLinks(
+          vendor?.slug,
+          storefrontLinkMode,
+          mainSites,
+          site.id,
+          stores,
+          vendor?.settings,
+        )
+      : []
     const liveBlockReason = resolveBuilderSiteLiveBlockReason(
       mainSites,
       site.id,
@@ -1930,7 +1957,7 @@ export default function WebsiteTemplateGalleryPage() {
         }
         useForAllStoresPending={updateVendor.isPending}
         onAssign={
-          isPerStoreTemplateMode
+          isPerStoreTemplateMode && canAssignForSelectedStore
             ? () => {
                 const targetStoreId = selectedAssignStoreIdRef.current ?? sortedStores[0]?.id ?? null
                 if (!targetStoreId) {
@@ -1948,7 +1975,7 @@ export default function WebsiteTemplateGalleryPage() {
                 }
 
                 // Already using this design on the selected unit — open link/manage picker.
-                if (assignedToSelectedStore && linkedToSelectedStore) {
+                if (assignedToSelectedStore && builtForSelectedStore) {
                   openBuilderSiteStorePicker(
                     site.id,
                     site.name,
@@ -1960,16 +1987,6 @@ export default function WebsiteTemplateGalleryPage() {
                 // Catalog-only on selected unit — re-open assign picker to change or switch.
                 if (assignedToSelectedStore && catalogOnlyOnSelected) {
                   openStorePicker(site.id, site.name, { manage: true })
-                  return
-                }
-
-                // Built for one BU but apply the same design to another via catalog template id.
-                if (homeStoreId && homeStoreId !== targetStoreId) {
-                  assignTemplateToStores.mutate({
-                    templateId: site.id,
-                    storeIds: [targetStoreId],
-                    templateName: site.name,
-                  })
                   return
                 }
 
@@ -1993,7 +2010,7 @@ export default function WebsiteTemplateGalleryPage() {
         highlightStoreId={selectedAssignStoreId}
         contextStoreId={selectedAssignStoreId}
         contextStoreCode={selectedAssignStoreCode}
-        linkedToContextStore={linkedToSelectedStore}
+        linkedToContextStore={builtForSelectedStore}
         appliedToContextStore={assignedToSelectedStore}
       />
     )
@@ -2028,18 +2045,17 @@ export default function WebsiteTemplateGalleryPage() {
         ? isLiveForSelectedStore
           ? `Live · ${selectedAssignStoreCode}`
           : `Assigned · ${selectedAssignStoreCode}`
-        : perStoreAppliedCount > 0
-          ? `${perStoreAppliedCount} other BU${perStoreAppliedCount === 1 ? '' : 's'}`
-          : 'Unused'
+        : systemTemplateGalleryStatusLabel
       : perStoreAppliedCount > 0
         ? `${perStoreAppliedCount} live`
-        : 'Unused'
+        : systemTemplateGalleryStatusLabel
     const perStoreStatusTitle = isPerStoreTemplateMode && selectedAssignStoreCode
       ? assignedToSelectedStore
         ? `Assigned to ${selectedAssignStoreCode}`
-        : perStoreAppliedCount > 0
-          ? `Assigned to ${assignedStores.map(s => formatStoreCode(s)).join(', ')}, not ${selectedAssignStoreCode}`
-          : `Not assigned to ${selectedAssignStoreCode}`
+        : systemTemplateGalleryStatusTitle(
+            selectedAssignStoreCode,
+            assignedStores.map(s => s.name ?? formatStoreCode(s)),
+          )
       : assignedStores.map(s => `${formatStoreCode(s)} · ${s.name}`).join(', ')
     const perStoreBadgeLabel = isPerStoreTemplateMode && assignedToSelectedStore && selectedAssignStoreCode
       ? selectedAssignStoreCode
@@ -2126,7 +2142,7 @@ export default function WebsiteTemplateGalleryPage() {
             </span>
           </div>
           {isSingleTemplateMode && isSingleTemplateSelected && showTopAssignmentBadge ? (
-            <span className={cn('absolute right-1.5 top-1.5 max-w-[70%]', templateBadgeVioletClass)} title="All stores">
+            <span className={cn('absolute right-1.5 top-1.5 max-w-[70%]', templateBadgeEmeraldClass)} title="All stores">
               <Check className="h-2.5 w-2.5 shrink-0" />
               <span className="truncate">All stores</span>
             </span>
@@ -2162,7 +2178,7 @@ export default function WebsiteTemplateGalleryPage() {
                   'inline-flex shrink-0 items-center gap-1 text-[10px] font-semibold',
                   showAssignHighlight
                     ? isSingleTemplateMode
-                      ? 'text-violet-700'
+                      ? 'text-primary'
                       : 'text-emerald-700'
                     : 'text-gray-400',
                 )}
@@ -2173,7 +2189,7 @@ export default function WebsiteTemplateGalleryPage() {
                     'h-1.5 w-1.5 shrink-0 rounded-full',
                     showAssignHighlight
                       ? isSingleTemplateMode
-                        ? 'bg-violet-500'
+                        ? 'bg-primary'
                         : 'bg-emerald-500'
                       : 'bg-gray-300',
                   )}
@@ -2199,10 +2215,7 @@ export default function WebsiteTemplateGalleryPage() {
                   type="button"
                   disabled={updateVendor.isPending}
                   onClick={() => requestUseForAllStores(tpl.id, tpl.name)}
-                  className={cn(
-                    templateCardPrimaryActionClass,
-                    'border-violet-200 bg-violet-50/80 text-violet-700 hover:border-violet-300 hover:bg-violet-100',
-                  )}
+                  className={templateCardAssignPillClass}
                 >
                   <Store className="h-3 w-3 shrink-0" />
                   {singleTemplateActionLabel(false)}
@@ -2220,10 +2233,9 @@ export default function WebsiteTemplateGalleryPage() {
                     openStorePicker(tpl.id, tpl.name, { manage: isAppliedToSelected })
                   }
                   className={cn(
-                    templateCardPrimaryActionClass,
                     isAppliedToSelected
-                      ? 'border-2 border-primary bg-primary/10 text-primary hover:border-primary hover:bg-primary/15'
-                      : 'border-emerald-200 bg-emerald-50/80 text-emerald-700 hover:border-emerald-300 hover:bg-emerald-100',
+                      ? templateCardActivePillClass
+                      : templateCardAssignPillClass,
                   )}
                 >
                   {isAppliedToSelected ? <Check className="h-3 w-3 shrink-0" /> : <Store className="h-3 w-3 shrink-0" />}
@@ -2394,15 +2406,15 @@ export default function WebsiteTemplateGalleryPage() {
           <div className="space-y-2">
             {hasLiveSection ? (
               <TemplateGallerySection
-                title="Assigned templates"
+                title="Live on storefront"
                 description={
                   isPerStoreTemplateMode && selectedAssignStoreCode
-                    ? `Assigned and in use on your live store for ${selectedAssignStoreCode} — bold border = currently active.`
+                    ? `What customers see today on ${selectedAssignStoreCode}. Bold border = active for that unit.`
                     : isPerStoreTemplateMode
-                      ? 'Templates assigned and in use per business unit — select a unit above to see what is live.'
+                      ? 'What customers see today on each business unit — pick a unit above to check.'
                       : isSingleTemplateMode
-                        ? 'Templates assigned and in use on your live store for all business units.'
-                        : 'Templates assigned and in use on your live storefronts.'
+                        ? 'What customers see today — same design for all business units.'
+                        : 'Sites and templates customers see on your storefronts today.'
                 }
               >
                 {liveSectionEntries.map(entry => {
@@ -2414,15 +2426,15 @@ export default function WebsiteTemplateGalleryPage() {
             ) : null}
             {hasDraftSection ? (
               <TemplateGallerySection
-                title="Built websites"
+                title="Ready to assign"
                 description={
                   isSingleTemplateMode
-                    ? 'Assign your built templates to use for your live store — apply for all units below.'
+                    ? 'Published sites not live yet — pick one below to use for all business units.'
                     : isPerStoreTemplateMode
                       ? selectedAssignStoreCode
-                        ? `Assign your built templates for your live store — pick one for ${selectedAssignStoreCode} below.`
-                        : 'Assign your built templates for your live store — select a unit above, then pick below.'
-                      : 'Assign your built templates to use for your live store below.'
+                        ? `Published sites not live yet — pick one below for ${selectedAssignStoreCode}.`
+                        : 'Published sites not live yet — select a business unit above, then pick one below.'
+                      : 'Published sites not live yet — pick one below to put on your storefront.'
                 }
               >
                 {draftBuilderDrafts.map(renderBuilderDraftCard)}
@@ -2430,8 +2442,8 @@ export default function WebsiteTemplateGalleryPage() {
             ) : null}
             {hasSystemSection ? (
               <TemplateGallerySection
-                title="System templates"
-                description="Starter layouts and catalog themes — apply below."
+                title="Starter templates"
+                description="Pre-built layouts — apply one to any business unit below."
               >
                 {showDefaultInSystem ? renderDefaultLayoutCard() : null}
                 {systemWebsiteTemplates.map(renderWebsiteTemplateCard)}

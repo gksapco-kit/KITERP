@@ -374,6 +374,7 @@ async def list_sites(
             website_store_scope=sc.get("website_store_scope"),
             website_store_id=sc.get("website_store_id"),
             website_store_name=sc.get("website_store_name"),
+            storefront_assigned=sc.get("storefront_assigned") is True,
             created_at=s.created_at, updated_at=s.updated_at,
         ))
     return out
@@ -3455,50 +3456,38 @@ Fill in real copy for the business. No placeholder text."""
             )
         elif slug == "about":
             page_blocks = [
-                {"block_type": "nav",          "label": "Navigation", "props": {"brand": short_name}},
                 {"block_type": "hero_minimal", "label": "Hero", "props": _enrich_block_props_with_category("hero_minimal", {"headline": "About Us", "subtitle": "Our story, mission and values.", "bg_style": "image"}, imgs, img_cursor)},
                 {"block_type": "about_split",  "label": "Our Story", "props": _enrich_block_props_with_category("about_split", {"title": "Who We Are", "description": biz}, imgs, img_cursor)},
                 {"block_type": "team_grid",    "label": "Team", "props": {"title": "Meet the Team", "columns": 3}},
                 {"block_type": "timeline",     "label": "Timeline", "props": {"title": "Our Journey"}},
-                {"block_type": "footer",       "label": "Footer", "props": _footer_props_standard()},
             ]
         elif slug == "services":
             page_blocks = [
-                {"block_type": "nav",              "label": "Navigation", "props": {"brand": short_name}},
                 {"block_type": "hero_minimal",     "label": "Hero", "props": {"headline": "Our Services", "bg_style": "minimal"}},
                 {"block_type": "services_cards",   "label": "Services", "props": {"title": "What We Offer", "columns": 3}},
                 {"block_type": "features_alternating", "label": "Features", "props": {"title": "How It Works"}},
                 {"block_type": "cta",              "label": "CTA", "props": {"headline": "Ready to Work Together?", "cta_label": "Get In Touch"}},
-                {"block_type": "footer",           "label": "Footer", "props": _footer_props_standard()},
             ]
         elif slug == "products":
             page_blocks = [
-                {"block_type": "nav",          "label": "Navigation", "props": {"brand": short_name}},
                 {"block_type": "hero_minimal", "label": "Hero", "props": {"headline": "Our Products", "bg_style": "minimal"}},
                 {"block_type": "product_grid", "label": "Products", "props": {"title": "Shop the catalog", "columns": 4, "show_badges": True}},
                 {"block_type": "cta",          "label": "CTA", "props": {"headline": "Questions about an item?", "cta_label": "Contact us"}},
-                {"block_type": "footer",       "label": "Footer", "props": _footer_props_standard()},
             ]
         elif slug == "pricing":
             page_blocks = [
-                {"block_type": "nav",     "label": "Navigation", "props": {"brand": short_name}},
                 {"block_type": "pricing", "label": "Pricing", "props": {"title": "Simple, Transparent Pricing", "show_annual_toggle": True}},
                 {"block_type": "faq",     "label": "FAQ", "props": {"title": "Pricing FAQs"}},
                 {"block_type": "cta",     "label": "CTA", "props": {"headline": "Not sure which plan? Talk to us.", "cta_label": "Contact Sales"}},
-                {"block_type": "footer",  "label": "Footer", "props": _footer_props_standard()},
             ]
         elif slug == "contact":
             page_blocks = [
-                {"block_type": "nav",          "label": "Navigation", "props": {"brand": short_name}},
                 {"block_type": "contact_form", "label": "Contact", "props": {"title": "Get In Touch", "full_page": True}},
-                {"block_type": "footer",       "label": "Footer", "props": _footer_props_standard()},
             ]
         elif slug == "blog":
             page_blocks = [
-                {"block_type": "nav",        "label": "Navigation", "props": {"brand": short_name}},
                 {"block_type": "blog_grid",  "label": "Blog Grid", "props": {"title": "Latest Insights", "columns": 3}},
                 {"block_type": "newsletter", "label": "Newsletter", "props": {"title": "Stay in the Loop"}},
-                {"block_type": "footer",     "label": "Footer", "props": _footer_props_standard()},
             ]
 
         pages_out.append({
@@ -3587,6 +3576,9 @@ async def apply_generated_site(
 
         for b_idx, b in enumerate(p.get("blocks", [])):
             b_type = b.get("block_type", "rich_text")
+            # Nav / footer / announcement bar live on the homepage only.
+            if not is_home and b_type in ("nav", "footer", "announcement_bar"):
+                continue
             props = _enrich_block_props_with_category(
                 b_type,
                 b.get("props", {}) or {},

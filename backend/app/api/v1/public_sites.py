@@ -260,7 +260,8 @@ async def _resolve_site_by_subdomain(
         for s in sites:
             sc = s.style_config or {}
             if sc.get("website_store_scope") == "store" and str(sc.get("website_store_id") or "") == store_id:
-                return s
+                if sc.get("storefront_assigned") is True:
+                    return s
         return None
 
     def _shared_default_site() -> Optional[WebsiteSite]:

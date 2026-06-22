@@ -10,7 +10,9 @@ export function isMultilineCanvasField(fieldKey: string): boolean {
   const leaf = fieldKey.includes('.') ? fieldKey.split('.').pop()! : fieldKey
   if (/^(subtitle|description|text|content|caption|body|bio|answer|quote|copyright|form_hint|eyebrow)/.test(leaf)) return true
   if (leaf.includes('desc') || leaf.includes('content')) return true
-  if (leaf === 'headline' || leaf === 'headline_line2' || leaf === 'title') return true
+  // Headings (headline / headline_line2 / title) render as block tags (h1/h2)
+  // where contentEditable Enter inserts a stray <div>, which corrupts the saved
+  // value. Keep them single-line so Enter commits instead.
   return false
 }
 

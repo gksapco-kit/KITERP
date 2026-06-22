@@ -236,27 +236,39 @@ export function BuilderPositionableField({
     }
   }, [blockId, ctx, fieldKey, heightPreviewPx, widthPreviewPx])
 
-  useEffect(() => {
-    if (!dragStartRef.current) return
-    const onUp = () => finishDrag()
-    window.addEventListener('pointerup', onUp)
-    window.addEventListener('pointercancel', onUp)
-    return () => {
-      window.removeEventListener('pointerup', onUp)
-      window.removeEventListener('pointercancel', onUp)
-    }
-  }, [finishDrag, dragDelta])
+  // Hold the latest finish callbacks in refs so the window listeners below can
+  // stay attached for the whole gesture. Depending on the callbacks (or the
+  // per-frame preview state) directly would tear down and re-attach `pointerup`
+  // on every pointer move, leaving a window where the release is missed and the
+  // drag/resize never commits.
+  const finishDragRef = useRef(finishDrag)
+  finishDragRef.current = finishDrag
+  const finishResizeRef = useRef(finishResize)
+  finishResizeRef.current = finishResize
 
+  const dragActive = dragDelta != null
   useEffect(() => {
-    if (!resizeStartRef.current) return
-    const onUp = () => finishResize()
+    if (!dragActive) return
+    const onUp = () => finishDragRef.current()
     window.addEventListener('pointerup', onUp)
     window.addEventListener('pointercancel', onUp)
     return () => {
       window.removeEventListener('pointerup', onUp)
       window.removeEventListener('pointercancel', onUp)
     }
-  }, [finishResize, widthPreviewPx, heightPreviewPx])
+  }, [dragActive])
+
+  const resizeActive = widthPreviewPx != null || heightPreviewPx != null
+  useEffect(() => {
+    if (!resizeActive) return
+    const onUp = () => finishResizeRef.current()
+    window.addEventListener('pointerup', onUp)
+    window.addEventListener('pointercancel', onUp)
+    return () => {
+      window.removeEventListener('pointerup', onUp)
+      window.removeEventListener('pointercancel', onUp)
+    }
+  }, [resizeActive])
 
   // Apply the live resize preview imperatively with `!important` so it tracks the
   // cursor smoothly. The committed width is injected as a `width: X% !important`

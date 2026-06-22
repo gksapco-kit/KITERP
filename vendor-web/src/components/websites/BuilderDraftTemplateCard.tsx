@@ -5,13 +5,14 @@ import { WebsiteSiteGlimpse } from '@/components/websites/WebsiteSiteGlimpse'
 import { AppliedTemplateViewLiveButton, templateCardIconActionClass } from '@/components/websites/AppliedTemplateViewLiveButton'
 import { resolveSiteStaticThumbnail } from '@/lib/websiteSitePreview'
 import type { BuilderSiteLiveBlockReason } from '@/lib/builderDraftTemplateSites'
+import { resolveSiteCardDisplayStatus } from '@/lib/siteCardDisplayStatus'
 import type { AppliedTemplateViewLiveLink } from '@/lib/liveStorefrontUrl'
 import {
   templateBadgeEmeraldClass,
-  templateBadgeVioletClass,
   templateCardActionClusterClass,
   templateCardActionRowClass,
   templateCardActivePillClass,
+  templateCardAssignPillClass,
   templateCardBodyClass,
   templateCardCurrentForStoreRibbonClass,
   templateCardMediaChipClass,
@@ -22,6 +23,8 @@ import {
   templateCardShellClass,
   perStoreTemplateActionLabel,
   singleTemplateActionLabel,
+  systemTemplateGalleryStatusLabel,
+  systemTemplateGalleryStatusTitle,
 } from '@/lib/websiteTemplateBadges'
 import type { SiteListItem, WebsiteTemplate } from '@/types/websites'
 
@@ -81,15 +84,34 @@ export function BuilderDraftTemplateCard({
   const pageCount = site.page_count ?? 0
   const isApplied = perStoreAppliedCount > 0
   const isLinkedToStore = linkedStoreNames.length > 0
-  const isAssigned = isSingleTemplateSelected || isApplied || isLinkedToStore
+  const isAssigned = isSingleTemplateSelected || isApplied
   const isLiveOnStorefront = viewLiveLinks.length > 0
   const needsActivation = isLinkedToStore
     && !isLiveOnStorefront
     && liveBlockReason === 'catalog_template_override'
   const isAssignedNotLive = isAssigned && !isLiveOnStorefront && !needsActivation
   const multipleLiveStores = viewLiveLinks.length > 1
+  const displayStatus = resolveSiteCardDisplayStatus({
+    site,
+    viewLiveLinksCount: viewLiveLinks.length,
+    liveBlockReason,
+    isAssignedToStore: isAssigned,
+  })
+  const StatusIcon = displayStatus.icon
+  const showViewLive = displayStatus.id === 'live' && viewLiveLinks.length > 0
+  const isLiveOnlyElsewhere = isApplied && !appliedToContextStore
   const canAssignToContext = Boolean(
-    perStoreTemplateMode && onAssign && contextStoreCode && !appliedToContextStore && !needsActivation,
+    perStoreTemplateMode
+    && onAssign
+    && contextStoreCode
+    && !appliedToContextStore
+    && !needsActivation
+    && !isLiveOnlyElsewhere,
+  )
+  const showPerStoreAssignAction = Boolean(
+    perStoreTemplateMode
+    && onAssign
+    && (needsActivation || appliedToContextStore || canAssignToContext),
   )
   const canAssignSingleAll = Boolean(singleTemplateMode && onUseForAllStores && !isSingleTemplateSelected)
   const showAssignOverlay = canAssignToContext || canAssignSingleAll
@@ -112,11 +134,11 @@ export function BuilderDraftTemplateCard({
       onUseForAllStores()
       return
     }
-    if (viewLiveLinks.length > 1 && onViewLivePicker) {
+    if (showViewLive && viewLiveLinks.length > 1 && onViewLivePicker) {
       onViewLivePicker(viewLiveLinks)
       return
     }
-    if (viewLiveLinks.length === 1) {
+    if (showViewLive && viewLiveLinks.length === 1) {
       window.open(viewLiveLinks[0].href, '_blank', 'noopener,noreferrer')
       return
     }
@@ -129,21 +151,18 @@ export function BuilderDraftTemplateCard({
 
   const linkedToContextStoreResolved = linkedToContextStore
   const appliedToContextStoreResolved = appliedToContextStore
+  const isBuiltForAll = site.website_store_scope !== 'store'
 
   const statusLabel = contextStoreCode
     ? appliedToContextStoreResolved
       ? `Live · ${contextStoreCode}`
-      : linkedToContextStoreResolved && !isApplied
-        ? `Assigned · ${contextStoreCode}`
-        : isApplied
-          ? `${perStoreAppliedCount} other BU${perStoreAppliedCount === 1 ? '' : 's'}`
-          : needsActivation && linkedToContextStoreResolved
-            ? `Activate · ${contextStoreCode}`
-            : isLinkedToStore
-              ? linkedToContextStoreResolved
-                ? `Assigned · ${contextStoreCode}`
-                : `${linkedStoreNames.length} other BU${linkedStoreNames.length === 1 ? '' : 's'}`
-              : 'Unused'
+      : linkedToContextStoreResolved
+        ? isBuiltForAll
+          ? 'Built for all'
+          : `Built for · ${contextStoreCode}`
+        : isApplied || isLinkedToStore
+          ? systemTemplateGalleryStatusLabel
+          : 'Unused'
     : isApplied
       ? `${perStoreAppliedCount} live`
       : needsActivation
@@ -156,10 +175,14 @@ export function BuilderDraftTemplateCard({
               ? `${linkedStoreNames.length} assigned`
               : 'Unused'
 
-  const statusTitle = contextStoreCode && (appliedToContextStoreResolved || linkedToContextStoreResolved)
-    ? `Assigned to ${contextStoreCode}`
-    : isApplied
-      ? assignedStoreNames.join(', ')
+  const statusTitle = contextStoreCode && appliedToContextStoreResolved
+    ? `Live on ${contextStoreCode}`
+    : contextStoreCode && linkedToContextStoreResolved
+      ? isBuiltForAll
+        ? 'Built for all business units — assign in Template Gallery to go live'
+        : `Built for ${contextStoreCode} — assign in Template Gallery to go live`
+      : isApplied || isLinkedToStore
+        ? systemTemplateGalleryStatusTitle(contextStoreCode, assignedStoreNames.length ? assignedStoreNames : linkedStoreNames)
       : needsActivation
         ? `Assigned to ${linkedStoreNames.join(', ')}. Click Activate to replace the catalog template on the live storefront.`
         : liveBlockReason === 'catalog_template_override'
@@ -184,7 +207,7 @@ export function BuilderDraftTemplateCard({
             ? `${assignOverlayLabel} — ${site.name}`
             : multipleLiveStores
               ? `View live site — pick from ${viewLiveLinks.length} business units`
-              : isLiveOnStorefront
+              : showViewLive
                 ? `View live site for ${site.name}`
                 : isAssignedNotLive
                   ? `Open ${site.name} in Website Builder`
@@ -204,7 +227,7 @@ export function BuilderDraftTemplateCard({
       <div className="relative overflow-hidden">
         {perStoreTemplateMode && appliedToContextStoreResolved && contextStoreCode ? (
           <span className={templateCardCurrentForStoreRibbonClass}>
-            Current for {contextStoreCode}
+            Live on {contextStoreCode}
           </span>
         ) : null}
         <div className={cn(templateCardMediaHeightClass, 'w-full')}>
@@ -217,6 +240,16 @@ export function BuilderDraftTemplateCard({
           />
         </div>
         <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/50 via-black/5 to-transparent" />
+        <div
+          className={cn(
+            'absolute left-1.5 top-1.5 flex max-w-[calc(100%-0.75rem)] items-center gap-1 rounded-full border px-1.5 py-0.5 text-[9px] font-semibold shadow-sm',
+            displayStatus.color,
+          )}
+          title={displayStatus.label}
+        >
+          <StatusIcon className="h-2.5 w-2.5 shrink-0" />
+          <span className="truncate">{displayStatus.shortLabel}</span>
+        </div>
         <div className={templateCardPreviewOverlayClass}>
           <span className="inline-flex items-center gap-1 rounded-full bg-white/95 px-2 py-1 text-[10px] font-bold text-gray-900 shadow-md">
             {needsActivation ? (
@@ -229,7 +262,7 @@ export function BuilderDraftTemplateCard({
                 <Store className="h-3 w-3" />
                 {assignOverlayLabel}
               </>
-            ) : isLiveOnStorefront ? (
+            ) : showViewLive ? (
               <>
                 <ExternalLink className="h-3 w-3" />
                 {multipleLiveStores ? `View live site (${viewLiveLinks.length})` : 'View live site'}
@@ -248,7 +281,7 @@ export function BuilderDraftTemplateCard({
           </span>
         </div>
         {singleTemplateMode && isSingleTemplateSelected && showTopAssignmentBadge ? (
-          <span className={cn('absolute right-1.5 top-1.5 max-w-[70%]', templateBadgeVioletClass)} title="Active storefront template for all business units">
+          <span className={cn('absolute right-1.5 top-1.5 max-w-[70%]', templateBadgeEmeraldClass)} title="Active storefront template for all business units">
             <Check className="h-2.5 w-2.5 shrink-0" />
             <span className="truncate">All stores</span>
           </span>
@@ -285,7 +318,7 @@ export function BuilderDraftTemplateCard({
             <span
               className={cn(
                 'inline-flex shrink-0 items-center gap-1 text-[10px] font-semibold',
-                isSingleTemplateSelected ? 'text-violet-700' : 'text-gray-400',
+                isSingleTemplateSelected ? 'text-primary' : 'text-gray-400',
               )}
               title={
                 isSingleTemplateSelected
@@ -296,7 +329,7 @@ export function BuilderDraftTemplateCard({
               <span
                 className={cn(
                   'h-1.5 w-1.5 shrink-0 rounded-full',
-                  isSingleTemplateSelected ? 'bg-violet-500' : 'bg-gray-300',
+                  isSingleTemplateSelected ? 'bg-primary' : 'bg-gray-300',
                 )}
               />
               {isSingleTemplateSelected ? 'Assigned all' : 'Not applied'}
@@ -305,12 +338,12 @@ export function BuilderDraftTemplateCard({
             <span
               className={cn(
                 'inline-flex shrink-0 items-center gap-1 text-[10px] font-semibold',
-                isApplied
+                isApplied || appliedToContextStoreResolved
                   ? 'text-emerald-700'
                   : needsActivation || liveBlockReason === 'catalog_template_override'
                     ? 'text-amber-700'
-                    : isLinkedToStore
-                      ? 'text-emerald-700'
+                    : linkedToContextStoreResolved
+                      ? 'text-violet-700'
                       : 'text-gray-400',
               )}
               title={statusTitle}
@@ -318,12 +351,12 @@ export function BuilderDraftTemplateCard({
               <span
                 className={cn(
                   'h-1.5 w-1.5 shrink-0 rounded-full',
-                  isApplied
+                  isApplied || appliedToContextStoreResolved
                     ? 'bg-emerald-500'
                     : needsActivation || liveBlockReason === 'catalog_template_override'
                       ? 'bg-amber-500'
-                      : isLinkedToStore
-                        ? 'bg-emerald-500'
+                      : linkedToContextStoreResolved
+                        ? 'bg-violet-500'
                         : 'bg-gray-300',
                 )}
               />
@@ -339,6 +372,8 @@ export function BuilderDraftTemplateCard({
               ? `Activate for ${linkedStoreNames[0] ?? 'store'} to replace catalog template.`
               : liveBlockReason === 'catalog_template_override'
                 ? 'Catalog template still controls this store — activate to go live.'
+                : perStoreTemplateMode && !onAssign && site.website_store_scope === 'store' && site.website_store_name
+                  ? `Built for ${site.website_store_name} — switch business unit above to assign.`
                 : site.website_store_scope === 'store' && site.website_store_name
                   ? `Built for ${site.website_store_name}.`
                   : 'Assign to your live store — pick a business unit below.')}
@@ -355,26 +390,27 @@ export function BuilderDraftTemplateCard({
                 type="button"
                 disabled={useForAllStoresPending}
                 onClick={onUseForAllStores}
-                className={cn(
-                  templateCardPrimaryActionClass,
-                  'border-violet-200 bg-violet-50/80 text-violet-700 hover:border-violet-300 hover:bg-violet-100',
-                )}
+                className={templateCardAssignPillClass}
               >
                 <Store className="h-3 w-3 shrink-0" />
                 {singleTemplateActionLabel(false)}
               </button>
             )
           ) : null}
-          {perStoreTemplateMode && onAssign ? (
+          {perStoreTemplateMode && showPerStoreAssignAction ? (
             <button
               type="button"
               disabled={assignPending}
               onClick={onAssign}
               className={cn(
-                templateCardPrimaryActionClass,
                 appliedToContextStoreResolved && !needsActivation
-                  ? 'border-2 border-primary bg-primary/10 text-primary hover:border-primary hover:bg-primary/15'
-                  : 'border-emerald-200 bg-emerald-50/80 text-emerald-700 hover:border-emerald-300 hover:bg-emerald-100',
+                  ? templateCardActivePillClass
+                  : needsActivation
+                    ? cn(
+                        templateCardPrimaryActionClass,
+                        'border-amber-200 bg-amber-50/80 text-amber-800 hover:border-amber-300 hover:bg-amber-100',
+                      )
+                    : templateCardAssignPillClass,
               )}
             >
               {needsActivation ? (
@@ -398,6 +434,18 @@ export function BuilderDraftTemplateCard({
                 </>
               )}
             </button>
+          ) : perStoreTemplateMode && !showPerStoreAssignAction ? (
+            <button
+              type="button"
+              onClick={e => {
+                e.stopPropagation()
+                onPreview()
+              }}
+              className={templateCardAssignPillClass}
+            >
+              <Eye className="h-3 w-3 shrink-0" />
+              Preview
+            </button>
           ) : null}
           <div className={templateCardActionClusterClass}>
             <Link
@@ -409,11 +457,13 @@ export function BuilderDraftTemplateCard({
             >
               <Globe className="h-3 w-3" />
             </Link>
-            <AppliedTemplateViewLiveButton
-              links={viewLiveLinks}
-              templateName={site.name}
-              highlightStoreId={highlightStoreId}
-            />
+            {showViewLive ? (
+              <AppliedTemplateViewLiveButton
+                links={viewLiveLinks}
+                templateName={site.name}
+                highlightStoreId={highlightStoreId}
+              />
+            ) : null}
             <button
               type="button"
               onClick={e => {

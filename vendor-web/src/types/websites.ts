@@ -228,6 +228,8 @@ export interface StyleConfig {
   checkout_token_overrides?: Record<string, string>
   /** Per-page style overrides keyed by page id (saved in style_config JSON). */
   page_styles?: Record<string, PageStyleOverrides>
+  /** Selected website color palette preset id (Create Website wizard). */
+  color_palette_id?: string
   font_size_base?: number
   font_size_heading?: number
 }
@@ -340,6 +342,8 @@ export interface SiteListItem {
   website_store_scope?: string | null
   website_store_id?: string | null
   website_store_name?: string | null
+  /** Set when assigned in Template Gallery — publish alone does not go live. */
+  storefront_assigned?: boolean
   created_at: string
   updated_at: string
 }
