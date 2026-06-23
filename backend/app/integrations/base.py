@@ -27,7 +27,14 @@ class WhatsAppAdapter(ABC):
     provider: str = "generic_whatsapp"
 
     @abstractmethod
-    async def send(self, *, to: str, body: str) -> dict[str, Any]:
+    async def send(
+        self, *, to: str, body: str,
+        media_url: str | None = None,
+        footer: str | None = None,
+        cta_label: str | None = None,
+        cta_url: str | None = None,
+        media_type: str | None = None,
+    ) -> dict[str, Any]:
         ...
 
 

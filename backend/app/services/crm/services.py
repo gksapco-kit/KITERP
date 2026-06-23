@@ -759,28 +759,27 @@ class CommunicationService:
 
     async def send_email(self, vendor_id: UUID, payload, *,
                          recorded_by: Optional[UUID] = None) -> dict:
-        from app.tasks.crm.send_email import send_email_now
-        result = send_email_now(
+        from app.tasks.crm.send_email import send_email
+        return await send_email(
             vendor_id=vendor_id,
             contact_id=payload.contact_id,
             subject=payload.subject,
             body_html=payload.body_html,
             body_text=payload.body_text,
         )
-        return result
 
     async def send_sms(self, vendor_id: UUID, payload, *,
                        recorded_by: Optional[UUID] = None) -> dict:
-        from app.tasks.crm.send_sms import send_sms_now
-        return send_sms_now(
+        from app.tasks.crm.send_sms import send_sms
+        return await send_sms(
             vendor_id=vendor_id, contact_id=payload.contact_id,
             body=payload.body, to_phone=payload.to_phone,
         )
 
     async def send_whatsapp(self, vendor_id: UUID, payload, *,
                             recorded_by: Optional[UUID] = None) -> dict:
-        from app.tasks.crm.send_whatsapp import send_whatsapp_now
-        return send_whatsapp_now(
+        from app.tasks.crm.send_whatsapp import send_whatsapp
+        return await send_whatsapp(
             vendor_id=vendor_id, contact_id=payload.contact_id,
             body=payload.body, to_phone=payload.to_phone,
         )
@@ -1089,6 +1088,115 @@ class EmailTemplateService:
         await self.db.delete(obj)
         await self.db.commit()
 
+    async def _resolve_vendor_user_names(
+        self, vendor_id: UUID, actor_id: Optional[UUID],
+    ) -> tuple[str, str]:
+        from app.models.user import User
+        from app.models.vendor import Vendor
+
+        vendor_name = "Your Business"
+        user_name = "Alex Kumar"
+        v_row = await self.db.execute(select(Vendor).where(Vendor.id == vendor_id))
+        vendor = v_row.scalar_one_or_none()
+        if vendor:
+            vendor_name = vendor.display_name or vendor.business_name or vendor_name
+        if actor_id:
+            u_row = await self.db.execute(select(User).where(User.id == actor_id))
+            user = u_row.scalar_one_or_none()
+            if user and user.full_name:
+                user_name = user.full_name
+        return vendor_name, user_name
+
+    async def send_test(
+        self, vendor_id: UUID, template_id: UUID, data, *,
+        actor_id: Optional[UUID] = None,
+    ) -> dict:
+        from app.services.crm.template_render import (
+            render_merge_tags, resolve_email_body_html, resolve_plain_body,
+        )
+        from app.services.crm.template_render import build_whatsapp_payload
+        from app.services.sms_service import is_valid_e164, normalize_e164
+        from app.tasks.crm.send_email import send_email
+        from app.tasks.crm.send_sms import send_sms
+        from app.tasks.crm.send_whatsapp import send_whatsapp
+
+        template = await self.get(vendor_id, template_id)
+        channel = (data.channel or template.channel or "email").lower()
+        vendor_name, user_name = await self._resolve_vendor_user_names(vendor_id, actor_id)
+
+        merge_kwargs = {"vendor_name": vendor_name, "user_name": user_name}
+
+        if channel == "email":
+            test_email = (data.test_email or "").strip()
+            if not test_email:
+                raise HTTPException(status_code=400, detail="Enter an email address to send the test.")
+            subject = render_merge_tags(template.subject or template.name or "Test", **merge_kwargs)
+            body_html = render_merge_tags(resolve_email_body_html(template), **merge_kwargs)
+            body_text = render_merge_tags(template.body_text or "", **merge_kwargs) or None
+            result = await send_email(
+                vendor_id=vendor_id, contact_id=None, subject=subject,
+                body_html=body_html, body_text=body_text, to_email=test_email,
+            )
+        elif channel in ("sms", "whatsapp"):
+            test_phone = normalize_e164((data.test_phone or "").strip())
+            if not test_phone:
+                raise HTTPException(status_code=400, detail="Enter a phone number to send the test.")
+            if not is_valid_e164(test_phone):
+                raise HTTPException(
+                    status_code=400,
+                    detail="Enter a valid mobile number with country code (e.g. +919652502965).",
+                )
+            if channel == "whatsapp":
+                wa = build_whatsapp_payload(template, **merge_kwargs)
+                result = await send_whatsapp(
+                    vendor_id=vendor_id, contact_id=None, to_phone=test_phone,
+                    body=str(wa["body"] or ""),
+                    media_url=wa.get("media_url"),
+                    footer=wa.get("footer"),
+                    cta_label=wa.get("cta_label"),
+                    cta_url=wa.get("cta_url"),
+                    media_type=wa.get("media_type"),
+                )
+            else:
+                body = render_merge_tags(resolve_plain_body(template) or "Test message", **merge_kwargs)
+                result = await send_sms(
+                    vendor_id=vendor_id, contact_id=None, body=body, to_phone=test_phone,
+                )
+        else:
+            raise HTTPException(status_code=400, detail=f"Unsupported channel: {channel}")
+
+        if not result.get("ok"):
+            err = result.get("error") or "send_failed"
+            detail = result.get("detail") or err
+            if err == "no_adapter":
+                if channel == "whatsapp":
+                    raise HTTPException(
+                        status_code=400,
+                        detail=(
+                            "WhatsApp is not configured. In CRM → Integrations → Twilio, set "
+                            "whatsapp_from (sandbox: +14155238886) — separate from SMS from_number."
+                        ),
+                    )
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"No {channel} integration configured. Set it up under CRM Integrations first.",
+                )
+            if err == "no_recipient":
+                raise HTTPException(status_code=400, detail="Recipient address is required.")
+            if err == "invalid_to_number":
+                raise HTTPException(
+                    status_code=400,
+                    detail=result.get("detail") or "Enter a valid phone number with country code.",
+                )
+            raise HTTPException(status_code=400, detail=detail)
+
+        label = {"email": "email", "sms": "SMS", "whatsapp": "WhatsApp"}.get(channel, channel)
+        target = (data.test_email or "").strip() or normalize_e164((data.test_phone or "").strip())
+        extra = ""
+        if channel == "whatsapp":
+            extra = " Check WhatsApp on your phone (Twilio sandbox: join +1 415 523 8886 first)."
+        return {"ok": True, "message": f"Test {label} sent to {target}.{extra}"}
+
 
 class CampaignService:
     def __init__(self, db: AsyncSession):
@@ -1145,11 +1253,60 @@ class CampaignService:
         await self.db.delete(obj)
         await self.db.commit()
 
-    async def enroll_segment(self, vendor_id: UUID, campaign_id: UUID,
-                             segment_id: UUID, *, actor_id: Optional[UUID] = None) -> int:
-        seg_service = SegmentService(self.db)
-        seg = await seg_service.get(vendor_id, segment_id)
-        ids = await seg_service._matching_contact_ids(vendor_id, seg)
+    async def _eligible_contact_ids(
+        self, vendor_id: UUID, segment_id: Optional[UUID], channel: str,
+    ) -> list[UUID]:
+        from sqlalchemy import and_ as sa_and, or_ as sa_or
+
+        if segment_id:
+            seg = await SegmentService(self.db).get(vendor_id, segment_id)
+            base_ids = await SegmentService(self.db)._matching_contact_ids(vendor_id, seg)
+            if not base_ids:
+                return []
+            where = [
+                CrmContact.vendor_id == vendor_id,
+                CrmContact.is_active.is_(True),
+                CrmContact.id.in_(base_ids),
+            ]
+        else:
+            where = [CrmContact.vendor_id == vendor_id, CrmContact.is_active.is_(True)]
+
+        ch = (channel or "email").lower()
+        if ch == "email":
+            where.extend([
+                CrmContact.do_not_email.is_(False),
+                CrmContact.email.isnot(None),
+                CrmContact.email != "",
+            ])
+        elif ch in ("sms", "whatsapp"):
+            where.append(sa_or(CrmContact.phone.isnot(None), CrmContact.mobile.isnot(None)))
+
+        rows = await self.db.execute(select(CrmContact.id).where(sa_and(*where)))
+        return [r[0] for r in rows.all()]
+
+    async def audience_preview(
+        self, vendor_id: UUID, *, channel: str = "email",
+        segment_id: Optional[UUID] = None, limit: int = 8,
+    ) -> dict:
+        ids = await self._eligible_contact_ids(vendor_id, segment_id, channel)
+        contacts: list = []
+        if ids:
+            rows = await self.db.execute(
+                select(CrmContact).where(CrmContact.id.in_(ids[:limit]))
+            )
+            contacts = list(rows.scalars().all())
+        return {"total": len(ids), "contacts": contacts}
+
+    async def enroll_audience(
+        self, vendor_id: UUID, campaign_id: UUID, *,
+        segment_id: Optional[UUID] = None, channel: Optional[str] = None,
+        actor_id: Optional[UUID] = None,
+    ) -> int:
+        result = await self.get(vendor_id, campaign_id)
+        obj, _ = result
+        seg_id = segment_id if segment_id is not None else obj.segment_id
+        ch = channel or obj.channel or "email"
+        ids = await self._eligible_contact_ids(vendor_id, seg_id, ch)
         count = 0
         for cid in ids:
             existing = await self.db.execute(
@@ -1168,9 +1325,17 @@ class CampaignService:
         await self.db.commit()
         return count
 
-    async def start(self, vendor_id: UUID, campaign_id: UUID) -> CrmCampaign:
+    async def enroll_segment(self, vendor_id: UUID, campaign_id: UUID,
+                             segment_id: UUID, *, actor_id: Optional[UUID] = None) -> int:
+        return await self.enroll_audience(
+            vendor_id, campaign_id, segment_id=segment_id, actor_id=actor_id,
+        )
+
+    async def start(self, vendor_id: UUID, campaign_id: UUID, *,
+                    actor_id: Optional[UUID] = None) -> CrmCampaign:
         result = await self.get(vendor_id, campaign_id)
         obj, _ = result
+        await self.enroll_audience(vendor_id, campaign_id, actor_id=actor_id)
         obj.status = "active"
         obj.started_at = datetime.now(timezone.utc)
         await self.db.commit()

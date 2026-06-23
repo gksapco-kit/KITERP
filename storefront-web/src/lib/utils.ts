@@ -5,9 +5,24 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }
 
-/** Keyboard focus ring for buttons, links, and dropdown triggers (inset — not clipped by overflow-hidden). */
+/** Keyboard focus ring for buttons, links, and dropdown triggers (inset so rings aren't clipped by overflow-hidden). */
 export const focusRingClassName =
-  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring focus-visible:border-primary'
+  'focus:outline-none focus-visible:outline-none focus:ring-2 focus:ring-inset focus:ring-ring focus:border-primary focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring focus-visible:border-primary'
+
+export const solidButtonFocusClassName = 'btn-focus-solid focus-visible:outline-none'
+
+export function hasSolidPrimaryBgClass(className?: string) {
+  if (!className) return false
+  return /(?:^|\s)bg-primary(?:\s|$)/.test(className)
+}
+
+/** Solid green CTA — gradient from-primary or opaque primary fills. */
+export function isSolidPrimaryButtonClassName(className?: string) {
+  if (!className) return false
+  if (hasSolidPrimaryBgClass(className)) return true
+  if (/(?:^|\s)bg-primary\/(?:90|85|80)(?:\s|$)/.test(className)) return true
+  return /bg-gradient/.test(className) && /(?:^|\s)from-primary(?:\s|$)/.test(className)
+}
 
 export function formatCurrency(amount: number, currency = 'INR') {
   return new Intl.NumberFormat('en-IN', { style: 'currency', currency }).format(amount)

@@ -578,12 +578,24 @@ class SegmentResponse(SegmentBase):
     updated_at: datetime
 
 
+class TemplateAttachment(BaseModel):
+    url: str
+    type: str = "image"  # image | video
+    name: Optional[str] = None
+
+
 class EmailTemplateBase(BaseModel):
     name: str
     subject: str
     body_html: str
     body_text: Optional[str] = None
     merge_tags: Optional[list[str]] = None
+    channel: str = "email"
+    description: Optional[str] = None
+    attachments: Optional[list[TemplateAttachment]] = None
+    schedule_start: Optional[datetime] = None
+    schedule_end: Optional[datetime] = None
+    settings: Optional[dict] = None
     is_active: bool = True
 
 
@@ -597,6 +609,17 @@ class EmailTemplateResponse(EmailTemplateBase):
     vendor_id: UUID
     created_at: datetime
     updated_at: datetime
+
+
+class TemplateTestRequest(BaseModel):
+    channel: Optional[str] = None
+    test_phone: Optional[str] = None
+    test_email: Optional[str] = None
+
+
+class TemplateTestResponse(BaseModel):
+    ok: bool
+    message: str
 
 
 class CampaignStepBase(BaseModel):

@@ -8,7 +8,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { vendorApi } from '@/api/vendor'
 import { useOrderStats, useReviews, useProducts, useStores } from '@/hooks/useVendor'
 import { useVendorStore } from '@/stores/vendorStore'
-import { formatCurrency, formatDate } from '@/lib/utils'
+import { formatCurrency, formatDate, cn, searchFieldInnerInputClassName, searchFieldShellClassName, solidButtonFocusClassName } from '@/lib/utils'
 import { apiClient } from '@/api/client'
 import { toast } from 'sonner'
 import {
@@ -545,10 +545,18 @@ function ReportToolbar({ search, onSearch, filterLabel, filterValue, filterOptio
 }) {
   return (
     <div className="flex flex-wrap items-center gap-2 mb-4">
-      <div className="flex items-center gap-2 bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 flex-1 min-w-[200px] max-w-sm">
-        <Search className="w-3.5 h-3.5 text-gray-400 shrink-0" />
-        <input value={search} onChange={e => onSearch(e.target.value)} placeholder={placeholder || 'Search…'}
-          className="flex-1 bg-transparent text-sm outline-none text-gray-700 placeholder-gray-400" />
+      <div
+        data-kiterp-search-field
+        className={cn(searchFieldShellClassName, 'px-3 py-2 flex-1 min-w-[200px] max-w-sm')}
+      >
+        <Search className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+        <input
+          data-kiterp-no-field-focus
+          value={search}
+          onChange={e => onSearch(e.target.value)}
+          placeholder={placeholder || 'Search…'}
+          className={cn(searchFieldInnerInputClassName, 'text-sm text-foreground placeholder:text-muted-foreground')}
+        />
         {search && <button type="button" aria-label="Close" onClick={() => onSearch('')}>
                 <X className="w-3.5 h-3.5 text-gray-400 hover:text-gray-600" /></button>}
       </div>
@@ -1240,13 +1248,23 @@ export default function ReportsPage() {
           <div className="flex items-center gap-1 flex-wrap">
             <button
               onClick={() => setSelectedStoreId('all')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-150 border ${selectedStoreId === 'all' ? 'bg-primary text-primary-foreground border-primary shadow-sm' : 'bg-card text-muted-foreground border-border hover:border-primary/40 hover:text-primary'}`}>
+              className={cn(
+                'px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-150 border',
+                selectedStoreId === 'all'
+                  ? cn('bg-primary text-primary-foreground border-primary shadow-sm', solidButtonFocusClassName)
+                  : 'bg-card text-muted-foreground border-border hover:border-primary/40 hover:text-primary',
+              )}>
               All Stores
             </button>
             {reportStores.map(s => (
               <button key={s.id}
                 onClick={() => setSelectedStoreId(s.id)}
-                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-150 border ${selectedStoreId === s.id ? 'bg-primary text-primary-foreground border-primary shadow-sm' : 'bg-card text-muted-foreground border-border hover:border-primary/40 hover:text-primary'}`}>
+                className={cn(
+                  'px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-150 border',
+                  selectedStoreId === s.id
+                    ? cn('bg-primary text-primary-foreground border-primary shadow-sm', solidButtonFocusClassName)
+                    : 'bg-card text-muted-foreground border-border hover:border-primary/40 hover:text-primary',
+                )}>
                 {s.name}{s.code ? ` · ${s.code}` : ''}
               </button>
             ))}
@@ -1272,10 +1290,19 @@ export default function ReportsPage() {
           {selectorOpen && (
             <div className="absolute left-0 top-full mt-2 w-[380px] bg-popover text-popover-foreground border border-border rounded-2xl shadow-xl z-50 overflow-hidden max-h-[90vh] overflow-y-auto">
               <div className="px-3 pt-3 pb-2 border-b">
-                <div className="flex items-center gap-2 bg-gray-50 rounded-xl px-3 py-2">
-                  <Search className="w-3.5 h-3.5 text-gray-400 shrink-0" />
-                  <input value={selectorSearch} onChange={e => setSelectorSearch(e.target.value)} placeholder="Search reports…"
-                    className="flex-1 bg-transparent text-sm outline-none text-gray-700 placeholder-gray-400" autoFocus />
+                <div
+                  data-kiterp-search-field
+                  className={cn(searchFieldShellClassName, 'px-3 py-2')}
+                >
+                  <Search className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+                  <input
+                    data-kiterp-no-field-focus
+                    value={selectorSearch}
+                    onChange={e => setSelectorSearch(e.target.value)}
+                    placeholder="Search reports…"
+                    className={cn(searchFieldInnerInputClassName, 'text-sm text-foreground placeholder:text-muted-foreground')}
+                    autoFocus
+                  />
                   {selectorSearch && <button type="button" aria-label="Close" onClick={() => setSelectorSearch('')}>
                 <X className="w-3.5 h-3.5 text-gray-400 hover:text-gray-600" /></button>}
                 </div>
@@ -2183,10 +2210,18 @@ export default function ReportsPage() {
               {/* ── Toolbar: filters + export panel ────────────────────── */}
               <div className="flex flex-wrap items-center gap-2">
                 {/* Search */}
-                <div className="flex items-center gap-2 bg-white border border-gray-200 rounded-xl px-3 py-2 flex-1 min-w-[180px] max-w-xs shadow-sm max-h-[90vh] overflow-y-auto">
-                  <Search className="w-3.5 h-3.5 text-gray-400 shrink-0" />
-                  <input value={mrpSearch} onChange={e => setMrpSearch(e.target.value)} placeholder="Search product, SKU, order…"
-                    className="flex-1 bg-transparent text-sm outline-none text-gray-700 placeholder-gray-400" />
+                <div
+                  data-kiterp-search-field
+                  className={cn(searchFieldShellClassName, 'px-3 py-2 flex-1 min-w-[180px] max-w-xs shadow-sm')}
+                >
+                  <Search className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+                  <input
+                    data-kiterp-no-field-focus
+                    value={mrpSearch}
+                    onChange={e => setMrpSearch(e.target.value)}
+                    placeholder="Search product, SKU, order…"
+                    className={cn(searchFieldInnerInputClassName, 'text-sm text-foreground placeholder:text-muted-foreground')}
+                  />
                   {mrpSearch && <button type="button" aria-label="Close" onClick={() => setMrpSearch('')}>
                 <X className="w-3 h-3 text-gray-400" /></button>}
                 </div>

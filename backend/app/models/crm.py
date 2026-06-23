@@ -454,6 +454,12 @@ class CrmEmailTemplate(Base):
     body_html = Column(Text, nullable=False)
     body_text = Column(Text)
     merge_tags = Column(JSONB, default=list)
+    channel = Column(String(20), default="email")  # email/sms/whatsapp
+    description = Column(Text)
+    attachments = Column(JSONB, default=list)  # [{url, type, name}]
+    schedule_start = Column(DateTime(timezone=True))
+    schedule_end = Column(DateTime(timezone=True))
+    settings = Column(JSONB, default=dict)  # cta_label, cta_url, footer_text
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())

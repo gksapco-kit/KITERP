@@ -78,9 +78,21 @@ async def _tick() -> dict:
                         vendor_id=campaign.vendor_id, contact_id=enr.contact_id, body=body,
                     )
                 elif step.channel == "whatsapp":
-                    body = (template.body_text if template else None) or "Update from us"
+                    from app.services.crm.template_render import build_whatsapp_payload
+
+                    wa = build_whatsapp_payload(template) if template else {
+                        "body": "Update from us", "footer": None,
+                        "cta_label": None, "cta_url": None, "media_url": None,
+                    }
                     send_whatsapp_now(
-                        vendor_id=campaign.vendor_id, contact_id=enr.contact_id, body=body,
+                        vendor_id=campaign.vendor_id,
+                        contact_id=enr.contact_id,
+                        body=str(wa["body"] or "Update from us"),
+                        media_url=wa.get("media_url"),
+                        footer=wa.get("footer"),
+                        cta_label=wa.get("cta_label"),
+                        cta_url=wa.get("cta_url"),
+                        media_type=wa.get("media_type"),
                     )
             except Exception as e:
                 logger.exception("drip step failed: %s", e)

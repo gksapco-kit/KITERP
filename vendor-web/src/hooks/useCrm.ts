@@ -229,6 +229,14 @@ export const useSaveTemplate = () => {
   })
 }
 
+export const useTestTemplate = () =>
+  useMutation({
+    mutationFn: ({ id, data }: {
+      id: string
+      data: { channel?: string; test_phone?: string; test_email?: string }
+    }) => crmApi.testTemplate(id, data),
+  })
+
 // Campaigns
 export const useCampaigns = (params: Record<string, unknown> = {}) =>
   useQuery({ queryKey: KEY('campaigns', params), queryFn: () => crmApi.listCampaigns(params) })
@@ -244,6 +252,21 @@ export const useSaveCampaign = () => {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['crm', 'campaigns'] }),
   })
 }
+
+export const useCampaignAudience = (
+  channel: string,
+  segmentId?: string,
+  enabled = true,
+) =>
+  useQuery({
+    queryKey: KEY('campaign-audience', channel, segmentId || 'all'),
+    queryFn: () => crmApi.getCampaignAudiencePreview({
+      channel,
+      segment_id: segmentId || undefined,
+      limit: 8,
+    }),
+    enabled,
+  })
 
 // Workflows
 export const useWorkflows = () =>

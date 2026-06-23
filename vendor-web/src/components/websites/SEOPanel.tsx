@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Loader2, Save, Sparkles, Zap } from 'lucide-react'
 import { toast } from 'sonner'
-import { cn, mediaUrl } from '@/lib/utils'
+import { cn, mediaUrl, solidButtonFocusClassName } from '@/lib/utils'
 import { useAIGenerateSEO, useAISuggestBlocks } from '@/hooks/useWebsites'
 import type { WebsitePage, WebsiteSite } from '@/types/websites'
 
@@ -126,7 +126,10 @@ export function SEOPanel({
             type="button"
             onClick={handleAIGenerate}
             disabled={aiSEO.isPending}
-            className="flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-primary to-info py-2 text-xs font-bold text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-60"
+            className={cn(
+              'flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-primary to-info py-2 text-xs font-bold text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-60',
+              solidButtonFocusClassName,
+            )}
           >
             {aiSEO.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
             Write search text with AI
@@ -141,7 +144,7 @@ export function SEOPanel({
                 <p className="text-xs text-primary">Focus: <strong>{aiResult.focus_keyword}</strong></p>
               </div>
               <div className="flex gap-2">
-                <button type="button" onClick={applyAI} className="flex-1 rounded-lg bg-primary py-1.5 text-xs font-bold text-primary-foreground">Apply</button>
+                <button type="button" onClick={applyAI} className={cn('flex-1 rounded-lg bg-primary py-1.5 text-xs font-bold text-primary-foreground', solidButtonFocusClassName)}>Apply</button>
                 <button type="button" onClick={() => setAiResult(null)} className="rounded-lg border border-border bg-background px-3 py-1.5 text-xs text-muted-foreground hover:text-foreground">Dismiss</button>
               </div>
             </div>
@@ -206,7 +209,10 @@ export function SEOPanel({
           <button
             type="button"
             onClick={() => onSavePage({ seo_title: seoTitle, seo_description: seoDesc, og_image_url: ogImage })}
-            className="flex w-full items-center justify-center gap-2 rounded-xl bg-primary py-2 text-xs font-bold text-primary-foreground transition-colors hover:bg-primary/90"
+            className={cn(
+              'flex w-full items-center justify-center gap-2 rounded-xl bg-primary py-2 text-xs font-bold text-primary-foreground transition-colors hover:bg-primary/90',
+              solidButtonFocusClassName,
+            )}
           >
             <Save className="w-3.5 h-3.5" /> Save search settings
           </button>
@@ -277,7 +283,10 @@ export function SEOPanel({
           <button
             type="button"
             onClick={() => onSaveSite({ seo_title: siteTitle, seo_description: siteDesc, seo_keywords: siteKw })}
-            className="flex w-full items-center justify-center gap-2 rounded-xl bg-primary py-2 text-xs font-bold text-primary-foreground transition-colors hover:bg-primary/90"
+            className={cn(
+              'flex w-full items-center justify-center gap-2 rounded-xl bg-primary py-2 text-xs font-bold text-primary-foreground transition-colors hover:bg-primary/90',
+              solidButtonFocusClassName,
+            )}
           >
             <Save className="w-3.5 h-3.5" /> Save site search settings
           </button>

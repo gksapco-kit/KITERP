@@ -639,7 +639,7 @@ export default function CostCenters() {
             </div>
 
             {/* Footer */}
-            <div className="flex justify-end gap-2 px-6 py-4 border-t border-border bg-muted/30 rounded-b-2xl shrink-0">
+            <div className="modal-footer-focus-safe flex justify-end gap-2 px-6 py-4 border-t border-border bg-muted/30 rounded-b-2xl shrink-0">
               <button
                 onClick={() => setCcDialog({ open: false })}
                 className="btn-cancel px-4 py-2 text-sm text-muted-foreground border border-border rounded-lg transition-colors hover:text-foreground hover:bg-muted/50"
@@ -649,7 +649,7 @@ export default function CostCenters() {
               <button
                 onClick={saveCC}
                 disabled={isSaving}
-                className="flex items-center gap-1.5 px-5 py-2 text-sm bg-primary text-white rounded-lg hover:bg-primary/90 disabled:opacity-50 font-medium transition-colors"
+                className="btn-focus-solid flex items-center gap-1.5 px-5 py-2 text-sm bg-primary text-white rounded-lg hover:bg-primary/90 disabled:opacity-50 font-medium transition-colors"
               >
                 {isSaving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
                 {ccDialog.editing ? 'Update' : 'Create'}

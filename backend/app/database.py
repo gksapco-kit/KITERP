@@ -928,6 +928,17 @@ async def ensure_crm_tables() -> None:
         await conn.execute(text(
             "ALTER TABLE crm_account ADD COLUMN IF NOT EXISTS number VARCHAR(40);"
         ))
+        for col_sql in (
+            "ALTER TABLE crm_email_template ADD COLUMN IF NOT EXISTS channel VARCHAR(20) DEFAULT 'email';",
+            "ALTER TABLE crm_email_template ADD COLUMN IF NOT EXISTS description TEXT;",
+            "ALTER TABLE crm_email_template ADD COLUMN IF NOT EXISTS attachments JSONB DEFAULT '[]'::jsonb;",
+            "ALTER TABLE crm_email_template ADD COLUMN IF NOT EXISTS schedule_start TIMESTAMPTZ;",
+            "ALTER TABLE crm_email_template ADD COLUMN IF NOT EXISTS schedule_end TIMESTAMPTZ;",
+            "ALTER TABLE crm_email_template ADD COLUMN IF NOT EXISTS scheduled_at TIMESTAMPTZ;",
+            "UPDATE crm_email_template SET schedule_start = scheduled_at WHERE schedule_start IS NULL AND scheduled_at IS NOT NULL;",
+            "ALTER TABLE crm_email_template ADD COLUMN IF NOT EXISTS settings JSONB DEFAULT '{}'::jsonb;",
+        ):
+            await conn.execute(text(col_sql))
         await conn.execute(text("""
             INSERT INTO crm_contact (
                 vendor_id, first_name, record_type, industry, region, website, phone, email,

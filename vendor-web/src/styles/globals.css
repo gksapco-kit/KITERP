@@ -66,6 +66,9 @@
     --input: 214 22% 90%;
     --ring: 158 44% 58%;
     --radius: 0.625rem;
+    /* Solid button tab focus — white gap + light mint halo (see .btn-focus-solid) */
+    --solid-btn-focus-inner: #ffffff;
+    --solid-btn-focus-outer: 158 52% 76%;
     --canvas: 158 10% 97%;
     --canvas-grid: 158 12% 92%;
     --panel: 0 0% 100%;
@@ -358,13 +361,13 @@
   :focus {
     outline: none;
   }
-  button:focus-visible,
-  a:focus-visible,
+  button:focus-visible:not(.btn-focus-solid):not(.btn-brand):not(.chip-active):not([class~='bg-primary']):not([class~='bg-primary/90']):not([class~='from-primary']),
+  a:focus-visible:not([class~='bg-primary']):not([class~='from-primary']),
   select:focus-visible,
   textarea:focus-visible,
   input:focus-visible:not([data-kiterp-no-field-focus]),
   summary:focus-visible,
-  [role='button']:focus-visible,
+  [role='button']:focus-visible:not(.btn-focus-solid):not(.chip-active):not([class~='bg-primary']):not([class~='bg-primary/90']):not([class~='from-primary']),
   [role='combobox']:focus-visible,
   [role='menuitem']:focus-visible,
   [role='tab']:focus-visible {
@@ -375,14 +378,19 @@
     @apply border-primary;
   }
 
-  /* Search bar — outer shell highlights on focus; inner input stays borderless */
+  /* Search shells — single green border on focus (no inset inner ring) */
+  [data-kiterp-search-field]:focus-within,
   [data-kiterp-search-input]:focus-within {
-    border-color: hsl(var(--border));
-    background-color: hsl(var(--muted) / 0.35);
-    box-shadow: 0 0 0 1px hsl(var(--border));
+    outline: none !important;
+    --tw-ring-shadow: 0 0 #0000 !important;
+    --tw-ring-offset-shadow: 0 0 #0000 !important;
+    border-color: hsl(var(--primary)) !important;
+    box-shadow: none !important;
   }
   [data-kiterp-search-input] input:focus,
   [data-kiterp-search-input] input:focus-visible,
+  [data-kiterp-search-field] input:not([data-kiterp-search-field]):focus,
+  [data-kiterp-search-field] input:not([data-kiterp-search-field]):focus-visible,
   input[data-kiterp-no-field-focus]:focus,
   input[data-kiterp-no-field-focus]:focus-visible {
     outline: none !important;
@@ -407,10 +415,10 @@
     caret-color: hsl(var(--foreground));
     transition: background-color 99999s ease-out 0s;
   }
-  button:focus-visible,
-  a:focus-visible,
+  button:focus-visible:not(.btn-focus-solid):not(.btn-brand):not(.chip-active):not([class~='bg-primary']):not([class~='bg-primary/90']):not([class~='from-primary']),
+  a:focus-visible:not([class~='bg-primary']):not([class~='from-primary']),
   select:focus-visible,
-  [role='button']:focus-visible,
+  [role='button']:focus-visible:not(.btn-focus-solid):not(.chip-active):not([class~='bg-primary']):not([class~='bg-primary/90']):not([class~='from-primary']),
   [role='combobox']:focus-visible {
     @apply border-primary;
   }
@@ -581,7 +589,7 @@
 }
 
 /* Template 2 — active store picker keeps primary pill fill + soft shadow. */
-:root[data-kit-template='template2'] .header-bar-pill.border-primary.bg-primary {
+:root[data-kit-template='template2'] .header-bar-pill[class~='border-primary'][class~='bg-primary'] {
   box-shadow:
     0 1px 2px rgba(16, 24, 40, 0.08),
     0 4px 10px -4px hsl(var(--primary) / 0.35);
@@ -2497,8 +2505,8 @@ html[dir='rtl'] [data-sonner-toast][data-styled='true']:has([data-close-button])
    * App-wide form control focus — single inset ring, no offset halo.
    * Overrides per-page focus:ring-* / ring-offset on native fields.
    */
-  input:not([type='checkbox']):not([type='radio']):not([type='range']):not([type='file']):not([type='hidden']):not([type='button']):not([type='submit']):not([type='reset']):not([type='image']):focus,
-  input:not([type='checkbox']):not([type='radio']):not([type='range']):not([type='file']):not([type='hidden']):not([type='button']):not([type='submit']):not([type='reset']):not([type='image']):focus-visible,
+  input:not([type='checkbox']):not([type='radio']):not([type='range']):not([type='file']):not([type='hidden']):not([type='button']):not([type='submit']):not([type='reset']):not([type='image']):not([data-kiterp-no-field-focus]):focus,
+  input:not([type='checkbox']):not([type='radio']):not([type='range']):not([type='file']):not([type='hidden']):not([type='button']):not([type='submit']):not([type='reset']):not([type='image']):not([data-kiterp-no-field-focus]):focus-visible,
   textarea:focus,
   textarea:focus-visible,
   select:focus,
@@ -2516,6 +2524,21 @@ html[dir='rtl'] [data-sonner-toast][data-styled='true']:has([data-close-button])
     --tw-ring-offset-width: 0px;
     box-shadow: inset 0 0 0 2px hsl(var(--ring));
     border-color: hsl(var(--primary));
+  }
+
+  /* Borderless inputs inside search shells — never show their own focus chrome */
+  [data-kiterp-search-input] input:focus,
+  [data-kiterp-search-input] input:focus-visible,
+  [data-kiterp-search-field] input:not([data-kiterp-search-field]):focus,
+  [data-kiterp-search-field] input:not([data-kiterp-search-field]):focus-visible,
+  input[data-kiterp-no-field-focus]:focus,
+  input[data-kiterp-no-field-focus]:focus-visible {
+    outline: none !important;
+    border: 0 !important;
+    border-color: transparent !important;
+    box-shadow: none !important;
+    --tw-ring-shadow: 0 0 #0000 !important;
+    --tw-ring-width: 0 !important;
   }
 
   /*
@@ -2591,4 +2614,45 @@ html[dir='rtl'] [data-sonner-toast][data-styled='true']:has([data-close-button])
   .fixed.inset-0 > [class~='max-w-7xl'][class*='rounded-2xl'] {
     max-width: min(96rem, calc(100vw - 2rem)) !important;
   }
+}
+
+/*
+ * Solid green primary buttons — app-wide tab focus (outside @layer for max priority).
+ * 2px white gap + 4px light mint outer ring hsl(158 52% 76%).
+ */
+:is(button, a, [role='button'], input[type='submit'], input[type='button']).btn-focus-solid:focus-visible,
+:is(button, a, [role='button'], input[type='submit'], input[type='button']).btn-brand:focus-visible,
+:is(button, a, [role='button'], input[type='submit'], input[type='button']).chip-active:focus-visible,
+:is(button, a, [role='button'], input[type='submit'], input[type='button'])[class~='bg-primary']:focus-visible,
+:is(button, a, [role='button'], input[type='submit'], input[type='button'])[class~='bg-primary/90']:focus-visible,
+:is(button, a, [role='button'], input[type='submit'], input[type='button'])[class~='bg-primary/85']:focus-visible,
+:is(button, a, [role='button'], input[type='submit'], input[type='button'])[class~='bg-primary/80']:focus-visible,
+:is(button, a, [role='button'], input[type='submit'], input[type='button'])[class*='bg-gradient'][class~='from-primary']:focus-visible {
+  outline: none !important;
+  --tw-ring-shadow: 0 0 #0000 !important;
+  --tw-ring-offset-shadow: 0 0 #0000 !important;
+  box-shadow:
+    0 0 0 2px var(--solid-btn-focus-inner, #ffffff),
+    0 0 0 6px hsl(var(--solid-btn-focus-outer, 158 52% 76%)) !important;
+  border-color: transparent !important;
+}
+
+.dark :is(button, a, [role='button'], input[type='submit'], input[type='button']).btn-focus-solid:focus-visible,
+.dark :is(button, a, [role='button'], input[type='submit'], input[type='button']).btn-brand:focus-visible,
+.dark :is(button, a, [role='button'], input[type='submit'], input[type='button']).chip-active:focus-visible,
+.dark :is(button, a, [role='button'], input[type='submit'], input[type='button'])[class~='bg-primary']:focus-visible,
+.dark :is(button, a, [role='button'], input[type='submit'], input[type='button'])[class~='bg-primary/90']:focus-visible,
+.dark :is(button, a, [role='button'], input[type='submit'], input[type='button'])[class~='bg-primary/85']:focus-visible,
+.dark :is(button, a, [role='button'], input[type='submit'], input[type='button'])[class~='bg-primary/80']:focus-visible,
+.dark :is(button, a, [role='button'], input[type='submit'], input[type='button'])[class*='bg-gradient'][class~='from-primary']:focus-visible {
+  box-shadow:
+    0 0 0 2px hsl(var(--background)),
+    0 0 0 6px hsl(var(--solid-btn-focus-outer, 158 52% 76%)) !important;
+}
+
+/* Modal / dialog footers — keep outer focus ring visible (not clipped) */
+[data-kiterp-modal] .overflow-y-auto.flex-1 + div,
+[data-kiterp-modal] [class*='rounded-b-2xl'][class*='border-t'],
+.modal-footer-focus-safe {
+  overflow: visible !important;
 }

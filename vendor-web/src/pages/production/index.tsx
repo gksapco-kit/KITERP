@@ -8,7 +8,7 @@ import { ModalEscapeHandler } from '@/components/ui/ModalEscapeHandler'
 import { useNavigate } from 'react-router-dom'
 import { ResizableTable } from '@/components/table/ResizableTable'
 import { useVendorStore } from '@/stores/vendorStore'
-import { formatCurrency } from '@/lib/utils'
+import { formatCurrency, cn, searchFieldInnerInputClassName, searchFieldShellClassName } from '@/lib/utils'
 import { toast } from 'sonner'
 import {
   Factory, Plus, Search, X, ChevronDown, Filter,
@@ -818,10 +818,18 @@ export default function ProductionOrdersPage() {
 
         {/* ── Toolbar ────────────────────────────────────────────────────── */}
         <div className="flex flex-wrap items-center gap-2">
-          <div className="flex items-center gap-2 bg-card border border-border rounded-xl px-3 py-2 flex-1 min-w-[180px] max-w-sm shadow-sm max-h-[90vh] overflow-y-auto">
-            <Search className="w-3.5 h-3.5 text-gray-400 shrink-0" />
-            <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search by ref, product, customer…"
-              className="flex-1 bg-transparent text-sm outline-none text-gray-700 placeholder-gray-400" />
+          <div
+            data-kiterp-search-field
+            className={cn(searchFieldShellClassName, 'px-3 py-2 flex-1 min-w-[180px] max-w-sm shadow-sm')}
+          >
+            <Search className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+            <input
+              data-kiterp-no-field-focus
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              placeholder="Search by ref, product, customer…"
+              className={cn(searchFieldInnerInputClassName, 'text-sm text-foreground placeholder:text-muted-foreground')}
+            />
             {search && <button type="button" aria-label="Close" onClick={() => setSearch('')}>
                 <X className="w-3 h-3 text-gray-400" /></button>}
           </div>

@@ -253,6 +253,19 @@ export type Segment = {
   updated_at: string
 }
 
+export type TemplateAttachment = {
+  url: string
+  type: 'image' | 'video' | string
+  name?: string | null
+  is_header?: boolean
+}
+
+export type TemplateSettings = {
+  cta_label?: string
+  cta_url?: string
+  footer_text?: string
+}
+
 export type EmailTemplate = {
   id: string
   name: string
@@ -260,6 +273,14 @@ export type EmailTemplate = {
   body_html: string
   body_text?: string | null
   merge_tags?: string[] | null
+  channel?: string
+  description?: string | null
+  attachments?: TemplateAttachment[] | null
+  settings?: TemplateSettings | null
+  schedule_start?: string | null
+  schedule_end?: string | null
+  /** @deprecated use schedule_start */
+  scheduled_at?: string | null
   is_active: boolean
   created_at: string
   updated_at: string
@@ -431,6 +452,15 @@ export const crmApi = {
     return r.data
   },
 
+  uploadTemplateMedia: async (file: File): Promise<TemplateAttachment> => {
+    const form = new FormData()
+    form.append('file', file)
+    const r = await apiClient.post<TemplateAttachment>('/uploads/crm/template-media', form, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    })
+    return r.data
+  },
+
   // Accounts
   listAccounts: (params: Record<string, unknown> = {}) =>
     apiClient.get<Paginated<Account>>(`${BASE}/accounts`, { params }).then(r => r.data),
@@ -560,8 +590,12 @@ export const crmApi = {
   updateTemplate: (id: string, data: Partial<EmailTemplate>) =>
     apiClient.put<EmailTemplate>(`${BASE}/templates/${id}`, data).then(r => r.data),
   deleteTemplate: (id: string) => apiClient.delete(`${BASE}/templates/${id}`),
+  testTemplate: (id: string, data: { channel?: string; test_phone?: string; test_email?: string }) =>
+    apiClient.post<{ ok: boolean; message: string }>(`${BASE}/templates/${id}/test`, data, { timeout: 60000 }).then(r => r.data),
 
   // Campaigns
+  getCampaignAudiencePreview: (params: { channel?: string; segment_id?: string; limit?: number } = {}) =>
+    apiClient.get<{ total: number; contacts: Contact[] }>(`${BASE}/campaigns/audience-preview`, { params }).then(r => r.data),
   listCampaigns: (params: Record<string, unknown> = {}) =>
     apiClient.get<Paginated<Campaign>>(`${BASE}/campaigns`, { params }).then(r => r.data),
   getCampaign: (id: string) => apiClient.get<Campaign>(`${BASE}/campaigns/${id}`).then(r => r.data),

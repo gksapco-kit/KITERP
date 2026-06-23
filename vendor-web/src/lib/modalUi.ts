@@ -36,7 +36,7 @@ export const modalBodyClass = 'p-5 space-y-4 overflow-y-auto flex-1 min-h-0'
 export const modalBodyPadClass = 'p-6 overflow-y-auto flex-1 min-h-0'
 
 export const modalFooterClass =
-  'p-4 border-t border-border bg-muted/25 flex gap-3 justify-end shrink-0'
+  'p-4 border-t border-border bg-muted/25 flex gap-3 justify-end shrink-0 overflow-visible'
 
 export const modalTitleClass = 'font-semibold text-lg text-foreground'
 export const modalCloseBtnClass =

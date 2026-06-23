@@ -4,6 +4,7 @@
  */
 import { useState, useEffect, useRef } from 'react'
 import { Search, X, ChevronDown } from 'lucide-react'
+import { cn, searchFieldInnerInputClassName, searchFieldShellClassName } from '@/lib/utils'
 
 export interface PickerOption {
   id: string
@@ -95,15 +96,19 @@ export function MasterDataPicker({ placeholder = 'Search…', selected, onSearch
 
   return (
     <div ref={wrapRef} className="relative">
-      <div className="flex items-center border border-gray-200 rounded-lg px-3 py-2 focus-within:ring-2 focus-within:ring-blue-500 focus-within:border-blue-500 bg-white">
-        <Search className="h-4 w-4 text-gray-400 flex-shrink-0 mr-2" />
+      <div
+        data-kiterp-search-field
+        className={cn(searchFieldShellClassName, 'px-3 py-2')}
+      >
+        <Search className="h-4 w-4 text-muted-foreground flex-shrink-0" />
         <input
+          data-kiterp-no-field-focus
           value={query}
           onChange={handleQueryChange}
           onFocus={() => query && setOpen(true)}
           placeholder={placeholder}
           disabled={disabled}
-          className="flex-1 text-sm outline-none bg-transparent"
+          className={cn(searchFieldInnerInputClassName, 'text-sm')}
         />
         {loading && <ChevronDown className="h-4 w-4 text-gray-400 animate-pulse" />}
       </div>

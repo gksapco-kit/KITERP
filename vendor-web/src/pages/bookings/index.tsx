@@ -831,6 +831,7 @@ export default function BookingsPage() {
                       <div className="relative">
                         <Search className={`absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 ${bm.iconMuted}`} />
                         <input
+                          data-kiterp-search-field
                           placeholder="Search name, phone, email…"
                           value={custSearch}
                           onChange={e => setCustSearch(e.target.value)}

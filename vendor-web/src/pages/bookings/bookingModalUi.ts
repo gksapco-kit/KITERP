@@ -1,4 +1,6 @@
 /** New Booking modal — semantic tokens for light, dark, and all KIT themes. */
+import { focusRingClassName } from '@/lib/utils'
+
 export const bookingModalUi = {
   shell: 'bg-card rounded-2xl shadow-2xl border border-border text-foreground',
   colMuted: 'bg-muted/25',
@@ -10,7 +12,7 @@ export const bookingModalUi = {
   input:
     'w-full h-9 px-3 rounded-lg border border-input bg-background text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-ring',
   inputSearch:
-    'w-full h-9 pl-8 pr-3 rounded-lg border border-input bg-background text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent',
+    `w-full h-9 pl-8 pr-3 rounded-lg border border-input bg-background text-xs text-foreground ${focusRingClassName}`,
   inputTime:
     'flex-1 h-8 px-2 rounded-lg border border-input bg-background text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-ring',
   textarea:

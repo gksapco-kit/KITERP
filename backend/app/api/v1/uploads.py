@@ -122,6 +122,28 @@ async def upload_crm_document(
     return JSONResponse(content=await save_crm_document(file, vendor_id))
 
 
+@router.post("/crm/template-media")
+async def upload_crm_template_media(
+    file: UploadFile = File(...),
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Upload image or video for a marketing email template."""
+    vendor_id = await _get_vendor_id(current_user, db)
+    media_type = detect_media_type(file)
+    if media_type not in ("image", "video"):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Allowed: images (JPEG, PNG, WebP, GIF) or videos (MP4, WebM, MOV).",
+        )
+    url = await _save_file(file, f"crm/{vendor_id}/templates")
+    return JSONResponse(content={
+        "url": url,
+        "type": media_type,
+        "name": file.filename or "media",
+    })
+
+
 @router.post("/vendor/branding-asset")
 async def upload_vendor_branding_asset(
     file: UploadFile = File(...),

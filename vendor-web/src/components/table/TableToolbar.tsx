@@ -55,6 +55,7 @@ export function TableToolbar({
         <div className={`relative shrink-0 ${searchWrapperClassName}`}>
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none z-10" />
           <Input
+            data-kiterp-search-field
             value={search}
             onChange={(e) => onSearchChange(e.target.value)}
             placeholder={searchPlaceholder}

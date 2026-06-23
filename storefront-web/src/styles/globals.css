@@ -45,22 +45,22 @@
   :focus {
     outline: none;
   }
-  button:focus-visible,
-  a:focus-visible,
+  button:focus-visible:not(.btn-focus-solid):not(.btn-brand):not(.chip-active):not([class~='bg-primary']):not([class~='bg-primary/90']):not([class~='from-primary']),
+  a:focus-visible:not([class~='bg-primary']):not([class~='from-primary']),
   select:focus-visible,
   textarea:focus-visible,
   input:focus-visible,
   summary:focus-visible,
-  [role='button']:focus-visible,
+  [role='button']:focus-visible:not(.btn-focus-solid):not(.chip-active):not([class~='bg-primary']):not([class~='bg-primary/90']):not([class~='from-primary']),
   [role='combobox']:focus-visible,
   [role='menuitem']:focus-visible,
   [role='tab']:focus-visible {
     @apply ring-2 ring-inset ring-ring;
   }
-  button:focus-visible,
-  a:focus-visible,
+  button:focus-visible:not(.btn-focus-solid):not(.btn-brand):not(.chip-active):not([class~='bg-primary']):not([class~='bg-primary/90']):not([class~='from-primary']),
+  a:focus-visible:not([class~='bg-primary']):not([class~='from-primary']),
   select:focus-visible,
-  [role='button']:focus-visible,
+  [role='button']:focus-visible:not(.btn-focus-solid):not(.chip-active):not([class~='bg-primary']):not([class~='bg-primary/90']):not([class~='from-primary']),
   [role='combobox']:focus-visible {
     @apply border-primary;
   }
@@ -91,6 +91,8 @@
     --input: 214 22% 90%;
     --ring: 158 44% 58%;
     --radius: 0.625rem;
+    --solid-btn-focus-inner: #ffffff;
+    --solid-btn-focus-outer: 158 52% 76%;
     --canvas: 220 16% 97%;
     --canvas-grid: 220 14% 92%;
     --panel: 0 0% 100%;
@@ -582,4 +584,34 @@ html[dir='rtl'] [data-sonner-toast][data-styled='true']:has([data-close-button])
 
 [data-field-layout][data-field-width-constrained] > .builder-canvas-text-field-in-layout.builder-canvas-text-field-multiline {
   white-space: pre-wrap;
+}
+
+:is(button, a, [role='button'], input[type='submit'], input[type='button']).btn-focus-solid:focus-visible,
+:is(button, a, [role='button'], input[type='submit'], input[type='button']).btn-brand:focus-visible,
+:is(button, a, [role='button'], input[type='submit'], input[type='button']).chip-active:focus-visible,
+:is(button, a, [role='button'], input[type='submit'], input[type='button'])[class~='bg-primary']:focus-visible,
+:is(button, a, [role='button'], input[type='submit'], input[type='button'])[class~='bg-primary/90']:focus-visible,
+:is(button, a, [role='button'], input[type='submit'], input[type='button'])[class~='bg-primary/85']:focus-visible,
+:is(button, a, [role='button'], input[type='submit'], input[type='button'])[class~='bg-primary/80']:focus-visible,
+:is(button, a, [role='button'], input[type='submit'], input[type='button'])[class*='bg-gradient'][class~='from-primary']:focus-visible {
+  outline: none !important;
+  --tw-ring-shadow: 0 0 #0000 !important;
+  --tw-ring-offset-shadow: 0 0 #0000 !important;
+  box-shadow:
+    0 0 0 2px var(--solid-btn-focus-inner, #ffffff),
+    0 0 0 6px hsl(var(--solid-btn-focus-outer, 158 52% 76%)) !important;
+  border-color: transparent !important;
+}
+
+.dark :is(button, a, [role='button'], input[type='submit'], input[type='button']).btn-focus-solid:focus-visible,
+.dark :is(button, a, [role='button'], input[type='submit'], input[type='button']).btn-brand:focus-visible,
+.dark :is(button, a, [role='button'], input[type='submit'], input[type='button']).chip-active:focus-visible,
+.dark :is(button, a, [role='button'], input[type='submit'], input[type='button'])[class~='bg-primary']:focus-visible,
+.dark :is(button, a, [role='button'], input[type='submit'], input[type='button'])[class~='bg-primary/90']:focus-visible,
+.dark :is(button, a, [role='button'], input[type='submit'], input[type='button'])[class~='bg-primary/85']:focus-visible,
+.dark :is(button, a, [role='button'], input[type='submit'], input[type='button'])[class~='bg-primary/80']:focus-visible,
+.dark :is(button, a, [role='button'], input[type='submit'], input[type='button'])[class*='bg-gradient'][class~='from-primary']:focus-visible {
+  box-shadow:
+    0 0 0 2px hsl(var(--background)),
+    0 0 0 6px hsl(var(--solid-btn-focus-outer, 158 52% 76%)) !important;
 }

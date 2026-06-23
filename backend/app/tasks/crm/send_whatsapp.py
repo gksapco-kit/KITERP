@@ -11,8 +11,15 @@ from app.worker import CELERY_AVAILABLE, celery_app
 logger = logging.getLogger(__name__)
 
 
-async def _send(vendor_id: UUID, contact_id: UUID | None, body: str,
-                to_phone: str | None = None) -> dict:
+async def send_whatsapp(
+    vendor_id: UUID, contact_id: UUID | None, body: str,
+    to_phone: str | None = None, *,
+    media_url: str | None = None,
+    footer: str | None = None,
+    cta_label: str | None = None,
+    cta_url: str | None = None,
+    media_type: str | None = None,
+) -> dict:
     from app.integrations.registry import IntegrationRegistry
     from app.models.crm import CrmCommunicationLog, CrmContact
     from sqlalchemy import select
@@ -29,7 +36,11 @@ async def _send(vendor_id: UUID, contact_id: UUID | None, body: str,
         adapter = await registry.get_whatsapp_adapter(vendor_id)
         result = {"ok": False, "error": "no_adapter"}
         if adapter and target:
-            result = await adapter.send(to=target, body=body)
+            result = await adapter.send(
+                to=target, body=body,
+                media_url=media_url, footer=footer,
+                cta_label=cta_label, cta_url=cta_url, media_type=media_type,
+            )
 
         log = CrmCommunicationLog(
             vendor_id=vendor_id,
@@ -49,15 +60,26 @@ async def _send(vendor_id: UUID, contact_id: UUID | None, body: str,
         return result
 
 
-def send_whatsapp_now(vendor_id: UUID, contact_id: UUID | None, body: str,
-                      to_phone: str | None = None) -> dict:
-    return asyncio.run(_send(vendor_id, contact_id, body, to_phone))
+def send_whatsapp_now(
+    vendor_id: UUID, contact_id: UUID | None, body: str,
+    to_phone: str | None = None, *,
+    media_url: str | None = None,
+    footer: str | None = None,
+    cta_label: str | None = None,
+    cta_url: str | None = None,
+    media_type: str | None = None,
+) -> dict:
+    return asyncio.run(send_whatsapp(
+        vendor_id, contact_id, body, to_phone,
+        media_url=media_url, footer=footer, cta_label=cta_label, cta_url=cta_url,
+        media_type=media_type,
+    ))
 
 
 if CELERY_AVAILABLE and celery_app is not None:
     @celery_app.task(name="crm.whatsapp.send")
     def send_whatsapp_task(vendor_id: str, contact_id: str | None, body: str, to_phone: str | None = None) -> dict:
-        return asyncio.run(_send(
+        return asyncio.run(send_whatsapp(
             UUID(vendor_id),
             UUID(contact_id) if contact_id else None,
             body, to_phone,

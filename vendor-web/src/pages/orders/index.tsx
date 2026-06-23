@@ -214,7 +214,7 @@ export default function Orders() {
             <form onSubmit={(e) => { e.preventDefault(); setSearch(searchInput); setPage(1) }} className="flex-1 flex gap-2">
               <div className="relative flex-1">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                <Input placeholder="Search orders..." value={searchInput} onChange={(e) => setSearchInput(e.target.value)} className="pl-10" />
+                <Input data-kiterp-search-field placeholder="Search orders..." value={searchInput} onChange={(e) => setSearchInput(e.target.value)} className="pl-10" />
               </div>
               <Button type="submit" variant="outline">Search</Button>
             </form>

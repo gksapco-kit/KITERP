@@ -16,10 +16,11 @@ from app.database import get_db
 from app.models.vendor_user import VendorUser
 from app.schemas.crm.schemas import (
     CampaignCreate, CampaignResponse, CampaignStepResponse, CampaignUpdate,
-    ContactResponse, EmailTemplateCreate, EmailTemplateResponse,
+    ContactResponse,     EmailTemplateCreate, EmailTemplateResponse,
     IntegrationCreate, IntegrationDefaultsResponse, IntegrationFormResponse,
     IntegrationResponse, IntegrationTestRequest, IntegrationTestResponse, IntegrationUpdate,
     PaginatedResponse, SegmentCreate, SegmentResponse,
+    TemplateTestRequest, TemplateTestResponse,
     WorkflowCreate, WorkflowResponse, WorkflowRunResponse, WorkflowUpdate,
 )
 from app.services.crm.services import (
@@ -156,6 +157,19 @@ async def delete_template(
     return None
 
 
+@router.post("/templates/{template_id}/test", response_model=TemplateTestResponse)
+async def test_template(
+    template_id: UUID,
+    data: TemplateTestRequest,
+    vu: VendorUser = Depends(require_permission("crm.campaigns.manage")),
+    db: AsyncSession = Depends(get_db),
+):
+    result = await EmailTemplateService(db).send_test(
+        vu.vendor_id, template_id, data, actor_id=vu.user_id,
+    )
+    return TemplateTestResponse(**result)
+
+
 # ── Campaigns ────────────────────────────────────────────────────────────────
 
 @router.get("/campaigns", response_model=PaginatedResponse)
@@ -167,6 +181,21 @@ async def list_campaigns(
     items, total = await CampaignService(db).list(vu.vendor_id, page=page, size=size)
     items = [CampaignResponse.model_validate(c).model_dump() for c in items]
     return _paginated(items, total, page, size)
+
+
+@router.get("/campaigns/audience-preview")
+async def campaign_audience_preview(
+    channel: str = Query("email"),
+    segment_id: Optional[UUID] = None,
+    limit: int = Query(8, ge=1, le=25),
+    vu: VendorUser = Depends(require_permission("crm.view")),
+    db: AsyncSession = Depends(get_db),
+):
+    data = await CampaignService(db).audience_preview(
+        vu.vendor_id, channel=channel, segment_id=segment_id, limit=limit,
+    )
+    contacts = [ContactResponse.model_validate(c).model_dump() for c in data["contacts"]]
+    return {"total": data["total"], "contacts": contacts}
 
 
 @router.post("/campaigns", status_code=status.HTTP_201_CREATED)
@@ -216,7 +245,7 @@ async def start_campaign(
     vu: VendorUser = Depends(require_permission("crm.campaigns.manage")),
     db: AsyncSession = Depends(get_db),
 ):
-    obj = await CampaignService(db).start(vu.vendor_id, campaign_id)
+    obj = await CampaignService(db).start(vu.vendor_id, campaign_id, actor_id=vu.user_id)
     return CampaignResponse.model_validate(obj)
 
 

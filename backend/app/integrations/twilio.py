@@ -1,15 +1,57 @@
 """Twilio adapters for SMS, WhatsApp and Voice."""
 from __future__ import annotations
 
+import asyncio
 import logging
+import uuid
 from typing import Any
 
 import httpx
 
 from app.integrations.base import SmsAdapter, VoiceAdapter, WhatsAppAdapter
-from app.services.sms_service import normalize_e164
+from app.services.sms_service import is_valid_e164, normalize_e164
 
 logger = logging.getLogger(__name__)
+
+_WHATSAPP_SANDBOX_HINT = (
+    "WhatsApp was not delivered. On Twilio sandbox, open WhatsApp on your phone and message "
+    "+1 415 523 8886 with: join <your-sandbox-code> (Twilio Console → Messaging → Try WhatsApp). "
+    "Use whatsapp_from +14155238886 in CRM → Integrations → Twilio."
+)
+
+
+def _whatsapp_address(phone: str) -> str:
+    raw = (phone or "").strip()
+    if raw.startswith("whatsapp:"):
+        raw = raw[len("whatsapp:"):]
+    normalized = normalize_e164(raw)
+    return f"whatsapp:{normalized}" if normalized else ""
+
+
+async def fetch_twilio_message_status(
+    account_sid: str, auth_token: str, message_sid: str,
+) -> tuple[str, int | None]:
+    async with httpx.AsyncClient(timeout=10.0) as client:
+        resp = await client.get(
+            f"https://api.twilio.com/2010-04-01/Accounts/{account_sid}/Messages/{message_sid}.json",
+            auth=(account_sid, auth_token),
+        )
+    if resp.status_code != 200:
+        return "", None
+    data = resp.json()
+    code = data.get("error_code")
+    return str(data.get("status") or ""), int(code) if code else None
+
+
+def _whatsapp_delivery_error(error_code: int | None, twilio_message: str = "") -> str:
+    if error_code == 63016:
+        return _WHATSAPP_SANDBOX_HINT
+    msg = twilio_message or ""
+    if "63016" in msg or "sandbox" in msg.lower():
+        return _WHATSAPP_SANDBOX_HINT
+    if error_code:
+        return f"WhatsApp delivery failed (Twilio error {error_code})."
+    return "WhatsApp was accepted by Twilio but not delivered. Check Twilio Console → Messaging logs."
 
 
 class TwilioBase:
@@ -76,7 +118,8 @@ class TwilioWhatsAppAdapter(TwilioBase, WhatsAppAdapter):
         creds = creds or {}
         if not creds.get("account_sid") or not creds.get("auth_token"):
             return None
-        wa_from = (creds.get("whatsapp_from") or creds.get("from_number") or "").strip()
+        # WhatsApp sender is separate from SMS from_number — do not fall back to SMS number.
+        wa_from = (creds.get("whatsapp_from") or "").strip()
         if not wa_from:
             return None
         return cls(
@@ -85,26 +128,145 @@ class TwilioWhatsAppAdapter(TwilioBase, WhatsAppAdapter):
             from_number=wa_from,
         )
 
-    async def send(self, *, to: str, body: str) -> dict[str, Any]:
-        sender = self.from_number
-        if not sender:
-            return {"ok": False, "provider": self.provider, "error": "no_from_number"}
-        wa_to = to if to.startswith("whatsapp:") else f"whatsapp:{to}"
-        wa_from = sender if sender.startswith("whatsapp:") else f"whatsapp:{sender}"
+    async def _post_message(self, payload: dict[str, str]) -> dict[str, Any]:
         try:
-            async with httpx.AsyncClient(timeout=15.0) as client:
+            async with httpx.AsyncClient(timeout=20.0) as client:
                 resp = await client.post(
                     f"{self.api_base}/Accounts/{self.account_sid}/Messages.json",
                     auth=self.auth,
-                    data={"From": wa_from, "To": wa_to, "Body": body},
+                    data=payload,
                 )
             data = resp.json() if resp.content else {}
-            if resp.status_code in (200, 201):
-                return {"ok": True, "provider": self.provider, "id": data.get("sid")}
-            return {"ok": False, "provider": self.provider, "error": data.get("message") or resp.text[:300]}
+            if resp.status_code not in (200, 201):
+                err = data.get("message") or resp.text[:300]
+                code = data.get("code")
+                return {
+                    "ok": False,
+                    "provider": self.provider,
+                    "error": err,
+                    "code": int(code) if code else None,
+                    "detail": _whatsapp_delivery_error(int(code) if code else None, str(err)),
+                }
+
+            message_sid = data.get("sid")
+            status = str(data.get("status") or "")
+            if message_sid and status in {"", "queued", "sending", "sent"}:
+                await asyncio.sleep(3)
+                delivery_status, error_code = await fetch_twilio_message_status(
+                    self.account_sid, self.auth_token, message_sid,
+                )
+                if delivery_status in {"undelivered", "failed"}:
+                    return {
+                        "ok": False,
+                        "provider": self.provider,
+                        "id": message_sid,
+                        "error": "delivery_failed",
+                        "code": error_code,
+                        "detail": _whatsapp_delivery_error(error_code),
+                    }
+
+            return {"ok": True, "provider": self.provider, "id": message_sid, "status": status}
         except Exception as e:
             logger.warning("Twilio WA failed: %s", e)
             return {"ok": False, "provider": self.provider, "error": str(e)}
+
+    async def _try_send_rich_card(
+        self,
+        wa_from: str,
+        wa_to: str,
+        *,
+        body: str,
+        footer: str | None,
+        media_url: str | None,
+        cta_label: str | None,
+        cta_url: str | None,
+        media_type: str | None = None,
+    ) -> dict[str, Any] | None:
+        use_card = bool(media_url) and (media_type or "image") == "image"
+        if not use_card and not (cta_url and str(cta_url).startswith("http")):
+            return None
+
+        if not use_card:
+            return None
+
+        card: dict[str, Any] = {"body": body[:1024]}
+        if footer:
+            card["footer"] = footer[:60]
+        if media_url:
+            card["media"] = [media_url]
+        if cta_url and str(cta_url).startswith("http"):
+            card["actions"] = [{
+                "type": "URL",
+                "title": (cta_label or "Explore Now")[:20],
+                "url": str(cta_url)[:1600],
+            }]
+
+        try:
+            async with httpx.AsyncClient(timeout=20.0) as client:
+                create = await client.post(
+                    "https://content.twilio.com/v1/Content",
+                    auth=self.auth,
+                    json={
+                        "friendly_name": f"kiterp-wa-{uuid.uuid4().hex[:10]}",
+                        "language": "en",
+                        "types": {"whatsapp/card": card},
+                    },
+                )
+            if create.status_code not in (200, 201):
+                logger.warning("Twilio WA content create failed: %s", create.text[:300])
+                return None
+            content_sid = (create.json() or {}).get("sid")
+            if not content_sid:
+                return None
+            return await self._post_message({
+                "From": wa_from,
+                "To": wa_to,
+                "ContentSid": content_sid,
+            })
+        except Exception as e:
+            logger.warning("Twilio WA rich card failed: %s", e)
+            return None
+
+    async def send(
+        self, *, to: str, body: str,
+        media_url: str | None = None,
+        footer: str | None = None,
+        cta_label: str | None = None,
+        cta_url: str | None = None,
+        media_type: str | None = None,
+    ) -> dict[str, Any]:
+        wa_from = _whatsapp_address(self.from_number or "")
+        if not wa_from:
+            return {"ok": False, "provider": self.provider, "error": "no_from_number"}
+        wa_to = _whatsapp_address(to)
+        if not wa_to or not is_valid_e164(wa_to.replace("whatsapp:", "", 1)):
+            return {
+                "ok": False,
+                "provider": self.provider,
+                "error": "invalid_to_number",
+                "detail": "Enter a valid mobile number with country code (e.g. +919876543210).",
+            }
+
+        rich = await self._try_send_rich_card(
+            wa_from, wa_to,
+            body=body, footer=footer, media_url=media_url,
+            cta_label=cta_label, cta_url=cta_url, media_type=media_type,
+        )
+        if rich and rich.get("ok"):
+            return rich
+        if rich and not rich.get("ok") and not media_url:
+            return rich
+
+        full_body = body
+        if footer:
+            full_body = f"{full_body}\n\n{footer}"
+        if cta_url and str(cta_url).startswith("http"):
+            full_body = f"{full_body}\n\n👉 {cta_label or 'Explore Now'}\n{cta_url}"
+
+        payload: dict[str, str] = {"From": wa_from, "To": wa_to, "Body": full_body}
+        if media_url:
+            payload["MediaUrl"] = media_url
+        return await self._post_message(payload)
 
 
 class TwilioVoiceAdapter(TwilioBase, VoiceAdapter):

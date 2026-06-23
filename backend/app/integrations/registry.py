@@ -79,12 +79,8 @@ class IntegrationRegistry:
             return MetaWhatsAppAdapter.from_credentials(meta)
         # CRM Integrations page saves a single "twilio" provider row
         creds = await self._load(vendor_id, "twilio")
-        if creds:
-            wa_creds = {
-                **creds,
-                "from_number": creds.get("whatsapp_from") or "",
-            }
-            adapter = TwilioWhatsAppAdapter.from_credentials(wa_creds)
+        if creds and (creds.get("whatsapp_from") or "").strip():
+            adapter = TwilioWhatsAppAdapter.from_credentials(creds)
             if adapter:
                 return adapter
         return None

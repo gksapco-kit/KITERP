@@ -96,6 +96,7 @@ export function StoresListToolbar({
       />
       <Input
         ref={searchInputRef}
+        data-kiterp-search-field
         value={listSearch}
         onChange={(e) => onListSearchChange(e.target.value)}
         placeholder="Search units…"

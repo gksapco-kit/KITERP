@@ -22,7 +22,7 @@ import {
 import { resolveSiteStaticThumbnail } from '@/lib/websiteSitePreview'
 import { formatStoreCode } from '@/lib/verification'
 import type { SiteListItem } from '@/types/websites'
-import { cn, mediaUrl } from '@/lib/utils'
+import { cn, mediaUrl, solidButtonFocusClassName } from '@/lib/utils'
 
 type HubLink = {
   title: string
@@ -428,7 +428,7 @@ function ButtonLike({
   const className = cn(
     'inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold transition-colors',
     primary
-      ? 'bg-primary text-primary-foreground hover:opacity-90'
+      ? cn('bg-primary text-primary-foreground hover:opacity-90', solidButtonFocusClassName)
       : 'border border-border bg-background text-foreground hover:bg-muted/60',
   )
 

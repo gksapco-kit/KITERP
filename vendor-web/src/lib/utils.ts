@@ -8,7 +8,32 @@ export function cn(...inputs: ClassValue[]) {
 
 /** Keyboard focus ring for buttons, links, and dropdown triggers (inset so rings aren't clipped by overflow-hidden). */
 export const focusRingClassName =
-  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring focus-visible:border-primary'
+  'focus:outline-none focus-visible:outline-none focus:ring-2 focus:ring-inset focus:ring-ring focus:border-primary focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring focus-visible:border-primary'
+
+/** Tab focus for solid-fill buttons — white gap + mint halo; styled in globals.css */
+export const solidButtonFocusClassName = 'btn-focus-solid focus-visible:outline-none'
+
+/** Bordered shell wrapping icon + borderless search input — green focus via :focus-within in globals.css */
+export const searchFieldShellClassName =
+  'flex items-center gap-2 rounded-xl border border-input bg-background transition-[border-color,box-shadow] duration-150'
+
+/** Inner input inside searchFieldShellClassName — suppress own focus chrome */
+export const searchFieldInnerInputClassName =
+  'min-w-0 flex-1 border-0 bg-transparent p-0 shadow-none outline-none focus:outline-none focus:ring-0 focus-visible:outline-none focus-visible:ring-0'
+
+/** True when class list includes solid `bg-primary` (not bg-primary/10). */
+export function hasSolidPrimaryBgClass(className?: string) {
+  if (!className) return false
+  return /(?:^|\s)bg-primary(?:\s|$)/.test(className)
+}
+
+/** Solid green CTA — gradient from-primary or opaque primary fills. */
+export function isSolidPrimaryButtonClassName(className?: string) {
+  if (!className) return false
+  if (hasSolidPrimaryBgClass(className)) return true
+  if (/(?:^|\s)bg-primary\/(?:90|85|80)(?:\s|$)/.test(className)) return true
+  return /bg-gradient/.test(className) && /(?:^|\s)from-primary(?:\s|$)/.test(className)
+}
 
 /**
  * Base chrome for native inputs / textareas / selects.
