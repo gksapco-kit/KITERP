@@ -60,6 +60,12 @@ export function resolveBusinessFrontActiveTemplate(
   }
 }
 
+export function resolveDefaultSingleFrontTemplateId(
+  themeTemplateId: string | undefined,
+): string {
+  return normalizePresetId(themeTemplateId)
+}
+
 export function isLegacyPresetActive(
   active: BusinessFrontActiveTemplate,
   presetId: string,

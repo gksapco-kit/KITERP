@@ -7,6 +7,7 @@ export type SiteCardDisplayStatusId =
   | 'draft'
   | 'ready_for_assign'
   | 'needs_activation'
+  | 'assigned_not_active'
   | 'live'
   | 'archived'
 
@@ -26,8 +27,8 @@ export const SITE_CARD_STATUS_DISPLAY: Record<SiteCardDisplayStatusId, Omit<Site
     color: 'text-amber-600 bg-amber-50 border-amber-200',
   },
   ready_for_assign: {
-    label: 'Ready to assign — enable in Templates and pick a business unit',
-    shortLabel: 'Ready for assign',
+    label: 'Published and in Ready to assign — pick a business unit in Template Gallery to go live',
+    shortLabel: 'In ready templates',
     icon: Store,
     color: 'text-violet-700 bg-violet-50 border-violet-200',
   },
@@ -36,6 +37,12 @@ export const SITE_CARD_STATUS_DISPLAY: Record<SiteCardDisplayStatusId, Omit<Site
     shortLabel: 'Needs activation',
     icon: AlertCircle,
     color: 'text-amber-700 bg-amber-50 border-amber-200',
+  },
+  assigned_not_active: {
+    label: 'Linked to a business unit — not the template customers see on the storefront today',
+    shortLabel: 'Assigned · not live',
+    icon: Store,
+    color: 'text-sky-700 bg-sky-50 border-sky-200',
   },
   live: {
     label: 'Live for customers on the storefront',

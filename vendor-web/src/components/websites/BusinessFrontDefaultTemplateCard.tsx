@@ -1,8 +1,8 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { Check, ExternalLink, Pencil, Store } from 'lucide-react'
+import { Check, ExternalLink, Eye, Pencil, Store } from 'lucide-react'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
-import { templateBadgeEmeraldClass, templateCardActionBtnClass, templateCardActionClusterClass, templateCardActionRowClass, templateCardActivePillClass, templateCardAssignPillClass, templateCardBodyClass, templateCardCurrentForStoreRibbonClass, templateCardMediaHeightClass, templateCardPreviewOverlayClass, templateCardPrimaryActionClass, templateCardSelectedClass, templateCardShellClass, perStoreTemplateActionLabel, singleTemplateActionLabel, systemTemplateGalleryStatusLabel, systemTemplateGalleryStatusTitle } from '@/lib/websiteTemplateBadges'
+import { templateBadgeEmeraldClass, templateCardActionBtnClass, templateCardActionClusterClass, templateCardActionRowClass, templateCardActivePillClass, templateCardAssignPillClass, templateCardBodyClass, templateCardCurrentForStoreRibbonClass, templateCardMediaHeightClass, templateCardPreviewOverlayClass, templateCardPrimaryActionClass, templateCardSelectedClass, templateCardShellClass, perStoreGalleryRibbonLabel, perStoreTemplateActionLabel, singleTemplateActionLabel, systemTemplateGalleryStatusLabel, systemTemplateGalleryStatusTitle } from '@/lib/websiteTemplateBadges'
 import type { AppliedTemplateViewLiveLink } from '@/lib/liveStorefrontUrl'
 import { AppliedTemplateViewLiveButton, templateCardIconActionClass } from '@/components/websites/AppliedTemplateViewLiveButton'
 import { vendorApi } from '@/api/vendor'
@@ -80,55 +80,45 @@ export function BusinessFrontDefaultTemplateCard({
     ? assignedToContextStore
     : (perStoreUsedCount ?? 0) > 0
 
-  const canAssignToContext = Boolean(
-    perStoreTemplateMode && onApplyForStore && contextStoreCode && !assignedToContextStore,
+  const storeRibbonLabel = perStoreGalleryRibbonLabel(
+    contextStoreCode,
+    Boolean(perStoreTemplateMode && assignedToContextStore),
+    live || (viewLiveLinks.length > 0),
   )
-  const canAssignSingleAll = Boolean(
-    singleTemplateMode && onUseForAllStores && !isSingleTemplateSelected,
-  )
-  const showAssignOverlay = canAssignToContext || canAssignSingleAll
-  const assignOverlayLabel = canAssignSingleAll
-    ? singleTemplateActionLabel(false)
-    : contextStoreCode
-      ? perStoreTemplateActionLabel(contextStoreCode, false, (perStoreUsedCount ?? 0) > 0)
-      : 'Assign'
+  const hidePerStoreBodyStatus = Boolean(storeRibbonLabel)
 
   return (
     <div
       title={
         live && storeUrl
           ? `Click to view live ${preset.name}`
-          : showAssignOverlay
-            ? `${assignOverlayLabel} — ${preset.name}`
-            : `Click to customize ${preset.name}`
+          : `Preview ${preset.name}`
       }
       onClick={(e) => {
         if ((e.target as HTMLElement).closest('[data-template-card-action]')) return
         if (live && storeUrl) {
           window.open(storeUrl, '_blank', 'noopener,noreferrer')
-        } else if (canAssignSingleAll && onUseForAllStores) {
-          onUseForAllStores(preset.id, preset.name)
-        } else if (canAssignToContext && onApplyForStore) {
-          onApplyForStore(preset.id)
+        } else if (perStoreTemplateMode && storeUrl) {
+          window.open(storeUrl, '_blank', 'noopener,noreferrer')
         } else {
           onCustomize()
         }
       }}
       className={cn(
         templateCardShellClass,
-        live && 'border-primary ring-1 ring-primary/20',
+        live && 'border-primary/70',
         perStoreTemplateMode && perStoreHighlight && templateCardSelectedClass,
       )}
       data-current-for-selected-store={perStoreTemplateMode && assignedToContextStore ? 'true' : undefined}
     >
-      <div className="relative overflow-hidden">
-        {perStoreTemplateMode && assignedToContextStore && contextStoreCode ? (
+      <div className="relative isolate overflow-hidden rounded-t-xl bg-white">
+        {storeRibbonLabel ? (
           <span className={templateCardCurrentForStoreRibbonClass}>
-            Current for {contextStoreCode}
+            {storeRibbonLabel}
           </span>
         ) : null}
         <div
-          className={cn(templateCardMediaHeightClass, 'w-full transition-transform duration-300 group-hover/card:scale-[1.03]')}
+          className={cn(templateCardMediaHeightClass, 'w-full overflow-hidden')}
           style={{
             background: palette.length >= 2
               ? `linear-gradient(135deg, ${palette[0]}, ${palette[1]})`
@@ -143,15 +133,10 @@ export function BusinessFrontDefaultTemplateCard({
                 <ExternalLink className="h-3 w-3" />
                 View live site
               </>
-            ) : showAssignOverlay ? (
-              <>
-                <Store className="h-3 w-3" />
-                {assignOverlayLabel}
-              </>
             ) : (
               <>
-                <Pencil className="h-3 w-3" />
-                Customize
+                <Eye className="h-3 w-3" />
+                Preview
               </>
             )}
           </span>
@@ -200,9 +185,9 @@ export function BusinessFrontDefaultTemplateCard({
         )}
       </div>
       <div className={templateCardBodyClass}>
-        <div className="flex items-start justify-between gap-2">
-          <div className="min-w-0 truncate text-sm font-extrabold text-gray-900 transition-colors group-hover/card:text-primary">{preset.name}</div>
-          {(singleTemplateMode || perStoreTemplateMode) ? (() => {
+        <div className="flex items-start justify-between gap-1">
+          <div className="min-w-0 truncate text-sm font-extrabold leading-tight text-gray-900 transition-colors group-hover/card:text-primary">{preset.name}</div>
+          {(singleTemplateMode || (perStoreTemplateMode && !hidePerStoreBodyStatus)) ? (() => {
             const applied = singleTemplateMode
               ? Boolean(isSingleTemplateSelected)
               : contextStoreCode
@@ -248,7 +233,7 @@ export function BusinessFrontDefaultTemplateCard({
             <span className="shrink-0 text-[10px] font-semibold text-primary">In use</span>
           ) : null}
         </div>
-        <p className="line-clamp-2 text-[10px] leading-snug text-gray-500">
+        <p className="truncate text-[10px] leading-tight text-gray-500" title={preset.description || undefined}>
           {preset.description || 'Section-based home when no Website Builder site is published.'}
         </p>
         <div className={templateCardActionRowClass} data-template-card-action>
@@ -271,23 +256,38 @@ export function BusinessFrontDefaultTemplateCard({
             )
           ) : null}
           {perStoreTemplateMode && onApplyForStore ? (
-            <button
-              type="button"
-              disabled={applyForStorePending}
-              onClick={() => onApplyForStore(preset.id)}
-              className={cn(
-                assignedToContextStore
-                  ? templateCardActivePillClass
-                  : templateCardAssignPillClass,
-              )}
-            >
-              {assignedToContextStore ? <Check className="h-3 w-3 shrink-0" /> : <Store className="h-3 w-3 shrink-0" />}
-              {perStoreTemplateActionLabel(
-                contextStoreCode,
-                assignedToContextStore,
-                (perStoreUsedCount ?? 0) > 0,
-              )}
-            </button>
+            assignedToContextStore ? (
+              <button
+                type="button"
+                disabled={applyForStorePending}
+                onClick={() => onApplyForStore(preset.id)}
+                className={templateCardActivePillClass}
+              >
+                <Check className="h-3 w-3 shrink-0" />
+                {perStoreTemplateActionLabel(
+                  contextStoreCode,
+                  true,
+                  (perStoreUsedCount ?? 0) > 0,
+                )}
+              </button>
+            ) : (
+              <button
+                type="button"
+                disabled={applyForStorePending}
+                onClick={e => {
+                  e.stopPropagation()
+                  onApplyForStore(preset.id)
+                }}
+                className={templateCardAssignPillClass}
+              >
+                <Store className="h-3 w-3 shrink-0" />
+                {perStoreTemplateActionLabel(
+                  contextStoreCode,
+                  false,
+                  (perStoreUsedCount ?? 0) > 0,
+                )}
+              </button>
+            )
           ) : null}
           <div className={templateCardActionClusterClass}>
             {viewLiveLinks.length > 0 ? (

@@ -59,7 +59,7 @@ import { websiteApi } from '@/api/websites'
 import { vendorApi } from '@/api/vendor'
 import { useVendorStore } from '@/stores/vendorStore'
 import { useMyVendor, useStores, vendorKeys } from '@/hooks/useVendor'
-import { isBuilderSiteAssignedToAnyStore } from '@/lib/builderDraftTemplateSites'
+import { isBuilderSiteAssignedToAnyStore, isBuilderSiteExternal } from '@/lib/builderDraftTemplateSites'
 import {
   resolveSiteStoreLink,
   resolveStorefrontLinkMode,
@@ -8393,6 +8393,14 @@ export default function WebsiteBuilder() {
   const { vendor: myVendor } = useVendorStore()
   const { data: builderStoresData } = useStores({ limit: 200 })
   const builderStores = builderStoresData?.stores ?? []
+  const isExternalSite = useMemo(() => {
+    if (!site) return false
+    const scope = (site as { website_store_scope?: string | null }).website_store_scope
+      ?? (site.style_config as Record<string, unknown> | undefined)?.website_store_scope
+    return isBuilderSiteExternal({
+      website_store_scope: typeof scope === 'string' ? scope : null,
+    })
+  }, [site])
   const updateSite = useUpdateSite(siteId!)
   const overlayLayerUpload = useUploadMedia(siteId!)
   const { data: templates = [] } = useWebsiteTemplates()
@@ -12333,7 +12341,7 @@ export default function WebsiteBuilder() {
 
   /** Save canvas, then enable or disable this design in Website templates. */
   const handleToggleStorefrontTemplate = useCallback(async () => {
-    if (!siteId || isStorefrontTemplateToggling || !site) return
+    if (!siteId || isStorefrontTemplateToggling || !site || isExternalSite) return
     const enabling = !site.is_published
     setIsStorefrontTemplateToggling(true)
     try {
@@ -12378,6 +12386,7 @@ export default function WebsiteBuilder() {
     persistAllBlocksToServer,
     localStyle,
     queryClient,
+    isExternalSite,
   ])
 
   const hasSaveChanges = styleDirty || blocksDirty
@@ -13202,7 +13211,7 @@ export default function WebsiteBuilder() {
                   </span>
                 </div>
                 <span className={cn('text-[11px] px-2 py-0.5 rounded-full font-semibold leading-none antialiased', site.is_published ? 'bg-emerald-500/20 text-emerald-400 ring-1 ring-emerald-500/40' : 'bg-gray-700 text-gray-400')}>
-                  {site.is_published ? 'Ready to assign' : 'Not in templates'}
+                  {isExternalSite ? 'External site' : site.is_published ? 'Ready to assign' : 'Not in templates'}
                 </span>
               </div>
             )}
@@ -13563,6 +13572,7 @@ export default function WebsiteBuilder() {
                       Website templates
                     </p>
 
+                    {!isExternalSite ? (
                     <div
                       className={cn(
                         builderPanelUi.menuItem,
@@ -13611,6 +13621,7 @@ export default function WebsiteBuilder() {
                         />
                       </button>
                     </div>
+                    ) : null}
 
                     {/* View store — only when this template is assigned to a business unit */}
                     {canViewStoreLink ? (

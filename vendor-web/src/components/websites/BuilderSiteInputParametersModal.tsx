@@ -72,16 +72,23 @@ export function BuilderSiteInputParametersModal({
   useEffect(() => {
     if (!open) return
     const meta = readSiteStyleMetadata(site.style_config as Record<string, unknown>)
-    const scope = (meta.website_store_scope as WebsiteStoreScope | undefined)
-      ?? (storeCount <= 1 ? 'store' : 'store')
-    const storeId = meta.website_store_id
-      ?? (scope === 'store' ? (stores.find(s => s.is_default)?.id ?? stores[0]?.id ?? '') : '')
+    const scopeRaw = meta.website_store_scope?.trim().toLowerCase()
+    const scope: WebsiteStoreScope = scopeRaw === 'all' || scopeRaw === 'store' || scopeRaw === 'external'
+      ? scopeRaw
+      : (storeCount <= 1 ? 'store' : 'all')
+    const storeId = scope === 'store'
+      ? (meta.website_home_store_id
+        ?? meta.website_store_id
+        ?? stores.find(s => s.is_default)?.id
+        ?? stores[0]?.id
+        ?? '')
+      : ''
     const bizType = meta.business_type ?? WEBSITE_CREATE_BUSINESS_PRESETS[0].id
     const sellMode = meta.selling_mode ?? WEBSITE_CREATE_BUSINESS_PRESETS.find(b => b.id === bizType)?.sells ?? 'both'
     const paletteId = (meta.color_palette_id as WebsiteColorPaletteId | undefined) ?? DEFAULT_WEBSITE_COLOR_PALETTE_ID
 
     setName(site.name)
-    setWebsiteStoreScope(scope === 'all' || scope === 'store' || scope === 'external' ? scope : 'store')
+    setWebsiteStoreScope(scope)
     setWebsiteStoreId(storeId || '')
     setBusinessType(bizType)
     setSellingMode(sellMode)
@@ -101,9 +108,11 @@ export function BuilderSiteInputParametersModal({
   }, [open, site, storeCount, stores])
 
   const isExternalScope = websiteStoreScope === 'external'
-  const activeStoreForSettings = websiteStoreScope === 'store' && websiteStoreId
-    ? stores.find(s => s.id === websiteStoreId)
-    : singleStore ?? stores.find(s => s.is_default) ?? stores[0]
+  const activeStoreForSettings = websiteStoreScope === 'store'
+    ? (websiteStoreId
+      ? stores.find(s => s.id === websiteStoreId)
+      : singleStore ?? stores.find(s => s.is_default) ?? stores[0])
+    : undefined
   const builtForStore = websiteStoreScope === 'store'
     ? (stores.find(s => s.id === websiteStoreId) ?? singleStore)
     : null
@@ -140,29 +149,24 @@ export function BuilderSiteInputParametersModal({
   }, [customPaletteColors, selectedPaletteId])
 
   const handleSave = useCallback(async () => {
-    if (websiteStoreScope === 'store' && !websiteStoreId && storeCount > 1) {
-      toast.error('Select a business unit for this website.')
-      return
-    }
     setSaving(true)
     try {
       const siteName = name.trim() || selectedBusiness.defaultName
       const paletteColors = resolveWebsitePaletteColors(selectedPaletteId, customPaletteColors)
-      const selectedStore = stores.find(s => s.id === websiteStoreId)
-      const resolvedScope = storeCount <= 1 ? 'store' : websiteStoreScope
+      const existingStyle = site.style_config as Record<string, unknown>
+      const isExternal = String(existingStyle.website_store_scope ?? '').trim().toLowerCase() === 'external'
       const nextStyleConfig = {
-        ...(site.style_config as Record<string, unknown>),
+        ...existingStyle,
         ...paletteColors,
         color_palette_id: selectedPaletteId,
         image_category_id: imageCategoryForBusinessType(effectiveBusinessType),
         business_type: effectiveBusinessType,
         selling_mode: effectiveSellingMode,
         setup_features: selectedFeatures,
-        website_store_scope: resolvedScope,
-        website_store_id: resolvedScope === 'store' ? (websiteStoreId || singleStore?.id || null) : null,
-        website_store_name: resolvedScope === 'store'
-          ? (selectedStore?.name || singleStore?.name || null)
-          : null,
+        website_store_scope: existingStyle.website_store_scope,
+        website_store_id: isExternal ? null : existingStyle.website_store_id ?? null,
+        website_store_name: isExternal ? null : existingStyle.website_store_name ?? null,
+        website_home_store_id: isExternal ? null : existingStyle.website_home_store_id ?? null,
       }
 
       const updated = await websiteApi.updateSite(siteId, {
@@ -190,13 +194,8 @@ export function BuilderSiteInputParametersModal({
     selectedBusiness.defaultName,
     selectedFeatures,
     selectedPaletteId,
-    singleStore,
     site.style_config,
     siteId,
-    storeCount,
-    stores,
-    websiteStoreId,
-    websiteStoreScope,
   ])
 
   const modalProps = useMemo(() => ({
@@ -238,6 +237,7 @@ export function BuilderSiteInputParametersModal({
     builtForStore,
     toggleFeature,
     defaultName: selectedBusiness.defaultName,
+    lockWebsiteScope: true,
   }), [
     activeStoreForSettings,
     availableFeatures,

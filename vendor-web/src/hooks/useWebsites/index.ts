@@ -1,12 +1,32 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useQuery, useMutation, useQueryClient, type QueryClient } from '@tanstack/react-query'
+import { isAxiosError } from 'axios'
 import { websiteApi } from '@/api/websites'
-import type { WebsiteSite, WebsitePage, WebsiteBlock, WebsiteMedia, LiveResource, LiveItem } from '@/types/websites'
+import { useVendorStore } from '@/stores/vendorStore'
+import type { WebsiteSite, WebsitePage, WebsiteBlock, WebsiteMedia, LiveResource, LiveItem, SiteListItem } from '@/types/websites'
+
+/** Vendor-scoped list key — avoids showing another vendor's cached sites after switch. */
+export function websitesListQueryKey(vendorId?: string | null) {
+  return ['websites', vendorId ?? ''] as const
+}
+
+export function pruneSiteFromWebsitesListCache(
+  qc: QueryClient,
+  vendorId: string | undefined,
+  siteId: string,
+) {
+  const listKey = websitesListQueryKey(vendorId)
+  qc.setQueryData<SiteListItem[]>(listKey, old => old?.filter(s => s.id !== siteId))
+  qc.setQueryData<SiteListItem[]>(['websites'], old => old?.filter(s => s.id !== siteId))
+  qc.removeQueries({ queryKey: ['websites', siteId] })
+}
 
 // ── Sites ─────────────────────────────────────────────────────────────────────
 export function useSiteList() {
+  const vendorId = useVendorStore(s => s.vendor?.id)
   return useQuery({
-    queryKey: ['websites'],
+    queryKey: websitesListQueryKey(vendorId),
     queryFn: websiteApi.listSites,
+    enabled: Boolean(vendorId),
   })
 }
 
@@ -44,9 +64,21 @@ export function useUpdateSite(siteId: string) {
 
 export function useDeleteSite() {
   const qc = useQueryClient()
+  const vendorId = useVendorStore(s => s.vendor?.id)
   return useMutation({
-    mutationFn: (siteId: string) => websiteApi.deleteSite(siteId),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['websites'] }),
+    mutationFn: async (siteId: string) => {
+      try {
+        await websiteApi.deleteSite(siteId)
+      } catch (err) {
+        // Idempotent — site may already be gone after a successful first delete + stale UI.
+        if (isAxiosError(err) && err.response?.status === 404) return
+        throw err
+      }
+    },
+    onSuccess: (_data, siteId) => {
+      pruneSiteFromWebsitesListCache(qc, vendorId, siteId)
+      qc.invalidateQueries({ queryKey: ['websites'] })
+    },
   })
 }
 

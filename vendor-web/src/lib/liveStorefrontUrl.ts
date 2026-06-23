@@ -212,7 +212,13 @@ export function resolveAppliedTemplateViewLiveLinks(
     singleFrontTemplateId: string | null
     stores: StoreForViewLive[]
     /** Published builder sites — stores linked to a builder site are excluded from catalog assignment. */
-    builderSites?: Array<{ id: string; is_published?: boolean; website_store_scope?: string | null; website_store_id?: string | null }>
+    builderSites?: Array<{
+      id: string
+      is_published?: boolean
+      website_store_scope?: string | null
+      website_store_id?: string | null
+      storefront_assigned?: boolean
+    }>
   },
 ): AppliedTemplateViewLiveLink[] {
   const slug = vendorSlug?.trim()
@@ -225,7 +231,8 @@ export function resolveAppliedTemplateViewLiveLinks(
       site =>
         site.is_published !== false
         && site.website_store_scope === 'store'
-        && site.website_store_id === storeId,
+        && site.website_store_id === storeId
+        && site.storefront_assigned === true,
     ) ?? false
 
   const catalogAssignedStores =
@@ -313,6 +320,20 @@ export function resolveStorefrontLinksForStoreIds(
         : null
     })
     .filter((link): link is AppliedTemplateViewLiveLink => link != null)
+}
+
+/** When every link shares the same URL (shared storefront), return one link instead of duplicates. */
+export function collapseViewLiveLinks(
+  links: AppliedTemplateViewLiveLink[],
+): AppliedTemplateViewLiveLink[] {
+  if (links.length <= 1) return links
+  const hrefs = [...new Set(links.map(link => link.href.trim()).filter(Boolean))]
+  if (hrefs.length !== 1) return links
+  return [{
+    href: hrefs[0],
+    label: links.length > 1 ? 'All business units' : links[0].label,
+    storeId: links.find(link => link.storeId)?.storeId,
+  }]
 }
 
 /** Open each link in a new tab (staggered to reduce popup-blocker issues). */

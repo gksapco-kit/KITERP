@@ -3,6 +3,7 @@ import { vendorApi } from '@/api/vendor'
 import { formatStoreCode, sortStoresByCode } from '@/lib/verification'
 import { isTemplateSandboxSite } from '@/lib/websiteSandbox'
 import {
+  buildCustomerStoreLink,
   customerLinkForStore,
   isBuilderSiteTemplateId,
   isCatalogStorefrontTemplateId,
@@ -11,6 +12,7 @@ import {
   resolveStoreFrontTemplateId,
   resolveStorefrontLinkMode,
   resolveStorefrontTemplateMode,
+  storefrontUrlNeedsBranch,
   STORE_FRONT_TEMPLATE_KEY,
   type AppliedTemplateViewLiveLink,
   type StorefrontLinkMode,
@@ -86,6 +88,11 @@ export function resolveBuilderSiteViewLiveLinks(
   const templateMode = resolveStorefrontTemplateMode(vendorSettings)
   const linkModeResolved = linkMode
 
+  if (!storefrontUrlNeedsBranch(linkModeResolved, templateMode)) {
+    const href = buildCustomerStoreLink(slug)
+    return href ? [{ href, label: 'All business units' }] : []
+  }
+
   if (linkedLive.length === 1) {
     const store = linkedLive[0]
     const href = customerLinkForStore(slug, store, linkModeResolved, templateMode)
@@ -130,15 +137,83 @@ export async function ensureBuilderSiteStorefrontActive({
 export function listBuilderDraftTemplateSites(sites: SiteListItem[]): SiteListItem[] {
   return sites.filter(site => {
     if (isTemplateSandboxSite(site)) return false
+    if (isBuilderSiteExternal(site)) return false
     return site.is_published
   })
 }
 
 /** Business unit a builder site was created for (when scoped to one store). */
-export function resolveBuilderSiteHomeStoreId(site: SiteListItem): string | null {
-  if (site.website_store_scope !== 'store') return null
-  const storeId = site.website_store_id?.trim()
-  return storeId || null
+export function resolveBuilderSiteHomeStoreId(
+  site: Pick<SiteListItem, 'website_store_scope' | 'website_store_id' | 'website_home_store_id'>,
+): string | null {
+  if (site.website_store_scope === 'external') return null
+  const explicitHome = site.website_home_store_id?.trim()
+  if (explicitHome) return explicitHome
+  // Legacy sites: store scope at creation used website_store_id as the home unit.
+  if (site.website_store_scope === 'store') {
+    const legacyHome = site.website_store_id?.trim()
+    return legacyHome || null
+  }
+  return null
+}
+
+/** True when the site was built as an external / marketing site (not a store BU). */
+export function isBuilderSiteExternal(
+  site: Pick<SiteListItem, 'website_store_scope'>,
+): boolean {
+  return site.website_store_scope === 'external'
+}
+
+/** True when the site was built for all business units (not locked to one BU or external). */
+export function isBuilderSiteBuiltForAll(
+  site: Pick<SiteListItem, 'website_store_scope' | 'website_store_id' | 'website_home_store_id'>,
+): boolean {
+  if (isBuilderSiteExternal(site)) return false
+  const scope = site.website_store_scope?.trim().toLowerCase()
+  if (scope === 'all') return true
+  if (isBuilderSiteBuSpecific(site)) return false
+  return !scope
+}
+
+/** True when the site was built for one business unit only (not assignable elsewhere). */
+export function isBuilderSiteBuSpecific(
+  site: Pick<SiteListItem, 'website_store_scope' | 'website_store_id' | 'website_home_store_id'>,
+): boolean {
+  return resolveBuilderSiteHomeStoreId(site) != null
+}
+
+/** Business unit this site was built for (home unit), for scope badges and labels. */
+export function resolveSiteBuiltForStore(
+  site: Pick<SiteListItem, 'website_store_scope' | 'website_store_id' | 'website_store_name' | 'website_home_store_id'>,
+  stores: StoreLike[],
+): StoreLike | null {
+  const homeStoreId = resolveBuilderSiteHomeStoreId(site)
+  if (!homeStoreId) return null
+
+  const matched = stores.find(s => s.id === homeStoreId)
+  if (matched) return matched
+
+  const fallbackName = site.website_store_name?.trim()
+  return fallbackName ? { id: homeStoreId, name: fallbackName } : { id: homeStoreId }
+}
+
+export class BuilderSiteAssignmentError extends Error {
+  constructor(message = 'This website was built for a specific business unit and can only be assigned to that unit.') {
+    super(message)
+    this.name = 'BuilderSiteAssignmentError'
+  }
+}
+
+/** Throws when a BU-specific site is assigned to the wrong store. */
+export function assertBuilderSiteAssignableToStore(
+  site: Pick<SiteListItem, 'website_store_scope' | 'website_store_id' | 'website_home_store_id'>,
+  storeId: string | null | undefined,
+): void {
+  const homeStoreId = resolveBuilderSiteHomeStoreId(site)
+  const targetId = storeId?.trim()
+  if (homeStoreId && targetId && homeStoreId !== targetId) {
+    throw new BuilderSiteAssignmentError()
+  }
 }
 
 /** Stores that may receive this builder site — locked to its home unit when set. */
@@ -146,6 +221,7 @@ export function storesEligibleForBuilderSiteAssignment(
   site: SiteListItem,
   stores: StoreLike[],
 ): StoreLike[] {
+  if (isBuilderSiteExternal(site)) return []
   const homeStoreId = resolveBuilderSiteHomeStoreId(site)
   if (!homeStoreId) return stores
   const store = stores.find(s => s.id === homeStoreId)
@@ -154,15 +230,14 @@ export function storesEligibleForBuilderSiteAssignment(
 
 /** True when a builder site belongs to the given business unit (or has no home unit yet). */
 export function isBuilderSiteVisibleForStore(site: SiteListItem, storeId: string): boolean {
+  if (isBuilderSiteExternal(site)) return false
   const homeStoreId = resolveBuilderSiteHomeStoreId(site)
   if (!homeStoreId) return true
-  if (homeStoreId === storeId) return true
-  // Published store-scoped sites stay visible so other BUs can adopt the same design.
-  return site.is_published
+  return homeStoreId === storeId
 }
 
-/** Assign actions only for the home business unit (or any unit when not store-scoped). */
-export function isBuilderSiteAssignableForStore(
+/** True when this site's build scope includes the given business unit. */
+export function isBuilderSiteBuiltForStore(
   site: SiteListItem,
   storeId: string | null | undefined,
 ): boolean {
@@ -170,6 +245,14 @@ export function isBuilderSiteAssignableForStore(
   const homeStoreId = resolveBuilderSiteHomeStoreId(site)
   if (!homeStoreId) return true
   return homeStoreId === storeId
+}
+
+/** Assign only to the home business unit, or any unit when built for all. */
+export function isBuilderSiteAssignableForStore(
+  site: SiteListItem,
+  storeId: string | null | undefined,
+): boolean {
+  return isBuilderSiteBuiltForStore(site, storeId)
 }
 
 export function resolvePublishedBuilderSiteForStore(
@@ -369,14 +452,19 @@ export function resolveStorefrontCoverageTemplate(
 ): ResolvedTemplateDisplay | null {
   const publishedBuilderOnly = opts?.publishedBuilderOnly ?? false
 
-  // A published builder site linked to this store wins (catalog assignment discontinued).
   const linkedSite = sites.find(
     s =>
       s.is_published
       && s.website_store_scope === 'store'
       && s.website_store_id === store.id,
   )
-  if (linkedSite) {
+  const linkedSiteIsLive = Boolean(
+    linkedSite
+    && isBuilderSiteStorefrontAssigned(linkedSite)
+    && !isStoreSpecificCatalogTemplateAssigned(store, vendorSettings),
+  )
+
+  if (linkedSiteIsLive && linkedSite) {
     const name = resolveSiteAppliedTemplateLabel(linkedSite, templates) ?? linkedSite.name
     return {
       id: linkedSite.id,
@@ -386,22 +474,35 @@ export function resolveStorefrontCoverageTemplate(
     }
   }
 
-  if (publishedBuilderOnly) return null
-
-  // An explicit per-store (or single-mode shared) catalog template.
   const templateMode = resolveStorefrontTemplateMode(vendorSettings)
   const storeSpecificId =
     templateMode === 'single'
       ? resolveSingleFrontTemplateId(vendorSettings)
       : resolveStoreFrontTemplateId(store.settings)
-  if (storeSpecificId) {
-    return resolveTemplateDisplay(storeSpecificId, templates, presets, sites)
+
+  const enrichTemplateDisplay = (display: ResolvedTemplateDisplay): ResolvedTemplateDisplay => {
+    const catalogTpl = templates.find(t => t.id === display.id)
+    const builderSite = sites.find(s => s.id === display.id && s.is_published)
+    return {
+      ...display,
+      thumbnail:
+        display.thumbnail
+        ?? catalogTpl?.thumbnail
+        ?? (builderSite ? resolveSiteStaticThumbnail(builderSite, templates) : null),
+    }
   }
 
-  // Finally, the vendor-wide single fallback (per_unit mode) if configured.
+  if (storeSpecificId) {
+    const display = resolveTemplateDisplay(storeSpecificId, templates, presets, sites)
+    if (display) return enrichTemplateDisplay(display)
+  }
+
+  if (publishedBuilderOnly) return null
+
   const fallbackId = resolveEffectiveStorefrontTemplateId(vendorSettings, store.settings, templateMode)
   if (fallbackId) {
-    return resolveTemplateDisplay(fallbackId, templates, presets, sites)
+    const display = resolveTemplateDisplay(fallbackId, templates, presets, sites)
+    if (display) return enrichTemplateDisplay(display)
   }
 
   return null
@@ -410,14 +511,37 @@ export function resolveStorefrontCoverageTemplate(
 async function unlinkSiteFromStore(siteId: string): Promise<void> {
   const fullSite = await websiteApi.getSite(siteId)
   const styleConfig = { ...(fullSite.style_config ?? {}) } as Record<string, unknown>
-  delete styleConfig.website_store_scope
-  delete styleConfig.website_store_id
-  delete styleConfig.website_store_name
-  delete styleConfig.storefront_assigned
-  await websiteApi.updateSite(siteId, { style_config: styleConfig as WebsiteSite['style_config'] })
+  await websiteApi.updateSite(siteId, {
+    style_config: {
+      ...styleConfig,
+      website_store_scope: null,
+      website_store_id: null,
+      website_store_name: null,
+      storefront_assigned: false,
+    } as WebsiteSite['style_config'],
+  })
 }
 
-/** Link a published builder site to one or more business units (one site → one store). */
+function resolveBuilderSiteScopeMeta(
+  styleConfig: Record<string, unknown>,
+  siteRecord?: SiteListItem | null,
+): Pick<SiteListItem, 'website_store_scope' | 'website_store_id' | 'website_home_store_id'> {
+  return {
+    website_store_scope: String(
+      styleConfig.website_store_scope ?? siteRecord?.website_store_scope ?? '',
+    ),
+    website_store_id: (styleConfig.website_store_id ?? siteRecord?.website_store_id ?? null) as
+      | string
+      | null
+      | undefined,
+    website_home_store_id: (styleConfig.website_home_store_id ?? siteRecord?.website_home_store_id ?? null) as
+      | string
+      | null
+      | undefined,
+  }
+}
+
+/** Link a published builder site to one or more business units. */
 export async function assignBuilderSiteToStores({
   siteId,
   storeIds,
@@ -429,9 +553,39 @@ export async function assignBuilderSiteToStores({
   sites: SiteListItem[]
   stores: StoreLike[]
 }): Promise<void> {
-  const storeId = storeIds[0]?.trim()
-  if (!storeId) return
+  const normalizedStoreIds = storeIds.map(id => id.trim()).filter(Boolean)
+  if (normalizedStoreIds.length === 0) return
 
+  const siteRecord = sites.find(s => s.id === siteId)
+  const site = await websiteApi.getSite(siteId)
+  const styleConfig = { ...(site.style_config ?? {}) } as Record<string, unknown>
+  const scopeMeta = resolveBuilderSiteScopeMeta(styleConfig, siteRecord)
+
+  for (const sid of normalizedStoreIds) {
+    assertBuilderSiteAssignableToStore(scopeMeta, sid)
+  }
+
+  if (isBuilderSiteBuiltForAll(scopeMeta)) {
+    await assignCatalogTemplateToStores({
+      templateId: siteId,
+      storeIds: normalizedStoreIds,
+      sites,
+      stores,
+    })
+
+    await websiteApi.updateSite(siteId, {
+      style_config: {
+        ...styleConfig,
+        storefront_assigned: true,
+        website_store_scope: String(styleConfig.website_store_scope ?? 'all') || 'all',
+        website_store_id: null,
+        website_store_name: null,
+      } as WebsiteSite['style_config'],
+    })
+    return
+  }
+
+  const storeId = normalizedStoreIds[0]
   const targetStore = stores.find(s => s.id === storeId)
   if (!targetStore) return
 
@@ -442,14 +596,20 @@ export async function assignBuilderSiteToStores({
     await unlinkSiteFromStore(conflictingSite.id)
   }
 
-  const site = await websiteApi.getSite(siteId)
-  const styleConfig = { ...(site.style_config ?? {}) } as Record<string, unknown>
-  styleConfig.website_store_scope = 'store'
-  styleConfig.website_store_id = storeId
-  styleConfig.website_store_name = targetStore.name ?? null
-  styleConfig.storefront_assigned = true
+  const homeStoreId = resolveBuilderSiteHomeStoreId(scopeMeta)
+  if (homeStoreId && homeStoreId !== storeId) {
+    throw new BuilderSiteAssignmentError()
+  }
+
   await websiteApi.updateSite(siteId, {
-    style_config: styleConfig as WebsiteSite['style_config'],
+    style_config: {
+      ...styleConfig,
+      website_store_scope: 'store',
+      website_store_id: storeId,
+      website_store_name: targetStore.name ?? null,
+      storefront_assigned: true,
+      ...(homeStoreId ? { website_home_store_id: homeStoreId } : {}),
+    } as WebsiteSite['style_config'],
   })
 
   await vendorApi.updateStore(storeId, {

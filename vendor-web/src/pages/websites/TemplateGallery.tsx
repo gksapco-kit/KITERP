@@ -1,9 +1,9 @@
-import { useMemo, useState, useEffect, useLayoutEffect, useRef, useCallback, Fragment, type ReactNode } from 'react'
+import { useMemo, useState, useEffect, useLayoutEffect, useRef, useCallback, type ReactNode } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Sparkles, Search, Globe, ChevronRight, ChevronDown, Check, Store, Eye, LayoutTemplate, X, AlertTriangle, ExternalLink } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { useSiteList, useWebsiteTemplates } from '@/hooks/useWebsites'
+import { useSiteList, useWebsiteTemplates, websitesListQueryKey } from '@/hooks/useWebsites'
 import { useUpdateVendor, useStores, vendorKeys } from '@/hooks/useVendor'
 import type { WebsiteTemplate, SiteListItem } from '@/types/websites'
 import { getTemplatePreviewPalette } from '@/lib/templateBlockHighlights'
@@ -16,12 +16,16 @@ import { StoreThemeCustomizerDialog } from '@/components/websites/StoreThemeCust
 import { StorefrontTemplateModeToggle } from '@/components/business-units/StorefrontTemplateModeToggle'
 import { openDraftPreviewInBrowser, wrapStorefrontPreviewForVendorBrowser } from '@/lib/storefrontPreviewUrl'
 import { openBuilderSiteDraftPreview } from '@/lib/openBuilderSiteDraftPreview'
+import { extractApiError } from '@/lib/errorMessages'
 import {
   assignBuilderSiteToStores,
   assignCatalogTemplateToStores,
+  BuilderSiteAssignmentError,
   isBuilderSiteAssignableForStore,
+  isBuilderSiteBuiltForStore,
+  isBuilderSiteBuiltForAll,
+  isBuilderSiteExternal,
   isBuilderSiteAssignedToStore,
-  isBuilderSiteInAssignedTemplatesSection,
   isBuilderSiteVisibleForStore,
   isBuilderSiteEffectivelyLive,
   isBuilderSiteStorefrontAssigned,
@@ -35,14 +39,18 @@ import {
   resolveStorefrontCoverageTemplate,
   storesEffectivelyAssignedToBuilderSite,
   storesUsingBuilderSiteDesign,
+  isBuilderSiteInAssignedTemplatesSection,
 } from '@/lib/builderDraftTemplateSites'
 import {
+  buildCustomerStoreLink,
+  collapseViewLiveLinks,
   customerLinkForStore,
   resolveAppliedTemplateViewLiveLinks,
   resolveSingleFrontTemplateId,
   resolveStorefrontLinkMode,
   resolveStorefrontTemplateMode,
   resolveStoreFrontTemplateId,
+  storefrontUrlNeedsBranch,
   SINGLE_FRONT_TEMPLATE_KEY,
   STORE_FRONT_TEMPLATE_KEY,
   STOREFRONT_TEMPLATE_MODE_KEY,
@@ -55,10 +63,12 @@ import { resolveSiteStaticThumbnail } from '@/lib/websiteSitePreview'
 import {
   isLegacyPresetActive,
   resolveBusinessFrontActiveTemplate,
+  resolveDefaultSingleFrontTemplateId,
   type ThemePresetSummary,
 } from '@/lib/businessFrontActiveTemplate'
 import { storesAssignedToTemplate } from '@/lib/websiteTemplateAssignment'
 import {
+  perStoreGalleryRibbonLabel,
   perStoreTemplateActionLabel,
   templateBadgeEmeraldClass,
   templateCardActionBtnClass,
@@ -628,10 +638,10 @@ function TemplateCardSkeleton() {
   return (
     <div className="overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-[0_1px_0_rgba(0,0,0,0.02)]">
       <div className={cn(templateCardMediaHeightClass, 'w-full animate-pulse bg-gradient-to-r from-gray-100 to-gray-200/70')} />
-      <div className="space-y-2 p-2.5">
+      <div className="space-y-1 p-2 pb-1.5 pt-1">
         <div className="h-3.5 w-1/2 animate-pulse rounded bg-gray-200" />
         <div className="h-2.5 w-full animate-pulse rounded bg-gray-100" />
-        <div className="flex justify-end gap-1.5 pt-0.5">
+        <div className="flex justify-end gap-1.5">
           <div className="h-6 w-14 animate-pulse rounded-md bg-gray-100" />
           <div className="h-6 w-6 animate-pulse rounded-md bg-gray-200" />
         </div>
@@ -650,18 +660,15 @@ function TemplateGallerySection({
   children: ReactNode
 }) {
   return (
-    <section className="mb-3 last:mb-0">
-      <div
-        className={cn(
-          'mb-2',
-          description ? 'flex flex-wrap items-baseline gap-x-3 gap-y-1' : undefined,
-        )}
-      >
-        <h2 className="shrink-0 text-xs font-bold uppercase tracking-wide text-muted-foreground sm:text-sm">
+    <section className="mb-2.5 last:mb-0">
+      <div className="mb-1.5">
+        <h2 className="text-xs font-bold uppercase tracking-wide text-muted-foreground sm:text-sm">
           {title}
         </h2>
         {description ? (
-          <p className="min-w-0 text-xs leading-snug text-muted-foreground/80 sm:text-sm">{description}</p>
+          <p className="mt-0.5 max-w-3xl text-xs leading-snug text-muted-foreground/80 sm:text-sm">
+            {description}
+          </p>
         ) : null}
       </div>
       <div className={TEMPLATE_GRID_CLASS}>{children}</div>
@@ -680,6 +687,8 @@ type CoverageStore = {
   status: CoverageAssignmentStatus
   siteId: string | null
   livePreviewUrl: string | null
+  /** Customer-facing storefront URL when this unit has a template assigned. */
+  liveStorefrontUrl: string | null
 }
 
 type StoreLike = {
@@ -697,33 +706,48 @@ type CoveragePreviewContext = {
 
 function buildCoveragePreviewMeta(
   store: StoreLike & { code?: string | null },
-  linkedSite: SiteListItem | undefined,
   template: ResolvedTemplateDisplay | null,
   status: CoverageAssignmentStatus,
   previewContext?: CoveragePreviewContext,
+  glimpseSiteId?: string | null,
 ): { siteId: string | null; livePreviewUrl: string | null } {
-  if (linkedSite?.id) {
-    const liveUrl = previewContext?.vendorSlug
-      ? customerLinkForStore(
-          previewContext.vendorSlug,
-          store,
-          previewContext.linkMode ?? 'single',
-          previewContext.templateMode,
-        )
-      : null
-    return { siteId: linkedSite.id, livePreviewUrl: liveUrl }
+  const customerUrl = previewContext?.vendorSlug
+    ? customerLinkForStore(
+        previewContext.vendorSlug,
+        store,
+        previewContext.linkMode ?? 'single',
+        previewContext.templateMode,
+      )
+    : null
+
+  if (status === 'live_builder' && glimpseSiteId) {
+    return { siteId: glimpseSiteId, livePreviewUrl: customerUrl }
   }
 
-  if (template && status !== 'unassigned') {
+  if (template && status === 'catalog_assigned') {
     return {
-      siteId: null,
-      livePreviewUrl: wrapStorefrontPreviewForVendorBrowser(
-        getStorefrontTemplateBrowserPreviewUrl(template.id),
-      ),
+      siteId: glimpseSiteId ?? null,
+      livePreviewUrl:
+        customerUrl
+        ?? wrapStorefrontPreviewForVendorBrowser(
+          getStorefrontTemplateBrowserPreviewUrl(template.id),
+        ),
     }
   }
 
-  return { siteId: null, livePreviewUrl: null }
+  return { siteId: glimpseSiteId ?? null, livePreviewUrl: null }
+}
+
+function resolveCoverageGlimpseSiteId(
+  catalogTemplate: ResolvedTemplateDisplay,
+  sites: SiteListItem[],
+  templates: WebsiteTemplate[],
+  status: CoverageAssignmentStatus,
+  linkedSite: SiteListItem | undefined,
+): string | null {
+  if (status === 'live_builder' && linkedSite?.id) return linkedSite.id
+  if (templates.some(t => t.id === catalogTemplate.id)) return null
+  return sites.find(s => s.id === catalogTemplate.id)?.id ?? null
 }
 
 function resolveStoreCoverageState(
@@ -745,25 +769,11 @@ function resolveStoreCoverageState(
       && s.website_store_scope === 'store'
       && s.website_store_id === store.id,
   )
-
-  if (
+  const linkedSiteIsLive = Boolean(
     linkedSite
     && isBuilderSiteStorefrontAssigned(linkedSite)
-    && !isStoreSpecificCatalogTemplateAssigned(store, vendorSettings)
-  ) {
-    const name = resolveSiteAppliedTemplateLabel(linkedSite, templates) ?? linkedSite.name
-    const template = {
-      id: linkedSite.id,
-      name,
-      description: linkedSite.description ?? undefined,
-      thumbnail: resolveSiteStaticThumbnail(linkedSite, templates),
-    }
-    return {
-      status: 'live_builder',
-      template,
-      ...buildCoveragePreviewMeta(store, linkedSite, template, 'live_builder', previewContext),
-    }
-  }
+    && !isStoreSpecificCatalogTemplateAssigned(store, vendorSettings),
+  )
 
   const catalogTemplate = resolveStorefrontCoverageTemplate(
     store,
@@ -773,36 +783,38 @@ function resolveStoreCoverageState(
     vendorSettings,
     { publishedBuilderOnly: false },
   )
-  if (catalogTemplate) {
-    const catalogSite = sites.find(s => s.id === catalogTemplate.id)
+
+  if (!catalogTemplate) {
     return {
-      status: 'catalog_assigned',
-      template: catalogTemplate,
-      siteId: catalogSite?.id ?? null,
-      ...buildCoveragePreviewMeta(store, linkedSite ?? catalogSite, catalogTemplate, 'catalog_assigned', previewContext),
+      status: 'unassigned',
+      template: null,
+      siteId: null,
+      livePreviewUrl: null,
     }
   }
 
-  if (linkedSite) {
-    const name = resolveSiteAppliedTemplateLabel(linkedSite, templates) ?? linkedSite.name
-    const template = {
-      id: linkedSite.id,
-      name,
-      description: linkedSite.description ?? undefined,
-      thumbnail: resolveSiteStaticThumbnail(linkedSite, templates),
-    }
-    return {
-      status: 'catalog_assigned',
-      template,
-      ...buildCoveragePreviewMeta(store, linkedSite, template, 'catalog_assigned', previewContext),
-    }
-  }
+  const status: CoverageAssignmentStatus =
+    linkedSiteIsLive && linkedSite && catalogTemplate.id === linkedSite.id
+      ? 'live_builder'
+      : 'catalog_assigned'
+  const glimpseSiteId = resolveCoverageGlimpseSiteId(
+    catalogTemplate,
+    sites,
+    templates,
+    status,
+    linkedSite,
+  )
 
   return {
-    status: 'unassigned',
-    template: null,
-    siteId: null,
-    livePreviewUrl: null,
+    status,
+    template: catalogTemplate,
+    ...buildCoveragePreviewMeta(
+      store,
+      catalogTemplate,
+      status,
+      previewContext,
+      glimpseSiteId,
+    ),
   }
 }
 
@@ -818,72 +830,88 @@ function coverageStatusBadgeClass(status: CoverageAssignmentStatus): string {
   return 'border-amber-200 bg-amber-50 text-amber-800'
 }
 
-function CurrentForStoreRibbon({ storeCode }: { storeCode: string }) {
+function StoreStatusRibbon({ label }: { label: string }) {
   return (
     <span className={templateCardCurrentForStoreRibbonClass}>
-      Current for {storeCode}
+      {label}
     </span>
   )
 }
 
-function resolveActiveTemplateCoveragePreview(
-  templateId: string | null | undefined,
-  sites: SiteListItem[],
+function resolveAssignedTemplateGlimpsePreview(
+  template: ResolvedTemplateDisplay | null,
   templates: WebsiteTemplate[],
-  presets: ThemePresetSummary[],
-): {
-  template: ResolvedTemplateDisplay | null
-  siteId: string | null
-} {
-  const base = resolveTemplateDisplay(templateId, templates, presets, sites)
-  if (!base) return { template: null, siteId: null }
+  options?: {
+    liveStorefrontUrl?: string | null
+    livePreviewUrl?: string | null
+    status?: CoverageAssignmentStatus
+  },
+): { fallbackImage: string | null; livePreviewUrl: string | null } {
+  if (!template) return { fallbackImage: null, livePreviewUrl: null }
 
-  const tid = templateId?.trim()
-  if (!tid) return { template: null, siteId: null }
+  const isCatalogTemplate = templates.some(t => t.id === template.id)
+  const thumbnail = template.thumbnail?.trim() || null
+  if (thumbnail && isCatalogTemplate) {
+    return { fallbackImage: thumbnail, livePreviewUrl: null }
+  }
 
-  const catalogTpl = templates.find(t => t.id === tid)
-  if (catalogTpl) {
+  if (isCatalogTemplate) {
     return {
-      template: { ...base, thumbnail: catalogTpl.thumbnail ?? base.thumbnail ?? null },
-      siteId: null,
+      fallbackImage: null,
+      livePreviewUrl: options?.livePreviewUrl?.trim()
+        ?? wrapStorefrontPreviewForVendorBrowser(
+          getStorefrontTemplateBrowserPreviewUrl(template.id),
+        ),
     }
   }
 
-  const site = sites.find(s => s.id === tid)
-  if (site) {
-    return {
-      template: {
-        ...base,
-        thumbnail: resolveSiteStaticThumbnail(site, templates),
-      },
-      siteId: site.id,
-    }
+  if (options?.livePreviewUrl?.trim()) {
+    return { fallbackImage: null, livePreviewUrl: options.livePreviewUrl.trim() }
   }
 
-  return { template: base, siteId: null }
+  if (options?.liveStorefrontUrl?.trim()) {
+    return { fallbackImage: null, livePreviewUrl: options.liveStorefrontUrl.trim() }
+  }
+
+  return { fallbackImage: null, livePreviewUrl: null }
 }
 
 function CoverageThumb({
   template,
-  siteId = null,
   vendorSlug = null,
   templates = [],
+  storeStatus,
+  liveStorefrontUrl = null,
+  livePreviewUrl = null,
+  siteId = null,
   className,
 }: {
   template: ResolvedTemplateDisplay | null
-  siteId?: string | null
   vendorSlug?: string | null
   templates?: WebsiteTemplate[]
+  storeStatus?: CoverageAssignmentStatus
+  liveStorefrontUrl?: string | null
+  livePreviewUrl?: string | null
+  siteId?: string | null
   className?: string
 }) {
+  const glimpse = resolveAssignedTemplateGlimpsePreview(template, templates, {
+    liveStorefrontUrl,
+    livePreviewUrl,
+    status: storeStatus,
+  })
+  const useBuilderCanvas = Boolean(siteId && vendorSlug)
   return (
-    <span className={cn('h-11 w-[4.75rem] shrink-0 overflow-hidden rounded-md border border-black/5 bg-white', className)}>
+    <span className={cn('block h-11 w-[4.75rem] shrink-0 overflow-hidden rounded-md border border-black/5 bg-white', className)}>
       <WebsiteSiteGlimpse
         siteId={siteId}
         vendorSlug={vendorSlug}
-        fallbackImage={template?.thumbnail}
+        fallbackImage={useBuilderCanvas ? null : glimpse.fallbackImage}
         fallbackGradient={template?.gradient}
+        livePreviewUrl={glimpse.livePreviewUrl}
         templates={templates}
+        previewMode={useBuilderCanvas ? 'live' : 'assigned'}
+        scaleMode="cover"
         className="h-full w-full"
       />
     </span>
@@ -904,17 +932,12 @@ function CoverageStoreCard({
   templates?: WebsiteTemplate[]
 }) {
   const hasAssignment = store.status !== 'unassigned'
+  const isLive = store.status === 'live_builder'
+  const showViewLink = Boolean(store.liveStorefrontUrl)
   return (
-    <button
-      type="button"
-      onClick={onSelect}
-      title={
-        hasAssignment
-          ? `${store.code} · ${store.name} → ${store.template?.name} (${coverageStatusLabel(store.status)})`
-          : `${store.code} · ${store.name} — no template assigned`
-      }
+    <div
       className={cn(
-        'relative flex w-full min-w-0 items-center gap-2.5 overflow-hidden rounded-md border px-2.5 py-2 text-left transition-colors',
+        'group relative flex w-full min-w-0 items-center gap-2 overflow-hidden rounded-md border px-2.5 py-2 transition-colors',
         active
           ? coverageStoreSelectedClass
           : hasAssignment
@@ -922,68 +945,236 @@ function CoverageStoreCard({
             : 'border-gray-200 bg-white hover:border-gray-300',
       )}
     >
-      <CoverageThumb
-        template={store.template}
-        siteId={store.siteId}
-        vendorSlug={vendorSlug}
-        templates={templates}
-      />
-      <span className="min-w-0 flex-1 overflow-hidden">
-        <span className="flex min-w-0 items-center gap-1">
-          <span
-            className={cn(
-              'truncate font-mono text-xs font-bold tracking-wide',
-              active ? 'text-primary' : 'text-gray-800',
-            )}
-            title={store.code}
-          >
-            {store.code}
-          </span>
-          {store.is_default ? (
-            <span className="shrink-0 rounded bg-gray-100 px-1 py-0.5 text-[9px] font-bold uppercase leading-none text-gray-500">
-              DEF
-            </span>
+      <button
+        type="button"
+        onClick={onSelect}
+        title={
+          hasAssignment
+            ? `${store.code} · ${store.name} → ${store.template?.name} (${coverageStatusLabel(store.status)})`
+            : `${store.code} · ${store.name} — no template assigned`
+        }
+        className="flex min-w-0 flex-1 items-center gap-2.5 overflow-hidden text-left"
+      >
+        <span className="relative block h-11 w-[4.75rem] shrink-0">
+          <CoverageThumb
+            template={store.template}
+            vendorSlug={vendorSlug}
+            templates={templates}
+            storeStatus={store.status}
+            liveStorefrontUrl={store.liveStorefrontUrl}
+            livePreviewUrl={store.livePreviewUrl}
+            siteId={store.siteId}
+            className="h-full w-full border-0"
+          />
+          {showViewLink ? (
+            <a
+              href={store.liveStorefrontUrl!}
+              target="_blank"
+              rel="noopener noreferrer"
+              title={`View live storefront for ${store.code} · ${store.name}`}
+              aria-label={`View live store for ${store.code}`}
+              onClick={e => e.stopPropagation()}
+              className={cn(
+                'absolute right-0.5 top-0.5 z-10 flex h-5 w-5 items-center justify-center rounded-md bg-black/60 text-white shadow-sm transition-opacity',
+                active
+                  ? 'opacity-100'
+                  : 'pointer-events-none opacity-0 group-hover:pointer-events-auto group-hover:opacity-100',
+              )}
+            >
+              <ExternalLink className="h-3 w-3" />
+            </a>
           ) : null}
         </span>
-        {hasAssignment ? (
-          <span
-            className="block truncate text-xs font-semibold leading-tight text-gray-700"
-            title={store.template?.name}
-          >
-            {store.template?.name}
+        <span className="min-w-0 flex-1 overflow-hidden">
+          <span className="flex min-w-0 items-center gap-1">
+            <span
+              className={cn(
+                'truncate font-mono text-xs font-bold tracking-wide',
+                active ? 'text-primary' : 'text-gray-800',
+              )}
+              title={store.code}
+            >
+              {store.code}
+            </span>
+            {store.is_default ? (
+              <span className="shrink-0 rounded bg-gray-100 px-1 py-0.5 text-[9px] font-bold uppercase leading-none text-gray-500">
+                DEF
+              </span>
+            ) : null}
+            {isLive ? (
+              <span className={cn('shrink-0 rounded-full border px-1.5 py-0.5 text-[9px] font-bold leading-none', coverageStatusBadgeClass(store.status))}>
+                Live
+              </span>
+            ) : store.status === 'catalog_assigned' ? (
+              <span className={cn('shrink-0 rounded-full border px-1.5 py-0.5 text-[9px] font-bold leading-none', coverageStatusBadgeClass(store.status))}>
+                Assigned
+              </span>
+            ) : null}
           </span>
-        ) : (
-          <span className="block truncate text-xs font-medium text-gray-500">No template</span>
-        )}
-      </span>
-    </button>
+          {hasAssignment ? (
+            <span
+              className="block truncate text-xs font-semibold leading-tight text-gray-700"
+              title={store.template?.name}
+            >
+              {store.template?.name}
+            </span>
+          ) : (
+            <span className="block truncate text-xs font-medium text-gray-500">No template</span>
+          )}
+        </span>
+      </button>
+    </div>
   )
 }
 
-/** Inline step hint: Step A → Step B → action */
-function CoverageStepHint({
-  steps,
-  className,
-  title,
+function SharedTemplateCoverageCard({
+  template,
+  total,
+  coverageStores,
+  activeStoreId,
+  onSelectStore,
+  vendorSlug,
+  templates,
+  previewStore,
+  status,
 }: {
-  steps: ReactNode[]
-  className?: string
-  title?: string
+  template: ResolvedTemplateDisplay
+  total: number
+  coverageStores: CoverageStore[]
+  activeStoreId: string | null
+  onSelectStore: (id: string) => void
+  vendorSlug?: string | null
+  templates: WebsiteTemplate[]
+  previewStore: CoverageStore | null | undefined
+  status?: CoverageAssignmentStatus
 }) {
+  const activeStore = activeStoreId ? coverageStores.find(s => s.id === activeStoreId) : null
+  const glimpseStore =
+    (activeStore?.status !== 'unassigned' ? activeStore : null)
+    ?? previewStore
+    ?? coverageStores.find(s => s.status !== 'unassigned')
+    ?? null
+  const glimpseTemplate = glimpseStore?.template ?? template
+  const glimpseDisplay: ResolvedTemplateDisplay = {
+    ...template,
+    ...glimpseTemplate,
+    thumbnail: glimpseTemplate.thumbnail ?? template.thumbnail,
+    gradient: glimpseTemplate.gradient ?? template.gradient,
+  }
+  const glimpseStatus = glimpseStore?.status ?? status
+  const isLive = glimpseStatus === 'live_builder'
+  const isAssigned = glimpseStatus === 'catalog_assigned'
+  const liveUrl = activeStore?.liveStorefrontUrl ?? glimpseStore?.liveStorefrontUrl
+
   return (
-    <span
-      className={cn('inline-flex flex-wrap items-center gap-1.5 text-xs leading-snug text-gray-500 sm:text-sm', className)}
-      title={title}
-    >
-      {steps.map((step, index) => (
-        <Fragment key={index}>
-          {index > 0 ? (
-            <ChevronRight className="h-3.5 w-3.5 shrink-0 text-gray-400" aria-hidden />
+    <div className="mt-3 overflow-hidden rounded-lg border-2 border-primary/20 bg-gradient-to-br from-primary/[0.05] via-white to-white shadow-sm">
+      <div className="flex items-center gap-2.5 p-2.5 sm:gap-3 sm:p-3">
+        <div className="relative shrink-0">
+          <CoverageThumb
+            template={glimpseDisplay}
+            vendorSlug={vendorSlug}
+            templates={templates}
+            storeStatus={glimpseStatus}
+            liveStorefrontUrl={glimpseStore?.liveStorefrontUrl ?? activeStore?.liveStorefrontUrl}
+            livePreviewUrl={glimpseStore?.livePreviewUrl}
+            siteId={glimpseStore?.siteId}
+            className="h-11 w-[4.75rem] rounded-lg shadow-sm ring-2 ring-white sm:h-[3.75rem] sm:w-[5.75rem]"
+          />
+          {liveUrl ? (
+            <a
+              href={liveUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              title="Open live storefront"
+              aria-label="Open live storefront"
+              className="absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full border border-emerald-200 bg-emerald-500 text-white shadow-md transition-transform hover:scale-105 hover:bg-emerald-600 sm:h-6 sm:w-6"
+            >
+              <ExternalLink className="h-2.5 w-2.5 sm:h-3 sm:w-3" />
+            </a>
           ) : null}
-          <span>{step}</span>
-        </Fragment>
-      ))}
-    </span>
+        </div>
+
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
+            <h3 className="truncate text-sm font-extrabold tracking-tight text-gray-900">
+              {template.name}
+            </h3>
+            {isLive ? (
+              <span className={cn('inline-flex shrink-0 items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-bold', coverageStatusBadgeClass('live_builder'))}>
+                <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" aria-hidden />
+                Live
+              </span>
+            ) : isAssigned ? (
+              <span className={cn('shrink-0 rounded-full border px-2 py-0.5 text-[10px] font-bold', coverageStatusBadgeClass('catalog_assigned'))}>
+                Assigned
+              </span>
+            ) : null}
+            <span className="hidden text-xs text-gray-500 sm:inline">
+              · {total} business unit{total === 1 ? '' : 's'}
+            </span>
+          </div>
+          <p className="truncate text-[11px] text-gray-500 sm:hidden">
+            {total} business unit{total === 1 ? '' : 's'}
+          </p>
+        </div>
+
+        {total > 1 ? (
+          <div className="flex shrink-0 items-center gap-1 sm:gap-1.5">
+            <span className="hidden text-[10px] font-semibold uppercase tracking-wide text-gray-400 sm:inline">
+              Preview as
+            </span>
+            <div className="flex flex-wrap items-center justify-end gap-1">
+              {coverageStores.map(store => {
+                const selected = store.id === activeStoreId
+                return (
+                  <button
+                    key={store.id}
+                    type="button"
+                    title={`${store.code} · ${store.name}`}
+                    aria-pressed={selected}
+                    aria-label={`Preview as ${store.code}`}
+                    onClick={() => onSelectStore(store.id)}
+                    className={cn(
+                      'inline-flex items-center gap-0.5 rounded-full border px-1.5 py-0.5 font-mono text-[10px] font-bold transition-colors sm:gap-1 sm:px-2 sm:text-[11px]',
+                      selected
+                        ? 'border-primary bg-primary/10 text-primary shadow-sm'
+                        : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300 hover:bg-gray-50',
+                    )}
+                  >
+                    {store.code}
+                    {store.is_default ? (
+                      <span className="rounded bg-gray-100 px-0.5 py-px text-[7px] font-bold uppercase leading-none text-gray-500 sm:px-1 sm:text-[8px]">
+                        DEF
+                      </span>
+                    ) : null}
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+        ) : null}
+      </div>
+    </div>
+  )
+}
+
+function SharedTemplateCoverageEmpty() {
+  return (
+    <div className="mt-3 rounded-lg border-2 border-dashed border-amber-200/90 bg-gradient-to-br from-amber-50/80 to-white p-3.5">
+      <div className="flex items-start gap-3">
+        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-amber-100 text-amber-700 ring-1 ring-amber-200/80">
+          <LayoutTemplate className="h-5 w-5" />
+        </span>
+        <div className="min-w-0">
+          <p className="text-sm font-bold text-amber-950">No template assigned yet</p>
+          <p className="mt-0.5 text-xs leading-relaxed text-amber-800 sm:text-sm">
+            Choose a layout below and click{' '}
+            <span className="font-semibold">Assign · all</span>{' '}
+            to apply one design to every business unit.
+          </p>
+        </div>
+      </div>
+    </div>
   )
 }
 
@@ -993,7 +1184,6 @@ function StorefrontCoverage({
   isSingleLinkMode,
   coverageStores,
   singleTemplate,
-  singleTemplateSiteId = null,
   activeStoreId,
   onSelectStore,
   highlight,
@@ -1005,7 +1195,6 @@ function StorefrontCoverage({
   isSingleLinkMode: boolean
   coverageStores: CoverageStore[]
   singleTemplate: ResolvedTemplateDisplay | null
-  singleTemplateSiteId?: string | null
   activeStoreId: string | null
   onSelectStore: (id: string) => void
   highlight: boolean
@@ -1017,6 +1206,11 @@ function StorefrontCoverage({
   const total = coverageStores.length
   const unassignedCount = coverageStores.filter(s => s.status === 'unassigned').length
   const activeStore = activeStoreId ? coverageStores.find(s => s.id === activeStoreId) : null
+  const singleGlimpseStore =
+    (activeStore?.status !== 'unassigned' ? activeStore : null)
+    ?? coverageStores.find(s => s.status !== 'unassigned')
+    ?? null
+  const singleTemplateStatus = singleGlimpseStore?.status
 
   return (
     <div
@@ -1027,19 +1221,78 @@ function StorefrontCoverage({
       )}
     >
       <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
-        <div className="flex min-w-0 flex-wrap items-center gap-x-2.5 gap-y-1.5">
-          <h2 className="inline-flex items-center gap-2 text-sm font-bold text-gray-900">
+        <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-2.5 gap-y-1.5">
+          <h2 className="inline-flex shrink-0 items-center gap-2 text-sm font-bold text-gray-900">
             <Store className="h-4 w-4 text-primary" />
             Storefront coverage
           </h2>
-          <span className="rounded-md bg-gray-100 px-2.5 py-1 text-[11px] font-semibold text-gray-600 sm:text-xs">
-            {isSingle ? 'One template assigned for all BUs' : 'One template per BU'}
-          </span>
           {!isSingle && unassignedCount > 0 ? (
             <span className="inline-flex items-center gap-1 text-xs font-semibold text-amber-700">
               <AlertTriangle className="h-3.5 w-3.5" />
               {unassignedCount} need template
             </span>
+          ) : null}
+          {isSingle && singleTemplate ? (
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-primary/20 bg-primary/5 px-2.5 py-0.5 text-[10px] font-semibold text-primary sm:text-xs">
+              <Store className="h-3 w-3 shrink-0" />
+              {total} store{total === 1 ? '' : 's'} · one template
+            </span>
+          ) : null}
+          {!isSingle && activeStore ? (
+            <>
+              <span className="hidden h-4 w-px shrink-0 bg-gray-200 sm:block" aria-hidden />
+              <p className="inline-flex min-w-0 flex-1 items-center gap-2 truncate text-xs leading-snug text-gray-700 sm:text-sm">
+                <span
+                  className={cn(
+                    'h-2 w-2 shrink-0 rounded-full',
+                    activeStore.status === 'live_builder'
+                      ? 'bg-emerald-500'
+                      : activeStore.status === 'catalog_assigned'
+                        ? 'bg-sky-500'
+                        : 'bg-gray-400',
+                  )}
+                  aria-hidden
+                />
+                <span className="min-w-0 truncate">
+                  <span className="font-bold text-gray-900">{activeStore.code}</span>
+                  <span className="text-gray-400"> · </span>
+                  <span className="font-medium text-gray-800">{activeStore.name}</span>
+                  {activeStore.template ? (
+                    <>
+                      <span className="text-gray-400"> → </span>
+                      <span className="font-semibold text-gray-900">{activeStore.template.name}</span>
+                      <span className={cn('ml-2 inline-flex rounded-full border px-2.5 py-0.5 text-[10px] font-semibold sm:text-xs', coverageStatusBadgeClass(activeStore.status))}>
+                        {activeStore.status === 'live_builder' ? 'Live on storefront' : 'Template assigned'}
+                      </span>
+                    </>
+                  ) : (
+                    <span className="font-medium text-amber-700"> — no template yet</span>
+                  )}
+                </span>
+              </p>
+              {activeStore.liveStorefrontUrl ? (
+                <a
+                  href={activeStore.liveStorefrontUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex shrink-0 items-center gap-1.5 rounded-md border border-emerald-200 bg-emerald-50 px-2 py-1 text-[11px] font-semibold text-emerald-800 transition-colors hover:bg-emerald-100 sm:px-2.5 sm:py-1.5 sm:text-xs"
+                >
+                  <ExternalLink className="h-3.5 w-3.5 shrink-0" />
+                  View live store
+                </a>
+              ) : null}
+            </>
+          ) : null}
+          {isSingle && activeStore?.liveStorefrontUrl ? (
+            <a
+              href={activeStore.liveStorefrontUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex shrink-0 items-center gap-1.5 rounded-md border border-emerald-200 bg-emerald-50 px-2 py-1 text-[11px] font-semibold text-emerald-800 transition-colors hover:bg-emerald-100 sm:px-2.5 sm:py-1.5 sm:text-xs"
+            >
+              <ExternalLink className="h-3.5 w-3.5 shrink-0" />
+              View live store
+            </a>
           ) : null}
         </div>
         <Link
@@ -1050,84 +1303,21 @@ function StorefrontCoverage({
         </Link>
       </div>
 
-      {!isSingle && activeStore ? (
-        <div className="mt-3 flex flex-wrap items-center justify-between gap-x-3 gap-y-2 rounded-md border border-gray-200 bg-white px-3 py-2">
-          <p className="inline-flex min-w-0 flex-1 items-center gap-2.5 truncate text-xs leading-snug text-gray-700 sm:text-sm">
-            <span className="h-2 w-2 shrink-0 rounded-full bg-gray-500" aria-hidden />
-            <span className="min-w-0 truncate">
-              <span className="font-bold text-gray-900">{activeStore.code}</span>
-              <span className="text-gray-400"> · </span>
-              <span className="font-medium text-gray-800">{activeStore.name}</span>
-              {activeStore.template ? (
-                <>
-                  <span className="text-gray-400"> → </span>
-                  <span className="font-semibold text-gray-900">{activeStore.template.name}</span>
-                  <span className={cn('ml-2 inline-flex rounded-full px-2.5 py-0.5 text-[10px] font-semibold sm:text-xs', coverageStatusBadgeClass(activeStore.status))}>
-                    {activeStore.status === 'live_builder' ? 'Live' : 'Assigned'}
-                  </span>
-                </>
-              ) : (
-                <span className="font-medium text-amber-700"> — no template yet</span>
-              )}
-            </span>
-          </p>
-          <CoverageStepHint
-            title="Follow these steps in the template gallery below"
-            steps={
-              activeStore.template
-                ? [
-                    'Switch template',
-                    'Pick one below',
-                    <span key="action" className="font-semibold text-gray-700">Manage · {activeStore.code}</span>,
-                  ]
-                : [
-                    'Assign template',
-                    'Pick one below',
-                    <span key="action" className="font-semibold text-gray-700">Assign · {activeStore.code}</span>,
-                  ]
-            }
-          />
-        </div>
-      ) : null}
-
       {isSingle ? (
         singleTemplate ? (
-          <div className="mt-3 overflow-hidden rounded-lg border border-gray-200 bg-white">
-            <div className="flex min-w-0 flex-1 items-center gap-3 px-3 py-2.5">
-              <CoverageThumb
-                template={singleTemplate}
-                siteId={singleTemplateSiteId}
-                vendorSlug={vendorSlug}
-                templates={templates}
-              />
-              <div className="min-w-0 flex-1">
-                <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1">
-                  <span className="truncate text-sm font-bold text-gray-900">{singleTemplate.name}</span>
-                  <span className="rounded-md bg-gray-100 px-2.5 py-1 text-[11px] font-semibold text-gray-600 sm:text-xs">
-                    Assigned for all {total} BU{total === 1 ? '' : 's'}
-                  </span>
-                </div>
-                <p className="mt-1 text-xs text-gray-500 sm:text-sm">
-                  Shared live template for every business unit
-                </p>
-              </div>
-              <CoverageStepHint
-                className="hidden sm:inline-flex"
-                steps={[
-                  'Shared template',
-                  'Pick one below',
-                  <span key="action" className="font-semibold text-gray-700">Assign · all</span>,
-                ]}
-              />
-            </div>
-          </div>
+          <SharedTemplateCoverageCard
+            template={singleTemplate}
+            total={total}
+            coverageStores={coverageStores}
+            activeStoreId={activeStoreId}
+            onSelectStore={onSelectStore}
+            vendorSlug={vendorSlug}
+            templates={templates}
+            previewStore={singleGlimpseStore}
+            status={singleTemplateStatus}
+          />
         ) : (
-          <div className="mt-3 flex items-center gap-3 rounded-md border border-dashed border-gray-300 bg-white px-3 py-2">
-            <CoverageThumb template={null} vendorSlug={vendorSlug} templates={templates} />
-            <p className="min-w-0 flex-1 text-xs text-amber-800 sm:text-sm">
-              No template — click <span className="font-semibold">Assign · all</span> below
-            </p>
-          </div>
+          <SharedTemplateCoverageEmpty />
         )
       ) : (
         <div className="mt-3 grid grid-cols-1 gap-2 min-[480px]:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
@@ -1234,14 +1424,15 @@ export default function WebsiteTemplateGalleryPage() {
 
   const openViewLiveLinks = useCallback(
     (links: AppliedTemplateViewLiveLink[], templateName: string) => {
-      if (links.length === 0) return
-      if (links.length === 1) {
-        window.open(links[0].href, '_blank', 'noopener,noreferrer')
+      const resolved = collapseViewLiveLinks(links)
+      if (resolved.length === 0) return
+      if (resolved.length === 1) {
+        window.open(resolved[0].href, '_blank', 'noopener,noreferrer')
         return
       }
       setViewLivePicker({
         templateName,
-        links,
+        links: resolved,
       })
     },
     [],
@@ -1316,7 +1507,11 @@ export default function WebsiteTemplateGalleryPage() {
     }) => {
       const storesData = queryClient.getQueryData(storesQueryKey) as { stores?: typeof stores } | undefined
       const freshStores = storesData?.stores ?? stores
-      const freshSites = (queryClient.getQueryData(['websites']) as SiteListItem[] | undefined) ?? (sites as SiteListItem[])
+      const listKey = websitesListQueryKey(vendor?.id)
+      const freshSites =
+        (queryClient.getQueryData(listKey) as SiteListItem[] | undefined)
+        ?? (queryClient.getQueryData(['websites']) as SiteListItem[] | undefined)
+        ?? (sites as SiteListItem[])
       await assignBuilderSiteToStores({ siteId, storeIds, sites: freshSites, stores: freshStores })
     },
     onSuccess: (_data, vars) => {
@@ -1341,7 +1536,13 @@ export default function WebsiteTemplateGalleryPage() {
         void queryClient.invalidateQueries({ queryKey: [...vendorKeys.all, 'stores'] })
       }, 2500)
     },
-    onError: () => toast.error('Could not link draft site to business units'),
+    onError: (error) => {
+      toast.error(
+        error instanceof BuilderSiteAssignmentError
+          ? error.message
+          : extractApiError(error, 'Could not link draft site to business units'),
+      )
+    },
   })
 
   const openStorePicker = useCallback((
@@ -1394,10 +1595,17 @@ export default function WebsiteTemplateGalleryPage() {
       const current = useVendorStore.getState().vendor
       if (!current) return
       if (resolveStorefrontTemplateMode(current.settings) === mode) return
+      const nextSettings: Record<string, unknown> = {
+        ...(current.settings ?? {}),
+        [STOREFRONT_TEMPLATE_MODE_KEY]: mode,
+      }
+      if (mode === 'single' && !resolveSingleFrontTemplateId(nextSettings)) {
+        nextSettings[SINGLE_FRONT_TEMPLATE_KEY] = resolveDefaultSingleFrontTemplateId(
+          themeConfig?.template,
+        )
+      }
       updateVendor.mutate(
-        {
-          settings: { ...(current.settings ?? {}), [STOREFRONT_TEMPLATE_MODE_KEY]: mode },
-        },
+        { settings: nextSettings },
         {
           onSuccess: () => {
             toast.success(
@@ -1416,7 +1624,7 @@ export default function WebsiteTemplateGalleryPage() {
         },
       )
     },
-    [setSearchParams, updateVendor],
+    [setSearchParams, themeConfig?.template, updateVendor],
   )
 
   useEffect(() => {
@@ -1513,14 +1721,31 @@ export default function WebsiteTemplateGalleryPage() {
   const lightPreset = legacyPresets.find(p => p.id === 'light')
   const showDefaultLayoutCard = templateCategory === 'all' && !templateSearch.trim()
 
+  const singleFrontDefaultInitRef = useRef(false)
+  useEffect(() => {
+    if (!vendor || !isSingleTemplateMode || legacyPresetsBusy) return
+    if (resolveSingleFrontTemplateId(vendor.settings)) return
+    if (singleFrontDefaultInitRef.current) return
+    singleFrontDefaultInitRef.current = true
+    const defaultId = resolveDefaultSingleFrontTemplateId(themeConfig?.template)
+    updateVendor.mutate(
+      {
+        settings: {
+          ...(vendor.settings ?? {}),
+          [SINGLE_FRONT_TEMPLATE_KEY]: defaultId,
+        },
+      },
+      {
+        onError: () => {
+          singleFrontDefaultInitRef.current = false
+        },
+      },
+    )
+  }, [vendor, isSingleTemplateMode, legacyPresetsBusy, themeConfig?.template, updateVendor])
+
   const activeSingleFrontTemplate = useMemo(
     () => resolveTemplateDisplay(singleFrontTemplateId, templates, legacyPresets, mainSites),
     [legacyPresets, singleFrontTemplateId, templates, mainSites],
-  )
-
-  const activeSingleFrontCoveragePreview = useMemo(
-    () => resolveActiveTemplateCoveragePreview(singleFrontTemplateId, mainSites, templates, legacyPresets),
-    [singleFrontTemplateId, mainSites, templates, legacyPresets],
   )
 
   const coveragePreviewContext = useMemo(
@@ -1552,10 +1777,40 @@ export default function WebsiteTemplateGalleryPage() {
           status,
           siteId,
           livePreviewUrl,
+          liveStorefrontUrl:
+            status !== 'unassigned' && coveragePreviewContext.vendorSlug
+              ? customerLinkForStore(
+                  coveragePreviewContext.vendorSlug,
+                  store,
+                  coveragePreviewContext.linkMode ?? 'single',
+                  coveragePreviewContext.templateMode,
+                )
+              : null,
         }
       }),
     [stores, mainSites, templates, legacyPresets, vendor?.settings, coveragePreviewContext],
   )
+
+  const coverageAssignedTemplateIds = useMemo(() => {
+    const ids = new Set<string>()
+    for (const store of coverageStores) {
+      if (store.template && store.status !== 'unassigned') {
+        ids.add(store.template.id)
+      }
+    }
+    return ids
+  }, [coverageStores])
+
+  const coverageStoreIdsByTemplateId = useMemo(() => {
+    const map = new Map<string, string[]>()
+    for (const store of coverageStores) {
+      if (!store.template || store.status === 'unassigned') continue
+      const list = map.get(store.template.id) ?? []
+      list.push(store.id)
+      map.set(store.template.id, list)
+    }
+    return map
+  }, [coverageStores])
 
   const pickerStores = useMemo(
     () =>
@@ -1583,14 +1838,14 @@ export default function WebsiteTemplateGalleryPage() {
   const selectedAssignStoreCode = selectedAssignStore ? formatStoreCode(selectedAssignStore) : null
 
   useEffect(() => {
-    if (!isPerStoreTemplateMode || !selectedAssignStoreId) return
+    if ((!isPerStoreTemplateMode && !isSingleTemplateMode) || !selectedAssignStoreId) return
     const frame = requestAnimationFrame(() => {
       document
         .querySelector('[data-current-for-selected-store="true"]')
         ?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
     })
     return () => cancelAnimationFrame(frame)
-  }, [isPerStoreTemplateMode, selectedAssignStoreId])
+  }, [isPerStoreTemplateMode, isSingleTemplateMode, selectedAssignStoreId])
 
   const assignBuilderSiteRecord = useMemo(
     () => (assignBuilderSite ? mainSites.find(s => s.id === assignBuilderSite.id) ?? null : null),
@@ -1648,98 +1903,29 @@ export default function WebsiteTemplateGalleryPage() {
     + (showDefaultLayoutCard && lightPreset ? 1 : 0)
 
   const storesUsingTemplate = useCallback(
-    (templateId: string) =>
-      storesAssignedToTemplate(stores, templateId, { sites: mainSites }).length,
-    [stores, mainSites],
-  )
-
-  const isDefaultLayoutLive = useMemo(() => {
-    if (!lightPreset) return false
-    if (isSingleTemplateMode && singleFrontTemplateId === lightPreset.id) return true
-    if (isPerStoreTemplateMode && storesUsingTemplate(lightPreset.id) > 0) return true
-    const active = resolveBusinessFrontActiveTemplate(themeConfig?.template, legacyPresets, sites)
-    return isLegacyPresetActive(active, lightPreset.id)
-  }, [
-    lightPreset,
-    isSingleTemplateMode,
-    singleFrontTemplateId,
-    isPerStoreTemplateMode,
-    storesUsingTemplate,
-    themeConfig?.template,
-    legacyPresets,
-    sites,
-  ])
-
-  const isWebsiteTemplateLive = useCallback(
-    (tpl: WebsiteTemplate) => {
-      const viewLiveLinks = resolveAppliedTemplateViewLiveLinks(vendor?.slug, storefrontLinkMode, {
-        templateId: tpl.id,
-        templateMode: storefrontTemplateMode,
-        singleFrontTemplateId,
-        stores,
-        builderSites: mainSites,
-      })
-      const isSingleTemplateSelected = singleFrontTemplateId === tpl.id
-      const perStoreAppliedCount = storesAssignedToTemplate(stores, tpl.id, { sites: mainSites }).length
-      return viewLiveLinks.length > 0
-        || (isSingleTemplateMode && isSingleTemplateSelected)
-        || (isPerStoreTemplateMode && perStoreAppliedCount > 0)
-    },
-    [
-      vendor?.slug,
-      storefrontLinkMode,
-      storefrontTemplateMode,
-      singleFrontTemplateId,
-      stores,
-      mainSites,
-      isSingleTemplateMode,
-      isPerStoreTemplateMode,
-    ],
+    (templateId: string) => (coverageStoreIdsByTemplateId.get(templateId) ?? []).length,
+    [coverageStoreIdsByTemplateId],
   )
 
   const {
-    liveBuilderDrafts,
     draftBuilderDrafts,
-    liveWebsiteTemplates,
     systemWebsiteTemplates,
   } = useMemo(() => {
-    const liveBD: SiteListItem[] = []
     const draftBD: SiteListItem[] = []
+    const systemTpl: WebsiteTemplate[] = []
     for (const site of storeScopedBuilderDrafts) {
-      if (isBuilderSiteInAssignedTemplatesSection(site, mainSites, stores, vendor?.settings)) {
-        liveBD.push(site)
-      } else {
+      const inLiveGallery =
+        coverageAssignedTemplateIds.has(site.id)
+        || isBuilderSiteInAssignedTemplatesSection(site, mainSites, stores, vendor?.settings)
+        || isBuilderSiteEffectivelyLive(mainSites, site.id, stores, vendor?.settings)
+      if (!inLiveGallery) {
         draftBD.push(site)
       }
     }
-    const liveTpl: WebsiteTemplate[] = []
-    const systemTpl: WebsiteTemplate[] = []
     for (const tpl of filteredTemplates) {
-      if (isWebsiteTemplateLive(tpl)) liveTpl.push(tpl)
-      else systemTpl.push(tpl)
-    }
-    const sortBySelectedBu = (a: WebsiteTemplate, b: WebsiteTemplate) => {
-      if (!isPerStoreTemplateMode || !selectedAssignStoreId) {
-        return (a.name || '').localeCompare(b.name || '')
+      if (!coverageAssignedTemplateIds.has(tpl.id)) {
+        systemTpl.push(tpl)
       }
-      const aAssigned = storesAssignedToTemplate(stores, a.id, { sites: mainSites })
-        .some(s => s.id === selectedAssignStoreId)
-      const bAssigned = storesAssignedToTemplate(stores, b.id, { sites: mainSites })
-        .some(s => s.id === selectedAssignStoreId)
-      if (aAssigned !== bAssigned) return aAssigned ? -1 : 1
-      return (a.name || '').localeCompare(b.name || '')
-    }
-    liveTpl.sort(sortBySelectedBu)
-    const sortBuilderBySelectedBu = (a: SiteListItem, b: SiteListItem) => {
-      if (!isPerStoreTemplateMode || !selectedAssignStoreId) {
-        return (a.name || '').localeCompare(b.name || '')
-      }
-      const aAssigned = storesEffectivelyAssignedToBuilderSite(mainSites, a.id, stores, vendor?.settings)
-        .some(s => s.id === selectedAssignStoreId)
-      const bAssigned = storesEffectivelyAssignedToBuilderSite(mainSites, b.id, stores, vendor?.settings)
-        .some(s => s.id === selectedAssignStoreId)
-      if (aAssigned !== bAssigned) return aAssigned ? -1 : 1
-      return (a.name || '').localeCompare(b.name || '')
     }
     const sortDraftBuilderByAssignable = (a: SiteListItem, b: SiteListItem) => {
       if (!isPerStoreTemplateMode || !selectedAssignStoreId) {
@@ -1750,29 +1936,25 @@ export default function WebsiteTemplateGalleryPage() {
       if (aAssignable !== bAssignable) return aAssignable ? -1 : 1
       return (a.name || '').localeCompare(b.name || '')
     }
-    liveBD.sort(sortBuilderBySelectedBu)
     draftBD.sort(sortDraftBuilderByAssignable)
+    systemTpl.sort((a, b) => (a.name || '').localeCompare(b.name || ''))
     return {
-      liveBuilderDrafts: liveBD,
       draftBuilderDrafts: draftBD,
-      liveWebsiteTemplates: liveTpl,
       systemWebsiteTemplates: systemTpl,
     }
   }, [
     storeScopedBuilderDrafts,
     filteredTemplates,
+    coverageAssignedTemplateIds,
+    isPerStoreTemplateMode,
+    selectedAssignStoreId,
     mainSites,
     stores,
     vendor?.settings,
-    isWebsiteTemplateLive,
-    isPerStoreTemplateMode,
-    isSingleTemplateMode,
-    singleFrontTemplateId,
-    selectedAssignStoreId,
   ])
 
-  const showDefaultInLive = showDefaultLayoutCard && Boolean(lightPreset) && isDefaultLayoutLive
-  const showDefaultInSystem = showDefaultLayoutCard && Boolean(lightPreset) && !isDefaultLayoutLive
+  const showDefaultInLive = showDefaultLayoutCard && Boolean(lightPreset) && coverageAssignedTemplateIds.has(lightPreset.id)
+  const showDefaultInSystem = showDefaultLayoutCard && Boolean(lightPreset) && !coverageAssignedTemplateIds.has(lightPreset.id)
 
   const defaultAssignedToSelectedStore = useMemo(() => {
     if (!lightPreset || !selectedAssignStoreId) return false
@@ -1786,61 +1968,121 @@ export default function WebsiteTemplateGalleryPage() {
     | { type: 'catalog'; template: WebsiteTemplate }
 
   const liveSectionEntries = useMemo((): LiveSectionEntry[] => {
-    const entries: Array<LiveSectionEntry & { assignedToSelected: boolean; name: string }> = []
+    const entries: Array<LiveSectionEntry & { assignedToSelected: boolean; sortKey: string }> = []
+    const seenTemplateIds = new Set<string>()
+    let defaultAdded = false
 
-    if (showDefaultInLive) {
-      entries.push({
-        type: 'default',
-        assignedToSelected: defaultAssignedToSelectedStore,
-        name: lightPreset?.name ?? 'Default layout',
-      })
+    for (const store of coverageStores) {
+      if (!store.template || store.status === 'unassigned') continue
+      const templateId = store.template.id
+      const assignedToSelected = store.id === selectedAssignStoreId
+
+      if (lightPreset && templateId === lightPreset.id) {
+        if (!defaultAdded) {
+          defaultAdded = true
+          entries.push({
+            type: 'default',
+            assignedToSelected,
+            sortKey: store.code,
+          })
+        } else if (assignedToSelected) {
+          const def = entries.find(e => e.type === 'default')
+          if (def) def.assignedToSelected = true
+        }
+        continue
+      }
+
+      if (seenTemplateIds.has(templateId)) {
+        if (assignedToSelected) {
+          const hit = entries.find(e =>
+            (e.type === 'catalog' && e.template.id === templateId)
+            || (e.type === 'builder' && e.site.id === templateId),
+          )
+          if (hit) hit.assignedToSelected = true
+        }
+        continue
+      }
+      seenTemplateIds.add(templateId)
+
+      const builderSite = mainSites.find(s => s.id === templateId && s.is_published)
+      const catalogTpl = templates.find(t => t.id === templateId)
+
+      if (builderSite) {
+        entries.push({
+          type: 'builder',
+          site: builderSite,
+          assignedToSelected,
+          sortKey: store.code,
+        })
+      } else if (catalogTpl) {
+        entries.push({
+          type: 'catalog',
+          template: catalogTpl,
+          assignedToSelected,
+          sortKey: store.code,
+        })
+      }
     }
 
-    for (const site of liveBuilderDrafts) {
-      const assignedToSelected = Boolean(
-        selectedAssignStoreId
-        && storesEffectivelyAssignedToBuilderSite(mainSites, site.id, stores, vendor?.settings)
-          .some(s => s.id === selectedAssignStoreId),
-      )
+    for (const site of mainSites) {
+      if (!site.is_published) continue
+      if (!isBuilderSiteInAssignedTemplatesSection(site, mainSites, stores, vendor?.settings)) continue
+      if (seenTemplateIds.has(site.id)) continue
+      seenTemplateIds.add(site.id)
+      const assignedToSelected = isSingleTemplateMode
+        ? singleFrontTemplateId === site.id
+        : Boolean(
+            selectedAssignStoreId
+            && storesUsingBuilderSiteDesign(mainSites, site.id, stores, vendor?.settings)
+              .some(s => s.id === selectedAssignStoreId),
+          )
       entries.push({
         type: 'builder',
         site,
         assignedToSelected,
-        name: site.name ?? '',
+        sortKey: singleFrontTemplateId === site.id ? '0' : (site.name || site.id),
       })
     }
 
-    for (const tpl of liveWebsiteTemplates) {
-      const assignedToSelected = Boolean(
-        selectedAssignStoreId
-        && storesAssignedToTemplate(stores, tpl.id, { sites: mainSites }).some(s => s.id === selectedAssignStoreId),
-      )
+    if (showDefaultInLive && !defaultAdded) {
       entries.push({
-        type: 'catalog',
-        template: tpl,
-        assignedToSelected,
-        name: tpl.name ?? '',
+        type: 'default',
+        assignedToSelected: defaultAssignedToSelectedStore,
+        sortKey: '0',
       })
     }
 
     entries.sort((a, b) => {
+      const isPrimaryAssigned = (entry: typeof a) => {
+        if (!isSingleTemplateMode || !singleFrontTemplateId) return false
+        if (entry.type === 'builder') return entry.site.id === singleFrontTemplateId
+        if (entry.type === 'catalog') return entry.template.id === singleFrontTemplateId
+        if (entry.type === 'default') return lightPreset?.id === singleFrontTemplateId
+        return false
+      }
+      const aPrimary = isPrimaryAssigned(a)
+      const bPrimary = isPrimaryAssigned(b)
+      if (aPrimary !== bPrimary) return aPrimary ? -1 : 1
       if (isPerStoreTemplateMode && selectedAssignStoreId && a.assignedToSelected !== b.assignedToSelected) {
         return a.assignedToSelected ? -1 : 1
       }
-      return a.name.localeCompare(b.name)
+      return a.sortKey.localeCompare(b.sortKey)
     })
 
-    return entries.map(({ assignedToSelected: _assignedToSelected, name: _name, ...entry }) => entry)
+    return entries.map(({ assignedToSelected: _assignedToSelected, sortKey: _sortKey, ...entry }) => entry)
   }, [
+    coverageStores,
+    lightPreset,
+    mainSites,
+    templates,
+    selectedAssignStoreId,
+    isPerStoreTemplateMode,
+    isSingleTemplateMode,
+    singleFrontTemplateId,
+    stores,
+    vendor?.settings,
     showDefaultInLive,
     defaultAssignedToSelectedStore,
-    lightPreset?.name,
-    liveBuilderDrafts,
-    liveWebsiteTemplates,
-    mainSites,
-    stores,
-    isPerStoreTemplateMode,
-    selectedAssignStoreId,
   ])
 
   const hasLiveSection = liveSectionEntries.length > 0
@@ -1891,14 +2133,16 @@ export default function WebsiteTemplateGalleryPage() {
     )
   }
 
-  const renderBuilderDraftCard = (site: SiteListItem) => {
+  const renderBuilderDraftCard = (site: SiteListItem, opts?: { previewOnly?: boolean }) => {
     const linkedStores = storesAssignedToBuilderSite(mainSites, site.id, stores)
     const allAssignedStores = storesUsingBuilderSiteDesign(mainSites, site.id, stores, vendor?.settings)
     const perStoreAppliedCount = allAssignedStores.length
     const linkedStoreNames = linkedStores.map(s => s.name ?? '')
     const homeStoreId = resolveBuilderSiteHomeStoreId(site)
-    const builtForSelectedStore = isBuilderSiteAssignableForStore(site, selectedAssignStoreId)
-    const canAssignForSelectedStore = builtForSelectedStore
+    const homeStore = homeStoreId ? stores.find(s => s.id === homeStoreId) : null
+    const builtForHomeStoreCode = homeStore ? formatStoreCode(homeStore) : null
+    const linkedToSelectedStore = isBuilderSiteBuiltForStore(site, selectedAssignStoreId)
+    const canAssignForSelectedStore = isBuilderSiteAssignableForStore(site, selectedAssignStoreId)
     const assignedToSelectedStore = Boolean(
       selectedAssignStoreId
       && allAssignedStores.some(s => s.id === selectedAssignStoreId),
@@ -1916,7 +2160,31 @@ export default function WebsiteTemplateGalleryPage() {
       stores,
       vendor?.settings,
     )
-    const viewLiveLinks = isLiveOnStorefront
+    const buildStorefrontViewLiveLinks = (storeIds: string[]): AppliedTemplateViewLiveLink[] => {
+      const slug = vendor?.slug?.trim()
+      if (!slug || storeIds.length === 0) return []
+
+      if (!storefrontUrlNeedsBranch(storefrontLinkMode, storefrontTemplateMode)) {
+        const href = buildCustomerStoreLink(slug)
+        return href ? [{ href, label: 'All business units' }] : []
+      }
+
+      return storeIds
+        .map(id => stores.find(s => s.id === id))
+        .filter((store): store is NonNullable<typeof store> => Boolean(store))
+        .map(store => {
+          const href = customerLinkForStore(slug, store, storefrontLinkMode, storefrontTemplateMode)
+          return href
+            ? {
+                href,
+                label: `${formatStoreCode(store)} · ${store.name}`,
+                storeId: store.id,
+              }
+            : null
+        })
+        .filter((link): link is AppliedTemplateViewLiveLink => link != null)
+    }
+    let viewLiveLinks = isLiveOnStorefront
       ? resolveBuilderSiteViewLiveLinks(
           vendor?.slug,
           storefrontLinkMode,
@@ -1926,6 +2194,16 @@ export default function WebsiteTemplateGalleryPage() {
           vendor?.settings,
         )
       : []
+    if (viewLiveLinks.length === 0 && isSingleTemplateMode && isSingleTemplateSelected) {
+      viewLiveLinks = buildStorefrontViewLiveLinks(sortStoresByCode(stores).map(s => s.id))
+    } else if (
+      viewLiveLinks.length === 0
+      && isPerStoreTemplateMode
+      && assignedToSelectedStore
+      && selectedAssignStoreId
+    ) {
+      viewLiveLinks = buildStorefrontViewLiveLinks([selectedAssignStoreId])
+    }
     const liveBlockReason = resolveBuilderSiteLiveBlockReason(
       mainSites,
       site.id,
@@ -1951,7 +2229,7 @@ export default function WebsiteTemplateGalleryPage() {
         singleTemplateMode={isSingleTemplateMode}
         isSingleTemplateSelected={isSingleTemplateSelected}
         onUseForAllStores={
-          isSingleTemplateMode
+          isSingleTemplateMode && (isBuilderSiteBuiltForAll(site) || isBuilderSiteExternal(site))
             ? () => requestUseForAllStores(site.id, site.name)
             : undefined
         }
@@ -1975,7 +2253,7 @@ export default function WebsiteTemplateGalleryPage() {
                 }
 
                 // Already using this design on the selected unit — open link/manage picker.
-                if (assignedToSelectedStore && builtForSelectedStore) {
+                if (assignedToSelectedStore && linkedToSelectedStore) {
                   openBuilderSiteStorePicker(
                     site.id,
                     site.name,
@@ -2010,8 +2288,10 @@ export default function WebsiteTemplateGalleryPage() {
         highlightStoreId={selectedAssignStoreId}
         contextStoreId={selectedAssignStoreId}
         contextStoreCode={selectedAssignStoreCode}
-        linkedToContextStore={builtForSelectedStore}
+        builtForHomeStoreCode={builtForHomeStoreCode}
+        linkedToContextStore={linkedToSelectedStore}
         appliedToContextStore={assignedToSelectedStore}
+        previewOnly={opts?.previewOnly}
       />
     )
   }
@@ -2021,7 +2301,9 @@ export default function WebsiteTemplateGalleryPage() {
     const tier = tpl.tier || (pageCount >= 6 ? 'full' : 'lite')
     const palette = getTemplatePreviewPalette(tpl)
     const isSingleTemplateSelected = singleFrontTemplateId === tpl.id
-    const assignedStores = storesAssignedToTemplate(stores, tpl.id, { sites: mainSites })
+    const assignedStores = (coverageStoreIdsByTemplateId.get(tpl.id) ?? [])
+      .map(storeId => stores.find(s => s.id === storeId))
+      .filter((store): store is NonNullable<typeof store> => store != null)
     const perStoreAppliedCount = assignedStores.length
     const assignedToSelectedStore = Boolean(
       selectedAssignStoreId && assignedStores.some(s => s.id === selectedAssignStoreId),
@@ -2033,10 +2315,28 @@ export default function WebsiteTemplateGalleryPage() {
       stores,
       builderSites: mainSites,
     })
+    const cardViewLiveLinks = viewLiveLinks.length > 0
+      ? viewLiveLinks
+      : (() => {
+          const slug = vendor?.slug?.trim()
+          if (!slug || perStoreAppliedCount === 0) return []
+          return assignedStores
+            .map(store => {
+              const href = customerLinkForStore(slug, store, storefrontLinkMode, storefrontTemplateMode)
+              return href
+                ? {
+                    href,
+                    label: `${formatStoreCode(store)} · ${store.name}`,
+                    storeId: store.id,
+                  }
+                : null
+            })
+            .filter((link): link is AppliedTemplateViewLiveLink => link != null)
+        })()
     const isLiveForSelectedStore = Boolean(
       assignedToSelectedStore
       && selectedAssignStoreId
-      && viewLiveLinks.some(link => link.storeId === selectedAssignStoreId),
+      && cardViewLiveLinks.some(link => link.storeId === selectedAssignStoreId),
     )
     const showAssignHighlight = (isSingleTemplateMode && isSingleTemplateSelected)
       || (isPerStoreTemplateMode && assignedToSelectedStore)
@@ -2062,44 +2362,44 @@ export default function WebsiteTemplateGalleryPage() {
       : perStoreAppliedCount === 1
         ? formatStoreCode(assignedStores[0])
         : `${perStoreAppliedCount} BUs / Stores`
-    const isLiveOnStorefront = viewLiveLinks.length > 0
-    const multipleLiveStores = viewLiveLinks.length > 1
-    const canAssignSingleAll = isSingleTemplateMode && !isSingleTemplateSelected
-    const canAssignPerStore = isPerStoreTemplateMode && Boolean(selectedAssignStoreCode) && !assignedToSelectedStore
-    const showAssignOverlay = canAssignSingleAll || canAssignPerStore
-    const assignOverlayLabel = canAssignSingleAll
-      ? singleTemplateActionLabel(false)
-      : selectedAssignStoreCode
-        ? perStoreTemplateActionLabel(selectedAssignStoreCode, false, perStoreAppliedCount > 0)
-        : 'Assign'
+    const isLiveOnStorefront = cardViewLiveLinks.length > 0
+    const isContextAssigned = (isSingleTemplateMode && isSingleTemplateSelected)
+      || (isPerStoreTemplateMode && assignedToSelectedStore)
+    const showViewLiveOnCard = isContextAssigned && cardViewLiveLinks.length > 0
+    const multipleLiveStores = cardViewLiveLinks.length > 1
+    const liveHoverLabel = isLiveForSelectedStore && selectedAssignStoreCode
+      ? `View live · ${selectedAssignStoreCode}`
+      : multipleLiveStores
+        ? `View live (${cardViewLiveLinks.length})`
+        : 'View live'
     const showTopAssignmentBadge = !(
       (isSingleTemplateMode && isSingleTemplateSelected)
       || (isPerStoreTemplateMode && assignedToSelectedStore)
     )
+    const storeRibbonLabel = perStoreGalleryRibbonLabel(
+      selectedAssignStoreCode,
+      Boolean(isPerStoreTemplateMode && assignedToSelectedStore),
+      isLiveForSelectedStore,
+    )
+    const hidePerStoreBodyStatus = Boolean(storeRibbonLabel)
+    const assignedGlimpse = resolveAssignedTemplateGlimpsePreview(tpl, templates, {
+      liveStorefrontUrl: cardViewLiveLinks[0]?.href,
+      status: isLiveOnStorefront ? 'live_builder' : 'catalog_assigned',
+    })
     return (
       <div
         key={tpl.id}
         title={
-          showAssignOverlay
-            ? `${assignOverlayLabel} — ${tpl.name}`
-            : multipleLiveStores
-              ? `View live site — pick from ${viewLiveLinks.length} business units`
-              : isLiveOnStorefront
-                ? `View live site for ${tpl.name}`
-                : `Preview ${tpl.name}`
+          showViewLiveOnCard
+            ? multipleLiveStores
+              ? `View live — pick from ${cardViewLiveLinks.length} business units`
+              : `View live — ${tpl.name}`
+            : `Preview ${tpl.name}`
         }
         onClick={e => {
           if ((e.target as HTMLElement).closest('[data-template-card-action]')) return
-          if (canAssignSingleAll) {
-            requestUseForAllStores(tpl.id, tpl.name)
-            return
-          }
-          if (canAssignPerStore) {
-            openStorePicker(tpl.id, tpl.name)
-            return
-          }
-          if (viewLiveLinks.length > 0) {
-            openViewLiveLinks(viewLiveLinks, tpl.name)
+          if (showViewLiveOnCard) {
+            openViewLiveLinks(cardViewLiveLinks, tpl.name)
             return
           }
           openTemplateBrowserPreview(tpl.id)
@@ -2111,27 +2411,27 @@ export default function WebsiteTemplateGalleryPage() {
           showAssignHighlight && isPerStoreTemplateMode && templateCardSelectedClass,
         )}
       >
-        <div className="relative overflow-hidden">
-          {isPerStoreTemplateMode && assignedToSelectedStore && selectedAssignStoreCode ? (
-            <CurrentForStoreRibbon storeCode={selectedAssignStoreCode} />
-          ) : null}
-          {tpl.thumbnail ? (
-            <img src={tpl.thumbnail} className={cn(templateCardMediaHeightClass, 'w-full object-cover transition-transform duration-300 group-hover/card:scale-[1.03]')} alt={tpl.name} loading="lazy" />
-          ) : (
-            <div className={cn(templateCardMediaHeightClass, 'w-full bg-gradient-to-r from-accent to-primary/20')} />
-          )}
+        <div className="relative isolate overflow-hidden rounded-t-xl bg-white">
+          {storeRibbonLabel ? <StoreStatusRibbon label={storeRibbonLabel} /> : null}
+          <div className={cn(templateCardMediaHeightClass, 'w-full overflow-hidden')}>
+            <WebsiteSiteGlimpse
+              siteId={null}
+              vendorSlug={vendor?.slug}
+              fallbackImage={assignedGlimpse.fallbackImage ?? tpl.thumbnail}
+              fallbackGradient={tpl.gradient}
+              livePreviewUrl={assignedGlimpse.livePreviewUrl}
+              templates={templates}
+              previewMode="assigned"
+              className="h-full w-full transform-gpu"
+            />
+          </div>
           <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/50 via-black/5 to-transparent" />
           <div className={templateCardPreviewOverlayClass}>
             <span className="inline-flex items-center gap-1 rounded-full bg-white/95 px-2 py-1 text-[10px] font-bold text-gray-900 shadow-md">
-              {showAssignOverlay ? (
-                <>
-                  <Store className="h-3 w-3" />
-                  {assignOverlayLabel}
-                </>
-              ) : isLiveOnStorefront ? (
+              {showViewLiveOnCard ? (
                 <>
                   <ExternalLink className="h-3 w-3" />
-                  {multipleLiveStores ? `View live site (${viewLiveLinks.length})` : 'View live site'}
+                  {liveHoverLabel}
                 </>
               ) : (
                 <>
@@ -2170,9 +2470,9 @@ export default function WebsiteTemplateGalleryPage() {
           </div>
         </div>
         <div className={templateCardBodyClass}>
-          <div className="flex items-start justify-between gap-1.5">
+          <div className="flex items-start justify-between gap-1">
             <div className="min-w-0 truncate text-sm font-extrabold leading-tight text-gray-900 transition-colors group-hover/card:text-primary">{tpl.name}</div>
-            {(isSingleTemplateMode || isPerStoreTemplateMode) ? (
+            {(isSingleTemplateMode || (isPerStoreTemplateMode && !hidePerStoreBodyStatus)) ? (
               <span
                 className={cn(
                   'inline-flex shrink-0 items-center gap-1 text-[10px] font-semibold',
@@ -2202,7 +2502,7 @@ export default function WebsiteTemplateGalleryPage() {
               </span>
             ) : null}
           </div>
-          <p className="line-clamp-2 text-[10px] leading-snug text-gray-500">{tpl.description}</p>
+          <p className="truncate text-[10px] leading-tight text-gray-500" title={tpl.description}>{tpl.description}</p>
           <div className={templateCardActionRowClass} data-template-card-action>
             {isSingleTemplateMode ? (
               isSingleTemplateSelected ? (
@@ -2270,26 +2570,14 @@ export default function WebsiteTemplateGalleryPage() {
               </button>
             ) : null}
             <div className={templateCardActionClusterClass}>
-              {viewLiveLinks.length > 0 ? (
+              {showViewLiveOnCard ? (
                 <AppliedTemplateViewLiveButton
-                  links={viewLiveLinks}
+                  links={cardViewLiveLinks}
                   templateName={tpl.name}
                   highlightStoreId={selectedAssignStoreId}
+                  showLabel
+                  className="inline-flex h-6 min-w-0 shrink items-center justify-center gap-1 rounded-md border border-emerald-200 bg-emerald-50 px-2 text-[10px] font-bold text-emerald-800 transition-colors hover:border-emerald-300 hover:bg-emerald-100"
                 />
-              ) : null}
-              {!isLiveOnStorefront ? (
-                <button
-                  type="button"
-                  onClick={e => {
-                    e.stopPropagation()
-                    openTemplateBrowserPreview(tpl.id)
-                  }}
-                  className={templateCardIconActionClass}
-                  title="Preview template"
-                  aria-label="Preview template"
-                >
-                  <Eye className="h-3 w-3" />
-                </button>
               ) : null}
             </div>
           </div>
@@ -2328,7 +2616,9 @@ export default function WebsiteTemplateGalleryPage() {
                       ? `One template per unit · working on ${selectedAssignStoreCode}.`
                       : 'One template per unit. Select a unit above, then pick below.'
                     : isSingleTemplateMode
-                      ? 'One template for all units — or pick another below.'
+                      ? selectedAssignStoreCode
+                        ? `One template for all units · working on ${selectedAssignStoreCode}.`
+                        : 'One template for all units. Select a unit above, then pick below.'
                       : 'Browse and assign templates to your storefronts.'}
               </p>
             </div>
@@ -2347,8 +2637,7 @@ export default function WebsiteTemplateGalleryPage() {
             mode={storefrontTemplateMode}
             isSingleLinkMode={isSingleLinkMode}
             coverageStores={coverageStores}
-            singleTemplate={activeSingleFrontCoveragePreview.template ?? activeSingleFrontTemplate}
-            singleTemplateSiteId={activeSingleFrontCoveragePreview.siteId}
+            singleTemplate={activeSingleFrontTemplate}
             activeStoreId={selectedAssignStoreId}
             onSelectStore={onAssignStoreChange}
             highlight={isSingleTemplateMode ? singleFrontHighlight : perStoreHighlight}
@@ -2403,18 +2692,18 @@ export default function WebsiteTemplateGalleryPage() {
           </div>
         )}
         {!busy && !legacyPresetsBusy && (
-          <div className="space-y-2">
+          <div className="space-y-1.5">
             {hasLiveSection ? (
               <TemplateGallerySection
                 title="Live on storefront"
                 description={
-                  isPerStoreTemplateMode && selectedAssignStoreCode
-                    ? `What customers see today on ${selectedAssignStoreCode}. Bold border = active for that unit.`
-                    : isPerStoreTemplateMode
-                      ? 'What customers see today on each business unit — pick a unit above to check.'
-                      : isSingleTemplateMode
-                        ? 'What customers see today — same design for all business units.'
-                        : 'Sites and templates customers see on your storefronts today.'
+                  isPerStoreTemplateMode && stores.length > 0
+                    ? selectedAssignStoreCode
+                      ? `Assigned templates across ${stores.length} business unit${stores.length === 1 ? '' : 's'} — bold border = live on ${selectedAssignStoreCode}.`
+                      : `Assigned templates across your ${stores.length} business unit${stores.length === 1 ? '' : 's'} — pick one above.`
+                    : isSingleTemplateMode
+                      ? 'What customers see today — same design for all business units.'
+                      : 'Sites and templates customers see on your storefronts today.'
                 }
               >
                 {liveSectionEntries.map(entry => {
@@ -2437,7 +2726,7 @@ export default function WebsiteTemplateGalleryPage() {
                       : 'Published sites not live yet — pick one below to put on your storefront.'
                 }
               >
-                {draftBuilderDrafts.map(renderBuilderDraftCard)}
+                {draftBuilderDrafts.map(site => renderBuilderDraftCard(site, { previewOnly: true }))}
               </TemplateGallerySection>
             ) : null}
             {hasSystemSection ? (

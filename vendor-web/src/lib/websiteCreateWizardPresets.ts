@@ -129,6 +129,7 @@ export type SiteStyleMetadata = {
   website_store_scope?: string
   website_store_id?: string | null
   website_store_name?: string | null
+  website_home_store_id?: string | null
   color_palette_id?: string
   storefront_assigned?: boolean
 }
@@ -145,6 +146,11 @@ export function readSiteStyleMetadata(styleConfig: Record<string, unknown> | nul
     website_store_scope: typeof sc.website_store_scope === 'string' ? sc.website_store_scope : undefined,
     website_store_id: typeof sc.website_store_id === 'string' ? sc.website_store_id : sc.website_store_id === null ? null : undefined,
     website_store_name: typeof sc.website_store_name === 'string' ? sc.website_store_name : sc.website_store_name === null ? null : undefined,
+    website_home_store_id: typeof sc.website_home_store_id === 'string'
+      ? sc.website_home_store_id
+      : sc.website_home_store_id === null
+        ? null
+        : undefined,
     color_palette_id: typeof sc.color_palette_id === 'string' ? sc.color_palette_id : undefined,
     storefront_assigned: sc.storefront_assigned === true,
   }

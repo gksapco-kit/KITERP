@@ -64,6 +64,7 @@ export function SiteInputParametersModal({
   builtForStore,
   toggleFeature,
   defaultName,
+  lockWebsiteScope = false,
 }: {
   open: boolean
   onClose: () => void
@@ -104,12 +105,18 @@ export function SiteInputParametersModal({
   builtForStore: { id: string; name?: string; code?: string | null } | null
   toggleFeature: (id: SetupFeatureId, locked?: boolean) => void
   defaultName: string
+  /** When true, scope/BU are read-only (existing sites or post–step-1 create). */
+  lockWebsiteScope?: boolean
 }) {
   useEscapeToClose(onClose, open)
 
   if (!open) return null
 
   const currentScopeOption = WEBSITE_STORE_SCOPE_OPTIONS.find(o => o.id === websiteStoreScope)
+  const scopeFieldsDisabled = Boolean(disabled || saving || lockWebsiteScope)
+  const showExternalScopeOnly = websiteStoreScope === 'external' && (lockWebsiteScope || !showStoreScopePicker)
+  const showScopePicker = (showStoreScopePicker || lockWebsiteScope) && !showExternalScopeOnly
+  const externalScopeOption = WEBSITE_STORE_SCOPE_OPTIONS.find(o => o.id === 'external')
 
   return (
     <div data-kiterp-modal className="fixed inset-0 z-[120] flex items-center justify-center p-4">
@@ -149,23 +156,29 @@ export function SiteInputParametersModal({
             />
           </div>
 
-          {storeCount === 1 && singleStore && !showStoreScopePicker ? (
-            <div className="rounded-xl border border-violet-200 bg-violet-50/60 px-4 py-3">
-              <p className="text-[11px] font-semibold uppercase tracking-wide text-violet-700">Built for</p>
-              <p className="text-sm font-semibold text-gray-900">
-                {formatStoreCode(singleStore)} · {singleStore.name}
-              </p>
-              <button
-                type="button"
-                disabled={disabled || saving}
-                onClick={() => setWebsiteStoreScope('external')}
-                className="mt-2 inline-flex items-center gap-1 text-xs font-semibold text-primary hover:underline disabled:opacity-50"
-              >
-                Switch to external marketing site
-                <ChevronRight className="h-3 w-3" />
-              </button>
+          {showExternalScopeOnly ? (
+            <div>
+              <label className="mb-1.5 flex items-center gap-1.5 text-sm font-semibold text-gray-800">
+                {externalScopeOption ? (
+                  <externalScopeOption.icon className="h-3.5 w-3.5 text-primary" />
+                ) : (
+                  <Globe className="h-3.5 w-3.5 text-primary" />
+                )}
+                Who is this website built for?
+              </label>
+              <div className="relative">
+                {externalScopeOption ? (
+                  <externalScopeOption.icon className="pointer-events-none absolute left-3.5 top-1/2 z-10 h-4 w-4 -translate-y-1/2 text-primary" />
+                ) : null}
+                <div className="w-full rounded-xl border border-gray-200 bg-gray-50 py-2.5 pl-10 pr-3 text-sm font-medium text-gray-700 shadow-sm">
+                  {externalScopeOption?.label ?? 'External use'}
+                </div>
+              </div>
+              {externalScopeOption ? (
+                <p className="mt-1.5 text-xs text-gray-500">{externalScopeOption.desc}</p>
+              ) : null}
             </div>
-          ) : showStoreScopePicker ? (
+          ) : showScopePicker ? (
             <div>
               <label htmlFor="params-website-scope" className="mb-1.5 flex items-center gap-1.5 text-sm font-semibold text-gray-800">
                 <Globe className="h-3.5 w-3.5 text-primary" />
@@ -178,7 +191,7 @@ export function SiteInputParametersModal({
                 <Select
                   id="params-website-scope"
                   value={websiteStoreScope}
-                  disabled={disabled || saving}
+                  disabled={scopeFieldsDisabled}
                   onChange={(v) => setWebsiteStoreScope(v as WebsiteStoreScope)}
                   options={WEBSITE_STORE_SCOPE_OPTIONS.map(opt => ({ value: opt.id, label: opt.label }))}
                   aria-label="Website store scope"
@@ -198,7 +211,7 @@ export function SiteInputParametersModal({
                     <Select
                       id="params-website-bu"
                       value={websiteStoreId}
-                      disabled={disabled || saving}
+                      disabled={scopeFieldsDisabled}
                       onChange={setWebsiteStoreId}
                       options={stores.map(s => ({
                         value: s.id,
@@ -208,7 +221,7 @@ export function SiteInputParametersModal({
                       className="w-full rounded-xl py-2.5 pl-10 pr-3 text-sm font-medium shadow-sm"
                     />
                   </div>
-                  {builtForStore ? (
+                  {builtForStore && !lockWebsiteScope ? (
                     <div className="mt-2">
                       <WebsiteScopeBadge
                         scope="store"
@@ -220,6 +233,22 @@ export function SiteInputParametersModal({
                   ) : null}
                 </div>
               )}
+            </div>
+          ) : storeCount === 1 && singleStore ? (
+            <div className="rounded-xl border border-violet-200 bg-violet-50/60 px-4 py-3">
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-violet-700">Built for</p>
+              <p className="text-sm font-semibold text-gray-900">
+                {formatStoreCode(singleStore)} · {singleStore.name}
+              </p>
+              <button
+                type="button"
+                disabled={disabled || saving}
+                onClick={() => setWebsiteStoreScope('external')}
+                className="mt-2 inline-flex items-center gap-1 text-xs font-semibold text-primary hover:underline disabled:opacity-50"
+              >
+                Switch to external marketing site
+                <ChevronRight className="h-3 w-3" />
+              </button>
             </div>
           ) : null}
 

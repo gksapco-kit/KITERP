@@ -342,6 +342,8 @@ export interface SiteListItem {
   website_store_scope?: string | null
   website_store_id?: string | null
   website_store_name?: string | null
+  /** Immutable home business unit when the site was built for one store. */
+  website_home_store_id?: string | null
   /** Set when assigned in Template Gallery — publish alone does not go live. */
   storefront_assigned?: boolean
   created_at: string

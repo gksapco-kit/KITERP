@@ -1,4 +1,4 @@
-import { useLayoutEffect, useRef, useState } from 'react'
+import { useLayoutEffect, useRef, useState, type RefObject } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Monitor } from 'lucide-react'
 import { BuilderCanvasProviders } from '@/components/websites/BuilderCanvasProviders'
@@ -12,6 +12,45 @@ import type { WebsiteTemplate } from '@/types/websites'
 
 const PREVIEW_WIDTH = 1280
 const IFRAME_HEIGHT = 900
+/** Approximate homepage height for small cover-thumbnail crops. */
+const GLIMPSE_CONTENT_HEIGHT = 720
+
+type GlimpseScaleMode = 'width' | 'cover'
+
+function useGlimpseScale(
+  containerRef: RefObject<HTMLElement | null>,
+  mode: GlimpseScaleMode,
+  contentHeight = IFRAME_HEIGHT,
+) {
+  const [transform, setTransform] = useState({ scale: 0.15, offsetX: 0, offsetY: 0 })
+
+  useLayoutEffect(() => {
+    const el = containerRef.current
+    if (!el) return
+    const update = () => {
+      const cw = el.clientWidth
+      const ch = el.clientHeight
+      if (cw <= 0 || ch <= 0) return
+      if (mode === 'cover') {
+        const scale = Math.max(cw / PREVIEW_WIDTH, ch / contentHeight)
+        setTransform({
+          scale,
+          offsetX: (cw - PREVIEW_WIDTH * scale) / 2,
+          offsetY: (ch - contentHeight * scale) / 2,
+        })
+        return
+      }
+      const scale = cw / PREVIEW_WIDTH
+      setTransform({ scale, offsetX: 0, offsetY: 0 })
+    }
+    update()
+    const ro = new ResizeObserver(update)
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [containerRef, mode, contentHeight])
+
+  return transform
+}
 
 type Props = {
   siteId?: string | null
@@ -22,30 +61,23 @@ type Props = {
   livePreviewUrl?: string | null
   templates?: WebsiteTemplate[]
   className?: string
+  /** assigned = show catalog thumbnail / template preview, not draft builder canvas */
+  previewMode?: 'assigned' | 'live'
+  /** cover = fill small thumbs edge-to-edge like object-cover */
+  scaleMode?: GlimpseScaleMode
 }
 
 function LiveStorefrontIframePreview({
   url,
   className,
+  scaleMode = 'width',
 }: {
   url: string
   className?: string
+  scaleMode?: GlimpseScaleMode
 }) {
   const containerRef = useRef<HTMLDivElement>(null)
-  const [scale, setScale] = useState(0.15)
-
-  useLayoutEffect(() => {
-    const el = containerRef.current
-    if (!el) return
-    const update = () => {
-      const next = el.clientWidth / PREVIEW_WIDTH
-      setScale(next > 0 ? next : 0.15)
-    }
-    update()
-    const ro = new ResizeObserver(update)
-    ro.observe(el)
-    return () => ro.disconnect()
-  }, [])
+  const { scale, offsetX, offsetY } = useGlimpseScale(containerRef, scaleMode)
 
   return (
     <div
@@ -55,10 +87,12 @@ function LiveStorefrontIframePreview({
       <iframe
         src={url}
         title="Storefront preview"
-        className="pointer-events-none border-0 bg-white"
+        className="pointer-events-none absolute border-0 bg-white"
         style={{
           width: PREVIEW_WIDTH,
           height: IFRAME_HEIGHT,
+          left: offsetX,
+          top: offsetY,
           transform: `scale(${scale})`,
           transformOrigin: 'top left',
         }}
@@ -78,22 +112,12 @@ export function WebsiteSiteGlimpse({
   livePreviewUrl = null,
   templates = [],
   className,
+  previewMode = 'live',
+  scaleMode = 'width',
 }: Props) {
   const containerRef = useRef<HTMLDivElement>(null)
-  const [scale, setScale] = useState(0.15)
-
-  useLayoutEffect(() => {
-    const el = containerRef.current
-    if (!el) return
-    const update = () => {
-      const next = el.clientWidth / PREVIEW_WIDTH
-      setScale(next > 0 ? next : 0.15)
-    }
-    update()
-    const ro = new ResizeObserver(update)
-    ro.observe(el)
-    return () => ro.disconnect()
-  }, [])
+  const contentHeight = scaleMode === 'cover' ? GLIMPSE_CONTENT_HEIGHT : IFRAME_HEIGHT
+  const { scale, offsetX, offsetY } = useGlimpseScale(containerRef, scaleMode, contentHeight)
 
   const { data, isLoading } = useQuery({
     queryKey: ['site-homepage-glimpse', siteId],
@@ -104,18 +128,22 @@ export function WebsiteSiteGlimpse({
 
   const staticImage = data?.staticImage || fallbackImage
   const gradient = styleConfigPreviewGradient(data?.style) || fallbackGradient
-  const canRenderLive = Boolean(data?.blocks.length && vendorSlug && siteId)
+  const preferAssignedPreview = previewMode === 'assigned'
+  const canRenderCanvas = Boolean(data?.blocks.length && vendorSlug && siteId)
 
-  if (canRenderLive) {
+  if (canRenderCanvas) {
     return (
       <div
         ref={containerRef}
         className={cn('relative h-full w-full overflow-hidden bg-white', className)}
       >
         <div
-          className="pointer-events-none select-none"
+          className="pointer-events-none absolute select-none"
           style={{
             width: PREVIEW_WIDTH,
+            minHeight: contentHeight,
+            left: offsetX,
+            top: offsetY,
             transform: `scale(${scale})`,
             transformOrigin: 'top left',
           }}
@@ -137,11 +165,6 @@ export function WebsiteSiteGlimpse({
     )
   }
 
-  const liveUrl = livePreviewUrl?.trim()
-  if (liveUrl && !isLoading) {
-    return <LiveStorefrontIframePreview url={liveUrl} className={className} />
-  }
-
   if (isLoading && siteId) {
     return (
       <div
@@ -151,6 +174,20 @@ export function WebsiteSiteGlimpse({
         )}
       />
     )
+  }
+
+  if (preferAssignedPreview && staticImage) {
+    return (
+      <div className={cn('relative h-full w-full overflow-hidden', className)}>
+        <img src={staticImage} alt="" className="h-full w-full object-cover" loading="lazy" />
+        <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/35 via-transparent to-transparent" />
+      </div>
+    )
+  }
+
+  const liveUrl = livePreviewUrl?.trim()
+  if (liveUrl && !isLoading) {
+    return <LiveStorefrontIframePreview url={liveUrl} className={className} scaleMode={scaleMode} />
   }
 
   if (staticImage) {

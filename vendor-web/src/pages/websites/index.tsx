@@ -35,7 +35,16 @@ import {
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Select } from '@/components/ui/select'
-import { useSiteList, useCreateSite, useDeleteSite, usePublishSite, useUnpublishSite, useUpdateSite, useWebsiteTemplates } from '@/hooks/useWebsites'
+import {
+  useSiteList,
+  useCreateSite,
+  useDeleteSite,
+  usePublishSite,
+  useUnpublishSite,
+  useUpdateSite,
+  useWebsiteTemplates,
+  websitesListQueryKey,
+} from '@/hooks/useWebsites'
 import { useStores } from '@/hooks/useVendor'
 import { websiteApi } from '@/api/websites'
 import type { SiteListItem } from '@/types/websites'
@@ -59,8 +68,10 @@ import { resolveStorefrontLinkMode } from '@/lib/liveStorefrontUrl'
 import {
   isBuilderSiteAssignedToAnyStore,
   isBuilderSiteEffectivelyLive,
+  isBuilderSiteExternal,
   resolveBuilderSiteLiveBlockReason,
   resolveBuilderSiteViewLiveLinks,
+  resolveSiteBuiltForStore,
 } from '@/lib/builderDraftTemplateSites'
 import { resolveSiteCardDisplayStatus } from '@/lib/siteCardDisplayStatus'
 import { copyBuilderSiteDraftPreviewLink, openBuilderSiteDraftPreview } from '@/lib/openBuilderSiteDraftPreview'
@@ -71,13 +82,14 @@ import { countSitesWithName, resolveUniqueSiteName, suggestSiteCopyName } from '
 import { resolveSiteStaticThumbnail } from '@/lib/websiteSitePreview'
 import { WebsiteSiteGlimpse } from '@/components/websites/WebsiteSiteGlimpse'
 import { WebsiteScopeBadge } from '@/components/websites/WebsiteScopeBadge'
+import { SiteInputParametersModal } from '@/components/websites/SiteInputParametersModal'
 import { formatStoreCode } from '@/lib/verification'
 
 const BUSINESS_PRESETS = [
   {
     id: 'retail',
     label: 'Healthy Retail',
-    icon: '🥗',
+    icon: 'ðŸ¥—',
     desc: 'Snacks, groceries, beverages, wellness',
     niche: 'healthy food and wellness retail',
     defaultName: 'My Wellness Store',
@@ -87,7 +99,7 @@ const BUSINESS_PRESETS = [
   {
     id: 'services',
     label: 'Service Business',
-    icon: '🧰',
+    icon: 'ðŸ§°',
     desc: 'Services, quotes, bookings, leads',
     niche: 'local service business',
     defaultName: 'My Service Business',
@@ -97,7 +109,7 @@ const BUSINESS_PRESETS = [
   {
     id: 'restaurant',
     label: 'Restaurant / Cafe',
-    icon: '🍽️',
+    icon: 'ðŸ½ï¸',
     desc: 'Menu, location, booking, offers',
     niche: 'restaurant cafe food business',
     defaultName: 'My Restaurant',
@@ -107,7 +119,7 @@ const BUSINESS_PRESETS = [
   {
     id: 'fashion',
     label: 'Fashion / Boutique',
-    icon: '👗',
+    icon: 'ðŸ‘—',
     desc: 'Collections, lookbook, offers',
     niche: 'fashion boutique ecommerce',
     defaultName: 'My Boutique',
@@ -117,7 +129,7 @@ const BUSINESS_PRESETS = [
   {
     id: 'electronics',
     label: 'Electronics Store',
-    icon: '💻',
+    icon: 'ðŸ’»',
     desc: 'Catalog, warranty, stock, filters',
     niche: 'electronics ecommerce',
     defaultName: 'Electronics Store',
@@ -127,7 +139,7 @@ const BUSINESS_PRESETS = [
   {
     id: 'salon',
     label: 'Salon / Spa',
-    icon: '💇',
+    icon: 'ðŸ’‡',
     desc: 'Treatments, staff, booking',
     niche: 'salon spa beauty services',
     defaultName: 'My Salon',
@@ -137,7 +149,7 @@ const BUSINESS_PRESETS = [
   {
     id: 'clinic',
     label: 'Clinic / Healthcare',
-    icon: '🩺',
+    icon: 'ðŸ©º',
     desc: 'Trust, appointments, services',
     niche: 'clinic healthcare appointments',
     defaultName: 'My Clinic',
@@ -147,7 +159,7 @@ const BUSINESS_PRESETS = [
   {
     id: 'consulting',
     label: 'Consultant / Agency',
-    icon: '📈',
+    icon: 'ðŸ“ˆ',
     desc: 'Leads, portfolio, case studies',
     niche: 'consulting agency professional services',
     defaultName: 'My Agency',
@@ -173,7 +185,7 @@ const WEBSITE_STORE_SCOPE_OPTIONS: {
   {
     id: 'all',
     label: 'All stores',
-    desc: 'One website for every business unit — shared catalog and branding',
+    desc: 'One website for every business unit â€” shared catalog and branding',
     icon: Globe,
   },
   {
@@ -185,7 +197,7 @@ const WEBSITE_STORE_SCOPE_OPTIONS: {
   {
     id: 'external',
     label: 'External use',
-    desc: 'Marketing or portfolio site on your own domain — not tied to a store',
+    desc: 'Marketing or portfolio site on your own domain â€” not tied to a store',
     icon: Globe2,
   },
 ]
@@ -624,283 +636,6 @@ function CreateSiteWizardMoreMenu({
   )
 }
 
-function TemplateInputParametersModal({
-  open,
-  onClose,
-  onCloseWizard,
-  disabled,
-  name,
-  setName,
-  websiteStoreScope,
-  setWebsiteStoreScope,
-  websiteStoreId,
-  setWebsiteStoreId,
-  businessType,
-  setBusinessType,
-  sellingMode,
-  setSellingMode,
-  selectedFeatures,
-  setSelectedFeatures,
-  selectedPaletteId,
-  customPaletteColors,
-  onPaletteSelect,
-  onCustomColorsChange,
-  stores,
-  storeCount,
-  singleStore,
-  showStoreScopePicker,
-  isExternalScope,
-  effectiveBusinessType,
-  effectiveSellingMode,
-  availableFeatures,
-  selectedBusiness,
-  settingsBusinessLabel,
-  settingsSellingLabel,
-  activeStoreForSettings,
-  builtForStore,
-  toggleFeature,
-  defaultName,
-}: {
-  open: boolean
-  onClose: () => void
-  onCloseWizard: () => void
-  disabled?: boolean
-  name: string
-  setName: (v: string) => void
-  websiteStoreScope: WebsiteStoreScope
-  setWebsiteStoreScope: (v: WebsiteStoreScope) => void
-  websiteStoreId: string
-  setWebsiteStoreId: (v: string) => void
-  businessType: string
-  setBusinessType: (v: string) => void
-  sellingMode: string
-  setSellingMode: (v: string) => void
-  selectedFeatures: SetupFeatureId[]
-  setSelectedFeatures: (v: SetupFeatureId[]) => void
-  selectedPaletteId: WebsiteColorPaletteId
-  customPaletteColors: WebsitePaletteColors
-  onPaletteSelect: (id: WebsiteColorPaletteId) => void
-  onCustomColorsChange: (colors: WebsitePaletteColors) => void
-  stores: { id: string; code?: string | null; name?: string; is_default?: boolean }[]
-  storeCount: number
-  singleStore: { id: string; code?: string | null; name?: string } | null
-  showStoreScopePicker: boolean
-  isExternalScope: boolean
-  effectiveBusinessType: string
-  effectiveSellingMode: string
-  availableFeatures: SetupFeatureOption[]
-  selectedBusiness: (typeof BUSINESS_PRESETS)[number]
-  settingsBusinessLabel: string
-  settingsSellingLabel: string
-  activeStoreForSettings: { id: string; name?: string } | undefined
-  builtForStore: { id: string; name?: string; code?: string | null } | null
-  toggleFeature: (id: SetupFeatureId, locked?: boolean) => void
-  defaultName: string
-}) {
-  useEscapeToClose(onClose, open)
-
-  if (!open) return null
-
-  const currentScopeOption = WEBSITE_STORE_SCOPE_OPTIONS.find(o => o.id === websiteStoreScope)
-
-  return (
-    <div data-kiterp-modal className="fixed inset-0 z-[60] flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose} />
-      <div
-        className="relative flex max-h-[90vh] w-full max-w-3xl flex-col overflow-hidden rounded-2xl border border-border bg-card text-foreground shadow-2xl"
-        onClick={e => e.stopPropagation()}
-      >
-        <div className="flex items-start justify-between gap-3 border-b border-gray-100 px-5 py-4">
-          <div>
-            <h2 className="text-base font-bold text-gray-900">Input parameters</h2>
-            <p className="mt-0.5 text-xs text-gray-500">
-              Edit the inputs used to generate your website template. Changes apply when you build.
-            </p>
-          </div>
-          <button
-            type="button"
-            aria-label="Close"
-            onClick={onClose}
-            className="rounded-lg p-1.5 text-gray-400 transition-colors hover:bg-gray-100"
-          >
-            <X className="h-4 w-4" />
-          </button>
-        </div>
-
-        <div className="flex-1 space-y-5 overflow-y-auto px-5 py-4">
-          <div>
-            <label htmlFor="params-website-name" className="mb-1.5 flex items-center gap-1.5 text-sm font-semibold text-gray-800">
-              <Pencil className="h-3.5 w-3.5 text-primary" />
-              Website template name
-            </label>
-            <input
-              id="params-website-name"
-              value={name}
-              disabled={disabled}
-              onChange={e => setName(e.target.value)}
-              placeholder={defaultName}
-              className="w-full rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm shadow-sm transition-colors placeholder:text-gray-400 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-            />
-          </div>
-
-          {storeCount === 1 && singleStore && !showStoreScopePicker ? (
-            <div className="rounded-xl border border-violet-200 bg-violet-50/60 px-4 py-3">
-              <p className="text-[11px] font-semibold uppercase tracking-wide text-violet-700">Built for</p>
-              <p className="text-sm font-semibold text-gray-900">
-                {formatStoreCode(singleStore)} · {singleStore.name}
-              </p>
-              <button
-                type="button"
-                disabled={disabled}
-                onClick={() => setWebsiteStoreScope('external')}
-                className="mt-2 inline-flex items-center gap-1 text-xs font-semibold text-primary hover:underline disabled:opacity-50"
-              >
-                Switch to external marketing site
-                <ChevronRight className="h-3 w-3" />
-              </button>
-            </div>
-          ) : showStoreScopePicker ? (
-            <div>
-              <label htmlFor="params-website-scope" className="mb-1.5 flex items-center gap-1.5 text-sm font-semibold text-gray-800">
-                <Globe className="h-3.5 w-3.5 text-primary" />
-                Who is this website built for?
-              </label>
-              <div className="relative">
-                {currentScopeOption ? (
-                  <currentScopeOption.icon className="pointer-events-none absolute left-3.5 top-1/2 z-10 h-4 w-4 -translate-y-1/2 text-primary" />
-                ) : null}
-                <Select
-                  id="params-website-scope"
-                  value={websiteStoreScope}
-                  disabled={disabled}
-                  onChange={(v) => setWebsiteStoreScope(v as WebsiteStoreScope)}
-                  options={WEBSITE_STORE_SCOPE_OPTIONS.map(opt => ({ value: opt.id, label: opt.label }))}
-                  aria-label="Website store scope"
-                  className="w-full rounded-xl py-2.5 pl-10 pr-3 text-sm font-medium shadow-sm"
-                />
-              </div>
-              {currentScopeOption && (
-                <p className="mt-1.5 text-xs text-gray-500">{currentScopeOption.desc}</p>
-              )}
-              {websiteStoreScope === 'store' && (
-                <div className="mt-3">
-                  <label htmlFor="params-website-bu" className="mb-1.5 block text-xs font-semibold text-gray-600">
-                    Business unit
-                  </label>
-                  <div className="relative">
-                    <Store className="pointer-events-none absolute left-3.5 top-1/2 z-10 h-4 w-4 -translate-y-1/2 text-gray-400" />
-                    <Select
-                      id="params-website-bu"
-                      value={websiteStoreId}
-                      disabled={disabled}
-                      onChange={setWebsiteStoreId}
-                      options={stores.map(s => ({
-                        value: s.id,
-                        label: `${formatStoreCode(s)} · ${s.name}`,
-                      }))}
-                      aria-label="Business unit"
-                      className="w-full rounded-xl py-2.5 pl-10 pr-3 text-sm font-medium shadow-sm"
-                    />
-                  </div>
-                  {builtForStore ? (
-                    <div className="mt-2">
-                      <WebsiteScopeBadge
-                        scope="store"
-                        storeId={builtForStore.id}
-                        storeName={builtForStore.name ?? null}
-                        storeCode={formatStoreCode(builtForStore)}
-                      />
-                    </div>
-                  ) : null}
-                </div>
-              )}
-            </div>
-          ) : null}
-
-          {isExternalScope ? (
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <div>
-                <label htmlFor="params-biz-type" className="mb-1.5 flex items-center gap-1.5 text-sm font-semibold text-gray-800">
-                  <Layout className="h-3.5 w-3.5 text-primary" />
-                  Business type
-                </label>
-                <div className="relative">
-                  <span className="pointer-events-none absolute left-3.5 top-1/2 z-10 -translate-y-1/2 text-base leading-none">{selectedBusiness.icon}</span>
-                  <Select
-                    id="params-biz-type"
-                    value={businessType}
-                    disabled={disabled}
-                    onChange={(v) => {
-                      const t = BUSINESS_PRESETS.find(b => b.id === v)
-                      if (!t) return
-                      setBusinessType(t.id)
-                      setSellingMode(t.sells)
-                    }}
-                    options={BUSINESS_PRESETS.map(t => ({ value: t.id, label: `${t.icon} ${t.label}` }))}
-                    aria-label="Business type"
-                    className="w-full rounded-xl py-2.5 pl-10 pr-3 text-sm font-medium shadow-sm"
-                  />
-                </div>
-              </div>
-              <div>
-                <label htmlFor="params-sell-mode" className="mb-1.5 flex items-center gap-1.5 text-sm font-semibold text-gray-800">
-                  <ShoppingCart className="h-3.5 w-3.5 text-blue-600" />
-                  What do you sell?
-                </label>
-                <div className="relative">
-                  <ShoppingBag className="pointer-events-none absolute left-3.5 top-1/2 z-10 h-4 w-4 -translate-y-1/2 text-blue-500" />
-                  <Select
-                    id="params-sell-mode"
-                    value={sellingMode}
-                    disabled={disabled}
-                    onChange={setSellingMode}
-                    options={SELLING_MODES.map(s => ({ value: s.id, label: s.label }))}
-                    aria-label="Selling mode"
-                    className="w-full rounded-xl py-2.5 pl-10 pr-3 text-sm font-medium shadow-sm"
-                  />
-                </div>
-              </div>
-            </div>
-          ) : (
-            <div className="flex items-start gap-2 rounded-lg border border-gray-100 bg-gray-50 px-3 py-2.5 text-xs text-gray-500">
-              <Info className="mt-0.5 h-3.5 w-3.5 shrink-0 text-gray-400" />
-              <p className="leading-relaxed">
-                Business type (<strong className="font-semibold text-gray-700">{settingsBusinessLabel}</strong>) and what you sell (
-                <strong className="font-semibold text-gray-700">{settingsSellingLabel}</strong>) come from{' '}
-                <Link to="/settings" className="font-medium text-primary underline underline-offset-2" onClick={onCloseWizard}>Business Settings</Link>
-                {activeStoreForSettings ? ` for ${activeStoreForSettings.name}` : ''}.
-              </p>
-            </div>
-          )}
-
-          <SetupFeaturesPicker
-            features={availableFeatures}
-            selected={selectedFeatures}
-            businessType={selectedBusiness.label}
-            sellingMode={effectiveSellingMode}
-            disabled={disabled}
-            onToggle={toggleFeature}
-            onSelectRecommended={() => setSelectedFeatures(getDefaultSetupFeatures(effectiveBusinessType, effectiveSellingMode))}
-          />
-
-          <ColorPalettePicker
-            selected={selectedPaletteId}
-            customColors={customPaletteColors}
-            disabled={disabled}
-            onSelect={onPaletteSelect}
-            onCustomColorsChange={onCustomColorsChange}
-          />
-        </div>
-
-        <div className="flex justify-end gap-2 border-t border-gray-100 bg-gray-50/70 px-5 py-4">
-          <Button variant="outline" onClick={onClose} disabled={disabled}>
-            Done
-          </Button>
-        </div>
-      </div>
-    </div>
-  )
-}
 
 function CreateSiteModal({
  onClose }: { onClose: () => void }) {
@@ -934,9 +669,11 @@ function CreateSiteModal({
   const isExternalScope = websiteStoreScope === 'external'
   const showStoreScopePicker = storeCount > 1
   const currentScopeOption = WEBSITE_STORE_SCOPE_OPTIONS.find(o => o.id === websiteStoreScope)
-  const activeStoreForSettings = websiteStoreScope === 'store' && websiteStoreId
-    ? stores.find(s => s.id === websiteStoreId)
-    : singleStore ?? stores.find(s => s.is_default) ?? stores[0]
+  const activeStoreForSettings = websiteStoreScope === 'store'
+    ? (websiteStoreId
+      ? stores.find(s => s.id === websiteStoreId)
+      : singleStore ?? stores.find(s => s.is_default) ?? stores[0])
+    : undefined
   const builtForStore = websiteStoreScope === 'store'
     ? (activeStoreForSettings ?? singleStore)
     : null
@@ -955,12 +692,11 @@ function CreateSiteModal({
 
   useEffect(() => {
     if (storeCount <= 1) {
-      setWebsiteStoreScope('store')
-      if (singleStore) setWebsiteStoreId(singleStore.id)
+      setWebsiteStoreScope(prev => (prev === 'external' ? 'external' : 'store'))
       return
     }
     setWebsiteStoreScope(prev => (prev === 'store' || prev === 'all' || prev === 'external' ? prev : 'store'))
-  }, [storeCount, singleStore?.id])
+  }, [storeCount])
 
   useEffect(() => {
     if (websiteStoreScope !== 'store') {
@@ -1006,7 +742,9 @@ function CreateSiteModal({
     }
     const pages = buildPagesFromSetupFeatures(selectedFeatures, effectiveSellingMode)
     const selectedStore = stores.find(s => s.id === websiteStoreId)
-    const resolvedScope = storeCount <= 1 ? 'store' : websiteStoreScope
+    const resolvedScope = isExternalScope
+      ? 'external'
+      : (storeCount <= 1 ? 'store' : websiteStoreScope)
     try {
       const site = await createSite.mutateAsync({
         name: siteName,
@@ -1021,10 +759,13 @@ function CreateSiteModal({
           website_store_name: resolvedScope === 'store'
             ? (selectedStore?.name || singleStore?.name)
             : null,
+          website_home_store_id: resolvedScope === 'store'
+            ? (websiteStoreId || singleStore?.id)
+            : null,
           storefront_assigned: false,
         },
       } as any)
-      toast.success('Website created. Building your pages…')
+      toast.success('Website created. Building your pagesâ€¦')
       onClose()
       navigate(`/websites/${site.id}`)
       setGenerating(true)
@@ -1060,9 +801,9 @@ function CreateSiteModal({
         await websiteApi.aiApplyGeneratedSite(site.id, gen)
         await queryClient.invalidateQueries({ queryKey: ['websites', site.id] })
         await queryClient.invalidateQueries({ queryKey: ['websites'] })
-        toast.success(`Your website is ready — ${gen.pages?.length ?? pages.length} page(s) with modern layouts and photos.`)
+        toast.success(`Your website is ready â€” ${gen.pages?.length ?? pages.length} page(s) with modern layouts and photos.`)
       } catch (e) {
-        let msg = 'Smart setup could not finish. A starter site was created — open the builder to continue.'
+        let msg = 'Smart setup could not finish. A starter site was created â€” open the builder to continue.'
         if (isAxiosError(e)) {
           const d = e.response?.data as { detail?: unknown } | undefined
           if (d?.detail != null) msg = Array.isArray(d.detail) ? d.detail.map(x => typeof x === 'object' && x && 'msg' in x ? String((x as { msg: string }).msg) : String(x)).join('; ') : String(d.detail)
@@ -1128,8 +869,8 @@ function CreateSiteModal({
                     ? 'Choose where this website is used and give it a name.'
                     : step === 2
                       ? isExternalScope
-                        ? 'External marketing site — pick business type and what you sell.'
-                        : 'Store website — business type and catalog come from Business Settings.'
+                        ? 'External marketing site â€” pick business type and what you sell.'
+                        : 'Store website â€” business type and catalog come from Business Settings.'
                       : 'Pick a color palette for your draft website.'}
                 </p>
               </div>
@@ -1183,7 +924,7 @@ function CreateSiteModal({
                 )}
                 {name.trim() ? (
                   <span className="text-xs text-gray-500">
-                    · <span className="font-medium text-gray-700">{name.trim()}</span>
+                    Â· <span className="font-medium text-gray-700">{name.trim()}</span>
                   </span>
                 ) : null}
                 <CreateSiteWizardMoreMenu
@@ -1216,7 +957,7 @@ function CreateSiteModal({
               <p className="mt-1.5 text-[11px] text-gray-500">This name identifies your website template in the builder and on published pages.</p>
             </div>
 
-            {storeCount === 1 && singleStore && (
+            {storeCount === 1 && singleStore && !isExternalScope && (
               <div className="rounded-xl border border-violet-200 bg-violet-50/60 px-4 py-3.5">
                 <div className="flex items-start gap-3">
                   <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-violet-100 text-violet-700">
@@ -1225,7 +966,7 @@ function CreateSiteModal({
                   <div className="min-w-0">
                     <p className="text-[11px] font-semibold uppercase tracking-wide text-violet-700">Built for</p>
                     <p className="text-sm font-semibold text-gray-900">
-                      {formatStoreCode(singleStore)} · {singleStore.name}
+                      {formatStoreCode(singleStore)} Â· {singleStore.name}
                     </p>
                     <p className="mt-0.5 text-xs text-gray-600 leading-relaxed">
                       This label appears on your template card while drafting. Business type and what you sell come from{' '}
@@ -1237,6 +978,31 @@ function CreateSiteModal({
                       className="mt-2 inline-flex items-center gap-1 text-xs font-semibold text-primary hover:underline"
                     >
                       Need an external marketing site instead?
+                      <ChevronRight className="h-3 w-3" />
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {storeCount === 1 && singleStore && isExternalScope && (
+              <div className="rounded-xl border border-violet-200 bg-violet-50/60 px-4 py-3.5">
+                <div className="flex items-start gap-3">
+                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-violet-100 text-violet-700">
+                    <Globe className="h-4 w-4" />
+                  </span>
+                  <div className="min-w-0">
+                    <p className="text-[11px] font-semibold uppercase tracking-wide text-violet-700">Built for</p>
+                    <p className="text-sm font-semibold text-gray-900">External use</p>
+                    <p className="mt-0.5 text-xs text-gray-600 leading-relaxed">
+                      Marketing site — not tied to a business unit or company code. You choose business type and what you sell in the next step.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => setWebsiteStoreScope('store')}
+                      className="mt-2 inline-flex items-center gap-1 text-xs font-semibold text-primary hover:underline"
+                    >
+                      Use your business unit instead?
                       <ChevronRight className="h-3 w-3" />
                     </button>
                   </div>
@@ -1272,7 +1038,7 @@ function CreateSiteModal({
                 <div className="mt-3">
                   <label htmlFor="website-bu" className="block text-xs font-semibold text-gray-600 mb-1.5">
                     Business unit
-                    <span className="ml-1 font-normal text-gray-400">— shown on your template card while drafting</span>
+                    <span className="ml-1 font-normal text-gray-400">â€” shown on your template card while drafting</span>
                   </label>
                   <div className="relative">
                     <Store className="pointer-events-none absolute left-3.5 top-1/2 z-10 h-4 w-4 -translate-y-1/2 text-gray-400" />
@@ -1282,7 +1048,7 @@ function CreateSiteModal({
                       onChange={setWebsiteStoreId}
                       options={stores.map(s => ({
                         value: s.id,
-                        label: `${formatStoreCode(s)} · ${s.name}`,
+                        label: `${formatStoreCode(s)} Â· ${s.name}`,
                       }))}
                       aria-label="Business unit"
                       className="w-full rounded-xl py-2.5 pl-10 pr-3 text-sm font-medium shadow-sm"
@@ -1424,18 +1190,19 @@ function CreateSiteModal({
                   </Button>
                   <Button onClick={handleGuidedCreate} disabled={isLoading} className="bg-primary hover:bg-primary/90 text-white">
                     {isLoading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Sparkles className="w-4 h-4 mr-2" />}
-                    {generating ? 'Generating website…' : 'Build My Website'}
+                    {generating ? 'Generating websiteâ€¦' : 'Build My Website'}
                   </Button>
                 </>
               )}
             </div>
           </div>
 
-        <TemplateInputParametersModal
+        <SiteInputParametersModal
           open={inputParamsOpen}
           onClose={() => setInputParamsOpen(false)}
-          onCloseWizard={onClose}
+          onCloseParent={onClose}
           disabled={isLoading}
+          lockWebsiteScope
           name={name}
           setName={setName}
           websiteStoreScope={websiteStoreScope}
@@ -1692,7 +1459,9 @@ function SiteCard({
   const [previewing, setPreviewing] = useState(false)
   const [copyingPreviewLink, setCopyingPreviewLink] = useState(false)
   const [previewLinkCopied, setPreviewLinkCopied] = useState(false)
+  const [deleting, setDeleting] = useState(false)
   const menuBtnRef = useRef<HTMLButtonElement>(null)
+  const websitesListKey = websitesListQueryKey(vendor?.id)
   const menuRef = useRef<HTMLDivElement>(null)
   const [menuPos, setMenuPos] = useState({ top: 0, right: 0, openUp: false })
 
@@ -1726,9 +1495,8 @@ function SiteCard({
     liveBlockReason,
     isAssignedToStore,
   })
-  const builtForStore = site.website_store_scope === 'store' && site.website_store_id
-    ? stores.find(s => s.id === site.website_store_id)
-    : null
+  const builtForStore = resolveSiteBuiltForStore(site, stores)
+  const isExternalSite = isBuilderSiteExternal(site)
   const StatusIcon = displayStatus.icon
   const showViewLive = displayStatus.id === 'live' && viewLiveLinks.length > 0
 
@@ -1760,12 +1528,17 @@ function SiteCard({
   }, [menuOpen])
 
   const handleDelete = async () => {
+    if (deleting) return
     if (!confirm(`Delete "${site.name}"? This cannot be undone.`)) return
+    setMenuOpen(false)
+    setDeleting(true)
     try {
       await deleteSite.mutateAsync(site.id)
       toast.success('Site deleted')
-    } catch {
-      toast.error('Failed to delete')
+    } catch (err) {
+      toast.error(extractApiError(err, 'Failed to delete'))
+    } finally {
+      setDeleting(false)
     }
   }
 
@@ -1773,10 +1546,10 @@ function SiteCard({
     try {
       if (site.is_published) {
         await unpublishSite.mutateAsync()
-        toast.success('Removed from templates — assign this site again to make it available')
+        toast.success('Removed from templates â€” assign this site again to make it available')
       } else {
         await publishSite.mutateAsync()
-        toast.success('Ready for templates — assign it in Template Gallery')
+        toast.success('Ready for templates â€” assign it in Template Gallery')
       }
     } catch {
       toast.error('Failed to update status')
@@ -1801,7 +1574,7 @@ function SiteCard({
       setRenameOpen(false)
       return
     }
-    const otherNames = (queryClient.getQueryData<SiteListItem[]>(['websites']) ?? [])
+    const otherNames = (queryClient.getQueryData<SiteListItem[]>(websitesListKey) ?? [])
       .filter(s => s.id !== site.id)
       .map(s => s.name)
     if (otherNames.some(n => n.trim().toLowerCase() === trimmed.toLowerCase())) {
@@ -1845,7 +1618,7 @@ function SiteCard({
   const handleSaveAsConfirm = async (name: string) => {
     setCopyingSite(true)
     try {
-      const existingNames = (queryClient.getQueryData<SiteListItem[]>(['websites']) ?? []).map(s => s.name)
+      const existingNames = (queryClient.getQueryData<SiteListItem[]>(websitesListKey) ?? []).map(s => s.name)
       const finalName = resolveUniqueSiteName(name, existingNames)
       const payload = await websiteApi.exportSite(site.id)
       await websiteApi.importSite({
@@ -1854,9 +1627,9 @@ function SiteCard({
       })
       await queryClient.invalidateQueries({ queryKey: ['websites'], exact: true })
       if (finalName !== name.trim()) {
-        toast.success(`Name already in use — saved as "${finalName}"`)
+        toast.success(`Name already in use â€” saved as "${finalName}"`)
       } else {
-        toast.success(`"${finalName}" saved — find it in Website Builder`)
+        toast.success(`"${finalName}" saved â€” find it in Website Builder`)
       }
       setSaveAsOpen(false)
     } catch {
@@ -1949,7 +1722,7 @@ function SiteCard({
                 />
                 <SiteCardMenuItem
                   icon={previewing ? Loader2 : Eye}
-                  label={previewing ? 'Opening preview…' : 'Preview draft'}
+                  label={previewing ? 'Opening previewâ€¦' : 'Preview draft'}
                   disabled={previewing || copyingPreviewLink}
                   iconSpin={previewing}
                   onClick={() => {
@@ -1964,7 +1737,7 @@ function SiteCard({
                     <SiteCardMenuItem
                       key={link.href}
                       icon={ExternalLink}
-                      label={viewLiveLinks.length > 1 ? `View live · ${link.label}` : 'View live'}
+                      label={viewLiveLinks.length > 1 ? `View live Â· ${link.label}` : 'View live'}
                       onClick={() => { window.open(link.href, '_blank'); setMenuOpen(false) }}
                     />
                   ))
@@ -1983,7 +1756,7 @@ function SiteCard({
                       }}
                     />
                   )}
-                {(displayStatus.id === 'ready_for_assign' || displayStatus.id === 'needs_activation') && (
+                {(displayStatus.id === 'ready_for_assign' || displayStatus.id === 'needs_activation') && !isExternalSite && (
                   <SiteCardMenuItem
                     icon={Store}
                     label={displayStatus.id === 'needs_activation' ? 'Activate in Templates' : 'Assign in Templates'}
@@ -1996,11 +1769,13 @@ function SiteCard({
                   label="Custom domain"
                   onClick={() => { setShowDomainPanel(v => !v); setMenuOpen(false) }}
                 />
+                {!isExternalSite && (
                 <SiteCardMenuItem
                   icon={site.is_published ? EyeOff : Store}
                   label={site.is_published ? 'Remove from templates' : 'Enable for templates'}
                   onClick={() => void handleTogglePublish()}
                 />
+                )}
                 <SiteCardMenuItem
                   icon={Pencil}
                   label="Rename"
@@ -2014,8 +1789,9 @@ function SiteCard({
                 <SiteCardMenuDivider />
                 <SiteCardMenuItem
                   icon={Trash2}
-                  label="Delete"
+                  label={deleting ? 'Deletingâ€¦' : 'Delete'}
                   destructive
+                  disabled={deleting}
                   onClick={() => void handleDelete()}
                 />
               </div>,
@@ -2038,8 +1814,8 @@ function SiteCard({
         {/* Scope: what this website was built for */}
         <div className="mt-2">
           <WebsiteScopeBadge
-            scope={site.website_store_scope}
-            storeId={site.website_store_id}
+            scope={builtForStore ? 'store' : site.website_store_scope}
+            storeId={builtForStore?.id ?? site.website_store_id}
             storeName={builtForStore?.name ?? site.website_store_name}
             storeCode={builtForStore ? formatStoreCode(builtForStore) : null}
           />
@@ -2073,7 +1849,7 @@ function SiteCard({
               ) : (
                 <Eye className="w-3 h-3 mr-1" />
               )}
-              {previewing ? 'Opening…' : 'Preview'}
+              {previewing ? 'Openingâ€¦' : 'Preview'}
             </Button>
             {showViewLive && viewLiveLinks.length === 1 ? (
               <Button
@@ -2128,7 +1904,7 @@ function SiteCard({
 
       <CopySiteSaveAsModal
         siteName={site.name}
-        existingSiteNames={(queryClient.getQueryData<SiteListItem[]>(['websites']) ?? []).map(s => s.name)}
+        existingSiteNames={(queryClient.getQueryData<SiteListItem[]>(websitesListKey) ?? []).map(s => s.name)}
         open={saveAsOpen}
         saving={copyingSite}
         onClose={() => !copyingSite && setSaveAsOpen(false)}
@@ -2162,7 +1938,7 @@ export default function WebsitesPage() {
         siteId = existing.id
       } else {
         const created = await createSite.mutateAsync({
-          name: `Template edit — ${new Date().toISOString().slice(0, 10)}`,
+          name: `Template edit â€” ${new Date().toISOString().slice(0, 10)}`,
           description: 'Sandbox: pick a template in the builder',
           style_config: {},
         } as any)
@@ -2203,7 +1979,7 @@ export default function WebsitesPage() {
           siteId = existing.id
         } else {
           const created = await createSite.mutateAsync({
-            name: `${templateName} — Template Edit`,
+            name: `${templateName} â€” Template Edit`,
             description: `Sandbox for template: ${templateId}`,
             style_config: {},
           } as any)
@@ -2236,7 +2012,7 @@ export default function WebsitesPage() {
             <Globe className="w-6 h-6 text-primary" /> Website Builder
           </h1>
           <p className="text-gray-500 text-sm mt-1">
-            Create your store website in minutes — pick a style, edit text and photos, then publish
+            Create your store website in minutes â€” pick a style, edit text and photos, then publish
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -2247,7 +2023,7 @@ export default function WebsitesPage() {
             className="border-primary/30 text-primary hover:bg-accent hover:border-primary/60"
           >
             {openingTemplateEditor
-              ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Opening…</>
+              ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Openingâ€¦</>
               : <><Pencil className="w-4 h-4 mr-2" /> Edit Template</>}
           </Button>
           <Button
@@ -2267,12 +2043,12 @@ export default function WebsitesPage() {
           </div>
           <h2 className="text-xl font-bold text-gray-800 mb-2">Build Your First Store Website</h2>
           <p className="text-gray-600 text-sm max-w-md mx-auto mb-6">
-            Choose your business type, enter your name, pick what to include — we build modern pages with photos and layouts automatically.
+            Choose your business type, enter your name, pick what to include â€” we build modern pages with photos and layouts automatically.
           </p>
 
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-8 text-left">
             {[
-              { icon: Rocket, label: 'Guided Setup', desc: 'Business type → ready-made store website' },
+              { icon: Rocket, label: 'Guided Setup', desc: 'Business type â†’ ready-made store website' },
               { icon: Layout, label: 'Ready Sections', desc: 'Products, services, reviews, contact, checkout' },
               { icon: Sparkles, label: 'AI Copy', desc: 'Homepage, SEO, FAQs, and CTAs generated' },
               { icon: Globe, label: 'Go Live', desc: 'Mobile-ready pages with publish checklist' },

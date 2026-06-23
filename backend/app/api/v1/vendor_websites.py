@@ -374,10 +374,44 @@ async def list_sites(
             website_store_scope=sc.get("website_store_scope"),
             website_store_id=sc.get("website_store_id"),
             website_store_name=sc.get("website_store_name"),
+            website_home_store_id=sc.get("website_home_store_id"),
             storefront_assigned=sc.get("storefront_assigned") is True,
             created_at=s.created_at, updated_at=s.updated_at,
         ))
     return out
+
+
+def _resolve_builder_site_home_store_id(sc: dict) -> str:
+    """Home business unit for a store-scoped builder site (immutable after creation)."""
+    home = str(sc.get("website_home_store_id") or "").strip()
+    if home:
+        return home
+    if str(sc.get("website_store_scope") or "").strip().lower() == "store":
+        return str(sc.get("website_store_id") or "").strip()
+    return ""
+
+
+def _validate_builder_site_store_assignment(existing_sc: dict, incoming_sc: dict) -> None:
+    """Reject linking a BU-specific site to a different business unit."""
+    if not incoming_sc:
+        return
+    existing_home = _resolve_builder_site_home_store_id(existing_sc)
+    incoming_home = str(incoming_sc.get("website_home_store_id") or "").strip()
+    if existing_home and incoming_home and incoming_home != existing_home:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Cannot change the home business unit for this website.",
+        )
+    if "website_store_id" not in incoming_sc and incoming_sc.get("storefront_assigned") is not True:
+        return
+    merged = {**existing_sc, **incoming_sc}
+    home_id = existing_home or _resolve_builder_site_home_store_id(merged)
+    target_id = str(incoming_sc.get("website_store_id") or merged.get("website_store_id") or "").strip()
+    if home_id and target_id and target_id != home_id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="This website was built for a specific business unit and can only be assigned to that unit.",
+        )
 
 
 @router.post("/", response_model=SiteOut, status_code=201)
@@ -469,7 +503,14 @@ async def update_site(
 ):
     vendor = await _get_vendor(db, user)
     site = await _get_site(db, site_id, vendor.id)
-    for k, v in body.dict(exclude_none=True).items():
+    update_data = body.dict(exclude_none=True)
+    if "style_config" in update_data and update_data["style_config"] is not None:
+        existing_sc = site.style_config if isinstance(site.style_config, dict) else {}
+        incoming_sc = update_data["style_config"]
+        _validate_builder_site_store_assignment(existing_sc, incoming_sc)
+        site.style_config = {**existing_sc, **incoming_sc}
+        del update_data["style_config"]
+    for k, v in update_data.items():
         setattr(site, k, v)
     if body.is_published and not site.published_at:
         site.published_at = datetime.utcnow()
@@ -485,8 +526,16 @@ async def delete_site(
     user: User = Depends(get_current_active_user),
 ):
     vendor = await _get_vendor(db, user)
-    site = await _get_site(db, site_id, vendor.id)
-    await db.delete(site)
+    site_uuid = UUID(site_id)
+    # Bulk delete — avoid ORM delete-orphan issues when trashed pages are not loaded.
+    result = await db.execute(
+        delete(WebsiteSite).where(
+            WebsiteSite.id == site_uuid,
+            WebsiteSite.vendor_id == vendor.id,
+        )
+    )
+    if result.rowcount == 0:
+        raise HTTPException(status_code=404, detail="Site not found")
     await db.commit()
 
 

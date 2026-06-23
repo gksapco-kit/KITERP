@@ -32,7 +32,7 @@ const SCOPE_META: Record<WebsiteScope, ScopeMeta> = {
   },
   external: {
     label: 'External / marketing site — not tied to a store',
-    shortLabel: 'External site',
+    shortLabel: 'Built for External',
     icon: Globe2,
     className: 'border-violet-200 bg-violet-50 text-violet-700',
   },

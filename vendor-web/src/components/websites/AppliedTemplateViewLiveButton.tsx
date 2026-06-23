@@ -4,7 +4,7 @@ import { ExternalLink, Store, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import type { AppliedTemplateViewLiveLink } from '@/lib/liveStorefrontUrl'
-import { openAllViewLiveLinks } from '@/lib/liveStorefrontUrl'
+import { collapseViewLiveLinks, openAllViewLiveLinks } from '@/lib/liveStorefrontUrl'
 
 export const templateCardIconActionClass =
   'inline-flex h-6 w-6 shrink-0 cursor-pointer items-center justify-center rounded-md border border-gray-200 text-gray-600 transition-colors hover:border-primary/35 hover:bg-primary/10 hover:text-primary dark:border-border dark:text-muted-foreground dark:hover:bg-primary/15'
@@ -150,13 +150,14 @@ export function AppliedTemplateViewLiveButton({
   showLabel = false,
 }: Props) {
   const [pickerOpen, setPickerOpen] = useState(false)
+  const resolvedLinks = collapseViewLiveLinks(links)
 
-  if (!links.length) return null
+  if (!resolvedLinks.length) return null
 
-  if (links.length === 1) {
+  if (resolvedLinks.length === 1) {
     return (
       <a
-        href={links[0].href}
+        href={resolvedLinks[0].href}
         target="_blank"
         rel="noopener noreferrer"
         className={cn(
@@ -191,16 +192,16 @@ export function AppliedTemplateViewLiveButton({
             : templateCardIconActionClass,
           className,
         )}
-        title={`View live site — choose from ${links.length} business units`}
-        aria-label={`View live site — choose from ${links.length} business units`}
+        title={`View live site — choose from ${resolvedLinks.length} business units`}
+        aria-label={`View live site — choose from ${resolvedLinks.length} business units`}
       >
         <ExternalLink className="h-3 w-3 shrink-0" />
-        {showLabel ? <span className="truncate">View live ({links.length})</span> : null}
+        {showLabel ? <span className="truncate">View live ({resolvedLinks.length})</span> : null}
       </button>
       <ViewLiveLinksPickerModal
         open={pickerOpen}
         templateName={templateName}
-        links={links}
+        links={resolvedLinks}
         highlightStoreId={highlightStoreId}
         onClose={() => setPickerOpen(false)}
       />
