@@ -1651,6 +1651,7 @@ function SiteCard({
           vendorSlug={vendor?.slug}
           fallbackImage={staticThumb}
           templates={websiteTemplates}
+          variant="card"
           className="absolute inset-0"
         />
         {/* Overlay on hover */}

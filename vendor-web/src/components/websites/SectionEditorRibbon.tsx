@@ -1,5 +1,6 @@
 import type { LucideIcon } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { builderPanelUi } from '@/components/websites/builderPanelUi'
 
 export type SectionEditorTabId = 'content' | 'layout' | 'design' | 'media' | 'more'
 
@@ -30,7 +31,7 @@ export function SectionEditorRibbon({
       role="tablist"
       aria-label="Section editor"
     >
-      <div className="flex items-stretch overflow-x-auto hide-scrollbar px-1 pt-1">
+      <div className={cn(builderPanelUi.tabStripTabs, 'overflow-hidden px-0.5 pt-0.5')}>
         {visible.map(({ id, label, icon: Icon }) => {
           const selected = active === id
           return (
@@ -39,16 +40,28 @@ export function SectionEditorRibbon({
               type="button"
               role="tab"
               aria-selected={selected}
+              title={label}
               onClick={() => onChange(id)}
               className={cn(
-                'relative shrink-0 min-w-[4.25rem] px-2.5 py-2 flex flex-col items-center gap-0.5 rounded-t-lg border border-b-0 transition-colors',
+                'relative flex min-w-0 flex-1 flex-col items-center justify-center gap-px rounded-t-md border border-b-0 px-0.5 py-1 transition-colors',
                 selected
                   ? 'z-[1] -mb-px border-border bg-card text-primary shadow-[0_-1px_0_0_hsl(var(--card))]'
-                  : 'border-transparent text-muted-foreground hover:bg-card/70 hover:text-foreground',
+                  : 'border-transparent text-gray-600 hover:bg-card/70 hover:text-gray-900 dark:text-muted-foreground dark:hover:text-foreground',
               )}
             >
-              <Icon className={cn('w-4 h-4', selected ? 'text-primary' : 'text-muted-foreground')} />
-              <span className={cn('text-[10px] font-semibold leading-none', selected && 'text-primary')}>
+              <Icon
+                className={cn(
+                  builderPanelUi.tabBtnIcon,
+                  selected ? 'text-primary' : 'text-gray-500 dark:text-muted-foreground',
+                )}
+              />
+              <span
+                className={cn(
+                  builderPanelUi.tabBtnLabel,
+                  'font-semibold',
+                  selected ? 'text-primary' : 'text-gray-600 dark:text-muted-foreground',
+                )}
+              >
                 {label}
               </span>
             </button>

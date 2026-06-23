@@ -15,7 +15,7 @@ import {
   Undo2, Redo2, Plus, Trash2, Copy, ChevronUp, ChevronDown, ChevronsUp, ChevronsDown,
   GripVertical, Settings2, Palette, Sparkles, Image as ImageIcon,
   FileText, Layers, Layout, Code, Globe, Search, X, Check,
-  Loader2, ChevronRight, MoreVertical, MoreHorizontal, History, Lightbulb, PanelLeft, PanelRight,
+  Loader2, ChevronRight, MoreVertical, MoreHorizontal, History, Lightbulb, PanelLeft, PanelRight, PanelLeftClose, PanelRightClose,
   Wand2, AlertTriangle, Download, ExternalLink, RefreshCw,
   Bold, Italic, Link2,
   Minimize2, Move, Pencil, PlusCircle, Upload,
@@ -78,8 +78,7 @@ import {
 } from '@/components/websites/BuilderSectionOverlay'
 import { SectionSizeControl } from '@/components/websites/SectionSizeControl'
 import {
-  FontSizePxControl,
-  FontFamilyControl,
+  TypographyFontStack,
   TextCaseList,
   TextFieldAlignGrid,
   LayoutTransformPositionGroup,
@@ -93,6 +92,15 @@ import {
   type TextAlignH,
   type TextAlignV,
 } from '@/components/websites/TypographyCompositionControls'
+import {
+  generalDesignBarCluster,
+  generalDesignBarGrid2x2,
+  generalDesignBarGridCell,
+  designBarTabSlot,
+  designBarTabClass,
+  designBarTabList,
+  visualToolbarRow,
+} from '@/components/websites/designBarVisualUi'
 import { ScrollAnimationControls } from '@/components/websites/ScrollAnimationControls'
 import { animationOptionLabel } from '@storefront/lib/builderScrollAnimations'
 import {
@@ -146,6 +154,7 @@ import {
 import { MediaStudioPanel } from '@/components/websites/MediaStudioPanel'
 import { DesignBarDropdownPortal } from '@/components/websites/DesignBarDropdownPortal'
 import { VisualDesignBarTools } from '@/components/websites/VisualDesignBarTools'
+import { VisualsDesignBarMenu } from '@/components/websites/MediaDesignBarTools'
 import { OverlayIconPicker } from '@/components/websites/OverlayIconPicker'
 import { OverlayTypographyToolbar } from '@/components/websites/OverlayTypographyToolbar'
 import { SectionImageControls } from '@/components/websites/SectionImageControls'
@@ -174,7 +183,6 @@ import {
   type ActiveCanvasImageTarget,
   type CanvasImageSlot,
 } from '@storefront/lib/canvasImageTarget'
-import { MediaDesignBarStrip } from '@/components/websites/MediaDesignBarTools'
 import { SingleImagePreview } from '@/components/common/CatalogMediaLightbox'
 import { useImageSourcePicker } from '@/components/common/ImageSourcePicker'
 import { SectionLayoutPickerModal } from '@/components/websites/SectionLayoutPickerModal'
@@ -7105,7 +7113,7 @@ const FONT_SCALE_STEPS: [string, number][] = [
   ['XS', 0.75], ['S', 0.875], ['M', 1], ['L', 1.125], ['XL', 1.25], ['2X', 1.5],
 ]
 
-const DESIGN_BAR_TABS = ['general', 'visual', 'media'] as const
+const DESIGN_BAR_TABS = ['general', 'visual'] as const
 // 'image' is a contextual tab — only present while a section/card image is selected.
 type DesignBarTabId = (typeof DESIGN_BAR_TABS)[number] | 'image'
 
@@ -7805,11 +7813,11 @@ function BlockDesignBar({ block, onUpdate, onInsertAfter, onOpenLinkEditorForOve
   return (
     <div className="flex flex-col shrink-0" data-block-design-bar>
       <div
-        className="flex items-center gap-2 px-2 py-0.5 border-b border-gray-100 bg-gray-50/90"
+        className="flex items-center gap-2 border-b border-gray-200 bg-gray-100/90 px-2 py-1"
         role="tablist"
         aria-label="Section design tools"
       >
-        <div className="flex shrink-0 items-center gap-0.5">
+        <div className={designBarTabList}>
         {(([
           { id: 'general', label: 'General' },
           { id: 'visual', label: 'Visual' },
@@ -7823,7 +7831,6 @@ function BlockDesignBar({ block, onUpdate, onInsertAfter, onOpenLinkEditorForOve
                     : 'Section image',
               }]
             : []),
-          ...(!selectedOverlay ? [{ id: 'media', label: 'Media' }] : []),
         ]) as { id: DesignBarTabId; label: string }[]).map(tab => (
           <button
             key={tab.id}
@@ -7831,12 +7838,7 @@ function BlockDesignBar({ block, onUpdate, onInsertAfter, onOpenLinkEditorForOve
             role="tab"
             aria-selected={designBarTab === tab.id}
             onClick={() => setDesignBarTab(tab.id)}
-            className={cn(
-              'px-2 py-0.5 rounded-md text-[11px] font-semibold transition-colors',
-              designBarTab === tab.id
-                ? 'bg-white text-primary border border-primary/25 shadow-sm'
-                : 'text-gray-500 hover:text-gray-700 hover:bg-white/70',
-            )}
+            className={designBarTabClass(designBarTab === tab.id)}
           >
             {tab.label}
           </button>
@@ -7856,13 +7858,12 @@ function BlockDesignBar({ block, onUpdate, onInsertAfter, onOpenLinkEditorForOve
           ? 'General tools'
           : designBarTab === 'visual'
             ? 'Visual tools'
-            : 'Media tools'
+            : designBarTab === 'image'
+              ? 'Image tools'
+              : 'Section tools'
       }
       className={cn(
-        'z-[80] flex gap-0 bg-white px-1 py-0.5',
-        designBarTab === 'media'
-          ? 'max-h-[min(26rem,55vh)] flex-col items-stretch overflow-x-hidden overflow-y-auto'
-          : 'min-h-[2.25rem] items-center overflow-x-auto overflow-y-visible',
+        'z-[80] flex min-h-[4.25rem] shrink-0 items-center gap-0 overflow-x-auto overflow-y-visible overscroll-x-contain bg-white px-1 py-0.5',
         docked
           ? 'relative w-full border-b border-primary/20'
           : floating
@@ -7872,103 +7873,123 @@ function BlockDesignBar({ block, onUpdate, onInsertAfter, onOpenLinkEditorForOve
       onClick={e => e.stopPropagation()}
     >
       {designBarTab === 'general' && (
-        <>
-      <div className="flex min-w-0 flex-1 items-center gap-0.5 overflow-x-auto">
-      <div className="flex shrink-0 items-center pr-1">
-        <InsertLayerButton
-          overlayCount={overlayCount}
-          onAddOverlay={addOverlayElement}
-          onClearOverlays={() => onUpdate({ overlays: [] } as Partial<BlockProps>)}
-        />
-      </div>
-      {/* Edit + clipboard ? inline section text only, hidden when an overlay layer is selected */}
+        <div className={designBarTabSlot}>
+      <div className={visualToolbarRow}>
+      <InsertLayerButton
+        overlayCount={overlayCount}
+        onAddOverlay={addOverlayElement}
+        onClearOverlays={() => onUpdate({ overlays: [] } as Partial<BlockProps>)}
+      />
       {!selectedOverlay ? (
       <>
-      <div className="flex shrink-0 items-center gap-0.5">
-        <div className="flex h-14 w-[3.75rem] shrink-0 gap-px">
+      <div className={generalDesignBarGrid2x2}>
+        <button
+          type="button"
+          onClick={() => onEditText?.()}
+          title="Edit section text (E)"
+          className={cn(generalDesignBarGridCell, 'flex-col gap-0 border-b border-r border-gray-200 px-0.5 text-xs font-medium')}
+        >
+          <Pencil className="h-3 w-3 shrink-0" />
+          <BuilderShortcutKbd className="min-w-[0.75rem] px-0.5 text-[7px] leading-none">E</BuilderShortcutKbd>
+        </button>
+        <div className="relative min-h-0 border-b border-gray-200">
           <button
+            ref={caseBtnRef}
             type="button"
-            onClick={() => onEditText?.()}
-            title="Edit section text (E)"
-            className="flex h-full min-w-0 flex-1 items-center justify-center gap-0.5 rounded-md border border-gray-200 px-0.5 text-xs font-medium leading-none text-gray-700 transition-colors hover:border-primary/40 hover:bg-accent"
-          >
-            <Pencil className="h-3.5 w-3.5 shrink-0" />
-            <BuilderShortcutKbd className="min-w-[0.85rem] px-0.5 text-[8px]">E</BuilderShortcutKbd>
-          </button>
-          <button
-            type="button"
-            title={
-              formatPaintActive
-                ? 'Copy formatting active ? click text to apply'
-                : 'Format painter ? copy this text style. Click once: apply once. Double-click: apply to multiple fields.'
-            }
-            onMouseDown={e => {
-              pinInlineTextSelectionBeforeToolbarAction()
-              e.preventDefault()
-            }}
+            title="Text case"
             onClick={() => {
-              if (formatPaintClickTimerRef.current) window.clearTimeout(formatPaintClickTimerRef.current)
-              formatPaintClickTimerRef.current = window.setTimeout(() => {
-                startFormatPaint(false)
-                formatPaintClickTimerRef.current = null
-              }, 220)
-            }}
-            onDoubleClick={e => {
-              e.preventDefault()
-              if (formatPaintClickTimerRef.current) {
-                window.clearTimeout(formatPaintClickTimerRef.current)
-                formatPaintClickTimerRef.current = null
-              }
-              startFormatPaint(true)
+              setShowCase(v => !v)
+              setShowLineSpacing(false)
             }}
             className={cn(
-              'flex h-full min-w-0 flex-1 items-center justify-center rounded-md border transition-colors',
-              formatPaintActive
-                ? formatPaintSticky
-                  ? 'border-amber-400 bg-amber-100 text-amber-800 shadow-sm'
-                  : 'border-primary bg-primary/15 text-primary shadow-sm'
-                : 'border-gray-200 text-gray-600 hover:border-primary/40 hover:bg-accent',
+              generalDesignBarGridCell,
+              'flex-col gap-0 px-0 text-[10px] font-bold leading-none',
+              showCase || currentTextCaseMenuId(typographySource as any) !== 'default'
+                ? 'bg-primary/10 text-primary'
+                : undefined,
             )}
           >
-            <Paintbrush className={cn('h-3.5 w-3.5 shrink-0', formatPaintActive && 'text-amber-700')} />
+            Aa
+            <ChevronDown className="h-2 w-2 shrink-0 opacity-70" />
           </button>
+          <DesignBarDropdownPortal
+            open={showCase}
+            anchorRef={caseBtnRef}
+            menuRef={dropdownRef}
+            className="min-w-[220px] overflow-hidden rounded-lg border border-border bg-popover text-popover-foreground shadow-2xl"
+          >
+            <TextCaseList
+              size="compact"
+              activeId={currentTextCaseMenuId(typographySource as any)}
+              onSelect={rowId => {
+                if (activeTextField) {
+                  if (rowId === 'sentence' || rowId === 'toggle') {
+                    const currentVal = (p as any)[activeTextField]
+                    if (typeof currentVal === 'string') {
+                      onUpdate({
+                        [activeTextField]: rowId === 'sentence' ? toSentenceCase(currentVal) : toToggleCase(currentVal),
+                        _field_styles: {
+                          ...fieldStyles,
+                          [activeTextField]: { ...(fieldStyles[activeTextField] || {}), text_transform: null },
+                        },
+                      } as any)
+                    } else {
+                      updateTextStyle({ text_transform: null })
+                    }
+                  } else {
+                    updateTextStyle(buildTextCasePropsPatch({} as Record<string, unknown>, rowId) as Record<string, unknown>)
+                  }
+                } else {
+                  const patch = buildTextCasePropsPatch(p as Record<string, unknown>, rowId)
+                  onUpdate(patch as any)
+                }
+                setShowCase(false)
+                if (rowId === 'sentence' || rowId === 'toggle') {
+                  toast.success(rowId === 'sentence' ? 'Sentence case applied to section text' : 'Toggle case applied to section text')
+                }
+              }}
+            />
+          </DesignBarDropdownPortal>
         </div>
-
-        <div
-          {...{ [BUILDER_DESIGN_BAR_CHROME_ATTR]: true }}
-          className="flex h-14 w-7 shrink-0 flex-col divide-y divide-gray-200 overflow-hidden rounded-md border border-gray-200"
+        <button
+          type="button"
+          title={
+            formatPaintActive
+              ? 'Copy formatting active ? click text to apply'
+              : 'Format painter ? copy this text style. Click once: apply once. Double-click: apply to multiple fields.'
+          }
           onMouseDown={e => {
             pinInlineTextSelectionBeforeToolbarAction()
             e.preventDefault()
           }}
+          onClick={() => {
+            if (formatPaintClickTimerRef.current) window.clearTimeout(formatPaintClickTimerRef.current)
+            formatPaintClickTimerRef.current = window.setTimeout(() => {
+              startFormatPaint(false)
+              formatPaintClickTimerRef.current = null
+            }, 220)
+          }}
+          onDoubleClick={e => {
+            e.preventDefault()
+            if (formatPaintClickTimerRef.current) {
+              window.clearTimeout(formatPaintClickTimerRef.current)
+              formatPaintClickTimerRef.current = null
+            }
+            startFormatPaint(true)
+          }}
+          className={cn(
+            generalDesignBarGridCell,
+            'border-r border-gray-200',
+            formatPaintActive
+              ? formatPaintSticky
+                ? 'bg-amber-100 text-amber-800'
+                : 'bg-primary/15 text-primary'
+              : undefined,
+          )}
         >
-          <button
-            type="button"
-            title="Cut (Ctrl+X)"
-            onClick={() => runTextClipboard('cut')}
-            className="flex flex-1 items-center justify-center text-gray-700 transition-colors hover:bg-accent"
-          >
-            <Scissors className="h-3 w-3" />
-          </button>
-          <button
-            type="button"
-            title="Copy (Ctrl+C)"
-            onClick={() => runTextClipboard('copy')}
-            className="flex flex-1 items-center justify-center text-gray-700 transition-colors hover:bg-accent"
-          >
-            <Copy className="h-3 w-3" />
-          </button>
-          <button
-            type="button"
-            title="Paste (Ctrl+V)"
-            onClick={() => runTextClipboard('paste')}
-            className="flex flex-1 items-center justify-center text-gray-700 transition-colors hover:bg-accent"
-          >
-            <ClipboardPaste className="h-3 w-3" />
-          </button>
-        </div>
-
-        <div className="relative shrink-0">
+          <Paintbrush className={cn('h-3.5 w-3.5 shrink-0', formatPaintActive && 'text-amber-700')} />
+        </button>
+        <div className="relative min-h-0">
           <button
             ref={clearBtnRef}
             type="button"
@@ -7979,12 +8000,13 @@ function BlockDesignBar({ block, onUpdate, onInsertAfter, onOpenLinkEditorForOve
               setShowLineSpacing(false)
             }}
             className={cn(
-              'flex h-14 w-7 flex-col items-center justify-center gap-0 rounded-md border border-gray-200 text-gray-700 transition-colors hover:bg-accent',
-              showClear && 'border-primary/40 bg-primary/10 text-primary',
+              generalDesignBarGridCell,
+              'flex-col gap-0 px-0',
+              showClear && 'bg-accent',
             )}
           >
             <Eraser className="h-3.5 w-3.5 shrink-0" />
-            <ChevronDown className="h-2.5 w-2.5 shrink-0 opacity-70" />
+            <ChevronDown className="h-2 w-2 shrink-0 opacity-70" />
           </button>
           <DesignBarDropdownPortal
             open={showClear}
@@ -8028,9 +8050,39 @@ function BlockDesignBar({ block, onUpdate, onInsertAfter, onOpenLinkEditorForOve
         </div>
       </div>
 
-      <div className="w-px h-10 bg-gray-200 shrink-0" />
-      </>
-      ) : null}
+      <div
+        {...{ [BUILDER_DESIGN_BAR_CHROME_ATTR]: true }}
+        className={cn(generalDesignBarCluster, 'w-9 flex-col divide-y divide-gray-200')}
+        onMouseDown={e => {
+          pinInlineTextSelectionBeforeToolbarAction()
+          e.preventDefault()
+        }}
+      >
+        <button
+          type="button"
+          title="Cut (Ctrl+X)"
+          onClick={() => runTextClipboard('cut')}
+          className="flex flex-1 items-center justify-center text-gray-700 transition-colors hover:bg-accent"
+        >
+          <Scissors className="h-3 w-3" />
+        </button>
+        <button
+          type="button"
+          title="Copy (Ctrl+C)"
+          onClick={() => runTextClipboard('copy')}
+          className="flex flex-1 items-center justify-center text-gray-700 transition-colors hover:bg-accent"
+        >
+          <Copy className="h-3 w-3" />
+        </button>
+        <button
+          type="button"
+          title="Paste (Ctrl+V)"
+          onClick={() => runTextClipboard('paste')}
+          className="flex flex-1 items-center justify-center text-gray-700 transition-colors hover:bg-accent"
+        >
+          <ClipboardPaste className="h-3 w-3" />
+        </button>
+      </div>
 
       <div
         {...{ [BUILDER_TYPOGRAPHY_TOOLBAR_ATTR]: true }}
@@ -8040,93 +8092,24 @@ function BlockDesignBar({ block, onUpdate, onInsertAfter, onOpenLinkEditorForOve
           e.preventDefault()
         }}
       >
-        <div className="flex shrink-0 items-start border-r border-gray-200">
-          <div className="flex h-14 w-[6.25rem] shrink-0 flex-col">
-            <FontFamilyControl
-              stacked
-              size="compact"
-              value={toolbarFontFamily}
-              onChange={font => updateTextStyle({ font_family: font })}
-            />
-            <FontSizePxControl
-              embedded
-              stacked
-              size="compact"
-              valuePx={(toolbarTypography as any).font_size_px as number | undefined}
-              onStep={delta => updateTextStyle({}, { fontSizeDelta: delta })}
-              onChange={px => {
-                updateTextStyle({ text_scale: null, font_size_px: px })
-              }}
-            />
-          </div>
+        <div className="flex shrink-0 items-stretch border-r border-gray-200">
+          <TypographyFontStack
+            fontFamily={toolbarFontFamily}
+            onFontFamilyChange={font => updateTextStyle({ font_family: font })}
+            fontSizePx={(toolbarTypography as any).font_size_px as number | undefined}
+            onFontSizeStep={delta => updateTextStyle({}, { fontSizeDelta: delta })}
+            onFontSizeChange={px => {
+              updateTextStyle({ text_scale: null, font_size_px: px })
+            }}
+          />
           <ColorIdentPickerRow
-            vertical
+            designBar
             size="compact"
             textColor={toolbarTextColor}
             backgroundColor={toolbarBgColor}
             onTextColorChange={applyToolbarTextColor}
             onBackgroundColorChange={applyToolbarBackgroundColor}
             showBackgroundPicker={isCtaField || !selectedOverlay}
-            trailing={
-              <>
-                <button
-                  ref={caseBtnRef}
-                  type="button"
-                  title="Text case"
-                  onClick={() => {
-                    setShowCase(v => !v)
-                    setShowLineSpacing(false)
-                  }}
-                  className={cn(
-                    'flex h-full w-full items-center justify-center gap-0 px-0 text-[9px] font-bold leading-none transition-colors',
-                    showCase || currentTextCaseMenuId(typographySource as any) !== 'default'
-                      ? 'bg-primary/10 text-primary'
-                      : 'bg-white text-gray-700 hover:bg-gray-50',
-                  )}
-                >
-                  Aa
-                  <ChevronDown className="w-2 h-2 opacity-70 shrink-0" />
-                </button>
-                <DesignBarDropdownPortal
-                  open={showCase}
-                  anchorRef={caseBtnRef}
-                  menuRef={dropdownRef}
-                  className="min-w-[220px] overflow-hidden rounded-lg border border-border bg-popover text-popover-foreground shadow-2xl"
-                >
-                  <TextCaseList
-                    size="compact"
-                    activeId={currentTextCaseMenuId(typographySource as any)}
-                    onSelect={rowId => {
-                      if (activeTextField) {
-                        if (rowId === 'sentence' || rowId === 'toggle') {
-                          const currentVal = (p as any)[activeTextField]
-                          if (typeof currentVal === 'string') {
-                            onUpdate({
-                              [activeTextField]: rowId === 'sentence' ? toSentenceCase(currentVal) : toToggleCase(currentVal),
-                              _field_styles: {
-                                ...fieldStyles,
-                                [activeTextField]: { ...(fieldStyles[activeTextField] || {}), text_transform: null },
-                              },
-                            } as any)
-                          } else {
-                            updateTextStyle({ text_transform: null })
-                          }
-                        } else {
-                          updateTextStyle(buildTextCasePropsPatch({} as Record<string, unknown>, rowId) as Record<string, unknown>)
-                        }
-                      } else {
-                        const patch = buildTextCasePropsPatch(p as Record<string, unknown>, rowId)
-                        onUpdate(patch as any)
-                      }
-                      setShowCase(false)
-                      if (rowId === 'sentence' || rowId === 'toggle') {
-                        toast.success(rowId === 'sentence' ? 'Sentence case applied to section text' : 'Toggle case applied to section text')
-                      }
-                    }}
-                  />
-                </DesignBarDropdownPortal>
-              </>
-            }
           />
         </div>
 
@@ -8301,28 +8284,38 @@ function BlockDesignBar({ block, onUpdate, onInsertAfter, onOpenLinkEditorForOve
           onReset: resetTransform,
         }}
       />
-      </div>
 
-      <div className="flex shrink-0 items-center gap-1 border-l border-gray-200 pl-1">
-        <span className="hidden md:inline text-[10px] text-gray-400 font-mono truncate max-w-[5rem]" title={block.label || block.block_type}>
-          {block.label || block.block_type}
-        </span>
+      <span className="hidden md:inline shrink-0 text-[10px] text-gray-400 font-mono truncate max-w-[5rem]" title={block.label || block.block_type}>
+        {block.label || block.block_type}
+      </span>
+      </>
+      ) : null}
       </div>
-        </>
+        </div>
       )}
 
       {designBarTab === 'image' && canvasImageField && !selectedOverlay ? (
-        <div className="flex min-w-0 flex-1 items-center gap-1 px-1">
-          <div className="flex shrink-0 items-center self-center rounded-md border border-gray-200 bg-white px-0.5 py-0.5">
+        <div className={designBarTabSlot}>
+          <div className={cn(visualToolbarRow, 'gap-1 px-1')}>
+          <VisualsDesignBarMenu
+            blockType={String(block.block_type)}
+            blockProps={p as Record<string, unknown>}
+            primaryImageField={primaryImageField}
+            canvasImageField={canvasImageField}
+            onUpdate={onUpdate}
+            onPickImage={onSectionImagePick}
+            onOpenMediaLibrary={onSectionImageLibrary}
+            onFocusPrimaryImage={onFocusPrimaryImage}
+          />
+          <div className="flex shrink-0 items-center rounded-md border border-gray-200 bg-white px-0.5">
             <SectionImageControls
               imageField={canvasImageField}
               arraySlots={canvasImageSlots}
               blockProps={p as Record<string, unknown>}
               blockType={String(block.block_type)}
               onUpdate={patch => onUpdate(patch as Partial<BlockProps>)}
-              onPickImage={onSectionImagePick}
-              onOpenLibrary={onSectionImageLibrary}
             />
+          </div>
           </div>
         </div>
       ) : null}
@@ -8355,18 +8348,10 @@ function BlockDesignBar({ block, onUpdate, onInsertAfter, onOpenLinkEditorForOve
           onOverlayEditDescription={selectedOverlay ? onOverlayEditDescription : undefined}
           onOverlayBringToFront={selectedOverlay ? bringSelectedOverlayFront : undefined}
           onOverlaySendToBack={selectedOverlay ? sendSelectedOverlayBack : undefined}
-        />
-      )}
-
-      {designBarTab === 'media' && !selectedOverlay && (
-        <MediaDesignBarStrip
-          blockType={String(block.block_type)}
-          blockProps={p as Record<string, unknown>}
           primaryImageField={primaryImageField}
           canvasImageField={canvasImageField}
-          onUpdate={onUpdate}
-          onOpenMediaLibrary={onSectionImageLibrary}
-          onPickImage={onSectionImagePick}
+          onSectionImagePick={onSectionImagePick}
+          onSectionImageLibrary={onSectionImageLibrary}
           onFocusPrimaryImage={onFocusPrimaryImage}
         />
       )}
@@ -13815,7 +13800,11 @@ export default function WebsiteBuilder() {
 
         {/* ── LEFT PANEL ──────────────────────────────────────────────── */}
         <aside
-          className={cn('flex flex-col border-r shrink-0', builderPanelUi.shell, leftCollapsed ? 'w-10' : '')}
+          className={cn(
+            'flex flex-col border-r shrink-0',
+            builderPanelUi.shell,
+            leftCollapsed ? 'relative w-10' : '',
+          )}
           style={leftCollapsed ? undefined : { width: leftWidth }}
         >
           {leftCollapsed ? (
@@ -13823,17 +13812,19 @@ export default function WebsiteBuilder() {
               type="button"
               onClick={() => setLeftCollapsed(false)}
               title="Open panel — Sections, Pages, Templates, Media"
-              className="flex-1 flex flex-col items-center justify-center gap-2 py-3 text-muted-foreground hover:text-foreground hover:bg-muted/40"
+              className={cn(
+                builderPanelUi.panelEdgeToggle,
+                builderPanelUi.panelEdgeToggleTop,
+                'right-0 translate-x-1/2',
+              )}
             >
-              <PanelLeft className="w-4 h-4" />
-              <span className="text-[9px] font-semibold writing-mode-vertical text-center leading-tight px-0.5" style={{ writingMode: 'vertical-rl' }}>
-                Sections
-              </span>
+              <PanelLeft className="h-3.5 w-3.5" strokeWidth={2} />
             </button>
           ) : (
             <>
               {/* Left panel tabs */}
-              <div className={cn('flex items-center border-b shrink-0 overflow-x-auto hide-scrollbar', builderPanelUi.divider)}>
+              <div className={builderPanelUi.tabStrip}>
+                <div className={builderPanelUi.tabStripTabs}>
                 {([
                   { id: 'blocks' as const, icon: Layout, label: 'Sections' },
                   { id: 'pages' as const, icon: FileText, label: 'Pages' },
@@ -13845,17 +13836,15 @@ export default function WebsiteBuilder() {
                       onClick={() => setLeftPanel(id)}
                       title={label}
                       className={cn(
-                        'min-w-[3.25rem] shrink-0 py-2 px-1 flex flex-col items-center gap-0.5 text-[10px] font-medium transition-colors',
+                        builderPanelUi.tabBtn,
                         leftPanel === id ? builderPanelUi.tabActive : builderPanelUi.tabInactive,
                       )}
                     >
-                      <Icon className="w-4 h-4" />
-                      <span>{label}</span>
+                      <Icon className={builderPanelUi.tabBtnIcon} />
+                      <span className={builderPanelUi.tabBtnLabel}>{label}</span>
                     </button>
                   ))}
-                <button onClick={() => setLeftCollapsed(true)} className="ml-auto px-2 py-2.5 text-muted-foreground/70 hover:text-muted-foreground shrink-0">
-                  <ChevronLeft className="w-3 h-3" />
-                </button>
+                </div>
               </div>
 
               <BuilderWelcomePanel
@@ -13921,11 +13910,6 @@ export default function WebsiteBuilder() {
                         <FormColumnLabel className="tracking-wide px-1 mb-2">
                           {`Add Section${sectionSearchLower || sectionCategory !== 'all' ? ` · ${filteredCatalogBlocks.length}` : ''}`}
                         </FormColumnLabel>
-                        <p className="text-[11px] text-gray-400 px-1 mb-2 leading-snug">
-                          Click to add a section after your selection (or at the end).
-                          <strong className="font-medium text-gray-500"> Move ↑↓</strong> reorders on the page;
-                          <strong className="font-medium text-gray-500"> style icon</strong> changes how it looks.
-                        </p>
                         <div className="space-y-0.5">
                           {filteredCatalogBlocks.map(def => (
                             <button
@@ -14305,16 +14289,31 @@ export default function WebsiteBuilder() {
         {/* ── LEFT RESIZE HANDLE ──────────────────────────────────────── */}
         {!leftCollapsed && (
           <div
-            className="w-px shrink-0 bg-transparent hover:bg-gray-500 active:bg-gray-600 cursor-col-resize transition-colors group relative z-20"
-            onMouseDown={e => {
-              e.preventDefault()
-              isResizingLeft.current = true
-              document.body.style.cursor = 'col-resize'
-              document.body.style.userSelect = 'none'
-            }}
-            title="Drag to resize panel"
+            className="relative w-px shrink-0 self-stretch bg-transparent transition-colors group z-20 hover:bg-gray-500 active:bg-gray-600"
           >
-            <div className="absolute inset-y-0 -left-1 -right-1" />
+            <div
+              className="absolute inset-y-0 -left-1 -right-1 cursor-col-resize"
+              onMouseDown={e => {
+                e.preventDefault()
+                isResizingLeft.current = true
+                document.body.style.cursor = 'col-resize'
+                document.body.style.userSelect = 'none'
+              }}
+              title="Drag to resize panel"
+            />
+            <button
+              type="button"
+              onClick={() => setLeftCollapsed(true)}
+              onMouseDown={e => e.stopPropagation()}
+              title="Collapse panel"
+              className={cn(
+                builderPanelUi.panelEdgeToggle,
+                builderPanelUi.panelEdgeToggleTop,
+                'left-1/2 -translate-x-1/2',
+              )}
+            >
+              <PanelLeftClose className="h-3.5 w-3.5" strokeWidth={2} />
+            </button>
           </div>
         )}
 
@@ -14940,35 +14939,61 @@ export default function WebsiteBuilder() {
         {/* ── RIGHT RESIZE HANDLE ─────────────────────────────────────── */}
         {!rightCollapsed && (
           <div
-            className="w-px shrink-0 bg-transparent hover:bg-gray-500 active:bg-gray-600 cursor-col-resize transition-colors group relative z-20"
-            onMouseDown={e => {
-              e.preventDefault()
-              isResizingRight.current = true
-              document.body.style.cursor = 'col-resize'
-              document.body.style.userSelect = 'none'
-            }}
-            title="Drag to resize panel"
+            className="relative w-px shrink-0 self-stretch bg-transparent transition-colors group z-20 hover:bg-gray-500 active:bg-gray-600"
           >
-            <div className="absolute inset-y-0 -left-1 -right-1" />
+            <div
+              className="absolute inset-y-0 -left-1 -right-1 cursor-col-resize"
+              onMouseDown={e => {
+                e.preventDefault()
+                isResizingRight.current = true
+                document.body.style.cursor = 'col-resize'
+                document.body.style.userSelect = 'none'
+              }}
+              title="Drag to resize panel"
+            />
+            <button
+              type="button"
+              onClick={() => setRightCollapsed(true)}
+              onMouseDown={e => e.stopPropagation()}
+              title="Collapse panel"
+              className={cn(
+                builderPanelUi.panelEdgeToggle,
+                builderPanelUi.panelEdgeToggleTop,
+                'left-1/2 -translate-x-1/2',
+              )}
+            >
+              <PanelRightClose className="h-3.5 w-3.5" strokeWidth={2} />
+            </button>
           </div>
         )}
 
         {/* ── RIGHT PANEL ──────────────────────────────────────────────── */}
         <aside
-          className={cn('flex flex-col border-l shrink-0', builderPanelUi.shell, rightCollapsed ? 'w-10' : '')}
+          className={cn(
+            'flex flex-col border-l shrink-0',
+            builderPanelUi.shell,
+            rightCollapsed ? 'relative w-10' : '',
+          )}
           style={rightCollapsed ? undefined : { width: rightWidth }}
         >
           {rightCollapsed ? (
-            <button onClick={() => setRightCollapsed(false)} className="flex-1 flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted/40">
-              <PanelRight className="w-4 h-4" />
+            <button
+              type="button"
+              onClick={() => setRightCollapsed(false)}
+              title="Open panel — Section Edit, Page Edit, Style, Store data"
+              className={cn(
+                builderPanelUi.panelEdgeToggle,
+                builderPanelUi.panelEdgeToggleTop,
+                'left-0 -translate-x-1/2',
+              )}
+            >
+              <PanelRight className="h-3.5 w-3.5" strokeWidth={2} />
             </button>
           ) : (
             <>
               {/* Right panel tabs */}
-              <div className={cn('flex items-center border-b shrink-0 overflow-x-auto hide-scrollbar', builderPanelUi.divider)}>
-                <button onClick={() => setRightCollapsed(true)} className="px-2 py-2.5 text-muted-foreground/70 hover:text-muted-foreground shrink-0">
-                  <ChevronRight className="w-3 h-3" />
-                </button>
+              <div className={builderPanelUi.tabStrip}>
+                <div className={builderPanelUi.tabStripTabs}>
                 {([
                   { id: 'props' as const, icon: Settings2, label: 'Section Edit', hint: 'Text, colors, and layout for the selected section' },
                   { id: 'page' as const, icon: FileText, label: 'Page Edit', hint: 'Page-wide colors and fonts (switch pages in the left Pages panel)' },
@@ -14980,14 +15005,15 @@ export default function WebsiteBuilder() {
                     onClick={() => setRightPanel(id)}
                     title={hint}
                     className={cn(
-                      'min-w-[4.25rem] shrink-0 py-2 px-1 flex flex-col items-center gap-0.5 transition-colors antialiased subpixel-antialiased',
+                      builderPanelUi.tabBtn,
                       rightPanel === id ? builderPanelUi.tabActive : builderPanelUi.tabInactive,
                     )}
                   >
-                    <Icon className="w-4 h-4" />
-                    <span className="text-[11px] font-semibold leading-none">{label}</span>
+                    <Icon className={builderPanelUi.tabBtnIcon} />
+                    <span className={builderPanelUi.tabBtnLabel}>{label}</span>
                   </button>
                 ))}
+                </div>
               </div>
 
               <div className="flex-1 overflow-y-auto">

@@ -9,7 +9,7 @@ import {
   builderOverlayIconLabel,
   resolveBuilderOverlayIcon,
 } from '@storefront/lib/builderOverlayIcons'
-import { visualActionBtn, visualPanelCell, visualSectionBtn } from '@/components/websites/designBarVisualUi'
+import { visualActionBtn, visualPanelCell, visualSectionBtn, visualTabMenuBtn } from '@/components/websites/designBarVisualUi'
 
 export function OverlayIconPickerMenu({
   open,
@@ -143,6 +143,7 @@ export function OverlayIconsRibbonButton({
   btnRef: externalRef,
   open,
   onToggle,
+  visualTab = false,
 }: {
   selectedIconId?: string | null
   onPickIcon: (iconId: string) => void
@@ -150,6 +151,8 @@ export function OverlayIconsRibbonButton({
   btnRef?: RefObject<HTMLButtonElement | null>
   open?: boolean
   onToggle?: () => void
+  /** Visual tab row — roomier label line-height. */
+  visualTab?: boolean
 }) {
   const internalRef = useRef<HTMLButtonElement>(null)
   const btnRef = externalRef ?? internalRef
@@ -185,7 +188,7 @@ export function OverlayIconsRibbonButton({
         title="Icons — add or change icon on this section"
         onClick={toggle}
         className={cn(
-          visualSectionBtn,
+          visualTab ? visualTabMenuBtn : visualSectionBtn,
           (active || menuOpen) && 'border-primary/40 bg-primary/10 text-primary ring-1 ring-primary/30',
         )}
       >

@@ -4,12 +4,10 @@ import {
   ArrowRight,
   ArrowUp,
   Crosshair,
-  ImageIcon,
   Layers,
   Minus,
   Plus,
   Square,
-  Upload,
   ZoomIn,
   ZoomOut,
 } from 'lucide-react'
@@ -35,7 +33,6 @@ import {
   type SectionImageShadow,
 } from '@storefront/lib/sectionImageStyle'
 import {
-  visualActionBtn,
   visualPanel,
   visualRow,
   visualSegmentBtn,
@@ -196,8 +193,6 @@ export function SectionImageControls({
   arraySlot,
   arraySlots,
   onUpdate,
-  onPickImage,
-  onOpenLibrary,
 }: {
   imageField: string
   blockProps: Record<string, unknown>
@@ -207,8 +202,6 @@ export function SectionImageControls({
   /** Multi-select — toolbar applies to every slot in the list. */
   arraySlots?: CanvasImageArraySlot[]
   onUpdate: (patch: Record<string, unknown>) => void
-  onPickImage?: () => void
-  onOpenLibrary?: () => void
 }) {
   const resolvedSlots = arraySlots?.length ? arraySlots : arraySlot ? [arraySlot] : []
   const primarySlot = resolvedSlots[0]
@@ -293,18 +286,6 @@ export function SectionImageControls({
             value={panelHeight}
             onCommit={n => onUpdate({ min_height: n })}
           />
-        ) : null}
-        {onPickImage ? (
-          <button type="button" title="Upload image" onClick={onPickImage} className={cn(visualActionBtn('sky'), 'gap-1 px-1.5')}>
-            <Upload className="h-3 w-3 shrink-0" />
-            <span className="text-[8px]">Up</span>
-          </button>
-        ) : null}
-        {onOpenLibrary ? (
-          <button type="button" title="Media library" onClick={onOpenLibrary} className={cn(visualActionBtn('emerald'), 'gap-1 px-1.5')}>
-            <ImageIcon className="h-3 w-3 shrink-0" />
-            <span className="text-[8px]">Lib</span>
-          </button>
         ) : null}
       </div>
 

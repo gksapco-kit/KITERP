@@ -65,6 +65,54 @@ type Props = {
   previewMode?: 'assigned' | 'live'
   /** cover = fill small thumbs edge-to-edge like object-cover */
   scaleMode?: GlimpseScaleMode
+  /** card = fast static thumb for grids; full = live canvas / iframe preview */
+  variant?: 'card' | 'full'
+}
+
+function StaticGlimpseImage({ src, className }: { src: string; className?: string }) {
+  return (
+    <div className={cn('relative h-full w-full overflow-hidden', className)}>
+      <img src={src} alt="" className="h-full w-full object-cover" loading="lazy" />
+      <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/35 via-transparent to-transparent" />
+    </div>
+  )
+}
+
+function GlimpseGradient({ gradient, className }: { gradient: string; className?: string }) {
+  return (
+    <div
+      className={cn('relative h-full w-full overflow-hidden', className)}
+      style={{ background: gradient }}
+    >
+      <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/25 via-transparent to-transparent" />
+    </div>
+  )
+}
+
+function GlimpsePlaceholder({ className }: { className?: string }) {
+  return (
+    <div
+      className={cn(
+        'flex h-full items-center justify-center bg-gradient-to-br from-primary/15 via-accent to-primary/5',
+        className,
+      )}
+    >
+      <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary shadow-sm">
+        <Monitor className="h-5 w-5 text-white" />
+      </div>
+    </div>
+  )
+}
+
+function GlimpseLoading({ className }: { className?: string }) {
+  return (
+    <div
+      className={cn(
+        'h-full bg-gradient-to-br from-primary/10 via-accent to-primary/5 animate-pulse',
+        className,
+      )}
+    />
+  )
 }
 
 function LiveStorefrontIframePreview({
@@ -114,22 +162,32 @@ export function WebsiteSiteGlimpse({
   className,
   previewMode = 'live',
   scaleMode = 'width',
+  variant = 'full',
 }: Props) {
   const containerRef = useRef<HTMLDivElement>(null)
   const contentHeight = scaleMode === 'cover' ? GLIMPSE_CONTENT_HEIGHT : IFRAME_HEIGHT
   const { scale, offsetX, offsetY } = useGlimpseScale(containerRef, scaleMode, contentHeight)
+  const isCard = variant === 'card'
+  const hasFallbackImage = Boolean(fallbackImage?.trim())
 
   const { data, isLoading } = useQuery({
     queryKey: ['site-homepage-glimpse', siteId],
     queryFn: () => fetchSiteHomepageGlimpse(siteId!, templates),
-    enabled: Boolean(siteId),
+    enabled: Boolean(siteId) && (!isCard || !hasFallbackImage),
     staleTime: 5 * 60 * 1000,
   })
 
   const staticImage = data?.staticImage || fallbackImage
   const gradient = styleConfigPreviewGradient(data?.style) || fallbackGradient
   const preferAssignedPreview = previewMode === 'assigned'
-  const canRenderCanvas = Boolean(data?.blocks.length && vendorSlug && siteId)
+  const canRenderCanvas = !isCard && Boolean(data?.blocks.length && vendorSlug && siteId)
+
+  if (isCard) {
+    if (staticImage) return <StaticGlimpseImage src={staticImage} className={className} />
+    if (isLoading && siteId) return <GlimpseLoading className={className} />
+    if (gradient) return <GlimpseGradient gradient={gradient} className={className} />
+    return <GlimpsePlaceholder className={className} />
+  }
 
   if (canRenderCanvas) {
     return (
@@ -166,23 +224,11 @@ export function WebsiteSiteGlimpse({
   }
 
   if (isLoading && siteId) {
-    return (
-      <div
-        className={cn(
-          'h-full bg-gradient-to-br from-primary/10 via-accent to-primary/5 animate-pulse',
-          className,
-        )}
-      />
-    )
+    return <GlimpseLoading className={className} />
   }
 
   if (preferAssignedPreview && staticImage) {
-    return (
-      <div className={cn('relative h-full w-full overflow-hidden', className)}>
-        <img src={staticImage} alt="" className="h-full w-full object-cover" loading="lazy" />
-        <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/35 via-transparent to-transparent" />
-      </div>
-    )
+    return <StaticGlimpseImage src={staticImage} className={className} />
   }
 
   const liveUrl = livePreviewUrl?.trim()
@@ -191,35 +237,12 @@ export function WebsiteSiteGlimpse({
   }
 
   if (staticImage) {
-    return (
-      <div className={cn('relative h-full w-full overflow-hidden', className)}>
-        <img src={staticImage} alt="" className="h-full w-full object-cover" loading="lazy" />
-        <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/35 via-transparent to-transparent" />
-      </div>
-    )
+    return <StaticGlimpseImage src={staticImage} className={className} />
   }
 
   if (gradient) {
-    return (
-      <div
-        className={cn('relative h-full w-full overflow-hidden', className)}
-        style={{ background: gradient }}
-      >
-        <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/25 via-transparent to-transparent" />
-      </div>
-    )
+    return <GlimpseGradient gradient={gradient} className={className} />
   }
 
-  return (
-    <div
-      className={cn(
-        'flex h-full items-center justify-center bg-gradient-to-br from-primary/15 via-accent to-primary/5',
-        className,
-      )}
-    >
-      <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary shadow-sm">
-        <Monitor className="h-5 w-5 text-white" />
-      </div>
-    </div>
-  )
+  return <GlimpsePlaceholder className={className} />
 }

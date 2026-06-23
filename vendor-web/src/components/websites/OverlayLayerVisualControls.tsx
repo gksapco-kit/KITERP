@@ -1,5 +1,5 @@
-import { useRef } from 'react'
-import { ImageIcon, Info, Link2, Minus, Plus, Sparkles, Type, Upload } from 'lucide-react'
+import { useRef, type ReactNode } from 'react'
+import { Info, Link2, Minus, Plus, Sparkles, Type } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import {
   defaultOverlayFillColor,
@@ -17,15 +17,15 @@ import type { OverlayBox } from '@/lib/overlayAlignmentSnap'
 import {
   visualActionBtn,
   visualChip,
+  visualGroupDivider,
   visualIconBtn,
-  visualLayerCol,
   visualMeta,
   visualPanel,
-  visualRow,
   visualSegmentBtn,
   visualSegmentTrack,
   visualStepperCell,
   visualStepperValue,
+  visualToolbarRowWrap,
 } from '@/components/websites/designBarVisualUi'
 
 function ColorCell({
@@ -96,30 +96,27 @@ export function OverlayLayerVisualControls({
   onUpdate,
   onBringToFront,
   onSendToBack,
-  onPickLocalImage,
-  onOpenMediaLibrary,
-  onSetImageUrl,
   onEditLink,
   onEditText,
   onEditDescription,
   siblings,
   containerWidth,
   containerHeight,
+  leading,
 }: {
   item: OverlayLayerItem
   blockBackgroundColor?: string
   onUpdate: (patch: Partial<OverlayLayerItem>) => void
   onBringToFront?: () => void
   onSendToBack?: () => void
-  onPickLocalImage?: () => void
-  onOpenMediaLibrary?: () => void
-  onSetImageUrl?: () => void
   onEditLink?: () => void
   onEditText?: () => void
   onEditDescription?: () => void
   siblings?: OverlayBox[]
   containerWidth?: number
   containerHeight?: number
+  /** Insert / Visuals strip — same row as position controls. */
+  leading?: ReactNode
 }) {
   const noFill = isOverlayNoFill(item)
   const hasFillControls = overlayHasFillControls(item)
@@ -131,14 +128,41 @@ export function OverlayLayerVisualControls({
     : defaultOverlayFillColor(String(item.type))
   const isImage = item.type === 'image'
   const isIcon = item.type === 'icon'
+  const hasContainer = !!(containerWidth && containerHeight)
 
-  const row1 = (
-    <>
-      <div className={visualPanel}>
-        <span className={visualChip}>{overlayLayerTypeLabel(String(item.type))}</span>
-        <span className={visualMeta}>{Math.round(item.w)}×{Math.round(item.h)}</span>
+  return (
+    <div className="flex min-w-0 w-full flex-col gap-px">
+      <div className={visualToolbarRowWrap}>
+        {leading}
+        {leading ? <span className={visualGroupDivider} aria-hidden /> : null}
+        <OverlayTransformControls
+          item={item}
+          onUpdate={onUpdate}
+          onBringToFront={onBringToFront}
+          onSendToBack={onSendToBack}
+          variant="compact"
+          siblings={siblings}
+          containerWidth={containerWidth}
+          containerHeight={containerHeight}
+          keyboardShortcuts
+        />
+        {hasContainer ? (
+          <OverlayAlignControls
+            item={item}
+            containerWidth={containerWidth!}
+            containerHeight={containerHeight!}
+            onUpdate={onUpdate}
+            variant="compact"
+          />
+        ) : null}
+
+        <div className={visualPanel}>
+          <span className={visualChip}>{overlayLayerTypeLabel(String(item.type))}</span>
+          <span className={visualMeta}>{Math.round(item.w)}×{Math.round(item.h)}</span>
+        </div>
       </div>
 
+      <div className={visualToolbarRowWrap}>
       {hasTextControls ? (
         <>
           <ColorCell
@@ -220,43 +244,17 @@ export function OverlayLayerVisualControls({
         </>
       ) : null}
 
-      {isImage ? (
-        <>
-          {hasLink && onEditLink ? (
-            <button
-              type="button"
-              title={isLinked ? 'Linked' : 'Link'}
-              onClick={onEditLink}
-              className={cn(visualActionBtn(isLinked ? 'link' : 'muted'), 'w-7 px-0')}
-            >
-              <Link2 className="h-3 w-3 shrink-0" />
-            </button>
-          ) : null}
-          {onPickLocalImage ? (
-            <button type="button" title="Upload" onClick={onPickLocalImage} className={cn(visualActionBtn('sky'), 'gap-1 px-1.5')}>
-              <Upload className="h-3 w-3 shrink-0" />
-              <span className="text-[8px]">Up</span>
-            </button>
-          ) : null}
-          {onOpenMediaLibrary ? (
-            <button type="button" title="Library" onClick={onOpenMediaLibrary} className={cn(visualActionBtn('emerald'), 'gap-1 px-1.5')}>
-              <ImageIcon className="h-3 w-3 shrink-0" />
-              <span className="text-[8px]">Lib</span>
-            </button>
-          ) : null}
-          {onSetImageUrl ? (
-            <button type="button" title="URL" onClick={onSetImageUrl} className={cn(visualActionBtn('primary'), 'gap-1 px-1.5')}>
-              <Link2 className="h-3 w-3 shrink-0" />
-              <span className="text-[8px]">URL</span>
-            </button>
-          ) : null}
-        </>
+      {isImage && hasLink && onEditLink ? (
+        <button
+          type="button"
+          title={isLinked ? 'Linked' : 'Link'}
+          onClick={onEditLink}
+          className={cn(visualActionBtn(isLinked ? 'link' : 'muted'), 'w-7 px-0')}
+        >
+          <Link2 className="h-3 w-3 shrink-0" />
+        </button>
       ) : null}
-    </>
-  )
 
-  const row2 = (
-    <>
       {hasFillControls ? (
         <>
           <div className={visualSegmentTrack} role="group" aria-label="Fill">
@@ -351,50 +349,20 @@ export function OverlayLayerVisualControls({
             onCommit={n => onUpdate({ imageScale: n })}
           />
           <div className={visualSegmentTrack} role="group" aria-label="Image fit">
-          {(['cover', 'contain', 'fill'] as const).map(fit => (
-            <button
-              key={fit}
-              type="button"
-              className={visualSegmentBtn((item.objectFit || 'cover') === fit)}
-              onClick={() => onUpdate({ objectFit: fit })}
-            >
-              {fit === 'cover' ? 'Cover' : fit === 'contain' ? 'Fit' : 'Fill'}
-            </button>
-          ))}
-        </div>
+            {(['cover', 'contain', 'fill'] as const).map(fit => (
+              <button
+                key={fit}
+                type="button"
+                className={visualSegmentBtn((item.objectFit || 'cover') === fit)}
+                onClick={() => onUpdate({ objectFit: fit })}
+              >
+                {fit === 'cover' ? 'Cover' : fit === 'contain' ? 'Fit' : 'Fill'}
+              </button>
+            ))}
+          </div>
         </>
       ) : null}
-    </>
-  )
-
-  const hasContainer = !!(containerWidth && containerHeight)
-
-  return (
-    <div className={cn(visualLayerCol)}>
-      <div className={visualRow}>
-        <OverlayTransformControls
-          item={item}
-          onUpdate={onUpdate}
-          onBringToFront={onBringToFront}
-          onSendToBack={onSendToBack}
-          variant="compact"
-          siblings={siblings}
-          containerWidth={containerWidth}
-          containerHeight={containerHeight}
-          keyboardShortcuts
-        />
-        {hasContainer ? (
-          <OverlayAlignControls
-            item={item}
-            containerWidth={containerWidth!}
-            containerHeight={containerHeight!}
-            onUpdate={onUpdate}
-            variant="compact"
-          />
-        ) : null}
       </div>
-      <div className={visualRow}>{row1}</div>
-      <div className={visualRow}>{row2}</div>
     </div>
   )
 }

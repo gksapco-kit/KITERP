@@ -12,10 +12,15 @@ import { InsertLayerButton } from '@/components/websites/InsertLayerButton'
 import { ScrollAnimationControls } from '@/components/websites/ScrollAnimationControls'
 import { OverlayLayerVisualControls } from '@/components/websites/OverlayLayerVisualControls'
 import { OverlayIconsRibbonButton } from '@/components/websites/OverlayIconPicker'
+import { VisualsDesignBarMenu } from '@/components/websites/MediaDesignBarTools'
 import {
   visualMenuTrigger,
   visualSectionRow,
+  visualTabMenuTrigger,
   visualTabShell,
+  visualTabShellLayer,
+  visualToolbarRow,
+  visualToolbarRowWrap,
 } from '@/components/websites/designBarVisualUi'
 import { animationOptionLabel } from '@storefront/lib/builderScrollAnimations'
 import { sectionSupportsBgStyle, sectionSupportsEdgeShapes } from '@storefront/lib/designBarCapabilities'
@@ -53,12 +58,12 @@ function SectionMenuBtn({
       title={title}
       onClick={onClick}
       className={cn(
-        visualMenuTrigger(active || open, accent),
+        visualTabMenuTrigger(active || open, accent),
         open && 'ring-1 ring-primary/30',
       )}
     >
       {icon ?? <span className="w-3 shrink-0" aria-hidden />}
-      <span className="min-w-0 flex-1 truncate text-center">{label}</span>
+      <span>{label}</span>
       {badge != null && badge !== '' ? (
         <span className="rounded-full bg-primary/15 px-0.5 text-[7px] font-black text-primary">{badge}</span>
       ) : null}
@@ -90,6 +95,11 @@ export function VisualDesignBarTools({
   onOverlayEditDescription,
   onOverlayBringToFront,
   onOverlaySendToBack,
+  primaryImageField,
+  canvasImageField,
+  onSectionImagePick,
+  onSectionImageLibrary,
+  onFocusPrimaryImage,
 }: {
   blockType: string
   blockProps: Record<string, unknown>
@@ -113,6 +123,11 @@ export function VisualDesignBarTools({
   onOverlayEditDescription?: () => void
   onOverlayBringToFront?: () => void
   onOverlaySendToBack?: () => void
+  primaryImageField?: string | null
+  canvasImageField?: string | null
+  onSectionImagePick?: () => void
+  onSectionImageLibrary?: () => void
+  onFocusPrimaryImage?: () => void
 }) {
   const p = blockProps
   const showEdgeShapes = sectionSupportsEdgeShapes(blockType)
@@ -166,27 +181,42 @@ export function VisualDesignBarTools({
       onToggle={() => toggle('icons')}
       selectedIconId={selectedIsIcon ? selectedOverlay?.iconName : null}
       onPickIcon={handlePickIcon}
+      visualTab
     />
   )
 
   const quickInsertStrip = (
-    <div className="flex shrink-0 items-center gap-1 border-r border-gray-200 pr-1">
+    <>
       <InsertLayerButton
         overlayCount={overlayCount}
         onAddOverlay={onAddOverlay}
         onClearOverlays={onClearOverlays}
+        visualTab
       />
-      {iconsControl}
-    </div>
+      {!selectedIsIcon ? iconsControl : null}
+    </>
   )
 
-  const sectionGrid = (
-    <>
-      {quickInsertStrip}
-      {/* Section-level styling menus are hidden while a layer is selected so the bar
-          shows only controls that act on the selected layer. */}
-      {hasLayer ? null : (
-      <div className={visualSectionRow}>
+  const visualsMenu = (
+    <VisualsDesignBarMenu
+      blockType={blockType}
+      blockProps={p}
+      primaryImageField={primaryImageField}
+      canvasImageField={canvasImageField}
+      selectedOverlay={selectedOverlay}
+      onUpdate={onUpdate}
+      onPickImage={onSectionImagePick}
+      onOpenMediaLibrary={onSectionImageLibrary}
+      onFocusPrimaryImage={onFocusPrimaryImage}
+      onOverlayPickImage={onOverlayPickImage}
+      onOverlayOpenLibrary={onOverlayOpenLibrary}
+      onOverlaySetImageUrl={onOverlaySetImageUrl}
+      visualTab
+    />
+  )
+
+  const sectionMenus = !hasLayer ? (
+    <div className={visualSectionRow}>
       <SectionMenuBtn
         btnRef={animBtnRef}
         title="Scroll effects"
@@ -212,9 +242,7 @@ export function VisualDesignBarTools({
           }
           label="Origins"
         />
-      ) : (
-        <span className="h-7 w-[3.1rem] shrink-0" aria-hidden />
-      )}
+      ) : null}
       <SectionMenuBtn
         btnRef={shadowBtnRef}
         title="Shadow & glow"
@@ -233,36 +261,41 @@ export function VisualDesignBarTools({
           open={openMenu === 'background'}
           label={bgStyleLabel ? `Bg ${bgStyleLabel}` : 'Bg'}
         />
-      ) : (
-        <span className="h-7 w-[3.1rem] shrink-0" aria-hidden />
-      )}
-      </div>
-      )}
-    </>
-  )
+      ) : null}
+    </div>
+  ) : null
 
   return (
-    <div className={visualTabShell}>
-      {sectionGrid}
-
-      {hasLayer ? (
-        <OverlayLayerVisualControls
-          item={selectedOverlay!}
-          blockBackgroundColor={blockBackgroundColor}
-          onUpdate={onUpdateOverlay!}
-          onBringToFront={onOverlayBringToFront}
-          onSendToBack={onOverlaySendToBack}
-          onPickLocalImage={onOverlayPickImage}
-          onOpenMediaLibrary={onOverlayOpenLibrary}
-          onSetImageUrl={onOverlaySetImageUrl}
-          onEditLink={onOverlayEditLink}
-          onEditText={onOverlayEditText}
-          onEditDescription={onOverlayEditDescription}
-          siblings={overlaySiblings}
-          containerWidth={overlayContainerWidth}
-          containerHeight={overlayContainerHeight}
-        />
-      ) : null}
+    <>
+      <div className={hasLayer ? visualTabShellLayer : visualTabShell}>
+        {hasLayer ? (
+          <OverlayLayerVisualControls
+            leading={(
+              <>
+                {quickInsertStrip}
+                {visualsMenu}
+              </>
+            )}
+            item={selectedOverlay!}
+            blockBackgroundColor={blockBackgroundColor}
+            onUpdate={onUpdateOverlay!}
+            onBringToFront={onOverlayBringToFront}
+            onSendToBack={onOverlaySendToBack}
+            onEditLink={onOverlayEditLink}
+            onEditText={onOverlayEditText}
+            onEditDescription={onOverlayEditDescription}
+            siblings={overlaySiblings}
+            containerWidth={overlayContainerWidth}
+            containerHeight={overlayContainerHeight}
+          />
+        ) : (
+          <div className={visualToolbarRow}>
+            {quickInsertStrip}
+            {visualsMenu}
+            {sectionMenus}
+          </div>
+        )}
+      </div>
 
       {/* Dropdowns (portalled) */}
       <DesignBarDropdownPortal
@@ -394,6 +427,6 @@ export function VisualDesignBarTools({
           </div>
         </DesignBarDropdownPortal>
       ) : null}
-    </div>
+    </>
   )
 }

@@ -36,12 +36,24 @@ export const visualSectionBtn =
     'relative flex shrink-0 items-center gap-1 rounded-md border border-gray-200 bg-white px-2 text-[9px] font-semibold leading-none whitespace-nowrap transition-colors hover:bg-accent',
   )
 
+/** Visual tab section menus (Insert, Icons, Visuals, Effects…) — avoids clipped descenders. */
+export const visualTabMenuBtn = cn(
+  VISUAL_TAB_ROW_H,
+  'relative flex shrink-0 items-center gap-1 rounded-md border border-gray-200 bg-white px-2 text-[9px] font-semibold leading-snug whitespace-nowrap transition-colors hover:bg-accent',
+)
+
 /** Primary insert action — same height as the rest of the visual bar. */
 export const visualInsertBtn =
   cn(
     VISUAL_TAB_ROW_H,
     'flex shrink-0 items-center gap-1 rounded-md border px-2 text-[10px] font-bold leading-none whitespace-nowrap transition-colors',
   )
+
+/** Visual tab Insert — matches {@link visualTabMenuBtn} text rhythm. */
+export const visualTabInsertBtn = cn(
+  VISUAL_TAB_ROW_H,
+  'flex shrink-0 items-center gap-1 rounded-md border px-2 text-[10px] font-bold leading-snug whitespace-nowrap transition-colors',
+)
 
 export function visualActionBtn(variant: 'sky' | 'emerald' | 'primary' | 'muted' | 'link') {
   return cn(
@@ -65,6 +77,16 @@ export function visualIconBtn(active?: boolean) {
 export function visualMenuTrigger(active: boolean, accent?: 'primary' | 'blue' | 'emerald') {
   return cn(
     visualSectionBtn,
+    active && visualPanelCellActive,
+    !active && visualPanelCellMuted,
+    accent === 'blue' && active && 'bg-blue-100 text-blue-700 border-blue-200',
+    accent === 'emerald' && active && 'bg-emerald-100 text-emerald-700 border-emerald-200',
+  )
+}
+
+export function visualTabMenuTrigger(active: boolean, accent?: 'primary' | 'blue' | 'emerald') {
+  return cn(
+    visualTabMenuBtn,
     active && visualPanelCellActive,
     !active && visualPanelCellMuted,
     accent === 'blue' && active && 'bg-blue-100 text-blue-700 border-blue-200',
@@ -100,12 +122,64 @@ export const visualGroupDivider = 'mx-0.5 h-7 w-px shrink-0 self-center bg-gray-
 
 /** Section styling menus — single horizontal row. */
 export const visualSectionRow =
-  'flex shrink-0 flex-wrap items-center gap-1 border-r border-gray-200 pr-1.5'
+  'flex shrink-0 flex-wrap items-center gap-0.5'
 
-export const visualTabShell = cn(
-  'flex min-w-0 flex-1 flex-wrap items-center gap-1.5 py-0.5',
-  VISUAL_TAB_MIN_H,
+/** Layer controls — inline with siblings; do not grow to full bar width. */
+export const visualLayerCol =
+  'flex min-w-0 shrink flex-col justify-center gap-0.5'
+
+/** Tallest single-row design-bar content (General h-14; image focal pad ≈ 3×h-5). */
+export const DESIGN_BAR_ROW_H = 'min-h-[3.75rem]'
+
+/** Tab panel slot — min height for cross-tab stability; grows only if needed. */
+export const designBarTabSlot = cn(
+  DESIGN_BAR_ROW_H,
+  'flex min-w-0 flex-1 items-center overflow-x-auto overflow-y-visible overscroll-x-contain',
 )
 
-export const visualLayerCol =
-  'flex min-w-0 flex-1 flex-col justify-center gap-1'
+/** Toolbar row — single line; scroll horizontally when narrow (General tab). */
+export const visualToolbarRow =
+  'flex w-max max-w-full flex-nowrap items-center gap-0.5 shrink-0'
+
+/** Layer tools — wrap within panel width (no horizontal scrollbar). */
+export const visualToolbarRowWrap =
+  'flex min-w-0 w-full flex-wrap items-center gap-0.5'
+
+/** Visual tab with a selected layer — two tight rows, same min-height as other tabs. */
+export const visualTabShellLayer = cn(
+  DESIGN_BAR_ROW_H,
+  'flex min-w-0 w-full flex-1 flex-col justify-start gap-px overflow-hidden py-0',
+)
+
+/** General tab — shared chrome for edit / clipboard / typography clusters. */
+export const generalDesignBarCluster =
+  'inline-flex h-14 shrink-0 overflow-hidden rounded-md border border-gray-200 bg-white shadow-sm'
+
+export const generalDesignBarCell =
+  'flex h-full items-center justify-center border-r border-gray-200 text-gray-700 transition-colors hover:bg-accent last:border-r-0'
+
+/** 2×2 action grid — edit / case / format / clear. */
+export const generalDesignBarGrid2x2 = cn(
+  generalDesignBarCluster,
+  'grid w-20 grid-cols-2 grid-rows-2',
+)
+
+export const generalDesignBarGridCell =
+  'flex h-full w-full min-h-0 items-center justify-center text-gray-700 transition-colors hover:bg-accent'
+
+export const visualTabShell = cn(
+  designBarTabSlot,
+  'py-0',
+)
+
+/** Section design-bar tabs — General / Visual / Section image only. */
+export const designBarTabList = 'flex shrink-0 items-center gap-1'
+
+export function designBarTabClass(active: boolean) {
+  return cn(
+    'rounded-md border px-2.5 py-1 text-xs font-semibold leading-snug transition-colors',
+    active
+      ? 'border-primary/60 bg-white text-primary shadow-sm ring-1 ring-primary/20'
+      : 'border-gray-200 bg-white/80 text-gray-700 hover:border-gray-300 hover:bg-white hover:text-gray-900',
+  )
+}

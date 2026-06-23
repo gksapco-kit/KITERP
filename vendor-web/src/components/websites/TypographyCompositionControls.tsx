@@ -45,13 +45,16 @@ import { pinInlineTextSelectionBeforeToolbarAction } from '@storefront/lib/build
 
 type ControlSize = 'panel' | 'compact' | 'mini' | 'transformPad'
 
-/** Shared tight toolbar shell — square corners, minimal padding. */
+/** Shared tight toolbar shell — matches design bar chrome. */
 export const typographyToolbarBox =
-  'inline-flex items-stretch overflow-hidden rounded-none border border-gray-200 bg-white shrink-0'
+  'inline-flex h-14 items-stretch overflow-hidden rounded-md border border-gray-200 bg-white shadow-sm shrink-0'
 
 const toolbarShell = typographyToolbarBox
 
-const embeddedShell = 'inline-flex items-stretch shrink-0 border-r border-gray-200'
+const embeddedShell = 'inline-flex h-full items-stretch shrink-0 border-r border-gray-200 last:border-r-0'
+
+/** Unified height for General tab tool clusters (typography + position pads). */
+export const GENERAL_DESIGN_BAR_H = 'h-14'
 
 const sizeStyles = {
   panel: {
@@ -71,27 +74,30 @@ const sizeStyles = {
     wrapH: 'h-14',
   },
   mini: {
-    cell: 'w-3.5 h-3.5',
-    icon: 'w-2 h-2',
-    select: 'h-3.5 w-[2.5rem] px-0.5 text-[9px]',
+    cell: 'w-6 h-6',
+    icon: 'w-2.5 h-2.5',
+    select: 'h-6 w-[2.75rem] px-0.5 text-[9px]',
     caseBtn: 'px-1 py-0.5 text-[9px]',
-    wrapW: 'w-3.5',
-    wrapH: 'h-7',
+    wrapW: 'w-6',
+    wrapH: 'h-[4.5rem]',
   },
-  /** Sec/All/1× + nudge/flip pads — 40% wider cells, same height as mini. */
+  /** Position / flip pads — wide cells for easier freehand nudging. */
   transformPad: {
-    cell: 'h-3.5 w-[1.225rem]',
-    icon: 'w-2 h-2',
-    select: 'h-3.5 w-[3.5rem] px-0.5 text-[9px]',
+    cell: 'h-full min-h-0 w-8',
+    icon: 'w-3 h-3',
+    select: 'h-7 w-[3.25rem] px-0.5 text-[9px]',
     caseBtn: 'px-1 py-0.5 text-[9px]',
-    wrapW: 'w-[1.225rem]',
-    wrapH: 'h-7',
+    wrapW: 'w-8',
+    wrapH: GENERAL_DESIGN_BAR_H,
   },
 } as const
 
 /** Design-bar font stack = h-7 family + h-7 size (compact). */
 const COMPACT_FONT_STACK_H = 'h-14'
 const COMPACT_COLOR_COL_W = 'w-7'
+const DESIGN_BAR_COLOR_CELL = 'h-14 w-11 px-1.5'
+const DESIGN_BAR_COLOR_SWATCH =
+  'mt-0.5 h-4 w-full min-w-[2.25rem] rounded-full border border-gray-300 pointer-events-none'
 
 /** Box-mode font size: A↑ · A↓ · px — flush grid, no pill rounding. */
 export function FontSizePxControl({
@@ -132,7 +138,7 @@ export function FontSizePxControl({
   }
 
   const shell = stacked
-    ? 'inline-flex items-stretch shrink-0 w-full'
+    ? 'flex h-7 min-h-0 w-full items-stretch shrink-0'
     : embedded
       ? embeddedShell
       : toolbarShell
@@ -142,7 +148,7 @@ export function FontSizePxControl({
       <button
         type="button"
         className={cn(
-          s.cell,
+          stacked ? 'h-full w-7' : s.cell,
           'flex shrink-0 items-center justify-center gap-0.5 border-r border-gray-200 text-gray-800 transition-colors hover:bg-gray-50',
         )}
         onClick={() => step(FONT_SIZE_PX_STEP)}
@@ -153,7 +159,7 @@ export function FontSizePxControl({
       <button
         type="button"
         className={cn(
-          s.cell,
+          stacked ? 'h-full w-7' : s.cell,
           'flex shrink-0 items-center justify-center gap-0.5 border-r border-gray-200 text-gray-800 transition-colors hover:bg-gray-50',
         )}
         onClick={() => step(-FONT_SIZE_PX_STEP)}
@@ -163,8 +169,10 @@ export function FontSizePxControl({
       </button>
       <select
         className={cn(
-          'shrink-0 cursor-pointer border-0 bg-white font-medium text-gray-800 outline-none focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-primary/40',
-          s.select,
+          'cursor-pointer border-0 bg-white font-medium text-gray-800 outline-none focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-primary/40',
+          stacked
+            ? 'h-full min-w-0 flex-1 px-1 text-[10px]'
+            : cn('shrink-0', s.select),
         )}
         value={normalized != null ? String(normalized) : ''}
         onChange={e => {
@@ -215,7 +223,7 @@ export function FontFamilyControl({
       className={cn(
         'w-full cursor-pointer border-0 bg-white font-medium text-gray-800 outline-none focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-primary/40 truncate',
         stacked
-          ? 'h-7 shrink-0 border-t border-gray-200 px-1 text-[10px] w-[6.75rem]'
+          ? 'h-7 shrink-0 px-2 text-[10px]'
           : cn(s.select, 'border-l border-gray-200'),
         className,
       )}
@@ -247,6 +255,61 @@ export function FontFamilyControl({
         </option>
       ))}
     </select>
+  )
+}
+
+/** Fixed-width two-row font family + size stack for design-bar typography toolbars. */
+export function TypographyFontStack({
+  fontFamily,
+  onFontFamilyChange,
+  fontSizePx,
+  onFontSizeChange,
+  onFontSizeStep,
+  showFamily = true,
+  showSize = true,
+  size = 'compact',
+  className,
+  onMouseDown,
+}: {
+  fontFamily?: string | null
+  onFontFamilyChange: (font: string | null) => void
+  fontSizePx?: number | null
+  onFontSizeChange: (px: number | null) => void
+  onFontSizeStep?: (delta: number) => void
+  showFamily?: boolean
+  showSize?: boolean
+  size?: ControlSize
+  className?: string
+  onMouseDown?: (e: MouseEvent) => void
+}) {
+  return (
+    <div
+      className={cn(
+        'flex h-14 w-[7.25rem] shrink-0 flex-col divide-y divide-gray-200 overflow-hidden',
+        className,
+      )}
+      onMouseDown={onMouseDown}
+    >
+      {showFamily ? (
+        <FontFamilyControl
+          stacked
+          size={size}
+          value={fontFamily}
+          onChange={onFontFamilyChange}
+          onMouseDown={onMouseDown}
+        />
+      ) : null}
+      {showSize ? (
+        <FontSizePxControl
+          stacked
+          size={size}
+          valuePx={fontSizePx}
+          onStep={onFontSizeStep}
+          onChange={onFontSizeChange}
+          onMouseDown={onMouseDown}
+        />
+      ) : null}
+    </div>
   )
 }
 
@@ -296,6 +359,7 @@ export function ColorIdentPicker({
   inRow = false,
   rowPosition = 'single',
   orientation = 'horizontal',
+  designBar = false,
   onMouseDown,
 }: {
   letter: 'T' | 'B'
@@ -308,17 +372,23 @@ export function ColorIdentPicker({
   rowPosition?: 'start' | 'middle' | 'end' | 'single'
   /** Stack T / B vertically (design bar column). */
   orientation?: 'horizontal' | 'vertical'
+  /** Full-height design bar cell — larger target and swatch. */
+  designBar?: boolean
   onMouseDown?: (e: MouseEvent) => void
 }) {
   const rowH = size === 'compact' ? 'h-7' : 'h-9'
   const vertical = orientation === 'vertical'
   const colCell = size === 'compact' ? `${COMPACT_COLOR_COL_W} flex-1 min-h-0` : 'h-9 w-11 flex-1 min-h-0'
-  const swatch = vertical
-    ? 'mt-px h-[3px] w-2.5 border border-gray-300 pointer-events-none'
-    : 'mt-0.5 h-2 w-[18px] border border-gray-300 pointer-events-none'
-  const letterClass = vertical && size === 'compact'
-    ? 'text-[9px] font-bold leading-none text-gray-900 select-none pointer-events-none'
-    : 'text-[11px] font-bold leading-none text-gray-900 select-none pointer-events-none'
+  const swatch = designBar
+    ? DESIGN_BAR_COLOR_SWATCH
+    : vertical
+      ? 'mt-px h-[3px] w-2.5 border border-gray-300 pointer-events-none'
+      : 'mt-0.5 h-2 w-[18px] border border-gray-300 pointer-events-none'
+  const letterClass = designBar
+    ? 'text-[11px] font-bold leading-none text-gray-900 select-none pointer-events-none'
+    : vertical && size === 'compact'
+      ? 'text-[9px] font-bold leading-none text-gray-900 select-none pointer-events-none'
+      : 'text-[11px] font-bold leading-none text-gray-900 select-none pointer-events-none'
 
   return (
     <label
@@ -326,13 +396,15 @@ export function ColorIdentPicker({
       onMouseDown={onMouseDown}
       className={cn(
         'relative flex flex-col items-center justify-center hover:bg-gray-50 cursor-pointer shrink-0 py-0',
-        inRow
-          ? cn(
-              vertical ? colCell : cn(rowH, 'flex-1 min-w-0'),
-              !vertical && (rowPosition === 'start' || rowPosition === 'middle') && 'border-r border-gray-200',
-              vertical && (rowPosition === 'start' || rowPosition === 'middle') && 'border-b border-gray-200',
-            )
-          : cn(size === 'compact' ? 'w-7 h-7' : 'w-9 h-9', 'border-l border-gray-200'),
+        designBar
+          ? cn(DESIGN_BAR_COLOR_CELL, 'rounded-md border border-gray-200 bg-white gap-1')
+          : inRow
+            ? cn(
+                vertical ? colCell : cn(rowH, 'flex-1 min-w-0'),
+                !vertical && (rowPosition === 'start' || rowPosition === 'middle') && 'border-r border-gray-200',
+                vertical && (rowPosition === 'start' || rowPosition === 'middle') && 'border-b border-gray-200',
+              )
+            : cn(size === 'compact' ? 'w-7 h-7' : 'w-9 h-9', 'border-l border-gray-200'),
       )}
     >
       <span className={letterClass}>
@@ -360,6 +432,7 @@ export function ColorIdentPickerRow({
   showBackgroundPicker = true,
   size = 'compact',
   vertical = false,
+  designBar = false,
   trailing,
   onMouseDown,
 }: {
@@ -372,11 +445,41 @@ export function ColorIdentPickerRow({
   size?: ControlSize
   /** Stack T, B, and trailing controls in a narrow column. */
   vertical?: boolean
+  /** Side-by-side T / B — full bar height, spaced apart (design bar). */
+  designBar?: boolean
   /** Extra cell(s) after B — e.g. Aa case dropdown. */
   trailing?: ReactNode
   onMouseDown?: (e: MouseEvent) => void
 }) {
   const rowH = size === 'compact' ? 'h-7' : 'h-9'
+
+  if (designBar) {
+    return (
+      <div
+        className="flex h-14 shrink-0 items-stretch gap-2 border-l border-gray-200 pl-2 pr-1"
+        onMouseDown={onMouseDown}
+      >
+        <ColorIdentPicker
+          letter="T"
+          title="Text color"
+          size={size}
+          designBar
+          color={textColor}
+          onChange={onTextColorChange}
+        />
+        {showBackgroundPicker ? (
+          <ColorIdentPicker
+            letter="B"
+            title="Block background color"
+            size={size}
+            designBar
+            color={backgroundColor}
+            onChange={onBackgroundColorChange}
+          />
+        ) : null}
+      </div>
+    )
+  }
 
   if (vertical) {
     const stackH = size === 'compact' ? COMPACT_FONT_STACK_H : 'h-[4.5rem]'
@@ -508,8 +611,8 @@ export function TextFieldAlignGrid({
   )
 
   return (
-    <div className={cn(embedded ? embeddedShell : toolbarShell, className)} onMouseDown={onMouseDown}>
-      <div className="grid grid-cols-3">
+    <div className={cn(embedded ? cn(embeddedShell, 'h-full') : toolbarShell, className)} onMouseDown={onMouseDown}>
+      <div className={cn('grid grid-cols-3', embedded && 'h-full')}>
         {cell(v === 'top', () => onVerticalAlignChange('top'), 'Align top', AlignVerticalJustifyStart, 'border-r border-b border-gray-200')}
         {cell(v === 'middle', () => onVerticalAlignChange('middle'), 'Align middle', AlignVerticalJustifyCenter, 'border-r border-b border-gray-200')}
         {cell(v === 'bottom', () => onVerticalAlignChange('bottom'), 'Align bottom', AlignVerticalJustifyEnd, 'border-b border-gray-200')}
@@ -739,11 +842,11 @@ export function FieldPositionNudge({
 
   return (
     <div
-      className={cn(embedded ? embeddedShell : toolbarShell, className)}
+      className={cn(embedded ? embeddedShell : toolbarShell, size === 'transformPad' && 'h-full', className)}
       onMouseDown={onMouseDown}
       title={`${titleLabel}${moved ? ` (${ox}, ${oy})` : ''} · Arrow keys · hold buttons to repeat`}
     >
-      <div className="grid grid-cols-3">
+      <div className={cn('grid grid-cols-3', size === 'transformPad' ? 'h-full' : undefined)}>
         <div className={cn(s.cell, 'border-r border-b border-gray-200 bg-gray-50/80')} />
         {nudgeBtn('Move up', () => onNudge(0, -step), ArrowUp, 'border-r border-b border-gray-200')}
         <div className={cn(s.cell, 'border-b border-gray-200 bg-gray-50/80')} />
@@ -853,10 +956,12 @@ export function LayoutTransformScopeToggle({
   const cell = cn(
     'flex flex-1 items-center justify-center font-bold leading-none transition-colors',
     dense && horizontal
-      ? 'h-5 px-0 text-[7px]'
-      : horizontal
-        ? 'px-1 py-0.5 text-[8px]'
-        : 'px-1 py-1 text-[9px]',
+      ? 'h-7 px-1.5 text-[9px]'
+      : dense && !horizontal
+        ? 'min-h-0 flex-1 px-2 py-1 text-[10px]'
+        : horizontal
+          ? 'px-1.5 py-0.5 text-[9px]'
+          : 'px-2 py-1.5 text-[10px]',
   )
   const items: { id: LayoutTransformScope; label: string; title: string }[] = [
     { id: 'section', label: 'Sec', title: 'Flip / rotate entire section' },
@@ -867,7 +972,7 @@ export function LayoutTransformScopeToggle({
     <div
       className={cn(
         'flex shrink-0 overflow-hidden bg-white',
-        horizontal ? 'flex-row w-full' : 'flex-col w-9 rounded-lg border border-gray-200',
+        horizontal ? 'flex-row w-full' : cn('flex-col', dense ? 'h-full w-10' : 'w-10 rounded-md border border-gray-200'),
         className,
       )}
       onMouseDown={onMouseDown}
@@ -893,7 +998,7 @@ export function LayoutTransformScopeToggle({
   )
 }
 
-/** Sec / All / 1× scope row with nudge + flip pads stacked below. */
+/** Sec / All / 1× scope strip with nudge + flip pads — single h-14 cluster. */
 export function LayoutTransformPositionGroup({
   scopeMode,
   onScopeChange,
@@ -911,29 +1016,29 @@ export function LayoutTransformPositionGroup({
   flipProps?: ComponentProps<typeof FlipRotateControls>
 } & ComponentProps<typeof FieldPositionNudge>) {
   return (
-    <div className="flex shrink-0 flex-col self-center overflow-hidden rounded-lg border border-gray-200 bg-white">
+    <div className={cn(GENERAL_DESIGN_BAR_H, 'flex shrink-0 overflow-hidden rounded-md border border-gray-200 bg-white shadow-sm')}>
       <LayoutTransformScopeToggle
         mode={scopeMode}
         onChange={onScopeChange}
         showGroup={showGroup}
-        layout="horizontal"
+        layout="vertical"
         dense
-        className="w-full border-b border-gray-200"
+        className="h-full w-10 shrink-0 border-0 border-r border-gray-200 rounded-none"
       />
-      <div className="flex items-stretch">
+      <div className="flex h-full min-w-0 items-stretch">
         <FieldPositionNudge
           {...nudgeProps}
           size={size}
           embedded
           disabled={nudgeDisabled}
-          className={cn('rounded-none border-0', nudgeProps.className)}
+          className={cn('h-full rounded-none border-0', nudgeProps.className)}
         />
         {flipProps ? (
           <FlipRotateControls
             {...flipProps}
             size={size}
             embedded
-            className="rounded-none border-0"
+            className="h-full rounded-none border-0 border-l border-gray-200"
           />
         ) : null}
       </div>
@@ -1009,13 +1114,14 @@ export function FlipRotateControls({
     <div
       className={cn(
         embedded ? embeddedShell : toolbarShell,
-        !embedded && 'overflow-hidden rounded-lg border border-gray-200 bg-white',
+        size === 'transformPad' && 'h-full',
+        !embedded && 'overflow-hidden rounded-md border border-gray-200 bg-white shadow-sm',
         className,
       )}
       onMouseDown={onMouseDown}
       title="Flip & rotate"
     >
-      <div className="grid grid-cols-3">
+      <div className={cn('grid grid-cols-3', size === 'transformPad' ? 'h-full' : undefined)}>
         {spacer('border-r border-b border-gray-200')}
         {padBtn('Flip horizontal', () => onChange({ flip_h: h ? null : true }), FlipHorizontal, h, 'border-r border-b border-gray-200')}
         {spacer('border-b border-gray-200')}

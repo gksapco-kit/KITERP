@@ -4,7 +4,7 @@ import { cn } from '@/lib/utils'
 import { registerEscapeHandler } from '@/lib/escapeCloseRegistry'
 import { VISUAL_INSERT_TYPES } from '@/lib/builderVisualPresets'
 import { DesignBarDropdownPortal } from '@/components/websites/DesignBarDropdownPortal'
-import { visualInsertBtn } from '@/components/websites/designBarVisualUi'
+import { visualInsertBtn, visualTabInsertBtn } from '@/components/websites/designBarVisualUi'
 import type { OverlayLayerItem } from '@/lib/builderOverlayVisual'
 
 /**
@@ -15,10 +15,13 @@ export function InsertLayerButton({
   overlayCount,
   onAddOverlay,
   onClearOverlays,
+  visualTab = false,
 }: {
   overlayCount: number
   onAddOverlay: (type: string, anchor?: { x: number; y: number }, patch?: Partial<OverlayLayerItem>) => void
   onClearOverlays: () => void
+  /** Visual tab row — roomier label line-height (General tab unchanged). */
+  visualTab?: boolean
 }) {
   const [open, setOpen] = useState(false)
   const btnRef = useRef<HTMLButtonElement>(null)
@@ -37,7 +40,7 @@ export function InsertLayerButton({
         title="Insert a layer — text, image, icon, button or shape"
         onClick={() => setOpen(o => !o)}
         className={cn(
-          visualInsertBtn,
+          visualTab ? visualTabInsertBtn : visualInsertBtn,
           open
             ? 'border-primary bg-primary text-white shadow-sm'
             : 'border-primary/30 bg-primary/10 text-primary hover:bg-primary/15',

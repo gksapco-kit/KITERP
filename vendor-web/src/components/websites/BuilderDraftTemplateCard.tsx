@@ -41,6 +41,7 @@ type Props = {
   vendorSlug?: string
   perStoreAppliedCount: number
   linkedStoreNames?: string[]
+  linkedStoreCodes?: string[]
   assignedStoreNames: string[]
   liveBlockReason?: BuilderSiteLiveBlockReason | null
   viewLiveLinks?: AppliedTemplateViewLiveLink[]
@@ -70,6 +71,7 @@ export function BuilderDraftTemplateCard({
   vendorSlug,
   perStoreAppliedCount,
   linkedStoreNames = [],
+  linkedStoreCodes = [],
   assignedStoreNames,
   liveBlockReason = null,
   viewLiveLinks = [],
@@ -259,6 +261,35 @@ export function BuilderDraftTemplateCard({
   )
   const hidePerStoreBodyStatus = Boolean(storeRibbonLabel)
 
+  const linkedStoreLabels = linkedStoreCodes.length > 0 ? linkedStoreCodes : linkedStoreNames
+  const topAssignmentBadgeLabel =
+    contextStoreCode && (linkedToContextStoreResolved || appliedToContextStoreResolved)
+      ? contextStoreCode
+      : linkedStoreLabels.length === 1
+        ? linkedStoreLabels[0]
+        : `${linkedStoreLabels.length} units`
+
+  const topAssignmentBadge =
+    singleTemplateMode && isSingleTemplateSelected && showTopAssignmentBadge ? (
+      <span className={cn('min-w-0 shrink', templateBadgeEmeraldClass)} title="Active storefront template for all business units">
+        <Check className="h-2.5 w-2.5 shrink-0" />
+        <span className="truncate">All stores</span>
+      </span>
+    ) : isLinkedToStore && showTopAssignmentBadge ? (
+      <span
+        className={cn(
+          'min-w-0 shrink',
+          isApplied
+            ? templateBadgeEmeraldClass
+            : 'inline-flex items-center gap-1 rounded-full bg-amber-500/95 px-1.5 py-px text-[9px] font-bold text-white shadow-sm',
+        )}
+        title={isApplied ? assignedStoreNames.join(', ') : linkedStoreNames.join(', ')}
+      >
+        <Check className="h-2.5 w-2.5 shrink-0" />
+        <span className="truncate">{topAssignmentBadgeLabel}</span>
+      </span>
+    ) : null
+
   const previewOverlayContent = (() => {
     if (!effectivePreviewOnly && needsActivation) {
       return (
@@ -346,48 +377,29 @@ export function BuilderDraftTemplateCard({
             vendorSlug={vendorSlug}
             fallbackImage={staticThumb}
             templates={templates}
+            variant="card"
             className="h-full w-full transform-gpu"
           />
         </div>
         <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/50 via-black/5 to-transparent" />
-        <div
-          className={cn(
-            'absolute left-1.5 top-1.5 flex max-w-[calc(100%-0.75rem)] items-center gap-1 rounded-full border px-1.5 py-0.5 text-[9px] font-semibold shadow-sm',
-            displayStatus.color,
-          )}
-          title={displayStatus.label}
-        >
-          <StatusIcon className="h-2.5 w-2.5 shrink-0" />
-          <span className="truncate">{displayStatus.shortLabel}</span>
+        <div className="absolute inset-x-1.5 top-1.5 flex items-center justify-between gap-1.5 overflow-hidden">
+          <span
+            className={cn(
+              'flex min-w-0 shrink items-center gap-1 rounded-full border px-1.5 py-0.5 text-[9px] font-semibold shadow-sm',
+              displayStatus.color,
+            )}
+            title={displayStatus.label}
+          >
+            <StatusIcon className="h-2.5 w-2.5 shrink-0" />
+            <span className="truncate">{displayStatus.shortLabel}</span>
+          </span>
+          {topAssignmentBadge}
         </div>
         <div className={templateCardPreviewOverlayClass}>
           <span className="inline-flex items-center gap-1 rounded-full bg-white/95 px-2 py-1 text-[10px] font-bold text-gray-900 shadow-md">
             {previewOverlayContent}
           </span>
         </div>
-        {singleTemplateMode && isSingleTemplateSelected && showTopAssignmentBadge ? (
-          <span className={cn('absolute right-1.5 top-1.5 max-w-[70%]', templateBadgeEmeraldClass)} title="Active storefront template for all business units">
-            <Check className="h-2.5 w-2.5 shrink-0" />
-            <span className="truncate">All stores</span>
-          </span>
-        ) : isLinkedToStore && showTopAssignmentBadge ? (
-          <span
-            className={cn(
-              'absolute right-1.5 top-1.5 max-w-[70%]',
-              isApplied ? templateBadgeEmeraldClass : 'inline-flex items-center gap-1 rounded-full bg-amber-500/95 px-1.5 py-px text-[9px] font-bold text-white shadow-sm',
-            )}
-            title={isApplied ? assignedStoreNames.join(', ') : linkedStoreNames.join(', ')}
-          >
-            <Check className="h-2.5 w-2.5 shrink-0" />
-            <span className="truncate">
-              {contextStoreCode && (linkedToContextStoreResolved || appliedToContextStoreResolved)
-                ? contextStoreCode
-                : linkedStoreNames.length === 1
-                  ? linkedStoreNames[0]
-                  : `${linkedStoreNames.length} units`}
-            </span>
-          </span>
-        ) : null}
         <div className="absolute bottom-1 left-1.5 right-1.5 flex items-end justify-between gap-1">
           <span className={templateCardMediaChipClass}>
             Builder · {pageCount} pg

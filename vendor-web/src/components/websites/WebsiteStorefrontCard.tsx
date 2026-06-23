@@ -49,7 +49,6 @@ export function WebsiteStorefrontCard({
   templateName,
   templateThumbnail,
   thumbnailSiteId,
-  livePreviewUrl,
   vendorSlug,
   previewTemplates,
   fallbackGradient,
@@ -94,8 +93,9 @@ export function WebsiteStorefrontCard({
           vendorSlug={vendorSlug}
           fallbackImage={templateThumbnail}
           fallbackGradient={fallbackGradient}
-          livePreviewUrl={livePreviewUrl}
           templates={previewTemplates}
+          previewMode="assigned"
+          variant="card"
           className="absolute inset-0 transition-transform duration-300 group-hover/card:scale-[1.03]"
         />
         <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/45 via-transparent to-transparent opacity-80" />

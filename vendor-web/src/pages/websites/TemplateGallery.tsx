@@ -900,17 +900,16 @@ function CoverageThumb({
     livePreviewUrl,
     status: storeStatus,
   })
-  const useBuilderCanvas = Boolean(siteId && vendorSlug)
   return (
     <span className={cn('block h-11 w-[4.75rem] shrink-0 overflow-hidden rounded-md border border-black/5 bg-white', className)}>
       <WebsiteSiteGlimpse
         siteId={siteId}
         vendorSlug={vendorSlug}
-        fallbackImage={useBuilderCanvas ? null : glimpse.fallbackImage}
+        fallbackImage={glimpse.fallbackImage}
         fallbackGradient={template?.gradient}
-        livePreviewUrl={glimpse.livePreviewUrl}
         templates={templates}
-        previewMode={useBuilderCanvas ? 'live' : 'assigned'}
+        previewMode="assigned"
+        variant="card"
         scaleMode="cover"
         className="h-full w-full"
       />
@@ -2221,6 +2220,7 @@ export default function WebsiteTemplateGalleryPage() {
         vendorSlug={vendor?.slug}
         perStoreAppliedCount={perStoreAppliedCount}
         linkedStoreNames={linkedStoreNames}
+        linkedStoreCodes={linkedStores.map(s => formatStoreCode(s))}
         assignedStoreNames={allAssignedStores.map(s => s.name ?? '')}
         liveBlockReason={liveBlockReason}
         viewLiveLinks={viewLiveLinks}
@@ -2419,9 +2419,9 @@ export default function WebsiteTemplateGalleryPage() {
               vendorSlug={vendor?.slug}
               fallbackImage={assignedGlimpse.fallbackImage ?? tpl.thumbnail}
               fallbackGradient={tpl.gradient}
-              livePreviewUrl={assignedGlimpse.livePreviewUrl}
               templates={templates}
               previewMode="assigned"
+              variant="card"
               className="h-full w-full transform-gpu"
             />
           </div>
@@ -2684,14 +2684,14 @@ export default function WebsiteTemplateGalleryPage() {
           </div>
         </div>
 
-        {(busy || legacyPresetsBusy) && (
+        {(busy) && (
           <div className={TEMPLATE_GRID_CLASS}>
             {Array.from({ length: 8 }).map((_, i) => (
               <TemplateCardSkeleton key={i} />
             ))}
           </div>
         )}
-        {!busy && !legacyPresetsBusy && (
+        {!busy && (
           <div className="space-y-1.5">
             {hasLiveSection ? (
               <TemplateGallerySection
@@ -2741,7 +2741,7 @@ export default function WebsiteTemplateGalleryPage() {
           </div>
         )}
 
-        {!busy && !legacyPresetsBusy && visibleTemplateCount === 0 && (
+        {!busy && visibleTemplateCount === 0 && (
           <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-gray-200 bg-white/60 px-6 py-12 text-center dark:border-border dark:bg-card/60">
             <span className="mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-gray-100 text-gray-400">
               <Search className="h-5 w-5" />
@@ -2762,7 +2762,7 @@ export default function WebsiteTemplateGalleryPage() {
           </div>
         )}
 
-        {!busy && !legacyPresetsBusy && visibleTemplateCount > 0 ? (
+        {!busy && visibleTemplateCount > 0 ? (
           <p className="mt-3 pb-1 text-center text-xs font-medium text-muted-foreground">
             {visibleTemplateCount} template
             {visibleTemplateCount === 1 ? '' : 's'}

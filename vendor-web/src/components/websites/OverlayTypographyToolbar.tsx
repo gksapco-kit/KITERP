@@ -2,8 +2,7 @@ import type { SyntheticEvent } from 'react'
 import { cn } from '@/lib/utils'
 import {
   ColorIdentPickerRow,
-  FontFamilyControl,
-  FontSizePxControl,
+  TypographyFontStack,
   TextFieldAlignGrid,
   typographyToolbarBox,
   type TextAlignH,
@@ -61,36 +60,26 @@ export function OverlayTypographyToolbar({
     >
       <div className="flex min-w-0 flex-1 items-stretch">
         {showSize || showFamily ? (
-          <div className="flex h-14 w-[6.75rem] shrink-0 flex-col border-r border-gray-200">
-            {showFamily ? (
-              <FontFamilyControl
-                stacked
-                size="compact"
-                value={item.fontFamily ?? null}
-                onChange={font => {
-                  if (font) ensureBuilderFontLoaded(font)
-                  onUpdate({ fontFamily: font || undefined })
-                }}
-                onMouseDown={() => {}}
-              />
-            ) : null}
-            {showSize ? (
-              <FontSizePxControl
-                embedded
-                stacked
-                size="compact"
-                valuePx={item.fontSize}
-                onStep={delta => {
-                  const base = item.fontSize ?? (isIcon ? 32 : 16)
-                  onUpdate({ fontSize: Math.min(isIcon ? 160 : 120, Math.max(isIcon ? 12 : 8, base + delta)) })
-                }}
-                onChange={px => {
-                  if (px == null) return
-                  onUpdate({ fontSize: px })
-                }}
-              />
-            ) : null}
-          </div>
+          <TypographyFontStack
+            className="border-r border-gray-200"
+            showFamily={showFamily}
+            showSize={showSize}
+            fontFamily={item.fontFamily ?? null}
+            onFontFamilyChange={font => {
+              if (font) ensureBuilderFontLoaded(font)
+              onUpdate({ fontFamily: font || undefined })
+            }}
+            fontSizePx={item.fontSize}
+            onFontSizeStep={delta => {
+              const base = item.fontSize ?? (isIcon ? 32 : 16)
+              onUpdate({ fontSize: Math.min(isIcon ? 160 : 120, Math.max(isIcon ? 12 : 8, base + delta)) })
+            }}
+            onFontSizeChange={px => {
+              if (px == null) return
+              onUpdate({ fontSize: px })
+            }}
+            onMouseDown={() => {}}
+          />
         ) : null}
         <ColorIdentPickerRow
           vertical
