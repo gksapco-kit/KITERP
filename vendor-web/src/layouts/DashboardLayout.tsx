@@ -875,7 +875,7 @@ function SortableItemShell({
   )
 }
 
-/** Active leaf — theme cap on outer pill curve (see .sidebar-nav-link-active). */
+/** Active leaf — theme cap on outer row corner (see .sidebar-nav-link-active). */
 const navLinkActive =
   'sidebar-nav-link-active font-medium text-foreground ring-0'
 const navLinkInactive =
@@ -964,15 +964,15 @@ function navItemLinkClass(
   const { isActive, isKbFocused, tree } = opts
   const isHighlighted = isActive || isKbFocused
   const isSubTree = tree === 'sub'
-  /** Submodule rows keep one pill geometry so the active cap swaps without layout shift. */
-  const subRowShape = 'min-h-[1.625rem] rounded-full py-1 pl-3.5 pr-3'
+  /** Submodule rows — same rounded-lg shape as main module headers. */
+  const subRowShape = cn('min-h-[1.625rem] rounded-lg py-1 pl-3.5 pr-3', NAV_ROW_PAD_Y)
 
   return cn(
     'relative z-[1] group/nav flex min-w-0 flex-1 items-center gap-1.5 outline-none focus-visible:outline-none',
     isSubTree
       ? cn(subRowShape, isHighlighted && 'relative z-[2]')
       : isHighlighted
-        ? 'relative z-[2] min-h-[1.75rem] rounded-full py-1 pl-3.5 pr-3'
+        ? cn('relative z-[2] min-h-[1.75rem] rounded-lg py-1 pl-3.5 pr-3', NAV_ROW_PAD_Y)
         : cn('rounded-lg pl-2.5 pr-2.5', NAV_ROW_MIN_H, NAV_ROW_PAD_Y),
     tree === 'sub'
       ? 'ml-[calc(var(--tree-sub-x)+var(--tree-link-gap)-1.25rem)]'

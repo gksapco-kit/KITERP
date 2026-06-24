@@ -595,7 +595,7 @@
     0 4px 10px -4px hsl(var(--primary) / 0.35);
 }
 
-/* Template 2 — active sidebar nav: green pill fill + left accent (matches module submenu highlight). */
+/* Template 2 — active sidebar nav: green row fill + left accent (matches module submenu highlight). */
 :root[data-kit-template='template2'] .sidebar-nav-link-active {
   --nav-accent-w: 0.375rem;
   --nav-leaf-fill: color-mix(
@@ -624,7 +624,7 @@
     0 4px 12px -6px rgba(16, 24, 40, 0.1);
 }
 
-/* Template 2 — expanded module row when a child route is active (pill + theme cap). */
+/* Template 2 — expanded module row when a child route is active (rounded row + theme cap). */
 :root[data-kit-template='template2'] .sidebar-nav-section-active-expanded {
   --nav-leaf-fill: hsl(var(--card));
   box-shadow:
@@ -641,7 +641,7 @@
   box-shadow: none;
 }
 
-/* Template 2 — merged submodule list: tight vertical stack, pill rows, tree rail. */
+/* Template 2 — merged submodule list: tight vertical stack, rounded rows, tree rail. */
 :root[data-kit-template='template2'] .sidebar-nav-sub-stack {
   --tree-link-gap: 0.375rem;
   --tree-elbow-r: 0.3125rem;
@@ -654,10 +654,10 @@
   gap: 1px;
 }
 
-/* Inactive submodule rows — plain text (no pill); only active gets the cap pill. */
+/* Inactive submodule rows — plain text (no fill); only active gets the theme cap. */
 :root[data-kit-template='template2'] .sidebar-nav-sub-stack .group\/nav:not(.sidebar-nav-link-active) {
   min-height: 1.625rem;
-  border-radius: 9999px;
+  border-radius: 0.5rem;
   background: transparent;
   box-shadow: none;
   color: hsl(var(--muted-foreground));
@@ -690,13 +690,13 @@
   transition: none;
 }
 
-/* Submodule active row — span full row width so the pill wraps icon + label. */
+/* Submodule active row — span full row width so the highlight wraps icon + label. */
 .sidebar-nav-sub-stack .sidebar-nav-link-active {
   width: 100%;
   max-width: 100%;
 }
 
-/* Active submodule — full-width green pill (icon + label), not just the tree cap. */
+/* Active submodule — full-width green row (icon + label), same corner radius as module headers. */
 :root[data-kit-template='template2'] .sidebar-nav-sub-stack .sidebar-nav-link-active {
   --nav-accent-w: 0.375rem;
   --nav-leaf-fill: color-mix(
@@ -1351,7 +1351,7 @@ select option {
     left: calc(var(--tree-sub-x) - 0.5px);
   }
 
-  /* Active sidebar leaf — theme cap on the outer pill curve (two-layer fill). */
+  /* Active sidebar leaf — theme cap on the outer row corner (two-layer fill). */
   .sidebar-nav-link-active,
   .sidebar-nav-kb-focus {
     --nav-accent-w: 0.3125rem;
@@ -1364,7 +1364,7 @@ select option {
     position: relative;
     isolation: isolate;
     overflow: hidden;
-    border-radius: 9999px;
+    border-radius: 0.5rem;
     background: transparent;
     border: none;
     box-shadow: none;
@@ -1473,7 +1473,7 @@ select option {
     box-shadow: inset 0 0 0 1px hsl(var(--sidebar-primary) / 0.24);
   }
 
-  /* Expanded module row (Template 2) — same cap treatment, full pill shape. */
+  /* Expanded module row (Template 2) — same cap treatment, rounded-lg shape as collapsed module row. */
   .sidebar-nav-section-active-expanded {
     --nav-accent-w: 0.3125rem;
     --nav-accent-color: hsl(var(--sidebar-primary));
@@ -1485,7 +1485,7 @@ select option {
     position: relative;
     isolation: isolate;
     overflow: hidden;
-    border-radius: 9999px;
+    border-radius: 0.5rem;
     background: transparent;
     box-shadow: none;
   }
@@ -1595,14 +1595,14 @@ select option {
     box-shadow: none;
   }
 
-  /* Icon-rail flyout submenu — flat pill rows (no tree cap / left stripe). */
+  /* Icon-rail flyout submenu — flat rounded rows (no tree cap / left stripe). */
   .sidebar-nav-rail-flyout-list {
     display: flex;
     flex-direction: column;
     gap: 2px;
   }
   .sidebar-nav-rail-flyout-item {
-    border-radius: 0.625rem;
+    border-radius: 0.5rem;
     transition:
       background-color 120ms ease-out,
       color 120ms ease-out,
