@@ -173,3 +173,35 @@ export function resolveWebsitePaletteColors(
   }
   return getWebsiteColorPalette(id).colors
 }
+
+const PALETTE_MATCH_KEYS: (keyof WebsitePaletteColors)[] = [
+  'primary_color',
+  'secondary_color',
+  'accent_color',
+  'bg_color',
+  'surface_color',
+  'text_color',
+]
+
+function normalizePaletteHex(value: string | undefined): string {
+  return (value ?? '').trim().toLowerCase()
+}
+
+/** Returns a preset id when all six palette colors match; otherwise null (custom). */
+export function matchWebsiteColorPaletteId(
+  style: Partial<WebsitePaletteColors>,
+): Exclude<WebsiteColorPaletteId, 'custom'> | null {
+  for (const palette of WEBSITE_COLOR_PALETTES) {
+    const matches = PALETTE_MATCH_KEYS.every(
+      key => normalizePaletteHex(style[key]) === normalizePaletteHex(palette.colors[key]),
+    )
+    if (matches) return palette.id
+  }
+  return null
+}
+
+export function getWebsitePaletteLabelFromColors(style: Partial<WebsitePaletteColors>): string {
+  const id = matchWebsiteColorPaletteId(style)
+  if (id) return getWebsiteColorPalette(id).label
+  return 'Custom palette'
+}

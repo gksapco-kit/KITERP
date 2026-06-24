@@ -378,6 +378,7 @@ export function BuilderDraftTemplateCard({
             fallbackImage={staticThumb}
             templates={templates}
             variant="card"
+            scaleMode="cover"
             className="h-full w-full transform-gpu"
           />
         </div>

@@ -1,3 +1,4 @@
+import { useEffect, useRef, useState, type RefObject } from 'react'
 import type { LucideIcon } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { builderPanelUi } from '@/components/websites/builderPanelUi'
@@ -12,6 +13,34 @@ export interface SectionEditorTabDef {
   hidden?: boolean
 }
 
+type RibbonDensity = 'full' | 'compact' | 'icons'
+
+function useRibbonDensity(
+  ref: RefObject<HTMLElement | null>,
+  tabCount: number,
+): RibbonDensity {
+  const [density, setDensity] = useState<RibbonDensity>('full')
+
+  useEffect(() => {
+    const el = ref.current
+    if (!el || tabCount <= 0) return
+
+    const update = () => {
+      const perTab = el.clientWidth / tabCount
+      if (perTab < 42) setDensity('icons')
+      else if (perTab < 56) setDensity('compact')
+      else setDensity('full')
+    }
+
+    update()
+    const ro = new ResizeObserver(update)
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [ref, tabCount])
+
+  return density
+}
+
 /** Word/Excel-style ribbon tabs — same groups for every section type. */
 export function SectionEditorRibbon({
   tabs,
@@ -22,8 +51,13 @@ export function SectionEditorRibbon({
   active: SectionEditorTabId
   onChange: (id: SectionEditorTabId) => void
 }) {
+  const stripRef = useRef<HTMLDivElement>(null)
   const visible = tabs.filter(t => !t.hidden)
+  const density = useRibbonDensity(stripRef, visible.length)
+
   if (visible.length === 0) return null
+
+  const iconsOnly = density === 'icons'
 
   return (
     <div
@@ -31,7 +65,10 @@ export function SectionEditorRibbon({
       role="tablist"
       aria-label="Section editor"
     >
-      <div className={cn(builderPanelUi.tabStripTabs, 'overflow-hidden px-0.5 pt-0.5')}>
+      <div
+        ref={stripRef}
+        className={cn(builderPanelUi.tabStripTabs, 'overflow-hidden px-0.5 pt-0.5')}
+      >
         {visible.map(({ id, label, icon: Icon }) => {
           const selected = active === id
           return (
@@ -40,10 +77,12 @@ export function SectionEditorRibbon({
               type="button"
               role="tab"
               aria-selected={selected}
+              aria-label={label}
               title={label}
               onClick={() => onChange(id)}
               className={cn(
-                'relative flex min-w-0 flex-1 flex-col items-center justify-center gap-px rounded-t-md border border-b-0 px-0.5 py-1 transition-colors',
+                'relative flex min-w-0 flex-1 flex-col items-center justify-center rounded-t-md border border-b-0 px-0.5 transition-colors',
+                iconsOnly ? 'min-h-9 gap-0 py-1' : 'min-h-11 gap-0.5 py-1.5',
                 selected
                   ? 'z-[1] -mb-px border-border bg-card text-primary shadow-[0_-1px_0_0_hsl(var(--card))]'
                   : 'border-transparent text-gray-600 hover:bg-card/70 hover:text-gray-900 dark:text-muted-foreground dark:hover:text-foreground',
@@ -51,19 +90,23 @@ export function SectionEditorRibbon({
             >
               <Icon
                 className={cn(
-                  builderPanelUi.tabBtnIcon,
+                  iconsOnly ? 'h-4 w-4' : builderPanelUi.tabBtnIcon,
+                  'shrink-0',
                   selected ? 'text-primary' : 'text-gray-500 dark:text-muted-foreground',
                 )}
               />
-              <span
-                className={cn(
-                  builderPanelUi.tabBtnLabel,
-                  'font-semibold',
-                  selected ? 'text-primary' : 'text-gray-600 dark:text-muted-foreground',
-                )}
-              >
-                {label}
-              </span>
+              {!iconsOnly && (
+                <span
+                  className={cn(
+                    builderPanelUi.tabBtnLabel,
+                    'w-full font-semibold',
+                    density === 'compact' ? 'text-[9px]' : 'text-[10px]',
+                    selected ? 'text-primary' : 'text-gray-600 dark:text-muted-foreground',
+                  )}
+                >
+                  {label}
+                </span>
+              )}
             </button>
           )
         })}

@@ -249,6 +249,7 @@ async def _resolve_site_by_subdomain(
         .where(
             WebsiteSite.vendor_id == vendor.id,
             WebsiteSite.is_published == True,
+            WebsiteSite.deleted_at.is_(None),
         )
         .order_by(WebsiteSite.published_at.desc())
     )
@@ -348,7 +349,7 @@ async def _load_site_full(site_id: str, db: AsyncSession) -> Optional[WebsiteSit
         .options(
             selectinload(WebsiteSite.pages).selectinload(WebsitePage.blocks)
         )
-        .where(WebsiteSite.id == UUID(site_id), WebsiteSite.is_published == True)
+        .where(WebsiteSite.id == UUID(site_id), WebsiteSite.is_published == True, WebsiteSite.deleted_at.is_(None))
     )
     return result.scalar_one_or_none()
 
@@ -580,7 +581,7 @@ async def get_site_info(
         return cached
 
     result = await db.execute(
-        select(WebsiteSite).where(WebsiteSite.id == UUID(site_id), WebsiteSite.is_published == True)
+        select(WebsiteSite).where(WebsiteSite.id == UUID(site_id), WebsiteSite.is_published == True, WebsiteSite.deleted_at.is_(None))
     )
     site = result.scalar_one_or_none()
     if not site:
@@ -613,7 +614,7 @@ async def get_live_resource_public(
     result = await db.execute(
         select(WebsiteSite)
         .options(selectinload(WebsiteSite.pages))
-        .where(WebsiteSite.id == UUID(site_id), WebsiteSite.is_published == True)
+        .where(WebsiteSite.id == UUID(site_id), WebsiteSite.is_published == True, WebsiteSite.deleted_at.is_(None))
     )
     site = result.scalar_one_or_none()
     if not site:
@@ -907,7 +908,7 @@ async def submit_contact_public(
          Zapier, custom CRM) get notified.
     """
     result = await db.execute(
-        select(WebsiteSite).where(WebsiteSite.id == UUID(site_id), WebsiteSite.is_published == True)
+        select(WebsiteSite).where(WebsiteSite.id == UUID(site_id), WebsiteSite.is_published == True, WebsiteSite.deleted_at.is_(None))
     )
     site = result.scalar_one_or_none()
     if not site:
@@ -1013,7 +1014,7 @@ async def public_booking_slots(
     from app.services.booking_service import BookingService
 
     result = await db.execute(
-        select(WebsiteSite).where(WebsiteSite.id == UUID(site_id), WebsiteSite.is_published == True)
+        select(WebsiteSite).where(WebsiteSite.id == UUID(site_id), WebsiteSite.is_published == True, WebsiteSite.deleted_at.is_(None))
     )
     site = result.scalar_one_or_none()
     if not site:
@@ -1039,7 +1040,7 @@ async def public_create_booking(
     from app.services.customer_service import CustomerService
 
     result = await db.execute(
-        select(WebsiteSite).where(WebsiteSite.id == UUID(site_id), WebsiteSite.is_published == True)
+        select(WebsiteSite).where(WebsiteSite.id == UUID(site_id), WebsiteSite.is_published == True, WebsiteSite.deleted_at.is_(None))
     )
     site = result.scalar_one_or_none()
     if not site:
@@ -1090,7 +1091,7 @@ async def submit_newsletter_public(
     (site, email) so the same address will not flood the inbox.
     """
     result = await db.execute(
-        select(WebsiteSite).where(WebsiteSite.id == UUID(site_id), WebsiteSite.is_published == True)
+        select(WebsiteSite).where(WebsiteSite.id == UUID(site_id), WebsiteSite.is_published == True, WebsiteSite.deleted_at.is_(None))
     )
     site = result.scalar_one_or_none()
     if not site:

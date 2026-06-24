@@ -28,6 +28,7 @@ import {
   sitePageSlugSet,
 } from '@/lib/previewNavRouting'
 import { useBuilderCanvas } from '@/contexts/BuilderCanvasContext'
+import { siteRadiusPx } from '@/lib/siteBorderRadius'
 
 interface Props {
   site: PublicSite
@@ -169,7 +170,7 @@ export default function NavBlock({
   const singleWebsiteForAllStores = resolveStorefrontLinkMode(vendor?.settings) === 'single'
   const showBranchPicker = singleWebsiteForAllStores
   const primary = style.primary_color || '#64C3A0'
-  const borderRadius = style.border_radius === 'sharp' || style.border_radius === 'none' ? 0 : 8
+  const borderRadius = siteRadiusPx(style.border_radius, 'sm')
 
   const navLinkClass = (href: string, compact: boolean) => {
     const active = isNavLinkActive(href, currentNavKey, storePath)

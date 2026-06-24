@@ -89,7 +89,7 @@ export default function CtaBlock({ style, props, blockId }: Props) {
     <section className={cn('px-4 sm:px-6 lg:px-8', compact ? 'py-10' : 'py-16')}>
       <div
         className={cn(
-          'max-w-5xl mx-auto rounded-3xl',
+          'max-w-5xl mx-auto builder-site-card rounded-3xl',
           innerPad,
           isSplit ? 'flex flex-col md:flex-row md:items-center md:justify-between gap-8 text-left' : 'text-center max-w-4xl',
           isCard && 'border-2 shadow-lg',

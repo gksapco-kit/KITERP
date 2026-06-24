@@ -1398,6 +1398,8 @@ async def ensure_website_tables() -> None:
         "ALTER TABLE wb_pages ADD COLUMN IF NOT EXISTS scheduled_publish_at TIMESTAMP",
         "ALTER TABLE wb_pages ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMP",
         "CREATE INDEX IF NOT EXISTS ix_wb_pages_deleted_at ON wb_pages(deleted_at)",
+        "ALTER TABLE wb_sites ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMP",
+        "CREATE INDEX IF NOT EXISTS ix_wb_sites_deleted_at ON wb_sites(deleted_at)",
         """
         CREATE TABLE IF NOT EXISTS wb_form_submissions (
             id UUID PRIMARY KEY DEFAULT gen_random_uuid(),

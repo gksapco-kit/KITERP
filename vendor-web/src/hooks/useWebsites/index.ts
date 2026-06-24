@@ -78,6 +78,44 @@ export function useDeleteSite() {
     onSuccess: (_data, siteId) => {
       pruneSiteFromWebsitesListCache(qc, vendorId, siteId)
       qc.invalidateQueries({ queryKey: ['websites'] })
+      qc.invalidateQueries({ queryKey: ['websites', 'trash'] })
+    },
+  })
+}
+
+export function useTrashedSites(enabled = true) {
+  const vendorId = useVendorStore(s => s.vendor?.id)
+  return useQuery({
+    queryKey: ['websites', 'trash', vendorId ?? ''],
+    queryFn: websiteApi.listTrashedSites,
+    enabled: Boolean(vendorId) && enabled,
+    refetchOnMount: 'always',
+    staleTime: 0,
+    retry: 1,
+  })
+}
+
+export function useRestoreSite() {
+  const qc = useQueryClient()
+  const vendorId = useVendorStore(s => s.vendor?.id)
+  return useMutation({
+    mutationFn: (siteId: string) => websiteApi.restoreSite(siteId),
+    onSuccess: (site) => {
+      qc.setQueryData(['websites', site.id], site)
+      qc.invalidateQueries({ queryKey: ['websites'] })
+      qc.invalidateQueries({ queryKey: ['websites', 'trash'] })
+    },
+  })
+}
+
+export function usePermanentlyDeleteSite() {
+  const qc = useQueryClient()
+  const vendorId = useVendorStore(s => s.vendor?.id)
+  return useMutation({
+    mutationFn: (siteId: string) => websiteApi.permanentlyDeleteSite(siteId),
+    onSuccess: (_data, siteId) => {
+      pruneSiteFromWebsitesListCache(qc, vendorId, siteId)
+      qc.invalidateQueries({ queryKey: ['websites', 'trash'] })
     },
   })
 }

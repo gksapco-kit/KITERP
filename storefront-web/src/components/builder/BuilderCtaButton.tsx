@@ -52,6 +52,7 @@ export function BuilderCtaButton({
   )
 
   const buttonClass = cn(
+    'builder-site-btn',
     className,
     isEditor && 'cursor-pointer',
   )

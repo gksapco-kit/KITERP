@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import { useEscapeToClose } from '@/hooks/useEscapeToClose'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
@@ -27,6 +27,7 @@ import {
   BookOpen,
   CalendarCheck,
   GalleryHorizontal,
+  LayoutTemplate,
   Lock,
   Store,
   Palette,
@@ -78,6 +79,7 @@ import { copyBuilderSiteDraftPreviewLink, openBuilderSiteDraftPreview } from '@/
 import { CustomDomainVerifyPanel } from '@/components/websites/CustomDomainVerifyPanel'
 import { format } from 'date-fns'
 import { isTemplateSandboxSite } from '@/lib/websiteSandbox'
+import { RecentlyDeletedTemplatesModal } from '@/components/websites/RecentlyDeletedTemplatesModal'
 import { countSitesWithName, resolveUniqueSiteName, suggestSiteCopyName } from '@/lib/websiteSiteNames'
 import { resolveSiteStaticThumbnail } from '@/lib/websiteSitePreview'
 import { WebsiteSiteGlimpse } from '@/components/websites/WebsiteSiteGlimpse'
@@ -1383,7 +1385,78 @@ function CopySiteSaveAsModal({
 }
 
 function SiteCardMenuDivider() {
-  return <div className="my-1 border-t border-gray-100" role="separator" />
+  return <div className="my-0.5 border-t border-gray-100" role="separator" />
+}
+
+function SiteCardMenuGroup({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <div className="py-0.5">
+      <p className="px-3 pt-1.5 pb-0.5 text-[9px] font-semibold uppercase tracking-wide text-muted-foreground">
+        {label}
+      </p>
+      {children}
+    </div>
+  )
+}
+
+function SiteCardMenuToggle({
+  label,
+  hint,
+  checked,
+  onChange,
+  disabled = false,
+  pending = false,
+  icon: Icon,
+}: {
+  label: string
+  hint?: string
+  checked: boolean
+  onChange: (next: boolean) => void
+  disabled?: boolean
+  pending?: boolean
+  icon?: LucideIcon
+}) {
+  return (
+    <div
+      role="menuitem"
+      className="flex items-center gap-2.5 px-3 py-2"
+      onClick={e => e.stopPropagation()}
+    >
+      {Icon ? (
+        <span className="flex h-4 w-4 shrink-0 items-center justify-center">
+          <Icon className={cn('h-4 w-4', checked ? 'text-primary' : 'text-gray-400')} />
+        </span>
+      ) : null}
+      <div className="min-w-0 flex-1">
+        <p className="text-sm font-medium text-gray-700">{label}</p>
+        {hint ? <p className="text-[10px] leading-snug text-muted-foreground">{hint}</p> : null}
+      </div>
+      <button
+        type="button"
+        role="switch"
+        aria-checked={checked}
+        aria-label={`${label} ${checked ? 'on' : 'off'}`}
+        disabled={disabled || pending}
+        onClick={() => onChange(!checked)}
+        className={cn(
+          'relative inline-flex h-5 w-9 shrink-0 items-center rounded-full border-2 border-transparent transition-colors',
+          checked ? 'bg-primary' : 'bg-gray-200',
+          (disabled || pending) && 'cursor-not-allowed opacity-60',
+        )}
+      >
+        {pending ? (
+          <Loader2 className="absolute left-1/2 top-1/2 h-3 w-3 -translate-x-1/2 -translate-y-1/2 animate-spin text-white" />
+        ) : (
+          <span
+            className={cn(
+              'pointer-events-none inline-block h-4 w-4 rounded-full bg-white shadow-sm transition-transform',
+              checked ? 'translate-x-4' : 'translate-x-0',
+            )}
+          />
+        )}
+      </button>
+    </div>
+  )
 }
 
 function SiteCardMenuItem({
@@ -1529,12 +1602,14 @@ function SiteCard({
 
   const handleDelete = async () => {
     if (deleting) return
-    if (!confirm(`Delete "${site.name}"? This cannot be undone.`)) return
+    if (!confirm(
+      `Move "${site.name}" to Recently deleted?\n\nIt stays there for 30 days — restore anytime before then, or delete permanently from Recently deleted.`,
+    )) return
     setMenuOpen(false)
     setDeleting(true)
     try {
       await deleteSite.mutateAsync(site.id)
-      toast.success('Site deleted')
+      toast.success('Moved to Recently deleted — restore within 30 days')
     } catch (err) {
       toast.error(extractApiError(err, 'Failed to delete'))
     } finally {
@@ -1542,19 +1617,19 @@ function SiteCard({
     }
   }
 
-  const handleTogglePublish = async () => {
+  const handleTogglePublish = async (next: boolean) => {
+    if (publishSite.isPending || unpublishSite.isPending) return
     try {
-      if (site.is_published) {
+      if (!next) {
         await unpublishSite.mutateAsync()
-        toast.success('Removed from templates â€” assign this site again to make it available')
+        toast.success('Removed from templates — turn on again to make it available')
       } else {
         await publishSite.mutateAsync()
-        toast.success('Ready for templates â€” assign it in Template Gallery')
+        toast.success('Added to templates — assign it in Template Gallery')
       }
     } catch {
-      toast.error('Failed to update status')
+      toast.error('Failed to update template status')
     }
-    setMenuOpen(false)
   }
 
   const handleCopyTemplateSaveAs = () => {
@@ -1643,7 +1718,7 @@ function SiteCard({
     <div className="bg-white border border-gray-200 rounded-xl shadow-sm hover:shadow-md transition-all overflow-visible group">
       {/* Thumbnail */}
       <div
-        className="relative h-24 rounded-t-xl bg-gradient-to-br from-accent via-info/10 to-primary/15 cursor-pointer overflow-hidden"
+        className="relative aspect-[16/10] rounded-t-xl bg-gradient-to-br from-accent via-info/10 to-primary/15 cursor-pointer overflow-hidden"
         onClick={() => navigate(`/websites/${site.id}`)}
       >
         <WebsiteSiteGlimpse
@@ -1652,6 +1727,7 @@ function SiteCard({
           fallbackImage={staticThumb}
           templates={websiteTemplates}
           variant="card"
+          scaleMode="cover"
           className="absolute inset-0"
         />
         {/* Overlay on hover */}
@@ -1710,83 +1786,95 @@ function SiteCard({
                   zIndex: 9999,
                   transform: menuPos.openUp ? 'translateY(-100%)' : undefined,
                 }}
-                className="min-w-[12.5rem] w-56 bg-popover text-popover-foreground border border-border rounded-xl shadow-xl py-1 max-h-[min(90vh,24rem)] overflow-y-auto"
+                className="min-w-[12.5rem] w-56 bg-popover text-popover-foreground border border-border rounded-xl shadow-xl py-1"
               >
                 <div className="border-b border-gray-100 px-3 py-2">
                   <p className="truncate text-xs font-medium text-gray-900">{site.name}</p>
-                  <p className="text-[10px] text-muted-foreground">{displayStatus.label}</p>
+                  <p className="text-[10px] leading-snug text-muted-foreground">{displayStatus.label}</p>
                 </div>
-                <SiteCardMenuItem
-                  icon={Edit3}
-                  label="Open builder"
-                  onClick={() => { navigate(`/websites/${site.id}`); setMenuOpen(false) }}
-                />
-                <SiteCardMenuItem
-                  icon={previewing ? Loader2 : Eye}
-                  label={previewing ? 'Opening previewâ€¦' : 'Preview draft'}
-                  disabled={previewing || copyingPreviewLink}
-                  iconSpin={previewing}
-                  onClick={() => {
-                    void (async () => {
-                      await handlePreview()
-                      setMenuOpen(false)
-                    })()
-                  }}
-                />
-                {showViewLive
-                  ? viewLiveLinks.map(link => (
-                    <SiteCardMenuItem
-                      key={link.href}
-                      icon={ExternalLink}
-                      label={viewLiveLinks.length > 1 ? `View live Â· ${link.label}` : 'View live'}
-                      onClick={() => { window.open(link.href, '_blank'); setMenuOpen(false) }}
-                    />
-                  ))
-                  : (
-                    <SiteCardMenuItem
-                      icon={copyingPreviewLink ? Loader2 : previewLinkCopied ? Check : Copy}
-                      label={previewLinkCopied ? 'Preview link copied' : 'Copy preview link'}
-                      disabled={previewing || copyingPreviewLink}
-                      iconSpin={copyingPreviewLink}
-                      iconClassName={previewLinkCopied ? 'text-emerald-500' : undefined}
-                      onClick={() => {
-                        void (async () => {
-                          await handleCopyPreviewLink()
-                          setMenuOpen(false)
-                        })()
-                      }}
-                    />
-                  )}
-                {(displayStatus.id === 'ready_for_assign' || displayStatus.id === 'needs_activation') && !isExternalSite && (
+
+                <SiteCardMenuGroup label="Edit">
                   <SiteCardMenuItem
-                    icon={Store}
-                    label={displayStatus.id === 'needs_activation' ? 'Activate in Templates' : 'Assign in Templates'}
-                    onClick={() => { navigate('/websites/templates'); setMenuOpen(false) }}
+                    icon={Edit3}
+                    label="Open builder"
+                    onClick={() => { navigate(`/websites/${site.id}`); setMenuOpen(false) }}
                   />
-                )}
-                <SiteCardMenuDivider />
-                <SiteCardMenuItem
-                  icon={Globe2}
-                  label="Custom domain"
-                  onClick={() => { setShowDomainPanel(v => !v); setMenuOpen(false) }}
-                />
+                  <SiteCardMenuItem
+                    icon={previewing ? Loader2 : Eye}
+                    label={previewing ? 'Opening previewâ€¦' : 'Preview draft'}
+                    disabled={previewing || copyingPreviewLink}
+                    iconSpin={previewing}
+                    onClick={() => {
+                      void (async () => {
+                        await handlePreview()
+                        setMenuOpen(false)
+                      })()
+                    }}
+                  />
+                  {showViewLive
+                    ? viewLiveLinks.map(link => (
+                      <SiteCardMenuItem
+                        key={link.href}
+                        icon={ExternalLink}
+                        label={viewLiveLinks.length > 1 ? `View live Â· ${link.label}` : 'View live'}
+                        onClick={() => { window.open(link.href, '_blank'); setMenuOpen(false) }}
+                      />
+                    ))
+                    : (
+                      <SiteCardMenuItem
+                        icon={copyingPreviewLink ? Loader2 : previewLinkCopied ? Check : Copy}
+                        label={previewLinkCopied ? 'Preview link copied' : 'Copy preview link'}
+                        disabled={previewing || copyingPreviewLink}
+                        iconSpin={copyingPreviewLink}
+                        iconClassName={previewLinkCopied ? 'text-emerald-500' : undefined}
+                        onClick={() => {
+                          void (async () => {
+                            await handleCopyPreviewLink()
+                            setMenuOpen(false)
+                          })()
+                        }}
+                      />
+                    )}
+                </SiteCardMenuGroup>
+
                 {!isExternalSite && (
-                <SiteCardMenuItem
-                  icon={site.is_published ? EyeOff : Store}
-                  label={site.is_published ? 'Remove from templates' : 'Enable for templates'}
-                  onClick={() => void handleTogglePublish()}
-                />
+                  <SiteCardMenuGroup label="Templates">
+                    <SiteCardMenuToggle
+                      icon={LayoutTemplate}
+                      label="Template gallery"
+                      hint={site.is_published ? 'On — ready to assign' : 'Off — hidden from gallery'}
+                      checked={site.is_published}
+                      pending={publishSite.isPending || unpublishSite.isPending}
+                      onChange={next => { void handleTogglePublish(next) }}
+                    />
+                    {(displayStatus.id === 'ready_for_assign' || displayStatus.id === 'needs_activation') && (
+                      <SiteCardMenuItem
+                        icon={Store}
+                        label={displayStatus.id === 'needs_activation' ? 'Activate in Templates' : 'Assign in Templates'}
+                        onClick={() => { navigate('/websites/templates'); setMenuOpen(false) }}
+                      />
+                    )}
+                  </SiteCardMenuGroup>
                 )}
-                <SiteCardMenuItem
-                  icon={Pencil}
-                  label="Rename"
-                  onClick={handleRename}
-                />
-                <SiteCardMenuItem
-                  icon={ClipboardCopy}
-                  label="Save a copy"
-                  onClick={handleCopyTemplateSaveAs}
-                />
+
+                <SiteCardMenuGroup label="Manage">
+                  <SiteCardMenuItem
+                    icon={Globe2}
+                    label="Custom domain"
+                    onClick={() => { setShowDomainPanel(v => !v); setMenuOpen(false) }}
+                  />
+                  <SiteCardMenuItem
+                    icon={Pencil}
+                    label="Rename"
+                    onClick={handleRename}
+                  />
+                  <SiteCardMenuItem
+                    icon={ClipboardCopy}
+                    label="Save a copy"
+                    onClick={handleCopyTemplateSaveAs}
+                  />
+                </SiteCardMenuGroup>
+
                 <SiteCardMenuDivider />
                 <SiteCardMenuItem
                   icon={Trash2}
@@ -1920,6 +2008,7 @@ export default function WebsitesPage() {
   const { data: storesData } = useStores({ limit: 200 })
   const stores = storesData?.stores ?? []
   const [createOpen, setCreateOpen] = useState(false)
+  const [recentlyDeletedOpen, setRecentlyDeletedOpen] = useState(false)
   const [openingTemplateEditor, setOpeningTemplateEditor] = useState(false)
   const [searchParams, setSearchParams] = useSearchParams()
   const navigate = useNavigate()
@@ -2019,6 +2108,13 @@ export default function WebsitesPage() {
         <div className="flex items-center gap-2">
           <Button
             variant="outline"
+            onClick={() => setRecentlyDeletedOpen(true)}
+            className="border-primary/30 text-primary hover:bg-accent hover:border-primary/60"
+          >
+            <Trash2 className="w-4 h-4 mr-2" /> Recently Deleted
+          </Button>
+          <Button
+            variant="outline"
             disabled={openingTemplateEditor}
             onClick={() => { void openTemplateEditorSandbox('Template library') }}
             className="border-primary/30 text-primary hover:bg-accent hover:border-primary/60"
@@ -2113,6 +2209,9 @@ export default function WebsitesPage() {
       )}
 
       {createOpen && <CreateSiteModal onClose={() => setCreateOpen(false)} />}
+      {recentlyDeletedOpen && (
+        <RecentlyDeletedTemplatesModal onClose={() => setRecentlyDeletedOpen(false)} />
+      )}
     </div>
   )
 }

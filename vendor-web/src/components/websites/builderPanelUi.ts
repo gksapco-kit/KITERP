@@ -27,18 +27,21 @@ export const builderPanelUi = {
   tabInactive: 'text-gray-600 hover:text-gray-900 hover:bg-muted/40 dark:text-muted-foreground dark:hover:text-foreground',
   tabActive: 'text-primary border-b-2 border-primary bg-accent',
   /** Side-panel tab strip — tabs share width; no horizontal scroll. */
-  tabStrip: 'flex min-w-0 shrink-0 items-stretch border-b border-border',
+  tabStrip: 'flex min-w-0 shrink-0 items-stretch border-b border-border min-h-11',
   tabStripTabs: 'flex min-w-0 flex-1 items-stretch',
   tabBtn:
-    'flex min-w-0 flex-1 flex-col items-center justify-center gap-px px-0.5 py-1 text-[8px] font-medium leading-snug transition-colors',
-  tabBtnLabel: 'w-full truncate text-center text-[8px] leading-snug',
-  tabBtnIcon: 'h-3 w-3 shrink-0',
+    'flex min-h-11 min-w-0 flex-1 flex-col items-center justify-center gap-0.5 px-1 py-1.5 text-[10px] font-medium leading-snug transition-colors',
+  tabBtnLabel: 'w-full truncate text-center text-[10px] leading-snug',
+  tabBtnIcon: 'h-3.5 w-3.5 shrink-0',
   tabCollapseBtn:
     'flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-gray-200 bg-white text-muted-foreground shadow-sm transition-colors hover:bg-muted/50 hover:text-foreground',
   /** Collapse / expand — straddles panel edge at tab-strip junction. */
   panelEdgeToggle:
     'absolute z-30 flex h-7 w-7 items-center justify-center rounded-md border border-gray-200 bg-white text-muted-foreground shadow-sm transition-colors hover:bg-muted/50 hover:text-foreground',
-  panelEdgeToggleTop: 'top-8 -translate-y-1/2',
+  panelEdgeToggleTop: 'top-11 -translate-y-1/2',
+  /** Scrollable panel body below tab strip — keeps tabs pinned while content scrolls. */
+  panelBody: 'flex min-h-0 flex-1 flex-col overflow-hidden',
+  panelScroll: 'min-h-0 flex-1 overflow-y-auto',
   colorInput: 'w-9 h-9 shrink-0 cursor-pointer rounded-lg border border-border bg-background p-0.5',
   select: 'w-full rounded-lg border border-border bg-background px-3 py-2 text-xs text-foreground',
   collapsible:

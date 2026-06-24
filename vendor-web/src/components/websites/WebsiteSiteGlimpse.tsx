@@ -6,6 +6,7 @@ import { BuilderCanvasPageRenderer } from '@/components/websites/BuilderCanvasPa
 import {
   fetchSiteHomepageGlimpse,
   styleConfigPreviewGradient,
+  type SiteHomepageGlimpse,
 } from '@/lib/websiteSitePreview'
 import { cn } from '@/lib/utils'
 import type { WebsiteTemplate } from '@/types/websites'
@@ -65,14 +66,14 @@ type Props = {
   previewMode?: 'assigned' | 'live'
   /** cover = fill small thumbs edge-to-edge like object-cover */
   scaleMode?: GlimpseScaleMode
-  /** card = fast static thumb for grids; full = live canvas / iframe preview */
+  /** card = compact grid thumb; full = large preview / iframe */
   variant?: 'card' | 'full'
 }
 
 function StaticGlimpseImage({ src, className }: { src: string; className?: string }) {
   return (
     <div className={cn('relative h-full w-full overflow-hidden', className)}>
-      <img src={src} alt="" className="h-full w-full object-cover" loading="lazy" />
+      <img src={src} alt="" className="h-full w-full object-cover object-top" loading="lazy" />
       <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/35 via-transparent to-transparent" />
     </div>
   )
@@ -112,6 +113,57 @@ function GlimpseLoading({ className }: { className?: string }) {
         className,
       )}
     />
+  )
+}
+
+function GlimpseCanvasPreview({
+  siteId,
+  vendorSlug,
+  data,
+  className,
+  scaleMode,
+  contentHeight,
+}: {
+  siteId: string
+  vendorSlug: string
+  data: SiteHomepageGlimpse
+  className?: string
+  scaleMode: GlimpseScaleMode
+  contentHeight: number
+}) {
+  const containerRef = useRef<HTMLDivElement>(null)
+  const { scale, offsetX, offsetY } = useGlimpseScale(containerRef, scaleMode, contentHeight)
+
+  return (
+    <div
+      ref={containerRef}
+      className={cn('relative h-full w-full overflow-hidden bg-white', className)}
+    >
+      <div
+        className="pointer-events-none absolute select-none"
+        style={{
+          width: PREVIEW_WIDTH,
+          minHeight: contentHeight,
+          left: offsetX,
+          top: offsetY,
+          transform: `scale(${scale})`,
+          transformOrigin: 'top left',
+        }}
+      >
+        <BuilderCanvasProviders
+          siteId={siteId}
+          vendorSlug={vendorSlug}
+          siteName={data.publicSite.name}
+        >
+          <BuilderCanvasPageRenderer
+            publicSite={data.publicSite}
+            blocks={data.blocks}
+            pageId={data.pageId}
+          />
+        </BuilderCanvasProviders>
+      </div>
+      <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/35 via-transparent to-transparent" />
+    </div>
   )
 }
 
@@ -164,63 +216,49 @@ export function WebsiteSiteGlimpse({
   scaleMode = 'width',
   variant = 'full',
 }: Props) {
-  const containerRef = useRef<HTMLDivElement>(null)
-  const contentHeight = scaleMode === 'cover' ? GLIMPSE_CONTENT_HEIGHT : IFRAME_HEIGHT
-  const { scale, offsetX, offsetY } = useGlimpseScale(containerRef, scaleMode, contentHeight)
   const isCard = variant === 'card'
+  const contentHeight = scaleMode === 'cover' ? GLIMPSE_CONTENT_HEIGHT : IFRAME_HEIGHT
   const hasFallbackImage = Boolean(fallbackImage?.trim())
+  const preferAssignedPreview = previewMode === 'assigned'
+  const wantsLiveCanvas = !preferAssignedPreview && scaleMode === 'cover'
 
   const { data, isLoading } = useQuery({
-    queryKey: ['site-homepage-glimpse', siteId],
+    queryKey: ['site-homepage-glimpse', siteId, templates],
     queryFn: () => fetchSiteHomepageGlimpse(siteId!, templates),
-    enabled: Boolean(siteId) && (!isCard || !hasFallbackImage),
+    enabled: Boolean(siteId) && (!isCard || !hasFallbackImage || wantsLiveCanvas),
     staleTime: 5 * 60 * 1000,
   })
 
   const staticImage = data?.staticImage || fallbackImage
   const gradient = styleConfigPreviewGradient(data?.style) || fallbackGradient
-  const preferAssignedPreview = previewMode === 'assigned'
-  const canRenderCanvas = !isCard && Boolean(data?.blocks.length && vendorSlug && siteId)
+  const canRenderCanvas = Boolean(
+    siteId
+    && vendorSlug
+    && data?.blocks.length
+    && (!isCard || wantsLiveCanvas),
+  )
+
+  if (canRenderCanvas && data) {
+    return (
+      <GlimpseCanvasPreview
+        siteId={siteId!}
+        vendorSlug={vendorSlug!}
+        data={data}
+        className={className}
+        scaleMode={scaleMode}
+        contentHeight={contentHeight}
+      />
+    )
+  }
 
   if (isCard) {
+    if (wantsLiveCanvas && isLoading && siteId) {
+      return <GlimpseLoading className={className} />
+    }
     if (staticImage) return <StaticGlimpseImage src={staticImage} className={className} />
     if (isLoading && siteId) return <GlimpseLoading className={className} />
     if (gradient) return <GlimpseGradient gradient={gradient} className={className} />
     return <GlimpsePlaceholder className={className} />
-  }
-
-  if (canRenderCanvas) {
-    return (
-      <div
-        ref={containerRef}
-        className={cn('relative h-full w-full overflow-hidden bg-white', className)}
-      >
-        <div
-          className="pointer-events-none absolute select-none"
-          style={{
-            width: PREVIEW_WIDTH,
-            minHeight: contentHeight,
-            left: offsetX,
-            top: offsetY,
-            transform: `scale(${scale})`,
-            transformOrigin: 'top left',
-          }}
-        >
-          <BuilderCanvasProviders
-            siteId={siteId!}
-            vendorSlug={vendorSlug!}
-            siteName={data!.publicSite.name}
-          >
-            <BuilderCanvasPageRenderer
-              publicSite={data!.publicSite}
-              blocks={data!.blocks}
-              pageId={data!.pageId}
-            />
-          </BuilderCanvasProviders>
-        </div>
-        <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/35 via-transparent to-transparent" />
-      </div>
-    )
   }
 
   if (isLoading && siteId) {

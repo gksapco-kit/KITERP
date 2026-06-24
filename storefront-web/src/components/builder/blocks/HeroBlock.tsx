@@ -23,6 +23,7 @@ import { storeApi, type StoreLocation } from '@/api/store'
 import { branchWelcomeHeadline } from '@/lib/branchStorefrontIdentity'
 import { useEffectiveVendor } from '@/hooks/useEffectiveVendor'
 import { useBranch } from '@/contexts/BranchContext'
+import { isSharpSiteRadius, siteRadiusPx } from '@/lib/siteBorderRadius'
 
 interface Props {
   site: PublicSite
@@ -32,14 +33,6 @@ interface Props {
   branchCode?: string | null
   blockType: string
   blockId?: string
-}
-
-function borderRadiusPx(style: StyleConfig): number {
-  const br = style.border_radius as string | undefined
-  if (br === 'none' || br === 'sharp') return 0
-  if (br === 'sm') return 4
-  if (br === 'lg') return 16
-  return 8
 }
 
 export default function HeroBlock({ site, style, props, blockType, blockId, branchCode: branchFromBlocks }: Props) {
@@ -184,8 +177,8 @@ export default function HeroBlock({ site, style, props, blockType, blockId, bran
   const heroText = panelUsesDarkText ? '#fff' : style.text_color
   const heroSubText = panelUsesDarkText ? 'rgba(255,255,255,0.82)' : `${style.text_color}cc`
 
-  const squareCta = props.cta_square === true || style.border_radius === 'sharp' || style.border_radius === 'none'
-  const ctaRadius = squareCta ? 0 : borderRadiusPx(style)
+  const squareCta = props.cta_square === true || isSharpSiteRadius(style.border_radius)
+  const ctaRadius = squareCta ? 0 : siteRadiusPx(style.border_radius)
   const ctaPadClass = squareCta
     ? 'px-7 h-12 inline-flex items-center justify-center box-border'
     : 'px-6 h-12 inline-flex items-center justify-center box-border'

@@ -1,7 +1,7 @@
 import { apiClient } from '@/api/client'
 import type {
   WebsiteSite, SiteListItem, WebsitePage, WebsiteBlock, WebsiteMedia,
-  PageTrashItem,
+  PageTrashItem, SiteTrashItem,
   AITextRequest, AITextResponse, AIScreenshotResponse, AIUrlCloneResponse,
   AIUxReviewResponse, AIThemeResponse, MediaAdjustments, WebsiteTemplate,
   StyleConfig, BlockProps, SiteRedirect,
@@ -19,6 +19,9 @@ export const websiteApi = {
   getSite: (siteId: string) => apiClient.get<WebsiteSite>(`${base}/${siteId}`).then(r => r.data),
   updateSite: (siteId: string, data: Partial<WebsiteSite>) => apiClient.patch<WebsiteSite>(`${base}/${siteId}`, data).then(r => r.data),
   deleteSite: (siteId: string) => apiClient.delete(`${base}/${siteId}`),
+  listTrashedSites: () => apiClient.get<SiteTrashItem[]>(`${base}/trash`).then(r => r.data),
+  restoreSite: (siteId: string) => apiClient.post<WebsiteSite>(`${base}/${siteId}/restore`).then(r => r.data),
+  permanentlyDeleteSite: (siteId: string) => apiClient.delete(`${base}/${siteId}/permanent`),
   publishSite: (siteId: string) => apiClient.post<WebsiteSite>(`${base}/${siteId}/publish`).then(r => r.data),
   unpublishSite: (siteId: string) => apiClient.post<WebsiteSite>(`${base}/${siteId}/unpublish`).then(r => r.data),
 
@@ -48,7 +51,9 @@ export const websiteApi = {
   deletePage: (siteId: string, pageId: string) =>
     apiClient.delete(`${base}/${siteId}/pages/${pageId}`),
   listTrashedPages: (siteId: string) =>
-    apiClient.get<PageTrashItem[]>(`${base}/${siteId}/pages/trash`).then(r => r.data),
+    apiClient
+      .get<PageTrashItem[]>(`${base}/${siteId}/pages/trash`, { timeout: 30_000 })
+      .then(r => r.data),
   restorePage: (siteId: string, pageId: string) =>
     apiClient.post<WebsitePage>(`${base}/${siteId}/pages/${pageId}/restore`).then(r => r.data),
   reorderPages: (siteId: string, items: { id: string; sort_order: number }[]) =>

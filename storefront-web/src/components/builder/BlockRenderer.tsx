@@ -20,6 +20,8 @@ import { publicSitesApi } from '@/api/publicSites'
 import { useVendor } from '@/contexts/VendorContext'
 import { useLiveDataFetch } from '@/contexts/LiveDataFetchContext'
 import { useBuilderCanvas } from '@/contexts/BuilderCanvasContext'
+import { buildSiteThemeCss } from '@/lib/siteThemeCss'
+import { normalizeSiteBorderRadius } from '@/lib/siteBorderRadius'
 import NavBlock from '@/components/builder/blocks/NavBlock'
 import FooterBlock from '@/components/builder/blocks/FooterBlock'
 import SectionShapeDivider from './SectionShapeDivider'
@@ -606,7 +608,6 @@ export default function BlockRenderer({ blocks, site, pageId, branchCode }: Bloc
     backgroundColor: style.bg_color,
     color: style.text_color,
     fontFamily: style.font_body,
-    fontSize: style.font_size_base ? `${style.font_size_base}px` : undefined,
   } as const
 
   const renderBlock = (block: PublicBlock) => (
@@ -620,18 +621,11 @@ export default function BlockRenderer({ blocks, site, pageId, branchCode }: Bloc
     />
   )
 
+  const siteRadiusMode = normalizeSiteBorderRadius(style.border_radius)
+
   return (
-    <div className="builder-page min-w-0" style={pageStyle}>
-      {(style.font_heading || style.font_size_heading) && (
-        <style>{`
-          .builder-page h1,
-          .builder-page h2,
-          .builder-page h3 {
-            font-family: ${JSON.stringify(style.font_heading)};
-            ${style.font_size_heading ? `font-size: ${style.font_size_heading}px;` : ''}
-          }
-        `}</style>
-      )}
+    <div className="builder-page min-w-0" style={pageStyle} data-site-radius={siteRadiusMode}>
+      <style>{buildSiteThemeCss(style)}</style>
       {shellBlocks.length > 0 && (
         <div className="sticky top-0 z-50 w-full">
           {shellBlocks.map(renderBlock)}

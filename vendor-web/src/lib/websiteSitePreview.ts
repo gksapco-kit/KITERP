@@ -45,24 +45,38 @@ function extractOverlayImages(props: Record<string, unknown>): string | null {
   return null
 }
 
+const HERO_BLOCK_TYPES = new Set([
+  'hero', 'hero_split', 'hero_minimal', 'announcement_bar', 'nav',
+])
+
+function extractImageFromBlockProps(props: Record<string, unknown>): string | null {
+  for (const field of TOP_LEVEL_IMAGE_FIELDS) {
+    const url = pickImageUrl(props[field])
+    if (url) return url
+  }
+  const overlayUrl = extractOverlayImages(props)
+  if (overlayUrl) return overlayUrl
+  for (const { key, field } of ARRAY_IMAGE_FIELDS) {
+    const items = props[key]
+    if (!Array.isArray(items)) continue
+    for (const item of items) {
+      const url = pickImageUrl((item as Record<string, unknown>)?.[field])
+      if (url) return url
+    }
+  }
+  return null
+}
+
 export function extractPreviewImageFromBlocks(blocks: WebsiteBlock[]): string | null {
   const sorted = [...blocks].sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
   for (const block of sorted) {
-    const props = (block.props ?? {}) as Record<string, unknown>
-    for (const field of TOP_LEVEL_IMAGE_FIELDS) {
-      const url = pickImageUrl(props[field])
-      if (url) return url
-    }
-    const overlayUrl = extractOverlayImages(props)
-    if (overlayUrl) return overlayUrl
-    for (const { key, field } of ARRAY_IMAGE_FIELDS) {
-      const items = props[key]
-      if (!Array.isArray(items)) continue
-      for (const item of items) {
-        const url = pickImageUrl((item as Record<string, unknown>)?.[field])
-        if (url) return url
-      }
-    }
+    if (!HERO_BLOCK_TYPES.has(block.block_type)) continue
+    const url = extractImageFromBlockProps((block.props ?? {}) as Record<string, unknown>)
+    if (url) return url
+  }
+  for (const block of sorted) {
+    const url = extractImageFromBlockProps((block.props ?? {}) as Record<string, unknown>)
+    if (url) return url
   }
   return null
 }

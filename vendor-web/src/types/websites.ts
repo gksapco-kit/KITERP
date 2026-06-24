@@ -204,6 +204,18 @@ export interface PageTrashItem {
   block_count: number
 }
 
+export interface SiteTrashItem {
+  id: string
+  name: string
+  description?: string | null
+  deleted_at: string
+  purge_at: string
+  days_remaining: number
+  page_count: number
+  is_published: boolean
+  applied_template_name?: string | null
+}
+
 export interface StyleConfig {
   primary_color: string
   secondary_color: string

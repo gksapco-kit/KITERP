@@ -1,5 +1,6 @@
 import { Clock } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { BuilderStepSlider } from '@/components/websites/BuilderStepSlider'
 import {
   ANIMATION_DELAY_MAX_MS,
   ANIMATION_DELAY_PRESETS_MS,
@@ -57,30 +58,17 @@ export function ScrollAnimationDelayControl({
         </span>
       </div>
 
-      <div className="flex items-center gap-2">
-        <input
-          type="range"
-          min={0}
-          max={ANIMATION_DELAY_MAX_MS}
-          step={50}
-          value={delay}
-          disabled={!hasAnimation}
-          onChange={e => onDelayChange(clampDelay(Number(e.target.value)))}
-          className="flex-1 h-2 accent-primary cursor-pointer disabled:cursor-not-allowed disabled:opacity-40"
-          aria-label="Animation start delay"
-        />
-        <input
-          type="number"
-          min={0}
-          max={ANIMATION_DELAY_MAX_MS}
-          step={50}
-          value={delay}
-          disabled={!hasAnimation}
-          onChange={e => onDelayChange(clampDelay(Number(e.target.value)))}
-          className="w-[4.25rem] shrink-0 rounded-md border border-gray-200 bg-white px-1.5 py-1 text-xs font-semibold tabular-nums text-gray-800 text-center focus:outline-none focus:ring-2 focus:ring-primary/30 disabled:cursor-not-allowed disabled:opacity-40"
-          aria-label="Animation delay in milliseconds"
-        />
-      </div>
+      <BuilderStepSlider
+        aria-label="Animation start delay"
+        value={delay}
+        min={0}
+        max={ANIMATION_DELAY_MAX_MS}
+        step={50}
+        disabled={!hasAnimation}
+        showValue={false}
+        onChange={v => onDelayChange(clampDelay(v))}
+        sliderClassName="h-2"
+      />
 
       <div className="flex flex-wrap gap-1">
         {ANIMATION_DELAY_PRESETS_MS.map(preset => (

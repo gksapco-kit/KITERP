@@ -1,6 +1,7 @@
 import type { StyleConfig } from '@/blocks/registry'
 import { primaryForegroundHslForHex, hexToHslChannels } from '@/lib/themeColors'
 import type { BlockColorProps } from '@/lib/blockColorOverrides'
+import { siteRadiusRem } from '@/lib/siteBorderRadius'
 
 function hslOr(hex: string | null | undefined, fallback: string): string {
   if (!hex || typeof hex !== 'string') return fallback
@@ -51,6 +52,6 @@ export function buildCommerceBlockCssVars(
     '--border': border,
     '--input': border,
     '--ring': primary,
-    '--radius': '0.625rem',
+    '--radius': siteRadiusRem(style.border_radius),
   }
 }

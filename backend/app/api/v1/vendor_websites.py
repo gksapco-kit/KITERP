@@ -28,7 +28,7 @@ from app.models.website import (
 from app.services.vendor_service import VendorService
 from app.schemas.website import (
     SiteCreate, SiteUpdate, SiteOut, SiteListItem,
-    PageTrashOut,
+    PageTrashOut, SiteTrashOut,
     PageCreate, PageUpdate, PageOut,
     BlockCreate, BlockUpdate, BlockOut,
     BlockReorderRequest, PageReorderRequest,
@@ -51,6 +51,7 @@ from app.schemas.website import (
 router = APIRouter(redirect_slashes=False)
 
 PAGE_TRASH_RETENTION_DAYS = 7
+SITE_TRASH_RETENTION_DAYS = 30
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
@@ -60,14 +61,20 @@ async def _get_vendor(db: AsyncSession, user: User) -> Vendor:
     return await resolve_dashboard_vendor(db, user, preferred_vendor_id=pref)
 
 
-async def _get_site(db: AsyncSession, site_id: str, vendor_id: UUID) -> WebsiteSite:
+async def _get_site(
+    db: AsyncSession,
+    site_id: str,
+    vendor_id: UUID,
+    *,
+    include_deleted: bool = False,
+) -> WebsiteSite:
     """Load site with active pages only.
 
     Do NOT assign ``site.pages = [...]`` to filter trashed pages — the pages
     relationship uses ``delete-orphan`` cascade, so reassigning the list
     permanently deletes any page removed from the collection (including trash).
     """
-    result = await db.execute(
+    query = (
         select(WebsiteSite)
         .options(
             selectinload(WebsiteSite.pages).selectinload(WebsitePage.blocks),
@@ -75,6 +82,9 @@ async def _get_site(db: AsyncSession, site_id: str, vendor_id: UUID) -> WebsiteS
         )
         .where(WebsiteSite.id == UUID(site_id), WebsiteSite.vendor_id == vendor_id)
     )
+    if not include_deleted:
+        query = query.where(WebsiteSite.deleted_at.is_(None))
+    result = await db.execute(query)
     site = result.scalar_one_or_none()
     if not site:
         raise HTTPException(status_code=404, detail="Site not found")
@@ -94,7 +104,42 @@ async def _purge_expired_trashed_pages(db: AsyncSession, site_id: str) -> None:
         await db.delete(page)
 
 
-def _page_trash_out(page: WebsitePage) -> PageTrashOut:
+async def _purge_expired_trashed_sites(db: AsyncSession, vendor_id: UUID) -> None:
+    cutoff = datetime.utcnow() - timedelta(days=SITE_TRASH_RETENTION_DAYS)
+    result = await db.execute(
+        select(WebsiteSite).where(
+            WebsiteSite.vendor_id == vendor_id,
+            WebsiteSite.deleted_at.isnot(None),
+            WebsiteSite.deleted_at < cutoff,
+        )
+    )
+    for site in result.scalars().all():
+        await db.execute(
+            delete(WebsiteSite).where(WebsiteSite.id == site.id)
+        )
+
+
+def _site_trash_out(site: WebsiteSite, page_count: int = 0) -> SiteTrashOut:
+    deleted_at = site.deleted_at or datetime.utcnow()
+    purge_at = deleted_at + timedelta(days=SITE_TRASH_RETENTION_DAYS)
+    seconds_left = (purge_at - datetime.utcnow()).total_seconds()
+    days_remaining = max(0, int((seconds_left + 86399) // 86400))
+    sc = site.style_config if isinstance(site.style_config, dict) else {}
+    _, tpl_name = _resolved_applied_template(sc)
+    return SiteTrashOut(
+        id=str(site.id),
+        name=site.name,
+        description=site.description,
+        deleted_at=deleted_at,
+        purge_at=purge_at,
+        days_remaining=days_remaining,
+        page_count=page_count,
+        is_published=bool(site.is_published),
+        applied_template_name=tpl_name,
+    )
+
+
+def _page_trash_out(page: WebsitePage, block_count: Optional[int] = None) -> PageTrashOut:
     deleted_at = page.deleted_at or datetime.utcnow()
     purge_at = deleted_at + timedelta(days=PAGE_TRASH_RETENTION_DAYS)
     seconds_left = (purge_at - datetime.utcnow()).total_seconds()
@@ -106,8 +151,30 @@ def _page_trash_out(page: WebsitePage) -> PageTrashOut:
         deleted_at=deleted_at,
         purge_at=purge_at,
         days_remaining=days_remaining,
-        block_count=len(page.blocks or []),
+        block_count=block_count if block_count is not None else len(page.blocks or []),
     )
+
+
+async def _assert_site_owned(db: AsyncSession, site_id: str, vendor_id: UUID) -> None:
+    """Lightweight ownership check — no pages/blocks eager load."""
+    result = await db.execute(
+        select(WebsiteSite.id).where(
+            WebsiteSite.id == UUID(site_id),
+            WebsiteSite.vendor_id == vendor_id,
+            WebsiteSite.deleted_at.is_(None),
+        )
+    )
+    if not result.scalar_one_or_none():
+        raise HTTPException(status_code=404, detail="Site not found")
+
+
+async def _get_site_readable(
+    db: AsyncSession,
+    site_id: str,
+    vendor_id: UUID,
+) -> WebsiteSite:
+    """Active or trashed site — read-only preview and glimpse endpoints."""
+    return await _get_site(db, site_id, vendor_id, include_deleted=True)
 
 
 async def _get_page(
@@ -349,8 +416,13 @@ async def list_sites(
     user: User = Depends(get_current_active_user),
 ):
     vendor = await _get_vendor(db, user)
+    await _purge_expired_trashed_sites(db, vendor.id)
+    await db.flush()
     result = await db.execute(
-        select(WebsiteSite).where(WebsiteSite.vendor_id == vendor.id).order_by(WebsiteSite.created_at.desc())
+        select(WebsiteSite).where(
+            WebsiteSite.vendor_id == vendor.id,
+            WebsiteSite.deleted_at.is_(None),
+        ).order_by(WebsiteSite.created_at.desc())
     )
     sites = result.scalars().all()
 
@@ -378,6 +450,36 @@ async def list_sites(
             storefront_assigned=sc.get("storefront_assigned") is True,
             created_at=s.created_at, updated_at=s.updated_at,
         ))
+    return out
+
+
+@router.get("/trash", response_model=List[SiteTrashOut])
+async def list_trashed_sites(
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_active_user),
+):
+    vendor = await _get_vendor(db, user)
+    await _purge_expired_trashed_sites(db, vendor.id)
+    result = await db.execute(
+        select(WebsiteSite)
+        .where(
+            WebsiteSite.vendor_id == vendor.id,
+            WebsiteSite.deleted_at.isnot(None),
+        )
+        .order_by(WebsiteSite.deleted_at.desc())
+    )
+    sites = result.scalars().all()
+    out: List[SiteTrashOut] = []
+    for s in sites:
+        page_count_res = await db.execute(
+            select(func.count(WebsitePage.id)).where(
+                WebsitePage.site_id == s.id,
+                WebsitePage.deleted_at.is_(None),
+            )
+        )
+        page_count = page_count_res.scalar() or 0
+        out.append(_site_trash_out(s, page_count))
+    await db.commit()
     return out
 
 
@@ -488,10 +590,12 @@ async def get_site(
     user: User = Depends(get_current_active_user),
 ):
     vendor = await _get_vendor(db, user)
-    await _get_site(db, site_id, vendor.id)
-    await _normalize_site_homepage(db, site_id)
-    await db.commit()
-    return await _get_site(db, site_id, vendor.id)
+    site = await _get_site_readable(db, site_id, vendor.id)
+    if site.deleted_at is None:
+        await _normalize_site_homepage(db, site_id)
+        await db.commit()
+        return await _get_site(db, site_id, vendor.id)
+    return site
 
 
 @router.patch("/{site_id}", response_model=SiteOut)
@@ -526,16 +630,65 @@ async def delete_site(
     user: User = Depends(get_current_active_user),
 ):
     vendor = await _get_vendor(db, user)
+    site = await _get_site(db, site_id, vendor.id)
+    site.deleted_at = datetime.utcnow()
+    site.is_published = False
+    site.status = "archived"
+    site.updated_at = datetime.utcnow()
+    sc = site.style_config if isinstance(site.style_config, dict) else {}
+    if sc.get("storefront_assigned") is True:
+        sc = {**sc, "storefront_assigned": False}
+        site.style_config = sc
+    await db.commit()
+
+    try:
+        from app.api.v1.public_sites import invalidate_site_cache
+        await invalidate_site_cache(vendor.subdomain, site_id, vendor_slug=vendor.slug)
+    except Exception:
+        pass
+
+
+@router.post("/{site_id}/restore", response_model=SiteOut)
+async def restore_site(
+    site_id: str,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_active_user),
+):
+    vendor = await _get_vendor(db, user)
+    site = await _get_site(db, site_id, vendor.id, include_deleted=True)
+    if not site.deleted_at:
+        raise HTTPException(status_code=400, detail="Site is not in trash")
+    site.deleted_at = None
+    site.status = "draft"
+    site.updated_at = datetime.utcnow()
+    await db.commit()
+    return await _get_site(db, site_id, vendor.id)
+
+
+@router.delete("/{site_id}/permanent", status_code=204)
+async def permanently_delete_site(
+    site_id: str,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_active_user),
+):
+    vendor = await _get_vendor(db, user)
     site_uuid = UUID(site_id)
-    # Bulk delete — avoid ORM delete-orphan issues when trashed pages are not loaded.
     result = await db.execute(
+        select(WebsiteSite).where(
+            WebsiteSite.id == site_uuid,
+            WebsiteSite.vendor_id == vendor.id,
+            WebsiteSite.deleted_at.isnot(None),
+        )
+    )
+    site = result.scalar_one_or_none()
+    if not site:
+        raise HTTPException(status_code=404, detail="Deleted site not found")
+    await db.execute(
         delete(WebsiteSite).where(
             WebsiteSite.id == site_uuid,
             WebsiteSite.vendor_id == vendor.id,
         )
     )
-    if result.rowcount == 0:
-        raise HTTPException(status_code=404, detail="Site not found")
     await db.commit()
 
 
@@ -604,9 +757,10 @@ async def list_pages(
     user: User = Depends(get_current_active_user),
 ):
     vendor = await _get_vendor(db, user)
-    await _get_site(db, site_id, vendor.id)
+    site = await _get_site_readable(db, site_id, vendor.id)
     await _purge_expired_trashed_pages(db, site_id)
-    await _normalize_site_homepage(db, site_id)
+    if site.deleted_at is None:
+        await _normalize_site_homepage(db, site_id)
     result = await db.execute(
         select(WebsitePage)
         .options(selectinload(WebsitePage.blocks))
@@ -625,16 +779,25 @@ async def list_trashed_pages(
     user: User = Depends(get_current_active_user),
 ):
     vendor = await _get_vendor(db, user)
-    await _get_site(db, site_id, vendor.id)
-    await _prepare_page_mutation(db, site_id)
+    await _assert_site_owned(db, site_id, vendor.id)
+    await _purge_expired_trashed_pages(db, site_id)
+    await db.flush()
     result = await db.execute(
         select(WebsitePage)
-        .options(selectinload(WebsitePage.blocks))
         .where(WebsitePage.site_id == UUID(site_id), WebsitePage.deleted_at.isnot(None))
         .order_by(WebsitePage.deleted_at.desc())
     )
+    pages = list(result.scalars().all())
+    block_counts: Dict[UUID, int] = {}
+    if pages:
+        counts_res = await db.execute(
+            select(WebsiteBlock.page_id, func.count(WebsiteBlock.id))
+            .where(WebsiteBlock.page_id.in_([p.id for p in pages]))
+            .group_by(WebsiteBlock.page_id)
+        )
+        block_counts = {row[0]: int(row[1]) for row in counts_res.all()}
     await db.commit()
-    return [_page_trash_out(p) for p in result.scalars().all()]
+    return [_page_trash_out(p, block_counts.get(p.id, 0)) for p in pages]
 
 
 @router.post("/{site_id}/pages", response_model=PageOut, status_code=201)
@@ -786,7 +949,7 @@ async def list_blocks(
     user: User = Depends(get_current_active_user),
 ):
     vendor = await _get_vendor(db, user)
-    await _get_site(db, site_id, vendor.id)
+    await _get_site_readable(db, site_id, vendor.id)
     await _get_page(db, page_id, site_id)
     result = await db.execute(
         select(WebsiteBlock)
@@ -1716,7 +1879,7 @@ async def list_media(
     user: User = Depends(get_current_active_user),
 ):
     vendor = await _get_vendor(db, user)
-    await _get_site(db, site_id, vendor.id)
+    await _get_site_readable(db, site_id, vendor.id)
     result = await db.execute(
         select(WebsiteMedia)
         .where(WebsiteMedia.site_id == site_id)
@@ -4558,7 +4721,7 @@ async def create_builder_preview(
 ):
     """Save a full-site JSON snapshot; business front loads it via public preview-by-token."""
     vendor = await _get_vendor(db, user)
-    await _get_site(db, site_id, vendor.id)
+    await _get_site_readable(db, site_id, vendor.id)
     payload = body.get("payload")
     if not isinstance(payload, dict):
         raise HTTPException(status_code=400, detail="payload must be an object")

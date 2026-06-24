@@ -2,10 +2,24 @@ import type { LiveResource } from '@/types/websites'
 
 export type DataSourceId = LiveResource | 'external_api'
 
+/** Store data / link-picker tabs (Basic … Portal + Ext API for store data only). */
+export type StoreContentGroup = 'basic' | 'catalog' | 'people' | 'stores' | 'actions' | 'portal' | 'ext_api'
+
+export const STORE_CONTENT_GROUPS: { id: StoreContentGroup; label: string; desc: string }[] = [
+  { id: 'basic', label: 'Basic', desc: 'Site pages, profile, and media' },
+  { id: 'catalog', label: 'Catalog', desc: 'Live products, services, categories' },
+  { id: 'people', label: 'People', desc: 'Team, testimonials, customers' },
+  { id: 'stores', label: 'Stores', desc: 'Physical outlets & branches' },
+  { id: 'actions', label: 'Actions', desc: 'Bookings, orders, live business stats' },
+  { id: 'portal', label: 'Portal', desc: 'Customer account routes (link buttons instead)' },
+  { id: 'ext_api', label: 'Ext API', desc: 'Custom REST endpoint for live data' },
+]
+
 export type DataSourceDefinition = {
   id: DataSourceId
   label: string
   desc: string
+  group: StoreContentGroup
   /** Block types this feed is recommended for. */
   blockTypes: string[]
   selectable: boolean
@@ -13,20 +27,36 @@ export type DataSourceDefinition = {
 
 /** All live data feeds a section can bind to. */
 export const DATA_SOURCES: DataSourceDefinition[] = [
-  { id: 'products', label: 'Products', desc: 'Your product catalog', blockTypes: ['product_grid', 'menu_grid', 'live_stock', 'live_quote', 'gallery_masonry', 'product_detail', 'related_products', 'cart_drawer', 'recently_viewed', 'product_filters', 'checkout_form'], selectable: true },
-  { id: 'services', label: 'Services', desc: 'Your service offerings', blockTypes: ['services_cards', 'services_list', 'booking_widget', 'booking_slot_picker', 'menu_grid'], selectable: true },
-  { id: 'testimonials', label: 'Testimonials', desc: 'Verified customer reviews (4★+)', blockTypes: ['testimonials', 'testimonials_grid', 'product_reviews'], selectable: false },
-  { id: 'team', label: 'Team', desc: 'Active employees & roles', blockTypes: ['team_grid', 'team_list'], selectable: false },
-  { id: 'kpis', label: 'Business KPIs', desc: 'Live stats: orders, revenue, rating', blockTypes: ['stats', 'counters', 'impact_stats'], selectable: false },
-  { id: 'profile', label: 'Vendor Profile', desc: 'Brand, address, contact, socials', blockTypes: ['contact_form', 'map_embed', 'map_contact', 'footer', 'nav', 'about_split', 'social_links'], selectable: false },
-  { id: 'pages', label: 'Site Pages', desc: 'Published pages for nav & footer links', blockTypes: ['nav', 'footer'], selectable: false },
-  { id: 'categories', label: 'Categories', desc: 'Product & service categories', blockTypes: ['menu_grid', 'category_cards', 'product_filters'], selectable: false },
-  { id: 'customers', label: 'Customers', desc: 'Top customers for social proof', blockTypes: ['trust_logos'], selectable: false },
-  { id: 'orders', label: 'Orders', desc: 'Recent orders (for admin widgets)', blockTypes: ['stats', 'order_status'], selectable: false },
-  { id: 'bookings', label: 'Bookings', desc: 'Upcoming / recent bookings', blockTypes: ['booking_widget', 'booking_slot_picker'], selectable: false },
-  { id: 'media', label: 'Site Media', desc: 'Images & videos uploaded to this site', blockTypes: ['gallery_masonry', 'gallery_grid', 'image_gallery', 'portfolio_grid', 'image_block'], selectable: false },
-  { id: 'external_api', label: 'External API', desc: 'Custom REST endpoint', blockTypes: [], selectable: false },
+  { id: 'products', label: 'Products', desc: 'Your product catalog', group: 'catalog', blockTypes: ['product_grid', 'menu_grid', 'live_stock', 'live_quote', 'gallery_masonry', 'product_detail', 'related_products', 'cart_drawer', 'recently_viewed', 'product_filters', 'checkout_form'], selectable: true },
+  { id: 'services', label: 'Services', desc: 'Your service offerings', group: 'catalog', blockTypes: ['services_cards', 'services_list', 'booking_widget', 'booking_slot_picker', 'menu_grid'], selectable: true },
+  { id: 'categories', label: 'Categories', desc: 'Product & service categories', group: 'catalog', blockTypes: ['menu_grid', 'category_cards', 'product_filters'], selectable: false },
+  { id: 'testimonials', label: 'Testimonials', desc: 'Verified customer reviews (4★+)', group: 'people', blockTypes: ['testimonials', 'testimonials_grid', 'product_reviews'], selectable: false },
+  { id: 'team', label: 'Team', desc: 'Active employees & roles', group: 'people', blockTypes: ['team_grid', 'team_list'], selectable: false },
+  { id: 'customers', label: 'Customers', desc: 'Top customers for social proof', group: 'people', blockTypes: ['trust_logos'], selectable: false },
+  { id: 'stores', label: 'Store branches', desc: 'Physical outlets & branch list', group: 'stores', blockTypes: ['trust_logos'], selectable: true },
+  { id: 'bookings', label: 'Bookings', desc: 'Upcoming / recent bookings', group: 'actions', blockTypes: ['booking_widget', 'booking_slot_picker'], selectable: false },
+  { id: 'orders', label: 'Orders', desc: 'Recent orders (for admin widgets)', group: 'actions', blockTypes: ['stats', 'order_status'], selectable: false },
+  { id: 'kpis', label: 'Business KPIs', desc: 'Live stats: orders, revenue, rating', group: 'actions', blockTypes: ['stats', 'counters', 'impact_stats'], selectable: false },
+  { id: 'pages', label: 'Site Pages', desc: 'Published pages for nav & footer links', group: 'basic', blockTypes: ['nav', 'footer'], selectable: false },
+  { id: 'profile', label: 'Vendor Profile', desc: 'Brand, address, contact, socials', group: 'basic', blockTypes: ['contact_form', 'map_embed', 'map_contact', 'footer', 'nav', 'about_split', 'social_links'], selectable: false },
+  { id: 'media', label: 'Site Media', desc: 'Images & videos uploaded to this site', group: 'basic', blockTypes: ['gallery_masonry', 'gallery_grid', 'image_gallery', 'portfolio_grid', 'image_block'], selectable: false },
+  { id: 'external_api', label: 'Ext API', desc: 'Custom REST endpoint', group: 'ext_api', blockTypes: [], selectable: false },
 ]
+
+export function getDataSourcesForGroup(group: StoreContentGroup): DataSourceDefinition[] {
+  return DATA_SOURCES.filter(s => s.group === group && s.id !== 'external_api')
+}
+
+export function getDataSourceGroup(id: DataSourceId | null | undefined): StoreContentGroup {
+  if (!id) return 'catalog'
+  if (id === 'external_api') return 'ext_api'
+  const found = DATA_SOURCES.find(s => s.id === id)
+  return found?.group ?? 'catalog'
+}
+
+export function isRecommendedDataSource(blockType: string, sourceId: DataSourceId): boolean {
+  return getRecommendedDataSources(blockType).some(s => s.id === sourceId)
+}
 
 /** Default auto-bind when adding a section (unless user opts out). */
 export const BLOCK_AUTO_SOURCE: Record<string, LiveResource> = {

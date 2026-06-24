@@ -16,7 +16,7 @@ import {
   GripVertical, Settings2, Palette, Sparkles, Image as ImageIcon,
   FileText, Layers, Layout, Code, Globe, Search, X, Check,
   Loader2, ChevronRight, MoreVertical, MoreHorizontal, History, Lightbulb, PanelLeft, PanelRight, PanelLeftClose, PanelRightClose,
-  Wand2, AlertTriangle, Download, ExternalLink, RefreshCw,
+  AlertTriangle, Download, ExternalLink, RefreshCw,
   Bold, Italic, Link2,
   Minimize2, Move, Pencil, PlusCircle, Upload,
   ZoomIn, ZoomOut,
@@ -41,7 +41,7 @@ import {
   useSite,
   useUpdateSite,
   useWebsiteTemplates,
-  useAIGenerateTheme, useMedia, useUploadMedia, useSaveExternalUrl,
+  useMedia, useUploadMedia, useSaveExternalUrl,
   useRedirects, useCreateRedirect, useDeleteRedirect,
   useEnableHeadless, useDisableHeadless,
 } from '@/hooks/useWebsites'
@@ -54,7 +54,6 @@ import type {
   SiteListItem,
 } from '@/types/websites'
 import { resolveUniqueSiteName, suggestSiteCopyName } from '@/lib/websiteSiteNames'
-import { SITE_THEME_PRESETS } from '@/lib/websiteColorPalettes'
 import { websiteApi } from '@/api/websites'
 import { vendorApi } from '@/api/vendor'
 import { useVendorStore } from '@/stores/vendorStore'
@@ -102,6 +101,7 @@ import {
   visualToolbarRow,
 } from '@/components/websites/designBarVisualUi'
 import { ScrollAnimationControls } from '@/components/websites/ScrollAnimationControls'
+import { StoreContentGroupTabs } from '@/components/websites/StoreContentGroupTabs'
 import { animationOptionLabel } from '@storefront/lib/builderScrollAnimations'
 import {
   BuilderCanvasInlineTextEdit,
@@ -174,6 +174,7 @@ import {
   sectionSupportsBgStyle,
   sectionSupportsContentGroupTransform,
   sectionSupportsEdgeShapes,
+  isGlobalStructureBlock,
 } from '@storefront/lib/designBarCapabilities'
 import {
   canvasImageArraySlots,
@@ -206,6 +207,8 @@ import {
 import { SectionPanelGroup } from '@/components/websites/SectionPanelGroup'
 import { builderPanelUi } from '@/components/websites/builderPanelUi'
 import { BuilderSiteInputParametersModal } from '@/components/websites/BuilderSiteInputParametersModal'
+import { BuilderStylePanel } from '@/components/websites/BuilderStylePanel'
+import { BuilderStepSlider } from '@/components/websites/BuilderStepSlider'
 import {
   applyCategoryImagesToBlockProps,
   blockSupportsGalleryCategory,
@@ -227,9 +230,12 @@ import {
   normalizeSourceType,
   applyDataSourceToBlockProps,
   getRecommendedDataSources,
-  getOtherDataSources,
+  getDataSourcesForGroup,
+  getDataSourceGroup,
+  STORE_CONTENT_GROUPS,
   BLOCK_REQUIRED_DATA_SOURCE,
   type LayoutPickerDataSourceChoice,
+  type StoreContentGroup,
 } from '@/lib/blockDataSources'
 import { mergeLayoutBlockProps } from '@/lib/layoutBlockProps'
 import { heroUsesBackgroundImage, heroUsesSideImage, resolveBlockPrimaryImageField } from '@/lib/heroLayoutUtils'
@@ -1050,14 +1056,19 @@ const LINK_TYPES: LinkTypeMeta[] = [
   { id: 'search',   label: 'Search',         desc: 'Site-wide search',             icon: Search,      group: 'portal',  route: '/search' },
 ]
 
-const LINK_GROUPS: { id: LinkTypeMeta['group']; label: string; desc: string }[] = [
-  { id: 'basic',   label: 'Basic',    desc: 'URLs, anchors, pages' },
-  { id: 'catalog', label: 'Catalog',  desc: 'Live products, services, categories, files' },
-  { id: 'people',  label: 'People',   desc: 'Team, testimonials' },
-  { id: 'stores',  label: 'Stores',   desc: 'Linked physical outlets / branches' },
-  { id: 'actions', label: 'Actions',  desc: 'Booking, quotes, email, phone' },
-  { id: 'portal',  label: 'Portal',   desc: 'Customer login, account, cart, checkout' },
-]
+/** Link picker tabs — Ext API is store-data only. */
+const LINK_PICKER_GROUPS = STORE_CONTENT_GROUPS.filter(g => g.id !== 'ext_api')
+
+/** Shared with Store data panel — same tab labels as link picker (plus Ext API). */
+const LINK_GROUPS = LINK_PICKER_GROUPS.map(g => ({
+  ...g,
+  desc: g.id === 'basic' ? 'URLs, anchors, pages'
+    : g.id === 'catalog' ? 'Live products, services, categories, files'
+    : g.id === 'people' ? 'Team, testimonials'
+    : g.id === 'stores' ? 'Linked physical outlets / branches'
+    : g.id === 'actions' ? 'Booking, quotes, email, phone'
+    : 'Customer login, account, cart, checkout',
+}))
 
 function LinkEditorPopup({
   open, anchor, siteId, value, onSave, onClose,
@@ -1225,24 +1236,12 @@ function LinkEditorPopup({
         </div>
 
         {/* Group tabs */}
-        <div className="flex items-stretch border-b border-gray-100 bg-gray-50 shrink-0 overflow-x-auto">
-          {LINK_GROUPS.map(g => {
-            const active = activeGroup === g.id
-            return (
-              <button
-                key={g.id}
-                onClick={() => setActiveGroup(g.id)}
-                className={cn(
-                  'px-3 py-2 text-xs font-medium whitespace-nowrap transition-colors border-b-2',
-                  active ? 'text-primary border-primary bg-white' : 'text-gray-500 border-transparent hover:text-primary hover:bg-white/60'
-                )}
-                title={g.desc}
-              >
-                {g.label}
-              </button>
-            )
-          })}
-        </div>
+        <StoreContentGroupTabs
+          activeGroup={activeGroup}
+          onGroupChange={setActiveGroup}
+          groups={LINK_GROUPS}
+          className="shrink-0 rounded-none border-x-0 border-t-0"
+        />
 
         {/* Body */}
         <div className="flex-1 overflow-y-auto p-4 space-y-3">
@@ -1690,20 +1689,33 @@ function ContextMenu({ open, x, y, actions, onClose }: {
 function PageActionsMenu({
   page,
   pageCount,
+  totalPages,
+  pageIndex,
   onRename,
   onSetHomepage,
+  onMoveUp,
+  onMoveDown,
   onDuplicate,
   onDelete,
 }: {
   page: WebsitePage
   pageCount: number
+  totalPages: number
+  pageIndex: number
   onRename: () => void
   onSetHomepage: () => void
+  onMoveUp: () => void
+  onMoveDown: () => void
   onDuplicate: () => void
   onDelete: () => void
 }) {
   const [open, setOpen] = useState(false)
   const rootRef = useRef<HTMLDivElement | null>(null)
+  const buttonRef = useRef<HTMLButtonElement | null>(null)
+  const menuRef = useRef<HTMLDivElement | null>(null)
+  const [menuPos, setMenuPos] = useState({ top: 0, left: 0 })
+  const canMoveUp = pageIndex > 0
+  const canMoveDown = pageIndex < totalPages - 1
   const canDelete = pageCount > 1 && isPersistedPageId(page.id)
   const deleteHint = pageCount <= 1
     ? 'Your site needs at least one page.'
@@ -1714,9 +1726,30 @@ function PageActionsMenu({
         : null
 
   useEffect(() => {
+    if (!open || !buttonRef.current) return
+    const update = () => {
+      const rect = buttonRef.current!.getBoundingClientRect()
+      const menuWidth = 208
+      setMenuPos({
+        top: rect.bottom + 4,
+        left: Math.max(8, rect.right - menuWidth),
+      })
+    }
+    update()
+    window.addEventListener('scroll', update, true)
+    window.addEventListener('resize', update)
+    return () => {
+      window.removeEventListener('scroll', update, true)
+      window.removeEventListener('resize', update)
+    }
+  }, [open])
+
+  useEffect(() => {
     if (!open) return
     const onDoc = (e: MouseEvent) => {
-      if (!rootRef.current?.contains(e.target as Node)) setOpen(false)
+      const target = e.target as Node
+      if (rootRef.current?.contains(target) || menuRef.current?.contains(target)) return
+      setOpen(false)
     }
     document.addEventListener('mousedown', onDoc)
     return () => document.removeEventListener('mousedown', onDoc)
@@ -1748,9 +1781,30 @@ function PageActionsMenu({
     </button>
   )
 
+  const menu = open ? (
+    <div
+      ref={menuRef}
+      style={{ position: 'fixed', top: menuPos.top, left: menuPos.left, zIndex: 100020 }}
+      className="w-52 bg-popover text-popover-foreground border border-border rounded-xl shadow-xl py-1.5"
+      onMouseDown={e => e.stopPropagation()}
+    >
+      {menuItem('Rename page', onRename, <Pencil className="w-3.5 h-3.5" />)}
+      {!page.is_homepage && menuItem('Set as homepage', onSetHomepage, <span className="text-sm leading-none">??</span>)}
+      {menuItem('Move up', canMoveUp ? onMoveUp : undefined, <ChevronUp className="w-3.5 h-3.5" />)}
+      {menuItem('Move down', canMoveDown ? onMoveDown : undefined, <ChevronDown className="w-3.5 h-3.5" />)}
+      {menuItem('Duplicate page', onDuplicate, <Copy className="w-3.5 h-3.5" />)}
+      <div className="my-1 border-t border-gray-100" />
+      {menuItem('Move to trash', canDelete ? onDelete : undefined, <Trash2 className="w-3.5 h-3.5" />, 'danger')}
+      {deleteHint && (
+        <p className="px-3 pt-1 pb-0.5 text-[10px] leading-snug text-gray-400">{deleteHint}</p>
+      )}
+    </div>
+  ) : null
+
   return (
     <div ref={rootRef} className="relative shrink-0" onClick={e => e.stopPropagation()}>
       <button
+        ref={buttonRef}
         type="button"
         title={`Page actions ? ${page.title}`}
         aria-label={`Page actions for ${page.title}`}
@@ -1766,18 +1820,7 @@ function PageActionsMenu({
         <MoreVertical className="w-3.5 h-3.5" />
         <span>Actions</span>
       </button>
-      {open && (
-        <div className="absolute top-full right-0 mt-1 w-52 bg-popover text-popover-foreground border border-border rounded-xl shadow-xl py-1.5 z-40">
-          {menuItem('Rename page', onRename, <Pencil className="w-3.5 h-3.5" />)}
-          {!page.is_homepage && menuItem('Set as homepage', onSetHomepage, <span className="text-sm leading-none">??</span>)}
-          {menuItem('Duplicate page', onDuplicate, <Copy className="w-3.5 h-3.5" />)}
-          <div className="my-1 border-t border-gray-100" />
-          {menuItem('Move to trash', canDelete ? onDelete : undefined, <Trash2 className="w-3.5 h-3.5" />, 'danger')}
-          {deleteHint && (
-            <p className="px-3 pt-1 pb-0.5 text-[10px] leading-snug text-gray-400">{deleteHint}</p>
-          )}
-        </div>
-      )}
+      {menu && createPortal(menu, document.body)}
     </div>
   )
 }
@@ -1808,14 +1851,14 @@ function DeletedPagesPanel({
       className={cn(
         isMenu
           ? builderPanelUi.trashSectionBody
-          : cn(builderPanelUi.trashPanelStandalone, 'space-y-2', alwaysShow ? 'mt-1' : 'mt-2'),
+          : cn(builderPanelUi.trashPanelStandalone, 'space-y-1 p-2', alwaysShow ? 'mt-0' : 'mt-1'),
       )}
     >
       {!isMenu && (
         <div className="flex items-center justify-between gap-2">
-          <div className="flex min-w-0 items-center gap-1.5 text-[10px] font-bold uppercase tracking-wide text-foreground">
-            <Trash2 className="w-3 h-3 shrink-0 text-amber-600 dark:text-amber-400" />
-            Recently deleted
+          <div className="flex min-w-0 items-center gap-1.5 text-[9px] font-bold uppercase tracking-wide text-foreground">
+            <Trash2 className="h-3 w-3 shrink-0 text-amber-600 dark:text-amber-400" />
+            Deleted
             {items.length > 0 && (
               <span className={builderPanelUi.amberBadge}>
                 {items.length}
@@ -1830,14 +1873,20 @@ function DeletedPagesPanel({
               className={builderPanelUi.btnGhost}
             >
               <RefreshCw className={cn('w-3 h-3', loading && 'animate-spin')} />
-              Refresh
             </button>
           )}
         </div>
       )}
-      <p className={cn(builderPanelUi.hint, isMenu ? '' : 'text-foreground/70')}>
-        Pages stay here for 7 days, then are removed permanently.
-      </p>
+      {!isMenu && items.length > 0 && (
+        <p className={cn(builderPanelUi.hint, 'text-foreground/70')}>
+          Restore within 7 days.
+        </p>
+      )}
+      {isMenu && (
+        <p className={builderPanelUi.hint}>
+          Pages stay here for 7 days, then are removed permanently.
+        </p>
+      )}
       {isMenu && onRefresh && (
         <button
           type="button"
@@ -4068,14 +4117,14 @@ function CatalogGridSliderField({
           {suffix ? <span className="text-xs text-gray-500 w-4">{suffix}</span> : null}
         </div>
       </div>
-      <input
-        type="range"
+      <BuilderStepSlider
+        value={value}
         min={min}
         max={max}
         step={step}
-        value={value}
-        onChange={e => onChange(clamp(Number(e.target.value)))}
-        className="w-full accent-primary h-2 rounded-full cursor-pointer"
+        onChange={onChange}
+        sliderClassName="h-2"
+        formatValue={v => `${v}${suffix ?? ''}`}
       />
     </div>
   )
@@ -4513,9 +4562,15 @@ function SubItemEditor({
               <span className="text-xs text-gray-400">px</span>
             </div>
           </div>
-          <input type="range" min={0} max={80} step={4} value={gap}
-            onChange={e => onGapChange(Number(e.target.value))}
-            className="w-full accent-primary h-1.5" />
+          <BuilderStepSlider
+            value={gap}
+            min={0}
+            max={80}
+            step={4}
+            onChange={onGapChange}
+            formatValue={v => `${v}px`}
+            sliderClassName="h-1.5"
+          />
         </div>
 
         {/* Item size */}
@@ -4524,9 +4579,15 @@ function SubItemEditor({
             <span className="text-xs font-medium text-gray-600">Card size</span>
             <span className="text-xs font-mono text-primary font-bold">{itemSize}px</span>
           </div>
-          <input type="range" min={80} max={480} step={8} value={itemSize}
-            onChange={e => onItemSizeChange(Number(e.target.value))}
-            className="w-full accent-primary h-1.5" />
+          <BuilderStepSlider
+            value={itemSize}
+            min={80}
+            max={480}
+            step={8}
+            onChange={onItemSizeChange}
+            formatValue={v => `${v}px`}
+            sliderClassName="h-1.5"
+          />
         </div>
       </div>
       )}
@@ -4950,13 +5011,15 @@ function BlockBreakpointStyles({
             />
           )}
           {type === 'range' && (
-            <>
-              <input type="range" min={min} max={max} step={step}
-                value={(bpStyle[key] as number) ?? 0}
-                onChange={e => updateBpProp(key, Number(e.target.value))}
-                className="flex-1 accent-primary h-1" />
-              <span className="text-xs text-gray-400 w-8 text-right">{(bpStyle[key] as number) ?? 0}</span>
-            </>
+            <BuilderStepSlider
+              className="flex-1"
+              value={(bpStyle[key] as number) ?? 0}
+              min={min!}
+              max={max!}
+              step={step!}
+              onChange={v => updateBpProp(key, v)}
+              sliderClassName="h-1"
+            />
           )}
           {type === 'select' && (
             <select
@@ -5742,7 +5805,7 @@ function PropsEditor({
   )
 
   return (
-    <div className="flex flex-col min-h-0">
+    <div className="flex h-full min-h-0 flex-col">
       <div className="shrink-0 px-3 py-2 border-b border-gray-100 bg-white">
         <p className="text-xs font-bold text-gray-900 truncate">{block.label || block.block_type}</p>
         <p className="text-[10px] text-gray-400">Section settings — layout, design, and content</p>
@@ -5750,7 +5813,7 @@ function PropsEditor({
 
       <SectionEditorRibbon tabs={ribbonTabs} active={editorTab} onChange={setEditorTab} />
 
-      <div className="flex-1 overflow-y-auto p-3 space-y-4 min-h-0 bg-gray-50/30">
+      <div className={cn(builderPanelUi.panelScroll, 'p-3 space-y-4 bg-gray-50/30')}>
         {editorTab === 'content' && (
           <>
       {commonFields}
@@ -6036,20 +6099,24 @@ function PropsEditor({
             </div>
           </div>
           <div className="relative">
-            <input
-              type="range" min={50} max={200} step={5}
+            <BuilderStepSlider
+              aria-label="Section scale"
               value={Math.round(sectionScale * 100)}
-              onInput={e => {
-                const n = Number((Number((e.target as HTMLInputElement).value) / 100).toFixed(2))
+              min={50}
+              max={200}
+              step={5}
+              onInput={v => {
+                const n = Number((v / 100).toFixed(2))
                 setSectionScale(n)
                 onPreview({ section_scale: n } as any)
               }}
-              onChange={e => {
-                const n = Number((Number(e.target.value) / 100).toFixed(2))
+              onChange={v => {
+                const n = Number((v / 100).toFixed(2))
                 setSectionScale(n)
                 onUpdate({ section_scale: n } as any)
               }}
-              className="w-full accent-primary h-2 rounded-full cursor-pointer"
+              formatValue={v => `${v}%`}
+              sliderClassName="h-2"
             />
             <div className="flex justify-between mt-0.5 px-0.5">
               {[50, 100, 150, 200].map(v => (
@@ -6082,20 +6149,22 @@ function PropsEditor({
               </div>
             </div>
             <div className="relative">
-              <input
-                type="range" min={0} max={320} step={4}
+              <BuilderStepSlider
+                aria-label={label}
                 value={val}
-                onInput={e => {
-                  const n = Number((e.target as HTMLInputElement).value)
+                min={0}
+                max={320}
+                step={4}
+                onInput={n => {
                   set(n)
                   pushSectionPadding({ [key]: n }, true)
                 }}
-                onChange={e => {
-                  const n = Number(e.target.value)
+                onChange={n => {
                   set(n)
                   pushSectionPadding({ [key]: n }, false)
                 }}
-                className="w-full accent-primary h-2 rounded-full cursor-pointer"
+                formatValue={v => `${v}px`}
+                sliderClassName="h-2"
               />
               <div className="flex justify-between mt-0.5 px-0.5">
                 {[0, 80, 160, 240, 320].map(v => (
@@ -6373,150 +6442,135 @@ function PagePanel({
       : null
 
   const colorField = (key: keyof PageStyleOverrides, label: string, fallback: string) => (
-    <div key={key} className="flex items-center gap-2">
+    <div key={key} className="flex items-center gap-1.5">
       <input
         type="color"
         value={(pageOverrides[key] as string) || (effective[key as keyof StyleConfig] as string) || fallback}
         onChange={e => activePageId && onPageStyleChange(activePageId, { [key]: e.target.value })}
-        className={builderPanelUi.colorInput}
+        className="h-7 w-7 shrink-0 cursor-pointer rounded-md border border-border bg-background p-0.5"
       />
-      <div className="flex-1 min-w-0">
-        <div className={builderPanelUi.label}>{label}</div>
-        <div className={cn(builderPanelUi.mono, 'truncate')}>
-          {(pageOverrides[key] as string) || 'Site default'}
-        </div>
-      </div>
+      <span className="min-w-0 flex-1 truncate text-[10px] font-medium text-foreground">{label}</span>
+      <span className="shrink-0 text-[9px] text-muted-foreground font-mono">
+        {(pageOverrides[key] as string) ? 'Custom' : 'Default'}
+      </span>
       {pageOverrides[key] != null && activePageId && (
         <button
           type="button"
           onClick={() => onPageStyleChange(activePageId, { [key]: undefined } as PageStyleOverrides)}
-          className="shrink-0 text-[10px] text-muted-foreground hover:text-destructive"
+          className="shrink-0 text-[9px] text-muted-foreground hover:text-destructive"
           title="Use site default"
         >
-          Reset
+          ×
         </button>
       )}
     </div>
   )
 
   return (
-    <div className="p-4 space-y-5">
+    <div className="min-h-0 flex-1 overflow-hidden p-3 space-y-2">
       {!activePage ? (
-        <p className={cn(builderPanelUi.hintXs, 'text-center py-6')}>Select a page to edit its appearance.</p>
+        <p className={cn(builderPanelUi.hintXs, 'text-center py-4')}>Select a page to edit its appearance.</p>
       ) : (
         <>
-          <div className="rounded-xl bg-accent/60 border border-primary/15 px-3 py-2">
-            <div className="flex items-start justify-between gap-2">
-              <div className="min-w-0">
-                <div className="text-xs font-bold text-primary truncate">{activePage.title}</div>
-                <div className="text-[10px] text-primary/70 mt-0.5 font-mono">/{activePage.slug}</div>
-              </div>
-              {activePage.is_homepage && (
-                <span className="shrink-0 text-[9px] font-bold uppercase tracking-wide bg-primary/15 text-primary px-1.5 py-0.5 rounded">
-                  Homepage
-                </span>
-              )}
-            </div>
-            <div className="text-[10px] text-primary/70 mt-1">Styles below apply to this page only</div>
+          <div className="flex min-w-0 items-center gap-1.5 rounded-md border border-primary/25 bg-accent/45 px-2 py-1">
+            <span className="truncate text-[10px] font-semibold text-primary">
+              {activePage.title}
+            </span>
+            <span className="shrink-0 font-mono text-[10px] font-medium text-gray-600 dark:text-gray-300">
+              /{activePage.slug}
+            </span>
           </div>
 
           {(onDeletePage || onDuplicatePage || onSetHomepage) && (
-            <div className={cn(builderPanelUi.cardSurfaceMuted, 'space-y-2 p-3')}>
-              <div className={builderPanelUi.title}>Manage page</div>
-              <div className="flex flex-wrap gap-2">
+            <div className={cn(builderPanelUi.cardSurfaceMuted, 'space-y-1.5 p-2')}>
+              <div className="flex flex-wrap gap-1.5">
                 {!activePage.is_homepage && onSetHomepage && (
                   <button
                     type="button"
                     onClick={() => onSetHomepage(activePage)}
-                    className={builderPanelUi.btnSecondary}
+                    className={cn(builderPanelUi.btnSecondary, 'flex-1 justify-center px-2 py-1.5 text-[10px]')}
                   >
-                    <Home className="w-3.5 h-3.5" />
-                    Set as homepage
+                    <Home className="h-3 w-3" />
+                    Homepage
                   </button>
                 )}
                 {onDuplicatePage && (
                   <button
                     type="button"
                     onClick={() => onDuplicatePage(activePage)}
-                    className={builderPanelUi.btnSecondary}
+                    className={cn(builderPanelUi.btnSecondary, 'flex-1 justify-center px-2 py-1.5 text-[10px]')}
                   >
-                    <Copy className="w-3.5 h-3.5" />
+                    <Copy className="h-3 w-3" />
                     Duplicate
                   </button>
                 )}
+                {onDeletePage && canDelete && (
+                  <button
+                    type="button"
+                    onClick={() => onDeletePage(activePage.id, activePage.title)}
+                    title={activePage.is_homepage ? 'The next page in your list will become the new homepage.' : undefined}
+                    className={cn(builderPanelUi.btnDanger, 'flex-1 px-2 py-1.5 text-[10px]')}
+                  >
+                    <Trash2 className="h-3 w-3" />
+                    Trash
+                  </button>
+                )}
               </div>
-              {onDeletePage && (
-                canDelete ? (
-                  <>
-                    {activePage.is_homepage && (
-                      <p className={cn(builderPanelUi.hint, 'px-1 mb-2')}>
-                        The next page in your list will become the new homepage.
-                      </p>
-                    )}
-                    <button
-                      type="button"
-                      onClick={() => onDeletePage(activePage.id, activePage.title)}
-                      className={cn(builderPanelUi.btnDanger, 'w-full px-3 py-2.5')}
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                      Move to trash
-                    </button>
-                  </>
-                ) : (
-                  <p className={cn(builderPanelUi.hint, 'px-1')}>{deleteBlockedReason}</p>
-                )
+              {onDeletePage && !canDelete && (
+                <p className={cn(builderPanelUi.hint, 'px-0.5')}>{deleteBlockedReason}</p>
               )}
             </div>
           )}
 
-          <SectionPanelGroup
-            title="Page colors"
-            description="Defaults for every section on this page unless a section overrides them."
-          >
-            <div className={cn(builderPanelUi.mutedSurface, 'space-y-2 p-2.5')}>
+          <div>
+            <div className={cn(builderPanelUi.eyebrow, 'mb-1')}>Page colors</div>
+            <div className={cn(builderPanelUi.mutedSurface, 'space-y-1 p-2')}>
               {colorField('bg_color', 'Background', siteStyle.bg_color)}
-              {colorField('surface_color', 'Surface / cards', siteStyle.surface_color)}
+              {colorField('surface_color', 'Surface', siteStyle.surface_color)}
               {colorField('text_color', 'Text', siteStyle.text_color)}
             </div>
-          </SectionPanelGroup>
+          </div>
 
           <div>
-            <div className={cn(builderPanelUi.eyebrow, 'mb-2')}>Typography</div>
-            <div className="space-y-2">
+            <div className={cn(builderPanelUi.eyebrow, 'mb-1')}>Typography</div>
+            <div className="space-y-1.5">
+              <div className="grid grid-cols-2 gap-1.5">
+                {([
+                  { key: 'font_heading' as const, label: 'Headings' },
+                  { key: 'font_body' as const, label: 'Body' },
+                ]).map(({ key, label }) => (
+                  <div key={key} className="min-w-0">
+                    <label className="mb-0.5 block text-[9px] font-medium text-muted-foreground">{label}</label>
+                    <select
+                      value={(pageOverrides[key] as string) || (effective[key] as string)}
+                      onChange={e => onPageStyleChange(activePage.id, { [key]: e.target.value })}
+                      className="w-full rounded-md border border-border bg-background px-1.5 py-1 text-[10px] text-foreground"
+                      style={{ fontFamily: (pageOverrides[key] as string) || (effective[key] as string) }}
+                    >
+                      {FONTS.map(f => <option key={f} value={f} style={{ fontFamily: f }}>{f}</option>)}
+                    </select>
+                  </div>
+                ))}
+              </div>
               {([
-                { key: 'font_heading' as const, label: 'Heading font' },
-                { key: 'font_body' as const, label: 'Body font' },
-              ]).map(({ key, label }) => (
-                <div key={key} className="space-y-1">
-                  <label className={builderPanelUi.label}>{label}</label>
-                  <select
-                    value={(pageOverrides[key] as string) || (effective[key] as string)}
-                    onChange={e => onPageStyleChange(activePage.id, { [key]: e.target.value })}
-                    className={builderPanelUi.select}
-                    style={{ fontFamily: (pageOverrides[key] as string) || (effective[key] as string) }}
-                  >
-                    {FONTS.map(f => <option key={f} value={f} style={{ fontFamily: f }}>{f}</option>)}
-                  </select>
-                </div>
-              ))}
-              {([
-                { key: 'font_size_base' as const, label: 'Body size', min: 12, max: 22, fallback: siteStyle.font_size_base || 16 },
-                { key: 'font_size_heading' as const, label: 'Heading size', min: 24, max: 56, fallback: siteStyle.font_size_heading || 40 },
+                { key: 'font_size_base' as const, label: 'Body', min: 12, max: 22, fallback: siteStyle.font_size_base || 16 },
+                { key: 'font_size_heading' as const, label: 'Heading', min: 24, max: 56, fallback: siteStyle.font_size_heading || 40 },
               ]).map(({ key, label, min, max, fallback }) => {
                 const val = (pageOverrides[key] as number | undefined) ?? fallback
                 return (
-                  <div key={key} className="flex items-center gap-2">
-                    <span className={cn(builderPanelUi.hintXs, 'w-20 shrink-0')}>{label}</span>
-                    <input
-                      type="range"
+                  <div key={key} className="flex items-center gap-1.5">
+                    <span className={cn(builderPanelUi.hint, 'w-12 shrink-0')}>{label}</span>
+                    <BuilderStepSlider
+                      className="min-w-0 flex-1"
+                      value={val}
                       min={min}
                       max={max}
                       step={1}
-                      value={val}
-                      onChange={e => onPageStyleChange(activePage.id, { [key]: Number(e.target.value) })}
-                      className="flex-1 accent-primary h-1"
+                      onChange={next => onPageStyleChange(activePage.id, { [key]: next })}
+                      formatValue={v => `${v}px`}
+                      sliderClassName="h-1"
+                      buttonSize="sm"
                     />
-                    <span className={cn(builderPanelUi.mono, 'w-10 text-right tabular-nums')}>{val}px</span>
                   </div>
                 )
               })}
@@ -6527,7 +6581,7 @@ function PagePanel({
             <button
               type="button"
               onClick={() => onClearPageStyle(activePage.id)}
-              className={cn(builderPanelUi.btnSecondary, 'w-full justify-center py-2 text-xs font-medium')}
+              className={cn(builderPanelUi.btnSecondary, 'w-full justify-center py-1.5 text-[10px] font-medium')}
             >
               Reset page to site defaults
             </button>
@@ -6535,178 +6589,14 @@ function PagePanel({
         </>
       )}
 
-      {onRestorePage && (
-        <div className="pt-4 mt-2 border-t border-gray-100">
-          <DeletedPagesPanel
-            alwaysShow
-            items={trashedPages}
-            loading={trashLoading}
-            onRestore={onRestorePage}
-            onRefresh={onRefreshTrash}
-          />
-        </div>
+      {onRestorePage && (trashLoading || trashedPages.length > 0) && (
+        <DeletedPagesPanel
+          items={trashedPages}
+          loading={trashLoading}
+          onRestore={onRestorePage}
+          onRefresh={onRefreshTrash}
+        />
       )}
-    </div>
-  )
-}
-
-function StylePanel({
-  style, onChange, siteId,
-}: { style: StyleConfig; onChange: (s: Partial<StyleConfig>) => void; siteId: string }) {
-  const aiTheme = useAIGenerateTheme(siteId)
-
-  const handleAITheme = async () => {
-    try {
-      const res = await aiTheme.mutateAsync({ brand_description: 'Generate a beautiful, vibrant and modern color theme', mood: 'modern and colorful' })
-      if (res.primary_color) onChange({
-        primary_color: res.primary_color,
-        secondary_color: res.secondary_color || res.primary_color,
-        accent_color: res.accent_color || '#f59e0b',
-        bg_color: res.bg_color || '#fafafa',
-        text_color: res.text_color || '#111111',
-      })
-      toast.success('AI theme applied!')
-    } catch { toast.error('AI theme failed') }
-  }
-
-  return (
-    <div className="p-4 space-y-5">
-      <div>
-        <div className={cn(builderPanelUi.eyebrow, 'mb-1')}>Theme and appearance</div>
-        <p className={cn(builderPanelUi.hintXs, 'leading-snug')}>
-          Site-wide defaults. Override per page in Page Edit, or per section in Section Edit → Design.
-        </p>
-      </div>
-
-      {/* Theme presets */}
-      <div>
-        <div className="flex items-center gap-2 mb-2">
-          <div className={cn(builderPanelUi.eyebrow, 'mb-0 flex-1')}>Theme Presets</div>
-          <button
-            onClick={handleAITheme}
-            disabled={aiTheme.isPending}
-            className="flex items-center gap-0.5 px-2 py-1 rounded text-xs font-bold bg-gradient-to-r from-primary to-info text-white hover:opacity-90 disabled:opacity-50"
-          >
-            {aiTheme.isPending ? <Loader2 className="w-2.5 h-2.5 animate-spin" /> : <Wand2 className="w-2.5 h-2.5" />}
-            AI Theme
-          </button>
-        </div>
-        <div className="grid grid-cols-4 gap-1.5">
-          {SITE_THEME_PRESETS.map(t => (
-            <button
-              key={t.label}
-              onClick={() => onChange(t.colors as any)}
-              title={t.label}
-              className="rounded-lg overflow-hidden border-2 border-transparent hover:border-primary/60 transition-all"
-            >
-              <div className="h-8 grid grid-cols-3">
-                <div style={{ background: t.colors.primary_color }} />
-                <div style={{ background: t.colors.accent_color }} />
-                <div style={{ background: t.colors.bg_color, border: '1px solid #e5e7eb' }} />
-              </div>
-              <div className="text-xs font-medium text-muted-foreground text-center py-0.5 bg-card">{t.label}</div>
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Colors */}
-      <div>
-        <div className={cn(builderPanelUi.eyebrow, 'mb-3')}>Colors</div>
-        <div className="space-y-2">
-          {[
-            { key: 'primary_color', label: 'Primary' },
-            { key: 'secondary_color', label: 'Secondary' },
-            { key: 'accent_color', label: 'Accent' },
-            { key: 'bg_color', label: 'Background' },
-            { key: 'surface_color', label: 'Surface' },
-            { key: 'text_color', label: 'Text' },
-          ].map(({ key, label }) => (
-            <div key={key} className="flex items-center gap-2">
-              <input
-                type="color"
-                value={(style as any)[key] || '#000000'}
-                onChange={e => onChange({ [key]: e.target.value } as any)}
-                className={builderPanelUi.colorInput}
-              />
-              <div className="flex-1 min-w-0">
-                <div className={builderPanelUi.label}>{label}</div>
-                <div className={builderPanelUi.mono}>{(style as any)[key]}</div>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Typography */}
-      <div>
-        <div className="text-xs font-bold uppercase tracking-wide text-gray-400 mb-2">Typography</div>
-        <div className="space-y-3">
-          {[{ key: 'font_heading', label: 'Heading font' }, { key: 'font_body', label: 'Body font' }].map(({ key, label }) => (
-            <div key={key} className="space-y-1">
-              <label className="text-xs font-medium text-gray-600">{label}</label>
-              <select
-                value={(style as any)[key]}
-                onChange={e => onChange({ [key]: e.target.value } as any)}
-                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-xs"
-                style={{ fontFamily: (style as any)[key] }}
-              >
-                {FONTS.map(f => <option key={f} value={f} style={{ fontFamily: f }}>{f}</option>)}
-              </select>
-            </div>
-          ))}
-          {([
-            { key: 'font_size_base' as const, label: 'Body size', min: 12, max: 22, fallback: 16 },
-            { key: 'font_size_heading' as const, label: 'Heading size', min: 24, max: 56, fallback: 40 },
-          ]).map(({ key, label, min, max, fallback }) => {
-            const val = (style[key] as number | undefined) ?? fallback
-            return (
-              <div key={key} className="flex items-center gap-2">
-                <span className="text-xs text-gray-500 w-24 shrink-0">{label}</span>
-                <input
-                  type="range"
-                  min={min}
-                  max={max}
-                  step={1}
-                  value={val}
-                  onChange={e => onChange({ [key]: Number(e.target.value) })}
-                  className="flex-1 accent-primary h-1"
-                />
-                <span className="text-xs text-gray-400 w-10 text-right tabular-nums">{val}px</span>
-              </div>
-            )
-          })}
-        </div>
-      </div>
-
-      {/* Shape */}
-      <div>
-        <div className="text-xs font-bold uppercase tracking-wide text-gray-400 mb-2">Shape</div>
-        <div className="space-y-1">
-          <label className="text-xs font-medium text-gray-600">Border radius</label>
-          <div className="grid grid-cols-3 gap-1">
-            {(['sharp', 'rounded', 'pill'] as const).map(v => (
-              <button
-                key={v}
-                type="button"
-                onClick={() => onChange({ border_radius: v })}
-                className={cn(
-                  'py-2 text-xs font-bold rounded border transition-colors',
-                  style.border_radius === v
-                    ? 'bg-primary text-white border-primary'
-                    : 'bg-white text-gray-600 border-gray-200 hover:border-primary/40',
-                )}
-              >
-                {v.charAt(0).toUpperCase() + v.slice(1)}
-              </button>
-            ))}
-          </div>
-        </div>
-        <p className="text-[10px] text-gray-400 mt-2 leading-snug">
-          Shadows, spacing, card style, and animations are set per section in Section Edit → Design.
-        </p>
-      </div>
-
     </div>
   )
 }
@@ -6726,6 +6616,7 @@ const DATA_SOURCE_ICONS: Record<string, React.ElementType> = {
   orders: ShoppingCart,
   bookings: Clock,
   media: ImageIcon,
+  stores: StoreIcon,
   external_api: Plug,
 }
 
@@ -6748,6 +6639,7 @@ function DataSourcePanel({
   const [loadingPreview, setLoadingPreview] = useState(false)
   const [liveItems, setLiveItems] = useState<LiveItem[]>([])
   const [loadingInternal, setLoadingInternal] = useState(false)
+  const [activeGroup, setActiveGroup] = useState<StoreContentGroup>('catalog')
 
   // Live preview for the currently-connected internal source
   useEffect(() => {
@@ -6758,6 +6650,19 @@ function DataSourcePanel({
     refreshInternal()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [siteId, normalizedDsType])
+
+  useEffect(() => {
+    if (!block) return
+    const connectedGroup = getDataSourceGroup(normalizedDsType ?? undefined)
+    if (normalizedDsType) {
+      setActiveGroup(connectedGroup)
+      return
+    }
+    const rec = getRecommendedDataSources(block.block_type)
+    if (rec.length > 0) {
+      setActiveGroup(rec[0].group)
+    }
+  }, [block?.id, block?.block_type, normalizedDsType])
 
   const refreshInternal = async () => {
     if (!normalizedDsType || normalizedDsType === 'external_api') return
@@ -6814,7 +6719,7 @@ function DataSourcePanel({
 
   if (!block) {
     return (
-      <div className="flex flex-col items-center justify-center h-48 p-6 text-center text-gray-400">
+      <div className="flex h-full min-h-0 flex-col items-center justify-center p-6 text-center text-gray-400">
         <Database className="w-10 h-10 mb-3 opacity-30" />
         <p className="text-sm font-medium">Select a section on the page</p>
         <p className="text-xs mt-1">Then link it to your products, services, or other store content.</p>
@@ -6822,227 +6727,100 @@ function DataSourcePanel({
     )
   }
 
-  // Recommended + other sources for this block type.
+  // Recommended + grouped sources for this block type.
   const recommended = getRecommendedDataSources(block.block_type)
-  const others = getOtherDataSources(block.block_type)
+  const recommendedIds = new Set(recommended.map(s => s.id))
+  const sourcesInGroup = getDataSourcesForGroup(activeGroup)
   const activeSource = DATA_SOURCES.find(s => s.id === normalizedDsType)
   const canPickItems = activeSource?.selectable
   const connectionRequired = BLOCK_REQUIRED_DATA_SOURCE.has(block.block_type)
 
+  const connectedLabel = normalizedDsType
+    ? DATA_SOURCES.find(s => s.id === normalizedDsType)?.label || normalizedDsType
+    : null
+
   return (
-    <div className="p-4 space-y-4">
-      <div className="rounded-xl border border-primary/20 bg-accent/40 px-3 py-2.5 text-[11px] text-gray-600 leading-snug">
-        <strong className="font-semibold text-gray-800">Store data</strong> pulls real products, services, and reviews into this section automatically ? so your site stays up to date without re-typing everything.
-      </div>
-      <div className="flex items-center gap-2 mb-1">
-        <Database className="w-4 h-4 text-primary/80" />
-        <span className="text-xs font-bold text-gray-700">Connect to your store</span>
-      </div>
-      <p className="text-xs text-gray-400">Link <strong>{block.label || block.block_type}</strong> to live catalog data or an external feed.</p>
-
-      {/* Auto-connect CTA (if block has a suggested source and isn't already connected) */}
-      {BLOCK_AUTO_SOURCE[block.block_type as string] && !ds?.type && (
-        <button
-          onClick={handleAutoConnect}
-          className="w-full flex items-center justify-center gap-2 py-2.5 rounded-lg bg-gradient-to-r from-primary to-emerald-700 text-white text-xs font-bold hover:opacity-90 transition-opacity"
-        >
-          <Zap className="w-3.5 h-3.5" />
-          Auto-connect to {DATA_SOURCES.find(s => s.id === BLOCK_AUTO_SOURCE[block.block_type as string])?.label}
-        </button>
-      )}
-
-      {/* Current connection badge */}
-      {normalizedDsType && (
-        <div className="flex items-center gap-2 p-2.5 bg-emerald-50 border border-emerald-200 rounded-lg">
-          <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-          <span className="text-xs text-emerald-700 font-semibold truncate">
-            {ds.auto ? 'Auto-connected: ' : 'Connected: '}
-            {DATA_SOURCES.find(s => s.id === normalizedDsType)?.label || normalizedDsType}
-          </span>
-          <span className="ml-auto text-xs text-emerald-600 font-semibold">{liveItems.length} live</span>
-          {!connectionRequired && (
-            <button onClick={() => onUpdate(null)} className="text-xs text-red-500 hover:text-red-700">Disconnect</button>
-          )}
+    <div className="flex h-full min-h-0 flex-col overflow-hidden">
+      {/* Header + connection */}
+      <div className="shrink-0 space-y-1.5 border-b border-border/60 bg-card px-3 py-2">
+        <div className="flex min-w-0 items-center gap-1.5">
+          <Database className="h-3.5 w-3.5 shrink-0 text-primary/80" />
+          <span className="shrink-0 text-[10px] font-bold text-foreground">Store data</span>
+          <span className="min-w-0 truncate text-[10px] text-muted-foreground">· {block.label || block.block_type}</span>
         </div>
-      )}
 
-      {/* Recommended sources */}
-      {recommended.length > 0 && (
-        <div>
-          <div className="text-xs font-bold uppercase tracking-wide text-gray-400 mb-2">Recommended for this section</div>
-          <div className="space-y-1.5">
-            {recommended.map(source => {
-              const SourceIcon = DATA_SOURCE_ICONS[source.id] || Database
-              return (
-              <button
-                key={source.id}
-                onClick={() => handleSelectInternal(source.id as LiveResource)}
-                className={cn(
-                  'w-full flex items-center gap-3 px-3 py-2.5 rounded-lg border text-left transition-all',
-                  normalizedDsType === source.id
-                    ? 'border-primary/40 bg-accent'
-                    : 'border-emerald-100 hover:border-primary/30 hover:bg-accent/70 bg-emerald-50/30'
-                )}
-              >
-                <SourceIcon className="w-4 h-4 text-primary/80 shrink-0" />
-                <div className="flex-1 min-w-0">
-                  <div className="text-xs font-medium text-gray-700">{source.label}</div>
-                  <div className="text-xs text-gray-400">{source.desc}</div>
-                </div>
-                {normalizedDsType === source.id && <Check className="w-3.5 h-3.5 text-primary/80" />}
-              </button>
-            )})}
-          </div>
-        </div>
-      )}
+        {BLOCK_AUTO_SOURCE[block.block_type as string] && !ds?.type && (
+          <button
+            type="button"
+            onClick={handleAutoConnect}
+            className="flex w-full items-center justify-center gap-1.5 rounded-md bg-gradient-to-r from-primary to-emerald-700 py-1.5 text-[10px] font-bold text-white hover:opacity-90"
+          >
+            <Zap className="h-3 w-3" />
+            Auto-connect {DATA_SOURCES.find(s => s.id === BLOCK_AUTO_SOURCE[block.block_type as string])?.label}
+          </button>
+        )}
 
-      {/* All other internal sources */}
-      <div>
-        <div className="text-xs font-bold uppercase tracking-wide text-gray-400 mb-2">Your store data</div>
-        <div className="space-y-1.5">
-          {others.map(source => {
-            const SourceIcon = DATA_SOURCE_ICONS[source.id] || Database
-            return (
-            <button
-              key={source.id}
-              onClick={() => handleSelectInternal(source.id as LiveResource)}
-              className={cn(
-                'w-full flex items-center gap-3 px-3 py-2.5 rounded-lg border text-left transition-all',
-                normalizedDsType === source.id
-                  ? 'border-primary/40 bg-accent'
-                  : 'border-gray-100 hover:border-primary/30 hover:bg-gray-50'
-              )}
+        {normalizedDsType && connectedLabel && (
+          <div className="flex min-w-0 items-center gap-1.5 rounded-md border border-emerald-200 bg-emerald-50 px-2 py-1">
+            <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-500" aria-hidden />
+            <span
+              className="min-w-0 flex-1 truncate text-[10px] font-semibold text-emerald-800"
+              title={ds.auto ? `Auto: ${connectedLabel}` : connectedLabel}
             >
-              <SourceIcon className="w-4 h-4 text-gray-500 shrink-0" />
-              <div className="flex-1 min-w-0">
-                <div className="text-xs font-medium text-gray-700">{source.label}</div>
-                <div className="text-xs text-gray-400">{source.desc}</div>
-              </div>
-              {normalizedDsType === source.id && <Check className="w-3.5 h-3.5 text-primary/80" />}
-            </button>
-          )})}
-        </div>
+              {connectedLabel}
+            </span>
+            <span className="shrink-0 text-[9px] font-medium tabular-nums text-emerald-600">{liveItems.length} live</span>
+            {!connectionRequired && (
+              <button
+                type="button"
+                onClick={() => onUpdate(null)}
+                className="shrink-0 text-[9px] font-semibold text-red-500 hover:text-red-700"
+              >
+                Off
+              </button>
+            )}
+          </div>
+        )}
       </div>
 
-      {/* Limit control */}
-      {normalizedDsType && normalizedDsType !== 'external_api' && normalizedDsType !== 'profile' && (
-        <div className="space-y-1">
-          <label className="text-xs font-bold uppercase tracking-wide text-gray-400">Item Limit</label>
-          <input
-            type="number"
-            min={1} max={50}
-            value={ds?.limit || 12}
-            onChange={e => onUpdate({ ...ds, type: normalizedDsType, limit: Math.max(1, Math.min(50, Number(e.target.value) || 12)) })}
-            className="w-full px-3 py-1.5 border border-gray-200 rounded-lg text-xs"
-          />
-        </div>
-      )}
+      {/* Group tabs */}
+      <div className="shrink-0 space-y-1 border-b border-border/60 bg-muted/25 px-3 py-1.5">
+        <StoreContentGroupTabs
+          activeGroup={activeGroup}
+          onGroupChange={setActiveGroup}
+          recommendedGroupIds={recommended.map(s => s.group)}
+          className="border-0 bg-transparent p-0"
+        />
+      </div>
 
-      {/* Item selector (for selectable resources) */}
-      {canPickItems && (
-        <div className="space-y-2">
-          <div className="flex items-center justify-between">
-            <div className="text-xs font-bold uppercase tracking-wide text-gray-400">
-              Pick Items {(ds?.selected_ids?.length || 0) > 0 ? `(${ds.selected_ids.length})` : '(all)'}
-            </div>
-            <button onClick={refreshInternal} className="text-xs text-primary/80 flex items-center gap-1">
-              <RefreshCcw className="w-3 h-3" /> Refresh
-            </button>
-          </div>
-          {loadingInternal ? (
-            <div className="flex items-center justify-center py-4">
-              <Loader2 className="w-4 h-4 animate-spin text-primary/80" />
-            </div>
-          ) : (
-            <div className="max-h-48 overflow-y-auto space-y-1 border border-gray-100 rounded-lg p-2">
-              {liveItems.map(item => (
-                <label key={item.id} className="flex items-center gap-2 px-2 py-1.5 rounded hover:bg-gray-50 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={(ds?.selected_ids || []).includes(item.id)}
-                    onChange={() => handleToggleItem(item.id)}
-                    className="rounded text-primary"
-                  />
-                  {item.image_url && (
-                    <img src={mediaUrl(item.image_url)} className="w-7 h-7 rounded object-cover shrink-0" alt="" />
-                  )}
-                  <div className="flex-1 min-w-0">
-                    <div className="text-xs font-medium text-gray-700 truncate">{item.title}</div>
-                    {item.price_formatted && (
-                      <div className="text-xs text-gray-400">{item.price_formatted}</div>
-                    )}
-                  </div>
-                </label>
-              ))}
-              {liveItems.length === 0 && (
-                <p className="text-xs text-center text-gray-400 py-3">No items found</p>
-              )}
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Read-only live preview for non-selectable sources */}
-      {!canPickItems && normalizedDsType && normalizedDsType !== 'external_api' && (
-        <div className="space-y-2">
-          <div className="flex items-center justify-between">
-            <div className="text-xs font-bold uppercase tracking-wide text-gray-400">Live Preview</div>
-            <button onClick={refreshInternal} className="text-xs text-primary/80 flex items-center gap-1">
-              <RefreshCcw className="w-3 h-3" /> Refresh
-            </button>
-          </div>
-          {loadingInternal ? (
-            <div className="flex items-center justify-center py-4"><Loader2 className="w-4 h-4 animate-spin text-primary/80" /></div>
-          ) : (
-            <div className="max-h-40 overflow-y-auto space-y-1 border border-gray-100 rounded-lg p-2">
-              {liveItems.slice(0, 10).map(item => (
-                <div key={item.id} className="flex items-center gap-2 px-2 py-1 rounded hover:bg-gray-50 text-xs">
-                  {item.image_url && <img src={mediaUrl(item.image_url)} className="w-6 h-6 rounded object-cover shrink-0" alt="" />}
-                  <div className="flex-1 min-w-0">
-                    <div className="font-medium text-gray-700 truncate">{item.title}</div>
-                    {item.subtitle && <div className="text-xs text-gray-400 truncate">{item.subtitle}</div>}
-                  </div>
-                  {item.rating != null && <div className="text-xs text-amber-500">{'?'.repeat(Math.min(5, item.rating))}</div>}
-                </div>
-              ))}
-              {liveItems.length === 0 && <p className="text-xs text-center text-gray-400 py-3">No items yet.</p>}
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* External API */}
-      <div>
-        <div className="text-xs font-bold uppercase tracking-wide text-gray-400 mb-2">External API</div>
-        <div className="space-y-2.5">
-          <div className="space-y-1">
-            <label className="text-xs font-medium text-gray-600">URL</label>
+      <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-hidden p-3">
+        {activeGroup === 'portal' ? (
+          <p className="text-[10px] leading-snug text-muted-foreground">
+            Portal routes apply to <strong className="font-semibold text-foreground">buttons & links</strong> — use Visual → Link on the canvas.
+          </p>
+        ) : activeGroup === 'ext_api' ? (
+          <div className="flex min-h-0 flex-1 flex-col gap-1.5 overflow-hidden">
+            <div className="text-[9px] font-bold uppercase tracking-wide text-muted-foreground">External API</div>
             <input
               value={apiUrl}
               onChange={e => setApiUrl(e.target.value)}
               placeholder="https://api.example.com/products"
-              className="w-full px-3 py-2 border border-gray-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-ring"
+              className="w-full rounded-md border border-border bg-background px-2 py-1.5 text-[11px]"
             />
-          </div>
-          <div className="space-y-1">
-            <label className="text-xs font-medium text-gray-600">Method</label>
-            <select
-              value={apiMethod}
-              onChange={e => setApiMethod(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-200 rounded-lg text-xs"
-            >
-              {['GET', 'POST'].map(m => <option key={m}>{m}</option>)}
-            </select>
-          </div>
-          <div className="space-y-1">
-            <div className="flex items-center justify-between">
-              <label className="text-xs font-medium text-gray-600">Headers</label>
-              <button
-                onClick={() => setApiHeaders(prev => [...prev, { key: '', value: '' }])}
-                className="text-xs text-primary/80 hover:text-primary"
+            <div className="grid grid-cols-2 gap-1.5">
+              <select
+                value={apiMethod}
+                onChange={e => setApiMethod(e.target.value)}
+                className="rounded-md border border-border bg-background px-2 py-1.5 text-[11px]"
               >
-                + Add
-              </button>
+                {['GET', 'POST'].map(m => <option key={m}>{m}</option>)}
+              </select>
+              <input
+                value={apiField}
+                onChange={e => setApiField(e.target.value)}
+                placeholder="data.items"
+                className="rounded-md border border-border bg-background px-2 py-1.5 text-[11px]"
+              />
             </div>
             {apiHeaders.map((h, i) => (
               <div key={i} className="flex gap-1">
@@ -7050,58 +6828,324 @@ function DataSourcePanel({
                   value={h.key}
                   onChange={e => setApiHeaders(prev => prev.map((x, j) => j === i ? { ...x, key: e.target.value } : x))}
                   placeholder="Key"
-                  className="flex-1 px-2 py-1.5 border border-gray-200 rounded text-xs"
+                  className="min-w-0 flex-1 rounded border border-border px-1.5 py-1 text-[10px]"
                 />
                 <input
                   value={h.value}
                   onChange={e => setApiHeaders(prev => prev.map((x, j) => j === i ? { ...x, value: e.target.value } : x))}
                   placeholder="Value"
-                  className="flex-1 px-2 py-1.5 border border-gray-200 rounded text-xs"
+                  className="min-w-0 flex-1 rounded border border-border px-1.5 py-1 text-[10px]"
                 />
-                <button onClick={() => setApiHeaders(prev => prev.filter((_, j) => j !== i))} className="text-red-400 px-1">?</button>
+                <button type="button" onClick={() => setApiHeaders(prev => prev.filter((_, j) => j !== i))} className="text-red-400 px-0.5">×</button>
               </div>
             ))}
-          </div>
-          <div className="space-y-1">
-            <label className="text-xs font-medium text-gray-600">Data field path</label>
-            <input
-              value={apiField}
-              onChange={e => setApiField(e.target.value)}
-              placeholder="e.g. data.items or results"
-              className="w-full px-3 py-2 border border-gray-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-ring"
-            />
-          </div>
-          <div className="flex gap-2">
             <button
-              onClick={handleTestApi}
-              disabled={!apiUrl || loadingPreview}
-              className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg border border-primary/30 text-primary text-xs font-medium hover:bg-accent disabled:opacity-50 transition-colors"
+              type="button"
+              onClick={() => setApiHeaders(prev => [...prev, { key: '', value: '' }])}
+              className="text-left text-[10px] font-semibold text-primary"
             >
-              {loadingPreview ? <Loader2 className="w-3 h-3 animate-spin" /> : <Plug className="w-3 h-3" />}
-              Test
+              + Header
             </button>
-            <button
-              onClick={handleSaveApi}
-              disabled={!apiUrl}
-              className="flex-1 py-2 rounded-lg bg-primary text-white text-xs font-medium hover:bg-primary/90 disabled:opacity-50 transition-colors"
-            >
-              Save
-            </button>
-          </div>
-          {preview.length > 0 && (
-            <div className="space-y-1">
-              <div className="text-xs font-bold text-gray-400">Preview ({preview.length} items)</div>
-              <div className="max-h-32 overflow-y-auto border border-gray-100 rounded-lg p-2 space-y-1">
+            <div className="flex gap-1.5">
+              <button
+                type="button"
+                onClick={handleTestApi}
+                disabled={!apiUrl || loadingPreview}
+                className="flex flex-1 items-center justify-center gap-1 rounded-md border border-primary/30 py-1.5 text-[10px] font-medium text-primary disabled:opacity-50"
+              >
+                {loadingPreview ? <Loader2 className="h-3 w-3 animate-spin" /> : <Plug className="h-3 w-3" />}
+                Test
+              </button>
+              <button
+                type="button"
+                onClick={handleSaveApi}
+                disabled={!apiUrl}
+                className="flex-1 rounded-md bg-primary py-1.5 text-[10px] font-medium text-white disabled:opacity-50"
+              >
+                Save
+              </button>
+            </div>
+            {preview.length > 0 && (
+              <div className="min-h-0 max-h-24 space-y-0.5 overflow-y-auto rounded-md border border-border p-1">
                 {preview.map((item, i) => (
-                  <div key={i} className="text-xs text-gray-600 font-mono bg-gray-50 rounded px-2 py-1 truncate">
-                    {JSON.stringify(item).slice(0, 80)}?
+                  <div key={i} className="truncate rounded bg-muted/50 px-1.5 py-0.5 font-mono text-[9px] text-muted-foreground">
+                    {JSON.stringify(item).slice(0, 60)}…
                   </div>
                 ))}
               </div>
+            )}
+          </div>
+        ) : sourcesInGroup.length > 0 ? (
+          <div
+            className={cn(
+              'grid shrink-0 gap-1',
+              sourcesInGroup.length <= 3 ? 'grid-cols-3' : 'grid-cols-2',
+            )}
+          >
+            {sourcesInGroup.map(source => {
+              const SourceIcon = DATA_SOURCE_ICONS[source.id] || Database
+              const isRec = recommendedIds.has(source.id)
+              const selected = normalizedDsType === source.id
+              return (
+                <button
+                  key={source.id}
+                  type="button"
+                  onClick={() => handleSelectInternal(source.id as LiveResource)}
+                  title={source.desc}
+                  className={cn(
+                    'relative flex min-w-0 flex-col items-center gap-0.5 rounded-lg border px-1 py-2 text-center transition-all',
+                    selected
+                      ? 'border-primary/50 bg-accent ring-1 ring-primary/20'
+                      : isRec
+                        ? 'border-emerald-100 bg-emerald-50/40 hover:border-primary/30 hover:bg-accent/60'
+                        : 'border-border bg-card hover:border-primary/25 hover:bg-muted/40',
+                  )}
+                >
+                  {selected ? (
+                    <Check className="absolute right-0.5 top-0.5 h-3 w-3 text-primary" aria-hidden />
+                  ) : null}
+                  <SourceIcon className={cn('h-4 w-4 shrink-0', selected || isRec ? 'text-primary' : 'text-muted-foreground')} />
+                  <span className="w-full truncate text-[10px] font-semibold leading-tight text-foreground">{source.label}</span>
+                  {isRec ? (
+                    <span className="text-[8px] font-bold uppercase tracking-wide text-emerald-700">Best</span>
+                  ) : (
+                    <span className="h-2.5" aria-hidden />
+                  )}
+                </button>
+              )
+            })}
+          </div>
+        ) : null}
+
+        {activeGroup !== 'ext_api' && activeGroup !== 'portal' && normalizedDsType && normalizedDsType !== 'external_api' && normalizedDsType !== 'profile' && (
+          <div className="flex shrink-0 items-center gap-2">
+            <label className="shrink-0 text-[9px] font-bold uppercase tracking-wide text-muted-foreground">
+              Limit
+            </label>
+            <input
+              type="number"
+              min={1}
+              max={50}
+              value={ds?.limit || 12}
+              onChange={e => onUpdate({
+                ...ds,
+                type: normalizedDsType,
+                limit: Math.max(1, Math.min(50, Number(e.target.value) || 12)),
+              })}
+              className="w-14 rounded-md border border-border bg-background px-2 py-1 text-[11px] tabular-nums"
+            />
+          </div>
+        )}
+
+        {activeGroup !== 'ext_api' && activeGroup !== 'portal' && canPickItems && (
+          <div className="flex min-h-0 flex-1 flex-col gap-1 overflow-hidden">
+            <div className="flex shrink-0 items-center justify-between gap-1">
+              <span className="text-[9px] font-bold uppercase tracking-wide text-muted-foreground">
+                Pick items
+                {(ds?.selected_ids?.length || 0) > 0
+                  ? ` (${ds.selected_ids.length})`
+                  : ' · all'}
+              </span>
+              <button
+                type="button"
+                onClick={refreshInternal}
+                className="inline-flex shrink-0 items-center gap-0.5 text-[9px] font-semibold text-primary hover:text-primary/80"
+              >
+                <RefreshCcw className="h-3 w-3" />
+                Refresh
+              </button>
+            </div>
+            {loadingInternal ? (
+              <div className="flex flex-1 items-center justify-center py-3">
+                <Loader2 className="h-4 w-4 animate-spin text-primary/80" />
+              </div>
+            ) : (
+              <div className="min-h-0 flex-1 space-y-0.5 overflow-y-auto rounded-md border border-border p-1">
+                {liveItems.map(item => (
+                  <label
+                    key={item.id}
+                    className="flex cursor-pointer items-center gap-1.5 rounded px-1 py-1 hover:bg-muted/50"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={(ds?.selected_ids || []).includes(item.id)}
+                      onChange={() => handleToggleItem(item.id)}
+                      className="shrink-0 rounded text-primary"
+                    />
+                    {item.image_url ? (
+                      <img src={mediaUrl(item.image_url)} className="h-6 w-6 shrink-0 rounded object-cover" alt="" />
+                    ) : (
+                      <span className="h-6 w-6 shrink-0 rounded bg-muted" aria-hidden />
+                    )}
+                    <span className="min-w-0 flex-1 truncate text-[10px] font-medium text-foreground" title={item.title}>
+                      {item.title}
+                    </span>
+                    {item.price_formatted ? (
+                      <span className="shrink-0 text-[9px] tabular-nums text-muted-foreground">{item.price_formatted}</span>
+                    ) : null}
+                  </label>
+                ))}
+                {liveItems.length === 0 && (
+                  <p className="py-3 text-center text-[10px] text-muted-foreground">No items found</p>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+
+        {activeGroup !== 'ext_api' && activeGroup !== 'portal' && !canPickItems && normalizedDsType && normalizedDsType !== 'external_api' && (
+          <div className="flex min-h-0 flex-1 flex-col gap-1 overflow-hidden">
+            <div className="flex shrink-0 items-center justify-between gap-1">
+              <span className="text-[9px] font-bold uppercase tracking-wide text-muted-foreground">Live preview</span>
+              <button
+                type="button"
+                onClick={refreshInternal}
+                className="inline-flex shrink-0 items-center gap-0.5 text-[9px] font-semibold text-primary"
+              >
+                <RefreshCcw className="h-3 w-3" />
+                Refresh
+              </button>
+            </div>
+            {loadingInternal ? (
+              <div className="flex flex-1 items-center justify-center py-3">
+                <Loader2 className="h-4 w-4 animate-spin text-primary/80" />
+              </div>
+            ) : (
+              <div className="min-h-0 flex-1 space-y-0.5 overflow-y-auto rounded-md border border-border p-1">
+                {liveItems.slice(0, 10).map(item => (
+                  <div key={item.id} className="flex items-center gap-1.5 rounded px-1 py-1">
+                    {item.image_url ? (
+                      <img src={mediaUrl(item.image_url)} className="h-6 w-6 shrink-0 rounded object-cover" alt="" />
+                    ) : null}
+                    <div className="min-w-0 flex-1">
+                      <div className="truncate text-[10px] font-medium text-foreground">{item.title}</div>
+                      {item.subtitle ? (
+                        <div className="truncate text-[9px] text-muted-foreground">{item.subtitle}</div>
+                      ) : null}
+                    </div>
+                    {item.rating != null ? (
+                      <div className="shrink-0 text-[9px] text-amber-500">{'★'.repeat(Math.min(5, item.rating))}</div>
+                    ) : null}
+                  </div>
+                ))}
+                {liveItems.length === 0 && (
+                  <p className="py-3 text-center text-[10px] text-muted-foreground">No items yet</p>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+
+      </div>
+    </div>
+  )
+}
+
+/** Linkable CTA fields a section may expose (paired button text + url prop). */
+const SECTION_LINK_FIELDS: { propKey: string; urlKey: string; name: string }[] = [
+  { propKey: 'cta_label', urlKey: 'cta_url', name: 'Button' },
+  { propKey: 'cta_primary', urlKey: 'cta_primary_url', name: 'Primary CTA' },
+  { propKey: 'cta_secondary', urlKey: 'cta_secondary_url', name: 'Secondary CTA' },
+]
+
+/** Right-panel "Links" tab — opens the Connect link / product popup for the section's buttons. */
+function SectionLinksPanel({
+  block,
+  onEditPropLink,
+}: {
+  block: WebsiteBlock | null
+  onEditPropLink: (propKey: string, anchor: { x: number; y: number }) => void
+}) {
+  if (!block) {
+    return (
+      <div className="flex h-full min-h-0 flex-col items-center justify-center p-6 text-center text-muted-foreground">
+        <Link2 className="mb-3 h-9 w-9 opacity-30" />
+        <p className="text-sm font-medium text-foreground">Select a section</p>
+        <p className="mt-1 text-xs">Then link its buttons to pages, products, or any URL.</p>
+      </div>
+    )
+  }
+
+  const p = (block.props || {}) as Record<string, any>
+  const ctas = SECTION_LINK_FIELDS.filter(f => p[f.propKey] !== undefined)
+  const socialLinks: Record<string, string> = (p.social_links && typeof p.social_links === 'object') ? p.social_links : {}
+  const socialKeys = Object.keys(socialLinks)
+  const hasAny = ctas.length > 0 || socialKeys.length > 0
+
+  const openFor = (propKey: string) => (e: React.MouseEvent<HTMLButtonElement>) => {
+    const rect = e.currentTarget.getBoundingClientRect()
+    onEditPropLink(propKey, { x: rect.left - 360, y: rect.top })
+  }
+
+  return (
+    <div className="flex h-full min-h-0 flex-col overflow-y-auto p-3">
+      <div className="mb-2 flex items-center gap-1.5">
+        <Link2 className="h-3.5 w-3.5 shrink-0 text-primary/80" />
+        <span className="text-[11px] font-bold text-foreground">Links</span>
+        <span className="min-w-0 truncate text-[10px] text-muted-foreground">· {block.label || block.block_type}</span>
+      </div>
+
+      {!hasAny ? (
+        <div className="rounded-lg border border-border bg-muted/30 px-3 py-3 text-[11px] leading-snug text-muted-foreground">
+          This section has no buttons to link. Buttons, images, and text on the canvas can be linked via
+          <strong className="font-semibold text-foreground"> Visual → Link</strong>.
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {ctas.length > 0 && (
+            <div className="space-y-1.5">
+              <div className="text-[9px] font-bold uppercase tracking-wide text-muted-foreground">Buttons</div>
+              {ctas.map(f => {
+                const text = String(p[f.propKey] || '').trim() || f.name
+                const target = String(p[f.urlKey] || '').trim()
+                return (
+                  <button
+                    key={f.propKey}
+                    type="button"
+                    onClick={openFor(f.propKey)}
+                    className="flex w-full items-center gap-2 rounded-lg border border-border bg-card px-2.5 py-2 text-left transition-colors hover:border-primary/40 hover:bg-accent/40"
+                  >
+                    <Link2 className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                    <div className="min-w-0 flex-1">
+                      <div className="truncate text-[11px] font-semibold text-foreground">{text}</div>
+                      <div className="truncate text-[10px] text-muted-foreground">
+                        {target || 'No link — click to connect'}
+                      </div>
+                    </div>
+                    <span className="shrink-0 text-[10px] font-semibold text-primary">Edit</span>
+                  </button>
+                )
+              })}
+            </div>
+          )}
+
+          {socialKeys.length > 0 && (
+            <div className="space-y-1.5">
+              <div className="text-[9px] font-bold uppercase tracking-wide text-muted-foreground">Social links</div>
+              {socialKeys.map(platform => {
+                const target = String(socialLinks[platform] || '').trim()
+                return (
+                  <button
+                    key={platform}
+                    type="button"
+                    onClick={openFor(`social_links.${platform}`)}
+                    className="flex w-full items-center gap-2 rounded-lg border border-border bg-card px-2.5 py-2 text-left transition-colors hover:border-primary/40 hover:bg-accent/40"
+                  >
+                    <ExternalLink className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                    <div className="min-w-0 flex-1">
+                      <div className="truncate text-[11px] font-semibold capitalize text-foreground">{platform}</div>
+                      <div className="truncate text-[10px] text-muted-foreground">
+                        {target || 'Not set — click to add'}
+                      </div>
+                    </div>
+                    <span className="shrink-0 text-[10px] font-semibold text-primary">Edit</span>
+                  </button>
+                )
+              })}
             </div>
           )}
         </div>
-      </div>
+      )}
     </div>
   )
 }
@@ -7146,7 +7190,146 @@ function BuilderShortcutKbd({ children, className }: { children: React.ReactNode
   )
 }
 
-function BlockDesignBar({ block, onUpdate, onInsertAfter, onOpenLinkEditorForOverlay, activeTextField, activeTextFields = [], onActivateTextField, onEditText, onEscapeDismiss, onUndo, onRedo, canUndo, canRedo, formatPaintActive, formatPaintSticky, onFormatPaintStart, onFormatPaintCancel, selectedOverlayId, canvasImageField, canvasImageSlots, onSectionImagePick, onSectionImageLibrary, onFocusPrimaryImage, onSelectOverlay, blockBackgroundColor, onOverlayPickImage, onOverlayOpenLibrary, onOverlaySetImageUrl, onOverlayEditText, onOverlayEditDescription, floating = false, docked = false, selectionHint }: {
+// ?? Structure shell (nav / footer / announcement) — quick toolbar ??????????????????
+
+const structureShellToggleClass = (on: boolean) => cn(
+  'rounded-md border px-2 py-1 text-[10px] font-semibold leading-none whitespace-nowrap transition-colors',
+  on ? 'border-primary/50 bg-primary/10 text-primary' : 'border-gray-200 text-gray-600 hover:bg-gray-50',
+)
+
+function StructureShellDesignBarTools({
+  blockType,
+  blockProps,
+  onUpdate,
+  onOpenSectionEdit,
+  onFocusLogo,
+}: {
+  blockType: string
+  blockProps: Record<string, unknown>
+  onUpdate: (patch: Partial<BlockProps>) => void
+  onOpenSectionEdit?: () => void
+  onFocusLogo?: () => void
+}) {
+  if (blockType === 'nav') {
+    const toggles = [
+      { key: 'show_nav_links', label: 'Page links' },
+      { key: 'show_search', label: 'Search' },
+      { key: 'show_cart', label: 'Cart' },
+      { key: 'show_login', label: 'Account' },
+    ] as const
+    const linkSource = (blockProps.nav_links_source as string) || 'site_pages'
+    return (
+      <div className="flex min-w-0 flex-1 flex-wrap items-center gap-1.5 px-1">
+        <span className="shrink-0 text-[10px] font-bold uppercase tracking-wide text-gray-400">Show</span>
+        {toggles.map(({ key, label }) => {
+          const on = blockProps[key] !== false
+          return (
+            <button
+              key={key}
+              type="button"
+              title={`${on ? 'Hide' : 'Show'} ${label.toLowerCase()}`}
+              onClick={() => onUpdate({ [key]: !on } as Partial<BlockProps>)}
+              className={structureShellToggleClass(on)}
+            >
+              {label}
+            </button>
+          )
+        })}
+        <span className="hidden sm:inline h-5 w-px shrink-0 bg-gray-200" aria-hidden />
+        <label className="flex min-w-0 items-center gap-1">
+          <span className="shrink-0 text-[10px] font-semibold text-gray-500">Links</span>
+          <select
+            value={linkSource}
+            onChange={e => onUpdate({ nav_links_source: e.target.value } as Partial<BlockProps>)}
+            className="h-7 max-w-[8.5rem] rounded-md border border-gray-200 bg-white px-1.5 text-[10px] font-medium text-gray-700"
+            title="Navigation link source"
+          >
+            <option value="site_pages">Site pages</option>
+            <option value="manual">Manual</option>
+          </select>
+        </label>
+        <label className="flex min-w-0 items-center gap-1">
+          <span className="shrink-0 text-[10px] font-semibold text-gray-500">CTA</span>
+          <input
+            type="text"
+            value={String(blockProps.cta_label ?? '')}
+            placeholder="Button label"
+            onChange={e => onUpdate({ cta_label: e.target.value } as Partial<BlockProps>)}
+            className="h-7 w-24 min-w-0 rounded-md border border-gray-200 px-2 text-[11px] text-gray-800 sm:w-28"
+            title="Header call-to-action button label (leave empty to hide)"
+          />
+        </label>
+        {onFocusLogo ? (
+          <button
+            type="button"
+            onClick={onFocusLogo}
+            className="flex h-7 shrink-0 items-center gap-1 rounded-md border border-gray-200 px-2 text-[10px] font-semibold text-gray-700 hover:bg-gray-50"
+            title="Select logo on canvas"
+          >
+            <ImageIcon className="h-3 w-3" />
+            Logo
+          </button>
+        ) : null}
+        {onOpenSectionEdit ? (
+          <button
+            type="button"
+            onClick={onOpenSectionEdit}
+            className="flex h-7 shrink-0 items-center gap-1 rounded-md border border-primary/40 bg-primary/10 px-2.5 text-[10px] font-semibold text-primary hover:bg-primary/15"
+          >
+            <Settings2 className="h-3 w-3" />
+            Section Edit
+          </button>
+        ) : null}
+      </div>
+    )
+  }
+
+  if (blockType === 'announcement_bar') {
+    return (
+      <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2 px-1">
+        <label className="flex min-w-0 flex-1 items-center gap-2">
+          <span className="shrink-0 text-[10px] font-semibold text-gray-500">Banner text</span>
+          <input
+            type="text"
+            value={String(blockProps.text ?? '')}
+            onChange={e => onUpdate({ text: e.target.value } as Partial<BlockProps>)}
+            className="h-7 min-w-[12rem] flex-1 rounded-md border border-gray-200 px-2 text-[11px] text-gray-800"
+            placeholder="Promotion message…"
+          />
+        </label>
+        {onOpenSectionEdit ? (
+          <button
+            type="button"
+            onClick={onOpenSectionEdit}
+            className="flex h-7 shrink-0 items-center gap-1 rounded-md border border-primary/40 bg-primary/10 px-2.5 text-[10px] font-semibold text-primary hover:bg-primary/15"
+          >
+            <Settings2 className="h-3 w-3" />
+            More options
+          </button>
+        ) : null}
+      </div>
+    )
+  }
+
+  return (
+    <div className="flex min-w-0 flex-1 items-center gap-2 px-2">
+      <span className="min-w-0 text-[11px] leading-snug text-gray-600">
+        Structure sections are configured in <strong className="font-semibold text-gray-800">Section Edit</strong> (right panel) — not with typography tools.
+      </span>
+      {onOpenSectionEdit ? (
+        <button
+          type="button"
+          onClick={onOpenSectionEdit}
+          className="shrink-0 rounded-md border border-primary/40 bg-primary/10 px-2.5 py-1 text-[11px] font-semibold text-primary hover:bg-primary/15"
+        >
+          Open Section Edit
+        </button>
+      ) : null}
+    </div>
+  )
+}
+
+function BlockDesignBar({ block, onUpdate, onInsertAfter, onOpenLinkEditorForOverlay, activeTextField, activeTextFields = [], onActivateTextField, onEditText, onEscapeDismiss, onUndo, onRedo, canUndo, canRedo, formatPaintActive, formatPaintSticky, onFormatPaintStart, onFormatPaintCancel, selectedOverlayId, canvasImageField, canvasImageSlots, onSectionImagePick, onSectionImageLibrary, onFocusPrimaryImage, onSelectOverlay, blockBackgroundColor, onOverlayPickImage, onOverlayOpenLibrary, onOverlaySetImageUrl, onOverlayEditText, onOverlayEditDescription, onOpenSectionEdit, floating = false, docked = false, selectionHint }: {
   block: WebsiteBlock
   onUpdate: (p: Partial<BlockProps>) => void
   onInsertAfter: (type: string) => void
@@ -7171,6 +7354,7 @@ function BlockDesignBar({ block, onUpdate, onInsertAfter, onOpenLinkEditorForOve
   onOverlaySetImageUrl?: () => void
   onOverlayEditText?: () => void
   onOverlayEditDescription?: () => void
+  onOpenSectionEdit?: () => void
   onUndo?: () => void
   onRedo?: () => void
   canUndo?: boolean
@@ -7199,7 +7383,10 @@ function BlockDesignBar({ block, onUpdate, onInsertAfter, onOpenLinkEditorForOve
   const clearBtnRef = useRef<HTMLButtonElement>(null)
   const formatPaintClickTimerRef = useRef<number | null>(null)
   const p = block.props
-  const supportsContentGroup = sectionSupportsContentGroupTransform(String(block.block_type))
+  const blockType = String(block.block_type)
+  const isStructureShell = isGlobalStructureBlock(blockType)
+  const structureQuickEdit = isStructureShell && !selectedOverlayId && !activeTextField && !canvasImageField
+  const supportsContentGroup = sectionSupportsContentGroupTransform(blockType)
   const primaryImageField = sectionPrimaryImageField(String(block.block_type), p as Record<string, unknown>)
   const fieldStyles = ((p as any)._field_styles || {}) as Record<string, Record<string, unknown>>
   const selectedEditableFields = activeTextFields.filter(k => k !== CONTENT_GROUP_FIELD_KEY)
@@ -7330,17 +7517,18 @@ function BlockDesignBar({ block, onUpdate, onInsertAfter, onOpenLinkEditorForOve
     prevImageTabActiveRef.current = imageTabActive
   }, [imageTabActive, designBarTab])
 
-  // The Visual tab owns all layer (overlay) controls, so jump there automatically
-  // when a layer gets selected. We only switch on selection (not deselection) so we
-  // never yank the user off a tab they intentionally opened.
+  // The Visual tab owns all layer (overlay) controls — keep users off General while a layer is selected.
   const prevOverlaySelectedRef = useRef(false)
   useEffect(() => {
     const layerSelected = !!selectedOverlay
     if (layerSelected && !prevOverlaySelectedRef.current) {
       setDesignBarTab('visual')
     }
+    if (layerSelected && designBarTab === 'general') {
+      setDesignBarTab('visual')
+    }
     prevOverlaySelectedRef.current = layerSelected
-  }, [selectedOverlay])
+  }, [selectedOverlay, designBarTab])
 
   const patchSelectedFieldStyles = (patch: Record<string, unknown>, keys = selectedEditableFields) => {
     if (!keys.length) return
@@ -7831,18 +8019,35 @@ function BlockDesignBar({ block, onUpdate, onInsertAfter, onOpenLinkEditorForOve
                     : 'Section image',
               }]
             : []),
-        ]) as { id: DesignBarTabId; label: string }[]).map(tab => (
+        ]) as { id: DesignBarTabId; label: string }[]).map(tab => {
+          const generalBlockedByLayer = tab.id === 'general' && !!selectedOverlay
+          return (
           <button
             key={tab.id}
             type="button"
             role="tab"
             aria-selected={designBarTab === tab.id}
-            onClick={() => setDesignBarTab(tab.id)}
-            className={designBarTabClass(designBarTab === tab.id)}
+            aria-disabled={generalBlockedByLayer || undefined}
+            title={
+              generalBlockedByLayer
+                ? 'Layer selected — opens Visual tab (text, links, layout)'
+                : undefined
+            }
+            onClick={() => {
+              if (generalBlockedByLayer) {
+                setDesignBarTab('visual')
+                return
+              }
+              setDesignBarTab(tab.id)
+            }}
+            className={cn(
+              designBarTabClass(designBarTab === tab.id),
+              generalBlockedByLayer && designBarTab !== tab.id && 'text-gray-400 border-gray-100',
+            )}
           >
             {tab.label}
           </button>
-        ))}
+        )})}
         </div>
         {docked && selectionHint ? (
           <span className="min-w-0 flex-1 truncate border-l border-gray-200 pl-2 text-[11px] font-medium text-primary/90">
@@ -7881,6 +8086,16 @@ function BlockDesignBar({ block, onUpdate, onInsertAfter, onOpenLinkEditorForOve
         onClearOverlays={() => onUpdate({ overlays: [] } as Partial<BlockProps>)}
       />
       {!selectedOverlay ? (
+      <>
+      {structureQuickEdit ? (
+        <StructureShellDesignBarTools
+          blockType={blockType}
+          blockProps={p as Record<string, unknown>}
+          onUpdate={onUpdate}
+          onOpenSectionEdit={onOpenSectionEdit}
+          onFocusLogo={blockType === 'nav' && onFocusPrimaryImage ? onFocusPrimaryImage : undefined}
+        />
+      ) : (
       <>
       <div className={generalDesignBarGrid2x2}>
         <button
@@ -8289,7 +8504,24 @@ function BlockDesignBar({ block, onUpdate, onInsertAfter, onOpenLinkEditorForOve
         {block.label || block.block_type}
       </span>
       </>
-      ) : null}
+      )}
+      </>
+      ) : (
+        <div className="flex min-w-0 flex-1 items-center gap-2 px-2">
+          <span className="min-w-0 text-[11px] leading-snug text-gray-600">
+            <span className="font-semibold capitalize text-gray-800">{selectedOverlay.type}</span>
+            {' '}layer selected — edit label, link, colors, and position in the{' '}
+            <span className="font-semibold text-primary">Visual</span> tab.
+          </span>
+          <button
+            type="button"
+            onClick={() => setDesignBarTab('visual')}
+            className="shrink-0 rounded-md border border-primary/40 bg-primary/10 px-2.5 py-1 text-[11px] font-semibold text-primary transition-colors hover:bg-primary/15"
+          >
+            Open Visual
+          </button>
+        </div>
+      )}
       </div>
         </div>
       )}
@@ -8483,7 +8715,7 @@ export default function WebsiteBuilder() {
   const [visibleTabCount, setVisibleTabCount] = useState(99)
   const [clearingTemplateSandbox, setClearingTemplateSandbox] = useState(false)
   const [resettingCanvasFromServer, setResettingCanvasFromServer] = useState(false)
-  const [rightPanel, setRightPanel] = useState<'props' | 'page' | 'style' | 'data'>('props')
+  const [rightPanel, setRightPanel] = useState<'props' | 'page' | 'style' | 'data' | 'links'>('props')
   const [sidebarDraggedIdx, setSidebarDraggedIdx] = useState<number | null>(null)
   const [sidebarDragOverIdx, setSidebarDragOverIdx] = useState<number | null>(null)
   const [sectionSearch, setSectionSearch] = useState('')
@@ -8527,6 +8759,8 @@ export default function WebsiteBuilder() {
   const blocksDirtyRef = useRef(false)   // mirror for use inside useEffect([site]) without dependency
   /** After an immediate layout save, skip server?local block hydration briefly so refetches cannot revert the canvas. */
   const skipServerHydrateRef = useRef(0)
+  /** Block ids removed on the server — prevents autosave from recreating them after undo/refetch races. */
+  const deletedBlockIdsRef = useRef<Set<string>>(new Set())
   const styleDirtyRef = useRef(false)    // mirror for style dirty flag
   const [openingBrowserPreview, setOpeningBrowserPreview] = useState(false)
   const openingBrowserPreviewRef = useRef(false)
@@ -8641,6 +8875,9 @@ export default function WebsiteBuilder() {
     if (index < 0 || index >= historyStack.current.length) return
     const snapshot = historyStack.current[index]
     if (!snapshot) return
+    for (const pageBlocks of Object.values(snapshot)) {
+      for (const b of pageBlocks) deletedBlockIdsRef.current.delete(b.id)
+    }
     historyIndex.current = index
     setLocalBlocks(JSON.parse(JSON.stringify(snapshot)))
     setBlocksDirty(true)
@@ -8670,6 +8907,9 @@ export default function WebsiteBuilder() {
     historyIndex.current -= 1
     const snapshot = historyStack.current[historyIndex.current]
     if (snapshot) {
+      for (const pageBlocks of Object.values(snapshot)) {
+        for (const b of pageBlocks) deletedBlockIdsRef.current.delete(b.id)
+      }
       setLocalBlocks(snapshot)
       setBlocksDirty(true)
       setCanUndo(historyIndex.current > 0)
@@ -8683,6 +8923,9 @@ export default function WebsiteBuilder() {
     historyIndex.current += 1
     const snapshot = historyStack.current[historyIndex.current]
     if (snapshot) {
+      for (const pageBlocks of Object.values(snapshot)) {
+        for (const b of pageBlocks) deletedBlockIdsRef.current.delete(b.id)
+      }
       setLocalBlocks(snapshot)
       setBlocksDirty(true)
       setCanUndo(true)
@@ -9515,11 +9758,14 @@ export default function WebsiteBuilder() {
 
     if ((e.target as HTMLElement).closest('a, button, input, textarea, select, label, [role="button"]')) return
 
+    const isNewSelection = selectedBlockId !== id
     setSelectedBlockId(id)
     setOverlayImageTarget(null)
     setCanvasImageTarget(null)
     setActiveTextTarget(null)
-    setRightPanel('props')
+    if (isNewSelection) {
+      setRightPanel('props')
+    }
     setRightCollapsed(false)
   }, [formatPaintBrush, selectedBlockId])
 
@@ -11073,11 +11319,21 @@ export default function WebsiteBuilder() {
       await Promise.all(deleteJobs.map(({ pageId: pid, blockId: bid }) =>
         websiteApi.deleteBlock(siteId!, pid, bid),
       ))
+      for (const { blockId: bid } of deleteJobs) {
+        deletedBlockIdsRef.current.add(bid)
+      }
       skipServerHydrateRef.current = Date.now()
-      if (site) {
-        queryClient.setQueryData<WebsiteSite>(['websites', siteId!], old =>
-          old ? syncSiteQueryBlocks(old, nextMap) : old,
-        )
+      if (siteId) {
+        try {
+          const fresh = await websiteApi.getSite(siteId)
+          queryClient.setQueryData(['websites', siteId], fresh)
+        } catch {
+          if (site) {
+            queryClient.setQueryData<WebsiteSite>(['websites', siteId!], old =>
+              old ? syncSiteQueryBlocks(old, nextMap) : old,
+            )
+          }
+        }
       }
       if (!wasDirtyBeforeDelete) {
         setBlocksDirty(false)
@@ -12119,6 +12375,7 @@ export default function WebsiteBuilder() {
             } as any)
           } catch (err) {
             if (!isAxiosError(err) || err.response?.status !== 404) throw err
+            if (deletedBlockIdsRef.current.has(b.id)) return
             const saved = await websiteApi.createBlock(siteId, page.id, {
               block_type: b.block_type,
               label: b.label,
@@ -12435,7 +12692,7 @@ export default function WebsiteBuilder() {
   }, [siteId, site, openTextPrompt, commitLocalBlocks, queryClient])
 
   // Delete page (soft delete — 7-day trash)
-  const loadTrashedPages = useCallback(async (): Promise<PageTrashItem[]> => {
+  const loadTrashedPages = useCallback(async (opts?: { silent?: boolean }): Promise<PageTrashItem[]> => {
     if (!siteId) return []
     setTrashLoading(true)
     try {
@@ -12444,7 +12701,9 @@ export default function WebsiteBuilder() {
       return items
     } catch (err) {
       setTrashedPages([])
-      toast.error(extractApiError(err, 'Could not load deleted pages'))
+      if (!opts?.silent) {
+        toast.error(extractApiError(err, 'Could not load deleted pages'))
+      }
       return []
     } finally {
       setTrashLoading(false)
@@ -12454,14 +12713,10 @@ export default function WebsiteBuilder() {
   const refreshTrashedPages = useCallback(() => { void loadTrashedPages() }, [loadTrashedPages])
 
   useEffect(() => {
-    void loadTrashedPages()
-  }, [loadTrashedPages])
-
-  useEffect(() => {
-    if (rightPanel === 'page' && siteId) {
-      void loadTrashedPages()
+    if (siteId && (rightPanel === 'page' || moreMenuOpen)) {
+      void loadTrashedPages({ silent: true })
     }
-  }, [rightPanel, siteId, loadTrashedPages])
+  }, [rightPanel, moreMenuOpen, siteId, loadTrashedPages])
 
   const handleDeletePage = useCallback((pageId: string, pageTitle: string) => {
     const target = localPages.find(p => p.id === pageId)
@@ -12491,7 +12746,7 @@ export default function WebsiteBuilder() {
           await websiteApi.deletePage(siteId!, pageId)
           const fresh = await websiteApi.getSite(siteId!)
           syncEditorPagesFromSite(fresh)
-          const trash = await loadTrashedPages()
+          const trash = await loadTrashedPages({ silent: true })
           if (!trash.some(p => p.id === pageId)) {
             toast.error('Page was removed but did not appear in Recently deleted. Click Refresh below or reload the builder.')
             return
@@ -12525,10 +12780,10 @@ export default function WebsiteBuilder() {
       } else {
         toast.success(`"${pageTitle}" restored`)
       }
-      void loadTrashedPages()
+      void loadTrashedPages({ silent: true })
     } catch (err) {
       toast.error(extractApiError(err, 'Failed to restore page'))
-      void loadTrashedPages()
+      void loadTrashedPages({ silent: true })
     }
   }, [siteId, trashedPages, syncEditorPagesFromSite, loadTrashedPages])
 
@@ -12637,6 +12892,58 @@ export default function WebsiteBuilder() {
       },
     })
   }, [siteId, site, openTextPrompt, queryClient])
+
+  const handleMovePage = useCallback(async (pageId: string, direction: 'up' | 'down') => {
+    const backup = localPagesRef.current
+    const sorted = [...backup].sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
+    const idx = sorted.findIndex(p => p.id === pageId)
+    if (idx < 0) return
+    const targetIdx = direction === 'up' ? idx - 1 : idx + 1
+    if (targetIdx < 0 || targetIdx >= sorted.length) return
+
+    const reordered = [...sorted]
+    const [moved] = reordered.splice(idx, 1)
+    reordered.splice(targetIdx, 0, moved)
+    const nextPages = reordered.map((p, i) => ({ ...p, sort_order: i }))
+
+    localPagesRef.current = nextPages
+    setLocalPages(nextPages)
+    skipServerHydrateRef.current = Date.now()
+    if (site) {
+      queryClient.setQueryData<WebsiteSite>(['websites', siteId], old => {
+        if (!old) return old
+        const byId = new Map(nextPages.map(p => [p.id, p]))
+        return {
+          ...old,
+          pages: old.pages.map(p => byId.get(p.id) ?? p).sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0)),
+        }
+      })
+    }
+
+    const persisted = nextPages.filter(p => isPersistedPageId(p.id))
+    if (!siteId || !persisted.length) return
+
+    try {
+      await websiteApi.reorderPages(
+        siteId,
+        persisted.map(p => ({ id: p.id, sort_order: p.sort_order ?? 0 })),
+      )
+    } catch (err) {
+      localPagesRef.current = backup
+      setLocalPages(backup)
+      if (site) {
+        queryClient.setQueryData<WebsiteSite>(['websites', siteId], old => {
+          if (!old) return old
+          const byId = new Map(backup.map(p => [p.id, p]))
+          return {
+            ...old,
+            pages: old.pages.map(p => byId.get(p.id) ?? p).sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0)),
+          }
+        })
+      }
+      toast.error(extractApiError(err, 'Failed to reorder pages'))
+    }
+  }, [siteId, site, queryClient])
 
   // Store test URL — business front /store/:slug resolves vendors via GET /catalog/vendor/{slug} (Vendor.slug),
   // not wb_sites.subdomain. In dev, always use the logged-in vendor's catalog slug so links don't 404.
@@ -13866,10 +14173,10 @@ export default function WebsiteBuilder() {
                 </div>
               )}
 
-              <div className={cn('flex-1 min-h-0', leftPanel === 'blocks' || leftPanel === 'pages' ? 'flex flex-col' : 'overflow-y-auto')}>
+              <div className={builderPanelUi.panelBody}>
                 {/* SECTIONS panel — sticky search/filter + add-section catalog */}
                 {leftPanel === 'blocks' && (
-                  <>
+                  <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
                     <div className="shrink-0 px-3 pt-3 pb-2.5 space-y-2 border-b border-gray-100 bg-white z-10">
                       <div className="relative">
                         <Search className="absolute left-2.5 top-2.5 w-3.5 h-3.5 text-gray-400 pointer-events-none" />
@@ -13905,7 +14212,7 @@ export default function WebsiteBuilder() {
                       </div>
                     </div>
 
-                    <div className="flex-1 overflow-y-auto p-3 space-y-3">
+                    <div className={cn(builderPanelUi.panelScroll, 'p-3 space-y-3')}>
                       <div>
                         <FormColumnLabel className="tracking-wide px-1 mb-2">
                           {`Add Section${sectionSearchLower || sectionCategory !== 'all' ? ` · ${filteredCatalogBlocks.length}` : ''}`}
@@ -13933,12 +14240,12 @@ export default function WebsiteBuilder() {
                         </div>
                       </div>
                     </div>
-                  </>
+                  </div>
                 )}
 
                 {/* PAGES panel — pages with expandable sections */}
                 {leftPanel === 'pages' && (
-                  <div className="flex-1 overflow-y-auto p-3 space-y-1.5">
+                  <div className={cn(builderPanelUi.panelScroll, 'p-3 space-y-1.5')}>
                     <div className="px-1 mb-1">
                       <FormColumnLabel className="tracking-wide">
                         {`${localPages.length} page${localPages.length !== 1 ? 's' : ''}`}
@@ -13947,7 +14254,7 @@ export default function WebsiteBuilder() {
                         Open <strong className="font-semibold text-gray-500">Actions</strong> on a page to duplicate or delete it.
                       </p>
                     </div>
-                    {pageSectionGroups.map(({ page, entries, totalBlocks }) => {
+                    {pageSectionGroups.map(({ page, entries, totalBlocks }, pageIndex) => {
                       const isExpanded = expandedSectionPages.has(page.id)
                       const isActivePage = activePageId === page.id
                       const pageTypeLabel = page.page_type === 'landing' ? '🚀' : page.page_type === 'blog' ? '📝' : page.page_type === 'product' ? '🛍️' : '📄'
@@ -14004,8 +14311,12 @@ export default function WebsiteBuilder() {
                             <PageActionsMenu
                               page={page}
                               pageCount={countPersistedPages(localPages)}
+                              totalPages={sortedSitePages.length}
+                              pageIndex={pageIndex}
                               onRename={() => { handleRenamePage(page) }}
                               onSetHomepage={() => { void handleSetHomepage(page) }}
+                              onMoveUp={() => { void handleMovePage(page.id, 'up') }}
+                              onMoveDown={() => { void handleMovePage(page.id, 'down') }}
                               onDuplicate={() => { void handleDuplicatePage(page) }}
                               onDelete={() => handleDeletePage(page.id, page.title)}
                             />
@@ -14155,7 +14466,7 @@ export default function WebsiteBuilder() {
 
                 {/* TEMPLATES panel — template edit: click row loads template for editing; Clear all resets sandbox */}
                 {leftPanel === 'templates' && (
-                  <div className="p-3 space-y-2">
+                  <div className={cn(builderPanelUi.panelScroll, 'p-3 space-y-2')}>
                     <div className="flex items-start justify-between gap-2">
                       <div className="text-xs font-bold text-gray-400 uppercase tracking-wide leading-tight pt-0.5">
                         Website Templates
@@ -14272,13 +14583,15 @@ export default function WebsiteBuilder() {
                 )}
 
                 {leftPanel === 'media' && (
-                  <MediaStudioPanel
+                  <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+                    <MediaStudioPanel
                     siteId={siteId!}
                     selectedBlock={selectedBlock}
                     applyToImageLayer={applyToImageLayer}
                     applyTargetDescription={mediaApplyTargetDescription}
                     onApplyUrl={applyMediaUrlToSelection}
                   />
+                  </div>
                 )}
 
               </div>
@@ -14338,7 +14651,7 @@ export default function WebsiteBuilder() {
             const selectionHint = formatPaintBrush
               ? `Copy formatting — click text to apply (${formatPaintStyleSummary(formatPaintBrush.style)})${formatPaintBrush.sticky ? ' · apply to several' : ''}`
               : overlayImageTarget?.blockId === block.id && overlayImageTarget.overlayId
-                ? 'Layer selected — use the tabs here, or right-click for options'
+                ? 'Inserted layer selected — use Visual tab (or right-click) for text, links, and layout'
                 : canvasImageTarget?.blockId === block.id && canvasImageStyleField(canvasImageTarget, block.id)
                   ? (() => {
                       const slots = canvasImageArraySlots(canvasImageTarget, block.id)
@@ -14382,6 +14695,10 @@ export default function WebsiteBuilder() {
                   onOverlaySetImageUrl={openOverlayImageUrlPrompt}
                   onOverlayEditText={openOverlayTextEdit}
                   onOverlayEditDescription={openOverlayDescriptionEdit}
+                  onOpenSectionEdit={() => {
+                    setRightPanel('props')
+                    setRightCollapsed(false)
+                  }}
                   activeTextField={activeTextTarget?.blockId === block.id ? primaryTextFieldKey(activeTextTarget) : null}
                   activeTextFields={activeTextTarget?.blockId === block.id ? activeTextTarget.fieldKeys : []}
                   onActivateTextField={fieldKey => handleCanvasTextFieldActivate(block.id, fieldKey)}
@@ -14997,8 +15314,9 @@ export default function WebsiteBuilder() {
                 {([
                   { id: 'props' as const, icon: Settings2, label: 'Section Edit', hint: 'Text, colors, and layout for the selected section' },
                   { id: 'page' as const, icon: FileText, label: 'Page Edit', hint: 'Page-wide colors and fonts (switch pages in the left Pages panel)' },
+                  { id: 'links' as const, icon: Link2, label: 'Links', hint: 'Connect this section’s buttons to pages, products, or any URL' },
                   { id: 'style' as const, icon: Palette, label: 'Style', hint: 'Site fonts and colors' },
-                  { id: 'data' as const, icon: Database, label: 'Store data', hint: 'Connect sections to products, services, and catalog' },
+                  { id: 'data' as const, icon: Database, label: 'Store data', hint: 'Catalog, People, Stores… — same tabs as link picker' },
                 ] as const).map(({ id, icon: Icon, label, hint }) => (
                   <button
                     key={id}
@@ -15016,7 +15334,7 @@ export default function WebsiteBuilder() {
                 </div>
               </div>
 
-              <div className="flex-1 overflow-y-auto">
+              <div className={builderPanelUi.panelBody}>
                 {rightPanel === 'props' && (
                   selectedBlock ? (
                     <PropsEditor
@@ -15067,6 +15385,15 @@ export default function WebsiteBuilder() {
                   />
                 )}
 
+                {rightPanel === 'links' && (
+                  <SectionLinksPanel
+                    block={selectedBlock}
+                    onEditPropLink={(propKey, anchor) =>
+                      selectedBlock && openLinkEditorForProp(selectedBlock.id, propKey, anchor)
+                    }
+                  />
+                )}
+
                 {rightPanel === 'data' && (
                   <DataSourcePanel
                     siteId={siteId!}
@@ -15076,41 +15403,7 @@ export default function WebsiteBuilder() {
                 )}
 
                 {rightPanel === 'style' && (
-                  <div>
-                    <StylePanel style={localStyle} onChange={s => { setLocalStyle(prev => ({ ...prev, ...s })); setStyleDirty(true) }} siteId={siteId!} />
-                    <div className="px-4 pb-4">
-                      <button
-                        type="button"
-                        onClick={hasSaveChanges ? () => void handleSaveCanvas() : undefined}
-                        disabled={isSaving || !hasSaveChanges}
-                        className={cn(
-                          'w-full py-2.5 rounded-xl text-white flex items-center justify-center gap-2 transition-colors duration-200',
-                          BUILDER_CRISP_LABEL,
-                          saveFlash
-                            ? 'bg-emerald-500'
-                            : hasSaveChanges
-                              ? 'bg-gradient-to-r from-primary to-emerald-700 hover:from-primary/90 hover:to-emerald-800 shadow-md'
-                              : 'bg-emerald-600 ring-2 ring-emerald-300/40 cursor-default',
-                        )}
-                      >
-                        {isSaving ? (
-                          <Loader2 className="w-4 h-4 animate-spin" />
-                        ) : saveFlash || isCanvasSaved ? (
-                          <Check className="w-4 h-4" />
-                        ) : (
-                          <Save className="w-4 h-4" />
-                        )}
-                        {isSaving ? 'Saving…' : saveFlash || isCanvasSaved ? 'Saved' : 'Save canvas & styles'}
-                      </button>
-                      <p className="mt-1.5 text-center text-xs text-gray-400">
-                        {autoSaveEnabled
-                          ? (lastSavedAt
-                            ? `Auto-saved ${lastSavedAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
-                            : 'Auto-save enabled')
-                          : 'Auto-save off — use Save draft in the toolbar'}
-                      </p>
-                    </div>
-                  </div>
+                  <BuilderStylePanel style={localStyle} onChange={s => { setLocalStyle(prev => ({ ...prev, ...s })); setStyleDirty(true) }} />
                 )}
 
               </div>

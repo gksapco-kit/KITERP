@@ -126,6 +126,8 @@ export interface StyleConfig {
   nav_style: string
   footer_style: string
   container_width: string
+  font_size_base?: number
+  font_size_heading?: number
   /** Preferred checkout layout for /checkout. Saved via vendor Style panel. */
   checkout_layout?: 'two-column' | 'wizard' | 'accordion'
   /** Per-token overrides for .checkout-root CSS variables (HSL triplet values). */

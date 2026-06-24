@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { toast } from 'sonner'
 import { useEscapeToClose } from '@/hooks/useEscapeToClose'
+import { BuilderStepSlider } from '@/components/websites/BuilderStepSlider'
 import {
   Check,
   ChevronLeft,
@@ -197,10 +198,6 @@ function MediaAdjustSlider({
   step?: number
   onValueChange: (value: number) => void
 }) {
-  const handleInput = (e: React.ChangeEvent<HTMLInputElement>) => {
-    onValueChange(Number(e.currentTarget.value))
-  }
-
   return (
     <div
       className="space-y-0.5"
@@ -209,20 +206,19 @@ function MediaAdjustSlider({
     >
       <div className="flex items-center justify-between">
         <label className="text-xs font-medium text-gray-600">{label}</label>
-        <span className="w-8 text-right font-mono text-xs tabular-nums text-gray-400">{value}</span>
       </div>
-      <input
-        type="range"
-        min={min}
-        max={max}
-        step={step}
-        value={value}
-        onChange={handleInput}
-        onInput={handleInput}
-        onPointerDown={e => e.stopPropagation()}
-        onMouseDown={e => e.stopPropagation()}
-        className="h-1.5 w-full cursor-pointer accent-primary touch-none"
-      />
+      <div onPointerDown={e => e.stopPropagation()} onMouseDown={e => e.stopPropagation()}>
+        <BuilderStepSlider
+          aria-label={label}
+          value={value}
+          min={min}
+          max={max}
+          step={step}
+          onChange={onValueChange}
+          onInput={onValueChange}
+          sliderClassName="h-1.5 touch-none"
+        />
+      </div>
     </div>
   )
 }

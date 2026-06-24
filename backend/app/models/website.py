@@ -50,6 +50,9 @@ class WebsiteSite(Base):
     published_at = Column(DateTime, nullable=True)
     status = Column(String(50), default="draft")  # draft | published | archived
 
+    # Soft delete — site stays recoverable for SITE_TRASH_RETENTION_DAYS, then purged
+    deleted_at = Column(DateTime, nullable=True, index=True)
+
     # Analytics & integrations
     google_analytics_id = Column(String(50), nullable=True)
     meta_pixel_id = Column(String(50), nullable=True)

@@ -291,6 +291,23 @@ class PageTrashOut(BaseModel):
         return _str_uuid(v)
 
 
+class SiteTrashOut(BaseModel):
+    id: str
+    name: str
+    description: Optional[str] = None
+    deleted_at: datetime
+    purge_at: datetime
+    days_remaining: int
+    page_count: int = 0
+    is_published: bool = False
+    applied_template_name: Optional[str] = None
+
+    @field_validator('id', mode='before')
+    @classmethod
+    def coerce_uuid(cls, v: Any) -> str:
+        return _str_uuid(v)
+
+
 # ── Block reorder ─────────────────────────────────────────────────────────────
 
 class BlockReorderItem(BaseModel):

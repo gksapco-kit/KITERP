@@ -7,16 +7,9 @@ import { imageShapeFromProps, imageShapeRadiusClass } from '@/lib/sectionItemLay
 import { BuilderSectionImage } from '@/components/builder/BuilderSectionImage'
 import { MediaClipFrame } from '@/components/builder/MediaClipFrame'
 import { hasMediaClip } from '@/lib/mediaClip'
+import { siteRadiusPx } from '@/lib/siteBorderRadius'
 
 interface Props { site: PublicSite; style: StyleConfig; props: Record<string, unknown>; liveItems: LiveItem[]; branchCode?: string | null; blockId?: string }
-
-function borderRadiusPx(style: StyleConfig): number {
-  const br = style.border_radius as string | undefined
-  if (br === 'none' || br === 'sharp') return 0
-  if (br === 'sm') return 4
-  if (br === 'lg') return 16
-  return 8
-}
 
 export default function ImageBlock({ style, props, blockId }: Props) {
   const imageRaw = (props.image_url as string) || ''
@@ -25,7 +18,7 @@ export default function ImageBlock({ style, props, blockId }: Props) {
   const title = (props.title as string) || ''
   const layout = String(props.layout ?? 'centered')
   const imageShape = imageShapeFromProps(props)
-  const cardRadius = borderRadiusPx(style)
+  const cardRadius = siteRadiusPx(style.border_radius, 'lg')
   const mediaClip = props.media_clip
   const clipped = hasMediaClip(mediaClip)
 
