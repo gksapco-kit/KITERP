@@ -9,6 +9,7 @@ from uuid import UUID
 from pydantic import BaseModel, Field, EmailStr, model_validator
 import math
 import re
+import logging
 import httpx
 
 from app.database import get_db
@@ -16,7 +17,6 @@ from app.api.deps import get_current_active_user
 from app.models.user import User
 from app.models.customer import Customer
 from app.models.platform_setting import PlatformSetting
-from app.schemas.customer import CustomerResponse, CustomerListResponse
 from app.services.vendor_service import VendorService
 from app.repositories.customer_repo import CustomerRepository
 from app.repositories.order_repo import OrderRepository
@@ -80,6 +80,12 @@ class VendorCreateCustomer(BaseModel):
     notes: Optional[str] = None
     # Accounting
     opening_balance: Optional[float] = Field(None, ge=-9999999999.99, le=9999999999.99)
+    # Bank
+    bank_name: Optional[str] = Field(None, max_length=100)
+    account_number: Optional[str] = Field(None, max_length=30)
+    account_holder_name: Optional[str] = Field(None, max_length=255)
+    account_type: Optional[str] = Field(None, pattern=r"^(savings|current)$")
+    ifsc_code: Optional[str] = Field(None, max_length=15)
 
     @model_validator(mode="after")
     def require_email_or_phone(self):
@@ -118,6 +124,12 @@ class VendorUpdateCustomer(BaseModel):
     notes: Optional[str] = None
     # Accounting
     opening_balance: Optional[float] = Field(None, ge=-9999999999.99, le=9999999999.99)
+    # Bank
+    bank_name: Optional[str] = Field(None, max_length=100)
+    account_number: Optional[str] = Field(None, max_length=30)
+    account_holder_name: Optional[str] = Field(None, max_length=255)
+    account_type: Optional[str] = Field(None, pattern=r"^(savings|current)$")
+    ifsc_code: Optional[str] = Field(None, max_length=15)
 
     @model_validator(mode="after")
     def validate_gstin_and_pan(self):
@@ -150,9 +162,16 @@ def _customer_dict(customer: Customer) -> dict:
         "cin": customer.cin,
         "company_name": customer.company_name,
         "billing_address": customer.billing_address or {},
+        "shipping_addresses": customer.shipping_addresses or [],
         "notes": customer.notes,
         "opening_balance": float(customer.opening_balance or 0),
+        "bank_name": customer.bank_name,
+        "account_number": customer.account_number,
+        "account_holder_name": customer.account_holder_name,
+        "account_type": customer.account_type,
+        "ifsc_code": customer.ifsc_code,
         "created_at": customer.created_at.isoformat() if customer.created_at else None,
+        "updated_at": customer.updated_at.isoformat() if customer.updated_at else None,
     }
 
 
@@ -261,10 +280,10 @@ async def gst_lookup(
     return result
 
 
-@router.get("", response_model=CustomerListResponse)
+@router.get("")
 async def list_customers(
     page: int = Query(1, ge=1),
-    size: int = Query(20, ge=1, le=100),
+    size: int = Query(20, ge=1, le=10000),
     search: Optional[str] = None,
     current_user: User = Depends(get_current_active_user),
     db: AsyncSession = Depends(get_db),
@@ -273,10 +292,13 @@ async def list_customers(
     repo = CustomerRepository(db)
     skip = (page - 1) * size
     items, total = await repo.list_by_vendor(vendor_id=vendor_id, skip=skip, limit=size, search=search)
-    return CustomerListResponse(
-        items=items, total=total, page=page, size=size,
-        pages=math.ceil(total / size) if total > 0 else 0,
-    )
+    return {
+        "items": [_customer_dict(c) for c in items],
+        "total": total,
+        "page": page,
+        "size": size,
+        "pages": math.ceil(total / size) if total > 0 else 0,
+    }
 
 
 @router.post("", status_code=status.HTTP_201_CREATED)
@@ -326,11 +348,23 @@ async def create_customer(
         billing_address=data.billing_address.model_dump() if data.billing_address else {},
         notes=data.notes,
         opening_balance=data.opening_balance or 0,
+        bank_name=data.bank_name,
+        account_number=data.account_number,
+        account_holder_name=data.account_holder_name,
+        account_type=data.account_type or "savings",
+        ifsc_code=data.ifsc_code,
     )
     db.add(customer)
     try:
         await db.commit()
         await db.refresh(customer)
+        try:
+            from app.services.crm.services import ContactService
+            await ContactService(db).ensure_from_customer(vendor_id, customer)
+        except Exception:
+            logging.getLogger(__name__).exception(
+                "CRM contact sync failed for customer %s", customer.id,
+            )
         return JSONResponse(status_code=201, content=_customer_dict(customer))
     except IntegrityError as exc:
         await db.rollback()
@@ -389,9 +423,26 @@ async def update_customer(
         customer.notes = data.notes
     if data.opening_balance is not None:
         customer.opening_balance = data.opening_balance
+    if data.bank_name is not None:
+        customer.bank_name = data.bank_name
+    if data.account_number is not None:
+        customer.account_number = data.account_number
+    if data.account_holder_name is not None:
+        customer.account_holder_name = data.account_holder_name
+    if data.account_type is not None:
+        customer.account_type = data.account_type
+    if data.ifsc_code is not None:
+        customer.ifsc_code = data.ifsc_code
 
     await db.commit()
     await db.refresh(customer)
+    try:
+        from app.services.crm.services import ContactService
+        await ContactService(db).ensure_from_customer(vendor_id, customer)
+    except Exception:
+        logging.getLogger(__name__).exception(
+            "CRM contact sync failed for customer %s", customer.id,
+        )
     return _customer_dict(customer)
 
 
@@ -417,7 +468,7 @@ async def delete_customer(
         )
 
 
-@router.get("/{customer_id}", response_model=CustomerResponse)
+@router.get("/{customer_id}")
 async def get_customer(
     customer_id: UUID,
     current_user: User = Depends(get_current_active_user),
@@ -428,4 +479,4 @@ async def get_customer(
     customer = await repo.get_by_vendor_and_id(vendor_id, customer_id)
     if not customer:
         raise HTTPException(status_code=404, detail="Customer not found")
-    return customer
+    return _customer_dict(customer)

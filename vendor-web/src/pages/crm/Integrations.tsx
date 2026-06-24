@@ -23,8 +23,8 @@ const PROVIDERS = [
 
 const SETTING_HINTS: Record<string, Record<string, string>> = {
   twilio: {
-    from_number: 'SMS only — your Twilio phone number (e.g. +14704999996)',
-    whatsapp_from: 'WhatsApp only — required for WhatsApp (Twilio sandbox: +14155238886). Not the same as from_number.',
+    from_number: 'SMS only — buy a Twilio phone number with SMS enabled (NOT +14155238886 WhatsApp sandbox)',
+    whatsapp_from: 'WhatsApp only — Twilio sandbox: +14155238886. Cannot be used for SMS.',
     voice_caller_id: 'Optional caller ID for voice calls',
   },
 }

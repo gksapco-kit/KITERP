@@ -12,8 +12,10 @@ import { useContacts, useSaveContact } from '@/hooks/useCrm'
 import { useTeamMembers } from '@/hooks/useVendor'
 import type { Contact } from '@/api/crm'
 import { Plus, Loader2, UserPlus, Mail, Phone, Pencil, Building2, User } from 'lucide-react'
+import { PhoneInput } from '@/components/ui/PhoneInput'
+import { normalizePhoneE164 } from '@/lib/phoneE164'
 import { CrmModal, Field, SearchBar, Pager, LoadingRow, EmptyRow } from './_shared'
-import { COUNTRY_CODES, splitPhone, useCrmExtras, CrmExtrasView } from './crmExtras'
+import { useCrmExtras, CrmExtrasView } from './crmExtras'
 import { SALUTATIONS, contactDisplayName, inputCls } from './crmContactsShared'
 import { formatCurrency, formatDateTime } from '@/lib/utils'
 
@@ -77,6 +79,15 @@ function ContactPersonsSection({ companyId }: { companyId: string }) {
   )
 }
 
+function FormSection({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <div className="space-y-3 rounded-lg border border-gray-100 bg-gray-50/40 px-3 py-3">
+      <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-500">{title}</p>
+      {children}
+    </div>
+  )
+}
+
 function ContactForm({
   contact, onClose, defaultType = 'person', parentCompanyId,
 }: {
@@ -88,7 +99,6 @@ function ContactForm({
   const save = useSaveContact()
   const isEdit = !!contact
   const cf = (contact?.custom_fields || {}) as Record<string, unknown>
-  const initialPhone = splitPhone(contact?.phone)
   const extras = useCrmExtras(contact?.custom_fields)
   const { data: companiesData } = useContacts({ record_type: 'company', size: 200 })
 
@@ -100,9 +110,8 @@ function ContactForm({
     first_name: contact?.first_name || '',
     last_name: contact?.last_name || '',
     email: contact?.email || '',
-    phone_cc: initialPhone.cc,
-    phone: initialPhone.number,
-    mobile: contact?.mobile || '',
+    phone: contact?.phone ? normalizePhoneE164(contact.phone) : '',
+    mobile: contact?.mobile ? normalizePhoneE164(contact.mobile) : '',
     title: contact?.title || '',
     industry: contact?.industry || '',
     region: contact?.region || '',
@@ -122,7 +131,8 @@ function ContactForm({
     e.preventDefault()
     if (!form.first_name.trim()) return
 
-    const phone = form.phone.trim() ? `${form.phone_cc} ${form.phone.trim()}` : null
+    const phone = form.phone.trim() ? normalizePhoneE164(form.phone.trim()) : null
+    const mobile = form.mobile.trim() ? normalizePhoneE164(form.mobile.trim()) : undefined
     const base: Record<string, unknown> = {}
     if (form.location.trim()) base.location = form.location.trim()
 
@@ -136,7 +146,7 @@ function ContactForm({
           last_name: type === 'person' ? (form.last_name || undefined) : undefined,
           email: form.email || undefined,
           phone,
-          mobile: form.mobile || undefined,
+          mobile,
           title: form.title || undefined,
           industry: type === 'company' ? (form.industry || undefined) : undefined,
           region: type === 'company' ? (form.region || undefined) : undefined,
@@ -164,7 +174,7 @@ function ContactForm({
       onClose={onClose}
       maxW="max-w-3xl"
     >
-      <form onSubmit={handle} className="space-y-3">
+      <form onSubmit={handle} className="space-y-4" autoComplete="off">
         {!parentCompanyId && !isEdit && (
           <Field label="Type">
             <div className="flex gap-2">
@@ -185,9 +195,10 @@ function ContactForm({
           </Field>
         )}
 
+        <FormSection title={type === 'company' ? 'Company details' : 'Name & role'}>
         {type === 'person' ? (
           <>
-            <div className="grid grid-cols-[96px_1fr_1fr] gap-3">
+            <div className="grid grid-cols-[88px_1fr_1fr] gap-3">
               <Field label="Salutation">
                 <Select
                   value={form.salutation}
@@ -197,10 +208,23 @@ function ContactForm({
                 />
               </Field>
               <Field label="First name" required>
-                <Input value={form.first_name} onChange={e => setForm(p => ({ ...p, first_name: e.target.value }))} />
+                <Input
+                  value={form.first_name}
+                  onChange={e => setForm(p => ({ ...p, first_name: e.target.value }))}
+                  autoComplete="off"
+                  name="crm-contact-first-name"
+                  data-1p-ignore="true"
+                  data-lpignore="true"
+                />
               </Field>
               <Field label="Last name">
-                <Input value={form.last_name} onChange={e => setForm(p => ({ ...p, last_name: e.target.value }))} />
+                <Input
+                  value={form.last_name}
+                  onChange={e => setForm(p => ({ ...p, last_name: e.target.value }))}
+                  autoComplete="off"
+                  name="crm-contact-last-name"
+                  data-1p-ignore="true"
+                />
               </Field>
             </div>
             <Field label="Title">
@@ -223,7 +247,12 @@ function ContactForm({
         ) : (
           <>
             <Field label="Company name" required>
-              <Input value={form.first_name} onChange={e => setForm(p => ({ ...p, first_name: e.target.value }))} />
+              <Input
+                value={form.first_name}
+                onChange={e => setForm(p => ({ ...p, first_name: e.target.value }))}
+                autoComplete="off"
+                name="crm-company-name"
+              />
             </Field>
             <div className="grid grid-cols-2 gap-3">
               <Field label="Industry"><Input value={form.industry} onChange={e => setForm(p => ({ ...p, industry: e.target.value }))} /></Field>
@@ -236,31 +265,55 @@ function ContactForm({
             </div>
           </>
         )}
+        </FormSection>
 
-        <div className="grid grid-cols-2 gap-3">
+        <FormSection title="Contact channels">
+          <p className="text-[11px] text-gray-500 -mt-1">
+            Email and phone are used for campaigns (email, SMS, WhatsApp). Use country code for mobile numbers.
+          </p>
           <Field label="Email">
-            <Input type="email" value={form.email} onChange={e => setForm(p => ({ ...p, email: e.target.value }))} />
-          </Field>
-          <Field label="Phone">
-            <div className="flex gap-2">
-              <Select
-                className="w-24 shrink-0"
-                value={form.phone_cc}
-                onChange={v => setForm(p => ({ ...p, phone_cc: v }))}
-                aria-label="Country code"
-                options={COUNTRY_CODES.map(code => ({ value: code, label: code }))}
+            <div className="relative">
+              <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+              <Input
+                type="email"
+                value={form.email}
+                onChange={e => setForm(p => ({ ...p, email: e.target.value }))}
+                className="pl-9"
+                placeholder="name@company.com"
+                autoComplete="off"
+                name="crm-contact-email"
               />
-              <Input type="tel" value={form.phone} onChange={e => setForm(p => ({ ...p, phone: e.target.value }))} placeholder="98765 43210" />
             </div>
           </Field>
-        </div>
+          <div className={type === 'person' ? 'grid grid-cols-1 sm:grid-cols-2 gap-3' : ''}>
+            <Field label="Phone">
+              <PhoneInput
+                value={form.phone}
+                onChange={v => setForm(p => ({ ...p, phone: v }))}
+                defaultCountryIso="IN"
+                inferCountryFromLocation
+                compact
+                compactCountry
+                placeholder="Office or landline"
+              />
+            </Field>
+            {type === 'person' && (
+              <Field label="Mobile">
+                <PhoneInput
+                  value={form.mobile}
+                  onChange={v => setForm(p => ({ ...p, mobile: v }))}
+                  defaultCountryIso="IN"
+                  inferCountryFromLocation
+                  compact
+                  compactCountry
+                  placeholder="SMS / WhatsApp"
+                />
+              </Field>
+            )}
+          </div>
+        </FormSection>
 
-        {type === 'person' && (
-          <Field label="Mobile">
-            <Input type="tel" value={form.mobile} onChange={e => setForm(p => ({ ...p, mobile: e.target.value }))} />
-          </Field>
-        )}
-
+        <FormSection title="Assignment & source">
         <Field label="Sales person">
           <SalesPersonSelect value={form.owner_id} onChange={v => setForm(p => ({ ...p, owner_id: v }))} />
         </Field>
@@ -293,6 +346,7 @@ function ContactForm({
             <Input value={form.location} onChange={e => setForm(p => ({ ...p, location: e.target.value }))} placeholder="City, Country" />
           </Field>
         </div>
+        </FormSection>
 
         <Field label="Note">
           <Textarea value={form.notes} onChange={e => setForm(p => ({ ...p, notes: e.target.value }))} placeholder="Anything worth remembering…" className="min-h-[40px]" />

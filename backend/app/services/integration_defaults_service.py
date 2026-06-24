@@ -138,7 +138,17 @@ def get_delivery_status(integrations: list | None = None) -> dict[str, Any]:
     if not twilio_ok:
         sms_missing.append("Connect Twilio in CRM → Integrations (Account SID + Auth Token)")
     elif not from_number:
-        sms_missing.append("Set from_number in Twilio integration settings (E.164, e.g. +14704999996)")
+        sms_missing.append(
+            "Set from_number in Twilio integration settings — a Twilio phone number with SMS "
+            "(e.g. +14704999996). Not the WhatsApp sandbox (+14155238886)."
+        )
+    elif from_number.replace(" ", "") in ("+14155238886", "14155238886") or (
+        whatsapp_from and from_number.replace(" ", "") == whatsapp_from.replace(" ", "")
+    ):
+        sms_missing.append(
+            "from_number is the WhatsApp sender — it cannot send SMS. "
+            "Buy an SMS-capable Twilio number and set it as from_number."
+        )
 
     wa_missing: list[str] = []
     meta_ok = _connected(meta_i)

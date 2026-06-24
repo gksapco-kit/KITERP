@@ -245,8 +245,15 @@ async def start_campaign(
     vu: VendorUser = Depends(require_permission("crm.campaigns.manage")),
     db: AsyncSession = Depends(get_db),
 ):
-    obj = await CampaignService(db).start(vu.vendor_id, campaign_id, actor_id=vu.user_id)
-    return CampaignResponse.model_validate(obj)
+    obj, stats = await CampaignService(db).start(vu.vendor_id, campaign_id, actor_id=vu.user_id)
+    payload = CampaignResponse.model_validate(obj).model_dump()
+    payload.update({
+        "dispatch_sent": stats.get("sent", 0),
+        "dispatch_failed": stats.get("failed", 0),
+        "dispatch_enrolled": stats.get("enrolled", 0),
+        "dispatch_message": stats.get("message"),
+    })
+    return payload
 
 
 @router.post("/campaigns/{campaign_id}/pause")

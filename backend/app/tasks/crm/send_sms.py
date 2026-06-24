@@ -12,9 +12,10 @@ logger = logging.getLogger(__name__)
 
 
 async def send_sms(vendor_id: UUID, contact_id: UUID | None, body: str,
-                   to_phone: str | None = None) -> dict:
+                   to_phone: str | None = None, *, require_delivery_confirm: bool = False) -> dict:
     from app.integrations.registry import IntegrationRegistry
     from app.models.crm import CrmCommunicationLog, CrmContact
+    from app.services.sms_service import is_sms_length_trial_error, sms_attempt_bodies
     from sqlalchemy import select
 
     async with AsyncSessionLocal() as db:
@@ -28,21 +29,47 @@ async def send_sms(vendor_id: UUID, contact_id: UUID | None, body: str,
         registry = IntegrationRegistry(db)
         adapter = await registry.get_sms_adapter(vendor_id)
         result = {"ok": False, "error": "no_adapter"}
+        sent_body = body
         if adapter and target:
-            result = await adapter.send(to=target, body=body)
+            from app.integrations.twilio import TwilioSmsAdapter
+
+            for idx, attempt_body in enumerate(sms_attempt_bodies(body)):
+                sent_body = attempt_body
+                if require_delivery_confirm and isinstance(adapter, TwilioSmsAdapter):
+                    result = await adapter.send(
+                        to=target, body=attempt_body, require_delivery=True,
+                    )
+                else:
+                    result = await adapter.send(to=target, body=attempt_body)
+                if result.get("ok"):
+                    break
+                if (
+                    idx == 0
+                    and is_sms_length_trial_error(
+                        code=result.get("code"),
+                        message=str(result.get("error") or result.get("detail") or ""),
+                    )
+                ):
+                    logger.info("Retrying CRM SMS with compact body after Twilio %s", result.get("code"))
+                    continue
+                break
 
         log = CrmCommunicationLog(
             vendor_id=vendor_id,
             channel="sms",
             direction="outbound",
-            body=body,
+            body=sent_body,
             related_type="contact" if contact_id else None,
             related_id=contact_id,
             contact_id=contact_id,
             external_id=result.get("id"),
             provider=result.get("provider", "sms"),
             status="sent" if result.get("ok") else "failed",
-            metadata_json={"error": result.get("error")} if not result.get("ok") else {},
+            metadata_json=(
+                {"error": result.get("error"), "delivery_status": result.get("delivery_status")}
+                if not result.get("ok")
+                else {"delivery_status": result.get("delivery_status")}
+            ),
         )
         db.add(log)
         await db.commit()

@@ -12,18 +12,18 @@ import {
   usePurchaseOrders,
 } from '@/hooks/useVendor'
 import { AddPartyModal } from '@/components/parties/AddPartyModal'
+import { ConfirmDialog } from '@/components/common/ConfirmDialog'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { PhoneInput } from '@/components/ui/PhoneInput'
 import type { Customer, Supplier, PurchaseOrder } from '@/types'
-import { formatDate, formatCurrency } from '@/lib/utils'
+import { formatDate, formatCurrency, cn } from '@/lib/utils'
 import { vendorApi } from '@/api/vendor'
 import {
   Search, Plus, Download, Users, Truck, Briefcase, Link2, HardHat,
   CheckCircle2, PauseCircle, Ban, XCircle, ChevronDown, ChevronUp,
   Filter, RefreshCw, ArrowUpDown, X, Pencil, Trash2, Trash,
-  ToggleLeft, ToggleRight,
   Mail, Phone, MapPin, Calendar, ClipboardList, Package, FileText,
   ArrowRight, Building2, AlertCircle, RotateCcw, ShieldAlert, AlertTriangle,
   Loader2, IndianRupee, ShoppingBag, TrendingUp,
@@ -200,6 +200,12 @@ function parseNotesMeta(notes?: string): Record<string, string> {
   const line = notes.split('\n').find(l => l.startsWith('__meta__:'))
   if (!line) return {}
   try { return JSON.parse(line.slice(9)) } catch { return {} }
+}
+
+/** Strip internal metadata lines from party notes for display. */
+function cleanPartyNotes(notes?: string): string {
+  if (!notes) return ''
+  return notes.split('\n').filter(l => !l.startsWith('__meta__:')).join('\n').trim()
 }
 
 /** Colour palette for custom / unknown party types (cycles by index). */
@@ -622,7 +628,13 @@ function MasterDataDrawer({
 
   const bal = (supplier?.opening_balance ?? customer?.opening_balance) as number | undefined
   const hasBusinessDetails = !!(record.taxId || (supplier?.pan_number) || (customer?.pan_number) ||
-    record.companyName || (bal !== undefined && bal !== 0))
+    (customer?.cin) || record.companyName || (bal !== undefined && bal !== 0))
+  const customerNotes = customer ? cleanPartyNotes(customer.notes) : ''
+  const supplierNotes = supplier ? cleanPartyNotes(supplier.notes) : ''
+  const hasBankDetails = !!(
+    customer?.bank_name || customer?.account_number || customer?.account_holder_name || customer?.ifsc_code ||
+    supplier?.bank_name || supplier?.account_number || supplier?.account_holder_name || supplier?.ifsc_code
+  )
 
   return (
     <div data-kiterp-modal className="fixed inset-0 z-50 flex justify-end bg-black/50 backdrop-blur-sm" onClick={onClose}>
@@ -770,6 +782,12 @@ function MasterDataDrawer({
                     <span className="text-sm font-mono font-semibold tracking-wider">{supplier?.pan_number || customer?.pan_number}</span>
                   </div>
                 )}
+                {customer?.cin && (
+                  <div className="flex justify-between items-center">
+                    <span className="text-xs text-gray-500">CIN / LLPIN</span>
+                    <span className="text-sm font-mono font-semibold tracking-wider">{customer.cin}</span>
+                  </div>
+                )}
                 {bal !== undefined && bal !== 0 && (
                   <div className="flex justify-between items-center border-t pt-3 mt-1">
                     <span className="text-xs text-gray-500">Opening Balance</span>
@@ -782,12 +800,51 @@ function MasterDataDrawer({
             </div>
           )}
 
-          {/* ── Notes (supplier only) ── */}
-          {supplier?.notes && (
+          {/* ── Bank Details ── */}
+          {hasBankDetails && (
+            <div>
+              <h3 className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-3">Bank Details</h3>
+              <div className="bg-gray-50 rounded-lg p-4 space-y-3">
+                {(customer?.bank_name || supplier?.bank_name) && (
+                  <div className="flex justify-between items-center">
+                    <span className="text-xs text-gray-500">Bank Name</span>
+                    <span className="text-sm font-medium text-gray-900">{customer?.bank_name || supplier?.bank_name}</span>
+                  </div>
+                )}
+                {(customer?.account_holder_name || supplier?.account_holder_name) && (
+                  <div className="flex justify-between items-center">
+                    <span className="text-xs text-gray-500">Account Holder</span>
+                    <span className="text-sm font-medium text-gray-900">{customer?.account_holder_name || supplier?.account_holder_name}</span>
+                  </div>
+                )}
+                {(customer?.account_number || supplier?.account_number) && (
+                  <div className="flex justify-between items-center">
+                    <span className="text-xs text-gray-500">Account Number</span>
+                    <span className="text-sm font-mono font-medium text-gray-900">{customer?.account_number || supplier?.account_number}</span>
+                  </div>
+                )}
+                {(customer?.ifsc_code || supplier?.ifsc_code) && (
+                  <div className="flex justify-between items-center">
+                    <span className="text-xs text-gray-500">IFSC</span>
+                    <span className="text-sm font-mono font-semibold tracking-wider">{customer?.ifsc_code || supplier?.ifsc_code}</span>
+                  </div>
+                )}
+                {(customer?.account_type || supplier?.account_type) && (
+                  <div className="flex justify-between items-center">
+                    <span className="text-xs text-gray-500">Account Type</span>
+                    <span className="text-sm font-medium text-gray-900 capitalize">{customer?.account_type || supplier?.account_type}</span>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* ── Notes ── */}
+          {(customerNotes || supplierNotes) && (
             <div>
               <h3 className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-3">Notes</h3>
               <div className="bg-gray-50 rounded-lg p-4">
-                <p className="text-sm text-gray-700 whitespace-pre-wrap">{supplier.notes}</p>
+                <p className="text-sm text-gray-700 whitespace-pre-wrap">{customerNotes || supplierNotes}</p>
               </div>
             </div>
           )}
@@ -810,6 +867,15 @@ function MasterDataDrawer({
                     <div>
                       <p className="text-xs text-gray-500">Last Updated</p>
                       <p className="text-sm font-medium">{formatDate(supplier.updated_at)}</p>
+                    </div>
+                  </div>
+                )}
+                {customer?.updated_at && (
+                  <div className="flex items-center gap-2">
+                    <Calendar className="w-4 h-4 text-gray-400" />
+                    <div>
+                      <p className="text-xs text-gray-500">Last Updated</p>
+                      <p className="text-sm font-medium">{formatDate(customer.updated_at)}</p>
                     </div>
                   </div>
                 )}
@@ -996,6 +1062,83 @@ function MasterDataDrawer({
 
 // ── MasterDataReport (main page) ──────────────────────────────────────────────
 
+function FilterChip({
+  active,
+  onClick,
+  icon,
+  label,
+  count,
+}: {
+  active: boolean
+  onClick: () => void
+  icon?: React.ReactNode
+  label: string
+  count?: number
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={cn(
+        'shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border transition-colors',
+        active
+          ? 'bg-primary border-primary text-primary-foreground shadow-sm'
+          : 'bg-white border-gray-200 text-gray-600 hover:border-gray-300 hover:bg-gray-50',
+      )}
+    >
+      {icon}
+      <span>{label}</span>
+      {count !== undefined && (
+        <span
+          className={cn(
+            'inline-flex items-center justify-center min-w-[1.125rem] h-[1.125rem] px-1 rounded-full text-[10px] font-bold leading-none',
+            active ? 'bg-white/25 text-white' : 'bg-gray-100 text-gray-600',
+          )}
+        >
+          {count}
+        </span>
+      )}
+    </button>
+  )
+}
+
+function StatusToggleSwitch({
+  active,
+  busy,
+  onClick,
+}: {
+  active: boolean
+  busy?: boolean
+  onClick: (e: MouseEvent<HTMLButtonElement>) => void
+}) {
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={active}
+      disabled={busy}
+      onClick={onClick}
+      title={active ? 'Active — click to deactivate' : 'Inactive — click to activate'}
+      aria-label={active ? 'Deactivate record' : 'Activate record'}
+      className={cn(
+        'relative inline-flex h-6 w-11 shrink-0 items-center rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out',
+        'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2',
+        active ? 'bg-primary hover:bg-primary/90' : 'bg-muted hover:bg-muted/80',
+        busy && 'opacity-60 cursor-wait',
+      )}
+    >
+      <span
+        aria-hidden
+        className={cn(
+          'pointer-events-none inline-block h-5 w-5 rounded-full bg-white shadow-sm transition-transform duration-200 ease-in-out',
+          active ? 'translate-x-5' : 'translate-x-0.5',
+          busy && 'animate-pulse',
+        )}
+      />
+    </button>
+  )
+}
+
 export default function MasterDataReport() {
   // Filters / sort
   const [search,         setSearch]        = useState('')
@@ -1042,6 +1185,14 @@ export default function MasterDataReport() {
   const [showCreate,    setShowCreate]    = useState(false)
   const [viewingRecord, setViewingRecord] = useState<MasterRecord | null>(null)
   const [editingRecord, setEditingRecord] = useState<MasterRecord | null>(null)
+  const [statusToggleTarget, setStatusToggleTarget] = useState<{ record: MasterRecord; nextActive: boolean } | null>(null)
+  const [statusToggleBusy, setStatusToggleBusy] = useState(false)
+  const [togglingId, setTogglingId] = useState<string | null>(null)
+  const [deleteTarget, setDeleteTarget] = useState<MasterRecord | null>(null)
+  const [deleteBusy, setDeleteBusy] = useState(false)
+
+  useEscapeToClose(() => setStatusToggleTarget(null), !!statusToggleTarget && !statusToggleBusy)
+  useEscapeToClose(() => setDeleteTarget(null), !!deleteTarget && !deleteBusy)
 
   // Data — fetch all records (no pagination limit) so client-side filtering/sorting works on the full set
   const { data: custData, isLoading: custLoading } = useCustomers({ size: 10000 })
@@ -1261,32 +1412,52 @@ export default function MasterDataReport() {
   const openDrawer = (r: MasterRecord) => setViewingRecord(r)
   const openEdit   = (r: MasterRecord) => { setViewingRecord(null); setEditingRecord(r) }
 
-  const handleToggleStatus = async (r: MasterRecord, e: MouseEvent) => {
+  const handleToggleStatus = (r: MasterRecord, e: MouseEvent) => {
     e.stopPropagation()
-    const nextActive = !r.isActive
-    if (!confirm(`${nextActive ? 'Activate' : 'Deactivate'} "${r.name}"?`)) return
+    setStatusToggleTarget({ record: r, nextActive: !r.isActive })
+  }
+
+  const confirmStatusToggle = async () => {
+    if (!statusToggleTarget) return
+    const { record: r, nextActive } = statusToggleTarget
+    setStatusToggleBusy(true)
+    setTogglingId(r.id)
     try {
       if (r.kind === 'supplier') {
         await updateSupplier.mutateAsync({ id: r.id, data: { is_active: nextActive } })
       } else {
         await updateCustomer.mutateAsync({ id: r.id, data: { is_active: nextActive } })
       }
+      toast.success(nextActive ? `${r.name} is now active` : `${r.name} has been deactivated`)
+      setStatusToggleTarget(null)
     } catch {
       toast.error('Failed to update status')
+    } finally {
+      setStatusToggleBusy(false)
+      setTogglingId(null)
     }
   }
 
-  const handleDelete = async (r: MasterRecord, e: MouseEvent) => {
+  const handleDelete = (r: MasterRecord, e: MouseEvent) => {
     e.stopPropagation()
-    if (!confirm(`Delete "${r.name}" permanently? This cannot be undone.`)) return
+    setDeleteTarget(r)
+  }
+
+  const confirmDelete = async () => {
+    if (!deleteTarget) return
+    setDeleteBusy(true)
     try {
-      if (r.kind === 'supplier') {
-        await deleteSupplier.mutateAsync(r.id)
+      if (deleteTarget.kind === 'supplier') {
+        await deleteSupplier.mutateAsync(deleteTarget.id)
       } else {
-        await deleteCustomer.mutateAsync(r.id)
+        await deleteCustomer.mutateAsync(deleteTarget.id)
       }
+      toast.success(`${deleteTarget.name} deleted`)
+      setDeleteTarget(null)
     } catch {
       toast.error('Failed to delete record')
+    } finally {
+      setDeleteBusy(false)
     }
   }
 
@@ -1353,40 +1524,36 @@ export default function MasterDataReport() {
 
             {/* ── Type multi-select (single scrollable row) ── */}
             <div className="flex items-center gap-2">
-              <span className="text-xs font-medium text-gray-400 shrink-0">Type:</span>
+              <span className="text-xs font-medium text-gray-500 shrink-0">Type</span>
               <div className="relative flex-1 min-w-0">
                 <div
-                  className="flex gap-1.5 overflow-x-auto pb-0.5"
-                  style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+                  className="flex gap-1.5 overflow-x-auto pb-0.5 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
                 >
-                  {/* All Types pill — shows selected count when filters active */}
-                  <button
-                    onClick={() => { setSelectedTypes(new Set()); setPage(1) }}
-                    className={`shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border transition-all ${
-                      selectedTypes.size === 0
-                        ? 'bg-primary border-primary text-white shadow-sm'
-                        : 'bg-primary/10 border-primary/40 text-primary hover:bg-primary/15'
-                    }`}
-                  >
-                    <Filter className="w-3.5 h-3.5" />
-                    {selectedTypes.size > 0 ? (
-                      <>
-                        <span>{selectedTypes.size} selected</span>
-                        <span className="inline-flex items-center justify-center text-xs font-bold min-w-[18px] h-[18px] px-1 rounded-full bg-primary/25 text-primary/80">
-                          ×
-                        </span>
-                      </>
-                    ) : (
-                      <>
-                        All Types
-                        <span className="inline-flex items-center justify-center text-xs font-bold min-w-[18px] h-[18px] px-1 rounded-full bg-white/20 text-white">
-                          {allRecords.length}
-                        </span>
-                      </>
-                    )}
-                  </button>
+                  {selectedTypes.size > 0 ? (
+                    <button
+                      type="button"
+                      onClick={() => { setSelectedTypes(new Set()); setPage(1) }}
+                      className="shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border border-primary/30 bg-primary/5 text-primary hover:bg-primary/10 transition-colors"
+                    >
+                      <Filter className="w-3.5 h-3.5" />
+                      <span>{selectedTypes.size} selected</span>
+                      <span
+                        aria-hidden
+                        className="inline-flex items-center justify-center w-4 h-4 rounded-full hover:bg-primary/15"
+                      >
+                        <X className="w-3 h-3" />
+                      </span>
+                    </button>
+                  ) : (
+                    <FilterChip
+                      active
+                      label="All Types"
+                      icon={<Filter className="w-3.5 h-3.5" />}
+                      count={allRecords.length}
+                      onClick={() => { setSelectedTypes(new Set()); setPage(1) }}
+                    />
+                  )}
 
-                  {/* Individual type pills — selected first (A→Z), then unselected (A→Z) */}
                   {[...sourceTabs.filter(t => t.value !== 'all')]
                     .sort((a, b) => {
                       const aSelected = selectedTypes.has(a.value)
@@ -1395,47 +1562,40 @@ export default function MasterDataReport() {
                       if (!aSelected && bSelected) return 1
                       return a.label.localeCompare(b.label)
                     })
-                    .map(tab => {
-                    const cnt    = countFor(tab.value)
-                    const active = selectedTypes.has(tab.value)
-                    return (
-                      <button
+                    .map(tab => (
+                      <FilterChip
                         key={tab.value}
+                        active={selectedTypes.has(tab.value)}
+                        icon={tab.icon}
+                        label={tab.label}
+                        count={countFor(tab.value)}
                         onClick={() => toggleType(tab.value)}
-                        className={`shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border transition-all ${
-                          active
-                            ? 'bg-primary border-primary text-white shadow-sm ring-2 ring-primary/30'
-                            : 'bg-white border-gray-200 text-gray-600 hover:border-primary/40 hover:text-primary'
-                        }`}
-                      >
-                        {tab.icon} {tab.label}
-                        <span className={`inline-flex items-center justify-center text-xs font-bold min-w-[18px] h-[18px] px-1 rounded-full ${
-                          active ? 'bg-white/20 text-white' : 'bg-gray-100 text-gray-500'
-                        }`}>{cnt}</span>
-                      </button>
-                    )
-                  })
-                  }
+                      />
+                    ))}
                 </div>
-                {/* Fade hint */}
-                <div className="pointer-events-none absolute right-0 top-0 h-full w-8 bg-gradient-to-l from-white to-transparent" />
+                <div className="pointer-events-none absolute right-0 top-0 h-full w-6 bg-gradient-to-l from-white to-transparent" />
               </div>
             </div>
 
             {/* ── Status tabs ── */}
             <div className="flex items-center gap-1.5 flex-wrap">
-              <span className="text-xs font-medium text-gray-400 mr-1">Status:</span>
+              <span className="text-xs font-medium text-gray-500 mr-0.5">Status</span>
               {STATUS_FILTER_TABS.map(tab => {
                 const active = statusTab === tab.value
                 const cfg    = tab.value !== 'all' ? STATUS_CFG[tab.value as MasterStatus] : null
                 return (
-                  <button key={tab.value} onClick={() => { setStatusTab(tab.value); setPage(1) }}
-                    className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium border transition-colors ${
+                  <button
+                    key={tab.value}
+                    type="button"
+                    onClick={() => { setStatusTab(tab.value); setPage(1) }}
+                    className={cn(
+                      'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border transition-colors',
                       active
-                        ? 'bg-primary border-primary text-white'
-                        : 'bg-white border-gray-200 text-gray-600 hover:border-primary/40 hover:text-primary'
-                    }`}>
-                    {cfg && !active && <span className={`w-1.5 h-1.5 rounded-full ${cfg.dot}`} />}
+                        ? 'bg-primary border-primary text-primary-foreground shadow-sm'
+                        : 'bg-white border-gray-200 text-gray-600 hover:border-gray-300 hover:bg-gray-50',
+                    )}
+                  >
+                    {cfg && !active && <span className={cn('w-1.5 h-1.5 rounded-full', cfg.dot)} />}
                     {tab.label}
                   </button>
                 )
@@ -1811,17 +1971,19 @@ export default function MasterDataReport() {
                           )
                           case 'status': return (
                             <td key="status" className="px-4 py-3" onClick={e => e.stopPropagation()}>
-                              <button
-                                type="button"
-                                onClick={(e) => handleToggleStatus(r, e)}
-                                title={r.isActive ? 'Active — click to deactivate' : 'Inactive — click to activate'}
-                                className="inline-flex items-center text-gray-400 hover:text-gray-700 transition-colors"
-                                aria-label={r.isActive ? 'Deactivate record' : 'Activate record'}
-                              >
-                                {r.isActive
-                                  ? <ToggleRight className="w-6 h-6 text-green-500" />
-                                  : <ToggleLeft className="w-6 h-6 text-gray-400" />}
-                              </button>
+                              <div className="flex items-center gap-2.5">
+                                <StatusToggleSwitch
+                                  active={r.isActive}
+                                  busy={togglingId === r.id}
+                                  onClick={(e) => handleToggleStatus(r, e)}
+                                />
+                                <span className={cn(
+                                  'text-xs font-medium min-w-[3.25rem]',
+                                  r.isActive ? 'text-primary' : 'text-muted-foreground',
+                                )}>
+                                  {r.isActive ? 'Active' : 'Inactive'}
+                                </span>
+                              </div>
                             </td>
                           )
                           case 'added': return (
@@ -1893,16 +2055,22 @@ export default function MasterDataReport() {
         {sourceTabs.filter(t => t.value !== 'all').map(tab => {
           const cnt   = allRecords.filter(r => r.type === tab.value).length
           const activ = allRecords.filter(r => r.type === tab.value && r.isActive).length
+          const selected = selectedTypes.has(tab.value)
           return (
-            <button key={tab.value} onClick={() => { toggleType(tab.value); setPage(1) }}
-              className={`flex flex-col items-start p-3 rounded-xl border transition-all hover:shadow-md ${
-                selectedTypes.has(tab.value)
-                  ? 'border-primary/40 bg-primary/10 shadow-sm'
-                  : 'border-gray-200 bg-white hover:border-primary/30'
-              }`}>
+            <button
+              key={tab.value}
+              type="button"
+              onClick={() => { toggleType(tab.value); setPage(1) }}
+              className={cn(
+                'flex flex-col items-start p-3 rounded-xl border text-left transition-colors',
+                selected
+                  ? 'border-primary bg-primary/5 shadow-sm'
+                  : 'border-gray-200 bg-white hover:border-gray-300 hover:bg-gray-50',
+              )}
+            >
               <div className="flex items-center gap-1.5 mb-1.5">
-                <span className="text-primary/70">{tab.icon}</span>
-                <span className="text-xs font-medium text-gray-600">{tab.label}</span>
+                <span className={selected ? 'text-primary' : 'text-gray-500'}>{tab.icon}</span>
+                <span className={cn('text-xs font-medium', selected ? 'text-primary' : 'text-gray-600')}>{tab.label}</span>
               </div>
               <p className="text-2xl font-bold text-gray-900 leading-none">{cnt}</p>
               <p className="text-xs text-gray-400 mt-1">{activ} active</p>
@@ -1939,6 +2107,38 @@ export default function MasterDataReport() {
           editRecord={{ raw: editingRecord.raw, kind: editingRecord.kind }}
           onClose={() => setEditingRecord(null)}
           onCreated={() => setEditingRecord(null)}
+        />
+      )}
+
+      {statusToggleTarget && (
+        <ConfirmDialog
+          open
+          title={statusToggleTarget.nextActive
+            ? `Activate "${statusToggleTarget.record.name}"?`
+            : `Deactivate "${statusToggleTarget.record.name}"?`}
+          subtitle={`${statusToggleTarget.record.typeLabel}`}
+          description={statusToggleTarget.nextActive
+            ? 'This record will be marked active and available for orders, invoices, and other operations.'
+            : 'This record will be marked inactive and hidden from active operations. You can reactivate it anytime.'}
+          confirmLabel={statusToggleTarget.nextActive ? 'Activate' : 'Deactivate'}
+          variant={statusToggleTarget.nextActive ? 'success' : 'warning'}
+          busy={statusToggleBusy}
+          onCancel={() => setStatusToggleTarget(null)}
+          onConfirm={() => void confirmStatusToggle()}
+        />
+      )}
+
+      {deleteTarget && (
+        <ConfirmDialog
+          open
+          title={`Delete "${deleteTarget.name}"?`}
+          subtitle={deleteTarget.typeLabel}
+          description="This permanently removes the record. This action cannot be undone."
+          confirmLabel="Delete"
+          variant="danger"
+          busy={deleteBusy}
+          onCancel={() => setDeleteTarget(null)}
+          onConfirm={() => void confirmDelete()}
         />
       )}
     </div>

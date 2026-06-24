@@ -31,12 +31,87 @@ _TWILIO_USER_HINTS: dict[int, str] = {
         "Upgrade your Twilio account or wait until tomorrow."
     ),
     30044: (
-        "SMS too long for Twilio trial account. "
-        "Upgrade Twilio or use a shorter message template."
+        "SMS is too long for a Twilio trial account (trial allows only a short single-segment message). "
+        "Shorten your template, remove emoji/special characters, or upgrade your Twilio account."
     ),
     21408: "SMS is not enabled for this region in your Twilio account.",
     20003: "Twilio authentication failed — check Account SID and Auth Token.",
+    30004: (
+        "SMS was blocked by the carrier or recipient (India DND/filtering is common). "
+        "Try a verified number on a Twilio trial, or complete DLT registration for India domestic SMS."
+    ),
 }
+
+# One GSM-7 segment; trial accounts often reject multi-segment bodies (Twilio error 30044).
+SMS_GSM7_SEGMENT_LEN = 160
+SMS_TRIAL_SAFE_LEN = 120
+
+
+def twilio_sms_user_hint(error_code: int | None, twilio_message: str = "") -> str:
+    if error_code and error_code in _TWILIO_USER_HINTS:
+        return _TWILIO_USER_HINTS[error_code]
+    msg = (twilio_message or "").strip()
+    if error_code:
+        return f"SMS delivery failed (Twilio error {error_code})."
+    return msg or "SMS delivery failed."
+
+
+def is_sms_length_trial_error(*, code: int | None = None, message: str = "") -> bool:
+    if code == 30044:
+        return True
+    lower = (message or "").lower()
+    return "30044" in lower or "trial message length" in lower or "maximum length" in lower
+
+
+def normalize_sms_gsm7(text: str) -> str:
+    """Collapse whitespace and replace common non-GSM characters for trial-safe SMS."""
+    raw = (text or "").strip().replace("\r\n", "\n").replace("\n", " ")
+    for src, dst in (("₹", "Rs"), ("—", "-"), ("–", "-"), ("…", "..."), ("👉", "")):
+        raw = raw.replace(src, dst)
+    ascii_chars: list[str] = []
+    for ch in raw:
+        if ord(ch) <= 127:
+            ascii_chars.append(ch)
+        elif ch.isspace():
+            ascii_chars.append(" ")
+    return " ".join("".join(ascii_chars).split())
+
+
+def truncate_sms_body(text: str, max_len: int = SMS_GSM7_SEGMENT_LEN) -> str:
+    cleaned = normalize_sms_gsm7(text)
+    if len(cleaned) <= max_len:
+        return cleaned
+    if max_len <= 3:
+        return cleaned[:max_len]
+    return cleaned[: max_len - 3].rstrip() + "..."
+
+
+def sms_attempt_bodies(body: str, *, compact_len: int = SMS_TRIAL_SAFE_LEN) -> list[str]:
+    """Primary body plus a shorter fallback for Twilio trial length limits."""
+    primary = (body or "").strip()
+    if not primary:
+        return [""]
+    bodies = [primary]
+    compact = truncate_sms_body(primary, compact_len)
+    if compact.strip() and compact.strip() != primary:
+        bodies.append(compact)
+    return bodies
+
+
+def sms_delivery_unconfirmed_hint(to_phone: str = "") -> str:
+    """User-facing hint when Twilio queued SMS but delivery was not confirmed."""
+    parts = [
+        "Twilio accepted the SMS but it was not confirmed as delivered to the phone.",
+        "On a Twilio trial account, verify the recipient under Phone Numbers → Verified Caller IDs.",
+    ]
+    normalized = normalize_e164(to_phone)
+    if normalized.startswith("+91"):
+        parts.append(
+            "For India (+91): enable Messaging → Geo permissions for India in Twilio Console. "
+            "Domestic India SMS also requires DLT sender/template registration."
+        )
+    parts.append("Check Twilio Console → Messaging → Logs for the message status.")
+    return " ".join(parts)
 
 
 @dataclass

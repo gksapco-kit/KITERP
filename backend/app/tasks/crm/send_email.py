@@ -39,6 +39,31 @@ async def send_email(vendor_id: UUID, contact_id: UUID | None, subject: str, bod
                 to=contact_email, subject=subject,
                 html=body_html, text=body_text,
             )
+            if not result.get("ok"):
+                from app.services.email_service import send_email as platform_send_email
+
+                sent = await platform_send_email(
+                    to=contact_email, subject=subject, html=body_html, text=body_text,
+                )
+                if sent:
+                    result = {"ok": True, "provider": "platform", "fallback": True}
+        else:
+            from app.services.email_service import send_email as platform_send_email
+
+            sent = await platform_send_email(
+                to=contact_email, subject=subject, html=body_html, text=body_text,
+            )
+            if sent:
+                result = {"ok": True, "provider": "platform"}
+            else:
+                result = {
+                    "ok": False,
+                    "error": "no_adapter",
+                    "detail": (
+                        "Email is not configured. Connect SendGrid or SMTP under CRM → Integrations, "
+                        "or set SENDGRID_API_KEY / SMTP_HOST in backend .env."
+                    ),
+                }
 
         log = CrmCommunicationLog(
             vendor_id=vendor_id,

@@ -257,13 +257,14 @@ export const useCampaignAudience = (
   channel: string,
   segmentId?: string,
   enabled = true,
+  limit = 25,
 ) =>
   useQuery({
-    queryKey: KEY('campaign-audience', channel, segmentId || 'all'),
+    queryKey: KEY('campaign-audience', channel, segmentId || 'all', limit),
     queryFn: () => crmApi.getCampaignAudiencePreview({
       channel,
       segment_id: segmentId || undefined,
-      limit: 8,
+      limit,
     }),
     enabled,
   })

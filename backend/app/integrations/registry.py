@@ -13,6 +13,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.encryption import decrypt_json
+from app.config import settings
 from app.integrations.base import (
     AiAdapter, CalendarAdapter, EmailAdapter, SmsAdapter,
     VoiceAdapter, WhatsAppAdapter,
@@ -49,23 +50,84 @@ class IntegrationRegistry:
         return creds
 
     async def get_email_adapter(self, vendor_id: UUID) -> Optional[EmailAdapter]:
+        from app.services.email_service import resolve_effective_sendgrid_key, sendgrid_api_key
+
+        def _sendgrid_adapter(creds: dict, *, from_email: str | None = None) -> Optional[EmailAdapter]:
+            api_key = resolve_effective_sendgrid_key(creds)
+            if not api_key:
+                return None
+            payload = {
+                **creds,
+                "api_key": api_key,
+                "from_email": (
+                    creds.get("from")
+                    or creds.get("from_email")
+                    or from_email
+                    or settings.FROM_EMAIL
+                ),
+                "from_name": creds.get("from_name"),
+            }
+            return SendGridEmailAdapter.from_credentials(payload)
+
         sg = await self._load(vendor_id, "sendgrid")
         if sg:
-            adapter = SendGridEmailAdapter.from_credentials(sg)
+            adapter = _sendgrid_adapter(sg)
             if adapter:
                 return adapter
+
         smtp_creds = await self._load(vendor_id, "smtp")
-        adapter = SmtpEmailAdapter.from_credentials(smtp_creds)
-        return adapter
+        if smtp_creds:
+            host = str(smtp_creds.get("host") or "").lower()
+            user = str(smtp_creds.get("username") or smtp_creds.get("user") or "").lower()
+            api_key = resolve_effective_sendgrid_key(smtp_creds)
+            if api_key or user == "apikey" or "sendgrid" in host:
+                adapter = _sendgrid_adapter(smtp_creds)
+                if adapter:
+                    return adapter
+            adapter = SmtpEmailAdapter.from_credentials(smtp_creds)
+            if adapter:
+                return adapter
+
+        platform_key = sendgrid_api_key()
+        if platform_key:
+            adapter = _sendgrid_adapter(
+                {"api_key": platform_key},
+                from_email=settings.FROM_EMAIL,
+            )
+            if adapter:
+                return adapter
+        return SmtpEmailAdapter.from_credentials(None)
 
     async def get_sms_adapter(self, vendor_id: UUID) -> Optional[SmsAdapter]:
+        from app.config import settings
+        from app.services.integration_defaults_service import merge_platform_defaults
+
+        def _merge_platform(creds: dict | None) -> dict:
+            merged = dict(creds or {})
+            platform_creds, platform_settings = merge_platform_defaults("twilio", {}, {})
+            for key, value in platform_creds.items():
+                if value and not merged.get(key):
+                    merged[key] = value
+            for key, value in platform_settings.items():
+                if value and not merged.get(key):
+                    merged[key] = value
+            if not merged.get("from_number") and (settings.TWILIO_FROM_NUMBER or "").strip():
+                merged["from_number"] = settings.TWILIO_FROM_NUMBER.strip()
+            if not merged.get("account_sid") and (settings.TWILIO_ACCOUNT_SID or "").strip():
+                merged["account_sid"] = settings.TWILIO_ACCOUNT_SID.strip()
+            if not merged.get("auth_token") and (settings.TWILIO_AUTH_TOKEN or "").strip():
+                merged["auth_token"] = settings.TWILIO_AUTH_TOKEN.strip()
+            return merged
+
         creds = await self._load(vendor_id, "twilio_sms")
         if creds:
-            return TwilioSmsAdapter.from_credentials(creds)
-        # CRM Integrations page saves a single "twilio" provider row
+            return TwilioSmsAdapter.from_credentials(_merge_platform(creds))
         creds = await self._load(vendor_id, "twilio")
         if creds:
-            return TwilioSmsAdapter.from_credentials(creds)
+            return TwilioSmsAdapter.from_credentials(_merge_platform(creds))
+        platform = _merge_platform({})
+        if platform.get("account_sid") and platform.get("auth_token"):
+            return TwilioSmsAdapter.from_credentials(platform)
         return None
 
     async def get_whatsapp_adapter(self, vendor_id: UUID) -> Optional[WhatsAppAdapter]:

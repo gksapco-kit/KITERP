@@ -1,18 +1,22 @@
 import { useState } from 'react'
+import { Link } from 'react-router-dom'
 import { TableColumnLabel } from '@/components/common/FieldLabel'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { PhoneInput } from '@/components/ui/PhoneInput'
 import { Select, selectOptionsWithBlank } from '@/components/ui/select'
 import { Badge } from '@/components/ui/badge'
 import { useCampaigns, useSaveCampaign, useEmailTemplates, useSegments, useCampaignAudience, useTestTemplate } from '@/hooks/useCrm'
+import { useMessageDeliveryStatus } from '@/hooks/useVendor'
 import { crmApi, type Campaign, type CampaignStep, type EmailTemplate, type Contact } from '@/api/crm'
-import { Plus, Loader2, Megaphone, Play, Pause, Send, MousePointerClick, AlertCircle, Edit3, Users } from 'lucide-react'
+import { Plus, Loader2, Megaphone, Play, Pause, Send, MousePointerClick, AlertCircle, Edit3, Users, ChevronDown, ChevronUp } from 'lucide-react'
 import { CrmModal, Field, Pager, LoadingRow, EmptyRow } from './_shared'
 import { formatDateTime } from '@/lib/utils'
 import { useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { extractApiError } from '@/lib/errorMessages'
+import { isValidPhoneE164, normalizePhoneE164 } from '@/lib/phoneE164'
 import { inputCls } from './crmContactsShared'
 import { CampaignStepsBuilder, type CampaignDripStep } from './crmMarketingForms'
 import { CrmDateTimeField } from './crmExtras'
@@ -27,17 +31,104 @@ function stepsToDrip(steps?: CampaignStep[]): CampaignDripStep[] {
   }))
 }
 
-function contactLabel(c: Contact): string {
-  const name = [c.first_name, c.last_name].filter(Boolean).join(' ').trim()
-  if (c.phone || c.mobile) return `${name || 'Contact'} · ${c.mobile || c.phone}`
-  if (c.email) return `${name || 'Contact'} · ${c.email}`
-  return name || 'Contact'
+function contactLabel(c: Contact, channel: string): string {
+  const name = [c.first_name, c.last_name].filter(Boolean).join(' ').trim() || 'Contact'
+  const isPhoneChannel = channel === 'sms' || channel === 'whatsapp'
+  if (isPhoneChannel) {
+    const phone = (c.mobile || c.phone || '').trim()
+    if (phone) return `${name} · ${phone}`
+  } else {
+    const email = (c.email || '').trim()
+    if (email) return `${name} · ${email}`
+  }
+  return name
 }
 
 function channelTemplateLabel(channel: string) {
   if (channel === 'whatsapp') return 'WhatsApp template'
   if (channel === 'sms') return 'SMS template'
   return 'Email template'
+}
+
+const AUDIENCE_PREVIEW_LIMIT = 25
+const AUDIENCE_COLLAPSE_THRESHOLD = 15
+
+function channelDeliveryLabel(channel: string) {
+  if (channel === 'whatsapp') return 'WhatsApp'
+  if (channel === 'sms') return 'SMS'
+  return 'email'
+}
+
+function AudienceContactPreview({
+  contacts,
+  total,
+  channel,
+}: {
+  contacts: Contact[]
+  total: number
+  channel: string
+}) {
+  const [expanded, setExpanded] = useState(total <= AUDIENCE_COLLAPSE_THRESHOLD)
+  const [search, setSearch] = useState('')
+  const deliveryLabel = channelDeliveryLabel(channel)
+  const hiddenCount = Math.max(0, total - contacts.length)
+  const query = search.trim().toLowerCase()
+  const filtered = query
+    ? contacts.filter(c => contactLabel(c, channel).toLowerCase().includes(query))
+    : contacts
+
+  if (total === 0) return null
+
+  return (
+    <div className="mt-2 border-t pt-2 space-y-2">
+      {total > AUDIENCE_COLLAPSE_THRESHOLD && (
+        <button
+          type="button"
+          className="flex w-full items-center justify-between rounded-md px-1 py-0.5 text-xs font-medium text-emerald-700 hover:bg-emerald-50/60"
+          onClick={() => setExpanded(v => !v)}
+        >
+          <span>
+            {expanded ? 'Hide contact preview' : `Show contact preview (${contacts.length} of ${total})`}
+          </span>
+          {expanded ? <ChevronUp className="w-4 h-4 shrink-0" /> : <ChevronDown className="w-4 h-4 shrink-0" />}
+        </button>
+      )}
+
+      {expanded && (
+        <>
+          {contacts.length >= 8 && (
+            <Input
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              placeholder="Search in preview…"
+              className="h-8 text-xs bg-white"
+            />
+          )}
+          <ul
+            className="max-h-48 overflow-y-auto rounded-md border border-gray-100 bg-white/90 divide-y divide-gray-50"
+            role="list"
+          >
+            {filtered.length === 0 ? (
+              <li className="px-2.5 py-3 text-xs text-gray-500 text-center">No matches in preview</li>
+            ) : (
+              filtered.map(c => (
+                <li key={c.id} className="truncate px-2.5 py-1.5 text-xs text-gray-600">
+                  {contactLabel(c, channel)}
+                </li>
+              ))
+            )}
+          </ul>
+        </>
+      )}
+
+      {hiddenCount > 0 && (
+        <p className="text-xs text-gray-500">
+          Showing {contacts.length} of <span className="font-medium text-gray-700">{total}</span> contacts.
+          {' '}All {total} will receive this {deliveryLabel}.
+        </p>
+      )}
+    </div>
+  )
 }
 
 function readCampaignScheduleEnd(campaign?: Campaign): string {
@@ -78,7 +169,17 @@ function CampaignForm({
   const { data: audience, isLoading: audienceLoading } = useCampaignAudience(
     form.channel,
     form.segment_id || undefined,
+    true,
+    AUDIENCE_PREVIEW_LIMIT,
   )
+  const { data: deliveryStatus } = useMessageDeliveryStatus()
+
+  const channelDelivery = form.channel === 'whatsapp'
+    ? deliveryStatus?.whatsapp
+    : form.channel === 'sms'
+      ? deliveryStatus?.sms
+      : deliveryStatus?.email
+  const channelReady = !deliveryStatus || channelDelivery?.ready !== false
 
   const allContactsLabel = audienceLoading
     ? 'All customer contacts…'
@@ -99,11 +200,18 @@ function CampaignForm({
       toast.error(isPhoneChannel ? 'Enter a phone number for the test' : 'Enter an email for the test')
       return
     }
+    if (isPhoneChannel) {
+      const phone = normalizePhoneE164(recipient)
+      if (!isValidPhoneE164(phone)) {
+        toast.error('Enter a valid mobile number with country code (e.g. +91 96525 02965)')
+        return
+      }
+    }
     try {
       const result = await testTemplate.mutateAsync({
         id: testTemplateId,
         data: isPhoneChannel
-          ? { channel: form.channel, test_phone: recipient }
+          ? { channel: form.channel, test_phone: normalizePhoneE164(recipient) }
           : { channel: form.channel, test_email: recipient },
       })
       toast.success(result.message || 'Test sent')
@@ -220,20 +328,36 @@ function CampaignForm({
             Test before creating campaign
           </p>
           <Field label={isPhoneChannel ? 'Your phone number' : 'Your email address'}>
-            <div className="flex gap-2">
-              <Input
-                type={isPhoneChannel ? 'tel' : 'email'}
-                value={testRecipient}
-                onChange={e => setTestRecipient(e.target.value)}
-                placeholder={isPhoneChannel ? (form.channel === 'whatsapp' ? '+919652502965' : '+919876543210') : 'you@example.com'}
-                className="flex-1 bg-white"
-                disabled={!testTemplateId}
-              />
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-start">
+              {isPhoneChannel ? (
+                <div className="min-w-0 flex-1">
+                  <PhoneInput
+                    value={testRecipient}
+                    onChange={setTestRecipient}
+                    defaultCountryIso="IN"
+                    inferCountryFromLocation
+                    compact
+                    compactCountry
+                    placeholder="96525 02965"
+                    disabled={!testTemplateId || !channelReady}
+                    className="bg-white"
+                  />
+                </div>
+              ) : (
+                <Input
+                  type="email"
+                  value={testRecipient}
+                  onChange={e => setTestRecipient(e.target.value)}
+                  placeholder="you@example.com"
+                  className="flex-1 bg-white"
+                  disabled={!testTemplateId || !channelReady}
+                />
+              )}
               <Button
                 type="button"
                 variant="outline"
-                className="shrink-0 bg-white"
-                disabled={testTemplate.isPending || !testTemplateId || !testRecipient.trim()}
+                className="shrink-0 bg-white sm:mt-0"
+                disabled={testTemplate.isPending || !testTemplateId || !testRecipient.trim() || !channelReady}
                 onClick={sendTest}
               >
                 {testTemplate.isPending
@@ -249,11 +373,27 @@ function CampaignForm({
                 ? 'Add at least one step with a template in the sequence above.'
                 : `Select a ${channelTemplateLabel(form.channel).toLowerCase()} above to send a sample.`}
             </p>
+          ) : !channelReady && channelDelivery?.missing?.[0] ? (
+            <p className="text-xs text-amber-700 flex items-start gap-1.5">
+              <AlertCircle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+              <span>
+                {channelDelivery.missing[0]}{' '}
+                <Link to="/crm/integrations" className="font-medium underline underline-offset-2">
+                  Open Integrations
+                </Link>
+              </span>
+            </p>
           ) : (
             <p className="text-[11px] text-gray-500">
               Sends one sample {form.channel === 'whatsapp' ? 'WhatsApp' : form.channel === 'sms' ? 'SMS' : 'email'} with demo merge tags (e.g. Priya). No campaign is created until you click Create campaign.
               {form.channel === 'whatsapp' && (
                 <> {' '}Twilio sandbox: set <span className="font-medium">whatsapp_from</span> to +14155238886 in Integrations, then message +1 415 523 8886 on WhatsApp with your join code.</>
+              )}
+              {form.channel === 'sms' && (
+                <> {' '}Trial Twilio: verify +91 numbers in Twilio Console. SMS is not WhatsApp — check your text message inbox.</>
+              )}
+              {form.channel === 'email' && (
+                <> {' '}Check spam if you don’t see the email. Sandbox SMTP (e.g. Mailtrap) only delivers to its test inbox.</>
               )}
             </p>
           )}
@@ -283,21 +423,17 @@ function CampaignForm({
               )}
             </div>
             {!audienceLoading && (audience?.contacts?.length ?? 0) > 0 && (
-              <ul className="mt-2 space-y-1 border-t pt-2">
-                {audience!.contacts.map(c => (
-                  <li key={c.id} className="text-xs text-gray-600 truncate">{contactLabel(c)}</li>
-                ))}
-                {(audience?.total ?? 0) > (audience?.contacts?.length ?? 0) && (
-                  <li className="text-xs text-gray-400">
-                    + {(audience?.total ?? 0) - (audience?.contacts?.length ?? 0)} more contacts
-                  </li>
-                )}
-              </ul>
+              <AudienceContactPreview
+                key={`${form.channel}-${form.segment_id}-${audience?.total ?? 0}`}
+                contacts={audience!.contacts}
+                total={audience?.total ?? 0}
+                channel={form.channel}
+              />
             )}
             {!audienceLoading && (audience?.total ?? 0) === 0 && (
               <p className="mt-2 text-xs text-amber-700 border-t pt-2">
                 No contacts with a valid {form.channel === 'email' ? 'email address' : 'phone number'} found.
-                Add contacts in CRM first.
+                Add customers in Master Data with a {form.channel === 'email' ? 'email' : 'phone number'}, or add contacts in CRM.
               </p>
             )}
           </div>
@@ -340,12 +476,38 @@ export default function CampaignsPage() {
   const { data, isLoading } = useCampaigns({ page, size: 20 })
 
   const start = async (id: string) => {
-    await crmApi.startCampaign(id)
-    qc.invalidateQueries({ queryKey: ['crm', 'campaigns'] })
+    try {
+      const result = await crmApi.startCampaign(id) as Campaign & {
+        dispatch_sent?: number
+        dispatch_failed?: number
+        dispatch_enrolled?: number
+        dispatch_message?: string
+      }
+      const sent = result.dispatch_sent ?? 0
+      const failed = result.dispatch_failed ?? 0
+      const enrolled = result.dispatch_enrolled ?? 0
+      if (sent > 0) {
+        toast.success(`Campaign sent to ${sent} contact${sent === 1 ? '' : 's'}${failed > 0 ? ` (${failed} failed)` : ''}.`)
+      } else if (result.dispatch_message) {
+        toast.error(result.dispatch_message)
+      } else if (enrolled === 0) {
+        toast.error('No eligible contacts to send to. Add customers with email in Master Data.')
+      } else {
+        toast.error('Campaign started but no messages were sent. Check CRM → Integrations (email setup).')
+      }
+      qc.invalidateQueries({ queryKey: ['crm', 'campaigns'] })
+    } catch (err) {
+      toast.error(extractApiError(err, 'Could not start campaign'))
+    }
   }
   const pause = async (id: string) => {
-    await crmApi.pauseCampaign(id)
-    qc.invalidateQueries({ queryKey: ['crm', 'campaigns'] })
+    try {
+      await crmApi.pauseCampaign(id)
+      qc.invalidateQueries({ queryKey: ['crm', 'campaigns'] })
+      toast.success('Campaign paused')
+    } catch (err) {
+      toast.error(extractApiError(err, 'Could not pause campaign'))
+    }
   }
 
   return (
@@ -390,7 +552,7 @@ export default function CampaignsPage() {
                     <Badge variant="soft">{c.channel}</Badge>
                   </td>
                   <td className="px-6 py-4">
-                    <Badge variant={c.status === 'running' ? 'success' : c.status === 'paused' ? 'warning' : 'secondary'}>{c.status}</Badge>
+                    <Badge variant={c.status === 'active' ? 'success' : c.status === 'paused' ? 'warning' : 'secondary'}>{c.status}</Badge>
                   </td>
                   <td className="px-6 py-4 text-xs text-gray-600 hidden lg:table-cell">
                     <div className="flex gap-3">
@@ -405,11 +567,29 @@ export default function CampaignsPage() {
                       <Button variant="ghost" size="sm" onClick={() => setEdit(c)} title="Edit">
                         <Edit3 className="w-4 h-4" />
                       </Button>
-                      {c.status === 'running' ? (
-                        <Button variant="ghost" size="sm" onClick={() => pause(c.id)}><Pause className="w-4 h-4" /></Button>
-                      ) : (
-                        <Button variant="ghost" size="sm" onClick={() => start(c.id)}><Play className="w-4 h-4 text-emerald-600" /></Button>
-                      )}
+                      {(() => {
+                        const isActive = c.status === 'active' || c.status === 'running'
+                        const needsSend = isActive && (c.sent_count ?? 0) === 0
+                        if (needsSend) {
+                          return (
+                            <Button variant="ghost" size="sm" title="Send to audience" onClick={() => start(c.id)}>
+                              <Play className="w-4 h-4 text-emerald-600" />
+                            </Button>
+                          )
+                        }
+                        if (isActive) {
+                          return (
+                            <Button variant="ghost" size="sm" title="Pause campaign" onClick={() => pause(c.id)}>
+                              <Pause className="w-4 h-4" />
+                            </Button>
+                          )
+                        }
+                        return (
+                          <Button variant="ghost" size="sm" title="Start campaign" onClick={() => start(c.id)}>
+                            <Play className="w-4 h-4 text-emerald-600" />
+                          </Button>
+                        )
+                      })()}
                     </div>
                   </td>
                 </tr>

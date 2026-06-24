@@ -6,6 +6,7 @@ side-effects like calling external providers.
 from __future__ import annotations
 
 import logging
+import re
 import secrets
 from datetime import datetime, timezone
 from decimal import Decimal
@@ -231,6 +232,82 @@ class ContactService:
         )
         await self.db.delete(obj)
         await self.db.commit()
+
+    async def ensure_from_customer(
+        self, vendor_id: UUID, customer, *, commit: bool = True,
+    ) -> Optional[CrmContact]:
+        """Create or update a CRM contact linked to a master-data customer."""
+        row = await self.db.execute(
+            select(CrmContact).where(
+                CrmContact.vendor_id == vendor_id,
+                CrmContact.customer_id == customer.id,
+            )
+        )
+        contact = row.scalar_one_or_none()
+        first, last = _split_person_name(customer.full_name)
+
+        if contact:
+            contact.first_name = first
+            contact.last_name = last
+            if customer.email:
+                contact.email = customer.email
+            if customer.phone:
+                contact.phone = customer.phone
+                contact.mobile = customer.phone
+            contact.is_active = bool(customer.is_active)
+            contact.lifecycle_stage = "customer"
+        else:
+            contact = CrmContact(
+                vendor_id=vendor_id,
+                customer_id=customer.id,
+                record_type="person",
+                first_name=first,
+                last_name=last,
+                email=customer.email,
+                phone=customer.phone,
+                mobile=customer.phone,
+                lifecycle_stage="customer",
+                lead_source="master_data",
+                is_active=bool(customer.is_active),
+            )
+            self.db.add(contact)
+
+        if commit:
+            await self.db.commit()
+            await self.db.refresh(contact)
+        else:
+            await self.db.flush()
+        return contact
+
+    async def sync_master_customers(self, vendor_id: UUID, channel: str = "email") -> None:
+        """Import eligible master-data customers as CRM contacts for campaigns."""
+        from sqlalchemy import and_ as sa_and
+
+        from app.models.customer import Customer
+
+        ch = (channel or "email").lower()
+        where = [Customer.vendor_id == vendor_id, Customer.is_active.is_(True)]
+        if ch == "email":
+            where.extend([Customer.email.isnot(None), Customer.email != ""])
+        else:
+            where.extend([Customer.phone.isnot(None), Customer.phone != ""])
+
+        rows = await self.db.execute(select(Customer).where(sa_and(*where)))
+        customers = list(rows.scalars().all())
+        if not customers:
+            return
+
+        for customer in customers:
+            await self.ensure_from_customer(vendor_id, customer, commit=False)
+        await self.db.commit()
+
+
+def _split_person_name(full_name: Optional[str]) -> tuple[str, Optional[str]]:
+    text = (full_name or "").strip()
+    if not text:
+        return "Customer", None
+    parts = text.split(None, 1)
+    return parts[0], (parts[1] if len(parts) > 1 else None)
 
 
 # ── Lead service ─────────────────────────────────────────────────────────────
@@ -1133,6 +1210,11 @@ class EmailTemplateService:
             subject = render_merge_tags(template.subject or template.name or "Test", **merge_kwargs)
             body_html = render_merge_tags(resolve_email_body_html(template), **merge_kwargs)
             body_text = render_merge_tags(template.body_text or "", **merge_kwargs) or None
+            if not (body_html or "").strip():
+                body_html = "<p>Test message from your campaign template.</p>"
+            if not body_text:
+                body_text = re.sub(r"<[^>]+>", " ", body_html)
+                body_text = re.sub(r"\s+", " ", body_text).strip() or "Test message"
             result = await send_email(
                 vendor_id=vendor_id, contact_id=None, subject=subject,
                 body_html=body_html, body_text=body_text, to_email=test_email,
@@ -1158,9 +1240,37 @@ class EmailTemplateService:
                     media_type=wa.get("media_type"),
                 )
             else:
-                body = render_merge_tags(resolve_plain_body(template) or "Test message", **merge_kwargs)
+                from app.integrations.registry import IntegrationRegistry
+                from app.integrations.twilio import TwilioSmsAdapter, validate_twilio_sms_config
+                from app.services.sms_service import truncate_sms_body, SMS_TRIAL_SAFE_LEN
+
+                registry = IntegrationRegistry(self.db)
+                sms_adapter = await registry.get_sms_adapter(vendor_id)
+                if not sms_adapter:
+                    raise HTTPException(
+                        status_code=400,
+                        detail=(
+                            "SMS is not configured. Connect Twilio in CRM → Integrations and set "
+                            "from_number to an SMS-capable Twilio phone number."
+                        ),
+                    )
+                if isinstance(sms_adapter, TwilioSmsAdapter):
+                    preflight = await validate_twilio_sms_config(
+                        sms_adapter.account_sid,
+                        sms_adapter.auth_token,
+                        sms_adapter.from_number,
+                        whatsapp_from=getattr(sms_adapter, "_whatsapp_from", ""),
+                    )
+                    if not preflight.get("ready"):
+                        raise HTTPException(status_code=400, detail=preflight.get("detail"))
+
+                body = truncate_sms_body(
+                    render_merge_tags(resolve_plain_body(template) or "Test message", **merge_kwargs),
+                    SMS_TRIAL_SAFE_LEN,
+                )
                 result = await send_sms(
                     vendor_id=vendor_id, contact_id=None, body=body, to_phone=test_phone,
+                    require_delivery_confirm=True,
                 )
         else:
             raise HTTPException(status_code=400, detail=f"Unsupported channel: {channel}")
@@ -1177,9 +1287,40 @@ class EmailTemplateService:
                             "whatsapp_from (sandbox: +14155238886) — separate from SMS from_number."
                         ),
                     )
+                if channel == "email":
+                    raise HTTPException(
+                        status_code=400,
+                        detail=result.get("detail") or (
+                            "Email is not configured. Connect SendGrid or SMTP under CRM → Integrations."
+                        ),
+                    )
                 raise HTTPException(
                     status_code=400,
                     detail=f"No {channel} integration configured. Set it up under CRM Integrations first.",
+                )
+            if err == "no_from_number":
+                raise HTTPException(
+                    status_code=400,
+                    detail=result.get("detail") or (
+                        "SMS from_number is not set. In CRM → Integrations → Twilio, set from_number "
+                        "(your Twilio phone number) — separate from whatsapp_from."
+                    ),
+                )
+            if err == "invalid_from_number":
+                raise HTTPException(
+                    status_code=400,
+                    detail=result.get("detail") or "SMS from_number is not valid for sending text messages.",
+                )
+            if err in ("delivery_failed", "send_failed", "delivery_unconfirmed"):
+                from app.services.sms_service import twilio_sms_user_hint
+
+                detail = result.get("detail") or twilio_sms_user_hint(
+                    result.get("code"),
+                    str(result.get("error") or ""),
+                )
+                raise HTTPException(
+                    status_code=400,
+                    detail=detail or f"Test {channel} could not be delivered.",
                 )
             if err == "no_recipient":
                 raise HTTPException(status_code=400, detail="Recipient address is required.")
@@ -1195,6 +1336,19 @@ class EmailTemplateService:
         extra = ""
         if channel == "whatsapp":
             extra = " Check WhatsApp on your phone (Twilio sandbox: join +1 415 523 8886 first)."
+        elif channel == "sms":
+            if result.get("delivery_status") == "delivered":
+                extra = " It was confirmed delivered to your SMS inbox."
+            else:
+                extra = " Check your phone’s SMS inbox (not WhatsApp)."
+        elif channel == "email":
+            provider = str(result.get("provider") or "")
+            if provider == "smtp":
+                extra = (
+                    " If you use Mailtrap or another sandbox SMTP, open that inbox — not your regular email."
+                )
+            else:
+                extra = " Check your inbox and spam folder. Verify the sender address in SendGrid if needed."
         return {"ok": True, "message": f"Test {label} sent to {target}.{extra}"}
 
 
@@ -1258,6 +1412,8 @@ class CampaignService:
     ) -> list[UUID]:
         from sqlalchemy import and_ as sa_and, or_ as sa_or
 
+        await ContactService(self.db).sync_master_customers(vendor_id, channel)
+
         if segment_id:
             seg = await SegmentService(self.db).get(vendor_id, segment_id)
             base_ids = await SegmentService(self.db)._matching_contact_ids(vendor_id, seg)
@@ -1279,7 +1435,12 @@ class CampaignService:
                 CrmContact.email != "",
             ])
         elif ch in ("sms", "whatsapp"):
-            where.append(sa_or(CrmContact.phone.isnot(None), CrmContact.mobile.isnot(None)))
+            where.append(
+                sa_or(
+                    sa_and(CrmContact.phone.isnot(None), CrmContact.phone != ""),
+                    sa_and(CrmContact.mobile.isnot(None), CrmContact.mobile != ""),
+                )
+            )
 
         rows = await self.db.execute(select(CrmContact.id).where(sa_and(*where)))
         return [r[0] for r in rows.all()]
@@ -1332,15 +1493,31 @@ class CampaignService:
         )
 
     async def start(self, vendor_id: UUID, campaign_id: UUID, *,
-                    actor_id: Optional[UUID] = None) -> CrmCampaign:
+                    actor_id: Optional[UUID] = None) -> tuple[CrmCampaign, dict]:
         result = await self.get(vendor_id, campaign_id)
         obj, _ = result
-        await self.enroll_audience(vendor_id, campaign_id, actor_id=actor_id)
+        enrolled = await self.enroll_audience(vendor_id, campaign_id, actor_id=actor_id)
         obj.status = "active"
-        obj.started_at = datetime.now(timezone.utc)
+        if not obj.started_at:
+            obj.started_at = datetime.now(timezone.utc)
         await self.db.commit()
         await self.db.refresh(obj)
-        return obj
+
+        from app.tasks.crm.campaign_dispatch import dispatch_campaign
+
+        dispatch_stats = await dispatch_campaign(campaign_id, vendor_id)
+        dispatch_stats["enrolled"] = enrolled
+        if dispatch_stats.get("sent", 0) == 0 and enrolled == 0:
+            dispatch_stats.setdefault(
+                "message",
+                "No eligible contacts found. Add customers with email in Master Data.",
+            )
+        elif dispatch_stats.get("sent", 0) == 0 and not dispatch_stats.get("error"):
+            dispatch_stats.setdefault(
+                "message",
+                "Contacts enrolled but messages could not be sent. Check CRM → Integrations (email/SMS).",
+            )
+        return obj, dispatch_stats
 
     async def pause(self, vendor_id: UUID, campaign_id: UUID) -> CrmCampaign:
         result = await self.get(vendor_id, campaign_id)

@@ -541,7 +541,9 @@ export interface Customer {
   phone?: string
   gstin?: string
   pan_number?: string
+  cin?: string
   company_name?: string
+  notes?: string
   billing_address?: {
     street?: string
     city?: string
@@ -559,6 +561,7 @@ export interface Customer {
   account_type?: string | null
   ifsc_code?: string | null
   created_at: string
+  updated_at?: string
 }
 
 /** Returned by checkCustomerDuplicates when a phone/email already exists. */
