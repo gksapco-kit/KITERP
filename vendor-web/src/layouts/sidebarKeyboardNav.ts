@@ -122,11 +122,12 @@ export function buildRailFlyoutTree(sectionId: string, items: NavItemLike[]): Si
 
 export type SidebarNavAction =
   | { type: 'focus'; key: string }
-  | { type: 'expandSection'; title: string; sectionId: string }
+  | { type: 'navigate'; to: string; focusKey?: string }
+  | { type: 'expandSection'; title: string; sectionId: string; focusKey?: string; navigateTo?: string }
   | { type: 'collapseSection'; title: string; sectionId: string }
-  | { type: 'expandGroup'; grpKey: string }
+  | { type: 'expandGroup'; grpKey: string; focusKey?: string; navigateTo?: string }
   | { type: 'collapseGroup'; grpKey: string }
-  | { type: 'openRailFlyout'; sectionId: string }
+  | { type: 'openRailFlyout'; sectionId: string; focusKey?: string; navigateTo?: string }
   | { type: 'closeRailFlyout'; focusKey?: string }
 
 function nodeIndex(nodes: SidebarNavNode[], key: string | null): number {
@@ -141,6 +142,77 @@ function firstChildKey(nodes: SidebarNavNode[], parentKey: string): string | nul
   return child.parentKey === parentKey ? child.key : null
 }
 
+function isDescendantOf(
+  nodes: SidebarNavNode[],
+  nodeKey: string,
+  ancestorKey: string,
+): boolean {
+  const byKey = new Map(nodes.map((n) => [n.key, n]))
+  let current = byKey.get(nodeKey)
+  while (current?.parentKey) {
+    if (current.parentKey === ancestorKey) return true
+    current = byKey.get(current.parentKey)
+  }
+  return false
+}
+
+/** Active route item under a section/group header, if any. */
+export function activeDescendantKey(
+  nodes: SidebarNavNode[],
+  ancestorKey: string,
+  activeNavTo: string | null | undefined,
+): string | null {
+  if (!activeNavTo) return null
+  for (const node of nodes) {
+    if (
+      (node.kind === 'item' || node.kind === 'flyout') &&
+      node.to === activeNavTo &&
+      isDescendantOf(nodes, node.key, ancestorKey)
+    ) {
+      return node.key
+    }
+  }
+  return null
+}
+
+function childFocusKey(
+  nodes: SidebarNavNode[],
+  parentKey: string,
+  activeNavTo: string | null | undefined,
+): string | null {
+  return activeDescendantKey(nodes, parentKey, activeNavTo) ?? firstChildKey(nodes, parentKey)
+}
+
+/** Next/previous main module row (section header or rail icon), skipping submenu items. */
+export function adjacentMainMenuKey(
+  mainNodes: SidebarNavNode[],
+  treeNodes: SidebarNavNode[],
+  currentKey: string | null,
+  direction: 'next' | 'prev',
+): string | null {
+  if (!mainNodes.length) return null
+
+  let mainIdx = -1
+  if (currentKey) {
+    const current = treeNodes.find((n) => n.key === currentKey)
+    if (current) {
+      if (current.kind === 'section' || current.kind === 'rail') {
+        mainIdx = mainNodes.findIndex((n) => n.key === current.key)
+      } else {
+        mainIdx = mainNodes.findIndex((n) => n.sectionId === current.sectionId)
+      }
+    }
+  }
+
+  if (mainIdx < 0) {
+    return direction === 'next' ? (mainNodes[0]?.key ?? null) : null
+  }
+
+  const nextIdx = direction === 'next' ? mainIdx + 1 : mainIdx - 1
+  if (nextIdx < 0 || nextIdx >= mainNodes.length) return null
+  return mainNodes[nextIdx].key
+}
+
 export function resolveSidebarNavKeyAction(
   key: string,
   nodes: SidebarNavNode[],
@@ -150,6 +222,10 @@ export function resolveSidebarNavKeyAction(
     collapsedGroups: Record<string, boolean>
     railFlyoutSectionId: string | null
     railFlyoutFirstKey?: string | null
+    railFlyoutActiveKey?: string | null
+    activeNavTo?: string | null
+    ctrlKey?: boolean
+    mainMenuNodes?: SidebarNavNode[]
   },
 ): SidebarNavAction | null {
   const idx = nodeIndex(nodes, currentKey)
@@ -172,29 +248,74 @@ export function resolveSidebarNavKeyAction(
     return prev ? { type: 'focus', key: prev.key } : null
   }
 
+  if (ctx.ctrlKey && (key === 'ArrowRight' || key === 'ArrowLeft')) {
+    const mainNodes =
+      ctx.mainMenuNodes ?? nodes.filter((n) => n.kind === 'section' || n.kind === 'rail')
+    const adjacentKey = adjacentMainMenuKey(
+      mainNodes,
+      nodes,
+      currentKey,
+      key === 'ArrowRight' ? 'next' : 'prev',
+    )
+    if (!adjacentKey) return null
+    if (ctx.railFlyoutSectionId) {
+      return { type: 'closeRailFlyout', focusKey: adjacentKey }
+    }
+    return { type: 'focus', key: adjacentKey }
+  }
+
   if (!current) return null
 
   if (key === 'ArrowRight') {
     if (current.kind === 'section') {
       const collapsed = ctx.collapsedSections[current.sectionTitle ?? ''] ?? true
+      const activeChild = activeDescendantKey(nodes, current.key, ctx.activeNavTo)
       if (collapsed) {
         return {
           type: 'expandSection',
           title: current.sectionTitle ?? '',
           sectionId: current.sectionId,
+          focusKey: activeChild ?? undefined,
+          navigateTo: activeChild ? ctx.activeNavTo ?? undefined : undefined,
         }
       }
-      const child = firstChildKey(nodes, current.key)
-      return child ? { type: 'focus', key: child } : null
+      const child = childFocusKey(nodes, current.key, ctx.activeNavTo)
+      if (!child) return null
+      const childNode = nodes.find((n) => n.key === child)
+      if (childNode?.to && childNode.to === ctx.activeNavTo) {
+        return { type: 'navigate', to: childNode.to, focusKey: child }
+      }
+      return { type: 'focus', key: child }
     }
     if (current.kind === 'group') {
       const collapsed = ctx.collapsedGroups[current.grpKey ?? ''] ?? false
-      if (collapsed) return { type: 'expandGroup', grpKey: current.grpKey ?? '' }
-      const child = firstChildKey(nodes, current.key)
-      return child ? { type: 'focus', key: child } : null
+      const activeChild = activeDescendantKey(nodes, current.key, ctx.activeNavTo)
+      if (collapsed) {
+        return {
+          type: 'expandGroup',
+          grpKey: current.grpKey ?? '',
+          focusKey: activeChild ?? undefined,
+          navigateTo: activeChild ? ctx.activeNavTo ?? undefined : undefined,
+        }
+      }
+      const child = childFocusKey(nodes, current.key, ctx.activeNavTo)
+      if (!child) return null
+      const childNode = nodes.find((n) => n.key === child)
+      if (childNode?.to && childNode.to === ctx.activeNavTo) {
+        return { type: 'navigate', to: childNode.to, focusKey: child }
+      }
+      return { type: 'focus', key: child }
     }
     if (current.kind === 'rail') {
-      return { type: 'openRailFlyout', sectionId: current.sectionId }
+      return {
+        type: 'openRailFlyout',
+        sectionId: current.sectionId,
+        focusKey: ctx.railFlyoutActiveKey ?? ctx.railFlyoutFirstKey ?? undefined,
+        navigateTo: ctx.railFlyoutActiveKey ? ctx.activeNavTo ?? undefined : undefined,
+      }
+    }
+    if ((current.kind === 'item' || current.kind === 'flyout') && current.to) {
+      return { type: 'navigate', to: current.to, focusKey: current.key }
     }
     return null
   }
@@ -240,6 +361,13 @@ export function resolveSidebarNavKeyAction(
   if (key === 'End') {
     const last = nodes[nodes.length - 1]
     return last ? { type: 'focus', key: last.key } : null
+  }
+
+  if (key === 'Enter' || key === ' ') {
+    if ((current.kind === 'item' || current.kind === 'flyout') && current.to) {
+      return { type: 'navigate', to: current.to, focusKey: current.key }
+    }
+    return null
   }
 
   if (ctx.railFlyoutSectionId && key === 'Escape') {

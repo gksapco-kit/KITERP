@@ -310,6 +310,32 @@ function resolveActiveNavTo(pathname: string, search: string, items: NavItem[]):
   return bestTo
 }
 
+/** True when the current URL already matches this nav item (including child paths). */
+function isNavRouteActive(pathname: string, search: string, navTo: string): boolean {
+  const qIdx = navTo.indexOf('?')
+  const path = qIdx >= 0 ? navTo.slice(0, qIdx) : navTo
+  if (!pathnameMatchesNavItem(pathname, path)) return false
+  if (qIdx < 0) return true
+  const locParams = new URLSearchParams(search)
+  const itemParams = new URLSearchParams(navTo.slice(qIdx + 1))
+  let paramsMatch = true
+  itemParams.forEach((value, key) => {
+    if (locParams.get(key) !== value) paramsMatch = false
+  })
+  return paramsMatch
+}
+
+function sectionActiveNavTo(
+  sectionId: string,
+  activeNavTo: string | null,
+  orderedNavItemsBySectionId: Map<string, NavItem[]>,
+  displaySections: { id: string; items: NavItem[] }[],
+): string | null {
+  if (!activeNavTo) return null
+  const items = orderedNavItemsBySectionId.get(sectionId) ?? displaySections.find((s) => s.id === sectionId)?.items ?? []
+  return items.some((it) => it.to === activeNavTo) ? activeNavTo : null
+}
+
 const SETTINGS_SECTION_TITLES: Record<string, string> = {
   profile: 'Business Profile',
   contact: 'Contact Information',
@@ -2007,15 +2033,34 @@ export default function DashboardLayout() {
   }, [location.pathname])
 
   const toggleSection = useCallback((title: string, sectionId: string) => {
+    const activeInSection = sectionActiveNavTo(
+      sectionId,
+      activeNavTo,
+      orderedNavItemsBySectionId,
+      displaySections,
+    )
     setCollapsedSections((prev) => {
       const wasCollapsed = prev[title] ?? true
       if (!wasCollapsed) {
         return { ...prev, [title]: true }
       }
       pendingScrollSectionId.current = sectionId
+      if (activeInSection && !isNavRouteActive(location.pathname, location.search, activeInSection)) {
+        navigate(activeInSection)
+      }
+      if (activeInSection) {
+        setNavFocusKey(itemFocusKey(sectionId, activeInSection))
+      }
       return { ...prev, [title]: false }
     })
-  }, [])
+  }, [
+    activeNavTo,
+    displaySections,
+    location.pathname,
+    location.search,
+    navigate,
+    orderedNavItemsBySectionId,
+  ])
 
   useLayoutEffect(() => {
     const sectionId = pendingScrollSectionId.current
@@ -2046,9 +2091,23 @@ export default function DashboardLayout() {
     return () => window.clearTimeout(afterExpand)
   }, [collapsedSections])
 
-  const toggleGroup = (key: string) => {
-    setCollapsedGroups(prev => ({ ...prev, [key]: !prev[key] }))
-  }
+  const toggleGroup = useCallback((grpKey: string, sectionId: string, groupItems: NavItem[]) => {
+    const activeInGroup =
+      activeNavTo && groupItems.some((it) => it.to === activeNavTo) ? activeNavTo : null
+    setCollapsedGroups((prev) => {
+      const wasCollapsed = prev[grpKey] ?? false
+      if (!wasCollapsed) {
+        return { ...prev, [grpKey]: true }
+      }
+      if (activeInGroup && !isNavRouteActive(location.pathname, location.search, activeInGroup)) {
+        navigate(activeInGroup)
+      }
+      if (activeInGroup) {
+        setNavFocusKey(itemFocusKey(sectionId, activeInGroup))
+      }
+      return { ...prev, [grpKey]: false }
+    })
+  }, [activeNavTo, location.pathname, location.search, navigate])
 
   const roleBadge = vendorRole?.role_name || 'Member'
   const profileName = user?.full_name?.trim() || ''
@@ -2334,8 +2393,26 @@ export default function DashboardLayout() {
     [railFlyoutSectionId, railFlyoutItems],
   )
 
+  const railFlyoutActiveKey = useMemo(() => {
+    if (!railFlyoutSectionId || !activeNavTo) return null
+    const activeInFlyout = railFlyoutItems.some((it) => it.to === activeNavTo)
+    return activeInFlyout ? flyoutFocusKey(railFlyoutSectionId, activeNavTo) : null
+  }, [railFlyoutSectionId, railFlyoutItems, activeNavTo])
+
+  const navigateToNavItem = useCallback(
+    (to: string, focusKey?: string) => {
+      if (!isNavRouteActive(location.pathname, location.search, to)) {
+        navigate(to)
+      }
+      if (focusKey) setNavFocusKey(focusKey)
+      setSidebarOpen(false)
+      closeMobileSidebar()
+    },
+    [location.pathname, location.search, navigate, closeMobileSidebar],
+  )
+
   const openRailFlyout = useCallback(
-    (sectionId: string) => {
+    (sectionId: string, focusKey?: string, navigateTo?: string) => {
       const btn = railSectionButtonRefs.current.get(sectionId)
       if (!btn) return
       const rect = btn.getBoundingClientRect()
@@ -2351,8 +2428,13 @@ export default function DashboardLayout() {
       const top = Math.min(Math.max(8, rect.top - 6), maxTop)
       setRailFlyoutTop(top)
       setRailFlyoutSectionId(sectionId)
+      if (navigateTo) {
+        navigateToNavItem(navigateTo, focusKey)
+      } else if (focusKey) {
+        setNavFocusKey(focusKey)
+      }
     },
-    [orderedVisibleSections, orderedNavItemsBySectionId],
+    [orderedVisibleSections, orderedNavItemsBySectionId, navigateToNavItem],
   )
 
   const applySidebarNavAction = useCallback(
@@ -2361,13 +2443,20 @@ export default function DashboardLayout() {
         case 'focus':
           setNavFocusKey(action.key)
           break
+        case 'navigate':
+          navigateToNavItem(action.to, action.focusKey)
+          break
         case 'expandSection':
           setCollapsedSections((prev) => {
             if (prev[action.title] === false) return prev
             pendingScrollSectionId.current = action.sectionId
             return { ...prev, [action.title]: false }
           })
-          setNavFocusKey(secFocusKey(action.sectionId))
+          if (action.navigateTo) {
+            navigateToNavItem(action.navigateTo, action.focusKey)
+          } else {
+            setNavFocusKey(action.focusKey ?? secFocusKey(action.sectionId))
+          }
           break
         case 'collapseSection':
           skipNavFocusScrollRef.current = true
@@ -2376,15 +2465,21 @@ export default function DashboardLayout() {
           break
         case 'expandGroup':
           setCollapsedGroups((prev) => ({ ...prev, [action.grpKey]: false }))
-          setNavFocusKey(grpFocusKey(action.grpKey))
+          if (action.navigateTo) {
+            navigateToNavItem(action.navigateTo, action.focusKey)
+          } else {
+            setNavFocusKey(action.focusKey ?? grpFocusKey(action.grpKey))
+          }
           break
         case 'collapseGroup':
           setCollapsedGroups((prev) => ({ ...prev, [action.grpKey]: true }))
           setNavFocusKey(grpFocusKey(action.grpKey))
           break
         case 'openRailFlyout':
-          openRailFlyout(action.sectionId)
-          setNavFocusKey(railFocusKey(action.sectionId))
+          openRailFlyout(action.sectionId, action.focusKey, action.navigateTo)
+          if (!action.navigateTo) {
+            setNavFocusKey(action.focusKey ?? railFocusKey(action.sectionId))
+          }
           break
         case 'closeRailFlyout':
           setRailFlyoutSectionId(null)
@@ -2392,26 +2487,32 @@ export default function DashboardLayout() {
           break
       }
     },
-    [openRailFlyout],
+    [openRailFlyout, navigateToNavItem],
   )
 
   const handleSidebarNavKeyDown = useCallback(
     (e: KeyboardEvent<HTMLElement>, nodes: Array<SidebarNavNode>) => {
       if (navReorderMode || !nodes.length) return
       if (isSidebarTypingTarget(e.target)) return
-      const navigationKeys = ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Home', 'End']
+      const navigationKeys = ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Home', 'End', 'Enter', ' ']
       if (!navigationKeys.includes(e.key)) return
 
       const focusedInTree =
         e.currentTarget.contains(document.activeElement) ||
         navFocusKey != null
-      if (!focusedInTree && e.key !== 'ArrowDown' && e.key !== 'ArrowUp') return
+      const ctrlMainMenuJump =
+        (e.ctrlKey || e.metaKey) && (e.key === 'ArrowRight' || e.key === 'ArrowLeft')
+      if (!focusedInTree && e.key !== 'ArrowDown' && e.key !== 'ArrowUp' && !ctrlMainMenuJump) return
 
       const action = resolveSidebarNavKeyAction(e.key, nodes, navFocusKey, {
         collapsedSections,
         collapsedGroups,
         railFlyoutSectionId,
         railFlyoutFirstKey: railFlyoutNavNodes[0]?.key ?? null,
+        railFlyoutActiveKey,
+        activeNavTo,
+        ctrlKey: e.ctrlKey || e.metaKey,
+        mainMenuNodes: nodes.some((n) => n.kind === 'flyout') ? railNavNodes : undefined,
       })
       if (!action) return
       e.preventDefault()
@@ -2424,7 +2525,11 @@ export default function DashboardLayout() {
       collapsedSections,
       collapsedGroups,
       railFlyoutSectionId,
+      railFlyoutNavNodes,
+      railFlyoutActiveKey,
+      activeNavTo,
       applySidebarNavAction,
+      railNavNodes,
     ],
   )
 
@@ -3075,7 +3180,13 @@ export default function DashboardLayout() {
                                           ref={(el) => registerNavFocusRef(groupFocusKey, el)}
                                           tabIndex={isSectionCollapsed ? -1 : undefined}
                                           onFocus={() => setNavFocusKey(groupFocusKey)}
-                                          onClick={() => toggleGroup(block.grpKey)}
+                                          onClick={() =>
+                                            toggleGroup(
+                                              block.grpKey,
+                                              section.id,
+                                              block.entries.map(({ item }) => item),
+                                            )
+                                          }
                                           aria-expanded={!isGroupCollapsed}
                                           className={cn(
                                             'relative flex w-full items-center gap-1.5 rounded-md pr-1 pl-[calc(var(--tree-x)+0.5rem)] text-left text-xs uppercase tracking-wide',
