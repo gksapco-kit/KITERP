@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState, useCallback, type ElementType, type ReactNode } from 'react'
 import { BusinessUnitSelect, useDefaultBusinessUnitId } from '@/components/common/BusinessUnitSelect'
 import { CollapsibleSection } from '@/components/common/CollapsibleSection'
+import { HelpableText } from '@/components/common/HelpableText'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -247,6 +248,7 @@ function MessageExpandableSection({
   icon: Icon,
   iconClassName,
   hint,
+  helpKey,
   open,
   onToggle,
   headerAction,
@@ -256,6 +258,7 @@ function MessageExpandableSection({
   icon: ElementType
   iconClassName?: string
   hint?: string
+  helpKey?: string
   open: boolean
   onToggle: () => void
   headerAction?: ReactNode
@@ -263,30 +266,38 @@ function MessageExpandableSection({
 }) {
   return (
     <div className="overflow-hidden rounded-lg border border-border/70 bg-card">
-      <div className={cn('flex items-center gap-1', open && 'border-b border-border/50 bg-muted/10')}>
+      <div className={cn('relative flex items-center gap-1', open && 'border-b border-border/50 bg-muted/10')}>
         <button
           type="button"
           onClick={onToggle}
           aria-expanded={open}
-          className="flex min-w-0 flex-1 items-center gap-2 px-3 py-2.5 text-left transition-colors hover:bg-muted/30"
-        >
-          <Icon className={cn('h-4 w-4 shrink-0', iconClassName)} />
+          aria-label={open ? `Collapse ${title}` : `Expand ${title}`}
+          className="absolute inset-0 z-0 rounded-none text-left transition-colors hover:bg-muted/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
+        />
+        <div className="relative z-10 flex min-w-0 flex-1 items-center gap-2 px-3 py-2.5">
+          <Icon className={cn('h-4 w-4 shrink-0 pointer-events-none', iconClassName)} />
           <div className="min-w-0 flex-1">
-            <p className="text-sm font-medium text-foreground">{title}</p>
+            <HelpableText
+              helpKey={helpKey ?? `message center:${title.toLowerCase()}`}
+              className="text-sm font-medium text-foreground"
+            >
+              {title}
+            </HelpableText>
             {hint && !open ? (
-              <p className="mt-0.5 truncate text-xs text-muted-foreground">{hint}</p>
+              <p className="mt-0.5 truncate text-xs text-muted-foreground pointer-events-none">{hint}</p>
             ) : null}
           </div>
           <ChevronDown
             className={cn(
-              'h-4 w-4 shrink-0 text-muted-foreground transition-transform duration-200',
+              'h-4 w-4 shrink-0 text-muted-foreground pointer-events-none transition-transform duration-200',
               open && 'rotate-180',
             )}
+            aria-hidden
           />
-        </button>
+        </div>
         {headerAction ? (
           <div
-            className="shrink-0 pr-2"
+            className="relative z-10 shrink-0 pr-2"
             onMouseDown={(e) => e.stopPropagation()}
             onClick={(e) => e.stopPropagation()}
           >
@@ -626,10 +637,16 @@ export default function CreateMessagesPage() {
   return (
     <div className="max-w-4xl mx-auto space-y-6 pb-10">
       <div>
-        <h1 className="text-2xl font-bold text-foreground">Message Center</h1>
+        <HelpableText helpKey="message center" className="text-2xl font-bold text-foreground">
+          Message Center
+        </HelpableText>
         <p className="text-sm text-muted-foreground mt-1 max-w-2xl">
           Configure recipients, scheduled vendor and customer message templates, and channel preferences per business unit.
-          Changes save automatically.
+          Changes save automatically.{' '}
+          <span className="text-muted-foreground/90">
+            Hover a section title or label for tips — press{' '}
+            <kbd className="rounded border border-border bg-muted px-1 py-0.5 font-mono text-[10px]">F1</kbd> for full help.
+          </span>
         </p>
       </div>
 
@@ -638,11 +655,12 @@ export default function CreateMessagesPage() {
         icon={Building2}
         subtitle={storeLabel}
         helpText="Message settings apply only to the selected unit."
+        helpKey="message center:business unit"
         open={isSectionOpen('business-unit')}
         toggle={() => toggleSection('business-unit')}
       >
         <div className="max-w-sm space-y-1.5">
-          <Label>Select business unit</Label>
+          <Label helpKey="select business unit">Select business unit</Label>
           <BusinessUnitSelect
             value={storeId}
             onChange={(id) => setStoreId(id)}
@@ -662,6 +680,7 @@ export default function CreateMessagesPage() {
             ].join(' · ')
           }
           helpText="Email uses SMTP/SendGrid. SMS and WhatsApp need Twilio or Meta in Integrations."
+          helpKey="message center:delivery providers"
           open={isSectionOpen('delivery')}
           toggle={() => toggleSection('delivery')}
         >
@@ -721,12 +740,14 @@ export default function CreateMessagesPage() {
                 icon={evt.icon}
                 subtitle={eventBlockSummary(block)}
                 helpText={evt.description}
+                helpKey={`message center:${eventKey.replace(/_/g, ' ')}`}
                 open={isSectionOpen(`event:${eventKey}`)}
                 toggle={() => toggleSection(`event:${eventKey}`)}
               >
                 <div className="space-y-3">
                   <MessageExpandableSection
                     title="Email Recipients"
+                    helpKey="message center:email recipients"
                     icon={Mail}
                     iconClassName="text-blue-600"
                     hint={
@@ -771,6 +792,7 @@ export default function CreateMessagesPage() {
 
                   <MessageExpandableSection
                     title="Phone Recipients"
+                    helpKey="message center:phone recipients"
                     icon={Phone}
                     iconClassName="text-emerald-600"
                     hint={
@@ -815,6 +837,7 @@ export default function CreateMessagesPage() {
 
                   <MessageExpandableSection
                     title="Vendor Message Templates"
+                    helpKey="message center:vendor message templates"
                     icon={UsersRound}
                     iconClassName="text-emerald-600"
                     hint={
@@ -899,6 +922,7 @@ export default function CreateMessagesPage() {
 
                   <MessageExpandableSection
                     title="Customer Message Templates"
+                    helpKey="message center:customer message templates"
                     icon={FileText}
                     iconClassName="text-violet-600"
                     hint={
@@ -990,6 +1014,7 @@ export default function CreateMessagesPage() {
             icon={UsersRound}
             subtitle={`Active: ${activeVendorChannels}`}
             helpText="Controls which channels send new order alerts to your team."
+            helpKey="message center:vendor notification preferences"
             open={isSectionOpen('vendor-prefs')}
             toggle={() => toggleSection('vendor-prefs')}
           >
@@ -1028,6 +1053,7 @@ export default function CreateMessagesPage() {
             icon={Users}
             subtitle={`Active: ${activeCustomerChannels}`}
             helpText="Controls which channels send order confirmation messages to customers."
+            helpKey="message center:customer notification preferences"
             open={isSectionOpen('customer-prefs')}
             toggle={() => toggleSection('customer-prefs')}
           >
@@ -1078,7 +1104,7 @@ export default function CreateMessagesPage() {
               {emailModal ? (
                 <>
                   <div className="space-y-1.5">
-                    <Label>Email address</Label>
+                    <Label helpKey="message center:email recipient">Email address</Label>
                     <Input
                       type="email"
                       value={emailForm.email}
@@ -1088,7 +1114,7 @@ export default function CreateMessagesPage() {
                     />
                   </div>
                   <div className="space-y-1.5">
-                    <Label>Label (optional)</Label>
+                    <Label helpKey="message center:recipient label">Label (optional)</Label>
                     <Input
                       value={emailForm.label}
                       onChange={(e) => setEmailForm((f) => ({ ...f, label: e.target.value }))}
@@ -1099,7 +1125,7 @@ export default function CreateMessagesPage() {
               ) : (
                 <>
                   <div className="space-y-1.5">
-                    <Label>Phone number</Label>
+                    <Label helpKey="phone number">Phone number</Label>
                     <PhoneInput
                       value={phoneForm.phone}
                       onChange={(v) => setPhoneForm((f) => ({ ...f, phone: v }))}
@@ -1107,7 +1133,7 @@ export default function CreateMessagesPage() {
                     />
                   </div>
                   <div className="space-y-1.5">
-                    <Label>Label (optional)</Label>
+                    <Label helpKey="message center:recipient label">Label (optional)</Label>
                     <Input
                       value={phoneForm.label}
                       onChange={(e) => setPhoneForm((f) => ({ ...f, label: e.target.value }))}
@@ -1177,7 +1203,7 @@ export default function CreateMessagesPage() {
             </div>
             <div className="px-5 py-4 space-y-4">
               <div className="space-y-1.5">
-                <Label>Template name</Label>
+                <Label helpKey="message center:template name">Template name</Label>
                 <Input
                   value={templateForm.name}
                   onChange={(e) => setTemplateForm((f) => ({ ...f, name: e.target.value }))}
@@ -1186,7 +1212,7 @@ export default function CreateMessagesPage() {
                 />
               </div>
               <div className="space-y-1.5">
-                <Label>Email subject (optional)</Label>
+                <Label helpKey="message center:email subject">Email subject (optional)</Label>
                 <Input
                   value={templateForm.subject}
                   onChange={(e) => setTemplateForm((f) => ({ ...f, subject: e.target.value }))}
@@ -1196,7 +1222,7 @@ export default function CreateMessagesPage() {
                 />
               </div>
               <div className="space-y-1.5">
-                <Label>Message</Label>
+                <Label helpKey="message center:message body">Message</Label>
                 <Textarea
                   value={templateForm.message}
                   onChange={(e) => setTemplateForm((f) => ({ ...f, message: e.target.value }))}
@@ -1208,7 +1234,7 @@ export default function CreateMessagesPage() {
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div className="space-y-1.5">
-                  <Label>Start date & time</Label>
+                  <Label helpKey="message center:template schedule">Start date & time</Label>
                   <Input
                     type="datetime-local"
                     value={templateForm.startLocal}
@@ -1216,7 +1242,7 @@ export default function CreateMessagesPage() {
                   />
                 </div>
                 <div className="space-y-1.5">
-                  <Label>End date & time</Label>
+                  <Label helpKey="message center:template schedule">End date & time</Label>
                   <Input
                     type="datetime-local"
                     value={templateForm.endLocal}
@@ -1225,7 +1251,7 @@ export default function CreateMessagesPage() {
                 </div>
               </div>
               <div className="space-y-2">
-                <Label>Channels</Label>
+                <Label helpKey="message center:template channels">Channels</Label>
                 <div className="flex flex-wrap gap-2">
                   {TEMPLATE_CHANNELS.map((ch) => (
                     <button

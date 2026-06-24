@@ -1,14 +1,20 @@
 import type { ElementType, ReactNode } from 'react'
 import { ChevronDown } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
+import { HelpableText } from '@/components/common/HelpableText'
 import { cn } from '@/lib/utils'
 
 export interface CollapsibleSectionProps {
   title: string
   icon: ElementType
   subtitle?: string
-  /** Second line below subtitle — e.g. descriptive help text shown alongside the scope label. */
+  /** Second line below subtitle — visible summary (hover/F1 help is on the title). */
   helpText?: string
+  /** Registry key for title hover + F1 help (e.g. "message center:new orders"). */
+  helpKey?: string
+  hoverHint?: string
+  fullHelp?: string
+  footerNote?: string
   open: boolean
   toggle: () => void
   children: ReactNode
@@ -23,6 +29,10 @@ export function CollapsibleSection({
   icon: Icon,
   subtitle,
   helpText,
+  helpKey,
+  hoverHint,
+  fullHelp,
+  footerNote,
   open,
   toggle,
   children,
@@ -44,40 +54,47 @@ export function CollapsibleSection({
           open && 'border-border/60 bg-muted/20',
         )}
       >
-        <button
-          type="button"
-          onClick={toggle}
-          aria-expanded={open}
-          className={cn(
-            'flex min-w-0 flex-1 items-center gap-3 px-3 py-3.5 text-left transition-colors sm:px-4',
-            'hover:bg-accent/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
-          )}
-        >
+        <div className="relative flex min-w-0 flex-1 items-center gap-3 px-3 py-3.5 sm:px-4">
+          <button
+            type="button"
+            onClick={toggle}
+            aria-expanded={open}
+            aria-label={open ? `Collapse ${title}` : `Expand ${title}`}
+            className="absolute inset-0 z-0 rounded-none text-left transition-colors hover:bg-accent/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
+          />
           <span
             className={cn(
-              'flex h-9 w-9 shrink-0 items-center justify-center rounded-lg',
-              'bg-primary/10 text-primary ring-1 ring-inset ring-primary/15',
+              'relative z-10 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg',
+              'bg-primary/10 text-primary ring-1 ring-inset ring-primary/15 pointer-events-none',
             )}
             aria-hidden
           >
             <Icon className="h-4 w-4 shrink-0" strokeWidth={2} />
           </span>
-          <div className="min-w-0 flex-1">
+          <div className="relative z-10 min-w-0 flex-1">
             <p className="flex min-w-0 flex-wrap items-baseline gap-x-1.5 leading-snug">
-              <span className="text-sm font-semibold text-foreground">{title}</span>
+              <HelpableText
+                helpKey={helpKey ?? title}
+                hoverHint={hoverHint}
+                fullHelp={fullHelp}
+                footerNote={footerNote}
+                className="text-sm font-semibold text-foreground"
+              >
+                {title}
+              </HelpableText>
               {subtitle ? (
-                <span className="truncate text-xs font-normal text-muted-foreground" title={subtitle}>
+                <span className="truncate text-xs font-normal text-muted-foreground pointer-events-none" title={subtitle}>
                   {subtitle}
                 </span>
               ) : null}
             </p>
             {helpText ? (
-              <p className="mt-0.5 truncate text-xs text-muted-foreground/80" title={helpText}>
+              <p className="mt-0.5 truncate text-xs text-muted-foreground/80 pointer-events-none" title={helpText}>
                 {helpText}
               </p>
             ) : null}
           </div>
-        </button>
+        </div>
         {headerAction ? (
           <div
             className="shrink-0 self-center"

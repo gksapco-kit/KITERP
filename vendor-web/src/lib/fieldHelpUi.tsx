@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom'
 import { Link } from 'react-router-dom'
 import { Wrench, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { useEscapeToClose } from '@/hooks/useEscapeToClose'
 import type { FieldDbMeta } from '@/lib/fieldDbRegistry'
 
 export const FIELD_HELP_TOOLTIP_FOOTER = (
@@ -174,6 +175,8 @@ export function useFieldHelpUi({
     if (!helpOpen) setShowDbMeta(false)
   }, [helpOpen])
 
+  useEscapeToClose(() => setHelpOpen(false), helpOpen)
+
   useEffect(() => () => deactivate(), [])
 
   const showHoverHelp = enabled && (hovered || focused) && !helpOpen
@@ -287,9 +290,14 @@ export function useFieldHelpUi({
                 ) : null}
                 <p className="text-sm leading-relaxed text-gray-800">{fullHelp}</p>
                 {footerNote ? <p className="text-xs text-gray-500">{footerNote}</p> : null}
-                <Button type="button" className="w-full" onClick={() => setHelpOpen(false)}>
-                  Got it
-                </Button>
+                <div className="flex flex-col gap-2 pt-1">
+                  <Button type="button" className="w-full" onClick={() => setHelpOpen(false)}>
+                    Got it
+                  </Button>
+                  <p className="text-center text-[10px] text-gray-400">
+                    Press <kbd className="rounded border border-gray-300 bg-gray-100 px-1 font-mono">Esc</kbd> to close
+                  </p>
+                </div>
               </div>
             </div>
           </div>,
@@ -303,7 +311,7 @@ export function useFieldHelpUi({
         // Keep labels out of sequential tab order — inputs, buttons, and links only.
         tabIndex: -1,
         className:
-          'inline-flex cursor-pointer items-center gap-1 rounded-sm outline-none hover:text-gray-900 focus-visible:ring-2 focus-visible:ring-primary/40',
+          'inline-flex items-center gap-1 rounded-sm outline-none focus-visible:ring-2 focus-visible:ring-primary/40',
         onMouseEnter: handlePointerEnter,
         onMouseLeave: handlePointerLeave,
         onFocus: handleFocus,

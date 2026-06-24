@@ -314,6 +314,114 @@ export const FIELD_HELP_BY_LABEL: Record<string, FieldHelpCopy> = {
     hover: 'Booked or sold service.',
     full: 'Name of the service associated with this booking or sale.',
   },
+
+  // ── System · Message Center ──
+  'message center': {
+    hover: 'Configure who gets notified and how messages are sent.',
+    full:
+      'Message Center controls outbound notifications per business unit: which events trigger alerts, who receives them (email and phone), scheduled message templates for customers and your team, and which channels (email, SMS, WhatsApp) are enabled. Settings save automatically when you change them. Hover any section title or field label for a quick tip; press F1 while hovering for full help.',
+  },
+  'message center:business unit': {
+    hover: 'Settings apply to the selected shop or branch only.',
+    full:
+      'Each business unit can have its own recipients, templates, and channel toggles. Select the unit you are configuring before adding emails, phones, or templates. Switching units loads that unit\'s saved configuration.',
+  },
+  'select business unit': {
+    hover: 'Choose which shop or branch to configure.',
+    full:
+      'Pick the business unit whose message settings you want to edit. Recipients and templates do not copy automatically between units — configure each location that should send notifications.',
+  },
+  'message center:delivery providers': {
+    hover: 'Shows whether email, SMS, and WhatsApp can send.',
+    full:
+      'Email is ready when SMTP or SendGrid is configured (Settings or environment). SMS and WhatsApp require Twilio or Meta credentials under CRM → Integrations. Channels show as "setup needed" until providers are connected; toggles for SMS/WhatsApp stay disabled until ready.',
+    footerNote: 'Open CRM → Integrations to connect Twilio or Meta for SMS and WhatsApp.',
+  },
+  'message center:new orders': {
+    hover: 'Alerts when a customer places an order.',
+    full:
+      'Configure who on your team receives new-order notifications and which scheduled templates go to customers or staff. Add email and phone recipients per event; leave lists empty to fall back to your vendor support email or contact phone. Templates support placeholders like {customer_name}, {order_number}, and {total}.',
+  },
+  'message center:order status updates': {
+    hover: 'Notifications when order status changes.',
+    full:
+      'Use this section when you want emails or texts for milestones such as confirmed, packed, shipped, or delivered. Add recipients and optional templates with start/end dates for seasonal messaging. Each template can target email, SMS, and/or WhatsApp.',
+  },
+  'message center:customer inquiries': {
+    hover: 'Messages from contact forms, chat, or support.',
+    full:
+      'Route inbound-style alerts to your team when customers reach out through your storefront or support channels. Add operations emails and mobile numbers that should be notified immediately.',
+  },
+  'message center:system notifications': {
+    hover: 'Platform and account-level system alerts.',
+    full:
+      'Receive internal alerts for maintenance, billing, security, or other system events. Useful for admin contacts who need to know about platform issues affecting your store.',
+  },
+  'message center:vendor notification preferences': {
+    hover: 'Channels for new-order alerts to your team.',
+    full:
+      'Turn on email, SMS, and/or WhatsApp for vendor-side new-order alerts. SMS and WhatsApp require a ready provider in Delivery providers. These toggles apply to team notifications, not customer confirmations.',
+  },
+  'message center:customer notification preferences': {
+    hover: 'Channels for order confirmations to customers.',
+    full:
+      'Control how customers receive order confirmations — email is on by default; enable SMS or WhatsApp when your provider is configured. Customer messages use templates and placeholders defined under each event.',
+  },
+  'message center:email recipients': {
+    hover: 'Team inboxes notified for this event.',
+    full:
+      'Add one or more email addresses that should receive alerts for this notification type. Optional labels help identify roles (e.g. "Warehouse"). When no recipients are listed, the vendor primary support email is used as fallback.',
+  },
+  'message center:phone recipients': {
+    hover: 'Mobile numbers for SMS and WhatsApp alerts.',
+    full:
+      'Add E.164 phone numbers (country code included) for text alerts to your team. The same numbers can receive SMS and WhatsApp when those channels are enabled. Fallback: vendor contact phone when the list is empty.',
+  },
+  'message center:vendor message templates': {
+    hover: 'Scheduled messages sent to your team.',
+    full:
+      'Create named templates with optional email subject, body text, active date range, and channels. Use placeholders such as {order_number} and {store_name}. Only templates within their schedule and marked enabled are sent.',
+  },
+  'message center:customer message templates': {
+    hover: 'Scheduled messages sent to customers.',
+    full:
+      'Templates for customer-facing order or status messages. Include {customer_name}, {payment_note}, and other tokens. Set start and end times for campaigns or seasonal wording. Preview before saving to check sample text.',
+  },
+  'message center:template name': {
+    hover: 'Internal name to identify this template.',
+    full:
+      'A short label for your reference in lists and reports — customers do not see this name unless you include it in the message body.',
+  },
+  'message center:email subject': {
+    hover: 'Subject line for email channel only.',
+    full:
+      'Optional subject used when this template is sent by email. SMS and WhatsApp ignore the subject. You may use the same placeholders as the message body.',
+  },
+  'message center:message body': {
+    hover: 'Text sent on enabled channels.',
+    full:
+      'Main message content. Insert placeholders from the hint list — they are replaced with real order data when sent. Keep SMS bodies short; long text may fail on trial SMS accounts.',
+  },
+  'message center:template channels': {
+    hover: 'Which channels may send this template.',
+    full:
+      'Enable email, SMS, and/or WhatsApp for this template. A channel must be both enabled here and turned on under Customer or Vendor notification preferences, with a ready delivery provider.',
+  },
+  'message center:template schedule': {
+    hover: 'Template is active only between these dates.',
+    full:
+      'Set start and end date/time in your local timezone. Outside this window the template is stored but not used for automated sends — useful for promotions or holiday wording.',
+  },
+  'message center:email recipient': {
+    hover: 'Inbox that receives alerts for this event.',
+    full:
+      'Enter a valid email address for a team member or shared mailbox. This address receives notifications only for the event you are editing (e.g. New Orders), not every message in Message Center.',
+  },
+  'message center:recipient label': {
+    hover: 'Optional note for who this contact is.',
+    full:
+      'A friendly name such as "Night shift" or "Store manager" — shown only in the admin list, not in outbound messages.',
+  },
 }
 
 function helpFromKeywords(label: string): FieldHelpCopy | null {
