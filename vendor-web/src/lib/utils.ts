@@ -6,12 +6,20 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }
 
-/** Keyboard focus ring for buttons, links, and dropdown triggers (inset so rings aren't clipped by overflow-hidden). */
+/** Keyboard-only focus for outlined / ghost buttons — offset ring (no double border). */
 export const focusRingClassName =
-  'focus:outline-none focus-visible:outline-none focus:ring-2 focus:ring-inset focus:ring-ring focus:border-primary focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring focus-visible:border-primary'
+  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background'
 
-/** Tab focus for solid-fill buttons — white gap + mint halo; styled in globals.css */
-export const solidButtonFocusClassName = 'btn-focus-solid focus-visible:outline-none'
+/** Marker + tab focus outer line for solid mint/primary buttons (see globals.css). */
+export const solidGreenTabFocusClassName = 'kit-solid-green-btn'
+
+/** Tab focus only — white gap + mint outer line; styled in globals.css */
+export const solidButtonFocusClassName =
+  `btn-focus-solid btn-outer-line ${solidGreenTabFocusClassName} focus-visible:outline-none`
+
+/** Native <button> / link CTA — solid green fill + shared tab-focus chrome */
+export const nativeSolidGreenButtonClassName =
+  `bg-primary text-white hover:bg-primary/90 ${solidGreenTabFocusClassName}`
 
 /** Bordered shell wrapping icon + borderless search input — green focus via :focus-within in globals.css */
 export const searchFieldShellClassName =

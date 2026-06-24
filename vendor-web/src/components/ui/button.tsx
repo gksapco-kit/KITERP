@@ -21,7 +21,7 @@ const buttonVariants = cva(
         destructive:
           'bg-red-500 text-white shadow-sm ' +
           'hover:bg-red-600 active:bg-red-700 active:scale-[0.98] ' +
-          solidButtonFocusClassName,
+          'btn-focus-solid btn-outer-line-danger focus-visible:outline-none',
 
         // Secondary outlined — crisp border, subtle hover
         outline:

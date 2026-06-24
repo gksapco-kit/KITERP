@@ -1082,7 +1082,7 @@ function FilterChip({
       className={cn(
         'shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border transition-colors',
         active
-          ? 'bg-primary border-primary text-primary-foreground shadow-sm'
+          ? 'bg-primary border-primary text-primary-foreground shadow-sm kit-solid-green-btn'
           : 'bg-white border-gray-200 text-gray-600 hover:border-gray-300 hover:bg-gray-50',
       )}
     >

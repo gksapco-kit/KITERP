@@ -66,9 +66,9 @@
     --input: 214 22% 90%;
     --ring: 158 44% 58%;
     --radius: 0.625rem;
-    /* Solid button tab focus — white gap + light mint halo (see .btn-focus-solid) */
+    /* Solid button tab focus — white gap + primary ring (see .btn-outer-line:focus-visible) */
     --solid-btn-focus-inner: #ffffff;
-    --solid-btn-focus-outer: 158 52% 76%;
+    --solid-btn-outer-line: hsl(var(--primary));
     --canvas: 158 10% 97%;
     --canvas-grid: 158 12% 92%;
     --panel: 0 0% 100%;
@@ -361,13 +361,13 @@
   :focus {
     outline: none;
   }
-  button:focus-visible:not(.btn-focus-solid):not(.btn-brand):not(.chip-active):not([class~='bg-primary']):not([class~='bg-primary/90']):not([class~='from-primary']),
-  a:focus-visible:not([class~='bg-primary']):not([class~='from-primary']),
+  button:focus-visible:not(.btn-focus-solid):not(.btn-brand):not(.btn-outer-line):not(.kit-solid-green-btn):not(.chip-active):not([class~='bg-primary']):not([class~='bg-primary/90']):not([class~='bg-primary/85']):not([class~='bg-primary/80']):not([class~='dark:bg-primary']):not([class~='from-primary']):not([class*='from-primary']):not([class*='ring-offset-']):not([class*='bg-primary'][class*='text-white']):not([class*='bg-primary'][class*='text-primary-foreground']),
+  a:focus-visible:not([class~='bg-primary']):not([class~='from-primary']):not([class*='from-primary']):not(.kit-solid-green-btn):not(.btn-brand):not([class*='bg-primary'][class*='text-white']):not([class*='bg-primary'][class*='text-primary-foreground']),
   select:focus-visible,
   textarea:focus-visible,
   input:focus-visible:not([data-kiterp-no-field-focus]),
   summary:focus-visible,
-  [role='button']:focus-visible:not(.btn-focus-solid):not(.chip-active):not([class~='bg-primary']):not([class~='bg-primary/90']):not([class~='from-primary']),
+  [role='button']:focus-visible:not(.btn-focus-solid):not(.btn-outer-line):not(.kit-solid-green-btn):not(.chip-active):not([class~='bg-primary']):not([class~='bg-primary/90']):not([class~='bg-primary/85']):not([class~='bg-primary/80']):not([class~='dark:bg-primary']):not([class~='from-primary']):not([class*='from-primary']):not([class*='ring-offset-']):not([class*='bg-primary'][class*='text-white']):not([class*='bg-primary'][class*='text-primary-foreground']),
   [role='combobox']:focus-visible,
   [role='menuitem']:focus-visible,
   [role='tab']:focus-visible {
@@ -414,13 +414,6 @@
     -webkit-text-fill-color: hsl(var(--foreground));
     caret-color: hsl(var(--foreground));
     transition: background-color 99999s ease-out 0s;
-  }
-  button:focus-visible:not(.btn-focus-solid):not(.btn-brand):not(.chip-active):not([class~='bg-primary']):not([class~='bg-primary/90']):not([class~='from-primary']),
-  a:focus-visible:not([class~='bg-primary']):not([class~='from-primary']),
-  select:focus-visible,
-  [role='button']:focus-visible:not(.btn-focus-solid):not(.chip-active):not([class~='bg-primary']):not([class~='bg-primary/90']):not([class~='from-primary']),
-  [role='combobox']:focus-visible {
-    @apply border-primary;
   }
 
   /* Native <select> — closed field + OS dropdown list (all themes) */
@@ -2617,37 +2610,60 @@ html[dir='rtl'] [data-sonner-toast][data-styled='true']:has([data-close-button])
 }
 
 /*
- * Solid green primary buttons — app-wide tab focus (outside @layer for max priority).
- * 2px white gap + 4px light mint outer ring hsl(158 52% 76%).
+ * Solid mint/primary buttons — tab focus only: 2px white gap + 2px primary ring.
+ * Covers Button component, .btn-brand, chips, and native bg-primary CTAs app-wide.
  */
-:is(button, a, [role='button'], input[type='submit'], input[type='button']).btn-focus-solid:focus-visible,
-:is(button, a, [role='button'], input[type='submit'], input[type='button']).btn-brand:focus-visible,
-:is(button, a, [role='button'], input[type='submit'], input[type='button']).chip-active:focus-visible,
-:is(button, a, [role='button'], input[type='submit'], input[type='button'])[class~='bg-primary']:focus-visible,
-:is(button, a, [role='button'], input[type='submit'], input[type='button'])[class~='bg-primary/90']:focus-visible,
-:is(button, a, [role='button'], input[type='submit'], input[type='button'])[class~='bg-primary/85']:focus-visible,
-:is(button, a, [role='button'], input[type='submit'], input[type='button'])[class~='bg-primary/80']:focus-visible,
-:is(button, a, [role='button'], input[type='submit'], input[type='button'])[class*='bg-gradient'][class~='from-primary']:focus-visible {
+:is(button, a, [role='button'], input[type='submit'], input[type='button'], input[type='reset']).btn-outer-line-danger,
+:is(button, a, [role='button'], input[type='submit'], input[type='button'], input[type='reset']).btn-focus-solid[class~='bg-red-500'] {
+  --solid-btn-outer-line: #ef4444;
+}
+
+:is(button, a, [role='button'], input[type='submit'], input[type='button'], input[type='reset']):focus-visible:not([role='switch']):is(
+  .kit-solid-green-btn,
+  .btn-outer-line,
+  .btn-brand,
+  .chip-active,
+  .btn-focus-solid[class~='bg-primary'],
+  .btn-focus-solid[class~='bg-primary/90'],
+  .btn-focus-solid[class~='bg-primary/85'],
+  [class~='bg-primary'],
+  [class~='bg-primary/90'],
+  [class~='bg-primary/85'],
+  [class~='bg-primary/80'],
+  [class~='dark:bg-primary'],
+  [class*='from-primary']
+):not([class*='bg-primary/10']):not([class*='bg-primary/12']):not([class*='bg-primary/15']):not([class*='bg-primary/20']):not([class*='bg-primary/25']):not([class*='bg-primary/30']),
+:is(button, a, [role='button'], input[type='submit'], input[type='button'], input[type='reset']):focus-visible:not([role='switch'])[class*='bg-primary'][class*='text-white']:not([class*='bg-primary/10']):not([class*='bg-primary/12']):not([class*='bg-primary/15']):not([class*='bg-primary/20']):not([class*='bg-primary/25']):not([class*='bg-primary/30']),
+:is(button, a, [role='button'], input[type='submit'], input[type='button'], input[type='reset']):focus-visible:not([role='switch'])[class*='bg-primary'][class*='text-primary-foreground']:not([class*='bg-primary/10']):not([class*='bg-primary/12']):not([class*='bg-primary/15']):not([class*='bg-primary/20']):not([class*='bg-primary/25']):not([class*='bg-primary/30']),
+:is(button, a, [role='button'], input[type='submit'], input[type='button'], input[type='reset']).btn-outer-line-danger:focus-visible,
+:is(button, a, [role='button'], input[type='submit'], input[type='button'], input[type='reset']).btn-focus-solid[class~='bg-red-500']:focus-visible {
   outline: none !important;
   --tw-ring-shadow: 0 0 #0000 !important;
   --tw-ring-offset-shadow: 0 0 #0000 !important;
   box-shadow:
     0 0 0 2px var(--solid-btn-focus-inner, #ffffff),
-    0 0 0 6px hsl(var(--solid-btn-focus-outer, 158 52% 76%)) !important;
+    0 0 0 4px var(--solid-btn-outer-line, hsl(var(--primary))) !important;
   border-color: transparent !important;
 }
 
-.dark :is(button, a, [role='button'], input[type='submit'], input[type='button']).btn-focus-solid:focus-visible,
-.dark :is(button, a, [role='button'], input[type='submit'], input[type='button']).btn-brand:focus-visible,
-.dark :is(button, a, [role='button'], input[type='submit'], input[type='button']).chip-active:focus-visible,
-.dark :is(button, a, [role='button'], input[type='submit'], input[type='button'])[class~='bg-primary']:focus-visible,
-.dark :is(button, a, [role='button'], input[type='submit'], input[type='button'])[class~='bg-primary/90']:focus-visible,
-.dark :is(button, a, [role='button'], input[type='submit'], input[type='button'])[class~='bg-primary/85']:focus-visible,
-.dark :is(button, a, [role='button'], input[type='submit'], input[type='button'])[class~='bg-primary/80']:focus-visible,
-.dark :is(button, a, [role='button'], input[type='submit'], input[type='button'])[class*='bg-gradient'][class~='from-primary']:focus-visible {
-  box-shadow:
-    0 0 0 2px hsl(var(--background)),
-    0 0 0 6px hsl(var(--solid-btn-focus-outer, 158 52% 76%)) !important;
+.dark :is(button, a, [role='button'], input[type='submit'], input[type='button'], input[type='reset']):focus-visible:not([role='switch']):is(
+  .kit-solid-green-btn,
+  .btn-outer-line,
+  .btn-brand,
+  .chip-active,
+  .btn-focus-solid[class~='bg-primary'],
+  .btn-focus-solid[class~='bg-primary/90'],
+  .btn-focus-solid[class~='bg-primary/85'],
+  [class~='bg-primary'],
+  [class~='bg-primary/90'],
+  [class~='bg-primary/85'],
+  [class~='bg-primary/80'],
+  [class~='dark:bg-primary'],
+  [class*='from-primary']
+):not([class*='bg-primary/10']):not([class*='bg-primary/12']):not([class*='bg-primary/15']):not([class*='bg-primary/20']):not([class*='bg-primary/25']):not([class*='bg-primary/30']),
+.dark :is(button, a, [role='button'], input[type='submit'], input[type='button'], input[type='reset']):focus-visible:not([role='switch'])[class*='bg-primary'][class*='text-white']:not([class*='bg-primary/10']):not([class*='bg-primary/12']):not([class*='bg-primary/15']):not([class*='bg-primary/20']):not([class*='bg-primary/25']):not([class*='bg-primary/30']),
+.dark :is(button, a, [role='button'], input[type='submit'], input[type='button'], input[type='reset']):focus-visible:not([role='switch'])[class*='bg-primary'][class*='text-primary-foreground']:not([class*='bg-primary/10']):not([class*='bg-primary/12']):not([class*='bg-primary/15']):not([class*='bg-primary/20']):not([class*='bg-primary/25']):not([class*='bg-primary/30']) {
+  --solid-btn-focus-inner: hsl(var(--background));
 }
 
 /* Modal / dialog footers — keep outer focus ring visible (not clipped) */
