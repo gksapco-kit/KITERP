@@ -1,13 +1,14 @@
 # ============================================
-# KITERP - Production gateway (HTTP)
+# KITERP - Production gateway (HTTP + HTTPS)
 # ============================================
-# Serves the app on port 80 (EC2 public IP or domain without SSL).
+# Requires Let's Encrypt certs on the EC2 host:
+#   /etc/letsencrypt/live/kiterp.com/fullchain.pem
+#   /etc/letsencrypt/live/kiterp.com/privkey.pem
 #
-# When HTTPS is ready (DNS + certbot certs on the host):
-#   cp docker/nginx/conf.d/default.conf.https docker/nginx/conf.d/default.conf
-#   docker compose --env-file .env.config -f docker-compose.prod.yml up -d nginx
+# Enable: cp docker/nginx/conf.d/default.conf.https docker/nginx/conf.d/default.conf
 # ============================================
 
+# HTTP — health check, ACME, redirect everything else to HTTPS
 server {
     listen 80 default_server;
     server_name _;
@@ -21,9 +22,38 @@ server {
         proxy_set_header X-Forwarded-Proto $scheme;
     }
 
-    # Certbot ACME challenge (for HTTP-01 validation)
     location /.well-known/acme-challenge/ {
         root /var/www/certbot;
+    }
+
+    location /api/ {
+        proxy_pass http://backend_api;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    location / {
+        return 301 https://$host$request_uri;
+    }
+}
+
+# HTTPS — app routes
+server {
+    listen 443 ssl;
+    server_name kiterp.com www.kiterp.com;
+
+    ssl_certificate /etc/letsencrypt/live/kiterp.com/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/kiterp.com/privkey.pem;
+
+    location /health {
+        access_log off;
+        proxy_pass http://backend_api/health;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
     }
 
     location /api/ {
