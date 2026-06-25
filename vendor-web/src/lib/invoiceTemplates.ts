@@ -416,7 +416,16 @@ function fmtDate(d?: string | null): string {
 
 function vendorAddr(addr?: Record<string, string> | null): string {
   if (!addr) return ''
-  return [addr.street, addr.city, addr.state, addr.postal_code].filter(Boolean).join(', ')
+  const street = addr.street_address || addr.street || addr.address_line1 || addr.line1
+  const line2 = addr.line2 || addr.address_line2
+  const state = addr.state || addr.region
+  const postal = addr.postal_code || addr.pincode || addr.zip
+  return [street, line2, addr.city, state, postal, addr.country].filter(Boolean).join(', ')
+}
+
+function addressHasContent(addr?: Record<string, string> | null): boolean {
+  if (!addr || typeof addr !== 'object') return false
+  return !!vendorAddr(addr) || !!(addr.label || addr.phone || '').trim()
 }
 
 /**
@@ -854,10 +863,11 @@ function commonFooter(inv: InvData, settings: InvoiceSettings, footerLogo?: Foot
   const isInterState  = inv.is_inter_state as boolean
   const rawPayTerms = (inv.payment_terms as string) || settings.default_payment_terms || ''
   const payTerms   = (settings.show_payment_terms ?? true) ? rawPayTerms : ''
+  const showShipBlock = settings.show_shipping_address && addressHasContent(shipAddr)
 
-  const gstHtml = (settings.show_shipping_address && shipAddr) || (settings.show_place_of_supply && placeOfSupply) ? `
-    <div style="margin-bottom:14px;display:grid;grid-template-columns:${settings.show_shipping_address && shipAddr && settings.show_place_of_supply ? '1fr 1fr' : '1fr'};gap:16px">
-      ${settings.show_shipping_address && shipAddr ? `
+  const gstHtml = (showShipBlock) || (settings.show_place_of_supply && placeOfSupply) ? `
+    <div style="margin-bottom:14px;display:grid;grid-template-columns:${showShipBlock && settings.show_place_of_supply && placeOfSupply ? '1fr 1fr' : '1fr'};gap:16px">
+      ${showShipBlock && shipAddr ? `
       <div style="padding:10px 12px;background:#f8fafc;border-radius:6px;border-left:3px solid #e5e7eb;font-size:11px">
         <div style="font-size:9px;text-transform:uppercase;letter-spacing:.12em;color:#9ca3af;margin-bottom:4px">Ship To</div>
         ${shipAddr.label ? `<div style="font-weight:600;font-size:12px">${shipAddr.label}</div>` : ''}

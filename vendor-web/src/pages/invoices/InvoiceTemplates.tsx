@@ -1427,24 +1427,24 @@ export default function InvoiceSettingsPage() {
                 <RotateCcw className="w-3.5 h-3.5 shrink-0" />
                 Reset
               </Button>
-              <div className="flex rounded-lg border bg-gray-50 p-0.5 gap-0.5">
-                <button
-                  onClick={() => setActiveTab('invoice')}
+            <div className="flex rounded-lg border bg-gray-50 p-0.5 gap-0.5">
+              <button
+                onClick={() => setActiveTab('invoice')}
                   className={`flex h-9 items-center gap-1.5 px-3 rounded-md text-xs font-medium transition-colors ${
-                    activeTab === 'invoice' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500 hover:text-gray-700'
-                  }`}
-                >
-                  <Building2 className="w-3.5 h-3.5" /> Customer Invoice
-                </button>
-                <button
-                  onClick={() => setActiveTab('pos')}
+                  activeTab === 'invoice' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500 hover:text-gray-700'
+                }`}
+              >
+                <Building2 className="w-3.5 h-3.5" /> Customer Invoice
+              </button>
+              <button
+                onClick={() => setActiveTab('pos')}
                   className={`flex h-9 items-center gap-1.5 px-3 rounded-md text-xs font-medium transition-colors ${
-                    activeTab === 'pos' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500 hover:text-gray-700'
-                  }`}
-                >
-                  <ShoppingCart className="w-3.5 h-3.5" /> POS Receipt
-                </button>
-              </div>
+                  activeTab === 'pos' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500 hover:text-gray-700'
+                }`}
+              >
+                <ShoppingCart className="w-3.5 h-3.5" /> POS Receipt
+              </button>
+            </div>
             </div>
           ) : (
             <Button
@@ -1470,7 +1470,7 @@ export default function InvoiceSettingsPage() {
               <Check className="w-4 h-4 shrink-0" />
             )}
             {isQuotationMode ? 'Save Templates' : 'Save Template'}
-          </Button>
+              </Button>
         </div>
       </div>
 
@@ -1954,11 +1954,11 @@ export default function InvoiceSettingsPage() {
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_380px] gap-6">
         <InvoiceLivePreview
           html={previewHtml}
-          title={isQuotationMode ? 'Quotation Preview' : 'Invoice Preview'}
+                title={isQuotationMode ? 'Quotation Preview' : 'Invoice Preview'}
           paperSize={settings.paper_size}
           templateId={settings.template}
           onTemplateChange={id => set('template', id)}
-        />
+              />
 
         {/* Right: Settings Panel */}
         <div className="space-y-3">

@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo, useEffect } from 'react'
+import { useState, useCallback, useMemo, useEffect, useRef } from 'react'
 import { TableColumnLabel } from '@/components/common/FieldLabel'
 import { useStoreName } from '@/components/common/BusinessUnitSelect'
 import { useParams, useNavigate, useLocation } from 'react-router-dom'
@@ -16,7 +16,8 @@ import {
   ArrowLeft, Loader2, Download, FileText, Printer,
   IndianRupee, Calendar, User, Phone, Mail, Building2,
   Hash, MapPin, Pencil, Save, X, Plus, Trash2, CalendarDays, ShoppingBag, Settings2,
-  MessageCircle, MessageSquare, Share2,
+  MessageCircle, MessageSquare, Share2, Eye,
+  Minimize2, Maximize2, PanelLeft, PanelRight,
 } from 'lucide-react'
 import { TableToolbar } from '@/components/table/TableToolbar'
 import { processRows, type SortDir } from '@/lib/tableList'
@@ -89,8 +90,18 @@ async function downloadInvoicePdf(inv: Record<string, unknown>, invSettings: Inv
   await downloadAsPdf(html, filename, { margin: s.pdf_margin ?? 5, orientation: s.pdf_orientation ?? 'portrait', imageQuality: s.pdf_image_quality ?? 0.98 })
 }
 
-function InfoRow({ icon: Icon, label, value }: { icon: React.ElementType; label: string; value?: string | null }) {
+function InfoRow({ icon: Icon, label, value, compact }: { icon: React.ElementType; label: string; value?: string | null; compact?: boolean }) {
   if (!value) return null
+  if (compact) {
+    return (
+      <div className="min-w-0">
+        <p className="text-[10px] font-medium uppercase tracking-wide text-gray-400 flex items-center gap-1 mb-0.5">
+          <Icon className="w-3 h-3 shrink-0" /> {label}
+        </p>
+        <p className="text-xs text-gray-700 break-words leading-snug">{value}</p>
+      </div>
+    )
+  }
   return (
     <div className="flex items-start gap-2.5 text-sm">
       <Icon className="w-4 h-4 text-gray-400 mt-0.5 shrink-0" />
@@ -102,14 +113,81 @@ function InfoRow({ icon: Icon, label, value }: { icon: React.ElementType; label:
   )
 }
 
-function AddressBlock({ label, address }: { label: string; address?: Record<string, string> | null }) {
-  if (!address) return null
-  const parts = [address.street_address, address.city, address.state, address.postal_code, address.country].filter(Boolean)
-  if (parts.length === 0) return null
+function formatAddressLine(address?: Record<string, string> | null): string | null {
+  if (!address || typeof address !== 'object') return null
+  const street = address.street_address || address.street || address.address_line1 || address.line1
+  const line2 = address.line2 || address.address_line2
+  const state = address.state || address.region
+  const parts = [
+    street,
+    line2,
+    address.city,
+    state,
+    address.postal_code || address.pincode || address.zip,
+    address.country,
+  ].filter(Boolean)
+  return parts.length > 0 ? parts.join(', ') : null
+}
+
+function hasAddressData(address?: Record<string, string> | null): boolean {
+  return !!(formatAddressLine(address) || addressMetaLine(address))
+}
+
+function resolveDocSettings(inv: Record<string, unknown>, base: InvoiceSettings): InvoiceSettings {
+  const ship = inv.shipping_address as Record<string, string> | undefined
+  if (hasAddressData(ship)) {
+    return { ...base, show_shipping_address: true }
+  }
+  return base
+}
+
+function addressMetaLine(address?: Record<string, string> | null): string | null {
+  if (!address || typeof address !== 'object') return null
+  const bits = [address.label, address.phone].map(v => (v || '').trim()).filter(Boolean)
+  return bits.length > 0 ? bits.join(' · ') : null
+}
+
+function AddressBlock({ label, address, compact }: { label: string; address?: Record<string, string> | null; compact?: boolean }) {
+  const line = formatAddressLine(address)
+  const meta = addressMetaLine(address)
+  if (!line && !meta) return null
+  if (compact) {
+    return (
+      <div className="min-w-0">
+        <p className="text-[10px] font-medium uppercase tracking-wide text-gray-400 flex items-center gap-1 mb-0.5">
+          <MapPin className="w-3 h-3 shrink-0" /> {label}
+        </p>
+        {meta && <p className="text-[10px] text-gray-500 mb-0.5">{meta}</p>}
+        {line && <p className="text-xs text-gray-700 break-words leading-snug">{line}</p>}
+      </div>
+    )
+  }
   return (
     <div>
       <p className="text-xs text-gray-400 mb-1 flex items-center gap-1"><MapPin className="w-3 h-3" /> {label}</p>
-      <p className="text-sm text-gray-700">{parts.join(', ')}</p>
+      {meta && <p className="text-xs text-gray-500 mb-0.5">{meta}</p>}
+      {line && <p className="text-sm text-gray-700">{line}</p>}
+    </div>
+  )
+}
+
+function ContactMetaCard({
+  title,
+  titleIcon: TitleIcon,
+  titleIconClass,
+  children,
+}: {
+  title: string
+  titleIcon: React.ElementType
+  titleIconClass: string
+  children: React.ReactNode
+}) {
+  return (
+    <div className="bg-white rounded-lg border p-3 space-y-2">
+      <h3 className="text-xs font-semibold text-gray-900 flex items-center gap-1.5">
+        <TitleIcon className={`w-3.5 h-3.5 ${titleIconClass}`} /> {title}
+      </h3>
+      {children}
     </div>
   )
 }
@@ -158,6 +236,237 @@ function parseLineItems(rawItems: Array<Record<string, unknown>>): LineItem[] {
 
 function emptyLineItem(): LineItem {
   return { name: '', hsn_sac: '', qty: 1, rate: 0, tax_rate: 0 }
+}
+
+type PanelFocus = 'split' | 'details' | 'preview'
+
+function PanelSectionHeader({
+  title,
+  icon: Icon,
+  focus,
+  panel,
+  onToggle,
+}: {
+  title: string
+  icon: React.ElementType
+  focus: PanelFocus
+  panel: 'details' | 'preview'
+  onToggle: () => void
+}) {
+  const isFull = focus === panel
+  const isHidden = focus === (panel === 'details' ? 'preview' : 'details')
+  if (isHidden) return null
+
+  return (
+    <div className="flex items-center justify-between gap-2 px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg shrink-0">
+      <div className="flex items-center gap-2 min-w-0">
+        <Icon className="w-4 h-4 text-blue-500 shrink-0" />
+        <span className="text-sm font-semibold text-gray-800 truncate">{title}</span>
+      </div>
+      <Button
+        type="button"
+        variant="ghost"
+        size="sm"
+        className="h-8 px-2 text-xs shrink-0 text-gray-600 hover:text-gray-900"
+        onClick={onToggle}
+        title={isFull ? 'Show split view' : panel === 'details' ? 'Minimize details — full PDF' : 'Minimize PDF — full details'}
+      >
+        {isFull ? (
+          <>
+            <Maximize2 className="w-3.5 h-3.5 mr-1" />
+            <span className="hidden sm:inline">Split view</span>
+          </>
+        ) : (
+          <>
+            <Minimize2 className="w-3.5 h-3.5 mr-1" />
+            <span className="hidden sm:inline">Minimize</span>
+          </>
+        )}
+      </Button>
+    </div>
+  )
+}
+
+function CollapsedPanelTab({
+  label,
+  icon: Icon,
+  onClick,
+  side,
+}: {
+  label: string
+  icon: React.ElementType
+  onClick: () => void
+  side: 'left' | 'right'
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`hidden lg:flex flex-col items-center justify-center gap-1 w-10 shrink-0 rounded-lg border border-dashed border-gray-300 bg-gray-50 hover:bg-blue-50 hover:border-blue-300 text-gray-500 hover:text-blue-700 transition-colors py-4 ${
+        side === 'left' ? 'order-1' : 'order-3'
+      }`}
+      title={`Show ${label}`}
+    >
+      <Icon className="w-4 h-4" />
+      <span className="text-[10px] font-semibold uppercase tracking-wide [writing-mode:vertical-rl] rotate-180">
+        {label}
+      </span>
+    </button>
+  )
+}
+
+function InvoiceDocumentPreview({
+  html,
+  loading,
+  title,
+  onPrint,
+  onDownload,
+  actionsDisabled,
+  compact,
+  focus,
+  onTogglePanel,
+}: {
+  html: string
+  loading: boolean
+  title: string
+  onPrint: () => void
+  onDownload: () => void
+  actionsDisabled?: boolean
+  compact?: boolean
+  focus?: PanelFocus
+  onTogglePanel?: () => void
+}) {
+  const iframeRef = useRef<HTMLIFrameElement>(null)
+  const [frameHeight, setFrameHeight] = useState(320)
+
+  const resizeFrame = useCallback(() => {
+    const doc = iframeRef.current?.contentDocument
+    if (!doc?.body) return
+    const h = doc.documentElement.scrollHeight || doc.body.scrollHeight
+    setFrameHeight(Math.max(120, h + 8))
+  }, [])
+
+  useEffect(() => {
+    if (!html) return
+    const t = window.setTimeout(resizeFrame, 60)
+    return () => window.clearTimeout(t)
+  }, [html, resizeFrame])
+
+  const openFullPreview = () => {
+    if (!html) return
+    const w = window.open('', '_blank')
+    if (w) {
+      w.document.write(html)
+      w.document.close()
+    }
+  }
+
+  return (
+    <div className={`flex flex-col h-full min-h-0 overflow-hidden border rounded-xl bg-white shadow-sm ${
+      compact ? '' : 'h-[min(70dvh,640px)]'
+    }`}>
+      <div className="flex items-center justify-between gap-2 px-3 py-2 border-b bg-gray-50 shrink-0">
+        <div className="flex items-center gap-2 min-w-0">
+          <Eye className="w-4 h-4 text-blue-500 shrink-0" />
+          <span className="text-sm font-semibold text-gray-800 truncate">{title}</span>
+        </div>
+        <div className="flex items-center gap-1 shrink-0">
+          {onTogglePanel && (
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="h-8 px-2 text-xs text-gray-600"
+              onClick={onTogglePanel}
+              title={focus === 'preview' ? 'Show split view' : 'Minimize PDF — full details'}
+            >
+              {focus === 'preview' ? (
+                <Maximize2 className="w-3.5 h-3.5" />
+              ) : (
+                <Minimize2 className="w-3.5 h-3.5" />
+              )}
+            </Button>
+          )}
+        {!compact && (
+          <div className="flex items-center gap-1.5 shrink-0">
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="h-8 px-2 text-xs hidden sm:inline-flex"
+              disabled={!html || loading}
+              onClick={openFullPreview}
+            >
+              Open
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="h-8 w-8 p-0 sm:w-auto sm:px-3"
+              disabled={actionsDisabled || loading}
+              onClick={onPrint}
+              title="Print"
+            >
+              <Printer className="w-3.5 h-3.5 sm:mr-1" />
+              <span className="hidden sm:inline text-xs">Print</span>
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="h-8 w-8 p-0 sm:w-auto sm:px-3"
+              disabled={actionsDisabled || loading}
+              onClick={onDownload}
+              title="Download PDF"
+            >
+              <Download className="w-3.5 h-3.5 text-red-500 sm:mr-1" />
+              <span className="hidden sm:inline text-xs">PDF</span>
+            </Button>
+          </div>
+        )}
+        {compact && (
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="h-8 px-2 text-xs shrink-0"
+            disabled={!html || loading}
+            onClick={openFullPreview}
+          >
+            Open full
+          </Button>
+        )}
+        </div>
+      </div>
+      <div className="flex-1 overflow-auto bg-slate-100 min-h-0">
+        {loading ? (
+          <div className="flex flex-col items-center justify-center gap-2 h-full min-h-[200px] text-gray-400">
+            <Loader2 className="w-7 h-7 animate-spin" />
+            <span className="text-sm">Loading preview…</span>
+          </div>
+        ) : !html ? (
+          <div className="flex flex-col items-center justify-center gap-2 h-full min-h-[200px] text-gray-400">
+            <FileText className="w-9 h-9" />
+            <span className="text-sm">Preview unavailable</span>
+          </div>
+        ) : (
+          <div className="p-2 sm:p-3">
+            <div className="bg-white shadow-md rounded-sm mx-auto w-full max-w-full ring-1 ring-black/5">
+              <iframe
+                ref={iframeRef}
+                srcDoc={html}
+                title={title}
+                onLoad={resizeFrame}
+                className="w-full border-0 block bg-white rounded-sm"
+                style={{ height: `${frameHeight}px` }}
+              />
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  )
 }
 
 export default function InvoiceDetail() {
@@ -222,6 +531,26 @@ export default function InvoiceDetail() {
 
   const [sortKey, setSortKey] = useState('name')
   const [sortDir, setSortDir] = useState<SortDir>('asc')
+  const [panelFocus, setPanelFocus] = useState<PanelFocus>('split')
+  const detailsScrollRef = useRef<HTMLDivElement>(null)
+
+  const applyPanelFocus = useCallback((next: PanelFocus | ((prev: PanelFocus) => PanelFocus)) => {
+    setPanelFocus(next)
+    requestAnimationFrame(() => {
+      detailsScrollRef.current?.scrollTo({ top: 0 })
+    })
+  }, [])
+
+  const togglePdfPanel = useCallback(() => {
+    applyPanelFocus(f => (f === 'split' ? 'details' : 'split'))
+  }, [applyPanelFocus])
+
+  const toggleDetailsPanel = useCallback(() => {
+    applyPanelFocus(f => (f === 'split' ? 'preview' : 'split'))
+  }, [applyPanelFocus])
+
+  const showDetails = panelFocus !== 'preview'
+  const showPreview = panelFocus !== 'details'
 
   const viewSortOptions = useMemo(() => [
     { value: 'name', label: 'Item' },
@@ -270,6 +599,48 @@ export default function InvoiceDetail() {
     () => processRows(inv?.items as Record<string, unknown>[] | undefined, '', () => [], sortKey, sortDir, viewAccessors),
     [inv?.items, sortKey, sortDir, viewAccessors],
   )
+
+  const [previewHtml, setPreviewHtml] = useState('')
+  const [previewLoading, setPreviewLoading] = useState(true)
+
+  useEffect(() => {
+    if (!inv || settingsLoading) {
+      setPreviewLoading(settingsLoading)
+      return
+    }
+    let cancelled = false
+    const run = async () => {
+      setPreviewLoading(true)
+      const invRecord = inv as Record<string, unknown>
+      const s = resolveDocSettings(invRecord, effectiveSettings(invRecord))
+      const rawLogo = resolveInvoiceTemplateLogoPath(s, inv.vendor_logo_url as string)
+      const rawSig = s.signature_url || ''
+      try {
+        const [logoDataUrl, sigDataUrl] = await Promise.all([
+          s.show_logo && rawLogo ? fetchAsDataUrl(rawLogo) : Promise.resolve(''),
+          s.show_signature && rawSig ? fetchAsDataUrl(rawSig) : Promise.resolve(''),
+        ])
+        if (cancelled) return
+        const enriched: InvoiceSettings = {
+          ...s,
+          logo_url: logoDataUrl || undefined,
+          signature_url: sigDataUrl || undefined,
+        }
+        const html = generateInvoiceHtml(
+          { ...invRecord, vendor_logo_url: logoDataUrl || inv.vendor_logo_url },
+          enriched,
+          '',
+        )
+        setPreviewHtml(html)
+      } catch {
+        if (!cancelled) setPreviewHtml('')
+      } finally {
+        if (!cancelled) setPreviewLoading(false)
+      }
+    }
+    run()
+    return () => { cancelled = true }
+  }, [inv, settingsLoading, effectiveSettings])
 
   const startEditing = useCallback(() => {
     if (!inv) return
@@ -374,120 +745,176 @@ export default function InvoiceDetail() {
   const sb = statusBadge[inv.status] || statusBadge.draft
   const tb = typeBadge[inv.invoice_type] || typeBadge.invoice
   const items: Array<Record<string, unknown>> = inv.items || []
+  const invRecord = inv as Record<string, unknown>
+  const docSettings = resolveDocSettings(invRecord, effectiveSettings(invRecord))
+  const docLabel = isQuotation ? 'Quotation' : 'Invoice'
 
   return (
-    <div className="space-y-6 max-w-5xl">
-      {/* Header */}
-      <div className="space-y-4">
-        <div className="flex items-start gap-3">
-          <Button variant="ghost" size="sm" className="shrink-0 mt-0.5" onClick={() => navigate(listPath)}>
-            <ArrowLeft className="w-4 h-4" />
-          </Button>
-          <div className="min-w-0 flex-1">
-            <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
-              <h1 className="text-2xl font-bold text-gray-900">{inv.invoice_number}</h1>
-              <div className="flex items-center gap-2.5">
-                <span className={`px-2.5 py-0.5 rounded-full text-xs font-medium ${tb.bg} ${tb.text}`}>{tb.label}</span>
-                <span className={`px-2.5 py-0.5 rounded-full text-xs font-medium ${sb.bg} ${sb.text}`}>{sb.label}</span>
-              </div>
-            </div>
-            <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-2">
-              {inv.financial_year && (
-                <p className="text-xs text-gray-400">FY {inv.financial_year}</p>
-              )}
-              {storeName && (
-                <span className="inline-flex items-center gap-1.5 text-xs text-gray-500"><Building2 className="w-3 h-3" />{storeName}</span>
-              )}
+    <div className="flex flex-col gap-3 lg:h-[calc(100dvh-7.5rem)] lg:max-h-[calc(100dvh-7.5rem)] lg:min-h-0 lg:overflow-hidden">
+      {/* Page header + actions */}
+      <div className="shrink-0 space-y-3">
+      <div className="flex items-start gap-2 sm:gap-3">
+        <Button variant="ghost" size="sm" className="shrink-0 mt-0.5 h-8 w-8 p-0" onClick={() => navigate(listPath)}>
+          <ArrowLeft className="w-4 h-4" />
+        </Button>
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
+            <h1 className="text-xl sm:text-2xl font-bold text-gray-900 break-all">{inv.invoice_number}</h1>
+            <div className="flex items-center gap-2">
+              <span className={`px-2.5 py-0.5 rounded-full text-xs font-medium ${tb.bg} ${tb.text}`}>{tb.label}</span>
+              <span className={`px-2.5 py-0.5 rounded-full text-xs font-medium ${sb.bg} ${sb.text}`}>{sb.label}</span>
             </div>
           </div>
-          {isEditing && (
-            <div className="flex shrink-0 gap-3">
-              <Button variant="cancel" size="sm" onClick={cancelEditing} disabled={updateInvoice.isPending}>
-                <X className="w-4 h-4 mr-1.5" /> Cancel
-              </Button>
-              <Button size="sm" onClick={handleSave} disabled={updateInvoice.isPending}>
-                {updateInvoice.isPending ? (
-                  <Loader2 className="w-4 h-4 mr-1.5 animate-spin" />
-                ) : (
-                  <Save className="w-4 h-4 mr-1.5" />
-                )}
-                Save
-              </Button>
-            </div>
-          )}
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-1.5">
+            {inv.financial_year && (
+              <p className="text-xs text-gray-400">FY {inv.financial_year}</p>
+            )}
+            {storeName && (
+              <span className="inline-flex items-center gap-1.5 text-xs text-gray-500">
+                <Building2 className="w-3 h-3" />{storeName}
+              </span>
+            )}
+          </div>
         </div>
-        {!isEditing && (
-          <div className="flex flex-wrap gap-2.5 pl-11">
-            <Button variant="outline" size="sm" onClick={startEditing}>
-              <Pencil className="w-4 h-4 mr-1.5" /> Edit
+        {isEditing && (
+          <div className="flex shrink-0 gap-2">
+            <Button variant="cancel" size="sm" onClick={cancelEditing} disabled={updateInvoice.isPending}>
+              <X className="w-4 h-4 mr-1" /> Cancel
             </Button>
-            <Button variant="outline" size="sm"
-              disabled={settingsLoading}
-              onClick={() => printWithTemplate(inv as Record<string, unknown>, effectiveSettings(inv as Record<string, unknown>))}>
-              {settingsLoading ? <Loader2 className="w-4 h-4 mr-1.5 animate-spin" /> : <Printer className="w-4 h-4 mr-1.5" />} Print
-            </Button>
-            <Button variant="outline" size="sm"
-              disabled={settingsLoading}
-              onClick={() => downloadInvoicePdf(inv as Record<string, unknown>, effectiveSettings(inv as Record<string, unknown>))}>
-              {settingsLoading ? <Loader2 className="w-4 h-4 mr-1.5 animate-spin" /> : <Download className="w-4 h-4 mr-1.5 text-red-500" />} Download PDF
-            </Button>
-            <Button variant="outline" size="sm" onClick={() => {
-              const msg = buildShareMessage({
-                type: shareDocType,
-                number: inv.invoice_number as string,
-                vendorName: inv.vendor_name as string || '',
-                customerOrSupplier: inv.customer_name as string || '',
-                total: inv.total as number,
-                date: inv.created_at ? new Date(inv.created_at as string).toLocaleDateString('en-IN') : '',
-                status: inv.status as string,
-                items: (inv.items as Array<Record<string,unknown>>)?.map(i => ({
-                  name: String(i.name || ''), qty: Number(i.qty || i.quantity || 0), amount: Number(i.total || 0),
-                })),
-              })
-              shareViaWhatsApp(msg, inv.customer_phone as string)
-            }}>
-              <MessageCircle className="w-4 h-4 mr-1.5 text-green-600" /> WhatsApp
-            </Button>
-            <Button variant="outline" size="sm" onClick={() => {
-              const msg = buildShareMessage({
-                type: shareDocType,
-                number: inv.invoice_number as string,
-                vendorName: inv.vendor_name as string || '',
-                customerOrSupplier: inv.customer_name as string || '',
-                total: inv.total as number,
-                date: inv.created_at ? new Date(inv.created_at as string).toLocaleDateString('en-IN') : '',
-              })
-              shareViaSms(msg, inv.customer_phone as string)
-            }}>
-              <MessageSquare className="w-4 h-4 mr-1.5 text-amber-600" /> SMS
-            </Button>
-            <Button variant="outline" size="sm" onClick={() => {
-              const docLabel = isQuotation ? 'Quotation' : 'Invoice'
-              if (navigator.share) {
-                navigator.share({ title: `${docLabel} ${inv.invoice_number}`, text: `${docLabel} ${inv.invoice_number} — Total: ₹${inv.total}` }).catch(() => {})
-              } else {
-                navigator.clipboard.writeText(`${docLabel}: ${inv.invoice_number}\nTotal: ₹${inv.total}\nCustomer: ${inv.customer_name}`)
-                toast.success(`${docLabel} details copied!`)
-              }
-            }}>
-              <Share2 className="w-4 h-4 mr-1.5 text-primary" /> Share
-            </Button>
-            <Button variant="outline" size="sm" onClick={() => navigate(isQuotation ? '/quotations/templates' : '/invoices/templates')}>
-              <Settings2 className="w-4 h-4 mr-1.5" /> {isQuotation ? 'Templates' : 'Settings'}
+            <Button size="sm" onClick={handleSave} disabled={updateInvoice.isPending}>
+              {updateInvoice.isPending ? (
+                <Loader2 className="w-4 h-4 mr-1 animate-spin" />
+              ) : (
+                <Save className="w-4 h-4 mr-1" />
+              )}
+              Save
             </Button>
           </div>
         )}
       </div>
 
+      {/* Action toolbar — single horizontal line */}
+      {!isEditing && (
+        <div className="flex flex-nowrap items-center gap-2 overflow-x-auto pb-0.5 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          <Button variant="outline" size="sm" className="h-8 shrink-0 text-xs px-3" onClick={startEditing}>
+            <Pencil className="w-3.5 h-3.5 mr-1.5" /> Edit
+          </Button>
+          <Button variant="outline" size="sm" className="h-8 shrink-0 text-xs px-3"
+            disabled={settingsLoading}
+            onClick={() => printWithTemplate(invRecord, docSettings)}>
+            {settingsLoading ? <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" /> : <Printer className="w-3.5 h-3.5 mr-1.5" />} Print
+          </Button>
+          <Button variant="outline" size="sm" className="h-8 shrink-0 text-xs px-3"
+            disabled={settingsLoading}
+            onClick={() => downloadInvoicePdf(invRecord, docSettings)}>
+            {settingsLoading ? <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" /> : <Download className="w-3.5 h-3.5 mr-1.5 text-red-500" />} Download PDF
+          </Button>
+          <Button variant="outline" size="sm" className="h-8 shrink-0 text-xs px-3" onClick={() => {
+            const msg = buildShareMessage({
+              type: shareDocType,
+              number: inv.invoice_number as string,
+              vendorName: inv.vendor_name as string || '',
+              customerOrSupplier: inv.customer_name as string || '',
+              total: inv.total as number,
+              date: inv.created_at ? new Date(inv.created_at as string).toLocaleDateString('en-IN') : '',
+              status: inv.status as string,
+              items: (inv.items as Array<Record<string,unknown>>)?.map(i => ({
+                name: String(i.name || ''), qty: Number(i.qty || i.quantity || 0), amount: Number(i.total || 0),
+              })),
+            })
+            shareViaWhatsApp(msg, inv.customer_phone as string)
+          }}>
+            <MessageCircle className="w-3.5 h-3.5 mr-1.5 text-green-600" /> WhatsApp
+          </Button>
+          <Button variant="outline" size="sm" className="h-8 shrink-0 text-xs px-3" onClick={() => {
+            const msg = buildShareMessage({
+              type: shareDocType,
+              number: inv.invoice_number as string,
+              vendorName: inv.vendor_name as string || '',
+              customerOrSupplier: inv.customer_name as string || '',
+              total: inv.total as number,
+              date: inv.created_at ? new Date(inv.created_at as string).toLocaleDateString('en-IN') : '',
+            })
+            shareViaSms(msg, inv.customer_phone as string)
+          }}>
+            <MessageSquare className="w-3.5 h-3.5 mr-1.5 text-amber-600" /> SMS
+          </Button>
+          <Button variant="outline" size="sm" className="h-8 shrink-0 text-xs px-3" onClick={() => {
+            const docLabelShare = isQuotation ? 'Quotation' : 'Invoice'
+            if (navigator.share) {
+              navigator.share({ title: `${docLabelShare} ${inv.invoice_number}`, text: `${docLabelShare} ${inv.invoice_number} — Total: ₹${inv.total}` }).catch(() => {})
+            } else {
+              navigator.clipboard.writeText(`${docLabelShare}: ${inv.invoice_number}\nTotal: ₹${inv.total}\nCustomer: ${inv.customer_name}`)
+              toast.success(`${docLabelShare} details copied!`)
+            }
+          }}>
+            <Share2 className="w-3.5 h-3.5 mr-1.5 text-primary" /> Share
+          </Button>
+          <Button variant="outline" size="sm" className="h-8 shrink-0 text-xs px-3" onClick={() => navigate(isQuotation ? '/quotations/templates' : '/invoices/templates')}>
+            <Settings2 className="w-3.5 h-3.5 mr-1.5" /> {isQuotation ? 'Templates' : 'Settings'}
+          </Button>
+        </div>
+      )}
+
+      {/* Mobile: restore hidden panel */}
+      {panelFocus === 'preview' && (
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          className="lg:hidden w-full h-9 text-xs"
+          onClick={() => applyPanelFocus('split')}
+        >
+          <PanelLeft className="w-3.5 h-3.5 mr-1.5" /> Show invoice details
+        </Button>
+      )}
+      {panelFocus === 'details' && (
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          className="lg:hidden w-full h-9 text-xs"
+          onClick={() => applyPanelFocus('split')}
+        >
+          <PanelRight className="w-3.5 h-3.5 mr-1.5" /> Show PDF preview
+        </Button>
+      )}
+      </div>
+
+      {/* Body: details + PDF preview — fills remaining viewport, scroll inside panels only */}
+      <div className="flex flex-col lg:flex-row lg:flex-1 lg:min-h-0 gap-3 lg:overflow-hidden">
+        {panelFocus === 'preview' && (
+          <CollapsedPanelTab
+            label="Details"
+            icon={PanelLeft}
+            side="left"
+            onClick={() => applyPanelFocus('split')}
+          />
+        )}
+
+        {showDetails && (
+        <div
+          className={`order-2 lg:order-1 flex flex-col min-h-0 min-w-0 h-full ${
+            panelFocus === 'details' ? 'w-full flex-1' : 'w-full lg:w-1/2 lg:flex-1'
+          }`}
+        >
+          <PanelSectionHeader
+            title="Invoice Details"
+            icon={FileText}
+            focus={panelFocus}
+            panel="details"
+            onToggle={toggleDetailsPanel}
+          />
+          <div
+            ref={detailsScrollRef}
+            className="flex-1 min-h-0 overflow-y-auto overscroll-contain space-y-4 pr-0.5 mt-3"
+          >
       {/* Two-column: Customer & Vendor info */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
         {/* Customer */}
-        <div className="bg-white rounded-xl border p-5 space-y-3">
-          <h3 className="text-sm font-semibold text-gray-900 flex items-center gap-2">
-            <User className="w-4 h-4 text-blue-500" /> Bill To
-          </h3>
+        <ContactMetaCard title="Bill To" titleIcon={User} titleIconClass="text-blue-500">
           {isEditing ? (
-            <div className="space-y-3">
+            <div className="space-y-2">
               <div>
                 <Label htmlFor="customer_name" className="text-xs text-gray-500">Name</Label>
                 <Input
@@ -495,86 +922,101 @@ export default function InvoiceDetail() {
                   value={customerName}
                   onChange={e => setCustomerName(e.target.value)}
                   placeholder="Customer name"
+                  className="h-9"
                 />
               </div>
-              <div>
-                <Label htmlFor="customer_phone" className="text-xs text-gray-500">Phone</Label>
-                <PhoneInput
-                  value={customerPhone}
-                  onChange={setCustomerPhone}
-                  defaultCountryIso="IN"
-                />
-              </div>
-              <div>
-                <Label htmlFor="customer_gstin" className="text-xs text-gray-500">GSTIN</Label>
-                <Input
-                  id="customer_gstin"
-                  value={customerGstin}
-                  onChange={e => setCustomerGstin(e.target.value)}
-                  placeholder="GSTIN"
-                />
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                <div>
+                  <Label htmlFor="customer_phone" className="text-xs text-gray-500">Phone</Label>
+                  <PhoneInput
+                    value={customerPhone}
+                    onChange={setCustomerPhone}
+                    defaultCountryIso="IN"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="customer_gstin" className="text-xs text-gray-500">GSTIN</Label>
+                  <Input
+                    id="customer_gstin"
+                    value={customerGstin}
+                    onChange={e => setCustomerGstin(e.target.value)}
+                    placeholder="GSTIN"
+                    className="h-9"
+                  />
+                </div>
               </div>
             </div>
           ) : (
-            <>
-              <InfoRow icon={User} label="Name" value={inv.customer_name} />
-              <InfoRow icon={Mail} label="Email" value={inv.customer_email} />
-              <InfoRow icon={Phone} label="Phone" value={inv.customer_phone} />
-              <InfoRow icon={Building2} label="GSTIN" value={inv.customer_gstin} />
-              <AddressBlock label="Billing Address" address={inv.billing_address} />
-              <AddressBlock label="Shipping Address" address={inv.shipping_address} />
-            </>
+            <div className="space-y-2">
+              {inv.customer_name && (
+                <p className="text-sm font-semibold text-gray-900 leading-snug">{inv.customer_name}</p>
+              )}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-3 gap-y-2">
+                <InfoRow compact icon={Mail} label="Email" value={inv.customer_email} />
+                <InfoRow compact icon={Phone} label="Phone" value={inv.customer_phone} />
+                <InfoRow compact icon={Building2} label="GSTIN" value={inv.customer_gstin} />
+              </div>
+              {hasAddressData(inv.billing_address) || hasAddressData(inv.shipping_address) ? (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-3 gap-y-2 pt-2 border-t border-gray-100">
+                  <AddressBlock compact label="Billing Address" address={inv.billing_address} />
+                  <AddressBlock compact label="Shipping Address" address={inv.shipping_address} />
+                </div>
+              ) : null}
+            </div>
           )}
-        </div>
+        </ContactMetaCard>
 
         {/* Vendor / Meta */}
-        <div className="bg-white rounded-xl border p-5 space-y-3">
-          <h3 className="text-sm font-semibold text-gray-900 flex items-center gap-2">
-            <Building2 className="w-4 h-4 text-indigo-500" /> From
-          </h3>
-          <InfoRow icon={Building2} label="Vendor" value={inv.vendor_name} />
-          <InfoRow icon={Hash} label="GSTIN" value={inv.vendor_gstin} />
-          <InfoRow icon={Calendar} label="Created" value={formatDate(inv.created_at)} />
-          {inv.due_date && (
-            <InfoRow
-              icon={Calendar}
-              label={isQuotation ? 'Valid Until' : 'Due Date'}
-              value={formatDate(inv.due_date)}
-            />
-          )}
-          {!isQuotation && inv.payment_terms && (
-            <InfoRow icon={FileText} label="Payment Terms" value={inv.payment_terms} />
-          )}
-          {inv.place_of_supply && <InfoRow icon={MapPin} label="Place of Supply" value={inv.place_of_supply} />}
-          {inv.is_inter_state && (
-            <p className="text-xs text-amber-600 bg-amber-50 rounded px-2 py-1 w-fit">Inter-state supply (IGST)</p>
-          )}
-          {/* Booking / Order reference links */}
-          {(inv as Record<string, unknown>).booking_id && (
-            <div className="pt-2 border-t">
-              <p className="text-xs text-gray-400 mb-1.5">Linked Booking</p>
-              <button
-                onClick={() => navigate(`/bookings/${(inv as Record<string, unknown>).booking_id}`)}
-                className="flex items-center gap-1.5 text-sm font-mono text-indigo-600 hover:text-indigo-800 hover:underline"
-              >
-                <CalendarDays className="w-4 h-4" />
-                {String((inv as Record<string, unknown>).booking_number || (inv as Record<string, unknown>).booking_id)}
-              </button>
+        <ContactMetaCard title="From" titleIcon={Building2} titleIconClass="text-indigo-500">
+          <div className="space-y-2">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-3 gap-y-2">
+              <InfoRow compact icon={Building2} label="Vendor" value={inv.vendor_name} />
+              <InfoRow compact icon={Hash} label="GSTIN" value={inv.vendor_gstin} />
+              <InfoRow compact icon={Calendar} label="Created" value={formatDate(inv.created_at)} />
+              {inv.due_date && (
+                <InfoRow
+                  compact
+                  icon={Calendar}
+                  label={isQuotation ? 'Valid Until' : 'Due Date'}
+                  value={formatDate(inv.due_date)}
+                />
+              )}
+              {!isQuotation && inv.payment_terms && (
+                <InfoRow compact icon={FileText} label="Payment Terms" value={inv.payment_terms} />
+              )}
+              {inv.place_of_supply && (
+                <InfoRow compact icon={MapPin} label="Place of Supply" value={inv.place_of_supply} />
+              )}
             </div>
-          )}
-          {(inv as Record<string, unknown>).order_id && !(inv as Record<string, unknown>).booking_id && (
-            <div className="pt-2 border-t">
-              <p className="text-xs text-gray-400 mb-1.5">Linked Order</p>
-              <button
-                onClick={() => navigate(`/orders/${(inv as Record<string, unknown>).order_id}`)}
-                className="flex items-center gap-1.5 text-sm font-mono text-blue-600 hover:text-blue-800 hover:underline"
-              >
-                <ShoppingBag className="w-4 h-4" />
-                {String((inv as Record<string, unknown>).order_number || (inv as Record<string, unknown>).order_id)}
-              </button>
-            </div>
-          )}
-        </div>
+            {inv.is_inter_state && (
+              <p className="text-[10px] text-amber-700 bg-amber-50 rounded px-2 py-1 w-fit">Inter-state supply (IGST)</p>
+            )}
+            {(inv as Record<string, unknown>).booking_id && (
+              <div className="pt-2 border-t border-gray-100">
+                <p className="text-[10px] uppercase tracking-wide text-gray-400 mb-1">Linked Booking</p>
+                <button
+                  onClick={() => navigate(`/bookings/${(inv as Record<string, unknown>).booking_id}`)}
+                  className="flex items-center gap-1 text-xs font-mono text-indigo-600 hover:text-indigo-800 hover:underline"
+                >
+                  <CalendarDays className="w-3.5 h-3.5" />
+                  {String((inv as Record<string, unknown>).booking_number || (inv as Record<string, unknown>).booking_id)}
+                </button>
+              </div>
+            )}
+            {(inv as Record<string, unknown>).order_id && !(inv as Record<string, unknown>).booking_id && (
+              <div className="pt-2 border-t border-gray-100">
+                <p className="text-[10px] uppercase tracking-wide text-gray-400 mb-1">Linked Order</p>
+                <button
+                  onClick={() => navigate(`/orders/${(inv as Record<string, unknown>).order_id}`)}
+                  className="flex items-center gap-1 text-xs font-mono text-blue-600 hover:text-blue-800 hover:underline"
+                >
+                  <ShoppingBag className="w-3.5 h-3.5" />
+                  {String((inv as Record<string, unknown>).order_number || (inv as Record<string, unknown>).order_id)}
+                </button>
+              </div>
+            )}
+          </div>
+        </ContactMetaCard>
       </div>
 
       {/* Line Items */}
@@ -675,7 +1117,8 @@ export default function InvoiceDetail() {
             onSortDirChange={setSortDir}
             className="py-2"
           />
-          <table className="w-full">
+          <div className="overflow-x-auto">
+          <table className="w-full min-w-[640px]">
             <thead>
               <tr className="border-b text-xs text-gray-500 uppercase">
                 <th className="text-left px-5 py-2.5 font-semibold"><TableColumnLabel>#</TableColumnLabel></th>
@@ -709,12 +1152,13 @@ export default function InvoiceDetail() {
               })}
             </tbody>
           </table>
+          </div>
         </div>
       )}
 
       {/* Totals */}
-      <div className="flex justify-end">
-        <div className="bg-white rounded-xl border p-5 w-full max-w-sm space-y-2 max-h-[90vh] overflow-y-auto">
+      <div className="flex justify-stretch sm:justify-end">
+        <div className="bg-white rounded-xl border p-4 sm:p-5 w-full sm:max-w-sm space-y-2">
           {isEditing ? (
             <>
               <div className="flex justify-between text-sm">
@@ -849,6 +1293,39 @@ export default function InvoiceDetail() {
           </div>
         )
       )}
+          </div>
+        </div>
+        )}
+
+        {panelFocus === 'details' && (
+          <CollapsedPanelTab
+            label="PDF"
+            icon={PanelRight}
+            side="right"
+            onClick={() => applyPanelFocus('split')}
+          />
+        )}
+
+        {showPreview && (
+        <div
+          className={`order-1 lg:order-2 flex flex-col min-h-0 min-w-0 lg:h-full ${
+            panelFocus === 'preview' ? 'w-full flex-1 min-h-[min(60dvh,520px)] lg:min-h-0' : 'w-full lg:w-1/2 lg:flex-1 min-h-[min(50dvh,480px)] lg:min-h-0'
+          }`}
+        >
+          <InvoiceDocumentPreview
+            html={previewHtml}
+            loading={previewLoading || settingsLoading}
+            title={`${docLabel} Document`}
+            actionsDisabled={settingsLoading}
+            onPrint={() => printWithTemplate(invRecord, docSettings)}
+            onDownload={() => downloadInvoicePdf(invRecord, docSettings)}
+            compact
+            focus={panelFocus}
+            onTogglePanel={togglePdfPanel}
+          />
+        </div>
+        )}
+      </div>
     </div>
   )
 }
