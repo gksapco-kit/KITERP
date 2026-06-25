@@ -29,9 +29,12 @@ export type OverlayLayerItem = {
   linkType?: string
   linkTarget?: string
   linkLabel?: string
+  text?: string
   color?: string
   fontSize?: number
   fontFamily?: string
+  fontWeight?: string
+  italic?: boolean
   align?: 'left' | 'center' | 'right'
   description?: string
   shadow?: boolean
@@ -43,7 +46,7 @@ export type OverlayLayerItem = {
   iconName?: string
 }
 
-export function overlayHasTextControls(item: OverlayLayerItem): boolean {
+export function overlayHasTextControls(item: Pick<OverlayLayerItem, 'type'>): boolean {
   return item.type === 'text' || item.type === 'button' || item.type === 'badge'
 }
 
@@ -78,11 +81,16 @@ export function overlayLayerTypeLabel(type: string): string {
   }
 }
 
-export function overlayHasFillControls(item: OverlayLayerItem): boolean {
+export function overlayHasFillControls(item: Pick<OverlayLayerItem, 'type' | 'src'>): boolean {
   if (item.type === 'image' && item.src) return false
   return true
 }
 
-export function overlayHasLinkControl(item: OverlayLayerItem): boolean {
+/** Image / video layers — upload, library, and URL sourcing. */
+export function overlayHasMediaSourceControls(item: Pick<OverlayLayerItem, 'type'>): boolean {
+  return item.type === 'image' || item.type === 'video'
+}
+
+export function overlayHasLinkControl(item: Pick<OverlayLayerItem, 'type'>): boolean {
   return item.type === 'button' || item.type === 'badge' || item.type === 'text' || item.type === 'image' || item.type === 'icon'
 }

@@ -10,7 +10,7 @@ import {
   visualTabMenuTrigger,
 } from '@/components/websites/designBarVisualUi'
 import { sectionSupportsMediaClip } from '@storefront/lib/designBarCapabilities'
-import type { OverlayLayerItem } from '@/lib/builderOverlayVisual'
+import { overlayHasMediaSourceControls, type OverlayLayerItem } from '@/lib/builderOverlayVisual'
 import type { BlockProps } from '@/types/websites'
 
 /** Upload / Library / Select / Clips — single Visuals menu on the Visual tab. */
@@ -44,9 +44,9 @@ export function VisualsDesignBarMenu({
   /** Visual tab row — roomier label line-height. */
   visualTab?: boolean
 }) {
-  const isImageOverlay = selectedOverlay?.type === 'image'
-  const uploadHandler = isImageOverlay ? onOverlayPickImage : onPickImage
-  const libraryHandler = isImageOverlay ? onOverlayOpenLibrary : onOpenMediaLibrary
+  const isMediaOverlay = selectedOverlay ? overlayHasMediaSourceControls(selectedOverlay) : false
+  const uploadHandler = isMediaOverlay ? onOverlayPickImage : onPickImage
+  const libraryHandler = isMediaOverlay ? onOverlayOpenLibrary : onOpenMediaLibrary
 
   const supportsClip = sectionSupportsMediaClip(blockType) && !selectedOverlay
   const clipLabel = mediaClipActiveLabel((blockProps as { media_clip?: string }).media_clip)
@@ -55,7 +55,7 @@ export function VisualsDesignBarMenu({
   const hasUpload = Boolean(uploadHandler)
   const hasLibrary = Boolean(libraryHandler)
   const hasSelect = Boolean(!selectedOverlay && primaryImageField && !canvasImageField && onFocusPrimaryImage)
-  const hasUrl = Boolean(isImageOverlay && onOverlaySetImageUrl)
+  const hasUrl = Boolean(isMediaOverlay && onOverlaySetImageUrl)
 
   const [open, setOpen] = useState(false)
   const btnRef = useRef<HTMLButtonElement>(null)
@@ -106,8 +106,10 @@ export function VisualsDesignBarMenu({
         <div className="border-b border-gray-100 bg-gray-50 px-3 py-2">
           <div className="text-xs font-bold text-gray-800">Visuals</div>
           <p className="mt-0.5 text-[10px] leading-snug text-gray-500">
-            {isImageOverlay
-              ? 'Replace or source the selected image layer.'
+            {isMediaOverlay
+              ? selectedOverlay?.type === 'video'
+                ? 'Replace or source the selected video layer.'
+                : 'Replace or source the selected image layer.'
               : 'Add images, pick from your library, or apply clip shapes to this section.'}
           </p>
         </div>

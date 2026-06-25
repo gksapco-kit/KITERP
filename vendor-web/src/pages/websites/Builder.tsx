@@ -98,6 +98,7 @@ import {
   designBarTabSlot,
   designBarTabClass,
   designBarTabList,
+  visualActionBtn,
   visualToolbarRow,
 } from '@/components/websites/designBarVisualUi'
 import { ScrollAnimationControls } from '@/components/websites/ScrollAnimationControls'
@@ -121,6 +122,13 @@ import {
   TEXT_CLEAR_MENU,
   type TextClearAction,
 } from '@/lib/builderCanvasTextClear'
+import {
+  cloneOverlayForPaste,
+  consumeOverlayClipboardAfterPaste,
+  getOverlayClipboard,
+  hasOverlayClipboard,
+  setOverlayClipboard,
+} from '@/lib/builderOverlayClipboard'
 import {
   editableFieldKeys,
   primaryTextFieldKey,
@@ -161,6 +169,7 @@ import { SectionImageControls } from '@/components/websites/SectionImageControls
 import { InsertLayerButton } from '@/components/websites/InsertLayerButton'
 import {
   overlayHasFillControls,
+  overlayHasLinkControl,
   overlayHasTextControls,
   overlayLayerTypeLabel,
   type OverlayLayerItem,
@@ -730,6 +739,28 @@ const OVERLAY_HANDLE_POS: Record<string, React.CSSProperties> = {
   sw: { bottom: -5, left: -5 },
   w:  { top: '50%', left: -5, transform: 'translateY(-50%)' },
   nw: { top: -5, left: -5 },
+}
+
+/** Undo CSS scale/zoom on the overlay canvas so pointer coords match stored x/y/w/h. */
+function overlayContainerScale(container: HTMLElement): { scaleX: number; scaleY: number } {
+  const rect = container.getBoundingClientRect()
+  const scaleX = container.offsetWidth > 0 ? rect.width / container.offsetWidth : 1
+  const scaleY = container.offsetHeight > 0 ? rect.height / container.offsetHeight : 1
+  return { scaleX: scaleX || 1, scaleY: scaleY || 1 }
+}
+
+function pointerToOverlayLocal(
+  clientX: number,
+  clientY: number,
+  container: HTMLElement | null | undefined,
+): { x: number; y: number } {
+  if (!container) return { x: 0, y: 0 }
+  const rect = container.getBoundingClientRect()
+  const { scaleX, scaleY } = overlayContainerScale(container)
+  return {
+    x: (clientX - rect.left) / scaleX,
+    y: (clientY - rect.top) / scaleY,
+  }
 }
 
 // ?? Draggable popup hook ??????????????????????????????????????????????????????
@@ -2200,6 +2231,7 @@ function OverlayEditToolbar({
 }) {
   const hasTextControls = item.type === 'text' || item.type === 'button' || item.type === 'badge'
   const isImage = item.type === 'image'
+  const isVideo = item.type === 'video'
   const isIcon = item.type === 'icon'
   const hasLink = item.type === 'button' || item.type === 'badge' || item.type === 'text' || isImage || isIcon
   const isLinked = !!(item.linkType && item.linkType !== 'none')
@@ -2515,7 +2547,90 @@ function OverlayEditToolbar({
           </OverlayToolbarSection>
         )}
 
-      {(hasTextControls || isIcon || ((item.type === 'button' || item.type === 'badge') && onRequestText) || (hasLink && onEditLink && !isImage)) && (
+        {isVideo && (
+          <OverlayToolbarSection title="Video" compact>
+            <div className={cn('grid gap-1', onPickLocalImage && onOpenMediaForImage ? 'grid-cols-2' : 'grid-cols-1')}>
+              {onPickLocalImage ? (
+                <button
+                  type="button"
+                  onClick={e => { e.stopPropagation(); onPickLocalImage() }}
+                  className={cn(toolbarBtn, 'gap-1 bg-sky-600 text-white hover:bg-sky-500 text-[9px] font-semibold')}
+                  title="Upload video"
+                >
+                  <Upload className="h-3 w-3 shrink-0" />
+                  Upload
+                </button>
+              ) : null}
+              {onOpenMediaForImage ? (
+                <button
+                  type="button"
+                  onClick={e => { e.stopPropagation(); onOpenMediaForImage() }}
+                  className={cn(toolbarBtn, 'gap-1 bg-emerald-600 text-white hover:bg-emerald-500 text-[9px] font-semibold')}
+                  title="Media library"
+                >
+                  <Video className="h-3 w-3 shrink-0" />
+                  Library
+                </button>
+              ) : null}
+            </div>
+            {onRequestText ? (
+              <button
+                type="button"
+                onClick={e => {
+                  e.stopPropagation()
+                  onRequestText({
+                    title: 'Set video URL',
+                    subtitle: 'Paste a direct link to an MP4, WebM, or other video file.',
+                    placeholder: 'https://…/video.mp4',
+                    initialValue: item.src || '',
+                    anchor: textPromptAnchor(),
+                    onSave: v => { if (v) onUpdate({ src: v }) },
+                  })
+                }}
+                className={cn(toolbarBtn, 'mt-1 gap-1 bg-primary text-primary-foreground hover:bg-primary/90 text-[9px] font-semibold')}
+                title="Set video from URL"
+              >
+                <Link2 className="h-3 w-3 shrink-0" />
+                URL
+              </button>
+            ) : null}
+            <div className="mt-1 grid grid-cols-3 gap-1">
+              <OverlayToolbarNumberInput
+                label="Radius"
+                value={item.borderRadius ?? 0}
+                min={0}
+                max={999}
+                fallback={0}
+                onCommit={n => onUpdate({ borderRadius: n })}
+                onStopBubble={stopToolbarEvent}
+              />
+              <OverlayToolbarField label="Shadow" compact>
+                <button
+                  type="button"
+                  onClick={() => onUpdate({ shadow: !item.shadow })}
+                  className={cn(
+                    toolbarBtn,
+                    'text-[9px] font-semibold',
+                    item.shadow ? 'bg-primary text-white' : overlayToolbarUi.actionMuted,
+                  )}
+                >
+                  {item.shadow ? 'On' : 'Off'}
+                </button>
+              </OverlayToolbarField>
+              <OverlayToolbarNumberInput
+                label="Opacity %"
+                value={item.opacity ?? 100}
+                min={10}
+                max={100}
+                fallback={100}
+                onCommit={n => onUpdate({ opacity: n })}
+                onStopBubble={stopToolbarEvent}
+              />
+            </div>
+          </OverlayToolbarSection>
+        )}
+
+      {(hasTextControls || isIcon || ((item.type === 'button' || item.type === 'badge') && onRequestText) || (hasLink && onEditLink && !isImage && !isVideo)) && (
         <div className="grid grid-cols-3 gap-1">
           {hasTextControls ? (
             <button
@@ -2527,7 +2642,7 @@ function OverlayEditToolbar({
               <Type className="h-4 w-4 shrink-0" />
             </button>
           ) : <div className="h-7" aria-hidden />}
-          {hasLink && onEditLink && !isImage ? (
+          {hasLink && onEditLink && !isImage && !isVideo ? (
             <button
               type="button"
               data-overlay-link-btn
@@ -2544,7 +2659,7 @@ function OverlayEditToolbar({
             >
               <Link2 className="h-4 w-4 shrink-0" />
             </button>
-          ) : (isImage ? null : <div className="h-7" aria-hidden />)}
+          ) : (isImage || isVideo ? null : <div className="h-7" aria-hidden />)}
           {(item.type === 'button' || item.type === 'badge') && onRequestText ? (
             <button
               type="button"
@@ -2636,11 +2751,12 @@ function OverlayElement({
     if ((e.target as HTMLElement).closest('[data-overlay-toolbar],[data-overlay-delete]')) return
     e.stopPropagation(); e.preventDefault()
     dragMovedRef.current = false
-    const startX = e.clientX - item.x
-    const startY = e.clientY - item.y
+    const container = containerRef.current
+    const startPointer = pointerToOverlayLocal(e.clientX, e.clientY, container)
+    const grabOffsetX = startPointer.x - item.x
+    const grabOffsetY = startPointer.y - item.y
     const originX = e.clientX
     const originY = e.clientY
-    const container = containerRef.current
     document.body.style.cursor = 'move'
     const onMove = (mv: MouseEvent) => {
       if (Math.abs(mv.clientX - originX) > 3 || Math.abs(mv.clientY - originY) > 3) {
@@ -2648,8 +2764,9 @@ function OverlayElement({
       }
       const cw = container?.clientWidth || 800
       const ch = container?.clientHeight || 400
-      const rawX = Math.max(0, Math.min(cw - item.w, mv.clientX - startX))
-      const rawY = Math.max(0, Math.min(ch - 20, mv.clientY - startY))
+      const pointer = pointerToOverlayLocal(mv.clientX, mv.clientY, container)
+      const rawX = Math.max(0, Math.min(cw - item.w, pointer.x - grabOffsetX))
+      const rawY = Math.max(0, Math.min(ch - 20, pointer.y - grabOffsetY))
       // Snap to sibling overlays + the container's edges/center, Figma-style.
       const targets = collectOverlayTargets(siblings ?? [], cw, ch)
       const snapped = snapOverlayDrag({ x: rawX, y: rawY, w: item.w, h: item.h }, targets)
@@ -2674,9 +2791,11 @@ function OverlayElement({
     const sx = e.clientX, sy = e.clientY
     const ox = item.x, oy = item.y, ow = item.w, oh = item.h
     const container = containerRef.current
+    const { scaleX, scaleY } = container ? overlayContainerScale(container) : { scaleX: 1, scaleY: 1 }
     document.body.style.cursor = OVERLAY_RESIZE_CURSORS[handle]
     const onMove = (mv: MouseEvent) => {
-      const dx = mv.clientX - sx, dy = mv.clientY - sy
+      const dx = (mv.clientX - sx) / scaleX
+      const dy = (mv.clientY - sy) / scaleY
       let nx = ox, ny = oy, nw = ow, nh = oh
       if (handle.includes('e')) nw = Math.max(40, ow + dx)
       if (handle.includes('w')) { nx = ox + dx; nw = Math.max(40, ow - dx) }
@@ -2751,9 +2870,9 @@ function OverlayElement({
           <div
             data-overlay-content
             style={{ ...commonStyle, backgroundColor: resolveOverlayBackground(item, '#64C3A0'), display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative' }}
-            title={item.description || (hasLink ? `Link ? ${item.linkLabel || item.linkTarget}` : 'Click to edit')}
+            title={item.description || (hasLink ? `Link — ${item.linkLabel || item.linkTarget}` : 'Double-click to connect link')}
           >
-            <span style={{ fontSize: item.fontSize || 14, fontWeight: item.fontWeight || 'bold', color: item.color || '#ffffff', ...overlayTextFontStyle(item) }}>
+            <span style={{ fontSize: item.fontSize || 14, fontWeight: item.fontWeight || 'bold', fontStyle: item.italic ? 'italic' : undefined, color: item.color || '#ffffff', ...overlayTextFontStyle(item) }}>
               {item.text || 'Button'}
             </span>
             {/* Link badge hidden while selected ? toolbar shows Linked / Add link instead */}
@@ -2774,7 +2893,7 @@ function OverlayElement({
       case 'badge':
         return (
           <div style={{ ...commonStyle, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: resolveOverlayBackground(item, '#64C3A0') }}>
-            <span style={{ fontSize: item.fontSize || 12, fontWeight: 'bold', color: item.color || '#ffffff', whiteSpace: 'nowrap', ...overlayTextFontStyle(item) }}>
+            <span style={{ fontSize: item.fontSize || 12, fontWeight: item.fontWeight || 'bold', fontStyle: item.italic ? 'italic' : undefined, color: item.color || '#ffffff', whiteSpace: 'nowrap', ...overlayTextFontStyle(item) }}>
               {item.text || 'Badge'}
             </span>
           </div>
@@ -2799,11 +2918,26 @@ function OverlayElement({
       }
       case 'video':
         return (
-          <div style={{ ...commonStyle, backgroundColor: item.bgColor || '#000', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div
+            style={{ ...commonStyle, backgroundColor: item.bgColor || '#000', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+            onDragOver={onImageFileDrop ? e => { e.preventDefault(); e.stopPropagation() } : undefined}
+            onDrop={onImageFileDrop ? e => {
+              e.preventDefault(); e.stopPropagation()
+              const f = e.dataTransfer.files?.[0]
+              if (f) onImageFileDrop(f)
+            } : undefined}
+          >
             {item.src ? (
-              <video src={item.src} style={{ width: '100%', height: '100%', objectFit: 'cover' }} controls={false} />
+              <video src={mediaUrl(item.src)} style={{ width: '100%', height: '100%', objectFit: 'cover' }} controls={false} />
             ) : (
-              <svg viewBox="0 0 24 24" style={{ width: 36, height: 36, fill: 'rgba(255,255,255,0.7)' }}><path d="M8 5v14l11-7z"/></svg>
+              <>
+                <svg viewBox="0 0 24 24" style={{ width: 36, height: 36, fill: 'rgba(255,255,255,0.7)' }}><path d="M8 5v14l11-7z"/></svg>
+                {isSelected ? (
+                  <span style={{ position: 'absolute', fontSize: 11, color: 'rgba(255,255,255,0.75)', textAlign: 'center', padding: '0 8px', lineHeight: 1.35 }}>
+                    Click to upload · drop video · or use settings
+                  </span>
+                ) : null}
+              </>
             )}
           </div>
         )
@@ -2829,14 +2963,17 @@ function OverlayElement({
         if (item.type === 'image' && !item.src && onPickLocalImage) {
           onPickLocalImage()
         }
+        if (item.type === 'video' && !item.src && onPickLocalImage) {
+          onPickLocalImage()
+        }
       }}
       onMouseDown={e => {
         const t = e.target as HTMLElement
         if (t.closest('[data-overlay-toolbar],[data-overlay-delete],[data-overlay-resize-handle]')) return
         if (t.closest('input,textarea,select')) return
         if (!isSelected) onSelect()
-        // Empty image layers use click/drop to upload — skip drag so the click isn't eaten.
-        if (!textEditing && !(item.type === 'image' && !item.src)) startDrag(e)
+        // Empty image/video layers use click/drop to upload — skip drag so the click isn't eaten.
+        if (!textEditing && !((item.type === 'image' || item.type === 'video') && !item.src)) startDrag(e)
       }}
       onContextMenu={e => { if (onContextMenu) { e.preventDefault(); e.stopPropagation(); onSelect(); onContextMenu(e) } }}
       onDoubleClick={e => {
@@ -2845,6 +2982,14 @@ function OverlayElement({
         if (item.type === 'image') {
           e.stopPropagation()
           onPickLocalImage?.()
+        }
+        if (item.type === 'video') {
+          e.stopPropagation()
+          onPickLocalImage?.()
+        }
+        if ((item.type === 'button' || item.type === 'badge') && onEditLink) {
+          e.stopPropagation()
+          onEditLink({ x: e.clientX, y: e.clientY })
         }
       }}
     >
@@ -2887,12 +3032,12 @@ function OverlayElement({
               }}
             />
           ))}
-          {/* Delete — kept inside the box so it stays above the block design bar */}
+          {/* Delete — above the top-right corner so it does not cover layer content */}
           <button
             type="button"
             data-overlay-delete
             onMouseDown={e => { e.stopPropagation(); onDelete() }}
-            className="absolute top-1.5 right-1.5 z-[26] flex h-7 w-7 items-center justify-center rounded-md bg-red-500 text-sm font-bold leading-none text-white shadow-md hover:bg-red-600"
+            className="absolute right-0 bottom-full z-[26] mb-1 flex h-7 w-7 items-center justify-center rounded-md bg-red-500 text-sm font-bold leading-none text-white shadow-md hover:bg-red-600"
             title="Delete element (Del)"
           >
             <X className="h-4 w-4" />
@@ -3039,16 +3184,16 @@ function BlockOverlayCanvas({
             onUpdate={updates => updateItem(item.id, updates)}
             onDelete={() => deleteItem(item.id)}
             onOpenAiForImage={item.type === 'image' ? onOpenAiImageTools : undefined}
-            onOpenMediaForImage={item.type === 'image' && onOpenMediaLibrary
+            onOpenMediaForImage={(item.type === 'image' || item.type === 'video') && onOpenMediaLibrary
               ? () => { onOverlaySelectionChange?.(item.id); onOpenMediaLibrary() }
               : undefined}
-            onPickLocalImage={item.type === 'image' && onPickLocalImage && blockId
+            onPickLocalImage={(item.type === 'image' || item.type === 'video') && onPickLocalImage && blockId
               ? () => {
                   onOverlaySelectionChange?.(item.id, blockId)
                   onPickLocalImage({ blockId, overlayId: item.id })
                 }
               : undefined}
-            onImageFileDrop={item.type === 'image' && onImageFileDrop && blockId
+            onImageFileDrop={(item.type === 'image' || item.type === 'video') && onImageFileDrop && blockId
               ? (file) => {
                   onOverlaySelectionChange?.(item.id, blockId)
                   onImageFileDrop(file, { blockId, overlayId: item.id })
@@ -3386,6 +3531,29 @@ function normalizeSitePages(pages: WebsitePage[]): WebsitePage[] {
 
 function isPersistedPageId(pageId: string): boolean {
   return Boolean(pageId) && !pageId.startsWith('temp-')
+}
+
+/** Strip non-JSON values (undefined, NaN, functions) before PATCH payloads. */
+function sanitizeForApiJson<T>(value: T): T {
+  return JSON.parse(JSON.stringify(value, (_key, v) => {
+    if (typeof v === 'number' && !Number.isFinite(v)) return null
+    return v
+  })) as T
+}
+
+function blockPayloadForApi(block: WebsiteBlock) {
+  return {
+    props: sanitizeForApiJson(block.props ?? {}),
+    style_overrides: sanitizeForApiJson(block.style_overrides || {}),
+    label: block.label,
+    visible: block.visible,
+    visible_on_mobile: block.visible_on_mobile,
+    visible_on_tablet: block.visible_on_tablet,
+    visible_on_desktop: block.visible_on_desktop,
+    animation: block.animation,
+    animation_delay: block.animation_delay,
+    sort_order: block.sort_order,
+  }
 }
 
 function countPersistedPages(pages: WebsitePage[]): number {
@@ -4788,19 +4956,22 @@ function PropsCollapsible({
   title,
   preview,
   accent,
+  defaultOpen,
   children,
 }: {
   title: string
   preview?: string
   accent?: boolean
+  defaultOpen?: boolean
   children: React.ReactNode
 }) {
   return (
     <details
+      open={defaultOpen}
       className={cn(
-        'group overflow-hidden transition-colors',
+        'group transition-colors',
         accent
-          ? 'rounded-lg border border-primary/30 bg-primary/5 shadow-sm'
+          ? 'rounded-lg border border-primary/30 bg-primary/5 shadow-sm overflow-hidden'
           : builderPanelUi.collapsible,
       )}
     >
@@ -4840,10 +5011,68 @@ function PropsCollapsible({
           )}
         />
       </summary>
-      <div className="px-3 pb-3 pt-2 border-t border-gray-100 bg-gray-50/40 space-y-2">
+      <div className="px-3 pb-3 pt-2.5 border-t border-border/60 bg-muted/20 space-y-3">
         {children}
       </div>
     </details>
+  )
+}
+
+/** Single-open accordion row — expanded body has no max-height or inner scroll. */
+function PropsAccordionSection({
+  id,
+  activeId,
+  onActivate,
+  title,
+  preview,
+  children,
+}: {
+  id: string
+  activeId: string | null
+  onActivate: (id: string) => void
+  title: string
+  preview?: string
+  children: React.ReactNode
+}) {
+  const open = activeId === id
+  return (
+    <div
+      className={cn(
+        builderPanelUi.collapsible,
+        'shrink-0 transition-colors',
+        open && 'border-primary/25 ring-1 ring-primary/10',
+      )}
+    >
+      <button
+        type="button"
+        aria-expanded={open}
+        onClick={() => onActivate(id)}
+        className={cn(
+          'flex w-full items-center gap-1.5 px-2.5 py-2 text-left transition-colors',
+          builderPanelUi.collapsibleSummary,
+          open && 'bg-muted/35',
+        )}
+      >
+        <span className={cn(builderPanelUi.collapsibleTitle, 'shrink-0 text-[11px]')}>{title}</span>
+        <div className="min-w-0 flex-1" />
+        {preview ? (
+          <span className="max-w-[50%] shrink-0 truncate rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
+            {preview}
+          </span>
+        ) : null}
+        <ChevronDown
+          className={cn(
+            'h-3.5 w-3.5 shrink-0 text-muted-foreground transition-transform',
+            open && 'rotate-180 text-primary',
+          )}
+        />
+      </button>
+      {open ? (
+        <div className="@container border-t border-border/60 bg-muted/20 px-2.5 pb-2.5 pt-2 space-y-2.5">
+          {children}
+        </div>
+      ) : null}
+    </div>
   )
 }
 
@@ -5233,13 +5462,17 @@ function SectionLayoutControls({
   currentProps,
   onOpenLayoutPicker,
   onCycleLayout,
+  onSelectLayoutIndex,
   compact = false,
+  embedded = false,
 }: {
   block: WebsiteBlock
   currentProps: Record<string, unknown>
   onOpenLayoutPicker: () => void
   onCycleLayout: (direction: 'prev' | 'next') => void
+  onSelectLayoutIndex?: (index: number) => void
   compact?: boolean
+  embedded?: boolean
 }) {
   const layoutOptions = getSectionLayoutOptions(block.block_type)
   if (layoutOptions.length === 0) return null
@@ -5283,35 +5516,124 @@ function SectionLayoutControls({
     )
   }
 
+  if (embedded) {
+    return (
+      <div className="@container space-y-2">
+        <div className="flex min-w-0 items-start justify-between gap-2">
+          <div className="min-w-0">
+            <p className="truncate text-[11px] font-semibold leading-tight text-foreground">
+              {activeLayout?.label || 'Default layout'}
+            </p>
+            {activeLayout?.desc ? (
+              <p className="mt-0.5 line-clamp-2 text-[10px] leading-snug text-muted-foreground">
+                {activeLayout.desc}
+              </p>
+            ) : null}
+          </div>
+          <span className="shrink-0 rounded bg-muted px-1.5 py-0.5 text-[9px] font-semibold tabular-nums text-muted-foreground">
+            {activeIdx + 1}/{layoutOptions.length}
+          </span>
+        </div>
+        <div className="flex min-w-0 items-center gap-1">
+          <button
+            type="button"
+            disabled={!canCycle}
+            onClick={() => onCycleLayout('prev')}
+            title="Previous style"
+            aria-label="Previous style"
+            className={cn(
+              'flex h-7 w-7 shrink-0 items-center justify-center rounded-md border transition-colors',
+              canCycle
+                ? 'border-border bg-background text-muted-foreground hover:border-primary/40 hover:text-primary'
+                : 'cursor-not-allowed border-border/50 bg-muted/30 text-muted-foreground/35',
+            )}
+          >
+            <ChevronLeft className="h-3.5 w-3.5" />
+          </button>
+          <button
+            type="button"
+            onClick={onOpenLayoutPicker}
+            title={`Browse all ${layoutOptions.length} styles`}
+            className="h-7 min-w-0 flex-1 truncate rounded-md bg-primary px-2 text-[10px] font-bold text-primary-foreground transition-colors hover:bg-primary/90"
+          >
+            Change style
+          </button>
+          <button
+            type="button"
+            disabled={!canCycle}
+            onClick={() => onCycleLayout('next')}
+            title="Next style"
+            aria-label="Next style"
+            className={cn(
+              'flex h-7 w-7 shrink-0 items-center justify-center rounded-md border transition-colors',
+              canCycle
+                ? 'border-border bg-background text-muted-foreground hover:border-primary/40 hover:text-primary'
+                : 'cursor-not-allowed border-border/50 bg-muted/30 text-muted-foreground/35',
+            )}
+          >
+            <ChevronRight className="h-3.5 w-3.5" />
+          </button>
+        </div>
+        {layoutOptions.length > 1 ? (
+          <div className="flex flex-wrap gap-1">
+            {layoutOptions.map((opt, idx) => {
+              const active = idx === activeIdx
+              return (
+                <button
+                  key={opt.id}
+                  type="button"
+                  title={opt.desc || opt.label}
+                  onClick={() => {
+                    if (active) return
+                    if (onSelectLayoutIndex) onSelectLayoutIndex(idx)
+                    else onCycleLayout(idx > activeIdx ? 'next' : 'prev')
+                  }}
+                  className={cn(
+                    'max-w-full truncate rounded border px-1.5 py-0.5 text-[9px] font-semibold leading-tight transition-colors',
+                    active
+                      ? 'border-primary bg-primary/10 text-primary'
+                      : 'border-border bg-background text-muted-foreground hover:border-primary/35 hover:text-foreground',
+                  )}
+                >
+                  {opt.label}
+                </button>
+              )
+            })}
+          </div>
+        ) : null}
+      </div>
+    )
+  }
+
   return (
-    <div className="rounded-xl border border-primary/25 bg-gradient-to-br from-primary/8 to-white p-3 space-y-3">
-      <div className="flex items-start justify-between gap-2">
+    <div className={cn(builderPanelUi.cardSurface, 'p-3 space-y-3')}>
+      <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <div className="text-[10px] font-bold uppercase tracking-wide text-primary">
+          <div className={builderPanelUi.eyebrow}>
             {block.label || block.block_type}
           </div>
-          <div className="text-sm font-semibold text-gray-900 truncate mt-0.5">
+          <div className="text-sm font-semibold text-foreground truncate mt-1">
             {activeLayout?.label || 'Default layout'}
           </div>
           {activeLayout?.desc && (
-            <p className="text-xs text-gray-500 mt-0.5 leading-snug">{activeLayout.desc}</p>
+            <p className={cn(builderPanelUi.hint, 'mt-1')}>{activeLayout.desc}</p>
           )}
         </div>
-        <span className="shrink-0 text-[11px] font-semibold text-gray-400 tabular-nums">
+        <span className="shrink-0 rounded-full bg-muted px-2 py-0.5 text-[10px] font-semibold text-muted-foreground tabular-nums">
           {activeIdx + 1}/{layoutOptions.length}
         </span>
       </div>
-      <div className="flex items-center gap-2">
+      <div className="flex items-stretch gap-2">
         <button
           type="button"
           disabled={!canCycle}
           onClick={() => onCycleLayout('prev')}
-          title="Previous style (same section, different look)"
+          title="Previous style"
           className={cn(
-            'shrink-0 p-2 rounded-lg border transition-colors',
+            'shrink-0 flex items-center justify-center w-9 rounded-lg border transition-colors',
             canCycle
-              ? 'border-gray-200 bg-white text-gray-600 hover:border-primary/40 hover:text-primary'
-              : 'border-gray-100 bg-gray-50 text-gray-300 cursor-not-allowed',
+              ? 'border-border bg-background text-muted-foreground hover:border-primary/40 hover:text-primary hover:bg-muted/40'
+              : 'border-border/60 bg-muted/30 text-muted-foreground/40 cursor-not-allowed',
           )}
         >
           <ChevronLeft className="w-4 h-4" />
@@ -5319,7 +5641,7 @@ function SectionLayoutControls({
         <button
           type="button"
           onClick={onOpenLayoutPicker}
-          className="flex-1 min-w-0 py-2 px-3 rounded-lg bg-primary text-white text-xs font-bold hover:bg-primary/90 transition-colors shadow-sm"
+          className="flex-1 min-w-0 py-2.5 px-3 rounded-lg bg-primary text-primary-foreground text-xs font-bold hover:bg-primary/90 transition-colors shadow-sm"
         >
           Change style
         </button>
@@ -5327,29 +5649,96 @@ function SectionLayoutControls({
           type="button"
           disabled={!canCycle}
           onClick={() => onCycleLayout('next')}
-          title="Next style (same section, different look)"
+          title="Next style"
           className={cn(
-            'shrink-0 p-2 rounded-lg border transition-colors',
+            'shrink-0 flex items-center justify-center w-9 rounded-lg border transition-colors',
             canCycle
-              ? 'border-gray-200 bg-white text-gray-600 hover:border-primary/40 hover:text-primary'
-              : 'border-gray-100 bg-gray-50 text-gray-300 cursor-not-allowed',
+              ? 'border-border bg-background text-muted-foreground hover:border-primary/40 hover:text-primary hover:bg-muted/40'
+              : 'border-border/60 bg-muted/30 text-muted-foreground/40 cursor-not-allowed',
           )}
         >
           <ChevronRight className="w-4 h-4" />
         </button>
       </div>
-      <p className="text-[11px] text-gray-400 leading-snug">
-        <strong className="font-semibold text-gray-600">Change style</strong> picks a different look for this section.
-        <strong className="font-semibold text-gray-600"> Move ??</strong> on the floating toolbar changes where it sits on the page.
+      <p className={builderPanelUi.hint}>
+        Swaps the section look on the canvas. Use <span className="font-semibold text-foreground/80">Move ↑↓</span> on the toolbar to reorder sections.
         {layoutOptions.length > 1 ? ` ${layoutOptions.length} styles available.` : ''}
       </p>
     </div>
   )
 }
 
+function SectionSpacingField({
+  label,
+  value,
+  min,
+  max,
+  step,
+  unit,
+  ticks,
+  hint,
+  onPreview,
+  onCommit,
+}: {
+  label: string
+  value: number
+  min: number
+  max: number
+  step: number
+  unit: string
+  ticks?: number[]
+  hint?: string
+  onPreview: (n: number) => void
+  onCommit: (n: number) => void
+}) {
+  const clamp = (n: number) => Math.max(min, Math.min(max, n))
+
+  return (
+    <div className="@container space-y-2.5">
+      <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1">
+        <span className="text-xs font-medium text-foreground">{label}</span>
+        <label className="flex shrink-0 items-center gap-1 rounded-md border border-border bg-background px-2 py-1">
+          <input
+            type="number"
+            min={min}
+            max={max}
+            step={step}
+            value={value}
+            onChange={e => onCommit(clamp(Number(e.target.value) || min))}
+            className="w-10 min-[240px]:w-11 bg-transparent text-xs font-semibold tabular-nums text-center text-foreground focus:outline-none"
+          />
+          <span className="text-[10px] font-medium text-muted-foreground">{unit}</span>
+        </label>
+      </div>
+      <BuilderStepSlider
+        aria-label={label}
+        value={value}
+        min={min}
+        max={max}
+        step={step}
+        showValue={false}
+        onInput={onPreview}
+        onChange={onCommit}
+        sliderClassName="h-1.5"
+        className="gap-1"
+      />
+      {ticks && ticks.length > 0 ? (
+        <div className="hidden min-[240px]:flex justify-between px-5">
+          {ticks.map(tick => (
+            <span key={tick} className="text-[9px] tabular-nums text-muted-foreground/70">
+              {tick}{unit}
+            </span>
+          ))}
+        </div>
+      ) : null}
+      {hint ? <p className={builderPanelUi.hint}>{hint}</p> : null}
+    </div>
+  )
+}
+
 function PropsEditor({
   block, onUpdate, onPreview, siteId, pages, onAddPage, onEditPropLink, themeColors,
-  onOpenLayoutPicker, onCycleLayout, onArrayItemImageFocus,
+  onOpenLayoutPicker, onCycleLayout, onSelectLayoutIndex, onArrayItemImageFocus,
 }: {
   block: WebsiteBlock
   onUpdate: (props: Partial<BlockProps>) => void
@@ -5361,6 +5750,7 @@ function PropsEditor({
   themeColors: ThemeColors
   onOpenLayoutPicker?: () => void
   onCycleLayout?: (direction: 'prev' | 'next') => void
+  onSelectLayoutIndex?: (index: number) => void
   onArrayItemImageFocus?: (arrayKey: string, index: number, itemField: string) => void
 }) {
   const p = block.props
@@ -5426,6 +5816,7 @@ function PropsEditor({
     : (itemSchema ? ((p as any)[itemSchema.arrayKey] || []) : [])
 
   const [editorTab, setEditorTab] = useState<SectionEditorTabId>('content')
+  const [layoutAccordionOpen, setLayoutAccordionOpen] = useState<string | null>(null)
   useEffect(() => {
     setEditorTab('content')
   }, [block.id])
@@ -5649,6 +6040,47 @@ function PropsEditor({
   const hasImageShape = IMAGE_SHAPE_BLOCK_TYPES.has(block.block_type)
   const hasMediaPanel = isHeroBlock || p.bg_style === 'image' || p.image_url !== undefined || block.block_type === 'nav'
 
+  useEffect(() => {
+    setLayoutAccordionOpen(sectionLayoutCount > 0 ? 'style' : 'spacing')
+  }, [block.id, sectionLayoutCount])
+
+  useEffect(() => {
+    if (editorTab === 'layout' && layoutAccordionOpen === null) {
+      setLayoutAccordionOpen(sectionLayoutCount > 0 ? 'style' : 'spacing')
+    }
+  }, [editorTab, layoutAccordionOpen, sectionLayoutCount])
+
+  const activateLayoutAccordion = (id: string) => {
+    setLayoutAccordionOpen(prev => (prev === id ? null : id))
+  }
+
+  const layoutStylePreview = (() => {
+    const options = getSectionLayoutOptions(block.block_type)
+    if (options.length === 0) return undefined
+    const active = findActiveSectionLayoutOption(p as Record<string, unknown>, options)
+      ?? findBestSectionLayoutOption(p as Record<string, unknown>, options)
+      ?? options[findActiveLayoutIndex(p as Record<string, unknown>, block.block_type)]
+    return active?.label || 'Default'
+  })()
+
+  const sectionSpacingPreview = [
+    sectionScale !== 1 ? `${Math.round(sectionScale * 100)}% size` : null,
+    `${paddingTop}px top`,
+    `${paddingBottom}px bottom`,
+  ].filter(Boolean).join(' · ')
+
+  const sectionShapesPreview = [
+    (p as any).top_shape && (p as any).top_shape !== 'none' ? `Top: ${(p as any).top_shape}` : null,
+    (p as any).bottom_shape && (p as any).bottom_shape !== 'none' ? `Bottom: ${(p as any).bottom_shape}` : null,
+  ].filter(Boolean).join(' · ') || 'None'
+
+  const catalogGridPreview = (() => {
+    if (!isCatalogGridBlock) return ''
+    const cfg = getCatalogGridBlockConfig(block.block_type)
+    const cols = Math.min(CATALOG_GRID_COLUMN_MAX, Math.max(cfg.columnMin, Number((p as any).columns ?? cfg.defaultColumns) || cfg.defaultColumns))
+    return cfg.showColumns ? `${cols} col · ${Number((p as any).image_height_pct ?? 100)}% img` : `${Number((p as any).show_count ?? 12)} items`
+  })()
+
   const ribbonTabs = useMemo(() => ([
     { id: 'content' as SectionEditorTabId, label: 'Content', icon: Type },
     { id: 'layout' as SectionEditorTabId, label: 'Layout', icon: Layout },
@@ -5771,11 +6203,8 @@ function PropsEditor({
   )
 
   const imageShapePicker = hasImageShape && (
-    <div className="rounded-xl border border-gray-100 bg-gray-50 p-3 space-y-2">
-      <div className="flex items-center justify-between gap-2">
-        <span className="text-xs font-bold text-gray-500 uppercase tracking-wide">Tile image shape</span>
-        <span className="text-[10px] text-gray-400">All cards in section</span>
-      </div>
+    <div className="space-y-2">
+      <p className={builderPanelUi.hint}>Applies to all cards in this section.</p>
       <div className="grid grid-cols-3 gap-1.5">
         {IMAGE_SHAPE_OPTIONS.map(opt => {
           const active = String((p as any).image_shape ?? (block.block_type === 'team_grid' ? 'circle' : 'rounded')) === opt.value
@@ -5789,13 +6218,13 @@ function PropsEditor({
                 onUpdate({ image_shape: opt.value } as any)
               }}
               className={cn(
-                'flex flex-col items-center gap-1.5 py-2 px-1 rounded-lg border text-xs font-semibold transition-colors',
+                'flex flex-col items-center gap-1.5 rounded-lg border px-1 py-2 text-xs font-semibold transition-colors',
                 active
-                  ? 'border-primary bg-white text-primary shadow-sm'
-                  : 'border-gray-200 bg-white text-gray-600 hover:border-primary/40',
+                  ? 'border-primary bg-card text-primary shadow-sm'
+                  : 'border-border bg-background text-muted-foreground hover:border-primary/40',
               )}
             >
-              <span className={cn('w-8 h-8 bg-primary/20 border border-primary/30', previewClass)} aria-hidden />
+              <span className={cn('h-8 w-8 border border-primary/30 bg-primary/20', previewClass)} aria-hidden />
               {opt.label}
             </button>
           )
@@ -5806,14 +6235,14 @@ function PropsEditor({
 
   return (
     <div className="flex h-full min-h-0 flex-col">
-      <div className="shrink-0 px-3 py-2 border-b border-gray-100 bg-white">
-        <p className="text-xs font-bold text-gray-900 truncate">{block.label || block.block_type}</p>
-        <p className="text-[10px] text-gray-400">Section settings — layout, design, and content</p>
+      <div className="shrink-0 px-3 py-2.5 border-b border-border bg-card">
+        <p className="text-xs font-bold text-foreground truncate">{block.label || block.block_type}</p>
+        <p className={builderPanelUi.hint}>Section settings — layout, design, and content</p>
       </div>
 
       <SectionEditorRibbon tabs={ribbonTabs} active={editorTab} onChange={setEditorTab} />
 
-      <div className={cn(builderPanelUi.panelScroll, 'p-3 space-y-4 bg-gray-50/30')}>
+      <div className={cn(builderPanelUi.panelScroll, 'p-3 space-y-3 bg-muted/15')}>
         {editorTab === 'content' && (
           <>
       {commonFields}
@@ -6036,196 +6465,205 @@ function PropsEditor({
         )}
 
         {editorTab === 'layout' && (
-          <>
-      {sectionLayoutCount > 0 && onOpenLayoutPicker && onCycleLayout ? (
-        <SectionLayoutControls
-          block={block}
-          currentProps={p as Record<string, unknown>}
-          onOpenLayoutPicker={onOpenLayoutPicker}
-          onCycleLayout={onCycleLayout}
-        />
-      ) : null}
+          <div className="flex flex-col gap-2">
+            {sectionLayoutCount > 0 && onOpenLayoutPicker && onCycleLayout ? (
+              <PropsAccordionSection
+                id="style"
+                activeId={layoutAccordionOpen}
+                onActivate={activateLayoutAccordion}
+                title="Section style"
+                preview={layoutStylePreview}
+              >
+                <SectionLayoutControls
+                  embedded
+                  block={block}
+                  currentProps={p as Record<string, unknown>}
+                  onOpenLayoutPicker={onOpenLayoutPicker}
+                  onCycleLayout={onCycleLayout}
+                  onSelectLayoutIndex={onSelectLayoutIndex}
+                />
+              </PropsAccordionSection>
+            ) : null}
 
-      {imageShapePicker}
+            {hasImageShape ? (
+              <PropsAccordionSection
+                id="image-shape"
+                activeId={layoutAccordionOpen}
+                onActivate={activateLayoutAccordion}
+                title="Tile image shape"
+                preview={String((p as any).image_shape ?? (block.block_type === 'team_grid' ? 'circle' : 'rounded'))}
+              >
+                {imageShapePicker}
+              </PropsAccordionSection>
+            ) : null}
 
-      {layoutField && (
-        <PropsCollapsible title="Layout variant" preview={String(p.layout || '')}>
-          {layoutField}
-        </PropsCollapsible>
-      )}
+            {layoutField ? (
+              <PropsAccordionSection
+                id="layout-variant"
+                activeId={layoutAccordionOpen}
+                onActivate={activateLayoutAccordion}
+                title="Layout variant"
+                preview={String(p.layout || '')}
+              >
+                {layoutField}
+              </PropsAccordionSection>
+            ) : null}
 
-      {itemSchema && !isCatalogGridBlock && (
-        <PropsCollapsible title="Grid & spacing" preview={`${subColumns} col ? ${subGap}px gap`}>
-          {renderSubItemEditor('layout')}
-        </PropsCollapsible>
-      )}
+            {itemSchema && !isCatalogGridBlock ? (
+              <PropsAccordionSection
+                id="grid"
+                activeId={layoutAccordionOpen}
+                onActivate={activateLayoutAccordion}
+                title="Grid & spacing"
+                preview={`${subColumns} col · ${subGap}px gap`}
+              >
+                {renderSubItemEditor('layout')}
+              </PropsAccordionSection>
+            ) : null}
 
-      {isCatalogGridBlock && (
-        <PropsCollapsible
-          title="Grid & spacing"
-          preview={`${(() => {
-            const cfg = getCatalogGridBlockConfig(block.block_type)
-            const cols = Math.min(CATALOG_GRID_COLUMN_MAX, Math.max(cfg.columnMin, Number((p as any).columns ?? cfg.defaultColumns) || cfg.defaultColumns))
-            return cfg.showColumns ? `${cols} col ? ${Number((p as any).image_height_pct ?? 100)}% img` : `${Number((p as any).show_count ?? 12)} items`
-          })()}`}
-        >
-          <CatalogGridLayoutControls
-            blockType={block.block_type}
-            props={p as Record<string, unknown>}
-            onUpdate={onUpdate}
-            onPreview={onPreview}
-          />
-        </PropsCollapsible>
-      )}
+            {isCatalogGridBlock ? (
+              <PropsAccordionSection
+                id="grid"
+                activeId={layoutAccordionOpen}
+                onActivate={activateLayoutAccordion}
+                title="Grid & spacing"
+                preview={catalogGridPreview}
+              >
+                <CatalogGridLayoutControls
+                  blockType={block.block_type}
+                  props={p as Record<string, unknown>}
+                  onUpdate={onUpdate}
+                  onPreview={onPreview}
+                />
+              </PropsAccordionSection>
+            ) : null}
 
-      <PropsCollapsible title="Section Spacing" preview={`?${paddingTop}px ?${paddingBottom}px${sectionScale !== 1 ? ` · ${Math.round(sectionScale * 100)}%` : ''}`}>
-        <div className="space-y-1 pb-2 mb-1 border-b border-gray-100">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-medium text-gray-600">Section size</span>
-            <div className="flex items-center gap-1.5">
-              <input
-                type="number"
-                min={50} max={200} step={5}
+            <PropsAccordionSection
+              id="spacing"
+              activeId={layoutAccordionOpen}
+              onActivate={activateLayoutAccordion}
+              title="Section spacing"
+              preview={sectionSpacingPreview}
+            >
+              <SectionSpacingField
+                label="Section size"
                 value={Math.round(sectionScale * 100)}
-                onChange={e => {
-                  const pct = Math.max(50, Math.min(200, Number(e.target.value) || 100))
-                  const n = Number((pct / 100).toFixed(2))
+                min={50}
+                max={200}
+                step={5}
+                unit="%"
+                ticks={[50, 100, 150, 200]}
+                hint="Scales text, images, and spacing together."
+                onPreview={v => {
+                  const n = Number((v / 100).toFixed(2))
+                  setSectionScale(n)
+                  onPreview({ section_scale: n } as any)
+                }}
+                onCommit={v => {
+                  const n = Number((v / 100).toFixed(2))
                   setSectionScale(n)
                   onUpdate({ section_scale: n } as any)
                 }}
-                className="w-14 px-1.5 py-0.5 border border-gray-200 rounded text-xs font-mono text-center focus:outline-none focus:ring-1 focus:ring-ring"
               />
-              <span className="text-xs text-gray-400">%</span>
-            </div>
-          </div>
-          <div className="relative">
-            <BuilderStepSlider
-              aria-label="Section scale"
-              value={Math.round(sectionScale * 100)}
-              min={50}
-              max={200}
-              step={5}
-              onInput={v => {
-                const n = Number((v / 100).toFixed(2))
-                setSectionScale(n)
-                onPreview({ section_scale: n } as any)
-              }}
-              onChange={v => {
-                const n = Number((v / 100).toFixed(2))
-                setSectionScale(n)
-                onUpdate({ section_scale: n } as any)
-              }}
-              formatValue={v => `${v}%`}
-              sliderClassName="h-2"
-            />
-            <div className="flex justify-between mt-0.5 px-0.5">
-              {[50, 100, 150, 200].map(v => (
-                <span key={v} className="text-[8px] text-gray-300 font-mono">{v}%</span>
-              ))}
-            </div>
-          </div>
-          <p className="text-[10px] leading-tight text-gray-400">Scales the whole section — text, images and spacing — up or down.</p>
-        </div>
-        {([
-          { label: 'Padding Top', key: 'padding_top', val: paddingTop, set: setPaddingTop },
-          { label: 'Padding Bottom', key: 'padding_bottom', val: paddingBottom, set: setPaddingBottom },
-        ] as const).map(({ label, key, val, set }) => (
-          <div key={key} className="space-y-1">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-medium text-gray-600">{label}</span>
-              <div className="flex items-center gap-1.5">
-                <input
-                  type="number"
-                  min={0} max={320} step={4}
-                  value={val}
-                  onChange={e => {
-                    const n = Math.max(0, Math.min(320, Number(e.target.value) || 0))
-                    set(n)
-                    pushSectionPadding({ [key]: n }, false)
+              <div className="grid grid-cols-1 min-[260px]:grid-cols-2 gap-3 border-t border-border/50 pt-3">
+                <SectionSpacingField
+                  label="Padding top"
+                  value={paddingTop}
+                  min={0}
+                  max={320}
+                  step={4}
+                  unit="px"
+                  onPreview={n => {
+                    setPaddingTop(n)
+                    pushSectionPadding({ padding_top: n }, true)
                   }}
-                  className="w-14 px-1.5 py-0.5 border border-gray-200 rounded text-xs font-mono text-center focus:outline-none focus:ring-1 focus:ring-ring"
+                  onCommit={n => {
+                    setPaddingTop(n)
+                    pushSectionPadding({ padding_top: n }, false)
+                  }}
                 />
-                <span className="text-xs text-gray-400">px</span>
+                <SectionSpacingField
+                  label="Padding bottom"
+                  value={paddingBottom}
+                  min={0}
+                  max={320}
+                  step={4}
+                  unit="px"
+                  onPreview={n => {
+                    setPaddingBottom(n)
+                    pushSectionPadding({ padding_bottom: n }, true)
+                  }}
+                  onCommit={n => {
+                    setPaddingBottom(n)
+                    pushSectionPadding({ padding_bottom: n }, false)
+                  }}
+                />
               </div>
-            </div>
-            <div className="relative">
-              <BuilderStepSlider
-                aria-label={label}
-                value={val}
-                min={0}
-                max={320}
-                step={4}
-                onInput={n => {
-                  set(n)
-                  pushSectionPadding({ [key]: n }, true)
-                }}
-                onChange={n => {
-                  set(n)
-                  pushSectionPadding({ [key]: n }, false)
-                }}
-                formatValue={v => `${v}px`}
-                sliderClassName="h-2"
-              />
-              <div className="flex justify-between mt-0.5 px-0.5">
-                {[0, 80, 160, 240, 320].map(v => (
-                  <span key={v} className="text-[8px] text-gray-300 font-mono">{v}</span>
-                ))}
-              </div>
-            </div>
-          </div>
-        ))}
-      </PropsCollapsible>
+            </PropsAccordionSection>
 
-      <PropsCollapsible
-        title="Origins (Section Shapes)"
-        preview={[
-          (p as any).top_shape && (p as any).top_shape !== 'none' ? `Top: ${(p as any).top_shape}` : null,
-          (p as any).bottom_shape && (p as any).bottom_shape !== 'none' ? `Bottom: ${(p as any).bottom_shape}` : null,
-        ].filter(Boolean).join(' ? ') || 'None'}
-      >
-          <div>
-            <div className="text-xs font-medium text-gray-500 mb-1.5">Top Edge Shape</div>
-            <div className="grid grid-cols-3 gap-1">
-              {SHAPE_OPTIONS.map(({ id, label }) => (
-                <button key={`top-${id}`}
-                  onClick={() => onUpdate({ top_shape: id === 'none' ? null : id } as any)}
-                  className={cn('py-1.5 px-1 text-xs font-medium rounded border transition-colors text-center truncate',
-                    ((p as any).top_shape || 'none') === id
-                      ? 'bg-primary text-white border-primary'
-                      : 'text-gray-500 border-gray-200 hover:border-primary/40')}
-                >{label}</button>
-              ))}
-            </div>
-          </div>
-          <div>
-            <div className="text-xs font-medium text-gray-500 mb-1.5">Bottom Edge Shape</div>
-            <div className="grid grid-cols-3 gap-1">
-              {SHAPE_OPTIONS.map(({ id, label }) => (
-                <button key={`bot-${id}`}
-                  onClick={() => onUpdate({ bottom_shape: id === 'none' ? null : id } as any)}
-                  className={cn('py-1.5 px-1 text-xs font-medium rounded border transition-colors text-center truncate',
-                    ((p as any).bottom_shape || 'none') === id
-                      ? 'bg-primary text-white border-primary'
-                      : 'text-gray-500 border-gray-200 hover:border-primary/40')}
-                >{label}</button>
-              ))}
-            </div>
-          </div>
-          {(((p as any).top_shape && (p as any).top_shape !== 'none') || ((p as any).bottom_shape && (p as any).bottom_shape !== 'none')) && (
-            <div className="flex items-center gap-2 pt-0.5">
-              <input type="color"
-                value={(p as any).shape_color || '#ffffff'}
-                onChange={e => onUpdate({ shape_color: e.target.value } as any)}
-                className="w-9 h-9 rounded-lg border border-gray-200 cursor-pointer p-0.5 shrink-0"
-              />
+            <PropsAccordionSection
+              id="shapes"
+              activeId={layoutAccordionOpen}
+              onActivate={activateLayoutAccordion}
+              title="Origins (section shapes)"
+              preview={sectionShapesPreview}
+            >
               <div>
-                <div className="text-xs font-medium text-gray-700">Shape Fill Color</div>
-                <div className="text-xs text-gray-400">Match next section's background</div>
+                <div className="mb-1.5 text-xs font-medium text-muted-foreground">Top edge shape</div>
+                <div className="grid grid-cols-3 gap-1">
+                  {SHAPE_OPTIONS.map(({ id, label }) => (
+                    <button
+                      key={`top-${id}`}
+                      type="button"
+                      onClick={() => onUpdate({ top_shape: id === 'none' ? null : id } as any)}
+                      className={cn(
+                        'truncate rounded border px-1 py-1.5 text-center text-xs font-medium transition-colors',
+                        ((p as any).top_shape || 'none') === id
+                          ? 'border-primary bg-primary text-primary-foreground'
+                          : 'border-border text-muted-foreground hover:border-primary/40',
+                      )}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
               </div>
-            </div>
-          )}
-      </PropsCollapsible>
-          </>
+              <div>
+                <div className="mb-1.5 text-xs font-medium text-muted-foreground">Bottom edge shape</div>
+                <div className="grid grid-cols-3 gap-1">
+                  {SHAPE_OPTIONS.map(({ id, label }) => (
+                    <button
+                      key={`bot-${id}`}
+                      type="button"
+                      onClick={() => onUpdate({ bottom_shape: id === 'none' ? null : id } as any)}
+                      className={cn(
+                        'truncate rounded border px-1 py-1.5 text-center text-xs font-medium transition-colors',
+                        ((p as any).bottom_shape || 'none') === id
+                          ? 'border-primary bg-primary text-primary-foreground'
+                          : 'border-border text-muted-foreground hover:border-primary/40',
+                      )}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              {(((p as any).top_shape && (p as any).top_shape !== 'none') || ((p as any).bottom_shape && (p as any).bottom_shape !== 'none')) && (
+                <div className="flex items-center gap-2 pt-0.5">
+                  <input
+                    type="color"
+                    value={(p as any).shape_color || '#ffffff'}
+                    onChange={e => onUpdate({ shape_color: e.target.value } as any)}
+                    className={builderPanelUi.colorInput}
+                  />
+                  <div>
+                    <div className="text-xs font-medium text-foreground">Shape fill color</div>
+                    <div className={builderPanelUi.hint}>Match the next section background</div>
+                  </div>
+                </div>
+              )}
+            </PropsAccordionSection>
+          </div>
         )}
 
         {editorTab === 'design' && (
@@ -7048,13 +7486,37 @@ const SECTION_LINK_FIELDS: { propKey: string; urlKey: string; name: string }[] =
   { propKey: 'cta_secondary', urlKey: 'cta_secondary_url', name: 'Secondary CTA' },
 ]
 
+const LINK_PANEL_PROP_KEYS = new Set(SECTION_LINK_FIELDS.map(f => f.propKey))
+
+type LinksPanelSelection =
+  | { kind: 'overlay'; id: string }
+  | { kind: 'prop'; key: string }
+  | { kind: 'block' }
+
+function linksPanelRowClass(selected: boolean) {
+  return cn(
+    'flex w-full items-center gap-2 rounded-lg border bg-card px-2.5 py-2 text-left transition-colors hover:border-primary/40 hover:bg-accent/40',
+    selected ? 'border-primary/50 bg-primary/5 ring-1 ring-primary/20' : 'border-border',
+  )
+}
+
 /** Right-panel "Links" tab — opens the Connect link / product popup for the section's buttons. */
 function SectionLinksPanel({
   block,
+  selectedLink,
+  onSelectOverlay,
+  onSelectPropLink,
+  onSelectBlockLink,
   onEditPropLink,
+  onEditOverlayLink,
 }: {
   block: WebsiteBlock | null
+  selectedLink?: LinksPanelSelection | null
+  onSelectOverlay?: (overlayId: string) => void
+  onSelectPropLink?: (propKey: string) => void
+  onSelectBlockLink?: () => void
   onEditPropLink: (propKey: string, anchor: { x: number; y: number }) => void
+  onEditOverlayLink?: (item: BlockOverlayItem, anchor: { x: number; y: number }) => void
 }) {
   if (!block) {
     return (
@@ -7070,12 +7532,45 @@ function SectionLinksPanel({
   const ctas = SECTION_LINK_FIELDS.filter(f => p[f.propKey] !== undefined)
   const socialLinks: Record<string, string> = (p.social_links && typeof p.social_links === 'object') ? p.social_links : {}
   const socialKeys = Object.keys(socialLinks)
-  const hasAny = ctas.length > 0 || socialKeys.length > 0
+  const overlays: BlockOverlayItem[] = Array.isArray(p.overlays) ? p.overlays : []
+  const linkableOverlays = overlays.filter(o => overlayHasLinkControl(o))
+  const selectedOverlay = selectedLink?.kind === 'overlay'
+    ? linkableOverlays.find(o => o.id === selectedLink.id) ?? null
+    : null
+  const blockLinkTarget = String(p.block_link_url || '').trim()
+  const blockLinked = !!blockLinkTarget
 
-  const openFor = (propKey: string) => (e: React.MouseEvent<HTMLButtonElement>) => {
+  const linkAnchor = (e: React.MouseEvent<HTMLElement>) => {
     const rect = e.currentTarget.getBoundingClientRect()
-    onEditPropLink(propKey, { x: rect.left - 360, y: rect.top })
+    return { x: rect.left - 360, y: rect.top }
   }
+
+  const editProp = (propKey: string) => (e: React.MouseEvent<HTMLButtonElement>) => {
+    e.stopPropagation()
+    onEditPropLink(propKey, linkAnchor(e))
+  }
+
+  const editOverlay = (item: BlockOverlayItem) => (e: React.MouseEvent<HTMLButtonElement>) => {
+    e.stopPropagation()
+    onEditOverlayLink?.(item, linkAnchor(e))
+  }
+
+  const openQuickLink = (e: React.MouseEvent<HTMLButtonElement>) => {
+    const anchor = linkAnchor(e)
+    if (selectedOverlay && onEditOverlayLink) {
+      onEditOverlayLink(selectedOverlay, anchor)
+      return
+    }
+    onEditPropLink('block_link', anchor)
+  }
+
+  const quickLinkActive = selectedOverlay
+    ? !!(selectedOverlay.linkType && selectedOverlay.linkType !== 'none')
+    : blockLinked
+
+  const isOverlaySelected = (id: string) => selectedLink?.kind === 'overlay' && selectedLink.id === id
+  const isPropSelected = (key: string) => selectedLink?.kind === 'prop' && selectedLink.key === key
+  const isBlockSelected = selectedLink?.kind === 'block'
 
   return (
     <div className="flex h-full min-h-0 flex-col overflow-y-auto p-3">
@@ -7083,27 +7578,104 @@ function SectionLinksPanel({
         <Link2 className="h-3.5 w-3.5 shrink-0 text-primary/80" />
         <span className="text-[11px] font-bold text-foreground">Links</span>
         <span className="min-w-0 truncate text-[10px] text-muted-foreground">· {block.label || block.block_type}</span>
+        <button
+          type="button"
+          title={
+            selectedOverlay
+              ? (quickLinkActive ? `Linked: ${selectedOverlay.linkLabel || selectedOverlay.linkTarget || selectedOverlay.text}` : 'Link selected layer')
+              : (blockLinked ? `Section linked: ${blockLinkTarget}` : 'Link whole section')
+          }
+          onClick={openQuickLink}
+          className={cn(visualActionBtn(quickLinkActive ? 'link' : 'muted'), 'ml-auto h-7 w-7 shrink-0 px-0')}
+        >
+          <Link2 className="h-3 w-3 shrink-0" />
+        </button>
       </div>
 
-      {!hasAny ? (
-        <div className="rounded-lg border border-border bg-muted/30 px-3 py-3 text-[11px] leading-snug text-muted-foreground">
-          This section has no buttons to link. Buttons, images, and text on the canvas can be linked via
-          <strong className="font-semibold text-foreground"> Visual → Link</strong>.
+      <div className="space-y-3">
+        <div className="space-y-1.5">
+          <div className="text-[9px] font-bold uppercase tracking-wide text-muted-foreground">Section</div>
+          <div
+            role="button"
+            tabIndex={0}
+            onClick={() => onSelectBlockLink?.()}
+            onKeyDown={e => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault()
+                onSelectBlockLink?.()
+              }
+            }}
+            className={linksPanelRowClass(isBlockSelected)}
+          >
+            <Link2 className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+            <div className="min-w-0 flex-1">
+              <div className="truncate text-[11px] font-semibold text-foreground">Whole section</div>
+              <div className="truncate text-[10px] text-muted-foreground">
+                {blockLinked ? blockLinkTarget : 'Make entire section clickable'}
+              </div>
+            </div>
+            <button type="button" onClick={editProp('block_link')} className="shrink-0 rounded px-1 py-0.5 text-[10px] font-semibold text-primary hover:bg-primary/10">
+              Edit
+            </button>
+          </div>
         </div>
-      ) : (
-        <div className="space-y-3">
-          {ctas.length > 0 && (
+
+        {linkableOverlays.length > 0 && (
+          <div className="space-y-1.5">
+            <div className="text-[9px] font-bold uppercase tracking-wide text-muted-foreground">Canvas layers</div>
+            {linkableOverlays.map(item => {
+              const label = String(item.text || item.linkLabel || overlayLayerTypeLabel(String(item.type))).trim()
+              const target = String(item.linkTarget || item.href || '').trim()
+              const isLinked = !!(item.linkType && item.linkType !== 'none')
+              return (
+                <div
+                  key={item.id}
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => onSelectOverlay?.(item.id)}
+                  onKeyDown={e => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault()
+                      onSelectOverlay?.(item.id)
+                    }
+                  }}
+                  className={linksPanelRowClass(isOverlaySelected(item.id))}
+                >
+                  <Link2 className={cn('h-3.5 w-3.5 shrink-0', isLinked ? 'text-emerald-600' : 'text-muted-foreground')} />
+                  <div className="min-w-0 flex-1">
+                    <div className="truncate text-[11px] font-semibold text-foreground">{label}</div>
+                    <div className="truncate text-[10px] text-muted-foreground">
+                      {isLinked ? (target || item.linkLabel || 'Connected') : 'No link — click to connect'}
+                    </div>
+                  </div>
+                  <button type="button" onClick={editOverlay(item)} className="shrink-0 rounded px-1 py-0.5 text-[10px] font-semibold text-primary hover:bg-primary/10">
+                    Edit
+                  </button>
+                </div>
+              )
+            })}
+          </div>
+        )}
+
+        {ctas.length > 0 && (
             <div className="space-y-1.5">
               <div className="text-[9px] font-bold uppercase tracking-wide text-muted-foreground">Buttons</div>
               {ctas.map(f => {
                 const text = String(p[f.propKey] || '').trim() || f.name
                 const target = String(p[f.urlKey] || '').trim()
                 return (
-                  <button
+                  <div
                     key={f.propKey}
-                    type="button"
-                    onClick={openFor(f.propKey)}
-                    className="flex w-full items-center gap-2 rounded-lg border border-border bg-card px-2.5 py-2 text-left transition-colors hover:border-primary/40 hover:bg-accent/40"
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => onSelectPropLink?.(f.propKey)}
+                    onKeyDown={e => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault()
+                        onSelectPropLink?.(f.propKey)
+                      }
+                    }}
+                    className={linksPanelRowClass(isPropSelected(f.propKey))}
                   >
                     <Link2 className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
                     <div className="min-w-0 flex-1">
@@ -7112,8 +7684,10 @@ function SectionLinksPanel({
                         {target || 'No link — click to connect'}
                       </div>
                     </div>
-                    <span className="shrink-0 text-[10px] font-semibold text-primary">Edit</span>
-                  </button>
+                    <button type="button" onClick={editProp(f.propKey)} className="shrink-0 rounded px-1 py-0.5 text-[10px] font-semibold text-primary hover:bg-primary/10">
+                      Edit
+                    </button>
+                  </div>
                 )
               })}
             </div>
@@ -7125,11 +7699,18 @@ function SectionLinksPanel({
               {socialKeys.map(platform => {
                 const target = String(socialLinks[platform] || '').trim()
                 return (
-                  <button
+                  <div
                     key={platform}
-                    type="button"
-                    onClick={openFor(`social_links.${platform}`)}
-                    className="flex w-full items-center gap-2 rounded-lg border border-border bg-card px-2.5 py-2 text-left transition-colors hover:border-primary/40 hover:bg-accent/40"
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => onSelectPropLink?.(`social_links.${platform}`)}
+                    onKeyDown={e => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault()
+                        onSelectPropLink?.(`social_links.${platform}`)
+                      }
+                    }}
+                    className={linksPanelRowClass(isPropSelected(`social_links.${platform}`))}
                   >
                     <ExternalLink className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
                     <div className="min-w-0 flex-1">
@@ -7138,14 +7719,15 @@ function SectionLinksPanel({
                         {target || 'Not set — click to add'}
                       </div>
                     </div>
-                    <span className="shrink-0 text-[10px] font-semibold text-primary">Edit</span>
-                  </button>
+                    <button type="button" onClick={editProp(`social_links.${platform}`)} className="shrink-0 rounded px-1 py-0.5 text-[10px] font-semibold text-primary hover:bg-primary/10">
+                      Edit
+                    </button>
+                  </div>
                 )
               })}
             </div>
           )}
-        </div>
-      )}
+      </div>
     </div>
   )
 }
@@ -7329,7 +7911,7 @@ function StructureShellDesignBarTools({
   )
 }
 
-function BlockDesignBar({ block, onUpdate, onInsertAfter, onOpenLinkEditorForOverlay, activeTextField, activeTextFields = [], onActivateTextField, onEditText, onEscapeDismiss, onUndo, onRedo, canUndo, canRedo, formatPaintActive, formatPaintSticky, onFormatPaintStart, onFormatPaintCancel, selectedOverlayId, canvasImageField, canvasImageSlots, onSectionImagePick, onSectionImageLibrary, onFocusPrimaryImage, onSelectOverlay, blockBackgroundColor, onOverlayPickImage, onOverlayOpenLibrary, onOverlaySetImageUrl, onOverlayEditText, onOverlayEditDescription, onOpenSectionEdit, floating = false, docked = false, selectionHint }: {
+function BlockDesignBar({ block, onUpdate, onInsertAfter, onOpenLinkEditorForOverlay, activeTextField, activeTextFields = [], onActivateTextField, onEditText, onEscapeDismiss, onUndo, onRedo, canUndo, canRedo, formatPaintActive, formatPaintSticky, onFormatPaintStart, onFormatPaintCancel, selectedOverlayId, canvasImageField, canvasImageSlots, onSectionImagePick, onSectionImageLibrary, onFocusPrimaryImage, onSelectOverlay, blockBackgroundColor, onOverlayPickImage, onOverlayOpenLibrary, onOverlaySetImageUrl, onOverlayEditText, onOverlayEditDescription, onOverlayClipboard, onOpenSectionEdit, floating = false, docked = false, selectionHint }: {
   block: WebsiteBlock
   onUpdate: (p: Partial<BlockProps>) => void
   onInsertAfter: (type: string) => void
@@ -7354,6 +7936,8 @@ function BlockDesignBar({ block, onUpdate, onInsertAfter, onOpenLinkEditorForOve
   onOverlaySetImageUrl?: () => void
   onOverlayEditText?: () => void
   onOverlayEditDescription?: () => void
+  /** Cut / copy / paste the selected overlay layer (within or across sections). */
+  onOverlayClipboard?: (action: 'cut' | 'copy' | 'paste') => boolean
   onOpenSectionEdit?: () => void
   onUndo?: () => void
   onRedo?: () => void
@@ -7435,6 +8019,8 @@ function BlockDesignBar({ block, onUpdate, onInsertAfter, onOpenLinkEditorForOve
   const selectedOverlay = selectedOverlayId
     ? overlays.find(o => o.id === selectedOverlayId) ?? null
     : null
+  const overlayTextLayer =
+    selectedOverlay && overlayHasTextControls(selectedOverlay) ? selectedOverlay : null
   const [overlayCanvasSize, setOverlayCanvasSize] = useState({ w: 800, h: 400 })
 
   useLayoutEffect(() => {
@@ -7517,18 +8103,15 @@ function BlockDesignBar({ block, onUpdate, onInsertAfter, onOpenLinkEditorForOve
     prevImageTabActiveRef.current = imageTabActive
   }, [imageTabActive, designBarTab])
 
-  // The Visual tab owns all layer (overlay) controls — keep users off General while a layer is selected.
+  // Switch to Visual on first layer select so layout tools are visible; General stays available for typography.
   const prevOverlaySelectedRef = useRef(false)
   useEffect(() => {
     const layerSelected = !!selectedOverlay
     if (layerSelected && !prevOverlaySelectedRef.current) {
       setDesignBarTab('visual')
     }
-    if (layerSelected && designBarTab === 'general') {
-      setDesignBarTab('visual')
-    }
     prevOverlaySelectedRef.current = layerSelected
-  }, [selectedOverlay, designBarTab])
+  }, [selectedOverlay])
 
   const patchSelectedFieldStyles = (patch: Record<string, unknown>, keys = selectedEditableFields) => {
     if (!keys.length) return
@@ -7591,6 +8174,38 @@ function BlockDesignBar({ block, onUpdate, onInsertAfter, onOpenLinkEditorForOve
     const savedSelection = getSavedInlineTextSelection()
     const fieldKey = savedSelection?.key || activeTextField || null
     let stylePatch = { ...patch }
+
+    if (overlayTextLayer) {
+      if (opts?.fontSizeDelta != null) {
+        const fallback = overlayTextLayer.type === 'badge' ? 12 : overlayTextLayer.type === 'button' ? 14 : 16
+        const cur = overlayTextLayer.fontSize ?? fallback
+        updateSelectedOverlay({
+          fontSize: Math.min(120, Math.max(8, cur + opts.fontSizeDelta)),
+        })
+        return
+      }
+      const overlayPatch: Partial<BlockOverlayItem> = {}
+      if ('font_family' in stylePatch) {
+        const v = stylePatch.font_family
+        overlayPatch.fontFamily = typeof v === 'string' && v ? v : undefined
+      }
+      if ('font_size_px' in stylePatch && stylePatch.font_size_px != null) {
+        overlayPatch.fontSize = Number(stylePatch.font_size_px)
+      }
+      if ('text_color_override' in stylePatch && stylePatch.text_color_override) {
+        overlayPatch.color = String(stylePatch.text_color_override)
+      }
+      if ('text_align' in stylePatch && stylePatch.text_align) {
+        overlayPatch.align = stylePatch.text_align as BlockOverlayItem['align']
+      }
+      if ('field_bg_color' in stylePatch && stylePatch.field_bg_color) {
+        overlayPatch.bgColor = String(stylePatch.field_bg_color)
+        overlayPatch.bgFill = 'solid'
+      }
+      if (Object.keys(overlayPatch).length > 0) updateSelectedOverlay(overlayPatch)
+      return
+    }
+
     const isFieldLayoutStyle =
       'text_align' in stylePatch ||
       'vertical_align' in stylePatch ||
@@ -7713,7 +8328,15 @@ function BlockDesignBar({ block, onUpdate, onInsertAfter, onOpenLinkEditorForOve
     } as any)
   }
 
-  const typographySource = activeTextField && activeTextField !== CONTENT_GROUP_FIELD_KEY
+  const typographySource = overlayTextLayer
+    ? {
+        font_family: overlayTextLayer.fontFamily,
+        font_size_px: overlayTextLayer.fontSize,
+        text_color_override: overlayTextLayer.color,
+        text_align: overlayTextLayer.align,
+        field_bg_color: isOverlayNoFill(overlayTextLayer) ? undefined : overlayTextLayer.bgColor,
+      }
+    : activeTextField && activeTextField !== CONTENT_GROUP_FIELD_KEY
     ? resolveFormatPaintStyle({
         blockProps: p as Record<string, unknown>,
         fieldKey: activeTextField,
@@ -7736,7 +8359,9 @@ function BlockDesignBar({ block, onUpdate, onInsertAfter, onOpenLinkEditorForOve
     activeTextField ?? null,
   )
   const isCtaField = Boolean(activeTextField && isInlinePositionField(activeTextField))
-  const toolbarFontFamily = toolbarLiveTypography.font_family
+  const toolbarFontFamily = overlayTextLayer
+    ? (overlayTextLayer.fontFamily ?? undefined)
+    : toolbarLiveTypography.font_family
   const toolbarTypography = {
     ...typographySource,
     ...(toolbarLiveTypography.font_family ? { font_family: toolbarLiveTypography.font_family } : {}),
@@ -7759,10 +8384,16 @@ function BlockDesignBar({ block, onUpdate, onInsertAfter, onOpenLinkEditorForOve
   }
 
   const toolbarTextColor =
-    toolbarLiveTypography.text_color_override
+    overlayTextLayer
+      ? (overlayTextLayer.color || '#111827')
+      : toolbarLiveTypography.text_color_override
     || (toolbarTypography as Record<string, unknown>).text_color_override as string | undefined
     || '#111827'
-  const toolbarBgColor = isCtaField
+  const toolbarBgColor = overlayTextLayer && overlayHasFillControls(overlayTextLayer)
+    ? (isOverlayNoFill(overlayTextLayer)
+      ? (blockBackgroundColor || '#ffffff')
+      : (overlayTextLayer.bgColor || defaultOverlayFillColor(overlayTextLayer.type)))
+    : isCtaField
     ? (toolbarLiveTypography.field_bg_color
       || (toolbarTypography as Record<string, unknown>).field_bg_color as string | undefined
       || blockBackgroundColor
@@ -7970,6 +8601,7 @@ function BlockDesignBar({ block, onUpdate, onInsertAfter, onOpenLinkEditorForOve
   const overlayCount = ((p as any).overlays as any[] || []).length
 
   const runTextClipboard = (action: 'cut' | 'copy' | 'paste') => {
+    if (selectedOverlay && onOverlayClipboard?.(action)) return
     if (!runCanvasTextClipboardAction(action, block.id, activeTextField ?? null)) {
       toast.info('Click a text field on the canvas first ? headline, subtitle, or button label.')
     }
@@ -8019,35 +8651,18 @@ function BlockDesignBar({ block, onUpdate, onInsertAfter, onOpenLinkEditorForOve
                     : 'Section image',
               }]
             : []),
-        ]) as { id: DesignBarTabId; label: string }[]).map(tab => {
-          const generalBlockedByLayer = tab.id === 'general' && !!selectedOverlay
-          return (
+        ]) as { id: DesignBarTabId; label: string }[]).map(tab => (
           <button
             key={tab.id}
             type="button"
             role="tab"
             aria-selected={designBarTab === tab.id}
-            aria-disabled={generalBlockedByLayer || undefined}
-            title={
-              generalBlockedByLayer
-                ? 'Layer selected — opens Visual tab (text, links, layout)'
-                : undefined
-            }
-            onClick={() => {
-              if (generalBlockedByLayer) {
-                setDesignBarTab('visual')
-                return
-              }
-              setDesignBarTab(tab.id)
-            }}
-            className={cn(
-              designBarTabClass(designBarTab === tab.id),
-              generalBlockedByLayer && designBarTab !== tab.id && 'text-gray-400 border-gray-100',
-            )}
+            onClick={() => setDesignBarTab(tab.id)}
+            className={designBarTabClass(designBarTab === tab.id)}
           >
             {tab.label}
           </button>
-        )})}
+        ))}
         </div>
         {docked && selectionHint ? (
           <span className="min-w-0 flex-1 truncate border-l border-gray-200 pl-2 text-[11px] font-medium text-primary/90">
@@ -8085,7 +8700,6 @@ function BlockDesignBar({ block, onUpdate, onInsertAfter, onOpenLinkEditorForOve
         onAddOverlay={addOverlayElement}
         onClearOverlays={() => onUpdate({ overlays: [] } as Partial<BlockProps>)}
       />
-      {!selectedOverlay ? (
       <>
       {structureQuickEdit ? (
         <StructureShellDesignBarTools
@@ -8100,8 +8714,14 @@ function BlockDesignBar({ block, onUpdate, onInsertAfter, onOpenLinkEditorForOve
       <div className={generalDesignBarGrid2x2}>
         <button
           type="button"
-          onClick={() => onEditText?.()}
-          title="Edit section text (E)"
+          onClick={() => {
+            if (overlayTextLayer) {
+              onOverlayEditText?.()
+              return
+            }
+            onEditText?.()
+          }}
+          title={overlayTextLayer ? 'Edit button label' : 'Edit section text (E)'}
           className={cn(generalDesignBarGridCell, 'flex-col gap-0 border-b border-r border-gray-200 px-0.5 text-xs font-medium')}
         >
           <Pencil className="h-3 w-3 shrink-0" />
@@ -8265,6 +8885,7 @@ function BlockDesignBar({ block, onUpdate, onInsertAfter, onOpenLinkEditorForOve
         </div>
       </div>
 
+      {(selectedOverlay || !overlayTextLayer) ? (
       <div
         {...{ [BUILDER_DESIGN_BAR_CHROME_ATTR]: true }}
         className={cn(generalDesignBarCluster, 'w-9 flex-col divide-y divide-gray-200')}
@@ -8275,7 +8896,7 @@ function BlockDesignBar({ block, onUpdate, onInsertAfter, onOpenLinkEditorForOve
       >
         <button
           type="button"
-          title="Cut (Ctrl+X)"
+          title={selectedOverlay ? 'Cut layer (Ctrl+X)' : 'Cut (Ctrl+X)'}
           onClick={() => runTextClipboard('cut')}
           className="flex flex-1 items-center justify-center text-gray-700 transition-colors hover:bg-accent"
         >
@@ -8283,7 +8904,7 @@ function BlockDesignBar({ block, onUpdate, onInsertAfter, onOpenLinkEditorForOve
         </button>
         <button
           type="button"
-          title="Copy (Ctrl+C)"
+          title={selectedOverlay ? 'Copy layer (Ctrl+C)' : 'Copy (Ctrl+C)'}
           onClick={() => runTextClipboard('copy')}
           className="flex flex-1 items-center justify-center text-gray-700 transition-colors hover:bg-accent"
         >
@@ -8291,13 +8912,14 @@ function BlockDesignBar({ block, onUpdate, onInsertAfter, onOpenLinkEditorForOve
         </button>
         <button
           type="button"
-          title="Paste (Ctrl+V)"
+          title={selectedOverlay ? 'Paste layer (Ctrl+V)' : 'Paste (Ctrl+V)'}
           onClick={() => runTextClipboard('paste')}
           className="flex flex-1 items-center justify-center text-gray-700 transition-colors hover:bg-accent"
         >
           <ClipboardPaste className="h-3 w-3" />
         </button>
       </div>
+      ) : null}
 
       <div
         {...{ [BUILDER_TYPOGRAPHY_TOOLBAR_ATTR]: true }}
@@ -8324,7 +8946,7 @@ function BlockDesignBar({ block, onUpdate, onInsertAfter, onOpenLinkEditorForOve
             backgroundColor={toolbarBgColor}
             onTextColorChange={applyToolbarTextColor}
             onBackgroundColorChange={applyToolbarBackgroundColor}
-            showBackgroundPicker={isCtaField || !selectedOverlay}
+            showBackgroundPicker={isCtaField || !!overlayTextLayer || !selectedOverlay}
           />
         </div>
 
@@ -8406,6 +9028,7 @@ function BlockDesignBar({ block, onUpdate, onInsertAfter, onOpenLinkEditorForOve
         />
       </div>
 
+      {!overlayTextLayer ? (
       <LayoutTransformPositionGroup
         scopeMode={transformScope}
         showGroup={supportsContentGroup}
@@ -8499,29 +9122,14 @@ function BlockDesignBar({ block, onUpdate, onInsertAfter, onOpenLinkEditorForOve
           onReset: resetTransform,
         }}
       />
+      ) : null}
 
-      <span className="hidden md:inline shrink-0 text-[10px] text-gray-400 font-mono truncate max-w-[5rem]" title={block.label || block.block_type}>
-        {block.label || block.block_type}
+      <span className="hidden md:inline shrink-0 text-[10px] text-gray-400 font-mono truncate max-w-[5rem]" title={overlayTextLayer ? overlayLayerTypeLabel(String(overlayTextLayer.type)) : (block.label || block.block_type)}>
+        {overlayTextLayer ? overlayLayerTypeLabel(String(overlayTextLayer.type)) : (block.label || block.block_type)}
       </span>
       </>
       )}
       </>
-      ) : (
-        <div className="flex min-w-0 flex-1 items-center gap-2 px-2">
-          <span className="min-w-0 text-[11px] leading-snug text-gray-600">
-            <span className="font-semibold capitalize text-gray-800">{selectedOverlay.type}</span>
-            {' '}layer selected — edit label, link, colors, and position in the{' '}
-            <span className="font-semibold text-primary">Visual</span> tab.
-          </span>
-          <button
-            type="button"
-            onClick={() => setDesignBarTab('visual')}
-            className="shrink-0 rounded-md border border-primary/40 bg-primary/10 px-2.5 py-1 text-[11px] font-semibold text-primary transition-colors hover:bg-primary/15"
-          >
-            Open Visual
-          </button>
-        </div>
-      )}
       </div>
         </div>
       )}
@@ -8715,7 +9323,7 @@ export default function WebsiteBuilder() {
   const [visibleTabCount, setVisibleTabCount] = useState(99)
   const [clearingTemplateSandbox, setClearingTemplateSandbox] = useState(false)
   const [resettingCanvasFromServer, setResettingCanvasFromServer] = useState(false)
-  const [rightPanel, setRightPanel] = useState<'props' | 'page' | 'style' | 'data' | 'links'>('props')
+  const [rightPanel, setRightPanel] = useState<'props' | 'page' | 'style' | 'links'>('props')
   const [sidebarDraggedIdx, setSidebarDraggedIdx] = useState<number | null>(null)
   const [sidebarDragOverIdx, setSidebarDragOverIdx] = useState<number | null>(null)
   const [sectionSearch, setSectionSearch] = useState('')
@@ -8775,6 +9383,8 @@ export default function WebsiteBuilder() {
   const [savingBlockId, setSavingBlockId] = useState<string | null>(null)
   /** Selected in-canvas image overlay (for AI / Media apply). */
   const [overlayImageTarget, setOverlayImageTarget] = useState<{ blockId: string; overlayId: string } | null>(null)
+  /** Explicit Links-tab row focus (block link, social) when canvas has no matching target. */
+  const [linksPanelFocus, setLinksPanelFocus] = useState<LinksPanelSelection | null>(null)
   /** Floating position/size/text panel — opened from overlay context menu only. */
   const [overlaySettingsPanelId, setOverlaySettingsPanelId] = useState<string | null>(null)
   const overlayImageTargetRef = useRef<{ blockId: string; overlayId: string } | null>(null)
@@ -9490,6 +10100,24 @@ export default function WebsiteBuilder() {
         if (selectedBlockId) dup(selectedBlockId)
         return
       }
+      if (ctrl && (e.key === 'x' || e.key === 'X' || e.key === 'c' || e.key === 'C' || e.key === 'v' || e.key === 'V')) {
+        const clipAction = e.key.toLowerCase() === 'x' ? 'cut' as const
+          : e.key.toLowerCase() === 'c' ? 'copy' as const
+            : 'paste' as const
+        const layerTarget = overlayImageTarget?.blockId === selectedBlockId && overlayImageTarget.overlayId
+        if (clipAction === 'paste') {
+          if (hasOverlayClipboard() && selectedBlockId) {
+            e.preventDefault()
+            runOverlayClipboardActionRef.current('paste', selectedBlockId)
+          }
+          return
+        }
+        if (layerTarget) {
+          e.preventDefault()
+          runOverlayClipboardActionRef.current(clipAction, selectedBlockId ?? undefined)
+          return
+        }
+      }
       if ((e.key === 'e' || e.key === 'E') && !ctrl && selectedBlockId) {
         e.preventDefault()
         openInlineTextEditForSelectedRef.current()
@@ -9896,6 +10524,55 @@ export default function WebsiteBuilder() {
     return null
   }, [localBlocks, selectedBlockId])
 
+  const linksPanelSelection = useMemo((): LinksPanelSelection | null => {
+    if (!selectedBlock) return null
+    if (overlayImageTarget?.blockId === selectedBlock.id && overlayImageTarget.overlayId) {
+      return { kind: 'overlay', id: overlayImageTarget.overlayId }
+    }
+    if (activeTextTarget?.blockId === selectedBlock.id) {
+      const key = primaryTextFieldKey(activeTextTarget)
+      if (key && LINK_PANEL_PROP_KEYS.has(key)) {
+        return { kind: 'prop', key }
+      }
+    }
+    return linksPanelFocus
+  }, [selectedBlock, overlayImageTarget, activeTextTarget, linksPanelFocus])
+
+  const scrollToLinksCanvasTarget = useCallback((blockId: string, target: 'overlay' | 'prop', keyOrId: string) => {
+    requestAnimationFrame(() => {
+      const sel = target === 'overlay'
+        ? `[data-block-id="${CSS.escape(blockId)}"] [data-overlay-id="${CSS.escape(keyOrId)}"]`
+        : `[data-block-id="${CSS.escape(blockId)}"] [data-text-key="${CSS.escape(keyOrId)}"], [data-block-id="${CSS.escape(blockId)}"] [data-field-layout="${CSS.escape(keyOrId)}"]`
+      document.querySelector<HTMLElement>(sel)?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    })
+  }, [])
+
+  const selectLinkPanelProp = useCallback((propKey: string) => {
+    if (!selectedBlock) return
+    setOverlayImageTarget(null)
+    setCanvasImageTarget(null)
+    if (propKey.startsWith('social_links.')) {
+      setActiveTextTarget(null)
+      setLinksPanelFocus({ kind: 'prop', key: propKey })
+      return
+    }
+    setLinksPanelFocus(null)
+    setActiveTextTarget({ blockId: selectedBlock.id, fieldKeys: [propKey] })
+    scrollToLinksCanvasTarget(selectedBlock.id, 'prop', propKey)
+  }, [selectedBlock, scrollToLinksCanvasTarget])
+
+  const selectLinkPanelBlock = useCallback(() => {
+    if (!selectedBlock) return
+    setLinksPanelFocus({ kind: 'block' })
+    setOverlayImageTarget(null)
+    setActiveTextTarget(null)
+    setCanvasImageTarget(null)
+  }, [selectedBlock])
+
+  useEffect(() => {
+    setLinksPanelFocus(null)
+  }, [selectedBlockId])
+
   useEffect(() => {
     if (!activePageId) return
     setExpandedSectionPages(prev => {
@@ -9980,6 +10657,13 @@ export default function WebsiteBuilder() {
     }
   }, [selectedBlockId])
 
+  const selectLinkPanelOverlay = useCallback((overlayId: string) => {
+    if (!selectedBlock) return
+    setLinksPanelFocus(null)
+    onOverlayLayerPicked(overlayId, selectedBlock.id)
+    scrollToLinksCanvasTarget(selectedBlock.id, 'overlay', overlayId)
+  }, [selectedBlock, onOverlayLayerPicked, scrollToLinksCanvasTarget])
+
   const openOverlaySettingsPanel = useCallback((overlayId: string, blockId: string) => {
     onOverlayLayerPicked(overlayId, blockId, { keepSettingsPanel: true })
     setOverlaySettingsPanelId(overlayId)
@@ -9988,6 +10672,120 @@ export default function WebsiteBuilder() {
   const closeOverlaySettingsPanel = useCallback(() => {
     setOverlaySettingsPanelId(null)
   }, [])
+
+  // Preview-only update ? instant canvas update, no API call (used while typing)
+  const handlePreviewBlockProps = useCallback((blockId: string, propsUpdate: Partial<BlockProps>) => {
+    const pages = localPagesRef.current
+    const pageId = findPageIdForBlock(localBlocksRef.current, pages, blockId, activePageId)
+    if (!pageId) return
+    setLocalBlocks(prev => {
+      const blocks = prev[pageId] || []
+      const block = blocks.find(b => b.id === blockId)
+      if (!block) return prev
+      const mergedProps = { ...block.props, ...propsUpdate }
+      return {
+        ...prev,
+        [pageId]: blocks.map(b => b.id === blockId ? { ...b, props: mergedProps } : b),
+      }
+    })
+  }, [activePageId])
+
+  // Update block props ? immediate UI; server sync on explicit Save
+  const handleUpdateBlockProps = useCallback((blockId: string, propsUpdate: Partial<BlockProps>) => {
+    const pages = localPagesRef.current
+    const pageId = findPageIdForBlock(localBlocksRef.current, pages, blockId, activePageId)
+    if (!pageId) return
+    scheduleEditorHistorySnapshot()
+    setBlocksDirty(true)
+    blocksDirtyRef.current = true
+    setLocalBlocks(prev => {
+      const blocks = prev[pageId] || []
+      const block = blocks.find(b => b.id === blockId)
+      if (!block) return prev
+      const mergedProps: BlockProps = { ...block.props, ...propsUpdate }
+      const topLevel: Partial<WebsiteBlock> = {}
+      const TOP_KEYS = [
+        'visible', 'visible_on_mobile', 'visible_on_tablet', 'visible_on_desktop',
+        'animation', 'animation_delay', 'style_overrides', 'visible_branches',
+      ] as const
+      TOP_KEYS.forEach(k => {
+        if (k in propsUpdate) {
+          (topLevel as any)[k] = (propsUpdate as any)[k]
+          delete (mergedProps as any)[k]
+        }
+      })
+      return {
+        ...prev,
+        [pageId]: blocks.map(b =>
+          b.id === blockId ? { ...b, props: mergedProps, ...topLevel } : b,
+        ),
+      }
+    })
+  }, [activePageId, scheduleEditorHistorySnapshot])
+
+  const runOverlayClipboardAction = useCallback((
+    action: 'cut' | 'copy' | 'paste',
+    blockId?: string | null,
+  ): boolean => {
+    if (!activePageId) return false
+    const bid = blockId ?? selectedBlockId
+    if (!bid) {
+      if (action === 'paste') toast.info('Select a section first, then paste.')
+      return false
+    }
+
+    const block = (localBlocks[activePageId] || []).find(b => b.id === bid)
+    if (!block) return false
+
+    const overlays = ((block.props as Record<string, unknown>).overlays as BlockOverlayItem[]) || []
+    const overlayId = overlayImageTarget?.blockId === bid ? overlayImageTarget.overlayId : null
+    const selected = overlayId ? overlays.find(o => o.id === overlayId) : null
+
+    if (action === 'copy') {
+      if (!selected) {
+        toast.info('Select a layer on the canvas first.')
+        return false
+      }
+      setOverlayClipboard(selected as unknown as Record<string, unknown>, 'copy', bid)
+      toast.success('Layer copied')
+      return true
+    }
+
+    if (action === 'cut') {
+      if (!selected) {
+        toast.info('Select a layer on the canvas first.')
+        return false
+      }
+      setOverlayClipboard(selected as unknown as Record<string, unknown>, 'cut', bid)
+      handleUpdateBlockProps(bid, { overlays: overlays.filter(o => o.id !== selected.id) } as Partial<BlockProps>)
+      onOverlayLayerPicked(null, bid)
+      setOverlaySettingsPanelId(null)
+      toast.success('Layer cut')
+      return true
+    }
+
+    const clip = getOverlayClipboard()
+    if (!clip) {
+      toast.info('Nothing to paste — copy or cut a layer first.')
+      return false
+    }
+    const pasted = cloneOverlayForPaste(clip.item) as BlockOverlayItem
+    handleUpdateBlockProps(bid, { overlays: [...overlays, pasted] } as Partial<BlockProps>)
+    onOverlayLayerPicked(pasted.id, bid)
+    consumeOverlayClipboardAfterPaste()
+    toast.success('Layer pasted')
+    return true
+  }, [
+    activePageId,
+    selectedBlockId,
+    localBlocks,
+    overlayImageTarget,
+    handleUpdateBlockProps,
+    onOverlayLayerPicked,
+  ])
+
+  const runOverlayClipboardActionRef = useRef(runOverlayClipboardAction)
+  runOverlayClipboardActionRef.current = runOverlayClipboardAction
 
   const handleSectionImageActivate = useCallback((
     blockId: string,
@@ -10069,15 +10867,17 @@ export default function WebsiteBuilder() {
   ) => {
     if (!siteId) return
     const updates: { pageId: string; tempId?: string; saved?: WebsiteBlock }[] = []
-    await Promise.all(localPagesRef.current.map(async page => {
+    const pages = localPagesRef.current.filter(p => isPersistedPageId(p.id))
+    await Promise.all(pages.map(async page => {
       const block = (blocksSnapshot[page.id] || []).find(b => b.block_type === def.type)
       if (!block) return
+      const payload = { props: sanitizeForApiJson(nextProps) }
       if (block.id.startsWith('temp-')) {
         const saved = await websiteApi.createBlock(siteId, page.id, {
           block_type: def.type,
           label: block.label || def.label,
-          props: nextProps,
-          style_overrides: block.style_overrides || {},
+          ...payload,
+          style_overrides: sanitizeForApiJson(block.style_overrides || {}),
           visible: block.visible !== false,
           visible_on_mobile: block.visible_on_mobile !== false,
           visible_on_tablet: block.visible_on_tablet !== false,
@@ -10088,7 +10888,7 @@ export default function WebsiteBuilder() {
         } as any)
         updates.push({ pageId: page.id, tempId: block.id, saved })
       } else {
-        await websiteApi.updateBlock(siteId, page.id, block.id, { props: nextProps } as any)
+        await websiteApi.updateBlock(siteId, page.id, block.id, payload as any)
       }
     }))
     if (updates.length) {
@@ -10573,6 +11373,18 @@ export default function WebsiteBuilder() {
     await applyLayoutToBlock(block.id, def, option.props as Partial<BlockProps>, categoryId)
   }, [applyLayoutToBlock, site])
 
+  const applyBlockLayoutAtIndex = useCallback(async (block: WebsiteBlock, targetIdx: number) => {
+    const def = BLOCK_CATALOG.find(d => d.type === block.block_type)
+    if (!def || !site) return
+    const options = getSectionLayoutOptions(block.block_type)
+    const option = options[targetIdx]
+    if (!option) return
+    if (findActiveLayoutIndex(block.props as Record<string, unknown>, block.block_type) === targetIdx) return
+    const categoryId = (block.props as Record<string, unknown>)?._image_category_id as string | undefined
+      || suggestImageCategoryForBlock(def.category, site)
+    await applyLayoutToBlock(block.id, def, option.props as Partial<BlockProps>, categoryId)
+  }, [applyLayoutToBlock, site])
+
   const handleSelectSectionLayout = useCallback(async (
     propsOverride: Partial<BlockProps>,
     imageCategoryId: string,
@@ -10628,56 +11440,6 @@ export default function WebsiteBuilder() {
 
     await handleAddBlock(def, insertAtIdx, propsOverride, imageCategoryId, replaceBlockId, dataSourceChoice)
   }, [sectionLayoutPicker, handleAddBlock, applyLayoutToBlock, activePageId, selectedBlockId])
-
-  // Preview-only update ? instant canvas update, no API call (used while typing)
-  const handlePreviewBlockProps = useCallback((blockId: string, propsUpdate: Partial<BlockProps>) => {
-    const pages = localPagesRef.current
-    const pageId = findPageIdForBlock(localBlocksRef.current, pages, blockId, activePageId)
-    if (!pageId) return
-    setLocalBlocks(prev => {
-      const blocks = prev[pageId] || []
-      const block = blocks.find(b => b.id === blockId)
-      if (!block) return prev
-      const mergedProps = { ...block.props, ...propsUpdate }
-      return {
-        ...prev,
-        [pageId]: blocks.map(b => b.id === blockId ? { ...b, props: mergedProps } : b),
-      }
-    })
-  }, [activePageId])
-
-  // Update block props ? immediate UI; server sync on explicit Save
-  const handleUpdateBlockProps = useCallback((blockId: string, propsUpdate: Partial<BlockProps>) => {
-    const pages = localPagesRef.current
-    const pageId = findPageIdForBlock(localBlocksRef.current, pages, blockId, activePageId)
-    if (!pageId) return
-    scheduleEditorHistorySnapshot()
-    setBlocksDirty(true)
-    blocksDirtyRef.current = true
-    setLocalBlocks(prev => {
-      const blocks = prev[pageId] || []
-      const block = blocks.find(b => b.id === blockId)
-      if (!block) return prev
-      const mergedProps: BlockProps = { ...block.props, ...propsUpdate }
-      const topLevel: Partial<WebsiteBlock> = {}
-      const TOP_KEYS = [
-        'visible', 'visible_on_mobile', 'visible_on_tablet', 'visible_on_desktop',
-        'animation', 'animation_delay', 'style_overrides', 'visible_branches',
-      ] as const
-      TOP_KEYS.forEach(k => {
-        if (k in propsUpdate) {
-          (topLevel as any)[k] = (propsUpdate as any)[k]
-          delete (mergedProps as any)[k]
-        }
-      })
-      return {
-        ...prev,
-        [pageId]: blocks.map(b =>
-          b.id === blockId ? { ...b, props: mergedProps, ...topLevel } : b,
-        ),
-      }
-    })
-  }, [activePageId, scheduleEditorHistorySnapshot])
 
   const applySectionPaddingPatch = useCallback((
     blockId: string,
@@ -11000,7 +11762,7 @@ export default function WebsiteBuilder() {
               : o
           )),
         } as Partial<BlockProps>)
-        toast.success('Image applied to layer!')
+        toast.success(target.type === 'video' ? 'Video applied to layer!' : 'Image applied to layer!')
         return
       }
       toast.error('Could not find that overlay layer — select it and try again.')
@@ -11118,10 +11880,23 @@ export default function WebsiteBuilder() {
     overlayTarget?: { blockId: string; overlayId: string },
   ) => {
     if (!siteId) {
-      toast.error('Save the site first before uploading images')
+      toast.error('Save the site first before uploading media')
       return
     }
-    if (!file.type.startsWith('image/')) {
+    const capturedOverlayTarget = overlayTarget ?? resolveOverlayUploadTarget()
+    let overlayType: string | undefined
+    if (capturedOverlayTarget && activePageId) {
+      const block = (localBlocksRef.current[activePageId] || []).find(b => b.id === capturedOverlayTarget.blockId)
+      const overlays = ((block?.props as Record<string, unknown>)?.overlays as BlockOverlayItem[]) || []
+      overlayType = overlays.find(o => o.id === capturedOverlayTarget.overlayId)?.type
+    }
+    const isVideoUpload = overlayType === 'video'
+    if (isVideoUpload) {
+      if (!file.type.startsWith('video/')) {
+        toast.error('Please use a video file (MP4, WebM, MOV)')
+        return
+      }
+    } else if (!file.type.startsWith('image/')) {
       toast.error('Please use an image file (JPG, PNG, WebP, ?)')
       return
     }
@@ -11138,12 +11913,11 @@ export default function WebsiteBuilder() {
       return
     }
     const capturedBlockId = overlayTarget?.blockId ?? selectedBlockIdRef.current
-    const capturedOverlayTarget = overlayTarget ?? resolveOverlayUploadTarget()
     try {
       const saved = await overlayLayerUpload.mutateAsync(file)
       const uploadedUrl = saved.original_url || (saved as { url?: string }).url || ''
       if (!uploadedUrl) {
-        toast.error('Upload finished but no image URL was returned')
+        toast.error(`Upload finished but no ${isVideoUpload ? 'video' : 'image'} URL was returned`)
         return
       }
       applyMediaUrlToSelection(uploadedUrl, {
@@ -11155,7 +11929,7 @@ export default function WebsiteBuilder() {
     } finally {
       clearPendingOverlayUpload()
     }
-  }, [siteId, overlayLayerUpload, applyMediaUrlToSelection, resolveOverlayUploadTarget, clearPendingOverlayUpload])
+  }, [siteId, activePageId, overlayLayerUpload, applyMediaUrlToSelection, resolveOverlayUploadTarget, clearPendingOverlayUpload])
 
   const sectionMediaPicker = useImageSourcePicker({
     title: 'Image',
@@ -11194,11 +11968,12 @@ export default function WebsiteBuilder() {
   const openOverlayImageUrlPrompt = useCallback(() => {
     if (!selectedBlock || !overlayImageTarget || overlayImageTarget.blockId !== selectedBlock.id) return
     const overlays = ((selectedBlock.props as Record<string, unknown>).overlays as BlockOverlayItem[]) || []
-    const item = overlays.find(o => o.id === overlayImageTarget.overlayId && o.type === 'image')
+    const item = overlays.find(o => o.id === overlayImageTarget.overlayId && (o.type === 'image' || o.type === 'video'))
     if (!item) return
+    const isVideo = item.type === 'video'
     openTextPrompt({
-      title: 'Set image URL',
-      placeholder: 'https://?/image.jpg',
+      title: isVideo ? 'Set video URL' : 'Set image URL',
+      placeholder: isVideo ? 'https://?/video.mp4' : 'https://?/image.jpg',
       initialValue: item.src || '',
       onSave: v => {
         if (!v) return
@@ -11654,7 +12429,7 @@ export default function WebsiteBuilder() {
         id: 'data',
         label: `Connected ? ${dsLabel}`,
         icon: Database,
-        onSelect: () => { setRightPanel('data'); setRightCollapsed(false) },
+        onSelect: () => { setRightPanel('props'); setRightCollapsed(false) },
       } : (suggested ? {
         id: 'connect',
         label: `? Connect to ${DATA_SOURCES.find(s => s.id === suggested)?.label}`,
@@ -11667,7 +12442,7 @@ export default function WebsiteBuilder() {
         id: 'data-picker',
         label: 'Connect to live data?',
         icon: Database,
-        onSelect: () => { setRightPanel('data'); setRightCollapsed(false) },
+        onSelect: () => { setRightPanel('props'); setRightCollapsed(false) },
       }),
       { id: 'div1', label: '', divider: true },
       {
@@ -11788,6 +12563,25 @@ export default function WebsiteBuilder() {
         onSelect: () => openOverlaySettingsPanel(item.id, blockId),
       },
       { id: 'div-settings', label: '', divider: true },
+      {
+        id: 'cut-overlay',
+        label: 'Cut layer',
+        icon: Scissors,
+        onSelect: () => { runOverlayClipboardAction('cut', blockId) },
+      },
+      {
+        id: 'copy-overlay',
+        label: 'Copy layer',
+        icon: ClipboardCopy,
+        onSelect: () => { runOverlayClipboardAction('copy', blockId) },
+      },
+      ...(hasOverlayClipboard() ? [{
+        id: 'paste-overlay',
+        label: 'Paste layer',
+        icon: ClipboardPaste,
+        onSelect: () => { runOverlayClipboardAction('paste', blockId) },
+      }] : []),
+      { id: 'div-clipboard', label: '', divider: true },
       ...(item.type === 'text' || item.type === 'button' || item.type === 'badge' ? [{
         id: 'edit-text',
         label: 'Edit text?',
@@ -11883,6 +12677,49 @@ export default function WebsiteBuilder() {
           },
         },
       ] : []),
+      ...(item.type === 'video' ? [
+        {
+          id: 'upload-video',
+          label: 'Upload video?',
+          icon: Upload,
+          onSelect: () => {
+            onOverlayLayerPicked(item.id, blockId)
+            openOverlayImageFilePicker({ blockId, overlayId: item.id })
+          },
+        },
+        {
+          id: 'library-video',
+          label: 'Choose from library?',
+          icon: Video,
+          onSelect: () => {
+            onOverlayLayerPicked(item.id, blockId)
+            openMediaFromCanvas()
+          },
+        },
+        {
+          id: 'replace-video',
+          label: 'Set video URL?',
+          icon: Link2,
+          onSelect: () => {
+            openTextPrompt({
+              title: 'Set video URL',
+              subtitle: 'Paste a direct link to an MP4, WebM, or other video file.',
+              placeholder: 'https://?/video.mp4',
+              initialValue: item.src || '',
+              anchor: { x: e.clientX, y: e.clientY },
+              onSave: v => {
+                if (!v) return
+                const block = (localBlocks[activePageId] || []).find(b => b.id === blockId)
+                if (!block) return
+                const overlays: BlockOverlayItem[] = ((block.props as any).overlays as BlockOverlayItem[]) || []
+                handleUpdateBlockProps(blockId, {
+                  overlays: overlays.map(o => o.id === item.id ? { ...o, src: v } : o),
+                } as any)
+              },
+            })
+          },
+        },
+      ] : []),
       { id: 'div1', label: '', divider: true },
       {
         id: 'bring-front',
@@ -11949,7 +12786,7 @@ export default function WebsiteBuilder() {
       },
     ]
     setContextMenu({ x: e.clientX, y: e.clientY, actions })
-  }, [activePageId, localBlocks, handleUpdateBlockProps, openLinkEditorForOverlay, openTextPrompt, openOverlayImageFilePicker, openMediaFromCanvas, onOverlayLayerPicked, overlayImageTarget, openOverlaySettingsPanel])
+  }, [activePageId, localBlocks, handleUpdateBlockProps, openLinkEditorForOverlay, openTextPrompt, openOverlayImageFilePicker, openMediaFromCanvas, onOverlayLayerPicked, overlayImageTarget, openOverlaySettingsPanel, runOverlayClipboardAction])
 
   // Reorder ? local only until Save (same as block prop edits)
   const applyReorderForPage = useCallback((pageId: string, reordered: WebsiteBlock[]) => {
@@ -12312,104 +13149,67 @@ export default function WebsiteBuilder() {
   const persistAllBlocksToServer = useCallback(async () => {
     if (!siteId) return
     const replacements: { pageId: string; tempId: string; saved: WebsiteBlock }[] = []
-    const pages = [...localPagesRef.current].sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
+    const pages = [...localPagesRef.current]
+      .filter(p => isPersistedPageId(p.id))
+      .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
     const blocksToPersist = syncNavLinksInBlockMap(localBlocksRef.current, pages)
 
-    await Promise.all(pages.map(async (page) => {
+    for (const page of pages) {
       const blocks = (blocksToPersist[page.id] || []).map((b, i) => ({ ...b, sort_order: i }))
-      if (!blocks.length) return
+      if (!blocks.length) continue
 
       const pageReplacements: { tempId: string; saved: WebsiteBlock }[] = []
       const persistedBlocks: WebsiteBlock[] = []
 
-      await Promise.all(blocks.map(async (b) => {
+      for (const b of blocks) {
+        const apiPayload = blockPayloadForApi(b)
         if (b.id.startsWith('temp-')) {
           const existingSameType = GLOBAL_STRUCTURE_BLOCK_TYPES.has(b.block_type)
             ? blocks.find(x => x.block_type === b.block_type && !x.id.startsWith('temp-') && x.id !== b.id)
             : undefined
           if (existingSameType) {
-            await websiteApi.updateBlock(siteId, page.id, existingSameType.id, {
-              props: b.props,
-              style_overrides: b.style_overrides || {},
-              label: b.label,
-              visible: b.visible,
-              visible_on_mobile: b.visible_on_mobile,
-              visible_on_tablet: b.visible_on_tablet,
-              visible_on_desktop: b.visible_on_desktop,
-              animation: b.animation,
-              animation_delay: b.animation_delay,
-              sort_order: b.sort_order,
-            } as any)
+            await websiteApi.updateBlock(siteId, page.id, existingSameType.id, apiPayload as any)
             pageReplacements.push({ tempId: b.id, saved: { ...existingSameType, ...b, id: existingSameType.id } })
             persistedBlocks.push({ ...existingSameType, ...b, id: existingSameType.id })
-            return
+            continue
           }
           const saved = await websiteApi.createBlock(siteId, page.id, {
             block_type: b.block_type,
-            label: b.label,
-            props: b.props,
-            style_overrides: b.style_overrides || {},
-            visible: b.visible,
-            visible_on_mobile: b.visible_on_mobile,
-            visible_on_tablet: b.visible_on_tablet,
-            visible_on_desktop: b.visible_on_desktop,
-            animation: b.animation,
-            animation_delay: b.animation_delay,
-            sort_order: b.sort_order,
+            ...apiPayload,
           } as any)
           pageReplacements.push({ tempId: b.id, saved })
           persistedBlocks.push(saved)
         } else {
           try {
-            await websiteApi.updateBlock(siteId, page.id, b.id, {
-              props: b.props,
-              style_overrides: b.style_overrides || {},
-              label: b.label,
-              visible: b.visible,
-              visible_on_mobile: b.visible_on_mobile,
-              visible_on_tablet: b.visible_on_tablet,
-              visible_on_desktop: b.visible_on_desktop,
-              animation: b.animation,
-              animation_delay: b.animation_delay,
-              sort_order: b.sort_order,
-            } as any)
+            await websiteApi.updateBlock(siteId, page.id, b.id, apiPayload as any)
           } catch (err) {
             if (!isAxiosError(err) || err.response?.status !== 404) throw err
-            if (deletedBlockIdsRef.current.has(b.id)) return
+            if (deletedBlockIdsRef.current.has(b.id)) continue
             const saved = await websiteApi.createBlock(siteId, page.id, {
               block_type: b.block_type,
-              label: b.label,
-              props: b.props,
-              style_overrides: b.style_overrides || {},
-              visible: b.visible,
-              visible_on_mobile: b.visible_on_mobile,
-              visible_on_tablet: b.visible_on_tablet,
-              visible_on_desktop: b.visible_on_desktop,
-              animation: b.animation,
-              animation_delay: b.animation_delay,
-              sort_order: b.sort_order,
+              ...apiPayload,
             } as any)
             pageReplacements.push({ tempId: b.id, saved })
             persistedBlocks.push(saved)
-            return
+            continue
           }
           persistedBlocks.push(b)
         }
-      }))
+      }
 
       if (persistedBlocks.length) {
         const ordered = [...persistedBlocks].sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
         await websiteApi.reorderBlocks(
           siteId,
           page.id,
-          ordered.map((b, i) => ({ id: b.id, sort_order: i })),
+          ordered.map((blk, i) => ({ id: blk.id, sort_order: i })),
         )
       }
 
       for (const r of pageReplacements) {
         replacements.push({ pageId: page.id, ...r })
       }
-    }))
+    }
 
     if (replacements.length) {
       setLocalBlocks(prev => {
@@ -12474,7 +13274,7 @@ export default function WebsiteBuilder() {
     setAutoSaveStatus('saving')
     try {
       if (saveBlocks) await persistAllBlocksToServer()
-      if (saveStyle) await websiteApi.updateSite(siteId, { style_config: localStyle as any })
+      if (saveStyle) await websiteApi.updateSite(siteId, { style_config: sanitizeForApiJson(localStyle) as any })
       setStyleDirty(false)
       setBlocksDirty(false)
       blocksDirtyRef.current = false
@@ -12498,9 +13298,11 @@ export default function WebsiteBuilder() {
         setTimeout(() => setSaveFlash(false), 1800)
         toast.success(saveBlocks && saveStyle ? 'Canvas and styles saved' : saveBlocks ? 'Canvas saved' : 'Styles saved')
       }
-    } catch {
+    } catch (err) {
       setAutoSaveStatus('error')
-      toast.error(opts?.silent ? 'Auto-save failed ? check your connection' : 'Save failed ? check your connection')
+      console.error('[Builder save]', err)
+      const message = extractApiError(err, opts?.silent ? 'Auto-save' : 'Save')
+      toast.error(message)
     }
     setIsSaving(false)
     isSavingRef.current = false
@@ -14651,7 +15453,7 @@ export default function WebsiteBuilder() {
             const selectionHint = formatPaintBrush
               ? `Copy formatting — click text to apply (${formatPaintStyleSummary(formatPaintBrush.style)})${formatPaintBrush.sticky ? ' · apply to several' : ''}`
               : overlayImageTarget?.blockId === block.id && overlayImageTarget.overlayId
-                ? 'Inserted layer selected — use Visual tab (or right-click) for text, links, and layout'
+                ? 'Inserted layer selected — General tab edits text; Visual tab handles layout and style'
                 : canvasImageTarget?.blockId === block.id && canvasImageStyleField(canvasImageTarget, block.id)
                   ? (() => {
                       const slots = canvasImageArraySlots(canvasImageTarget, block.id)
@@ -14695,6 +15497,7 @@ export default function WebsiteBuilder() {
                   onOverlaySetImageUrl={openOverlayImageUrlPrompt}
                   onOverlayEditText={openOverlayTextEdit}
                   onOverlayEditDescription={openOverlayDescriptionEdit}
+                  onOverlayClipboard={action => runOverlayClipboardAction(action, block.id)}
                   onOpenSectionEdit={() => {
                     setRightPanel('props')
                     setRightCollapsed(false)
@@ -14933,7 +15736,7 @@ export default function WebsiteBuilder() {
                           }}
                           onOpenDataPanel={() => {
                             setSelectedBlockId(block.id)
-                            setRightPanel('data')
+                            setRightPanel('props')
                             setRightCollapsed(false)
                           }}
                           onMoveBlock={dir => handleMoveBlock(block.id, dir)}
@@ -15065,8 +15868,7 @@ export default function WebsiteBuilder() {
                           && !canvasImageStyleField(canvasImageTarget, block.id)
                           && activeTextTarget?.blockId !== block.id
                           && !(overlayImageTarget?.blockId === block.id && overlayImageTarget?.overlayId)
-                          && !textPrompt
-                          && !contextMenu && (
+                          && !builderModalOpen && (
                           <SectionSizeControl
                             blockId={block.id}
                             containerRef={builderPageRootRef}
@@ -15297,7 +16099,7 @@ export default function WebsiteBuilder() {
             <button
               type="button"
               onClick={() => setRightCollapsed(false)}
-              title="Open panel — Section Edit, Page Edit, Style, Store data"
+              title="Open panel — Section Edit, Page Edit, Links, Style"
               className={cn(
                 builderPanelUi.panelEdgeToggle,
                 builderPanelUi.panelEdgeToggleTop,
@@ -15316,7 +16118,6 @@ export default function WebsiteBuilder() {
                   { id: 'page' as const, icon: FileText, label: 'Page Edit', hint: 'Page-wide colors and fonts (switch pages in the left Pages panel)' },
                   { id: 'links' as const, icon: Link2, label: 'Links', hint: 'Connect this section’s buttons to pages, products, or any URL' },
                   { id: 'style' as const, icon: Palette, label: 'Style', hint: 'Site fonts and colors' },
-                  { id: 'data' as const, icon: Database, label: 'Store data', hint: 'Catalog, People, Stores… — same tabs as link picker' },
                 ] as const).map(({ id, icon: Icon, label, hint }) => (
                   <button
                     key={id}
@@ -15347,6 +16148,7 @@ export default function WebsiteBuilder() {
                       onEditPropLink={(propKey, anchor) => openLinkEditorForProp(selectedBlock.id, propKey, anchor)}
                       onOpenLayoutPicker={() => openLayoutPickerForBlock(selectedBlock)}
                       onCycleLayout={dir => { void cycleBlockLayout(selectedBlock, dir) }}
+                      onSelectLayoutIndex={idx => { void applyBlockLayoutAtIndex(selectedBlock, idx) }}
                       onArrayItemImageFocus={(arrayKey, index, itemField) => {
                         handleArrayItemImageFocus(selectedBlock.id, arrayKey, index, itemField)
                       }}
@@ -15388,17 +16190,16 @@ export default function WebsiteBuilder() {
                 {rightPanel === 'links' && (
                   <SectionLinksPanel
                     block={selectedBlock}
+                    selectedLink={linksPanelSelection}
+                    onSelectOverlay={selectLinkPanelOverlay}
+                    onSelectPropLink={selectLinkPanelProp}
+                    onSelectBlockLink={selectLinkPanelBlock}
                     onEditPropLink={(propKey, anchor) =>
                       selectedBlock && openLinkEditorForProp(selectedBlock.id, propKey, anchor)
                     }
-                  />
-                )}
-
-                {rightPanel === 'data' && (
-                  <DataSourcePanel
-                    siteId={siteId!}
-                    block={selectedBlock}
-                    onUpdate={handleUpdateDataSource}
+                    onEditOverlayLink={(item, anchor) =>
+                      selectedBlock && openLinkEditorForOverlay(selectedBlock.id, item, anchor)
+                    }
                   />
                 )}
 
