@@ -17,11 +17,16 @@ import {
   ShoppingCart, GripVertical, EyeOff, Type, Palette,
   FileOutput, ToggleLeft, QrCode,
 } from 'lucide-react'
+import { InvoiceAccentColorPicker } from '@/components/invoices/InvoiceAccentColorPicker'
 import {
-  generateInvoiceHtml, TEMPLATE_COLORS, DEFAULT_INVOICE_SETTINGS, DEFAULT_QUOTATION_SETTINGS, PAPER_SIZES,
-  loadPosInvoiceSettings, savePosInvoiceSettings, DEFAULT_LAYOUT_SECTIONS,
+  generateInvoiceHtml, DEFAULT_INVOICE_SETTINGS, DEFAULT_QUOTATION_SETTINGS, PAPER_SIZES,
+  loadPosInvoiceSettings, savePosInvoiceSettings, DEFAULT_LAYOUT_SECTIONS, resolveInvoiceTemplateLogoPath,
+  LOGO_SHAPES, URL_POSITION_OPTIONS,
+  INVOICE_TEMPLATE_LABELS,
 } from '@/lib/invoiceTemplates'
-import type { InvoiceSettings, PaperSize, LayoutSection } from '@/lib/invoiceTemplates'
+import type { InvoiceSettings, PaperSize, LayoutSection, LogoShape, InvoiceTemplateId } from '@/lib/invoiceTemplates'
+import { buildCustomerStoreLink } from '@/lib/liveStorefrontUrl'
+import type { Vendor } from '@/types'
 import { ImageSourcePicker } from '@/components/common/ImageSourcePicker'
 import { SingleImagePreview } from '@/components/common/CatalogMediaLightbox'
 
@@ -262,7 +267,543 @@ const TEMPLATES = [
       <rect x="96" y="150" width="16" height="5" fill="rgba(255,255,255,.9)" rx="1"/>
     </svg>`,
   },
+  {
+    id: 'toprightlogobottomleft',
+    name: 'Top Right Logo · Bottom Left Logo',
+    desc: 'Top: logo right in header. Bottom: logo left below signature (dashed line)',
+    svg: (color: string) => `<svg viewBox="0 0 120 160" xmlns="http://www.w3.org/2000/svg">
+      <rect width="120" height="160" fill="#fff" rx="3"/>
+      <rect x="6" y="10" width="46" height="5" fill="#374151" rx="1"/>
+      <rect x="6" y="18" width="34" height="3" fill="#9ca3af" rx="1"/>
+      <rect x="6" y="24" width="24" height="3" fill="#9ca3af" rx="1"/>
+      <rect x="82" y="6" width="32" height="22" fill="#e2e8f0" rx="2"/>
+      <rect x="86" y="10" width="24" height="14" fill="${color}" opacity=".65" rx="1"/>
+      <rect x="6" y="32" width="108" height="2" fill="${color}"/>
+      ${[0,1,2,3].map(i=>`<rect x="6" y="${38+i*12}" width="108" height="11" fill="${i%2===0?'#fff':'#f9fafb'}"/>`).join('')}
+      <rect x="72" y="100" width="36" height="14" fill="#f8fafc" stroke="#e5e7eb" rx="1"/>
+      <rect x="78" y="104" width="24" height="6" fill="#e5e7eb" rx="1"/>
+      <line x1="6" y1="118" x2="114" y2="118" stroke="#cbd5e1" stroke-width="1" stroke-dasharray="4 3"/>
+      <rect x="8" y="126" width="28" height="18" fill="#e2e8f0" rx="2"/>
+      <rect x="12" y="130" width="20" height="10" fill="${color}" opacity=".65" rx="1"/>
+    </svg>`,
+  },
+  {
+    id: 'topleftlogobottomright',
+    name: 'Top Left Logo · Bottom Right Logo',
+    desc: 'Top: logo left in header. Bottom: logo right below signature (dashed line)',
+    svg: (color: string) => `<svg viewBox="0 0 120 160" xmlns="http://www.w3.org/2000/svg">
+      <rect width="120" height="160" fill="#fff" rx="3"/>
+      <rect x="6" y="6" width="32" height="22" fill="#e2e8f0" rx="2"/>
+      <rect x="10" y="10" width="24" height="14" fill="${color}" opacity=".65" rx="1"/>
+      <rect x="44" y="10" width="46" height="5" fill="#374151" rx="1"/>
+      <rect x="44" y="18" width="34" height="3" fill="#9ca3af" rx="1"/>
+      <rect x="44" y="24" width="24" height="3" fill="#9ca3af" rx="1"/>
+      <rect x="6" y="32" width="108" height="2" fill="${color}"/>
+      ${[0,1,2,3].map(i=>`<rect x="6" y="${38+i*12}" width="108" height="11" fill="${i%2===0?'#fff':'#f9fafb'}"/>`).join('')}
+      <rect x="12" y="100" width="36" height="14" fill="#f8fafc" stroke="#e5e7eb" rx="1"/>
+      <rect x="18" y="104" width="24" height="6" fill="#e5e7eb" rx="1"/>
+      <line x1="6" y1="118" x2="114" y2="118" stroke="#cbd5e1" stroke-width="1" stroke-dasharray="4 3"/>
+      <rect x="84" y="126" width="28" height="18" fill="#e2e8f0" rx="2"/>
+      <rect x="88" y="130" width="20" height="10" fill="${color}" opacity=".65" rx="1"/>
+    </svg>`,
+  },
+  {
+    id: 'centered',
+    name: 'Centered',
+    desc: 'Logo and company name centered — clean and professional',
+    svg: (color: string) => `<svg viewBox="0 0 120 160" xmlns="http://www.w3.org/2000/svg">
+      <rect width="120" height="160" fill="#fff" rx="3"/>
+      <rect x="44" y="8" width="32" height="20" fill="#e2e8f0" rx="2"/>
+      <rect x="48" y="12" width="24" height="12" fill="${color}" opacity=".4" rx="1"/>
+      <rect x="30" y="32" width="60" height="5" fill="#374151" rx="1"/>
+      <rect x="38" y="40" width="44" height="3" fill="#9ca3af" rx="1"/>
+      <rect x="32" y="48" width="56" height="5" fill="${color}" opacity=".25" rx="1"/>
+      <rect x="6" y="58" width="108" height="1" fill="${color}"/>
+      ${[0,1,2,3].map(i=>`<rect x="6" y="${62+i*12}" width="108" height="11" fill="${i%2===0?'#fff':'#f9fafb'}"/>`).join('')}
+      <rect x="76" y="114" width="38" height="26" fill="#f8fafc" rx="2"/>
+    </svg>`,
+  },
+  {
+    id: 'letterhead',
+    name: 'Letterhead',
+    desc: 'Formal letterhead with logo left and mark on right',
+    svg: (color: string) => `<svg viewBox="0 0 120 160" xmlns="http://www.w3.org/2000/svg">
+      <rect width="120" height="160" fill="#fff" rx="3"/>
+      <rect x="6" y="10" width="18" height="14" fill="#e2e8f0" rx="1"/>
+      <rect x="28" y="12" width="44" height="4" fill="#374151" rx="1"/>
+      <rect x="28" y="18" width="30" height="3" fill="#9ca3af" rx="1"/>
+      <rect x="92" y="10" width="20" height="12" fill="${color}" opacity=".2" rx="1"/>
+      <rect x="6" y="30" width="108" height="1" fill="#111"/>
+      <rect x="6" y="36" width="50" height="3" fill="#9ca3af" rx="1"/>
+      ${[0,1,2,3].map(i=>`<rect x="6" y="${44+i*12}" width="108" height="11" fill="${i%2===0?'#fff':'#f9fafb'}"/>`).join('')}
+      <rect x="76" y="96" width="38" height="28" fill="#f8fafc" rx="2"/>
+    </svg>`,
+  },
+  {
+    id: 'banner',
+    name: 'Banner',
+    desc: 'Full-width colour banner with logo on the left only',
+    svg: (color: string) => `<svg viewBox="0 0 120 160" xmlns="http://www.w3.org/2000/svg">
+      <rect width="120" height="160" fill="#fff" rx="3"/>
+      <rect y="0" width="120" height="30" fill="${color}"/>
+      <rect x="6" y="6" width="20" height="18" fill="rgba(255,255,255,.25)" rx="2"/>
+      <rect x="44" y="10" width="32" height="5" fill="rgba(255,255,255,.9)" rx="1"/>
+      <rect x="88" y="10" width="24" height="5" fill="rgba(255,255,255,.5)" rx="1"/>
+      <rect x="6" y="34" width="108" height="8" fill="#f8fafc" rx="1"/>
+      ${[0,1,2,3].map(i=>`<rect x="6" y="${46+i*12}" width="108" height="11" fill="${i%2===0?'#fff':'#f9fafb'}"/>`).join('')}
+      <rect x="76" y="98" width="38" height="28" fill="#f8fafc" rx="2"/>
+    </svg>`,
+  },
+  {
+    id: 'executive',
+    name: 'Executive',
+    desc: 'Large right logo with subtle watermark background',
+    svg: (color: string) => `<svg viewBox="0 0 120 160" xmlns="http://www.w3.org/2000/svg">
+      <rect width="120" height="160" fill="#fff" rx="3"/>
+      <rect x="6" y="10" width="28" height="4" fill="${color}" rx="1"/>
+      <rect x="6" y="18" width="48" height="6" fill="#374151" rx="1"/>
+      <rect x="6" y="28" width="32" height="3" fill="#9ca3af" rx="1"/>
+      <rect x="70" y="6" width="44" height="36" fill="${color}" opacity=".08" rx="4"/>
+      <rect x="78" y="10" width="32" height="28" fill="#e2e8f0" rx="2"/>
+      <rect x="82" y="14" width="24" height="20" fill="${color}" opacity=".5" rx="1"/>
+      <rect x="6" y="48" width="80" height="2" fill="${color}" opacity=".4"/>
+      ${[0,1,2,3].map(i=>`<rect x="6" y="${54+i*12}" width="108" height="11" fill="${i%2===0?'#fff':'#f9fafb'}"/>`).join('')}
+      <rect x="76" y="106" width="38" height="28" fill="#f8fafc" rx="2"/>
+    </svg>`,
+  },
+  {
+    id: 'stripe',
+    name: 'Stripe',
+    desc: 'Tri-colour stripe header with logo on the left only',
+    svg: (color: string) => `<svg viewBox="0 0 120 160" xmlns="http://www.w3.org/2000/svg">
+      <rect width="120" height="160" fill="#fff" rx="3"/>
+      <rect y="0" width="40" height="5" fill="${color}"/>
+      <rect x="40" y="0" width="40" height="5" fill="#1f2937"/>
+      <rect x="80" y="0" width="40" height="5" fill="${color}"/>
+      <rect x="4" y="10" width="18" height="16" fill="#e2e8f0" rx="1"/>
+      <rect x="46" y="12" width="28" height="5" fill="#374151" rx="1"/>
+      <rect x="46" y="20" width="20" height="4" fill="${color}" rx="1"/>
+      <rect x="94" y="12" width="20" height="4" fill="#9ca3af" rx="1"/>
+      <rect x="6" y="32" width="108" height="1" fill="#e5e7eb"/>
+      ${[0,1,2,3].map(i=>`<rect x="6" y="${36+i*12}" width="108" height="11" fill="${i%2===0?'#fff':'#f9fafb'}"/>`).join('')}
+      <rect x="76" y="88" width="38" height="28" fill="#f8fafc" rx="2"/>
+    </svg>`,
+  },
+  {
+    id: 'gstpro',
+    name: 'GST Pro',
+    desc: 'Indian GST format — logo left in bordered box',
+    svg: (color: string) => `<svg viewBox="0 0 120 160" xmlns="http://www.w3.org/2000/svg">
+      <rect width="120" height="160" fill="#fff" rx="3"/>
+      <rect x="6" y="8" width="28" height="24" fill="#f8fafc" stroke="#e5e7eb" rx="2"/>
+      <rect x="10" y="12" width="20" height="16" fill="${color}" opacity=".35" rx="1"/>
+      <rect x="38" y="12" width="44" height="5" fill="#374151" rx="1"/>
+      <rect x="38" y="20" width="30" height="3" fill="#9ca3af" rx="1"/>
+      <rect x="88" y="10" width="26" height="12" fill="${color}" rx="2"/>
+      <rect x="6" y="38" width="54" height="22" fill="#f8fafc" stroke="#e5e7eb" rx="2"/>
+      <rect x="64" y="38" width="50" height="22" fill="#f8fafc" stroke="#e5e7eb" rx="2"/>
+      ${[0,1,2,3].map(i=>`<rect x="6" y="${64+i*12}" width="108" height="11" fill="${i%2===0?'#fff':'#f9fafb'}"/>`).join('')}
+      <rect x="76" y="116" width="38" height="28" fill="#f8fafc" rx="2"/>
+    </svg>`,
+  },
+  {
+    id: 'retail',
+    name: 'Retail',
+    desc: 'Store style — logo left, bold total header',
+    svg: (color: string) => `<svg viewBox="0 0 120 160" xmlns="http://www.w3.org/2000/svg">
+      <rect width="120" height="160" fill="#fff" rx="3"/>
+      <rect y="0" width="120" height="24" fill="#111"/>
+      <rect x="6" y="5" width="18" height="14" fill="#fff" opacity=".3" rx="1"/>
+      <rect x="28" y="7" width="36" height="4" fill="#fff" opacity=".8" rx="1"/>
+      <rect x="88" y="6" width="26" height="12" fill="${color}" rx="2"/>
+      <rect y="24" width="120" height="8" fill="${color}" opacity=".2"/>
+      ${[0,1,2,3].map(i=>`<rect x="6" y="${36+i*12}" width="108" height="11" fill="${i%2===0?'#fff':'#f9fafb'}"/>`).join('')}
+      <rect x="76" y="88" width="38" height="28" fill="#f8fafc" rx="2"/>
+    </svg>`,
+  },
+  {
+    id: 'sideright',
+    name: 'Side Right',
+    desc: 'Coloured sidebar on right with logo',
+    svg: (color: string) => `<svg viewBox="0 0 120 160" xmlns="http://www.w3.org/2000/svg">
+      <rect width="120" height="160" fill="#fff" rx="3"/>
+      <rect x="90" y="0" width="30" height="160" fill="${color}" rx="2"/>
+      <rect x="94" y="10" width="22" height="18" fill="rgba(255,255,255,.2)" rx="2"/>
+      <rect x="8" y="12" width="40" height="5" fill="${color}" rx="1"/>
+      <rect x="8" y="20" width="28" height="3" fill="#9ca3af" rx="1"/>
+      ${[0,1,2,3].map(i=>`<rect x="8" y="${30+i*12}" width="78" height="11" fill="${i%2===0?'#fff':'#f9fafb'}"/>`).join('')}
+      <rect x="58" y="82" width="28" height="24" fill="#f8fafc" rx="2"/>
+    </svg>`,
+  },
+  {
+    id: 'framed',
+    name: 'Framed',
+    desc: 'Double border frame — logo on the right',
+    svg: (color: string) => `<svg viewBox="0 0 120 160" xmlns="http://www.w3.org/2000/svg">
+      <rect x="4" y="4" width="112" height="152" fill="#fff" stroke="${color}" stroke-width="2"/>
+      <rect x="6" y="10" width="40" height="5" fill="#374151" rx="1"/>
+      <rect x="6" y="18" width="28" height="3" fill="#9ca3af" rx="1"/>
+      <rect x="86" y="8" width="26" height="22" fill="#e2e8f0" rx="2"/>
+      <rect x="90" y="12" width="18" height="14" fill="${color}" opacity=".4" rx="1"/>
+      ${[0,1,2,3].map(i=>`<rect x="8" y="${36+i*12}" width="104" height="11" fill="${i%2===0?'#fff':'#f9fafb'}"/>`).join('')}
+      <rect x="72" y="90" width="40" height="28" fill="#f8fafc" rx="2"/>
+    </svg>`,
+  },
+  {
+    id: 'slimleft',
+    name: 'Slim Left',
+    desc: 'Narrow left column with logo and company info',
+    svg: (color: string) => `<svg viewBox="0 0 120 160" xmlns="http://www.w3.org/2000/svg">
+      <rect width="120" height="160" fill="#fff" rx="3"/>
+      <rect x="0" y="0" width="34" height="160" fill="#f8fafc"/>
+      <rect x="4" y="10" width="26" height="20" fill="#e2e8f0" rx="2"/>
+      <rect x="7" y="14" width="20" height="12" fill="${color}" opacity=".4" rx="1"/>
+      <rect x="4" y="34" width="26" height="3" fill="#374151" rx="1"/>
+      <rect x="38" y="10" width="30" height="5" fill="${color}" rx="1"/>
+      <rect x="38" y="18" width="40" height="3" fill="#9ca3af" rx="1"/>
+      ${[0,1,2,3].map(i=>`<rect x="38" y="${28+i*12}" width="76" height="11" fill="${i%2===0?'#fff':'#f9fafb'}"/>`).join('')}
+      <rect x="76" y="80" width="38" height="28" fill="#f8fafc" rx="2"/>
+    </svg>`,
+  },
+  {
+    id: 'premiumright',
+    name: 'Premium Right',
+    desc: 'Logo right with summary feature cards',
+    svg: (color: string) => `<svg viewBox="0 0 120 160" xmlns="http://www.w3.org/2000/svg">
+      <rect width="120" height="160" fill="#fff" rx="3"/>
+      <rect x="6" y="10" width="44" height="5" fill="#374151" rx="1"/>
+      <rect x="6" y="18" width="30" height="3" fill="#9ca3af" rx="1"/>
+      <rect x="82" y="8" width="32" height="26" fill="#f8fafc" stroke="#e5e7eb" rx="2"/>
+      <rect x="86" y="12" width="24" height="18" fill="${color}" opacity=".45" rx="1"/>
+      ${[0,1,2,3].map(i=>`<rect x="${6+i*28}" y="32" width="24" height="14" fill="#f8fafc" stroke="#e5e7eb" rx="2"/>`).join('')}
+      ${[0,1,2,3].map(i=>`<rect x="6" y="${52+i*12}" width="108" height="11" fill="${i%2===0?'#fff':'#f9fafb'}"/>`).join('')}
+      <rect x="76" y="104" width="38" height="28" fill="#f8fafc" rx="2"/>
+    </svg>`,
+  },
+  {
+    id: 'leftlogo',
+    name: 'Left Logo',
+    desc: 'Logo on the left — company details beside it',
+    svg: (color: string) => `<svg viewBox="0 0 120 160" xmlns="http://www.w3.org/2000/svg">
+      <rect width="120" height="160" fill="#fff" rx="3"/>
+      <rect x="0" y="0" width="120" height="34" fill="#f8fafc"/>
+      <rect x="8" y="8" width="28" height="18" fill="#e2e8f0" rx="2"/>
+      <rect x="11" y="11" width="22" height="12" fill="${color}" opacity=".55" rx="1"/>
+      <rect x="42" y="10" width="48" height="5" fill="#374151" rx="1"/>
+      <rect x="42" y="18" width="34" height="3" fill="#9ca3af" rx="1"/>
+      <rect x="6" y="38" width="108" height="1" fill="#e5e7eb"/>
+      ${[0,1,2,3].map(i=>`<rect x="6" y="${44+i*12}" width="108" height="11" fill="${i%2===0?'#fff':'#f9fafb'}"/>`).join('')}
+      <rect x="76" y="96" width="38" height="28" fill="#f8fafc" rx="2"/>
+    </svg>`,
+  },
+  {
+    id: 'rightlogo',
+    name: 'Right Logo',
+    desc: 'Logo on the right — company details on the left',
+    svg: (color: string) => `<svg viewBox="0 0 120 160" xmlns="http://www.w3.org/2000/svg">
+      <rect width="120" height="160" fill="#fff" rx="3"/>
+      <rect x="0" y="0" width="120" height="34" fill="#f8fafc"/>
+      <rect x="8" y="10" width="48" height="5" fill="#374151" rx="1"/>
+      <rect x="8" y="18" width="36" height="3" fill="#9ca3af" rx="1"/>
+      <rect x="84" y="8" width="28" height="18" fill="#e2e8f0" rx="2"/>
+      <rect x="87" y="11" width="22" height="12" fill="${color}" opacity=".55" rx="1"/>
+      <rect x="6" y="38" width="108" height="1" fill="#e5e7eb"/>
+      ${[0,1,2,3].map(i=>`<rect x="6" y="${44+i*12}" width="108" height="11" fill="${i%2===0?'#fff':'#f9fafb'}"/>`).join('')}
+      <rect x="76" y="96" width="38" height="28" fill="#f8fafc" rx="2"/>
+    </svg>`,
+  },
+  {
+    id: 'footerleft',
+    name: 'Footer Left',
+    desc: 'Logo in the footer on the left — clean header',
+    svg: (color: string) => `<svg viewBox="0 0 120 160" xmlns="http://www.w3.org/2000/svg">
+      <rect width="120" height="160" fill="#fff" rx="3"/>
+      <rect x="8" y="10" width="56" height="5" fill="#374151" rx="1"/>
+      <rect x="8" y="18" width="40" height="3" fill="#9ca3af" rx="1"/>
+      <rect x="6" y="28" width="108" height="2" fill="${color}"/>
+      ${[0,1,2,3].map(i=>`<rect x="6" y="${34+i*12}" width="108" height="11" fill="${i%2===0?'#fff':'#f9fafb'}"/>`).join('')}
+      <rect x="0" y="118" width="120" height="42" fill="#f8fafc"/>
+      <rect x="8" y="128" width="24" height="16" fill="#e2e8f0" rx="2"/>
+      <rect x="11" y="131" width="18" height="10" fill="${color}" opacity=".55" rx="1"/>
+      <rect x="38" y="132" width="40" height="3" fill="#9ca3af" rx="1"/>
+      <rect x="88" y="130" width="24" height="12" fill="#e5e7eb" rx="1"/>
+    </svg>`,
+  },
+  {
+    id: 'footerright',
+    name: 'Footer Right',
+    desc: 'Logo in the footer on the right — clean header',
+    svg: (color: string) => `<svg viewBox="0 0 120 160" xmlns="http://www.w3.org/2000/svg">
+      <rect width="120" height="160" fill="#fff" rx="3"/>
+      <rect x="8" y="10" width="56" height="5" fill="#374151" rx="1"/>
+      <rect x="8" y="18" width="40" height="3" fill="#9ca3af" rx="1"/>
+      <rect x="6" y="28" width="108" height="2" fill="${color}"/>
+      ${[0,1,2,3].map(i=>`<rect x="6" y="${34+i*12}" width="108" height="11" fill="${i%2===0?'#fff':'#f9fafb'}"/>`).join('')}
+      <rect x="0" y="118" width="120" height="42" fill="#f8fafc"/>
+      <rect x="8" y="132" width="40" height="3" fill="#9ca3af" rx="1"/>
+      <rect x="88" y="128" width="24" height="16" fill="#e2e8f0" rx="2"/>
+      <rect x="91" y="131" width="18" height="10" fill="${color}" opacity=".55" rx="1"/>
+      <rect x="52" y="130" width="24" height="12" fill="#e5e7eb" rx="1"/>
+    </svg>`,
+  },
 ]
+
+function templateLabelFor(id: InvoiceTemplateId | undefined): string {
+  if (!id) return 'Classic'
+  return TEMPLATES.find(t => t.id === id)?.name ?? INVOICE_TEMPLATE_LABELS[id] ?? id
+}
+
+function resolveVendorWebsiteFallback(vendor?: Vendor | null): string {
+  if (!vendor) return 'www.example.com'
+  if (vendor.external_domain_enabled && vendor.external_domain_access_status === 'active' && vendor.external_domain_name) {
+    return vendor.external_domain_name.trim().replace(/^https?:\/\//i, '')
+  }
+  const store = buildCustomerStoreLink(vendor.slug)
+  if (store) return store.replace(/^https?:\/\//i, '')
+  return 'www.example.com'
+}
+
+const LOGO_SHAPE_PREVIEW_CLASS: Record<LogoShape, string> = {
+  square: 'rounded object-contain !w-12 !h-12',
+  rounded: 'rounded-lg object-contain !w-12 !h-12',
+  squircle: 'object-cover !w-12 !h-12 [border-radius:28%]',
+  circle: 'rounded-full object-cover aspect-square !w-12 !h-12 !max-w-[3rem]',
+  oval: 'rounded-full object-cover !w-14 !h-10 !max-w-[3.5rem]',
+  pill: 'rounded-full object-contain !w-16 !h-10 !max-w-[4rem]',
+  sharp: 'rounded-none object-contain !w-12 !h-12',
+  diamond: 'object-cover !w-12 !h-12 [clip-path:polygon(50%_0%,100%_50%,50%_100%,0%_50%)]',
+  hexagon: 'object-cover !w-12 !h-12 [clip-path:polygon(25%_0%,75%_0%,100%_50%,75%_100%,25%_100%,0%_50%)]',
+  arch: 'object-cover !w-12 !h-12 [border-radius:50%_50%_6px_6px]',
+  shield: 'object-cover !w-12 !h-[3.25rem] [clip-path:polygon(50%_0%,92%_12%,92%_58%,50%_100%,8%_58%,8%_12%)]',
+}
+
+function LogoShapeIcon({ shape, selected }: { shape: LogoShape; selected?: boolean }) {
+  const fill = selected ? '#3b82f6' : '#cbd5e1'
+  const stroke = selected ? '#2563eb' : '#9ca3af'
+  return (
+    <svg width="32" height="32" viewBox="0 0 32 32" aria-hidden className="mx-auto">
+      {shape === 'square' && (
+        <rect x="6" y="6" width="20" height="20" rx="2" fill={fill} stroke={stroke} strokeWidth="1.5" />
+      )}
+      {shape === 'rounded' && (
+        <rect x="6" y="6" width="20" height="20" rx="6" fill={fill} stroke={stroke} strokeWidth="1.5" />
+      )}
+      {shape === 'squircle' && (
+        <rect x="6" y="6" width="20" height="20" rx="7" fill={fill} stroke={stroke} strokeWidth="1.5" />
+      )}
+      {shape === 'circle' && (
+        <circle cx="16" cy="16" r="10" fill={fill} stroke={stroke} strokeWidth="1.5" />
+      )}
+      {shape === 'oval' && (
+        <ellipse cx="16" cy="16" rx="12" ry="8" fill={fill} stroke={stroke} strokeWidth="1.5" />
+      )}
+      {shape === 'pill' && (
+        <rect x="4" y="11" width="24" height="10" rx="5" fill={fill} stroke={stroke} strokeWidth="1.5" />
+      )}
+      {shape === 'sharp' && (
+        <rect x="6" y="6" width="20" height="20" rx="0" fill={fill} stroke={stroke} strokeWidth="1.5" />
+      )}
+      {shape === 'diamond' && (
+        <polygon points="16,5 27,16 16,27 5,16" fill={fill} stroke={stroke} strokeWidth="1.5" />
+      )}
+      {shape === 'hexagon' && (
+        <polygon points="16,4 26,9 26,23 16,28 6,23 6,9" fill={fill} stroke={stroke} strokeWidth="1.5" />
+      )}
+      {shape === 'arch' && (
+        <path d="M8 24 V14 Q8 6 16 6 Q24 6 24 14 V24 Z" fill={fill} stroke={stroke} strokeWidth="1.5" />
+      )}
+      {shape === 'shield' && (
+        <path d="M16 4 L26 8 L26 18 Q26 24 16 28 Q6 24 6 18 L6 8 Z" fill={fill} stroke={stroke} strokeWidth="1.5" />
+      )}
+    </svg>
+  )
+}
+
+// ── Template theme grid ───────────────────────────────────────────────────────
+
+function TemplateThemeGrid({
+  selectedId,
+  accentColor,
+  onSelect,
+}: {
+  selectedId: InvoiceTemplateId
+  accentColor: string
+  onSelect: (id: InvoiceTemplateId) => void
+}) {
+  const selectedRef = useRef<HTMLButtonElement>(null)
+
+  useEffect(() => {
+    selectedRef.current?.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
+  }, [selectedId])
+
+  return (
+    <div className="grid grid-cols-2 gap-2 flex-1 min-w-0 max-h-[480px] overflow-y-auto pr-1">
+      {TEMPLATES.map(tmpl => {
+        const active = selectedId === tmpl.id
+        return (
+          <button
+            key={tmpl.id}
+            ref={active ? selectedRef : undefined}
+            onClick={() => onSelect(tmpl.id)}
+            className={`relative rounded-lg border-2 p-1.5 transition-all text-left ${
+              active ? 'border-blue-500 bg-blue-50 shadow-sm ring-1 ring-blue-200' : 'border-gray-200 hover:border-gray-300'
+            }`}
+          >
+            {active && (
+              <>
+                <div className="absolute top-1 right-1 w-4 h-4 rounded-full bg-blue-500 flex items-center justify-center z-10">
+                  <Check className="w-2.5 h-2.5 text-white" />
+                </div>
+                <div className="absolute top-1 left-1 z-10 text-[9px] font-semibold uppercase tracking-wide px-1.5 py-0.5 rounded bg-blue-600 text-white">
+                  In use
+                </div>
+              </>
+            )}
+            <div
+              className="w-full rounded overflow-hidden border border-gray-100"
+              dangerouslySetInnerHTML={{ __html: tmpl.svg(accentColor) }}
+            />
+            <p className={`mt-1 text-xs font-medium truncate ${active ? 'text-blue-800' : 'text-gray-800'}`}>
+              {tmpl.name}
+            </p>
+          </button>
+        )
+      })}
+    </div>
+  )
+}
+
+// ── Live invoice preview (iframe) ─────────────────────────────────────────────
+
+function InvoiceLivePreview({
+  html,
+  title,
+  paperSize,
+  templateId,
+  onTemplateChange,
+}: {
+  html: string
+  title: string
+  paperSize: PaperSize
+  templateId: InvoiceTemplateId
+  onTemplateChange?: (id: InvoiceTemplateId) => void
+}) {
+  const iframeRef = useRef<HTMLIFrameElement>(null)
+  const [frameHeight, setFrameHeight] = useState(880)
+
+  const isNarrow = paperSize === '2inch' || paperSize === '3inch' || paperSize === '4inch'
+  const previewWidth = paperSize === '2inch' ? '220px'
+    : paperSize === '3inch' ? '302px'
+    : paperSize === '4inch' ? '393px'
+    : '100%'
+
+  const resizeFrame = useCallback(() => {
+    const doc = iframeRef.current?.contentDocument
+    if (!doc?.body) return
+    const h = Math.max(520, doc.documentElement.scrollHeight || doc.body.scrollHeight)
+    setFrameHeight(h + 16)
+  }, [])
+
+  useEffect(() => {
+    if (!html) return
+    const t = window.setTimeout(resizeFrame, 80)
+    return () => window.clearTimeout(t)
+  }, [html, resizeFrame])
+
+  const openFullPreview = () => {
+    if (!html) return
+    const w = window.open('', '_blank')
+    if (w) {
+      w.document.write(html)
+      w.document.close()
+    }
+  }
+
+  const templateOptions = (() => {
+    const inGrid = new Set(TEMPLATES.map(t => t.id))
+    const opts = TEMPLATES.map(t => ({ id: t.id, name: t.name }))
+    if (templateId && !inGrid.has(templateId)) {
+      opts.unshift({ id: templateId, name: templateLabelFor(templateId) })
+    }
+    return opts
+  })()
+
+  return (
+    <div className="space-y-3 lg:sticky lg:top-4 lg:self-start">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-wrap items-center gap-2 min-w-0">
+          <Eye className="w-4 h-4 text-gray-400 shrink-0" />
+          <span className="text-sm font-medium text-gray-600">Live Preview</span>
+          <span className="text-xs text-gray-400">(sample data)</span>
+        </div>
+        <div className="flex flex-wrap items-center gap-2 sm:justify-end">
+          {onTemplateChange ? (
+            <label className="flex items-center gap-2 min-w-0">
+              <span className="text-xs text-gray-500 shrink-0">Template</span>
+              <select
+                value={templateId}
+                onChange={e => onTemplateChange(e.target.value as InvoiceTemplateId)}
+                className="h-8 max-w-[200px] rounded-md border border-gray-200 bg-white px-2 text-xs font-medium text-gray-800 shadow-sm focus:border-blue-400 focus:outline-none focus:ring-1 focus:ring-blue-400"
+                aria-label="Select invoice template"
+              >
+                {templateOptions.map(t => (
+                  <option key={t.id} value={t.id}>
+                    {t.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+          ) : (
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-blue-50 border border-blue-100 px-2.5 py-1 text-xs font-medium text-blue-700">
+              <Check className="w-3 h-3" />
+              {templateLabelFor(templateId)}
+            </span>
+          )}
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="h-8 text-xs shrink-0"
+            disabled={!html}
+            onClick={openFullPreview}
+          >
+            Open full preview
+          </Button>
+        </div>
+      </div>
+      <p className="text-xs text-gray-500 -mt-1">
+        Showing <span className="font-medium text-gray-700">{templateLabelFor(templateId)}</span> template
+      </p>
+      <div className="border rounded-xl overflow-auto bg-gray-100 min-h-[560px] max-h-[85vh] flex items-start justify-center p-3 sm:p-4">
+        {!html ? (
+          <div className="flex flex-col items-center justify-center gap-2 w-full min-h-[480px] text-gray-400">
+            <Loader2 className="w-8 h-8 animate-spin" />
+            <span className="text-sm">Generating preview…</span>
+          </div>
+        ) : (
+          <div
+            className="bg-white shadow-lg rounded-lg w-full shrink-0"
+            style={{
+              transform: isNarrow ? 'none' : 'scale(0.88)',
+              transformOrigin: 'top center',
+              width: previewWidth,
+              maxWidth: '760px',
+            }}
+          >
+            <iframe
+              ref={iframeRef}
+              srcDoc={html}
+              title={title}
+              onLoad={resizeFrame}
+              className="w-full border-0 block bg-white"
+              style={{ height: `${frameHeight}px`, minHeight: '520px' }}
+            />
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
 
 // ── PDF Margin visual preview ──────────────────────────────────────────────────
 // Shows a scaled A4 page with the margin zone (blue tint) and content area
@@ -482,6 +1023,74 @@ function ToggleRow({ label, hint, checked, onChange }: {
   )
 }
 
+function WebsiteUrlSettings({
+  settings,
+  set,
+  vendorWebsiteFallback,
+}: {
+  settings: InvoiceSettings
+  set: <K extends keyof InvoiceSettings>(key: K, value: InvoiceSettings[K]) => void
+  vendorWebsiteFallback: string
+}) {
+  const showUrl = settings.show_url ?? false
+  const effectiveUrl = settings.website_url?.trim() || vendorWebsiteFallback
+
+  return (
+    <AccordionSection title="Website URL" badge={showUrl ? 'On' : 'Off'} defaultOpen={showUrl}>
+      <ToggleRow
+        label="Show website URL"
+        hint="Print your store or website link on the invoice"
+        checked={showUrl}
+        onChange={v => set('show_url', v)}
+      />
+      {showUrl && (
+        <div className="space-y-3 pt-1">
+          <div>
+            <Label className="text-xs text-gray-500 mb-1.5 block">Website URL</Label>
+            <Input
+              value={settings.website_url ?? ''}
+              onChange={e => set('website_url', e.target.value)}
+              placeholder={vendorWebsiteFallback}
+              className="h-9 text-sm"
+            />
+            <p className="text-xs text-gray-400 mt-1">
+              Leave blank to use your store link ({vendorWebsiteFallback})
+            </p>
+          </div>
+          <div>
+            <Label className="text-xs text-gray-500 mb-1.5 block">URL position</Label>
+            <div className="grid grid-cols-1 gap-1.5 max-h-[220px] overflow-y-auto pr-1">
+              {URL_POSITION_OPTIONS.map(opt => (
+                <button
+                  key={opt.id}
+                  type="button"
+                  onClick={() => set('url_position', opt.id)}
+                  className={`rounded-lg border-2 px-3 py-2 text-left transition-all ${
+                    (settings.url_position ?? 'auto') === opt.id
+                      ? 'border-blue-500 bg-blue-50'
+                      : 'border-gray-200 hover:border-gray-300'
+                  }`}
+                >
+                  <div className="text-xs font-medium text-gray-800">{opt.label}</div>
+                  <div className="text-[10px] text-gray-400 leading-tight mt-0.5">{opt.hint}</div>
+                </button>
+              ))}
+            </div>
+            {(settings.url_position ?? 'auto') === 'auto' && (
+              <p className="text-xs text-blue-600 mt-2">
+                Auto uses the best spot for <strong>{templateLabelFor(settings.template)}</strong> (e.g. logo-left themes → header left).
+              </p>
+            )}
+          </div>
+          <div className="rounded-lg border border-dashed border-gray-200 bg-gray-50 px-3 py-2 text-xs text-gray-500">
+            Preview: <span className="font-medium text-gray-700">{effectiveUrl}</span>
+          </div>
+        </div>
+      )}
+    </AccordionSection>
+  )
+}
+
 // ── Signature drawing canvas ──────────────────────────────────────────────────
 
 function SignaturePad({ onSave, onClear }: { onSave: (dataUrl: string) => void; onClear: () => void }) {
@@ -684,8 +1293,11 @@ export default function InvoiceSettingsPage() {
     }
   }, [rawSettings, isQuotationMode])
 
-  // Use vendor logo
-  const logoUrl = settings.logo_url || vendor?.logo_url || ''
+  const vendorLogo = vendor?.logo_url || ''
+  const vendorWebsiteFallback = resolveVendorWebsiteFallback(vendor)
+  const logoUrl = resolveInvoiceTemplateLogoPath(settings, vendorLogo)
+  const logoShape = settings.logo_shape ?? 'rounded'
+  const logoPreviewClass = LOGO_SHAPE_PREVIEW_CLASS[logoShape]
 
   // Regenerate document preview whenever settings change
   useEffect(() => {
@@ -697,12 +1309,13 @@ export default function InvoiceSettingsPage() {
       vendor_address: vendor?.street_address
         ? { street: vendor.street_address, city: vendor.city || '', state: vendor.state || '', postal_code: vendor.postal_code || '' }
         : sampleBase.vendor_address,
-      vendor_logo_url: logoUrl,
+      vendor_logo_url: vendorLogo,
+      vendor_website_url: settings.website_url?.trim() || vendorWebsiteFallback,
       terms_and_conditions: settings.default_terms || sampleBase.terms_and_conditions,
     }
-    const html = generateInvoiceHtml(sampleData, { ...settings, logo_url: logoUrl || undefined }, window.location.origin)
+    const html = generateInvoiceHtml(sampleData, settings, window.location.origin)
     setPreviewHtml(html)
-  }, [settings, vendor, logoUrl, isQuotationMode])
+  }, [settings, vendor, vendorLogo, vendorWebsiteFallback, isQuotationMode])
 
   // Regenerate POS preview whenever posSettings change
   useEffect(() => {
@@ -715,13 +1328,14 @@ export default function InvoiceSettingsPage() {
       vendor_address: vendor?.street_address
         ? { street: vendor.street_address, city: vendor.city || '', state: vendor.state || '', postal_code: vendor.postal_code || '' }
         : SAMPLE_INVOICE.vendor_address,
-      vendor_logo_url: logoUrl,
+      vendor_logo_url: vendorLogo,
+      vendor_website_url: pm.website_url?.trim() || vendorWebsiteFallback,
       customer_name: 'Walk-in Customer',
       notes: 'POS Transaction: POS-000042',
     }
-    setPosPreviewHtml(generateInvoiceHtml(sampleData, { ...pm, logo_url: logoUrl || undefined }, window.location.origin))
+    setPosPreviewHtml(generateInvoiceHtml(sampleData, pm, window.location.origin))
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [posSettings, settings, vendor, logoUrl])
+  }, [posSettings, settings, vendor, vendorLogo, vendorWebsiteFallback])
 
   const set = useCallback(<K extends keyof InvoiceSettings>(key: K, value: InvoiceSettings[K]) => {
     setSettings(prev => ({ ...prev, [key]: value }))
@@ -745,6 +1359,11 @@ export default function InvoiceSettingsPage() {
     setPosSettings({})
     savePosInvoiceSettings({})
     toast.success('POS template reset to match invoice settings')
+  }
+
+  const removeLogo = () => {
+    set('logo_url', '')
+    toast.success('Logo removed from invoice template')
   }
 
   const uploadLogo = async (file: File) => {
@@ -795,73 +1414,76 @@ export default function InvoiceSettingsPage() {
             </p>
           </div>
         </div>
-        <div className="flex items-center gap-3">
-          {/* Tab switcher — invoices only (POS receipt is separate) */}
-          {!isQuotationMode && (
-            <div className="flex rounded-lg border bg-gray-50 p-0.5 gap-0.5">
-              <button
-                onClick={() => setActiveTab('invoice')}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
-                  activeTab === 'invoice' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500 hover:text-gray-700'
-                }`}
+        <div className="flex shrink-0 items-center gap-3">
+          {!isQuotationMode ? (
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={activeTab === 'pos' ? handlePosReset : () => setSettings({ ...DEFAULT_INVOICE_SETTINGS })}
+                className="h-9 min-w-[5.5rem] gap-1.5 text-xs text-gray-600"
+                title={activeTab === 'pos' ? 'Reset POS template to match invoice settings' : 'Reset all settings to defaults'}
               >
-                <Building2 className="w-3.5 h-3.5" /> Customer Invoice
-              </button>
-              <button
-                onClick={() => setActiveTab('pos')}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
-                  activeTab === 'pos' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500 hover:text-gray-700'
-                }`}
-              >
-                <ShoppingCart className="w-3.5 h-3.5" /> POS Receipt
-              </button>
+                <RotateCcw className="w-3.5 h-3.5 shrink-0" />
+                Reset
+              </Button>
+              <div className="flex rounded-lg border bg-gray-50 p-0.5 gap-0.5">
+                <button
+                  onClick={() => setActiveTab('invoice')}
+                  className={`flex h-9 items-center gap-1.5 px-3 rounded-md text-xs font-medium transition-colors ${
+                    activeTab === 'invoice' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500 hover:text-gray-700'
+                  }`}
+                >
+                  <Building2 className="w-3.5 h-3.5" /> Customer Invoice
+                </button>
+                <button
+                  onClick={() => setActiveTab('pos')}
+                  className={`flex h-9 items-center gap-1.5 px-3 rounded-md text-xs font-medium transition-colors ${
+                    activeTab === 'pos' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500 hover:text-gray-700'
+                  }`}
+                >
+                  <ShoppingCart className="w-3.5 h-3.5" /> POS Receipt
+                </button>
+              </div>
             </div>
+          ) : (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setSettings({ ...DEFAULT_QUOTATION_SETTINGS })}
+              className="gap-1.5 text-xs text-gray-600"
+              title="Reset all settings to defaults"
+            >
+              <RotateCcw className="w-3.5 h-3.5" /> Reset
+            </Button>
           )}
 
-          {(isQuotationMode || activeTab === 'invoice') ? (
-            <Button onClick={handleSave} disabled={isSaving} className="gap-2 bg-primary hover:bg-primary/90">
-              {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
-              {isQuotationMode ? 'Save Templates' : 'Save Settings'}
-            </Button>
-          ) : (
-            <div className="flex gap-2">
-              <Button variant="outline" size="sm" onClick={handlePosReset} className="gap-1.5 text-xs">
-                <RotateCcw className="w-3.5 h-3.5" /> Reset
-              </Button>
-              <Button onClick={handlePosSave} className="gap-2 bg-primary hover:bg-primary/90">
-                <Check className="w-4 h-4" /> Save POS Template
-              </Button>
-            </div>
-          )}
+          <Button
+            onClick={!isQuotationMode && activeTab === 'pos' ? handlePosSave : handleSave}
+            disabled={isSaving && (isQuotationMode || activeTab === 'invoice')}
+            className="h-9 min-w-[9.5rem] gap-2 bg-primary hover:bg-primary/90"
+            title={!isQuotationMode && activeTab === 'pos' ? 'Save POS receipt template' : undefined}
+          >
+            {isSaving && (isQuotationMode || activeTab === 'invoice') ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              <Check className="w-4 h-4 shrink-0" />
+            )}
+            {isQuotationMode ? 'Save Templates' : 'Save Template'}
+          </Button>
         </div>
       </div>
 
       {/* ── POS Receipt Tab ─────────────────────────────────────── */}
       {!isQuotationMode && activeTab === 'pos' && (
-        <div className="grid grid-cols-1 lg:grid-cols-[1fr_340px] gap-6">
-          {/* Left: POS preview */}
-          <div className="space-y-3">
-            <div className="flex items-center gap-2">
-              <Eye className="w-4 h-4 text-gray-400" />
-              <span className="text-sm font-medium text-gray-600">POS Receipt Preview</span>
-              <span className="text-xs text-gray-400">(sample data)</span>
-            </div>
-            <div className="border rounded-xl overflow-hidden bg-gray-100 min-h-[700px] flex items-start justify-center p-4">
-              <div className="bg-white shadow-lg rounded-lg overflow-hidden max-h-[90vh] overflow-y-auto"
-                style={{
-                  transform: 'scale(0.85)', transformOrigin: 'top center',
-                  width: (posMerged().paper_size === '2inch') ? '220px'
-                    : (posMerged().paper_size === '3inch') ? '302px'
-                    : (posMerged().paper_size === '4inch') ? '393px'
-                    : '100%',
-                  maxWidth: '760px',
-                }}
-              >
-                <iframe srcDoc={posPreviewHtml} title="POS Preview" className="w-full border-0"
-                  style={{ height: '950px', pointerEvents: 'none' }} />
-              </div>
-            </div>
-          </div>
+        <div className="grid grid-cols-1 lg:grid-cols-[1fr_380px] gap-6">
+          <InvoiceLivePreview
+            html={posPreviewHtml}
+            title="POS Preview"
+            paperSize={posMerged().paper_size}
+            templateId={posMerged().template}
+            onTemplateChange={id => setPos('template', id)}
+          />
 
           {/* Right: POS-specific controls */}
           <div className="space-y-3">
@@ -894,27 +1516,13 @@ export default function InvoiceSettingsPage() {
             {/* ── POS DESIGN tab ── */}
             {posTab === 'design' && <>
             {/* ── Template + Layout Editor side-by-side ── */}
-            <AccordionSection title="Template" defaultOpen>
+            <AccordionSection title="Template" badge={templateLabelFor(posMerged().template)} defaultOpen>
               <div className="flex gap-3">
-                {/* Template grid - compact 2-col */}
-                <div className="grid grid-cols-2 gap-2 flex-1 min-w-0">
-                  {TEMPLATES.map(tmpl => (
-                    <button key={tmpl.id} onClick={() => setPos('template', tmpl.id as InvoiceSettings['template'])}
-                      className={`relative rounded-lg border-2 p-1.5 transition-all text-left ${
-                        posMerged().template === tmpl.id ? 'border-blue-500 bg-blue-50 shadow-sm' : 'border-gray-200 hover:border-gray-300'
-                      }`}
-                    >
-                      {posMerged().template === tmpl.id && (
-                        <div className="absolute top-1 right-1 w-4 h-4 rounded-full bg-blue-500 flex items-center justify-center">
-                          <Check className="w-2.5 h-2.5 text-white" />
-                        </div>
-                      )}
-                      <div className="w-full rounded overflow-hidden border border-gray-100"
-                        dangerouslySetInnerHTML={{ __html: tmpl.svg(posMerged().color) }} />
-                      <p className="mt-1 text-xs font-medium text-gray-800 truncate">{tmpl.name}</p>
-                    </button>
-                  ))}
-                </div>
+                <TemplateThemeGrid
+                  selectedId={posMerged().template}
+                  accentColor={posMerged().color}
+                  onSelect={id => setPos('template', id)}
+                />
 
                 {/* Layout Editor - right panel within Template */}
                 <div className="w-44 shrink-0 border-l pl-3 space-y-3">
@@ -987,21 +1595,10 @@ export default function InvoiceSettingsPage() {
               </AccordionSection>
 
               <AccordionSection title="Colour">
-                <div className="flex flex-wrap gap-1.5 mb-2">
-                  {TEMPLATE_COLORS.map(c => (
-                    <button key={c.value} onClick={() => setPos('color', c.value)}
-                      className={`w-7 h-7 rounded-full border-2 transition-all ${posMerged().color === c.value ? 'border-gray-800 scale-110' : 'border-transparent hover:scale-105'}`}
-                      style={{ background: c.value }}>
-                      {posMerged().color === c.value && <Check className="w-3.5 h-3.5 text-white mx-auto" />}
-                    </button>
-                  ))}
-                </div>
-                <div className="flex items-center gap-1.5">
-                  <input type="color" value={posMerged().color} onChange={e => setPos('color', e.target.value)}
-                    className="w-7 h-7 rounded cursor-pointer border border-gray-300 shrink-0" />
-                  <Input value={posMerged().color} onChange={e => setPos('color', e.target.value)}
-                    className="flex-1 text-xs font-mono h-7" maxLength={7} />
-                </div>
+                <InvoiceAccentColorPicker
+                  value={posMerged().color}
+                  onChange={c => setPos('color', c)}
+                />
               </AccordionSection>
             </div>
 
@@ -1009,6 +1606,11 @@ export default function InvoiceSettingsPage() {
 
             {/* ── POS CONTENT tab ── */}
             {posTab === 'content' && <>
+            <WebsiteUrlSettings
+              settings={posMerged()}
+              set={(k, v) => setPos(k, v)}
+              vendorWebsiteFallback={vendorWebsiteFallback}
+            />
             {/* ── POS: Discounts ── */}
             <AccordionSection title="Discounts" defaultOpen>
               <ToggleRow
@@ -1163,7 +1765,8 @@ export default function InvoiceSettingsPage() {
                       onSave={applyPosQrDataUrl}
                     >
                       <button
-                        onClick={() => setPos('qr_code_url', '')}
+                        type="button"
+                        onClick={(e) => { e.stopPropagation(); setPos('qr_code_url', '') }}
                         className="absolute -top-1.5 -right-1.5 z-10 w-4 h-4 rounded-full bg-red-500 text-white flex items-center justify-center"
                       >
                         <X className="w-2.5 h-2.5" />
@@ -1245,6 +1848,7 @@ export default function InvoiceSettingsPage() {
                   { label: 'Logo',                  key: 'show_logo',             val: posMerged().show_logo },
                   { label: 'Copy Label (Original…)', key: 'show_copy_label',       val: posMerged().show_copy_label ?? true },
                   { label: 'Vendor Address',         key: 'show_vendor_address',   val: posMerged().show_vendor_address ?? true },
+                  { label: 'Website URL',            key: 'show_url',              val: posMerged().show_url ?? false },
                   { label: 'GSTIN (vendor + customer)', key: 'show_gstin',         val: posMerged().show_gstin },
                   { label: 'Financial Year (F.Y.)',  key: 'show_financial_year',   val: posMerged().show_financial_year ?? true },
                   { label: 'Due Date',               key: 'show_due_date',         val: posMerged().show_due_date ?? true },
@@ -1341,15 +1945,6 @@ export default function InvoiceSettingsPage() {
 
             </>}
 
-            {/* ── Always-visible Save / Reset ── */}
-            <div className="flex gap-2 pt-1">
-              <Button variant="outline" size="sm" onClick={handlePosReset} className="gap-1.5 text-gray-600">
-                <RotateCcw className="w-4 h-4" /> Reset
-              </Button>
-              <Button onClick={handlePosSave} className="flex-1 gap-2 bg-primary hover:bg-primary/90">
-                <Check className="w-4 h-4" /> Save POS Template
-              </Button>
-            </div>
           </div>
         </div>
       )}
@@ -1357,35 +1952,13 @@ export default function InvoiceSettingsPage() {
       {/* ── Customer Invoice Tab ─────────────────────────────────── */}
       {(isQuotationMode || activeTab === 'invoice') && (
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_380px] gap-6">
-        {/* Left: Live Preview */}
-        <div className="space-y-3">
-          <div className="flex items-center gap-2">
-            <Eye className="w-4 h-4 text-gray-400" />
-            <span className="text-sm font-medium text-gray-600">Live Preview</span>
-            <span className="text-xs text-gray-400">(sample data)</span>
-          </div>
-          <div className="border rounded-xl overflow-hidden bg-gray-100 min-h-[700px] flex items-start justify-center p-4">
-            <div
-              className="bg-white shadow-lg rounded-lg overflow-hidden max-h-[90vh] overflow-y-auto"
-              style={{
-                transform: 'scale(0.85)',
-                transformOrigin: 'top center',
-                width: (settings.paper_size === '2inch') ? '220px'
-                  : (settings.paper_size === '3inch') ? '302px'
-                  : (settings.paper_size === '4inch') ? '393px'
-                  : '100%',
-                maxWidth: '760px',
-              }}
-            >
-              <iframe
-                srcDoc={previewHtml}
-                title={isQuotationMode ? 'Quotation Preview' : 'Invoice Preview'}
-                className="w-full border-0"
-                style={{ height: '950px', pointerEvents: 'none' }}
-              />
-            </div>
-          </div>
-        </div>
+        <InvoiceLivePreview
+          html={previewHtml}
+          title={isQuotationMode ? 'Quotation Preview' : 'Invoice Preview'}
+          paperSize={settings.paper_size}
+          templateId={settings.template}
+          onTemplateChange={id => set('template', id)}
+        />
 
         {/* Right: Settings Panel */}
         <div className="space-y-3">
@@ -1416,31 +1989,13 @@ export default function InvoiceSettingsPage() {
           {/* ── DESIGN tab ── */}
           {settingsTab === 'design' && <>
           {/* ── Themes + Layout Editor (side-by-side) ── */}
-          <AccordionSection title="Themes" defaultOpen>
+          <AccordionSection title="Themes" badge={templateLabelFor(settings.template)} defaultOpen>
             <div className="flex gap-3">
-              {/* Template grid - compact 2-col */}
-              <div className="grid grid-cols-2 gap-2 flex-1 min-w-0">
-                {TEMPLATES.map(tmpl => (
-                  <button
-                    key={tmpl.id}
-                    onClick={() => set('template', tmpl.id as InvoiceSettings['template'])}
-                    className={`relative rounded-lg border-2 p-1.5 transition-all text-left ${
-                      settings.template === tmpl.id
-                        ? 'border-blue-500 bg-blue-50 shadow-sm'
-                        : 'border-gray-200 hover:border-gray-300'
-                    }`}
-                  >
-                    {settings.template === tmpl.id && (
-                      <div className="absolute top-1 right-1 w-4 h-4 rounded-full bg-blue-500 flex items-center justify-center">
-                        <Check className="w-2.5 h-2.5 text-white" />
-                      </div>
-                    )}
-                    <div className="w-full rounded overflow-hidden border border-gray-100"
-                      dangerouslySetInnerHTML={{ __html: tmpl.svg(settings.color) }} />
-                    <p className="mt-1 text-xs font-medium text-gray-800 truncate">{tmpl.name}</p>
-                  </button>
-                ))}
-              </div>
+              <TemplateThemeGrid
+                selectedId={settings.template}
+                accentColor={settings.color}
+                onSelect={id => set('template', id)}
+              />
 
               {/* Layout Editor - right panel within Themes */}
               <div className="w-44 shrink-0 border-l pl-3 space-y-3">
@@ -1514,21 +2069,10 @@ export default function InvoiceSettingsPage() {
             </AccordionSection>
 
             <AccordionSection title="Colour" defaultOpen>
-              <div className="flex flex-wrap gap-1.5 mb-2">
-                {TEMPLATE_COLORS.map(c => (
-                  <button key={c.value} title={c.label} onClick={() => set('color', c.value)}
-                    className={`w-7 h-7 rounded-full border-2 transition-all ${settings.color === c.value ? 'border-gray-800 scale-110' : 'border-transparent hover:scale-105'}`}
-                    style={{ background: c.value }}>
-                    {settings.color === c.value && <Check className="w-3.5 h-3.5 text-white mx-auto" />}
-                  </button>
-                ))}
-              </div>
-              <div className="flex items-center gap-1.5">
-                <input type="color" value={settings.color} onChange={e => set('color', e.target.value)}
-                  className="w-7 h-7 rounded cursor-pointer border border-gray-300 shrink-0" />
-                <Input value={settings.color} onChange={e => set('color', e.target.value)}
-                  className="flex-1 text-xs font-mono h-7" maxLength={7} />
-              </div>
+              <InvoiceAccentColorPicker
+                value={settings.color}
+                onChange={c => set('color', c)}
+              />
             </AccordionSection>
           </div>
 
@@ -1544,18 +2088,21 @@ export default function InvoiceSettingsPage() {
                   url={logoUrl}
                   alt="Logo"
                   resolveUrl={resolveOriginPath}
-                  className="shrink-0 rounded-lg"
-                  imgClassName="h-12 max-w-[100px] object-contain border rounded-lg p-1"
+                  className="shrink-0"
+                  imgClassName={`h-12 w-12 max-w-[100px] border p-1 ${logoPreviewClass}`}
                   editable
                   onSave={uploadLogo}
                 >
-                  <button onClick={() => set('logo_url', '')}
-                    className="absolute -top-1.5 -right-1.5 z-10 w-4 h-4 rounded-full bg-red-500 text-white flex items-center justify-center">
+                  <button
+                    type="button"
+                    onClick={(e) => { e.stopPropagation(); removeLogo() }}
+                    className="absolute -top-1.5 -right-1.5 z-10 w-4 h-4 rounded-full bg-red-500 text-white flex items-center justify-center"
+                  >
                     <X className="w-2.5 h-2.5" />
                   </button>
                 </SingleImagePreview>
               ) : (
-                <div className="h-12 w-20 border-2 border-dashed border-gray-300 rounded-lg flex items-center justify-center shrink-0">
+                <div className={`h-12 w-12 border-2 border-dashed border-gray-300 flex items-center justify-center shrink-0 ${logoPreviewClass}`}>
                   <Building2 className="w-5 h-5 text-gray-300" />
                 </div>
               )}
@@ -1571,7 +2118,35 @@ export default function InvoiceSettingsPage() {
                 <p className="text-xs text-gray-400 mt-1">PNG, JPG, SVG • Max 2 MB</p>
               </div>
             </div>
+            <div className="mt-3">
+              <SectionLabel className="mb-1.5">Logo shape</SectionLabel>
+              <div className="flex flex-wrap gap-2">
+                {LOGO_SHAPES.map(shape => (
+                  <button
+                    key={shape.id}
+                    type="button"
+                    title={shape.label}
+                    aria-label={shape.label}
+                    onClick={() => set('logo_shape', shape.id)}
+                    className={`p-2 rounded-xl border-2 transition-all ${
+                      logoShape === shape.id
+                        ? 'border-blue-500 bg-blue-50 shadow-sm'
+                        : 'border-gray-200 bg-white hover:border-gray-300 hover:bg-gray-50'
+                    }`}
+                  >
+                    <LogoShapeIcon shape={shape.id} selected={logoShape === shape.id} />
+                  </button>
+                ))}
+              </div>
+              <p className="text-xs text-gray-400 mt-1.5">Shape applies to the logo in the live preview and printed invoices.</p>
+            </div>
           </AccordionSection>
+
+          <WebsiteUrlSettings
+            settings={settings}
+            set={set}
+            vendorWebsiteFallback={vendorWebsiteFallback}
+          />
 
           {/* ── Authorised Signature ── */}
           <AccordionSection title="Authorised Signature" badge="Draw or Upload">
@@ -1992,6 +2567,7 @@ export default function InvoiceSettingsPage() {
                 { label: 'Logo',                   key: 'show_logo',             val: settings.show_logo },
                 { label: 'Copy Label (Original…)',  key: 'show_copy_label',       val: settings.show_copy_label ?? true },
                 { label: 'Vendor Address',          key: 'show_vendor_address',   val: settings.show_vendor_address ?? true },
+                { label: 'Website URL',             key: 'show_url',              val: settings.show_url ?? false },
                 { label: 'GSTIN (vendor + customer)', key: 'show_gstin',          val: settings.show_gstin },
                 // ── Invoice Meta ──
                 { label: 'Financial Year (F.Y.)',   key: 'show_financial_year',   val: settings.show_financial_year ?? true },
@@ -2094,17 +2670,6 @@ export default function InvoiceSettingsPage() {
 
           </>}
 
-          {/* ── Reset + Save ── always visible ── */}
-          <div className="flex gap-2 pt-1">
-            <Button variant="outline" onClick={() => setSettings({ ...(isQuotationMode ? DEFAULT_QUOTATION_SETTINGS : DEFAULT_INVOICE_SETTINGS) })}
-              className="gap-1.5 text-gray-600" title="Reset all settings to defaults">
-              <RotateCcw className="w-4 h-4" /> Reset
-            </Button>
-            <Button onClick={handleSave} disabled={isSaving} className="flex-1 gap-2 bg-primary hover:bg-primary/90">
-              {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
-              {isQuotationMode ? 'Save Quotation Templates' : 'Save Invoice Settings'}
-            </Button>
-          </div>
         </div>
       </div>
       )}

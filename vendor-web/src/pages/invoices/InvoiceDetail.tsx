@@ -20,7 +20,7 @@ import {
 } from 'lucide-react'
 import { TableToolbar } from '@/components/table/TableToolbar'
 import { processRows, type SortDir } from '@/lib/tableList'
-import { printInvoice, generateInvoiceHtml, DEFAULT_INVOICE_SETTINGS, DEFAULT_QUOTATION_SETTINGS, loadPosInvoiceSettings } from '@/lib/invoiceTemplates'
+import { printInvoice, generateInvoiceHtml, DEFAULT_INVOICE_SETTINGS, DEFAULT_QUOTATION_SETTINGS, loadPosInvoiceSettings, resolveInvoiceTemplateLogoPath } from '@/lib/invoiceTemplates'
 import type { InvoiceSettings } from '@/lib/invoiceTemplates'
 import { fetchAsDataUrl, downloadAsPdf, shareViaWhatsApp, shareViaSms, buildShareMessage } from '@/lib/printUtils'
 import { QuotationExtraFieldsEditor, QuotationExtraFieldsDisplay } from '@/components/quotations/QuotationExtraFieldsEditor'
@@ -77,7 +77,7 @@ async function printWithTemplate(inv: Record<string, unknown>, invSettings: Invo
 async function downloadInvoicePdf(inv: Record<string, unknown>, invSettings: InvoiceSettings) {
   // Merge with defaults first — same as printInvoice — so template/color are always set.
   const s = { ...DEFAULT_INVOICE_SETTINGS, ...invSettings }
-  const rawLogo = (s.logo_url || inv.vendor_logo_url as string) || ''
+  const rawLogo = resolveInvoiceTemplateLogoPath(s, inv.vendor_logo_url as string)
   const rawSig  = s.signature_url || ''
   const [logoDataUrl, sigDataUrl] = await Promise.all([
     s.show_logo      && rawLogo ? fetchAsDataUrl(rawLogo) : Promise.resolve(''),

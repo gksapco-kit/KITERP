@@ -16,6 +16,7 @@ import { ResizableTable } from '@/components/table/ResizableTable'
 import { toast } from 'sonner'
 import { TableToolbar } from '@/components/table/TableToolbar'
 import { processRows, type SortDir } from '@/lib/tableList'
+import { InvoiceAccentColorPicker } from '@/components/invoices/InvoiceAccentColorPicker'
 import {
   printInvoice,
   generateInvoiceHtml,
@@ -23,6 +24,9 @@ import {
   DEFAULT_INVOICE_SETTINGS,
   loadPosInvoiceSettings,
   savePosInvoiceSettings,
+  INVOICE_TEMPLATE_IDS,
+  INVOICE_TEMPLATE_LABELS,
+  resolveInvoiceTemplateLogoPath,
   type InvoiceSettings,
   type PaperSize,
 } from '@/lib/invoiceTemplates'
@@ -2390,7 +2394,7 @@ function PostSaleReceipt({ data, invSettings, vendor, posSettings, onClose, onNe
     try {
       const inv = invoiceId ? await vendorApi.getInvoice(invoiceId) : buildInvoiceDataFromTxn()
       const s = mergedSettings()
-      const rawLogo = (s.logo_url || (inv as Record<string, unknown>).vendor_logo_url as string) || ''
+      const rawLogo = resolveInvoiceTemplateLogoPath(s, (inv as Record<string, unknown>).vendor_logo_url as string)
       const rawSig  = s.signature_url || ''
       const [logoDataUrl, sigDataUrl] = await Promise.all([
         rawLogo ? fetchAsDataUrl(rawLogo) : Promise.resolve(''),
@@ -2427,7 +2431,7 @@ function PostSaleReceipt({ data, invSettings, vendor, posSettings, onClose, onNe
     try {
       const inv = invoiceId ? await vendorApi.getInvoice(invoiceId) : buildInvoiceDataFromTxn()
       const s = mergedSettings()
-      const rawLogo = (s.logo_url || (inv as Record<string, unknown>).vendor_logo_url as string) || ''
+      const rawLogo = resolveInvoiceTemplateLogoPath(s, (inv as Record<string, unknown>).vendor_logo_url as string)
       const logoDataUrl = rawLogo ? await fetchAsDataUrl(rawLogo) : ''
       const enriched = { ...s, logo_url: logoDataUrl || undefined }
       const html = generateInvoiceHtml(
@@ -2990,7 +2994,7 @@ function TransactionDetail({ txn, onBack, invSettings, vendor, posSettings }: {
         ? await vendorApi.getInvoice(txn.invoice_id as string) as Record<string, unknown>
         : buildTxnInvoiceData()
       const s = txnSettings()
-      const rawLogo = (s.logo_url || (inv as Record<string, unknown>).vendor_logo_url as string) || ''
+      const rawLogo = resolveInvoiceTemplateLogoPath(s, (inv as Record<string, unknown>).vendor_logo_url as string)
       const rawSig  = s.signature_url || ''
       const [logoDataUrl, sigDataUrl] = await Promise.all([
         rawLogo ? fetchAsDataUrl(rawLogo) : Promise.resolve(''),
@@ -3023,7 +3027,7 @@ function TransactionDetail({ txn, onBack, invSettings, vendor, posSettings }: {
         ? await vendorApi.getInvoice(txn.invoice_id as string) as Record<string, unknown>
         : buildTxnInvoiceData()
       const s = txnSettings()
-      const rawLogo = (s.logo_url || (inv as Record<string, unknown>).vendor_logo_url as string) || ''
+      const rawLogo = resolveInvoiceTemplateLogoPath(s, (inv as Record<string, unknown>).vendor_logo_url as string)
       const rawSig  = s.signature_url || ''
       const [logoDataUrl, sigDataUrl] = await Promise.all([
         rawLogo ? fetchAsDataUrl(rawLogo) : Promise.resolve(''),
@@ -3696,11 +3700,6 @@ function POSInvoiceSettingsModal({
   const [goldThreshold, setGoldThreshold] = useState(loyaltyProgram?.gold_threshold ?? 20000)
   const [savingLoyalty, setSavingLoyalty] = useState(false)
 
-  const TEMPLATE_COLORS = [
-    '#2563eb', '#64C3A0', '#059669', '#dc2626', '#d97706',
-    '#0891b2', '#4f46e5', '#be185d', '#1d4ed8', '#000000',
-  ]
-
   const currentSettings = (): Partial<InvoiceSettings> => ({
     ...invSettings,
     template: localTemplate,
@@ -3893,12 +3892,12 @@ function POSInvoiceSettingsModal({
               {/* Template */}
               <div>
                 <Label className="text-xs text-gray-500 uppercase tracking-wide mb-2 block">Template</Label>
-                <div className="grid grid-cols-2 gap-1.5">
-                  {(['classic', 'modern', 'minimal', 'luxury', 'corporate', 'colorblock', 'compact', 'bold'] as const).map(t => (
+                <div className="grid grid-cols-2 gap-1.5 max-h-52 overflow-y-auto pr-1">
+                  {INVOICE_TEMPLATE_IDS.map(t => (
                     <button key={t} onClick={() => setLocalTemplate(t)}
-                      className={`py-2 px-2 rounded-lg border-2 text-xs font-medium capitalize transition-colors ${
+                      className={`py-2 px-2 rounded-lg border-2 text-xs font-medium transition-colors ${
                         localTemplate === t ? 'border-blue-500 bg-blue-50 text-blue-700' : 'border-gray-200 hover:bg-gray-50'
-                      }`}>{t}</button>
+                      }`}>{INVOICE_TEMPLATE_LABELS[t]}</button>
                   ))}
                 </div>
               </div>
@@ -3922,14 +3921,7 @@ function POSInvoiceSettingsModal({
               {/* Color */}
               <div>
                 <Label className="text-xs text-gray-500 uppercase tracking-wide mb-2 block">Accent Color</Label>
-                <div className="flex flex-wrap gap-1.5">
-                  {TEMPLATE_COLORS.map(c => (
-                    <button key={c} onClick={() => setLocalColor(c)}
-                      className={`w-7 h-7 rounded-full border-2 transition-all ${localColor === c ? 'border-gray-900 scale-110 shadow-md' : 'border-transparent hover:scale-105'}`}
-                      style={{ backgroundColor: c }}
-                    />
-                  ))}
-                </div>
+                <InvoiceAccentColorPicker value={localColor} onChange={setLocalColor} />
               </div>
 
               {/* Display Options */}
