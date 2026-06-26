@@ -6581,7 +6581,6 @@ function PropsEditor({
             }
           >
             <TypographyCompositionFields
-              compact
               fontSizePx={(p as any).font_size_px as number | undefined}
               onFontSizeChange={px => onUpdate({ font_size_px: px, text_scale: null } as any)}
               textCaseId={currentTextCaseMenuId(p as any)}

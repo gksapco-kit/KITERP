@@ -30,6 +30,10 @@ import {
 
 const NUDGE = FIELD_OFFSET_STEP_PX
 const SIZE_STEP = 8
+/** Layer position & size on the visual bar — percent-style 0–100 range. */
+const OVERLAY_AXIS_MAX = 100
+const OVERLAY_MIN_W = 1
+const OVERLAY_MIN_H = 1
 // Keyboard arrow nudge: small, even pixel steps (Shift = larger jump).
 const KEY_NUDGE_STEP = 2
 const KEY_NUDGE_STEP_LARGE = 10
@@ -63,7 +67,7 @@ function CompactStepper({
   step?: number
   onCommit: (n: number) => void
 }) {
-  const current = Number.isFinite(value) ? value : min
+  const current = clamp(Number.isFinite(value) ? value : min, min, max)
   const bump = (delta: number) => onCommit(clamp(current + delta, min, max))
 
   return (
@@ -98,7 +102,7 @@ export function ToolbarStepper({
   onStopBubble: (e: React.SyntheticEvent) => void
   compact?: boolean
 }) {
-  const current = Number.isFinite(value) ? value : min
+  const current = clamp(Number.isFinite(value) ? value : min, min, max)
   const bump = (delta: number) => onCommit(clamp(current + delta, min, max))
   const cell = compact
     ? 'flex h-5 w-5 shrink-0 items-center justify-center rounded-sm border border-gray-300 bg-white text-gray-700 transition-colors hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:hover:bg-gray-700'
@@ -177,7 +181,7 @@ function ToolbarPositionMatrix({
           label="X"
           value={x}
           min={0}
-          max={4000}
+          max={OVERLAY_AXIS_MAX}
           step={NUDGE}
           onCommit={n => onUpdate({ x: n })}
           onStopBubble={onStopBubble}
@@ -192,7 +196,7 @@ function ToolbarPositionMatrix({
           label="Y"
           value={y}
           min={0}
-          max={4000}
+          max={OVERLAY_AXIS_MAX}
           step={NUDGE}
           onCommit={n => onUpdate({ y: n })}
           onStopBubble={onStopBubble}
@@ -220,8 +224,8 @@ function ToolbarPositionMatrix({
         <ToolbarStepper
           label="Width"
           value={w}
-          min={40}
-          max={4000}
+          min={OVERLAY_MIN_W}
+          max={OVERLAY_AXIS_MAX}
           step={SIZE_STEP}
           onCommit={n => onUpdate({ w: n })}
           onStopBubble={onStopBubble}
@@ -235,8 +239,8 @@ function ToolbarPositionMatrix({
         <ToolbarStepper
           label="Height"
           value={h}
-          min={20}
-          max={4000}
+          min={OVERLAY_MIN_H}
+          max={OVERLAY_AXIS_MAX}
           step={SIZE_STEP}
           onCommit={n => onUpdate({ h: n })}
           onStopBubble={onStopBubble}
@@ -342,8 +346,8 @@ export function OverlayTransformControls({
     // canvas measurement that can be stale or 0, and clamping to it yanks the layer
     // back toward the top/left (e.g. pressing "down" jumps it up). Snapping is also
     // skipped on purpose — it belongs to free mouse-drag, not discrete nudges.
-    const nextX = Math.max(0, x + dx)
-    const nextY = Math.max(0, y + dy)
+    const nextX = clamp(x + dx, 0, OVERLAY_AXIS_MAX)
+    const nextY = clamp(y + dy, 0, OVERLAY_AXIS_MAX)
     // Flash alignment guides purely as a visual hint, without moving the layer.
     if (onShowGuides && containerWidth && containerHeight) {
       const targets = collectOverlayTargets(siblings ?? [], containerWidth, containerHeight)
@@ -455,10 +459,10 @@ export function OverlayTransformControls({
   return (
     <div className={visualRow}>
       {showNudgePad ? <NudgePad onNudge={nudge} variant="compact" /> : null}
-      <CompactStepper label="X" value={x} min={0} max={4000} step={NUDGE} onCommit={n => onUpdate({ x: n })} />
-      <CompactStepper label="Y" value={y} min={0} max={4000} step={NUDGE} onCommit={n => onUpdate({ y: n })} />
-      <CompactStepper label="W" value={w} min={40} max={4000} step={SIZE_STEP} onCommit={n => onUpdate({ w: n })} />
-      <CompactStepper label="H" value={h} min={20} max={4000} step={SIZE_STEP} onCommit={n => onUpdate({ h: n })} />
+      <CompactStepper label="X" value={x} min={0} max={OVERLAY_AXIS_MAX} step={NUDGE} onCommit={n => onUpdate({ x: n })} />
+      <CompactStepper label="Y" value={y} min={0} max={OVERLAY_AXIS_MAX} step={NUDGE} onCommit={n => onUpdate({ y: n })} />
+      <CompactStepper label="W" value={w} min={OVERLAY_MIN_W} max={OVERLAY_AXIS_MAX} step={SIZE_STEP} onCommit={n => onUpdate({ w: n })} />
+      <CompactStepper label="H" value={h} min={OVERLAY_MIN_H} max={OVERLAY_AXIS_MAX} step={SIZE_STEP} onCommit={n => onUpdate({ h: n })} />
       {isImage ? (
         <CompactStepper label="Z" value={zoom} min={25} max={400} step={10} onCommit={n => onUpdate({ imageScale: n })} />
       ) : null}

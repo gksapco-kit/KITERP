@@ -28,6 +28,10 @@ import {
   visualToolbarRowWrap,
 } from '@/components/websites/designBarVisualUi'
 
+function clampNum(n: number, min: number, max: number) {
+  return Math.min(max, Math.max(min, Math.round(n)))
+}
+
 function ColorCell({
   value,
   onChange,
@@ -74,8 +78,8 @@ function StepperField({
   stepSize?: number
   onCommit: (n: number) => void
 }) {
-  const current = Number.isFinite(value) ? value : fallback
-  const step = (delta: number) => onCommit(Math.min(max, Math.max(min, current + delta * stepSize)))
+  const current = Number.isFinite(value) ? clampNum(value, min, max) : fallback
+  const step = (delta: number) => onCommit(clampNum(current + delta * stepSize, min, max))
 
   return (
     <div className={cn(visualPanel, 'relative')} title={label}>
