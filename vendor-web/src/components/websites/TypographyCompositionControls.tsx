@@ -92,12 +92,22 @@ const sizeStyles = {
   },
 } as const
 
+/** Returns true when a hex color is perceptually dark (use light text on it). */
+function isColorDark(hex: string): boolean {
+  const h = hex.replace('#', '')
+  if (h.length < 6) return false
+  const r = parseInt(h.slice(0, 2), 16)
+  const g = parseInt(h.slice(2, 4), 16)
+  const b = parseInt(h.slice(4, 6), 16)
+  // Relative luminance (WCAG)
+  return 0.299 * r + 0.587 * g + 0.114 * b < 140
+}
+
 /** Design-bar font stack = h-7 family + h-7 size (compact). */
 const COMPACT_FONT_STACK_H = 'h-14'
 const COMPACT_COLOR_COL_W = 'w-7'
-const DESIGN_BAR_COLOR_CELL = 'h-14 w-11 px-1.5'
-const DESIGN_BAR_COLOR_SWATCH =
-  'mt-0.5 h-4 w-full min-w-[2.25rem] rounded-full border border-gray-300 pointer-events-none'
+const DESIGN_BAR_COLOR_CELL = 'h-7 w-14 px-0'
+const DESIGN_BAR_COLOR_SWATCH = 'sr-only'
 
 /** Box-mode font size: A↑ · A↓ · px — flush grid, no pill rounding. */
 export function FontSizePxControl({
@@ -349,6 +359,38 @@ export function TextCaseList({
   )
 }
 
+/** Compact horizontal text-case picker for slim side panels. */
+export function TextCaseChipRow({
+  activeId,
+  onSelect,
+  className,
+}: {
+  activeId: TextCaseMenuId
+  onSelect: (id: TextCaseMenuId) => void
+  className?: string
+}) {
+  return (
+    <div className={cn('flex flex-wrap gap-1', className)}>
+      {TEXT_CASE_MENU_ROWS.map(row => (
+        <button
+          key={row.id}
+          type="button"
+          title={row.label}
+          onClick={() => onSelect(row.id)}
+          className={cn(
+            'rounded-md border px-2 py-1 text-[10px] font-semibold leading-tight transition-colors',
+            activeId === row.id
+              ? 'border-primary bg-primary text-white'
+              : 'border-border bg-background text-muted-foreground hover:border-primary/40',
+          )}
+        >
+          {row.label}
+        </button>
+      ))}
+    </div>
+  )
+}
+
 /** Word-style color swatch — T / B with matching letter + color bar sizing. */
 export function ColorIdentPicker({
   letter,
@@ -390,21 +432,51 @@ export function ColorIdentPicker({
       ? 'text-[9px] font-bold leading-none text-gray-900 select-none pointer-events-none'
       : 'text-[11px] font-bold leading-none text-gray-900 select-none pointer-events-none'
 
+  if (designBar) {
+    // Pill-shaped color button: entire capsule is filled with the current color
+    const isDark = isColorDark(color)
+    return (
+      <label
+        title={title}
+        onMouseDown={onMouseDown}
+        className={cn(
+          DESIGN_BAR_COLOR_CELL,
+          'relative flex cursor-pointer items-center justify-center rounded-full border-2 transition-all hover:scale-105 hover:shadow-md shrink-0',
+          isDark ? 'border-white/20' : 'border-black/10',
+        )}
+        style={{ backgroundColor: color }}
+      >
+        <span
+          className="select-none pointer-events-none text-[10px] font-bold leading-none"
+          style={{ color: isDark ? 'rgba(255,255,255,0.85)' : 'rgba(0,0,0,0.55)' }}
+        >
+          {letter}
+        </span>
+        <input
+          type="color"
+          value={color}
+          onInput={e => onChange(e.currentTarget.value)}
+          onChange={e => onChange(e.target.value)}
+          onClick={e => e.stopPropagation()}
+          className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
+        />
+      </label>
+    )
+  }
+
   return (
     <label
       title={title}
       onMouseDown={onMouseDown}
       className={cn(
         'relative flex flex-col items-center justify-center hover:bg-gray-50 cursor-pointer shrink-0 py-0',
-        designBar
-          ? cn(DESIGN_BAR_COLOR_CELL, 'rounded-md border border-gray-200 bg-white gap-1')
-          : inRow
-            ? cn(
-                vertical ? colCell : cn(rowH, 'flex-1 min-w-0'),
-                !vertical && (rowPosition === 'start' || rowPosition === 'middle') && 'border-r border-gray-200',
-                vertical && (rowPosition === 'start' || rowPosition === 'middle') && 'border-b border-gray-200',
-              )
-            : cn(size === 'compact' ? 'w-7 h-7' : 'w-9 h-9', 'border-l border-gray-200'),
+        inRow
+          ? cn(
+              vertical ? colCell : cn(rowH, 'flex-1 min-w-0'),
+              !vertical && (rowPosition === 'start' || rowPosition === 'middle') && 'border-r border-gray-200',
+              vertical && (rowPosition === 'start' || rowPosition === 'middle') && 'border-b border-gray-200',
+            )
+          : cn(size === 'compact' ? 'w-7 h-7' : 'w-9 h-9', 'border-l border-gray-200'),
       )}
     >
       <span className={letterClass}>
@@ -456,7 +528,7 @@ export function ColorIdentPickerRow({
   if (designBar) {
     return (
       <div
-        className="flex h-14 shrink-0 items-stretch gap-2 border-l border-gray-200 pl-2 pr-1"
+        className="flex shrink-0 items-center gap-1.5 border-l border-gray-200 px-2"
         onMouseDown={onMouseDown}
       >
         <ColorIdentPicker
@@ -610,9 +682,77 @@ export function TextFieldAlignGrid({
     </button>
   )
 
+  if (embedded) {
+    // Design-bar embedded mode: two segmented pill rows (V + H) stacked vertically
+    const segBtn = (active: boolean, onClick: () => void, title: string, Icon: typeof AlignLeft, pos: 'start' | 'mid' | 'end') => (
+      <button
+        type="button"
+        title={title}
+        onClick={onClick}
+        className={cn(
+          'flex flex-1 items-center justify-center transition-colors',
+          pos === 'start' && 'rounded-l-full',
+          pos === 'end' && 'rounded-r-full',
+          active
+            ? 'bg-primary text-white shadow-sm'
+            : 'bg-white text-gray-400 hover:bg-gray-100 hover:text-gray-700',
+        )}
+      >
+        <Icon className="h-3 w-3" strokeWidth={2.5} />
+      </button>
+    )
+
+    return (
+      <div
+        className={cn(embeddedShell, 'h-full items-center gap-1.5 px-2', className)}
+        onMouseDown={onMouseDown}
+      >
+        {/* Vertical + horizontal align stacked */}
+        <div className="flex flex-col gap-1 py-1.5">
+          {/* Vertical align row */}
+          <div className="flex h-5 overflow-hidden rounded-full border border-gray-200 bg-gray-50">
+            {segBtn(v === 'top',    () => onVerticalAlignChange('top'),    'Align top',    AlignVerticalJustifyStart,  'start')}
+            <span className="w-px self-stretch bg-gray-200" />
+            {segBtn(v === 'middle', () => onVerticalAlignChange('middle'), 'Align middle', AlignVerticalJustifyCenter, 'mid')}
+            <span className="w-px self-stretch bg-gray-200" />
+            {segBtn(v === 'bottom', () => onVerticalAlignChange('bottom'), 'Align bottom', AlignVerticalJustifyEnd,    'end')}
+          </div>
+          {/* Horizontal align row */}
+          <div className="flex h-5 overflow-hidden rounded-full border border-gray-200 bg-gray-50">
+            {segBtn(h === 'left',   () => onTextAlignChange('left'),   'Align left',   AlignLeft,   'start')}
+            <span className="w-px self-stretch bg-gray-200" />
+            {segBtn(h === 'center', () => onTextAlignChange('center'), 'Align center', AlignCenter, 'mid')}
+            <span className="w-px self-stretch bg-gray-200" />
+            {segBtn(h === 'right',  () => onTextAlignChange('right'),  'Align right',  AlignRight,  'end')}
+          </div>
+        </div>
+
+        {/* Wrap toggle + extras */}
+        <div className="flex flex-col gap-1 border-l border-gray-200 pl-1.5 py-1.5">
+          <button
+            type="button"
+            title={wrap ? 'Wrap text (on)' : 'Wrap text (off)'}
+            onClick={() => onTextWrapChange(!wrap)}
+            className={cn(
+              'flex h-5 w-5 items-center justify-center rounded-full border transition-colors',
+              wrap
+                ? 'border-primary/40 bg-primary/10 text-primary'
+                : 'border-gray-200 bg-white text-gray-400 hover:border-gray-300 hover:text-gray-600',
+            )}
+          >
+            <WrapText className="h-3 w-3" strokeWidth={2.5} />
+          </button>
+          {wrapColumnExtra ? (
+            <div className="relative flex">{wrapColumnExtra}</div>
+          ) : null}
+        </div>
+      </div>
+    )
+  }
+
   return (
-    <div className={cn(embedded ? cn(embeddedShell, 'h-full') : toolbarShell, className)} onMouseDown={onMouseDown}>
-      <div className={cn('grid grid-cols-3', embedded && 'h-full')}>
+    <div className={cn(toolbarShell, className)} onMouseDown={onMouseDown}>
+      <div className="grid grid-cols-3">
         {cell(v === 'top', () => onVerticalAlignChange('top'), 'Align top', AlignVerticalJustifyStart, 'border-r border-b border-gray-200')}
         {cell(v === 'middle', () => onVerticalAlignChange('middle'), 'Align middle', AlignVerticalJustifyCenter, 'border-r border-b border-gray-200')}
         {cell(v === 'bottom', () => onVerticalAlignChange('bottom'), 'Align bottom', AlignVerticalJustifyEnd, 'border-b border-gray-200')}
@@ -1362,6 +1502,7 @@ export function TypographyCompositionFields({
   onTextAlignChange,
   onVerticalAlignChange,
   onTextWrapChange,
+  compact = false,
 }: {
   fontFamily?: string | null
   onFontFamilyChange?: (font: string | null) => void
@@ -1375,14 +1516,21 @@ export function TypographyCompositionFields({
   onTextAlignChange?: (align: TextAlignH) => void
   onVerticalAlignChange?: (align: TextAlignV) => void
   onTextWrapChange?: (wrap: boolean) => void
+  /** Slim layout for section edit side panel — no helper paragraphs. */
+  compact?: boolean
 }) {
+  const blockGap = compact ? 'space-y-2' : 'space-y-3'
+  const fieldLabel = compact
+    ? 'text-[11px] font-medium text-muted-foreground'
+    : 'text-xs font-medium text-gray-500'
+
   return (
-    <div className="space-y-3">
+    <div className={blockGap}>
       {onTextAlignChange && onVerticalAlignChange && onTextWrapChange && (
         <div className="space-y-1">
-          <div className="text-xs font-medium text-gray-500">Text position in field</div>
+          <div className={fieldLabel}>Text position in field</div>
           <TextFieldAlignGrid
-            size="panel"
+            size={compact ? 'compact' : 'panel'}
             textAlign={textAlign}
             verticalAlign={verticalAlign}
             textWrap={textWrap}
@@ -1390,40 +1538,52 @@ export function TypographyCompositionFields({
             onVerticalAlignChange={onVerticalAlignChange}
             onTextWrapChange={onTextWrapChange}
           />
-          <p className="text-xs leading-relaxed text-gray-400">
-            Click a text field on the canvas first for per-field alignment, or set section-wide defaults here.
-          </p>
+          {!compact ? (
+            <p className="text-xs leading-relaxed text-gray-400">
+              Click a text field on the canvas first for per-field alignment, or set section-wide defaults here.
+            </p>
+          ) : null}
         </div>
       )}
 
       {onFontFamilyChange ? (
         <div className="space-y-1">
-          <div className="text-xs font-medium text-gray-500">Font family</div>
+          <div className={fieldLabel}>Font family</div>
           <FontFamilyControl
             value={fontFamily}
             onChange={onFontFamilyChange}
-            size="panel"
+            size={compact ? 'compact' : 'panel'}
           />
-          <p className="text-xs leading-relaxed text-gray-400">
-            Auto uses your site heading/body fonts. Pick a font to override this field only.
-          </p>
+          {!compact ? (
+            <p className="text-xs leading-relaxed text-gray-400">
+              Auto uses your site heading/body fonts. Pick a font to override this field only.
+            </p>
+          ) : null}
         </div>
       ) : null}
 
       <div className="space-y-1">
-        <div className="text-xs font-medium text-gray-500">Font size (px)</div>
-        <FontSizePxControl valuePx={fontSizePx} onChange={onFontSizeChange} size="panel" />
-        <p className="text-xs leading-relaxed text-gray-400">
-          Px sizing overrides XS–2X scale. Auto uses theme + scale only.
-        </p>
+        <div className={fieldLabel}>Font size (px)</div>
+        <FontSizePxControl valuePx={fontSizePx} onChange={onFontSizeChange} size={compact ? 'compact' : 'panel'} />
+        {!compact ? (
+          <p className="text-xs leading-relaxed text-gray-400">
+            Px sizing overrides XS–2X scale. Auto uses theme + scale only.
+          </p>
+        ) : null}
       </div>
 
       <div className="space-y-1">
-        <div className="text-xs font-medium text-gray-500">Text case</div>
-        <TextCaseList activeId={textCaseId} onSelect={onTextCaseSelect} size="panel" />
-        <p className="text-xs leading-relaxed text-gray-400">
-          Default clears CSS case. Sentence / toggle rewrite stored text (skips URLs and nav links).
-        </p>
+        <div className={fieldLabel}>Text case</div>
+        {compact ? (
+          <TextCaseChipRow activeId={textCaseId} onSelect={onTextCaseSelect} />
+        ) : (
+          <TextCaseList activeId={textCaseId} onSelect={onTextCaseSelect} size="panel" />
+        )}
+        {!compact ? (
+          <p className="text-xs leading-relaxed text-gray-400">
+            Default clears CSS case. Sentence / toggle rewrite stored text (skips URLs and nav links).
+          </p>
+        ) : null}
       </div>
     </div>
   )

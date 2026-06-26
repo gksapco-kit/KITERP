@@ -24,6 +24,7 @@ class CategoryCreate(BaseModel):
     applies_to: AppliesTo = AppliesTo.BOTH
     parent_id: Optional[str] = None
     sort_order: int = 0
+    is_visible: bool = True
     custom_fields: Optional[List[CustomFieldSchema]] = None
 
 
@@ -33,6 +34,7 @@ class CategoryUpdate(BaseModel):
     image_url: Optional[str] = Field(None, max_length=500)
     applies_to: Optional[AppliesTo] = None
     is_active: Optional[bool] = None
+    is_visible: Optional[bool] = None
     parent_id: Optional[str] = None
     sort_order: Optional[int] = None
     custom_fields: Optional[List[CustomFieldSchema]] = None
@@ -47,6 +49,7 @@ class CategoryResponse(BaseModel):
     image_url: Optional[str] = None
     applies_to: str
     is_active: bool
+    is_visible: bool = True
     parent_id: Optional[str] = None
     sort_order: int = 0
     custom_fields: Optional[list] = None

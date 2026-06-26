@@ -39,6 +39,7 @@ def _category_to_dict(c: VendorCategory) -> dict:
         "image_url": c.image_url,
         "applies_to": c.applies_to,
         "is_active": c.is_active,
+        "is_visible": c.is_visible if c.is_visible is not None else True,
         "sort_order": c.sort_order or 0,
         "custom_fields": c.custom_fields or [],
         "children": [],
@@ -198,6 +199,7 @@ async def create_category(
         image_url=data.image_url,
         applies_to=data.applies_to.value,
         sort_order=data.sort_order,
+        is_visible=data.is_visible,
         custom_fields=[f.model_dump() for f in data.custom_fields] if data.custom_fields else [],
     )
     db.add(category)
@@ -236,7 +238,9 @@ async def update_category(
         category.applies_to = data.applies_to.value
     if data.is_active is not None:
         category.is_active = data.is_active
-    if data.parent_id is not None:
+    if data.is_visible is not None:
+        category.is_visible = data.is_visible
+    if "parent_id" in data.model_fields_set:
         if data.parent_id == str(category_id):
             raise HTTPException(status_code=400, detail="Category cannot be its own parent")
         category.parent_id = UUID(data.parent_id) if data.parent_id else None

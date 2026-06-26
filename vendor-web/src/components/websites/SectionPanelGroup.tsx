@@ -16,11 +16,11 @@ export function SectionPanelGroup({
 }) {
   return (
     <section className={cn(builderPanelUi.cardSurface, 'overflow-hidden', className)}>
-      <header className={builderPanelUi.groupHeader}>
+      <header className="border-b border-border bg-muted/35 px-2.5 py-2">
         <h3 className={builderPanelUi.groupTitle}>{title}</h3>
-        {description ? <p className={builderPanelUi.groupDesc}>{description}</p> : null}
+        {description ? <p className="mt-0.5 text-[10px] leading-snug text-muted-foreground line-clamp-2">{description}</p> : null}
       </header>
-      <div className="p-3">{children}</div>
+      <div className="@container p-2">{children}</div>
     </section>
   )
 }

@@ -39,6 +39,7 @@ class VendorCategoryRepository(BaseRepository[VendorCategory]):
         vendor_id: UUID,
         applies_to: Optional[str] = None,
         is_active: Optional[bool] = None,
+        is_visible: Optional[bool] = None,
         parent_id: Optional[str] = None,
         root_only: bool = False,
     ) -> List[VendorCategory]:
@@ -55,6 +56,9 @@ class VendorCategoryRepository(BaseRepository[VendorCategory]):
         if is_active is not None:
             query = query.where(VendorCategory.is_active == is_active)
 
+        if is_visible is not None:
+            query = query.where(VendorCategory.is_visible == is_visible)
+
         if root_only:
             query = query.where(VendorCategory.parent_id.is_(None))
         elif parent_id is not None:
@@ -69,6 +73,7 @@ class VendorCategoryRepository(BaseRepository[VendorCategory]):
         vendor_id: UUID,
         applies_to: Optional[str] = None,
         is_active: Optional[bool] = None,
+        is_visible: Optional[bool] = None,
     ) -> List[VendorCategory]:
         """Return all categories as a flat list."""
         query = select(VendorCategory).where(VendorCategory.vendor_id == vendor_id)
@@ -81,6 +86,8 @@ class VendorCategoryRepository(BaseRepository[VendorCategory]):
             )
         if is_active is not None:
             query = query.where(VendorCategory.is_active == is_active)
+        if is_visible is not None:
+            query = query.where(VendorCategory.is_visible == is_visible)
         query = query.order_by(VendorCategory.sort_order, VendorCategory.name)
         result = await self.db.execute(query)
         return list(result.scalars().all())
@@ -90,9 +97,12 @@ class VendorCategoryRepository(BaseRepository[VendorCategory]):
         vendor_id: UUID,
         applies_to: Optional[str] = None,
         is_active: Optional[bool] = None,
+        is_visible: Optional[bool] = None,
     ) -> List[dict]:
         """Fetch all categories and assemble them into a tree in Python."""
-        all_cats = await self.list_all_flat(vendor_id, applies_to=applies_to, is_active=is_active)
+        all_cats = await self.list_all_flat(
+            vendor_id, applies_to=applies_to, is_active=is_active, is_visible=is_visible,
+        )
 
         by_id = {}
         for c in all_cats:

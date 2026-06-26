@@ -60,6 +60,7 @@ import {
   useFormActiveSection,
 } from '@/components/common/FormSectionNav'
 import { CatalogEditStickyBar } from '@/components/common/CatalogEditStickyBar'
+import { PRODUCT_TYPE_FILTER_OPTIONS } from '@/components/catalog/CatalogListFilters'
 import { BusinessUnitScopePicker, type StoreScope } from '@/components/common/BusinessUnitScopePicker'
 import type { FormSectionDef } from '@/components/common/FormSectionNav'
 import { useEffect, useState, useCallback, useRef, useMemo } from 'react'
@@ -2276,7 +2277,7 @@ export default function ProductForm() {
   }
 
   const productType = watch('product_type')
-  const isPhysical    = !productType || productType === 'physical'
+  const isPhysical    = !productType || productType === 'physical' || productType === 'raw_material'
   const isDigitalType = productType === 'digital'
   const isSubscriptionType = productType === 'subscription'
   const isBundleType  = productType === 'bundle'
@@ -3226,10 +3227,9 @@ export default function ProductForm() {
               <FormField label="Brand"><Input className="w-full min-w-0" {...register('brand')} placeholder="e.g. Samsung" /></FormField>
               <FormField label="Product Type">
                 <select {...register('product_type')} className={cn(selectCls, 'w-full min-w-0')}>
-                  <option value="physical">Physical</option>
-                  <option value="digital">Digital</option>
-                  <option value="subscription">Subscription</option>
-                  <option value="bundle">Bundle</option>
+                  {PRODUCT_TYPE_FILTER_OPTIONS.map(opt => (
+                    <option key={opt.value} value={opt.value}>{opt.label}</option>
+                  ))}
                 </select>
               </FormField>
               <FormField label="Tags (comma separated)"><Input {...register('tags')} placeholder="tag1, tag2, tag3" /></FormField>

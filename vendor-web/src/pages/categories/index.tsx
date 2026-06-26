@@ -1,5 +1,4 @@
 import { useState, useMemo, useRef, useEffect } from 'react'
-import { SectionLabel } from '@/components/common/FieldLabel'
 import { useEscapeToClose } from '@/hooks/useEscapeToClose'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -10,7 +9,18 @@ import {
   useCategoryTree, useCreateCategory, useUpdateCategory, useDeleteCategory,
   useCategoryCatalogues,
 } from '@/hooks/useVendor'
-import { Loader2, Plus, Pencil, Trash2, X, ChevronRight, ChevronDown, FolderTree, Package, Wrench, Eye, Copy, Folder, FolderOpen, File } from 'lucide-react'
+import {
+  DndContext,
+  DragOverlay,
+  PointerSensor,
+  useDraggable,
+  useDroppable,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+  type DragStartEvent,
+} from '@dnd-kit/core'
+import { Loader2, Plus, Pencil, Trash2, X, ChevronRight, ChevronDown, FolderTree, Package, Wrench, Eye, EyeOff, Copy, Folder, FolderOpen, File, GripVertical } from 'lucide-react'
 import { toast } from 'sonner'
 import { processRows, type SortDir } from '@/lib/tableList'
 import type { VendorCategory, CustomField } from '@/types'
@@ -75,6 +85,19 @@ function countDescendants(cat: VendorCategory): number {
   return (cat.children || []).reduce((n, c) => n + 1 + countDescendants(c), 0)
 }
 
+function isNodeInSubtree(root: VendorCategory, searchId: string): boolean {
+  if (root.id === searchId) return true
+  return (root.children || []).some(child => isNodeInSubtree(child, searchId))
+}
+
+function canReparentCategory(draggedId: string, newParentId: string | null, categories: VendorCategory[]): boolean {
+  if (newParentId === null) return true
+  if (draggedId === newParentId) return false
+  const dragged = findInTree(categories, draggedId)
+  if (!dragged) return false
+  return !isNodeInSubtree(dragged, newParentId)
+}
+
 function CategoryImageThumb({ url, className }: { url: string; className?: string }) {
   const [failed, setFailed] = useState(false)
   const resolved = mediaUrl(resolveBusinessGalleryDisplayUrl(url))
@@ -110,6 +133,33 @@ function CategoryImageThumb({ url, className }: { url: string; className?: strin
   )
 }
 
+function CategoryVisibilityToggle({
+  visible,
+  onChange,
+  compact = false,
+}: {
+  visible: boolean
+  onChange: (visible: boolean) => void
+  compact?: boolean
+}) {
+  return (
+    <button
+      type="button"
+      onClick={() => onChange(!visible)}
+      className={cn(
+        'inline-flex shrink-0 items-center gap-1 rounded-md border px-2 py-1 text-xs font-medium transition-colors',
+        visible
+          ? 'border-green-200 bg-green-50 text-green-700 hover:bg-green-100'
+          : 'border-border bg-muted/40 text-muted-foreground hover:bg-muted/60',
+      )}
+      title={visible ? 'Shown on business front — click to hide' : 'Hidden from business front — click to show'}
+    >
+      {visible ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5" />}
+      {!compact && <span>{visible ? 'BU front' : 'Hidden'}</span>}
+    </button>
+  )
+}
+
 // ── Nested bullet-tree node (vertical grouping, not table rows) ──
 function CategoryTreeBranch({
   cat,
@@ -117,22 +167,66 @@ function CategoryTreeBranch({
   selectedId,
   onSelect,
   onAddSub,
+  onToggleVisibility,
+  isDragging,
 }: {
   cat: VendorCategory
   depth: number
   selectedId: string | null
   onSelect: (c: VendorCategory) => void
   onAddSub: (parentId: string) => void
+  onToggleVisibility: (c: VendorCategory) => void
+  isDragging?: boolean
 }) {
-  const [expanded, setExpanded] = useState(true)
+  const [expanded, setExpanded] = useState(false)
   const children = cat.children || []
   const hasChildren = children.length > 0
   const isSelected = selectedId === cat.id
   const isRoot = depth === 0
+  const storefrontVisible = cat.is_visible !== false
+
+  useEffect(() => {
+    if (selectedId && selectedId !== cat.id && isNodeInSubtree(cat, selectedId)) {
+      setExpanded(true)
+    }
+  }, [selectedId, cat])
+
+  const { attributes, listeners, setNodeRef: setDragRef, isDragging: isSelfDragging } = useDraggable({
+    id: cat.id,
+    data: { type: 'category', name: cat.name },
+  })
+  const { setNodeRef: setDropRef, isOver } = useDroppable({
+    id: `drop-${cat.id}`,
+    data: { type: 'category-target', categoryId: cat.id },
+  })
+
+  const setRowRef = (node: HTMLElement | null) => {
+    setDragRef(node)
+    setDropRef(node)
+  }
 
   return (
     <li className={cn(!isRoot && 'mt-1')}>
-      <div className="flex items-center gap-1.5 min-h-[2rem]">
+      <div
+        ref={setRowRef}
+        className={cn(
+          'flex items-center gap-1 min-h-[2rem] rounded-md transition-colors',
+          isSelfDragging && 'opacity-40',
+          isOver && !isSelfDragging && 'bg-green-50 ring-1 ring-green-300',
+          isDragging && !isSelfDragging && !isOver && 'hover:bg-green-50/50',
+        )}
+      >
+        <button
+          type="button"
+          className="cursor-grab touch-none rounded p-0.5 text-gray-400 hover:bg-gray-100 hover:text-gray-600 active:cursor-grabbing shrink-0"
+          title="Drag to move under another category"
+          aria-label={`Drag ${cat.name}`}
+          {...listeners}
+          {...attributes}
+        >
+          <GripVertical className="w-3.5 h-3.5" />
+        </button>
+
         <button
           type="button"
           onClick={() => setExpanded(v => !v)}
@@ -152,6 +246,7 @@ function CategoryTreeBranch({
             isSelected
               ? 'bg-blue-100 text-blue-900 ring-1 ring-blue-200'
               : 'hover:bg-gray-100 text-gray-800',
+            !storefrontVisible && 'opacity-60',
           )}
         >
           {hasChildren
@@ -162,6 +257,12 @@ function CategoryTreeBranch({
             <span className="text-[0.625rem] text-gray-400 shrink-0">({children.length})</span>
           )}
         </button>
+
+        <CategoryVisibilityToggle
+          visible={storefrontVisible}
+          onChange={() => onToggleVisibility(cat)}
+          compact
+        />
 
         <button
           type="button"
@@ -191,6 +292,8 @@ function CategoryTreeBranch({
                 selectedId={selectedId}
                 onSelect={onSelect}
                 onAddSub={onAddSub}
+                onToggleVisibility={onToggleVisibility}
+                isDragging={isDragging}
               />
             ))
           ) : (
@@ -210,12 +313,30 @@ function CategoryTreeBranch({
   )
 }
 
+function RootDropZone({ show }: { show: boolean }) {
+  const { setNodeRef, isOver } = useDroppable({ id: 'drop-root' })
+  if (!show) return null
+  return (
+    <div
+      ref={setNodeRef}
+      className={cn(
+        'mb-2 rounded-md border border-dashed px-2 py-1.5 text-center text-xs transition-colors',
+        isOver ? 'border-green-500 bg-green-50 text-green-700' : 'border-border text-muted-foreground',
+      )}
+    >
+      Drop here for top-level category
+    </div>
+  )
+}
+
 function CategoryTreeExplorer({
   categories,
   selectedId,
   onSelect,
   onAddSub,
   onAddRoot,
+  onMove,
+  onToggleVisibility,
   sortKey,
   sortDir,
   onSortKeyChange,
@@ -226,14 +347,53 @@ function CategoryTreeExplorer({
   onSelect: (c: VendorCategory) => void
   onAddSub: (parentId: string) => void
   onAddRoot: () => void
+  onMove: (categoryId: string, newParentId: string | null) => void
+  onToggleVisibility: (cat: VendorCategory) => void
   sortKey: string
   sortDir: SortDir
   onSortKeyChange: (v: string) => void
   onSortDirChange: (v: SortDir) => void
 }) {
+  const [activeDrag, setActiveDrag] = useState<VendorCategory | null>(null)
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
+  )
+
+  const handleDragStart = (event: DragStartEvent) => {
+    const cat = findInTree(categories, String(event.active.id))
+    setActiveDrag(cat)
+  }
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    setActiveDrag(null)
+    const draggedId = String(event.active.id)
+    const overId = event.over?.id ? String(event.over.id) : null
+    if (!overId) return
+
+    let newParentId: string | null = null
+    if (overId === 'drop-root') {
+      newParentId = null
+    } else if (overId.startsWith('drop-')) {
+      newParentId = overId.slice(5)
+    } else {
+      return
+    }
+
+    const dragged = findInTree(categories, draggedId)
+    const currentParent = dragged?.parent_id ?? null
+    if (currentParent === newParentId) return
+
+    if (!canReparentCategory(draggedId, newParentId, categories)) {
+      toast.error('Cannot move a category into itself or its subcategories')
+      return
+    }
+
+    onMove(draggedId, newParentId)
+  }
+
   return (
-    <div className="rounded-xl border border-border bg-card p-4 min-h-[420px]">
-      <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
+    <div className="flex h-full min-h-0 flex-col rounded-xl border border-border bg-card p-4">
+      <div className="mb-3 flex shrink-0 flex-wrap items-center justify-between gap-2">
         <div className="flex items-center gap-2">
           <FolderTree className="w-4 h-4 text-primary" />
           <span className="text-sm font-semibold text-foreground">Category tree</span>
@@ -269,7 +429,7 @@ function CategoryTreeExplorer({
       </div>
 
       {categories.length === 0 ? (
-        <div className="py-12 text-center">
+        <div className="flex flex-1 flex-col items-center justify-center py-6 text-center">
           <FolderTree className="w-10 h-10 text-gray-300 mx-auto mb-2" />
           <p className="text-sm text-muted-foreground">No categories yet.</p>
           <Button type="button" size="sm" className="mt-3 gap-1" onClick={onAddRoot}>
@@ -277,46 +437,83 @@ function CategoryTreeExplorer({
           </Button>
         </div>
       ) : (
-        <ul className="space-y-3">
-          {categories.map(root => (
-            <li
-              key={root.id}
-              className="rounded-lg border border-border bg-card shadow-sm px-3 py-2"
-            >
-              <CategoryTreeBranch
-                cat={root}
-                depth={0}
-                selectedId={selectedId}
-                onSelect={onSelect}
-                onAddSub={onAddSub}
-              />
-            </li>
-          ))}
-        </ul>
+        <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
+          <RootDropZone show={!!activeDrag} />
+          <ul className="sidebar-scroll min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-contain pr-1">
+            {categories.map(root => (
+              <li
+                key={root.id}
+                className="rounded-lg border border-border bg-card shadow-sm px-3 py-2"
+              >
+                <CategoryTreeBranch
+                  cat={root}
+                  depth={0}
+                  selectedId={selectedId}
+                  onSelect={onSelect}
+                  onAddSub={onAddSub}
+                  onToggleVisibility={onToggleVisibility}
+                  isDragging={!!activeDrag}
+                />
+              </li>
+            ))}
+          </ul>
+          <DragOverlay dropAnimation={null}>
+            {activeDrag ? (
+              <div className="flex items-center gap-2 rounded-md border border-border bg-card px-3 py-2 text-sm font-medium shadow-lg">
+                <GripVertical className="h-3.5 w-3.5 text-muted-foreground" />
+                <Folder className="h-4 w-4 text-amber-500" />
+                {activeDrag.name}
+              </div>
+            ) : null}
+          </DragOverlay>
+        </DndContext>
       )}
+    </div>
+  )
+}
+
+function DetailReadOnlyField({
+  label,
+  value,
+  className,
+}: {
+  label: string
+  value: React.ReactNode
+  className?: string
+}) {
+  return (
+    <div className={cn('min-w-0 space-y-1', className)}>
+      <Label className="text-xs font-medium text-muted-foreground">{label}</Label>
+      <div className="flex h-9 w-full items-center rounded-md border border-input bg-muted/30 px-3 text-sm text-foreground">
+        <span className="truncate">{value ?? '—'}</span>
+      </div>
     </div>
   )
 }
 
 function CategoryDetailPanel({
   cat,
+  parentLabel,
   onEdit,
   onDelete,
   onViewCatalogue,
   onAddSub,
+  onToggleVisibility,
 }: {
   cat: VendorCategory | null
+  parentLabel?: string | null
   onEdit: (c: VendorCategory) => void
   onDelete: (id: string) => void
   onViewCatalogue: (id: string) => void
   onAddSub: (parentId: string) => void
+  onToggleVisibility: (c: VendorCategory) => void
 }) {
   if (!cat) {
     return (
-      <div className="rounded-xl border border-dashed border-border bg-card p-8 flex flex-col items-center justify-center min-h-[420px] text-center">
-        <FolderTree className="w-12 h-12 text-muted-foreground/40 mb-3" />
+      <div className="flex w-full flex-col items-center justify-center rounded-xl border border-dashed border-border bg-card p-6 text-center shadow-sm">
+        <FolderTree className="mb-3 h-12 w-12 text-muted-foreground/40" />
         <p className="text-sm font-medium text-foreground">Select a category in the tree</p>
-        <p className="text-xs text-muted-foreground mt-1 max-w-xs">
+        <p className="mt-1 max-w-xs text-xs text-muted-foreground">
           Click any folder in the tree on the left. Use the + button on a category to add subcategories beneath it.
         </p>
       </div>
@@ -325,98 +522,137 @@ function CategoryDetailPanel({
 
   const childCount = cat.children?.length ?? 0
   const descCount = countDescendants(cat)
+  const appliesLabel = APPLIES_OPTIONS.find(o => o.value === cat.applies_to)?.label ?? cat.applies_to
+  const customFieldCount = cat.custom_fields?.length ?? 0
+  const storefrontVisible = cat.is_visible !== false
 
   return (
-    <div className="rounded-xl border border-border bg-card p-5 min-h-[420px] flex flex-col">
-      <div className="mb-4 flex gap-4">
-        {cat.image_url ? (
-          <CategoryImageThumb
-            url={cat.image_url}
-            className="h-16 w-16 shrink-0 rounded-lg border border-gray-200 object-cover"
+    <div className="flex w-full max-h-full flex-col overflow-hidden rounded-xl border border-border bg-card shadow-sm lg:max-h-[calc(100dvh-12rem)]">
+      <div className="flex shrink-0 items-center justify-between border-b border-border px-4 py-2.5">
+        <div className="flex min-w-0 items-center gap-2">
+          <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-primary/10">
+            <FolderTree className="h-3.5 w-3.5 text-primary" />
+          </div>
+          <h3 className="truncate text-sm font-semibold text-foreground">{cat.name}</h3>
+        </div>
+        <div className="flex shrink-0 items-center gap-1.5">
+          <CategoryVisibilityToggle
+            visible={storefrontVisible}
+            onChange={() => onToggleVisibility(cat)}
           />
-        ) : (
-          <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-lg border border-dashed border-gray-200 bg-gray-100">
-            <FolderTree className="h-6 w-6 text-gray-300" />
-          </div>
-        )}
-        <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-start justify-between gap-x-3 gap-y-2">
-            <div className="min-w-0">
-              <p className="mb-1 text-xs uppercase tracking-wide text-gray-400">
-                {cat.parent_id ? 'Subcategory' : 'Root category'}
-              </p>
-              <h2 className="text-xl font-bold text-gray-900 break-words">{cat.name}</h2>
-            </div>
-            <div className="flex shrink-0 flex-wrap items-center justify-end gap-1.5">
-              {appliesBadge(cat.applies_to)}
-              <span className={`inline-flex shrink-0 whitespace-nowrap px-2 py-0.5 text-xs rounded-full font-medium ${cat.is_active ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
-                {cat.is_active ? 'Active' : 'Inactive'}
-              </span>
-            </div>
-          </div>
-          {cat.description && (
-            <p className="mt-2 text-sm leading-relaxed text-gray-500 break-words">{cat.description}</p>
-          )}
+          {appliesBadge(cat.applies_to)}
+          <span className={`inline-flex shrink-0 whitespace-nowrap rounded-full px-2 py-0.5 text-xs font-medium ${cat.is_active ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
+            {cat.is_active ? 'Active' : 'Inactive'}
+          </span>
         </div>
       </div>
 
-      <dl className="grid grid-cols-2 gap-3 text-sm mb-4">
-        <div className="rounded-lg bg-gray-50 p-3">
-          <dt className="text-xs text-gray-400">Direct subcategories</dt>
-          <dd className="font-semibold text-gray-900">{childCount}</dd>
-        </div>
-        <div className="rounded-lg bg-gray-50 p-3">
-          <dt className="text-xs text-gray-400">Total nested</dt>
-          <dd className="font-semibold text-gray-900">{descCount}</dd>
-        </div>
-        <div className="rounded-lg bg-gray-50 p-3">
-          <dt className="text-xs text-gray-400">Sort order</dt>
-          <dd className="font-semibold text-gray-900">{cat.sort_order ?? 0}</dd>
-        </div>
-        <div className="rounded-lg bg-gray-50 p-3">
-          <dt className="text-xs text-gray-400">Custom fields</dt>
-          <dd className="font-semibold text-gray-900">{cat.custom_fields?.length ?? 0}</dd>
-        </div>
-      </dl>
+      <div className="overflow-y-auto overscroll-contain px-4 py-3">
+        <div className="flex items-start gap-3">
+          <div className="min-w-0 flex-1 grid grid-cols-1 gap-2.5 sm:grid-cols-2">
+            <DetailReadOnlyField label="Name" value={cat.name} />
+            <DetailReadOnlyField label="Description" value={cat.description || '—'} />
+            <DetailReadOnlyField
+              label="Applies To"
+              value={appliesLabel}
+              className={!cat.parent_id && 'sm:col-span-2'}
+            />
+            {cat.parent_id && (
+              <DetailReadOnlyField
+                label="Parent Category"
+                value={parentLabel ? `Under: ${parentLabel}` : '—'}
+              />
+            )}
+          </div>
 
-      {(cat.children?.length ?? 0) > 0 && (
-        <div className="mb-4 flex-1 min-h-0">
-          <SectionLabel className="mb-2">Subcategories</SectionLabel>
-          <ul className="list-disc list-inside space-y-1 text-sm text-gray-700 ml-1">
-            {cat.children!.map(child => (
-              <li key={child.id}>
-                {child.name}
-                {(child.children?.length ?? 0) > 0 && (
-                  <ul className="list-disc list-inside ml-4 mt-0.5 text-gray-500">
-                    {child.children!.map(grand => (
-                      <li key={grand.id}>{grand.name}</li>
-                    ))}
-                  </ul>
-                )}
-              </li>
+          <div className="w-[6.5rem] shrink-0 space-y-1.5">
+            <Label className="text-xs font-medium text-muted-foreground">Image</Label>
+            {cat.image_url ? (
+              <CategoryImageThumb
+                url={cat.image_url}
+                className="h-24 w-full rounded-lg border border-border object-cover"
+              />
+            ) : (
+              <div className="flex h-24 w-full items-center justify-center rounded-lg border border-dashed border-border bg-muted/20 text-muted-foreground/40">
+                <FolderTree className="h-6 w-6" />
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div className="mt-2.5 grid grid-cols-3 gap-2">
+          <div className="rounded-lg border border-border/70 bg-muted/20 px-2.5 py-2">
+            <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Direct subs</p>
+            <p className="text-sm font-semibold text-foreground">{childCount}</p>
+          </div>
+          <div className="rounded-lg border border-border/70 bg-muted/20 px-2.5 py-2">
+            <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Total nested</p>
+            <p className="text-sm font-semibold text-foreground">{descCount}</p>
+          </div>
+          <div className="rounded-lg border border-border/70 bg-muted/20 px-2.5 py-2">
+            <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Custom fields</p>
+            <p className="text-sm font-semibold text-foreground">{customFieldCount}</p>
+          </div>
+        </div>
+
+        {customFieldCount > 0 ? (
+          <div className="mt-2.5 space-y-2">
+            <Label className="text-xs font-medium text-muted-foreground">Custom Fields</Label>
+            {cat.custom_fields!.map((f, i) => (
+              <div key={i} className="flex items-center gap-2 rounded-lg border bg-gray-50 px-2.5 py-2 text-sm">
+                <span className="min-w-0 flex-1 truncate font-medium">{f.name}</span>
+                <span className="shrink-0 text-xs capitalize text-muted-foreground">{f.type}</span>
+                {f.required && <span className="shrink-0 text-xs text-muted-foreground">Req</span>}
+              </div>
             ))}
-          </ul>
-        </div>
-      )}
+          </div>
+        ) : (
+          <div className="mt-2.5 inline-flex max-w-full items-center rounded-lg border border-dashed border-border/70 bg-muted/20 px-3 py-2">
+            <p className="text-xs text-muted-foreground">
+              Custom fields <span className="text-muted-foreground/60">(none)</span>
+            </p>
+          </div>
+        )}
 
-      <div className="flex flex-wrap gap-2 pt-4 mt-auto border-t">
-        <Button type="button" size="sm" variant="outline" className="gap-1" onClick={() => onAddSub(cat.id)}>
+        {(cat.children?.length ?? 0) > 0 && (
+          <div className="mt-2.5">
+            <Label className="mb-1.5 text-xs font-medium text-muted-foreground">Subcategories</Label>
+            <ul className="ml-1 list-inside list-disc space-y-1 rounded-lg border border-border/70 bg-muted/10 px-3 py-2 text-sm text-gray-700">
+              {cat.children!.map(child => (
+                <li key={child.id}>
+                  {child.name}
+                  {(child.children?.length ?? 0) > 0 && (
+                    <ul className="ml-4 mt-0.5 list-inside list-disc text-gray-500">
+                      {child.children!.map(grand => (
+                        <li key={grand.id}>{grand.name}</li>
+                      ))}
+                    </ul>
+                  )}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+      </div>
+
+      <div className="flex shrink-0 flex-wrap items-center justify-end gap-2 border-t border-border px-4 py-2.5">
+        <Button type="button" size="sm" variant="outline" className="h-8 gap-1 px-3 text-xs" onClick={() => onAddSub(cat.id)}>
           <Plus className="w-3.5 h-3.5" /> Add subcategory
         </Button>
-        <Button type="button" size="sm" variant="outline" className="gap-1" onClick={() => onViewCatalogue(cat.id)}>
+        <Button type="button" size="sm" variant="outline" className="h-8 gap-1 px-3 text-xs" onClick={() => onViewCatalogue(cat.id)}>
           <Eye className="w-3.5 h-3.5" /> Catalogue
         </Button>
-        <Button type="button" size="sm" variant="outline" className="gap-1" onClick={() => onEdit(cat)}>
+        <Button type="button" size="sm" variant="outline" className="h-8 gap-1 px-3 text-xs" onClick={() => onEdit(cat)}>
           <Pencil className="w-3.5 h-3.5" /> Edit
         </Button>
-        <Button type="button" size="sm" variant="outline" className="gap-1" onClick={() => shareCategory(cat, 'copy')}>
+        <Button type="button" size="sm" variant="outline" className="h-8 gap-1 px-3 text-xs" onClick={() => shareCategory(cat, 'copy')}>
           <Copy className="w-3.5 h-3.5" /> Copy
         </Button>
         <Button
           type="button"
           size="sm"
           variant="outline"
-          className="gap-1 text-red-600 hover:text-red-700"
+          className="h-8 gap-1 px-3 text-xs text-red-600 hover:text-red-700"
           onClick={() => { if (confirm(`Delete "${cat.name}" and all subcategories?`)) onDelete(cat.id) }}
         >
           <Trash2 className="w-3.5 h-3.5" /> Delete
@@ -517,7 +753,15 @@ function CatalogueDrawer({
 }
 
 // ── Custom Fields Editor ─────────────────────────────────────────
-function CustomFieldsEditor({ fields, onChange }: { fields: CustomField[]; onChange: (f: CustomField[]) => void }) {
+function CustomFieldsEditor({
+  fields,
+  onChange,
+  compact = false,
+}: {
+  fields: CustomField[]
+  onChange: (f: CustomField[]) => void
+  compact?: boolean
+}) {
   const addField = () => onChange([...fields, { name: '', type: 'text', required: false }])
   const removeField = (i: number) => onChange(fields.filter((_, idx) => idx !== i))
   const updateField = (i: number, patch: Partial<CustomField>) => {
@@ -526,20 +770,38 @@ function CustomFieldsEditor({ fields, onChange }: { fields: CustomField[]; onCha
     onChange(updated)
   }
 
-  return (
-    <div className="space-y-3">
-      <div className="flex items-center justify-between">
-        <Label className="text-sm font-medium">Custom Fields <span className="text-gray-400 font-normal">(configurable attributes)</span></Label>
-        <Button type="button" variant="outline" size="sm" onClick={addField} className="gap-1 text-xs h-7">
+  if (compact && fields.length === 0) {
+    return (
+      <div className="inline-flex max-w-full flex-wrap items-center gap-2 rounded-lg border border-dashed border-border/70 bg-muted/20 px-3 py-2">
+        <p className="text-xs text-muted-foreground">
+          Custom fields <span className="text-muted-foreground/60">(optional)</span>
+        </p>
+        <Button type="button" variant="outline" size="sm" onClick={addField} className="h-7 gap-1 text-xs">
           <Plus className="w-3 h-3" /> Add Field
         </Button>
       </div>
-      {fields.length === 0 && (
-        <p className="text-xs text-gray-400">No custom fields. Add fields like Color, Size, Material, etc.</p>
+    )
+  }
+
+  return (
+    <div className={compact ? 'space-y-2' : 'space-y-3'}>
+      {!compact && (
+        <Label className="text-sm font-medium">
+          Custom Fields
+          <span className="text-gray-400 font-normal"> (configurable attributes)</span>
+        </Label>
+      )}
+      {!compact && fields.length === 0 && (
+        <div className="inline-flex max-w-full flex-wrap items-center gap-2">
+          <p className="text-xs text-gray-400">No custom fields yet.</p>
+          <Button type="button" variant="outline" size="sm" onClick={addField} className="h-7 gap-1 text-xs">
+            <Plus className="w-3 h-3" /> Add Field
+          </Button>
+        </div>
       )}
       {fields.map((f, i) => (
-        <div key={i} className="flex items-start gap-2 p-3 rounded-lg border bg-gray-50">
-          <div className="flex-1 grid grid-cols-3 gap-2">
+        <div key={i} className="flex items-start gap-2 rounded-lg border bg-gray-50 p-2.5">
+          <div className="min-w-0 flex-1 grid grid-cols-1 gap-2 sm:grid-cols-3">
             <Input placeholder="Field name" value={f.name} onChange={e => updateField(i, { name: e.target.value })} className="h-8 text-sm" />
             <Select
               value={f.type}
@@ -551,18 +813,220 @@ function CustomFieldsEditor({ fields, onChange }: { fields: CustomField[]; onCha
             {(f.type === 'select' || f.type === 'multiselect') && (
               <Input placeholder="Options (comma separated)" value={(f.options || []).join(', ')}
                 onChange={e => updateField(i, { options: e.target.value.split(',').map(s => s.trim()).filter(Boolean) })}
-                className="h-8 text-sm" />
+                className="h-8 text-sm sm:col-span-1" />
             )}
           </div>
-          <label className="flex items-center gap-1 text-xs text-gray-500 pt-1.5 shrink-0">
-            <input type="checkbox" checked={f.required || false} onChange={e => updateField(i, { required: e.target.checked })} className="rounded" />
-            Req
-          </label>
-          <button type="button" aria-label="Remove field" onClick={() => removeField(i)} className="p-1 text-red-400 hover:text-red-600 shrink-0 mt-0.5">
-            <X className="w-4 h-4" />
-          </button>
+          <div className="flex shrink-0 items-center gap-1.5 pt-1">
+            <label className="flex items-center gap-1 text-xs text-gray-500">
+              <input type="checkbox" checked={f.required || false} onChange={e => updateField(i, { required: e.target.checked })} className="rounded" />
+              Req
+            </label>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={addField}
+              className={cn('h-7 gap-1 px-2 text-xs', i !== fields.length - 1 && 'hidden')}
+            >
+              <Plus className="w-3 h-3" /> Add
+            </Button>
+            <button type="button" aria-label="Remove field" onClick={() => removeField(i)} className="p-1 text-red-400 hover:text-red-600">
+              <X className="w-4 h-4" />
+            </button>
+          </div>
         </div>
       ))}
+    </div>
+  )
+}
+
+// ── Category Form Panel ──────────────────────────────────────────
+function CategoryFormPanel({
+  editing,
+  parentId,
+  parentLabel,
+  flatOptions,
+  name,
+  description,
+  appliesTo,
+  customFields,
+  imageUrl,
+  imageUploading,
+  isVisible,
+  pending,
+  onNameChange,
+  onDescriptionChange,
+  onAppliesToChange,
+  onParentIdChange,
+  onCustomFieldsChange,
+  onVisibleChange,
+  onImageUrlClear,
+  onUploadImage,
+  onImageUrl,
+  onSubmit,
+  onCancel,
+}: {
+  editing: VendorCategory | null
+  parentId: string | null
+  parentLabel: string | null | undefined
+  flatOptions: { id: string; label: string }[]
+  name: string
+  description: string
+  appliesTo: string
+  customFields: CustomField[]
+  imageUrl: string | null
+  imageUploading: boolean
+  isVisible: boolean
+  pending: boolean
+  onNameChange: (v: string) => void
+  onDescriptionChange: (v: string) => void
+  onAppliesToChange: (v: string) => void
+  onParentIdChange: (v: string | null) => void
+  onCustomFieldsChange: (f: CustomField[]) => void
+  onVisibleChange: (v: boolean) => void
+  onImageUrlClear: () => void
+  onUploadImage: (file: File) => Promise<void>
+  onImageUrl: (url: string) => void
+  onSubmit: (e: React.FormEvent) => void
+  onCancel: () => void
+}) {
+  const title = editing ? 'Edit Category' : parentId ? 'New Subcategory' : 'New Category'
+  const fieldSelectCls = 'h-9 text-sm'
+  return (
+    <div className="flex w-full max-h-full flex-col overflow-hidden rounded-xl border border-border bg-card shadow-sm lg:max-h-[calc(100dvh-12rem)]">
+      <form onSubmit={onSubmit} className="flex max-h-full flex-col">
+
+        <div className="flex shrink-0 items-center justify-between border-b border-border px-4 py-2.5">
+          <div className="flex items-center gap-2">
+            <div className="flex h-6 w-6 items-center justify-center rounded-md bg-primary/10">
+              <FolderTree className="h-3.5 w-3.5 text-primary" />
+            </div>
+            <h3 className="text-sm font-semibold text-foreground">{title}</h3>
+          </div>
+          <div className="flex items-center gap-2">
+            <CategoryVisibilityToggle visible={isVisible} onChange={onVisibleChange} />
+            <Button type="button" variant="ghost" size="sm" onClick={onCancel} className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground">
+              <X className="w-4 h-4" />
+            </Button>
+          </div>
+        </div>
+
+        <div className="overflow-y-auto overscroll-contain px-4 py-3">
+          <div className="flex items-start gap-3">
+            <div className="min-w-0 flex-1 grid grid-cols-1 gap-2.5 sm:grid-cols-2">
+              <div className="min-w-0 space-y-1">
+                <Label className="text-xs font-medium text-muted-foreground">Name <span className="text-red-500">*</span></Label>
+                <Input
+                  value={name}
+                  onChange={e => onNameChange(e.target.value)}
+                  placeholder="e.g. Electronics"
+                  required
+                  className="h-9 w-full"
+                />
+              </div>
+
+              <div className="min-w-0 space-y-1">
+                <Label className="text-xs font-medium text-muted-foreground">Description</Label>
+                <Input
+                  value={description}
+                  onChange={e => onDescriptionChange(e.target.value)}
+                  placeholder="Optional"
+                  className="h-9 w-full"
+                />
+              </div>
+
+              <div className={cn('min-w-0 space-y-1', !editing && !parentId && 'sm:col-span-2')}>
+                <Label className="text-xs font-medium text-muted-foreground">Applies To</Label>
+                <Select
+                  value={appliesTo}
+                  onChange={onAppliesToChange}
+                  options={APPLIES_OPTIONS.map(o => ({ value: o.value, label: o.label }))}
+                  aria-label="Applies to"
+                  className={cn(fieldSelectCls, 'w-full')}
+                />
+              </div>
+
+              {(editing || parentId) && (
+                <div className="min-w-0 space-y-1">
+                  <Label className="text-xs font-medium text-muted-foreground">Parent Category</Label>
+                  {editing ? (
+                    <Select
+                      value={parentId || ''}
+                      onChange={(v) => onParentIdChange(v || null)}
+                      options={selectOptionsWithBlank('— Root (top-level) —', flatOptions
+                        .filter(o => o.id !== editing.id)
+                        .map(o => ({ value: o.id, label: o.label })))}
+                      placeholder="— Root (top-level) —"
+                      aria-label="Parent category"
+                      className={cn(fieldSelectCls, 'w-full')}
+                    />
+                  ) : (
+                    <div className="flex h-9 w-full items-center rounded-md border border-input bg-muted/30 px-3 text-sm text-muted-foreground">
+                      <span className="truncate">Under: <strong className="text-foreground">{parentLabel}</strong></span>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
+            <div className="w-[6.5rem] shrink-0 space-y-1.5">
+              <Label className="text-xs font-medium text-muted-foreground">Image</Label>
+              <div className="flex w-full flex-col items-stretch gap-1.5">
+                {imageUrl ? (
+                  <SingleImagePreview
+                    url={imageUrl}
+                    alt="Category image"
+                    resolveUrl={(u) => mediaUrl(resolveBusinessGalleryDisplayUrl(u))}
+                    className="w-full rounded-lg"
+                    imgClassName="h-24 w-full rounded-lg object-cover border border-border bg-muted/30"
+                    editable
+                    onSave={onUploadImage}
+                  />
+                ) : (
+                  <div className="flex h-24 w-full items-center justify-center rounded-lg border border-dashed border-border bg-muted/20 text-muted-foreground/40">
+                    {imageUploading ? <Loader2 className="w-5 h-5 animate-spin" /> : <FolderTree className="w-6 h-6" />}
+                  </div>
+                )}
+                <ImageSourcePicker
+                  title="Category image"
+                  accept="image/jpeg,image/png,image/webp,image/gif"
+                  disabled={pending}
+                  uploading={imageUploading}
+                  onFile={onUploadImage}
+                  onUrl={onImageUrl}
+                  buttonLabel="Upload"
+                  buttonClassName="h-8 w-full px-2 text-xs border-border text-muted-foreground hover:text-foreground hover:bg-muted/50"
+                  className="w-full"
+                />
+                {imageUrl && (
+                  <button
+                    type="button"
+                    onClick={onImageUrlClear}
+                    className="text-center text-[10px] text-red-500 hover:text-red-700"
+                    title="Remove image"
+                  >
+                    Clear
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+
+          <div className="mt-2.5">
+            <CustomFieldsEditor fields={customFields} onChange={onCustomFieldsChange} compact />
+          </div>
+        </div>
+
+        <div className="flex shrink-0 items-center justify-end gap-2 border-t border-border px-4 py-2.5">
+          <Button type="button" variant="cancel" onClick={onCancel} className="h-8 px-4 text-sm">
+            Cancel
+          </Button>
+          <Button type="submit" disabled={pending} className="h-8 px-4 text-sm">
+            {pending && <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />}
+            {editing ? 'Save changes' : 'Create'}
+          </Button>
+        </div>
+      </form>
     </div>
   )
 }
@@ -583,13 +1047,13 @@ export default function CategoriesPage() {
   const [description, setDescription] = useState('')
   const [appliesTo, setAppliesTo] = useState('both')
   const [parentId, setParentId] = useState<string | null>(null)
-  const [sortOrder, setSortOrder] = useState(0)
   const [customFields, setCustomFields] = useState<CustomField[]>([])
   const [imageUrl, setImageUrl] = useState<string | null>(null)
   const [imageUploading, setImageUploading] = useState(false)
   const localPreviewRef = useRef<string | null>(null)
   const [catalogueId, setCatalogueId] = useState<string | null>(null)
   const [selectedId, setSelectedId] = useState<string | null>(null)
+  const [isVisible, setIsVisible] = useState(true)
 
   const clearLocalPreview = () => {
     if (localPreviewRef.current) {
@@ -602,7 +1066,8 @@ export default function CategoriesPage() {
 
   const resetForm = () => {
     setShowForm(false); setEditing(null); setName(''); setDescription('')
-    setAppliesTo('both'); setParentId(null); setSortOrder(0); setCustomFields([])
+    setAppliesTo('both'); setParentId(null); setCustomFields([])
+    setIsVisible(true)
     clearLocalPreview()
     setImageUrl(null); setImageUploading(false)
   }
@@ -624,8 +1089,9 @@ export default function CategoriesPage() {
     setSelectedId(cat.id)
     setEditing(cat); setName(cat.name); setDescription(cat.description || '')
     setAppliesTo(cat.applies_to); setParentId(cat.parent_id || null)
-    setSortOrder(cat.sort_order || 0); setCustomFields(cat.custom_fields || [])
+    setCustomFields(cat.custom_fields || [])
     setImageUrl(cat.image_url || null)
+    setIsVisible(cat.is_visible !== false)
     setShowForm(true)
   }
 
@@ -662,6 +1128,17 @@ export default function CategoriesPage() {
     setImageUrl(trimmed)
   }
 
+  const handleToggleCategoryVisibility = (cat: VendorCategory) => {
+    updateCategory.mutate({
+      id: cat.id,
+      data: { is_visible: cat.is_visible === false },
+    })
+  }
+
+  const handleMoveCategory = (categoryId: string, newParentId: string | null) => {
+    updateCategory.mutate({ id: categoryId, data: { parent_id: newParentId } })
+  }
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     if (!name.trim()) return
@@ -676,7 +1153,7 @@ export default function CategoriesPage() {
       image_url: imageUrl || null,
       applies_to: appliesTo,
       parent_id: parentId || undefined,
-      sort_order: sortOrder,
+      is_visible: isVisible,
       custom_fields: customFields.filter(f => f.name.trim()),
     }
 
@@ -723,180 +1200,83 @@ export default function CategoriesPage() {
   const parentLabel = parentId ? findInTree(data?.categories || [], parentId)?.name : null
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
+    <div className="mx-auto flex max-h-[calc(100dvh-10rem)] min-h-0 w-full flex-col overflow-hidden">
+      <div className="flex shrink-0 items-center justify-between gap-3 pb-3">
+        <div className="min-w-0">
           <h1 className="text-2xl font-bold text-gray-900">Categories</h1>
-          <p className="text-sm text-gray-500 mt-0.5">Organize your catalogue with categories, subcategories, and custom fields</p>
+          <p className="text-sm text-gray-500 mt-0.5 truncate">Organize your catalogue with categories, subcategories, and custom fields</p>
         </div>
-        <Button onClick={() => openCreate()} className="gap-2"><Plus className="w-4 h-4" />Add Category</Button>
+        <Button onClick={() => openCreate()} className="shrink-0 gap-2"><Plus className="w-4 h-4" />Add Category</Button>
       </div>
 
-      {/* Category Form */}
-      {showForm && (
-        <Card>
-          <CardContent className="pt-6">
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="flex items-center justify-between">
-                <h3 className="font-semibold">{editing ? 'Edit Category' : parentId ? 'New Subcategory' : 'New Category'}</h3>
-                <Button type="button" variant="ghost" size="sm" onClick={resetForm}><X className="w-4 h-4" /></Button>
-              </div>
-
-              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                <div className="space-y-1.5">
-                  <Label>Name *</Label>
-                  <Input value={name} onChange={e => setName(e.target.value)} placeholder="e.g. Electronics" required />
-                </div>
-                <div className="space-y-1.5 sm:col-span-2">
-                  <Label>Parent Category</Label>
-                  {editing ? (
-                    <Select
-                      value={parentId || ''}
-                      onChange={(v) => setParentId(v || null)}
-                      options={selectOptionsWithBlank('— Root (top-level) —', flatOptions
-                        .filter(o => o.id !== editing.id)
-                        .map(o => ({ value: o.id, label: o.label })))}
-                      placeholder="— Root (top-level) —"
-                      aria-label="Parent category"
-                      className={selectCls}
-                    />
-                  ) : (
-                    <>
-                      <div className="flex h-10 items-center rounded-md border border-input bg-muted/40 px-3 text-sm text-gray-700">
-                        {parentLabel ? (
-                          <span>Under: <strong>{parentLabel}</strong></span>
-                        ) : (
-                          <span className="text-gray-500">Root (top-level category)</span>
-                        )}
-                      </div>
-                      <p className="text-xs text-gray-400">
-                        Use + on a category in the tree to create a subcategory under it.
-                      </p>
-                    </>
-                  )}
-                </div>
-                <div className="space-y-1.5">
-                  <Label>Applies To</Label>
-                  <Select
-                    value={appliesTo}
-                    onChange={setAppliesTo}
-                    options={APPLIES_OPTIONS.map(o => ({ value: o.value, label: o.label }))}
-                    aria-label="Applies to"
-                    className={selectCls}
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <Label>Sort Order</Label>
-                  <Input type="number" value={sortOrder} onChange={e => setSortOrder(Number(e.target.value))} placeholder="0" />
-                </div>
-              </div>
-
-              <div className="space-y-1.5">
-                <Label>Description</Label>
-                <Input value={description} onChange={e => setDescription(e.target.value)} placeholder="Optional description" />
-              </div>
-
-              <div className="space-y-1.5">
-                <Label>Category Image</Label>
-                <p className="text-xs text-gray-400">Shown on your business front when customers browse categories.</p>
-                <div className="flex flex-wrap items-start gap-4">
-                  <div className="shrink-0">
-                    {imageUrl ? (
-                      <SingleImagePreview
-                        url={imageUrl}
-                        alt="Category image"
-                        resolveUrl={(u) => mediaUrl(resolveBusinessGalleryDisplayUrl(u))}
-                        className="rounded-lg"
-                        imgClassName="rounded-lg w-32 h-32 object-cover border border-gray-200 bg-gray-50"
-                        editable
-                        onSave={uploadCategoryImageFile}
-                      />
-                    ) : (
-                      <div className="flex h-32 w-32 items-center justify-center rounded-lg border border-dashed border-gray-300 bg-gray-50 text-gray-400">
-                        {imageUploading ? (
-                          <Loader2 className="w-6 h-6 animate-spin" />
-                        ) : (
-                          <FolderTree className="w-8 h-8" />
-                        )}
-                      </div>
-                    )}
-                  </div>
-                  <div className="flex flex-col gap-2 pt-1">
-                    <ImageSourcePicker
-                      title="Category image"
-                      accept="image/jpeg,image/png,image/webp,image/gif"
-                      disabled={createCategory.isPending || updateCategory.isPending}
-                      uploading={imageUploading}
-                      onFile={uploadCategoryImageFile}
-                      onUrl={handleCategoryImageUrl}
-                      buttonClassName="text-xs h-8 border-primary/30 text-primary hover:bg-accent"
-                    />
-                    {imageUrl && (
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        className="text-xs text-red-600 hover:text-red-700 w-fit"
-                        onClick={() => {
-                          clearLocalPreview()
-                          setImageUrl(null)
-                        }}
-                      >
-                        Remove image
-                      </Button>
-                    )}
-                  </div>
-                </div>
-              </div>
-
-              <CustomFieldsEditor fields={customFields} onChange={setCustomFields} />
-
-              <div className="flex justify-end gap-2 pt-2">
-                <Button type="button" variant="cancel" onClick={resetForm}>Cancel</Button>
-                <Button type="submit" disabled={createCategory.isPending || updateCategory.isPending}>
-                  {(createCategory.isPending || updateCategory.isPending) && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-                  {editing ? 'Update' : 'Create'}
-                </Button>
-              </div>
-            </form>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Split tree explorer */}
       {isLoading ? (
-        <Card>
-          <CardContent className="py-16 text-center">
+        <Card className="min-h-0 flex-1">
+          <CardContent className="flex h-full items-center justify-center py-16 text-center">
             <Loader2 className="w-6 h-6 animate-spin mx-auto text-gray-400" />
           </CardContent>
         </Card>
       ) : (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          <CategoryTreeExplorer
-            categories={sortedCategories}
-            selectedId={selectedId}
-            onSelect={(c) => { setSelectedId(c.id); setShowForm(false) }}
-            onAddSub={(pid) => openCreate(pid)}
-            onAddRoot={() => openCreate()}
-            sortKey={sortKey}
-            sortDir={sortDir}
-            onSortKeyChange={setSortKey}
-            onSortDirChange={setSortDir}
-          />
-          <CategoryDetailPanel
-            cat={selectedCategory}
-            onEdit={openEdit}
-            onDelete={(id) => {
-              deleteCategory.mutate(id)
-              if (selectedId === id) setSelectedId(null)
-            }}
-            onViewCatalogue={(id) => setCatalogueId(id)}
-            onAddSub={(pid) => openCreate(pid)}
-          />
+        <div className="grid min-h-0 flex-1 grid-cols-1 gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)] lg:items-start">
+          <div className="h-full min-h-0">
+            <CategoryTreeExplorer
+              categories={sortedCategories}
+              selectedId={selectedId}
+              onSelect={(c) => { setSelectedId(c.id); setShowForm(false) }}
+              onAddSub={(pid) => openCreate(pid)}
+              onAddRoot={() => openCreate()}
+              onMove={handleMoveCategory}
+              onToggleVisibility={handleToggleCategoryVisibility}
+              sortKey={sortKey}
+              sortDir={sortDir}
+              onSortKeyChange={setSortKey}
+              onSortDirChange={setSortDir}
+            />
+          </div>
+          <div className="min-h-0 lg:self-start">
+            {showForm ? (
+              <CategoryFormPanel
+                editing={editing}
+                parentId={parentId}
+                parentLabel={parentLabel}
+                flatOptions={flatOptions}
+                name={name}
+                description={description}
+                appliesTo={appliesTo}
+                customFields={customFields}
+                imageUrl={imageUrl}
+                imageUploading={imageUploading}
+                isVisible={isVisible}
+                pending={createCategory.isPending || updateCategory.isPending}
+                onNameChange={setName}
+                onDescriptionChange={setDescription}
+                onAppliesToChange={setAppliesTo}
+                onParentIdChange={setParentId}
+                onCustomFieldsChange={setCustomFields}
+                onVisibleChange={setIsVisible}
+                onImageUrlClear={() => { clearLocalPreview(); setImageUrl(null) }}
+                onUploadImage={uploadCategoryImageFile}
+                onImageUrl={handleCategoryImageUrl}
+                onSubmit={handleSubmit}
+                onCancel={resetForm}
+              />
+            ) : (
+              <CategoryDetailPanel
+                cat={selectedCategory}
+                parentLabel={selectedCategory?.parent_id ? findInTree(data?.categories || [], selectedCategory.parent_id)?.name : null}
+                onEdit={openEdit}
+                onDelete={(id) => {
+                  deleteCategory.mutate(id)
+                  if (selectedId === id) setSelectedId(null)
+                }}
+                onViewCatalogue={(id) => setCatalogueId(id)}
+                onAddSub={(pid) => openCreate(pid)}
+                onToggleVisibility={handleToggleCategoryVisibility}
+              />
+            )}
+          </div>
         </div>
       )}
 
-      {/* Catalogue Drawer */}
       {catalogueId && <CatalogueDrawer categoryId={catalogueId} onClose={() => setCatalogueId(null)} />}
     </div>
   )

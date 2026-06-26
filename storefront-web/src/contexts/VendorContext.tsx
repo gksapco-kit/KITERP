@@ -10,20 +10,11 @@ import {
   rememberDraftCatalogPreviewTokenFromPath,
 } from '@/lib/draftCatalogEmbed'
 import { recallDraftEmbedPreviewToken } from '@/lib/draftEmbedPreview'
+import { resolveAssignedStorefrontTemplateId } from '@/lib/storefrontTemplateAssignment'
+import { resolveTemplateDisplayFieldsFromSettings } from '@/lib/storefrontDisplayFields'
+import { useBranch } from '@/contexts/BranchContext'
 
 const API_URL = getStorefrontApiBaseUrl().replace(/\/$/, '')
-
-const DEFAULT_PRODUCT_DISPLAY: Record<string, boolean> = {
-  brand: true, short_description: true, specifications: true, warranty: true,
-  return_policy: true, shipping_info: true, offer_label: true, sku: true,
-  stock_status: true, tags: true,
-}
-
-const DEFAULT_SERVICE_DISPLAY: Record<string, boolean> = {
-  brand: true, short_description: true, whats_included: true, whats_not_included: true,
-  prerequisites: true, service_areas: true, cancellation_policy: true, offer_label: true,
-  service_mode: true, tags: true,
-}
 
 export interface VendorData {
   id: string
@@ -74,7 +65,7 @@ export const VendorContext = createContext<VendorContextType>({
   isLoading: true,
   error: null,
   storePath: (p) => p,
-  displayFields: { product: DEFAULT_PRODUCT_DISPLAY, service: DEFAULT_SERVICE_DISPLAY },
+  displayFields: resolveTemplateDisplayFieldsFromSettings(null, null),
 })
 
 export function VendorProvider({ children }: { children: ReactNode }) {
@@ -168,11 +159,8 @@ export function VendorProvider({ children }: { children: ReactNode }) {
   }
 
   const displayFields = useMemo<DisplayFields>(() => {
-    const df = vendor?.settings?.display_fields as { product?: Record<string, boolean>; service?: Record<string, boolean> } | undefined
-    return {
-      product: { ...DEFAULT_PRODUCT_DISPLAY, ...(df?.product || {}) },
-      service: { ...DEFAULT_SERVICE_DISPLAY, ...(df?.service || {}) },
-    }
+    const templateId = resolveAssignedStorefrontTemplateId(vendor?.settings, [], null)
+    return resolveTemplateDisplayFieldsFromSettings(vendor?.settings, templateId)
   }, [vendor?.settings])
 
   return (
@@ -180,6 +168,25 @@ export function VendorProvider({ children }: { children: ReactNode }) {
       {children}
     </VendorContext.Provider>
   )
+}
+
+/** Re-resolves display fields from the active BU + assigned website template (inside BranchProvider). */
+export function StorefrontDisplayFieldsBridge({ children }: { children: ReactNode }) {
+  const parent = useContext(VendorContext)
+  const { branches, branchCode } = useBranch()
+  const templateId = useMemo(
+    () => resolveAssignedStorefrontTemplateId(parent.vendor?.settings, branches, branchCode),
+    [parent.vendor?.settings, branches, branchCode],
+  )
+  const displayFields = useMemo(
+    () => resolveTemplateDisplayFieldsFromSettings(parent.vendor?.settings, templateId),
+    [parent.vendor?.settings, templateId],
+  )
+  const value = useMemo(
+    () => ({ ...parent, displayFields }),
+    [parent, displayFields],
+  )
+  return <VendorContext.Provider value={value}>{children}</VendorContext.Provider>
 }
 
 export function useVendor() {

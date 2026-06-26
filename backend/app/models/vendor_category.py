@@ -23,6 +23,7 @@ class VendorCategory(Base):
     # "product", "service", or "both"
     applies_to = Column(String(20), nullable=False, default="both")
     is_active = Column(Boolean, default=True)
+    is_visible = Column(Boolean, default=True)
     sort_order = Column(Integer, default=0)
 
     # Configurable custom fields for products/services under this category

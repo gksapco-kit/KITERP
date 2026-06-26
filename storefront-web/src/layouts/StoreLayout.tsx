@@ -10,7 +10,7 @@ import { useCart, useCustomerLogout, useCustomerMe } from '@/hooks/useStore'
 import { UnifiedNav, AnnouncementBar } from '@/kit/header/UnifiedNav'
 import { useAuthStore } from '@/stores/authStore'
 import { useCartStore, selectCartItemCount } from '@/stores/cartStore'
-import { VendorProvider, useVendor } from '@/contexts/VendorContext'
+import { VendorProvider, useVendor, StorefrontDisplayFieldsBridge } from '@/contexts/VendorContext'
 import { ThemeProvider, useTheme } from '@/contexts/ThemeContext'
 import { BuilderSiteProvider, useBuilderSite } from '@/contexts/BuilderSiteContext'
 import { useAssignedStorefrontTemplateId, useStoreSpecificAssignedTemplateId } from '@/hooks/useAssignedStorefrontTemplateId'
@@ -703,9 +703,11 @@ export default function StoreLayout() {
     <VendorProvider>
       <BuilderSiteProvider>
         <BranchProvider>
-          <ThemeProvider>
-            <StoreContent />
-          </ThemeProvider>
+          <StorefrontDisplayFieldsBridge>
+            <ThemeProvider>
+              <StoreContent />
+            </ThemeProvider>
+          </StorefrontDisplayFieldsBridge>
         </BranchProvider>
       </BuilderSiteProvider>
     </VendorProvider>

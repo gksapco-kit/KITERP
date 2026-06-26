@@ -1,4 +1,5 @@
 import { useEffect, useId, useMemo, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { Check, ChevronDown } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useEscapeToClose } from '@/hooks/useEscapeToClose'
@@ -15,7 +16,7 @@ export type ThemeSelectOption = {
 export const themeSelectUi = {
   trigger:
     'form-select inline-flex h-10 w-full min-w-[8rem] items-center justify-between gap-2 px-2.5 text-sm text-left text-foreground transition-colors hover:bg-muted/30 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50',
-  menu: 'absolute left-0 right-0 z-50 mt-1 max-h-60 overflow-auto rounded-lg border border-border bg-popover py-1 text-popover-foreground shadow-lg animate-in fade-in-0 zoom-in-95 duration-100',
+  menu: 'z-50 max-h-60 overflow-auto rounded-lg border border-border bg-popover py-1 text-popover-foreground shadow-lg animate-in fade-in-0 zoom-in-95 duration-100',
   item: 'flex w-full items-center gap-2 px-3 py-2 text-left text-sm transition-colors hover:bg-muted/60 focus-visible:bg-muted/60 focus-visible:outline-none',
   itemActive: 'bg-primary/10 text-foreground dark:bg-primary/20',
   itemLabel: 'min-w-0 flex-1 truncate font-medium text-foreground',
@@ -69,7 +70,10 @@ export function ThemeSelect({
   'aria-label': ariaLabel,
 }: ThemeSelectProps) {
   const [open, setOpen] = useState(false)
+  const [menuRect, setMenuRect] = useState<{ top: number; left: number; width: number } | null>(null)
   const rootRef = useRef<HTMLDivElement>(null)
+  const triggerRef = useRef<HTMLButtonElement>(null)
+  const menuRef = useRef<HTMLDivElement>(null)
   const listId = useId()
   const selected = options.find((o) => o.value === value)
   const displayLabel = selected?.label ?? placeholder
@@ -116,11 +120,39 @@ export function ThemeSelect({
 
   useEffect(() => {
     if (!open) return
+    const updateMenuRect = () => {
+      const trigger = triggerRef.current
+      if (!trigger) return
+      const rect = trigger.getBoundingClientRect()
+      setMenuRect({
+        top: rect.bottom + 4,
+        left: rect.left,
+        width: rect.width,
+      })
+    }
+    updateMenuRect()
+    window.addEventListener('scroll', updateMenuRect, true)
+    window.addEventListener('resize', updateMenuRect)
+    return () => {
+      window.removeEventListener('scroll', updateMenuRect, true)
+      window.removeEventListener('resize', updateMenuRect)
+    }
+  }, [open])
+
+  useEffect(() => {
+    if (!open) return
     const onPointerDown = (e: MouseEvent) => {
-      if (!rootRef.current?.contains(e.target as Node)) setOpen(false)
+      const target = e.target as Node
+      if (rootRef.current?.contains(target)) return
+      if (menuRef.current?.contains(target)) return
+      setOpen(false)
     }
     document.addEventListener('mousedown', onPointerDown)
     return () => document.removeEventListener('mousedown', onPointerDown)
+  }, [open])
+
+  useEffect(() => {
+    if (!open) setMenuRect(null)
   }, [open])
 
   const { wrapper: splitWrapper, trigger: splitTrigger } = splitSelectClassName(className)
@@ -128,6 +160,7 @@ export function ThemeSelect({
   return (
     <div ref={rootRef} className={cn('relative w-full min-w-0', splitWrapper, wrapperClassName)}>
       <button
+        ref={triggerRef}
         type="button"
         id={id}
         disabled={disabled}
@@ -145,8 +178,21 @@ export function ThemeSelect({
         />
       </button>
 
-      {open && (
-        <div id={listId} role="listbox" aria-label={ariaLabel} className={themeSelectUi.menu}>
+      {open && menuRect && createPortal(
+        <div
+          ref={menuRef}
+          id={listId}
+          role="listbox"
+          aria-label={ariaLabel}
+          style={{
+            position: 'fixed',
+            top: menuRect.top,
+            left: menuRect.left,
+            width: menuRect.width,
+            zIndex: 200,
+          }}
+          className={themeSelectUi.menu}
+        >
           {menuSections.ungrouped.map(renderOption)}
           {menuSections.groups.map(([group, items]) => (
             <div key={group} role="group" aria-label={group}>
@@ -154,7 +200,8 @@ export function ThemeSelect({
               {items.map(renderOption)}
             </div>
           ))}
-        </div>
+        </div>,
+        document.body,
       )}
     </div>
   )

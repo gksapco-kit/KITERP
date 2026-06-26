@@ -83,36 +83,64 @@ export function OverlayAlignControls({
       : 'grid h-full min-h-0 flex-1 grid-cols-3 grid-rows-2 gap-px bg-gray-200'
 
   if (variant === 'compact') {
+    const H_ALIGNS = GRID_ALIGNS.slice(0, 3)
+    const V_ALIGNS = GRID_ALIGNS.slice(3, 6)
+
+    const segBtn = (
+      { id, label, Icon }: typeof GRID_ALIGNS[0],
+      pos: 'start' | 'mid' | 'end',
+    ) => (
+      <button
+        key={id}
+        type="button"
+        title={label}
+        aria-label={label}
+        onMouseDown={onStopBubble}
+        onClick={() => applyAlign(id)}
+        className={cn(
+          'flex flex-1 items-center justify-center transition-colors hover:bg-primary/10 hover:text-primary',
+          pos === 'start' && 'rounded-l-full',
+          pos === 'end'   && 'rounded-r-full',
+        )}
+      >
+        <Icon className="h-2.5 w-2.5" />
+      </button>
+    )
+
     return (
       <div
-        className={cn(visualPanel, 'inline-flex h-7 shrink-0 items-stretch overflow-hidden p-0')}
+        className="inline-flex shrink-0 items-center gap-1 px-1"
         role="group"
         aria-label="Align in section"
       >
-        <div className={gridClass}>
-          {GRID_ALIGNS.map(({ id, label, Icon }) => (
-            <button
-              key={id}
-              type="button"
-              title={label}
-              aria-label={label}
-              className={cell}
-              onMouseDown={onStopBubble}
-              onClick={() => applyAlign(id)}
-            >
-              <Icon className="h-2.5 w-2.5" />
-            </button>
-          ))}
+        {/* Two stacked segmented pills: H align + V align */}
+        <div className="flex flex-col gap-1">
+          <div className="flex h-5 overflow-hidden rounded-full border border-gray-200 bg-gray-50 text-gray-500">
+            {segBtn(H_ALIGNS[0], 'start')}
+            <span className="w-px self-stretch bg-gray-200" aria-hidden />
+            {segBtn(H_ALIGNS[1], 'mid')}
+            <span className="w-px self-stretch bg-gray-200" aria-hidden />
+            {segBtn(H_ALIGNS[2], 'end')}
+          </div>
+          <div className="flex h-5 overflow-hidden rounded-full border border-gray-200 bg-gray-50 text-gray-500">
+            {segBtn(V_ALIGNS[0], 'start')}
+            <span className="w-px self-stretch bg-gray-200" aria-hidden />
+            {segBtn(V_ALIGNS[1], 'mid')}
+            <span className="w-px self-stretch bg-gray-200" aria-hidden />
+            {segBtn(V_ALIGNS[2], 'end')}
+          </div>
         </div>
+
+        {/* Center-in-section button */}
         <button
           type="button"
           title="Center in section"
           aria-label="Center in section"
-          className={cn(visualIconBtn(), 'w-7 shrink-0 rounded-none border-0 border-l border-gray-200 px-0')}
           onMouseDown={onStopBubble}
           onClick={() => applyAlign('center')}
+          className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-gray-200 bg-white text-gray-500 transition-colors hover:border-primary/40 hover:bg-primary/10 hover:text-primary"
         >
-          <Move className="h-2.5 w-2.5" />
+          <Move className="h-3 w-3" />
         </button>
       </div>
     )

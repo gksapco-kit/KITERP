@@ -58,6 +58,7 @@ export function SectionSizeControl({
   canvasScale,
   onPreview,
   onCommit,
+  onActivate,
 }: {
   blockId: string
   containerRef: RefObject<HTMLElement | null>
@@ -66,6 +67,8 @@ export function SectionSizeControl({
   canvasScale: number
   onPreview: (scale: number) => void
   onCommit: (scale: number) => void
+  /** Select the section when the user starts adjusting size (e.g. from hover-only chrome). */
+  onActivate?: () => void
 }) {
   const [frame, setFrame] = useState<PillFrame | null>(null)
   const onPreviewRef = useRef(onPreview)
@@ -240,6 +243,7 @@ export function SectionSizeControl({
     if (e.button !== 0) return
     e.preventDefault()
     e.stopPropagation()
+    onActivate?.()
     clearHoldTimers()
     freezePosition()
     liveScaleRef.current = curScale
@@ -258,13 +262,13 @@ export function SectionSizeControl({
     <div
       data-section-scale-handle
       className={cn(
-        'group/scale pointer-events-auto fixed z-[90] flex -translate-x-full items-center gap-0 rounded-full border border-primary/20 bg-white/95 p-0.5 shadow-md ring-1 ring-black/5 backdrop-blur-sm',
+        'group/scale pointer-events-auto fixed z-[200] flex -translate-x-full items-center gap-0 rounded-full border border-primary/20 bg-white/95 p-0.5 shadow-md ring-1 ring-black/5 backdrop-blur-sm',
         frame.placement === 'inline' && '-translate-y-1/2',
         frame.placement === 'above' && '-translate-y-full',
       )}
       style={{ top: frame.top, left: frame.left }}
       onClick={e => e.stopPropagation()}
-      onMouseDown={e => e.stopPropagation()}
+      onMouseDown={e => { e.stopPropagation(); onActivate?.() }}
     >
       <button
         type="button"
@@ -286,6 +290,7 @@ export function SectionSizeControl({
         onMouseDown={e => {
           e.preventDefault()
           e.stopPropagation()
+          onActivate?.()
           freezePosition()
           const startX = e.clientX
           const startScale = curScale

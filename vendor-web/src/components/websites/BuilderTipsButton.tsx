@@ -10,7 +10,7 @@ const TIPS = [
   { area: 'Left panel → Sections', text: '“Start here” quick guide and catalog to add sections.' },
   { area: 'Canvas', text: 'Click a section to select it; green ↑/↓ space handles adjust spacing.' },
   { area: 'Device icons', text: 'Desktop / Tablet / Phone — preview each screen size.' },
-  { area: 'Right panel', text: 'Section Edit, Search (Google), Store data (catalog link).' },
+  { area: 'Right panel', text: 'Section Edit, Links (buttons & URLs), Page Edit, and Style.' },
   { area: 'Website Management menu', text: 'Website Builder is in the sidebar under Website Management.' },
 ] as const
 

@@ -8,7 +8,7 @@ import {
   Layout, FileText, Sparkles, Image as ImageIcon, Globe,
   Undo2, Redo2, Save, Eye, Monitor, Tablet, Smartphone,
   ZoomIn, ZoomOut, Maximize2, Palette, SlidersHorizontal,
-  Trash2, Copy, Layers, Database, Lightbulb, BookOpen, Mail,
+  Trash2, Copy, Layers, Lightbulb, BookOpen, Mail,
   ChevronRight, Plus, Settings2,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -70,7 +70,7 @@ export interface BuilderCommandPaletteProps {
   onSetZoom: (z: number) => void
   onFitZoom: () => void
   onOpenPanel: (panel: 'blocks' | 'pages' | 'templates' | 'media' | 'settings') => void
-  onOpenRightPanel: (panel: 'props' | 'style' | 'data') => void
+  onOpenRightPanel: (panel: 'props' | 'style' | 'links') => void
   onOpenSeoManagement?: () => void
   onOpenHelp: () => void
 }
@@ -277,14 +277,6 @@ export function BuilderCommandPalette(props: BuilderCommandPaletteProps) {
       icon: Palette,
       iconColor: 'text-rose-500',
       run: () => { onOpenRightPanel('style'); onClose() },
-    })
-    items.push({
-      id: 'panel:data',
-      group: 'Open panel',
-      label: 'Data / Store connection',
-      icon: Database,
-      iconColor: 'text-cyan-500',
-      run: () => { onOpenRightPanel('data'); onClose() },
     })
     items.push({
       id: 'panel:props',

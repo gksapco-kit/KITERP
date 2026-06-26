@@ -18,7 +18,7 @@ async def build_category_live_items(
     norm_item: Callable[..., Dict[str, Any]],
 ) -> List[Dict[str, Any]]:
     repo = VendorCategoryRepository(db)
-    cats = await repo.list_by_vendor(vendor_id, is_active=True)
+    cats = await repo.list_by_vendor(vendor_id, is_active=True, is_visible=True)
 
     if cats:
         prod_rows = (await db.execute(

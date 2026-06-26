@@ -83,7 +83,14 @@ export const PRODUCT_TYPE_FILTER_OPTIONS: CatalogFilterOption[] = [
   { value: 'digital', label: 'Digital' },
   { value: 'subscription', label: 'Subscription' },
   { value: 'bundle', label: 'Bundle' },
+  { value: 'raw_material', label: 'Raw Material' },
 ]
+
+export function productTypeLabel(type: string | undefined): string {
+  const value = type || 'physical'
+  return PRODUCT_TYPE_FILTER_OPTIONS.find(o => o.value === value)?.label
+    ?? value.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
+}
 
 export const PRODUCT_STOCK_FILTER_OPTIONS: CatalogFilterOption[] = [
   { value: 'in_stock', label: 'In stock' },

@@ -731,6 +731,7 @@ export interface VendorCategory {
   image_url?: string | null
   applies_to: 'product' | 'service' | 'both'
   is_active: boolean
+  is_visible: boolean
   sort_order: number
   custom_fields: CustomField[]
   children: VendorCategory[]

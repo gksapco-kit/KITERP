@@ -15,6 +15,7 @@ class ProductType(str, Enum):
     DIGITAL = "digital"
     SUBSCRIPTION = "subscription"
     BUNDLE = "bundle"
+    RAW_MATERIAL = "raw_material"
 
 
 class StockStatus(str, Enum):

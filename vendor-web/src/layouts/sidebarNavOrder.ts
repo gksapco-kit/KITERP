@@ -12,6 +12,7 @@ export const NAV_PINNED_SECTION_HOME: Record<string, string> = {
   '/websites': 'website-management',
   '/websites/seo': 'website-management',
   '/websites/templates': 'website-management',
+  '/system/storefront-display': 'website-management',
   '/blog': 'website-management',
   '/system/messages': 'system',
   '/crm/integrations': 'system',
@@ -22,7 +23,8 @@ const NAV_PINNED_INSERT_AFTER: Record<string, string> = {
   '/websites': '/business-front',
   '/websites/seo': '/websites',
   '/websites/templates': '/websites/seo',
-  '/blog': '/websites/templates',
+  '/system/storefront-display': '/websites/templates',
+  '/blog': '/system/storefront-display',
   '/system/messages': '/crm/integrations',
   '/crm/integrations': '/system/modules',
 }
@@ -233,6 +235,7 @@ export function reconcileNavPlacements(
     '/websites',
     '/websites/seo',
     '/websites/templates',
+    '/system/storefront-display',
     '/blog',
   ]
   const websiteManagementRoutes = websiteManagementOrder.filter((to) => validTos.has(to))
@@ -266,7 +269,6 @@ export function reconcileNavPlacements(
 
   // System Configuration routes keep canonical order (Create Messages before Database group).
   const systemConfigurationOrder = [
-    '/system/storefront-display',
     '/system/social-links',
     '/document-templates',
     '/system/modules',

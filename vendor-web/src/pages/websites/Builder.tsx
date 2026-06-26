@@ -25,7 +25,7 @@ import {
   PlayCircle, Quote, Award, Briefcase, Camera,
   Type, Square, Columns, Video, Map as MapIcon, MessageSquare,
   Hash, Minus, List, ToggleLeft, Radio, Info,
-  Database, Plug, RefreshCcw, Package, Wrench, ShoppingCart,
+  Plug, RefreshCcw, Package, ShoppingCart,
   Store as StoreIcon, ClipboardCopy, ClipboardPaste, RotateCcw, SlidersHorizontal, Paintbrush, Scissors, Eraser, Pin,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -180,7 +180,6 @@ import { SHADOW_PRESETS, SHAPE_OPTIONS } from '@/lib/builderVisualPresets'
 import {
   buildSectionImagePropsPatch,
   sectionPrimaryImageField,
-  sectionSupportsBgStyle,
   sectionSupportsContentGroupTransform,
   sectionSupportsEdgeShapes,
   isGlobalStructureBlock,
@@ -214,10 +213,21 @@ import {
   type SectionEditorTabId,
 } from '@/components/websites/SectionEditorRibbon'
 import { SectionPanelGroup } from '@/components/websites/SectionPanelGroup'
-import { builderPanelUi } from '@/components/websites/builderPanelUi'
+import { builderLinkBtn, builderLinkBtnIcon, builderPanelUi } from '@/components/websites/builderPanelUi'
 import { BuilderSiteInputParametersModal } from '@/components/websites/BuilderSiteInputParametersModal'
 import { BuilderStylePanel } from '@/components/websites/BuilderStylePanel'
 import { BuilderStepSlider } from '@/components/websites/BuilderStepSlider'
+import {
+  PanelBgStylePicker,
+  PanelChip,
+  PanelChipScroll,
+  PanelChipWrap,
+  PanelColorRow,
+  PanelFieldLabel,
+  PanelGroupEyebrow,
+  PanelShadowPresetPicker,
+  PanelSliderRow,
+} from '@/components/websites/BuilderPanelFields'
 import {
   applyCategoryImagesToBlockProps,
   blockSupportsGalleryCategory,
@@ -238,13 +248,9 @@ import {
   DATA_SOURCES,
   normalizeSourceType,
   applyDataSourceToBlockProps,
-  getRecommendedDataSources,
-  getDataSourcesForGroup,
-  getDataSourceGroup,
   STORE_CONTENT_GROUPS,
   BLOCK_REQUIRED_DATA_SOURCE,
   type LayoutPickerDataSourceChoice,
-  type StoreContentGroup,
 } from '@/lib/blockDataSources'
 import { mergeLayoutBlockProps } from '@/lib/layoutBlockProps'
 import { heroUsesBackgroundImage, heroUsesSideImage, resolveBlockPrimaryImageField } from '@/lib/heroLayoutUtils'
@@ -293,11 +299,9 @@ import {
   restoreSavedInlineSelection,
 } from '@storefront/lib/builderInlineTextSelection'
 import {
-  mergeBlockSectionStyles,
+  patchBreakpointSectionSpacing,
   readRawBlockStyleOverrides,
-  resolveBlockSectionPadding,
-  resolveBreakpointStyleOverrides,
-  stripSectionPaddingFromStyleOverrides,
+  resolveBlockSectionSpacing,
 } from '@storefront/lib/blockStyleOverrides'
 
 // ?? Block definitions catalog ?????????????????????????????????????????????????
@@ -1090,7 +1094,7 @@ const LINK_TYPES: LinkTypeMeta[] = [
 /** Link picker tabs — Ext API is store-data only. */
 const LINK_PICKER_GROUPS = STORE_CONTENT_GROUPS.filter(g => g.id !== 'ext_api')
 
-/** Shared with Store data panel — same tab labels as link picker (plus Ext API). */
+/** Link picker group tabs (Ext API is live-content only, via layout picker). */
 const LINK_GROUPS = LINK_PICKER_GROUPS.map(g => ({
   ...g,
   desc: g.id === 'basic' ? 'URLs, anchors, pages'
@@ -3238,6 +3242,20 @@ function BlockOverlayCanvas({
   )
 }
 
+function blockHasConfiguredLinks(block: WebsiteBlock): boolean {
+  const p = (block.props || {}) as Record<string, unknown>
+  if (String(p.block_link_url || '').trim()) return true
+  for (const key of ['cta_url', 'cta_primary_url', 'cta_secondary_url']) {
+    if (String(p[key] || '').trim()) return true
+  }
+  const social = p.social_links
+  if (social && typeof social === 'object') {
+    if (Object.values(social as Record<string, unknown>).some(v => String(v ?? '').trim())) return true
+  }
+  const overlays = Array.isArray(p.overlays) ? (p.overlays as BlockOverlayItem[]) : []
+  return overlays.some(o => !!(o.linkType && o.linkType !== 'none'))
+}
+
 /** Floating section chrome (reorder, duplicate, delete) ? can minimize to a hover ball. */
 function BuilderSectionChromeToolbar({
   block,
@@ -3248,14 +3266,10 @@ function BuilderSectionChromeToolbar({
   onMinimize,
   onTogglePin,
   positionClassName,
-  dsConnectedLabel,
-  dsSuggestedLabel,
-  onConnectSuggestedDataSource,
-  onOpenDataPanel,
+  onOpenLinksPanel,
   onMoveBlock,
   onDuplicate,
   onDelete,
-  onReorderPointerDown,
   onOpenLayoutPicker,
   onCycleLayout,
 }: {
@@ -3267,14 +3281,10 @@ function BuilderSectionChromeToolbar({
   onMinimize: () => void
   onTogglePin: () => void
   positionClassName: string
-  dsConnectedLabel: string | null
-  dsSuggestedLabel: string | null
-  onConnectSuggestedDataSource: () => void
-  onOpenDataPanel: () => void
+  onOpenLinksPanel: () => void
   onMoveBlock: (dir: 'top' | 'up' | 'down' | 'bottom') => void
   onDuplicate: () => void
   onDelete: () => void
-  onReorderPointerDown: (e: React.PointerEvent) => void
   onOpenLayoutPicker: () => void
   onCycleLayout: (dir: 'prev' | 'next') => void
 }) {
@@ -3298,12 +3308,7 @@ function BuilderSectionChromeToolbar({
 
   const showLayout = getSectionLayoutOptions(block.block_type).length > 0
   const iconBtn = 'p-1.5 text-gray-400 hover:text-white transition-colors'
-
-  const dataSourceTitle = dsConnectedLabel
-    ? `Connected to ${dsConnectedLabel} ? click to edit`
-    : dsSuggestedLabel
-      ? `Connect to ${dsSuggestedLabel}`
-      : 'Data source'
+  const hasLinks = blockHasConfiguredLinks(block)
 
   const toolbarBody = (
     <>
@@ -3319,17 +3324,6 @@ function BuilderSectionChromeToolbar({
       >
         <X className="w-6 h-6" />
       </button>
-      <div
-        role="button"
-        tabIndex={0}
-        onPointerDown={onReorderPointerDown}
-        onClick={e => e.stopPropagation()}
-        onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') e.stopPropagation() }}
-        title="Drag to move this section on the page (order only ? not the same as changing style)"
-        className="p-1.5 text-gray-400 hover:text-white cursor-grab active:cursor-grabbing touch-none select-none shrink-0"
-      >
-        <GripVertical className="w-7 h-7 pointer-events-none" />
-      </div>
       <button type="button" onClick={e => { e.stopPropagation(); onMoveBlock('top') }} className={iconBtn} title="Move section to top of page">
         <ChevronsUp className="w-7 h-7" />
       </button>
@@ -3342,28 +3336,6 @@ function BuilderSectionChromeToolbar({
       <button type="button" onClick={e => { e.stopPropagation(); onMoveBlock('bottom') }} className={iconBtn} title="Move section to bottom of page">
         <ChevronsDown className="w-7 h-7" />
       </button>
-      <button
-        type="button"
-        onClick={e => {
-          e.stopPropagation()
-          if (dsSuggestedLabel && !dsConnectedLabel) onConnectSuggestedDataSource()
-          else onOpenDataPanel()
-        }}
-        className={cn(
-          iconBtn,
-          'relative rounded-md shrink-0',
-          dsConnectedLabel && 'text-emerald-300 bg-emerald-500/20 ring-1 ring-emerald-400/30 hover:text-emerald-200 hover:bg-emerald-500/30',
-          dsSuggestedLabel && !dsConnectedLabel && 'text-amber-200 bg-accent/25 ring-1 ring-accent/40 hover:text-amber-100 hover:bg-accent/40',
-        )}
-        title={dataSourceTitle}
-      >
-        <Database className="w-7 h-7" />
-        {dsConnectedLabel ? (
-          <span className="absolute top-1 right-1 h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" aria-hidden />
-        ) : dsSuggestedLabel ? (
-          <span className="absolute top-1 right-1 h-1.5 w-1.5 rounded-full bg-amber-400" aria-hidden />
-        ) : null}
-      </button>
       {showLayout ? (
         <SectionLayoutControls
           block={block}
@@ -3373,6 +3345,24 @@ function BuilderSectionChromeToolbar({
           onCycleLayout={onCycleLayout}
         />
       ) : null}
+      <button
+        type="button"
+        onClick={e => {
+          e.stopPropagation()
+          onOpenLinksPanel()
+        }}
+        className={cn(
+          iconBtn,
+          'relative rounded-md shrink-0',
+          hasLinks && 'text-sky-300 bg-sky-500/20 ring-1 ring-sky-400/30 hover:text-sky-200 hover:bg-sky-500/30',
+        )}
+        title={hasLinks ? 'Section has links — open Links panel' : 'Link buttons & URLs (Links panel)'}
+      >
+        <Link2 className="w-7 h-7" />
+        {hasLinks ? (
+          <span className="absolute top-1 right-1 h-1.5 w-1.5 rounded-full bg-sky-400" aria-hidden />
+        ) : null}
+      </button>
       <button type="button" onClick={e => { e.stopPropagation(); onDuplicate() }} className={iconBtn} title="Duplicate (Ctrl+D)">
         <Copy className="w-7 h-7" />
       </button>
@@ -3542,8 +3532,9 @@ function sanitizeForApiJson<T>(value: T): T {
 }
 
 function blockPayloadForApi(block: WebsiteBlock) {
+  const props = sanitizeForApiJson(block.props ?? {})
   return {
-    props: sanitizeForApiJson(block.props ?? {}),
+    props,
     style_overrides: sanitizeForApiJson(block.style_overrides || {}),
     label: block.label,
     visible: block.visible,
@@ -4208,47 +4199,11 @@ function catalogColumnOptionsFor(blockType: string): number[] {
   return Array.from({ length: CATALOG_GRID_COLUMN_MAX - min + 1 }, (_, i) => min + i)
 }
 
-const CATALOG_GRID_NUM_INPUT =
-  'w-[4.5rem] shrink-0 px-2 py-1.5 border border-gray-300 rounded-md text-xs font-mono text-center bg-white text-gray-900 shadow-sm focus:outline-none focus:ring-2 focus:ring-primary/30'
-
 const CATALOG_CARD_STYLE_OPTIONS = [
   { id: 'default', label: 'Standard' },
   { id: 'compact', label: 'Compact' },
   { id: 'minimal', label: 'Minimal' },
 ] as const
-
-function CatalogGridScrollRow({ children }: { children: React.ReactNode }) {
-  return (
-    <div className="flex gap-1.5 overflow-x-auto scrollbar-none pb-0.5 -mx-0.5 px-0.5">
-      {children}
-    </div>
-  )
-}
-
-function CatalogGridChip({
-  active,
-  onClick,
-  children,
-}: {
-  active: boolean
-  onClick: () => void
-  children: React.ReactNode
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={cn(
-        'shrink-0 px-3 py-1.5 rounded-lg text-xs font-bold border transition-colors whitespace-nowrap',
-        active
-          ? 'bg-primary text-white border-primary shadow-sm'
-          : 'bg-white text-gray-700 border-gray-200 hover:border-primary/40',
-      )}
-    >
-      {children}
-    </button>
-  )
-}
 
 function CatalogGridSliderField({
   label,
@@ -4267,34 +4222,16 @@ function CatalogGridSliderField({
   suffix?: string
   onChange: (n: number) => void
 }) {
-  const clamp = (n: number) => Math.min(max, Math.max(min, n))
   return (
-    <div className="space-y-1.5">
-      <div className="flex items-center justify-between gap-2">
-        <span className="text-xs font-medium text-gray-600">{label}</span>
-        <div className="flex items-center gap-1 shrink-0">
-          <input
-            type="number"
-            min={min}
-            max={max}
-            step={step}
-            value={value}
-            onChange={e => onChange(clamp(Number(e.target.value) || min))}
-            className={CATALOG_GRID_NUM_INPUT}
-          />
-          {suffix ? <span className="text-xs text-gray-500 w-4">{suffix}</span> : null}
-        </div>
-      </div>
-      <BuilderStepSlider
-        value={value}
-        min={min}
-        max={max}
-        step={step}
-        onChange={onChange}
-        sliderClassName="h-2"
-        formatValue={v => `${v}${suffix ?? ''}`}
-      />
-    </div>
+    <PanelSliderRow
+      label={label}
+      value={value}
+      min={min}
+      max={max}
+      step={step}
+      unit={suffix}
+      onCommit={onChange}
+    />
   )
 }
 
@@ -4353,33 +4290,28 @@ function CatalogGridLayoutControls({
   }
 
   return (
-    <div className="bg-gray-50 rounded-xl p-3 space-y-4 border border-gray-100">
+    <div className="space-y-2">
       {config.showColumns && (
-      <div className="space-y-1.5">
+      <div className="space-y-1">
         <div className="flex items-center justify-between gap-2">
-          <span className="text-xs font-medium text-gray-600">Columns</span>
-          <div className="flex items-center gap-1 shrink-0">
-            <input
-              type="number"
-              min={colMin}
-              max={colMax}
-              step={1}
-              value={columns}
-              onChange={e => patch({ columns: Math.min(colMax, Math.max(colMin, Number(e.target.value) || colMin)) })}
-              className={CATALOG_GRID_NUM_INPUT}
-            />
-          </div>
+          <PanelFieldLabel>Columns</PanelFieldLabel>
+          <input
+            type="number"
+            min={colMin}
+            max={colMax}
+            step={1}
+            value={columns}
+            onChange={e => patch({ columns: Math.min(colMax, Math.max(colMin, Number(e.target.value) || colMin)) })}
+            className="w-9 rounded border border-border bg-background px-1.5 py-0.5 text-center text-[11px] font-semibold tabular-nums"
+          />
         </div>
-        <CatalogGridScrollRow>
+        <PanelChipScroll>
           {columnOptions.map(n => (
-            <CatalogGridChip key={n} active={columns === n} onClick={() => patch({ columns: n })}>
+            <PanelChip key={n} active={columns === n} onClick={() => patch({ columns: n })}>
               {n}
-            </CatalogGridChip>
+            </PanelChip>
           ))}
-        </CatalogGridScrollRow>
-        <p className="text-[11px] text-gray-400 leading-snug">
-          Swipe for more column counts. More columns = narrower cards.
-        </p>
+        </PanelChipScroll>
       </div>
       )}
 
@@ -4425,45 +4357,45 @@ function CatalogGridLayoutControls({
       />
 
       {config.showCardStyle && (
-      <div className="space-y-1.5">
-        <span className="text-xs font-medium text-gray-600 block">Card style</span>
-        <CatalogGridScrollRow>
+      <div className="space-y-1">
+        <PanelFieldLabel>Card style</PanelFieldLabel>
+        <PanelChipWrap>
           {CATALOG_CARD_STYLE_OPTIONS.map(opt => (
-            <CatalogGridChip
+            <PanelChip
               key={opt.id}
               active={cardStyle === opt.id}
               onClick={() => patch({ card_style: opt.id, compact: opt.id === 'compact' })}
             >
               {opt.label}
-            </CatalogGridChip>
+            </PanelChip>
           ))}
-        </CatalogGridScrollRow>
+        </PanelChipWrap>
       </div>
       )}
 
       {(config.showProductToggles || config.showServiceToggles) && (
-      <div className="space-y-1.5">
-        <span className="text-xs font-medium text-gray-600 block">Display options</span>
-        <CatalogGridScrollRow>
+      <div className="space-y-1">
+        <PanelFieldLabel>Display options</PanelFieldLabel>
+        <PanelChipWrap>
           {config.showProductToggles && (
             <>
-              <CatalogGridChip active={showBadges} onClick={() => patch({ show_badges: !showBadges })}>
+              <PanelChip active={showBadges} onClick={() => patch({ show_badges: !showBadges })}>
                 Badges
-              </CatalogGridChip>
-              <CatalogGridChip active={showStock} onClick={() => patch({ show_stock: !showStock })}>
+              </PanelChip>
+              <PanelChip active={showStock} onClick={() => patch({ show_stock: !showStock })}>
                 Stock label
-              </CatalogGridChip>
-              <CatalogGridChip active={showAddButton} onClick={() => patch({ show_add_button: !showAddButton })}>
+              </PanelChip>
+              <PanelChip active={showAddButton} onClick={() => patch({ show_add_button: !showAddButton })}>
                 Add button
-              </CatalogGridChip>
+              </PanelChip>
             </>
           )}
           {config.showServiceToggles && (
-            <CatalogGridChip active={showBookLink} onClick={() => patch({ show_book_link: !showBookLink })}>
+            <PanelChip active={showBookLink} onClick={() => patch({ show_book_link: !showBookLink })}>
               Book link
-            </CatalogGridChip>
+            </PanelChip>
           )}
-        </CatalogGridScrollRow>
+        </PanelChipWrap>
       </div>
       )}
     </div>
@@ -4696,67 +4628,42 @@ function SubItemEditor({
   return (
     <div className="space-y-3">
       {showLayoutSection && (
-      <div className="bg-gray-50 rounded-xl p-3 space-y-3 border border-gray-100">
-        <div className="text-xs font-bold text-gray-500 uppercase tracking-wide">Layout & Spacing</div>
+      <div className="space-y-2">
+        <PanelGroupEyebrow>Layout & spacing</PanelGroupEyebrow>
 
-        {/* Columns */}
         <div className="space-y-1">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-medium text-gray-600">Columns</span>
-            <span className="text-xs font-mono text-primary font-bold">{columns}</span>
+          <div className="flex items-center justify-between gap-2">
+            <PanelFieldLabel>Columns</PanelFieldLabel>
+            <span className="text-[11px] font-bold tabular-nums text-primary">{columns}</span>
           </div>
-          <div className="flex gap-1">
-            {[1,2,3,4,5,6].map(n => (
-              <button key={n}
-                onClick={() => onColumnsChange(n)}
-                className={cn('flex-1 py-1.5 rounded text-xs font-bold border transition-colors',
-                  columns === n ? 'bg-primary text-white border-primary' : 'bg-white text-gray-600 border-gray-200 hover:border-primary/40')}
-              >{n}</button>
+          <PanelChipWrap>
+            {[1, 2, 3, 4, 5, 6].map(n => (
+              <PanelChip key={n} active={columns === n} onClick={() => onColumnsChange(n)}>
+                {n}
+              </PanelChip>
             ))}
-          </div>
+          </PanelChipWrap>
         </div>
 
-        {/* Gap */}
-        <div className="space-y-1">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-medium text-gray-600">Gap between items</span>
-            <div className="flex items-center gap-1">
-              <input
-                type="number" min={0} max={80} step={4}
-                value={gap}
-                onChange={e => onGapChange(Math.max(0, Number(e.target.value)))}
-                className="w-12 px-1 py-0.5 border border-gray-200 rounded text-xs font-mono text-center focus:outline-none focus:ring-1 focus:ring-ring"
-              />
-              <span className="text-xs text-gray-400">px</span>
-            </div>
-          </div>
-          <BuilderStepSlider
-            value={gap}
-            min={0}
-            max={80}
-            step={4}
-            onChange={onGapChange}
-            formatValue={v => `${v}px`}
-            sliderClassName="h-1.5"
-          />
-        </div>
+        <PanelSliderRow
+          label="Gap between items"
+          value={gap}
+          min={0}
+          max={80}
+          step={4}
+          unit="px"
+          onCommit={onGapChange}
+        />
 
-        {/* Item size */}
-        <div className="space-y-1">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-medium text-gray-600">Card size</span>
-            <span className="text-xs font-mono text-primary font-bold">{itemSize}px</span>
-          </div>
-          <BuilderStepSlider
-            value={itemSize}
-            min={80}
-            max={480}
-            step={8}
-            onChange={onItemSizeChange}
-            formatValue={v => `${v}px`}
-            sliderClassName="h-1.5"
-          />
-        </div>
+        <PanelSliderRow
+          label="Card size"
+          value={itemSize}
+          min={80}
+          max={480}
+          step={8}
+          unit="px"
+          onCommit={onItemSizeChange}
+        />
       </div>
       )}
 
@@ -4977,7 +4884,7 @@ function PropsCollapsible({
     >
       <summary
         className={cn(
-          'list-none cursor-pointer flex items-center gap-2 px-3 py-2.5 transition-colors [&::-webkit-details-marker]:hidden',
+          'list-none cursor-pointer flex items-center gap-2 px-2.5 py-2 transition-colors [&::-webkit-details-marker]:hidden',
           accent ? 'hover:bg-primary/10' : builderPanelUi.collapsibleSummary,
         )}
       >
@@ -5011,7 +4918,7 @@ function PropsCollapsible({
           )}
         />
       </summary>
-      <div className="px-3 pb-3 pt-2.5 border-t border-border/60 bg-muted/20 space-y-3">
+      <div className={builderPanelUi.collapsibleBody}>
         {children}
       </div>
     </details>
@@ -5068,7 +4975,7 @@ function PropsAccordionSection({
         />
       </button>
       {open ? (
-        <div className="@container border-t border-border/60 bg-muted/20 px-2.5 pb-2.5 pt-2 space-y-2.5">
+        <div className={builderPanelUi.accordionBody}>
           {children}
         </div>
       ) : null}
@@ -5128,20 +5035,18 @@ function PropsInputRow({
       {onLink && (
         <div className="flex items-center gap-1.5 justify-end">
           <button
+            type="button"
             onMouseDown={e => {
               e.preventDefault()
               const rect = (e.currentTarget as HTMLElement).getBoundingClientRect()
               onLink({ x: rect.left, y: rect.bottom + 6 })
             }}
-            className={cn(
-              'flex items-center gap-0.5 px-1.5 py-0.5 rounded text-xs font-bold transition-all border',
-              linkTarget
-                ? 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100'
-                : 'bg-white text-gray-500 border-gray-200 hover:text-primary hover:border-primary/40 hover:bg-accent',
-            )}
+            className={builderLinkBtn(!!linkTarget, 'sm')}
             title={linkTarget ? `Linked to ${linkTarget}` : 'Insert link'}
           >
-            <Link2 className="w-3 h-3" />
+            <span className={builderLinkBtnIcon(!!linkTarget, 'sm')}>
+              <Link2 className="h-2.5 w-2.5" />
+            </span>
             {linkTarget ? 'Linked' : 'Link'}
           </button>
         </div>
@@ -5223,7 +5128,7 @@ function BlockBreakpointStyles({
               onClick={() => setBp(b)}
               className={cn('px-2 py-1 font-medium transition-colors', bp === b ? 'bg-primary text-white' : 'text-gray-500 hover:bg-gray-50')}
             >
-              {b === 'desktop' ? '??' : b === 'tablet' ? '??' : '??'}
+              {b === 'desktop' ? 'Desktop' : b === 'tablet' ? 'Tablet' : 'Mobile'}
             </button>
           ))}
         </div>
@@ -5675,7 +5580,6 @@ function SectionSpacingField({
   max,
   step,
   unit,
-  ticks,
   hint,
   onPreview,
   onCommit,
@@ -5686,52 +5590,54 @@ function SectionSpacingField({
   max: number
   step: number
   unit: string
-  ticks?: number[]
   hint?: string
   onPreview: (n: number) => void
   onCommit: (n: number) => void
 }) {
-  const clamp = (n: number) => Math.max(min, Math.min(max, n))
-
   return (
-    <div className="@container space-y-2.5">
-      <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1">
-        <span className="text-xs font-medium text-foreground">{label}</span>
-        <label className="flex shrink-0 items-center gap-1 rounded-md border border-border bg-background px-2 py-1">
-          <input
-            type="number"
-            min={min}
-            max={max}
-            step={step}
-            value={value}
-            onChange={e => onCommit(clamp(Number(e.target.value) || min))}
-            className="w-10 min-[240px]:w-11 bg-transparent text-xs font-semibold tabular-nums text-center text-foreground focus:outline-none"
-          />
-          <span className="text-[10px] font-medium text-muted-foreground">{unit}</span>
-        </label>
-      </div>
-      <BuilderStepSlider
-        aria-label={label}
-        value={value}
-        min={min}
-        max={max}
-        step={step}
-        showValue={false}
-        onInput={onPreview}
-        onChange={onCommit}
-        sliderClassName="h-1.5"
-        className="gap-1"
-      />
-      {ticks && ticks.length > 0 ? (
-        <div className="hidden min-[240px]:flex justify-between px-5">
-          {ticks.map(tick => (
-            <span key={tick} className="text-[9px] tabular-nums text-muted-foreground/70">
-              {tick}{unit}
-            </span>
-          ))}
-        </div>
-      ) : null}
-      {hint ? <p className={builderPanelUi.hint}>{hint}</p> : null}
+    <PanelSliderRow
+      label={label}
+      value={value}
+      min={min}
+      max={max}
+      step={step}
+      unit={unit}
+      hint={hint}
+      onPreview={onPreview}
+      onCommit={onCommit}
+    />
+  )
+}
+
+function SectionSpacingBreakpointTabs({
+  active,
+  onChange,
+}: {
+  active: DeviceMode
+  onChange: (bp: DeviceMode) => void
+}) {
+  const tabs: { id: DeviceMode; label: string; Icon: typeof Monitor }[] = [
+    { id: 'desktop', label: 'Desktop', Icon: Monitor },
+    { id: 'tablet', label: 'Tablet', Icon: Tablet },
+    { id: 'mobile', label: 'Phone', Icon: Smartphone },
+  ]
+  return (
+    <div className="flex rounded-md border border-border/50 bg-muted/20 p-0.5">
+      {tabs.map(({ id, label, Icon }) => (
+        <button
+          key={id}
+          type="button"
+          title={`Edit spacing for ${label}`}
+          onClick={() => onChange(id)}
+          className={cn(
+            'flex min-w-0 flex-1 items-center justify-center gap-1 rounded px-1.5 py-1 text-[10px] font-semibold transition-colors',
+            active === id ? 'bg-primary text-white' : 'text-muted-foreground hover:bg-muted/60',
+          )}
+        >
+          <Icon className="h-3 w-3 shrink-0" />
+          <span className="hidden truncate @[220px]:inline">{label}</span>
+        </button>
+      ))}
     </div>
   )
 }
@@ -5739,6 +5645,7 @@ function SectionSpacingField({
 function PropsEditor({
   block, onUpdate, onPreview, siteId, pages, onAddPage, onEditPropLink, themeColors,
   onOpenLayoutPicker, onCycleLayout, onSelectLayoutIndex, onArrayItemImageFocus,
+  previewDevice, onPreviewDeviceChange,
 }: {
   block: WebsiteBlock
   onUpdate: (props: Partial<BlockProps>) => void
@@ -5752,6 +5659,8 @@ function PropsEditor({
   onCycleLayout?: (direction: 'prev' | 'next') => void
   onSelectLayoutIndex?: (index: number) => void
   onArrayItemImageFocus?: (arrayKey: string, index: number, itemField: string) => void
+  previewDevice: DeviceMode
+  onPreviewDeviceChange?: (device: DeviceMode) => void
 }) {
   const p = block.props
   const showTileColors = TILE_COLOR_BLOCK_TYPES.has(block.block_type)
@@ -5762,26 +5671,33 @@ function PropsEditor({
     tile_border: `${themeColors.primary_color}33`,
   }
 
-  // Spacing sliders — effective padding matches canvas (props + style_overrides).
-  const effectiveSectionPadding = resolveBlockSectionPadding(block)
-  const [paddingTop, setPaddingTop] = useState<number>(effectiveSectionPadding.paddingTop)
-  const [paddingBottom, setPaddingBottom] = useState<number>(effectiveSectionPadding.paddingBottom)
-  const [sectionScale, setSectionScale] = useState<number>((p as any).section_scale ?? 1)
+  // Spacing sliders — effective values follow canvas device preview (desktop / tablet / phone).
+  const spacingBp = previewDevice
+  const effectiveSectionSpacing = resolveBlockSectionSpacing(block, spacingBp)
+  const [paddingTop, setPaddingTop] = useState<number>(effectiveSectionSpacing.paddingTop)
+  const [paddingBottom, setPaddingBottom] = useState<number>(effectiveSectionSpacing.paddingBottom)
+  const [sectionScale, setSectionScale] = useState<number>(effectiveSectionSpacing.sectionScale)
 
-  const pushSectionPadding = (patch: { padding_top?: number; padding_bottom?: number }, preview: boolean) => {
-    const cleared = stripSectionPaddingFromStyleOverrides(readRawBlockStyleOverrides(block))
-    const payload = { ...patch, style_overrides: cleared } as Partial<BlockProps>
+  const pushSectionSpacing = (
+    patch: { padding_top?: number; padding_bottom?: number; section_scale?: number },
+    preview: boolean,
+  ) => {
+    const merged = patchBreakpointSectionSpacing(block, spacingBp, patch)
+    const payload = {
+      ...merged.props,
+      style_overrides: merged.style_overrides,
+    } as Partial<BlockProps>
     if (preview) onPreview(payload)
     else onUpdate(payload)
   }
 
-  // Sync spacing when block changes
+  // Sync spacing when block or preview device changes
   useEffect(() => {
-    const eff = resolveBlockSectionPadding(block)
+    const eff = resolveBlockSectionSpacing(block, spacingBp)
     setPaddingTop(eff.paddingTop)
     setPaddingBottom(eff.paddingBottom)
-    setSectionScale((p as any).section_scale ?? 1)
-  }, [block.id, block.props, block.style_overrides, (p as any).section_scale])
+    setSectionScale(eff.sectionScale)
+  }, [block.id, block.props, block.style_overrides, spacingBp])
 
   const itemSchema = ITEM_SCHEMAS[block.block_type]
     ?? (block.block_type === 'features_alternating' ? ITEM_SCHEMAS.features : undefined)
@@ -5829,7 +5745,7 @@ function PropsEditor({
     </div>
   ) : isTeamBlock && isLiveTeamDataSource(p as Record<string, unknown>) && teamLiveItems.length > 0 ? (
     <div className="rounded-xl border border-gray-200 bg-gray-50 px-3 py-2.5 text-xs text-gray-600 leading-snug">
-      Using your custom member list. Disconnect Team in the Store data tab to pull from People again.
+      Using your custom member list. Re-add the section with live data off to pull from People again.
     </div>
   ) : undefined
 
@@ -5924,20 +5840,10 @@ function PropsEditor({
   )
 
   const bgStyleField = p.bg_style !== undefined && (
-    <div className="grid grid-cols-5 gap-1">
-        {['gradient','minimal','image','dark','split'].map(s => (
-          <button
-            key={s}
-            onClick={() => onUpdate({ bg_style: s as any })}
-            className={cn(
-              'py-1.5 text-xs font-bold rounded border transition-colors',
-              p.bg_style === s ? 'bg-primary text-white border-primary' : 'text-gray-500 border-gray-200 hover:border-primary/40'
-            )}
-          >
-            {s.charAt(0).toUpperCase() + s.slice(1)}
-          </button>
-        ))}
-    </div>
+    <PanelBgStylePicker
+      value={String(p.bg_style || 'minimal')}
+      onChange={id => onUpdate({ bg_style: id } as any)}
+    />
   )
 
   // Gradient presets (shown when bg_style=gradient)
@@ -6064,6 +5970,7 @@ function PropsEditor({
   })()
 
   const sectionSpacingPreview = [
+    previewDevice !== 'desktop' ? `${previewDevice}` : null,
     sectionScale !== 1 ? `${Math.round(sectionScale * 100)}% size` : null,
     `${paddingTop}px top`,
     `${paddingBottom}px bottom`,
@@ -6098,100 +6005,69 @@ function PropsEditor({
   const sectionBgFallback = themeColors.bg_color || '#ffffff'
   const sectionTextFallback = themeColors.text_color || '#111827'
 
-  const sectionColorField = (
-    key: 'bg_color_override' | 'text_color_override',
-    label: string,
-    fallback: string,
-    override: string | undefined,
-    compact = false,
-  ) => (
-    <div key={key} className={cn('flex items-center gap-2', compact && 'p-2.5 bg-gray-50/80 rounded-lg border border-gray-100')}>
-      <input
-        type="color"
-        value={override || fallback}
-        onChange={e => {
-          onPreview({ [key]: e.target.value } as any)
-          onUpdate({ [key]: e.target.value } as any)
-        }}
-        className={cn(
-          'rounded-lg border border-gray-200 cursor-pointer p-0.5 shrink-0',
-          compact ? 'w-8 h-8' : 'w-9 h-9',
-        )}
-      />
-      <div className="flex-1 min-w-0">
-        <div className="text-xs font-medium text-gray-700">{label}</div>
-        <div className={cn('text-gray-400 font-mono truncate', compact ? 'text-[10px]' : 'text-xs')}>
-          {override || 'Page default'}
-        </div>
-      </div>
-      {override != null && override !== '' && (
-        <button
-          type="button"
-          onClick={() => {
-            onPreview({ [key]: null } as any)
-            onUpdate({ [key]: null } as any)
-          }}
-          className="text-[10px] text-gray-400 hover:text-red-500 shrink-0"
-          title="Use page default"
-        >
-          Reset
-        </button>
-      )}
-    </div>
-  )
-
   const sectionAndCardColorsPanel = (
     <SectionPanelGroup
       title="Colors"
-      description="Section backdrop & text, plus tile and card tints inside this block. Page Edit sets defaults."
+      description="Section and card colors for this block."
     >
-      <div className="space-y-3">
-        <div className="space-y-2">
-          <p className="text-[10px] font-semibold uppercase tracking-wide text-gray-400">Section</p>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-            {sectionColorField('bg_color_override', 'Section background', sectionBgFallback, sectionBgOverride, true)}
-            {sectionColorField('text_color_override', 'Section text', sectionTextFallback, sectionTextOverride, true)}
-          </div>
+      <div className="space-y-2">
+        <PanelGroupEyebrow>Section</PanelGroupEyebrow>
+        <div className="grid grid-cols-1 @[240px]:grid-cols-2 gap-1.5">
+          <PanelColorRow
+            label="Section background"
+            hint="Section backdrop"
+            value={sectionBgOverride || sectionBgFallback}
+            fallback={sectionBgFallback}
+            onChange={c => {
+              onPreview({ bg_color_override: c } as any)
+              onUpdate({ bg_color_override: c } as any)
+            }}
+            onReset={sectionBgOverride ? () => {
+              onPreview({ bg_color_override: null } as any)
+              onUpdate({ bg_color_override: null } as any)
+            } : undefined}
+          />
+          <PanelColorRow
+            label="Section text"
+            hint="Section typography"
+            value={sectionTextOverride || sectionTextFallback}
+            fallback={sectionTextFallback}
+            onChange={c => {
+              onPreview({ text_color_override: c } as any)
+              onUpdate({ text_color_override: c } as any)
+            }}
+            onReset={sectionTextOverride ? () => {
+              onPreview({ text_color_override: null } as any)
+              onUpdate({ text_color_override: null } as any)
+            } : undefined}
+          />
         </div>
         {showTileColors && (
-          <div className="space-y-2 pt-1 border-t border-gray-100">
-            <p className="text-[10px] font-semibold uppercase tracking-wide text-gray-400">Cards & tiles</p>
-            <div className="grid grid-cols-2 gap-2">
+          <div className="space-y-1.5 border-t border-border/50 pt-2">
+            <PanelGroupEyebrow>Cards & tiles</PanelGroupEyebrow>
+            <div className="grid grid-cols-1 @[240px]:grid-cols-2 gap-1.5">
               {([
                 { key: 'tile_bg' as const, label: 'Card background', hint: 'Tile / card fill' },
                 { key: 'tile_accent' as const, label: 'Accent', hint: 'Highlights & top bar' },
                 { key: 'tile_text' as const, label: 'Card text', hint: 'Titles & body in cards' },
                 { key: 'tile_border' as const, label: 'Border', hint: 'Card outline' },
               ] as const).map(({ key, label, hint }) => (
-                <div key={key} className="flex items-center gap-2 p-2.5 bg-gray-50/80 rounded-lg border border-gray-100">
-                  <input
-                    type="color"
-                    value={tileColorSwatch((p as any)[key], tileSwatchDefaults[key])}
-                    onChange={e => onUpdate({ [key]: e.target.value } as any)}
-                    className="w-8 h-8 rounded-lg border border-gray-200 cursor-pointer p-0.5 shrink-0"
-                  />
-                  <div className="min-w-0">
-                    <div className="text-xs font-medium text-gray-700">{label}</div>
-                    <div className="text-[10px] text-gray-400 truncate">{hint}</div>
-                  </div>
-                  {(p as any)[key] && (
-                    <button
-                      type="button"
-                      onClick={() => onUpdate({ [key]: null } as any)}
-                      className="text-[10px] text-gray-400 hover:text-red-500 shrink-0"
-                      title="Use page default"
-                    >
-                      Reset
-                    </button>
-                  )}
-                </div>
+                <PanelColorRow
+                  key={key}
+                  label={label}
+                  hint={hint}
+                  value={tileColorSwatch((p as any)[key], tileSwatchDefaults[key])}
+                  fallback={tileSwatchDefaults[key]}
+                  onChange={c => onUpdate({ [key]: c } as any)}
+                  onReset={(p as any)[key] ? () => onUpdate({ [key]: null } as any) : undefined}
+                />
               ))}
             </div>
             {hasTileColorOverrides(p as BlockColorProps) && (
               <button
                 type="button"
                 onClick={() => onUpdate({ tile_bg: null, tile_accent: null, tile_text: null, tile_border: null } as any)}
-                className="text-xs text-red-400 hover:text-red-600"
+                className="text-[10px] font-semibold text-destructive/80 hover:text-destructive"
               >
                 Clear all card colors
               </button>
@@ -6203,9 +6079,9 @@ function PropsEditor({
   )
 
   const imageShapePicker = hasImageShape && (
-    <div className="space-y-2">
+    <div className="space-y-1.5">
       <p className={builderPanelUi.hint}>Applies to all cards in this section.</p>
-      <div className="grid grid-cols-3 gap-1.5">
+      <div className="grid grid-cols-4 @[260px]:grid-cols-5 gap-1">
         {IMAGE_SHAPE_OPTIONS.map(opt => {
           const active = String((p as any).image_shape ?? (block.block_type === 'team_grid' ? 'circle' : 'rounded')) === opt.value
           const previewClass = imageShapeRadiusClass(opt.value as ImageShape)
@@ -6213,19 +6089,20 @@ function PropsEditor({
             <button
               key={opt.value}
               type="button"
+              title={opt.label}
               onClick={() => {
                 onPreview({ image_shape: opt.value } as any)
                 onUpdate({ image_shape: opt.value } as any)
               }}
               className={cn(
-                'flex flex-col items-center gap-1.5 rounded-lg border px-1 py-2 text-xs font-semibold transition-colors',
+                'flex flex-col items-center gap-0.5 rounded-md border px-0.5 py-1 text-[9px] font-semibold leading-tight transition-colors',
                 active
                   ? 'border-primary bg-card text-primary shadow-sm'
                   : 'border-border bg-background text-muted-foreground hover:border-primary/40',
               )}
             >
-              <span className={cn('h-8 w-8 border border-primary/30 bg-primary/20', previewClass)} aria-hidden />
-              {opt.label}
+              <span className={cn('h-5 w-5 border border-primary/30 bg-primary/20', previewClass)} aria-hidden />
+              <span className="w-full truncate text-center">{opt.label}</span>
             </button>
           )
         })}
@@ -6242,7 +6119,7 @@ function PropsEditor({
 
       <SectionEditorRibbon tabs={ribbonTabs} active={editorTab} onChange={setEditorTab} />
 
-      <div className={cn(builderPanelUi.panelScroll, 'p-3 space-y-3 bg-muted/15')}>
+      <div className={cn(builderPanelUi.panelScroll, 'p-2 space-y-2 bg-muted/15')}>
         {editorTab === 'content' && (
           <>
       {commonFields}
@@ -6261,15 +6138,12 @@ function PropsEditor({
               const rect = (e.currentTarget as HTMLElement).getBoundingClientRect()
               onEditPropLink('block_link', { x: rect.left, y: rect.bottom + 6 })
             }}
-            className={cn(
-              'w-full py-2 rounded-lg border text-xs font-bold flex items-center justify-center gap-1.5 transition-colors',
-              (p as any).block_link_url
-                ? 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100'
-                : 'bg-white text-primary border-primary/30 hover:bg-accent',
-            )}
+            className={cn(builderLinkBtn(!!(p as any).block_link_url), 'w-full justify-center')}
             title={(p as any).block_link_url ? `Linked to ${(p as any).block_link_url}` : 'Insert block link'}
           >
-            <Link2 className="w-3.5 h-3.5" />
+            <span className={builderLinkBtnIcon(!!(p as any).block_link_url)}>
+              <Link2 className="h-2.5 w-2.5" />
+            </span>
             {(p as any).block_link_url ? `Linked: ${(p as any).block_link_url}` : 'Insert block link'}
           </button>
         </PropsCollapsible>
@@ -6465,7 +6339,7 @@ function PropsEditor({
         )}
 
         {editorTab === 'layout' && (
-          <div className="flex flex-col gap-2">
+          <div className="flex flex-col gap-1.5">
             {sectionLayoutCount > 0 && onOpenLayoutPicker && onCycleLayout ? (
               <PropsAccordionSection
                 id="style"
@@ -6545,6 +6419,10 @@ function PropsEditor({
               title="Section spacing"
               preview={sectionSpacingPreview}
             >
+              <SectionSpacingBreakpointTabs
+                active={previewDevice}
+                onChange={bp => onPreviewDeviceChange?.(bp)}
+              />
               <SectionSpacingField
                 label="Section size"
                 value={Math.round(sectionScale * 100)}
@@ -6552,22 +6430,21 @@ function PropsEditor({
                 max={200}
                 step={5}
                 unit="%"
-                ticks={[50, 100, 150, 200]}
-                hint="Scales text, images, and spacing together."
+                hint="Scales content and spacing for this device."
                 onPreview={v => {
                   const n = Number((v / 100).toFixed(2))
                   setSectionScale(n)
-                  onPreview({ section_scale: n } as any)
+                  pushSectionSpacing({ section_scale: n }, true)
                 }}
                 onCommit={v => {
                   const n = Number((v / 100).toFixed(2))
                   setSectionScale(n)
-                  onUpdate({ section_scale: n } as any)
+                  pushSectionSpacing({ section_scale: n }, false)
                 }}
               />
-              <div className="grid grid-cols-1 min-[260px]:grid-cols-2 gap-3 border-t border-border/50 pt-3">
+              <div className="space-y-2 border-t border-border/50 pt-2">
                 <SectionSpacingField
-                  label="Padding top"
+                  label="Top padding"
                   value={paddingTop}
                   min={0}
                   max={320}
@@ -6575,15 +6452,15 @@ function PropsEditor({
                   unit="px"
                   onPreview={n => {
                     setPaddingTop(n)
-                    pushSectionPadding({ padding_top: n }, true)
+                    pushSectionSpacing({ padding_top: n }, true)
                   }}
                   onCommit={n => {
                     setPaddingTop(n)
-                    pushSectionPadding({ padding_top: n }, false)
+                    pushSectionSpacing({ padding_top: n }, false)
                   }}
                 />
                 <SectionSpacingField
-                  label="Padding bottom"
+                  label="Bottom padding"
                   value={paddingBottom}
                   min={0}
                   max={320}
@@ -6591,11 +6468,11 @@ function PropsEditor({
                   unit="px"
                   onPreview={n => {
                     setPaddingBottom(n)
-                    pushSectionPadding({ padding_bottom: n }, true)
+                    pushSectionSpacing({ padding_bottom: n }, true)
                   }}
                   onCommit={n => {
                     setPaddingBottom(n)
-                    pushSectionPadding({ padding_bottom: n }, false)
+                    pushSectionSpacing({ padding_bottom: n }, false)
                   }}
                 />
               </div>
@@ -6672,7 +6549,7 @@ function PropsEditor({
 
       <SectionPanelGroup
         title="Section appearance"
-        description="Background treatment, shadow, and typography for this block."
+        description="Shadow and typography for this block."
       >
         <div className="space-y-2">
           {bgStyleField && (
@@ -6689,27 +6566,11 @@ function PropsEditor({
             title="Block shadow"
             preview={SHADOW_PRESETS.find(sh => sh.value === ((p as any).block_shadow ?? 'none'))?.label || 'None'}
           >
-            <div className="grid grid-cols-4 gap-1.5">
-              {SHADOW_PRESETS.map(sh => (
-                <button
-                  key={sh.label}
-                  onClick={() => {
-                    onPreview({ block_shadow: sh.value } as any)
-                    onUpdate({ block_shadow: sh.value } as any)
-                  }}
-                  title={sh.label}
-                  className={cn(
-                    'py-2 rounded-lg border text-xs font-bold transition-all text-center bg-white',
-                    ((p as any).block_shadow ?? 'none') === sh.value
-                      ? 'border-primary bg-accent text-primary'
-                      : 'border-gray-200 text-gray-500 hover:border-primary/40',
-                  )}
-                  style={{ boxShadow: sh.value === 'none' ? undefined : sh.value }}
-                >
-                  {sh.label}
-                </button>
-              ))}
-            </div>
+            <PanelShadowPresetPicker
+              value={String((p as any).block_shadow ?? 'none')}
+              onPreview={v => onPreview({ block_shadow: v } as any)}
+              onChange={v => onUpdate({ block_shadow: v } as any)}
+            />
           </PropsCollapsible>
           <PropsCollapsible
             title="Text & sizing"
@@ -6720,6 +6581,7 @@ function PropsEditor({
             }
           >
             <TypographyCompositionFields
+              compact
               fontSizePx={(p as any).font_size_px as number | undefined}
               onFontSizeChange={px => onUpdate({ font_size_px: px, text_scale: null } as any)}
               textCaseId={currentTextCaseMenuId(p as any)}
@@ -6802,7 +6664,7 @@ function PropsEditor({
           <label key={key} className="flex items-center gap-2 cursor-pointer">
             <input
               type="checkbox"
-              checked={(block as any)[key]}
+              checked={(block as any)[key] !== false}
               onChange={e => onUpdate({ [key]: e.target.checked } as any)}
               className="rounded accent-primary"
             />
@@ -6811,8 +6673,8 @@ function PropsEditor({
         ))}
 
         <BranchVisibilitySelector
-          visibleBranches={(block as any).visible_branches ?? null}
-          onChange={branches => onUpdate({ visible_branches: branches } as any)}
+          visibleBranches={((block.props ?? {}) as any)._visible_branches ?? null}
+          onChange={branches => onUpdate({ _visible_branches: branches } as any)}
         />
       </PropsCollapsible>
 
@@ -7039,446 +6901,6 @@ function PagePanel({
   )
 }
 
-// ?? Data Source Panel ?????????????????????????????????????????????????????????
-
-const DATA_SOURCE_ICONS: Record<string, React.ElementType> = {
-  products: Package,
-  services: Wrench,
-  testimonials: Quote,
-  team: Users,
-  kpis: BarChart3,
-  profile: Briefcase,
-  pages: Layout,
-  categories: List,
-  customers: Users,
-  orders: ShoppingCart,
-  bookings: Clock,
-  media: ImageIcon,
-  stores: StoreIcon,
-  external_api: Plug,
-}
-
-function DataSourcePanel({
-  siteId,
-  block,
-  onUpdate,
-}: {
-  siteId: string
-  block: WebsiteBlock | null
-  onUpdate: (ds: any) => void
-}) {
-  const ds = (block?.props as any)?.data_source || null
-  const normalizedDsType = normalizeSourceType(ds?.type)
-  const [apiUrl, setApiUrl] = useState(ds?.url || '')
-  const [apiMethod, setApiMethod] = useState(ds?.method || 'GET')
-  const [apiHeaders, setApiHeaders] = useState<{key:string;value:string}[]>(ds?.headers || [])
-  const [apiField, setApiField] = useState(ds?.data_field || '')
-  const [preview, setPreview] = useState<any[]>([])
-  const [loadingPreview, setLoadingPreview] = useState(false)
-  const [liveItems, setLiveItems] = useState<LiveItem[]>([])
-  const [loadingInternal, setLoadingInternal] = useState(false)
-  const [activeGroup, setActiveGroup] = useState<StoreContentGroup>('catalog')
-
-  // Live preview for the currently-connected internal source
-  useEffect(() => {
-    if (!siteId || !normalizedDsType || normalizedDsType === 'external_api') {
-      setLiveItems([])
-      return
-    }
-    refreshInternal()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [siteId, normalizedDsType])
-
-  useEffect(() => {
-    if (!block) return
-    const connectedGroup = getDataSourceGroup(normalizedDsType ?? undefined)
-    if (normalizedDsType) {
-      setActiveGroup(connectedGroup)
-      return
-    }
-    const rec = getRecommendedDataSources(block.block_type)
-    if (rec.length > 0) {
-      setActiveGroup(rec[0].group)
-    }
-  }, [block?.id, block?.block_type, normalizedDsType])
-
-  const refreshInternal = async () => {
-    if (!normalizedDsType || normalizedDsType === 'external_api') return
-    setLoadingInternal(true)
-    try {
-      const r = await websiteApi.getLive(siteId, normalizedDsType as LiveResource, { limit: 30 })
-      setLiveItems(r.items || [])
-    } catch { /* silently */ }
-    setLoadingInternal(false)
-  }
-
-  const handleSelectInternal = (sourceId: LiveResource) => {
-    onUpdate({ type: sourceId, selected_ids: [], auto: false })
-  }
-
-  const handleToggleItem = (id: string) => {
-    const current = ds?.selected_ids || []
-    const next = current.includes(id) ? current.filter((x: string) => x !== id) : [...current, id]
-    onUpdate({ ...ds, type: normalizedDsType, selected_ids: next })
-  }
-
-  const handleAutoConnect = () => {
-    if (!block) return
-    const suggestion = BLOCK_AUTO_SOURCE[block.block_type as string]
-    if (!suggestion) {
-      toast.info('No automatic source for this block. Pick one from the list below.')
-      return
-    }
-    onUpdate({ type: suggestion, auto: true })
-    toast.success(`Connected to ${DATA_SOURCES.find(s => s.id === suggestion)?.label || suggestion}`)
-  }
-
-  const handleTestApi = async () => {
-    if (!apiUrl) return
-    setLoadingPreview(true)
-    setPreview([])
-    try {
-      const headers: Record<string, string> = {}
-      apiHeaders.forEach(h => { if (h.key) headers[h.key] = h.value })
-      const resp = await fetch(apiUrl, { method: apiMethod, headers })
-      const json = await resp.json()
-      const items = apiField ? json[apiField] : (Array.isArray(json) ? json : [json])
-      setPreview((items || []).slice(0, 5))
-    } catch (e: any) {
-      toast.error('API test failed: ' + e.message)
-    }
-    setLoadingPreview(false)
-  }
-
-  const handleSaveApi = () => {
-    onUpdate({ type: 'external_api', url: apiUrl, method: apiMethod, headers: apiHeaders, data_field: apiField })
-    toast.success('Data source saved')
-  }
-
-  if (!block) {
-    return (
-      <div className="flex h-full min-h-0 flex-col items-center justify-center p-6 text-center text-gray-400">
-        <Database className="w-10 h-10 mb-3 opacity-30" />
-        <p className="text-sm font-medium">Select a section on the page</p>
-        <p className="text-xs mt-1">Then link it to your products, services, or other store content.</p>
-      </div>
-    )
-  }
-
-  // Recommended + grouped sources for this block type.
-  const recommended = getRecommendedDataSources(block.block_type)
-  const recommendedIds = new Set(recommended.map(s => s.id))
-  const sourcesInGroup = getDataSourcesForGroup(activeGroup)
-  const activeSource = DATA_SOURCES.find(s => s.id === normalizedDsType)
-  const canPickItems = activeSource?.selectable
-  const connectionRequired = BLOCK_REQUIRED_DATA_SOURCE.has(block.block_type)
-
-  const connectedLabel = normalizedDsType
-    ? DATA_SOURCES.find(s => s.id === normalizedDsType)?.label || normalizedDsType
-    : null
-
-  return (
-    <div className="flex h-full min-h-0 flex-col overflow-hidden">
-      {/* Header + connection */}
-      <div className="shrink-0 space-y-1.5 border-b border-border/60 bg-card px-3 py-2">
-        <div className="flex min-w-0 items-center gap-1.5">
-          <Database className="h-3.5 w-3.5 shrink-0 text-primary/80" />
-          <span className="shrink-0 text-[10px] font-bold text-foreground">Store data</span>
-          <span className="min-w-0 truncate text-[10px] text-muted-foreground">· {block.label || block.block_type}</span>
-        </div>
-
-        {BLOCK_AUTO_SOURCE[block.block_type as string] && !ds?.type && (
-          <button
-            type="button"
-            onClick={handleAutoConnect}
-            className="flex w-full items-center justify-center gap-1.5 rounded-md bg-gradient-to-r from-primary to-emerald-700 py-1.5 text-[10px] font-bold text-white hover:opacity-90"
-          >
-            <Zap className="h-3 w-3" />
-            Auto-connect {DATA_SOURCES.find(s => s.id === BLOCK_AUTO_SOURCE[block.block_type as string])?.label}
-          </button>
-        )}
-
-        {normalizedDsType && connectedLabel && (
-          <div className="flex min-w-0 items-center gap-1.5 rounded-md border border-emerald-200 bg-emerald-50 px-2 py-1">
-            <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-500" aria-hidden />
-            <span
-              className="min-w-0 flex-1 truncate text-[10px] font-semibold text-emerald-800"
-              title={ds.auto ? `Auto: ${connectedLabel}` : connectedLabel}
-            >
-              {connectedLabel}
-            </span>
-            <span className="shrink-0 text-[9px] font-medium tabular-nums text-emerald-600">{liveItems.length} live</span>
-            {!connectionRequired && (
-              <button
-                type="button"
-                onClick={() => onUpdate(null)}
-                className="shrink-0 text-[9px] font-semibold text-red-500 hover:text-red-700"
-              >
-                Off
-              </button>
-            )}
-          </div>
-        )}
-      </div>
-
-      {/* Group tabs */}
-      <div className="shrink-0 space-y-1 border-b border-border/60 bg-muted/25 px-3 py-1.5">
-        <StoreContentGroupTabs
-          activeGroup={activeGroup}
-          onGroupChange={setActiveGroup}
-          recommendedGroupIds={recommended.map(s => s.group)}
-          className="border-0 bg-transparent p-0"
-        />
-      </div>
-
-      <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-hidden p-3">
-        {activeGroup === 'portal' ? (
-          <p className="text-[10px] leading-snug text-muted-foreground">
-            Portal routes apply to <strong className="font-semibold text-foreground">buttons & links</strong> — use Visual → Link on the canvas.
-          </p>
-        ) : activeGroup === 'ext_api' ? (
-          <div className="flex min-h-0 flex-1 flex-col gap-1.5 overflow-hidden">
-            <div className="text-[9px] font-bold uppercase tracking-wide text-muted-foreground">External API</div>
-            <input
-              value={apiUrl}
-              onChange={e => setApiUrl(e.target.value)}
-              placeholder="https://api.example.com/products"
-              className="w-full rounded-md border border-border bg-background px-2 py-1.5 text-[11px]"
-            />
-            <div className="grid grid-cols-2 gap-1.5">
-              <select
-                value={apiMethod}
-                onChange={e => setApiMethod(e.target.value)}
-                className="rounded-md border border-border bg-background px-2 py-1.5 text-[11px]"
-              >
-                {['GET', 'POST'].map(m => <option key={m}>{m}</option>)}
-              </select>
-              <input
-                value={apiField}
-                onChange={e => setApiField(e.target.value)}
-                placeholder="data.items"
-                className="rounded-md border border-border bg-background px-2 py-1.5 text-[11px]"
-              />
-            </div>
-            {apiHeaders.map((h, i) => (
-              <div key={i} className="flex gap-1">
-                <input
-                  value={h.key}
-                  onChange={e => setApiHeaders(prev => prev.map((x, j) => j === i ? { ...x, key: e.target.value } : x))}
-                  placeholder="Key"
-                  className="min-w-0 flex-1 rounded border border-border px-1.5 py-1 text-[10px]"
-                />
-                <input
-                  value={h.value}
-                  onChange={e => setApiHeaders(prev => prev.map((x, j) => j === i ? { ...x, value: e.target.value } : x))}
-                  placeholder="Value"
-                  className="min-w-0 flex-1 rounded border border-border px-1.5 py-1 text-[10px]"
-                />
-                <button type="button" onClick={() => setApiHeaders(prev => prev.filter((_, j) => j !== i))} className="text-red-400 px-0.5">×</button>
-              </div>
-            ))}
-            <button
-              type="button"
-              onClick={() => setApiHeaders(prev => [...prev, { key: '', value: '' }])}
-              className="text-left text-[10px] font-semibold text-primary"
-            >
-              + Header
-            </button>
-            <div className="flex gap-1.5">
-              <button
-                type="button"
-                onClick={handleTestApi}
-                disabled={!apiUrl || loadingPreview}
-                className="flex flex-1 items-center justify-center gap-1 rounded-md border border-primary/30 py-1.5 text-[10px] font-medium text-primary disabled:opacity-50"
-              >
-                {loadingPreview ? <Loader2 className="h-3 w-3 animate-spin" /> : <Plug className="h-3 w-3" />}
-                Test
-              </button>
-              <button
-                type="button"
-                onClick={handleSaveApi}
-                disabled={!apiUrl}
-                className="flex-1 rounded-md bg-primary py-1.5 text-[10px] font-medium text-white disabled:opacity-50"
-              >
-                Save
-              </button>
-            </div>
-            {preview.length > 0 && (
-              <div className="min-h-0 max-h-24 space-y-0.5 overflow-y-auto rounded-md border border-border p-1">
-                {preview.map((item, i) => (
-                  <div key={i} className="truncate rounded bg-muted/50 px-1.5 py-0.5 font-mono text-[9px] text-muted-foreground">
-                    {JSON.stringify(item).slice(0, 60)}…
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        ) : sourcesInGroup.length > 0 ? (
-          <div
-            className={cn(
-              'grid shrink-0 gap-1',
-              sourcesInGroup.length <= 3 ? 'grid-cols-3' : 'grid-cols-2',
-            )}
-          >
-            {sourcesInGroup.map(source => {
-              const SourceIcon = DATA_SOURCE_ICONS[source.id] || Database
-              const isRec = recommendedIds.has(source.id)
-              const selected = normalizedDsType === source.id
-              return (
-                <button
-                  key={source.id}
-                  type="button"
-                  onClick={() => handleSelectInternal(source.id as LiveResource)}
-                  title={source.desc}
-                  className={cn(
-                    'relative flex min-w-0 flex-col items-center gap-0.5 rounded-lg border px-1 py-2 text-center transition-all',
-                    selected
-                      ? 'border-primary/50 bg-accent ring-1 ring-primary/20'
-                      : isRec
-                        ? 'border-emerald-100 bg-emerald-50/40 hover:border-primary/30 hover:bg-accent/60'
-                        : 'border-border bg-card hover:border-primary/25 hover:bg-muted/40',
-                  )}
-                >
-                  {selected ? (
-                    <Check className="absolute right-0.5 top-0.5 h-3 w-3 text-primary" aria-hidden />
-                  ) : null}
-                  <SourceIcon className={cn('h-4 w-4 shrink-0', selected || isRec ? 'text-primary' : 'text-muted-foreground')} />
-                  <span className="w-full truncate text-[10px] font-semibold leading-tight text-foreground">{source.label}</span>
-                  {isRec ? (
-                    <span className="text-[8px] font-bold uppercase tracking-wide text-emerald-700">Best</span>
-                  ) : (
-                    <span className="h-2.5" aria-hidden />
-                  )}
-                </button>
-              )
-            })}
-          </div>
-        ) : null}
-
-        {activeGroup !== 'ext_api' && activeGroup !== 'portal' && normalizedDsType && normalizedDsType !== 'external_api' && normalizedDsType !== 'profile' && (
-          <div className="flex shrink-0 items-center gap-2">
-            <label className="shrink-0 text-[9px] font-bold uppercase tracking-wide text-muted-foreground">
-              Limit
-            </label>
-            <input
-              type="number"
-              min={1}
-              max={50}
-              value={ds?.limit || 12}
-              onChange={e => onUpdate({
-                ...ds,
-                type: normalizedDsType,
-                limit: Math.max(1, Math.min(50, Number(e.target.value) || 12)),
-              })}
-              className="w-14 rounded-md border border-border bg-background px-2 py-1 text-[11px] tabular-nums"
-            />
-          </div>
-        )}
-
-        {activeGroup !== 'ext_api' && activeGroup !== 'portal' && canPickItems && (
-          <div className="flex min-h-0 flex-1 flex-col gap-1 overflow-hidden">
-            <div className="flex shrink-0 items-center justify-between gap-1">
-              <span className="text-[9px] font-bold uppercase tracking-wide text-muted-foreground">
-                Pick items
-                {(ds?.selected_ids?.length || 0) > 0
-                  ? ` (${ds.selected_ids.length})`
-                  : ' · all'}
-              </span>
-              <button
-                type="button"
-                onClick={refreshInternal}
-                className="inline-flex shrink-0 items-center gap-0.5 text-[9px] font-semibold text-primary hover:text-primary/80"
-              >
-                <RefreshCcw className="h-3 w-3" />
-                Refresh
-              </button>
-            </div>
-            {loadingInternal ? (
-              <div className="flex flex-1 items-center justify-center py-3">
-                <Loader2 className="h-4 w-4 animate-spin text-primary/80" />
-              </div>
-            ) : (
-              <div className="min-h-0 flex-1 space-y-0.5 overflow-y-auto rounded-md border border-border p-1">
-                {liveItems.map(item => (
-                  <label
-                    key={item.id}
-                    className="flex cursor-pointer items-center gap-1.5 rounded px-1 py-1 hover:bg-muted/50"
-                  >
-                    <input
-                      type="checkbox"
-                      checked={(ds?.selected_ids || []).includes(item.id)}
-                      onChange={() => handleToggleItem(item.id)}
-                      className="shrink-0 rounded text-primary"
-                    />
-                    {item.image_url ? (
-                      <img src={mediaUrl(item.image_url)} className="h-6 w-6 shrink-0 rounded object-cover" alt="" />
-                    ) : (
-                      <span className="h-6 w-6 shrink-0 rounded bg-muted" aria-hidden />
-                    )}
-                    <span className="min-w-0 flex-1 truncate text-[10px] font-medium text-foreground" title={item.title}>
-                      {item.title}
-                    </span>
-                    {item.price_formatted ? (
-                      <span className="shrink-0 text-[9px] tabular-nums text-muted-foreground">{item.price_formatted}</span>
-                    ) : null}
-                  </label>
-                ))}
-                {liveItems.length === 0 && (
-                  <p className="py-3 text-center text-[10px] text-muted-foreground">No items found</p>
-                )}
-              </div>
-            )}
-          </div>
-        )}
-
-        {activeGroup !== 'ext_api' && activeGroup !== 'portal' && !canPickItems && normalizedDsType && normalizedDsType !== 'external_api' && (
-          <div className="flex min-h-0 flex-1 flex-col gap-1 overflow-hidden">
-            <div className="flex shrink-0 items-center justify-between gap-1">
-              <span className="text-[9px] font-bold uppercase tracking-wide text-muted-foreground">Live preview</span>
-              <button
-                type="button"
-                onClick={refreshInternal}
-                className="inline-flex shrink-0 items-center gap-0.5 text-[9px] font-semibold text-primary"
-              >
-                <RefreshCcw className="h-3 w-3" />
-                Refresh
-              </button>
-            </div>
-            {loadingInternal ? (
-              <div className="flex flex-1 items-center justify-center py-3">
-                <Loader2 className="h-4 w-4 animate-spin text-primary/80" />
-              </div>
-            ) : (
-              <div className="min-h-0 flex-1 space-y-0.5 overflow-y-auto rounded-md border border-border p-1">
-                {liveItems.slice(0, 10).map(item => (
-                  <div key={item.id} className="flex items-center gap-1.5 rounded px-1 py-1">
-                    {item.image_url ? (
-                      <img src={mediaUrl(item.image_url)} className="h-6 w-6 shrink-0 rounded object-cover" alt="" />
-                    ) : null}
-                    <div className="min-w-0 flex-1">
-                      <div className="truncate text-[10px] font-medium text-foreground">{item.title}</div>
-                      {item.subtitle ? (
-                        <div className="truncate text-[9px] text-muted-foreground">{item.subtitle}</div>
-                      ) : null}
-                    </div>
-                    {item.rating != null ? (
-                      <div className="shrink-0 text-[9px] text-amber-500">{'★'.repeat(Math.min(5, item.rating))}</div>
-                    ) : null}
-                  </div>
-                ))}
-                {liveItems.length === 0 && (
-                  <p className="py-3 text-center text-[10px] text-muted-foreground">No items yet</p>
-                )}
-              </div>
-            )}
-          </div>
-        )}
-
-      </div>
-    </div>
-  )
-}
-
 /** Linkable CTA fields a section may expose (paired button text + url prop). */
 const SECTION_LINK_FIELDS: { propKey: string; urlKey: string; name: string }[] = [
   { propKey: 'cta_label', urlKey: 'cta_url', name: 'Button' },
@@ -7493,10 +6915,14 @@ type LinksPanelSelection =
   | { kind: 'prop'; key: string }
   | { kind: 'block' }
 
-function linksPanelRowClass(selected: boolean) {
+function linksPanelRowClass(selected: boolean, linked = false) {
   return cn(
-    'flex w-full items-center gap-2 rounded-lg border bg-card px-2.5 py-2 text-left transition-colors hover:border-primary/40 hover:bg-accent/40',
-    selected ? 'border-primary/50 bg-primary/5 ring-1 ring-primary/20' : 'border-border',
+    'flex w-full items-center gap-2 rounded-lg border px-2.5 py-2 text-left transition-colors cursor-pointer',
+    selected
+      ? 'border-primary/60 bg-primary/5 ring-1 ring-primary/20'
+      : linked
+        ? 'border-emerald-200 bg-emerald-50/50 hover:border-emerald-300 dark:border-emerald-900 dark:bg-emerald-950/30'
+        : 'border-border bg-card hover:border-primary/35 hover:bg-accent/40',
   )
 }
 
@@ -7572,57 +6998,93 @@ function SectionLinksPanel({
   const isPropSelected = (key: string) => selectedLink?.kind === 'prop' && selectedLink.key === key
   const isBlockSelected = selectedLink?.kind === 'block'
 
+  const totalLinks =
+    (blockLinked ? 1 : 0) +
+    linkableOverlays.filter(o => !!(o.linkType && o.linkType !== 'none')).length +
+    ctas.filter(f => String(p[f.urlKey] || '').trim()).length +
+    socialKeys.filter(k => String(socialLinks[k] || '').trim()).length
+
   return (
-    <div className="flex h-full min-h-0 flex-col overflow-y-auto p-3">
-      <div className="mb-2 flex items-center gap-1.5">
-        <Link2 className="h-3.5 w-3.5 shrink-0 text-primary/80" />
-        <span className="text-[11px] font-bold text-foreground">Links</span>
-        <span className="min-w-0 truncate text-[10px] text-muted-foreground">· {block.label || block.block_type}</span>
-        <button
-          type="button"
-          title={
-            selectedOverlay
-              ? (quickLinkActive ? `Linked: ${selectedOverlay.linkLabel || selectedOverlay.linkTarget || selectedOverlay.text}` : 'Link selected layer')
-              : (blockLinked ? `Section linked: ${blockLinkTarget}` : 'Link whole section')
-          }
-          onClick={openQuickLink}
-          className={cn(visualActionBtn(quickLinkActive ? 'link' : 'muted'), 'ml-auto h-7 w-7 shrink-0 px-0')}
-        >
-          <Link2 className="h-3 w-3 shrink-0" />
-        </button>
+    <div className="flex h-full min-h-0 flex-col">
+      {/* Panel header */}
+      <div className="shrink-0 border-b border-border bg-card px-3 py-2.5">
+        <div className="flex items-center gap-2">
+          <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-primary/10">
+            <Link2 className="h-3.5 w-3.5 text-primary" />
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-[11px] font-bold text-foreground">
+              {block.label || block.block_type}
+            </p>
+            <p className={cn('text-[10px]', totalLinks > 0 ? 'text-emerald-600 font-medium' : 'text-muted-foreground')}>
+              {totalLinks > 0 ? `${totalLinks} link${totalLinks !== 1 ? 's' : ''} configured` : 'No links configured yet'}
+            </p>
+          </div>
+          <button
+            type="button"
+            title={
+              selectedOverlay
+                ? (quickLinkActive ? `Linked: ${selectedOverlay.linkLabel || selectedOverlay.linkTarget || selectedOverlay.text}` : 'Link selected layer')
+                : (blockLinked ? `Section linked: ${blockLinkTarget}` : 'Link whole section')
+            }
+            onClick={openQuickLink}
+            className={builderLinkBtn(quickLinkActive)}
+          >
+            <span className={builderLinkBtnIcon(quickLinkActive)}>
+              <Link2 className="h-2.5 w-2.5" />
+            </span>
+            <span>{quickLinkActive ? 'Linked' : 'Link'}</span>
+          </button>
+        </div>
       </div>
 
-      <div className="space-y-3">
+      <div className="min-h-0 flex-1 overflow-y-auto p-3 space-y-4">
+
+        {/* How-to hint — only when nothing is linked yet */}
+        {totalLinks === 0 && (
+          <p className="text-[10px] text-muted-foreground/70 leading-snug px-0.5">
+            Click <span className="font-medium text-foreground/80">Link</span> above or <span className="font-medium text-foreground/80">Add</span> next to any element below.
+          </p>
+        )}
+
+        {/* Section link */}
         <div className="space-y-1.5">
-          <div className="text-[9px] font-bold uppercase tracking-wide text-muted-foreground">Section</div>
-          <div
-            role="button"
-            tabIndex={0}
-            onClick={() => onSelectBlockLink?.()}
-            onKeyDown={e => {
-              if (e.key === 'Enter' || e.key === ' ') {
-                e.preventDefault()
-                onSelectBlockLink?.()
-              }
-            }}
-            className={linksPanelRowClass(isBlockSelected)}
-          >
-            <Link2 className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-            <div className="min-w-0 flex-1">
-              <div className="truncate text-[11px] font-semibold text-foreground">Whole section</div>
-              <div className="truncate text-[10px] text-muted-foreground">
-                {blockLinked ? blockLinkTarget : 'Make entire section clickable'}
+          <p className="text-[9px] font-bold uppercase tracking-wide text-muted-foreground">Section</p>
+          {blockLinked ? (
+            <div
+              role="button"
+              tabIndex={0}
+              onClick={() => onSelectBlockLink?.()}
+              onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onSelectBlockLink?.() } }}
+              className={linksPanelRowClass(isBlockSelected, true)}
+            >
+              <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-emerald-100">
+                <Link2 className="h-3 w-3 text-emerald-700" />
               </div>
+              <div className="min-w-0 flex-1">
+                <div className="truncate text-[11px] font-semibold text-foreground">Whole section</div>
+                <div className="truncate text-[10px] text-emerald-700 font-medium">{blockLinkTarget}</div>
+              </div>
+              <button
+                type="button"
+                onClick={editProp('block_link')}
+                className="shrink-0 rounded-md border border-border bg-background px-2 py-0.5 text-[10px] font-semibold text-foreground hover:border-primary/40 hover:text-primary transition-colors"
+              >
+                Edit
+              </button>
             </div>
-            <button type="button" onClick={editProp('block_link')} className="shrink-0 rounded px-1 py-0.5 text-[10px] font-semibold text-primary hover:bg-primary/10">
-              Edit
-            </button>
-          </div>
+          ) : (
+            <div className="flex items-center gap-2 px-0.5 py-1">
+              <Link2 className="h-3 w-3 shrink-0 text-muted-foreground/40" />
+              <p className="text-[10px] text-muted-foreground/70">No link on this section</p>
+            </div>
+          )}
         </div>
 
+        {/* Canvas overlay layers */}
         {linkableOverlays.length > 0 && (
-          <div className="space-y-1.5">
-            <div className="text-[9px] font-bold uppercase tracking-wide text-muted-foreground">Canvas layers</div>
+          <div className="space-y-1">
+            <p className="text-[9px] font-bold uppercase tracking-wide text-muted-foreground">Canvas layers</p>
             {linkableOverlays.map(item => {
               const label = String(item.text || item.linkLabel || overlayLayerTypeLabel(String(item.type))).trim()
               const target = String(item.linkTarget || item.href || '').trim()
@@ -7633,23 +7095,25 @@ function SectionLinksPanel({
                   role="button"
                   tabIndex={0}
                   onClick={() => onSelectOverlay?.(item.id)}
-                  onKeyDown={e => {
-                    if (e.key === 'Enter' || e.key === ' ') {
-                      e.preventDefault()
-                      onSelectOverlay?.(item.id)
-                    }
-                  }}
-                  className={linksPanelRowClass(isOverlaySelected(item.id))}
+                  onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onSelectOverlay?.(item.id) } }}
+                  className="flex w-full items-center gap-2 px-0.5 py-1 rounded hover:bg-muted/30 transition-colors cursor-pointer"
                 >
-                  <Link2 className={cn('h-3.5 w-3.5 shrink-0', isLinked ? 'text-emerald-600' : 'text-muted-foreground')} />
+                  <Link2 className={cn('h-3 w-3 shrink-0', isLinked ? 'text-emerald-600' : 'text-muted-foreground/40')} />
                   <div className="min-w-0 flex-1">
-                    <div className="truncate text-[11px] font-semibold text-foreground">{label}</div>
-                    <div className="truncate text-[10px] text-muted-foreground">
-                      {isLinked ? (target || item.linkLabel || 'Connected') : 'No link — click to connect'}
-                    </div>
+                    <span className="text-[10px] font-semibold text-foreground">{label}</span>
+                    {isLinked && <span className="ml-1.5 text-[10px] text-emerald-600 font-medium truncate">{target || 'Connected'}</span>}
                   </div>
-                  <button type="button" onClick={editOverlay(item)} className="shrink-0 rounded px-1 py-0.5 text-[10px] font-semibold text-primary hover:bg-primary/10">
-                    Edit
+                  <button
+                    type="button"
+                    onClick={editOverlay(item)}
+                    className={cn(
+                      'shrink-0 rounded px-2 py-0.5 text-[10px] font-semibold transition-colors',
+                      isLinked
+                        ? 'text-emerald-700 hover:text-emerald-900'
+                        : 'text-primary hover:text-primary/70',
+                    )}
+                  >
+                    {isLinked ? 'Edit' : 'Add'}
                   </button>
                 </div>
               )
@@ -7657,76 +7121,94 @@ function SectionLinksPanel({
           </div>
         )}
 
+        {/* CTA buttons */}
         {ctas.length > 0 && (
-            <div className="space-y-1.5">
-              <div className="text-[9px] font-bold uppercase tracking-wide text-muted-foreground">Buttons</div>
-              {ctas.map(f => {
-                const text = String(p[f.propKey] || '').trim() || f.name
-                const target = String(p[f.urlKey] || '').trim()
-                return (
-                  <div
-                    key={f.propKey}
-                    role="button"
-                    tabIndex={0}
-                    onClick={() => onSelectPropLink?.(f.propKey)}
-                    onKeyDown={e => {
-                      if (e.key === 'Enter' || e.key === ' ') {
-                        e.preventDefault()
-                        onSelectPropLink?.(f.propKey)
-                      }
-                    }}
-                    className={linksPanelRowClass(isPropSelected(f.propKey))}
-                  >
-                    <Link2 className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-                    <div className="min-w-0 flex-1">
-                      <div className="truncate text-[11px] font-semibold text-foreground">{text}</div>
-                      <div className="truncate text-[10px] text-muted-foreground">
-                        {target || 'No link — click to connect'}
-                      </div>
-                    </div>
-                    <button type="button" onClick={editProp(f.propKey)} className="shrink-0 rounded px-1 py-0.5 text-[10px] font-semibold text-primary hover:bg-primary/10">
-                      Edit
-                    </button>
+          <div className="space-y-1">
+            <p className="text-[9px] font-bold uppercase tracking-wide text-muted-foreground">Buttons</p>
+            {ctas.map(f => {
+              const text = String(p[f.propKey] || '').trim() || f.name
+              const target = String(p[f.urlKey] || '').trim()
+              const isLinked = !!target
+              return (
+                <div
+                  key={f.propKey}
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => onSelectPropLink?.(f.propKey)}
+                  onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onSelectPropLink?.(f.propKey) } }}
+                  className="flex w-full items-center gap-2 px-0.5 py-1 rounded hover:bg-muted/30 transition-colors cursor-pointer"
+                >
+                  <Link2 className={cn('h-3 w-3 shrink-0', isLinked ? 'text-emerald-600' : 'text-muted-foreground/40')} />
+                  <div className="min-w-0 flex-1">
+                    <span className="text-[10px] font-semibold text-foreground">{text}</span>
+                    {isLinked && <span className="ml-1.5 text-[10px] text-emerald-600 font-medium truncate">{target}</span>}
                   </div>
-                )
-              })}
-            </div>
-          )}
+                  <button
+                    type="button"
+                    onClick={editProp(f.propKey)}
+                    className={cn(
+                      'shrink-0 rounded px-2 py-0.5 text-[10px] font-semibold transition-colors',
+                      isLinked
+                        ? 'text-emerald-700 hover:text-emerald-900'
+                        : 'text-primary hover:text-primary/70',
+                    )}
+                  >
+                    {isLinked ? 'Edit' : 'Add'}
+                  </button>
+                </div>
+              )
+            })}
+          </div>
+        )}
 
-          {socialKeys.length > 0 && (
-            <div className="space-y-1.5">
-              <div className="text-[9px] font-bold uppercase tracking-wide text-muted-foreground">Social links</div>
-              {socialKeys.map(platform => {
-                const target = String(socialLinks[platform] || '').trim()
-                return (
-                  <div
-                    key={platform}
-                    role="button"
-                    tabIndex={0}
-                    onClick={() => onSelectPropLink?.(`social_links.${platform}`)}
-                    onKeyDown={e => {
-                      if (e.key === 'Enter' || e.key === ' ') {
-                        e.preventDefault()
-                        onSelectPropLink?.(`social_links.${platform}`)
-                      }
-                    }}
-                    className={linksPanelRowClass(isPropSelected(`social_links.${platform}`))}
-                  >
-                    <ExternalLink className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-                    <div className="min-w-0 flex-1">
-                      <div className="truncate text-[11px] font-semibold capitalize text-foreground">{platform}</div>
-                      <div className="truncate text-[10px] text-muted-foreground">
-                        {target || 'Not set — click to add'}
-                      </div>
-                    </div>
-                    <button type="button" onClick={editProp(`social_links.${platform}`)} className="shrink-0 rounded px-1 py-0.5 text-[10px] font-semibold text-primary hover:bg-primary/10">
-                      Edit
-                    </button>
+        {/* Social links */}
+        {socialKeys.length > 0 && (
+          <div className="space-y-1">
+            <p className="text-[9px] font-bold uppercase tracking-wide text-muted-foreground">Social links</p>
+            {socialKeys.map(platform => {
+              const target = String(socialLinks[platform] || '').trim()
+              const isLinked = !!target
+              return (
+                <div
+                  key={platform}
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => onSelectPropLink?.(`social_links.${platform}`)}
+                  onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onSelectPropLink?.(`social_links.${platform}`) } }}
+                  className="flex w-full items-center gap-2 px-0.5 py-1 rounded hover:bg-muted/30 transition-colors cursor-pointer"
+                >
+                  <ExternalLink className={cn('h-3 w-3 shrink-0', isLinked ? 'text-emerald-600' : 'text-muted-foreground/40')} />
+                  <div className="min-w-0 flex-1">
+                    <span className="text-[10px] font-semibold capitalize text-foreground">{platform}</span>
+                    {isLinked && <span className="ml-1.5 text-[10px] text-emerald-600 font-medium truncate">{target}</span>}
                   </div>
-                )
-              })}
-            </div>
-          )}
+                  <button
+                    type="button"
+                    onClick={editProp(`social_links.${platform}`)}
+                    className={cn(
+                      'shrink-0 rounded px-2 py-0.5 text-[10px] font-semibold transition-colors',
+                      isLinked
+                        ? 'text-emerald-700 hover:text-emerald-900'
+                        : 'text-primary hover:text-primary/70',
+                    )}
+                  >
+                    {isLinked ? 'Edit' : 'Add'}
+                  </button>
+                </div>
+              )
+            })}
+          </div>
+        )}
+
+        {/* Empty state — nothing linkable on this block */}
+        {!blockLinked && linkableOverlays.length === 0 && ctas.length === 0 && socialKeys.length === 0 && (
+          <div className="flex flex-col items-center gap-2 rounded-xl border border-dashed border-border/50 bg-muted/10 px-4 py-5 text-center">
+            <Layers className="h-5 w-5 text-muted-foreground/30" />
+            <p className="text-[10px] text-muted-foreground/60 leading-snug">
+              No linkable elements — add a button or overlay in the canvas.
+            </p>
+          </div>
+        )}
       </div>
     </div>
   )
@@ -10415,14 +9897,19 @@ export default function WebsiteBuilder() {
   }, [])
 
   const handleCanvasNavClickCapture = useCallback((e: React.MouseEvent) => {
-    const anchor = (e.target as HTMLElement).closest('a[href]') as HTMLAnchorElement | null
+    const target = e.target as HTMLElement
+    const anchor = target.closest('a[href]') as HTMLAnchorElement | null
     if (!anchor || !canvasPreviewInnerRef.current?.contains(anchor)) return
-    const href = anchor.getAttribute('href')
-    if (!href || href.startsWith('http') || href.startsWith('mailto:') || href.startsWith('tel:') || href.startsWith('#')) return
     e.preventDefault()
     e.stopPropagation()
-    handleNavigateBuilderPage(href)
-  }, [handleNavigateBuilderPage])
+    const blockRoot = anchor.closest('[data-block-id]') as HTMLElement | null
+    const id = blockRoot?.getAttribute('data-block-id')
+    if (id) {
+      setSelectedBlockId(id)
+      setRightPanel('links')
+      setRightCollapsed(false)
+    }
+  }, [])
 
   const handlePageStyleChange = useCallback((pageId: string, patch: PageStyleOverrides) => {
     setLocalStyle(prev => {
@@ -10683,9 +10170,22 @@ export default function WebsiteBuilder() {
       const block = blocks.find(b => b.id === blockId)
       if (!block) return prev
       const mergedProps = { ...block.props, ...propsUpdate }
+      const topLevel: Partial<WebsiteBlock> = {}
+      const TOP_KEYS = [
+        'visible', 'visible_on_mobile', 'visible_on_tablet', 'visible_on_desktop',
+        'animation', 'animation_delay', 'style_overrides',
+      ] as const
+      TOP_KEYS.forEach(k => {
+        if (k in propsUpdate) {
+          (topLevel as any)[k] = (propsUpdate as any)[k]
+          delete (mergedProps as any)[k]
+        }
+      })
       return {
         ...prev,
-        [pageId]: blocks.map(b => b.id === blockId ? { ...b, props: mergedProps } : b),
+        [pageId]: blocks.map(b =>
+          b.id === blockId ? { ...b, props: mergedProps, ...topLevel } : b,
+        ),
       }
     })
   }, [activePageId])
@@ -11443,7 +10943,7 @@ export default function WebsiteBuilder() {
 
   const applySectionPaddingPatch = useCallback((
     blockId: string,
-    patch: { padding_top?: number; padding_bottom?: number },
+    patch: { padding_top?: number; padding_bottom?: number; section_scale?: number },
     persist: boolean,
   ) => {
     const pages = localPagesRef.current
@@ -11451,13 +10951,14 @@ export default function WebsiteBuilder() {
     if (!pageId) return
     const block = (localBlocksRef.current[pageId] || []).find(b => b.id === blockId)
     if (!block) return
+    const merged = patchBreakpointSectionSpacing(block, device, patch)
     const update = {
-      ...patch,
-      style_overrides: stripSectionPaddingFromStyleOverrides(readRawBlockStyleOverrides(block)),
+      ...merged.props,
+      style_overrides: merged.style_overrides,
     } as Partial<BlockProps>
     if (persist) handleUpdateBlockProps(blockId, update)
     else handlePreviewBlockProps(blockId, update)
-  }, [activePageId, handleUpdateBlockProps, handlePreviewBlockProps])
+  }, [activePageId, device, handleUpdateBlockProps, handlePreviewBlockProps])
 
   const handleCanvasTextFieldCommit = useCallback((blockId: string, fieldKey: string, value: string) => {
     const pageId = findPageIdForBlock(localBlocksRef.current, localPagesRef.current, blockId, activePageId)
@@ -12395,7 +11896,6 @@ export default function WebsiteBuilder() {
     const suggested = BLOCK_AUTO_SOURCE[block.block_type as string]
     const rawDs = (block.props as any)?.data_source
     const dsType = normalizeSourceType(rawDs?.type)
-    const dsLabel = dsType ? DATA_SOURCES.find(s => s.id === dsType)?.label : null
     const actions: ContextMenuAction[] = [
       {
         id: 'props',
@@ -12425,25 +11925,15 @@ export default function WebsiteBuilder() {
         icon: Layout,
         onSelect: () => openLayoutPickerForBlock(block),
       }] : []),
-      dsType ? {
-        id: 'data',
-        label: `Connected ? ${dsLabel}`,
-        icon: Database,
-        onSelect: () => { setRightPanel('props'); setRightCollapsed(false) },
-      } : (suggested ? {
+      ...(suggested && !dsType ? [{
         id: 'connect',
-        label: `? Connect to ${DATA_SOURCES.find(s => s.id === suggested)?.label}`,
+        label: `Connect to ${DATA_SOURCES.find(s => s.id === suggested)?.label}`,
         icon: Plug,
         onSelect: () => {
           handleUpdateBlockProps(block.id, { data_source: { type: suggested, auto: true } } as any)
           toast.success(`Connected to ${DATA_SOURCES.find(s => s.id === suggested)?.label}`)
         },
-      } : {
-        id: 'data-picker',
-        label: 'Connect to live data?',
-        icon: Database,
-        onSelect: () => { setRightPanel('props'); setRightCollapsed(false) },
-      }),
+      }] : []),
       { id: 'div1', label: '', divider: true },
       {
         id: 'media',
@@ -13891,14 +13381,6 @@ export default function WebsiteBuilder() {
     }
   }, [siteId, site, myVendor, localPages, localBlocks, localStyle, activePage, siteTestUrl])
 
-  // Update data source on selected block
-  const handleUpdateDataSource = useCallback((ds: any) => {
-    if (!selectedBlockId || !activePageId) return
-    const block = (localBlocks[activePageId] || []).find(b => b.id === selectedBlockId)
-    if (!block) return
-    handleUpdateBlockProps(selectedBlockId, { data_source: ds } as any)
-  }, [selectedBlockId, activePageId, localBlocks, handleUpdateBlockProps])
-
   // Device widths + canvas fit/zoom
   const designWidthPx = customDeviceWidths[device]
   const [canvasFitScale, setCanvasFitScale] = useState(1)
@@ -14046,8 +13528,6 @@ export default function WebsiteBuilder() {
     )
   }
 
-  const connectableBlocks = activeBlocks.filter(b => BLOCK_AUTO_SOURCE[b.block_type as string])
-  const disconnectedBlocks = connectableBlocks.filter(b => !normalizeSourceType((b.props as any)?.data_source?.type))
   const builderModalOpen = Boolean(
     sectionLayoutPicker
     || linkEditor
@@ -15632,6 +15112,7 @@ export default function WebsiteBuilder() {
                   siteName={site?.name}
                   businessProfile={builderBusinessProfile}
                   previewStore={builderPreviewStore}
+                  previewBreakpoint={device}
                   onNavigate={handleNavigateBuilderPage}
                   activePageSlug={activePage?.slug ?? null}
                   activePageIsHomepage={Boolean(activePage?.is_homepage)}
@@ -15716,35 +15197,16 @@ export default function WebsiteBuilder() {
                               ? 'opacity-100'
                               : 'opacity-0 group-hover:opacity-100',
                           )}
-                          dsConnectedLabel={(() => {
-                            const rawDs = (block.props as Record<string, unknown>)?.data_source
-                            const dsType = normalizeSourceType((rawDs as { type?: string })?.type)
-                            return dsType ? DATA_SOURCES.find(s => s.id === dsType)?.label ?? null : null
-                          })()}
-                          dsSuggestedLabel={(() => {
-                            const rawDs = (block.props as Record<string, unknown>)?.data_source
-                            const dsType = normalizeSourceType((rawDs as { type?: string })?.type)
-                            const suggested = BLOCK_AUTO_SOURCE[block.block_type as string]
-                            if (dsType || !suggested) return null
-                            return DATA_SOURCES.find(s => s.id === suggested)?.label ?? null
-                          })()}
-                          onConnectSuggestedDataSource={() => {
-                            const suggested = BLOCK_AUTO_SOURCE[block.block_type as string]
-                            if (!suggested) return
-                            handleUpdateBlockProps(block.id, { data_source: { type: suggested, auto: true } } as BlockProps)
-                            toast.success(`Connected to ${DATA_SOURCES.find(s => s.id === suggested)?.label}`)
-                          }}
-                          onOpenDataPanel={() => {
-                            setSelectedBlockId(block.id)
-                            setRightPanel('props')
-                            setRightCollapsed(false)
-                          }}
                           onMoveBlock={dir => handleMoveBlock(block.id, dir)}
                           onDuplicate={() => handleDuplicateBlock(block.id)}
                           onDelete={() => confirmDeleteBlock(block.id)}
-                          onReorderPointerDown={e => handleBlockReorderPointerDown(e, idx)}
                           onOpenLayoutPicker={() => openLayoutPickerForBlock(block)}
                           onCycleLayout={dir => { void cycleBlockLayout(block, dir) }}
+                          onOpenLinksPanel={() => {
+                            setSelectedBlockId(block.id)
+                            setRightPanel('links')
+                            setRightCollapsed(false)
+                          }}
                         />
 
                         {selectedBlockId === block.id && (
@@ -15810,9 +15272,22 @@ export default function WebsiteBuilder() {
                           onRequestText={block.id === selectedBlockId ? openTextPrompt : undefined}
                         />
 
-                        {selectedBlockId === block.id && (() => {
-                          const { paddingTop, paddingBottom } = resolveBlockSectionPadding(block)
+                        {(() => {
+                          const sectionResizeActive =
+                            selectedBlockId === block.id || hoveredBlockId === block.id
+                          const inlineEditingThisBlock = inlineTextEdit?.blockId === block.id
+                          const suppressSectionResizeChrome =
+                            builderModalOpen
+                            || Boolean(canvasImageStyleField(canvasImageTarget, block.id))
+                            || inlineEditingThisBlock
+                            || (overlayImageTarget?.blockId === block.id && overlayImageTarget?.overlayId)
+
+                          if (!sectionResizeActive || suppressSectionResizeChrome) return null
+
+                          const sectionSpacing = resolveBlockSectionSpacing(block, device)
+                          const { paddingTop, paddingBottom } = sectionSpacing
                           return (
+                          <>
                           <BuilderSectionPaddingHandles
                             blockId={block.id}
                             containerRef={builderPageRootRef}
@@ -15821,21 +15296,32 @@ export default function WebsiteBuilder() {
                             paddingTop={paddingTop}
                             paddingBottom={paddingBottom}
                             canvasScale={effectiveCanvasScale}
-                            suppressed={
-                              builderModalOpen
-                              || Boolean(canvasImageStyleField(canvasImageTarget, block.id))
-                              || activeTextTarget?.blockId === block.id
-                            }
+                            suppressed={false}
                             onPaddingPreview={patch => applySectionPaddingPatch(block.id, patch, false)}
                             onPaddingCommit={patch => applySectionPaddingPatch(block.id, patch, true)}
                           />
+                          <SectionSizeControl
+                            blockId={block.id}
+                            containerRef={builderPageRootRef}
+                            scrollRootRef={canvasMainRef}
+                            scale={sectionSpacing.sectionScale}
+                            canvasScale={effectiveCanvasScale}
+                            onPreview={next => applySectionPaddingPatch(block.id, { section_scale: next }, false)}
+                            onCommit={next => applySectionPaddingPatch(block.id, { section_scale: next }, true)}
+                            onActivate={() => {
+                              setSelectedBlockId(block.id)
+                              setRightPanel('props')
+                              setRightCollapsed(false)
+                            }}
+                          />
+                          </>
                           )
                         })()}
 
                         {selectedBlockId === block.id
                           && Number((block.props as Record<string, unknown>).min_height ?? 0) > 0
                           && !canvasImageStyleField(canvasImageTarget, block.id)
-                          && activeTextTarget?.blockId !== block.id && (
+                          && inlineTextEdit?.blockId !== block.id && (
                           <div
                             data-section-min-height-handle
                             title="Minimum section height (not padding) — drag or clear in Layout → More"
@@ -15864,21 +15350,6 @@ export default function WebsiteBuilder() {
                           </div>
                         )}
 
-                        {selectedBlockId === block.id
-                          && !canvasImageStyleField(canvasImageTarget, block.id)
-                          && activeTextTarget?.blockId !== block.id
-                          && !(overlayImageTarget?.blockId === block.id && overlayImageTarget?.overlayId)
-                          && !builderModalOpen && (
-                          <SectionSizeControl
-                            blockId={block.id}
-                            containerRef={builderPageRootRef}
-                            scrollRootRef={canvasMainRef}
-                            scale={Number((block.props as Record<string, unknown>).section_scale ?? 1) || 1}
-                            canvasScale={effectiveCanvasScale}
-                            onPreview={next => handlePreviewBlockProps(block.id, { section_scale: next } as BlockProps)}
-                            onCommit={next => handleUpdateBlockProps(block.id, { section_scale: next } as BlockProps)}
-                          />
-                        )}
                       </BuilderSectionOverlay>
                     ))}
                   </div>
@@ -16117,7 +15588,7 @@ export default function WebsiteBuilder() {
                   { id: 'props' as const, icon: Settings2, label: 'Section Edit', hint: 'Text, colors, and layout for the selected section' },
                   { id: 'page' as const, icon: FileText, label: 'Page Edit', hint: 'Page-wide colors and fonts (switch pages in the left Pages panel)' },
                   { id: 'links' as const, icon: Link2, label: 'Links', hint: 'Connect this section’s buttons to pages, products, or any URL' },
-                  { id: 'style' as const, icon: Palette, label: 'Style', hint: 'Site fonts and colors' },
+                  { id: 'style' as const, icon: Palette, label: 'Template Style', hint: 'Site fonts and colors' },
                 ] as const).map(({ id, icon: Icon, label, hint }) => (
                   <button
                     key={id}
@@ -16158,6 +15629,8 @@ export default function WebsiteBuilder() {
                         surface_color: canvasStyle.surface_color || '#f9fafb',
                         bg_color: canvasStyle.bg_color || '#ffffff',
                       }}
+                      previewDevice={device}
+                      onPreviewDeviceChange={setDevice}
                     />
                   ) : (
                     <div className="p-4 space-y-4">

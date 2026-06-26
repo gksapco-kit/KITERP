@@ -1,3 +1,33 @@
+import { cn } from '@/lib/utils'
+
+/** Panel "Link" CTA — connect fields, layers, or sections to URLs. */
+export function builderLinkBtn(linked = false, size: 'sm' | 'md' = 'md') {
+  const sizeCls =
+    size === 'sm'
+      ? 'gap-1 rounded-lg px-2 py-1 text-[9px]'
+      : 'gap-1.5 rounded-xl px-2.5 py-1.5 text-[10px]'
+  return cn(
+    'group relative inline-flex shrink-0 items-center font-semibold shadow-sm transition-all duration-200',
+    'hover:-translate-y-px hover:shadow-md active:translate-y-0 active:shadow-sm',
+    'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-1',
+    sizeCls,
+    linked
+      ? 'border border-emerald-300/70 bg-emerald-50/95 text-emerald-700 shadow-emerald-500/10 hover:border-emerald-400 hover:bg-emerald-100 focus-visible:ring-emerald-400/40'
+      : 'border border-primary/25 bg-gradient-to-br from-primary/[0.08] via-background to-primary/[0.03] text-primary shadow-primary/5 hover:border-primary/45 hover:from-primary/[0.12] hover:via-primary/[0.05] focus-visible:ring-primary/35',
+  )
+}
+
+export function builderLinkBtnIcon(linked = false, size: 'sm' | 'md' = 'md') {
+  const box = size === 'sm' ? 'h-3.5 w-3.5 rounded' : 'h-4 w-4 rounded-md'
+  return cn(
+    'flex shrink-0 items-center justify-center transition-colors',
+    box,
+    linked
+      ? 'bg-emerald-500/15 text-emerald-600'
+      : 'bg-primary/10 text-primary group-hover:bg-primary/15',
+  )
+}
+
 /** Builder side panels / menus — semantic tokens for light, dark, and all KIT themes. */
 export const builderPanelUi = {
   shell: 'border-border bg-card text-foreground',
@@ -6,7 +36,10 @@ export const builderPanelUi = {
   eyebrow: 'text-[10px] font-bold uppercase tracking-wide text-muted-foreground',
   title: 'text-xs font-bold text-foreground',
   label: 'text-xs font-medium text-foreground',
-  hint: 'text-[10px] leading-snug text-muted-foreground',
+  hint: 'text-[9px] leading-snug text-muted-foreground',
+  /** Accordion / collapsible expanded body — slim, no inner scroll. */
+  accordionBody: '@container border-t border-border/60 bg-muted/20 px-2 pb-2 pt-1.5 space-y-2',
+  collapsibleBody: 'border-t border-border/60 bg-muted/20 px-2.5 pb-2 pt-1.5 space-y-2',
   hintXs: 'text-xs text-muted-foreground',
   mono: 'text-xs text-muted-foreground font-mono',
   mutedSurface: 'rounded-lg border border-border bg-muted/40',

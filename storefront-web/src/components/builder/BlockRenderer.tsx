@@ -32,8 +32,10 @@ import { blockShadowIsActive, resolveBlockBoxShadow } from '@/lib/blockSectionSt
 import { buildFieldStylesCss, sectionTransformStyle } from '@/lib/fieldTextStyles'
 import { getBlockScrollAnimationClass } from '@/lib/builderScrollAnimations'
 import {
+  buildResponsiveSectionSpacingCss,
   mergeBlockSectionStyles,
   readRawBlockStyleOverrides,
+  resolveBlockSectionSpacing,
   resolveBreakpointStyleOverrides,
 } from '@/lib/blockStyleOverrides'
 
@@ -383,11 +385,20 @@ export function SingleBlock({
   const bottomShape = typeof p.bottom_shape === 'string' ? p.bottom_shape : undefined
   const shapeColor = (typeof p.shape_color === 'string' && p.shape_color) || style.surface_color || style.bg_color || '#ffffff'
   const hasShape = (topShape && topShape !== 'none') || (bottomShape && bottomShape !== 'none')
+  const sfBid = `sf${block.id.replace(/-/g, '')}`
   const rawStyleOverrides = readRawBlockStyleOverrides(block)
-  const resolvedOverrides = resolveBreakpointStyleOverrides(rawStyleOverrides)
+  const previewBreakpoint = isEditorCanvas
+    ? (builderCanvas?.previewBreakpoint ?? 'desktop')
+    : 'desktop'
+  const resolvedOverrides = resolveBreakpointStyleOverrides(rawStyleOverrides, previewBreakpoint)
+  const sectionSpacing = resolveBlockSectionSpacing(block, previewBreakpoint)
+  const responsiveSpacingCss = !isEditorCanvas
+    ? buildResponsiveSectionSpacingCss(sfBid, block)
+    : ''
+  const useResponsiveSpacingCss = responsiveSpacingCss.length > 0
   const sectionStyles = mergeBlockSectionStyles(p, resolvedOverrides)
-  const paddingTop = sectionStyles.paddingTop
-  const paddingBottom = sectionStyles.paddingBottom
+  const paddingTop = useResponsiveSpacingCss && !isEditorCanvas ? 0 : sectionSpacing.paddingTop
+  const paddingBottom = useResponsiveSpacingCss && !isEditorCanvas ? 0 : sectionSpacing.paddingBottom
   const blockShadow = resolveBlockBoxShadow(p)
   const hasBlockShadow = blockShadowIsActive(p)
   const overlays = (Array.isArray(p.overlays) ? p.overlays : []) as BlockOverlayItem[]
@@ -402,11 +413,11 @@ export function SingleBlock({
   // Whole-section size — scales the section AND everything inside it (text, media,
   // padding) while still reflowing layout (unlike transform: scale, which would
   // leave gaps/overlap). `zoom` is the only CSS that grows the section's footprint.
-  const sectionScaleRaw = p.section_scale as number | undefined
-  const sectionScale =
-    typeof sectionScaleRaw === 'number' && Number.isFinite(sectionScaleRaw) && sectionScaleRaw > 0 && sectionScaleRaw !== 1
-      ? Math.min(2, Math.max(0.5, sectionScaleRaw))
-      : undefined
+  const sectionScale = (() => {
+    if (useResponsiveSpacingCss && !isEditorCanvas) return undefined
+    const s = sectionSpacing.sectionScale
+    return s !== 1 ? s : undefined
+  })()
 
   const wrapperStyle: CSSProperties = {}
   if (block.animation_delay) wrapperStyle.animationDelay = `${block.animation_delay}ms`
@@ -420,7 +431,6 @@ export function SingleBlock({
   if (blockShadow) wrapperStyle.boxShadow = blockShadow
   Object.assign(wrapperStyle, sectionTransformStyle(p))
 
-  const sfBid = `sf${block.id.replace(/-/g, '')}`
   const blockColorProps = p as BlockColorProps
   const blockThemeColors: ThemeColors = {
     primary_color: style.primary_color || '#6366f1',
@@ -437,6 +447,7 @@ export function SingleBlock({
       ? blockLink
       : storePath(blockLink.startsWith('/') ? blockLink : `/${blockLink}`)
     : ''
+  const enableBlockLink = Boolean(resolvedBlockLink) && !isEditorCanvas
   const blockSuspenseFallback = SUSPENSE_NULL_FALLBACK_BLOCKS.has(block.block_type)
     ? null
     : <BlockSkeleton />
@@ -460,11 +471,11 @@ export function SingleBlock({
     <div
       data-sf-bid={sfBid}
       data-block-id={block.id}
-      role={resolvedBlockLink ? 'link' : undefined}
-      tabIndex={resolvedBlockLink ? 0 : undefined}
-      aria-label={resolvedBlockLink ? `Open ${resolvedBlockLink}` : undefined}
-      onClick={resolvedBlockLink ? e => activateBlockLink(e.target) : undefined}
-      onKeyDown={resolvedBlockLink ? e => {
+      role={enableBlockLink ? 'link' : undefined}
+      tabIndex={enableBlockLink ? 0 : undefined}
+      aria-label={enableBlockLink ? `Open ${resolvedBlockLink}` : undefined}
+      onClick={enableBlockLink ? e => activateBlockLink(e.target) : undefined}
+      onKeyDown={enableBlockLink ? e => {
         if (e.key === 'Enter' || e.key === ' ') {
           e.preventDefault()
           activateBlockLink(e.target)
@@ -473,7 +484,7 @@ export function SingleBlock({
       className={[
         'builder-block relative w-full',
         hasBlockShadow ? 'builder-block--has-shadow' : '',
-        resolvedBlockLink ? 'cursor-pointer' : '',
+        enableBlockLink ? 'cursor-pointer' : '',
         shellStack,
         sectionStyles.fontSizeClass,
         !block.visible_on_mobile ? 'hidden sm:block' : '',
@@ -486,7 +497,7 @@ export function SingleBlock({
       {topShape && topShape !== 'none' && (
         <SectionShapeDivider shape={topShape} fillColor={shapeColor} position="top" />
       )}
-      {(fontSizePx || textScaleEm || blockColorCss || fieldStyleCss) && (
+      {(fontSizePx || textScaleEm || blockColorCss || fieldStyleCss || responsiveSpacingCss) && (
         <style>{`
           [data-sf-bid="${sfBid}"] h1,
           [data-sf-bid="${sfBid}"] h2,
@@ -501,6 +512,7 @@ export function SingleBlock({
           }
           ${blockColorCss}
           ${fieldStyleCss}
+          ${responsiveSpacingCss}
         `}</style>
       )}
       {sectionScale ? (
@@ -508,7 +520,7 @@ export function SingleBlock({
         // element) so the builder's selection/handle overlay — which reads
         // offsetWidth/getBoundingClientRect on the outer element — stays aligned.
         // `zoom` still reflows, so the outer element grows/shrinks to fit.
-        <div style={{ zoom: sectionScale } as CSSProperties}>
+        <div className="builder-block-zoom-wrap" style={{ zoom: sectionScale } as CSSProperties}>
           <Suspense fallback={blockSuspenseFallback}>{blockBody}</Suspense>
         </div>
       ) : (

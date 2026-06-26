@@ -70,6 +70,7 @@ export default function NavBlock({
   }, [openBuilderForPage, sitePageSlugs, storePath])
 
   const navigateStorePath = useCallback((rawPath: string) => {
+    if (isEditorCanvas) return
     if (builderCanvas?.onNavigate) {
       builderCanvas.onNavigate(rawPath)
       return
@@ -86,7 +87,7 @@ export default function NavBlock({
       }
     }
     navigate(href)
-  }, [builderCanvas, storePath, previewShell, openBuilderPageFromPath, navigate])
+  }, [isEditorCanvas, builderCanvas, storePath, previewShell, openBuilderPageFromPath, navigate])
 
   const previewNavClick = useCallback((e: React.MouseEvent, href: string) => {
     if (!previewShell) return
@@ -266,7 +267,7 @@ export default function NavBlock({
           <Link
             key={link.href}
             to={link.href}
-            onClick={builderCanvas?.onNavigate ? (e) => {
+            onClick={builderCanvas?.onNavigate && !isEditorCanvas ? (e) => {
               e.preventDefault()
               builderCanvas.onNavigate!(link.href)
             } : undefined}

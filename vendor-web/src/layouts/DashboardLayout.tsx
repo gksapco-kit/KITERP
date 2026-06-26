@@ -522,6 +522,7 @@ const allSections: NavSection[] = [
       { to: '/websites', icon: Globe, label: 'Website Builder', alwaysShow: true },
       { to: '/websites/seo', icon: Search, label: 'SEO Management', alwaysShow: true },
       { to: '/websites/templates', icon: Sparkles, label: 'Website Templates', alwaysShow: true },
+      { to: '/system/storefront-display', icon: SlidersHorizontal, label: 'Business Front Display', alwaysShow: true },
       { to: '/blog', icon: Newspaper, label: 'Blog Manager', alwaysShow: true },
     ],
   },
@@ -712,7 +713,6 @@ const allSections: NavSection[] = [
     title: 'System Configuration',
     icon: Settings2,
     items: [
-      { to: '/system/storefront-display', icon: SlidersHorizontal, label: 'Business Front Display', alwaysShow: true },
       { to: '/system/social-links', icon: Globe, label: 'Social & Web Links', alwaysShow: true },
       { to: '/document-templates', icon: LayoutTemplate, label: 'Document Templates', alwaysShow: true },
       { to: '/system/modules', icon: Layers, label: 'Module Settings', alwaysShow: true },
@@ -2019,12 +2019,13 @@ export default function DashboardLayout() {
     else sectionScrollAnchors.current.delete(sectionId)
   }, [])
 
-  /** Keep Website Management open on website, blog, and dashboard routes. */
+  /** Keep Website Management open on website, blog, dashboard, and storefront display routes. */
   useEffect(() => {
     if (
       !location.pathname.startsWith('/websites')
       && !location.pathname.startsWith('/blog')
       && !location.pathname.startsWith('/business-front')
+      && !location.pathname.startsWith('/system/storefront-display')
     ) return
     setCollapsedSections((prev) => {
       if (prev['Website Management'] === false) return prev

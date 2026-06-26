@@ -1,6 +1,6 @@
 import { useMemo, useState, type ElementType } from 'react'
 import { createPortal } from 'react-dom'
-import { ChevronDown, Database, Search, X, Zap, Lock } from 'lucide-react'
+import { ChevronDown, Link2, Search, X, Zap, Lock } from 'lucide-react'
 import { useEscapeToClose } from '@/hooks/useEscapeToClose'
 import { cn } from '@/lib/utils'
 import {
@@ -128,7 +128,7 @@ function LayoutOptionCard({
             'text-[10px] mt-1.5 font-medium flex items-center gap-1',
             dataMeta.connectionRequired ? 'text-amber-600' : 'text-emerald-600',
           )}>
-            <Database className="w-3 h-3 shrink-0" />
+            <Link2 className="w-3 h-3 shrink-0" />
             {dataMeta.connectionRequired ? 'Requires live data' : 'Can connect to store data'}
           </div>
         )}
@@ -158,7 +158,7 @@ function DataConnectionPanel({
     return (
       <div className="rounded-lg border border-gray-800 bg-gray-800/40 p-3">
         <div className="flex items-center gap-2 text-gray-400">
-          <Database className="w-3.5 h-3.5 shrink-0 opacity-60" />
+          <Link2 className="w-3.5 h-3.5 shrink-0 opacity-60" />
           <span className="text-xs font-medium">Static content only</span>
         </div>
         <p className="text-[10px] text-gray-500 mt-1.5 leading-relaxed">
@@ -179,7 +179,7 @@ function DataConnectionPanel({
 
   return (
     <div className="space-y-2">
-      <p className="text-[10px] font-bold uppercase tracking-wide text-gray-500 px-0.5">Database connection</p>
+      <p className="text-[10px] font-bold uppercase tracking-wide text-gray-500 px-0.5">Live content</p>
 
       <button
         type="button"

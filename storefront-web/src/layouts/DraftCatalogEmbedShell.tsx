@@ -4,7 +4,7 @@
  */
 import { useEffect } from 'react'
 import { Outlet, useLocation, useParams } from 'react-router-dom'
-import { VendorProvider } from '@/contexts/VendorContext'
+import { VendorProvider, StorefrontDisplayFieldsBridge } from '@/contexts/VendorContext'
 import { BuilderSitePreviewProvider } from '@/contexts/BuilderSiteContext'
 import { BranchProvider } from '@/contexts/BranchContext'
 import { ThemeProvider } from '@/contexts/ThemeContext'
@@ -42,9 +42,11 @@ export default function DraftCatalogEmbedShell() {
     <VendorProvider>
       <BuilderSitePreviewProvider>
         <BranchProvider>
-          <ThemeProvider>
-            <DraftCatalogEmbedContent />
-          </ThemeProvider>
+          <StorefrontDisplayFieldsBridge>
+            <ThemeProvider>
+              <DraftCatalogEmbedContent />
+            </ThemeProvider>
+          </StorefrontDisplayFieldsBridge>
         </BranchProvider>
       </BuilderSitePreviewProvider>
     </VendorProvider>

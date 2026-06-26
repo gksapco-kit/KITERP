@@ -28,6 +28,7 @@ import {
   PRODUCT_STATUS_FILTER_OPTIONS,
   PRODUCT_STOCK_FILTER_OPTIONS,
   PRODUCT_TYPE_FILTER_OPTIONS,
+  productTypeLabel,
   VISIBILITY_FILTER_OPTIONS,
   type CatalogActiveFilter,
 } from '@/components/catalog/CatalogListFilters'
@@ -485,7 +486,7 @@ export default function Products() {
                     <p className="text-sm text-gray-600 truncate" title={product.brand || undefined}>{product.brand || '—'}</p>
                   </td>
                   <td className="px-4 py-3">
-                    <span className="px-2 py-0.5 text-xs rounded-full font-semibold bg-blue-50 text-blue-700 capitalize whitespace-nowrap">{product.product_type || 'physical'}</span>
+                    <span className="px-2 py-0.5 text-xs rounded-full font-semibold bg-blue-50 text-blue-700 whitespace-nowrap">{productTypeLabel(product.product_type)}</span>
                   </td>
                   <td className="px-4 py-3 max-w-[110px]">
                     {(() => {

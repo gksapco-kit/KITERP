@@ -790,6 +790,42 @@ export default function ProductGridBlock({ site, style, props, liveItems, blockT
               const isShowcase = !!(item.meta as Record<string, unknown>)?.is_category_showcase
               return (
                 <div key={item.id || item.title} className="group">
+                  {isEditorCanvas ? (
+                    <div className="block">
+                      <div
+                        className={cn(
+                          'relative overflow-hidden mb-4 bg-gray-100',
+                          editorialProductWrap,
+                          editorialProductShape === 'circle'
+                            ? 'aspect-square max-w-[min(100%,280px)] mx-auto w-full'
+                            : 'aspect-[4/5] w-full',
+                        )}
+                      >
+                        {item.image_url ? (
+                          <BuilderCanvasProductImage
+                            blockId={blockId}
+                            src={mediaUrl(item.image_url)}
+                            alt={item.title}
+                            className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+                            isCatalogPhoto={!isPh}
+                          />
+                        ) : (
+                          <div className="absolute inset-0 flex items-center justify-center"><ShoppingBag className="w-10 h-10 text-gray-300" /></div>
+                        )}
+                        {showBadges && !!item.meta?.is_featured && (
+                          <span style={{ backgroundColor: style.primary_color, color: '#fff' }} className="absolute top-3 left-3 text-xs uppercase tracking-[0.2em] px-2 py-1">Featured</span>
+                        )}
+                        {!isPh && (
+                          <div
+                            className="absolute bottom-3 left-3 right-3 h-10 text-xs uppercase tracking-[0.2em] opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center font-semibold"
+                            style={{ backgroundColor: textColor, color: style.bg_color }}
+                          >
+                            Quick add
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  ) : (
                   <Link to={item.url ? storePath(item.url) : storePath('/products')} className="block">
                     <div
                       className={cn(
@@ -824,6 +860,7 @@ export default function ProductGridBlock({ site, style, props, liveItems, blockT
                       )}
                     </div>
                   </Link>
+                  )}
                   <div className="flex items-baseline justify-between gap-2">
                     <div className="min-w-0">
                       <div className="font-medium text-sm truncate" style={{ color: textColor }}>{item.title}</div>

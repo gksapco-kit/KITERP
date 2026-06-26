@@ -256,8 +256,8 @@ export const SETTINGS_SECTION_ENTRIES: NavSearchEntry[] = [
   {
     kind: 'nav', id: 'settings-display',
     label: 'Business Front Display',
-    description: 'System Configuration → Business Front display',
-    section: 'System Configuration', sectionId: 'system',
+    description: 'Website Management → Business Front display',
+    section: 'Website Management', sectionId: 'website-management',
     to: '/system/storefront-display',
     keywords: [
       'display', 'business front', 'appearance', 'how store looks',

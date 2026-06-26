@@ -90,6 +90,7 @@ export function BuilderCanvasProviders({
   siteName,
   businessProfile,
   previewStore,
+  previewBreakpoint = 'desktop',
   activeBlockId = null,
   activeTextField = null,
   activeTextFields = [],
@@ -120,6 +121,8 @@ export function BuilderCanvasProviders({
     description?: string
     settings?: Record<string, unknown>
   } | null
+  /** Canvas device preview — section spacing resolves per breakpoint in the editor. */
+  previewBreakpoint?: 'desktop' | 'tablet' | 'mobile'
   activeBlockId?: string | null
   activeTextField?: string | null
   activeTextFields?: string[]
@@ -204,6 +207,7 @@ export function BuilderCanvasProviders({
     activeCanvasImageTarget,
     blockPropsForImage,
     canvasScale,
+    previewBreakpoint,
     onSectionImageActivate,
     onTextFieldActivate,
     onTextFieldCommit,
@@ -220,6 +224,7 @@ export function BuilderCanvasProviders({
     activeCanvasImageTarget,
     blockPropsForImage,
     canvasScale,
+    previewBreakpoint,
     onSectionImageActivate,
     onTextFieldActivate,
     onTextFieldCommit,

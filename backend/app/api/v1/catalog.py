@@ -337,12 +337,16 @@ async def list_categories(
     repo = VendorCategoryRepository(db)
 
     if tree:
-        tree_data = await repo.get_tree(vendor_id, applies_to=applies_to, is_active=True)
+        tree_data = await repo.get_tree(
+            vendor_id, applies_to=applies_to, is_active=True, is_visible=True,
+        )
         return JSONResponse(content={
             "categories": [_store_tree_node(n) for n in tree_data],
         })
 
-    items = await repo.list_by_vendor(vendor_id, applies_to=applies_to, is_active=True)
+    items = await repo.list_by_vendor(
+        vendor_id, applies_to=applies_to, is_active=True, is_visible=True,
+    )
     return JSONResponse(content={
         "categories": [_store_cat_dict(c) for c in items],
     })

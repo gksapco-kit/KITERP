@@ -36,6 +36,8 @@ export interface BuilderCanvasContextValue {
   /** Builder canvas: which website page is shown (nav active highlight). */
   activePageSlug?: string | null
   activePageIsHomepage?: boolean
+  /** Builder canvas device preview — drives responsive section spacing in the editor. */
+  previewBreakpoint?: 'desktop' | 'tablet' | 'mobile'
   /** Open the link editor for a block prop (e.g. social_links.twitter). */
   onPropLinkEdit?: (
     blockId: string,
