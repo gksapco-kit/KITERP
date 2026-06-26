@@ -381,6 +381,7 @@ class OfferLetterTemplate(Base):
     logo_url  = Column(String(500), nullable=True)
     show_logo = Column(Boolean, default=True, nullable=False)
     logo_shape = Column(String(20), default="rounded", nullable=False)
+    accent_color = Column(String(20), default="#1a56db", nullable=False)
 
     # Scope — NULL means "applies to any value of that dimension"
     designation_id = Column(UUID(as_uuid=True), ForeignKey("hr_designation.id", ondelete="SET NULL"), nullable=True)

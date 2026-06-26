@@ -15,6 +15,14 @@ OFFER_LAYOUTS = tuple(sorted(OFFER_LAYOUT_IDS))
 
 DEFAULT_LAYOUT = "classic"
 OFFER_PAGE_BREAK = "<!-- offer-page-break -->"
+DEFAULT_ACCENT = "#1a56db"
+
+
+def _apply_offer_accent_color(html: str, accent_color: str | None) -> str:
+    accent = (accent_color or "").strip()
+    if not accent or accent.lower() == DEFAULT_ACCENT:
+        return html
+    return html.replace(DEFAULT_ACCENT, accent).replace(DEFAULT_ACCENT.upper(), accent)
 
 
 def _parse_opacity(value: Any) -> float:
@@ -319,6 +327,7 @@ def wrap_offer_layout(
     logo_url: str | None = None,
     show_logo: bool = True,
     logo_shape: str = "rounded",
+    accent_color: str = DEFAULT_ACCENT,
 ) -> str:
     """Wrap fragment body HTML in a print-ready document shell."""
     if _is_full_document(body_html):
@@ -378,7 +387,7 @@ def wrap_offer_layout(
                     f'<div class="page" data-offer-page="{i + 1}">\n{wm}\n{inner}{footer}\n</div>'
                 )
         pages_html = "\n".join(page_blocks)
-        return f"""<!DOCTYPE html>
+        return _apply_offer_accent_color(f"""<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -389,13 +398,13 @@ def wrap_offer_layout(
 <body>
 {pages_html}
 </body>
-</html>"""
+</html>""", accent_color)
 
     if _is_custom_offer_html(content):
         inner = content.strip()
         if 'class="page-inner"' not in inner:
             inner = f'<div class="page-inner" data-offer-custom="true">{inner}</div>'
-        return f"""<!DOCTYPE html>
+        return _apply_offer_accent_color(f"""<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -409,7 +418,7 @@ def wrap_offer_layout(
 {inner}
 </div>
 </body>
-</html>"""
+</html>""", accent_color)
 
     inner = _build_layout_inner(
         layout, content,
@@ -427,7 +436,7 @@ def wrap_offer_layout(
     Computer-generated offer letter issued by {safe_vendor}.
   </div>"""
 
-    return f"""<!DOCTYPE html>
+    return _apply_offer_accent_color(f"""<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -442,4 +451,4 @@ def wrap_offer_layout(
 {footer}
 </div>
 </body>
-</html>"""
+</html>""", accent_color)

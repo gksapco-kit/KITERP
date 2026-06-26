@@ -1,4 +1,5 @@
-const ACCENT = '#1a56db'
+export const DEFAULT_OFFER_ACCENT = '#1a56db'
+const ACCENT = DEFAULT_OFFER_ACCENT
 
 export interface OfferShellCtx {
   content: string
@@ -9,6 +10,7 @@ export interface OfferShellCtx {
   embed: boolean
   logo?: { url?: string; show?: boolean; shape?: string }
   mark: (size?: number) => string
+  accentColor?: string
 }
 
 const ALIASES: Record<string, string> = {
@@ -535,8 +537,16 @@ const SHELLS: Record<string, ShellFn> = {
   classic_formal: shellClassicFormal,
 }
 
+export function applyOfferAccentColor(html: string, accentColor?: string): string {
+  const accent = accentColor?.trim()
+  if (!accent || accent.toLowerCase() === DEFAULT_OFFER_ACCENT) return html
+  return html
+    .replaceAll(DEFAULT_OFFER_ACCENT, accent)
+    .replaceAll(DEFAULT_OFFER_ACCENT.toUpperCase(), accent)
+}
+
 export function renderOfferLayoutShell(layoutId: string, ctx: OfferShellCtx): string {
   const id = normalizeOfferLayoutId(layoutId)
   const fn = SHELLS[id] ?? SHELLS.classic
-  return fn(ctx, pads(ctx.embed))
+  return applyOfferAccentColor(fn(ctx, pads(ctx.embed)), ctx.accentColor)
 }

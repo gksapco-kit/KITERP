@@ -1,7 +1,7 @@
 import type { LogoShape } from '@/lib/invoiceTemplates'
 import { OFFER_PAGE_BREAK, isMultiPageOfferHtml, parseOfferPageFragments, isCustomOfferPageFragment } from '@/lib/offerPages'
 import { OFFER_LAYOUT_THUMBNAILS, layoutThumbnailLabel } from '@/lib/offerLayoutThumbnails'
-import { normalizeOfferLayoutId, renderOfferLayoutShell } from '@/lib/offerLayoutShells'
+import { normalizeOfferLayoutId, renderOfferLayoutShell, applyOfferAccentColor, DEFAULT_OFFER_ACCENT } from '@/lib/offerLayoutShells'
 
 export type { LogoShape } from '@/lib/invoiceTemplates'
 
@@ -274,6 +274,7 @@ function buildLayoutInner(
   embed: boolean,
   logo?: OfferLogoOptions,
   editableBody = false,
+  accentColor?: string,
 ): string {
   const bodyHtml = editableBody
     ? `<div class="offer-editable-body" data-offer-editable="true" spellcheck="true">${content}</div>`
@@ -288,6 +289,7 @@ function buildLayoutInner(
     embed,
     logo,
     mark,
+    accentColor,
   })
 }
 
@@ -315,12 +317,13 @@ export function wrapOfferPreview(
   embed = false,
   watermark?: OfferWatermarkOptions,
   logo?: OfferLogoOptions,
-  options?: { mergeBodyVars?: boolean; editableBody?: boolean; editableTemplate?: boolean },
+  options?: { mergeBodyVars?: boolean; editableBody?: boolean; editableTemplate?: boolean; accentColor?: string },
 ): string {
   const raw = bodyHtml || '<p></p>'
   const s0 = raw.trim().toLowerCase()
   if (s0.startsWith('<!doctype') || s0.startsWith('<html')) return raw
 
+  const accentColor = options?.accentColor || DEFAULT_OFFER_ACCENT
   const esc = (v: string) =>
     v.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
   const vendor = esc(vendorName || 'Company')
@@ -367,8 +370,18 @@ export function wrapOfferPreview(
     const customPages = isMultiPageOfferHtml(raw) || fragments.every(isCustomOfferPageFragment)
     const pageBlocks = fragments.map((fragment, i) => {
       const isLast = i === fragments.length - 1
-      if (customPages || isCustomOfferPageFragment(fragment)) {
-        let inner = mergeFragment(fragment.trim())
+      let normalized = fragment.trim()
+      if (normalized.startsWith('<div class="page"')) {
+        try {
+          const pdoc = new DOMParser().parseFromString(normalized, 'text/html')
+          const inner = pdoc.querySelector('.page-inner')
+          normalized = inner?.outerHTML ?? `<div class="page-inner" data-offer-page="${i + 1}" data-offer-custom="true">${pdoc.querySelector('.page')?.innerHTML ?? ''}</div>`
+        } catch {
+          /* use fragment as-is below */
+        }
+      }
+      if (customPages || isCustomOfferPageFragment(normalized)) {
+        let inner = mergeFragment(normalized)
         if (!inner.includes('class="page-inner"')) {
           inner = `<div class="page-inner" data-offer-page="${i + 1}" data-offer-custom="true">${inner}</div>`
         }
@@ -378,13 +391,13 @@ export function wrapOfferPreview(
         return `<div class="page" data-offer-page="${i + 1}">${wm}${inner}</div>`
       }
       const content = mergeFragment(fragment)
-      const inner = buildLayoutInner(layout, content, vendor, candidate, ref, today, embed, logo, !useFullEdit && options?.editableBody)
+      const inner = buildLayoutInner(layout, content, vendor, candidate, ref, today, embed, logo, !useFullEdit && options?.editableBody, accentColor)
       if (useFullEdit) {
         return `<div class="page" data-offer-page="${i + 1}">${wm}${injectEditablePageInner(inner, isLast ? footerNote : '')}</div>`
       }
       return `<div class="page" data-offer-page="${i + 1}">${wm}${inner}${isLast ? footerNote : ''}</div>`
     }).join('')
-    return `<!DOCTYPE html><html><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/><style>${base}</style></head><body>${pageBlocks}</body></html>`
+    return applyOfferAccentColor(`<!DOCTYPE html><html><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/><style>${base}</style></head><body>${pageBlocks}</body></html>`, accentColor)
   }
 
   if (isCustomOfferHtml(raw)) {
@@ -406,7 +419,7 @@ export function wrapOfferPreview(
         inner = inner.replace('class="page-inner"', 'class="page-inner" data-offer-custom="true"')
       }
     }
-    return `<!DOCTYPE html><html><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/><style>${base}</style></head><body><div class="page">${wm}${inner}</div></body></html>`
+    return applyOfferAccentColor(`<!DOCTYPE html><html><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/><style>${base}</style></head><body><div class="page">${wm}${inner}</div></body></html>`, accentColor)
   }
 
   const content = mergeFragment(raw)
@@ -421,14 +434,46 @@ export function wrapOfferPreview(
     embed,
     logo,
     !useFullEdit && options?.editableBody,
+    accentColor,
   )
 
   if (useFullEdit) {
     const editableInner = injectEditablePageInner(inner, footerNote)
-    return `<!DOCTYPE html><html><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/><style>${base}</style></head><body><div class="page">${wm}${editableInner}</div></body></html>`
+    return applyOfferAccentColor(`<!DOCTYPE html><html><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/><style>${base}</style></head><body><div class="page">${wm}${editableInner}</div></body></html>`, accentColor)
   }
 
-  return `<!DOCTYPE html><html><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/><style>${base}</style></head><body><div class="page">${wm}${inner}${footerNote}</div></body></html>`
+  return applyOfferAccentColor(`<!DOCTYPE html><html><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/><style>${base}</style></head><body><div class="page" data-offer-page="1">${wm}${inner}${footerNote}</div></body></html>`, accentColor)
+}
+
+/** Blank A4 continuation sheet for offer letters (page-inner fragment, not .page wrapper). */
+export function createBlankOfferContinuationPage(opts: {
+  pageNumber: number
+  vendorName?: string
+  accentColor?: string
+}): string {
+  const vendor = opts.vendorName || 'Your Company'
+  const color = opts.accentColor || '#1a56db'
+  const n = opts.pageNumber
+  const pad = '24px 32px'
+  const footerNote = `<div class="footer-note">Computer-generated offer letter issued by ${vendor}.</div>`
+
+  return `<div class="page-inner" data-offer-page="${n}" data-offer-custom="true" style="min-height:1122px;display:flex;flex-direction:column;box-sizing:border-box">
+    <div data-section="header" style="flex-shrink:0;padding:${pad};padding-bottom:18px;border-bottom:3px solid ${color};margin-bottom:20px">
+      <div style="display:flex;justify-content:space-between;align-items:flex-end;gap:12px">
+        <div>
+          <div style="font-size:11px;text-transform:uppercase;letter-spacing:.14em;color:#6b7280">Offer Letter</div>
+          <div style="font-size:18px;font-weight:700;color:#111;margin-top:4px">${vendor}</div>
+        </div>
+        <div style="text-align:right;font-size:10px;color:#9ca3af">Page ${n}</div>
+      </div>
+    </div>
+    <div class="body-content" style="flex:1;min-height:480px;padding:${pad};line-height:1.65">
+      <p><br></p>
+    </div>
+    <div data-section="footer" style="flex-shrink:0;margin-top:auto">
+      ${footerNote}
+    </div>
+  </div>`
 }
 
 export function layoutLabel(id: string): string {

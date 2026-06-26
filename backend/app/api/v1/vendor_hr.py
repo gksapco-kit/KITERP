@@ -296,6 +296,7 @@ class OfferLetterTemplateIn(BaseModel):
     logo_url: Optional[str] = None
     show_logo: bool = True
     logo_shape: str = "rounded"
+    accent_color: str = "#1a56db"
 
 class OfferLetterTemplateUpdate(BaseModel):
     name: Optional[str] = None
@@ -313,6 +314,7 @@ class OfferLetterTemplateUpdate(BaseModel):
     logo_url: Optional[str] = None
     show_logo: Optional[bool] = None
     logo_shape: Optional[str] = None
+    accent_color: Optional[str] = None
 
 
 class OfferTemplatePreviewIn(BaseModel):
@@ -326,6 +328,7 @@ class OfferTemplatePreviewIn(BaseModel):
     logo_url: Optional[str] = None
     show_logo: bool = True
     logo_shape: str = "rounded"
+    accent_color: str = "#1a56db"
 
 
 # ═══════════════════════════════════════════════════════════════════
@@ -1604,6 +1607,7 @@ async def create_offer(
                 logo_url=getattr(tpl, "logo_url", None) or getattr(vendor, "logo_url", None),
                 show_logo=bool(getattr(tpl, "show_logo", True)),
                 logo_shape=getattr(tpl, "logo_shape", "rounded") or "rounded",
+                accent_color=getattr(tpl, "accent_color", "#1a56db") or "#1a56db",
             )
         else:
             offer.layout = layout_override or "standard"
@@ -1685,6 +1689,7 @@ async def get_offer_pdf(
                 logo_url=getattr(tpl, "logo_url", None) or getattr(vendor, "logo_url", None),
                 show_logo=bool(getattr(tpl, "show_logo", True)),
                 logo_shape=getattr(tpl, "logo_shape", "rounded") or "rounded",
+                accent_color=getattr(tpl, "accent_color", "#1a56db") or "#1a56db",
             )
         else:
             html = svc.generate_offer_html(offer, vendor_name)
@@ -1751,6 +1756,7 @@ async def preview_offer_template(
         logo_url=body.logo_url or getattr(vendor, "logo_url", None),
         show_logo=body.show_logo,
         logo_shape=body.logo_shape or "rounded",
+        accent_color=body.accent_color or "#1a56db",
     )
     return HTMLResponse(content=html, media_type="text/html; charset=utf-8")
 

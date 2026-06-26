@@ -215,8 +215,11 @@ export const DocumentLivePreview = memo(function DocumentLivePreview({
     }
   }
 
+  const addingPageRef = useRef(false)
+
   const handleAddPage = () => {
-    if (!onBodyChange) return
+    if (!onBodyChange || addingPageRef.current) return
+    addingPageRef.current = true
     const doc = iframeRef.current?.contentDocument
     const current = doc ? extractOfferTemplateFromDoc(doc) : html
     const nextNum = pageCount + 1
@@ -224,6 +227,7 @@ export const DocumentLivePreview = memo(function DocumentLivePreview({
     skipReloadRef.current = false
     onBodyChange(addOfferPage(current, blank))
     setSelectedPage(nextNum)
+    window.setTimeout(() => { addingPageRef.current = false }, 400)
   }
 
   const handleRemovePage = () => {

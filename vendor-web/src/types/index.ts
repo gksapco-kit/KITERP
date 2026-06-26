@@ -1209,6 +1209,7 @@ export interface OfferLetterTemplate {
   body_html: string
   layout?: string
   is_default: boolean
+  accent_color?: string
   watermark_enabled?: boolean
   watermark_text?: string | null
   watermark_opacity?: string

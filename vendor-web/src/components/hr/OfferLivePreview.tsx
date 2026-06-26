@@ -1,7 +1,6 @@
 import { memo, useCallback } from 'react'
 import { DocumentLivePreview } from '@/components/common/DocumentLivePreview'
-import { createDefaultContinuationPage } from '@/lib/documentPreview'
-import { layoutLabel } from '@/lib/offerLayouts'
+import { layoutLabel, createBlankOfferContinuationPage } from '@/lib/offerLayouts'
 import type { OfferLayoutId } from '@/lib/offerLayouts'
 
 export const OfferLivePreview = memo(function OfferLivePreview({
@@ -24,11 +23,10 @@ export const OfferLivePreview = memo(function OfferLivePreview({
   accentColor?: string
 }) {
   const createBlankPage = useCallback((nextPage: number) => {
-    return createDefaultContinuationPage(nextPage, {
-      heading: vendorName || 'Offer Letter',
-      subtitle: `Page ${nextPage}`,
-      accentColor: accentColor || '#1a56db',
-      footerText: 'Computer-generated offer letter continuation page.',
+    return createBlankOfferContinuationPage({
+      pageNumber: nextPage,
+      vendorName,
+      accentColor,
     })
   }, [vendorName, accentColor])
 

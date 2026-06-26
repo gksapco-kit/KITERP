@@ -29,10 +29,13 @@ import {
   isCustomOfferHtml, extractBodyFragmentForLayout,
   countOfferPages,
 } from '@/lib/offerLayouts'
+import { parseOfferPageFragments, serializeMultiPageCustom } from '@/lib/offerPages'
 import { OfferLayoutThemeGrid } from '@/components/hr/OfferLayoutThemeGrid'
+import { DEFAULT_OFFER_ACCENT, applyOfferAccentColor } from '@/lib/offerLayoutShells'
 import { HtmlRichEditor, type HtmlRichEditorHandle } from '@/components/hr/HtmlRichEditor'
 import { OfferLivePreview } from '@/components/hr/OfferLivePreview'
 import { ImageSourcePicker } from '@/components/common/ImageSourcePicker'
+import { InvoiceAccentColorPicker } from '@/components/invoices/InvoiceAccentColorPicker'
 import { LogoShapePicker, LOGO_SHAPE_PREVIEW_CLASS } from '@/components/common/LogoShapePicker'
 
 const MERGE_VARS = MERGE_VAR_KEYS.map(key => ({
@@ -51,6 +54,7 @@ function emptyForm() {
     logo_url: '',
     show_logo: true,
     logo_shape: 'rounded' as LogoShape,
+    accent_color: DEFAULT_OFFER_ACCENT,
   }
 }
 
@@ -137,11 +141,20 @@ export default function OfferTemplatesPage() {
   const previewVendorRef = useRef(vendorName)
   if (vendorName && vendorName !== 'Your Company') previewVendorRef.current = vendorName
 
+  const normalizeOfferBody = useCallback((html: string) => {
+    if (!html?.trim()) return html
+    if (!html.includes('data-offer-multi-page') && !html.includes('data-offer-custom')) return html
+    const frags = parseOfferPageFragments(html)
+    if (frags.length <= 1) return frags[0] ?? html
+    return serializeMultiPageCustom(frags)
+  }, [])
+
   const applyTemplateToForm = useCallback((tpl: OfferLetterTemplate) => {
+    const body = normalizeOfferBody(tpl.body_html)
     setForm({
       name: tpl.name,
       description: tpl.description ?? '',
-      body_html: tpl.body_html,
+      body_html: body,
       layout: (tpl.layout || 'standard') as OfferLayoutId,
       designation_id: tpl.designation_id ?? '',
       department_id: tpl.department_id ?? '',
@@ -154,10 +167,11 @@ export default function OfferTemplatesPage() {
       logo_url: tpl.logo_url ?? '',
       show_logo: tpl.show_logo ?? true,
       logo_shape: (tpl.logo_shape || 'rounded') as LogoShape,
+      accent_color: tpl.accent_color || DEFAULT_OFFER_ACCENT,
     })
-    setPreviewBody(tpl.body_html)
+    setPreviewBody(body)
     setIsNew(false)
-  }, [])
+  }, [normalizeOfferBody])
 
   const applyEmptyForm = useCallback(() => {
     const next = emptyForm()
@@ -201,8 +215,9 @@ export default function OfferTemplatesPage() {
     }, {
       mergeBodyVars: true,
       editableTemplate: true,
+      accentColor: form.accent_color || DEFAULT_OFFER_ACCENT,
     })
-  }, [previewBody, form.layout, form.watermark_enabled, form.watermark_text, form.watermark_opacity, form.watermark_style, form.logo_url, form.show_logo, form.logo_shape, vendorLogo])
+  }, [previewBody, form.layout, form.accent_color, form.watermark_enabled, form.watermark_text, form.watermark_opacity, form.watermark_style, form.logo_url, form.show_logo, form.logo_shape, vendorLogo])
 
   const pageCount = useMemo(() => countOfferPages(previewBody), [previewBody])
 
@@ -215,9 +230,10 @@ export default function OfferTemplatesPage() {
   }, [])
 
   const handlePreviewBodyChange = useCallback((html: string) => {
-    setForm(f => (f.body_html === html ? f : { ...f, body_html: html }))
-    setPreviewBody(html)
-  }, [])
+    const body = normalizeOfferBody(html)
+    setForm(f => (f.body_html === body ? f : { ...f, body_html: body }))
+    setPreviewBody(body)
+  }, [normalizeOfferBody])
 
   const uploadLogo = async (file: File) => {
     try {
@@ -246,6 +262,20 @@ export default function OfferTemplatesPage() {
   function setField<K extends keyof ReturnType<typeof emptyForm>>(k: K, v: ReturnType<typeof emptyForm>[K]) {
     setForm(f => ({ ...f, [k]: v }))
   }
+
+  const handleAccentColorChange = useCallback((next: string) => {
+    setForm(f => {
+      const prev = (f.accent_color || DEFAULT_OFFER_ACCENT).trim()
+      const hasCustom = isCustomOfferHtml(f.body_html) || f.body_html.includes('data-offer-multi-page')
+      if (!hasCustom || prev.toLowerCase() === next.toLowerCase()) {
+        return { ...f, accent_color: next }
+      }
+      let body = f.body_html.replaceAll(prev, next).replaceAll(prev.toUpperCase(), next.toUpperCase())
+      body = applyOfferAccentColor(body, next)
+      setPreviewBody(body)
+      return { ...f, accent_color: next, body_html: body }
+    })
+  }, [])
 
   const setBodyHtml = useCallback((html: string) => {
     setForm(f => (f.body_html === html ? f : { ...f, body_html: html }))
@@ -285,6 +315,7 @@ export default function OfferTemplatesPage() {
       logo_url: form.logo_url || undefined,
       show_logo: form.show_logo,
       logo_shape: form.logo_shape,
+      accent_color: form.accent_color || DEFAULT_OFFER_ACCENT,
     }
     if (isNew) {
       const tpl = await createTpl.mutateAsync(payload)
@@ -322,6 +353,7 @@ export default function OfferTemplatesPage() {
       logo_url: selected.logo_url ?? '',
       show_logo: selected.show_logo ?? true,
       logo_shape: (selected.logo_shape || 'rounded') as LogoShape,
+      accent_color: selected.accent_color || DEFAULT_OFFER_ACCENT,
     })
     setPreviewBody(selected.body_html)
     setIsNew(true)
@@ -392,6 +424,8 @@ export default function OfferTemplatesPage() {
           editable
           onBodyChange={handlePreviewBodyChange}
           pageCount={pageCount}
+          vendorName={previewVendorRef.current}
+          accentColor={form.accent_color || DEFAULT_OFFER_ACCENT}
         />
 
         {/* Right: Settings panel — always mounted so tab/editor state is never lost */}
@@ -463,7 +497,22 @@ export default function OfferTemplatesPage() {
 
               <AccordionSection title="Themes" badge={layoutLabel(form.layout)} defaultOpen>
                 <p className="text-xs text-gray-500 mb-2">Same layout library as invoice templates — thumbnails show logo placement.</p>
-                <OfferLayoutThemeGrid selectedId={form.layout} onSelect={handleLayoutChange} />
+                <OfferLayoutThemeGrid
+                  selectedId={form.layout}
+                  accentColor={form.accent_color || DEFAULT_OFFER_ACCENT}
+                  onSelect={handleLayoutChange}
+                />
+              </AccordionSection>
+
+              <AccordionSection
+                title="Color palette"
+                badge={form.accent_color || DEFAULT_OFFER_ACCENT}
+                defaultOpen
+              >
+                <InvoiceAccentColorPicker
+                  value={form.accent_color || DEFAULT_OFFER_ACCENT}
+                  onChange={handleAccentColorChange}
+                />
               </AccordionSection>
 
               <AccordionSection title="Logo" badge={form.show_logo ? 'On' : 'Off'} defaultOpen>

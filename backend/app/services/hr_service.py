@@ -538,6 +538,7 @@ class HRService:
         logo_url: str | None = None,
         show_logo: bool = True,
         logo_shape: str = "rounded",
+        accent_color: str = "#1a56db",
     ) -> str:
         """Replace {{token}} placeholders in body_html with real offer values, then apply layout shell."""
         from app.services.offer_layouts import wrap_offer_layout, DEFAULT_LAYOUT
@@ -582,6 +583,7 @@ class HRService:
             logo_url=logo_url,
             show_logo=show_logo,
             logo_shape=logo_shape,
+            accent_color=accent_color,
         )
 
     def preview_template(
@@ -597,6 +599,7 @@ class HRService:
         logo_url: str | None = None,
         show_logo: bool = True,
         logo_shape: str = "rounded",
+        accent_color: str = "#1a56db",
     ) -> str:
         """Render a template preview with sample merge values."""
         from app.services.offer_layouts import wrap_offer_layout, DEFAULT_LAYOUT
@@ -633,6 +636,7 @@ class HRService:
             logo_url=logo_url,
             show_logo=show_logo,
             logo_shape=logo_shape,
+            accent_color=accent_color,
         )
 
     def generate_offer_html(self, offer, vendor_name: str) -> str:
