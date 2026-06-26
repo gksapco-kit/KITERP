@@ -228,6 +228,8 @@ export interface VariantMediaItem {
   position: number
 }
 
+const SKIP_AUTO_REFRESH = { headers: { 'X-Skip-Auto-Refresh': 'true' } }
+
 export const vendorApi = {
   getMyVendor: async (): Promise<Vendor> => {
     const response = await apiClient.get('/vendors/me')
@@ -1869,19 +1871,23 @@ export const vendorApi = {
     return r.data as import('../types').OfferLetterTemplate
   },
   hrCreateOfferTemplate: async (data: Record<string, unknown>) => {
-    const r = await apiClient.post('/vendors/me/hr/offer-templates', data)
+    const r = await apiClient.post('/vendors/me/hr/offer-templates', data, SKIP_AUTO_REFRESH)
     return r.data as import('../types').OfferLetterTemplate
   },
   hrUpdateOfferTemplate: async (id: string, data: Record<string, unknown>) => {
-    const r = await apiClient.put(`/vendors/me/hr/offer-templates/${id}`, data)
+    const r = await apiClient.put(`/vendors/me/hr/offer-templates/${id}`, data, SKIP_AUTO_REFRESH)
     return r.data as import('../types').OfferLetterTemplate
   },
   hrDeleteOfferTemplate: async (id: string) => {
-    await apiClient.delete(`/vendors/me/hr/offer-templates/${id}`)
+    await apiClient.delete(`/vendors/me/hr/offer-templates/${id}`, SKIP_AUTO_REFRESH)
   },
   hrSetDefaultOfferTemplate: async (id: string) => {
-    const r = await apiClient.post(`/vendors/me/hr/offer-templates/${id}/default`)
+    const r = await apiClient.post(`/vendors/me/hr/offer-templates/${id}/default`, undefined, SKIP_AUTO_REFRESH)
     return r.data as import('../types').OfferLetterTemplate
+  },
+  hrPreviewOfferTemplate: async (data: { body_html: string; layout?: string; sample?: Record<string, string> }): Promise<string> => {
+    const r = await apiClient.post('/vendors/me/hr/offer-templates/preview', data, { responseType: 'text' })
+    return r.data as string
   },
 
   // ════════════════════════════════════════════════════════════════

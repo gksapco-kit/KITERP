@@ -524,8 +524,24 @@ class HRService:
             department_id=department_id, store_id=store_id,
         )
 
-    def render_template(self, body_html: str, offer, vendor_name: str, store_name: str = "") -> str:
-        """Replace {{token}} placeholders in body_html with real offer values."""
+    def render_template(
+        self,
+        body_html: str,
+        offer,
+        vendor_name: str,
+        store_name: str = "",
+        layout: str = "standard",
+        watermark_enabled: bool = False,
+        watermark_text: str | None = None,
+        watermark_opacity: str = "0.12",
+        watermark_style: str = "diagonal_text",
+        logo_url: str | None = None,
+        show_logo: bool = True,
+        logo_shape: str = "rounded",
+    ) -> str:
+        """Replace {{token}} placeholders in body_html with real offer values, then apply layout shell."""
+        from app.services.offer_layouts import wrap_offer_layout, DEFAULT_LAYOUT
+
         ctc_fmt  = f"Rs.{float(offer.offered_ctc or 0):,.0f}" if offer.offered_ctc else "As discussed"
         joining  = offer.joining_date.strftime("%d %B %Y")  if offer.joining_date  else "TBD"
         off_date = offer.offered_date.strftime("%d %B %Y")  if offer.offered_date  else datetime.utcnow().strftime("%d %B %Y")
@@ -550,7 +566,74 @@ class HRService:
         result = body_html
         for key, val in tokens.items():
             result = result.replace("{{" + key + "}}", val)
-        return result
+
+        ref = f"OL-{str(getattr(offer, 'id', ''))[:8].upper()}" if getattr(offer, "id", None) else ""
+        return wrap_offer_layout(
+            result,
+            layout or DEFAULT_LAYOUT,
+            vendor_name=vendor_name,
+            candidate_name=offer.candidate_name or "",
+            ref=ref,
+            today=tokens["today"],
+            watermark_enabled=watermark_enabled,
+            watermark_text=watermark_text,
+            watermark_opacity=watermark_opacity,
+            watermark_style=watermark_style,
+            logo_url=logo_url,
+            show_logo=show_logo,
+            logo_shape=logo_shape,
+        )
+
+    def preview_template(
+        self,
+        body_html: str,
+        layout: str,
+        vendor_name: str,
+        sample: dict | None = None,
+        watermark_enabled: bool = False,
+        watermark_text: str | None = None,
+        watermark_opacity: str = "0.12",
+        watermark_style: str = "diagonal_text",
+        logo_url: str | None = None,
+        show_logo: bool = True,
+        logo_shape: str = "rounded",
+    ) -> str:
+        """Render a template preview with sample merge values."""
+        from app.services.offer_layouts import wrap_offer_layout, DEFAULT_LAYOUT
+
+        defaults = {
+            "candidate_name":  "Rahul Sharma",
+            "candidate_email": "rahul@example.com",
+            "candidate_phone": "+91 98765 43210",
+            "designation":     "Software Engineer",
+            "department":      "Engineering",
+            "store":           "Head Office",
+            "vendor_name":     vendor_name,
+            "offered_ctc":     "Rs.12,00,000",
+            "offered_date":    datetime.utcnow().strftime("%d %B %Y"),
+            "joining_date":    "15 May 2026",
+            "expiry_date":     "10 May 2026",
+            "today":           datetime.utcnow().strftime("%d %B %Y"),
+        }
+        tokens = {**defaults, **(sample or {})}
+        result = body_html
+        for key, val in tokens.items():
+            result = result.replace("{{" + key + "}}", str(val))
+        return wrap_offer_layout(
+            result,
+            layout or DEFAULT_LAYOUT,
+            vendor_name=vendor_name,
+            candidate_name=tokens["candidate_name"],
+            ref="PREVIEW",
+            today=tokens["today"],
+            watermark_enabled=watermark_enabled,
+            watermark_text=watermark_text,
+            watermark_opacity=watermark_opacity,
+            watermark_style=watermark_style,
+            logo_url=logo_url,
+            show_logo=show_logo,
+            logo_shape=logo_shape,
+        )
 
     def generate_offer_html(self, offer, vendor_name: str) -> str:
         """Generate a structured, print-quality HTML offer letter."""

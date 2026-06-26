@@ -731,7 +731,6 @@ export interface VendorCategory {
   image_url?: string | null
   applies_to: 'product' | 'service' | 'both'
   is_active: boolean
-  is_visible: boolean
   sort_order: number
   custom_fields: CustomField[]
   children: VendorCategory[]
@@ -1208,7 +1207,15 @@ export interface OfferLetterTemplate {
   name: string
   description?: string | null
   body_html: string
+  layout?: string
   is_default: boolean
+  watermark_enabled?: boolean
+  watermark_text?: string | null
+  watermark_opacity?: string
+  watermark_style?: string
+  logo_url?: string | null
+  show_logo?: boolean
+  logo_shape?: string
   designation_id?: string | null
   department_id?: string | null
   store_id?: string | null

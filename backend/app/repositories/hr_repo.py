@@ -587,6 +587,12 @@ class OfferLetterTemplateRepo:
         return result.scalar_one_or_none()
 
     async def create(self, vendor_id: UUID, data: dict) -> OfferLetterTemplate:
+        if data.get("is_default"):
+            await self.db.execute(
+                update(OfferLetterTemplate)
+                .where(OfferLetterTemplate.vendor_id == vendor_id)
+                .values(is_default=False)
+            )
         tpl = OfferLetterTemplate(vendor_id=vendor_id, **data)
         self.db.add(tpl)
         await self.db.flush()
@@ -594,6 +600,15 @@ class OfferLetterTemplateRepo:
         return tpl
 
     async def update(self, tpl: OfferLetterTemplate, data: dict) -> OfferLetterTemplate:
+        if data.get("is_default"):
+            await self.db.execute(
+                update(OfferLetterTemplate)
+                .where(
+                    OfferLetterTemplate.vendor_id == tpl.vendor_id,
+                    OfferLetterTemplate.id != tpl.id,
+                )
+                .values(is_default=False)
+            )
         for k, v in data.items():
             setattr(tpl, k, v)
         await self.db.flush()
@@ -632,12 +647,15 @@ class OfferLetterTemplateRepo:
             return None
 
         def score(t: OfferLetterTemplate) -> int:
-            return (
+            specificity = (
                 (4 if t.designation_id == designation_id and designation_id is not None else 0) +
                 (2 if t.department_id  == department_id  and department_id  is not None else 0) +
-                (1 if t.store_id       == store_id       and store_id        is not None else 0) +
-                (0 if not t.is_default else -1)   # default is a tie-breaker, not a boost
+                (1 if t.store_id       == store_id       and store_id        is not None else 0)
             )
+            # Prefer scoped matches; use default as fallback when no scope matches.
+            if specificity > 0:
+                return specificity
+            return 10 if t.is_default else 0
 
         return max(candidates, key=score)
 

@@ -370,7 +370,17 @@ class OfferLetterTemplate(Base):
     name        = Column(String(150), nullable=False)
     description = Column(String(300), nullable=True)
     body_html   = Column(Text, nullable=False)        # may contain {{merge_var}} tokens
+    layout      = Column(String(30), default="standard", nullable=False)
     is_default  = Column(Boolean, default=False, nullable=False)
+
+    watermark_enabled = Column(Boolean, default=False, nullable=False)
+    watermark_text    = Column(String(120), nullable=True)
+    watermark_opacity = Column(String(10), default="0.12", nullable=False)
+    watermark_style   = Column(String(30), default="diagonal_text", nullable=False)
+
+    logo_url  = Column(String(500), nullable=True)
+    show_logo = Column(Boolean, default=True, nullable=False)
+    logo_shape = Column(String(20), default="rounded", nullable=False)
 
     # Scope — NULL means "applies to any value of that dimension"
     designation_id = Column(UUID(as_uuid=True), ForeignKey("hr_designation.id", ondelete="SET NULL"), nullable=True)
@@ -412,6 +422,8 @@ class OfferLetter(Base):
     expiry_date = Column(Date)
 
     status = Column(String(20), default="draft")  # draft / sent / accepted / rejected / expired
+    template_id = Column(UUID(as_uuid=True), ForeignKey("hr_offer_letter_template.id", ondelete="SET NULL"), nullable=True)
+    layout = Column(String(30), nullable=True)
     template_content = Column(Text)               # full HTML of the offer letter
     notes = Column(Text)
 
@@ -422,3 +434,4 @@ class OfferLetter(Base):
 
     designation = relationship("Designation", foreign_keys=[designation_id])
     department = relationship("Department", foreign_keys=[department_id])
+    template = relationship("OfferLetterTemplate", foreign_keys=[template_id])

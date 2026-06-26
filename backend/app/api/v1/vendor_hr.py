@@ -273,29 +273,59 @@ class OfferLetterIn(BaseModel):
     expiry_date: Optional[date] = None
     notes: Optional[str] = None
     template_id: Optional[UUID] = None      # if set, render this template as content
+    layout: Optional[str] = None            # override template layout
+    template_content: Optional[str] = None  # pre-rendered HTML override
 
 class OfferLetterUpdate(OfferLetterIn):
     candidate_name: Optional[str] = None  # type: ignore[assignment]
-    template_content: Optional[str] = None
 
 
 class OfferLetterTemplateIn(BaseModel):
     name: str
     description: Optional[str] = None
     body_html: str
+    layout: str = "standard"
     designation_id: Optional[UUID] = None
     department_id: Optional[UUID] = None
     store_id: Optional[UUID] = None
     is_default: bool = False
+    watermark_enabled: bool = False
+    watermark_text: Optional[str] = None
+    watermark_opacity: Optional[str] = "0.12"
+    watermark_style: str = "diagonal_text"
+    logo_url: Optional[str] = None
+    show_logo: bool = True
+    logo_shape: str = "rounded"
 
 class OfferLetterTemplateUpdate(BaseModel):
     name: Optional[str] = None
     description: Optional[str] = None
     body_html: Optional[str] = None
+    layout: Optional[str] = None
     designation_id: Optional[UUID] = None
     department_id: Optional[UUID] = None
     store_id: Optional[UUID] = None
     is_default: Optional[bool] = None
+    watermark_enabled: Optional[bool] = None
+    watermark_text: Optional[str] = None
+    watermark_opacity: Optional[str] = None
+    watermark_style: Optional[str] = None
+    logo_url: Optional[str] = None
+    show_logo: Optional[bool] = None
+    logo_shape: Optional[str] = None
+
+
+class OfferTemplatePreviewIn(BaseModel):
+    body_html: str
+    layout: str = "standard"
+    sample: Optional[dict] = None
+    watermark_enabled: bool = False
+    watermark_text: Optional[str] = None
+    watermark_opacity: Optional[str] = "0.12"
+    watermark_style: str = "diagonal_text"
+    logo_url: Optional[str] = None
+    show_logo: bool = True
+    logo_shape: str = "rounded"
 
 
 # ═══════════════════════════════════════════════════════════════════
@@ -1518,6 +1548,8 @@ async def create_offer(
     payload = body.model_dump(exclude_none=True)
     template_id = payload.pop("template_id", None)
     store_id    = payload.pop("store_id", None)
+    layout_override = payload.pop("layout", None)
+    content_override = payload.pop("template_content", None)
 
     offer = await svc.create_offer(vu.vendor_id, payload)
     await db.commit()
@@ -1542,7 +1574,13 @@ async def create_offer(
         store_obj = store_res.scalar_one_or_none()
         store_name = store_obj.name if store_obj else ""
 
-    if not offer.template_content:
+    if content_override:
+        offer.template_content = content_override
+        if template_id:
+            offer.template_id = template_id
+        if layout_override:
+            offer.layout = layout_override
+    elif not offer.template_content:
         tpl = None
         if template_id:
             tpl = await svc.tpl_repo.get(template_id, vu.vendor_id)
@@ -1554,8 +1592,21 @@ async def create_offer(
                 store_id=store_id,
             )
         if tpl:
-            offer.template_content = svc.render_template(tpl.body_html, offer, vendor_name, store_name)
+            offer.template_id = tpl.id
+            layout = layout_override or getattr(tpl, "layout", None) or "standard"
+            offer.layout = layout
+            offer.template_content = svc.render_template(
+                tpl.body_html, offer, vendor_name, store_name, layout=layout,
+                watermark_enabled=bool(getattr(tpl, "watermark_enabled", False)),
+                watermark_text=getattr(tpl, "watermark_text", None),
+                watermark_opacity=getattr(tpl, "watermark_opacity", "0.12") or "0.12",
+                watermark_style=getattr(tpl, "watermark_style", "diagonal_text") or "diagonal_text",
+                logo_url=getattr(tpl, "logo_url", None) or getattr(vendor, "logo_url", None),
+                show_logo=bool(getattr(tpl, "show_logo", True)),
+                logo_shape=getattr(tpl, "logo_shape", "rounded") or "rounded",
+            )
         else:
+            offer.layout = layout_override or "standard"
             offer.template_content = svc.generate_offer_html(offer, vendor_name)
         await db.commit()
         await db.refresh(offer)
@@ -1617,19 +1668,31 @@ async def get_offer_pdf(
 
     # If content exists and not forced regenerate, return stored content
     if offer.template_content and not regenerate:
-        # Check if it looks like old/bad HTML (no DOCTYPE or no <table) — regenerate automatically
-        content = offer.template_content
-        if "<!DOCTYPE" not in content and "<table" not in content:
-            regenerate = True
+        return HTMLResponse(content=offer.template_content, media_type="text/html; charset=utf-8")
 
-    if not offer.template_content or regenerate:
-        html = svc.generate_offer_html(offer, vendor_name)
-        # Persist the fresh HTML
+    if regenerate:
+        tpl = None
+        if offer.template_id:
+            tpl = await svc.tpl_repo.get(offer.template_id, vu.vendor_id)
+        if tpl:
+            layout = offer.layout or getattr(tpl, "layout", None) or "standard"
+            html = svc.render_template(
+                tpl.body_html, offer, vendor_name, store_name="", layout=layout,
+                watermark_enabled=bool(getattr(tpl, "watermark_enabled", False)),
+                watermark_text=getattr(tpl, "watermark_text", None),
+                watermark_opacity=getattr(tpl, "watermark_opacity", "0.12") or "0.12",
+                watermark_style=getattr(tpl, "watermark_style", "diagonal_text") or "diagonal_text",
+                logo_url=getattr(tpl, "logo_url", None) or getattr(vendor, "logo_url", None),
+                show_logo=bool(getattr(tpl, "show_logo", True)),
+                logo_shape=getattr(tpl, "logo_shape", "rounded") or "rounded",
+            )
+        else:
+            html = svc.generate_offer_html(offer, vendor_name)
         offer.template_content = html
         await db.commit()
         return HTMLResponse(content=html, media_type="text/html; charset=utf-8")
 
-    return HTMLResponse(content=offer.template_content, media_type="text/html; charset=utf-8")
+    return HTMLResponse(content=offer.template_content or "", media_type="text/html; charset=utf-8")
 
 
 @router.delete("/offers/{offer_id}", status_code=204)
@@ -1663,6 +1726,33 @@ async def list_offer_templates(
         store_id=store_id,
     )
     return [_d(t) for t in templates]
+
+
+@router.post("/offer-templates/preview", response_class=HTMLResponse)
+async def preview_offer_template(
+    body: OfferTemplatePreviewIn,
+    vu: VendorUser = Depends(require_permission("hr.offers")),
+    db: AsyncSession = Depends(get_db),
+):
+    from app.repositories.vendor_repo import VendorRepository
+
+    svc = HRService(db)
+    vendor = await VendorRepository(db).get_by_id(vu.vendor_id)
+    vendor_name = vendor.business_name if vendor else "Company"
+    html = svc.preview_template(
+        body.body_html,
+        body.layout,
+        vendor_name,
+        body.sample,
+        watermark_enabled=body.watermark_enabled,
+        watermark_text=body.watermark_text,
+        watermark_opacity=body.watermark_opacity or "0.12",
+        watermark_style=body.watermark_style,
+        logo_url=body.logo_url or getattr(vendor, "logo_url", None),
+        show_logo=body.show_logo,
+        logo_shape=body.logo_shape or "rounded",
+    )
+    return HTMLResponse(content=html, media_type="text/html; charset=utf-8")
 
 
 @router.post("/offer-templates", status_code=201)

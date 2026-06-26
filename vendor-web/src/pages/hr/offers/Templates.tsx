@@ -1,10 +1,13 @@
-import { useState, useRef, useEffect, useMemo } from 'react'
+import { useState, useRef, useEffect, useMemo, useCallback } from 'react'
 import { Label } from '@/components/ui/label'
+import { Button } from '@/components/ui/button'
 import { useNavigate } from 'react-router-dom'
+import { toast } from 'sonner'
 import {
-  FileText, Plus, Trash2, Star, Save, ArrowLeft,
-  Building2, Users, Store, ChevronRight, Eye, EyeOff,
-  BookOpen, X, Video, ListChecks, CheckCircle2,
+  FileText, Trash2, Star, Save, ArrowLeft, Copy,
+  Building2, Users, Store, Check, Loader2,
+  ChevronUp, ChevronDown, Palette, PenLine, Target,
+  RotateCcw,
 } from 'lucide-react'
 import {
   useHROfferTemplates,
@@ -16,326 +19,272 @@ import {
   useHRDesignations,
   useStores,
 } from '@/hooks/useVendor'
+import { vendorApi } from '@/api/vendor'
+import { useVendorStore } from '@/stores/vendorStore'
 import type { OfferLetterTemplate } from '@/types'
+import type { OfferLayoutId, OfferWatermarkStyle, LogoShape } from '@/lib/offerLayouts'
+import {
+  DEFAULT_OFFER_BODY, MERGE_VAR_KEYS, WATERMARK_STYLES,
+  wrapOfferPreview, layoutLabel, LAYOUT_LOGO_PLACEMENT,
+  isCustomOfferHtml, extractBodyFragmentForLayout,
+  countOfferPages,
+} from '@/lib/offerLayouts'
+import { OfferLayoutThemeGrid } from '@/components/hr/OfferLayoutThemeGrid'
+import { HtmlRichEditor, type HtmlRichEditorHandle } from '@/components/hr/HtmlRichEditor'
+import { OfferLivePreview } from '@/components/hr/OfferLivePreview'
+import { ImageSourcePicker } from '@/components/common/ImageSourcePicker'
+import { LogoShapePicker, LOGO_SHAPE_PREVIEW_CLASS } from '@/components/common/LogoShapePicker'
 
-// ── Merge variables available in templates ────────────────────────────────────
-const MERGE_VARS = [
-  { key: 'candidate_name',  label: 'Candidate Name' },
-  { key: 'designation',     label: 'Designation' },
-  { key: 'department',      label: 'Department' },
-  { key: 'store',           label: 'Store / Branch' },
-  { key: 'offered_ctc',     label: 'CTC (Annual)' },
-  { key: 'offered_date',    label: 'Offer Date' },
-  { key: 'joining_date',    label: 'Joining Date' },
-  { key: 'expiry_date',     label: 'Expiry Date' },
-  { key: 'vendor_name',     label: 'Company Name' },
-  { key: 'candidate_email', label: 'Email' },
-  { key: 'candidate_phone', label: 'Phone' },
-  { key: 'today',           label: 'Today\'s Date' },
-]
+const MERGE_VARS = MERGE_VAR_KEYS.map(key => ({
+  key,
+  label: key.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()),
+}))
 
-// ── Sample values for the live preview ───────────────────────────────────────
-const SAMPLE: Record<string, string> = {
-  candidate_name:  'Rahul Sharma',
-  designation:     'Software Engineer',
-  department:      'Engineering',
-  store:           'GV Krishna Store',
-  offered_ctc:     'Rs.12,00,000',
-  offered_date:    '01 May 2026',
-  joining_date:    '15 May 2026',
-  expiry_date:     '10 May 2026',
-  vendor_name:     'Your Company',
-  candidate_email: 'rahul@example.com',
-  candidate_phone: '+91 98765 43210',
-  today:           new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'long', year: 'numeric' }),
-}
-
-function renderPreview(body: string): string {
-  let out = body
-  for (const [k, v] of Object.entries(SAMPLE)) out = out.replaceAll(`{{${k}}}`, v)
-  return out
-}
-
-// ── Empty template form state ─────────────────────────────────────────────────
 function emptyForm() {
-  return { name: '', description: '', body_html: '', designation_id: '', department_id: '', store_id: '', is_default: false }
-}
-
-// ── Guide panel ──────────────────────────────────────────────────────────────
-const GUIDE_STEPS = [
-  {
-    n: 1,
-    title: 'Create a template',
-    body:  'Click the "+ New" button in the sidebar header. Give your template a clear name (e.g. "Engineering Offer Letter") and an optional admin note in the Description field.',
-  },
-  {
-    n: 2,
-    title: 'Set the scope',
-    body:  'Use the Role, Department, and Store dropdowns to limit which offers auto-pick this template. Leave all three blank to make it a global fallback. The most specific match always wins.',
-  },
-  {
-    n: 3,
-    title: 'Write the body',
-    body:  'Type your letter in the HTML textarea. Place your cursor where you need a dynamic value, then click any {{merge_var}} chip to insert it. Variables are replaced with real data when an offer is created.',
-  },
-  {
-    n: 4,
-    title: 'Preview before saving',
-    body:  'Toggle the "Preview" button in the editor toolbar to see a live render of your template using sample candidate values. No real data is affected.',
-  },
-  {
-    n: 5,
-    title: 'Set as default',
-    body:  'Click the star "Set Default" button to mark this template as the automatic fallback for new offers that have no closer scope match.',
-  },
-]
-
-const VIDEO_KEY = 'hr_template_guide_video'
-
-function toEmbedUrl(raw: string): string {
-  try {
-    const url = new URL(raw)
-    // YouTube watch URL → embed
-    if (url.hostname.includes('youtube.com') && url.searchParams.get('v')) {
-      return `https://www.youtube.com/embed/${url.searchParams.get('v')}?rel=0`
-    }
-    // YouTube short URL youtu.be/ID
-    if (url.hostname === 'youtu.be') {
-      return `https://www.youtube.com/embed${url.pathname}?rel=0`
-    }
-    // Vimeo
-    if (url.hostname.includes('vimeo.com')) {
-      const id = url.pathname.split('/').filter(Boolean).pop()
-      return `https://player.vimeo.com/video/${id}`
-    }
-    // Already an embed or other: return as-is
-    return raw
-  } catch {
-    return raw
+  return {
+    name: '', description: '', body_html: DEFAULT_OFFER_BODY, layout: 'standard' as OfferLayoutId,
+    designation_id: '', department_id: '', store_id: '', is_default: false,
+    watermark_enabled: false,
+    watermark_text: '',
+    watermark_opacity: '0.12',
+    watermark_style: 'diagonal_text' as OfferWatermarkStyle,
+    logo_url: '',
+    show_logo: true,
+    logo_shape: 'rounded' as LogoShape,
   }
 }
 
-function GuidePanel({ onClose }: { onClose: () => void }) {
-  const [tab, setTab]     = useState<'steps' | 'video'>('steps')
-  const [videoUrl, setVideoUrl] = useState(() => localStorage.getItem(VIDEO_KEY) ?? '')
-  const [draft, setDraft] = useState(videoUrl)
-  const embedUrl = videoUrl ? toEmbedUrl(videoUrl) : ''
-
-  function saveVideo() {
-    const trimmed = draft.trim()
-    setVideoUrl(trimmed)
-    if (trimmed) localStorage.setItem(VIDEO_KEY, trimmed)
-    else         localStorage.removeItem(VIDEO_KEY)
-  }
-
-  function clearVideo() {
-    setVideoUrl('')
-    setDraft('')
-    localStorage.removeItem(VIDEO_KEY)
-  }
-
+function AccordionSection({ title, badge, children, defaultOpen = false }: {
+  title: string; badge?: string; children: React.ReactNode; defaultOpen?: boolean
+}) {
+  const [open, setOpen] = useState(defaultOpen)
   return (
-    <div className="border-b bg-blue-50">
-      {/* Panel header */}
-      <div className="flex items-center gap-2 px-3 py-2 border-b border-blue-100">
-        <BookOpen className="w-3.5 h-3.5 text-blue-600 shrink-0" />
-        <span className="text-xs font-medium text-blue-800 flex-1">How to use templates</span>
-        <div className="flex gap-1">
-          <button
-            onClick={() => setTab('steps')}
-            className={`flex items-center gap-1 text-xs px-2 py-0.5 rounded transition-colors ${tab === 'steps' ? 'bg-primary text-white' : 'text-blue-600 hover:bg-blue-100'}`}>
-            <ListChecks className="w-3 h-3" /> Steps
-          </button>
-          <button
-            onClick={() => setTab('video')}
-            className={`flex items-center gap-1 text-xs px-2 py-0.5 rounded transition-colors ${tab === 'video' ? 'bg-primary text-white' : 'text-blue-600 hover:bg-blue-100'}`}>
-            <Video className="w-3 h-3" /> Video
-          </button>
+    <div className="border rounded-xl overflow-hidden">
+      <button
+        type="button"
+        className="w-full flex items-center justify-between px-4 py-3 bg-gray-50 hover:bg-gray-100 transition-colors text-sm font-semibold text-gray-700"
+        onClick={() => setOpen(!open)}
+      >
+        <div className="flex items-center gap-2">
+          {title}
+          {badge && <span className="text-xs font-medium px-1.5 py-0.5 rounded-md bg-blue-100 text-blue-600">{badge}</span>}
         </div>
-        <button onClick={onClose} className="p-0.5 rounded hover:bg-blue-100 text-blue-400 hover:text-blue-600">
-          <X className="w-3.5 h-3.5" />
-        </button>
+        {open ? <ChevronUp className="w-4 h-4 text-gray-400" /> : <ChevronDown className="w-4 h-4 text-gray-400" />}
+      </button>
+      {open && <div className="px-4 py-4 space-y-3 bg-white">{children}</div>}
+    </div>
+  )
+}
+
+function ToggleRow({ label, hint, checked, onChange }: {
+  label: string; hint?: string; checked: boolean; onChange: (v: boolean) => void
+}) {
+  return (
+    <label className="flex items-start justify-between py-1.5 cursor-pointer gap-3">
+      <div>
+        <span className="text-sm text-gray-700">{label}</span>
+        {hint && <p className="text-xs text-gray-400 mt-0.5 leading-tight">{hint}</p>}
       </div>
-
-      {/* Steps tab */}
-      {tab === 'steps' && (
-        <div className="px-3 py-2 space-y-2 max-h-60 overflow-y-auto">
-          {GUIDE_STEPS.map(step => (
-            <div key={step.n} className="flex gap-2">
-              <div className="flex-shrink-0 w-5 h-5 rounded-full bg-primary text-white text-xs font-bold flex items-center justify-center mt-0.5">
-                {step.n}
-              </div>
-              <div>
-                <p className="text-xs font-medium text-blue-900">{step.title}</p>
-                <p className="text-xs text-blue-700 leading-relaxed">{step.body}</p>
-              </div>
-            </div>
-          ))}
-          <div className="flex items-center gap-1.5 pt-1 pb-0.5">
-            <CheckCircle2 className="w-3.5 h-3.5 text-green-500 shrink-0" />
-            <p className="text-xs text-green-700 font-medium">You're ready — try creating your first template!</p>
-          </div>
-        </div>
-      )}
-
-      {/* Video tab */}
-      {tab === 'video' && (
-        <div className="px-3 py-2">
-          {!embedUrl ? (
-            <>
-              <p className="text-xs text-blue-700 mb-1.5">Paste a YouTube or Vimeo URL to embed a walkthrough video for your team.</p>
-              <div className="flex gap-1.5">
-                <input
-                  value={draft}
-                  onChange={e => setDraft(e.target.value)}
-                  onKeyDown={e => e.key === 'Enter' && saveVideo()}
-                  placeholder="https://www.youtube.com/watch?v=..."
-                  className="flex-1 border rounded px-2 py-1 text-xs focus:ring-1 focus:ring-blue-500 outline-none bg-white"
-                />
-                <button
-                  onClick={saveVideo}
-                  disabled={!draft.trim()}
-                  className="px-2 py-1 text-xs bg-primary text-white rounded hover:bg-primary/90 disabled:opacity-40">
-                  Save
-                </button>
-              </div>
-            </>
-          ) : (
-            <div>
-              <div className="relative w-full" style={{ paddingTop: '56.25%' }}>
-                <iframe
-                  src={embedUrl}
-                  className="absolute inset-0 w-full h-full rounded border"
-                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                  allowFullScreen
-                  title="Template guide video"
-                />
-              </div>
-              <div className="flex gap-3 mt-1.5">
-                <button onClick={() => { setDraft(videoUrl); setVideoUrl('') }} className="text-xs text-blue-600 hover:underline">Change URL</button>
-                <button onClick={clearVideo} className="text-xs text-red-500 hover:underline">Remove video</button>
-              </div>
-            </div>
-          )}
-        </div>
-      )}
-    </div>
+      <button
+        type="button"
+        onClick={() => onChange(!checked)}
+        className={`relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors mt-0.5 ${checked ? 'bg-primary' : 'bg-gray-300'}`}
+      >
+        <span className="inline-block h-3.5 w-3.5 rounded-full bg-white shadow transition-transform" style={{ transform: checked ? 'translateX(18px)' : 'translateX(2px)' }} />
+      </button>
+    </label>
   )
 }
 
-// ── Scope label for list item ─────────────────────────────────────────────────
-function ScopeChips({ tpl }: { tpl: OfferLetterTemplate }) {
-  return (
-    <div className="flex flex-wrap gap-1 mt-1">
-      {tpl.designation && (
-        <span className="text-xs px-1.5 py-0.5 rounded bg-indigo-50 text-indigo-700 border border-indigo-200 flex items-center gap-1">
-          <Users className="w-2.5 h-2.5" />{(tpl.designation as any).name}
-        </span>
-      )}
-      {tpl.department && (
-        <span className="text-xs px-1.5 py-0.5 rounded bg-blue-50 text-blue-700 border border-blue-200 flex items-center gap-1">
-          <Building2 className="w-2.5 h-2.5" />{(tpl.department as any).name}
-        </span>
-      )}
-      {tpl.store && (
-        <span className="text-xs px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-200 flex items-center gap-1">
-          <Store className="w-2.5 h-2.5" />{(tpl.store as any).name}
-        </span>
-      )}
-      {!tpl.designation && !tpl.department && !tpl.store && (
-        <span className="text-xs text-gray-400 italic">Global</span>
-      )}
-    </div>
-  )
+type SettingsTab = 'design' | 'content' | 'scope'
+
+function resolveOriginPath(url: string) {
+  if (!url) return ''
+  if (url.startsWith('blob:') || url.startsWith('data:') || url.startsWith('http://') || url.startsWith('https://')) return url
+  return `${window.location.origin}${url.startsWith('/') ? url : `/${url}`}`
 }
 
-// ── Main Page ─────────────────────────────────────────────────────────────────
 export default function OfferTemplatesPage() {
-  const navigate   = useNavigate()
-  const textareaRef = useRef<HTMLTextAreaElement>(null)
+  const navigate = useNavigate()
+  const editorRef = useRef<HtmlRichEditorHandle>(null)
 
-  const { data: templates = [], isLoading } = useHROfferTemplates()
-  const { data: deptData }  = useHRDepartments()
+  const vendorName = useVendorStore(s => s.vendor?.business_name) || 'Your Company'
+  const vendorLogo = useVendorStore(s => s.vendor?.logo_url) || ''
+
+  const { data: templatesData } = useHROfferTemplates()
+  const templates = templatesData ?? []
+  const { data: deptData } = useHRDepartments()
   const { data: desigData } = useHRDesignations()
   const { data: storeData } = useStores({ limit: 100 })
 
-  const departments  = (deptData  as any)?.departments  ?? deptData  ?? []
-  const designations = (desigData as any)?.designations ?? desigData ?? []
-  const stores       = (storeData as any)?.stores        ?? storeData ?? []
+  const departments = (deptData as { departments?: unknown[] })?.departments ?? (Array.isArray(deptData) ? deptData : [])
+  const designations = (desigData as { designations?: unknown[] })?.designations ?? (Array.isArray(desigData) ? desigData : [])
+  const stores = (storeData as { stores?: unknown[] })?.stores ?? (Array.isArray(storeData) ? storeData : [])
 
-  const createTpl    = useCreateHROfferTemplate()
-  const updateTpl    = useUpdateHROfferTemplate()
-  const deleteTpl    = useDeleteHROfferTemplate()
-  const setDefault   = useSetDefaultHROfferTemplate()
+  const createTpl = useCreateHROfferTemplate()
+  const updateTpl = useUpdateHROfferTemplate()
+  const deleteTpl = useDeleteHROfferTemplate()
+  const setDefault = useSetDefaultHROfferTemplate()
 
-  const [selected, setSelected]   = useState<OfferLetterTemplate | null>(null)
-  const [form,     setForm]       = useState(emptyForm())
-  const [preview,  setPreview]    = useState(false)
-  const [filterDept,  setFilterDept]  = useState('')
-  const [filterDesig, setFilterDesig] = useState('')
-  const [filterStore, setFilterStore] = useState('')
-  const [isNew,     setIsNew]     = useState(false)
-  const [showGuide, setShowGuide] = useState(false)
+  const [selected, setSelected] = useState<OfferLetterTemplate | null>(null)
+  const [form, setForm] = useState(emptyForm())
+  const [settingsTab, setSettingsTab] = useState<SettingsTab>('design')
+  const [isNew, setIsNew] = useState(false)
+  const [mergePick, setMergePick] = useState('')
+  const [previewBody, setPreviewBody] = useState(form.body_html)
+  const didHydrateRef = useRef(false)
 
-  // When a template is selected, load into form
-  useEffect(() => {
-    if (selected) {
-      setForm({
-        name:           selected.name,
-        description:    selected.description ?? '',
-        body_html:      selected.body_html,
-        designation_id: selected.designation_id ?? '',
-        department_id:  selected.department_id ?? '',
-        store_id:       selected.store_id ?? '',
-        is_default:     selected.is_default,
-      })
-      setIsNew(false)
-    }
-  }, [selected])
+  const previewVendorRef = useRef(vendorName)
+  if (vendorName && vendorName !== 'Your Company') previewVendorRef.current = vendorName
 
-  const filteredTemplates = useMemo(() => {
-    return templates.filter(t => {
-      if (filterDept  && t.department_id  !== filterDept)  return false
-      if (filterDesig && t.designation_id !== filterDesig) return false
-      if (filterStore && t.store_id       !== filterStore)  return false
-      return true
+  const applyTemplateToForm = useCallback((tpl: OfferLetterTemplate) => {
+    setForm({
+      name: tpl.name,
+      description: tpl.description ?? '',
+      body_html: tpl.body_html,
+      layout: (tpl.layout || 'standard') as OfferLayoutId,
+      designation_id: tpl.designation_id ?? '',
+      department_id: tpl.department_id ?? '',
+      store_id: tpl.store_id ?? '',
+      is_default: tpl.is_default,
+      watermark_enabled: tpl.watermark_enabled ?? false,
+      watermark_text: tpl.watermark_text ?? '',
+      watermark_opacity: tpl.watermark_opacity ?? '0.12',
+      watermark_style: (tpl.watermark_style || 'diagonal_text') as OfferWatermarkStyle,
+      logo_url: tpl.logo_url ?? '',
+      show_logo: tpl.show_logo ?? true,
+      logo_shape: (tpl.logo_shape || 'rounded') as LogoShape,
     })
-  }, [templates, filterDept, filterDesig, filterStore])
+    setPreviewBody(tpl.body_html)
+    setIsNew(false)
+  }, [])
 
-  function startNew() {
-    setSelected(null)
-    setForm(emptyForm())
+  const applyEmptyForm = useCallback(() => {
+    const next = emptyForm()
+    setForm(next)
+    setPreviewBody(next.body_html)
     setIsNew(true)
+  }, [])
+
+  // Debounce preview updates so the iframe does not flash on every keystroke
+  useEffect(() => {
+    const t = window.setTimeout(() => setPreviewBody(form.body_html), 280)
+    return () => window.clearTimeout(t)
+  }, [form.body_html])
+
+  // Auto-select default / first template once per mount (uses cached list when revisiting)
+  useEffect(() => {
+    if (didHydrateRef.current || templatesData === undefined) return
+    didHydrateRef.current = true
+    if (templatesData.length === 0) {
+      setIsNew(true)
+      return
+    }
+    const pick = templatesData.find(t => t.is_default) ?? templatesData[0]
+    setSelected(pick)
+    applyTemplateToForm(pick)
+  }, [templatesData, applyTemplateToForm])
+
+  const logoPreviewClass = LOGO_SHAPE_PREVIEW_CLASS[form.logo_shape ?? 'rounded']
+
+  const previewHtml = useMemo(() => {
+    const logoUrl = resolveOriginPath(form.logo_url || vendorLogo)
+    return wrapOfferPreview(previewBody, form.layout, previewVendorRef.current, '', true, {
+      enabled: form.watermark_enabled,
+      text: form.watermark_text || previewVendorRef.current,
+      opacity: parseFloat(form.watermark_opacity) || 0.12,
+      style: form.watermark_style,
+    }, {
+      url: logoUrl || undefined,
+      show: form.show_logo,
+      shape: form.logo_shape,
+    }, {
+      mergeBodyVars: true,
+      editableTemplate: true,
+    })
+  }, [previewBody, form.layout, form.watermark_enabled, form.watermark_text, form.watermark_opacity, form.watermark_style, form.logo_url, form.show_logo, form.logo_shape, vendorLogo])
+
+  const pageCount = useMemo(() => countOfferPages(previewBody), [previewBody])
+
+  const handleLayoutChange = useCallback((id: OfferLayoutId) => {
+    setForm(f => {
+      const body = isCustomOfferHtml(f.body_html) ? extractBodyFragmentForLayout(f.body_html) : f.body_html
+      return { ...f, layout: id, body_html: body }
+    })
+    setPreviewBody(prev => (isCustomOfferHtml(prev) ? extractBodyFragmentForLayout(prev) : prev))
+  }, [])
+
+  const handlePreviewBodyChange = useCallback((html: string) => {
+    setForm(f => (f.body_html === html ? f : { ...f, body_html: html }))
+    setPreviewBody(html)
+  }, [])
+
+  const uploadLogo = async (file: File) => {
+    try {
+      const result = await vendorApi.uploadVendorLogo(file)
+      setField('logo_url', result.logo_url)
+      toast.success('Logo uploaded')
+    } catch {
+      toast.error('Could not upload logo — use PNG or JPG under 2MB')
+    }
   }
 
-  function setField(k: keyof typeof form, v: unknown) {
+  const startNew = useCallback(() => {
+    setSelected(null)
+    applyEmptyForm()
+    setSettingsTab('design')
+  }, [applyEmptyForm])
+
+  const selectTemplate = useCallback((id: string) => {
+    const tpl = templates.find(t => t.id === id)
+    if (tpl) {
+      setSelected(tpl)
+      applyTemplateToForm(tpl)
+    }
+  }, [templates, applyTemplateToForm])
+
+  function setField<K extends keyof ReturnType<typeof emptyForm>>(k: K, v: ReturnType<typeof emptyForm>[K]) {
     setForm(f => ({ ...f, [k]: v }))
   }
 
-  // Insert merge var at cursor position in textarea
+  const setBodyHtml = useCallback((html: string) => {
+    setForm(f => (f.body_html === html ? f : { ...f, body_html: html }))
+  }, [])
+
+  const setSettingsTabStable = useCallback((tab: SettingsTab) => {
+    setSettingsTab(tab)
+  }, [])
+
   function insertMergeVar(key: string) {
-    const ta = textareaRef.current
-    if (!ta) return
-    const start = ta.selectionStart
-    const end   = ta.selectionEnd
-    const token = `{{${key}}}`
-    const newVal = form.body_html.slice(0, start) + token + form.body_html.slice(end)
-    setField('body_html', newVal)
-    setTimeout(() => {
-      ta.focus()
-      ta.setSelectionRange(start + token.length, start + token.length)
-    }, 0)
+    if (settingsTab !== 'content') setSettingsTab('content')
+    window.requestAnimationFrame(() => editorRef.current?.insertText(`{{${key}}}`))
+  }
+
+  function handleReset() {
+    if (selected && !isNew) {
+      applyTemplateToForm(selected)
+    } else {
+      applyEmptyForm()
+    }
   }
 
   async function handleSave() {
     const payload: Record<string, unknown> = {
-      name:           form.name,
-      description:    form.description || undefined,
-      body_html:      form.body_html,
+      name: form.name,
+      description: form.description || undefined,
+      body_html: form.body_html,
+      layout: form.layout,
       designation_id: form.designation_id || undefined,
-      department_id:  form.department_id  || undefined,
-      store_id:       form.store_id       || undefined,
-      is_default:     form.is_default,
+      department_id: form.department_id || undefined,
+      store_id: form.store_id || undefined,
+      is_default: form.is_default,
+      watermark_enabled: form.watermark_enabled,
+      watermark_text: form.watermark_text || undefined,
+      watermark_opacity: form.watermark_opacity,
+      watermark_style: form.watermark_style,
+      logo_url: form.logo_url || undefined,
+      show_logo: form.show_logo,
+      logo_shape: form.logo_shape,
     }
     if (isNew) {
       const tpl = await createTpl.mutateAsync(payload)
@@ -348,243 +297,380 @@ export default function OfferTemplatesPage() {
   }
 
   async function handleDelete() {
-    if (!selected) return
-    if (!confirm(`Delete template "${selected.name}"?`)) return
+    if (!selected || !confirm(`Delete template "${selected.name}"?`)) return
     await deleteTpl.mutateAsync(selected.id)
     setSelected(null)
-    setForm(emptyForm())
-    setIsNew(false)
+    applyEmptyForm()
+  }
+
+  async function handleDuplicate() {
+    if (!selected) return
+    setSelected(null)
+    setForm({
+      name: `${selected.name} (Copy)`,
+      description: selected.description ?? '',
+      body_html: selected.body_html,
+      layout: (selected.layout || 'standard') as OfferLayoutId,
+      designation_id: selected.designation_id ?? '',
+      department_id: selected.department_id ?? '',
+      store_id: selected.store_id ?? '',
+      is_default: false,
+      watermark_enabled: selected.watermark_enabled ?? false,
+      watermark_text: selected.watermark_text ?? '',
+      watermark_opacity: selected.watermark_opacity ?? '0.12',
+      watermark_style: (selected.watermark_style || 'diagonal_text') as OfferWatermarkStyle,
+      logo_url: selected.logo_url ?? '',
+      show_logo: selected.show_logo ?? true,
+      logo_shape: (selected.logo_shape || 'rounded') as LogoShape,
+    })
+    setPreviewBody(selected.body_html)
+    setIsNew(true)
+    setSettingsTab('design')
   }
 
   async function handleSetDefault() {
     if (!selected) return
     const tpl = await setDefault.mutateAsync(selected.id)
     setSelected(tpl)
+    setField('is_default', tpl.is_default)
   }
 
   const isBusy = createTpl.isPending || updateTpl.isPending
-  const hasEditor = isNew || !!selected
+  const canSave = !!form.name.trim() && !!form.body_html.trim()
 
   return (
-    <div className="flex h-[calc(100vh-64px)] bg-gray-50">
-
-      {/* ── Sidebar ── */}
-      <div className="w-72 shrink-0 border-r bg-white flex flex-col">
-        {/* Header */}
-        <div className="px-4 py-3 border-b flex items-center gap-2">
-          <button onClick={() => navigate('/hr/offers')}
-            className="p-1 rounded hover:bg-gray-100 text-gray-400 hover:text-gray-700">
+    <form
+      className="space-y-0"
+      onSubmit={e => e.preventDefault()}
+      onKeyDown={e => { if (e.key === 'Enter' && (e.target as HTMLElement).tagName !== 'TEXTAREA') e.preventDefault() }}
+    >
+      {/* Top bar — same pattern as Invoice / Quotation Templates */}
+      <div className="flex items-center justify-between pb-4 border-b mb-4">
+        <div className="flex items-center gap-3">
+          <Button type="button" variant="ghost" size="sm" onClick={() => navigate('/hr/offers')}>
             <ArrowLeft className="w-4 h-4" />
-          </button>
-          <h1 className="text-sm font-semibold text-gray-900 flex-1">Offer Templates</h1>
-          <button
-            onClick={() => setShowGuide(v => !v)}
-            title="How to use templates"
-            className={`p-1.5 rounded-lg border text-xs transition-colors flex items-center gap-1 ${showGuide ? 'bg-blue-50 border-blue-300 text-blue-600' : 'border-gray-200 text-gray-400 hover:text-blue-600 hover:border-blue-200 hover:bg-blue-50'}`}>
-            <BookOpen className="w-3.5 h-3.5" />
-          </button>
-          <button onClick={startNew}
-            className="flex items-center gap-1 text-xs px-2.5 py-1.5 bg-primary text-white rounded-lg hover:bg-primary/90">
-            <Plus className="w-3.5 h-3.5" /> New
-          </button>
+          </Button>
+          <div>
+            <h1 className="text-xl font-bold text-gray-900">Offer Letter Templates</h1>
+            <p className="text-xs text-gray-500">
+              Customise offer letter print and PDF templates — layout, content, and scope
+            </p>
+          </div>
         </div>
-
-        {/* Guide panel (collapsible) */}
-        {showGuide && <GuidePanel onClose={() => setShowGuide(false)} />}
-
-        {/* Scope filters */}
-        <div className="px-3 py-2 border-b space-y-1.5 bg-gray-50">
-          <select value={filterDesig} onChange={e => setFilterDesig(e.target.value)}
-            className="w-full border rounded px-2 py-1 text-xs focus:ring-1 focus:ring-blue-500 outline-none bg-white">
-            <option value="">All Roles (Designation)</option>
-            {designations.map((d: any) => <option key={d.id} value={d.id}>{d.name}</option>)}
-          </select>
-          <select value={filterDept} onChange={e => setFilterDept(e.target.value)}
-            className="w-full border rounded px-2 py-1 text-xs focus:ring-1 focus:ring-blue-500 outline-none bg-white">
-            <option value="">All Departments</option>
-            {departments.map((d: any) => <option key={d.id} value={d.id}>{d.name}</option>)}
-          </select>
-          <select value={filterStore} onChange={e => setFilterStore(e.target.value)}
-            className="w-full border rounded px-2 py-1 text-xs focus:ring-1 focus:ring-blue-500 outline-none bg-white">
-            <option value="">All Stores / Branches</option>
-            {stores.map((s: any) => <option key={s.id} value={s.id}>{s.name}</option>)}
-          </select>
-        </div>
-
-        {/* Template list */}
-        <div className="flex-1 overflow-y-auto divide-y">
-          {isLoading && <p className="text-xs text-gray-400 text-center py-6">Loading…</p>}
-          {!isLoading && filteredTemplates.length === 0 && (
-            <div className="py-10 text-center">
-              <FileText className="w-8 h-8 text-gray-200 mx-auto mb-2" />
-              <p className="text-xs text-gray-400">No templates yet.</p>
-              <button onClick={startNew} className="mt-2 text-xs text-blue-600 hover:underline">Create one</button>
-            </div>
+        <div className="flex shrink-0 items-center gap-2">
+          <Button type="button" variant="outline" size="sm" onClick={startNew} className="h-9 gap-1.5 text-xs">
+            <FileText className="w-3.5 h-3.5" /> New
+          </Button>
+          <Button type="button" variant="outline" size="sm" onClick={handleReset} className="h-9 min-w-[5.5rem] gap-1.5 text-xs text-gray-600">
+            <RotateCcw className="w-3.5 h-3.5 shrink-0" /> Reset
+          </Button>
+          {!isNew && selected && (
+            <>
+              <Button type="button" variant="outline" size="sm" onClick={handleDuplicate} className="h-9 gap-1.5 text-xs hidden sm:inline-flex">
+                <Copy className="w-3.5 h-3.5" /> Duplicate
+              </Button>
+              <Button type="button" variant="outline" size="sm" onClick={handleSetDefault} disabled={selected.is_default} className="h-9 gap-1.5 text-xs hidden sm:inline-flex">
+                <Star className="w-3.5 h-3.5" /> Default
+              </Button>
+              <Button type="button" variant="outline" size="sm" onClick={handleDelete} className="h-9 gap-1.5 text-xs text-red-600 hidden sm:inline-flex">
+                <Trash2 className="w-3.5 h-3.5" /> Delete
+              </Button>
+            </>
           )}
-          {filteredTemplates.map(t => (
-            <button key={t.id}
-              onClick={() => setSelected(t)}
-              className={`w-full text-left px-4 py-3 hover:bg-gray-50 transition-colors ${selected?.id === t.id ? 'bg-blue-50 border-l-2 border-l-blue-600' : ''}`}>
-              <div className="flex items-center gap-2">
-                <p className="text-sm font-medium text-gray-900 truncate flex-1">{t.name}</p>
-                {t.is_default && <Star className="w-3.5 h-3.5 text-amber-500 shrink-0" fill="currentColor" />}
-                <ChevronRight className="w-3.5 h-3.5 text-gray-300 shrink-0" />
-              </div>
-              <ScopeChips tpl={t} />
-            </button>
-          ))}
+          <Button type="button" onClick={handleSave} disabled={isBusy || !canSave} className="h-9 min-w-[9.5rem] gap-2 bg-primary hover:bg-primary/90">
+            {isBusy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4 shrink-0" />}
+            Save Template
+          </Button>
         </div>
       </div>
 
-      {/* ── Editor ── */}
-      {!hasEditor ? (
-        <div className="flex-1 flex items-center justify-center text-gray-400">
-          <div className="text-center">
-            <FileText className="w-12 h-12 mx-auto mb-3 text-gray-200" />
-            <p className="text-sm">Select a template to edit, or create a new one.</p>
-            <button onClick={startNew}
-              className="mt-4 flex items-center gap-2 mx-auto px-4 py-2 text-sm bg-primary text-white rounded-lg hover:bg-primary/90">
-              <Plus className="w-4 h-4" /> New Template
-            </button>
-          </div>
-        </div>
-      ) : (
-        <div className="flex-1 flex flex-col overflow-hidden">
+      {/* Main grid — preview left, settings right (matches invoice templates) */}
+      <div className="grid grid-cols-1 lg:grid-cols-[1fr_380px] gap-6">
+        <OfferLivePreview
+          html={previewHtml}
+          layout={form.layout}
+          editable
+          onBodyChange={handlePreviewBodyChange}
+          pageCount={pageCount}
+        />
 
-          {/* Editor toolbar */}
-          <div className="flex items-center gap-2 px-5 py-3 border-b bg-white shrink-0">
-            <h2 className="text-sm font-semibold text-gray-900 flex-1">
-              {isNew ? 'New Template' : `Editing: ${selected?.name}`}
-            </h2>
-            <button onClick={() => setPreview(v => !v)}
-              className={`flex items-center gap-1.5 px-3 py-1.5 text-xs border rounded-lg transition-colors ${preview ? 'bg-indigo-50 border-indigo-300 text-indigo-700' : 'hover:bg-gray-50 text-gray-600'}`}>
-              {preview ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
-              {preview ? 'Edit' : 'Preview'}
-            </button>
-            {!isNew && (
-              <>
-                <button onClick={handleSetDefault} disabled={selected?.is_default}
-                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs border rounded-lg hover:bg-amber-50 hover:border-amber-300 hover:text-amber-700 disabled:opacity-40 transition-colors">
-                  <Star className="w-3.5 h-3.5" /> {selected?.is_default ? 'Default' : 'Set Default'}
-                </button>
-                <button onClick={handleDelete}
-                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs border rounded-lg hover:bg-red-50 hover:border-red-300 text-red-500 transition-colors">
-                  <Trash2 className="w-3.5 h-3.5" /> Delete
-                </button>
-              </>
-            )}
-            <button onClick={handleSave} disabled={isBusy || !form.name || !form.body_html}
-              className="flex items-center gap-1.5 px-4 py-1.5 text-xs bg-primary text-white rounded-lg hover:bg-primary/90 disabled:opacity-50">
-              <Save className="w-3.5 h-3.5" />
-              {isBusy ? 'Saving…' : 'Save'}
-            </button>
+        {/* Right: Settings panel — always mounted so tab/editor state is never lost */}
+        <div className="space-y-3">
+          <div className="flex gap-0.5 bg-gray-100 rounded-xl p-1">
+            {([
+              { id: 'design' as const, label: 'Design', icon: Palette },
+              { id: 'content' as const, label: 'Content', icon: PenLine },
+              { id: 'scope' as const, label: 'Scope', icon: Target },
+            ]).map(t => (
+              <button
+                key={t.id}
+                type="button"
+                onClick={() => setSettingsTabStable(t.id)}
+                className={`flex-1 flex items-center justify-center gap-1.5 py-2 text-xs font-medium rounded-lg transition-all ${
+                  settingsTab === t.id
+                    ? 'bg-white shadow text-blue-700 border border-blue-100'
+                    : 'text-gray-500 hover:text-gray-700'
+                }`}
+              >
+                <t.icon className="w-3.5 h-3.5 shrink-0" />
+                <span>{t.label}</span>
+              </button>
+            ))}
           </div>
 
-          <div className="flex-1 flex overflow-hidden">
-
-            {/* ── Left: form fields ── */}
-            <div className={`${preview ? 'w-[40%]' : 'w-[55%]'} flex flex-col overflow-y-auto border-r bg-white p-5 gap-4 transition-all`}>
-
-              {/* Name + Description */}
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <Label className="block text-xs font-medium text-gray-600 mb-1" required>Template Name</Label>
-                  <input value={form.name} onChange={e => setField('name', e.target.value)}
-                    className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
-                    placeholder="e.g. Engineering Offer Letter" />
-                </div>
-                <div>
-                  <Label className="block text-xs font-medium text-gray-600 mb-1">Description</Label>
-                  <input value={form.description} onChange={e => setField('description', e.target.value)}
-                    className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
-                    placeholder="Short admin note…" />
-                </div>
-              </div>
-
-              {/* Scope */}
-              <div>
-                <label className="block text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">
-                  Scope <span className="font-normal normal-case text-gray-400">— leave blank for global</span>
-                </label>
-                <div className="grid grid-cols-3 gap-2">
+          <div className={settingsTab === 'design' ? 'space-y-3' : 'hidden'} aria-hidden={settingsTab !== 'design'}>
+              <AccordionSection title="Template" badge={isNew ? 'New' : form.name || 'Untitled'} defaultOpen>
+                <div className="space-y-3">
+                  {templates.length > 0 && (
+                    <div>
+                      <Label className="text-xs text-gray-500 mb-1.5 block">Open template</Label>
+                      <select
+                        value={isNew ? '' : (selected?.id ?? '')}
+                        onChange={e => {
+                          if (e.target.value) selectTemplate(e.target.value)
+                        }}
+                        className="w-full h-9 border rounded-md px-2 text-sm bg-white"
+                      >
+                        {isNew && <option value="">— New template —</option>}
+                        {templates.map(t => (
+                          <option key={t.id} value={t.id}>
+                            {t.name}{t.is_default ? ' ★' : ''}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
                   <div>
-                    <label className="block text-xs text-gray-500 mb-1 flex items-center gap-1"><Users className="w-3 h-3" /> Role</label>
-                    <select value={form.designation_id} onChange={e => setField('designation_id', e.target.value)}
-                      className="w-full border rounded-lg px-2 py-1.5 text-xs focus:ring-1 focus:ring-blue-500 outline-none bg-white">
-                      <option value="">— Any Role —</option>
-                      {designations.map((d: any) => <option key={d.id} value={d.id}>{d.name}</option>)}
-                    </select>
+                    <Label className="text-xs text-gray-500 mb-1.5 block">Template name</Label>
+                    <input
+                      value={form.name}
+                      onChange={e => setField('name', e.target.value)}
+                      placeholder="e.g. Engineering Offer Letter"
+                      className="w-full h-9 border rounded-md px-3 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
+                    />
                   </div>
                   <div>
-                    <label className="block text-xs text-gray-500 mb-1 flex items-center gap-1"><Building2 className="w-3 h-3" /> Department</label>
-                    <select value={form.department_id} onChange={e => setField('department_id', e.target.value)}
-                      className="w-full border rounded-lg px-2 py-1.5 text-xs focus:ring-1 focus:ring-blue-500 outline-none bg-white">
-                      <option value="">— Any Dept —</option>
-                      {departments.map((d: any) => <option key={d.id} value={d.id}>{d.name}</option>)}
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-xs text-gray-500 mb-1 flex items-center gap-1"><Store className="w-3 h-3" /> Store</label>
-                    <select value={form.store_id} onChange={e => setField('store_id', e.target.value)}
-                      className="w-full border rounded-lg px-2 py-1.5 text-xs focus:ring-1 focus:ring-blue-500 outline-none bg-white">
-                      <option value="">— Any Store —</option>
-                      {stores.map((s: any) => <option key={s.id} value={s.id}>{s.name}</option>)}
-                    </select>
+                    <Label className="text-xs text-gray-500 mb-1.5 block">Description (internal)</Label>
+                    <input
+                      value={form.description}
+                      onChange={e => setField('description', e.target.value)}
+                      placeholder="Optional admin note"
+                      className="w-full h-9 border rounded-md px-3 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
+                    />
                   </div>
                 </div>
-                <label className="flex items-center gap-2 mt-2 cursor-pointer">
-                  <input type="checkbox" checked={form.is_default} onChange={e => setField('is_default', e.target.checked)} className="rounded text-blue-600" />
-                  <span className="text-xs text-gray-700">Set as default template for new offers</span>
-                </label>
-              </div>
+              </AccordionSection>
 
-              {/* Merge variable chips */}
-              <div>
-                <label className="block text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">
-                  Insert merge variable
-                </label>
+              <AccordionSection title="Themes" badge={layoutLabel(form.layout)} defaultOpen>
+                <p className="text-xs text-gray-500 mb-2">Same layout library as invoice templates — thumbnails show logo placement.</p>
+                <OfferLayoutThemeGrid selectedId={form.layout} onSelect={handleLayoutChange} />
+              </AccordionSection>
+
+              <AccordionSection title="Logo" badge={form.show_logo ? 'On' : 'Off'} defaultOpen>
+                <ToggleRow
+                  label="Show logo"
+                  hint={LAYOUT_LOGO_PLACEMENT[form.layout] ?? LAYOUT_LOGO_PLACEMENT.classic}
+                  checked={form.show_logo}
+                  onChange={v => setField('show_logo', v)}
+                />
+                {form.show_logo && (
+                  <>
+                  <div className="flex items-center gap-3 pt-1">
+                    {form.logo_url || vendorLogo ? (
+                      <div className="relative shrink-0">
+                        <img
+                          src={resolveOriginPath(form.logo_url || vendorLogo)}
+                          alt="Logo"
+                          className={`h-12 w-12 border p-1 bg-white ${logoPreviewClass}`}
+                        />
+                        {form.logo_url && (
+                          <button
+                            type="button"
+                            onClick={() => setField('logo_url', '')}
+                            className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full bg-red-500 text-white flex items-center justify-center text-[10px]"
+                            title="Remove template logo"
+                          >
+                            ×
+                          </button>
+                        )}
+                      </div>
+                    ) : (
+                      <div className={`h-12 w-12 border-2 border-dashed border-gray-300 flex items-center justify-center shrink-0 ${logoPreviewClass}`}>
+                        <Building2 className="w-5 h-5 text-gray-300" />
+                      </div>
+                    )}
+                    <div className="flex-1 min-w-0">
+                      <ImageSourcePicker
+                        title="Logo"
+                        onFile={uploadLogo}
+                        buttonLabel={form.logo_url ? 'Change logo' : 'Upload logo'}
+                        buttonVariant="outline"
+                        buttonSize="sm"
+                        buttonClassName="gap-1.5 w-full cursor-pointer text-xs"
+                      />
+                      <p className="text-xs text-gray-400 mt-1">
+                        {form.logo_url ? 'Template logo' : vendorLogo ? 'Using company logo' : 'PNG, JPG • Max 2 MB'}
+                      </p>
+                    </div>
+                  </div>
+                  <LogoShapePicker
+                    value={form.logo_shape}
+                    onChange={shape => setField('logo_shape', shape)}
+                  />
+                  </>
+                )}
+              </AccordionSection>
+
+              <AccordionSection title="Watermark" badge={form.watermark_enabled ? 'On' : 'Off'}>
+                <ToggleRow
+                  label="Show watermark"
+                  hint="Faded text or logo mark behind the letter body"
+                  checked={form.watermark_enabled}
+                  onChange={v => setField('watermark_enabled', v)}
+                />
+                {form.watermark_enabled && (
+                  <div className="space-y-3 pt-1">
+                    <div>
+                      <Label className="text-xs text-gray-500 mb-1.5 block">Watermark text</Label>
+                      <input
+                        value={form.watermark_text}
+                        onChange={e => setField('watermark_text', e.target.value)}
+                        placeholder={vendorName || 'Company name or CONFIDENTIAL'}
+                        className="w-full h-9 border rounded-md px-3 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-xs text-gray-500 mb-1.5 block">Style</Label>
+                      <select
+                        value={form.watermark_style}
+                        onChange={e => setField('watermark_style', e.target.value as OfferWatermarkStyle)}
+                        className="w-full h-9 border rounded-md px-2 text-sm bg-white"
+                      >
+                        {WATERMARK_STYLES.map(s => (
+                          <option key={s.id} value={s.id}>{s.label}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <Label className="text-xs text-gray-500 mb-1.5 block">
+                        Opacity ({Math.round((parseFloat(form.watermark_opacity) || 0.12) * 100)}%)
+                      </Label>
+                      <input
+                        type="range"
+                        min={4}
+                        max={35}
+                        value={Math.round((parseFloat(form.watermark_opacity) || 0.12) * 100)}
+                        onChange={e => setField('watermark_opacity', String(Number(e.target.value) / 100))}
+                        className="w-full accent-blue-600"
+                      />
+                    </div>
+                  </div>
+                )}
+              </AccordionSection>
+          </div>
+
+          <div className={settingsTab === 'content' ? 'space-y-3' : 'hidden'} aria-hidden={settingsTab !== 'content'}>
+              <AccordionSection title="Merge fields" defaultOpen>
+                <p className="text-xs text-gray-500 mb-2">Click a field to insert at the cursor in the letter body.</p>
                 <div className="flex flex-wrap gap-1.5">
                   {MERGE_VARS.map(({ key, label }) => (
-                    <button key={key} type="button" onClick={() => insertMergeVar(key)}
-                      className="text-xs px-2 py-1 rounded border border-indigo-200 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 transition-colors font-mono">
+                    <button
+                      key={key}
+                      type="button"
+                      onClick={() => insertMergeVar(key)}
+                      className="text-xs px-2 py-1 rounded-md border border-indigo-200 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 font-mono"
+                      title={label}
+                    >
                       {`{{${key}}}`}
                     </button>
                   ))}
                 </div>
-              </div>
+              </AccordionSection>
 
-              {/* Body textarea */}
-              <div className="flex-1 flex flex-col">
-                <Label className="block text-xs font-medium text-gray-600 mb-1" required>Template Body (HTML allowed)</Label>
-                <textarea
-                  ref={textareaRef}
+              <AccordionSection title="Letter body" defaultOpen>
+                <select
+                  value={mergePick}
+                  onChange={e => {
+                    const key = e.target.value
+                    if (key) { insertMergeVar(key); setMergePick('') }
+                  }}
+                  className="w-full h-8 border rounded-md px-2 text-xs bg-white mb-2"
+                >
+                  <option value="">Insert merge field…</option>
+                  {MERGE_VARS.map(({ key, label }) => (
+                    <option key={key} value={key}>{label}</option>
+                  ))}
+                </select>
+                <HtmlRichEditor
+                  ref={editorRef}
+                  editorKey={selected?.id ?? (isNew ? 'new' : '')}
                   value={form.body_html}
-                  onChange={e => setField('body_html', e.target.value)}
-                  className="flex-1 w-full border rounded-lg px-3 py-2 text-xs font-mono focus:ring-2 focus:ring-blue-500 outline-none resize-none min-h-[300px]"
-                  placeholder={"Dear {{candidate_name}},\n\nWe are pleased to offer you the position of {{designation}} in the {{department}} department...\n\nCTC: {{offered_ctc}}\nJoining Date: {{joining_date}}\n\nRegards,\n{{vendor_name}}"}
+                  onChange={setBodyHtml}
+                  placeholder="Dear {{candidate_name}}, we are pleased to offer you…"
+                  className="min-h-[280px]"
                 />
-              </div>
-            </div>
+              </AccordionSection>
+          </div>
 
-            {/* ── Right: preview ── */}
-            {preview && (
-              <div className="flex-1 overflow-y-auto bg-white p-5">
-                <p className="text-xs text-gray-400 mb-3 font-medium uppercase tracking-wide">Live Preview (sample values)</p>
-                <div className="border rounded-xl p-6 prose prose-sm max-w-none"
-                  dangerouslySetInnerHTML={{ __html: renderPreview(form.body_html) }} />
-              </div>
-            )}
-            {!preview && (
-              <div className="flex-1 overflow-y-auto bg-gray-50 p-5">
-                <p className="text-xs text-gray-400 mb-3 font-medium uppercase tracking-wide">Preview (toggle to see rendered output)</p>
-                <div className="border rounded-xl p-6 bg-white text-xs text-gray-400 font-mono whitespace-pre-wrap break-all">
-                  {form.body_html || 'Start typing your template body on the left…'}
+          <div className={settingsTab === 'scope' ? 'space-y-3' : 'hidden'} aria-hidden={settingsTab !== 'scope'}>
+              <AccordionSection title="Template scope" badge={form.designation_id || form.department_id || form.store_id ? 'Scoped' : 'Global'} defaultOpen>
+                <p className="text-xs text-gray-500 mb-3">Leave all blank for a global template. More specific templates are auto-selected for matching offers.</p>
+                <div className="space-y-3">
+                  <div>
+                    <label className="text-xs text-gray-500 mb-1 flex items-center gap-1"><Users className="w-3 h-3" /> Role / designation</label>
+                    <select value={form.designation_id} onChange={e => setField('designation_id', e.target.value)}
+                      className="w-full h-9 border rounded-md px-2 text-sm bg-white">
+                      <option value="">Any role</option>
+                      {(designations as { id: string; name: string }[]).map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-xs text-gray-500 mb-1 flex items-center gap-1"><Building2 className="w-3 h-3" /> Department</label>
+                    <select value={form.department_id} onChange={e => setField('department_id', e.target.value)}
+                      className="w-full h-9 border rounded-md px-2 text-sm bg-white">
+                      <option value="">Any department</option>
+                      {(departments as { id: string; name: string }[]).map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-xs text-gray-500 mb-1 flex items-center gap-1"><Store className="w-3 h-3" /> Store / branch</label>
+                    <select value={form.store_id} onChange={e => setField('store_id', e.target.value)}
+                      className="w-full h-9 border rounded-md px-2 text-sm bg-white">
+                      <option value="">Any store</option>
+                      {(stores as { id: string; name: string }[]).map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                    </select>
+                  </div>
                 </div>
-              </div>
-            )}
+              </AccordionSection>
+
+              <AccordionSection title="Default template" badge={form.is_default ? 'On' : 'Off'}>
+                <ToggleRow
+                  label="Set as default"
+                  hint="Auto-selected when creating new offers with no closer scope match"
+                  checked={form.is_default}
+                  onChange={v => setField('is_default', v)}
+                />
+              </AccordionSection>
+
+              {!isNew && selected && (
+                <div className="rounded-xl border bg-gray-50 px-4 py-3 space-y-2">
+                  <p className="text-xs font-medium text-gray-600">Template actions</p>
+                  <div className="flex flex-wrap gap-2">
+                    <Button type="button" variant="outline" size="sm" onClick={handleDuplicate} className="h-8 text-xs gap-1">
+                      <Copy className="w-3.5 h-3.5" /> Duplicate
+                    </Button>
+                    <Button type="button" variant="outline" size="sm" onClick={handleSetDefault} disabled={selected.is_default} className="h-8 text-xs gap-1">
+                      <Star className="w-3.5 h-3.5" /> Set default
+                    </Button>
+                    <Button type="button" variant="outline" size="sm" onClick={handleDelete} className="h-8 text-xs gap-1 text-red-600 border-red-200 hover:bg-red-50">
+                      <Trash2 className="w-3.5 h-3.5" /> Delete
+                    </Button>
+                  </div>
+                </div>
+              )}
           </div>
         </div>
-      )}
-    </div>
+      </div>
+    </form>
   )
 }

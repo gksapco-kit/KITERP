@@ -1741,14 +1741,25 @@ export function useHROfferTemplates(params?: { designation_id?: string; departme
   return useQuery({
     queryKey: ['hr', 'offer-templates', params],
     queryFn: () => vendorApi.hrListOfferTemplates(params),
-    staleTime: 60_000,
+    staleTime: 5 * 60_000,
+    gcTime: 30 * 60_000,
+    refetchOnWindowFocus: false,
+    refetchOnMount: false,
+    placeholderData: (prev) => prev,
   })
 }
+
 export function useCreateHROfferTemplate() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: (data: Record<string, unknown>) => vendorApi.hrCreateOfferTemplate(data),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['hr', 'offer-templates'] }); toast.success('Template created') },
+    onSuccess: (tpl) => {
+      qc.setQueriesData<import('../types').OfferLetterTemplate[]>(
+        { queryKey: ['hr', 'offer-templates'] },
+        (old) => [...(old ?? []), tpl],
+      )
+      toast.success('Template created')
+    },
     onError: apiError('Could not create template'),
   })
 }
@@ -1756,7 +1767,13 @@ export function useUpdateHROfferTemplate() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: ({ id, data }: { id: string; data: Record<string, unknown> }) => vendorApi.hrUpdateOfferTemplate(id, data),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['hr', 'offer-templates'] }); toast.success('Template saved') },
+    onSuccess: (tpl) => {
+      qc.setQueriesData<import('../types').OfferLetterTemplate[]>(
+        { queryKey: ['hr', 'offer-templates'] },
+        (old) => (old ?? []).map(t => (t.id === tpl.id ? tpl : t)),
+      )
+      toast.success('Template saved')
+    },
     onError: apiError('Could not update template'),
   })
 }
@@ -1764,7 +1781,13 @@ export function useDeleteHROfferTemplate() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: (id: string) => vendorApi.hrDeleteOfferTemplate(id),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['hr', 'offer-templates'] }); toast.success('Template deleted') },
+    onSuccess: (_void, id) => {
+      qc.setQueriesData<import('../types').OfferLetterTemplate[]>(
+        { queryKey: ['hr', 'offer-templates'] },
+        (old) => (old ?? []).filter(t => t.id !== id),
+      )
+      toast.success('Template deleted')
+    },
     onError: apiError('Could not delete template'),
   })
 }
@@ -1772,7 +1795,13 @@ export function useSetDefaultHROfferTemplate() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: (id: string) => vendorApi.hrSetDefaultOfferTemplate(id),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['hr', 'offer-templates'] }); toast.success('Default template set') },
+    onSuccess: (tpl) => {
+      qc.setQueriesData<import('../types').OfferLetterTemplate[]>(
+        { queryKey: ['hr', 'offer-templates'] },
+        (old) => (old ?? []).map(t => ({ ...t, is_default: t.id === tpl.id })),
+      )
+      toast.success('Default template set')
+    },
     onError: apiError('Could not set default template'),
   })
 }

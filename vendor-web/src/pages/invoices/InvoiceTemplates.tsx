@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback, useEffect } from 'react'
+﻿import { useState, useRef, useCallback, useEffect } from 'react'
 import { SectionLabel } from '@/components/common/FieldLabel'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
@@ -19,16 +19,20 @@ import {
 } from 'lucide-react'
 import { InvoiceAccentColorPicker } from '@/components/invoices/InvoiceAccentColorPicker'
 import {
-  generateInvoiceHtml, DEFAULT_INVOICE_SETTINGS, DEFAULT_QUOTATION_SETTINGS, PAPER_SIZES,
+  generateInvoiceHtml, mergeInvoiceTemplatePages, createBlankInvoiceContinuationPage,
+  DEFAULT_INVOICE_SETTINGS, DEFAULT_QUOTATION_SETTINGS, PAPER_SIZES,
   loadPosInvoiceSettings, savePosInvoiceSettings, DEFAULT_LAYOUT_SECTIONS, resolveInvoiceTemplateLogoPath,
   LOGO_SHAPES, URL_POSITION_OPTIONS,
   INVOICE_TEMPLATE_LABELS,
 } from '@/lib/invoiceTemplates'
 import type { InvoiceSettings, PaperSize, LayoutSection, LogoShape, InvoiceTemplateId } from '@/lib/invoiceTemplates'
+import { DocumentLivePreview } from '@/components/common/DocumentLivePreview'
+import { countOfferPages } from '@/lib/offerPages'
 import { buildCustomerStoreLink } from '@/lib/liveStorefrontUrl'
 import type { Vendor } from '@/types'
 import { ImageSourcePicker } from '@/components/common/ImageSourcePicker'
 import { SingleImagePreview } from '@/components/common/CatalogMediaLightbox'
+import { DOCUMENT_LAYOUT_THUMBNAILS as TEMPLATES } from '@/lib/documentLayoutThumbnails'
 
 function resolveOriginPath(url: string) {
   if (url.startsWith('blob:') || url.startsWith('data:') || url.startsWith('http://') || url.startsWith('https://')) return url
@@ -43,510 +47,6 @@ async function fileToDataUrl(file: File): Promise<string> {
     reader.readAsDataURL(file)
   })
 }
-
-// ── Template visual thumbnails ────────────────────────────────────────────────
-
-const TEMPLATES = [
-  {
-    id: 'classic',
-    name: 'Classic',
-    desc: 'Traditional GST invoice with coloured table header',
-    svg: (color: string) => `<svg viewBox="0 0 120 160" xmlns="http://www.w3.org/2000/svg">
-      <rect width="120" height="160" fill="#fff" rx="3"/>
-      <rect y="0" width="120" height="28" fill="${color}"/>
-      <rect x="6" y="5" width="30" height="18" fill="rgba(255,255,255,.25)" rx="2"/>
-      <rect x="42" y="8" width="50" height="6" fill="rgba(255,255,255,.8)" rx="1"/>
-      <rect x="42" y="16" width="34" height="4" fill="rgba(255,255,255,.5)" rx="1"/>
-      <rect x="6" y="34" width="50" height="18" fill="#f8fafc" rx="2"/>
-      <rect x="64" y="34" width="50" height="18" fill="#f8fafc" rx="2"/>
-      <rect y="58" width="120" height="8" fill="${color}"/>
-      ${[0,1,2,3].map(i=>`<rect x="0" y="${66+i*14}" width="120" height="13" fill="${i%2===0?'#fff':'#f9fafb'}"/>`).join('')}
-      <rect x="80" y="126" width="34" height="26" fill="#f8fafc" rx="2"/>
-      <rect x="6" y="148" width="60" height="6" fill="#e5e7eb" rx="1"/>
-    </svg>`,
-  },
-  {
-    id: 'modern',
-    name: 'Modern',
-    desc: 'Gradient header with clean layout and colour accents',
-    svg: (color: string) => `<svg viewBox="0 0 120 160" xmlns="http://www.w3.org/2000/svg">
-      <rect width="120" height="160" fill="#fff" rx="3"/>
-      <rect y="0" width="120" height="36" fill="url(#mg)"/>
-      <defs><linearGradient id="mg" x1="0" x2="1" y1="0" y2="1"><stop offset="0%" stop-color="${color}"/><stop offset="100%" stop-color="${color}cc"/></linearGradient></defs>
-      <rect x="6" y="7" width="22" height="22" fill="rgba(255,255,255,.2)" rx="3"/>
-      <rect x="34" y="10" width="40" height="6" fill="rgba(255,255,255,.85)" rx="1"/>
-      <rect x="34" y="18" width="28" height="4" fill="rgba(255,255,255,.5)" rx="1"/>
-      <rect x="84" y="8" width="30" height="8" fill="rgba(255,255,255,.15)" rx="1"/>
-      <rect x="84" y="18" width="24" height="4" fill="rgba(255,255,255,.3)" rx="1"/>
-      <rect x="6" y="42" width="108" height="12" fill="#f1f5f9" rx="3"/>
-      <rect x="6" y="58" width="114" height="7" fill="none" stroke="${color}" stroke-width="1.5"/>
-      ${[0,1,2,3].map(i=>`<rect x="6" y="${65+i*12}" width="108" height="11" fill="${i%2===0?'#fff':'#f9fafb'}"/>`).join('')}
-      <rect x="74" y="116" width="40" height="30" fill="#f8fafc" rx="3"/>
-      <rect x="6" y="150" width="50" height="5" fill="#e5e7eb" rx="1"/>
-    </svg>`,
-  },
-  {
-    id: 'minimal',
-    name: 'Minimal',
-    desc: 'Clean white layout with subtle borders',
-    svg: (color: string) => `<svg viewBox="0 0 120 160" xmlns="http://www.w3.org/2000/svg">
-      <rect width="120" height="160" fill="#fff" rx="3"/>
-      <rect x="6" y="8" width="24" height="10" fill="#e5e7eb" rx="1"/>
-      <rect x="6" y="20" width="40" height="5" fill="#374151" rx="1"/>
-      <rect x="6" y="27" width="28" height="3" fill="#9ca3af" rx="1"/>
-      <rect x="80" y="8" width="34" height="10" fill="${color}" opacity=".2" rx="2"/>
-      <rect x="82" y="12" width="20" height="4" fill="${color}" rx="1"/>
-      <rect x="6" y="38" width="114" height="1" fill="#e5e7eb"/>
-      <rect x="6" y="42" width="114" height="1" fill="#e5e7eb"/>
-      ${['#9ca3af','#9ca3af','#9ca3af','#9ca3af','#9ca3af','#9ca3af'].map((c,i)=>`<rect x="${6+i*19}" y="44" width="14" height="3" fill="${c}" rx="1"/>`).join('')}
-      <rect x="6" y="49" width="114" height="1" fill="#e5e7eb"/>
-      ${[0,1,2,3].map(i=>`<rect x="6" y="${50+i*12}" width="108" height="11" fill="${i%2===0?'#fff':'#f9fafb'}"/>`).join('')}
-      <rect x="6" y="100" width="114" height="1" fill="#e5e7eb"/>
-      <rect x="80" y="106" width="34" height="30" fill="#f8fafc" rx="2"/>
-      <rect x="6" y="148" width="50" height="5" fill="#f3f4f6" rx="1"/>
-    </svg>`,
-  },
-  {
-    id: 'luxury',
-    name: 'Luxury',
-    desc: 'Dark header with premium accent stripe',
-    svg: (color: string) => `<svg viewBox="0 0 120 160" xmlns="http://www.w3.org/2000/svg">
-      <rect width="120" height="160" fill="#fff" rx="3"/>
-      <rect y="0" width="120" height="36" fill="#1f2937"/>
-      <rect y="36" width="120" height="3" fill="${color}"/>
-      <rect x="6" y="7" width="22" height="22" fill="rgba(255,255,255,.1)" rx="3"/>
-      <rect x="34" y="10" width="40" height="6" fill="rgba(255,255,255,.8)" rx="1"/>
-      <rect x="34" y="18" width="28" height="4" fill="rgba(255,255,255,.4)" rx="1"/>
-      <rect x="88" y="8" width="26" height="4" fill="${color}" opacity=".5" rx="1"/>
-      <rect x="88" y="14" width="20" height="5" fill="rgba(255,255,255,.7)" rx="1"/>
-      <rect x="6" y="44" width="108" height="20" fill="#f8fafc" rx="3"/>
-      <rect x="10" y="47" width="30" height="4" fill="#9ca3af" rx="1"/>
-      <rect x="10" y="53" width="22" height="5" fill="#374151" rx="1"/>
-      ${[0,1,2,3].map(i=>`<rect x="6" y="${70+i*12}" width="108" height="11" fill="${i%2===0?'#fff':'#f9fafb'}"/>`).join('')}
-      <rect x="74" y="120" width="40" height="28" fill="#1f2937" rx="3"/>
-      <rect x="78" y="126" width="20" height="4" fill="${color}" rx="1"/>
-      <rect x="78" y="132" width="30" height="4" fill="rgba(255,255,255,.4)" rx="1"/>
-      <rect x="6" y="152" width="50" height="4" fill="#e5e7eb" rx="1"/>
-    </svg>`,
-  },
-  {
-    id: 'corporate',
-    name: 'Corporate',
-    desc: 'Formal letterhead style with left accent border',
-    svg: (color: string) => `<svg viewBox="0 0 120 160" xmlns="http://www.w3.org/2000/svg">
-      <rect width="120" height="160" fill="#fff" rx="3"/>
-      <rect x="0" y="0" width="4" height="160" fill="${color}"/>
-      <rect x="8" y="10" width="60" height="16" fill="#f1f5f9" rx="2"/>
-      <rect x="10" y="13" width="20" height="10" fill="#e2e8f0" rx="1"/>
-      <rect x="32" y="14" width="30" height="4" fill="#374151" rx="1"/>
-      <rect x="32" y="20" width="22" height="3" fill="#9ca3af" rx="1"/>
-      <rect x="76" y="8" width="3" height="22" fill="${color}"/>
-      <rect x="82" y="10" width="32" height="4" fill="${color}" opacity=".4" rx="1"/>
-      <rect x="82" y="16" width="24" height="5" fill="#374151" rx="1"/>
-      <rect x="82" y="23" width="20" height="3" fill="#9ca3af" rx="1"/>
-      <rect x="8" y="34" width="106" height="1" fill="#e5e7eb"/>
-      <rect x="8" y="38" width="106" height="12" fill="#f8fafc" rx="2"/>
-      <rect x="10" y="41" width="16" height="3" fill="${color}" opacity=".5" rx="1"/>
-      <rect x="28" y="41" width="30" height="3" fill="#374151" rx="1"/>
-      <rect x="8" y="55" width="106" height="1" fill="${color}"/>
-      <rect x="8" y="55" width="106" height="1" fill="${color}" opacity=".3"/>
-      ${[0,1,2,3].map(i=>`<rect x="8" y="${57+i*13}" width="106" height="12" fill="${i%2===0?'#fff':'#f9fafb'}"/>`).join('')}
-      <rect x="75" y="113" width="38" height="30" fill="#f8fafc" rx="2"/>
-      <rect x="8" y="150" width="50" height="5" fill="#f3f4f6" rx="1"/>
-    </svg>`,
-  },
-  {
-    id: 'colorblock',
-    name: 'Colorblock',
-    desc: 'Colored sidebar with all key details at a glance',
-    svg: (color: string) => `<svg viewBox="0 0 120 160" xmlns="http://www.w3.org/2000/svg">
-      <rect width="120" height="160" fill="#fff" rx="3"/>
-      <rect x="0" y="0" width="34" height="160" fill="${color}" rx="2"/>
-      <rect x="4" y="10" width="26" height="16" fill="rgba(255,255,255,.15)" rx="2"/>
-      <rect x="4" y="30" width="20" height="4" fill="rgba(255,255,255,.8)" rx="1"/>
-      <rect x="4" y="36" width="14" height="3" fill="rgba(255,255,255,.4)" rx="1"/>
-      <rect x="4" y="48" width="10" height="3" fill="rgba(255,255,255,.4)" rx="1"/>
-      <rect x="4" y="53" width="22" height="4" fill="rgba(255,255,255,.7)" rx="1"/>
-      <rect x="4" y="65" width="10" height="3" fill="rgba(255,255,255,.4)" rx="1"/>
-      <rect x="4" y="70" width="18" height="3" fill="rgba(255,255,255,.6)" rx="1"/>
-      <rect x="4" y="82" width="10" height="3" fill="rgba(255,255,255,.4)" rx="1"/>
-      <rect x="4" y="87" width="24" height="6" fill="rgba(255,255,255,.9)" rx="1"/>
-      <rect x="38" y="10" width="14" height="3" fill="${color}" opacity=".5" rx="1"/>
-      <rect x="38" y="15" width="30" height="5" fill="#374151" rx="1"/>
-      <rect x="38" y="22" width="20" height="3" fill="#9ca3af" rx="1"/>
-      <rect x="38" y="32" width="74" height="1" fill="${color}" opacity=".4"/>
-      ${[0,1,2,3].map(i=>`<rect x="38" y="${34+i*12}" width="74" height="11" fill="${i%2===0?'#fff':'#f9fafb'}"/>`).join('')}
-      <rect x="76" y="84" width="36" height="28" fill="#f8fafc" rx="2"/>
-      <rect x="38" y="148" width="40" height="4" fill="#f3f4f6" rx="1"/>
-    </svg>`,
-  },
-  {
-    id: 'compact',
-    name: 'Compact',
-    desc: 'Dense layout — fits more items, great for long invoices',
-    svg: (color: string) => `<svg viewBox="0 0 120 160" xmlns="http://www.w3.org/2000/svg">
-      <rect width="120" height="160" fill="#fff" rx="3"/>
-      <rect x="4" y="6" width="60" height="14" fill="#fff"/>
-      <rect x="4" y="7" width="14" height="12" fill="#e2e8f0" rx="1"/>
-      <rect x="20" y="8" width="30" height="4" fill="#374151" rx="1"/>
-      <rect x="20" y="14" width="22" height="3" fill="#9ca3af" rx="1"/>
-      <rect x="76" y="7" width="36" height="5" fill="${color}" opacity=".25" rx="1"/>
-      <rect x="76" y="14" width="28" height="4" fill="${color}" rx="1" opacity=".7"/>
-      <rect x="4" y="22" width="112" height="2" fill="${color}"/>
-      <rect x="4" y="26" width="112" height="8" fill="#f8fafc" rx="1"/>
-      <rect x="6" y="28" width="40" height="3" fill="#374151" rx="1"/>
-      <rect x="4" y="36" width="112" height="2" fill="${color}"/>
-      ${[0,1,2,3,4,5,6].map(i=>`<rect x="4" y="${39+i*10}" width="112" height="9" fill="${i%2===0?'#fff':'#f9fafb'}"/>`).join('')}
-      <rect x="76" y="111" width="38" height="24" fill="#f8fafc" rx="2"/>
-      <rect x="4" y="148" width="44" height="5" fill="#f3f4f6" rx="1"/>
-    </svg>`,
-  },
-  {
-    id: 'bold',
-    name: 'Bold',
-    desc: 'High-impact header with prominent total display',
-    svg: (color: string) => `<svg viewBox="0 0 120 160" xmlns="http://www.w3.org/2000/svg">
-      <rect width="120" height="160" fill="#fff" rx="3"/>
-      <rect y="0" width="120" height="32" fill="${color}"/>
-      <rect x="6" y="7" width="18" height="18" fill="rgba(255,255,255,.2)" rx="2"/>
-      <rect x="28" y="9" width="38" height="6" fill="rgba(255,255,255,.9)" rx="1"/>
-      <rect x="28" y="17" width="26" height="4" fill="rgba(255,255,255,.5)" rx="1"/>
-      <rect x="82" y="6" width="34" height="20" fill="rgba(0,0,0,.2)" rx="2"/>
-      <rect x="84" y="9" width="18" height="3" fill="rgba(255,255,255,.5)" rx="1"/>
-      <rect x="84" y="14" width="28" height="5" fill="rgba(255,255,255,.85)" rx="1"/>
-      <rect y="32" width="120" height="22" fill="#1f2937"/>
-      <rect x="6" y="37" width="30" height="4" fill="#9ca3af" rx="1"/>
-      <rect x="6" y="43" width="44" height="5" fill="#fff" rx="1"/>
-      <rect x="78" y="34" width="38" height="16" fill="${color}" opacity=".2" rx="2"/>
-      <rect x="82" y="37" width="22" height="4" fill="${color}" rx="1" opacity=".8"/>
-      <rect x="80" y="43" width="34" height="6" fill="${color}" rx="1"/>
-      <rect x="8" y="60" width="104" height="7" fill="none" stroke="${color}" stroke-width="1.5"/>
-      ${[0,1,2,3].map(i=>`<rect x="8" y="${67+i*12}" width="104" height="11" fill="${i%2===0?'#fff':'#f9fafb'}"/>`).join('')}
-      <rect x="76" y="118" width="36" height="26" fill="#f8fafc" rx="2"/>
-      <rect x="8" y="150" width="44" height="4" fill="#f3f4f6" rx="1"/>
-    </svg>`,
-  },
-  {
-    id: 'visual',
-    name: 'Visual',
-    desc: 'Product-image showcase — shows a photo with every line item',
-    svg: (color: string) => `<svg viewBox="0 0 120 160" xmlns="http://www.w3.org/2000/svg">
-      <rect width="120" height="160" fill="#fff" rx="3"/>
-      <!-- Header -->
-      <rect x="4" y="6" width="14" height="12" fill="#e2e8f0" rx="1"/>
-      <rect x="21" y="7" width="32" height="5" fill="#1e293b" rx="1"/>
-      <rect x="21" y="14" width="22" height="3" fill="#94a3b8" rx="1"/>
-      <rect x="80" y="4" width="36" height="18" fill="${color}" rx="4"/>
-      <rect x="84" y="7" width="18" height="3" fill="rgba(255,255,255,.55)" rx="1"/>
-      <rect x="84" y="12" width="26" height="4" fill="rgba(255,255,255,.95)" rx="1"/>
-      <rect x="84" y="18" width="16" height="2.5" fill="rgba(255,255,255,.45)" rx="1"/>
-      <rect x="4" y="26" width="112" height="1" fill="#f1f5f9"/>
-      <!-- Bill-to + total strip -->
-      <rect x="4" y="29" width="68" height="18" fill="#fff"/>
-      <rect x="6" y="30" width="16" height="2.5" fill="#94a3b8" rx="1"/>
-      <rect x="6" y="34" width="40" height="4" fill="#1e293b" rx="1"/>
-      <rect x="6" y="40" width="28" height="2.5" fill="#94a3b8" rx="1"/>
-      <rect x="76" y="29" width="40" height="18" fill="#fff"/>
-      <rect x="78" y="30" width="22" height="2.5" fill="#94a3b8" rx="1"/>
-      <rect x="78" y="35" width="36" height="8" fill="${color}" opacity=".2" rx="2"/>
-      <rect x="80" y="37" width="28" height="4" fill="${color}" rx="1"/>
-      <rect x="4" y="47" width="112" height="1" fill="#f1f5f9"/>
-      <!-- Product item rows with thumbnails -->
-      ${[0,1,2,3].map(i=>`
-        <rect x="6" y="${50+i*24}" width="16" height="16" fill="${i%2===0?color+'30':'#f1f5f9'}" rx="2"/>
-        <rect x="${i%2===0?9:9}" y="${54+i*24}" width="${i%2===0?10:10}" height="${i%2===0?8:8}" fill="${i%2===0?color+'80':'#e2e8f0'}" rx="1"/>
-        <rect x="26" y="${51+i*24}" width="34" height="4" fill="#374151" rx="1"/>
-        <rect x="26" y="${57+i*24}" width="22" height="2.5" fill="#94a3b8" rx="1"/>
-        <rect x="26" y="${61+i*24}" width="14" height="2.5" fill="${color}" opacity=".35" rx="8"/>
-        <rect x="88" y="${53+i*24}" width="24" height="5" fill="${color}" opacity="${i===0?'.9':'.5'}" rx="1"/>
-        <rect x="4" y="${67+i*24}" width="112" height="1" fill="#f1f5f9"/>
-      `).join('')}
-      <!-- Totals pill -->
-      <rect x="70" y="148" width="46" height="10" fill="${color}" rx="2"/>
-      <rect x="74" y="151" width="12" height="3" fill="rgba(255,255,255,.7)" rx="1"/>
-      <rect x="96" y="150" width="16" height="5" fill="rgba(255,255,255,.9)" rx="1"/>
-    </svg>`,
-  },
-  {
-    id: 'toprightlogobottomleft',
-    name: 'Top Right Logo · Bottom Left Logo',
-    desc: 'Top: logo right in header. Bottom: logo left below signature (dashed line)',
-    svg: (color: string) => `<svg viewBox="0 0 120 160" xmlns="http://www.w3.org/2000/svg">
-      <rect width="120" height="160" fill="#fff" rx="3"/>
-      <rect x="6" y="10" width="46" height="5" fill="#374151" rx="1"/>
-      <rect x="6" y="18" width="34" height="3" fill="#9ca3af" rx="1"/>
-      <rect x="6" y="24" width="24" height="3" fill="#9ca3af" rx="1"/>
-      <rect x="82" y="6" width="32" height="22" fill="#e2e8f0" rx="2"/>
-      <rect x="86" y="10" width="24" height="14" fill="${color}" opacity=".65" rx="1"/>
-      <rect x="6" y="32" width="108" height="2" fill="${color}"/>
-      ${[0,1,2,3].map(i=>`<rect x="6" y="${38+i*12}" width="108" height="11" fill="${i%2===0?'#fff':'#f9fafb'}"/>`).join('')}
-      <rect x="72" y="100" width="36" height="14" fill="#f8fafc" stroke="#e5e7eb" rx="1"/>
-      <rect x="78" y="104" width="24" height="6" fill="#e5e7eb" rx="1"/>
-      <line x1="6" y1="118" x2="114" y2="118" stroke="#cbd5e1" stroke-width="1" stroke-dasharray="4 3"/>
-      <rect x="8" y="126" width="28" height="18" fill="#e2e8f0" rx="2"/>
-      <rect x="12" y="130" width="20" height="10" fill="${color}" opacity=".65" rx="1"/>
-    </svg>`,
-  },
-  {
-    id: 'topleftlogobottomright',
-    name: 'Top Left Logo · Bottom Right Logo',
-    desc: 'Top: logo left in header. Bottom: logo right below signature (dashed line)',
-    svg: (color: string) => `<svg viewBox="0 0 120 160" xmlns="http://www.w3.org/2000/svg">
-      <rect width="120" height="160" fill="#fff" rx="3"/>
-      <rect x="6" y="6" width="32" height="22" fill="#e2e8f0" rx="2"/>
-      <rect x="10" y="10" width="24" height="14" fill="${color}" opacity=".65" rx="1"/>
-      <rect x="44" y="10" width="46" height="5" fill="#374151" rx="1"/>
-      <rect x="44" y="18" width="34" height="3" fill="#9ca3af" rx="1"/>
-      <rect x="44" y="24" width="24" height="3" fill="#9ca3af" rx="1"/>
-      <rect x="6" y="32" width="108" height="2" fill="${color}"/>
-      ${[0,1,2,3].map(i=>`<rect x="6" y="${38+i*12}" width="108" height="11" fill="${i%2===0?'#fff':'#f9fafb'}"/>`).join('')}
-      <rect x="12" y="100" width="36" height="14" fill="#f8fafc" stroke="#e5e7eb" rx="1"/>
-      <rect x="18" y="104" width="24" height="6" fill="#e5e7eb" rx="1"/>
-      <line x1="6" y1="118" x2="114" y2="118" stroke="#cbd5e1" stroke-width="1" stroke-dasharray="4 3"/>
-      <rect x="84" y="126" width="28" height="18" fill="#e2e8f0" rx="2"/>
-      <rect x="88" y="130" width="20" height="10" fill="${color}" opacity=".65" rx="1"/>
-    </svg>`,
-  },
-  {
-    id: 'centered',
-    name: 'Centered',
-    desc: 'Logo and company name centered — clean and professional',
-    svg: (color: string) => `<svg viewBox="0 0 120 160" xmlns="http://www.w3.org/2000/svg">
-      <rect width="120" height="160" fill="#fff" rx="3"/>
-      <rect x="44" y="8" width="32" height="20" fill="#e2e8f0" rx="2"/>
-      <rect x="48" y="12" width="24" height="12" fill="${color}" opacity=".4" rx="1"/>
-      <rect x="30" y="32" width="60" height="5" fill="#374151" rx="1"/>
-      <rect x="38" y="40" width="44" height="3" fill="#9ca3af" rx="1"/>
-      <rect x="32" y="48" width="56" height="5" fill="${color}" opacity=".25" rx="1"/>
-      <rect x="6" y="58" width="108" height="1" fill="${color}"/>
-      ${[0,1,2,3].map(i=>`<rect x="6" y="${62+i*12}" width="108" height="11" fill="${i%2===0?'#fff':'#f9fafb'}"/>`).join('')}
-      <rect x="76" y="114" width="38" height="26" fill="#f8fafc" rx="2"/>
-    </svg>`,
-  },
-  {
-    id: 'letterhead',
-    name: 'Letterhead',
-    desc: 'Formal letterhead with logo left and mark on right',
-    svg: (color: string) => `<svg viewBox="0 0 120 160" xmlns="http://www.w3.org/2000/svg">
-      <rect width="120" height="160" fill="#fff" rx="3"/>
-      <rect x="6" y="10" width="18" height="14" fill="#e2e8f0" rx="1"/>
-      <rect x="28" y="12" width="44" height="4" fill="#374151" rx="1"/>
-      <rect x="28" y="18" width="30" height="3" fill="#9ca3af" rx="1"/>
-      <rect x="92" y="10" width="20" height="12" fill="${color}" opacity=".2" rx="1"/>
-      <rect x="6" y="30" width="108" height="1" fill="#111"/>
-      <rect x="6" y="36" width="50" height="3" fill="#9ca3af" rx="1"/>
-      ${[0,1,2,3].map(i=>`<rect x="6" y="${44+i*12}" width="108" height="11" fill="${i%2===0?'#fff':'#f9fafb'}"/>`).join('')}
-      <rect x="76" y="96" width="38" height="28" fill="#f8fafc" rx="2"/>
-    </svg>`,
-  },
-  {
-    id: 'banner',
-    name: 'Banner',
-    desc: 'Full-width colour banner with logo on the left only',
-    svg: (color: string) => `<svg viewBox="0 0 120 160" xmlns="http://www.w3.org/2000/svg">
-      <rect width="120" height="160" fill="#fff" rx="3"/>
-      <rect y="0" width="120" height="30" fill="${color}"/>
-      <rect x="6" y="6" width="20" height="18" fill="rgba(255,255,255,.25)" rx="2"/>
-      <rect x="44" y="10" width="32" height="5" fill="rgba(255,255,255,.9)" rx="1"/>
-      <rect x="88" y="10" width="24" height="5" fill="rgba(255,255,255,.5)" rx="1"/>
-      <rect x="6" y="34" width="108" height="8" fill="#f8fafc" rx="1"/>
-      ${[0,1,2,3].map(i=>`<rect x="6" y="${46+i*12}" width="108" height="11" fill="${i%2===0?'#fff':'#f9fafb'}"/>`).join('')}
-      <rect x="76" y="98" width="38" height="28" fill="#f8fafc" rx="2"/>
-    </svg>`,
-  },
-  {
-    id: 'executive',
-    name: 'Executive',
-    desc: 'Large right logo with subtle watermark background',
-    svg: (color: string) => `<svg viewBox="0 0 120 160" xmlns="http://www.w3.org/2000/svg">
-      <rect width="120" height="160" fill="#fff" rx="3"/>
-      <rect x="6" y="10" width="28" height="4" fill="${color}" rx="1"/>
-      <rect x="6" y="18" width="48" height="6" fill="#374151" rx="1"/>
-      <rect x="6" y="28" width="32" height="3" fill="#9ca3af" rx="1"/>
-      <rect x="70" y="6" width="44" height="36" fill="${color}" opacity=".08" rx="4"/>
-      <rect x="78" y="10" width="32" height="28" fill="#e2e8f0" rx="2"/>
-      <rect x="82" y="14" width="24" height="20" fill="${color}" opacity=".5" rx="1"/>
-      <rect x="6" y="48" width="80" height="2" fill="${color}" opacity=".4"/>
-      ${[0,1,2,3].map(i=>`<rect x="6" y="${54+i*12}" width="108" height="11" fill="${i%2===0?'#fff':'#f9fafb'}"/>`).join('')}
-      <rect x="76" y="106" width="38" height="28" fill="#f8fafc" rx="2"/>
-    </svg>`,
-  },
-  {
-    id: 'stripe',
-    name: 'Stripe',
-    desc: 'Tri-colour stripe header with logo on the left only',
-    svg: (color: string) => `<svg viewBox="0 0 120 160" xmlns="http://www.w3.org/2000/svg">
-      <rect width="120" height="160" fill="#fff" rx="3"/>
-      <rect y="0" width="40" height="5" fill="${color}"/>
-      <rect x="40" y="0" width="40" height="5" fill="#1f2937"/>
-      <rect x="80" y="0" width="40" height="5" fill="${color}"/>
-      <rect x="4" y="10" width="18" height="16" fill="#e2e8f0" rx="1"/>
-      <rect x="46" y="12" width="28" height="5" fill="#374151" rx="1"/>
-      <rect x="46" y="20" width="20" height="4" fill="${color}" rx="1"/>
-      <rect x="94" y="12" width="20" height="4" fill="#9ca3af" rx="1"/>
-      <rect x="6" y="32" width="108" height="1" fill="#e5e7eb"/>
-      ${[0,1,2,3].map(i=>`<rect x="6" y="${36+i*12}" width="108" height="11" fill="${i%2===0?'#fff':'#f9fafb'}"/>`).join('')}
-      <rect x="76" y="88" width="38" height="28" fill="#f8fafc" rx="2"/>
-    </svg>`,
-  },
-  {
-    id: 'gstpro',
-    name: 'GST Pro',
-    desc: 'Indian GST format — logo left in bordered box',
-    svg: (color: string) => `<svg viewBox="0 0 120 160" xmlns="http://www.w3.org/2000/svg">
-      <rect width="120" height="160" fill="#fff" rx="3"/>
-      <rect x="6" y="8" width="28" height="24" fill="#f8fafc" stroke="#e5e7eb" rx="2"/>
-      <rect x="10" y="12" width="20" height="16" fill="${color}" opacity=".35" rx="1"/>
-      <rect x="38" y="12" width="44" height="5" fill="#374151" rx="1"/>
-      <rect x="38" y="20" width="30" height="3" fill="#9ca3af" rx="1"/>
-      <rect x="88" y="10" width="26" height="12" fill="${color}" rx="2"/>
-      <rect x="6" y="38" width="54" height="22" fill="#f8fafc" stroke="#e5e7eb" rx="2"/>
-      <rect x="64" y="38" width="50" height="22" fill="#f8fafc" stroke="#e5e7eb" rx="2"/>
-      ${[0,1,2,3].map(i=>`<rect x="6" y="${64+i*12}" width="108" height="11" fill="${i%2===0?'#fff':'#f9fafb'}"/>`).join('')}
-      <rect x="76" y="116" width="38" height="28" fill="#f8fafc" rx="2"/>
-    </svg>`,
-  },
-  {
-    id: 'retail',
-    name: 'Retail',
-    desc: 'Store style — logo left, bold total header',
-    svg: (color: string) => `<svg viewBox="0 0 120 160" xmlns="http://www.w3.org/2000/svg">
-      <rect width="120" height="160" fill="#fff" rx="3"/>
-      <rect y="0" width="120" height="24" fill="#111"/>
-      <rect x="6" y="5" width="18" height="14" fill="#fff" opacity=".3" rx="1"/>
-      <rect x="28" y="7" width="36" height="4" fill="#fff" opacity=".8" rx="1"/>
-      <rect x="88" y="6" width="26" height="12" fill="${color}" rx="2"/>
-      <rect y="24" width="120" height="8" fill="${color}" opacity=".2"/>
-      ${[0,1,2,3].map(i=>`<rect x="6" y="${36+i*12}" width="108" height="11" fill="${i%2===0?'#fff':'#f9fafb'}"/>`).join('')}
-      <rect x="76" y="88" width="38" height="28" fill="#f8fafc" rx="2"/>
-    </svg>`,
-  },
-  {
-    id: 'sideright',
-    name: 'Side Right',
-    desc: 'Coloured sidebar on right with logo',
-    svg: (color: string) => `<svg viewBox="0 0 120 160" xmlns="http://www.w3.org/2000/svg">
-      <rect width="120" height="160" fill="#fff" rx="3"/>
-      <rect x="90" y="0" width="30" height="160" fill="${color}" rx="2"/>
-      <rect x="94" y="10" width="22" height="18" fill="rgba(255,255,255,.2)" rx="2"/>
-      <rect x="8" y="12" width="40" height="5" fill="${color}" rx="1"/>
-      <rect x="8" y="20" width="28" height="3" fill="#9ca3af" rx="1"/>
-      ${[0,1,2,3].map(i=>`<rect x="8" y="${30+i*12}" width="78" height="11" fill="${i%2===0?'#fff':'#f9fafb'}"/>`).join('')}
-      <rect x="58" y="82" width="28" height="24" fill="#f8fafc" rx="2"/>
-    </svg>`,
-  },
-  {
-    id: 'framed',
-    name: 'Framed',
-    desc: 'Double border frame — logo on the right',
-    svg: (color: string) => `<svg viewBox="0 0 120 160" xmlns="http://www.w3.org/2000/svg">
-      <rect x="4" y="4" width="112" height="152" fill="#fff" stroke="${color}" stroke-width="2"/>
-      <rect x="6" y="10" width="40" height="5" fill="#374151" rx="1"/>
-      <rect x="6" y="18" width="28" height="3" fill="#9ca3af" rx="1"/>
-      <rect x="86" y="8" width="26" height="22" fill="#e2e8f0" rx="2"/>
-      <rect x="90" y="12" width="18" height="14" fill="${color}" opacity=".4" rx="1"/>
-      ${[0,1,2,3].map(i=>`<rect x="8" y="${36+i*12}" width="104" height="11" fill="${i%2===0?'#fff':'#f9fafb'}"/>`).join('')}
-      <rect x="72" y="90" width="40" height="28" fill="#f8fafc" rx="2"/>
-    </svg>`,
-  },
-  {
-    id: 'slimleft',
-    name: 'Slim Left',
-    desc: 'Narrow left column with logo and company info',
-    svg: (color: string) => `<svg viewBox="0 0 120 160" xmlns="http://www.w3.org/2000/svg">
-      <rect width="120" height="160" fill="#fff" rx="3"/>
-      <rect x="0" y="0" width="34" height="160" fill="#f8fafc"/>
-      <rect x="4" y="10" width="26" height="20" fill="#e2e8f0" rx="2"/>
-      <rect x="7" y="14" width="20" height="12" fill="${color}" opacity=".4" rx="1"/>
-      <rect x="4" y="34" width="26" height="3" fill="#374151" rx="1"/>
-      <rect x="38" y="10" width="30" height="5" fill="${color}" rx="1"/>
-      <rect x="38" y="18" width="40" height="3" fill="#9ca3af" rx="1"/>
-      ${[0,1,2,3].map(i=>`<rect x="38" y="${28+i*12}" width="76" height="11" fill="${i%2===0?'#fff':'#f9fafb'}"/>`).join('')}
-      <rect x="76" y="80" width="38" height="28" fill="#f8fafc" rx="2"/>
-    </svg>`,
-  },
-  {
-    id: 'premiumright',
-    name: 'Premium Right',
-    desc: 'Logo right with summary feature cards',
-    svg: (color: string) => `<svg viewBox="0 0 120 160" xmlns="http://www.w3.org/2000/svg">
-      <rect width="120" height="160" fill="#fff" rx="3"/>
-      <rect x="6" y="10" width="44" height="5" fill="#374151" rx="1"/>
-      <rect x="6" y="18" width="30" height="3" fill="#9ca3af" rx="1"/>
-      <rect x="82" y="8" width="32" height="26" fill="#f8fafc" stroke="#e5e7eb" rx="2"/>
-      <rect x="86" y="12" width="24" height="18" fill="${color}" opacity=".45" rx="1"/>
-      ${[0,1,2,3].map(i=>`<rect x="${6+i*28}" y="32" width="24" height="14" fill="#f8fafc" stroke="#e5e7eb" rx="2"/>`).join('')}
-      ${[0,1,2,3].map(i=>`<rect x="6" y="${52+i*12}" width="108" height="11" fill="${i%2===0?'#fff':'#f9fafb'}"/>`).join('')}
-      <rect x="76" y="104" width="38" height="28" fill="#f8fafc" rx="2"/>
-    </svg>`,
-  },
-  {
-    id: 'leftlogo',
-    name: 'Left Logo',
-    desc: 'Logo on the left — company details beside it',
-    svg: (color: string) => `<svg viewBox="0 0 120 160" xmlns="http://www.w3.org/2000/svg">
-      <rect width="120" height="160" fill="#fff" rx="3"/>
-      <rect x="0" y="0" width="120" height="34" fill="#f8fafc"/>
-      <rect x="8" y="8" width="28" height="18" fill="#e2e8f0" rx="2"/>
-      <rect x="11" y="11" width="22" height="12" fill="${color}" opacity=".55" rx="1"/>
-      <rect x="42" y="10" width="48" height="5" fill="#374151" rx="1"/>
-      <rect x="42" y="18" width="34" height="3" fill="#9ca3af" rx="1"/>
-      <rect x="6" y="38" width="108" height="1" fill="#e5e7eb"/>
-      ${[0,1,2,3].map(i=>`<rect x="6" y="${44+i*12}" width="108" height="11" fill="${i%2===0?'#fff':'#f9fafb'}"/>`).join('')}
-      <rect x="76" y="96" width="38" height="28" fill="#f8fafc" rx="2"/>
-    </svg>`,
-  },
-  {
-    id: 'rightlogo',
-    name: 'Right Logo',
-    desc: 'Logo on the right — company details on the left',
-    svg: (color: string) => `<svg viewBox="0 0 120 160" xmlns="http://www.w3.org/2000/svg">
-      <rect width="120" height="160" fill="#fff" rx="3"/>
-      <rect x="0" y="0" width="120" height="34" fill="#f8fafc"/>
-      <rect x="8" y="10" width="48" height="5" fill="#374151" rx="1"/>
-      <rect x="8" y="18" width="36" height="3" fill="#9ca3af" rx="1"/>
-      <rect x="84" y="8" width="28" height="18" fill="#e2e8f0" rx="2"/>
-      <rect x="87" y="11" width="22" height="12" fill="${color}" opacity=".55" rx="1"/>
-      <rect x="6" y="38" width="108" height="1" fill="#e5e7eb"/>
-      ${[0,1,2,3].map(i=>`<rect x="6" y="${44+i*12}" width="108" height="11" fill="${i%2===0?'#fff':'#f9fafb'}"/>`).join('')}
-      <rect x="76" y="96" width="38" height="28" fill="#f8fafc" rx="2"/>
-    </svg>`,
-  },
-  {
-    id: 'footerleft',
-    name: 'Footer Left',
-    desc: 'Logo in the footer on the left — clean header',
-    svg: (color: string) => `<svg viewBox="0 0 120 160" xmlns="http://www.w3.org/2000/svg">
-      <rect width="120" height="160" fill="#fff" rx="3"/>
-      <rect x="8" y="10" width="56" height="5" fill="#374151" rx="1"/>
-      <rect x="8" y="18" width="40" height="3" fill="#9ca3af" rx="1"/>
-      <rect x="6" y="28" width="108" height="2" fill="${color}"/>
-      ${[0,1,2,3].map(i=>`<rect x="6" y="${34+i*12}" width="108" height="11" fill="${i%2===0?'#fff':'#f9fafb'}"/>`).join('')}
-      <rect x="0" y="118" width="120" height="42" fill="#f8fafc"/>
-      <rect x="8" y="128" width="24" height="16" fill="#e2e8f0" rx="2"/>
-      <rect x="11" y="131" width="18" height="10" fill="${color}" opacity=".55" rx="1"/>
-      <rect x="38" y="132" width="40" height="3" fill="#9ca3af" rx="1"/>
-      <rect x="88" y="130" width="24" height="12" fill="#e5e7eb" rx="1"/>
-    </svg>`,
-  },
-  {
-    id: 'footerright',
-    name: 'Footer Right',
-    desc: 'Logo in the footer on the right — clean header',
-    svg: (color: string) => `<svg viewBox="0 0 120 160" xmlns="http://www.w3.org/2000/svg">
-      <rect width="120" height="160" fill="#fff" rx="3"/>
-      <rect x="8" y="10" width="56" height="5" fill="#374151" rx="1"/>
-      <rect x="8" y="18" width="40" height="3" fill="#9ca3af" rx="1"/>
-      <rect x="6" y="28" width="108" height="2" fill="${color}"/>
-      ${[0,1,2,3].map(i=>`<rect x="6" y="${34+i*12}" width="108" height="11" fill="${i%2===0?'#fff':'#f9fafb'}"/>`).join('')}
-      <rect x="0" y="118" width="120" height="42" fill="#f8fafc"/>
-      <rect x="8" y="132" width="40" height="3" fill="#9ca3af" rx="1"/>
-      <rect x="88" y="128" width="24" height="16" fill="#e2e8f0" rx="2"/>
-      <rect x="91" y="131" width="18" height="10" fill="${color}" opacity=".55" rx="1"/>
-      <rect x="52" y="130" width="24" height="12" fill="#e5e7eb" rx="1"/>
-    </svg>`,
-  },
-]
 
 function templateLabelFor(id: InvoiceTemplateId | undefined): string {
   if (!id) return 'Classic'
@@ -619,7 +119,7 @@ function LogoShapeIcon({ shape, selected }: { shape: LogoShape; selected?: boole
   )
 }
 
-// ── Template theme grid ───────────────────────────────────────────────────────
+// â”€â”€ Template theme grid â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 function TemplateThemeGrid({
   selectedId,
@@ -673,143 +173,98 @@ function TemplateThemeGrid({
   )
 }
 
-// ── Live invoice preview (iframe) ─────────────────────────────────────────────
+// ── Live document preview (invoice / quotation / POS) ─────────────────────────
 
-function InvoiceLivePreview({
+function templateSelectControl(
+  templateId: InvoiceTemplateId,
+  onTemplateChange: ((id: InvoiceTemplateId) => void) | undefined,
+) {
+  if (!onTemplateChange) {
+    return (
+      <span className="inline-flex items-center gap-1.5 rounded-full bg-blue-50 border border-blue-100 px-2.5 py-1 text-xs font-medium text-blue-700">
+        <Check className="w-3 h-3" />
+        {templateLabelFor(templateId)}
+      </span>
+    )
+  }
+  const inGrid = new Set(TEMPLATES.map(t => t.id))
+  const opts = TEMPLATES.map(t => ({ id: t.id, name: t.name }))
+  if (templateId && !inGrid.has(templateId)) {
+    opts.unshift({ id: templateId, name: templateLabelFor(templateId) })
+  }
+  return (
+    <label className="flex items-center gap-2 min-w-0 text-xs">
+      <span className="text-gray-500 shrink-0 font-medium">Layout</span>
+      <select
+        value={templateId}
+        onChange={e => onTemplateChange(e.target.value as InvoiceTemplateId)}
+        className="h-8 min-w-[120px] max-w-[180px] rounded-md border border-gray-200 bg-white px-2 text-xs font-medium text-gray-800 shadow-sm focus:border-blue-400 focus:outline-none focus:ring-1 focus:ring-blue-400"
+        aria-label="Select template layout"
+      >
+        {opts.map(t => (
+          <option key={t.id} value={t.id}>{t.name}</option>
+        ))}
+      </select>
+    </label>
+  )
+}
+
+function InvoiceDocumentPreview({
   html,
   title,
   paperSize,
   templateId,
   onTemplateChange,
+  pageCount,
+  onPagesChange,
+  createBlankPage,
+  emptyMessage = 'Generating preview…',
 }: {
   html: string
   title: string
   paperSize: PaperSize
   templateId: InvoiceTemplateId
   onTemplateChange?: (id: InvoiceTemplateId) => void
+  pageCount: number
+  onPagesChange: (html: string) => void
+  createBlankPage: (nextPageNumber: number) => string
+  emptyMessage?: string
 }) {
-  const iframeRef = useRef<HTMLIFrameElement>(null)
-  const [frameHeight, setFrameHeight] = useState(880)
-
   const isNarrow = paperSize === '2inch' || paperSize === '3inch' || paperSize === '4inch'
-  const previewWidth = paperSize === '2inch' ? '220px'
+  const previewScale = isNarrow ? 1 : 0.88
+  const containerWidth = paperSize === '2inch' ? '220px'
     : paperSize === '3inch' ? '302px'
     : paperSize === '4inch' ? '393px'
-    : '100%'
-
-  const resizeFrame = useCallback(() => {
-    const doc = iframeRef.current?.contentDocument
-    if (!doc?.body) return
-    const h = Math.max(520, doc.documentElement.scrollHeight || doc.body.scrollHeight)
-    setFrameHeight(h + 16)
-  }, [])
-
-  useEffect(() => {
-    if (!html) return
-    const t = window.setTimeout(resizeFrame, 80)
-    return () => window.clearTimeout(t)
-  }, [html, resizeFrame])
-
-  const openFullPreview = () => {
-    if (!html) return
-    const w = window.open('', '_blank')
-    if (w) {
-      w.document.write(html)
-      w.document.close()
-    }
-  }
-
-  const templateOptions = (() => {
-    const inGrid = new Set(TEMPLATES.map(t => t.id))
-    const opts = TEMPLATES.map(t => ({ id: t.id, name: t.name }))
-    if (templateId && !inGrid.has(templateId)) {
-      opts.unshift({ id: templateId, name: templateLabelFor(templateId) })
-    }
-    return opts
-  })()
+    : undefined
+  const documentWidth = paperSize === '2inch' ? 220
+    : paperSize === '3inch' ? 302
+    : paperSize === '4inch' ? 393
+    : 720
 
   return (
-    <div className="space-y-3 lg:sticky lg:top-4 lg:self-start">
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex flex-wrap items-center gap-2 min-w-0">
-          <Eye className="w-4 h-4 text-gray-400 shrink-0" />
-          <span className="text-sm font-medium text-gray-600">Live Preview</span>
-          <span className="text-xs text-gray-400">(sample data)</span>
-        </div>
-        <div className="flex flex-wrap items-center gap-2 sm:justify-end">
-          {onTemplateChange ? (
-            <label className="flex items-center gap-2 min-w-0">
-              <span className="text-xs text-gray-500 shrink-0">Template</span>
-              <select
-                value={templateId}
-                onChange={e => onTemplateChange(e.target.value as InvoiceTemplateId)}
-                className="h-8 max-w-[200px] rounded-md border border-gray-200 bg-white px-2 text-xs font-medium text-gray-800 shadow-sm focus:border-blue-400 focus:outline-none focus:ring-1 focus:ring-blue-400"
-                aria-label="Select invoice template"
-              >
-                {templateOptions.map(t => (
-                  <option key={t.id} value={t.id}>
-                    {t.name}
-                  </option>
-                ))}
-              </select>
-            </label>
-          ) : (
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-blue-50 border border-blue-100 px-2.5 py-1 text-xs font-medium text-blue-700">
-              <Check className="w-3 h-3" />
-              {templateLabelFor(templateId)}
-            </span>
-          )}
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            className="h-8 text-xs shrink-0"
-            disabled={!html}
-            onClick={openFullPreview}
-          >
-            Open full preview
-          </Button>
-        </div>
-      </div>
-      <p className="text-xs text-gray-500 -mt-1">
-        Showing <span className="font-medium text-gray-700">{templateLabelFor(templateId)}</span> template
-      </p>
-      <div className="border rounded-xl overflow-auto bg-gray-100 min-h-[560px] max-h-[85vh] flex items-start justify-center p-3 sm:p-4">
-        {!html ? (
-          <div className="flex flex-col items-center justify-center gap-2 w-full min-h-[480px] text-gray-400">
-            <Loader2 className="w-8 h-8 animate-spin" />
-            <span className="text-sm">Generating preview…</span>
-          </div>
-        ) : (
-          <div
-            className="bg-white shadow-lg rounded-lg w-full shrink-0"
-            style={{
-              transform: isNarrow ? 'none' : 'scale(0.88)',
-              transformOrigin: 'top center',
-              width: previewWidth,
-              maxWidth: '760px',
-            }}
-          >
-            <iframe
-              ref={iframeRef}
-              srcDoc={html}
-              title={title}
-              onLoad={resizeFrame}
-              className="w-full border-0 block bg-white"
-              style={{ height: `${frameHeight}px`, minHeight: '520px' }}
-            />
-          </div>
-        )}
-      </div>
-    </div>
+    <DocumentLivePreview
+      html={html}
+      title={title}
+      editable
+      onBodyChange={onPagesChange}
+      pageCount={pageCount}
+      hint="Click anywhere in the preview to edit text and tables. Use Add page for extra sheets (terms, annexures, etc.)."
+      documentWidth={documentWidth}
+      previewScale={previewScale}
+      containerWidth={containerWidth}
+      headerExtra={templateSelectControl(templateId, onTemplateChange)}
+      createBlankPage={createBlankPage}
+      emptyMessage={emptyMessage}
+      iframeTitle={title}
+    />
   )
 }
 
-// ── PDF Margin visual preview ──────────────────────────────────────────────────
+// ── PDF Margin visual preview ─────────────────────────────────────────────────
 // Shows a scaled A4 page with the margin zone (blue tint) and content area
 // (white) so the user instantly sees the effect of the slider value.
 
-// ── Layout Section Drag-and-Drop Editor ───────────────────────────────────────
+// â”€â”€ Layout Section Drag-and-Drop Editor â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 function LayoutEditor({
   sections,
@@ -892,7 +347,7 @@ function LayoutEditor({
   )
 }
 
-// ── Font Size Selector ────────────────────────────────────────────────────────
+// â”€â”€ Font Size Selector â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 function FontSizeSelector({
   value,
@@ -928,7 +383,7 @@ function MarginPreview({ margin, orientation = 'portrait' }: { margin: number; o
   const isLandscape = orientation === 'landscape'
   const W     = isLandscape ? 112 : 80            // preview pixel width
   const H     = isLandscape ? Math.round((210 / 297) * W) : Math.round((297 / 210) * W)
-  const scale = W / (isLandscape ? 297 : 210)     // 1 mm → px in preview
+  const scale = W / (isLandscape ? 297 : 210)     // 1 mm â†’ px in preview
   const mPx   = Math.max(1, Math.round(margin * scale))
 
   const LINES = [55, 30, 70, 40, 55, 35, 65, 28, 50, 38, 62]
@@ -937,7 +392,7 @@ function MarginPreview({ margin, orientation = 'portrait' }: { margin: number; o
     <div className="flex flex-col items-center gap-1 shrink-0">
       <div
         style={{ width: W, height: H, position: 'relative', backgroundColor: '#e0e7ff', borderRadius: 2, boxShadow: '0 1px 4px rgba(0,0,0,.18)' }}
-        title={margin === 0 ? 'Full bleed — no margin' : `${margin} mm margin on each side`}
+        title={margin === 0 ? 'Full bleed â€” no margin' : `${margin} mm margin on each side`}
       >
         {/* Content area (white inset) */}
         <div style={{
@@ -980,7 +435,7 @@ function MarginPreview({ margin, orientation = 'portrait' }: { margin: number; o
   )
 }
 
-// ── Accordion section ─────────────────────────────────────────────────────────
+// â”€â”€ Accordion section â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 function AccordionSection({ title, badge, children, defaultOpen = false }: {
   title: string; badge?: string; children: React.ReactNode; defaultOpen?: boolean
@@ -1078,7 +533,7 @@ function WebsiteUrlSettings({
             </div>
             {(settings.url_position ?? 'auto') === 'auto' && (
               <p className="text-xs text-blue-600 mt-2">
-                Auto uses the best spot for <strong>{templateLabelFor(settings.template)}</strong> (e.g. logo-left themes → header left).
+                Auto uses the best spot for <strong>{templateLabelFor(settings.template)}</strong> (e.g. logo-left themes â†’ header left).
               </p>
             )}
           </div>
@@ -1091,7 +546,7 @@ function WebsiteUrlSettings({
   )
 }
 
-// ── Signature drawing canvas ──────────────────────────────────────────────────
+// â”€â”€ Signature drawing canvas â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 function SignaturePad({ onSave, onClear }: { onSave: (dataUrl: string) => void; onClear: () => void }) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
@@ -1183,7 +638,7 @@ function SignaturePad({ onSave, onClear }: { onSave: (dataUrl: string) => void; 
   )
 }
 
-// ── Sample invoice data for preview ──────────────────────────────────────────
+// â”€â”€ Sample invoice data for preview â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 const SAMPLE_INVOICE = {
   invoice_number: 'INV/2025-26/001',
@@ -1239,7 +694,7 @@ const SAMPLE_QUOTATION = {
   booking_number: undefined,
 }
 
-// ── Main Page ─────────────────────────────────────────────────────────────────
+// â”€â”€ Main Page â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export default function InvoiceSettingsPage() {
   const navigate = useNavigate()
@@ -1270,6 +725,7 @@ export default function InvoiceSettingsPage() {
     isQuotationMode ? { ...DEFAULT_QUOTATION_SETTINGS } : { ...DEFAULT_INVOICE_SETTINGS },
   )
   const [previewHtml, setPreviewHtml] = useState('')
+  const [previewPagesHtml, setPreviewPagesHtml] = useState('')
   const [isSaving, setIsSaving] = useState(false)
   const [sigMode, setSigMode] = useState<'upload' | 'draw'>('upload')
 
@@ -1278,6 +734,7 @@ export default function InvoiceSettingsPage() {
     () => loadPosInvoiceSettings()
   )
   const [posPreviewHtml, setPosPreviewHtml] = useState('')
+  const [posPreviewPagesHtml, setPosPreviewPagesHtml] = useState('')
   const posMerged = (): InvoiceSettings => ({ ...DEFAULT_INVOICE_SETTINGS, ...settings, ...posSettings })
 
   const setPos = <K extends keyof InvoiceSettings>(k: K, v: InvoiceSettings[K]) =>
@@ -1287,11 +744,17 @@ export default function InvoiceSettingsPage() {
   useEffect(() => {
     const base = isQuotationMode ? DEFAULT_QUOTATION_SETTINGS : DEFAULT_INVOICE_SETTINGS
     if (rawSettings && Object.keys(rawSettings).length > 0) {
-      setSettings({ ...base, ...(rawSettings as Partial<InvoiceSettings>) })
+      const merged = { ...base, ...(rawSettings as Partial<InvoiceSettings>) }
+      setSettings(merged)
+      setPreviewPagesHtml(merged.template_pages_html || '')
     } else if (isQuotationMode) {
       setSettings({ ...DEFAULT_QUOTATION_SETTINGS })
     }
   }, [rawSettings, isQuotationMode])
+
+  useEffect(() => {
+    setPosPreviewPagesHtml(posSettings.template_pages_html || '')
+  }, [posSettings.template_pages_html])
 
   const vendorLogo = vendor?.logo_url || ''
   const vendorWebsiteFallback = resolveVendorWebsiteFallback(vendor)
@@ -1313,9 +776,10 @@ export default function InvoiceSettingsPage() {
       vendor_website_url: settings.website_url?.trim() || vendorWebsiteFallback,
       terms_and_conditions: settings.default_terms || sampleBase.terms_and_conditions,
     }
-    const html = generateInvoiceHtml(sampleData, settings, window.location.origin)
-    setPreviewHtml(html)
-  }, [settings, vendor, vendorLogo, vendorWebsiteFallback, isQuotationMode])
+    const generated = generateInvoiceHtml(sampleData, settings, window.location.origin)
+    const stored = previewPagesHtml || settings.template_pages_html
+    setPreviewHtml(mergeInvoiceTemplatePages(generated, { template_pages_html: stored }, true))
+  }, [settings, previewPagesHtml, vendor, vendorLogo, vendorWebsiteFallback, isQuotationMode])
 
   // Regenerate POS preview whenever posSettings change
   useEffect(() => {
@@ -1333,13 +797,59 @@ export default function InvoiceSettingsPage() {
       customer_name: 'Walk-in Customer',
       notes: 'POS Transaction: POS-000042',
     }
-    setPosPreviewHtml(generateInvoiceHtml(sampleData, pm, window.location.origin))
+    const generated = generateInvoiceHtml(sampleData, pm, window.location.origin)
+    const stored = posPreviewPagesHtml || pm.template_pages_html
+    setPosPreviewHtml(mergeInvoiceTemplatePages(generated, { template_pages_html: stored }, true))
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [posSettings, settings, vendor, vendorLogo, vendorWebsiteFallback])
+  }, [posSettings, posPreviewPagesHtml, settings, vendor, vendorLogo, vendorWebsiteFallback])
 
   const set = useCallback(<K extends keyof InvoiceSettings>(key: K, value: InvoiceSettings[K]) => {
     setSettings(prev => ({ ...prev, [key]: value }))
   }, [])
+
+  const handlePreviewPagesChange = useCallback((html: string) => {
+    setPreviewPagesHtml(html)
+    setSettings(prev => ({ ...prev, template_pages_html: html }))
+  }, [])
+
+  const handlePosPreviewPagesChange = useCallback((html: string) => {
+    setPosPreviewPagesHtml(html)
+    setPosSettings(prev => ({ ...prev, template_pages_html: html }))
+  }, [])
+
+  const invoicePageCount = countOfferPages(previewPagesHtml || settings.template_pages_html || '')
+  const posPageCount = countOfferPages(posPreviewPagesHtml || posMerged().template_pages_html || '')
+
+  const vendorAddressStr = vendor?.street_address
+    ? [vendor.street_address, vendor.city, vendor.state, vendor.postal_code].filter(Boolean).join(', ')
+    : ''
+
+  const createInvoiceBlankPage = useCallback((nextPage: number) => {
+    return createBlankInvoiceContinuationPage({
+      pageNumber: nextPage,
+      settings,
+      vendorName: vendor?.business_name,
+      vendorGstin: vendor?.gstin ?? undefined,
+      vendorAddress: vendorAddressStr,
+      logoUrl,
+      docKind: isQuotationMode ? 'quotation' : 'invoice',
+      paperSize: settings.paper_size,
+    })
+  }, [settings, vendor, vendorAddressStr, logoUrl, isQuotationMode])
+
+  const createPosBlankPage = useCallback((nextPage: number) => {
+    const pm = { ...DEFAULT_INVOICE_SETTINGS, ...settings, ...posSettings }
+    return createBlankInvoiceContinuationPage({
+      pageNumber: nextPage,
+      settings: pm,
+      vendorName: vendor?.business_name,
+      vendorGstin: vendor?.gstin ?? undefined,
+      vendorAddress: vendorAddressStr,
+      logoUrl: resolveInvoiceTemplateLogoPath(pm, vendorLogo),
+      docKind: 'receipt',
+      paperSize: pm.paper_size,
+    })
+  }, [settings, posSettings, vendor, vendorAddressStr, vendorLogo])
 
   const handleSave = async () => {
     setIsSaving(true)
@@ -1372,7 +882,7 @@ export default function InvoiceSettingsPage() {
       set('logo_url', result.logo_url)
       toast.success('Logo updated!')
     } catch {
-      toast.error('Could not upload logo — use a PNG or JPG file under 2MB')
+      toast.error('Could not upload logo â€” use a PNG or JPG file under 2MB')
     }
   }
 
@@ -1409,7 +919,7 @@ export default function InvoiceSettingsPage() {
             <h1 className="text-xl font-bold text-gray-900">{isQuotationMode ? 'Quotation Templates' : 'Invoice Settings'}</h1>
             <p className="text-xs text-gray-500">
               {isQuotationMode
-                ? 'Customise quotation print and PDF templates — layout, branding, and content'
+                ? 'Customise quotation print and PDF templates â€” layout, branding, and content'
                 : 'Customise how your invoices look and what they include'}
             </p>
           </div>
@@ -1474,15 +984,18 @@ export default function InvoiceSettingsPage() {
         </div>
       </div>
 
-      {/* ── POS Receipt Tab ─────────────────────────────────────── */}
+      {/* â”€â”€ POS Receipt Tab â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
       {!isQuotationMode && activeTab === 'pos' && (
         <div className="grid grid-cols-1 lg:grid-cols-[1fr_380px] gap-6">
-          <InvoiceLivePreview
+          <InvoiceDocumentPreview
             html={posPreviewHtml}
             title="POS Preview"
             paperSize={posMerged().paper_size}
             templateId={posMerged().template}
             onTemplateChange={id => setPos('template', id)}
+            pageCount={posPageCount}
+            onPagesChange={handlePosPreviewPagesChange}
+            createBlankPage={createPosBlankPage}
           />
 
           {/* Right: POS-specific controls */}
@@ -1491,7 +1004,7 @@ export default function InvoiceSettingsPage() {
               <strong>POS Receipt</strong> settings override the Customer Invoice template only for POS transactions.
             </div>
 
-            {/* ── POS Tab bar ── */}
+            {/* â”€â”€ POS Tab bar â”€â”€ */}
             <div className="flex gap-0.5 bg-gray-100 rounded-xl p-1">
               {([
                 { id: 'design',  label: 'Design',  icon: Palette },
@@ -1513,9 +1026,9 @@ export default function InvoiceSettingsPage() {
               ))}
             </div>
 
-            {/* ── POS DESIGN tab ── */}
+            {/* â”€â”€ POS DESIGN tab â”€â”€ */}
             {posTab === 'design' && <>
-            {/* ── Template + Layout Editor side-by-side ── */}
+            {/* â”€â”€ Template + Layout Editor side-by-side â”€â”€ */}
             <AccordionSection title="Template" badge={templateLabelFor(posMerged().template)} defaultOpen>
               <div className="flex gap-3">
                 <TemplateThemeGrid
@@ -1539,7 +1052,7 @@ export default function InvoiceSettingsPage() {
                   </div>
                   <div>
                     <SectionLabel className="mb-1">Section Order</SectionLabel>
-                    <p className="text-xs text-gray-400 mb-1.5 leading-tight">Drag to reorder · eye to hide</p>
+                    <p className="text-xs text-gray-400 mb-1.5 leading-tight">Drag to reorder Â· eye to hide</p>
                     {(posMerged().layout_sections ?? DEFAULT_LAYOUT_SECTIONS.map(s => ({ ...s }))).map((s, idx, arr) => (
                       <div key={s.id}
                         draggable
@@ -1575,7 +1088,7 @@ export default function InvoiceSettingsPage() {
               </div>
             </AccordionSection>
 
-            {/* ── Paper Size + Colour side-by-side ── */}
+            {/* â”€â”€ Paper Size + Colour side-by-side â”€â”€ */}
             <div className="grid grid-cols-2 gap-3">
               <AccordionSection title="Paper Size" defaultOpen>
                 <div className="space-y-1.5">
@@ -1604,14 +1117,14 @@ export default function InvoiceSettingsPage() {
 
             </>}
 
-            {/* ── POS CONTENT tab ── */}
+            {/* â”€â”€ POS CONTENT tab â”€â”€ */}
             {posTab === 'content' && <>
             <WebsiteUrlSettings
               settings={posMerged()}
               set={(k, v) => setPos(k, v)}
               vendorWebsiteFallback={vendorWebsiteFallback}
             />
-            {/* ── POS: Discounts ── */}
+            {/* â”€â”€ POS: Discounts â”€â”€ */}
             <AccordionSection title="Discounts" defaultOpen>
               <ToggleRow
                 label="Show discount on receipt"
@@ -1646,7 +1159,7 @@ export default function InvoiceSettingsPage() {
               )}
             </AccordionSection>
 
-            {/* ── POS: Tax ── */}
+            {/* â”€â”€ POS: Tax â”€â”€ */}
             <AccordionSection title="Tax">
               <ToggleRow label="Show tax breakdown (CGST / SGST / IGST)" hint="When off, shows a single combined tax row"
                 checked={posMerged().show_tax_breakdown} onChange={v => setPos('show_tax_breakdown', v)} />
@@ -1678,7 +1191,7 @@ export default function InvoiceSettingsPage() {
               </div>
             </AccordionSection>
 
-            {/* ── Watermark ── */}
+            {/* â”€â”€ Watermark â”€â”€ */}
             <AccordionSection title="Document Stamp / Watermark">
               <div className="flex flex-wrap gap-1.5 mb-2">
                 {['', 'ORIGINAL', 'DUPLICATE', 'COPY', 'DRAFT', 'CANCELLED'].map(w => (
@@ -1697,9 +1210,9 @@ export default function InvoiceSettingsPage() {
                     <Label className="text-xs text-gray-500 mb-1.5 block">Position</Label>
                     <div className="flex gap-1.5">
                       {([
-                        { id: 'top',      label: '▲ Top' },
-                        { id: 'bottom',   label: '▼ Bottom' },
-                        { id: 'diagonal', label: '⤢ Diagonal' },
+                        { id: 'top',      label: 'â–² Top' },
+                        { id: 'bottom',   label: 'â–¼ Bottom' },
+                        { id: 'diagonal', label: 'â¤¢ Diagonal' },
                       ] as { id: 'top' | 'bottom' | 'diagonal'; label: string }[]).map(p => (
                         <button key={p.id} onClick={() => setPos('watermark_position', p.id)}
                           className={`flex-1 text-xs py-1.5 rounded border transition-colors ${(posMerged().watermark_position ?? 'diagonal') === p.id ? 'bg-primary text-white border-blue-600' : 'bg-white text-gray-600 border-gray-300 hover:border-blue-400'}`}>
@@ -1745,7 +1258,7 @@ export default function InvoiceSettingsPage() {
               )}
             </AccordionSection>
 
-            {/* ── POS: QR Code ── */}
+            {/* â”€â”€ POS: QR Code â”€â”€ */}
             <AccordionSection title="QR Code" badge="Print on receipt">
               <ToggleRow
                 label="Print QR code on receipt"
@@ -1799,7 +1312,7 @@ export default function InvoiceSettingsPage() {
                       </Button>
                     </label>
                     <p className="text-xs text-gray-400 leading-snug">
-                      PNG, JPG, SVG, WebP · Max 2 MB<br />
+                      PNG, JPG, SVG, WebP Â· Max 2 MB<br />
                       Generate via any UPI / payment app
                     </p>
                   </div>
@@ -1817,8 +1330,8 @@ export default function InvoiceSettingsPage() {
                   <Label className="text-xs text-gray-500 mb-1.5 block">Position on receipt</Label>
                   <div className="flex gap-1.5">
                     {([
-                      { id: 'footer', label: '▼ Footer', hint: 'Next to signature at bottom' },
-                      { id: 'header', label: '▲ Header', hint: 'Next to logo at top' },
+                      { id: 'footer', label: 'â–¼ Footer', hint: 'Next to signature at bottom' },
+                      { id: 'header', label: 'â–² Header', hint: 'Next to logo at top' },
                     ] as { id: 'footer' | 'header'; label: string; hint: string }[]).map(p => (
                       <button
                         key={p.id}
@@ -1838,7 +1351,7 @@ export default function InvoiceSettingsPage() {
               </div>
             </AccordionSection>
 
-            {/* ── POS: Display Options ── */}
+            {/* â”€â”€ POS: Display Options â”€â”€ */}
             <div className="border rounded-xl overflow-hidden">
               <div className="px-3 py-2 bg-gray-50 border-b">
                 <span className="text-xs font-medium text-gray-600 uppercase tracking-wide">Display Options</span>
@@ -1846,7 +1359,7 @@ export default function InvoiceSettingsPage() {
               <div className="grid grid-cols-2 gap-px bg-gray-100 p-px">
                 {([
                   { label: 'Logo',                  key: 'show_logo',             val: posMerged().show_logo },
-                  { label: 'Copy Label (Original…)', key: 'show_copy_label',       val: posMerged().show_copy_label ?? true },
+                  { label: 'Copy Label (Originalâ€¦)', key: 'show_copy_label',       val: posMerged().show_copy_label ?? true },
                   { label: 'Vendor Address',         key: 'show_vendor_address',   val: posMerged().show_vendor_address ?? true },
                   { label: 'Website URL',            key: 'show_url',              val: posMerged().show_url ?? false },
                   { label: 'GSTIN (vendor + customer)', key: 'show_gstin',         val: posMerged().show_gstin },
@@ -1888,9 +1401,9 @@ export default function InvoiceSettingsPage() {
 
             </>}
 
-            {/* ── POS EXPORT tab ── */}
+            {/* â”€â”€ POS EXPORT tab â”€â”€ */}
             {posTab === 'export' && <>
-            {/* ── PDF Layout (POS) ── */}
+            {/* â”€â”€ PDF Layout (POS) â”€â”€ */}
             <AccordionSection title="PDF Download Layout" defaultOpen>
               <div className="space-y-4">
                 <div className="flex gap-3 items-start">
@@ -1918,7 +1431,7 @@ export default function InvoiceSettingsPage() {
                     {(['portrait', 'landscape'] as const).map(o => (
                       <button key={o} onClick={() => setPos('pdf_orientation', o)}
                         className={`flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border transition-colors ${(posMerged().pdf_orientation ?? 'portrait') === o ? 'bg-primary text-white border-blue-600' : 'bg-white text-gray-600 border-gray-300 hover:border-blue-400'}`}>
-                        <span>{o === 'portrait' ? '📄' : '📋'}</span>
+                        <span>{o === 'portrait' ? 'ðŸ“„' : 'ðŸ“‹'}</span>
                         <span className="capitalize">{o}</span>
                       </button>
                     ))}
@@ -1949,21 +1462,24 @@ export default function InvoiceSettingsPage() {
         </div>
       )}
 
-      {/* ── Customer Invoice Tab ─────────────────────────────────── */}
+      {/* â”€â”€ Customer Invoice Tab â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
       {(isQuotationMode || activeTab === 'invoice') && (
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_380px] gap-6">
-        <InvoiceLivePreview
+        <InvoiceDocumentPreview
           html={previewHtml}
-                title={isQuotationMode ? 'Quotation Preview' : 'Invoice Preview'}
+          title={isQuotationMode ? 'Quotation Preview' : 'Invoice Preview'}
           paperSize={settings.paper_size}
           templateId={settings.template}
           onTemplateChange={id => set('template', id)}
-              />
+          pageCount={invoicePageCount}
+          onPagesChange={handlePreviewPagesChange}
+          createBlankPage={createInvoiceBlankPage}
+        />
 
         {/* Right: Settings Panel */}
         <div className="space-y-3">
 
-          {/* ── Tab bar ── */}
+          {/* â”€â”€ Tab bar â”€â”€ */}
           <div className="flex gap-0.5 bg-gray-100 rounded-xl p-1">
             {([
               { id: 'design',   label: 'Design',   icon: Palette },
@@ -1986,9 +1502,9 @@ export default function InvoiceSettingsPage() {
             ))}
           </div>
 
-          {/* ── DESIGN tab ── */}
+          {/* â”€â”€ DESIGN tab â”€â”€ */}
           {settingsTab === 'design' && <>
-          {/* ── Themes + Layout Editor (side-by-side) ── */}
+          {/* â”€â”€ Themes + Layout Editor (side-by-side) â”€â”€ */}
           <AccordionSection title="Themes" badge={templateLabelFor(settings.template)} defaultOpen>
             <div className="flex gap-3">
               <TemplateThemeGrid
@@ -2013,7 +1529,7 @@ export default function InvoiceSettingsPage() {
 
                 <div>
                   <SectionLabel className="mb-1">Section Order</SectionLabel>
-                  <p className="text-xs text-gray-400 mb-1.5 leading-tight">Drag to reorder · eye to hide</p>
+                  <p className="text-xs text-gray-400 mb-1.5 leading-tight">Drag to reorder Â· eye to hide</p>
                   {(settings.layout_sections ?? DEFAULT_LAYOUT_SECTIONS.map(s => ({ ...s }))).map((s, idx, arr) => (
                     <div key={s.id}
                       draggable
@@ -2049,7 +1565,7 @@ export default function InvoiceSettingsPage() {
             </div>
           </AccordionSection>
 
-          {/* ── Paper Size + Theme Colour (side-by-side accordions) ── */}
+          {/* â”€â”€ Paper Size + Theme Colour (side-by-side accordions) â”€â”€ */}
           <div className="grid grid-cols-2 gap-3">
             <AccordionSection title="Paper Size" defaultOpen>
               <div className="space-y-1.5">
@@ -2078,9 +1594,9 @@ export default function InvoiceSettingsPage() {
 
           </>}
 
-          {/* ── BRANDING tab ── */}
+          {/* â”€â”€ BRANDING tab â”€â”€ */}
           {settingsTab === 'branding' && <>
-          {/* ── Company Logo ── */}
+          {/* â”€â”€ Company Logo â”€â”€ */}
           <AccordionSection title="Company Logo" defaultOpen>
             <div className="flex items-center gap-3">
               {logoUrl ? (
@@ -2115,7 +1631,7 @@ export default function InvoiceSettingsPage() {
                   buttonSize="sm"
                   buttonClassName="gap-1.5 w-full cursor-pointer text-xs"
                 />
-                <p className="text-xs text-gray-400 mt-1">PNG, JPG, SVG • Max 2 MB</p>
+                <p className="text-xs text-gray-400 mt-1">PNG, JPG, SVG â€¢ Max 2 MB</p>
               </div>
             </div>
             <div className="mt-3">
@@ -2148,13 +1664,13 @@ export default function InvoiceSettingsPage() {
             vendorWebsiteFallback={vendorWebsiteFallback}
           />
 
-          {/* ── Authorised Signature ── */}
+          {/* â”€â”€ Authorised Signature â”€â”€ */}
           <AccordionSection title="Authorised Signature" badge="Draw or Upload">
             <div className="flex gap-1 bg-gray-100 rounded-lg p-1 mb-2">
               {(['upload', 'draw'] as const).map(m => (
                 <button key={m} onClick={() => setSigMode(m)}
                   className={`flex-1 py-1.5 text-xs font-medium rounded-md transition-colors ${sigMode === m ? 'bg-white shadow text-gray-900' : 'text-gray-500 hover:text-gray-700'}`}>
-                  {m === 'upload' ? '⬆ Upload' : '✏ Draw'}
+                  {m === 'upload' ? 'â¬† Upload' : 'âœ Draw'}
                 </button>
               ))}
             </div>
@@ -2232,7 +1748,7 @@ export default function InvoiceSettingsPage() {
             </div>
           </AccordionSection>
 
-          {/* ── QR Code ── */}
+          {/* â”€â”€ QR Code â”€â”€ */}
           <AccordionSection title="QR Code" badge="Print on document">
             <ToggleRow
               label="Print QR code on invoice"
@@ -2287,7 +1803,7 @@ export default function InvoiceSettingsPage() {
                     </Button>
                   </label>
                   <p className="text-xs text-gray-400 leading-snug">
-                    PNG, JPG, SVG, WebP · Max 2 MB<br />
+                    PNG, JPG, SVG, WebP Â· Max 2 MB<br />
                     Generate a QR via any UPI / payment app
                   </p>
                 </div>
@@ -2309,8 +1825,8 @@ export default function InvoiceSettingsPage() {
                 <Label className="text-xs text-gray-500 mb-1.5 block">Position on document</Label>
                 <div className="flex gap-1.5">
                   {([
-                    { id: 'footer', label: '▼ Footer', hint: 'Next to signature at the bottom' },
-                    { id: 'header', label: '▲ Header', hint: 'Next to logo at the top' },
+                    { id: 'footer', label: 'â–¼ Footer', hint: 'Next to signature at the bottom' },
+                    { id: 'header', label: 'â–² Header', hint: 'Next to logo at the top' },
                   ] as { id: 'footer' | 'header'; label: string; hint: string }[]).map(p => (
                     <button
                       key={p.id}
@@ -2332,9 +1848,9 @@ export default function InvoiceSettingsPage() {
 
           </>}
 
-          {/* ── CONTENT tab ── */}
+          {/* â”€â”€ CONTENT tab â”€â”€ */}
           {settingsTab === 'content' && <>
-          {/* ── Document Watermark ── */}
+          {/* â”€â”€ Document Watermark â”€â”€ */}
           <AccordionSection title="Document Stamp / Watermark" defaultOpen>
             {/* Presets */}
             <div className="flex flex-wrap gap-1.5 mb-2">
@@ -2355,9 +1871,9 @@ export default function InvoiceSettingsPage() {
                   <Label className="text-xs text-gray-500 mb-1.5 block">Position</Label>
                   <div className="flex gap-1.5">
                     {([
-                      { id: 'top',      label: '▲ Top',      hint: 'Banner at top' },
-                      { id: 'bottom',   label: '▼ Bottom',   hint: 'Banner at bottom' },
-                      { id: 'diagonal', label: '⤢ Diagonal', hint: 'Full-page stamp' },
+                      { id: 'top',      label: 'â–² Top',      hint: 'Banner at top' },
+                      { id: 'bottom',   label: 'â–¼ Bottom',   hint: 'Banner at bottom' },
+                      { id: 'diagonal', label: 'â¤¢ Diagonal', hint: 'Full-page stamp' },
                     ] as { id: 'top' | 'bottom' | 'diagonal'; label: string; hint: string }[]).map(p => (
                       <button key={p.id} title={p.hint}
                         onClick={() => set('watermark_position', p.id)}
@@ -2408,7 +1924,7 @@ export default function InvoiceSettingsPage() {
             )}
           </AccordionSection>
 
-          {/* ── Discounts ── */}
+          {/* â”€â”€ Discounts â”€â”€ */}
           <AccordionSection title="Discounts">
             <ToggleRow
               label="Show discount on invoice"
@@ -2455,7 +1971,7 @@ export default function InvoiceSettingsPage() {
             )}
           </AccordionSection>
 
-          {/* ── Tax ── */}
+          {/* â”€â”€ Tax â”€â”€ */}
           <AccordionSection title="Tax">
             <ToggleRow
               label="Show tax breakdown (CGST / SGST / IGST)"
@@ -2512,7 +2028,7 @@ export default function InvoiceSettingsPage() {
             </div>
           </AccordionSection>
 
-          {/* ── Payment & Bank Details ── */}
+          {/* â”€â”€ Payment & Bank Details â”€â”€ */}
           <AccordionSection title="Payment & Bank Details">
             <div className="mb-2">
               <Label className="text-xs text-gray-500">Default Payment Terms</Label>
@@ -2540,7 +2056,7 @@ export default function InvoiceSettingsPage() {
             )}
           </AccordionSection>
 
-          {/* ── Notes & Terms ── */}
+          {/* â”€â”€ Notes & Terms â”€â”€ */}
           <AccordionSection title="Notes & Terms">
             <ToggleRow label="Show notes" checked={settings.show_notes} onChange={v => set('show_notes', v)} />
             {settings.show_notes && (
@@ -2556,38 +2072,38 @@ export default function InvoiceSettingsPage() {
             )}
           </AccordionSection>
 
-          {/* ── Display Options (2-col grid) ── */}
+          {/* â”€â”€ Display Options (2-col grid) â”€â”€ */}
           <div className="border rounded-xl overflow-hidden">
             <div className="px-3 py-2 bg-gray-50 border-b">
               <span className="text-xs font-medium text-gray-600 uppercase tracking-wide">Display Options</span>
             </div>
             <div className="grid grid-cols-2 gap-px bg-gray-100 p-px">
               {([
-                // ── Header ──
+                // â”€â”€ Header â”€â”€
                 { label: 'Logo',                   key: 'show_logo',             val: settings.show_logo },
-                { label: 'Copy Label (Original…)',  key: 'show_copy_label',       val: settings.show_copy_label ?? true },
+                { label: 'Copy Label (Originalâ€¦)',  key: 'show_copy_label',       val: settings.show_copy_label ?? true },
                 { label: 'Vendor Address',          key: 'show_vendor_address',   val: settings.show_vendor_address ?? true },
                 { label: 'Website URL',             key: 'show_url',              val: settings.show_url ?? false },
                 { label: 'GSTIN (vendor + customer)', key: 'show_gstin',          val: settings.show_gstin },
-                // ── Invoice Meta ──
+                // â”€â”€ Invoice Meta â”€â”€
                 { label: 'Financial Year (F.Y.)',   key: 'show_financial_year',   val: settings.show_financial_year ?? true },
                 { label: isQuotationMode ? 'Valid Until' : 'Due Date', key: 'show_due_date', val: settings.show_due_date ?? true },
                 { label: 'Booking / Ref. No.',      key: 'show_booking_number',   val: settings.show_booking_number ?? true },
-                // ── Bill To ──
+                // â”€â”€ Bill To â”€â”€
                 { label: 'Customer / Bill To',      key: 'show_customer_address', val: settings.show_customer_address ?? true },
                 { label: 'Customer Phone',          key: 'show_phone',            val: settings.show_phone },
                 { label: 'Customer Email',          key: 'show_customer_email',   val: settings.show_customer_email ?? true },
-                // ── Line Items ──
+                // â”€â”€ Line Items â”€â”€
                 { label: 'Item Description',        key: 'show_description',      val: settings.show_description },
                 { label: 'Item Number (#)',          key: 'show_item_numbers',     val: settings.show_item_numbers ?? false },
                 { label: 'HSN / SAC Code',          key: 'show_hsn',              val: settings.show_hsn },
                 { label: 'Discount Column',         key: 'show_discount',         val: settings.show_discount ?? false },
                 { label: 'Product Images',          key: 'show_product_images',   val: settings.show_product_images ?? false },
-                // ── Totals ──
+                // â”€â”€ Totals â”€â”€
                 { label: 'Tax Breakdown',           key: 'show_tax_breakdown',    val: settings.show_tax_breakdown },
                 { label: 'Amount Paid',             key: 'show_amount_paid',      val: settings.show_amount_paid ?? true },
                 { label: 'Balance Due',             key: 'show_balance_due',      val: settings.show_balance_due ?? true },
-                // ── Footer ──
+                // â”€â”€ Footer â”€â”€
                 { label: 'Signature',               key: 'show_signature',        val: settings.show_signature },
                 { label: 'Bank Details',            key: 'show_bank_details',     val: settings.show_bank_details },
                 { label: 'Shipping Address',        key: 'show_shipping_address', val: settings.show_shipping_address },
@@ -2613,9 +2129,9 @@ export default function InvoiceSettingsPage() {
 
           </>}
 
-          {/* ── EXPORT tab ── */}
+          {/* â”€â”€ EXPORT tab â”€â”€ */}
           {settingsTab === 'export' && <>
-          {/* ── PDF Download Layout ── */}
+          {/* â”€â”€ PDF Download Layout â”€â”€ */}
           <AccordionSection title="PDF Download Layout" defaultOpen>
             <div className="space-y-4">
               <div className="flex gap-3 items-start">
@@ -2643,7 +2159,7 @@ export default function InvoiceSettingsPage() {
                   {(['portrait', 'landscape'] as const).map(o => (
                     <button key={o} onClick={() => set('pdf_orientation', o)}
                       className={`flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border transition-colors ${(settings.pdf_orientation ?? 'portrait') === o ? 'bg-primary text-white border-blue-600' : 'bg-white text-gray-600 border-gray-300 hover:border-blue-400'}`}>
-                      <span>{o === 'portrait' ? '📄' : '📋'}</span>
+                      <span>{o === 'portrait' ? 'ðŸ“„' : 'ðŸ“‹'}</span>
                       <span className="capitalize">{o}</span>
                     </button>
                   ))}

@@ -1,7 +1,4 @@
-/**
- * Invoice HTML template generators.
- * Each template returns a full HTML string ready to open in a print window.
- */
+import { buildDocumentPreviewHtml, wrapStoredDocumentPages, mergeStoredPagesForPrint } from '@/lib/documentPreview'
 
 export type PaperSize = 'A4' | '2inch' | '3inch' | '4inch'
 
@@ -244,6 +241,8 @@ export interface InvoiceSettings {
   show_legal_note?: boolean
   /** Show Payment Terms in the GST Info / footer area. Default true. */
   show_payment_terms?: boolean
+  /** Custom multi-page HTML from template editor (inline edits + extra pages). */
+  template_pages_html?: string
 }
 
 export const PAPER_SIZES: { id: PaperSize; label: string; sub: string; cssSize: string; maxWidth: string }[] = [
@@ -2964,10 +2963,108 @@ export async function printInvoice(
     signature_url: sigDataUrl  || undefined,
   }
 
-  const html = generateInvoiceHtml(
-    { ...inv, vendor_logo_url: logoDataUrl || inv.vendor_logo_url, items: enrichedItems },
+  const html = mergeInvoiceTemplatePages(
+    generateInvoiceHtml(
+      { ...inv, vendor_logo_url: logoDataUrl || inv.vendor_logo_url, items: enrichedItems },
+      enriched,
+      '',
+    ),
     enriched,
-    '',
+    false,
   )
   openPrintWindow(html)
+}
+
+/** Apply stored custom pages (if any) on top of generated invoice HTML. */
+export function mergeInvoiceTemplatePages(
+  generatedHtml: string,
+  settings: Partial<InvoiceSettings>,
+  editable = false,
+): string {
+  const stored = settings.template_pages_html?.trim()
+  if (!stored) {
+    return buildDocumentPreviewHtml(generatedHtml, undefined, editable)
+  }
+  if (editable) {
+    return wrapStoredDocumentPages(stored, true)
+  }
+  return mergeStoredPagesForPrint(generatedHtml, stored)
+}
+
+export type InvoiceDocKind = 'invoice' | 'quotation' | 'receipt'
+
+/** Blank A4 continuation page with header + footer matching invoice template styling. */
+export function createBlankInvoiceContinuationPage(opts: {
+  pageNumber: number
+  settings: Partial<InvoiceSettings>
+  vendorName?: string
+  vendorGstin?: string
+  vendorAddress?: string
+  logoUrl?: string
+  docKind?: InvoiceDocKind
+  paperSize?: PaperSize
+}): string {
+  const s: InvoiceSettings = { ...DEFAULT_INVOICE_SETTINGS, ...opts.settings }
+  const color = s.color || '#1a56db'
+  const vendor = opts.vendorName || 'Your Company'
+  const gstin = opts.vendorGstin || ''
+  const addr = opts.vendorAddress || ''
+  const pageNum = opts.pageNumber
+  const kind = opts.docKind || 'invoice'
+  const narrow = opts.paperSize && opts.paperSize !== 'A4'
+  const maxW = narrow
+    ? (opts.paperSize === '2inch' ? '52mm' : opts.paperSize === '3inch' ? '74mm' : '98mm')
+    : '800px'
+  const minH = narrow ? '360px' : '1122px'
+  const pad = narrow ? '12px 8px' : '32px 40px'
+
+  const title = kind === 'quotation' ? 'QUOTATION' : kind === 'receipt' ? 'RECEIPT' : 'TAX INVOICE'
+  const legal = kind === 'quotation'
+    ? 'Computer generated quotation. | This is a valid quotation.'
+    : kind === 'receipt'
+      ? 'Computer generated receipt. | Thank you for your purchase.'
+      : 'Computer generated invoice. No signature required. | This is a valid tax invoice.'
+
+  const logoHtml = s.show_logo && opts.logoUrl
+    ? logoImg(opts.logoUrl, 'height:52px;max-width:100px;object-fit:contain', s)
+    : ''
+
+  const notesBlock = s.show_notes && s.default_notes?.trim()
+    ? `<div style="margin-bottom:12px"><div style="font-size:9px;font-weight:600;color:#9ca3af;text-transform:uppercase;margin-bottom:4px">Notes</div><p style="font-size:11px;color:#374151">${s.default_notes}</p></div>`
+    : ''
+
+  const sigBlock = s.show_signature
+    ? `<div style="margin-top:12px;text-align:right;font-size:11px;color:#374151">
+        <div style="display:inline-block;min-width:160px;border-top:1px solid #9ca3af;padding-top:6px">
+          Authorised Signatory for<br/><strong>${vendor}</strong>
+        </div>
+      </div>`
+    : ''
+
+  return `<div class="page" data-offer-page="${pageNum}" data-doc-editable="full" data-doc-page-sheet="true" style="min-height:${minH};max-width:${maxW};width:100%;margin:0 auto;background:#fff;padding:${pad};box-sizing:border-box;display:flex;flex-direction:column;font-family:Arial,sans-serif;font-size:${narrow ? '10px' : '12px'};color:#111">
+    <div data-section="header" style="flex-shrink:0;padding-bottom:14px;border-bottom:3px solid ${color};margin-bottom:20px">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:16px">
+        <div style="display:flex;align-items:center;gap:12px">
+          ${logoHtml}
+          <div>
+            <div style="font-size:18px;font-weight:700;color:#111">${vendor}</div>
+            ${s.show_gstin && gstin ? `<div style="font-size:10px;color:#6b7280;margin-top:2px">GSTIN: ${gstin}</div>` : ''}
+            ${s.show_vendor_address !== false && addr ? `<div style="font-size:10px;color:#6b7280;margin-top:2px;line-height:1.5">${addr}</div>` : ''}
+          </div>
+        </div>
+        <div style="text-align:right">
+          <div style="font-size:18px;font-weight:800;color:${color};letter-spacing:1px">${title}</div>
+          <div style="font-size:9px;color:#9ca3af;margin-top:4px">Page ${pageNum}</div>
+        </div>
+      </div>
+    </div>
+    <div class="body-content" style="flex:1;min-height:480px;padding:8px 0;line-height:1.6">
+      <p><br></p>
+    </div>
+    <div data-section="footer" style="flex-shrink:0;margin-top:auto;padding-top:16px;border-top:1px solid #e5e7eb">
+      ${notesBlock}
+      ${sigBlock}
+      ${(s.show_legal_note ?? true) ? `<div style="text-align:center;font-size:10px;color:#9ca3af;padding-top:10px;border-top:1px solid #f3f4f6;margin-top:12px">${legal}</div>` : ''}
+    </div>
+  </div>`
 }
