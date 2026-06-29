@@ -422,7 +422,7 @@ class FinFxRevalRun(Base):
     __tablename__ = "fin_fx_reval_run"
 
     id               = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    vendor_id        = Column(UUID(as_uuid=True), ForeignKey("store.id", ondelete="CASCADE"), nullable=False)
+    vendor_id        = Column(UUID(as_uuid=True), ForeignKey("vendor.id", ondelete="CASCADE"), nullable=False)
     run_date         = Column(Date, nullable=False)
     currency         = Column(String(3), nullable=False)
     rate_used        = Column(Numeric(20, 8), nullable=False)
@@ -462,7 +462,7 @@ class FinBalanceCarryForward(Base):
     __tablename__ = "fin_balance_carryforward"
 
     id                 = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    vendor_id          = Column(UUID(as_uuid=True), ForeignKey("store.id", ondelete="CASCADE"), nullable=False)
+    vendor_id          = Column(UUID(as_uuid=True), ForeignKey("vendor.id", ondelete="CASCADE"), nullable=False)
     account_id         = Column(UUID(as_uuid=True), ForeignKey("fin_account.id", ondelete="CASCADE"), nullable=False)
     from_fiscal_year   = Column(Integer, nullable=False)
     to_fiscal_year     = Column(Integer, nullable=False)
@@ -568,7 +568,7 @@ class FinProfitCenter(Base):
     __tablename__ = "fin_profit_center"
 
     id          = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    vendor_id   = Column(UUID(as_uuid=True), ForeignKey("store.id", ondelete="CASCADE"), nullable=False)
+    vendor_id   = Column(UUID(as_uuid=True), ForeignKey("vendor.id", ondelete="CASCADE"), nullable=False)
     code        = Column(String(20),  nullable=False)
     name        = Column(String(120), nullable=False)
     description = Column(Text, nullable=True)
@@ -593,7 +593,7 @@ class FinSegment(Base):
     __tablename__ = "fin_segment"
 
     id          = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    vendor_id   = Column(UUID(as_uuid=True), ForeignKey("store.id", ondelete="CASCADE"), nullable=False)
+    vendor_id   = Column(UUID(as_uuid=True), ForeignKey("vendor.id", ondelete="CASCADE"), nullable=False)
     code        = Column(String(20),  nullable=False)
     name        = Column(String(120), nullable=False)
     description = Column(Text, nullable=True)
@@ -618,7 +618,7 @@ class FinPostingKey(Base):
     __tablename__ = "fin_posting_key"
 
     id           = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    vendor_id    = Column(UUID(as_uuid=True), ForeignKey("store.id", ondelete="CASCADE"), nullable=False)
+    vendor_id    = Column(UUID(as_uuid=True), ForeignKey("vendor.id", ondelete="CASCADE"), nullable=False)
     code         = Column(String(4),   nullable=False)
     name         = Column(String(120), nullable=False)
     # 'debit' or 'credit'
@@ -648,7 +648,7 @@ class FinFieldStatusGroup(Base):
     __tablename__ = "fin_field_status_group"
 
     id        = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    vendor_id = Column(UUID(as_uuid=True), ForeignKey("store.id", ondelete="CASCADE"), nullable=False)
+    vendor_id = Column(UUID(as_uuid=True), ForeignKey("vendor.id", ondelete="CASCADE"), nullable=False)
     code      = Column(String(10),  nullable=False)
     name      = Column(String(120), nullable=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
@@ -696,7 +696,7 @@ class FinToleranceGroup(Base):
     __tablename__ = "fin_tolerance_group"
 
     id                  = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    vendor_id           = Column(UUID(as_uuid=True), ForeignKey("store.id", ondelete="CASCADE"), nullable=False)
+    vendor_id           = Column(UUID(as_uuid=True), ForeignKey("vendor.id", ondelete="CASCADE"), nullable=False)
     code                = Column(String(10),      nullable=False)
     name                = Column(String(120),     nullable=False)
     max_line_amount     = Column(Numeric(18, 4),  nullable=True)

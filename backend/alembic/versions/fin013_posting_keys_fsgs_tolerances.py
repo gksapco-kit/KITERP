@@ -25,7 +25,7 @@ def upgrade() -> None:
     op.create_table(
         "fin_posting_key",
         sa.Column("id",          sa.dialects.postgresql.UUID(as_uuid=True), primary_key=True, server_default=sa.text("gen_random_uuid()")),
-        sa.Column("vendor_id",   sa.dialects.postgresql.UUID(as_uuid=True), sa.ForeignKey("store.id", ondelete="CASCADE"), nullable=False),
+        sa.Column("vendor_id",   sa.dialects.postgresql.UUID(as_uuid=True), sa.ForeignKey("vendor.id", ondelete="CASCADE"), nullable=False),
         sa.Column("code",        sa.String(4),   nullable=False),      # e.g. "40", "50"
         sa.Column("name",        sa.String(120), nullable=False),
         sa.Column("side",        sa.String(6),   nullable=False),      # 'debit' | 'credit'
@@ -40,7 +40,7 @@ def upgrade() -> None:
     op.create_table(
         "fin_field_status_group",
         sa.Column("id",         sa.dialects.postgresql.UUID(as_uuid=True), primary_key=True, server_default=sa.text("gen_random_uuid()")),
-        sa.Column("vendor_id",  sa.dialects.postgresql.UUID(as_uuid=True), sa.ForeignKey("store.id", ondelete="CASCADE"), nullable=False),
+        sa.Column("vendor_id",  sa.dialects.postgresql.UUID(as_uuid=True), sa.ForeignKey("vendor.id", ondelete="CASCADE"), nullable=False),
         sa.Column("code",       sa.String(10),  nullable=False),       # e.g. "G001"
         sa.Column("name",       sa.String(120), nullable=False),
         sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.text("now()")),
@@ -62,7 +62,7 @@ def upgrade() -> None:
     op.create_table(
         "fin_tolerance_group",
         sa.Column("id",                    sa.dialects.postgresql.UUID(as_uuid=True), primary_key=True, server_default=sa.text("gen_random_uuid()")),
-        sa.Column("vendor_id",             sa.dialects.postgresql.UUID(as_uuid=True), sa.ForeignKey("store.id", ondelete="CASCADE"), nullable=False),
+        sa.Column("vendor_id",             sa.dialects.postgresql.UUID(as_uuid=True), sa.ForeignKey("vendor.id", ondelete="CASCADE"), nullable=False),
         sa.Column("code",                  sa.String(10),       nullable=False),     # "" = default group
         sa.Column("name",                  sa.String(120),      nullable=False),
         # Maximum amount per single document line

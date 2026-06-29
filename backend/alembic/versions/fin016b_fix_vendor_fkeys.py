@@ -8,7 +8,7 @@ fin_number_range.
 from alembic import op
 
 revision = "fin016b_fix_vendor_fkeys"
-down_revision = "fin017b_fix_split_rule_fkeys"
+down_revision = "fin016_validations_subs_numranges"
 branch_labels = None
 depends_on = None
 

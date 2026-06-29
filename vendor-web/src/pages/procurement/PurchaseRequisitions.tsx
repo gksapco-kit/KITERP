@@ -322,7 +322,7 @@ function PRFormModal({ editingPR, onClose }: { editingPR?: PurchaseRequisition |
   const createPR = useCreateRequisition()
   const updatePR = useUpdateRequisition()
   const submitPR = useSubmitRequisition()
-  const { data: loadedPR } = useRequisition(editingPR?.id)
+  const { data: loadedPR } = useRequisition(editingPR?.id ?? null)
   const sourcePR = loadedPR ?? editingPR ?? null
   const { data: costCenters = [], isLoading: costCentersLoading } = useCostCenters()
   const { data: storesData, isLoading: storesLoading } = useStores()

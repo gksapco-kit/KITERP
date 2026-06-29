@@ -11,7 +11,7 @@ import sqlalchemy as sa
 from sqlalchemy.dialects.postgresql import UUID
 
 revision = "fin017_document_splitting"
-down_revision = "fin016_validations_subs_numranges"
+down_revision = "fin016b_fix_vendor_fkeys"
 branch_labels = None
 depends_on = None
 

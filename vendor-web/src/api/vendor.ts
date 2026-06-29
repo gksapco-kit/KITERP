@@ -1351,7 +1351,7 @@ export const vendorApi = {
   },
 
   checkBusinessPartnerDuplicate: async (params: { name: string; phone?: string; email?: string; gstin?: string }) => {
-    const response = await apiClient.get('/vendors/me/business-partners/check-duplicate/', { params })
+    const response = await apiClient.get('/vendors/me/business-partners/check-duplicate', { params })
     return response.data as import('@/types').BusinessPartner
   },
 

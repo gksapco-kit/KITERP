@@ -9,7 +9,7 @@ import sqlalchemy as sa
 from sqlalchemy.dialects.postgresql import UUID
 
 revision = "fin017b_fix_split_rule_fkeys"
-down_revision = "fin018_parallel_ledgers"
+down_revision = "fin017_document_splitting"
 branch_labels = None
 depends_on = None
 

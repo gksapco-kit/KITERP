@@ -15,7 +15,7 @@ import sqlalchemy as sa
 from sqlalchemy.dialects.postgresql import UUID
 
 revision = "fin015_fx_reval_carry_forward"
-down_revision = "fin014_profit_centers_segments"
+down_revision = "fin014b_fix_vendor_fkeys"
 branch_labels = None
 depends_on = None
 
@@ -48,7 +48,7 @@ def upgrade() -> None:
         op.create_table(
             "fin_fx_reval_run",
             sa.Column("id",           UUID(as_uuid=True), primary_key=True, server_default=sa.text("gen_random_uuid()")),
-            sa.Column("vendor_id",    UUID(as_uuid=True), sa.ForeignKey("store.id", ondelete="CASCADE"), nullable=False),
+            sa.Column("vendor_id",    UUID(as_uuid=True), sa.ForeignKey("vendor.id", ondelete="CASCADE"), nullable=False),
             sa.Column("run_date",     sa.Date,  nullable=False),
             sa.Column("currency",     sa.String(3), nullable=False),
             sa.Column("rate_used",    sa.Numeric(20, 8), nullable=False),
@@ -78,7 +78,7 @@ def upgrade() -> None:
         op.create_table(
             "fin_balance_carryforward",
             sa.Column("id",              UUID(as_uuid=True), primary_key=True, server_default=sa.text("gen_random_uuid()")),
-            sa.Column("vendor_id",       UUID(as_uuid=True), sa.ForeignKey("store.id", ondelete="CASCADE"), nullable=False),
+            sa.Column("vendor_id",       UUID(as_uuid=True), sa.ForeignKey("vendor.id", ondelete="CASCADE"), nullable=False),
             sa.Column("account_id",      UUID(as_uuid=True), sa.ForeignKey("fin_account.id", ondelete="CASCADE"), nullable=False),
             sa.Column("from_fiscal_year",sa.Integer, nullable=False),
             sa.Column("to_fiscal_year",  sa.Integer, nullable=False),

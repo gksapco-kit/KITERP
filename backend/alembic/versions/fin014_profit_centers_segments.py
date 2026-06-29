@@ -13,7 +13,7 @@ import sqlalchemy as sa
 from sqlalchemy.dialects.postgresql import UUID
 
 revision = "fin014_profit_centers_segments"
-down_revision = "fin013_posting_keys_fsgs_tolerances"
+down_revision = "fin013b_fix_vendor_fkeys"
 branch_labels = None
 depends_on = None
 
@@ -23,7 +23,7 @@ def upgrade() -> None:
     op.create_table(
         "fin_profit_center",
         sa.Column("id",          UUID(as_uuid=True), primary_key=True, server_default=sa.text("gen_random_uuid()")),
-        sa.Column("vendor_id",   UUID(as_uuid=True), sa.ForeignKey("store.id", ondelete="CASCADE"), nullable=False),
+        sa.Column("vendor_id",   UUID(as_uuid=True), sa.ForeignKey("vendor.id", ondelete="CASCADE"), nullable=False),
         sa.Column("code",        sa.String(20),  nullable=False),
         sa.Column("name",        sa.String(120), nullable=False),
         sa.Column("description", sa.Text,        nullable=True),
@@ -40,7 +40,7 @@ def upgrade() -> None:
     op.create_table(
         "fin_segment",
         sa.Column("id",          UUID(as_uuid=True), primary_key=True, server_default=sa.text("gen_random_uuid()")),
-        sa.Column("vendor_id",   UUID(as_uuid=True), sa.ForeignKey("store.id", ondelete="CASCADE"), nullable=False),
+        sa.Column("vendor_id",   UUID(as_uuid=True), sa.ForeignKey("vendor.id", ondelete="CASCADE"), nullable=False),
         sa.Column("code",        sa.String(20),  nullable=False),
         sa.Column("name",        sa.String(120), nullable=False),
         sa.Column("description", sa.Text,        nullable=True),

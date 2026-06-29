@@ -31,6 +31,30 @@ async def list_business_partners(
     return JSONResponse(content=result)
 
 
+@router.get("/check-duplicate")
+async def check_duplicate(
+    name: str = Query(...),
+    phone: Optional[str] = Query(None),
+    email: Optional[str] = Query(None),
+    gstin: Optional[str] = Query(None),
+    exclude_id: Optional[str] = Query(None),
+    vendor_id: UUID = Depends(get_current_vendor_id),
+    db: AsyncSession = Depends(get_db),
+):
+    """Returns existing BP if a duplicate is found, 404 otherwise.
+
+    Pass exclude_id when editing an existing record so it is not matched as a duplicate.
+    """
+    svc = BusinessPartnerService(db)
+    dup = await svc.find_duplicate(
+        vendor_id, name, phone, email, gstin,
+        exclude_id=UUID(exclude_id) if exclude_id else None,
+    )
+    if not dup:
+        raise HTTPException(status_code=404, detail="No duplicate found")
+    return JSONResponse(content=svc._bp_to_dict(dup))
+
+
 @router.get("/{bp_id}")
 async def get_business_partner(
     bp_id: UUID,
@@ -87,41 +111,3 @@ async def remove_role(
 ):
     svc = BusinessPartnerService(db)
     await svc.remove_role(vendor_id, bp_id, role)
-
-
-@router.get("/{bp_id}/check-duplicate")
-async def check_duplicate(
-    name: str = Query(...),
-    phone: Optional[str] = Query(None),
-    email: Optional[str] = Query(None),
-    gstin: Optional[str] = Query(None),
-    exclude_id: Optional[str] = Query(None),
-    vendor_id: UUID = Depends(get_current_vendor_id),
-    db: AsyncSession = Depends(get_db),
-):
-    """Returns existing BP if a duplicate is found, 404 otherwise."""
-    svc = BusinessPartnerService(db)
-    dup = await svc.find_duplicate(
-        vendor_id, name, phone, email, gstin,
-        exclude_id=UUID(exclude_id) if exclude_id else None,
-    )
-    if not dup:
-        raise HTTPException(status_code=404, detail="No duplicate found")
-    return JSONResponse(content=svc._bp_to_dict(dup))
-
-
-@router.get("/check-duplicate/")
-async def check_duplicate_new(
-    name: str = Query(...),
-    phone: Optional[str] = Query(None),
-    email: Optional[str] = Query(None),
-    gstin: Optional[str] = Query(None),
-    vendor_id: UUID = Depends(get_current_vendor_id),
-    db: AsyncSession = Depends(get_db),
-):
-    """Used before creating a new BP — check if one already exists."""
-    svc = BusinessPartnerService(db)
-    dup = await svc.find_duplicate(vendor_id, name, phone, email, gstin)
-    if not dup:
-        raise HTTPException(status_code=404, detail="No duplicate found")
-    return JSONResponse(content=svc._bp_to_dict(dup))

@@ -223,6 +223,7 @@ export function ProcurementLineItemForm({
   const showAccountAssignment = type === 'other'
 
   const lineTotal = (Number(item.quantity) || 0) * (Number(item.estimated_price) || 0)
+  const plantLabel = type === 'asset' ? 'Installation Plant' : 'Deliver to Plant'
   const summaryLabel = productContext?.name
     || (item.description.trim() ? item.description.trim() : null)
     || (item.reference_id ? 'Item selected' : 'No item selected')
@@ -537,15 +538,6 @@ export function ProcurementLineItemForm({
                   className={inputClass}
                 />
               </FieldCell>
-            ) : showAssetTag ? (
-              <FieldCell label="Asset Tag / Serial">
-                <Input
-                  value={item.asset_tag}
-                  onChange={e => onChange('asset_tag', e.target.value)}
-                  placeholder="Optional"
-                  className={inputClass}
-                />
-              </FieldCell>
             ) : showAccountAssignment ? (
               <FieldCell label="Account Assignment">
                 <Input
@@ -556,7 +548,7 @@ export function ProcurementLineItemForm({
                 />
               </FieldCell>
             ) : showPlant ? (
-              <FieldCell label={type === 'asset' ? 'Installation Plant' : 'Deliver to Plant'}>
+              <FieldCell label={plantLabel}>
                 <Select
                   value={item.plant_id}
                   onChange={v => onPatch({ plant_id: v, storage_location_id: '' })}
@@ -607,10 +599,19 @@ export function ProcurementLineItemForm({
                   aria-label="Storage location"
                 />
               </FieldCell>
+            ) : showAssetTag ? (
+              <FieldCell label="Asset Tag / Serial">
+                <Input
+                  value={item.asset_tag}
+                  onChange={e => onChange('asset_tag', e.target.value)}
+                  placeholder="Optional"
+                  className={inputClass}
+                />
+              </FieldCell>
             ) : null}
             <FieldCell
               label="Line Notes"
-              className={showServicePeriod || showStorage ? 'col-span-3' : 'col-span-4'}
+              className={showServicePeriod || showStorage || showAssetTag ? 'col-span-3' : 'col-span-4'}
             >
               <Input
                 placeholder="Optional notes"
