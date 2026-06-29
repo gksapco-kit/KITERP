@@ -24,7 +24,7 @@ import {
 } from 'lucide-react'
 import { APP_SAVE_REQUEST_EVENT, dispatchAppSaveRequest } from '@/lib/appSave'
 import { FieldMappingProvider } from '@/providers/FieldMappingProvider'
-import { cn, mediaUrl } from '@/lib/utils'
+import { cn, mediaUrl, surfaceBorderClassName } from '@/lib/utils'
 
 function ProfileAvatar({
   user,
@@ -140,6 +140,7 @@ import { useBrowserNotifications } from '@/hooks/useBrowserNotifications'
 import { useInboxUnreadCount } from '@/hooks/useCrm'
 import { UniversalSearch } from '@/components/UniversalSearch'
 import { KitErpThemePickerModal } from '@/components/KitErpThemePickerModal'
+import { SidebarAppsPickerModal } from '@/components/SidebarAppsPickerModal'
 import { getKitErpThemeOption } from '@/lib/kitErpThemes'
 import { buildNavIndex, type NavSearchEntry } from '@/lib/appSearchIndex'
 import { isHrNavVisible } from '@/lib/hrModuleSettings'
@@ -194,6 +195,13 @@ import {
   RESET_USER_NAV_ORDER_EVENT,
   type NavOrderScope,
 } from '@/layouts/sidebarNavOrder'
+import {
+  loadEnabledSectionIds,
+  saveEnabledSectionIds,
+  isPinnedSidebarSection,
+  normalizeEnabledSectionIds,
+  SIDEBAR_APP_DESCRIPTIONS,
+} from '@/layouts/sidebarNavApps'
 import {
   buildRailFlyoutTree,
   buildRailNavTree,
@@ -1253,6 +1261,7 @@ export default function DashboardLayout() {
   const storePickerMenuRef = useRef<HTMLDivElement>(null)
   const [profileOpen, setProfileOpen] = useState(false)
   const [kitThemePickerOpen, setKitThemePickerOpen] = useState(false)
+  const [appsPickerOpen, setAppsPickerOpen] = useState(false)
   const profileMenuRef = useRef<HTMLDivElement>(null)
   const profilePanelRef = useRef<HTMLDivElement>(null)
   const navScrollRef = useRef<HTMLElement>(null)
@@ -1847,6 +1856,66 @@ export default function DashboardLayout() {
     [displaySections, sectionOrder],
   )
 
+  const allVisibleSectionIds = useMemo(
+    () => orderedVisibleSections.map((s) => s.id),
+    [orderedVisibleSections],
+  )
+
+  const [enabledSectionIds, setEnabledSectionIds] = useState<string[]>(allVisibleSectionIds)
+  const skipEnabledSectionsSaveRef = useRef(true)
+
+  useEffect(() => {
+    if (!navOrderScope) return
+    skipEnabledSectionsSaveRef.current = true
+    setEnabledSectionIds(loadEnabledSectionIds(allVisibleSectionIds, navOrderScope))
+  }, [navOrderScope, allVisibleSectionIds.join('|')])
+
+  useEffect(() => {
+    if (!navOrderScope) return
+    if (skipEnabledSectionsSaveRef.current) {
+      skipEnabledSectionsSaveRef.current = false
+      return
+    }
+    saveEnabledSectionIds(enabledSectionIds, allVisibleSectionIds, navOrderScope)
+  }, [enabledSectionIds, allVisibleSectionIds, navOrderScope])
+
+  const sidebarSections = useMemo(
+    () =>
+      orderedVisibleSections.filter((s) => enabledSectionIds.includes(s.id)),
+    [orderedVisibleSections, enabledSectionIds],
+  )
+
+  const optionalAppsCount = useMemo(
+    () => orderedVisibleSections.filter((s) => !isPinnedSidebarSection(s.id)).length,
+    [orderedVisibleSections],
+  )
+
+  const enabledOptionalAppsCount = useMemo(
+    () =>
+      sidebarSections.filter((s) => !isPinnedSidebarSection(s.id)).length,
+    [sidebarSections],
+  )
+
+  const showAppsPickerHint =
+    optionalAppsCount > 0 && enabledOptionalAppsCount < optionalAppsCount
+
+  useEffect(() => {
+    const activeSection = displaySections.find((s) =>
+      s.items.some((it) => isNavRouteActive(location.pathname, location.search, it.to)),
+    )
+    if (activeSection) {
+      setEnabledSectionIds((prev) =>
+        prev.includes(activeSection.id) ? prev : [...prev, activeSection.id],
+      )
+    }
+  }, [location.pathname, location.search, displaySections])
+
+  useEffect(() => {
+    if (railFlyoutSectionId && !enabledSectionIds.includes(railFlyoutSectionId)) {
+      setRailFlyoutSectionId(null)
+    }
+  }, [enabledSectionIds, railFlyoutSectionId])
+
   // ── Universal Search ───────────────────────────────────────────────────────
   const [searchOpen, setSearchOpen] = useState(false)
 
@@ -1905,6 +1974,23 @@ export default function DashboardLayout() {
     }
     return m
   }, [displaySections, itemPlacements])
+
+  const appsPickerSections = useMemo(
+    () =>
+      orderedVisibleSections.map((s) => {
+        const items = orderedNavItemsBySectionId.get(s.id) ?? s.items
+        return {
+          id: s.id,
+          title: s.title,
+          titleTooltip: s.titleTooltip,
+          icon: s.icon,
+          itemCount: items.length,
+          description: SIDEBAR_APP_DESCRIPTIONS[s.id],
+          submenuLabels: items.map((it) => it.label),
+        }
+      }),
+    [orderedVisibleSections, orderedNavItemsBySectionId],
+  )
 
   const flatVisibleNavItems = useMemo(
     () => displaySections.flatMap((s) => orderedNavItemsBySectionId.get(s.id) ?? s.items),
@@ -2384,7 +2470,7 @@ export default function DashboardLayout() {
       const btn = railSectionButtonRefs.current.get(sectionId)
       if (!btn) return
       const rect = btn.getBoundingClientRect()
-      const section = orderedVisibleSections.find((s) => s.id === sectionId)
+      const section = sidebarSections.find((s) => s.id === sectionId)
       const items = section
         ? (orderedNavItemsBySectionId.get(section.id) ?? section.items)
         : []
@@ -2398,11 +2484,11 @@ export default function DashboardLayout() {
       setRailHoverSectionId(null)
       setRailFlyoutSectionId((prev) => (prev === sectionId ? null : sectionId))
     },
-    [orderedVisibleSections, orderedNavItemsBySectionId],
+    [sidebarSections, orderedNavItemsBySectionId],
   )
 
   const railFlyoutSection = railFlyoutSectionId
-    ? orderedVisibleSections.find((s) => s.id === railFlyoutSectionId)
+    ? sidebarSections.find((s) => s.id === railFlyoutSectionId)
     : null
   const railFlyoutItems = railFlyoutSection
     ? (orderedNavItemsBySectionId.get(railFlyoutSection.id) ?? railFlyoutSection.items)
@@ -2416,19 +2502,19 @@ export default function DashboardLayout() {
   const sidebarNavNodes = useMemo(
     () =>
       buildSidebarNavTree(
-        orderedVisibleSections,
+        sidebarSections,
         orderedNavItemsBySectionId,
         collapsedSections,
         collapsedGroups,
         buildNavItemBlocks,
         effectiveNavGroupLabels,
       ),
-    [orderedVisibleSections, orderedNavItemsBySectionId, collapsedSections, collapsedGroups],
+    [sidebarSections, orderedNavItemsBySectionId, collapsedSections, collapsedGroups],
   )
 
   const railNavNodes = useMemo(
-    () => buildRailNavTree(orderedVisibleSections),
-    [orderedVisibleSections],
+    () => buildRailNavTree(sidebarSections),
+    [sidebarSections],
   )
 
   const railFlyoutNavNodes = useMemo(
@@ -2462,7 +2548,7 @@ export default function DashboardLayout() {
       const btn = railSectionButtonRefs.current.get(sectionId)
       if (!btn) return
       const rect = btn.getBoundingClientRect()
-      const section = orderedVisibleSections.find((s) => s.id === sectionId)
+      const section = sidebarSections.find((s) => s.id === sectionId)
       const items = section
         ? (orderedNavItemsBySectionId.get(section.id) ?? section.items)
         : []
@@ -2480,7 +2566,7 @@ export default function DashboardLayout() {
         setNavFocusKey(focusKey)
       }
     },
-    [orderedVisibleSections, orderedNavItemsBySectionId, navigateToNavItem],
+    [sidebarSections, orderedNavItemsBySectionId, navigateToNavItem],
   )
 
   const applySidebarNavAction = useCallback(
@@ -2747,11 +2833,13 @@ export default function DashboardLayout() {
 
   const sidebarContent = (
     <div className="flex h-full min-h-0 flex-col">
-      {/* Sidebar header: KIT ERP brand | action buttons */}
-      <div className={cn(
-        'flex h-14 w-full shrink-0 items-center border-b border-sidebar-border bg-muted/30',
-        showIconOnlyNav ? 'justify-center px-1.5' : 'px-2 sm:px-2.5',
-      )}>
+      {/* Sidebar header: KIT ERP brand | Apps */}
+      <div
+        className={cn(
+          'flex h-14 w-full shrink-0 items-center gap-2 border-b border-sidebar-border bg-muted/30',
+          showIconOnlyNav ? 'justify-center px-1.5' : 'px-2 sm:px-2.5',
+        )}
+      >
         {/* KIT ERP brand — dashboard home; icon-only rail click expands sidebar */}
         <button
           type="button"
@@ -2768,10 +2856,10 @@ export default function DashboardLayout() {
             navigate('/')
           }}
           className={cn(
-            'flex min-w-0 flex-1 items-center gap-2 rounded-lg text-left transition-colors',
+            'flex min-w-0 items-center gap-2 rounded-lg text-left transition-colors',
             showIconOnlyNav
               ? 'lg:cursor-pointer lg:justify-center lg:flex-none lg:p-1.5 lg:hover:bg-muted/50'
-              : 'cursor-pointer p-1 -m-1 hover:bg-muted/50',
+              : 'min-w-0 flex-1 cursor-pointer p-1 -m-1 hover:bg-muted/50',
           )}
         >
           <span
@@ -2783,9 +2871,39 @@ export default function DashboardLayout() {
           >
             <Store className={cn('h-4 w-4', showIconOnlyNav && 'lg:h-5 lg:w-5')} strokeWidth={1.5} />
           </span>
-          <span className={cn('text-sm tracking-wide text-sidebar-foreground', NAV_FONT_BRAND, showIconOnlyNav && 'lg:hidden')}>
+          <span
+            className={cn(
+              'text-sm tracking-wide text-sidebar-foreground',
+              NAV_FONT_BRAND,
+              showIconOnlyNav && 'lg:hidden',
+            )}
+          >
             KIT ERP
           </span>
+        </button>
+        <button
+          type="button"
+          onClick={() => setAppsPickerOpen(true)}
+          aria-label="Choose sidebar apps"
+          className={cn(
+            'flex shrink-0 items-center gap-1.5 rounded-full bg-background/90 px-2.5 py-1 text-xs uppercase tracking-wide shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40 focus-visible:ring-offset-2 focus-visible:ring-offset-background',
+            surfaceBorderClassName,
+            NAV_FONT_TAB,
+            'text-muted-foreground hover:border-primary/35 hover:bg-muted/50 hover:text-foreground',
+            showAppsPickerHint && 'border-primary/30 text-foreground',
+            showIconOnlyNav && 'lg:px-2',
+          )}
+        >
+          <LayoutGrid className="h-3.5 w-3.5 shrink-0" aria-hidden />
+          <span className={cn(showIconOnlyNav && 'lg:hidden')}>Apps</span>
+          {showAppsPickerHint ? (
+            <span
+              className="rounded-full bg-primary/15 px-1.5 text-[10px] font-semibold leading-none text-primary"
+              aria-hidden
+            >
+              {enabledOptionalAppsCount}
+            </span>
+          ) : null}
         </button>
       </div>
 
@@ -2805,7 +2923,7 @@ export default function DashboardLayout() {
         }}
         onKeyDown={(e) => handleSidebarNavKeyDown(e, railNavNodes)}
       >
-        {orderedVisibleSections.map((section) => {
+        {sidebarSections.map((section) => {
           const SectionIcon = section.icon
           const items = orderedNavItemsBySectionId.get(section.id) ?? section.items
           const sectionHasActive = items.some((it) => activeNavTo === it.to)
@@ -2909,7 +3027,7 @@ export default function DashboardLayout() {
                     if (!prev) {
                       setCollapsedSections((old) => {
                         const next = { ...old }
-                        for (const s of displaySections) {
+                        for (const s of sidebarSections) {
                           next[s.title] = false
                         }
                         return next
@@ -2936,12 +3054,26 @@ export default function DashboardLayout() {
             </div>
           </div>
 
+          {showAppsPickerHint && !navReorderMode ? (
+            <p className="mb-1 px-1.5 text-[11px] leading-snug text-muted-foreground">
+              <button
+                type="button"
+                className="font-medium text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40 rounded-sm"
+                onClick={() => setAppsPickerOpen(true)}
+              >
+                Add apps
+              </button>
+              {' '}
+              to show more modules in your sidebar.
+            </p>
+          ) : null}
+
           <SortableContext
             id="nav-sections-order"
-            items={orderedVisibleSections.map((s) => secDndId(s.id))}
+            items={sidebarSections.map((s) => secDndId(s.id))}
             strategy={verticalListSortingStrategy}
           >
-            {orderedVisibleSections.map((section) => {
+            {sidebarSections.map((section) => {
               const isSectionCollapsed = collapsedSections[section.title] ?? true
               const orderedItems = orderedNavItemsBySectionId.get(section.id) ?? section.items
               const sectionHasActive = orderedItems.some((it) => activeNavTo === it.to)
@@ -3886,6 +4018,16 @@ export default function DashboardLayout() {
         <KitErpThemePickerModal
           open={kitThemePickerOpen}
           onClose={() => setKitThemePickerOpen(false)}
+        />
+
+        <SidebarAppsPickerModal
+          open={appsPickerOpen}
+          onClose={() => setAppsPickerOpen(false)}
+          sections={appsPickerSections}
+          enabledIds={enabledSectionIds}
+          onEnabledChange={(ids) =>
+            setEnabledSectionIds(normalizeEnabledSectionIds(ids, allVisibleSectionIds))
+          }
         />
 
         {/* Page content */}
