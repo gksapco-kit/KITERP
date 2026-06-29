@@ -589,7 +589,7 @@ const allSections: NavSection[] = [
   },
   {
     id: 'procurement',
-    title: 'Procurement (MM)',
+    title: 'Procurement Management',
     icon: Truck,
     items: [
       { to: '/purchase-orders', icon: ClipboardList, label: 'Purchase Orders', requiresPermission: 'procurement.view', groupLabel: 'Purchasing', groupColor: 'blue' },
