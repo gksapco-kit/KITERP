@@ -47,7 +47,7 @@ export const BLOCK_QUICK_PRESETS: Record<string, SectionLayoutPreset[]> = {
     { label: 'Split Overlay', desc: 'Text left, image right overlay', props: { bg_style: 'image', overlay: true, layout: 'split', image_position: 'right' } },
     { label: 'Centered CTA', desc: 'Single bold headline + one button', props: { bg_style: 'gradient', overlay: false, layout: 'centered', cta_square: true } },
     { label: 'Video Backdrop', desc: 'Hero with dark video-style overlay', props: { bg_style: 'image', overlay: true, layout: 'centered', bg_color: '#000000' } },
-    { label: 'Eyebrow Label', desc: 'Small label above headline', props: { bg_style: 'minimal', layout: 'centered', eyebrow_plain: true } },
+    { label: 'Tagline', desc: 'Small text above headline', props: { bg_style: 'minimal', layout: 'centered', eyebrow_plain: true } },
   ],
   hero_split: [
     { label: 'Image Right', desc: 'Copy left, photo right', props: { bg_style: 'minimal', layout: 'split', image_position: 'right' } },
@@ -66,7 +66,7 @@ export const BLOCK_QUICK_PRESETS: Record<string, SectionLayoutPreset[]> = {
     { label: 'Light Surface', desc: 'Soft gray background', props: { bg_style: 'light', layout: 'minimal' } },
     { label: 'Dark Statement', desc: 'Bold headline + square CTA', props: { bg_style: 'solid', bg_color: '#111827', layout: 'minimal', cta_square: true } },
     { label: 'Centered Bold', desc: 'Large headline, single CTA', props: { bg_style: 'minimal', layout: 'minimal', cta_square: false } },
-    { label: 'With Eyebrow', desc: 'Eyebrow label + headline', props: { bg_style: 'minimal', layout: 'minimal', eyebrow_plain: true } },
+    { label: 'With tagline', desc: 'Tagline + headline', props: { bg_style: 'minimal', layout: 'minimal', eyebrow_plain: true } },
     { label: 'Left Aligned', desc: 'Left-aligned minimal hero', props: { bg_style: 'minimal', layout: 'minimal', align: 'left' } },
     { label: 'Soft Gradient', desc: 'Subtle gradient background', props: { bg_style: 'gradient', layout: 'minimal' } },
     { label: 'Image Accent', desc: 'Small image beside headline', props: { bg_style: 'minimal', layout: 'minimal', show_image: true } },
@@ -372,6 +372,8 @@ export const BLOCK_QUICK_PRESETS: Record<string, SectionLayoutPreset[]> = {
     { label: 'Dot Separators', desc: 'Items separated by dots', props: { speed: 'normal', separator: 'dot' } },
     { label: 'Pipe Separators', desc: 'Items separated by pipes', props: { speed: 'normal', separator: 'pipe' } },
     { label: 'Compact Slim', desc: 'Thin height marquee', props: { speed: 'normal', compact: true } },
+    { label: 'Tight Spacing', desc: 'Closer items in the strip', props: { speed: 'normal', item_gap: 24 } },
+    { label: 'Wide Spacing', desc: 'More space between items', props: { speed: 'normal', item_gap: 64 } },
     { label: 'Pause on Hover', desc: 'Stops when user hovers', props: { speed: 'normal', pause_on_hover: true } },
   ],
   rich_text: [

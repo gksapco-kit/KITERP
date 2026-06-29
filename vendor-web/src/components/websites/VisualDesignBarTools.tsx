@@ -28,7 +28,7 @@ import type { OverlayLayerItem } from '@/lib/builderOverlayVisual'
 import type { OverlayBox } from '@/lib/overlayAlignmentSnap'
 import type { BlockProps } from '@/types/websites'
 
-type VisualDropdown = 'insert' | 'icons' | 'anim' | 'origins' | 'shadow' | 'background' | null
+type VisualDropdown = 'insert' | 'icons' | 'visuals' | 'anim' | 'origins' | 'shadow' | 'background' | null
 
 function SectionMenuBtn({
   btnRef,
@@ -191,6 +191,8 @@ export function VisualDesignBarTools({
         overlayCount={overlayCount}
         onAddOverlay={onAddOverlay}
         onClearOverlays={onClearOverlays}
+        open={openMenu === 'insert'}
+        onToggle={() => toggle('insert')}
         visualTab
       />
       {!selectedIsIcon ? iconsControl : null}
@@ -211,6 +213,8 @@ export function VisualDesignBarTools({
       onOverlayPickImage={onOverlayPickImage}
       onOverlayOpenLibrary={onOverlayOpenLibrary}
       onOverlaySetImageUrl={onOverlaySetImageUrl}
+      open={openMenu === 'visuals'}
+      onToggle={() => toggle('visuals')}
       visualTab
     />
   )
@@ -302,6 +306,7 @@ export function VisualDesignBarTools({
         open={openMenu === 'anim'}
         anchorRef={animBtnRef}
         menuRef={menuRef}
+        onClose={closeAll}
         className="bg-popover text-popover-foreground border border-border rounded-xl shadow-2xl p-2 w-[14rem] max-h-[90vh] overflow-y-auto"
       >
         <ScrollAnimationControls
@@ -317,6 +322,7 @@ export function VisualDesignBarTools({
         open={openMenu === 'origins'}
         anchorRef={originsBtnRef}
         menuRef={menuRef}
+        onClose={closeAll}
         className="bg-popover text-popover-foreground border border-border rounded-xl shadow-2xl p-2 w-[15rem] max-h-[90vh] overflow-y-auto"
       >
         <div className="mb-1.5 text-[10px] font-bold uppercase tracking-wide text-gray-400">Top</div>
@@ -372,6 +378,7 @@ export function VisualDesignBarTools({
         open={openMenu === 'shadow'}
         anchorRef={shadowBtnRef}
         menuRef={menuRef}
+        onClose={closeAll}
         className="bg-popover text-popover-foreground border border-border rounded-xl shadow-2xl p-2 w-[13rem] max-h-[90vh] overflow-y-auto"
       >
         <div className="grid grid-cols-2 gap-1">
@@ -403,6 +410,7 @@ export function VisualDesignBarTools({
           open={openMenu === 'background'}
           anchorRef={bgBtnRef}
           menuRef={menuRef}
+          onClose={closeAll}
           className="bg-popover text-popover-foreground border border-border rounded-xl shadow-2xl p-2 w-[11rem]"
         >
           <div className="grid grid-cols-2 gap-1">

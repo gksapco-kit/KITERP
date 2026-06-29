@@ -89,10 +89,18 @@ export function stripSharedShellBlocksFromPage(blocks: PublicBlock[]): PublicBlo
   return blocks.filter(b => !SHARED_SHELL_BLOCK_TYPES.has(b.block_type))
 }
 
+/** Homepage cookie consent block shared across catalog/shell routes. */
+export function siteCookieConsentShellBlock(site: PublicSite | null | undefined): PublicBlock | null {
+  const home = builderSiteHomePage(site)
+  if (!home?.blocks?.length) return null
+  return home.blocks.find(b => b.block_type === 'cookie_consent' && b.visible !== false) ?? null
+}
+
 /**
  * Returns the blocks to render for a page, guaranteeing a consistent site-wide
  * header/footer from the homepage nav shell. Non-home pages never use their own
- * nav/footer clones (even if seeded by AI or legacy templates).
+ * nav/footer clones (even if seeded by AI or legacy templates). Cookie consent
+ * on the homepage is appended site-wide on other pages.
  */
 export function withSharedShellBlocks(
   site: PublicSite | null | undefined,
@@ -117,9 +125,15 @@ export function withSharedShellBlocks(
   const trailing: PublicBlock[] = []
   const footer = homeBlocks.find(b => b.block_type === 'footer' && b.visible !== false)
   if (footer) trailing.push(footer)
+  const homeCookie = homeBlocks.find(b => b.block_type === 'cookie_consent' && b.visible !== false)
 
-  if (leading.length === 0 && trailing.length === 0) return contentBlocks
-  return [...leading, ...contentBlocks, ...trailing]
+  const mergedContent = homeCookie
+    ? contentBlocks.filter(b => b.block_type !== 'cookie_consent')
+    : contentBlocks
+  if (homeCookie) trailing.push(homeCookie)
+
+  if (leading.length === 0 && trailing.length === 0) return mergedContent
+  return [...leading, ...mergedContent, ...trailing]
 }
 
 function isShellRelativePath(rel: string): boolean {

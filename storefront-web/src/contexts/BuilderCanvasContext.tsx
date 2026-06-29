@@ -3,6 +3,8 @@ import type { ActiveCanvasImageTarget } from '@/lib/canvasImageTarget'
 
 export interface BuilderCanvasContextValue {
   isEditorCanvas: boolean
+  /** Draft browser preview (`/preview/draft`) — show chrome like live site but keep cookie banner visible. */
+  isDraftPreview?: boolean
   activeBlockId: string | null
   /** Last-focused field — used for inline edit & toolbar readout. */
   activeTextField: string | null
@@ -44,6 +46,11 @@ export interface BuilderCanvasContextValue {
     propKey: string,
     anchor: { x: number; y: number },
   ) => void
+  /** Builder canvas: submit contact form via authenticated vendor API (draft sites). */
+  submitContactForm?: (
+    siteId: string,
+    body: Record<string, unknown>,
+  ) => Promise<{ ok: boolean; lead_id?: string | null; submission_id?: string | null }>
 }
 
 const BuilderCanvasContext = createContext<BuilderCanvasContextValue | null>(null)

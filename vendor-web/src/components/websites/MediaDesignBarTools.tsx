@@ -27,6 +27,8 @@ export function VisualsDesignBarMenu({
   onOverlayPickImage,
   onOverlayOpenLibrary,
   onOverlaySetImageUrl,
+  open,
+  onToggle,
   visualTab = false,
 }: {
   blockType: string
@@ -41,6 +43,8 @@ export function VisualsDesignBarMenu({
   onOverlayPickImage?: () => void
   onOverlayOpenLibrary?: () => void
   onOverlaySetImageUrl?: () => void
+  open?: boolean
+  onToggle?: () => void
   /** Visual tab row — roomier label line-height. */
   visualTab?: boolean
 }) {
@@ -57,20 +61,32 @@ export function VisualsDesignBarMenu({
   const hasSelect = Boolean(!selectedOverlay && primaryImageField && !canvasImageField && onFocusPrimaryImage)
   const hasUrl = Boolean(isMediaOverlay && onOverlaySetImageUrl)
 
-  const [open, setOpen] = useState(false)
+  const [internalOpen, setInternalOpen] = useState(false)
   const btnRef = useRef<HTMLButtonElement>(null)
   const menuRef = useRef<HTMLDivElement>(null)
+  const isControlled = open !== undefined && onToggle !== undefined
+  const menuOpen = isControlled ? open! : internalOpen
 
   const hasAnyAction = hasUpload || hasLibrary || hasSelect || hasUrl || supportsClip
   if (!hasAnyAction) return null
 
-  const isActive = open || hasClip
-  const close = () => setOpen(false)
+  const isActive = menuOpen || hasClip
+  const close = () => {
+    if (isControlled) {
+      if (open) onToggle!()
+    } else {
+      setInternalOpen(false)
+    }
+  }
+  const toggleMenu = () => {
+    if (isControlled) onToggle!()
+    else setInternalOpen(prev => !prev)
+  }
 
   useEffect(() => {
-    if (!open) return
+    if (!menuOpen) return
     return registerEscapeHandler(close)
-  }, [open])
+  }, [menuOpen])
 
   const runAndClose = (fn?: () => void) => {
     fn?.()
@@ -83,10 +99,10 @@ export function VisualsDesignBarMenu({
         ref={btnRef}
         type="button"
         title="Upload, library, select image, and clip shapes"
-        onClick={() => setOpen(prev => !prev)}
+        onClick={toggleMenu}
         className={cn(
           (visualTab ? visualTabMenuTrigger : visualMenuTrigger)(isActive, hasClip ? 'emerald' : undefined),
-          open && 'ring-1 ring-primary/30',
+          menuOpen && 'ring-1 ring-primary/30',
         )}
       >
         <ImageIcon className="h-3 w-3 shrink-0" />
@@ -94,13 +110,14 @@ export function VisualsDesignBarMenu({
         {hasClip ? (
           <span className="rounded-full bg-primary/15 px-0.5 text-[7px] font-black text-primary">Clip</span>
         ) : null}
-        <ChevronDown className={cn('h-2.5 w-2.5 shrink-0 opacity-60', open && 'rotate-180')} />
+        <ChevronDown className={cn('h-2.5 w-2.5 shrink-0 opacity-60', menuOpen && 'rotate-180')} />
       </button>
 
       <DesignBarDropdownPortal
-        open={open}
+        open={menuOpen}
         anchorRef={btnRef}
         menuRef={menuRef}
+        onClose={close}
         className="w-[17rem] max-h-[90vh] overflow-y-auto rounded-xl border border-gray-200 bg-white shadow-2xl"
       >
         <div className="border-b border-gray-100 bg-gray-50 px-3 py-2">

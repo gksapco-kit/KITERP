@@ -38,6 +38,7 @@ export const DATA_SOURCES: DataSourceDefinition[] = [
   { id: 'orders', label: 'Orders', desc: 'Recent orders (for admin widgets)', group: 'actions', blockTypes: ['stats', 'order_status'], selectable: false },
   { id: 'kpis', label: 'Business KPIs', desc: 'Live stats: orders, revenue, rating', group: 'actions', blockTypes: ['stats', 'counters', 'impact_stats'], selectable: false },
   { id: 'pages', label: 'Site Pages', desc: 'Published pages for nav & footer links', group: 'basic', blockTypes: ['nav', 'footer'], selectable: false },
+  { id: 'blog', label: 'Blog posts', desc: 'Published posts from Blog Manager', group: 'basic', blockTypes: ['blog_grid', 'blog_featured', 'blog_list'], selectable: false },
   { id: 'profile', label: 'Vendor Profile', desc: 'Brand, address, contact, socials', group: 'basic', blockTypes: ['contact_form', 'map_embed', 'map_contact', 'footer', 'nav', 'about_split', 'social_links'], selectable: false },
   { id: 'media', label: 'Site Media', desc: 'Images & videos uploaded to this site', group: 'basic', blockTypes: ['gallery_masonry', 'gallery_grid', 'image_gallery', 'portfolio_grid', 'image_block'], selectable: false },
   { id: 'external_api', label: 'Ext API', desc: 'Custom REST endpoint', group: 'ext_api', blockTypes: [], selectable: false },
@@ -95,6 +96,9 @@ export const BLOCK_AUTO_SOURCE: Record<string, LiveResource> = {
   booking_widget: 'services',
   trust_logos: 'customers',
   order_status: 'orders',
+  blog_grid: 'blog',
+  blog_featured: 'blog',
+  blog_list: 'blog',
 }
 
 /** Sections that only work with live data — user cannot turn off connection in layout picker. */
@@ -109,6 +113,9 @@ export const BLOCK_REQUIRED_DATA_SOURCE = new Set<string>([
   'booking_slot_picker',
   'cart_drawer',
   'category_cards',
+  'blog_grid',
+  'blog_featured',
+  'blog_list',
 ])
 
 export function inferCommerceAutoSource(blockType: string): LiveResource | undefined {

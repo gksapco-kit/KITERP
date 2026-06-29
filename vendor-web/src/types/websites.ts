@@ -90,7 +90,7 @@ export interface BlockProps {
   members?: { name: string; role: string; bio?: string; avatar_url?: string; social?: Record<string, string> }[]
 
   // Blog
-  posts?: { title: string; excerpt?: string; image_url?: string; date?: string; author?: string; slug?: string; category?: string }[]
+  posts?: { title: string; excerpt?: string; image_url?: string; date?: string; author?: string; slug?: string; url?: string; category?: string }[]
 
   // Contact
   email?: string
@@ -395,6 +395,7 @@ export type LiveResource =
   | 'profile'
   | 'kpis'
   | 'stores'
+  | 'blog'
 
 export interface LiveItem {
   id: string

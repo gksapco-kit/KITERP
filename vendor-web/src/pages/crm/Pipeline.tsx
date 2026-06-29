@@ -12,6 +12,7 @@ import { crmApi } from '@/api/crm'
 import type { EmployeeProfile } from '@/types'
 import { Plus, Loader2, GitBranch, TrendingUp, Paperclip, Trash2, FileText, User } from 'lucide-react'
 import { CrmModal, Field } from './_shared'
+import { modalWidthMd } from '@/lib/modalUi'
 import { CURRENCIES, currencySymbol, amountInWords, CrmDateTimeField } from './crmExtras'
 import { DealDetail } from './DealDetail'
 import { formatCurrency, formatDate } from '@/lib/utils'
@@ -83,9 +84,26 @@ function DealForm({ pipelineId, stageId, onClose }: { pipelineId: string; stageI
     )
   }
 
+  const formId = 'deal-form-new'
+
   return (
-    <CrmModal title="Add deal" onClose={onClose} maxW="max-w-2xl">
-      <form onSubmit={submit} className="space-y-3">
+    <CrmModal
+      title="Add deal"
+      onClose={onClose}
+      maxW={modalWidthMd}
+      footer={
+        <>
+          <Button type="button" variant="outline" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button type="submit" form={formId} disabled={save.isPending}>
+            {save.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Plus className="w-4 h-4 mr-2" />}
+            Save deal
+          </Button>
+        </>
+      }
+    >
+      <form id={formId} onSubmit={submit} className="space-y-3 pb-4">
         <Field label="Title" required>
           <Input value={form.title} onChange={e => setForm(p => ({ ...p, title: e.target.value }))} />
         </Field>
@@ -194,14 +212,6 @@ function DealForm({ pipelineId, stageId, onClose }: { pipelineId: string; stageI
           onClick={() => { setCustom(prev => [...prev, { id: seq, key: '', value: '' }]); setSeq(s => s + 1) }}>
           <Plus className="w-4 h-4 mr-2" /> Add field
         </Button>
-
-        <div className="flex gap-3 pt-2">
-          <Button type="button" variant="cancel" className="flex-1" onClick={onClose}>Cancel</Button>
-          <Button type="submit" className="flex-1" disabled={save.isPending}>
-            {save.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Plus className="w-4 h-4 mr-2" />}
-            Save deal
-          </Button>
-        </div>
       </form>
     </CrmModal>
   )

@@ -1,6 +1,8 @@
 import { MapPin } from 'lucide-react'
 import type { PublicSite, StyleConfig, LiveItem } from '@/blocks/registry'
 import { BuilderTextField } from '@/components/builder/BuilderTextField'
+import { useEffectiveVendor } from '@/hooks/useEffectiveVendor'
+import { resolveBusinessContactAddress } from '@/lib/businessContact'
 
 interface Props {
   site: PublicSite
@@ -12,9 +14,11 @@ interface Props {
 }
 
 export default function MapEmbedBlock({ style, props, liveItems, blockId }: Props) {
+  const vendor = useEffectiveVendor()
   const title = (props.title as string) || 'Find Us'
   const profile = liveItems[0]
-  const address = (props.address as string) || (profile?.meta?.address as string) || ''
+  const address =
+    resolveBusinessContactAddress(props.address as string | undefined, profile, vendor)
   const lat = (props.lat as number | null) || (profile?.meta?.latitude as number | null) || null
   const lng = (props.lng as number | null) || (profile?.meta?.longitude as number | null) || null
 

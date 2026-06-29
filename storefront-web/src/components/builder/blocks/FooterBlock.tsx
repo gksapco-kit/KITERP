@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { cn, imgUrl } from '@/lib/utils'
 import type { PublicSite, StyleConfig, LiveItem } from '@/blocks/registry'
 import { useStorePath } from '@/hooks/useStorePath'
-import { useVendor } from '@/contexts/VendorContext'
+import { useVendor, type VendorData } from '@/contexts/VendorContext'
 import { useEffectiveVendor } from '@/hooks/useEffectiveVendor'
 import { useBuilderCanvas } from '@/contexts/BuilderCanvasContext'
 import { isDraftPreviewShellHref } from '@/lib/previewNavRouting'
@@ -16,6 +16,10 @@ import {
   normalizeFooterSocialLinks,
   type FooterSocialPlatform,
 } from '@/kit/footer/footerSocial'
+import {
+  buildFooterContactLinks,
+  isFooterContactColumn,
+} from '@/lib/businessContact'
 
 interface Props {
   site: PublicSite
@@ -37,23 +41,39 @@ function normalizeFooterColumns(
   rawCols: RawColumn[] | undefined,
   storePath: (p: string) => string,
   previewShell = false,
+  profile?: LiveItem,
+  vendor?: VendorData | null,
 ): FooterColumn[] {
   if (!Array.isArray(rawCols) || rawCols.length === 0) return []
-  return rawCols.map(c => ({
-    title: String(c?.title ?? '').trim() || 'Links',
-    links: Array.isArray(c?.links)
-      ? c.links!.map(x => {
-          if (typeof x === 'string') {
-            return { label: x, href: storePath('/'), external: previewShell || undefined }
-          }
-          return {
-            label: x.label ?? '',
-            href: storePath(x.href ?? '/'),
-            external: previewShell || undefined,
-          }
-        })
-      : [],
-  }))
+  const liveContactLinks = buildFooterContactLinks(profile, vendor)
+  return rawCols.map(c => {
+    const title = String(c?.title ?? '').trim() || 'Links'
+    if (isFooterContactColumn(title) && liveContactLinks.length > 0) {
+      return {
+        title,
+        links: liveContactLinks.map((link) => ({
+          label: link.label,
+          href: link.href,
+          external: link.external ?? previewShell,
+        })),
+      }
+    }
+    return {
+      title,
+      links: Array.isArray(c?.links)
+        ? c.links!.map(x => {
+            if (typeof x === 'string') {
+              return { label: x, href: storePath('/'), external: previewShell || undefined }
+            }
+            return {
+              label: x.label ?? '',
+              href: storePath(x.href ?? '/'),
+              external: previewShell || undefined,
+            }
+          })
+        : [],
+    }
+  })
 }
 
 function EditableColumnFooter({
@@ -68,6 +88,8 @@ function EditableColumnFooter({
   primaryColor,
   showSocial,
   socialLinks,
+  profile,
+  vendor,
 }: {
   blockId: string
   blockProps: Record<string, unknown>
@@ -80,8 +102,11 @@ function EditableColumnFooter({
   primaryColor: string
   showSocial: boolean
   socialLinks: Partial<Record<FooterSocialPlatform, string>>
+  profile?: LiveItem
+  vendor?: VendorData | null
 }) {
   const storePath = useStorePath()
+  const liveContactLinks = buildFooterContactLinks(profile, vendor)
 
   return (
     <footer className={cn('border-t mt-8', footerClass)} style={{ backgroundColor: footerBg }}>
@@ -136,34 +161,41 @@ function EditableColumnFooter({
                     : 'grid-cols-1'),
             )}
           >
-            {columns.map((col, colIdx) => (
+            {columns.map((col, colIdx) => {
+              const title = String(col.title ?? '').trim() || 'Links'
+              const contactColumn = isFooterContactColumn(title) && liveContactLinks.length > 0
+              return (
               <div key={colIdx}>
                 <BuilderTextField
                   fieldKey={`footer_columns.${colIdx}.title`}
                   blockId={blockId}
                   blockProps={blockProps}
-                  value={String(col.title ?? '').trim() || 'Links'}
+                  value={title}
                   as="h3"
                   className="text-sm font-semibold text-gray-900"
                   placeholder="Column title"
                 />
                 <ul className="mt-3 space-y-2">
-                  {(col.links ?? []).map((link, linkIdx) => (
-                    <li key={linkIdx}>
-                      <BuilderTextField
-                        fieldKey={`footer_columns.${colIdx}.links.${linkIdx}`}
-                        blockId={blockId}
-                        blockProps={blockProps}
-                        value={linkLabel(link)}
-                        as="span"
-                        className="text-sm text-gray-500"
-                        placeholder="Link label"
-                      />
-                    </li>
-                  ))}
+                  {contactColumn
+                    ? liveContactLinks.map((link) => (
+                        <li key={link.label} className="text-sm text-gray-500">{link.label}</li>
+                      ))
+                    : (col.links ?? []).map((link, linkIdx) => (
+                        <li key={linkIdx}>
+                          <BuilderTextField
+                            fieldKey={`footer_columns.${colIdx}.links.${linkIdx}`}
+                            blockId={blockId}
+                            blockProps={blockProps}
+                            value={linkLabel(link)}
+                            as="span"
+                            className="text-sm text-gray-500"
+                            placeholder="Link label"
+                          />
+                        </li>
+                      ))}
                 </ul>
               </div>
-            ))}
+            )})}
           </div>
         </div>
 
@@ -238,8 +270,9 @@ export default function FooterBlock({ site, style, props, liveItems, blockId }: 
       ? 'text-white border-white/20'
       : 'border-gray-100'
 
+  const profile = liveItems[0]
   const rawCols = props.footer_columns as RawColumn[] | undefined
-  const footerColumns = normalizeFooterColumns(rawCols, storePath, previewShell === true)
+  const footerColumns = normalizeFooterColumns(rawCols, storePath, previewShell === true, profile, effectiveVendor)
   const showSocial = props.show_social !== false
   const socialLinks = normalizeFooterSocialLinks({
     ...(vendor?.social_links as Record<string, string> | undefined),
@@ -266,6 +299,8 @@ export default function FooterBlock({ site, style, props, liveItems, blockId }: 
         primaryColor={style.primary_color}
         showSocial={showSocial}
         socialLinks={socialLinks}
+        profile={profile}
+        vendor={effectiveVendor}
       />
     )
   }

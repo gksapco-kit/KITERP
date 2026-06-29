@@ -27,6 +27,12 @@ import { useEffectiveVendor } from '@/hooks/useEffectiveVendor'
 import { notifyDraftPreviewParentRoute, notifyDraftPreviewHome, rememberDraftEmbedPreviewToken, recallDraftEmbedPreviewToken, storefrontPathToDraftEmbedRoute } from '@/lib/draftEmbedPreview'
 import { buildDraftCatalogEmbedStorePath, isDraftCatalogEmbedPath } from '@/lib/draftCatalogEmbed'
 import { StoreBranchPicker } from '@/components/store/StoreBranchPicker'
+import {
+  buildFooterContactLinks,
+  collectBusinessContactEmails,
+  collectBusinessContactPhones,
+  resolveBusinessContactAddress,
+} from '@/lib/businessContact'
 
 // ── Shared sub-components ─────────────────────────────────────────────────────
 
@@ -210,6 +216,45 @@ function footerSurface(theme: ReturnType<typeof useTheme>) {
   }
 }
 
+function FooterContactLines({
+  vendor,
+  surface,
+  compact = false,
+}: {
+  vendor: ReturnType<typeof useVendor>['vendor']
+  surface: ReturnType<typeof footerSurface>
+  compact?: boolean
+}) {
+  const phones = collectBusinessContactPhones(undefined, vendor)
+  const emails = collectBusinessContactEmails(undefined, vendor)
+  const address = resolveBusinessContactAddress(undefined, undefined, vendor)
+
+  if (phones.length === 0 && emails.length === 0 && !address) return null
+
+  return (
+    <div className={cn('space-y-2.5 text-sm', compact && 'text-sm')}>
+      {phones.map((phone) => (
+        <p key={phone} className="flex items-center gap-2">
+          <Phone className="w-3.5 h-3.5 shrink-0" />
+          <a href={`tel:${phone.replace(/\s+/g, '')}`} className={surface.linkClass}>{phone}</a>
+        </p>
+      ))}
+      {emails.map((email) => (
+        <p key={email} className="flex items-center gap-2">
+          <Mail className="w-3.5 h-3.5 shrink-0" />
+          <a href={`mailto:${email}`} className={surface.linkClass}>{email}</a>
+        </p>
+      ))}
+      {address && (
+        <p className="flex items-start gap-2">
+          <MapPin className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+          <span>{address}</span>
+        </p>
+      )}
+    </div>
+  )
+}
+
 function FooterSimple({ vendor, storePath, theme }: { vendor: any; storePath: (p: string) => string; theme: ReturnType<typeof useTheme> }) {
   const surface = footerSurface(theme)
   return (
@@ -270,15 +315,7 @@ function FooterStandard({ vendor, storePath, theme }: { vendor: any; storePath: 
           </div>
           <div>
             <h4 className={cn('font-semibold text-sm mb-4', surface.titleClass)}>Contact</h4>
-            <div className="space-y-2.5 text-sm">
-              {vendor?.primary_phone && <p className="flex items-center gap-2"><Phone className="w-3.5 h-3.5 shrink-0" />{vendor.primary_phone}</p>}
-              {vendor?.primary_email && <p className="flex items-center gap-2"><Mail className="w-3.5 h-3.5 shrink-0" />{vendor.primary_email}</p>}
-              {(vendor?.city || vendor?.street_address) && (
-                <p className="flex items-start gap-2"><MapPin className="w-3.5 h-3.5 shrink-0 mt-0.5" />
-                  <span>{[vendor.street_address, vendor.city].filter(Boolean).join(', ')}</span>
-                </p>
-              )}
-            </div>
+            <FooterContactLines vendor={vendor} surface={surface} />
           </div>
         </div>
         <div className={cn('border-t py-5 flex flex-col sm:flex-row items-center justify-between gap-2 text-xs', surface.borderClass, surface.mutedClass)}>
@@ -320,46 +357,8 @@ function FooterFull({ vendor, storePath, theme }: { vendor: any; storePath: (p: 
           </div>
           <div>
             <h4 className={cn('font-semibold text-sm mb-4', surface.titleClass)}>Contact Us</h4>
-            <div className="space-y-2.5 text-sm">
-              {vendor?.primary_phone && <p className="flex items-center gap-2"><Phone className="w-3.5 h-3.5 shrink-0" />{vendor.primary_phone}</p>}
-              {vendor?.support_phone && vendor.support_phone !== vendor.primary_phone && (
-                <p className="flex items-center gap-2"><Phone className="w-3.5 h-3.5 shrink-0" />{vendor.support_phone}</p>
-              )}
-              {Array.isArray((vendor?.settings as Record<string, unknown> | undefined)?.support_phones) &&
-                ((vendor!.settings as Record<string, unknown>).support_phones as string[])
-                  .filter((p) => typeof p === 'string' && p.trim() && p !== vendor?.primary_phone && p !== vendor?.support_phone)
-                  .map((phone) => (
-                    <p key={phone} className="flex items-center gap-2">
-                      <Phone className="w-3.5 h-3.5 shrink-0" />
-                      {phone}
-                    </p>
-                  ))}
-              {vendor?.primary_email && <p className="flex items-center gap-2"><Mail className="w-3.5 h-3.5 shrink-0" />{vendor.primary_email}</p>}
-              {vendor?.support_email && vendor.support_email !== vendor.primary_email && (
-                <p className="flex items-center gap-2"><Mail className="w-3.5 h-3.5 shrink-0" />{vendor.support_email}</p>
-              )}
-              {Array.isArray((vendor?.settings as Record<string, unknown> | undefined)?.support_emails) &&
-                ((vendor!.settings as Record<string, unknown>).support_emails as string[])
-                  .filter(
-                    (e) =>
-                      typeof e === 'string' &&
-                      e.trim() &&
-                      e.toLowerCase() !== vendor?.primary_email?.toLowerCase() &&
-                      e.toLowerCase() !== vendor?.support_email?.toLowerCase(),
-                  )
-                  .map((email) => (
-                    <p key={email} className="flex items-center gap-2">
-                      <Mail className="w-3.5 h-3.5 shrink-0" />
-                      {email}
-                    </p>
-                  ))}
-              {(vendor?.street_address || vendor?.city) && (
-                <p className="flex items-start gap-2"><MapPin className="w-3.5 h-3.5 mt-0.5 shrink-0" />
-                  <span>{[vendor.street_address, vendor.city, vendor.state, vendor.postal_code].filter(Boolean).join(', ')}</span>
-                </p>
-              )}
-              {vendor?.gstin && <p className={cn('text-xs', surface.mutedClass)}>GSTIN: {vendor.gstin}</p>}
-            </div>
+            <FooterContactLines vendor={vendor} surface={surface} />
+            {vendor?.gstin && <p className={cn('mt-2 text-xs', surface.mutedClass)}>GSTIN: {vendor.gstin}</p>}
           </div>
           <div>
             <h4 className={cn('font-semibold text-sm mb-4', surface.titleClass)}>Business Hours</h4>

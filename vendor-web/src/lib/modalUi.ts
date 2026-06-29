@@ -24,7 +24,11 @@ export const modalPanelClass =
   `bg-card border border-border text-foreground rounded-xl shadow-2xl w-full ${modalDefaultMaxWidth} my-auto max-h-[min(90dvh,calc(100vh-2rem))] flex flex-col overflow-hidden`
 
 export const modalPanel2xlClass =
-  'bg-card border border-border text-foreground rounded-2xl shadow-2xl w-full max-h-[90vh] overflow-y-auto flex flex-col'
+  'bg-card border border-border text-foreground rounded-2xl shadow-2xl w-full max-h-[90vh] overflow-hidden flex flex-col'
+
+/** Scrollable main area when a modal has a pinned footer. */
+export const modalBodyScrollClass =
+  'flex-1 overflow-y-auto overscroll-contain px-6 pt-6 min-h-0'
 
 export const modalHeaderClass =
   'p-5 border-b border-border flex items-start justify-between gap-3 shrink-0'

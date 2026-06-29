@@ -22,6 +22,7 @@ import {
   inputCls, empDisplayName, findMyEmployee,
   CrmPeopleRow, MonitorSection, validateCrmPeopleRow,
 } from './crmFormShared'
+import { modalWidthMd } from '@/lib/modalUi'
 import { formatDateTime } from '@/lib/utils'
 import { toast } from 'sonner'
 
@@ -151,9 +152,30 @@ function ActivityForm({ onClose }: { onClose: () => void }) {
       },
     )
   }
+  const formId = 'activity-form-new'
+
   return (
-    <CrmModal title="New task" onClose={onClose} maxW="max-w-5xl">
-      <form onSubmit={submit} className="space-y-2.5">
+    <CrmModal
+      title="New task"
+      onClose={onClose}
+      maxW={modalWidthMd}
+      footer={
+        <>
+          <Button type="button" variant="outline" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button
+            type="submit"
+            form={formId}
+            disabled={save.isPending || (form.type === 'other' && !form.type_other.trim())}
+          >
+            {save.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Plus className="w-4 h-4 mr-2" />}
+            Save
+          </Button>
+        </>
+      }
+    >
+      <form id={formId} onSubmit={submit} className="space-y-2.5 pb-4">
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
           <Field label="Type" required>
             <Select
@@ -253,14 +275,6 @@ function ActivityForm({ onClose }: { onClose: () => void }) {
         {extras.documentsSection}
         {extras.photosSection}
         {extras.sections}
-
-        <div className="flex gap-3 pt-2 sticky bottom-0 bg-white border-t -mx-6 px-6 py-3 mt-2">
-          <Button type="button" variant="cancel" className="flex-1" onClick={onClose}>Cancel</Button>
-          <Button type="submit" className="flex-1" disabled={save.isPending || (form.type === 'other' && !form.type_other.trim())}>
-            {save.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Plus className="w-4 h-4 mr-2" />}
-            Save
-          </Button>
-        </div>
       </form>
     </CrmModal>
   )

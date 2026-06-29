@@ -250,7 +250,7 @@ export const CATEGORY_LAYOUT_BLOCK_TYPES = new Set([
   'hero', 'hero_split', 'hero_minimal',
   'gallery_masonry', 'gallery_grid', 'image_gallery',
   'portfolio_grid', 'features', 'features_alternating',
-  'team_grid', 'testimonials', 'services_cards', 'blog_grid',
+  'team_grid', 'testimonials', 'services_cards',
   'category_cards', 'about_split', 'cta', 'stats', 'newsletter',
   'image_block', 'video_embed', 'trust_logos', 'partner_logos',
   'contact_form', 'map_contact',

@@ -7,12 +7,15 @@ export function DesignBarDropdownPortal({
   anchorRef,
   menuRef,
   className,
+  onClose,
   children,
 }: {
   open: boolean
   anchorRef: RefObject<HTMLElement | null>
   menuRef: RefObject<HTMLDivElement | null>
   className?: string
+  /** Called when the user clicks outside the trigger and menu panel. */
+  onClose?: () => void
   children: ReactNode
 }) {
   const [pos, setPos] = useState({ top: 0, left: 0 })
@@ -31,6 +34,19 @@ export function DesignBarDropdownPortal({
       window.removeEventListener('resize', update)
     }
   }, [open, anchorRef])
+
+  useEffect(() => {
+    if (!open || !onClose) return
+    const handlePointerDown = (event: MouseEvent) => {
+      const target = event.target
+      if (!(target instanceof Node)) return
+      if (menuRef.current?.contains(target)) return
+      if (anchorRef.current?.contains(target)) return
+      onClose()
+    }
+    document.addEventListener('mousedown', handlePointerDown, true)
+    return () => document.removeEventListener('mousedown', handlePointerDown, true)
+  }, [open, onClose, anchorRef, menuRef])
 
   if (!open) return null
 

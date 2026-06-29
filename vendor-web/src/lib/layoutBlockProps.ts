@@ -10,6 +10,7 @@ const CONTENT_PROP_KEYS = new Set([
   'features', 'testimonials', 'members', 'plans', 'faqs', 'stats', 'footer_columns',
   'social_links', 'form_fields', 'items', 'categories', 'posts', 'projects',
   'logos', '_field_styles', 'video_url', 'form_hint', 'submit_label',
+  'message', 'accept_label', 'decline_label', 'policy_url',
   'show_legal', 'show_credit_card_note', 'service_name', 'target_date', 'html', 'text',
   'plans', 'messages', 'links', 'menu_categories', 'products', 'hidden_kpi_ids',
   'data_source',

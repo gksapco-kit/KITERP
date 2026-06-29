@@ -749,8 +749,35 @@ const processBlock: BlockDefinition = {
   ],
 };
 
+const faqItemSchema = z.object({
+  question: z.string(),
+  answer: z.string(),
+});
+
 const faqProps = z.object({
   title: z.string().default("Frequently asked"),
+  faqs: z.array(faqItemSchema).default([
+    {
+      question: "How quickly can we get started?",
+      answer:
+        "Most engagements kick off within a week. Strategy sessions can usually be booked the same week if a slot is open.",
+    },
+    {
+      question: "Do you offer payment plans?",
+      answer:
+        "Projects over $1,500 can be split into 2 or 3 milestone payments. Just ask before invoicing.",
+    },
+    {
+      question: "What's your revision policy?",
+      answer:
+        "Each package includes one round of revisions. Additional rounds are billed at our hourly rate, agreed in advance.",
+    },
+    {
+      question: "Can you work with our existing team?",
+      answer:
+        "Absolutely. We slot into Slack, Linear, or Notion and adapt our cadence to your stand-ups.",
+    },
+  ]),
 });
 
 const faqBlock: BlockDefinition = {

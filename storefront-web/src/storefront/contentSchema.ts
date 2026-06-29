@@ -48,7 +48,7 @@ const FASHION_SCHEMA: ContentSchema = [
     id: 'categories',
     label: 'Categories section',
     fields: [
-      { key: 'categories.eyebrow', label: 'Eyebrow text',     type: 'text', fallback: 'Shop by category' },
+      { key: 'categories.eyebrow', label: 'Tagline',     type: 'text', fallback: 'Shop by category' },
       { key: 'categories.title',   label: 'Section heading',  type: 'text', fallback: 'The edit' },
     ],
   },
@@ -56,7 +56,7 @@ const FASHION_SCHEMA: ContentSchema = [
     id: 'about',
     label: 'About section',
     fields: [
-      { key: 'about.eyebrow',  label: 'Eyebrow',    type: 'text',     fallback: 'Our craft' },
+      { key: 'about.eyebrow',  label: 'Tagline',    type: 'text',     fallback: 'Our craft' },
       { key: 'about.headline', label: 'Headline',   type: 'text',     fallback: 'We make fewer pieces, with more care.' },
       { key: 'about.body',     label: 'Body text',  type: 'textarea', fallback: 'Every garment is cut and finished in our partner workshop in Porto. We work with mills that have served the same families for generations — and we tell you exactly where each piece comes from.' },
     ],
@@ -76,7 +76,7 @@ const ELECTRONICS_SCHEMA: ContentSchema = [
     id: 'hero',
     label: 'Hero banner',
     fields: [
-      { key: 'hero.badge',    label: 'Badge / eyebrow',   type: 'text',     fallback: 'Aurora X14 · just landed' },
+      { key: 'hero.badge',    label: 'Tagline / badge',   type: 'text',     fallback: 'Aurora X14 · just landed' },
       { key: 'hero.line1',    label: 'Headline (line 1)', type: 'text',     fallback: 'Power,' },
       { key: 'hero.line2',    label: 'Headline (accent)', type: 'text',     fallback: 'perfected.' },
       { key: 'hero.subtitle', label: 'Subtitle',          type: 'textarea', fallback: 'The fastest mobile chip we\'ve ever shipped. 120Hz OLED. Triple 50MP camera. A titanium frame you can actually feel.' },
@@ -97,7 +97,7 @@ const ELECTRONICS_SCHEMA: ContentSchema = [
     id: 'products',
     label: 'Products section',
     fields: [
-      { key: 'products.eyebrow', label: 'Eyebrow',  type: 'text', fallback: 'Featured' },
+      { key: 'products.eyebrow', label: 'Tagline',  type: 'text', fallback: 'Featured' },
       { key: 'products.heading', label: 'Heading',  type: 'text', fallback: 'Top rated this season' },
     ],
   },
@@ -173,7 +173,7 @@ const RESTAURANT_SCHEMA: ContentSchema = [
     id: 'hero',
     label: 'Hero banner',
     fields: [
-      { key: 'hero.badge',    label: 'Badge / eyebrow', type: 'text',     fallback: 'Seasonal · Tasting menu' },
+      { key: 'hero.badge',    label: 'Tagline / badge', type: 'text',     fallback: 'Seasonal · Tasting menu' },
       { key: 'hero.headline', label: 'Headline',        type: 'textarea', fallback: 'A modern table, set in the old way.' },
       { key: 'hero.subtitle', label: 'Subtitle',        type: 'textarea', fallback: 'Wood-fired plates, low-intervention wines and a menu that changes with what arrives at the door.' },
       { key: 'hero.cta1',     label: 'Primary button',  type: 'text',     fallback: 'Reserve a table' },
@@ -205,7 +205,7 @@ const SERVICES_SCHEMA: ContentSchema = [
     id: 'hero',
     label: 'Hero banner',
     fields: [
-      { key: 'hero.badge',    label: 'Badge / eyebrow',   type: 'text',     fallback: 'Bookings open · Spring' },
+      { key: 'hero.badge',    label: 'Tagline / badge',   type: 'text',     fallback: 'Bookings open · Spring' },
       { key: 'hero.line1',    label: 'Headline (line 1)', type: 'text',     fallback: 'Care,' },
       { key: 'hero.line2',    label: 'Headline (accent)', type: 'text',     fallback: 'by appointment.' },
       { key: 'hero.subtitle', label: 'Subtitle',          type: 'textarea', fallback: 'A small studio of stylists, colorists and barbers — with the time and tools to do it properly.' },

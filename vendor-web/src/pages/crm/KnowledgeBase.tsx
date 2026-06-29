@@ -39,9 +39,26 @@ function KbForm({ article, onClose }: { article?: KbArticle; onClose: () => void
       { onSuccess: onClose },
     )
   }
+  const formId = article ? `kb-form-${article.id}` : 'kb-form-new'
+
   return (
-    <CrmModal title={article ? 'Edit article' : 'New article'} onClose={onClose} maxW="max-w-2xl">
-      <form onSubmit={submit} className="space-y-3">
+    <CrmModal
+      title={article ? 'Edit article' : 'New article'}
+      onClose={onClose}
+      maxW="max-w-2xl"
+      footer={
+        <>
+          <Button type="button" variant="outline" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button type="submit" form={formId} disabled={save.isPending}>
+            {save.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Plus className="w-4 h-4 mr-2" />}
+            Save
+          </Button>
+        </>
+      }
+    >
+      <form id={formId} onSubmit={submit} className="space-y-3 pb-4">
         <Field label="Title" required><Input value={form.title} onChange={e => setForm(p => ({ ...p, title: e.target.value }))} /></Field>
         <div className="grid grid-cols-2 gap-3">
           <Field label="Slug"><Input value={form.slug} onChange={e => setForm(p => ({ ...p, slug: e.target.value }))} placeholder="auto from title" /></Field>
@@ -63,13 +80,6 @@ function KbForm({ article, onClose }: { article?: KbArticle; onClose: () => void
             className="flex min-h-[200px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm font-mono" />
         </Field>
         <Field label="Tags (comma separated)"><Input value={form.tags} onChange={e => setForm(p => ({ ...p, tags: e.target.value }))} /></Field>
-        <div className="flex gap-3 pt-2">
-          <Button type="button" variant="cancel" className="flex-1" onClick={onClose}>Cancel</Button>
-          <Button type="submit" className="flex-1" disabled={save.isPending}>
-            {save.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Plus className="w-4 h-4 mr-2" />}
-            Save
-          </Button>
-        </div>
       </form>
     </CrmModal>
   )

@@ -876,7 +876,7 @@ export function AddPartyModal({
     reader.readAsDataURL(file)
   }, [])
 
-  const { openPicker: openProfilePicker, fileInput: profileFileInput, modal: profilePickerModal } = useImageSourcePicker({
+  const { openPicker: openProfilePicker, modal: profilePickerModal } = useImageSourcePicker({
     title: 'Profile picture',
     onFile: applyProfileFile,
   })
@@ -1609,7 +1609,6 @@ export function AddPartyModal({
               >
                 <Camera className="w-3.5 h-3.5 text-white" />
               </button>
-              {profileFileInput}
               {profilePickerModal}
               {profilePreview && (
                 <button

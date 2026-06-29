@@ -52,6 +52,27 @@ interface ApiErrorDetail {
   field?: string
 }
 
+export const GSTIN_FORMAT_MSG =
+  'Please enter a valid 15-character GSTIN (e.g. 22AAAAA0000A1Z5).'
+
+/** Turn Pydantic/FastAPI field errors into short, readable copy. */
+function humanizeValidationMessage(field: string, msg: string): string {
+  const fieldName = field.split(/[.>]/).pop()?.trim().toLowerCase() ?? field.toLowerCase()
+  const lower = msg.toLowerCase()
+
+  if (fieldName === 'gstin' || lower.includes('gstin')) {
+    if (lower.includes('match pattern') || lower.includes('string_pattern')) {
+      return GSTIN_FORMAT_MSG
+    }
+  }
+
+  if (lower.includes('match pattern') || lower.includes('string_pattern_mismatch')) {
+    return 'Invalid format — please check the value and try again.'
+  }
+
+  return msg
+}
+
 /**
  * Extracts the most descriptive error message from an API error response.
  * Handles Pydantic validation arrays, plain detail strings, network errors,
@@ -130,16 +151,22 @@ export function extractApiError(error: unknown, context: string): string {
     const fieldErrors = (data.detail as ApiErrorDetail[])
       .map(e => {
         const field = e.loc?.filter(p => p !== 'body')?.join('.') || e.field || 'field'
-        const msg = e.msg || e.message || 'invalid value'
-        return `${field}: ${msg}`
+        const raw = e.msg || e.message || 'invalid value'
+        return humanizeValidationMessage(field, raw)
       })
       .slice(0, 5)
     const suffix = data.detail.length > 5 ? ` (+${data.detail.length - 5} more)` : ''
-    return `${context}: ${fieldErrors.join('; ')}${suffix}`
+    return fieldErrors.length === 1
+      ? `${context}: ${fieldErrors[0]}`
+      : `${context}: ${fieldErrors.join('; ')}${suffix}`
   }
 
   if (data?.detail && typeof data.detail === 'string') {
-    return `${context}: ${_sanitiseDetail(data.detail)}`
+    const detail = data.detail
+    if (/gstin/i.test(detail) && /match pattern/i.test(detail)) {
+      return `${context}: ${GSTIN_FORMAT_MSG}`
+    }
+    return `${context}: ${_sanitiseDetail(detail)}`
   }
 
   if (data?.message && typeof data.message === 'string') {

@@ -4,10 +4,20 @@
  * GDPR consent checkbox, file uploads (via signed URL), and webhook notifications.
  */
 import { useState, useRef } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { Mail, Phone, MapPin, Send, Loader2, ChevronRight, ChevronLeft, Upload } from 'lucide-react'
 import type { PublicSite, StyleConfig, LiveItem } from '@/blocks/registry'
 import { publicSitesApi } from '@/api/publicSites'
 import { BuilderTextField } from '@/components/builder/BuilderTextField'
+import { useBuilderCanvas } from '@/contexts/BuilderCanvasContext'
+import { useEffectiveVendor } from '@/hooks/useEffectiveVendor'
+import { recallDraftEmbedPreviewToken } from '@/lib/draftEmbedPreview'
+import { extractApiError } from '@/lib/errorMessages'
+import {
+  resolveBusinessContactAddress,
+  resolveBusinessContactEmail,
+  resolveBusinessContactPhone,
+} from '@/lib/businessContact'
 
 interface FormField {
   name: string
@@ -29,16 +39,30 @@ interface Props {
   blockId?: string
 }
 
+function resolvePageIdForBlock(site: PublicSite, blockId?: string): string | undefined {
+  if (!blockId) return undefined
+  return site.pages?.find(page => page.blocks?.some(block => block.id === blockId))?.id
+}
+
+function isPersistableBlockId(blockId?: string): boolean {
+  if (!blockId) return false
+  if (blockId.startsWith('temp-')) return false
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(blockId)
+}
+
 export default function ContactFormBlock({ site, style, props, liveItems, blockId }: Props) {
+  const builderCanvas = useBuilderCanvas()
+  const [searchParams] = useSearchParams()
+  const vendor = useEffectiveVendor()
   const title = (props.title as string) || 'Get In Touch'
   const showGdpr = props.show_gdpr !== false
   const isMultiStep = props.multi_step === true
   const successMsg = (props.success_message as string) || "We'll get back to you shortly."
 
-  const profile = liveItems[0]
-  const phone = (props.phone as string) || (profile?.meta?.phone as string) || ''
-  const emailAddr = (props.email as string) || (profile?.meta?.email as string) || ''
-  const address = (props.address as string) || (profile?.meta?.address as string) || ''
+  const profile = liveItems?.[0]
+  const phone = resolveBusinessContactPhone(props.phone as string | undefined, profile, vendor)
+  const emailAddr = resolveBusinessContactEmail(props.email as string | undefined, profile, vendor)
+  const address = resolveBusinessContactAddress(props.address as string | undefined, profile, vendor)
 
   const defaultFields: FormField[] = [
     { name: 'name', label: 'Full Name', type: 'text', required: true, placeholder: 'Your Name', step: 1 },
@@ -56,6 +80,7 @@ export default function ContactFormBlock({ site, style, props, liveItems, blockI
   const [gdprConsent, setGdprConsent] = useState(false)
   const [loading, setLoading] = useState(false)
   const [done, setDone] = useState(false)
+  const [submitError, setSubmitError] = useState<string | null>(null)
   const [fileUploads, setFileUploads] = useState<Record<string, File>>({})
   const fileRefs = useRef<Record<string, HTMLInputElement | null>>({})
 
@@ -77,15 +102,30 @@ export default function ContactFormBlock({ site, style, props, liveItems, blockI
       return
     }
     setLoading(true)
+    setSubmitError(null)
     try {
-      await publicSitesApi.submitContact(site.id, {
+      const payload: Record<string, unknown> = {
         ...values,
         gdpr_consent: gdprConsent,
-        has_file_upload: Object.keys(fileUploads).length > 0,
-      })
+        form_type: 'contact',
+      }
+      const pageId = resolvePageIdForBlock(site, blockId)
+      if (pageId) payload.page_id = pageId
+      if (isPersistableBlockId(blockId)) payload.block_id = blockId
+
+      if (builderCanvas?.submitContactForm) {
+        await builderCanvas.submitContactForm(site.id, payload)
+      } else {
+        const previewToken =
+          searchParams.get('preview_token')?.trim()
+          || searchParams.get('token')?.trim()
+          || recallDraftEmbedPreviewToken()
+          || undefined
+        await publicSitesApi.submitContact(site.id, payload, { previewToken })
+      }
       setDone(true)
-    } catch {
-      alert('Failed to send. Please try again.')
+    } catch (err) {
+      setSubmitError(extractApiError(err, 'Could not send your message'))
     } finally {
       setLoading(false)
     }
@@ -253,6 +293,12 @@ export default function ContactFormBlock({ site, style, props, liveItems, blockI
                     I agree to the <a href="/privacy" className="underline" style={{ color: primary }}>Privacy Policy</a> and consent to being contacted.
                   </span>
                 </label>
+              )}
+
+              {submitError && (
+                <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700" role="alert">
+                  {submitError}
+                </div>
               )}
 
               {/* Navigation buttons */}

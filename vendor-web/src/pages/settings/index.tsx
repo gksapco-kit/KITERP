@@ -41,7 +41,7 @@ import {
   type ExternalDomainDnsMode,
 } from '@/lib/externalDomainDns'
 import { toast } from 'sonner'
-import { extractApiError } from '@/lib/errorMessages'
+import { extractApiError, GSTIN_FORMAT_MSG } from '@/lib/errorMessages'
 import { cn } from '@/lib/utils'
 import { companyTypeLabel } from '@/data/companyTypes'
 import { BUSINESS_UNIT_STORE_LABEL } from '@/lib/businessUnitLabels'
@@ -88,7 +88,9 @@ import {
   isProfileSectionDirty,
   profileFormFromStore,
   isTaxSectionDirty,
+  supportEmailsFromStore,
   supportEmailsFromVendor,
+  supportPhonesFromStore,
   supportPhonesFromVendor,
 } from '@/pages/settings/settingsDirtyHelpers'
 
@@ -172,6 +174,12 @@ function computeSettingsCompletedSections(
   }
 
   if (vendor.support_phone?.trim() || vendor.support_email?.trim()) {
+    done.add('contact')
+  } else if (
+    !allBusinessUnitsMode &&
+    activeStore &&
+    (activeStore.phone?.trim() || activeStore.email?.trim())
+  ) {
     done.add('contact')
   }
 
@@ -696,6 +704,8 @@ function SettingsPageBody() {
           <div id="form-section-contact" className={formDisplayCompact.scrollMarginView}>
             <ContactSection
               vendor={vendor}
+              activeStore={activeStoreRecord}
+              unitContactEditable={!allBusinessUnitsMode && Boolean(activeStoreRecord)}
               open={openSection === 'contact'}
               toggle={() => toggleSection('contact')}
               onSave={updateVendor}
@@ -1608,12 +1618,31 @@ function ProfileSection({ vendor, activeStore: activeStoreProp, unitProfileEdita
 
 // ── Contact Section ───────────────────────────────────────────────────────────
 
-function ContactSection({ vendor, open, toggle, onSave }: SectionProps) {
+function ContactSection({
+  vendor,
+  activeStore,
+  unitContactEditable,
+  open,
+  toggle,
+  onSave,
+}: SectionProps & {
+  activeStore?: StoreRecord
+  unitContactEditable?: boolean
+}) {
+  const updateStore = useUpdateStore()
   const [supportEmails, setSupportEmails] = useState<string[]>([''])
   const [supportPhones, setSupportPhones] = useState<string[]>([''])
   const [contactHydrated, setContactHydrated] = useState(false)
+  const contactSavingRef = useRef(false)
 
   useLayoutEffect(() => {
+    if (contactSavingRef.current) return
+    if (unitContactEditable && activeStore) {
+      setSupportEmails(supportEmailsFromStore(activeStore))
+      setSupportPhones(supportPhonesFromStore(activeStore))
+      setContactHydrated(true)
+      return
+    }
     if (vendor) {
       setSupportEmails(supportEmailsFromVendor(vendor))
       setSupportPhones(supportPhonesFromVendor(vendor))
@@ -1621,7 +1650,14 @@ function ContactSection({ vendor, open, toggle, onSave }: SectionProps) {
     } else {
       setContactHydrated(false)
     }
-  }, [vendor])
+  }, [
+    vendor,
+    activeStore?.id,
+    activeStore?.email,
+    activeStore?.phone,
+    activeStore?.settings,
+    unitContactEditable,
+  ])
 
   const updateSupportEmail = (index: number, value: string) => {
     setSupportEmails((prev) => prev.map((e, i) => (i === index ? value : e)))
@@ -1651,9 +1687,38 @@ function ContactSection({ vendor, open, toggle, onSave }: SectionProps) {
     e.preventDefault()
     const trimmedPhones = supportPhones.map((p) => p.trim()).filter(Boolean)
     const trimmedEmails = supportEmails.map((em) => em.trim()).filter(Boolean)
+
+    if (unitContactEditable && activeStore) {
+      contactSavingRef.current = true
+      const nextEmails = trimmedEmails.length > 0 ? trimmedEmails : ['']
+      const nextPhones = trimmedPhones.length > 0 ? trimmedPhones : ['']
+      updateStore.mutate(
+        {
+          id: activeStore.id,
+          data: {
+            email: trimmedEmails[0] ? trimmedEmails[0] : null,
+            phone: trimmedPhones[0] ? trimmedPhones[0] : null,
+            settings: {
+              ...(activeStore.settings || {}),
+              support_emails: trimmedEmails.slice(1),
+              support_phones: trimmedPhones.slice(1),
+            },
+          },
+        },
+        {
+          onSuccess: (result) => {
+            setSupportEmails(supportEmailsFromStore(result.store))
+            setSupportPhones(supportPhonesFromStore(result.store))
+          },
+          onSettled: () => { contactSavingRef.current = false },
+        },
+      )
+      return
+    }
+
     onSave.mutate({
-      support_email: trimmedEmails[0] || undefined,
-      support_phone: trimmedPhones[0] || undefined,
+      support_email: trimmedEmails[0] ? trimmedEmails[0] : null,
+      support_phone: trimmedPhones[0] ? trimmedPhones[0] : null,
       settings: {
         ...(vendor?.settings || {}),
         support_emails: trimmedEmails.slice(1),
@@ -1663,14 +1728,36 @@ function ContactSection({ vendor, open, toggle, onSave }: SectionProps) {
   }
 
   const isDirty = useMemo(
-    () => isContactSectionDirty(supportEmails, supportPhones, vendor),
-    [supportEmails, supportPhones, vendor],
+    () => isContactSectionDirty(supportEmails, supportPhones, vendor, activeStore, unitContactEditable),
+    [supportEmails, supportPhones, vendor, activeStore, unitContactEditable],
   )
   useSettingsSectionDirty('contact', isDirty, contactHydrated)
 
+  const contactSaving = unitContactEditable ? updateStore.isPending : onSave.isPending
+
   return (
-    <SectionWrapper title="Contact Information" helpText="Phone, email, and support details" icon={Phone} open={open} toggle={toggle}>
+    <SectionWrapper
+      title="Contact Information"
+      subtitle={
+        unitContactEditable
+          ? `Applies to ${activeStore?.name ?? 'this business unit'}`
+          : undefined
+      }
+      helpText="Phone, email, and support details"
+      icon={Phone}
+      open={open}
+      toggle={toggle}
+    >
       <form onSubmit={handleSubmit} className="space-y-4">
+        {!unitContactEditable ? (
+          <p className="text-xs text-muted-foreground">
+            Default contact for all {BUSINESS_UNIT_STORE_LABEL}s. Select a specific unit in the top bar to set contact details for that branch only.
+          </p>
+        ) : (
+          <p className="text-xs text-muted-foreground">
+            Contact shown on the storefront when customers browse {activeStore?.name ?? 'this unit'}. Empty fields fall back to the all-units default.
+          </p>
+        )}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div className="space-y-2">
             <Label>Business Support Email</Label>
@@ -1757,7 +1844,7 @@ function ContactSection({ vendor, open, toggle, onSave }: SectionProps) {
           </div>
         </div>
         <div className="flex justify-end pt-2">
-          <SaveButton loading={onSave.isPending} />
+          <SaveButton loading={contactSaving} />
         </div>
       </form>
     </SectionWrapper>
@@ -2074,6 +2161,8 @@ function AddressSection({
 
 // â”€â”€ Tax Section â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
+const GSTIN_RE = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/
+
 function TaxSection({ vendor, open, toggle, onSave }: SectionProps) {
   const [form, setForm] = useState({
     is_gst_registered: false,
@@ -2081,6 +2170,7 @@ function TaxSection({ vendor, open, toggle, onSave }: SectionProps) {
     pan_number: '',
     default_tax_rate: '',
   })
+  const [fieldErrors, setFieldErrors] = useState<{ gstin?: string }>({})
   const [taxHydrated, setTaxHydrated] = useState(false)
 
   useLayoutEffect(() => {
@@ -2099,9 +2189,17 @@ function TaxSection({ vendor, open, toggle, onSave }: SectionProps) {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-    const gstin = form.is_gst_registered ? form.gstin.trim() : ''
+    const gstin = form.is_gst_registered ? form.gstin.trim().toUpperCase() : ''
     const pan = form.pan_number.trim()
     const rateRaw = form.default_tax_rate.trim()
+
+    if (form.is_gst_registered && gstin && !GSTIN_RE.test(gstin)) {
+      setFieldErrors({ gstin: GSTIN_FORMAT_MSG })
+      toast.error(GSTIN_FORMAT_MSG)
+      return
+    }
+    setFieldErrors({})
+
     onSave.mutate({
       is_gst_registered: form.is_gst_registered,
       gstin: gstin || null,
@@ -2132,10 +2230,20 @@ function TaxSection({ vendor, open, toggle, onSave }: SectionProps) {
               <Label>GSTIN</Label>
               <Input
                 value={form.gstin}
-                onChange={(e) => setForm({ ...form, gstin: e.target.value.toUpperCase() })}
+                onChange={(e) => {
+                  setFieldErrors((prev) => ({ ...prev, gstin: undefined }))
+                  setForm({ ...form, gstin: e.target.value.toUpperCase().slice(0, 15) })
+                }}
                 placeholder="22AAAAA0000A1Z5"
                 maxLength={15}
+                className={`font-mono uppercase ${fieldErrors.gstin ? 'border-red-400 focus-visible:ring-red-400' : ''}`}
               />
+              {fieldErrors.gstin && (
+                <p className="text-xs text-red-500">{fieldErrors.gstin}</p>
+              )}
+              {!fieldErrors.gstin && form.gstin.length > 0 && form.gstin.length < 15 && (
+                <p className="text-xs text-muted-foreground">{form.gstin.length}/15 characters</p>
+              )}
             </div>
             <div className="space-y-1.5">
               <Label>Default Tax Rate (%)</Label>

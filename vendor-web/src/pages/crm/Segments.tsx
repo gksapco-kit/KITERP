@@ -62,9 +62,26 @@ function SegmentForm({ seg, onClose }: { seg?: Segment; onClose: () => void }) {
     }
   }
 
+  const formId = seg ? `segment-form-${seg.id}` : 'segment-form-new'
+
   return (
-    <CrmModal title={seg ? 'Edit segment' : 'New segment'} onClose={onClose} maxW="max-w-3xl">
-      <form onSubmit={submit} className="space-y-3">
+    <CrmModal
+      title={seg ? 'Edit segment' : 'New segment'}
+      onClose={onClose}
+      maxW="max-w-3xl"
+      footer={
+        <>
+          <Button type="button" variant="outline" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button type="submit" form={formId} disabled={save.isPending}>
+            {save.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Plus className="w-4 h-4 mr-2" />}
+            Save segment
+          </Button>
+        </>
+      }
+    >
+      <form id={formId} onSubmit={submit} className="space-y-3 pb-4">
         <Field label="Name" required>
           <Input value={form.name} onChange={e => setForm(p => ({ ...p, name: e.target.value }))} placeholder="e.g. Active customers" />
         </Field>
@@ -90,13 +107,6 @@ function SegmentForm({ seg, onClose }: { seg?: Segment; onClose: () => void }) {
             )}
           </div>
         )}
-        <div className="flex gap-3 pt-2">
-          <Button type="button" variant="cancel" className="flex-1" onClick={onClose}>Cancel</Button>
-          <Button type="submit" className="flex-1" disabled={save.isPending}>
-            {save.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Plus className="w-4 h-4 mr-2" />}
-            Save segment
-          </Button>
-        </div>
       </form>
     </CrmModal>
   )

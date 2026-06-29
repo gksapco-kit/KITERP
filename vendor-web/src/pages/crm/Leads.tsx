@@ -9,6 +9,7 @@ import { useLeads, useSaveLead, useConvertLead } from '@/hooks/useCrm'
 import { crmApi, type Lead } from '@/api/crm'
 import { Plus, Loader2, Target, Sparkles, ArrowRight } from 'lucide-react'
 import { CrmModal, Field, SearchBar, Pager, LoadingRow, EmptyRow } from './_shared'
+import { modalWidthMd } from '@/lib/modalUi'
 import { formatDateTime } from '@/lib/utils'
 import { useQueryClient } from '@tanstack/react-query'
 
@@ -40,9 +41,26 @@ function LeadForm({ onClose }: { onClose: () => void }) {
       { onSuccess: onClose },
     )
   }
+  const formId = 'lead-form-new'
+
   return (
-    <CrmModal title="New lead" onClose={onClose}>
-      <form onSubmit={submit} className="space-y-3">
+    <CrmModal
+      title="New lead"
+      onClose={onClose}
+      maxW={modalWidthMd}
+      footer={
+        <>
+          <Button type="button" variant="outline" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button type="submit" form={formId} disabled={save.isPending}>
+            {save.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Plus className="w-4 h-4 mr-2" />}
+            Save lead
+          </Button>
+        </>
+      }
+    >
+      <form id={formId} onSubmit={submit} className="space-y-3 pb-4">
         <div className="grid grid-cols-2 gap-3">
           <Field label="First name"><Input value={form.first_name} onChange={e => setForm(p => ({ ...p, first_name: e.target.value }))} /></Field>
           <Field label="Last name"><Input value={form.last_name} onChange={e => setForm(p => ({ ...p, last_name: e.target.value }))} /></Field>
@@ -69,13 +87,6 @@ function LeadForm({ onClose }: { onClose: () => void }) {
           <textarea value={form.notes} onChange={e => setForm(p => ({ ...p, notes: e.target.value }))}
             className="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm" />
         </Field>
-        <div className="flex gap-3 pt-2">
-          <Button type="button" variant="cancel" className="flex-1" onClick={onClose}>Cancel</Button>
-          <Button type="submit" className="flex-1" disabled={save.isPending}>
-            {save.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Plus className="w-4 h-4 mr-2" />}
-            Save lead
-          </Button>
-        </div>
       </form>
     </CrmModal>
   )
@@ -101,9 +112,26 @@ function ConvertModal({ lead, onClose }: { lead: Lead; onClose: () => void }) {
       { onSuccess: onClose },
     )
   }
+  const formId = `convert-lead-${lead.id}`
+
   return (
-    <CrmModal title={`Convert lead`} onClose={onClose}>
-      <form onSubmit={submit} className="space-y-3">
+    <CrmModal
+      title="Convert lead"
+      onClose={onClose}
+      maxW={modalWidthMd}
+      footer={
+        <>
+          <Button type="button" variant="outline" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button type="submit" form={formId} disabled={convert.isPending}>
+            {convert.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <ArrowRight className="w-4 h-4 mr-2" />}
+            Convert
+          </Button>
+        </>
+      }
+    >
+      <form id={formId} onSubmit={submit} className="space-y-3 pb-4">
         <p className="text-sm text-gray-600">
           Converts <strong>{[lead.first_name, lead.last_name].filter(Boolean).join(' ') || lead.email}</strong>{' '}
           into a contact{lead.company ? ' and account' : ''}.
@@ -118,13 +146,6 @@ function ConvertModal({ lead, onClose }: { lead: Lead; onClose: () => void }) {
             <Field label="Amount"><Input type="number" value={dealAmount} onChange={e => setDealAmount(e.target.value)} placeholder="0" /></Field>
           </div>
         )}
-        <div className="flex gap-3 pt-2">
-          <Button type="button" variant="cancel" className="flex-1" onClick={onClose}>Cancel</Button>
-          <Button type="submit" className="flex-1" disabled={convert.isPending}>
-            {convert.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <ArrowRight className="w-4 h-4 mr-2" />}
-            Convert
-          </Button>
-        </div>
       </form>
     </CrmModal>
   )

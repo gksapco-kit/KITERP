@@ -791,37 +791,22 @@ async def get_live_resource_public(
             if len(items) >= limit:
                 break
 
+    elif resource == "blog":
+        from app.services.blog_live_feed import build_blog_live_items
+
+        items = await build_blog_live_items(db, vendor.id, limit, _norm_item, include_drafts=False)
+
     elif resource == "profile":
-        v = vendor
-        addr = " ".join(filter(None, [v.street_address, v.city, v.state, v.postal_code, v.country]))
-        meta = {
-            "business_name": v.business_name,
-            "display_name": v.display_name,
-            "description": v.description,
-            "email": v.primary_email,
-            "support_email": v.support_email,
-            "phone": v.primary_phone,
-            "support_phone": v.support_phone,
-            "address": addr,
-            "city": v.city,
-            "state": v.state,
-            "country": v.country,
-            "postal_code": v.postal_code,
-            "logo_url": v.logo_url,
-            "banner_url": v.banner_url,
-            "subdomain": v.subdomain,
-            "custom_domain": v.custom_domain,
-            "social_links": v.social_links or {},
-            "business_hours": v.business_hours or {},
-            "latitude": float(v.latitude) if v.latitude is not None else None,
-            "longitude": float(v.longitude) if v.longitude is not None else None,
-        }
+        from app.services.storefront_contact import build_profile_live_meta, load_linked_store_for_site
+
+        linked_store = await load_linked_store_for_site(db, vendor.id, site.style_config)
+        meta = build_profile_live_meta(vendor, linked_store)
         items = [_norm_item(
-            id=str(v.id),
-            title=v.display_name or v.business_name or "",
-            subtitle=v.industry,
-            description=v.description,
-            image_url=v.logo_url,
+            id=str(vendor.id),
+            title=vendor.display_name or vendor.business_name or "",
+            subtitle=vendor.industry,
+            description=vendor.description,
+            image_url=vendor.logo_url,
             meta=meta,
         )]
 
@@ -907,98 +892,46 @@ async def submit_contact_public(
       3. Fires the `form.submitted` outgoing webhook so subscribers (Slack,
          Zapier, custom CRM) get notified.
     """
-    result = await db.execute(
-        select(WebsiteSite).where(WebsiteSite.id == UUID(site_id), WebsiteSite.is_published == True, WebsiteSite.deleted_at.is_(None))
+    from app.services.website_form_submissions import (
+        resolve_site_for_public_contact_form,
+        submit_website_contact_form,
     )
-    site = result.scalar_one_or_none()
-    if not site:
-        raise HTTPException(status_code=404, detail="Site not found")
 
-    page_id_raw = body.get("page_id") or body.get("_page_id")
-    block_id_raw = body.get("block_id") or body.get("_block_id")
-    form_type = (body.get("_form_type") or body.get("form_type") or "contact")[:50]
-    gdpr_consent = bool(body.get("gdpr_consent") or body.get("consent") or False)
+    preview_token = (
+        request.headers.get("x-wb-preview-token")
+        or request.headers.get("X-WB-Preview-Token")
+        or body.get("_preview_token")
+        or body.get("preview_token")
+    )
+    site = await resolve_site_for_public_contact_form(db, site_id, preview_token=str(preview_token or ""))
 
-    def _try_uuid(v: Any) -> Optional[UUID]:
-        if not v:
-            return None
-        try:
-            return UUID(str(v))
-        except Exception:
-            return None
-
-    payload_for_storage = {k: v for k, v in body.items() if not k.startswith("_")}
-
-    # 1. Persist submission for the vendor inbox.
-    submission = WebsiteFormSubmission(
-        site_id=site.id,
-        page_id=_try_uuid(page_id_raw),
-        block_id=_try_uuid(block_id_raw),
-        form_type=form_type,
-        payload=payload_for_storage,
-        gdpr_consent=gdpr_consent,
+    result = await submit_website_contact_form(
+        db,
+        site,
+        body,
         ip_address=_client_ip(request),
-        user_agent=(request.headers.get("user-agent") or "")[:1000] or None,
+        user_agent=request.headers.get("user-agent"),
     )
-    db.add(submission)
 
-    lead_id_str: Optional[str] = None
-    try:
-        from app.models.crm import CrmLead
-        from app.services.crm.numbering import next_crm_number
-        raw_name = (body.get("name") or "Website Visitor").strip()
-        first, _, last = raw_name.partition(" ")
-        lead = CrmLead(
-            vendor_id=site.vendor_id,
-            number=await next_crm_number(db, site.vendor_id, CrmLead, "LED"),
-            first_name=(first or "Website")[:120],
-            last_name=(last or "Visitor")[:120],
-            email=(body.get("email") or None),
-            phone=(body.get("phone") or None),
-            notes=(body.get("message") or None),
-            source="website",
-            source_campaign=f"website:{site_id}",
-            status="new",
-            intake_payload=payload_for_storage,
-        )
-        db.add(lead)
-        await db.commit()
-        await db.refresh(lead)
-        await db.refresh(submission)
-        lead_id_str = str(lead.id)
-        submission.crm_lead_id = lead.id
-        await db.commit()
-    except Exception:
-        await db.rollback()
-        # CRM failed — keep the submission row so the inbox still receives it.
-        try:
-            db.add(submission)
-            await db.commit()
-            await db.refresh(submission)
-        except Exception:
-            await db.rollback()
-
-    # 3. Fire form.submitted webhook (best-effort, after-commit).
-    submission_id = str(submission.id) if submission.id else None
     await _dispatch_webhooks(
         db,
         site_id,
         "form.submitted",
         {
-            "submission_id": submission_id,
-            "form_type": form_type,
-            "page_id": str(page_id_raw) if page_id_raw else None,
-            "block_id": str(block_id_raw) if block_id_raw else None,
-            "lead_id": lead_id_str,
+            "submission_id": result["submission_id"],
+            "form_type": result["form_type"],
+            "page_id": str(result["page_id_raw"]) if result["page_id_raw"] else None,
+            "block_id": str(result["block_id_raw"]) if result["block_id_raw"] else None,
+            "lead_id": result["lead_id"],
             "submitted_at": datetime.utcnow().isoformat(),
-            "payload": payload_for_storage,
+            "payload": result["payload_for_storage"],
         },
     )
 
     return {
         "ok": True,
-        "submission_id": submission_id,
-        "lead_id": lead_id_str,
+        "submission_id": result["submission_id"],
+        "lead_id": result["lead_id"],
     }
 
 

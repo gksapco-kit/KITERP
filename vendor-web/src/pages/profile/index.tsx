@@ -152,7 +152,7 @@ function ProfileHero() {
     upload.mutate(file)
   }
 
-  const { openPicker, fileInput, modal } = useImageSourcePicker({
+  const { openPicker, modal } = useImageSourcePicker({
     title: 'Profile photo',
     accept: 'image/jpeg,image/png,image/webp,image/gif',
     onFile: uploadAvatarFile,
@@ -234,7 +234,6 @@ function ProfileHero() {
                 )}
               </span>
             </button>
-            {fileInput}
             {modal}
           </div>
 

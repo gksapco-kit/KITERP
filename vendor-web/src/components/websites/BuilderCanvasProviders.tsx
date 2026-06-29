@@ -4,6 +4,9 @@ import { VendorContext, type VendorContextType, type VendorData } from '@storefr
 import { LiveDataFetchProvider, type LiveDataFetcher } from '@storefront/contexts/LiveDataFetchContext'
 import { BuilderCanvasContextProvider } from '@storefront/contexts/BuilderCanvasContext'
 import { BranchPreviewProvider } from '@storefront/contexts/BranchContext'
+import { BuilderSiteStaticProvider } from '@storefront/contexts/BuilderSiteContext'
+import type { PublicSite } from '@storefront/blocks/registry'
+import { applyBranchToVendor } from '@storefront/lib/branchStorefrontIdentity'
 import type { ActiveCanvasImageTarget } from '@storefront/lib/canvasImageTarget'
 import type { LiveResource } from '@storefront/blocks/registry'
 import { websiteApi } from '@/api/websites'
@@ -34,6 +37,11 @@ export type BuilderBusinessProfile = {
   primary_phone?: string
   support_email?: string
   support_phone?: string
+  street_address?: string
+  city?: string
+  state?: string
+  postal_code?: string
+  country?: string
   social_links?: Record<string, string>
   settings?: Record<string, unknown>
 }
@@ -53,6 +61,11 @@ function toStorefrontVendor(profile: BuilderBusinessProfile): VendorData {
     primary_phone: profile.primary_phone ?? '',
     support_email: profile.support_email,
     support_phone: profile.support_phone,
+    street_address: profile.street_address,
+    city: profile.city,
+    state: profile.state,
+    postal_code: profile.postal_code,
+    country: profile.country,
     social_links: profile.social_links,
     settings: profile.settings ?? {},
   }
@@ -63,20 +76,32 @@ function toStoreLocation(store: {
   name: string
   code?: string
   description?: string
+  email?: string
+  phone?: string
+  address?: {
+    street?: string
+    city?: string
+    state?: string
+    pincode?: string
+    country?: string
+  }
   settings?: Record<string, unknown>
 }): StoreLocation {
-  const settings: Record<string, string> = {}
-  for (const [key, value] of Object.entries(store.settings ?? {})) {
-    if (typeof value === 'string') settings[key] = value
-  }
   return {
     id: store.id,
     name: store.name,
     code: store.code,
     description: store.description,
-    address: {},
+    email: store.email,
+    phone: store.phone,
+    address: {
+      street: store.address?.street,
+      city: store.address?.city,
+      state: store.address?.state,
+      pincode: store.address?.pincode,
+    },
     is_default: false,
-    settings,
+    settings: (store.settings ?? {}) as Record<string, string>,
   }
 }
 
@@ -90,13 +115,14 @@ export function BuilderCanvasProviders({
   siteName,
   businessProfile,
   previewStore,
-  previewBreakpoint = 'desktop',
+  builderPublicSite = null,
   activeBlockId = null,
   activeTextField = null,
   activeTextFields = [],
   activeCanvasImageTarget = null,
   blockPropsForImage = null,
   canvasScale = 1,
+  previewBreakpoint = 'desktop',
   onSectionImageActivate,
   onTextFieldActivate,
   onTextFieldCommit,
@@ -104,6 +130,7 @@ export function BuilderCanvasProviders({
   onTextFieldBatchStylePatch,
   onNavigate,
   onPropLinkEdit,
+  submitContactForm,
   activePageSlug = null,
   activePageIsHomepage = false,
   children,
@@ -113,22 +140,32 @@ export function BuilderCanvasProviders({
   siteName?: string
   /** Business Profile from vendor settings — logo, banners, and brand name resolve from here. */
   businessProfile?: BuilderBusinessProfile | null
-  /** Active BU for unique-per-unit branding preview in the builder canvas. */
+  /** Active BU for unique-per-unit contact/branding in the builder canvas. */
   previewStore?: {
     id: string
     name: string
     code?: string
     description?: string
+    email?: string
+    phone?: string
+    address?: {
+      street?: string
+      city?: string
+      state?: string
+      pincode?: string
+      country?: string
+    }
     settings?: Record<string, unknown>
   } | null
-  /** Canvas device preview — section spacing resolves per breakpoint in the editor. */
-  previewBreakpoint?: 'desktop' | 'tablet' | 'mobile'
+  /** Public site JSON for branch scope resolution in builder blocks. */
+  builderPublicSite?: PublicSite | null
   activeBlockId?: string | null
   activeTextField?: string | null
   activeTextFields?: string[]
   activeCanvasImageTarget?: ActiveCanvasImageTarget | null
   blockPropsForImage?: Record<string, unknown> | null
   canvasScale?: number
+  previewBreakpoint?: 'desktop' | 'tablet' | 'mobile'
   onSectionImageActivate?: (
     blockId: string,
     field: string,
@@ -151,6 +188,10 @@ export function BuilderCanvasProviders({
     propKey: string,
     anchor: { x: number; y: number },
   ) => void
+  submitContactForm?: (
+    siteId: string,
+    body: Record<string, unknown>,
+  ) => Promise<{ ok: boolean; lead_id?: string | null; submission_id?: string | null }>
   activePageSlug?: string | null
   activePageIsHomepage?: boolean
   children: ReactNode
@@ -174,7 +215,7 @@ export function BuilderCanvasProviders({
           settings: {},
         } satisfies VendorData
 
-    const vendor = baseVendor
+    const vendor = previewBranch ? applyBranchToVendor(baseVendor, previewBranch) : baseVendor
 
     return {
       vendor,
@@ -187,7 +228,7 @@ export function BuilderCanvasProviders({
         service: DEFAULT_SERVICE_DISPLAY,
       },
     }
-  }, [businessProfile, vendorSlug, siteName])
+  }, [businessProfile, previewBranch, vendorSlug, siteName])
 
   const liveFetcher = useMemo<LiveDataFetcher>(() => {
     return async (sid: string, resource: LiveResource, limit: number) => {
@@ -215,6 +256,7 @@ export function BuilderCanvasProviders({
     onTextFieldBatchStylePatch,
     onNavigate,
     onPropLinkEdit,
+    submitContactForm: (sid: string, body: Record<string, unknown>) => websiteApi.submitLiveContact(sid, body),
     activePageSlug,
     activePageIsHomepage,
   }), [
@@ -232,6 +274,7 @@ export function BuilderCanvasProviders({
     onTextFieldBatchStylePatch,
     onNavigate,
     onPropLinkEdit,
+    submitContactForm,
     activePageSlug,
     activePageIsHomepage,
   ])
@@ -255,13 +298,15 @@ export function BuilderCanvasProviders({
   }, [previewBranch])
 
   const inner = (
-    <VendorContext.Provider value={vendorValue}>
-      <LiveDataFetchProvider fetcher={liveFetcher}>
-        <BuilderCanvasContextProvider value={builderCanvasValue}>
-          {children}
-        </BuilderCanvasContextProvider>
-      </LiveDataFetchProvider>
-    </VendorContext.Provider>
+    <BuilderSiteStaticProvider site={builderPublicSite}>
+      <VendorContext.Provider value={vendorValue}>
+        <LiveDataFetchProvider fetcher={liveFetcher}>
+          <BuilderCanvasContextProvider value={builderCanvasValue}>
+            {children}
+          </BuilderCanvasContextProvider>
+        </LiveDataFetchProvider>
+      </VendorContext.Provider>
+    </BuilderSiteStaticProvider>
   )
 
   if (!branchPreviewValue) return inner

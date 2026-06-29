@@ -104,6 +104,7 @@ import {
 import { ScrollAnimationControls } from '@/components/websites/ScrollAnimationControls'
 import { StoreContentGroupTabs } from '@/components/websites/StoreContentGroupTabs'
 import { animationOptionLabel } from '@storefront/lib/builderScrollAnimations'
+import { defaultMarqueeItems, marqueeItemsToLegacyText, parseMarqueeItems } from '@storefront/lib/marqueeItems'
 import {
   BuilderCanvasInlineTextEdit,
   type InlineTextEditSession,
@@ -149,6 +150,7 @@ import {
   toToggleCase,
 } from '@/lib/builderTypography'
 import { buildBuilderPublicSite } from '@/lib/builderPublicSite'
+import { resolveWebsiteStoreLink } from '@/lib/websiteStoreAssignment'
 import {
   extractFormatPaintStyle,
   extractFormatPaintStyleFromElement,
@@ -331,6 +333,13 @@ const CATEGORY_CARDS_WELLNESS_DEFAULTS = {
   })),
 } as unknown as BlockProps
 
+const DEFAULT_SERVICE_FAQ_ITEMS = [
+  { question: 'How quickly can we get started?', answer: 'Most engagements kick off within a week. Strategy sessions can usually be booked the same week if a slot is open.' },
+  { question: 'Do you offer payment plans?', answer: 'Projects over $1,500 can be split into 2 or 3 milestone payments. Just ask before invoicing.' },
+  { question: "What's your revision policy?", answer: 'Each package includes one round of revisions. Additional rounds are billed at our hourly rate, agreed in advance.' },
+  { question: 'Can you work with our existing team?', answer: 'Absolutely. We slot into Slack, Linear, or Notion and adapt our cadence to your stand-ups.' },
+]
+
 const BLOCK_CATALOG: BlockDef[] = [
   // Structure
   { type: 'nav', label: 'Navigation', icon: Layout, desc: 'Top navigation with logo and links', category: 'structure', defaultProps: { brand: 'My Store', brand_logo: '', show_logo: true, show_brand_name: true, show_nav_links: true, nav_links_source: 'site_pages', nav_links: [{ label: 'Shop', url: '/products' }, { label: 'Contact', url: '/contact' }], show_search: true, show_cart: true, show_login: true, cta_label: 'Shop now' } },
@@ -352,7 +361,7 @@ const BLOCK_CATALOG: BlockDef[] = [
     ],
   } },
   { type: 'announcement_bar', label: 'Announcement Bar', icon: Hash, desc: 'Top banner for promotions', category: 'structure', defaultProps: { text: 'Free delivery on orders over ?499 ? shop our latest arrivals today.', color: '#274832', show_close: true } },
-  { type: 'marquee_strip', label: 'Marquee strip', icon: Type, desc: 'Scrolling one-line highlights (e.g. shipping, craft)', category: 'structure', defaultProps: { text: 'Free shipping,Easy returns,Fresh daily,Handpicked quality,Secure checkout,Local & trusted' } },
+  { type: 'marquee_strip', label: 'Marquee strip', icon: Type, desc: 'Scrolling highlights with text and/or images', category: 'structure', defaultProps: { items: defaultMarqueeItems(), text: marqueeItemsToLegacyText(defaultMarqueeItems()), item_gap: 40 } },
   // Hero
   { type: 'hero', label: 'Hero ? Centered', icon: Square, desc: 'Full-width hero with CTA buttons', category: 'hero', defaultProps: { headline: 'Welcome to Our Store', subtitle: 'Thoughtfully chosen products and friendly service ? everything you need in one place.', bg_style: 'gradient', cta_primary: 'Shop now', cta_secondary: 'Learn more', layout: 'centered' } },
   { type: 'hero_split', label: 'Hero ? Split', icon: Columns, desc: 'Left text, right image hero', category: 'hero', defaultProps: { headline: 'Discover what we offer', headline_line2: 'made for everyday life', subtitle: 'Browse our collection ? quality you can see, service you can trust.', bg_style: 'minimal', cta_primary: 'Shop bestsellers', cta_secondary: 'Browse categories', layout: 'split', eyebrow: 'Welcome', eyebrow_plain: true } },
@@ -369,7 +378,7 @@ const BLOCK_CATALOG: BlockDef[] = [
   { type: 'contact_form', label: 'Contact Form', icon: Mail, desc: 'Contact form with fields', category: 'contact', defaultProps: { title: 'Get in touch', layout: 'split', full_page: false, email: '', phone: '', address: '', show_map: false, form_fields: [{ name: 'name', type: 'text', required: true, placeholder: 'Your name' }, { name: 'email', type: 'email', required: true, placeholder: 'Your email' }, { name: 'message', type: 'textarea', required: true, placeholder: 'How can we help?' }] } },
   { type: 'portfolio_grid', label: 'Portfolio Grid', icon: Camera, desc: 'Filterable work portfolio grid', category: 'portfolio', defaultProps: { title: 'Our Work', columns: 3, filterable: true } },
   { type: 'gallery_masonry', label: 'Gallery Masonry', icon: ImageIcon, desc: 'Masonry image gallery', category: 'media', defaultProps: { title: 'Gallery', layout: 'masonry', columns: 3, images: [] } },
-  { type: 'blog_grid', label: 'Blog Grid', icon: FileText, desc: 'Latest posts in a grid', category: 'blog', defaultProps: { title: 'Latest Posts', columns: 3 } },
+  { type: 'blog_grid', label: 'Blog Grid', icon: FileText, desc: 'Latest posts in a grid', category: 'blog', defaultProps: { title: 'Latest Posts', columns: 3, show_count: 12, image_height_pct: 56 } },
   { type: 'newsletter', label: 'Newsletter', icon: Mail, desc: 'Email capture / subscribe form', category: 'conversion', defaultProps: { title: 'Stay in the Loop', subtitle: 'Get the latest news and updates delivered to your inbox.', cta_label: 'Subscribe' } },
   { type: 'video_embed', label: 'Video Embed', icon: Video, desc: 'YouTube / Vimeo video player', category: 'media', defaultProps: { title: 'Watch our story', video_url: '', aspect_ratio: '16:9' } },
   { type: 'map_embed', label: 'Map', icon: MapIcon, desc: 'Embedded map with location', category: 'contact', defaultProps: { title: 'Visit us', address: '' } },
@@ -448,7 +457,7 @@ const COMMERCE_LIBRARY_BLOCKS: BlockDef[] = [
   { type: 'product.loyalty', label: 'Loyalty Widget', icon: ShoppingBag, desc: 'Member tier, points, progress bar, and perks.', category: 'ecommerce', defaultProps: { variant: 'default' } },
   { type: 'service.testimonials', label: 'Testimonials', icon: Briefcase, desc: 'Quotes with avatar, role, and rating.', category: 'content', defaultProps: { variant: 'default' } },
   { type: 'service.process', label: 'Process Steps', icon: Briefcase, desc: 'Numbered step-by-step engagement timeline.', category: 'content', defaultProps: { variant: 'default' } },
-  { type: 'service.faq', label: 'FAQ', icon: Briefcase, desc: 'Accordion of common questions and answers.', category: 'content', defaultProps: { variant: 'default' } },
+  { type: 'service.faq', label: 'FAQ', icon: Briefcase, desc: 'Accordion of common questions and answers.', category: 'content', defaultProps: { variant: 'default', title: 'Frequently asked', faqs: DEFAULT_SERVICE_FAQ_ITEMS } },
   { type: 'service.team', label: 'Team Picker', icon: Briefcase, desc: 'Pick a team member, see availability and rating.', category: 'content', defaultProps: { variant: 'default' } },
   { type: 'service.addons', label: 'Add-ons Selector', icon: Briefcase, desc: 'Multi-select add-ons with running total.', category: 'content', defaultProps: { variant: 'default' } },
   { type: 'menu.wine', label: 'Wine Pairing', icon: List, desc: 'Wines by glass/bottle with pairings and tasting notes.', category: 'food', defaultProps: { variant: 'default' } },
@@ -4009,7 +4018,7 @@ const ITEM_SCHEMAS: Record<string, ItemSchema> = {
     ],
   },
   faq: {
-    arrayKey: 'faqs', itemLabel: 'FAQ',
+    arrayKey: 'faqs', itemLabel: 'Question',
     defaultItem: { question: 'New question?', answer: 'Answer here.' },
     fields: [
       { key: 'question', label: 'Question', type: 'text' },
@@ -4033,6 +4042,15 @@ const ITEM_SCHEMAS: Record<string, ItemSchema> = {
       { key: 'label', label: 'Label', type: 'text' },
     ],
   },
+  timeline: {
+    arrayKey: 'items', itemLabel: 'Milestone',
+    defaultItem: { year: '2024', title: 'New milestone', desc: 'Describe this step.' },
+    fields: [
+      { key: 'year', label: 'Year / label', type: 'text' },
+      { key: 'title', label: 'Title', type: 'text' },
+      { key: 'desc', label: 'Description', type: 'textarea' },
+    ],
+  },
   gallery: {
     arrayKey: 'images', itemLabel: 'Image',
     defaultItem: { url: '', caption: '', alt: '' },
@@ -4052,7 +4070,49 @@ const ITEM_SCHEMAS: Record<string, ItemSchema> = {
       { key: 'url',       label: 'Link URL',   type: 'text' },
     ],
   },
+  marquee_strip: {
+    arrayKey: 'items', itemLabel: 'Item',
+    defaultItem: { label: 'New highlight', url: '', image_url: '' },
+    fields: [
+      { key: 'image_url', label: 'Image', type: 'image' },
+      { key: 'label', label: 'Text', type: 'text' },
+      { key: 'url', label: 'Link', type: 'text' },
+    ],
+  },
 }
+
+const ITEM_SCHEMA_ALIASES: Partial<Record<string, keyof typeof ITEM_SCHEMAS>> = {
+  features_alternating: 'features',
+  services_list: 'services_cards',
+  'service.faq': 'faq',
+}
+
+/** Sidebar heading for expandable item lists (clearer than raw itemLabel). */
+function itemListSectionTitle(blockType: string, itemSchema: ItemSchema): string {
+  const titles: Record<string, string> = {
+    faq: 'Questions',
+    'service.faq': 'Questions',
+    timeline: 'Milestones',
+    stats: 'Stats',
+    testimonials: 'Reviews',
+    pricing: 'Plans',
+    features: 'Features',
+    services_cards: 'Services',
+    team_grid: 'Team members',
+    trust_logos: 'Logos',
+    marquee_strip: 'Marquee items',
+    gallery_masonry: 'Images',
+    gallery: 'Images',
+  }
+  return titles[blockType] || `${itemSchema.itemLabel}s`
+}
+
+/** Block types whose item list should start expanded in the Content tab. */
+const ITEM_LIST_DEFAULT_OPEN = new Set([
+  'faq', 'service.faq', 'timeline', 'stats', 'testimonials', 'pricing', 'features', 'features_alternating',
+  'services_cards', 'services_list', 'team_grid', 'trust_logos', 'marquee_strip',
+  'gallery_masonry', 'gallery', 'gallery_grid',
+])
 
 /** Block types whose tile thumbnails respect `image_shape` (square / rounded / circle). */
 const IMAGE_SHAPE_BLOCK_TYPES = new Set([
@@ -4070,9 +4130,6 @@ const IMAGE_SHAPE_BLOCK_TYPES = new Set([
   'product_grid',
   'menu_grid',
   'related_products',
-  'blog_grid',
-  'blog_featured',
-  'blog_list',
   'testimonials',
   'testimonials_grid',
   'image_block',
@@ -4178,6 +4235,18 @@ const CATALOG_GRID_BLOCK_CONFIG: Record<string, CatalogGridBlockConfig> = {
   'vertical.courseCatalog': {
     columnMin: 2, defaultColumns: 3, itemCountLabel: 'Courses shown', itemCountKeys: ['show_count'],
     showColumns: true, showImageHeight: false, showCardStyle: false, showProductToggles: true, showServiceToggles: false,
+  },
+  blog_grid: {
+    columnMin: 1, defaultColumns: 3, itemCountLabel: 'Posts shown', itemCountKeys: ['show_count'],
+    showColumns: true, showImageHeight: false, showCardStyle: true, showProductToggles: false, showServiceToggles: false,
+  },
+  blog_featured: {
+    columnMin: 1, defaultColumns: 3, itemCountLabel: 'Posts shown', itemCountKeys: ['show_count'],
+    showColumns: true, showImageHeight: false, showCardStyle: true, showProductToggles: false, showServiceToggles: false,
+  },
+  blog_list: {
+    columnMin: 1, defaultColumns: 1, itemCountLabel: 'Posts shown', itemCountKeys: ['show_count'],
+    showColumns: false, showImageHeight: false, showCardStyle: true, showProductToggles: false, showServiceToggles: false,
   },
 }
 
@@ -4557,6 +4626,7 @@ function SubItemEditor({
   connectedBanner,
   onSwitchToManual,
   onArrayItemImageFocus,
+  onEditPropLink,
   sections = 'all',
 }: {
   schema: ItemSchema
@@ -4574,6 +4644,7 @@ function SubItemEditor({
   connectedBanner?: React.ReactNode
   onSwitchToManual?: () => void
   onArrayItemImageFocus?: (index: number, itemField: string, arrayKey: string) => void
+  onEditPropLink?: (propKey: string, anchor: { x: number; y: number }) => void
   /** Split layout vs item list across ribbon tabs */
   sections?: 'all' | 'layout' | 'items'
 }) {
@@ -4697,7 +4768,7 @@ function SubItemEditor({
         {items.map((item, idx) => {
           const isExpanded = expanded.has(idx)
           const isDraggingOver = over === idx
-          const title = item.name || item.title || item.q || `${schema.itemLabel} ${idx + 1}`
+          const title = item.question || item.label || item.name || item.title || item.q || item.value || item.quote || item.desc || `${schema.itemLabel} ${idx + 1}`
           const imgKey = schema.fields.find(f => f.type === 'image')?.key
           const thumb = imgKey && item[imgKey] ? mediaUrl(item[imgKey]) : null
 
@@ -4836,13 +4907,37 @@ function SubItemEditor({
                     return (
                       <div key={field.key} className="space-y-1">
                         <label className="text-xs font-bold text-gray-500 uppercase tracking-wide">{field.label}</label>
-                        <input
-                          type={field.type === 'number' ? 'number' : 'text'}
-                          value={item[field.key] || ''}
-                          readOnly={readOnly}
-                          onChange={e => !readOnly && updateItem(idx, { [field.key]: e.target.value })}
-                          className="w-full px-2.5 py-2 border border-gray-200 rounded-lg text-xs bg-white focus:outline-none focus:ring-2 focus:ring-ring"
-                        />
+                        <div className={field.key === 'url' && onEditPropLink ? 'flex items-center gap-1' : undefined}>
+                          <input
+                            type={field.type === 'number' ? 'number' : 'text'}
+                            value={item[field.key] || ''}
+                            readOnly={readOnly}
+                            onChange={e => !readOnly && updateItem(idx, { [field.key]: e.target.value })}
+                            placeholder={field.key === 'url' ? '/page or https://...' : undefined}
+                            className={cn(
+                              'px-2.5 py-2 border border-gray-200 rounded-lg text-xs bg-white focus:outline-none focus:ring-2 focus:ring-ring',
+                              field.key === 'url' && onEditPropLink ? 'flex-1 min-w-0 font-mono' : 'w-full',
+                            )}
+                          />
+                          {field.key === 'url' && onEditPropLink && !readOnly && (
+                            <button
+                              type="button"
+                              title={item[field.key] ? `Linked: ${item[field.key]}` : 'Insert link'}
+                              onClick={e => {
+                                const rect = (e.currentTarget as HTMLElement).getBoundingClientRect()
+                                onEditPropLink(`${schema.arrayKey}.${idx}.${field.key}`, { x: rect.left, y: rect.bottom + 6 })
+                              }}
+                              className={cn(
+                                'shrink-0 p-2 rounded-lg border transition-colors',
+                                item[field.key]
+                                  ? 'text-emerald-700 border-emerald-200 bg-emerald-50 hover:bg-emerald-100'
+                                  : 'text-primary border-primary/30 hover:bg-accent',
+                              )}
+                            >
+                              <Link2 className="w-3.5 h-3.5" />
+                            </button>
+                          )}
+                        </div>
                       </div>
                     )
                   })}
@@ -4991,6 +5086,8 @@ interface InputRowProps {
   serverValue: string
   multiline?: boolean
   placeholder?: string
+  rows?: number
+  mono?: boolean
   linkTarget?: string
   onCommit: (val: string) => void
   onPreview: (val: string) => void
@@ -4998,7 +5095,7 @@ interface InputRowProps {
 }
 
 function PropsInputRow({
-  blockId, fieldKey, label, serverValue, multiline, placeholder,
+  blockId, fieldKey, label, serverValue, multiline, placeholder, rows, mono,
   linkTarget, onCommit, onPreview, onLink,
 }: InputRowProps) {
   const [localVal, setLocalVal] = useState(serverValue)
@@ -5059,8 +5156,8 @@ function PropsInputRow({
           onFocus={handleFocus}
           onBlur={handleBlur}
           placeholder={placeholder}
-          rows={3}
-          className={cn(inputClass, 'resize-y min-h-[72px]')}
+          rows={rows ?? 3}
+          className={cn(inputClass, 'resize-y min-h-[72px]', mono && 'font-mono text-[11px] leading-snug')}
         />
       ) : (
         <input
@@ -5700,22 +5797,34 @@ function PropsEditor({
   }, [block.id, block.props, block.style_overrides, spacingBp])
 
   const itemSchema = ITEM_SCHEMAS[block.block_type]
-    ?? (block.block_type === 'features_alternating' ? ITEM_SCHEMAS.features : undefined)
-    ?? (block.block_type === 'services_list' ? ITEM_SCHEMAS.services_cards : undefined)
+    ?? (ITEM_SCHEMA_ALIASES[block.block_type] ? ITEM_SCHEMAS[ITEM_SCHEMA_ALIASES[block.block_type]!] : undefined)
     ?? (['stats', 'counters', 'impact_stats'].includes(block.block_type) ? ITEM_SCHEMAS.stats : undefined)
+  const defaultItemGap = block.block_type === 'marquee_strip' ? 40 : 24
   const [subColumns, setSubColumns] = useState<number>((p as any).columns ?? itemSchema?.fields.length ?? 3)
-  const [subGap, setSubGap] = useState<number>((p as any).item_gap ?? 24)
+  const [subGap, setSubGap] = useState<number>((p as any).item_gap ?? defaultItemGap)
   const [subItemSize, setSubItemSize] = useState<number>((p as any).item_size ?? 160)
   const isCatalogGridBlock = CATALOG_GRID_BLOCK_TYPES.has(block.block_type)
   const [teamLiveItems, setTeamLiveItems] = useState<LiveItem[]>([])
 
   useEffect(() => {
     setSubColumns((p as any).columns ?? itemSchema?.fields.length ?? 3)
-    setSubGap((p as any).item_gap ?? 24)
+    setSubGap((p as any).item_gap ?? defaultItemGap)
     setSubItemSize((p as any).item_size ?? 160)
-  }, [block.id, (p as any).columns, (p as any).item_gap, (p as any).item_size, itemSchema?.fields.length])
+  }, [block.id, block.block_type, (p as any).columns, (p as any).item_gap, (p as any).item_size, itemSchema?.fields.length, defaultItemGap])
 
   const isTeamBlock = block.block_type === 'team_grid' || block.block_type === 'team_list'
+  const isBlogBlock = block.block_type === 'blog_grid' || block.block_type === 'blog_featured' || block.block_type === 'blog_list'
+  const [blogLiveItems, setBlogLiveItems] = useState<LiveItem[]>([])
+
+  useEffect(() => {
+    if (!isBlogBlock) return
+    const dsType = (p as Record<string, unknown>).data_source as { type?: string } | undefined
+    if (!dsType || dsType.type === 'pages') {
+      onUpdate({ data_source: { type: 'blog', auto: true } } as Partial<BlockProps>)
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- migrate legacy blog blocks once per selection
+  }, [block.id, block.block_type, isBlogBlock])
+
   useEffect(() => {
     if (!isTeamBlock || !siteId) {
       setTeamLiveItems([])
@@ -5726,8 +5835,49 @@ function PropsEditor({
       .catch(() => setTeamLiveItems([]))
   }, [isTeamBlock, siteId, block.id, (p as any).data_source])
 
+  useEffect(() => {
+    if (!isBlogBlock || !siteId) {
+      setBlogLiveItems([])
+      return
+    }
+    void websiteApi.getLive(siteId, 'blog', { limit: 50 })
+      .then(r => setBlogLiveItems(r.items ?? []))
+      .catch(() => setBlogLiveItems([]))
+  }, [isBlogBlock, siteId, block.id])
+
+  const publishedBlogCount = blogLiveItems.filter(item => item.meta?.is_published !== false).length
+  const draftBlogCount = blogLiveItems.filter(item => item.meta?.is_published === false).length
+
+  const blogManagerBanner = isBlogBlock ? (
+    <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2.5 text-xs text-emerald-900 leading-snug space-y-2">
+      <p>
+        <span className="font-semibold">Synced with Blog Manager.</span>{' '}
+        Posts you create and publish there appear here automatically.
+      </p>
+      <p className="text-emerald-800">
+        {blogLiveItems.length === 0
+          ? 'No posts yet — add your first post in Blog Manager.'
+          : `${publishedBlogCount} published${draftBlogCount ? ` · ${draftBlogCount} draft${draftBlogCount === 1 ? '' : 's'} visible in builder preview` : ''}`}
+      </p>
+      <a
+        href="/blog"
+        target="_blank"
+        rel="noopener noreferrer"
+        className="inline-flex items-center gap-1 font-semibold text-primary hover:underline"
+      >
+        Open Blog Manager →
+      </a>
+    </div>
+  ) : undefined
+
   const teamUseLive = isTeamBlock && shouldUseLiveTeam(p as Record<string, unknown>, teamLiveItems)
-  const subEditorItems = isTeamBlock && teamUseLive
+  const subEditorItems = block.block_type === 'marquee_strip'
+    ? parseMarqueeItems(p as Record<string, unknown>).map(item => ({
+      label: item.label,
+      url: item.url || '',
+      image_url: item.image_url || '',
+    }))
+    : isTeamBlock && teamUseLive
     ? teamLiveItems.map(liveItemToPropMember)
     : (itemSchema ? ((p as any)[itemSchema.arrayKey] || []) : [])
 
@@ -5736,6 +5886,18 @@ function PropsEditor({
   useEffect(() => {
     setEditorTab('content')
   }, [block.id])
+
+  // Seed missing array props (e.g. template FAQ blocks with title only) from catalog defaults.
+  useEffect(() => {
+    if (!itemSchema) return
+    const key = itemSchema.arrayKey
+    if ((p as Record<string, unknown>)[key] !== undefined) return
+    const catalogDef = BLOCK_CATALOG.find(b => b.type === block.block_type)
+    const defaultItems = catalogDef?.defaultProps?.[key as keyof BlockProps]
+    if (!Array.isArray(defaultItems) || defaultItems.length === 0) return
+    onUpdate({ [key]: defaultItems } as Partial<BlockProps>)
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- run once per selected block
+  }, [block.id, block.block_type, itemSchema?.arrayKey])
 
   const teamConnectedBanner = teamUseLive ? (
     <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2.5 text-xs text-emerald-900 leading-snug">
@@ -5748,6 +5910,30 @@ function PropsEditor({
       Using your custom member list. Re-add the section with live data off to pull from People again.
     </div>
   ) : undefined
+
+  const persistSubEditorItems = (items: any[]) => {
+    const patch: Record<string, unknown> = { [itemSchema!.arrayKey]: items }
+    if (block.block_type === 'marquee_strip') {
+      patch.text = marqueeItemsToLegacyText(items)
+    }
+    if (isTeamBlock) {
+      onUpdate({ ...patch, use_manual_members: true } as any)
+      return
+    }
+    onUpdate(patch as any)
+  }
+
+  const previewSubEditorItems = (items: any[]) => {
+    const patch: Record<string, unknown> = { [itemSchema!.arrayKey]: items }
+    if (block.block_type === 'marquee_strip') {
+      patch.text = marqueeItemsToLegacyText(items)
+    }
+    if (isTeamBlock) {
+      onPreview({ ...patch, use_manual_members: true } as any)
+      return
+    }
+    onPreview(patch as any)
+  }
 
   const renderSubItemEditor = (sections: 'layout' | 'items') => itemSchema ? (
     <SubItemEditor
@@ -5763,8 +5949,8 @@ function PropsEditor({
           : teamPropMembers(p as Record<string, unknown>)
         onUpdate({ use_manual_members: true, members } as any)
       } : undefined}
-      onUpdate={items => onUpdate({ [itemSchema.arrayKey]: items, use_manual_members: true } as any)}
-      onPreview={items => onPreview({ [itemSchema.arrayKey]: items, use_manual_members: true } as any)}
+      onUpdate={persistSubEditorItems}
+      onPreview={previewSubEditorItems}
       columns={subColumns}
       gap={subGap}
       itemSize={subItemSize}
@@ -5786,6 +5972,7 @@ function PropsEditor({
       onArrayItemImageFocus={onArrayItemImageFocus
         ? (index, itemField, arrayKey) => onArrayItemImageFocus(arrayKey, index, itemField)
         : undefined}
+      onEditPropLink={onEditPropLink}
     />
   ) : null
 
@@ -5796,7 +5983,8 @@ function PropsEditor({
   // We call this as a plain function `inputRow({...})` in JSX so that React
   // only sees the stable, module-level PropsInputRow at the call site.
   const inputRow = (opts: {
-    label: string; fieldKey: string; multiline?: boolean; placeholder?: string
+    label: string; fieldKey: string; multiline?: boolean; placeholder?: string; linkable?: boolean
+    rows?: number; mono?: boolean
   }) => (
     <PropsInputRow
       key={opts.fieldKey}
@@ -5806,6 +5994,8 @@ function PropsEditor({
       serverValue={String((p as any)[opts.fieldKey] ?? '')}
       multiline={opts.multiline}
       placeholder={opts.placeholder}
+      rows={opts.rows}
+      mono={opts.mono}
       linkTarget={String((p as any)[
         opts.fieldKey === 'cta_label'
           ? 'cta_url'
@@ -5815,7 +6005,7 @@ function PropsEditor({
       ] ?? '')}
       onCommit={val => onUpdate({ [opts.fieldKey]: val })}
       onPreview={val => onPreview({ [opts.fieldKey]: val })}
-      onLink={onEditPropLink ? anchor => onEditPropLink(opts.fieldKey, anchor) : undefined}
+      onLink={onEditPropLink && opts.linkable !== false ? anchor => onEditPropLink(opts.fieldKey, anchor) : undefined}
     />
   )
 
@@ -5825,8 +6015,39 @@ function PropsEditor({
       {p.headline    !== undefined && inputRow({ label: 'Headline',      fieldKey: 'headline',      placeholder: 'Your compelling headline?' })}
       {p.subtitle    !== undefined && inputRow({ label: 'Subtitle',      fieldKey: 'subtitle',      multiline: true, placeholder: 'Expand your headline here?' })}
       {p.title       !== undefined && inputRow({ label: 'Title',         fieldKey: 'title',         placeholder: 'Section title?' })}
+      {(p.video_url !== undefined || block.block_type === 'video_embed') && inputRow({
+        label: 'Video URL',
+        fieldKey: 'video_url',
+        placeholder: 'YouTube or Vimeo link (e.g. https://youtube.com/watch?v=...)',
+        linkable: false,
+      })}
+      {(p.message !== undefined || block.block_type === 'cookie_consent') && inputRow({
+        label: 'Message',
+        fieldKey: 'message',
+        multiline: true,
+        placeholder: 'We use cookies to improve your experience…',
+        linkable: false,
+      })}
+      {(p.accept_label !== undefined || block.block_type === 'cookie_consent') && inputRow({
+        label: 'Accept button',
+        fieldKey: 'accept_label',
+        placeholder: 'Accept',
+        linkable: false,
+      })}
+      {(p.decline_label !== undefined || block.block_type === 'cookie_consent') && inputRow({
+        label: 'Decline button',
+        fieldKey: 'decline_label',
+        placeholder: 'Decline',
+        linkable: false,
+      })}
+      {(p.policy_url !== undefined || block.block_type === 'cookie_consent') && inputRow({
+        label: 'Privacy policy link',
+        fieldKey: 'policy_url',
+        placeholder: '/privacy or https://…',
+        linkable: false,
+      })}
       {p.description !== undefined && inputRow({ label: 'Description',   fieldKey: 'description',   multiline: true, placeholder: 'Describe this section?' })}
-      {p.eyebrow     !== undefined && inputRow({ label: 'Eyebrow',       fieldKey: 'eyebrow',       placeholder: 'TAGLINE' })}
+      {p.eyebrow     !== undefined && inputRow({ label: 'Tagline',       fieldKey: 'eyebrow',       placeholder: 'Small text above headline (e.g. Welcome)' })}
       {p.cta_primary !== undefined && inputRow({ label: 'Primary CTA',   fieldKey: 'cta_primary',   placeholder: 'Get Started' })}
       {p.cta_primary !== undefined && inputRow({ label: '? Primary link', fieldKey: 'cta_primary_url',   placeholder: '/signup or /products/my-product' })}
       {p.cta_secondary!== undefined && inputRow({ label: 'Secondary CTA',fieldKey: 'cta_secondary', placeholder: 'Learn More' })}
@@ -5834,7 +6055,16 @@ function PropsEditor({
       {p.cta_label   !== undefined && inputRow({ label: 'CTA Label',     fieldKey: 'cta_label',     placeholder: 'Click Here' })}
       {p.cta_label   !== undefined && inputRow({ label: '? CTA link',    fieldKey: 'cta_url',       placeholder: '/signup or /contact' })}
       {p.brand       !== undefined && inputRow({ label: 'Brand Name',    fieldKey: 'brand',         placeholder: 'Your Brand' })}
-      {p.text        !== undefined && inputRow({ label: 'Text',          fieldKey: 'text',          multiline: true, placeholder: 'Enter text?' })}
+      {p.text        !== undefined && block.block_type !== 'marquee_strip' && inputRow({ label: 'Text',          fieldKey: 'text',          multiline: true, placeholder: 'Enter text?' })}
+      {(p.html !== undefined || block.block_type === 'html_embed') && inputRow({
+        label: 'HTML code',
+        fieldKey: 'html',
+        multiline: true,
+        rows: 10,
+        mono: true,
+        placeholder: '<div>Custom HTML, iframes, or embed snippets</div>',
+        linkable: false,
+      })}
       {p.copyright   !== undefined && inputRow({ label: 'Copyright',     fieldKey: 'copyright',     placeholder: '? 2026 Your Company' })}
     </div>
   )
@@ -6122,6 +6352,7 @@ function PropsEditor({
       <div className={cn(builderPanelUi.panelScroll, 'p-2 space-y-2 bg-muted/15')}>
         {editorTab === 'content' && (
           <>
+      {blogManagerBanner}
       {commonFields}
 
       {onEditPropLink && (
@@ -6331,7 +6562,11 @@ function PropsEditor({
       )}
 
       {itemSchema && (
-        <PropsCollapsible title={itemSchema.itemLabel || 'Items'} preview={`${subEditorItems.length} item(s)`}>
+        <PropsCollapsible
+          title={itemListSectionTitle(block.block_type, itemSchema)}
+          preview={`${subEditorItems.length} item(s)`}
+          defaultOpen={ITEM_LIST_DEFAULT_OPEN.has(block.block_type)}
+        >
           {renderSubItemEditor('items')}
         </PropsCollapsible>
       )}
@@ -6383,7 +6618,31 @@ function PropsEditor({
               </PropsAccordionSection>
             ) : null}
 
-            {itemSchema && !isCatalogGridBlock ? (
+            {block.block_type === 'marquee_strip' ? (
+              <PropsAccordionSection
+                id="marquee-spacing"
+                activeId={layoutAccordionOpen}
+                onActivate={activateLayoutAccordion}
+                title="Item spacing"
+                preview={`${subGap}px between items`}
+              >
+                <PanelSliderRow
+                  label="Space between items"
+                  value={subGap}
+                  min={8}
+                  max={120}
+                  step={4}
+                  unit="px"
+                  onCommit={n => {
+                    setSubGap(n)
+                    onPreview({ item_gap: n } as any)
+                    onUpdate({ item_gap: n } as any)
+                  }}
+                />
+              </PropsAccordionSection>
+            ) : null}
+
+            {itemSchema && !isCatalogGridBlock && block.block_type !== 'marquee_strip' && block.block_type !== 'timeline' && block.block_type !== 'service.faq' ? (
               <PropsAccordionSection
                 id="grid"
                 activeId={layoutAccordionOpen}
@@ -8039,19 +8298,6 @@ function BlockDesignBar({ block, onUpdate, onInsertAfter, onOpenLinkEditorForOve
     }
   }, [])
 
-  // Close any open dropdown when clicking outside the bar (dropdown is portalled to body)
-  useEffect(() => {
-    if (!showCase && !showLineSpacing) return
-    const handler = (e: MouseEvent) => {
-      const t = e.target as Node
-      if (barRef.current?.contains(t) || dropdownRef.current?.contains(t)) return
-      setShowCase(false)
-      setShowLineSpacing(false)
-    }
-    document.addEventListener('mousedown', handler)
-    return () => document.removeEventListener('mousedown', handler)
-  }, [showCase, showLineSpacing])
-
   const addOverlayElement = (
     type: string,
     anchor?: { x: number; y: number },
@@ -8232,6 +8478,7 @@ function BlockDesignBar({ block, onUpdate, onInsertAfter, onOpenLinkEditorForOve
             open={showCase}
             anchorRef={caseBtnRef}
             menuRef={dropdownRef}
+            onClose={() => setShowCase(false)}
             className="min-w-[220px] overflow-hidden rounded-lg border border-border bg-popover text-popover-foreground shadow-2xl"
           >
             <TextCaseList
@@ -8328,6 +8575,7 @@ function BlockDesignBar({ block, onUpdate, onInsertAfter, onOpenLinkEditorForOve
             open={showClear}
             anchorRef={clearBtnRef}
             menuRef={dropdownRef}
+            onClose={() => setShowClear(false)}
             className="min-w-[240px] overflow-hidden rounded-xl border border-border bg-popover text-popover-foreground shadow-2xl"
           >
             <div className="px-3 py-2 border-b border-gray-100 bg-gray-50">
@@ -8457,6 +8705,7 @@ function BlockDesignBar({ block, onUpdate, onInsertAfter, onOpenLinkEditorForOve
                 open={showLineSpacing}
                 anchorRef={lineSpacingBtnRef}
                 menuRef={dropdownRef}
+                onClose={() => setShowLineSpacing(false)}
               >
                 <LineSpacingMenuContent
                   size="compact"
@@ -9672,6 +9921,11 @@ export default function WebsiteBuilder() {
       primary_phone: myVendor.primary_phone,
       support_email: myVendor.support_email,
       support_phone: myVendor.support_phone,
+      street_address: myVendor.street_address,
+      city: myVendor.city,
+      state: myVendor.state,
+      postal_code: myVendor.postal_code,
+      country: myVendor.country,
       social_links: myVendor.social_links,
       settings: myVendor.settings,
     }
@@ -9679,19 +9933,21 @@ export default function WebsiteBuilder() {
 
   const builderPreviewStore = useMemo(() => {
     if (!site || builderStores.length === 0) return null
-    const linked =
-      site.website_store_scope === 'store' && site.website_store_id
-        ? builderStores.find((s) => s.id === site.website_store_id)
-        : builderStores[0]
+    const { scope, storeId } = resolveWebsiteStoreLink(site, localStyle)
+    if (scope !== 'store' || !storeId) return null
+    const linked = builderStores.find((s) => s.id === storeId)
     if (!linked) return null
     return {
       id: linked.id,
       name: linked.name,
       code: linked.code,
       description: linked.description,
+      email: linked.email,
+      phone: linked.phone,
+      address: linked.address,
       settings: linked.settings,
     }
-  }, [site, builderStores])
+  }, [site, localStyle, builderStores])
 
   // Catalog/commerce pages (product detail, service detail, cart, checkout…) are not
   // block-based builder pages — they're storefront route templates. Instead of popping
@@ -11740,6 +11996,58 @@ export default function WebsiteBuilder() {
       return
     }
 
+    const arrayItemLinkMatch = propKey.match(/^(\w+)\.(\d+)\.(url|href)$/)
+    if (arrayItemLinkMatch) {
+      const [, arrayKey, indexStr, urlField] = arrayItemLinkMatch
+      const index = Number.parseInt(indexStr, 10)
+      const arr = Array.isArray(p?.[arrayKey]) ? [...(p[arrayKey] as unknown[])] : []
+      const item = (arr[index] && typeof arr[index] === 'object'
+        ? { ...(arr[index] as object) }
+        : {}) as Record<string, unknown>
+      const label = String(item.label ?? item.title ?? item.name ?? '').trim()
+      const target = String(item[urlField] ?? item.url ?? item.href ?? '').trim()
+      const currentValue: LinkValue = {
+        type: target ? 'url' : 'none',
+        target,
+        label,
+        openInNewTab: /^https?:\/\//i.test(target),
+      }
+      setLinkEditor({
+        anchor,
+        value: currentValue,
+        save: (v) => {
+          const nextArr = Array.isArray(p?.[arrayKey]) ? [...(p[arrayKey] as unknown[])] : []
+          while (nextArr.length <= index) nextArr.push({})
+          const prev = nextArr[index]
+          const base = prev && typeof prev === 'object' ? { ...(prev as object) } : {}
+          const nextItem = {
+            ...base,
+            [urlField]: v.type === 'none' ? '' : v.target.trim(),
+            ...(v.label ? { label: v.label } : {}),
+          }
+          nextArr[index] = nextItem
+          const patch: Record<string, unknown> = { [arrayKey]: nextArr }
+          if (arrayKey === 'items' && block.block_type === 'marquee_strip') {
+            patch.text = marqueeItemsToLegacyText(
+              nextArr.map(entry => {
+                const row = entry as Record<string, unknown>
+                const label = String(row.label ?? '').trim()
+                const imageUrl = String(row.image_url ?? '').trim()
+                if (!label && !imageUrl) return null
+                return {
+                  label,
+                  url: String(row.url ?? '').trim() || undefined,
+                  image_url: imageUrl || undefined,
+                }
+              }).filter((entry): entry is { label: string; url?: string; image_url?: string } => entry != null),
+            )
+          }
+          handleUpdateBlockProps(blockId, patch as any)
+        },
+      })
+      return
+    }
+
     const resolved = (() => {
       if (propKey === 'cta_label' || propKey === 'cta_url') {
         return { labelPropKey: 'cta_label', urlKey: 'cta_url', metaKey: 'cta' }
@@ -11826,9 +12134,10 @@ export default function WebsiteBuilder() {
     hero_minimal: { field: 'headline', label: 'Headline' },
     cta: { field: 'headline', label: 'Headline' },
     announcement_bar: { field: 'text', label: 'Message' },
-    marquee_strip: { field: 'text', label: 'Marquee (comma-separated)', multiline: true },
+    marquee_strip: { field: 'items.0.label', label: 'Marquee item' },
     footer: { field: 'copyright', label: 'Copyright' },
     rich_text: { field: 'content', label: 'Content', multiline: true },
+    html_embed: { field: 'html', label: 'HTML code', multiline: true },
     image_block: { field: 'caption', label: 'Caption' },
     nav: { field: 'brand', label: 'Brand Name' },
   }
@@ -13537,7 +13846,6 @@ export default function WebsiteBuilder() {
   )
   return (
     <div className="fixed inset-0 flex flex-col bg-gray-100 z-[100]" style={{ fontFamily: 'Inter, sans-serif' }}>
-      {sectionMediaPicker.fileInput}
       {sectionMediaPicker.modal}
 
       {/* Global Link Editor popup (for CTA buttons / overlay buttons) */}
@@ -15111,11 +15419,12 @@ export default function WebsiteBuilder() {
                   siteName={site?.name}
                   businessProfile={builderBusinessProfile}
                   previewStore={builderPreviewStore}
-                  previewBreakpoint={device}
+                  builderPublicSite={builderPublicSite}
                   onNavigate={handleNavigateBuilderPage}
                   activePageSlug={activePage?.slug ?? null}
                   activePageIsHomepage={Boolean(activePage?.is_homepage)}
                   canvasScale={effectiveCanvasScale}
+                  previewBreakpoint={device}
                   activeBlockId={selectedBlockId}
                   activeCanvasImageTarget={canvasImageTarget}
                   blockPropsForImage={(() => {

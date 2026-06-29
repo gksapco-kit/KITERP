@@ -58,8 +58,16 @@ export const publicSitesApi = {
     publicApi.get(`/${siteId}/live/${resource}`, { params: { limit, ...(params || {}) } }).then(r => r.data),
 
   /** Submit a contact form. */
-  submitContact: (siteId: string, body: Record<string, unknown>): Promise<{ ok: boolean }> =>
-    publicApi.post(`/${siteId}/live/contact`, body).then(r => r.data),
+  submitContact: (
+    siteId: string,
+    body: Record<string, unknown>,
+    opts?: { previewToken?: string | null },
+  ): Promise<{ ok: boolean; submission_id?: string | null; lead_id?: string | null }> => {
+    const headers: Record<string, string> = {}
+    const token = opts?.previewToken?.trim()
+    if (token) headers['X-WB-Preview-Token'] = token
+    return publicApi.post(`/${siteId}/live/contact`, body, { headers }).then(r => r.data)
+  },
 
   /** Subscribe to newsletter. */
   submitNewsletter: (siteId: string, email: string): Promise<{ ok: boolean }> =>

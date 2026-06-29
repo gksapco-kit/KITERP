@@ -115,7 +115,7 @@ const SUSPENSE_NULL_FALLBACK_BLOCKS = new Set([
 
 // ── Live data hook ─────────────────────────────────────────────────────────
 
-type LiveResource = 'products' | 'services' | 'testimonials' | 'team' | 'kpis' | 'profile' | 'pages' | 'categories' | 'customers' | 'orders' | 'bookings' | 'media' | 'stores'
+type LiveResource = 'products' | 'services' | 'testimonials' | 'team' | 'kpis' | 'profile' | 'pages' | 'categories' | 'customers' | 'orders' | 'bookings' | 'media' | 'stores' | 'blog'
 
 const BLOCK_LIVE_RESOURCE: Record<string, LiveResource> = {
   product_grid: 'products', live_stock: 'products', live_quote: 'products', related_products: 'products', product_detail: 'products',
@@ -130,6 +130,7 @@ const BLOCK_LIVE_RESOURCE: Record<string, LiveResource> = {
   product_filters: 'categories',
   gallery_masonry: 'media', portfolio_grid: 'media',
   trust_logos: 'customers',
+  blog_grid: 'blog', blog_featured: 'blog', blog_list: 'blog',
 }
 
 function inferCommerceLiveResource(blockType: string): LiveResource | undefined {
@@ -267,7 +268,7 @@ export function SingleBlock({
       case 'nav':              return <NavBlock {...commonProps} />
       case 'footer':           return <FooterBlock {...commonProps} />
       case 'announcement_bar': return <AnnouncementBarBlock {...commonProps} />
-      case 'marquee_strip':    return <MarqueeStripBlock style={style} props={p} />
+      case 'marquee_strip':    return <MarqueeStripBlock style={style} props={p} blockId={block.id} />
       case 'hero':
       case 'hero_split':
       case 'hero_minimal':     return <HeroBlock {...commonProps} blockType={block.block_type} />
@@ -321,7 +322,7 @@ export function SingleBlock({
       case 'product_filters':  return <ProductFiltersBlock {...commonProps} />
       case 'blog_grid':
       case 'blog_featured':
-      case 'blog_list':        return <BlogGridBlock {...commonProps} />
+      case 'blog_list':        return <BlogGridBlock {...commonProps} blockType={block.block_type} />
       case 'cart_drawer':      return <CartDrawerBlock {...commonProps} />
       case 'live_quote':       return <LiveQuoteBlock {...commonProps} />
       case 'ab_test_block':

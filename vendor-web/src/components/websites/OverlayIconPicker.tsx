@@ -17,6 +17,7 @@ export function OverlayIconPickerMenu({
   menuRef,
   value,
   onPick,
+  onClose,
   headerAction,
 }: {
   open: boolean
@@ -24,6 +25,7 @@ export function OverlayIconPickerMenu({
   menuRef: RefObject<HTMLDivElement | null>
   value?: string | null
   onPick: (iconId: string) => void
+  onClose?: () => void
   /** e.g. "Add to section" quick action at top of menu */
   headerAction?: { label: string; onClick: () => void }
 }) {
@@ -35,6 +37,7 @@ export function OverlayIconPickerMenu({
       open={open}
       anchorRef={anchorRef}
       menuRef={menuRef}
+      onClose={onClose}
       className="w-[min(18rem,92vw)] max-h-[min(20rem,70vh)] overflow-y-auto overscroll-contain rounded-xl border border-gray-200 bg-white shadow-2xl"
     >
       <div className="sticky top-0 z-10 border-b border-gray-100 bg-white px-2.5 py-2">
@@ -126,6 +129,7 @@ export function OverlayIconPicker({
         anchorRef={btnRef}
         menuRef={menuRef}
         value={iconId}
+        onClose={() => setOpen(false)}
         onPick={id => {
           onChange(id)
           setOpen(false)
@@ -202,6 +206,7 @@ export function OverlayIconsRibbonButton({
         anchorRef={btnRef}
         menuRef={menuRef}
         value={previewId}
+        onClose={close}
         onPick={id => {
           onPickIcon(id)
           close()

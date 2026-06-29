@@ -6,7 +6,7 @@ import { Label } from '@/components/ui/label'
 import { Select } from '@/components/ui/select'
 import { ModalBody, ModalFooter, ModalHeader, ModalOverlay, ModalPanel } from '@/components/ui/Modal'
 import { useEscapeToClose } from '@/hooks/useEscapeToClose'
-import { Plus, Search, Edit2, Trash2, UserCheck, Building2, CreditCard, ToggleLeft, ToggleRight } from 'lucide-react'
+import { Plus, Search, Edit2, Trash2, UserCheck, Building2, CreditCard } from 'lucide-react'
 import { toast } from 'sonner'
 import {
   usePayees, useCreatePayee, useUpdatePayee, useDeletePayee, usePayeeMasterBank,
@@ -59,6 +59,12 @@ const PAYOUT_METHODS = [
   { value: 'cash', label: 'Cash' },
   { value: 'cheque', label: 'Cheque' },
 ]
+
+const STATUS_COLORS: Record<string, string> = {
+  active: 'bg-emerald-500/15 text-emerald-800 dark:text-emerald-300',
+  inactive: 'bg-muted text-muted-foreground',
+  suspended: 'bg-amber-500/15 text-amber-800 dark:text-amber-300',
+}
 
 const WALLET_PROVIDERS = ['Paytm', 'PhonePe', 'Google Pay', 'Amazon Pay', 'Other']
 
@@ -377,8 +383,8 @@ export default function PayeesPage() {
                       <UserCheck className="h-4 w-4 text-primary" />
                     </div>
                     <div className="min-w-0">
-                      <div className="font-medium text-foreground truncate" title={p.display_name}>{p.display_name}</div>
-                      {p.code && <div className="text-xs text-muted-foreground truncate" title={p.code}>{p.code}</div>}
+                      <div className="font-medium text-gray-900 truncate" title={p.display_name}>{p.display_name}</div>
+                      {p.code && <div className="text-xs text-gray-500 truncate" title={p.code}>{p.code}</div>}
                     </div>
                   </div>
                 </td>
@@ -391,21 +397,13 @@ export default function PayeesPage() {
                     {LINK_LABELS[p.link_type as LinkType] || p.link_type}
                   </span>
                 </td>
-                <td className="px-4 py-3 text-muted-foreground capitalize text-xs whitespace-nowrap">
+                <td className="px-4 py-3 text-gray-600 capitalize text-xs whitespace-nowrap">
                   {p.default_payout_method.replace(/_/g, ' ')}
                 </td>
                 <td className="px-4 py-3 whitespace-nowrap">
-                  <button
-                    type="button"
-                    onClick={() => handleToggleStatus(p)}
-                    title={p.status === 'active' ? 'Active — click to deactivate' : 'Inactive — click to activate'}
-                    className="inline-flex items-center text-muted-foreground hover:text-foreground transition-colors"
-                    aria-label={p.status === 'active' ? 'Deactivate payee' : 'Activate payee'}
-                  >
-                    {p.status === 'active'
-                      ? <ToggleRight className="h-6 w-6 text-emerald-500 dark:text-emerald-400" />
-                      : <ToggleLeft className="h-6 w-6 text-muted-foreground" />}
-                  </button>
+                  <span className={`inline-flex shrink-0 whitespace-nowrap px-2 py-0.5 rounded text-xs font-medium ${STATUS_COLORS[p.status] || 'bg-muted text-muted-foreground'}`}>
+                    {p.status}
+                  </span>
                 </td>
                 <td className="px-4 py-3">
                   <div className="flex items-center gap-1 justify-end">
@@ -801,11 +799,12 @@ export default function PayeesPage() {
               </CollapsibleSection>
             </ModalBody>
 
-            <ModalFooter className="flex justify-end gap-3">
-              <Button type="button" variant="cancel" onClick={closeForm}>Cancel</Button>
-              <Button onClick={handleSave} disabled={create.isPending || update.isPending}>
+            <ModalFooter className="flex justify-end gap-3 border-t border-gray-100 bg-white px-4 py-4">
+              <button type="button" onClick={closeForm} className="btn-cancel rounded-lg border border-gray-200 px-4 py-2 text-sm">Cancel</button>
+              <button type="button" onClick={handleSave} disabled={create.isPending || update.isPending}
+                className="rounded-lg bg-primary px-4 py-2 text-sm text-white hover:bg-primary/90 disabled:opacity-50">
                 {create.isPending || update.isPending ? 'Saving…' : 'Save'}
-              </Button>
+              </button>
             </ModalFooter>
           </ModalPanel>
         </ModalOverlay>

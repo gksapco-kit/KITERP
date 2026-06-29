@@ -160,10 +160,12 @@ export function ProcessSteps({
 interface FaqProps {
   layout?: "single" | "twoColumn";
   title?: string;
+  faqs?: Array<{ question: string; answer: string; id?: string }>;
 }
 
-export function FAQBlock({ layout = "single", title = "Frequently asked" }: FaqProps) {
-  const [open, setOpen] = useState<string | null>(mockFaq[0].id);
+export function FAQBlock({ layout = "single", title = "Frequently asked", faqs }: FaqProps) {
+  const items = faqs?.length ? faqs : mockFaq;
+  const [open, setOpen] = useState<string | null>(items[0]?.id ?? "0");
   return (
     <section className="px-6 py-10">
       {title && <h2 className="mb-8 text-2xl font-semibold tracking-tight">{title}</h2>}
@@ -173,12 +175,13 @@ export function FAQBlock({ layout = "single", title = "Frequently asked" }: FaqP
           layout === "twoColumn" ? "grid gap-x-8 md:grid-cols-2" : "space-y-2",
         )}
       >
-        {mockFaq.map((f) => {
-          const isOpen = open === f.id;
+        {items.map((f, index) => {
+          const itemId = f.id ?? String(index);
+          const isOpen = open === itemId;
           return (
-            <div key={f.id} className="border-b border-border">
+            <div key={itemId} className="border-b border-border">
               <button
-                onClick={() => setOpen(isOpen ? null : f.id)}
+                onClick={() => setOpen(isOpen ? null : itemId)}
                 className="flex w-full items-center justify-between gap-4 py-4 text-left"
               >
                 <span className="font-medium">{f.question}</span>

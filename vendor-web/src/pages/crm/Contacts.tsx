@@ -15,6 +15,7 @@ import { Plus, Loader2, UserPlus, Mail, Phone, Pencil, Building2, User } from 'l
 import { PhoneInput } from '@/components/ui/PhoneInput'
 import { normalizePhoneE164 } from '@/lib/phoneE164'
 import { CrmModal, Field, SearchBar, Pager, LoadingRow, EmptyRow } from './_shared'
+import { modalWidthMd } from '@/lib/modalUi'
 import { useCrmExtras, CrmExtrasView } from './crmExtras'
 import { SALUTATIONS, contactDisplayName, inputCls } from './crmContactsShared'
 import { formatCurrency, formatDateTime } from '@/lib/utils'
@@ -167,14 +168,26 @@ function ContactForm({
   }
 
   const companies = companiesData?.items ?? []
+  const formId = contact ? `contact-form-${contact.id}` : 'contact-form-new'
 
   return (
     <CrmModal
       title={isEdit ? (type === 'company' ? 'Edit company' : 'Edit contact') : (type === 'company' ? 'Add company' : 'Add contact')}
       onClose={onClose}
-      maxW="max-w-3xl"
+      maxW={modalWidthMd}
+      footer={
+        <>
+          <Button type="button" variant="outline" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button type="submit" form={formId} disabled={save.isPending}>
+            {save.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Plus className="w-4 h-4 mr-2" />}
+            {isEdit ? 'Save changes' : 'Save'}
+          </Button>
+        </>
+      }
     >
-      <form onSubmit={handle} className="space-y-4" autoComplete="off">
+      <form id={formId} onSubmit={handle} className="space-y-4 pb-4" autoComplete="off">
         {!parentCompanyId && !isEdit && (
           <Field label="Type">
             <div className="flex gap-2">
@@ -198,34 +211,42 @@ function ContactForm({
         <FormSection title={type === 'company' ? 'Company details' : 'Name & role'}>
         {type === 'person' ? (
           <>
-            <div className="grid grid-cols-[88px_1fr_1fr] gap-3">
-              <Field label="Salutation">
-                <Select
-                  value={form.salutation}
-                  onChange={v => setForm(p => ({ ...p, salutation: v }))}
-                  placeholder="—"
-                  options={selectOptionsWithBlank('—', SALUTATIONS.map(s => ({ value: s, label: s })))}
-                />
-              </Field>
-              <Field label="First name" required>
-                <Input
-                  value={form.first_name}
-                  onChange={e => setForm(p => ({ ...p, first_name: e.target.value }))}
-                  autoComplete="off"
-                  name="crm-contact-first-name"
-                  data-1p-ignore="true"
-                  data-lpignore="true"
-                />
-              </Field>
-              <Field label="Last name">
-                <Input
-                  value={form.last_name}
-                  onChange={e => setForm(p => ({ ...p, last_name: e.target.value }))}
-                  autoComplete="off"
-                  name="crm-contact-last-name"
-                  data-1p-ignore="true"
-                />
-              </Field>
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
+              <div className="w-full shrink-0 sm:w-[6.5rem] min-w-0">
+                <Field label="Salutation">
+                  <Select
+                    value={form.salutation}
+                    onChange={v => setForm(p => ({ ...p, salutation: v }))}
+                    placeholder="—"
+                    className="w-full min-w-0"
+                    triggerClassName="min-w-0 w-full"
+                    options={selectOptionsWithBlank('—', SALUTATIONS.map(s => ({ value: s, label: s })))}
+                  />
+                </Field>
+              </div>
+              <div className="min-w-0 flex-1">
+                <Field label="First name" required>
+                  <Input
+                    value={form.first_name}
+                    onChange={e => setForm(p => ({ ...p, first_name: e.target.value }))}
+                    autoComplete="off"
+                    name="crm-contact-first-name"
+                    data-1p-ignore="true"
+                    data-lpignore="true"
+                  />
+                </Field>
+              </div>
+              <div className="min-w-0 flex-1">
+                <Field label="Last name">
+                  <Input
+                    value={form.last_name}
+                    onChange={e => setForm(p => ({ ...p, last_name: e.target.value }))}
+                    autoComplete="off"
+                    name="crm-contact-last-name"
+                    data-1p-ignore="true"
+                  />
+                </Field>
+              </div>
             </div>
             <Field label="Title">
               <Input value={form.title} onChange={e => setForm(p => ({ ...p, title: e.target.value }))} placeholder="VP Sales" />
@@ -356,14 +377,6 @@ function ContactForm({
         {extras.sections}
         {extras.documentsSection}
         {extras.photosSection}
-
-        <div className="flex gap-3 pt-2">
-          <Button type="button" variant="cancel" className="flex-1" onClick={onClose}>Cancel</Button>
-          <Button type="submit" className="flex-1" disabled={save.isPending}>
-            {save.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Plus className="w-4 h-4 mr-2" />}
-            {isEdit ? 'Save changes' : 'Save'}
-          </Button>
-        </div>
       </form>
     </CrmModal>
   )
@@ -386,8 +399,22 @@ function ContactView({
   const isCompany = contact.record_type === 'company'
 
   return (
-    <CrmModal title={isCompany ? 'Company details' : 'Contact details'} onClose={onClose} maxW="max-w-3xl">
-      <div className="space-y-4">
+    <CrmModal
+      title={isCompany ? 'Company details' : 'Contact details'}
+      onClose={onClose}
+      maxW={modalWidthMd}
+      footer={
+        <>
+          <Button type="button" variant="outline" onClick={onClose}>
+            Close
+          </Button>
+          <Button type="button" onClick={onEdit}>
+            <Pencil className="w-4 h-4 mr-2" /> Edit
+          </Button>
+        </>
+      }
+    >
+      <div className="space-y-4 pb-4">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
             <p className="text-lg font-semibold text-gray-900 break-words">{contactDisplayName(contact)}</p>
@@ -434,13 +461,6 @@ function ContactView({
         {isCompany && <ContactPersonsSection companyId={contact.id} />}
 
         <CrmExtrasView cf={contact.custom_fields} />
-
-        <div className="flex gap-3 pt-1">
-          <Button type="button" variant="cancel" className="flex-1" onClick={onClose}>Close</Button>
-          <Button type="button" className="flex-1" onClick={onEdit}>
-            <Pencil className="w-4 h-4 mr-2" /> Edit
-          </Button>
-        </div>
       </div>
     </CrmModal>
   )

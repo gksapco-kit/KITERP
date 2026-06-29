@@ -46,7 +46,7 @@ const BLOCK_TEXT_FIELDS: Record<string, readonly string[]> = {
   hero_minimal: ['headline', 'subtitle', 'cta_primary', 'cta_secondary'],
   cta: ['headline', 'subtitle', 'cta_label', 'text'],
   announcement_bar: ['text'],
-  marquee_strip: ['text'],
+  marquee_strip: [],
   nav: ['brand', 'cta_label', 'announcement'],
   footer: ['copyright', 'brand', 'description'],
   newsletter: ['title', 'subtitle', 'cta_label'],
@@ -60,6 +60,7 @@ const BLOCK_TEXT_FIELDS: Record<string, readonly string[]> = {
   team_grid: ['title'],
   pricing: ['title'],
   faq: ['title'],
+  'service.faq': ['title'],
   contact_form: ['title'],
   portfolio_grid: ['title'],
   gallery_masonry: ['title'],
@@ -159,7 +160,7 @@ const BLOCK_ITEM_TEXT_SCHEMAS: Record<string, ItemTextSchema> = {
     ],
   },
   faq: {
-    arrayKey: 'faqs', itemLabel: 'FAQ',
+    arrayKey: 'faqs', itemLabel: 'Question',
     fields: [
       { key: 'question', label: 'Question' },
       { key: 'answer', label: 'Answer', multiline: true },
@@ -204,6 +205,13 @@ const BLOCK_ITEM_TEXT_SCHEMAS: Record<string, ItemTextSchema> = {
     arrayKey: 'logos', itemLabel: 'Logo',
     fields: [{ key: 'name', label: 'Brand name' }],
   },
+  marquee_strip: {
+    arrayKey: 'items', itemLabel: 'Item',
+    fields: [
+      { key: 'label', label: 'Text' },
+      { key: 'image_url', label: 'Image' },
+    ],
+  },
   timeline: {
     arrayKey: 'items', itemLabel: 'Step',
     fields: [
@@ -227,6 +235,7 @@ const BLOCK_ITEM_TEXT_SCHEMAS: Record<string, ItemTextSchema> = {
 
 const BLOCK_ITEM_SCHEMA_ALIASES: Record<string, string> = {
   features_alternating: 'features',
+  'service.faq': 'faq',
 }
 
 const FIELD_LABELS: Record<string, string> = {
@@ -235,7 +244,7 @@ const FIELD_LABELS: Record<string, string> = {
   title: 'Title',
   subtitle: 'Subtitle',
   description: 'Description',
-  eyebrow: 'Eyebrow / tagline',
+  eyebrow: 'Tagline',
   text: 'Text',
   content: 'Content',
   cta_primary: 'Primary button',

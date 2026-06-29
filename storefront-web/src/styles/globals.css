@@ -231,7 +231,11 @@
   will-change: transform;
 }
 
-.sf-marquee-track:hover {
+.sf-marquee-track a {
+  cursor: pointer;
+}
+
+.sf-marquee-track:has(a:hover) {
   animation-play-state: paused;
 }
 
@@ -614,4 +618,43 @@ html[dir='rtl'] [data-sonner-toast][data-styled='true']:has([data-close-button])
   box-shadow:
     0 0 0 2px hsl(var(--background)),
     0 0 0 6px hsl(var(--solid-btn-focus-outer, 158 52% 76%)) !important;
+}
+
+/* Blog grid — editorial cards (avoid site pill/circle tile theme on blog posts) */
+.blog-grid-section .blog-grid-card {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid rgb(229 231 235);
+  border-radius: 1rem !important;
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.04);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+}
+
+.blog-grid-section .blog-grid-card:hover {
+  border-color: rgb(209 213 219);
+  box-shadow: 0 10px 24px rgb(15 23 42 / 0.08);
+}
+
+.blog-grid-section .blog-grid-card > a {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-height: 0;
+  color: inherit;
+  text-decoration: none;
+}
+
+.blog-grid-section .blog-grid-card__media {
+  isolation: isolate;
+  border-radius: 0;
+}
+
+.blog-grid-section .blog-grid-card__media img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+  border-radius: 0 !important;
+  clip-path: none !important;
 }

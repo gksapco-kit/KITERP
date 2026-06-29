@@ -15,22 +15,40 @@ export function InsertLayerButton({
   overlayCount,
   onAddOverlay,
   onClearOverlays,
+  open,
+  onToggle,
   visualTab = false,
 }: {
   overlayCount: number
   onAddOverlay: (type: string, anchor?: { x: number; y: number }, patch?: Partial<OverlayLayerItem>) => void
   onClearOverlays: () => void
+  open?: boolean
+  onToggle?: () => void
   /** Visual tab row — roomier label line-height (General tab unchanged). */
   visualTab?: boolean
 }) {
-  const [open, setOpen] = useState(false)
+  const [internalOpen, setInternalOpen] = useState(false)
   const btnRef = useRef<HTMLButtonElement>(null)
   const menuRef = useRef<HTMLDivElement>(null)
+  const isControlled = open !== undefined && onToggle !== undefined
+  const menuOpen = isControlled ? open! : internalOpen
+
+  const close = () => {
+    if (isControlled) {
+      if (open) onToggle!()
+    } else {
+      setInternalOpen(false)
+    }
+  }
+  const toggleMenu = () => {
+    if (isControlled) onToggle!()
+    else setInternalOpen(prev => !prev)
+  }
 
   useEffect(() => {
-    if (!open) return
-    return registerEscapeHandler(() => setOpen(false))
-  }, [open])
+    if (!menuOpen) return
+    return registerEscapeHandler(close)
+  }, [menuOpen])
 
   return (
     <>
@@ -38,10 +56,10 @@ export function InsertLayerButton({
         ref={btnRef}
         type="button"
         title="Insert a layer — text, image, icon, button or shape"
-        onClick={() => setOpen(o => !o)}
+        onClick={toggleMenu}
         className={cn(
           visualTab ? visualTabInsertBtn : visualInsertBtn,
-          open
+          menuOpen
             ? 'border-primary bg-primary text-white shadow-sm'
             : 'border-primary/30 bg-primary/10 text-primary hover:bg-primary/15',
         )}
@@ -51,18 +69,19 @@ export function InsertLayerButton({
         {overlayCount > 0 ? (
           <span className={cn(
             'rounded-full px-1 text-[8px] font-black leading-none',
-            open ? 'bg-white/25 text-white' : 'bg-primary/20 text-primary',
+            menuOpen ? 'bg-white/25 text-white' : 'bg-primary/20 text-primary',
           )}>
             {overlayCount}
           </span>
         ) : null}
-        <ChevronDown className={cn('h-3 w-3 shrink-0 opacity-70', open && 'rotate-180')} />
+        <ChevronDown className={cn('h-3 w-3 shrink-0 opacity-70', menuOpen && 'rotate-180')} />
       </button>
 
       <DesignBarDropdownPortal
-        open={open}
+        open={menuOpen}
         anchorRef={btnRef}
         menuRef={menuRef}
+        onClose={close}
         className="bg-popover text-popover-foreground border border-border rounded-xl shadow-2xl overflow-hidden w-[17rem] max-h-[90vh] overflow-y-auto"
       >
         <div className="px-2.5 py-2 bg-accent border-b border-primary/20">
@@ -78,7 +97,7 @@ export function InsertLayerButton({
                 e.stopPropagation()
                 const rect = (e.currentTarget as HTMLElement).getBoundingClientRect()
                 onAddOverlay(type, { x: rect.right + 8, y: rect.top })
-                setOpen(false)
+                close()
               }}
               className="flex flex-col items-center justify-center gap-1 rounded-lg border border-gray-200 bg-white px-1 py-2 text-center transition-colors hover:border-primary/40 hover:bg-accent"
             >
@@ -97,7 +116,7 @@ export function InsertLayerButton({
               onMouseDown={e => {
                 e.stopPropagation()
                 onClearOverlays()
-                setOpen(false)
+                close()
               }}
               className="text-[10px] font-semibold text-red-500 hover:text-red-600"
             >

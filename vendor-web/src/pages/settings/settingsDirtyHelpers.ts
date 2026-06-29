@@ -61,6 +61,30 @@ function hoursEqual(
   return true
 }
 
+export function supportPhonesFromStore(store: StoreRecord): string[] {
+  const settings = (store.settings || {}) as Record<string, unknown>
+  const extra = Array.isArray(settings.support_phones)
+    ? (settings.support_phones as string[]).filter((p) => typeof p === 'string' && p.trim())
+    : []
+  const primary = store.phone?.trim() || ''
+  if (primary) {
+    return [primary, ...extra.filter((p) => p.trim() !== primary)]
+  }
+  return extra.length > 0 ? extra : ['']
+}
+
+export function supportEmailsFromStore(store: StoreRecord): string[] {
+  const settings = (store.settings || {}) as Record<string, unknown>
+  const extra = Array.isArray(settings.support_emails)
+    ? (settings.support_emails as string[]).filter((e) => typeof e === 'string' && e.trim())
+    : []
+  const primary = store.email?.trim() || ''
+  if (primary) {
+    return [primary, ...extra.filter((e) => e.trim().toLowerCase() !== primary.toLowerCase())]
+  }
+  return extra.length > 0 ? extra : ['']
+}
+
 export function supportPhonesFromVendor(vendor: Vendor): string[] {
   const settings = (vendor.settings || {}) as Record<string, unknown>
   const extra = Array.isArray(settings.support_phones)
@@ -130,8 +154,16 @@ export function isContactSectionDirty(
   supportEmails: string[],
   supportPhones: string[],
   vendor: Vendor | null,
+  activeStore?: StoreRecord,
+  unitContactEditable?: boolean,
 ): boolean {
   if (!vendor) return false
+  if (unitContactEditable && activeStore) {
+    return (
+      !arraysEqualNormalized(supportEmails, supportEmailsFromStore(activeStore)) ||
+      !phonesEqualNormalized(supportPhones, supportPhonesFromStore(activeStore))
+    )
+  }
   return (
     !arraysEqualNormalized(supportEmails, supportEmailsFromVendor(vendor)) ||
     !phonesEqualNormalized(supportPhones, supportPhonesFromVendor(vendor))

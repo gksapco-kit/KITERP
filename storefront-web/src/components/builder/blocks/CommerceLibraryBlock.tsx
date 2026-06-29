@@ -194,6 +194,7 @@ export default function CommerceLibraryBlock({ style, props, liveItems, blockTyp
     showPrice: props.showPrice !== false,
     showFeatures: props.showFeatures !== false,
     title: (props.title as string | undefined) ?? undefined,
+    faqs: Array.isArray(props.faqs) ? props.faqs : undefined,
   }
 
   const themeVars = useMemo(

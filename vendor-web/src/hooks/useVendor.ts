@@ -1733,11 +1733,22 @@ export function useUpdateStore() {
   return useMutation({
     mutationFn: ({ id, data }: { id: string; data: Record<string, unknown> }) =>
       vendorApi.updateStore(id, data),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: vendorKeys.stores() })
-      toast.success('Business unit address saved')
+    onSuccess: (result) => {
+      const updated = result.store
+      qc.setQueriesData<{ stores: import('@/api/vendor').StoreRecord[]; total: number }>(
+        { queryKey: [...vendorKeys.all, 'stores'] },
+        (old) => {
+          if (!old?.stores) return old
+          return {
+            ...old,
+            stores: old.stores.map((s) => (s.id === updated.id ? { ...s, ...updated } : s)),
+          }
+        },
+      )
+      qc.invalidateQueries({ queryKey: [...vendorKeys.all, 'stores'] })
+      toast.success('Business unit saved')
     },
-    onError: apiError('Could not save business unit address'),
+    onError: apiError('Could not save business unit'),
   })
 }
 

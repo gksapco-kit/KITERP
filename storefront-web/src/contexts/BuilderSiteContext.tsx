@@ -110,6 +110,21 @@ export function useBuilderSite() {
   return useContext(BuilderSiteContext)
 }
 
+/** Static site payload for the website builder canvas (no network fetch). */
+export function BuilderSiteStaticProvider({
+  site,
+  children,
+}: {
+  site: PublicSite | null
+  children: ReactNode
+}) {
+  return (
+    <BuilderSiteContext.Provider value={{ builderSite: site, isLoading: false }}>
+      {children}
+    </BuilderSiteContext.Provider>
+  )
+}
+
 /**
  * Overrides the parent BuilderSiteProvider for `/store/:slug/preview/:token/...`:
  * loads frozen snapshot JSON instead of the published subdomain payload.

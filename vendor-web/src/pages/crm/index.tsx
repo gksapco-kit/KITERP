@@ -181,10 +181,10 @@ export default function CrmDashboard() {
             </div>
             <div className="divide-y">
               {tickets?.items?.length ? tickets.items.map(tk => (
-                <Link to={`/crm/tickets/${tk.id}`} key={tk.id} className="flex items-center justify-between px-5 py-3 hover:bg-gray-50">
-                  <div className="min-w-0">
+                <Link to={`/crm/tickets/${tk.id}`} key={tk.id} className="flex items-center gap-6 sm:gap-8 px-5 py-3.5 hover:bg-gray-50">
+                  <div className="min-w-0 flex-1 pr-2">
                     <p className="text-sm font-medium truncate"><span className="font-mono text-xs text-gray-400 mr-1">{tk.number}</span>{tk.subject}</p>
-                    <p className="text-xs text-gray-500">Updated {formatDateTime(tk.updated_at)}</p>
+                    <p className="text-xs text-gray-500 truncate">Updated {formatDateTime(tk.updated_at)}</p>
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
                     {tk.sla_breached && <AlertTriangle className="w-4 h-4 text-red-500" />}

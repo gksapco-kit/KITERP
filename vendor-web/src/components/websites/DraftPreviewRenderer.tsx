@@ -1,7 +1,8 @@
 import { useMemo, type ReactNode } from 'react'
 import BlockRenderer from '@storefront/components/builder/BlockRenderer'
 import type { PublicSite } from '@storefront/blocks/registry'
-import { siteShellBlocks, withSharedShellBlocks } from '@storefront/lib/storefrontLayoutChrome'
+import { siteShellBlocks, siteCookieConsentShellBlock, withSharedShellBlocks } from '@storefront/lib/storefrontLayoutChrome'
+import { BuilderCanvasContextProvider } from '@storefront/contexts/BuilderCanvasContext'
 import { LiveDataFetchProvider, type LiveDataFetcher } from '@storefront/contexts/LiveDataFetchContext'
 import { DraftCatalogPreview } from '@/components/websites/DraftCatalogPreview'
 import { PreviewVendorProvider } from '@/components/websites/PreviewVendorProvider'
@@ -47,6 +48,20 @@ export function DraftPreviewRenderer({
     }
   }, [])
 
+  /** Draft sites are unpublished — contact forms use the authenticated vendor API like the builder canvas. */
+  const draftPreviewCanvas = useMemo(
+    () => ({
+      isEditorCanvas: false,
+      isDraftPreview: true,
+      activeBlockId: null,
+      activeTextField: null,
+      activeTextFields: [] as string[],
+      submitContactForm: (siteId: string, body: Record<string, unknown>) =>
+        websiteApi.submitLiveContact(siteId, body),
+    }),
+    [],
+  )
+
   const offeringType = useMemo(() => {
     const vendorOffering = vendor?.offering_type
     if (vendorOffering === 'products' || vendorOffering === 'services' || vendorOffering === 'both') {
@@ -61,6 +76,7 @@ export function DraftPreviewRenderer({
   }, [vendor?.offering_type, site.style_config])
 
   const { homePage, blocks: shellBlocks } = useMemo(() => siteShellBlocks(site as PublicSite), [site])
+  const cookieShellBlock = useMemo(() => siteCookieConsentShellBlock(site as PublicSite), [site])
   const hasNavShell = shellBlocks.some(b => b.block_type === 'nav')
 
   const catalogRouteTrimmed = catalogRoute?.trim() || null
@@ -105,14 +121,23 @@ export function DraftPreviewRenderer({
       socialLinks={vendor?.social_links}
     >
       <LiveDataFetchProvider fetcher={liveFetcher}>
-        {catalogRouteTrimmed && shellBlocks.length > 0 && (
-          <BlockRenderer
-            blocks={shellBlocks as PublicSite['pages'][0]['blocks']}
-            site={site as PublicSite}
-            pageId={homePage?.id}
-          />
-        )}
-        {pageContent}
+        <BuilderCanvasContextProvider value={draftPreviewCanvas}>
+          {catalogRouteTrimmed && shellBlocks.length > 0 && (
+            <BlockRenderer
+              blocks={shellBlocks as PublicSite['pages'][0]['blocks']}
+              site={site as PublicSite}
+              pageId={homePage?.id}
+            />
+          )}
+          {pageContent}
+          {catalogRouteTrimmed && cookieShellBlock && (
+            <BlockRenderer
+              blocks={[cookieShellBlock] as PublicSite['pages'][0]['blocks']}
+              site={site as PublicSite}
+              pageId={homePage?.id}
+            />
+          )}
+        </BuilderCanvasContextProvider>
       </LiveDataFetchProvider>
     </PreviewVendorProvider>
   )

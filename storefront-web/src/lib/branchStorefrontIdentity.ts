@@ -59,10 +59,80 @@ export function resolveStorefrontBranding(
   }
 }
 
+function storeExtraStrings(settings: Record<string, unknown> | undefined, key: string): string[] {
+  const raw = settings?.[key]
+  return Array.isArray(raw)
+    ? (raw as string[]).filter((v) => typeof v === 'string' && v.trim())
+    : []
+}
+
+/** Per-unit contact on the storefront — field-level override with vendor fallback. */
+export function resolveBranchContactOverlay(
+  vendor: VendorData,
+  branch: StoreLocation,
+): Pick<VendorData, 'support_email' | 'support_phone'> & { settings: Record<string, unknown> } {
+  const branchSettings = (branch.settings ?? {}) as Record<string, unknown>
+  const vendorSettings = (vendor.settings ?? {}) as Record<string, unknown>
+  const branchEmail = branch.email?.trim() || ''
+  const branchPhone = branch.phone?.trim() || ''
+  const branchExtraEmails = storeExtraStrings(branchSettings, 'support_emails')
+  const branchExtraPhones = storeExtraStrings(branchSettings, 'support_phones')
+  const vendorExtraEmails = storeExtraStrings(vendorSettings, 'support_emails')
+  const vendorExtraPhones = storeExtraStrings(vendorSettings, 'support_phones')
+
+  const useBranchEmails = Boolean(branchEmail || branchExtraEmails.length > 0)
+  const useBranchPhones = Boolean(branchPhone || branchExtraPhones.length > 0)
+
+  return {
+    support_email: branchEmail || vendor.support_email,
+    support_phone: branchPhone || vendor.support_phone,
+    settings: {
+      ...vendorSettings,
+      support_emails: useBranchEmails ? branchExtraEmails : vendorExtraEmails,
+      support_phones: useBranchPhones ? branchExtraPhones : vendorExtraPhones,
+    },
+  }
+}
+
+function branchHasAddress(branch: StoreLocation): boolean {
+  const addr = branch.address ?? {}
+  return Boolean(
+    addr.street?.trim() ||
+      addr.city?.trim() ||
+      addr.state?.trim() ||
+      addr.pincode?.trim(),
+  )
+}
+
+/** Per-unit address on the storefront — field-level override with HQ fallback. */
+export function resolveBranchAddressOverlay(
+  vendor: VendorData,
+  branch: StoreLocation,
+): Pick<VendorData, 'street_address' | 'city' | 'state' | 'postal_code'> {
+  if (!branchHasAddress(branch)) {
+    return {
+      street_address: vendor.street_address,
+      city: vendor.city,
+      state: vendor.state,
+      postal_code: vendor.postal_code,
+    }
+  }
+
+  const addr = branch.address ?? {}
+  return {
+    street_address: addr.street?.trim() || vendor.street_address,
+    city: addr.city?.trim() || vendor.city,
+    state: addr.state?.trim() || vendor.state,
+    postal_code: addr.pincode?.trim() || vendor.postal_code,
+  }
+}
+
 /** Apply the active business unit onto vendor catalog data, respecting branding mode. */
 export function applyBranchToVendor(vendor: VendorData, branch: StoreLocation | null): VendorData {
   if (!branch) return vendor
   const branding = resolveStorefrontBranding(vendor, branch)
+  const contact = resolveBranchContactOverlay(vendor, branch)
+  const address = resolveBranchAddressOverlay(vendor, branch)
   return {
     ...vendor,
     business_name: branding.business_name,
@@ -70,6 +140,13 @@ export function applyBranchToVendor(vendor: VendorData, branch: StoreLocation | 
     description: branch.description?.trim() || vendor.description,
     logo_url: branding.logo_url,
     banner_url: branding.banner_url,
+    support_email: contact.support_email,
+    support_phone: contact.support_phone,
+    street_address: address.street_address,
+    city: address.city,
+    state: address.state,
+    postal_code: address.postal_code,
+    settings: contact.settings,
     theme_config: {
       ...(vendor.theme_config ?? {}),
       extra_banners: branding.extra_banners,

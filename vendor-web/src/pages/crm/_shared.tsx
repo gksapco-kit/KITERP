@@ -3,7 +3,9 @@ import { useEscapeToClose } from '@/hooks/useEscapeToClose'
 import { onModalBackdropClick } from '@/lib/utils'
 import {
   modalBodyPadClass,
+  modalBodyScrollClass,
   modalCloseBtnClass,
+  modalFooterClass,
   modalHeaderStickyClass,
   modalOverlayCenterClass,
   modalPanel2xlClass,
@@ -18,8 +20,16 @@ import { Loader2, X, Search, ChevronLeft, ChevronRight } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 export function CrmModal({
-  title, onClose, children, maxW = modalWidthLg, headerActions,
-}: { title: ReactNode; onClose: () => void; children: ReactNode; maxW?: string; headerActions?: ReactNode }) {
+  title, onClose, children, footer, maxW = modalWidthLg, headerActions,
+}: {
+  title: ReactNode
+  onClose: () => void
+  children: ReactNode
+  /** Pinned footer (e.g. Cancel / Save). Middle content scrolls independently. */
+  footer?: ReactNode
+  maxW?: string
+  headerActions?: ReactNode
+}) {
   useEscapeToClose(onClose)
 
   return (
@@ -37,17 +47,24 @@ export function CrmModal({
             </button>
           </div>
         </div>
-        <div className={modalBodyPadClass}>{children}</div>
+        {footer ? (
+          <div className="flex flex-col flex-1 min-h-0 overflow-hidden">
+            <div className={modalBodyScrollClass}>{children}</div>
+            <div className={cn(modalFooterClass, 'rounded-b-2xl shrink-0')}>{footer}</div>
+          </div>
+        ) : (
+          <div className={modalBodyPadClass}>{children}</div>
+        )}
       </div>
     </div>
   )
 }
 
 export function Field({
-  label, children, required,
-}: { label: string; children: ReactNode; required?: boolean }) {
+  label, children, required, className,
+}: { label: string; children: React.ReactNode; required?: boolean; className?: string }) {
   return (
-    <div>
+    <div className={className}>
       <Label required={required}>{label}</Label>
       {children}
     </div>

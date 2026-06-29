@@ -275,19 +275,22 @@ export function useImageSourcePicker({
   )
 
   const modal = (
-    <MediaUploadPickerModal
-      open={open}
-      onClose={() => setOpen(false)}
-      title={title}
-      showGallery={showGallery}
-      deviceHint={deviceHint}
-      galleryMultiSelect={galleryMultiSelect}
-      deviceInputId={fileInputId}
-      onChooseLocal={handleLocal}
-      onChooseGalleryUrl={handleRemote}
-      onChooseGalleryUrls={galleryMultiSelect ? handleRemoteMany : undefined}
-      onChooseExternalUrl={handleRemote}
-    />
+    <>
+      {fileInput}
+      <MediaUploadPickerModal
+        open={open}
+        onClose={() => setOpen(false)}
+        title={title}
+        showGallery={showGallery}
+        deviceHint={deviceHint}
+        galleryMultiSelect={galleryMultiSelect}
+        deviceInputId={fileInputId}
+        onChooseLocal={handleLocal}
+        onChooseGalleryUrl={handleRemote}
+        onChooseGalleryUrls={galleryMultiSelect ? handleRemoteMany : undefined}
+        onChooseExternalUrl={handleRemote}
+      />
+    </>
   )
 
   return { openPicker, fileInput, modal }

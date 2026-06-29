@@ -273,7 +273,7 @@ export default function ProductGridBlock({ site, style, props, liveItems, blockT
                 as="span"
                 className="text-xs uppercase tracking-[0.3em] opacity-70 block"
                 style={{ color: textColor }}
-                placeholder="Eyebrow"
+                placeholder="Tagline"
               />
             )}
             <BuilderTextField

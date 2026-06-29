@@ -55,7 +55,14 @@ export default function FaqBlock({ style, props, blockId }: Props) {
     />
   ) : null
 
-  const questionField = (i: number, q: string, tag: 'h3' | 'span', className: string, fieldStyle?: CSSProperties) => (
+  const questionField = (
+    i: number,
+    q: string,
+    tag: 'h3' | 'span',
+    className: string,
+    fieldStyle?: CSSProperties,
+    opts?: { embeddedInControl?: boolean },
+  ) => (
     <BuilderTextField
       fieldKey={`faqs.${i}.question`}
       blockId={blockId}
@@ -65,6 +72,7 @@ export default function FaqBlock({ style, props, blockId }: Props) {
       className={className}
       style={fieldStyle}
       skipPositionWrapper
+      embeddedInControl={opts?.embeddedInControl}
       placeholder="Question"
     />
   )
@@ -136,7 +144,7 @@ export default function FaqBlock({ style, props, blockId }: Props) {
                   onClick={() => setOpen(open === i ? null : i)}
                   className={`w-full flex items-center justify-between ${rowPad} text-left`}
                 >
-                  {questionField(i, faq.question, 'span', `font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`)}
+                  {questionField(i, faq.question, 'span', `font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`, undefined, { embeddedInControl: true })}
                   <ChevronDown className={`w-4 h-4 shrink-0 transition-transform ${isDark ? 'text-slate-400' : 'text-gray-400'} ${open === i ? 'rotate-180' : ''}`} />
                 </button>
                 {open === i && (
@@ -194,7 +202,7 @@ export default function FaqBlock({ style, props, blockId }: Props) {
               onClick={() => setOpen(open === i ? null : i)}
               className={`w-full flex items-center justify-between ${rowPad} text-left`}
             >
-              {questionField(i, faq.question, 'span', `font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`)}
+              {questionField(i, faq.question, 'span', `font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`, undefined, { embeddedInControl: true })}
               <ChevronDown className={`w-4 h-4 shrink-0 transition-transform ${isDark ? 'text-slate-400' : 'text-gray-400'} ${open === i ? 'rotate-180' : ''}`} />
             </button>
             {open === i && (

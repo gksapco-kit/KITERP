@@ -14,6 +14,11 @@ import {
   RefreshCw, Headphones, Clock, ChevronRight, Quote, MapPin, Phone,
   Mail, Briefcase, Users, ExternalLink, Send, Navigation,
 } from 'lucide-react'
+import {
+  collectBusinessContactEmails,
+  collectBusinessContactPhones,
+  resolveBusinessContactAddress,
+} from '@/lib/businessContact'
 import StarRating from '@/components/StarRating'
 import { storeApi, type StoreLocation } from '@/api/store'
 import type { SectionProps } from '@/home-sections/types'
@@ -314,7 +319,11 @@ function AboutUsSection({ props, colors, vendor }: { props: SectionProps; colors
 }
 
 function ContactMapSection({ props, colors, vendor }: { props: SectionProps; colors: ReturnType<typeof useTheme>['colors']; vendor: ReturnType<typeof useVendor>['vendor'] }) {
-  const address = [vendor?.street_address, vendor?.city, vendor?.state, vendor?.postal_code].filter(Boolean).join(', ')
+  const address = resolveBusinessContactAddress(undefined, undefined, vendor)
+  const phones = collectBusinessContactPhones(undefined, vendor)
+  const emails = collectBusinessContactEmails(undefined, vendor)
+  const phone = phones[0]
+  const email = emails[0]
   return (
     <section className="py-10 bg-white">
       <div className="max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8">
@@ -330,21 +339,21 @@ function ContactMapSection({ props, colors, vendor }: { props: SectionProps; col
                 </div>
               </div>
             )}
-            {vendor?.primary_phone && (
+            {phone && (
               <div className="flex items-start gap-3 p-4 rounded-xl border bg-gray-50">
                 <Phone className="w-5 h-5 mt-0.5 shrink-0" style={{ color: linkOnLight(colors.primary, colors.secondary) }} />
                 <div>
                   <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">Phone</p>
-                  <a href={`tel:${vendor.primary_phone}`} className="text-gray-800 hover:underline mt-0.5">{vendor.primary_phone}</a>
+                  <a href={`tel:${phone.replace(/\s+/g, '')}`} className="text-gray-800 hover:underline mt-0.5">{phone}</a>
                 </div>
               </div>
             )}
-            {vendor?.primary_email && (
+            {email && (
               <div className="flex items-start gap-3 p-4 rounded-xl border bg-gray-50">
                 <Mail className="w-5 h-5 mt-0.5 shrink-0" style={{ color: linkOnLight(colors.primary, colors.secondary) }} />
                 <div>
                   <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">Email</p>
-                  <a href={`mailto:${vendor.primary_email}`} className="text-gray-800 hover:underline mt-0.5">{vendor.primary_email}</a>
+                  <a href={`mailto:${email}`} className="text-gray-800 hover:underline mt-0.5">{email}</a>
                 </div>
               </div>
             )}

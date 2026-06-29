@@ -2733,10 +2733,10 @@ BLOCK_AUTO_SOURCE: dict[str, str] = {
     "order_status":       "orders",
     # Customers (trust logos)
     "trust_logos":        "customers",
-    # Pages (blog, nav links)
-    "blog_grid":          "pages",
-    "blog_featured":      "pages",
-    "blog_list":          "pages",
+    # Blog Manager posts
+    "blog_grid":          "blog",
+    "blog_featured":      "blog",
+    "blog_list":          "blog",
 }
 
 
@@ -3978,7 +3978,7 @@ async def get_live_resource(
 
     Supported resources:
       - products, services, testimonials, team, customers, orders,
-        bookings, categories, media, pages, profile, kpis
+        bookings, categories, media, pages, profile, kpis, blog
     """
     vendor = await _get_vendor(db, user)
     site = await _get_site(db, site_id, vendor.id)
@@ -4239,37 +4239,22 @@ async def get_live_resource(
             if len(items) >= limit:
                 break
 
+    elif resource == "blog":
+        from app.services.blog_live_feed import build_blog_live_items
+
+        items = await build_blog_live_items(db, vendor.id, limit, _norm_item, include_drafts=True)
+
     elif resource == "profile":
-        v = vendor
-        social = v.social_links or {}
-        meta = {
-            "business_name": v.business_name,
-            "display_name": v.display_name,
-            "description": v.description,
-            "email": v.primary_email,
-            "support_email": v.support_email,
-            "phone": v.primary_phone,
-            "support_phone": v.support_phone,
-            "address": " ".join(filter(None, [v.street_address, v.city, v.state, v.postal_code, v.country])),
-            "city": v.city,
-            "state": v.state,
-            "country": v.country,
-            "postal_code": v.postal_code,
-            "logo_url": v.logo_url,
-            "banner_url": v.banner_url,
-            "subdomain": v.subdomain,
-            "custom_domain": v.custom_domain,
-            "social_links": social,
-            "business_hours": v.business_hours or {},
-            "latitude": float(v.latitude) if v.latitude is not None else None,
-            "longitude": float(v.longitude) if v.longitude is not None else None,
-        }
+        from app.services.storefront_contact import build_profile_live_meta, load_linked_store_for_site
+
+        linked_store = await load_linked_store_for_site(db, vendor.id, site.style_config)
+        meta = build_profile_live_meta(vendor, linked_store)
         items = [_norm_item(
-            id=str(v.id),
-            title=v.display_name or v.business_name or "",
-            subtitle=v.industry,
-            description=v.description,
-            image_url=v.logo_url,
+            id=str(vendor.id),
+            title=vendor.display_name or vendor.business_name or "",
+            subtitle=vendor.industry,
+            description=vendor.description,
+            image_url=vendor.logo_url,
             meta=meta,
         )]
 
@@ -4381,37 +4366,27 @@ async def get_live_resource(
 async def submit_contact(
     site_id: str,
     body: Dict[str, Any],
+    request: Request,
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_active_user),
 ):
-    vendor = await _get_vendor(db, user)
-    await _get_site(db, site_id, vendor.id)
+    from app.services.website_form_submissions import submit_website_contact_form
 
-    try:
-        from app.models.crm import CrmLead
-        from app.services.crm.numbering import next_crm_number
-        raw_name = (body.get("name") or "Website Visitor").strip()
-        first, _, last = raw_name.partition(" ")
-        lead = CrmLead(
-            vendor_id=vendor.id,
-            number=await next_crm_number(db, vendor.id, CrmLead, "LED"),
-            first_name=(first or "Website")[:120],
-            last_name=(last or "Visitor")[:120],
-            email=(body.get("email") or None),
-            phone=(body.get("phone") or None),
-            notes=(body.get("message") or None),
-            source="website",
-            source_campaign=f"website:{site_id}",
-            status="new",
-            intake_payload=body,
-        )
-        db.add(lead)
-        await db.commit()
-        await db.refresh(lead)
-        return {"ok": True, "lead_id": str(lead.id)}
-    except Exception:
-        await db.rollback()
-        return {"ok": True, "lead_id": None, "note": "captured"}
+    vendor = await _get_vendor(db, user)
+    site = await _get_site(db, site_id, vendor.id)
+
+    result = await submit_website_contact_form(
+        db,
+        site,
+        body,
+        ip_address=(request.client.host if request.client else None),
+        user_agent=request.headers.get("user-agent"),
+    )
+    return {
+        "ok": True,
+        "submission_id": result["submission_id"],
+        "lead_id": result["lead_id"],
+    }
 
 
 @router.post("/{site_id}/live/newsletter")

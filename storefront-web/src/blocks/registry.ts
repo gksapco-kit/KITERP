@@ -9,7 +9,7 @@
 export type LiveResource =
   | 'products' | 'services' | 'testimonials' | 'team' | 'kpis'
   | 'profile' | 'pages' | 'categories' | 'customers' | 'orders'
-  | 'bookings' | 'media' | 'stores'
+  | 'bookings' | 'media' | 'stores' | 'blog'
 
 export interface BlockDef {
   type: string
@@ -58,7 +58,7 @@ export const BLOCK_CATALOG: BlockDef[] = [
   { type: 'contact_form', label: 'Contact Form', desc: 'Contact form with fields', category: 'contact', defaultProps: { title: 'Get In Touch', email: 'hello@yoursite.com', phone: '', address: '', show_map: false, form_fields: [{ name: 'name', type: 'text', required: true, placeholder: 'Your Name' }, { name: 'email', type: 'email', required: true, placeholder: 'Your Email' }, { name: 'message', type: 'textarea', required: true, placeholder: 'Your Message' }] }, liveResource: 'profile' },
   { type: 'portfolio_grid', label: 'Portfolio Grid', desc: 'Filterable work portfolio grid', category: 'portfolio', defaultProps: { title: 'Our Work', columns: 3, filterable: true }, liveResource: 'media' },
   { type: 'gallery_masonry', label: 'Gallery Masonry', desc: 'Masonry image gallery', category: 'media', defaultProps: { title: 'Gallery' }, liveResource: 'media' },
-  { type: 'blog_grid', label: 'Blog Grid', desc: 'Latest posts in a grid', category: 'blog', defaultProps: { title: 'Latest Posts', columns: 3 } },
+  { type: 'blog_grid', label: 'Blog Grid', desc: 'Latest posts in a grid', category: 'blog', defaultProps: { title: 'Latest Posts', columns: 3, show_count: 12, image_height_pct: 56 }, liveResource: 'blog' },
   { type: 'newsletter', label: 'Newsletter', desc: 'Email capture / subscribe form', category: 'conversion', defaultProps: { title: 'Stay in the Loop', subtitle: 'Get the latest news and updates delivered to your inbox.', cta_label: 'Subscribe' } },
   { type: 'video_embed', label: 'Video Embed', desc: 'YouTube / Vimeo video player', category: 'media', defaultProps: { title: 'Watch Our Demo', video_url: '', aspect_ratio: '16:9' } },
   { type: 'map_embed', label: 'Map', desc: 'Embedded map with location', category: 'contact', defaultProps: { title: 'Find Us', address: '' }, liveResource: 'profile' },

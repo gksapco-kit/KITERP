@@ -371,7 +371,7 @@ export function ProductImageUpload({ images, onUpload, onDelete, onSetPrimary, o
     void processFiles(files)
   }, [processFiles])
 
-  const { openPicker, fileInput: pickerFileInput, modal: pickerModal } = useImageSourcePicker({
+  const { openPicker, modal: pickerModal } = useImageSourcePicker({
     title: 'Product media',
     accept: ACCEPT,
     deviceHint: MEDIA_DEVICE_HINT,
@@ -392,7 +392,6 @@ export function ProductImageUpload({ images, onUpload, onDelete, onSetPrimary, o
   return (
     <div className={catalogMediaCompact.root}>
       {pickerModal}
-      {pickerFileInput}
       <div className={catalogMediaCompact.row}>
         <CatalogMediaDropzone
           disabled={disabled}
@@ -517,7 +516,7 @@ export function ServiceMediaUpload({ media, onUpload, onDelete, onSetPrimary, on
     void processFiles(files)
   }, [processFiles])
 
-  const { openPicker, fileInput: pickerFileInput, modal: pickerModal } = useImageSourcePicker({
+  const { openPicker, modal: pickerModal } = useImageSourcePicker({
     title: 'Service media',
     accept: ACCEPT,
     deviceHint: MEDIA_DEVICE_HINT,
@@ -534,7 +533,6 @@ export function ServiceMediaUpload({ media, onUpload, onDelete, onSetPrimary, on
   return (
     <div className={catalogMediaCompact.root}>
       {pickerModal}
-      {pickerFileInput}
       <div className={catalogMediaCompact.row}>
         <CatalogMediaDropzone
           disabled={disabled}
@@ -666,7 +664,7 @@ export function VariantMediaUpload({
     void processFiles(files)
   }, [processFiles])
 
-  const { openPicker, fileInput: pickerFileInput, modal: pickerModal } = useImageSourcePicker({
+  const { openPicker, modal: pickerModal } = useImageSourcePicker({
     title: pickerTitle,
     accept: ACCEPT,
     deviceHint: MEDIA_DEVICE_HINT,
@@ -683,7 +681,6 @@ export function VariantMediaUpload({
   return (
     <div className={catalogMediaCompact.root}>
       {pickerModal}
-      {pickerFileInput}
       <div className={catalogMediaCompact.row}>
         <CatalogMediaDropzone
           disabled={disabled}
@@ -876,7 +873,7 @@ export function StagedMediaUpload({
     onAddFiles(incoming)
   }, [onAddFiles])
 
-  const { openPicker, fileInput: pickerFileInput, modal: pickerModal } = useImageSourcePicker({
+  const { openPicker, modal: pickerModal } = useImageSourcePicker({
     title: pickerTitle,
     accept: ACCEPT,
     deviceHint: MEDIA_DEVICE_HINT,
@@ -893,7 +890,6 @@ export function StagedMediaUpload({
   return (
     <div className={catalogMediaCompact.root}>
       {pickerModal}
-      {pickerFileInput}
       <div className={catalogMediaCompact.row}>
         <CatalogMediaDropzone
           disabled={disabled}

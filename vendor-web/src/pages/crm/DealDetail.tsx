@@ -77,8 +77,19 @@ export function DealDetail({ dealId, onClose }: { dealId: string; onClose: () =>
 
   if (isLoading || !deal) {
     return (
-      <CrmModal title="Deal" onClose={onClose} maxW="max-w-4xl">
-        <div className="flex items-center justify-center py-16"><Loader2 className="w-6 h-6 animate-spin text-gray-400" /></div>
+      <CrmModal
+        title="Deal"
+        onClose={onClose}
+        maxW="max-w-4xl"
+        footer={
+          <Button type="button" variant="outline" onClick={onClose}>
+            Close
+          </Button>
+        }
+      >
+        <div className="flex items-center justify-center py-16">
+          <Loader2 className="w-6 h-6 animate-spin text-gray-400" />
+        </div>
       </CrmModal>
     )
   }
@@ -104,8 +115,24 @@ export function DealDetail({ dealId, onClose }: { dealId: string; onClose: () =>
           </Button>
         )
       }
+      footer={
+        <>
+          {editing ? (
+            <Button type="button" className="bg-emerald-600 hover:bg-emerald-700" onClick={() => setEditing(false)}>
+              <Check className="w-4 h-4 mr-1" /> Save
+            </Button>
+          ) : (
+            <Button type="button" variant="outline" onClick={() => setEditing(true)}>
+              <Pencil className="w-4 h-4 mr-1" /> Edit
+            </Button>
+          )}
+          <Button type="button" variant="outline" onClick={onClose}>
+            Close
+          </Button>
+        </>
+      }
     >
-      <div className="space-y-5">
+      <div className="space-y-5 pb-4">
         <DealHeader deal={deal} stageName={stageName} />
         <PendingBanner cf={cf} stageLabel={stageName(deal.stage_id)} />
         {/* Read-only until the user clicks Edit */}
@@ -119,19 +146,6 @@ export function DealDetail({ dealId, onClose }: { dealId: string; onClose: () =>
         </div>
         <AiSummary dealId={dealId} />
         <StageHistory dealId={dealId} stageName={stageName} />
-
-        <div className="flex justify-end gap-2 pt-1">
-          {editing ? (
-            <Button type="button" className="bg-emerald-600 hover:bg-emerald-700" onClick={() => setEditing(false)}>
-              <Check className="w-4 h-4 mr-1" /> Save
-            </Button>
-          ) : (
-            <Button type="button" variant="outline" onClick={() => setEditing(true)}>
-              <Pencil className="w-4 h-4 mr-1" /> Edit
-            </Button>
-          )}
-          <Button type="button" variant="cancel" onClick={onClose}>Close</Button>
-        </div>
       </div>
     </CrmModal>
   )
