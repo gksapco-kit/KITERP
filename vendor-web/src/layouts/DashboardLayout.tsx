@@ -20,7 +20,7 @@ import {
   UtensilsCrossed, ChefHat, LayoutGrid, RefreshCw, FolderKanban,
   GripVertical, SlidersHorizontal, Database, Table2, Search, ExternalLink,
   PanelLeftClose, PanelLeft, Settings2,
-  ArrowLeft, MoreHorizontal, Keyboard, Plus, Star, Save, MapPin,
+  ArrowLeft, ArrowRight, MoreHorizontal, Keyboard, Plus, Star, Save, MapPin,
 } from 'lucide-react'
 import { APP_SAVE_REQUEST_EVENT, dispatchAppSaveRequest } from '@/lib/appSave'
 import { FieldMappingProvider } from '@/providers/FieldMappingProvider'
@@ -396,7 +396,7 @@ function HeaderQuickActionButtons({
 
   return (
     <div
-      className={cn(headerBarPillClass, 'w-[8.5rem] justify-between px-1')}
+      className={cn(headerBarPillClass, 'w-[10rem] justify-between px-1')}
       aria-label="Page actions"
     >
       <button
@@ -407,6 +407,16 @@ function HeaderQuickActionButtons({
         className={cn(iconBtn, 'text-primary hover:bg-primary/10')}
       >
         <ArrowLeft className="h-4 w-4" />
+      </button>
+
+      <button
+        type="button"
+        onClick={() => window.history.forward()}
+        title="Go forward"
+        aria-label="Go forward"
+        className={cn(iconBtn, 'text-primary hover:bg-primary/10')}
+      >
+        <ArrowRight className="h-4 w-4" />
       </button>
 
       <UniversalSaveToolbarButton />
@@ -2174,6 +2184,10 @@ export default function DashboardLayout() {
          location.pathname.startsWith('/projects/') ? 'Project Details' :
          location.pathname.startsWith('/controlling/orders/') ? 'CO Manufacturing Order' :
          'Dashboard')
+
+  useEffect(() => {
+    document.title = pageTitle === 'Dashboard' ? 'KITERP' : `${pageTitle} — KITERP`
+  }, [pageTitle])
 
   const storePickerMenu =
     storePickerOpen && storePickerPos

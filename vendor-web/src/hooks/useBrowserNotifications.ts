@@ -3,10 +3,11 @@
  * Handles permission requests and showing desktop notifications.
  */
 import { useState, useEffect, useCallback } from 'react'
+import { APP_FAVICON_URL } from '@/lib/appFavicon'
 
 export type PermissionState = 'granted' | 'denied' | 'default' | 'unsupported'
 
-const VENDOR_ICON = '/favicon.ico'
+const VENDOR_ICON = APP_FAVICON_URL
 
 export function useBrowserNotifications() {
   const isSupported = typeof window !== 'undefined' && 'Notification' in window

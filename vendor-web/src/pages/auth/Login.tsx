@@ -23,6 +23,7 @@ import { isValidEmailOrPhoneLogin } from '@/lib/loginIdentifier'
 import { extractApiError, parseAmbiguousVendorLogin, parseRequires2fa, isAxiosNetworkError, type AmbiguousVendorOption } from '@/lib/errorMessages'
 import type { AxiosError } from 'axios'
 import { toast } from 'sonner'
+import { KitErpBrandMark } from '@/components/KitErpBrandMark'
 
 const SUPPORT_PHONE = import.meta.env.VITE_SUPPORT_PHONE as string | undefined
 const SUPPORT_CHAT_URL = import.meta.env.VITE_SUPPORT_CHAT_URL as string | undefined
@@ -206,9 +207,15 @@ export default function Login() {
 
   return (
     <Card className="w-full shadow-lg shadow-black/5 dark:shadow-black/40">
-      <CardHeader className="space-y-0.5 px-5 pt-[1.2475rem] pb-[0.65625rem]">
-        <CardTitle className="text-xl font-bold tracking-tight text-foreground">User Login</CardTitle>
-        <p className="text-sm leading-snug text-muted-foreground">Sign in to manage your business operations</p>
+      <CardHeader className="space-y-3 px-5 pt-[1.2475rem] pb-[0.65625rem] text-center">
+        <div className="flex flex-col items-center gap-2">
+          <KitErpBrandMark className="h-10 w-10" />
+          <span className="text-sm font-bold tracking-wide text-foreground">KIT ERP</span>
+        </div>
+        <div className="space-y-0.5">
+          <CardTitle className="text-xl font-bold tracking-tight text-foreground">Sign in</CardTitle>
+          <p className="text-sm leading-snug text-muted-foreground">Manage your business operations</p>
+        </div>
       </CardHeader>
 
       <CardContent className="w-full space-y-[0.9975rem] px-5 pb-[1.2475rem] pt-0">

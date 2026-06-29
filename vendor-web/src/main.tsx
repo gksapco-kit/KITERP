@@ -13,10 +13,12 @@ import { useAuthStore } from './stores/authStore'
 import { initGlobalEscapeHandler } from './lib/escapeCloseRegistry'
 import { resolveApiBaseUrl } from './lib/apiBase'
 import { DRAFT_BROWSER_PREVIEW_PATH, initPreviewTabOpenerBridge } from './lib/storefrontPreviewUrl'
+import { ensureAppFavicon } from './lib/appFavicon'
 import './styles/globals.css'
 
 initGlobalEscapeHandler()
 initPreviewTabOpenerBridge()
+ensureAppFavicon()
 
 const queryClient = createAppQueryClient()
 attachAutoRefreshInterceptor(apiClient)
