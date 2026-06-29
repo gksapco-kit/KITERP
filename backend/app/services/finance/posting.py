@@ -25,6 +25,10 @@ from app.models.finance import (
     FinFiscalYearCompany, FinCompany, FinApprovalPolicy, FinApprovalRequest,
 )
 from app.services.finance import field_rules as _field_rules
+from app.services.finance import clearing as _clearing
+from app.services.finance import posting_controls as _pc
+from app.services.finance import rules_service as _rules
+from app.services.finance import split_service as _split
 
 log = logging.getLogger(__name__)
 
@@ -63,6 +67,35 @@ async def _find_account_by_name(
         ).limit(1)
     )
     return result.scalar_one_or_none()
+
+
+async def _guard_no_recon_accounts(
+    db: AsyncSession,
+    vendor_id: UUID,
+    account_ids: list[UUID],
+) -> None:
+    """
+    Raise ValueError if any of the given account IDs is a reconciliation account.
+    Reconciliation accounts (AR, AP, AccumDep, …) may only be posted to by
+    subledger auto-posting handlers — never by manual journal entries.
+    """
+    if not account_ids:
+        return
+    r = await db.execute(
+        select(FinAccount).where(
+            FinAccount.id.in_(account_ids),
+            FinAccount.vendor_id == vendor_id,
+            FinAccount.is_reconciliation_account == True,
+        ).limit(1)
+    )
+    blocked = r.scalar_one_or_none()
+    if blocked:
+        sub = blocked.reconciliation_subledger or "subledger"
+        raise ValueError(
+            f"Account '{blocked.code} – {blocked.name}' is a reconciliation (control) account "
+            f"for the {sub} subledger. Manual posting to reconciliation accounts is not allowed. "
+            f"Transactions are posted here automatically by the {sub} subledger."
+        )
 
 
 async def _get_or_create_period(
@@ -288,6 +321,11 @@ async def post_event(
     for ln in lines:
         ln.journal_entry_id = je.id
         db.add(ln)
+
+    # Stamp open-item status on lines that hit reconcilable / control accounts
+    await _clearing.stamp_open_items(db, vendor_id, lines)
+    # Apply document splitting rules if configured
+    await _split.apply_document_splitting(db, vendor_id, je.id)
 
     log.info("Posted JE %s (%s) vendor=%s dr=%.2f cr=%.2f",
              entry_no, source_type, vendor_id, total_debit, total_credit)
@@ -769,14 +807,45 @@ async def _handle_commission_payment(db, vendor_id, payload):
 async def _handle_manual(db, vendor_id, payload):
     """
     Manual journal entry.
-    payload: {lines: [{account_id, debit, credit, narration}]}
+    payload: {lines: [{account_id, debit, credit, narration, cost_center_id, project_id, assignment, text}]}
+    Reconciliation accounts are blocked — they may only be posted to by subledger handlers.
+    Tolerance limits, Field Status Group rules, substitutions, and validations are enforced.
     """
     lines_data = payload.get("lines", [])
+    account_ids = [
+        UUID(str(ld["account_id"])) for ld in lines_data if ld.get("account_id")
+    ]
+    await _guard_no_recon_accounts(db, vendor_id, account_ids)
+
+    # Tolerance enforcement
+    tol_lines = [
+        {"amount": Decimal(str(ld.get("debit") or ld.get("credit") or 0))}
+        for ld in lines_data
+    ]
+    user_tg_id = payload.get("user_tolerance_group_id")
+    await _pc.enforce_tolerance(db, vendor_id, tol_lines, user_tg_id)
+
+    # Document-level validation
+    doc_context = {
+        "total_lines": len(lines_data),
+        "total_debit": sum(Decimal(str(ld.get("debit", 0))) for ld in lines_data),
+        "total_credit": sum(Decimal(str(ld.get("credit", 0))) for ld in lines_data),
+    }
+    await _rules.run_validations(db, vendor_id, "document", doc_context)
+
     lines = []
     for ld in lines_data:
+        # Line-level substitution first
+        ld = await _rules.apply_substitutions(db, vendor_id, "line", ld)
+        # Line-level validation
+        line_context = dict(ld)
+        await _rules.run_validations(db, vendor_id, "line", line_context)
+
         r = await db.execute(select(FinAccount).where(FinAccount.id == ld["account_id"]))
         acc = r.scalar_one_or_none()
         if acc:
+            # Field Status Group enforcement
+            await _pc.enforce_field_status(db, acc.field_status_group_id, ld)
             lines.append(_line(
                 acc,
                 debit=Decimal(str(ld.get("debit", 0))),
@@ -874,6 +943,10 @@ async def create_journal_draft(
     if fr:
         _field_rules.assert_journal_mandatory(payload, fr)
 
+    # Reconciliation account guard — applies to all manual / enterprise drafts
+    line_account_ids = [ln_in.account_id for ln_in in payload.lines]
+    await _guard_no_recon_accounts(db, vendor_id, line_account_ids)
+
     je = FinJournalEntry(
         id=uuid.uuid4(),
         vendor_id=vendor_id,
@@ -940,6 +1013,14 @@ async def create_journal_draft(
     je.total_debit = total_debit
     je.total_credit = total_credit
     await db.flush()
+
+    # Stamp open-item status for lines hitting reconcilable / control accounts
+    lines_created = (await db.execute(
+        select(FinJournalLine).where(FinJournalLine.journal_entry_id == je.id)
+    )).scalars().all()
+    await _clearing.stamp_open_items(db, vendor_id, list(lines_created))
+    # Apply document splitting rules if configured
+    await _split.apply_document_splitting(db, vendor_id, je.id)
 
     # Trigger approval if a policy exists
     await _require_approval_if_needed(db, vendor_id, je, total_debit, created_by_id)

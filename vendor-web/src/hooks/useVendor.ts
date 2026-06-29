@@ -48,9 +48,13 @@ export const vendorKeys = {
   productMerchandising: (id: string) => [...vendorKeys.all, 'product-merchandising', id] as const,
   priceRules: (productId: string) => [...vendorKeys.all, 'price-rules', productId] as const,
   productBOM: (productId: string) => [...vendorKeys.all, 'product-bom', productId] as const,
+  serviceBOM: (serviceId: string) => [...vendorKeys.all, 'service-bom', serviceId] as const,
+  serviceResources: (serviceId: string) => [...vendorKeys.all, 'service-resources', serviceId] as const,
+  serviceCostSummary: (serviceId: string) => [...vendorKeys.all, 'service-cost-summary', serviceId] as const,
   reservations: (orderType: string, orderId: string) => [...vendorKeys.all, 'reservations', orderType, orderId] as const,
   /** Business units / outlets — use with useStores; invalidate `[...vendorKeys.all, 'stores']` after mutations. */
   stores: (params?: Record<string, unknown>) => [...vendorKeys.all, 'stores', params] as const,
+  plants: (storeId?: string) => [...vendorKeys.all, 'plants', storeId] as const,
   messageConfig: (storeId: string) => [...vendorKeys.all, 'message-config', storeId] as const,
   messageDeliveryStatus: () => [...vendorKeys.all, 'message-delivery-status'] as const,
   // HR keys
@@ -73,6 +77,15 @@ export const vendorKeys = {
   hrPayrollRun: (id: string) => [...vendorKeys.all, 'hr-payroll-run', id] as const,
   hrMyPayslips: () => [...vendorKeys.all, 'hr-my-payslips'] as const,
   hrOffers: () => [...vendorKeys.all, 'hr-offers'] as const,
+  // Procurement extended keys
+  infoRecords: (params?: Record<string, unknown>) => [...vendorKeys.all, 'info-records', params] as const,
+  sourceList: (params?: Record<string, unknown>) => [...vendorKeys.all, 'source-list', params] as const,
+  requisitions: (params?: Record<string, unknown>) => [...vendorKeys.all, 'requisitions', params] as const,
+  vendorInvoices: (params?: Record<string, unknown>) => [...vendorKeys.all, 'vendor-invoices', params] as const,
+  goodsBatches: (params?: Record<string, unknown>) => [...vendorKeys.all, 'goods-batches', params] as const,
+  goodsMovements: (params?: Record<string, unknown>) => [...vendorKeys.all, 'goods-movements', params] as const,
+  materialValuation: (params?: Record<string, unknown>) => [...vendorKeys.all, 'material-valuation', params] as const,
+  serviceEntrySheets: (params?: Record<string, unknown>) => [...vendorKeys.all, 'service-entry-sheets', params] as const,
 }
 
 export function useMyVendor() {
@@ -203,11 +216,11 @@ export function useDeleteCategory() {
   })
 }
 
-export function useStorageLocationTree(storeId: string | null) {
+export function useStorageLocationTree(storeId: string | null, plantId?: string | null) {
   return useQuery({
-    queryKey: [...vendorKeys.all, 'storage-locations', 'tree', storeId],
-    queryFn: () => vendorApi.listStorageLocations({ store_id: storeId!, tree: true }),
-    enabled: !!storeId,
+    queryKey: [...vendorKeys.all, 'storage-locations', 'tree', storeId, plantId],
+    queryFn: () => vendorApi.listStorageLocations({ store_id: storeId!, plant_id: plantId ?? undefined, tree: true }),
+    enabled: !!storeId && !!plantId,
     staleTime: 60 * 1000,
   })
 }
@@ -246,6 +259,53 @@ export function useDeleteStorageLocation() {
       toast.success('Storage location deleted')
     },
     onError: apiError('Could not delete storage location'),
+  })
+}
+
+// ── Plants ────────────────────────────────────────────────────────
+export function usePlants(storeId: string | null) {
+  return useQuery({
+    queryKey: vendorKeys.plants(storeId ?? undefined),
+    queryFn: () => vendorApi.listPlants({ store_id: storeId! }),
+    enabled: !!storeId,
+    staleTime: 60 * 1000,
+  })
+}
+
+export function useCreatePlant() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (data: Record<string, unknown>) => vendorApi.createPlant(data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['vendor', 'plants'] })
+      toast.success('Plant created!')
+    },
+    onError: apiError('Could not create plant'),
+  })
+}
+
+export function useUpdatePlant() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, data }: { id: string; data: Record<string, unknown> }) =>
+      vendorApi.updatePlant(id, data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['vendor', 'plants'] })
+      toast.success('Plant updated!')
+    },
+    onError: apiError('Could not update plant'),
+  })
+}
+
+export function useDeletePlant() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) => vendorApi.deletePlant(id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['vendor', 'plants'] })
+      toast.success('Plant deleted')
+    },
+    onError: apiError('Could not delete plant'),
   })
 }
 
@@ -725,6 +785,69 @@ export function useChangePlan() {
   })
 }
 
+// ── Business Partners ────────────────────────────────────────────
+export function useBusinessPartners(params?: Record<string, unknown>) {
+  return useQuery({
+    queryKey: ['vendor', 'business-partners', params],
+    queryFn: () => vendorApi.listBusinessPartners(params),
+  })
+}
+
+export function useCreateBusinessPartner() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (data: Record<string, unknown>) => vendorApi.createBusinessPartner(data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['vendor', 'business-partners'] })
+      qc.invalidateQueries({ queryKey: ['vendor', 'suppliers'] })
+      qc.invalidateQueries({ queryKey: ['vendor', 'customers'] })
+      toast.success('Business partner created!')
+    },
+    onError: apiError('Could not create business partner'),
+  })
+}
+
+export function useUpdateBusinessPartner() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, data }: { id: string; data: Record<string, unknown> }) =>
+      vendorApi.updateBusinessPartner(id, data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['vendor', 'business-partners'] })
+      toast.success('Business partner updated!')
+    },
+    onError: apiError('Could not update business partner'),
+  })
+}
+
+export function useAddBusinessPartnerRole() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, role, attributes }: { id: string; role: string; attributes?: Record<string, unknown> }) =>
+      vendorApi.addBusinessPartnerRole(id, role, attributes),
+    onSuccess: (_, { role }) => {
+      qc.invalidateQueries({ queryKey: ['vendor', 'business-partners'] })
+      qc.invalidateQueries({ queryKey: ['vendor', 'suppliers'] })
+      qc.invalidateQueries({ queryKey: ['vendor', 'customers'] })
+      toast.success(`Role '${role}' added!`)
+    },
+    onError: apiError('Could not add role'),
+  })
+}
+
+export function useRemoveBusinessPartnerRole() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, role }: { id: string; role: string }) =>
+      vendorApi.removeBusinessPartnerRole(id, role),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['vendor', 'business-partners'] })
+      toast.success('Role removed')
+    },
+    onError: apiError('Could not remove role'),
+  })
+}
+
 // ── Suppliers ────────────────────────────────────────────────────
 export function useSuppliers(params?: Record<string, unknown>) {
   return useQuery({
@@ -850,6 +973,250 @@ export function useCancelPO() {
       toast.success('Purchase order cancelled')
     },
     onError: apiError('Could not cancel purchase order — items may have already been received'),
+  })
+}
+
+// ── Procurement: Info Records ─────────────────────────────────────
+export function useInfoRecords(params?: Record<string, unknown>) {
+  return useQuery({ queryKey: vendorKeys.infoRecords(params), queryFn: () => vendorApi.listInfoRecords(params) })
+}
+export function useCreateInfoRecord() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (data: Record<string, unknown>) => vendorApi.createInfoRecord(data),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['vendor', 'info-records'] }); toast.success('Info record created') },
+    onError: apiError('Could not create info record'),
+  })
+}
+export function useUpdateInfoRecord() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, data }: { id: string; data: Record<string, unknown> }) => vendorApi.updateInfoRecord(id, data),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['vendor', 'info-records'] }); toast.success('Info record updated') },
+    onError: apiError('Could not update info record'),
+  })
+}
+export function useDeleteInfoRecord() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) => vendorApi.deleteInfoRecord(id),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['vendor', 'info-records'] }); toast.success('Info record deleted') },
+    onError: apiError('Could not delete info record'),
+  })
+}
+
+// ── Procurement: Source List ──────────────────────────────────────
+export function useSourceList(params?: Record<string, unknown>) {
+  return useQuery({ queryKey: vendorKeys.sourceList(params), queryFn: () => vendorApi.listSourceList(params) })
+}
+export function useCreateSourceListEntry() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (data: Record<string, unknown>) => vendorApi.createSourceListEntry(data),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['vendor', 'source-list'] }); toast.success('Source list entry created') },
+    onError: apiError('Could not create source list entry'),
+  })
+}
+export function useUpdateSourceListEntry() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, data }: { id: string; data: Record<string, unknown> }) => vendorApi.updateSourceListEntry(id, data),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['vendor', 'source-list'] }); toast.success('Source list entry updated') },
+    onError: apiError('Could not update source list entry'),
+  })
+}
+export function useDeleteSourceListEntry() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) => vendorApi.deleteSourceListEntry(id),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['vendor', 'source-list'] }); toast.success('Source list entry deleted') },
+    onError: apiError('Could not delete source list entry'),
+  })
+}
+
+// ── Procurement: Purchase Requisitions ───────────────────────────
+export function useRequisitions(params?: Record<string, unknown>) {
+  return useQuery({ queryKey: vendorKeys.requisitions(params), queryFn: () => vendorApi.listRequisitions(params) })
+}
+export function useRequisition(id: string | null) {
+  return useQuery({
+    queryKey: ['vendor', 'requisitions', id],
+    queryFn: () => vendorApi.getRequisition(id!),
+    enabled: !!id,
+  })
+}
+export function useCreateRequisition() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (data: Record<string, unknown>) => vendorApi.createRequisition(data),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['vendor', 'requisitions'] }) },
+    onError: apiError('Could not create purchase requisition'),
+  })
+}
+export function useUpdateRequisition() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, data }: { id: string; data: Record<string, unknown> }) => vendorApi.updateRequisition(id, data),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['vendor', 'requisitions'] }) },
+    onError: apiError('Could not update requisition — it may no longer be in draft'),
+  })
+}
+export function useSubmitRequisition() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) => vendorApi.submitRequisition(id),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['vendor', 'requisitions'] }) },
+    onError: apiError('Could not submit requisition'),
+  })
+}
+export function useApproveRequisition() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, data }: { id: string; data: Record<string, unknown> }) => vendorApi.approveRequisition(id, data),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['vendor', 'requisitions'] }); toast.success('Requisition decision saved') },
+    onError: apiError('Could not process approval'),
+  })
+}
+export function useCancelRequisition() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, reason }: { id: string; reason?: string }) => vendorApi.cancelRequisition(id, reason),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['vendor', 'requisitions'] }); toast.success('Requisition cancelled') },
+    onError: apiError('Could not cancel requisition'),
+  })
+}
+
+// ── Procurement: Vendor Invoices (AP) ────────────────────────────
+export function useVendorInvoices(params?: Record<string, unknown>) {
+  return useQuery({ queryKey: vendorKeys.vendorInvoices(params), queryFn: () => vendorApi.listVendorInvoices(params) })
+}
+export function useCreateVendorInvoice() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (data: Record<string, unknown>) => vendorApi.createVendorInvoice(data),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['vendor', 'vendor-invoices'] }); toast.success('Vendor invoice created') },
+    onError: apiError('Could not create vendor invoice — check for duplicate invoice number'),
+  })
+}
+export function useUpdateVendorInvoice() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, data }: { id: string; data: Record<string, unknown> }) => vendorApi.updateVendorInvoice(id, data),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['vendor', 'vendor-invoices'] }); toast.success('Invoice updated') },
+    onError: apiError('Could not update invoice — it may already be posted'),
+  })
+}
+export function usePostVendorInvoice() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) => vendorApi.postVendorInvoice(id),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['vendor', 'vendor-invoices'] }); toast.success('Invoice posted') },
+    onError: apiError('Could not post invoice'),
+  })
+}
+export function useMatchVendorInvoice() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) => vendorApi.matchVendorInvoice(id),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['vendor', 'vendor-invoices'] }); toast.success('3-way match completed') },
+    onError: apiError('Could not run 3-way match'),
+  })
+}
+export function useCancelVendorInvoice() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) => vendorApi.cancelVendorInvoice(id),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['vendor', 'vendor-invoices'] }); toast.success('Invoice cancelled') },
+    onError: apiError('Could not cancel invoice — paid invoices cannot be cancelled'),
+  })
+}
+
+// ── Procurement: Goods Batches ────────────────────────────────────
+export function useGoodsBatches(params?: Record<string, unknown>) {
+  return useQuery({ queryKey: vendorKeys.goodsBatches(params), queryFn: () => vendorApi.listGoodsBatches(params) })
+}
+export function useCreateGoodsBatch() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (data: Record<string, unknown>) => vendorApi.createGoodsBatch(data),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['vendor', 'goods-batches'] }); toast.success('Goods batch created') },
+    onError: apiError('Could not create goods batch'),
+  })
+}
+export function useUpdateGoodsBatch() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, data }: { id: string; data: Record<string, unknown> }) => vendorApi.updateGoodsBatch(id, data),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['vendor', 'goods-batches'] }); toast.success('Batch updated') },
+    onError: apiError('Could not update batch'),
+  })
+}
+
+// ── Procurement: Goods Movements ──────────────────────────────────
+export function useGoodsMovements(params?: Record<string, unknown>) {
+  return useQuery({ queryKey: vendorKeys.goodsMovements(params), queryFn: () => vendorApi.listGoodsMovements(params) })
+}
+export function useCreateGoodsMovement() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (data: Record<string, unknown>) => vendorApi.createGoodsMovement(data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['vendor', 'goods-movements'] })
+      qc.invalidateQueries({ queryKey: ['vendor', 'goods-batches'] })
+      qc.invalidateQueries({ queryKey: ['vendor', 'inventory-summary'] })
+      toast.success('Goods movement posted')
+    },
+    onError: apiError('Could not post goods movement'),
+  })
+}
+
+// ── Procurement: Material Valuation ──────────────────────────────
+export function useMaterialValuation(params?: Record<string, unknown>) {
+  return useQuery({ queryKey: vendorKeys.materialValuation(params), queryFn: () => vendorApi.listMaterialValuation(params) })
+}
+export function useUpdateMaterialValuation() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, data }: { id: string; data: Record<string, unknown> }) => vendorApi.updateMaterialValuation(id, data),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['vendor', 'material-valuation'] }); toast.success('Valuation updated') },
+    onError: apiError('Could not update material valuation'),
+  })
+}
+
+// ── Procurement: Service Entry Sheets ────────────────────────────
+export function useServiceEntrySheets(params?: Record<string, unknown>) {
+  return useQuery({ queryKey: vendorKeys.serviceEntrySheets(params), queryFn: () => vendorApi.listServiceEntrySheets(params) })
+}
+export function useCreateServiceEntrySheet() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (data: Record<string, unknown>) => vendorApi.createServiceEntrySheet(data),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['vendor', 'service-entry-sheets'] }); toast.success('Service entry sheet created') },
+    onError: apiError('Could not create service entry sheet'),
+  })
+}
+export function useUpdateServiceEntrySheet() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, data }: { id: string; data: Record<string, unknown> }) => vendorApi.updateServiceEntrySheet(id, data),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['vendor', 'service-entry-sheets'] }); toast.success('Service entry sheet updated') },
+    onError: apiError('Could not update — approved sheets cannot be edited'),
+  })
+}
+export function useSubmitServiceEntrySheet() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) => vendorApi.submitServiceEntrySheet(id),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['vendor', 'service-entry-sheets'] }); toast.success('Submitted for approval') },
+    onError: apiError('Could not submit service entry sheet'),
+  })
+}
+export function useApproveServiceEntrySheet() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, data }: { id: string; data: Record<string, unknown> }) => vendorApi.approveServiceEntrySheet(id, data),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['vendor', 'service-entry-sheets'] }); toast.success('Decision saved') },
+    onError: apiError('Could not process approval'),
   })
 }
 
@@ -1235,6 +1602,61 @@ export function useUpdateProductBOM() {
       toast.success('Bill of Materials saved!')
     },
     onError: apiError('Could not save BOM'),
+  })
+}
+
+export function useServiceBOM(serviceId: string | null) {
+  return useQuery({
+    queryKey: vendorKeys.serviceBOM(serviceId ?? ''),
+    queryFn: () => vendorApi.getServiceBOM(serviceId!),
+    enabled: !!serviceId,
+    staleTime: 30_000,
+  })
+}
+
+export function useUpdateServiceBOM() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ serviceId, items }: { serviceId: string; items: Record<string, unknown>[] }) =>
+      vendorApi.putServiceBOM(serviceId, items),
+    onSuccess: (_data, vars) => {
+      qc.invalidateQueries({ queryKey: vendorKeys.serviceBOM(vars.serviceId) })
+      qc.invalidateQueries({ queryKey: vendorKeys.serviceCostSummary(vars.serviceId) })
+      toast.success('Service BOM saved!')
+    },
+    onError: apiError('Could not save service BOM'),
+  })
+}
+
+export function useServiceResources(serviceId: string | null) {
+  return useQuery({
+    queryKey: vendorKeys.serviceResources(serviceId ?? ''),
+    queryFn: () => vendorApi.getServiceResources(serviceId!),
+    enabled: !!serviceId,
+    staleTime: 30_000,
+  })
+}
+
+export function useUpdateServiceResources() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ serviceId, items }: { serviceId: string; items: Record<string, unknown>[] }) =>
+      vendorApi.putServiceResources(serviceId, items),
+    onSuccess: (_data, vars) => {
+      qc.invalidateQueries({ queryKey: vendorKeys.serviceResources(vars.serviceId) })
+      qc.invalidateQueries({ queryKey: vendorKeys.serviceCostSummary(vars.serviceId) })
+      toast.success('Service resources saved!')
+    },
+    onError: apiError('Could not save service resources'),
+  })
+}
+
+export function useServiceCostSummary(serviceId: string | null) {
+  return useQuery({
+    queryKey: vendorKeys.serviceCostSummary(serviceId ?? ''),
+    queryFn: () => vendorApi.getServiceCostSummary(serviceId!),
+    enabled: !!serviceId,
+    staleTime: 30_000,
   })
 }
 

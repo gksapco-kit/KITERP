@@ -7,7 +7,7 @@ import {
   LayoutDashboard, ShoppingCart, Package, Wrench, Warehouse,
   Users, Settings, LogOut, Store, MessageSquare,
   UsersRound, ShieldCheck, Receipt, FileText, Tag, BarChart3, CreditCard, LayoutTemplate,
-  FolderTree, Truck, ClipboardList, Calendar, Bell, List,
+  FolderTree, Truck, ClipboardList, Calendar, Bell, List, PackageSearch, FileCheck, ArrowRightLeft,
   ChevronDown, ChevronRight, Check, Menu, FilePlus, Factory, PieChart,
   UserCog, Clock, Plane, DollarSign, Award, Building2, FileSignature,
   HelpCircle, Phone, MessageCircle, User as UserIcon, Info,
@@ -20,7 +20,7 @@ import {
   UtensilsCrossed, ChefHat, LayoutGrid, RefreshCw, FolderKanban,
   GripVertical, SlidersHorizontal, Database, Table2, Search, ExternalLink,
   PanelLeftClose, PanelLeft, Settings2,
-  ArrowLeft, MoreHorizontal, Keyboard, Plus, Star, Save,
+  ArrowLeft, MoreHorizontal, Keyboard, Plus, Star, Save, MapPin,
 } from 'lucide-react'
 import { APP_SAVE_REQUEST_EVENT, dispatchAppSaveRequest } from '@/lib/appSave'
 import { FieldMappingProvider } from '@/providers/FieldMappingProvider'
@@ -538,6 +538,7 @@ const allSections: NavSection[] = [
       { to: '/pos', icon: Receipt, label: 'POS', requiresOffering: ['products', 'both'], requiresPermission: 'pos.view' },
       { to: '/subscriptions', icon: RefreshCw, label: 'Subscriptions', requiresPermission: 'subscriptions.view' },
       { to: '/marketplace', icon: Target, label: 'Marketplace Leads', requiresPermission: 'orders.view' },
+      { to: '/sales/coverage', icon: MapPin, label: 'Store Coverage', requiresPermission: 'orders.view' },
       { to: '/rental', icon: Truck, label: 'Rentals', requiresPermission: 'rentals.view' },
       { to: '/production', icon: Factory, label: 'Production Orders', requiresOffering: ['products', 'both'], requiresPermission: 'production.view' },
       { to: '/invoices', icon: FileText, label: 'Invoices', requiresPermission: 'invoices.view' },
@@ -581,8 +582,22 @@ const allSections: NavSection[] = [
       { to: '/services', icon: Wrench, label: 'Services', requiresOffering: ['services', 'both'], requiresPermission: 'services.view' },
       { to: '/categories', icon: FolderTree, label: 'Categories' },
       { to: '/inventory', icon: Warehouse, label: 'Inventory', requiresOffering: ['products', 'both'], requiresPermission: 'inventory.view' },
+      { to: '/plants', icon: Factory, label: 'Plants', requiresOffering: ['products', 'both'], requiresPermission: 'inventory.view' },
       { to: '/storage-locations', icon: Boxes, label: 'Storage Locations', requiresOffering: ['products', 'both'], requiresPermission: 'inventory.view' },
       { to: '/purchase-orders', icon: ClipboardList, label: 'Purchase Orders', requiresOffering: ['products', 'both'], requiresPermission: 'procurement.view' },
+    ],
+  },
+  {
+    id: 'procurement',
+    title: 'Procurement (MM)',
+    icon: Truck,
+    items: [
+      { to: '/purchase-orders', icon: ClipboardList, label: 'Purchase Orders', requiresPermission: 'procurement.view', groupLabel: 'Purchasing', groupColor: 'blue' },
+      { to: '/procurement/requisitions', icon: FileText, label: 'Purchase Requisitions', requiresPermission: 'procurement.view' },
+      { to: '/procurement/sourcing', icon: Database, label: 'Sourcing Setup', requiresPermission: 'procurement.view' },
+      { to: '/procurement/vendor-invoices', icon: Banknote, label: 'Vendor Invoices (AP)', requiresPermission: 'procurement.view', groupLabel: 'Accounts Payable', groupColor: 'amber' },
+      { to: '/procurement/goods', icon: PackageSearch, label: 'Goods Management', requiresPermission: 'procurement.view', groupLabel: 'Goods & Valuation', groupColor: 'green' },
+      { to: '/procurement/special', icon: FileCheck, label: 'Special Procurement', requiresPermission: 'procurement.view' },
     ],
   },
   {
@@ -600,10 +615,18 @@ const allSections: NavSection[] = [
       { to: '/finance/coa', icon: BookMarked, label: 'Chart of Accounts', requiresPermission: 'finance.view', requiresFinanceMode: 'advanced' },
       { to: '/finance/journal', icon: ScrollText, label: 'Journal Entries', requiresPermission: 'finance.view', requiresFinanceMode: 'advanced' },
       { to: '/finance/trial-balance', icon: Scale, label: 'Trial Balance', requiresPermission: 'finance.reports.view', requiresFinanceMode: 'advanced' },
+      { to: '/finance/statement-versions', icon: BarChart3, label: 'Statement Versions (FSV)', requiresPermission: 'finance.coa.manage', requiresFinanceMode: 'advanced' },
+      { to: '/finance/posting-controls', icon: ShieldCheck, label: 'Posting Controls', requiresPermission: 'finance.coa.manage', requiresFinanceMode: 'advanced' },
+      { to: '/finance/profit-centers', icon: TrendingUp, label: 'Profit Centers & Segments', requiresPermission: 'finance.coa.manage', requiresFinanceMode: 'advanced' },
+      { to: '/finance/fx-revaluation', icon: ArrowLeftRight, label: 'FX Reval & Year-End Close', requiresPermission: 'finance.coa.manage', requiresFinanceMode: 'advanced' },
+      { to: '/finance/posting-rules', icon: ListChecks, label: 'Posting Rules & Number Ranges', requiresPermission: 'finance.coa.manage', requiresFinanceMode: 'advanced' },
+      { to: '/finance/document-splitting', icon: GitBranch, label: 'Document Splitting', requiresPermission: 'finance.coa.manage', requiresFinanceMode: 'advanced' },
+      { to: '/finance/parallel-ledgers', icon: BookMarked, label: 'Parallel Ledgers / Multi-GAAP', requiresPermission: 'finance.coa.manage', requiresFinanceMode: 'advanced' },
       { to: '/finance/periods', icon: Lock, label: 'Posting Periods', requiresPermission: 'finance.coa.manage', requiresFinanceMode: 'advanced' },
       { to: '/finance/field-rules', icon: ListChecks, label: 'GL Field Rules', requiresPermission: 'finance.coa.manage', requiresFinanceMode: 'advanced' },
       // ── Accounts Receivable
       { to: '/finance/ar', icon: ArrowLeftRight, label: 'Accounts Receivable', requiresPermission: 'finance.ar.manage', requiresFinanceMode: 'advanced', groupLabel: 'Accounts Receivable', groupColor: 'emerald' },
+      { to: '/finance/open-items', icon: ListChecks, label: 'Open-Item Clearing', requiresPermission: 'finance.ar.manage', requiresFinanceMode: 'advanced' },
       // ── Accounts Payable
       { to: '/finance/ap', icon: Banknote, label: 'Accounts Payable', requiresPermission: 'finance.ap.manage', requiresFinanceMode: 'advanced', groupLabel: 'Accounts Payable', groupColor: 'amber' },
       // ── Bank & Cash
@@ -1031,8 +1054,14 @@ const pageTitles: Record<string, string> = {
   '/services/new': 'New Service',
   '/categories': 'Categories',
   '/purchase-orders': 'Purchase Orders',
+  '/procurement/requisitions': 'Purchase Requisitions',
+  '/procurement/sourcing': 'Sourcing Setup',
+  '/procurement/vendor-invoices': 'Vendor Invoices (AP)',
+  '/procurement/goods': 'Goods Management',
+  '/procurement/special': 'Special Procurement',
   '/production': 'Production Orders',
   '/inventory': 'Inventory',
+  '/plants': 'Plants',
   '/storage-locations': 'Storage Locations',
   '/pos': 'Point of Sale',
   '/restaurant/floor': 'Restaurant Floor',
@@ -1076,6 +1105,8 @@ const pageTitles: Record<string, string> = {
   '/system/social-links': 'Social & Web Links',
   '/system/assets': 'Gallery',
   '/system/assets/images': 'Images',
+
+  '/sales/coverage': 'Store Coverage',
 
   '/crm': 'CRM Dashboard',
   '/crm/contacts': 'Contacts',

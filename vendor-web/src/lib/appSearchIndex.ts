@@ -69,7 +69,7 @@ const KEYWORD_HINTS: Record<string, string[]> = {
   'Fixed Assets':                         ['fa', 'depreciation', 'asset', 'fixed asset', 'asset register'],
   'Tax Returns':                          ['gst', 'vat', 'tax', 'filing', 'tax return', 'return filing'],
   'Master Data — Customers & Suppliers':  ['customer', 'supplier', 'contacts', 'parties', 'vendors', 'client list'],
-  'Dashboard':                            ['website dashboard', 'storefront overview', 'business front', 'live store', 'public store'],
+  'Storefront Dashboard':                 ['website dashboard', 'storefront overview', 'business front', 'live store', 'public store'],
   'Website Builder':                      ['web', 'site', 'page', 'cms', 'website', 'web builder'],
   'Business Front':                       ['storefront', 'store front', 'business front builder', 'customer store', 'public store', 'branding'],
   'Website Templates':                    ['preset', 'gallery', 'apply template', 'store theme', 'colors', 'fonts', 'hero', 'classic store', 'legacy template', 'homepage sections', 'product page layout', 'store template'],

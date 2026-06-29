@@ -49,8 +49,8 @@ export default function MasterDataNew() {
       } catch { /* ignore */ }
     }
 
-    // Persist new supplier for Purchase Orders to pick up
-    if (returnPath === '/purchase-orders') {
+    // Persist new supplier for Purchase Orders / Procurement to pick up
+    if (returnPath === '/purchase-orders' || returnPath.startsWith('/procurement/')) {
       try {
         sessionStorage.setItem(
           PO_PENDING_SUPPLIER_KEY,

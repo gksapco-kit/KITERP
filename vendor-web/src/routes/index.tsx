@@ -30,6 +30,7 @@ import AboutPage from '@/pages/about/index'
 import CategoriesPage from '@/pages/categories/index'
 import Inventory from '@/pages/inventory/index'
 import StorageLocationsPage from '@/pages/inventory/StorageLocations'
+import PlantsPage from '@/pages/inventory/Plants'
 import POS from '@/pages/pos/index'
 import RestaurantFloorPage from '@/pages/restaurant/Floor'
 import RestaurantKitchenPage from '@/pages/restaurant/Kitchen'
@@ -60,6 +61,11 @@ import MasterDataNew    from '@/pages/master-data/MasterDataNew'
 import PurchaseOrdersPage from '@/pages/purchase-orders/index'
 import PurchaseOrderDetail from '@/pages/purchase-orders/PurchaseOrderDetail'
 import POTemplatesPage from '@/pages/purchase-orders/POTemplates'
+import PurchaseRequisitionsPage from '@/pages/procurement/PurchaseRequisitions'
+import SourcingSetupPage from '@/pages/procurement/SourcingSetup'
+import VendorInvoicesAPPage from '@/pages/procurement/VendorInvoicesAP'
+import GoodsManagementPage from '@/pages/procurement/GoodsManagement'
+import SpecialProcurementPage from '@/pages/procurement/SpecialProcurement'
 import CreditDebitMemos from '@/pages/finance/CreditDebitMemos'
 import ProductionOrdersPage from '@/pages/production/index'
 import StoresPage from '@/pages/stores/index'
@@ -117,6 +123,14 @@ import FinanceCOA from '@/pages/finance/ChartOfAccounts'
 import FinanceJournal from '@/pages/finance/JournalEntries'
 import FinanceTrialBalance from '@/pages/finance/TrialBalance'
 import FinanceAR from '@/pages/finance/AccountsReceivable'
+import FinanceOpenItems from '@/pages/finance/OpenItems'
+import FinanceStatementVersions from '@/pages/finance/FinancialStatementVersions'
+import FinancePostingControls from '@/pages/finance/PostingControls'
+import FinanceProfitCenters from '@/pages/finance/ProfitCenters'
+import FinanceFxRevaluation from '@/pages/finance/FxRevaluation'
+import FinancePostingRules from '@/pages/finance/PostingRules'
+import FinanceDocumentSplitting from '@/pages/finance/DocumentSplitting'
+import FinanceParallelLedgers from '@/pages/finance/ParallelLedgers'
 import FinanceAP from '@/pages/finance/AccountsPayable'
 import FinanceBank from '@/pages/finance/BankCash'
 import FinanceBudgets from '@/pages/finance/BudgetsForecast'
@@ -204,6 +218,7 @@ import CommissionAssignments from '@/pages/commission/Assignments'
 import CommissionAccruals from '@/pages/commission/Accruals'
 import CommissionPayouts from '@/pages/commission/Payouts'
 import CommissionReportPage from '@/pages/commission/reports/CommissionReport'
+import StoreCoveragePage from '@/pages/sales/StoreCoverage'
 
 const routerBasename = (import.meta.env.VITE_ROUTER_BASENAME || '').replace(/\/$/, '')
 
@@ -281,9 +296,15 @@ export const router = createBrowserRouter([
       { path: 'purchase-orders', element: <PurchaseOrdersPage /> },
       { path: 'purchase-orders/templates', element: <POTemplatesPage /> },
       { path: 'purchase-orders/:id', element: <PurchaseOrderDetail /> },
+      { path: 'procurement/requisitions', element: <PurchaseRequisitionsPage /> },
+      { path: 'procurement/sourcing', element: <SourcingSetupPage /> },
+      { path: 'procurement/vendor-invoices', element: <VendorInvoicesAPPage /> },
+      { path: 'procurement/goods', element: <GoodsManagementPage /> },
+      { path: 'procurement/special', element: <SpecialProcurementPage /> },
       { path: 'production', element: <ProductionOrdersPage /> },
       { path: 'inventory', element: <Inventory /> },
       { path: 'storage-locations', element: <StorageLocationsPage /> },
+      { path: 'plants', element: <PlantsPage /> },
       { path: 'pos', element: <POS /> },
       { path: 'restaurant/floor', element: <RestaurantFloorPage /> },
       { path: 'restaurant/kitchen', element: <RestaurantKitchenPage /> },
@@ -295,6 +316,7 @@ export const router = createBrowserRouter([
       { path: 'workspace', element: <WorkspaceHubPage /> },
       { path: 'subscriptions', element: <SubscriptionsSalesPage /> },
       { path: 'marketplace', element: <MarketplaceLeadsPage /> },
+      { path: 'sales/coverage', element: <StoreCoveragePage /> },
       { path: 'rental', element: <RentalHubPage /> },
       { path: 'invoices', element: <InvoicesPage /> },
       { path: 'invoices/templates', element: <InvoiceTemplatesPage /> },
@@ -404,7 +426,15 @@ export const router = createBrowserRouter([
       { path: 'finance/coa',                    element: <FinanceCOA /> },
       { path: 'finance/journal',                element: <FinanceJournal /> },
       { path: 'finance/trial-balance',          element: <FinanceTrialBalance /> },
+      { path: 'finance/statement-versions',     element: <FinanceStatementVersions /> },
+      { path: 'finance/posting-controls',       element: <FinancePostingControls /> },
+      { path: 'finance/profit-centers',         element: <FinanceProfitCenters /> },
+      { path: 'finance/fx-revaluation',         element: <FinanceFxRevaluation /> },
+      { path: 'finance/posting-rules',          element: <FinancePostingRules /> },
+      { path: 'finance/document-splitting',     element: <FinanceDocumentSplitting /> },
+      { path: 'finance/parallel-ledgers',       element: <FinanceParallelLedgers /> },
       { path: 'finance/ar',                     element: <FinanceAR /> },
+      { path: 'finance/open-items',             element: <FinanceOpenItems /> },
       { path: 'finance/ap',                     element: <FinanceAP /> },
       { path: 'finance/bank',                   element: <FinanceBank /> },
       { path: 'finance/budgets',                element: <FinanceBudgets /> },

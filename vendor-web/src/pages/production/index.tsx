@@ -27,7 +27,7 @@ import {
   urlsToLightboxItems,
 } from '@/components/common/ImageAttachmentLightbox'
 import { PhoneInput } from '@/components/ui/PhoneInput'
-import { useProducts, useServices, useCustomers, useCreateCustomer, useTeamMembers, useSuppliers, useOrderReservations } from '@/hooks/useVendor'
+import { useProducts, useServices, useCustomers, useCreateCustomer, useTeamMembers, useSuppliers, useOrderReservations, usePlants, useStorageLocationTree } from '@/hooks/useVendor'
 import {
   useProductionOrders,
   useProductionOrder,
@@ -99,6 +99,8 @@ interface AuditEvent {
 interface ProductionOrder {
   id: string
   store_id?: string | null
+  plant_id?: string | null
+  output_storage_location_id?: string | null
   ref: string
   type: POType
   template: string
@@ -218,6 +220,12 @@ export default function ProductionOrdersPage() {
 
   // Business unit selected in the create form (scopes the catalog below).
   const [formStoreId, setFormStoreId] = useState('')
+  const [formPlantId, setFormPlantId] = useState('')
+  const [formOutputLocationId, setFormOutputLocationId] = useState('')
+  const { data: plantsData } = usePlants(formStoreId || null)
+  const formPlants = plantsData?.plants ?? []
+  const { data: formLocationsData } = useStorageLocationTree(formStoreId || null, formPlantId || null)
+  const formLocations = formLocationsData?.locations ?? []
   const { data: productsData }  = useProducts({ page: 1, size: 200, store_id: formStoreId || undefined })
   const { data: servicesData }  = useServices({ page: 1, size: 200, store_id: formStoreId || undefined })
   const { data: customersData } = useCustomers({ size: 200 })
@@ -497,7 +505,9 @@ export default function ProductionOrdersPage() {
 
   // ── Form helpers ─────────────────────────────────────────────────────────
   function resetForm() {
-    setFormStoreId(selectedStore?.id || '')
+        setFormStoreId(selectedStore?.id || '')
+        setFormPlantId('')
+        setFormOutputLocationId('')
     setFormRef(''); setFormTemplate('standard'); setFormPriority('medium')
     setFormTeam(''); setFormTargetDate((() => { const d = new Date(); d.setDate(d.getDate() + 14); return d.toISOString().slice(0, 10) })())
     setFormNotes(''); setFormItems([]); setFormAttachments([])
@@ -621,6 +631,8 @@ export default function ProductionOrdersPage() {
       ref,
       type: createType,
       store_id: formStoreId || storeId || null,
+      plant_id: formPlantId || null,
+      output_storage_location_id: formOutputLocationId || null,
       template: TEMPLATES.find(t => t.id === formTemplate)?.label || formTemplate,
       status: 'draft',
       progress: 0,
@@ -1048,6 +1060,18 @@ export default function ProductionOrdersPage() {
                         <div className="bg-gray-50 rounded-xl p-3"><p className="text-muted-foreground mb-1">Team</p><p className="font-semibold">{order.team || '—'}</p></div>
                         <div className="bg-gray-50 rounded-xl p-3"><p className="text-muted-foreground mb-1">Target Date</p><p className="font-semibold">{order.target_date}</p></div>
                         <div className="bg-gray-50 rounded-xl p-3"><p className="text-muted-foreground mb-1">Template</p><p className="font-semibold">{order.template}</p></div>
+                        {order.plant_id && (
+                          <div className="bg-gray-50 rounded-xl p-3 sm:col-span-2">
+                            <p className="text-muted-foreground mb-1 flex items-center gap-1"><Factory className="w-3 h-3" /> Plant</p>
+                            <p className="font-semibold font-mono text-xs">{order.plant_id}</p>
+                          </div>
+                        )}
+                        {order.output_storage_location_id && (
+                          <div className="bg-gray-50 rounded-xl p-3 sm:col-span-2">
+                            <p className="text-muted-foreground mb-1">Output Storage Location</p>
+                            <p className="font-semibold font-mono text-xs">{order.output_storage_location_id}</p>
+                          </div>
+                        )}
                       </div>
 
                       {order.type === 'mto' ? (
@@ -1603,11 +1627,35 @@ export default function ProductionOrdersPage() {
                       <label className="block text-xs font-medium text-gray-600 mb-1.5">Business unit</label>
                       <BusinessUnitSelect
                         value={formStoreId}
-                        onChange={(id) => { setFormStoreId(id); setFormItems([]) }}
+                        onChange={(id) => { setFormStoreId(id); setFormItems([]); setFormPlantId(''); setFormOutputLocationId('') }}
                         className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-ring"
                       />
                       <p className="text-[11px] text-gray-400 mt-1">Only items available at this business unit can be added below.</p>
                     </div>
+                    {formStoreId && formPlants.length > 0 && (
+                      <div>
+                        <label className="block text-xs font-medium text-gray-600 mb-1.5">Plant <span className="text-gray-400 font-normal">(optional)</span></label>
+                        <Select
+                          value={formPlantId}
+                          onChange={(v) => { setFormPlantId(v); setFormOutputLocationId('') }}
+                          options={selectOptionsWithBlank('— No plant —', formPlants.map(p => ({ value: p.id, label: `${p.name}${p.code ? ` (${p.code})` : ''}` })))}
+                          aria-label="Plant"
+                          className="w-full"
+                        />
+                      </div>
+                    )}
+                    {formPlantId && formLocations.length > 0 && (
+                      <div>
+                        <label className="block text-xs font-medium text-gray-600 mb-1.5">Output storage location <span className="text-gray-400 font-normal">(where finished goods land)</span></label>
+                        <Select
+                          value={formOutputLocationId}
+                          onChange={setFormOutputLocationId}
+                          options={selectOptionsWithBlank('— None —', formLocations.map(l => ({ value: l.id, label: l.name })))}
+                          aria-label="Output storage location"
+                          className="w-full"
+                        />
+                      </div>
+                    )}
                     <div>
                       <label className="block text-xs font-medium text-gray-600 mb-1.5">Work Order Ref</label>
                       <input value={formRef} onChange={e => setFormRef(e.target.value)}

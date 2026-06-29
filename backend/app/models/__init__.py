@@ -6,7 +6,7 @@ from app.models.user_contact_change_request import UserContactChangeRequest
 from app.models.vendor_user import VendorUser
 from app.models.vendor_role import VendorRole
 from app.models.vendor_product import Product, ProductVariant, ProductImage, ProductPriceRule, ProductModifierGroup, ProductModifierOption
-from app.models.vendor_service import Service, ServiceAvailability, ServicePlan
+from app.models.vendor_service import Service, ServiceAvailability, ServicePlan, ServiceBOMItem, ServiceResource
 from app.models.vendor_plan import VendorPlan
 from app.models.customer import Customer
 from app.models.cart import Cart
@@ -28,7 +28,19 @@ from app.models.booking import Booking
 from app.models.project import Project, ProjectTask
 from app.models.notification import Notification
 from app.models.vendor_category import VendorCategory
-from app.models.procurement import Supplier, PurchaseOrder, PurchaseOrderItem, PurchaseOrderReceipt
+from app.models.procurement import (
+    Supplier, PurchaseOrder, PurchaseOrderItem, PurchaseOrderReceipt,
+    PurchaseOrderDeliverySchedule,
+)
+from app.models.procurement_sourcing import PurchasingInfoRecord, SourceList
+from app.models.procurement_requisition import (
+    PurchaseRequisition, PurchaseRequisitionItem, PurchaseRequisitionApproval,
+)
+from app.models.procurement_invoice import VendorInvoice, VendorInvoiceItem
+from app.models.procurement_goods import GoodsBatch, GoodsMovementDocument
+from app.models.procurement_special import (
+    MaterialValuation, SubcontractingOrder, ConsignmentStock, ServiceEntrySheet,
+)
 from app.models.invoice_template import InvoiceTemplate
 from app.models.merchandising import Bundle, BundleItem, UpsellMapping
 from app.models.loyalty import LoyaltyProgram, LoyaltyAccount, LoyaltyTransaction
@@ -38,6 +50,8 @@ from app.models.vendor_platform_audit import VendorPlatformAuditLog
 from app.models.mrp import ProductBOMItem, StockReservation
 from app.models.production import ProductionOrder
 from app.models.store import Store, StoreInventory, ProductStore, ServiceStore
+from app.models.storage_location import StorageLocation
+from app.models.plant import Plant
 from app.models.storage_location import StorageLocation
 from app.models.hr import (
     Department, Designation, EmployeeProfile, EmployeeDocument,
@@ -92,6 +106,7 @@ from app.models.controlling import (
     CoWorkCenter, CoRouting, CoRoutingOperation,
 )
 
+from app.models.business_partner import BusinessPartner, BusinessPartnerRole
 from app.models.blog import VendorBlogPost
 from app.models.schema_field_mapping import SchemaFieldMapping
 
@@ -163,6 +178,25 @@ __all__ = [
     "PurchaseOrder",
     "PurchaseOrderItem",
     "PurchaseOrderReceipt",
+    "PurchaseOrderDeliverySchedule",
+    # Sourcing
+    "PurchasingInfoRecord",
+    "SourceList",
+    # Requisition
+    "PurchaseRequisition",
+    "PurchaseRequisitionItem",
+    "PurchaseRequisitionApproval",
+    # Vendor Invoice
+    "VendorInvoice",
+    "VendorInvoiceItem",
+    # Goods
+    "GoodsBatch",
+    "GoodsMovementDocument",
+    # Special procurement
+    "MaterialValuation",
+    "SubcontractingOrder",
+    "ConsignmentStock",
+    "ServiceEntrySheet",
     "InvoiceTemplate",
     "Bundle",
     "BundleItem",
@@ -181,6 +215,7 @@ __all__ = [
     "Store",
     "StoreInventory",
     "StorageLocation",
+    "Plant",
     # HR
     "Department",
     "Designation",
@@ -238,6 +273,9 @@ __all__ = [
     "FinLoan", "FinLoanScheduleLine", "FinInvestment", "FinInvestmentValuation",
     "FinApprovalPolicy", "FinApprovalRequest", "FinApprovalStep", "FinAuditLog",
     "FinBasicTransaction",
+    # Business Partner
+    "BusinessPartner",
+    "BusinessPartnerRole",
     # Blog CMS
     "VendorBlogPost",
     "SchemaFieldMapping",

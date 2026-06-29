@@ -10,6 +10,7 @@ from app.api.deps import get_current_vendor_id
 from app.models.storage_location import StorageLocation
 from app.schemas.storage_location import StorageLocationCreate, StorageLocationUpdate
 from app.repositories.storage_location_repo import StorageLocationRepository
+from app.repositories.plant_repo import PlantRepository
 from app.services.catalog_store_scope import validate_store_ids
 
 router = APIRouter()
@@ -20,6 +21,7 @@ def _location_to_dict(loc: StorageLocation) -> dict:
         "id": str(loc.id),
         "vendor_id": str(loc.vendor_id),
         "store_id": str(loc.store_id),
+        "plant_id": str(loc.plant_id),
         "parent_id": str(loc.parent_id) if loc.parent_id else None,
         "name": loc.name,
         "code": loc.code,
@@ -43,6 +45,7 @@ def _tree_node_to_dict(node: dict) -> dict:
 @router.get("")
 async def list_storage_locations(
     store_id: str = Query(..., description="Business unit id"),
+    plant_id: Optional[str] = Query(None, description="Filter by plant"),
     is_active: Optional[bool] = Query(None),
     tree: bool = Query(False, description="Return nested tree"),
     vendor_id: UUID = Depends(get_current_vendor_id),
@@ -52,13 +55,19 @@ async def list_storage_locations(
     repo = StorageLocationRepository(db)
     sid = UUID(store_id)
 
+    if plant_id:
+        plant_repo = PlantRepository(db)
+        plant = await plant_repo.get_by_vendor_and_id(vendor_id, UUID(plant_id))
+        if not plant or plant.store_id != sid:
+            raise HTTPException(status_code=400, detail="Plant not found in this business unit")
+
     if tree:
-        tree_data = await repo.get_tree(vendor_id, sid, is_active=is_active)
+        tree_data = await repo.get_tree(vendor_id, sid, is_active=is_active, plant_id=UUID(plant_id) if plant_id else None)
         return JSONResponse(content={
             "locations": [_tree_node_to_dict(n) for n in tree_data],
         })
 
-    items = await repo.list_all_flat(vendor_id, sid, is_active=is_active)
+    items = await repo.list_all_flat(vendor_id, sid, is_active=is_active, plant_id=UUID(plant_id) if plant_id else None)
     return JSONResponse(content={
         "locations": [_location_to_dict(loc) for loc in items],
     })
@@ -88,7 +97,13 @@ async def create_storage_location(
 ):
     await validate_store_ids(db, vendor_id, [data.store_id])
     repo = StorageLocationRepository(db)
+    plant_repo = PlantRepository(db)
     store_uuid = UUID(data.store_id)
+    plant_uuid = UUID(data.plant_id)
+
+    plant = await plant_repo.get_by_vendor_and_id(vendor_id, plant_uuid)
+    if not plant or plant.store_id != store_uuid:
+        raise HTTPException(status_code=400, detail="Plant not found in this business unit")
 
     if data.code:
         existing = await repo.get_by_store_and_code(vendor_id, store_uuid, data.code.strip())
@@ -102,11 +117,14 @@ async def create_storage_location(
             raise HTTPException(status_code=400, detail="Parent location not found")
         if parent.store_id != store_uuid:
             raise HTTPException(status_code=400, detail="Parent must belong to the same business unit")
+        if parent.plant_id != plant_uuid:
+            raise HTTPException(status_code=400, detail="Parent must belong to the same plant")
         parent_uuid = parent.id
 
     loc = StorageLocation(
         vendor_id=vendor_id,
         store_id=store_uuid,
+        plant_id=plant_uuid,
         parent_id=parent_uuid,
         name=data.name.strip(),
         code=data.code.strip() if data.code else None,
@@ -131,6 +149,13 @@ async def update_storage_location(
     loc = await repo.get_by_vendor_and_id(vendor_id, location_id)
     if not loc:
         raise HTTPException(status_code=404, detail="Storage location not found")
+
+    if data.plant_id is not None:
+        plant_repo = PlantRepository(db)
+        plant = await plant_repo.get_by_vendor_and_id(vendor_id, UUID(data.plant_id))
+        if not plant or plant.store_id != loc.store_id:
+            raise HTTPException(status_code=400, detail="Plant not found in this business unit")
+        loc.plant_id = plant.id
 
     if data.code is not None:
         code = data.code.strip() if data.code else None
@@ -160,6 +185,8 @@ async def update_storage_location(
                 raise HTTPException(status_code=400, detail="Parent location not found")
             if parent.store_id != loc.store_id:
                 raise HTTPException(status_code=400, detail="Parent must belong to the same business unit")
+            if parent.plant_id != loc.plant_id:
+                raise HTTPException(status_code=400, detail="Parent must belong to the same plant")
             loc.parent_id = parent.id
         else:
             loc.parent_id = None

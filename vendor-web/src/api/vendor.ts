@@ -1,5 +1,5 @@
 import apiClient from './client'
-import type { Vendor, Product, Service, ServiceMediaItem, Customer, Order, OrderStats, Review, PaginatedResponse, VendorRole, TeamMember, VendorCategory, Supplier, PurchaseOrder, OrderAttachmentRef, InvoiceTemplate, VendorPlanInfo, Bundle, ProductMerchandising, ProductPriceRule, VendorDocument, VendorDocumentType } from '@/types'
+import type { Vendor, Product, Service, ServiceMediaItem, Customer, Order, OrderStats, Review, PaginatedResponse, VendorRole, TeamMember, VendorCategory, Supplier, PurchaseOrder, OrderAttachmentRef, InvoiceTemplate, VendorPlanInfo, Bundle, ProductMerchandising, ProductPriceRule, VendorDocument, VendorDocumentType, PurchasingInfoRecord, SourceList, PurchaseRequisition, VendorInvoice, GoodsBatch, GoodsMovementDocument, MaterialValuation, ServiceEntrySheet } from '@/types'
 
 // ── Restaurant extra types ────────────────────────────────────────
 export interface ReservationItem {
@@ -267,7 +267,7 @@ export const vendorApi = {
   },
 
   // ── Storage Locations ───────────────────────────────────────
-  listStorageLocations: async (params: { store_id: string; tree?: boolean; is_active?: boolean }): Promise<{ locations: import('@/types').StorageLocation[] }> => {
+  listStorageLocations: async (params: { store_id: string; plant_id?: string; tree?: boolean; is_active?: boolean }): Promise<{ locations: import('@/types').StorageLocation[] }> => {
     const response = await apiClient.get('/vendors/me/storage-locations', { params })
     return response.data
   },
@@ -284,6 +284,26 @@ export const vendorApi = {
 
   deleteStorageLocation: async (id: string): Promise<void> => {
     await apiClient.delete(`/vendors/me/storage-locations/${id}`)
+  },
+
+  // ── Plants ────────────────────────────────────────────────────
+  listPlants: async (params: { store_id: string; is_active?: boolean }): Promise<{ plants: import('@/types').Plant[] }> => {
+    const response = await apiClient.get('/vendors/me/plants', { params })
+    return response.data
+  },
+
+  createPlant: async (data: Record<string, unknown>): Promise<import('@/types').Plant> => {
+    const response = await apiClient.post('/vendors/me/plants', data)
+    return response.data
+  },
+
+  updatePlant: async (id: string, data: Record<string, unknown>): Promise<import('@/types').Plant> => {
+    const response = await apiClient.put(`/vendors/me/plants/${id}`, data)
+    return response.data
+  },
+
+  deletePlant: async (id: string): Promise<void> => {
+    await apiClient.delete(`/vendors/me/plants/${id}`)
   },
 
   // ── Products ──────────────────────────────────────────────
@@ -359,6 +379,36 @@ export const vendorApi = {
 
   deleteService: async (id: string): Promise<void> => {
     await apiClient.delete(`/vendors/me/services/${id}`)
+  },
+
+  getServiceBOM: async (serviceId: string): Promise<Record<string, unknown>[]> => {
+    const response = await apiClient.get(`/vendors/me/services/${serviceId}/bom`)
+    return response.data
+  },
+
+  putServiceBOM: async (serviceId: string, items: Record<string, unknown>[]): Promise<Record<string, unknown>[]> => {
+    const response = await apiClient.put(`/vendors/me/services/${serviceId}/bom`, items)
+    return response.data
+  },
+
+  getServiceResources: async (serviceId: string): Promise<Record<string, unknown>[]> => {
+    const response = await apiClient.get(`/vendors/me/services/${serviceId}/resources`)
+    return response.data
+  },
+
+  putServiceResources: async (serviceId: string, items: Record<string, unknown>[]): Promise<Record<string, unknown>[]> => {
+    const response = await apiClient.put(`/vendors/me/services/${serviceId}/resources`, items)
+    return response.data
+  },
+
+  getServiceCostSummary: async (serviceId: string): Promise<Record<string, unknown>> => {
+    const response = await apiClient.get(`/vendors/me/services/${serviceId}/cost-summary`)
+    return response.data
+  },
+
+  reserveServiceMaterials: async (serviceId: string, data: { order_id: string; order_type?: string; qty?: number }): Promise<Record<string, unknown>[]> => {
+    const response = await apiClient.post(`/vendors/me/services/${serviceId}/reserve-materials`, data)
+    return response.data
   },
 
   // ── Product Images ──────────────────────────────────────────
@@ -1270,6 +1320,41 @@ export const vendorApi = {
     return response.data
   },
 
+  // ── Business Partners ─────────────────────────────────────────
+  listBusinessPartners: async (params?: Record<string, unknown>) => {
+    const response = await apiClient.get('/vendors/me/business-partners', { params })
+    return response.data as { items: import('@/types').BusinessPartner[]; total: number; page: number; size: number }
+  },
+
+  createBusinessPartner: async (data: Record<string, unknown>) => {
+    const response = await apiClient.post('/vendors/me/business-partners', data)
+    return response.data as import('@/types').BusinessPartner
+  },
+
+  getBusinessPartner: async (id: string) => {
+    const response = await apiClient.get(`/vendors/me/business-partners/${id}`)
+    return response.data as import('@/types').BusinessPartner
+  },
+
+  updateBusinessPartner: async (id: string, data: Record<string, unknown>) => {
+    const response = await apiClient.put(`/vendors/me/business-partners/${id}`, data)
+    return response.data as import('@/types').BusinessPartner
+  },
+
+  addBusinessPartnerRole: async (id: string, role: string, attributes?: Record<string, unknown>) => {
+    const response = await apiClient.post(`/vendors/me/business-partners/${id}/roles`, { role, attributes })
+    return response.data as import('@/types').BusinessPartner
+  },
+
+  removeBusinessPartnerRole: async (id: string, role: string) => {
+    await apiClient.delete(`/vendors/me/business-partners/${id}/roles/${role}`)
+  },
+
+  checkBusinessPartnerDuplicate: async (params: { name: string; phone?: string; email?: string; gstin?: string }) => {
+    const response = await apiClient.get('/vendors/me/business-partners/check-duplicate/', { params })
+    return response.data as import('@/types').BusinessPartner
+  },
+
   // ── Suppliers ──────────────────────────────────────────────────
   listSuppliers: async (params?: Record<string, unknown>): Promise<{ items: Supplier[]; total: number }> => {
     const response = await apiClient.get('/vendors/me/suppliers', { params })
@@ -1333,6 +1418,166 @@ export const vendorApi = {
 
   cancelPurchaseOrder: async (id: string): Promise<PurchaseOrder> => {
     const response = await apiClient.post(`/vendors/me/purchase-orders/${id}/cancel`)
+    return response.data
+  },
+
+  // ── Procurement: Info Records ─────────────────────────────────
+  listInfoRecords: async (params?: Record<string, unknown>) => {
+    const response = await apiClient.get('/vendors/me/procurement/info-records', { params })
+    return response.data
+  },
+  createInfoRecord: async (data: Record<string, unknown>) => {
+    const response = await apiClient.post('/vendors/me/procurement/info-records', data)
+    return response.data
+  },
+  updateInfoRecord: async (id: string, data: Record<string, unknown>) => {
+    const response = await apiClient.put(`/vendors/me/procurement/info-records/${id}`, data)
+    return response.data
+  },
+  deleteInfoRecord: async (id: string) => {
+    await apiClient.delete(`/vendors/me/procurement/info-records/${id}`)
+  },
+
+  // ── Procurement: Source List ──────────────────────────────────
+  listSourceList: async (params?: Record<string, unknown>) => {
+    const response = await apiClient.get('/vendors/me/procurement/source-list', { params })
+    return response.data
+  },
+  createSourceListEntry: async (data: Record<string, unknown>) => {
+    const response = await apiClient.post('/vendors/me/procurement/source-list', data)
+    return response.data
+  },
+  updateSourceListEntry: async (id: string, data: Record<string, unknown>) => {
+    const response = await apiClient.put(`/vendors/me/procurement/source-list/${id}`, data)
+    return response.data
+  },
+  deleteSourceListEntry: async (id: string) => {
+    await apiClient.delete(`/vendors/me/procurement/source-list/${id}`)
+  },
+
+  // ── Procurement: Purchase Requisitions ───────────────────────
+  listRequisitions: async (params?: Record<string, unknown>) => {
+    const response = await apiClient.get('/vendors/me/procurement/requisitions', { params })
+    return response.data
+  },
+  getRequisition: async (id: string) => {
+    const response = await apiClient.get(`/vendors/me/procurement/requisitions/${id}`)
+    return response.data
+  },
+  getProcurementProductContext: async (
+    productId: string,
+    params?: { variant_id?: string; store_id?: string; plant_id?: string },
+  ) => {
+    const response = await apiClient.get(
+      `/vendors/me/procurement/requisitions/product-context/${productId}`,
+      { params },
+    )
+    return response.data
+  },
+  createRequisition: async (data: Record<string, unknown>) => {
+    const response = await apiClient.post('/vendors/me/procurement/requisitions', data)
+    return response.data
+  },
+  updateRequisition: async (id: string, data: Record<string, unknown>) => {
+    const response = await apiClient.put(`/vendors/me/procurement/requisitions/${id}`, data)
+    return response.data
+  },
+  submitRequisition: async (id: string) => {
+    const response = await apiClient.post(`/vendors/me/procurement/requisitions/${id}/submit`)
+    return response.data
+  },
+  approveRequisition: async (id: string, data: Record<string, unknown>) => {
+    const response = await apiClient.post(`/vendors/me/procurement/requisitions/${id}/approve`, data)
+    return response.data
+  },
+  cancelRequisition: async (id: string, reason?: string) => {
+    const response = await apiClient.post(`/vendors/me/procurement/requisitions/${id}/cancel`, { reason })
+    return response.data
+  },
+
+  // ── Procurement: Vendor Invoices (AP) ────────────────────────
+  listVendorInvoices: async (params?: Record<string, unknown>) => {
+    const response = await apiClient.get('/vendors/me/procurement/vendor-invoices', { params })
+    return response.data
+  },
+  createVendorInvoice: async (data: Record<string, unknown>) => {
+    const response = await apiClient.post('/vendors/me/procurement/vendor-invoices', data)
+    return response.data
+  },
+  updateVendorInvoice: async (id: string, data: Record<string, unknown>) => {
+    const response = await apiClient.put(`/vendors/me/procurement/vendor-invoices/${id}`, data)
+    return response.data
+  },
+  postVendorInvoice: async (id: string) => {
+    const response = await apiClient.post(`/vendors/me/procurement/vendor-invoices/${id}/post`)
+    return response.data
+  },
+  matchVendorInvoice: async (id: string, data?: Record<string, unknown>) => {
+    const response = await apiClient.post(`/vendors/me/procurement/vendor-invoices/${id}/match`, data)
+    return response.data
+  },
+  cancelVendorInvoice: async (id: string) => {
+    const response = await apiClient.post(`/vendors/me/procurement/vendor-invoices/${id}/cancel`)
+    return response.data
+  },
+
+  // ── Procurement: Goods Batches ────────────────────────────────
+  listGoodsBatches: async (params?: Record<string, unknown>) => {
+    const response = await apiClient.get('/vendors/me/procurement/goods-batches', { params })
+    return response.data
+  },
+  createGoodsBatch: async (data: Record<string, unknown>) => {
+    const response = await apiClient.post('/vendors/me/procurement/goods-batches', data)
+    return response.data
+  },
+  updateGoodsBatch: async (id: string, data: Record<string, unknown>) => {
+    const response = await apiClient.put(`/vendors/me/procurement/goods-batches/${id}`, data)
+    return response.data
+  },
+
+  // ── Procurement: Goods Movements ─────────────────────────────
+  listGoodsMovements: async (params?: Record<string, unknown>) => {
+    const response = await apiClient.get('/vendors/me/procurement/goods-movements', { params })
+    return response.data
+  },
+  createGoodsMovement: async (data: Record<string, unknown>) => {
+    const response = await apiClient.post('/vendors/me/procurement/goods-movements', data)
+    return response.data
+  },
+
+  // ── Procurement: Material Valuation ──────────────────────────
+  listMaterialValuation: async (params?: Record<string, unknown>) => {
+    const response = await apiClient.get('/vendors/me/procurement/material-valuation', { params })
+    return response.data
+  },
+  upsertMaterialValuation: async (data: Record<string, unknown>) => {
+    const response = await apiClient.post('/vendors/me/procurement/material-valuation', data)
+    return response.data
+  },
+  updateMaterialValuation: async (id: string, data: Record<string, unknown>) => {
+    const response = await apiClient.put(`/vendors/me/procurement/material-valuation/${id}`, data)
+    return response.data
+  },
+
+  // ── Procurement: Service Entry Sheets ────────────────────────
+  listServiceEntrySheets: async (params?: Record<string, unknown>) => {
+    const response = await apiClient.get('/vendors/me/procurement/service-entry-sheets', { params })
+    return response.data
+  },
+  createServiceEntrySheet: async (data: Record<string, unknown>) => {
+    const response = await apiClient.post('/vendors/me/procurement/service-entry-sheets', data)
+    return response.data
+  },
+  updateServiceEntrySheet: async (id: string, data: Record<string, unknown>) => {
+    const response = await apiClient.put(`/vendors/me/procurement/service-entry-sheets/${id}`, data)
+    return response.data
+  },
+  submitServiceEntrySheet: async (id: string) => {
+    const response = await apiClient.post(`/vendors/me/procurement/service-entry-sheets/${id}/submit`)
+    return response.data
+  },
+  approveServiceEntrySheet: async (id: string, data: Record<string, unknown>) => {
+    const response = await apiClient.post(`/vendors/me/procurement/service-entry-sheets/${id}/approve`, data)
     return response.data
   },
 

@@ -14,6 +14,7 @@ import {
 import { useQuery } from '@tanstack/react-query'
 import { vendorApi } from '@/api/vendor'
 import { formatDate, formatCurrency } from '@/lib/utils'
+import { dedupeSuppliers, findExistingSupplier } from '@/lib/supplierUtils'
 import { PhoneInput } from '@/components/ui/PhoneInput'
 import { ResizableTable } from '@/components/table/ResizableTable'
 import type { Product, Service, PurchaseOrder } from '@/types'
@@ -372,6 +373,19 @@ function CreatePOModal({
 
   const handleQuickCreateSupplier = async () => {
     if (!qsName.trim()) return
+    const supplierList = dedupeSuppliers(suppliersData?.items ?? [])
+    const existing = findExistingSupplier(supplierList, {
+      name: qsName,
+      phone: qsPhone || undefined,
+      email: qsEmail || undefined,
+    })
+    if (existing) {
+      setSupplierId(existing.id)
+      setShowQuickSupplier(false)
+      setQsName(''); setQsPhone(''); setQsEmail('')
+      toast.info(`"${existing.name}" already exists — selected existing supplier`)
+      return
+    }
     try {
       const created: any = await createSupplierMut.mutateAsync({
         name: qsName.trim(),
@@ -532,7 +546,7 @@ function CreatePOModal({
               <Select
                 value={supplierId}
                 onChange={setSupplierId}
-                options={selectOptionsWithBlank('Select supplier...', (suppliersData?.items ?? []).map((s) => ({ value: s.id, label: s.name })))}
+                options={selectOptionsWithBlank('Select supplier...', dedupeSuppliers(suppliersData?.items ?? []).map((s) => ({ value: s.id, label: s.name })))}
                 placeholder="Select supplier..."
                 aria-label="Supplier"
                 className="w-full"
@@ -545,7 +559,7 @@ function CreatePOModal({
                     <p className="text-xs font-medium text-blue-700 flex items-center gap-1.5">
                       <Building2 className="w-3.5 h-3.5" /> Quick Create Supplier
                     </p>
-                    <button type="button" aria-label="Close" type="button" onClick={() => setShowQuickSupplier(false)} className="text-gray-400 hover:text-gray-600">
+                    <button type="button" aria-label="Close" onClick={() => setShowQuickSupplier(false)} className="text-gray-400 hover:text-gray-600">
                 <X className="w-3.5 h-3.5" />
                     </button>
                   </div>

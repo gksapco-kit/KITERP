@@ -8,7 +8,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { useService, useServices, useCreateService, useUpdateService, useDeleteService, useCategoryTree, useStores } from '@/hooks/useVendor'
+import { useService, useServices, useCreateService, useUpdateService, useDeleteService, useCategoryTree, useStores, useServiceBOM, useServiceResources } from '@/hooks/useVendor'
 import { vendorApi } from '@/api/vendor'
 import { mediaUrl, cn } from '@/lib/utils'
 import {
@@ -30,7 +30,7 @@ import {
   Clock, Eye, Search, Puzzle, BarChart3, Edit2, History,
   Calendar, MapPin, Star, Globe, Tag, Repeat, Plus, Trash2,
   GripVertical, Film, Box, Image as ImageIcon, Copy, MessageSquare, ToggleRight, Info, Layers, Pencil, FileDown,
-  Printer, Store, Hash,
+  Printer, Store, Hash, Factory, Users,
 } from 'lucide-react'
 import {
   BOOKING_DOC_TYPES, getServiceDocTemplates, setServiceDocTemplates,
@@ -59,6 +59,9 @@ import { normalizeCatalogAddons, serializeCatalogAddons, type CatalogAddon } fro
 import { newPlan, type PlanDraft, type AvailSlot } from './planDraft'
 import { DEFAULT_AVAILABILITY, LEAD_TIME_UNITS, CURRENCY_SYMBOL, UOM_OPTIONS, UOM_GROUPS, SUBSCRIPTION_INTERVALS, SCHEDULE_MODE_OPTIONS, SERVICE_MODE_OPTIONS, SERVICE_TYPE_OPTIONS, DAYS_SHORT } from './serviceCatalogConstants'
 import { ServicePlansEditor } from './ServicePlansEditor'
+import { ServiceBOMEditor } from '@/components/services/ServiceBOMEditor'
+import { ServiceResourcesEditor } from '@/components/services/ServiceResourcesEditor'
+import { ServiceCostSummary } from '@/components/services/ServiceCostSummary'
 
 // ── Lead time helpers ─────────────────────────────────────────────
 
@@ -592,6 +595,8 @@ export default function ServiceForm() {
   const isEdit = !!id
 
   const { data: service, isLoading } = useService(id || '')
+  const { data: serviceBomData } = useServiceBOM(isEdit && id ? id : null)
+  const { data: serviceResourcesData } = useServiceResources(isEdit && id ? id : null)
   const { data: allServicesData } = useServices({ size: 500 })
   const allServices = (allServicesData?.items || []) as Array<{ id: string; name: string }>
   const createService = useCreateService()
@@ -1192,6 +1197,8 @@ export default function ServiceForm() {
   const serviceSections: FormSectionDef[] = useMemo(() => [
     { key: 'basic',             label: 'Basic',             icon: Briefcase, hint: 'Name, type, duration, descriptions, and media.' },
     { key: 'subscription',      label: 'Plans',             icon: Repeat, hint: 'Plan tiers, billing cycle, and trial setup.' },
+    { key: 'serviceBom',        label: 'Service BOM',       icon: Factory, visible: isEdit, hint: 'Materials and products consumed per service delivery.' },
+    { key: 'resources',         label: 'Resources',         icon: Users, visible: isEdit, hint: 'Staff, equipment, and facilities required to perform the service.' },
     { key: 'visibility',        label: 'Visibility',        icon: Eye, hint: 'Status, visibility, and featured flags.' },
     { key: 'storefrontOptions', label: 'Business Front',    icon: Globe, hint: 'Booking rules, quotes, and customer options.' },
     { key: 'seo',               label: 'SEO',               icon: Search, hint: 'Search and social preview metadata.' },
@@ -1224,6 +1231,8 @@ export default function ServiceForm() {
     return [
       { key: 'basic',             label: 'Basic',             icon: Briefcase, hint: 'Name, type, duration, descriptions, and media.' },
       { key: 'subscription',      label: 'Plans',             icon: Repeat, visible: hasPlans, hint: 'Plan tiers, billing cycle, and trial setup.' },
+      { key: 'serviceBom',        label: 'Service BOM',       icon: Factory, hint: 'Materials consumed and estimated material cost.' },
+      { key: 'resources',         label: 'Resources',         icon: Users, hint: 'Staff, equipment, and resource planning.' },
       { key: 'visibility',        label: 'Visibility',        icon: Eye, hint: 'Status, visibility, and featured flags.' },
       { key: 'storefrontOptions', label: 'Business Front',    icon: Globe, hint: 'Booking rules, quotes, and customer options.' },
       { key: 'seo',               label: 'SEO',               icon: Search, visible: hasSeo, hint: 'Search and social preview metadata.' },
@@ -1284,6 +1293,8 @@ export default function ServiceForm() {
     if (svcAddons.length > 0) viewNavCompleted.add('addons')
     if (history.length > 0) viewNavCompleted.add('history')
     viewNavCompleted.add('stats')
+    if ((serviceBomData as unknown[])?.length) viewNavCompleted.add('serviceBom')
+    if ((serviceResourcesData as unknown[])?.length) viewNavCompleted.add('resources')
 
     return (
       <FormPageWithNav activeSectionKey={activeViewTab} nav={null}>
@@ -1655,6 +1666,90 @@ export default function ServiceForm() {
                   </div>
                 )
               })()}
+            </CardContent>
+          </Card>
+        )}
+
+        {showTab('serviceBom') && (
+          <Card>
+            <CardContent className={formDisplayCompact.cardBody}>
+              <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-3 flex items-center gap-1.5">
+                <Factory className="w-3.5 h-3.5" />Service Bill of Materials
+              </p>
+              <ServiceCostSummary serviceId={service.id as string} currency={service.currency} />
+              {(serviceBomData as Record<string, unknown>[] | undefined)?.length ? (
+                <div className="mt-4 border rounded-lg overflow-hidden">
+                  <table className="w-full text-sm">
+                    <thead className="bg-gray-50 text-xs text-gray-500 uppercase">
+                      <tr>
+                        <th className="px-3 py-2 text-left">Material</th>
+                        <th className="px-3 py-2 text-left">Qty</th>
+                        <th className="px-3 py-2 text-left">Unit Cost</th>
+                        <th className="px-3 py-2 text-left">Line Cost</th>
+                        <th className="px-3 py-2 text-left">Auto Reserve</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y">
+                      {(serviceBomData as Record<string, unknown>[]).map((item, i) => (
+                        <tr key={(item.id as string) || i}>
+                          <td className="px-3 py-2">
+                            <span className="font-medium">{item.component_name as string}</span>
+                            {item.component_sku && <span className="text-xs text-gray-400 ml-2">{item.component_sku as string}</span>}
+                          </td>
+                          <td className="px-3 py-2">{item.qty_per_service as number}</td>
+                          <td className="px-3 py-2">{sym}{Number(item.unit_cost ?? 0).toFixed(2)}</td>
+                          <td className="px-3 py-2 font-medium">{sym}{Number(item.line_cost ?? 0).toFixed(2)}</td>
+                          <td className="px-3 py-2">{item.auto_reserve !== false ? 'Yes' : 'No'}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <p className="text-sm text-gray-400 italic mt-2">No materials defined. Edit the service to add a BOM.</p>
+              )}
+            </CardContent>
+          </Card>
+        )}
+
+        {showTab('resources') && (
+          <Card>
+            <CardContent className={formDisplayCompact.cardBody}>
+              <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-3 flex items-center gap-1.5">
+                <Users className="w-3.5 h-3.5" />Service Resources
+              </p>
+              {(serviceResourcesData as Record<string, unknown>[] | undefined)?.length ? (
+                <div className="border rounded-lg overflow-hidden">
+                  <table className="w-full text-sm">
+                    <thead className="bg-gray-50 text-xs text-gray-500 uppercase">
+                      <tr>
+                        <th className="px-3 py-2 text-left">Type</th>
+                        <th className="px-3 py-2 text-left">Resource</th>
+                        <th className="px-3 py-2 text-left">Qty</th>
+                        <th className="px-3 py-2 text-left">Duration</th>
+                        <th className="px-3 py-2 text-left">Rate</th>
+                        <th className="px-3 py-2 text-left">Cost</th>
+                        <th className="px-3 py-2 text-left">Reserve</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y">
+                      {(serviceResourcesData as Record<string, unknown>[]).map((item, i) => (
+                        <tr key={(item.id as string) || i}>
+                          <td className="px-3 py-2 capitalize">{(item.resource_type as string)?.replace('_', ' ')}</td>
+                          <td className="px-3 py-2 font-medium">{item.resource_name as string}</td>
+                          <td className="px-3 py-2">{item.quantity as number}</td>
+                          <td className="px-3 py-2">{item.duration_minutes ? `${item.duration_minutes} min` : '—'}</td>
+                          <td className="px-3 py-2">{sym}{Number(item.cost_rate ?? 0).toFixed(2)}/{(item.cost_type as string) === 'fixed' ? 'fixed' : 'hr'}</td>
+                          <td className="px-3 py-2 font-medium">{sym}{Number(item.line_cost ?? 0).toFixed(2)}</td>
+                          <td className="px-3 py-2">{item.auto_reserve !== false ? 'Yes' : 'No'}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <p className="text-sm text-gray-400 italic">No resources defined. Edit the service to add resource requirements.</p>
+              )}
             </CardContent>
           </Card>
         )}
@@ -2291,6 +2386,29 @@ export default function ServiceForm() {
             )}
           </div>
         </Section>
+
+        {/* Service BOM — materials consumed per delivery */}
+        {isEdit && id && (
+          <Section title="Service BOM" icon={Factory} open={activeTab === 'serviceBom'} onToggle={() => toggle('serviceBom')} sectionId="serviceBom">
+            <div className="pt-2 space-y-4">
+              <ServiceCostSummary serviceId={id} currency={watch('currency')} />
+              <ServiceBOMEditor serviceId={id} serviceName={watch('name')} />
+            </div>
+          </Section>
+        )}
+
+        {/* Resources — staff, equipment, facilities */}
+        {isEdit && id && (
+          <Section title="Resources" icon={Users} open={activeTab === 'resources'} onToggle={() => toggle('resources')} sectionId="resources">
+            <div className="pt-2">
+              <ServiceResourcesEditor
+                serviceId={id}
+                serviceName={watch('name')}
+                defaultDurationMinutes={watch('duration_minutes') ? Number(watch('duration_minutes')) : undefined}
+              />
+            </div>
+          </Section>
+        )}
 
         {/* 11. Print Document Templates */}
         <Section title="Print Documents" icon={Printer} open={activeTab === 'printDocs'} onToggle={() => toggle('printDocs')} sectionId="printDocs">

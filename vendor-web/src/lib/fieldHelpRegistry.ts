@@ -159,11 +159,6 @@ export const FIELD_HELP_BY_LABEL: Record<string, FieldHelpCopy> = {
     hover: 'Keep it strong and private.',
     full: 'Use a strong password you do not reuse elsewhere. It protects your vendor account and business data.',
   },
-  'phone number': {
-    hover: 'Contact number with country code.',
-    full: 'Mobile or landline number for account verification and important alerts. Include country code (e.g. +91 for India).',
-  },
-
   // ── Common commerce / CRM ──
   'customer name': {
     hover: 'Full name of the customer.',

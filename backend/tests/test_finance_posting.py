@@ -152,3 +152,85 @@ async def test_no_accounts_returns_none(db_session, test_vendor):
         {"total": 118, "cgst": 9, "sgst": 9},
     )
     assert je is None
+
+
+# ─── Reconciliation account tests ────────────────────────────────────────────
+
+@pytest.mark.asyncio
+async def test_manual_posting_to_recon_account_blocked(db_session, finance_vendor):
+    """Manual journal to a reconciliation account must raise ValueError."""
+    from app.services.finance.posting import _guard_no_recon_accounts
+
+    # Mark 1130 (Accounts Receivable) as reconciliation account
+    ar_acc = (
+        await db_session.execute(
+            select(FinAccount).where(
+                FinAccount.vendor_id == finance_vendor.id, FinAccount.code == "1130"
+            )
+        )
+    ).scalar_one()
+    ar_acc.is_reconciliation_account = True
+    ar_acc.reconciliation_subledger = "customer"
+    await db_session.flush()
+
+    with pytest.raises(ValueError, match="reconciliation"):
+        await post_event(
+            db_session,
+            finance_vendor.id,
+            "manual",
+            uuid.uuid4(),
+            {"lines": [
+                {"account_id": str(ar_acc.id), "debit": 100, "credit": 0},
+                {"account_id": str(await _account_id_by_code(db_session, finance_vendor.id, "4100")), "debit": 0, "credit": 100},
+            ]},
+        )
+
+
+@pytest.mark.asyncio
+async def test_auto_posting_to_recon_account_succeeds(db_session, finance_vendor):
+    """
+    Invoice auto-posting must succeed even when AR (1130) is a reconciliation account.
+    Subledger auto-posting handlers bypass the guard — only manual entries are blocked.
+    """
+    ar_acc = (
+        await db_session.execute(
+            select(FinAccount).where(
+                FinAccount.vendor_id == finance_vendor.id, FinAccount.code == "1130"
+            )
+        )
+    ).scalar_one()
+    ar_acc.is_reconciliation_account = True
+    ar_acc.reconciliation_subledger = "customer"
+    await db_session.flush()
+
+    je = await post_event(
+        db_session, finance_vendor.id, "invoice", uuid.uuid4(),
+        {"total": 118, "cgst": 9, "sgst": 9},
+    )
+    await db_session.commit()
+
+    assert je is not None, "Invoice auto-posting must succeed even with recon account flag"
+    assert je.status == "posted"
+    assert je.total_debit == je.total_credit
+
+
+@pytest.mark.asyncio
+async def test_non_recon_account_manual_post_allowed(db_session, finance_vendor):
+    """Manual journal to regular (non-reconciliation) accounts must succeed."""
+    sales_id = await _account_id_by_code(db_session, finance_vendor.id, "4100")
+    cash_id  = await _account_id_by_code(db_session, finance_vendor.id, "1110")
+
+    je = await post_event(
+        db_session,
+        finance_vendor.id,
+        "manual",
+        uuid.uuid4(),
+        {"lines": [
+            # Pass UUID objects, not strings: SQLite test harness doesn't coerce str→UUID
+            {"account_id": cash_id,  "debit": 50, "credit": 0,  "narration": "Cash in"},
+            {"account_id": sales_id, "debit": 0,  "credit": 50, "narration": "Revenue"},
+        ]},
+    )
+    await db_session.commit()
+    assert je is not None
+    assert je.total_debit == je.total_credit == 50

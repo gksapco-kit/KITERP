@@ -743,6 +743,7 @@ export interface StorageLocation {
   id: string
   vendor_id: string
   store_id: string
+  plant_id: string
   parent_id?: string | null
   name: string
   code?: string | null
@@ -751,6 +752,61 @@ export interface StorageLocation {
   sort_order: number
   custom_fields: CustomField[]
   children: StorageLocation[]
+  created_at?: string
+  updated_at?: string
+}
+
+// ── Plant ────────────────────────────────────────────────────────
+export interface Plant {
+  id: string
+  vendor_id: string
+  store_id: string
+  name: string
+  code?: string | null
+  description?: string | null
+  address: Record<string, string>
+  is_active: boolean
+  sort_order: number
+  created_at?: string
+  updated_at?: string
+}
+
+// ── Business Partner ────────────────────────────────────────────
+export interface BusinessPartnerRole {
+  id: string
+  role: string
+  customer_id?: string | null
+  supplier_id?: string | null
+  attributes?: Record<string, unknown>
+  is_active: boolean
+  created_at?: string
+}
+
+export interface BusinessPartner {
+  id: string
+  vendor_id: string
+  name: string
+  contact_name?: string | null
+  email?: string | null
+  phone?: string | null
+  gstin?: string | null
+  pan_number?: string | null
+  cin?: string | null
+  company_name?: string | null
+  address?: Record<string, string> | null
+  bank_name?: string | null
+  account_number?: string | null
+  account_holder_name?: string | null
+  account_type?: string | null
+  ifsc_code?: string | null
+  opening_balance?: number
+  notes?: string | null
+  avatar_url?: string | null
+  is_active: boolean
+  party_status: string
+  payment_blocked: boolean
+  hold_until?: string | null
+  roles: BusinessPartnerRole[]
   created_at?: string
   updated_at?: string
 }
@@ -835,6 +891,288 @@ export interface PurchaseOrder {
   closed_at?: string
   items: PurchaseOrderItem[]
   receipts: PurchaseOrderReceipt[]
+}
+
+// ── Procurement: Sourcing ────────────────────────────────────────
+export interface PurchasingInfoRecord {
+  id: string
+  vendor_id: string
+  supplier_id: string
+  product_id: string
+  variant_id?: string | null
+  plant_id?: string | null
+  currency: string
+  price: number
+  price_unit: number
+  min_order_qty: number
+  max_order_qty?: number | null
+  order_unit: string
+  lead_time_days: number
+  planned_delivery_days: number
+  valid_from?: string | null
+  valid_to?: string | null
+  is_active: boolean
+  notes?: string | null
+  // enriched
+  supplier_name?: string
+  supplier_contact_name?: string | null
+  product_name?: string
+  product_sku?: string | null
+  product_description?: string | null
+  created_at?: string
+  updated_at?: string
+}
+
+export interface SourceList {
+  id: string
+  vendor_id: string
+  product_id: string
+  variant_id?: string | null
+  supplier_id: string
+  plant_id?: string | null
+  valid_from?: string | null
+  valid_to?: string | null
+  is_fixed: boolean
+  is_blocked: boolean
+  priority: number
+  notes?: string | null
+  supplier_name?: string
+  supplier_contact_name?: string | null
+  product_name?: string
+  product_sku?: string | null
+  product_description?: string | null
+  created_at?: string
+  updated_at?: string
+}
+
+// ── Procurement: Purchase Requisition ───────────────────────────
+export interface PurchaseRequisitionItem {
+  id: string
+  requisition_id: string
+  line_number?: number
+  item_type?: 'product' | 'service' | 'asset' | 'consumption' | 'other'
+  product_id?: string | null
+  service_id?: string | null
+  variant_id?: string | null
+  description?: string
+  asset_category_id?: string | null
+  quantity: number
+  uom?: string
+  unit_of_measure?: string
+  estimated_price?: number | null
+  plant_id?: string | null
+  storage_location_id?: string | null
+  needed_by_date?: string | null
+  account_assignment?: string | null
+  notes?: string | null
+  converted_qty?: number
+  quantity_ordered?: number
+  product_name?: string
+  product_sku?: string
+  service_name?: string
+  variant_name?: string
+}
+
+export interface PurchaseRequisitionApproval {
+  id: string
+  requisition_id: string
+  approver_id?: string | null
+  approver_name?: string | null
+  level: number
+  status: 'pending' | 'approved' | 'rejected' | 'skipped'
+  comments?: string | null
+  remarks?: string | null
+  actioned_at?: string | null
+  decided_at?: string | null
+  created_at?: string | null
+}
+
+export interface PurchaseRequisition {
+  id: string
+  vendor_id: string
+  pr_number: string
+  status: 'draft' | 'submitted' | 'approved' | 'rejected' | 'partially_converted' | 'converted' | 'cancelled'
+  requisition_type?: 'product' | 'service' | 'asset' | 'consumption' | 'other'
+  priority: 'low' | 'medium' | 'high' | 'urgent'
+  requested_by?: string | null
+  requested_by_name?: string | null
+  department?: string | null
+  store_id?: string | null
+  store_name?: string | null
+  procurement_source?: 'supplier' | 'internal'
+  bu_scope?: 'within_bu' | 'cross_bu' | null
+  from_store_id?: string | null
+  from_store_name?: string | null
+  to_store_id?: string | null
+  to_store_name?: string | null
+  header_supplier_id?: string | null
+  header_supplier_name?: string | null
+  title?: string | null
+  notes?: string | null
+  approver_message?: string | null
+  required_date?: string | null
+  submitted_at?: string | null
+  items: PurchaseRequisitionItem[]
+  approvals: PurchaseRequisitionApproval[]
+  created_at: string
+  updated_at?: string
+}
+
+// ── Procurement: Vendor Invoice (AP) ────────────────────────────
+export interface VendorInvoiceItem {
+  id: string
+  invoice_id: string
+  line_number: number
+  po_item_id?: string | null
+  product_id?: string | null
+  description: string
+  invoiced_qty: number
+  uom: string
+  unit_price: number
+  discount_pct: number
+  hsn_code?: string | null
+  cgst_rate: number
+  sgst_rate: number
+  igst_rate: number
+  cgst_amount: number
+  sgst_amount: number
+  igst_amount: number
+  total: number
+  match_status: string
+  product_name?: string
+}
+
+export interface VendorInvoice {
+  id: string
+  vendor_id: string
+  supplier_id: string
+  purchase_order_id?: string | null
+  invoice_number: string
+  invoice_date: string
+  due_date?: string | null
+  currency: string
+  exchange_rate: number
+  status: 'draft' | 'posted' | 'matched' | 'partial_match' | 'blocked' | 'paid' | 'cancelled'
+  match_status: 'unmatched' | 'matched' | 'partial' | 'blocked_qty' | 'blocked_price'
+  subtotal: number
+  cgst_amount: number
+  sgst_amount: number
+  igst_amount: number
+  total_tax: number
+  total: number
+  amount_paid: number
+  payment_reference?: string | null
+  notes?: string | null
+  posted_at?: string | null
+  paid_at?: string | null
+  supplier_name?: string
+  po_number?: string | null
+  items: VendorInvoiceItem[]
+  created_at: string
+  updated_at?: string
+}
+
+// ── Procurement: Goods Management ───────────────────────────────
+export interface GoodsBatch {
+  id: string
+  vendor_id: string
+  product_id: string
+  variant_id?: string | null
+  plant_id?: string | null
+  storage_location_id?: string | null
+  purchase_order_id?: string | null
+  batch_number: string
+  serial_number?: string | null
+  expiry_date?: string | null
+  manufacture_date?: string | null
+  quantity_received: number
+  quantity_available: number
+  quantity_reserved: number
+  uom: string
+  unit_cost?: number | null
+  quality_status: 'unrestricted' | 'quality_inspection' | 'blocked'
+  source_type: string
+  notes?: string | null
+  product_name?: string
+  created_at?: string
+  updated_at?: string
+}
+
+export interface GoodsMovementLine {
+  id?: string
+  product_id: string
+  variant_id?: string | null
+  batch_id?: string | null
+  quantity: number
+  uom: string
+  unit_cost?: number | null
+  from_plant_id?: string | null
+  from_storage_location_id?: string | null
+  to_plant_id?: string | null
+  to_storage_location_id?: string | null
+  product_name?: string
+}
+
+export interface GoodsMovementDocument {
+  id: string
+  vendor_id: string
+  document_number: string
+  movement_type: string
+  movement_type_label?: string
+  reference_type?: string | null
+  reference_id?: string | null
+  posting_date: string
+  document_date?: string | null
+  plant_id?: string | null
+  storage_location_id?: string | null
+  purchase_order_id?: string | null
+  notes?: string | null
+  created_by_name?: string | null
+  lines: GoodsMovementLine[]
+  created_at?: string
+}
+
+// ── Procurement: Material Valuation ─────────────────────────────
+export interface MaterialValuation {
+  id: string
+  vendor_id: string
+  product_id: string
+  variant_id?: string | null
+  plant_id?: string | null
+  valuation_method: 'moving_average' | 'standard_price'
+  total_stock: number
+  total_value: number
+  moving_avg_price: number
+  standard_price?: number | null
+  currency: string
+  last_updated?: string | null
+  product_name?: string
+  created_at?: string
+  updated_at?: string
+}
+
+// ── Procurement: Service Entry Sheet ────────────────────────────
+export interface ServiceEntrySheet {
+  id: string
+  vendor_id: string
+  supplier_id: string
+  purchase_order_id?: string | null
+  ses_number: string
+  status: 'draft' | 'submitted' | 'approved' | 'rejected' | 'invoiced'
+  service_period_from?: string | null
+  service_period_to?: string | null
+  description?: string | null
+  total_amount: number
+  currency: string
+  submitted_by?: string | null
+  accepted_by?: string | null
+  submitted_at?: string | null
+  accepted_at?: string | null
+  notes?: string | null
+  supplier_name?: string
+  po_number?: string | null
+  created_at?: string
+  updated_at?: string
 }
 
 // ── Invoice Template ────────────────────────────────────────────

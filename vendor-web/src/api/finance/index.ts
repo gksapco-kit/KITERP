@@ -85,11 +85,6 @@ export const updateFieldRule = (id: string, data: Record<string, unknown>) =>
 export const deleteFieldRule = (id: string) =>
   axios.delete(`${BASE}/field-rules/${id}`).then(r => r.data)
 
-// ── Exchange Rates ─────────────────────────────────────────────────────────
-export const listExchangeRates = (params?: Record<string, unknown>) =>
-  axios.get(`${BASE}/exchange-rates`, { params }).then(r => r.data)
-export const createExchangeRate = (data: Record<string, unknown>) =>
-  axios.post(`${BASE}/exchange-rates`, data).then(r => r.data)
 
 // ── Journal Entries ────────────────────────────────────────────────────────
 export const listJournalEntries = (params?: Record<string, unknown>) =>
@@ -265,3 +260,380 @@ export const rejectRequest = (id: string, data: Record<string, unknown>) =>
   axios.post(`${BASE}/controls/approvals/${id}/reject`, data).then(r => r.data)
 export const listAuditLog = (params?: Record<string, unknown>) =>
   axios.get(`${BASE}/audit-log`, { params }).then(r => r.data)
+
+// ── Financial Statement Versions (FSV) ────────────────────────────────────
+export const seedFSV = () => axios.post(`${BASE}/fsv/seed`).then(r => r.data)
+export const listFSV = (params?: { statement_type?: string }) =>
+  axios.get(`${BASE}/fsv`, { params }).then(r => r.data as FsvVersion[])
+export const createFSV = (data: Record<string, unknown>) =>
+  axios.post(`${BASE}/fsv`, data).then(r => r.data as FsvVersion)
+export const updateFSV = (id: string, data: Record<string, unknown>) =>
+  axios.put(`${BASE}/fsv/${id}`, data).then(r => r.data as FsvVersion)
+export const deleteFSV = (id: string) =>
+  axios.delete(`${BASE}/fsv/${id}`)
+
+export const listFsvNodes = (versionId: string) =>
+  axios.get(`${BASE}/fsv/${versionId}/nodes`).then(r => r.data as FsvNode[])
+export const createFsvNode = (versionId: string, data: Record<string, unknown>) =>
+  axios.post(`${BASE}/fsv/${versionId}/nodes`, data).then(r => r.data as FsvNode)
+export const updateFsvNode = (versionId: string, nodeId: string, data: Record<string, unknown>) =>
+  axios.put(`${BASE}/fsv/${versionId}/nodes/${nodeId}`, data).then(r => r.data as FsvNode)
+export const deleteFsvNode = (versionId: string, nodeId: string) =>
+  axios.delete(`${BASE}/fsv/${versionId}/nodes/${nodeId}`)
+export const addFsvNodeAccount = (versionId: string, nodeId: string, data: Record<string, unknown>) =>
+  axios.post(`${BASE}/fsv/${versionId}/nodes/${nodeId}/accounts`, data).then(r => r.data)
+export const removeFsvNodeAccount = (versionId: string, nodeId: string, assignmentId: string) =>
+  axios.delete(`${BASE}/fsv/${versionId}/nodes/${nodeId}/accounts/${assignmentId}`)
+
+export const computeFSV = (versionId: string, params?: { from_date?: string; to_date?: string }) =>
+  axios.get(`${BASE}/fsv/${versionId}/compute`, { params }).then(r => r.data as FsvResult)
+
+// FSV types
+export type FsvVersion = {
+  id: string; vendor_id: string; name: string; statement_type: string
+  description: string | null; is_default: boolean; created_at: string
+}
+export type FsvNode = {
+  id: string; version_id: string; name: string; node_type: string
+  sort_order: number; sign_flip: boolean; bold: boolean
+  indent_level: number; parent_id: string | null
+  account_assignments: { id: string; account_id: string | null; code_from: string | null; code_to: string | null }[]
+}
+export type FsvResultRow = {
+  node_id: string; name: string; node_type: string
+  indent_level: number; bold: boolean; sign_flip: boolean
+  value: number; account_count: number
+}
+export type FsvResult = {
+  version_id: string; version_name: string; statement_type: string
+  from_date: string; to_date: string; rows: FsvResultRow[]
+}
+export const getOpenItems = (params: {
+  account_id: string
+  party_type?: string
+  party_id?: string
+  include_partial?: boolean
+}) => axios.get(`${BASE}/gl/open-items`, { params }).then(r => r.data as OpenItem[])
+
+export const clearOpenItems = (data: {
+  line_ids: string[]
+  clearing_date: string
+  notes?: string
+}) => axios.post(`${BASE}/gl/open-items/clear`, data).then(r => r.data)
+
+export const resetClearing = (batchId: string) =>
+  axios.delete(`${BASE}/gl/open-items/clear/${batchId}`).then(r => r.data)
+
+export const listClearingBatches = (params?: {
+  account_id?: string
+  party_type?: string
+  party_id?: string
+  skip?: number
+  limit?: number
+}) => axios.get(`${BASE}/gl/clearing-batches`, { params }).then(r => r.data as ClearingBatch[])
+
+// ── Types (local to this file) ──────────────────────────────────────────────
+export type OpenItem = {
+  id: string
+  journal_entry_id: string
+  entry_no: string
+  entry_date: string
+  account_id: string
+  party_type: string | null
+  party_id: string | null
+  debit: number
+  credit: number
+  currency: string
+  narration: string
+  ref_doc_type: string | null
+  ref_doc_no: string | null
+  assignment: string | null
+  open_item_status: 'open' | 'partial' | 'cleared'
+  source_type: string
+}
+
+export type ClearingBatch = {
+  id: string
+  vendor_id: string
+  account_id: string
+  clearing_ref: string
+  clearing_date: string
+  party_type: string | null
+  party_id: string | null
+  line_count: number
+  total_debit: number
+  total_credit: number
+  notes: string | null
+  created_at: string
+}
+
+// ── Posting Keys ─────────────────────────────────────────────────────────────
+export interface PostingKey {
+  id: string
+  code: string
+  name: string
+  side: 'debit' | 'credit'
+  account_type: string | null
+  reversal_key: string | null
+  is_active: boolean
+}
+
+export const seedPostingKeys = () =>
+  axios.post(`${BASE}/posting-keys/seed`).then(r => r.data)
+export const listPostingKeys = () =>
+  axios.get(`${BASE}/posting-keys`).then(r => r.data as PostingKey[])
+export const createPostingKey = (data: Omit<PostingKey, 'id' | 'is_active'>) =>
+  axios.post(`${BASE}/posting-keys`, data).then(r => r.data as PostingKey)
+export const deletePostingKey = (id: string) =>
+  axios.delete(`${BASE}/posting-keys/${id}`)
+
+// ── Field Status Groups ───────────────────────────────────────────────────────
+export interface FieldStatusRule {
+  field_name: string
+  status: 'required' | 'optional' | 'suppressed'
+}
+export interface FieldStatusGroup {
+  id: string
+  code: string
+  name: string
+  rules: FieldStatusRule[]
+}
+
+export const seedFieldStatusGroups = () =>
+  axios.post(`${BASE}/field-status-groups/seed`).then(r => r.data)
+export const listFieldStatusGroups = () =>
+  axios.get(`${BASE}/field-status-groups`).then(r => r.data as FieldStatusGroup[])
+export const createFieldStatusGroup = (data: Omit<FieldStatusGroup, 'id'>) =>
+  axios.post(`${BASE}/field-status-groups`, data).then(r => r.data as FieldStatusGroup)
+export const deleteFieldStatusGroup = (id: string) =>
+  axios.delete(`${BASE}/field-status-groups/${id}`)
+
+// ── Tolerance Groups ──────────────────────────────────────────────────────────
+export interface ToleranceGroup {
+  id: string
+  code: string
+  name: string
+  max_line_amount: number | null
+  max_document_amount: number | null
+  payment_diff_abs: number | null
+  payment_diff_pct: number | null
+  currency: string
+}
+
+export const seedToleranceGroup = () =>
+  axios.post(`${BASE}/tolerance-groups/seed`).then(r => r.data)
+export const listToleranceGroups = () =>
+  axios.get(`${BASE}/tolerance-groups`).then(r => r.data as ToleranceGroup[])
+export const createToleranceGroup = (data: Omit<ToleranceGroup, 'id'>) =>
+  axios.post(`${BASE}/tolerance-groups`, data).then(r => r.data as ToleranceGroup)
+export const updateToleranceGroup = (id: string, data: Omit<ToleranceGroup, 'id'>) =>
+  axios.put(`${BASE}/tolerance-groups/${id}`, data).then(r => r.data as ToleranceGroup)
+export const deleteToleranceGroup = (id: string) =>
+  axios.delete(`${BASE}/tolerance-groups/${id}`)
+
+// ── Profit Centers ────────────────────────────────────────────────────────────
+export interface ProfitCenter {
+  id: string
+  code: string
+  name: string
+  description: string | null
+  parent_id: string | null
+  manager: string | null
+  is_active: boolean
+}
+export interface PnlRow {
+  dimension_id: string | null
+  dimension_name: string
+  income: number
+  expense: number
+  net: number
+}
+
+export const listProfitCenters = () =>
+  axios.get(`${BASE}/profit-centers`).then(r => r.data as ProfitCenter[])
+export const createProfitCenter = (data: Omit<ProfitCenter, 'id' | 'is_active'>) =>
+  axios.post(`${BASE}/profit-centers`, data).then(r => r.data as ProfitCenter)
+export const updateProfitCenter = (id: string, data: Omit<ProfitCenter, 'id' | 'is_active'>) =>
+  axios.put(`${BASE}/profit-centers/${id}`, data).then(r => r.data as ProfitCenter)
+export const deleteProfitCenter = (id: string) =>
+  axios.delete(`${BASE}/profit-centers/${id}`)
+export const getProfitCenterPnl = (params: { from_date: string; to_date: string }) =>
+  axios.get(`${BASE}/profit-centers/pnl`, { params }).then(r => r.data as PnlRow[])
+
+// ── Segments ──────────────────────────────────────────────────────────────────
+export interface Segment {
+  id: string
+  code: string
+  name: string
+  description: string | null
+  is_active: boolean
+}
+
+export const listSegments = () =>
+  axios.get(`${BASE}/segments`).then(r => r.data as Segment[])
+export const createSegment = (data: Omit<Segment, 'id' | 'is_active'>) =>
+  axios.post(`${BASE}/segments`, data).then(r => r.data as Segment)
+export const deleteSegment = (id: string) =>
+  axios.delete(`${BASE}/segments/${id}`)
+export const getSegmentPnl = (params: { from_date: string; to_date: string }) =>
+  axios.get(`${BASE}/segments/pnl`, { params }).then(r => r.data as PnlRow[])
+
+// ── Exchange Rates ────────────────────────────────────────────────────────────
+export interface ExchangeRate {
+  id: string
+  from_currency: string
+  to_currency: string
+  rate: string
+  rate_date: string
+  rate_type: string
+}
+export interface FxRevalRun {
+  id: string
+  currency: string
+  run_date: string
+  rate_used: string
+  total_gain: string
+  total_loss: string
+  status: string
+  created_at: string | null
+}
+export interface CarryForwardEntry {
+  id: string
+  account_id: string
+  from_fiscal_year: number
+  to_fiscal_year: number
+  closing_balance: string
+  carried_forward_at: string | null
+}
+
+export const upsertExchangeRate = (data: { from_currency: string; to_currency: string; rate: number; rate_date: string; rate_type?: string }) =>
+  axios.post(`${BASE}/fx/rates`, data).then(r => r.data as ExchangeRate)
+export const listExchangeRates = (params?: { from_currency?: string; to_currency?: string }) =>
+  axios.get(`${BASE}/fx/rates`, { params }).then(r => r.data as ExchangeRate[])
+export const simulateFxReval = (data: { currency: string; run_date: string; local_currency?: string; rate_type?: string }) =>
+  axios.post(`${BASE}/fx/reval/simulate`, data).then(r => r.data as FxRevalRun)
+export const listFxRevalRuns = () =>
+  axios.get(`${BASE}/fx/reval`).then(r => r.data as FxRevalRun[])
+export const runCarryForward = (data: { from_fiscal_year: number; to_fiscal_year: number }) =>
+  axios.post(`${BASE}/fx/carry-forward`, data).then(r => r.data)
+export const listCarryForwards = (fiscal_year?: number) =>
+  axios.get(`${BASE}/fx/carry-forward`, { params: fiscal_year ? { fiscal_year } : undefined }).then(r => r.data as CarryForwardEntry[])
+
+// ── Validation Rules ──────────────────────────────────────────────────────────
+export interface ValidationRule {
+  id: string
+  name: string
+  description: string | null
+  call_point: string
+  prerequisite_expr: string | null
+  check_expr: string
+  error_message: string
+  is_active: boolean
+  sort_order: number
+}
+export const listValidations = () => axios.get(`${BASE}/validations`).then(r => r.data as ValidationRule[])
+export const createValidation = (data: Omit<ValidationRule, 'id' | 'is_active'>) => axios.post(`${BASE}/validations`, data).then(r => r.data as ValidationRule)
+export const updateValidation = (id: string, data: Omit<ValidationRule, 'id' | 'is_active'>) => axios.put(`${BASE}/validations/${id}`, data).then(r => r.data as ValidationRule)
+export const deleteValidation = (id: string) => axios.delete(`${BASE}/validations/${id}`)
+
+// ── Substitution Rules ────────────────────────────────────────────────────────
+export interface SubstitutionRule {
+  id: string
+  name: string
+  description: string | null
+  call_point: string
+  prerequisite_expr: string | null
+  target_field: string
+  substitution_expr: string
+  is_active: boolean
+  sort_order: number
+}
+export const listSubstitutions = () => axios.get(`${BASE}/substitutions`).then(r => r.data as SubstitutionRule[])
+export const createSubstitution = (data: Omit<SubstitutionRule, 'id' | 'is_active'>) => axios.post(`${BASE}/substitutions`, data).then(r => r.data as SubstitutionRule)
+export const deleteSubstitution = (id: string) => axios.delete(`${BASE}/substitutions/${id}`)
+
+// ── Number Ranges ─────────────────────────────────────────────────────────────
+export interface NumberRange {
+  id: string
+  document_type: string
+  fiscal_year: number
+  number_from: number
+  number_to: number
+  current_number: number
+  prefix: string | null
+  is_external: boolean
+}
+export const seedNumberRanges = (fiscal_year: number) => axios.post(`${BASE}/number-ranges/seed`, null, { params: { fiscal_year } }).then(r => r.data)
+export const listNumberRanges = () => axios.get(`${BASE}/number-ranges`).then(r => r.data as NumberRange[])
+export const createNumberRange = (data: Omit<NumberRange, 'id' | 'current_number'>) => axios.post(`${BASE}/number-ranges`, data).then(r => r.data as NumberRange)
+
+// ── Document Splitting ────────────────────────────────────────────────────────
+export interface SplitRule {
+  id: string
+  name: string
+  dimension: string
+  split_method: string
+  is_active: boolean
+  base_account_types: string[]
+}
+export interface SplitItem {
+  id: string
+  journal_line_id: string
+  profit_center_id: string | null
+  segment_id: string | null
+  cost_center_id: string | null
+  debit: string
+  credit: string
+  split_pct: string
+}
+
+export const listSplitRules = () => axios.get(`${BASE}/split-rules`).then(r => r.data as SplitRule[])
+export const createSplitRule = (data: Omit<SplitRule, 'id' | 'is_active'>) => axios.post(`${BASE}/split-rules`, data).then(r => r.data as SplitRule)
+export const deleteSplitRule = (id: string) => axios.delete(`${BASE}/split-rules/${id}`)
+export const getSplitItems = (jeId: string) => axios.get(`${BASE}/split-items/${jeId}`).then(r => r.data as SplitItem[])
+export const applyDocumentSplit = (jeId: string) => axios.post(`${BASE}/split-rules/apply/${jeId}`).then(r => r.data)
+
+// ── Parallel Ledgers ──────────────────────────────────────────────────────────
+export interface Ledger {
+  id: string
+  code: string
+  name: string
+  description: string | null
+  is_leading: boolean
+  currency: string
+  is_active: boolean
+}
+export interface LedgerAssignment {
+  id: string
+  ledger_id: string
+  company_id: string
+  is_active: boolean
+}
+export interface LedgerTrialBalanceRow {
+  account_id: string
+  account_code: string
+  account_name: string
+  account_type: string
+  debit: string
+  credit: string
+  net: string
+}
+
+export const listLedgers = () => axios.get(`${BASE}/ledgers`).then(r => r.data as Ledger[])
+export const createLedger = (data: Omit<Ledger, 'id' | 'is_active'>) => axios.post(`${BASE}/ledgers`, data).then(r => r.data as Ledger)
+export const updateLedger = (id: string, data: Partial<Ledger>) => axios.patch(`${BASE}/ledgers/${id}`, data).then(r => r.data as Ledger)
+export const deleteLedger = (id: string) => axios.delete(`${BASE}/ledgers/${id}`)
+export const listLedgerAssignments = (params?: { company_id?: string; ledger_id?: string }) =>
+  axios.get(`${BASE}/ledger-assignments`, { params }).then(r => r.data as LedgerAssignment[])
+export const assignLedger = (data: { ledger_id: string; company_id: string }) =>
+  axios.post(`${BASE}/ledger-assignments`, data).then(r => r.data as LedgerAssignment)
+export const removeAssignment = (id: string) => axios.delete(`${BASE}/ledger-assignments/${id}`)
+export const getLedgerTrialBalance = (ledgerId: string, fiscalYearId?: string) =>
+  axios.get(`${BASE}/ledger-trial-balance/${ledgerId}`, { params: fiscalYearId ? { fiscal_year_id: fiscalYearId } : {} })
+    .then(r => r.data as LedgerTrialBalanceRow[])
+
+
+
+
+
+

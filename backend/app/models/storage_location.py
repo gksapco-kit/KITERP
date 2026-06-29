@@ -15,6 +15,7 @@ class StorageLocation(Base):
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     vendor_id = Column(UUID(as_uuid=True), ForeignKey("vendor.id", ondelete="CASCADE"), nullable=False)
     store_id = Column(UUID(as_uuid=True), ForeignKey("store.id", ondelete="CASCADE"), nullable=False)
+    plant_id = Column(UUID(as_uuid=True), ForeignKey("plant.id", ondelete="CASCADE"), nullable=False)
     parent_id = Column(UUID(as_uuid=True), ForeignKey("storage_location.id", ondelete="CASCADE"), nullable=True)
 
     name = Column(String(200), nullable=False)
@@ -31,6 +32,7 @@ class StorageLocation(Base):
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
     store = relationship("Store", lazy="noload")
+    plant = relationship("Plant", back_populates="storage_locations", lazy="noload")
     parent = relationship("StorageLocation", remote_side=[id], back_populates="children", lazy="noload")
     children = relationship(
         "StorageLocation",
@@ -42,6 +44,7 @@ class StorageLocation(Base):
     __table_args__ = (
         Index("idx_storage_location_vendor", "vendor_id"),
         Index("idx_storage_location_store", "vendor_id", "store_id"),
+        Index("idx_storage_location_plant", "vendor_id", "plant_id"),
         Index("idx_storage_location_parent", "vendor_id", "store_id", "parent_id"),
         Index("idx_storage_location_store_code", "store_id", "code", unique=True),
     )

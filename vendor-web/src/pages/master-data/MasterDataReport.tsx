@@ -9,8 +9,9 @@ import { useNavigate } from 'react-router-dom'
 import {
   useCustomers, useSuppliers,
   useUpdateSupplier, useDeleteSupplier, useUpdateCustomer, useDeleteCustomer,
-  usePurchaseOrders,
+  usePurchaseOrders, useAddBusinessPartnerRole, useBusinessPartners,
 } from '@/hooks/useVendor'
+import type { BusinessPartner } from '@/types'
 import { AddPartyModal } from '@/components/parties/AddPartyModal'
 import { ConfirmDialog } from '@/components/common/ConfirmDialog'
 import { Button } from '@/components/ui/button'
@@ -26,7 +27,7 @@ import {
   Filter, RefreshCw, ArrowUpDown, X, Pencil, Trash2, Trash,
   Mail, Phone, MapPin, Calendar, ClipboardList, Package, FileText,
   ArrowRight, Building2, AlertCircle, RotateCcw, ShieldAlert, AlertTriangle,
-  Loader2, IndianRupee, ShoppingBag, TrendingUp,
+  Loader2, IndianRupee, ShoppingBag, TrendingUp, Copy,
 } from 'lucide-react'
 import { toast } from 'sonner'
 
@@ -581,6 +582,24 @@ function CustomerEditModal({
 
 // ── MasterDataDrawer ──────────────────────────────────────────────────────────
 
+const ROLE_LABELS: Record<string, string> = {
+  customer: 'Customer',
+  vendor: 'Vendor',
+  supplier: 'Vendor',
+  employee: 'Employee',
+  partner: 'Partner',
+  contractor: 'Contractor',
+}
+const ROLE_COLORS: Record<string, string> = {
+  customer: 'bg-blue-100 text-blue-700 border-blue-200',
+  vendor: 'bg-purple-100 text-purple-700 border-purple-200',
+  supplier: 'bg-purple-100 text-purple-700 border-purple-200',
+  employee: 'bg-green-100 text-green-700 border-green-200',
+  partner: 'bg-amber-100 text-amber-700 border-amber-200',
+  contractor: 'bg-orange-100 text-orange-700 border-orange-200',
+}
+const ALL_BP_ROLES = ['customer', 'vendor', 'employee', 'partner', 'contractor']
+
 function MasterDataDrawer({
  record, onClose, onEdit }: {
   record: MasterRecord
@@ -590,11 +609,33 @@ function MasterDataDrawer({
   const updateSupplier = useUpdateSupplier()
   const deleteSupplier = useDeleteSupplier()
   const updateCustomer = useUpdateCustomer()
+  const addRoleMut = useAddBusinessPartnerRole()
 
   const supplier = record.kind === 'supplier' ? record.raw as Supplier : null
   const customer = record.kind === 'customer' ? record.raw as Customer : null
   const sx       = record.raw as unknown as Record<string, unknown>
   const stCfg    = STATUS_CFG[record.masterStatus] as { label: string; bg: string; text: string; dot: string }
+
+  // Business Partner link — look up by this record's id as customer_id or supplier_id
+  const bpRecordId = record.id
+  const { data: bpData } = useBusinessPartners({ size: 200 })
+  const linkedBP: BusinessPartner | undefined = (bpData?.items ?? []).find((bp: BusinessPartner) =>
+    bp.roles.some(r =>
+      r.customer_id === bpRecordId || r.supplier_id === bpRecordId
+    )
+  )
+  const existingRoles = linkedBP?.roles.map(r => r.role) ?? [record.kind === 'customer' ? 'customer' : (supplier?.party_type ?? 'vendor')]
+  const [extendingTo, setExtendingTo] = useState<string | null>(null)
+
+  const handleExtendRole = async (role: string) => {
+    if (!linkedBP) return
+    setExtendingTo(role)
+    try {
+      await addRoleMut.mutateAsync({ id: linkedBP.id, role })
+    } finally {
+      setExtendingTo(null)
+    }
+  }
 
   const [showHoldForm,    setShowHoldForm]    = useState(false)
   const [holdUntilDate,   setHoldUntilDate]   = useState((sx.hold_until as string) || '')
@@ -661,6 +702,29 @@ function MasterDataDrawer({
                   <span className={`w-1.5 h-1.5 rounded-full ${stCfg.dot}`} />
                   {stCfg.label}
                 </span>
+              </div>
+              <div className="flex items-center gap-1.5 mt-1.5 min-w-0 max-w-[280px]">
+                <span className="text-[10px] font-medium uppercase tracking-wide text-gray-400 shrink-0">Master ID</span>
+                <code className="text-[11px] font-mono text-gray-600 truncate" title={record.id}>{record.id}</code>
+                <button
+                  type="button"
+                  aria-label="Copy master ID"
+                  onClick={() => {
+                    navigator.clipboard.writeText(record.id)
+                    toast.success('Master ID copied')
+                  }}
+                  className="p-1 rounded hover:bg-gray-100 shrink-0"
+                >
+                  <Copy className="w-3 h-3 text-gray-400" />
+                </button>
+              </div>
+              {/* Roles row */}
+              <div className="flex flex-wrap items-center gap-1 mt-1.5">
+                {existingRoles.map(r => (
+                  <span key={r} className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full border ${ROLE_COLORS[r] ?? 'bg-gray-100 text-gray-600 border-gray-200'}`}>
+                    {ROLE_LABELS[r] ?? r}
+                  </span>
+                ))}
               </div>
             </div>
           </div>
@@ -882,6 +946,40 @@ function MasterDataDrawer({
               </div>
             </div>
           </div>
+
+          {/* ── Extend To (Business Partner role assignment) ── */}
+          {linkedBP && (
+            <div>
+              <h3 className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-3 flex items-center gap-1.5">
+                <Link2 className="w-3.5 h-3.5" /> Extend To (Add Role)
+              </h3>
+              <div className="bg-gray-50 rounded-lg p-4">
+                <p className="text-xs text-gray-500 mb-3">
+                  This party is linked to Business Partner <code className="font-mono text-gray-600">{linkedBP.id.slice(0, 8)}…</code>.
+                  Add another role to reuse the same master record.
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  {ALL_BP_ROLES.filter(r => !existingRoles.includes(r)).map(role => (
+                    <button
+                      key={role}
+                      type="button"
+                      disabled={extendingTo !== null}
+                      onClick={() => handleExtendRole(role)}
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-dashed border-primary/40 text-primary text-xs font-medium hover:bg-primary/10 hover:border-primary transition-all disabled:opacity-50"
+                    >
+                      {extendingTo === role
+                        ? <Loader2 className="w-3 h-3 animate-spin" />
+                        : <Plus className="w-3 h-3" />}
+                      {ROLE_LABELS[role] ?? role}
+                    </button>
+                  ))}
+                  {ALL_BP_ROLES.filter(r => !existingRoles.includes(r)).length === 0 && (
+                    <p className="text-xs text-gray-400">All roles already assigned.</p>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* ── Status & Access Controls ── */}
           <div>

@@ -706,7 +706,7 @@ export default function ManufacturingOrderDetailPage() {
 
               <div className="min-w-0"><h2 className="text-lg font-semibold text-gray-900">Change Order Status</h2></div>
 
-              <button type="button" aria-label="Close"
+              <button
                 type="button"
                 onClick={() => setShowTransition(false)}
                 className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors shrink-0"

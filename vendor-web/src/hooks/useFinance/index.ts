@@ -608,3 +608,471 @@ export const useRejectRequest = () => {
 
 export const useAuditLog = (params?: Record<string, unknown>) =>
   useQuery({ queryKey: finKeys.auditLog(params), queryFn: () => api.listAuditLog(params) })
+
+// ── Financial Statement Versions (FSV) ─────────────────────────────────────
+export const useFsvList = (params?: { statement_type?: string }) =>
+  useQuery({ queryKey: ['finance', 'fsv', params], queryFn: () => api.listFSV(params) })
+
+export const useSeedFsv = () => {
+  const qc = useQueryClient()
+  return useMutation({ mutationFn: api.seedFSV, onSuccess: () => qc.invalidateQueries({ queryKey: ['finance', 'fsv'] }) })
+}
+
+export const useCreateFsv = () => {
+  const qc = useQueryClient()
+  return useMutation({ mutationFn: api.createFSV, onSuccess: () => qc.invalidateQueries({ queryKey: ['finance', 'fsv'] }) })
+}
+
+export const useUpdateFsv = () => {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, data }: { id: string; data: Record<string, unknown> }) => api.updateFSV(id, data),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['finance', 'fsv'] }),
+  })
+}
+
+export const useDeleteFsv = () => {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) => api.deleteFSV(id),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['finance', 'fsv'] }),
+  })
+}
+
+export const useFsvNodes = (versionId: string) =>
+  useQuery({
+    queryKey: ['finance', 'fsv-nodes', versionId],
+    queryFn: () => api.listFsvNodes(versionId),
+    enabled: !!versionId,
+  })
+
+export const useCreateFsvNode = (versionId: string) => {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (data: Record<string, unknown>) => api.createFsvNode(versionId, data),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['finance', 'fsv-nodes', versionId] }),
+  })
+}
+
+export const useDeleteFsvNode = (versionId: string) => {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (nodeId: string) => api.deleteFsvNode(versionId, nodeId),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['finance', 'fsv-nodes', versionId] }),
+  })
+}
+
+export const useComputeFsv = (
+  versionId: string,
+  params?: { from_date?: string; to_date?: string },
+  enabled = true,
+) =>
+  useQuery({
+    queryKey: ['finance', 'fsv-compute', versionId, params],
+    queryFn: () => api.computeFSV(versionId, params),
+    enabled: enabled && !!versionId,
+  })
+
+// ── GL Open-Item Management & Clearing ─────────────────────────────────────
+export const useOpenItems = (params: {
+  account_id: string
+  party_type?: string
+  party_id?: string
+  include_partial?: boolean
+}, enabled = true) =>
+  useQuery({
+    queryKey: ['finance', 'open-items', params],
+    queryFn: () => api.getOpenItems(params),
+    enabled: enabled && !!params.account_id,
+  })
+
+export const useClearOpenItems = () => {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: api.clearOpenItems,
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['finance', 'open-items'] })
+      qc.invalidateQueries({ queryKey: ['finance', 'clearing-batches'] })
+    },
+  })
+}
+
+export const useResetClearing = () => {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: api.resetClearing,
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['finance', 'open-items'] })
+      qc.invalidateQueries({ queryKey: ['finance', 'clearing-batches'] })
+    },
+  })
+}
+
+export const useClearingBatches = (params?: {
+  account_id?: string
+  party_type?: string
+  party_id?: string
+}) =>
+  useQuery({
+    queryKey: ['finance', 'clearing-batches', params],
+    queryFn: () => api.listClearingBatches(params),
+  })
+
+// ── Posting Keys ───────────────────────────────────────────────────────────
+export const usePostingKeys = () =>
+  useQuery({ queryKey: ['finance', 'posting-keys'], queryFn: api.listPostingKeys })
+
+export const useSeedPostingKeys = () => {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: api.seedPostingKeys,
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['finance', 'posting-keys'] }),
+  })
+}
+
+export const useCreatePostingKey = () => {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: api.createPostingKey,
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['finance', 'posting-keys'] }),
+  })
+}
+
+export const useDeletePostingKey = () => {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) => api.deletePostingKey(id),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['finance', 'posting-keys'] }),
+  })
+}
+
+// ── Field Status Groups ────────────────────────────────────────────────────
+export const useFieldStatusGroups = () =>
+  useQuery({ queryKey: ['finance', 'field-status-groups'], queryFn: api.listFieldStatusGroups })
+
+export const useSeedFieldStatusGroups = () => {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: api.seedFieldStatusGroups,
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['finance', 'field-status-groups'] }),
+  })
+}
+
+export const useCreateFieldStatusGroup = () => {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: api.createFieldStatusGroup,
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['finance', 'field-status-groups'] }),
+  })
+}
+
+export const useDeleteFieldStatusGroup = () => {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) => api.deleteFieldStatusGroup(id),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['finance', 'field-status-groups'] }),
+  })
+}
+
+// ── Tolerance Groups ───────────────────────────────────────────────────────
+export const useToleranceGroups = () =>
+  useQuery({ queryKey: ['finance', 'tolerance-groups'], queryFn: api.listToleranceGroups })
+
+export const useSeedToleranceGroup = () => {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: api.seedToleranceGroup,
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['finance', 'tolerance-groups'] }),
+  })
+}
+
+export const useCreateToleranceGroup = () => {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: api.createToleranceGroup,
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['finance', 'tolerance-groups'] }),
+  })
+}
+
+export const useUpdateToleranceGroup = () => {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, data }: { id: string; data: Parameters<typeof api.updateToleranceGroup>[1] }) =>
+      api.updateToleranceGroup(id, data),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['finance', 'tolerance-groups'] }),
+  })
+}
+
+export const useDeleteToleranceGroup = () => {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) => api.deleteToleranceGroup(id),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['finance', 'tolerance-groups'] }),
+  })
+}
+
+// ── Profit Centers ─────────────────────────────────────────────────────────
+export const useProfitCenters = () =>
+  useQuery({ queryKey: ['finance', 'profit-centers'], queryFn: api.listProfitCenters })
+
+export const useCreateProfitCenter = () => {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: api.createProfitCenter,
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['finance', 'profit-centers'] }),
+  })
+}
+
+export const useUpdateProfitCenter = () => {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, data }: { id: string; data: Parameters<typeof api.updateProfitCenter>[1] }) =>
+      api.updateProfitCenter(id, data),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['finance', 'profit-centers'] }),
+  })
+}
+
+export const useDeleteProfitCenter = () => {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) => api.deleteProfitCenter(id),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['finance', 'profit-centers'] }),
+  })
+}
+
+export const useProfitCenterPnl = (params: { from_date: string; to_date: string } | null) =>
+  useQuery({
+    queryKey: ['finance', 'pc-pnl', params],
+    queryFn: () => api.getProfitCenterPnl(params!),
+    enabled: !!params,
+  })
+
+// ── Segments ───────────────────────────────────────────────────────────────
+export const useSegments = () =>
+  useQuery({ queryKey: ['finance', 'segments'], queryFn: api.listSegments })
+
+export const useCreateSegment = () => {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: api.createSegment,
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['finance', 'segments'] }),
+  })
+}
+
+export const useDeleteSegment = () => {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) => api.deleteSegment(id),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['finance', 'segments'] }),
+  })
+}
+
+export const useSegmentPnl = (params: { from_date: string; to_date: string } | null) =>
+  useQuery({
+    queryKey: ['finance', 'seg-pnl', params],
+    queryFn: () => api.getSegmentPnl(params!),
+    enabled: !!params,
+  })
+
+// ── Exchange Rates ─────────────────────────────────────────────────────────
+export const useExchangeRates = (params?: { from_currency?: string; to_currency?: string }) =>
+  useQuery({ queryKey: ['finance', 'fx-rates', params], queryFn: () => api.listExchangeRates(params) })
+
+export const useUpsertExchangeRate = () => {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: api.upsertExchangeRate,
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['finance', 'fx-rates'] }),
+  })
+}
+
+export const useFxRevalRuns = () =>
+  useQuery({ queryKey: ['finance', 'fx-reval-runs'], queryFn: api.listFxRevalRuns })
+
+export const useSimulateFxReval = () => {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: api.simulateFxReval,
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['finance', 'fx-reval-runs'] }),
+  })
+}
+
+export const useCarryForwards = (fiscal_year?: number) =>
+  useQuery({ queryKey: ['finance', 'carry-forwards', fiscal_year], queryFn: () => api.listCarryForwards(fiscal_year) })
+
+export const useRunCarryForward = () => {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: api.runCarryForward,
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['finance', 'carry-forwards'] }),
+  })
+}
+
+// ── Validation Rules ───────────────────────────────────────────────────────
+export const useValidationRules = () =>
+  useQuery({ queryKey: ['finance', 'validations'], queryFn: api.listValidations })
+
+export const useCreateValidationRule = () => {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: api.createValidation,
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['finance', 'validations'] }),
+  })
+}
+
+export const useUpdateValidationRule = () => {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, data }: { id: string; data: Parameters<typeof api.updateValidation>[1] }) =>
+      api.updateValidation(id, data),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['finance', 'validations'] }),
+  })
+}
+
+export const useDeleteValidationRule = () => {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) => api.deleteValidation(id),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['finance', 'validations'] }),
+  })
+}
+
+// ── Substitution Rules ─────────────────────────────────────────────────────
+export const useSubstitutionRules = () =>
+  useQuery({ queryKey: ['finance', 'substitutions'], queryFn: api.listSubstitutions })
+
+export const useCreateSubstitutionRule = () => {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: api.createSubstitution,
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['finance', 'substitutions'] }),
+  })
+}
+
+export const useDeleteSubstitutionRule = () => {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) => api.deleteSubstitution(id),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['finance', 'substitutions'] }),
+  })
+}
+
+// ── Number Ranges ──────────────────────────────────────────────────────────
+export const useNumberRanges = () =>
+  useQuery({ queryKey: ['finance', 'number-ranges'], queryFn: api.listNumberRanges })
+
+export const useSeedNumberRanges = () => {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (fy: number) => api.seedNumberRanges(fy),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['finance', 'number-ranges'] }),
+  })
+}
+
+export const useCreateNumberRange = () => {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: api.createNumberRange,
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['finance', 'number-ranges'] }),
+  })
+}
+
+// ── Document Splitting ─────────────────────────────────────────────────────
+export const useSplitRules = () =>
+  useQuery({ queryKey: ['finance', 'split-rules'], queryFn: api.listSplitRules })
+
+export const useCreateSplitRule = () => {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: api.createSplitRule,
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['finance', 'split-rules'] }),
+  })
+}
+
+export const useDeleteSplitRule = () => {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) => api.deleteSplitRule(id),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['finance', 'split-rules'] }),
+  })
+}
+
+export const useSplitItems = (jeId: string | null) =>
+  useQuery({
+    queryKey: ['finance', 'split-items', jeId],
+    queryFn: () => api.getSplitItems(jeId!),
+    enabled: !!jeId,
+  })
+
+export const useApplyDocumentSplit = () => {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (jeId: string) => api.applyDocumentSplit(jeId),
+    onSuccess: (_, jeId) => qc.invalidateQueries({ queryKey: ['finance', 'split-items', jeId] }),
+  })
+}
+
+// ── Parallel Ledgers ──────────────────────────────────────────────────────────
+
+export const useLedgers = () =>
+  useQuery({ queryKey: ['finance', 'ledgers'], queryFn: api.listLedgers })
+
+export const useCreateLedger = () => {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: api.createLedger,
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['finance', 'ledgers'] }),
+  })
+}
+
+export const useUpdateLedger = () => {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, data }: { id: string; data: Partial<import('@/api/finance').Ledger> }) =>
+      api.updateLedger(id, data),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['finance', 'ledgers'] }),
+  })
+}
+
+export const useDeleteLedger = () => {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) => api.deleteLedger(id),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['finance', 'ledgers'] }),
+  })
+}
+
+export const useLedgerAssignments = (params?: { company_id?: string; ledger_id?: string }) =>
+  useQuery({
+    queryKey: ['finance', 'ledger-assignments', params],
+    queryFn: () => api.listLedgerAssignments(params),
+  })
+
+export const useAssignLedger = () => {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: api.assignLedger,
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['finance', 'ledger-assignments'] }),
+  })
+}
+
+export const useRemoveLedgerAssignment = () => {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) => api.removeAssignment(id),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['finance', 'ledger-assignments'] }),
+  })
+}
+
+export const useLedgerTrialBalance = (ledgerId: string | null, fiscalYearId?: string) =>
+  useQuery({
+    queryKey: ['finance', 'ledger-tb', ledgerId, fiscalYearId],
+    queryFn: () => api.getLedgerTrialBalance(ledgerId!, fiscalYearId),
+    enabled: !!ledgerId,
+  })
+
+
+
+
+
+

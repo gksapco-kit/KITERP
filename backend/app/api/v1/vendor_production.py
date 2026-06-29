@@ -17,6 +17,8 @@ from app.models.vendor_user import VendorUser
 from app.models.customer import Customer
 from app.models.store import Store
 from app.models.production import ProductionOrder
+from app.models.plant import Plant
+from app.models.storage_location import StorageLocation
 from app.repositories.production_repo import ProductionOrderRepo
 
 router = APIRouter()
@@ -46,6 +48,8 @@ def _serialize(row: ProductionOrder, *, include_heavy: bool = True) -> dict:
         "id": str(row.id),
         "vendor_id": str(row.vendor_id),
         "store_id": str(row.store_id) if row.store_id else None,
+        "plant_id": str(row.plant_id) if row.plant_id else None,
+        "output_storage_location_id": str(row.output_storage_location_id) if row.output_storage_location_id else None,
         "ref": row.ref,
         "type": row.type,
         "template": row.template,
@@ -89,6 +93,45 @@ async def _validate_store(db: AsyncSession, vendor_id: UUID, store_id: Optional[
         raise HTTPException(400, "Invalid store for this vendor")
 
 
+async def _validate_plant(
+    db: AsyncSession,
+    vendor_id: UUID,
+    plant_id: Optional[UUID],
+    store_id: Optional[UUID],
+) -> None:
+    if not plant_id:
+        return
+    r = await db.execute(
+        select(Plant).where(Plant.id == plant_id, Plant.vendor_id == vendor_id)
+    )
+    plant = r.scalar_one_or_none()
+    if not plant:
+        raise HTTPException(400, "Invalid plant for this vendor")
+    if store_id and plant.store_id != store_id:
+        raise HTTPException(400, "Plant does not belong to the selected business unit")
+
+
+async def _validate_output_location(
+    db: AsyncSession,
+    vendor_id: UUID,
+    location_id: Optional[UUID],
+    plant_id: Optional[UUID],
+) -> None:
+    if not location_id:
+        return
+    r = await db.execute(
+        select(StorageLocation).where(
+            StorageLocation.id == location_id,
+            StorageLocation.vendor_id == vendor_id,
+        )
+    )
+    loc = r.scalar_one_or_none()
+    if not loc:
+        raise HTTPException(400, "Invalid output storage location for this vendor")
+    if plant_id and loc.plant_id != plant_id:
+        raise HTTPException(400, "Output storage location does not belong to the selected plant")
+
+
 async def _validate_customer(db: AsyncSession, vendor_id: UUID, customer_id: Optional[UUID]) -> None:
     if not customer_id:
         return
@@ -110,6 +153,8 @@ class ProductionOrderCreate(BaseModel):
     progress: int = 0
     priority: str = "medium"
     store_id: Optional[UUID] = None
+    plant_id: Optional[UUID] = None
+    output_storage_location_id: Optional[UUID] = None
     customer_id: Optional[UUID] = None
     customer_name: Optional[str] = None
     customer_phone: Optional[str] = None
@@ -140,6 +185,8 @@ class ProductionOrderUpdate(BaseModel):
     progress: Optional[int] = None
     priority: Optional[str] = None
     store_id: Optional[UUID] = None
+    plant_id: Optional[UUID] = None
+    output_storage_location_id: Optional[UUID] = None
     customer_id: Optional[UUID] = None
     customer_name: Optional[str] = None
     customer_phone: Optional[str] = None
@@ -220,6 +267,8 @@ async def create_production_order(
     db: AsyncSession = Depends(get_db),
 ):
     await _validate_store(db, vendor_id, body.store_id)
+    await _validate_plant(db, vendor_id, body.plant_id, body.store_id)
+    await _validate_output_location(db, vendor_id, body.output_storage_location_id, body.plant_id)
     if body.type == "mto":
         await _validate_customer(db, vendor_id, body.customer_id)
     repo = ProductionOrderRepo(db)
@@ -230,6 +279,8 @@ async def create_production_order(
     row = ProductionOrder(
         vendor_id=vendor_id,
         store_id=body.store_id,
+        plant_id=body.plant_id,
+        output_storage_location_id=body.output_storage_location_id,
         ref=ref,
         type=body.type,
         template=body.template,
@@ -285,6 +336,14 @@ async def update_production_order(
     if "store_id" in body.model_fields_set:
         await _validate_store(db, vendor_id, body.store_id)
         data["store_id"] = body.store_id
+    if "plant_id" in body.model_fields_set:
+        effective_store = data.get("store_id", row.store_id)
+        await _validate_plant(db, vendor_id, body.plant_id, effective_store)
+        data["plant_id"] = body.plant_id
+    if "output_storage_location_id" in body.model_fields_set:
+        effective_plant = data.get("plant_id", row.plant_id)
+        await _validate_output_location(db, vendor_id, body.output_storage_location_id, effective_plant)
+        data["output_storage_location_id"] = body.output_storage_location_id
     if body.customer_id is not None or "customer_id" in body.model_fields_set:
         cid = data.get("customer_id", row.customer_id)
         await _validate_customer(db, vendor_id, cid)

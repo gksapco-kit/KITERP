@@ -165,7 +165,14 @@ class FinAccount(Base):
     is_reconcilable = Column(Boolean, default=False)
     is_active = Column(Boolean, default=True, server_default="true")
     is_system = Column(Boolean, default=False, server_default="false")
+    # SAP reconciliation account: true = this GL account is a subledger control account.
+    # Direct manual posting is blocked; only auto-posting handlers may write to it.
+    is_reconciliation_account = Column(Boolean, default=False, server_default="false")
+    # Which subledger owns this account: customer | supplier | asset | bank
+    reconciliation_subledger = Column(String(30), nullable=True)
     cost_center_id = Column(UUID(as_uuid=True), ForeignKey("store.id", ondelete="SET NULL"))
+    # Link to a Field Status Group that governs which line fields are required/optional
+    field_status_group_id = Column(UUID(as_uuid=True), ForeignKey("fin_field_status_group.id", ondelete="SET NULL"), nullable=True)
     opening_balance = Column(Numeric(18, 4), default=0)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
@@ -173,6 +180,7 @@ class FinAccount(Base):
     children = relationship("FinAccount", back_populates="parent", foreign_keys=[parent_id])
     parent = relationship("FinAccount", back_populates="children", foreign_keys=[parent_id], remote_side=[id])
     journal_lines = relationship("FinJournalLine", back_populates="account")
+    field_status_group = relationship("FinFieldStatusGroup", back_populates="accounts", foreign_keys=[field_status_group_id])
 
     __table_args__ = (
         UniqueConstraint("vendor_id", "code", name="uq_fin_account_vendor_code"),
@@ -251,10 +259,12 @@ class FinExchangeRate(Base):
     rate = Column(Numeric(18, 8), nullable=False)
     effective_date = Column(Date, nullable=False)
     source = Column(String(30), default="manual")    # manual / rbi / openexchange
+    # SAP-style rate type: 'M' (average) | 'B' (buying) | 'S' (selling) | 'P' (planning)
+    rate_type = Column(String(2), default="M", server_default="M", nullable=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     __table_args__ = (
-        UniqueConstraint("vendor_id", "from_currency", "to_currency", "effective_date",
+        UniqueConstraint("vendor_id", "from_currency", "to_currency", "effective_date", "rate_type",
                          name="uq_fin_fx_rate"),
     )
 
@@ -346,11 +356,558 @@ class FinJournalLine(Base):
     tax_amount = Column(Numeric(18, 4), default=0)
     # Order / assignment reference (for open-item clearing)
     assignment = Column(String(100))
+    # Open-item management (SAP-style)
+    # NULL = not tracked; 'open' = not yet cleared; 'cleared' = matched & closed; 'partial' = partially applied
+    open_item_status = Column(String(20), nullable=True)
+    clearing_batch_id = Column(UUID(as_uuid=True), ForeignKey("fin_gl_clearing_batch.id", ondelete="SET NULL"), nullable=True)
+    clearing_date = Column(Date, nullable=True)
+    # Profit centre & segment dimensions (Feature 5)
+    profit_center_id = Column(UUID(as_uuid=True), ForeignKey("fin_profit_center.id", ondelete="SET NULL"), nullable=True)
+    segment_id       = Column(UUID(as_uuid=True), ForeignKey("fin_segment.id", ondelete="SET NULL"), nullable=True)
+    # FX columns (Feature 6) — NULL means local-currency posting
+    currency      = Column(String(3),       nullable=True)
+    amount_fc     = Column(Numeric(18, 4),  nullable=True)
+    exchange_rate = Column(Numeric(20, 8),  nullable=True)
 
     entry = relationship("FinJournalEntry", back_populates="lines")
     account = relationship("FinAccount", back_populates="journal_lines")
     cost_center = relationship("FinCostCenter", foreign_keys=[cost_center_id])
     project = relationship("FinProject", foreign_keys=[project_id])
+    profit_center = relationship("FinProfitCenter", foreign_keys=[profit_center_id])
+    segment = relationship("FinSegment", foreign_keys=[segment_id])
+
+
+class FinGlClearingBatch(Base):
+    """
+    Header record for a GL open-item clearing event.
+    One or more journal lines (all on the same account) are selected, validated
+    to net to zero, and linked to this batch — marking them as 'cleared'.
+    """
+    __tablename__ = "fin_gl_clearing_batch"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    vendor_id = Column(UUID(as_uuid=True), ForeignKey("vendor.id", ondelete="CASCADE"), nullable=False, index=True)
+    account_id = Column(UUID(as_uuid=True), ForeignKey("fin_account.id", ondelete="RESTRICT"), nullable=False, index=True)
+    # Auto-generated sequential ref e.g. CLR000001
+    clearing_ref = Column(String(30), nullable=False)
+    clearing_date = Column(Date, nullable=False)
+    party_type = Column(String(20), nullable=True)
+    party_id = Column(UUID(as_uuid=True), nullable=True)
+    line_count = Column(Integer, default=0)
+    total_debit = Column(Numeric(18, 4), default=0)
+    total_credit = Column(Numeric(18, 4), default=0)
+    notes = Column(Text, nullable=True)
+    created_by_id = Column(UUID(as_uuid=True), ForeignKey("vendor_user.id", ondelete="SET NULL"), nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    __table_args__ = (
+        UniqueConstraint("vendor_id", "clearing_ref", name="uq_fin_clr_batch_vendor_ref"),
+        Index("ix_fin_clr_batch_account", "vendor_id", "account_id"),
+        Index("ix_fin_clr_batch_party", "vendor_id", "party_type", "party_id"),
+    )
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# FX EXCHANGE RATES & REVALUATION
+# ─────────────────────────────────────────────────────────────────────────────
+
+# FinExchangeRate is already defined above (line ~252).
+# The models below use the existing table via the existing class.
+
+class FinFxRevalRun(Base):
+    """
+    Header record for a foreign-currency revaluation batch.
+    Equivalent to SAP F.05 / FAGL_FC_VAL run.
+    """
+    __tablename__ = "fin_fx_reval_run"
+
+    id               = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    vendor_id        = Column(UUID(as_uuid=True), ForeignKey("store.id", ondelete="CASCADE"), nullable=False)
+    run_date         = Column(Date, nullable=False)
+    currency         = Column(String(3), nullable=False)
+    rate_used        = Column(Numeric(20, 8), nullable=False)
+    total_gain       = Column(Numeric(18, 4), default=0, server_default="0")
+    total_loss       = Column(Numeric(18, 4), default=0, server_default="0")
+    # 'simulated' | 'posted' | 'reversed'
+    status           = Column(String(15), default="simulated", server_default="simulated")
+    journal_entry_id = Column(UUID(as_uuid=True), ForeignKey("fin_journal_entry.id", ondelete="SET NULL"), nullable=True)
+    created_by       = Column(String(120), nullable=True)
+    created_at       = Column(DateTime(timezone=True), server_default=func.now())
+
+    lines = relationship("FinFxRevalLine", back_populates="reval_run", cascade="all, delete-orphan")
+
+
+class FinFxRevalLine(Base):
+    """One adjustment record within a revaluation run."""
+    __tablename__ = "fin_fx_reval_line"
+
+    id                 = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    reval_run_id       = Column(UUID(as_uuid=True), ForeignKey("fin_fx_reval_run.id", ondelete="CASCADE"), nullable=False)
+    journal_line_id    = Column(UUID(as_uuid=True), ForeignKey("fin_journal_line.id", ondelete="CASCADE"), nullable=False)
+    original_amount_fc = Column(Numeric(18, 4), nullable=False)
+    original_amount_lc = Column(Numeric(18, 4), nullable=False)
+    revalued_amount_lc = Column(Numeric(18, 4), nullable=False)
+    adjustment         = Column(Numeric(18, 4), nullable=False)
+
+    reval_run = relationship("FinFxRevalRun", back_populates="lines")
+
+
+class FinBalanceCarryForward(Base):
+    """
+    Year-end carry-forward log: records the closing balance of each
+    balance-sheet account that was carried as the opening balance of the
+    next fiscal year.
+    Equivalent to SAP F.16 / FAGLGVTR.
+    """
+    __tablename__ = "fin_balance_carryforward"
+
+    id                 = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    vendor_id          = Column(UUID(as_uuid=True), ForeignKey("store.id", ondelete="CASCADE"), nullable=False)
+    account_id         = Column(UUID(as_uuid=True), ForeignKey("fin_account.id", ondelete="CASCADE"), nullable=False)
+    from_fiscal_year   = Column(Integer, nullable=False)
+    to_fiscal_year     = Column(Integer, nullable=False)
+    closing_balance    = Column(Numeric(18, 4), nullable=False)
+    carried_forward_at = Column(DateTime(timezone=True), server_default=func.now())
+    carried_by         = Column(String(120), nullable=True)
+
+    __table_args__ = (
+        UniqueConstraint("vendor_id", "account_id", "from_fiscal_year",
+                         name="uq_fin_bcf_vendor_acct_fy"),
+    )
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# FINANCIAL STATEMENT VERSIONS (FSV)
+# ─────────────────────────────────────────────────────────────────────────────
+
+class FinStatementVersion(Base):
+    """
+    A configurable financial statement layout (SAP FSV equivalent).
+    Allows multiple P&L or Balance Sheet structures e.g. for different
+    regulatory frameworks, management reporting, or tax purposes.
+    """
+    __tablename__ = "fin_statement_version"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    vendor_id = Column(UUID(as_uuid=True), ForeignKey("vendor.id", ondelete="CASCADE"), nullable=False, index=True)
+    name = Column(String(200), nullable=False)
+    # income_statement | balance_sheet | custom
+    statement_type = Column(String(30), nullable=False)
+    description = Column(Text, nullable=True)
+    is_default = Column(Boolean, default=False, server_default="false")
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+    nodes = relationship("FinStatementNode", back_populates="version", cascade="all, delete-orphan")
+
+    __table_args__ = (
+        UniqueConstraint("vendor_id", "name", "statement_type", name="uq_fin_fsv_vendor_name_type"),
+    )
+
+
+class FinStatementNode(Base):
+    """
+    One node in a Financial Statement Version tree.
+    node_type:
+      group     = section header with optional children
+      item      = leaf node — has account assignments
+      subtotal  = auto-computed sum of sibling items/groups above it
+      separator = visual blank row / horizontal rule
+    """
+    __tablename__ = "fin_statement_node"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    version_id = Column(UUID(as_uuid=True), ForeignKey("fin_statement_version.id", ondelete="CASCADE"), nullable=False, index=True)
+    vendor_id = Column(UUID(as_uuid=True), ForeignKey("vendor.id", ondelete="CASCADE"), nullable=False, index=True)
+    parent_id = Column(UUID(as_uuid=True), ForeignKey("fin_statement_node.id", ondelete="CASCADE"), nullable=True)
+    name = Column(String(200), nullable=False)
+    node_type = Column(String(20), default="group", server_default="group")
+    sort_order = Column(Integer, default=0, server_default="0")
+    sign_flip = Column(Boolean, default=False, server_default="false")  # negate balance for display
+    bold = Column(Boolean, default=False, server_default="false")
+    indent_level = Column(Integer, default=0, server_default="0")
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    version = relationship("FinStatementVersion", back_populates="nodes")
+    children = relationship("FinStatementNode", back_populates="parent", foreign_keys=[parent_id])
+    parent = relationship("FinStatementNode", back_populates="children", foreign_keys=[parent_id], remote_side=[id])
+    account_assignments = relationship("FinStatementNodeAcct", back_populates="node", cascade="all, delete-orphan")
+
+    __table_args__ = (
+        Index("ix_fin_stmt_node_version", "version_id", "sort_order"),
+    )
+
+
+class FinStatementNodeAcct(Base):
+    """Assigns GL accounts (individual or code range) to a statement node."""
+    __tablename__ = "fin_statement_node_acct"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    node_id = Column(UUID(as_uuid=True), ForeignKey("fin_statement_node.id", ondelete="CASCADE"), nullable=False, index=True)
+    vendor_id = Column(UUID(as_uuid=True), ForeignKey("vendor.id", ondelete="CASCADE"), nullable=False, index=True)
+    # Either a specific account or a code range (from/to).
+    # When account_id is set, code_from/to are ignored.
+    account_id = Column(UUID(as_uuid=True), ForeignKey("fin_account.id", ondelete="CASCADE"), nullable=True)
+    code_from = Column(String(20), nullable=True)
+    code_to = Column(String(20), nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    node = relationship("FinStatementNode", back_populates="account_assignments")
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# PROFIT CENTERS & SEGMENTS
+# ─────────────────────────────────────────────────────────────────────────────
+
+class FinProfitCenter(Base):
+    """
+    Internal P&L reporting unit — finer grain than a cost centre.
+    Equivalent to SAP EC-PCA Profit Center (KE51).
+    Can be arranged in a hierarchy via parent_id.
+    """
+    __tablename__ = "fin_profit_center"
+
+    id          = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    vendor_id   = Column(UUID(as_uuid=True), ForeignKey("store.id", ondelete="CASCADE"), nullable=False)
+    code        = Column(String(20),  nullable=False)
+    name        = Column(String(120), nullable=False)
+    description = Column(Text, nullable=True)
+    parent_id   = Column(UUID(as_uuid=True), ForeignKey("fin_profit_center.id", ondelete="SET NULL"), nullable=True)
+    manager     = Column(String(120), nullable=True)
+    is_active   = Column(Boolean, default=True, server_default="true")
+    created_at  = Column(DateTime(timezone=True), server_default=func.now())
+
+    children = relationship("FinProfitCenter", back_populates="parent", foreign_keys=[parent_id])
+    parent   = relationship("FinProfitCenter", back_populates="children", foreign_keys=[parent_id], remote_side=[id])
+
+    __table_args__ = (
+        UniqueConstraint("vendor_id", "code", name="uq_fin_pc_vendor_code"),
+    )
+
+
+class FinSegment(Base):
+    """
+    Top-level segment dimension for IFRS 8 / management segment reporting.
+    Equivalent to SAP's Segment characteristic in New G/L.
+    """
+    __tablename__ = "fin_segment"
+
+    id          = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    vendor_id   = Column(UUID(as_uuid=True), ForeignKey("store.id", ondelete="CASCADE"), nullable=False)
+    code        = Column(String(20),  nullable=False)
+    name        = Column(String(120), nullable=False)
+    description = Column(Text, nullable=True)
+    is_active   = Column(Boolean, default=True, server_default="true")
+    created_at  = Column(DateTime(timezone=True), server_default=func.now())
+
+    __table_args__ = (
+        UniqueConstraint("vendor_id", "code", name="uq_fin_seg_vendor_code"),
+    )
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# POSTING KEYS
+# ─────────────────────────────────────────────────────────────────────────────
+
+class FinPostingKey(Base):
+    """
+    SAP-style posting key: defines debit/credit side and field behaviour
+    for a journal line.  Codes like '40' (GL debit) and '50' (GL credit)
+    are pre-seeded; customers may add custom codes.
+    """
+    __tablename__ = "fin_posting_key"
+
+    id           = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    vendor_id    = Column(UUID(as_uuid=True), ForeignKey("store.id", ondelete="CASCADE"), nullable=False)
+    code         = Column(String(4),   nullable=False)
+    name         = Column(String(120), nullable=False)
+    # 'debit' or 'credit'
+    side         = Column(String(6),   nullable=False)
+    # Optional account-type restriction: asset | liability | income | expense | None
+    account_type = Column(String(20),  nullable=True)
+    # Posting key used when reversing a document that used this key
+    reversal_key = Column(String(4),   nullable=True)
+    is_active    = Column(Boolean, default=True, server_default="true")
+    created_at   = Column(DateTime(timezone=True), server_default=func.now())
+
+    __table_args__ = (
+        UniqueConstraint("vendor_id", "code", name="uq_fin_posting_key_vendor_code"),
+    )
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# FIELD STATUS GROUPS
+# ─────────────────────────────────────────────────────────────────────────────
+
+class FinFieldStatusGroup(Base):
+    """
+    Named template attached to a GL account that controls which line-item
+    fields are required / optional / suppressed during posting.
+    Equivalent to SAP's Field Status Group on the GL account master.
+    """
+    __tablename__ = "fin_field_status_group"
+
+    id        = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    vendor_id = Column(UUID(as_uuid=True), ForeignKey("store.id", ondelete="CASCADE"), nullable=False)
+    code      = Column(String(10),  nullable=False)
+    name      = Column(String(120), nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    rules = relationship("FinFieldStatusRule", back_populates="group", cascade="all, delete-orphan")
+    accounts = relationship("FinAccount", back_populates="field_status_group")
+
+    __table_args__ = (
+        UniqueConstraint("vendor_id", "code", name="uq_fin_fsg_vendor_code"),
+    )
+
+
+class FinFieldStatusRule(Base):
+    """
+    One field-status override within a Field Status Group.
+    field_name: cost_center | project | assignment | text | payment_terms | tax_code
+    status:     required | optional | suppressed
+    """
+    __tablename__ = "fin_field_status_rule"
+
+    id         = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    group_id   = Column(UUID(as_uuid=True), ForeignKey("fin_field_status_group.id", ondelete="CASCADE"), nullable=False)
+    field_name = Column(String(40), nullable=False)
+    status     = Column(String(15), nullable=False, default="optional")
+
+    group = relationship("FinFieldStatusGroup", back_populates="rules")
+
+    __table_args__ = (
+        UniqueConstraint("group_id", "field_name", name="uq_fin_fsr_group_field"),
+    )
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# TOLERANCE GROUPS
+# ─────────────────────────────────────────────────────────────────────────────
+
+class FinToleranceGroup(Base):
+    """
+    Company-wide or per-user limits on posting amounts and payment differences.
+    Equivalent to SAP's Tolerance Groups (OBA4 / OBA3).
+
+    A vendor_user may have fin_tolerance_group_id set; if NULL the system
+    applies the group whose code == '' (the default group).
+    """
+    __tablename__ = "fin_tolerance_group"
+
+    id                  = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    vendor_id           = Column(UUID(as_uuid=True), ForeignKey("store.id", ondelete="CASCADE"), nullable=False)
+    code                = Column(String(10),      nullable=False)
+    name                = Column(String(120),     nullable=False)
+    max_line_amount     = Column(Numeric(18, 4),  nullable=True)
+    max_document_amount = Column(Numeric(18, 4),  nullable=True)
+    payment_diff_abs    = Column(Numeric(18, 4),  nullable=True)
+    payment_diff_pct    = Column(Numeric(7, 4),   nullable=True)
+    currency            = Column(String(3), default="INR", server_default="INR", nullable=False)
+    created_at          = Column(DateTime(timezone=True), server_default=func.now())
+
+    __table_args__ = (
+        UniqueConstraint("vendor_id", "code", name="uq_fin_tg_vendor_code"),
+    )
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# VALIDATION RULES, SUBSTITUTION RULES, NUMBER RANGES
+# ─────────────────────────────────────────────────────────────────────────────
+
+class FinValidationRule(Base):
+    """
+    Posting-time validation rule.  Evaluated at the 'document' or 'line' call point.
+    - prerequisite_expr (optional): Python bool expression; if False the rule is skipped.
+    - check_expr: Python bool expression evaluated against a context dict; must be True.
+    Equivalent to SAP GGB0 validation.
+    """
+    __tablename__ = "fin_validation_rule"
+
+    id                 = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    vendor_id          = Column(UUID(as_uuid=True), ForeignKey("vendor.id", ondelete="CASCADE"), nullable=False)
+    name               = Column(String(120), nullable=False)
+    description        = Column(Text, nullable=True)
+    call_point         = Column(String(10), default="document", server_default="document")
+    prerequisite_expr  = Column(Text, nullable=True)
+    check_expr         = Column(Text, nullable=False)
+    error_message      = Column(String(500), nullable=False)
+    is_active          = Column(Boolean, default=True, server_default="true")
+    sort_order         = Column(Integer, default=10, server_default="10")
+    created_at         = Column(DateTime(timezone=True), server_default=func.now())
+
+
+class FinSubstitutionRule(Base):
+    """
+    Field-value substitution rule.
+    When prerequisite_expr evaluates to True, target_field is overwritten
+    with the result of substitution_expr.
+    Equivalent to SAP GGB1 substitution.
+    """
+    __tablename__ = "fin_substitution_rule"
+
+    id                  = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    vendor_id           = Column(UUID(as_uuid=True), ForeignKey("vendor.id", ondelete="CASCADE"), nullable=False)
+    name                = Column(String(120), nullable=False)
+    description         = Column(Text, nullable=True)
+    call_point          = Column(String(10), default="line", server_default="line")
+    prerequisite_expr   = Column(Text, nullable=True)
+    target_field        = Column(String(60), nullable=False)
+    substitution_expr   = Column(Text, nullable=False)
+    is_active           = Column(Boolean, default=True, server_default="true")
+    sort_order          = Column(Integer, default=10, server_default="10")
+    created_at          = Column(DateTime(timezone=True), server_default=func.now())
+
+
+class FinNumberRange(Base):
+    """
+    Document number series per document type and fiscal year.
+    Equivalent to SAP FBN1 / number range object.
+    """
+    __tablename__ = "fin_number_range"
+
+    id             = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    vendor_id      = Column(UUID(as_uuid=True), ForeignKey("vendor.id", ondelete="CASCADE"), nullable=False)
+    document_type  = Column(String(4), nullable=False)
+    fiscal_year    = Column(Integer, nullable=False)
+    number_from    = Column(Integer, nullable=False)
+    number_to      = Column(Integer, nullable=False)
+    current_number = Column(Integer, nullable=False)
+    prefix         = Column(String(10), nullable=True)
+    is_external    = Column(Boolean, default=False, server_default="false")
+    created_at     = Column(DateTime(timezone=True), server_default=func.now())
+
+    __table_args__ = (
+        UniqueConstraint("vendor_id", "document_type", "fiscal_year",
+                         name="uq_fin_nr_vendor_type_fy"),
+    )
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# DOCUMENT SPLITTING
+# ─────────────────────────────────────────────────────────────────────────────
+
+class FinSplitRule(Base):
+    """
+    Configures automatic document splitting for a vendor.
+    When active, lines of the configured account types are proportionally
+    split across profit centres, segments, or cost centres.
+    Equivalent to SAP New G/L document splitting configuration (FAGL_DOC_SPLIT).
+    """
+    __tablename__ = "fin_split_rule"
+
+    id           = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    vendor_id    = Column(UUID(as_uuid=True), ForeignKey("vendor.id", ondelete="CASCADE"), nullable=False)
+    name         = Column(String(120), nullable=False)
+    # 'profit_center' | 'segment' | 'cost_center'
+    dimension    = Column(String(30), nullable=False)
+    # 'proportional' (weighted by base-line amounts) | 'equal'
+    split_method = Column(String(20), default="proportional", server_default="proportional")
+    is_active    = Column(Boolean, default=True, server_default="true")
+    created_at   = Column(DateTime(timezone=True), server_default=func.now())
+
+    base_types = relationship("FinSplitRuleBase", back_populates="rule", cascade="all, delete-orphan")
+
+
+class FinSplitRuleBase(Base):
+    """Account types that act as the allocation basis for a split rule."""
+    __tablename__ = "fin_split_rule_base"
+
+    id           = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    rule_id      = Column(UUID(as_uuid=True), ForeignKey("fin_split_rule.id", ondelete="CASCADE"), nullable=False)
+    account_type = Column(String(20), nullable=False)
+
+    rule = relationship("FinSplitRule", back_populates="base_types")
+
+
+class FinJournalSplitItem(Base):
+    """
+    One slice of a split journal line — the result of document splitting.
+    There will be one FinJournalSplitItem per dimension value per journal line.
+    """
+    __tablename__ = "fin_journal_split_item"
+
+    id               = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    journal_line_id  = Column(UUID(as_uuid=True), ForeignKey("fin_journal_line.id", ondelete="CASCADE"), nullable=False)
+    profit_center_id = Column(UUID(as_uuid=True), ForeignKey("fin_profit_center.id", ondelete="SET NULL"), nullable=True)
+    segment_id       = Column(UUID(as_uuid=True), ForeignKey("fin_segment.id", ondelete="SET NULL"), nullable=True)
+    cost_center_id   = Column(UUID(as_uuid=True), ForeignKey("store.id", ondelete="SET NULL"), nullable=True)
+    debit            = Column(Numeric(18, 4), default=0, server_default="0")
+    credit           = Column(Numeric(18, 4), default=0, server_default="0")
+    split_pct        = Column(Numeric(7, 4), nullable=False)
+    created_at       = Column(DateTime(timezone=True), server_default=func.now())
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# PARALLEL LEDGERS / MULTI-GAAP  (SAP New G/L equivalent)
+# ─────────────────────────────────────────────────────────────────────────────
+
+class FinLedger(Base):
+    """Named ledger definition — e.g. 'Leading (Local GAAP)', 'IFRS', 'Tax'."""
+    __tablename__ = "fin_ledger"
+
+    id          = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    vendor_id   = Column(UUID(as_uuid=True), ForeignKey("vendor.id", ondelete="CASCADE"), nullable=False, index=True)
+    code        = Column(String(10), nullable=False)
+    name        = Column(String(120), nullable=False)
+    description = Column(Text)
+    is_leading  = Column(Boolean, default=False, nullable=False)
+    currency    = Column(String(3), default="INR")
+    is_active   = Column(Boolean, default=True, nullable=False)
+    created_at  = Column(DateTime(timezone=True), server_default=func.now())
+
+    assignments  = relationship("FinLedgerAssignment", back_populates="ledger", cascade="all, delete-orphan")
+    ledger_lines = relationship("FinJournalLineLedger", back_populates="ledger", cascade="all, delete-orphan")
+
+    __table_args__ = (
+        UniqueConstraint("vendor_id", "code", name="uq_fin_ledger_vendor_code"),
+    )
+
+
+class FinLedgerAssignment(Base):
+    """Assigns one or more ledgers to a company entity."""
+    __tablename__ = "fin_ledger_assignment"
+
+    id         = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    vendor_id  = Column(UUID(as_uuid=True), ForeignKey("vendor.id", ondelete="CASCADE"), nullable=False, index=True)
+    ledger_id  = Column(UUID(as_uuid=True), ForeignKey("fin_ledger.id", ondelete="CASCADE"), nullable=False, index=True)
+    company_id = Column(UUID(as_uuid=True), ForeignKey("fin_company.id", ondelete="CASCADE"), nullable=False, index=True)
+    is_active  = Column(Boolean, default=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    ledger  = relationship("FinLedger", back_populates="assignments")
+    company = relationship("FinCompany")
+
+    __table_args__ = (
+        UniqueConstraint("ledger_id", "company_id", name="uq_fin_ledger_assignment"),
+    )
+
+
+class FinJournalLineLedger(Base):
+    """
+    Ledger-specific override amounts for a journal line.
+
+    For the *leading* ledger the amounts are always those on FinJournalLine itself.
+    For parallel ledgers a row here stores the delta (or full override) amount,
+    enabling different valuations — e.g. IFRS depreciation vs. local GAAP.
+    """
+    __tablename__ = "fin_journal_line_ledger"
+
+    id              = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    journal_line_id = Column(UUID(as_uuid=True), ForeignKey("fin_journal_line.id", ondelete="CASCADE"), nullable=False, index=True)
+    ledger_id       = Column(UUID(as_uuid=True), ForeignKey("fin_ledger.id", ondelete="CASCADE"), nullable=False, index=True)
+    debit           = Column(Numeric(18, 4), default=0, server_default="0")
+    credit          = Column(Numeric(18, 4), default=0, server_default="0")
+    amount_fc       = Column(Numeric(18, 4))
+    narration       = Column(Text)
+    created_at      = Column(DateTime(timezone=True), server_default=func.now())
+
+    journal_line = relationship("FinJournalLine")
+    ledger       = relationship("FinLedger", back_populates="ledger_lines")
+
+    __table_args__ = (
+        UniqueConstraint("journal_line_id", "ledger_id", name="uq_fin_jll_line_ledger"),
+    )
 
 
 class FinRecurringTemplate(Base):

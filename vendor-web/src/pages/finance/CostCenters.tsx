@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { useEscapeToClose } from '@/hooks/useEscapeToClose'
 import { Link } from 'react-router-dom'
 import {
@@ -105,6 +105,17 @@ export default function CostCenters() {
   const [ccForm, setCcForm] = useState<CCForm>(EMPTY_FORM)
   const [dialogTab, setDialogTab] = useState<DialogTab>('details')
   const [actionMenu, setActionMenu] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (!actionMenu) return
+    const close = () => setActionMenu(null)
+    document.addEventListener('click', close)
+    document.addEventListener('scroll', close, true)
+    return () => {
+      document.removeEventListener('click', close)
+      document.removeEventListener('scroll', close, true)
+    }
+  }, [actionMenu])
 
   // ── Derived data ──
   const filtered = useMemo(() => {
@@ -355,7 +366,7 @@ export default function CostCenters() {
           const isCollapsed = collapsed[groupName]
           const badgeCls = groupBadge(groupName === 'Ungrouped' ? undefined : groupName)
           return (
-            <div key={groupName} className="bg-card rounded-xl border border-border overflow-hidden">
+            <div key={groupName} className="bg-card rounded-xl border border-border">
               {/* Group header */}
               <button
                 type="button"
@@ -716,27 +727,37 @@ function CCRow({
         <button
           type="button"
           onClick={() => onEdit(cc)}
-          className="w-7 h-7 flex items-center justify-center rounded-lg text-muted-foreground/50 hover:text-primary hover:bg-primary/10 transition-colors opacity-0 group-hover:opacity-100"
+          className="w-7 h-7 flex items-center justify-center rounded-lg text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
           title="Edit"
         >
           <Pencil className="w-3.5 h-3.5" />
         </button>
         <button
           type="button"
-          onClick={() => onSetMenu(actionMenu === cc.id ? null : cc.id)}
-          className="w-7 h-7 flex items-center justify-center rounded-lg text-muted-foreground/50 hover:text-foreground hover:bg-muted transition-colors opacity-0 group-hover:opacity-100"
+          onClick={e => {
+            e.stopPropagation()
+            onSetMenu(actionMenu === cc.id ? null : cc.id)
+          }}
+          className="w-7 h-7 flex items-center justify-center rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+          aria-label="More options"
+          aria-expanded={actionMenu === cc.id}
         >
           <MoreVertical className="w-4 h-4" />
         </button>
         {actionMenu === cc.id && (
-          <div className="absolute right-0 top-8 z-20 bg-popover text-popover-foreground border border-border rounded-xl shadow-xl w-36 py-1 text-sm max-h-[90vh] overflow-y-auto">
+          <div
+            className="absolute right-0 top-8 z-50 bg-popover text-popover-foreground border border-border rounded-xl shadow-xl w-36 py-1 text-sm"
+            onClick={e => e.stopPropagation()}
+          >
             <button
+              type="button"
               onClick={() => onEdit(cc)}
               className="w-full text-left px-3 py-2 flex items-center gap-2 hover:bg-muted text-foreground"
             >
               <Pencil className="w-3.5 h-3.5" /> Edit
             </button>
             <button
+              type="button"
               onClick={() => onDelete(cc)}
               className="w-full text-left px-3 py-2 flex items-center gap-2 hover:bg-red-500/10 text-red-600 dark:text-red-400"
             >

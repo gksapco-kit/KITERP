@@ -240,3 +240,55 @@ class ServicePlan(Base):
     __table_args__ = (
         Index("idx_service_plan_service", "service_id"),
     )
+
+
+class ServiceBOMItem(Base):
+    """Materials / products consumed to deliver one unit of a service."""
+    __tablename__ = "service_bom_item"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    vendor_id = Column(UUID(as_uuid=True), ForeignKey("vendor.id", ondelete="CASCADE"), nullable=False)
+    service_id = Column(UUID(as_uuid=True), ForeignKey("service.id", ondelete="CASCADE"), nullable=False)
+    component_id = Column(UUID(as_uuid=True), ForeignKey("product.id", ondelete="CASCADE"), nullable=False)
+    qty_per_service = Column(Numeric(12, 4), nullable=False)
+    unit_cost_override = Column(Numeric(12, 4), nullable=True)
+    auto_reserve = Column(Boolean, default=True)
+    notes = Column(Text, nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    service = relationship("Service", backref="bom_items")
+    component = relationship("Product", foreign_keys=[component_id])
+
+    __table_args__ = (
+        Index("idx_svc_bom_vendor", "vendor_id"),
+        Index("idx_svc_bom_service", "service_id"),
+        Index("idx_svc_bom_component", "component_id"),
+    )
+
+
+class ServiceResource(Base):
+    """People, equipment, or facilities required to perform a service."""
+    __tablename__ = "service_resource"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    vendor_id = Column(UUID(as_uuid=True), ForeignKey("vendor.id", ondelete="CASCADE"), nullable=False)
+    service_id = Column(UUID(as_uuid=True), ForeignKey("service.id", ondelete="CASCADE"), nullable=False)
+    resource_type = Column(String(30), nullable=False, default="employee")  # employee | work_center | equipment | room
+    resource_id = Column(UUID(as_uuid=True), nullable=True)
+    resource_name = Column(String(255), nullable=False)
+    quantity = Column(Numeric(8, 2), default=1)
+    duration_minutes = Column(Integer, nullable=True)
+    cost_type = Column(String(20), default="hourly")  # hourly | fixed
+    cost_rate = Column(Numeric(12, 4), default=0)
+    auto_reserve = Column(Boolean, default=True)
+    notes = Column(Text, nullable=True)
+    sort_order = Column(Integer, default=0)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    service = relationship("Service", backref="resources")
+
+    __table_args__ = (
+        Index("idx_svc_res_vendor", "vendor_id"),
+        Index("idx_svc_res_service", "service_id"),
+        Index("idx_svc_res_type", "resource_type"),
+    )

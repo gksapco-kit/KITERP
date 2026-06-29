@@ -287,10 +287,11 @@ export default function NotificationsPage() {
               className="w-full rounded-xl border border-input bg-background py-2 pl-9 pr-8 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
             />
             {search && (
-              <button type="button" aria-label="Close"
+              <button
                 type="button"
                 onClick={() => setSearch('')}
                 className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                aria-label="Close"
               >
                 <X className="h-3.5 w-3.5" />
               </button>
@@ -351,7 +352,7 @@ export default function NotificationsPage() {
             </div>
             {activeFiltersCount > 0 && (
               <div className="pt-1 border-t">
-                <button type="button" aria-label="Close" type="button" onClick={clearAll} className="text-xs text-red-500 hover:underline flex items-center gap-1">
+                <button type="button" onClick={clearAll} className="text-xs text-red-500 hover:underline flex items-center gap-1">
                 <X className="w-3 h-3" /> Clear all filters
                 </button>
               </div>

@@ -4,7 +4,7 @@ from fastapi import APIRouter
 from app.api.v1 import (
     auth, vendors, vendor_relationship_manager, vendor_contact_change, vendor_products, vendor_services, vendor_categories,
     vendor_orders, vendor_customers, vendor_reviews,
-    vendor_team, vendor_roles, vendor_inventory, vendor_storage_locations, vendor_procurement,
+    vendor_team, vendor_roles, vendor_inventory, vendor_storage_locations, vendor_plants, vendor_procurement,
     vendor_pos, vendor_invoices, vendor_invoice_templates, vendor_coupons,
     vendor_reports, vendor_template,
     vendor_bookings, vendor_projects, vendor_notifications, vendor_merchandising, vendor_loyalty,
@@ -28,6 +28,12 @@ from app.api.v1 import (
     vendor_subscriptions,
     vendor_rentals,
     admin_schema_catalog,
+    vendor_procurement_sourcing,
+    vendor_procurement_requisition,
+    vendor_procurement_invoice,
+    vendor_procurement_goods,
+    vendor_procurement_special,
+    vendor_business_partners,
 )
 
 api_router = APIRouter()
@@ -59,7 +65,14 @@ api_router.include_router(vendor_team.router, prefix="/vendors/me/team", tags=["
 api_router.include_router(vendor_roles.router, prefix="/vendors/me/roles", tags=["Vendor Roles"])
 api_router.include_router(vendor_inventory.router, prefix="/vendors/me/inventory", tags=["Vendor Inventory"])
 api_router.include_router(vendor_storage_locations.router, prefix="/vendors/me/storage-locations", tags=["Storage Locations"])
+api_router.include_router(vendor_plants.router, prefix="/vendors/me/plants", tags=["Plants"])
+api_router.include_router(vendor_business_partners.router, prefix="/vendors/me/business-partners", tags=["Business Partners"])
 api_router.include_router(vendor_procurement.router, prefix="/vendors/me", tags=["Vendor Procurement"])
+api_router.include_router(vendor_procurement_sourcing.router, prefix="/vendors/me/procurement", tags=["Procurement Sourcing"])
+api_router.include_router(vendor_procurement_requisition.router, prefix="/vendors/me/procurement", tags=["Purchase Requisitions"])
+api_router.include_router(vendor_procurement_invoice.router, prefix="/vendors/me/procurement", tags=["Vendor Invoices (AP)"])
+api_router.include_router(vendor_procurement_goods.router, prefix="/vendors/me/procurement", tags=["Goods Management"])
+api_router.include_router(vendor_procurement_special.router, prefix="/vendors/me/procurement", tags=["Special Procurement"])
 api_router.include_router(vendor_pos.router, prefix="/vendors/me/pos", tags=["Vendor POS"])
 api_router.include_router(vendor_restaurant.router, prefix="/vendors/me/restaurant", tags=["Restaurant"])
 api_router.include_router(public_restaurant.router, prefix="/public/restaurant", tags=["Public Restaurant"])

@@ -24,7 +24,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { vendorApi } from '@/api/vendor'
-import { useCreateCustomer, useCreateSupplier, useUpdateCustomer, useUpdateSupplier } from '@/hooks/useVendor'
+import { useCreateCustomer, useCreateSupplier, useUpdateCustomer, useUpdateSupplier, useCreateBusinessPartner } from '@/hooks/useVendor'
 import type { PartyType, Customer, Supplier } from '@/types'
 import {
   X, Loader2, ChevronDown, ChevronUp, CheckCircle2, AlertCircle,
@@ -835,6 +835,27 @@ export function AddPartyModal({
     return defaultType ?? stored ?? 'customer'
   })
 
+  // ── Multi-role selection (create mode only) ─────────────────────
+  // In create mode the user can pick multiple roles; the first becomes partyType,
+  // and the record is saved via the Business Partner endpoint.
+  const [selectedRoles, setSelectedRoles] = useState<string[]>(() => {
+    if (editRecord) return []   // not used in edit mode
+    return [defaultType ?? stored ?? 'customer']
+  })
+
+  const toggleRole = (role: string) => {
+    setSelectedRoles(prev => {
+      const next = prev.includes(role) ? prev.filter(r => r !== role) : [...prev, role]
+      // Keep at least one role
+      if (next.length === 0) return prev
+      // Sync partyType to first selected role
+      const primary = next[0]
+      setPartyType(primary)
+      handlePartyType(primary)
+      return next
+    })
+  }
+
   // Custom party types
   const [customPartyTypes, setCustomPartyTypes] = useState<string[]>(loadCustomPartyTypes)
   const [showCustomTypeInput, setShowCustomTypeInput] = useState(false)
@@ -987,6 +1008,7 @@ export function AddPartyModal({
 
   const createCustomer = useCreateCustomer()
   const createSupplier = useCreateSupplier()
+  const createBP = useCreateBusinessPartner()
   const updateCustomer = useUpdateCustomer()
   const updateSupplier = useUpdateSupplier()
   const isLoading = createCustomer.isPending || createSupplier.isPending ||
@@ -1386,62 +1408,41 @@ export function AddPartyModal({
     }
 
     try {
-      if (partyType === 'customer') {
-        // Only send fields the Customer table actually has
-        const created = await createCustomer.mutateAsync({
-          full_name:            name.trim(),
-          email:                email.trim() || undefined,
-          phone:                fullPhone,
-          password:             (enablePortal && password) ? password : undefined,
-          company_name:         name.trim(),
-          gstin:                apiGstin || undefined,
-          pan_number:           apiPan   || undefined,
-          billing_address:      billingAddress,
-          opening_balance:      openingBalance ? parseFloat(openingBalance) : 0,
-          bank_name:            bankName || undefined,
-          account_number:       accountNumber || undefined,
-          account_holder_name:  accountHolderName || undefined,
-          account_type:         accountType || undefined,
-          ifsc_code:            ifscCode || undefined,
-        } as Parameters<typeof createCustomer.mutateAsync>[0])
-        const createdId = (created as unknown as { id?: string }).id
-        if (createdId) persistAvatarIfNeeded(createdId)
-        onCreated?.(created as unknown as Record<string, unknown>)
-        onClose()
-      } else {
-        // Only send fields the Supplier table actually has
-        const address = (primaryAddr?.street || primaryAddr?.city || primaryAddr?.state || primaryAddr?.pincode)
-          ? { street: primaryAddr.street, city: primaryAddr.city, state: primaryAddr.state,
-              postal_code: primaryAddr.pincode, country: primaryAddr.country.name }
+      // ── Always create via Business Partner endpoint ────────────────────
+      // This provisions the backing customer / supplier rows per role and
+      // links them under a single identity record (business_partner).
+      const bpAddress = (primaryAddr?.street || primaryAddr?.city || primaryAddr?.state || primaryAddr?.pincode)
+        ? { street: primaryAddr?.street, city: primaryAddr?.city, state: primaryAddr?.state,
+            postal_code: primaryAddr?.pincode, country: primaryAddr?.country?.name }
+        : billingAddress
+          ? { street: billingAddress.street, city: billingAddress.city, state: billingAddress.state,
+              postal_code: billingAddress.pincode, country: billingAddress.country }
           : undefined
-        // Map custom party types to 'supplier' — backend only accepts the built-in enum values
-        const VALID_PARTY_TYPES: PartyType[] = ['supplier', 'employee', 'partner', 'contractor']
-        const apiPartyType: PartyType = VALID_PARTY_TYPES.includes(partyType as PartyType)
-          ? (partyType as PartyType)
-          : 'supplier'
 
-        const created = await createSupplier.mutateAsync({
-          name:                 name.trim(),
-          party_type:           apiPartyType,
-          contact_name:         contactPerson || undefined,
-          email:                email || undefined,
-          phone:                fullPhone,
-          notes:                finalNotes || undefined,
-          gstin:                apiGstin || undefined,
-          pan_number:           apiPan   || undefined,
-          address,
-          opening_balance:      openingBalance ? parseFloat(openingBalance) : 0,
-          bank_name:            bankName || undefined,
-          account_number:       accountNumber || undefined,
-          account_holder_name:  accountHolderName || undefined,
-          account_type:         accountType || undefined,
-          ifsc_code:            ifscCode || undefined,
-        })
-        const createdSupplierId = (created as unknown as { id?: string }).id
-        if (createdSupplierId) persistAvatarIfNeeded(createdSupplierId)
-        onCreated?.(created as unknown as Record<string, unknown>)
-        onClose()
-      }
+      const rolesToCreate = selectedRoles.length > 0 ? selectedRoles : [partyType]
+
+      const created = await createBP.mutateAsync({
+        name:                 name.trim(),
+        contact_name:         contactPerson || undefined,
+        email:                email.trim() || undefined,
+        phone:                fullPhone,
+        gstin:                apiGstin || undefined,
+        pan_number:           apiPan   || undefined,
+        company_name:         name.trim() || undefined,
+        address:              bpAddress,
+        opening_balance:      openingBalance ? parseFloat(openingBalance) : 0,
+        bank_name:            bankName || undefined,
+        account_number:       accountNumber || undefined,
+        account_holder_name:  accountHolderName || undefined,
+        account_type:         accountType || undefined,
+        ifsc_code:            ifscCode || undefined,
+        notes:                finalNotes || undefined,
+        roles:                rolesToCreate.map(r => ({ role: r })),
+      })
+      const createdId = (created as unknown as { id?: string }).id
+      if (createdId) persistAvatarIfNeeded(createdId)
+      onCreated?.(created as unknown as Record<string, unknown>)
+      onClose()
     } catch (err: unknown) {
       // Always log the raw error for browser DevTools debugging
       console.error('[AddPartyModal] Save failed:', err)
@@ -1755,38 +1756,56 @@ export function AddPartyModal({
             {errors.name && <p className="text-xs text-red-500">{errors.name}</p>}
           </div>
 
-          {/* Party Type */}
+          {/* Party Type / Roles */}
           <div className="space-y-2">
-            <Label className="text-xs font-medium uppercase tracking-wide text-gray-500 block">Party Type</Label>
+            <Label className="text-xs font-medium uppercase tracking-wide text-gray-500 block">
+              {isEditMode ? 'Party Type' : (
+                <span className="flex items-center gap-1.5">
+                  Roles
+                  <span className="text-gray-400 font-normal normal-case">
+                    {selectedRoles.length > 1 ? `(${selectedRoles.length} selected — saves as Business Partner)` : '(select one or more)'}
+                  </span>
+                </span>
+              )}
+            </Label>
             <div className="flex flex-wrap gap-2 items-center">
 
               {/* Built-in types */}
-              {PARTY_TYPES.map(({ value, label }) => (
-                <button
-                  key={value} type="button" onClick={() => handlePartyType(value)}
-                  className={`px-3.5 py-1.5 rounded-full text-sm font-medium border transition-all ${
-                    partyType === value
-                      ? 'bg-primary text-white border-primary shadow-sm'
-                      : 'bg-white text-gray-700 border-gray-300 hover:border-primary/60 hover:text-primary'
-                  }`}
-                >
-                  {label}
-                </button>
-              ))}
+              {PARTY_TYPES.map(({ value, label }) => {
+                const isActive = isEditMode ? partyType === value : selectedRoles.includes(value)
+                return (
+                  <button
+                    key={value} type="button"
+                    onClick={() => isEditMode ? handlePartyType(value) : toggleRole(value)}
+                    className={`px-3.5 py-1.5 rounded-full text-sm font-medium border transition-all ${
+                      isActive
+                        ? 'bg-primary text-white border-primary shadow-sm'
+                        : 'bg-white text-gray-700 border-gray-300 hover:border-primary/60 hover:text-primary'
+                    }`}
+                  >
+                    {label}
+                    {!isEditMode && isActive && selectedRoles.length > 1 && selectedRoles[0] === value && (
+                      <span className="ml-1 text-[10px] opacity-70">primary</span>
+                    )}
+                  </button>
+                )
+              })}
 
               {/* User-created custom types */}
-              {customPartyTypes.map(ct => (
+              {customPartyTypes.map(ct => {
+                const isActive = isEditMode ? partyType === ct : selectedRoles.includes(ct)
+                return (
                 <span
                   key={ct}
                   className={`inline-flex items-center rounded-full border text-sm font-medium transition-all ${
-                    partyType === ct
+                    isActive
                       ? 'bg-primary border-primary text-white shadow-sm'
                       : 'bg-white border-primary/40 text-primary hover:border-primary'
                   }`}
                 >
                   <button
                     type="button"
-                    onClick={() => handlePartyType(ct)}
+                    onClick={() => isEditMode ? handlePartyType(ct) : toggleRole(ct)}
                     className="pl-3.5 pr-1.5 py-1.5 leading-none"
                   >
                     {ct}
@@ -1801,7 +1820,8 @@ export function AddPartyModal({
                 <X className="w-3 h-3" />
                   </button>
                 </span>
-              ))}
+                )
+              })}
 
               {/* + Custom type — button or inline input */}
               {!showCustomTypeInput ? (

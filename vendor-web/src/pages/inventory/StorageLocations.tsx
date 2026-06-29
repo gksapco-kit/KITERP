@@ -12,10 +12,11 @@ import {
   useCreateStorageLocation,
   useUpdateStorageLocation,
   useDeleteStorageLocation,
+  usePlants,
 } from '@/hooks/useVendor'
 import {
   Loader2, Plus, Pencil, Trash2, X, ChevronRight, ChevronDown,
-  Boxes, Store, MapPin,
+  Boxes, Store, MapPin, Factory,
 } from 'lucide-react'
 import { ResizableTable } from '@/components/table/ResizableTable'
 import type { StorageLocation, CustomField } from '@/types'
@@ -174,6 +175,7 @@ export default function StorageLocationsPage() {
   const { data: storesData, isLoading: storesLoading } = useStores()
   const stores = storesData?.stores ?? []
   const [selectedStoreId, setSelectedStoreId] = useState<string | null>(null)
+  const [selectedPlantId, setSelectedPlantId] = useState<string | null>(null)
 
   useEffect(() => {
     if (!selectedStoreId && stores.length > 0) {
@@ -181,7 +183,19 @@ export default function StorageLocationsPage() {
     }
   }, [stores, selectedStoreId])
 
-  const { data, isLoading } = useStorageLocationTree(selectedStoreId)
+  const { data: plantsData, isLoading: plantsLoading } = usePlants(selectedStoreId)
+  const plants = plantsData?.plants ?? []
+
+  useEffect(() => {
+    if (plants.length > 0 && !selectedPlantId) {
+      setSelectedPlantId(plants[0].id)
+    }
+    if (plants.length === 0) {
+      setSelectedPlantId(null)
+    }
+  }, [plants, selectedPlantId])
+
+  const { data, isLoading } = useStorageLocationTree(selectedStoreId, selectedPlantId)
   const createLocation = useCreateStorageLocation()
   const updateLocation = useUpdateStorageLocation()
   const deleteLocation = useDeleteStorageLocation()
@@ -228,7 +242,7 @@ export default function StorageLocationsPage() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-    if (!name.trim() || !selectedStoreId) return
+    if (!name.trim() || !selectedStoreId || !selectedPlantId) return
 
     const payload: Record<string, unknown> = {
       name: name.trim(),
@@ -242,7 +256,7 @@ export default function StorageLocationsPage() {
     if (editing) {
       updateLocation.mutate({ id: editing.id, data: payload }, { onSuccess: resetForm })
     } else {
-      createLocation.mutate({ ...payload, store_id: selectedStoreId }, { onSuccess: resetForm })
+      createLocation.mutate({ ...payload, store_id: selectedStoreId, plant_id: selectedPlantId }, { onSuccess: resetForm })
     }
   }
 
@@ -282,7 +296,7 @@ export default function StorageLocationsPage() {
             Define warehouse zones, aisles, shelves, and bins per business unit. Add custom fields on each location as needed.
           </p>
         </div>
-        <Button onClick={() => openCreate()} disabled={!selectedStoreId} className="gap-2">
+        <Button onClick={() => openCreate()} disabled={!selectedStoreId || !selectedPlantId} className="gap-2">
           <Plus className="w-4 h-4" /> Add Location
         </Button>
       </div>
@@ -301,7 +315,7 @@ export default function StorageLocationsPage() {
               ) : (
                 <Select
                   value={selectedStoreId || ''}
-                  onChange={setSelectedStoreId}
+                  onChange={(v) => { setSelectedStoreId(v); setSelectedPlantId(null) }}
                   options={stores.map(s => ({
                     value: s.id,
                     label: `${s.name}${s.code ? ` (${s.code})` : ''}`,
@@ -310,7 +324,29 @@ export default function StorageLocationsPage() {
                 />
               )}
             </div>
-            {selectedStore && (
+            {selectedStoreId && (
+              <div className="min-w-[220px] space-y-1.5">
+                <Label className="text-xs text-muted-foreground flex items-center gap-1.5">
+                  <Factory className="w-3.5 h-3.5" /> Plant
+                </Label>
+                {plantsLoading ? (
+                  <Loader2 className="w-5 h-5 animate-spin text-gray-300" />
+                ) : plants.length === 0 ? (
+                  <p className="text-sm text-gray-400">No plants yet. Add one under Inventory → Plants.</p>
+                ) : (
+                  <Select
+                    value={selectedPlantId || ''}
+                    onChange={setSelectedPlantId}
+                    options={plants.map(p => ({
+                      value: p.id,
+                      label: `${p.name}${p.code ? ` (${p.code})` : ''}`,
+                    }))}
+                    aria-label="Plant"
+                  />
+                )}
+              </div>
+            )}
+            {selectedStore && selectedPlantId && (
               <p className="text-xs text-gray-400 pb-2">
                 Locations below belong to <span className="font-medium text-gray-600">{selectedStore.name}</span>
               </p>
@@ -332,8 +368,8 @@ export default function StorageLocationsPage() {
               />
             </div>
           </div>
-          {!selectedStoreId ? (
-            <p className="text-sm text-gray-400 text-center py-12">Select a business unit to manage storage locations.</p>
+          {!selectedStoreId || !selectedPlantId ? (
+            <p className="text-sm text-gray-400 text-center py-12">Select a business unit and plant to manage storage locations.</p>
           ) : isLoading ? (
             <div className="flex justify-center py-16"><Loader2 className="w-8 h-8 animate-spin text-gray-300" /></div>
           ) : (

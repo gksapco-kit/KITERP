@@ -2,6 +2,8 @@
 from pydantic import BaseModel, Field
 from typing import Optional, List, Any
 from enum import Enum
+from uuid import UUID
+from decimal import Decimal
 
 
 class ServiceStatus(str, Enum):
@@ -566,3 +568,71 @@ class ServiceListResponse(BaseModel):
     page: int
     size: int
     pages: int
+
+
+# ── Service BOM & Resources ───────────────────────────────────────────────────
+
+class ServiceBOMItemIn(BaseModel):
+    component_id: UUID
+    qty_per_service: Decimal = Field(gt=0, decimal_places=4)
+    unit_cost_override: Optional[Decimal] = None
+    auto_reserve: bool = True
+    notes: Optional[str] = None
+
+
+class ServiceBOMItemOut(BaseModel):
+    id: UUID
+    service_id: UUID
+    component_id: UUID
+    component_name: str
+    component_sku: Optional[str] = None
+    component_uom: Optional[str] = None
+    component_cost_price: Optional[float] = None
+    qty_per_service: float
+    unit_cost: float
+    line_cost: float
+    unit_cost_override: Optional[float] = None
+    auto_reserve: bool = True
+    notes: Optional[str] = None
+    created_at: Optional[str] = None
+
+
+class ServiceResourceIn(BaseModel):
+    resource_type: str = "employee"
+    resource_id: Optional[UUID] = None
+    resource_name: str
+    quantity: float = Field(default=1, gt=0)
+    duration_minutes: Optional[int] = Field(default=None, ge=0)
+    cost_type: str = "hourly"
+    cost_rate: float = Field(default=0, ge=0)
+    auto_reserve: bool = True
+    notes: Optional[str] = None
+    sort_order: int = 0
+
+
+class ServiceResourceOut(BaseModel):
+    id: UUID
+    service_id: UUID
+    resource_type: str
+    resource_id: Optional[str] = None
+    resource_name: str
+    quantity: float
+    duration_minutes: Optional[int] = None
+    cost_type: str
+    cost_rate: float
+    line_cost: float
+    auto_reserve: bool = True
+    notes: Optional[str] = None
+    sort_order: int = 0
+    created_at: Optional[str] = None
+
+
+class ServiceCostSummaryOut(BaseModel):
+    material_cost: float
+    resource_cost: float
+    total_cost: float
+    selling_price: Optional[float] = None
+    margin: Optional[float] = None
+    margin_pct: Optional[float] = None
+    bom_items: int
+    resources: int

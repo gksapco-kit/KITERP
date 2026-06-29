@@ -381,7 +381,7 @@ function RangeMarkModal({
               <p className="text-xs text-gray-400">Step 1 of 2 · Set range &amp; defaults</p>
             </div>
           </div>
-          <button type="button" aria-label="Close" type="button" onClick={onClose} className="text-gray-400 hover:text-gray-600">
+          <button type="button" aria-label="Close" onClick={onClose} className="text-gray-400 hover:text-gray-600">
                 <X className="w-5 h-5" /></button>
         </div>
 
@@ -582,7 +582,7 @@ function RangeMarkModal({
               <p className="text-xs text-gray-400">{fromDate} → {toDate} · {visibleDays.length} days</p>
             </div>
           </div>
-          <button type="button" aria-label="Close" type="button" onClick={onClose} className="text-gray-400 hover:text-gray-600">
+          <button type="button" aria-label="Close" onClick={onClose} className="text-gray-400 hover:text-gray-600">
                 <X className="w-4 h-4" /></button>
         </div>
 

@@ -514,7 +514,10 @@ async def create_journal_entry(
     db: AsyncSession = Depends(get_db),
 ):
     """Create a validated, balanced draft journal entry (enterprise path)."""
-    je = await create_journal_draft(db, vu.vendor_id, body, created_by_id=vu.id)
+    try:
+        je = await create_journal_draft(db, vu.vendor_id, body, created_by_id=vu.id)
+    except ValueError as exc:
+        raise HTTPException(400, str(exc))
     await db.commit()
     result = _d(je)
     result["lines"] = [_d(ln) for ln in je.lines]
@@ -1105,8 +1108,312 @@ async def list_payment_applications(
 
 
 # ═══════════════════════════════════════════════════════════════════════════
-# ACCOUNTS PAYABLE (AP) — Vendor Bills
+# GL OPEN-ITEM MANAGEMENT & CLEARING
 # ═══════════════════════════════════════════════════════════════════════════
+
+@router.get("/gl/open-items")
+async def list_open_items(
+    account_id: UUID = Query(...),
+    party_type: Optional[str] = None,
+    party_id: Optional[UUID] = None,
+    include_partial: bool = True,
+    vu: VendorUser = Depends(require_permission("finance.ar.manage")),
+    db: AsyncSession = Depends(get_db),
+):
+    """Return open (uncleared) GL line items for a reconcilable account."""
+    from app.services.finance.clearing import get_open_items
+    return await get_open_items(
+        db, vu.vendor_id, account_id, party_type, party_id, include_partial
+    )
+
+
+@router.post("/gl/open-items/clear", status_code=201)
+async def clear_open_items(
+    body: dict,
+    vu: VendorUser = Depends(require_permission("finance.ar.manage")),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Clear a set of open GL line items.
+    body: {
+        line_ids: [UUID, ...],
+        clearing_date: "YYYY-MM-DD",
+        notes?: str
+    }
+    Selected lines must all be on the same reconcilable account and net to zero.
+    """
+    from datetime import date as _date_cls
+    from app.services.finance.clearing import clear_open_items as _clear
+    line_ids_raw = body.get("line_ids") or []
+    if not line_ids_raw:
+        raise HTTPException(400, "line_ids is required")
+    try:
+        line_ids = [UUID(str(i)) for i in line_ids_raw]
+    except Exception:
+        raise HTTPException(400, "line_ids must be valid UUIDs")
+    raw_date = body.get("clearing_date")
+    if not raw_date:
+        raise HTTPException(400, "clearing_date is required")
+    try:
+        clearing_date = _date_cls.fromisoformat(str(raw_date))
+    except ValueError:
+        raise HTTPException(400, "clearing_date must be YYYY-MM-DD")
+    try:
+        batch = await _clear(
+            db, vu.vendor_id, line_ids, clearing_date,
+            actor_id=vu.id, notes=body.get("notes"),
+        )
+    except ValueError as e:
+        raise HTTPException(400, str(e)) from e
+    await db.commit()
+    return _d(batch)
+
+
+@router.delete("/gl/open-items/clear/{batch_id}")
+async def reset_clearing(
+    batch_id: UUID,
+    vu: VendorUser = Depends(require_permission("finance.ar.manage")),
+    db: AsyncSession = Depends(get_db),
+):
+    """Reverse a clearing batch: restore all lines to 'open'."""
+    from app.services.finance.clearing import reset_clearing as _reset
+    try:
+        await _reset(db, vu.vendor_id, batch_id, actor_id=vu.id)
+    except ValueError as e:
+        raise HTTPException(404, str(e)) from e
+    await db.commit()
+    return {"message": "Clearing batch reversed; lines restored to open."}
+
+
+@router.get("/gl/clearing-batches")
+async def list_clearing_batches(
+    account_id: Optional[UUID] = None,
+    party_type: Optional[str] = None,
+    party_id: Optional[UUID] = None,
+    skip: int = 0,
+    limit: int = 50,
+    vu: VendorUser = Depends(require_permission("finance.ar.manage")),
+    db: AsyncSession = Depends(get_db),
+):
+    """List clearing batches with optional filters."""
+    from app.models.finance import FinGlClearingBatch as _Batch
+    q = select(_Batch).where(_Batch.vendor_id == vu.vendor_id).order_by(_Batch.clearing_date.desc())
+    if account_id:
+        q = q.where(_Batch.account_id == account_id)
+    if party_type:
+        q = q.where(_Batch.party_type == party_type)
+    if party_id:
+        q = q.where(_Batch.party_id == party_id)
+    r = await db.execute(q.offset(skip).limit(limit))
+    return [_d(b) for b in r.scalars().all()]
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# FINANCIAL STATEMENT VERSIONS (FSV)
+# ═══════════════════════════════════════════════════════════════════════════
+
+@router.post("/fsv/seed", status_code=201)
+async def seed_fsv(
+    vu: VendorUser = Depends(require_permission("finance.coa.manage")),
+    db: AsyncSession = Depends(get_db),
+):
+    """Seed the default P&L and Balance Sheet FSVs if they don't exist."""
+    from app.services.finance.fsv_service import seed_default_fsv
+    await seed_default_fsv(db, vu.vendor_id)
+    await db.commit()
+    return {"message": "Default FSVs seeded."}
+
+
+@router.get("/fsv")
+async def list_fsv(
+    statement_type: Optional[str] = None,
+    vu: VendorUser = Depends(require_permission("finance.view")),
+    db: AsyncSession = Depends(get_db),
+):
+    from app.models.finance import FinStatementVersion as _V
+    q = select(_V).where(_V.vendor_id == vu.vendor_id).order_by(_V.statement_type, _V.name)
+    if statement_type:
+        q = q.where(_V.statement_type == statement_type)
+    r = await db.execute(q)
+    return [_d(v) for v in r.scalars().all()]
+
+
+@router.post("/fsv", status_code=201)
+async def create_fsv(
+    body: dict,
+    vu: VendorUser = Depends(require_permission("finance.coa.manage")),
+    db: AsyncSession = Depends(get_db),
+):
+    from app.models.finance import FinStatementVersion as _V
+    allowed = {"name", "statement_type", "description", "is_default"}
+    data = {k: v for k, v in body.items() if k in allowed}
+    v = _V(id=__import__("uuid").uuid4(), vendor_id=vu.vendor_id, **data)
+    db.add(v)
+    await db.commit()
+    await db.refresh(v)
+    return _d(v)
+
+
+@router.put("/fsv/{version_id}")
+async def update_fsv(
+    version_id: UUID, body: dict,
+    vu: VendorUser = Depends(require_permission("finance.coa.manage")),
+    db: AsyncSession = Depends(get_db),
+):
+    from app.models.finance import FinStatementVersion as _V
+    r = await db.execute(select(_V).where(_V.id == version_id, _V.vendor_id == vu.vendor_id))
+    v = r.scalar_one_or_none()
+    if not v:
+        raise HTTPException(404, "FSV not found")
+    for k in ("name", "description", "is_default"):
+        if k in body:
+            setattr(v, k, body[k])
+    await db.commit()
+    return _d(v)
+
+
+@router.delete("/fsv/{version_id}", status_code=204)
+async def delete_fsv(
+    version_id: UUID,
+    vu: VendorUser = Depends(require_permission("finance.coa.manage")),
+    db: AsyncSession = Depends(get_db),
+):
+    from app.models.finance import FinStatementVersion as _V
+    r = await db.execute(select(_V).where(_V.id == version_id, _V.vendor_id == vu.vendor_id))
+    v = r.scalar_one_or_none()
+    if not v:
+        raise HTTPException(404, "FSV not found")
+    await db.delete(v)
+    await db.commit()
+
+
+@router.get("/fsv/{version_id}/nodes")
+async def list_fsv_nodes(
+    version_id: UUID,
+    vu: VendorUser = Depends(require_permission("finance.view")),
+    db: AsyncSession = Depends(get_db),
+):
+    from app.models.finance import FinStatementNode as _N, FinStatementNodeAcct as _A
+    r = await db.execute(
+        select(_N).where(_N.version_id == version_id, _N.vendor_id == vu.vendor_id)
+        .order_by(_N.sort_order)
+    )
+    nodes = r.scalars().all()
+    r2 = await db.execute(
+        select(_A).where(_A.vendor_id == vu.vendor_id, _A.node_id.in_([n.id for n in nodes]))
+    )
+    accts_by_node: dict = {}
+    for a in r2.scalars().all():
+        accts_by_node.setdefault(str(a.node_id), []).append(_d(a))
+    return [
+        {**_d(n), "account_assignments": accts_by_node.get(str(n.id), [])}
+        for n in nodes
+    ]
+
+
+@router.post("/fsv/{version_id}/nodes", status_code=201)
+async def create_fsv_node(
+    version_id: UUID, body: dict,
+    vu: VendorUser = Depends(require_permission("finance.coa.manage")),
+    db: AsyncSession = Depends(get_db),
+):
+    from app.models.finance import FinStatementNode as _N
+    allowed = {"parent_id", "name", "node_type", "sort_order", "sign_flip", "bold", "indent_level"}
+    data = {k: v for k, v in body.items() if k in allowed}
+    node = _N(id=__import__("uuid").uuid4(), version_id=version_id, vendor_id=vu.vendor_id, **data)
+    db.add(node)
+    await db.commit()
+    await db.refresh(node)
+    return _d(node)
+
+
+@router.put("/fsv/{version_id}/nodes/{node_id}")
+async def update_fsv_node(
+    version_id: UUID, node_id: UUID, body: dict,
+    vu: VendorUser = Depends(require_permission("finance.coa.manage")),
+    db: AsyncSession = Depends(get_db),
+):
+    from app.models.finance import FinStatementNode as _N
+    r = await db.execute(select(_N).where(_N.id == node_id, _N.vendor_id == vu.vendor_id))
+    node = r.scalar_one_or_none()
+    if not node:
+        raise HTTPException(404, "Node not found")
+    for k in ("name", "node_type", "sort_order", "sign_flip", "bold", "indent_level", "parent_id"):
+        if k in body:
+            setattr(node, k, body[k])
+    await db.commit()
+    return _d(node)
+
+
+@router.delete("/fsv/{version_id}/nodes/{node_id}", status_code=204)
+async def delete_fsv_node(
+    version_id: UUID, node_id: UUID,
+    vu: VendorUser = Depends(require_permission("finance.coa.manage")),
+    db: AsyncSession = Depends(get_db),
+):
+    from app.models.finance import FinStatementNode as _N
+    r = await db.execute(select(_N).where(_N.id == node_id, _N.vendor_id == vu.vendor_id))
+    node = r.scalar_one_or_none()
+    if not node:
+        raise HTTPException(404, "Node not found")
+    await db.delete(node)
+    await db.commit()
+
+
+@router.post("/fsv/{version_id}/nodes/{node_id}/accounts", status_code=201)
+async def add_fsv_node_account(
+    version_id: UUID, node_id: UUID, body: dict,
+    vu: VendorUser = Depends(require_permission("finance.coa.manage")),
+    db: AsyncSession = Depends(get_db),
+):
+    from app.models.finance import FinStatementNodeAcct as _A
+    a = _A(
+        id=__import__("uuid").uuid4(),
+        node_id=node_id,
+        vendor_id=vu.vendor_id,
+        account_id=body.get("account_id"),
+        code_from=body.get("code_from"),
+        code_to=body.get("code_to"),
+    )
+    db.add(a)
+    await db.commit()
+    await db.refresh(a)
+    return _d(a)
+
+
+@router.delete("/fsv/{version_id}/nodes/{node_id}/accounts/{assignment_id}", status_code=204)
+async def remove_fsv_node_account(
+    version_id: UUID, node_id: UUID, assignment_id: UUID,
+    vu: VendorUser = Depends(require_permission("finance.coa.manage")),
+    db: AsyncSession = Depends(get_db),
+):
+    from app.models.finance import FinStatementNodeAcct as _A
+    r = await db.execute(select(_A).where(_A.id == assignment_id, _A.vendor_id == vu.vendor_id))
+    a = r.scalar_one_or_none()
+    if not a:
+        raise HTTPException(404, "Assignment not found")
+    await db.delete(a)
+    await db.commit()
+
+
+@router.get("/fsv/{version_id}/compute")
+async def compute_fsv(
+    version_id: UUID,
+    from_date: Optional[date] = None,
+    to_date: Optional[date] = None,
+    vu: VendorUser = Depends(require_permission("finance.view")),
+    db: AsyncSession = Depends(get_db),
+):
+    """Compute the financial statement for the given FSV and date range."""
+    from app.services.finance.fsv_service import compute_fsv as _compute
+    today = date.today()
+    fd = from_date or date(today.year, 4, 1)
+    td = to_date or today
+    try:
+        return await _compute(db, vu.vendor_id, version_id, fd, td)
+    except ValueError as e:
+        raise HTTPException(404, str(e)) from e
+
 
 @router.get("/ap/bills")
 async def list_bills(
@@ -2058,3 +2365,1075 @@ async def delete_basic_transaction(
         raise HTTPException(404, "Transaction not found")
     await db.delete(txn)
     await db.commit()
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# POSTING KEYS
+# ─────────────────────────────────────────────────────────────────────────────
+
+from app.models.finance import FinPostingKey, FinFieldStatusGroup, FinFieldStatusRule, FinToleranceGroup
+from app.services.finance.posting_controls import (
+    seed_default_posting_keys,
+    seed_default_field_status_groups,
+    seed_default_tolerance_group,
+)
+
+
+class PostingKeyCreate(BaseModel):
+    code: str
+    name: str
+    side: str               # 'debit' | 'credit'
+    account_type: Optional[str] = None
+    reversal_key: Optional[str] = None
+
+
+class PostingKeyOut(PostingKeyCreate):
+    id: UUID
+    is_active: bool
+
+    class Config:
+        from_attributes = True
+
+
+@router.post("/posting-keys/seed", status_code=201)
+async def seed_posting_keys(
+    vu: VendorUser = Depends(get_current_vendor_user),
+    db: AsyncSession = Depends(get_db),
+):
+    await seed_default_posting_keys(db, vu.vendor_id)
+    await db.commit()
+    return {"seeded": True}
+
+
+@router.get("/posting-keys")
+async def list_posting_keys(
+    vu: VendorUser = Depends(get_current_vendor_user),
+    db: AsyncSession = Depends(get_db),
+):
+    rows = (await db.execute(
+        select(FinPostingKey)
+        .where(FinPostingKey.vendor_id == vu.vendor_id, FinPostingKey.is_active == True)
+        .order_by(FinPostingKey.code)
+    )).scalars().all()
+    return [PostingKeyOut.model_validate(r) for r in rows]
+
+
+@router.post("/posting-keys", status_code=201)
+async def create_posting_key(
+    body: PostingKeyCreate,
+    vu: VendorUser = Depends(get_current_vendor_user),
+    db: AsyncSession = Depends(get_db),
+):
+    pk = FinPostingKey(vendor_id=vu.vendor_id, **body.model_dump())
+    db.add(pk)
+    await db.commit()
+    await db.refresh(pk)
+    return PostingKeyOut.model_validate(pk)
+
+
+@router.delete("/posting-keys/{pk_id}", status_code=204)
+async def delete_posting_key(
+    pk_id: UUID,
+    vu: VendorUser = Depends(get_current_vendor_user),
+    db: AsyncSession = Depends(get_db),
+):
+    pk = (await db.execute(
+        select(FinPostingKey).where(FinPostingKey.id == pk_id, FinPostingKey.vendor_id == vu.vendor_id)
+    )).scalar_one_or_none()
+    if not pk:
+        raise HTTPException(404, "Posting key not found")
+    await db.delete(pk)
+    await db.commit()
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# FIELD STATUS GROUPS
+# ─────────────────────────────────────────────────────────────────────────────
+
+class FieldStatusRuleIn(BaseModel):
+    field_name: str
+    status: str     # required | optional | suppressed
+
+
+class FieldStatusGroupCreate(BaseModel):
+    code: str
+    name: str
+    rules: list[FieldStatusRuleIn] = []
+
+
+class FieldStatusGroupOut(BaseModel):
+    id: UUID
+    code: str
+    name: str
+    rules: list[FieldStatusRuleIn] = []
+
+    class Config:
+        from_attributes = True
+
+
+@router.post("/field-status-groups/seed", status_code=201)
+async def seed_fsg(
+    vu: VendorUser = Depends(get_current_vendor_user),
+    db: AsyncSession = Depends(get_db),
+):
+    mapping = await seed_default_field_status_groups(db, vu.vendor_id)
+    await db.commit()
+    return {"seeded": len(mapping)}
+
+
+@router.get("/field-status-groups")
+async def list_fsg(
+    vu: VendorUser = Depends(get_current_vendor_user),
+    db: AsyncSession = Depends(get_db),
+):
+    rows = (await db.execute(
+        select(FinFieldStatusGroup)
+        .where(FinFieldStatusGroup.vendor_id == vu.vendor_id)
+        .order_by(FinFieldStatusGroup.code)
+    )).scalars().all()
+
+    result = []
+    for g in rows:
+        rules_rows = (await db.execute(
+            select(FinFieldStatusRule).where(FinFieldStatusRule.group_id == g.id)
+        )).scalars().all()
+        result.append({
+            "id": str(g.id),
+            "code": g.code,
+            "name": g.name,
+            "rules": [{"field_name": r.field_name, "status": r.status} for r in rules_rows],
+        })
+    return result
+
+
+@router.post("/field-status-groups", status_code=201)
+async def create_fsg(
+    body: FieldStatusGroupCreate,
+    vu: VendorUser = Depends(get_current_vendor_user),
+    db: AsyncSession = Depends(get_db),
+):
+    g = FinFieldStatusGroup(vendor_id=vu.vendor_id, code=body.code, name=body.name)
+    db.add(g)
+    await db.flush()
+    for rule in body.rules:
+        db.add(FinFieldStatusRule(group_id=g.id, field_name=rule.field_name, status=rule.status))
+    await db.commit()
+    await db.refresh(g)
+    return {"id": str(g.id), "code": g.code, "name": g.name}
+
+
+@router.delete("/field-status-groups/{group_id}", status_code=204)
+async def delete_fsg(
+    group_id: UUID,
+    vu: VendorUser = Depends(get_current_vendor_user),
+    db: AsyncSession = Depends(get_db),
+):
+    g = (await db.execute(
+        select(FinFieldStatusGroup).where(
+            FinFieldStatusGroup.id == group_id,
+            FinFieldStatusGroup.vendor_id == vu.vendor_id,
+        )
+    )).scalar_one_or_none()
+    if not g:
+        raise HTTPException(404, "Field Status Group not found")
+    await db.delete(g)
+    await db.commit()
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# TOLERANCE GROUPS
+# ─────────────────────────────────────────────────────────────────────────────
+
+from decimal import Decimal as _D
+
+
+class ToleranceGroupCreate(BaseModel):
+    code: str
+    name: str
+    max_line_amount: Optional[float] = None
+    max_document_amount: Optional[float] = None
+    payment_diff_abs: Optional[float] = None
+    payment_diff_pct: Optional[float] = None
+    currency: str = "INR"
+
+
+class ToleranceGroupOut(ToleranceGroupCreate):
+    id: UUID
+
+    class Config:
+        from_attributes = True
+
+
+@router.post("/tolerance-groups/seed", status_code=201)
+async def seed_tolerance_group(
+    vu: VendorUser = Depends(get_current_vendor_user),
+    db: AsyncSession = Depends(get_db),
+):
+    gid = await seed_default_tolerance_group(db, vu.vendor_id)
+    await db.commit()
+    return {"id": str(gid)}
+
+
+@router.get("/tolerance-groups")
+async def list_tolerance_groups(
+    vu: VendorUser = Depends(get_current_vendor_user),
+    db: AsyncSession = Depends(get_db),
+):
+    rows = (await db.execute(
+        select(FinToleranceGroup)
+        .where(FinToleranceGroup.vendor_id == vu.vendor_id)
+        .order_by(FinToleranceGroup.code)
+    )).scalars().all()
+    return [ToleranceGroupOut.model_validate(r) for r in rows]
+
+
+@router.post("/tolerance-groups", status_code=201)
+async def create_tolerance_group(
+    body: ToleranceGroupCreate,
+    vu: VendorUser = Depends(get_current_vendor_user),
+    db: AsyncSession = Depends(get_db),
+):
+    tg = FinToleranceGroup(vendor_id=vu.vendor_id, **body.model_dump())
+    db.add(tg)
+    await db.commit()
+    await db.refresh(tg)
+    return ToleranceGroupOut.model_validate(tg)
+
+
+@router.put("/tolerance-groups/{tg_id}")
+async def update_tolerance_group(
+    tg_id: UUID,
+    body: ToleranceGroupCreate,
+    vu: VendorUser = Depends(get_current_vendor_user),
+    db: AsyncSession = Depends(get_db),
+):
+    tg = (await db.execute(
+        select(FinToleranceGroup).where(
+            FinToleranceGroup.id == tg_id,
+            FinToleranceGroup.vendor_id == vu.vendor_id,
+        )
+    )).scalar_one_or_none()
+    if not tg:
+        raise HTTPException(404, "Tolerance group not found")
+    for k, v in body.model_dump().items():
+        setattr(tg, k, v)
+    await db.commit()
+    await db.refresh(tg)
+    return ToleranceGroupOut.model_validate(tg)
+
+
+@router.delete("/tolerance-groups/{tg_id}", status_code=204)
+async def delete_tolerance_group(
+    tg_id: UUID,
+    vu: VendorUser = Depends(get_current_vendor_user),
+    db: AsyncSession = Depends(get_db),
+):
+    tg = (await db.execute(
+        select(FinToleranceGroup).where(
+            FinToleranceGroup.id == tg_id,
+            FinToleranceGroup.vendor_id == vu.vendor_id,
+        )
+    )).scalar_one_or_none()
+    if not tg:
+        raise HTTPException(404, "Tolerance group not found")
+    await db.delete(tg)
+    await db.commit()
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# PROFIT CENTERS & SEGMENTS
+# ─────────────────────────────────────────────────────────────────────────────
+
+from app.models.finance import FinProfitCenter as _PC, FinSegment as _Seg
+from app.services.finance import profit_center_service as _pcs
+
+
+class ProfitCenterCreate(BaseModel):
+    code: str
+    name: str
+    description: Optional[str] = None
+    parent_id: Optional[UUID] = None
+    manager: Optional[str] = None
+
+
+class ProfitCenterOut(ProfitCenterCreate):
+    id: UUID
+    is_active: bool
+
+    class Config:
+        from_attributes = True
+
+
+class SegmentCreate(BaseModel):
+    code: str
+    name: str
+    description: Optional[str] = None
+
+
+class SegmentOut(SegmentCreate):
+    id: UUID
+    is_active: bool
+
+    class Config:
+        from_attributes = True
+
+
+# ── Profit Centers ───────────────────────────────────────────────────────────
+
+@router.get("/profit-centers")
+async def list_profit_centers(
+    vu: VendorUser = Depends(get_current_vendor_user),
+    db: AsyncSession = Depends(get_db),
+):
+    pcs = await _pcs.list_profit_centers(db, vu.vendor_id)
+    return [ProfitCenterOut.model_validate(p) for p in pcs]
+
+
+@router.post("/profit-centers", status_code=201)
+async def create_profit_center(
+    body: ProfitCenterCreate,
+    vu: VendorUser = Depends(get_current_vendor_user),
+    db: AsyncSession = Depends(get_db),
+):
+    pc = await _pcs.create_profit_center(db, vu.vendor_id, **body.model_dump())
+    await db.commit()
+    await db.refresh(pc)
+    return ProfitCenterOut.model_validate(pc)
+
+
+@router.put("/profit-centers/{pc_id}")
+async def update_profit_center(
+    pc_id: UUID,
+    body: ProfitCenterCreate,
+    vu: VendorUser = Depends(get_current_vendor_user),
+    db: AsyncSession = Depends(get_db),
+):
+    try:
+        pc = await _pcs.update_profit_center(db, pc_id, vu.vendor_id, **body.model_dump())
+        await db.commit()
+        await db.refresh(pc)
+        return ProfitCenterOut.model_validate(pc)
+    except ValueError as e:
+        raise HTTPException(404, str(e))
+
+
+@router.delete("/profit-centers/{pc_id}", status_code=204)
+async def delete_profit_center(
+    pc_id: UUID,
+    vu: VendorUser = Depends(get_current_vendor_user),
+    db: AsyncSession = Depends(get_db),
+):
+    try:
+        await _pcs.delete_profit_center(db, pc_id, vu.vendor_id)
+        await db.commit()
+    except ValueError as e:
+        raise HTTPException(404, str(e))
+
+
+@router.get("/profit-centers/pnl")
+async def profit_center_pnl(
+    from_date: date = Query(...),
+    to_date: date = Query(...),
+    vu: VendorUser = Depends(get_current_vendor_user),
+    db: AsyncSession = Depends(get_db),
+):
+    return await _pcs.pnl_by_profit_center(db, vu.vendor_id, from_date, to_date)
+
+
+# ── Segments ─────────────────────────────────────────────────────────────────
+
+@router.get("/segments")
+async def list_segments(
+    vu: VendorUser = Depends(get_current_vendor_user),
+    db: AsyncSession = Depends(get_db),
+):
+    segs = await _pcs.list_segments(db, vu.vendor_id)
+    return [SegmentOut.model_validate(s) for s in segs]
+
+
+@router.post("/segments", status_code=201)
+async def create_segment(
+    body: SegmentCreate,
+    vu: VendorUser = Depends(get_current_vendor_user),
+    db: AsyncSession = Depends(get_db),
+):
+    seg = await _pcs.create_segment(db, vu.vendor_id, **body.model_dump())
+    await db.commit()
+    await db.refresh(seg)
+    return SegmentOut.model_validate(seg)
+
+
+@router.delete("/segments/{seg_id}", status_code=204)
+async def delete_segment(
+    seg_id: UUID,
+    vu: VendorUser = Depends(get_current_vendor_user),
+    db: AsyncSession = Depends(get_db),
+):
+    try:
+        await _pcs.delete_segment(db, seg_id, vu.vendor_id)
+        await db.commit()
+    except ValueError as e:
+        raise HTTPException(404, str(e))
+
+
+@router.get("/segments/pnl")
+async def segment_pnl(
+    from_date: date = Query(...),
+    to_date: date = Query(...),
+    vu: VendorUser = Depends(get_current_vendor_user),
+    db: AsyncSession = Depends(get_db),
+):
+    return await _pcs.pnl_by_segment(db, vu.vendor_id, from_date, to_date)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# FX EXCHANGE RATES & REVALUATION
+# ─────────────────────────────────────────────────────────────────────────────
+
+from app.services.finance import fx_reval_service as _fx
+from decimal import Decimal as _FxD
+
+
+class ExchangeRateUpsert(BaseModel):
+    from_currency: str
+    to_currency: str
+    rate: float
+    rate_date: date
+    rate_type: str = "M"
+
+
+class FxRevalRunCreate(BaseModel):
+    currency: str
+    run_date: date
+    local_currency: str = "INR"
+    rate_type: str = "M"
+
+
+class CarryForwardCreate(BaseModel):
+    from_fiscal_year: int
+    to_fiscal_year: int
+
+
+@router.post("/fx/rates", status_code=201)
+async def upsert_exchange_rate(
+    body: ExchangeRateUpsert,
+    vu: VendorUser = Depends(get_current_vendor_user),
+    db: AsyncSession = Depends(get_db),
+):
+    er = await _fx.upsert_exchange_rate(
+        db, vu.vendor_id,
+        body.from_currency, body.to_currency,
+        _FxD(str(body.rate)), body.rate_date, body.rate_type,
+    )
+    await db.commit()
+    return {
+        "id": str(er.id), "from_currency": er.from_currency,
+        "to_currency": er.to_currency, "rate": str(er.rate),
+        "rate_date": str(er.rate_date), "rate_type": er.rate_type,
+    }
+
+
+@router.get("/fx/rates")
+async def list_exchange_rates(
+    from_currency: Optional[str] = None,
+    to_currency: Optional[str] = None,
+    vu: VendorUser = Depends(get_current_vendor_user),
+    db: AsyncSession = Depends(get_db),
+):
+    from app.models.finance import FinExchangeRate
+    stmt = select(FinExchangeRate).where(FinExchangeRate.vendor_id == vu.vendor_id)
+    if from_currency:
+        stmt = stmt.where(FinExchangeRate.from_currency == from_currency.upper())
+    if to_currency:
+        stmt = stmt.where(FinExchangeRate.to_currency == to_currency.upper())
+    stmt = stmt.order_by(FinExchangeRate.rate_date.desc())
+    rows = (await db.execute(stmt)).scalars().all()
+    return [
+        {
+            "id": str(r.id), "from_currency": r.from_currency,
+            "to_currency": r.to_currency, "rate": str(r.rate),
+            "rate_date": str(r.rate_date), "rate_type": r.rate_type,
+        }
+        for r in rows
+    ]
+
+
+@router.post("/fx/reval/simulate", status_code=201)
+async def simulate_fx_reval(
+    body: FxRevalRunCreate,
+    vu: VendorUser = Depends(get_current_vendor_user),
+    db: AsyncSession = Depends(get_db),
+):
+    try:
+        run = await _fx.simulate_fx_reval(
+            db, vu.vendor_id, body.currency, body.run_date,
+            body.local_currency, body.rate_type,
+        )
+        await db.commit()
+        return {
+            "id": str(run.id), "currency": run.currency,
+            "run_date": str(run.run_date), "rate_used": str(run.rate_used),
+            "total_gain": str(run.total_gain), "total_loss": str(run.total_loss),
+            "status": run.status,
+        }
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+
+
+@router.get("/fx/reval")
+async def list_reval_runs(
+    vu: VendorUser = Depends(get_current_vendor_user),
+    db: AsyncSession = Depends(get_db),
+):
+    runs = await _fx.list_reval_runs(db, vu.vendor_id)
+    return [
+        {
+            "id": str(r.id), "currency": r.currency,
+            "run_date": str(r.run_date), "rate_used": str(r.rate_used),
+            "total_gain": str(r.total_gain), "total_loss": str(r.total_loss),
+            "status": r.status, "created_at": r.created_at.isoformat() if r.created_at else None,
+        }
+        for r in runs
+    ]
+
+
+@router.post("/fx/carry-forward", status_code=201)
+async def run_carry_forward(
+    body: CarryForwardCreate,
+    vu: VendorUser = Depends(get_current_vendor_user),
+    db: AsyncSession = Depends(get_db),
+):
+    results = await _fx.run_balance_carry_forward(
+        db, vu.vendor_id, body.from_fiscal_year, body.to_fiscal_year,
+    )
+    await db.commit()
+    return {"carried_accounts": len(results), "details": results}
+
+
+@router.get("/fx/carry-forward")
+async def list_carry_forwards(
+    fiscal_year: Optional[int] = None,
+    vu: VendorUser = Depends(get_current_vendor_user),
+    db: AsyncSession = Depends(get_db),
+):
+    cfs = await _fx.list_carry_forwards(db, vu.vendor_id, fiscal_year)
+    return [
+        {
+            "id": str(cf.id), "account_id": str(cf.account_id),
+            "from_fiscal_year": cf.from_fiscal_year, "to_fiscal_year": cf.to_fiscal_year,
+            "closing_balance": str(cf.closing_balance),
+            "carried_forward_at": cf.carried_forward_at.isoformat() if cf.carried_forward_at else None,
+        }
+        for cf in cfs
+    ]
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# VALIDATIONS, SUBSTITUTIONS & NUMBER RANGES
+# ─────────────────────────────────────────────────────────────────────────────
+
+from app.services.finance import rules_service as _rules_svc
+from app.models.finance import FinValidationRule, FinSubstitutionRule, FinNumberRange
+
+
+# ── Validation Rules ──────────────────────────────────────────────────────────
+
+class ValidationRuleCreate(BaseModel):
+    name: str
+    description: Optional[str] = None
+    call_point: str = "document"
+    prerequisite_expr: Optional[str] = None
+    check_expr: str
+    error_message: str
+    sort_order: int = 10
+
+
+class ValidationRuleOut(ValidationRuleCreate):
+    id: UUID
+    is_active: bool
+
+    class Config:
+        from_attributes = True
+
+
+@router.get("/validations")
+async def list_validations(
+    vu: VendorUser = Depends(get_current_vendor_user),
+    db: AsyncSession = Depends(get_db),
+):
+    rules = await _rules_svc.list_validation_rules(db, vu.vendor_id)
+    return [ValidationRuleOut.model_validate(r) for r in rules]
+
+
+@router.post("/validations", status_code=201)
+async def create_validation(
+    body: ValidationRuleCreate,
+    vu: VendorUser = Depends(get_current_vendor_user),
+    db: AsyncSession = Depends(get_db),
+):
+    rule = await _rules_svc.create_validation_rule(db, vu.vendor_id, **body.model_dump())
+    await db.commit()
+    await db.refresh(rule)
+    return ValidationRuleOut.model_validate(rule)
+
+
+@router.put("/validations/{rule_id}")
+async def update_validation(
+    rule_id: UUID,
+    body: ValidationRuleCreate,
+    vu: VendorUser = Depends(get_current_vendor_user),
+    db: AsyncSession = Depends(get_db),
+):
+    try:
+        rule = await _rules_svc.update_validation_rule(db, rule_id, vu.vendor_id, **body.model_dump())
+        await db.commit()
+        await db.refresh(rule)
+        return ValidationRuleOut.model_validate(rule)
+    except ValueError as e:
+        raise HTTPException(404, str(e))
+
+
+@router.delete("/validations/{rule_id}", status_code=204)
+async def delete_validation(
+    rule_id: UUID,
+    vu: VendorUser = Depends(get_current_vendor_user),
+    db: AsyncSession = Depends(get_db),
+):
+    try:
+        await _rules_svc.delete_validation_rule(db, rule_id, vu.vendor_id)
+        await db.commit()
+    except ValueError as e:
+        raise HTTPException(404, str(e))
+
+
+# ── Substitution Rules ────────────────────────────────────────────────────────
+
+class SubstitutionRuleCreate(BaseModel):
+    name: str
+    description: Optional[str] = None
+    call_point: str = "line"
+    prerequisite_expr: Optional[str] = None
+    target_field: str
+    substitution_expr: str
+    sort_order: int = 10
+
+
+class SubstitutionRuleOut(SubstitutionRuleCreate):
+    id: UUID
+    is_active: bool
+
+    class Config:
+        from_attributes = True
+
+
+@router.get("/substitutions")
+async def list_substitutions(
+    vu: VendorUser = Depends(get_current_vendor_user),
+    db: AsyncSession = Depends(get_db),
+):
+    rules = await _rules_svc.list_substitution_rules(db, vu.vendor_id)
+    return [SubstitutionRuleOut.model_validate(r) for r in rules]
+
+
+@router.post("/substitutions", status_code=201)
+async def create_substitution(
+    body: SubstitutionRuleCreate,
+    vu: VendorUser = Depends(get_current_vendor_user),
+    db: AsyncSession = Depends(get_db),
+):
+    rule = await _rules_svc.create_substitution_rule(db, vu.vendor_id, **body.model_dump())
+    await db.commit()
+    await db.refresh(rule)
+    return SubstitutionRuleOut.model_validate(rule)
+
+
+@router.delete("/substitutions/{rule_id}", status_code=204)
+async def delete_substitution(
+    rule_id: UUID,
+    vu: VendorUser = Depends(get_current_vendor_user),
+    db: AsyncSession = Depends(get_db),
+):
+    try:
+        await _rules_svc.delete_substitution_rule(db, rule_id, vu.vendor_id)
+        await db.commit()
+    except ValueError as e:
+        raise HTTPException(404, str(e))
+
+
+# ── Number Ranges ─────────────────────────────────────────────────────────────
+
+class NumberRangeCreate(BaseModel):
+    document_type: str
+    fiscal_year: int
+    number_from: int
+    number_to: int
+    prefix: Optional[str] = None
+    is_external: bool = False
+
+
+class NumberRangeOut(NumberRangeCreate):
+    id: UUID
+    current_number: int
+
+    class Config:
+        from_attributes = True
+
+
+@router.post("/number-ranges/seed", status_code=201)
+async def seed_number_ranges(
+    fiscal_year: int = Query(...),
+    vu: VendorUser = Depends(get_current_vendor_user),
+    db: AsyncSession = Depends(get_db),
+):
+    created = await _rules_svc.seed_default_number_ranges(db, vu.vendor_id, fiscal_year)
+    await db.commit()
+    return {"seeded": len(created)}
+
+
+@router.get("/number-ranges")
+async def list_number_ranges(
+    vu: VendorUser = Depends(get_current_vendor_user),
+    db: AsyncSession = Depends(get_db),
+):
+    nrs = await _rules_svc.list_number_ranges(db, vu.vendor_id)
+    return [NumberRangeOut.model_validate(r) for r in nrs]
+
+
+@router.post("/number-ranges", status_code=201)
+async def create_number_range(
+    body: NumberRangeCreate,
+    vu: VendorUser = Depends(get_current_vendor_user),
+    db: AsyncSession = Depends(get_db),
+):
+    nr = FinNumberRange(
+        vendor_id=vu.vendor_id,
+        current_number=body.number_from,
+        **body.model_dump(),
+    )
+    db.add(nr)
+    await db.commit()
+    await db.refresh(nr)
+    return NumberRangeOut.model_validate(nr)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# DOCUMENT SPLITTING
+# ─────────────────────────────────────────────────────────────────────────────
+
+from app.services.finance import split_service as _spl
+from app.models.finance import FinSplitRule, FinSplitRuleBase, FinJournalSplitItem
+
+
+class SplitRuleCreate(BaseModel):
+    name: str
+    dimension: str          # profit_center | segment | cost_center
+    base_account_types: list[str]
+    split_method: str = "proportional"
+
+
+class SplitRuleOut(BaseModel):
+    id: UUID
+    name: str
+    dimension: str
+    split_method: str
+    is_active: bool
+    base_account_types: list[str]
+
+    class Config:
+        from_attributes = True
+
+
+@router.get("/split-rules")
+async def list_split_rules(
+    vu: VendorUser = Depends(get_current_vendor_user),
+    db: AsyncSession = Depends(get_db),
+):
+    rules = await _spl.list_split_rules(db, vu.vendor_id)
+    return [
+        {
+            "id": str(r.id), "name": r.name, "dimension": r.dimension,
+            "split_method": r.split_method, "is_active": r.is_active,
+            "base_account_types": [b.account_type for b in r.base_types],
+        }
+        for r in rules
+    ]
+
+
+@router.post("/split-rules", status_code=201)
+async def create_split_rule(
+    body: SplitRuleCreate,
+    vu: VendorUser = Depends(get_current_vendor_user),
+    db: AsyncSession = Depends(get_db),
+):
+    rule = await _spl.create_split_rule(
+        db, vu.vendor_id, body.name, body.dimension,
+        body.base_account_types, body.split_method,
+    )
+    await db.commit()
+    await db.refresh(rule)
+    return {
+        "id": str(rule.id), "name": rule.name, "dimension": rule.dimension,
+        "split_method": rule.split_method, "is_active": rule.is_active,
+        "base_account_types": body.base_account_types,
+    }
+
+
+@router.delete("/split-rules/{rule_id}", status_code=204)
+async def delete_split_rule(
+    rule_id: UUID,
+    vu: VendorUser = Depends(get_current_vendor_user),
+    db: AsyncSession = Depends(get_db),
+):
+    try:
+        await _spl.delete_split_rule(db, rule_id, vu.vendor_id)
+        await db.commit()
+    except ValueError as e:
+        raise HTTPException(404, str(e))
+
+
+@router.post("/split-rules/apply/{journal_entry_id}", status_code=201)
+async def apply_split_to_entry(
+    journal_entry_id: UUID,
+    vu: VendorUser = Depends(get_current_vendor_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Manually trigger splitting for an existing journal entry."""
+    items = await _spl.apply_document_splitting(db, vu.vendor_id, journal_entry_id)
+    await db.commit()
+    return {"split_items_created": len(items)}
+
+
+@router.get("/split-items/{journal_entry_id}")
+async def get_split_items(
+    journal_entry_id: UUID,
+    vu: VendorUser = Depends(get_current_vendor_user),
+    db: AsyncSession = Depends(get_db),
+):
+    items = await _spl.get_split_items(db, journal_entry_id)
+    return [
+        {
+            "id": str(i.id),
+            "journal_line_id": str(i.journal_line_id),
+            "profit_center_id": str(i.profit_center_id) if i.profit_center_id else None,
+            "segment_id": str(i.segment_id) if i.segment_id else None,
+            "cost_center_id": str(i.cost_center_id) if i.cost_center_id else None,
+            "debit": str(i.debit), "credit": str(i.credit),
+            "split_pct": str(i.split_pct),
+        }
+        for i in items
+    ]
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# PARALLEL LEDGERS / MULTI-GAAP
+# ─────────────────────────────────────────────────────────────────────────────
+
+from app.services.finance import parallel_ledger_service as _pl
+from app.models.finance import FinLedger, FinLedgerAssignment, FinJournalLineLedger
+
+
+class LedgerCreate(BaseModel):
+    code: str
+    name: str
+    description: str | None = None
+    is_leading: bool = False
+    currency: str = "INR"
+
+
+class LedgerOut(LedgerCreate):
+    id: UUID
+    is_active: bool
+
+    class Config:
+        from_attributes = True
+
+
+class LedgerAssignCreate(BaseModel):
+    ledger_id: UUID
+    company_id: UUID
+
+
+class LedgerLineCreate(BaseModel):
+    journal_line_id: UUID
+    ledger_id: UUID
+    debit: float = 0.0
+    credit: float = 0.0
+    amount_fc: float | None = None
+    narration: str | None = None
+
+
+@router.get("/ledgers")
+async def list_ledgers(
+    vu: VendorUser = Depends(get_current_vendor_user),
+    db: AsyncSession = Depends(get_db),
+):
+    ledgers = await _pl.list_ledgers(db, vu.vendor_id)
+    return [
+        {
+            "id": str(l.id), "code": l.code, "name": l.name,
+            "description": l.description, "is_leading": l.is_leading,
+            "currency": l.currency, "is_active": l.is_active,
+        }
+        for l in ledgers
+    ]
+
+
+@router.post("/ledgers", status_code=201)
+async def create_ledger(
+    body: LedgerCreate,
+    vu: VendorUser = Depends(get_current_vendor_user),
+    db: AsyncSession = Depends(get_db),
+):
+    ledger = await _pl.create_ledger(
+        db, vu.vendor_id, body.code, body.name,
+        description=body.description, is_leading=body.is_leading, currency=body.currency,
+    )
+    await db.commit()
+    await db.refresh(ledger)
+    return {
+        "id": str(ledger.id), "code": ledger.code, "name": ledger.name,
+        "description": ledger.description, "is_leading": ledger.is_leading,
+        "currency": ledger.currency, "is_active": ledger.is_active,
+    }
+
+
+@router.patch("/ledgers/{ledger_id}")
+async def update_ledger(
+    ledger_id: UUID,
+    body: dict,
+    vu: VendorUser = Depends(get_current_vendor_user),
+    db: AsyncSession = Depends(get_db),
+):
+    try:
+        ledger = await _pl.update_ledger(db, ledger_id, vu.vendor_id, **body)
+        await db.commit()
+        await db.refresh(ledger)
+        return {
+            "id": str(ledger.id), "code": ledger.code, "name": ledger.name,
+            "description": ledger.description, "is_leading": ledger.is_leading,
+            "currency": ledger.currency, "is_active": ledger.is_active,
+        }
+    except ValueError as e:
+        raise HTTPException(404, str(e))
+
+
+@router.delete("/ledgers/{ledger_id}", status_code=204)
+async def delete_ledger(
+    ledger_id: UUID,
+    vu: VendorUser = Depends(get_current_vendor_user),
+    db: AsyncSession = Depends(get_db),
+):
+    try:
+        await _pl.delete_ledger(db, ledger_id, vu.vendor_id)
+        await db.commit()
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+
+
+@router.get("/ledger-assignments")
+async def list_ledger_assignments(
+    company_id: UUID | None = None,
+    ledger_id: UUID | None = None,
+    vu: VendorUser = Depends(get_current_vendor_user),
+    db: AsyncSession = Depends(get_db),
+):
+    items = await _pl.list_assignments(db, vu.vendor_id, company_id=company_id, ledger_id=ledger_id)
+    return [
+        {
+            "id": str(a.id), "ledger_id": str(a.ledger_id),
+            "company_id": str(a.company_id), "is_active": a.is_active,
+        }
+        for a in items
+    ]
+
+
+@router.post("/ledger-assignments", status_code=201)
+async def assign_ledger(
+    body: LedgerAssignCreate,
+    vu: VendorUser = Depends(get_current_vendor_user),
+    db: AsyncSession = Depends(get_db),
+):
+    asgn = await _pl.assign_ledger(db, vu.vendor_id, body.ledger_id, body.company_id)
+    await db.commit()
+    await db.refresh(asgn)
+    return {"id": str(asgn.id), "ledger_id": str(asgn.ledger_id), "company_id": str(asgn.company_id)}
+
+
+@router.delete("/ledger-assignments/{assignment_id}", status_code=204)
+async def remove_ledger_assignment(
+    assignment_id: UUID,
+    vu: VendorUser = Depends(get_current_vendor_user),
+    db: AsyncSession = Depends(get_db),
+):
+    try:
+        await _pl.remove_assignment(db, assignment_id, vu.vendor_id)
+        await db.commit()
+    except ValueError as e:
+        raise HTTPException(404, str(e))
+
+
+@router.post("/ledger-lines", status_code=201)
+async def post_ledger_line(
+    body: LedgerLineCreate,
+    vu: VendorUser = Depends(get_current_vendor_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Post or update a parallel-ledger override line for an existing journal line."""
+    row = await _pl.post_ledger_line(
+        db,
+        body.journal_line_id,
+        body.ledger_id,
+        __import__('decimal').Decimal(str(body.debit)),
+        __import__('decimal').Decimal(str(body.credit)),
+        amount_fc=__import__('decimal').Decimal(str(body.amount_fc)) if body.amount_fc is not None else None,
+        narration=body.narration,
+    )
+    await db.commit()
+    await db.refresh(row)
+    return {
+        "id": str(row.id),
+        "journal_line_id": str(row.journal_line_id),
+        "ledger_id": str(row.ledger_id),
+        "debit": str(row.debit), "credit": str(row.credit),
+    }
+
+
+@router.get("/ledger-lines/{journal_entry_id}/{ledger_id}")
+async def get_ledger_lines(
+    journal_entry_id: UUID,
+    ledger_id: UUID,
+    vu: VendorUser = Depends(get_current_vendor_user),
+    db: AsyncSession = Depends(get_db),
+):
+    rows = await _pl.get_ledger_lines(db, journal_entry_id, ledger_id)
+    return [
+        {
+            "id": str(r.id),
+            "journal_line_id": str(r.journal_line_id),
+            "debit": str(r.debit), "credit": str(r.credit),
+            "narration": r.narration,
+        }
+        for r in rows
+    ]
+
+
+@router.get("/ledger-trial-balance/{ledger_id}")
+async def ledger_trial_balance(
+    ledger_id: UUID,
+    fiscal_year_id: UUID | None = None,
+    vu: VendorUser = Depends(get_current_vendor_user),
+    db: AsyncSession = Depends(get_db),
+):
+    try:
+        rows = await _pl.ledger_trial_balance(
+            db, vu.vendor_id, ledger_id, fiscal_year_id=fiscal_year_id
+        )
+        return [
+            {**r, "debit": str(r["debit"]), "credit": str(r["credit"]), "net": str(r["net"])}
+            for r in rows
+        ]
+    except ValueError as e:
+        raise HTTPException(404, str(e))
+
+
+

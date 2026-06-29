@@ -191,7 +191,7 @@ export default function FieldRuleConfig() {
 
               <div className="min-w-0"><h2 className="font-semibold text-lg">Add field rule</h2></div>
 
-              <button type="button" aria-label="Close"
+              <button
                 type="button"
                 onClick={() => setShowAdd(false)}
                 className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors shrink-0"

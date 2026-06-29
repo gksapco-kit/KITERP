@@ -2,8 +2,10 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from fastapi.responses import JSONResponse
 from sqlalchemy.ext.asyncio import AsyncSession
-from typing import Optional
+from sqlalchemy import select, delete
+from typing import Optional, List
 from uuid import UUID
+from decimal import Decimal
 from slugify import slugify
 import math
 import uuid as uuid_mod
@@ -11,10 +13,14 @@ import uuid as uuid_mod
 from app.database import get_db
 from app.api.deps import get_current_active_user, get_current_vendor_id
 from app.models.user import User
-from app.models.vendor_service import Service, ServiceAvailability, ServicePlan
+from app.models.vendor_service import Service, ServiceAvailability, ServicePlan, ServiceBOMItem, ServiceResource
+from app.models.vendor_product import Product
+from app.models.mrp import StockReservation
 from app.schemas.vendor_service import (
     ServiceCreate, ServiceUpdate, ServiceResponse, ServiceListResponse,
-    PriceType, UnitOfMeasurement, ServiceMode
+    PriceType, UnitOfMeasurement, ServiceMode,
+    ServiceBOMItemIn, ServiceBOMItemOut, ServiceResourceIn, ServiceResourceOut,
+    ServiceCostSummaryOut,
 )
 from app.services.vendor_service import VendorService
 from app.repositories.service_repo import ServiceRepository
@@ -573,6 +579,294 @@ async def update_service(
     await db.commit()
     svc = await repo.get_by_vendor_and_id(vendor_id, service_id)
     return JSONResponse(content=_service_to_dict(svc))
+
+
+async def _get_service_or_404(db: AsyncSession, vendor_id: UUID, service_id: UUID) -> Service:
+    result = await db.execute(
+        select(Service).where(Service.id == service_id, Service.vendor_id == vendor_id)
+    )
+    svc = result.scalar_one_or_none()
+    if not svc:
+        raise HTTPException(status_code=404, detail="Service not found")
+    return svc
+
+
+def _bom_unit_cost(item: ServiceBOMItem, component: Product) -> Decimal:
+    if item.unit_cost_override is not None:
+        return Decimal(str(item.unit_cost_override))
+    if component and component.cost_price is not None:
+        return Decimal(str(component.cost_price))
+    return Decimal("0")
+
+
+def _bom_to_dict(item: ServiceBOMItem, component: Product) -> dict:
+    qty = Decimal(str(item.qty_per_service))
+    unit_cost = _bom_unit_cost(item, component)
+    return {
+        "id": str(item.id),
+        "service_id": str(item.service_id),
+        "component_id": str(item.component_id),
+        "component_name": component.name if component else "Unknown",
+        "component_sku": component.sku if component else None,
+        "component_uom": component.uom if component else None,
+        "component_cost_price": float(component.cost_price) if component and component.cost_price is not None else None,
+        "qty_per_service": float(qty),
+        "unit_cost": float(unit_cost),
+        "line_cost": float(qty * unit_cost),
+        "unit_cost_override": float(item.unit_cost_override) if item.unit_cost_override is not None else None,
+        "auto_reserve": item.auto_reserve if item.auto_reserve is not None else True,
+        "notes": item.notes,
+        "created_at": item.created_at.isoformat() if item.created_at else None,
+    }
+
+
+def _resource_line_cost(res: ServiceResource) -> Decimal:
+    qty = Decimal(str(res.quantity or 1))
+    rate = Decimal(str(res.cost_rate or 0))
+    if (res.cost_type or "hourly") == "fixed":
+        return qty * rate
+    mins = Decimal(str(res.duration_minutes or 0))
+    hours = mins / Decimal("60") if mins > 0 else Decimal("1")
+    return qty * rate * hours
+
+
+def _resource_to_dict(res: ServiceResource) -> dict:
+    line_cost = _resource_line_cost(res)
+    return {
+        "id": str(res.id),
+        "service_id": str(res.service_id),
+        "resource_type": res.resource_type,
+        "resource_id": str(res.resource_id) if res.resource_id else None,
+        "resource_name": res.resource_name,
+        "quantity": float(res.quantity or 1),
+        "duration_minutes": res.duration_minutes,
+        "cost_type": res.cost_type or "hourly",
+        "cost_rate": float(res.cost_rate or 0),
+        "line_cost": float(line_cost),
+        "auto_reserve": res.auto_reserve if res.auto_reserve is not None else True,
+        "notes": res.notes,
+        "sort_order": res.sort_order or 0,
+        "created_at": res.created_at.isoformat() if res.created_at else None,
+    }
+
+
+@router.get("/{service_id}/bom")
+async def get_service_bom(
+    service_id: UUID,
+    vendor_id: UUID = Depends(get_current_vendor_id),
+    db: AsyncSession = Depends(get_db),
+):
+    await _get_service_or_404(db, vendor_id, service_id)
+    result = await db.execute(
+        select(ServiceBOMItem)
+        .where(ServiceBOMItem.vendor_id == vendor_id, ServiceBOMItem.service_id == service_id)
+        .order_by(ServiceBOMItem.created_at)
+    )
+    items = result.scalars().all()
+    out = []
+    for item in items:
+        comp_result = await db.execute(select(Product).where(Product.id == item.component_id))
+        comp = comp_result.scalar_one_or_none()
+        out.append(_bom_to_dict(item, comp))
+    return out
+
+
+@router.put("/{service_id}/bom")
+async def replace_service_bom(
+    service_id: UUID,
+    items: List[ServiceBOMItemIn],
+    vendor_id: UUID = Depends(get_current_vendor_id),
+    db: AsyncSession = Depends(get_db),
+):
+    await _get_service_or_404(db, vendor_id, service_id)
+    await db.execute(
+        delete(ServiceBOMItem).where(
+            ServiceBOMItem.vendor_id == vendor_id,
+            ServiceBOMItem.service_id == service_id,
+        )
+    )
+    new_items = []
+    for item in items:
+        comp_result = await db.execute(
+            select(Product).where(Product.id == item.component_id, Product.vendor_id == vendor_id)
+        )
+        comp = comp_result.scalar_one_or_none()
+        if not comp:
+            raise HTTPException(404, f"Component product {item.component_id} not found")
+        bom_item = ServiceBOMItem(
+            vendor_id=vendor_id,
+            service_id=service_id,
+            component_id=item.component_id,
+            qty_per_service=item.qty_per_service,
+            unit_cost_override=item.unit_cost_override,
+            auto_reserve=item.auto_reserve,
+            notes=item.notes,
+        )
+        db.add(bom_item)
+        new_items.append((bom_item, comp))
+    await db.commit()
+    out = []
+    for bom_item, comp in new_items:
+        await db.refresh(bom_item)
+        out.append(_bom_to_dict(bom_item, comp))
+    return out
+
+
+@router.get("/{service_id}/resources")
+async def get_service_resources(
+    service_id: UUID,
+    vendor_id: UUID = Depends(get_current_vendor_id),
+    db: AsyncSession = Depends(get_db),
+):
+    await _get_service_or_404(db, vendor_id, service_id)
+    result = await db.execute(
+        select(ServiceResource)
+        .where(ServiceResource.vendor_id == vendor_id, ServiceResource.service_id == service_id)
+        .order_by(ServiceResource.sort_order, ServiceResource.created_at)
+    )
+    return [_resource_to_dict(r) for r in result.scalars().all()]
+
+
+@router.put("/{service_id}/resources")
+async def replace_service_resources(
+    service_id: UUID,
+    items: List[ServiceResourceIn],
+    vendor_id: UUID = Depends(get_current_vendor_id),
+    db: AsyncSession = Depends(get_db),
+):
+    await _get_service_or_404(db, vendor_id, service_id)
+    await db.execute(
+        delete(ServiceResource).where(
+            ServiceResource.vendor_id == vendor_id,
+            ServiceResource.service_id == service_id,
+        )
+    )
+    new_items = []
+    for idx, item in enumerate(items):
+        res = ServiceResource(
+            vendor_id=vendor_id,
+            service_id=service_id,
+            resource_type=item.resource_type,
+            resource_id=item.resource_id,
+            resource_name=item.resource_name,
+            quantity=item.quantity,
+            duration_minutes=item.duration_minutes,
+            cost_type=item.cost_type,
+            cost_rate=item.cost_rate,
+            auto_reserve=item.auto_reserve,
+            notes=item.notes,
+            sort_order=item.sort_order if item.sort_order else idx,
+        )
+        db.add(res)
+        new_items.append(res)
+    await db.commit()
+    out = []
+    for res in new_items:
+        await db.refresh(res)
+        out.append(_resource_to_dict(res))
+    return out
+
+
+@router.get("/{service_id}/cost-summary")
+async def get_service_cost_summary(
+    service_id: UUID,
+    vendor_id: UUID = Depends(get_current_vendor_id),
+    db: AsyncSession = Depends(get_db),
+):
+    svc = await _get_service_or_404(db, vendor_id, service_id)
+    bom_result = await db.execute(
+        select(ServiceBOMItem).where(
+            ServiceBOMItem.vendor_id == vendor_id,
+            ServiceBOMItem.service_id == service_id,
+        )
+    )
+    bom_items = bom_result.scalars().all()
+    material_cost = Decimal("0")
+    for item in bom_items:
+        comp_result = await db.execute(select(Product).where(Product.id == item.component_id))
+        comp = comp_result.scalar_one_or_none()
+        material_cost += Decimal(str(item.qty_per_service)) * _bom_unit_cost(item, comp)
+
+    res_result = await db.execute(
+        select(ServiceResource).where(
+            ServiceResource.vendor_id == vendor_id,
+            ServiceResource.service_id == service_id,
+        )
+    )
+    resources = res_result.scalars().all()
+    resource_cost = sum(_resource_line_cost(r) for r in resources)
+
+    total_cost = material_cost + resource_cost
+    selling_price = Decimal(str(svc.price)) if svc.price is not None else None
+    margin = None
+    margin_pct = None
+    if selling_price is not None:
+        margin = selling_price - total_cost
+        margin_pct = float(margin / selling_price * 100) if selling_price > 0 else None
+
+    return {
+        "material_cost": float(material_cost),
+        "resource_cost": float(resource_cost),
+        "total_cost": float(total_cost),
+        "selling_price": float(selling_price) if selling_price is not None else None,
+        "margin": float(margin) if margin is not None else None,
+        "margin_pct": margin_pct,
+        "bom_items": len(bom_items),
+        "resources": len(resources),
+    }
+
+
+@router.post("/{service_id}/reserve-materials")
+async def reserve_service_materials(
+    service_id: UUID,
+    body: dict,
+    vendor_id: UUID = Depends(get_current_vendor_id),
+    db: AsyncSession = Depends(get_db),
+):
+    """Reserve BOM materials for a service booking or job."""
+    await _get_service_or_404(db, vendor_id, service_id)
+    order_id = body.get("order_id")
+    order_type = body.get("order_type", "service_booking")
+    qty = Decimal(str(body.get("qty", 1)))
+    if not order_id:
+        raise HTTPException(400, "order_id is required")
+
+    bom_result = await db.execute(
+        select(ServiceBOMItem).where(
+            ServiceBOMItem.vendor_id == vendor_id,
+            ServiceBOMItem.service_id == service_id,
+            ServiceBOMItem.auto_reserve == True,  # noqa: E712
+        )
+    )
+    bom_items = bom_result.scalars().all()
+    created = []
+    for item in bom_items:
+        reserved_qty = Decimal(str(item.qty_per_service)) * qty
+        resv = StockReservation(
+            vendor_id=vendor_id,
+            order_type=order_type,
+            order_id=str(order_id),
+            product_id=item.component_id,
+            reserved_qty=reserved_qty,
+            status="active",
+            notes=f"Auto-reserved for service {service_id}",
+        )
+        db.add(resv)
+        created.append(resv)
+    await db.commit()
+    out = []
+    for r in created:
+        await db.refresh(r)
+        prod_result = await db.execute(select(Product).where(Product.id == r.product_id))
+        prod = prod_result.scalar_one_or_none()
+        out.append({
+            "id": str(r.id),
+            "product_id": str(r.product_id),
+            "product_name": prod.name if prod else None,
+            "reserved_qty": float(r.reserved_qty),
+            "status": r.status,
+        })
+    return out
 
 
 @router.delete("/{service_id}", status_code=status.HTTP_204_NO_CONTENT)

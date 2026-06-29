@@ -16,9 +16,10 @@ import {
   Loader2, Plus, Search, Pencil, Trash2, X, Truck, Mail, Phone, MapPin,
   Eye, ClipboardList, Package, Calendar, FileText, ArrowRight,
   Building2, CheckCircle2, AlertCircle, IndianRupee,
-  PauseCircle, Ban, RotateCcw, ShieldAlert, AlertTriangle, Trash,
+  PauseCircle, Ban, RotateCcw, ShieldAlert, AlertTriangle, Trash, Copy,
 } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
+import { toast } from 'sonner'
 import { TableToolbar } from '@/components/table/TableToolbar'
 import { processRows, type SortDir } from '@/lib/tableList'
 import { vendorApi } from '@/api/vendor'
@@ -503,12 +504,27 @@ function SupplierViewDrawer({
             <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center">
               <Truck className="w-5 h-5 text-blue-600" />
             </div>
-            <div>
+            <div className="min-w-0">
               <h2 className="text-lg font-semibold text-gray-900">{supplier.name}</h2>
               <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${stCfg.bg} ${stCfg.text}`}>
                 <span className={`w-1.5 h-1.5 rounded-full ${stCfg.dot}`} />
                 {stCfg.label}
               </span>
+              <div className="flex items-center gap-1.5 mt-1.5 min-w-0 max-w-[280px]">
+                <span className="text-[10px] font-medium uppercase tracking-wide text-gray-400 shrink-0">Master ID</span>
+                <code className="text-[11px] font-mono text-gray-600 truncate" title={supplier.id}>{supplier.id}</code>
+                <button
+                  type="button"
+                  aria-label="Copy master ID"
+                  onClick={() => {
+                    navigator.clipboard.writeText(supplier.id)
+                    toast.success('Master ID copied')
+                  }}
+                  className="p-1 rounded hover:bg-gray-100 shrink-0"
+                >
+                  <Copy className="w-3 h-3 text-gray-400" />
+                </button>
+              </div>
             </div>
           </div>
           <div className="flex items-center gap-2">

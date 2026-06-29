@@ -62,6 +62,7 @@ class StorageLocationRepository(BaseRepository[StorageLocation]):
         vendor_id: UUID,
         store_id: UUID,
         is_active: Optional[bool] = None,
+        plant_id: Optional[UUID] = None,
     ) -> List[StorageLocation]:
         query = select(StorageLocation).where(
             StorageLocation.vendor_id == vendor_id,
@@ -69,6 +70,8 @@ class StorageLocationRepository(BaseRepository[StorageLocation]):
         )
         if is_active is not None:
             query = query.where(StorageLocation.is_active == is_active)
+        if plant_id is not None:
+            query = query.where(StorageLocation.plant_id == plant_id)
         query = query.order_by(StorageLocation.sort_order, StorageLocation.name)
         result = await self.db.execute(query)
         return list(result.scalars().all())
@@ -78,8 +81,9 @@ class StorageLocationRepository(BaseRepository[StorageLocation]):
         vendor_id: UUID,
         store_id: UUID,
         is_active: Optional[bool] = None,
+        plant_id: Optional[UUID] = None,
     ) -> List[dict]:
-        all_locs = await self.list_all_flat(vendor_id, store_id, is_active=is_active)
+        all_locs = await self.list_all_flat(vendor_id, store_id, is_active=is_active, plant_id=plant_id)
         by_id = {str(loc.id): loc for loc in all_locs}
         roots = []
         children_map: dict[str, list] = {}

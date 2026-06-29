@@ -327,9 +327,17 @@ function JEDrawer({
       })),
   })
 
+  const formatApiError = (e: any): string => {
+    const detail = e?.response?.data?.detail
+    if (!detail) return 'Save failed'
+    if (typeof detail === 'string') return detail
+    if (Array.isArray(detail)) return detail.map((d: any) => d?.msg || JSON.stringify(d)).join('; ')
+    return JSON.stringify(detail)
+  }
+
   const save = () => {
     if (!isBalanced) { toast.error('Entry is not balanced'); return }
-    if (fr['header.narration'] !== 'optional' && !narration?.trim()) {
+    if (fieldMandatory('header.narration') && !narration?.trim()) {
       toast.error('Narration is required.')
       return
     }
@@ -350,15 +358,19 @@ function JEDrawer({
       return
     }
     const payload = buildPayload()
+    if (payload.lines.length < 2) {
+      toast.error('At least 2 lines with an account and an amount are required.')
+      return
+    }
     if (mode === 'edit' && initialData?.id) {
       updateMut.mutate(
         { id: initialData.id, data: payload as any },
         {
           onSuccess: (data) => {
+            toast.success('Journal entry saved.')
             setSavePreview(data as unknown as JournalEntry)
-            onSaved()
           },
-          onError: (e: any) => toast.error(e?.response?.data?.detail || 'Save failed'),
+          onError: (e: any) => toast.error(formatApiError(e)),
         }
       )
     } else {
@@ -366,10 +378,10 @@ function JEDrawer({
         payload as any,
         {
           onSuccess: (data) => {
+            toast.success('Journal entry created.')
             setSavePreview(data as unknown as JournalEntry)
-            onSaved()
           },
-          onError: (e: any) => toast.error(e?.response?.data?.detail || 'Save failed'),
+          onError: (e: any) => toast.error(formatApiError(e)),
         }
       )
     }
@@ -579,7 +591,7 @@ function JEDrawer({
                     {!fieldHidden('header.narration') && (
                     <div className="md:col-span-2">
                       <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">
-                        Narration / Description{fr['header.narration'] === 'optional' ? '' : ' *'}
+                        Narration / Description{fieldMandatory('header.narration') ? ' *' : ''}
                       </label>
                       <input
                         value={narration}
@@ -986,7 +998,7 @@ function JEDrawer({
     </div>
 
     {savePreview && (
-      <div data-kiterp-modal className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm overflow-y-auto" onClick={onClose}>
+      <div data-kiterp-modal className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm overflow-y-auto" onClick={onSaved}>
         <div className="bg-card border border-border text-foreground rounded-2xl shadow-2xl max-w-lg w-full max-h-[85vh] overflow-hidden flex flex-col" onClick={e => e.stopPropagation()}>
           <div className="px-6 py-4 border-b border-border flex items-start justify-between gap-3">
             <div className="flex items-center gap-2">
@@ -1004,9 +1016,9 @@ function JEDrawer({
                 </p>
               </div>
             </div>
-            <button type="button" aria-label="Close"
+            <button
               type="button"
-              onClick={() => { setSavePreview(null); onClose() }}
+              onClick={onSaved}
               className="p-1.5 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100"
               aria-label="Close"
             >
@@ -1067,7 +1079,7 @@ function JEDrawer({
           <div className="px-6 py-4 border-t border-border bg-muted/25 flex justify-end">
             <button
               type="button"
-              onClick={() => { setSavePreview(null); onClose() }}
+              onClick={onSaved}
               className="px-5 py-2 rounded-lg text-sm font-semibold bg-primary text-white hover:bg-primary/90"
             >
               OK

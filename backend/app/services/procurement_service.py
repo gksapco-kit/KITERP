@@ -1,5 +1,6 @@
 # app/services/procurement_service.py
 import logging
+import re
 from uuid import UUID
 from datetime import datetime, timezone, date
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -17,11 +18,63 @@ from app.services.inventory_service import InventoryService
 log = logging.getLogger(__name__)
 
 
+def _normalize_supplier_name(name: str | None) -> str:
+    return (name or "").strip().lower()
+
+
+def _normalize_supplier_phone(phone: str | None) -> str:
+    if not phone:
+        return ""
+    return re.sub(r"\D", "", phone)
+
+
 class SupplierService:
     def __init__(self, db: AsyncSession):
         self.db = db
 
+    async def find_duplicate(
+        self,
+        vendor_id: UUID,
+        name: str,
+        phone: str | None = None,
+        email: str | None = None,
+        exclude_id: UUID | None = None,
+    ) -> Supplier | None:
+        """Match on case-insensitive name, or normalized phone / email when provided."""
+        norm_name = _normalize_supplier_name(name)
+        if not norm_name:
+            return None
+
+        stmt = select(Supplier).where(Supplier.vendor_id == vendor_id)
+        if exclude_id:
+            stmt = stmt.where(Supplier.id != exclude_id)
+        result = await self.db.execute(stmt)
+        candidates = list(result.scalars().all())
+
+        norm_phone = _normalize_supplier_phone(phone)
+        norm_email = (email or "").strip().lower()
+
+        for s in candidates:
+            if _normalize_supplier_name(s.name) == norm_name:
+                return s
+            if norm_phone and _normalize_supplier_phone(s.phone) == norm_phone:
+                return s
+            if norm_email and (s.email or "").strip().lower() == norm_email:
+                return s
+        return None
+
     async def create(self, vendor_id: UUID, data: dict) -> Supplier:
+        duplicate = await self.find_duplicate(
+            vendor_id,
+            data.get("name", ""),
+            data.get("phone"),
+            data.get("email"),
+        )
+        if duplicate:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail=f"A supplier named '{duplicate.name}' already exists for this business",
+            )
         supplier = Supplier(vendor_id=vendor_id, **data)
         self.db.add(supplier)
         await self.db.commit()

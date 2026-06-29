@@ -20,6 +20,8 @@ type Account = {
   parent_id: string | null; is_active: boolean; is_system: boolean
   currency?: string; description?: string
   opening_balance?: number; is_reconcilable?: boolean
+  is_reconciliation_account?: boolean
+  reconciliation_subledger?: string | null
 }
 
 type NormalBalance = 'Debit' | 'Credit'
@@ -150,6 +152,11 @@ function AccountRow({
         )}
         {acc.is_system && (
           <Shield className="w-3 h-3 text-muted-foreground/50 shrink-0" />
+        )}
+        {acc.is_reconciliation_account && (
+          <span className="text-xs px-1.5 py-0.5 rounded-full bg-violet-100 text-violet-700 dark:bg-violet-950/40 dark:text-violet-300 shrink-0 font-medium">
+            Recon
+          </span>
         )}
         <div className="flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
           <button
@@ -371,6 +378,17 @@ function AccountDetailDrawer({
                       ? <span className="text-green-600 flex items-center gap-1"><CheckCircle2 className="w-3 h-3" /> Yes</span>
                       : <span className="text-muted-foreground">No</span>
                   } />
+                  <DetailRow label="Reconciliation Account" value={
+                    account.is_reconciliation_account
+                      ? (
+                        <span className="flex items-center gap-1.5">
+                          <span className="text-xs px-2 py-0.5 rounded-full bg-violet-100 text-violet-700 dark:bg-violet-950/40 dark:text-violet-300 font-semibold">
+                            Yes — {account.reconciliation_subledger ?? 'subledger'} control
+                          </span>
+                        </span>
+                      )
+                      : <span className="text-muted-foreground">No</span>
+                  } />
                   <DetailRow label="Parent Account" value={
                     parent
                       ? <span className="flex items-center gap-1.5">
@@ -438,6 +456,11 @@ function AccountDetailDrawer({
                     {cfg?.statement === 'Balance Sheet' ? 'Balance Sheet' : cfg?.statement === 'Income Statement' ? 'P&L' : 'None'}
                   </span>
                   {account.is_reconcilable && <span className="text-xs px-2.5 py-1 rounded-full font-medium bg-teal-50 text-teal-700">Reconcilable</span>}
+                  {account.is_reconciliation_account && (
+                    <span className="text-xs px-2.5 py-1 rounded-full font-medium bg-violet-100 text-violet-700 dark:bg-violet-950/40 dark:text-violet-300">
+                      Recon – {account.reconciliation_subledger ?? 'control'}
+                    </span>
+                  )}
                   {account.is_system && <span className="text-xs px-2.5 py-1 rounded-full font-medium bg-muted text-muted-foreground">System</span>}
                 </div>
               </div>
@@ -946,7 +969,10 @@ function ConfigPanel({
 }
 
 // ─── Main page ────────────────────────────────────────────────────────────────
-const BLANK = { code: '', name: '', account_type: 'Asset', account_subtype: '', description: '' }
+const BLANK = {
+  code: '', name: '', account_type: 'Asset', account_subtype: '', description: '',
+  is_reconciliation_account: false, reconciliation_subledger: '',
+}
 
 export default function ChartOfAccounts() {
   const { data: accounts = [], isLoading } = useAccounts()
@@ -972,7 +998,12 @@ export default function ChartOfAccounts() {
   const openNew = () => { setEditing(null); setForm(BLANK); setShowModal(true) }
   const openEdit = (a: Account) => {
     setEditing(a)
-    setForm({ code: a.code, name: a.name, account_type: a.account_type, account_subtype: a.account_subtype || '', description: (a as any).description || '' })
+    setForm({
+      code: a.code, name: a.name, account_type: a.account_type,
+      account_subtype: a.account_subtype || '', description: (a as any).description || '',
+      is_reconciliation_account: a.is_reconciliation_account ?? false,
+      reconciliation_subledger: a.reconciliation_subledger ?? '',
+    })
     setShowModal(true)
   }
   const openView = (a: Account) => setViewing(a)
@@ -1289,6 +1320,50 @@ export default function ChartOfAccounts() {
                 </p>
               ) : null
             })()}
+
+            {/* Reconciliation account toggle */}
+            <div className="rounded-xl border border-border p-3 space-y-2">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs font-medium text-foreground">Reconciliation (Control) Account</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    When enabled, manual journal entries cannot post to this account.
+                    Only subledger auto-posting (AR, AP, Assets) may write to it.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setForm(f => ({
+                    ...f,
+                    is_reconciliation_account: !(f as any).is_reconciliation_account,
+                    reconciliation_subledger: (f as any).is_reconciliation_account ? '' : (f as any).reconciliation_subledger,
+                  }))}
+                  className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors ${
+                    (form as any).is_reconciliation_account ? 'bg-violet-600' : 'bg-muted'
+                  }`}
+                >
+                  <span className={`inline-block h-4 w-4 rounded-full bg-white shadow transform transition-transform ${
+                    (form as any).is_reconciliation_account ? 'translate-x-4' : 'translate-x-0'
+                  }`} />
+                </button>
+              </div>
+              {(form as any).is_reconciliation_account && (
+                <div>
+                  <Label className="block text-xs font-medium text-muted-foreground mb-1">Subledger</Label>
+                  <select
+                    value={(form as any).reconciliation_subledger || ''}
+                    onChange={e => setForm(f => ({ ...f, reconciliation_subledger: e.target.value }))}
+                    className="w-full border border-input rounded-lg px-3 py-2 text-sm bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                  >
+                    <option value="">— Select subledger —</option>
+                    <option value="customer">Customer (AR)</option>
+                    <option value="supplier">Supplier (AP)</option>
+                    <option value="asset">Fixed Asset</option>
+                    <option value="bank">Bank / Cash</option>
+                  </select>
+                </div>
+              )}
+            </div>
 
             <div className="flex justify-end gap-2 pt-1">
               <button onClick={() => setShowModal(false)} className="btn-cancel px-4 py-2 text-sm text-muted-foreground border border-border rounded-lg">

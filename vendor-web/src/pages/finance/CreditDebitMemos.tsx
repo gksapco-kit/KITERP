@@ -1250,8 +1250,9 @@ export default function CreditDebitMemos() {
                     Link to original sale or invoice
                   </p>
                   {originalTxn && (
-                    <button type="button" aria-label="Close"
+                    <button
                       type="button"
+                      aria-label="Clear"
                       onClick={() => { setOriginalTxn(null); setRefLookup(''); setCart([]) }}
                       className="text-xs text-red-600 hover:text-red-800 flex items-center gap-0.5"
                     >
@@ -1356,7 +1357,7 @@ export default function CreditDebitMemos() {
                   <span className="font-medium text-slate-900 truncate">{selectedCustomer.full_name}</span>
                   {selectedCustomer.phone && <span className="text-xs text-slate-500 hidden sm:inline">{selectedCustomer.phone}</span>}
                 </div>
-                <button type="button" aria-label="Close" type="button" onClick={() => { setSelectedCustomer(null); setCustomerSearch('') }} className="p-1 text-slate-400 hover:text-slate-700">
+                <button type="button" aria-label="Close" onClick={() => { setSelectedCustomer(null); setCustomerSearch('') }} className="p-1 text-slate-400 hover:text-slate-700">
                 <X className="w-4 h-4" />
                 </button>
               </div>
@@ -1739,7 +1740,7 @@ export default function CreditDebitMemos() {
           <div className="bg-card border border-border text-foreground rounded-xl shadow-2xl w-full max-w-sm mx-4 p-5 space-y-4 max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between">
               <h3 className="font-semibold flex items-center gap-2"><UserPlus className="w-5 h-5 text-emerald-600" /> New customer</h3>
-              <button type="button" aria-label="Close" type="button" onClick={() => setShowQuickCreate(false)} className="p-1 rounded hover:bg-slate-100">
+              <button type="button" aria-label="Close" onClick={() => setShowQuickCreate(false)} className="p-1 rounded hover:bg-slate-100">
                 <X className="w-4 h-4" /></button>
             </div>
             <div className="space-y-3">

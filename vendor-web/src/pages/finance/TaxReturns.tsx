@@ -147,7 +147,7 @@ export default function TaxReturns() {
 
               <div className="min-w-0"><h2 className="font-semibold text-lg">New Tax Return</h2></div>
 
-              <button type="button" aria-label="Close"
+              <button
                 type="button"
                 onClick={() => setShowNew(false)}
                 className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors shrink-0"
@@ -198,7 +198,7 @@ export default function TaxReturns() {
 
               <div className="min-w-0"><h2 className="font-semibold text-lg">New Tax Code</h2></div>
 
-              <button type="button" aria-label="Close"
+              <button
                 type="button"
                 onClick={() => setShowNewCode(false)}
                 className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors shrink-0"
