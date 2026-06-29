@@ -12,7 +12,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
 import { ChevronDown, Search, CheckCircle2, X } from 'lucide-react'
 import { COUNTRIES, POPULAR_COUNTRIES, type CountryEntry } from '@/data/countries'
-import { cn, focusRingClassName } from '@/lib/utils'
+import { cn, focusRingClassName, formFieldBorderClassName } from '@/lib/utils'
 import { Label } from '@/components/ui/label'
 import {
   getCachedInferredPhoneCountryIso,
@@ -76,9 +76,9 @@ const phoneInputUi = {
     compact: 'h-8 sm:h-9',
   },
   countryTrigger:
-    'inline-flex shrink-0 items-center justify-center rounded-l-md border border-r-0 border-input bg-muted text-foreground transition-colors hover:bg-muted/80',
+    `inline-flex shrink-0 items-center justify-center rounded-l-md ${formFieldBorderClassName} border-r-0 bg-muted text-foreground transition-colors hover:bg-muted/80`,
   numberField:
-    'w-full rounded-r-md border border-input bg-background text-foreground outline-none transition-all placeholder:text-muted-foreground',
+    `w-full rounded-r-md ${formFieldBorderClassName} bg-background text-foreground outline-none transition-all placeholder:text-muted-foreground`,
 } as const
 
 function phoneRowHeight(comfortable: boolean, dense: boolean, compact: boolean): string {

@@ -62,8 +62,11 @@
     --warning-foreground: 26 60% 12%;
     --info: 217 91% 60%;
     --info-foreground: 210 40% 98%;
-    --border: 214 22% 90%;
-    --input: 214 22% 90%;
+    /* App-wide border — Tailwind gray-400 @ ~77% (#9ca3afc4) */
+    --border-color: #9ca3afc4;
+    --border: 218 11% 65%;
+    --input-color: #9ca3afc4;
+    --input: 218 11% 65%;
     --ring: 158 44% 58%;
     --radius: 0.625rem;
     /* Solid button tab focus — white gap + primary ring (see .btn-outer-line:focus-visible) */
@@ -83,7 +86,8 @@
     --sidebar-primary-foreground: 0 0% 100%;
     --sidebar-accent: 210 20% 93%;
     --sidebar-accent-foreground: 222 47% 15%;
-    --sidebar-border: 214 22% 90%;
+    --sidebar-border-color: #9ca3afc4;
+    --sidebar-border: 218 11% 65%;
     --sidebar-ring: 158 44% 58%;
     /* Lighter center for horizontal sidebar panel gradient (Teams-style rail) */
     --sidebar-background-center: 210 32% 99.5%;
@@ -165,11 +169,14 @@
     --radius: 1.1rem;
     --background: 210 16% 95%;
     --muted: 210 16% 93%;
-    --border: 214 20% 89%;
-    --input: 214 20% 89%;
+    --border-color: #9ca3afc4;
+    --border: 218 11% 65%;
+    --input-color: #9ca3afc4;
+    --input: 218 11% 65%;
     --sidebar-background: 210 16% 95%;
     --sidebar-background-center: 210 18% 96%;
-    --sidebar-border: 214 20% 90%;
+    --sidebar-border-color: #9ca3afc4;
+    --sidebar-border: 218 11% 65%;
     --sidebar-accent: 210 16% 91%;
   }
 
@@ -197,7 +204,10 @@
     --warning-foreground: 26 60% 12%;
     --info: 217 91% 60%;
     --info-foreground: 210 40% 98%;
+    /* Dark surfaces — spec #2B3445 family (not light-mode gray-400) */
+    --border-color: #2b3445c4;
     --border: 221 24% 22%;
+    --input-color: #2b3445c4;
     --input: 221 24% 22%;
     --canvas: 158 20% 8%;
     --canvas-grid: 158 18% 11%;
@@ -210,6 +220,7 @@
     --sidebar-primary-foreground: 0 0% 100%;
     --sidebar-accent: 221 24% 15%;
     --sidebar-accent-foreground: 240 33% 94%;
+    --sidebar-border-color: #252d3bc4;
     --sidebar-border: 221 24% 20%;
     --sidebar-ring: 158 44% 58%;
     --sidebar-background-center: 221 34% 15%;
@@ -323,10 +334,13 @@
     --card: 221 38% 9%;
     --popover: 221 38% 9%;
     --muted: 221 24% 17%;
+    --border-color: #2b3445c4;
     --border: 221 24% 22%;
+    --input-color: #2b3445c4;
     --input: 221 24% 22%;
     --sidebar-background: 220 50% 4%;
     --sidebar-background-center: 221 38% 7%;
+    --sidebar-border-color: #252d3bc4;
     --sidebar-border: 221 24% 20%;
     --sidebar-accent: 221 24% 15%;
   }
@@ -481,12 +495,98 @@
 
   /* Native selects — use on pages that still use raw <select> */
   .form-select {
-    @apply inline-flex h-10 items-center rounded-md border border-input bg-background px-2.5 py-0 text-sm leading-none text-foreground
+    @apply inline-flex h-10 items-center rounded-md border-[1.5px] border-input bg-background px-2.5 py-0 text-sm leading-none text-foreground
            focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring focus-visible:border-primary disabled:cursor-not-allowed disabled:opacity-50;
     color-scheme: light;
   }
   .dark .form-select {
     color-scheme: dark;
+  }
+
+  /*
+   * Surface borders — cards, panels, tables, filters (controlling, CRM, master data).
+   * Unify legacy faint gray/tinted borders with --border-color (#9ca3afc4).
+   */
+  main .border-gray-100,
+  main .border-gray-200,
+  main .border-gray-300,
+  main .border-blue-100,
+  main .border-blue-200,
+  main .border-emerald-100,
+  main .border-emerald-200,
+  main .border-green-200,
+  main .border-amber-100,
+  main .border-amber-200,
+  main .border-red-100,
+  main .border-red-200,
+  main .border-indigo-100,
+  main .border-indigo-200 {
+    border-color: var(--border-color);
+  }
+
+  main .border-dashed.border-gray-200,
+  main .border-dashed.border-gray-300 {
+    border-color: var(--border-color);
+  }
+
+  main .rounded-xl.border:not(.border-0):not(.border-2):not(.border-4),
+  main .rounded-lg.border:not(.border-0):not(.border-2):not(.border-4),
+  main .rounded-2xl.border:not(.border-0):not(.border-2):not(.border-4),
+  main .rounded-md.border:not(.border-0):not(.border-2):not(.border-4),
+  main select.border-gray-200,
+  main input.border-gray-200,
+  main textarea.border-gray-200 {
+    border-width: 1.5px;
+  }
+
+  main .border-dashed.border-gray-200,
+  main .border-dashed.border-gray-300 {
+    border-width: 1.5px;
+  }
+
+  main thead .border-b,
+  main tbody.divide-y > :not([hidden]) ~ :not([hidden]),
+  main .border-b.border-gray-100,
+  main .border-b.border-gray-200,
+  main .border-t.border-gray-100,
+  main .border-t.border-gray-200 {
+    border-color: var(--border-color);
+  }
+
+  /*
+   * Table panels — clip inner header/bg to the rounded outer border (clean corners).
+   */
+  main :is(.rounded-lg, .rounded-xl, .rounded-2xl, .rounded-md):has(table),
+  main .bg-card:has(table),
+  main .bg-white:has(table),
+  .kiterp-table-shell {
+    overflow: hidden;
+    border-radius: var(--radius);
+  }
+
+  /* Shared table frame — matches input/card border weight & color */
+  .kiterp-table-shell {
+    border-width: 1.5px;
+    border-style: solid;
+    border-color: var(--border-color);
+    background-color: hsl(var(--card));
+  }
+
+  .kiterp-table-shell > table {
+    width: 100%;
+  }
+
+  .kiterp-table-shell thead {
+    background-color: hsl(var(--muted) / 0.4);
+  }
+
+  .kiterp-filter-panel {
+    overflow: hidden;
+    border-radius: var(--radius);
+    border-width: 1.5px;
+    border-style: solid;
+    border-color: var(--border-color);
+    background-color: hsl(var(--card));
   }
 
   /* Pill toggle chip — day selectors, filter chips */
@@ -773,19 +873,19 @@
 .dark .border-gray-200\/80,
 .dark .border-gray-200\/70,
 .dark .border-gray-200\/60 {
-  border-color: hsl(var(--border)) !important;
+  border-color: var(--border-color) !important;
 }
 
 .dark .border-gray-300,
 .dark .hover\:border-gray-300:hover {
-  border-color: hsl(var(--border)) !important;
+  border-color: var(--border-color) !important;
 }
 
 .dark select:not([class*='bg-']),
 .dark textarea:not([class*='bg-']) {
   background-color: hsl(var(--background));
   color: hsl(var(--foreground));
-  border-color: hsl(var(--border));
+  border-color: var(--border-color);
 }
 
 .dark select,
@@ -838,7 +938,7 @@ select option {
 
 .dark .divide-gray-100 > :not([hidden]) ~ :not([hidden]),
 .dark .divide-gray-200 > :not([hidden]) ~ :not([hidden]) {
-  border-color: hsl(var(--border));
+  border-color: var(--border-color);
 }
 
 .dark .bg-blue-50 {
@@ -1307,7 +1407,7 @@ select option {
 }
 
 .dark .border-gray-300 {
-  border-color: hsl(var(--border)) !important;
+  border-color: var(--border-color) !important;
 }
 
 .dark .hover\:border-blue-300:hover {
@@ -2237,7 +2337,7 @@ html[dir='rtl'] [data-sonner-toast][data-styled='true']:has([data-close-button])
 
 [data-sonner-toaster][data-sonner-theme='dark'] [data-rich-colors='true'][data-sonner-toast][data-styled='true'] {
   background: hsl(var(--card)) !important;
-  border-color: hsl(var(--border)) !important;
+  border-color: var(--border-color) !important;
   color: hsl(var(--muted-foreground)) !important;
 }
 
@@ -2525,7 +2625,7 @@ html[dir='rtl'] [data-sonner-toast][data-styled='true']:has([data-close-button])
 
   /* Single border on themed selects — wrapper is layout-only. */
   [data-kiterp-modal] button.form-select {
-    @apply border border-input bg-background;
+    @apply border-[1.5px] border-input bg-background;
   }
 
   /* Form fields — label spacing; avoid double chrome with Input/Select inside FormField. */

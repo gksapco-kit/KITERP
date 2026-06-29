@@ -1,12 +1,12 @@
 import { Fragment, useState } from 'react'
 import { TableColumnLabel } from '@/components/common/FieldLabel'
-import { Card, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
 import { useAuditLog } from '@/hooks/useCrm'
 import { History, ChevronDown, ChevronRight } from 'lucide-react'
 import { Pager, LoadingRow, EmptyRow } from './_shared'
-import { formatDateTime } from '@/lib/utils'
+import { cn, filterPanelClassName, formatDateTime, tableShellClassName } from '@/lib/utils'
 
 export default function AuditPage() {
   const [page, setPage] = useState(1)
@@ -27,24 +27,21 @@ export default function AuditPage() {
         <p className="text-sm text-gray-500 mt-1">Every CRUD Action Against CRM Data Is Recorded Here For Compliance.</p>
       </div>
 
-      <Card><CardContent className="pt-6">
-        <div className="grid grid-cols-2 gap-3">
-          <div>
-            <label className="text-xs text-gray-500">Entity</label>
-            <Input value={entity} onChange={e => { setEntity(e.target.value); setPage(1) }} placeholder="contact, lead, deal…" />
-          </div>
-          <div>
-            <label className="text-xs text-gray-500">Action</label>
-            <Input value={action} onChange={e => { setAction(e.target.value); setPage(1) }} placeholder="create, update, delete" />
-          </div>
+      <div className={cn(filterPanelClassName, 'grid grid-cols-1 gap-4 sm:grid-cols-2')}>
+        <div className="space-y-1.5">
+          <Label className="text-xs text-muted-foreground">Entity</Label>
+          <Input value={entity} onChange={e => { setEntity(e.target.value); setPage(1) }} placeholder="contact, lead, deal…" />
         </div>
-      </CardContent></Card>
+        <div className="space-y-1.5">
+          <Label className="text-xs text-muted-foreground">Action</Label>
+          <Input value={action} onChange={e => { setAction(e.target.value); setPage(1) }} placeholder="create, update, delete" />
+        </div>
+      </div>
 
-      <Card>
-        <CardContent className="p-0">
-          <table className="w-full">
-            <thead>
-              <tr className="border-b bg-gray-50">
+      <div className={tableShellClassName}>
+        <table className="w-full">
+          <thead className="border-b border-border">
+            <tr>
                 <th className="w-8"></th>
                 <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase"><TableColumnLabel>When</TableColumnLabel></th>
                 <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase"><TableColumnLabel>Actor</TableColumnLabel></th>
@@ -54,7 +51,7 @@ export default function AuditPage() {
                 <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase hidden xl:table-cell"><TableColumnLabel>IP</TableColumnLabel></th>
               </tr>
             </thead>
-            <tbody className="divide-y">
+            <tbody className="divide-y divide-border">
               {isLoading ? <LoadingRow cols={7} /> : !data?.items?.length ? (
                 <EmptyRow cols={7} message="No audit entries match." />
               ) : data.items.map(a => {
@@ -99,10 +96,9 @@ export default function AuditPage() {
                 )
               })}
             </tbody>
-          </table>
-          <Pager page={page} pages={data?.pages || 0} total={data?.total || 0} onPage={setPage} />
-        </CardContent>
-      </Card>
+        </table>
+        <Pager page={page} pages={data?.pages || 0} total={data?.total || 0} onPage={setPage} />
+      </div>
     </div>
   )
 }

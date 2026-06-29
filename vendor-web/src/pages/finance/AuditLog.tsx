@@ -51,7 +51,7 @@ export default function AuditLog() {
         />
       </div>
 
-      <div className="overflow-hidden rounded-xl border border-border bg-card">
+      <div className="overflow-hidden rounded-lg border-[1.5px] border-border bg-card">
         <table className="w-full text-sm">
           <thead className="border-b border-border bg-muted/40">
             <tr>

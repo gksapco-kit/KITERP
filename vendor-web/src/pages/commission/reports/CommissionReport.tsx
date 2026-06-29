@@ -102,7 +102,7 @@ export default function CommissionReportPage() {
             <Tooltip
               formatter={(v: unknown) => fmtCurrencyFull(Number(v))}
               labelFormatter={l => `Period: ${l}`}
-              contentStyle={{ background: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: '0.5rem', color: 'hsl(var(--foreground))' }}
+              contentStyle={chart.tooltipContentStyle}
             />
             <Legend wrapperStyle={{ color: chart.tick }} />
             <Line type="monotone" dataKey="total" stroke="#3b82f6" strokeWidth={2} dot={{ r: 3 }} name="Commission" />
@@ -123,7 +123,7 @@ export default function CommissionReportPage() {
                 <YAxis type="category" dataKey="payee_name" tick={{ fontSize: 10, fill: chart.tick }} width={90} />
                 <Tooltip
                   formatter={(v: unknown) => fmtCurrencyFull(Number(v))}
-                  contentStyle={{ background: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: '0.5rem', color: 'hsl(var(--foreground))' }}
+                  contentStyle={chart.tooltipContentStyle}
                 />
                 <Bar dataKey="total_commission" fill="#3b82f6" name="Commission" radius={[0, 4, 4, 0]} />
               </BarChart>
@@ -146,7 +146,7 @@ export default function CommissionReportPage() {
                   </Pie>
                   <Tooltip
                     formatter={(v: unknown) => fmtCurrencyFull(Number(v))}
-                    contentStyle={{ background: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: '0.5rem', color: 'hsl(var(--foreground))' }}
+                    contentStyle={chart.tooltipContentStyle}
                   />
                 </PieChart>
               </ResponsiveContainer>
@@ -176,7 +176,7 @@ export default function CommissionReportPage() {
               <YAxis tick={{ fontSize: 11, fill: chart.tick }} tickFormatter={v => `₹${(Number(v ?? 0) / 1000).toFixed(0)}k`} />
               <Tooltip
                 formatter={(v) => fmtCurrencyFull(Number(v ?? 0))}
-                contentStyle={{ background: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: '0.5rem', color: 'hsl(var(--foreground))' }}
+                contentStyle={chart.tooltipContentStyle}
               />
               <Bar dataKey="total" radius={[4, 4, 0, 0]} name="Commission">
                 {bySource.by_source_type.map((_, i) => (

@@ -4,14 +4,14 @@ export const commissionPageTitle = 'text-xl font-semibold text-foreground'
 export const commissionPageSub = 'text-sm text-muted-foreground mt-0.5'
 
 export const commissionFilterPanel =
-  'bg-card border border-border rounded-xl p-4 mb-4 space-y-4'
+  'bg-card border-[1.5px] border-border rounded-xl p-4 mb-4 space-y-4'
 
 export const commissionFilterBtn =
-  'flex items-center gap-2 border border-border px-3 py-2 rounded-lg text-sm text-foreground hover:bg-muted transition-colors'
+  'flex items-center gap-2 border-[1.5px] border-border px-3 py-2 rounded-lg text-sm text-foreground hover:bg-muted transition-colors'
 
-export const commissionTableShell = 'bg-card rounded-xl border border-border overflow-hidden'
+export const commissionTableShell = 'bg-card overflow-hidden rounded-xl border-[1.5px] border-border'
 export const commissionTableShellScroll =
-  'bg-card rounded-xl border border-border overflow-x-auto'
+  'bg-card rounded-xl border-[1.5px] border-border overflow-x-auto'
 
 export const commissionThead = 'bg-muted/40 border-b border-border'
 export const commissionTh =
@@ -21,12 +21,12 @@ export const commissionRowHover = 'hover:bg-muted/30 transition-colors'
 export const commissionEmptyCell = 'text-center py-12 text-muted-foreground'
 
 export const commissionFieldInput =
-  'w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring [color-scheme:light] dark:[color-scheme:dark]'
+  'w-full rounded-lg border-[1.5px] border-input bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring [color-scheme:light] dark:[color-scheme:dark]'
 
 export const commissionInfoBanner =
   'text-xs text-amber-900 dark:text-amber-200 bg-amber-500/10 dark:bg-amber-500/15 border border-amber-500/25 dark:border-amber-500/30 rounded-md px-2 py-1.5 mt-2 max-w-3xl'
 
-export const commissionCard = 'bg-card rounded-xl border border-border p-5'
+export const commissionCard = 'bg-card rounded-xl border-[1.5px] border-border p-5'
 
 export const commissionStatusActive =
   'bg-emerald-500/15 text-emerald-800 dark:text-emerald-300'
@@ -64,5 +64,12 @@ export function commissionChartColors(dark: boolean) {
   return {
     grid: dark ? 'hsl(215 20% 22%)' : 'hsl(214 22% 90%)',
     tick: dark ? 'hsl(215 14% 65%)' : 'hsl(215 14% 45%)',
+    /** Recharts inline styles — resolved literals (CSS vars are unreliable in contentStyle). */
+    tooltipContentStyle: {
+      background: dark ? 'hsl(221 46% 7%)' : 'hsl(0 0% 100%)',
+      border: dark ? '1px solid #2b3445c4' : '1px solid #9ca3afc4',
+      borderRadius: '0.5rem',
+      color: dark ? 'hsl(240 33% 94%)' : 'hsl(222 20% 12%)',
+    },
   }
 }

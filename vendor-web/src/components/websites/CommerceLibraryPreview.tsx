@@ -96,8 +96,10 @@ export default function CommerceLibraryPreview({ blockType, props, liveItems = [
         '--success-foreground': '0 0% 100%',
         '--warning': '38 92% 50%',
         '--warning-foreground': '26 60% 12%',
-        '--border': '214 22% 90%',
-        '--input': '214 22% 90%',
+        '--border-color': '#9ca3afc4',
+        '--border': '218 11% 65%',
+        '--input-color': '#9ca3afc4',
+        '--input': '218 11% 65%',
         '--ring': '222 47% 20%',
         '--radius': '0.625rem',
       } as CSSProperties}

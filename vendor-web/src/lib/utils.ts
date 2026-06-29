@@ -21,9 +21,23 @@ export const solidButtonFocusClassName =
 export const nativeSolidGreenButtonClassName =
   `bg-primary text-white hover:bg-primary/90 ${solidGreenTabFocusClassName}`
 
+/** Default field edge — slightly thicker so borders read clearly on light backgrounds. */
+export const formFieldBorderClassName = 'border-[1.5px] border-input'
+
+/** Panel / card outer edge — same weight + color as form fields. */
+export const surfaceBorderClassName = 'border-[1.5px] border-border'
+
+export const surfacePanelClassName = `rounded-lg ${surfaceBorderClassName} bg-card`
+
+/** Table wrapper — rounded frame on all four corners; overflow clips header to curve. */
+export const tableShellClassName = `kiterp-table-shell shadow-sm rounded-lg`
+
+/** Filter / form panel above tables — same border chrome as table shell. */
+export const filterPanelClassName = `kiterp-filter-panel shadow-sm rounded-lg p-6`
+
 /** Bordered shell wrapping icon + borderless search input — green focus via :focus-within in globals.css */
 export const searchFieldShellClassName =
-  'flex items-center gap-2 rounded-xl border border-input bg-background transition-[border-color,box-shadow] duration-150'
+  `flex items-center gap-2 rounded-xl ${formFieldBorderClassName} bg-background transition-[border-color,box-shadow] duration-150`
 
 /** Inner input inside searchFieldShellClassName — suppress own focus chrome */
 export const searchFieldInnerInputClassName =
@@ -48,7 +62,7 @@ export function isSolidPrimaryButtonClassName(className?: string) {
  * Focus ring is applied globally (globals.css) — do not add ring-offset on fields.
  */
 export const formFieldClassName =
-  'border border-input bg-background text-foreground placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-50 [color-scheme:light] dark:[color-scheme:dark]'
+  `${formFieldBorderClassName} bg-background text-foreground placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-50 [color-scheme:light] dark:[color-scheme:dark]`
 
 /** Alias — inset focus for custom triggers that are not native inputs. */
 export const formFieldFocusClassName = focusRingClassName
