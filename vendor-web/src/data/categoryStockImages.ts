@@ -3,7 +3,7 @@
  * Used when the local `/business-images/` pack is not installed.
  */
 
-/** Matches businessImagePack IMAGE_COUNT — each gallery category shows this many slots. */
+/** Each gallery category shows this many unique image slots (matches local JPG pack size). */
 export const GALLERY_SLOT_COUNT = 10
 
 const UNSPLASH = (id: string) =>
@@ -60,6 +60,54 @@ const GROUP_STOCK_POOLS: Record<string, string[]> = {
     UNSPLASH('1584515930351-d80f7278bccb'),
     UNSPLASH('1530497618107-15613de89435'),
   ],
+  'Technology & IT': [
+    UNSPLASH('1518770660439-4636190af475'),
+    UNSPLASH('1451187580459-43490279c0fa'),
+    UNSPLASH('1550751827-4bd374c3f58b'),
+    UNSPLASH('1485827405103-c6fd79f2a1b0'),
+    UNSPLASH('1504384308090-c894fdcc538d'),
+    UNSPLASH('1531482615713-691fdb963553'),
+    UNSPLASH('1551288049-bebda4e38f71'),
+    UNSPLASH('1460925895917-afdab827c52f'),
+    UNSPLASH('1555949963-aa79dcee981c'),
+    UNSPLASH('1516321318523-f06f85e504b3'),
+  ],
+  'Manufacturing & Industrial': [
+    UNSPLASH('1581091226825-a6a2a5aee158'),
+    UNSPLASH('1565793298599-6f3944421475'),
+    UNSPLASH('1504917595217-d4dc5eb1aeeb'),
+    UNSPLASH('1581092160562-40aa08e78837'),
+    UNSPLASH('1581092918056-0c4c3acd3789'),
+    UNSPLASH('1581094794329-c811d26509c9'),
+    UNSPLASH('1581092160607-5c7c0a0659bb'),
+    UNSPLASH('1581091228775-a8166f0c38ef'),
+    UNSPLASH('1581091226035-6a7d3a6e8b0e'),
+    UNSPLASH('1581092162384-8987c1d6418f'),
+  ],
+  'Logistics & Transport': [
+    UNSPLASH('1586528110311-48fd604b0701'),
+    UNSPLASH('1601584115197-04ffd0d5cfcf'),
+    UNSPLASH('1494412571407-7c26a77d17e8'),
+    UNSPLASH('1566576912321-d58ddd667a59'),
+    UNSPLASH('1578574577313-3f84fa3be373'),
+    UNSPLASH('1519003722464-0a7706541777'),
+    UNSPLASH('1504914399878-9ea4e67696bb'),
+    UNSPLASH('1580674285004-82447517381a'),
+    UNSPLASH('1601584115297-47f0b5c35147'),
+    UNSPLASH('1558618666-fcd25c85cd64'),
+  ],
+  'Professional Services': [
+    UNSPLASH('1454165804606-c3d57bc86b40'),
+    UNSPLASH('1556761175-b19da4aaef9b'),
+    UNSPLASH('1553877522-43269d4ea984'),
+    UNSPLASH('1521791136062-1886e16c8db4'),
+    UNSPLASH('1552664730-d307ca884978'),
+    UNSPLASH('1556761175-5973dc0f32e8'),
+    UNSPLASH('1600880292203-757bb62b4baf'),
+    UNSPLASH('1556761175-4b46a572b786'),
+    UNSPLASH('1522071820081-009f0129c71c'),
+    UNSPLASH('1551836022-d5d88f8e3e4f'),
+  ],
 }
 
 /** Maps wizard / site ids that are not in the gallery list to a gallery category. */
@@ -112,6 +160,7 @@ const CATEGORY_STOCK_POOLS: Record<string, string[]> = {
     'https://images.unsplash.com/photo-1606851090756-56d7fd5520ce?auto=format&fit=crop&w=900&q=80',
     'https://images.unsplash.com/photo-1512621776951-a57141f2eefd?auto=format&fit=crop&w=900&q=80',
   ],
+  'computer-store': GROUP_STOCK_POOLS['Technology & IT'],
   'book-store': [
     'https://images.unsplash.com/photo-1481627834876-b7833e8f5570?auto=format&fit=crop&w=900&q=80',
     'https://images.unsplash.com/photo-1507842217343-583bb7270bce?auto=format&fit=crop&w=900&q=80',
@@ -212,6 +261,37 @@ function inferGroupPool(categoryId: string): string[] | undefined {
   if (id === 'shop' || id === 'store' || id === 'beauty' || id === 'electronics' || id === 'jewelry') {
     return GROUP_STOCK_POOLS['General Business']
   }
+  if (
+    id.includes('software') || id.includes('saas') || id.includes('cloud')
+    || id.includes('cyber') || id.includes('data-analytics') || id.includes('machine-learning')
+    || id.includes('bpo') || id.includes('call-center') || id.includes('mobile-app')
+    || id.includes('web-development') || id.includes('it-support') || id.includes('computer')
+  ) {
+    return GROUP_STOCK_POOLS['Technology & IT']
+  }
+  if (
+    id.includes('manufacturing') || id.includes('engineering-works')
+    || id.includes('processing') || id.includes('packaging-unit')
+    || id.includes('printing-press') || id.includes('textile')
+  ) {
+    return GROUP_STOCK_POOLS['Manufacturing & Industrial']
+  }
+  if (
+    id.includes('transport') || id.includes('trucking') || id.includes('freight')
+    || id.includes('cargo') || id.includes('courier') || id.includes('shipping')
+    || id.includes('fleet') || id.includes('bus-operator') || id.includes('taxi')
+    || id.includes('packers-movers') || id.includes('logistics')
+  ) {
+    return GROUP_STOCK_POOLS['Logistics & Transport']
+  }
+  if (
+    id.includes('consultant') || id.includes('consultancy') || id.includes('auditor')
+    || id.includes('accountant') || id.includes('legal') || id.includes('recruitment')
+    || id.includes('translation') || id.includes('corporate-services')
+    || id.includes('market-research') || id.includes('tax-')
+  ) {
+    return GROUP_STOCK_POOLS['Professional Services']
+  }
   return GROUP_STOCK_POOLS['Retail & Commerce']
 }
 
@@ -220,14 +300,13 @@ export function stockPoolForCategory(categoryId: string): string[] {
   const specific = CATEGORY_STOCK_POOLS[normalized]
   const group = inferGroupPool(normalized) ?? SHOP_DEFAULT
   const base = specific?.length ? specific : group
-  const allCategoryPools = Object.values(CATEGORY_STOCK_POOLS)
-  const allGroupPools = Object.values(GROUP_STOCK_POOLS)
-  return expandPoolToGallerySize(base, group, allGroupPools, allCategoryPools, SHOP_DEFAULT)
+  return expandPoolToGallerySize(base, SHOP_DEFAULT)
 }
 
 /** 1-based index — matches businessImagePack numbering. */
 export function resolveCategoryStockImageUrl(categoryId: string, index: number): string {
   const pool = stockPoolForCategory(categoryId)
+  if (pool.length === 0) return SHOP_DEFAULT[0]
   const i = Math.max(1, index) - 1
-  return pool[i] ?? pool[pool.length - 1] ?? SHOP_DEFAULT[0]
+  return pool[i % pool.length]
 }

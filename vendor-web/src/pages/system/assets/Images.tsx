@@ -25,6 +25,7 @@ import {
   type BusinessImage,
   type BusinessImageCategory,
 } from '@/data/businessImagePack'
+import { BusinessGalleryThumb } from '@/components/common/BusinessGalleryThumb'
 
 function imageMatchesQuery(img: BusinessImage, q: string): boolean {
   const cat = categoryById(img.categoryId)
@@ -52,6 +53,9 @@ function ImageCard({
   onPreview: (image: BusinessImage) => void
 }) {
   const [copied, setCopied] = useState(false)
+  const [visible, setVisible] = useState(true)
+
+  if (!visible) return null
 
   const copyUrl = async (e: React.MouseEvent) => {
     e.stopPropagation()
@@ -73,14 +77,9 @@ function ImageCard({
       className="group relative overflow-hidden rounded-lg border bg-card text-left shadow-sm transition hover:border-primary/40 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
     >
       <div className="aspect-[16/10] overflow-hidden bg-muted">
-        <img
-          src={image.url}
-          alt={image.label}
-          loading="lazy"
-          onError={(e) => {
-            const el = e.currentTarget
-            if (image.fallbackUrl && el.src !== image.fallbackUrl) el.src = image.fallbackUrl
-          }}
+        <BusinessGalleryThumb
+          image={image}
+          onFailed={() => setVisible(false)}
           className="h-full w-full object-cover transition duration-300 group-hover:scale-[1.03]"
         />
       </div>
@@ -167,13 +166,8 @@ function PreviewModal({
           </div>
         </div>
         <div className="overflow-auto bg-muted/30 p-2 sm:p-4">
-          <img
-            src={image.url}
-            alt={image.label}
-            onError={(e) => {
-              const el = e.currentTarget
-              if (image.fallbackUrl && el.src !== image.fallbackUrl) el.src = image.fallbackUrl
-            }}
+          <BusinessGalleryThumb
+            image={image}
             className="mx-auto max-h-[70vh] w-full rounded-lg object-contain"
           />
         </div>

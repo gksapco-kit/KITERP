@@ -21,8 +21,10 @@ import {
   businessImageByGalleryUrl,
   categoriesInGroup,
   imagesForCategory,
+  type BusinessImage,
   type BusinessImageCategory,
 } from '@/data/businessImagePack'
+import { BusinessGalleryThumb } from '@/components/common/BusinessGalleryThumb'
 
 export type MediaUploadPickerTarget = 'logo' | 'banner' | 'extra-banner'
 
@@ -56,6 +58,57 @@ const TARGET_LABELS: Record<MediaUploadPickerTarget, string> = {
 }
 
 export { TARGET_LABELS as MEDIA_UPLOAD_TARGET_LABELS }
+
+function GalleryImageTile({
+  img,
+  applying,
+  galleryMultiSelect,
+  selected,
+  onPick,
+}: {
+  img: BusinessImage
+  applying: boolean
+  galleryMultiSelect: boolean
+  selected: boolean
+  onPick: () => void
+}) {
+  const [visible, setVisible] = useState(true)
+  if (!visible) return null
+
+  return (
+    <button
+      type="button"
+      disabled={applying}
+      onClick={onPick}
+      className={cn(
+        'group relative aspect-[4/3] overflow-hidden rounded-md border bg-muted transition disabled:opacity-60',
+        galleryMultiSelect && selected
+          ? 'border-primary ring-2 ring-primary/40'
+          : 'border-border hover:border-primary hover:ring-2 hover:ring-primary/25',
+      )}
+      title={img.label}
+      aria-pressed={galleryMultiSelect ? selected : undefined}
+    >
+      <BusinessGalleryThumb
+        image={img}
+        onFailed={() => setVisible(false)}
+        className="h-full w-full object-cover transition duration-200 group-hover:scale-[1.03]"
+      />
+      {galleryMultiSelect && (
+        <span
+          className={cn(
+            'absolute right-1 top-1 flex h-5 w-5 items-center justify-center rounded-full border shadow-sm transition-colors',
+            selected
+              ? 'border-primary bg-primary text-white'
+              : 'border-white/80 bg-black/35 text-transparent group-hover:text-white/80',
+          )}
+        >
+          <Check className="h-3 w-3" />
+        </span>
+      )}
+    </button>
+  )
+}
 
 export function MediaUploadPickerModal({
   open,
@@ -372,48 +425,16 @@ export function MediaUploadPickerModal({
                 'grid grid-cols-3 gap-2 sm:grid-cols-4',
                 galleryMultiSelect ? 'max-h-none' : 'max-h-[min(22rem,50vh)] overflow-y-auto overscroll-contain',
               )}>
-                {filteredGallery.map((img) => {
-                  const selected = selectedUrls.has(img.url)
-                  return (
-                    <button
-                      key={img.id}
-                      type="button"
-                      disabled={applying}
-                      onClick={() => onGalleryImageClick(img.url)}
-                      className={cn(
-                        'group relative aspect-[4/3] overflow-hidden rounded-md border bg-muted transition disabled:opacity-60',
-                        galleryMultiSelect && selected
-                          ? 'border-primary ring-2 ring-primary/40'
-                          : 'border-border hover:border-primary hover:ring-2 hover:ring-primary/25',
-                      )}
-                      title={img.label}
-                      aria-pressed={galleryMultiSelect ? selected : undefined}
-                    >
-                      <img
-                        src={img.url}
-                        alt={img.label}
-                        loading="lazy"
-                        onError={(e) => {
-                          const el = e.currentTarget
-                          if (img.fallbackUrl && el.src !== img.fallbackUrl) el.src = img.fallbackUrl
-                        }}
-                        className="h-full w-full object-cover transition duration-200 group-hover:scale-[1.03]"
-                      />
-                      {galleryMultiSelect && (
-                        <span
-                          className={cn(
-                            'absolute right-1 top-1 flex h-5 w-5 items-center justify-center rounded-full border shadow-sm transition-colors',
-                            selected
-                              ? 'border-primary bg-primary text-white'
-                              : 'border-white/80 bg-black/35 text-transparent group-hover:text-white/80',
-                          )}
-                        >
-                          <Check className="h-3 w-3" />
-                        </span>
-                      )}
-                    </button>
-                  )
-                })}
+                {filteredGallery.map((img) => (
+                  <GalleryImageTile
+                    key={img.id}
+                    img={img}
+                    applying={applying}
+                    galleryMultiSelect={galleryMultiSelect}
+                    selected={selectedUrls.has(img.url)}
+                    onPick={() => onGalleryImageClick(img.url)}
+                  />
+                ))}
               </div>
 
               {filteredGallery.length === 0 && (

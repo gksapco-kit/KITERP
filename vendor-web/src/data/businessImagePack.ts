@@ -1,4 +1,4 @@
-import { resolveCategoryStockImageUrl } from '@/data/categoryStockImages'
+import { GALLERY_SLOT_COUNT, resolveCategoryStockImageUrl } from '@/data/categoryStockImages'
 
 export interface BusinessImageCategory {
   id: string
@@ -19,7 +19,15 @@ export interface BusinessImage {
   label: string
 }
 
-const IMAGE_COUNT = 15
+/** Categories with JPG packs under public/business-images/ (10 images each). */
+const LOCAL_PACK_CATEGORY_IDS = new Set([
+  'beauty',
+  'electronics',
+  'jewelry',
+  'shop',
+  'store',
+  'supermarket',
+])
 
 export const BUSINESS_IMAGE_CATEGORIES: BusinessImageCategory[] = [
   // General business pack
@@ -560,15 +568,17 @@ export function localBusinessImagePath(categoryId: string, index: number): strin
 }
 
 export const BUSINESS_IMAGES: BusinessImage[] = BUSINESS_IMAGE_CATEGORIES.flatMap((cat) =>
-  Array.from({ length: IMAGE_COUNT }, (_, i) => {
+  Array.from({ length: GALLERY_SLOT_COUNT }, (_, i) => {
     const num = i + 1
     const padded = String(num).padStart(2, '0')
+    const stockUrl = imageUrl(cat.id, num)
+    const hasLocalPack = LOCAL_PACK_CATEGORY_IDS.has(cat.id)
     return {
       id: `${cat.id}-${padded}`,
       categoryId: cat.id,
       filename: `${cat.id}-${padded}.jpg`,
-      url: localBusinessImagePath(cat.id, num),
-      fallbackUrl: imageUrl(cat.id, num),
+      url: hasLocalPack ? localBusinessImagePath(cat.id, num) : stockUrl,
+      fallbackUrl: stockUrl,
       label: `${cat.label} ${num}`,
     }
   }),
@@ -580,8 +590,21 @@ export function categoriesInGroup(group: string): BusinessImageCategory[] {
   return BUSINESS_IMAGE_CATEGORIES.filter((c) => c.group === group)
 }
 
+/** Src for gallery thumbnails — remote stock when no local JPG pack is installed. */
+export function galleryPickerImageSrc(img: BusinessImage): string {
+  if (!LOCAL_PACK_CATEGORY_IDS.has(img.categoryId)) return img.fallbackUrl
+  return img.url
+}
+
 export function imagesForCategory(categoryId: string): BusinessImage[] {
-  return BUSINESS_IMAGES.filter((img) => img.categoryId === categoryId)
+  const images = BUSINESS_IMAGES.filter((img) => img.categoryId === categoryId)
+  const seen = new Set<string>()
+  return images.filter((img) => {
+    const displayKey = LOCAL_PACK_CATEGORY_IDS.has(categoryId) ? img.url : img.fallbackUrl
+    if (seen.has(displayKey)) return false
+    seen.add(displayKey)
+    return true
+  })
 }
 
 export function categoryById(categoryId: string): BusinessImageCategory | undefined {
