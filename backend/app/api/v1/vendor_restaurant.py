@@ -11,6 +11,7 @@ from app.models.vendor_plan import VendorPlan
 from app.models.vendor_user import VendorUser
 from app.services.vendor_service import VendorService
 from app.services.restaurant_service import RestaurantService
+from app.models.restaurant import Restaurant
 from app.schemas.restaurant import (
     RestaurantZoneCreate,
     RestaurantZoneUpdate,
@@ -28,7 +29,12 @@ from app.schemas.restaurant import (
     RestaurantReservationUpdate,
     RestaurantMenuSettingsOut,
     RestaurantMenuSettingsUpdate,
+    RestaurantKOTSettingsOut,
+    RestaurantKOTSettingsUpdate,
     RestaurantSeatReservationIn,
+    RestaurantOrderTransferIn,
+    RestaurantOrderMergeIn,
+    RestaurantOrderAdjustmentsIn,
 )
 from datetime import date as date_type
 
@@ -61,7 +67,9 @@ def _zone_dict(z):
     return {
         "id": str(z.id),
         "vendor_id": str(z.vendor_id),
+        "restaurant_id": str(z.restaurant_id) if z.restaurant_id else None,
         "name": z.name,
+        "floor": getattr(z, "floor", None),
         "sort_order": z.sort_order or 0,
         "created_at": z.created_at.isoformat() if z.created_at else None,
     }
@@ -71,6 +79,7 @@ def _table_dict(t, zone_name=None):
     return {
         "id": str(t.id),
         "vendor_id": str(t.vendor_id),
+        "restaurant_id": str(t.restaurant_id) if t.restaurant_id else None,
         "zone_id": str(t.zone_id) if t.zone_id else None,
         "zone_name": zone_name,
         "label": t.label,
@@ -87,6 +96,7 @@ def _order_dict(o, table_label=None, kots=None):
     return {
         "id": str(o.id),
         "vendor_id": str(o.vendor_id),
+        "restaurant_id": str(o.restaurant_id) if o.restaurant_id else None,
         "table_id": str(o.table_id) if o.table_id else None,
         "table_label": table_label,
         "status": o.status,
@@ -94,6 +104,7 @@ def _order_dict(o, table_label=None, kots=None):
         "server_name": o.server_name,
         "items": o.items or [],
         "notes": o.notes,
+        "adjustments": getattr(o, "adjustments", None) or {},
         "pos_transaction_id": str(o.pos_transaction_id) if o.pos_transaction_id else None,
         "kots": [_kot_dict(k) for k in (kots or [])],
         "created_at": o.created_at.isoformat() if o.created_at else None,
@@ -121,23 +132,29 @@ def _kot_dict(k, table_label=None, covers=None, order_status=None):
 # ── Zones ─────────────────────────────────────────────────────────────
 
 @router.get("/zones")
-async def list_zones(vid: UUID = Depends(_vendor_id), db: AsyncSession = Depends(get_db)):
+async def list_zones(
+    restaurant_id: str | None = Query(None),
+    vid: UUID = Depends(_vendor_id),
+    db: AsyncSession = Depends(get_db),
+):
     svc = RestaurantService(db)
-    zones = await svc.list_zones(vid)
+    rid = UUID(restaurant_id) if restaurant_id else None
+    zones = await svc.list_zones(vid, restaurant_id=rid)
     return JSONResponse(content={"items": [_zone_dict(z) for z in zones]})
 
 
 @router.post("/zones", status_code=201)
 async def create_zone(data: RestaurantZoneCreate, vid: UUID = Depends(_vendor_id), db: AsyncSession = Depends(get_db)):
     svc = RestaurantService(db)
-    z = await svc.create_zone(vid, data.name, data.sort_order or 0)
+    rid = UUID(data.restaurant_id) if getattr(data, "restaurant_id", None) else None
+    z = await svc.create_zone(vid, data.name, data.sort_order or 0, restaurant_id=rid, floor=getattr(data, "floor", None))
     return JSONResponse(content=_zone_dict(z), status_code=201)
 
 
 @router.patch("/zones/{zone_id}")
 async def update_zone(zone_id: str, data: RestaurantZoneUpdate, vid: UUID = Depends(_vendor_id), db: AsyncSession = Depends(get_db)):
     svc = RestaurantService(db)
-    z = await svc.update_zone(vid, UUID(zone_id), name=data.name, sort_order=data.sort_order)
+    z = await svc.update_zone(vid, UUID(zone_id), name=data.name, sort_order=data.sort_order, floor=getattr(data, "floor", None))
     if not z:
         raise HTTPException(404, "Zone not found")
     return JSONResponse(content=_zone_dict(z))
@@ -155,10 +172,16 @@ async def delete_zone(zone_id: str, vid: UUID = Depends(_vendor_id), db: AsyncSe
 # ── Tables ────────────────────────────────────────────────────────────
 
 @router.get("/tables")
-async def list_tables(zone_id: str | None = Query(None), vid: UUID = Depends(_vendor_id), db: AsyncSession = Depends(get_db)):
+async def list_tables(
+    zone_id: str | None = Query(None),
+    restaurant_id: str | None = Query(None),
+    vid: UUID = Depends(_vendor_id),
+    db: AsyncSession = Depends(get_db),
+):
     svc = RestaurantService(db)
     zid = UUID(zone_id) if zone_id else None
-    rows = await svc.list_tables(vid, zone_id=zid)
+    rid = UUID(restaurant_id) if restaurant_id else None
+    rows = await svc.list_tables(vid, zone_id=zid, restaurant_id=rid)
     return JSONResponse(content={"items": [_table_dict(t, zn) for t, zn in rows]})
 
 
@@ -167,10 +190,12 @@ async def create_table(data: RestaurantTableCreate, vid: UUID = Depends(_vendor_
     svc = RestaurantService(db)
     try:
         zid = UUID(data.zone_id) if data.zone_id else None
+        rid = UUID(data.restaurant_id) if getattr(data, "restaurant_id", None) else None
         t = await svc.create_table(
             vid,
             data.label,
             zone_id=zid,
+            restaurant_id=rid,
             capacity=data.capacity,
             sort_order=data.sort_order or 0,
             is_active=data.is_active,
@@ -241,12 +266,17 @@ async def create_order(data: RestaurantOrderCreate, vid: UUID = Depends(_vendor_
 @router.get("/orders")
 async def list_orders(
     status: str | None = Query(None),
+    restaurant_id: str | None = Query(None),
     vid: UUID = Depends(_vendor_id),
     db: AsyncSession = Depends(get_db),
 ):
     svc = RestaurantService(db)
-    rows = await svc.list_orders(vid, status=status)
-    return JSONResponse(content={"items": [_order_dict(o, tl) for o, tl in rows]})
+    rid = UUID(restaurant_id) if restaurant_id else None
+    rows = await svc.list_orders(vid, status=status, restaurant_id=rid)
+    kots_by_order = await svc.get_kots_for_orders(vid, [o.id for o, _ in rows])
+    return JSONResponse(content={
+        "items": [_order_dict(o, tl, kots_by_order.get(o.id, [])) for o, tl in rows],
+    })
 
 
 @router.get("/orders/{order_id}")
@@ -331,16 +361,96 @@ async def void_order(order_id: str, vid: UUID = Depends(_vendor_id), db: AsyncSe
     return JSONResponse(content={"id": str(o.id), "status": o.status})
 
 
+@router.post("/orders/{order_id}/transfer")
+async def transfer_order(
+    order_id: str,
+    data: RestaurantOrderTransferIn,
+    vid: UUID = Depends(_vendor_id),
+    db: AsyncSession = Depends(get_db),
+):
+    """Move an open order to a different free table."""
+    svc = RestaurantService(db)
+    try:
+        o = await svc.transfer_order(vid, UUID(order_id), UUID(data.table_id))
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    if not o:
+        raise HTTPException(404, "Order not found")
+    rows = await svc.list_tables(vid)
+    table_label = next((t.label for t, _ in rows if o.table_id and str(t.id) == str(o.table_id)), None)
+    kots = await svc.get_kots_for_order(vid, o.id)
+    return JSONResponse(content=_order_dict(o, table_label, kots))
+
+
+@router.post("/orders/{order_id}/merge")
+async def merge_orders(
+    order_id: str,
+    data: RestaurantOrderMergeIn,
+    vid: UUID = Depends(_vendor_id),
+    db: AsyncSession = Depends(get_db),
+):
+    """Merge this order into a target order. This order is voided and its table freed."""
+    svc = RestaurantService(db)
+    try:
+        o = await svc.merge_orders(vid, UUID(order_id), UUID(data.target_order_id))
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    if not o:
+        raise HTTPException(404, "Order not found")
+    rows = await svc.list_tables(vid)
+    table_label = next((t.label for t, _ in rows if o.table_id and str(t.id) == str(o.table_id)), None)
+    kots = await svc.get_kots_for_order(vid, o.id)
+    return JSONResponse(content=_order_dict(o, table_label, kots))
+
+
+@router.patch("/orders/{order_id}/adjustments")
+async def set_order_adjustments(
+    order_id: str,
+    data: RestaurantOrderAdjustmentsIn,
+    vid: UUID = Depends(_vendor_id),
+    db: AsyncSession = Depends(get_db),
+):
+    """Set service charge, tip, or discount on an open order."""
+    svc = RestaurantService(db)
+    o = await svc.get_order(vid, UUID(order_id))
+    if not o:
+        raise HTTPException(404, "Order not found")
+    if o.status not in ("open", "billed"):
+        raise HTTPException(400, "Order is not open")
+    adj = dict(o.adjustments or {}) if hasattr(o, "adjustments") else {}
+    if data.service_charge_pct is not None:
+        adj["service_charge_pct"] = data.service_charge_pct
+    if data.tip_amount is not None:
+        adj["tip_amount"] = data.tip_amount
+    if data.discount_amount is not None:
+        adj["discount_amount"] = data.discount_amount
+    if data.discount_pct is not None:
+        adj["discount_pct"] = data.discount_pct
+    from sqlalchemy import update as sqla_update
+    from datetime import datetime, timezone
+    from app.models.restaurant import RestaurantOrder as _RO
+    await db.execute(
+        sqla_update(_RO)
+        .where(_RO.id == o.id)
+        .values(adjustments=adj, updated_at=datetime.now(timezone.utc))
+    )
+    await db.commit()
+    await db.refresh(o)
+    return JSONResponse(content={"id": str(o.id), "adjustments": adj})
+
+
 # ── KOTs ──────────────────────────────────────────────────────────────
 
 @router.get("/kots")
 async def list_kots(
     include_done: bool = Query(False),
+    restaurant_id: str | None = Query(None),
     vid: UUID = Depends(_vendor_id),
     db: AsyncSession = Depends(get_db),
 ):
     svc = RestaurantService(db)
-    rows = await svc.list_kots(vid, include_done=include_done)
+    rid = UUID(restaurant_id) if restaurant_id else None
+    rows = await svc.list_kots(vid, include_done=include_done, restaurant_id=rid)
     items = [_kot_dict(k, tl, cov, ost) for k, tl, cov, ost in rows]
     return JSONResponse(content={"items": items})
 
@@ -387,6 +497,7 @@ def _reservation_dict(r, table_label=None):
     return {
         "id": str(r.id),
         "vendor_id": str(r.vendor_id),
+        "restaurant_id": str(r.restaurant_id) if r.restaurant_id else None,
         "table_id": str(r.table_id) if r.table_id else None,
         "table_label": table_label,
         "guest_name": r.guest_name,
@@ -407,6 +518,7 @@ async def list_reservations(
     date_from: str | None = Query(None),
     date_to: str | None = Query(None),
     status: str | None = Query(None),
+    restaurant_id: str | None = Query(None),
     vid: UUID = Depends(_vendor_id),
     db: AsyncSession = Depends(get_db),
 ):
@@ -414,7 +526,8 @@ async def list_reservations(
     svc = RestaurantService(db)
     df = date_type.fromisoformat(date_from) if date_from else None
     dt = date_type.fromisoformat(date_to) if date_to else None
-    rows = await svc.list_reservations(vid, date_from=df, date_to=dt, status=status)
+    rid = UUID(restaurant_id) if restaurant_id else None
+    rows = await svc.list_reservations(vid, date_from=df, date_to=dt, status=status, restaurant_id=rid)
     return JSONResponse(content={"items": [_reservation_dict(r, tl) for r, tl in rows]})
 
 
@@ -429,6 +542,7 @@ async def create_reservation(data: RestaurantReservationCreate, vid: UUID = Depe
             data.reservation_time,
             data.party_size,
             table_id=UUID(data.table_id) if data.table_id else None,
+            restaurant_id=UUID(data.restaurant_id) if data.restaurant_id else None,
             guest_phone=data.guest_phone,
             guest_email=data.guest_email,
             notes=data.notes,
@@ -459,6 +573,31 @@ async def update_reservation(
         table_id=UUID(data.table_id) if data.table_id else None,
         notes=data.notes,
         status=data.status,
+    )
+    if not r:
+        raise HTTPException(404, "Reservation not found")
+    tl = None
+    if r.table_id:
+        from app.models.restaurant import RestaurantTable
+        t = await db.get(RestaurantTable, r.table_id)
+        tl = t.label if t else None
+    return JSONResponse(content=_reservation_dict(r, tl))
+
+
+@router.patch("/reservations/{reservation_id}/status")
+async def update_reservation_status(
+    reservation_id: str,
+    data: RestaurantReservationStatusUpdate,
+    vid: UUID = Depends(_vendor_id),
+    db: AsyncSession = Depends(get_db),
+    _vu: VendorUser = Depends(require_permission("restaurant.reservations")),
+):
+    svc = RestaurantService(db)
+    r = await svc.update_reservation_status(
+        vid,
+        UUID(reservation_id),
+        data.status,
+        table_id=UUID(data.table_id) if data.table_id else None,
     )
     if not r:
         raise HTTPException(404, "Reservation not found")
@@ -548,6 +687,45 @@ async def update_restaurant_menu_settings(
     svc = RestaurantService(db)
     try:
         out = await svc.set_menu_settings(vid, data.mode, data.product_ids)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    return JSONResponse(content=out)
+
+
+@router.get("/kot-settings")
+async def get_kot_settings(
+    restaurant_id: str = Query(...),
+    vid: UUID = Depends(_vendor_id),
+    db: AsyncSession = Depends(get_db),
+):
+    svc = RestaurantService(db)
+    try:
+        out = await svc.get_kot_settings(vid, UUID(restaurant_id))
+    except ValueError as e:
+        raise HTTPException(404, str(e))
+    return JSONResponse(content=out)
+
+
+@router.patch("/kot-settings")
+async def update_kot_settings(
+    data: RestaurantKOTSettingsUpdate,
+    restaurant_id: str = Query(...),
+    vid: UUID = Depends(_vendor_id),
+    db: AsyncSession = Depends(get_db),
+    _vu: VendorUser = Depends(require_permission("restaurant.setup")),
+):
+    svc = RestaurantService(db)
+    try:
+        out = await svc.set_kot_settings(
+            vid,
+            UUID(restaurant_id),
+            mode=data.mode,
+            start_number=data.start_number,
+            end_number=data.end_number,
+            reset=data.reset,
+            next_number=data.next_number,
+            reset_counter_now=data.reset_counter_now,
+        )
     except ValueError as e:
         raise HTTPException(400, str(e))
     return JSONResponse(content=out)

@@ -3,7 +3,7 @@ import { SectionLabel } from '@/components/common/FieldLabel'
 import { TableColumnLabel } from '@/components/common/FieldLabel'
 import { useEscapeToClose } from '@/hooks/useEscapeToClose'
 import { ResizableTable } from '@/components/table/ResizableTable'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { vendorApi } from '@/api/vendor'
 import { useOrderStats, useReviews, useProducts, useStores } from '@/hooks/useVendor'
@@ -579,7 +579,8 @@ function ReportToolbar({ search, onSearch, filterLabel, filterValue, filterOptio
 // ═══════════════════════════════════════════════════════════════════════════════
 
 export default function ReportsPage() {
-  const navigate   = useNavigate()
+  const navigate        = useNavigate()
+  const [searchParams]  = useSearchParams()
   const reportRef  = useRef<HTMLDivElement>(null)
   const qc         = useQueryClient()
   const { vendor, selectedStore } = useVendorStore()
@@ -587,19 +588,32 @@ export default function ReportsPage() {
   // ── Store filter ──────────────────────────────────────────────────────
   const [selectedStoreId, setSelectedStoreId] = useState<string>(selectedStore?.id ?? 'all')
 
-  // Sync with global store selection
+  // Sync with global store selection (URL ?store= param takes priority on first mount)
   useEffect(() => {
-    setSelectedStoreId(selectedStore?.id ?? 'all')
+    if (_paramStore) {
+      setSelectedStoreId(_paramStore)
+    } else {
+      setSelectedStoreId(selectedStore?.id ?? 'all')
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedStore?.id])
   const { data: storesData } = useStores()
   const reportStores: { id: string; name: string; code?: string }[] = storesData?.stores ?? []
 
   // ── Report selector state ──────────────────────────────────────────────
-  const [activeReport, setActiveReport]   = useState<ReportId>('sales_overview')
-  const [dateRange,    setDateRange]      = useState<DateRange>('30d')
-  const [customFrom,   setCustomFrom]     = useState('')
-  const [customTo,     setCustomTo]       = useState('')
+  const [activeReport, setActiveReport]   = useState<ReportId>(() => {
+    const r = searchParams.get('r')
+    return (REPORTS.some(x => x.id === r) ? r : 'sales_overview') as ReportId
+  })
+  const [dateRange,    setDateRange]      = useState<DateRange>(() => {
+    return searchParams.get('from') && searchParams.get('to') ? 'custom' : '30d'
+  })
+  const [customFrom,   setCustomFrom]     = useState(() => searchParams.get('from') ?? '')
+  const [customTo,     setCustomTo]       = useState(() => searchParams.get('to') ?? '')
   const [selectorOpen, setSelectorOpen]   = useState(false)
+
+  // Apply ?store= param on mount (after stores are loaded in the effect below)
+  const _paramStore = searchParams.get('store')
   const [selectorSearch, setSelectorSearch] = useState('')
   const [waOpen,       setWaOpen]         = useState(false)
 

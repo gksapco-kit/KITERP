@@ -88,6 +88,7 @@ def _product_to_dict(p) -> dict:
         "tags": p.tags or [],
         # Unit of Measure
         "uom": p.uom or "piece",
+        "uom_quantity": _num(p.uom_quantity),
         # Pricing
         "price": _num(p.price) or 0,
         "compare_at_price": _num(p.compare_at_price),
@@ -183,6 +184,7 @@ def _product_to_dict(p) -> dict:
             {
                 "id": str(v.id), "name": v.name, "sku": v.sku, "barcode": v.barcode,
                 "uom": v.uom or "piece",
+                "uom_quantity": _num(v.uom_quantity),
                 "price_type": v.price_type or "per_unit",
                 "price": _num(v.price) or 0,
                 "compare_at_price": _num(v.compare_at_price),
@@ -251,6 +253,7 @@ def _build_variant(product_id, vc) -> ProductVariant:
         sku=g("sku"),
         barcode=g("barcode"),
         uom=g("uom") or "piece",
+        uom_quantity=g("uom_quantity"),
         price_type=g("price_type") or "per_unit",
         price=g("price"),
         compare_at_price=g("compare_at_price"),

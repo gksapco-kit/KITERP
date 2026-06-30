@@ -374,14 +374,21 @@ def _apply_pr_header(pr: PurchaseRequisition, data, *, include_approvers: bool =
 @router.get("/requisitions")
 async def list_requisitions(
     status: Optional[str] = Query(None),
+    pending_my_approval: bool = Query(False, description="Only PRs awaiting the current user's approval step"),
     page: int = Query(1, ge=1),
     size: int = Query(20, ge=1, le=100),
     vendor_id: UUID = Depends(get_current_vendor_id),
+    vendor_user: VendorUser = Depends(get_current_vendor_user),
     db: AsyncSession = Depends(get_db),
 ):
     repo = PurchaseRequisitionRepository(db)
     skip = (page - 1) * size
-    items, total = await repo.list_by_vendor(vendor_id, status=status, skip=skip, limit=size)
+    if pending_my_approval:
+        items, total = await repo.list_pending_for_approver(
+            vendor_id, vendor_user.id, skip=skip, limit=size
+        )
+    else:
+        items, total = await repo.list_by_vendor(vendor_id, status=status, skip=skip, limit=size)
     import math
     return JSONResponse(content={
         "items": [_pr_to_dict(pr) for pr in items],

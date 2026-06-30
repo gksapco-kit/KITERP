@@ -360,10 +360,10 @@ class CoGoodsMovement(Base):
     """
     Goods movement tied to a manufacturing order.
     movement_type:
-      261 = goods issue (component to order)
-      262 = return of component from order
-      101 = goods receipt (FG from order)
-      102 = return of FG to order
+      component_issue       = goods issue (component to order)
+      component_return      = return of component from order
+      fg_receipt            = goods receipt (FG from order)
+      fg_receipt_reversal   = return of FG to order
     """
     __tablename__ = "co_goods_movement"
 
@@ -371,7 +371,7 @@ class CoGoodsMovement(Base):
     vendor_id = Column(UUID(as_uuid=True), ForeignKey("vendor.id", ondelete="CASCADE"), nullable=False, index=True)
     company_id = Column(UUID(as_uuid=True), ForeignKey("fin_company.id", ondelete="CASCADE"), nullable=False, index=True)
     order_id = Column(UUID(as_uuid=True), ForeignKey("co_manufacturing_order.id", ondelete="CASCADE"), nullable=False, index=True)
-    movement_type = Column(String(10), nullable=False)       # 261 | 262 | 101 | 102
+    movement_type = Column(String(30), nullable=False)       # component_issue | component_return | fg_receipt | fg_receipt_reversal
     posting_date = Column(Date, nullable=False)
     document_no = Column(String(40), nullable=True)
     product_id = Column(UUID(as_uuid=True), ForeignKey("product.id", ondelete="SET NULL"), nullable=True)

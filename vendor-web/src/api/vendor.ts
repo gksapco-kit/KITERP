@@ -1,10 +1,11 @@
 import apiClient from './client'
-import type { Vendor, Product, Service, ServiceMediaItem, Customer, Order, OrderStats, Review, PaginatedResponse, VendorRole, TeamMember, VendorCategory, Supplier, PurchaseOrder, OrderAttachmentRef, InvoiceTemplate, VendorPlanInfo, Bundle, ProductMerchandising, ProductPriceRule, VendorDocument, VendorDocumentType, PurchasingInfoRecord, SourceList, PurchaseRequisition, VendorInvoice, GoodsBatch, GoodsMovementDocument, MaterialValuation, ServiceEntrySheet } from '@/types'
+import type { Vendor, Product, Service, ServiceMediaItem, Customer, Order, OrderStats, Review, PaginatedResponse, VendorRole, TeamMember, VendorCategory, Supplier, PurchaseOrder, OrderAttachmentRef, InvoiceTemplate, VendorPlanInfo, Bundle, ProductMerchandising, ProductPriceRule, VendorDocument, VendorDocumentType, PurchasingInfoRecord, SourceList, PurchaseRequisition, VendorInvoice, GoodsBatch, GoodsMovementDocument, MaterialValuation, ServiceEntrySheet, RestaurantOutlet } from '@/types'
 
 // ── Restaurant extra types ────────────────────────────────────────
 export interface ReservationItem {
   id: string
   vendor_id: string
+  restaurant_id?: string | null
   table_id?: string | null
   table_label?: string | null
   guest_name: string
@@ -24,6 +25,37 @@ export interface RestaurantReportDashboard {
   kots_by_status: Record<string, number>
   tables: { total: number; by_status: Record<string, number> }
   upcoming_reservations: number
+}
+
+// ── Sales Manager analytics ───────────────────────────────────────
+export interface SalesKpi { value: number; prev: number; delta_pct: number | null }
+export interface SalesTrendPoint { date: string; orders: number; revenue: number; units: number }
+export interface SalesGroupRow { orders: number; revenue: number }
+export interface SalesOverview {
+  range: { from: string; to: string; days: number; prev_from: string; prev_to: string }
+  generated_at: string
+  kpis: {
+    revenue: SalesKpi; orders: SalesKpi; units: SalesKpi; avg_order_value: SalesKpi
+    customers: SalesKpi; new_customers: SalesKpi; discount: SalesKpi; tax: SalesKpi
+    shipping: SalesKpi; refunds: SalesKpi; net_sales: SalesKpi; gross_sales: SalesKpi
+  }
+  trend: SalesTrendPoint[]
+  by_status: ({ status: string } & SalesGroupRow)[]
+  by_source: ({ source: string } & SalesGroupRow)[]
+  by_payment_method: ({ method: string } & SalesGroupRow)[]
+  by_payment_status: ({ status: string } & SalesGroupRow)[]
+  by_store: ({ store_id: string | null; store_name: string } & SalesGroupRow)[]
+  top_customers: { customer_id: string; name: string; email?: string | null; orders: number; spent: number }[]
+  top_products: { product_id: string; name: string; qty: number; revenue: number }[]
+  by_category: { category: string; qty: number; revenue: number }[]
+  hourly: { hour: number; orders: number; revenue: number }[]
+  by_dow: { dow: number; label: string; orders: number; revenue: number }[]
+  coupons: { coupon: string; orders: number; discount: number }[]
+  discounts: { orders_with_discount: number; total_discount: number }
+  fulfillment: {
+    avg_ship_hours: number; avg_delivery_hours: number; delivered_orders: number
+    cancelled_orders: number; returned_orders: number; total_orders: number; cancellation_rate: number
+  }
 }
 
 // ── Modifier types ────────────────────────────────────────────────
@@ -84,9 +116,27 @@ export interface RestaurantKOT {
   created_at?: string | null
 }
 
+export interface RestaurantOrderAdjustments {
+  service_charge_pct?: number | null
+  tip_amount?: number | null
+  discount_amount?: number | null
+  discount_pct?: number | null
+}
+
+export interface RestaurantKOTSettings {
+  mode: 'sequential' | 'per_order'
+  start_number: number
+  end_number: number
+  reset: 'daily' | 'continuous'
+  next_number: number
+  last_reset_date?: string | null
+  next_preview: number
+}
+
 export interface RestaurantOrder {
   id: string
   vendor_id: string
+  restaurant_id?: string | null
   table_id?: string | null
   table_label?: string | null
   status: string
@@ -94,6 +144,7 @@ export interface RestaurantOrder {
   server_name?: string | null
   items: RestaurantOrderItem[]
   notes?: string | null
+  adjustments: RestaurantOrderAdjustments
   pos_transaction_id?: string | null
   kots: RestaurantKOT[]
   created_at?: string | null
@@ -267,7 +318,7 @@ export const vendorApi = {
   },
 
   // ── Storage Locations ───────────────────────────────────────
-  listStorageLocations: async (params: { store_id: string; plant_id?: string; tree?: boolean; is_active?: boolean }): Promise<{ locations: import('@/types').StorageLocation[] }> => {
+  listStorageLocations: async (params: { store_id?: string; plant_id?: string; tree?: boolean; is_active?: boolean }): Promise<{ locations: import('@/types').StorageLocation[] }> => {
     const response = await apiClient.get('/vendors/me/storage-locations', { params })
     return response.data
   },
@@ -287,8 +338,8 @@ export const vendorApi = {
   },
 
   // ── Plants ────────────────────────────────────────────────────
-  listPlants: async (params: { store_id: string; is_active?: boolean }): Promise<{ plants: import('@/types').Plant[] }> => {
-    const response = await apiClient.get('/vendors/me/plants', { params })
+  listPlants: async (params?: { store_id?: string; is_active?: boolean }): Promise<{ plants: import('@/types').Plant[] }> => {
+    const response = await apiClient.get('/vendors/me/plants', { params: params ?? {} })
     return response.data
   },
 
@@ -1003,12 +1054,39 @@ export const vendorApi = {
     return response.data
   },
 
-  // ── Restaurant (floor / kitchen / POS table tagging) ───────────
-  restaurantListZones: async (): Promise<{ items: Array<{ id: string; vendor_id: string; name: string; sort_order: number }> }> => {
-    const response = await apiClient.get('/vendors/me/restaurant/zones')
+  // ── Restaurant Outlets (CRUD — tagged under a Store/BU) ────────
+  listRestaurants: async (params?: { store_id?: string }): Promise<{ items: RestaurantOutlet[] }> => {
+    const response = await apiClient.get('/vendors/me/restaurants', { params })
     return response.data
   },
-  restaurantCreateZone: async (body: { name: string; sort_order?: number }) => {
+  createRestaurant: async (body: {
+    store_id: string; name: string; code?: string; cuisine?: string;
+    phone?: string; email?: string; address?: Record<string, unknown>; settings?: Record<string, unknown>; is_active?: boolean;
+  }): Promise<RestaurantOutlet> => {
+    const response = await apiClient.post('/vendors/me/restaurants', body)
+    return response.data
+  },
+  getRestaurant: async (id: string): Promise<RestaurantOutlet> => {
+    const response = await apiClient.get(`/vendors/me/restaurants/${id}`)
+    return response.data
+  },
+  updateRestaurant: async (id: string, body: Partial<{
+    name: string; code: string; cuisine: string; phone: string; email: string;
+    address: Record<string, unknown>; settings: Record<string, unknown>; is_active: boolean; is_default: boolean;
+  }>): Promise<RestaurantOutlet> => {
+    const response = await apiClient.patch(`/vendors/me/restaurants/${id}`, body)
+    return response.data
+  },
+  deleteRestaurant: async (id: string) => {
+    await apiClient.delete(`/vendors/me/restaurants/${id}`)
+  },
+
+  // ── Restaurant (floor / kitchen / POS table tagging) ───────────
+  restaurantListZones: async (params?: { restaurant_id?: string }): Promise<{ items: Array<{ id: string; vendor_id: string; restaurant_id: string | null; name: string; floor: string | null; sort_order: number }> }> => {
+    const response = await apiClient.get('/vendors/me/restaurant/zones', { params })
+    return response.data
+  },
+  restaurantCreateZone: async (body: { name: string; sort_order?: number; restaurant_id?: string; floor?: string }) => {
     const response = await apiClient.post('/vendors/me/restaurant/zones', body)
     return response.data
   },
@@ -1019,13 +1097,24 @@ export const vendorApi = {
   restaurantDeleteZone: async (zoneId: string) => {
     await apiClient.delete(`/vendors/me/restaurant/zones/${zoneId}`)
   },
-  restaurantListTables: async (params?: { zone_id?: string }): Promise<{
-    items: Array<{ id: string; zone_id?: string | null; zone_name?: string | null; label: string; capacity: number; is_active: boolean }>
+  restaurantListTables: async (params?: { zone_id?: string; restaurant_id?: string }): Promise<{
+    items: Array<{
+      id: string
+      restaurant_id?: string | null
+      zone_id?: string | null
+      zone_name?: string | null
+      label: string
+      capacity: number
+      sort_order: number
+      is_active: boolean
+      status: string
+      qr_token?: string | null
+    }>
   }> => {
     const response = await apiClient.get('/vendors/me/restaurant/tables', { params })
     return response.data
   },
-  restaurantCreateTable: async (body: { label: string; zone_id?: string | null; capacity?: number; sort_order?: number; is_active?: boolean }) => {
+  restaurantCreateTable: async (body: { label: string; zone_id?: string | null; restaurant_id?: string; capacity?: number; sort_order?: number; is_active?: boolean }) => {
     const response = await apiClient.post('/vendors/me/restaurant/tables', body)
     return response.data
   },
@@ -1061,7 +1150,7 @@ export const vendorApi = {
     const response = await apiClient.post('/vendors/me/restaurant/orders', body)
     return response.data as RestaurantOrder
   },
-  restaurantListOrders: async (params?: { status?: string }) => {
+  restaurantListOrders: async (params?: { status?: string; restaurant_id?: string }) => {
     const response = await apiClient.get('/vendors/me/restaurant/orders', { params })
     return response.data as { items: RestaurantOrder[] }
   },
@@ -1085,9 +1174,21 @@ export const vendorApi = {
     const response = await apiClient.patch(`/vendors/me/restaurant/orders/${orderId}/void`, {})
     return response.data as { id: string; status: string }
   },
+  restaurantTransferOrder: async (orderId: string, tableId: string) => {
+    const response = await apiClient.post(`/vendors/me/restaurant/orders/${orderId}/transfer`, { table_id: tableId })
+    return response.data as RestaurantOrder
+  },
+  restaurantMergeOrders: async (sourceOrderId: string, targetOrderId: string) => {
+    const response = await apiClient.post(`/vendors/me/restaurant/orders/${sourceOrderId}/merge`, { target_order_id: targetOrderId })
+    return response.data as RestaurantOrder
+  },
+  restaurantSetOrderAdjustments: async (orderId: string, body: RestaurantOrderAdjustments) => {
+    const response = await apiClient.patch(`/vendors/me/restaurant/orders/${orderId}/adjustments`, body)
+    return response.data as { id: string; adjustments: RestaurantOrderAdjustments }
+  },
 
   // ── KOTs ──────────────────────────────────────────────────────────
-  restaurantListKOTs: async (params?: { include_done?: boolean }) => {
+  restaurantListKOTs: async (params?: { include_done?: boolean; restaurant_id?: string }) => {
     const response = await apiClient.get('/vendors/me/restaurant/kots', { params })
     return response.data as { items: RestaurantKOT[] }
   },
@@ -1105,7 +1206,7 @@ export const vendorApi = {
   },
 
   // ── Reservations ─────────────────────────────────────────────────
-  restaurantListReservations: async (params?: { date_from?: string; date_to?: string; status?: string }) => {
+  restaurantListReservations: async (params?: { date_from?: string; date_to?: string; status?: string; restaurant_id?: string }) => {
     const response = await apiClient.get('/vendors/me/restaurant/reservations', { params })
     return response.data as { items: ReservationItem[] }
   },
@@ -1141,6 +1242,10 @@ export const vendorApi = {
   restaurantDeleteReservation: async (id: string) => {
     await apiClient.delete(`/vendors/me/restaurant/reservations/${id}`)
   },
+  restaurantUpdateReservationStatus: async (id: string, body: { status: string; table_id?: string }) => {
+    const response = await apiClient.patch(`/vendors/me/restaurant/reservations/${id}/status`, body)
+    return response.data as ReservationItem
+  },
 
   restaurantGetMenuSettings: async () => {
     const response = await apiClient.get('/vendors/me/restaurant/menu')
@@ -1153,6 +1258,28 @@ export const vendorApi = {
   restaurantUpdateMenuSettings: async (body: { mode: 'all_active' | 'curated'; product_ids: string[] }) => {
     const response = await apiClient.put('/vendors/me/restaurant/menu', body)
     return response.data as { mode: string; product_ids: string[] }
+  },
+  restaurantGetKOTSettings: async (restaurantId: string) => {
+    const response = await apiClient.get('/vendors/me/restaurant/kot-settings', {
+      params: { restaurant_id: restaurantId },
+    })
+    return response.data as RestaurantKOTSettings
+  },
+  restaurantUpdateKOTSettings: async (
+    restaurantId: string,
+    body: Partial<{
+      mode: 'sequential' | 'per_order'
+      start_number: number
+      end_number: number
+      reset: 'daily' | 'continuous'
+      next_number: number
+      reset_counter_now: boolean
+    }>,
+  ) => {
+    const response = await apiClient.patch('/vendors/me/restaurant/kot-settings', body, {
+      params: { restaurant_id: restaurantId },
+    })
+    return response.data as RestaurantKOTSettings
   },
   restaurantListDineInProducts: async () => {
     const response = await apiClient.get('/vendors/me/restaurant/dine-in-products')
@@ -1284,6 +1411,18 @@ export const vendorApi = {
   getRevenueSummary: async (storeId?: string) => {
     const response = await apiClient.get('/vendors/me/reports/revenue-summary', { params: { store_id: storeId || undefined } })
     return response.data
+  },
+
+  // ── Sales Manager (date-range analytics) ──────────────────────
+  getSalesOverview: async (params: { date_from?: string; date_to?: string; store_id?: string }) => {
+    const response = await apiClient.get('/vendors/me/sales-reports/overview', {
+      params: {
+        date_from: params.date_from || undefined,
+        date_to: params.date_to || undefined,
+        store_id: params.store_id || undefined,
+      },
+    })
+    return response.data as SalesOverview
   },
 
   // ── Plans ─────────────────────────────────────────────────────

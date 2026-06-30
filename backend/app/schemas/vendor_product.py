@@ -59,6 +59,7 @@ class ProductVariantCreate(BaseModel):
     sku: Optional[str] = None
     barcode: Optional[str] = None
     uom: Optional[str] = "piece"
+    uom_quantity: Optional[float] = Field(None, ge=0)
     price_type: Optional[str] = "per_unit"  # per_unit | per_cycle
     price: float = Field(..., ge=0)
     compare_at_price: Optional[float] = None
@@ -111,6 +112,7 @@ class ProductVariantResponse(BaseModel):
     sku: Optional[str] = None
     barcode: Optional[str] = None
     uom: str = "piece"
+    uom_quantity: Optional[float] = None
     price_type: str = "per_unit"
     price: float
     compare_at_price: Optional[float] = None
@@ -190,6 +192,7 @@ class ProductCreate(BaseModel):
 
     # Unit of Measure
     uom: Optional[str] = "piece"
+    uom_quantity: Optional[float] = Field(None, ge=0)
 
     # Pricing
     price: float = Field(0, ge=0)
@@ -306,6 +309,7 @@ class ProductUpdate(BaseModel):
 
     # Unit of Measure
     uom: Optional[str] = None
+    uom_quantity: Optional[float] = Field(None, ge=0)
 
     # Pricing
     price: Optional[float] = None
@@ -426,6 +430,7 @@ class ProductResponse(BaseModel):
 
     # Unit of Measure
     uom: str = "piece"
+    uom_quantity: Optional[float] = None
 
     # Pricing
     price: float

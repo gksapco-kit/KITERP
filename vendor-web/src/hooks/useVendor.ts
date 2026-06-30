@@ -216,11 +216,16 @@ export function useDeleteCategory() {
   })
 }
 
-export function useStorageLocationTree(storeId: string | null, plantId?: string | null) {
+export function useStorageLocationTree(storeId?: string | null, plantId?: string | null) {
+  const storeScope = storeId || undefined
+  const plantScope = plantId || undefined
   return useQuery({
-    queryKey: [...vendorKeys.all, 'storage-locations', 'tree', storeId, plantId],
-    queryFn: () => vendorApi.listStorageLocations({ store_id: storeId!, plant_id: plantId ?? undefined, tree: true }),
-    enabled: !!storeId && !!plantId,
+    queryKey: [...vendorKeys.all, 'storage-locations', 'tree', storeScope ?? 'all', plantScope ?? 'all'],
+    queryFn: () => vendorApi.listStorageLocations({
+      store_id: storeScope,
+      plant_id: plantScope,
+      tree: true,
+    }),
     staleTime: 60 * 1000,
   })
 }
@@ -263,11 +268,11 @@ export function useDeleteStorageLocation() {
 }
 
 // ── Plants ────────────────────────────────────────────────────────
-export function usePlants(storeId: string | null) {
+export function usePlants(storeId?: string | null) {
+  const scope = storeId ?? 'all'
   return useQuery({
-    queryKey: vendorKeys.plants(storeId ?? undefined),
-    queryFn: () => vendorApi.listPlants({ store_id: storeId! }),
-    enabled: !!storeId,
+    queryKey: vendorKeys.plants(scope === 'all' ? undefined : scope),
+    queryFn: () => vendorApi.listPlants(storeId ? { store_id: storeId } : undefined),
     staleTime: 60 * 1000,
   })
 }

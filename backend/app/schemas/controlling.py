@@ -524,7 +524,7 @@ class ActivityConfirmationOut(BaseModel):
 class GoodsMovementCreate(BaseModel):
     company_id: UUID
     order_id: UUID
-    movement_type: str  # 261 | 262 | 101 | 102
+    movement_type: str  # component_issue | component_return | fg_receipt | fg_receipt_reversal
     posting_date: date
     product_id: Optional[UUID] = None
     description: Optional[str] = None

@@ -6,7 +6,7 @@ from app.api.v1 import (
     vendor_orders, vendor_customers, vendor_reviews,
     vendor_team, vendor_roles, vendor_inventory, vendor_storage_locations, vendor_plants, vendor_procurement,
     vendor_pos, vendor_invoices, vendor_invoice_templates, vendor_coupons,
-    vendor_reports, vendor_template,
+    vendor_reports, vendor_sales_reports, vendor_template,
     vendor_bookings, vendor_projects, vendor_notifications, vendor_merchandising, vendor_loyalty,
     vendor_mrp, vendor_hr, vendor_hr_extra, vendor_stores, vendor_message_config, vendor_production,
     catalog, admin, app_builds,
@@ -23,6 +23,7 @@ from app.api.v1 import (
     vendor_blog,
     catalog_blog,
     vendor_restaurant,
+    vendor_restaurants,
     public_restaurant,
     vendor_marketplace,
     vendor_subscriptions,
@@ -75,11 +76,13 @@ api_router.include_router(vendor_procurement_goods.router, prefix="/vendors/me/p
 api_router.include_router(vendor_procurement_special.router, prefix="/vendors/me/procurement", tags=["Special Procurement"])
 api_router.include_router(vendor_pos.router, prefix="/vendors/me/pos", tags=["Vendor POS"])
 api_router.include_router(vendor_restaurant.router, prefix="/vendors/me/restaurant", tags=["Restaurant"])
+api_router.include_router(vendor_restaurants.router, prefix="/vendors/me", tags=["Restaurant Outlets"])
 api_router.include_router(public_restaurant.router, prefix="/public/restaurant", tags=["Public Restaurant"])
 api_router.include_router(vendor_invoices.router, prefix="/vendors/me/invoices", tags=["Vendor Invoices"])
 api_router.include_router(vendor_invoice_templates.router, prefix="/vendors/me/invoice-templates", tags=["Vendor Invoice Templates"])
 api_router.include_router(vendor_coupons.router, prefix="/vendors/me/coupons", tags=["Vendor Coupons"])
 api_router.include_router(vendor_reports.router, prefix="/vendors/me/reports", tags=["Vendor Reports"])
+api_router.include_router(vendor_sales_reports.router, prefix="/vendors/me/sales-reports", tags=["Sales Manager Reports"])
 api_router.include_router(vendor_template.router, prefix="/vendors/me/template", tags=["Vendor Template"])
 api_router.include_router(vendor_bookings.router, prefix="/vendors/me/bookings", tags=["Vendor Bookings"])
 api_router.include_router(vendor_projects.router, prefix="/vendors/me/projects", tags=["Vendor Projects"])

@@ -78,14 +78,15 @@ class GoodsMovementDocument(Base):
     Formal goods movement document linking inventory events to source documents.
     Extends InventoryMovement with procurement-specific attributes.
 
-    movement_type mirrors SAP movement type codes:
-      101  GR for purchase order
-      102  Reversal of GR for purchase order
-      122  Return to vendor
-      201  GI for cost center
-      261  GI for production order
-      301  Plant-to-plant transfer
-      311  Storage-location transfer
+    movement_type is a descriptive code:
+      gr_po             GR for purchase order
+      gr_reversal       Reversal of GR for purchase order
+      return_to_vendor  Return to vendor
+      gi_cost_center    GI for cost center
+      gi_production     GI for production order
+      plant_transfer    Plant-to-plant transfer
+      sloc_transfer     Storage-location transfer
+      receipt_no_po     Receipt without a PO
     """
     __tablename__ = "goods_movement_document"
 
@@ -93,7 +94,7 @@ class GoodsMovementDocument(Base):
     vendor_id = Column(UUID(as_uuid=True), ForeignKey("vendor.id", ondelete="CASCADE"), nullable=False)
 
     document_number = Column(String(30), nullable=False)
-    movement_type = Column(String(10), nullable=False)  # 101 | 102 | 122 | 201 | 261 | 301 | 311
+    movement_type = Column(String(30), nullable=False)  # gr_po | gr_reversal | return_to_vendor | gi_cost_center | gi_production | plant_transfer | sloc_transfer | receipt_no_po
 
     # Source document reference
     po_receipt_id = Column(UUID(as_uuid=True), ForeignKey("purchase_order_receipt.id", ondelete="SET NULL"), nullable=True)

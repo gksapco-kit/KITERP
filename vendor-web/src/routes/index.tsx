@@ -35,10 +35,12 @@ import POS from '@/pages/pos/index'
 import RestaurantFloorPage from '@/pages/restaurant/Floor'
 import RestaurantKitchenPage from '@/pages/restaurant/Kitchen'
 import RestaurantSetupPage from '@/pages/restaurant/Setup'
+import RestaurantPOSPage from '@/pages/restaurant/RestaurantPOS'
 import RestaurantOrderPage from '@/pages/restaurant/Order'
 import RestaurantReservationsPage from '@/pages/restaurant/Reservations'
 import RestaurantReportsPage from '@/pages/restaurant/Reports'
 import RestaurantMenuPage from '@/pages/restaurant/Menu'
+import RestaurantsPage from '@/pages/restaurant/Restaurants'
 import WorkspaceHubPage from '@/pages/workspace/Hub'
 import SubscriptionsSalesPage from '@/pages/sales/Subscriptions'
 import MarketplaceLeadsPage from '@/pages/sales/MarketplaceLeads'
@@ -219,6 +221,7 @@ import CommissionAccruals from '@/pages/commission/Accruals'
 import CommissionPayouts from '@/pages/commission/Payouts'
 import CommissionReportPage from '@/pages/commission/reports/CommissionReport'
 import StoreCoveragePage from '@/pages/sales/StoreCoverage'
+import SalesManagerPage from '@/pages/sales/SalesManager'
 
 const routerBasename = (import.meta.env.VITE_ROUTER_BASENAME || '').replace(/\/$/, '')
 
@@ -306,8 +309,10 @@ export const router = createBrowserRouter([
       { path: 'storage-locations', element: <StorageLocationsPage /> },
       { path: 'plants', element: <PlantsPage /> },
       { path: 'pos', element: <POS /> },
+      { path: 'restaurant/outlets', element: <RestaurantsPage /> },
       { path: 'restaurant/floor', element: <RestaurantFloorPage /> },
       { path: 'restaurant/kitchen', element: <RestaurantKitchenPage /> },
+      { path: 'restaurant/pos', element: <RestaurantPOSPage /> },
       { path: 'restaurant/setup', element: <RestaurantSetupPage /> },
       { path: 'restaurant/menu', element: <RestaurantMenuPage /> },
       { path: 'restaurant/order/:orderId', element: <RestaurantOrderPage /> },
@@ -317,6 +322,7 @@ export const router = createBrowserRouter([
       { path: 'subscriptions', element: <SubscriptionsSalesPage /> },
       { path: 'marketplace', element: <MarketplaceLeadsPage /> },
       { path: 'sales/coverage', element: <StoreCoveragePage /> },
+      { path: 'sales/manager', element: <SalesManagerPage /> },
       { path: 'rental', element: <RentalHubPage /> },
       { path: 'invoices', element: <InvoicesPage /> },
       { path: 'invoices/templates', element: <InvoiceTemplatesPage /> },
@@ -422,7 +428,6 @@ export const router = createBrowserRouter([
       // Finance routes
       { path: 'finance',                        element: <FinanceDashboard /> },
       { path: 'finance/basic',                  element: <FinanceBasic /> },
-      { path: 'finance/cost-centers',           element: <FinanceCostCenters /> },
       { path: 'finance/coa',                    element: <FinanceCOA /> },
       { path: 'finance/journal',                element: <FinanceJournal /> },
       { path: 'finance/trial-balance',          element: <FinanceTrialBalance /> },
@@ -477,6 +482,8 @@ export const router = createBrowserRouter([
           // Period end
           { path: 'cost-allocations',                element: <ControllingCostAllocationsPage /> },
           { path: 'period-end',                      element: <ControllingPeriodEndPage /> },
+          // Cost Centers (moved from Finance)
+          { path: 'cost-centers',                    element: <FinanceCostCenters /> },
         ],
       },
 

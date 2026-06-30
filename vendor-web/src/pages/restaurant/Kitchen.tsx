@@ -6,6 +6,7 @@ import { vendorApi } from '@/api/vendor'
 import { Button } from '@/components/ui/button'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
+import { useRestaurantStore } from '@/stores/restaurantStore'
 
 const KOT_STATUSES = ['new', 'preparing', 'ready', 'done'] as const
 type KOTStatus = typeof KOT_STATUSES[number]
@@ -28,10 +29,12 @@ function elapsed(dateStr: string | null | undefined): string {
 export default function RestaurantKitchenPage() {
   const qc = useQueryClient()
   const [showDone, setShowDone] = useState(false)
+  const { selectedRestaurant } = useRestaurantStore()
+  const rid = selectedRestaurant?.id
 
   const { data, isLoading } = useQuery({
-    queryKey: ['restaurant', 'kots', showDone],
-    queryFn: () => vendorApi.restaurantListKOTs({ include_done: showDone }),
+    queryKey: ['restaurant', 'kots', showDone, rid],
+    queryFn: () => vendorApi.restaurantListKOTs({ include_done: showDone, ...(rid ? { restaurant_id: rid } : {}) }),
     refetchInterval: 5_000,
   })
 
@@ -41,6 +44,7 @@ export default function RestaurantKitchenPage() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['restaurant', 'kots'] })
       qc.invalidateQueries({ queryKey: ['restaurant', 'tables'] })
+      qc.invalidateQueries({ queryKey: ['restaurant', 'orders'] })
     },
     onError: () => toast.error('Could not update ticket'),
   })

@@ -15,20 +15,20 @@ import { formatCurrency } from '@/lib/utils'
 import type { GoodsMovementOut } from '@/api/controlling'
 
 const MOVEMENT_TYPES = [
-  { value: '261', label: 'Goods Issue (261) — Component → Order', icon: ArrowDownToLine, color: 'red' },
-  { value: '262', label: 'GI Return (262) — Component ← Order', icon: ArrowUpFromLine, color: 'amber' },
-  { value: '101', label: 'Goods Receipt (101) — FG ← Order', icon: ArrowUpFromLine, color: 'emerald' },
-  { value: '102', label: 'GR Return (102) — FG → Order', icon: ArrowDownToLine, color: 'gray' },
+  { value: 'component_issue', label: 'Goods Issue — Component → Order', icon: ArrowDownToLine, color: 'red' },
+  { value: 'component_return', label: 'GI Return — Component ← Order', icon: ArrowUpFromLine, color: 'amber' },
+  { value: 'fg_receipt', label: 'Goods Receipt — FG ← Order', icon: ArrowUpFromLine, color: 'emerald' },
+  { value: 'fg_receipt_reversal', label: 'GR Return — FG → Order', icon: ArrowDownToLine, color: 'gray' },
 ]
 
 const typeLabel = (mt: string) => MOVEMENT_TYPES.find(t => t.value === mt)?.label ?? mt
 
 const typeColor = (mt: string) => {
   const m: Record<string, string> = {
-    '261': 'bg-red-100 text-red-700',
-    '262': 'bg-amber-100 text-amber-700',
-    '101': 'bg-emerald-100 text-emerald-700',
-    '102': 'bg-gray-100 text-gray-700',
+    component_issue: 'bg-red-100 text-red-700',
+    component_return: 'bg-amber-100 text-amber-700',
+    fg_receipt: 'bg-emerald-100 text-emerald-700',
+    fg_receipt_reversal: 'bg-gray-100 text-gray-700',
   }
   return m[mt] ?? 'bg-gray-100 text-gray-600'
 }
@@ -82,7 +82,7 @@ export default function GoodsMovementsPage() {
   const [form, setForm] = useState<CreateForm>({
     company_id: '',
     order_id: '',
-    movement_type: '261',
+    movement_type: 'component_issue',
     posting_date: new Date().toISOString().split('T')[0],
     product_id: '',
     description: '',
@@ -124,8 +124,8 @@ export default function GoodsMovementsPage() {
     }
   }
 
-  const total261 = movements.filter(m => m.movement_type === '261').reduce((s, m) => s + parseFloat(m.total_cost), 0)
-  const total101 = movements.filter(m => m.movement_type === '101').reduce((s, m) => s + parseFloat(m.total_cost), 0)
+  const total261 = movements.filter(m => m.movement_type === 'component_issue').reduce((s, m) => s + parseFloat(m.total_cost), 0)
+  const total101 = movements.filter(m => m.movement_type === 'fg_receipt').reduce((s, m) => s + parseFloat(m.total_cost), 0)
 
   return (
     <div className="p-6 max-w-7xl space-y-6">
@@ -135,7 +135,7 @@ export default function GoodsMovementsPage() {
         </Link>
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Goods Movements</h1>
-          <p className="text-sm text-gray-500 mt-0.5">Component issues (261), FG receipts (101), and returns</p>
+          <p className="text-sm text-gray-500 mt-0.5">Component issues, FG receipts, and returns</p>
         </div>
         <button
           onClick={() => setShowCreate(true)}
@@ -152,11 +152,11 @@ export default function GoodsMovementsPage() {
           <p className="text-2xl font-bold text-gray-900">{movements.length}</p>
         </div>
         <div className="rounded-xl border border-red-100 bg-red-50 p-4">
-          <p className="text-xs text-red-600 mb-1">Component issues (261) cost</p>
+          <p className="text-xs text-red-600 mb-1">Component issues cost</p>
           <p className="text-2xl font-bold text-red-700">{formatCurrency(total261)}</p>
         </div>
         <div className="rounded-xl border border-emerald-100 bg-emerald-50 p-4">
-          <p className="text-xs text-emerald-600 mb-1">FG receipts (101) cost</p>
+          <p className="text-xs text-emerald-600 mb-1">FG receipts cost</p>
           <p className="text-2xl font-bold text-emerald-700">{formatCurrency(total101)}</p>
         </div>
       </div>
@@ -178,7 +178,7 @@ export default function GoodsMovementsPage() {
           className="rounded-lg border border-gray-200 px-3 py-2 text-sm bg-white"
         >
           <option value="">All types</option>
-          {MOVEMENT_TYPES.map(t => <option key={t.value} value={t.value}>{t.value} — {t.label.split('—')[1]?.trim()}</option>)}
+          {MOVEMENT_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
         </select>
         <input type="date" value={fromDate} onChange={e => setFromDate(e.target.value)}
           className="rounded-lg border border-gray-200 px-3 py-2 text-sm bg-white" placeholder="From" />
@@ -216,7 +216,7 @@ export default function GoodsMovementsPage() {
                 <td className="px-4 py-3 font-mono text-xs text-gray-600">{gm.document_no}</td>
                 <td className="px-4 py-3">
                   <span className={`inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full ${typeColor(gm.movement_type)}`}>
-                    {gm.movement_type}
+                    {typeLabel(gm.movement_type)}
                   </span>
                 </td>
                 <td className="px-4 py-3 text-gray-700">{gm.posting_date}</td>

@@ -190,16 +190,40 @@ export function ProcurementLineItemForm({
   const type = item.item_type
   const { data: storesData } = useStores()
   const stores = storesData?.stores ?? []
+  const activeStores = useMemo(
+    () => stores.filter(s => s.is_active !== false),
+    [stores],
+  )
   const defaultStoreId = useMemo(
     () => headerStoreId || stores.find(s => s.is_default)?.id || stores[0]?.id || null,
     [headerStoreId, stores],
   )
 
-  const { data: plantsData, isLoading: plantsLoading } = usePlants(defaultStoreId)
+  const { data: plantsData, isLoading: plantsLoading } = usePlants(
+    activeStores.length > 1 ? null : defaultStoreId,
+  )
   const plants = plantsData?.plants ?? []
 
+  const plantOptions = useMemo(
+    () => plants.map(p => {
+      const base = p.code ? `${p.name} (${p.code})` : p.name
+      if (activeStores.length <= 1) return { value: p.id, label: base }
+      const store = activeStores.find(s => s.id === p.store_id)
+      const storeLabel = store
+        ? (store.code ? `${store.name} (${store.code})` : store.name)
+        : null
+      return { value: p.id, label: storeLabel ? `${base} — ${storeLabel}` : base }
+    }),
+    [plants, activeStores],
+  )
+
+  const plantStoreId = useMemo(() => {
+    if (!item.plant_id) return defaultStoreId
+    return plants.find(p => p.id === item.plant_id)?.store_id ?? defaultStoreId
+  }, [item.plant_id, plants, defaultStoreId])
+
   const { data: locationsData, isLoading: locationsLoading } = useStorageLocationTree(
-    defaultStoreId,
+    plantStoreId,
     item.plant_id || null,
   )
   const locationOptions = useMemo(
@@ -554,10 +578,10 @@ export function ProcurementLineItemForm({
                   onChange={v => onPatch({ plant_id: v, storage_location_id: '' })}
                   options={selectOptionsWithBlank(
                     plantsLoading ? 'Loading…' : 'Select plant…',
-                    plants.map(p => ({ value: p.id, label: p.code ? `${p.name} (${p.code})` : p.name })),
+                    plantOptions,
                   )}
                   placeholder={plantsLoading ? 'Loading…' : 'Select plant…'}
-                  disabled={plantsLoading || !defaultStoreId}
+                  disabled={plantsLoading || (activeStores.length <= 1 && !defaultStoreId)}
                   className={inputClass}
                   aria-label="Plant"
                 />

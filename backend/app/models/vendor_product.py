@@ -33,6 +33,7 @@ class Product(Base):
 
     # ── Unit of Measure ──────────────────────────────────────────
     uom = Column(String(30), default="piece")
+    uom_quantity = Column(Numeric(12, 4), nullable=True)  # e.g. 500 g, 1 L
 
     # ── Pricing & Discounts ───────────────────────────────────────
     price = Column(Numeric(12, 2), nullable=False)
@@ -173,6 +174,7 @@ class ProductVariant(Base):
     sku = Column(String(100))
     barcode = Column(String(100))
     uom = Column(String(30), default="piece")
+    uom_quantity = Column(Numeric(12, 4), nullable=True)
     price_type = Column(String(20), default="per_unit")  # per_unit | per_cycle
     price = Column(Numeric(12, 2), nullable=False)
     compare_at_price = Column(Numeric(12, 2))

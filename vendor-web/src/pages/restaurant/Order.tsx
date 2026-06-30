@@ -2,16 +2,17 @@ import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import {
-  ArrowLeft, ChefHat, Loader2, Minus, Plus, Receipt,
-  Search, Send, Trash2, UtensilsCrossed, XCircle,
+  ArrowLeft, ArrowRightLeft, ChefHat, GitMerge, Loader2,
+  Minus, Percent, Plus, Receipt, Search, Send, Trash2, UtensilsCrossed, X, XCircle,
 } from 'lucide-react'
 import { vendorApi } from '@/api/vendor'
-import type { RestaurantOrderItem, SelectedModifier } from '@/api/vendor'
+import type { RestaurantOrderItem, RestaurantOrderAdjustments, SelectedModifier } from '@/api/vendor'
 import { ModifierPickerModal, type ModifierPickerProduct } from '@/components/products/ModifierPickerModal'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { formatCurrency, cn } from '@/lib/utils'
 import { toast } from 'sonner'
+import { useRestaurantStore } from '@/stores/restaurantStore'
 
 const KOT_STATUS_COLOR: Record<string, string> = {
   new:       'bg-blue-100 text-blue-700',
@@ -39,15 +40,143 @@ function mergePendingItem(
   return [...prev, item]
 }
 
+// ── Transfer table dialog ──────────────────────────────────────────────────
+function TransferTableDialog({
+  currentTableId,
+  restaurantId,
+  onConfirm,
+  onClose,
+  loading,
+}: {
+  currentTableId?: string | null
+  restaurantId?: string | null
+  onConfirm: (tableId: string) => void
+  onClose: () => void
+  loading: boolean
+}) {
+  const tablesQ = useQuery({
+    queryKey: ['restaurant', 'tables', restaurantId],
+    queryFn: () => vendorApi.restaurantListTables(restaurantId ? { restaurant_id: restaurantId } : undefined),
+    staleTime: 10_000,
+  })
+  const freeTables = (tablesQ.data?.items ?? []).filter(
+    t => t.is_active !== false && t.status === 'free' && t.id !== currentTableId
+  )
+  return (
+    <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4" onClick={onClose}>
+      <div className="bg-card border rounded-2xl shadow-2xl w-full max-w-sm p-6 space-y-4" onClick={e => e.stopPropagation()}>
+        <div className="flex items-center justify-between">
+          <h2 className="font-bold text-lg flex items-center gap-2"><ArrowRightLeft className="w-4 h-4 text-amber-600" />Move to Table</h2>
+          <button type="button" onClick={onClose}><X className="w-4 h-4 text-gray-400" /></button>
+        </div>
+        {tablesQ.isLoading && <div className="flex justify-center py-4"><Loader2 className="w-5 h-5 animate-spin text-gray-400" /></div>}
+        {!tablesQ.isLoading && freeTables.length === 0 && (
+          <p className="text-sm text-gray-400 text-center py-4">No free tables available.</p>
+        )}
+        <ul className="divide-y rounded-lg border max-h-56 overflow-y-auto">
+          {freeTables.map(t => (
+            <li key={t.id}>
+              <button
+                type="button"
+                disabled={loading}
+                onClick={() => onConfirm(t.id)}
+                className="w-full flex items-center justify-between px-3 py-2 text-sm hover:bg-amber-50 text-left"
+              >
+                <span className="font-medium">{t.label}</span>
+                <span className="text-gray-400 text-xs">{t.zone_name || '—'} · {t.capacity} seats</span>
+              </button>
+            </li>
+          ))}
+        </ul>
+        <Button variant="outline" className="w-full" onClick={onClose}>Cancel</Button>
+      </div>
+    </div>
+  )
+}
+
+// ── Adjustments panel (service charge / tip / discount) ────────────────────
+function AdjustmentsPanel({
+  subtotal,
+  adjustments,
+  onSave,
+  loading,
+}: {
+  subtotal: number
+  adjustments: RestaurantOrderAdjustments
+  onSave: (adj: RestaurantOrderAdjustments) => void
+  loading: boolean
+}) {
+  const [scPct, setScPct] = useState(String(adjustments.service_charge_pct ?? ''))
+  const [tip, setTip] = useState(String(adjustments.tip_amount ?? ''))
+  const [discPct, setDiscPct] = useState(String(adjustments.discount_pct ?? ''))
+  const [discAmt, setDiscAmt] = useState(String(adjustments.discount_amount ?? ''))
+
+  const sc = subtotal * (parseFloat(scPct) || 0) / 100
+  const disc = discPct ? subtotal * (parseFloat(discPct) || 0) / 100 : parseFloat(discAmt) || 0
+  const tipAmt = parseFloat(tip) || 0
+  const grandTotal = subtotal + sc + tipAmt - disc
+
+  function handleSave() {
+    onSave({
+      service_charge_pct: parseFloat(scPct) || undefined,
+      tip_amount: parseFloat(tip) || undefined,
+      discount_pct: discPct ? parseFloat(discPct) || undefined : undefined,
+      discount_amount: !discPct && discAmt ? parseFloat(discAmt) || undefined : undefined,
+    })
+  }
+
+  return (
+    <div className="rounded-xl border bg-white p-4 space-y-3">
+      <h2 className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+        <Percent className="w-4 h-4 text-amber-600" /> Bill Adjustments
+      </h2>
+      <div className="grid grid-cols-2 gap-3 text-sm">
+        <div>
+          <label className="text-xs text-gray-400 font-semibold uppercase block mb-1">Service charge %</label>
+          <Input type="number" min={0} max={100} placeholder="e.g. 10" value={scPct} onChange={e => setScPct(e.target.value)} className="h-8 text-sm" />
+        </div>
+        <div>
+          <label className="text-xs text-gray-400 font-semibold uppercase block mb-1">Tip amount</label>
+          <Input type="number" min={0} placeholder="0.00" value={tip} onChange={e => setTip(e.target.value)} className="h-8 text-sm" />
+        </div>
+        <div>
+          <label className="text-xs text-gray-400 font-semibold uppercase block mb-1">Discount %</label>
+          <Input type="number" min={0} max={100} placeholder="e.g. 5" value={discPct} onChange={e => { setDiscPct(e.target.value); setDiscAmt('') }} className="h-8 text-sm" />
+        </div>
+        <div>
+          <label className="text-xs text-gray-400 font-semibold uppercase block mb-1">Discount amount</label>
+          <Input type="number" min={0} placeholder="0.00" value={discAmt} onChange={e => { setDiscAmt(e.target.value); setDiscPct('') }} className="h-8 text-sm" />
+        </div>
+      </div>
+      {(sc > 0 || tipAmt > 0 || disc > 0) && (
+        <div className="text-xs text-gray-500 space-y-0.5 pt-1 border-t">
+          {sc > 0 && <div className="flex justify-between"><span>Service charge</span><span>+ {formatCurrency(sc)}</span></div>}
+          {tipAmt > 0 && <div className="flex justify-between"><span>Tip</span><span>+ {formatCurrency(tipAmt)}</span></div>}
+          {disc > 0 && <div className="flex justify-between text-emerald-600"><span>Discount</span><span>− {formatCurrency(disc)}</span></div>}
+          <div className="flex justify-between font-semibold text-gray-800 pt-1 border-t">
+            <span>Grand total</span><span>{formatCurrency(grandTotal)}</span>
+          </div>
+        </div>
+      )}
+      <Button size="sm" className="w-full gap-2" onClick={handleSave} disabled={loading}>
+        {loading ? <Loader2 className="w-3 h-3 animate-spin" /> : 'Save adjustments'}
+      </Button>
+    </div>
+  )
+}
+
 export default function RestaurantOrderPage() {
   const { orderId } = useParams<{ orderId: string }>()
   const navigate = useNavigate()
   const qc = useQueryClient()
+  const { selectedRestaurant } = useRestaurantStore()
 
   const [productSearch, setProductSearch] = useState('')
   const [pendingItems, setPendingItems] = useState<RestaurantOrderItem[]>([])
   const [kotNotes, setKotNotes] = useState('')
   const [modifierPending, setModifierPending] = useState<ModifierPickerProduct | null>(null)
+  const [showTransfer, setShowTransfer] = useState(false)
+  const [showAdjustments, setShowAdjustments] = useState(true)
 
   const orderQ = useQuery({
     queryKey: ['restaurant', 'order', orderId],
@@ -149,11 +278,8 @@ export default function RestaurantOrderPage() {
       qc.invalidateQueries({ queryKey: ['restaurant', 'order', orderId] })
       qc.invalidateQueries({ queryKey: ['restaurant', 'tables'] })
       if (order) {
-        const params = new URLSearchParams({
-          table: order.table_id ?? '',
-          order: orderId!,
-        })
-        navigate(`/pos?${params.toString()}`)
+        const params = new URLSearchParams({ order: orderId! })
+        navigate(`/restaurant/pos?${params.toString()}`)
       }
     },
     onError: () => toast.error('Could not request bill'),
@@ -167,6 +293,29 @@ export default function RestaurantOrderPage() {
       navigate('/restaurant/floor')
     },
     onError: () => toast.error('Could not void order'),
+  })
+
+  const transferOrder = useMutation({
+    mutationFn: (tableId: string) => vendorApi.restaurantTransferOrder(orderId!, tableId),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['restaurant'] })
+      setShowTransfer(false)
+      toast.success('Order moved to new table')
+    },
+    onError: (e: unknown) => {
+      setShowTransfer(false)
+      const msg = (e as { response?: { data?: { detail?: string } } })?.response?.data?.detail
+      toast.error(msg ?? 'Could not transfer order')
+    },
+  })
+
+  const setAdjustments = useMutation({
+    mutationFn: (adj: RestaurantOrderAdjustments) => vendorApi.restaurantSetOrderAdjustments(orderId!, adj),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['restaurant', 'order', orderId] })
+      toast.success('Adjustments saved')
+    },
+    onError: () => toast.error('Could not save adjustments'),
   })
 
   if (orderQ.isLoading) {
@@ -214,10 +363,20 @@ export default function RestaurantOrderPage() {
             </p>
           </div>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-wrap">
           <Button variant="outline" size="sm" asChild>
             <Link to="/restaurant/kitchen"><ChefHat className="w-4 h-4 mr-1" />Kitchen</Link>
           </Button>
+          {!isClosed && order.status === 'open' && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowTransfer(true)}
+              title="Move order to a different table"
+            >
+              <ArrowRightLeft className="w-4 h-4 mr-1" /> Move
+            </Button>
+          )}
           {!isClosed && (
             <Button
               variant="ghost"
@@ -384,11 +543,40 @@ export default function RestaurantOrderPage() {
               </ul>
             )}
 
-            {(order.items.length > 0 || pendingItems.length > 0) && (
-              <div className="flex justify-between font-semibold text-gray-900 pt-2 border-t">
-                <span>Total</span>
-                <span>{formatCurrency(subtotal)}</span>
-              </div>
+            {(order.items.length > 0 || pendingItems.length > 0) && (() => {
+              const adj = order.adjustments ?? {}
+              const sc = subtotal * (adj.service_charge_pct ?? 0) / 100
+              const disc = adj.discount_pct
+                ? subtotal * (adj.discount_pct) / 100
+                : (adj.discount_amount ?? 0)
+              const tipAmt = adj.tip_amount ?? 0
+              const grandTotal = subtotal + sc + tipAmt - disc
+              return (
+                <div className="pt-2 border-t space-y-1 text-sm">
+                  <div className="flex justify-between text-gray-700">
+                    <span>Subtotal</span><span>{formatCurrency(subtotal)}</span>
+                  </div>
+                  {sc > 0 && <div className="flex justify-between text-gray-500 text-xs"><span>Service charge ({adj.service_charge_pct}%)</span><span>+ {formatCurrency(sc)}</span></div>}
+                  {tipAmt > 0 && <div className="flex justify-between text-gray-500 text-xs"><span>Tip</span><span>+ {formatCurrency(tipAmt)}</span></div>}
+                  {disc > 0 && <div className="flex justify-between text-emerald-600 text-xs"><span>Discount</span><span>− {formatCurrency(disc)}</span></div>}
+                  <div className="flex justify-between font-bold text-gray-900 pt-1 border-t">
+                    <span>Total</span><span>{formatCurrency(grandTotal)}</span>
+                  </div>
+                </div>
+              )
+            })()}
+
+            {!isClosed && (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setShowAdjustments(v => !v)}
+                className="w-full text-xs gap-1.5"
+              >
+                <Percent className="w-3 h-3" />
+                {showAdjustments ? 'Hide adjustments' : 'Service charge / tip / discount'}
+              </Button>
             )}
 
             {!isClosed && order.status !== 'billed' && (
@@ -406,8 +594,8 @@ export default function RestaurantOrderPage() {
               <Button
                 className="w-full gap-2 bg-amber-600 hover:bg-amber-700"
                 onClick={() => {
-                  const params = new URLSearchParams({ table: order.table_id ?? '', order: orderId! })
-                  navigate(`/pos?${params.toString()}`)
+                  const params = new URLSearchParams({ order: orderId! })
+                  navigate(`/restaurant/pos?${params.toString()}`)
                 }}
               >
                 <Receipt className="w-4 h-4" /> Open POS for checkout
@@ -420,8 +608,27 @@ export default function RestaurantOrderPage() {
               </div>
             )}
           </section>
+
+          {!isClosed && showAdjustments && (
+            <AdjustmentsPanel
+              subtotal={subtotal}
+              adjustments={order.adjustments ?? {}}
+              onSave={(adj) => setAdjustments.mutate(adj)}
+              loading={setAdjustments.isPending}
+            />
+          )}
         </div>
       </div>
+
+      {showTransfer && (
+        <TransferTableDialog
+          currentTableId={order.table_id}
+          restaurantId={order.restaurant_id ?? selectedRestaurant?.id}
+          onConfirm={(tableId) => transferOrder.mutate(tableId)}
+          onClose={() => setShowTransfer(false)}
+          loading={transferOrder.isPending}
+        />
+      )}
 
       {modifierPending && (
         <ModifierPickerModal

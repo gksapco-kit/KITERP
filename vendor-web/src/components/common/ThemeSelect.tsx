@@ -19,7 +19,7 @@ export const themeSelectUi = {
   menu: 'z-50 max-h-60 overflow-auto rounded-lg border border-border bg-popover py-1 text-popover-foreground shadow-lg animate-in fade-in-0 zoom-in-95 duration-100',
   item: 'flex w-full items-center gap-2 px-3 py-2 text-left text-sm transition-colors hover:bg-muted/60 focus-visible:bg-muted/60 focus-visible:outline-none',
   itemActive: 'bg-primary/10 text-foreground dark:bg-primary/20',
-  itemLabel: 'min-w-0 flex-1 truncate font-medium text-foreground',
+  itemLabel: 'min-w-0 flex-1 font-medium text-foreground whitespace-normal break-words',
   itemHint: 'block truncate text-xs text-muted-foreground',
   check: 'ml-auto h-4 w-4 shrink-0 text-primary',
   groupLabel:
@@ -189,6 +189,7 @@ export function ThemeSelect({
             top: menuRect.top,
             left: menuRect.left,
             width: menuRect.width,
+            minWidth: Math.max(menuRect.width, 280),
             zIndex: 200,
           }}
           className={themeSelectUi.menu}

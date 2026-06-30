@@ -6,11 +6,14 @@ from datetime import datetime, date
 class RestaurantZoneCreate(BaseModel):
     name: str = Field(min_length=1, max_length=120)
     sort_order: int = 0
+    restaurant_id: Optional[str] = None
+    floor: Optional[str] = None
 
 
 class RestaurantZoneUpdate(BaseModel):
     name: Optional[str] = Field(None, min_length=1, max_length=120)
     sort_order: Optional[int] = None
+    floor: Optional[str] = None
 
 
 class RestaurantZoneOut(BaseModel):
@@ -26,6 +29,7 @@ class RestaurantZoneOut(BaseModel):
 
 class RestaurantTableCreate(BaseModel):
     zone_id: Optional[str] = None
+    restaurant_id: Optional[str] = None
     label: str = Field(min_length=1, max_length=40)
     capacity: int = Field(default=4, ge=1, le=99)
     sort_order: int = 0
@@ -139,6 +143,7 @@ class RestaurantReservationCreate(BaseModel):
     reservation_time: str = Field(min_length=4, max_length=10)
     party_size: int = Field(default=2, ge=1, le=50)
     table_id: Optional[str] = None
+    restaurant_id: Optional[str] = None
     notes: Optional[str] = None
     source: str = "online"
 
@@ -170,6 +175,40 @@ class RestaurantMenuSettingsUpdate(BaseModel):
     product_ids: List[str] = Field(default_factory=list)
 
 
+class RestaurantKOTSettingsOut(BaseModel):
+    mode: Literal["sequential", "per_order"] = "sequential"
+    start_number: int = 1
+    end_number: int = 999
+    reset: Literal["daily", "continuous"] = "daily"
+    next_number: int = 1
+    last_reset_date: Optional[str] = None
+    next_preview: int = 1
+
+
+class RestaurantKOTSettingsUpdate(BaseModel):
+    mode: Optional[Literal["sequential", "per_order"]] = None
+    start_number: Optional[int] = Field(None, ge=1, le=999_999)
+    end_number: Optional[int] = Field(None, ge=1, le=999_999)
+    reset: Optional[Literal["daily", "continuous"]] = None
+    next_number: Optional[int] = Field(None, ge=1, le=999_999)
+    reset_counter_now: bool = False
+
+
 class RestaurantSeatReservationIn(BaseModel):
     table_id: str
     covers: Optional[int] = Field(None, ge=1, le=99)
+
+
+class RestaurantOrderTransferIn(BaseModel):
+    table_id: str
+
+
+class RestaurantOrderMergeIn(BaseModel):
+    target_order_id: str
+
+
+class RestaurantOrderAdjustmentsIn(BaseModel):
+    service_charge_pct: Optional[float] = Field(None, ge=0, le=100)
+    tip_amount: Optional[float] = Field(None, ge=0)
+    discount_amount: Optional[float] = Field(None, ge=0)
+    discount_pct: Optional[float] = Field(None, ge=0, le=100)

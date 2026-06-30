@@ -13,6 +13,7 @@ import { Input } from '@/components/ui/input'
 import { Select, selectOptionsWithBlank } from '@/components/ui/select'
 import { PhoneInput } from '@/components/ui/PhoneInput'
 import { toast } from 'sonner'
+import { useRestaurantStore } from '@/stores/restaurantStore'
 import { cn } from '@/lib/utils'
 
 const STATUS_CONFIG: Record<string, { label: string; badge: string }> = {
@@ -37,13 +38,16 @@ export default function RestaurantReservationsPage() {
   const [dateFrom, setDateFrom] = useState(today())
   const [exactDateOnly, setExactDateOnly] = useState(true)
   const [showForm, setShowForm] = useState(false)
+  const { selectedRestaurant } = useRestaurantStore()
+  const rid = selectedRestaurant?.id
 
   const { data, isLoading } = useQuery({
-    queryKey: ['restaurant', 'reservations', dateFrom, exactDateOnly],
+    queryKey: ['restaurant', 'reservations', dateFrom, exactDateOnly, rid],
     queryFn: () =>
       vendorApi.restaurantListReservations({
         date_from: dateFrom,
         date_to: exactDateOnly ? dateFrom : undefined,
+        ...(rid ? { restaurant_id: rid } : {}),
       }),
     refetchInterval: 30_000,
   })
@@ -56,6 +60,16 @@ export default function RestaurantReservationsPage() {
       toast.success('Reservation updated')
     },
     onError: () => toast.error('Could not update reservation'),
+  })
+
+  const updateReservationStatus = useMutation({
+    mutationFn: ({ id, status }: { id: string; status: string }) =>
+      vendorApi.restaurantUpdateReservationStatus(id, { status }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['restaurant', 'reservations'] })
+      toast.success('Status updated')
+    },
+    onError: () => toast.error('Could not update status'),
   })
 
   const deleteRes = useMutation({
@@ -141,11 +155,11 @@ export default function RestaurantReservationsPage() {
             key={r.id}
             reservation={r}
             freeTables={freeTables}
-            onStatusChange={(status) => updateReservation.mutate({ id: r.id, body: { status } })}
+            onStatusChange={(status) => updateReservationStatus.mutate({ id: r.id, status })}
             onSeat={(tableId, covers) => seatGuest.mutate({ id: r.id, table_id: tableId, covers })}
             onSaveEdit={(body) => updateReservation.mutate({ id: r.id, body })}
             onDelete={() => { if (confirm('Delete this reservation?')) deleteRes.mutate(r.id) }}
-            isPending={updateReservation.isPending || deleteRes.isPending || seatGuest.isPending}
+            isPending={updateReservation.isPending || updateReservationStatus.isPending || deleteRes.isPending || seatGuest.isPending}
           />
         ))}
       </div>

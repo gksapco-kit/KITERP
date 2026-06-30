@@ -34,7 +34,7 @@ import { formatDate, formatCurrency } from '@/lib/utils'
 import { toast } from 'sonner'
 import type { PurchaseRequisition, PurchaseRequisitionItem } from '@/types'
 import {
-  Loader2, Plus, X, ClipboardList, CheckCircle, XCircle, Send, Pencil,
+  Loader2, Plus, X, ClipboardList, CheckCircle, XCircle, Send, Pencil, Clock,
 } from 'lucide-react'
 
 const STATUS_BADGE: Record<string, { bg: string; text: string; label: string }> = {
@@ -77,7 +77,7 @@ function PRDetailPanel({ pr: initialPr, onClose, onEdit }: { pr: PurchaseRequisi
   const submitPR = useSubmitRequisition()
   const approvePR = useApproveRequisition()
   const cancelPR = useCancelRequisition()
-  const { data: myMembership } = useMyMembership()
+  const { data: myMembership, isLoading: membershipLoading } = useMyMembership()
   const [approvalRemarks, setApprovalRemarks] = useState('')
 
   const pendingStep = [...(pr.approvals ?? [])]
@@ -97,189 +97,186 @@ function PRDetailPanel({ pr: initialPr, onClose, onEdit }: { pr: PurchaseRequisi
 
   const badge = STATUS_BADGE[pr.status] ?? STATUS_BADGE.draft
   const totalEstimate = pr.items.reduce((s: number, i: PurchaseRequisitionItem) => s + (i.quantity * (i.estimated_price ?? 0)), 0)
+  const showApprovalFooter = pr.status === 'submitted' && pendingStep && !membershipLoading
 
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-end bg-black/30" onClick={onClose}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4" onClick={onClose}>
       <div
-        className="w-full max-w-2xl h-full bg-white dark:bg-gray-900 shadow-2xl overflow-y-auto"
+        className="flex w-full max-w-3xl max-h-[90vh] flex-col overflow-hidden rounded-xl border border-gray-200 bg-white shadow-xl dark:border-gray-700 dark:bg-gray-900"
         onClick={e => e.stopPropagation()}
       >
-        <div className="flex items-center justify-between px-6 py-4 border-b sticky top-0 bg-white dark:bg-gray-900 z-10">
-          <div>
-            <p className="text-xs text-gray-500 font-mono">{pr.pr_number}</p>
-            <h2 className="text-lg font-semibold">{pr.title || 'Purchase Requisition'}</h2>
+        {/* Header */}
+        <div className="flex shrink-0 items-start justify-between gap-2 border-b px-3 py-2.5">
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-1.5">
+              <p className="font-mono text-[11px] text-gray-500">{pr.pr_number}</p>
+              <span className={`rounded-full px-1.5 py-0.5 text-[10px] font-medium ${badge.bg} ${badge.text}`}>{badge.label}</span>
+              <span className={`rounded-full px-1.5 py-0.5 text-[10px] font-medium ${PRIORITY_BADGE[pr.priority] || ''}`}>{pr.priority}</span>
+            </div>
+            <h2 className="truncate text-base font-semibold">{pr.title || 'Purchase Requisition'}</h2>
+            <p className="truncate text-[11px] text-gray-500">
+              {pr.store_name || '—'}
+              {pr.header_supplier_name ? ` · ${pr.header_supplier_name}` : ''}
+              {pr.department ? ` · ${pr.department}` : ''}
+              <span className="font-semibold text-green-700 dark:text-green-400"> · {formatCurrency(totalEstimate)}</span>
+            </p>
           </div>
-          <div className="flex items-center gap-2">
-            <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${badge.bg} ${badge.text}`}>{badge.label}</span>
-            <Button variant="ghost" size="icon" onClick={onClose}><X className="w-4 h-4" /></Button>
-          </div>
+          <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" onClick={onClose}><X className="w-4 h-4" /></Button>
         </div>
 
-        <div className="p-6 space-y-6">
-          {prLoading && (
-            <div className="flex items-center gap-2 text-sm text-gray-400">
-              <Loader2 className="w-4 h-4 animate-spin" /> Loading requisition details…
-            </div>
-          )}
-          {/* Header details */}
-          <div className="grid grid-cols-2 gap-4 text-sm">
-            <div><p className="text-gray-500">Business Unit</p><p className="font-medium">{pr.store_name || '—'}</p></div>
-            <div><p className="text-gray-500">Source</p><p className="font-medium capitalize">{pr.procurement_source || 'supplier'}</p></div>
-            {pr.procurement_source === 'supplier' && (
-              <div><p className="text-gray-500">Supplier</p><p className="font-medium">{pr.header_supplier_name || '—'}</p></div>
-            )}
-            {pr.procurement_source === 'internal' && (
-              <>
-                <div><p className="text-gray-500">BU Movement</p><p className="font-medium">{pr.bu_scope === 'cross_bu' ? 'Cross BU' : 'Within BU'}</p></div>
-                {pr.bu_scope === 'cross_bu' && (
+        {prLoading && (
+          <div className="flex shrink-0 items-center gap-2 border-b px-3 py-1.5 text-xs text-gray-400">
+            <Loader2 className="w-3.5 h-3.5 animate-spin" /> Loading…
+          </div>
+        )}
+
+        {/* Body */}
+        <div className="min-h-0 flex-1 overflow-y-auto p-3">
+          <div className="grid gap-3 md:grid-cols-2">
+            <div className="space-y-2">
+              <div className="grid grid-cols-2 gap-x-2 gap-y-1 rounded-md border bg-gray-50/80 p-2 text-[11px] dark:bg-gray-800/40">
+                <div><p className="text-gray-500">Source</p><p className="font-medium capitalize">{pr.procurement_source || 'supplier'}</p></div>
+                <div><p className="text-gray-500">Type</p><p className="font-medium">{itemTypeLabel(pr.requisition_type)}</p></div>
+                {pr.procurement_source === 'supplier' && (
+                  <div className="col-span-2"><p className="text-gray-500">Supplier</p><p className="font-medium">{pr.header_supplier_name || '—'}</p></div>
+                )}
+                {pr.procurement_source === 'internal' && (
                   <>
-                    <div><p className="text-gray-500">From BU</p><p className="font-medium">{pr.from_store_name || '—'}</p></div>
-                    <div><p className="text-gray-500">To BU</p><p className="font-medium">{pr.to_store_name || '—'}</p></div>
+                    <div><p className="text-gray-500">BU Movement</p><p className="font-medium">{pr.bu_scope === 'cross_bu' ? 'Cross BU' : 'Within BU'}</p></div>
+                    {pr.bu_scope === 'cross_bu' && (
+                      <div><p className="text-gray-500">From → To</p><p className="font-medium">{pr.from_store_name || '—'} → {pr.to_store_name || '—'}</p></div>
+                    )}
                   </>
                 )}
-              </>
-            )}
-            <div><p className="text-gray-500">Department</p><p className="font-medium">{pr.department || '—'}</p></div>
-            <div><p className="text-gray-500">Priority</p>
-              <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${PRIORITY_BADGE[pr.priority] || ''}`}>{pr.priority}</span>
-            </div>
-            <div><p className="text-gray-500">Required By</p><p className="font-medium">{pr.required_date ? formatDate(pr.required_date) : '—'}</p></div>
-            <div><p className="text-gray-500">Type</p><p className="font-medium">{itemTypeLabel(pr.requisition_type)}</p></div>
-            <div><p className="text-gray-500">Submitted</p><p className="font-medium">{pr.submitted_at ? formatDate(pr.submitted_at) : '—'}</p></div>
-            <div><p className="text-gray-500">Created</p><p className="font-medium">{formatDate(pr.created_at)}</p></div>
-            <div><p className="text-gray-500">Est. Total</p><p className="font-semibold text-green-700">{formatCurrency(totalEstimate)}</p></div>
-          </div>
-          {pr.notes && <div className="bg-amber-50 dark:bg-amber-950/30 rounded p-3 text-sm text-amber-800 dark:text-amber-300">{pr.notes}</div>}
+                <div><p className="text-gray-500">Submitted</p><p className="font-medium">{pr.submitted_at ? formatDate(pr.submitted_at) : '—'}</p></div>
+                <div><p className="text-gray-500">Required by</p><p className="font-medium">{pr.required_date ? formatDate(pr.required_date) : '—'}</p></div>
+              </div>
 
-          {/* Approvers */}
-          {(pr.approvals?.length ?? 0) > 0 && (
-            <div>
-              <h3 className="font-medium mb-2 text-sm text-gray-700">Approval Chain</h3>
-              {pr.approver_message && (
-                <div className="mb-2 rounded-lg border border-blue-100 bg-blue-50/60 dark:bg-blue-950/20 px-3 py-2 text-sm text-blue-900 dark:text-blue-200">
-                  <p className="text-xs font-medium text-blue-700 dark:text-blue-300 mb-0.5">Message from requester</p>
-                  <p className="whitespace-pre-wrap">{pr.approver_message}</p>
+              {pr.notes && (
+                <div className="rounded-md border border-amber-200 bg-amber-50/80 px-2 py-1.5 text-[11px] text-amber-900 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-200 line-clamp-2">
+                  {pr.notes}
                 </div>
               )}
-              <div className="border rounded-lg overflow-hidden">
-                <table className="w-full text-sm">
+
+              {(pr.approvals?.length ?? 0) > 0 && (
+                <div>
+                  <h3 className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-gray-500">Approval chain</h3>
+                  {pr.approver_message && (
+                    <p className="mb-1.5 rounded border border-blue-100 bg-blue-50/60 px-2 py-1 text-[11px] text-blue-900 dark:border-blue-900 dark:bg-blue-950/20 dark:text-blue-200">
+                      <span className="font-medium">Requester: </span>{pr.approver_message}
+                    </p>
+                  )}
+                  <div className="space-y-1">
+                    {[...(pr.approvals ?? [])].sort((a, b) => a.level - b.level).map(step => {
+                      const isCurrentStep = step.status === 'pending' && step.level === pendingStep?.level
+                      return (
+                        <div
+                          key={step.id}
+                          className={`flex items-center justify-between gap-2 rounded-md border px-2 py-1.5 text-[11px] ${
+                            isCurrentStep
+                              ? 'border-amber-300 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/30'
+                              : 'border-gray-200 dark:border-gray-700'
+                          }`}
+                        >
+                          <div className="min-w-0 truncate">
+                            <span className="font-medium text-gray-500">L{step.level}</span>
+                            <span className="mx-1 text-gray-300">·</span>
+                            <span className="font-medium">{step.approver_name || '—'}</span>
+                            {isCurrentStep && <span className="ml-1 text-amber-700 dark:text-amber-300">(current)</span>}
+                          </div>
+                          <span className={`shrink-0 rounded-full px-1.5 py-0.5 text-[10px] font-medium capitalize ${APPROVAL_STATUS_BADGE[step.status] ?? ''}`}>
+                            {step.status}
+                          </span>
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div>
+              <h3 className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-gray-500">
+                Items ({pr.items.length})
+              </h3>
+              <div className="max-h-48 overflow-auto rounded-md border">
+                <table className="w-full text-[11px]">
                   <thead className="bg-gray-50 dark:bg-gray-800">
                     <tr>
-                      {['Level', 'Approver', 'Status', 'Decision'].map(h => (
-                        <th key={h} className="px-3 py-2 text-left text-xs font-medium text-gray-500">{h}</th>
+                      {['#', 'Description', 'Qty', 'UoM', 'Price', 'Need by'].map(h => (
+                        <th key={h} className="px-1.5 py-1 text-left font-medium text-gray-500">{h}</th>
                       ))}
                     </tr>
                   </thead>
                   <tbody>
-                    {[...(pr.approvals ?? [])].sort((a, b) => a.level - b.level).map(step => (
-                      <tr key={step.id} className="border-t">
-                        <td className="px-3 py-2 text-gray-500">{step.level}</td>
-                        <td className="px-3 py-2 font-medium">{step.approver_name || '—'}</td>
-                        <td className="px-3 py-2">
-                          <span className={`text-xs px-2 py-0.5 rounded-full font-medium capitalize ${APPROVAL_STATUS_BADGE[step.status] ?? ''}`}>
-                            {step.status}
-                          </span>
+                    {pr.items.map((item: PurchaseRequisitionItem, idx: number) => (
+                      <tr key={item.id} className="border-t">
+                        <td className="px-1.5 py-1 text-gray-400">{idx + 1}</td>
+                        <td className="max-w-[7rem] truncate px-1.5 py-1 font-medium" title={itemDisplayName(item)}>
+                          {itemDisplayName(item)}
                         </td>
-                        <td className="px-3 py-2 text-gray-600 text-xs">
-                          {step.comments || step.remarks || '—'}
-                          {(step.actioned_at || step.decided_at) && (
-                            <span className="block text-gray-400 mt-0.5">
-                              {formatDate(step.actioned_at || step.decided_at!)}
-                            </span>
-                          )}
-                        </td>
+                        <td className="px-1.5 py-1">{item.quantity}</td>
+                        <td className="px-1.5 py-1 text-gray-500">{item.unit_of_measure || item.uom || 'PCS'}</td>
+                        <td className="px-1.5 py-1 whitespace-nowrap">{item.estimated_price ? formatCurrency(item.estimated_price) : '—'}</td>
+                        <td className="px-1.5 py-1 text-gray-500 whitespace-nowrap">{item.needed_by_date ? formatDate(item.needed_by_date) : '—'}</td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
               </div>
             </div>
-          )}
+          </div>
+        </div>
 
-          {/* Items */}
-          <div>
-            <h3 className="font-medium mb-2 text-sm text-gray-700">Items ({pr.items.length})</h3>
-            <div className="border rounded-lg overflow-hidden">
-              <table className="w-full text-sm">
-                <thead className="bg-gray-50 dark:bg-gray-800">
-                  <tr>
-                    {['#', 'Description', 'Qty', 'UoM', 'Est. Price', 'Needed By'].map(h => (
-                      <th key={h} className="px-3 py-2 text-left text-xs font-medium text-gray-500">{h}</th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {pr.items.map((item: PurchaseRequisitionItem, idx: number) => (
-                    <tr key={item.id} className="border-t">
-                      <td className="px-3 py-2 text-gray-400">{idx + 1}</td>
-                      <td className="px-3 py-2 font-medium">
-                        {itemDisplayName(item)}
-                      </td>
-                      <td className="px-3 py-2">{item.quantity} </td>
-                      <td className="px-3 py-2 text-gray-500">{item.unit_of_measure || item.uom || 'PCS'}</td>
-                      <td className="px-3 py-2">{item.estimated_price ? formatCurrency(item.estimated_price) : '—'}</td>
-                      <td className="px-3 py-2 text-gray-500">{item.needed_by_date ? formatDate(item.needed_by_date) : '—'}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+        {/* Footer */}
+        {showApprovalFooter && canActAsApprover && (
+          <div className="shrink-0 border-t bg-green-50/80 px-3 py-2 dark:bg-green-950/25">
+            <div className="flex flex-wrap items-center gap-2">
+              <Input
+                placeholder="Remarks (required for rejection)"
+                value={approvalRemarks}
+                onChange={e => setApprovalRemarks(e.target.value)}
+                className="h-8 min-w-[10rem] flex-1 bg-white text-xs dark:bg-gray-900"
+              />
+              <Button size="sm" onClick={handleApprove} disabled={approvePR.isPending} className="h-8 gap-1 bg-green-600 px-3 hover:bg-green-700">
+                {approvePR.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <CheckCircle className="w-3.5 h-3.5" />}
+                Approve
+              </Button>
+              <Button size="sm" variant="destructive" onClick={handleReject} disabled={approvePR.isPending} className="h-8 gap-1 px-3">
+                <XCircle className="w-3.5 h-3.5" /> Reject
+              </Button>
             </div>
           </div>
-
-          {/* Approval actions */}
-          {pr.status === 'draft' && (
-            <div className="flex gap-2">
-              {onEdit && (
-                <Button variant="outline" onClick={() => onEdit(pr)} className="gap-2">
-                  <Pencil className="w-4 h-4" /> Edit
-                </Button>
-              )}
-              <Button onClick={() => submitPR.mutate(pr.id, { onSuccess: () => toast.success('Submitted for approval') })} disabled={submitPR.isPending} className="gap-2">
-                {submitPR.isPending && <Loader2 className="w-4 h-4 animate-spin" />}
-                <Send className="w-4 h-4" /> Submit for Approval
+        )}
+        {showApprovalFooter && !canActAsApprover && (
+          <div className="shrink-0 border-t bg-amber-50 px-3 py-2 text-xs text-amber-900 dark:bg-amber-950/30 dark:text-amber-200">
+            Awaiting <span className="font-semibold">{pendingStep?.approver_name || 'designated approver'}</span> (Level {pendingStep?.level})
+          </div>
+        )}
+        {pr.status === 'submitted' && membershipLoading && pendingStep && (
+          <div className="shrink-0 border-t px-3 py-2 text-xs text-gray-500">
+            <Loader2 className="mr-1.5 inline w-3.5 h-3.5 animate-spin" /> Checking approval permissions…
+          </div>
+        )}
+        {pr.status === 'draft' && (
+          <div className="flex shrink-0 flex-wrap gap-1.5 border-t px-3 py-2">
+            {onEdit && (
+              <Button variant="outline" size="sm" onClick={() => onEdit(pr)} className="h-8 gap-1">
+                <Pencil className="w-3.5 h-3.5" /> Edit
               </Button>
-              <Button variant="destructive" size="sm" onClick={() => cancelPR.mutate({ id: pr.id })}>Cancel PR</Button>
-            </div>
-          )}
-          {pr.status === 'submitted' && canActAsApprover && (
-            <div className="space-y-3 border-t pt-4">
-              <h3 className="font-medium text-sm">Approval Decision</h3>
-              {pendingStep?.approver_name && (
-                <p className="text-xs text-gray-500">
-                  You are approving as <span className="font-medium text-gray-700">{pendingStep.approver_name}</span> (Level {pendingStep.level})
-                </p>
-              )}
-              <div>
-                <Label className="text-xs">Remarks</Label>
-                <Input
-                  placeholder="Enter remarks (required for rejection)"
-                  value={approvalRemarks}
-                  onChange={e => setApprovalRemarks(e.target.value)}
-                  className="mt-1"
-                />
-              </div>
-              <div className="flex gap-2">
-                <Button onClick={handleApprove} disabled={approvePR.isPending} className="gap-2 bg-green-600 hover:bg-green-700">
-                  {approvePR.isPending && <Loader2 className="w-4 h-4 animate-spin" />}
-                  <CheckCircle className="w-4 h-4" /> Approve
-                </Button>
-                <Button variant="destructive" onClick={handleReject} disabled={approvePR.isPending} className="gap-2">
-                  <XCircle className="w-4 h-4" /> Reject
-                </Button>
-              </div>
-            </div>
-          )}
-          {pr.status === 'submitted' && !canActAsApprover && pendingStep && (
-            <div className="border-t pt-4 text-sm text-gray-500">
-              Awaiting approval from <span className="font-medium text-gray-700">{pendingStep.approver_name || 'designated approver'}</span> (Level {pendingStep.level})
-            </div>
-          )}
-          {['approved', 'partially_converted'].includes(pr.status) && (
-            <div className="flex gap-2 border-t pt-4">
-              <Button variant="outline" size="sm" onClick={() => cancelPR.mutate({ id: pr.id })}>Cancel PR</Button>
-            </div>
-          )}
-        </div>
+            )}
+            <Button size="sm" onClick={() => submitPR.mutate(pr.id, { onSuccess: () => toast.success('Submitted for approval') })} disabled={submitPR.isPending} className="h-8 gap-1">
+              {submitPR.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
+              Submit
+            </Button>
+            <Button variant="destructive" size="sm" className="h-8" onClick={() => cancelPR.mutate({ id: pr.id })}>Cancel</Button>
+          </div>
+        )}
+        {['approved', 'partially_converted'].includes(pr.status) && (
+          <div className="shrink-0 border-t px-3 py-2">
+            <Button variant="outline" size="sm" className="h-8" onClick={() => cancelPR.mutate({ id: pr.id })}>Cancel PR</Button>
+          </div>
+        )}
       </div>
     </div>
   )
@@ -712,6 +709,7 @@ function PRFormModal({ editingPR, onClose }: { editingPR?: PurchaseRequisition |
 }
 
 export default function PurchaseRequisitionsPage() {
+  const [viewMode, setViewMode] = useState<'all' | 'pending_my_approval'>('all')
   const [statusFilter, setStatusFilter] = useState('')
   const [search, setSearch] = useState('')
   const [sortKey, setSortKey] = useState('created_at')
@@ -731,10 +729,14 @@ export default function PurchaseRequisitionsPage() {
     setSelectedPR(null)
   }
 
-  const params: Record<string, unknown> = {}
-  if (statusFilter) params.status = statusFilter
+  const params: Record<string, unknown> =
+    viewMode === 'pending_my_approval'
+      ? { pending_my_approval: true }
+      : (statusFilter ? { status: statusFilter } : {})
 
   const { data, isLoading } = useRequisitions(params)
+  const { data: pendingMeta } = useRequisitions({ pending_my_approval: true, size: 1 })
+  const pendingCount = pendingMeta?.total ?? 0
   const items: PurchaseRequisition[] = data?.items ?? []
 
   const displayItems = useMemo(() => {
@@ -799,14 +801,52 @@ export default function PurchaseRequisitionsPage() {
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
           <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Purchase Requisitions</h1>
-          <p className="text-sm text-gray-500 mt-0.5">Internal demand requests before converting to Purchase Orders</p>
+          <p className="text-sm text-gray-500 mt-0.5">
+            {viewMode === 'pending_my_approval'
+              ? 'Requisitions waiting for your approval decision'
+              : 'Internal demand requests before converting to Purchase Orders'}
+          </p>
         </div>
         <Button className="gap-2" onClick={openCreateForm}>
           <Plus className="w-4 h-4" /> New Requisition
         </Button>
       </div>
 
+      <div className="flex flex-wrap gap-2">
+        <button
+          type="button"
+          onClick={() => setViewMode('all')}
+          className={`px-4 py-2 rounded-lg text-sm border ${
+            viewMode === 'all'
+              ? 'bg-primary text-white border-primary'
+              : 'border-gray-300 text-gray-600 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-800'
+          }`}
+        >
+          All Requisitions
+        </button>
+        <button
+          type="button"
+          onClick={() => setViewMode('pending_my_approval')}
+          className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm border ${
+            viewMode === 'pending_my_approval'
+              ? 'bg-primary text-white border-primary'
+              : 'border-gray-300 text-gray-600 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-800'
+          }`}
+        >
+          <Clock className="w-4 h-4" />
+          Pending My Approval
+          {pendingCount > 0 && (
+            <span className={`rounded-full px-1.5 py-0.5 text-xs font-semibold ${
+              viewMode === 'pending_my_approval' ? 'bg-white/20 text-white' : 'bg-amber-100 text-amber-800 dark:bg-amber-900/50 dark:text-amber-200'
+            }`}>
+              {pendingCount}
+            </span>
+          )}
+        </button>
+      </div>
+
       {/* Stats */}
+      {viewMode === 'all' && (
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         {[
           { label: 'Total', count: items.length, color: 'text-gray-700' },
@@ -820,6 +860,7 @@ export default function PurchaseRequisitionsPage() {
           </Card>
         ))}
       </div>
+      )}
 
       <Card>
         <div className="px-0">
@@ -838,6 +879,7 @@ export default function PurchaseRequisitionsPage() {
             onSortKeyChange={setSortKey}
             onSortDirChange={setSortDir}
             leading={
+              viewMode === 'all' ? (
               <Select
                 value={statusFilter}
                 onChange={setStatusFilter}
@@ -847,6 +889,7 @@ export default function PurchaseRequisitionsPage() {
                 )}
                 className="w-36 text-sm"
               />
+              ) : null
             }
           />
         </div>
@@ -858,8 +901,14 @@ export default function PurchaseRequisitionsPage() {
         ) : displayItems.length === 0 ? (
           <div className="text-center py-20 text-gray-400">
             <ClipboardList className="w-10 h-10 mx-auto mb-3 opacity-30" />
-            <p className="font-medium">No requisitions found</p>
-            <p className="text-sm mt-1">Create your first purchase requisition to get started</p>
+            <p className="font-medium">
+              {viewMode === 'pending_my_approval' ? 'No requisitions awaiting your approval' : 'No requisitions found'}
+            </p>
+            <p className="text-sm mt-1">
+              {viewMode === 'pending_my_approval'
+                ? 'Submitted PRs assigned to you will appear here'
+                : 'Create your first purchase requisition to get started'}
+            </p>
           </div>
         ) : (
           <ResizableTable tableId="procurement-requisitions" defaultWidths={cols.map(c => c.width)}>

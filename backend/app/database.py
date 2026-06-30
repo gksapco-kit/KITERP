@@ -183,6 +183,11 @@ async def ensure_product_uom_column() -> None:
                 "ALTER TABLE product ADD COLUMN IF NOT EXISTS uom VARCHAR(30) DEFAULT 'piece';"
             )
         )
+        await conn.execute(
+            text(
+                "ALTER TABLE product ADD COLUMN IF NOT EXISTS uom_quantity NUMERIC(12,4);"
+            )
+        )
 
 
 async def ensure_variant_pricing_columns() -> None:
@@ -191,6 +196,7 @@ async def ensure_variant_pricing_columns() -> None:
         return
     stmts = [
         "ALTER TABLE product_variant ADD COLUMN IF NOT EXISTS uom VARCHAR(30) DEFAULT 'piece';",
+        "ALTER TABLE product_variant ADD COLUMN IF NOT EXISTS uom_quantity NUMERIC(12,4);",
         "ALTER TABLE product_variant ADD COLUMN IF NOT EXISTS currency VARCHAR(3) DEFAULT 'INR';",
         "ALTER TABLE product_variant ADD COLUMN IF NOT EXISTS discount_percentage NUMERIC(5,2);",
         "ALTER TABLE product_variant ADD COLUMN IF NOT EXISTS discount_amount NUMERIC(12,2);",
@@ -225,6 +231,65 @@ async def ensure_variant_pricing_columns() -> None:
         await conn.execute(text(
             "ALTER TABLE product ADD COLUMN IF NOT EXISTS shipping_cost_type VARCHAR(30) DEFAULT 'fixed';"
         ))
+
+
+async def ensure_goods_movement_codes() -> None:
+    """Widen movement_type columns and migrate legacy SAP numeric codes to descriptive codes (idempotent)."""
+    if "postgresql" not in settings.DATABASE_URL.lower():
+        return
+    # old SAP numeric code -> new descriptive code
+    code_map = {
+        "101": "gr_po",
+        "102": "gr_reversal",
+        "122": "return_to_vendor",
+        "201": "gi_cost_center",
+        "261": "gi_production",
+        "301": "plant_transfer",
+        "311": "sloc_transfer",
+        "501": "receipt_no_po",
+    }
+    # Manufacturing (CO) movements use order-specific descriptive codes
+    co_code_map = {
+        "261": "component_issue",
+        "262": "component_return",
+        "101": "fg_receipt",
+        "102": "fg_receipt_reversal",
+    }
+    async with engine.begin() as conn:
+        # Widen to accommodate descriptive codes
+        await conn.execute(text(
+            "ALTER TABLE goods_movement_document ALTER COLUMN movement_type TYPE VARCHAR(30)"
+        ))
+        await conn.execute(text(
+            "ALTER TABLE purchase_order_receipt ALTER COLUMN movement_type TYPE VARCHAR(30)"
+        ))
+        await conn.execute(text(
+            "ALTER TABLE purchase_order_receipt ALTER COLUMN movement_type SET DEFAULT 'gr_po'"
+        ))
+        # Backfill legacy numeric codes
+        for old, new in code_map.items():
+            await conn.execute(
+                text("UPDATE goods_movement_document SET movement_type = :new WHERE movement_type = :old"),
+                {"new": new, "old": old},
+            )
+            await conn.execute(
+                text("UPDATE purchase_order_receipt SET movement_type = :new WHERE movement_type = :old"),
+                {"new": new, "old": old},
+            )
+    # Manufacturing (CO) goods movements — widen + backfill in a separate
+    # transaction so a missing table on older DBs can't poison the rest.
+    try:
+        async with engine.begin() as conn:
+            await conn.execute(text(
+                "ALTER TABLE co_goods_movement ALTER COLUMN movement_type TYPE VARCHAR(30)"
+            ))
+            for old, new in co_code_map.items():
+                await conn.execute(
+                    text("UPDATE co_goods_movement SET movement_type = :new WHERE movement_type = :old"),
+                    {"new": new, "old": old},
+                )
+    except Exception:
+        pass
 
 
 async def ensure_merchandising_tables() -> None:
@@ -1631,6 +1696,223 @@ async def ensure_reservation_schema() -> None:
         )
         """,
         "CREATE INDEX IF NOT EXISTS ix_restaurant_reservation_vendor_date ON restaurant_reservation(vendor_id, reservation_date)",
+    ]
+    async with engine.begin() as conn:
+        for s in stmts:
+            await conn.execute(text(s))
+
+
+async def ensure_restaurant_order_adjustments() -> None:
+    """Add adjustments JSONB column to restaurant_order (idempotent)."""
+    if "postgresql" not in settings.DATABASE_URL.lower():
+        return
+    async with engine.begin() as conn:
+        await conn.execute(text(
+            "ALTER TABLE restaurant_order ADD COLUMN IF NOT EXISTS adjustments JSONB DEFAULT '{}'::jsonb"
+        ))
+
+
+async def ensure_restaurant_outlet_schema() -> None:
+    """Create restaurant outlet table + add restaurant_id/floor to existing restaurant tables (idempotent)."""
+    if "postgresql" not in settings.DATABASE_URL.lower():
+        return
+    stmts = [
+        # Core outlet table
+        """
+        CREATE TABLE IF NOT EXISTS restaurant (
+            id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+            vendor_id UUID NOT NULL REFERENCES vendor(id) ON DELETE CASCADE,
+            store_id UUID NOT NULL REFERENCES store(id) ON DELETE CASCADE,
+            name VARCHAR(200) NOT NULL,
+            code VARCHAR(50),
+            cuisine VARCHAR(120),
+            phone VARCHAR(20),
+            email VARCHAR(255),
+            address JSONB DEFAULT '{}'::jsonb,
+            settings JSONB DEFAULT '{}'::jsonb,
+            is_active BOOLEAN NOT NULL DEFAULT TRUE,
+            is_default BOOLEAN NOT NULL DEFAULT FALSE,
+            created_at TIMESTAMPTZ DEFAULT now(),
+            updated_at TIMESTAMPTZ DEFAULT now()
+        )
+        """,
+        "CREATE INDEX IF NOT EXISTS ix_restaurant_vendor ON restaurant(vendor_id)",
+        "CREATE INDEX IF NOT EXISTS ix_restaurant_store ON restaurant(store_id)",
+        # Add restaurant_id and floor to existing tables
+        "ALTER TABLE restaurant_zone ADD COLUMN IF NOT EXISTS restaurant_id UUID REFERENCES restaurant(id) ON DELETE CASCADE",
+        "CREATE INDEX IF NOT EXISTS ix_restaurant_zone_rid ON restaurant_zone(restaurant_id) WHERE restaurant_id IS NOT NULL",
+        "ALTER TABLE restaurant_zone ADD COLUMN IF NOT EXISTS floor VARCHAR(40)",
+        "ALTER TABLE restaurant_table ADD COLUMN IF NOT EXISTS restaurant_id UUID REFERENCES restaurant(id) ON DELETE CASCADE",
+        "CREATE INDEX IF NOT EXISTS ix_restaurant_table_rid ON restaurant_table(restaurant_id) WHERE restaurant_id IS NOT NULL",
+        "ALTER TABLE restaurant_order ADD COLUMN IF NOT EXISTS restaurant_id UUID REFERENCES restaurant(id) ON DELETE CASCADE",
+        "CREATE INDEX IF NOT EXISTS ix_restaurant_order_rid ON restaurant_order(restaurant_id) WHERE restaurant_id IS NOT NULL",
+        "ALTER TABLE restaurant_kot ADD COLUMN IF NOT EXISTS restaurant_id UUID REFERENCES restaurant(id) ON DELETE CASCADE",
+        "CREATE INDEX IF NOT EXISTS ix_restaurant_kot_rid ON restaurant_kot(restaurant_id) WHERE restaurant_id IS NOT NULL",
+        "ALTER TABLE restaurant_reservation ADD COLUMN IF NOT EXISTS restaurant_id UUID REFERENCES restaurant(id) ON DELETE CASCADE",
+        "CREATE INDEX IF NOT EXISTS ix_restaurant_reservation_rid ON restaurant_reservation(restaurant_id) WHERE restaurant_id IS NOT NULL",
+    ]
+    async with engine.begin() as conn:
+        for s in stmts:
+            await conn.execute(text(s))
+        # Backfill: for each vendor that has zones/tables but no restaurant yet,
+        # create one default restaurant under their default store.
+        await conn.execute(text("""
+            INSERT INTO restaurant (vendor_id, store_id, name, is_default, is_active)
+            SELECT DISTINCT
+                rz.vendor_id,
+                COALESCE(
+                    (SELECT id FROM store WHERE vendor_id = rz.vendor_id AND is_default = TRUE LIMIT 1),
+                    (SELECT id FROM store WHERE vendor_id = rz.vendor_id ORDER BY created_at LIMIT 1)
+                ) AS store_id,
+                'Main Restaurant' AS name,
+                TRUE AS is_default,
+                TRUE AS is_active
+            FROM restaurant_zone rz
+            WHERE NOT EXISTS (
+                SELECT 1 FROM restaurant r WHERE r.vendor_id = rz.vendor_id
+            )
+            AND EXISTS (
+                SELECT 1 FROM store s WHERE s.vendor_id = rz.vendor_id
+            )
+            ON CONFLICT DO NOTHING
+        """))
+        # Assign the default restaurant to all existing untagged rows
+        await conn.execute(text("""
+            UPDATE restaurant_zone rz
+            SET restaurant_id = r.id
+            FROM restaurant r
+            WHERE r.vendor_id = rz.vendor_id AND r.is_default = TRUE AND rz.restaurant_id IS NULL
+        """))
+        await conn.execute(text("""
+            UPDATE restaurant_table rt
+            SET restaurant_id = r.id
+            FROM restaurant r
+            WHERE r.vendor_id = rt.vendor_id AND r.is_default = TRUE AND rt.restaurant_id IS NULL
+        """))
+        await conn.execute(text("""
+            UPDATE restaurant_order ro
+            SET restaurant_id = r.id
+            FROM restaurant r
+            WHERE r.vendor_id = ro.vendor_id AND r.is_default = TRUE AND ro.restaurant_id IS NULL
+        """))
+        await conn.execute(text("""
+            UPDATE restaurant_kot rk
+            SET restaurant_id = r.id
+            FROM restaurant r
+            WHERE r.vendor_id = rk.vendor_id AND r.is_default = TRUE AND rk.restaurant_id IS NULL
+        """))
+        await conn.execute(text("""
+            UPDATE restaurant_reservation rr
+            SET restaurant_id = r.id
+            FROM restaurant r
+            WHERE r.vendor_id = rr.vendor_id AND r.is_default = TRUE AND rr.restaurant_id IS NULL
+        """))
+
+
+async def ensure_purchase_requisition_schema() -> None:
+    """Create purchase requisition tables and backfill columns missing from older schemas (idempotent)."""
+    if "postgresql" not in settings.DATABASE_URL.lower():
+        return
+    stmts = [
+        """
+        CREATE TABLE IF NOT EXISTS purchase_requisition (
+            id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+            vendor_id UUID NOT NULL REFERENCES vendor(id) ON DELETE CASCADE,
+            pr_number VARCHAR(30) NOT NULL,
+            status VARCHAR(30) NOT NULL DEFAULT 'draft',
+            requested_by UUID REFERENCES vendor_user(id) ON DELETE SET NULL,
+            department VARCHAR(100),
+            priority VARCHAR(20) DEFAULT 'medium',
+            requisition_type VARCHAR(20) DEFAULT 'product',
+            store_id UUID REFERENCES store(id) ON DELETE SET NULL,
+            procurement_source VARCHAR(20) DEFAULT 'supplier',
+            bu_scope VARCHAR(20),
+            from_store_id UUID REFERENCES store(id) ON DELETE SET NULL,
+            to_store_id UUID REFERENCES store(id) ON DELETE SET NULL,
+            header_supplier_id UUID REFERENCES supplier(id) ON DELETE SET NULL,
+            notes TEXT,
+            approver_message TEXT,
+            audit_log JSONB DEFAULT '[]'::jsonb,
+            submitted_at TIMESTAMPTZ,
+            approved_at TIMESTAMPTZ,
+            created_at TIMESTAMPTZ DEFAULT now(),
+            updated_at TIMESTAMPTZ DEFAULT now(),
+            CONSTRAINT uq_pr_vendor_number UNIQUE (vendor_id, pr_number)
+        )
+        """,
+        "CREATE INDEX IF NOT EXISTS ix_pr_vendor ON purchase_requisition(vendor_id)",
+        "CREATE INDEX IF NOT EXISTS ix_pr_vendor_status ON purchase_requisition(vendor_id, status)",
+        "CREATE INDEX IF NOT EXISTS ix_pr_store ON purchase_requisition(store_id)",
+        """
+        CREATE TABLE IF NOT EXISTS purchase_requisition_item (
+            id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+            requisition_id UUID NOT NULL REFERENCES purchase_requisition(id) ON DELETE CASCADE,
+            item_type VARCHAR(20) DEFAULT 'product',
+            product_id UUID REFERENCES product(id) ON DELETE RESTRICT,
+            service_id UUID REFERENCES service(id) ON DELETE RESTRICT,
+            variant_id UUID REFERENCES product_variant(id) ON DELETE SET NULL,
+            description TEXT,
+            asset_category_id UUID REFERENCES fin_asset_category(id) ON DELETE SET NULL,
+            quantity NUMERIC(12, 4) NOT NULL,
+            unit_of_measure VARCHAR(20) DEFAULT 'PCS',
+            needed_by_date DATE,
+            plant_id UUID REFERENCES plant(id) ON DELETE SET NULL,
+            storage_location_id UUID REFERENCES storage_location(id) ON DELETE SET NULL,
+            estimated_price NUMERIC(12, 2) DEFAULT 0,
+            suggested_supplier_id UUID REFERENCES supplier(id) ON DELETE SET NULL,
+            quantity_ordered NUMERIC(12, 4) DEFAULT 0,
+            purchase_order_id UUID REFERENCES purchase_order(id) ON DELETE SET NULL,
+            is_converted BOOLEAN DEFAULT FALSE,
+            notes TEXT
+        )
+        """,
+        "CREATE INDEX IF NOT EXISTS ix_pri_requisition ON purchase_requisition_item(requisition_id)",
+        "CREATE INDEX IF NOT EXISTS ix_pri_product ON purchase_requisition_item(product_id)",
+        """
+        CREATE TABLE IF NOT EXISTS purchase_requisition_approval (
+            id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+            requisition_id UUID NOT NULL REFERENCES purchase_requisition(id) ON DELETE CASCADE,
+            level INTEGER NOT NULL DEFAULT 1,
+            approver_id UUID REFERENCES vendor_user(id) ON DELETE SET NULL,
+            status VARCHAR(20) NOT NULL DEFAULT 'pending',
+            comments TEXT,
+            actioned_at TIMESTAMPTZ,
+            created_at TIMESTAMPTZ DEFAULT now()
+        )
+        """,
+        "CREATE INDEX IF NOT EXISTS ix_pra_requisition ON purchase_requisition_approval(requisition_id)",
+        "CREATE INDEX IF NOT EXISTS ix_pra_approver ON purchase_requisition_approval(approver_id)",
+        # Backfill header columns on tables created before proc001/proc002
+        "ALTER TABLE purchase_requisition ADD COLUMN IF NOT EXISTS department VARCHAR(100)",
+        "ALTER TABLE purchase_requisition ADD COLUMN IF NOT EXISTS priority VARCHAR(20) DEFAULT 'medium'",
+        "ALTER TABLE purchase_requisition ADD COLUMN IF NOT EXISTS requisition_type VARCHAR(20) DEFAULT 'product'",
+        "ALTER TABLE purchase_requisition ADD COLUMN IF NOT EXISTS store_id UUID REFERENCES store(id) ON DELETE SET NULL",
+        "ALTER TABLE purchase_requisition ADD COLUMN IF NOT EXISTS procurement_source VARCHAR(20) DEFAULT 'supplier'",
+        "ALTER TABLE purchase_requisition ADD COLUMN IF NOT EXISTS bu_scope VARCHAR(20)",
+        "ALTER TABLE purchase_requisition ADD COLUMN IF NOT EXISTS from_store_id UUID REFERENCES store(id) ON DELETE SET NULL",
+        "ALTER TABLE purchase_requisition ADD COLUMN IF NOT EXISTS to_store_id UUID REFERENCES store(id) ON DELETE SET NULL",
+        "ALTER TABLE purchase_requisition ADD COLUMN IF NOT EXISTS header_supplier_id UUID REFERENCES supplier(id) ON DELETE SET NULL",
+        "ALTER TABLE purchase_requisition ADD COLUMN IF NOT EXISTS notes TEXT",
+        "ALTER TABLE purchase_requisition ADD COLUMN IF NOT EXISTS approver_message TEXT",
+        "ALTER TABLE purchase_requisition ADD COLUMN IF NOT EXISTS audit_log JSONB DEFAULT '[]'::jsonb",
+        "ALTER TABLE purchase_requisition ADD COLUMN IF NOT EXISTS submitted_at TIMESTAMPTZ",
+        "ALTER TABLE purchase_requisition ADD COLUMN IF NOT EXISTS approved_at TIMESTAMPTZ",
+        # Backfill line-item columns on older purchase_requisition_item tables
+        "ALTER TABLE purchase_requisition_item ADD COLUMN IF NOT EXISTS item_type VARCHAR(20) DEFAULT 'product'",
+        "ALTER TABLE purchase_requisition_item ADD COLUMN IF NOT EXISTS variant_id UUID REFERENCES product_variant(id) ON DELETE SET NULL",
+        "ALTER TABLE purchase_requisition_item ADD COLUMN IF NOT EXISTS description TEXT",
+        "ALTER TABLE purchase_requisition_item ADD COLUMN IF NOT EXISTS service_id UUID REFERENCES service(id) ON DELETE RESTRICT",
+        "ALTER TABLE purchase_requisition_item ADD COLUMN IF NOT EXISTS asset_category_id UUID REFERENCES fin_asset_category(id) ON DELETE SET NULL",
+        "ALTER TABLE purchase_requisition_item ADD COLUMN IF NOT EXISTS unit_of_measure VARCHAR(20) DEFAULT 'PCS'",
+        "ALTER TABLE purchase_requisition_item ADD COLUMN IF NOT EXISTS needed_by_date DATE",
+        "ALTER TABLE purchase_requisition_item ADD COLUMN IF NOT EXISTS plant_id UUID REFERENCES plant(id) ON DELETE SET NULL",
+        "ALTER TABLE purchase_requisition_item ADD COLUMN IF NOT EXISTS storage_location_id UUID REFERENCES storage_location(id) ON DELETE SET NULL",
+        "ALTER TABLE purchase_requisition_item ADD COLUMN IF NOT EXISTS estimated_price NUMERIC(12, 2) DEFAULT 0",
+        "ALTER TABLE purchase_requisition_item ADD COLUMN IF NOT EXISTS suggested_supplier_id UUID REFERENCES supplier(id) ON DELETE SET NULL",
+        "ALTER TABLE purchase_requisition_item ADD COLUMN IF NOT EXISTS quantity_ordered NUMERIC(12, 4) DEFAULT 0",
+        "ALTER TABLE purchase_requisition_item ADD COLUMN IF NOT EXISTS purchase_order_id UUID REFERENCES purchase_order(id) ON DELETE SET NULL",
+        "ALTER TABLE purchase_requisition_item ADD COLUMN IF NOT EXISTS is_converted BOOLEAN DEFAULT FALSE",
+        "ALTER TABLE purchase_requisition_item ADD COLUMN IF NOT EXISTS notes TEXT",
     ]
     async with engine.begin() as conn:
         for s in stmts:

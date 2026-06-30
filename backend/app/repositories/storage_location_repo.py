@@ -60,14 +60,13 @@ class StorageLocationRepository(BaseRepository[StorageLocation]):
     async def list_all_flat(
         self,
         vendor_id: UUID,
-        store_id: UUID,
+        store_id: Optional[UUID] = None,
         is_active: Optional[bool] = None,
         plant_id: Optional[UUID] = None,
     ) -> List[StorageLocation]:
-        query = select(StorageLocation).where(
-            StorageLocation.vendor_id == vendor_id,
-            StorageLocation.store_id == store_id,
-        )
+        query = select(StorageLocation).where(StorageLocation.vendor_id == vendor_id)
+        if store_id is not None:
+            query = query.where(StorageLocation.store_id == store_id)
         if is_active is not None:
             query = query.where(StorageLocation.is_active == is_active)
         if plant_id is not None:
@@ -79,11 +78,13 @@ class StorageLocationRepository(BaseRepository[StorageLocation]):
     async def get_tree(
         self,
         vendor_id: UUID,
-        store_id: UUID,
+        store_id: Optional[UUID] = None,
         is_active: Optional[bool] = None,
         plant_id: Optional[UUID] = None,
     ) -> List[dict]:
-        all_locs = await self.list_all_flat(vendor_id, store_id, is_active=is_active, plant_id=plant_id)
+        all_locs = await self.list_all_flat(
+            vendor_id, store_id, is_active=is_active, plant_id=plant_id,
+        )
         by_id = {str(loc.id): loc for loc in all_locs}
         roots = []
         children_map: dict[str, list] = {}

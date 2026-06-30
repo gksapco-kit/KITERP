@@ -173,8 +173,8 @@ class PurchaseOrderReceipt(Base):
     purchase_order_id = Column(UUID(as_uuid=True), ForeignKey("purchase_order.id", ondelete="CASCADE"), nullable=False)
     received_by = Column(UUID(as_uuid=True), ForeignKey("user.id"))
 
-    # SAP movement type: 101=GR, 102=reversal, 122=return to vendor
-    movement_type = Column(String(10), default="101")
+    # Movement type: gr_po=GR, gr_reversal=reversal, return_to_vendor=return to vendor
+    movement_type = Column(String(30), default="gr_po")
 
     # Destination
     plant_id = Column(UUID(as_uuid=True), ForeignKey("plant.id", ondelete="SET NULL"), nullable=True)

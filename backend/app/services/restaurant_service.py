@@ -1,4 +1,4 @@
-from typing import List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple
 from uuid import UUID
 from datetime import datetime, timezone, date as date_type
 import secrets
@@ -6,11 +6,17 @@ import secrets
 from sqlalchemy import select, and_, delete, func as sqlfunc
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models.restaurant import RestaurantZone, RestaurantTable, RestaurantOrder, RestaurantKOT, RestaurantReservation
+from app.models.restaurant import Restaurant, RestaurantZone, RestaurantTable, RestaurantOrder, RestaurantKOT, RestaurantReservation
 from app.models.pos import POSTransaction
 from app.models.vendor_product import Product
 from app.models.vendor import Vendor
 from app.utils.restaurant_menu import parse_menu_settings, load_dine_in_products
+from app.utils.restaurant_kot import (
+    allocate_kot_number,
+    apply_kot_settings_update,
+    kot_settings_out,
+    parse_kot_settings,
+)
 import logging
 
 log = logging.getLogger(__name__)
@@ -41,24 +47,49 @@ class RestaurantService:
     def __init__(self, db: AsyncSession):
         self.db = db
 
+    # ── Restaurant outlet helpers ────────────────────────────────────
+
+    async def get_restaurant(self, vendor_id: UUID, restaurant_id: UUID) -> Optional[Restaurant]:
+        r = await self.db.get(Restaurant, restaurant_id)
+        if not r or r.vendor_id != vendor_id:
+            return None
+        return r
+
+    async def get_default_restaurant(self, vendor_id: UUID) -> Optional[Restaurant]:
+        r = await self.db.execute(
+            select(Restaurant)
+            .where(Restaurant.vendor_id == vendor_id, Restaurant.is_default == True)
+            .limit(1)
+        )
+        return r.scalar_one_or_none()
+
     # ── Zones ───────────────────────────────────────────────────────
 
-    async def list_zones(self, vendor_id: UUID) -> List[RestaurantZone]:
-        r = await self.db.execute(
+    async def list_zones(self, vendor_id: UUID, restaurant_id: Optional[UUID] = None) -> List[RestaurantZone]:
+        q = (
             select(RestaurantZone)
             .where(RestaurantZone.vendor_id == vendor_id)
             .order_by(RestaurantZone.sort_order, RestaurantZone.name)
         )
+        if restaurant_id:
+            q = q.where(RestaurantZone.restaurant_id == restaurant_id)
+        r = await self.db.execute(q)
         return list(r.scalars().all())
 
-    async def create_zone(self, vendor_id: UUID, name: str, sort_order: int = 0) -> RestaurantZone:
-        z = RestaurantZone(vendor_id=vendor_id, name=name.strip(), sort_order=sort_order or 0)
+    async def create_zone(self, vendor_id: UUID, name: str, sort_order: int = 0, restaurant_id: Optional[UUID] = None, floor: Optional[str] = None) -> RestaurantZone:
+        z = RestaurantZone(
+            vendor_id=vendor_id,
+            name=name.strip(),
+            sort_order=sort_order or 0,
+            restaurant_id=restaurant_id,
+            floor=floor,
+        )
         self.db.add(z)
         await self.db.commit()
         await self.db.refresh(z)
         return z
 
-    async def update_zone(self, vendor_id: UUID, zone_id: UUID, *, name: Optional[str] = None, sort_order: Optional[int] = None) -> Optional[RestaurantZone]:
+    async def update_zone(self, vendor_id: UUID, zone_id: UUID, *, name: Optional[str] = None, sort_order: Optional[int] = None, floor: Optional[str] = None) -> Optional[RestaurantZone]:
         z = await self.db.get(RestaurantZone, zone_id)
         if not z or z.vendor_id != vendor_id:
             return None
@@ -66,6 +97,8 @@ class RestaurantService:
             z.name = name.strip()
         if sort_order is not None:
             z.sort_order = sort_order
+        if floor is not None:
+            z.floor = floor
         await self.db.commit()
         await self.db.refresh(z)
         return z
@@ -81,7 +114,7 @@ class RestaurantService:
 
     # ── Tables ──────────────────────────────────────────────────────
 
-    async def list_tables(self, vendor_id: UUID, zone_id: Optional[UUID] = None) -> List[Tuple[RestaurantTable, Optional[str]]]:
+    async def list_tables(self, vendor_id: UUID, zone_id: Optional[UUID] = None, restaurant_id: Optional[UUID] = None) -> List[Tuple[RestaurantTable, Optional[str]]]:
         q = (
             select(RestaurantTable, RestaurantZone.name)
             .outerjoin(RestaurantZone, RestaurantTable.zone_id == RestaurantZone.id)
@@ -90,6 +123,8 @@ class RestaurantService:
         )
         if zone_id:
             q = q.where(RestaurantTable.zone_id == zone_id)
+        if restaurant_id:
+            q = q.where(RestaurantTable.restaurant_id == restaurant_id)
         r = await self.db.execute(q)
         return [(row[0], row[1]) for row in r.all()]
 
@@ -99,6 +134,7 @@ class RestaurantService:
         label: str,
         *,
         zone_id: Optional[UUID] = None,
+        restaurant_id: Optional[UUID] = None,
         capacity: int = 4,
         sort_order: int = 0,
         is_active: bool = True,
@@ -107,9 +143,12 @@ class RestaurantService:
             z = await self.db.get(RestaurantZone, zone_id)
             if not z or z.vendor_id != vendor_id:
                 raise ValueError("Invalid zone")
+            if not restaurant_id and z.restaurant_id:
+                restaurant_id = z.restaurant_id
         t = RestaurantTable(
             vendor_id=vendor_id,
             zone_id=zone_id,
+            restaurant_id=restaurant_id,
             label=label.strip(),
             capacity=capacity,
             sort_order=sort_order or 0,
@@ -208,6 +247,7 @@ class RestaurantService:
         order = RestaurantOrder(
             vendor_id=vendor_id,
             table_id=table_id,
+            restaurant_id=table.restaurant_id,
             status="open",
             covers=covers,
             server_name=server_name,
@@ -243,6 +283,7 @@ class RestaurantService:
         vendor_id: UUID,
         *,
         status: Optional[str] = None,
+        restaurant_id: Optional[UUID] = None,
         limit: int = 100,
     ) -> List[Tuple[RestaurantOrder, Optional[str]]]:
         q = (
@@ -252,6 +293,8 @@ class RestaurantService:
             .order_by(RestaurantOrder.created_at.desc())
             .limit(limit)
         )
+        if restaurant_id:
+            q = q.where(RestaurantOrder.restaurant_id == restaurant_id)
         if status:
             q = q.where(RestaurantOrder.status == status)
         else:
@@ -308,15 +351,13 @@ class RestaurantService:
             raise ValueError("Order not found")
         if o.status not in ("open",):
             raise ValueError("Cannot send KOT on a non-open order")
-        # Count existing KOTs for this order to assign kot_number
-        count_r = await self.db.execute(
-            select(sqlfunc.count()).where(RestaurantKOT.order_id == order_id)
-        )
-        kot_number = (count_r.scalar() or 0) + 1
+
+        kot_number = await self._next_kot_number(vendor_id, o)
         kot = RestaurantKOT(
             vendor_id=vendor_id,
             order_id=order_id,
             table_id=o.table_id,
+            restaurant_id=o.restaurant_id,
             kot_number=kot_number,
             status="new",
             items=items,
@@ -370,6 +411,34 @@ class RestaurantService:
         await self.db.refresh(kot)
         return kot
 
+    async def _next_kot_number(self, vendor_id: UUID, order: RestaurantOrder) -> int:
+        """Assign KOT number using restaurant settings (sequential range or per-order)."""
+        restaurant_id = order.restaurant_id
+        if not restaurant_id:
+            default = await self.get_default_restaurant(vendor_id)
+            restaurant_id = default.id if default else None
+
+        if restaurant_id:
+            from sqlalchemy import update as sqla_update
+            r = await self.db.get(Restaurant, restaurant_id, with_for_update=True)
+            if r and r.vendor_id == vendor_id:
+                settings = dict(r.settings or {})
+                kot_cfg = parse_kot_settings(settings.get("kot"))
+                if kot_cfg["mode"] == "sequential":
+                    number, updated = allocate_kot_number(kot_cfg)
+                    settings["kot"] = updated
+                    await self.db.execute(
+                        sqla_update(Restaurant)
+                        .where(Restaurant.id == restaurant_id)
+                        .values(settings=settings, updated_at=datetime.now(timezone.utc))
+                    )
+                    return number
+
+        count_r = await self.db.execute(
+            select(sqlfunc.count()).where(RestaurantKOT.order_id == order.id)
+        )
+        return (count_r.scalar() or 0) + 1
+
     async def request_bill(self, vendor_id: UUID, order_id: UUID) -> Optional[RestaurantOrder]:
         o = await self.get_order(vendor_id, order_id)
         if not o:
@@ -416,6 +485,106 @@ class RestaurantService:
         await self.db.refresh(o)
         return o
 
+    async def transfer_order(
+        self,
+        vendor_id: UUID,
+        order_id: UUID,
+        new_table_id: UUID,
+    ) -> Optional[RestaurantOrder]:
+        """Move an open/billed order (and all its KOTs) to a different free table."""
+        o = await self.get_order(vendor_id, order_id)
+        if not o:
+            return None
+        if o.status not in ("open", "billed"):
+            raise ValueError("Only open or billed orders can be transferred")
+        new_table = await self.db.get(RestaurantTable, new_table_id)
+        if not new_table or new_table.vendor_id != vendor_id:
+            raise ValueError("Target table not found")
+        if new_table.status != "free":
+            raise ValueError(f"Table '{new_table.label}' is not free ({new_table.status})")
+
+        # Free the original table
+        if o.table_id and o.table_id != new_table_id:
+            old_table = await self.db.get(RestaurantTable, o.table_id)
+            if old_table:
+                old_table.status = "free"
+
+        # Reassign order
+        o.table_id = new_table_id
+        o.restaurant_id = new_table.restaurant_id or o.restaurant_id
+
+        # Reassign all KOTs to new table
+        from sqlalchemy import update as sqla_update
+        await self.db.execute(
+            sqla_update(RestaurantKOT)
+            .where(RestaurantKOT.order_id == order_id)
+            .values(table_id=new_table_id)
+        )
+
+        # Set new table status to match order
+        new_table.status = "billed" if o.status == "billed" else "ordering"
+
+        await self.db.commit()
+        await self.db.refresh(o)
+        return o
+
+    async def merge_orders(
+        self,
+        vendor_id: UUID,
+        source_order_id: UUID,
+        target_order_id: UUID,
+    ) -> Optional[RestaurantOrder]:
+        """
+        Merge source order into target.
+        Items and KOTs move to target; source order is voided and source table freed.
+        """
+        source = await self.get_order(vendor_id, source_order_id)
+        target = await self.get_order(vendor_id, target_order_id)
+        if not source or not target:
+            return None
+        if source_order_id == target_order_id:
+            raise ValueError("Cannot merge an order into itself")
+        if source.status != "open":
+            raise ValueError("Source order must be open to merge")
+        if target.status != "open":
+            raise ValueError("Target order must be open to merge into")
+
+        # Merge item lines
+        merged = list(target.items or [])
+        for item in source.items or []:
+            merged = _merge_order_line(merged, item)
+
+        # Re-assign KOTs to target order + table
+        from sqlalchemy import update as sqla_update
+        await self.db.execute(
+            sqla_update(RestaurantKOT)
+            .where(RestaurantKOT.order_id == source_order_id)
+            .values(order_id=target_order_id, table_id=target.table_id)
+        )
+
+        # Update target order
+        from datetime import datetime, timezone
+        await self.db.execute(
+            sqla_update(RestaurantOrder)
+            .where(RestaurantOrder.id == target_order_id)
+            .values(
+                items=merged,
+                covers=(target.covers or 1) + (source.covers or 1),
+                updated_at=datetime.now(timezone.utc),
+            )
+        )
+
+        # Void source and free its table
+        source.status = "voided"
+        if source.table_id:
+            src_table = await self.db.get(RestaurantTable, source.table_id)
+            if src_table:
+                src_table.status = "free"
+
+        await self.db.commit()
+        await self.db.refresh(target)
+        return target
+
     # ── KOTs ────────────────────────────────────────────────────────
 
     async def list_kots(
@@ -423,6 +592,7 @@ class RestaurantService:
         vendor_id: UUID,
         *,
         include_done: bool = False,
+        restaurant_id: Optional[UUID] = None,
         limit: int = 100,
     ) -> List[Tuple[RestaurantKOT, Optional[str], Optional[int], Optional[str]]]:
         """Returns (kot, table_label, order_covers, order_status)."""
@@ -434,6 +604,8 @@ class RestaurantService:
             .order_by(RestaurantKOT.created_at.asc())
             .limit(limit)
         )
+        if restaurant_id:
+            q = q.where(RestaurantKOT.restaurant_id == restaurant_id)
         if not include_done:
             q = q.where(RestaurantKOT.status != "done")
         r = await self.db.execute(q)
@@ -450,6 +622,25 @@ class RestaurantService:
         )
         return list(r.scalars().all())
 
+    async def get_kots_for_orders(
+        self, vendor_id: UUID, order_ids: List[UUID]
+    ) -> Dict[UUID, List[RestaurantKOT]]:
+        """Batch-load KOTs for multiple orders (for floor/list views)."""
+        if not order_ids:
+            return {}
+        r = await self.db.execute(
+            select(RestaurantKOT)
+            .where(
+                RestaurantKOT.vendor_id == vendor_id,
+                RestaurantKOT.order_id.in_(order_ids),
+            )
+            .order_by(RestaurantKOT.kot_number)
+        )
+        by_order: Dict[UUID, List[RestaurantKOT]] = {}
+        for kot in r.scalars().all():
+            by_order.setdefault(kot.order_id, []).append(kot)
+        return by_order
+
     async def update_kot_status(self, vendor_id: UUID, kot_id: UUID, status: str) -> Optional[RestaurantKOT]:
         if status not in KOT_STATUSES:
             raise ValueError(f"Invalid KOT status: {status}")
@@ -463,6 +654,47 @@ class RestaurantService:
 
     # ── Reservations ────────────────────────────────────────────────
 
+    async def _check_table_reservation_conflict(
+        self,
+        vendor_id: UUID,
+        table_id: UUID,
+        reservation_date: date_type,
+        reservation_time: str,
+        *,
+        exclude_id: Optional[UUID] = None,
+        buffer_minutes: int = 90,
+    ) -> bool:
+        """Return True if a conflicting reservation exists for the table/date/time window."""
+        from datetime import datetime, timedelta
+        try:
+            slot_dt = datetime.strptime(f"{reservation_date} {reservation_time}", "%Y-%m-%d %H:%M")
+        except ValueError:
+            return False
+        window_start = slot_dt - timedelta(minutes=buffer_minutes)
+        window_end = slot_dt + timedelta(minutes=buffer_minutes)
+
+        q = (
+            select(RestaurantReservation)
+            .where(
+                RestaurantReservation.vendor_id == vendor_id,
+                RestaurantReservation.table_id == table_id,
+                RestaurantReservation.reservation_date == reservation_date,
+                RestaurantReservation.status.in_(["pending", "confirmed"]),
+            )
+        )
+        if exclude_id:
+            q = q.where(RestaurantReservation.id != exclude_id)
+        rows = await self.db.execute(q)
+        existing = rows.scalars().all()
+        for ex in existing:
+            try:
+                ex_dt = datetime.strptime(f"{ex.reservation_date} {ex.reservation_time}", "%Y-%m-%d %H:%M")
+                if window_start <= ex_dt <= window_end:
+                    return True
+            except ValueError:
+                continue
+        return False
+
     async def create_reservation(
         self,
         vendor_id: UUID,
@@ -472,14 +704,30 @@ class RestaurantService:
         party_size: int = 2,
         *,
         table_id: Optional[UUID] = None,
+        restaurant_id: Optional[UUID] = None,
         guest_phone: Optional[str] = None,
         guest_email: Optional[str] = None,
         notes: Optional[str] = None,
         source: str = "online",
     ) -> RestaurantReservation:
+        # Check for double-booking when a specific table is requested
+        if table_id:
+            conflict = await self._check_table_reservation_conflict(
+                vendor_id, table_id, reservation_date, reservation_time
+            )
+            if conflict:
+                raise ValueError(
+                    "This table already has a reservation within 90 minutes of the requested time"
+                )
+        # Inherit restaurant from table if not provided
+        if not restaurant_id and table_id:
+            t = await self.db.get(RestaurantTable, table_id)
+            if t and t.restaurant_id:
+                restaurant_id = t.restaurant_id
         r = RestaurantReservation(
             vendor_id=vendor_id,
             table_id=table_id,
+            restaurant_id=restaurant_id,
             guest_name=guest_name.strip(),
             guest_phone=guest_phone,
             guest_email=guest_email,
@@ -502,6 +750,7 @@ class RestaurantService:
         date_from: Optional[date_type] = None,
         date_to: Optional[date_type] = None,
         status: Optional[str] = None,
+        restaurant_id: Optional[UUID] = None,
         limit: int = 100,
     ) -> List[Tuple[RestaurantReservation, Optional[str]]]:
         q = (
@@ -511,6 +760,8 @@ class RestaurantService:
             .order_by(RestaurantReservation.reservation_date, RestaurantReservation.reservation_time)
             .limit(limit)
         )
+        if restaurant_id:
+            q = q.where(RestaurantReservation.restaurant_id == restaurant_id)
         if date_from:
             q = q.where(RestaurantReservation.reservation_date >= date_from)
         if date_to:
@@ -557,6 +808,18 @@ class RestaurantService:
         r = await self.get_reservation(vendor_id, reservation_id)
         if not r:
             return None
+        # Conflict check when table/date/time is being changed
+        check_table = table_id if table_id is not None else r.table_id
+        check_date = reservation_date if reservation_date is not None else r.reservation_date
+        check_time = reservation_time if reservation_time is not None else r.reservation_time
+        if check_table and (table_id is not None or reservation_date is not None or reservation_time is not None):
+            conflict = await self._check_table_reservation_conflict(
+                vendor_id, check_table, check_date, check_time, exclude_id=reservation_id
+            )
+            if conflict:
+                raise ValueError(
+                    "This table already has a reservation within 90 minutes of the requested time"
+                )
         if guest_name is not None:
             r.guest_name = guest_name.strip()
         if guest_phone is not None:
@@ -634,6 +897,45 @@ class RestaurantService:
         await self.db.commit()
         await self.db.refresh(vendor)
         return await self.get_menu_settings(vendor_id)
+
+    async def get_kot_settings(self, vendor_id: UUID, restaurant_id: UUID) -> dict:
+        r = await self.get_restaurant(vendor_id, restaurant_id)
+        if not r:
+            raise ValueError("Restaurant not found")
+        cfg = parse_kot_settings((r.settings or {}).get("kot"))
+        return kot_settings_out(cfg)
+
+    async def set_kot_settings(
+        self,
+        vendor_id: UUID,
+        restaurant_id: UUID,
+        *,
+        mode: Optional[str] = None,
+        start_number: Optional[int] = None,
+        end_number: Optional[int] = None,
+        reset: Optional[str] = None,
+        next_number: Optional[int] = None,
+        reset_counter_now: bool = False,
+    ) -> dict:
+        r = await self.get_restaurant(vendor_id, restaurant_id)
+        if not r:
+            raise ValueError("Restaurant not found")
+        current = parse_kot_settings((r.settings or {}).get("kot"))
+        updated = apply_kot_settings_update(
+            current,
+            mode=mode,  # type: ignore[arg-type]
+            start_number=start_number,
+            end_number=end_number,
+            reset=reset,  # type: ignore[arg-type]
+            next_number=next_number,
+            reset_counter_now=reset_counter_now,
+        )
+        settings = dict(r.settings or {})
+        settings["kot"] = updated
+        r.settings = settings
+        await self.db.commit()
+        await self.db.refresh(r)
+        return kot_settings_out(updated)
 
     async def list_dine_in_catalog(self, vendor_id: UUID) -> list:
         vendor = await self.db.get(Vendor, vendor_id)

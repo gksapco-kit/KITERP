@@ -21,6 +21,7 @@ from app.database import (
     ensure_vendor_external_domain_columns,
     ensure_product_uom_column,
     ensure_variant_pricing_columns,
+    ensure_goods_movement_codes,
     ensure_merchandising_tables,
     ensure_loyalty_tables,
     ensure_crm_tables,
@@ -30,6 +31,9 @@ from app.database import (
     ensure_restaurant_schema,
     ensure_modifier_schema,
     ensure_reservation_schema,
+    ensure_restaurant_outlet_schema,
+    ensure_restaurant_order_adjustments,
+    ensure_purchase_requisition_schema,
     ensure_user_contact_not_globally_unique,
     ensure_user_platform_staff_role_column,
     ensure_txn_store_id_columns,
@@ -63,6 +67,7 @@ async def lifespan(app: FastAPI):
     await ensure_vendor_external_domain_columns()
     await ensure_product_uom_column()
     await ensure_variant_pricing_columns()
+    await ensure_goods_movement_codes()
     await ensure_merchandising_tables()
     await ensure_loyalty_tables()
     await ensure_crm_tables()
@@ -72,6 +77,9 @@ async def lifespan(app: FastAPI):
     await ensure_restaurant_schema()
     await ensure_modifier_schema()
     await ensure_reservation_schema()
+    await ensure_restaurant_outlet_schema()
+    await ensure_restaurant_order_adjustments()
+    await ensure_purchase_requisition_schema()
     await ensure_user_contact_not_globally_unique()
     await ensure_user_platform_staff_role_column()
     await ensure_txn_store_id_columns()

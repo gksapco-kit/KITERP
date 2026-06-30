@@ -1955,10 +1955,10 @@ async def delete_activity_confirmation(
 # ── Goods Movements ───────────────────────────────────────────────────────────
 
 _MOVEMENT_LABELS = {
-    "261": "Goods Issue — Component to Order",
-    "262": "Goods Issue Return — Component from Order",
-    "101": "Goods Receipt — FG from Order",
-    "102": "Goods Receipt Return — FG to Order",
+    "component_issue": "Goods Issue — Component to Order",
+    "component_return": "Goods Issue Return — Component from Order",
+    "fg_receipt": "Goods Receipt — FG from Order",
+    "fg_receipt_reversal": "Goods Receipt Return — FG to Order",
 }
 
 
@@ -2029,8 +2029,8 @@ async def create_goods_movement(
     )
     db.add(gm)
 
-    # Sync actuals back to order cost lines for material issues (261)
-    if body.movement_type == "261" and body.product_id and total > 0:
+    # Sync actuals back to order cost lines for material issues (component_issue)
+    if body.movement_type == "component_issue" and body.product_id and total > 0:
         ocl_r = await db.execute(
             select(CoOrderCostLine).where(
                 CoOrderCostLine.order_id == body.order_id,

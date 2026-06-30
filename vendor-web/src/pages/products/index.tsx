@@ -17,6 +17,7 @@ import {
   Plus, Search, Pencil, Trash2, Loader2, X, ChevronLeft, ChevronRight,
   Filter, Copy, Share2, Mail, MessageCircle, MoreVertical, Package,
   Image as ImageIcon, ChevronUp, ChevronDown, ChevronsUpDown, ScanLine,
+  Layers,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { vendorApi } from '@/api/vendor'
@@ -158,6 +159,9 @@ export default function Products() {
   const [scanLoading, setScanLoading] = useState(false)
   const [sortKey, setSortKey] = useState('name')
   const [sortDir, setSortDir] = useState<SortDir>('asc')
+  const [viewMode, setViewMode] = useState<'product' | 'variant'>(() => {
+    try { return (localStorage.getItem('kiterp:products:viewMode') as 'product' | 'variant') || 'product' } catch { return 'product' }
+  })
   const { data: categoryData } = useCategoryTree()
   const productCategories = useMemo(
     () => flattenCategoryTree(filterCategoryTree(categoryData?.categories || [], 'product')),
@@ -281,6 +285,55 @@ export default function Products() {
     )
   }, [data?.items, sortKey, sortDir, categorySub])
 
+  // Flattened variant rows for variant-wise view
+  const variantRows = useMemo(() => {
+    if (viewMode !== 'variant') return []
+    const rows: {
+      productId: string; productName: string; productCategory: string; productType: string; thumbUrl: string
+      variantId: string; variantName: string; sku: string; uom: string; uom_quantity: number | null
+      price: number; quantity: number; stock_status: string; low_stock_threshold: number; currency: string; is_active: boolean
+    }[] = []
+    for (const product of displayProducts) {
+      const primaryImg = product.images?.find((img: any) => img.is_primary) || product.images?.[0]
+      const productThumb = primaryImg ? resolveUrl(primaryImg.url) : ''
+      const variants = product.variants || []
+      if (variants.length === 0) {
+        // Product with no variants — show it as a single row
+        rows.push({
+          productId: product.id, productName: product.name,
+          productCategory: product.category || 'Uncategorized', productType: product.product_type || 'physical',
+          thumbUrl: productThumb,
+          variantId: '', variantName: '—',
+          sku: product.sku || '', uom: product.uom || 'piece', uom_quantity: product.uom_quantity ?? null,
+          price: product.price, quantity: product.quantity ?? 0,
+          stock_status: product.stock_status || 'in_stock', low_stock_threshold: product.low_stock_threshold ?? 5,
+          currency: product.currency || 'INR', is_active: product.status === 'active',
+        })
+      } else {
+        for (const v of variants) {
+          const vImg = (v.images || v.media || []).find((img: any) => img?.url)
+          const vThumb = vImg ? resolveUrl(vImg.url) : productThumb
+          rows.push({
+            productId: product.id, productName: product.name,
+            productCategory: product.category || 'Uncategorized', productType: product.product_type || 'physical',
+            thumbUrl: vThumb,
+            variantId: v.id || '', variantName: v.name || `Variant`,
+            sku: v.sku || '', uom: v.uom || 'piece', uom_quantity: v.uom_quantity ?? null,
+            price: v.price ?? 0, quantity: v.quantity ?? 0,
+            stock_status: v.stock_status || 'in_stock', low_stock_threshold: v.low_stock_threshold ?? 5,
+            currency: v.currency || product.currency || 'INR', is_active: v.is_active !== false,
+          })
+        }
+      }
+    }
+    return rows
+  }, [displayProducts, viewMode])
+
+  const setViewModePersisted = (mode: 'product' | 'variant') => {
+    setViewMode(mode)
+    try { localStorage.setItem('kiterp:products:viewMode', mode) } catch { /* ignore */ }
+  }
+
   return (
     <div className="space-y-5">
       <div className="flex items-center justify-between">
@@ -288,7 +341,36 @@ export default function Products() {
           <h1 className="text-2xl font-bold text-gray-900">Products</h1>
           <p className="text-sm text-gray-500 mt-0.5">{data?.total ?? 0} total products</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex items-center gap-2">
+          {/* View mode toggle */}
+          <div className="inline-flex rounded-lg border border-gray-200 bg-gray-50 p-0.5 text-xs">
+            <button
+              type="button"
+              onClick={() => setViewModePersisted('product')}
+              title="Product-wise view"
+              className={`inline-flex items-center gap-1.5 rounded-md px-2.5 py-1.5 font-medium transition-all ${
+                viewMode === 'product'
+                  ? 'bg-white text-gray-900 shadow-sm'
+                  : 'text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              <Package className="w-3.5 h-3.5" />
+              Product
+            </button>
+            <button
+              type="button"
+              onClick={() => setViewModePersisted('variant')}
+              title="Variant-wise view"
+              className={`inline-flex items-center gap-1.5 rounded-md px-2.5 py-1.5 font-medium transition-all ${
+                viewMode === 'variant'
+                  ? 'bg-white text-gray-900 shadow-sm'
+                  : 'text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              <Layers className="w-3.5 h-3.5" />
+              Variant
+            </button>
+          </div>
           <Button variant="outline" className="gap-2" onClick={() => setShowScanner(true)} disabled={scanLoading}>
             {scanLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <ScanLine className="w-4 h-4 text-blue-500" />}
             Scan
@@ -385,6 +467,9 @@ export default function Products() {
       <Card className="border-gray-200/80 overflow-hidden">
         <CardContent className="p-0">
           <div className="overflow-x-auto">
+
+          {/* ── Product-wise view ── */}
+          {viewMode === 'product' && (
           <ResizableTable tableId="products" defaultWidths={[280, 120, 90, 100, 110, 90, 80]}>
             <thead>
               <tr className="border-b bg-gray-50/80">
@@ -435,12 +520,7 @@ export default function Products() {
                             ? `No results for "${search.trim()}". Try a different search or clear your filters.`
                             : 'No products match your current filters. Try adjusting or clearing them.'}
                         </p>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="gap-1.5"
-                          onClick={() => { setSearch(''); setSearchInput(''); clearFilters() }}
-                        >
+                        <Button size="sm" variant="outline" className="gap-1.5" onClick={() => { setSearch(''); setSearchInput(''); clearFilters() }}>
                           Clear search & filters
                         </Button>
                       </>
@@ -557,6 +637,117 @@ export default function Products() {
               })}
             </tbody>
           </ResizableTable>
+          )}
+
+          {/* ── Variant-wise view ── */}
+          {viewMode === 'variant' && (
+          <ResizableTable tableId="products-variant" defaultWidths={[240, 130, 90, 80, 90, 80, 90]}>
+            <thead>
+              <tr className="border-b bg-gray-50/80">
+                <th className="text-left px-5 py-3 text-xs font-medium text-gray-400 uppercase tracking-wider"><TableColumnLabel>Product</TableColumnLabel></th>
+                <th className="text-left px-4 py-3 text-xs font-medium text-gray-400 uppercase tracking-wider"><TableColumnLabel>Variant</TableColumnLabel></th>
+                <th className="text-left px-4 py-3 text-xs font-medium text-gray-400 uppercase tracking-wider"><TableColumnLabel>SKU</TableColumnLabel></th>
+                <th className="text-left px-4 py-3 text-xs font-medium text-gray-400 uppercase tracking-wider"><TableColumnLabel>Pack</TableColumnLabel></th>
+                <th className="text-left px-4 py-3 text-xs font-medium text-gray-400 uppercase tracking-wider"><TableColumnLabel>Price</TableColumnLabel></th>
+                <th className="text-left px-4 py-3 text-xs font-medium text-gray-400 uppercase tracking-wider"><TableColumnLabel>Stock</TableColumnLabel></th>
+                <th className="text-left px-4 py-3 text-xs font-medium text-gray-400 uppercase tracking-wider"><TableColumnLabel>Status</TableColumnLabel></th>
+                <th className="text-right px-5 py-3 text-xs font-medium text-gray-400 uppercase tracking-wider"><TableColumnLabel>Actions</TableColumnLabel></th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-100">
+              {isLoading ? (
+                <tr><td colSpan={8} className="px-6 py-16 text-center"><Loader2 className="w-6 h-6 animate-spin mx-auto text-gray-400" /></td></tr>
+              ) : !variantRows.length ? (
+                <tr>
+                  <td colSpan={8} className="px-6 py-16 text-center">
+                    <Layers className="w-12 h-12 text-gray-200 mx-auto mb-3" />
+                    <p className="text-sm font-medium text-gray-500 mb-1">No variants found</p>
+                    {hasActiveQuery && (
+                      <Button size="sm" variant="outline" className="gap-1.5 mt-3" onClick={() => { setSearch(''); setSearchInput(''); clearFilters() }}>
+                        Clear search & filters
+                      </Button>
+                    )}
+                  </td>
+                </tr>
+              ) : variantRows.map((row, i) => {
+                const sym = row.currency === 'INR' ? '₹' : '$'
+                const isOut = row.stock_status === 'out_of_stock' || row.stock_status === 'discontinued'
+                const isLow = !isOut && row.quantity <= row.low_stock_threshold
+                const packLabel = row.uom_quantity != null && row.uom_quantity > 0
+                  ? `${row.uom_quantity} ${row.uom}`
+                  : row.uom
+                // Group header: first row of a new product gets a subtle top border accent
+                const prevProduct = i > 0 ? variantRows[i - 1].productId : null
+                const isFirstOfProduct = prevProduct !== row.productId
+
+                return (
+                  <tr
+                    key={`${row.productId}-${row.variantId || i}`}
+                    className={`hover:bg-gray-50/80 cursor-pointer transition-colors group ${isFirstOfProduct && i > 0 ? 'border-t-2 border-t-gray-200' : ''}`}
+                    onClick={() => navigate(`/products/${row.productId}`)}
+                  >
+                    <td className="px-5 py-2.5 max-w-[240px]">
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        {row.thumbUrl ? (
+                          <img src={row.thumbUrl} alt="" className="w-8 h-8 rounded-md object-cover bg-gray-100 border border-gray-200/80 shrink-0" />
+                        ) : (
+                          <div className="w-8 h-8 rounded-md bg-gray-100 border border-gray-200/80 flex items-center justify-center shrink-0">
+                            <ImageIcon className="w-3.5 h-3.5 text-gray-300" />
+                          </div>
+                        )}
+                        <div className="min-w-0">
+                          <p className="text-xs font-semibold text-gray-900 group-hover:text-blue-700 transition-colors truncate">{row.productName}</p>
+                          <p className="text-[10px] text-gray-400 truncate">{row.productCategory}</p>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-4 py-2.5">
+                      <p className="text-sm text-gray-700 font-medium truncate">{row.variantName}</p>
+                      {!row.is_active && (
+                        <span className="text-[10px] text-amber-600 font-medium">Inactive</span>
+                      )}
+                    </td>
+                    <td className="px-4 py-2.5">
+                      <p className="text-xs font-mono text-gray-500 truncate">{row.sku || '—'}</p>
+                    </td>
+                    <td className="px-4 py-2.5">
+                      <span className="text-xs text-gray-600 whitespace-nowrap">{packLabel}</span>
+                    </td>
+                    <td className="px-4 py-2.5">
+                      <span className="text-sm font-semibold text-gray-900 tabular-nums">
+                        {row.price > 0 ? `${sym}${row.price.toLocaleString()}` : '—'}
+                      </span>
+                    </td>
+                    <td className="px-4 py-2.5">
+                      <span className={`text-sm font-semibold tabular-nums ${isOut ? 'text-red-600' : isLow ? 'text-amber-600' : 'text-gray-800'}`}>
+                        {row.quantity.toLocaleString()}
+                      </span>
+                      {isLow && !isOut && <span className="ml-1 text-[10px] text-amber-500">low</span>}
+                      {isOut && <span className="ml-1 text-[10px] text-red-400">{row.stock_status.replace(/_/g, ' ')}</span>}
+                    </td>
+                    <td className="px-4 py-2.5">
+                      <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold whitespace-nowrap ${
+                        row.is_active ? 'bg-green-50 text-green-700 border border-green-200' : 'bg-gray-100 text-gray-500 border border-gray-200'
+                      }`}>
+                        {row.is_active ? 'Active' : 'Inactive'}
+                      </span>
+                    </td>
+                    <td className="px-5 py-2.5 text-right" onClick={(e) => e.stopPropagation()}>
+                      <Button
+                        variant="ghost" size="sm" className="h-7 w-7 p-0"
+                        title="Edit product"
+                        onClick={() => navigate(`/products/${row.productId}?edit=true`)}
+                      >
+                        <Pencil className="w-3.5 h-3.5 text-gray-500" />
+                      </Button>
+                    </td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </ResizableTable>
+          )}
+
           </div>
 
           {data && (
@@ -566,7 +757,10 @@ export default function Products() {
                   {(() => {
                     const from = (page - 1) * pageSize + 1
                     const to = Math.min(page * pageSize, data.total)
-                    return data.total > 0 ? `${from}–${to} of ${data.total} products` : '0 products'
+                    const base = data.total > 0 ? `${from}–${to} of ${data.total} products` : '0 products'
+                    return viewMode === 'variant' && variantRows.length > 0
+                      ? `${base} · ${variantRows.length} variant row${variantRows.length === 1 ? '' : 's'}`
+                      : base
                   })()}
                 </span>
                 <div className="flex items-center gap-1.5">

@@ -159,8 +159,8 @@ export function FormTintPanel({
 export function InputWithSuffix({ suffix, className, ...props }: React.ComponentProps<typeof Input> & { suffix: string }) {
   return (
     <div className="relative">
-      <Input className={cn('w-full pr-7', className)} {...props} />
-      <span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-xs font-medium text-muted-foreground">{suffix}</span>
+      <Input className={cn('w-full pr-6', className)} {...props} />
+      <span className="pointer-events-none absolute right-1.5 top-1/2 -translate-y-1/2 text-[10px] font-medium text-muted-foreground leading-none">{suffix}</span>
     </div>
   )
 }
@@ -168,8 +168,8 @@ export function InputWithSuffix({ suffix, className, ...props }: React.Component
 export function InputWithPrefix({ prefix, className, ...props }: React.ComponentProps<typeof Input> & { prefix: string }) {
   return (
     <div className="relative">
-      <Input className={cn('w-full pl-7', className)} {...props} />
-      <span className="pointer-events-none absolute left-2 top-1/2 -translate-y-1/2 text-xs font-medium text-muted-foreground">{prefix}</span>
+      <Input className={cn('w-full pl-6', className)} {...props} />
+      <span className="pointer-events-none absolute left-1.5 top-1/2 -translate-y-1/2 text-[10px] font-medium text-muted-foreground leading-none">{prefix}</span>
     </div>
   )
 }

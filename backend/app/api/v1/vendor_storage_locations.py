@@ -44,30 +44,35 @@ def _tree_node_to_dict(node: dict) -> dict:
 
 @router.get("")
 async def list_storage_locations(
-    store_id: str = Query(..., description="Business unit id"),
+    store_id: Optional[str] = Query(None, description="Business unit id — omit for all units"),
     plant_id: Optional[str] = Query(None, description="Filter by plant"),
     is_active: Optional[bool] = Query(None),
     tree: bool = Query(False, description="Return nested tree"),
     vendor_id: UUID = Depends(get_current_vendor_id),
     db: AsyncSession = Depends(get_db),
 ):
-    await validate_store_ids(db, vendor_id, [store_id])
     repo = StorageLocationRepository(db)
-    sid = UUID(store_id)
+    sid = UUID(store_id) if store_id else None
+    pid = UUID(plant_id) if plant_id else None
 
-    if plant_id:
+    if sid:
+        await validate_store_ids(db, vendor_id, [store_id])
+
+    if pid:
         plant_repo = PlantRepository(db)
-        plant = await plant_repo.get_by_vendor_and_id(vendor_id, UUID(plant_id))
-        if not plant or plant.store_id != sid:
+        plant = await plant_repo.get_by_vendor_and_id(vendor_id, pid)
+        if not plant:
+            raise HTTPException(status_code=400, detail="Plant not found")
+        if sid and plant.store_id != sid:
             raise HTTPException(status_code=400, detail="Plant not found in this business unit")
 
     if tree:
-        tree_data = await repo.get_tree(vendor_id, sid, is_active=is_active, plant_id=UUID(plant_id) if plant_id else None)
+        tree_data = await repo.get_tree(vendor_id, sid, is_active=is_active, plant_id=pid)
         return JSONResponse(content={
             "locations": [_tree_node_to_dict(n) for n in tree_data],
         })
 
-    items = await repo.list_all_flat(vendor_id, sid, is_active=is_active, plant_id=UUID(plant_id) if plant_id else None)
+    items = await repo.list_all_flat(vendor_id, sid, is_active=is_active, plant_id=pid)
     return JSONResponse(content={
         "locations": [_location_to_dict(loc) for loc in items],
     })

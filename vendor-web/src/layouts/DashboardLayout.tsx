@@ -127,6 +127,7 @@ import { useLogout } from '@/hooks/useAuth'
 import { useAuthStore } from '@/stores/authStore'
 import { useThemeStore } from '@/stores/themeStore'
 import { useVendorStore } from '@/stores/vendorStore'
+import { useRestaurantStore } from '@/stores/restaurantStore'
 import { getStorefrontAppOrigin } from '@/lib/storefrontPreviewUrl'
 import { useESSProfile } from '@/hooks/useVendor'
 import { useMyVendor, useMyPlan, useStores, useOrderStats } from '@/hooks/useVendor'
@@ -549,6 +550,7 @@ const allSections: NavSection[] = [
     title: 'Sales Management',
     icon: ShoppingCart,
     items: [
+      { to: '/sales/manager', icon: BarChart3, label: 'Sales Reporting Manager', requiresPermission: 'reports.view' },
       { to: '/orders', icon: ShoppingCart, label: 'Orders', requiresPermission: 'orders.view' },
       { to: '/quotations', icon: ScrollText, label: 'Quotations', requiresPermission: 'orders.view' },
       { to: '/bookings', icon: Calendar, label: 'Bookings', requiresOffering: ['services', 'both'], requiresPermission: 'bookings.view' },
@@ -569,12 +571,14 @@ const allSections: NavSection[] = [
     title: 'Restaurant',
     icon: UtensilsCrossed,
     items: [
-      { to: '/restaurant/floor', icon: UtensilsCrossed, label: 'Restaurant Floor', requiresOffering: ['products', 'both'], requiresPermission: 'restaurant.floor' },
-      { to: '/restaurant/kitchen', icon: ChefHat, label: 'Kitchen Board', requiresOffering: ['products', 'both'], requiresPermission: 'restaurant.kitchen' },
+      { to: '/restaurant/outlets', icon: UtensilsCrossed, label: 'Restaurants', requiresOffering: ['products', 'both'], requiresPermission: 'restaurant.view', groupLabel: 'Setup', groupColor: 'blue' },
+      { to: '/restaurant/setup', icon: Settings, label: 'Table Setup', requiresOffering: ['products', 'both'], requiresPermission: 'restaurant.setup' },
       { to: '/restaurant/menu', icon: List, label: 'Dine-in Menu', requiresOffering: ['products', 'both'], requiresPermission: 'restaurant.setup' },
+      { to: '/restaurant/floor', icon: UtensilsCrossed, label: 'Restaurant Floor', requiresOffering: ['products', 'both'], requiresPermission: 'restaurant.floor', groupLabel: 'Operations', groupColor: 'green' },
+      { to: '/restaurant/pos', icon: Store, label: 'Restaurant POS', requiresOffering: ['products', 'both'], requiresPermission: 'pos.view' },
+      { to: '/restaurant/kitchen', icon: ChefHat, label: 'Kitchen Board', requiresOffering: ['products', 'both'], requiresPermission: 'restaurant.kitchen' },
       { to: '/restaurant/reservations', icon: Calendar, label: 'Reservations', requiresOffering: ['products', 'both'], requiresPermission: 'restaurant.reservations' },
       { to: '/restaurant/reports', icon: BarChart3, label: 'Restaurant Reports', requiresOffering: ['products', 'both'], requiresPermission: 'restaurant.reports' },
-      { to: '/restaurant/setup', icon: Settings, label: 'Table Setup', requiresOffering: ['products', 'both'], requiresPermission: 'restaurant.setup' },
     ],
   },
   {
@@ -629,7 +633,6 @@ const allSections: NavSection[] = [
       { to: '/finance', icon: Landmark, label: 'Finance Dashboard', requiresPermission: 'finance.view', requiresFinanceMode: 'advanced' },
       // ── General Accounting
       { to: '/stores', icon: Building2, label: 'Business Units', requiresPermission: 'finance.view', requiresFinanceMode: 'advanced', groupLabel: 'General Accounting', groupColor: 'blue' },
-      { to: '/finance/cost-centers', icon: Layers, label: 'Cost Centers', requiresPermission: 'finance.view', requiresFinanceMode: 'advanced' },
       { to: '/finance/coa', icon: BookMarked, label: 'Chart of Accounts', requiresPermission: 'finance.view', requiresFinanceMode: 'advanced' },
       { to: '/finance/journal', icon: ScrollText, label: 'Journal Entries', requiresPermission: 'finance.view', requiresFinanceMode: 'advanced' },
       { to: '/finance/trial-balance', icon: Scale, label: 'Trial Balance', requiresPermission: 'finance.reports.view', requiresFinanceMode: 'advanced' },
@@ -638,7 +641,6 @@ const allSections: NavSection[] = [
       { to: '/finance/profit-centers', icon: TrendingUp, label: 'Profit Centers & Segments', requiresPermission: 'finance.coa.manage', requiresFinanceMode: 'advanced' },
       { to: '/finance/fx-revaluation', icon: ArrowLeftRight, label: 'FX Reval & Year-End Close', requiresPermission: 'finance.coa.manage', requiresFinanceMode: 'advanced' },
       { to: '/finance/posting-rules', icon: ListChecks, label: 'Posting Rules & Number Ranges', requiresPermission: 'finance.coa.manage', requiresFinanceMode: 'advanced' },
-      { to: '/finance/document-splitting', icon: GitBranch, label: 'Document Splitting', requiresPermission: 'finance.coa.manage', requiresFinanceMode: 'advanced' },
       { to: '/finance/parallel-ledgers', icon: BookMarked, label: 'Parallel Ledgers / Multi-GAAP', requiresPermission: 'finance.coa.manage', requiresFinanceMode: 'advanced' },
       { to: '/finance/periods', icon: Lock, label: 'Posting Periods', requiresPermission: 'finance.coa.manage', requiresFinanceMode: 'advanced' },
       { to: '/finance/field-rules', icon: ListChecks, label: 'GL Field Rules', requiresPermission: 'finance.coa.manage', requiresFinanceMode: 'advanced' },
@@ -673,6 +675,8 @@ const allSections: NavSection[] = [
     icon: Gauge,
     items: [
       { to: '/controlling', icon: Gauge, label: 'CO Dashboard', requiresPermission: 'finance.view' },
+      // ── Cost Centres
+      { to: '/controlling/cost-centers',             icon: Layers,        label: 'Cost Centers',               requiresPermission: 'finance.view', groupLabel: 'Cost Centres', groupColor: 'blue' },
       // ── Cost Planning
       { to: '/controlling/product-costs',            icon: Boxes,         label: 'Product Cost Planning',      requiresPermission: 'finance.view', groupLabel: 'Cost Planning', groupColor: 'blue' },
       { to: '/controlling/routing',                  icon: GitBranch,     label: 'Work Centres & Routing',     requiresPermission: 'finance.view' },
@@ -1082,9 +1086,14 @@ const pageTitles: Record<string, string> = {
   '/plants': 'Plants',
   '/storage-locations': 'Storage Locations',
   '/pos': 'Point of Sale',
+  '/restaurant/outlets': 'Restaurants',
   '/restaurant/floor': 'Restaurant Floor',
+  '/restaurant/pos': 'Restaurant POS',
   '/restaurant/kitchen': 'Kitchen Board',
   '/restaurant/setup': 'Restaurant Setup',
+  '/restaurant/menu': 'Dine-in Menu',
+  '/restaurant/reservations': 'Reservations',
+  '/restaurant/reports': 'Restaurant Reports',
   '/workspace': 'Workspace Apps',
   '/relationship-manager': 'Relationship Manager',
   '/subscriptions': 'Subscriptions Catalog',
@@ -1144,6 +1153,7 @@ const pageTitles: Record<string, string> = {
   '/crm/audit': 'Audit Log',
 
   '/controlling': 'Controlling (CO) Dashboard',
+  '/controlling/cost-centers': 'Cost Centers',
   '/controlling/product-costs': 'Product Cost Planning',
   '/controlling/routing': 'Work Centres & Routing',
   '/controlling/orders': 'Manufacturing & Project Orders',
@@ -1216,6 +1226,61 @@ function isSilenced(prefs: {
     return daysMatch && timeInRange(hhmm, s.start, s.end)
   })
   return !inAnySlot
+}
+
+// ── Restaurant scope banner ────────────────────────────────────────────────
+
+function RestaurantScopeBanner() {
+  const location = useLocation()
+  const { selectedRestaurant, setSelectedRestaurant } = useRestaurantStore()
+  const isRestaurantPage = location.pathname.startsWith('/restaurant/') && location.pathname !== '/restaurant/outlets'
+  const { data } = useQuery({
+    queryKey: ['restaurants'],
+    queryFn: () => import('@/api/vendor').then(m => m.vendorApi.listRestaurants()),
+    enabled: isRestaurantPage,
+    staleTime: 30_000,
+  })
+  const restaurants = data?.items ?? []
+
+  // Keep selected outlet in sync when list refetches (e.g. after Setup saves timer settings)
+  useEffect(() => {
+    if (!selectedRestaurant?.id || !restaurants.length) return
+    const fresh = restaurants.find(r => r.id === selectedRestaurant.id)
+    if (fresh && fresh.updated_at !== selectedRestaurant.updated_at) {
+      setSelectedRestaurant(fresh)
+    }
+  }, [restaurants, selectedRestaurant?.id, selectedRestaurant?.updated_at, setSelectedRestaurant])
+
+  if (!isRestaurantPage || restaurants.length === 0) return null
+
+  return (
+    <div className="mb-4 flex items-center gap-2 rounded-lg border border-primary/20 bg-primary/5 px-3 py-2 text-sm">
+      <UtensilsCrossed className="w-4 h-4 text-primary shrink-0" />
+      <span className="text-muted-foreground">Restaurant:</span>
+      <select
+        className="flex-1 bg-transparent text-foreground font-medium text-sm outline-none cursor-pointer min-w-0"
+        value={selectedRestaurant?.id ?? ''}
+        onChange={e => {
+          const r = restaurants.find(x => x.id === e.target.value)
+          setSelectedRestaurant(r ?? null)
+        }}
+      >
+        <option value="">All restaurants (BU scope)</option>
+        {restaurants.map(r => (
+          <option key={r.id} value={r.id}>{r.name}</option>
+        ))}
+      </select>
+      {selectedRestaurant && (
+        <button
+          onClick={() => setSelectedRestaurant(null)}
+          className="shrink-0 text-muted-foreground hover:text-foreground transition-colors"
+          title="Clear restaurant filter"
+        >
+          ✕
+        </button>
+      )}
+    </div>
+  )
 }
 
 // ── Component ─────────────────────────────────────────────────────────────────
@@ -4032,6 +4097,7 @@ export default function DashboardLayout() {
 
         {/* Page content */}
         <main className="min-w-0 overflow-x-clip [overscroll-behavior-y:none] p-4 sm:p-6 lg:p-8 bg-background font-sans text-sm">
+          <RestaurantScopeBanner />
           <FieldMappingProvider>
             <Outlet />
           </FieldMappingProvider>

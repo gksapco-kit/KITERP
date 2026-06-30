@@ -26,15 +26,17 @@ const QUALITY_BADGE: Record<string, { bg: string; text: string; label: string }>
 }
 
 const MOVEMENT_TYPES = [
-  { value: '101', label: '101 – GR for PO' },
-  { value: '102', label: '102 – GR Reversal' },
-  { value: '122', label: '122 – Return to Vendor' },
-  { value: '201', label: '201 – GI for Cost Center' },
-  { value: '261', label: '261 – GI for Production Order' },
-  { value: '301', label: '301 – Plant to Plant Transfer' },
-  { value: '311', label: '311 – Storage Location Transfer' },
-  { value: '501', label: '501 – Receipt w/o PO' },
+  { value: 'gr_po', label: 'GR for PO' },
+  { value: 'gr_reversal', label: 'GR Reversal' },
+  { value: 'return_to_vendor', label: 'Return to Vendor' },
+  { value: 'gi_cost_center', label: 'GI for Cost Center' },
+  { value: 'gi_production', label: 'GI for Production Order' },
+  { value: 'plant_transfer', label: 'Plant to Plant Transfer' },
+  { value: 'sloc_transfer', label: 'Storage Location Transfer' },
+  { value: 'receipt_no_po', label: 'Receipt w/o PO' },
 ]
+
+const movementLabel = (mt: string) => MOVEMENT_TYPES.find(t => t.value === mt)?.label ?? mt
 
 // ── Batch Edit ──────────────────────────────────────────────────
 function BatchQualityModal({ batch, onClose }: { batch: GoodsBatch; onClose: () => void }) {
@@ -93,7 +95,7 @@ function GoodsMovementModal({ onClose }: { onClose: () => void }) {
   const { data: productsData } = useProducts({ size: 200 })
   const products = productsData?.items ?? []
 
-  const [movementType, setMovementType] = useState('501')
+  const [movementType, setMovementType] = useState('receipt_no_po')
   const [postingDate, setPostingDate] = useState(new Date().toISOString().slice(0, 10))
   const [plantId, setPlantId] = useState('')
   const [notes, setNotes] = useState('')
@@ -241,7 +243,8 @@ export default function GoodsManagementPage() {
     return movements.filter(m =>
       !q ||
       m.document_number.toLowerCase().includes(q) ||
-      m.movement_type.includes(q)
+      m.movement_type.includes(q) ||
+      movementLabel(m.movement_type).toLowerCase().includes(q)
     )
   }, [movements, search])
 
@@ -398,8 +401,7 @@ export default function GoodsManagementPage() {
                     <tr key={m.id} className="border-t hover:bg-gray-50 dark:hover:bg-gray-800/50">
                       <td className="px-3 py-2 font-mono text-xs text-blue-600">{m.document_number}</td>
                       <td className="px-3 py-2">
-                        <span className="bg-blue-100 text-blue-700 text-xs px-2 py-0.5 rounded font-medium">{m.movement_type}</span>
-                        {m.movement_type_label && <span className="text-xs text-gray-500 ml-1">– {m.movement_type_label}</span>}
+                        <span className="bg-blue-100 text-blue-700 text-xs px-2 py-0.5 rounded font-medium">{movementLabel(m.movement_type)}</span>
                       </td>
                       <td className="px-3 py-2 text-sm">{formatDate(m.posting_date)}</td>
                       <td className="px-3 py-2 text-sm text-gray-600">{m.plant_id ? m.plant_id.slice(0, 8) : '—'}</td>

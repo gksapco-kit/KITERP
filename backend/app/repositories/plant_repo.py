@@ -50,3 +50,15 @@ class PlantRepository(BaseRepository[Plant]):
         query = query.order_by(Plant.sort_order, Plant.name)
         result = await self.db.execute(query)
         return list(result.scalars().all())
+
+    async def list_by_vendor(
+        self,
+        vendor_id: UUID,
+        is_active: Optional[bool] = None,
+    ) -> List[Plant]:
+        query = select(Plant).where(Plant.vendor_id == vendor_id)
+        if is_active is not None:
+            query = query.where(Plant.is_active == is_active)
+        query = query.order_by(Plant.sort_order, Plant.name)
+        result = await self.db.execute(query)
+        return list(result.scalars().all())

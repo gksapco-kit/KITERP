@@ -29,6 +29,14 @@ import { Button } from '@/components/ui/button'
 
 type Tab = 'summary' | 'routing' | 'costs' | 'variance' | 'budget' | 'movements' | 'confirmations'
 
+const MOVEMENT_TYPE_LABELS: Record<string, string> = {
+  component_issue: 'Component Issue',
+  component_return: 'Component Return',
+  fg_receipt: 'FG Receipt',
+  fg_receipt_reversal: 'FG Receipt Reversal',
+}
+const movementTypeLabel = (mt: string) => MOVEMENT_TYPE_LABELS[mt] ?? mt
+
 export default function ManufacturingOrderDetailPage() {
   const { id } = useParams<{ id: string }>()
   const { data: order, isLoading, refetch } = useManufacturingOrder(id)
@@ -636,7 +644,7 @@ export default function ManufacturingOrderDetailPage() {
                 <tr key={gm.id} className="hover:bg-gray-50">
                   <td className="px-4 py-3 font-mono text-xs text-gray-600">{gm.document_no}</td>
                   <td className="px-4 py-3">
-                    <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-gray-100 text-gray-700">{gm.movement_type}</span>
+                    <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-gray-100 text-gray-700">{movementTypeLabel(gm.movement_type)}</span>
                   </td>
                   <td className="px-4 py-3 text-gray-600">{gm.posting_date}</td>
                   <td className="px-4 py-3 text-gray-700">{gm.description ?? '—'}</td>

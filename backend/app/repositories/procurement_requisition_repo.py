@@ -82,21 +82,52 @@ class PurchaseRequisitionRepository(BaseRepository[PurchaseRequisition]):
         count = result.scalar_one()
         return f"PR-{str(count + 1).zfill(6)}"
 
-    async def get_pending_approval_for_approver(
-        self, vendor_id: UUID, approver_id: UUID
-    ) -> List[PurchaseRequisition]:
-        from sqlalchemy import join
-        result = await self.db.execute(
+    async def list_pending_for_approver(
+        self,
+        vendor_id: UUID,
+        approver_id: UUID,
+        skip: int = 0,
+        limit: int = 20,
+    ) -> tuple[List[PurchaseRequisition], int]:
+        """PRs in submitted status whose current (lowest-level) pending step is assigned to approver_id."""
+        min_pending_level = (
+            select(
+                PurchaseRequisitionApproval.requisition_id,
+                sqlfunc.min(PurchaseRequisitionApproval.level).label("min_level"),
+            )
+            .where(PurchaseRequisitionApproval.status == "pending")
+            .group_by(PurchaseRequisitionApproval.requisition_id)
+            .subquery()
+        )
+        base = (
             select(PurchaseRequisition)
             .join(
                 PurchaseRequisitionApproval,
                 PurchaseRequisitionApproval.requisition_id == PurchaseRequisition.id,
             )
+            .join(
+                min_pending_level,
+                and_(
+                    min_pending_level.c.requisition_id == PurchaseRequisition.id,
+                    PurchaseRequisitionApproval.level == min_pending_level.c.min_level,
+                ),
+            )
             .where(
                 PurchaseRequisition.vendor_id == vendor_id,
+                PurchaseRequisition.status == "submitted",
                 PurchaseRequisitionApproval.approver_id == approver_id,
                 PurchaseRequisitionApproval.status == "pending",
             )
-            .order_by(PurchaseRequisition.created_at.desc())
         )
-        return list(result.scalars().all())
+        count_result = await self.db.execute(
+            select(sqlfunc.count()).select_from(base.subquery())
+        )
+        total = count_result.scalar_one()
+
+        result = await self.db.execute(
+            base.options(selectinload(PurchaseRequisition.items))
+            .order_by(PurchaseRequisition.submitted_at.desc().nullslast(), PurchaseRequisition.created_at.desc())
+            .offset(skip)
+            .limit(limit)
+        )
+        return list(result.scalars().unique().all()), total

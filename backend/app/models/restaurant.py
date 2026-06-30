@@ -6,12 +6,39 @@ from sqlalchemy.sql import func
 from app.database import Base
 
 
+class Restaurant(Base):
+    """A specific restaurant outlet — tagged under a Store (Business Unit)."""
+    __tablename__ = "restaurant"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    vendor_id = Column(UUID(as_uuid=True), ForeignKey("vendor.id", ondelete="CASCADE"), nullable=False, index=True)
+    store_id = Column(UUID(as_uuid=True), ForeignKey("store.id", ondelete="CASCADE"), nullable=False, index=True)
+    name = Column(String(200), nullable=False)
+    code = Column(String(50))
+    cuisine = Column(String(120))
+    phone = Column(String(20))
+    email = Column(String(255))
+    address = Column(JSONB, default={})
+    settings = Column(JSONB, default={})  # per-restaurant config
+    is_active = Column(Boolean, default=True)
+    is_default = Column(Boolean, default=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+    __table_args__ = (
+        Index("ix_restaurant_vendor", "vendor_id"),
+        Index("ix_restaurant_store", "store_id"),
+    )
+
+
 class RestaurantZone(Base):
     __tablename__ = "restaurant_zone"
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     vendor_id = Column(UUID(as_uuid=True), ForeignKey("vendor.id", ondelete="CASCADE"), nullable=False, index=True)
+    restaurant_id = Column(UUID(as_uuid=True), ForeignKey("restaurant.id", ondelete="CASCADE"), nullable=True, index=True)
     name = Column(String(120), nullable=False)
+    floor = Column(String(40))
     sort_order = Column(Integer, nullable=False, default=0)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
@@ -21,6 +48,7 @@ class RestaurantTable(Base):
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     vendor_id = Column(UUID(as_uuid=True), ForeignKey("vendor.id", ondelete="CASCADE"), nullable=False, index=True)
+    restaurant_id = Column(UUID(as_uuid=True), ForeignKey("restaurant.id", ondelete="CASCADE"), nullable=True, index=True)
     zone_id = Column(UUID(as_uuid=True), ForeignKey("restaurant_zone.id", ondelete="SET NULL"))
     label = Column(String(40), nullable=False)
     capacity = Column(Integer, nullable=False, default=4)
@@ -39,6 +67,7 @@ class RestaurantOrder(Base):
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     vendor_id = Column(UUID(as_uuid=True), ForeignKey("vendor.id", ondelete="CASCADE"), nullable=False, index=True)
+    restaurant_id = Column(UUID(as_uuid=True), ForeignKey("restaurant.id", ondelete="CASCADE"), nullable=True, index=True)
     table_id = Column(UUID(as_uuid=True), ForeignKey("restaurant_table.id", ondelete="SET NULL"), index=True)
     # open | billed | closed | voided
     status = Column(String(20), nullable=False, default="open")
@@ -47,6 +76,8 @@ class RestaurantOrder(Base):
     # accumulated line items [{product_id, name, qty, unit_price, tax_rate, item_type}]
     items = Column(JSONB, nullable=False, default=list)
     notes = Column(Text)
+    # Bill adjustments: {service_charge_pct, tip_amount, discount_amount, discount_pct}
+    adjustments = Column(JSONB, nullable=True, default=dict)
     pos_transaction_id = Column(UUID(as_uuid=True), ForeignKey("pos_transaction.id", ondelete="SET NULL"))
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
@@ -58,6 +89,7 @@ class RestaurantKOT(Base):
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     vendor_id = Column(UUID(as_uuid=True), ForeignKey("vendor.id", ondelete="CASCADE"), nullable=False, index=True)
+    restaurant_id = Column(UUID(as_uuid=True), ForeignKey("restaurant.id", ondelete="CASCADE"), nullable=True, index=True)
     order_id = Column(UUID(as_uuid=True), ForeignKey("restaurant_order.id", ondelete="CASCADE"), nullable=False, index=True)
     table_id = Column(UUID(as_uuid=True), ForeignKey("restaurant_table.id", ondelete="SET NULL"))
     kot_number = Column(Integer, nullable=False, default=1)
@@ -75,6 +107,7 @@ class RestaurantReservation(Base):
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     vendor_id = Column(UUID(as_uuid=True), ForeignKey("vendor.id", ondelete="CASCADE"), nullable=False, index=True)
+    restaurant_id = Column(UUID(as_uuid=True), ForeignKey("restaurant.id", ondelete="CASCADE"), nullable=True, index=True)
     table_id = Column(UUID(as_uuid=True), ForeignKey("restaurant_table.id", ondelete="SET NULL"))
     guest_name = Column(String(200), nullable=False)
     guest_phone = Column(String(30))

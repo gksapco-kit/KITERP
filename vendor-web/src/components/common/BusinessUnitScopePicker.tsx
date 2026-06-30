@@ -73,7 +73,26 @@ export function BusinessUnitScopePicker({
         activeStores.length === 0 ? (
           <p className="text-sm text-gray-400 italic">No business units yet. Create one under Business Units first.</p>
         ) : (
-          <div className="space-y-1.5 max-h-48 overflow-y-auto rounded-lg border bg-gray-50 p-2">
+          <div className="space-y-1.5">
+            <div className="flex items-center justify-end gap-3 text-xs">
+              <button
+                type="button"
+                className="font-medium text-indigo-600 hover:text-indigo-800 disabled:opacity-40"
+                disabled={selectedIds.length === activeStores.length}
+                onClick={() => onSelectedChange(activeStores.map(s => s.id))}
+              >
+                Select all
+              </button>
+              <button
+                type="button"
+                className="font-medium text-gray-500 hover:text-gray-700 disabled:opacity-40"
+                disabled={selectedIds.length === 0}
+                onClick={() => onSelectedChange([])}
+              >
+                Clear all
+              </button>
+            </div>
+            <div className="space-y-1.5 max-h-48 overflow-y-auto rounded-lg border bg-gray-50 p-2">
             {activeStores.map(s => {
               const checked = selectedIds.includes(s.id)
               return (
@@ -95,6 +114,7 @@ export function BusinessUnitScopePicker({
                 </label>
               )
             })}
+            </div>
           </div>
         )
       )}

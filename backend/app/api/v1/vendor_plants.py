@@ -33,14 +33,17 @@ def _plant_to_dict(plant: Plant) -> dict:
 
 @router.get("")
 async def list_plants(
-    store_id: str = Query(..., description="Business unit id"),
+    store_id: Optional[str] = Query(None, description="Business unit id — omit to list all plants"),
     is_active: Optional[bool] = Query(None),
     vendor_id: UUID = Depends(get_current_vendor_id),
     db: AsyncSession = Depends(get_db),
 ):
-    await validate_store_ids(db, vendor_id, [store_id])
     repo = PlantRepository(db)
-    plants = await repo.list_by_store(vendor_id, UUID(store_id), is_active=is_active)
+    if store_id:
+        await validate_store_ids(db, vendor_id, [store_id])
+        plants = await repo.list_by_store(vendor_id, UUID(store_id), is_active=is_active)
+    else:
+        plants = await repo.list_by_vendor(vendor_id, is_active=is_active)
     return JSONResponse(content={"plants": [_plant_to_dict(p) for p in plants]})
 
 

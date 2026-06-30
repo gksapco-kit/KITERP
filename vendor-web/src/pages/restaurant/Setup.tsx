@@ -1,13 +1,29 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
-import { ArrowLeft, Check, Copy, ExternalLink, Loader2, Pencil, Plus, QrCode, Trash2, X } from 'lucide-react'
+import { ArrowLeft, Check, Clock, Copy, ExternalLink, Loader2, Pencil, Plus, QrCode, Trash2, X } from 'lucide-react'
 import { vendorApi } from '@/api/vendor'
 import { useMyVendor } from '@/hooks/useVendor'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { toast } from 'sonner'
 import { getCustomerStorefrontBaseUrl } from '@/lib/storefrontPreviewUrl'
+import { useRestaurantStore } from '@/stores/restaurantStore'
+
+interface DiningTimerConfig {
+  enabled: boolean
+  target_minutes: number
+  warn_minutes: number
+}
+
+function parseDiningTimerConfig(raw: unknown): DiningTimerConfig {
+  const cfg = (raw && typeof raw === 'object' ? raw : {}) as Partial<DiningTimerConfig>
+  return {
+    enabled: cfg.enabled === true,
+    target_minutes: cfg.target_minutes ?? 60,
+    warn_minutes: cfg.warn_minutes ?? 10,
+  }
+}
 
 function getTableQRUrl(vendorSlug: string, qrToken: string) {
   return `${getCustomerStorefrontBaseUrl(vendorSlug)}/table/${qrToken}`
@@ -168,27 +184,42 @@ function TableEditRow({ table, zones, vendorSlug, onDelete }: {
 export default function RestaurantSetupPage() {
   const qc = useQueryClient()
   const [zoneName, setZoneName] = useState('')
+  const [zoneFloor, setZoneFloor] = useState('')
   const [tableLabel, setTableLabel] = useState('')
   const [tableZone, setTableZone] = useState<string>('')
   const [tableCapacity, setTableCapacity] = useState('4')
+  const { selectedRestaurant, setSelectedRestaurant } = useRestaurantStore()
+  const rid = selectedRestaurant?.id
 
   const vendorQ = useMyVendor()
   const vendorSlug = vendorQ.data?.slug as string | undefined
 
   const zonesQ = useQuery({
-    queryKey: ['restaurant', 'zones'],
-    queryFn: () => vendorApi.restaurantListZones(),
+    queryKey: ['restaurant', 'zones', rid],
+    queryFn: () => vendorApi.restaurantListZones(rid ? { restaurant_id: rid } : undefined),
   })
   const tablesQ = useQuery({
-    queryKey: ['restaurant', 'tables'],
-    queryFn: () => vendorApi.restaurantListTables(),
+    queryKey: ['restaurant', 'tables', rid],
+    queryFn: () => vendorApi.restaurantListTables(rid ? { restaurant_id: rid } : undefined),
+  })
+  const outletQ = useQuery({
+    queryKey: ['restaurant', 'outlet', rid],
+    queryFn: () => vendorApi.getRestaurant(rid!),
+    enabled: !!rid,
+    staleTime: 15_000,
   })
 
   const createZone = useMutation({
-    mutationFn: () => vendorApi.restaurantCreateZone({ name: zoneName.trim(), sort_order: (zonesQ.data?.items.length ?? 0) }),
+    mutationFn: () => vendorApi.restaurantCreateZone({
+      name: zoneName.trim(),
+      sort_order: (zonesQ.data?.items.length ?? 0),
+      ...(zoneFloor.trim() ? { floor: zoneFloor.trim() } : {}),
+      ...(rid ? { restaurant_id: rid } : {}),
+    }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['restaurant', 'zones'] })
       setZoneName('')
+      setZoneFloor('')
       toast.success('Zone added')
     },
     onError: () => toast.error('Could not add zone'),
@@ -209,6 +240,7 @@ export default function RestaurantSetupPage() {
         label: tableLabel.trim(),
         zone_id: tableZone || undefined,
         capacity: parseInt(tableCapacity) || 4,
+        ...(rid ? { restaurant_id: rid } : {}),
       }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['restaurant', 'tables'] })
@@ -230,6 +262,84 @@ export default function RestaurantSetupPage() {
   const zones = zonesQ.data?.items ?? []
   const tables = tablesQ.data?.items ?? []
 
+  const savedTimerCfg = parseDiningTimerConfig(
+    outletQ.data?.settings?.dining_timer ?? selectedRestaurant?.settings?.dining_timer,
+  )
+  const hasSavedTimer =
+    outletQ.data?.settings?.dining_timer != null ||
+    selectedRestaurant?.settings?.dining_timer != null
+
+  const [timerEditing, setTimerEditing] = useState(false)
+  const [timerEnabled, setTimerEnabled] = useState<boolean>(savedTimerCfg.enabled)
+  const [targetMinutes, setTargetMinutes] = useState<string>(String(savedTimerCfg.target_minutes))
+  const [warnMinutes, setWarnMinutes] = useState<string>(String(savedTimerCfg.warn_minutes))
+
+  useEffect(() => {
+    setTimerEditing(false)
+  }, [rid])
+
+  useEffect(() => {
+    if (!rid || !outletQ.isFetched) return
+    setTimerEditing(outletQ.data?.settings?.dining_timer == null)
+  }, [rid, outletQ.isFetched, outletQ.data?.settings?.dining_timer])
+
+  // Sync draft fields from API when not editing
+  useEffect(() => {
+    if (timerEditing) return
+    const cfg = parseDiningTimerConfig(
+      outletQ.data?.settings?.dining_timer ?? selectedRestaurant?.settings?.dining_timer,
+    )
+    setTimerEnabled(cfg.enabled)
+    setTargetMinutes(String(cfg.target_minutes))
+    setWarnMinutes(String(cfg.warn_minutes))
+  }, [rid, outletQ.data?.settings?.dining_timer, selectedRestaurant?.settings?.dining_timer, timerEditing])
+
+  function startTimerEdit() {
+    const cfg = parseDiningTimerConfig(
+      outletQ.data?.settings?.dining_timer ?? selectedRestaurant?.settings?.dining_timer,
+    )
+    setTimerEnabled(cfg.enabled)
+    setTargetMinutes(String(cfg.target_minutes))
+    setWarnMinutes(String(cfg.warn_minutes))
+    setTimerEditing(true)
+  }
+
+  function cancelTimerEdit() {
+    const cfg = parseDiningTimerConfig(
+      outletQ.data?.settings?.dining_timer ?? selectedRestaurant?.settings?.dining_timer,
+    )
+    setTimerEnabled(cfg.enabled)
+    setTargetMinutes(String(cfg.target_minutes))
+    setWarnMinutes(String(cfg.warn_minutes))
+    setTimerEditing(false)
+  }
+
+  const saveTimer = useMutation({
+    mutationFn: () => {
+      const cfg: DiningTimerConfig = {
+        enabled: timerEnabled,
+        target_minutes: Math.max(1, parseInt(targetMinutes) || 60),
+        warn_minutes: Math.max(0, parseInt(warnMinutes) || 10),
+      }
+      return vendorApi.updateRestaurant(rid!, {
+        settings: {
+          ...(outletQ.data?.settings ?? selectedRestaurant?.settings ?? {}),
+          dining_timer: cfg,
+        },
+      })
+    },
+    onSuccess: (updated) => {
+      qc.invalidateQueries({ queryKey: ['restaurants'] })
+      qc.invalidateQueries({ queryKey: ['restaurant', 'outlet', updated.id] })
+      if (selectedRestaurant?.id === updated.id) {
+        setSelectedRestaurant(updated)
+      }
+      setTimerEditing(false)
+      toast.success('Dining timer settings saved')
+    },
+    onError: () => toast.error('Could not save dining timer settings'),
+  })
+
   return (
     <div className="max-w-4xl mx-auto space-y-8">
       <div className="flex items-center gap-3">
@@ -248,14 +358,26 @@ export default function RestaurantSetupPage() {
       {/* Zones */}
       <section className="rounded-xl border bg-white p-5 space-y-4">
         <h2 className="font-semibold text-gray-800">Zones</h2>
-        <div className="flex gap-2 flex-wrap">
-          <Input
-            placeholder="e.g. Patio, Indoor, Rooftop"
-            value={zoneName}
-            onChange={e => setZoneName(e.target.value)}
-            onKeyDown={e => { if (e.key === 'Enter' && zoneName.trim()) createZone.mutate() }}
-            className="max-w-xs h-9 text-sm"
-          />
+        <div className="flex gap-2 flex-wrap items-end">
+          <div>
+            <label className="text-xs uppercase text-gray-400 font-semibold block mb-1">Zone name *</label>
+            <Input
+              placeholder="e.g. Patio, Indoor, Rooftop"
+              value={zoneName}
+              onChange={e => setZoneName(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter' && zoneName.trim()) createZone.mutate() }}
+              className="h-9 text-sm w-44"
+            />
+          </div>
+          <div>
+            <label className="text-xs uppercase text-gray-400 font-semibold block mb-1">Floor (optional)</label>
+            <Input
+              placeholder="e.g. Ground, 1st, Rooftop"
+              value={zoneFloor}
+              onChange={e => setZoneFloor(e.target.value)}
+              className="h-9 text-sm w-36"
+            />
+          </div>
           <Button size="sm" disabled={!zoneName.trim() || createZone.isPending} onClick={() => createZone.mutate()}>
             {createZone.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <><Plus className="w-4 h-4" /> Add zone</>}
           </Button>
@@ -264,7 +386,12 @@ export default function RestaurantSetupPage() {
           <ul className="divide-y rounded-lg border">
             {zones.map(z => (
               <li key={z.id} className="flex items-center justify-between px-3 py-2 text-sm">
-                <span>{z.name}</span>
+                <span>
+                  {z.name}
+                  {z.floor && (
+                    <span className="ml-2 text-xs text-gray-400 font-medium">· {z.floor}</span>
+                  )}
+                </span>
                 <button
                   type="button"
                   className="text-gray-400 hover:text-red-500 p-1"
@@ -340,6 +467,149 @@ export default function RestaurantSetupPage() {
               <li className="px-3 py-6 text-center text-gray-400 text-sm">No tables yet.</li>
             )}
           </ul>
+        )}
+      </section>
+
+      {/* Dining timer */}
+      <section className="rounded-xl border bg-white p-5 space-y-4">
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2">
+            <Clock className="w-5 h-5 text-amber-600" />
+            <h2 className="font-semibold text-gray-800">Dining Timer</h2>
+          </div>
+          {rid && hasSavedTimer && !timerEditing && (
+            <Button type="button" variant="outline" size="sm" className="gap-1.5" onClick={startTimerEdit}>
+              <Pencil className="w-3.5 h-3.5" />
+              Edit
+            </Button>
+          )}
+        </div>
+        <p className="text-sm text-gray-500">
+          Show a live countdown on each occupied table card on the Floor screen. The timer turns amber when the warning threshold is reached and red when the target time is exceeded.
+        </p>
+
+        {!rid ? (
+          <p className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+            Select a restaurant outlet from the picker above to configure its dining timer.
+          </p>
+        ) : outletQ.isLoading ? (
+          <Loader2 className="w-5 h-5 animate-spin text-gray-400" />
+        ) : !timerEditing ? (
+          <div className="space-y-4">
+            <div className="flex items-center gap-2">
+              <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold ${
+                savedTimerCfg.enabled
+                  ? 'bg-amber-100 text-amber-800'
+                  : 'bg-gray-100 text-gray-600'
+              }`}>
+                {savedTimerCfg.enabled ? 'Enabled' : 'Disabled'}
+              </span>
+              {hasSavedTimer && (
+                <span className="text-xs text-gray-400">Saved settings</span>
+              )}
+            </div>
+
+            {savedTimerCfg.enabled ? (
+              <>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="rounded-lg border bg-gray-50 px-3 py-2.5">
+                    <p className="text-xs uppercase text-gray-400 font-semibold">Target duration</p>
+                    <p className="text-sm font-semibold text-gray-800 mt-0.5">{savedTimerCfg.target_minutes} min</p>
+                  </div>
+                  <div className="rounded-lg border bg-gray-50 px-3 py-2.5">
+                    <p className="text-xs uppercase text-gray-400 font-semibold">Warning threshold</p>
+                    <p className="text-sm font-semibold text-gray-800 mt-0.5">{savedTimerCfg.warn_minutes} min remaining</p>
+                  </div>
+                </div>
+                <div className="flex gap-3 text-xs text-gray-500 items-start rounded-lg bg-gray-50 border px-3 py-2">
+                  <Clock className="w-4 h-4 text-gray-400 shrink-0 mt-0.5" />
+                  <span>
+                    Tables will show: <span className="text-emerald-600 font-medium">green</span> → <span className="text-amber-600 font-medium">amber</span> (at {savedTimerCfg.warn_minutes} min left) → <span className="text-red-600 font-medium">red/over</span> (past {savedTimerCfg.target_minutes} min).
+                  </span>
+                </div>
+              </>
+            ) : (
+              <p className="text-sm text-gray-500 rounded-lg border bg-gray-50 px-3 py-2">
+                Dining timer is off — occupied tables on Floor will not show a countdown.
+              </p>
+            )}
+          </div>
+        ) : (
+          <div className="space-y-5">
+            {/* Enable toggle */}
+            <label className="flex items-center gap-3 cursor-pointer select-none">
+              <div
+                role="switch"
+                aria-checked={timerEnabled}
+                onClick={() => setTimerEnabled(v => !v)}
+                className={`relative w-11 h-6 rounded-full transition-colors cursor-pointer ${timerEnabled ? 'bg-amber-500' : 'bg-gray-200'}`}
+              >
+                <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${timerEnabled ? 'translate-x-5' : 'translate-x-0'}`} />
+              </div>
+              <span className="text-sm font-medium text-gray-700">
+                {timerEnabled ? 'Dining timer enabled' : 'Dining timer disabled'}
+              </span>
+            </label>
+
+            <div className={`grid grid-cols-1 sm:grid-cols-2 gap-4 transition-opacity ${timerEnabled ? 'opacity-100' : 'opacity-40 pointer-events-none'}`}>
+              <div>
+                <label className="text-xs uppercase text-gray-400 font-semibold block mb-1">
+                  Target dining duration (minutes)
+                </label>
+                <Input
+                  type="number"
+                  min={1}
+                  max={480}
+                  value={targetMinutes}
+                  onChange={e => setTargetMinutes(e.target.value)}
+                  className="h-9 text-sm w-32"
+                  disabled={!timerEnabled}
+                />
+                <p className="text-xs text-gray-400 mt-1">Timer turns red when exceeded. Default: 60.</p>
+              </div>
+              <div>
+                <label className="text-xs uppercase text-gray-400 font-semibold block mb-1">
+                  Warning threshold (minutes remaining)
+                </label>
+                <Input
+                  type="number"
+                  min={0}
+                  max={parseInt(targetMinutes) - 1 || 59}
+                  value={warnMinutes}
+                  onChange={e => setWarnMinutes(e.target.value)}
+                  className="h-9 text-sm w-32"
+                  disabled={!timerEnabled}
+                />
+                <p className="text-xs text-gray-400 mt-1">Timer turns amber at this many minutes left. Default: 10.</p>
+              </div>
+            </div>
+
+            {timerEnabled && (
+              <div className="flex gap-3 text-xs text-gray-500 items-start rounded-lg bg-gray-50 border px-3 py-2">
+                <Clock className="w-4 h-4 text-gray-400 shrink-0 mt-0.5" />
+                <span>
+                  Tables will show: <span className="text-emerald-600 font-medium">green</span> → <span className="text-amber-600 font-medium">amber</span> (at {warnMinutes || '?'} min left) → <span className="text-red-600 font-medium">red/over</span> (past {targetMinutes || '?'} min).
+                </span>
+              </div>
+            )}
+
+            <div className="flex flex-wrap gap-2">
+              <Button
+                size="sm"
+                disabled={saveTimer.isPending}
+                onClick={() => saveTimer.mutate()}
+                className="gap-2"
+              >
+                {saveTimer.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
+                Save timer settings
+              </Button>
+              {hasSavedTimer && (
+                <Button type="button" size="sm" variant="outline" disabled={saveTimer.isPending} onClick={cancelTimerEdit}>
+                  Cancel
+                </Button>
+              )}
+            </div>
+          </div>
         )}
       </section>
     </div>

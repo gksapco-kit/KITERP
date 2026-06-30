@@ -24,7 +24,7 @@ import {
   KeyRound, Eye, EyeOff, CheckCircle2, AlertCircle,
   Activity, LogOut, Bell, Store as StoreIcon, UsersRound, CreditCard, ShieldAlert,
   Lock, Clock, Monitor, Smartphone, Calendar, FileCheck2, Upload, Hash, FileText,
-  ExternalLink, RefreshCcw, Info, X, Trash2,
+  ExternalLink, RefreshCcw, Info, X, Trash2, SlidersHorizontal,
 } from 'lucide-react'
 import { cn, mediaUrl } from '@/lib/utils'
 import { useImageSourcePicker } from '@/components/common/ImageSourcePicker'
@@ -38,7 +38,7 @@ import {
 import type { VendorDocumentType } from '@/types'
 import type { OtpSendResponse } from '@/api/auth'
 
-type Section = 'identifiers' | 'personal' | 'security' | 'business' | 'role' | 'activity'
+type Section = 'identifiers' | 'personal' | 'security' | 'business' | 'role' | 'activity' | 'preferences'
 
 export default function ProfilePage() {
   useMe()
@@ -90,6 +90,10 @@ export default function ProfilePage() {
         <ActivitySection
           open={openSection === 'activity'}
           toggle={() => toggle('activity')}
+        />
+        <PreferencesSection
+          open={openSection === 'preferences'}
+          toggle={() => toggle('preferences')}
         />
       </div>
 
@@ -1807,6 +1811,226 @@ function DocumentRow({
         </div>
       </div>
     </div>
+  )
+}
+
+// ── Preferences ─────────────────────────────────────────────────────
+
+const PREFS_LS_KEY = 'kiterp:prefs'
+
+interface KiterpPrefs {
+  numberFormat: 'indian' | 'international' | 'european'
+  dateFormat: 'DD/MM/YYYY' | 'MM/DD/YYYY' | 'YYYY-MM-DD' | 'DD-MM-YYYY' | 'D MMM YYYY'
+  timeFormat: '12h' | '24h'
+  weekStart: 'monday' | 'sunday'
+}
+
+const DEFAULT_PREFS: KiterpPrefs = {
+  numberFormat: 'indian',
+  dateFormat: 'DD/MM/YYYY',
+  timeFormat: '12h',
+  weekStart: 'monday',
+}
+
+function loadPrefs(): KiterpPrefs {
+  try {
+    const raw = localStorage.getItem(PREFS_LS_KEY)
+    if (raw) return { ...DEFAULT_PREFS, ...JSON.parse(raw) }
+  } catch { /* ignore */ }
+  return { ...DEFAULT_PREFS }
+}
+
+function fmtSampleNumber(fmt: KiterpPrefs['numberFormat']): string {
+  if (fmt === 'indian')        return '₹12,34,567.89'
+  if (fmt === 'european')      return '₹12.34.567,89'
+  return '₹1,234,567.89'
+}
+
+function fmtSampleDate(fmt: KiterpPrefs['dateFormat']): string {
+  const now = new Date()
+  const d  = String(now.getDate()).padStart(2, '0')
+  const m  = String(now.getMonth() + 1).padStart(2, '0')
+  const y  = now.getFullYear()
+  const mon = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][now.getMonth()]
+  switch (fmt) {
+    case 'MM/DD/YYYY': return `${m}/${d}/${y}`
+    case 'YYYY-MM-DD': return `${y}-${m}-${d}`
+    case 'DD-MM-YYYY': return `${d}-${m}-${y}`
+    case 'D MMM YYYY': return `${now.getDate()} ${mon} ${y}`
+    default:           return `${d}/${m}/${y}`
+  }
+}
+
+function fmtSampleTime(fmt: KiterpPrefs['timeFormat']): string {
+  const now = new Date()
+  const h   = now.getHours()
+  const min = String(now.getMinutes()).padStart(2, '0')
+  if (fmt === '24h') return `${String(h).padStart(2, '0')}:${min}`
+  const period = h >= 12 ? 'PM' : 'AM'
+  return `${h % 12 || 12}:${min} ${period}`
+}
+
+function PrefCard({
+  selected, onClick, children,
+}: { selected: boolean; onClick: () => void; children: React.ReactNode }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={cn(
+        'flex flex-col items-center justify-center gap-1 rounded-lg border p-3 text-center transition-all',
+        selected
+          ? 'border-primary/50 bg-primary/5 ring-1 ring-primary/30 shadow-sm'
+          : 'border-border bg-card hover:bg-muted/40',
+      )}
+    >
+      {children}
+    </button>
+  )
+}
+
+function PrefGroup({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div>
+      <p className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">{label}</p>
+      {children}
+    </div>
+  )
+}
+
+function PreferencesSection({ open, toggle }: { open: boolean; toggle: () => void }) {
+  const [prefs, setPrefs] = useState<KiterpPrefs>(loadPrefs)
+  const [dirty, setDirty] = useState(false)
+
+  const set = <K extends keyof KiterpPrefs>(key: K, value: KiterpPrefs[K]) => {
+    setPrefs(p => ({ ...p, [key]: value }))
+    setDirty(true)
+  }
+
+  const onSave = () => {
+    localStorage.setItem(PREFS_LS_KEY, JSON.stringify(prefs))
+    setDirty(false)
+    toast.success('Preferences saved')
+  }
+
+  const onReset = () => {
+    setPrefs({ ...DEFAULT_PREFS })
+    localStorage.setItem(PREFS_LS_KEY, JSON.stringify(DEFAULT_PREFS))
+    setDirty(false)
+    toast.success('Preferences reset to defaults')
+  }
+
+  return (
+    <SectionWrapper
+      title="Preferences"
+      subtitle="Display formats for amounts, dates, and times"
+      icon={SlidersHorizontal}
+      open={open}
+      toggle={toggle}
+    >
+      <div className="pt-4 space-y-5">
+
+        {/* Number / Amount format */}
+        <PrefGroup label="Amount Format">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+            {([
+              { id: 'indian'        as const, label: 'Indian',        example: '₹12,34,567.89', desc: 'Lakh / crore grouping' },
+              { id: 'international' as const, label: 'International', example: '₹1,234,567.89', desc: 'Thousand grouping' },
+              { id: 'european'      as const, label: 'European',      example: '₹1.234.567,89', desc: 'Period · comma decimal' },
+            ]).map(opt => (
+              <PrefCard key={opt.id} selected={prefs.numberFormat === opt.id} onClick={() => set('numberFormat', opt.id)}>
+                <span className="text-xs font-semibold text-foreground">{opt.label}</span>
+                <span className="font-mono text-sm font-bold text-primary">{opt.example}</span>
+                <span className="text-[10px] text-muted-foreground leading-tight">{opt.desc}</span>
+              </PrefCard>
+            ))}
+          </div>
+        </PrefGroup>
+
+        {/* Date format */}
+        <PrefGroup label="Date Format">
+          <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+            {([
+              { id: 'DD/MM/YYYY' as const },
+              { id: 'MM/DD/YYYY' as const },
+              { id: 'YYYY-MM-DD' as const },
+              { id: 'DD-MM-YYYY' as const },
+              { id: 'D MMM YYYY' as const },
+            ]).map(opt => (
+              <PrefCard key={opt.id} selected={prefs.dateFormat === opt.id} onClick={() => set('dateFormat', opt.id)}>
+                <span className="text-xs font-mono font-semibold text-foreground">{opt.id}</span>
+                <span className="text-[10px] text-muted-foreground tabular-nums">{fmtSampleDate(opt.id)}</span>
+              </PrefCard>
+            ))}
+          </div>
+        </PrefGroup>
+
+        {/* Time format + Week start — side by side */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+          <PrefGroup label="Time Format">
+            <div className="grid grid-cols-2 gap-2">
+              {([
+                { id: '12h' as const, label: '12-hour', example: fmtSampleTime('12h') },
+                { id: '24h' as const, label: '24-hour', example: fmtSampleTime('24h') },
+              ]).map(opt => (
+                <PrefCard key={opt.id} selected={prefs.timeFormat === opt.id} onClick={() => set('timeFormat', opt.id)}>
+                  <span className="text-xs font-semibold text-foreground">{opt.label}</span>
+                  <span className="font-mono text-sm font-bold text-primary tabular-nums">{opt.example}</span>
+                </PrefCard>
+              ))}
+            </div>
+          </PrefGroup>
+
+          <PrefGroup label="Week Starts On">
+            <div className="grid grid-cols-2 gap-2">
+              {([
+                { id: 'monday' as const, label: 'Monday', sub: 'Mon → Sun' },
+                { id: 'sunday' as const, label: 'Sunday', sub: 'Sun → Sat' },
+              ]).map(opt => (
+                <PrefCard key={opt.id} selected={prefs.weekStart === opt.id} onClick={() => set('weekStart', opt.id)}>
+                  <span className="text-xs font-semibold text-foreground">{opt.label}</span>
+                  <span className="text-[10px] text-muted-foreground">{opt.sub}</span>
+                </PrefCard>
+              ))}
+            </div>
+          </PrefGroup>
+        </div>
+
+        {/* Live preview */}
+        <div className="rounded-xl border border-border/60 bg-muted/20 px-3.5 py-3">
+          <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-3">Live Preview</p>
+          <div className="grid grid-cols-3 divide-x divide-border/60 text-xs">
+            <div className="pr-4">
+              <p className="text-muted-foreground mb-1">Amount</p>
+              <p className="font-mono font-semibold text-foreground">{fmtSampleNumber(prefs.numberFormat)}</p>
+            </div>
+            <div className="px-4">
+              <p className="text-muted-foreground mb-1">Date</p>
+              <p className="font-mono font-semibold text-foreground tabular-nums">{fmtSampleDate(prefs.dateFormat)}</p>
+            </div>
+            <div className="pl-4">
+              <p className="text-muted-foreground mb-1">Time</p>
+              <p className="font-mono font-semibold text-foreground tabular-nums">{fmtSampleTime(prefs.timeFormat)}</p>
+            </div>
+          </div>
+        </div>
+
+        {/* Footer actions */}
+        <div className="flex items-center justify-between gap-2 border-t border-border pt-3">
+          <button
+            type="button"
+            onClick={onReset}
+            className="text-xs text-muted-foreground hover:text-foreground underline underline-offset-2 transition-colors"
+          >
+            Reset to defaults
+          </button>
+          <Button size="sm" onClick={onSave} disabled={!dirty} className="h-8 rounded-full px-4 text-xs">
+            <Save className="mr-1.5 h-3.5 w-3.5" />
+            Save preferences
+          </Button>
+        </div>
+      </div>
+    </SectionWrapper>
   )
 }
 

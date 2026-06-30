@@ -14,13 +14,14 @@ class QualityStatus(str, Enum):
 
 
 class MovementType(str, Enum):
-    GR_PO = "101"            # Goods receipt for PO
-    GR_PO_REVERSAL = "102"   # Reversal of GR
-    RETURN_TO_VENDOR = "122" # Return delivery to vendor
-    GI_COST_CENTER = "201"   # GI for cost center
-    GI_PRODUCTION = "261"    # GI for production order
-    PLANT_TRANSFER = "301"   # Plant-to-plant transfer
-    SLOC_TRANSFER = "311"    # Storage-location transfer
+    GR_PO = "gr_po"                       # Goods receipt for PO
+    GR_PO_REVERSAL = "gr_reversal"        # Reversal of GR
+    RETURN_TO_VENDOR = "return_to_vendor" # Return delivery to vendor
+    GI_COST_CENTER = "gi_cost_center"     # GI for cost center
+    GI_PRODUCTION = "gi_production"       # GI for production order
+    PLANT_TRANSFER = "plant_transfer"     # Plant-to-plant transfer
+    SLOC_TRANSFER = "sloc_transfer"       # Storage-location transfer
+    RECEIPT_NO_PO = "receipt_no_po"       # Receipt without a PO
 
 
 # ── Goods Batch ───────────────────────────────────────────────────

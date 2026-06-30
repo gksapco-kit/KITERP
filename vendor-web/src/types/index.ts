@@ -196,6 +196,7 @@ export interface Product {
   tags: string[]
   // Unit of Measure
   uom: string
+  uom_quantity?: number
   // Pricing
   price: number
   compare_at_price?: number
@@ -339,6 +340,7 @@ export interface ProductVariant {
   sku?: string
   barcode?: string
   uom: string
+  uom_quantity?: number
   price_type?: string
   price: number
   compare_at_price?: number
@@ -2024,6 +2026,24 @@ export interface ESSProfile {
   expense_summary: { draft: number; submitted: number; approved: number }
   ticket_summary: { open: number; in_progress: number; resolved: number }
   training_summary: { enrolled: number; completed: number; overdue: number }
+}
+
+// ── Restaurant Outlet ───────────────────────────────────────────
+export interface RestaurantOutlet {
+  id: string
+  vendor_id: string
+  store_id: string
+  name: string
+  code?: string | null
+  cuisine?: string | null
+  phone?: string | null
+  email?: string | null
+  address?: Record<string, unknown>
+  settings?: Record<string, unknown>
+  is_active: boolean
+  is_default: boolean
+  created_at?: string | null
+  updated_at?: string | null
 }
 
 // ── Paginated ───────────────────────────────────────────────────

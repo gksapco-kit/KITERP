@@ -114,7 +114,7 @@ export function WebsiteStorefrontCard({
             href={liveUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="absolute inset-0 flex items-center justify-center bg-black/0 opacity-0 transition-all group-hover/card:bg-black/25 group-hover/card:opacity-100"
+            className="absolute inset-0 z-[2] flex items-center justify-center bg-black/0 opacity-0 transition-all group-hover/card:bg-black/25 group-hover/card:opacity-100"
             title="Open live storefront"
           >
             <span className="inline-flex items-center gap-1 rounded-full bg-white/95 px-2 py-0.5 text-[10px] font-bold text-gray-900 shadow-md">
@@ -125,7 +125,10 @@ export function WebsiteStorefrontCard({
         ) : null}
         {templateName ? (
           <span
-            className="absolute bottom-1 left-1 right-1 inline-flex max-w-[calc(100%-0.5rem)] items-center gap-0.5 rounded-full border border-border/60 bg-card/95 px-1.5 py-px text-[9px] font-semibold text-foreground shadow-sm backdrop-blur-sm dark:bg-card/90"
+            className={cn(
+              'absolute right-1.5 top-1.5 z-[1] inline-flex max-w-[calc(100%-3rem)] items-center gap-0.5 rounded-full border border-border/60 bg-card/95 px-1.5 py-px text-[9px] font-semibold text-foreground shadow-sm backdrop-blur-sm dark:bg-card/90',
+              liveUrl && !isBuilderDraft && 'transition-opacity group-hover/card:opacity-0',
+            )}
             title={templateName}
           >
             <Sparkles className="h-2 w-2 shrink-0 text-primary" />
