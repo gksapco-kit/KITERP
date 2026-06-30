@@ -24,6 +24,7 @@ import {
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
+import { onClickableTableRow } from '@/lib/clickableTableRow'
 import { useAuthStore } from '@/stores/authStore'
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -1266,7 +1267,7 @@ export default function JournalEntries() {
             ) : entries.length === 0 ? (
               <tr><td colSpan={10} className="px-4 py-8 text-center text-gray-500">No journal entries found.</td></tr>
             ) : entries.map((e) => (
-              <tr key={e.id} className="hover:bg-gray-50 cursor-pointer" onClick={() => setDetailId(e.id)}>
+              <tr key={e.id} className="hover:bg-gray-50 cursor-pointer" onClick={onClickableTableRow(() => setDetailId(e.id))}>
                 <td className="px-4 py-3 font-mono text-xs text-primary font-semibold">{e.entry_no}</td>
                 <td className="px-4 py-3 text-gray-500 text-xs truncate max-w-[100px]">{e.company_name || '—'}</td>
                 <td className="px-4 py-3 text-gray-700 text-xs">{e.entry_date}</td>
@@ -1285,7 +1286,7 @@ export default function JournalEntries() {
                     <AlertTriangle className="inline w-3 h-3 ml-1 text-amber-500" />
                   )}
                 </td>
-                <td className="px-4 py-3" onClick={ev => ev.stopPropagation()}>
+                <td className="px-4 py-3">
                   <div className="flex gap-1">
                     {e.status === 'draft' && (
                       <>

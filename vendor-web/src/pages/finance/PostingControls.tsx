@@ -39,6 +39,7 @@ import {
   useDeleteToleranceGroup,
 } from '@/hooks/useFinance'
 import type { PostingKey, FieldStatusGroup, ToleranceGroup } from '@/api/finance'
+import { onClickableTableRow } from '@/lib/clickableTableRow'
 
 // ── Posting Keys tab ────────────────────────────────────────────────────────
 function PostingKeysTab() {
@@ -205,7 +206,7 @@ function FieldStatusGroupsTab() {
                 <div className="flex items-center justify-between">
                   <span className="font-medium font-mono text-sm">{g.code}</span>
                   <Button size="icon" variant="ghost" className="h-6 w-6 text-destructive"
-                    onClick={e => { e.stopPropagation(); del.mutate(g.id) }}>
+                    onClick={() => del.mutate(g.id)}>
                     <Trash2 className="h-3 w-3" />
                   </Button>
                 </div>
@@ -339,7 +340,7 @@ function ToleranceGroupsTab() {
             <tbody>
               {groups.map(g => (
                 <tr key={g.id} className="border-t hover:bg-muted/30 transition-colors cursor-pointer"
-                  onClick={() => openEdit(g)}>
+                  onClick={onClickableTableRow(() => openEdit(g))}>
                   <td className="px-3 py-2 font-mono">{g.code || '(default)'}</td>
                   <td className="px-3 py-2">{g.name}</td>
                   <td className="px-3 py-2 text-muted-foreground">{g.max_line_amount ?? '∞'}</td>
@@ -349,7 +350,7 @@ function ToleranceGroupsTab() {
                   <td className="px-3 py-2 text-muted-foreground">{g.currency}</td>
                   <td className="px-3 py-2">
                     <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive"
-                      onClick={e => { e.stopPropagation(); del.mutate(g.id) }}>
+                      onClick={() => del.mutate(g.id)}>
                       <Trash2 className="h-3.5 w-3.5" />
                     </Button>
                   </td>

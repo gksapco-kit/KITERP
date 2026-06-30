@@ -11,6 +11,7 @@ import { formatCurrency, formatDate } from '@/lib/utils'
 import { TableToolbar } from '@/components/table/TableToolbar'
 import { ResizableTable } from '@/components/table/ResizableTable'
 import { processRows, type SortDir } from '@/lib/tableList'
+import { onClickableTableRow } from '@/lib/clickableTableRow'
 import { vendorApi } from '@/api/vendor'
 import type { Customer } from '@/types'
 import { PhoneInput } from '@/components/ui/PhoneInput'
@@ -416,7 +417,8 @@ export default function Customers() {
               ) : displayCustomers.map((c) => {
                 const bal = c.opening_balance ?? 0
                 return (
-                  <tr key={c.id} className="hover:bg-gray-50 transition-colors">
+                  <tr key={c.id} className="hover:bg-gray-50 transition-colors cursor-pointer"
+                    onClick={onClickableTableRow(() => navigate(`/customers/${c.id}`))}>
                     <td className="px-6 py-4">
                       <p className="text-sm font-medium text-gray-900">{c.full_name}</p>
                       <p className="text-xs text-gray-500">{c.company_name || c.email || c.phone || '—'}</p>

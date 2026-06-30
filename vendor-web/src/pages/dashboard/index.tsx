@@ -8,6 +8,7 @@ import { useProducts, useServices, useHREmployees, useHRLeaveRequests, useHRMyTo
 import { formatCurrency } from '@/lib/utils'
 import { TableToolbar } from '@/components/table/TableToolbar'
 import { processRows, type SortDir } from '@/lib/tableList'
+import { onClickableTableRow } from '@/lib/clickableTableRow'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import {
@@ -566,7 +567,7 @@ export default function Dashboard() {
                 </thead>
                 <tbody className="divide-y">
                   {topProductRows.map((p, i) => (
-                    <tr key={p.id} className="cursor-pointer hover:bg-muted/50" onClick={() => navigate(`/products/${p.id}`)}>
+                    <tr key={p.id} className="cursor-pointer hover:bg-muted/50" onClick={onClickableTableRow(() => navigate(`/products/${p.id}`))}>
                       <td className="px-5 py-2.5 text-muted-foreground">{i + 1}</td>
                       <td className="px-5 py-2.5 font-medium text-primary hover:underline">{p.name}</td>
                       <td className="px-5 py-2.5 text-right">{formatCurrency(p.price)}</td>
@@ -601,7 +602,7 @@ export default function Dashboard() {
                 </thead>
                 <tbody className="divide-y">
                   {topCustomerRows.map((c, i) => (
-                    <tr key={c.id} className="cursor-pointer hover:bg-muted/60" onClick={() => navigate(`/customers/${c.id}`)}>
+                    <tr key={c.id} className="cursor-pointer hover:bg-muted/60" onClick={onClickableTableRow(() => navigate(`/customers/${c.id}`))}>
                       <td className="px-5 py-2.5 text-muted-foreground">{i + 1}</td>
                       <td className="px-5 py-2.5">
                         <p className="font-medium text-primary hover:underline">{c.name}</p>
@@ -741,7 +742,7 @@ export default function Dashboard() {
                     {pagedRows.map((row: any) => {
                       if (isBookingTab) {
                         return (
-                          <tr key={row.id} className="cursor-pointer hover:bg-muted/50" onClick={() => navigate(`/bookings/${row.id}`)}>
+                          <tr key={row.id} className="cursor-pointer hover:bg-muted/50" onClick={onClickableTableRow(() => navigate(`/bookings/${row.id}`))}>
                             <td className="whitespace-nowrap px-5 py-2.5 text-muted-foreground">
                               {row.booking_date
                                 ? new Date(row.booking_date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })
@@ -759,7 +760,7 @@ export default function Dashboard() {
                         )
                       }
                       return (
-                        <tr key={row.id} className="cursor-pointer hover:bg-muted/50" onClick={() => navigate(`/orders/${row.id}`)}>
+                        <tr key={row.id} className="cursor-pointer hover:bg-muted/50" onClick={onClickableTableRow(() => navigate(`/orders/${row.id}`))}>
                           <td className="whitespace-nowrap px-5 py-2.5 text-muted-foreground">
                             {new Date(row.created_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })}
                             <span className="ml-1 text-xs text-muted-foreground/80">

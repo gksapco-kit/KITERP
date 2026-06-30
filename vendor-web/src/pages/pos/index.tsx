@@ -12,6 +12,7 @@ import { Label } from '@/components/ui/label'
 import { useProducts, useServices, useInvoiceSettings, vendorKeys, useMyMembership, useStores } from '@/hooks/useVendor'
 import { vendorApi } from '@/api/vendor'
 import { formatCurrency } from '@/lib/utils'
+import { onClickableTableRow } from '@/lib/clickableTableRow'
 import { ResizableTable } from '@/components/table/ResizableTable'
 import { toast } from 'sonner'
 import { TableToolbar } from '@/components/table/TableToolbar'
@@ -2881,7 +2882,7 @@ function POSTransactionHistory({
                 </tr></thead>
                 <tbody className="divide-y">
                   {orders.map((o: any) => (
-                    <tr key={o.id} className="hover:bg-gray-50 cursor-pointer" onClick={() => onSelectTxn(o)}>
+                    <tr key={o.id} className="hover:bg-gray-50 cursor-pointer" onClick={onClickableTableRow(() => onSelectTxn(o))}>
                       <td className="px-4 py-2.5 text-gray-600 whitespace-nowrap text-xs">
                         {new Date(o.created_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })}
                         <span className="text-gray-400 ml-1">{new Date(o.created_at).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}</span>

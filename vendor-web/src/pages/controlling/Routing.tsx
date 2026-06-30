@@ -21,6 +21,7 @@ import {
 } from '@/hooks/useControlling'
 import { useProducts } from '@/hooks/useVendor'
 import { formatCurrency } from '@/lib/utils'
+import { onClickableTableRow } from '@/lib/clickableTableRow'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 
@@ -650,7 +651,7 @@ export default function RoutingPage() {
                 const isSelected = selectedRouting === r.id
                 return (
                   <tr key={r.id} className={`cursor-pointer ${isSelected ? 'bg-accent' : 'hover:bg-gray-50'}`}
-                    onClick={() => setSelectedRouting(isSelected ? null : r.id)}>
+                    onClick={onClickableTableRow(() => setSelectedRouting(isSelected ? null : r.id))}>
                     <td className="px-4 py-2 text-gray-400">
                       {isSelected ? <ChevronDown className="w-4 h-4 text-primary/80" /> : <ChevronRight className="w-4 h-4" />}
                     </td>
@@ -665,7 +666,7 @@ export default function RoutingPage() {
                     </td>
                     <td className="px-4 py-2 text-right tabular-nums text-gray-700">{(+r.lot_size).toFixed(2)} {r.uom}</td>
                     <td className="px-4 py-2 text-right text-gray-600 font-medium">{r.operations.length}</td>
-                    <td className="px-4 py-2" onClick={e => e.stopPropagation()}>
+                    <td className="px-4 py-2">
                       <div className="flex gap-1 justify-end">
                         <button onClick={() => editRouting(r)} className="p-1 text-gray-400 hover:text-primary rounded"><Pencil className="w-3.5 h-3.5" /></button>
                         <button onClick={() => delRouting(r.id)} className="p-1 text-gray-400 hover:text-red-500 rounded"><Trash2 className="w-3.5 h-3.5" /></button>

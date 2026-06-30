@@ -20,6 +20,7 @@ import { Label } from '@/components/ui/label'
 import { PhoneInput } from '@/components/ui/PhoneInput'
 import type { Customer, Supplier, PurchaseOrder } from '@/types'
 import { formatDate, formatCurrency, cn } from '@/lib/utils'
+import { onClickableTableRow } from '@/lib/clickableTableRow'
 import { vendorApi } from '@/api/vendor'
 import {
   Search, Plus, Download, Users, Truck, Briefcase, Link2, HardHat,
@@ -1984,9 +1985,9 @@ export default function MasterDataReport() {
                   return (
                     <tr key={`${r.kind}-${r.id}`}
                       className="hover:bg-gray-50 transition-colors cursor-pointer"
-                      onClick={() => openDrawer(r)}>
+                      onClick={onClickableTableRow(() => openDrawer(r))}>
 
-                      <td className="pl-4 pr-2 py-3" onClick={e => { e.stopPropagation(); toggleRow(r.id) }}>
+                      <td className="pl-4 pr-2 py-3" data-stop-row-click onClick={() => toggleRow(r.id)}>
                         <input type="checkbox" checked={selected.has(r.id)} onChange={() => toggleRow(r.id)}
                           className="rounded border-gray-300 text-primary focus:ring-primary" />
                       </td>
@@ -2029,7 +2030,7 @@ export default function MasterDataReport() {
                           )
                           case 'email': return (
                             <td key="email" className="px-4 py-3 text-xs text-gray-600">
-                              {r.email ? <a href={`mailto:${r.email}`} onClick={e => e.stopPropagation()} className="hover:text-primary hover:underline truncate max-w-[180px] block">{r.email}</a> : <span className="text-gray-300">—</span>}
+                              {r.email ? <a href={`mailto:${r.email}`} className="hover:text-primary hover:underline truncate max-w-[180px] block">{r.email}</a> : <span className="text-gray-300">—</span>}
                             </td>
                           )
                           case 'phone': return (
@@ -2068,7 +2069,7 @@ export default function MasterDataReport() {
                             </td>
                           )
                           case 'status': return (
-                            <td key="status" className="px-4 py-3" onClick={e => e.stopPropagation()}>
+                            <td key="status" className="px-4 py-3">
                               <div className="flex items-center gap-2.5">
                                 <StatusToggleSwitch
                                   active={r.isActive}
@@ -2088,7 +2089,7 @@ export default function MasterDataReport() {
                             <td key="added" className="px-4 py-3 text-xs text-gray-500">{formatDate(r.createdAt)}</td>
                           )
                           case 'actions': return (
-                            <td key="actions" className="px-4 py-3 text-right" onClick={e => e.stopPropagation()}>
+                            <td key="actions" className="px-4 py-3 text-right">
                               <div className="flex items-center justify-end gap-1">
                                 <button onClick={() => openDrawer(r)} title="View details"
                                   className="p-1.5 rounded-lg text-gray-400 hover:text-primary hover:bg-primary/10 transition-colors">

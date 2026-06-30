@@ -31,6 +31,7 @@ import {
   useCreateNumberRange,
 } from '@/hooks/useFinance'
 import type { ValidationRule, SubstitutionRule, NumberRange } from '@/api/finance'
+import { onClickableTableRow } from '@/lib/clickableTableRow'
 
 const currYear = new Date().getFullYear()
 
@@ -98,7 +99,7 @@ function ValidationsTab() {
             </thead>
             <tbody>
               {rules.map(r => (
-                <tr key={r.id} className="border-t hover:bg-muted/30 cursor-pointer" onClick={() => openEdit(r)}>
+                <tr key={r.id} className="border-t hover:bg-muted/30 cursor-pointer" onClick={onClickableTableRow(() => openEdit(r))}>
                   <td className="px-3 py-2 text-muted-foreground">{r.sort_order}</td>
                   <td className="px-3 py-2 font-medium">{r.name}</td>
                   <td className="px-3 py-2"><Badge variant="outline">{r.call_point}</Badge></td>
@@ -106,7 +107,7 @@ function ValidationsTab() {
                   <td className="px-3 py-2"><Badge variant={r.is_active ? 'default' : 'secondary'}>{r.is_active ? 'active' : 'off'}</Badge></td>
                   <td className="px-3 py-2">
                     <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive"
-                      onClick={e => { e.stopPropagation(); del.mutate(r.id) }}>
+                      onClick={() => del.mutate(r.id)}>
                       <Trash2 className="h-3.5 w-3.5" />
                     </Button>
                   </td>

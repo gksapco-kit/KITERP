@@ -37,6 +37,7 @@ import type { TeamMember } from '@/types'
 import { TableToolbar } from '@/components/table/TableToolbar'
 import { processRows, type SortDir } from '@/lib/tableList'
 import { extractApiError } from '@/lib/errorMessages'
+import { onClickableTableRow } from '@/lib/clickableTableRow'
 import { employeeContactEmail, employeeContactPhone, employeeDisplayName } from '@/lib/hrEmployeeDisplay'
 import { toast } from 'sonner'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
@@ -362,7 +363,7 @@ export default function TeamPage() {
                   <tr
                     key={member.id}
                     className="hover:bg-gray-50 cursor-pointer transition-colors"
-                    onClick={() => setViewMember(member)}
+                    onClick={onClickableTableRow(() => setViewMember(member))}
                   >
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-3">
@@ -401,7 +402,7 @@ export default function TeamPage() {
                         )}
                       </div>
                     </td>
-                    <td className="px-6 py-4" onClick={e => e.stopPropagation()}>
+                    <td className="px-6 py-4">
                       <button
                         type="button"
                         title="View role permissions"
@@ -420,7 +421,7 @@ export default function TeamPage() {
                         {member.role_name}
                       </button>
                     </td>
-                    <td className="px-6 py-4" onClick={e => e.stopPropagation()}>
+                    <td className="px-6 py-4">
                       {stores.length > 0 ? (
                         <Select
                           value={(member as TeamMember & { store_id?: string }).store_id ?? ''}
@@ -439,7 +440,7 @@ export default function TeamPage() {
                         </span>
                       )}
                     </td>
-                    <td className="px-6 py-4" onClick={e => e.stopPropagation()}>
+                    <td className="px-6 py-4">
                       {canManageTeam && member.role !== 'owner' && member.user_id !== user?.id ? (
                         <button
                           type="button"
@@ -466,10 +467,11 @@ export default function TeamPage() {
                       {member.created_at ? new Date(member.created_at).toLocaleDateString() : '-'}
                     </td>
                     {canManageTeam && (
-                      <td className="px-6 py-4 text-right" onClick={e => e.stopPropagation()}>
+                      <td className="px-6 py-4 text-right">
                         <div className="flex items-center justify-end gap-1">
                           {needsVerification && (
                             <button
+                              type="button"
                               onClick={() => handleSendOtp(member)}
                               disabled={sendOtpMutation.isPending}
                               className="p-1.5 rounded hover:bg-amber-50 text-amber-500"
@@ -490,6 +492,7 @@ export default function TeamPage() {
                           {member.role !== 'owner' && member.user_id !== user?.id && (
                             <>
                               <button
+                                type="button"
                                 onClick={() => setEditMember(member)}
                                 className="p-1.5 rounded hover:bg-gray-100 text-gray-500"
                                 title="Edit role"
@@ -497,6 +500,7 @@ export default function TeamPage() {
                                 <Pencil className="w-4 h-4" />
                               </button>
                               <button
+                                type="button"
                                 onClick={() => handleRemove(member.id)}
                                 className="p-1.5 rounded hover:bg-red-50 text-red-500"
                                 title="Delete permanently"

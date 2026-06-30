@@ -8,6 +8,7 @@ import {
 import { employeeDisplayName } from '@/lib/hrEmployeeDisplay'
 import type { EmployeeProfile, ExpenseClaim } from '@/types'
 import ExpenseClaimDetailDrawer from './ExpenseClaimDetailDrawer'
+import { onClickableTableRow } from '@/lib/clickableTableRow'
 import { Select, selectOptionsWithBlank } from '@/components/ui/select'
 
 const STATUS: Record<string, { label: string; color: string }> = {
@@ -113,7 +114,7 @@ export default function ExpensesPage() {
                 return (
                   <tr
                     key={c.id}
-                    onClick={() => openClaim(c.id)}
+                    onClick={onClickableTableRow(() => openClaim(c.id))}
                     className={`group border-b cursor-pointer transition-colors ${
                       selected ? 'bg-blue-50' : 'hover:bg-gray-50'
                     }`}
@@ -136,7 +137,7 @@ export default function ExpensesPage() {
                         </p>
                       )}
                     </td>
-                    <td className={stickyActionsTd(selected)} onClick={e => e.stopPropagation()}>
+                    <td className={stickyActionsTd(selected)}>
                       <div className="flex items-center gap-0.5 flex-nowrap shrink-0 min-w-[88px] justify-end">
                         {c.status === 'submitted' && (
                           <>

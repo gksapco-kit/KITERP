@@ -18,6 +18,7 @@ import { formatCurrency } from '@/lib/utils'
 import { toast } from 'sonner'
 import { TableToolbar } from '@/components/table/TableToolbar'
 import { processRows, type SortDir } from '@/lib/tableList'
+import { onClickableTableRow } from '@/lib/clickableTableRow'
 import {
   Search, Plus, Minus, Trash2, Receipt,
   IndianRupee, CreditCard, Smartphone, Banknote, Loader2,
@@ -871,7 +872,7 @@ export default function CreditDebitMemos() {
                       <tr
                         key={m.id}
                         className={`hover:bg-gray-50 cursor-pointer ${voided ? 'opacity-60' : ''}`}
-                        onClick={() => setSelectedTxn(m)}
+                        onClick={onClickableTableRow(() => setSelectedTxn(m))}
                       >
                         <td className="px-4 py-2.5 text-gray-600 whitespace-nowrap text-xs">
                           {new Date(m.created_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
@@ -897,7 +898,7 @@ export default function CreditDebitMemos() {
                           {m.transaction_type === 'credit_memo' ? '-' : '+'}{formatCurrency(m.total)}
                         </td>
                         <td className="px-4 py-2.5 text-xs capitalize text-gray-500">{m.payment_method || '—'}</td>
-                        <td className="px-4 py-2.5 text-right" onClick={(e) => e.stopPropagation()}>
+                        <td className="px-4 py-2.5 text-right">
                           <div className="inline-flex items-center gap-0.5">
                             <Button
                               type="button"

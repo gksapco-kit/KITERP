@@ -14,6 +14,7 @@ import {
   useUpdatePurchaseOrder, useSuppliers, useProducts,
 } from '@/hooks/useVendor'
 import { formatDate, formatDateTime, formatCurrency } from '@/lib/utils'
+import { onClickableTableRow } from '@/lib/clickableTableRow'
 import type { PurchaseOrderItem as POItem } from '@/types'
 import {
   Loader2, ArrowLeft, Send, PackageCheck, CheckCircle2, XCircle,
@@ -482,7 +483,7 @@ export default function PurchaseOrderDetail() {
                   <>
                     <tr key={item.id}
                       className="hover:bg-gray-50 cursor-pointer"
-                      onClick={() => setExpandedItemId(isExpanded ? null : item.id)}
+                      onClick={onClickableTableRow(() => setExpandedItemId(isExpanded ? null : item.id))}
                     >
                       <td className="px-6 py-4 text-sm font-medium">
                         <div className="flex items-center gap-2">
@@ -522,7 +523,7 @@ export default function PurchaseOrderDetail() {
                       <td className="px-6 py-4 text-sm text-right">{formatCurrency(item.unit_cost)}</td>
                       <td className="px-6 py-4 text-sm text-right font-medium">{formatCurrency(item.total_cost)}</td>
                       {isDraft && (
-                        <td className="px-3 py-4 text-right" onClick={e => e.stopPropagation()}>
+                        <td className="px-3 py-4 text-right">
                           <button
                             onClick={() => deleteItem(item)}
                             className="p-1 text-red-400 hover:text-red-600 hover:bg-red-50 rounded"

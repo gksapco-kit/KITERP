@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { TableColumnLabel } from '@/components/common/FieldLabel'
 import { BusinessUnitSelect } from '@/components/common/BusinessUnitSelect'
-import { useNavigate } from 'react-router-dom'
+import { onClickableTableRow } from '@/lib/clickableTableRow'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -490,7 +491,7 @@ export default function QuotationsPage() {
                   <tr
                     key={row.id}
                     className="hover:bg-gray-50 cursor-pointer"
-                    onClick={() => openQuotationRow(row)}
+                    onClick={onClickableTableRow(() => openQuotationRow(row))}
                   >
                     <td className="px-5 py-3 text-sm font-medium text-blue-600 font-mono text-xs">
                       {row.number}
@@ -516,7 +517,7 @@ export default function QuotationsPage() {
                       </span>
                     </td>
                     <td className="px-5 py-3 text-sm text-gray-500">{formatDate(row.created_at)}</td>
-                    <td className="px-5 py-3" onClick={(e) => e.stopPropagation()}>
+                    <td className="px-5 py-3">
                       <div className="flex items-center justify-center gap-1 flex-wrap">
                         {isRequest && row.order && (
                           <>

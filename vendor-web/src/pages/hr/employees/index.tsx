@@ -1,4 +1,5 @@
 import { onModalBackdropClick, cn } from '@/lib/utils'
+import { onClickableTableRow } from '@/lib/clickableTableRow'
 import { Button } from '@/components/ui/button'
 import {
   hrInputClass,
@@ -1143,7 +1144,7 @@ export default function EmployeesPage() {
                   <tr
                     key={emp.id}
                     className="cursor-pointer transition-colors hover:bg-muted/30"
-                    onClick={() => navigate(`/hr/employees/${emp.id}`)}
+                    onClick={onClickableTableRow(() => navigate(`/hr/employees/${emp.id}`))}
                   >
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-3">
@@ -1168,7 +1169,7 @@ export default function EmployeesPage() {
                         {emp.status.replace('_', ' ')}
                       </span>
                     </td>
-                    <td className="py-3 px-4 text-right" onClick={e => e.stopPropagation()}>
+                    <td className="py-3 px-4 text-right">
                       <div className="flex items-center justify-end gap-3">
                         {emp.status !== 'exited' && (
                           <Link

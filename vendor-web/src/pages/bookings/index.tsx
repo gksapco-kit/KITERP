@@ -17,6 +17,7 @@ import { formatDate, formatCurrency } from '@/lib/utils'
 import { toast } from 'sonner'
 import { TableToolbar } from '@/components/table/TableToolbar'
 import { processRows, type SortDir } from '@/lib/tableList'
+import { onClickableTableRow } from '@/lib/clickableTableRow'
 import { useUpdateBookingStatus } from '@/hooks/useVendor'
 import { usePanelResize } from '@/hooks/usePanelResize'
 import { DragHandle } from '@/components/common/DragHandle'
@@ -1473,7 +1474,7 @@ export default function BookingsPage() {
                     const badge = statusBadge[b.status as string] || statusBadge.pending
                     return (
                       <tr key={b.id as string} className="hover:bg-gray-50 cursor-pointer"
-                        onClick={(e) => { if ((e.target as HTMLElement).closest('button')) return; navigate(`/bookings/${b.id}`) }}>
+                        onClick={onClickableTableRow(() => navigate(`/bookings/${b.id}`))}>
                         <td className="px-6 py-4 text-sm font-medium text-blue-600">{(b.booking_number as string) || '-'}</td>
                         <td className="px-6 py-4 text-sm text-gray-700">{(b.service_name as string) || '-'}</td>
                         <td className="px-6 py-4 text-sm text-gray-900">{(b.customer_name as string) || '-'}</td>
@@ -1485,7 +1486,7 @@ export default function BookingsPage() {
                         </td>
                         <td className="px-6 py-4 text-sm text-right font-medium">{formatCurrency((b.total as number) || (b.service_price as number) || 0)}</td>
                         <td className="px-6 py-4 text-sm text-gray-500">{b.created_at ? formatDate(b.created_at as string) : '-'}</td>
-                        <td className="px-2 py-3 text-right" onClick={(e) => e.stopPropagation()}>
+                        <td className="px-2 py-3 text-right">
                           {(() => {
                             const bId = b.id as string
                             const bNum = (b.booking_number as string) || ''

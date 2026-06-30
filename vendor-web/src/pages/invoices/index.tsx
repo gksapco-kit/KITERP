@@ -12,6 +12,7 @@ import { PhoneInput } from '@/components/ui/PhoneInput'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useInvoiceSettings, useProducts, useServices } from '@/hooks/useVendor'
 import { formatCurrency, formatDate } from '@/lib/utils'
+import { onClickableTableRow } from '@/lib/clickableTableRow'
 import { ResizableTable } from '@/components/table/ResizableTable'
 import { toast } from 'sonner'
 import { extractApiError } from '@/lib/errorMessages'
@@ -306,7 +307,8 @@ export default function InvoicesPage() {
                 const tb = typeBadge[(inv.invoice_type as string)] || typeBadge.invoice
                 const sb = statusBadge[(inv.status as string)] || statusBadge.draft
                 return (
-                  <tr key={inv.id as string} className="transition-colors hover:bg-muted/40">
+                  <tr key={inv.id as string} className="transition-colors hover:bg-muted/40 cursor-pointer"
+                    onClick={onClickableTableRow(() => navigate(`/invoices/${inv.id}`))}>
                     <td className="px-5 py-3 text-sm font-medium">
                       <button
                         onClick={() => navigate(`/invoices/${inv.id}`)}

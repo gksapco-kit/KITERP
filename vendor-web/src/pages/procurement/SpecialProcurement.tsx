@@ -16,6 +16,7 @@ import {
 } from '@/hooks/useVendor'
 import { ProcurementSupplierField } from '@/components/procurement/ProcurementSupplierField'
 import { formatDate, formatCurrency } from '@/lib/utils'
+import { onClickableTableRow } from '@/lib/clickableTableRow'
 import { toast } from 'sonner'
 import type { MaterialValuation, ServiceEntrySheet } from '@/types'
 import {
@@ -414,7 +415,7 @@ export default function SpecialProcurementPage() {
                   {filteredSES.map(s => {
                     const badge = SES_BADGE[s.status] ?? SES_BADGE.draft
                     return (
-                      <tr key={s.id} className="border-t cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800/50" onClick={() => setSelectedSES(s)}>
+                      <tr key={s.id} className="border-t cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800/50" onClick={onClickableTableRow(() => setSelectedSES(s))}>
                         <td className="px-3 py-2 font-mono text-xs text-blue-600 font-medium">{s.ses_number}</td>
                         <td className="px-3 py-2 text-sm font-medium">{s.supplier_name || '—'}</td>
                         <td className="px-3 py-2 text-sm text-gray-500">{s.po_number || '—'}</td>

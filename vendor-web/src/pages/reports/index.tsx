@@ -9,6 +9,7 @@ import { vendorApi } from '@/api/vendor'
 import { useOrderStats, useReviews, useProducts, useStores } from '@/hooks/useVendor'
 import { useVendorStore } from '@/stores/vendorStore'
 import { formatCurrency, formatDate, cn, searchFieldInnerInputClassName, searchFieldShellClassName, solidButtonFocusClassName } from '@/lib/utils'
+import { onClickableTableRow } from '@/lib/clickableTableRow'
 import { apiClient } from '@/api/client'
 import { toast } from 'sonner'
 import {
@@ -1821,7 +1822,7 @@ export default function ReportsPage() {
                         if (filterVal === 'high') return (p.stock || 0) > 50
                         return true
                       }).map((p: any, i: number) => (
-                        <tr key={p.id} className="hover:bg-gray-50 cursor-pointer" onClick={() => navigate(`/products/${p.id}`)}>
+                        <tr key={p.id} className="hover:bg-gray-50 cursor-pointer" onClick={onClickableTableRow(() => navigate(`/products/${p.id}`))}>
                           <td className="py-2 pr-2 text-gray-400">{i + 1}</td>
                           <td className="py-2 pr-4 font-medium text-blue-600 hover:underline">{p.name}</td>
                           <td className="py-2 pr-4 text-right">{formatCurrency(p.price)}</td>
@@ -1857,7 +1858,7 @@ export default function ReportsPage() {
                     </tr></thead>
                     <tbody className="divide-y divide-gray-100">
                       {sorted.map((c: any, i: number) => (
-                        <tr key={c.id} className="hover:bg-gray-50 cursor-pointer" onClick={() => navigate(`/customers/${c.id}`)}>
+                        <tr key={c.id} className="hover:bg-gray-50 cursor-pointer" onClick={onClickableTableRow(() => navigate(`/customers/${c.id}`))}>
                           <td className="py-2 pr-2 text-gray-400">{i + 1}</td>
                           <td className="py-2 pr-4"><p className="font-medium text-blue-600 hover:underline">{c.name}</p><p className="text-xs text-gray-400">{c.email}</p></td>
                           <td className="py-2 pr-4 text-right">{c.orders}</td>
@@ -1915,7 +1916,7 @@ export default function ReportsPage() {
                     <tbody className="divide-y divide-gray-100">
                       {sorted.slice(0, 30).map((o: any) => {
                         const sc = STATUS_COLORS[o.status] || { badge: 'bg-gray-100 text-gray-700' }
-                        return <tr key={o.id} className="hover:bg-gray-50 cursor-pointer" onClick={() => navigate(`/orders/${o.id}`)}>
+                        return <tr key={o.id} className="hover:bg-gray-50 cursor-pointer" onClick={onClickableTableRow(() => navigate(`/orders/${o.id}`))}>
                           <td className="py-2 pr-4 text-gray-500 whitespace-nowrap">{new Date(o.created_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })}</td>
                           <td className="py-2 pr-4 font-medium text-blue-600">{o.order_number}</td>
                           <td className="py-2 pr-4 text-gray-600">{o.customer_name || <span className="italic text-gray-400">Walk-in</span>}</td>
@@ -1973,7 +1974,7 @@ export default function ReportsPage() {
                     <tbody className="divide-y divide-gray-100">
                       {sorted.slice(0, 30).map((b: any) => {
                         const sc = STATUS_COLORS[b.status] || { badge: 'bg-gray-100 text-gray-700' }
-                        return <tr key={b.id} className="hover:bg-gray-50 cursor-pointer" onClick={() => navigate(`/bookings/${b.id}`)}>
+                        return <tr key={b.id} className="hover:bg-gray-50 cursor-pointer" onClick={onClickableTableRow(() => navigate(`/bookings/${b.id}`))}>
                           <td className="py-2 pr-4 text-gray-500">{b.booking_date ? new Date(b.booking_date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' }) : '—'}</td>
                           <td className="py-2 pr-4 font-medium text-blue-600">{b.booking_number || '—'}</td>
                           <td className="py-2 pr-4 text-gray-600">{b.service_name || '—'}</td>
@@ -2025,7 +2026,7 @@ export default function ReportsPage() {
                     <tbody className="divide-y divide-gray-100">
                       {sorted.slice(0, 30).map((o: any) => {
                         const sc = STATUS_COLORS[o.status] || { badge: 'bg-gray-100 text-gray-700' }
-                        return <tr key={o.id} className="hover:bg-gray-50 cursor-pointer" onClick={() => navigate(`/orders/${o.id}`)}>
+                        return <tr key={o.id} className="hover:bg-gray-50 cursor-pointer" onClick={onClickableTableRow(() => navigate(`/orders/${o.id}`))}>
                           <td className="py-2 pr-4 text-gray-500 whitespace-nowrap">{new Date(o.created_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })}</td>
                           <td className="py-2 pr-4 font-medium text-blue-600">{o.order_number}</td>
                           <td className="py-2 pr-4 text-gray-600">{o.customer_name || '—'}</td>
@@ -2127,7 +2128,7 @@ export default function ReportsPage() {
                     <tbody className="divide-y divide-gray-100">
                       {sorted.map((p: any) => {
                         const stock = p.stock || p.current_quantity || 0; const isLow = stock < 10
-                        return <tr key={p.id || p.product_id} className={`hover:bg-gray-50 cursor-pointer ${stock === 0 ? 'bg-red-50/50' : ''}`} onClick={() => navigate(`/products/${p.id || p.product_id}`)}>
+                        return <tr key={p.id || p.product_id} className={`hover:bg-gray-50 cursor-pointer ${stock === 0 ? 'bg-red-50/50' : ''}`} onClick={onClickableTableRow(() => navigate(`/products/${p.id || p.product_id}`))}>
                           <td className="py-2 pr-4 font-medium text-blue-600 hover:underline">{p.name || p.product_name}</td>
                           <td className="py-2 pr-4 text-right"><span className={`font-semibold ${stock === 0 ? 'text-red-600' : isLow ? 'text-amber-600' : 'text-gray-700'}`}>{stock}</span></td>
                           <td className="py-2 pr-4 text-right">{formatCurrency(p.price || 0)}</td>

@@ -17,6 +17,7 @@ import { toast } from 'sonner'
 import { extractApiError } from '@/lib/errorMessages'
 import { TableToolbar } from '@/components/table/TableToolbar'
 import { processRows, type SortDir } from '@/lib/tableList'
+import { onClickableTableRow } from '@/lib/clickableTableRow'
 import { Plus, Loader2, Tag, Pencil, Trash2, X, ToggleLeft, ToggleRight, Copy, Share2, Mail, MessageCircle } from 'lucide-react'
 
 function couponShareText(c: Record<string, unknown>): string {
@@ -152,7 +153,8 @@ export default function CouponsPage() {
               ) : !data?.items?.length ? (
                 <tr><td colSpan={8} className="py-12 text-center text-sm text-gray-500"><Tag className="w-10 h-10 mx-auto mb-2 text-gray-200" />No coupons yet</td></tr>
               ) : displayCoupons.map((c: CRow) => (
-                <tr key={c.id as string} className="hover:bg-gray-50">
+                <tr key={c.id as string} className="hover:bg-gray-50 cursor-pointer"
+                  onClick={onClickableTableRow(() => setModal({ mode: 'edit', coupon: c }))}>
                   <td className="px-5 py-3"><span className="font-mono text-sm font-bold bg-gray-100 px-2 py-0.5 rounded">{c.code as string}</span>{c.title != null && c.title !== '' && <p className="text-xs text-gray-500 mt-0.5">{String(c.title)}</p>}</td>
                   <td className="px-5 py-3 text-sm text-gray-600">{c.store_id ? (storeLabelById.get(c.store_id as string) ?? '—') : <span className="text-gray-400">All units</span>}</td>
                   <td className="px-5 py-3 text-sm">{c.discount_type === 'percentage' ? `${c.discount_value}%${c.max_discount ? ` (max ${formatCurrency(c.max_discount as number)})` : ''}` : formatCurrency(c.discount_value as number)}</td>

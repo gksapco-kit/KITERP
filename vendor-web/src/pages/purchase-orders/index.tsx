@@ -20,6 +20,7 @@ import { ResizableTable } from '@/components/table/ResizableTable'
 import type { Product, Service, PurchaseOrder } from '@/types'
 import { TableToolbar } from '@/components/table/TableToolbar'
 import { processRows, type SortDir } from '@/lib/tableList'
+import { onClickableTableRow } from '@/lib/clickableTableRow'
 import { useBarcodeScanner } from '@/hooks/useBarcodeScanner'
 import { BarcodeScannerModal } from '@/components/scanner/BarcodeScannerModal'
 import { toast } from 'sonner'
@@ -241,7 +242,7 @@ export default function PurchaseOrdersPage() {
                       <tr
                         key={po.id}
                         className="hover:bg-gray-50 cursor-pointer"
-                        onClick={() => navigate(`/purchase-orders/${po.id}`)}
+                        onClick={onClickableTableRow(() => navigate(`/purchase-orders/${po.id}`))}
                       >
                         <td className="px-6 py-4 text-sm font-medium text-blue-600">{po.po_number}</td>
                         <td className="px-6 py-4 text-sm text-gray-900">{po.supplier_name || '-'}</td>

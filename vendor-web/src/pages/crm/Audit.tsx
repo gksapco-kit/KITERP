@@ -7,6 +7,7 @@ import { useAuditLog } from '@/hooks/useCrm'
 import { History, ChevronDown, ChevronRight } from 'lucide-react'
 import { Pager, LoadingRow, EmptyRow } from './_shared'
 import { cn, filterPanelClassName, formatDateTime, tableShellClassName } from '@/lib/utils'
+import { onClickableTableRow } from '@/lib/clickableTableRow'
 
 export default function AuditPage() {
   const [page, setPage] = useState(1)
@@ -58,8 +59,9 @@ export default function AuditPage() {
                 const expanded = open === a.id
                 return (
                   <Fragment key={a.id}>
-                    <tr className="hover:bg-gray-50">
-                      <td className="px-2 cursor-pointer" onClick={() => setOpen(expanded ? null : a.id)}>
+                    <tr className="hover:bg-gray-50 cursor-pointer"
+                      onClick={onClickableTableRow(() => setOpen(expanded ? null : a.id))}>
+                      <td className="px-2">
                         {expanded ? <ChevronDown className="w-4 h-4 text-gray-400" /> : <ChevronRight className="w-4 h-4 text-gray-400" />}
                       </td>
                       <td className="px-4 py-3 text-xs text-gray-600 whitespace-nowrap">{formatDateTime(a.created_at)}</td>

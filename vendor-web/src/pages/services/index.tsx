@@ -20,6 +20,7 @@ import { formatCurrency, mediaUrl } from '@/lib/utils'
 import { TableToolbar } from '@/components/table/TableToolbar'
 import { ResizableTable } from '@/components/table/ResizableTable'
 import { processRows, type SortDir } from '@/lib/tableList'
+import { onClickableTableRow } from '@/lib/clickableTableRow'
 import type { Service } from '@/types'
 import {
   Plus, Search, Pencil, Trash2, Loader2, X,
@@ -437,7 +438,7 @@ export default function Services() {
                   return (
                     <tr key={service.id}
                       className="hover:bg-gray-50/80 cursor-pointer transition-colors group"
-                      onClick={() => navigate(`/services/${service.id}?mode=view`)}>
+                      onClick={onClickableTableRow(() => navigate(`/services/${service.id}?mode=view`))}>
                       <td className="px-5 py-3">
                         <div className="flex items-center gap-3">
                           {thumbUrl ? (
@@ -488,7 +489,7 @@ export default function Services() {
                       <td className="px-4 py-3">
                         <CatalogItemStatusCell status={service.status} isVisible={service.is_visible} />
                       </td>
-                      <td className="px-5 py-3 text-right" onClick={e => e.stopPropagation()}>
+                      <td className="px-5 py-3 text-right">
                         <div className="flex gap-1 justify-end items-center">
                           <Button variant="ghost" size="sm" className="h-8 w-8 p-0" title="Edit"
                             onClick={() => navigate(`/services/${service.id}`)}>

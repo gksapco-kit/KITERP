@@ -110,13 +110,26 @@ function AppGridCard({
   return (
     <article
       role="listitem"
+      tabIndex={hasSubmenus ? 0 : undefined}
+      onClick={() => {
+        if (hasSubmenus) onToggleExpand()
+      }}
+      onKeyDown={(e) => {
+        if (!hasSubmenus) return
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault()
+          onToggleExpand()
+        }
+      }}
       className={cn(
         'group relative flex h-full flex-col overflow-hidden rounded-xl bg-card shadow-sm transition-[box-shadow,border-color] duration-200',
         'border-[1.5px] border-[color:var(--border-color)]',
         expanded && 'z-10 border-primary shadow-md',
         installed && !expanded && 'border-primary/35',
         !expanded && 'hover:shadow-md',
+        hasSubmenus && 'cursor-pointer',
       )}
+      aria-expanded={hasSubmenus ? expanded : undefined}
     >
       <div className="flex flex-1 flex-col p-3 sm:p-3.5">
         <div className="flex items-start justify-between gap-2">
@@ -134,22 +147,18 @@ function AppGridCard({
           </span>
 
           {hasSubmenus ? (
-            <button
-              type="button"
-              onClick={onToggleExpand}
+            <span
               className={cn(
-                'flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border-[1.5px] text-muted-foreground transition-colors hover:bg-muted/40 hover:text-foreground',
+                'flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border-[1.5px] text-muted-foreground',
                 surfaceBorderClassName,
                 expanded && 'border-primary/30 bg-primary/10 text-primary',
               )}
-              aria-expanded={expanded}
-              aria-label={expanded ? `Collapse ${section.title} menu` : `Expand ${section.title} menu`}
+              aria-hidden
             >
               <ChevronRight
                 className={cn('h-3.5 w-3.5 transition-transform duration-200', expanded && 'rotate-90')}
-                aria-hidden
               />
-            </button>
+            </span>
           ) : null}
         </div>
 
@@ -179,7 +188,11 @@ function AppGridCard({
           </div>
         ) : null}
 
-        <div className="mt-2.5">
+        <div
+          className="mt-2.5"
+          onClick={(e) => e.stopPropagation()}
+          onMouseDown={(e) => e.stopPropagation()}
+        >
           {pinned ? (
             <span className="inline-flex w-full items-center justify-center rounded-lg border-[1.5px] border-primary/25 bg-primary/10 px-2.5 py-1.5 text-[11px] font-medium text-primary">
               Always installed
@@ -318,8 +331,8 @@ export function SidebarAppsPickerModal({
 
           <p className="mx-auto mt-2 max-w-md text-xs leading-snug text-white/88 sm:text-sm">
             {isVendorAdmin
-              ? 'Tap > on a card to show menu bubbles. Install or uninstall apps in your sidebar.'
-              : 'Tap > on a card to browse menu items. Installing apps requires owner or admin access.'}
+              ? 'Tap a card to show menu bubbles. Install or uninstall apps in your sidebar.'
+              : 'Tap a card to browse menu items. Installing apps requires owner or admin access.'}
           </p>
           <p className="mt-1.5 text-[11px] text-white/70 sm:text-xs">
             <span className="font-semibold text-white">{sections.length}</span> apps

@@ -11,6 +11,7 @@ import { Select, selectOptionsWithBlank } from '@/components/ui/select'
 import { useManufacturingOrders } from '@/hooks/useControlling'
 import { formatCurrency } from '@/lib/utils'
 import { cn } from '@/lib/utils'
+import { onClickableTableRow } from '@/lib/clickableTableRow'
 
 const ORDER_KINDS = ['', 'assembly', 'process', 'project', 'internal']
 const STATUSES = ['', 'draft', 'released', 'in_progress', 'completed', 'closed']
@@ -308,7 +309,7 @@ export default function VarianceAnalysisPage() {
                         'hover:bg-muted/40 cursor-pointer transition-colors',
                         isExpanded && 'bg-accent/50',
                       )}
-                      onClick={() => setExpandedId(isExpanded ? null : o.id)}
+                      onClick={onClickableTableRow(() => setExpandedId(isExpanded ? null : o.id))}
                     >
                       <td className="px-4 py-3">
                         <p className="font-mono text-xs font-medium text-foreground">{o.order_no}</p>
@@ -341,7 +342,6 @@ export default function VarianceAnalysisPage() {
                       <td className="px-4 py-3">
                         <Link
                           to={`/controlling/orders/${o.id}`}
-                          onClick={e => e.stopPropagation()}
                           className="text-primary hover:text-primary/80"
                         >
                           <ExternalLink className="w-4 h-4" />

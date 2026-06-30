@@ -14,6 +14,7 @@ import {
   useOverheadPools,
 } from '@/hooks/useControlling'
 import { formatCurrency, cn } from '@/lib/utils'
+import { onClickableTableRow } from '@/lib/clickableTableRow'
 import { toast } from 'sonner'
 import { ArrowLeft, Boxes, RefreshCw, Plus, GitBranch, Layers, ChevronDown, ChevronRight } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -234,7 +235,7 @@ export default function ControllingProductCostsPage() {
                         'cursor-pointer border-t border-border',
                         isExpanded ? 'bg-primary/10' : 'hover:bg-muted/30',
                       )}
-                        onClick={() => setExpandedId(isExpanded ? null : v.id)}>
+                        onClick={onClickableTableRow(() => setExpandedId(isExpanded ? null : v.id))}>
                         <td className="px-3 py-3 text-muted-foreground">
                           {isExpanded ? <ChevronDown className="w-4 h-4 text-primary" /> : <ChevronRight className="w-4 h-4" />}
                         </td>
@@ -255,7 +256,7 @@ export default function ControllingProductCostsPage() {
                         <td className="px-4 py-3 text-right tabular-nums font-semibold text-foreground">
                           {formatCurrency(Number(v.rolled_up_unit_cost))}
                         </td>
-                        <td className="px-4 py-3 text-right space-x-2" onClick={e => e.stopPropagation()}>
+                        <td className="px-4 py-3 text-right space-x-2">
                           {v.status !== 'active' && (
                             <Button type="button" size="sm" variant="outline" onClick={() => setActive(v.id)}>Set active</Button>
                           )}

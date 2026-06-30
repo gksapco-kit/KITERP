@@ -318,7 +318,6 @@ export default function InternalOrdersPage() {
                   </div>
                   <Link
                     to={`/controlling/orders/${row.order_id}`}
-                    onClick={e => e.stopPropagation()}
                     className="text-primary hover:text-primary"
                   >
                     <ExternalLink className="w-4 h-4" />

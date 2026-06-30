@@ -30,6 +30,7 @@ import {
   useSegmentPnl,
 } from '@/hooks/useFinance'
 import type { ProfitCenter, Segment, PnlRow } from '@/api/finance'
+import { onClickableTableRow } from '@/lib/clickableTableRow'
 
 // ── Formatting ────────────────────────────────────────────────────────────────
 const fmt = (n: number) =>
@@ -119,7 +120,7 @@ function ProfitCentersTab() {
                 const row: PnlRow | undefined = pnlMap[pc.id]
                 return (
                   <tr key={pc.id} className="border-t hover:bg-muted/30 transition-colors cursor-pointer"
-                    onClick={() => openEdit(pc)}>
+                    onClick={onClickableTableRow(() => openEdit(pc))}>
                     <td className="px-3 py-2 font-mono font-medium">{pc.code}</td>
                     <td className="px-3 py-2">{pc.name}</td>
                     <td className="px-3 py-2 text-muted-foreground">{pc.manager ?? '—'}</td>
@@ -132,7 +133,7 @@ function ProfitCentersTab() {
                     </td>
                     <td className="px-3 py-2">
                       <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive"
-                        onClick={e => { e.stopPropagation(); deleteMut.mutate(pc.id) }}>
+                        onClick={() => deleteMut.mutate(pc.id)}>
                         <Trash2 className="h-3.5 w-3.5" />
                       </Button>
                     </td>

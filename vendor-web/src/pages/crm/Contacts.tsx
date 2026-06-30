@@ -19,6 +19,7 @@ import { modalWidthMd } from '@/lib/modalUi'
 import { useCrmExtras, CrmExtrasView } from './crmExtras'
 import { SALUTATIONS, contactDisplayName, inputCls } from './crmContactsShared'
 import { formatCurrency, formatDateTime } from '@/lib/utils'
+import { onClickableTableRow } from '@/lib/clickableTableRow'
 
 type RecordFilter = '' | 'person' | 'company'
 
@@ -560,7 +561,7 @@ export default function ContactsPage() {
                     ? '—'
                     : (c.parent_contact_id ? companyMap.get(c.parent_contact_id) : (typeof cf.company === 'string' ? cf.company : '—'))
                   return (
-                    <tr key={c.id} className="hover:bg-gray-50 cursor-pointer" onClick={() => setViewing(c)}>
+                    <tr key={c.id} className="hover:bg-gray-50 cursor-pointer" onClick={onClickableTableRow(() => setViewing(c))}>
                       <td className="px-6 py-4">
                         <p className="text-sm font-medium">{contactDisplayName(c)}</p>
                         {c.title && c.record_type !== 'company' && <p className="text-xs text-gray-500">{c.title}</p>}

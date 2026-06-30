@@ -10,6 +10,7 @@ import {
   usePurchaseOrders,
 } from '@/hooks/useVendor'
 import { formatDate, formatCurrency } from '@/lib/utils'
+import { onClickableTableRow } from '@/lib/clickableTableRow'
 import { ResizableTable } from '@/components/table/ResizableTable'
 import type { Supplier, PurchaseOrder } from '@/types'
 import {
@@ -176,7 +177,7 @@ export default function SuppliersPage() {
                 {displaySuppliers.map((s) => {
                   const bal = s.opening_balance ?? 0
                   return (
-                  <tr key={s.id} className="hover:bg-gray-50 cursor-pointer" onClick={() => setViewing(s)}>
+                  <tr key={s.id} className="hover:bg-gray-50 cursor-pointer" onClick={onClickableTableRow(() => setViewing(s))}>
                     <td className="px-6 py-4 text-sm font-medium text-gray-900">{s.name}</td>
                     <td className="px-6 py-4 text-sm text-gray-600">{s.contact_name || '-'}</td>
                     <td className="px-6 py-4 text-xs font-mono text-gray-600 hidden lg:table-cell">{s.gstin || '-'}</td>
@@ -200,7 +201,7 @@ export default function SuppliersPage() {
                     </td>
                     <td className="px-6 py-4 text-sm text-gray-500">{formatDate(s.created_at)}</td>
                     <td className="px-6 py-4 text-right">
-                      <div className="flex gap-1 justify-end" onClick={e => e.stopPropagation()}>
+                      <div className="flex gap-1 justify-end">
                         <Button variant="ghost" size="sm" title="View details" onClick={() => setViewing(s)}>
                           <Eye className="w-4 h-4 text-blue-500" />
                         </Button>

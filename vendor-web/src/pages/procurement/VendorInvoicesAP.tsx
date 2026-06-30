@@ -8,6 +8,7 @@ import { ResizableTable } from '@/components/table/ResizableTable'
 import { TableColumnLabel } from '@/components/common/FieldLabel'
 import { TableToolbar } from '@/components/table/TableToolbar'
 import { processRows, type SortDir } from '@/lib/tableList'
+import { onClickableTableRow } from '@/lib/clickableTableRow'
 
 import { useEscapeToClose } from '@/hooks/useEscapeToClose'
 import {
@@ -443,7 +444,7 @@ export default function VendorInvoicesAPPage() {
                 const badge = STATUS_BADGE[inv.status] ?? STATUS_BADGE.draft
                 const matchBadge = MATCH_BADGE[inv.match_status] || 'bg-gray-100 text-gray-500'
                 return (
-                  <tr key={inv.id} className="border-t cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800/50" onClick={() => setSelected(inv)}>
+                  <tr key={inv.id} className="border-t cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800/50" onClick={onClickableTableRow(() => setSelected(inv))}>
                     <td className="px-3 py-2 font-mono text-xs text-blue-600 font-medium">{inv.invoice_number}</td>
                     <td className="px-3 py-2 text-sm font-medium">{inv.supplier_name || '—'}</td>
                     <td className="px-3 py-2 text-sm text-gray-500">{inv.po_number || '—'}</td>

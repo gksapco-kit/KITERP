@@ -8,6 +8,7 @@ import { ResizableTable } from '@/components/table/ResizableTable'
 import { TableColumnLabel } from '@/components/common/FieldLabel'
 import { TableToolbar } from '@/components/table/TableToolbar'
 import { processRows, type SortDir } from '@/lib/tableList'
+import { onClickableTableRow } from '@/lib/clickableTableRow'
 import { useEscapeToClose } from '@/hooks/useEscapeToClose'
 import { useCostCenters } from '@/hooks/useFinance'
 import type { CostCenter } from '@/types/finance'
@@ -929,7 +930,7 @@ export default function PurchaseRequisitionsPage() {
                   <tr
                     key={r.id}
                     className="border-t cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800/50"
-                    onClick={() => setSelectedPR(r)}
+                    onClick={onClickableTableRow(() => setSelectedPR(r))}
                   >
                     <td className="px-3 py-2 font-mono text-xs text-blue-600 font-medium">{r.pr_number}</td>
                     <td className="px-3 py-2 font-medium text-sm truncate max-w-[200px]">{r.title || '—'}</td>

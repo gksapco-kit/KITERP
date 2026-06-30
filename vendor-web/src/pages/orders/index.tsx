@@ -13,6 +13,7 @@ import { formatCurrency, formatDate } from '@/lib/utils'
 import { TableToolbar } from '@/components/table/TableToolbar'
 import { ResizableTable } from '@/components/table/ResizableTable'
 import { processRows, type SortDir } from '@/lib/tableList'
+import { onClickableTableRow } from '@/lib/clickableTableRow'
 import type { Order } from '@/types'
 import { Search, ChevronLeft, ChevronRight, Eye, Loader2, Globe, Monitor, CalendarDays, Download, X, MessageSquare, BarChart3, Lock, Store, Plus } from 'lucide-react'
 import { CreateBookingModal } from '@/pages/bookings/CreateBookingModal'
@@ -328,14 +329,14 @@ export default function Orders() {
               ) : displayOrders.map((order) => {
                 const src = order.source || 'online'
                 return (
-                <tr key={order.id} className="cursor-pointer transition-colors hover:bg-muted/40" onClick={() => {
+                <tr key={order.id} className="cursor-pointer transition-colors hover:bg-muted/40" onClick={onClickableTableRow(() => {
                     if (order.source === 'booking') {
                       const bookingId = (order.items?.[0] as unknown as Record<string, unknown>)?.booking_id as string | undefined
                       if (bookingId) { navigate(`/bookings/${bookingId}`); return }
                     }
                     navigate(`/orders/${order.id}`)
-                  }}>
-                  <td className="w-10 px-4 py-4" onClick={(e) => e.stopPropagation()}>
+                  })}>
+                  <td className="w-10 px-4 py-4">
                     <input
                       type="checkbox"
                       checked={selectedIds.has(order.id)}
@@ -368,14 +369,13 @@ export default function Orders() {
                     </div>
                   </td>
                   <td className="px-6 py-4 text-sm text-muted-foreground">{formatDate(order.created_at)}</td>
-                  <td className="px-6 py-4 text-right" onClick={e => e.stopPropagation()}>
+                  <td className="px-6 py-4 text-right">
                     <div className="flex items-center justify-end gap-1">
                       <Button
                         variant="ghost"
                         size="icon-sm"
                         title="Material Requirement Plan"
-                        onClick={e => {
-                          e.stopPropagation()
+                        onClick={() => {
                           const mrpItems: MRPItem[] = (order.items || [])
                             .filter((i: unknown) => (i as Record<string, unknown>).product_id)
                             .map((i: unknown) => {

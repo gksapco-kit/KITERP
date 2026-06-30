@@ -11,6 +11,7 @@ import { useVendorStore } from '@/stores/vendorStore'
 import { flattenCategoryTree, filterCategoryTree } from '@/lib/categoryHierarchy'
 import { formatCurrency, formatDate, mediaUrl } from '@/lib/utils'
 import { processRows, type SortDir } from '@/lib/tableList'
+import { onClickableTableRow } from '@/lib/clickableTableRow'
 import { ResizableTable } from '@/components/table/ResizableTable'
 import type { Product } from '@/types'
 import {
@@ -546,7 +547,7 @@ export default function Products() {
                 const thumbUrl = primaryImg ? resolveUrl(primaryImg.url) : variantImg ? resolveUrl(variantImg.url) : ''
 
                 return (
-                <tr key={product.id} className="hover:bg-gray-50/80 cursor-pointer transition-colors group" onClick={() => navigate(`/products/${product.id}`)}>
+                <tr key={product.id} className="hover:bg-gray-50/80 cursor-pointer transition-colors group" onClick={onClickableTableRow(() => navigate(`/products/${product.id}`))}>
                   <td className="px-5 py-3 max-w-[280px]">
                     <div className="flex items-center gap-3 min-w-0">
                       {thumbUrl ? (
@@ -624,7 +625,7 @@ export default function Products() {
                   <td className="px-4 py-3">
                     <CatalogItemStatusCell status={product.status} isVisible={product.is_visible} />
                   </td>
-                  <td className="px-5 py-3 text-right" onClick={(e) => e.stopPropagation()}>
+                  <td className="px-5 py-3 text-right">
                     <div className="flex gap-1 justify-end items-center">
                       <Button variant="ghost" size="sm" className="h-8 w-8 p-0" title="Edit" onClick={() => navigate(`/products/${product.id}?edit=true`)}>
                         <Pencil className="w-4 h-4 text-gray-500" />
@@ -684,7 +685,7 @@ export default function Products() {
                   <tr
                     key={`${row.productId}-${row.variantId || i}`}
                     className={`hover:bg-gray-50/80 cursor-pointer transition-colors group ${isFirstOfProduct && i > 0 ? 'border-t-2 border-t-gray-200' : ''}`}
-                    onClick={() => navigate(`/products/${row.productId}`)}
+                    onClick={onClickableTableRow(() => navigate(`/products/${row.productId}`))}
                   >
                     <td className="px-5 py-2.5 max-w-[240px]">
                       <div className="flex items-center gap-2.5 min-w-0">
@@ -732,7 +733,7 @@ export default function Products() {
                         {row.is_active ? 'Active' : 'Inactive'}
                       </span>
                     </td>
-                    <td className="px-5 py-2.5 text-right" onClick={(e) => e.stopPropagation()}>
+                    <td className="px-5 py-2.5 text-right">
                       <Button
                         variant="ghost" size="sm" className="h-7 w-7 p-0"
                         title="Edit product"
