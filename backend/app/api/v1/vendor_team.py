@@ -8,17 +8,19 @@ import string
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field, EmailStr
-from sqlalchemy import update
+from sqlalchemy import select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
 from app.models.user import User
+from app.models.vendor import VendorOwner
 from app.models.vendor_user import VendorUser
 from app.models.hr import EmployeeProfile
 from app.models.vendor_role import DEFAULT_ROLE_PERMISSIONS, ALL_PERMISSIONS
 from app.api.deps import (
     get_current_active_user,
+    get_current_vendor_id,
     get_current_vendor_user,
     require_permission,
     get_effective_permissions,
@@ -165,20 +167,100 @@ def _member_to_dict(vu: VendorUser) -> dict:
     }
 
 
+# ── Vendor context for team list ────────────────────────────────
+
+async def _ensure_vendor_user_for_team(
+    db: AsyncSession,
+    vendor_id: UUID,
+    user_id: UUID,
+) -> VendorUser:
+    """Resolve or backfill vendor_user for the active vendor (X-Vendor-Id / dashboard context)."""
+    repo = VendorUserRepository(db)
+    vu = await repo.get_user_with_role(vendor_id, user_id)
+    if vu:
+        return vu
+
+    from app.repositories.vendor_repo import VendorRepository
+
+    vendor_repo = VendorRepository(db)
+    vendor = await vendor_repo.get_by_user_id(user_id, preferred_vendor_id=vendor_id)
+    if vendor and vendor.id == vendor_id:
+        vu = VendorUser(
+            vendor_id=vendor_id,
+            user_id=user_id,
+            role="owner",
+            permissions=[],
+            is_active=True,
+        )
+        db.add(vu)
+        await db.commit()
+        await db.refresh(vu)
+        return vu
+
+    raise HTTPException(
+        status_code=status.HTTP_403_FORBIDDEN,
+        detail="You are not a member of this vendor.",
+    )
+
+
+async def require_team_view_for_vendor(
+    vendor_id: UUID = Depends(get_current_vendor_id),
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db),
+) -> UUID:
+    """Team list uses dashboard vendor context, not a stale membership row from another tenant."""
+    vu = await _ensure_vendor_user_for_team(db, vendor_id, current_user.id)
+    if "team.view" not in get_effective_permissions(vu):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Missing permissions: team.view",
+        )
+    return vendor_id
+
+
+async def _sync_team_memberships_from_owners(db: AsyncSession, vendor_id: UUID) -> None:
+    """Backfill vendor_user rows from vendor_owner when legacy data has no team members."""
+    result = await db.execute(select(VendorOwner).where(VendorOwner.vendor_id == vendor_id))
+    owners = list(result.scalars().all())
+    if not owners:
+        return
+
+    repo = VendorUserRepository(db)
+    changed = False
+    for owner in owners:
+        existing = await repo.get_by_vendor_and_user(vendor_id, owner.user_id)
+        if not existing:
+            db.add(
+                VendorUser(
+                    vendor_id=vendor_id,
+                    user_id=owner.user_id,
+                    role="owner",
+                    permissions=[],
+                    is_active=True,
+                )
+            )
+            changed = True
+    if changed:
+        await db.commit()
+
+
 # ── Endpoints ───────────────────────────────────────────────────
 
 @router.get("")
 async def list_team_members(
     page: int = 1,
     size: int = 50,
-    vu: VendorUser = Depends(require_permission("team.view")),
+    vendor_id: UUID = Depends(require_team_view_for_vendor),
     db: AsyncSession = Depends(get_db),
 ):
     """List all team members for this vendor."""
     repo = VendorUserRepository(db)
     skip = (page - 1) * size
-    members = await repo.list_by_vendor(vu.vendor_id, skip=skip, limit=size, include_inactive=True)
-    total = await repo.count_by_vendor(vu.vendor_id, include_inactive=True)
+    total = await repo.count_by_vendor(vendor_id, include_inactive=True)
+    if total == 0:
+        await _sync_team_memberships_from_owners(db, vendor_id)
+        total = await repo.count_by_vendor(vendor_id, include_inactive=True)
+    members = await repo.list_by_vendor(vendor_id, skip=skip, limit=size, include_inactive=True)
     return JSONResponse({
         "items": [_member_to_dict(m) for m in members],
         "total": total,

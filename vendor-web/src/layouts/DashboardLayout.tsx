@@ -136,6 +136,7 @@ import { Button } from '@/components/ui/button'
 import { useQuery, useMutation } from '@tanstack/react-query'
 import { apiClient } from '@/api/client'
 import { vendorApi } from '@/api/vendor'
+import { toast } from 'sonner'
 import { playTone, type ToneName } from '@/hooks/useNotificationSound'
 import { useBrowserNotifications } from '@/hooks/useBrowserNotifications'
 import { useInboxUnreadCount } from '@/hooks/useCrm'
@@ -202,6 +203,7 @@ import {
   isPinnedSidebarSection,
   normalizeEnabledSectionIds,
   SIDEBAR_APP_DESCRIPTIONS,
+  SIDEBAR_APPS_ADMIN_ONLY_MESSAGE,
 } from '@/layouts/sidebarNavApps'
 import {
   buildRailFlyoutTree,
@@ -2052,6 +2054,19 @@ export default function DashboardLayout() {
           itemCount: items.length,
           description: SIDEBAR_APP_DESCRIPTIONS[s.id],
           submenuLabels: items.map((it) => it.label),
+          submenuItems: (() => {
+            let currentGroup: string | undefined
+            return items.map((it) => {
+              if (it.groupLabel) currentGroup = it.groupLabel
+              return {
+                label: it.label,
+                path: it.externalHref ?? it.to,
+                external: Boolean(it.externalHref),
+                group: currentGroup,
+                icon: it.icon,
+              }
+            })
+          })(),
         }
       }),
     [orderedVisibleSections, orderedNavItemsBySectionId],
@@ -2211,19 +2226,36 @@ export default function DashboardLayout() {
     else sectionScrollAnchors.current.delete(sectionId)
   }, [])
 
-  /** Keep Website Management open on website, blog, dashboard, and storefront display routes. */
+  /** Auto-expand the sidebar section (and group) that contains the active page. */
   useEffect(() => {
-    if (
-      !location.pathname.startsWith('/websites')
-      && !location.pathname.startsWith('/blog')
-      && !location.pathname.startsWith('/business-front')
-      && !location.pathname.startsWith('/system/storefront-display')
-    ) return
-    setCollapsedSections((prev) => {
-      if (prev['Website Management'] === false) return prev
-      return { ...prev, 'Website Management': false }
+    if (!activeNavTo || navReorderMode) return
+
+    const section = displaySections.find((s) => {
+      const items = orderedNavItemsBySectionId.get(s.id) ?? s.items
+      return items.some((it) => it.to === activeNavTo)
     })
-  }, [location.pathname])
+    if (!section) return
+
+    setCollapsedSections((prev) => {
+      if (prev[section.title] === false) return prev
+      pendingScrollSectionId.current = section.id
+      return { ...prev, [section.title]: false }
+    })
+
+    const items = orderedNavItemsBySectionId.get(section.id) ?? section.items
+    const itemGroups = effectiveNavGroupLabels(items)
+    const blocks = buildNavItemBlocks(items, itemGroups, section.title)
+    for (const block of blocks) {
+      if (block.kind !== 'group') continue
+      const hasActive = block.entries.some(({ item }) => item.to === activeNavTo)
+      if (!hasActive) continue
+      setCollapsedGroups((prev) => {
+        if (prev[block.grpKey] === false) return prev
+        return { ...prev, [block.grpKey]: false }
+      })
+      break
+    }
+  }, [activeNavTo, displaySections, orderedNavItemsBySectionId, navReorderMode])
 
   const toggleSection = useCallback((title: string, sectionId: string) => {
     const activeInSection = sectionActiveNavTo(
@@ -2244,7 +2276,12 @@ export default function DashboardLayout() {
       if (activeInSection) {
         setNavFocusKey(itemFocusKey(sectionId, activeInSection))
       }
-      return { ...prev, [title]: false }
+      // Accordion: keep only the clicked section expanded.
+      const next: Record<string, boolean> = {}
+      for (const s of sidebarSections) {
+        next[s.title] = s.title !== title
+      }
+      return next
     })
   }, [
     activeNavTo,
@@ -2253,6 +2290,7 @@ export default function DashboardLayout() {
     location.search,
     navigate,
     orderedNavItemsBySectionId,
+    sidebarSections,
   ])
 
   useLayoutEffect(() => {
@@ -2647,7 +2685,11 @@ export default function DashboardLayout() {
           setCollapsedSections((prev) => {
             if (prev[action.title] === false) return prev
             pendingScrollSectionId.current = action.sectionId
-            return { ...prev, [action.title]: false }
+            const next: Record<string, boolean> = {}
+            for (const s of sidebarSections) {
+              next[s.title] = s.title !== action.title
+            }
+            return next
           })
           if (action.navigateTo) {
             navigateToNavItem(action.navigateTo, action.focusKey)
@@ -2684,7 +2726,7 @@ export default function DashboardLayout() {
           break
       }
     },
-    [openRailFlyout, navigateToNavItem],
+    [openRailFlyout, navigateToNavItem, sidebarSections],
   )
 
   const handleSidebarNavKeyDown = useCallback(
@@ -4090,9 +4132,13 @@ export default function DashboardLayout() {
           onClose={() => setAppsPickerOpen(false)}
           sections={appsPickerSections}
           enabledIds={enabledSectionIds}
-          onEnabledChange={(ids) =>
+          onEnabledChange={(ids) => {
+            if (!isOwnerOrAdmin) {
+              toast.error(SIDEBAR_APPS_ADMIN_ONLY_MESSAGE)
+              return
+            }
             setEnabledSectionIds(normalizeEnabledSectionIds(ids, allVisibleSectionIds))
-          }
+          }}
         />
 
         {/* Page content */}

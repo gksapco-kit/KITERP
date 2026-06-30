@@ -5,6 +5,9 @@ const LS_ENABLED = 'kiterp.vendor.sidebar.enabled-sections'
 /** Always visible in the sidebar — core hub for dashboard, notifications, and settings. */
 export const PINNED_SIDEBAR_SECTION_IDS = ['my-kit'] as const
 
+export const SIDEBAR_APPS_ADMIN_ONLY_MESSAGE =
+  'Permission denied. Only owners and admins can install or uninstall apps. Contact your administrator.'
+
 function scopedKey(base: string, scope: NavOrderScope | null | undefined): string {
   if (!scope?.userId) return base
   const role = scope.roleKey || 'member'
@@ -102,6 +105,58 @@ export const SIDEBAR_APP_GROUPS: { id: string; title: string; sectionIds: string
   { id: 'hr', title: 'Human Resources', sectionIds: ['hr'] },
   { id: 'system', title: 'System & Configuration', sectionIds: ['system'] },
 ]
+
+export type SidebarAppSubmenuExport = {
+  label: string
+  path: string
+  external?: boolean
+  group?: string
+}
+
+export type SidebarAppExportPayload = {
+  export_version: 1
+  exported_at: string
+  app: {
+    id: string
+    title: string
+    description?: string
+    enabled: boolean
+    pinned: boolean
+    submenus: SidebarAppSubmenuExport[]
+  }
+}
+
+/** Download a single sidebar app module as JSON (owners/admins only in UI). */
+export function downloadSidebarAppManifest(
+  section: {
+    id: string
+    title: string
+    description?: string
+    submenuItems: SidebarAppSubmenuExport[]
+  },
+  options: { enabled: boolean; pinned?: boolean },
+): void {
+  const payload: SidebarAppExportPayload = {
+    export_version: 1,
+    exported_at: new Date().toISOString(),
+    app: {
+      id: section.id,
+      title: section.title,
+      description: section.description,
+      enabled: options.enabled,
+      pinned: options.pinned ?? isPinnedSidebarSection(section.id),
+      submenus: section.submenuItems,
+    },
+  }
+  const slug = section.id.replace(/[^a-z0-9-]+/gi, '-').replace(/^-|-$/g, '') || 'app'
+  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' })
+  const url = URL.createObjectURL(blob)
+  const anchor = document.createElement('a')
+  anchor.href = url
+  anchor.download = `kiterp-app-${slug}.json`
+  anchor.click()
+  URL.revokeObjectURL(url)
+}
 
 export function groupSidebarAppSections<T extends { id: string }>(
   sections: T[],

@@ -32,9 +32,11 @@ import {
 } from '@/pages/team/teamRoleHelpers'
 import type { EmployeeProfile } from '@/types'
 import { useAuthStore } from '@/stores/authStore'
+import { useVendorStore } from '@/stores/vendorStore'
 import type { TeamMember } from '@/types'
 import { TableToolbar } from '@/components/table/TableToolbar'
 import { processRows, type SortDir } from '@/lib/tableList'
+import { extractApiError } from '@/lib/errorMessages'
 import { employeeContactEmail, employeeContactPhone, employeeDisplayName } from '@/lib/hrEmployeeDisplay'
 import { toast } from 'sonner'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
@@ -53,9 +55,10 @@ const roleColors: Record<string, string> = {
 
 export default function TeamPage() {
   const { user } = useAuthStore()
+  const vendorId = useVendorStore((s) => s.vendor?.id)
   const navigate = useNavigate()
   const qc = useQueryClient()
-  const { data: teamData, isLoading } = useTeamMembers()
+  const { data: teamData, isLoading, isError, error, refetch } = useTeamMembers({ size: 100 })
   const { data: assignableData } = useAssignableTeamRoles()
   const assignableRoles: AssignableTeamRoles | undefined = assignableData
     ? { builtin_roles: assignableData.builtin_roles, custom_roles: assignableData.custom_roles }
@@ -316,10 +319,24 @@ export default function TeamPage() {
           onSortDirChange={setSortDir}
           className="border-0 border-b rounded-none bg-gray-50/80"
         />
-        {isLoading ? (
+        {(!vendorId || isLoading) ? (
           <div className="p-8 text-center text-gray-500">Loading team...</div>
+        ) : isError ? (
+          <div className="p-8 text-center space-y-3">
+            <p className="text-red-600">{extractApiError(error, 'Could not load team members')}</p>
+            <Button variant="outline" size="sm" onClick={() => refetch()} className="gap-2">
+              <RefreshCw className="w-4 h-4" />
+              Retry
+            </Button>
+          </div>
         ) : displayMembers.length === 0 ? (
-          <div className="p-8 text-center text-gray-500">No team members found</div>
+          <div className="p-8 text-center text-gray-500">
+            {search.trim()
+              ? 'No team members match your search'
+              : members.length === 0
+                ? 'No team members yet. Add your first team member to get started.'
+                : 'No team members found'}
+          </div>
         ) : (
           <div className="overflow-x-auto">
             <ResizableTable tableId="team" defaultWidths={[260, 200, 120, 140, 100, 120, 80]}>

@@ -22,7 +22,8 @@ export const vendorKeys = {
   customer: (id: string) => [...vendorKeys.all, 'customer', id] as const,
   reviews: (params?: Record<string, unknown>) => [...vendorKeys.all, 'reviews', params] as const,
   review: (id: string) => [...vendorKeys.all, 'review', id] as const,
-  team: (params?: Record<string, unknown>) => [...vendorKeys.all, 'team', params] as const,
+  team: (params?: Record<string, unknown>, vendorId?: string | null) =>
+    [...vendorKeys.all, 'team', vendorId ?? '', params] as const,
   assignableTeamRoles: () => [...vendorKeys.all, 'assignable-team-roles'] as const,
   teamMember: (id: string) => [...vendorKeys.all, 'team-member', id] as const,
   myMembership: () => [...vendorKeys.all, 'my-membership'] as const,
@@ -597,9 +598,11 @@ export function useToggleReviewVisibility() {
 
 // ── Team ────────────────────────────────────────────────────────
 export function useTeamMembers(params?: Record<string, unknown>) {
+  const vendorId = useVendorStore((s) => s.vendor?.id)
   return useQuery({
-    queryKey: vendorKeys.team(params),
+    queryKey: vendorKeys.team(params, vendorId),
     queryFn: () => vendorApi.listTeamMembers(params),
+    enabled: Boolean(vendorId),
   })
 }
 

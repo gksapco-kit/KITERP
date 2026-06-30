@@ -1,23 +1,18 @@
-import { useMemo, useState, type ElementType, type ReactNode } from 'react'
-import { ChevronDown, Search, X } from 'lucide-react'
+import { useEffect, useMemo, useState, type ElementType, type ReactNode } from 'react'
+import { ChevronRight, Link2, PackageMinus, PackagePlus, Search, X } from 'lucide-react'
+import { toast } from 'sonner'
 import { ModalBody, ModalOverlay, ModalPanel } from '@/components/ui/Modal'
-import { Switch } from '@/components/ui/switch'
 import { Button } from '@/components/ui/button'
 import { cn, searchFieldInnerInputClassName, searchFieldShellClassName, surfaceBorderClassName } from '@/lib/utils'
 import {
-  groupSidebarAppSections,
   isPinnedSidebarSection,
+  SIDEBAR_APPS_ADMIN_ONLY_MESSAGE,
+  type SidebarAppSubmenuExport,
 } from '@/layouts/sidebarNavApps'
+import { useIsVendorAdmin } from '@/hooks/usePermissions'
 
-const SUBMENU_CHIP_PREVIEW = 8
-
-function appChipClassName(enabled: boolean) {
-  return cn(
-    'inline-flex max-w-full truncate rounded-full border-[1.5px] px-2.5 py-0.5 text-[11px] leading-snug',
-    enabled
-      ? 'border-primary/35 bg-primary/[0.08] text-foreground'
-      : 'border-[color:var(--border-color)] bg-muted/20 text-muted-foreground',
-  )
+export type SidebarAppPickerSubmenuItem = SidebarAppSubmenuExport & {
+  icon?: ElementType
 }
 
 export type SidebarAppPickerSection = {
@@ -28,6 +23,7 @@ export type SidebarAppPickerSection = {
   itemCount: number
   description?: string
   submenuLabels: string[]
+  submenuItems: SidebarAppPickerSubmenuItem[]
 }
 
 type SidebarAppsPickerModalProps = {
@@ -55,6 +51,168 @@ function HeroHighlight({ children, onGreen }: { children: ReactNode; onGreen?: b
   )
 }
 
+function SubmenuBubble({
+  item,
+  installed,
+  title,
+}: {
+  item: SidebarAppPickerSubmenuItem
+  installed: boolean
+  title?: string
+}) {
+  const Icon = item.icon ?? Link2
+  return (
+    <span
+      title={title ?? item.label}
+      className={cn(
+        'inline-flex max-w-full items-center gap-1 rounded-full border-[1.5px] py-0.5 pl-0.5 pr-2',
+        installed
+          ? 'border-primary/30 bg-primary/[0.08] text-foreground'
+          : 'border-[color:var(--border-color)] bg-muted/25 text-muted-foreground',
+      )}
+    >
+      <span
+        className={cn(
+          'flex h-5 w-5 shrink-0 items-center justify-center rounded-full',
+          installed ? 'bg-primary/15 text-primary' : 'bg-muted/50 text-muted-foreground',
+        )}
+        aria-hidden
+      >
+        <Icon className="h-2.5 w-2.5" strokeWidth={2} />
+      </span>
+      <span className="truncate text-[10px] font-medium leading-none">{item.label}</span>
+    </span>
+  )
+}
+
+type AppGridCardProps = {
+  section: SidebarAppPickerSection
+  installed: boolean
+  pinned: boolean
+  expanded: boolean
+  onToggleExpand: () => void
+  onInstall: () => void
+  onUninstall: () => void
+}
+
+function AppGridCard({
+  section,
+  installed,
+  pinned,
+  expanded,
+  onToggleExpand,
+  onInstall,
+  onUninstall,
+}: AppGridCardProps) {
+  const SectionIcon = section.icon
+  const hasSubmenus = section.submenuItems.length > 0
+
+  return (
+    <article
+      role="listitem"
+      className={cn(
+        'group relative flex h-full flex-col overflow-hidden rounded-xl bg-card shadow-sm transition-[box-shadow,border-color] duration-200',
+        'border-[1.5px] border-[color:var(--border-color)]',
+        expanded && 'z-10 border-primary shadow-md',
+        installed && !expanded && 'border-primary/35',
+        !expanded && 'hover:shadow-md',
+      )}
+    >
+      <div className="flex flex-1 flex-col p-3 sm:p-3.5">
+        <div className="flex items-start justify-between gap-2">
+          <span
+            className={cn(
+              'flex h-10 w-10 shrink-0 items-center justify-center rounded-xl',
+              surfaceBorderClassName,
+              installed
+                ? 'border-primary/30 bg-gradient-to-br from-primary/15 to-primary/5 text-primary'
+                : 'bg-muted/35 text-muted-foreground',
+            )}
+            aria-hidden
+          >
+            <SectionIcon className="h-5 w-5" strokeWidth={1.75} />
+          </span>
+
+          {hasSubmenus ? (
+            <button
+              type="button"
+              onClick={onToggleExpand}
+              className={cn(
+                'flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border-[1.5px] text-muted-foreground transition-colors hover:bg-muted/40 hover:text-foreground',
+                surfaceBorderClassName,
+                expanded && 'border-primary/30 bg-primary/10 text-primary',
+              )}
+              aria-expanded={expanded}
+              aria-label={expanded ? `Collapse ${section.title} menu` : `Expand ${section.title} menu`}
+            >
+              <ChevronRight
+                className={cn('h-3.5 w-3.5 transition-transform duration-200', expanded && 'rotate-90')}
+                aria-hidden
+              />
+            </button>
+          ) : null}
+        </div>
+
+        <div className="mt-2.5 min-w-0 flex-1">
+          <h4 className="text-sm font-semibold leading-snug text-foreground">{section.title}</h4>
+          <p className={cn('mt-0.5 text-[10px] font-medium', installed ? 'text-primary' : 'text-muted-foreground')}>
+            {section.itemCount} menu item{section.itemCount === 1 ? '' : 's'}
+            {installed ? ' · Installed' : ''}
+          </p>
+          {!expanded && section.description ? (
+            <p className="mt-1.5 line-clamp-2 text-[10px] leading-relaxed text-muted-foreground">{section.description}</p>
+          ) : null}
+        </div>
+
+        {expanded && hasSubmenus ? (
+          <div className="mt-2 max-h-36 overflow-y-auto border-t border-[color:var(--border-color)] pt-2 pr-0.5">
+            <div className="flex flex-wrap gap-1.5">
+              {section.submenuItems.map((item, index) => (
+                <SubmenuBubble
+                  key={`${section.id}-${item.path}-${index}`}
+                  item={item}
+                  installed={installed}
+                  title={item.external ? `${item.label} (external)` : item.label}
+                />
+              ))}
+            </div>
+          </div>
+        ) : null}
+
+        <div className="mt-2.5">
+          {pinned ? (
+            <span className="inline-flex w-full items-center justify-center rounded-lg border-[1.5px] border-primary/25 bg-primary/10 px-2.5 py-1.5 text-[11px] font-medium text-primary">
+              Always installed
+            </span>
+          ) : installed ? (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className={cn('h-7 w-full gap-1 text-[11px]', surfaceBorderClassName)}
+              onClick={onUninstall}
+            >
+              <PackageMinus className="h-3 w-3" aria-hidden />
+              Uninstall
+            </Button>
+          ) : (
+            <Button
+              type="button"
+              variant="default"
+              size="sm"
+              className="h-7 w-full gap-1 text-[11px]"
+              onClick={onInstall}
+            >
+              <PackagePlus className="h-3 w-3" aria-hidden />
+              Install
+            </Button>
+          )}
+        </div>
+      </div>
+    </article>
+  )
+}
+
 export function SidebarAppsPickerModal({
   open,
   onClose,
@@ -62,8 +220,9 @@ export function SidebarAppsPickerModal({
   enabledIds,
   onEnabledChange,
 }: SidebarAppsPickerModalProps) {
+  const isVendorAdmin = useIsVendorAdmin()
   const [query, setQuery] = useState('')
-  const [expandedCards, setExpandedCards] = useState<Set<string>>(() => new Set())
+  const [expandedSectionId, setExpandedSectionId] = useState<string | null>(null)
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase()
@@ -73,175 +232,51 @@ export function SidebarAppsPickerModal({
       const tip = (s.titleTooltip ?? '').toLowerCase()
       const desc = (s.description ?? '').toLowerCase()
       const submenuHit = s.submenuLabels.some((label) => label.toLowerCase().includes(q))
-      return title.includes(q) || tip.includes(q) || desc.includes(q) || s.id.includes(q) || submenuHit
+      const pathHit = s.submenuItems.some((item) => item.path.toLowerCase().includes(q))
+      return title.includes(q) || tip.includes(q) || desc.includes(q) || s.id.includes(q) || submenuHit || pathHit
     })
   }, [sections, query])
 
-  const groupedSections = useMemo(() => groupSidebarAppSections(filtered), [filtered])
-  const isSearchActive = query.trim().length > 0
-
   const enabledSet = useMemo(() => new Set(enabledIds), [enabledIds])
-  const optionalSections = sections.filter((s) => !isPinnedSidebarSection(s.id))
-  const enabledOptionalCount = optionalSections.filter((s) => enabledSet.has(s.id)).length
+  const installedCount = sections.filter((s) => enabledSet.has(s.id)).length
   const totalSubmenus = sections.reduce((sum, s) => sum + s.itemCount, 0)
+
+  useEffect(() => {
+    if (expandedSectionId && !filtered.some((s) => s.id === expandedSectionId)) {
+      setExpandedSectionId(null)
+    }
+  }, [filtered, expandedSectionId])
 
   if (!open) return null
 
-  const toggleSection = (sectionId: string, next: boolean) => {
-    if (isPinnedSidebarSection(sectionId)) return
-    const set = new Set(enabledIds)
-    if (next) set.add(sectionId)
-    else set.delete(sectionId)
-    onEnabledChange(Array.from(set))
+  const toggleExpanded = (sectionId: string) => {
+    setExpandedSectionId((prev) => (prev === sectionId ? null : sectionId))
   }
 
-  const showAll = () => onEnabledChange(sections.map((s) => s.id))
-
-  const hideAllOptional = () => {
-    onEnabledChange(sections.filter((s) => isPinnedSidebarSection(s.id)).map((s) => s.id))
+  const installSection = (section: SidebarAppPickerSection) => {
+    if (!isVendorAdmin) {
+      toast.error(SIDEBAR_APPS_ADMIN_ONLY_MESSAGE)
+      return
+    }
+    if (enabledSet.has(section.id)) return
+    onEnabledChange([...enabledIds, section.id])
+    setExpandedSectionId(section.id)
+    toast.success(`${section.title} installed in sidebar`)
   }
 
-  const toggleCardExpanded = (sectionId: string) => {
-    setExpandedCards((prev) => {
-      const next = new Set(prev)
-      if (next.has(sectionId)) next.delete(sectionId)
-      else next.add(sectionId)
-      return next
-    })
+  const uninstallSection = (section: SidebarAppPickerSection) => {
+    if (!isVendorAdmin) {
+      toast.error(SIDEBAR_APPS_ADMIN_ONLY_MESSAGE)
+      return
+    }
+    if (isPinnedSidebarSection(section.id) || !enabledSet.has(section.id)) return
+    onEnabledChange(enabledIds.filter((id) => id !== section.id))
+    toast.success(`${section.title} removed from sidebar`)
   }
-
-  const renderAppRow = (section: SidebarAppPickerSection) => {
-    const pinned = isPinnedSidebarSection(section.id)
-    const enabled = enabledSet.has(section.id)
-    const SectionIcon = section.icon
-    const expanded = expandedCards.has(section.id)
-    const showAllSubmenus = expanded || section.submenuLabels.length <= SUBMENU_CHIP_PREVIEW
-    const visibleLabels = showAllSubmenus
-      ? section.submenuLabels
-      : section.submenuLabels.slice(0, SUBMENU_CHIP_PREVIEW)
-    const hiddenCount = section.submenuLabels.length - visibleLabels.length
-
-    return (
-      <article
-        key={section.id}
-        role="listitem"
-        className={cn(
-          'rounded-xl bg-card shadow-sm transition-[border-color,background-color] duration-150',
-          surfaceBorderClassName,
-          !enabled && 'hover:bg-muted/10',
-        )}
-      >
-        <div className="flex items-start gap-3 p-3.5 sm:gap-4 sm:p-4">
-          <span
-            className={cn(
-              'flex h-10 w-10 shrink-0 items-center justify-center rounded-xl sm:h-11 sm:w-11',
-              surfaceBorderClassName,
-              enabled
-                ? 'border-primary/30 bg-primary/10 text-primary'
-                : 'bg-muted/30 text-muted-foreground',
-            )}
-            aria-hidden
-          >
-            <SectionIcon className="h-5 w-5" strokeWidth={2} />
-          </span>
-
-          <div className="min-w-0 flex-1">
-            <div className="flex items-start justify-between gap-3">
-              <div className="min-w-0">
-                <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                  <h4 className="text-sm font-semibold text-foreground sm:text-base">{section.title}</h4>
-                  <span
-                    className={cn(
-                      'rounded-full border-[1.5px] px-2 py-0.5 text-[10px] font-semibold tabular-nums',
-                      enabled
-                        ? 'border-primary/30 bg-primary/10 text-primary'
-                        : 'border-[color:var(--border-color)] bg-muted/40 text-muted-foreground',
-                    )}
-                  >
-                    {section.itemCount} submenu{section.itemCount === 1 ? '' : 's'}
-                  </span>
-                  {pinned ? (
-                    <span className="rounded-full border-[1.5px] border-[color:var(--border-color)] bg-muted/30 px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
-                      Always on
-                    </span>
-                  ) : enabled ? (
-                    <span className="rounded-full border-[1.5px] border-primary/30 bg-primary/10 px-2 py-0.5 text-[10px] font-medium text-primary">
-                      In sidebar
-                    </span>
-                  ) : null}
-                </div>
-                {section.description ? (
-                  <p className="mt-1 text-xs leading-relaxed text-muted-foreground sm:text-sm">
-                    {section.description}
-                  </p>
-                ) : null}
-              </div>
-
-              <Switch
-                checked={enabled}
-                disabled={pinned}
-                onCheckedChange={(checked) => toggleSection(section.id, checked)}
-                className="shrink-0"
-                aria-label={
-                  pinned
-                    ? `${section.title} is always shown`
-                    : `${enabled ? 'Hide' : 'Show'} ${section.title} in sidebar`
-                }
-              />
-            </div>
-
-            {section.submenuLabels.length > 0 ? (
-              <div className="mt-3">
-                <div className="flex flex-wrap gap-1.5">
-                  {visibleLabels.map((label, index) => (
-                    <span key={`${section.id}-${index}`} className={appChipClassName(enabled)}>
-                      {label}
-                    </span>
-                  ))}
-                </div>
-                {hiddenCount > 0 ? (
-                  <button
-                    type="button"
-                    onClick={() => toggleCardExpanded(section.id)}
-                    className="mt-2 inline-flex items-center gap-0.5 text-xs font-medium text-primary hover:underline"
-                  >
-                    {expanded ? 'Show fewer' : `Show ${hiddenCount} more submenu${hiddenCount === 1 ? '' : 's'}`}
-                    <ChevronDown
-                      className={cn('h-3.5 w-3.5 transition-transform', expanded && 'rotate-180')}
-                      aria-hidden
-                    />
-                  </button>
-                ) : null}
-              </div>
-            ) : null}
-          </div>
-        </div>
-      </article>
-    )
-  }
-
-  const listContent = isSearchActive ? (
-    <div className="space-y-3 sm:space-y-4">{filtered.map((section) => renderAppRow(section))}</div>
-  ) : (
-    <div className="space-y-5 sm:space-y-6">
-      {groupedSections.map(({ group, sections: groupSections }) => (
-        <section key={group?.id ?? 'other'} className="space-y-2.5">
-          <h3
-            id={group ? `app-group-${group.id}` : undefined}
-            className="text-base font-semibold tracking-tight text-foreground sm:text-lg"
-          >
-            {group?.title ?? 'More apps'}
-          </h3>
-          <div className="space-y-3 sm:space-y-4">{groupSections.map((section) => renderAppRow(section))}</div>
-        </section>
-      ))}
-    </div>
-  )
 
   return (
     <ModalOverlay onClose={onClose}>
-      <ModalPanel className="max-w-3xl overflow-hidden bg-background text-foreground shadow-2xl">
-        {/* Centered hero on green brand background */}
+      <ModalPanel className="max-w-6xl overflow-hidden bg-background text-foreground shadow-2xl">
         <div
           className="relative px-5 py-4 text-center text-white sm:px-6 sm:py-5"
           style={{
@@ -282,67 +317,44 @@ export function SidebarAppsPickerModal({
           </blockquote>
 
           <p className="mx-auto mt-2 max-w-md text-xs leading-snug text-white/88 sm:text-sm">
-            Kit ERP apps — turn on a module to add it to your sidebar with every submenu listed below.
+            {isVendorAdmin
+              ? 'Tap > on a card to show menu bubbles. Install or uninstall apps in your sidebar.'
+              : 'Tap > on a card to browse menu items. Installing apps requires owner or admin access.'}
           </p>
           <p className="mt-1.5 text-[11px] text-white/70 sm:text-xs">
             <span className="font-semibold text-white">{sections.length}</span> apps
             <span className="mx-1.5 opacity-50">·</span>
-            <span className="font-semibold text-white">{totalSubmenus}</span> submenu links
+            <span className="font-semibold text-white">{totalSubmenus}</span> menu items
             <span className="mx-1.5 opacity-50">·</span>
-            <span className="font-semibold text-white">
-              {enabledOptionalCount}/{optionalSections.length}
-            </span>
-            in sidebar
+            <span className="font-semibold text-white">{installedCount}</span> installed
           </p>
         </div>
 
         <div className="border-y border-[1.5px] border-[color:var(--border-color)] bg-muted/20 px-5 py-3 sm:px-6">
-          <div className="flex flex-col gap-2.5 sm:flex-row sm:items-center">
-            <div className={cn(searchFieldShellClassName, 'relative flex-1 px-3 py-0.5')}>
-              <Search className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
-              <input
-                type="search"
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                placeholder="Search apps or submenu names…"
-                className={cn(searchFieldInnerInputClassName, 'py-2 text-sm')}
-                aria-label="Search apps"
-              />
-              {query ? (
-                <button
-                  type="button"
-                  onClick={() => setQuery('')}
-                  className="shrink-0 rounded-md p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
-                  aria-label="Clear search"
-                >
-                  <X className="h-4 w-4" />
-                </button>
-              ) : null}
-            </div>
-            <div className="flex shrink-0 gap-2">
-              <Button
+          <div className={cn(searchFieldShellClassName, 'relative px-3 py-0.5')}>
+            <Search className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
+            <input
+              type="search"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Search apps, pages, or routes…"
+              className={cn(searchFieldInnerInputClassName, 'py-2 text-sm')}
+              aria-label="Search apps"
+            />
+            {query ? (
+              <button
                 type="button"
-                variant="outline"
-                size="sm"
-                className={cn('h-9 bg-background text-xs', surfaceBorderClassName)}
-                onClick={showAll}
+                onClick={() => setQuery('')}
+                className="shrink-0 rounded-md p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
+                aria-label="Clear search"
               >
-                Show all
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                className={cn('h-9 bg-background text-xs', surfaceBorderClassName)}
-                onClick={hideAllOptional}
-              >
-                Hide optional
-              </Button>
-            </div>
+                <X className="h-4 w-4" />
+              </button>
+            ) : null}
           </div>
         </div>
 
-        <ModalBody className="px-6 py-4 sm:px-8">
+        <ModalBody className="px-5 py-4 sm:px-6">
           {filtered.length === 0 ? (
             <div
               className={cn(
@@ -353,8 +365,21 @@ export function SidebarAppsPickerModal({
               No apps match &ldquo;{query}&rdquo;
             </div>
           ) : (
-            <div className="max-h-[min(50vh,28rem)] overflow-y-auto pr-0.5" role="list">
-              {listContent}
+            <div className="max-h-[min(62vh,34rem)] overflow-y-auto overscroll-contain px-0.5 py-1 sm:px-1 sm:py-1.5" role="list">
+              <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 sm:gap-5 lg:grid-cols-4 lg:gap-5">
+                {filtered.map((section) => (
+                  <AppGridCard
+                    key={section.id}
+                    section={section}
+                    installed={enabledSet.has(section.id)}
+                    pinned={isPinnedSidebarSection(section.id)}
+                    expanded={expandedSectionId === section.id}
+                    onToggleExpand={() => toggleExpanded(section.id)}
+                    onInstall={() => installSection(section)}
+                    onUninstall={() => uninstallSection(section)}
+                  />
+                ))}
+              </div>
             </div>
           )}
 
