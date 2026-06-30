@@ -2,6 +2,8 @@ import { Globe } from 'lucide-react'
 import type { JSX } from 'react'
 import type { LiveItem, PublicSite, StyleConfig } from '@/blocks/registry'
 import { BuilderTextField } from '@/components/builder/BuilderTextField'
+import { useBuilderCanvas } from '@/contexts/BuilderCanvasContext'
+import { isBlockFieldHidden, resolveBlockTextField } from '@/lib/blockHiddenFields'
 
 interface Props {
   site: PublicSite
@@ -71,19 +73,22 @@ const PLATFORM_ICONS: Record<string, JSX.Element> = {
 }
 
 export default function SocialLinksBlock({ style, props, liveItems, blockId }: Props) {
-  const title = (props.title as string) || 'Follow Us'
+  const builderCanvas = useBuilderCanvas()
+  const isEditorCanvas = builderCanvas?.isEditorCanvas && !!blockId
+  const title = resolveBlockTextField(props, 'title')
+  const showTitle = !isBlockFieldHidden(props, 'title') && (title || isEditorCanvas)
   const profile = liveItems[0]
   const links =
     (props.links as Record<string, string> | undefined) ||
     (profile?.meta?.social_links as Record<string, string> | undefined) ||
     {}
   const entries = Object.entries(links).filter(([, url]) => url)
-  if (entries.length === 0) return null
+  if (entries.length === 0 && !showTitle) return null
 
   return (
-    <section className="py-12 px-4 sm:px-6 lg:px-8 text-center" aria-label={title}>
-      {(title || blockId) && (
-        <BuilderTextField fieldKey="title" blockId={blockId} blockProps={props} value={title} as="h3" className="text-lg font-semibold text-gray-700 mb-4" />
+    <section className="py-12 px-4 sm:px-6 lg:px-8 text-center" aria-label={title ?? undefined}>
+      {showTitle && (
+        <BuilderTextField fieldKey="title" blockId={blockId} blockProps={props} value={title ?? ''} as="h3" className="text-lg font-semibold text-gray-700 mb-4" placeholder="Section title" />
       )}
       <div className="flex justify-center gap-3 flex-wrap">
         {entries.map(([platform, url]) => {

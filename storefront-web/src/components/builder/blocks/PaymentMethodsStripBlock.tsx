@@ -1,6 +1,15 @@
 import type { JSX } from 'react'
 import { Banknote, CreditCard, Smartphone } from 'lucide-react'
 import type { LiveItem, PublicSite, StyleConfig } from '@/blocks/registry'
+import { BuilderTextField } from '@/components/builder/BuilderTextField'
+import { useBuilderCanvas } from '@/contexts/BuilderCanvasContext'
+import { isBlockFieldHidden, resolveBlockTextField, visibleArrayEntries } from '@/lib/blockHiddenFields'
+import {
+  DEFAULT_PAYMENT_METHOD_KEYS,
+  paymentMethodLabel,
+  normalizePaymentMethodKey,
+  readPaymentMethodKeys,
+} from '@/lib/paymentMethodCatalog'
 
 interface Props {
   site: PublicSite
@@ -8,16 +17,15 @@ interface Props {
   props: Record<string, unknown>
   liveItems: LiveItem[]
   branchCode?: string | null
+  blockId?: string
 }
 
 interface Method {
   label: string
-  /** Visual variant — text wordmark or an icon. */
   render: () => JSX.Element
   ariaLabel: string
 }
 
-/** A small, branded badge for one payment method. */
 function Badge({ children, className = '' }: { children: React.ReactNode; className?: string }) {
   return (
     <div
@@ -156,29 +164,51 @@ const METHODS: Record<string, Method> = {
   },
 }
 
-export default function PaymentMethodsStripBlock({ props }: Props) {
-  const title = (props.title as string) || 'Secure Payments'
-  const methods = (props.methods as string[] | undefined) || ['visa', 'mastercard', 'upi', 'cod']
+export default function PaymentMethodsStripBlock({ props, blockId }: Props) {
+  const builderCanvas = useBuilderCanvas()
+  const isEditorCanvas = builderCanvas?.isEditorCanvas && !!blockId
+  const title = resolveBlockTextField(props, 'title', {
+    fallback: () => (isEditorCanvas ? null : 'Secure Payments'),
+  })
+  const showTitle = !isBlockFieldHidden(props, 'title') && (title || isEditorCanvas)
+  const rawMethodsArray = Array.isArray(props.methods) && props.methods.length > 0
+    ? props.methods
+    : DEFAULT_PAYMENT_METHOD_KEYS
+  const methods = isEditorCanvas
+    ? visibleArrayEntries(rawMethodsArray, props, 'methods')
+        .map(({ item }) => normalizePaymentMethodKey(item))
+        .filter(Boolean)
+    : readPaymentMethodKeys(props)
 
   return (
-    <div className="py-6 px-4 text-center border-t border-gray-100" aria-label={title}>
-      {title && <p className="text-xs text-gray-400 uppercase tracking-widest mb-3">{title}</p>}
+    <div className="py-6 px-4 text-center border-t border-gray-100" aria-label={title ?? undefined}>
+      {showTitle && (
+        <BuilderTextField
+          fieldKey="title"
+          blockId={blockId}
+          blockProps={props}
+          value={title ?? ''}
+          as="p"
+          className="text-xs text-gray-400 uppercase tracking-widest mb-3"
+          placeholder="Section title"
+        />
+      )}
       <ul className="flex justify-center gap-2.5 flex-wrap list-none p-0 m-0">
-        {methods.map(rawKey => {
+        {methods.map((rawKey, index) => {
           const key = rawKey.toLowerCase().replace(/\s+/g, '_')
           const m = METHODS[key]
           if (!m) {
             return (
-              <li key={rawKey} aria-label={`${rawKey} accepted`}>
+              <li key={`${rawKey}-${index}`} aria-label={`${paymentMethodLabel(rawKey)} accepted`}>
                 <Badge>
                   <CreditCard className="w-3.5 h-3.5 mr-1 text-gray-500" aria-hidden="true" />
-                  <span className="text-gray-600">{rawKey.toUpperCase()}</span>
+                  <span className="text-gray-600">{paymentMethodLabel(rawKey)}</span>
                 </Badge>
               </li>
             )
           }
           return (
-            <li key={rawKey} aria-label={m.ariaLabel}>
+            <li key={`${rawKey}-${index}`} aria-label={m.ariaLabel}>
               {m.render()}
             </li>
           )

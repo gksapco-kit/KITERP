@@ -16,6 +16,13 @@ import {
   sectionItemSize,
 } from '@/lib/sectionItemLayout'
 import { arrayItemImageFrameStyle, arrayItemImageRenderStyle } from '@/lib/sectionImageStyle'
+import {
+  arrayImageDeleteFieldKey,
+  isBlockFieldHidden,
+  isNestedBlockFieldHidden,
+  resolveBlockTextField,
+  visibleArrayEntries,
+} from '@/lib/blockHiddenFields'
 
 interface Props { site: PublicSite; style: StyleConfig; props: Record<string, unknown>; liveItems: LiveItem[]; branchCode?: string | null; blockId?: string }
 
@@ -23,7 +30,8 @@ export default function GalleryMasonryBlock({ style, props, liveItems, blockId }
   const builderCanvas = useBuilderCanvas()
   const isEditorCanvas = builderCanvas?.isEditorCanvas && !!blockId
   const [lightbox, setLightbox] = useState<string | null>(null)
-  const title = (props.title as string) || 'Gallery'
+  const title = resolveBlockTextField(props, 'title')
+  const showTitle = !isBlockFieldHidden(props, 'title') && (title || isEditorCanvas)
   const layout = String(props.layout ?? 'grid')
   const columns = columnsFromProps(props, layout === 'featured' ? 'grid-3' : layout)
   const itemGap = sectionItemGap(props, 12)
@@ -34,11 +42,12 @@ export default function GalleryMasonryBlock({ style, props, liveItems, blockId }
   const imageShape = imageShapeFromProps(props, 'rounded')
   const tileWrap = catalogTileImageWrapperClass(imageShape)
   const tileImg = catalogTileImageClass(imageShape)
-  const propImages = Array.isArray(props.images)
-    ? (props.images as { src?: string; alt?: string }[])
-        .map((img, rawIndex) => ({ img, rawIndex }))
-        .filter(entry => typeof entry.img?.src === 'string' && entry.img.src)
+  const propImagesRaw = Array.isArray(props.images)
+    ? (props.images as { src?: string; alt?: string; caption?: string }[])
     : []
+  const propImages = visibleArrayEntries(propImagesRaw, props, 'images')
+    .map(({ item: img, index: rawIndex }) => ({ img, rawIndex }))
+    .filter(({ img }) => typeof img?.src === 'string' && img.src)
   const liveImages = liveItems.filter(i => i.image_url).map(i => ({ url: i.image_url as string, alt: i.title }))
   const images = propImages.length > 0
     ? propImages.map(({ img, rawIndex }) => ({
@@ -53,7 +62,7 @@ export default function GalleryMasonryBlock({ style, props, liveItems, blockId }
     return (
       <BlockEmptyPlaceholder
         style={style}
-        title={title}
+        title={title ?? undefined}
         message="Add photos to bring this gallery to life. Use Images & media in the builder or upload from the Media panel."
         hint="You can also drag images directly onto this section from your media library."
         icon={<ImageIcon className="w-10 h-10" style={{ color: style.primary_color }} />}
@@ -106,8 +115,8 @@ export default function GalleryMasonryBlock({ style, props, liveItems, blockId }
 
   return (
     <section className="py-12 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
-      {(title || blockId) && (
-        <BuilderTextField fieldKey="title" blockId={blockId} blockProps={props} value={title} as="h2" className="text-3xl font-bold text-gray-900 mb-8 text-center" />
+      {(showTitle) && (
+        <BuilderTextField fieldKey="title" blockId={blockId} blockProps={props} value={title ?? ''} as="h2" className="text-3xl font-bold text-gray-900 mb-8 text-center" placeholder="Section title" />
       )}
       {layout === 'featured' ? (
         <div className="grid grid-cols-3 grid-rows-2 max-w-5xl mx-auto min-h-[320px]" style={{ gap: itemGap }}>

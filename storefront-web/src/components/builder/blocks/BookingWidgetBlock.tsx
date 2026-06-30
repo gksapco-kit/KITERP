@@ -3,23 +3,40 @@ import { Clock, ArrowRight } from 'lucide-react'
 import { useVendor } from '@/contexts/VendorContext'
 import type { PublicSite, StyleConfig, LiveItem } from '@/blocks/registry'
 import { BuilderTextField } from '@/components/builder/BuilderTextField'
+import { BuilderCtaButton } from '@/components/builder/BuilderCtaButton'
+import { useBuilderCanvas } from '@/contexts/BuilderCanvasContext'
+import { isBlockFieldHidden, resolveBlockTextField } from '@/lib/blockHiddenFields'
 
 interface Props { site: PublicSite; style: StyleConfig; props: Record<string, unknown>; liveItems: LiveItem[]; branchCode?: string | null; blockId?: string }
 
 export default function BookingWidgetBlock({ style, props, liveItems, blockId }: Props) {
   const { storePath } = useVendor()
-  const title = (props.title as string) || 'Book a Session'
-  const subtitle = (props.subtitle as string) || 'Choose a time that works for you'
-  const ctaLabel = (props.cta_label as string) || 'Book Now'
+  const builderCanvas = useBuilderCanvas()
+  const isEditorCanvas = builderCanvas?.isEditorCanvas && !!blockId
+
+  const title = resolveBlockTextField(props, 'title')
+  const subtitle = resolveBlockTextField(props, 'subtitle')
+  const ctaLabel = resolveBlockTextField(props, 'cta_label')
+  const ctaUrl = String(props.cta_url ?? '/services').trim() || '/services'
+
+  const showTitle = !isBlockFieldHidden(props, 'title') && (title || isEditorCanvas)
+  const showSubtitle = !isBlockFieldHidden(props, 'subtitle') && (subtitle || isEditorCanvas)
+  const showCta = !isBlockFieldHidden(props, 'cta_label') && (ctaLabel || isEditorCanvas)
 
   const services = liveItems.slice(0, 6)
 
   return (
     <section className="py-16 px-4 sm:px-6 lg:px-8 max-w-4xl mx-auto">
-      <div className="text-center mb-10">
-        <BuilderTextField fieldKey="title" blockId={blockId} blockProps={props} value={title} as="h2" className="text-3xl font-bold text-gray-900 mb-2" />
-        <BuilderTextField fieldKey="subtitle" blockId={blockId} blockProps={props} value={subtitle} as="p" multiline className="text-gray-500" />
-      </div>
+      {(showTitle || showSubtitle) && (
+        <div className="text-center mb-10">
+          {showTitle && (
+            <BuilderTextField fieldKey="title" blockId={blockId} blockProps={props} value={title ?? ''} as="h2" className="text-3xl font-bold text-gray-900 mb-2" placeholder="Section title" />
+          )}
+          {showSubtitle && (
+            <BuilderTextField fieldKey="subtitle" blockId={blockId} blockProps={props} value={subtitle ?? ''} as="p" multiline className="text-gray-500" placeholder="Section subtitle" />
+          )}
+        </div>
+      )}
       {services.length > 0 ? (
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {services.map(svc => (
@@ -35,13 +52,26 @@ export default function BookingWidgetBlock({ style, props, liveItems, blockId }:
             </div>
           ))}
         </div>
-      ) : (
+      ) : showCta ? (
         <div className="text-center">
-          <Link to={storePath('/services')} className="inline-flex items-center gap-2 px-8 py-4 rounded-xl text-white font-semibold hover:opacity-90 transition-all" style={{ backgroundColor: style.primary_color }}>
-            {ctaLabel} <ArrowRight className="w-4 h-4" />
-          </Link>
+          {isEditorCanvas ? (
+            <BuilderCtaButton
+              fieldKey="cta_label"
+              blockId={blockId}
+              blockProps={props}
+              label={ctaLabel ?? ''}
+              href={ctaUrl}
+              allowElementDelete={isEditorCanvas}
+              className="inline-flex items-center gap-2 px-8 py-4 rounded-xl text-white font-semibold hover:opacity-90 transition-all"
+              style={{ backgroundColor: style.primary_color }}
+            />
+          ) : (
+            <Link to={storePath(ctaUrl)} className="inline-flex items-center gap-2 px-8 py-4 rounded-xl text-white font-semibold hover:opacity-90 transition-all" style={{ backgroundColor: style.primary_color }}>
+              {ctaLabel} <ArrowRight className="w-4 h-4" />
+            </Link>
+          )}
         </div>
-      )}
+      ) : null}
     </section>
   )
 }

@@ -31,6 +31,7 @@ import { buildBlockColorStyleCss, type BlockColorProps, type ThemeColors } from 
 import { blockShadowIsActive, resolveBlockBoxShadow } from '@/lib/blockSectionStyle'
 import { buildFieldStylesCss, sectionTransformStyle } from '@/lib/fieldTextStyles'
 import { getBlockScrollAnimationClass } from '@/lib/builderScrollAnimations'
+import { blockTypeSupportsBlockLink } from '@/lib/blockLinkPolicy'
 import {
   buildResponsiveSectionSpacingCss,
   mergeBlockSectionStyles,
@@ -261,6 +262,12 @@ export function SingleBlock({
   }
 
   const inner = (() => {
+    if (block.block_type === 'service.pricing') {
+      return <PricingBlock {...commonProps} />
+    }
+    if (block.block_type === 'service.faq') {
+      return <FaqBlock {...commonProps} />
+    }
     if (block.block_type.includes('.')) {
       return <CommerceLibraryBlock {...commonProps} blockType={block.block_type} />
     }
@@ -448,7 +455,7 @@ export function SingleBlock({
       ? blockLink
       : storePath(blockLink.startsWith('/') ? blockLink : `/${blockLink}`)
     : ''
-  const enableBlockLink = Boolean(resolvedBlockLink) && !isEditorCanvas
+  const enableBlockLink = Boolean(resolvedBlockLink) && !isEditorCanvas && blockTypeSupportsBlockLink(block.block_type)
   const blockSuspenseFallback = SUSPENSE_NULL_FALLBACK_BLOCKS.has(block.block_type)
     ? null
     : <BlockSkeleton />

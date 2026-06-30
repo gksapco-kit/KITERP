@@ -10,6 +10,7 @@ import {
   readCatalogCardLayout,
 } from '@/lib/catalogCardLayout'
 import { cn, imgUrl } from '@/lib/utils'
+import { isBlockFieldHidden, resolveBlockTextField } from '@/lib/blockHiddenFields'
 
 interface Props {
   style: StyleConfig
@@ -186,7 +187,8 @@ export default function BlogGridBlock({ style, props, liveItems, blockId, blockT
   const { storePath } = useVendor()
   const builderCanvas = useBuilderCanvas()
   const isEditor = builderCanvas?.isEditorCanvas && !!blockId
-  const title = (props.title as string) || 'Latest Posts'
+  const title = resolveBlockTextField(props, 'title')
+  const showTitle = !isBlockFieldHidden(props, 'title') && (title || isEditor)
   const layout = blockType === 'blog_list' ? 'list' : String(props.layout ?? 'grid')
   const isList = layout === 'list'
 
@@ -206,7 +208,7 @@ export default function BlogGridBlock({ style, props, liveItems, blockId, blockT
     return (
       <BlockEmptyPlaceholder
         style={style}
-        title={title}
+        title={title ?? undefined}
         message={isEditor
           ? 'Posts from Blog Manager will appear here once you publish them.'
           : 'No blog posts to show yet.'}
@@ -217,16 +219,19 @@ export default function BlogGridBlock({ style, props, liveItems, blockId, blockT
   }
 
   return (
-    <section className="blog-grid-section py-16 px-4 sm:px-6 lg:px-8 max-w-6xl mx-auto" aria-label={title}>
-      <BuilderTextField
-        fieldKey="title"
-        blockId={blockId}
-        blockProps={props}
-        value={title}
-        as="h2"
-        className="mb-10 text-center text-2xl font-bold sm:text-3xl"
-        style={{ fontFamily: style.font_heading, color: style.text_color }}
-      />
+    <section className="blog-grid-section py-16 px-4 sm:px-6 lg:px-8 max-w-6xl mx-auto" aria-label={title ?? undefined}>
+      {showTitle && (
+        <BuilderTextField
+          fieldKey="title"
+          blockId={blockId}
+          blockProps={props}
+          value={title ?? ''}
+          as="h2"
+          className="mb-10 text-center text-2xl font-bold sm:text-3xl"
+          style={{ fontFamily: style.font_heading, color: style.text_color }}
+          placeholder="Section title"
+        />
+      )}
 
       <div
         className={cn(

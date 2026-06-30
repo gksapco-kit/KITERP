@@ -20,6 +20,12 @@ import {
   buildFooterContactLinks,
   isFooterContactColumn,
 } from '@/lib/businessContact'
+import {
+  isBlockFieldHidden,
+  isNestedBlockFieldHidden,
+  resolveBlockTextField,
+  visibleArrayEntries,
+} from '@/lib/blockHiddenFields'
 
 interface Props {
   site: PublicSite
@@ -107,12 +113,17 @@ function EditableColumnFooter({
 }) {
   const storePath = useStorePath()
   const liveContactLinks = buildFooterContactLinks(profile, vendor)
+  const showBrand = !isBlockFieldHidden(blockProps, 'brand') && (brand.trim() || blockId)
+  const showDescription = !isBlockFieldHidden(blockProps, 'description') && (description.trim() || blockId)
+  const showCopyright = !isBlockFieldHidden(blockProps, 'copyright') && (copyright.trim() || blockId)
+  const visibleColumns = visibleArrayEntries(columns, blockProps, 'footer_columns')
 
   return (
     <footer className={cn('border-t mt-8', footerClass)} style={{ backgroundColor: footerBg }}>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         <div className="grid gap-10 md:grid-cols-12">
           <div className="md:col-span-4">
+            {showBrand && (
             <BuilderTextField
               fieldKey="brand"
               blockId={blockId}
@@ -123,7 +134,8 @@ function EditableColumnFooter({
               style={{ color: primaryColor }}
               placeholder="Brand name"
             />
-            {(description || blockId) && (
+            )}
+            {showDescription && (
               <BuilderTextField
                 fieldKey="description"
                 blockId={blockId}
@@ -152,20 +164,22 @@ function EditableColumnFooter({
           <div
             className={cn(
               'grid gap-8 md:col-span-8',
-              (columns.length >= 4
+              (visibleColumns.length >= 4
                 ? 'sm:grid-cols-2 md:grid-cols-4'
-                : columns.length === 3
+                : visibleColumns.length === 3
                   ? 'sm:grid-cols-2 md:grid-cols-3'
-                  : columns.length === 2
+                  : visibleColumns.length === 2
                     ? 'sm:grid-cols-2'
                     : 'grid-cols-1'),
             )}
           >
-            {columns.map((col, colIdx) => {
+            {visibleColumns.map(({ item: col, index: colIdx }) => {
               const title = String(col.title ?? '').trim() || 'Links'
+              const showColTitle = !isNestedBlockFieldHidden(blockProps, `footer_columns.${colIdx}.title`)
               const contactColumn = isFooterContactColumn(title) && liveContactLinks.length > 0
               return (
               <div key={colIdx}>
+                {showColTitle && (
                 <BuilderTextField
                   fieldKey={`footer_columns.${colIdx}.title`}
                   blockId={blockId}
@@ -175,12 +189,14 @@ function EditableColumnFooter({
                   className="text-sm font-semibold text-gray-900"
                   placeholder="Column title"
                 />
+                )}
                 <ul className="mt-3 space-y-2">
                   {contactColumn
                     ? liveContactLinks.map((link) => (
                         <li key={link.label} className="text-sm text-gray-500">{link.label}</li>
                       ))
                     : (col.links ?? []).map((link, linkIdx) => (
+                        !isNestedBlockFieldHidden(blockProps, `footer_columns.${colIdx}.links.${linkIdx}`) ? (
                         <li key={linkIdx}>
                           <BuilderTextField
                             fieldKey={`footer_columns.${colIdx}.links.${linkIdx}`}
@@ -192,6 +208,7 @@ function EditableColumnFooter({
                             placeholder="Link label"
                           />
                         </li>
+                        ) : null
                       ))}
                 </ul>
               </div>
@@ -199,6 +216,7 @@ function EditableColumnFooter({
           </div>
         </div>
 
+        {showCopyright && (
         <div className="mt-10 border-t border-gray-200 pt-6">
           <BuilderTextField
             fieldKey="copyright"
@@ -210,6 +228,7 @@ function EditableColumnFooter({
             placeholder="Copyright line"
           />
         </div>
+        )}
       </div>
     </footer>
   )

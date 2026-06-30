@@ -2,17 +2,24 @@ import { Star } from 'lucide-react'
 import type { PublicSite, StyleConfig, LiveItem } from '@/blocks/registry'
 import BlockEmptyPlaceholder from '@/components/builder/BlockEmptyPlaceholder'
 import { BuilderTextField } from '@/components/builder/BuilderTextField'
+import { useBuilderCanvas } from '@/contexts/BuilderCanvasContext'
+import { isBlockFieldHidden, resolveBlockTextField } from '@/lib/blockHiddenFields'
 
 interface Props { site: PublicSite; style: StyleConfig; props: Record<string, unknown>; liveItems: LiveItem[]; branchCode?: string | null; blockId?: string }
 
 export default function ProductReviewsBlock({ style, props, liveItems, blockId }: Props) {
-  const title = (props.title as string) || 'Customer reviews'
+  const builderCanvas = useBuilderCanvas()
+  const isEditorCanvas = builderCanvas?.isEditorCanvas && !!blockId
+  const title = resolveBlockTextField(props, 'title', {
+    fallback: () => (isEditorCanvas ? null : 'Customer reviews'),
+  })
+  const showTitle = !isBlockFieldHidden(props, 'title') && (title || isEditorCanvas)
   const showSummary = props.show_summary !== false
   if (liveItems.length === 0) {
     return (
       <BlockEmptyPlaceholder
         style={style}
-        title={title}
+        title={title ?? undefined}
         message="Customer reviews will appear here once you receive orders and collect feedback."
         icon={<Star className="w-10 h-10" style={{ color: style.primary_color }} />}
       />
@@ -22,7 +29,9 @@ export default function ProductReviewsBlock({ style, props, liveItems, blockId }
   return (
     <section className="py-16 px-4 sm:px-6 lg:px-8 max-w-5xl mx-auto">
       <div className="flex items-center justify-between mb-8">
-        <BuilderTextField fieldKey="title" blockId={blockId} blockProps={props} value={title} as="h2" className="text-2xl font-bold text-gray-900" />
+        {showTitle && (
+          <BuilderTextField fieldKey="title" blockId={blockId} blockProps={props} value={title ?? ''} as="h2" className="text-2xl font-bold text-gray-900" placeholder="Section title" />
+        )}
         {showSummary && (
           <div className="text-center">
             <div className="text-4xl font-bold" style={{ color: style.primary_color }}>{avgRating.toFixed(1)}</div>

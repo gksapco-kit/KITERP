@@ -36,7 +36,7 @@ const NON_EDITABLE_PROP_KEYS = new Set([
   'top_shape', 'bottom_shape', 'shape_color', 'media_clip', 'item_size', 'bg_color',
   'show_calendar', 'grayscale', 'show_caption', 'show_images', 'image_width', 'show_divider',
   'color', 'target_date', 'data_source', 'hidden_kpi_ids', 'messages', 'menu_categories',
-  'posts', 'projects', 'logos',
+  'posts', 'projects', 'logos', 'hidden_fields',
 ])
 
 /** Text fields per block type — mirrors Props panel `commonFields` (content only, not URLs). */
@@ -58,7 +58,8 @@ const BLOCK_TEXT_FIELDS: Record<string, readonly string[]> = {
   impact_stats: ['title'],
   testimonials: ['title'],
   team_grid: ['title'],
-  pricing: ['title'],
+  pricing: ['title', 'subtitle'],
+  'service.pricing': ['title', 'subtitle'],
   faq: ['title'],
   'service.faq': ['title'],
   contact_form: ['title'],
@@ -85,10 +86,34 @@ const BLOCK_TEXT_FIELDS: Record<string, readonly string[]> = {
   live_quote: ['title', 'cta_label'],
   related_products: ['title'],
   product_reviews: ['title'],
-  coupon_banner: ['title'],
+  coupon_banner: ['title', 'code'],
   cart_drawer: ['title'],
   cookie_consent: ['message', 'accept_label', 'decline_label'],
   search_bar: ['placeholder'],
+  nav: ['brand', 'cta_label', 'announcement'],
+  footer: ['brand', 'description', 'copyright'],
+  rich_text: ['content'],
+  gallery_masonry: ['title'],
+  social_links: ['title'],
+  product_grid: ['title', 'subtitle'],
+  menu_grid: ['title'],
+  category_cards: ['title', 'eyebrow'],
+  blog_grid: ['title'],
+  booking_slot_picker: ['title', 'subtitle'],
+  live_stock: ['title'],
+  payment_methods_strip: ['title'],
+  recently_viewed: ['title'],
+  map_contact: ['title', 'address'],
+  offer_banner: ['title', 'code'],
+  promo_strip: ['title', 'code'],
+  testimonials_grid: ['title'],
+  team_list: ['title', 'description'],
+  features_icons: ['title', 'subtitle'],
+  gallery_grid: ['title'],
+  image_gallery: ['title'],
+  portfolio_grid: ['title'],
+  blog_featured: ['title'],
+  blog_list: ['title'],
 }
 
 /** Keys shown in Props panel when present on the block — include even if empty. */
@@ -157,6 +182,7 @@ const BLOCK_ITEM_TEXT_SCHEMAS: Record<string, ItemTextSchema> = {
       { key: 'price', label: 'Price' },
       { key: 'period', label: 'Period' },
       { key: 'cta', label: 'Button label' },
+      { key: 'cta_url', label: 'Button link' },
     ],
   },
   faq: {
@@ -220,6 +246,21 @@ const BLOCK_ITEM_TEXT_SCHEMAS: Record<string, ItemTextSchema> = {
       { key: 'desc', label: 'Description', multiline: true },
     ],
   },
+  nav: {
+    arrayKey: 'nav_links', itemLabel: 'Link',
+    fields: [
+      { key: 'label', label: 'Label' },
+      { key: 'url', label: 'URL' },
+    ],
+  },
+  footer: {
+    arrayKey: 'footer_columns', itemLabel: 'Column',
+    fields: [{ key: 'title', label: 'Column title' }],
+  },
+  payment_methods_strip: {
+    arrayKey: 'methods', itemLabel: 'Payment method',
+    fields: [{ key: 'method', label: 'Provider' }],
+  },
   category_cards: {
     arrayKey: 'categories', itemLabel: 'Category',
     fields: [
@@ -235,7 +276,20 @@ const BLOCK_ITEM_TEXT_SCHEMAS: Record<string, ItemTextSchema> = {
 
 const BLOCK_ITEM_SCHEMA_ALIASES: Record<string, string> = {
   features_alternating: 'features',
+  features_icons: 'features',
   'service.faq': 'faq',
+  'service.pricing': 'pricing',
+  services_list: 'services_cards',
+  testimonials_grid: 'testimonials',
+  team_list: 'team_grid',
+  map_contact: 'map_embed',
+  offer_banner: 'coupon_banner',
+  promo_strip: 'coupon_banner',
+  gallery_grid: 'gallery_masonry',
+  image_gallery: 'gallery_masonry',
+  portfolio_grid: 'gallery_masonry',
+  blog_featured: 'blog_grid',
+  blog_list: 'blog_grid',
 }
 
 const FIELD_LABELS: Record<string, string> = {

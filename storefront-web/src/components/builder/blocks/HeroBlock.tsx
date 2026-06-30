@@ -24,6 +24,7 @@ import { branchWelcomeHeadline } from '@/lib/branchStorefrontIdentity'
 import { useEffectiveVendor } from '@/hooks/useEffectiveVendor'
 import { useBranch } from '@/contexts/BranchContext'
 import { isSharpSiteRadius, siteRadiusPx } from '@/lib/siteBorderRadius'
+import { isBlockFieldHidden, resolveBlockTextField } from '@/lib/blockHiddenFields'
 
 interface Props {
   site: PublicSite
@@ -66,27 +67,31 @@ export default function HeroBlock({ site, style, props, blockType, blockId, bran
   }, [branches, effectiveBranchKey, branchFromContext])
 
   const brandName = effectiveVendor?.display_name?.trim() || 'Welcome'
-  const templateHeadline = ((props.headline as string) || '').trim()
-  const headline = sanitizeWellnessBodyCopy(
-    templateHeadline
-      ? templateHeadline
-      : selectedBranch
-        ? branchWelcomeHeadline(selectedBranch, effectiveVendor ?? undefined)
-        : brandName !== 'Welcome'
-          ? `Welcome to ${brandName}`
-          : 'Welcome',
-  )
-  const headlineLine2 = sanitizeWellnessBodyCopy((props.headline_line2 as string) || '')
-  const eyebrow = sanitizeWellnessBodyCopy((props.eyebrow as string) || '')
+  const headline = resolveBlockTextField(props, 'headline', {
+    sanitize: sanitizeWellnessBodyCopy,
+    fallback: () => {
+      if (isEditorCanvas) return null
+      if (selectedBranch) return branchWelcomeHeadline(selectedBranch, effectiveVendor ?? undefined)
+      if (brandName !== 'Welcome') return `Welcome to ${brandName}`
+      return 'Welcome'
+    },
+  })
+  const headlineLine2 = resolveBlockTextField(props, 'headline_line2', {
+    sanitize: sanitizeWellnessBodyCopy,
+  })
+  const eyebrow = resolveBlockTextField(props, 'eyebrow', {
+    sanitize: sanitizeWellnessBodyCopy,
+  })
   const eyebrowPlain = props.eyebrow_plain === true
-  const subtitleFromProps = ((props.subtitle as string) || '').trim()
-  const subtitle = sanitizeWellnessBodyCopy(
-    subtitleFromProps
-      || (!templateHeadline && !headlineLine2 ? (selectedBranch?.description ?? '') : ''),
-  )
-  const ctaPrimary = sanitizeWellnessBodyCopy((props.cta_primary as string) || 'Get Started')
-  const ctaSecondaryRaw = (props.cta_secondary as string | null) || null
-  const ctaSecondary = ctaSecondaryRaw ? sanitizeWellnessCtaLabel(ctaSecondaryRaw) : null
+  const subtitle = resolveBlockTextField(props, 'subtitle', {
+    sanitize: sanitizeWellnessBodyCopy,
+  })
+  const ctaPrimary = resolveBlockTextField(props, 'cta_primary', {
+    sanitize: sanitizeWellnessBodyCopy,
+  })
+  const ctaSecondary = resolveBlockTextField(props, 'cta_secondary', {
+    sanitize: sanitizeWellnessCtaLabel,
+  })
   const ctaUrl = (props.cta_primary_url as string) || (props.cta_url as string) || '/products'
   const ctaSecUrl = (props.cta_secondary_url as string) || '/about'
   const bgStyle = (props.bg_style as string) || 'gradient'
@@ -99,9 +104,12 @@ export default function HeroBlock({ site, style, props, blockType, blockId, bran
   const clippedMedia = hasMediaClip(mediaClip)
 
   const isSplit = heroUsesSideImage(blockType, props)
+  const sideImageHidden = isBlockFieldHidden(props, 'image_url')
+  const bgImageHidden = isBlockFieldHidden(props, 'bg_image_url')
+  const showSideImage = isSplit && !sideImageHidden
   const isStacked = isSplit && layoutMode === 'stacked'
   const isOverlap = isSplit && layoutMode === 'overlap'
-  const isSplitPanel = isSplit && layoutMode === 'split' && !isStacked && !isOverlap
+  const isSplitPanel = isSplit && layoutMode === 'split' && !isStacked && !isOverlap && showSideImage
   const isMinimal = blockType === 'hero_minimal' || bgStyle === 'minimal'
 
   const gradientFrom = props.gradient_from as string | undefined
@@ -186,7 +194,8 @@ export default function HeroBlock({ site, style, props, blockType, blockId, bran
   const hasFashionHeadline = !!headlineLine2 || eyebrowPlain
 
   const renderEyebrow = () => {
-    if (!eyebrow && !eyebrowPlain) return null
+    if (isBlockFieldHidden(props, 'eyebrow')) return null
+    if (!eyebrow && !eyebrowPlain && !isEditorCanvas) return null
     if (eyebrowPlain) {
       return (
         <BuilderTextField
@@ -194,7 +203,7 @@ export default function HeroBlock({ site, style, props, blockType, blockId, bran
           blockProps={props}
           fieldKey="eyebrow"
           as="span"
-          value={eyebrow}
+          value={eyebrow ?? ''}
           className="text-xs uppercase tracking-[0.3em] opacity-70 block"
           style={{ color: heroText }}
         />
@@ -217,6 +226,9 @@ export default function HeroBlock({ site, style, props, blockType, blockId, bran
   }
 
   const renderHeadline = () => {
+    if (isBlockFieldHidden(props, 'headline') && isBlockFieldHidden(props, 'headline_line2')) {
+      return null
+    }
     const headlineBaseStyle = {
       fontFamily: style.font_heading,
       color: heroText,
@@ -227,6 +239,8 @@ export default function HeroBlock({ site, style, props, blockType, blockId, bran
     }
 
     if (headlineLine2 || (isSplit && hasFashionHeadline)) {
+      if (isBlockFieldHidden(props, 'headline') && !headlineLine2) return null
+      if (!headline && !headlineLine2 && !isEditorCanvas) return null
       return (
         <h1
           className={
@@ -240,16 +254,18 @@ export default function HeroBlock({ site, style, props, blockType, blockId, bran
               : 'text-3xl font-extrabold leading-tight mb-5'
           }
         >
+          {!isBlockFieldHidden(props, 'headline') ? (
           <BuilderTextField
             blockId={blockId}
             blockProps={props}
             fieldKey="headline"
             as="span"
-            value={headline}
+            value={headline ?? ''}
             className="block font-semibold"
             style={headlineBaseStyle}
           />
-          {headlineLine2 ? (
+          ) : null}
+          {headlineLine2 && !isBlockFieldHidden(props, 'headline_line2') ? (
             <>
               <br />
               <BuilderTextField
@@ -266,13 +282,15 @@ export default function HeroBlock({ site, style, props, blockType, blockId, bran
         </h1>
       )
     }
+    if (isBlockFieldHidden(props, 'headline')) return null
+    if (!headline && !isEditorCanvas) return null
     return (
       <BuilderTextField
         blockId={blockId}
         blockProps={props}
         fieldKey="headline"
         as="h1"
-        value={headline}
+        value={headline ?? ''}
         className={
           isSplit
             ? cn('text-4xl sm:text-5xl md:text-6xl font-extrabold leading-tight', !splitSideBySide && 'mb-5')
@@ -283,14 +301,18 @@ export default function HeroBlock({ site, style, props, blockType, blockId, bran
     )
   }
 
-  const renderCtas = (centered = false) => (
+  const renderCtas = (centered = false) => {
+    const showPrimary = ctaPrimary && !isBlockFieldHidden(props, 'cta_primary')
+    const showSecondary = ctaSecondary && !isBlockFieldHidden(props, 'cta_secondary') && ctaSecondary !== ctaPrimary
+    if (!showPrimary && !showSecondary) return null
+    return (
     <div className={`flex gap-3 flex-wrap items-center ${centered ? 'justify-center' : ''}`}>
-      {ctaPrimary && (
+      {showPrimary && (
         <BuilderCtaButton
           fieldKey="cta_primary"
           blockId={blockId}
           blockProps={props}
-          label={ctaPrimary}
+          label={ctaPrimary!}
           href={ctaUrl}
           className={`font-bold text-sm shadow-lg hover:opacity-90 transition-opacity ${ctaPadClass}`}
           style={{
@@ -299,14 +321,15 @@ export default function HeroBlock({ site, style, props, blockType, blockId, bran
             borderRadius: ctaRadius,
           }}
           trailing={hasFashionHeadline && splitSideBySide ? <ArrowRight className="ml-2 h-4 w-4 inline" /> : undefined}
+          allowElementDelete={isEditorCanvas}
         />
       )}
-      {ctaSecondary && ctaSecondary !== ctaPrimary && (
+      {showSecondary && (
         <BuilderCtaButton
           fieldKey="cta_secondary"
           blockId={blockId}
           blockProps={props}
-          label={ctaSecondary}
+          label={ctaSecondary!}
           href={ctaSecUrl}
           className={`font-semibold text-sm bg-transparent hover:opacity-80 transition-opacity ${ctaPadClass}`}
           style={{
@@ -314,15 +337,17 @@ export default function HeroBlock({ site, style, props, blockType, blockId, bran
             color: heroText,
             borderRadius: ctaRadius,
           }}
+          allowElementDelete={isEditorCanvas}
         />
       )}
     </div>
-  )
+    )
+  }
 
   const sideImageBehindText = isSplit && readSectionImageLayer('image_url', props) === 'back'
 
   const renderSideImage = (panelClass?: string) => {
-    if (!isSplit) return null
+    if (!showSideImage) return null
     // "Send to back" drops the image panel below the text panel (z-index 1) so
     // overflowing headlines sit on top of the photo instead of behind it.
     const layerZ = sideImageBehindText ? 'z-0' : 'z-10'
@@ -399,13 +424,13 @@ export default function HeroBlock({ site, style, props, blockType, blockId, bran
       >
         {renderEyebrow()}
         {renderHeadline()}
-        {subtitle && subtitle !== headline && (
+        {!isBlockFieldHidden(props, 'subtitle') && (subtitle || isEditorCanvas) && subtitle !== headline && (
           <BuilderTextField
             blockId={blockId}
             blockProps={props}
             fieldKey="subtitle"
             as="p"
-            value={subtitle}
+            value={subtitle ?? ''}
             className={`text-base leading-relaxed max-w-lg text-pretty ${isSplit && !panelUsesDarkText ? 'opacity-80' : ''}`}
             style={{
               color: heroSubText,
@@ -421,6 +446,7 @@ export default function HeroBlock({ site, style, props, blockType, blockId, bran
   if (isStacked) {
     return (
       <section className="relative overflow-hidden flex flex-col" style={{ color: heroText }}>
+        {showSideImage ? (
         <div className="relative w-full min-h-[280px] md:min-h-[360px] shrink-0">
           <MediaClipFrame clip={mediaClip} className="absolute inset-0">
             {sideImageUrl ? (
@@ -438,6 +464,7 @@ export default function HeroBlock({ site, style, props, blockType, blockId, bran
             )}
           </MediaClipFrame>
         </div>
+        ) : null}
         {renderTextPanel({
           className: 'space-y-5 relative z-10 px-6 sm:px-12 py-12 lg:py-16 flex flex-col justify-center max-w-3xl',
           style: splitTextPanelStyle(),
@@ -449,6 +476,7 @@ export default function HeroBlock({ site, style, props, blockType, blockId, bran
   if (isOverlap) {
     return (
       <section className="relative overflow-hidden min-h-[420px] md:min-h-[520px]" style={{ color: heroText }}>
+        {showSideImage ? (
         <MediaClipFrame clip={mediaClip} className="absolute inset-0">
           {sideImageUrl ? (
             <BuilderSectionImage
@@ -462,7 +490,8 @@ export default function HeroBlock({ site, style, props, blockType, blockId, bran
             <div className="absolute inset-0 bg-gray-200" />
           )}
         </MediaClipFrame>
-        {props.overlay !== false && <div className="absolute inset-0 bg-black/35 z-0" />}
+        ) : null}
+        {showSideImage && props.overlay !== false && <div className="absolute inset-0 bg-black/35 z-0" />}
         <div className="absolute bottom-6 left-4 right-4 md:left-8 md:right-8 z-10">
           <div className="rounded-xl bg-white shadow-lg p-6 md:p-8 text-gray-900">
             {renderTextPanel({
@@ -504,7 +533,7 @@ export default function HeroBlock({ site, style, props, blockType, blockId, bran
             }
       }
     >
-      {heroUsesImageBg && heroImageUrl ? (
+      {heroUsesImageBg && heroImageUrl && !bgImageHidden ? (
         <div className="absolute inset-0 z-0">
           {isEditorCanvas && blockId ? (
             <BuilderSectionImage

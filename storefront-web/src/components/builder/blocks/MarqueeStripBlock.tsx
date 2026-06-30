@@ -8,6 +8,13 @@ import { useVendor } from '@/contexts/VendorContext'
 import { useStorePath } from '@/hooks/useStorePath'
 import { isDraftPreviewShellHref } from '@/lib/previewNavRouting'
 import { parseMarqueeItems, type MarqueeItem } from '@/lib/marqueeItems'
+import {
+  arrayImageDeleteFieldKey,
+  isBlockFieldHidden,
+  isNestedBlockFieldHidden,
+  resolveBlockTextField,
+  visibleArrayEntries,
+} from '@/lib/blockHiddenFields'
 import { arrayItemImageFrameStyle, arrayItemImageRenderStyle } from '@/lib/sectionImageStyle'
 import { cn, imgUrl } from '@/lib/utils'
 
@@ -51,8 +58,9 @@ function MarqueeItemLabel({
   const ctx = useBuilderCanvas()
   const isEditor = ctx?.isEditorCanvas === true && !!blockId && !isMirror
   const label = item.label?.trim() || ''
+  const showLabel = !isNestedBlockFieldHidden(blockProps, `items.${index}.label`) && (label || isEditor)
 
-  if (!label) return null
+  if (!showLabel) return null
 
   if (isEditor) {
     return (
@@ -89,7 +97,9 @@ function MarqueeItemImage({
   const ctx = useBuilderCanvas()
   const isEditor = ctx?.isEditorCanvas === true && !!blockId && !isMirror
   const hasImage = hasMarqueeImage(item)
-  if (!hasImage) return null
+  const imageHidden = isBlockFieldHidden(blockProps, arrayImageDeleteFieldKey('items', index, 'image_url'))
+  if (imageHidden && !isEditor) return null
+  if (!hasImage && !isEditor) return null
 
   const src = imgUrl(item.image_url as string)
   const alt = item.label?.trim() || 'Marquee image'
@@ -278,7 +288,24 @@ function MarqueeItemRow({
 
 /** Matches vendor builder + Fashion template browser — uses `.sf-marquee-track` from globals.css */
 export default function MarqueeStripBlock({ style, props, blockId }: Props) {
-  const items = parseMarqueeItems(props)
+  const builderCanvas = useBuilderCanvas()
+  const isEditorCanvas = builderCanvas?.isEditorCanvas && !!blockId
+  const rawItemsArray = Array.isArray(props.items) ? (props.items as unknown[]) : []
+  const visibleItems = rawItemsArray.length > 0
+    ? visibleArrayEntries(rawItemsArray, props, 'items').map(({ item: raw, index }) => {
+        const rec = raw && typeof raw === 'object' ? (raw as Record<string, unknown>) : {}
+        return {
+          item: {
+            label: String(rec.label ?? rec.text ?? '').trim(),
+            url: String(rec.url ?? rec.href ?? '').trim(),
+            image_url: String(rec.image_url ?? rec.image ?? rec.src ?? '').trim(),
+          } satisfies MarqueeItem,
+          index,
+        }
+      })
+    : parseMarqueeItems(props).map((item, index) => ({ item, index }))
+  const legacyText = resolveBlockTextField(props, 'text')
+  const showLegacyText = !isBlockFieldHidden(props, 'text') && legacyText
   const compact = props.compact === true
   const separator = String(props.separator ?? 'dot')
   const sepChar = separator === 'pipe' ? '|' : '·'
@@ -290,8 +317,14 @@ export default function MarqueeStripBlock({ style, props, blockId }: Props) {
       style={{ borderColor: `${style.text_color}18`, backgroundColor: style.bg_color }}
     >
       <div className="sf-marquee-track whitespace-nowrap items-center" style={{ fontFamily: style.font_heading }}>
-        {items.length === 0 ? (
+        {visibleItems.length === 0 && !showLegacyText ? (
           <span className="text-sm opacity-60 px-4"> </span>
+        ) : visibleItems.length === 0 && showLegacyText ? (
+          <span className="text-sm opacity-80 px-4 inline-flex">
+            {isEditorCanvas && blockId ? (
+              <BuilderTextField fieldKey="text" blockId={blockId} blockProps={props} value={legacyText ?? ''} as="span" placeholder="Marquee text" />
+            ) : legacyText}
+          </span>
         ) : (
           Array.from({ length: 2 }).map((_, dup) => (
             <span
@@ -299,7 +332,7 @@ export default function MarqueeStripBlock({ style, props, blockId }: Props) {
               className="inline-flex items-center text-sm opacity-80"
               style={{ gap: itemGap, marginRight: itemGap }}
             >
-              {items.map((item, index) => (
+              {visibleItems.map(({ item, index }) => (
                 <span key={`${dup}-${index}`} className="inline-flex items-center" style={{ gap: Math.round(itemGap * 0.35) }}>
                   <MarqueeItemRow
                     item={item}
@@ -309,7 +342,7 @@ export default function MarqueeStripBlock({ style, props, blockId }: Props) {
                     isMirror={dup > 0}
                     compact={compact}
                   />
-                  {index < items.length - 1 ? <span className="opacity-40">{sepChar}</span> : null}
+                  {index < visibleItems.length - 1 ? <span className="opacity-40">{sepChar}</span> : null}
                 </span>
               ))}
             </span>

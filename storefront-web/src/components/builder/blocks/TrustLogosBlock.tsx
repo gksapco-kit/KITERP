@@ -7,6 +7,13 @@ import { useBuilderCanvas } from '@/contexts/BuilderCanvasContext'
 import { arrayItemImageFrameStyle, arrayItemImageRenderStyle } from '@/lib/sectionImageStyle'
 import { sectionGridColumnClass } from '@/lib/sectionItemLayout'
 import { cn, imgUrl } from '@/lib/utils'
+import {
+  arrayImageDeleteFieldKey,
+  isBlockFieldHidden,
+  isNestedBlockFieldHidden,
+  resolveBlockTextField,
+  visibleArrayEntries,
+} from '@/lib/blockHiddenFields'
 
 /** 1×1 transparent pixel — keeps an empty editable slot from rendering a broken-image / alt-text box. */
 const TRANSPARENT_PIXEL =
@@ -31,7 +38,8 @@ const hasLogoImage = (logo?: LogoProp | null): boolean =>
 export default function TrustLogosBlock({ style, props, liveItems, blockId }: Props) {
   const builderCanvas = useBuilderCanvas()
   const isEditorCanvas = Boolean(builderCanvas?.isEditorCanvas && blockId)
-  const title = (props.title as string) || 'Trusted by'
+  const title = resolveBlockTextField(props, 'title')
+  const showTitle = !isBlockFieldHidden(props, 'title') && (title || isEditorCanvas)
 
   // ── Layout variant props (driven by the layout picker presets) ──────────────
   const layout = String(props.layout ?? 'strip')
@@ -51,20 +59,19 @@ export default function TrustLogosBlock({ style, props, liveItems, blockId }: Pr
   const wrapperClass = size === 'large' ? 'h-16 w-44' : size === 'compact' ? 'h-8 w-24' : 'h-12 w-32'
   const gapClass = compact ? 'gap-6' : layout === 'marquee' ? 'gap-12' : 'gap-8'
 
-  const manualLogos = Array.isArray(props.logos)
-    ? (props.logos as LogoProp[]).map((logo, index) => ({ logo, index }))
-    : []
-  const hasManualImages = manualLogos.some(entry => hasLogoImage(entry.logo))
+  const manualLogosRaw = Array.isArray(props.logos) ? (props.logos as LogoProp[]) : []
+  const manualLogos = visibleArrayEntries(manualLogosRaw, props, 'logos').map(({ item: logo, index }) => ({ logo, index }))
+  const hasManualImages = manualLogosRaw.some(logo => hasLogoImage(logo))
   const liveLogos = liveItems.filter(i => i.image_url)
   // Manual logos win over the live media source and are editable. In the editor show every
   // manual slot (even empty) so they stay clickable to add a photo.
-  const useManual = hasManualImages || (isEditorCanvas && manualLogos.length > 0)
+  const useManual = hasManualImages || (isEditorCanvas && manualLogosRaw.length > 0)
 
   if (!useManual && liveLogos.length === 0) {
     return (
       <BlockEmptyPlaceholder
         style={style}
-        title={title}
+        title={title ?? undefined}
         message="Partner and trust logos will show here. Add logos in Section Edit, or connect this section to your media library."
         icon={<Award className="w-10 h-10" style={{ color: style.primary_color }} />}
       />
@@ -79,7 +86,7 @@ export default function TrustLogosBlock({ style, props, liveItems, blockId }: Pr
           item: logo as Record<string, unknown>,
           src: hasLogoImage(logo) ? imgUrl(logo.image_url as string) : TRANSPARENT_PIXEL,
           alt: hasLogoImage(logo) ? logo.name || 'Logo' : '',
-          hasImage: hasLogoImage(logo),
+          hasImage: hasLogoImage(logo) && !isBlockFieldHidden(props, arrayImageDeleteFieldKey('logos', index, 'image_url')),
         }),
       )
     : liveLogos.map(l => ({
@@ -90,28 +97,46 @@ export default function TrustLogosBlock({ style, props, liveItems, blockId }: Pr
       }))
 
   const renderLogo = (r: Renderable) => {
+    const showImage = r.hasImage || (isEditorCanvas && r.editIndex != null && !isNestedBlockFieldHidden(props, arrayImageDeleteFieldKey('logos', r.editIndex, 'image_url')))
+    const showName = r.editIndex != null && !isNestedBlockFieldHidden(props, `logos.${r.editIndex}.name`)
+
     if (isEditorCanvas && r.editIndex != null) {
       return (
-        <div
-          key={r.key}
-          className={cn('relative overflow-hidden rounded-md shrink-0', wrapperClass)}
-          style={{
-            backgroundColor: r.hasImage ? undefined : `${style.primary_color}10`,
-            ...(r.item ? arrayItemImageFrameStyle(r.item) : {}),
-          }}
-        >
-          <BuilderSectionImage
-            blockId={blockId}
-            field="image_url"
-            arrayKey="logos"
-            index={r.editIndex}
-            itemField="image_url"
-            blockProps={props}
-            src={r.src}
-            alt={r.alt}
-            className={cn('absolute inset-0 h-full w-full', filterClass)}
-            empty={!r.hasImage}
-          />
+        <div key={r.key} className="flex flex-col items-center gap-2 shrink-0">
+          {showImage && (
+            <div
+              className={cn('relative overflow-hidden rounded-md shrink-0', wrapperClass)}
+              style={{
+                backgroundColor: r.hasImage ? undefined : `${style.primary_color}10`,
+                ...(r.item ? arrayItemImageFrameStyle(r.item) : {}),
+              }}
+            >
+              <BuilderSectionImage
+                blockId={blockId}
+                field="image_url"
+                arrayKey="logos"
+                index={r.editIndex}
+                itemField="image_url"
+                blockProps={props}
+                src={r.src}
+                alt={r.alt}
+                className={cn('absolute inset-0 h-full w-full', filterClass)}
+                empty={!r.hasImage}
+              />
+            </div>
+          )}
+          {showName && (
+            <BuilderTextField
+              fieldKey={`logos.${r.editIndex}.name`}
+              blockId={blockId}
+              blockProps={props}
+              value={String(r.item?.name ?? '')}
+              as="span"
+              className="text-xs text-gray-400 text-center max-w-[8rem] truncate"
+              placeholder="Brand name"
+              skipPositionWrapper
+            />
+          )}
         </div>
       )
     }
@@ -165,14 +190,15 @@ export default function TrustLogosBlock({ style, props, liveItems, blockId }: Pr
   return (
     <section className={cn('px-4 sm:px-6 lg:px-8', compact ? 'py-8' : 'py-12', isDark && 'bg-gray-900')}>
       <div className="max-w-6xl mx-auto">
-        {(title || blockId) && (
+        {(showTitle) && (
           <BuilderTextField
             fieldKey="title"
             blockId={blockId}
             blockProps={props}
-            value={title}
+            value={title ?? ''}
             as="p"
             className={cn('text-center text-sm font-semibold uppercase tracking-widest mb-8', isDark ? 'text-gray-500' : 'text-gray-400')}
+            placeholder="Section title"
           />
         )}
         {content}

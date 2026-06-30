@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import type { LiveItem, PublicSite, StyleConfig } from '@/blocks/registry'
 import { BuilderTextField } from '@/components/builder/BuilderTextField'
 import { useBuilderCanvas } from '@/contexts/BuilderCanvasContext'
+import { isBlockFieldHidden, resolveBlockTextField } from '@/lib/blockHiddenFields'
 import { cn } from '@/lib/utils'
 import { getConsent, onConsentChange, setConsent } from '@/lib/consent'
 
@@ -38,11 +39,12 @@ export default function CookieConsentBlock({ style, props, blockId }: Props) {
     })
   }, [keepVisible])
 
-  const message =
-    (props.message as string) ||
-    'We use cookies to improve your experience and analyse traffic. You can accept all or decline non-essential cookies.'
-  const acceptLabel = (props.accept_label as string) || 'Accept'
-  const declineLabel = (props.decline_label as string) || 'Decline'
+  const message = resolveBlockTextField(props, 'message')
+  const acceptLabel = resolveBlockTextField(props, 'accept_label')
+  const declineLabel = resolveBlockTextField(props, 'decline_label')
+  const showMessage = !isBlockFieldHidden(props, 'message') && (message || isEditor)
+  const showAccept = !isBlockFieldHidden(props, 'accept_label') && (acceptLabel || isEditor)
+  const showDecline = !isBlockFieldHidden(props, 'decline_label') && (declineLabel || isEditor)
   const policyUrl = (props.policy_url as string) || ''
 
   const accept = () => {
@@ -57,6 +59,7 @@ export default function CookieConsentBlock({ style, props, blockId }: Props) {
   }
 
   if (!visible && !keepVisible) return null
+  if (!showMessage && !showAccept && !showDecline) return null
 
   return (
     <div
@@ -70,12 +73,12 @@ export default function CookieConsentBlock({ style, props, blockId }: Props) {
     >
       <div className="max-w-5xl mx-auto flex flex-col sm:flex-row items-center gap-4">
         <p className="text-sm text-gray-600 flex-1">
-          {(message || blockId) ? (
+          {showMessage ? (
             <BuilderTextField
               fieldKey="message"
               blockId={blockId}
               blockProps={props}
-              value={message}
+              value={message ?? ''}
               as="span"
               multiline
               placeholder="Cookie consent message…"
@@ -97,12 +100,12 @@ export default function CookieConsentBlock({ style, props, blockId }: Props) {
             onClick={decline}
             className="px-4 py-2 text-sm border border-gray-200 rounded-xl hover:bg-gray-50 font-medium text-gray-600"
           >
-            {(declineLabel || blockId) ? (
+            {showDecline ? (
               <BuilderTextField
                 fieldKey="decline_label"
                 blockId={blockId}
                 blockProps={props}
-                value={declineLabel}
+                value={declineLabel ?? ''}
                 as="span"
                 embeddedInControl
                 placeholder="Decline"
@@ -115,12 +118,12 @@ export default function CookieConsentBlock({ style, props, blockId }: Props) {
             className="px-4 py-2 text-sm rounded-xl text-white font-semibold hover:opacity-90"
             style={{ backgroundColor: style.primary_color }}
           >
-            {(acceptLabel || blockId) ? (
+            {showAccept ? (
               <BuilderTextField
                 fieldKey="accept_label"
                 blockId={blockId}
                 blockProps={props}
-                value={acceptLabel}
+                value={acceptLabel ?? ''}
                 as="span"
                 embeddedInControl
                 placeholder="Accept"

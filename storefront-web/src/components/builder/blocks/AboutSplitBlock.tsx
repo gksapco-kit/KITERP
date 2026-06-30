@@ -1,9 +1,11 @@
 import type { PublicSite, StyleConfig, LiveItem } from '@/blocks/registry'
-import { imgUrl } from '@/lib/utils'
+import { cn, imgUrl } from '@/lib/utils'
 import { MediaClipFrame } from '@/components/builder/MediaClipFrame'
 import { hasMediaClip } from '@/lib/mediaClip'
 import { BuilderTextField } from '@/components/builder/BuilderTextField'
 import { BuilderSectionImage } from '@/components/builder/BuilderSectionImage'
+import { useBuilderCanvas } from '@/contexts/BuilderCanvasContext'
+import { isBlockFieldHidden, resolveBlockTextField } from '@/lib/blockHiddenFields'
 
 interface Props {
   site: PublicSite
@@ -15,49 +17,74 @@ interface Props {
 }
 
 export default function AboutSplitBlock({ site, style, props, liveItems, blockId }: Props) {
+  const canvas = useBuilderCanvas()
+  const isEditorCanvas = canvas?.isEditorCanvas && !!blockId
   const profile = liveItems[0]
-  const title = (props.title as string) || profile?.title || 'About Us'
-  const subtitle = (props.subtitle as string) || 'Our Story'
-  const description = (props.description as string) || profile?.description || site.description || ''
-  const imageRaw = (props.image_url as string | null) || profile?.image_url || null
+
+  const title = resolveBlockTextField(props, 'title', {
+    fallback: () => (isEditorCanvas ? null : (profile?.title || 'About Us')),
+  })
+  const subtitle = resolveBlockTextField(props, 'subtitle', {
+    fallback: () => (isEditorCanvas ? null : 'Our Story'),
+  })
+  const description = resolveBlockTextField(props, 'description', {
+    fallback: () => (isEditorCanvas ? null : (profile?.description || site.description || '')),
+  })
+
+  const imageHidden = isBlockFieldHidden(props, 'image_url')
+  const imageRaw = imageHidden
+    ? null
+    : ((props.image_url as string | null) || profile?.image_url || null)
   const imageUrl = imageRaw ? imgUrl(imageRaw) : null
   const mediaClip = props.media_clip
   const clipped = hasMediaClip(mediaClip)
 
+  const showSubtitle = !isBlockFieldHidden(props, 'subtitle') && (subtitle || isEditorCanvas)
+  const showTitle = !isBlockFieldHidden(props, 'title') && (title || isEditorCanvas)
+  const showDescription = !isBlockFieldHidden(props, 'description') && (description || isEditorCanvas)
+  const showImage = !imageHidden && (imageUrl || isEditorCanvas)
+
   return (
     <section className="py-16 px-4 sm:px-6 lg:px-8 max-w-6xl mx-auto">
-      <div className="grid lg:grid-cols-2 gap-12 items-center">
+      <div className={cn('grid gap-12 items-center', showImage ? 'lg:grid-cols-2' : 'grid-cols-1')}>
+        {(showSubtitle || showTitle || showDescription) && (
         <div>
-          {(subtitle || blockId) && (
+          {showSubtitle && (
             <BuilderTextField
               fieldKey="subtitle"
               blockId={blockId}
               blockProps={props}
-              value={subtitle}
+              value={subtitle ?? ''}
               as="p"
               className="text-sm font-semibold uppercase tracking-widest mb-2"
               style={{ color: style.primary_color }}
             />
           )}
-          <BuilderTextField
-            fieldKey="title"
-            blockId={blockId}
-            blockProps={props}
-            value={title}
-            as="h2"
-            className="text-3xl font-bold text-gray-900 mb-4"
-          />
-          <BuilderTextField
-            fieldKey="description"
-            blockId={blockId}
-            blockProps={props}
-            value={description}
-            as="p"
-            multiline
-            className="text-gray-600 leading-relaxed"
-            placeholder="Tell your story"
-          />
+          {showTitle && (
+            <BuilderTextField
+              fieldKey="title"
+              blockId={blockId}
+              blockProps={props}
+              value={title ?? ''}
+              as="h2"
+              className="text-3xl font-bold text-gray-900 mb-4"
+            />
+          )}
+          {showDescription && (
+            <BuilderTextField
+              fieldKey="description"
+              blockId={blockId}
+              blockProps={props}
+              value={description ?? ''}
+              as="p"
+              multiline
+              className="text-gray-600 leading-relaxed"
+              placeholder="Tell your story"
+            />
+          )}
         </div>
+        )}
+        {showImage && (
         <div>
           {imageUrl ? (
             <MediaClipFrame clip={mediaClip} className="w-full aspect-video shadow-lg">
@@ -66,7 +93,7 @@ export default function AboutSplitBlock({ site, style, props, liveItems, blockId
                 field="image_url"
                 blockProps={props}
                 src={imageUrl}
-                alt={title}
+                alt={title ?? 'About'}
                 className={`w-full h-full object-cover ${!clipped ? 'rounded-2xl' : ''}`}
               />
             </MediaClipFrame>
@@ -76,6 +103,7 @@ export default function AboutSplitBlock({ site, style, props, liveItems, blockId
             </div>
           )}
         </div>
+        )}
       </div>
     </section>
   )

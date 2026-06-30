@@ -6,12 +6,19 @@ import { BuilderSectionImage } from '@/components/builder/BuilderSectionImage'
 import { useBuilderCanvas } from '@/contexts/BuilderCanvasContext'
 import { cn, imgUrl } from '@/lib/utils'
 import {
+  propMemberToLiveItem,
   resolveTeamGridMembers,
-  teamGridColumnClass,
   teamPropMembers,
 } from '@/lib/teamGridContent'
 import { sectionGridColumnClass, iconBoxShapeClass, imageShapeFromProps, imageShapeRadiusClass } from '@/lib/sectionItemLayout'
 import { arrayItemImageFrameStyle, arrayItemImageRenderStyle } from '@/lib/sectionImageStyle'
+import {
+  arrayImageDeleteFieldKey,
+  isArrayItemHidden,
+  isBlockFieldHidden,
+  isNestedBlockFieldHidden,
+  resolveBlockTextField,
+} from '@/lib/blockHiddenFields'
 
 /** 1×1 transparent pixel — keeps an empty editable slot from rendering a broken-image / alt-text box. */
 const TRANSPARENT_PIXEL =
@@ -22,8 +29,10 @@ interface Props { site: PublicSite; style: StyleConfig; props: Record<string, un
 export default function TeamGridBlock({ style, props, liveItems, blockId }: Props) {
   const builderCanvas = useBuilderCanvas()
   const isEditorCanvas = Boolean(builderCanvas?.isEditorCanvas && blockId)
-  const title = (props.title as string) || 'Our team'
-  const description = (props.description as string) || ''
+  const title = resolveBlockTextField(props, 'title', {
+    fallback: () => (isEditorCanvas ? null : 'Our team'),
+  })
+  const description = resolveBlockTextField(props, 'description')
   const columns = Number(props.columns ?? 4)
   const itemGap = Number(props.item_gap ?? 24)
   const itemSize = Number(props.item_size ?? 160)
@@ -33,23 +42,31 @@ export default function TeamGridBlock({ style, props, liveItems, blockId }: Prop
   const imageShape = imageShapeFromProps(props, 'circle')
   const avatarClass = imageShapeRadiusClass(imageShape)
 
-  const { useLive, items } = resolveTeamGridMembers(props, liveItems)
-  // Map each rendered (named) member back to its props.members[] index so the
-  // section-image toolbar (fit / zoom / focal) patches the right entry.
-  const memberSourceIndices = !useLive
-    ? teamPropMembers(props)
-        .map((m, i) => ({ named: String(m?.name || '').trim().length > 0, i }))
-        .filter(entry => entry.named)
-        .map(entry => entry.i)
-    : []
-  // Manual members carry editable avatars; live ERP team photos are not editable here.
+  const showTitle = !isBlockFieldHidden(props, 'title') && (title || isEditorCanvas)
+  const showDescription = !isBlockFieldHidden(props, 'description') && (description || isEditorCanvas)
+
+  const { useLive, items: liveResolvedItems } = resolveTeamGridMembers(props, liveItems)
+  const visibleEntries = useLive
+    ? liveResolvedItems.map((item, index) => ({ item, memberIndex: index, rawMember: undefined as Record<string, unknown> | undefined }))
+    : teamPropMembers(props)
+        .map((member, index) => ({ member, index }))
+        .filter(({ member, index }) => String(member?.name || '').trim() && !isArrayItemHidden(props, 'members', index))
+        .map(({ member, index }) => ({
+          item: propMemberToLiveItem(member, index),
+          memberIndex: index,
+          rawMember: member as Record<string, unknown>,
+        }))
   const allowImageEditing = isEditorCanvas && !useLive
 
-  if (items.length === 0) {
+  if (visibleEntries.length === 0 && !showTitle && !showDescription && !isEditorCanvas) {
+    return null
+  }
+
+  if (visibleEntries.length === 0) {
     return (
       <BlockEmptyPlaceholder
         style={style}
-        title={title}
+        title={title ?? 'Our team'}
         message="Your team will appear here once you add staff in People or edit the sample members in the builder."
         hint="Tip: double-click section text on the canvas to customize names and roles."
         icon={<Users className="w-10 h-10" style={{ color: style.primary_color }} />}
@@ -59,26 +76,31 @@ export default function TeamGridBlock({ style, props, liveItems, blockId }: Prop
 
   return (
     <section className="py-16 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
-      {(title || blockId) && (
-        <BuilderTextField fieldKey="title" blockId={blockId} blockProps={props} value={title} as="h2" className="text-3xl font-bold text-gray-900 mb-4 text-center" />
+      {showTitle && (
+        <BuilderTextField fieldKey="title" blockId={blockId} blockProps={props} value={title ?? ''} as="h2" className="text-3xl font-bold text-gray-900 mb-4 text-center" placeholder="Section title" />
       )}
-      {(description || blockId) && (
-        <BuilderTextField fieldKey="description" blockId={blockId} blockProps={props} value={description} as="p" multiline className="text-center text-sm text-gray-500 mb-10 max-w-2xl mx-auto" placeholder="Optional description" />
+      {showDescription && (
+        <BuilderTextField fieldKey="description" blockId={blockId} blockProps={props} value={description ?? ''} as="p" multiline className="text-center text-sm text-gray-500 mb-10 max-w-2xl mx-auto" placeholder="Optional description" />
       )}
       <div
         className={`grid ${sectionGridColumnClass(columns)} mx-auto`}
         style={{ gap: `${itemGap}px`, maxWidth: columns >= 5 ? '100%' : '1000px' }}
       >
-        {items.map((member, idx) => {
-          const rawMember = !useLive
-            ? (teamPropMembers(props)[memberSourceIndices[idx]] as Record<string, unknown> | undefined)
-            : undefined
+        {visibleEntries.map(({ item: member, memberIndex, rawMember }) => {
+          const showAvatar = useLive || (
+            !isNestedBlockFieldHidden(props, arrayImageDeleteFieldKey('members', memberIndex, 'avatar_url'))
+            && !isNestedBlockFieldHidden(props, arrayImageDeleteFieldKey('members', memberIndex, 'image_url'))
+          )
+          const showName = useLive || !isNestedBlockFieldHidden(props, `members.${memberIndex}.name`)
+          const showRole = useLive || !isNestedBlockFieldHidden(props, `members.${memberIndex}.role`)
+          const showBio = useLive || !isNestedBlockFieldHidden(props, `members.${memberIndex}.bio`)
+
           return (
           <div
             key={member.id}
             className={`text-center ${!isMinimal ? 'p-4 rounded-2xl border border-gray-100 bg-white shadow-sm' : 'p-2'}`}
           >
-            {allowImageEditing ? (
+            {showAvatar && allowImageEditing ? (
               <div
                 className={cn(avatarClass, 'relative mx-auto mb-3 overflow-hidden')}
                 style={{
@@ -92,7 +114,7 @@ export default function TeamGridBlock({ style, props, liveItems, blockId }: Prop
                   blockId={blockId}
                   field="avatar_url"
                   arrayKey="members"
-                  index={memberSourceIndices[idx] ?? idx}
+                  index={memberIndex}
                   itemField="avatar_url"
                   blockProps={props}
                   src={member.image_url ? imgUrl(member.image_url) : TRANSPARENT_PIXEL}
@@ -101,7 +123,7 @@ export default function TeamGridBlock({ style, props, liveItems, blockId }: Prop
                   empty={!member.image_url}
                 />
               </div>
-            ) : member.image_url ? (
+            ) : showAvatar && member.image_url ? (
               <img
                 src={imgUrl(member.image_url)}
                 alt={member.title}
@@ -109,7 +131,7 @@ export default function TeamGridBlock({ style, props, liveItems, blockId }: Prop
                 style={{ width: avatarSize, height: avatarSize, ...arrayItemImageRenderStyle(rawMember ?? {}, props) }}
                 loading="lazy"
               />
-            ) : (
+            ) : showAvatar && showName ? (
               <div
                 className={`${iconBoxShapeClass(imageShape)} mx-auto mb-3 flex items-center justify-center text-white font-bold`}
                 style={{
@@ -121,11 +143,52 @@ export default function TeamGridBlock({ style, props, liveItems, blockId }: Prop
               >
                 {(member.title || '?').charAt(0)}
               </div>
+            ) : null}
+            {showName && (
+              allowImageEditing ? (
+                <BuilderTextField
+                  fieldKey={`members.${memberIndex}.name`}
+                  blockId={blockId}
+                  blockProps={props}
+                  value={member.title}
+                  as="h3"
+                  className="font-semibold text-gray-900 text-sm"
+                  placeholder="Name"
+                />
+              ) : (
+                <h3 className="font-semibold text-gray-900 text-sm">{member.title}</h3>
+              )
             )}
-            <h3 className="font-semibold text-gray-900 text-sm">{member.title}</h3>
-            {member.subtitle && <p className="text-sm text-gray-400 mt-0.5">{member.subtitle}</p>}
-            {member.description && (
-              <p className="text-xs text-gray-500 mt-1.5 max-w-xs mx-auto leading-relaxed">{member.description}</p>
+            {showRole && member.subtitle && (
+              allowImageEditing ? (
+                <BuilderTextField
+                  fieldKey={`members.${memberIndex}.role`}
+                  blockId={blockId}
+                  blockProps={props}
+                  value={member.subtitle}
+                  as="p"
+                  className="text-sm text-gray-400 mt-0.5"
+                  placeholder="Role"
+                />
+              ) : (
+                <p className="text-sm text-gray-400 mt-0.5">{member.subtitle}</p>
+              )
+            )}
+            {showBio && member.description && (
+              allowImageEditing ? (
+                <BuilderTextField
+                  fieldKey={`members.${memberIndex}.bio`}
+                  blockId={blockId}
+                  blockProps={props}
+                  value={member.description}
+                  as="p"
+                  multiline
+                  className="text-xs text-gray-500 mt-1.5 max-w-xs mx-auto leading-relaxed"
+                  placeholder="Bio"
+                />
+              ) : (
+                <p className="text-xs text-gray-500 mt-1.5 max-w-xs mx-auto leading-relaxed">{member.description}</p>
+              )
             )}
           </div>
           )

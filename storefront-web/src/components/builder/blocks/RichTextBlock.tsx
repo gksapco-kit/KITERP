@@ -1,6 +1,9 @@
 import type { PublicSite, StyleConfig, LiveItem } from '@/blocks/registry'
 import { BuilderTextField } from '@/components/builder/BuilderTextField'
+import { useBuilderCanvas } from '@/contexts/BuilderCanvasContext'
 import { hasInlineHtml } from '@/lib/fieldTextStyles'
+import { isBlockFieldHidden, resolveBlockTextField } from '@/lib/blockHiddenFields'
+import { cn } from '@/lib/utils'
 
 interface Props {
   site: PublicSite
@@ -12,47 +15,35 @@ interface Props {
 }
 
 export default function RichTextBlock({ props, blockId }: Props) {
-  const content = (props.content as string) || ''
-  if (!content && !blockId) return null
+  const builderCanvas = useBuilderCanvas()
+  const isEditorCanvas = builderCanvas?.isEditorCanvas && !!blockId
+  const content = resolveBlockTextField(props, 'content')
+  const showContent = !isBlockFieldHidden(props, 'content') && (content || isEditorCanvas)
 
-  if (blockId && hasInlineHtml(content)) {
+  if (!showContent) return null
+
+  if (blockId) {
     return (
       <section className="py-8 px-4 sm:px-6 lg:px-8 max-w-4xl mx-auto">
-        <div className="prose prose-gray max-w-none">
+        <div className="rich-text-content">
           <BuilderTextField
             fieldKey="content"
             blockId={blockId}
             blockProps={props}
-            value={content}
+            value={content ?? ''}
             as="div"
             multiline
-            className="max-w-none"
+            className={cn('max-w-none', content && !hasInlineHtml(content) && 'whitespace-pre-wrap')}
+            placeholder="Add your content"
           />
         </div>
       </section>
     )
   }
 
-  if (blockId) {
-    return (
-      <section className="py-8 px-4 sm:px-6 lg:px-8 max-w-4xl mx-auto">
-        <BuilderTextField
-          fieldKey="content"
-          blockId={blockId}
-          blockProps={props}
-          value={content}
-          as="div"
-          multiline
-          className="prose prose-gray max-w-none whitespace-pre-wrap"
-          placeholder="Add your content"
-        />
-      </section>
-    )
-  }
-
   return (
     <section className="py-8 px-4 sm:px-6 lg:px-8 max-w-4xl mx-auto">
-      <div className="prose prose-gray max-w-none" dangerouslySetInnerHTML={{ __html: content }} />
+      <div className="rich-text-content" dangerouslySetInnerHTML={{ __html: content ?? '' }} />
     </section>
   )
 }

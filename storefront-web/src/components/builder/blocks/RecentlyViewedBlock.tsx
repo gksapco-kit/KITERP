@@ -1,7 +1,10 @@
-import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
+import { useEffect, useState } from 'react'
 import type { LiveItem, PublicSite, StyleConfig } from '@/blocks/registry'
+import { BuilderTextField } from '@/components/builder/BuilderTextField'
+import { useBuilderCanvas } from '@/contexts/BuilderCanvasContext'
 import { getRecent } from '@/lib/recentlyViewed'
+import { isBlockFieldHidden, resolveBlockTextField } from '@/lib/blockHiddenFields'
 import { useVendor } from '@/contexts/VendorContext'
 import {
   CATALOG_GRID_COL_CLASS,
@@ -15,6 +18,7 @@ interface Props {
   props: Record<string, unknown>
   liveItems: LiveItem[]
   branchCode?: string | null
+  blockId?: string
 }
 
 /**
@@ -22,7 +26,9 @@ interface Props {
  * Backed entirely by localStorage; renders nothing on a fresh visit so we
  * don't ship an empty section.
  */
-export default function RecentlyViewedBlock({ style, props }: Props) {
+export default function RecentlyViewedBlock({ style, props, blockId }: Props) {
+  const builderCanvas = useBuilderCanvas()
+  const isEditorCanvas = builderCanvas?.isEditorCanvas && !!blockId
   const { storePath } = useVendor()
   const max = Math.min(200, Math.max(1, Number(props.max ?? props.show_count ?? 6) || 6))
   const columns = clampCatalogColumns(props.columns, 6, 'recently_viewed')
@@ -33,18 +39,25 @@ export default function RecentlyViewedBlock({ style, props }: Props) {
     setItems(getRecent(max))
   }, [max])
 
-  if (!items.length) return null
+  const title = resolveBlockTextField(props, 'title')
+  const showTitle = !isBlockFieldHidden(props, 'title') && (title || isEditorCanvas)
 
-  const title = (props.title as string) || 'Recently Viewed'
+  if (!items.length && !isEditorCanvas) return null
 
   return (
-    <section className="py-12 px-4 sm:px-6 lg:px-8 max-w-6xl mx-auto" aria-label={title}>
-      <h2
-        className="text-2xl sm:text-3xl font-bold mb-6"
-        style={{ fontFamily: style.font_heading, color: style.text_color }}
-      >
-        {title}
-      </h2>
+    <section className="py-12 px-4 sm:px-6 lg:px-8 max-w-6xl mx-auto" aria-label={title ?? undefined}>
+      {showTitle && (
+        <BuilderTextField
+          fieldKey="title"
+          blockId={blockId}
+          blockProps={props}
+          value={title ?? ''}
+          as="h2"
+          className="text-2xl sm:text-3xl font-bold mb-6"
+          style={{ fontFamily: style.font_heading, color: style.text_color }}
+          placeholder="Section title"
+        />
+      )}
       <ul
         className={`grid list-none p-0 ${CATALOG_GRID_COL_CLASS[columns] || CATALOG_GRID_COL_CLASS[6]}`}
         style={{ gap: cardLayout.itemGap }}

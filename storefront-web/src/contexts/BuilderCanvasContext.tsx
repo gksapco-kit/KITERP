@@ -46,6 +46,8 @@ export interface BuilderCanvasContextValue {
     propKey: string,
     anchor: { x: number; y: number },
   ) => void
+  /** Remove a deletable field (hero eyebrow, CTA button, etc.) from the section. */
+  onDeleteBlockField?: (blockId: string, fieldKey: string) => void
   /** Builder canvas: submit contact form via authenticated vendor API (draft sites). */
   submitContactForm?: (
     siteId: string,

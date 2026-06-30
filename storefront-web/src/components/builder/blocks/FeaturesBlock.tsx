@@ -29,6 +29,12 @@ import {
   resolveWellnessFeatureImage,
   sanitizeWellnessBodyCopy,
 } from '@/lib/wellnessTemplateCopy'
+import {
+  arrayImageDeleteFieldKey,
+  isBlockFieldHidden,
+  resolveBlockTextField,
+  visibleArrayEntries,
+} from '@/lib/blockHiddenFields'
 
 interface FeatureItem { icon?: string; title: string; desc?: string; description?: string; image_url?: string }
 
@@ -49,6 +55,9 @@ function FeatureItemImage({
   style?: CSSProperties
   allowEmpty?: boolean
 }) {
+  if (blockId && isBlockFieldHidden(blockProps, arrayImageDeleteFieldKey('features', index, 'image_url'))) {
+    return null
+  }
   if (!feature.image_url && !allowEmpty) return null
   const src = feature.image_url ? imgUrl(feature.image_url) : 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7'
   const frameStyle = { ...style, ...arrayItemImageFrameStyle(feature as Record<string, unknown>) }
@@ -89,23 +98,26 @@ export default function FeaturesBlock({ site, style, props, blockType, blockId }
   const useTemplateReplacement = isAlternating && isTemplateMealFeaturesBlock(props)
   const replacement = useTemplateReplacement ? productFocusedFeatureContent(site.name) : null
 
-  const title = sanitizeWellnessBodyCopy(
-    (useTemplateReplacement ? replacement?.title : (props.title as string)) || '',
-  )
-  const sectionTitle = (className: string, extraStyle?: CSSProperties) => (
-    (title || blockId) ? (
+  const title = useTemplateReplacement && replacement?.title
+    ? sanitizeWellnessBodyCopy(replacement.title)
+    : resolveBlockTextField(props, 'title', { sanitize: sanitizeWellnessBodyCopy })
+
+  const sectionTitle = (className: string, extraStyle?: CSSProperties) => {
+    if (!useTemplateReplacement && isBlockFieldHidden(props, 'title')) return null
+    if (!title && !blockId) return null
+    return (
       <BuilderTextField
         fieldKey="title"
         blockId={blockId}
         blockProps={props}
-        value={title}
+        value={title ?? ''}
         as="h2"
         className={className}
         style={extraStyle}
         placeholder="Section title"
       />
-    ) : null
-  )
+    )
+  }
   const rawFeatures = (props.features as FeatureItem[] | undefined) || []
   const features = useTemplateReplacement && replacement
     ? replacement.features
@@ -144,7 +156,7 @@ export default function FeaturesBlock({ site, style, props, blockType, blockId }
           { fontFamily: style.font_heading, color: sectionText },
         )}
         <div className={rowGap}>
-          {features.map((feature, i) => {
+          {visibleArrayEntries(features, props, 'features').map(({ item: feature, index: i }) => {
             const featTitle = sanitizeWellnessBodyCopy(feature.title)
             const featDesc = sanitizeWellnessBodyCopy(feature.desc || feature.description || '')
             const imageSrc = resolveWellnessFeatureImage(feature, i)
@@ -228,7 +240,7 @@ export default function FeaturesBlock({ site, style, props, blockType, blockId }
       <section className="py-16 px-4 sm:px-6 lg:px-8 max-w-4xl mx-auto" style={{ background: surface.background, color: surface.color }}>
         {sectionTitle('text-3xl font-bold mb-10 text-center')}
         <div className="space-y-6" style={{ gap: itemGap }}>
-          {features.map((feature, i) => (
+          {visibleArrayEntries(features, props, 'features').map(({ item: feature, index: i }) => (
             <div
               key={i}
               className={cn('flex gap-4 items-start rounded-2xl border', surface.isDark ? 'border-white/10 bg-white/5' : 'border-gray-100 bg-white')}
@@ -265,7 +277,7 @@ export default function FeaturesBlock({ site, style, props, blockType, blockId }
       <section className="py-12 px-4 overflow-x-auto" style={{ background: surface.background, color: surface.color }}>
         {sectionTitle('text-2xl font-bold mb-8 text-center px-4')}
         <div className="flex min-w-max px-4 mx-auto justify-center" style={{ gap: itemGap }}>
-          {features.map((feature, i) => (
+          {visibleArrayEntries(features, props, 'features').map(({ item: feature, index: i }) => (
             <div
               key={i}
               className={cn('builder-tile-card shrink-0 w-56 rounded-2xl border', surface.isDark ? 'border-white/10 bg-white/5' : 'border-gray-100 bg-white')}
@@ -286,7 +298,7 @@ export default function FeaturesBlock({ site, style, props, blockType, blockId }
       <section className="py-16 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto" style={{ background: surface.background, color: surface.color }}>
         {sectionTitle('text-3xl font-bold mb-10 text-center')}
         <div className={cn('columns-1 sm:columns-2 gap-6 space-y-6', columns >= 3 && 'lg:columns-3', columns >= 4 && 'lg:columns-4')} style={{ columnGap: itemGap }}>
-          {features.map((feature, i) => (
+          {visibleArrayEntries(features, props, 'features').map(({ item: feature, index: i }) => (
             <div key={i} className={cn('builder-tile-card break-inside-avoid rounded-2xl border mb-6', surface.isDark ? 'border-white/10 bg-white/5' : 'border-gray-100 bg-white')} style={{ padding: cardPad }}>
               {showImages && feature.image_url && (
                 <FeatureItemImage
@@ -310,7 +322,7 @@ export default function FeaturesBlock({ site, style, props, blockType, blockId }
     <section className="py-16 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto" style={{ background: surface.background, color: surface.color }}>
       {sectionTitle('text-3xl font-bold mb-10 text-center')}
       <div className={cn('grid', sectionGridColumnClass(columns))} style={{ gap: itemGap }}>
-        {features.map((feature, i) => (
+        {visibleArrayEntries(features, props, 'features').map(({ item: feature, index: i }) => (
           <div
             key={i}
             className={cn(

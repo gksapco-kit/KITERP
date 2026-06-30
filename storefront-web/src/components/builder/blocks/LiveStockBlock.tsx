@@ -4,17 +4,24 @@ import { useVendor } from '@/contexts/VendorContext'
 import type { PublicSite, StyleConfig, LiveItem } from '@/blocks/registry'
 import BlockEmptyPlaceholder from '@/components/builder/BlockEmptyPlaceholder'
 import { BuilderTextField } from '@/components/builder/BuilderTextField'
+import { useBuilderCanvas } from '@/contexts/BuilderCanvasContext'
+import { isBlockFieldHidden, resolveBlockTextField } from '@/lib/blockHiddenFields'
 
 interface Props { site: PublicSite; style: StyleConfig; props: Record<string, unknown>; liveItems: LiveItem[]; branchCode?: string | null; blockId?: string }
 
 export default function LiveStockBlock({ style, props, liveItems, blockId }: Props) {
   const { storePath } = useVendor()
-  const title = (props.title as string) || 'In stock now'
+  const builderCanvas = useBuilderCanvas()
+  const isEditorCanvas = builderCanvas?.isEditorCanvas && !!blockId
+  const title = resolveBlockTextField(props, 'title', {
+    fallback: () => (isEditorCanvas ? null : 'In stock now'),
+  })
+  const showTitle = !isBlockFieldHidden(props, 'title') && (title || isEditorCanvas)
   if (liveItems.length === 0) {
     return (
       <BlockEmptyPlaceholder
         style={style}
-        title={title}
+        title={title ?? undefined}
         message="Live stock levels will appear here once you add products to your catalog."
         hint="Add products from Products in your dashboard, then connect this section to your catalog."
         icon={<Package className="w-10 h-10" style={{ color: style.primary_color }} />}
@@ -23,7 +30,9 @@ export default function LiveStockBlock({ style, props, liveItems, blockId }: Pro
   }
   return (
     <section className="py-12 px-4 sm:px-6 lg:px-8 max-w-5xl mx-auto">
-      <BuilderTextField fieldKey="title" blockId={blockId} blockProps={props} value={title} as="h3" className="text-xl font-bold text-gray-900 mb-4" />
+      {showTitle && (
+        <BuilderTextField fieldKey="title" blockId={blockId} blockProps={props} value={title ?? ''} as="h3" className="text-xl font-bold text-gray-900 mb-4" placeholder="Section title" />
+      )}
       <div className="overflow-x-auto">
         <table className="w-full text-sm border-collapse">
           <thead>

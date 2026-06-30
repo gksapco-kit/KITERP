@@ -24,6 +24,7 @@ import {
   resolveWellnessSiteProducts,
 } from '@/lib/wellnessProductFilter'
 import { cn, imgUrl } from '@/lib/utils'
+import { isBlockFieldHidden, resolveBlockTextField } from '@/lib/blockHiddenFields'
 import {
   CATALOG_GRID_COL_CLASS,
   catalogGridResponsiveColClass,
@@ -98,23 +99,27 @@ function CategorySectionHeader({
   style,
   blockId,
   blockProps,
+  showTitle = true,
 }: {
-  title: string
+  title: string | null
   textColor: string
   style: StyleConfig
   blockId?: string
   blockProps: Record<string, unknown>
+  showTitle?: boolean
 }) {
+  if (!showTitle) return null
   return (
     <div className="flex items-end justify-between mb-10 gap-4 flex-wrap">
       <BuilderTextField
         fieldKey="title"
         blockId={blockId}
         blockProps={blockProps}
-        value={title}
+        value={title ?? ''}
         as="h2"
         className="text-3xl sm:text-4xl md:text-5xl"
         style={{ fontFamily: style.font_heading, color: textColor }}
+        placeholder="Section title"
       />
       <span className="text-sm underline opacity-80" style={{ color: textColor }}>View all</span>
     </div>
@@ -163,7 +168,10 @@ export default function ProductGridBlock({ site, style, props, liveItems, blockT
     } catch { /* mutation handles */ }
   }
 
-  const title = (props.title as string) || 'Products'
+  const title = resolveBlockTextField(props, 'title', {
+    fallback: () => (isEditorCanvas ? null : 'Products'),
+  })
+  const showTitle = !isBlockFieldHidden(props, 'title') && (title || isEditorCanvas)
   const columns = clampCatalogColumns(props.columns, 4, blockType)
   const itemGap = Math.max(0, Number(props.item_gap ?? 24) || 24)
   const showBadges = props.show_badges !== false

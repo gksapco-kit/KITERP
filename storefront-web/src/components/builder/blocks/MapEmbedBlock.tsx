@@ -1,8 +1,10 @@
 import { MapPin } from 'lucide-react'
 import type { PublicSite, StyleConfig, LiveItem } from '@/blocks/registry'
 import { BuilderTextField } from '@/components/builder/BuilderTextField'
+import { useBuilderCanvas } from '@/contexts/BuilderCanvasContext'
 import { useEffectiveVendor } from '@/hooks/useEffectiveVendor'
 import { resolveBusinessContactAddress } from '@/lib/businessContact'
+import { isBlockFieldHidden, resolveBlockTextField } from '@/lib/blockHiddenFields'
 
 interface Props {
   site: PublicSite
@@ -14,29 +16,50 @@ interface Props {
 }
 
 export default function MapEmbedBlock({ style, props, liveItems, blockId }: Props) {
+  const builderCanvas = useBuilderCanvas()
+  const isEditorCanvas = builderCanvas?.isEditorCanvas && !!blockId
   const vendor = useEffectiveVendor()
-  const title = (props.title as string) || 'Find Us'
+
+  const title = resolveBlockTextField(props, 'title', {
+    fallback: () => (isEditorCanvas ? null : 'Find Us'),
+  })
   const profile = liveItems[0]
-  const address =
-    resolveBusinessContactAddress(props.address as string | undefined, profile, vendor)
+  const addressHidden = isBlockFieldHidden(props, 'address')
+  const address = addressHidden
+    ? null
+    : resolveBusinessContactAddress(props.address as string | undefined, profile, vendor)
   const lat = (props.lat as number | null) || (profile?.meta?.latitude as number | null) || null
   const lng = (props.lng as number | null) || (profile?.meta?.longitude as number | null) || null
 
-  const mapSrc = lat && lng
+  const mapSrc = !addressHidden && lat && lng
     ? `https://www.openstreetmap.org/export/embed.html?bbox=${lng - 0.01},${lat - 0.01},${lng + 0.01},${lat + 0.01}&layer=mapnik&marker=${lat},${lng}`
-    : address
+    : !addressHidden && address
     ? `https://www.google.com/maps?q=${encodeURIComponent(address)}&output=embed`
     : null
 
+  const showTitle = !isBlockFieldHidden(props, 'title') && (title || isEditorCanvas)
+  const showAddress = !addressHidden && (address || isEditorCanvas)
+
   return (
     <section className="py-16 px-4 sm:px-6 lg:px-8 max-w-6xl mx-auto">
-      <div className="flex items-center gap-3 mb-6">
-        <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ backgroundColor: `${style.primary_color}15` }}>
-          <MapPin className="w-5 h-5" style={{ color: style.primary_color }} />
+      {(showTitle || showAddress) && (
+        <div className="flex items-center gap-3 mb-6">
+          <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ backgroundColor: `${style.primary_color}15` }}>
+            <MapPin className="w-5 h-5" style={{ color: style.primary_color }} />
+          </div>
+          {showTitle && (
+            <BuilderTextField fieldKey="title" blockId={blockId} blockProps={props} value={title ?? ''} as="h2" className="text-2xl font-bold text-gray-900" placeholder="Section title" />
+          )}
         </div>
-        <BuilderTextField fieldKey="title" blockId={blockId} blockProps={props} value={title} as="h2" className="text-2xl font-bold text-gray-900" />
-      </div>
-      {address && <p className="text-gray-500 mb-6 flex items-center gap-2"><MapPin className="w-4 h-4" />{address}</p>}
+      )}
+      {showAddress && address && (
+        <p className="text-gray-500 mb-6 flex items-center gap-2">
+          <MapPin className="w-4 h-4" />
+          {isEditorCanvas && blockId ? (
+            <BuilderTextField fieldKey="address" blockId={blockId} blockProps={props} value={String(props.address ?? address ?? '')} as="span" placeholder="Street address" />
+          ) : address}
+        </p>
+      )}
       {mapSrc ? (
         <div className="w-full h-80 rounded-2xl overflow-hidden border border-gray-200 shadow-sm">
           <iframe

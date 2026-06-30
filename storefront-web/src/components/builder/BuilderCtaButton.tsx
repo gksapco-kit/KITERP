@@ -1,4 +1,5 @@
 import type { CSSProperties, ReactNode } from 'react'
+import { Trash2 } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { cn } from '@/lib/utils'
 import { useBuilderCanvas } from '@/contexts/BuilderCanvasContext'
@@ -18,6 +19,7 @@ export function BuilderCtaButton({
   className,
   style,
   trailing,
+  allowElementDelete = false,
 }: {
   fieldKey: string
   blockId?: string
@@ -27,6 +29,8 @@ export function BuilderCtaButton({
   className?: string
   style?: CSSProperties
   trailing?: ReactNode
+  /** Show remove control when this button is selected (hero sections). */
+  allowElementDelete?: boolean
 }) {
   const ctx = useBuilderCanvas()
   const storePath = useStorePath()
@@ -68,7 +72,23 @@ export function BuilderCtaButton({
         blockId={blockId}
         blockProps={blockProps}
         inline
+        className="relative inline-block"
       >
+        {allowElementDelete && isActive && ctx?.onDeleteBlockField && blockId ? (
+          <button
+            type="button"
+            data-builder-cta-delete
+            title="Remove button"
+            className="absolute -top-2.5 -right-2.5 z-[60] flex h-5 w-5 items-center justify-center rounded-full border border-red-200 bg-red-600 text-white shadow-md hover:bg-red-700"
+            onMouseDown={e => e.stopPropagation()}
+            onClick={e => {
+              e.stopPropagation()
+              ctx.onDeleteBlockField!(blockId, fieldKey)
+            }}
+          >
+            <Trash2 className="h-3 w-3" />
+          </button>
+        ) : null}
         <span
           role="button"
           tabIndex={0}

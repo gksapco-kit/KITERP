@@ -104,7 +104,15 @@ import {
 import { ScrollAnimationControls } from '@/components/websites/ScrollAnimationControls'
 import { StoreContentGroupTabs } from '@/components/websites/StoreContentGroupTabs'
 import { animationOptionLabel } from '@storefront/lib/builderScrollAnimations'
+import { blockTypeSupportsBlockLink } from '@storefront/lib/blockLinkPolicy'
 import { defaultMarqueeItems, marqueeItemsToLegacyText, parseMarqueeItems } from '@storefront/lib/marqueeItems'
+import {
+  PAYMENT_METHOD_KEYS,
+  PAYMENT_METHOD_LABELS,
+  paymentMethodLabel,
+  paymentMethodsForEditor,
+  paymentMethodsFromEditor,
+} from '@storefront/lib/paymentMethodCatalog'
 import {
   BuilderCanvasInlineTextEdit,
   type InlineTextEditSession,
@@ -123,6 +131,18 @@ import {
   TEXT_CLEAR_MENU,
   type TextClearAction,
 } from '@/lib/builderCanvasTextClear'
+import {
+  buildDeleteBlockElementPatch,
+  resolveDeleteBlockElementTarget,
+} from '@/lib/builderCanvasElementDelete'
+import {
+  showBlockFieldPatch,
+  canDeleteBlockField,
+  isBlockFieldHidden,
+  supportsBlockElementDelete,
+  listDeletableHiddenFields,
+  fieldLabelForKey,
+} from '@storefront/lib/blockHiddenFields'
 import {
   cloneOverlayForPaste,
   consumeOverlayClipboardAfterPaste,
@@ -167,6 +187,7 @@ import { VisualDesignBarTools } from '@/components/websites/VisualDesignBarTools
 import { VisualsDesignBarMenu } from '@/components/websites/MediaDesignBarTools'
 import { OverlayIconPicker } from '@/components/websites/OverlayIconPicker'
 import { OverlayTypographyToolbar } from '@/components/websites/OverlayTypographyToolbar'
+import { RichTextWysiwygField } from '@/components/websites/RichTextWysiwygField'
 import { SectionImageControls } from '@/components/websites/SectionImageControls'
 import { InsertLayerButton } from '@/components/websites/InsertLayerButton'
 import {
@@ -372,7 +393,7 @@ const BLOCK_CATALOG: BlockDef[] = [
   { type: 'stats', label: 'Stats / Numbers', icon: BarChart3, desc: 'Key metrics and achievements', category: 'content', defaultProps: { title: 'Trusted by our community', stats: [{ value: '2K+', label: 'Happy customers' }, { value: '500+', label: 'Products' }, { value: '4.8?', label: 'Average rating' }, { value: '24/7', label: 'Online ordering' }] } },
   { type: 'testimonials', label: 'Testimonials', icon: Quote, desc: 'Customer reviews and quotes', category: 'social', defaultProps: { title: 'What our customers say', testimonials: [{ name: 'Priya Sharma', role: 'Regular customer', company: '', quote: 'Great quality and fast delivery ? I order every week!', rating: 5 }, { name: 'James Wilson', role: 'Local buyer', company: '', quote: 'Easy to shop and the team was very helpful.', rating: 5 }] } },
   { type: 'team_grid', label: 'Team Grid', icon: Users, desc: 'Meet the team cards', category: 'about', defaultProps: { title: 'Meet our team', columns: 4, members: [{ name: 'Alex Morgan', role: 'Store owner', bio: 'Passionate about great products and service.' }, { name: 'Sam Rivera', role: 'Customer care', bio: 'Here to help with orders and questions.' }] } },
-  { type: 'pricing', label: 'Pricing Table', icon: Hash, desc: 'Pricing plans comparison', category: 'conversion', defaultProps: { title: 'Our packages', show_annual_toggle: false, plans: [{ name: 'Starter', price: 299, period: 'order', features: ['Curated selection', 'Standard delivery', 'Email support'], cta: 'Order now' }, { name: 'Popular', price: 599, period: 'order', features: ['Best value bundle', 'Priority delivery', 'Phone support', 'Gift wrap'], highlighted: true, cta: 'Order now' }, { name: 'Premium', price: 999, period: 'order', features: ['Full collection access', 'Same-day delivery', 'Dedicated support', 'Custom requests'], cta: 'Contact us' }] } },
+  { type: 'pricing', label: 'Pricing Table', icon: Hash, desc: 'Pricing plans comparison', category: 'conversion', defaultProps: { title: 'Our packages', show_annual_toggle: false, plans: [{ name: 'Starter', price: 299, period: 'order', features: ['Curated selection', 'Standard delivery', 'Email support'], cta: 'Order now', cta_url: '/products' }, { name: 'Popular', price: 599, period: 'order', features: ['Best value bundle', 'Priority delivery', 'Phone support', 'Gift wrap'], highlighted: true, cta: 'Order now', cta_url: '/products' }, { name: 'Premium', price: 999, period: 'order', features: ['Full collection access', 'Same-day delivery', 'Dedicated support', 'Custom requests'], cta: 'Contact us', cta_url: '/contact' }] } },
   { type: 'faq', label: 'FAQ / Accordion', icon: MessageSquare, desc: 'Frequently asked questions', category: 'content', defaultProps: { title: 'Common questions', faqs: [{ question: 'How do I place an order?', answer: 'Browse our products, add items to your cart, and checkout securely online.' }, { question: 'What are your delivery times?', answer: 'Most orders arrive within 2?5 business days. Local delivery may be faster.' }, { question: 'Can I return an item?', answer: 'Yes ? unused items can be returned within 14 days. Contact us to start a return.' }] } },
   { type: 'cta', label: 'Call to Action', icon: Zap, desc: 'Bold CTA section to convert visitors', category: 'conversion', defaultProps: { headline: 'Ready to shop?', subtitle: 'Browse our collection and find something you will love today.', cta_label: 'Start shopping', cta_url: '/products' } },
   { type: 'contact_form', label: 'Contact Form', icon: Mail, desc: 'Contact form with fields', category: 'contact', defaultProps: { title: 'Get in touch', layout: 'split', full_page: false, email: '', phone: '', address: '', show_map: false, form_fields: [{ name: 'name', type: 'text', required: true, placeholder: 'Your name' }, { name: 'email', type: 'email', required: true, placeholder: 'Your email' }, { name: 'message', type: 'textarea', required: true, placeholder: 'How can we help?' }] } },
@@ -417,7 +438,7 @@ const BLOCK_CATALOG: BlockDef[] = [
   { type: 'related_products', label: 'Related Products', icon: ShoppingBag, desc: 'Cross-sell / upsell grid', category: 'ecommerce', defaultProps: { title: 'You May Also Like', count: 4 } },
   { type: 'recently_viewed', label: 'Recently Viewed', icon: Clock, desc: 'Client-side recently viewed items', category: 'ecommerce', defaultProps: { title: 'Recently Viewed', max: 6 } },
   { type: 'coupon_banner', label: 'Coupon Banner', icon: Hash, desc: 'Promotional coupon code display', category: 'erp', defaultProps: { title: 'Use code SAVE10 for 10% off!', show_copy_button: true } },
-  { type: 'payment_methods_strip', label: 'Payment Methods', icon: Hash, desc: 'Payment provider logo strip', category: 'erp', defaultProps: { title: 'Secure Payments', methods: ['visa', 'mastercard', 'upi', 'gpay', 'cod'] } },
+  { type: 'payment_methods_strip', label: 'Payment Methods', icon: Hash, desc: 'Payment provider logo strip', category: 'erp', defaultProps: { title: 'Secure Payments', methods: [{ method: 'visa' }, { method: 'mastercard' }, { method: 'upi' }, { method: 'google_pay' }, { method: 'cod' }] } },
   { type: 'product_reviews', label: 'Product Reviews', icon: Star, desc: 'Star ratings and review grid', category: 'social', defaultProps: { title: 'Customer Reviews', show_summary: true } },
   { type: 'cookie_consent', label: 'Cookie Consent', icon: Shield, desc: 'GDPR/CCPA cookie consent banner', category: 'advanced', defaultProps: { message: 'We use cookies to improve your experience.', accept_label: 'Accept', decline_label: 'Decline' } },
 ]
@@ -434,7 +455,7 @@ const COMMERCE_LIBRARY_BLOCKS: BlockDef[] = [
   { type: 'service.list', label: 'Service List', icon: Briefcase, desc: 'Detailed service rows with features and price.', category: 'content', defaultProps: { variant: 'default' } },
   { type: 'service.grid', label: 'Service Card Grid', icon: Briefcase, desc: 'Service cards laid out in a responsive grid.', category: 'content', defaultProps: { variant: 'default' } },
   { type: 'service.detail', label: 'Service Detail', icon: Briefcase, desc: 'Service page with description, inclusions, and booking sidebar.', category: 'content', defaultProps: { variant: 'default' } },
-  { type: 'service.pricing', label: 'Pricing Tiers', icon: Briefcase, desc: 'Three-column pricing comparison with featured plan.', category: 'content', defaultProps: { variant: 'default' } },
+  { type: 'service.pricing', label: 'Pricing Tiers', icon: Briefcase, desc: 'Three-column pricing comparison with featured plan.', category: 'content', defaultProps: { title: 'Our packages', subtitle: 'Choose the plan that fits you', show_annual_toggle: false, plans: [{ name: 'Starter', price: 299, period: 'mo', features: ['Core features', 'Email support', 'Standard delivery'], cta: 'Get started', cta_url: '/contact' }, { name: 'Popular', price: 599, period: 'mo', features: ['Everything in Starter', 'Priority support', 'Advanced options', 'Gift wrap'], highlighted: true, cta: 'Get started', cta_url: '/contact' }, { name: 'Premium', price: 999, period: 'mo', features: ['Full access', 'Dedicated support', 'Custom requests', 'Same-day delivery'], cta: 'Contact us', cta_url: '/contact' }] } },
   { type: 'menu.categorized', label: 'Categorized Menu', icon: List, desc: 'Restaurant menu grouped by section with prices and dietary tags.', category: 'food', defaultProps: { variant: 'default' } },
   { type: 'menu.item', label: 'Menu Item Detail', icon: List, desc: 'Full-page menu item with photo, dietary, and price.', category: 'food', defaultProps: { variant: 'default' } },
   { type: 'menu.specials', label: 'Daily Specials', icon: List, desc: 'Highlighted limited-time menu items.', category: 'food', defaultProps: { variant: 'default' } },
@@ -3253,7 +3274,7 @@ function BlockOverlayCanvas({
 
 function blockHasConfiguredLinks(block: WebsiteBlock): boolean {
   const p = (block.props || {}) as Record<string, unknown>
-  if (String(p.block_link_url || '').trim()) return true
+  if (blockTypeSupportsBlockLink(block.block_type) && String(p.block_link_url || '').trim()) return true
   for (const key of ['cta_url', 'cta_primary_url', 'cta_secondary_url']) {
     if (String(p[key] || '').trim()) return true
   }
@@ -3960,7 +3981,7 @@ const GRADIENT_PRESETS = [
 // ?? Sub-item schema registry ?????????????????????????????????????????????????
 
 type ItemFieldType = 'text' | 'textarea' | 'image' | 'number' | 'boolean' | 'emoji' | 'select'
-interface ItemField { key: string; label: string; type: ItemFieldType; options?: string[] }
+interface ItemField { key: string; label: string; type: ItemFieldType; options?: string[]; optionLabels?: Record<string, string> }
 interface ItemSchema { arrayKey: string; itemLabel: string; defaultItem: Record<string, any>; fields: ItemField[] }
 
 const ITEM_SCHEMAS: Record<string, ItemSchema> = {
@@ -4008,21 +4029,23 @@ const ITEM_SCHEMAS: Record<string, ItemSchema> = {
   },
   pricing: {
     arrayKey: 'plans', itemLabel: 'Plan',
-    defaultItem: { name: 'New Plan', price: 0, period: 'mo', cta: 'Get Started', highlighted: false, features: [] },
+    defaultItem: { name: 'New Plan', price: 0, period: 'mo', cta: 'Get Started', cta_url: '/contact', highlighted: false, features: [] },
     fields: [
       { key: 'name',        label: 'Plan Name',     type: 'text' },
       { key: 'price',       label: 'Price',         type: 'text' },
       { key: 'period',      label: 'Period',        type: 'text' },
       { key: 'cta',         label: 'Button Label',  type: 'text' },
+      { key: 'cta_url',     label: 'Button Link',   type: 'text' },
       { key: 'highlighted', label: 'Featured Plan', type: 'boolean' },
     ],
   },
   faq: {
     arrayKey: 'faqs', itemLabel: 'Question',
-    defaultItem: { question: 'New question?', answer: 'Answer here.' },
+    defaultItem: { question: 'New question?', answer: 'Answer here.', image_url: '' },
     fields: [
-      { key: 'question', label: 'Question', type: 'text' },
-      { key: 'answer', label: 'Answer',   type: 'textarea' },
+      { key: 'question',  label: 'Question', type: 'text' },
+      { key: 'answer',    label: 'Answer',   type: 'textarea' },
+      { key: 'image_url', label: 'Answer image (optional)', type: 'image' },
     ],
   },
   gallery_masonry: {
@@ -4079,12 +4102,26 @@ const ITEM_SCHEMAS: Record<string, ItemSchema> = {
       { key: 'url', label: 'Link', type: 'text' },
     ],
   },
+  payment_methods_strip: {
+    arrayKey: 'methods', itemLabel: 'Payment method',
+    defaultItem: { method: 'visa' },
+    fields: [
+      {
+        key: 'method',
+        label: 'Provider',
+        type: 'select',
+        options: [...PAYMENT_METHOD_KEYS],
+        optionLabels: PAYMENT_METHOD_LABELS,
+      },
+    ],
+  },
 }
 
 const ITEM_SCHEMA_ALIASES: Partial<Record<string, keyof typeof ITEM_SCHEMAS>> = {
   features_alternating: 'features',
   services_list: 'services_cards',
   'service.faq': 'faq',
+  'service.pricing': 'pricing',
 }
 
 /** Sidebar heading for expandable item lists (clearer than raw itemLabel). */
@@ -4096,11 +4133,13 @@ function itemListSectionTitle(blockType: string, itemSchema: ItemSchema): string
     stats: 'Stats',
     testimonials: 'Reviews',
     pricing: 'Plans',
+    'service.pricing': 'Plans',
     features: 'Features',
     services_cards: 'Services',
     team_grid: 'Team members',
     trust_logos: 'Logos',
     marquee_strip: 'Marquee items',
+    payment_methods_strip: 'Payment methods',
     gallery_masonry: 'Images',
     gallery: 'Images',
   }
@@ -4109,8 +4148,8 @@ function itemListSectionTitle(blockType: string, itemSchema: ItemSchema): string
 
 /** Block types whose item list should start expanded in the Content tab. */
 const ITEM_LIST_DEFAULT_OPEN = new Set([
-  'faq', 'service.faq', 'timeline', 'stats', 'testimonials', 'pricing', 'features', 'features_alternating',
-  'services_cards', 'services_list', 'team_grid', 'trust_logos', 'marquee_strip',
+  'faq', 'service.faq', 'timeline', 'stats', 'testimonials', 'pricing', 'service.pricing', 'features', 'features_alternating',
+  'services_cards', 'services_list', 'team_grid', 'trust_logos', 'marquee_strip', 'payment_methods_strip',
   'gallery_masonry', 'gallery', 'gallery_grid',
 ])
 
@@ -4527,6 +4566,16 @@ function InlineMediaPicker({
         </div>
       )}
 
+      {value ? (
+        <button
+          type="button"
+          onClick={() => { notifyFocus(); onChange(''); setPanel('none') }}
+          className="text-xs font-semibold text-red-500 hover:text-red-700"
+        >
+          Remove image
+        </button>
+      ) : null}
+
       <div className="grid grid-cols-3 gap-1.5">
         <button
           type="button"
@@ -4768,7 +4817,9 @@ function SubItemEditor({
         {items.map((item, idx) => {
           const isExpanded = expanded.has(idx)
           const isDraggingOver = over === idx
-          const title = item.question || item.label || item.name || item.title || item.q || item.value || item.quote || item.desc || `${schema.itemLabel} ${idx + 1}`
+          const title = item.question || item.label || item.name || item.title || item.q || item.value || item.quote || item.desc
+            || (item.method ? paymentMethodLabel(String(item.method)) : '')
+            || `${schema.itemLabel} ${idx + 1}`
           const imgKey = schema.fields.find(f => f.type === 'image')?.key
           const thumb = imgKey && item[imgKey] ? mediaUrl(item[imgKey]) : null
 
@@ -4854,21 +4905,40 @@ function SubItemEditor({
                         <span className="text-xs font-medium text-gray-700">{field.label}</span>
                       </label>
                     )
-                    if (field.type === 'select') return (
+                    if (field.type === 'select') {
+                      const opts = field.options || []
+                      const useDropdown = opts.length > 4
+                      return (
                       <div key={field.key} className="space-y-1">
                         <label className="text-xs font-bold text-gray-500 uppercase tracking-wide">{field.label}</label>
-                        <div className="flex gap-1">
-                          {(field.options || []).map(opt => (
+                        {useDropdown ? (
+                          <select
+                            value={String(item[field.key] ?? opts[0] ?? '')}
+                            disabled={readOnly}
+                            onChange={e => !readOnly && updateItem(idx, { [field.key]: e.target.value })}
+                            className="w-full px-2.5 py-2 border border-gray-200 rounded-lg text-xs bg-white focus:outline-none focus:ring-2 focus:ring-ring"
+                          >
+                            {opts.map(opt => (
+                              <option key={opt} value={opt}>
+                                {field.optionLabels?.[opt] ?? opt}
+                              </option>
+                            ))}
+                          </select>
+                        ) : (
+                        <div className="flex gap-1 flex-wrap">
+                          {opts.map(opt => (
                             <button key={opt}
                               disabled={readOnly}
                               onClick={() => !readOnly && updateItem(idx, { [field.key]: Number(opt) || opt })}
-                              className={cn('flex-1 py-1 rounded border text-xs font-bold transition-colors',
+                              className={cn('flex-1 min-w-[2.5rem] py-1 px-2 rounded border text-xs font-bold transition-colors',
                                 String(item[field.key]) === opt ? 'bg-primary text-white border-primary' : 'bg-white text-gray-600 border-gray-200 hover:border-primary/40')}
-                            >{opt}</button>
+                            >{field.optionLabels?.[opt] ?? opt}</button>
                           ))}
                         </div>
+                        )}
                       </div>
-                    )
+                      )
+                    }
                     if (field.type === 'emoji') return (
                       <div key={field.key} className="space-y-1">
                         <label className="text-xs font-bold text-gray-500 uppercase tracking-wide">{field.label}</label>
@@ -4904,22 +4974,23 @@ function SubItemEditor({
                       </div>
                     )
                     // default: text / number
+                    const isLinkField = (field.key === 'url' || field.key === 'cta_url' || field.key === 'href') && onEditPropLink
                     return (
                       <div key={field.key} className="space-y-1">
                         <label className="text-xs font-bold text-gray-500 uppercase tracking-wide">{field.label}</label>
-                        <div className={field.key === 'url' && onEditPropLink ? 'flex items-center gap-1' : undefined}>
+                        <div className={isLinkField ? 'flex items-center gap-1' : undefined}>
                           <input
                             type={field.type === 'number' ? 'number' : 'text'}
                             value={item[field.key] || ''}
                             readOnly={readOnly}
                             onChange={e => !readOnly && updateItem(idx, { [field.key]: e.target.value })}
-                            placeholder={field.key === 'url' ? '/page or https://...' : undefined}
+                            placeholder={isLinkField ? '/page or https://...' : undefined}
                             className={cn(
                               'px-2.5 py-2 border border-gray-200 rounded-lg text-xs bg-white focus:outline-none focus:ring-2 focus:ring-ring',
-                              field.key === 'url' && onEditPropLink ? 'flex-1 min-w-0 font-mono' : 'w-full',
+                              isLinkField ? 'flex-1 min-w-0 font-mono' : 'w-full',
                             )}
                           />
-                          {field.key === 'url' && onEditPropLink && !readOnly && (
+                          {isLinkField && !readOnly && (
                             <button
                               type="button"
                               title={item[field.key] ? `Linked: ${item[field.key]}` : 'Insert link'}
@@ -4959,12 +5030,14 @@ function PropsCollapsible({
   preview,
   accent,
   defaultOpen,
+  headerActions,
   children,
 }: {
   title: string
   preview?: string
   accent?: boolean
   defaultOpen?: boolean
+  headerActions?: React.ReactNode
   children: React.ReactNode
 }) {
   return (
@@ -5006,6 +5079,7 @@ function PropsCollapsible({
             {preview}
           </span>
         )}
+        {headerActions}
         <ChevronDown
           className={cn(
             'w-3.5 h-3.5 shrink-0 transition-transform group-open:rotate-180',
@@ -5092,11 +5166,12 @@ interface InputRowProps {
   onCommit: (val: string) => void
   onPreview: (val: string) => void
   onLink?: (anchor: { x: number; y: number }) => void
+  onDelete?: () => void
 }
 
 function PropsInputRow({
   blockId, fieldKey, label, serverValue, multiline, placeholder, rows, mono,
-  linkTarget, onCommit, onPreview, onLink,
+  linkTarget, onCommit, onPreview, onLink, onDelete,
 }: InputRowProps) {
   const [localVal, setLocalVal] = useState(serverValue)
   const isEditingRef = useRef(false)
@@ -5127,8 +5202,23 @@ function PropsInputRow({
   const inputClass = "w-full px-3 py-2.5 border border-gray-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-ring bg-white text-gray-800 placeholder-gray-400 leading-relaxed"
   const preview = localVal.trim() || 'Empty'
 
+  const deleteAction = onDelete ? (
+    <button
+      type="button"
+      onClick={e => {
+        e.preventDefault()
+        e.stopPropagation()
+        onDelete()
+      }}
+      className="inline-flex items-center gap-1 rounded-md border border-red-200 bg-red-50 px-1.5 py-0.5 text-[10px] font-semibold text-red-700 hover:bg-red-100 transition-colors shrink-0"
+      title={`Remove ${label} from this section`}
+    >
+      <Trash2 className="h-3 w-3" />
+    </button>
+  ) : null
+
   return (
-    <PropsCollapsible title={label} preview={preview}>
+    <PropsCollapsible title={label} preview={preview} headerActions={deleteAction}>
       {onLink && (
         <div className="flex items-center gap-1.5 justify-end">
           <button
@@ -5739,6 +5829,35 @@ function SectionSpacingBreakpointTabs({
   )
 }
 
+function isoToDatetimeLocal(iso: string | undefined | null): string {
+  if (!iso) return ''
+  const d = new Date(iso)
+  if (Number.isNaN(d.getTime())) return ''
+  const pad = (n: number) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
+}
+
+function datetimeLocalToIso(value: string): string {
+  if (!value.trim()) return ''
+  const d = new Date(value)
+  if (Number.isNaN(d.getTime())) return ''
+  return d.toISOString()
+}
+
+function formatCountdownEndLabel(iso: string | undefined | null): string {
+  if (!iso) return 'Not set'
+  const d = new Date(iso)
+  if (Number.isNaN(d.getTime())) return 'Invalid date'
+  return d.toLocaleString(undefined, {
+    weekday: 'short',
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+  })
+}
+
 function PropsEditor({
   block, onUpdate, onPreview, siteId, pages, onAddPage, onEditPropLink, themeColors,
   onOpenLayoutPicker, onCycleLayout, onSelectLayoutIndex, onArrayItemImageFocus,
@@ -5877,6 +5996,8 @@ function PropsEditor({
       url: item.url || '',
       image_url: item.image_url || '',
     }))
+    : block.block_type === 'payment_methods_strip'
+    ? paymentMethodsForEditor(p as Record<string, unknown>)
     : isTeamBlock && teamUseLive
     ? teamLiveItems.map(liveItemToPropMember)
     : (itemSchema ? ((p as any)[itemSchema.arrayKey] || []) : [])
@@ -5912,7 +6033,9 @@ function PropsEditor({
   ) : undefined
 
   const persistSubEditorItems = (items: any[]) => {
-    const patch: Record<string, unknown> = { [itemSchema!.arrayKey]: items }
+    const patch: Record<string, unknown> = block.block_type === 'payment_methods_strip'
+      ? { methods: paymentMethodsFromEditor(items) }
+      : { [itemSchema!.arrayKey]: items }
     if (block.block_type === 'marquee_strip') {
       patch.text = marqueeItemsToLegacyText(items)
     }
@@ -5924,7 +6047,9 @@ function PropsEditor({
   }
 
   const previewSubEditorItems = (items: any[]) => {
-    const patch: Record<string, unknown> = { [itemSchema!.arrayKey]: items }
+    const patch: Record<string, unknown> = block.block_type === 'payment_methods_strip'
+      ? { methods: paymentMethodsFromEditor(items) }
+      : { [itemSchema!.arrayKey]: items }
     if (block.block_type === 'marquee_strip') {
       patch.text = marqueeItemsToLegacyText(items)
     }
@@ -5984,8 +6109,16 @@ function PropsEditor({
   // only sees the stable, module-level PropsInputRow at the call site.
   const inputRow = (opts: {
     label: string; fieldKey: string; multiline?: boolean; placeholder?: string; linkable?: boolean
-    rows?: number; mono?: boolean
-  }) => (
+    rows?: number; mono?: boolean; deletable?: boolean
+  }) => {
+    const elementDeleteBlock = supportsBlockElementDelete(block.block_type)
+    if (elementDeleteBlock && isBlockFieldHidden(p as Record<string, unknown>, opts.fieldKey)) {
+      return null
+    }
+    const canDelete = opts.deletable !== false
+      && elementDeleteBlock
+      && canDeleteBlockField(block.block_type, opts.fieldKey)
+    return (
     <PropsInputRow
       key={opts.fieldKey}
       blockId={block.id}
@@ -6006,13 +6139,26 @@ function PropsEditor({
       onCommit={val => onUpdate({ [opts.fieldKey]: val })}
       onPreview={val => onPreview({ [opts.fieldKey]: val })}
       onLink={onEditPropLink && opts.linkable !== false ? anchor => onEditPropLink(opts.fieldKey, anchor) : undefined}
+      onDelete={canDelete ? () => {
+        const patch = buildDeleteBlockElementPatch(block, { kind: 'field', fieldKey: opts.fieldKey })
+        if (patch) onUpdate(patch as Partial<BlockProps>)
+      } : undefined}
     />
-  )
+  )}
+
+  const elementDeleteHint = supportsBlockElementDelete(block.block_type) ? (
+    <p className="text-[10px] text-muted-foreground leading-snug px-0.5">
+      Open any field below and use <span className="font-semibold text-foreground">Remove</span> to hide it on the page.
+      Or click the element on the canvas, then <span className="font-semibold text-foreground">Delete</span> in the toolbar above the preview.
+    </p>
+  ) : null
 
   // ?? Fields ??????????????????????????????????????????????????????????????
   const commonFields = (
     <div className="space-y-2">
+      {elementDeleteHint}
       {p.headline    !== undefined && inputRow({ label: 'Headline',      fieldKey: 'headline',      placeholder: 'Your compelling headline?' })}
+      {p.headline_line2 !== undefined && inputRow({ label: 'Headline line 2', fieldKey: 'headline_line2', placeholder: 'Second headline line' })}
       {p.subtitle    !== undefined && inputRow({ label: 'Subtitle',      fieldKey: 'subtitle',      multiline: true, placeholder: 'Expand your headline here?' })}
       {p.title       !== undefined && inputRow({ label: 'Title',         fieldKey: 'title',         placeholder: 'Section title?' })}
       {(p.video_url !== undefined || block.block_type === 'video_embed') && inputRow({
@@ -6353,9 +6499,66 @@ function PropsEditor({
         {editorTab === 'content' && (
           <>
       {blogManagerBanner}
+      {supportsBlockElementDelete(block.block_type) && (() => {
+        const hidden = listDeletableHiddenFields(block.block_type, p as Record<string, unknown>)
+        if (!hidden.length) return null
+        return (
+          <div className="rounded-xl border border-dashed border-amber-200 bg-amber-50/60 p-2.5 space-y-2">
+            <p className="text-[11px] font-semibold text-foreground">Hidden elements</p>
+            <p className="text-[10px] text-muted-foreground leading-snug">
+              Deleted parts of this section — restore to show them again on the canvas.
+            </p>
+            <div className="flex flex-wrap gap-1.5">
+              {hidden.map(key => (
+                <button
+                  key={key}
+                  type="button"
+                  onClick={() => onUpdate(showBlockFieldPatch(p as Record<string, unknown>, key) as Partial<BlockProps>)}
+                  className="rounded-md border border-amber-300/80 bg-white px-2 py-1 text-[10px] font-semibold text-amber-900 hover:bg-amber-100 transition-colors"
+                >
+                  Restore {fieldLabelForKey(key)}
+                </button>
+              ))}
+            </div>
+          </div>
+        )
+      })()}
+      {block.block_type === 'rich_text' && p.content !== undefined && (
+        <div className="rounded-xl border border-border bg-card p-2.5 space-y-2">
+          <p className="text-[11px] font-semibold text-foreground">Content</p>
+          <RichTextWysiwygField
+            blockId={block.id}
+            serverValue={String(p.content ?? '')}
+            onCommit={val => onUpdate({ content: val } as Partial<BlockProps>)}
+            onPreview={val => onPreview({ content: val } as Partial<BlockProps>)}
+          />
+        </div>
+      )}
+      {(p.target_date !== undefined || block.block_type === 'countdown') && (
+        <div className="rounded-xl border border-border bg-card p-2.5 space-y-2">
+          <p className="text-[11px] font-semibold text-foreground">Countdown end date & time</p>
+          <p className="text-[10px] text-muted-foreground leading-snug">
+            When the timer reaches zero, it stays at 00:00:00:00.
+          </p>
+          <input
+            type="datetime-local"
+            value={isoToDatetimeLocal(String(p.target_date ?? ''))}
+            onChange={e => {
+              const iso = datetimeLocalToIso(e.target.value)
+              const patch = { target_date: iso } as Partial<BlockProps>
+              onPreview(patch)
+              onUpdate(patch)
+            }}
+            className="w-full rounded-lg border border-border bg-background px-2.5 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-ring"
+          />
+          <p className="text-[10px] text-muted-foreground">
+            Ends: <span className="font-medium text-foreground">{formatCountdownEndLabel(String(p.target_date ?? ''))}</span>
+          </p>
+        </div>
+      )}
       {commonFields}
 
-      {onEditPropLink && (
+      {onEditPropLink && blockTypeSupportsBlockLink(block.block_type) && (
         <PropsCollapsible
           title="Block link"
           preview={(p as any).block_link_url ? String((p as any).block_link_url) : 'Not linked'}
@@ -6642,7 +6845,7 @@ function PropsEditor({
               </PropsAccordionSection>
             ) : null}
 
-            {itemSchema && !isCatalogGridBlock && block.block_type !== 'marquee_strip' && block.block_type !== 'timeline' && block.block_type !== 'service.faq' ? (
+            {itemSchema && !isCatalogGridBlock && block.block_type !== 'marquee_strip' && block.block_type !== 'timeline' && block.block_type !== 'service.faq' && block.block_type !== 'payment_methods_strip' ? (
               <PropsAccordionSection
                 id="grid"
                 activeId={layoutAccordionOpen}
@@ -7213,6 +7416,7 @@ function SectionLinksPanel({
   }
 
   const p = (block.props || {}) as Record<string, any>
+  const allowBlockLink = blockTypeSupportsBlockLink(block.block_type)
   const ctas = SECTION_LINK_FIELDS.filter(f => p[f.propKey] !== undefined)
   const socialLinks: Record<string, string> = (p.social_links && typeof p.social_links === 'object') ? p.social_links : {}
   const socialKeys = Object.keys(socialLinks)
@@ -7221,7 +7425,7 @@ function SectionLinksPanel({
   const selectedOverlay = selectedLink?.kind === 'overlay'
     ? linkableOverlays.find(o => o.id === selectedLink.id) ?? null
     : null
-  const blockLinkTarget = String(p.block_link_url || '').trim()
+  const blockLinkTarget = allowBlockLink ? String(p.block_link_url || '').trim() : ''
   const blockLinked = !!blockLinkTarget
 
   const linkAnchor = (e: React.MouseEvent<HTMLElement>) => {
@@ -7245,12 +7449,26 @@ function SectionLinksPanel({
       onEditOverlayLink(selectedOverlay, anchor)
       return
     }
-    onEditPropLink('block_link', anchor)
+    if (allowBlockLink) {
+      onEditPropLink('block_link', anchor)
+      return
+    }
+    if (linkableOverlays.length > 0 && onEditOverlayLink) {
+      onEditOverlayLink(linkableOverlays[0], anchor)
+      return
+    }
+    if (ctas.length > 0) {
+      onEditPropLink(ctas[0].propKey, anchor)
+    }
   }
+
+  const hasQuickLinkTarget = allowBlockLink || linkableOverlays.length > 0 || ctas.length > 0
 
   const quickLinkActive = selectedOverlay
     ? !!(selectedOverlay.linkType && selectedOverlay.linkType !== 'none')
-    : blockLinked
+    : allowBlockLink
+      ? blockLinked
+      : false
 
   const isOverlaySelected = (id: string) => selectedLink?.kind === 'overlay' && selectedLink.id === id
   const isPropSelected = (key: string) => selectedLink?.kind === 'prop' && selectedLink.key === key
@@ -7261,6 +7479,12 @@ function SectionLinksPanel({
     linkableOverlays.filter(o => !!(o.linkType && o.linkType !== 'none')).length +
     ctas.filter(f => String(p[f.urlKey] || '').trim()).length +
     socialKeys.filter(k => String(socialLinks[k] || '').trim()).length
+
+  const quickLinkTitle = selectedOverlay
+    ? (quickLinkActive ? `Linked: ${selectedOverlay.linkLabel || selectedOverlay.linkTarget || selectedOverlay.text}` : 'Link selected layer')
+    : allowBlockLink
+      ? (blockLinked ? `Section linked: ${blockLinkTarget}` : 'Link whole section')
+      : 'Link element'
 
   return (
     <div className="flex h-full min-h-0 flex-col">
@@ -7278,13 +7502,10 @@ function SectionLinksPanel({
               {totalLinks > 0 ? `${totalLinks} link${totalLinks !== 1 ? 's' : ''} configured` : 'No links configured yet'}
             </p>
           </div>
+          {hasQuickLinkTarget && (
           <button
             type="button"
-            title={
-              selectedOverlay
-                ? (quickLinkActive ? `Linked: ${selectedOverlay.linkLabel || selectedOverlay.linkTarget || selectedOverlay.text}` : 'Link selected layer')
-                : (blockLinked ? `Section linked: ${blockLinkTarget}` : 'Link whole section')
-            }
+            title={quickLinkTitle}
             onClick={openQuickLink}
             className={builderLinkBtn(quickLinkActive)}
           >
@@ -7293,6 +7514,7 @@ function SectionLinksPanel({
             </span>
             <span>{quickLinkActive ? 'Linked' : 'Link'}</span>
           </button>
+          )}
         </div>
       </div>
 
@@ -7305,7 +7527,8 @@ function SectionLinksPanel({
           </p>
         )}
 
-        {/* Section link */}
+        {/* Section link — promo sections only */}
+        {allowBlockLink && (
         <div className="space-y-1.5">
           <p className="text-[9px] font-bold uppercase tracking-wide text-muted-foreground">Section</p>
           {blockLinked ? (
@@ -7338,6 +7561,7 @@ function SectionLinksPanel({
             </div>
           )}
         </div>
+        )}
 
         {/* Canvas overlay layers */}
         {linkableOverlays.length > 0 && (
@@ -7761,6 +7985,12 @@ function BlockDesignBar({ block, onUpdate, onInsertAfter, onOpenLinkEditorForOve
     : null
   const overlayTextLayer =
     selectedOverlay && overlayHasTextControls(selectedOverlay) ? selectedOverlay : null
+  const deleteTarget = resolveDeleteBlockElementTarget(
+    blockType,
+    activeTextField,
+    canvasImageField ?? null,
+    canvasImageSlots,
+  )
   const [overlayCanvasSize, setOverlayCanvasSize] = useState({ w: 800, h: 400 })
 
   useLayoutEffect(() => {
@@ -8357,6 +8587,17 @@ function BlockDesignBar({ block, onUpdate, onInsertAfter, onOpenLinkEditorForOve
     )
   }
 
+  const runDeleteElement = () => {
+    const patch = buildDeleteBlockElementPatch(block, deleteTarget)
+    if (!patch) {
+      toast.info('Select a text field or image to delete.')
+      return
+    }
+    onUpdate(patch as Partial<BlockProps>)
+    toast.success('Element removed from section')
+    onEscapeDismiss?.()
+  }
+
   return (
     <div className="flex flex-col shrink-0" data-block-design-bar>
       <div
@@ -8612,6 +8853,20 @@ function BlockDesignBar({ block, onUpdate, onInsertAfter, onOpenLinkEditorForOve
             </div>
           </DesignBarDropdownPortal>
         </div>
+        {deleteTarget ? (
+          <button
+            type="button"
+            title="Delete selected element from section"
+            onClick={runDeleteElement}
+            className={cn(
+              generalDesignBarGridCell,
+              'flex-col gap-0 border-b border-gray-200 px-0.5 text-xs font-medium text-red-600 hover:bg-red-50',
+            )}
+          >
+            <Trash2 className="h-3.5 w-3.5 shrink-0" />
+            <span className="text-[8px] leading-none">Delete</span>
+          </button>
+        ) : null}
       </div>
 
       {(selectedOverlay || !overlayTextLayer) ? (
@@ -11230,6 +11485,21 @@ export default function WebsiteBuilder() {
     })
   }, [activePageId, handleUpdateBlockProps])
 
+  const handleCanvasDeleteBlockField = useCallback((blockId: string, fieldKey: string) => {
+    const pageId = findPageIdForBlock(localBlocksRef.current, localPagesRef.current, blockId, activePageId)
+    if (!pageId) return
+    const block = (localBlocksRef.current[pageId] || []).find(b => b.id === blockId)
+    if (!block) return
+    const patch = buildDeleteBlockElementPatch(block, { kind: 'field', fieldKey })
+    if (!patch) return
+    handleUpdateBlockProps(blockId, patch as Partial<BlockProps>)
+    setActiveTextTarget(prev => {
+      if (prev?.blockId === blockId && prev.fieldKeys.includes(fieldKey)) return null
+      return prev
+    })
+    toast.success('Element removed from section')
+  }, [activePageId, handleUpdateBlockProps])
+
   const preserveTextTargetAfterStylePatch = useCallback((
     blockId: string,
     fieldKey: string,
@@ -11476,6 +11746,8 @@ export default function WebsiteBuilder() {
     menu_grid:            { arrayKey: 'categories',   itemField: 'image_url',   defaultTitle: 'Category' },
     menu_list:            { arrayKey: 'categories',   itemField: 'image_url',   defaultTitle: 'Category' },
     pricing:              { arrayKey: 'plans',        itemField: 'image_url',   defaultTitle: 'Plan' },
+    faq:                  { arrayKey: 'faqs',         itemField: 'image_url',   defaultTitle: 'Question' },
+    'service.faq':        { arrayKey: 'faqs',         itemField: 'image_url',   defaultTitle: 'Question' },
   }
 
   const applyMediaUrlToSelection = useCallback((
@@ -11969,6 +12241,14 @@ export default function WebsiteBuilder() {
     if (!pageId) return
     const block = (blocksMap[pageId] || []).find(b => b.id === blockId)
     if (!block) return
+    const planCtaLabel = propKey.match(/^plans\.(\d+)\.cta$/)
+    const linkPropKey = planCtaLabel ? `plans.${planCtaLabel[1]}.cta_url` : propKey
+    if (
+      (propKey === 'block_link' || propKey === 'block_link_url')
+      && !blockTypeSupportsBlockLink(block.block_type)
+    ) {
+      return
+    }
     const p = block.props as any
 
     if (propKey.startsWith('social_links.')) {
@@ -11996,7 +12276,7 @@ export default function WebsiteBuilder() {
       return
     }
 
-    const arrayItemLinkMatch = propKey.match(/^(\w+)\.(\d+)\.(url|href)$/)
+    const arrayItemLinkMatch = linkPropKey.match(/^(\w+)\.(\d+)\.(url|href|cta_url)$/)
     if (arrayItemLinkMatch) {
       const [, arrayKey, indexStr, urlField] = arrayItemLinkMatch
       const index = Number.parseInt(indexStr, 10)
@@ -12004,7 +12284,7 @@ export default function WebsiteBuilder() {
       const item = (arr[index] && typeof arr[index] === 'object'
         ? { ...(arr[index] as object) }
         : {}) as Record<string, unknown>
-      const label = String(item.label ?? item.title ?? item.name ?? '').trim()
+      const label = String(item.label ?? item.title ?? item.name ?? item.cta ?? '').trim()
       const target = String(item[urlField] ?? item.url ?? item.href ?? '').trim()
       const currentValue: LinkValue = {
         type: target ? 'url' : 'none',
@@ -12023,7 +12303,8 @@ export default function WebsiteBuilder() {
           const nextItem = {
             ...base,
             [urlField]: v.type === 'none' ? '' : v.target.trim(),
-            ...(v.label ? { label: v.label } : {}),
+            ...(v.label && urlField !== 'cta_url' ? { label: v.label } : {}),
+            ...(v.label && urlField === 'cta_url' ? { cta: v.label } : {}),
           }
           nextArr[index] = nextItem
           const patch: Record<string, unknown> = { [arrayKey]: nextArr }
@@ -15440,6 +15721,7 @@ export default function WebsiteBuilder() {
                   onTextFieldStylePatch={handleCanvasTextFieldStylePatch}
                   onTextFieldBatchStylePatch={handleCanvasTextFieldBatchStylePatch}
                   onPropLinkEdit={(blockId, propKey, anchor) => openLinkEditorForProp(blockId, propKey, anchor)}
+                  onDeleteBlockField={handleCanvasDeleteBlockField}
                 >
                 <>
                   <div

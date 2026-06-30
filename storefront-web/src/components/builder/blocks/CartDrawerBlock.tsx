@@ -5,6 +5,9 @@ import { useAuthStore } from '@/stores/authStore'
 import { useCart, useUpdateCartItem, useRemoveCartItem } from '@/hooks/useStore'
 import { useVendor } from '@/contexts/VendorContext'
 import type { LiveItem, PublicSite, StyleConfig } from '@/blocks/registry'
+import { BuilderTextField } from '@/components/builder/BuilderTextField'
+import { useBuilderCanvas } from '@/contexts/BuilderCanvasContext'
+import { isBlockFieldHidden, resolveBlockTextField } from '@/lib/blockHiddenFields'
 
 interface Props {
   site: PublicSite
@@ -12,6 +15,7 @@ interface Props {
   props: Record<string, unknown>
   liveItems: LiveItem[]
   branchCode?: string | null
+  blockId?: string
 }
 
 /**
@@ -29,9 +33,12 @@ interface Props {
  *    via the `liveItems` prop fed by BlockRenderer's `related_products`-style
  *    auto source (we list the first 3 not already in the cart).
  */
-export default function CartDrawerBlock({ style, props, liveItems }: Props) {
+export default function CartDrawerBlock({ style, props, liveItems, blockId }: Props) {
+  const builderCanvas = useBuilderCanvas()
+  const isEditorCanvas = builderCanvas?.isEditorCanvas && !!blockId
   const showUpsells = props.show_upsells !== false
-  const title = (props.title as string) || 'Your Cart'
+  const title = resolveBlockTextField(props, 'title')
+  const showTitle = !isBlockFieldHidden(props, 'title') && (title || isEditorCanvas)
 
   const { cart } = useCartStore()
   const { isAuthenticated } = useAuthStore()
@@ -79,7 +86,7 @@ export default function CartDrawerBlock({ style, props, liveItems }: Props) {
       )}
 
       {open && (
-        <div className="fixed inset-0 z-50 flex" role="dialog" aria-label={title}>
+        <div className="fixed inset-0 z-50 flex" role="dialog" aria-label={title ?? undefined}>
           <button
             type="button"
             aria-label="Close cart"
@@ -89,7 +96,12 @@ export default function CartDrawerBlock({ style, props, liveItems }: Props) {
           <aside className="w-full max-w-md bg-white shadow-2xl flex flex-col animate-in slide-in-from-right duration-300">
             <header className="flex items-center justify-between px-5 py-4 border-b">
               <h2 className="text-base font-bold" style={{ color: style.text_color }}>
-                {title} {itemCount > 0 && <span className="text-gray-400 font-normal">({itemCount})</span>}
+                {isEditorCanvas && showTitle ? (
+                  <BuilderTextField fieldKey="title" blockId={blockId} blockProps={props} value={title ?? ''} as="span" placeholder="Cart title" skipPositionWrapper />
+                ) : (
+                  title
+                )}
+                {itemCount > 0 && <span className="text-gray-400 font-normal"> ({itemCount})</span>}
               </h2>
               <button type="button" onClick={() => setOpen(false)} aria-label="Close" className="p-1.5 rounded-md hover:bg-gray-100">
                 <X className="w-5 h-5 text-gray-500" />

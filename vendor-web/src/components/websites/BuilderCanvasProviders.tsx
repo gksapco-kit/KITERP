@@ -130,6 +130,7 @@ export function BuilderCanvasProviders({
   onTextFieldBatchStylePatch,
   onNavigate,
   onPropLinkEdit,
+  onDeleteBlockField,
   submitContactForm,
   activePageSlug = null,
   activePageIsHomepage = false,
@@ -188,6 +189,7 @@ export function BuilderCanvasProviders({
     propKey: string,
     anchor: { x: number; y: number },
   ) => void
+  onDeleteBlockField?: (blockId: string, fieldKey: string) => void
   submitContactForm?: (
     siteId: string,
     body: Record<string, unknown>,
@@ -256,6 +258,7 @@ export function BuilderCanvasProviders({
     onTextFieldBatchStylePatch,
     onNavigate,
     onPropLinkEdit,
+    onDeleteBlockField,
     submitContactForm: (sid: string, body: Record<string, unknown>) => websiteApi.submitLiveContact(sid, body),
     activePageSlug,
     activePageIsHomepage,
@@ -274,6 +277,7 @@ export function BuilderCanvasProviders({
     onTextFieldBatchStylePatch,
     onNavigate,
     onPropLinkEdit,
+    onDeleteBlockField,
     submitContactForm,
     activePageSlug,
     activePageIsHomepage,

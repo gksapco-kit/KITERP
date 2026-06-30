@@ -6,6 +6,8 @@
 import { useState, useEffect } from 'react'
 import type { PublicSite, StyleConfig, LiveItem } from '@/blocks/registry'
 import { BuilderTextField } from '@/components/builder/BuilderTextField'
+import { useBuilderCanvas } from '@/contexts/BuilderCanvasContext'
+import { isBlockFieldHidden, resolveBlockTextField } from '@/lib/blockHiddenFields'
 import { publicSitesApi } from '@/api/publicSites'
 
 interface Props { site: PublicSite; style: StyleConfig; props: Record<string, unknown>; liveItems: LiveItem[]; blockId?: string }
@@ -22,8 +24,12 @@ function getMonthDays(year: number, month: number) {
 }
 
 export default function BookingSlotPickerBlock({ site, style, props, liveItems, blockId }: Props) {
-  const title = (props.title as string) || 'Book an Appointment'
-  const subtitle = (props.subtitle as string) || 'Select a service and choose your preferred time'
+  const builderCanvas = useBuilderCanvas()
+  const isEditorCanvas = builderCanvas?.isEditorCanvas && !!blockId
+  const title = resolveBlockTextField(props, 'title')
+  const subtitle = resolveBlockTextField(props, 'subtitle')
+  const showTitle = !isBlockFieldHidden(props, 'title') && (title || isEditorCanvas)
+  const showSubtitle = !isBlockFieldHidden(props, 'subtitle') && (subtitle || isEditorCanvas)
 
   const [step, setStep] = useState<Step>('service')
   const [selectedService, setSelectedService] = useState<LiveItem | null>(null)
@@ -85,10 +91,16 @@ export default function BookingSlotPickerBlock({ site, style, props, liveItems, 
   return (
     <section className="py-16 px-4 sm:px-6 lg:px-8">
       <div className="max-w-3xl mx-auto">
-        <div className="text-center mb-8">
-          <BuilderTextField fieldKey="title" blockId={blockId} blockProps={props} value={title} as="h2" className="text-3xl font-bold text-gray-900 mb-2" />
-          <BuilderTextField fieldKey="subtitle" blockId={blockId} blockProps={props} value={subtitle} as="p" multiline className="text-gray-500" />
-        </div>
+        {(showTitle || showSubtitle) && (
+          <div className="text-center mb-8">
+            {showTitle && (
+              <BuilderTextField fieldKey="title" blockId={blockId} blockProps={props} value={title ?? ''} as="h2" className="text-3xl font-bold text-gray-900 mb-2" placeholder="Section title" />
+            )}
+            {showSubtitle && (
+              <BuilderTextField fieldKey="subtitle" blockId={blockId} blockProps={props} value={subtitle ?? ''} as="p" multiline className="text-gray-500" placeholder="Section subtitle" />
+            )}
+          </div>
+        )}
 
         {/* Step indicator */}
         <div className="flex items-center justify-center mb-8 gap-1">

@@ -18,6 +18,7 @@ import {
   resolveBusinessContactEmail,
   resolveBusinessContactPhone,
 } from '@/lib/businessContact'
+import { isBlockFieldHidden, resolveBlockTextField } from '@/lib/blockHiddenFields'
 
 interface FormField {
   name: string
@@ -52,17 +53,28 @@ function isPersistableBlockId(blockId?: string): boolean {
 
 export default function ContactFormBlock({ site, style, props, liveItems, blockId }: Props) {
   const builderCanvas = useBuilderCanvas()
+  const isEditorCanvas = builderCanvas?.isEditorCanvas && !!blockId
   const [searchParams] = useSearchParams()
   const vendor = useEffectiveVendor()
-  const title = (props.title as string) || 'Get In Touch'
+  const title = resolveBlockTextField(props, 'title', {
+    fallback: () => (isEditorCanvas ? null : 'Get In Touch'),
+  })
   const showGdpr = props.show_gdpr !== false
   const isMultiStep = props.multi_step === true
   const successMsg = (props.success_message as string) || "We'll get back to you shortly."
 
   const profile = liveItems?.[0]
-  const phone = resolveBusinessContactPhone(props.phone as string | undefined, profile, vendor)
-  const emailAddr = resolveBusinessContactEmail(props.email as string | undefined, profile, vendor)
-  const address = resolveBusinessContactAddress(props.address as string | undefined, profile, vendor)
+  const phone = isBlockFieldHidden(props, 'phone')
+    ? null
+    : resolveBusinessContactPhone(props.phone as string | undefined, profile, vendor)
+  const emailAddr = isBlockFieldHidden(props, 'email')
+    ? null
+    : resolveBusinessContactEmail(props.email as string | undefined, profile, vendor)
+  const address = isBlockFieldHidden(props, 'address')
+    ? null
+    : resolveBusinessContactAddress(props.address as string | undefined, profile, vendor)
+
+  const showTitle = !isBlockFieldHidden(props, 'title') && (title || isEditorCanvas)
 
   const defaultFields: FormField[] = [
     { name: 'name', label: 'Full Name', type: 'text', required: true, placeholder: 'Your Name', step: 1 },
@@ -138,7 +150,9 @@ export default function ContactFormBlock({ site, style, props, liveItems, blockI
       <div className="grid lg:grid-cols-2 gap-12 items-start">
         {/* Contact info */}
         <div>
-          <BuilderTextField fieldKey="title" blockId={blockId} blockProps={props} value={title} as="h2" className="text-3xl font-bold text-gray-900 mb-4" />
+          {showTitle && (
+            <BuilderTextField fieldKey="title" blockId={blockId} blockProps={props} value={title ?? ''} as="h2" className="text-3xl font-bold text-gray-900 mb-4" placeholder="Section title" />
+          )}
           <div className="space-y-4 mt-8">
             {emailAddr && (
               <div className="flex items-center gap-3 text-gray-600">
