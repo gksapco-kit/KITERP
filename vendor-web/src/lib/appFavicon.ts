@@ -1,9 +1,16 @@
 /** Bump when favicon artwork changes so browsers reload the tab icon. */
 export const APP_FAVICON_VERSION = '8'
 
-export const APP_FAVICON_URL = `/favicon.png?v=${APP_FAVICON_VERSION}`
-export const APP_FAVICON_32_URL = `/favicon-32.png?v=${APP_FAVICON_VERSION}`
-export const APP_APPLE_TOUCH_ICON_URL = `/favicon-192.png?v=${APP_FAVICON_VERSION}`
+/** Resolve a public/ asset against Vite base (e.g. /vendor/ in production). */
+function publicAsset(path: string): string {
+  const base = import.meta.env.BASE_URL.replace(/\/?$/, '/')
+  const rel = path.replace(/^\//, '')
+  return `${base}${rel}`
+}
+
+export const APP_FAVICON_URL = publicAsset(`favicon.png?v=${APP_FAVICON_VERSION}`)
+export const APP_FAVICON_32_URL = publicAsset(`favicon-32.png?v=${APP_FAVICON_VERSION}`)
+export const APP_APPLE_TOUCH_ICON_URL = publicAsset(`favicon-192.png?v=${APP_FAVICON_VERSION}`)
 
 /** Force the document favicon to the current KITERP asset (avoids stale browser cache). */
 export function ensureAppFavicon(): void {
