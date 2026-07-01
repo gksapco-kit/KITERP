@@ -70,12 +70,18 @@ export type ShippingMethod = {
   estimatedDays?: { min: number; max: number };
 };
 
-export type PaymentProvider = "stripe" | "paypal" | "apple_pay" | "google_pay" | "klarna" | "afterpay";
+export type PaymentProvider =
+  | "stripe"
+  | "paypal"
+  | "apple_pay"
+  | "google_pay"
+  | "klarna"
+  | "afterpay"
+  | "razorpay"
+  | "square"
+  | "payu"
+  | "cod";
 export type PaymentTabType = "card" | "wallet" | "bank_transfer" | "bnpl";
-
-export type PaymentSelection =
-  | { kind: "tab"; tab: PaymentTabType; cardDetails?: CardDetails }
-  | { kind: "provider"; provider: PaymentProvider };
 
 export type CardDetails = {
   number: string;
@@ -84,6 +90,19 @@ export type CardDetails = {
   expYear: string;
   cvc: string;
 };
+
+export type ProviderPaymentDetails = {
+  method?: "upi" | "card" | "netbanking" | "wallet" | "paypal";
+  vpa?: string;
+  cardDetails?: CardDetails;
+  bank?: string;
+  wallet?: string;
+  paypalEmail?: string;
+};
+
+export type PaymentSelection =
+  | { kind: "tab"; tab: PaymentTabType; cardDetails?: CardDetails }
+  | { kind: "provider"; provider: PaymentProvider; details?: ProviderPaymentDetails };
 
 export type Customer = {
   id?: string;

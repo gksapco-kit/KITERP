@@ -13,7 +13,7 @@ import { storeApi } from '@/api/store'
 import { openRazorpayCheckout, mockRazorpayPay } from '@/lib/razorpay'
 import { extractApiError } from '@/lib/errorMessages'
 import { validateCheckoutFields, scrollToFirstCheckoutField, type CheckoutFieldErrors } from '@/checkout/validateCheckout'
-import type { Address, Cart, Customer, PaymentSelection, ShippingMethod } from '@/checkout/types'
+import type { Address, Cart, Customer, PaymentSelection, PaymentProvider, ShippingMethod } from '@/checkout/types'
 
 const FALLBACK_SHIPPING: ShippingMethod[] = [
   {
@@ -31,14 +31,14 @@ function paymentToCheckout(method: 'cod' | 'upi' | 'card'): PaymentSelection {
   return { kind: 'tab', tab: 'card' }
 }
 
-function checkoutToPayment(sel?: PaymentSelection): 'cod' | 'upi' | 'card' {
+function checkoutToPayment(sel?: PaymentSelection): string {
   if (!sel) return 'card'
-  if (sel.kind === 'provider') return 'upi'
+  if (sel.kind === 'provider') return sel.provider
   if (sel.kind === 'tab' && sel.tab === 'bank_transfer') return 'cod'
   return 'card'
 }
 
-function isOnlinePayment(method: 'cod' | 'upi' | 'card'): boolean {
+function isOnlinePayment(method: string): boolean {
   return method !== 'cod'
 }
 
@@ -88,7 +88,7 @@ export function useStoreBridgeCheckout() {
     savedAddresses.length > 0 ? String(customer?.default_address_index ?? 0) : undefined,
   )
   const [shippingMethodId, setShippingMethodId] = useState<string>('free')
-  const [payment, setPayment] = useState<PaymentSelection | undefined>({ kind: 'tab', tab: 'card' })
+  const [payment, setPayment] = useState<PaymentSelection | undefined>(undefined)
   const [notes, setNotes] = useState('')
   const [giftMessage, setGiftMessage] = useState('')
   const [couponCode, setCouponCode] = useState<string | null>(null)
@@ -143,6 +143,17 @@ export function useStoreBridgeCheckout() {
       setServerPreview(data)
       if (data.shipping_methods?.length && !data.shipping_methods.some(m => m.id === shippingMethodId)) {
         setShippingMethodId(data.shipping_methods[0].id)
+      }
+      const connected = data.connected_payments ?? []
+      const codOk = (data.payment_methods ?? []).includes('cod')
+      if (connected.length > 0 || codOk) {
+        setPayment(prev => {
+          if (prev) return prev
+          if (connected.length > 0) {
+            return { kind: 'provider', provider: connected[0].provider as PaymentProvider }
+          }
+          return { kind: 'tab', tab: 'bank_transfer' }
+        })
       }
     } catch {
       setPreviewError('Could not load checkout totals')
@@ -233,8 +244,8 @@ export function useStoreBridgeCheckout() {
       description: `Order payment`,
       order_id: rzp.razorpay_order_id,
       prefill: rzp.prefill,
-      handler: (response) => {
-        void finish(response)
+      handler: async (response) => {
+        await finish(response)
       },
     })
   }, [navigate, storePath, storeName, qc, vendorSlug])
@@ -387,12 +398,28 @@ export function useStoreBridgeCheckout() {
           orderId = order.id
         }
 
-        await resetCartAfterOrder(qc, vendorSlug)
-
         if (isOnlinePayment(paymentMethod)) {
           try {
-            await completeOnlinePayment(orderId)
+            if (paymentMethod === 'razorpay') {
+              await completeOnlinePayment(orderId)
+            } else {
+              navigate(storePath(`/order/${orderId}/status`))
+              return {
+                ok: false,
+                error: `Order created. Complete payment with ${paymentMethod} on your order page.`,
+                orderId,
+              }
+            }
           } catch (payErr) {
+            const cancelled =
+              payErr instanceof Error && payErr.message === 'Payment cancelled'
+            if (cancelled) {
+              return {
+                ok: false,
+                error: 'Payment cancelled. Your cart is unchanged — tap Place order when you are ready to pay.',
+                orderId,
+              }
+            }
             navigate(storePath(`/order/${orderId}/status`))
             return {
               ok: false,
@@ -404,6 +431,7 @@ export function useStoreBridgeCheckout() {
             }
           }
         } else {
+          await resetCartAfterOrder(qc, vendorSlug)
           navigate(storePath(`/order/${orderId}/confirmation`))
         }
         return { ok: true, orderId }
@@ -444,6 +472,9 @@ export function useStoreBridgeCheckout() {
       error: previewError,
       fieldErrors,
       isBranchClosed,
+      connectedPayments: serverPreview?.connected_payments ?? [],
+      codEnabled: (serverPreview?.payment_methods ?? []).includes('cod'),
+      razorpayEnabled: Boolean(serverPreview?.razorpay_enabled),
     },
     actions,
   }

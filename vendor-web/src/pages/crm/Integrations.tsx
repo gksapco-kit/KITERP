@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { useIntegrations, useUpsertIntegration } from '@/hooks/useCrm'
 import { crmApi, type Integration } from '@/api/crm'
-import { Plus, Loader2, Plug, CheckCircle2, AlertTriangle, Trash2, Zap, Eye, EyeOff } from 'lucide-react'
+import { Plus, Loader2, Plug, CheckCircle2, AlertTriangle, Trash2, Zap, Eye, EyeOff, Copy, CreditCard } from 'lucide-react'
 import { CrmModal, Field } from './_shared'
 import { useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
@@ -21,19 +21,39 @@ const PROVIDERS = [
   { id: 'outlook_calendar', label: 'Outlook Calendar', credentials: ['client_id', 'client_secret', 'refresh_token'], settings: ['calendar_id'] },
 ]
 
+const PAYMENT_PROVIDERS = [
+  { id: 'razorpay', label: 'Razorpay', credentials: ['key_id', 'key_secret', 'webhook_secret'], settings: ['mode'] },
+  { id: 'stripe', label: 'Stripe', credentials: ['publishable_key', 'secret_key', 'webhook_secret'], settings: ['mode'] },
+  { id: 'square', label: 'Square', credentials: ['application_id', 'access_token', 'webhook_signature_key'], settings: ['mode', 'location_id'] },
+  { id: 'paypal', label: 'PayPal', credentials: ['client_id', 'client_secret', 'webhook_id'], settings: ['mode'] },
+  { id: 'payu', label: 'PayU', credentials: ['merchant_key', 'merchant_salt'], settings: ['mode'] },
+]
+
+const ALL_PROVIDERS = [...PROVIDERS, ...PAYMENT_PROVIDERS]
+
 const SETTING_HINTS: Record<string, Record<string, string>> = {
   twilio: {
     from_number: 'SMS only — buy a Twilio phone number with SMS enabled (NOT +14155238886 WhatsApp sandbox)',
     whatsapp_from: 'WhatsApp only — Twilio sandbox: +14155238886. Cannot be used for SMS.',
     voice_caller_id: 'Optional caller ID for voice calls',
   },
+  razorpay: { mode: 'test or live' },
+  stripe: { mode: 'test or live' },
+  square: { mode: 'sandbox or live', location_id: 'Optional Square location ID for in-person / online checkout' },
+  paypal: { mode: 'sandbox or live' },
+  payu: { mode: 'test or live' },
 }
 
-const TESTABLE = new Set(['sendgrid', 'smtp', 'twilio'])
+const TESTABLE = new Set(['sendgrid', 'smtp', 'twilio', 'razorpay', 'stripe', 'square', 'paypal', 'payu'])
+const PAYMENT_PROVIDER_IDS = new Set(PAYMENT_PROVIDERS.map(p => p.id))
 const DELETE_CONFIRM_PHRASE = 'DELETE'
 
 function isSecretField(key: string) {
-  return key.includes('password') || key.includes('token') || key.includes('secret') || key.includes('key')
+  const k = key.toLowerCase()
+  if (['key_id', 'publishable_key', 'merchant_key', 'application_id', 'client_id', 'webhook_id'].includes(k)) {
+    return false
+  }
+  return k.includes('password') || k.includes('token') || k.includes('secret') || k.includes('key')
 }
 
 function settingsToForm(settings: Record<string, unknown> | undefined): Record<string, string> {
@@ -97,7 +117,7 @@ function IntegrationForm({
   existing?: Integration
   onClose: () => void
 }) {
-  const provider = PROVIDERS.find(p => p.id === providerId)!
+  const provider = ALL_PROVIDERS.find(p => p.id === providerId)!
   const upsert = useUpsertIntegration()
   const [creds, setCreds] = useState<Record<string, string>>({})
   const [settings, setSettings] = useState<Record<string, string>>(() =>
@@ -110,6 +130,8 @@ function IntegrationForm({
   const [testOk, setTestOk] = useState(false)
   const [loadingDefaults, setLoadingDefaults] = useState(true)
   const [envKeySource, setEnvKeySource] = useState<string | null>(null)
+  const [webhookUrl, setWebhookUrl] = useState<string | null>(null)
+  const [webhookEvents, setWebhookEvents] = useState<string[]>([])
 
   useEffect(() => {
     let cancelled = false
@@ -123,12 +145,15 @@ function IntegrationForm({
           setLabel(form.label || provider.label)
           setSettings(settingsToForm(form.settings))
           setCreds(form.credentials || {})
+          if (form.webhook_url) setWebhookUrl(form.webhook_url)
           return
         }
 
         const defaults = await crmApi.getIntegrationDefaults(provider.id)
         if (cancelled) return
         if (defaults.key_source) setEnvKeySource(defaults.key_source)
+        if (defaults.webhook_url) setWebhookUrl(defaults.webhook_url)
+        if (defaults.webhook_events) setWebhookEvents(defaults.webhook_events)
         if (defaults.credentials && Object.keys(defaults.credentials).length > 0) {
           setCreds(defaults.credentials)
         }
@@ -275,6 +300,35 @@ function IntegrationForm({
           </div>
         )}
 
+        {PAYMENT_PROVIDER_IDS.has(provider.id) && webhookUrl && (
+          <div className="space-y-2 rounded-lg border border-blue-100 bg-blue-50/60 p-3">
+            <p className="text-xs font-medium uppercase text-gray-500">Webhook URL</p>
+            <p className="text-xs text-muted-foreground">
+              Register this URL in your {provider.label} dashboard. Events: payment success / capture.
+            </p>
+            <div className="flex gap-2">
+              <Input value={webhookUrl} readOnly className="text-xs font-mono" />
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                title="Copy webhook URL"
+                onClick={() => {
+                  void navigator.clipboard.writeText(webhookUrl)
+                  toast.success('Webhook URL copied')
+                }}
+              >
+                <Copy className="w-4 h-4" />
+              </Button>
+            </div>
+            {webhookEvents.length > 0 && (
+              <p className="text-xs text-muted-foreground">
+                Suggested events: {webhookEvents.join(', ')}
+              </p>
+            )}
+          </div>
+        )}
+
         {TESTABLE.has(provider.id) && (
           <div className="space-y-2 rounded-lg border border-dashed border-gray-200 bg-gray-50/80 p-3">
             <p className="text-xs font-medium uppercase text-gray-500">Test connection</p>
@@ -372,7 +426,10 @@ function DeleteIntegrationModal({
               You are about to remove <strong>{integration.label || providerLabel}</strong>.
             </p>
             <p className="text-xs text-muted-foreground mt-1">
-              Saved credentials will be deleted. Email, SMS, and WhatsApp may stop working until you connect again.
+              Saved credentials will be deleted.{' '}
+              {PAYMENT_PROVIDER_IDS.has(integration.provider)
+                ? 'Checkout will no longer offer this payment method until you connect again.'
+                : 'Email, SMS, and WhatsApp may stop working until you connect again.'}
             </p>
           </div>
         </div>
@@ -419,56 +476,76 @@ export default function IntegrationsPage() {
     connectedById[i.provider] = i
   })
 
+  const renderProviderGrid = (providers: typeof PROVIDERS, icon: 'plug' | 'card' = 'plug') => (
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      {providers.map(p => {
+        const conn = connectedById[p.id]
+        const Icon = icon === 'card' ? CreditCard : Plug
+        return (
+          <Card key={p.id}>
+            <CardContent className="p-5">
+              <div className="flex items-start justify-between gap-2 mb-2">
+                <div className="flex items-center gap-2 min-w-0">
+                  <Icon className="w-5 h-5 text-blue-500 shrink-0" />
+                  <h3 className="text-sm font-semibold truncate">{p.label}</h3>
+                </div>
+                {conn ? (
+                  <Badge variant={conn.status === 'connected' ? 'success' : 'warning'}>
+                    {conn.status === 'connected' ? <CheckCircle2 className="w-3 h-3" /> : <AlertTriangle className="w-3 h-3" />}
+                    {conn.status}
+                  </Badge>
+                ) : <Badge variant="secondary">not connected</Badge>}
+              </div>
+              {conn?.last_error && <p className="text-xs text-red-500 mt-1 line-clamp-2">{conn.last_error}</p>}
+              <div className="flex gap-2 mt-4 pt-3 border-t">
+                <Button variant={conn ? 'outline' : 'default'} size="sm" onClick={() => setAdding(p.id)}>
+                  {conn ? 'Reconfigure' : 'Connect'}
+                </Button>
+                {conn && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    title="Disconnect integration"
+                    onClick={() => setDeleteTarget({ integration: conn, providerLabel: p.label })}
+                  >
+                    <Trash2 className="w-4 h-4 text-red-500" />
+                  </Button>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        )
+      })}
+    </div>
+  )
+
   return (
     <div className="space-y-6">
       <div>
         <p className="text-xs font-medium uppercase tracking-wide text-gray-400 mb-0.5">CRM</p>
         <h1 className="text-2xl font-bold text-gray-900">Integrations</h1>
-        <p className="text-sm text-gray-500 mt-1">Connect External Providers To Send Emails, SMS, WhatsApp, Run AI, Sync Calendars And More.</p>
+        <p className="text-sm text-gray-500 mt-1">
+          Connect external providers to send emails, SMS, WhatsApp, run AI, sync calendars, and accept online payments at checkout.
+        </p>
       </div>
 
       {isLoading ? (
         <div className="flex justify-center py-12"><Loader2 className="w-6 h-6 animate-spin text-gray-400" /></div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {PROVIDERS.map(p => {
-            const conn = connectedById[p.id]
-            return (
-              <Card key={p.id}>
-                <CardContent className="p-5">
-                  <div className="flex items-start justify-between gap-2 mb-2">
-                    <div className="flex items-center gap-2 min-w-0">
-                      <Plug className="w-5 h-5 text-blue-500 shrink-0" />
-                      <h3 className="text-sm font-semibold truncate">{p.label}</h3>
-                    </div>
-                    {conn ? (
-                      <Badge variant={conn.status === 'connected' ? 'success' : 'warning'}>
-                        {conn.status === 'connected' ? <CheckCircle2 className="w-3 h-3" /> : <AlertTriangle className="w-3 h-3" />}
-                        {conn.status}
-                      </Badge>
-                    ) : <Badge variant="secondary">not connected</Badge>}
-                  </div>
-                  {conn?.last_error && <p className="text-xs text-red-500 mt-1 line-clamp-2">{conn.last_error}</p>}
-                  <div className="flex gap-2 mt-4 pt-3 border-t">
-                    <Button variant={conn ? 'outline' : 'default'} size="sm" onClick={() => setAdding(p.id)}>
-                      {conn ? 'Reconfigure' : 'Connect'}
-                    </Button>
-                    {conn && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        title="Disconnect integration"
-                        onClick={() => setDeleteTarget({ integration: conn, providerLabel: p.label })}
-                      >
-                        <Trash2 className="w-4 h-4 text-red-500" />
-                      </Button>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
-            )
-          })}
-        </div>
+        <>
+          <section className="space-y-3">
+            <h2 className="text-sm font-semibold text-gray-700">Communication &amp; CRM</h2>
+            {renderProviderGrid(PROVIDERS, 'plug')}
+          </section>
+
+          <section className="space-y-3">
+            <h2 className="text-sm font-semibold text-gray-700">Payment Processors</h2>
+            <p className="text-xs text-muted-foreground -mt-1">
+              Connected gateways appear as payment options on your storefront checkout. Register the webhook URL in each provider dashboard.
+            </p>
+            {renderProviderGrid(PAYMENT_PROVIDERS, 'card')}
+          </section>
+        </>
       )}
 
       {adding && (

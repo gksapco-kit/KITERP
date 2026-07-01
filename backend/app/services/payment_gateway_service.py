@@ -21,6 +21,7 @@ from app.models.vendor import Vendor
 from app.repositories.order_repo import OrderRepository
 from app.repositories.vendor_repo import VendorRepository
 from app.services.checkout_service import get_razorpay_key_id
+from app.services.payment_integration_service import load_payment_credentials
 
 log = logging.getLogger(__name__)
 
@@ -32,7 +33,14 @@ class PaymentGatewayService:
         self.db = db
         self.order_repo = OrderRepository(db)
 
-    def _credentials(self, vendor) -> tuple[str, str]:
+    async def _credentials(self, vendor) -> tuple[str, str]:
+        creds = await load_payment_credentials(self.db, vendor.id, "razorpay")
+        if creds:
+            key_id = str(creds.get("key_id") or "").strip()
+            key_secret = str(creds.get("key_secret") or "").strip()
+            if key_id and key_secret:
+                return key_id, key_secret
+
         key_id = get_razorpay_key_id(vendor, settings.RAZORPAY_KEY_ID)
         key_secret = settings.RAZORPAY_KEY_SECRET
         if not key_id or not key_secret:
@@ -44,6 +52,14 @@ class PaymentGatewayService:
             )
         return key_id, key_secret
 
+    async def _webhook_secret(self, vendor) -> str:
+        creds = await load_payment_credentials(self.db, vendor.id, "razorpay")
+        if creds:
+            secret = str(creds.get("webhook_secret") or "").strip()
+            if secret:
+                return secret
+        return (settings.RAZORPAY_WEBHOOK_SECRET or "").strip()
+
     async def create_razorpay_order(
         self,
         vendor,
@@ -52,7 +68,7 @@ class PaymentGatewayService:
         customer_email: str | None,
         customer_phone: str | None,
     ) -> dict[str, Any]:
-        key_id, key_secret = self._credentials(vendor)
+        key_id, key_secret = await self._credentials(vendor)
         amount_paise = int(Decimal(str(order.total or 0)) * 100)
         if amount_paise < 100:
             raise HTTPException(400, "Order total must be at least ₹1 for online payment")
@@ -104,14 +120,14 @@ class PaymentGatewayService:
             },
         }
 
-    def verify_razorpay_signature(
+    async def verify_razorpay_signature(
         self,
         razorpay_order_id: str,
         razorpay_payment_id: str,
         razorpay_signature: str,
         vendor,
     ) -> bool:
-        _, key_secret = self._credentials(vendor)
+        _, key_secret = await self._credentials(vendor)
         if key_secret == "dev_secret":
             return razorpay_signature == "dev_sig"
         body = f"{razorpay_order_id}|{razorpay_payment_id}"
@@ -122,8 +138,12 @@ class PaymentGatewayService:
         ).hexdigest()
         return hmac.compare_digest(expected, razorpay_signature)
 
-    def verify_webhook_signature(self, body: bytes, signature: str) -> bool:
-        secret = (settings.RAZORPAY_WEBHOOK_SECRET or "").strip()
+    async def verify_webhook_signature(self, body: bytes, signature: str, vendor=None) -> bool:
+        secret = ""
+        if vendor is not None:
+            secret = await self._webhook_secret(vendor)
+        if not secret:
+            secret = (settings.RAZORPAY_WEBHOOK_SECRET or "").strip()
         if not secret:
             if settings.DEBUG:
                 return True
@@ -323,7 +343,7 @@ class PaymentGatewayService:
             await self._maybe_send_placement_notifications(order, vendor_id, customer_id)
             return order
 
-        if not self.verify_razorpay_signature(
+        if not await self.verify_razorpay_signature(
             razorpay_order_id, razorpay_payment_id, razorpay_signature, vendor,
         ):
             raise HTTPException(400, "Payment verification failed")

@@ -633,6 +633,7 @@ export const crmApi = {
       settings: Record<string, string>
       credentials: Record<string, string>
       stored_secrets: string[]
+      webhook_url?: string | null
     }>(`${BASE}/integrations/${id}/form`).then(r => r.data),
   getIntegrationDefaults: (provider: string) =>
     apiClient.get<{
@@ -641,6 +642,8 @@ export const crmApi = {
       credentials: Record<string, string>
       settings: Record<string, string>
       key_source?: string | null
+      webhook_url?: string | null
+      webhook_events?: string[] | null
     }>(`${BASE}/integrations/defaults`, { params: { provider } }).then(r => r.data),
   upsertIntegration: (data: { provider: string; label?: string; settings?: Record<string, unknown>; credentials?: Record<string, unknown> }) =>
     apiClient.post<Integration>(`${BASE}/integrations`, data).then(r => r.data),

@@ -16,8 +16,9 @@ from app.schemas.checkout import (
     CheckoutPreviewRequest, GuestCheckoutPreviewRequest,
     RazorpayCreateRequest, RazorpayVerifyRequest,
 )
-from app.services.checkout_service import CheckoutService, get_razorpay_key_id
+from app.services.checkout_service import CheckoutService
 from app.services.payment_gateway_service import PaymentGatewayService
+from app.services.payment_integration_service import build_checkout_payment_info
 from app.config import settings
 
 router = APIRouter()
@@ -44,8 +45,8 @@ async def guest_checkout_preview(
         customer_id=None,
         shipping_state=data.shipping_state,
     )
-    preview["razorpay_key_id"] = get_razorpay_key_id(vendor, settings.RAZORPAY_KEY_ID) or None
-    preview["razorpay_enabled"] = bool(preview["razorpay_key_id"] or settings.DEBUG)
+    payment_info = await build_checkout_payment_info(db, vendor)
+    preview.update(payment_info)
     return JSONResponse(content=preview)
 
 
@@ -75,10 +76,8 @@ async def checkout_preview(
         customer_id=customer.id,
         shipping_state=data.shipping_state,
     )
-    preview["razorpay_key_id"] = get_razorpay_key_id(vendor, settings.RAZORPAY_KEY_ID) or None
-    preview["razorpay_enabled"] = bool(
-        preview["razorpay_key_id"] or settings.DEBUG,
-    )
+    payment_info = await build_checkout_payment_info(db, vendor)
+    preview.update(payment_info)
     return JSONResponse(content=preview)
 
 
@@ -160,18 +159,62 @@ async def verify_razorpay_payment(
 @router.post("/payments/razorpay/webhook")
 async def razorpay_webhook(request: Request, db: AsyncSession = Depends(get_db)):
     """Razorpay payment webhook — idempotent order confirmation on payment.captured."""
+    import json
+
     body = await request.body()
     signature = request.headers.get("X-Razorpay-Signature", "")
     gw = PaymentGatewayService(db)
 
-    if not gw.verify_webhook_signature(body, signature):
-        raise HTTPException(400, "Invalid webhook signature")
-
-    import json
     try:
         payload = json.loads(body.decode("utf-8"))
     except (UnicodeDecodeError, json.JSONDecodeError):
         raise HTTPException(400, "Invalid JSON payload")
 
+    vendor = None
+    payment_entity = payload.get("payload", {}).get("payment", {}).get("entity", {})
+    notes = payment_entity.get("notes") or {}
+    vendor_id_raw = notes.get("vendor_id")
+    if vendor_id_raw:
+        try:
+            result = await db.execute(select(Vendor).where(Vendor.id == UUID(str(vendor_id_raw))))
+            vendor = result.scalar_one_or_none()
+        except (ValueError, TypeError):
+            vendor = None
+
+    if not await gw.verify_webhook_signature(body, signature, vendor=vendor):
+        raise HTTPException(400, "Invalid webhook signature")
+
     result = await gw.handle_razorpay_webhook(payload)
     return JSONResponse(content=result)
+
+
+@router.post("/payments/stripe/webhook")
+async def stripe_webhook(request: Request):
+    """Stripe webhook endpoint — configure in Stripe Dashboard after connecting integration."""
+    body = await request.body()
+    _ = body
+    return JSONResponse(content={"ok": True, "received": True})
+
+
+@router.post("/payments/paypal/webhook")
+async def paypal_webhook(request: Request):
+    """PayPal webhook endpoint — configure in PayPal Developer after connecting integration."""
+    body = await request.body()
+    _ = body
+    return JSONResponse(content={"ok": True, "received": True})
+
+
+@router.post("/payments/square/webhook")
+async def square_webhook(request: Request):
+    """Square webhook endpoint — configure in Square Developer after connecting integration."""
+    body = await request.body()
+    _ = body
+    return JSONResponse(content={"ok": True, "received": True})
+
+
+@router.post("/payments/payu/webhook")
+async def payu_webhook(request: Request):
+    """PayU webhook endpoint — configure in PayU merchant panel after connecting integration."""
+    body = await request.body()
+    _ = body
+    return JSONResponse(content={"ok": True, "received": True})

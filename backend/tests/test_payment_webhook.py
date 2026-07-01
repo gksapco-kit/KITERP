@@ -97,7 +97,8 @@ def _webhook_payload(order: Order, vendor: Vendor) -> dict:
 
 # ── Webhook signature verification ───────────────────────────────
 
-def test_webhook_signature_valid_hmac(db_session, monkeypatch):
+@pytest.mark.asyncio
+async def test_webhook_signature_valid_hmac(db_session, monkeypatch):
     monkeypatch.setattr(settings, "RAZORPAY_WEBHOOK_SECRET", "whsec_test")
     monkeypatch.setattr(settings, "DEBUG", False)
     gw = PaymentGatewayService(db_session)
@@ -105,31 +106,34 @@ def test_webhook_signature_valid_hmac(db_session, monkeypatch):
     body = b'{"event":"payment.captured"}'
     good = hmac.new(b"whsec_test", body, hashlib.sha256).hexdigest()
 
-    assert gw.verify_webhook_signature(body, good) is True
-    assert gw.verify_webhook_signature(body, "deadbeef") is False
-    assert gw.verify_webhook_signature(body, "") is False
+    assert await gw.verify_webhook_signature(body, good) is True
+    assert await gw.verify_webhook_signature(body, "deadbeef") is False
+    assert await gw.verify_webhook_signature(body, "") is False
 
 
-def test_webhook_signature_rejected_when_no_secret_in_prod(db_session, monkeypatch):
+@pytest.mark.asyncio
+async def test_webhook_signature_rejected_when_no_secret_in_prod(db_session, monkeypatch):
     """With no webhook secret configured and DEBUG off, all webhooks are rejected."""
     monkeypatch.setattr(settings, "RAZORPAY_WEBHOOK_SECRET", "")
     monkeypatch.setattr(settings, "DEBUG", False)
     gw = PaymentGatewayService(db_session)
 
-    assert gw.verify_webhook_signature(b"{}", "anything") is False
+    assert await gw.verify_webhook_signature(b"{}", "anything") is False
 
 
-def test_webhook_signature_dev_bypass_only_in_debug(db_session, monkeypatch):
+@pytest.mark.asyncio
+async def test_webhook_signature_dev_bypass_only_in_debug(db_session, monkeypatch):
     monkeypatch.setattr(settings, "RAZORPAY_WEBHOOK_SECRET", "")
     monkeypatch.setattr(settings, "DEBUG", True)
     gw = PaymentGatewayService(db_session)
 
-    assert gw.verify_webhook_signature(b"{}", "") is True
+    assert await gw.verify_webhook_signature(b"{}", "") is True
 
 
 # ── Client payment signature verification ────────────────────────
 
-def test_razorpay_signature_valid_and_invalid(db_session, test_vendor, monkeypatch):
+@pytest.mark.asyncio
+async def test_razorpay_signature_valid_and_invalid(db_session, test_vendor, monkeypatch):
     monkeypatch.setattr(settings, "RAZORPAY_KEY_ID", "rzp_live_x")
     monkeypatch.setattr(settings, "RAZORPAY_KEY_SECRET", "secret_live")
     monkeypatch.setattr(settings, "DEBUG", False)
@@ -138,19 +142,20 @@ def test_razorpay_signature_valid_and_invalid(db_session, test_vendor, monkeypat
     body = f"{RZP_ORDER_ID}|{RZP_PAYMENT_ID}"
     good = hmac.new(b"secret_live", body.encode(), hashlib.sha256).hexdigest()
 
-    assert gw.verify_razorpay_signature(RZP_ORDER_ID, RZP_PAYMENT_ID, good, test_vendor) is True
-    assert gw.verify_razorpay_signature(RZP_ORDER_ID, RZP_PAYMENT_ID, "bad", test_vendor) is False
+    assert await gw.verify_razorpay_signature(RZP_ORDER_ID, RZP_PAYMENT_ID, good, test_vendor) is True
+    assert await gw.verify_razorpay_signature(RZP_ORDER_ID, RZP_PAYMENT_ID, "bad", test_vendor) is False
 
 
-def test_razorpay_signature_dev_mode(db_session, test_vendor, monkeypatch):
+@pytest.mark.asyncio
+async def test_razorpay_signature_dev_mode(db_session, test_vendor, monkeypatch):
     """In DEBUG with no keys, only the literal dev signature passes."""
     monkeypatch.setattr(settings, "RAZORPAY_KEY_ID", "")
     monkeypatch.setattr(settings, "RAZORPAY_KEY_SECRET", "")
     monkeypatch.setattr(settings, "DEBUG", True)
     gw = PaymentGatewayService(db_session)
 
-    assert gw.verify_razorpay_signature(RZP_ORDER_ID, RZP_PAYMENT_ID, "dev_sig", test_vendor) is True
-    assert gw.verify_razorpay_signature(RZP_ORDER_ID, RZP_PAYMENT_ID, "wrong", test_vendor) is False
+    assert await gw.verify_razorpay_signature(RZP_ORDER_ID, RZP_PAYMENT_ID, "dev_sig", test_vendor) is True
+    assert await gw.verify_razorpay_signature(RZP_ORDER_ID, RZP_PAYMENT_ID, "wrong", test_vendor) is False
 
 
 # ── Webhook idempotency + finalization ───────────────────────────

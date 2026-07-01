@@ -39,8 +39,24 @@ export async function openRazorpayCheckout(options: RazorpayCheckoutOptions): Pr
   if (!loaded || !window.Razorpay) {
     throw new Error('Could not load payment gateway')
   }
-  const rzp = new window.Razorpay(options)
-  rzp.open()
+  return new Promise((resolve, reject) => {
+    const rzp = new window.Razorpay({
+      ...options,
+      handler: (response) => {
+        Promise.resolve(options.handler(response))
+          .then(() => resolve())
+          .catch(reject)
+      },
+      modal: {
+        ...options.modal,
+        ondismiss: () => {
+          options.modal?.ondismiss?.()
+          reject(new Error('Payment cancelled'))
+        },
+      },
+    })
+    rzp.open()
+  })
 }
 
 /** Dev-mode mock when backend returns dev_mode without real Razorpay keys. */

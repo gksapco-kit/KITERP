@@ -769,6 +769,8 @@ class IntegrationDefaultsResponse(BaseModel):
     credentials: dict = {}
     settings: dict = {}
     key_source: Optional[str] = None
+    webhook_url: Optional[str] = None
+    webhook_events: Optional[list[str]] = None
 
 
 class DeliveryChannelStatus(BaseModel):
@@ -806,6 +808,7 @@ class IntegrationFormResponse(BaseModel):
     settings: dict = {}
     credentials: dict = {}
     stored_secrets: list[str] = []
+    webhook_url: Optional[str] = None
 
 
 # ── AI insights / Audit / Chat / Journey ─────────────────────────────────────

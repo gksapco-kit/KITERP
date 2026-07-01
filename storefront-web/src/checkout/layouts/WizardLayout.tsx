@@ -68,7 +68,7 @@ export function WizardLayout({ state, actions }: { state: CheckoutState; actions
           {step === "Payment" && (
             <div className="space-y-5">
               <Header title="Payment" onBack={() => setStep("Shipping")} />
-              <PaymentSection onChange={actions.setPayment} />
+              <PaymentSection onChange={actions.setPayment} value={state.payment} total={state.cart.total} />
             </div>
           )}
 

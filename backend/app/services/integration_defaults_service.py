@@ -5,6 +5,7 @@ from typing import Any
 
 from app.config import get_settings
 from app.services.email_service import resolve_effective_sendgrid_key, sendgrid_api_key
+from app.services.payment_integration_service import get_payment_webhook_url, is_payment_provider
 
 _SECRET_FIELDS = frozenset({"password", "auth_token", "api_key"})
 
@@ -85,6 +86,33 @@ def get_platform_integration_defaults(provider: str) -> dict[str, Any]:
             "configured": configured,
             "credentials": creds,
             "settings": form_settings,
+        }
+
+    if provider == "razorpay":
+        creds = {}
+        if settings.RAZORPAY_KEY_ID:
+            creds["key_id"] = settings.RAZORPAY_KEY_ID.strip()
+        if settings.RAZORPAY_KEY_SECRET:
+            creds["key_secret"] = settings.RAZORPAY_KEY_SECRET.strip()
+        if settings.RAZORPAY_WEBHOOK_SECRET:
+            creds["webhook_secret"] = settings.RAZORPAY_WEBHOOK_SECRET.strip()
+        configured = bool(creds.get("key_id") and creds.get("key_secret"))
+        return {
+            "provider": provider,
+            "configured": configured,
+            "credentials": creds,
+            "settings": {"mode": "live"},
+            "webhook_url": get_payment_webhook_url(provider),
+            "webhook_events": ["payment.captured", "payment.authorized"],
+        }
+
+    if is_payment_provider(provider):
+        return {
+            "provider": provider,
+            "configured": False,
+            "credentials": {},
+            "settings": {"mode": "sandbox" if provider != "payu" else "test"},
+            "webhook_url": get_payment_webhook_url(provider),
         }
 
     return {"provider": provider, "configured": False, "credentials": {}, "settings": {}}

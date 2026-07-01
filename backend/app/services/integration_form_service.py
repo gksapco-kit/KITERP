@@ -6,6 +6,7 @@ from uuid import UUID
 
 from app.core.encryption import decrypt_json
 from app.models.crm import CrmIntegration
+from app.services.payment_integration_service import get_payment_webhook_url, is_payment_provider
 
 _SECRET_CREDENTIAL_KEYS = frozenset({
     "password",
@@ -46,7 +47,7 @@ def build_integration_form_payload(integration: CrmIntegration) -> dict[str, Any
         if _is_secret_credential_key(key):
             stored_secrets.append(key)
 
-    return {
+    payload: dict[str, Any] = {
         "id": integration.id,
         "provider": integration.provider,
         "label": integration.label,
@@ -55,3 +56,6 @@ def build_integration_form_payload(integration: CrmIntegration) -> dict[str, Any
         "credentials": credentials,
         "stored_secrets": stored_secrets,
     }
+    if is_payment_provider(integration.provider):
+        payload["webhook_url"] = get_payment_webhook_url(integration.provider)
+    return payload

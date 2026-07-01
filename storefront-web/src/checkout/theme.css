@@ -207,13 +207,20 @@
   background: hsl(var(--surface));
   transition: border-color 0.15s ease, background 0.15s ease;
 }
-.ck-selectable:hover {
+.ck-selectable:hover:not([data-selected="true"]) {
   border-color: hsl(var(--brand-primary) / 0.5);
 }
 .ck-selectable[data-selected="true"] {
   border-color: hsl(var(--brand-primary));
   background: hsl(var(--brand-primary) / 0.04);
   box-shadow: 0 0 0 1px hsl(var(--brand-primary)) inset;
+}
+.ck-selectable:focus {
+  outline: none;
+}
+.ck-selectable:focus-visible:not([data-selected="true"]) {
+  outline: 2px solid hsl(var(--brand-primary) / 0.45);
+  outline-offset: 2px;
 }
 
 /* Badge */

@@ -1634,6 +1634,9 @@ class IntegrationService:
             existing.last_error = None
             await self.db.commit()
             await self.db.refresh(existing)
+            from app.services.payment_integration_service import is_payment_provider, sync_vendor_checkout_payments
+            if is_payment_provider(data.provider):
+                await sync_vendor_checkout_payments(self.db, vendor_id)
             return existing
 
         merged_creds, merged_settings = merge_platform_defaults(
@@ -1645,10 +1648,14 @@ class IntegrationService:
             label=data.label,
             settings=merged_settings or {},
             encrypted_credentials=encrypt_json(merged_creds) if merged_creds else None,
+            status="connected",
         )
         self.db.add(obj)
         await self.db.commit()
         await self.db.refresh(obj)
+        from app.services.payment_integration_service import is_payment_provider, sync_vendor_checkout_payments
+        if is_payment_provider(data.provider):
+            await sync_vendor_checkout_payments(self.db, vendor_id)
         return obj
 
     async def update(self, vendor_id: UUID, integration_id: UUID, data) -> CrmIntegration:
@@ -1666,9 +1673,14 @@ class IntegrationService:
         return obj
 
     async def delete(self, vendor_id: UUID, integration_id: UUID) -> None:
+        from app.services.payment_integration_service import is_payment_provider, sync_vendor_checkout_payments
+
         obj = await self.get(vendor_id, integration_id)
+        provider = obj.provider
         await self.db.delete(obj)
         await self.db.commit()
+        if is_payment_provider(provider):
+            await sync_vendor_checkout_payments(self.db, vendor_id)
 
 
 # ── Chat ─────────────────────────────────────────────────────────────────────

@@ -73,7 +73,7 @@ export function TwoColumnLayout({ state, actions }: Props) {
         )}
 
         <Section step={showShippingMethods ? 4 : 3} title="Payment" description="All transactions are secure & encrypted.">
-          <PaymentSection onChange={actions.setPayment} />
+          <PaymentSection onChange={actions.setPayment} value={state.payment} total={state.cart.total} />
         </Section>
 
         {(showOrderNotes || showGiftMessage) && (

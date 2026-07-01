@@ -235,6 +235,7 @@ export const storeApi = {
         estimated_days_max?: number
       }>
       payment_methods: string[]
+      connected_payments?: Array<{ provider: string; label: string; public_key?: string | null }>
       tax_lines: Array<{ label: string; amount: number }>
       razorpay_key_id?: string | null
       razorpay_enabled?: boolean

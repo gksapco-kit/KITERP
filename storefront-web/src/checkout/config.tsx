@@ -4,6 +4,12 @@ import type { Money } from "./types";
 export type CheckoutLayout = "two-column" | "wizard" | "accordion";
 export type PaymentMode = "tabs" | "providers" | "hybrid";
 
+export type ConnectedPayment = {
+  provider: string;
+  label: string;
+  public_key?: string | null;
+};
+
 export type CheckoutConfig = {
   /** Visual layout for the checkout page */
   layout: CheckoutLayout;
@@ -11,6 +17,10 @@ export type CheckoutConfig = {
   paymentMode: PaymentMode;
   /** Which payment provider buttons to show in providers/hybrid mode */
   enabledProviders: Array<"stripe" | "paypal" | "apple_pay" | "google_pay" | "klarna" | "afterpay">;
+  /** Connected payment gateways from CRM integrations */
+  connectedPayments?: ConnectedPayment[];
+  /** Whether cash on delivery is available */
+  codEnabled?: boolean;
 
   /** Feature toggles */
   showCoupon: boolean;

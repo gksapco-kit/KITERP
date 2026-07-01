@@ -59,13 +59,12 @@ export default function Checkout() {
         showTaxBreakdown: true,
         showShippingMethods: true,
         allowGuest: true,
-        enabledProviders: ['stripe'],
-        paymentMode: 'tabs',
+        paymentMode: 'providers',
         ...(layout && { layout }),
         ...(paymentMode && { paymentMode }),
       }}
     >
-      <Inner storePath={storePath} layout={layout} checkoutTheme={checkoutTheme} />
+      <Inner storePath={storePath} layout={layout} checkoutTheme={checkoutTheme} storeName={storeName} />
     </CheckoutConfigProvider>
   )
 }
@@ -74,23 +73,34 @@ function Inner({
   storePath,
   layout,
   checkoutTheme,
+  storeName,
 }: {
   storePath: (path: string) => string
   layout?: CheckoutLayout
   checkoutTheme?: React.CSSProperties
+  storeName: string
 }) {
-  const { layout: configLayout } = useCheckoutConfig()
   const checkout = useStoreBridgeCheckout()
+  const { layout: configLayout } = useCheckoutConfig()
   const activeLayout = layout ?? configLayout
 
   return (
-    <div className="checkout-root" style={checkoutTheme}>
-      <CheckoutHeader />
-      {activeLayout === 'wizard'    && <WizardLayout    {...checkout} />}
-      {activeLayout === 'accordion' && <AccordionLayout {...checkout} />}
-      {(!activeLayout || activeLayout === 'two-column') && <TwoColumnLayout {...checkout} />}
-      <CheckoutFooter />
-    </div>
+    <CheckoutConfigProvider
+      config={{
+        storeName,
+        connectedPayments: checkout.state.connectedPayments,
+        codEnabled: checkout.state.codEnabled,
+        paymentMode: checkout.state.connectedPayments.length > 0 ? 'providers' : 'tabs',
+      }}
+    >
+      <div className="checkout-root" style={checkoutTheme}>
+        <CheckoutHeader />
+        {activeLayout === 'wizard'    && <WizardLayout    {...checkout} />}
+        {activeLayout === 'accordion' && <AccordionLayout {...checkout} />}
+        {(!activeLayout || activeLayout === 'two-column') && <TwoColumnLayout {...checkout} />}
+        <CheckoutFooter />
+      </div>
+    </CheckoutConfigProvider>
   )
 }
 

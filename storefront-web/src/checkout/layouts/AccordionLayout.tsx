@@ -76,7 +76,7 @@ export function AccordionLayout({ state, actions }: { state: CheckoutState; acti
           <AccordionItem value="payment">
             <AccordionTrigger>4. Payment</AccordionTrigger>
             <AccordionContent>
-              <PaymentSection onChange={actions.setPayment} />
+              <PaymentSection onChange={actions.setPayment} value={state.payment} total={state.cart.total} />
             </AccordionContent>
           </AccordionItem>
         </Accordion>

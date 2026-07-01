@@ -1,14 +1,36 @@
 import { useState } from "react";
-import { CreditCard, Wallet, Building2, Clock, Apple, ChevronRight } from "lucide-react";
-import { useCheckoutConfig } from "../config";
-import { PaymentSelection, PaymentTabType, PaymentProvider } from "../types";
+import { CreditCard, Wallet, Building2, Clock, Apple } from "lucide-react";
+import { useCheckoutConfig, type ConnectedPayment } from "../config";
+import { PaymentSelection, PaymentTabType, PaymentProvider, type Money } from "../types";
+import {
+  HostedGatewayCheckoutNote,
+  CodPaymentForm,
+  CardForm,
+} from "./ProviderPaymentForms";
+
+const HOSTED_GATEWAYS = new Set(["razorpay", "stripe", "square", "paypal", "payu"]);
 
 type Props = {
   onChange?: (selection: PaymentSelection) => void;
+  value?: PaymentSelection;
+  total?: Money;
 };
 
-export function PaymentSection({ onChange }: Props) {
-  const { paymentMode, enabledProviders } = useCheckoutConfig();
+export function PaymentSection({ onChange, value, total }: Props) {
+  const { paymentMode, enabledProviders, connectedPayments = [], codEnabled = true } = useCheckoutConfig();
+  const hasConnected = connectedPayments.length > 0;
+
+  if (hasConnected) {
+    return (
+      <ConnectedPaymentsPanel
+        connectedPayments={connectedPayments}
+        codEnabled={codEnabled}
+        onChange={onChange}
+        value={value}
+        total={total}
+      />
+    );
+  }
 
   return (
     <div className="space-y-4">
@@ -25,6 +47,81 @@ export function PaymentSection({ onChange }: Props) {
       )}
 
       {(paymentMode === "tabs" || paymentMode === "hybrid") && <PaymentTabs onChange={onChange} />}
+    </div>
+  );
+}
+
+function resolveSelectedPaymentId(
+  value: PaymentSelection | undefined,
+  connectedPayments: ConnectedPayment[],
+): string {
+  if (value?.kind === "provider") return value.provider
+  if (value?.kind === "tab" && value.tab === "bank_transfer") return "cod"
+  return connectedPayments[0]?.provider ?? "cod"
+}
+
+function ConnectedPaymentsPanel({
+  connectedPayments,
+  codEnabled,
+  onChange,
+  value,
+  total,
+}: {
+  connectedPayments: ConnectedPayment[];
+  codEnabled: boolean;
+  onChange?: (selection: PaymentSelection) => void;
+  value?: PaymentSelection;
+  total?: Money;
+}) {
+  const selected = resolveSelectedPaymentId(value, connectedPayments);
+
+  const select = (provider: string) => {
+    if (provider === "cod") {
+      onChange?.({ kind: "provider", provider: "cod" });
+      return;
+    }
+    onChange?.({ kind: "provider", provider: provider as PaymentProvider });
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+        {connectedPayments.map((p) => {
+          const isSelected = selected === p.provider;
+          return (
+          <button
+            key={p.provider}
+            type="button"
+            onClick={() => select(p.provider)}
+            className="ck-selectable flex h-12 items-center justify-center gap-2 text-sm font-medium"
+            data-selected={isSelected ? "true" : undefined}
+            aria-pressed={isSelected}
+          >
+            {storeProviderIcon(p.provider)}
+            <span>{p.label || providerLabel(p.provider)}</span>
+          </button>
+          );
+        })}
+        {codEnabled && (
+          <button
+            type="button"
+            onClick={() => select("cod")}
+            className="ck-selectable flex h-12 items-center justify-center gap-2 text-sm font-medium"
+            data-selected={selected === "cod" ? "true" : undefined}
+            aria-pressed={selected === "cod"}
+          >
+            <Building2 size={16} />
+            <span>Cash on Delivery</span>
+          </button>
+        )}
+      </div>
+
+      <div className="mt-2">
+        {selected === "cod" && <CodPaymentForm />}
+        {HOSTED_GATEWAYS.has(selected) && (
+          <HostedGatewayCheckoutNote provider={selected} total={total} />
+        )}
+      </div>
     </div>
   );
 }
@@ -54,15 +151,25 @@ function ProviderButtons({
   );
 }
 
-function providerLabel(p: PaymentProvider) {
+function providerLabel(p: string) {
   switch (p) {
     case "apple_pay": return "Apple Pay";
     case "google_pay": return "Google Pay";
     case "paypal": return "PayPal";
     case "stripe": return "Card";
+    case "razorpay": return "Razorpay";
+    case "square": return "Square";
+    case "payu": return "PayU";
     case "klarna": return "Klarna";
     case "afterpay": return "Afterpay";
+    default: return p.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
   }
+}
+
+function storeProviderIcon(p: string) {
+  if (p === "stripe" || p === "square") return <CreditCard size={16} />;
+  if (p === "paypal" || p === "razorpay" || p === "payu") return <Wallet size={16} />;
+  return <Wallet size={16} />;
 }
 
 function providerIcon(p: PaymentProvider) {
@@ -111,61 +218,21 @@ function PaymentTabs({ onChange }: { onChange?: (s: PaymentSelection) => void })
 
       <div className="mt-4">
         {tab === "card" && <CardForm onChange={(d) => onChange?.({ kind: "tab", tab: "card", cardDetails: d })} />}
-        {tab === "wallet" && <PlaceholderPanel text="Choose a wallet provider above (Apple Pay, Google Pay, PayPal)." />}
+        {tab === "wallet" && (
+          <p className="ck-border ck-radius-md ck-text-muted p-3 text-sm">
+            Choose a wallet provider above (Apple Pay, Google Pay, PayPal).
+          </p>
+        )}
         {tab === "bank_transfer" && (
-          <PlaceholderPanel text="You'll receive bank transfer instructions on the confirmation page." />
+          <p className="ck-border ck-radius-md ck-text-muted p-3 text-sm">
+            You&apos;ll receive bank transfer instructions on the confirmation page.
+          </p>
         )}
         {tab === "bnpl" && (
-          <PlaceholderPanel text="Split your purchase into 4 interest-free payments. Eligibility checked at confirmation." />
+          <p className="ck-border ck-radius-md ck-text-muted p-3 text-sm">
+            Split your purchase into 4 interest-free payments. Eligibility checked at confirmation.
+          </p>
         )}
-      </div>
-    </div>
-  );
-}
-
-function PlaceholderPanel({ text }: { text: string }) {
-  return (
-    <div className="ck-border ck-radius-md ck-text-muted flex items-start gap-2 p-3 text-sm">
-      <ChevronRight size={16} className="mt-0.5 shrink-0" />
-      <span>{text}</span>
-    </div>
-  );
-}
-
-function CardForm({ onChange }: { onChange?: (d: any) => void }) {
-  const [d, setD] = useState({ number: "", name: "", expMonth: "", expYear: "", cvc: "" });
-  function update(k: keyof typeof d, v: string) {
-    const next = { ...d, [k]: v };
-    setD(next);
-    onChange?.(next);
-  }
-  return (
-    <div className="space-y-3">
-      <label className="block">
-        <span className="ck-label">Card number</span>
-        <input className="ck-input" inputMode="numeric" autoComplete="cc-number"
-          placeholder="1234 1234 1234 1234" value={d.number} onChange={(e) => update("number", e.target.value)} />
-      </label>
-      <label className="block">
-        <span className="ck-label">Name on card</span>
-        <input className="ck-input" autoComplete="cc-name" value={d.name} onChange={(e) => update("name", e.target.value)} />
-      </label>
-      <div className="grid grid-cols-3 gap-3">
-        <label className="block">
-          <span className="ck-label">Month</span>
-          <input className="ck-input" inputMode="numeric" placeholder="MM" maxLength={2}
-            value={d.expMonth} onChange={(e) => update("expMonth", e.target.value)} />
-        </label>
-        <label className="block">
-          <span className="ck-label">Year</span>
-          <input className="ck-input" inputMode="numeric" placeholder="YY" maxLength={2}
-            value={d.expYear} onChange={(e) => update("expYear", e.target.value)} />
-        </label>
-        <label className="block">
-          <span className="ck-label">CVC</span>
-          <input className="ck-input" inputMode="numeric" placeholder="123" maxLength={4}
-            value={d.cvc} onChange={(e) => update("cvc", e.target.value)} />
-        </label>
       </div>
     </div>
   );

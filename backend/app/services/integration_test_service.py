@@ -15,6 +15,7 @@ from app.integrations.email_smtp import SmtpEmailAdapter
 from app.integrations.twilio import TwilioSmsAdapter
 from app.services.email_service import resolve_effective_sendgrid_key
 from app.services.integration_defaults_service import resolve_credentials_for_test
+from app.services.payment_integration_service import is_payment_provider
 from app.repositories.crm.repos import IntegrationRepo
 from app.services.sms_service import normalize_e164, is_valid_e164
 
@@ -77,6 +78,16 @@ async def test_integration_connection(
         return await _test_sendgrid(creds, settings, test_email)
     if provider == "twilio":
         return await _test_twilio(creds, settings, test_phone)
+    if provider == "razorpay":
+        return await _test_razorpay(creds)
+    if provider == "stripe":
+        return await _test_stripe(creds)
+    if provider == "paypal":
+        return await _test_paypal(creds, settings)
+    if provider == "square":
+        return await _test_square(creds, settings)
+    if provider == "payu":
+        return await _test_payu(creds)
     raise HTTPException(status_code=422, detail=f"Testing is not supported for provider '{provider}'.")
 
 
@@ -250,4 +261,98 @@ async def _test_twilio(
     return {
         "ok": True,
         "message": f"Twilio account verified ({account_name or account_sid}). {' '.join(hints)}",
+    }
+
+
+async def _test_razorpay(creds: dict[str, Any]) -> dict[str, Any]:
+    key_id = (creds.get("key_id") or "").strip()
+    key_secret = (creds.get("key_secret") or "").strip()
+    if not key_id or not key_secret:
+        raise HTTPException(status_code=422, detail="Razorpay Key ID and Key Secret are required.")
+    async with httpx.AsyncClient(timeout=15.0) as client:
+        resp = await client.get(
+            "https://api.razorpay.com/v1/orders?count=1",
+            auth=(key_id, key_secret),
+        )
+    if resp.status_code == 401:
+        raise HTTPException(status_code=400, detail="Razorpay authentication failed — check Key ID and Secret.")
+    if resp.status_code >= 400:
+        raise HTTPException(status_code=400, detail=resp.text[:200] or "Could not reach Razorpay.")
+    msg = "Razorpay credentials verified."
+    if not (creds.get("webhook_secret") or "").strip():
+        msg += " Add webhook_secret and register the webhook URL in Razorpay Dashboard."
+    return {"ok": True, "message": msg}
+
+
+async def _test_stripe(creds: dict[str, Any]) -> dict[str, Any]:
+    secret_key = (creds.get("secret_key") or "").strip()
+    publishable_key = (creds.get("publishable_key") or "").strip()
+    if not secret_key or not publishable_key:
+        raise HTTPException(status_code=422, detail="Stripe publishable_key and secret_key are required.")
+    async with httpx.AsyncClient(timeout=15.0) as client:
+        resp = await client.get(
+            "https://api.stripe.com/v1/balance",
+            headers={"Authorization": f"Bearer {secret_key}"},
+        )
+    if resp.status_code == 401:
+        raise HTTPException(status_code=400, detail="Stripe authentication failed — check secret_key.")
+    if resp.status_code >= 400:
+        raise HTTPException(status_code=400, detail=resp.text[:200] or "Could not reach Stripe.")
+    msg = "Stripe credentials verified."
+    if not (creds.get("webhook_secret") or "").strip():
+        msg += " Add webhook_secret and register the webhook URL in Stripe Dashboard."
+    return {"ok": True, "message": msg}
+
+
+async def _test_paypal(creds: dict[str, Any], settings: dict[str, Any]) -> dict[str, Any]:
+    client_id = (creds.get("client_id") or "").strip()
+    client_secret = (creds.get("client_secret") or "").strip()
+    if not client_id or not client_secret:
+        raise HTTPException(status_code=422, detail="PayPal client_id and client_secret are required.")
+    mode = (settings.get("mode") or "sandbox").strip().lower()
+    base = "https://api-m.sandbox.paypal.com" if mode != "live" else "https://api-m.paypal.com"
+    async with httpx.AsyncClient(timeout=15.0) as client:
+        resp = await client.post(
+            f"{base}/v1/oauth2/token",
+            data={"grant_type": "client_credentials"},
+            auth=(client_id, client_secret),
+            headers={"Accept": "application/json"},
+        )
+    if resp.status_code == 401:
+        raise HTTPException(status_code=400, detail="PayPal authentication failed — check client_id and client_secret.")
+    if resp.status_code >= 400:
+        raise HTTPException(status_code=400, detail=resp.text[:200] or "Could not reach PayPal.")
+    return {"ok": True, "message": f"PayPal credentials verified ({mode} mode)."}
+
+
+async def _test_square(creds: dict[str, Any], settings: dict[str, Any]) -> dict[str, Any]:
+    access_token = (creds.get("access_token") or "").strip()
+    application_id = (creds.get("application_id") or "").strip()
+    if not access_token or not application_id:
+        raise HTTPException(status_code=422, detail="Square access_token and application_id are required.")
+    mode = (settings.get("mode") or "sandbox").strip().lower()
+    base = "https://connect.squareupsandbox.com" if mode != "live" else "https://connect.squareup.com"
+    async with httpx.AsyncClient(timeout=15.0) as client:
+        resp = await client.get(
+            f"{base}/v2/locations",
+            headers={
+                "Authorization": f"Bearer {access_token}",
+                "Square-Version": "2024-01-18",
+            },
+        )
+    if resp.status_code == 401:
+        raise HTTPException(status_code=400, detail="Square authentication failed — check access_token.")
+    if resp.status_code >= 400:
+        raise HTTPException(status_code=400, detail=resp.text[:200] or "Could not reach Square.")
+    return {"ok": True, "message": f"Square credentials verified ({mode} mode)."}
+
+
+async def _test_payu(creds: dict[str, Any]) -> dict[str, Any]:
+    merchant_key = (creds.get("merchant_key") or "").strip()
+    merchant_salt = (creds.get("merchant_salt") or "").strip()
+    if not merchant_key or not merchant_salt:
+        raise HTTPException(status_code=422, detail="PayU merchant_key and merchant_salt are required.")
+    return {
+        "ok": True,
+        "message": "PayU credentials saved. Register the webhook URL in your PayU merchant panel.",
     }
