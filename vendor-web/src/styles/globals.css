@@ -2507,6 +2507,13 @@ html[dir='rtl'] [data-sonner-toast][data-styled='true']:has([data-close-button])
 }
 
 /* Canvas text fields — active field + text selection for partial-word styling */
+/* Builder canvas — scale via zoom (not transform) so sticky headers work while scrolling. */
+.builder-canvas-scroll [data-page-canvas="true"] .builder-page > .sticky {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+}
+
 .builder-canvas-text-field {
   user-select: text;
   cursor: text;

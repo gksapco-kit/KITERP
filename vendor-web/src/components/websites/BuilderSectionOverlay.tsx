@@ -25,14 +25,18 @@ function pointerInBlock(
   clientY: number,
   containerRef: RefObject<HTMLElement | null>,
   blockId: string,
+  layoutScale = 1,
 ): { pointerY: number; height: number } | null {
   const root = containerRef.current
   const el = findBlockEl(containerRef, blockId)
   if (!root || !el) return null
-  const measured = measureBlockInRoot(el, root)
+  const measured = measureBlockInRoot(el, root, layoutScale)
   const rootRect = root.getBoundingClientRect()
-  const scaleY = root.offsetHeight > 0 ? rootRect.height / root.offsetHeight : 1
-  const pointerY = (clientY - rootRect.top) / scaleY - measured.top
+  const rootScaleY = root.offsetHeight > 0 ? rootRect.height / root.offsetHeight : 1
+  const rootIsScaled = Math.abs(rootScaleY - 1) > 0.02
+  const pointerY = rootIsScaled
+    ? (clientY - rootRect.top) / rootScaleY - measured.top
+    : clientY - rootRect.top - measured.top
   return { pointerY, height: measured.height }
 }
 
@@ -44,12 +48,31 @@ export interface BuilderSectionBox {
 }
 
 /** Local coords inside a scaled canvas root (correct for transform: scale). */
-export function measureBlockInRoot(el: HTMLElement, root: HTMLElement): BuilderSectionBox {
+export function measureBlockInRoot(
+  el: HTMLElement,
+  root: HTMLElement,
+  layoutScale = 1,
+): BuilderSectionBox {
   const rootRect = root.getBoundingClientRect()
   const elRect = el.getBoundingClientRect()
-  const scaleX = root.offsetWidth > 0 ? rootRect.width / root.offsetWidth : 1
-  const scaleY = root.offsetHeight > 0 ? rootRect.height / root.offsetHeight : 1
-  const scale = scaleX || scaleY || 1
+  const rootScaleX = root.offsetWidth > 0 ? rootRect.width / root.offsetWidth : 1
+  const rootScaleY = root.offsetHeight > 0 ? rootRect.height / root.offsetHeight : 1
+  const rootIsScaled =
+    Math.abs(rootScaleX - 1) > 0.02
+    || Math.abs(rootScaleY - 1) > 0.02
+
+  // Overlays sit outside transform while blocks render inside scaled children — use visual px.
+  if (!rootIsScaled) {
+    return {
+      top: elRect.top - rootRect.top,
+      left: elRect.left - rootRect.left,
+      width: elRect.width,
+      height: elRect.height,
+    }
+  }
+
+  const detectedScale = rootScaleX || rootScaleY || 1
+  const scale = Math.abs(detectedScale - 1) > 0.02 ? detectedScale : (layoutScale > 0 ? layoutScale : 1)
   return {
     top: (elRect.top - rootRect.top) / scale,
     left: (elRect.left - rootRect.left) / scale,
@@ -68,6 +91,7 @@ export function useBuilderSectionBox(
   containerRef: RefObject<HTMLElement | null>,
   revision?: string,
   scrollRootRef?: RefObject<HTMLElement | null>,
+  layoutScale = 1,
 ) {
   const [box, setBox] = useState<BuilderSectionBox | null>(null)
 
@@ -94,7 +118,7 @@ export function useBuilderSectionBox(
         setBox(null)
         return
       }
-      setBox(measureBlockInRoot(el, currentRoot))
+      setBox(measureBlockInRoot(el, currentRoot, layoutScale))
     }
 
     update()
@@ -111,7 +135,7 @@ export function useBuilderSectionBox(
       window.removeEventListener('resize', update)
       scrollRoot?.removeEventListener('scroll', update)
     }
-  }, [blockId, containerRef, revision, scrollRootRef])
+  }, [blockId, containerRef, revision, scrollRootRef, layoutScale])
 
   return box
 }
@@ -211,6 +235,7 @@ export function BuilderSectionOverlay({
   children,
   scrollRootRef,
   shellHeader,
+  layoutScale = 1,
 }: {
   blockId: string
   containerRef: RefObject<HTMLElement | null>
@@ -234,8 +259,9 @@ export function BuilderSectionOverlay({
   children?: ReactNode
   /** Canvas scroll container — keeps selection chrome aligned while panning. */
   scrollRootRef?: RefObject<HTMLElement | null>
+  layoutScale?: number
 }) {
-  const box = useBuilderSectionBox(blockId, containerRef, revision, scrollRootRef)
+  const box = useBuilderSectionBox(blockId, containerRef, revision, scrollRootRef, layoutScale)
   const isHidden = !visible
 
   if (!box) return null
@@ -305,7 +331,7 @@ export function BuilderSectionPaddingHandles({
   scrollRootRef,
   paddingTop,
   paddingBottom,
-  canvasScale: _canvasScale,
+  canvasScale,
   suppressed,
   onPaddingPreview,
   onPaddingCommit,
@@ -323,7 +349,8 @@ export function BuilderSectionPaddingHandles({
   onPaddingCommit: (patch: { padding_top?: number; padding_bottom?: number }) => void
 }) {
   // Box tracks ResizeObserver only — skip revision so padding ticks don't reset observers.
-  const box = useBuilderSectionBox(blockId, containerRef, undefined, scrollRootRef)
+  const layoutScale = canvasScale > 0 ? canvasScale : 1
+  const box = useBuilderSectionBox(blockId, containerRef, undefined, scrollRootRef, layoutScale)
   const hasBox = box != null
   const [screenFrame, setScreenFrame] = useState<SectionScreenFrame | null>(null)
   // Visible canvas bounds — hide handle pills when their seam scrolls outside the canvas.
@@ -456,7 +483,7 @@ export function BuilderSectionPaddingHandles({
     e.preventDefault()
     e.stopPropagation()
 
-    const hit = pointerInBlock(e.clientY, containerRef, blockId)
+    const hit = pointerInBlock(e.clientY, containerRef, blockId, layoutScale)
     if (!hit) return
 
     const startVal = clampDragPadding(edge === 'top' ? paddingTop : paddingBottom)
@@ -482,7 +509,7 @@ export function BuilderSectionPaddingHandles({
     const onMove = (ev: PointerEvent) => {
       const drag = dragRef.current
       if (!drag) return
-      const hitMove = pointerInBlock(ev.clientY, containerRef, blockId)
+      const hitMove = pointerInBlock(ev.clientY, containerRef, blockId, layoutScale)
       if (!hitMove) return
       const { pointerY } = hitMove
       // Bottom edge must use the height captured at drag start, NOT the live

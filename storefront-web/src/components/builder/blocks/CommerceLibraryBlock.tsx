@@ -1,7 +1,11 @@
 import { useMemo, type ComponentType, type CSSProperties } from 'react'
 import type { LiveItem, PublicSite, StyleConfig } from '@/blocks/registry'
 import { blocks as commerceBlocks } from '@/commerce-blocks/blocks/registry'
-import { extractCommerceCatalogLayout } from '@/lib/commerceCatalogLayout'
+import {
+  categoryShowcaseVariantId,
+  extractCommerceCatalogLayout,
+  resolveCategoryShowcaseLayout,
+} from '@/lib/commerceCatalogLayout'
 import { buildCommerceBlockCssVars } from '@/lib/commerceBlockTheme'
 import { mockProducts, mockCategories } from '@/commerce-blocks/mock/products'
 import { mockServices } from '@/commerce-blocks/mock/services'
@@ -57,7 +61,10 @@ function hydrateProducts(liveItems: LiveItem[]) {
 }
 
 function hydrateCategories(liveItems: LiveItem[]) {
-  if (!liveItems.length) return
+  if (!liveItems.length) {
+    replaceArray(mockCategories, [])
+    return
+  }
   replaceArray(
     mockCategories,
     liveItems.map((item, idx) => ({
@@ -136,10 +143,13 @@ function hydrateMenuFromProducts(liveItems: LiveItem[]) {
 }
 
 function hydrateLiveData(blockType: string, liveItems: LiveItem[]) {
+  if (blockType === 'product.categories') {
+    hydrateCategories(liveItems)
+    return
+  }
   if (!liveItems.length) return
   if (blockType.startsWith('product.') || blockType.startsWith('commerce.')) {
     hydrateProducts(liveItems)
-    hydrateCategories(liveItems)
   } else if (blockType.startsWith('service.')) {
     if (blockType.includes('testimonial')) hydrateTestimonials(liveItems)
     else if (blockType.includes('team')) hydrateTeam(liveItems)
@@ -176,10 +186,15 @@ export default function CommerceLibraryBlock({ style, props, liveItems, blockTyp
     )
   }
 
-  const variantId = (props.variant as string) || (props.layout as string) || def.defaultVariantId || def.variants[0]?.id
+  const variantId = blockType === 'product.categories'
+    ? categoryShowcaseVariantId(props)
+    : (props.variant as string) || (props.layout as string) || def.defaultVariantId || def.variants[0]?.id
   const variant = def.variants.find((v) => v.id === variantId) || def.variants[0]
   const Component = variant.Component as ComponentType<Record<string, unknown>>
   const parsedProps = def.propsSchema.safeParse({ ...def.defaultProps, ...props })
+  const showcaseLayout = blockType === 'product.categories'
+    ? resolveCategoryShowcaseLayout(props)
+    : undefined
   const componentProps = {
     ...(parsedProps.success ? parsedProps.data : { ...def.defaultProps, ...props }),
     columns: catalogLayout.columns,
@@ -195,6 +210,7 @@ export default function CommerceLibraryBlock({ style, props, liveItems, blockTyp
     showFeatures: props.showFeatures !== false,
     title: (props.title as string | undefined) ?? undefined,
     faqs: Array.isArray(props.faqs) ? props.faqs : undefined,
+    ...(showcaseLayout ? { layout: showcaseLayout, bg_style: props.bg_style } : {}),
   }
 
   const themeVars = useMemo(

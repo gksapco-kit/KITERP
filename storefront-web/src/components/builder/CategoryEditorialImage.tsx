@@ -14,6 +14,7 @@ export function CategoryEditorialImage({
   index,
   itemField,
   blockProps,
+  readOnly = false,
 }: {
   src: string
   fallback: string
@@ -24,6 +25,8 @@ export function CategoryEditorialImage({
   index?: number
   itemField?: string
   blockProps?: Record<string, unknown>
+  /** When true, render synced image (no canvas slot edit). */
+  readOnly?: boolean
 }) {
   const primary = imgUrl(src) || imgUrl(fallback) || fallback
   const safeFallback = imgUrl(fallback) || fallback
@@ -34,6 +37,7 @@ export function CategoryEditorialImage({
     && arrayKey != null
     && index != null
     && itemField
+    && !readOnly
 
   useEffect(() => {
     setCurrent(imgUrl(src) || safeFallback)

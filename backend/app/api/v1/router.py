@@ -21,6 +21,7 @@ from app.api.v1 import (
     vendor_websites,
     public_sites,
     vendor_blog,
+    vendor_pricing_plans,
     catalog_blog,
     vendor_restaurant,
     vendor_restaurants,
@@ -136,6 +137,7 @@ api_router.include_router(store_rentals.router, prefix="/store/rentals", tags=["
 
 # ── Blog CMS ──────────────────────────────────────────────────────
 api_router.include_router(vendor_blog.router, prefix="/vendors/me/blog", tags=["Vendor Blog"])
+api_router.include_router(vendor_pricing_plans.router, prefix="/vendors/me/pricing-plans", tags=["Vendor Pricing Plans"])
 
 # ── Website Builder ───────────────────────────────────────────────
 api_router.include_router(vendor_websites.router, prefix="/vendors/me/websites", tags=["Website Builder"])

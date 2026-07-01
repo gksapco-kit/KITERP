@@ -2737,6 +2737,8 @@ BLOCK_AUTO_SOURCE: dict[str, str] = {
     "blog_grid":          "blog",
     "blog_featured":      "blog",
     "blog_list":          "blog",
+    "pricing":            "plans",
+    "service.pricing":    "plans",
 }
 
 
@@ -4243,6 +4245,11 @@ async def get_live_resource(
         from app.services.blog_live_feed import build_blog_live_items
 
         items = await build_blog_live_items(db, vendor.id, limit, _norm_item, include_drafts=True)
+
+    elif resource == "plans":
+        from app.services.plans_live_feed import build_plans_live_items
+
+        items = await build_plans_live_items(db, vendor.id, limit, _norm_item, include_inactive=True)
 
     elif resource == "profile":
         from app.services.storefront_contact import build_profile_live_meta, load_linked_store_for_site

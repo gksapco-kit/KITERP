@@ -147,7 +147,7 @@ export function mergeLayoutBlockProps(
     if (key in layoutShell) merged[key] = layoutShell[key]
   }
 
-  if (blockType.includes('gallery') || blockType === 'portfolio_grid') {
+  if (blockType.includes('gallery') || blockType === 'portfolio_grid' || blockType === 'video_gallery') {
     const layout = String(merged.layout ?? 'grid')
     if (layout === 'masonry') {
       merged.columns = merged.columns ?? 3

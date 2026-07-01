@@ -248,8 +248,8 @@ const categoryBlock: BlockDefinition = {
   propsSchema: categoryProps,
   defaultProps: categoryProps.parse({}),
   variants: [
-    { id: "grid", name: "Grid", Component: (p) => <CategoryShowcase {...p} layout="grid" /> },
-    { id: "carousel", name: "Carousel", Component: (p) => <CategoryShowcase {...p} layout="carousel" /> },
+    { id: "grid", name: "Grid", Component: (p) => <CategoryShowcase {...p} /> },
+    { id: "carousel", name: "Carousel", Component: (p) => <CategoryShowcase {...p} /> },
   ],
 };
 

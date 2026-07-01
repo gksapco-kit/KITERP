@@ -52,11 +52,28 @@ export function mediaUrl(url?: string | null): string {
 
 export function imgUrl(url?: string | null): string {
   if (!url) return ''
-  if (url.startsWith('http://') || url.startsWith('https://') || url.startsWith('data:') || url.startsWith('blob:')) return url
+  if (url.startsWith('data:') || url.startsWith('blob:')) return url
+
+  if (import.meta.env.DEV) {
+    if (url.startsWith('/uploads/')) return url
+    if (url.startsWith('http://') || url.startsWith('https://')) {
+      try {
+        const parsed = new URL(url)
+        if (parsed.pathname.startsWith('/uploads/')) {
+          return `${parsed.pathname}${parsed.search}`
+        }
+      } catch {
+        /* fall through */
+      }
+    }
+  }
+
+  if (url.startsWith('http://') || url.startsWith('https://')) return url
   if (url.startsWith('/business-images')) return url
   const path = url.startsWith('/') ? url : `/${url}`
   const packAsset = STOREFRONT_UI_ASSET_URLS[path]
   if (packAsset) return packAsset
   if (path.startsWith('/storefront-ui/')) return path
+  if (path.startsWith('/uploads/') && import.meta.env.DEV) return path
   return `${BACKEND_BASE}${path}`
 }

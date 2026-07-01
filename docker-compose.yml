@@ -147,7 +147,7 @@ services:
     environment:
       # Vite dev proxy runs inside this container — use Compose DNS, not 127.0.0.1
       - BACKEND_PROXY_TARGET=http://backend:8000
-      - VITE_API_URL=http://127.0.0.1:8000/api/v1
+      - VITE_API_URL=http://localhost:8000/api/v1
       - VITE_BASE_DOMAIN=kiterp.com
     volumes:
       - ./frontend:/app
@@ -166,7 +166,7 @@ services:
       - "127.0.0.1:3001:3001"
     environment:
       - BACKEND_URL=http://backend:8000
-      - VITE_API_URL=http://127.0.0.1:8000/api/v1
+      - VITE_API_URL=http://localhost:8000/api/v1
       - VITE_STOREFRONT_URL=http://localhost:3002
       # Bind-mount file events are unreliable on Docker Desktop (Windows); poll so Vite picks up storefront-web changes.
       - VITE_WATCH_POLLING=1
@@ -188,7 +188,7 @@ services:
       - "127.0.0.1:3002:3002"
     environment:
       - BACKEND_URL=http://backend:8000
-      - VITE_API_URL=http://127.0.0.1:8000/api/v1
+      - VITE_API_URL=http://localhost:8000/api/v1
     volumes:
       - ./storefront-web:/app
       - /app/node_modules

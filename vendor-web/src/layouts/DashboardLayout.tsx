@@ -19,7 +19,7 @@ import {
   Lock, ListChecks, Boxes, Gauge, Globe, Newspaper, Moon, Sun, Image, Palette,
   UtensilsCrossed, ChefHat, LayoutGrid, RefreshCw, FolderKanban,
   GripVertical, SlidersHorizontal, Database, Table2, Search, ExternalLink,
-  PanelLeftClose, PanelLeft, Settings2,
+  PanelLeftClose, PanelLeft, Settings2, Hash,
   ArrowLeft, ArrowRight, MoreHorizontal, Keyboard, Plus, Star, Save, MapPin,
 } from 'lucide-react'
 import { APP_SAVE_REQUEST_EVENT, dispatchAppSaveRequest } from '@/lib/appSave'
@@ -559,6 +559,7 @@ const allSections: NavSection[] = [
       { to: '/projects', icon: FolderKanban, label: 'Projects', requiresPermission: 'projects.view' },
       { to: '/pos', icon: Receipt, label: 'POS', requiresOffering: ['products', 'both'], requiresPermission: 'pos.view' },
       { to: '/subscriptions', icon: RefreshCw, label: 'Subscriptions', requiresPermission: 'subscriptions.view' },
+      { to: '/sales/plans', icon: Hash, label: 'Pricing Plans', requiresPermission: 'subscriptions.view' },
       { to: '/marketplace', icon: Target, label: 'Marketplace Leads', requiresPermission: 'orders.view' },
       { to: '/sales/coverage', icon: MapPin, label: 'Store Coverage', requiresPermission: 'orders.view' },
       { to: '/rental', icon: Truck, label: 'Rentals', requiresPermission: 'rentals.view' },
@@ -1136,6 +1137,7 @@ const pageTitles: Record<string, string> = {
   '/system/assets/images': 'Images',
 
   '/sales/coverage': 'Store Coverage',
+  '/sales/plans': 'Pricing Plans',
 
   '/crm': 'CRM Dashboard',
   '/crm/contacts': 'Contacts',

@@ -16,56 +16,72 @@ interface Props {
 }
 
 /**
- * Cookie / tracking consent banner. Visible until the visitor makes a
- * choice. Writes through the shared `lib/consent` module, which the
- * `AnalyticsInjector` listens to so analytics flip on the moment the user
- * accepts (no full reload required).
+ * Cookie / tracking consent banner. Hidden after Accept (stores consent) or
+ * Decline (stores denial). In the builder canvas the banner reappears on reload
+ * so you can keep editing; live site + draft preview respect stored consent.
  */
-export default function CookieConsentBlock({ style, props, blockId }: Props) {
+export default function CookieConsentBlock({ style, props, site, blockId }: Props) {
   const builderCanvas = useBuilderCanvas()
   const isEditor = builderCanvas?.isEditorCanvas && !!blockId
-  const isDraftPreview = Boolean(builderCanvas?.isDraftPreview)
-  const keepVisible = isEditor || isDraftPreview
-  const [visible, setVisible] = useState(keepVisible || getConsent() === 'unknown')
+  /** Draft browser preview always shows the banner so authors can verify copy/actions. */
+  const isDraftPreview = builderCanvas?.isDraftPreview === true
+  const alwaysShowChrome = isEditor || isDraftPreview
+  const [dismissed, setDismissed] = useState(false)
+
+  const shouldShowInitially = alwaysShowChrome
+    ? true
+    : getConsent() === 'unknown'
+
+  const [visible, setVisible] = useState(shouldShowInitially)
 
   useEffect(() => {
-    if (keepVisible) {
+    if (dismissed) {
+      setVisible(false)
+      return
+    }
+    if (alwaysShowChrome) {
       setVisible(true)
       return
     }
     setVisible(getConsent() === 'unknown')
     return onConsentChange(state => {
-      setVisible(state === 'unknown')
+      if (!dismissed) setVisible(state === 'unknown')
     })
-  }, [keepVisible])
+  }, [dismissed, alwaysShowChrome])
 
   const message = resolveBlockTextField(props, 'message')
   const acceptLabel = resolveBlockTextField(props, 'accept_label')
   const declineLabel = resolveBlockTextField(props, 'decline_label')
-  const showMessage = !isBlockFieldHidden(props, 'message') && (message || isEditor)
-  const showAccept = !isBlockFieldHidden(props, 'accept_label') && (acceptLabel || isEditor)
-  const showDecline = !isBlockFieldHidden(props, 'decline_label') && (declineLabel || isEditor)
+  const showMessage = !isBlockFieldHidden(props, 'message') && (message || alwaysShowChrome)
+  const showAccept = !isBlockFieldHidden(props, 'accept_label') && (acceptLabel || alwaysShowChrome)
+  const showDecline = !isBlockFieldHidden(props, 'decline_label') && (declineLabel || alwaysShowChrome)
   const policyUrl = (props.policy_url as string) || ''
 
-  const accept = () => {
-    if (isEditor) return
-    setConsent('granted')
-    if (!isDraftPreview) setVisible(false)
-  }
-  const decline = () => {
-    if (isEditor) return
-    setConsent('denied')
-    if (!isDraftPreview) setVisible(false)
+  const hideBanner = () => {
+    setDismissed(true)
+    setVisible(false)
   }
 
-  if (!visible && !keepVisible) return null
+  const accept = () => {
+    setConsent('granted', { siteId: site.id })
+    hideBanner()
+  }
+
+  const decline = () => {
+    setConsent('denied', { siteId: site.id })
+    hideBanner()
+  }
+
+  if (!visible) return null
   if (!showMessage && !showAccept && !showDecline) return null
 
   return (
     <div
       className={cn(
         'bg-white border border-gray-200 shadow-xl p-4 sm:p-6',
-        isEditor ? 'relative w-full rounded-2xl' : 'fixed bottom-0 left-0 right-0 z-[60] border-t',
+        alwaysShowChrome && isEditor
+          ? 'relative w-full rounded-2xl'
+          : 'fixed bottom-0 left-0 right-0 z-[60] border-t',
       )}
       role="dialog"
       aria-live="polite"
@@ -110,7 +126,9 @@ export default function CookieConsentBlock({ style, props, blockId }: Props) {
                 embeddedInControl
                 placeholder="Decline"
               />
-            ) : null}
+            ) : (
+              'Decline'
+            )}
           </button>
           <button
             type="button"
@@ -128,7 +146,9 @@ export default function CookieConsentBlock({ style, props, blockId }: Props) {
                 embeddedInControl
                 placeholder="Accept"
               />
-            ) : null}
+            ) : (
+              'Accept'
+            )}
           </button>
         </div>
       </div>

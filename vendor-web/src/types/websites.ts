@@ -19,7 +19,7 @@ export type BlockType =
   | 'timeline' | 'process_steps'
   | 'trust_logos' | 'partner_logos'
   | 'newsletter' | 'email_capture'
-  | 'video_embed' | 'demo_video'
+  | 'video_embed' | 'demo_video' | 'video_gallery'
   | 'menu_grid' | 'menu_list'
   | 'offer_banner' | 'promo_strip'
   | 'rich_text' | 'content_block'
@@ -396,6 +396,7 @@ export type LiveResource =
   | 'kpis'
   | 'stores'
   | 'blog'
+  | 'plans'
 
 export interface LiveItem {
   id: string

@@ -23,6 +23,7 @@ interface Props {
   columns?: number
   imageHeightPct?: number
   cardPadding?: number
+  itemsReadOnly?: boolean
 }
 
 export default function CategoryCardsWellness({
@@ -39,6 +40,7 @@ export default function CategoryCardsWellness({
   columns,
   imageHeightPct,
   cardPadding,
+  itemsReadOnly = false,
 }: Props) {
   const builderCanvas = useBuilderCanvas()
   const isEditorCanvas = builderCanvas?.isEditorCanvas && !!blockId
@@ -94,6 +96,7 @@ export default function CategoryCardsWellness({
         arrayKey="categories"
         itemField="image_url"
         blockProps={blockProps}
+        itemsReadOnly={itemsReadOnly}
         maxItems={maxItems}
         gridStyle={mosaicGridStyle}
         renderTitle={(displayTitle, i) => (
@@ -102,6 +105,7 @@ export default function CategoryCardsWellness({
             title={displayTitle}
             blockId={blockId}
             blockProps={blockProps}
+            readOnly={itemsReadOnly}
             as="h3"
             style={{
               fontFamily: style.font_heading,

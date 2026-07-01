@@ -1,58 +1,88 @@
 import { useMemo } from 'react'
-import BlockRenderer, { mergePageStyle } from '@storefront/components/builder/BlockRenderer'
-import type { PublicSite } from '@storefront/blocks/registry'
+import BlockRenderer, { mergePageStyle, splitLeadingShellBlocks } from '@storefront/components/builder/BlockRenderer'
+import type { PublicBlock, PublicSite } from '@storefront/blocks/registry'
 import { withSharedShellBlocks } from '@storefront/lib/storefrontLayoutChrome'
 import { websiteBlockToPublicBlock } from '@/components/websites/SharedCanvasBlockPreview'
 import type { WebsiteBlock } from '@/types/websites'
 
-/**
- * Renders the full builder page exactly like DraftPreviewRenderer / live storefront.
- * Style merging and block layout match browser preview pixel-for-pixel.
- */
+export type BuilderCanvasShellLayout = 'default' | 'shell-only' | 'content-only'
+
+function resolveBuilderPublicBlocks(
+  publicSite: PublicSite,
+  blocks: WebsiteBlock[],
+  pageId: string | null,
+  isHomepage: boolean,
+): PublicBlock[] {
+  const pageBlocks = blocks.map(websiteBlockToPublicBlock)
+  if (!pageId) return pageBlocks
+
+  const page = publicSite.pages?.find(p => p.id === pageId)
+  if (!page) return pageBlocks
+
+  return withSharedShellBlocks(publicSite, {
+    id: page.id,
+    is_homepage: isHomepage || page.is_homepage,
+    blocks: pageBlocks,
+  }).map(b => {
+    if (b.visible !== false) return b
+    return {
+      ...b,
+      visible: true,
+      props: {
+        ...(b.props as Record<string, unknown>),
+        __builder_hidden_section: true,
+      },
+    }
+  })
+}
+
+export function builderCanvasHasLeadingShell(
+  publicSite: PublicSite,
+  blocks: WebsiteBlock[],
+  pageId: string | null,
+  isHomepage = false,
+): boolean {
+  const publicBlocks = resolveBuilderPublicBlocks(publicSite, blocks, pageId, isHomepage)
+  return splitLeadingShellBlocks(publicBlocks).shellBlocks.length > 0
+}
+
 export function BuilderCanvasPageRenderer({
   publicSite,
   blocks,
   pageId,
   isHomepage = false,
+  shellLayout = 'default',
 }: {
   publicSite: PublicSite
   blocks: WebsiteBlock[]
   pageId: string | null
   isHomepage?: boolean
-  /** @deprecated Canvas reconciles via `blocks` — do not use as React key (causes remount jank). */
   revision?: string
+  shellLayout?: BuilderCanvasShellLayout
 }) {
-  const publicBlocks = useMemo(() => {
-    const pageBlocks = blocks.map(websiteBlockToPublicBlock)
-    if (!pageId) return pageBlocks
+  const publicBlocks = useMemo(
+    () => resolveBuilderPublicBlocks(publicSite, blocks, pageId, isHomepage),
+    [publicSite, blocks, pageId, isHomepage],
+  )
 
-    const page = publicSite.pages?.find(p => p.id === pageId)
-    if (!page) return pageBlocks
+  const { shellBlocks, contentBlocks } = useMemo(
+    () => splitLeadingShellBlocks(publicBlocks),
+    [publicBlocks],
+  )
 
-    return withSharedShellBlocks(publicSite, {
-      id: page.id,
-      is_homepage: isHomepage || page.is_homepage,
-      blocks: pageBlocks,
-    }).map(b => {
-      if (b.visible !== false) return b
-      // Builder still renders hidden sections so authors can select and unhide them.
-      return {
-        ...b,
-        visible: true,
-        props: {
-          ...(b.props as Record<string, unknown>),
-          __builder_hidden_section: true,
-        },
-      }
-    })
-  }, [publicSite, blocks, pageId, isHomepage])
+  const blocksToRender = useMemo(() => {
+    if (shellLayout === 'shell-only') return shellBlocks
+    if (shellLayout === 'content-only') return contentBlocks
+    return publicBlocks
+  }, [shellLayout, shellBlocks, contentBlocks, publicBlocks])
 
   return (
     <BlockRenderer
-      key={pageId || publicSite.id}
-      blocks={publicBlocks}
+      key={`${pageId || publicSite.id}:${shellLayout}`}
+      blocks={blocksToRender}
       site={publicSite}
       pageId={pageId}
+      suppressShellSticky={shellLayout !== 'default'}
     />
   )
 }

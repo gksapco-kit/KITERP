@@ -108,6 +108,7 @@ from app.models.controlling import (
 
 from app.models.business_partner import BusinessPartner, BusinessPartnerRole
 from app.models.blog import VendorBlogPost
+from app.models.pricing_plan import VendorPricingPlan
 from app.models.schema_field_mapping import SchemaFieldMapping
 
 from app.models.website import (
