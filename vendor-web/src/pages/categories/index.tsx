@@ -409,7 +409,7 @@ function CategoryTreeExplorer({
             ]}
             aria-label="Sort by"
             className="h-8 text-xs"
-            wrapperClassName="min-w-[6rem]"
+            wrapperClassName="min-w-[6.5rem] shrink-0"
           />
           <Select
             value={sortDir}
@@ -420,7 +420,7 @@ function CategoryTreeExplorer({
             ]}
             aria-label="Sort direction"
             className="h-8 text-xs"
-            wrapperClassName="min-w-[5rem]"
+            wrapperClassName="min-w-[5.5rem] shrink-0"
           />
           <Button type="button" size="sm" variant="outline" className="h-7 text-xs gap-1" onClick={onAddRoot}>
             <Plus className="w-3 h-3" /> Root

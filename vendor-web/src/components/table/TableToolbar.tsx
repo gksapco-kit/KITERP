@@ -72,7 +72,7 @@ export function TableToolbar({
           onChange={onSortKeyChange}
           options={sortOptions.map((o) => ({ value: o.value, label: o.label }))}
           aria-label="Sort by column"
-          wrapperClassName="w-[7.5rem] shrink-0"
+          wrapperClassName="w-[8rem] shrink-0"
         />
         <ThemeSelect
           value={sortDir}
@@ -82,7 +82,7 @@ export function TableToolbar({
             { value: 'desc', label: 'High → Low' },
           ]}
           aria-label="Sort direction"
-          wrapperClassName="w-[7.5rem] shrink-0"
+          wrapperClassName="w-[8.5rem] shrink-0"
         />
         {extra}
       </div>

@@ -34,7 +34,7 @@ export function TableToolbar({
   extra,
 }: Props) {
   const selectCls =
-    'h-9 rounded-md border border-gray-200 bg-white px-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary min-w-[8rem]'
+    'h-9 w-full min-w-0 rounded-md border border-gray-200 bg-white px-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary'
 
   return (
     <div
@@ -55,27 +55,31 @@ export function TableToolbar({
       <div className="flex flex-wrap items-center gap-2 sm:ml-auto">
         {hint && <span className="text-xs text-muted-foreground hidden md:inline max-w-[14rem]">{hint}</span>}
         <span className="text-xs font-medium text-muted-foreground">Sort</span>
-        <select
-          value={sortKey}
-          onChange={(e) => onSortKeyChange(e.target.value)}
-          className={selectCls}
-          aria-label="Sort by column"
-        >
-          {sortOptions.map((o) => (
-            <option key={o.value} value={o.value}>
-              {o.label}
-            </option>
-          ))}
-        </select>
-        <select
-          value={sortDir}
-          onChange={(e) => onSortDirChange(e.target.value as SortDir)}
-          className={selectCls}
-          aria-label="Sort direction"
-        >
-          <option value="asc">A → Z / Low → High</option>
-          <option value="desc">Z → A / High → Low</option>
-        </select>
+        <div className="w-[8rem] shrink-0 overflow-hidden">
+          <select
+            value={sortKey}
+            onChange={(e) => onSortKeyChange(e.target.value)}
+            className={selectCls}
+            aria-label="Sort by column"
+          >
+            {sortOptions.map((o) => (
+              <option key={o.value} value={o.value}>
+                {o.label}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div className="w-[10rem] shrink-0 overflow-hidden">
+          <select
+            value={sortDir}
+            onChange={(e) => onSortDirChange(e.target.value as SortDir)}
+            className={selectCls}
+            aria-label="Sort direction"
+          >
+            <option value="asc">A → Z / Low → High</option>
+            <option value="desc">Z → A / High → Low</option>
+          </select>
+        </div>
         {extra}
       </div>
     </div>

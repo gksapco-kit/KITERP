@@ -239,10 +239,10 @@ export default function InvoicesPage() {
             searchWrapperClassName="w-80 min-w-[18rem]"
             leading={(
               <>
-                <div className="w-[9.5rem] shrink-0">
+                <div className="w-[9.5rem] shrink-0 overflow-hidden">
                   <BusinessUnitSelect value={storeFilter} onChange={(id) => { setStoreFilter(id); setBranchFilter(''); setPage(1) }} allowAll autoSelectDefault={false} />
                 </div>
-                <div className="w-[9.5rem] shrink-0">
+                <div className="w-[9.5rem] shrink-0 overflow-hidden">
                   <BranchSelect businessUnitId={storeFilter || null} value={branchFilter} onChange={(id) => { setBranchFilter(id); setPage(1) }} allowAll />
                 </div>
                 <ThemeSelect
@@ -263,7 +263,7 @@ export default function InvoicesPage() {
                   onChange={(v) => { setStatusFilter(v); setPage(1) }}
                   placeholder="All Status"
                   aria-label="Status"
-                  wrapperClassName="w-[7.5rem] shrink-0"
+                  wrapperClassName="w-[8.5rem] shrink-0"
                   options={[
                     { value: '', label: 'All Status' },
                     { value: 'draft', label: 'Draft' },

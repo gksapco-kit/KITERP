@@ -826,17 +826,19 @@ export default function CreditDebitMemos() {
               sortKey={histSortKey} sortDir={histSortDir}
               onSortKeyChange={setHistSortKey} onSortDirChange={setHistSortDir}
             />
-            <select
-              value={histTypeFilter}
-              onChange={(e) => setHistTypeFilter(e.target.value)}
-              className="form-select text-xs min-w-[8rem]"
-            >
-              <option value="">All Memos</option>
-              <option value="credit_memo">Credit Memos</option>
-              <option value="debit_memo">Debit Memos</option>
-            </select>
-            <div className="w-48"><BusinessUnitSelect value={histStoreFilter} onChange={(id) => { setHistStoreFilter(id); setHistBranchFilter(''); setHistPage(1) }} allowAll autoSelectDefault={false} disabled={isStoreLocked} /></div>
-            <div className="w-48"><BranchSelect businessUnitId={histStoreFilter || null} value={histBranchFilter} onChange={(id) => { setHistBranchFilter(id); setHistPage(1) }} allowAll disabled={isStoreLocked} /></div>
+            <div className="w-[8.5rem] shrink-0 overflow-hidden">
+              <select
+                value={histTypeFilter}
+                onChange={(e) => setHistTypeFilter(e.target.value)}
+                className="form-select w-full min-w-0 text-xs"
+              >
+                <option value="">All Memos</option>
+                <option value="credit_memo">Credit Memos</option>
+                <option value="debit_memo">Debit Memos</option>
+              </select>
+            </div>
+            <div className="w-48 shrink-0 overflow-hidden"><BusinessUnitSelect value={histStoreFilter} onChange={(id) => { setHistStoreFilter(id); setHistBranchFilter(''); setHistPage(1) }} allowAll autoSelectDefault={false} disabled={isStoreLocked} /></div>
+            <div className="w-48 shrink-0 overflow-hidden"><BranchSelect businessUnitId={histStoreFilter || null} value={histBranchFilter} onChange={(id) => { setHistBranchFilter(id); setHistPage(1) }} allowAll disabled={isStoreLocked} /></div>
             <label className="flex items-center gap-2 text-xs text-gray-600 cursor-pointer select-none">
               <input
                 type="checkbox"

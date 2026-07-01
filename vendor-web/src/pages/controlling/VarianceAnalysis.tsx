@@ -94,7 +94,7 @@ const statusColor = (s: string) => {
   return m[s] ?? 'bg-muted text-muted-foreground'
 }
 
-const filterSelectCls = 'form-select min-w-[10rem]'
+const filterSelectCls = 'form-select w-full min-w-0'
 
 export default function VarianceAnalysisPage() {
   const { data: companies = [] } = useCompanies()

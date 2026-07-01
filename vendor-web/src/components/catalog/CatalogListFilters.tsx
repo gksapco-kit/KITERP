@@ -24,7 +24,7 @@ export function CatalogFilterField({ label, value, onChange, options, placeholde
         placeholder={placeholder}
         options={[{ value: '', label: placeholder }, ...options]}
         aria-label={label}
-        className="w-full min-w-[9.5rem]"
+        wrapperClassName="w-full min-w-[9.5rem]"
       />
     </div>
   )

@@ -68,7 +68,7 @@ export const nativeFormSelectClass = formSelectClass
 
 /** Compact filter / toolbar native selects — prefer `Select` from `@/components/ui/select` */
 export const filterSelectClass =
-  'form-select inline-flex h-10 min-w-[8rem] items-center px-2.5 py-0 text-sm focus:outline-none focus:ring-2 focus:ring-ring [color-scheme:light] dark:[color-scheme:dark]'
+  'form-select inline-flex h-10 w-full min-w-0 items-center px-2.5 py-0 text-sm focus:outline-none focus:ring-2 focus:ring-ring [color-scheme:light] dark:[color-scheme:dark]'
 
 export { Select, selectOptionsWithBlank, type SelectOption } from '@/components/ui/select'
 

@@ -561,9 +561,10 @@
 
   /* Native selects — use on pages that still use raw <select> */
   .form-select {
-    @apply inline-flex h-10 items-center rounded-md border-[1.5px] border-input bg-background px-2.5 py-0 text-sm leading-none text-foreground
+    @apply inline-flex h-10 max-w-full min-w-0 items-center rounded-md border-[1.5px] border-input bg-background px-2.5 py-0 text-sm leading-none text-foreground
            focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring focus-visible:border-primary disabled:cursor-not-allowed disabled:opacity-50;
     color-scheme: light;
+    box-sizing: border-box;
   }
   .dark .form-select {
     color-scheme: dark;

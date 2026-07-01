@@ -15,7 +15,7 @@ export type ThemeSelectOption = {
 /** Semantic tokens — light, dark, and all KIT templates. */
 export const themeSelectUi = {
   trigger:
-    'form-select inline-flex h-10 w-full min-w-[8rem] items-center justify-between gap-2 px-2.5 text-sm text-left text-foreground transition-colors hover:bg-muted/30 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50',
+    'form-select inline-flex h-10 w-full min-w-0 items-center justify-between gap-2 px-2.5 text-sm text-left text-foreground transition-colors hover:bg-muted/30 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50',
   menu: 'z-50 max-h-60 overflow-auto rounded-lg border border-border bg-popover py-1 text-popover-foreground shadow-lg animate-in fade-in-0 zoom-in-95 duration-100',
   item: 'flex w-full items-center gap-2 px-3 py-2 text-left text-sm transition-colors hover:bg-muted/60 focus-visible:bg-muted/60 focus-visible:outline-none',
   itemActive: 'bg-primary/10 text-foreground dark:bg-primary/20',
@@ -158,7 +158,7 @@ export function ThemeSelect({
   const { wrapper: splitWrapper, trigger: splitTrigger } = splitSelectClassName(className)
 
   return (
-    <div ref={rootRef} className={cn('relative w-full min-w-0', splitWrapper, wrapperClassName)}>
+    <div ref={rootRef} className={cn('relative w-full min-w-0 overflow-hidden', splitWrapper, wrapperClassName)}>
       <button
         ref={triggerRef}
         type="button"

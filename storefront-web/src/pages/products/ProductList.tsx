@@ -209,7 +209,7 @@ export default function ProductList() {
 
   const clearSearch = () => { setSearch(''); setSearchInput(''); setPage(1) }
 
-  const selectToolbarCls = `h-9 rounded-lg border border-gray-200 bg-white px-2.5 text-sm text-gray-700 ${themeUi.focusRing} focus:ring-offset-0 min-w-[7.5rem]`
+  const selectToolbarCls = `h-9 w-full min-w-0 rounded-lg border border-gray-200 bg-white px-2.5 text-sm text-gray-700 ${themeUi.focusRing} focus:ring-offset-0`
 
   const hasActiveFilters =
     Boolean(search) ||
@@ -374,25 +374,29 @@ export default function ProductList() {
 
                 <div className="flex flex-wrap items-center gap-2 lg:justify-end lg:shrink-0">
                   <span className="text-xs font-medium uppercase tracking-wide text-gray-400 hidden sm:inline">Sort</span>
-                  <select
-                    value={sortKey}
-                    onChange={(e) => setSortKey(e.target.value)}
-                    className={selectToolbarCls}
-                    aria-label="Sort by"
-                  >
-                    <option value="name">Name</option>
-                    <option value="price">Price</option>
-                    <option value="created_at">Date added</option>
-                  </select>
-                  <select
-                    value={sortDir}
-                    onChange={(e) => setSortDir(e.target.value as SortDir)}
-                    className={selectToolbarCls}
-                    aria-label="Sort direction"
-                  >
-                    <option value="asc">Ascending</option>
-                    <option value="desc">Descending</option>
-                  </select>
+                  <div className="w-[8rem] shrink-0 overflow-hidden">
+                    <select
+                      value={sortKey}
+                      onChange={(e) => setSortKey(e.target.value)}
+                      className={selectToolbarCls}
+                      aria-label="Sort by"
+                    >
+                      <option value="name">Name</option>
+                      <option value="price">Price</option>
+                      <option value="created_at">Date added</option>
+                    </select>
+                  </div>
+                  <div className="w-[8.5rem] shrink-0 overflow-hidden">
+                    <select
+                      value={sortDir}
+                      onChange={(e) => setSortDir(e.target.value as SortDir)}
+                      className={selectToolbarCls}
+                      aria-label="Sort direction"
+                    >
+                      <option value="asc">Ascending</option>
+                      <option value="desc">Descending</option>
+                    </select>
+                  </div>
 
                   <div className="mx-1 hidden h-8 w-px bg-gray-200 sm:block" aria-hidden />
 
@@ -432,18 +436,20 @@ export default function ProductList() {
               <div className="flex flex-col gap-2 border-t border-gray-100 pt-3 sm:flex-row sm:items-center sm:justify-between">
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="text-xs font-medium text-gray-500 uppercase tracking-wide">Refine</span>
-                  <select
-                    value={sortBy}
-                    onChange={(e) => setSortBy(e.target.value)}
-                    className={`${selectToolbarCls} min-w-[11rem]`}
-                    aria-label="Catalog sort (relevance, price, newest)"
-                  >
-                    <option value="default">Featured: Relevance</option>
-                    <option value="price_low">Price: Low to high</option>
-                    <option value="price_high">Price: High to low</option>
-                    <option value="newest">Newest arrivals</option>
-                    <option value="rating">Highest rated</option>
-                  </select>
+                  <div className="w-[11rem] shrink-0 overflow-hidden">
+                    <select
+                      value={sortBy}
+                      onChange={(e) => setSortBy(e.target.value)}
+                      className={selectToolbarCls}
+                      aria-label="Catalog sort (relevance, price, newest)"
+                    >
+                      <option value="default">Featured: Relevance</option>
+                      <option value="price_low">Price: Low to high</option>
+                      <option value="price_high">Price: High to low</option>
+                      <option value="newest">Newest arrivals</option>
+                      <option value="rating">Highest rated</option>
+                    </select>
+                  </div>
                 </div>
                 {hasActiveFilters ? (
                   <div className="flex flex-wrap items-center gap-2">
