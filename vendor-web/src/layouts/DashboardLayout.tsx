@@ -266,7 +266,7 @@ function NavCountBadge({ count, variant = 'nav' }: { count: number; variant?: 'n
  * Nav items after a row with `groupLabel` belong to that group until the next `groupLabel`.
  * (Only the first row per group sets `groupLabel` in config; siblings inherit for collapse.)
  */
-function effectiveNavGroupLabels(items: NavItemLike[]): (string | null)[] {
+function effectiveNavGroupLabels(items: Array<{ groupLabel?: string }>): (string | null)[] {
   let current: string | null = null
   return items.map((item) => {
     if (item.groupLabel) current = item.groupLabel
