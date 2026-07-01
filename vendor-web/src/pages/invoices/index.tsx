@@ -31,25 +31,16 @@ import { TableToolbar } from '@/components/table/TableToolbar'
 import { processRows, type SortDir } from '@/lib/tableList'
 import { ThemeSelect } from '@/components/common/ThemeSelect'
 import type { InvoiceSettings } from '@/lib/invoiceTemplates'
+import {
+  invoiceBadgeClass,
+  invoiceNumberLinkClass,
+  invoiceRefLinkClass,
+  invoiceStatusBadge,
+  invoiceTypeBadge,
+} from '@/lib/invoiceBadges'
 
 const TABLE_ICON_BTN =
   'inline-flex shrink-0 items-center justify-center rounded-md p-1 text-muted-foreground hover:bg-muted hover:text-foreground dark:hover:bg-muted/70 dark:hover:text-foreground'
-
-const statusBadge: Record<string, string> = {
-  draft: 'bg-muted text-muted-foreground',
-  sent: 'bg-blue-500/15 text-blue-800 dark:text-blue-300',
-  paid: 'bg-emerald-500/15 text-emerald-800 dark:text-emerald-300',
-  partially_paid: 'bg-amber-500/15 text-amber-800 dark:text-amber-300',
-  overdue: 'bg-red-500/15 text-red-800 dark:text-red-300',
-  cancelled: 'bg-muted text-muted-foreground',
-}
-
-const typeBadge: Record<string, { badge: string; label: string }> = {
-  estimate: { badge: 'bg-primary/12 text-primary', label: 'Estimate' },
-  invoice: { badge: 'bg-blue-500/15 text-blue-800 dark:text-blue-300', label: 'Invoice' },
-  receipt: { badge: 'bg-emerald-500/15 text-emerald-800 dark:text-emerald-300', label: 'Receipt' },
-  credit_note: { badge: 'bg-red-500/15 text-red-800 dark:text-red-300', label: 'Credit Note' },
-}
 
 async function downloadInvoicePdf(id: string, invoiceNumber: string) {
   try {
@@ -309,15 +300,15 @@ export default function InvoicesPage() {
               ) : !data?.items?.length ? (
                 <tr><td colSpan={9} className="py-12 text-center text-sm text-muted-foreground">{search ? 'No invoices match your search' : 'No invoices yet'}</td></tr>
               ) : displayInvoices.map((inv: InvRow) => {
-                const tb = typeBadge[(inv.invoice_type as string)] || typeBadge.invoice
-                const sb = statusBadge[(inv.status as string)] || statusBadge.draft
+                const tb = invoiceTypeBadge[(inv.invoice_type as string)] || invoiceTypeBadge.invoice
+                const sb = invoiceStatusBadge[(inv.status as string)] || invoiceStatusBadge.draft
                 return (
                   <tr key={inv.id as string} className="transition-colors hover:bg-muted/40 cursor-pointer"
                     onClick={onClickableTableRow(() => navigate(`/invoices/${inv.id}`))}>
-                    <td className="px-5 py-3 text-sm font-medium">
+                    <td className="px-5 py-3 text-sm">
                       <button
                         onClick={() => navigate(`/invoices/${inv.id}`)}
-                        className="text-primary hover:text-primary/80 hover:underline"
+                        className={invoiceNumberLinkClass}
                       >
                         {inv.invoice_number as string}
                       </button>
@@ -326,7 +317,7 @@ export default function InvoicesPage() {
                       {inv.booking_id ? (
                         <button
                           onClick={() => navigate(`/bookings/${inv.booking_id}`)}
-                          className="flex items-center gap-1 text-xs font-mono text-primary hover:text-primary/80 hover:underline"
+                          className={invoiceRefLinkClass}
                           title="Open booking"
                         >
                           <CalendarDays className="w-3.5 h-3.5" />
@@ -335,7 +326,7 @@ export default function InvoicesPage() {
                       ) : inv.order_id ? (
                         <button
                           onClick={() => navigate(`/orders/${inv.order_id}`)}
-                          className="flex items-center gap-1 text-xs font-mono text-primary hover:text-primary/80 hover:underline"
+                          className={invoiceRefLinkClass}
                           title="Open order"
                         >
                           <FileText className="w-3.5 h-3.5" />
@@ -345,11 +336,11 @@ export default function InvoicesPage() {
                         <span className="text-xs text-muted-foreground">—</span>
                       )}
                     </td>
-                    <td className="px-5 py-3"><span className={`px-2 py-0.5 rounded-full text-xs font-medium ${tb.badge}`}>{tb.label}</span></td>
+                    <td className="px-5 py-3"><span className={invoiceBadgeClass(tb)}>{tb.label}</span></td>
                     <td className="px-5 py-3 text-sm text-foreground">{(inv.customer_name as string) || '-'}</td>
                     <td className="px-5 py-3 text-sm text-right font-medium text-foreground">{formatCurrency(inv.total as number)}</td>
                     <td className="px-5 py-3 text-sm text-right">{(inv.balance_due as number) > 0 ? <span className="text-red-600 dark:text-red-400 font-medium">{formatCurrency(inv.balance_due as number)}</span> : <span className="text-emerald-600 dark:text-emerald-400">Paid</span>}</td>
-                    <td className="px-5 py-3 text-center"><span className={`px-2 py-0.5 rounded-full text-xs font-medium capitalize ${sb}`}>{inv.status as string}</span></td>
+                    <td className="px-5 py-3 text-center"><span className={`${invoiceBadgeClass(sb)} capitalize`}>{inv.status as string}</span></td>
                     <td className="px-5 py-3 text-sm text-muted-foreground">{formatDate(inv.created_at as string)}</td>
                     <td className="px-2 py-3">
                       <div className="flex items-center justify-center gap-1">

@@ -23,6 +23,12 @@ import { TableToolbar } from '@/components/table/TableToolbar'
 import { processRows, type SortDir } from '@/lib/tableList'
 import { printInvoice, generateInvoiceHtml, DEFAULT_INVOICE_SETTINGS, DEFAULT_QUOTATION_SETTINGS, loadPosInvoiceSettings, resolveInvoiceTemplateLogoPath } from '@/lib/invoiceTemplates'
 import type { InvoiceSettings } from '@/lib/invoiceTemplates'
+import {
+  invoiceBadgeClass,
+  invoiceRefLinkClass,
+  invoiceStatusBadge,
+  invoiceTypeBadge,
+} from '@/lib/invoiceBadges'
 import { fetchAsDataUrl, downloadAsPdf, shareViaWhatsApp, shareViaSms, buildShareMessage } from '@/lib/printUtils'
 import { QuotationExtraFieldsEditor, QuotationExtraFieldsDisplay } from '@/components/quotations/QuotationExtraFieldsEditor'
 import {
@@ -30,22 +36,6 @@ import {
   serializeQuotationExtraFields,
   type QuotationExtraField,
 } from '@/types/quotation'
-
-const statusBadge: Record<string, { bg: string; text: string; label: string }> = {
-  draft: { bg: 'bg-gray-100', text: 'text-gray-700', label: 'Draft' },
-  sent: { bg: 'bg-blue-50', text: 'text-blue-700', label: 'Sent' },
-  paid: { bg: 'bg-green-50', text: 'text-green-700', label: 'Paid' },
-  partially_paid: { bg: 'bg-amber-50', text: 'text-amber-700', label: 'Partially Paid' },
-  overdue: { bg: 'bg-red-50', text: 'text-red-700', label: 'Overdue' },
-  cancelled: { bg: 'bg-gray-50', text: 'text-gray-500', label: 'Cancelled' },
-}
-
-const typeBadge: Record<string, { bg: string; text: string; label: string }> = {
-  estimate: { bg: 'bg-accent', text: 'text-primary', label: 'Quotation' },
-  invoice: { bg: 'bg-blue-50', text: 'text-blue-700', label: 'Invoice' },
-  receipt: { bg: 'bg-green-50', text: 'text-green-700', label: 'Receipt' },
-  credit_note: { bg: 'bg-red-50', text: 'text-red-700', label: 'Credit Note' },
-}
 
 interface LineItem {
   name: string
@@ -742,8 +732,8 @@ export default function InvoiceDetail() {
     )
   }
 
-  const sb = statusBadge[inv.status] || statusBadge.draft
-  const tb = typeBadge[inv.invoice_type] || typeBadge.invoice
+  const sb = invoiceStatusBadge[inv.status] || invoiceStatusBadge.draft
+  const tb = invoiceTypeBadge[inv.invoice_type] || invoiceTypeBadge.invoice
   const items: Array<Record<string, unknown>> = inv.items || []
   const invRecord = inv as Record<string, unknown>
   const docSettings = resolveDocSettings(invRecord, effectiveSettings(invRecord))
@@ -761,8 +751,8 @@ export default function InvoiceDetail() {
           <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
             <h1 className="text-xl sm:text-2xl font-bold text-gray-900 break-all">{inv.invoice_number}</h1>
             <div className="flex items-center gap-2">
-              <span className={`px-2.5 py-0.5 rounded-full text-xs font-medium ${tb.bg} ${tb.text}`}>{tb.label}</span>
-              <span className={`px-2.5 py-0.5 rounded-full text-xs font-medium ${sb.bg} ${sb.text}`}>{sb.label}</span>
+              <span className={invoiceBadgeClass(tb)}>{tb.label}</span>
+              <span className={invoiceBadgeClass(sb)}>{sb.label}</span>
             </div>
           </div>
           <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-1.5">
@@ -996,7 +986,7 @@ export default function InvoiceDetail() {
                 <p className="text-[10px] uppercase tracking-wide text-gray-400 mb-1">Linked Booking</p>
                 <button
                   onClick={() => navigate(`/bookings/${(inv as Record<string, unknown>).booking_id}`)}
-                  className="flex items-center gap-1 text-xs font-mono text-indigo-600 hover:text-indigo-800 hover:underline"
+                  className={invoiceRefLinkClass}
                 >
                   <CalendarDays className="w-3.5 h-3.5" />
                   {String((inv as Record<string, unknown>).booking_number || (inv as Record<string, unknown>).booking_id)}
@@ -1008,7 +998,7 @@ export default function InvoiceDetail() {
                 <p className="text-[10px] uppercase tracking-wide text-gray-400 mb-1">Linked Order</p>
                 <button
                   onClick={() => navigate(`/orders/${(inv as Record<string, unknown>).order_id}`)}
-                  className="flex items-center gap-1 text-xs font-mono text-blue-600 hover:text-blue-800 hover:underline"
+                  className={invoiceRefLinkClass}
                 >
                   <ShoppingBag className="w-3.5 h-3.5" />
                   {String((inv as Record<string, unknown>).order_number || (inv as Record<string, unknown>).order_id)}
