@@ -17,6 +17,8 @@ class Invoice(Base):
     order_id = Column(UUID(as_uuid=True), ForeignKey("order.id"))
     # Business unit (store) this invoice is attributed to. Nullable for vendors with no store records.
     store_id = Column(UUID(as_uuid=True), ForeignKey("store.id", ondelete="SET NULL"), nullable=True, index=True)
+    # Sales & Distribution: Business Unit x Distribution Channel x Division this invoice was posted under.
+    sales_area_id = Column(UUID(as_uuid=True), ForeignKey("sales_area.id", ondelete="SET NULL"), nullable=True, index=True)
 
     invoice_number = Column(String(30), nullable=False, index=True)
     invoice_type = Column(String(20), default="invoice")  # estimate, invoice, receipt, credit_note
@@ -87,5 +89,6 @@ class Invoice(Base):
         Index("ix_invoice_vendor_type", "vendor_id", "invoice_type"),
         Index("ix_invoice_vendor_status", "vendor_id", "status"),
         Index("ix_invoice_vendor_store", "vendor_id", "store_id"),
+        Index("ix_invoice_sales_area", "vendor_id", "sales_area_id"),
         Index("ix_invoice_number", "vendor_id", "invoice_number", unique=True),
     )

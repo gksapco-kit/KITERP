@@ -1,7 +1,9 @@
 import type { StyleConfig } from '@/types/websites'
+import { KIT_ERP_PALETTE } from '@/lib/kitErpColorPalette'
 
 export type WebsiteColorPaletteId =
   | 'kit-mint'
+  | 'kit-brand'
   | 'ocean-blue'
   | 'midnight'
   | 'coral-warm'
@@ -48,6 +50,19 @@ export const WEBSITE_COLOR_PALETTES: WebsiteColorPalette[] = [
       bg_color: '#f3fbf7',
       surface_color: '#ffffff',
       text_color: '#1e1b4b',
+    },
+  },
+  {
+    id: 'kit-brand',
+    label: 'KIT Brand',
+    description: 'Official KIT ERP palette — mint primary with purple & orange accents.',
+    colors: {
+      primary_color: KIT_ERP_PALETTE.primary,
+      secondary_color: KIT_ERP_PALETTE.secondary,
+      accent_color: KIT_ERP_PALETTE.accent,
+      bg_color: KIT_ERP_PALETTE.background,
+      surface_color: KIT_ERP_PALETTE.card,
+      text_color: KIT_ERP_PALETTE.textPrimary,
     },
   },
   {

@@ -2,6 +2,7 @@ import type { LucideIcon } from 'lucide-react'
 import {
   Briefcase,
   Calendar,
+  Factory,
   FolderKanban,
   Gauge,
   Landmark,
@@ -21,6 +22,7 @@ export type VendorModuleId =
   | 'crm'
   | 'commission'
   | 'controlling'
+  | 'production'
   | 'pos'
   | 'restaurant'
   | 'bookings'
@@ -77,6 +79,13 @@ export const VENDOR_MODULE_TILES: VendorModuleTile[] = [
     label: 'Controlling',
     description: 'CO production orders, costing, and variance analysis.',
     icon: Gauge,
+    configurable: true,
+  },
+  {
+    id: 'production',
+    label: 'Production',
+    description: 'Manufacturing orders, schedule, work centers, and MRP.',
+    icon: Factory,
     configurable: true,
   },
   {
@@ -142,6 +151,14 @@ export function isCommissionNavVisible(settings: Record<string, unknown> | undef
 
 export function isControllingNavVisible(settings: Record<string, unknown> | undefined | null): boolean {
   return flagEnabled(settings, 'controlling_enabled')
+}
+
+export function isProductionNavVisible(
+  settings: Record<string, unknown> | undefined | null,
+  offeringType?: string,
+): boolean {
+  if (!offeringIncludes(offeringType, ['products', 'both'])) return false
+  return flagEnabled(settings, 'production_enabled')
 }
 
 export function isPosNavVisible(
@@ -221,6 +238,12 @@ export function moduleEnabledStatus(
       return { enabled: isCommissionNavVisible(settings) }
     case 'controlling':
       return { enabled: isControllingNavVisible(settings) }
+    case 'production': {
+      if (!offeringIncludes(vendor.offering_type, ['products', 'both'])) {
+        return { enabled: false, detail: 'Needs products catalog' }
+      }
+      return { enabled: isProductionNavVisible(settings, vendor.offering_type) }
+    }
     case 'pos': {
       if (!offeringIncludes(vendor.offering_type, ['products', 'both'])) {
         return { enabled: false, detail: 'Needs products catalog' }

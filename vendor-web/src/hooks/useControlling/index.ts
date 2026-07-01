@@ -679,3 +679,61 @@ export const useApplyOverheadToCostVersion = () => {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['controlling', 'product-costs'] }),
   })
 }
+
+// ── Controlling Areas ──────────────────────────────────────────────────────────
+
+export const coAreaKeys = {
+  list: () => ['controlling', 'controlling-areas'] as const,
+  companies: (areaId: string) => ['controlling', 'controlling-area-companies', areaId] as const,
+}
+
+export const useControllingAreas = () =>
+  useQuery({
+    queryKey: coAreaKeys.list(),
+    queryFn: () => api.listControllingAreas(),
+  })
+
+export const useControllingAreaCompanies = (areaId: string | undefined) =>
+  useQuery({
+    queryKey: coAreaKeys.companies(areaId ?? ''),
+    queryFn: () => api.listControllingAreaCompanies(areaId!),
+    enabled: !!areaId,
+  })
+
+export const useCreateControllingArea = () => {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: api.createControllingArea,
+    onSuccess: () => qc.invalidateQueries({ queryKey: coAreaKeys.list() }),
+  })
+}
+
+export const useUpdateControllingArea = () => {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, data }: { id: string; data: Record<string, unknown> }) =>
+      api.updateControllingArea(id, data),
+    onSuccess: () => qc.invalidateQueries({ queryKey: coAreaKeys.list() }),
+  })
+}
+
+export const useDeleteControllingArea = () => {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: api.deleteControllingArea,
+    onSuccess: () => qc.invalidateQueries({ queryKey: coAreaKeys.list() }),
+  })
+}
+
+export const useAssignCompanyToControllingArea = () => {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ areaId, companyId }: { areaId: string; companyId: string }) =>
+      api.assignCompanyToControllingArea(areaId, companyId),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: coAreaKeys.list() })
+      qc.invalidateQueries({ queryKey: ['controlling', 'controlling-area-companies'] })
+      qc.invalidateQueries({ queryKey: ['finance', 'companies'] })
+    },
+  })
+}

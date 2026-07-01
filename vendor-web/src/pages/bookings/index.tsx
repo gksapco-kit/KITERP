@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { TableColumnLabel } from '@/components/common/FieldLabel'
 import { BusinessUnitSelect } from '@/components/common/BusinessUnitSelect'
+import { BranchSelect } from '@/components/common/BranchSelect'
 import { useEscapeToClose } from '@/hooks/useEscapeToClose'
 import { ModalEscHint } from '@/components/ui/Modal'
 import { useNavigate } from 'react-router-dom'
@@ -328,6 +329,7 @@ export default function BookingsPage() {
   const [page, setPage] = useState(1)
   const [statusFilter, setStatusFilter] = useState('')
   const [listStoreFilter, setListStoreFilter] = useState('')
+  const [listBranchFilter, setListBranchFilter] = useState('')
   const [showCreate, setShowCreate] = useState(false)
   const [sortKey, setSortKey] = useState('booking_date')
 
@@ -382,7 +384,7 @@ export default function BookingsPage() {
 
   const params: Record<string, unknown> = { page, size: 20 }
   if (statusFilter) params.status = statusFilter
-  if (listStoreFilter) params.store_id = listStoreFilter
+  if (listBranchFilter || listStoreFilter) params.store_id = listBranchFilter || listStoreFilter
 
   const { data, isLoading } = useQuery({
     queryKey: ['bookings', params],
@@ -394,13 +396,15 @@ export default function BookingsPage() {
 
   // Business unit selected in the create form (scopes the service dropdown)
   const [selectedStore, setSelectedStore] = useState('')
+  const [selectedBranch, setSelectedBranch] = useState('')
+  const effectiveSelectedStore = selectedBranch || selectedStore
 
   // Services list for dropdown — scoped to the selected business unit
   const { data: servicesData } = useQuery({
-    queryKey: ['services-for-booking', selectedStore],
+    queryKey: ['services-for-booking', effectiveSelectedStore],
     queryFn: async () => {
       const res = await apiClient.get('/vendors/me/services', {
-        params: { size: 100, ...(selectedStore ? { store_id: selectedStore } : {}) },
+        params: { size: 100, ...(effectiveSelectedStore ? { store_id: effectiveSelectedStore } : {}) },
       })
       return res.data?.items || []
     },
@@ -665,7 +669,7 @@ export default function BookingsPage() {
             ? { staff_id: staffId, assigned_staff_name: name }
             : { assigned_staff_name: name }
         })(),
-        ...(selectedStore ? { store_id: selectedStore } : {}),
+        ...(effectiveSelectedStore ? { store_id: effectiveSelectedStore } : {}),
       })
       toast.success('Booking created successfully')
       qc.invalidateQueries({ queryKey: ['bookings'] })
@@ -945,13 +949,27 @@ export default function BookingsPage() {
                       </label>
                       <Select
                         value={selectedStore}
-                        onChange={(v) => { setSelectedStore(v); setSelectedService('') }}
+                        onChange={(v) => { setSelectedStore(v); setSelectedBranch(''); setSelectedService('') }}
                         options={selectOptionsWithBlank('All locations', stores.map((st: any) => ({
                           value: st.id,
                           label: st.name,
                         })))}
                         placeholder="All locations"
                         aria-label="Location"
+                        className={bm.input}
+                      />
+                    </div>
+                  )}
+                  {selectedStore && (
+                    <div className="mb-4">
+                      <label className={`${bm.fieldLabel} block mb-1.5`}>
+                        <Building2 className="w-3 h-3 inline mr-1 text-primary/70" />Branch
+                      </label>
+                      <BranchSelect
+                        businessUnitId={selectedStore || null}
+                        value={selectedBranch}
+                        onChange={setSelectedBranch}
+                        allowAll
                         className={bm.input}
                       />
                     </div>
@@ -1421,7 +1439,8 @@ export default function BookingsPage() {
             </button>
           )
         })}
-        <div className="ml-auto w-52"><BusinessUnitSelect value={listStoreFilter} onChange={(id) => { setListStoreFilter(id); setPage(1) }} allowAll autoSelectDefault={false} /></div>
+        <div className="ml-auto w-52"><BusinessUnitSelect value={listStoreFilter} onChange={(id) => { setListStoreFilter(id); setListBranchFilter(''); setPage(1) }} allowAll autoSelectDefault={false} /></div>
+        <div className="w-52"><BranchSelect businessUnitId={listStoreFilter || null} value={listBranchFilter} onChange={(id) => { setListBranchFilter(id); setPage(1) }} allowAll /></div>
       </div>
 
       {isLoading ? (

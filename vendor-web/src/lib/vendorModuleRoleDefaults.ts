@@ -11,6 +11,7 @@ export type ModuleFormState = {
   crmEnabled: boolean
   commissionEnabled: boolean
   controllingEnabled: boolean
+  productionEnabled: boolean
   posEnabled: boolean
   restaurantEnabled: boolean
   bookingsEnabled: boolean
@@ -36,6 +37,7 @@ export function getAllModulesEnabledState(
     crmEnabled: true,
     commissionEnabled: true,
     controllingEnabled: true,
+    productionEnabled: true,
     posEnabled: true,
     restaurantEnabled: true,
     bookingsEnabled: true,
@@ -59,6 +61,7 @@ export function getRoleModuleSettingsDefaults(role: string | undefined | null): 
       crmEnabled: true,
       commissionEnabled: true,
       controllingEnabled: true,
+      productionEnabled: true,
       posEnabled: true,
       restaurantEnabled: true,
       bookingsEnabled: true,
@@ -78,6 +81,7 @@ export function getRoleModuleSettingsDefaults(role: string | undefined | null): 
       crmEnabled: true,
       commissionEnabled: true,
       controllingEnabled: false,
+      productionEnabled: true,
       posEnabled: true,
       restaurantEnabled: true,
       bookingsEnabled: true,
@@ -97,6 +101,7 @@ export function getRoleModuleSettingsDefaults(role: string | undefined | null): 
       crmEnabled: false,
       commissionEnabled: false,
       controllingEnabled: false,
+      productionEnabled: false,
       posEnabled: false,
       restaurantEnabled: false,
       bookingsEnabled: false,
@@ -115,6 +120,7 @@ export function getRoleModuleSettingsDefaults(role: string | undefined | null): 
     crmEnabled: true,
     commissionEnabled: true,
     controllingEnabled: true,
+    productionEnabled: true,
     posEnabled: true,
     restaurantEnabled: true,
     bookingsEnabled: true,
@@ -138,6 +144,7 @@ export function moduleFormStateFromVendor(
     crmEnabled: s?.crm_enabled !== false,
     commissionEnabled: s?.commission_enabled !== false,
     controllingEnabled: s?.controlling_enabled !== false,
+    productionEnabled: s?.production_enabled !== false,
     posEnabled: s?.pos_enabled !== false,
     restaurantEnabled: s?.restaurant_enabled !== false,
     bookingsEnabled: s?.bookings_enabled !== false,
@@ -156,6 +163,7 @@ export function moduleFormStatesEqual(a: ModuleFormState, b: ModuleFormState): b
     a.crmEnabled === b.crmEnabled &&
     a.commissionEnabled === b.commissionEnabled &&
     a.controllingEnabled === b.controllingEnabled &&
+    a.productionEnabled === b.productionEnabled &&
     a.posEnabled === b.posEnabled &&
     a.restaurantEnabled === b.restaurantEnabled &&
     a.bookingsEnabled === b.bookingsEnabled &&
@@ -182,6 +190,7 @@ export function buildModuleSettingsPayload(
       crm_enabled: state.crmEnabled,
       commission_enabled: state.commissionEnabled,
       controlling_enabled: state.controllingEnabled,
+      production_enabled: state.productionEnabled,
       pos_enabled: state.posEnabled,
       restaurant_enabled: state.restaurantEnabled,
       bookings_enabled: state.bookingsEnabled,

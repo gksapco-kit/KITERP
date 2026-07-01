@@ -20,6 +20,11 @@ from app.models.production import ProductionOrder
 from app.models.plant import Plant
 from app.models.storage_location import StorageLocation
 from app.repositories.production_repo import ProductionOrderRepo
+from app.services.production_materials import reserve_materials, release_materials
+from app.services.production_inventory import post_production_completion, reverse_production_completion
+
+# Statuses that no longer represent "work in progress" for materials purposes.
+_TERMINAL_STATUSES = ("completed", "cancelled")
 
 router = APIRouter()
 
@@ -71,6 +76,16 @@ def _serialize(row: ProductionOrder, *, include_heavy: bool = True) -> dict:
         "assignees": row.assignees or [],
         "created_at": d(row.created_at),
         "updated_at": d(row.updated_at),
+        # Materials (BOM/MRP) — see app/services/production_materials.py
+        "material_requirements": row.material_requirements or [],
+        "materials_reserved_at": d(row.materials_reserved_at),
+        "materials_released_at": d(row.materials_released_at),
+        "inventory_posted_at": d(row.inventory_posted_at),
+        # Costing (Phase 7)
+        "planned_material_cost": float(row.planned_material_cost) if row.planned_material_cost is not None else None,
+        "planned_labor_cost": float(row.planned_labor_cost) if row.planned_labor_cost is not None else None,
+        "actual_material_cost": float(row.actual_material_cost) if row.actual_material_cost is not None else None,
+        "actual_labor_cost": float(row.actual_labor_cost) if row.actual_labor_cost is not None else None,
     }
     if include_heavy:
         out["attachments"] = row.attachments or []
@@ -306,7 +321,19 @@ async def create_production_order(
         created_by=vu.id,
     )
     row = await repo.create(row)
+
+    try:
+        if row.status == "confirmed":
+            await reserve_materials(db, vendor_id, row)
+        elif row.status == "completed":
+            await reserve_materials(db, vendor_id, row)
+            await post_production_completion(db, vendor_id, row)
+    except ValueError as exc:
+        await db.rollback()
+        raise HTTPException(400, str(exc))
+
     await db.commit()
+    await db.refresh(row)
     return _serialize(row, include_heavy=True)
 
 
@@ -322,6 +349,7 @@ async def update_production_order(
     if not row:
         raise HTTPException(404, "Production order not found")
 
+    old_status = row.status
     data = body.model_dump(exclude_none=True)
     audit_event = data.pop("audit_event", None)
     if audit_event:
@@ -349,7 +377,28 @@ async def update_production_order(
         await _validate_customer(db, vendor_id, cid)
 
     row = await repo.update(row, data)
+
+    new_status = row.status
+    if "status" in body.model_fields_set and new_status != old_status:
+        try:
+            if new_status == "confirmed":
+                await reserve_materials(db, vendor_id, row)
+            elif new_status == "cancelled":
+                await release_materials(db, vendor_id, row)
+            elif new_status == "completed":
+                # Guard against completing directly from an earlier status
+                # that skipped confirmation (materials were never reserved).
+                await reserve_materials(db, vendor_id, row)
+                await post_production_completion(db, vendor_id, row)
+            elif old_status == "completed":
+                # Re-opened after completion — back out the stock postings.
+                await reverse_production_completion(db, vendor_id, row)
+        except ValueError as exc:
+            await db.rollback()
+            raise HTTPException(400, str(exc))
+
     await db.commit()
+    await db.refresh(row)
     return _serialize(row, include_heavy=True)
 
 
@@ -363,6 +412,14 @@ async def delete_production_order(
     row = await repo.get(order_id, vendor_id)
     if not row:
         raise HTTPException(404, "Production order not found")
+    if row.inventory_posted_at:
+        raise HTTPException(
+            400,
+            "Cannot delete a production order whose materials/finished goods have already been "
+            "posted to stock. Re-open it first to reverse the postings, or keep it as a record.",
+        )
+    if row.materials_reserved_at and not row.materials_released_at:
+        await release_materials(db, vendor_id, row)
     await repo.delete(row)
     await db.commit()
     return None

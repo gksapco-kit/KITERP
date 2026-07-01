@@ -49,7 +49,9 @@ from app.models.platform_staff_audit import PlatformStaffAuditLog
 from app.models.vendor_platform_audit import VendorPlatformAuditLog
 from app.models.mrp import ProductBOMItem, StockReservation
 from app.models.production import ProductionOrder
+from app.models.production_routing import WorkCenter, ProductionOperation
 from app.models.store import Store, StoreInventory, ProductStore, ServiceStore
+from app.models.sales_area import SalesDivision, DistributionChannel, DeliveryChannel, SalesArea
 from app.models.storage_location import StorageLocation
 from app.models.plant import Plant
 from app.models.storage_location import StorageLocation
@@ -105,6 +107,7 @@ from app.models.controlling import (
     CoCostAllocation, CoBudgetLine, CoVarianceRun,
     CoWorkCenter, CoRouting, CoRoutingOperation,
 )
+from app.models.controlling_area import CoControllingArea
 
 from app.models.business_partner import BusinessPartner, BusinessPartnerRole
 from app.models.blog import VendorBlogPost
@@ -212,10 +215,17 @@ __all__ = [
     "VendorPlatformAuditLog",
     "ProductBOMItem",
     "StockReservation",
+    "WorkCenter",
+    "ProductionOperation",
     "Store",
     "StoreInventory",
     "StorageLocation",
     "Plant",
+    # Sales & Distribution
+    "SalesDivision",
+    "DistributionChannel",
+    "DeliveryChannel",
+    "SalesArea",
     # HR
     "Department",
     "Designation",
@@ -285,6 +295,7 @@ __all__ = [
     "WebsiteBlockTranslation", "WebsiteSymbol", "WebsiteABExposure",
     "WebsiteWebhook",
     # Controlling (CO)
+    "CoControllingArea",
     "CoActivityType", "CoOverheadPool", "CoOverheadRate",
     "CoProductCostVersion", "CoProductCostLine",
     "CoManufacturingOrder", "CoOrderCostLine", "CoOrderOperation",

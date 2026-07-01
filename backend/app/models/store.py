@@ -8,11 +8,24 @@ from app.database import Base
 
 
 class Store(Base):
-    """A physical retail location / outlet belonging to a vendor."""
+    """A physical retail location / outlet belonging to a vendor.
+
+    Self-referential hierarchy: a row with parent_id=NULL is a Business Unit
+    (unit_type='business_unit'); a row with parent_id set is a Branch
+    (unit_type='branch') that belongs to that Business Unit. Branches are
+    ordinary Store rows, so every existing store_id FK (orders, POS, invoices,
+    bookings, inventory, staff, ...) continues to work unchanged when it
+    points at a branch. Only two levels are supported — a branch cannot have
+    its own child branches.
+    """
     __tablename__ = "store"
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     vendor_id = Column(UUID(as_uuid=True), ForeignKey("vendor.id", ondelete="CASCADE"), nullable=False)
+
+    # Hierarchy: NULL = Business Unit (root); set = Branch under that BU.
+    parent_id = Column(UUID(as_uuid=True), ForeignKey("store.id", ondelete="RESTRICT"), nullable=True, index=True)
+    unit_type = Column(String(20), nullable=False, default="business_unit", server_default="business_unit")  # business_unit | branch
 
     name = Column(String(200), nullable=False)
     code = Column(String(50))           # short code e.g. "MUM-01"
@@ -35,9 +48,12 @@ class Store(Base):
     inventory = relationship("StoreInventory", back_populates="store", cascade="all, delete-orphan")
     staff = relationship("VendorUser", foreign_keys="VendorUser.store_id", back_populates="store")
     manager = relationship("VendorUser", foreign_keys=[manager_id])
+    parent = relationship("Store", remote_side=[id], back_populates="branches", foreign_keys=[parent_id])
+    branches = relationship("Store", back_populates="parent", foreign_keys=[parent_id])
 
     __table_args__ = (
         Index("idx_store_vendor", "vendor_id"),
+        Index("idx_store_parent", "vendor_id", "parent_id"),
     )
 
 

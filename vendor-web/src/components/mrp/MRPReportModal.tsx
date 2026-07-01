@@ -51,6 +51,15 @@ interface MRPReportModalProps {
   orderRef?: string
   items: MRPItem[]
   onClose: () => void
+  /** Business unit to check/reserve stock against — StoreInventory is the
+   * source of truth once a store is known; omit to fall back to the global
+   * Product.quantity rollup. */
+  storeId?: string | null
+  /** True once the order has passed 'confirmed' — materials are then
+   * auto-reserved/consumed by the backend on status transitions, so manual
+   * reserve/release here is disabled to avoid double-booking; the modal
+   * still works as a live availability check. */
+  autoManaged?: boolean
 }
 
 // ── Status badge ──────────────────────────────────────────────────────────────
@@ -100,7 +109,7 @@ function fmt(n: number) {
 // ── Main component ─────────────────────────────────────────────────────────────
 
 export function MRPReportModal({
- orderId, orderType, orderRef, items, onClose }: MRPReportModalProps) {
+ orderId, orderType, orderRef, items, onClose, storeId, autoManaged }: MRPReportModalProps) {
   useEscapeToClose(onClose)
 
   const calculateMRP = useCalculateMRP()
@@ -121,6 +130,7 @@ export function MRPReportModal({
       items: items.map(i => ({ product_id: i.product_id, qty: i.qty, name: i.name })),
       order_type: orderType,
       order_id: orderId,
+      store_id: storeId || undefined,
     })
     const mrpLines = result as unknown as MRPLine[]
     setLines(mrpLines)
@@ -166,6 +176,7 @@ export function MRPReportModal({
     await createReservations.mutateAsync({
       order_type: orderType,
       order_id: orderId,
+      store_id: storeId || undefined,
       items: toReserve,
     })
     await refetchReservations()
@@ -232,6 +243,17 @@ export function MRPReportModal({
           </div>
         </div>
 
+        {/* Auto-managed notice */}
+        {autoManaged && (
+          <div className="flex items-center gap-2 border-b border-primary/20 bg-primary/5 px-6 py-2.5">
+            <Lock className="h-4 w-4 text-primary" />
+            <span className="text-sm text-foreground">
+              Materials for this order are reserved and consumed automatically as it moves through confirmed → completed.
+              This view is read-only.
+            </span>
+          </div>
+        )}
+
         {/* Active reservations strip */}
         {hasReservations && (
           <div className="flex items-center justify-between gap-3 border-b border-green-500/25 bg-green-500/10 px-6 py-2.5">
@@ -241,19 +263,21 @@ export function MRPReportModal({
                 {activeReservations.length} material{activeReservations.length !== 1 ? 's' : ''} reserved for this order
               </span>
             </div>
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={handleReleaseAll}
-              disabled={isBusy}
-              className="gap-1.5 border-green-500/35 text-green-700 hover:bg-green-500/15 hover:text-green-800 dark:text-green-300 dark:hover:bg-green-500/20 dark:hover:text-green-200"
-            >
-              {releaseAll.isPending
-                ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                : <Unlock className="w-3.5 h-3.5" />
-              }
-              Release All
-            </Button>
+            {!autoManaged && (
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={handleReleaseAll}
+                disabled={isBusy}
+                className="gap-1.5 border-green-500/35 text-green-700 hover:bg-green-500/15 hover:text-green-800 dark:text-green-300 dark:hover:bg-green-500/20 dark:hover:text-green-200"
+              >
+                {releaseAll.isPending
+                  ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  : <Unlock className="w-3.5 h-3.5" />
+                }
+                Release All
+              </Button>
+            )}
           </div>
         )}
 
@@ -301,15 +325,17 @@ export function MRPReportModal({
               <thead className="sticky top-0 z-10 border-b border-border bg-muted/40 text-xs uppercase tracking-wide text-muted-foreground">
                 <tr>
                   <th className="w-8 px-4 py-3">
-                    <input
-                      type="checkbox"
-                      checked={selected.size > 0 && lines.filter(l => l.available > 0).every(l => selected.has(l.component_id))}
-                      onChange={() => {
-                        const reservable = lines.filter(l => l.available > 0).map(l => l.component_id)
-                        setSelected(s => s.size === reservable.length ? new Set() : new Set(reservable))
-                      }}
-                      className="rounded border-input"
-                    />
+                    {!autoManaged && (
+                      <input
+                        type="checkbox"
+                        checked={selected.size > 0 && lines.filter(l => l.available > 0).every(l => selected.has(l.component_id))}
+                        onChange={() => {
+                          const reservable = lines.filter(l => l.available > 0).map(l => l.component_id)
+                          setSelected(s => s.size === reservable.length ? new Set() : new Set(reservable))
+                        }}
+                        className="rounded border-input"
+                      />
+                    )}
                   </th>
                   <th className="px-4 py-3 text-left font-semibold"><TableColumnLabel>Material</TableColumnLabel></th>
                   <th className="px-4 py-3 text-right font-semibold"><TableColumnLabel>Required</TableColumnLabel></th>
@@ -334,13 +360,15 @@ export function MRPReportModal({
                         )}
                       >
                         <td className="px-4 py-3">
-                          <input
-                            type="checkbox"
-                            checked={selected.has(line.component_id)}
-                            onChange={() => toggleSelect(line.component_id)}
-                            disabled={line.available <= 0}
-                            className="rounded border-input"
-                          />
+                          {!autoManaged && (
+                            <input
+                              type="checkbox"
+                              checked={selected.has(line.component_id)}
+                              onChange={() => toggleSelect(line.component_id)}
+                              disabled={line.available <= 0}
+                              className="rounded border-input"
+                            />
+                          )}
                         </td>
                         <td className="px-4 py-3">
                           <div className="flex items-center gap-2">
@@ -416,18 +444,20 @@ export function MRPReportModal({
           </div>
           <div className="flex items-center gap-2">
             <Button variant="outline" size="sm" onClick={onClose}>Close</Button>
-            <Button
-              size="sm"
-              onClick={handleReserve}
-              disabled={isBusy || selected.size === 0 || lines.length === 0}
-              className="gap-1.5"
-            >
-              {createReservations.isPending
-                ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                : <Lock className="w-3.5 h-3.5" />
-              }
-              Reserve Selected ({selected.size})
-            </Button>
+            {!autoManaged && (
+              <Button
+                size="sm"
+                onClick={handleReserve}
+                disabled={isBusy || selected.size === 0 || lines.length === 0}
+                className="gap-1.5"
+              >
+                {createReservations.isPending
+                  ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  : <Lock className="w-3.5 h-3.5" />
+                }
+                Reserve Selected ({selected.size})
+              </Button>
+            )}
           </div>
         </div>
       </div>

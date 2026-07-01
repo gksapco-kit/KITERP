@@ -1,0 +1,565 @@
+﻿
+> vendor-web@1.0.0 typecheck
+> tsc
+
+../storefront-web/src/api/client.ts(2,10): error TS2305: Module '"@/lib/apiBase"' has no exported member 'getStorefrontApiBaseUrl'.
+../storefront-web/src/api/store.ts(2,32): error TS2305: Module '"@/types"' has no exported member 'VendorInfo'.
+../storefront-web/src/api/store.ts(2,62): error TS2305: Module '"@/types"' has no exported member 'Cart'.
+../storefront-web/src/api/store.ts(2,68): error TS2305: Module '"@/types"' has no exported member 'CartItem'.
+../storefront-web/src/api/store.ts(2,85): error TS2305: Module '"@/types"' has no exported member 'Booking'.
+../storefront-web/src/api/store.ts(2,113): error TS2305: Module '"@/types"' has no exported member 'ReviewsResponse'.
+../storefront-web/src/api/store.ts(2,138): error TS2305: Module '"@/types"' has no exported member 'StoreCategory'.
+../storefront-web/src/components/builder/BlockOverlayLayers.tsx(3,27): error TS2307: Cannot find module '@/contexts/VendorContext' or its corresponding type declarations.
+../storefront-web/src/components/builder/BlockOverlayLayers.tsx(5,38): error TS2307: Cannot find module '@/lib/overlayImageStyle' or its corresponding type declarations.
+../storefront-web/src/components/builder/BlockOverlayLayers.tsx(14,8): error TS2307: Cannot find module '@/lib/blockOverlays' or its corresponding type declarations.
+../storefront-web/src/components/builder/BlockOverlayLayers.tsx(15,91): error TS2307: Cannot find module '@/lib/builderOverlayIcons' or its corresponding type declarations.
+../storefront-web/src/components/builder/BlockOverlayLayers.tsx(16,66): error TS2307: Cannot find module '@/lib/builderFontFamilies' or its corresponding type declarations.
+../storefront-web/src/components/builder/BlockOverlayLayers.tsx(55,9): error TS2322: Type 'import("C:/KIT ERP/Work Space/KITERP/storefront-web/node_modules/@types/react/index").CSSProperties' is not assignable to type 'React.CSSProperties'.
+  Index signature for type '`--radix-${string}`' is missing in type 'Properties<string | number, string & {}>'.
+../storefront-web/src/components/builder/BlockOverlayLayers.tsx(65,22): error TS2322: Type 'import("C:/KIT ERP/Work Space/KITERP/storefront-web/node_modules/@types/react/index").CSSProperties' is not assignable to type 'React.CSSProperties'.
+  Index signature for type '`--radix-${string}`' is missing in type 'Properties<string | number, string & {}>'.
+../storefront-web/src/components/builder/BlockOverlayLayers.tsx(72,21): error TS2322: Type 'import("C:/KIT ERP/Work Space/KITERP/storefront-web/node_modules/@types/react/index").CSSProperties' is not assignable to type 'React.CSSProperties'.
+  Index signature for type '`--radix-${string}`' is missing in type 'Properties<string | number, string & {}>'.
+../storefront-web/src/components/builder/BlockOverlayLayers.tsx(166,19): error TS2322: Type 'import("C:/KIT ERP/Work Space/KITERP/storefront-web/node_modules/@types/react/index").CSSProperties' is not assignable to type 'React.CSSProperties'.
+  Index signature for type '`--radix-${string}`' is missing in type 'Properties<string | number, string & {}>'.
+../storefront-web/src/components/builder/BlockRenderer.tsx(17,69): error TS2307: Cannot find module '@/blocks/registry' or its corresponding type declarations.
+../storefront-web/src/components/builder/BlockRenderer.tsx(18,31): error TS2307: Cannot find module '@/blocks/registry' or its corresponding type declarations.
+../storefront-web/src/components/builder/BlockRenderer.tsx(19,32): error TS2307: Cannot find module '@/api/publicSites' or its corresponding type declarations.
+../storefront-web/src/components/builder/BlockRenderer.tsx(20,27): error TS2307: Cannot find module '@/contexts/VendorContext' or its corresponding type declarations.
+../storefront-web/src/components/builder/BlockRenderer.tsx(21,34): error TS2307: Cannot find module '@/contexts/LiveDataFetchContext' or its corresponding type declarations.
+../storefront-web/src/components/builder/BlockRenderer.tsx(22,34): error TS2307: Cannot find module '@/contexts/BuilderCanvasContext' or its corresponding type declarations.
+../storefront-web/src/components/builder/BlockRenderer.tsx(23,35): error TS2307: Cannot find module '@/lib/siteThemeCss' or its corresponding type declarations.
+../storefront-web/src/components/builder/BlockRenderer.tsx(24,43): error TS2307: Cannot find module '@/lib/siteBorderRadius' or its corresponding type declarations.
+../storefront-web/src/components/builder/BlockRenderer.tsx(25,22): error TS2307: Cannot find module '@/components/builder/blocks/NavBlock' or its corresponding type declarations.
+../storefront-web/src/components/builder/BlockRenderer.tsx(26,25): error TS2307: Cannot find module '@/components/builder/blocks/FooterBlock' or its corresponding type declarations.
+../storefront-web/src/components/builder/BlockRenderer.tsx(29,66): error TS2307: Cannot find module '@/lib/blockOverlays' or its corresponding type declarations.
+../storefront-web/src/components/builder/BlockRenderer.tsx(31,60): error TS2307: Cannot find module '@/lib/blockSectionStyle' or its corresponding type declarations.
+../storefront-web/src/components/builder/BlockRenderer.tsx(32,60): error TS2307: Cannot find module '@/lib/fieldTextStyles' or its corresponding type declarations.
+../storefront-web/src/components/builder/BlockRenderer.tsx(33,46): error TS2307: Cannot find module '@/lib/builderScrollAnimations' or its corresponding type declarations.
+../storefront-web/src/components/builder/BlockRenderer.tsx(34,44): error TS2307: Cannot find module '@/lib/blockLinkPolicy' or its corresponding type declarations.
+../storefront-web/src/components/builder/BlockRenderer.tsx(41,8): error TS2307: Cannot find module '@/lib/blockStyleOverrides' or its corresponding type declarations.
+../storefront-web/src/components/builder/BlockRenderer.tsx(44,37): error TS2307: Cannot find module '@/components/builder/blocks/HeroBlock' or its corresponding type declarations.
+../storefront-web/src/components/builder/BlockRenderer.tsx(45,41): error TS2307: Cannot find module '@/components/builder/blocks/FeaturesBlock' or its corresponding type declarations.
+../storefront-web/src/components/builder/BlockRenderer.tsx(46,44): error TS2307: Cannot find module '@/components/builder/blocks/ProductGridBlock' or its corresponding type declarations.
+../storefront-web/src/components/builder/BlockRenderer.tsx(47,46): error TS2307: Cannot find module '@/components/builder/blocks/ServicesCardsBlock' or its corresponding type declarations.
+../storefront-web/src/components/builder/BlockRenderer.tsx(48,45): error TS2307: Cannot find module '@/components/builder/blocks/TestimonialsBlock' or its corresponding type declarations.
+../storefront-web/src/components/builder/BlockRenderer.tsx(49,41): error TS2307: Cannot find module '@/components/builder/blocks/TeamGridBlock' or its corresponding type declarations.
+../storefront-web/src/components/builder/BlockRenderer.tsx(50,38): error TS2307: Cannot find module '@/components/builder/blocks/StatsBlock' or its corresponding type declarations.
+../storefront-web/src/components/builder/BlockRenderer.tsx(51,36): error TS2307: Cannot find module '@/components/builder/blocks/CtaBlock' or its corresponding type declarations.
+../storefront-web/src/components/builder/BlockRenderer.tsx(52,44): error TS2307: Cannot find module '@/components/builder/blocks/ContactFormBlock' or its corresponding type declarations.
+../storefront-web/src/components/builder/BlockRenderer.tsx(53,41): error TS2307: Cannot find module '@/components/builder/blocks/MapEmbedBlock' or its corresponding type declarations.
+../storefront-web/src/components/builder/BlockRenderer.tsx(54,36): error TS2307: Cannot find module '@/components/builder/blocks/FaqBlock' or its corresponding type declarations.
+../storefront-web/src/components/builder/BlockRenderer.tsx(55,40): error TS2307: Cannot find module '@/components/builder/blocks/PricingBlock' or its corresponding type declarations.
+../storefront-web/src/components/builder/BlockRenderer.tsx(56,41): error TS2307: Cannot find module '@/components/builder/blocks/RichTextBlock' or its corresponding type declarations.
+../storefront-web/src/components/builder/BlockRenderer.tsx(57,38): error TS2307: Cannot find module '@/components/builder/blocks/ImageBlock' or its corresponding type declarations.
+../storefront-web/src/components/builder/BlockRenderer.tsx(58,43): error TS2307: Cannot find module '@/components/builder/blocks/VideoEmbedBlock' or its corresponding type declarations.
+../storefront-web/src/components/builder/BlockRenderer.tsx(59,47): error TS2307: Cannot find module '@/components/builder/blocks/GalleryMasonryBlock' or its corresponding type declarations.
+../storefront-web/src/components/builder/BlockRenderer.tsx(60,44): error TS2307: Cannot find module '@/components/builder/blocks/SocialLinksBlock' or its corresponding type declarations.
+../storefront-web/src/components/builder/BlockRenderer.tsx(61,42): error TS2307: Cannot find module '@/components/builder/blocks/CountdownBlock' or its corresponding type declarations.
+../storefront-web/src/components/builder/BlockRenderer.tsx(62,48): error TS2307: Cannot find module '@/components/builder/blocks/AnnouncementBarBlock' or its corresponding type declarations.
+../storefront-web/src/components/builder/BlockRenderer.tsx(63,45): error TS2307: Cannot find module '@/components/builder/blocks/MarqueeStripBlock' or its corresponding type declarations.
+../storefront-web/src/components/builder/BlockRenderer.tsx(64,43): error TS2307: Cannot find module '@/components/builder/blocks/NewsletterBlock' or its corresponding type declarations.
+../storefront-web/src/components/builder/BlockRenderer.tsx(65,43): error TS2307: Cannot find module '@/components/builder/blocks/TrustLogosBlock' or its corresponding type declarations.
+../storefront-web/src/components/builder/BlockRenderer.tsx(66,41): error TS2307: Cannot find module '@/components/builder/blocks/TimelineBlock' or its corresponding type declarations.
+../storefront-web/src/components/builder/BlockRenderer.tsx(67,43): error TS2307: Cannot find module '@/components/builder/blocks/AboutSplitBlock' or its corresponding type declarations.
+../storefront-web/src/components/builder/BlockRenderer.tsx(68,46): error TS2307: Cannot find module '@/components/builder/blocks/BookingWidgetBlock' or its corresponding type declarations.
+../storefront-web/src/components/builder/BlockRenderer.tsx(69,50): error TS2307: Cannot find module '@/components/builder/blocks/BookingSlotPickerBlock' or its corresponding type declarations.
+../storefront-web/src/components/builder/BlockRenderer.tsx(70,42): error TS2307: Cannot find module '@/components/builder/blocks/LiveStockBlock' or its corresponding type declarations.
+../storefront-web/src/components/builder/BlockRenderer.tsx(71,44): error TS2307: Cannot find module '@/components/builder/blocks/OrderStatusBlock' or its corresponding type declarations.
+../storefront-web/src/components/builder/BlockRenderer.tsx(72,45): error TS2307: Cannot find module '@/components/builder/blocks/CouponBannerBlock' or its corresponding type declarations.
+../storefront-web/src/components/builder/BlockRenderer.tsx(73,52): error TS2307: Cannot find module '@/components/builder/blocks/PaymentMethodsStripBlock' or its corresponding type declarations.
+../storefront-web/src/components/builder/BlockRenderer.tsx(74,47): error TS2307: Cannot find module '@/components/builder/blocks/ProductReviewsBlock' or its corresponding type declarations.
+../storefront-web/src/components/builder/BlockRenderer.tsx(75,42): error TS2307: Cannot find module '@/components/builder/blocks/SearchBarBlock' or its corresponding type declarations.
+../storefront-web/src/components/builder/BlockRenderer.tsx(76,46): error TS2307: Cannot find module '@/components/builder/blocks/CookieConsentBlock' or its corresponding type declarations.
+../storefront-web/src/components/builder/BlockRenderer.tsx(77,46): error TS2307: Cannot find module '@/components/builder/blocks/ProductDetailBlock' or its corresponding type declarations.
+../storefront-web/src/components/builder/BlockRenderer.tsx(78,45): error TS2307: Cannot find module '@/components/builder/blocks/CheckoutFormBlock' or its corresponding type declarations.
+../storefront-web/src/components/builder/BlockRenderer.tsx(79,47): error TS2307: Cannot find module '@/components/builder/blocks/RecentlyViewedBlock' or its corresponding type declarations.
+../storefront-web/src/components/builder/BlockRenderer.tsx(80,47): error TS2307: Cannot find module '@/components/builder/blocks/ProductFiltersBlock' or its corresponding type declarations.
+../storefront-web/src/components/builder/BlockRenderer.tsx(81,41): error TS2307: Cannot find module '@/components/builder/blocks/BlogGridBlock' or its corresponding type declarations.
+../storefront-web/src/components/builder/BlockRenderer.tsx(82,43): error TS2307: Cannot find module '@/components/builder/blocks/CartDrawerBlock' or its corresponding type declarations.
+../storefront-web/src/components/builder/BlockRenderer.tsx(83,42): error TS2307: Cannot find module '@/components/builder/blocks/LiveQuoteBlock' or its corresponding type declarations.
+../storefront-web/src/components/builder/BlockRenderer.tsx(84,48): error TS2307: Cannot find module '@/components/builder/blocks/CommerceLibraryBlock' or its corresponding type declarations.
+../storefront-web/src/components/builder/BlockRenderer.tsx(192,30): error TS7006: Parameter 'p' implicitly has an 'any' type.
+../storefront-web/src/components/builder/BlockRenderer.tsx(213,15): error TS7006: Parameter 'items' implicitly has an 'any' type.
+../storefront-web/src/components/builder/BlockRenderer.tsx(219,13): error TS7006: Parameter 'r' implicitly has an 'any' type.
+../storefront-web/src/components/builder/BlockRenderer.tsx(503,7): error TS2322: Type 'import("C:/KIT ERP/Work Space/KITERP/storefront-web/node_modules/@types/react/index").CSSProperties | undefined' is not assignable to type 'React.CSSProperties | undefined'.
+  Type 'import("C:/KIT ERP/Work Space/KITERP/storefront-web/node_modules/@types/react/index").CSSProperties' is not assignable to type 'React.CSSProperties'.
+    Index signature for type '`--radix-${string}`' is missing in type 'Properties<string | number, string & {}>'.
+../storefront-web/src/components/builder/BlockRenderer.tsx(531,50): error TS2322: Type 'import("C:/KIT ERP/Work Space/KITERP/storefront-web/node_modules/@types/react/index").CSSProperties' is not assignable to type 'React.CSSProperties'.
+  Index signature for type '`--radix-${string}`' is missing in type 'Properties<string | number, string & {}>'.
+../storefront-web/src/contexts/BranchContext.tsx(12,46): error TS2307: Cannot find module '@/api/store' or its corresponding type declarations.
+../storefront-web/src/contexts/BranchContext.tsx(13,10): error TS2614: Module '"@/api/client"' has no exported member 'setBranchQueryParam'. Did you mean to use 'import setBranchQueryParam from "@/api/client"' instead?
+../storefront-web/src/contexts/BranchContext.tsx(14,27): error TS2307: Cannot find module '@/contexts/VendorContext' or its corresponding type declarations.
+../storefront-web/src/contexts/BranchContext.tsx(99,14): error TS7006: Parameter 'r' implicitly has an 'any' type.
+../storefront-web/src/contexts/BuilderCanvasContext.tsx(2,46): error TS2307: Cannot find module '@/lib/canvasImageTarget' or its corresponding type declarations.
+../storefront-web/src/contexts/BuilderSiteContext.tsx(18,32): error TS2307: Cannot find module '@/api/publicSites' or its corresponding type declarations.
+../storefront-web/src/contexts/BuilderSiteContext.tsx(19,27): error TS2307: Cannot find module '@/contexts/VendorContext' or its corresponding type declarations.
+../storefront-web/src/contexts/BuilderSiteContext.tsx(20,33): error TS2307: Cannot find module '@/blocks/registry' or its corresponding type declarations.
+../storefront-web/src/contexts/BuilderSiteContext.tsx(21,46): error TS2307: Cannot find module '@/lib/draftEmbedPreview' or its corresponding type declarations.
+../storefront-web/src/contexts/BuilderSiteContext.tsx(49,15): error TS7006: Parameter 'site' implicitly has an 'any' type.
+../storefront-web/src/contexts/BuilderSiteContext.tsx(88,13): error TS7006: Parameter 'site' implicitly has an 'any' type.
+../storefront-web/src/contexts/BuilderSiteContext.tsx(147,13): error TS7006: Parameter 'site' implicitly has an 'any' type.
+../storefront-web/src/contexts/LiveDataFetchContext.tsx(2,45): error TS2307: Cannot find module '@/blocks/registry' or its corresponding type declarations.
+../storefront-web/src/contexts/VendorContext.tsx(4,10): error TS2614: Module '"@/api/client"' has no exported member 'setVendorContext'. Did you mean to use 'import setVendorContext from "@/api/client"' instead?
+../storefront-web/src/contexts/VendorContext.tsx(5,15): error TS2305: Module '"@/types"' has no exported member 'DisplayFields'.
+../storefront-web/src/contexts/VendorContext.tsx(6,10): error TS2305: Module '"@/lib/apiBase"' has no exported member 'getStorefrontApiBaseUrl'.
+../storefront-web/src/contexts/VendorContext.tsx(11,8): error TS2307: Cannot find module '@/lib/draftCatalogEmbed' or its corresponding type declarations.
+../storefront-web/src/contexts/VendorContext.tsx(12,46): error TS2307: Cannot find module '@/lib/draftEmbedPreview' or its corresponding type declarations.
+../storefront-web/src/contexts/VendorContext.tsx(13,53): error TS2307: Cannot find module '@/lib/storefrontTemplateAssignment' or its corresponding type declarations.
+../storefront-web/src/contexts/VendorContext.tsx(15,27): error TS2307: Cannot find module '@/contexts/BranchContext' or its corresponding type declarations.
+../storefront-web/src/lib/blockHiddenFields.ts(219,3): error TS2783: 'subtitle' is specified more than once, so this usage will be overwritten.
+../storefront-web/src/lib/blockHiddenFields.ts(221,3): error TS2783: 'headline' is specified more than once, so this usage will be overwritten.
+../storefront-web/src/lib/blockHiddenFields.ts(224,3): error TS2783: 'image_url' is specified more than once, so this usage will be overwritten.
+../storefront-web/src/lib/blockHiddenFields.ts(225,3): error TS2783: 'bg_image_url' is specified more than once, so this usage will be overwritten.
+../storefront-web/src/lib/blockHiddenFields.ts(249,3): error TS2783: 'eyebrow' is specified more than once, so this usage will be overwritten.
+../storefront-web/src/lib/branchStorefrontIdentity.ts(1,36): error TS2307: Cannot find module '@/api/store' or its corresponding type declarations.
+../storefront-web/src/lib/branchStorefrontIdentity.ts(2,33): error TS2307: Cannot find module '@/contexts/VendorContext' or its corresponding type declarations.
+../storefront-web/src/lib/builderInlineTextSelection.ts(1,36): error TS2307: Cannot find module '@/lib/builderFontFamilies' or its corresponding type declarations.
+../storefront-web/src/lib/builderTextClear.ts(1,31): error TS2307: Cannot find module '@/lib/fieldTextStyles' or its corresponding type declarations.
+../storefront-web/src/lib/designBarCapabilities.ts(58,34): error TS2304: Cannot find name 'blockType'.
+../storefront-web/src/lib/fieldTextStyles.ts(2,36): error TS2307: Cannot find module '@/lib/builderFontFamilies' or its corresponding type declarations.
+../storefront-web/src/lib/previewNavRouting.ts(1,33): error TS2307: Cannot find module '@/blocks/registry' or its corresponding type declarations.
+../storefront-web/src/lib/previewNavRouting.ts(2,37): error TS2307: Cannot find module '@/lib/catalogNavCapabilities' or its corresponding type declarations.
+../storefront-web/src/lib/previewNavRouting.ts(30,12): error TS7006: Parameter 'p' implicitly has an 'any' type.
+../storefront-web/src/lib/previewNavRouting.ts(31,16): error TS7006: Parameter 's' implicitly has an 'any' type.
+../storefront-web/src/lib/storefrontLayoutChrome.ts(1,58): error TS2307: Cannot find module '@/blocks/registry' or its corresponding type declarations.
+../storefront-web/src/lib/storefrontLayoutChrome.ts(2,40): error TS2307: Cannot find module '@/storefront/catalogTemplateIds' or its corresponding type declarations.
+../storefront-web/src/lib/storefrontLayoutChrome.ts(3,33): error TS2307: Cannot find module '@/lib/siteNavPages' or its corresponding type declarations.
+../storefront-web/src/lib/storefrontLayoutChrome.ts(9,8): error TS2307: Cannot find module '@/lib/storefrontTemplateAssignment' or its corresponding type declarations.
+../storefront-web/src/lib/storefrontLayoutChrome.ts(34,26): error TS7006: Parameter 'p' implicitly has an 'any' type.
+../storefront-web/src/lib/storefrontLayoutChrome.ts(55,5): error TS7006: Parameter 'b' implicitly has an 'any' type.
+../storefront-web/src/lib/storefrontLayoutChrome.ts(62,44): error TS7006: Parameter 'b' implicitly has an 'any' type.
+../storefront-web/src/lib/storefrontLayoutChrome.ts(69,27): error TS7006: Parameter 'b' implicitly has an 'any' type.
+../storefront-web/src/lib/storefrontLayoutChrome.ts(96,27): error TS7006: Parameter 'b' implicitly has an 'any' type.
+../storefront-web/src/lib/storefrontLayoutChrome.ts(126,34): error TS7006: Parameter 'b' implicitly has an 'any' type.
+../storefront-web/src/lib/storefrontLayoutChrome.ts(128,38): error TS7006: Parameter 'b' implicitly has an 'any' type.
+../storefront-web/src/lib/storefrontLayoutChrome.ts(160,27): error TS7006: Parameter 'p' implicitly has an 'any' type.
+../storefront-web/src/lib/teamGridContent.ts(1,31): error TS2307: Cannot find module '@/blocks/registry' or its corresponding type declarations.
+../storefront-web/src/lib/wellnessTemplateCopy.ts(4,8): error TS2307: Cannot find module '@/lib/wellnessCategoryStyle' or its corresponding type declarations.
+../storefront-web/src/lib/wellnessTemplateCopy.ts(74,34): error TS2339: Property 'description' does not exist on type '{ title?: string | undefined; desc?: string | undefined; }'.
+src/components/common/DisabledOptionCard.tsx(46,9): error TS2322: Type 'RefObject<HTMLElement>' is not assignable to type 'LegacyRef<HTMLDivElement> | undefined'.
+  Type 'RefObject<HTMLElement>' is not assignable to type 'RefObject<HTMLDivElement>'.
+    Property 'align' is missing in type 'HTMLElement' but required in type 'HTMLDivElement'.
+src/components/common/DocumentLivePreview.tsx(68,18): error TS2869: Right operand of ?? is unreachable because the left operand is never nullish.
+src/components/common/FieldLabel.tsx(29,7): error TS2322: Type '{ children: string; className: string | undefined; helpKey: string | undefined; required: boolean | undefined; dbTable: string | undefined; dbField: string | undefined; dbNote: string | undefined; }' is not assignable to type 'IntrinsicAttributes & Omit<LabelProps & RefAttributes<HTMLLabelElement>, "ref"> & VariantProps<(props?: ClassProp | undefined) => string> & { ...; } & RefAttributes<...>'.
+  Property 'required' does not exist on type 'IntrinsicAttributes & Omit<LabelProps & RefAttributes<HTMLLabelElement>, "ref"> & VariantProps<(props?: ClassProp | undefined) => string> & { ...; } & RefAttributes<...>'.
+src/components/common/FormSectionNav.tsx(181,41): error TS2322: Type '{ children: string; className: string; required: boolean | undefined; }' is not assignable to type 'IntrinsicAttributes & Omit<LabelProps & RefAttributes<HTMLLabelElement>, "ref"> & VariantProps<(props?: ClassProp | undefined) => string> & { ...; } & RefAttributes<...>'.
+  Property 'required' does not exist on type 'IntrinsicAttributes & Omit<LabelProps & RefAttributes<HTMLLabelElement>, "ref"> & VariantProps<(props?: ClassProp | undefined) => string> & { ...; } & RefAttributes<...>'.
+src/components/common/HelpableText.tsx(50,9): error TS2783: 'className' is specified more than once, so this usage will be overwritten.
+src/components/common/InlineFieldLabel.tsx(29,7): error TS2322: Type '{ children: string; className: string | undefined; required: boolean; helpKey: string | undefined; htmlFor: string | undefined; autoHelp: boolean | undefined; }' is not assignable to type 'IntrinsicAttributes & Omit<LabelProps & RefAttributes<HTMLLabelElement>, "ref"> & VariantProps<(props?: ClassProp | undefined) => string> & { ...; } & RefAttributes<...>'.
+  Property 'required' does not exist on type 'IntrinsicAttributes & Omit<LabelProps & RefAttributes<HTMLLabelElement>, "ref"> & VariantProps<(props?: ClassProp | undefined) => string> & { ...; } & RefAttributes<...>'.
+src/components/common/InlineFieldLabel.tsx(60,7): error TS2322: Type '{ children: string; id?: string | undefined; title?: string | undefined; color?: string | undefined; about?: string | undefined; style?: CSSProperties | undefined; suppressHydrationWarning?: boolean | undefined; ... 261 more ...; autoHelp: boolean | undefined; }' is not assignable to type 'IntrinsicAttributes & Omit<LabelProps & RefAttributes<HTMLLabelElement>, "ref"> & VariantProps<(props?: ClassProp | undefined) => string> & { ...; } & RefAttributes<...>'.
+  Property 'required' does not exist on type 'IntrinsicAttributes & Omit<LabelProps & RefAttributes<HTMLLabelElement>, "ref"> & VariantProps<(props?: ClassProp | undefined) => string> & { ...; } & RefAttributes<...>'.
+src/components/hr/DeptModal.tsx(65,77): error TS2322: Type '{ children: string; className: string; required: true; }' is not assignable to type 'IntrinsicAttributes & Omit<LabelProps & RefAttributes<HTMLLabelElement>, "ref"> & VariantProps<(props?: ClassProp | undefined) => string> & { ...; } & RefAttributes<...>'.
+  Property 'required' does not exist on type 'IntrinsicAttributes & Omit<LabelProps & RefAttributes<HTMLLabelElement>, "ref"> & VariantProps<(props?: ClassProp | undefined) => string> & { ...; } & RefAttributes<...>'.
+src/components/hr/DesigModal.tsx(43,7): error TS7006: Parameter 'd' implicitly has an 'any' type.
+src/components/hr/DesigModal.tsx(99,77): error TS2322: Type '{ children: string; className: string; required: true; }' is not assignable to type 'IntrinsicAttributes & Omit<LabelProps & RefAttributes<HTMLLabelElement>, "ref"> & VariantProps<(props?: ClassProp | undefined) => string> & { ...; } & RefAttributes<...>'.
+  Property 'required' does not exist on type 'IntrinsicAttributes & Omit<LabelProps & RefAttributes<HTMLLabelElement>, "ref"> & VariantProps<(props?: ClassProp | undefined) => string> & { ...; } & RefAttributes<...>'.
+src/components/hr/DesigModal.tsx(114,77): error TS2322: Type '{ children: string; className: string; required: true; }' is not assignable to type 'IntrinsicAttributes & Omit<LabelProps & RefAttributes<HTMLLabelElement>, "ref"> & VariantProps<(props?: ClassProp | undefined) => string> & { ...; } & RefAttributes<...>'.
+  Property 'required' does not exist on type 'IntrinsicAttributes & Omit<LabelProps & RefAttributes<HTMLLabelElement>, "ref"> & VariantProps<(props?: ClassProp | undefined) => string> & { ...; } & RefAttributes<...>'.
+src/components/mrp/BOMEditor.tsx(39,10): error TS2352: Conversion of type 'BOMItemRecord[]' to type 'Record<string, unknown>[]' may be a mistake because neither type sufficiently overlaps with the other. If this was intentional, convert the expression to 'unknown' first.
+  Type 'BOMItemRecord' is not comparable to type 'Record<string, unknown>'.
+    Index signature for type 'string' is missing in type 'BOMItemRecord'.
+src/components/ui/label.tsx(49,7): error TS2339: Property 'required' does not exist on type 'LabelProps'.
+src/components/websites/BuilderDraftLiveGuide.tsx(70,14): error TS2304: Cannot find name 'Save'.
+src/components/websites/BuilderDraftLiveGuide.tsx(79,14): error TS2304: Cannot find name 'Eye'.
+src/components/websites/BuilderDraftLiveGuide.tsx(88,14): error TS2304: Cannot find name 'Rocket'.
+src/components/websites/BuilderSiteInputParametersModal.tsx(93,21): error TS2345: Argument of type 'string' is not assignable to parameter of type 'SetStateAction<"retail">'.
+src/components/websites/BuilderSiteInputParametersModal.tsx(94,20): error TS2345: Argument of type 'string' is not assignable to parameter of type 'SetStateAction<"products">'.
+src/components/websites/BuilderSiteInputParametersModal.tsx(133,21): error TS2345: Argument of type 'string' is not assignable to parameter of type 'SetStateAction<"retail">'.
+src/components/websites/BuilderSiteInputParametersModal.tsx(134,20): error TS2345: Argument of type 'string' is not assignable to parameter of type 'SetStateAction<"products">'.
+src/components/websites/BuilderSiteInputParametersModal.tsx(270,11): error TS2322: Type '{ open: boolean; onClose: () => void; disabled: boolean; saving: boolean; saveLabel: string; subtitle: string; onSave: () => Promise<void>; name: string; setName: Dispatch<SetStateAction<string>>; ... 29 more ...; lockWebsiteScope: boolean; }' is not assignable to type '{ open: boolean; onClose: () => void; onCloseParent?: (() => void) | undefined; disabled?: boolean | undefined; saveLabel?: string | undefined; onSave?: (() => void | Promise<void>) | undefined; ... 33 more ...; lockWebsiteScope?: boolean | undefined; }'.
+  Types of property 'setBusinessType' are incompatible.
+    Type 'Dispatch<SetStateAction<"retail">>' is not assignable to type '(v: string) => void'.
+      Types of parameters 'value' and 'v' are incompatible.
+        Type 'string' is not assignable to type 'SetStateAction<"retail">'.
+src/components/websites/BuilderStepSlider.tsx(180,45): error TS2339: Property 'value' does not exist on type 'EventTarget'.
+src/components/websites/BuilderStylePanel.tsx(82,27): error TS2352: Conversion of type 'StyleConfig' to type 'Record<string, string>' may be a mistake because neither type sufficiently overlaps with the other. If this was intentional, convert the expression to 'unknown' first.
+  Index signature for type 'string' is missing in type 'StyleConfig'.
+src/components/websites/BuilderStylePanel.tsx(105,27): error TS2352: Conversion of type 'StyleConfig' to type 'Record<string, string>' may be a mistake because neither type sufficiently overlaps with the other. If this was intentional, convert the expression to 'unknown' first.
+  Index signature for type 'string' is missing in type 'StyleConfig'.
+src/components/websites/BuilderStylePanel.tsx(108,41): error TS2352: Conversion of type 'StyleConfig' to type 'Record<string, string>' may be a mistake because neither type sufficiently overlaps with the other. If this was intentional, convert the expression to 'unknown' first.
+  Index signature for type 'string' is missing in type 'StyleConfig'.
+src/components/websites/DesignBarDropdownPortal.tsx(55,7): error TS2322: Type 'RefObject<HTMLDivElement | null>' is not assignable to type 'LegacyRef<HTMLDivElement> | undefined'.
+  Type 'RefObject<HTMLDivElement | null>' is not assignable to type 'RefObject<HTMLDivElement>'.
+    Type 'HTMLDivElement | null' is not assignable to type 'HTMLDivElement'.
+      Type 'null' is not assignable to type 'HTMLDivElement'.
+src/components/websites/DraftPreviewRenderer.tsx(80,40): error TS7006: Parameter 'b' implicitly has an 'any' type.
+src/components/websites/DraftPreviewRenderer.tsx(103,62): error TS2345: Argument of type 'PublicPreviewPage' is not assignable to parameter of type 'Pick<PublicPage, "id" | "blocks" | "is_homepage">'.
+  Property 'blocks' is optional in type 'PublicPreviewPage' but required in type 'Pick<PublicPage, "id" | "blocks" | "is_homepage">'.
+src/components/websites/MediaClipPicker.tsx(52,9): error TS2322: Type 'import("C:/KIT ERP/Work Space/KITERP/storefront-web/node_modules/@types/react/index").CSSProperties | undefined' is not assignable to type 'React.CSSProperties | undefined'.
+  Type 'import("C:/KIT ERP/Work Space/KITERP/storefront-web/node_modules/@types/react/index").CSSProperties' is not assignable to type 'React.CSSProperties'.
+    Index signature for type '`--radix-${string}`' is missing in type 'Properties<string | number, string & {}>'.
+src/components/websites/OverlayIconPicker.tsx(190,9): error TS2322: Type 'RefObject<HTMLButtonElement | null>' is not assignable to type 'LegacyRef<HTMLButtonElement> | undefined'.
+  Type 'RefObject<HTMLButtonElement | null>' is not assignable to type 'RefObject<HTMLButtonElement>'.
+    Type 'HTMLButtonElement | null' is not assignable to type 'HTMLButtonElement'.
+      Type 'null' is not assignable to type 'HTMLButtonElement'.
+src/components/websites/SectionLayoutPreview.tsx(434,18): error TS2322: Type 'unknown' is not assignable to type 'Key | null | undefined'.
+src/components/websites/SectionLayoutPreview.tsx(435,51): error TS2538: Type 'unknown' cannot be used as an index type.
+src/hooks/useVendor.ts(1794,42): error TS2345: Argument of type 'Record<string, unknown>[]' is not assignable to parameter of type '{ component_id: string; qty_per_unit: number; notes?: string | null | undefined; }[]'.
+  Type 'Record<string, unknown>' is missing the following properties from type '{ component_id: string; qty_per_unit: number; notes?: string | null | undefined; }': component_id, qty_per_unit
+src/layouts/DashboardLayout.tsx(435,12): error TS2322: Type 'RefObject<HTMLDivElement | null>' is not assignable to type 'LegacyRef<HTMLDivElement> | undefined'.
+  Type 'RefObject<HTMLDivElement | null>' is not assignable to type 'RefObject<HTMLDivElement>'.
+    Type 'HTMLDivElement | null' is not assignable to type 'HTMLDivElement'.
+      Type 'null' is not assignable to type 'HTMLDivElement'.
+src/layouts/DashboardLayout.tsx(467,12): error TS2322: Type 'RefObject<HTMLDivElement | null>' is not assignable to type 'LegacyRef<HTMLDivElement> | undefined'.
+  Type 'RefObject<HTMLDivElement | null>' is not assignable to type 'RefObject<HTMLDivElement>'.
+    Type 'HTMLDivElement | null' is not assignable to type 'HTMLDivElement'.
+      Type 'null' is not assignable to type 'HTMLDivElement'.
+src/layouts/DashboardLayout.tsx(580,190): error TS2322: Type '"green"' is not assignable to type '"indigo" | "amber" | "rose" | "blue" | "violet" | "emerald" | undefined'.
+src/layouts/DashboardLayout.tsx(624,156): error TS2322: Type '"green"' is not assignable to type '"indigo" | "amber" | "rose" | "blue" | "violet" | "emerald" | undefined'.
+src/layouts/DashboardLayout.tsx(1624,42): error TS2769: No overload matches this call.
+  Overload 1 of 2, '(type: "keydown", listener: (this: Document, ev: KeyboardEvent) => any, options?: boolean | AddEventListenerOptions | undefined): void', gave the following error.
+    Argument of type '(e: KeyboardEvent) => void' is not assignable to parameter of type '(this: Document, ev: KeyboardEvent) => any'.
+      Types of parameters 'e' and 'ev' are incompatible.
+        Type 'KeyboardEvent' is missing the following properties from type 'KeyboardEvent<Element>': locale, nativeEvent, isDefaultPrevented, isPropagationStopped, persist
+  Overload 2 of 2, '(type: string, listener: EventListenerOrEventListenerObject, options?: boolean | AddEventListenerOptions | undefined): void', gave the following error.
+    Argument of type '(e: KeyboardEvent) => void' is not assignable to parameter of type 'EventListenerOrEventListenerObject'.
+      Type '(e: KeyboardEvent) => void' is not assignable to type 'EventListener'.
+        Types of parameters 'e' and 'evt' are incompatible.
+          Type 'Event' is missing the following properties from type 'KeyboardEvent<Element>': altKey, charCode, ctrlKey, code, and 15 more.
+src/layouts/DashboardLayout.tsx(1627,47): error TS2769: No overload matches this call.
+  Overload 1 of 2, '(type: "keydown", listener: (this: Document, ev: KeyboardEvent) => any, options?: boolean | EventListenerOptions | undefined): void', gave the following error.
+    Argument of type '(e: KeyboardEvent) => void' is not assignable to parameter of type '(this: Document, ev: KeyboardEvent) => any'.
+      Types of parameters 'e' and 'ev' are incompatible.
+        Type 'KeyboardEvent' is missing the following properties from type 'KeyboardEvent<Element>': locale, nativeEvent, isDefaultPrevented, isPropagationStopped, persist
+  Overload 2 of 2, '(type: string, listener: EventListenerOrEventListenerObject, options?: boolean | EventListenerOptions | undefined): void', gave the following error.
+    Argument of type '(e: KeyboardEvent) => void' is not assignable to parameter of type 'EventListenerOrEventListenerObject'.
+      Type '(e: KeyboardEvent) => void' is not assignable to type 'EventListener'.
+        Types of parameters 'e' and 'evt' are incompatible.
+          Type 'Event' is missing the following properties from type 'KeyboardEvent<Element>': altKey, charCode, ctrlKey, code, and 15 more.
+src/layouts/DashboardLayout.tsx(2619,9): error TS2345: Argument of type '(items: NavItem[], groups: (string | null)[], sectionTitle: string) => NavItemBlock[]' is not assignable to parameter of type '(items: NavItemLike[], groups: (string | null)[], sectionTitle: string) => NavItemBlockLike[]'.
+  Types of parameters 'items' and 'items' are incompatible.
+    Type 'NavItemLike[]' is not assignable to type 'NavItem[]'.
+      Type 'NavItemLike' is missing the following properties from type 'NavItem': icon, label
+src/lib/blockDataSources.ts(199,22): error TS2367: This comparison appears to be unintentional because the types 'LiveResource' and '"external_api"' have no overlap.
+src/lib/builderCanvasTextEdit.ts(93,3): error TS1117: An object literal cannot have multiple properties with the same name.
+src/lib/builderCanvasTextEdit.ts(94,3): error TS1117: An object literal cannot have multiple properties with the same name.
+src/lib/builderCanvasTextEdit.ts(95,3): error TS1117: An object literal cannot have multiple properties with the same name.
+src/lib/builderCanvasTextEdit.ts(96,3): error TS1117: An object literal cannot have multiple properties with the same name.
+src/lib/builderCanvasTextEdit.ts(97,3): error TS1117: An object literal cannot have multiple properties with the same name.
+src/lib/builderCanvasTextEdit.ts(98,3): error TS1117: An object literal cannot have multiple properties with the same name.
+src/lib/builderCanvasTextEdit.ts(99,3): error TS1117: An object literal cannot have multiple properties with the same name.
+src/lib/builderCanvasTextEdit.ts(100,3): error TS1117: An object literal cannot have multiple properties with the same name.
+src/lib/builderCanvasTextEdit.ts(101,3): error TS1117: An object literal cannot have multiple properties with the same name.
+src/lib/builderCanvasTextEdit.ts(102,3): error TS1117: An object literal cannot have multiple properties with the same name.
+src/lib/builderCanvasTextEdit.ts(103,3): error TS1117: An object literal cannot have multiple properties with the same name.
+src/lib/builderCanvasTextEdit.ts(114,3): error TS1117: An object literal cannot have multiple properties with the same name.
+src/lib/builderCanvasTextEdit.ts(271,3): error TS1117: An object literal cannot have multiple properties with the same name.
+src/lib/builderDraftTemplateSites.ts(103,3): error TS2322: Type '({ href: string; label: string; storeId: string; } | null)[]' is not assignable to type 'AppliedTemplateViewLiveLink[]'.
+  Type '{ href: string; label: string; storeId: string; } | null' is not assignable to type 'AppliedTemplateViewLiveLink'.
+    Type 'null' is not assignable to type 'AppliedTemplateViewLiveLink'.
+src/lib/builderDraftTemplateSites.ts(110,29): error TS2677: A type predicate's type must be assignable to its parameter's type.
+  Type 'AppliedTemplateViewLiveLink' is not assignable to type '{ href: string; label: string; storeId: string; }'.
+    Types of property 'storeId' are incompatible.
+      Type 'string | undefined' is not assignable to type 'string'.
+        Type 'undefined' is not assignable to type 'string'.
+src/lib/escapeCloseRegistry.ts(53,39): error TS2550: Property 'at' does not exist on type 'HTMLElement[]'. Do you need to change your target library? Try changing the 'lib' compiler option to 'es2022' or later.
+src/lib/escapeCloseRegistry.ts(58,39): error TS2550: Property 'at' does not exist on type 'HTMLElement[]'. Do you need to change your target library? Try changing the 'lib' compiler option to 'es2022' or later.
+src/lib/invoiceTemplates.ts(2896,10): error TS2678: Type '"dual"' is not comparable to type '"bold" | "minimal" | "compact" | "luxury" | "retail" | "banner" | "classic" | "modern" | "corporate" | "colorblock" | "visual" | "centered" | "letterhead" | "executive" | "stripe" | ... 12 more ... | "topleftlogobottomright"'.
+src/lib/invoiceTemplates.ts(2911,10): error TS2678: Type '"topbottom"' is not comparable to type '"bold" | "minimal" | "compact" | "luxury" | "retail" | "banner" | "classic" | "modern" | "corporate" | "colorblock" | "visual" | "centered" | "letterhead" | "executive" | "stripe" | ... 12 more ... | "topleftlogobottomright"'.
+src/lib/liveStorefrontUrl.ts(274,3): error TS2322: Type '({ href: string; label: string; storeId: string; } | null)[]' is not assignable to type 'AppliedTemplateViewLiveLink[]'.
+  Type '{ href: string; label: string; storeId: string; } | null' is not assignable to type 'AppliedTemplateViewLiveLink'.
+    Type 'null' is not assignable to type 'AppliedTemplateViewLiveLink'.
+src/lib/liveStorefrontUrl.ts(281,29): error TS2677: A type predicate's type must be assignable to its parameter's type.
+  Type 'AppliedTemplateViewLiveLink' is not assignable to type '{ href: string; label: string; storeId: string; }'.
+    Types of property 'storeId' are incompatible.
+      Type 'string | undefined' is not assignable to type 'string'.
+        Type 'undefined' is not assignable to type 'string'.
+src/lib/liveStorefrontUrl.ts(315,3): error TS2322: Type '({ href: string; label: string; storeId: string; } | null)[]' is not assignable to type 'AppliedTemplateViewLiveLink[]'.
+  Type '{ href: string; label: string; storeId: string; } | null' is not assignable to type 'AppliedTemplateViewLiveLink'.
+    Type 'null' is not assignable to type 'AppliedTemplateViewLiveLink'.
+src/lib/liveStorefrontUrl.ts(322,29): error TS2677: A type predicate's type must be assignable to its parameter's type.
+  Type 'AppliedTemplateViewLiveLink' is not assignable to type '{ href: string; label: string; storeId: string; }'.
+    Types of property 'storeId' are incompatible.
+      Type 'string | undefined' is not assignable to type 'string'.
+        Type 'undefined' is not assignable to type 'string'.
+src/lib/websiteSitePreview.ts(155,54): error TS2345: Argument of type 'WebsiteSite' is not assignable to parameter of type 'SiteListItem'.
+  Property 'page_count' is missing in type 'WebsiteSite' but required in type 'SiteListItem'.
+src/lib/websiteSitePreview.ts(184,35): error TS2345: Argument of type 'WebsiteSite' is not assignable to parameter of type 'SiteListItem'.
+  Property 'page_count' is missing in type 'WebsiteSite' but required in type 'SiteListItem'.
+src/pages/auth/Login.tsx(272,19): error TS2322: Type '(background?: boolean) => void' is not assignable to type 'MouseEventHandler<HTMLButtonElement>'.
+  Types of parameters 'background' and 'event' are incompatible.
+    Type 'MouseEvent<HTMLButtonElement, MouseEvent>' is not assignable to type 'boolean | undefined'.
+src/pages/bookings/CreateBookingModal.tsx(251,66): error TS2322: Type '{ children: string; className: string; required: true; }' is not assignable to type 'IntrinsicAttributes & Omit<LabelProps & RefAttributes<HTMLLabelElement>, "ref"> & VariantProps<(props?: ClassProp | undefined) => string> & { ...; } & RefAttributes<...>'.
+  Property 'required' does not exist on type 'IntrinsicAttributes & Omit<LabelProps & RefAttributes<HTMLLabelElement>, "ref"> & VariantProps<(props?: ClassProp | undefined) => string> & { ...; } & RefAttributes<...>'.
+src/pages/bookings/CreateBookingModal.tsx(307,66): error TS2322: Type '{ children: string; className: string; required: true; }' is not assignable to type 'IntrinsicAttributes & Omit<LabelProps & RefAttributes<HTMLLabelElement>, "ref"> & VariantProps<(props?: ClassProp | undefined) => string> & { ...; } & RefAttributes<...>'.
+  Property 'required' does not exist on type 'IntrinsicAttributes & Omit<LabelProps & RefAttributes<HTMLLabelElement>, "ref"> & VariantProps<(props?: ClassProp | undefined) => string> & { ...; } & RefAttributes<...>'.
+src/pages/bookings/index.tsx(803,56): error TS2322: Type '{ children: string; className: "text-xs font-medium text-muted-foreground uppercase tracking-wide"; required: true; }' is not assignable to type 'IntrinsicAttributes & Omit<LabelProps & RefAttributes<HTMLLabelElement>, "ref"> & VariantProps<(props?: ClassProp | undefined) => string> & { ...; } & RefAttributes<...>'.
+  Property 'required' does not exist on type 'IntrinsicAttributes & Omit<LabelProps & RefAttributes<HTMLLabelElement>, "ref"> & VariantProps<(props?: ClassProp | undefined) => string> & { ...; } & RefAttributes<...>'.
+src/pages/bookings/index.tsx(870,72): error TS2322: Type '{ children: string; className: string; required: true; }' is not assignable to type 'IntrinsicAttributes & Omit<LabelProps & RefAttributes<HTMLLabelElement>, "ref"> & VariantProps<(props?: ClassProp | undefined) => string> & { ...; } & RefAttributes<...>'.
+  Property 'required' does not exist on type 'IntrinsicAttributes & Omit<LabelProps & RefAttributes<HTMLLabelElement>, "ref"> & VariantProps<(props?: ClassProp | undefined) => string> & { ...; } & RefAttributes<...>'.
+src/pages/business-front/index.tsx(126,45): error TS7006: Parameter 'p' implicitly has an 'any' type.
+src/pages/business-front/index.tsx(127,29): error TS7006: Parameter 'p' implicitly has an 'any' type.
+src/pages/categories/index.tsx(186,33): error TS2339: Property 'is_visible' does not exist on type 'VendorCategory'.
+src/pages/categories/index.tsx(527,33): error TS2339: Property 'is_visible' does not exist on type 'VendorCategory'.
+src/pages/categories/index.tsx(558,15): error TS2322: Type 'false | "sm:col-span-2"' is not assignable to type 'string | undefined'.
+  Type 'boolean' is not assignable to type 'string'.
+src/pages/categories/index.tsx(1094,22): error TS2339: Property 'is_visible' does not exist on type 'VendorCategory'.
+src/pages/categories/index.tsx(1134,31): error TS2339: Property 'is_visible' does not exist on type 'VendorCategory'.
+src/pages/commission/Assignments.tsx(504,69): error TS2322: Type '{ children: string; className: string; required: true; }' is not assignable to type 'IntrinsicAttributes & Omit<LabelProps & RefAttributes<HTMLLabelElement>, "ref"> & VariantProps<(props?: ClassProp | undefined) => string> & { ...; } & RefAttributes<...>'.
+  Property 'required' does not exist on type 'IntrinsicAttributes & Omit<LabelProps & RefAttributes<HTMLLabelElement>, "ref"> & VariantProps<(props?: ClassProp | undefined) => string> & { ...; } & RefAttributes<...>'.
+src/pages/commission/Assignments.tsx(510,67): error TS2322: Type '{ children: string; className: string; required: true; }' is not assignable to type 'IntrinsicAttributes & Omit<LabelProps & RefAttributes<HTMLLabelElement>, "ref"> & VariantProps<(props?: ClassProp | undefined) => string> & { ...; } & RefAttributes<...>'.
+  Property 'required' does not exist on type 'IntrinsicAttributes & Omit<LabelProps & RefAttributes<HTMLLabelElement>, "ref"> & VariantProps<(props?: ClassProp | undefined) => string> & { ...; } & RefAttributes<...>'.
+src/pages/commission/Payees.tsx(534,67): error TS2322: Type '{ children: string; className: string; required: true; }' is not assignable to type 'IntrinsicAttributes & Omit<LabelProps & RefAttributes<HTMLLabelElement>, "ref"> & VariantProps<(props?: ClassProp | undefined) => string> & { ...; } & RefAttributes<...>'.
+  Property 'required' does not exist on type 'IntrinsicAttributes & Omit<LabelProps & RefAttributes<HTMLLabelElement>, "ref"> & VariantProps<(props?: ClassProp | undefined) => string> & { ...; } & RefAttributes<...>'.
+src/pages/commission/Plans.tsx(269,28): error TS2322: Type '{ children: string; required: true; className: string; }' is not assignable to type 'IntrinsicAttributes & Omit<LabelProps & RefAttributes<HTMLLabelElement>, "ref"> & VariantProps<(props?: ClassProp | undefined) => string> & { ...; } & RefAttributes<...>'.
+  Property 'required' does not exist on type 'IntrinsicAttributes & Omit<LabelProps & RefAttributes<HTMLLabelElement>, "ref"> & VariantProps<(props?: ClassProp | undefined) => string> & { ...; } & RefAttributes<...>'.
+src/pages/controlling/ActivityConfirmations.tsx(246,81): error TS2322: Type '{ children: string; className: string; required: true; }' is not assignable to type 'IntrinsicAttributes & Omit<LabelProps & RefAttributes<HTMLLabelElement>, "ref"> & VariantProps<(props?: ClassProp | undefined) => string> & { ...; } & RefAttributes<...>'.
+  Property 'required' does not exist on type 'IntrinsicAttributes & Omit<LabelProps & RefAttributes<HTMLLabelElement>, "ref"> & VariantProps<(props?: ClassProp | undefined) => string> & { ...; } & RefAttributes<...>'.
+src/pages/controlling/ActivityConfirmations.tsx(277,81): error TS2322: Type '{ children: string; className: string; required: true; }' is not assignable to type 'IntrinsicAttributes & Omit<LabelProps & RefAttributes<HTMLLabelElement>, "ref"> & VariantProps<(props?: ClassProp | undefined) => string> & { ...; } & RefAttributes<...>'.
+  Property 'required' does not exist on type 'IntrinsicAttributes & Omit<LabelProps & RefAttributes<HTMLLabelElement>, "ref"> & VariantProps<(props?: ClassProp | undefined) => string> & { ...; } & RefAttributes<...>'.
+src/pages/controlling/ActivityConfirmations.tsx(290,83): error TS2322: Type '{ children: string; className: string; required: true; }' is not assignable to type 'IntrinsicAttributes & Omit<LabelProps & RefAttributes<HTMLLabelElement>, "ref"> & VariantProps<(props?: ClassProp | undefined) => string> & { ...; } & RefAttributes<...>'.
+  Property 'required' does not exist on type 'IntrinsicAttributes & Omit<LabelProps & RefAttributes<HTMLLabelElement>, "ref"> & VariantProps<(props?: ClassProp | undefined) => string> & { ...; } & RefAttributes<...>'.
+src/pages/controlling/CostAllocations.tsx(274,83): error TS2322: Type '{ children: string; className: string; required: true; }' is not assignable to type 'IntrinsicAttributes & Omit<LabelProps & RefAttributes<HTMLLabelElement>, "ref"> & VariantProps<(props?: ClassProp | undefined) => string> & { ...; } & RefAttributes<...>'.
+  Property 'required' does not exist on type 'IntrinsicAttributes & Omit<LabelProps & RefAttributes<HTMLLabelElement>, "ref"> & VariantProps<(props?: ClassProp | undefined) => string> & { ...; } & RefAttributes<...>'.
+src/pages/controlling/CostAllocations.tsx(280,83): error TS2322: Type '{ children: string; className: string; required: true; }' is not assignable to type 'IntrinsicAttributes & Omit<LabelProps & RefAttributes<HTMLLabelElement>, "ref"> & VariantProps<(props?: ClassProp | undefined) => string> & { ...; } & RefAttributes<...>'.
+  Property 'required' does not exist on type 'IntrinsicAttributes & Omit<LabelProps & RefAttributes<HTMLLabelElement>, "ref"> & VariantProps<(props?: ClassProp | undefined) => string> & { ...; } & RefAttributes<...>'.
+src/pages/controlling/GoodsMovements.tsx(267,81): error TS2322: Type '{ children: string; className: string; required: true; }' is not assignable to type 'IntrinsicAttributes & Omit<LabelProps & RefAttributes<HTMLLabelElement>, "ref"> & VariantProps<(props?: ClassProp | undefined) => string> & { ...; } & RefAttributes<...>'.
+  Property 'required' does not exist on type 'IntrinsicAttributes & Omit<LabelProps & RefAttributes<HTMLLabelElement>, "ref"> & VariantProps<(props?: ClassProp | undefined) => string> & { ...; } & RefAttributes<...>'.
+src/pages/controlling/GoodsMovements.tsx(278,81): error TS2322: Type '{ children: string; className: string; required: true; }' is not assignable to type 'IntrinsicAttributes & Omit<LabelProps & RefAttributes<HTMLLabelElement>, "ref"> & VariantProps<(props?: ClassProp | undefined) => string> & { ...; } & RefAttributes<...>'.
+  Property 'required' does not exist on type 'IntrinsicAttributes & Omit<LabelProps & RefAttributes<HTMLLabelElement>, "ref"> & VariantProps<(props?: ClassProp | undefined) => string> & { ...; } & RefAttributes<...>'.
+src/pages/controlling/GoodsMovements.tsx(293,83): error TS2322: Type '{ children: string; className: string; required: true; }' is not assignable to type 'IntrinsicAttributes & Omit<LabelProps & RefAttributes<HTMLLabelElement>, "ref"> & VariantProps<(props?: ClassProp | undefined) => string> & { ...; } & RefAttributes<...>'.
+  Property 'required' does not exist on type 'IntrinsicAttributes & Omit<LabelProps & RefAttributes<HTMLLabelElement>, "ref"> & VariantProps<(props?: ClassProp | undefined) => string> & { ...; } & RefAttributes<...>'.
+src/pages/controlling/GoodsMovements.tsx(313,83): error TS2322: Type '{ children: string; className: string; required: true; }' is not assignable to type 'IntrinsicAttributes & Omit<LabelProps & RefAttributes<HTMLLabelElement>, "ref"> & VariantProps<(props?: ClassProp | undefined) => string> & { ...; } & RefAttributes<...>'.
+  Property 'required' does not exist on type 'IntrinsicAttributes & Omit<LabelProps & RefAttributes<HTMLLabelElement>, "ref"> & VariantProps<(props?: ClassProp | undefined) => string> & { ...; } & RefAttributes<...>'.
+src/pages/controlling/InternalOrders.tsx(358,83): error TS2322: Type '{ children: string; className: string; required: true; }' is not assignable to type 'IntrinsicAttributes & Omit<LabelProps & RefAttributes<HTMLLabelElement>, "ref"> & VariantProps<(props?: ClassProp | undefined) => string> & { ...; } & RefAttributes<...>'.
+  Property 'required' does not exist on type 'IntrinsicAttributes & Omit<LabelProps & RefAttributes<HTMLLabelElement>, "ref"> & VariantProps<(props?: ClassProp | undefined) => string> & { ...; } & RefAttributes<...>'.
+src/pages/controlling/InternalOrders.tsx(385,81): error TS2322: Type '{ children: string; className: string; required: true; }' is not assignable to type 'IntrinsicAttributes & Omit<LabelProps & RefAttributes<HTMLLabelElement>, "ref"> & VariantProps<(props?: ClassProp | undefined) => string> & { ...; } & RefAttributes<...>'.
+  Property 'required' does not exist on type 'IntrinsicAttributes & Omit<LabelProps & RefAttributes<HTMLLabelElement>, "ref"> & VariantProps<(props?: ClassProp | undefined) => string> & { ...; } & RefAttributes<...>'.
+src/pages/crm/_shared.tsx(68,14): error TS2322: Type '{ children: string; required: boolean | undefined; }' is not assignable to type 'IntrinsicAttributes & Omit<LabelProps & RefAttributes<HTMLLabelElement>, "ref"> & VariantProps<(props?: ClassProp | undefined) => string> & { ...; } & RefAttributes<...>'.
+  Property 'required' does not exist on type 'IntrinsicAttributes & Omit<LabelProps & RefAttributes<HTMLLabelElement>, "ref"> & VariantProps<(props?: ClassProp | undefined) => string> & { ...; } & RefAttributes<...>'.
+src/pages/finance/ChartOfAccounts.tsx(1306,27): error TS2352: Conversion of type '{ code: string; name: string; account_type: string; account_subtype: string; description: string; is_reconciliation_account: boolean; reconciliation_subledger: string; }' to type 'Record<string, string>' may be a mistake because neither type sufficiently overlaps with the other. If this was intentional, convert the expression to 'unknown' first.
+  Property 'is_reconciliation_account' is incompatible with index signature.
+    Type 'boolean' is not comparable to type 'string'.
+src/pages/hr/attendance/index.tsx(126,79): error TS2322: Type '{ children: string; className: string; required: true; }' is not assignable to type 'IntrinsicAttributes & Omit<LabelProps & RefAttributes<HTMLLabelElement>, "ref"> & VariantProps<(props?: ClassProp | undefined) => string> & { ...; } & RefAttributes<...>'.
+  Property 'required' does not exist on type 'IntrinsicAttributes & Omit<LabelProps & RefAttributes<HTMLLabelElement>, "ref"> & VariantProps<(props?: ClassProp | undefined) => string> & { ...; } & RefAttributes<...>'.
+src/pages/hr/compliance/index.tsx(188,78): error TS2322: Type '{ children: string; className: string; required: true; }' is not assignable to type 'IntrinsicAttributes & Omit<LabelProps & RefAttributes<HTMLLabelElement>, "ref"> & VariantProps<(props?: ClassProp | undefined) => string> & { ...; } & RefAttributes<...>'.
+  Property 'required' does not exist on type 'IntrinsicAttributes & Omit<LabelProps & RefAttributes<HTMLLabelElement>, "ref"> & VariantProps<(props?: ClassProp | undefined) => string> & { ...; } & RefAttributes<...>'.
+src/pages/hr/compliance/index.tsx(397,76): error TS2322: Type '{ children: string; className: string; required: true; }' is not assignable to type 'IntrinsicAttributes & Omit<LabelProps & RefAttributes<HTMLLabelElement>, "ref"> & VariantProps<(props?: ClassProp | undefined) => string> & { ...; } & RefAttributes<...>'.
+  Property 'required' does not exist on type 'IntrinsicAttributes & Omit<LabelProps & RefAttributes<HTMLLabelElement>, "ref"> & VariantProps<(props?: ClassProp | undefined) => string> & { ...; } & RefAttributes<...>'.
+src/pages/hr/compliance/index.tsx(407,78): error TS2322: Type '{ children: string; className: string; required: true; }' is not assignable to type 'IntrinsicAttributes & Omit<LabelProps & RefAttributes<HTMLLabelElement>, "ref"> & VariantProps<(props?: ClassProp | undefined) => string> & { ...; } & RefAttributes<...>'.
+  Property 'required' does not exist on type 'IntrinsicAttributes & Omit<LabelProps & RefAttributes<HTMLLabelElement>, "ref"> & VariantProps<(props?: ClassProp | undefined) => string> & { ...; } & RefAttributes<...>'.
+src/pages/hr/employees/EmployeeDetail.tsx(667,79): error TS2322: Type '{ children: string; className: string; required: true; }' is not assignable to type 'IntrinsicAttributes & Omit<LabelProps & RefAttributes<HTMLLabelElement>, "ref"> & VariantProps<(props?: ClassProp | undefined) => string> & { ...; } & RefAttributes<...>'.
+  Property 'required' does not exist on type 'IntrinsicAttributes & Omit<LabelProps & RefAttributes<HTMLLabelElement>, "ref"> & VariantProps<(props?: ClassProp | undefined) => string> & { ...; } & RefAttributes<...>'.
+src/pages/hr/employees/index.tsx(151,73): error TS2322: Type '{ children: string; className: string; required: true; }' is not assignable to type 'IntrinsicAttributes & Omit<LabelProps & RefAttributes<HTMLLabelElement>, "ref"> & VariantProps<(props?: ClassProp | undefined) => string> & { ...; } & RefAttributes<...>'.
+  Property 'required' does not exist on type 'IntrinsicAttributes & Omit<LabelProps & RefAttributes<HTMLLabelElement>, "ref"> & VariantProps<(props?: ClassProp | undefined) => string> & { ...; } & RefAttributes<...>'.
+src/pages/hr/employees/index.tsx(161,73): error TS2322: Type '{ children: string; className: string; required: true; }' is not assignable to type 'IntrinsicAttributes & Omit<LabelProps & RefAttributes<HTMLLabelElement>, "ref"> & VariantProps<(props?: ClassProp | undefined) => string> & { ...; } & RefAttributes<...>'.
+  Property 'required' does not exist on type 'IntrinsicAttributes & Omit<LabelProps & RefAttributes<HTMLLabelElement>, "ref"> & VariantProps<(props?: ClassProp | undefined) => string> & { ...; } & RefAttributes<...>'.
+src/pages/hr/leaves/Holidays.tsx(46,79): error TS2322: Type '{ children: string; className: string; required: true; }' is not assignable to type 'IntrinsicAttributes & Omit<LabelProps & RefAttributes<HTMLLabelElement>, "ref"> & VariantProps<(props?: ClassProp | undefined) => string> & { ...; } & RefAttributes<...>'.
+  Property 'required' does not exist on type 'IntrinsicAttributes & Omit<LabelProps & RefAttributes<HTMLLabelElement>, "ref"> & VariantProps<(props?: ClassProp | undefined) => string> & { ...; } & RefAttributes<...>'.
+src/pages/hr/leaves/Holidays.tsx(50,79): error TS2322: Type '{ children: string; className: string; required: true; }' is not assignable to type 'IntrinsicAttributes & Omit<LabelProps & RefAttributes<HTMLLabelElement>, "ref"> & VariantProps<(props?: ClassProp | undefined) => string> & { ...; } & RefAttributes<...>'.
+  Property 'required' does not exist on type 'IntrinsicAttributes & Omit<LabelProps & RefAttributes<HTMLLabelElement>, "ref"> & VariantProps<(props?: ClassProp | undefined) => string> & { ...; } & RefAttributes<...>'.
+src/pages/hr/leaves/MyLeaves.tsx(68,79): error TS2322: Type '{ children: string; className: string; required: true; }' is not assignable to type 'IntrinsicAttributes & Omit<LabelProps & RefAttributes<HTMLLabelElement>, "ref"> & VariantProps<(props?: ClassProp | undefined) => string> & { ...; } & RefAttributes<...>'.
+  Property 'required' does not exist on type 'IntrinsicAttributes & Omit<LabelProps & RefAttributes<HTMLLabelElement>, "ref"> & VariantProps<(props?: ClassProp | undefined) => string> & { ...; } & RefAttributes<...>'.
+src/pages/hr/leaves/MyLeaves.tsx(84,79): error TS2322: Type '{ children: string; className: string; required: true; }' is not assignable to type 'IntrinsicAttributes & Omit<LabelProps & RefAttributes<HTMLLabelElement>, "ref"> & VariantProps<(props?: ClassProp | undefined) => string> & { ...; } & RefAttributes<...>'.
+  Property 'required' does not exist on type 'IntrinsicAttributes & Omit<LabelProps & RefAttributes<HTMLLabelElement>, "ref"> & VariantProps<(props?: ClassProp | undefined) => string> & { ...; } & RefAttributes<...>'.
+src/pages/hr/leaves/MyLeaves.tsx(88,79): error TS2322: Type '{ children: string; className: string; required: true; }' is not assignable to type 'IntrinsicAttributes & Omit<LabelProps & RefAttributes<HTMLLabelElement>, "ref"> & VariantProps<(props?: ClassProp | undefined) => string> & { ...; } & RefAttributes<...>'.
+  Property 'required' does not exist on type 'IntrinsicAttributes & Omit<LabelProps & RefAttributes<HTMLLabelElement>, "ref"> & VariantProps<(props?: ClassProp | undefined) => string> & { ...; } & RefAttributes<...>'.
+src/pages/hr/leaves/Policies.tsx(48,79): error TS2322: Type '{ children: string; className: string; required: true; }' is not assignable to type 'IntrinsicAttributes & Omit<LabelProps & RefAttributes<HTMLLabelElement>, "ref"> & VariantProps<(props?: ClassProp | undefined) => string> & { ...; } & RefAttributes<...>'.
+  Property 'required' does not exist on type 'IntrinsicAttributes & Omit<LabelProps & RefAttributes<HTMLLabelElement>, "ref"> & VariantProps<(props?: ClassProp | undefined) => string> & { ...; } & RefAttributes<...>'.
+src/pages/hr/leaves/Policies.tsx(52,79): error TS2322: Type '{ children: string; className: string; required: true; }' is not assignable to type 'IntrinsicAttributes & Omit<LabelProps & RefAttributes<HTMLLabelElement>, "ref"> & VariantProps<(props?: ClassProp | undefined) => string> & { ...; } & RefAttributes<...>'.
+  Property 'required' does not exist on type 'IntrinsicAttributes & Omit<LabelProps & RefAttributes<HTMLLabelElement>, "ref"> & VariantProps<(props?: ClassProp | undefined) => string> & { ...; } & RefAttributes<...>'.
+src/pages/hr/offers/index.tsx(123,35): error TS2339: Property 'body_html' does not exist on type '{ id: string; designation_id?: string | null | undefined; department_id?: string | null | undefined; store_id?: string | null | undefined; is_default: boolean; }'.
+src/pages/hr/offers/index.tsx(124,33): error TS2339: Property 'layout' does not exist on type '{ id: string; designation_id?: string | null | undefined; department_id?: string | null | undefined; store_id?: string | null | undefined; is_default: boolean; }'.
+src/pages/hr/offers/index.tsx(151,55): error TS2339: Property 'logo_url' does not exist on type '{ id: string; designation_id?: string | null | undefined; department_id?: string | null | undefined; store_id?: string | null | undefined; is_default: boolean; }'.
+src/pages/hr/offers/index.tsx(158,33): error TS2339: Property 'watermark_enabled' does not exist on type '{ id: string; designation_id?: string | null | undefined; department_id?: string | null | undefined; store_id?: string | null | undefined; is_default: boolean; }'.
+src/pages/hr/offers/index.tsx(159,30): error TS2339: Property 'watermark_text' does not exist on type '{ id: string; designation_id?: string | null | undefined; department_id?: string | null | undefined; store_id?: string | null | undefined; is_default: boolean; }'.
+src/pages/hr/offers/index.tsx(160,44): error TS2339: Property 'watermark_opacity' does not exist on type '{ id: string; designation_id?: string | null | undefined; department_id?: string | null | undefined; store_id?: string | null | undefined; is_default: boolean; }'.
+src/pages/hr/offers/index.tsx(161,32): error TS2339: Property 'watermark_style' does not exist on type '{ id: string; designation_id?: string | null | undefined; department_id?: string | null | undefined; store_id?: string | null | undefined; is_default: boolean; }'.
+src/pages/hr/offers/index.tsx(165,31): error TS2339: Property 'show_logo' does not exist on type '{ id: string; designation_id?: string | null | undefined; department_id?: string | null | undefined; store_id?: string | null | undefined; is_default: boolean; }'.
+src/pages/hr/offers/index.tsx(166,33): error TS2339: Property 'logo_shape' does not exist on type '{ id: string; designation_id?: string | null | undefined; department_id?: string | null | undefined; store_id?: string | null | undefined; is_default: boolean; }'.
+src/pages/hr/offers/index.tsx(231,55): error TS2345: Argument of type '{ id: string; designation_id?: string | null | undefined; department_id?: string | null | undefined; store_id?: string | null | undefined; is_default: boolean; }' is not assignable to parameter of type 'OfferLetterTemplate'.
+  Type '{ id: string; designation_id?: string | null | undefined; department_id?: string | null | undefined; store_id?: string | null | undefined; is_default: boolean; }' is missing the following properties from type 'OfferLetterTemplate': vendor_id, name, body_html, created_at
+src/pages/hr/offers/index.tsx(241,83): error TS2322: Type '{ children: string; className: string; required: true; }' is not assignable to type 'IntrinsicAttributes & Omit<LabelProps & RefAttributes<HTMLLabelElement>, "ref"> & VariantProps<(props?: ClassProp | undefined) => string> & { ...; } & RefAttributes<...>'.
+  Property 'required' does not exist on type 'IntrinsicAttributes & Omit<LabelProps & RefAttributes<HTMLLabelElement>, "ref"> & VariantProps<(props?: ClassProp | undefined) => string> & { ...; } & RefAttributes<...>'.
+src/pages/hr/onboarding/index.tsx(187,76): error TS2322: Type '{ children: string; className: string; required: true; }' is not assignable to type 'IntrinsicAttributes & Omit<LabelProps & RefAttributes<HTMLLabelElement>, "ref"> & VariantProps<(props?: ClassProp | undefined) => string> & { ...; } & RefAttributes<...>'.
+  Property 'required' does not exist on type 'IntrinsicAttributes & Omit<LabelProps & RefAttributes<HTMLLabelElement>, "ref"> & VariantProps<(props?: ClassProp | undefined) => string> & { ...; } & RefAttributes<...>'.
+src/pages/hr/onboarding/index.tsx(355,76): error TS2322: Type '{ children: string; className: string; required: true; }' is not assignable to type 'IntrinsicAttributes & Omit<LabelProps & RefAttributes<HTMLLabelElement>, "ref"> & VariantProps<(props?: ClassProp | undefined) => string> & { ...; } & RefAttributes<...>'.
+  Property 'required' does not exist on type 'IntrinsicAttributes & Omit<LabelProps & RefAttributes<HTMLLabelElement>, "ref"> & VariantProps<(props?: ClassProp | undefined) => string> & { ...; } & RefAttributes<...>'.
+src/pages/hr/performance/index.tsx(207,76): error TS2322: Type '{ children: string; className: string; required: true; }' is not assignable to type 'IntrinsicAttributes & Omit<LabelProps & RefAttributes<HTMLLabelElement>, "ref"> & VariantProps<(props?: ClassProp | undefined) => string> & { ...; } & RefAttributes<...>'.
+  Property 'required' does not exist on type 'IntrinsicAttributes & Omit<LabelProps & RefAttributes<HTMLLabelElement>, "ref"> & VariantProps<(props?: ClassProp | undefined) => string> & { ...; } & RefAttributes<...>'.
+src/pages/hr/performance/index.tsx(218,78): error TS2322: Type '{ children: string; className: string; required: true; }' is not assignable to type 'IntrinsicAttributes & Omit<LabelProps & RefAttributes<HTMLLabelElement>, "ref"> & VariantProps<(props?: ClassProp | undefined) => string> & { ...; } & RefAttributes<...>'.
+  Property 'required' does not exist on type 'IntrinsicAttributes & Omit<LabelProps & RefAttributes<HTMLLabelElement>, "ref"> & VariantProps<(props?: ClassProp | undefined) => string> & { ...; } & RefAttributes<...>'.
+src/pages/hr/performance/index.tsx(223,78): error TS2322: Type '{ children: string; className: string; required: true; }' is not assignable to type 'IntrinsicAttributes & Omit<LabelProps & RefAttributes<HTMLLabelElement>, "ref"> & VariantProps<(props?: ClassProp | undefined) => string> & { ...; } & RefAttributes<...>'.
+  Property 'required' does not exist on type 'IntrinsicAttributes & Omit<LabelProps & RefAttributes<HTMLLabelElement>, "ref"> & VariantProps<(props?: ClassProp | undefined) => string> & { ...; } & RefAttributes<...>'.
+src/pages/hr/performance/index.tsx(440,76): error TS2322: Type '{ children: string; className: string; required: true; }' is not assignable to type 'IntrinsicAttributes & Omit<LabelProps & RefAttributes<HTMLLabelElement>, "ref"> & VariantProps<(props?: ClassProp | undefined) => string> & { ...; } & RefAttributes<...>'.
+  Property 'required' does not exist on type 'IntrinsicAttributes & Omit<LabelProps & RefAttributes<HTMLLabelElement>, "ref"> & VariantProps<(props?: ClassProp | undefined) => string> & { ...; } & RefAttributes<...>'.
+src/pages/hr/performance/index.tsx(458,76): error TS2322: Type '{ children: string; className: string; required: true; }' is not assignable to type 'IntrinsicAttributes & Omit<LabelProps & RefAttributes<HTMLLabelElement>, "ref"> & VariantProps<(props?: ClassProp | undefined) => string> & { ...; } & RefAttributes<...>'.
+  Property 'required' does not exist on type 'IntrinsicAttributes & Omit<LabelProps & RefAttributes<HTMLLabelElement>, "ref"> & VariantProps<(props?: ClassProp | undefined) => string> & { ...; } & RefAttributes<...>'.
+src/pages/hr/recruitment/index.tsx(94,45): error TS2322: Type '{ children: string; className: string; required: true; }' is not assignable to type 'IntrinsicAttributes & Omit<LabelProps & RefAttributes<HTMLLabelElement>, "ref"> & VariantProps<(props?: ClassProp | undefined) => string> & { ...; } & RefAttributes<...>'.
+  Property 'required' does not exist on type 'IntrinsicAttributes & Omit<LabelProps & RefAttributes<HTMLLabelElement>, "ref"> & VariantProps<(props?: ClassProp | undefined) => string> & { ...; } & RefAttributes<...>'.
+src/pages/hr/recruitment/index.tsx(233,45): error TS2322: Type '{ children: string; className: string; required: true; }' is not assignable to type 'IntrinsicAttributes & Omit<LabelProps & RefAttributes<HTMLLabelElement>, "ref"> & VariantProps<(props?: ClassProp | undefined) => string> & { ...; } & RefAttributes<...>'.
+  Property 'required' does not exist on type 'IntrinsicAttributes & Omit<LabelProps & RefAttributes<HTMLLabelElement>, "ref"> & VariantProps<(props?: ClassProp | undefined) => string> & { ...; } & RefAttributes<...>'.
+src/pages/hr/salary/index.tsx(51,79): error TS2322: Type '{ children: string; className: string; required: true; }' is not assignable to type 'IntrinsicAttributes & Omit<LabelProps & RefAttributes<HTMLLabelElement>, "ref"> & VariantProps<(props?: ClassProp | undefined) => string> & { ...; } & RefAttributes<...>'.
+  Property 'required' does not exist on type 'IntrinsicAttributes & Omit<LabelProps & RefAttributes<HTMLLabelElement>, "ref"> & VariantProps<(props?: ClassProp | undefined) => string> & { ...; } & RefAttributes<...>'.
+src/pages/hr/salary/index.tsx(66,79): error TS2322: Type '{ children: string; className: string; required: true; }' is not assignable to type 'IntrinsicAttributes & Omit<LabelProps & RefAttributes<HTMLLabelElement>, "ref"> & VariantProps<(props?: ClassProp | undefined) => string> & { ...; } & RefAttributes<...>'.
+  Property 'required' does not exist on type 'IntrinsicAttributes & Omit<LabelProps & RefAttributes<HTMLLabelElement>, "ref"> & VariantProps<(props?: ClassProp | undefined) => string> & { ...; } & RefAttributes<...>'.
+src/pages/inventory/index.tsx(636,95): error TS2339: Property 'storage_location_name' does not exist on type 'HistRow'.
+src/pages/invoices/index.tsx(367,42): error TS2304: Cannot find name 'printInvoice'.
+src/pages/invoices/InvoiceTemplates.tsx(147,37): error TS2345: Argument of type 'string' is not assignable to parameter of type '"bold" | "minimal" | "compact" | "luxury" | "retail" | "banner" | "classic" | "modern" | "corporate" | "colorblock" | "visual" | "centered" | "letterhead" | "executive" | "stripe" | ... 12 more ... | "topleftlogobottomright"'.
+src/pages/master-data/MasterDataReport.tsx(1279,44): error TS2769: No overload matches this call.
+  Overload 1 of 2, '(type: "mousedown", listener: (this: Document, ev: MouseEvent) => any, options?: boolean | AddEventListenerOptions | undefined): void', gave the following error.
+    Argument of type '(e: MouseEvent) => void' is not assignable to parameter of type '(this: Document, ev: MouseEvent) => any'.
+      Types of parameters 'e' and 'ev' are incompatible.
+        Type 'MouseEvent' is missing the following properties from type 'MouseEvent<Element, MouseEvent>': nativeEvent, isDefaultPrevented, isPropagationStopped, persist
+  Overload 2 of 2, '(type: string, listener: EventListenerOrEventListenerObject, options?: boolean | AddEventListenerOptions | undefined): void', gave the following error.
+    Argument of type '(e: MouseEvent) => void' is not assignable to parameter of type 'EventListenerOrEventListenerObject'.
+      Type '(e: MouseEvent) => void' is not assignable to type 'EventListener'.
+        Types of parameters 'e' and 'evt' are incompatible.
+          Type 'Event' is missing the following properties from type 'MouseEvent<Element, MouseEvent>': altKey, button, buttons, clientX, and 18 more.
+src/pages/master-data/MasterDataReport.tsx(1280,60): error TS2769: No overload matches this call.
+  Overload 1 of 2, '(type: "mousedown", listener: (this: Document, ev: MouseEvent) => any, options?: boolean | EventListenerOptions | undefined): void', gave the following error.
+    Argument of type '(e: MouseEvent) => void' is not assignable to parameter of type '(this: Document, ev: MouseEvent) => any'.
+      Types of parameters 'e' and 'ev' are incompatible.
+        Type 'MouseEvent' is missing the following properties from type 'MouseEvent<Element, MouseEvent>': nativeEvent, isDefaultPrevented, isPropagationStopped, persist
+  Overload 2 of 2, '(type: string, listener: EventListenerOrEventListenerObject, options?: boolean | EventListenerOptions | undefined): void', gave the following error.
+    Argument of type '(e: MouseEvent) => void' is not assignable to parameter of type 'EventListenerOrEventListenerObject'.
+      Type '(e: MouseEvent) => void' is not assignable to type 'EventListener'.
+        Types of parameters 'e' and 'evt' are incompatible.
+          Type 'Event' is missing the following properties from type 'MouseEvent<Element, MouseEvent>': altKey, button, buttons, clientX, and 18 more.
+src/pages/pos/index.tsx(4348,34): error TS2304: Cannot find name 'cn'.
+src/pages/pos/index.tsx(4354,40): error TS2304: Cannot find name 'cn'.
+src/pages/products/index.tsx(315,27): error TS2339: Property 'images' does not exist on type 'ProductVariant'.
+src/pages/products/ProductForm.tsx(1939,75): error TS2322: Type '{ children: string; className: string; required: true; }' is not assignable to type 'IntrinsicAttributes & Omit<LabelProps & RefAttributes<HTMLLabelElement>, "ref"> & VariantProps<(props?: ClassProp | undefined) => string> & { ...; } & RefAttributes<...>'.
+  Property 'required' does not exist on type 'IntrinsicAttributes & Omit<LabelProps & RefAttributes<HTMLLabelElement>, "ref"> & VariantProps<(props?: ClassProp | undefined) => string> & { ...; } & RefAttributes<...>'.
+src/pages/products/ProductForm.tsx(1961,77): error TS2322: Type '{ children: string; className: string; required: true; }' is not assignable to type 'IntrinsicAttributes & Omit<LabelProps & RefAttributes<HTMLLabelElement>, "ref"> & VariantProps<(props?: ClassProp | undefined) => string> & { ...; } & RefAttributes<...>'.
+  Property 'required' does not exist on type 'IntrinsicAttributes & Omit<LabelProps & RefAttributes<HTMLLabelElement>, "ref"> & VariantProps<(props?: ClassProp | undefined) => string> & { ...; } & RefAttributes<...>'.
+src/pages/products/ProductForm.tsx(2007,77): error TS2322: Type '{ children: string; className: string; required: true; }' is not assignable to type 'IntrinsicAttributes & Omit<LabelProps & RefAttributes<HTMLLabelElement>, "ref"> & VariantProps<(props?: ClassProp | undefined) => string> & { ...; } & RefAttributes<...>'.
+  Property 'required' does not exist on type 'IntrinsicAttributes & Omit<LabelProps & RefAttributes<HTMLLabelElement>, "ref"> & VariantProps<(props?: ClassProp | undefined) => string> & { ...; } & RefAttributes<...>'.
+src/pages/products/ProductForm.tsx(2020,77): error TS2322: Type '{ children: string; className: string; required: true; }' is not assignable to type 'IntrinsicAttributes & Omit<LabelProps & RefAttributes<HTMLLabelElement>, "ref"> & VariantProps<(props?: ClassProp | undefined) => string> & { ...; } & RefAttributes<...>'.
+  Property 'required' does not exist on type 'IntrinsicAttributes & Omit<LabelProps & RefAttributes<HTMLLabelElement>, "ref"> & VariantProps<(props?: ClassProp | undefined) => string> & { ...; } & RefAttributes<...>'.
+src/pages/products/ProductForm.tsx(2033,77): error TS2322: Type '{ children: string; className: string; required: true; }' is not assignable to type 'IntrinsicAttributes & Omit<LabelProps & RefAttributes<HTMLLabelElement>, "ref"> & VariantProps<(props?: ClassProp | undefined) => string> & { ...; } & RefAttributes<...>'.
+  Property 'required' does not exist on type 'IntrinsicAttributes & Omit<LabelProps & RefAttributes<HTMLLabelElement>, "ref"> & VariantProps<(props?: ClassProp | undefined) => string> & { ...; } & RefAttributes<...>'.
+src/pages/profile/index.tsx(1501,11): error TS2739: Type '{ field_type: ContactFieldType; status: string; }' is missing the following properties from type 'ContactChangeRequestRow': id, current_value, requested_value
+src/pages/profile/index.tsx(1502,60): error TS2339: Property 'id' does not exist on type '{ field_type: ContactFieldType; status: string; }'.
+src/pages/profile/index.tsx(1779,79): error TS2304: Cannot find name 'API_BASE'.
+src/pages/reports/index.tsx(721,102): error TS2769: No overload matches this call.
+  Overload 1 of 3, '(options: DefinedInitialDataOptions<unknown, Error, unknown, string[]>, queryClient?: QueryClient | undefined): DefinedUseQueryResult<unknown, Error>', gave the following error.
+    Type '(storeId?: string) => Promise<any>' is not assignable to type 'QueryFunction<unknown, string[]>'.
+      Types of parameters 'storeId' and 'context' are incompatible.
+        Type '{ client: QueryClient; queryKey: string[]; signal: AbortSignal; meta: Record<string, unknown> | undefined; pageParam?: unknown; direction?: unknown; }' is not assignable to type 'string'.
+  Overload 2 of 3, '(options: UndefinedInitialDataOptions<any, Error, any, string[]>, queryClient?: QueryClient | undefined): UseQueryResult<any, Error>', gave the following error.
+    Type '(storeId?: string) => Promise<any>' is not assignable to type 'unique symbol | QueryFunction<any, string[], never> | undefined'.
+      Type '(storeId?: string) => Promise<any>' is not assignable to type 'QueryFunction<any, string[], never>'.
+        Types of parameters 'storeId' and 'context' are incompatible.
+          Type '{ client: QueryClient; queryKey: string[]; signal: AbortSignal; meta: Record<string, unknown> | undefined; pageParam?: unknown; direction?: unknown; }' is not assignable to type 'string'.
+  Overload 3 of 3, '(options: UseQueryOptions<any, Error, any, string[]>, queryClient?: QueryClient | undefined): UseQueryResult<any, Error>', gave the following error.
+    Type '(storeId?: string) => Promise<any>' is not assignable to type 'unique symbol | QueryFunction<any, string[], never> | undefined'.
+      Type '(storeId?: string) => Promise<any>' is not assignable to type 'QueryFunction<any, string[], never>'.
+        Types of parameters 'storeId' and 'context' are incompatible.
+          Type '{ client: QueryClient; queryKey: string[]; signal: AbortSignal; meta: Record<string, unknown> | undefined; pageParam?: unknown; direction?: unknown; }' is not assignable to type 'string'.
+src/pages/reports/index.tsx(722,81): error TS2769: No overload matches this call.
+  Overload 1 of 3, '(options: DefinedInitialDataOptions<unknown, Error, unknown, string[]>, queryClient?: QueryClient | undefined): DefinedUseQueryResult<unknown, Error>', gave the following error.
+    Type '(storeId?: string) => Promise<any>' is not assignable to type 'QueryFunction<unknown, string[]>'.
+      Types of parameters 'storeId' and 'context' are incompatible.
+        Type '{ client: QueryClient; queryKey: string[]; signal: AbortSignal; meta: Record<string, unknown> | undefined; pageParam?: unknown; direction?: unknown; }' is not assignable to type 'string'.
+  Overload 2 of 3, '(options: UndefinedInitialDataOptions<any, Error, any, string[]>, queryClient?: QueryClient | undefined): UseQueryResult<any, Error>', gave the following error.
+    Type '(storeId?: string) => Promise<any>' is not assignable to type 'unique symbol | QueryFunction<any, string[], never> | undefined'.
+      Type '(storeId?: string) => Promise<any>' is not assignable to type 'QueryFunction<any, string[], never>'.
+        Types of parameters 'storeId' and 'context' are incompatible.
+          Type '{ client: QueryClient; queryKey: string[]; signal: AbortSignal; meta: Record<string, unknown> | undefined; pageParam?: unknown; direction?: unknown; }' is not assignable to type 'string'.
+  Overload 3 of 3, '(options: UseQueryOptions<any, Error, any, string[]>, queryClient?: QueryClient | undefined): UseQueryResult<any, Error>', gave the following error.
+    Type '(storeId?: string) => Promise<any>' is not assignable to type 'unique symbol | QueryFunction<any, string[], never> | undefined'.
+      Type '(storeId?: string) => Promise<any>' is not assignable to type 'QueryFunction<any, string[], never>'.
+        Types of parameters 'storeId' and 'context' are incompatible.
+          Type '{ client: QueryClient; queryKey: string[]; signal: AbortSignal; meta: Record<string, unknown> | undefined; pageParam?: unknown; direction?: unknown; }' is not assignable to type 'string'.
+src/pages/reports/index.tsx(726,90): error TS2769: No overload matches this call.
+  Overload 1 of 3, '(options: DefinedInitialDataOptions<unknown, Error, unknown, string[]>, queryClient?: QueryClient | undefined): DefinedUseQueryResult<unknown, Error>', gave the following error.
+    Type '(storeId?: string) => Promise<any>' is not assignable to type 'QueryFunction<unknown, string[]>'.
+      Types of parameters 'storeId' and 'context' are incompatible.
+        Type '{ client: QueryClient; queryKey: string[]; signal: AbortSignal; meta: Record<string, unknown> | undefined; pageParam?: unknown; direction?: unknown; }' is not assignable to type 'string'.
+  Overload 2 of 3, '(options: UndefinedInitialDataOptions<any, Error, any, string[]>, queryClient?: QueryClient | undefined): UseQueryResult<any, Error>', gave the following error.
+    Type '(storeId?: string) => Promise<any>' is not assignable to type 'unique symbol | QueryFunction<any, string[], never> | undefined'.
+      Type '(storeId?: string) => Promise<any>' is not assignable to type 'QueryFunction<any, string[], never>'.
+        Types of parameters 'storeId' and 'context' are incompatible.
+          Type '{ client: QueryClient; queryKey: string[]; signal: AbortSignal; meta: Record<string, unknown> | undefined; pageParam?: unknown; direction?: unknown; }' is not assignable to type 'string'.
+  Overload 3 of 3, '(options: UseQueryOptions<any, Error, any, string[]>, queryClient?: QueryClient | undefined): UseQueryResult<any, Error>', gave the following error.
+    Type '(storeId?: string) => Promise<any>' is not assignable to type 'unique symbol | QueryFunction<any, string[], never> | undefined'.
+      Type '(storeId?: string) => Promise<any>' is not assignable to type 'QueryFunction<any, string[], never>'.
+        Types of parameters 'storeId' and 'context' are incompatible.
+          Type '{ client: QueryClient; queryKey: string[]; signal: AbortSignal; meta: Record<string, unknown> | undefined; pageParam?: unknown; direction?: unknown; }' is not assignable to type 'string'.
+src/pages/reports/index.tsx(763,33): error TS2339: Property 'data' does not exist on type '{}'.
+src/pages/reports/index.tsx(1171,70): error TS2339: Property 'total_revenue' does not exist on type '{}'.
+src/pages/reports/index.tsx(1171,114): error TS2339: Property 'total_orders' does not exist on type '{}'.
+src/pages/reports/index.tsx(1171,169): error TS2339: Property 'today_revenue' does not exist on type '{}'.
+src/pages/reports/index.tsx(1173,67): error TS2339: Property 'today' does not exist on type '{}'.
+src/pages/reports/index.tsx(1173,113): error TS2339: Property 'this_week' does not exist on type '{}'.
+src/pages/reports/index.tsx(1173,163): error TS2339: Property 'this_month' does not exist on type '{}'.
+src/pages/reports/index.tsx(1181,69): error TS2339: Property 'today_revenue' does not exist on type '{}'.
+src/pages/reports/index.tsx(1202,85): error TS2339: Property 'today' does not exist on type '{}'.
+src/pages/reports/index.tsx(1202,121): error TS2339: Property 'this_week' does not exist on type '{}'.
+src/pages/reports/index.tsx(1202,162): error TS2339: Property 'this_month' does not exist on type '{}'.
+src/pages/reports/index.tsx(1202,201): error TS2339: Property 'this_fy' does not exist on type '{}'.
+src/pages/reports/index.tsx(1690,82): error TS2339: Property 'total_revenue' does not exist on type '{}'.
+src/pages/reports/index.tsx(1691,67): error TS2339: Property 'total_orders' does not exist on type '{}'.
+src/pages/reports/index.tsx(1692,82): error TS2339: Property 'today_revenue' does not exist on type '{}'.
+src/pages/reports/index.tsx(1693,67): error TS2339: Property 'today_orders' does not exist on type '{}'.
+src/pages/reports/index.tsx(1732,43): error TS2339: Property 'today' does not exist on type '{}'.
+src/pages/reports/index.tsx(1733,47): error TS2339: Property 'this_week' does not exist on type '{}'.
+src/pages/reports/index.tsx(1734,48): error TS2339: Property 'this_month' does not exist on type '{}'.
+src/pages/reports/index.tsx(1735,47): error TS2339: Property 'this_fy' does not exist on type '{}'.
+src/pages/reports/index.tsx(1739,43): error TS2339: Property 'today' does not exist on type '{}'.
+src/pages/reports/index.tsx(1739,87): error TS2339: Property 'this_week' does not exist on type '{}'.
+src/pages/reports/index.tsx(1739,136): error TS2339: Property 'this_month' does not exist on type '{}'.
+src/pages/reports/index.tsx(1739,185): error TS2339: Property 'this_fy' does not exist on type '{}'.
+src/pages/reports/index.tsx(1740,38): error TS2339: Property 'this_fy' does not exist on type '{}'.
+src/pages/reports/index.tsx(1801,68): error TS2339: Property 'total_products' does not exist on type '{}'.
+src/pages/reports/index.tsx(1845,69): error TS2339: Property 'total_customers' does not exist on type '{}'.
+src/pages/reports/index.tsx(1846,82): error TS2339: Property 'total_revenue' does not exist on type '{}'.
+src/pages/reports/index.tsx(1886,78): error TS2339: Property 'pos_today' does not exist on type '{}'.
+src/pages/restaurant/Reservations.tsx(332,75): error TS2322: Type '{ children: string; className: string; required: true; }' is not assignable to type 'IntrinsicAttributes & Omit<LabelProps & RefAttributes<HTMLLabelElement>, "ref"> & VariantProps<(props?: ClassProp | undefined) => string> & { ...; } & RefAttributes<...>'.
+  Property 'required' does not exist on type 'IntrinsicAttributes & Omit<LabelProps & RefAttributes<HTMLLabelElement>, "ref"> & VariantProps<(props?: ClassProp | undefined) => string> & { ...; } & RefAttributes<...>'.
+src/pages/restaurant/Reservations.tsx(350,75): error TS2322: Type '{ children: string; className: string; required: true; }' is not assignable to type 'IntrinsicAttributes & Omit<LabelProps & RefAttributes<HTMLLabelElement>, "ref"> & VariantProps<(props?: ClassProp | undefined) => string> & { ...; } & RefAttributes<...>'.
+  Property 'required' does not exist on type 'IntrinsicAttributes & Omit<LabelProps & RefAttributes<HTMLLabelElement>, "ref"> & VariantProps<(props?: ClassProp | undefined) => string> & { ...; } & RefAttributes<...>'.
+src/pages/restaurant/Reservations.tsx(354,75): error TS2322: Type '{ children: string; className: string; required: true; }' is not assignable to type 'IntrinsicAttributes & Omit<LabelProps & RefAttributes<HTMLLabelElement>, "ref"> & VariantProps<(props?: ClassProp | undefined) => string> & { ...; } & RefAttributes<...>'.
+  Property 'required' does not exist on type 'IntrinsicAttributes & Omit<LabelProps & RefAttributes<HTMLLabelElement>, "ref"> & VariantProps<(props?: ClassProp | undefined) => string> & { ...; } & RefAttributes<...>'.
+src/pages/services/ServiceForm.tsx(398,18): error TS2304: Cannot find name 'X'.
+src/pages/services/ServiceForm.tsx(411,83): error TS2304: Cannot find name 'X'.
+src/pages/services/ServiceForm.tsx(554,28): error TS2304: Cannot find name 'X'.
+src/pages/services/ServiceForm.tsx(1697,29): error TS2322: Type 'unknown' is not assignable to type 'ReactNode'.
+src/pages/services/ServiceForm.tsx(2316,18): error TS2304: Cannot find name 'X'.
+src/pages/services/ServiceForm.tsx(2434,18): error TS2304: Cannot find name 'X'.
+src/pages/services/ServiceForm.tsx(2454,18): error TS2304: Cannot find name 'X'.
+src/pages/settings/index.tsx(3139,56): error TS2322: Type '{ children: string; className: string; required: true; }' is not assignable to type 'IntrinsicAttributes & Omit<LabelProps & RefAttributes<HTMLLabelElement>, "ref"> & VariantProps<(props?: ClassProp | undefined) => string> & { ...; } & RefAttributes<...>'.
+  Property 'required' does not exist on type 'IntrinsicAttributes & Omit<LabelProps & RefAttributes<HTMLLabelElement>, "ref"> & VariantProps<(props?: ClassProp | undefined) => string> & { ...; } & RefAttributes<...>'.
+src/pages/settings/index.tsx(3149,56): error TS2322: Type '{ children: string; className: string; required: boolean; }' is not assignable to type 'IntrinsicAttributes & Omit<LabelProps & RefAttributes<HTMLLabelElement>, "ref"> & VariantProps<(props?: ClassProp | undefined) => string> & { ...; } & RefAttributes<...>'.
+  Property 'required' does not exist on type 'IntrinsicAttributes & Omit<LabelProps & RefAttributes<HTMLLabelElement>, "ref"> & VariantProps<(props?: ClassProp | undefined) => string> & { ...; } & RefAttributes<...>'.
+src/pages/settings/index.tsx(3168,60): error TS2322: Type '{ children: string; className: string; required: true; }' is not assignable to type 'IntrinsicAttributes & Omit<LabelProps & RefAttributes<HTMLLabelElement>, "ref"> & VariantProps<(props?: ClassProp | undefined) => string> & { ...; } & RefAttributes<...>'.
+  Property 'required' does not exist on type 'IntrinsicAttributes & Omit<LabelProps & RefAttributes<HTMLLabelElement>, "ref"> & VariantProps<(props?: ClassProp | undefined) => string> & { ...; } & RefAttributes<...>'.
+src/pages/system/FieldMappingModal.tsx(175,20): error TS2322: Type '{ children: string; required: true; }' is not assignable to type 'IntrinsicAttributes & Omit<LabelProps & RefAttributes<HTMLLabelElement>, "ref"> & VariantProps<(props?: ClassProp | undefined) => string> & { ...; } & RefAttributes<...>'.
+  Property 'required' does not exist on type 'IntrinsicAttributes & Omit<LabelProps & RefAttributes<HTMLLabelElement>, "ref"> & VariantProps<(props?: ClassProp | undefined) => string> & { ...; } & RefAttributes<...>'.
+src/pages/system/Modules.tsx(282,37): error TS2345: Argument of type '{ financeMode: string; }' is not assignable to parameter of type 'Pick<ModuleFormState, "financeMode" | "hrBusinessUnitIds">'.
+  Property 'hrBusinessUnitIds' is missing in type '{ financeMode: string; }' but required in type 'Pick<ModuleFormState, "financeMode" | "hrBusinessUnitIds">'.
+src/pages/team/index.tsx(260,70): error TS2339: Property 'full_name' does not exist on type 'TeamMember'.
+src/pages/team/index.tsx(730,25): error TS2322: Type 'string | null' is not assignable to type 'string'.
+  Type 'null' is not assignable to type 'string'.
+src/pages/websites/Builder.tsx(396,327): error TS2353: Object literal may only specify known properties, and 'cta_url' does not exist in type '{ name: string; price: string | number; currency?: string | undefined; period?: string | undefined; features?: string[] | undefined; highlighted?: boolean | undefined; cta?: string | undefined; }'.
+src/pages/websites/Builder.tsx(396,520): error TS2353: Object literal may only specify known properties, and 'cta_url' does not exist in type '{ name: string; price: string | number; currency?: string | undefined; period?: string | undefined; features?: string[] | undefined; highlighted?: boolean | undefined; cta?: string | undefined; }'.
+src/pages/websites/Builder.tsx(396,710): error TS2353: Object literal may only specify known properties, and 'cta_url' does not exist in type '{ name: string; price: string | number; currency?: string | undefined; period?: string | undefined; features?: string[] | undefined; highlighted?: boolean | undefined; cta?: string | undefined; }'.
+src/pages/websites/Builder.tsx(458,402): error TS2353: Object literal may only specify known properties, and 'cta_url' does not exist in type '{ name: string; price: string | number; currency?: string | undefined; period?: string | undefined; features?: string[] | undefined; highlighted?: boolean | undefined; cta?: string | undefined; }'.
+src/pages/websites/Builder.tsx(458,599): error TS2353: Object literal may only specify known properties, and 'cta_url' does not exist in type '{ name: string; price: string | number; currency?: string | undefined; period?: string | undefined; features?: string[] | undefined; highlighted?: boolean | undefined; cta?: string | undefined; }'.
+src/pages/websites/Builder.tsx(458,774): error TS2353: Object literal may only specify known properties, and 'cta_url' does not exist in type '{ name: string; price: string | number; currency?: string | undefined; period?: string | undefined; features?: string[] | undefined; highlighted?: boolean | undefined; cta?: string | undefined; }'.
+src/pages/websites/Builder.tsx(1306,11): error TS2322: Type 'Dispatch<SetStateAction<"stores" | "people" | "catalog" | "basic" | "actions" | "portal">>' is not assignable to type '(group: StoreContentGroup) => void'.
+  Types of parameters 'value' and 'group' are incompatible.
+    Type 'StoreContentGroup' is not assignable to type 'SetStateAction<"stores" | "people" | "catalog" | "basic" | "actions" | "portal">'.
+      Type '"ext_api"' is not assignable to type 'SetStateAction<"stores" | "people" | "catalog" | "basic" | "actions" | "portal">'.
+src/pages/websites/Builder.tsx(2883,43): error TS2322: Type 'import("C:/KIT ERP/Work Space/KITERP/storefront-web/node_modules/@types/react/index").CSSProperties' is not assignable to type 'React.CSSProperties'.
+  Index signature for type '`--radix-${string}`' is missing in type 'Properties<string | number, string & {}>'.
+src/pages/websites/Builder.tsx(10191,62): error TS2345: Argument of type 'StyleConfig' is not assignable to parameter of type 'Record<string, unknown>'.
+  Index signature for type 'string' is missing in type 'StyleConfig'.
+src/pages/websites/Builder.tsx(10782,20): error TS2352: Conversion of type 'Record<string, unknown>' to type 'BlockOverlayItem' may be a mistake because neither type sufficiently overlaps with the other. If this was intentional, convert the expression to 'unknown' first.
+  Type 'Record<string, unknown>' is missing the following properties from type 'BlockOverlayItem': id, type, x, y, and 2 more.
+src/pages/websites/Builder.tsx(12313,15): error TS2345: Argument of type '({ label: string; url: string | undefined; image_url: string | undefined; } | null)[]' is not assignable to parameter of type 'MarqueeItem[]'.
+  Type '{ label: string; url: string | undefined; image_url: string | undefined; } | null' is not assignable to type 'MarqueeItem'.
+    Type 'null' is not assignable to type 'MarqueeItem'.
+src/pages/websites/Builder.tsx(12323,43): error TS2677: A type predicate's type must be assignable to its parameter's type.
+  Type '{ label: string; url?: string | undefined; image_url?: string | undefined; }' is not assignable to type '{ label: string; url: string | undefined; image_url: string | undefined; }'.
+    Property 'url' is optional in type '{ label: string; url?: string | undefined; image_url?: string | undefined; }' but required in type '{ label: string; url: string | undefined; image_url: string | undefined; }'.
+src/pages/websites/Builder.tsx(13851,14): error TS2339: Property 'website_store_scope' does not exist on type 'WebsiteSite'.
+src/pages/websites/Builder.tsx(13851,54): error TS2339: Property 'website_store_id' does not exist on type 'WebsiteSite'.
+src/pages/websites/Builder.tsx(13852,51): error TS2339: Property 'website_store_id' does not exist on type 'WebsiteSite'.
+src/pages/websites/index.tsx(1232,11): error TS2322: Type '{ id: string; label: string; icon: string; desc: string; niche: string; defaultName: string; sells: string; prompt: string; }' is not assignable to type '{ readonly id: "retail"; readonly label: "Healthy Retail"; readonly icon: "≡ƒÑù"; readonly desc: "Snacks, groceries, beverages, wellness"; readonly niche: "healthy food and wellness retail"; readonly defaultName: "My Wellness Store"; readonly sells: "products"; readonly prompt: "Create a healthy retail website with an...'.
+  Type '{ id: string; label: string; icon: string; desc: string; niche: string; defaultName: string; sells: string; prompt: string; }' is not assignable to type '{ readonly id: "consulting"; readonly label: "Consultant / Agency"; readonly icon: "≡ƒôê"; readonly desc: "Leads, portfolio, case studies"; readonly niche: "consulting agency professional services"; readonly defaultName: "My Agency"; readonly sells: "services"; readonly prompt: "Create a professional consultant or age...'.
+    Types of property 'id' are incompatible.
+      Type 'string' is not assignable to type '"consulting"'.

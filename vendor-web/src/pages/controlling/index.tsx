@@ -4,7 +4,7 @@ import { useControllingDashboard, useWipSummary } from '@/hooks/useControlling'
 import { useState, useMemo } from 'react'
 import { Select } from '@/components/ui/select'
 import { formatCurrency } from '@/lib/utils'
-import { Boxes, Factory, Gauge, Layers, ArrowRight, Package, Clock, GitMerge, CalendarClock, FolderOpen } from 'lucide-react'
+import { Boxes, Factory, Gauge, Layers, ArrowRight, Package, Clock, GitMerge, CalendarClock, FolderOpen, Landmark, Building2 } from 'lucide-react'
 
 function fmtMoney(s: string | number) {
   const n = typeof s === 'string' ? parseFloat(s) : s
@@ -106,8 +106,11 @@ export default function ControllingDashboardPage() {
           <h2 className="font-semibold text-gray-800 mb-3">Planning &amp; Cost Setup</h2>
           <ul className="space-y-2">
             {[
+              ['/controlling/controlling-areas', 'Controlling Areas', 'Group company codes into a CO org unit', Building2],
               ['/controlling/product-costs', 'Product Cost Planning', 'Standard / Planned Costs & BOM Roll-Up', Boxes],
-              ['/controlling/setup', 'Activities & Overhead Setup', 'Activity Types And Overhead Pools / Rates', Gauge],
+              ['/controlling/activity-types', 'Activity Types', 'Labor, machine hour, and other activity drivers', Gauge],
+              ['/controlling/setup', 'Overhead Setup', 'Overhead pools and absorption rates', Gauge],
+              ['/controlling/finance-integration', 'Finance Integration', 'CO settlement GL account mapping', Landmark],
               ['/controlling/cost-allocations', 'Cost Allocations', 'Period-End CC-To-CC Cost Center Allocations', GitMerge],
             ].map(([to, label, desc, Icon]) => (
               <li key={to as string}>

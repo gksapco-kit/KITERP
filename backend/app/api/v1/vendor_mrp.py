@@ -13,6 +13,12 @@ from app.models.user import User
 from app.models.mrp import ProductBOMItem, StockReservation
 from app.models.vendor_product import Product
 from app.services.vendor_service import VendorService
+from app.services.mrp_service import (
+    ceil_decimal,
+    get_available_stock,
+    explode_bom,
+    lock_product_scope,
+)
 from app.schemas.mrp import (
     BOMItemIn, BOMItemOut,
     MRPRequest, MRPResultLine,
@@ -44,6 +50,8 @@ def _resv_to_dict(r: StockReservation, product_name: Optional[str] = None) -> di
         "vendor_id": str(r.vendor_id),
         "order_type": r.order_type,
         "order_id": r.order_id,
+        "store_id": str(r.store_id) if r.store_id else None,
+        "storage_location_id": str(r.storage_location_id) if r.storage_location_id else None,
         "product_id": str(r.product_id),
         "product_name": product_name,
         "variant_id": str(r.variant_id) if r.variant_id else None,
@@ -52,6 +60,7 @@ def _resv_to_dict(r: StockReservation, product_name: Optional[str] = None) -> di
         "notes": r.notes,
         "created_at": r.created_at.isoformat() if r.created_at else None,
         "released_at": r.released_at.isoformat() if r.released_at else None,
+        "consumed_at": r.consumed_at.isoformat() if r.consumed_at else None,
     }
 
 
@@ -101,6 +110,10 @@ async def replace_product_bom(
     if not prod_result.scalar_one_or_none():
         raise HTTPException(404, "Product not found")
 
+    for item in items:
+        if item.component_id == product_id:
+            raise HTTPException(400, "A product cannot be a component of itself")
+
     # Delete existing BOM
     await db.execute(
         delete(ProductBOMItem).where(
@@ -149,88 +162,39 @@ async def calculate_mrp(
     db: AsyncSession = Depends(get_db),
 ):
     """
-    Given a list of finished-product line items, explode BOMs, query stock,
-    and return material availability per component.
+    Given a list of finished-product line items, recursively explode their BOMs
+    down to raw materials (multi-level, cycle-safe), and return material
+    availability per leaf component — scoped to a business unit's StoreInventory
+    when store_id is provided, else the global Product.quantity rollup.
     """
-    # Aggregate required qty per component across all order items
-    component_requirements: dict[str, dict] = {}  # component_id_str -> {...}
+    component_requirements = await explode_bom(
+        db, vendor_id,
+        [{"product_id": i.product_id, "qty": i.qty, "name": i.name} for i in body.items],
+    )
 
-    for req_item in body.items:
-        try:
-            pid = UUID(req_item.product_id)
-        except ValueError:
-            continue
-
-        bom_result = await db.execute(
-            select(ProductBOMItem).where(
-                ProductBOMItem.vendor_id == vendor_id,
-                ProductBOMItem.product_id == pid,
-            )
-        )
-        bom_items = bom_result.scalars().all()
-
-        if not bom_items:
-            # No BOM — report the product itself as the material (direct stock check)
-            cid = req_item.product_id
-            if cid not in component_requirements:
-                component_requirements[cid] = {
-                    "component_id": cid,
-                    "product_obj": None,
-                    "required_qty": Decimal("0"),
-                    "source_items": [],
-                    "no_bom": True,
-                }
-            component_requirements[cid]["required_qty"] += Decimal(str(req_item.qty))
-            component_requirements[cid]["source_items"].append(req_item.name or req_item.product_id)
-        else:
-            for bom_item in bom_items:
-                cid = str(bom_item.component_id)
-                needed = Decimal(str(req_item.qty)) * bom_item.qty_per_unit
-                if cid not in component_requirements:
-                    comp_result = await db.execute(select(Product).where(Product.id == bom_item.component_id))
-                    comp = comp_result.scalar_one_or_none()
-                    component_requirements[cid] = {
-                        "component_id": cid,
-                        "product_obj": comp,
-                        "required_qty": Decimal("0"),
-                        "source_items": [],
-                        "no_bom": False,
-                    }
-                component_requirements[cid]["required_qty"] += needed
-                component_requirements[cid]["source_items"].append(req_item.name or req_item.product_id)
-
-    # For items with no_bom, fetch product
-    for cid, entry in component_requirements.items():
-        if entry["product_obj"] is None:
-            try:
-                pid = UUID(cid)
-                prod_result = await db.execute(select(Product).where(Product.id == pid))
-                entry["product_obj"] = prod_result.scalar_one_or_none()
-            except ValueError:
-                pass
-
-    # Get active reservations for ALL components (to compute reserved_by_others)
     result_lines = []
     for cid, entry in component_requirements.items():
         comp = entry["product_obj"]
-        in_stock = Decimal(str(comp.quantity)) if comp and comp.quantity is not None else Decimal("0")
+        in_stock = await get_available_stock(db, vendor_id, UUID(cid), body.store_id)
 
-        # Total active reservations for this component
+        resv_scope = [
+            StockReservation.vendor_id == vendor_id,
+            StockReservation.product_id == UUID(cid),
+            StockReservation.status == "active",
+        ]
+        if body.store_id:
+            resv_scope.append(StockReservation.store_id == body.store_id)
+        else:
+            resv_scope.append(StockReservation.store_id.is_(None))
+
         resv_result = await db.execute(
-            select(sqlfunc.coalesce(sqlfunc.sum(StockReservation.reserved_qty), 0)).where(
-                StockReservation.vendor_id == vendor_id,
-                StockReservation.product_id == UUID(cid),
-                StockReservation.status == "active",
-            )
+            select(sqlfunc.coalesce(sqlfunc.sum(StockReservation.reserved_qty), 0)).where(*resv_scope)
         )
         total_reserved = Decimal(str(resv_result.scalar() or 0))
 
-        # Reservation already held by THIS order
         order_resv_result = await db.execute(
             select(sqlfunc.coalesce(sqlfunc.sum(StockReservation.reserved_qty), 0)).where(
-                StockReservation.vendor_id == vendor_id,
-                StockReservation.product_id == UUID(cid),
-                StockReservation.status == "active",
+                *resv_scope,
                 StockReservation.order_type == body.order_type,
                 StockReservation.order_id == body.order_id,
             )
@@ -240,11 +204,12 @@ async def calculate_mrp(
         reserved_by_others = total_reserved - order_reserved
         available = in_stock - reserved_by_others
         required = entry["required_qty"]
-        shortage = max(Decimal("0"), required - available)
+        reserve_qty = ceil_decimal(required)
+        shortage = max(Decimal("0"), reserve_qty - available)
 
         if entry["no_bom"]:
             status = "no_bom"
-        elif available >= required:
+        elif available >= reserve_qty:
             status = "ok"
         elif available > 0:
             status = "partial"
@@ -256,14 +221,17 @@ async def calculate_mrp(
             "component_name": comp.name if comp else "Unknown",
             "component_sku": comp.sku if comp else None,
             "component_uom": comp.uom if comp else None,
+            "is_leaf": True,
+            "bom_depth": entry["max_depth"],
             "required_qty": float(required),
+            "reserve_qty": float(reserve_qty),
             "in_stock": float(in_stock),
             "reserved_by_others": float(reserved_by_others),
             "already_reserved_for_order": float(order_reserved),
             "available": float(available),
             "shortage": float(shortage),
             "status": status,
-            "source_items": list(set(entry["source_items"])),
+            "source_items": sorted(entry["source_items"]),
         })
 
     return result_lines
@@ -276,6 +244,7 @@ async def list_reservations(
     order_type: Optional[str] = None,
     order_id: Optional[str] = None,
     status: Optional[str] = None,
+    store_id: Optional[UUID] = None,
     vendor_id: UUID = Depends(get_current_vendor_id),
     db: AsyncSession = Depends(get_db),
 ):
@@ -287,6 +256,8 @@ async def list_reservations(
         q = q.where(StockReservation.order_id == order_id)
     if status:
         q = q.where(StockReservation.status == status)
+    if store_id:
+        q = q.where(StockReservation.store_id == store_id)
     q = q.order_by(StockReservation.created_at.desc())
 
     result = await db.execute(q)
@@ -315,10 +286,13 @@ async def create_reservations(
 
     created = []
     for item in body.items:
+        await lock_product_scope(db, vendor_id, body.store_id, item.product_id)
         resv = StockReservation(
             vendor_id=vendor_id,
             order_type=body.order_type,
             order_id=body.order_id,
+            store_id=body.store_id,
+            storage_location_id=body.storage_location_id,
             product_id=item.product_id,
             variant_id=item.variant_id,
             reserved_qty=item.reserved_qty,

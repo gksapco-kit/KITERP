@@ -1,5 +1,7 @@
 /** Persisted KIT ERP dashboard color themes (primary / accent palette). */
-export type KitErpThemeId = 'mint' | 'ocean' | 'indigo' | 'amber' | 'rose' | 'slate'
+import { KIT_ERP_PALETTE } from '@/lib/kitErpColorPalette'
+
+export type KitErpThemeId = 'mint' | 'kit-brand' | 'ocean' | 'indigo' | 'amber' | 'rose' | 'slate'
 
 export const DEFAULT_KIT_ERP_THEME_ID: KitErpThemeId = 'mint'
 
@@ -17,6 +19,12 @@ export const KIT_ERP_THEME_OPTIONS: KitErpThemeOption[] = [
     name: 'KIT Mint',
     description: 'Default brand green — calm and familiar.',
     swatches: ['#64C3A0', '#2D6B52', '#F4F7F9'],
+  },
+  {
+    id: 'kit-brand',
+    name: 'KIT Brand',
+    description: 'Official KIT ERP palette — mint, purple & warm orange.',
+    swatches: [KIT_ERP_PALETTE.primary, KIT_ERP_PALETTE.secondary, KIT_ERP_PALETTE.background],
   },
   {
     id: 'ocean',

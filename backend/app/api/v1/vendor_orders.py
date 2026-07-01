@@ -1,6 +1,7 @@
 # app/api/v1/vendor_orders.py
 from fastapi import APIRouter, Depends, HTTPException, status, Query, UploadFile, File
 from fastapi.responses import JSONResponse
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import Optional
 from uuid import UUID
@@ -12,6 +13,10 @@ from app.database import get_db
 from app.api.deps import get_current_active_user
 from app.models.user import User
 from app.models.order import Order
+from app.models.store import Store
+from app.models.pos import POSTransaction
+from app.models.booking import Booking
+from app.models.vendor_user import VendorUser
 from app.schemas.order import (
     OrderStatusUpdate,
     OrderStatsResponse,
@@ -73,8 +78,9 @@ def _order_to_dict(order: Order) -> dict:
         "delivery_staff_name": getattr(order, "delivery_staff_name", None),
         "delivery_assigned_at": order.delivery_assigned_at.isoformat() if getattr(order, "delivery_assigned_at", None) else None,
         "delivery_status": getattr(order, "delivery_status", None),
-        # Source
+        # Source & location
         "source": getattr(order, "source", "online") or "online",
+        "store_id": _safe(getattr(order, "store_id", None)),
         "pos_transaction_id": _safe(getattr(order, "pos_transaction_id", None)),
         # Coupon / discount
         "coupon_code": getattr(order, "coupon_code", None),
@@ -113,6 +119,87 @@ def _order_to_dict(order: Order) -> dict:
             for h in getattr(order, "status_history", []) or []
         ],
     }
+
+
+async def _user_via_vendor_user(db: AsyncSession, vendor_user_id: UUID) -> Optional[User]:
+    """Resolve the platform User behind a VendorUser in a single joined query."""
+    result = await db.execute(
+        select(User).join(VendorUser, VendorUser.user_id == User.id).where(VendorUser.id == vendor_user_id)
+    )
+    return result.scalar_one_or_none()
+
+
+async def _enrich_order_dict(db: AsyncSession, order: Order, d: dict) -> dict:
+    """Resolve store name and who placed the order (channel-specific).
+
+    Note: lookups run sequentially (not via asyncio.gather) because they share
+    a single AsyncSession, which SQLAlchemy does not allow concurrent use of.
+    Each branch is collapsed to at most one round-trip via joined queries.
+    """
+    store_id = getattr(order, "store_id", None)
+    if store_id:
+        store = await db.get(Store, store_id)
+        d["store_name"] = store.name if store else None
+        d["store_code"] = store.code if store else None
+    else:
+        d["store_name"] = None
+        d["store_code"] = None
+
+    source = (d.get("source") or "online").lower()
+    placed_by_name: str | None = None
+    placed_by_type: str | None = None
+
+    if source == "pos" and d.get("pos_transaction_id"):
+        try:
+            txn = await db.get(POSTransaction, UUID(d["pos_transaction_id"]))
+        except ValueError:
+            txn = None
+        if txn:
+            if txn.sales_person_vendor_user_id:
+                sp_user = await _user_via_vendor_user(db, txn.sales_person_vendor_user_id)
+                if sp_user:
+                    placed_by_name = (sp_user.full_name or sp_user.email or "").strip() or None
+                    placed_by_type = "staff"
+            if not placed_by_name and txn.cashier_id:
+                cashier = await db.get(User, txn.cashier_id)
+                if cashier:
+                    placed_by_name = (cashier.full_name or cashier.email or "").strip() or None
+                    placed_by_type = "cashier"
+    elif source == "booking":
+        booking_id = None
+        items = d.get("items") or []
+        if items and isinstance(items[0], dict):
+            booking_id = items[0].get("booking_id")
+        if booking_id:
+            try:
+                booking = await db.get(Booking, UUID(str(booking_id)))
+            except ValueError:
+                booking = None
+            if booking:
+                history = booking.status_history or []
+                first = history[0] if history and isinstance(history[0], dict) else None
+                if first and first.get("changed_by_name"):
+                    placed_by_name = str(first["changed_by_name"]).strip() or None
+                    placed_by_type = "staff"
+                elif booking.assigned_staff_name:
+                    placed_by_name = booking.assigned_staff_name
+                    placed_by_type = "staff"
+        if not placed_by_name:
+            placed_by_name = d.get("customer_name")
+            placed_by_type = "customer"
+    else:
+        placed_by_name = d.get("customer_name")
+        placed_by_type = "customer"
+
+    d["placed_by_name"] = placed_by_name
+    d["placed_by_type"] = placed_by_type
+
+    delivery_staff_id = getattr(order, "delivery_staff_id", None)
+    delivery_staff_user = await _user_via_vendor_user(db, delivery_staff_id) if delivery_staff_id else None
+    d["delivery_staff_email"] = delivery_staff_user.email if delivery_staff_user else None
+    d["delivery_staff_phone"] = delivery_staff_user.phone if delivery_staff_user else None
+
+    return d
 
 
 async def _get_vendor_id(user: User, db: AsyncSession) -> UUID:
@@ -217,7 +304,7 @@ async def get_order(
             detail="Order not found",
         )
 
-    return JSONResponse(content=_order_to_dict(order))
+    return JSONResponse(content=await _enrich_order_dict(db, order, _order_to_dict(order)))
 
 
 @router.put("/{order_id}/assign-delivery")
@@ -236,7 +323,7 @@ async def assign_order_delivery(
         staff_id=body.get("staff_id"),
         staff_name=body.get("staff_name"),
     )
-    return JSONResponse(content=_order_to_dict(order))
+    return JSONResponse(content=await _enrich_order_dict(db, order, _order_to_dict(order)))
 
 
 @router.put("/{order_id}/status")
@@ -255,7 +342,7 @@ async def update_order_status(
     repo = OrderRepository(db)
     order = await repo.get_by_vendor_and_id(vendor_id, order_id)
 
-    return JSONResponse(content=_order_to_dict(order))
+    return JSONResponse(content=await _enrich_order_dict(db, order, _order_to_dict(order)))
 
 
 @router.post("/{order_id}/return-resolve")
@@ -272,7 +359,7 @@ async def resolve_return(
 
     repo = OrderRepository(db)
     order = await repo.get_by_vendor_and_id(vendor_id, order_id)
-    return JSONResponse(content=_order_to_dict(order))
+    return JSONResponse(content=await _enrich_order_dict(db, order, _order_to_dict(order)))
 
 
 @router.post("/{order_id}/return-request")
@@ -304,4 +391,4 @@ async def request_return_exchange(
     )
 
     order = await repo.get_by_vendor_and_id(vendor_id, order_id)
-    return JSONResponse(content=_order_to_dict(order))
+    return JSONResponse(content=await _enrich_order_dict(db, order, _order_to_dict(order)))

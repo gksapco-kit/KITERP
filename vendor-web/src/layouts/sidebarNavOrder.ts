@@ -267,6 +267,54 @@ export function reconcileNavPlacements(
     out.restaurant = [...ordered, ...rest]
   }
 
+  // Production routes always live under Production Management (avoids losing items after drag-and-drop).
+  const productionOrder = [
+    '/production',
+    '/production/schedule',
+    '/production/work-centers',
+    '/production/mrp',
+    '/production/analytics',
+  ]
+  const productionRoutes = productionOrder.filter((to) => validTos.has(to))
+  if (productionRoutes.length && out.production) {
+    for (const sid of Object.keys(out)) {
+      if (sid === 'production') continue
+      out[sid] = out[sid].filter((to) => !productionOrder.includes(to))
+    }
+    out.production = productionRoutes
+  }
+
+  // Controlling (CO) routes keep canonical order (Integration before Cost Centres, etc.).
+  const controllingOrder = [
+    '/controlling',
+    '/controlling/controlling-areas',
+    '/controlling/finance-integration',
+    '/controlling/cost-centers',
+    '/controlling/activity-types',
+    '/controlling/product-costs',
+    '/controlling/routing',
+    '/controlling/setup',
+    '/controlling/orders',
+    '/controlling/orders?kind=assembly',
+    '/controlling/orders?kind=process',
+    '/controlling/internal-orders',
+    '/controlling/production-process',
+    '/controlling/goods-movements',
+    '/controlling/activity-confirmations',
+    '/controlling/cost-bookings',
+    '/controlling/wip',
+    '/controlling/variance-analysis',
+    '/controlling/internal-cost',
+    '/controlling/cost-allocations',
+    '/controlling/period-end',
+  ]
+  const controllingRoutes = [...validTos].filter((to) => home.get(to) === 'controlling')
+  if (controllingRoutes.length && out.controlling) {
+    const ordered = controllingOrder.filter((to) => controllingRoutes.includes(to))
+    const rest = controllingRoutes.filter((to) => !ordered.includes(to))
+    out.controlling = [...ordered, ...rest]
+  }
+
   // System Configuration routes keep canonical order (Create Messages before Database group).
   const systemConfigurationOrder = [
     '/system/social-links',

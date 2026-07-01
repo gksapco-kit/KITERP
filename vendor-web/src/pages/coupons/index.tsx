@@ -1,6 +1,7 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect, useRef } from 'react'
 import { TableColumnLabel, CheckboxFieldLabel } from '@/components/common/FieldLabel'
-import { BusinessUnitSelect } from '@/components/common/BusinessUnitSelect'
+import { BusinessUnitSelect, useResolveBuBranch } from '@/components/common/BusinessUnitSelect'
+import { BranchSelect } from '@/components/common/BranchSelect'
 import { CatalogItemPicker, type CatalogPickerItem } from '@/components/common/CatalogItemPicker'
 import { useStores } from '@/hooks/useVendor'
 import { useEscapeToClose } from '@/hooks/useEscapeToClose'
@@ -57,6 +58,7 @@ export default function CouponsPage() {
   const [sortKey, setSortKey] = useState('code')
   const [sortDir, setSortDir] = useState<SortDir>('asc')
   const [storeFilter, setStoreFilter] = useState('')
+  const [branchFilter, setBranchFilter] = useState('')
 
   const { data: storesData } = useStores()
   const storeLabelById = useMemo(() => {
@@ -66,8 +68,8 @@ export default function CouponsPage() {
   }, [storesData])
 
   const { data, isLoading } = useQuery({
-    queryKey: ['coupons', page, storeFilter],
-    queryFn: () => vendorApi.listCoupons({ page, size: 20, store_id: storeFilter || undefined }),
+    queryKey: ['coupons', page, storeFilter, branchFilter],
+    queryFn: () => vendorApi.listCoupons({ page, size: 20, store_id: branchFilter || storeFilter || undefined }),
   })
 
   const deleteCoupon = useMutation({
@@ -131,7 +133,9 @@ export default function CouponsPage() {
           />
           <div className="flex items-center gap-2 px-4 py-2 border-b">
             <span className="text-xs text-gray-500">Business unit</span>
-            <div className="w-56"><BusinessUnitSelect value={storeFilter} onChange={(id) => { setStoreFilter(id); setPage(1) }} allowAll autoSelectDefault={false} /></div>
+            <div className="w-56"><BusinessUnitSelect value={storeFilter} onChange={(id) => { setStoreFilter(id); setBranchFilter(''); setPage(1) }} allowAll autoSelectDefault={false} /></div>
+            <span className="text-xs text-gray-500">Branch</span>
+            <div className="w-56"><BranchSelect businessUnitId={storeFilter || null} value={branchFilter} onChange={(id) => { setBranchFilter(id); setPage(1) }} allowAll /></div>
           </div>
           <div className="overflow-x-auto">
           <ResizableTable tableId="coupons-v2" defaultWidths={[150, 140, 120, 110, 80, 80, 100, 220]}>
@@ -193,11 +197,14 @@ function CouponModal({
  mode, coupon, onClose, onSaved }: { mode: 'create' | 'edit'; coupon?: Record<string, unknown>; onClose: () => void; onSaved: () => void }) {
   useEscapeToClose(onClose)
 
+  const { buId: initialBuId, branchId: initialBranchId } = useResolveBuBranch((coupon?.store_id as string) || null)
+
   const [form, setForm] = useState({
     code: (coupon?.code as string) || '',
     title: (coupon?.title as string) || '',
     description: (coupon?.description as string) || '',
-    store_id: (coupon?.store_id as string) || '',
+    store_id: initialBuId,
+    branch_id: initialBranchId,
     discount_type: (coupon?.discount_type as string) || 'percentage',
     discount_value: (coupon?.discount_value as number) || 10,
     max_discount: (coupon?.max_discount as number) || 0,
@@ -208,6 +215,17 @@ function CouponModal({
     is_active: coupon?.is_active !== false,
     is_public: coupon?.is_public !== false,
   })
+
+  // Coupon.store_id may point at a business unit OR a branch; once the store
+  // list resolves, split it into the BU + branch pair shown below (once only,
+  // so it doesn't clobber the user's own selection).
+  const hydratedScopeRef = useRef(false)
+  useEffect(() => {
+    if (hydratedScopeRef.current || !coupon?.store_id || !initialBuId) return
+    setForm((f) => ({ ...f, store_id: initialBuId, branch_id: initialBranchId }))
+    hydratedScopeRef.current = true
+  }, [initialBuId, initialBranchId, coupon])
+
   const [applicableItems, setApplicableItems] = useState<CatalogPickerItem[]>(() => {
     const raw = (coupon?.applicable_ids as unknown[]) || []
     return raw
@@ -227,7 +245,7 @@ function CouponModal({
     try {
       const payload = {
         ...form,
-        store_id: form.store_id || undefined,
+        store_id: form.branch_id || form.store_id || undefined,
         usage_limit: form.usage_limit || undefined,
         max_discount: form.max_discount || undefined,
         applicable_ids: isSpecific ? applicableItems : [],
@@ -252,10 +270,22 @@ function CouponModal({
         <div className="px-6 py-5 space-y-4 max-h-[60vh] overflow-y-auto">
           <div>
             <Label>Business unit</Label>
-            <div className="mt-1">
-              <BusinessUnitSelect value={form.store_id} onChange={(id) => { setForm(f => ({ ...f, store_id: id })); setApplicableItems([]) }} allowAll />
+            <div className="mt-1 flex flex-wrap gap-2">
+              <BusinessUnitSelect
+                value={form.store_id}
+                onChange={(id) => { setForm(f => ({ ...f, store_id: id, branch_id: '' })); setApplicableItems([]) }}
+                allowAll
+                className="flex-1 min-w-[10rem]"
+              />
+              <BranchSelect
+                businessUnitId={form.store_id || null}
+                value={form.branch_id}
+                onChange={(id) => setForm(f => ({ ...f, branch_id: id }))}
+                allowAll
+                className="flex-1 min-w-[10rem]"
+              />
             </div>
-            <p className="text-[11px] text-gray-400 mt-1">Scopes which items can be selected below. "All business units" keeps it global.</p>
+            <p className="text-[11px] text-gray-400 mt-1">Scopes which items can be selected below. "All business units" keeps it global; pick a branch to restrict further.</p>
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div><Label>Code</Label><Input className="mt-1 font-mono uppercase" value={form.code} onChange={e => setForm({ ...form, code: e.target.value.toUpperCase() })} placeholder="SAVE20" disabled={mode === 'edit'} /></div>
@@ -305,7 +335,7 @@ function CouponModal({
               <Label>Eligible items</Label>
               <div className="mt-1">
                 <CatalogItemPicker
-                  storeId={form.store_id}
+                  storeId={form.branch_id || form.store_id}
                   value={applicableItems}
                   onChange={setApplicableItems}
                   kinds={form.applicable_to === 'products' ? ['product'] : form.applicable_to === 'services' ? ['service'] : ['product', 'service']}

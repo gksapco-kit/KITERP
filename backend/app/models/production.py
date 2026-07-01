@@ -1,6 +1,6 @@
 """Production orders (MTO / MTS) — vendor-scoped, optional store scope."""
 from sqlalchemy import (
-    Column, String, Text, Integer, Date, DateTime, ForeignKey, UniqueConstraint, Index,
+    Column, String, Text, Integer, Numeric, Date, DateTime, ForeignKey, UniqueConstraint, Index,
 )
 from sqlalchemy.dialects.postgresql import UUID, JSONB
 from sqlalchemy.sql import func
@@ -44,6 +44,22 @@ class ProductionOrder(Base):
     attachments = Column(JSONB, nullable=False, default=list)
     stock_dispatches = Column(JSONB, nullable=False, default=list)
     audit_log = Column(JSONB, nullable=False, default=list)
+
+    # Materials (BOM explosion snapshot) — recorded when reserved on 'confirmed' so that
+    # later consumption uses the same figures even if the BOM changes afterwards.
+    # Each entry: {component_id, component_name, component_uom, required_qty (exact,
+    # string), reserve_qty (ceiling, string), source_items: [...]}
+    material_requirements = Column(JSONB, nullable=False, default=list)
+    materials_reserved_at = Column(DateTime(timezone=True), nullable=True)
+    materials_released_at = Column(DateTime(timezone=True), nullable=True)
+    # Guards idempotent stock postings on completion; cleared if the order is re-opened.
+    inventory_posted_at = Column(DateTime(timezone=True), nullable=True)
+
+    # Costing roll-up (Phase 7) — planned at confirm time, actual at completion.
+    planned_material_cost = Column(Numeric(14, 2), nullable=True)
+    planned_labor_cost = Column(Numeric(14, 2), nullable=True)
+    actual_material_cost = Column(Numeric(14, 2), nullable=True)
+    actual_labor_cost = Column(Numeric(14, 2), nullable=True)
 
     created_by = Column(UUID(as_uuid=True), ForeignKey("vendor_user.id", ondelete="SET NULL"), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())

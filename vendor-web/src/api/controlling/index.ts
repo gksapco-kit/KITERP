@@ -425,3 +425,37 @@ export const setCostVersionRouting = (versionId: string, data: { routing_id: str
 
 export const applyOverheadToCostVersion = (versionId: string, data: Record<string, unknown>) =>
   axios.post(`${BASE}/product-costs/${versionId}/apply-overhead`, data).then(r => r.data)
+
+// ── Controlling Areas ──────────────────────────────────────────────────────────
+
+export type ControllingArea = {
+  id: string
+  vendor_id: string
+  code: string
+  name: string
+  description: string | null
+  currency: string
+  is_active: boolean
+  is_default: boolean
+  company_count: number
+  created_at: string | null
+  updated_at: string | null
+}
+
+export const listControllingAreas = (params?: { is_active?: boolean }) =>
+  axios.get(`${BASE}/controlling-areas`, { params }).then(r => r.data as { controlling_areas: ControllingArea[]; total: number })
+
+export const createControllingArea = (data: Record<string, unknown>) =>
+  axios.post(`${BASE}/controlling-areas`, data).then(r => r.data)
+
+export const updateControllingArea = (id: string, data: Record<string, unknown>) =>
+  axios.put(`${BASE}/controlling-areas/${id}`, data).then(r => r.data)
+
+export const deleteControllingArea = (id: string) =>
+  axios.delete(`${BASE}/controlling-areas/${id}`).then(r => r.data)
+
+export const listControllingAreaCompanies = (areaId: string) =>
+  axios.get(`${BASE}/controlling-areas/${areaId}/companies`).then(r => r.data)
+
+export const assignCompanyToControllingArea = (areaId: string, companyId: string) =>
+  axios.put(`${BASE}/controlling-areas/${areaId}/companies/${companyId}`).then(r => r.data)

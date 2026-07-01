@@ -23,6 +23,7 @@ import {
 } from 'lucide-react'
 import { QuickCreateCustomerModal } from '@/components/customers/QuickCreateCustomerModal'
 import { BusinessUnitSelect } from '@/components/common/BusinessUnitSelect'
+import { BranchSelect } from '@/components/common/BranchSelect'
 import { QuotationExtraFieldsEditor } from '@/components/quotations/QuotationExtraFieldsEditor'
 import { serializeQuotationExtraFields, type QuotationExtraField } from '@/types/quotation'
 import apiClient from '@/api/client'
@@ -165,6 +166,7 @@ export default function InvoicesPage() {
   const [typeFilter, setTypeFilter] = useState('')
   const [statusFilter, setStatusFilter] = useState('')
   const [storeFilter, setStoreFilter] = useState('')
+  const [branchFilter, setBranchFilter] = useState('')
   const [showCreate, setShowCreate] = useState(false)
   const [shareOpenId, setShareOpenId] = useState<string | null>(null)
   const [searchInput, setSearchInput] = useState('')
@@ -182,14 +184,14 @@ export default function InvoicesPage() {
   }, [searchInput])
 
   const { data, isLoading } = useQuery({
-    queryKey: ['invoices', page, typeFilter, statusFilter, storeFilter, search],
+    queryKey: ['invoices', page, typeFilter, statusFilter, storeFilter, branchFilter, search],
     queryFn: () => vendorApi.listInvoices({
       page,
       size: 15,
       invoice_type: typeFilter || undefined,
       exclude_invoice_type: typeFilter ? undefined : 'estimate',
       status: statusFilter || undefined,
-      store_id: storeFilter || undefined,
+      store_id: branchFilter || storeFilter || undefined,
       search: search || undefined,
     }),
   })
@@ -238,7 +240,10 @@ export default function InvoicesPage() {
             leading={(
               <>
                 <div className="w-[9.5rem] shrink-0">
-                  <BusinessUnitSelect value={storeFilter} onChange={(id) => { setStoreFilter(id); setPage(1) }} allowAll autoSelectDefault={false} />
+                  <BusinessUnitSelect value={storeFilter} onChange={(id) => { setStoreFilter(id); setBranchFilter(''); setPage(1) }} allowAll autoSelectDefault={false} />
+                </div>
+                <div className="w-[9.5rem] shrink-0">
+                  <BranchSelect businessUnitId={storeFilter || null} value={branchFilter} onChange={(id) => { setBranchFilter(id); setPage(1) }} allowAll />
                 </div>
                 <ThemeSelect
                   value={typeFilter}
@@ -607,11 +612,13 @@ export function CreateInvoiceModal({
   const [showQuickCreate, setShowQuickCreate] = useState(false)
   const [extraFields, setExtraFields] = useState<QuotationExtraField[]>([])
   const [storeId, setStoreId] = useState('')
+  const [branchId, setBranchId] = useState('')
+  const effectiveStoreId = branchId || storeId
   const isQuotation = defaultType === 'estimate'
 
   // Catalogue — products + services scoped to the selected business unit
-  const { data: productsData } = useProducts({ size: 200, store_id: storeId || undefined })
-  const { data: servicesData } = useServices({ size: 200, store_id: storeId || undefined })
+  const { data: productsData } = useProducts({ size: 200, store_id: effectiveStoreId || undefined })
+  const { data: servicesData } = useServices({ size: 200, store_id: effectiveStoreId || undefined })
   const catalogue = useMemo<CatalogueItem[]>(() => {
     const prods = (productsData?.items ?? []).map((p: any) => ({
       id: p.id, name: p.name, kind: 'product' as const,
@@ -672,7 +679,7 @@ export function CreateInvoiceModal({
     try {
       const payload = {
         ...form,
-        store_id: storeId || undefined,
+        store_id: effectiveStoreId || undefined,
         order_id: form.order_id || undefined,
         items,
         ...(isQuotation ? { extra_fields: serializeQuotationExtraFields(extraFields) } : {}),
@@ -702,8 +709,9 @@ export function CreateInvoiceModal({
           {/* Business unit — scopes the product/service catalog */}
           <div>
             <Label>Business unit</Label>
-            <div className="mt-1">
-              <BusinessUnitSelect value={storeId} onChange={setStoreId} />
+            <div className="mt-1 flex flex-wrap gap-2">
+              <BusinessUnitSelect value={storeId} onChange={(id) => { setStoreId(id); setBranchId('') }} className="flex-1 min-w-[10rem]" />
+              <BranchSelect businessUnitId={storeId || null} value={branchId} onChange={setBranchId} allowAll className="flex-1 min-w-[10rem]" />
             </div>
             <p className="text-[11px] text-gray-400 mt-1">Only products & services available at this business unit can be added.</p>
           </div>

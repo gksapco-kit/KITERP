@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from 'react'
 import { useEscapeToClose } from '@/hooks/useEscapeToClose'
 import { useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { useStores, vendorKeys } from '@/hooks/useVendor'
+import { useStores, useBranches, vendorKeys } from '@/hooks/useVendor'
 import { vendorApi } from '@/api/vendor'
 import type { StoreRecord } from '@/api/vendor'
 import { Button } from '@/components/ui/button'
@@ -33,6 +33,7 @@ import { getBusinessUnitVisual } from '@/lib/businessUnitVisuals'
 import { resolveBrandingMode } from '@/lib/brandingMode'
 import { CompanyTypeDropdown } from '@/components/common/CompanyTypeDropdown'
 import { COMPANY_TYPES } from '@/data/companyTypes'
+import { BRANCH_CODE_LABEL, BUSINESS_UNIT_CODE_LABEL } from '@/lib/businessUnitLabels'
 
 const API_BASE = (import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1').replace('/api/v1', '')
 
@@ -84,6 +85,7 @@ function StoreModal({
   onSave,
   saving,
   defaultCountry = 'India',
+  parentBu = null,
 }: {
   store?: StoreRecord | null
   existingStores?: StoreRecord[]
@@ -91,6 +93,8 @@ function StoreModal({
   onSave: (data: Record<string, unknown>) => void
   saving: boolean
   defaultCountry?: string
+  /** When set, this modal creates/edits a Branch under this Business Unit instead of a root BU. */
+  parentBu?: StoreRecord | null
 }) {
   useEscapeToClose(onClose)
 
@@ -147,114 +151,123 @@ function StoreModal({
         country: store?.address?.country || defaultCountry,
       },
       settings: { company_type: form.company_type || undefined },
+      ...(parentBu && !store ? { parent_id: parentBu.id } : {}),
     })
   }
 
   return (
-    <div data-kiterp-modal className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 overflow-y-auto" onClick={onClose}>
+    <div data-kiterp-modal className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={onClose}>
       <div
-        className="bg-card text-card-foreground border border-border rounded-xl shadow-2xl w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto"
+        className="bg-card text-card-foreground border border-border rounded-xl shadow-2xl w-full max-w-2xl"
         onClick={e => e.stopPropagation()}
       >
-        <div className="flex items-center justify-between p-5 border-b border-border">
-          <h2 className="text-lg font-semibold">{store ? 'Edit business unit' : 'New business unit'}</h2>
+        <div className="flex items-center justify-between px-4 py-3 border-b border-border">
+          <h2 className="text-base font-semibold">
+            {parentBu
+              ? (store ? `Edit branch — ${parentBu.name}` : `New branch — ${parentBu.name}`)
+              : (store ? 'Edit business unit' : 'New business unit')}
+          </h2>
           <button type="button" aria-label="Close" onClick={onClose} className="p-1 rounded hover:bg-muted">
             <X className="w-5 h-5" />
           </button>
         </div>
-        <form onSubmit={handleSubmit} className="p-5 space-y-4">
+        <form onSubmit={handleSubmit} className="p-4 grid grid-cols-2 gap-x-4 gap-y-2.5">
 
-          <CompanyTypeDropdown
-            label="Business Type / Category"
-            value={form.company_type}
-            onChange={selectType}
-            placeholder="Select business type…"
-          />
-
-          <div className="grid grid-cols-2 gap-3">
+          {!parentBu && (
             <div className="col-span-2">
-              <Label>
-                {form.company_type ? `${form.company_type} Name` : 'Location Name'} *
-              </Label>
-              <Input value={form.name} onChange={set('name')} placeholder="e.g. Mumbai Main Branch" required className="mt-1" />
-            </div>
-            <div>
-              <div className="flex items-center justify-between mb-1">
-                <Label>Code / Branch ID</Label>
-                {!store && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setCodeEditable(v => {
-                        if (v) setForm(f => ({ ...f, code: autoCode })) // reset to auto
-                        return !v
-                      })
-                    }}
-                    className="text-[11px] text-primary hover:underline"
-                  >
-                    {codeEditable ? 'Use auto' : 'Edit'}
-                  </button>
-                )}
-              </div>
-              {codeEditable || store ? (
-                <Input value={form.code} onChange={set('code')} placeholder="e.g. MUM-01" />
-              ) : (
-                <div className="flex h-10 items-center rounded-md border border-input bg-muted/50 px-3 text-sm text-muted-foreground select-none">
-                  {form.code}
-                  <span className="ml-2 text-xs text-muted-foreground/60">(auto-generated)</span>
-                </div>
-              )}
-            </div>
-            <div>
-              <Label className="mb-1 block">Phone</Label>
-              <PhoneInput
-                value={form.phone}
-                onChange={v => setForm(f => ({ ...f, phone: v }))}
+              <CompanyTypeDropdown
+                label="Business Type / Category"
+                value={form.company_type}
+                onChange={selectType}
+                placeholder="Select business type…"
               />
             </div>
-            <div className="col-span-2">
-              <Label>Email</Label>
-              <Input type="email" value={form.email} onChange={set('email')} placeholder="store@example.com" className="mt-1" />
-            </div>
-            <div className="col-span-2">
-              <Label>Description</Label>
-              <textarea
-                value={form.description}
-                onChange={set('description')}
-                placeholder="Brief description of this location..."
-                rows={2}
-                className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring resize-none"
-              />
-            </div>
+          )}
+
+          <div className="col-span-2">
+            <Label className="text-xs">
+              {parentBu ? 'Branch Name' : (form.company_type ? `${form.company_type} Name` : 'Location Name')} *
+            </Label>
+            <Input value={form.name} onChange={set('name')} placeholder="e.g. Mumbai Main Branch" required className="mt-0.5 h-9" />
           </div>
 
           <div>
-            <p className="text-sm font-medium text-gray-700 mb-2">Address</p>
-            <div className="grid grid-cols-2 gap-3">
-              <div className="col-span-2">
-                <Input value={form.street} onChange={set('street')} placeholder="Street / Area" />
+            <div className="flex items-center justify-between gap-2 mb-0.5">
+              <Label className="text-xs">{parentBu ? BRANCH_CODE_LABEL : BUSINESS_UNIT_CODE_LABEL}</Label>
+              {!store && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setCodeEditable(v => {
+                      if (v) setForm(f => ({ ...f, code: autoCode }))
+                      return !v
+                    })
+                  }}
+                  className="text-[11px] text-primary hover:underline shrink-0"
+                >
+                  {codeEditable ? 'Use auto' : 'Edit'}
+                </button>
+              )}
+            </div>
+            {codeEditable || store ? (
+              <Input value={form.code} onChange={set('code')} placeholder="e.g. MUM-01" className="h-9" />
+            ) : (
+              <div className="flex h-9 items-center rounded-md border border-input bg-muted/50 px-3 text-sm text-muted-foreground select-none">
+                {form.code}
+                <span className="ml-2 text-xs text-muted-foreground/60">(auto)</span>
               </div>
-              <Input value={form.city} onChange={set('city')} placeholder="City" />
-              <Input value={form.state} onChange={set('state')} placeholder="State" />
-              <Input value={form.pincode} onChange={set('pincode')} placeholder="Pincode" />
+            )}
+          </div>
+
+          <div>
+            <Label className="text-xs mb-0.5 block">Phone</Label>
+            <PhoneInput
+              value={form.phone}
+              onChange={v => setForm(f => ({ ...f, phone: v }))}
+            />
+          </div>
+
+          <div>
+            <Label className="text-xs">Email</Label>
+            <Input type="email" value={form.email} onChange={set('email')} placeholder="store@example.com" className="mt-0.5 h-9" />
+          </div>
+
+          <div>
+            <Label className="text-xs">Description</Label>
+            <Input
+              value={form.description}
+              onChange={set('description')}
+              placeholder="Brief description…"
+              className="mt-0.5 h-9"
+            />
+          </div>
+
+          <div className="col-span-2">
+            <Label className="text-xs text-muted-foreground">Address</Label>
+            <div className="mt-0.5 grid grid-cols-6 gap-2">
+              <Input value={form.street} onChange={set('street')} placeholder="Street / Area" className="col-span-6 h-9" />
+              <Input value={form.city} onChange={set('city')} placeholder="City" className="col-span-2 h-9" />
+              <Input value={form.state} onChange={set('state')} placeholder="State" className="col-span-2 h-9" />
+              <Input value={form.pincode} onChange={set('pincode')} placeholder="Pincode" className="col-span-2 h-9" />
             </div>
           </div>
 
-          <label className="flex items-center gap-2 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={form.is_default}
-              onChange={e => setForm(f => ({ ...f, is_default: e.target.checked }))}
-              className="w-4 h-4 accent-indigo-600"
-            />
-            <span className="text-sm">Set as default</span>
-          </label>
-
-          <div className="flex gap-2 pt-2">
-            <Button type="button" variant="cancel" className="flex-1" onClick={onClose} disabled={saving}>Cancel</Button>
-            <Button type="submit" className="flex-1" disabled={saving}>
-              {saving ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Saving…</> : store ? 'Update' : 'Create'}
-            </Button>
+          <div className="col-span-2 flex items-center justify-between gap-3 pt-1">
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={form.is_default}
+                onChange={e => setForm(f => ({ ...f, is_default: e.target.checked }))}
+                className="w-4 h-4 accent-indigo-600"
+              />
+              <span className="text-sm">Set as default</span>
+            </label>
+            <div className="flex gap-2">
+              <Button type="button" variant="cancel" onClick={onClose} disabled={saving}>Cancel</Button>
+              <Button type="submit" disabled={saving}>
+                {saving ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Saving…</> : store ? 'Update' : 'Create'}
+              </Button>
+            </div>
           </div>
         </form>
       </div>
@@ -468,6 +481,111 @@ function StoreCard({
   )
 }
 
+// ── BranchesPanel ────────────────────────────────────────────────────────────
+
+export function BranchesPanel({ businessUnit }: { businessUnit: StoreRecord }) {
+  const qc = useQueryClient()
+  const { data, isLoading } = useBranches(businessUnit.id)
+  const branches = data?.branches ?? []
+  const [modal, setModal] = useState<'create' | 'edit' | null>(null)
+  const [editingBranch, setEditingBranch] = useState<StoreRecord | null>(null)
+
+  const invalidate = () => {
+    qc.invalidateQueries({ queryKey: vendorKeys.branches(businessUnit.id) })
+    qc.invalidateQueries({ queryKey: [...vendorKeys.all, 'stores'] })
+  }
+
+  const createMutation = useMutation({
+    mutationFn: (d: Record<string, unknown>) => vendorApi.createStore(d),
+    onSuccess: () => { invalidate(); setModal(null) },
+  })
+  const updateMutation = useMutation({
+    mutationFn: (d: Record<string, unknown>) => vendorApi.updateStore(editingBranch!.id, d),
+    onSuccess: () => { invalidate(); setModal(null); setEditingBranch(null) },
+  })
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => vendorApi.deleteStore(id),
+    onSuccess: invalidate,
+  })
+  const setDefaultMutation = useMutation({
+    mutationFn: (id: string) => vendorApi.updateStore(id, { is_default: true }),
+    onSuccess: invalidate,
+  })
+
+  return (
+    <Card>
+      <CardContent className="p-4 space-y-3">
+        <div className="flex items-center justify-between gap-3 flex-wrap">
+          <div>
+            <h3 className="text-sm font-semibold text-foreground flex items-center gap-1.5">
+              <Store className="h-4 w-4 text-muted-foreground" /> Branches under {businessUnit.name}
+            </h3>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              Optional locations reporting to this business unit — pick one wherever this business unit is selected.
+            </p>
+          </div>
+          <Button size="sm" className="gap-1.5" onClick={() => { setEditingBranch(null); setModal('create') }}>
+            <Plus className="h-3.5 w-3.5" /> Add branch
+          </Button>
+        </div>
+
+        {isLoading ? (
+          <div className="flex justify-center py-8"><Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /></div>
+        ) : branches.length === 0 ? (
+          <p className="text-sm text-muted-foreground py-4 text-center border border-dashed rounded-lg">
+            No branches yet — this business unit is used directly for transactions.
+          </p>
+        ) : (
+          <div className="divide-y divide-border rounded-lg border border-border overflow-hidden">
+            {branches.map((b) => (
+              <div key={b.id} className="flex items-center justify-between gap-3 px-3 py-2 bg-card">
+                <div className="min-w-0 flex items-center gap-2">
+                  {b.is_default && <Star className="h-3.5 w-3.5 text-indigo-500 shrink-0" aria-label="Default branch" />}
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium text-foreground truncate">{b.name}</p>
+                    <p className="text-xs text-muted-foreground truncate">{b.code || '—'}{!b.is_active ? ' · Inactive' : ''}</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-1 shrink-0">
+                  {!b.is_default && (
+                    <Button size="sm" variant="ghost" className="h-7 w-7 p-0" title="Set default"
+                      onClick={() => setDefaultMutation.mutate(b.id)}>
+                      <StarOff className="h-3.5 w-3.5" />
+                    </Button>
+                  )}
+                  <Button size="sm" variant="ghost" className="h-7 w-7 p-0" title="Edit"
+                    onClick={() => { setEditingBranch(b); setModal('edit') }}>
+                    <Edit2 className="h-3.5 w-3.5" />
+                  </Button>
+                  <Button size="sm" variant="ghost" className="h-7 w-7 p-0 text-red-500 hover:bg-red-50 hover:text-red-600"
+                    title="Delete" disabled={b.is_default}
+                    onClick={() => {
+                      const msg = `Delete branch "${b.name}"? This cannot be undone.`
+                      if (window.confirm(msg)) deleteMutation.mutate(b.id)
+                    }}>
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </Button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {modal && (
+          <StoreModal
+            store={modal === 'edit' ? editingBranch : null}
+            existingStores={branches}
+            parentBu={businessUnit}
+            onClose={() => { setModal(null); setEditingBranch(null) }}
+            onSave={(d) => modal === 'edit' ? updateMutation.mutate(d) : createMutation.mutate(d)}
+            saving={createMutation.isPending || updateMutation.isPending}
+          />
+        )}
+      </CardContent>
+    </Card>
+  )
+}
+
 // ── StoreDetail ────────────────────────────────────────────────────────────
 
 function StoreDetail({ store, onBack }: { store: StoreRecord; onBack: () => void }) {
@@ -477,6 +595,7 @@ function StoreDetail({ store, onBack }: { store: StoreRecord; onBack: () => void
         ← Back to Business Units
       </Button>
       <BusinessUnitDetailPanel store={store} />
+      <BranchesPanel businessUnit={store} />
     </div>
   )
 }

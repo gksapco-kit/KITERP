@@ -99,6 +99,159 @@ export function useImportLocalProductionOrders() {
   })
 }
 
+interface MaterialsPreviewItem {
+  item_type?: string
+  product_id: string
+  qty: number
+  name?: string
+}
+
+/**
+ * Live BOM/MRP explosion preview for a production order's finished-product
+ * line items — used to show required materials + stock availability before
+ * (or regardless of) the order being confirmed/reserved.
+ */
+export function useProductionMaterialsPreview(
+  order: { id: string; store_id?: string | null; items?: MaterialsPreviewItem[] } | null,
+) {
+  const productItems = (order?.items || []).filter(
+    (i) => (i.item_type ?? 'product') === 'product' && i.product_id && i.qty > 0,
+  )
+  return useQuery({
+    queryKey: ['production-mrp-preview', order?.id, order?.store_id, JSON.stringify(productItems)],
+    queryFn: () =>
+      vendorApi.calculateMRP({
+        items: productItems.map((i) => ({ product_id: i.product_id, qty: i.qty, name: i.name })),
+        order_type: 'production_order',
+        order_id: order!.id,
+        store_id: order?.store_id || undefined,
+      }),
+    enabled: !!order?.id && productItems.length > 0,
+    staleTime: 15_000,
+  })
+}
+
+// ── Work Centers & Routing Operations (Phase 5) ────────────────────────────
+
+export const workCenterKeys = {
+  all: ['work-centers'] as const,
+  list: (params?: Record<string, unknown>) => [...workCenterKeys.all, 'list', params] as const,
+}
+
+export function useWorkCenters(params?: { is_active?: boolean; plant_id?: string }) {
+  return useQuery({
+    queryKey: workCenterKeys.list(params),
+    queryFn: async () => (await vendorApi.listWorkCenters(params)).items,
+    staleTime: 30_000,
+  })
+}
+
+export function useCreateWorkCenter() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (data: Record<string, unknown>) => vendorApi.createWorkCenter(data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: workCenterKeys.all })
+      toast.success('Work center created')
+    },
+    onError: apiError('Could not create work center'),
+  })
+}
+
+export function useUpdateWorkCenter() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, data }: { id: string; data: Record<string, unknown> }) =>
+      vendorApi.updateWorkCenter(id, data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: workCenterKeys.all })
+      toast.success('Work center updated')
+    },
+    onError: apiError('Could not update work center'),
+  })
+}
+
+export function useDeleteWorkCenter() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) => vendorApi.deleteWorkCenter(id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: workCenterKeys.all })
+      toast.success('Work center removed')
+    },
+    onError: apiError('Could not remove work center'),
+  })
+}
+
+export const productionOperationKeys = {
+  all: ['production-operations'] as const,
+  list: (orderId: string) => [...productionOperationKeys.all, orderId] as const,
+}
+
+export function useProductionOperations(orderId: string | null) {
+  return useQuery({
+    queryKey: productionOperationKeys.list(orderId ?? ''),
+    queryFn: async () => (await vendorApi.listProductionOperations(orderId!)).items,
+    enabled: !!orderId,
+    staleTime: 5_000,
+  })
+}
+
+export function useCreateProductionOperation(orderId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (data: Record<string, unknown>) => vendorApi.createProductionOperation(orderId, data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: productionOperationKeys.list(orderId) })
+      toast.success('Operation added')
+    },
+    onError: apiError('Could not add operation'),
+  })
+}
+
+export function useUpdateProductionOperation(orderId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ opId, data }: { opId: string; data: Record<string, unknown> }) =>
+      vendorApi.updateProductionOperation(orderId, opId, data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: productionOperationKeys.list(orderId) })
+    },
+    onError: apiError('Could not update operation'),
+  })
+}
+
+export function useDeleteProductionOperation(orderId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (opId: string) => vendorApi.deleteProductionOperation(orderId, opId),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: productionOperationKeys.list(orderId) })
+      toast.success('Operation removed')
+    },
+    onError: apiError('Could not remove operation'),
+  })
+}
+
+export function useReorderProductionOperations(orderId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (ids: string[]) => vendorApi.reorderProductionOperations(orderId, ids),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: productionOperationKeys.list(orderId) })
+    },
+    onError: apiError('Could not reorder operations'),
+  })
+}
+
+export function useProductionAnalytics(params?: { store_id?: string; date_from?: string; date_to?: string }) {
+  return useQuery({
+    queryKey: ['production-analytics', params],
+    queryFn: () => vendorApi.getProductionAnalytics(params),
+    staleTime: 30_000,
+  })
+}
+
 /** One-time migration from localStorage + refetch when store filter changes. */
 export function useProductionOrdersBootstrap() {
   const { selectedStore } = useVendorStore()

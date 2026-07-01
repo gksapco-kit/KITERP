@@ -58,6 +58,10 @@ class POSTransaction(Base):
     sales_person_vendor_user_id = Column(
         UUID(as_uuid=True), ForeignKey("vendor_user.id", ondelete="SET NULL"), nullable=True, index=True
     )
+    # Sales & Distribution: Business Unit x Distribution Channel x Division this sale was posted under.
+    sales_area_id = Column(UUID(as_uuid=True), ForeignKey("sales_area.id", ondelete="SET NULL"), nullable=True, index=True)
+    # How this sale is/was fulfilled (own fleet, courier, pickup, third-party); usually 'pickup' for in-store POS.
+    delivery_channel_id = Column(UUID(as_uuid=True), ForeignKey("delivery_channel.id", ondelete="SET NULL"), nullable=True, index=True)
 
     transaction_number = Column(String(30), nullable=False, index=True)
     transaction_type = Column(String(20), default="sale")  # sale, return, exchange, credit_memo, debit_memo
@@ -99,5 +103,6 @@ class POSTransaction(Base):
         Index("ix_pos_txn_vendor_created", "vendor_id", "created_at"),
         Index("ix_pos_txn_session", "session_id", "created_at"),
         Index("ix_pos_txn_vendor_store", "vendor_id", "store_id"),
+        Index("ix_pos_txn_sales_area", "vendor_id", "sales_area_id"),
         Index("uq_pos_txn_vendor_number", "vendor_id", "transaction_number", unique=True),
     )

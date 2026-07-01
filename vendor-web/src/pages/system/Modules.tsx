@@ -159,6 +159,7 @@ function applyFormState(
     setCrmEnabled: (v: boolean) => void
     setCommissionEnabled: (v: boolean) => void
     setControllingEnabled: (v: boolean) => void
+    setProductionEnabled: (v: boolean) => void
     setPosEnabled: (v: boolean) => void
     setRestaurantEnabled: (v: boolean) => void
     setBookingsEnabled: (v: boolean) => void
@@ -175,6 +176,7 @@ function applyFormState(
   setters.setCrmEnabled(state.crmEnabled)
   setters.setCommissionEnabled(state.commissionEnabled)
   setters.setControllingEnabled(state.controllingEnabled)
+  setters.setProductionEnabled(state.productionEnabled)
   setters.setPosEnabled(state.posEnabled)
   setters.setRestaurantEnabled(state.restaurantEnabled)
   setters.setBookingsEnabled(state.bookingsEnabled)
@@ -212,6 +214,7 @@ export default function ModulesPage() {
   const [crmEnabled, setCrmEnabled] = useState(true)
   const [commissionEnabled, setCommissionEnabled] = useState(true)
   const [controllingEnabled, setControllingEnabled] = useState(true)
+  const [productionEnabled, setProductionEnabled] = useState(true)
   const [posEnabled, setPosEnabled] = useState(true)
   const [restaurantEnabled, setRestaurantEnabled] = useState(true)
   const [bookingsEnabled, setBookingsEnabled] = useState(true)
@@ -232,6 +235,7 @@ export default function ModulesPage() {
       setCrmEnabled,
       setCommissionEnabled,
       setControllingEnabled,
+      setProductionEnabled,
       setPosEnabled,
       setRestaurantEnabled,
       setBookingsEnabled,
@@ -252,6 +256,7 @@ export default function ModulesPage() {
       crmEnabled,
       commissionEnabled,
       controllingEnabled,
+      productionEnabled,
       posEnabled,
       restaurantEnabled,
       bookingsEnabled,
@@ -268,6 +273,7 @@ export default function ModulesPage() {
       crmEnabled,
       commissionEnabled,
       controllingEnabled,
+      productionEnabled,
       posEnabled,
       restaurantEnabled,
       bookingsEnabled,
@@ -552,6 +558,23 @@ export default function ModulesPage() {
             enabled={controllingEnabled}
             onToggle={() => setControllingEnabled((v) => !v)}
           />
+        )
+        break
+      case 'production':
+        panelBody = (
+          <div className="space-y-2">
+            {!productsCatalog && (
+              <p className="text-[0.7rem] text-muted-foreground rounded-md border border-border bg-muted/30 px-2.5 py-1.5 leading-snug">
+                Set <strong>Catalog</strong> to Products only or Products &amp; services to use Production.
+              </p>
+            )}
+            <EnableRow
+              label="Enable Production"
+              hint="Turn off to hide Production Management (orders, schedule, work centers, MRP) from the sidebar."
+              enabled={productionEnabled && productsCatalog}
+              onToggle={() => setProductionEnabled((v) => !v)}
+            />
+          </div>
         )
         break
       case 'pos':

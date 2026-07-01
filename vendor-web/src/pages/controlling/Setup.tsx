@@ -1,15 +1,11 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { useAccounts, useCompanies } from '@/hooks/useFinance'
+import { useCompanies } from '@/hooks/useFinance'
 import {
-  useActivityTypes,
-  useCreateActivityType,
   useOverheadPools,
   useCreateOverheadPool,
   useOverheadRates,
   useCreateOverheadRate,
-  useCoGlMapping,
-  usePutCoGlMapping,
 } from '@/hooks/useControlling'
 import { toast } from 'sonner'
 import { ArrowLeft, Layers, Plus } from 'lucide-react'
@@ -45,20 +41,14 @@ export default function ControllingSetupPage() {
     [companyId, companies],
   )
 
-  const { data: activities = [], refetch: refA } = useActivityTypes(activeCo || undefined)
   const { data: pools = [], refetch: refP } = useOverheadPools(activeCo || undefined)
 
   const [poolForRates, setPoolForRates] = useState<string>('')
   const { data: rates = [], refetch: refR } = useOverheadRates(poolForRates || undefined)
 
-  const createAct = useCreateActivityType()
   const createPool = useCreateOverheadPool()
   const createRate = useCreateOverheadRate()
-  const { data: accounts = [] } = useAccounts()
-  const { data: glMap, refetch: refGl } = useCoGlMapping(activeCo || undefined)
-  const putGl = usePutCoGlMapping()
 
-  const [actForm, setActForm] = useState({ code: '', name: '', uom: 'H' })
   const [poolForm, setPoolForm] = useState({
     code: '', name: '', allocation_base: 'labor_hours',
     overhead_type: 'indirect', formula_type: 'fixed_rate', formula_value: '0',
@@ -67,42 +57,6 @@ export default function ControllingSetupPage() {
     effective_from: new Date().toISOString().slice(0, 10),
     rate_per_unit: '0',
   })
-  const [glForm, setGlForm] = useState({
-    wip_account_id: '',
-    finished_goods_account_id: '',
-    cogs_account_id: '',
-    production_variance_account_id: '',
-    raw_material_account_id: '',
-  })
-
-  useEffect(() => {
-    if (!glMap) return
-    setGlForm({
-      wip_account_id: glMap.wip_account_id ?? '',
-      finished_goods_account_id: glMap.finished_goods_account_id ?? '',
-      cogs_account_id: glMap.cogs_account_id ?? '',
-      production_variance_account_id: glMap.production_variance_account_id ?? '',
-      raw_material_account_id: glMap.raw_material_account_id ?? '',
-    })
-  }, [glMap])
-
-  const addActivity = async () => {
-    if (!activeCo || !actForm.code) return
-    try {
-      await createAct.mutateAsync({
-        company_id: activeCo,
-        code: actForm.code,
-        name: actForm.name || actForm.code,
-        uom: actForm.uom,
-      })
-      toast.success('Activity type saved')
-      setActForm({ code: '', name: '', uom: 'H' })
-      refA()
-    } catch (e: unknown) {
-      const err = e as { response?: { data?: { detail?: string } } }
-      toast.error(err.response?.data?.detail || 'Failed')
-    }
-  }
 
   const addPool = async () => {
     if (!activeCo || !poolForm.code) return
@@ -143,24 +97,6 @@ export default function ControllingSetupPage() {
     }
   }
 
-  const saveGlMapping = async () => {
-    if (!activeCo) return
-    const payload: Record<string, unknown> = { company_id: activeCo }
-    if (glForm.wip_account_id) payload.wip_account_id = glForm.wip_account_id
-    if (glForm.finished_goods_account_id) payload.finished_goods_account_id = glForm.finished_goods_account_id
-    if (glForm.cogs_account_id) payload.cogs_account_id = glForm.cogs_account_id
-    if (glForm.production_variance_account_id) payload.production_variance_account_id = glForm.production_variance_account_id
-    if (glForm.raw_material_account_id) payload.raw_material_account_id = glForm.raw_material_account_id
-    try {
-      await putGl.mutateAsync(payload)
-      toast.success('CO GL mapping saved')
-      refGl()
-    } catch (e: unknown) {
-      const err = e as { response?: { data?: { detail?: string } } }
-      toast.error(err.response?.data?.detail || 'Failed')
-    }
-  }
-
   return (
     <div className="p-6 max-w-6xl space-y-8">
       <div className="flex items-center gap-4">
@@ -171,9 +107,9 @@ export default function ControllingSetupPage() {
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <h1 className="flex items-center gap-2 text-2xl font-bold text-foreground">
-            <Layers className="w-7 h-7 text-primary" /> Activities &amp; Overhead Setup
+            <Layers className="w-7 h-7 text-primary" /> Overhead Setup
           </h1>
-          <p className="mt-1 text-sm text-muted-foreground">Drivers For Activity-Based Costing And Overhead Absorption.</p>
+          <p className="mt-1 text-sm text-muted-foreground">Overhead pools and absorption rates for indirect cost allocation.</p>
         </div>
         {companies.length > 0 && (
           <label className={labelClass}>
@@ -191,50 +127,7 @@ export default function ControllingSetupPage() {
         )}
       </div>
 
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        <div className={cardClass}>
-          <h2 className="font-semibold text-foreground">Activity Types</h2>
-          <div className="flex flex-wrap items-end gap-2">
-            <input
-              placeholder="Code"
-              value={actForm.code}
-              onChange={e => setActForm(f => ({ ...f, code: e.target.value }))}
-              className={cn(fieldClass, 'w-28')}
-            />
-            <input
-              placeholder="Name"
-              value={actForm.name}
-              onChange={e => setActForm(f => ({ ...f, name: e.target.value }))}
-              className={cn(fieldClass, 'min-w-[120px] flex-1')}
-            />
-            <select
-              value={actForm.uom}
-              onChange={e => setActForm(f => ({ ...f, uom: e.target.value }))}
-              className={fieldClass}
-            >
-              <option value="H">Hours</option>
-              <option value="MH">Machine hrs</option>
-              <option value="EA">Each</option>
-            </select>
-            <Button type="button" size="sm" onClick={addActivity} className="h-10 gap-1">
-              <Plus className="w-3 h-3" /> Add
-            </Button>
-          </div>
-          <ul className="max-h-64 divide-y divide-border overflow-auto text-sm">
-            {activities.length === 0 ? (
-              <li className="py-3 text-center text-muted-foreground">No activity types.</li>
-            ) : (
-              activities.map((a: { id: string; code: string; name: string; uom: string }) => (
-                <li key={a.id} className="flex justify-between gap-2 py-2">
-                  <span className="font-mono text-primary">{a.code}</span>
-                  <span className="text-foreground">{a.name}</span>
-                  <span className="text-xs text-muted-foreground">{a.uom}</span>
-                </li>
-              ))
-            )}
-          </ul>
-        </div>
-
+      <div className="space-y-6">
         <div className={cardClass}>
           <div>
             <h2 className="font-semibold text-foreground">Overhead Pools</h2>
@@ -351,45 +244,6 @@ export default function ControllingSetupPage() {
             </div>
           )}
         </div>
-      </div>
-
-      <div className={cn(cardClass, 'space-y-4')}>
-        <div>
-          <h2 className="font-semibold text-foreground">CO — GL Accounts (Settlement)</h2>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Map WIP, Finished Goods, And COGS For Production Completion And Cost-Of-Goods Postings.
-          </p>
-        </div>
-        <div className="grid grid-cols-1 gap-4 text-sm sm:grid-cols-2 lg:grid-cols-3">
-          {(
-            [
-              ['wip_account_id', 'WIP / production'],
-              ['finished_goods_account_id', 'Finished goods'],
-              ['cogs_account_id', 'Cost of goods sold'],
-              ['production_variance_account_id', 'Production variance (optional)'],
-              ['raw_material_account_id', 'Raw material (optional)'],
-            ] as const
-          ).map(([key, label]) => (
-            <label key={key} className={labelClass}>
-              {label}
-              <select
-                value={glForm[key]}
-                onChange={e => setGlForm(f => ({ ...f, [key]: e.target.value }))}
-                className={fieldClass}
-              >
-                <option value="">—</option>
-                {(accounts as { id: string; code: string; name: string }[]).map(a => (
-                  <option key={a.id} value={a.id}>
-                    {a.code} — {a.name}
-                  </option>
-                ))}
-              </select>
-            </label>
-          ))}
-        </div>
-        <Button type="button" size="sm" onClick={saveGlMapping} disabled={!activeCo || putGl.isPending}>
-          Save GL mapping
-        </Button>
       </div>
     </div>
   )

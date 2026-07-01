@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState, useCallback, type ElementType, type ReactNode } from 'react'
 import { BusinessUnitSelect, useDefaultBusinessUnitId } from '@/components/common/BusinessUnitSelect'
+import { BranchSelect } from '@/components/common/BranchSelect'
 import { CollapsibleSection } from '@/components/common/CollapsibleSection'
 import { HelpableText } from '@/components/common/HelpableText'
 import { Button } from '@/components/ui/button'
@@ -341,9 +342,11 @@ type TemplatePreviewState = {
 export default function CreateMessagesPage() {
   const { defaultId } = useDefaultBusinessUnitId()
   const [storeId, setStoreId] = useState('')
-  const { data, isLoading } = useStoreMessageConfig(storeId)
+  const [branchId, setBranchId] = useState('')
+  const effectiveStoreId = branchId || storeId
+  const { data, isLoading } = useStoreMessageConfig(effectiveStoreId)
   const { data: deliveryStatus } = useMessageDeliveryStatus()
-  const saveConfig = useUpdateStoreMessageConfig(storeId)
+  const saveConfig = useUpdateStoreMessageConfig(effectiveStoreId)
 
   const [config, setConfig] = useState<StoreMessageConfig>(defaultConfig())
 
@@ -661,10 +664,20 @@ export default function CreateMessagesPage() {
       >
         <div className="max-w-sm space-y-1.5">
           <Label helpKey="select business unit">Select business unit</Label>
-          <BusinessUnitSelect
-            value={storeId}
-            onChange={(id) => setStoreId(id)}
-          />
+          <div className="flex flex-wrap gap-2">
+            <BusinessUnitSelect
+              value={storeId}
+              onChange={(id) => { setStoreId(id); setBranchId('') }}
+              className="flex-1 min-w-[10rem]"
+            />
+            <BranchSelect
+              businessUnitId={storeId || null}
+              value={branchId}
+              onChange={setBranchId}
+              allowAll
+              className="flex-1 min-w-[10rem]"
+            />
+          </div>
         </div>
       </CollapsibleSection>
 

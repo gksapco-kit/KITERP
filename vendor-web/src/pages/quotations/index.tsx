@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { TableColumnLabel } from '@/components/common/FieldLabel'
 import { BusinessUnitSelect } from '@/components/common/BusinessUnitSelect'
+import { BranchSelect } from '@/components/common/BranchSelect'
 import { onClickableTableRow } from '@/lib/clickableTableRow'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Card, CardContent } from '@/components/ui/card'
@@ -137,6 +138,7 @@ export default function QuotationsPage() {
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState('')
   const [storeFilter, setStoreFilter] = useState('')
+  const [branchFilter, setBranchFilter] = useState('')
   const [page, setPage] = useState(1)
   const [sortKey, setSortKey] = useState('created_at')
   const [sortDir, setSortDir] = useState<SortDir>('desc')
@@ -157,17 +159,17 @@ export default function QuotationsPage() {
     size: 100,
     source: 'quote',
     search: search || undefined,
-    store_id: storeFilter || undefined,
+    store_id: branchFilter || storeFilter || undefined,
   })
 
   const { data: estimatesData, isLoading: estimatesLoading } = useQuery({
-    queryKey: ['quotations', 'estimates', statusFilter, page, storeFilter, search],
+    queryKey: ['quotations', 'estimates', statusFilter, page, storeFilter, branchFilter, search],
     queryFn: () => vendorApi.listInvoices({
       page,
       size: 20,
       invoice_type: 'estimate',
       status: statusFilter || undefined,
-      store_id: storeFilter || undefined,
+      store_id: branchFilter || storeFilter || undefined,
       search: search || undefined,
     }),
   })
@@ -410,7 +412,8 @@ export default function QuotationsPage() {
                 aria-label="Search quotations"
               />
             </div>
-            <div className="sm:w-56"><BusinessUnitSelect value={storeFilter} onChange={(id) => { setStoreFilter(id); setPage(1) }} allowAll autoSelectDefault={false} /></div>
+            <div className="sm:w-56"><BusinessUnitSelect value={storeFilter} onChange={(id) => { setStoreFilter(id); setBranchFilter(''); setPage(1) }} allowAll autoSelectDefault={false} /></div>
+            <div className="sm:w-56"><BranchSelect businessUnitId={storeFilter || null} value={branchFilter} onChange={(id) => { setBranchFilter(id); setPage(1) }} allowAll /></div>
             {statusOptions.length > 1 && (
               <Select
                 value={statusFilter}

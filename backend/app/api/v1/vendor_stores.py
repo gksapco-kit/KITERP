@@ -51,10 +51,25 @@ async def _get_store_or_404(store_id: UUID, vendor_id: UUID, db: AsyncSession) -
     return store
 
 
+async def _get_business_unit_or_404(bu_id: UUID, vendor_id: UUID, db: AsyncSession) -> Store:
+    """Fetch a store that must be a root Business Unit (parent_id IS NULL)."""
+    result = await db.execute(
+        select(Store).where(Store.id == bu_id, Store.vendor_id == vendor_id)
+    )
+    store = result.scalar_one_or_none()
+    if not store:
+        raise HTTPException(status_code=404, detail="Business unit not found")
+    if store.parent_id is not None:
+        raise HTTPException(status_code=400, detail="Store is a branch, not a business unit")
+    return store
+
+
 def _store_to_dict(s: Store, include_staff: bool = False) -> dict:
     d = {
         "id": str(s.id),
         "vendor_id": str(s.vendor_id),
+        "parent_id": str(s.parent_id) if s.parent_id else None,
+        "unit_type": s.unit_type or "business_unit",
         "name": s.name,
         "code": s.code,
         "description": s.description,
@@ -106,6 +121,8 @@ class StoreCreate(BaseModel):
     manager_id: Optional[str] = None
     is_default: Optional[bool] = False
     settings: Optional[dict] = {}
+    # Hierarchy: set to create a Branch under an existing Business Unit (store with parent_id=None).
+    parent_id: Optional[str] = None
 
 
 class StoreUpdate(BaseModel):
@@ -148,6 +165,9 @@ async def list_stores(
     vendor_id: UUID = Depends(_get_vendor_id),
     db: AsyncSession = Depends(get_db),
     is_active: Optional[bool] = Query(None),
+    parent_id: Optional[str] = Query(None, description="Return branches of this business unit"),
+    unit_type: Optional[str] = Query(None, description="Filter to 'business_unit' or 'branch'"),
+    include_branches: bool = Query(False, description="Include branches alongside business units (flat list)"),
 ):
     vrow = await db.execute(select(Vendor).where(Vendor.id == vendor_id))
     vendor = vrow.scalar_one_or_none()
@@ -162,6 +182,17 @@ async def list_stores(
     q = select(Store).where(Store.vendor_id == vendor_id)
     if is_active is not None:
         q = q.where(Store.is_active == is_active)
+
+    if parent_id:
+        # Explicit branch lookup for a given business unit.
+        q = q.where(Store.parent_id == UUID(parent_id))
+    elif unit_type:
+        q = q.where(Store.unit_type == unit_type)
+    elif not include_branches:
+        # Default: business units only — keeps every existing consumer of this
+        # endpoint (dashboards, filters, forms) unaffected by branch rollout.
+        q = q.where(Store.parent_id.is_(None))
+
     q = q.order_by(Store.is_default.desc(), Store.name)
 
     result = await db.execute(q)
@@ -176,12 +207,38 @@ async def list_stores(
         staff_count = (await db.execute(
             select(func.count()).where(VendorUser.store_id == s.id, VendorUser.is_active == True)
         )).scalar() or 0
+        branch_count = 0
+        if s.parent_id is None:
+            branch_count = (await db.execute(
+                select(func.count()).where(Store.parent_id == s.id)
+            )).scalar() or 0
         d = _store_to_dict(s)
         d["inventory_count"] = inv_count
         d["staff_count"] = staff_count
+        d["branch_count"] = branch_count
         out.append(d)
 
     return {"stores": out, "total": len(out)}
+
+
+@router.get("/stores/{bu_id}/branches")
+async def list_branches(
+    bu_id: UUID,
+    vendor_id: UUID = Depends(_get_vendor_id),
+    db: AsyncSession = Depends(get_db),
+    is_active: Optional[bool] = Query(None),
+):
+    """List the branches that belong to a given Business Unit."""
+    await _get_business_unit_or_404(bu_id, vendor_id, db)
+
+    q = select(Store).where(Store.vendor_id == vendor_id, Store.parent_id == bu_id)
+    if is_active is not None:
+        q = q.where(Store.is_active == is_active)
+    q = q.order_by(Store.is_default.desc(), Store.name)
+
+    result = await db.execute(q)
+    branches = result.scalars().all()
+    return {"branches": [_store_to_dict(b) for b in branches], "total": len(branches)}
 
 
 @router.post("/stores", status_code=201)
@@ -190,6 +247,10 @@ async def create_store(
     vendor_id: UUID = Depends(_get_vendor_id),
     db: AsyncSession = Depends(get_db),
 ):
+    parent: Optional[Store] = None
+    if data.parent_id:
+        parent = await _get_business_unit_or_404(UUID(data.parent_id), vendor_id, db)
+
     count_res = await db.execute(
         select(func.count()).select_from(Store).where(Store.vendor_id == vendor_id)
     )
@@ -198,23 +259,30 @@ async def create_store(
     raw_code = (data.code or "").strip()
     if raw_code:
         code = raw_code
-    elif store_count_before == 0:
+    elif not parent and store_count_before == 0:
         code = await allocate_default_business_store_code(db, vendor_id)
     else:
         code = await allocate_unique_store_code(db, vendor_id, data.name)
 
+    # is_default is scoped per sibling group: among root business units for a
+    # BU, or among branches of the same BU for a branch.
+    sibling_scope = [Store.vendor_id == vendor_id]
+    sibling_scope.append(Store.parent_id == parent.id if parent else Store.parent_id.is_(None))
+    sibling_count = (await db.execute(
+        select(func.count()).select_from(Store).where(*sibling_scope)
+    )).scalar_one() or 0
+
     is_default = bool(data.is_default)
-    if store_count_before == 0:
+    if sibling_count == 0:
         is_default = True
 
-    # If set as default, unset others
     if is_default:
-        await db.execute(
-            update(Store).where(Store.vendor_id == vendor_id).values(is_default=False)
-        )
+        await db.execute(update(Store).where(*sibling_scope).values(is_default=False))
 
     store = Store(
         vendor_id=vendor_id,
+        parent_id=parent.id if parent else None,
+        unit_type="branch" if parent else "business_unit",
         name=data.name,
         code=code,
         description=data.description,
@@ -228,7 +296,7 @@ async def create_store(
     db.add(store)
     await db.commit()
     await db.refresh(store)
-    return {"store": _store_to_dict(store), "message": "Store created"}
+    return {"store": _store_to_dict(store), "message": "Branch created" if parent else "Store created"}
 
 
 @router.get("/stores/{store_id}")
@@ -251,9 +319,11 @@ async def update_store(
     store = await _get_store_or_404(store_id, vendor_id, db)
 
     if data.is_default:
-        await db.execute(
-            update(Store).where(Store.vendor_id == vendor_id, Store.id != store_id).values(is_default=False)
-        )
+        # Scope uniqueness to siblings — other business units, or other branches
+        # of the same business unit when this store is itself a branch.
+        sibling_scope = [Store.vendor_id == vendor_id, Store.id != store_id]
+        sibling_scope.append(Store.parent_id == store.parent_id if store.parent_id else Store.parent_id.is_(None))
+        await db.execute(update(Store).where(*sibling_scope).values(is_default=False))
 
     update_data = data.model_dump(exclude_unset=True)
     if "address" in update_data and update_data["address"]:
@@ -289,6 +359,15 @@ async def delete_store(
     store = await _get_store_or_404(store_id, vendor_id, db)
     if store.is_default:
         raise HTTPException(status_code=400, detail="Cannot delete the default store. Set another store as default first.")
+    if store.parent_id is None:
+        branch_count = (await db.execute(
+            select(func.count()).where(Store.parent_id == store.id)
+        )).scalar() or 0
+        if branch_count > 0:
+            raise HTTPException(
+                status_code=400,
+                detail="Cannot delete a business unit with branches. Delete or reassign its branches first.",
+            )
     await db.delete(store)
     await db.commit()
 

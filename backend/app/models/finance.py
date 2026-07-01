@@ -25,6 +25,10 @@ class FinCompany(Base):
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     vendor_id = Column(UUID(as_uuid=True), ForeignKey("vendor.id", ondelete="CASCADE"), nullable=False, index=True)
+    # CO scope this company posts costs under; see app/models/controlling_area.py.
+    # Nullable so companies can exist before a controlling area is assigned —
+    # the CO module lazily creates/assigns a "Standard" area on first access.
+    controlling_area_id = Column(UUID(as_uuid=True), ForeignKey("co_controlling_area.id", ondelete="SET NULL"), nullable=True, index=True)
     code = Column(String(20), nullable=False)          # e.g. "1000", "HQ"
     name = Column(String(200), nullable=False)
     currency = Column(String(3), default="INR")
@@ -37,6 +41,7 @@ class FinCompany(Base):
 
     cost_centers = relationship("FinCostCenter", back_populates="company", cascade="all, delete-orphan")
     projects = relationship("FinProject", back_populates="company", cascade="all, delete-orphan")
+    controlling_area = relationship("CoControllingArea", back_populates="companies")
 
     __table_args__ = (
         UniqueConstraint("vendor_id", "code", name="uq_fin_company_vendor_code"),

@@ -11,6 +11,7 @@ import { Badge } from '@/components/ui/badge'
 import { CustomerPicker, type CustomerPickerValue } from '@/components/commission/CustomerPicker'
 import { StaffPicker, type StaffPickerValue } from '@/components/commission/StaffPicker'
 import { BusinessUnitSelect } from '@/components/common/BusinessUnitSelect'
+import { BranchSelect } from '@/components/common/BranchSelect'
 import { CatalogItemPicker, type CatalogPickerItem } from '@/components/common/CatalogItemPicker'
 import { useCreateProject, useProjects, useProjectsOverview } from '@/hooks/useProjects'
 import { formatDate } from '@/lib/utils'
@@ -84,6 +85,8 @@ function CreateProjectModal({ onClose }: { onClose: () => void }) {
   const [customer, setCustomer] = useState<CustomerPickerValue | null>(null)
   const [owner, setOwner] = useState<StaffPickerValue | null>(null)
   const [storeId, setStoreId] = useState('')
+  const [branchId, setBranchId] = useState('')
+  const effectiveStoreId = branchId || storeId
   const [items, setItems] = useState<CatalogPickerItem[]>([])
 
   const submit = (e: React.FormEvent) => {
@@ -97,7 +100,7 @@ function CreateProjectModal({ onClose }: { onClose: () => void }) {
         end_date: form.end_date || undefined,
         due_date: form.due_date || undefined,
         priority: form.priority,
-        store_id: storeId || undefined,
+        store_id: effectiveStoreId || undefined,
         items: items.length ? items : undefined,
         customer_id: customer?.id,
         customer_name: customer?.full_name,
@@ -119,7 +122,21 @@ function CreateProjectModal({ onClose }: { onClose: () => void }) {
           <ModalBody className="space-y-4 p-5">
             <div className="space-y-1.5">
               <Label>Business unit</Label>
-              <BusinessUnitSelect value={storeId} onChange={(id) => { setStoreId(id); setItems([]) }} allowAll />
+              <div className="flex flex-wrap gap-2">
+                <BusinessUnitSelect
+                  value={storeId}
+                  onChange={(id) => { setStoreId(id); setBranchId(''); setItems([]) }}
+                  allowAll
+                  className="flex-1 min-w-[10rem]"
+                />
+                <BranchSelect
+                  businessUnitId={storeId || null}
+                  value={branchId}
+                  onChange={(id) => { setBranchId(id); setItems([]) }}
+                  allowAll
+                  className="flex-1 min-w-[10rem]"
+                />
+              </div>
               <p className="text-[11px] text-muted-foreground">Scopes the products & services you can attach below.</p>
             </div>
             <div className="space-y-1.5">
@@ -197,7 +214,7 @@ function CreateProjectModal({ onClose }: { onClose: () => void }) {
             </div>
             <div className="space-y-1.5">
               <Label>Products & services (optional)</Label>
-              <CatalogItemPicker storeId={storeId} value={items} onChange={setItems} />
+              <CatalogItemPicker storeId={effectiveStoreId} value={items} onChange={setItems} />
             </div>
           </ModalBody>
           <ModalFooter className="flex justify-end gap-3 border-t border-border bg-card px-4 py-4">
@@ -218,6 +235,7 @@ export default function ProjectsPage() {
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState<string>('')
   const [storeFilter, setStoreFilter] = useState('')
+  const [branchFilter, setBranchFilter] = useState('')
   const [showCreate, setShowCreate] = useState(false)
 
   const { data: overview, isLoading: overviewLoading } = useProjectsOverview()
@@ -226,7 +244,7 @@ export default function ProjectsPage() {
     size: 100,
     search: search.trim() || undefined,
     status: statusFilter || undefined,
-    store_id: storeFilter || undefined,
+    store_id: branchFilter || storeFilter || undefined,
   })
 
   const projects = useMemo(() => {
@@ -318,7 +336,8 @@ export default function ProjectsPage() {
               placeholder="All statuses"
               aria-label="Status filter"
             />
-            <div className="w-52"><BusinessUnitSelect value={storeFilter} onChange={setStoreFilter} allowAll autoSelectDefault={false} /></div>
+            <div className="w-52"><BusinessUnitSelect value={storeFilter} onChange={(id) => { setStoreFilter(id); setBranchFilter('') }} allowAll autoSelectDefault={false} /></div>
+            <div className="w-52"><BranchSelect businessUnitId={storeFilter || null} value={branchFilter} onChange={setBranchFilter} allowAll /></div>
           </div>
 
           <div className="overflow-x-auto">

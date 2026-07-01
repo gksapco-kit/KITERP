@@ -37,6 +37,11 @@ from app.database import (
     ensure_user_contact_not_globally_unique,
     ensure_user_platform_staff_role_column,
     ensure_txn_store_id_columns,
+    ensure_store_hierarchy_columns,
+    ensure_sales_area_tables,
+    ensure_controlling_area_tables,
+    ensure_production_materials_columns,
+    ensure_production_routing_tables,
     ensure_user_contact_change_request_table,
 )
 from app.middleware.tenant import TenantMiddleware
@@ -83,6 +88,11 @@ async def lifespan(app: FastAPI):
     await ensure_user_contact_not_globally_unique()
     await ensure_user_platform_staff_role_column()
     await ensure_txn_store_id_columns()
+    await ensure_store_hierarchy_columns()
+    await ensure_sales_area_tables()
+    await ensure_controlling_area_tables()
+    await ensure_production_materials_columns()
+    await ensure_production_routing_tables()
     await ensure_user_contact_change_request_table()
     await connect_redis()
     from app.services.email_service import email_is_configured, sendgrid_api_key

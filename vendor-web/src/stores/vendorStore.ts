@@ -15,6 +15,9 @@ interface VendorState {
   clearVendor: () => void
   selectedStore: SelectedStore | null
   setSelectedStore: (store: SelectedStore | null) => void
+  /** Branch under the selected business unit (Store with parent_id set) — optional drill-down scope. */
+  selectedBranch: SelectedStore | null
+  setSelectedBranch: (branch: SelectedStore | null) => void
   /** ID of the store the user has starred as their favourite — auto-selected on every login. */
   favouriteStoreId: string | null
   setFavouriteStoreId: (id: string | null) => void
@@ -25,9 +28,11 @@ export const useVendorStore = create<VendorState>()(
     (set) => ({
       vendor: null,
       setVendor: (vendor) => set({ vendor }),
-      clearVendor: () => set({ vendor: null, selectedStore: null, favouriteStoreId: null }),
+      clearVendor: () => set({ vendor: null, selectedStore: null, selectedBranch: null, favouriteStoreId: null }),
       selectedStore: null,
-      setSelectedStore: (store) => set({ selectedStore: store }),
+      setSelectedStore: (store) => set({ selectedStore: store, selectedBranch: null }),
+      selectedBranch: null,
+      setSelectedBranch: (branch) => set({ selectedBranch: branch }),
       favouriteStoreId: null,
       setFavouriteStoreId: (id) => set({ favouriteStoreId: id }),
     }),
@@ -36,6 +41,7 @@ export const useVendorStore = create<VendorState>()(
       partialize: (state) => ({
         vendor: state.vendor,
         selectedStore: state.selectedStore,
+        selectedBranch: state.selectedBranch,
         favouriteStoreId: state.favouriteStoreId,
       }),
     }

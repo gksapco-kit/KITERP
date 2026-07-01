@@ -19,6 +19,10 @@ class Order(Base):
     customer_id = Column(UUID(as_uuid=True), ForeignKey("customer.id"), nullable=False, index=True)
     # Business unit (store) this order is attributed to. Nullable for vendors with no store records.
     store_id = Column(UUID(as_uuid=True), ForeignKey("store.id", ondelete="SET NULL"), nullable=True, index=True)
+    # Sales & Distribution: Business Unit x Distribution Channel x Division this order was sold under.
+    sales_area_id = Column(UUID(as_uuid=True), ForeignKey("sales_area.id", ondelete="SET NULL"), nullable=True, index=True)
+    # How this order is/was fulfilled (own fleet, courier, pickup, third-party).
+    delivery_channel_id = Column(UUID(as_uuid=True), ForeignKey("delivery_channel.id", ondelete="SET NULL"), nullable=True, index=True)
 
     # Items snapshot (JSONB array)
     items = Column(JSONB, default=[])
@@ -96,6 +100,7 @@ class Order(Base):
         Index("ix_order_vendor_status", "vendor_id", "status"),
         Index("ix_order_vendor_created", "vendor_id", "created_at"),
         Index("ix_order_vendor_store", "vendor_id", "store_id"),
+        Index("ix_order_sales_area", "vendor_id", "sales_area_id"),
         Index("uq_order_vendor_number", "vendor_id", "order_number", unique=True),
     )
 

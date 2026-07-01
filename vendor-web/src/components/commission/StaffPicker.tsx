@@ -22,6 +22,7 @@ interface Props {
   selected: StaffPickerValue | null
   onSelect: (val: StaffPickerValue | null) => void
   disabled?: boolean
+  placeholder?: string
 }
 
 function buildSub(phone?: string | null, email?: string | null): string | undefined {
@@ -29,7 +30,7 @@ function buildSub(phone?: string | null, email?: string | null): string | undefi
   return parts.length ? parts.join(' • ') : undefined
 }
 
-export function StaffPicker({ selected, onSelect, disabled }: Props) {
+export function StaffPicker({ selected, onSelect, disabled, placeholder }: Props) {
   const toOption = (v: StaffPickerValue): PickerOption => ({
     id: v.id,
     label: v.full_name,
@@ -75,7 +76,7 @@ export function StaffPicker({ selected, onSelect, disabled }: Props) {
 
   return (
     <MasterDataPicker
-      placeholder="Search staff by name, email or phone…"
+      placeholder={placeholder ?? 'Search staff by name, email or phone…'}
       selected={selected ? toOption(selected) : null}
       onSearch={handleSearch}
       onSelect={handleSelect}

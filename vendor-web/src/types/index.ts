@@ -590,6 +590,10 @@ export interface OrderItem {
   qty: number
   price: number
   image_url?: string
+  /** Present when this order line originated from a service booking. */
+  booking_id?: string
+  booking_number?: string
+  booking_date?: string
 }
 
 export interface OrderAttachmentRef {
@@ -624,14 +628,22 @@ export interface Order {
   total: number
   status: string
   payment_status: string
-  /** online | pos | booking */
+  /** online | pos | booking | quote */
   source?: string
+  store_id?: string
+  store_name?: string
+  store_code?: string
+  pos_transaction_id?: string
+  placed_by_name?: string
+  placed_by_type?: 'customer' | 'staff' | 'cashier'
   payment_method?: string
   shipping_address?: Record<string, string>
   tracking_number?: string
   tracking_url?: string
   delivery_staff_id?: string
   delivery_staff_name?: string
+  delivery_staff_email?: string
+  delivery_staff_phone?: string
   delivery_assigned_at?: string
   delivery_status?: string
   notes?: string

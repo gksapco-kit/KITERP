@@ -55,7 +55,14 @@ export const vendorKeys = {
   reservations: (orderType: string, orderId: string) => [...vendorKeys.all, 'reservations', orderType, orderId] as const,
   /** Business units / outlets — use with useStores; invalidate `[...vendorKeys.all, 'stores']` after mutations. */
   stores: (params?: Record<string, unknown>) => [...vendorKeys.all, 'stores', params] as const,
+  /** Branches under a given business unit — use with useBranches. */
+  branches: (businessUnitId?: string | null) => [...vendorKeys.all, 'stores', 'branches', businessUnitId] as const,
   plants: (storeId?: string) => [...vendorKeys.all, 'plants', storeId] as const,
+  /** Sales & Distribution master data. */
+  divisions: (params?: Record<string, unknown>) => [...vendorKeys.all, 'divisions', params] as const,
+  distributionChannels: (params?: Record<string, unknown>) => [...vendorKeys.all, 'distribution-channels', params] as const,
+  deliveryChannels: (params?: Record<string, unknown>) => [...vendorKeys.all, 'delivery-channels', params] as const,
+  salesAreas: (params?: Record<string, unknown>) => [...vendorKeys.all, 'sales-areas', params] as const,
   messageConfig: (storeId: string) => [...vendorKeys.all, 'message-config', storeId] as const,
   messageDeliveryStatus: () => [...vendorKeys.all, 'message-delivery-status'] as const,
   // HR keys
@@ -312,6 +319,186 @@ export function useDeletePlant() {
       toast.success('Plant deleted')
     },
     onError: apiError('Could not delete plant'),
+  })
+}
+
+// ── Sales & Distribution: Divisions ─────────────────────────────────
+export function useDivisions(params?: Record<string, unknown>) {
+  return useQuery({
+    queryKey: vendorKeys.divisions(params),
+    queryFn: () => vendorApi.listDivisions(params),
+    staleTime: 60 * 1000,
+  })
+}
+
+export function useCreateDivision() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (data: Record<string, unknown>) => vendorApi.createDivision(data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: [...vendorKeys.all, 'divisions'] })
+      toast.success('Division created!')
+    },
+    onError: apiError('Could not create division'),
+  })
+}
+
+export function useUpdateDivision() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, data }: { id: string; data: Record<string, unknown> }) => vendorApi.updateDivision(id, data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: [...vendorKeys.all, 'divisions'] })
+      toast.success('Division updated!')
+    },
+    onError: apiError('Could not update division'),
+  })
+}
+
+export function useDeleteDivision() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) => vendorApi.deleteDivision(id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: [...vendorKeys.all, 'divisions'] })
+      toast.success('Division deleted')
+    },
+    onError: apiError('Could not delete division'),
+  })
+}
+
+// ── Sales & Distribution: Distribution Channels ─────────────────────
+export function useDistributionChannels(params?: Record<string, unknown>) {
+  return useQuery({
+    queryKey: vendorKeys.distributionChannels(params),
+    queryFn: () => vendorApi.listDistributionChannels(params),
+    staleTime: 60 * 1000,
+  })
+}
+
+export function useCreateDistributionChannel() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (data: Record<string, unknown>) => vendorApi.createDistributionChannel(data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: [...vendorKeys.all, 'distribution-channels'] })
+      toast.success('Distribution channel created!')
+    },
+    onError: apiError('Could not create distribution channel'),
+  })
+}
+
+export function useUpdateDistributionChannel() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, data }: { id: string; data: Record<string, unknown> }) => vendorApi.updateDistributionChannel(id, data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: [...vendorKeys.all, 'distribution-channels'] })
+      toast.success('Distribution channel updated!')
+    },
+    onError: apiError('Could not update distribution channel'),
+  })
+}
+
+export function useDeleteDistributionChannel() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) => vendorApi.deleteDistributionChannel(id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: [...vendorKeys.all, 'distribution-channels'] })
+      toast.success('Distribution channel deleted')
+    },
+    onError: apiError('Could not delete distribution channel'),
+  })
+}
+
+// ── Sales & Distribution: Delivery Channels ──────────────────────────
+export function useDeliveryChannels(params?: Record<string, unknown>) {
+  return useQuery({
+    queryKey: vendorKeys.deliveryChannels(params),
+    queryFn: () => vendorApi.listDeliveryChannels(params),
+    staleTime: 60 * 1000,
+  })
+}
+
+export function useCreateDeliveryChannel() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (data: Record<string, unknown>) => vendorApi.createDeliveryChannel(data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: [...vendorKeys.all, 'delivery-channels'] })
+      toast.success('Delivery channel created!')
+    },
+    onError: apiError('Could not create delivery channel'),
+  })
+}
+
+export function useUpdateDeliveryChannel() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, data }: { id: string; data: Record<string, unknown> }) => vendorApi.updateDeliveryChannel(id, data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: [...vendorKeys.all, 'delivery-channels'] })
+      toast.success('Delivery channel updated!')
+    },
+    onError: apiError('Could not update delivery channel'),
+  })
+}
+
+export function useDeleteDeliveryChannel() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) => vendorApi.deleteDeliveryChannel(id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: [...vendorKeys.all, 'delivery-channels'] })
+      toast.success('Delivery channel deleted')
+    },
+    onError: apiError('Could not delete delivery channel'),
+  })
+}
+
+// ── Sales & Distribution: Sales Areas (Business Unit x Channel x Division) ──
+export function useSalesAreas(params?: Record<string, unknown>) {
+  return useQuery({
+    queryKey: vendorKeys.salesAreas(params),
+    queryFn: () => vendorApi.listSalesAreas(params),
+    staleTime: 60 * 1000,
+  })
+}
+
+export function useCreateSalesArea() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (data: Record<string, unknown>) => vendorApi.createSalesArea(data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: [...vendorKeys.all, 'sales-areas'] })
+      toast.success('Sales area created!')
+    },
+    onError: apiError('Could not create sales area'),
+  })
+}
+
+export function useUpdateSalesArea() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, data }: { id: string; data: Record<string, unknown> }) => vendorApi.updateSalesArea(id, data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: [...vendorKeys.all, 'sales-areas'] })
+      toast.success('Sales area updated!')
+    },
+    onError: apiError('Could not update sales area'),
+  })
+}
+
+export function useDeleteSalesArea() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) => vendorApi.deleteSalesArea(id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: [...vendorKeys.all, 'sales-areas'] })
+      toast.success('Sales area deleted')
+    },
+    onError: apiError('Could not delete sales area'),
   })
 }
 
@@ -1670,7 +1857,7 @@ export function useServiceCostSummary(serviceId: string | null) {
 
 export function useCalculateMRP() {
   return useMutation({
-    mutationFn: (body: { items: Record<string, unknown>[]; order_type: string; order_id: string }) =>
+    mutationFn: (body: Parameters<typeof vendorApi.calculateMRP>[0]) =>
       vendorApi.calculateMRP(body),
     onError: apiError('MRP calculation failed'),
   })
@@ -1688,7 +1875,7 @@ export function useOrderReservations(orderType: string, orderId: string) {
 export function useCreateReservations() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: (data: { order_type: string; order_id: string; items: Record<string, unknown>[] }) =>
+    mutationFn: (data: Parameters<typeof vendorApi.createReservations>[0]) =>
       vendorApi.createReservations(data),
     onSuccess: (_data, vars) => {
       qc.invalidateQueries({ queryKey: vendorKeys.reservations(vars.order_type, vars.order_id) })
@@ -1732,6 +1919,16 @@ export function useStores(params?: Record<string, unknown>) {
   return useQuery({
     queryKey: vendorKeys.stores(params),
     queryFn: () => vendorApi.listStores(params),
+    staleTime: 60_000,
+  })
+}
+
+/** Branches under a business unit — empty/disabled until a business unit id is provided. */
+export function useBranches(businessUnitId?: string | null) {
+  return useQuery({
+    queryKey: vendorKeys.branches(businessUnitId),
+    queryFn: () => vendorApi.listBranches(businessUnitId as string),
+    enabled: Boolean(businessUnitId),
     staleTime: 60_000,
   })
 }

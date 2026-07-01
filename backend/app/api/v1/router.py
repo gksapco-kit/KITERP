@@ -8,7 +8,8 @@ from app.api.v1 import (
     vendor_pos, vendor_invoices, vendor_invoice_templates, vendor_coupons,
     vendor_reports, vendor_sales_reports, vendor_template,
     vendor_bookings, vendor_projects, vendor_notifications, vendor_merchandising, vendor_loyalty,
-    vendor_mrp, vendor_hr, vendor_hr_extra, vendor_stores, vendor_message_config, vendor_production,
+    vendor_mrp, vendor_hr, vendor_hr_extra, vendor_stores, vendor_sales_area, vendor_message_config, vendor_production,
+    vendor_production_ops, vendor_production_analytics,
     catalog, admin, app_builds,
     store_auth, store_hr, store_cart, store_checkout, store_orders, store_notifications, store_reviews, store_coupons,
     store_bookings, store_wishlist, store_marketplace, store_subscriptions, store_rentals,
@@ -16,6 +17,7 @@ from app.api.v1 import (
     vendor_crm_core, vendor_crm_support, vendor_crm_marketing, vendor_crm_advanced,
     vendor_finance,
     vendor_controlling,
+    vendor_controlling_area,
     vendor_commission,
     vendor_schema_catalog,
     vendor_websites,
@@ -93,8 +95,11 @@ api_router.include_router(vendor_mrp.router, prefix="/vendors/me", tags=["Vendor
 api_router.include_router(vendor_hr.router, prefix="/vendors/me/hr", tags=["Vendor HR"])
 api_router.include_router(vendor_hr_extra.router, prefix="/vendors/me/hr", tags=["Vendor HR Extra"])
 api_router.include_router(vendor_stores.router, prefix="/vendors/me", tags=["Vendor Stores"])
+api_router.include_router(vendor_sales_area.router, prefix="/vendors/me/sales-config", tags=["Sales & Distribution"])
 api_router.include_router(vendor_message_config.router, prefix="/vendors/me", tags=["Vendor Message Config"])
 api_router.include_router(vendor_production.router, prefix="/vendors/me", tags=["Production Orders"])
+api_router.include_router(vendor_production_ops.router, prefix="/vendors/me", tags=["Production Routing"])
+api_router.include_router(vendor_production_analytics.router, prefix="/vendors/me", tags=["Production Analytics"])
 api_router.include_router(vendor_marketplace.router, prefix="/vendors/me/marketplace", tags=["Vendor Marketplace"])
 api_router.include_router(vendor_subscriptions.router, prefix="/vendors/me/subscriptions", tags=["Customer Subscriptions"])
 api_router.include_router(vendor_rentals.router, prefix="/vendors/me/rentals", tags=["Rentals"])
@@ -109,6 +114,7 @@ api_router.include_router(vendor_crm_advanced.public_router, prefix="/public/crm
 # ── Finance ───────────────────────────────────────────────────────
 api_router.include_router(vendor_finance.router, prefix="/vendors/me/finance", tags=["Finance"])
 api_router.include_router(vendor_controlling.router, prefix="/vendors/me/controlling", tags=["Controlling"])
+api_router.include_router(vendor_controlling_area.router, prefix="/vendors/me/controlling", tags=["Controlling Areas"])
 api_router.include_router(vendor_commission.router, prefix="/vendors/me/commission", tags=["Commission"])
 api_router.include_router(vendor_schema_catalog.router, prefix="/vendors/me/schema", tags=["Schema Catalog"])
 

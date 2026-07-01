@@ -70,6 +70,10 @@ export default {
           DEFAULT: 'hsl(var(--info))',
           foreground: 'hsl(var(--info-foreground))',
         },
+        brand: {
+          secondary: 'hsl(var(--brand-secondary) / <alpha-value>)',
+          accent: 'hsl(var(--brand-accent) / <alpha-value>)',
+        },
         popover: {
           DEFAULT: 'hsl(var(--popover))',
           foreground: 'hsl(var(--popover-foreground))',

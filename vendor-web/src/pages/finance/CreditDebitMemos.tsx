@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useMemo, useLayoutEffect } from 'react'
 import { TableColumnLabel } from '@/components/common/FieldLabel'
 import { BusinessUnitSelect } from '@/components/common/BusinessUnitSelect'
+import { BranchSelect } from '@/components/common/BranchSelect'
 import { useEscapeToClose } from '@/hooks/useEscapeToClose'
 import { createPortal } from 'react-dom'
 import { ResizableTable } from '@/components/table/ResizableTable'
@@ -204,6 +205,7 @@ export default function CreditDebitMemos() {
   const [histSortDir, setHistSortDir] = useState<SortDir>('desc')
   const [histTypeFilter, setHistTypeFilter] = useState<string>('')
   const [histStoreFilter, setHistStoreFilter] = useState('')
+  const [histBranchFilter, setHistBranchFilter] = useState('')
   const [includeVoided, setIncludeVoided] = useState(false)
   const [editingMemoId, setEditingMemoId] = useState<string | null>(null)
   const [memoRowBusyId, setMemoRowBusyId] = useState<string | null>(null)
@@ -217,6 +219,8 @@ export default function CreditDebitMemos() {
   // Business unit (catalog store) the memo is posted to / scoped by.
   const { data: myMembership } = useMyMembership()
   const [memoStoreId, setMemoStoreId] = useState('')
+  const [memoBranchId, setMemoBranchId] = useState('')
+  const effectiveMemoStoreId = memoBranchId || memoStoreId
   const isStoreLocked = !(myMembership?.role === 'owner' || myMembership?.role === 'admin')
 
   // Default to the user's effective/assigned store once membership loads.
@@ -227,17 +231,17 @@ export default function CreditDebitMemos() {
 
   useEffect(() => {
     setSessionLoading(true)
-    vendorApi.posGetCurrentSession(memoStoreId ? { store_id: memoStoreId } : undefined).then((data) => {
+    vendorApi.posGetCurrentSession(effectiveMemoStoreId ? { store_id: effectiveMemoStoreId } : undefined).then((data) => {
       setSession(data.session)
       setSessionLoading(false)
     }).catch(() => setSessionLoading(false))
-  }, [memoStoreId])
+  }, [effectiveMemoStoreId])
 
   const { data: memosData, isLoading: memosLoading } = useQuery({
     queryKey: [
       ...vendorKeys.all,
       'memos',
-      { page: histPage, size: histPageSize, search: histSearch, type: histTypeFilter, includeVoided, store: histStoreFilter },
+      { page: histPage, size: histPageSize, search: histSearch, type: histTypeFilter, includeVoided, store: histStoreFilter, branch: histBranchFilter },
     ],
     queryFn: () => {
       const transactionType = histTypeFilter || 'credit_memo,debit_memo'
@@ -247,7 +251,7 @@ export default function CreditDebitMemos() {
         search: histSearch.trim() || undefined,
         transaction_type: transactionType,
         include_voided: includeVoided,
-        store_id: histStoreFilter || undefined,
+        store_id: histBranchFilter || histStoreFilter || undefined,
       })
     },
   })
@@ -273,13 +277,13 @@ export default function CreditDebitMemos() {
 
   const totalHistPages = Math.max(1, Math.ceil((memosData?.total || 0) / histPageSize))
 
-  const { data: productsData } = useProducts({ size: 500, status: 'active', search: search || undefined, store_id: memoStoreId || undefined })
-  const { data: servicesData } = useServices({ size: 500, status: 'active', search: search || undefined, store_id: memoStoreId || undefined })
+  const { data: productsData } = useProducts({ size: 500, status: 'active', search: search || undefined, store_id: effectiveMemoStoreId || undefined })
+  const { data: servicesData } = useServices({ size: 500, status: 'active', search: search || undefined, store_id: effectiveMemoStoreId || undefined })
   const products = productsData?.items || []
   const services = servicesData?.items || []
 
-  const { data: allProductsData } = useProducts({ size: 500, status: 'active', store_id: memoStoreId || undefined })
-  const { data: allServicesData } = useServices({ size: 500, status: 'active', store_id: memoStoreId || undefined })
+  const { data: allProductsData } = useProducts({ size: 500, status: 'active', store_id: effectiveMemoStoreId || undefined })
+  const { data: allServicesData } = useServices({ size: 500, status: 'active', store_id: effectiveMemoStoreId || undefined })
   const allProductsList = allProductsData?.items || []
   const allServicesList = allServicesData?.items || []
 
@@ -831,7 +835,8 @@ export default function CreditDebitMemos() {
               <option value="credit_memo">Credit Memos</option>
               <option value="debit_memo">Debit Memos</option>
             </select>
-            <div className="w-48"><BusinessUnitSelect value={histStoreFilter} onChange={(id) => { setHistStoreFilter(id); setHistPage(1) }} allowAll autoSelectDefault={false} disabled={isStoreLocked} /></div>
+            <div className="w-48"><BusinessUnitSelect value={histStoreFilter} onChange={(id) => { setHistStoreFilter(id); setHistBranchFilter(''); setHistPage(1) }} allowAll autoSelectDefault={false} disabled={isStoreLocked} /></div>
+            <div className="w-48"><BranchSelect businessUnitId={histStoreFilter || null} value={histBranchFilter} onChange={(id) => { setHistBranchFilter(id); setHistPage(1) }} allowAll disabled={isStoreLocked} /></div>
             <label className="flex items-center gap-2 text-xs text-gray-600 cursor-pointer select-none">
               <input
                 type="checkbox"
@@ -1044,11 +1049,20 @@ export default function CreditDebitMemos() {
                   ? 'Products and services are restricted to your assigned business unit.'
                   : 'Choose the business unit to post this memo to. Only its products and services can be added.'}
               </p>
-              <div className="max-w-sm">
+              <div className="max-w-sm flex flex-wrap gap-2">
                 <BusinessUnitSelect
                   value={memoStoreId}
-                  onChange={(id) => { setMemoStoreId(id); setCart([]) }}
+                  onChange={(id) => { setMemoStoreId(id); setMemoBranchId(''); setCart([]) }}
                   disabled={isStoreLocked}
+                  className="flex-1 min-w-[10rem]"
+                />
+                <BranchSelect
+                  businessUnitId={memoStoreId || null}
+                  value={memoBranchId}
+                  onChange={(id) => { setMemoBranchId(id); setCart([]) }}
+                  allowAll
+                  disabled={isStoreLocked}
+                  className="flex-1 min-w-[10rem]"
                 />
               </div>
             </div>
@@ -1764,7 +1778,7 @@ export default function CreditDebitMemos() {
         <MemoPaymentModal
           total={grandTotal}
           sessionId={session?.id as string | undefined}
-          storeId={memoStoreId || undefined}
+          storeId={effectiveMemoStoreId || undefined}
           editTxnId={editingMemoId}
           cart={cart}
           discountType={discountType}

@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, selectOptionsWithBlank } from '@/components/ui/select'
 import { BusinessUnitSelect } from '@/components/common/BusinessUnitSelect'
+import { BranchSelect } from '@/components/common/BranchSelect'
 import { PlantSelect } from '@/components/common/PlantSelect'
 import {
   useStores,
@@ -176,10 +177,12 @@ export default function StorageLocationsPage() {
   const { data: storesData, isLoading: storesLoading } = useStores()
   const stores = storesData?.stores ?? []
   const [selectedStoreId, setSelectedStoreId] = useState('')
+  const [selectedBranchId, setSelectedBranchId] = useState('')
+  const effectiveStoreId = selectedBranchId || selectedStoreId
   const [selectedPlantId, setSelectedPlantId] = useState('')
 
   const { data, isLoading } = useStorageLocationTree(
-    selectedStoreId || null,
+    effectiveStoreId || null,
     selectedPlantId || null,
   )
   const createLocation = useCreateStorageLocation()
@@ -228,7 +231,7 @@ export default function StorageLocationsPage() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-    if (!name.trim() || !selectedStoreId || !selectedPlantId) return
+    if (!name.trim() || !effectiveStoreId || !selectedPlantId) return
 
     const payload: Record<string, unknown> = {
       name: name.trim(),
@@ -242,7 +245,7 @@ export default function StorageLocationsPage() {
     if (editing) {
       updateLocation.mutate({ id: editing.id, data: payload }, { onSuccess: resetForm })
     } else {
-      createLocation.mutate({ ...payload, store_id: selectedStoreId, plant_id: selectedPlantId }, { onSuccess: resetForm })
+      createLocation.mutate({ ...payload, store_id: effectiveStoreId, plant_id: selectedPlantId }, { onSuccess: resetForm })
     }
   }
 
@@ -269,10 +272,10 @@ export default function StorageLocationsPage() {
   }, [data?.locations, search])
 
   const selectedStore = stores.find(s => s.id === selectedStoreId)
-  const canCreate = Boolean(selectedStoreId && selectedPlantId)
-  const filterHint = selectedStoreId && selectedPlantId
+  const canCreate = Boolean(effectiveStoreId && selectedPlantId)
+  const filterHint = effectiveStoreId && selectedPlantId
     ? `Locations below belong to ${selectedStore?.name ?? 'this unit'}`
-    : selectedStoreId
+    : effectiveStoreId
       ? `All plants in ${selectedStore?.name ?? 'this unit'}`
       : selectedPlantId
         ? 'Filtered by plant across all business units'
@@ -307,7 +310,7 @@ export default function StorageLocationsPage() {
               ) : (
                 <BusinessUnitSelect
                   value={selectedStoreId}
-                  onChange={(v) => { setSelectedStoreId(v); setSelectedPlantId('') }}
+                  onChange={(v) => { setSelectedStoreId(v); setSelectedBranchId(''); setSelectedPlantId('') }}
                   allowAll
                   autoSelectDefault={false}
                 />
@@ -315,11 +318,22 @@ export default function StorageLocationsPage() {
             </div>
             {stores.length > 0 && (
               <div className="min-w-[220px] space-y-1.5">
+                <Label className="text-xs text-muted-foreground">Branch</Label>
+                <BranchSelect
+                  businessUnitId={selectedStoreId || null}
+                  value={selectedBranchId}
+                  onChange={(v) => { setSelectedBranchId(v); setSelectedPlantId('') }}
+                  allowAll
+                />
+              </div>
+            )}
+            {stores.length > 0 && (
+              <div className="min-w-[220px] space-y-1.5">
                 <Label className="text-xs text-muted-foreground">Plant</Label>
                 <PlantSelect
                   value={selectedPlantId}
                   onChange={setSelectedPlantId}
-                  storeId={selectedStoreId || null}
+                  storeId={effectiveStoreId || null}
                   allowAll
                 />
               </div>

@@ -70,6 +70,11 @@ import GoodsManagementPage from '@/pages/procurement/GoodsManagement'
 import SpecialProcurementPage from '@/pages/procurement/SpecialProcurement'
 import CreditDebitMemos from '@/pages/finance/CreditDebitMemos'
 import ProductionOrdersPage from '@/pages/production/index'
+import ProductionOrderDetailPage from '@/pages/production/OrderDetail'
+import ProductionSchedulePage from '@/pages/production/Schedule'
+import ProductionWorkCentersPage from '@/pages/production/WorkCenters'
+import ProductionMRPPage from '@/pages/production/MRP'
+import ProductionAnalyticsPage from '@/pages/production/Analytics'
 import StoresPage from '@/pages/stores/index'
 import ProfilePage from '@/pages/profile/index'
 import RelationshipManagerPage from '@/pages/relationship-manager/index'
@@ -153,6 +158,9 @@ import ControllingDashboardPage from '@/pages/controlling/index'
 import ControllingProductCostsPage from '@/pages/controlling/ProductCosts'
 import ControllingManufacturingOrdersPage from '@/pages/controlling/ManufacturingOrders'
 import ControllingSetupPage from '@/pages/controlling/Setup'
+import ControllingActivityTypesPage from '@/pages/controlling/ActivityTypes'
+import ControllingFinanceIntegrationPage from '@/pages/controlling/FinanceIntegration'
+import ControllingAreasPage from '@/pages/controlling/ControllingAreas'
 import ControllingManufacturingOrderDetail from '@/pages/controlling/ManufacturingOrderDetail'
 import ControllingWipReport from '@/pages/controlling/WipReport'
 import ControllingGoodsMovementsPage from '@/pages/controlling/GoodsMovements'
@@ -222,6 +230,7 @@ import CommissionPayouts from '@/pages/commission/Payouts'
 import CommissionReportPage from '@/pages/commission/reports/CommissionReport'
 import StoreCoveragePage from '@/pages/sales/StoreCoverage'
 import SalesManagerPage from '@/pages/sales/SalesManager'
+import SalesAreaSetupPage from '@/pages/sales/SalesAreaSetup'
 
 const routerBasename = (import.meta.env.VITE_ROUTER_BASENAME || '').replace(/\/$/, '')
 
@@ -305,6 +314,11 @@ export const router = createBrowserRouter([
       { path: 'procurement/goods', element: <GoodsManagementPage /> },
       { path: 'procurement/special', element: <SpecialProcurementPage /> },
       { path: 'production', element: <ProductionOrdersPage /> },
+      { path: 'production/orders/:orderId', element: <ProductionOrderDetailPage /> },
+      { path: 'production/schedule', element: <ProductionSchedulePage /> },
+      { path: 'production/work-centers', element: <ProductionWorkCentersPage /> },
+      { path: 'production/mrp', element: <ProductionMRPPage /> },
+      { path: 'production/analytics', element: <ProductionAnalyticsPage /> },
       { path: 'inventory', element: <Inventory /> },
       { path: 'storage-locations', element: <StorageLocationsPage /> },
       { path: 'plants', element: <PlantsPage /> },
@@ -323,6 +337,7 @@ export const router = createBrowserRouter([
       { path: 'marketplace', element: <MarketplaceLeadsPage /> },
       { path: 'sales/coverage', element: <StoreCoveragePage /> },
       { path: 'sales/manager', element: <SalesManagerPage /> },
+      { path: 'sales/sales-area', element: <SalesAreaSetupPage /> },
       { path: 'rental', element: <RentalHubPage /> },
       { path: 'invoices', element: <InvoicesPage /> },
       { path: 'invoices/templates', element: <InvoiceTemplatesPage /> },
@@ -466,6 +481,9 @@ export const router = createBrowserRouter([
           { path: 'product-costs',                   element: <ControllingProductCostsPage /> },
           { path: 'routing',                         element: <ControllingRoutingPage /> },
           { path: 'setup',                           element: <ControllingSetupPage /> },
+          { path: 'controlling-areas',                element: <ControllingAreasPage /> },
+          { path: 'activity-types',                  element: <ControllingActivityTypesPage /> },
+          { path: 'finance-integration',           element: <ControllingFinanceIntegrationPage /> },
           // Orders
           { path: 'orders',                          element: <ControllingManufacturingOrdersPage /> },
           { path: 'orders/:id',                      element: <ControllingManufacturingOrderDetail /> },

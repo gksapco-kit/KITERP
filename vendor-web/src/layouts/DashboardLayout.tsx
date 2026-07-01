@@ -157,6 +157,7 @@ import {
   isCrmNavVisible,
   isCommissionNavVisible,
   isControllingNavVisible,
+  isProductionNavVisible,
   isPosNavVisible,
   isRestaurantNavVisible,
   isBookingsNavVisible,
@@ -561,11 +562,23 @@ const allSections: NavSection[] = [
       { to: '/subscriptions', icon: RefreshCw, label: 'Subscriptions', requiresPermission: 'subscriptions.view' },
       { to: '/marketplace', icon: Target, label: 'Marketplace Leads', requiresPermission: 'orders.view' },
       { to: '/sales/coverage', icon: MapPin, label: 'Store Coverage', requiresPermission: 'orders.view' },
+      { to: '/sales/sales-area', icon: LayoutGrid, label: 'Sales Area', requiresPermission: 'orders.view' },
       { to: '/rental', icon: Truck, label: 'Rentals', requiresPermission: 'rentals.view' },
-      { to: '/production', icon: Factory, label: 'Production Orders', requiresOffering: ['products', 'both'], requiresPermission: 'production.view' },
       { to: '/invoices', icon: FileText, label: 'Invoices', requiresPermission: 'invoices.view' },
       { to: '/memos', icon: FilePlus, label: 'Credit / Debit Memos', requiresPermission: 'memos.view' },
       { to: '/coupons', icon: Tag, label: 'Coupons', requiresPermission: 'coupons.view' },
+    ],
+  },
+  {
+    id: 'production',
+    title: 'Production Management',
+    icon: Factory,
+    items: [
+      { to: '/production', icon: Factory, label: 'Production Orders', requiresOffering: ['products', 'both'], requiresPermission: 'production.view' },
+      { to: '/production/schedule', icon: Calendar, label: 'Schedule', requiresOffering: ['products', 'both'], requiresPermission: 'production.view' },
+      { to: '/production/work-centers', icon: GitBranch, label: 'Work Centers & Routing', requiresOffering: ['products', 'both'], requiresPermission: 'production.view' },
+      { to: '/production/mrp', icon: Layers, label: 'Material Requirements (MRP)', requiresOffering: ['products', 'both'], requiresPermission: 'production.view' },
+      { to: '/production/analytics', icon: BarChart3, label: 'Analytics', requiresOffering: ['products', 'both'], requiresPermission: 'production.view' },
     ],
   },
   {
@@ -677,12 +690,17 @@ const allSections: NavSection[] = [
     icon: Gauge,
     items: [
       { to: '/controlling', icon: Gauge, label: 'CO Dashboard', requiresPermission: 'finance.view' },
+      // ── Organization
+      { to: '/controlling/controlling-areas',        icon: Building2,     label: 'Controlling Areas',           requiresPermission: 'finance.view', groupLabel: 'Organization', groupColor: 'indigo' },
+      // ── Integration
+      { to: '/controlling/finance-integration',      icon: Landmark,      label: 'Finance Integration',        requiresPermission: 'finance.view', groupLabel: 'Integration', groupColor: 'violet' },
       // ── Cost Centres
       { to: '/controlling/cost-centers',             icon: Layers,        label: 'Cost Centers',               requiresPermission: 'finance.view', groupLabel: 'Cost Centres', groupColor: 'blue' },
+      { to: '/controlling/activity-types',           icon: Activity,      label: 'Activity Types',             requiresPermission: 'finance.view' },
       // ── Cost Planning
       { to: '/controlling/product-costs',            icon: Boxes,         label: 'Product Cost Planning',      requiresPermission: 'finance.view', groupLabel: 'Cost Planning', groupColor: 'blue' },
       { to: '/controlling/routing',                  icon: GitBranch,     label: 'Work Centres & Routing',     requiresPermission: 'finance.view' },
-      { to: '/controlling/setup',                    icon: Layers,        label: 'Activity Types & Overhead',  requiresPermission: 'finance.view' },
+      { to: '/controlling/setup',                    icon: Percent,       label: 'Overhead Setup',             requiresPermission: 'finance.view' },
       // ── Production Orders
       { to: '/controlling/orders',                   icon: Factory,       label: 'All Orders',                 requiresPermission: 'finance.view', groupLabel: 'Production Orders',     groupColor: 'amber' },
       { to: '/controlling/orders?kind=assembly',     icon: Workflow,      label: 'Assembly Orders',            requiresPermission: 'finance.view' },
@@ -1084,6 +1102,10 @@ const pageTitles: Record<string, string> = {
   '/procurement/goods': 'Goods Management',
   '/procurement/special': 'Special Procurement',
   '/production': 'Production Orders',
+  '/production/schedule': 'Production Schedule',
+  '/production/work-centers': 'Work Centers & Routing',
+  '/production/mrp': 'Material Requirements (MRP)',
+  '/production/analytics': 'Production Analytics',
   '/inventory': 'Inventory',
   '/plants': 'Plants',
   '/storage-locations': 'Storage Locations',
@@ -1136,6 +1158,7 @@ const pageTitles: Record<string, string> = {
   '/system/assets/images': 'Images',
 
   '/sales/coverage': 'Store Coverage',
+  '/sales/sales-area': 'Sales Area',
 
   '/crm': 'CRM Dashboard',
   '/crm/contacts': 'Contacts',
@@ -1155,11 +1178,13 @@ const pageTitles: Record<string, string> = {
   '/crm/audit': 'Audit Log',
 
   '/controlling': 'Controlling (CO) Dashboard',
+  '/controlling/controlling-areas': 'Controlling Areas',
   '/controlling/cost-centers': 'Cost Centers',
+  '/controlling/activity-types': 'Activity Types',
   '/controlling/product-costs': 'Product Cost Planning',
   '/controlling/routing': 'Work Centres & Routing',
   '/controlling/orders': 'Manufacturing & Project Orders',
-  '/controlling/setup': 'Activities & Overhead Setup',
+  '/controlling/setup': 'Overhead Setup',
   '/controlling/wip': 'WIP Report',
   '/controlling/internal-orders': 'Internal & Project Orders',
   '/controlling/goods-movements': 'Goods Movements',
@@ -1169,6 +1194,7 @@ const pageTitles: Record<string, string> = {
   '/controlling/internal-cost': 'Internal Cost Management',
   '/controlling/cost-allocations': 'Cost Allocations',
   '/controlling/period-end': 'Period-End Closing',
+  '/controlling/finance-integration': 'Finance Integration',
   '/controlling/production-process': 'Production Process',
 }
 
@@ -1786,6 +1812,10 @@ export default function DashboardLayout() {
   const { data: inboxCount = 0 } = useInboxUnreadCount(crmNavVisible)
   const commissionNavVisible = useMemo(() => isCommissionNavVisible(vendorSettings), [vendorSettings])
   const controllingNavVisible = useMemo(() => isControllingNavVisible(vendorSettings), [vendorSettings])
+  const productionNavVisible = useMemo(
+    () => isProductionNavVisible(vendorSettings, vendor?.offering_type),
+    [vendorSettings, vendor?.offering_type],
+  )
 
   const canViewOrders = isOwnerOrAdmin || permissions.includes('orders.view')
   const { data: orderStats } = useOrderStats(canViewOrders)
@@ -1838,6 +1868,7 @@ export default function DashboardLayout() {
           if (section.id === 'crm' && !crmNavVisible) return false
           if (section.id === 'commission' && !commissionNavVisible) return false
           if (section.id === 'controlling' && !controllingNavVisible) return false
+          if (section.id === 'production' && !productionNavVisible) return false
           if (
             section.id === 'restaurant' &&
             !isRestaurantNavVisible(vendorSettings, vendor?.offering_type, planFeatures)
@@ -1848,7 +1879,7 @@ export default function DashboardLayout() {
         })
         .map((section) => ({ ...section, items: section.items.filter(filterItem) }))
         .filter((section) => section.items.length > 0),
-    [filterItem, hrNavVisible, financeNavVisible, crmNavVisible, commissionNavVisible, controllingNavVisible],
+    [filterItem, hrNavVisible, financeNavVisible, crmNavVisible, commissionNavVisible, controllingNavVisible, productionNavVisible],
   )
 
   const { data: essProfile } = useESSProfile()
@@ -2365,6 +2396,7 @@ export default function DashboardLayout() {
         (location.pathname.startsWith('/products/') ? 'Product Details' :
          location.pathname.startsWith('/services/') ? 'Service Details' :
          location.pathname.startsWith('/orders/') ? 'Order Details' :
+         location.pathname.startsWith('/production/orders/') ? 'Production Order' :
          location.pathname.startsWith('/customers/') ? 'Customer Details' :
          location.pathname.startsWith('/quotations/templates') ? 'Quotation Templates' :
          location.pathname.startsWith('/quotations/') ? 'Quotation Details' :

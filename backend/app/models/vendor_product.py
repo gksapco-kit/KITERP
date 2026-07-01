@@ -30,6 +30,8 @@ class Product(Base):
     category = Column(String(100))
     subcategory = Column(String(100))
     tags = Column(JSONB, default=[])
+    # Sales & Distribution: which Division (product-line grouping) this product belongs to.
+    division_id = Column(UUID(as_uuid=True), ForeignKey("sales_division.id", ondelete="SET NULL"), nullable=True, index=True)
 
     # ── Unit of Measure ──────────────────────────────────────────
     uom = Column(String(30), default="piece")
@@ -149,6 +151,7 @@ class Product(Base):
 
     __table_args__ = (
         Index("idx_product_vendor", "vendor_id"),
+        Index("idx_product_division", "vendor_id", "division_id"),
         Index("idx_product_slug", "vendor_id", "slug", unique=True),
         Index(
             "idx_product_material_code",

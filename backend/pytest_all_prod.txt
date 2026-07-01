@@ -1,0 +1,241 @@
+﻿........                                                                 [100%]
+============================== warnings summary ===============================
+app\schemas\vendor_product.py:614
+  C:\KIT ERP\Work Space\KITERP\backend\app\schemas\vendor_product.py:614: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/
+    class PriceRuleResponse(BaseModel):
+
+..\..\..\..\Users\mslav\AppData\Local\Programs\Python\Python314\Lib\site-packages\fastapi\routing.py:211: 3809 warnings
+  C:\Users\mslav\AppData\Local\Programs\Python\Python314\Lib\site-packages\fastapi\routing.py:211: DeprecationWarning: 'asyncio.iscoroutinefunction' is deprecated and slated for removal in Python 3.16; use inspect.iscoroutinefunction() instead
+    is_coroutine = asyncio.iscoroutinefunction(dependant.call)
+
+app\schemas\mrp.py:17
+  C:\KIT ERP\Work Space\KITERP\backend\app\schemas\mrp.py:17: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/
+    class BOMItemOut(BaseModel):
+
+app\schemas\mrp.py:82
+  C:\KIT ERP\Work Space\KITERP\backend\app\schemas\mrp.py:82: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/
+    class ReservationOut(BaseModel):
+
+app\api\v1\admin.py:87
+  C:\KIT ERP\Work Space\KITERP\backend\app\api\v1\admin.py:87: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/
+    class PlanResponse(BaseModel):
+
+app\api\v1\vendor_finance.py:2390
+  C:\KIT ERP\Work Space\KITERP\backend\app\api\v1\vendor_finance.py:2390: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/
+    class PostingKeyOut(PostingKeyCreate):
+
+app\api\v1\vendor_finance.py:2464
+  C:\KIT ERP\Work Space\KITERP\backend\app\api\v1\vendor_finance.py:2464: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/
+    class FieldStatusGroupOut(BaseModel):
+
+app\api\v1\vendor_finance.py:2560
+  C:\KIT ERP\Work Space\KITERP\backend\app\api\v1\vendor_finance.py:2560: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/
+    class ToleranceGroupOut(ToleranceGroupCreate):
+
+app\api\v1\vendor_finance.py:2659
+  C:\KIT ERP\Work Space\KITERP\backend\app\api\v1\vendor_finance.py:2659: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/
+    class ProfitCenterOut(ProfitCenterCreate):
+
+app\api\v1\vendor_finance.py:2673
+  C:\KIT ERP\Work Space\KITERP\backend\app\api\v1\vendor_finance.py:2673: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/
+    class SegmentOut(SegmentCreate):
+
+app\api\v1\vendor_finance.py:2951
+  C:\KIT ERP\Work Space\KITERP\backend\app\api\v1\vendor_finance.py:2951: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/
+    class ValidationRuleOut(ValidationRuleCreate):
+
+app\api\v1\vendor_finance.py:3021
+  C:\KIT ERP\Work Space\KITERP\backend\app\api\v1\vendor_finance.py:3021: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/
+    class SubstitutionRuleOut(SubstitutionRuleCreate):
+
+app\api\v1\vendor_finance.py:3074
+  C:\KIT ERP\Work Space\KITERP\backend\app\api\v1\vendor_finance.py:3074: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/
+    class NumberRangeOut(NumberRangeCreate):
+
+app\api\v1\vendor_finance.py:3134
+  C:\KIT ERP\Work Space\KITERP\backend\app\api\v1\vendor_finance.py:3134: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/
+    class SplitRuleOut(BaseModel):
+
+app\api\v1\vendor_finance.py:3243
+  C:\KIT ERP\Work Space\KITERP\backend\app\api\v1\vendor_finance.py:3243: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/
+    class LedgerOut(LedgerCreate):
+
+app\schemas\controlling.py:32
+  C:\KIT ERP\Work Space\KITERP\backend\app\schemas\controlling.py:32: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/
+    class ActivityTypeOut(BaseModel):
+
+app\schemas\controlling.py:73
+  C:\KIT ERP\Work Space\KITERP\backend\app\schemas\controlling.py:73: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/
+    class OverheadPoolOut(BaseModel):
+
+app\schemas\controlling.py:88
+  C:\KIT ERP\Work Space\KITERP\backend\app\schemas\controlling.py:88: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/
+    class OverheadRateOut(BaseModel):
+
+app\schemas\controlling.py:114
+  C:\KIT ERP\Work Space\KITERP\backend\app\schemas\controlling.py:114: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/
+    class ProductCostLineOut(BaseModel):
+
+app\schemas\controlling.py:151
+  C:\KIT ERP\Work Space\KITERP\backend\app\schemas\controlling.py:151: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/
+    class ProductCostVersionOut(BaseModel):
+
+app\schemas\controlling.py:211
+  C:\KIT ERP\Work Space\KITERP\backend\app\schemas\controlling.py:211: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/
+    class OrderOperationOut(BaseModel):
+
+app\schemas\controlling.py:238
+  C:\KIT ERP\Work Space\KITERP\backend\app\schemas\controlling.py:238: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/
+    class CoGlMappingOut(BaseModel):
+
+app\schemas\controlling.py:265
+  C:\KIT ERP\Work Space\KITERP\backend\app\schemas\controlling.py:265: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/
+    class CoCostBookingOut(BaseModel):
+
+app\schemas\controlling.py:306
+  C:\KIT ERP\Work Space\KITERP\backend\app\schemas\controlling.py:306: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/
+    class OrderCostLineOut(BaseModel):
+
+app\schemas\controlling.py:368
+  C:\KIT ERP\Work Space\KITERP\backend\app\schemas\controlling.py:368: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/
+    class ManufacturingOrderOut(BaseModel):
+
+app\schemas\controlling.py:495
+  C:\KIT ERP\Work Space\KITERP\backend\app\schemas\controlling.py:495: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/
+    class ActivityConfirmationOut(BaseModel):
+
+app\schemas\controlling.py:540
+  C:\KIT ERP\Work Space\KITERP\backend\app\schemas\controlling.py:540: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/
+    class GoodsMovementOut(BaseModel):
+
+app\schemas\controlling.py:587
+  C:\KIT ERP\Work Space\KITERP\backend\app\schemas\controlling.py:587: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/
+    class CostAllocationOut(BaseModel):
+
+app\schemas\controlling.py:641
+  C:\KIT ERP\Work Space\KITERP\backend\app\schemas\controlling.py:641: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/
+    class BudgetLineOut(BaseModel):
+
+app\schemas\controlling.py:685
+  C:\KIT ERP\Work Space\KITERP\backend\app\schemas\controlling.py:685: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/
+    class VarianceRunOut(BaseModel):
+
+app\schemas\website.py:45
+  C:\KIT ERP\Work Space\KITERP\backend\app\schemas\website.py:45: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/
+    class BlockOut(BaseModel):
+
+app\schemas\website.py:101
+  C:\KIT ERP\Work Space\KITERP\backend\app\schemas\website.py:101: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/
+    class PageOut(BaseModel):
+
+app\schemas\website.py:205
+  C:\KIT ERP\Work Space\KITERP\backend\app\schemas\website.py:205: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/
+    class SiteOut(BaseModel):
+
+app\schemas\website.py:249
+  C:\KIT ERP\Work Space\KITERP\backend\app\schemas\website.py:249: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/
+    class SiteListItem(BaseModel):
+
+app\schemas\website.py:374
+  C:\KIT ERP\Work Space\KITERP\backend\app\schemas\website.py:374: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/
+    class SiteRedirectOut(BaseModel):
+
+app\schemas\website.py:537
+  C:\KIT ERP\Work Space\KITERP\backend\app\schemas\website.py:537: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/
+    class MediaOut(BaseModel):
+
+app\schemas\restaurant.py:19
+  C:\KIT ERP\Work Space\KITERP\backend\app\schemas\restaurant.py:19: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/
+    class RestaurantZoneOut(BaseModel):
+
+..\..\..\..\Users\mslav\AppData\Local\Programs\Python\Python314\Lib\site-packages\pytest_asyncio\plugin.py:168: 13325 warnings
+  C:\Users\mslav\AppData\Local\Programs\Python\Python314\Lib\site-packages\pytest_asyncio\plugin.py:168: DeprecationWarning: 'asyncio.iscoroutinefunction' is deprecated and slated for removal in Python 3.16; use inspect.iscoroutinefunction() instead
+    return asyncio.iscoroutinefunction(obj) or inspect.isasyncgenfunction(obj)
+
+..\..\..\..\Users\mslav\AppData\Local\Programs\Python\Python314\Lib\site-packages\pytest_asyncio\plugin.py:423: 305 warnings
+  C:\Users\mslav\AppData\Local\Programs\Python\Python314\Lib\site-packages\pytest_asyncio\plugin.py:423: DeprecationWarning: 'asyncio.iscoroutinefunction' is deprecated and slated for removal in Python 3.16; use inspect.iscoroutinefunction() instead
+    return asyncio.iscoroutinefunction(func)
+
+tests/test_co_settlement.py::test_post_production_completion_creates_balanced_journal
+  C:\Users\mslav\AppData\Local\Programs\Python\Python314\Lib\site-packages\pytest_asyncio\plugin.py:985: DeprecationWarning: 'asyncio.get_event_loop_policy' is deprecated and slated for removal in Python 3.16
+    return asyncio.get_event_loop_policy()
+
+tests/test_co_settlement.py::test_post_production_completion_creates_balanced_journal
+  C:\Users\mslav\AppData\Local\Programs\Python\Python314\Lib\site-packages\pytest_asyncio\plugin.py:739: DeprecationWarning: 'asyncio.get_event_loop_policy' is deprecated and slated for removal in Python 3.16
+    _restore_event_loop_policy(asyncio.get_event_loop_policy()),
+
+tests/test_co_settlement.py::test_post_production_completion_creates_balanced_journal
+  C:\Users\mslav\AppData\Local\Programs\Python\Python314\Lib\site-packages\pytest_asyncio\plugin.py:749: DeprecationWarning: The event_loop fixture provided by pytest-asyncio has been redefined in
+  C:\KIT ERP\Work Space\KITERP\backend\tests\conftest.py:46
+  Replacing the event_loop fixture with a custom implementation is deprecated
+  and will lead to errors in the future.
+  If you want to request an asyncio event loop with a scope other than function
+  scope, use the "scope" argument to the asyncio mark when marking the tests.
+  If you want to return different types of event loops, use the event_loop_policy
+  fixture.
+  
+    warnings.warn(
+
+tests/test_co_settlement.py::test_post_production_completion_creates_balanced_journal
+  C:\Users\mslav\AppData\Local\Programs\Python\Python314\Lib\site-packages\pytest_asyncio\plugin.py:754: DeprecationWarning: 'asyncio.get_event_loop_policy' is deprecated and slated for removal in Python 3.16
+    policy = asyncio.get_event_loop_policy()
+
+tests/test_co_settlement.py::test_post_production_completion_creates_balanced_journal
+tests/test_co_settlement.py::test_post_production_completion_twice_raises
+tests/test_co_settlement.py::test_post_cogs_issue_after_production
+tests/test_co_settlement.py::test_post_cogs_issue_after_production
+  C:\KIT ERP\Work Space\KITERP\backend\app\services\finance\posting.py:316: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    posted_at=datetime.utcnow(),
+
+tests/test_co_settlement.py::test_post_production_completion_creates_balanced_journal
+tests/test_co_settlement.py::test_post_production_completion_twice_raises
+tests/test_co_settlement.py::test_post_cogs_issue_after_production
+tests/test_production_analytics.py::test_analytics_reports_completed_orders_and_cost
+tests/test_production_analytics.py::test_analytics_scopes_by_store_and_date
+tests/test_production_routing_costing.py::test_confirm_reserves_materials_and_computes_planned_cost
+tests/test_production_routing_costing.py::test_routing_operations_compute_labor_cost
+tests/test_production_routing_costing.py::test_completion_posts_stock_and_computes_actual_material_cost
+  <sys>:0: SAWarning: Can't sort tables for DROP; an unresolvable foreign key dependency exists between tables: store, vendor_user; and backend does not support ALTER.  To restore at least a partial sort, apply use_alter=True to ForeignKey and ForeignKeyConstraint objects involved in the cycle to mark these as known cycles that will be ignored.
+
+tests/test_production_analytics.py: 9 warnings
+tests/test_production_routing_costing.py: 11 warnings
+  C:\Users\mslav\AppData\Local\Programs\Python\Python314\Lib\site-packages\starlette\_utils.py:40: DeprecationWarning: 'asyncio.iscoroutinefunction' is deprecated and slated for removal in Python 3.16; use inspect.iscoroutinefunction() instead
+    return asyncio.iscoroutinefunction(obj) or (
+
+tests/test_production_analytics.py::test_analytics_reports_completed_orders_and_cost
+tests/test_production_analytics.py::test_analytics_reports_completed_orders_and_cost
+tests/test_production_analytics.py::test_analytics_scopes_by_store_and_date
+tests/test_production_analytics.py::test_analytics_scopes_by_store_and_date
+tests/test_production_routing_costing.py::test_confirm_reserves_materials_and_computes_planned_cost
+tests/test_production_routing_costing.py::test_routing_operations_compute_labor_cost
+tests/test_production_routing_costing.py::test_completion_posts_stock_and_computes_actual_material_cost
+  C:\KIT ERP\Work Space\KITERP\backend\app\repositories\production_repo.py:87: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    suffix = str(int(datetime.utcnow().timestamp() * 1000))[-6:]
+
+tests/test_production_analytics.py::test_analytics_reports_completed_orders_and_cost
+tests/test_production_routing_costing.py::test_completion_posts_stock_and_computes_actual_material_cost
+  C:\KIT ERP\Work Space\KITERP\backend\app\repositories\production_repo.py:75: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    row.updated_at = datetime.utcnow()
+
+tests/test_production_routing_costing.py::test_routing_operations_compute_labor_cost
+  C:\KIT ERP\Work Space\KITERP\backend\app\api\v1\vendor_production_ops.py:321: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    now = datetime.utcnow()
+
+tests/test_production_routing_costing.py::test_routing_operations_compute_labor_cost
+  C:\KIT ERP\Work Space\KITERP\backend\app\api\v1\vendor_production_ops.py:365: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    now = datetime.utcnow()
+
+tests/test_production_routing_costing.py::test_completion_posts_stock_and_computes_actual_material_cost
+  C:\Users\mslav\AppData\Local\Programs\Python\Python314\Lib\site-packages\pytest_asyncio\plugin.py:801: DeprecationWarning: 'asyncio.get_event_loop_policy' is deprecated and slated for removal in Python 3.16
+    policy = asyncio.get_event_loop_policy()
+
+tests/test_production_routing_costing.py::test_completion_posts_stock_and_computes_actual_material_cost
+  C:\Users\mslav\AppData\Local\Programs\Python\Python314\Lib\site-packages\pytest_asyncio\plugin.py:827: DeprecationWarning: 'asyncio.set_event_loop_policy' is deprecated and slated for removal in Python 3.16
+    asyncio.set_event_loop_policy(previous_policy)
+
+tests/test_production_routing_costing.py::test_completion_posts_stock_and_computes_actual_material_cost
+  C:\Users\mslav\AppData\Local\Programs\Python\Python314\Lib\site-packages\pytest_asyncio\plugin.py:839: DeprecationWarning: 'asyncio.get_event_loop_policy' is deprecated and slated for removal in Python 3.16
+    policy = asyncio.get_event_loop_policy()
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+8 passed, 297 deselected, 17525 warnings in 22.47s

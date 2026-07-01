@@ -42,6 +42,13 @@ class StockReservation(Base):
     order_type: "production_order" | "sales_order"
     order_id: local UUID string for production orders; UUID for sales orders
     status: active | released | consumed
+
+    Store-scoped: reserved_qty is held against a specific business unit (and
+    optionally a storage location within it), matching StoreInventory — the
+    actual source of truth for on-hand stock. reserved_qty holds the exact
+    (possibly fractional) requirement for traceability/costing; the physical
+    hold against StoreInventory.quantity (an Integer column) is always the
+    ceiling of this value — see app/services/production_materials.py.
     """
     __tablename__ = "stock_reservation"
 
@@ -49,6 +56,8 @@ class StockReservation(Base):
     vendor_id = Column(UUID(as_uuid=True), ForeignKey("vendor.id", ondelete="CASCADE"), nullable=False)
     order_type = Column(String(30), nullable=False)
     order_id = Column(String(100), nullable=False)
+    store_id = Column(UUID(as_uuid=True), ForeignKey("store.id", ondelete="SET NULL"), nullable=True, index=True)
+    storage_location_id = Column(UUID(as_uuid=True), ForeignKey("storage_location.id", ondelete="SET NULL"), nullable=True)
     product_id = Column(UUID(as_uuid=True), ForeignKey("product.id", ondelete="CASCADE"), nullable=False)
     variant_id = Column(UUID(as_uuid=True), ForeignKey("product_variant.id", ondelete="SET NULL"), nullable=True)
     reserved_qty = Column(Numeric(12, 4), nullable=False)
@@ -56,6 +65,7 @@ class StockReservation(Base):
     notes = Column(Text, nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     released_at = Column(DateTime(timezone=True), nullable=True)
+    consumed_at = Column(DateTime(timezone=True), nullable=True)
 
     product = relationship("Product")
 
@@ -64,4 +74,5 @@ class StockReservation(Base):
         Index("idx_resv_order", "order_type", "order_id"),
         Index("idx_resv_product", "product_id"),
         Index("idx_resv_status", "status"),
+        Index("idx_resv_store", "vendor_id", "store_id"),
     )

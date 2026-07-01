@@ -2075,6 +2075,391 @@ async def ensure_txn_store_id_columns() -> None:
     logger.info("ensure_txn_store_id_columns: order/pos/invoice/booking store_id ready")
 
 
+async def ensure_store_hierarchy_columns() -> None:
+    """
+    Add store.parent_id + store.unit_type (Alembic ms006_store_hierarchy).
+
+    parent_id=NULL means the row is a Business Unit; parent_id set means it's
+    a Branch under that BU. Idempotent when that migration was not applied to
+    the database in use.
+    """
+    if "postgresql" not in settings.DATABASE_URL.lower():
+        return
+
+    async with engine.begin() as conn:
+        await conn.execute(text("ALTER TABLE store ADD COLUMN IF NOT EXISTS parent_id UUID"))
+        await conn.execute(
+            text(
+                "ALTER TABLE store ADD COLUMN IF NOT EXISTS unit_type VARCHAR(20) "
+                "NOT NULL DEFAULT 'business_unit'"
+            )
+        )
+
+    try:
+        async with engine.begin() as conn:
+            await conn.execute(
+                text(
+                    """
+                    DO $$
+                    BEGIN
+                        IF NOT EXISTS (
+                            SELECT 1 FROM pg_constraint WHERE conname = 'fk_store_parent'
+                        ) THEN
+                            ALTER TABLE store
+                            ADD CONSTRAINT fk_store_parent
+                            FOREIGN KEY (parent_id) REFERENCES store(id) ON DELETE RESTRICT;
+                        END IF;
+                    END $$;
+                    """
+                )
+            )
+            await conn.execute(
+                text("CREATE INDEX IF NOT EXISTS idx_store_parent ON store (vendor_id, parent_id)")
+            )
+            await conn.execute(text("UPDATE store SET unit_type = 'business_unit' WHERE unit_type IS NULL"))
+    except Exception:
+        logger.exception(
+            "ensure_store_hierarchy_columns: FK/index/backfill failed; columns remain"
+        )
+        return
+
+    logger.info("ensure_store_hierarchy_columns: store.parent_id/unit_type ready")
+
+
+async def ensure_sales_area_tables() -> None:
+    """
+    Sales & Distribution (SD) org data (Alembic ms007_sales_area):
+      sales_division, distribution_channel, delivery_channel, sales_area
+      + nullable sales_area_id/delivery_channel_id/division_id link columns on
+      order/pos_transaction/booking/invoice/product.
+
+    Sales Organization is not a new table — it reuses Store rows with
+    parent_id IS NULL (Business Units). Idempotent when that migration was not
+    applied to the database in use.
+    """
+    if "postgresql" not in settings.DATABASE_URL.lower():
+        return
+
+    table_stmts = [
+        """CREATE TABLE IF NOT EXISTS sales_division (
+            id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+            vendor_id UUID NOT NULL REFERENCES vendor(id) ON DELETE CASCADE,
+            code VARCHAR(20) NOT NULL,
+            name VARCHAR(200) NOT NULL,
+            description TEXT,
+            is_active BOOLEAN DEFAULT TRUE,
+            is_default BOOLEAN DEFAULT FALSE,
+            sort_order INTEGER DEFAULT 0,
+            created_at TIMESTAMPTZ DEFAULT now(),
+            updated_at TIMESTAMPTZ DEFAULT now(),
+            CONSTRAINT uq_sales_division_vendor_code UNIQUE (vendor_id, code)
+        );""",
+        "CREATE INDEX IF NOT EXISTS ix_sales_division_vendor ON sales_division (vendor_id, is_active);",
+        """CREATE TABLE IF NOT EXISTS distribution_channel (
+            id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+            vendor_id UUID NOT NULL REFERENCES vendor(id) ON DELETE CASCADE,
+            code VARCHAR(20) NOT NULL,
+            name VARCHAR(200) NOT NULL,
+            channel_type VARCHAR(20) NOT NULL DEFAULT 'retail',
+            description TEXT,
+            is_active BOOLEAN DEFAULT TRUE,
+            is_default BOOLEAN DEFAULT FALSE,
+            sort_order INTEGER DEFAULT 0,
+            created_at TIMESTAMPTZ DEFAULT now(),
+            updated_at TIMESTAMPTZ DEFAULT now(),
+            CONSTRAINT uq_distribution_channel_vendor_code UNIQUE (vendor_id, code)
+        );""",
+        "CREATE INDEX IF NOT EXISTS ix_distribution_channel_vendor ON distribution_channel (vendor_id, is_active);",
+        """CREATE TABLE IF NOT EXISTS delivery_channel (
+            id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+            vendor_id UUID NOT NULL REFERENCES vendor(id) ON DELETE CASCADE,
+            code VARCHAR(20) NOT NULL,
+            name VARCHAR(200) NOT NULL,
+            mode VARCHAR(20) NOT NULL DEFAULT 'own_fleet',
+            description TEXT,
+            lead_time_days INTEGER,
+            base_charge NUMERIC(12,2) DEFAULT 0,
+            settings JSONB DEFAULT '{}'::jsonb,
+            is_active BOOLEAN DEFAULT TRUE,
+            is_default BOOLEAN DEFAULT FALSE,
+            sort_order INTEGER DEFAULT 0,
+            created_at TIMESTAMPTZ DEFAULT now(),
+            updated_at TIMESTAMPTZ DEFAULT now(),
+            CONSTRAINT uq_delivery_channel_vendor_code UNIQUE (vendor_id, code)
+        );""",
+        "CREATE INDEX IF NOT EXISTS ix_delivery_channel_vendor ON delivery_channel (vendor_id, is_active);",
+        """CREATE TABLE IF NOT EXISTS sales_area (
+            id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+            vendor_id UUID NOT NULL REFERENCES vendor(id) ON DELETE CASCADE,
+            business_unit_id UUID NOT NULL REFERENCES store(id) ON DELETE CASCADE,
+            distribution_channel_id UUID NOT NULL REFERENCES distribution_channel(id) ON DELETE CASCADE,
+            division_id UUID NOT NULL REFERENCES sales_division(id) ON DELETE CASCADE,
+            code VARCHAR(80),
+            name VARCHAR(255),
+            is_active BOOLEAN DEFAULT TRUE,
+            is_default BOOLEAN DEFAULT FALSE,
+            created_at TIMESTAMPTZ DEFAULT now(),
+            updated_at TIMESTAMPTZ DEFAULT now(),
+            CONSTRAINT uq_sales_area_combo UNIQUE (vendor_id, business_unit_id, distribution_channel_id, division_id)
+        );""",
+        "CREATE INDEX IF NOT EXISTS ix_sales_area_vendor ON sales_area (vendor_id, is_active);",
+        "CREATE INDEX IF NOT EXISTS ix_sales_area_bu ON sales_area (business_unit_id);",
+    ]
+
+    link_column_stmts = [
+        'ALTER TABLE "order" ADD COLUMN IF NOT EXISTS sales_area_id UUID',
+        'ALTER TABLE "order" ADD COLUMN IF NOT EXISTS delivery_channel_id UUID',
+        "ALTER TABLE pos_transaction ADD COLUMN IF NOT EXISTS sales_area_id UUID",
+        "ALTER TABLE pos_transaction ADD COLUMN IF NOT EXISTS delivery_channel_id UUID",
+        "ALTER TABLE booking ADD COLUMN IF NOT EXISTS sales_area_id UUID",
+        "ALTER TABLE booking ADD COLUMN IF NOT EXISTS delivery_channel_id UUID",
+        "ALTER TABLE invoice ADD COLUMN IF NOT EXISTS sales_area_id UUID",
+        "ALTER TABLE product ADD COLUMN IF NOT EXISTS division_id UUID",
+    ]
+    fk_specs = (
+        ("fk_order_sales_area", '"order"', "sales_area_id", "sales_area", "SET NULL"),
+        ("fk_order_delivery_channel", '"order"', "delivery_channel_id", "delivery_channel", "SET NULL"),
+        ("fk_pos_txn_sales_area", "pos_transaction", "sales_area_id", "sales_area", "SET NULL"),
+        ("fk_pos_txn_delivery_channel", "pos_transaction", "delivery_channel_id", "delivery_channel", "SET NULL"),
+        ("fk_booking_sales_area", "booking", "sales_area_id", "sales_area", "SET NULL"),
+        ("fk_booking_delivery_channel", "booking", "delivery_channel_id", "delivery_channel", "SET NULL"),
+        ("fk_invoice_sales_area", "invoice", "sales_area_id", "sales_area", "SET NULL"),
+        ("fk_product_division", "product", "division_id", "sales_division", "SET NULL"),
+    )
+    link_index_stmts = [
+        'CREATE INDEX IF NOT EXISTS ix_order_sales_area ON "order" (vendor_id, sales_area_id)',
+        "CREATE INDEX IF NOT EXISTS ix_pos_txn_sales_area ON pos_transaction (vendor_id, sales_area_id)",
+        "CREATE INDEX IF NOT EXISTS ix_booking_sales_area ON booking (vendor_id, sales_area_id)",
+        "CREATE INDEX IF NOT EXISTS ix_invoice_sales_area ON invoice (vendor_id, sales_area_id)",
+        "CREATE INDEX IF NOT EXISTS idx_product_division ON product (vendor_id, division_id)",
+    ]
+
+    async with engine.begin() as conn:
+        for stmt in table_stmts:
+            await conn.execute(text(stmt))
+        for stmt in link_column_stmts:
+            await conn.execute(text(stmt))
+
+    try:
+        async with engine.begin() as conn:
+            for fk_name, table, column, ref_table, on_delete in fk_specs:
+                await conn.execute(
+                    text(
+                        f"""
+                        DO $$
+                        BEGIN
+                            IF NOT EXISTS (
+                                SELECT 1 FROM pg_constraint WHERE conname = '{fk_name}'
+                            ) THEN
+                                ALTER TABLE {table}
+                                ADD CONSTRAINT {fk_name}
+                                FOREIGN KEY ({column}) REFERENCES {ref_table}(id) ON DELETE {on_delete};
+                            END IF;
+                        END $$;
+                        """
+                    )
+                )
+            for stmt in link_index_stmts:
+                await conn.execute(text(stmt))
+    except Exception:
+        logger.exception(
+            "ensure_sales_area_tables: FK/index setup failed; tables/columns remain"
+        )
+        return
+
+    logger.info("ensure_sales_area_tables: sales_division/distribution_channel/delivery_channel/sales_area ready")
+
+
+async def ensure_controlling_area_tables() -> None:
+    """
+    Controlling Area (Alembic ms010_controlling_area): co_controlling_area
+    table + nullable fin_company.controlling_area_id link column.
+
+    A vendor's companies are lazily rolled into a "Standard" controlling area
+    on first access to the Controlling Areas screen (see
+    app/api/v1/vendor_controlling_area.py); this function only ensures the
+    schema exists. Idempotent when that migration was not applied to the
+    database in use.
+    """
+    if "postgresql" not in settings.DATABASE_URL.lower():
+        return
+
+    async with engine.begin() as conn:
+        await conn.execute(text(
+            """CREATE TABLE IF NOT EXISTS co_controlling_area (
+                id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                vendor_id UUID NOT NULL REFERENCES vendor(id) ON DELETE CASCADE,
+                code VARCHAR(20) NOT NULL,
+                name VARCHAR(200) NOT NULL,
+                description TEXT,
+                currency VARCHAR(3) DEFAULT 'INR',
+                is_active BOOLEAN DEFAULT TRUE,
+                is_default BOOLEAN DEFAULT FALSE,
+                created_at TIMESTAMPTZ DEFAULT now(),
+                updated_at TIMESTAMPTZ DEFAULT now(),
+                CONSTRAINT uq_co_controlling_area_vendor_code UNIQUE (vendor_id, code)
+            );"""
+        ))
+        await conn.execute(text(
+            "CREATE INDEX IF NOT EXISTS ix_co_controlling_area_vendor ON co_controlling_area (vendor_id, is_active)"
+        ))
+        await conn.execute(text(
+            "ALTER TABLE fin_company ADD COLUMN IF NOT EXISTS controlling_area_id UUID"
+        ))
+
+    try:
+        async with engine.begin() as conn:
+            await conn.execute(text(
+                """
+                DO $$
+                BEGIN
+                    IF NOT EXISTS (
+                        SELECT 1 FROM pg_constraint WHERE conname = 'fk_fin_company_controlling_area'
+                    ) THEN
+                        ALTER TABLE fin_company
+                        ADD CONSTRAINT fk_fin_company_controlling_area
+                        FOREIGN KEY (controlling_area_id) REFERENCES co_controlling_area(id) ON DELETE SET NULL;
+                    END IF;
+                END $$;
+                """
+            ))
+            await conn.execute(text(
+                "CREATE INDEX IF NOT EXISTS ix_fin_company_controlling_area ON fin_company (controlling_area_id)"
+            ))
+    except Exception:
+        logger.exception(
+            "ensure_controlling_area_tables: FK/index setup failed; table/column remain"
+        )
+        return
+
+    logger.info("ensure_controlling_area_tables: co_controlling_area/fin_company.controlling_area_id ready")
+
+
+async def ensure_production_materials_columns() -> None:
+    """
+    Production materials integration (Alembic ms008_production_materials):
+      stock_reservation.store_id / storage_location_id / consumed_at
+      production_order.material_requirements / materials_reserved_at /
+        materials_released_at / inventory_posted_at / planned & actual
+        material+labor cost columns.
+
+    Idempotent when that migration was not applied to the database in use.
+    """
+    if "postgresql" not in settings.DATABASE_URL.lower():
+        return
+
+    column_stmts = [
+        "ALTER TABLE stock_reservation ADD COLUMN IF NOT EXISTS store_id UUID",
+        "ALTER TABLE stock_reservation ADD COLUMN IF NOT EXISTS storage_location_id UUID",
+        "ALTER TABLE stock_reservation ADD COLUMN IF NOT EXISTS consumed_at TIMESTAMPTZ",
+        "ALTER TABLE production_order ADD COLUMN IF NOT EXISTS material_requirements JSONB NOT NULL DEFAULT '[]'::jsonb",
+        "ALTER TABLE production_order ADD COLUMN IF NOT EXISTS materials_reserved_at TIMESTAMPTZ",
+        "ALTER TABLE production_order ADD COLUMN IF NOT EXISTS materials_released_at TIMESTAMPTZ",
+        "ALTER TABLE production_order ADD COLUMN IF NOT EXISTS inventory_posted_at TIMESTAMPTZ",
+        "ALTER TABLE production_order ADD COLUMN IF NOT EXISTS planned_material_cost NUMERIC(14,2)",
+        "ALTER TABLE production_order ADD COLUMN IF NOT EXISTS planned_labor_cost NUMERIC(14,2)",
+        "ALTER TABLE production_order ADD COLUMN IF NOT EXISTS actual_material_cost NUMERIC(14,2)",
+        "ALTER TABLE production_order ADD COLUMN IF NOT EXISTS actual_labor_cost NUMERIC(14,2)",
+    ]
+
+    async with engine.begin() as conn:
+        for stmt in column_stmts:
+            await conn.execute(text(stmt))
+
+    fk_specs = (
+        ("fk_stock_reservation_store", "stock_reservation", "store_id", "store", "SET NULL"),
+        ("fk_stock_reservation_location", "stock_reservation", "storage_location_id", "storage_location", "SET NULL"),
+    )
+    try:
+        async with engine.begin() as conn:
+            for fk_name, table, column, ref_table, on_delete in fk_specs:
+                await conn.execute(
+                    text(
+                        f"""
+                        DO $$
+                        BEGIN
+                            IF NOT EXISTS (
+                                SELECT 1 FROM pg_constraint WHERE conname = '{fk_name}'
+                            ) THEN
+                                ALTER TABLE {table}
+                                ADD CONSTRAINT {fk_name}
+                                FOREIGN KEY ({column}) REFERENCES {ref_table}(id) ON DELETE {on_delete};
+                            END IF;
+                        END $$;
+                        """
+                    )
+                )
+            await conn.execute(
+                text("CREATE INDEX IF NOT EXISTS idx_resv_store ON stock_reservation (vendor_id, store_id)")
+            )
+    except Exception:
+        logger.exception(
+            "ensure_production_materials_columns: FK/index setup failed; columns remain"
+        )
+        return
+
+    logger.info("ensure_production_materials_columns: stock_reservation/production_order materials columns ready")
+
+
+async def ensure_production_routing_tables() -> None:
+    """
+    Production routing (Alembic ms009_production_routing):
+      work_center           — machine/workstation/crew + per-hour cost rate.
+      production_operation  — ordered routing steps per production_order.
+
+    Idempotent when that migration was not applied to the database in use.
+    """
+    if "postgresql" not in settings.DATABASE_URL.lower():
+        return
+
+    table_stmts = [
+        """CREATE TABLE IF NOT EXISTS work_center (
+            id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+            vendor_id UUID NOT NULL REFERENCES vendor(id) ON DELETE CASCADE,
+            plant_id UUID REFERENCES plant(id) ON DELETE SET NULL,
+            code VARCHAR(50) NOT NULL,
+            name VARCHAR(200) NOT NULL,
+            description TEXT,
+            capacity_per_day NUMERIC(10,2),
+            cost_per_hour NUMERIC(12,2) NOT NULL DEFAULT 0,
+            is_active BOOLEAN DEFAULT TRUE,
+            sort_order INTEGER DEFAULT 0,
+            created_at TIMESTAMPTZ DEFAULT now(),
+            updated_at TIMESTAMPTZ DEFAULT now(),
+            CONSTRAINT uq_work_center_vendor_code UNIQUE (vendor_id, code)
+        );""",
+        "CREATE INDEX IF NOT EXISTS idx_work_center_vendor ON work_center (vendor_id);",
+        "CREATE INDEX IF NOT EXISTS idx_work_center_plant ON work_center (vendor_id, plant_id);",
+        """CREATE TABLE IF NOT EXISTS production_operation (
+            id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+            vendor_id UUID NOT NULL REFERENCES vendor(id) ON DELETE CASCADE,
+            production_order_id UUID NOT NULL REFERENCES production_order(id) ON DELETE CASCADE,
+            work_center_id UUID REFERENCES work_center(id) ON DELETE SET NULL,
+            sequence INTEGER NOT NULL DEFAULT 0,
+            name VARCHAR(200) NOT NULL DEFAULT 'Operation',
+            status VARCHAR(20) NOT NULL DEFAULT 'pending',
+            planned_hours NUMERIC(10,2) DEFAULT 0,
+            actual_hours NUMERIC(10,2),
+            planned_start TIMESTAMPTZ,
+            planned_end TIMESTAMPTZ,
+            started_at TIMESTAMPTZ,
+            completed_at TIMESTAMPTZ,
+            notes TEXT,
+            created_at TIMESTAMPTZ DEFAULT now(),
+            updated_at TIMESTAMPTZ DEFAULT now()
+        );""",
+        "CREATE INDEX IF NOT EXISTS idx_prod_op_order_seq ON production_operation (production_order_id, sequence);",
+        "CREATE INDEX IF NOT EXISTS idx_prod_op_vendor ON production_operation (vendor_id);",
+        "CREATE INDEX IF NOT EXISTS idx_prod_op_work_center ON production_operation (work_center_id);",
+    ]
+
+    async with engine.begin() as conn:
+        for stmt in table_stmts:
+            await conn.execute(text(stmt))
+
+    logger.info("ensure_production_routing_tables: work_center/production_operation ready")
+
+
 async def ensure_user_contact_change_request_table() -> None:
     """Contact change approval requests (email/phone) for verified vendor users."""
     if "postgresql" not in settings.DATABASE_URL.lower():

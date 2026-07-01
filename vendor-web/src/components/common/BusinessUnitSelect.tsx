@@ -12,7 +12,12 @@ import type { StoreRecord } from '@/api/vendor'
 export function useDefaultBusinessUnitId(): { defaultId: string | null; stores: StoreRecord[]; isLoading: boolean } {
   const selectedStore = useVendorStore((s) => s.selectedStore)
   const { data, isLoading } = useStores()
-  const stores = useMemo(() => (data?.stores ?? []).filter((s) => s.is_active), [data])
+  // The API already scopes GET /stores to business units (parent_id=NULL) by
+  // default; the unit_type check is a defensive no-op backstop for cached data.
+  const stores = useMemo(
+    () => (data?.stores ?? []).filter((s) => s.is_active && s.unit_type !== 'branch'),
+    [data],
+  )
 
   const defaultId = useMemo(() => {
     if (selectedStore?.id && stores.some((s) => s.id === selectedStore.id)) return selectedStore.id
@@ -24,13 +29,28 @@ export function useDefaultBusinessUnitId(): { defaultId: string | null; stores: 
   return { defaultId, stores, isLoading }
 }
 
-/** Resolve a store id to a human label ("CODE — Name"), for detail views. */
+/** Resolve a store id to a human label ("CODE — Name"), for detail views. Works for both business units and branches. */
 export function useStoreName(storeId?: string | null): string | null {
-  const { data } = useStores()
+  const { data } = useStores({ include_branches: true })
   if (!storeId) return null
   const s = (data?.stores ?? []).find((x) => x.id === storeId)
   if (!s) return null
   return s.code ? `${s.code} — ${s.name}` : s.name
+}
+
+/**
+ * Split a persisted store_id (which may point at a business unit OR a
+ * branch) into `{ buId, branchId }` — for hydrating edit forms that store a
+ * single scope id but render it as a cascading BU + Branch selector pair.
+ */
+export function useResolveBuBranch(storeId?: string | null): { buId: string; branchId: string } {
+  const { data } = useStores({ include_branches: true })
+  return useMemo(() => {
+    if (!storeId) return { buId: '', branchId: '' }
+    const s = (data?.stores ?? []).find((x) => x.id === storeId)
+    if (!s) return { buId: storeId, branchId: '' }
+    return s.parent_id ? { buId: s.parent_id, branchId: s.id } : { buId: s.id, branchId: '' }
+  }, [data, storeId])
 }
 
 interface BusinessUnitSelectProps {
@@ -41,6 +61,7 @@ interface BusinessUnitSelectProps {
   /** When true (default) and value is empty without allowAll, auto-selects the default BU. */
   autoSelectDefault?: boolean
   className?: string
+  triggerClassName?: string
   disabled?: boolean
   id?: string
 }
@@ -52,6 +73,7 @@ export function BusinessUnitSelect({
   allowAll = false,
   autoSelectDefault = true,
   className,
+  triggerClassName,
   disabled,
   id,
 }: BusinessUnitSelectProps) {
@@ -90,6 +112,7 @@ export function BusinessUnitSelect({
       placeholder={allowAll ? 'All business units' : 'Select a business unit…'}
       disabled={disabled}
       className={className}
+      triggerClassName={triggerClassName}
       aria-label="Business unit"
     />
   )

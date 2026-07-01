@@ -27,6 +27,126 @@ export interface RestaurantReportDashboard {
   upcoming_reservations: number
 }
 
+// ── MRP / BOM / Stock Reservations ──────────────────────────────────
+export interface BOMItemRecord {
+  id: string
+  product_id: string
+  component_id: string
+  component_name: string
+  component_sku?: string | null
+  component_uom?: string | null
+  qty_per_unit: number
+  notes?: string | null
+  created_at?: string | null
+}
+
+export type MRPLineStatus = 'ok' | 'partial' | 'short' | 'no_bom'
+
+export interface MRPResultLine {
+  component_id: string
+  component_name: string
+  component_sku?: string | null
+  component_uom?: string | null
+  is_leaf: boolean
+  bom_depth: number
+  required_qty: number
+  reserve_qty: number
+  in_stock: number
+  reserved_by_others: number
+  already_reserved_for_order: number
+  available: number
+  shortage: number
+  status: MRPLineStatus
+  source_items: string[]
+}
+
+export type StockReservationStatus = 'active' | 'released' | 'consumed'
+
+export interface StockReservationRecord {
+  id: string
+  vendor_id: string
+  order_type: string
+  order_id: string
+  store_id?: string | null
+  storage_location_id?: string | null
+  product_id: string
+  product_name?: string | null
+  variant_id?: string | null
+  reserved_qty: number
+  status: StockReservationStatus
+  notes?: string | null
+  created_at?: string | null
+  released_at?: string | null
+  consumed_at?: string | null
+}
+
+// ── Production Routing: Work Centers & Operations ──────────────────
+export interface WorkCenterRecord {
+  id: string
+  vendor_id: string
+  plant_id?: string | null
+  code: string
+  name: string
+  description?: string | null
+  capacity_per_day?: number | null
+  cost_per_hour: number
+  is_active: boolean
+  sort_order: number
+  created_at?: string | null
+  updated_at?: string | null
+}
+
+export type ProductionOperationStatus = 'pending' | 'in_progress' | 'completed' | 'skipped'
+
+export interface ProductionOperationRecord {
+  id: string
+  vendor_id: string
+  production_order_id: string
+  work_center_id?: string | null
+  sequence: number
+  name: string
+  status: ProductionOperationStatus
+  planned_hours: number
+  actual_hours?: number | null
+  planned_start?: string | null
+  planned_end?: string | null
+  started_at?: string | null
+  completed_at?: string | null
+  notes?: string | null
+  created_at?: string | null
+  updated_at?: string | null
+}
+
+export interface ProductionAnalytics {
+  range: { from: string; to: string }
+  totals: {
+    orders: number
+    completed: number
+    cancelled: number
+    in_progress: number
+    on_time: number
+    late: number
+    on_time_rate: number | null
+    avg_cycle_days: number | null
+  }
+  by_status: { status: string; count: number }[]
+  by_type: { type: string; count: number }[]
+  cost: {
+    planned_material: number
+    actual_material: number
+    planned_labor: number
+    actual_labor: number
+    planned_total: number
+    actual_total: number
+    variance: number
+    variance_pct: number | null
+  }
+  trend: { date: string; created: number; completed: number }[]
+  top_delayed: { id: string; ref: string; target_date: string; completed_date: string; days_late: number }[]
+  work_center_utilization: { work_center_id: string | null; name: string; planned_hours: number; actual_hours: number; capacity_per_day: number | null }[]
+  by_store: { store_id: string | null; store_name: string; orders: number; completed: number }[]
+}
+
 // ── Sales Manager analytics ───────────────────────────────────────
 export interface SalesKpi { value: number; prev: number; delta_pct: number | null }
 export interface SalesTrendPoint { date: string; orders: number; revenue: number; units: number }
@@ -164,6 +284,10 @@ export interface StoreAddress {
 export interface StoreRecord {
   id: string
   vendor_id: string
+  /** NULL/undefined = this is a Business Unit (root); set = this is a Branch under that BU. */
+  parent_id?: string | null
+  /** 'business_unit' (root) or 'branch' (child of a business unit). */
+  unit_type?: 'business_unit' | 'branch'
   name: string
   code?: string
   description?: string
@@ -177,9 +301,89 @@ export interface StoreRecord {
   settings: Record<string, unknown>
   inventory_count?: number
   staff_count?: number
+  /** Number of branches under this business unit (only set on business-unit rows). */
+  branch_count?: number
   created_at?: string
   updated_at?: string
   staff?: StoreStaffMember[]
+}
+
+// ── Sales & Distribution ──────────────────────────────────────────
+// Sales Organization is not a separate resource — it reuses StoreRecord
+// (a business unit, i.e. unit_type === 'business_unit').
+
+export interface DivisionRecord {
+  id: string
+  vendor_id: string
+  code: string
+  name: string
+  description?: string | null
+  is_active: boolean
+  is_default: boolean
+  sort_order: number
+  created_at?: string
+  updated_at?: string
+}
+
+export type DistributionChannelType = 'retail' | 'wholesale' | 'online' | 'pos' | 'b2b' | 'marketplace' | 'other'
+
+export interface DistributionChannelRecord {
+  id: string
+  vendor_id: string
+  code: string
+  name: string
+  channel_type: DistributionChannelType
+  description?: string | null
+  is_active: boolean
+  is_default: boolean
+  sort_order: number
+  created_at?: string
+  updated_at?: string
+}
+
+export type DeliveryChannelMode = 'own_fleet' | 'courier' | 'pickup' | 'third_party' | 'postal' | 'other'
+
+export interface DeliveryChannelRecord {
+  id: string
+  vendor_id: string
+  code: string
+  name: string
+  mode: DeliveryChannelMode
+  description?: string | null
+  lead_time_days?: number | null
+  base_charge: number
+  settings: Record<string, unknown>
+  is_active: boolean
+  is_default: boolean
+  sort_order: number
+  created_at?: string
+  updated_at?: string
+}
+
+export interface SalesAreaRecord {
+  id: string
+  vendor_id: string
+  /** Effective store scope (business unit or branch). Same as persisted business_unit_id column. */
+  store_id?: string
+  unit_type?: 'business_unit' | 'branch'
+  business_unit_id: string
+  business_unit_name?: string | null
+  business_unit_code?: string | null
+  branch_id?: string | null
+  branch_name?: string | null
+  branch_code?: string | null
+  distribution_channel_id: string
+  distribution_channel_name?: string | null
+  distribution_channel_code?: string | null
+  division_id: string
+  division_name?: string | null
+  division_code?: string | null
+  code?: string | null
+  name?: string | null
+  is_active: boolean
+  is_default: boolean
+  created_at?: string
+  updated_at?: string
 }
 
 export interface MessageEmailRecipient {
@@ -1936,27 +2140,38 @@ export const vendorApi = {
   },
 
   // ── MRP / BOM / Stock Reservations ────────────────────────────────────────
-  getProductBOM: async (productId: string): Promise<Record<string, unknown>[]> => {
+  getProductBOM: async (productId: string): Promise<BOMItemRecord[]> => {
     const response = await apiClient.get(`/vendors/me/products/${productId}/bom`)
     return response.data
   },
 
-  putProductBOM: async (productId: string, items: Record<string, unknown>[]): Promise<Record<string, unknown>[]> => {
+  putProductBOM: async (productId: string, items: Array<{ component_id: string; qty_per_unit: number; notes?: string | null }>): Promise<BOMItemRecord[]> => {
     const response = await apiClient.put(`/vendors/me/products/${productId}/bom`, items)
     return response.data
   },
 
-  calculateMRP: async (body: { items: Record<string, unknown>[]; order_type: string; order_id: string }): Promise<Record<string, unknown>[]> => {
+  calculateMRP: async (body: {
+    items: Array<{ product_id: string; qty: number; name?: string }>
+    order_type: string
+    order_id: string
+    store_id?: string | null
+  }): Promise<MRPResultLine[]> => {
     const response = await apiClient.post('/vendors/me/mrp/calculate', body)
     return response.data
   },
 
-  listReservations: async (params?: Record<string, unknown>): Promise<Record<string, unknown>[]> => {
+  listReservations: async (params?: { order_type?: string; order_id?: string; status?: string; store_id?: string }): Promise<StockReservationRecord[]> => {
     const response = await apiClient.get('/vendors/me/stock-reservations', { params })
     return response.data
   },
 
-  createReservations: async (data: { order_type: string; order_id: string; items: Record<string, unknown>[] }): Promise<Record<string, unknown>[]> => {
+  createReservations: async (data: {
+    order_type: string
+    order_id: string
+    store_id?: string | null
+    storage_location_id?: string | null
+    items: Array<{ product_id: string; variant_id?: string; reserved_qty: number; notes?: string }>
+  }): Promise<StockReservationRecord[]> => {
     const response = await apiClient.post('/vendors/me/stock-reservations', data)
     return response.data
   },
@@ -1968,6 +2183,55 @@ export const vendorApi = {
 
   releaseAllReservations: async (params: { order_type: string; order_id: string }): Promise<Record<string, unknown>> => {
     const response = await apiClient.delete('/vendors/me/stock-reservations', { params })
+    return response.data
+  },
+
+  // ── Production Routing: Work Centers & Operations ─────────────────────────
+  listWorkCenters: async (params?: { is_active?: boolean; plant_id?: string }): Promise<{ items: WorkCenterRecord[]; total: number }> => {
+    const response = await apiClient.get('/vendors/me/work-centers', { params })
+    return response.data
+  },
+
+  createWorkCenter: async (data: Partial<WorkCenterRecord>): Promise<WorkCenterRecord> => {
+    const response = await apiClient.post('/vendors/me/work-centers', data)
+    return response.data
+  },
+
+  updateWorkCenter: async (id: string, data: Partial<WorkCenterRecord>): Promise<WorkCenterRecord> => {
+    const response = await apiClient.put(`/vendors/me/work-centers/${id}`, data)
+    return response.data
+  },
+
+  deleteWorkCenter: async (id: string): Promise<void> => {
+    await apiClient.delete(`/vendors/me/work-centers/${id}`)
+  },
+
+  listProductionOperations: async (orderId: string): Promise<{ items: ProductionOperationRecord[]; total: number }> => {
+    const response = await apiClient.get(`/vendors/me/production-orders/${orderId}/operations`)
+    return response.data
+  },
+
+  createProductionOperation: async (orderId: string, data: Partial<ProductionOperationRecord>): Promise<ProductionOperationRecord> => {
+    const response = await apiClient.post(`/vendors/me/production-orders/${orderId}/operations`, data)
+    return response.data
+  },
+
+  updateProductionOperation: async (orderId: string, opId: string, data: Partial<ProductionOperationRecord>): Promise<ProductionOperationRecord> => {
+    const response = await apiClient.put(`/vendors/me/production-orders/${orderId}/operations/${opId}`, data)
+    return response.data
+  },
+
+  deleteProductionOperation: async (orderId: string, opId: string): Promise<void> => {
+    await apiClient.delete(`/vendors/me/production-orders/${orderId}/operations/${opId}`)
+  },
+
+  reorderProductionOperations: async (orderId: string, ids: string[]): Promise<{ items: ProductionOperationRecord[] }> => {
+    const response = await apiClient.put(`/vendors/me/production-orders/${orderId}/operations/reorder/apply`, { ids })
+    return response.data
+  },
+
+  getProductionAnalytics: async (params?: { store_id?: string; date_from?: string; date_to?: string }): Promise<ProductionAnalytics> => {
+    const response = await apiClient.get('/vendors/me/production/analytics', { params })
     return response.data
   },
 
@@ -2462,6 +2726,78 @@ export const vendorApi = {
   },
   deleteStore: async (id: string) => {
     await apiClient.delete(`/vendors/me/stores/${id}`)
+  },
+  listBranches: async (businessUnitId: string, params?: Record<string, unknown>) => {
+    const r = await apiClient.get(`/vendors/me/stores/${businessUnitId}/branches`, { params })
+    return r.data as { branches: StoreRecord[]; total: number }
+  },
+
+  // ── Sales & Distribution: Divisions ────────────────────────────
+  listDivisions: async (params?: Record<string, unknown>) => {
+    const r = await apiClient.get('/vendors/me/sales-config/divisions', { params })
+    return r.data as { divisions: DivisionRecord[]; total: number }
+  },
+  createDivision: async (data: Record<string, unknown>) => {
+    const r = await apiClient.post('/vendors/me/sales-config/divisions', data)
+    return r.data as { division: DivisionRecord; message: string }
+  },
+  updateDivision: async (id: string, data: Record<string, unknown>) => {
+    const r = await apiClient.put(`/vendors/me/sales-config/divisions/${id}`, data)
+    return r.data as { division: DivisionRecord; message: string }
+  },
+  deleteDivision: async (id: string) => {
+    await apiClient.delete(`/vendors/me/sales-config/divisions/${id}`)
+  },
+
+  // ── Sales & Distribution: Distribution Channels ─────────────────
+  listDistributionChannels: async (params?: Record<string, unknown>) => {
+    const r = await apiClient.get('/vendors/me/sales-config/distribution-channels', { params })
+    return r.data as { distribution_channels: DistributionChannelRecord[]; total: number }
+  },
+  createDistributionChannel: async (data: Record<string, unknown>) => {
+    const r = await apiClient.post('/vendors/me/sales-config/distribution-channels', data)
+    return r.data as { distribution_channel: DistributionChannelRecord; message: string }
+  },
+  updateDistributionChannel: async (id: string, data: Record<string, unknown>) => {
+    const r = await apiClient.put(`/vendors/me/sales-config/distribution-channels/${id}`, data)
+    return r.data as { distribution_channel: DistributionChannelRecord; message: string }
+  },
+  deleteDistributionChannel: async (id: string) => {
+    await apiClient.delete(`/vendors/me/sales-config/distribution-channels/${id}`)
+  },
+
+  // ── Sales & Distribution: Delivery Channels ─────────────────────
+  listDeliveryChannels: async (params?: Record<string, unknown>) => {
+    const r = await apiClient.get('/vendors/me/sales-config/delivery-channels', { params })
+    return r.data as { delivery_channels: DeliveryChannelRecord[]; total: number }
+  },
+  createDeliveryChannel: async (data: Record<string, unknown>) => {
+    const r = await apiClient.post('/vendors/me/sales-config/delivery-channels', data)
+    return r.data as { delivery_channel: DeliveryChannelRecord; message: string }
+  },
+  updateDeliveryChannel: async (id: string, data: Record<string, unknown>) => {
+    const r = await apiClient.put(`/vendors/me/sales-config/delivery-channels/${id}`, data)
+    return r.data as { delivery_channel: DeliveryChannelRecord; message: string }
+  },
+  deleteDeliveryChannel: async (id: string) => {
+    await apiClient.delete(`/vendors/me/sales-config/delivery-channels/${id}`)
+  },
+
+  // ── Sales & Distribution: Sales Areas (BU x Channel x Division) ──
+  listSalesAreas: async (params?: Record<string, unknown>) => {
+    const r = await apiClient.get('/vendors/me/sales-config/sales-areas', { params })
+    return r.data as { sales_areas: SalesAreaRecord[]; total: number }
+  },
+  createSalesArea: async (data: Record<string, unknown>) => {
+    const r = await apiClient.post('/vendors/me/sales-config/sales-areas', data)
+    return r.data as { sales_area: SalesAreaRecord; message: string }
+  },
+  updateSalesArea: async (id: string, data: Record<string, unknown>) => {
+    const r = await apiClient.put(`/vendors/me/sales-config/sales-areas/${id}`, data)
+    return r.data as { sales_area: SalesAreaRecord; message: string }
+  },
+  deleteSalesArea: async (id: string) => {
+    await apiClient.delete(`/vendors/me/sales-config/sales-areas/${id}`)
   },
   getStoreInventory: async (storeId: string, params?: Record<string, unknown>) => {
     const r = await apiClient.get(`/vendors/me/stores/${storeId}/inventory`, { params })

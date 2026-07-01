@@ -16,6 +16,10 @@ class Booking(Base):
     vendor_id = Column(UUID(as_uuid=True), ForeignKey("vendor.id"), nullable=False, index=True)
     # Business unit (store) this booking belongs to.
     store_id = Column(UUID(as_uuid=True), ForeignKey("store.id", ondelete="SET NULL"), nullable=True, index=True)
+    # Sales & Distribution: Business Unit x Distribution Channel x Division this booking was sold under.
+    sales_area_id = Column(UUID(as_uuid=True), ForeignKey("sales_area.id", ondelete="SET NULL"), nullable=True, index=True)
+    # How this booking's service is/was fulfilled (on-site visit, pickup, etc).
+    delivery_channel_id = Column(UUID(as_uuid=True), ForeignKey("delivery_channel.id", ondelete="SET NULL"), nullable=True, index=True)
     customer_id = Column(UUID(as_uuid=True), ForeignKey("customer.id"), nullable=False, index=True)
     service_id = Column(UUID(as_uuid=True), ForeignKey("service.id"))
 
@@ -77,5 +81,6 @@ class Booking(Base):
     __table_args__ = (
         Index("ix_booking_vendor_status", "vendor_id", "status"),
         Index("ix_booking_vendor_date", "vendor_id", "booking_date"),
+        Index("ix_booking_sales_area", "vendor_id", "sales_area_id"),
         Index("uq_booking_vendor_number", "vendor_id", "booking_number", unique=True),
     )

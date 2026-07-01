@@ -10,7 +10,7 @@ import { useAuthStore } from '@/stores/authStore'
 import { useUpdateVendor, useUpdateStore, useStores, vendorKeys } from '@/hooks/useVendor'
 import type { StoreRecord } from '@/api/vendor'
 import { useBusinessUnitScopeLabel, type BusinessUnitScopeMode } from '@/hooks/useBusinessUnitScope'
-import StoresPage from '@/pages/stores'
+import StoresPage, { BranchesPanel } from '@/pages/stores'
 import { StoresListToolbar } from '@/components/business-units/StoresListToolbar'
 import { BusinessFrontCopyLinksButton } from '@/components/business-units/BusinessFrontCopyLinksButton'
 import BusinessUnitDetailPanel from '@/components/business-units/BusinessUnitDetailPanel'
@@ -604,11 +604,14 @@ function SettingsPageBody() {
               />
             ) : (
               activeStoreRecord && (
-                <BusinessUnitDetailPanel
-                  key={activeStoreRecord.id}
-                  store={activeStoreRecord}
-                  embeddedInSettings
-                />
+                <div className="space-y-3">
+                  <BusinessUnitDetailPanel
+                    key={activeStoreRecord.id}
+                    store={activeStoreRecord}
+                    embeddedInSettings
+                  />
+                  <BranchesPanel businessUnit={activeStoreRecord} />
+                </div>
               )
             )}
           </div>

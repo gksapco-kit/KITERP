@@ -4,6 +4,7 @@
  * and internal recharge summary.
  */
 import { useState, useMemo } from 'react'
+import { Link } from 'react-router-dom'
 import { TableColumnLabel } from '@/components/common/FieldLabel'
 import { Building2, GitMerge, TrendingUp, AlertCircle, BarChart2 } from 'lucide-react'
 import { useCompanies } from '@/hooks/useFinance'
@@ -287,7 +288,7 @@ export default function InternalCostManagementPage() {
             </thead>
             <tbody className="divide-y divide-gray-100">
               {(activityTypes as ActivityTypeRow[]).length === 0 && (
-                <tr><td colSpan={4} className="px-4 py-6 text-center text-gray-400 text-sm">No activity types. Add them in Activities &amp; Overhead setup.</td></tr>
+                <tr><td colSpan={4} className="px-4 py-6 text-center text-gray-400 text-sm">No activity types. <Link to="/controlling/activity-types" className="text-primary hover:underline">Add them in Activity Types setup</Link>.</td></tr>
               )}
               {(activityTypes as ActivityTypeRow[]).map(a => (
                 <tr key={a.id} className="hover:bg-gray-50">
