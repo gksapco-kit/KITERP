@@ -1,4 +1,4 @@
-import { useState, useEffect, useLayoutEffect, useRef, useMemo, useCallback, type CSSProperties, type KeyboardEvent, type ReactNode, type ElementType } from 'react'
+import { useState, useEffect, useLayoutEffect, useRef, useMemo, useCallback, type CSSProperties, type ReactNode, type ElementType } from 'react'
 import { useEscapeToClose } from '@/hooks/useEscapeToClose'
 import { useViewportAnchoredPanel } from '@/hooks/useViewportAnchoredPanel'
 import { createPortal } from 'react-dom'
@@ -19,7 +19,7 @@ import {
   Lock, ListChecks, Boxes, Gauge, Globe, Newspaper, Moon, Sun, Image, Palette,
   UtensilsCrossed, ChefHat, LayoutGrid, RefreshCw, FolderKanban,
   GripVertical, SlidersHorizontal, Database, Table2, Search, ExternalLink,
-  PanelLeftClose, PanelLeft, Settings2,
+  PanelLeftClose, PanelLeft, Settings2, Hash,
   ArrowLeft, ArrowRight, MoreHorizontal, Keyboard, Plus, Star, Save, MapPin,
 } from 'lucide-react'
 import { APP_SAVE_REQUEST_EVENT, dispatchAppSaveRequest } from '@/lib/appSave'
@@ -219,6 +219,7 @@ import {
   secFocusKey,
   type SidebarNavAction,
   type SidebarNavNode,
+  type NavItemLike,
 } from '@/layouts/sidebarKeyboardNav'
 import { formatBadgeCount, countBadgeCircleClass } from '@/lib/countBadge'
 
@@ -265,7 +266,7 @@ function NavCountBadge({ count, variant = 'nav' }: { count: number; variant?: 'n
  * Nav items after a row with `groupLabel` belong to that group until the next `groupLabel`.
  * (Only the first row per group sets `groupLabel` in config; siblings inherit for collapse.)
  */
-function effectiveNavGroupLabels(items: NavItem[]): (string | null)[] {
+function effectiveNavGroupLabels(items: NavItemLike[]): (string | null)[] {
   let current: string | null = null
   return items.map((item) => {
     if (item.groupLabel) current = item.groupLabel
@@ -380,8 +381,8 @@ const headerBarPillClass =
 const headerBarPillInteractiveClass = cn(headerBarPillClass, 'hover:bg-muted/80 hover:border-primary/30')
 
 type HeaderQuickActionButtonsProps = {
-  helpRef: React.RefObject<HTMLDivElement | null>
-  moreRef: React.RefObject<HTMLDivElement | null>
+  helpRef: React.Ref<HTMLDivElement>
+  moreRef: React.Ref<HTMLDivElement>
   helpOpen: boolean
   setHelpOpen: React.Dispatch<React.SetStateAction<boolean>>
   moreOpen: boolean
@@ -560,6 +561,7 @@ const allSections: NavSection[] = [
       { to: '/projects', icon: FolderKanban, label: 'Projects', requiresPermission: 'projects.view' },
       { to: '/pos', icon: Receipt, label: 'POS', requiresOffering: ['products', 'both'], requiresPermission: 'pos.view' },
       { to: '/subscriptions', icon: RefreshCw, label: 'Subscriptions', requiresPermission: 'subscriptions.view' },
+      { to: '/sales/plans', icon: Hash, label: 'Pricing Plans', requiresPermission: 'subscriptions.view' },
       { to: '/marketplace', icon: Target, label: 'Marketplace Leads', requiresPermission: 'orders.view' },
       { to: '/sales/coverage', icon: MapPin, label: 'Store Coverage', requiresPermission: 'orders.view' },
       { to: '/sales/sales-area', icon: LayoutGrid, label: 'Sales Area', requiresPermission: 'orders.view' },
@@ -589,7 +591,7 @@ const allSections: NavSection[] = [
       { to: '/restaurant/outlets', icon: UtensilsCrossed, label: 'Restaurants', requiresOffering: ['products', 'both'], requiresPermission: 'restaurant.view', groupLabel: 'Setup', groupColor: 'blue' },
       { to: '/restaurant/setup', icon: Settings, label: 'Table Setup', requiresOffering: ['products', 'both'], requiresPermission: 'restaurant.setup' },
       { to: '/restaurant/menu', icon: List, label: 'Dine-in Menu', requiresOffering: ['products', 'both'], requiresPermission: 'restaurant.setup' },
-      { to: '/restaurant/floor', icon: UtensilsCrossed, label: 'Restaurant Floor', requiresOffering: ['products', 'both'], requiresPermission: 'restaurant.floor', groupLabel: 'Operations', groupColor: 'green' },
+      { to: '/restaurant/floor', icon: UtensilsCrossed, label: 'Restaurant Floor', requiresOffering: ['products', 'both'], requiresPermission: 'restaurant.floor', groupLabel: 'Operations', groupColor: 'emerald' },
       { to: '/restaurant/pos', icon: Store, label: 'Restaurant POS', requiresOffering: ['products', 'both'], requiresPermission: 'pos.view' },
       { to: '/restaurant/kitchen', icon: ChefHat, label: 'Kitchen Board', requiresOffering: ['products', 'both'], requiresPermission: 'restaurant.kitchen' },
       { to: '/restaurant/reservations', icon: Calendar, label: 'Reservations', requiresOffering: ['products', 'both'], requiresPermission: 'restaurant.reservations' },
@@ -633,7 +635,7 @@ const allSections: NavSection[] = [
       { to: '/procurement/requisitions', icon: FileText, label: 'Purchase Requisitions', requiresPermission: 'procurement.view' },
       { to: '/procurement/sourcing', icon: Database, label: 'Sourcing Setup', requiresPermission: 'procurement.view' },
       { to: '/procurement/vendor-invoices', icon: Banknote, label: 'Vendor Invoices (AP)', requiresPermission: 'procurement.view', groupLabel: 'Accounts Payable', groupColor: 'amber' },
-      { to: '/procurement/goods', icon: PackageSearch, label: 'Goods Management', requiresPermission: 'procurement.view', groupLabel: 'Goods & Valuation', groupColor: 'green' },
+      { to: '/procurement/goods', icon: PackageSearch, label: 'Goods Management', requiresPermission: 'procurement.view', groupLabel: 'Goods & Valuation', groupColor: 'emerald' },
       { to: '/procurement/special', icon: FileCheck, label: 'Special Procurement', requiresPermission: 'procurement.view' },
     ],
   },
@@ -1053,20 +1055,20 @@ function navItemLinkClass(
   )
 }
 
-type NavItemBlock =
-  | { kind: 'items'; entries: { item: NavItem; idx: number }[] }
-  | { kind: 'group'; label: string; grpKey: string; entries: { item: NavItem; idx: number }[] }
+type NavItemBlock<T extends { to: string }> =
+  | { kind: 'items'; entries: { item: T; idx: number }[] }
+  | { kind: 'group'; label: string; grpKey: string; entries: { item: T; idx: number }[] }
 
-function buildNavItemBlocks(
-  items: NavItem[],
+function buildNavItemBlocks<T extends { to: string }>(
+  items: T[],
   groups: (string | null)[],
   sectionTitle: string,
-): NavItemBlock[] {
-  const blocks: NavItemBlock[] = []
+): NavItemBlock<T>[] {
+  const blocks: NavItemBlock<T>[] = []
   let i = 0
   while (i < items.length) {
     if (!groups[i]) {
-      const entries: { item: NavItem; idx: number }[] = []
+      const entries: { item: T; idx: number }[] = []
       while (i < items.length && !groups[i]) {
         entries.push({ item: items[i], idx: i })
         i++
@@ -1075,7 +1077,7 @@ function buildNavItemBlocks(
       continue
     }
     const label = groups[i]!
-    const entries: { item: NavItem; idx: number }[] = []
+    const entries: { item: T; idx: number }[] = []
     while (i < items.length && groups[i] === label) {
       entries.push({ item: items[i], idx: i })
       i++
@@ -1159,7 +1161,7 @@ const pageTitles: Record<string, string> = {
 
   '/sales/coverage': 'Store Coverage',
   '/sales/sales-area': 'Sales Area',
-
+  '/sales/plans': 'Pricing Plans',
   '/crm': 'CRM Dashboard',
   '/crm/contacts': 'Contacts',
   '/crm/leads': 'Leads',
@@ -1636,7 +1638,7 @@ export default function DashboardLayout() {
       }
       setRailFlyoutSectionId(null)
     }
-    const onKeyDown = (e: KeyboardEvent) => {
+    const onKeyDown = (e: globalThis.KeyboardEvent) => {
       if (e.key === 'Escape') setRailFlyoutSectionId(null)
     }
     document.addEventListener('pointerdown', onPointerDown, true)
@@ -2641,8 +2643,8 @@ export default function DashboardLayout() {
         orderedNavItemsBySectionId,
         collapsedSections,
         collapsedGroups,
-        buildNavItemBlocks,
-        effectiveNavGroupLabels,
+        (items: NavItemLike[], groups, sectionTitle) => buildNavItemBlocks(items, groups, sectionTitle),
+        (items: NavItemLike[]) => effectiveNavGroupLabels(items),
       ),
     [sidebarSections, orderedNavItemsBySectionId, collapsedSections, collapsedGroups],
   )
@@ -2762,7 +2764,7 @@ export default function DashboardLayout() {
   )
 
   const handleSidebarNavKeyDown = useCallback(
-    (e: KeyboardEvent<HTMLElement>, nodes: Array<SidebarNavNode>) => {
+    (e: React.KeyboardEvent<HTMLElement>, nodes: Array<SidebarNavNode>) => {
       if (navReorderMode || !nodes.length) return
       if (isSidebarTypingTarget(e.target)) return
       const navigationKeys = ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Home', 'End', 'Enter', ' ']

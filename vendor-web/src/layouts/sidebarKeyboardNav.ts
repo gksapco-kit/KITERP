@@ -30,7 +30,7 @@ export function flyoutFocusKey(sectionId: string, to: string) {
   return `fly:${sectionId}:${encodeURIComponent(to)}`
 }
 
-type NavItemLike = { to: string }
+export type NavItemLike = { to: string; groupLabel?: string }
 
 type NavItemBlockLike =
   | { kind: 'items'; entries: { item: NavItemLike }[] }

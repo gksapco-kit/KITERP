@@ -14,7 +14,60 @@ const DEFAULT_MARQUEE_LABELS = [
 ] as const
 
 export function defaultMarqueeItems(): MarqueeItem[] {
-  return DEFAULT_MARQUEE_LABELS.map(label => ({ label, url: '', image_url: '' }))
+  return DEFAULT_MARQUEE_LABELS.map(label => ({ label, url: '' }))
+}
+
+/** Items array for the builder sidebar — preserves stored image URLs verbatim. */
+export function marqueeItemsForEditor(props: Record<string, unknown>): MarqueeItem[] {
+  const rawItems = props.items
+  if (Array.isArray(rawItems) && rawItems.length > 0) {
+    return rawItems.map(entry => {
+      const rec = entry && typeof entry === 'object' ? (entry as Record<string, unknown>) : {}
+      return {
+        label: String(rec.label ?? rec.text ?? rec.title ?? '').trim(),
+        url: String(rec.url ?? rec.href ?? '').trim(),
+        ...(String(rec.image_url ?? rec.image ?? rec.src ?? '').trim()
+          ? { image_url: String(rec.image_url ?? rec.image ?? rec.src ?? '').trim() }
+          : {}),
+      }
+    })
+  }
+  const parsed = parseMarqueeItems(props)
+  return parsed.length > 0 ? parsed : defaultMarqueeItems()
+}
+
+function sanitizeMarqueeItemForSave(item: MarqueeItem): Record<string, unknown> {
+  const label = item.label?.trim() ?? ''
+  const url = item.url?.trim() ?? ''
+  const imageUrl = item.image_url?.trim() ?? ''
+  const row: Record<string, unknown> = { label }
+  if (url) row.url = url
+  if (imageUrl) row.image_url = imageUrl
+  return row
+}
+
+/** Persist marquee rows and keep legacy comma-separated `text` in sync. */
+export function patchMarqueeBlockItems(items: MarqueeItem[]): { items: Record<string, unknown>[]; text: string } {
+  const normalized = items.map(sanitizeMarqueeItemForSave)
+  return {
+    items: normalized,
+    text: marqueeItemsToLegacyText(items),
+  }
+}
+
+/** Same as {@link patchMarqueeBlockItems} but accepts raw stored array rows. */
+export function patchMarqueeBlockItemsFromRaw(raw: unknown[]): { items: Record<string, unknown>[]; text: string } {
+  const items: MarqueeItem[] = raw.map(entry => {
+    const rec = entry && typeof entry === 'object' ? (entry as Record<string, unknown>) : {}
+    const label = String(rec.label ?? rec.text ?? rec.title ?? '').trim()
+    const url = String(rec.url ?? rec.href ?? '').trim()
+    const imageUrl = String(rec.image_url ?? rec.image ?? rec.src ?? '').trim()
+    const row: MarqueeItem = { label }
+    if (url) row.url = url
+    if (imageUrl) row.image_url = imageUrl
+    return row
+  })
+  return patchMarqueeBlockItems(items)
 }
 
 function normalizeMarqueeItem(raw: unknown): MarqueeItem | null {

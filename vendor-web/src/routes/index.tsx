@@ -231,6 +231,7 @@ import CommissionReportPage from '@/pages/commission/reports/CommissionReport'
 import StoreCoveragePage from '@/pages/sales/StoreCoverage'
 import SalesManagerPage from '@/pages/sales/SalesManager'
 import SalesAreaSetupPage from '@/pages/sales/SalesAreaSetup'
+import SalesPlansPage from '@/pages/sales/Plans'
 
 const routerBasename = (import.meta.env.VITE_ROUTER_BASENAME || '').replace(/\/$/, '')
 
@@ -338,6 +339,7 @@ export const router = createBrowserRouter([
       { path: 'sales/coverage', element: <StoreCoveragePage /> },
       { path: 'sales/manager', element: <SalesManagerPage /> },
       { path: 'sales/sales-area', element: <SalesAreaSetupPage /> },
+      { path: 'sales/plans', element: <SalesPlansPage /> },
       { path: 'rental', element: <RentalHubPage /> },
       { path: 'invoices', element: <InvoicesPage /> },
       { path: 'invoices/templates', element: <InvoiceTemplatesPage /> },

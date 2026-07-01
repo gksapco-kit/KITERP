@@ -65,6 +65,7 @@ const BLOCK_TEXT_FIELDS: Record<string, readonly string[]> = {
   contact_form: ['title'],
   portfolio_grid: ['title'],
   gallery_masonry: ['title'],
+  video_gallery: ['title'],
   blog_grid: ['title'],
   video_embed: ['title'],
   map_embed: ['title'],
@@ -94,6 +95,7 @@ const BLOCK_TEXT_FIELDS: Record<string, readonly string[]> = {
   footer: ['brand', 'description', 'copyright'],
   rich_text: ['content'],
   gallery_masonry: ['title'],
+  video_gallery: ['title'],
   social_links: ['title'],
   product_grid: ['title', 'subtitle'],
   menu_grid: ['title'],
@@ -197,6 +199,13 @@ const BLOCK_ITEM_TEXT_SCHEMAS: Record<string, ItemTextSchema> = {
     fields: [
       { key: 'caption', label: 'Caption' },
       { key: 'alt', label: 'Alt text' },
+    ],
+  },
+  video_gallery: {
+    arrayKey: 'videos', itemLabel: 'Video',
+    fields: [
+      { key: 'title', label: 'Title' },
+      { key: 'caption', label: 'Caption', multiline: true },
     ],
   },
   gallery: {

@@ -1,6 +1,6 @@
 import { useState, type CSSProperties, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
-import { ShoppingBag, Star, ShoppingCart, Check, Loader2, Heart } from 'lucide-react'
+import { ShoppingBag, Star, ShoppingCart, Check, Loader2, Heart, FolderTree } from 'lucide-react'
 import { useVendor } from '@/contexts/VendorContext'
 import { useAuthStore } from '@/stores/authStore'
 import { useAddToCart } from '@/hooks/useStore'
@@ -24,6 +24,7 @@ import {
   resolveWellnessSiteProducts,
 } from '@/lib/wellnessProductFilter'
 import { cn, imgUrl } from '@/lib/utils'
+import BlockEmptyPlaceholder from '@/components/builder/BlockEmptyPlaceholder'
 import { isBlockFieldHidden, resolveBlockTextField } from '@/lib/blockHiddenFields'
 import {
   CATALOG_GRID_COL_CLASS,
@@ -46,6 +47,7 @@ function categorySectionBackground(style: StyleConfig, props: Record<string, unk
 function resolveCategoryCardPropData(
   props: Record<string, unknown>,
   liveItems: LiveItem[],
+  options?: { skipTemplateDefaults?: boolean },
 ): {
   cats: ReturnType<typeof normalizeCategoryCardItems>
   propImageByTitle: Map<string, string | undefined>
@@ -53,11 +55,18 @@ function resolveCategoryCardPropData(
   const propCats = (() => {
     const raw = props.categories as { title?: string; image_url?: string }[] | undefined
     const list = Array.isArray(raw) ? raw.filter(c => c && typeof c === 'object') : []
+    if (list.length > 0) {
+      return list.map((c, i) => ({
+        title: sanitizeWellnessCategoryTitle(c.title || `Category ${i + 1}`),
+        image_url: c.image_url || WELLNESS_CATEGORY_FALLBACK_IMAGES[i % WELLNESS_CATEGORY_FALLBACK_IMAGES.length],
+      }))
+    }
+    if (options?.skipTemplateDefaults) return []
     const defaults = WELLNESS_DEFAULT_CATEGORY_TITLES.map((title, i) => ({
       title,
       image_url: WELLNESS_CATEGORY_FALLBACK_IMAGES[i % WELLNESS_CATEGORY_FALLBACK_IMAGES.length],
     }))
-    return (list.length > 0 ? list : defaults).map((c, i) => ({
+    return defaults.map((c, i) => ({
       title: sanitizeWellnessCategoryTitle(c.title || `Category ${i + 1}`),
       image_url: c.image_url || WELLNESS_CATEGORY_FALLBACK_IMAGES[i % WELLNESS_CATEGORY_FALLBACK_IMAGES.length],
     }))
@@ -70,6 +79,10 @@ function resolveCategoryCardPropData(
     propImageByTitle,
   )
   return { cats, propImageByTitle }
+}
+
+function categoryItemsReadOnly(isEditorCanvas: boolean, liveItems: LiveItem[]): boolean {
+  return isEditorCanvas && liveItems.length > 0
 }
 
 function readCategorySectionLayout(props: Record<string, unknown>) {
@@ -192,25 +205,24 @@ export default function ProductGridBlock({ site, style, props, liveItems, blockT
   ) {
     const categoryLayout = readCategorySectionLayout(props)
     const eyebrow = (props.eyebrow as string) || ''
-    const propCats = (() => {
-      const raw = props.categories as { title?: string; image_url?: string }[] | undefined
-      const list = Array.isArray(raw) ? raw.filter(c => c && typeof c === 'object') : []
-      const defaults = WELLNESS_DEFAULT_CATEGORY_TITLES.map((title, i) => ({
-        title,
-        image_url: WELLNESS_CATEGORY_FALLBACK_IMAGES[i % WELLNESS_CATEGORY_FALLBACK_IMAGES.length],
-      }))
-      return (list.length > 0 ? list : defaults).map((c, i) => ({
-        title: sanitizeWellnessCategoryTitle(c.title || `Category ${i + 1}`),
-        image_url: c.image_url || WELLNESS_CATEGORY_FALLBACK_IMAGES[i % WELLNESS_CATEGORY_FALLBACK_IMAGES.length],
-      }))
-    })()
-    const propImageByTitle = new Map(
-      propCats.map(c => [String(c.title || '').toLowerCase(), c.image_url]),
-    )
-    const cats = normalizeCategoryCardItems(
-      liveItems.length > 0 ? liveItems : propCats,
-      propImageByTitle,
-    )
+    const itemsReadOnly = categoryItemsReadOnly(isEditorCanvas, liveItems)
+    const { cats, propImageByTitle } = resolveCategoryCardPropData(props, liveItems, {
+      skipTemplateDefaults: isEditorCanvas,
+    })
+
+    if (cats.length === 0) {
+      return (
+        <BlockEmptyPlaceholder
+          style={style}
+          title={title ?? undefined}
+          message={isEditorCanvas
+            ? 'Categories from your catalog will appear here once you add them.'
+            : 'No categories to show yet.'}
+          hint={isEditorCanvas ? 'Open Sales → Categories to create and manage categories.' : undefined}
+          icon={<FolderTree className="w-10 h-10" style={{ color: style.primary_color }} />}
+        />
+      )
+    }
 
     return (
       <CategoryCardsWellness
@@ -227,6 +239,7 @@ export default function ProductGridBlock({ site, style, props, liveItems, blockT
         columns={categoryLayout.columns}
         imageHeightPct={categoryLayout.imageHeightPct}
         cardPadding={categoryLayout.cardPadding}
+        itemsReadOnly={itemsReadOnly}
       />
     )
   }
@@ -245,26 +258,24 @@ export default function ProductGridBlock({ site, style, props, liveItems, blockT
     const editorialTileWrap = catalogTileImageWrapperClass(editorialImageShape)
     const editorialTilePadding = categoryEditorialTilePaddingBottom(editorialImageHeight)
     const eyebrow = (props.eyebrow as string) || ''
-    const propCats = (() => {
-      const raw = props.categories as { title?: string; image_url?: string }[] | undefined
-      const list = Array.isArray(raw) ? raw.filter(c => c && typeof c === 'object') : []
-      const defaults = [
-        { title: 'Women' },
-        { title: 'Men' },
-        { title: 'Accessories' },
-      ]
-      return (list.length > 0 ? list : defaults).map(c => ({
-        title: c.title || 'Category',
-        image_url: c.image_url,
-      }))
-    })()
-    const propImageByTitle = new Map(
-      propCats.map(c => [String(c.title || '').toLowerCase(), c.image_url]),
-    )
-    const cats = normalizeCategoryCardItems(
-      liveItems.length > 0 ? liveItems : propCats,
-      propImageByTitle,
-    )
+    const itemsReadOnly = categoryItemsReadOnly(isEditorCanvas, liveItems)
+    const { cats, propImageByTitle } = resolveCategoryCardPropData(props, liveItems, {
+      skipTemplateDefaults: isEditorCanvas,
+    })
+
+    if (cats.length === 0) {
+      return (
+        <BlockEmptyPlaceholder
+          style={style}
+          title={title ?? undefined}
+          message={isEditorCanvas
+            ? 'Categories from your catalog will appear here once you add them.'
+            : 'No categories to show yet.'}
+          hint={isEditorCanvas ? 'Open Sales → Categories to create and manage categories.' : undefined}
+          icon={<FolderTree className="w-10 h-10" style={{ color: style.primary_color }} />}
+        />
+      )
+    }
 
     const editorialCardClass = 'group relative isolate overflow-hidden block w-full'
 
@@ -315,6 +326,7 @@ export default function ProductGridBlock({ site, style, props, liveItems, blockT
                     index={i}
                     itemField="image_url"
                     blockProps={props}
+                    readOnly={itemsReadOnly}
                   />
                 </div>
                 <div className="absolute inset-0 z-[1] bg-gradient-to-t from-black/60 via-black/10 to-transparent pointer-events-none" />
@@ -324,6 +336,7 @@ export default function ProductGridBlock({ site, style, props, liveItems, blockT
                     title={c.title}
                     blockId={blockId}
                     blockProps={props}
+                    readOnly={itemsReadOnly}
                     as="h3"
                     className="text-2xl"
                     style={{ fontFamily: style.font_heading, color: '#fff' }}
@@ -373,10 +386,27 @@ export default function ProductGridBlock({ site, style, props, liveItems, blockT
       limit: categoryLimit,
     } = categoryLayout
     const catLayout = String(props.layout ?? 'grid')
-    const { cats, propImageByTitle } = resolveCategoryCardPropData(props, liveItems)
+    const itemsReadOnly = categoryItemsReadOnly(isEditorCanvas, liveItems)
+    const { cats, propImageByTitle } = resolveCategoryCardPropData(props, liveItems, {
+      skipTemplateDefaults: isEditorCanvas,
+    })
     const sectionBg = categorySectionBackground(style, props)
     const darkSection = props.bg_style === 'dark'
     const sectionText = darkSection ? '#f9fafb' : textColor
+
+    if (cats.length === 0) {
+      return (
+        <BlockEmptyPlaceholder
+          style={style}
+          title={title ?? undefined}
+          message={isEditorCanvas
+            ? 'Categories from your catalog will appear here once you add them.'
+            : 'No categories to show yet.'}
+          hint={isEditorCanvas ? 'Open Sales → Categories to create and manage categories.' : undefined}
+          icon={<FolderTree className="w-10 h-10" style={{ color: style.primary_color }} />}
+        />
+      )
+    }
 
     const wrapCategoryLink = (key: string, cardInner: ReactNode, className?: string) => {
       if (isEditorCanvas) {
@@ -407,6 +437,7 @@ export default function ProductGridBlock({ site, style, props, liveItems, blockT
                     title={c.title}
                     blockId={blockId}
                     blockProps={props}
+                    readOnly={itemsReadOnly}
                     as="span"
                     className="text-base font-medium"
                     style={{ fontFamily: style.font_heading, color: sectionText }}
@@ -443,15 +474,17 @@ export default function ProductGridBlock({ site, style, props, liveItems, blockT
                       blockId={blockId}
                       arrayKey="categories"
                       index={i}
-                      itemField="image_url"
-                      blockProps={props}
-                    />
+                    itemField="image_url"
+                    blockProps={props}
+                    readOnly={itemsReadOnly}
+                  />
                   </div>
                   <CategoryCardTitle
                     index={i}
                     title={c.title}
                     blockId={blockId}
                     blockProps={props}
+                    readOnly={itemsReadOnly}
                     as="span"
                     className={cn(categoryTitleClass(isMinimalCard, isCompactCard), 'block truncate')}
                     style={{ color: sectionText, paddingTop: Math.max(2, cardPadding / 2) }}
@@ -492,6 +525,7 @@ export default function ProductGridBlock({ site, style, props, liveItems, blockT
                     index={i}
                     itemField="image_url"
                     blockProps={props}
+                    readOnly={itemsReadOnly}
                   />
                   <div className="absolute inset-0 z-[1] bg-gradient-to-r from-black/50 to-transparent pointer-events-none" />
                   <div className="absolute bottom-4 left-4 right-4 z-[2]" style={{ padding: cardPadding }}>
@@ -500,6 +534,7 @@ export default function ProductGridBlock({ site, style, props, liveItems, blockT
                       title={c.title}
                       blockId={blockId}
                       blockProps={props}
+                      readOnly={itemsReadOnly}
                       as="h3"
                       className={cn(
                         isMinimalCard ? 'text-sm' : isCompactCard ? 'text-base' : 'text-lg sm:text-xl',
@@ -542,6 +577,7 @@ export default function ProductGridBlock({ site, style, props, liveItems, blockT
                     index={i}
                     itemField="image_url"
                     blockProps={props}
+                    readOnly={itemsReadOnly}
                   />
                   <div className="absolute inset-0 z-[1] bg-gradient-to-t from-black/65 via-black/15 to-transparent pointer-events-none" />
                   <div className="absolute bottom-0 left-0 right-0 z-[2]" style={{ padding: cardPadding }}>
@@ -550,6 +586,7 @@ export default function ProductGridBlock({ site, style, props, liveItems, blockT
                       title={c.title}
                       blockId={blockId}
                       blockProps={props}
+                      readOnly={itemsReadOnly}
                       as="h3"
                       className={cn(
                         isMinimalCard ? 'text-sm' : isCompactCard ? 'text-sm' : 'text-base',
@@ -592,15 +629,17 @@ export default function ProductGridBlock({ site, style, props, liveItems, blockT
                       blockId={blockId}
                       arrayKey="categories"
                       index={i}
-                      itemField="image_url"
-                      blockProps={props}
-                    />
+                    itemField="image_url"
+                    blockProps={props}
+                    readOnly={itemsReadOnly}
+                  />
                   </div>
                   <CategoryCardTitle
                     index={i}
                     title={c.title}
                     blockId={blockId}
                     blockProps={props}
+                    readOnly={itemsReadOnly}
                     as="span"
                     className={cn(categoryTitleClass(isMinimalCard, isCompactCard), 'block')}
                     style={{ color: sectionText, marginBottom: catGap, padding: `0 0 ${Math.max(4, cardPadding / 2)}px` }}
@@ -652,9 +691,10 @@ export default function ProductGridBlock({ site, style, props, liveItems, blockT
                       blockId={blockId}
                       arrayKey="categories"
                       index={i}
-                      itemField="image_url"
-                      blockProps={props}
-                    />
+                    itemField="image_url"
+                    blockProps={props}
+                    readOnly={itemsReadOnly}
+                  />
                   </div>
                   <div style={{ padding: cardPadding }}>
                     <CategoryCardTitle
@@ -662,6 +702,7 @@ export default function ProductGridBlock({ site, style, props, liveItems, blockT
                       title={c.title}
                       blockId={blockId}
                       blockProps={props}
+                      readOnly={itemsReadOnly}
                       as="h3"
                       className={categoryTitleClass(isMinimalCard, isCompactCard)}
                       style={{ fontFamily: style.font_heading, color: sectionText }}

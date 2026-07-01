@@ -12,29 +12,66 @@
  *                 (GDPR/EEA/UK and most modern privacy regimes require
  *                 explicit opt-in before non-essential cookies fire).
  *
- * The default is **deny** to be safe out of the box. Vendors who operate
- * exclusively in opt-out jurisdictions can override this by setting
- * `consent_mode: 'opt-out'` on the site's `feature_flags` and reading it
- * here (left as a future hook).
+ * Storage (browser localStorage):
+ *  - Key: `cookie_consent`
+ *  - Value: JSON `{ status, updated_at, site_id? }` or legacy plain strings
+ *    (`granted` / `denied` / `accepted` / `declined`).
  *
- * State is persisted in `localStorage.cookie_consent` so the choice
- * survives reloads, and changes are broadcast through the
- * `kiterp:consent-change` `CustomEvent` so listeners (analytics) can
- * react without a full page reload.
+ * Changes broadcast through `kiterp:consent-change` so analytics can react
+ * without a full page reload.
  */
 
 export type ConsentState = 'granted' | 'denied' | 'unknown'
 
-const STORAGE_KEY = 'cookie_consent'
+export type ConsentRecord = {
+  status: 'granted' | 'denied'
+  updated_at: string
+  site_id?: string
+}
+
+/** localStorage key — same origin as the storefront (per vendor site domain/path). */
+export const CONSENT_STORAGE_KEY = 'cookie_consent'
+
+const STORAGE_KEY = CONSENT_STORAGE_KEY
 const EVENT_NAME = 'kiterp:consent-change'
+
+function parseStoredConsent(raw: string | null): ConsentState {
+  if (!raw) return 'unknown'
+  if (raw === 'accepted' || raw === 'granted') return 'granted'
+  if (raw === 'declined' || raw === 'denied') return 'denied'
+  try {
+    const parsed = JSON.parse(raw) as Partial<ConsentRecord>
+    if (parsed.status === 'granted' || parsed.status === 'denied') return parsed.status
+  } catch {
+    /* legacy plain string handled above */
+  }
+  return 'unknown'
+}
 
 /** Read the current consent without subscribing to changes. */
 export function getConsent(): ConsentState {
   if (typeof window === 'undefined') return 'unknown'
+  return parseStoredConsent(window.localStorage.getItem(STORAGE_KEY))
+}
+
+/** Full stored record when present (for debugging / admin). */
+export function getConsentRecord(): ConsentRecord | null {
+  if (typeof window === 'undefined') return null
   const raw = window.localStorage.getItem(STORAGE_KEY)
-  if (raw === 'accepted' || raw === 'granted') return 'granted'
-  if (raw === 'declined' || raw === 'denied') return 'denied'
-  return 'unknown'
+  if (!raw) return null
+  if (raw === 'granted' || raw === 'accepted') {
+    return { status: 'granted', updated_at: '' }
+  }
+  if (raw === 'denied' || raw === 'declined') {
+    return { status: 'denied', updated_at: '' }
+  }
+  try {
+    const parsed = JSON.parse(raw) as ConsentRecord
+    if (parsed.status === 'granted' || parsed.status === 'denied') return parsed
+  } catch {
+    return null
+  }
+  return null
 }
 
 /** True when the user has explicitly opted in. */
@@ -43,11 +80,14 @@ export function hasGrantedConsent(): boolean {
 }
 
 /** Persist a new consent choice and broadcast it. */
-export function setConsent(next: 'granted' | 'denied'): void {
+export function setConsent(next: 'granted' | 'denied', opts?: { siteId?: string }): void {
   if (typeof window === 'undefined') return
-  // Keep accepting the legacy values too so existing localStorage entries
-  // stay usable across deploys.
-  window.localStorage.setItem(STORAGE_KEY, next)
+  const record: ConsentRecord = {
+    status: next,
+    updated_at: new Date().toISOString(),
+    ...(opts?.siteId ? { site_id: opts.siteId } : {}),
+  }
+  window.localStorage.setItem(STORAGE_KEY, JSON.stringify(record))
   window.dispatchEvent(new CustomEvent<ConsentState>(EVENT_NAME, { detail: next }))
 }
 
@@ -59,8 +99,6 @@ export function onConsentChange(handler: (state: ConsentState) => void): () => v
     handler(ce.detail ?? getConsent())
   }
   window.addEventListener(EVENT_NAME, wrapped)
-  // Also listen to cross-tab storage changes so consent stays consistent
-  // when the same user has the site open in multiple tabs.
   const onStorage = (e: StorageEvent) => {
     if (e.key === STORAGE_KEY) handler(getConsent())
   }

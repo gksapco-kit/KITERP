@@ -93,7 +93,7 @@ export function formatDateTime(dateStr?: string) {
   })
 }
 
-import { normalizeLoopbackOrigin } from '@/lib/loopbackHost'
+import { normalizeLoopbackInUrl, normalizeLoopbackOrigin } from '@/lib/loopbackHost'
 
 /**
  * Derive the backend origin (e.g. http://127.0.0.1:8000) from the available env vars.
@@ -115,8 +115,25 @@ function backendOrigin(): string {
 export function mediaUrl(url?: string | null): string {
   if (!url) return ''
   if (url.startsWith('blob:')) return url
-  if (url.startsWith('http://') || url.startsWith('https://') || url.startsWith('data:')) return url
+  if (url.startsWith('data:')) return url
   if (url.startsWith('/business-images')) return url
+
+  // Dev: keep /uploads on the Vite origin so vite.config proxy forwards to the API.
+  if (import.meta.env.DEV) {
+    if (url.startsWith('/uploads/')) return url
+    if (url.startsWith('http://') || url.startsWith('https://')) {
+      try {
+        const parsed = new URL(url)
+        if (parsed.pathname.startsWith('/uploads/')) {
+          return `${parsed.pathname}${parsed.search}`
+        }
+      } catch {
+        /* fall through */
+      }
+    }
+  }
+
+  if (url.startsWith('http://') || url.startsWith('https://')) return normalizeLoopbackInUrl(url)
   const base = backendOrigin()
   return `${base}${url.startsWith('/') ? '' : '/'}${url}`
 }

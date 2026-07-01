@@ -31,6 +31,7 @@ interface Props {
   arrayKey?: string
   itemField?: string
   blockProps?: Record<string, unknown>
+  itemsReadOnly?: boolean
 }
 
 function blobStyle(
@@ -57,6 +58,7 @@ function MosaicImage({
   arrayKey,
   itemField,
   blockProps,
+  itemsReadOnly = false,
 }: {
   src: string
   fallback: string
@@ -66,6 +68,7 @@ function MosaicImage({
   arrayKey?: string
   itemField?: string
   blockProps?: Record<string, unknown>
+  itemsReadOnly?: boolean
 }) {
   return (
     <CategoryEditorialImage
@@ -77,6 +80,7 @@ function MosaicImage({
       index={index}
       itemField={itemField}
       blockProps={blockProps}
+      readOnly={itemsReadOnly}
       className="absolute inset-0 h-full w-full object-cover"
     />
   )
@@ -123,6 +127,7 @@ function VibrantBowlFrame({
   arrayKey,
   itemField,
   blockProps,
+  itemsReadOnly = false,
 }: {
   img: string
   fallback: string
@@ -133,6 +138,7 @@ function VibrantBowlFrame({
   arrayKey?: string
   itemField?: string
   blockProps?: Record<string, unknown>
+  itemsReadOnly?: boolean
 }) {
   const tileBg = typeof blockProps?.tile_bg === 'string' && blockProps.tile_bg.trim()
     ? blockProps.tile_bg.trim()
@@ -163,6 +169,7 @@ function VibrantBowlFrame({
           arrayKey={arrayKey}
           itemField={itemField}
           blockProps={blockProps}
+          itemsReadOnly={itemsReadOnly}
         />
       </div>
       <div
@@ -195,6 +202,7 @@ export default function CategoryCardMosaic({
   arrayKey,
   itemField,
   blockProps,
+  itemsReadOnly = false,
 }: Props) {
   const textColor = style.text_color || '#182E20'
   const primaryColor = style.primary_color || textColor
@@ -223,6 +231,7 @@ export default function CategoryCardMosaic({
                 arrayKey={arrayKey}
                 itemField={itemField}
                 blockProps={blockProps}
+                itemsReadOnly={itemsReadOnly}
               />
               <div className="wl-mosaic-label">
                 {renderTitle ? (

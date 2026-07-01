@@ -57,6 +57,7 @@ const RichTextBlock = lazy(() => import('@/components/builder/blocks/RichTextBlo
 const ImageBlock = lazy(() => import('@/components/builder/blocks/ImageBlock'))
 const VideoEmbedBlock = lazy(() => import('@/components/builder/blocks/VideoEmbedBlock'))
 const GalleryMasonryBlock = lazy(() => import('@/components/builder/blocks/GalleryMasonryBlock'))
+const VideoGalleryBlock = lazy(() => import('@/components/builder/blocks/VideoGalleryBlock'))
 const SocialLinksBlock = lazy(() => import('@/components/builder/blocks/SocialLinksBlock'))
 const CountdownBlock = lazy(() => import('@/components/builder/blocks/CountdownBlock'))
 const AnnouncementBarBlock = lazy(() => import('@/components/builder/blocks/AnnouncementBarBlock'))
@@ -116,7 +117,7 @@ const SUSPENSE_NULL_FALLBACK_BLOCKS = new Set([
 
 // ── Live data hook ─────────────────────────────────────────────────────────
 
-type LiveResource = 'products' | 'services' | 'testimonials' | 'team' | 'kpis' | 'profile' | 'pages' | 'categories' | 'customers' | 'orders' | 'bookings' | 'media' | 'stores' | 'blog'
+type LiveResource = 'products' | 'services' | 'testimonials' | 'team' | 'kpis' | 'profile' | 'pages' | 'categories' | 'customers' | 'orders' | 'bookings' | 'media' | 'stores' | 'blog' | 'plans'
 
 const BLOCK_LIVE_RESOURCE: Record<string, LiveResource> = {
   product_grid: 'products', live_stock: 'products', live_quote: 'products', related_products: 'products', product_detail: 'products',
@@ -132,6 +133,8 @@ const BLOCK_LIVE_RESOURCE: Record<string, LiveResource> = {
   gallery_masonry: 'media', portfolio_grid: 'media',
   trust_logos: 'customers',
   blog_grid: 'blog', blog_featured: 'blog', blog_list: 'blog',
+  pricing: 'plans',
+  'service.pricing': 'plans',
 }
 
 function inferCommerceLiveResource(blockType: string): LiveResource | undefined {
@@ -139,6 +142,7 @@ function inferCommerceLiveResource(blockType: string): LiveResource | undefined 
   if (blockType.startsWith('service.')) {
     if (blockType.includes('testimonial')) return 'testimonials'
     if (blockType.includes('team')) return 'team'
+    if (blockType.includes('pricing')) return 'plans'
     return 'services'
   }
   if (blockType.startsWith('menu.')) return 'products'
@@ -309,6 +313,7 @@ export function SingleBlock({
       case 'gallery_grid':
       case 'image_gallery':
       case 'portfolio_grid':   return <GalleryMasonryBlock {...commonProps} />
+      case 'video_gallery':      return <VideoGalleryBlock {...commonProps} />
       case 'social_links':     return <SocialLinksBlock {...commonProps} />
       case 'countdown':        return <CountdownBlock {...commonProps} />
       case 'newsletter':       return <NewsletterBlock {...commonProps} />
@@ -564,12 +569,14 @@ interface BlockRendererProps {
   pageId?: string | null
   /** Query-string branch code for branch-scoped visibility. */
   branchCode?: string | null
+  /** Builder canvas pins shell outside transform — skip inner sticky wrapper. */
+  suppressShellSticky?: boolean
 }
 
 const SHELL_BLOCK_TYPES = new Set(['nav', 'announcement_bar'])
 
 /** Leading announcement/nav blocks stay outside overflow-x-clip so sticky headers work. */
-function splitLeadingShellBlocks(blocks: PublicBlock[]) {
+export function splitLeadingShellBlocks(blocks: PublicBlock[]) {
   const shellBlocks: PublicBlock[] = []
   let index = 0
   while (index < blocks.length) {
@@ -581,7 +588,7 @@ function splitLeadingShellBlocks(blocks: PublicBlock[]) {
   return { shellBlocks, contentBlocks: blocks.slice(index) }
 }
 
-export default function BlockRenderer({ blocks, site, pageId, branchCode }: BlockRendererProps) {
+export default function BlockRenderer({ blocks, site, pageId, branchCode, suppressShellSticky = false }: BlockRendererProps) {
   const style = mergePageStyle(site.style_config as Partial<StyleConfig>, pageId)
   const location = useLocation()
   const branchTrim = branchKey(branchCode)
@@ -643,16 +650,19 @@ export default function BlockRenderer({ blocks, site, pageId, branchCode }: Bloc
 
   const siteRadiusMode = normalizeSiteBorderRadius(style.border_radius)
 
+  const renderShell = shellBlocks.length > 0 && !suppressShellSticky
+  const blocksToRender = suppressShellSticky ? visibleBlocks : contentBlocks
+
   return (
     <div className="builder-page min-w-0" style={pageStyle} data-site-radius={siteRadiusMode}>
       <style>{buildSiteThemeCss(style)}</style>
-      {shellBlocks.length > 0 && (
+      {renderShell && (
         <div className="sticky top-0 z-50 w-full">
           {shellBlocks.map(renderBlock)}
         </div>
       )}
       <div className="builder-page-content min-w-0 overflow-x-clip">
-        {contentBlocks.map(renderBlock)}
+        {blocksToRender.map(renderBlock)}
       </div>
     </div>
   )

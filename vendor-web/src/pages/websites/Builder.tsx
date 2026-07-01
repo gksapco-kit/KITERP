@@ -105,7 +105,7 @@ import { ScrollAnimationControls } from '@/components/websites/ScrollAnimationCo
 import { StoreContentGroupTabs } from '@/components/websites/StoreContentGroupTabs'
 import { animationOptionLabel } from '@storefront/lib/builderScrollAnimations'
 import { blockTypeSupportsBlockLink } from '@storefront/lib/blockLinkPolicy'
-import { defaultMarqueeItems, marqueeItemsToLegacyText, parseMarqueeItems } from '@storefront/lib/marqueeItems'
+import { defaultMarqueeItems, marqueeItemsForEditor, marqueeItemsToLegacyText, parseMarqueeItems, patchMarqueeBlockItems, patchMarqueeBlockItemsFromRaw } from '@storefront/lib/marqueeItems'
 import {
   PAYMENT_METHOD_KEYS,
   PAYMENT_METHOD_LABELS,
@@ -237,6 +237,7 @@ import {
 } from '@/components/websites/SectionEditorRibbon'
 import { SectionPanelGroup } from '@/components/websites/SectionPanelGroup'
 import { builderLinkBtn, builderLinkBtnIcon, builderPanelUi } from '@/components/websites/builderPanelUi'
+import { discoverSectionLinkTargets, SECTION_CTA_LABEL_KEYS, resolveSocialLinkPanelEntries, countConfiguredSocialLinks } from '@/lib/sectionLinksPanel'
 import { BuilderSiteInputParametersModal } from '@/components/websites/BuilderSiteInputParametersModal'
 import { BuilderStylePanel } from '@/components/websites/BuilderStylePanel'
 import { BuilderStepSlider } from '@/components/websites/BuilderStepSlider'
@@ -273,6 +274,8 @@ import {
   applyDataSourceToBlockProps,
   STORE_CONTENT_GROUPS,
   BLOCK_REQUIRED_DATA_SOURCE,
+  isCategorySyncedBlock,
+  isPlansSyncedBlock,
   type LayoutPickerDataSourceChoice,
 } from '@/lib/blockDataSources'
 import { mergeLayoutBlockProps } from '@/lib/layoutBlockProps'
@@ -393,12 +396,13 @@ const BLOCK_CATALOG: BlockDef[] = [
   { type: 'stats', label: 'Stats / Numbers', icon: BarChart3, desc: 'Key metrics and achievements', category: 'content', defaultProps: { title: 'Trusted by our community', stats: [{ value: '2K+', label: 'Happy customers' }, { value: '500+', label: 'Products' }, { value: '4.8?', label: 'Average rating' }, { value: '24/7', label: 'Online ordering' }] } },
   { type: 'testimonials', label: 'Testimonials', icon: Quote, desc: 'Customer reviews and quotes', category: 'social', defaultProps: { title: 'What our customers say', testimonials: [{ name: 'Priya Sharma', role: 'Regular customer', company: '', quote: 'Great quality and fast delivery ? I order every week!', rating: 5 }, { name: 'James Wilson', role: 'Local buyer', company: '', quote: 'Easy to shop and the team was very helpful.', rating: 5 }] } },
   { type: 'team_grid', label: 'Team Grid', icon: Users, desc: 'Meet the team cards', category: 'about', defaultProps: { title: 'Meet our team', columns: 4, members: [{ name: 'Alex Morgan', role: 'Store owner', bio: 'Passionate about great products and service.' }, { name: 'Sam Rivera', role: 'Customer care', bio: 'Here to help with orders and questions.' }] } },
-  { type: 'pricing', label: 'Pricing Table', icon: Hash, desc: 'Pricing plans comparison', category: 'conversion', defaultProps: { title: 'Our packages', show_annual_toggle: false, plans: [{ name: 'Starter', price: 299, period: 'order', features: ['Curated selection', 'Standard delivery', 'Email support'], cta: 'Order now', cta_url: '/products' }, { name: 'Popular', price: 599, period: 'order', features: ['Best value bundle', 'Priority delivery', 'Phone support', 'Gift wrap'], highlighted: true, cta: 'Order now', cta_url: '/products' }, { name: 'Premium', price: 999, period: 'order', features: ['Full collection access', 'Same-day delivery', 'Dedicated support', 'Custom requests'], cta: 'Contact us', cta_url: '/contact' }] } },
+  { type: 'pricing', label: 'Pricing Table', icon: Hash, desc: 'Pricing plans comparison', category: 'conversion', defaultProps: { title: 'Our packages', show_annual_toggle: false, data_source: { type: 'plans', auto: true } } },
   { type: 'faq', label: 'FAQ / Accordion', icon: MessageSquare, desc: 'Frequently asked questions', category: 'content', defaultProps: { title: 'Common questions', faqs: [{ question: 'How do I place an order?', answer: 'Browse our products, add items to your cart, and checkout securely online.' }, { question: 'What are your delivery times?', answer: 'Most orders arrive within 2?5 business days. Local delivery may be faster.' }, { question: 'Can I return an item?', answer: 'Yes ? unused items can be returned within 14 days. Contact us to start a return.' }] } },
   { type: 'cta', label: 'Call to Action', icon: Zap, desc: 'Bold CTA section to convert visitors', category: 'conversion', defaultProps: { headline: 'Ready to shop?', subtitle: 'Browse our collection and find something you will love today.', cta_label: 'Start shopping', cta_url: '/products' } },
   { type: 'contact_form', label: 'Contact Form', icon: Mail, desc: 'Contact form with fields', category: 'contact', defaultProps: { title: 'Get in touch', layout: 'split', full_page: false, email: '', phone: '', address: '', show_map: false, form_fields: [{ name: 'name', type: 'text', required: true, placeholder: 'Your name' }, { name: 'email', type: 'email', required: true, placeholder: 'Your email' }, { name: 'message', type: 'textarea', required: true, placeholder: 'How can we help?' }] } },
   { type: 'portfolio_grid', label: 'Portfolio Grid', icon: Camera, desc: 'Filterable work portfolio grid', category: 'portfolio', defaultProps: { title: 'Our Work', columns: 3, filterable: true } },
   { type: 'gallery_masonry', label: 'Gallery Masonry', icon: ImageIcon, desc: 'Masonry image gallery', category: 'media', defaultProps: { title: 'Gallery', layout: 'masonry', columns: 3, images: [] } },
+  { type: 'video_gallery', label: 'Video Gallery', icon: Video, desc: 'YouTube / Vimeo video grid with layouts', category: 'media', defaultProps: { title: 'Video gallery', layout: 'grid', columns: 3, videos: [{ video_url: '', title: '', caption: '' }, { video_url: '', title: '', caption: '' }, { video_url: '', title: '', caption: '' }] } },
   { type: 'blog_grid', label: 'Blog Grid', icon: FileText, desc: 'Latest posts in a grid', category: 'blog', defaultProps: { title: 'Latest Posts', columns: 3, show_count: 12, image_height_pct: 56 } },
   { type: 'newsletter', label: 'Newsletter', icon: Mail, desc: 'Email capture / subscribe form', category: 'conversion', defaultProps: { title: 'Stay in the Loop', subtitle: 'Get the latest news and updates delivered to your inbox.', cta_label: 'Subscribe' } },
   { type: 'video_embed', label: 'Video Embed', icon: Video, desc: 'YouTube / Vimeo video player', category: 'media', defaultProps: { title: 'Watch our story', video_url: '', aspect_ratio: '16:9' } },
@@ -412,7 +416,7 @@ const BLOCK_CATALOG: BlockDef[] = [
   { type: 'social_links', label: 'Social Links', icon: Globe, desc: 'Social media icon links', category: 'social', defaultProps: { title: 'Follow Us', social_links: { twitter: 'https://twitter.com', instagram: 'https://instagram.com', linkedin: 'https://linkedin.com' } } },
   { type: 'countdown', label: 'Countdown Timer', icon: Clock, desc: 'Countdown to a date/event', category: 'conversion', get defaultProps() { return { title: 'Launch In', target_date: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString() } } },
   { type: 'product_grid', label: 'Product Grid', icon: ShoppingBag, desc: 'Display products from your catalog', category: 'ecommerce', defaultProps: { title: 'Featured Products', columns: 4, show_badges: true } },
-  { type: 'category_cards', label: 'Category Cards', icon: Layers, desc: 'Animated wellness mosaic ? circles, squares & portraits', category: 'ecommerce', defaultProps: CATEGORY_CARDS_WELLNESS_DEFAULTS },
+  { type: 'category_cards', label: 'Category Cards', icon: Layers, desc: 'Animated wellness mosaic — circles, squares & portraits', category: 'ecommerce', defaultProps: CATEGORY_CARDS_WELLNESS_DEFAULTS },
   { type: 'menu_grid', label: 'Menu / Catalog', icon: List, desc: 'Restaurant-style menu grid', category: 'food', defaultProps: { title: 'Our Menu', categories: ['Starters', 'Mains', 'Desserts', 'Drinks'] } },
   { type: 'about_split', label: 'About Split', icon: Columns, desc: 'About section with image and text', category: 'about', defaultProps: { title: 'About us', subtitle: 'Our story', description: 'Tell customers who you are, what you sell, and why they can trust you.' } },
   { type: 'services_cards', label: 'Services Cards', icon: Briefcase, desc: 'Service offering cards', category: 'content', defaultProps: { title: 'Our services', columns: 3, features: [{ icon: 'Zap', title: 'Consultation', desc: 'Expert advice tailored to your needs.' }, { icon: 'Shield', title: 'Installation', desc: 'Professional setup you can rely on.' }, { icon: 'Star', title: 'Support', desc: 'Friendly help after you buy.' }] } },
@@ -450,12 +454,12 @@ const COMMERCE_LIBRARY_BLOCKS: BlockDef[] = [
   { type: 'product.featured', label: 'Featured Product', icon: ShoppingBag, desc: 'Hero spotlight for a single product with image and CTA.', category: 'ecommerce', defaultProps: { variant: 'default' } },
   { type: 'product.detail', label: 'Product Detail', icon: ShoppingBag, desc: 'Full product page with gallery, options, and trust badges.', category: 'ecommerce', defaultProps: { variant: 'default' } },
   { type: 'product.cart', label: 'Mini Cart', icon: ShoppingBag, desc: 'Cart with quantity controls, totals, and shipping summary.', category: 'erp', defaultProps: { variant: 'default' } },
-  { type: 'product.categories', label: 'Category Showcase', icon: ShoppingBag, desc: 'Browse products by category with imagery.', category: 'ecommerce', defaultProps: { variant: 'default' } },
+  { type: 'product.categories', label: 'Category Showcase', icon: ShoppingBag, desc: 'Shop-by-category grid — synced from Categories', category: 'ecommerce', defaultProps: { variant: 'grid', layout: 'grid', title: 'Shop by category', columns: 4, data_source: { type: 'categories', auto: true } } },
   { type: 'product.carousel', label: 'Product Carousel', icon: ShoppingBag, desc: 'Horizontally scrolling product showcase.', category: 'ecommerce', defaultProps: { variant: 'default' } },
   { type: 'service.list', label: 'Service List', icon: Briefcase, desc: 'Detailed service rows with features and price.', category: 'content', defaultProps: { variant: 'default' } },
   { type: 'service.grid', label: 'Service Card Grid', icon: Briefcase, desc: 'Service cards laid out in a responsive grid.', category: 'content', defaultProps: { variant: 'default' } },
   { type: 'service.detail', label: 'Service Detail', icon: Briefcase, desc: 'Service page with description, inclusions, and booking sidebar.', category: 'content', defaultProps: { variant: 'default' } },
-  { type: 'service.pricing', label: 'Pricing Tiers', icon: Briefcase, desc: 'Three-column pricing comparison with featured plan.', category: 'content', defaultProps: { title: 'Our packages', subtitle: 'Choose the plan that fits you', show_annual_toggle: false, plans: [{ name: 'Starter', price: 299, period: 'mo', features: ['Core features', 'Email support', 'Standard delivery'], cta: 'Get started', cta_url: '/contact' }, { name: 'Popular', price: 599, period: 'mo', features: ['Everything in Starter', 'Priority support', 'Advanced options', 'Gift wrap'], highlighted: true, cta: 'Get started', cta_url: '/contact' }, { name: 'Premium', price: 999, period: 'mo', features: ['Full access', 'Dedicated support', 'Custom requests', 'Same-day delivery'], cta: 'Contact us', cta_url: '/contact' }] } },
+  { type: 'service.pricing', label: 'Pricing Tiers', icon: Briefcase, desc: 'Three-column pricing comparison with featured plan.', category: 'content', defaultProps: { title: 'Our packages', subtitle: 'Choose the plan that fits you', show_annual_toggle: false, data_source: { type: 'plans', auto: true } } },
   { type: 'menu.categorized', label: 'Categorized Menu', icon: List, desc: 'Restaurant menu grouped by section with prices and dietary tags.', category: 'food', defaultProps: { variant: 'default' } },
   { type: 'menu.item', label: 'Menu Item Detail', icon: List, desc: 'Full-page menu item with photo, dietary, and price.', category: 'food', defaultProps: { variant: 'default' } },
   { type: 'menu.specials', label: 'Daily Specials', icon: List, desc: 'Highlighted limited-time menu items.', category: 'food', defaultProps: { variant: 'default' } },
@@ -519,7 +523,7 @@ const BLOCK_THUMBNAILS: Record<string, string> = {
   features: '?', features_alternating: '??',
   stats: '??', testimonials: '??', team_grid: '??',
   pricing: '??', faq: '?', cta: '??',
-  contact_form: '??', portfolio_grid: '???', gallery_masonry: '???',
+  contact_form: '??', portfolio_grid: '???', gallery_masonry: '???', video_gallery: '??',
   blog_grid: '??', newsletter: '??', video_embed: '??',
   map_embed: '???', trust_logos: '??', timeline: '??',
   rich_text: '??', image_block: '???', divider: '??', spacer: '??',
@@ -3282,6 +3286,8 @@ function blockHasConfiguredLinks(block: WebsiteBlock): boolean {
   if (social && typeof social === 'object') {
     if (Object.values(social as Record<string, unknown>).some(v => String(v ?? '').trim())) return true
   }
+  if (discoverSectionLinkTargets(block.block_type, p).some(t => Boolean(t.url))) return true
+  if (countConfiguredSocialLinks(block.block_type, p) > 0) return true
   const overlays = Array.isArray(p.overlays) ? (p.overlays as BlockOverlayItem[]) : []
   return overlays.some(o => !!(o.linkType && o.linkType !== 'none'))
 }
@@ -4057,6 +4063,15 @@ const ITEM_SCHEMAS: Record<string, ItemSchema> = {
       { key: 'alt',     label: 'Alt Text',  type: 'text' },
     ],
   },
+  video_gallery: {
+    arrayKey: 'videos', itemLabel: 'Video',
+    defaultItem: { video_url: '', title: '', caption: '' },
+    fields: [
+      { key: 'video_url', label: 'Video URL', type: 'text' },
+      { key: 'title',     label: 'Title',     type: 'text' },
+      { key: 'caption',   label: 'Caption',   type: 'textarea' },
+    ],
+  },
   stats: {
     arrayKey: 'stats', itemLabel: 'Stat',
     defaultItem: { value: '100+', label: 'Metric label' },
@@ -4095,7 +4110,7 @@ const ITEM_SCHEMAS: Record<string, ItemSchema> = {
   },
   marquee_strip: {
     arrayKey: 'items', itemLabel: 'Item',
-    defaultItem: { label: 'New highlight', url: '', image_url: '' },
+    defaultItem: { label: 'New highlight', url: '' },
     fields: [
       { key: 'image_url', label: 'Image', type: 'image' },
       { key: 'label', label: 'Text', type: 'text' },
@@ -4142,6 +4157,7 @@ function itemListSectionTitle(blockType: string, itemSchema: ItemSchema): string
     payment_methods_strip: 'Payment methods',
     gallery_masonry: 'Images',
     gallery: 'Images',
+    video_gallery: 'Videos',
   }
   return titles[blockType] || `${itemSchema.itemLabel}s`
 }
@@ -4150,7 +4166,7 @@ function itemListSectionTitle(blockType: string, itemSchema: ItemSchema): string
 const ITEM_LIST_DEFAULT_OPEN = new Set([
   'faq', 'service.faq', 'timeline', 'stats', 'testimonials', 'pricing', 'service.pricing', 'features', 'features_alternating',
   'services_cards', 'services_list', 'team_grid', 'trust_logos', 'marquee_strip', 'payment_methods_strip',
-  'gallery_masonry', 'gallery', 'gallery_grid',
+  'gallery_masonry', 'gallery', 'gallery_grid', 'video_gallery',
 ])
 
 /** Block types whose tile thumbnails respect `image_shape` (square / rounded / circle). */
@@ -4163,6 +4179,7 @@ const IMAGE_SHAPE_BLOCK_TYPES = new Set([
   'gallery_masonry',
   'gallery',
   'gallery_grid',
+  'video_gallery',
   'image_gallery',
   'portfolio_grid',
   'category_cards',
@@ -4171,6 +4188,7 @@ const IMAGE_SHAPE_BLOCK_TYPES = new Set([
   'related_products',
   'testimonials',
   'testimonials_grid',
+  'marquee_strip',
   'image_block',
 ])
 
@@ -4525,10 +4543,13 @@ function InlineMediaPicker({
   const uploadMedia = useUploadMedia(siteId)
   const [panel, setPanel] = useState<'none' | 'library' | 'url'>('none')
   const [urlInput, setUrlInput] = useState(value || '')
+  const [previewOk, setPreviewOk] = useState(true)
   const fileRef = useRef<HTMLInputElement>(null)
+  const resolvedPreview = value ? mediaUrl(value) : ''
 
   useEffect(() => {
     setUrlInput(value || '')
+    setPreviewOk(true)
   }, [value])
 
   const notifyFocus = () => { onFocus?.() }
@@ -4557,7 +4578,23 @@ function InlineMediaPicker({
 
       {value ? (
         <div className="relative rounded-xl overflow-hidden border-2 border-primary/30 h-28 bg-gray-100">
-          <img src={mediaUrl(value)} className="w-full h-full object-cover" alt="" />
+          {resolvedPreview && previewOk ? (
+            <img
+              key={resolvedPreview}
+              src={resolvedPreview}
+              className="w-full h-full object-cover"
+              alt=""
+              onLoad={() => setPreviewOk(true)}
+              onError={() => setPreviewOk(false)}
+            />
+          ) : (
+            <div className="w-full h-full flex flex-col items-center justify-center gap-1 px-3 text-center text-gray-500">
+              <ImageIcon className="w-6 h-6 opacity-40" />
+              <span className="text-[11px] leading-snug">
+                {value ? 'Image saved — preview unavailable (check URL or backend)' : 'No image selected'}
+              </span>
+            </div>
+          )}
         </div>
       ) : (
         <div className="rounded-xl border-2 border-dashed border-gray-200 h-28 flex flex-col items-center justify-center gap-1 text-gray-400 bg-gray-50">
@@ -5933,7 +5970,11 @@ function PropsEditor({
 
   const isTeamBlock = block.block_type === 'team_grid' || block.block_type === 'team_list'
   const isBlogBlock = block.block_type === 'blog_grid' || block.block_type === 'blog_featured' || block.block_type === 'blog_list'
+  const isCategoryBlock = isCategorySyncedBlock(block.block_type)
+  const isPlansBlock = isPlansSyncedBlock(block.block_type)
   const [blogLiveItems, setBlogLiveItems] = useState<LiveItem[]>([])
+  const [categoryLiveItems, setCategoryLiveItems] = useState<LiveItem[]>([])
+  const [plansLiveItems, setPlansLiveItems] = useState<LiveItem[]>([])
 
   useEffect(() => {
     if (!isBlogBlock) return
@@ -5943,6 +5984,38 @@ function PropsEditor({
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps -- migrate legacy blog blocks once per selection
   }, [block.id, block.block_type, isBlogBlock])
+
+  useEffect(() => {
+    if (!isCategoryBlock) return
+    const raw = p as Record<string, unknown>
+    const dsType = raw.data_source as { type?: string } | undefined
+    const patch: Record<string, unknown> = {}
+    if (!dsType || dsType.type !== 'categories') {
+      patch.data_source = { type: 'categories', auto: true }
+    }
+    if (block.block_type === 'product.categories') {
+      const variant = String(raw.variant ?? '')
+      const layout = String(raw.layout ?? '')
+      if (variant === 'default' || !layout) {
+        patch.variant = 'grid'
+        patch.layout = 'grid'
+        patch.columns = Number(raw.columns) || 4
+      }
+    }
+    if (Object.keys(patch).length > 0) {
+      onUpdate(patch as Partial<BlockProps>)
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- migrate legacy category blocks once per selection
+  }, [block.id, block.block_type, isCategoryBlock])
+
+  useEffect(() => {
+    if (!isPlansBlock) return
+    const dsType = (p as Record<string, unknown>).data_source as { type?: string } | undefined
+    if (!dsType || dsType.type !== 'plans') {
+      onUpdate({ data_source: { type: 'plans', auto: true } } as Partial<BlockProps>)
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- migrate legacy pricing blocks once per selection
+  }, [block.id, block.block_type, isPlansBlock])
 
   useEffect(() => {
     if (!isTeamBlock || !siteId) {
@@ -5964,8 +6037,30 @@ function PropsEditor({
       .catch(() => setBlogLiveItems([]))
   }, [isBlogBlock, siteId, block.id])
 
+  useEffect(() => {
+    if (!isCategoryBlock || !siteId) {
+      setCategoryLiveItems([])
+      return
+    }
+    void websiteApi.getLive(siteId, 'categories', { limit: 50 })
+      .then(r => setCategoryLiveItems(r.items ?? []))
+      .catch(() => setCategoryLiveItems([]))
+  }, [isCategoryBlock, siteId, block.id])
+
+  useEffect(() => {
+    if (!isPlansBlock || !siteId) {
+      setPlansLiveItems([])
+      return
+    }
+    void websiteApi.getLive(siteId, 'plans', { limit: 50 })
+      .then(r => setPlansLiveItems(r.items ?? []))
+      .catch(() => setPlansLiveItems([]))
+  }, [isPlansBlock, siteId, block.id])
+
   const publishedBlogCount = blogLiveItems.filter(item => item.meta?.is_published !== false).length
   const draftBlogCount = blogLiveItems.filter(item => item.meta?.is_published === false).length
+  const activeCategoryCount = categoryLiveItems.length
+  const activePlansCount = plansLiveItems.filter(item => item.meta?.is_active !== false).length
 
   const blogManagerBanner = isBlogBlock ? (
     <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2.5 text-xs text-emerald-900 leading-snug space-y-2">
@@ -5989,13 +6084,53 @@ function PropsEditor({
     </div>
   ) : undefined
 
+  const categoryManagerBanner = isCategoryBlock ? (
+    <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2.5 text-xs text-emerald-900 leading-snug space-y-2">
+      <p>
+        <span className="font-semibold">Synced with Categories.</span>{' '}
+        Category tiles in this showcase come from your catalog automatically.
+      </p>
+      <p className="text-emerald-800">
+        {activeCategoryCount === 0
+          ? 'No categories yet — add your first category in Categories.'
+          : `${activeCategoryCount} active categor${activeCategoryCount === 1 ? 'y' : 'ies'} available`}
+      </p>
+      <a
+        href="/categories"
+        target="_blank"
+        rel="noopener noreferrer"
+        className="inline-flex items-center gap-1 font-semibold text-primary hover:underline"
+      >
+        Open Categories →
+      </a>
+    </div>
+  ) : undefined
+
+  const plansManagerBanner = isPlansBlock ? (
+    <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2.5 text-xs text-emerald-900 leading-snug space-y-2">
+      <p>
+        <span className="font-semibold">Synced with Pricing Plans.</span>{' '}
+        Plans you manage in Sales → Pricing Plans appear here automatically.
+      </p>
+      <p className="text-emerald-800">
+        {plansLiveItems.length === 0
+          ? 'No plans yet — add your first plan in Pricing Plans.'
+          : `${activePlansCount} active plan${activePlansCount === 1 ? '' : 's'} shown${plansLiveItems.length > activePlansCount ? ` · ${plansLiveItems.length - activePlansCount} hidden (not shown here or on storefront)` : ''}`}
+      </p>
+      <a
+        href="/sales/plans"
+        target="_blank"
+        rel="noopener noreferrer"
+        className="inline-flex items-center gap-1 font-semibold text-primary hover:underline"
+      >
+        Open Pricing Plans →
+      </a>
+    </div>
+  ) : undefined
+
   const teamUseLive = isTeamBlock && shouldUseLiveTeam(p as Record<string, unknown>, teamLiveItems)
   const subEditorItems = block.block_type === 'marquee_strip'
-    ? parseMarqueeItems(p as Record<string, unknown>).map(item => ({
-      label: item.label,
-      url: item.url || '',
-      image_url: item.image_url || '',
-    }))
+    ? marqueeItemsForEditor(p as Record<string, unknown>)
     : block.block_type === 'payment_methods_strip'
     ? paymentMethodsForEditor(p as Record<string, unknown>)
     : isTeamBlock && teamUseLive
@@ -6033,12 +6168,13 @@ function PropsEditor({
   ) : undefined
 
   const persistSubEditorItems = (items: any[]) => {
+    if (block.block_type === 'marquee_strip') {
+      onUpdate(patchMarqueeBlockItems(items) as Partial<BlockProps>)
+      return
+    }
     const patch: Record<string, unknown> = block.block_type === 'payment_methods_strip'
       ? { methods: paymentMethodsFromEditor(items) }
       : { [itemSchema!.arrayKey]: items }
-    if (block.block_type === 'marquee_strip') {
-      patch.text = marqueeItemsToLegacyText(items)
-    }
     if (isTeamBlock) {
       onUpdate({ ...patch, use_manual_members: true } as any)
       return
@@ -6047,12 +6183,13 @@ function PropsEditor({
   }
 
   const previewSubEditorItems = (items: any[]) => {
+    if (block.block_type === 'marquee_strip') {
+      onPreview(patchMarqueeBlockItems(items) as Partial<BlockProps>)
+      return
+    }
     const patch: Record<string, unknown> = block.block_type === 'payment_methods_strip'
       ? { methods: paymentMethodsFromEditor(items) }
       : { [itemSchema!.arrayKey]: items }
-    if (block.block_type === 'marquee_strip') {
-      patch.text = marqueeItemsToLegacyText(items)
-    }
     if (isTeamBlock) {
       onPreview({ ...patch, use_manual_members: true } as any)
       return
@@ -6499,6 +6636,8 @@ function PropsEditor({
         {editorTab === 'content' && (
           <>
       {blogManagerBanner}
+      {categoryManagerBanner}
+      {plansManagerBanner}
       {supportsBlockElementDelete(block.block_type) && (() => {
         const hidden = listDeletableHiddenFields(block.block_type, p as Record<string, unknown>)
         if (!hidden.length) return null
@@ -6604,7 +6743,7 @@ function PropsEditor({
         </PropsCollapsible>
       )}
 
-      {block.block_type === 'footer' && p.show_social !== false && (
+      {(block.block_type === 'footer' && p.show_social !== false) || block.block_type === 'social_links' ? (
         <PropsCollapsible
           title="Social media"
           preview={Object.values((p.social_links as Record<string, string>) || {}).filter(Boolean).length
@@ -6612,14 +6751,26 @@ function PropsEditor({
             : 'Click icons on canvas to add URLs'}
         >
           <p className="text-xs text-gray-400 leading-snug mb-2">
-            Click a social icon on the footer canvas, or edit URLs here.
+            {block.block_type === 'footer'
+              ? 'Click a social icon on the footer canvas, or edit URLs here.'
+              : 'Click a social chip on the canvas, use the Links tab, or edit URLs here.'}
           </p>
-          {[
-            { key: 'twitter', label: 'Twitter / X' },
-            { key: 'facebook', label: 'Facebook' },
-            { key: 'instagram', label: 'Instagram' },
-            { key: 'youtube', label: 'YouTube' },
-          ].map(({ key, label }) => (
+          {(
+            block.block_type === 'social_links'
+              ? [
+                  { key: 'twitter', label: 'Twitter / X' },
+                  { key: 'instagram', label: 'Instagram' },
+                  { key: 'linkedin', label: 'LinkedIn' },
+                  { key: 'facebook', label: 'Facebook' },
+                  { key: 'youtube', label: 'YouTube' },
+                ]
+              : [
+                  { key: 'twitter', label: 'Twitter / X' },
+                  { key: 'facebook', label: 'Facebook' },
+                  { key: 'instagram', label: 'Instagram' },
+                  { key: 'youtube', label: 'YouTube' },
+                ]
+          ).map(({ key, label }) => (
             <div key={key} className="flex items-center gap-1.5">
               <span className="w-20 shrink-0 text-xs text-gray-500">{label}</span>
               <input
@@ -6652,7 +6803,7 @@ function PropsEditor({
             </div>
           ))}
         </PropsCollapsible>
-      )}
+      ) : null}
 
       {block.block_type === 'nav' && (
         <PropsCollapsible
@@ -6764,13 +6915,26 @@ function PropsEditor({
         </PropsCollapsible>
       )}
 
-      {itemSchema && (
+      {itemSchema && !isPlansBlock && (
         <PropsCollapsible
           title={itemListSectionTitle(block.block_type, itemSchema)}
           preview={`${subEditorItems.length} item(s)`}
           defaultOpen={ITEM_LIST_DEFAULT_OPEN.has(block.block_type)}
         >
           {renderSubItemEditor('items')}
+        </PropsCollapsible>
+      )}
+
+      {block.block_type === 'marquee_strip' && hasImageShape && (
+        <PropsCollapsible
+          title="Item image shape"
+          preview={String((p as any).image_shape ?? 'rounded')}
+          defaultOpen={false}
+        >
+          <p className="text-[10px] text-muted-foreground leading-snug mb-2">
+            Applies to every marquee item that has an image (rounded, circle, pill, etc.).
+          </p>
+          {imageShapePicker}
         </PropsCollapsible>
       )}
           </>
@@ -6802,7 +6966,7 @@ function PropsEditor({
                 id="image-shape"
                 activeId={layoutAccordionOpen}
                 onActivate={activateLayoutAccordion}
-                title="Tile image shape"
+                title={block.block_type === 'marquee_strip' ? 'Item image shape' : 'Tile image shape'}
                 preview={String((p as any).image_shape ?? (block.block_type === 'team_grid' ? 'circle' : 'rounded'))}
               >
                 {imageShapePicker}
@@ -7362,14 +7526,8 @@ function PagePanel({
   )
 }
 
-/** Linkable CTA fields a section may expose (paired button text + url prop). */
-const SECTION_LINK_FIELDS: { propKey: string; urlKey: string; name: string }[] = [
-  { propKey: 'cta_label', urlKey: 'cta_url', name: 'Button' },
-  { propKey: 'cta_primary', urlKey: 'cta_primary_url', name: 'Primary CTA' },
-  { propKey: 'cta_secondary', urlKey: 'cta_secondary_url', name: 'Secondary CTA' },
-]
-
-const LINK_PANEL_PROP_KEYS = new Set(SECTION_LINK_FIELDS.map(f => f.propKey))
+/** Linkable CTA label fields — url props are discovered via sectionLinksPanel. */
+const LINK_PANEL_PROP_KEYS = new Set(SECTION_CTA_LABEL_KEYS)
 
 type LinksPanelSelection =
   | { kind: 'overlay'; id: string }
@@ -7417,11 +7575,17 @@ function SectionLinksPanel({
 
   const p = (block.props || {}) as Record<string, any>
   const allowBlockLink = blockTypeSupportsBlockLink(block.block_type)
-  const ctas = SECTION_LINK_FIELDS.filter(f => p[f.propKey] !== undefined)
-  const socialLinks: Record<string, string> = (p.social_links && typeof p.social_links === 'object') ? p.social_links : {}
-  const socialKeys = Object.keys(socialLinks)
+  const socialLinkEntries = resolveSocialLinkPanelEntries(block.block_type, p)
   const overlays: BlockOverlayItem[] = Array.isArray(p.overlays) ? p.overlays : []
   const linkableOverlays = overlays.filter(o => overlayHasLinkControl(o))
+  const sectionLinkTargets = discoverSectionLinkTargets(block.block_type, p)
+  const sectionLinksByGroup = sectionLinkTargets.reduce<Record<string, typeof sectionLinkTargets>>((acc, target) => {
+    const g = target.group || 'Links'
+    if (!acc[g]) acc[g] = []
+    acc[g].push(target)
+    return acc
+  }, {})
+  const sectionLinkGroupNames = Object.keys(sectionLinksByGroup)
   const selectedOverlay = selectedLink?.kind === 'overlay'
     ? linkableOverlays.find(o => o.id === selectedLink.id) ?? null
     : null
@@ -7457,12 +7621,16 @@ function SectionLinksPanel({
       onEditOverlayLink(linkableOverlays[0], anchor)
       return
     }
-    if (ctas.length > 0) {
-      onEditPropLink(ctas[0].propKey, anchor)
+    if (sectionLinkTargets.length > 0) {
+      onEditPropLink(sectionLinkTargets[0].propKey, anchor)
+      return
+    }
+    if (socialLinkEntries.length > 0) {
+      onEditPropLink(`social_links.${socialLinkEntries[0].platform}`, anchor)
     }
   }
 
-  const hasQuickLinkTarget = allowBlockLink || linkableOverlays.length > 0 || ctas.length > 0
+  const hasQuickLinkTarget = allowBlockLink || linkableOverlays.length > 0 || sectionLinkTargets.length > 0 || socialLinkEntries.length > 0
 
   const quickLinkActive = selectedOverlay
     ? !!(selectedOverlay.linkType && selectedOverlay.linkType !== 'none')
@@ -7472,13 +7640,16 @@ function SectionLinksPanel({
 
   const isOverlaySelected = (id: string) => selectedLink?.kind === 'overlay' && selectedLink.id === id
   const isPropSelected = (key: string) => selectedLink?.kind === 'prop' && selectedLink.key === key
+  const isSectionLinkSelected = (target: { propKey: string; selectKey?: string }) =>
+    selectedLink?.kind === 'prop'
+    && (selectedLink.key === target.propKey || selectedLink.key === target.selectKey)
   const isBlockSelected = selectedLink?.kind === 'block'
 
   const totalLinks =
     (blockLinked ? 1 : 0) +
     linkableOverlays.filter(o => !!(o.linkType && o.linkType !== 'none')).length +
-    ctas.filter(f => String(p[f.urlKey] || '').trim()).length +
-    socialKeys.filter(k => String(socialLinks[k] || '').trim()).length
+    socialLinkEntries.filter(e => Boolean(e.url)).length +
+    sectionLinkTargets.filter(t => Boolean(t.url)).length
 
   const quickLinkTitle = selectedOverlay
     ? (quickLinkActive ? `Linked: ${selectedOverlay.linkLabel || selectedOverlay.linkTarget || selectedOverlay.text}` : 'Link selected layer')
@@ -7603,31 +7774,36 @@ function SectionLinksPanel({
           </div>
         )}
 
-        {/* CTA buttons */}
-        {ctas.length > 0 && (
-          <div className="space-y-1">
-            <p className="text-[9px] font-bold uppercase tracking-wide text-muted-foreground">Buttons</p>
-            {ctas.map(f => {
-              const text = String(p[f.propKey] || '').trim() || f.name
-              const target = String(p[f.urlKey] || '').trim()
-              const isLinked = !!target
+        {/* Section-discovered links (buttons, footer columns, nav, plans, marquee, …) */}
+        {sectionLinkGroupNames.map(groupName => (
+          <div key={groupName} className="space-y-1">
+            <p className="text-[9px] font-bold uppercase tracking-wide text-muted-foreground">{groupName}</p>
+            {sectionLinksByGroup[groupName].map(target => {
+              const isLinked = Boolean(target.url)
               return (
                 <div
-                  key={f.propKey}
+                  key={target.propKey}
                   role="button"
                   tabIndex={0}
-                  onClick={() => onSelectPropLink?.(f.propKey)}
-                  onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onSelectPropLink?.(f.propKey) } }}
+                  onClick={() => onSelectPropLink?.(target.selectKey ?? target.propKey)}
+                  onKeyDown={e => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault()
+                      onSelectPropLink?.(target.selectKey ?? target.propKey)
+                    }
+                  }}
                   className="flex w-full items-center gap-2 px-0.5 py-1 rounded hover:bg-muted/30 transition-colors cursor-pointer"
                 >
                   <Link2 className={cn('h-3 w-3 shrink-0', isLinked ? 'text-emerald-600' : 'text-muted-foreground/40')} />
                   <div className="min-w-0 flex-1">
-                    <span className="text-[10px] font-semibold text-foreground">{text}</span>
-                    {isLinked && <span className="ml-1.5 text-[10px] text-emerald-600 font-medium truncate">{target}</span>}
+                    <span className="text-[10px] font-semibold text-foreground">{target.label}</span>
+                    {isLinked && (
+                      <span className="ml-1.5 text-[10px] text-emerald-600 font-medium truncate">{target.url}</span>
+                    )}
                   </div>
                   <button
                     type="button"
-                    onClick={editProp(f.propKey)}
+                    onClick={editProp(target.propKey)}
                     className={cn(
                       'shrink-0 rounded px-2 py-0.5 text-[10px] font-semibold transition-colors',
                       isLinked
@@ -7641,15 +7817,14 @@ function SectionLinksPanel({
               )
             })}
           </div>
-        )}
+        ))}
 
         {/* Social links */}
-        {socialKeys.length > 0 && (
+        {socialLinkEntries.length > 0 && (
           <div className="space-y-1">
             <p className="text-[9px] font-bold uppercase tracking-wide text-muted-foreground">Social links</p>
-            {socialKeys.map(platform => {
-              const target = String(socialLinks[platform] || '').trim()
-              const isLinked = !!target
+            {socialLinkEntries.map(({ platform, label, url }) => {
+              const isLinked = Boolean(url)
               return (
                 <div
                   key={platform}
@@ -7661,8 +7836,8 @@ function SectionLinksPanel({
                 >
                   <ExternalLink className={cn('h-3 w-3 shrink-0', isLinked ? 'text-emerald-600' : 'text-muted-foreground/40')} />
                   <div className="min-w-0 flex-1">
-                    <span className="text-[10px] font-semibold capitalize text-foreground">{platform}</span>
-                    {isLinked && <span className="ml-1.5 text-[10px] text-emerald-600 font-medium truncate">{target}</span>}
+                    <span className="text-[10px] font-semibold text-foreground">{label}</span>
+                    {isLinked && <span className="ml-1.5 text-[10px] text-emerald-600 font-medium truncate">{url}</span>}
                   </div>
                   <button
                     type="button"
@@ -7683,7 +7858,7 @@ function SectionLinksPanel({
         )}
 
         {/* Empty state — nothing linkable on this block */}
-        {!blockLinked && linkableOverlays.length === 0 && ctas.length === 0 && socialKeys.length === 0 && (
+        {!blockLinked && linkableOverlays.length === 0 && socialLinkEntries.length === 0 && sectionLinkTargets.length === 0 && (
           <div className="flex flex-col items-center gap-2 rounded-xl border border-dashed border-border/50 bg-muted/10 px-4 py-5 text-center">
             <Layers className="h-5 w-5 text-muted-foreground/30" />
             <p className="text-[10px] text-muted-foreground/60 leading-snug">
@@ -10548,9 +10723,17 @@ export default function WebsiteBuilder() {
     if (!selectedBlock) return
     setOverlayImageTarget(null)
     setCanvasImageTarget(null)
-    if (propKey.startsWith('social_links.')) {
+    if (
+      propKey.startsWith('social_links.')
+      || propKey.includes('.links.')
+      || propKey.endsWith('_url')
+      || propKey === 'policy_url'
+    ) {
       setActiveTextTarget(null)
       setLinksPanelFocus({ kind: 'prop', key: propKey })
+      if (propKey.includes('.links.') && !/\.(href|url)$/.test(propKey)) {
+        scrollToLinksCanvasTarget(selectedBlock.id, 'prop', propKey)
+      }
       return
     }
     setLinksPanelFocus(null)
@@ -11738,6 +11921,7 @@ export default function WebsiteBuilder() {
     gallery_masonry:      { arrayKey: 'images',       itemField: 'src' },
     gallery_grid:         { arrayKey: 'images',       itemField: 'src' },
     image_gallery:        { arrayKey: 'images',       itemField: 'src' },
+    video_gallery:        { arrayKey: 'videos',       itemField: 'video_url' },
     portfolio_grid:       { arrayKey: 'projects',     itemField: 'image_url',   defaultTitle: 'Project' },
     category_cards:       { arrayKey: 'categories',   itemField: 'image_url',   defaultTitle: 'Category' },
     blog_grid:            { arrayKey: 'posts',        itemField: 'image_url',   defaultTitle: 'Post' },
@@ -11748,6 +11932,7 @@ export default function WebsiteBuilder() {
     pricing:              { arrayKey: 'plans',        itemField: 'image_url',   defaultTitle: 'Plan' },
     faq:                  { arrayKey: 'faqs',         itemField: 'image_url',   defaultTitle: 'Question' },
     'service.faq':        { arrayKey: 'faqs',         itemField: 'image_url',   defaultTitle: 'Question' },
+    marquee_strip:        { arrayKey: 'items',        itemField: 'image_url',   defaultTitle: 'Highlight' },
   }
 
   const applyMediaUrlToSelection = useCallback((
@@ -11811,7 +11996,11 @@ export default function WebsiteBuilder() {
             [itemField]: url,
           }
         }
-        handleUpdateBlockProps(blockId, { [arrayKey]: arr } as Partial<BlockProps>)
+        if (block.block_type === 'marquee_strip' && arrayKey === 'items') {
+          handleUpdateBlockProps(blockId, patchMarqueeBlockItemsFromRaw(arr) as Partial<BlockProps>)
+        } else {
+          handleUpdateBlockProps(blockId, { [arrayKey]: arr } as Partial<BlockProps>)
+        }
         toast.success(
           arraySlots.length > 1
             ? `Image applied to ${arraySlots.length} photos`
@@ -11864,7 +12053,11 @@ export default function WebsiteBuilder() {
         }
         const updated = arr.map((item, idx) =>
           targetIndices.has(idx) ? { ...item, [arrayCfg.itemField]: url } : item)
-        handleUpdateBlockProps(blockId, { [arrayCfg.arrayKey]: updated } as Partial<BlockProps>)
+        if (block.block_type === 'marquee_strip') {
+          handleUpdateBlockProps(blockId, patchMarqueeBlockItemsFromRaw(updated) as Partial<BlockProps>)
+        } else {
+          handleUpdateBlockProps(blockId, { [arrayCfg.arrayKey]: updated } as Partial<BlockProps>)
+        }
         toast.success(
           targetIndices.size > 1
             ? `Image applied to ${targetIndices.size} slots`
@@ -11876,7 +12069,11 @@ export default function WebsiteBuilder() {
         if (arrayCfg.defaultTitle) newItem.title = arrayCfg.defaultTitle
         if (arrayCfg.itemField === 'avatar_url') newItem.name = arrayCfg.defaultTitle || 'Person'
         if (arrayCfg.itemField === 'src') delete newItem.title
-        handleUpdateBlockProps(blockId, { [arrayCfg.arrayKey]: [newItem] } as Partial<BlockProps>)
+        if (block.block_type === 'marquee_strip') {
+          handleUpdateBlockProps(blockId, patchMarqueeBlockItemsFromRaw([newItem]) as Partial<BlockProps>)
+        } else {
+          handleUpdateBlockProps(blockId, { [arrayCfg.arrayKey]: [newItem] } as Partial<BlockProps>)
+        }
         toast.success('Image added as new item.')
       }
       return
@@ -12276,6 +12473,56 @@ export default function WebsiteBuilder() {
       return
     }
 
+    const nestedColumnLinkMatch = linkPropKey.match(/^(\w+)\.(\d+)\.links\.(\d+)\.(href|url)$/)
+    if (nestedColumnLinkMatch) {
+      const [, arrayKey, colIdxStr, linkIdxStr, urlField] = nestedColumnLinkMatch
+      const colIdx = Number.parseInt(colIdxStr, 10)
+      const linkIdx = Number.parseInt(linkIdxStr, 10)
+      const cols = Array.isArray(p?.[arrayKey]) ? [...(p[arrayKey] as unknown[])] : []
+      const col = (cols[colIdx] && typeof cols[colIdx] === 'object'
+        ? { ...(cols[colIdx] as object) }
+        : {}) as Record<string, unknown>
+      const links = Array.isArray(col.links) ? [...(col.links as unknown[])] : []
+      const rawLink = links[linkIdx]
+      const linkObj = rawLink && typeof rawLink === 'object'
+        ? { ...(rawLink as object) }
+        : { label: typeof rawLink === 'string' ? rawLink : '' }
+      const label = String(linkObj.label ?? (typeof rawLink === 'string' ? rawLink : '') ?? '').trim()
+      const target = String(linkObj[urlField] ?? linkObj.href ?? linkObj.url ?? '').trim()
+      const currentValue: LinkValue = {
+        type: target ? 'url' : 'none',
+        target,
+        label: label || 'Link',
+        openInNewTab: /^https?:\/\//i.test(target),
+      }
+      setLinkEditor({
+        anchor,
+        value: currentValue,
+        save: (v) => {
+          const nextCols = Array.isArray(p?.[arrayKey]) ? [...(p[arrayKey] as unknown[])] : []
+          while (nextCols.length <= colIdx) nextCols.push({ title: '', links: [] })
+          const prevCol = nextCols[colIdx]
+          const colBase = prevCol && typeof prevCol === 'object' ? { ...(prevCol as object) } : { title: '', links: [] }
+          const nextLinks = Array.isArray((colBase as Record<string, unknown>).links)
+            ? [...((colBase as Record<string, unknown>).links as unknown[])]
+            : []
+          while (nextLinks.length <= linkIdx) nextLinks.push('')
+          const prevLink = nextLinks[linkIdx]
+          const prevLabel = prevLink && typeof prevLink === 'object'
+            ? String((prevLink as Record<string, unknown>).label ?? '')
+            : String(prevLink ?? '')
+          const nextLabel = (v.label || prevLabel || 'Link').trim()
+          nextLinks[linkIdx] = {
+            label: nextLabel,
+            href: v.type === 'none' ? '' : v.target.trim(),
+          }
+          nextCols[colIdx] = { ...colBase, links: nextLinks }
+          handleUpdateBlockProps(blockId, { [arrayKey]: nextCols } as Partial<BlockProps>)
+        },
+      })
+      return
+    }
+
     const arrayItemLinkMatch = linkPropKey.match(/^(\w+)\.(\d+)\.(url|href|cta_url)$/)
     if (arrayItemLinkMatch) {
       const [, arrayKey, indexStr, urlField] = arrayItemLinkMatch
@@ -12307,23 +12554,11 @@ export default function WebsiteBuilder() {
             ...(v.label && urlField === 'cta_url' ? { cta: v.label } : {}),
           }
           nextArr[index] = nextItem
-          const patch: Record<string, unknown> = { [arrayKey]: nextArr }
           if (arrayKey === 'items' && block.block_type === 'marquee_strip') {
-            patch.text = marqueeItemsToLegacyText(
-              nextArr.map(entry => {
-                const row = entry as Record<string, unknown>
-                const label = String(row.label ?? '').trim()
-                const imageUrl = String(row.image_url ?? '').trim()
-                if (!label && !imageUrl) return null
-                return {
-                  label,
-                  url: String(row.url ?? '').trim() || undefined,
-                  image_url: imageUrl || undefined,
-                }
-              }).filter((entry): entry is { label: string; url?: string; image_url?: string } => entry != null),
-            )
+            handleUpdateBlockProps(blockId, patchMarqueeBlockItemsFromRaw(nextArr) as Partial<BlockProps>)
+            return
           }
-          handleUpdateBlockProps(blockId, patch as any)
+          handleUpdateBlockProps(blockId, { [arrayKey]: nextArr } as Partial<BlockProps>)
         },
       })
       return
@@ -14042,9 +14277,15 @@ export default function WebsiteBuilder() {
       cancelAnimationFrame(raf)
       ro.disconnect()
     }
-  }, [activePageId, device, canvasBlocksRevision])
+  }, [activePageId, device, canvasBlocksRevision, effectiveCanvasScale])
 
   const scaledCanvasWidth = Math.round(designWidthPx * effectiveCanvasScale)
+  /** zoom (not transform) so position:sticky works for nav / announcement in the canvas. */
+  const canvasScaleStyle = {
+    width: designWidthPx,
+    zoom: effectiveCanvasScale,
+  } as React.CSSProperties
+  const canvasOuterHeight = canvasPreviewHeight
 
   useLayoutEffect(() => {
     const main = canvasMainRef.current
@@ -15591,7 +15832,7 @@ export default function WebsiteBuilder() {
           {/* Scrollable canvas preview */}
           <div
             ref={canvasMainRef}
-            className="relative flex-1 min-h-0 overflow-y-auto overflow-x-hidden"
+            className="builder-canvas-scroll relative flex-1 min-h-0 overflow-y-auto overflow-x-hidden"
             onDragOver={handleCanvasDragOver}
             onDrop={handleDropOnCanvas}
           >
@@ -15643,53 +15884,58 @@ export default function WebsiteBuilder() {
               className="relative shrink-0"
               style={{
                 width: scaledCanvasWidth,
-                height: Math.round(canvasPreviewHeight * effectiveCanvasScale),
+                height: canvasOuterHeight,
               }}
             >
-              <div
-                ref={canvasPreviewInnerRef}
-                data-page-canvas="true"
-                onClickCapture={handleCanvasNavClickCapture}
-                style={{
-                  width: designWidthPx,
-                  transform: `scale(${effectiveCanvasScale})`,
-                  transformOrigin: 'top left',
-                }}
-                className="shadow-lg rounded-none min-h-[600px] overflow-visible"
-              >
               {!activePage ? (
-                <div className="flex items-center justify-center h-full text-gray-400 py-32">
-                  <div className="text-center">
-                    <FileText className="w-12 h-12 mx-auto mb-3 opacity-30" />
-                    <p className="text-sm">Select a page to start building</p>
+                <div
+                  ref={canvasPreviewInnerRef}
+                  data-page-canvas="true"
+                  onClickCapture={handleCanvasNavClickCapture}
+                  style={canvasScaleStyle}
+                  className="shadow-lg rounded-none min-h-[600px] overflow-visible"
+                >
+                  <div className="flex items-center justify-center h-full text-gray-400 py-32">
+                    <div className="text-center">
+                      <FileText className="w-12 h-12 mx-auto mb-3 opacity-30" />
+                      <p className="text-sm">Select a page to start building</p>
+                    </div>
                   </div>
                 </div>
               ) : activeBlocks.length === 0 ? (
                 <div
-                  className="flex items-center justify-center py-20 border-2 border-dashed border-primary/30 m-8 rounded-2xl"
-                  onDragOver={e => e.preventDefault()}
-                  onDrop={handleDropOnCanvas}
+                  ref={canvasPreviewInnerRef}
+                  data-page-canvas="true"
+                  onClickCapture={handleCanvasNavClickCapture}
+                  style={canvasScaleStyle}
+                  className="shadow-lg rounded-none min-h-[600px] overflow-visible"
                 >
-                  <div className="text-center max-w-md">
-                    <Layout className="w-12 h-12 mx-auto mb-3 text-primary/40" />
-                    <p className="text-sm text-gray-500 font-medium">This page has no sections yet</p>
-                    <p className="text-xs text-gray-400 mt-1">Pick a section from the catalog or drag one here</p>
-                    <div className="flex flex-col items-center gap-2 mt-5">
-                      <button
-                        type="button"
-                        onClick={openSectionsPanel}
-                        className="flex items-center gap-2 px-4 py-2.5 bg-primary text-white text-xs font-bold rounded-lg hover:opacity-90 transition-opacity shadow-lg"
-                      >
-                        Browse all sections
-                      </button>
-                      <button
-                        type="button"
-                        onClick={openSectionsPanel}
-                        className="flex items-center gap-2 px-4 py-2.5 border border-primary/40 text-primary text-xs font-semibold rounded-lg hover:bg-accent transition-colors"
-                      >
-                        <Layout className="w-4 h-4" />
-                        Add Section
-                      </button>
+                  <div
+                    className="flex items-center justify-center py-20 border-2 border-dashed border-primary/30 m-8 rounded-2xl"
+                    onDragOver={e => e.preventDefault()}
+                    onDrop={handleDropOnCanvas}
+                  >
+                    <div className="text-center max-w-md">
+                      <Layout className="w-12 h-12 mx-auto mb-3 text-primary/40" />
+                      <p className="text-sm text-gray-500 font-medium">This page has no sections yet</p>
+                      <p className="text-xs text-gray-400 mt-1">Pick a section from the catalog or drag one here</p>
+                      <div className="flex flex-col items-center gap-2 mt-5">
+                        <button
+                          type="button"
+                          onClick={openSectionsPanel}
+                          className="flex items-center gap-2 px-4 py-2.5 bg-primary text-white text-xs font-bold rounded-lg hover:opacity-90 transition-opacity shadow-lg"
+                        >
+                          Browse all sections
+                        </button>
+                        <button
+                          type="button"
+                          onClick={openSectionsPanel}
+                          className="flex items-center gap-2 px-4 py-2.5 border border-primary/40 text-primary text-xs font-semibold rounded-lg hover:bg-accent transition-colors"
+                        >
+                          <Layout className="w-4 h-4" />
+                          Add Section
+                        </button>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -15725,28 +15971,37 @@ export default function WebsiteBuilder() {
                 >
                 <>
                   <div
-                    ref={builderPageRootRef}
-                    className={cn('relative', formatPaintBrush && 'builder-format-paint-active')}
-                    onClickCapture={handleCanvasBlockSelectCapture}
-                    onContextMenuCapture={handleCanvasBlockContextMenuCapture}
-                    onMouseMove={handleCanvasBlockHover}
-                    onMouseLeave={handleCanvasBlockHoverLeave}
+                    ref={canvasPreviewInnerRef}
+                    data-page-canvas="true"
+                    onClickCapture={handleCanvasNavClickCapture}
+                    style={canvasScaleStyle}
+                    className="shadow-lg rounded-none min-h-[600px] overflow-visible"
                   >
-                    {builderPublicSite && (
-                      <BuilderCanvasPageRenderer
-                        publicSite={builderPublicSite}
-                        blocks={activeBlocks}
-                        pageId={activePageId}
-                        revision={canvasBlocksRevision}
-                      />
-                    )}
+                    <div
+                      ref={builderPageRootRef}
+                      className={cn('relative', formatPaintBrush && 'builder-format-paint-active')}
+                      onClickCapture={handleCanvasBlockSelectCapture}
+                      onContextMenuCapture={handleCanvasBlockContextMenuCapture}
+                      onMouseMove={handleCanvasBlockHover}
+                      onMouseLeave={handleCanvasBlockHoverLeave}
+                    >
+                      {builderPublicSite && (
+                        <BuilderCanvasPageRenderer
+                          publicSite={builderPublicSite}
+                          blocks={activeBlocks}
+                          pageId={activePageId}
+                          isHomepage={Boolean(activePage?.is_homepage)}
+                          revision={canvasBlocksRevision}
+                        />
+                      )}
 
-                    {activeBlocks.map((block, idx) => (
+                      {activeBlocks.map((block, idx) => (
                       <BuilderSectionOverlay
                         key={block.id}
                         blockId={block.id}
                         containerRef={builderPageRootRef}
                         scrollRootRef={canvasMainRef}
+                        layoutScale={1}
                         revision={canvasBlocksRevision}
                         selected={selectedBlockId === block.id}
                         imageSelected={
@@ -15968,10 +16223,10 @@ export default function WebsiteBuilder() {
                       </span>
                     </div>
                   )}
+                  </div>
                 </>
                 </BuilderCanvasProviders>
               )}
-              </div>
             </div>
           </div>
           </div>

@@ -1,8 +1,9 @@
 import { Globe } from 'lucide-react'
-import type { JSX } from 'react'
+import type { JSX, MouseEvent } from 'react'
 import type { LiveItem, PublicSite, StyleConfig } from '@/blocks/registry'
 import { BuilderTextField } from '@/components/builder/BuilderTextField'
 import { useBuilderCanvas } from '@/contexts/BuilderCanvasContext'
+import { cn } from '@/lib/utils'
 import { isBlockFieldHidden, resolveBlockTextField } from '@/lib/blockHiddenFields'
 
 interface Props {
@@ -13,6 +14,8 @@ interface Props {
   branchCode?: string | null
   blockId?: string
 }
+
+const DEFAULT_PLATFORMS = ['twitter', 'instagram', 'linkedin', 'facebook', 'youtube'] as const
 
 /**
  * Brand SVG glyphs at 24×24, rendered with `fill="currentColor"` so they
@@ -72,18 +75,129 @@ const PLATFORM_ICONS: Record<string, JSX.Element> = {
   ),
 }
 
+function readSocialLinksRecord(
+  props: Record<string, unknown>,
+  profile?: LiveItem,
+): Record<string, string> {
+  const fromProps = props.social_links
+  if (fromProps && typeof fromProps === 'object' && !Array.isArray(fromProps)) {
+    return fromProps as Record<string, string>
+  }
+  const legacy = props.links
+  if (legacy && typeof legacy === 'object' && !Array.isArray(legacy)) {
+    return legacy as Record<string, string>
+  }
+  const fromProfile = profile?.meta?.social_links
+  if (fromProfile && typeof fromProfile === 'object' && !Array.isArray(fromProfile)) {
+    return fromProfile as Record<string, string>
+  }
+  return {}
+}
+
+function buildPlatformEntries(
+  raw: Record<string, string>,
+  isEditorCanvas: boolean,
+): Array<[string, string]> {
+  if (isEditorCanvas) {
+    const merged: Record<string, string> = {}
+    for (const platform of DEFAULT_PLATFORMS) {
+      merged[platform] = String(raw[platform] ?? '').trim()
+    }
+    for (const [key, val] of Object.entries(raw)) {
+      if (!(key in merged)) merged[key] = String(val ?? '').trim()
+    }
+    return Object.entries(merged)
+  }
+  return Object.entries(raw).filter(([, url]) => String(url ?? '').trim())
+}
+
+function SocialPlatformChip({
+  platform,
+  url,
+  style,
+  isEditorCanvas,
+  blockId,
+}: {
+  platform: string
+  url: string
+  style: StyleConfig
+  isEditorCanvas: boolean
+  blockId?: string
+}) {
+  const builderCanvas = useBuilderCanvas()
+  const key = platform.toLowerCase()
+  const icon = PLATFORM_ICONS[key] ?? <Globe className="w-4 h-4" aria-hidden="true" />
+  const label = platform.charAt(0).toUpperCase() + platform.slice(1)
+  const hasUrl = Boolean(url.trim())
+  const fieldKey = `social_links.${platform}`
+  const isSelected = isEditorCanvas
+    && builderCanvas?.activeBlockId === blockId
+    && ((builderCanvas?.activeTextFields ?? []).includes(fieldKey)
+      || builderCanvas?.activeTextField === fieldKey)
+
+  const chipClass = cn(
+    'inline-flex items-center gap-2 px-4 py-2 rounded-xl border transition-colors text-sm font-medium',
+    hasUrl
+      ? 'border-gray-200 text-gray-600 hover:border-current hover:text-[var(--brand-primary)]'
+      : 'border-dashed border-gray-300 text-gray-400 hover:border-primary/40 hover:text-primary',
+    isSelected && 'ring-2 ring-primary/30 border-primary',
+  )
+
+  const handleEditorClick = (e: MouseEvent<HTMLButtonElement>) => {
+    if (!isEditorCanvas || !blockId || !builderCanvas?.onPropLinkEdit) return
+    e.preventDefault()
+    e.stopPropagation()
+    const rect = e.currentTarget.getBoundingClientRect()
+    builderCanvas.onPropLinkEdit(blockId, fieldKey, { x: rect.left, y: rect.bottom + 6 })
+    builderCanvas.onTextFieldActivate?.(blockId, fieldKey, {
+      clientX: e.clientX,
+      clientY: e.clientY,
+    })
+  }
+
+  if (isEditorCanvas && blockId) {
+    return (
+      <button
+        type="button"
+        onClick={handleEditorClick}
+        title={hasUrl ? `${label}: ${url}` : `Click to add ${label} URL`}
+        className={chipClass}
+        style={{ ['--brand-primary' as string]: style.primary_color }}
+      >
+        {icon}
+        <span>{label}</span>
+      </button>
+    )
+  }
+
+  if (!hasUrl) return null
+
+  return (
+    <a
+      href={url}
+      target="_blank"
+      rel="noopener noreferrer"
+      aria-label={`${label} (opens in new window)`}
+      className={chipClass}
+      style={{ ['--brand-primary' as string]: style.primary_color }}
+    >
+      {icon}
+      <span>{label}</span>
+    </a>
+  )
+}
+
 export default function SocialLinksBlock({ style, props, liveItems, blockId }: Props) {
   const builderCanvas = useBuilderCanvas()
   const isEditorCanvas = builderCanvas?.isEditorCanvas && !!blockId
   const title = resolveBlockTextField(props, 'title')
   const showTitle = !isBlockFieldHidden(props, 'title') && (title || isEditorCanvas)
   const profile = liveItems[0]
-  const links =
-    (props.links as Record<string, string> | undefined) ||
-    (profile?.meta?.social_links as Record<string, string> | undefined) ||
-    {}
-  const entries = Object.entries(links).filter(([, url]) => url)
-  if (entries.length === 0 && !showTitle) return null
+  const rawLinks = readSocialLinksRecord(props, profile)
+  const entries = buildPlatformEntries(rawLinks, isEditorCanvas)
+  const hasVisibleLinks = entries.some(([, url]) => isEditorCanvas || Boolean(String(url).trim()))
+
+  if (!hasVisibleLinks && !showTitle) return null
 
   return (
     <section className="py-12 px-4 sm:px-6 lg:px-8 text-center" aria-label={title ?? undefined}>
@@ -91,25 +205,16 @@ export default function SocialLinksBlock({ style, props, liveItems, blockId }: P
         <BuilderTextField fieldKey="title" blockId={blockId} blockProps={props} value={title ?? ''} as="h3" className="text-lg font-semibold text-gray-700 mb-4" placeholder="Section title" />
       )}
       <div className="flex justify-center gap-3 flex-wrap">
-        {entries.map(([platform, url]) => {
-          const key = platform.toLowerCase()
-          const icon = PLATFORM_ICONS[key] ?? <Globe className="w-4 h-4" aria-hidden="true" />
-          const label = platform.charAt(0).toUpperCase() + platform.slice(1)
-          return (
-            <a
-              key={platform}
-              href={url}
-              target="_blank"
-              rel="noopener noreferrer"
-              aria-label={`${label} (opens in new window)`}
-              className="inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-gray-200 hover:border-current transition-colors text-sm font-medium text-gray-600 hover:text-[var(--brand-primary)]"
-              style={{ ['--brand-primary' as keyof React.CSSProperties as string]: style.primary_color }}
-            >
-              {icon}
-              <span>{label}</span>
-            </a>
-          )
-        })}
+        {entries.map(([platform, url]) => (
+          <SocialPlatformChip
+            key={platform}
+            platform={platform}
+            url={url}
+            style={style}
+            isEditorCanvas={isEditorCanvas}
+            blockId={blockId}
+          />
+        ))}
       </div>
     </section>
   )

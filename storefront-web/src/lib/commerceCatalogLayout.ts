@@ -77,6 +77,34 @@ export function carouselCardWidthClass(columns: number): string {
   return 'w-60'
 }
 
+export type CategoryShowcaseLayout = 'grid' | 'carousel' | 'strip' | 'list' | 'banner' | 'overlay' | 'compact'
+
+const CATEGORY_SHOWCASE_LAYOUTS: CategoryShowcaseLayout[] = [
+  'grid', 'carousel', 'strip', 'list', 'banner', 'overlay', 'compact',
+]
+
+/** Map builder preset props to a Category Showcase layout the component renders. */
+export function resolveCategoryShowcaseLayout(props: Record<string, unknown>): CategoryShowcaseLayout {
+  const layout = String(props.layout ?? '')
+  if (CATEGORY_SHOWCASE_LAYOUTS.includes(layout as CategoryShowcaseLayout)) {
+    return layout as CategoryShowcaseLayout
+  }
+  const variant = String(props.variant ?? '')
+  if (variant === 'carousel') return 'carousel'
+  if (variant === 'list' || variant === 'minimal') return 'list'
+  if (variant === 'strip') return 'strip'
+  if (variant === 'banner' || variant === 'featured' || variant === 'hero') return 'banner'
+  if (variant === 'overlay' || variant === 'editorial') return 'overlay'
+  if (variant === 'compact') return 'compact'
+  return 'grid'
+}
+
+/** Commerce registry variant id (grid vs carousel wrapper). */
+export function categoryShowcaseVariantId(props: Record<string, unknown>): 'grid' | 'carousel' {
+  const layout = resolveCategoryShowcaseLayout(props)
+  return layout === 'carousel' || layout === 'strip' ? 'carousel' : 'grid'
+}
+
 export function cardStylePadding(cardStyle: string, cardPadding?: number): number {
   if (cardPadding != null) return cardPadding
   if (cardStyle === 'minimal') return 8

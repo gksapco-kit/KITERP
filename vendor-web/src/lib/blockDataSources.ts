@@ -29,7 +29,7 @@ export type DataSourceDefinition = {
 export const DATA_SOURCES: DataSourceDefinition[] = [
   { id: 'products', label: 'Products', desc: 'Your product catalog', group: 'catalog', blockTypes: ['product_grid', 'menu_grid', 'live_stock', 'live_quote', 'gallery_masonry', 'product_detail', 'related_products', 'cart_drawer', 'recently_viewed', 'product_filters', 'checkout_form'], selectable: true },
   { id: 'services', label: 'Services', desc: 'Your service offerings', group: 'catalog', blockTypes: ['services_cards', 'services_list', 'booking_widget', 'booking_slot_picker', 'menu_grid'], selectable: true },
-  { id: 'categories', label: 'Categories', desc: 'Product & service categories', group: 'catalog', blockTypes: ['menu_grid', 'category_cards', 'product_filters'], selectable: false },
+  { id: 'categories', label: 'Categories', desc: 'Active categories from Sales → Categories', group: 'catalog', blockTypes: ['menu_grid', 'category_cards', 'product.categories', 'product_filters'], selectable: false },
   { id: 'testimonials', label: 'Testimonials', desc: 'Verified customer reviews (4★+)', group: 'people', blockTypes: ['testimonials', 'testimonials_grid', 'product_reviews'], selectable: false },
   { id: 'team', label: 'Team', desc: 'Active employees & roles', group: 'people', blockTypes: ['team_grid', 'team_list'], selectable: false },
   { id: 'customers', label: 'Customers', desc: 'Top customers for social proof', group: 'people', blockTypes: ['trust_logos'], selectable: false },
@@ -39,6 +39,7 @@ export const DATA_SOURCES: DataSourceDefinition[] = [
   { id: 'kpis', label: 'Business KPIs', desc: 'Live stats: orders, revenue, rating', group: 'actions', blockTypes: ['stats', 'counters', 'impact_stats'], selectable: false },
   { id: 'pages', label: 'Site Pages', desc: 'Published pages for nav & footer links', group: 'basic', blockTypes: ['nav', 'footer'], selectable: false },
   { id: 'blog', label: 'Blog posts', desc: 'Published posts from Blog Manager', group: 'basic', blockTypes: ['blog_grid', 'blog_featured', 'blog_list'], selectable: false },
+  { id: 'plans', label: 'Pricing plans', desc: 'Active plans from Sales → Pricing Plans', group: 'catalog', blockTypes: ['pricing', 'service.pricing'], selectable: false },
   { id: 'profile', label: 'Vendor Profile', desc: 'Brand, address, contact, socials', group: 'basic', blockTypes: ['contact_form', 'map_embed', 'map_contact', 'footer', 'nav', 'about_split', 'social_links'], selectable: false },
   { id: 'media', label: 'Site Media', desc: 'Images & videos uploaded to this site', group: 'basic', blockTypes: ['gallery_masonry', 'gallery_grid', 'image_gallery', 'portfolio_grid', 'image_block'], selectable: false },
   { id: 'external_api', label: 'Ext API', desc: 'Custom REST endpoint', group: 'ext_api', blockTypes: [], selectable: false },
@@ -89,6 +90,7 @@ export const BLOCK_AUTO_SOURCE: Record<string, LiveResource> = {
   about_split: 'profile',
   social_links: 'profile',
   category_cards: 'categories',
+  'product.categories': 'categories',
   gallery_masonry: 'media',
   gallery_grid: 'media',
   image_gallery: 'media',
@@ -99,6 +101,8 @@ export const BLOCK_AUTO_SOURCE: Record<string, LiveResource> = {
   blog_grid: 'blog',
   blog_featured: 'blog',
   blog_list: 'blog',
+  pricing: 'plans',
+  'service.pricing': 'plans',
 }
 
 /** Sections that only work with live data — user cannot turn off connection in layout picker. */
@@ -113,10 +117,32 @@ export const BLOCK_REQUIRED_DATA_SOURCE = new Set<string>([
   'booking_slot_picker',
   'cart_drawer',
   'category_cards',
+  'product.categories',
   'blog_grid',
   'blog_featured',
   'blog_list',
+  'pricing',
+  'service.pricing',
 ])
+
+/** Website builder sections that show the Categories sync banner in the sidebar. */
+export const CATEGORY_SYNC_BLOCK_TYPES = new Set<string>([
+  'product.categories',
+])
+
+/** Website builder sections that show the Pricing Plans sync banner in the sidebar. */
+export const PLANS_SYNC_BLOCK_TYPES = new Set<string>([
+  'pricing',
+  'service.pricing',
+])
+
+export function isCategorySyncedBlock(blockType: string): boolean {
+  return CATEGORY_SYNC_BLOCK_TYPES.has(blockType)
+}
+
+export function isPlansSyncedBlock(blockType: string): boolean {
+  return PLANS_SYNC_BLOCK_TYPES.has(blockType)
+}
 
 export function inferCommerceAutoSource(blockType: string): LiveResource | undefined {
   if (blockType.startsWith('product.')) {
@@ -125,6 +151,7 @@ export function inferCommerceAutoSource(blockType: string): LiveResource | undef
   if (blockType.startsWith('service.')) {
     if (blockType.includes('testimonial')) return 'testimonials'
     if (blockType.includes('team')) return 'team'
+    if (blockType.includes('pricing')) return 'plans'
     return 'services'
   }
   if (blockType.startsWith('menu.')) return 'products'

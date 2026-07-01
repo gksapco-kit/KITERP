@@ -15,6 +15,7 @@ import {
   resolveBlockTextField,
   visibleArrayEntries,
 } from '@/lib/blockHiddenFields'
+import { imageShapeFromProps, imageShapeRadiusClass } from '@/lib/sectionItemLayout'
 import { arrayItemImageFrameStyle, arrayItemImageRenderStyle } from '@/lib/sectionImageStyle'
 import { cn, imgUrl } from '@/lib/utils'
 
@@ -98,18 +99,20 @@ function MarqueeItemImage({
   const isEditor = ctx?.isEditorCanvas === true && !!blockId && !isMirror
   const hasImage = hasMarqueeImage(item)
   const imageHidden = isBlockFieldHidden(blockProps, arrayImageDeleteFieldKey('items', index, 'image_url'))
-  if (imageHidden && !isEditor) return null
-  if (!hasImage && !isEditor) return null
+  if (imageHidden || !hasImage) return null
 
   const src = imgUrl(item.image_url as string)
+  if (!src) return null
   const alt = item.label?.trim() || 'Marquee image'
-  const heightClass = compact ? 'h-6' : 'h-8'
+  const heightClass = compact ? 'h-6 w-6' : 'h-8 w-8'
   const itemRecord = item as unknown as Record<string, unknown>
+  const imageShape = imageShapeFromProps(blockProps, 'rounded')
+  const shapeClass = imageShapeRadiusClass(imageShape)
 
   if (isEditor) {
     return (
       <div
-        className={cn('relative shrink-0 overflow-hidden rounded-md', heightClass, 'w-auto min-w-[4rem]')}
+        className={cn('relative shrink-0 overflow-hidden', heightClass, shapeClass)}
         style={arrayItemImageFrameStyle(itemRecord)}
       >
         <BuilderSectionImage
@@ -121,7 +124,7 @@ function MarqueeItemImage({
           blockProps={blockProps}
           src={src}
           alt={alt}
-          className="absolute inset-0 h-full w-full object-contain"
+          className="absolute inset-0 h-full w-full object-cover"
         />
       </div>
     )
@@ -131,7 +134,7 @@ function MarqueeItemImage({
     <img
       src={src}
       alt={alt}
-      className={cn(heightClass, 'w-auto shrink-0 object-contain')}
+      className={cn(heightClass, 'shrink-0 object-cover', shapeClass)}
       style={arrayItemImageRenderStyle(itemRecord, blockProps)}
       loading="lazy"
       onError={e => {

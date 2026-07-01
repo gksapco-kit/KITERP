@@ -9,7 +9,7 @@
 export type LiveResource =
   | 'products' | 'services' | 'testimonials' | 'team' | 'kpis'
   | 'profile' | 'pages' | 'categories' | 'customers' | 'orders'
-  | 'bookings' | 'media' | 'stores' | 'blog'
+  | 'bookings' | 'media' | 'stores' | 'blog' | 'plans'
 
 export interface BlockDef {
   type: string
@@ -52,12 +52,13 @@ export const BLOCK_CATALOG: BlockDef[] = [
   { type: 'stats', label: 'Stats / Numbers', desc: 'Key metrics and achievements', category: 'content', defaultProps: { title: 'By the Numbers', stats: [{ value: '50K+', label: 'Happy Customers' }, { value: '99.9%', label: 'Uptime' }, { value: '4.9★', label: 'Average Rating' }, { value: '24/7', label: 'Support' }] }, liveResource: 'kpis' },
   { type: 'testimonials', label: 'Testimonials', desc: 'Customer reviews and quotes', category: 'social', defaultProps: { title: 'What Our Customers Say', testimonials: [], padding_top: 64, padding_bottom: 64 }, liveResource: 'testimonials' },
   { type: 'team_grid', label: 'Team Grid', desc: 'Meet the team cards', category: 'about', defaultProps: { title: 'Meet Our Team', columns: 4, members: [] }, liveResource: 'team' },
-  { type: 'pricing', label: 'Pricing Table', desc: 'Pricing plans comparison', category: 'conversion', defaultProps: { title: 'Simple, Transparent Pricing', show_annual_toggle: true, plans: [] } },
+  { type: 'pricing', label: 'Pricing Table', desc: 'Pricing plans comparison', category: 'conversion', defaultProps: { title: 'Simple, Transparent Pricing', show_annual_toggle: true, plans: [] }, liveResource: 'plans' },
   { type: 'faq', label: 'FAQ / Accordion', desc: 'Frequently asked questions', category: 'content', defaultProps: { title: 'Frequently Asked Questions', faqs: [{ question: 'How do I get started?', answer: 'Simply sign up and follow our quick onboarding guide.' }] } },
   { type: 'cta', label: 'Call to Action', desc: 'Bold CTA section to convert visitors', category: 'conversion', defaultProps: { headline: 'Ready to Get Started?', subtitle: 'Join 50,000+ businesses already using our platform.', cta_label: 'Start Free Trial', cta_url: '/signup' } },
   { type: 'contact_form', label: 'Contact Form', desc: 'Contact form with fields', category: 'contact', defaultProps: { title: 'Get In Touch', email: 'hello@yoursite.com', phone: '', address: '', show_map: false, form_fields: [{ name: 'name', type: 'text', required: true, placeholder: 'Your Name' }, { name: 'email', type: 'email', required: true, placeholder: 'Your Email' }, { name: 'message', type: 'textarea', required: true, placeholder: 'Your Message' }] }, liveResource: 'profile' },
   { type: 'portfolio_grid', label: 'Portfolio Grid', desc: 'Filterable work portfolio grid', category: 'portfolio', defaultProps: { title: 'Our Work', columns: 3, filterable: true }, liveResource: 'media' },
   { type: 'gallery_masonry', label: 'Gallery Masonry', desc: 'Masonry image gallery', category: 'media', defaultProps: { title: 'Gallery' }, liveResource: 'media' },
+  { type: 'video_gallery', label: 'Video Gallery', desc: 'YouTube / Vimeo video grid', category: 'media', defaultProps: { title: 'Video Gallery', layout: 'grid', columns: 3, videos: [] } },
   { type: 'blog_grid', label: 'Blog Grid', desc: 'Latest posts in a grid', category: 'blog', defaultProps: { title: 'Latest Posts', columns: 3, show_count: 12, image_height_pct: 56 }, liveResource: 'blog' },
   { type: 'newsletter', label: 'Newsletter', desc: 'Email capture / subscribe form', category: 'conversion', defaultProps: { title: 'Stay in the Loop', subtitle: 'Get the latest news and updates delivered to your inbox.', cta_label: 'Subscribe' } },
   { type: 'video_embed', label: 'Video Embed', desc: 'YouTube / Vimeo video player', category: 'media', defaultProps: { title: 'Watch Our Demo', video_url: '', aspect_ratio: '16:9' } },
@@ -68,7 +69,7 @@ export const BLOCK_CATALOG: BlockDef[] = [
   { type: 'image_block', label: 'Image', desc: 'Single image with optional caption', category: 'media', defaultProps: { image_url: '', caption: '' } },
   { type: 'divider', label: 'Divider', desc: 'Visual separator between sections', category: 'layout', defaultProps: { style: 'line', color: '#e5e7eb', spacing: 40 } },
   { type: 'spacer', label: 'Spacer', desc: 'Blank vertical spacer', category: 'layout', defaultProps: { height: 80 } },
-  { type: 'social_links', label: 'Social Links', desc: 'Social media icon links', category: 'social', defaultProps: { title: 'Follow Us', links: {} }, liveResource: 'profile' },
+  { type: 'social_links', label: 'Social Links', desc: 'Social media icon links', category: 'social', defaultProps: { title: 'Follow Us', social_links: { twitter: '', instagram: '', linkedin: '', facebook: '', youtube: '' } }, liveResource: 'profile' },
   { type: 'countdown', label: 'Countdown Timer', desc: 'Countdown to a date/event', category: 'conversion', defaultProps: { title: 'Launch In', target_date: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString() } },
   { type: 'product_grid', label: 'Product Grid', desc: 'Display products from your catalog', category: 'ecommerce', defaultProps: { title: 'Featured Products', columns: 4, show_badges: true, padding_top: 64, padding_bottom: 64 }, liveResource: 'products' },
   { type: 'menu_grid', label: 'Menu / Catalog', desc: 'Restaurant-style menu grid', category: 'food', defaultProps: { title: 'Our Menu', categories: ['Starters', 'Mains', 'Desserts', 'Drinks'] }, liveResource: 'products' },

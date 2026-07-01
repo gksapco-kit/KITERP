@@ -100,7 +100,10 @@ export function DraftPreviewRenderer({
       </div>
     )
   } else {
-    const blocks = withSharedShellBlocks(site as PublicSite, page).filter(b => b.visible !== false)
+    const blocks = withSharedShellBlocks(site as PublicSite, page)
+      .filter(b => b.visible !== false)
+      // Cookie banner is pinned at the preview root (see below) so it stays visible.
+      .filter(b => b.block_type !== 'cookie_consent')
     pageContent = (
       <BlockRenderer
         blocks={blocks as PublicSite['pages'][0]['blocks']}
@@ -109,6 +112,13 @@ export function DraftPreviewRenderer({
       />
     )
   }
+
+  /** Homepage cookie is site-wide; fall back to a cookie block on the current page. */
+  const previewCookieBlock = useMemo(() => {
+    if (cookieShellBlock) return cookieShellBlock
+    if (!page) return null
+    return page.blocks?.find(b => b.block_type === 'cookie_consent' && b.visible !== false) ?? null
+  }, [cookieShellBlock, page])
 
   return (
     <PreviewVendorProvider
@@ -130,11 +140,11 @@ export function DraftPreviewRenderer({
             />
           )}
           {pageContent}
-          {catalogRouteTrimmed && cookieShellBlock && (
+          {previewCookieBlock && (
             <BlockRenderer
-              blocks={[cookieShellBlock] as PublicSite['pages'][0]['blocks']}
+              blocks={[previewCookieBlock] as PublicSite['pages'][0]['blocks']}
               site={site as PublicSite}
-              pageId={homePage?.id}
+              pageId={homePage?.id ?? page?.id}
             />
           )}
         </BuilderCanvasContextProvider>

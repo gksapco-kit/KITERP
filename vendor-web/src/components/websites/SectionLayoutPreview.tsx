@@ -994,6 +994,41 @@ function GalleryPreview({ variantProps, sampleUrls }: { variantProps: Record<str
   )
 }
 
+function VideoGalleryPreview({ variantProps }: { variantProps: Record<string, unknown> }) {
+  const layout = String(variantProps.layout ?? 'grid')
+  const cols = Number(variantProps.columns) || 3
+  const shape = String(variantProps.image_shape ?? 'rounded')
+  const tileClass = cn(
+    'relative w-full bg-slate-800/90 flex items-center justify-center',
+    shape === 'circle' ? 'aspect-square rounded-full' : shape === 'rounded' ? 'rounded-xl aspect-video' : 'rounded-sm aspect-video',
+  )
+  const playDot = <span className="h-2 w-2 rounded-full bg-white/90" />
+  if (layout === 'featured') {
+    return (
+      <div className="h-full p-1.5 grid grid-cols-3 grid-rows-2 gap-0.5">
+        <div className={cn(tileClass, 'col-span-2 row-span-2')}>{playDot}</div>
+        {[0, 1].map(i => <div key={i} className={tileClass}>{playDot}</div>)}
+      </div>
+    )
+  }
+  if (layout === 'masonry') {
+    return (
+      <div className="h-full p-1.5 columns-3 gap-0.5">
+        {[0, 1, 2, 3, 4, 5].map(i => (
+          <div key={i} className={cn(tileClass, 'mb-0.5 break-inside-avoid', i % 3 === 0 ? 'h-8' : 'h-5')}>{playDot}</div>
+        ))}
+      </div>
+    )
+  }
+  return (
+    <div className={cn('h-full p-1.5 grid gap-0.5', cols <= 2 ? 'grid-cols-2' : cols >= 4 ? 'grid-cols-4' : 'grid-cols-3')}>
+      {[0, 1, 2, 3, 4, 5].slice(0, cols <= 2 ? 4 : cols >= 4 ? 8 : 6).map(i => (
+        <div key={i} className={tileClass}>{playDot}</div>
+      ))}
+    </div>
+  )
+}
+
 function AnnouncementPreview({ variantProps }: { variantProps: Record<string, unknown> }) {
   const color = String(variantProps.color ?? '#64C3A0')
   const showClose = variantProps.show_close !== false
@@ -1383,8 +1418,11 @@ export function SectionLayoutPreview({ blockType, variantProps, sampleUrls }: Pr
     case 'portfolio_grid':
     case 'image_gallery':
       return <GalleryPreview variantProps={variantProps} sampleUrls={sampleUrls} />
+    case 'video_gallery':
+      return <VideoGalleryPreview variantProps={variantProps} />
     case 'category_cards':
-      return <GridCardsPreview variantProps={{ ...variantProps, columns: 3 }} sampleUrls={sampleUrls} />
+    case 'product.categories':
+      return <GridCardsPreview variantProps={variantProps} sampleUrls={sampleUrls} withImages={sampleUrls.length > 0} />
     case 'announcement_bar':
       return <AnnouncementPreview variantProps={variantProps} />
     case 'marquee_strip':

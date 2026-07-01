@@ -796,6 +796,11 @@ async def get_live_resource_public(
 
         items = await build_blog_live_items(db, vendor.id, limit, _norm_item, include_drafts=False)
 
+    elif resource == "plans":
+        from app.services.plans_live_feed import build_plans_live_items
+
+        items = await build_plans_live_items(db, vendor.id, limit, _norm_item, include_inactive=False)
+
     elif resource == "profile":
         from app.services.storefront_contact import build_profile_live_meta, load_linked_store_for_site
 
@@ -1163,6 +1168,27 @@ async def invalidate_site_cache(subdomain: Optional[str], site_id: str) -> None:
         # Flush all live resource caches for this site
         async for key in redis_client.scan_iter(f"pub_live:{site_id}:*"):
             await redis_client.delete(key)
+    except Exception:
+        pass
+
+
+async def invalidate_vendor_live_caches(db: AsyncSession, vendor_id: UUID) -> None:
+    """Flush pub_live:* caches for every published site owned by this vendor."""
+    if not redis_client:
+        return
+    try:
+        rows = (
+            await db.execute(
+                select(WebsiteSite.id).where(
+                    WebsiteSite.vendor_id == vendor_id,
+                    WebsiteSite.is_published.is_(True),
+                    WebsiteSite.deleted_at.is_(None),
+                )
+            )
+        ).scalars().all()
+        for site_id in rows:
+            async for key in redis_client.scan_iter(f"pub_live:{site_id}:*"):
+                await redis_client.delete(key)
     except Exception:
         pass
 

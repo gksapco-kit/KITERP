@@ -12,6 +12,7 @@ export function CategoryCardTitle({
   className,
   style,
   placeholder,
+  readOnly = false,
 }: {
   index: number
   title: string
@@ -21,11 +22,13 @@ export function CategoryCardTitle({
   className?: string
   style?: CSSProperties
   placeholder?: string
+  /** When true, render synced catalog text (no canvas edit). */
+  readOnly?: boolean
 }) {
   const value = categoryItemTitle(blockProps, index, title)
+  const Tag = as
 
-  if (!blockId) {
-    const Tag = as
+  if (!blockId || readOnly) {
     return (
       <Tag className={className} style={style}>
         {value}
