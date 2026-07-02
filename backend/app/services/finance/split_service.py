@@ -164,7 +164,9 @@ async def apply_document_splitting(
     created_items: list[FinJournalSplitItem] = []
 
     for rule in rules:
-        base_types = {rb.account_type for rb in rule.base_types}
+        # Lower-cased since seeded COA uses Title Case account_type ("Asset", "Expense", …)
+        # while split rule base types are stored lowercase (see DocumentSplitting.tsx).
+        base_types = {rb.account_type.lower() for rb in rule.base_types}
 
         # Classify lines
         base_lines: list[FinJournalLine] = []
@@ -174,7 +176,7 @@ async def apply_document_splitting(
             acc = (await db.execute(
                 select(FinAccount).where(FinAccount.id == line.account_id)
             )).scalar_one_or_none()
-            if acc and acc.account_type in base_types:
+            if acc and acc.account_type.lower() in base_types:
                 base_lines.append(line)
             else:
                 clearing_lines.append(line)

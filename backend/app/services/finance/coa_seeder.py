@@ -8,7 +8,8 @@ from datetime import date
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from app.models.finance import (
-    FinAccount, FinFiscalYear, FinFiscalYearCompany, FinPeriod, FinCompany
+    FinAccount, FinFiscalYear, FinFiscalYearCompany, FinPeriod, FinCompany,
+    FinAssetCategory,
 )
 from app.services.finance.fiscal_calendar import build_standard_periods
 
@@ -164,6 +165,56 @@ async def seed_default_coa(db: AsyncSession, vendor_id) -> None:
     for code, parent_code in PARENT_MAP.items():
         if code in code_to_id and parent_code in code_to_id:
             code_to_id[code].parent_id = code_to_id[parent_code].id
+
+    await db.flush()
+
+
+# Default Fixed Asset categories, mapped to the Fixed Asset GL accounts above.
+# (name, fixed_asset_code, useful_life_years, depreciation_method, salvage_pct)
+DEFAULT_ASSET_CATEGORIES = [
+    ("Plant & Machinery", "1210", 10, "wdv", 5),
+    ("Computers & Equipment", "1220", 3, "straight_line", 0),
+    ("Furniture & Fixtures", "1230", 8, "straight_line", 5),
+    ("Vehicles", "1240", 8, "wdv", 10),
+    ("Land & Building", "1250", 30, "straight_line", 0),
+]
+
+ACCUM_DEP_CODE = "1290"
+DEP_EXPENSE_CODE = "5240"
+
+
+async def seed_default_asset_categories(db: AsyncSession, vendor_id) -> None:
+    """
+    Create default Fixed Asset categories mapped to the seeded Fixed Asset GL
+    accounts. No-op if the vendor already has any categories, or if the COA
+    hasn't been seeded yet (accounts not found).
+    """
+    existing = await db.execute(
+        select(FinAssetCategory).where(FinAssetCategory.vendor_id == vendor_id).limit(1)
+    )
+    if existing.scalar_one_or_none():
+        return  # Already seeded
+
+    r = await db.execute(select(FinAccount).where(FinAccount.vendor_id == vendor_id))
+    accounts_by_code = {a.code: a for a in r.scalars().all()}
+    accum_dep = accounts_by_code.get(ACCUM_DEP_CODE)
+    dep_expense = accounts_by_code.get(DEP_EXPENSE_CODE)
+    if not accounts_by_code:
+        return  # COA not seeded yet — nothing to map categories to
+
+    for name, fa_code, life, method, salvage_pct in DEFAULT_ASSET_CATEGORIES:
+        asset_acc = accounts_by_code.get(fa_code)
+        db.add(FinAssetCategory(
+            id=uuid.uuid4(),
+            vendor_id=vendor_id,
+            name=name,
+            depreciation_method=method,
+            useful_life_years=life,
+            salvage_pct=salvage_pct,
+            asset_account_id=asset_acc.id if asset_acc else None,
+            accum_dep_account_id=accum_dep.id if accum_dep else None,
+            dep_expense_account_id=dep_expense.id if dep_expense else None,
+        ))
 
     await db.flush()
 

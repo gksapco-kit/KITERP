@@ -142,6 +142,9 @@ import FinanceAP from '@/pages/finance/AccountsPayable'
 import FinanceBank from '@/pages/finance/BankCash'
 import FinanceBudgets from '@/pages/finance/BudgetsForecast'
 import FinanceAssets from '@/pages/finance/FixedAssets'
+import FinanceAssetReports from '@/pages/finance/AssetReports'
+import FinanceAssetDepreciationSchedule from '@/pages/finance/AssetDepreciationSchedule'
+import FinanceAssetGlReconciliation from '@/pages/finance/AssetGlReconciliation'
 import FinanceTax from '@/pages/finance/TaxReturns'
 import FinancePnL from '@/pages/finance/reports/ProfitLoss'
 import FinanceBalanceSheet from '@/pages/finance/reports/BalanceSheet'
@@ -460,7 +463,10 @@ export const router = createBrowserRouter([
       { path: 'finance/ap',                     element: <FinanceAP /> },
       { path: 'finance/bank',                   element: <FinanceBank /> },
       { path: 'finance/budgets',                element: <FinanceBudgets /> },
-      { path: 'finance/assets',                 element: <FinanceAssets /> },
+      { path: 'finance/assets',                         element: <FinanceAssets /> },
+      { path: 'finance/assets/reports',                 element: <FinanceAssetReports /> },
+      { path: 'finance/assets/depreciation-schedule',   element: <FinanceAssetDepreciationSchedule /> },
+      { path: 'finance/assets/gl-reconciliation',       element: <FinanceAssetGlReconciliation /> },
       { path: 'finance/tax',                    element: <FinanceTax /> },
       { path: 'finance/reports/pnl',            element: <FinancePnL /> },
       { path: 'finance/reports/balance-sheet',  element: <FinanceBalanceSheet /> },

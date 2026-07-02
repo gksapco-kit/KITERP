@@ -167,6 +167,21 @@ export const generalDesignBarGrid2x2 = cn(
 export const generalDesignBarGridCell =
   'flex h-full w-full min-h-0 items-center justify-center text-gray-700 transition-colors hover:bg-accent'
 
+/**
+ * Same 2×2 grid, but stacked in a column shell so a full-width Delete row can
+ * sit below the inset without overflowing the fixed-height grid cells.
+ */
+export const generalDesignBarStack = cn(
+  generalDesignBarCluster,
+  'h-auto w-20 flex-col',
+)
+
+export const generalDesignBarGrid2x2Rows = 'grid h-14 shrink-0 grid-cols-2 grid-rows-2'
+
+/** Full-width Delete row under the 2×2 inset — appears only when an element is selected. */
+export const generalDesignBarDeleteRow =
+  'flex h-6 w-full shrink-0 items-center justify-center gap-1 border-t border-gray-200 text-[9px] font-bold uppercase tracking-wide text-red-600 transition-colors hover:bg-red-50'
+
 export const visualTabShell = cn(
   designBarTabSlot,
   'py-0',

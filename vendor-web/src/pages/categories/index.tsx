@@ -3,6 +3,7 @@ import { useEscapeToClose } from '@/hooks/useEscapeToClose'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
 import { Select, selectOptionsWithBlank } from '@/components/ui/select'
 import {
@@ -341,6 +342,7 @@ function CategoryTreeExplorer({
   sortDir,
   onSortKeyChange,
   onSortDirChange,
+  formOpen = false,
 }: {
   categories: VendorCategory[]
   selectedId: string | null
@@ -353,6 +355,7 @@ function CategoryTreeExplorer({
   sortDir: SortDir
   onSortKeyChange: (v: string) => void
   onSortDirChange: (v: SortDir) => void
+  formOpen?: boolean
 }) {
   const [activeDrag, setActiveDrag] = useState<VendorCategory | null>(null)
   const sensors = useSensors(
@@ -392,49 +395,60 @@ function CategoryTreeExplorer({
   }
 
   return (
-    <div className="flex h-full min-h-0 flex-col rounded-xl border border-border bg-card p-4">
-      <div className="mb-3 flex shrink-0 flex-wrap items-center justify-between gap-2">
-        <div className="flex items-center gap-2">
-          <FolderTree className="w-4 h-4 text-primary" />
-          <span className="text-sm font-semibold text-foreground">Category tree</span>
+    <div className="flex h-full min-h-0 flex-col overflow-hidden rounded-xl border border-border bg-card p-4">
+      <div className="mb-3 shrink-0 space-y-2.5">
+        <div className="flex min-w-0 items-center justify-between gap-2">
+          <div className="flex min-w-0 items-center gap-2">
+            <FolderTree className="h-4 w-4 shrink-0 text-primary" />
+            <span className="truncate text-sm font-semibold text-foreground">Category tree</span>
+          </div>
+          {categories.length > 0 && !formOpen && (
+            <Button type="button" size="sm" variant="outline" className="h-7 shrink-0 gap-1 text-xs" onClick={onAddRoot}>
+              <Plus className="h-3 w-3" /> Root
+            </Button>
+          )}
         </div>
-        <div className="flex items-center gap-2">
-          <Select
-            value={sortKey}
-            onChange={onSortKeyChange}
-            options={[
-              { value: 'name', label: 'Name' },
-              { value: 'applies_to', label: 'Applies To' },
-              { value: 'status', label: 'Status' },
-            ]}
-            aria-label="Sort by"
-            className="h-8 text-xs"
-            wrapperClassName="min-w-[6.5rem] shrink-0"
-          />
-          <Select
-            value={sortDir}
-            onChange={(v) => onSortDirChange(v as SortDir)}
-            options={[
-              { value: 'asc', label: 'A → Z' },
-              { value: 'desc', label: 'Z → A' },
-            ]}
-            aria-label="Sort direction"
-            className="h-8 text-xs"
-            wrapperClassName="min-w-[5.5rem] shrink-0"
-          />
-          <Button type="button" size="sm" variant="outline" className="h-7 text-xs gap-1" onClick={onAddRoot}>
-            <Plus className="w-3 h-3" /> Root
-          </Button>
-        </div>
+        {categories.length > 0 && (
+          <div className="grid min-w-0 grid-cols-[minmax(0,1fr)_auto] gap-2">
+            <Select
+              value={sortKey}
+              onChange={onSortKeyChange}
+              options={[
+                { value: 'name', label: 'Name' },
+                { value: 'applies_to', label: 'Applies To' },
+                { value: 'status', label: 'Status' },
+              ]}
+              aria-label="Sort by"
+              className="h-8 min-w-0 text-xs"
+            />
+            <Select
+              value={sortDir}
+              onChange={(v) => onSortDirChange(v as SortDir)}
+              options={[
+                { value: 'asc', label: 'A → Z' },
+                { value: 'desc', label: 'Z → A' },
+              ]}
+              aria-label="Sort direction"
+              className="h-8 text-xs"
+              wrapperClassName="w-[5.75rem] shrink-0"
+            />
+          </div>
+        )}
       </div>
 
       {categories.length === 0 ? (
-        <div className="flex flex-1 flex-col items-center justify-center py-6 text-center">
-          <FolderTree className="w-10 h-10 text-gray-300 mx-auto mb-2" />
+        <div className="flex flex-1 flex-col items-center justify-center px-2 py-6 text-center">
+          <FolderTree className="mx-auto mb-2 h-10 w-10 text-gray-300" />
           <p className="text-sm text-muted-foreground">No categories yet.</p>
-          <Button type="button" size="sm" className="mt-3 gap-1" onClick={onAddRoot}>
-            <Plus className="w-3.5 h-3.5" /> Add root category
-          </Button>
+          {formOpen ? (
+            <p className="mt-1 max-w-[14rem] text-xs text-muted-foreground/80">
+              Fill in the form to create your first category.
+            </p>
+          ) : (
+            <Button type="button" size="sm" className="mt-3 gap-1" onClick={onAddRoot}>
+              <Plus className="h-3.5 w-3.5" /> Add root category
+            </Button>
+          )}
         </div>
       ) : (
         <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
@@ -896,25 +910,33 @@ function CategoryFormPanel({
     <div className="flex w-full max-h-full flex-col overflow-hidden rounded-xl border border-border bg-card shadow-sm lg:max-h-[calc(100dvh-12rem)]">
       <form onSubmit={onSubmit} className="flex max-h-full flex-col">
 
-        <div className="flex shrink-0 items-center justify-between border-b border-border px-4 py-2.5">
-          <div className="flex items-center gap-2">
-            <div className="flex h-6 w-6 items-center justify-center rounded-md bg-primary/10">
+        <div className="flex shrink-0 items-center justify-between gap-3 border-b border-border px-4 py-3">
+          <div className="flex min-w-0 items-center gap-2">
+            <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-primary/10">
               <FolderTree className="h-3.5 w-3.5 text-primary" />
             </div>
-            <h3 className="text-sm font-semibold text-foreground">{title}</h3>
+            <h3 className="truncate text-sm font-semibold text-foreground">{title}</h3>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex shrink-0 items-center gap-2">
             <CategoryVisibilityToggle visible={isVisible} onChange={onVisibleChange} />
-            <Button type="button" variant="ghost" size="sm" onClick={onCancel} className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground">
-              <X className="w-4 h-4" />
+            <div className="h-5 w-px bg-border" aria-hidden />
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={onCancel}
+              className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground"
+              aria-label="Close form"
+            >
+              <X className="h-4 w-4" />
             </Button>
           </div>
         </div>
 
-        <div className="overflow-y-auto overscroll-contain px-4 py-3">
-          <div className="flex items-start gap-3">
-            <div className="min-w-0 flex-1 grid grid-cols-1 gap-2.5 sm:grid-cols-2">
-              <div className="min-w-0 space-y-1">
+        <div className="overflow-y-auto overscroll-contain px-4 py-4">
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_7.5rem]">
+            <div className="min-w-0 space-y-3">
+              <div className="space-y-1">
                 <Label className="text-xs font-medium text-muted-foreground">Name <span className="text-red-500">*</span></Label>
                 <Input
                   value={name}
@@ -922,20 +944,22 @@ function CategoryFormPanel({
                   placeholder="e.g. Electronics"
                   required
                   className="h-9 w-full"
+                  autoFocus
                 />
               </div>
 
-              <div className="min-w-0 space-y-1">
+              <div className="space-y-1">
                 <Label className="text-xs font-medium text-muted-foreground">Description</Label>
-                <Input
+                <Textarea
                   value={description}
                   onChange={e => onDescriptionChange(e.target.value)}
-                  placeholder="Optional"
-                  className="h-9 w-full"
+                  placeholder="Optional short description"
+                  rows={2}
+                  className="min-h-[4.5rem] resize-none text-sm"
                 />
               </div>
 
-              <div className={cn('min-w-0 space-y-1', !editing && !parentId && 'sm:col-span-2')}>
+              <div className="space-y-1">
                 <Label className="text-xs font-medium text-muted-foreground">Applies To</Label>
                 <Select
                   value={appliesTo}
@@ -947,7 +971,7 @@ function CategoryFormPanel({
               </div>
 
               {(editing || parentId) && (
-                <div className="min-w-0 space-y-1">
+                <div className="space-y-1">
                   <Label className="text-xs font-medium text-muted-foreground">Parent Category</Label>
                   {editing ? (
                     <Select
@@ -967,24 +991,26 @@ function CategoryFormPanel({
                   )}
                 </div>
               )}
+
+              <CustomFieldsEditor fields={customFields} onChange={onCustomFieldsChange} compact />
             </div>
 
-            <div className="w-[6.5rem] shrink-0 space-y-1.5">
+            <div className="space-y-1.5 lg:pt-5">
               <Label className="text-xs font-medium text-muted-foreground">Image</Label>
-              <div className="flex w-full flex-col items-stretch gap-1.5">
+              <div className="flex flex-col items-stretch gap-1.5">
                 {imageUrl ? (
                   <SingleImagePreview
                     url={imageUrl}
                     alt="Category image"
                     resolveUrl={(u) => mediaUrl(resolveBusinessGalleryDisplayUrl(u))}
                     className="w-full rounded-lg"
-                    imgClassName="h-24 w-full rounded-lg object-cover border border-border bg-muted/30"
+                    imgClassName="aspect-square w-full rounded-lg object-cover border border-border bg-muted/30"
                     editable
                     onSave={onUploadImage}
                   />
                 ) : (
-                  <div className="flex h-24 w-full items-center justify-center rounded-lg border border-dashed border-border bg-muted/20 text-muted-foreground/40">
-                    {imageUploading ? <Loader2 className="w-5 h-5 animate-spin" /> : <FolderTree className="w-6 h-6" />}
+                  <div className="flex aspect-square w-full items-center justify-center rounded-lg border border-dashed border-border bg-muted/20 text-muted-foreground/40">
+                    {imageUploading ? <Loader2 className="h-5 w-5 animate-spin" /> : <FolderTree className="h-6 w-6" />}
                   </div>
                 )}
                 <ImageSourcePicker
@@ -992,6 +1018,7 @@ function CategoryFormPanel({
                   accept="image/jpeg,image/png,image/webp,image/gif"
                   disabled={pending}
                   uploading={imageUploading}
+                  preferDirectUrl
                   onFile={onUploadImage}
                   onUrl={onImageUrl}
                   buttonLabel="Upload"
@@ -1011,14 +1038,10 @@ function CategoryFormPanel({
               </div>
             </div>
           </div>
-
-          <div className="mt-2.5">
-            <CustomFieldsEditor fields={customFields} onChange={onCustomFieldsChange} compact />
-          </div>
         </div>
 
-        <div className="flex shrink-0 items-center justify-end gap-2 border-t border-border px-4 py-2.5">
-          <Button type="button" variant="cancel" onClick={onCancel} className="h-8 px-4 text-sm">
+        <div className="flex shrink-0 items-center justify-end gap-2 border-t border-border px-4 py-3">
+          <Button type="button" variant="outline" onClick={onCancel} className="h-8 px-4 text-sm">
             Cancel
           </Button>
           <Button type="submit" disabled={pending} className="h-8 px-4 text-sm">
@@ -1198,40 +1221,56 @@ export default function CategoriesPage() {
   )
 
   const parentLabel = parentId ? findInTree(data?.categories || [], parentId)?.name : null
+  const hasCategories = sortedCategories.length > 0
+  const showTreePanel = hasCategories || !showForm
 
   return (
     <div className="mx-auto flex max-h-[calc(100dvh-10rem)] min-h-0 w-full flex-col overflow-hidden">
       <div className="flex shrink-0 items-center justify-between gap-3 pb-3">
         <div className="min-w-0">
           <h1 className="text-2xl font-bold text-gray-900">Categories</h1>
-          <p className="text-sm text-gray-500 mt-0.5 truncate">Organize your catalogue with categories, subcategories, and custom fields</p>
+          <p className="mt-0.5 truncate text-sm text-gray-500">Organize your catalogue with categories, subcategories, and custom fields</p>
         </div>
-        <Button onClick={() => openCreate()} className="shrink-0 gap-2"><Plus className="w-4 h-4" />Add Category</Button>
+        {!showForm && (
+          <Button onClick={() => openCreate()} className="shrink-0 gap-2">
+            <Plus className="h-4 w-4" /> Add Category
+          </Button>
+        )}
       </div>
 
       {isLoading ? (
         <Card className="min-h-0 flex-1">
           <CardContent className="flex h-full items-center justify-center py-16 text-center">
-            <Loader2 className="w-6 h-6 animate-spin mx-auto text-gray-400" />
+            <Loader2 className="mx-auto h-6 w-6 animate-spin text-gray-400" />
           </CardContent>
         </Card>
       ) : (
-        <div className="grid min-h-0 flex-1 grid-cols-1 gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)] lg:items-start">
-          <div className="h-full min-h-0">
-            <CategoryTreeExplorer
-              categories={sortedCategories}
-              selectedId={selectedId}
-              onSelect={(c) => { setSelectedId(c.id); setShowForm(false) }}
-              onAddSub={(pid) => openCreate(pid)}
-              onAddRoot={() => openCreate()}
-              onMove={handleMoveCategory}
-              onToggleVisibility={handleToggleCategoryVisibility}
-              sortKey={sortKey}
-              sortDir={sortDir}
-              onSortKeyChange={setSortKey}
-              onSortDirChange={setSortDir}
-            />
-          </div>
+        <div
+          className={cn(
+            'grid min-h-0 flex-1 grid-cols-1 gap-4 lg:items-start',
+            showTreePanel
+              ? 'lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]'
+              : 'mx-auto w-full max-w-2xl',
+          )}
+        >
+          {showTreePanel && (
+            <div className="h-full min-h-0">
+              <CategoryTreeExplorer
+                categories={sortedCategories}
+                selectedId={selectedId}
+                onSelect={(c) => { setSelectedId(c.id); setShowForm(false) }}
+                onAddSub={(pid) => openCreate(pid)}
+                onAddRoot={() => openCreate()}
+                onMove={handleMoveCategory}
+                onToggleVisibility={handleToggleCategoryVisibility}
+                sortKey={sortKey}
+                sortDir={sortDir}
+                onSortKeyChange={setSortKey}
+                onSortDirChange={setSortDir}
+                formOpen={showForm}
+              />
+            </div>
+          )}
           <div className="min-h-0 lg:self-start">
             {showForm ? (
               <CategoryFormPanel

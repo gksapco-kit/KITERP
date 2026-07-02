@@ -267,6 +267,30 @@ export function reconcileNavPlacements(
     out.restaurant = [...ordered, ...rest]
   }
 
+  // Asset Accounting routes stay together under Finance (new links were landing at section end).
+  const assetAccountingOrder = [
+    '/finance/assets',
+    '/finance/assets/reports',
+    '/finance/assets/depreciation-schedule',
+    '/finance/assets/gl-reconciliation',
+  ]
+  const assetAccountingRoutes = assetAccountingOrder.filter((to) => validTos.has(to))
+  if (assetAccountingRoutes.length && out.finance) {
+    for (const sid of Object.keys(out)) {
+      out[sid] = out[sid].filter((to) => !assetAccountingOrder.includes(to))
+    }
+    const list = out.finance
+    const budgetsIdx = list.indexOf('/finance/budgets')
+    const bankIdx = list.indexOf('/finance/bank')
+    const insertAt =
+      budgetsIdx >= 0 ? budgetsIdx : bankIdx >= 0 ? bankIdx + 1 : list.length
+    out.finance = [
+      ...list.slice(0, insertAt),
+      ...assetAccountingRoutes,
+      ...list.slice(insertAt),
+    ]
+  }
+
   // Production routes always live under Production Management (avoids losing items after drag-and-drop).
   const productionOrder = [
     '/production',

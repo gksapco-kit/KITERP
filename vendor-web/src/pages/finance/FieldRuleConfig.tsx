@@ -5,8 +5,9 @@ import {
 } from '@/hooks/useFinance'
 import { JOURNAL_FIELD_OPTIONS, fieldLabelForKey } from '@/lib/glFieldCatalog'
 import type { Company } from '@/types/finance'
-import { vendorApi } from '@/api/vendor'
-import { useQuery } from '@tanstack/react-query'
+import type { TeamMember } from '@/types'
+import { useTeamMembers } from '@/hooks/useVendor'
+import { StaffPicker, type StaffPickerValue } from '@/components/commission/StaffPicker'
 import { ListChecks, Plus, Trash2, Building2, User, LayoutGrid, Loader2, Info, X } from 'lucide-react'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
@@ -33,6 +34,14 @@ const REQ = [
   { value: 'hidden', label: 'Hidden' },
 ] as const
 
+function teamMemberLabel(m?: TeamMember | null): string {
+  if (!m) return '—'
+  const name = m.user?.full_name || m.role_name
+  const contact = [m.user?.email, m.user?.phone].filter(Boolean).join(' · ')
+  if (name && contact) return `${name} · ${contact}`
+  return name || contact || m.id.slice(0, 8)
+}
+
 export default function FieldRuleConfig() {
   const [entityFilter, setEntityFilter] = useState('journal_entry')
   const { data: rules = [], isLoading, refetch } = useFieldRules({ entity_type: entityFilter })
@@ -40,11 +49,9 @@ export default function FieldRuleConfig() {
   const createMut = useCreateFieldRule()
   const delMut = useDeleteFieldRule()
 
-  const { data: team } = useQuery({
-    queryKey: ['team-members-field-rules'],
-    queryFn: () => vendorApi.listTeamMembers({ size: 200 }),
-  })
+  const { data: teamData } = useTeamMembers({ size: 200 })
   const [showAdd, setShowAdd] = useState(false)
+  const [selectedTeamUser, setSelectedTeamUser] = useState<StaffPickerValue | null>(null)
   useEscapeToClose(() => setShowAdd(false), showAdd)
   const [form, setForm] = useState({
     scope: 'gl' as 'gl' | 'company' | 'user',
@@ -54,10 +61,7 @@ export default function FieldRuleConfig() {
     requirement: 'mandatory' as 'optional' | 'mandatory' | 'hidden',
   })
 
-  const members = useMemo(
-    () => (team as { items: { id: string; name?: string; email?: string }[] } | undefined)?.items || [],
-    [team],
-  )
+  const members = useMemo(() => teamData?.items ?? [], [teamData])
 
   const companyMap = useMemo(() => {
     const m = new Map<string, string>()
@@ -122,7 +126,17 @@ export default function FieldRuleConfig() {
         </div>
         <button
           type="button"
-          onClick={() => setShowAdd(true)}
+          onClick={() => {
+            setForm({
+              scope: 'gl',
+              company_id: '',
+              vendor_user_id: '',
+              field_key: 'header.reference',
+              requirement: 'mandatory',
+            })
+            setSelectedTeamUser(null)
+            setShowAdd(true)
+          }}
           className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-primary text-white text-sm font-semibold hover:bg-primary/90"
         >
           <Plus className="w-4 h-4" /> Add rule
@@ -146,10 +160,10 @@ export default function FieldRuleConfig() {
                 {r.scope === 'user' && <User className="w-3.5 h-3.5 text-gray-400" />}
                 {SCOPE.find(s => s.value === r.scope)?.label || r.scope}
               </div>
-              <div className="col-span-3 text-xs text-gray-600 truncate" title={r.company_id || r.vendor_user_id || '—'}>
+              <div className="col-span-3 text-xs text-gray-600 truncate" title={r.company_id || teamMemberLabel(members.find(m => m.id === r.vendor_user_id))}>
                 {r.scope === 'gl' && '—'}
                 {r.scope === 'company' && (companyMap.get(r.company_id || '') || r.company_id || '—')}
-                {r.scope === 'user' && (members.find(m => m.id === r.vendor_user_id)?.name || r.vendor_user_id?.slice(0, 8) || '—')}
+                {r.scope === 'user' && teamMemberLabel(members.find(m => m.id === r.vendor_user_id))}
               </div>
               <div className="col-span-3 text-gray-800">{fieldLabelForKey(r.field_key)}</div>
               <div className="col-span-2">
@@ -205,7 +219,15 @@ export default function FieldRuleConfig() {
               <label className="text-xs font-bold text-gray-500 uppercase">Scope</label>
               <select
                 value={form.scope}
-                onChange={e => setForm(f => ({ ...f, scope: e.target.value as 'gl' | 'company' | 'user' }))}
+                onChange={e => {
+                  const scope = e.target.value as 'gl' | 'company' | 'user'
+                  if (scope !== 'user') setSelectedTeamUser(null)
+                  setForm(f => ({
+                    ...f,
+                    scope,
+                    vendor_user_id: scope === 'user' ? f.vendor_user_id : '',
+                  }))
+                }}
                 className="w-full border rounded-lg mt-1 px-2 py-2 text-sm"
               >
                 {SCOPE.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
@@ -229,16 +251,16 @@ export default function FieldRuleConfig() {
             {form.scope === 'user' && (
               <div>
                 <label className="text-xs font-bold text-gray-500 uppercase">Team user</label>
-                <select
-                  value={form.vendor_user_id}
-                  onChange={e => setForm(f => ({ ...f, vendor_user_id: e.target.value }))}
-                  className="w-full border rounded-lg mt-1 px-2 py-2 text-sm"
-                >
-                  <option value="">— Select —</option>
-                  {members.map(m => (
-                    <option key={m.id} value={m.id}>{m.name || m.email || m.id}</option>
-                  ))}
-                </select>
+                <div className="mt-1">
+                  <StaffPicker
+                    selected={selectedTeamUser}
+                    onSelect={v => {
+                      setSelectedTeamUser(v)
+                      setForm(f => ({ ...f, vendor_user_id: v?.id || '' }))
+                    }}
+                    placeholder="Search by name, email or phone…"
+                  />
+                </div>
               </div>
             )}
             <div>

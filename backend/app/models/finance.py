@@ -1319,6 +1319,8 @@ class FinAsset(Base):
     salvage_value = Column(Numeric(18, 4), default=0)
     useful_life_years = Column(Integer)
     depreciation_method = Column(String(20))           # overrides category if set
+    total_units_capacity = Column(Numeric(18, 4))       # lifetime output capacity, for units_of_production
+    units_consumed = Column(Numeric(18, 4), default=0)  # cumulative units produced/consumed to date
     current_value = Column(Numeric(18, 4))
     accumulated_depreciation = Column(Numeric(18, 4), default=0)
     location = Column(String(200))
@@ -1347,6 +1349,7 @@ class FinAssetDepreciationEntry(Base):
     period_id = Column(UUID(as_uuid=True), ForeignKey("fin_period.id", ondelete="SET NULL"))
     depreciation_date = Column(Date, nullable=False)
     amount = Column(Numeric(18, 4), nullable=False)
+    units_produced = Column(Numeric(18, 4))             # units consumed this period, for units_of_production method
     book_value_after = Column(Numeric(18, 4))
     journal_entry_id = Column(UUID(as_uuid=True), ForeignKey("fin_journal_entry.id", ondelete="SET NULL"))
     created_at = Column(DateTime(timezone=True), server_default=func.now())

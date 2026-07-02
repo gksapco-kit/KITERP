@@ -152,11 +152,11 @@ async def _pnl_by_dimension(
             func.sum(
                 func.coalesce(FinJournalLine.credit, Decimal(0))
                 - func.coalesce(FinJournalLine.debit, Decimal(0))
-            ).filter(FinAccount.account_type == "income").label("income"),
+            ).filter(func.lower(FinAccount.account_type) == "income").label("income"),
             func.sum(
                 func.coalesce(FinJournalLine.debit, Decimal(0))
                 - func.coalesce(FinJournalLine.credit, Decimal(0))
-            ).filter(FinAccount.account_type == "expense").label("expense"),
+            ).filter(func.lower(FinAccount.account_type) == "expense").label("expense"),
         )
         .join(FinJournalEntry, FinJournalLine.journal_entry_id == FinJournalEntry.id)
         .join(FinAccount, FinJournalLine.account_id == FinAccount.id)
@@ -166,7 +166,7 @@ async def _pnl_by_dimension(
             FinJournalEntry.status == "posted",
             FinJournalEntry.entry_date >= from_date,
             FinJournalEntry.entry_date <= to_date,
-            FinAccount.account_type.in_(["income", "expense"]),
+            func.lower(FinAccount.account_type).in_(["income", "expense"]),
         )
         .group_by(dimension_col, label_col)
         .order_by(label_col)

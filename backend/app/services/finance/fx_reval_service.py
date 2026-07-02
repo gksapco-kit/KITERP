@@ -205,6 +205,8 @@ async def run_balance_carry_forward(
     Returns a list of {account_code, account_name, closing_balance, action}.
     Idempotent — re-running for the same year updates existing records.
     """
+    # Compared case-insensitively since seeded COA uses Title Case ("Asset", "Liability",
+    # "Equity") while other modules (posting keys, document splitting) use lowercase.
     BS_TYPES = ("asset", "liability", "equity")
 
     # Closing balances: sum all posted lines for the year
@@ -226,7 +228,7 @@ async def run_balance_carry_forward(
             FinJournalEntry.status == "posted",
             FinJournalEntry.entry_date >= year_start,
             FinJournalEntry.entry_date <= year_end,
-            FinAccount.account_type.in_(BS_TYPES),
+            func.lower(FinAccount.account_type).in_(BS_TYPES),
         )
         .group_by(FinJournalLine.account_id)
     )).all()

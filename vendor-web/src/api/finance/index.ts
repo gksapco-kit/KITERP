@@ -184,22 +184,32 @@ export const listAssetCategories = () =>
   axios.get(`${BASE}/assets/categories`).then(r => r.data)
 export const createAssetCategory = (data: Record<string, unknown>) =>
   axios.post(`${BASE}/assets/categories`, data).then(r => r.data)
+export const updateAssetCategory = (id: string, data: Record<string, unknown>) =>
+  axios.put(`${BASE}/assets/categories/${id}`, data).then(r => r.data)
 export const listAssets = (params?: Record<string, unknown>) =>
   axios.get(`${BASE}/assets`, { params }).then(r => r.data)
 export const getAsset = (id: string) =>
   axios.get(`${BASE}/assets/${id}`).then(r => r.data)
 export const createAsset = (data: Record<string, unknown>) =>
   axios.post(`${BASE}/assets`, data).then(r => r.data)
+export const createAssetFromBill = (data: Record<string, unknown>) =>
+  axios.post(`${BASE}/assets/from-bill`, data).then(r => r.data)
 export const updateAsset = (id: string, data: Record<string, unknown>) =>
   axios.put(`${BASE}/assets/${id}`, data).then(r => r.data)
-export const runDepreciation = (id: string) =>
-  axios.post(`${BASE}/assets/${id}/depreciate`).then(r => r.data)
+export const runDepreciation = (id: string, data?: Record<string, unknown>) =>
+  axios.post(`${BASE}/assets/${id}/depreciate`, data || {}).then(r => r.data)
 export const disposeAsset = (id: string, data: Record<string, unknown>) =>
   axios.post(`${BASE}/assets/${id}/dispose`, data).then(r => r.data)
 export const listMaintenance = (params?: Record<string, unknown>) =>
   axios.get(`${BASE}/assets/maintenance`, { params }).then(r => r.data)
 export const createMaintenance = (data: Record<string, unknown>) =>
   axios.post(`${BASE}/assets/maintenance`, data).then(r => r.data)
+export const getAssetRegisterReport = (params?: Record<string, unknown>) =>
+  axios.get(`${BASE}/assets/reports/register`, { params }).then(r => r.data)
+export const getDepreciationScheduleReport = (params: Record<string, unknown>) =>
+  axios.get(`${BASE}/assets/reports/depreciation-schedule`, { params }).then(r => r.data)
+export const getAssetReconciliationReport = (params?: Record<string, unknown>) =>
+  axios.get(`${BASE}/assets/reports/reconciliation`, { params }).then(r => r.data)
 
 // ── Tax ────────────────────────────────────────────────────────────────────
 export const listTaxCodes = () =>

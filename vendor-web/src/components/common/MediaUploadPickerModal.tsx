@@ -186,9 +186,9 @@ export function MediaUploadPickerModal({
     setApplying(true)
     try {
       await onChooseGalleryUrl(url)
-      resetAndClose()
     } finally {
       setApplying(false)
+      resetAndClose()
     }
   }
 
@@ -204,9 +204,9 @@ export function MediaUploadPickerModal({
           await onChooseGalleryUrl(url)
         }
       }
-      resetAndClose()
     } finally {
       setApplying(false)
+      resetAndClose()
     }
   }
 
@@ -224,9 +224,9 @@ export function MediaUploadPickerModal({
     setApplying(true)
     try {
       await onChooseExternalUrl(trimmed)
-      resetAndClose()
     } finally {
       setApplying(false)
+      resetAndClose()
     }
   }
 

@@ -789,6 +789,93 @@ class FinBudgetRepo:
         return f
 
 
+_ASSET_WRITABLE_FIELDS = frozenset({
+    "category_id", "asset_code", "name", "description", "acquisition_date",
+    "purchase_cost", "salvage_value", "useful_life_years", "depreciation_method",
+    "total_units_capacity", "location", "store_id", "serial_number", "notes", "status",
+})
+
+
+def _parse_asset_payload(data: dict) -> dict:
+    """Normalise API payload into FinAsset column types."""
+    clean: dict[str, Any] = {}
+    for key, raw in data.items():
+        if key not in _ASSET_WRITABLE_FIELDS:
+            continue
+        if raw is None or raw == "":
+            if key in {"category_id", "store_id", "description", "location", "serial_number",
+                       "notes", "total_units_capacity"}:
+                clean[key] = None
+            continue
+        if key == "acquisition_date":
+            if isinstance(raw, date):
+                clean[key] = raw
+            else:
+                clean[key] = date.fromisoformat(str(raw)[:10])
+        elif key in {"category_id", "store_id"}:
+            clean[key] = raw if isinstance(raw, UUID) else UUID(str(raw))
+        elif key in {"purchase_cost", "salvage_value", "total_units_capacity"}:
+            clean[key] = float(raw)
+        elif key == "useful_life_years":
+            clean[key] = int(raw)
+        else:
+            clean[key] = raw
+    return clean
+
+
+_ASSET_CATEGORY_WRITABLE_FIELDS = frozenset({
+    "name", "depreciation_method", "useful_life_years", "salvage_pct",
+    "asset_account_id", "accum_dep_account_id", "dep_expense_account_id",
+})
+
+_ASSET_ACCOUNT_FK_FIELDS = frozenset({
+    "asset_account_id", "accum_dep_account_id", "dep_expense_account_id",
+})
+
+
+def _parse_category_payload(data: dict) -> dict:
+    """Normalise API payload into FinAssetCategory column types."""
+    clean: dict[str, Any] = {}
+    for key, raw in data.items():
+        if key not in _ASSET_CATEGORY_WRITABLE_FIELDS:
+            continue
+        if key in _ASSET_ACCOUNT_FK_FIELDS:
+            clean[key] = None if raw in (None, "") else (raw if isinstance(raw, UUID) else UUID(str(raw)))
+        elif key == "useful_life_years":
+            clean[key] = int(raw) if raw not in (None, "") else None
+        elif key == "salvage_pct":
+            clean[key] = float(raw) if raw not in (None, "") else 0
+        else:
+            clean[key] = raw
+    return clean
+
+
+_ASSET_MAINTENANCE_WRITABLE_FIELDS = frozenset({
+    "asset_id", "maintenance_date", "description", "cost", "vendor_name", "status",
+})
+
+
+def _parse_maintenance_payload(data: dict) -> dict:
+    """Normalise API payload into FinAssetMaintenance column types."""
+    clean: dict[str, Any] = {}
+    for key, raw in data.items():
+        if key not in _ASSET_MAINTENANCE_WRITABLE_FIELDS:
+            continue
+        if raw is None or raw == "":
+            if key in {"description", "vendor_name"}:
+                clean[key] = None
+            continue
+        if key == "maintenance_date":
+            clean[key] = raw if isinstance(raw, date) else date.fromisoformat(str(raw)[:10])
+        elif key == "asset_id":
+            clean[key] = raw if isinstance(raw, UUID) else UUID(str(raw))
+        elif key == "cost":
+            clean[key] = float(raw)
+        else:
+            clean[key] = raw
+    return clean
+
+
 class FinAssetRepo:
     def __init__(self, db: AsyncSession):
         self.db = db
@@ -796,17 +883,126 @@ class FinAssetRepo:
     async def list_categories(self, vendor_id: UUID) -> list[FinAssetCategory]:
         r = await self.db.execute(
             select(FinAssetCategory).where(FinAssetCategory.vendor_id == vendor_id)
+            .order_by(FinAssetCategory.name)
         )
         return list(r.scalars().all())
 
+    async def get_category(self, category_id: UUID, vendor_id: UUID) -> Optional[FinAssetCategory]:
+        r = await self.db.execute(
+            select(FinAssetCategory).where(
+                FinAssetCategory.id == category_id, FinAssetCategory.vendor_id == vendor_id)
+        )
+        return r.scalar_one_or_none()
+
     async def create_category(self, vendor_id: UUID, data: dict) -> FinAssetCategory:
-        cat = FinAssetCategory(id=uuid.uuid4(), vendor_id=vendor_id, **data)
+        payload = _parse_category_payload(data)
+        if not payload.get("name"):
+            raise ValueError("Category name is required")
+        cat = FinAssetCategory(id=uuid.uuid4(), vendor_id=vendor_id, **payload)
         self.db.add(cat)
         await self.db.flush()
         return cat
 
+    async def update_category(self, cat: FinAssetCategory, data: dict) -> FinAssetCategory:
+        payload = _parse_category_payload(data)
+        if "name" in payload and not payload["name"]:
+            raise ValueError("Category name is required")
+        for k, v in payload.items():
+            setattr(cat, k, v)
+        await self.db.flush()
+        return cat
+
+    async def list_assets_by_bill(self, vendor_id: UUID, bill_id: UUID) -> list[FinAsset]:
+        r = await self.db.execute(
+            select(FinAsset).where(FinAsset.vendor_id == vendor_id, FinAsset.vendor_bill_id == bill_id)
+        )
+        return list(r.scalars().all())
+
+    async def create_asset_from_bill_line(self, vendor_id: UUID, data: dict) -> FinAsset:
+        """
+        Capitalize a specific vendor bill line into a Fixed Asset register entry.
+        The bill must already be posted — this does NOT post a new GL entry, since the
+        bill's own posting already debited the GL for the purchase. Run the Asset
+        Reconciliation report afterward to confirm the new subledger entry matches the
+        GL balance of the category's Fixed Asset account; if the bill was booked to a
+        different account, adjust the bill's posting account or re-map the category.
+        """
+        bill_line_id = data.get("bill_line_id")
+        if not bill_line_id:
+            raise ValueError("bill_line_id is required")
+        line = (await self.db.execute(
+            select(FinVendorBillLine).where(FinVendorBillLine.id == UUID(str(bill_line_id)))
+        )).scalar_one_or_none()
+        if not line:
+            raise ValueError("Vendor bill line not found")
+        bill = (await self.db.execute(
+            select(FinVendorBill).where(FinVendorBill.id == line.bill_id, FinVendorBill.vendor_id == vendor_id)
+        )).scalar_one_or_none()
+        if not bill:
+            raise ValueError("Vendor bill not found")
+        if bill.status in ("draft", "void"):
+            raise ValueError("Bill must be posted to the GL before it can be capitalized")
+
+        existing = (await self.db.execute(
+            select(FinAsset).where(FinAsset.vendor_id == vendor_id, FinAsset.vendor_bill_id == bill.id,
+                                    FinAsset.purchase_cost == line.line_total)
+        )).scalars().all()
+        if existing:
+            raise ValueError("This bill has already been capitalized as an asset")
+
+        cost = float(line.line_total or 0)
+        if cost <= 0:
+            raise ValueError("Bill line has no capitalizable amount")
+
+        category_id = data.get("category_id")
+        if category_id:
+            category = await self.get_category(UUID(str(category_id)), vendor_id)
+            if not category:
+                raise ValueError("Asset category not found")
+
+        payload = _parse_asset_payload({
+            **data,
+            "acquisition_date": data.get("acquisition_date") or bill.bill_date,
+            "purchase_cost": cost,
+        })
+        if not payload.get("asset_code") or not payload.get("name"):
+            raise ValueError("asset_code and name are required")
+
+        asset = FinAsset(
+            id=uuid.uuid4(), vendor_id=vendor_id, vendor_bill_id=bill.id,
+            journal_entry_id=bill.journal_entry_id, **payload,
+        )
+        asset.current_value = asset.purchase_cost
+        self.db.add(asset)
+        await self.db.flush()
+        return asset
+
+    async def get_category_accounts(self, asset: FinAsset) -> dict:
+        """
+        Resolve category-mapped GL accounts for posting acquire/depreciate/dispose events.
+        Queries by category_id directly rather than touching asset.category, since that
+        relationship may not be eager-loaded on freshly-created/updated asset instances
+        (accessing an unloaded relationship attribute would fail under async SQLAlchemy).
+        """
+        if not asset.category_id:
+            return {}
+        r = await self.db.execute(
+            select(FinAssetCategory).where(FinAssetCategory.id == asset.category_id)
+        )
+        cat = r.scalar_one_or_none()
+        if not cat:
+            return {}
+        out: dict[str, UUID] = {}
+        if cat.asset_account_id:
+            out["asset_account_id"] = cat.asset_account_id
+        if cat.accum_dep_account_id:
+            out["accum_dep_account_id"] = cat.accum_dep_account_id
+        if cat.dep_expense_account_id:
+            out["dep_expense_account_id"] = cat.dep_expense_account_id
+        return out
+
     async def list_assets(self, vendor_id: UUID, status: str = None,
-                          category_id: UUID = None) -> list[FinAsset]:
+                          category_id: UUID = None, store_id: UUID = None) -> list[FinAsset]:
         q = (select(FinAsset).where(FinAsset.vendor_id == vendor_id)
              .options(selectinload(FinAsset.category))
              .order_by(FinAsset.asset_code))
@@ -814,6 +1010,8 @@ class FinAssetRepo:
             q = q.where(FinAsset.status == status)
         if category_id:
             q = q.where(FinAsset.category_id == category_id)
+        if store_id:
+            q = q.where(FinAsset.store_id == store_id)
         r = await self.db.execute(q)
         return list(r.scalars().all())
 
@@ -827,21 +1025,29 @@ class FinAssetRepo:
         return r.scalar_one_or_none()
 
     async def create_asset(self, vendor_id: UUID, data: dict) -> FinAsset:
-        asset = FinAsset(id=uuid.uuid4(), vendor_id=vendor_id, **data)
+        payload = _parse_asset_payload(data)
+        if not payload.get("asset_code") or not payload.get("name"):
+            raise ValueError("asset_code and name are required")
+        if not payload.get("acquisition_date"):
+            raise ValueError("acquisition_date is required")
+        if payload.get("purchase_cost") is None:
+            raise ValueError("purchase_cost is required")
+        asset = FinAsset(id=uuid.uuid4(), vendor_id=vendor_id, **payload)
         asset.current_value = asset.purchase_cost
         self.db.add(asset)
         await self.db.flush()
         return asset
 
     async def update_asset(self, asset: FinAsset, data: dict) -> FinAsset:
-        for k, v in data.items():
+        payload = _parse_asset_payload(data)
+        for k, v in payload.items():
             setattr(asset, k, v)
         await self.db.flush()
         return asset
 
     async def record_depreciation(self, vendor_id: UUID, asset: FinAsset,
                                   amount: Decimal, period_id: UUID = None,
-                                  je_id: UUID = None) -> FinAssetDepreciationEntry:
+                                  je_id: UUID = None, units: Decimal = None) -> FinAssetDepreciationEntry:
         entry = FinAssetDepreciationEntry(
             id=uuid.uuid4(),
             asset_id=asset.id,
@@ -849,17 +1055,26 @@ class FinAssetRepo:
             period_id=period_id,
             depreciation_date=date.today(),
             amount=amount,
+            units_produced=units,
             book_value_after=float(asset.current_value or 0) - float(amount),
             journal_entry_id=je_id,
         )
         self.db.add(entry)
         asset.accumulated_depreciation = (asset.accumulated_depreciation or 0) + float(amount)
         asset.current_value = (asset.current_value or 0) - float(amount)
+        if units is not None:
+            asset.units_consumed = float(asset.units_consumed or 0) + float(units)
         await self.db.flush()
         return entry
 
-    async def calculate_depreciation(self, asset: FinAsset) -> Decimal:
-        """Calculate depreciation amount for one period."""
+    async def calculate_depreciation(self, asset: FinAsset, units: Decimal = None) -> Decimal:
+        """
+        Calculate depreciation amount for one period.
+
+        `units` is required (and only used) for the units_of_production method — it
+        represents the output/usage (e.g. machine hours, units manufactured) for the
+        period being depreciated.
+        """
         if not asset.purchase_cost:
             return Decimal(0)
         cost = Decimal(str(asset.purchase_cost))
@@ -873,18 +1088,43 @@ class FinAssetRepo:
             rate = Decimal("2") / Decimal(str(life))
             current = Decimal(str(asset.current_value or cost))
             return round(current * rate / 12, 4)
+        elif method == "units_of_production":
+            capacity = Decimal(str(asset.total_units_capacity or 0))
+            if capacity <= 0 or units is None:
+                return Decimal(0)
+            units = Decimal(str(units))
+            remaining_capacity = capacity - Decimal(str(asset.units_consumed or 0))
+            units = min(units, max(remaining_capacity, Decimal(0)))
+            rate_per_unit = (cost - salvage) / capacity
+            depreciable_remaining = Decimal(str(asset.current_value or 0)) - salvage
+            return round(min(units * rate_per_unit, max(depreciable_remaining, Decimal(0))), 4)
         return Decimal(0)
 
     async def dispose_asset(self, vendor_id: UUID, asset: FinAsset,
                             data: dict, je_id: UUID = None) -> FinAssetDisposal:
+        disposal_date = data.get("disposal_date")
+        if isinstance(disposal_date, str):
+            disposal_date = date.fromisoformat(disposal_date[:10])
+        elif not disposal_date:
+            disposal_date = date.today()
+        sale_price = Decimal(str(data.get("sale_price", 0) or 0))
+        book_value = Decimal(str(asset.current_value or 0))
+        gain_loss = sale_price - book_value
+
         disposal = FinAssetDisposal(
             id=uuid.uuid4(), asset_id=asset.id, vendor_id=vendor_id,
-            journal_entry_id=je_id, **data
+            disposal_date=disposal_date,
+            disposal_method=data.get("disposal_method", "scrapped"),
+            sale_price=sale_price,
+            book_value_at_disposal=book_value,
+            gain_loss=gain_loss,
+            notes=data.get("notes"),
+            journal_entry_id=je_id,
         )
         self.db.add(disposal)
         asset.status = "disposed"
-        asset.disposal_date = data.get("disposal_date")
-        asset.disposal_value = data.get("sale_price", 0)
+        asset.disposal_date = disposal_date
+        asset.disposal_value = sale_price
         await self.db.flush()
         return disposal
 
@@ -896,10 +1136,146 @@ class FinAssetRepo:
         return list(r.scalars().all())
 
     async def create_maintenance(self, vendor_id: UUID, data: dict) -> FinAssetMaintenance:
-        m = FinAssetMaintenance(id=uuid.uuid4(), vendor_id=vendor_id, **data)
+        payload = _parse_maintenance_payload(data)
+        if not payload.get("asset_id"):
+            raise ValueError("asset_id is required")
+        if not payload.get("maintenance_date"):
+            raise ValueError("maintenance_date is required")
+        m = FinAssetMaintenance(id=uuid.uuid4(), vendor_id=vendor_id, **payload)
         self.db.add(m)
         await self.db.flush()
         return m
+
+    async def asset_kpis(self, vendor_id: UUID, from_date: date, to_date: date) -> dict:
+        """Fixed Asset KPIs for the Finance Dashboard: NBV, count, accum. dep, period depreciation."""
+        r = await self.db.execute(
+            select(
+                func.count(FinAsset.id),
+                func.coalesce(func.sum(FinAsset.current_value), 0),
+                func.coalesce(func.sum(FinAsset.accumulated_depreciation), 0),
+            ).where(FinAsset.vendor_id == vendor_id, FinAsset.status == "active")
+        )
+        count, nbv, accum_dep = r.one()
+        dep_r = await self.db.execute(
+            select(func.coalesce(func.sum(FinAssetDepreciationEntry.amount), 0)).where(
+                FinAssetDepreciationEntry.vendor_id == vendor_id,
+                FinAssetDepreciationEntry.depreciation_date >= from_date,
+                FinAssetDepreciationEntry.depreciation_date <= to_date,
+            )
+        )
+        return {
+            "active_asset_count": int(count or 0),
+            "net_book_value": float(nbv or 0),
+            "accumulated_depreciation": float(accum_dep or 0),
+            "depreciation_this_period": float(dep_r.scalar() or 0),
+        }
+
+    async def asset_subledger_reconciliation(self, vendor_id: UUID, as_of: date) -> dict:
+        """
+        Compares the Fixed Asset subledger (sum of purchase_cost / accumulated_depreciation
+        across active assets, grouped by their category's mapped GL account) against the
+        posted GL balance of those same accounts — a control check for accounts like 1290
+        (Accumulated Depreciation). Disposed assets are excluded since the disposal JE has
+        already reversed their cost/accum-dep out of these accounts.
+        """
+        r = await self.db.execute(
+            select(FinAsset)
+            .where(FinAsset.vendor_id == vendor_id, FinAsset.status == "active")
+            .options(selectinload(FinAsset.category))
+        )
+        assets = list(r.scalars().all())
+
+        cost_by_account: dict[UUID, float] = {}
+        accum_by_account: dict[UUID, float] = {}
+        for a in assets:
+            cat = a.category
+            if cat and cat.asset_account_id:
+                cost_by_account[cat.asset_account_id] = (
+                    cost_by_account.get(cat.asset_account_id, 0.0) + float(a.purchase_cost or 0))
+            if cat and cat.accum_dep_account_id:
+                accum_by_account[cat.accum_dep_account_id] = (
+                    accum_by_account.get(cat.accum_dep_account_id, 0.0) + float(a.accumulated_depreciation or 0))
+
+        account_ids = set(cost_by_account) | set(accum_by_account)
+        if not account_ids:
+            return {"as_of": str(as_of), "lines": []}
+
+        gl_rows = (await self.db.execute(
+            select(
+                FinAccount.id, FinAccount.code, FinAccount.name,
+                func.coalesce(func.sum(FinJournalLine.debit), 0).label("dr"),
+                func.coalesce(func.sum(FinJournalLine.credit), 0).label("cr"),
+            )
+            .join(FinJournalLine, FinJournalLine.account_id == FinAccount.id)
+            .join(FinJournalEntry, FinJournalLine.journal_entry_id == FinJournalEntry.id)
+            .where(
+                FinAccount.id.in_(account_ids),
+                FinJournalEntry.status == "posted",
+                FinJournalEntry.entry_date <= as_of,
+            )
+            .group_by(FinAccount.id, FinAccount.code, FinAccount.name)
+        )).all()
+        gl_by_account = {row.id: row for row in gl_rows}
+
+        lines = []
+        for acc_id in account_ids:
+            row = gl_by_account.get(acc_id)
+            if row:
+                code, name, dr, cr = row.code, row.name, float(row.dr), float(row.cr)
+            else:
+                acc = (await self.db.execute(
+                    select(FinAccount).where(FinAccount.id == acc_id))).scalar_one_or_none()
+                code, name, dr, cr = (acc.code if acc else None), (acc.name if acc else None), 0.0, 0.0
+            if acc_id in cost_by_account:
+                lines.append({
+                    "account_id": str(acc_id), "account_code": code, "account_name": name,
+                    "role": "fixed_asset",
+                    "subledger_balance": cost_by_account[acc_id],
+                    "gl_balance": dr - cr,  # debit-normal
+                    "variance": cost_by_account[acc_id] - (dr - cr),
+                })
+            if acc_id in accum_by_account:
+                lines.append({
+                    "account_id": str(acc_id), "account_code": code, "account_name": name,
+                    "role": "accumulated_depreciation",
+                    "subledger_balance": accum_by_account[acc_id],
+                    "gl_balance": cr - dr,  # contra-asset, credit-normal
+                    "variance": accum_by_account[acc_id] - (cr - dr),
+                })
+        lines.sort(key=lambda l: (l["account_code"] or "", l["role"]))
+        return {"as_of": str(as_of), "lines": lines}
+
+    async def depreciation_schedule(self, vendor_id: UUID, from_date: date, to_date: date,
+                                     category_id: UUID = None, store_id: UUID = None) -> list[dict]:
+        q = (
+            select(FinAssetDepreciationEntry, FinAsset)
+            .join(FinAsset, FinAssetDepreciationEntry.asset_id == FinAsset.id)
+            .options(selectinload(FinAsset.category))
+            .where(
+                FinAssetDepreciationEntry.vendor_id == vendor_id,
+                FinAssetDepreciationEntry.depreciation_date >= from_date,
+                FinAssetDepreciationEntry.depreciation_date <= to_date,
+            )
+        )
+        if category_id:
+            q = q.where(FinAsset.category_id == category_id)
+        if store_id:
+            q = q.where(FinAsset.store_id == store_id)
+        q = q.order_by(FinAssetDepreciationEntry.depreciation_date, FinAsset.asset_code)
+        rows = (await self.db.execute(q)).all()
+        return [
+            {
+                "id": str(entry.id),
+                "asset_id": str(asset.id),
+                "asset_code": asset.asset_code,
+                "asset_name": asset.name,
+                "category_name": asset.category.name if asset.category else None,
+                "depreciation_date": str(entry.depreciation_date),
+                "amount": float(entry.amount or 0),
+                "book_value_after": float(entry.book_value_after or 0) if entry.book_value_after is not None else None,
+            }
+            for entry, asset in rows
+        ]
 
 
 class FinTaxRepo:
@@ -1067,21 +1443,48 @@ class FinReportRepo:
         }
 
     async def balance_sheet(self, vendor_id: UUID, as_of: date) -> dict:
+        """
+        Returns a Current/Non-Current classified shape (matches the BalanceSheet.tsx
+        report page). Assets/liabilities of subtype "Current Asset" / "Current
+        Liability" go into the current buckets; everything else (Fixed Asset,
+        Investments, Long-term Liability, ungrouped) is treated as non-current.
+        """
         assets = await self._account_balance(vendor_id, "Asset", date(2000, 1, 1), as_of)
         liabilities = await self._account_balance(vendor_id, "Liability", date(2000, 1, 1), as_of)
         equity = await self._account_balance(vendor_id, "Equity", date(2000, 1, 1), as_of)
-        total_assets = sum(abs(v["balance"]) for v in assets.values())
-        total_liab = sum(abs(v["balance"]) for v in liabilities.values())
-        total_equity = sum(abs(v["balance"]) for v in equity.values())
+
+        def _line(v: dict) -> dict:
+            return {"id": v["id"], "name": v["name"], "amount": abs(v["balance"])}
+
+        current_assets = [_line(v) for v in assets.values() if v.get("subtype") == "Current Asset"]
+        non_current_assets = [_line(v) for v in assets.values() if v.get("subtype") != "Current Asset"]
+        current_liabilities = [_line(v) for v in liabilities.values() if v.get("subtype") == "Current Liability"]
+        non_current_liabilities = [_line(v) for v in liabilities.values() if v.get("subtype") != "Current Liability"]
+        equity_lines = [_line(v) for v in equity.values()]
+
+        total_current_assets = sum(l["amount"] for l in current_assets)
+        total_non_current_assets = sum(l["amount"] for l in non_current_assets)
+        total_current_liabilities = sum(l["amount"] for l in current_liabilities)
+        total_non_current_liabilities = sum(l["amount"] for l in non_current_liabilities)
+        total_assets = total_current_assets + total_non_current_assets
+        total_liabilities = total_current_liabilities + total_non_current_liabilities
+        total_equity = sum(l["amount"] for l in equity_lines)
+
         return {
             "as_of": str(as_of),
-            "assets": list(assets.values()),
-            "liabilities": list(liabilities.values()),
-            "equity": list(equity.values()),
+            "current_assets": current_assets,
+            "non_current_assets": non_current_assets,
+            "total_current_assets": total_current_assets,
+            "total_non_current_assets": total_non_current_assets,
+            "current_liabilities": current_liabilities,
+            "non_current_liabilities": non_current_liabilities,
+            "total_current_liabilities": total_current_liabilities,
+            "total_non_current_liabilities": total_non_current_liabilities,
+            "equity": equity_lines,
             "total_assets": total_assets,
-            "total_liabilities": total_liab,
+            "total_liabilities": total_liabilities,
             "total_equity": total_equity,
-            "check": total_assets - total_liab - total_equity,
+            "check": total_assets - total_liabilities - total_equity,
         }
 
     async def cash_flow(self, vendor_id: UUID, from_date: date, to_date: date) -> dict:

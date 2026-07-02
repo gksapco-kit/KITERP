@@ -1,5 +1,5 @@
 import { useFinanceDashboard, useSeedCOA } from '@/hooks/useFinance'
-import { TrendingUp, TrendingDown, Landmark, ArrowLeftRight, Banknote, Coins } from 'lucide-react'
+import { TrendingUp, TrendingDown, Landmark, ArrowLeftRight, Banknote, Coins, Building2 } from 'lucide-react'
 
 function KpiCard({ label, value, icon: Icon, color }: { label: string; value: string; icon: any; color: string }) {
   return (
@@ -62,6 +62,16 @@ export default function FinanceDashboard() {
         <KpiCard label="AP Outstanding" value={fmt(data?.total_ap_outstanding || 0)} icon={Banknote} color="bg-rose-500" />
       </div>
 
+      <div>
+        <h2 className="text-sm font-bold text-gray-500 uppercase mb-3">Fixed Assets</h2>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <KpiCard label="Active Assets" value={String(data?.fixed_asset_count ?? 0)} icon={Building2} color="bg-indigo-500" />
+          <KpiCard label="Net Book Value" value={fmt(data?.fixed_asset_nbv || 0)} icon={Coins} color="bg-blue-500" />
+          <KpiCard label="Accumulated Depreciation" value={fmt(data?.fixed_asset_accum_dep || 0)} icon={TrendingDown} color="bg-red-500" />
+          <KpiCard label="Depreciation YTD" value={fmt(data?.fixed_asset_depreciation_ytd || 0)} icon={TrendingDown} color="bg-orange-500" />
+        </div>
+      </div>
+
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div className="bg-white rounded-xl border border-gray-200 p-5">
           <h2 className="font-semibold text-gray-800 mb-4">Quick Links</h2>
@@ -75,6 +85,11 @@ export default function FinanceDashboard() {
               ['P&L Report', '/finance/reports/pnl'],
               ['AR Aging', '/finance/ar'],
               ['AP Bills', '/finance/ap'],
+              ['Fixed Assets', '/finance/assets'],
+              ['Asset Register', '/finance/assets/reports'],
+              ['Depreciation Schedule', '/finance/assets/depreciation-schedule'],
+              ['GL Reconciliation', '/finance/assets/gl-reconciliation'],
+              ['Balance Sheet', '/finance/reports/balance-sheet'],
             ].map(([label, href]) => (
               <a key={href} href={href}
                 className="text-sm text-primary hover:text-primary/80 hover:underline py-1">

@@ -27,6 +27,10 @@ export const finKeys = {
   assetCategories: ['finance', 'asset-categories'] as const,
   assets: (p?: Record<string, unknown>) => ['finance', 'assets', p] as const,
   asset: (id: string) => ['finance', 'asset', id] as const,
+  assetMaintenance: (p?: Record<string, unknown>) => ['finance', 'asset-maintenance', p] as const,
+  assetRegister: (p?: Record<string, unknown>) => ['finance', 'asset-register', p] as const,
+  depreciationSchedule: (p?: Record<string, unknown>) => ['finance', 'depreciation-schedule', p] as const,
+  assetReconciliation: (p?: Record<string, unknown>) => ['finance', 'asset-reconciliation', p] as const,
   taxCodes: ['finance', 'tax-codes'] as const,
   taxReturns: (p?: Record<string, unknown>) => ['finance', 'tax-returns', p] as const,
   pnl: (p?: Record<string, unknown>) => ['finance', 'pnl', p] as const,
@@ -450,6 +454,14 @@ export const useCreateAssetCategory = () => {
     onSuccess: () => qc.invalidateQueries({ queryKey: finKeys.assetCategories }) })
 }
 
+export const useUpdateAssetCategory = () => {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, data }: { id: string; data: Record<string, unknown> }) => api.updateAssetCategory(id, data),
+    onSuccess: () => qc.invalidateQueries({ queryKey: finKeys.assetCategories }),
+  })
+}
+
 export const useAssets = (params?: Record<string, unknown>) =>
   useQuery({ queryKey: finKeys.assets(params), queryFn: () => api.listAssets(params) })
 
@@ -458,31 +470,96 @@ export const useAsset = (id: string) =>
 
 export const useCreateAsset = () => {
   const qc = useQueryClient()
-  return useMutation({ mutationFn: api.createAsset,
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['finance', 'assets'] }) })
+  return useMutation({
+    mutationFn: api.createAsset,
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['finance', 'assets'] }),
+  })
+}
+
+export const useCreateAssetFromBill = () => {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: api.createAssetFromBill,
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['finance', 'assets'] })
+      qc.invalidateQueries({ queryKey: ['finance', 'bill'] })
+      qc.invalidateQueries({ queryKey: ['finance', 'asset-register'] })
+    },
+  })
 }
 
 export const useUpdateAsset = () => {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: ({ id, data }: { id: string; data: Record<string, unknown> }) => api.updateAsset(id, data),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['finance', 'assets'] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['finance', 'assets'] })
+      qc.invalidateQueries({ queryKey: ['finance', 'asset'] })
+    },
   })
 }
 
 export const useRunDepreciation = () => {
   const qc = useQueryClient()
-  return useMutation({ mutationFn: (id: string) => api.runDepreciation(id),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['finance', 'assets'] }) })
+  return useMutation({
+    mutationFn: (arg: string | { id: string; units?: number }) => {
+      const { id, units } = typeof arg === 'string' ? { id: arg, units: undefined } : arg
+      return api.runDepreciation(id, units != null ? { units } : undefined)
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['finance', 'assets'] })
+      qc.invalidateQueries({ queryKey: ['finance', 'asset'] })
+    },
+  })
 }
 
 export const useDisposeAsset = () => {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: ({ id, data }: { id: string; data: Record<string, unknown> }) => api.disposeAsset(id, data),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['finance', 'assets'] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['finance', 'assets'] })
+      qc.invalidateQueries({ queryKey: ['finance', 'asset'] })
+    },
   })
 }
+
+export const useAssetMaintenance = (assetId?: string) =>
+  useQuery({
+    queryKey: finKeys.assetMaintenance({ asset_id: assetId }),
+    queryFn: () => api.listMaintenance(assetId ? { asset_id: assetId } : undefined),
+  })
+
+export const useCreateMaintenance = () => {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: api.createMaintenance,
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['finance', 'asset-maintenance'] })
+      qc.invalidateQueries({ queryKey: ['finance', 'assets'] })
+      qc.invalidateQueries({ queryKey: ['finance', 'asset'] })
+    },
+  })
+}
+
+export const useAssetRegisterReport = (params?: Record<string, unknown>) =>
+  useQuery({
+    queryKey: finKeys.assetRegister(params),
+    queryFn: () => api.getAssetRegisterReport(params),
+  })
+
+export const useDepreciationScheduleReport = (params: Record<string, unknown>) =>
+  useQuery({
+    queryKey: finKeys.depreciationSchedule(params),
+    queryFn: () => api.getDepreciationScheduleReport(params),
+    enabled: Boolean(params.from_date && params.to_date),
+  })
+
+export const useAssetReconciliationReport = (params?: Record<string, unknown>) =>
+  useQuery({
+    queryKey: finKeys.assetReconciliation(params),
+    queryFn: () => api.getAssetReconciliationReport(params),
+  })
 
 // ── Tax ────────────────────────────────────────────────────────────────────
 export const useTaxCodes = () =>

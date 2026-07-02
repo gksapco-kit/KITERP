@@ -6,11 +6,13 @@ from __future__ import annotations
 
 import io
 import csv
+import logging
 from datetime import date, datetime
 from typing import Any, Optional
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File, Response
+from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File, Response, Body
+from decimal import Decimal
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -21,7 +23,9 @@ from app.repositories.finance.finance_repo import (
     FinBudgetRepo, FinAssetRepo, FinTaxRepo, FinReportRepo,
     FinCapitalRepo, FinControlsRepo,
 )
-from app.services.finance.coa_seeder import seed_default_coa, seed_default_fiscal_year
+from app.services.finance.coa_seeder import (
+    seed_default_coa, seed_default_fiscal_year, seed_default_asset_categories,
+)
 from app.services.finance.fiscal_calendar import (
     append_audit_period,
     assign_fiscal_year_to_companies,
@@ -56,6 +60,8 @@ from app.models.finance import (
 from app.models.store import Store
 from sqlalchemy import select, or_
 from sqlalchemy.exc import IntegrityError
+
+log = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -109,6 +115,7 @@ async def seed_coa(
 ):
     await seed_default_coa(db, vu.vendor_id)
     await seed_default_fiscal_year(db, vu.vendor_id)
+    await seed_default_asset_categories(db, vu.vendor_id)
     await db.commit()
     return {"message": "Default Chart of Accounts and Fiscal Year created"}
 
@@ -1450,6 +1457,8 @@ async def get_bill(
         raise HTTPException(404, "Bill not found")
     result = _d(bill)
     result["lines"] = [_d(ln) for ln in bill.lines]
+    linked_assets = await FinAssetRepo(db).list_assets_by_bill(vu.vendor_id, bill_id)
+    result["linked_assets"] = [_d(a) for a in linked_assets]
     return result
 
 
@@ -1480,13 +1489,15 @@ async def post_bill(
         raise HTTPException(404, "Bill not found")
     bill = await repo.post_bill(bill)
     # Auto-post to GL
-    await post_event(db, vu.vendor_id, "vendor_bill", bill.id, {
+    je = await post_event(db, vu.vendor_id, "vendor_bill", bill.id, {
         "subtotal": float(bill.subtotal or 0),
         "tax_amount": float(bill.tax_amount or 0),
         "total": float(bill.total or 0),
         "supplier_id": bill.supplier_id,
         "narration": f"Vendor Bill {bill.bill_no}",
     }, created_by_id=vu.id)
+    if je:
+        bill.journal_entry_id = je.id
     await db.commit()
     return _d(bill)
 
@@ -1759,7 +1770,29 @@ async def create_asset_category(
     vu: VendorUser = Depends(require_permission("finance.assets.manage")),
     db: AsyncSession = Depends(get_db),
 ):
-    cat = await FinAssetRepo(db).create_category(vu.vendor_id, body)
+    try:
+        cat = await FinAssetRepo(db).create_category(vu.vendor_id, body)
+    except ValueError as exc:
+        raise HTTPException(400, str(exc)) from exc
+    await db.commit()
+    return _d(cat)
+
+
+@router.put("/assets/categories/{category_id}")
+async def update_asset_category(
+    category_id: UUID,
+    body: dict,
+    vu: VendorUser = Depends(require_permission("finance.assets.manage")),
+    db: AsyncSession = Depends(get_db),
+):
+    repo = FinAssetRepo(db)
+    cat = await repo.get_category(category_id, vu.vendor_id)
+    if not cat:
+        raise HTTPException(404, "Category not found")
+    try:
+        cat = await repo.update_category(cat, body)
+    except ValueError as exc:
+        raise HTTPException(400, str(exc)) from exc
     await db.commit()
     return _d(cat)
 
@@ -1768,10 +1801,11 @@ async def create_asset_category(
 async def list_assets(
     status: Optional[str] = None,
     category_id: Optional[UUID] = None,
+    store_id: Optional[UUID] = None,
     vu: VendorUser = Depends(require_permission("finance.assets.manage")),
     db: AsyncSession = Depends(get_db),
 ):
-    assets = await FinAssetRepo(db).list_assets(vu.vendor_id, status, category_id)
+    assets = await FinAssetRepo(db).list_assets(vu.vendor_id, status, category_id, store_id)
     return [_d(a) for a in assets]
 
 
@@ -1782,14 +1816,174 @@ async def create_asset(
     db: AsyncSession = Depends(get_db),
 ):
     repo = FinAssetRepo(db)
-    asset = await repo.create_asset(vu.vendor_id, body)
-    # Post GL entry for acquisition
-    await post_event(db, vu.vendor_id, "asset", asset.id, {
-        "cost": float(asset.purchase_cost),
-        "narration": f"Asset Acquisition: {asset.name}",
-    }, created_by_id=vu.id)
+    try:
+        asset = await repo.create_asset(vu.vendor_id, body)
+    except ValueError as exc:
+        raise HTTPException(400, str(exc)) from exc
+    # GL posting is best-effort — asset registration must not fail if COA/periods aren't ready.
+    try:
+        async with db.begin_nested():
+            cat_accounts = await repo.get_category_accounts(asset)
+            await post_event(db, vu.vendor_id, "asset", asset.id, {
+                "cost": float(asset.purchase_cost),
+                "narration": f"Asset Acquisition: {asset.name}",
+                "store_id": asset.store_id,
+                **cat_accounts,
+            }, created_by_id=vu.id)
+    except Exception:
+        log.exception("Asset acquisition GL posting failed for asset %s", asset.id)
     await db.commit()
     return _d(asset)
+
+
+@router.post("/assets/from-bill", status_code=201)
+async def create_asset_from_bill(
+    body: dict,
+    vu: VendorUser = Depends(require_permission("finance.assets.manage")),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Capitalize a posted vendor bill line into a Fixed Asset register entry.
+    No new GL entry is posted — the bill's own JE already booked the cost.
+    Use the Asset Reconciliation report to verify the new subledger entry
+    matches the GL balance of the category's Fixed Asset account.
+    """
+    try:
+        asset = await FinAssetRepo(db).create_asset_from_bill_line(vu.vendor_id, body)
+    except ValueError as exc:
+        raise HTTPException(400, str(exc)) from exc
+    await db.commit()
+    return _d(asset)
+
+
+@router.get("/assets/maintenance")
+async def list_maintenance(
+    asset_id: Optional[UUID] = None,
+    vu: VendorUser = Depends(require_permission("finance.assets.manage")),
+    db: AsyncSession = Depends(get_db),
+):
+    records = await FinAssetRepo(db).list_maintenance(vu.vendor_id, asset_id)
+    return [_d(r) for r in records]
+
+
+@router.post("/assets/maintenance", status_code=201)
+async def create_maintenance(
+    body: dict,
+    vu: VendorUser = Depends(require_permission("finance.assets.manage")),
+    db: AsyncSession = Depends(get_db),
+):
+    repo = FinAssetRepo(db)
+    asset_id = body.get("asset_id")
+    if not asset_id:
+        raise HTTPException(400, "asset_id is required")
+    asset = await repo.get_asset(UUID(str(asset_id)), vu.vendor_id)
+    if not asset:
+        raise HTTPException(404, "Asset not found")
+    # `capitalize` is a posting instruction, not a persisted column — pop before saving.
+    capitalize = bool(body.pop("capitalize", False))
+    try:
+        m = await repo.create_maintenance(vu.vendor_id, body)
+    except ValueError as exc:
+        raise HTTPException(400, str(exc)) from exc
+
+    cost = float(m.cost or 0)
+    if cost > 0:
+        # GL posting is best-effort — the maintenance record must persist even if posting fails.
+        try:
+            async with db.begin_nested():
+                if capitalize:
+                    asset.purchase_cost = float(asset.purchase_cost or 0) + cost
+                    asset.current_value = float(asset.current_value or 0) + cost
+                    cat_accounts = await repo.get_category_accounts(asset)
+                    je = await post_event(db, vu.vendor_id, "asset", m.id, {
+                        "cost": cost,
+                        "narration": f"Capitalized Maintenance: {asset.name}",
+                        **cat_accounts,
+                    }, created_by_id=vu.id)
+                else:
+                    je = await post_event(db, vu.vendor_id, "expense", m.id, {
+                        "amount": cost,
+                        "narration": f"Asset Maintenance: {asset.name}",
+                    }, created_by_id=vu.id)
+                if je:
+                    m.journal_entry_id = je.id
+        except Exception:
+            log.exception("Maintenance GL posting failed for maintenance %s", m.id)
+    await db.commit()
+    return _d(m)
+
+
+@router.get("/assets/reports/register")
+async def asset_register_report(
+    category_id: Optional[UUID] = None,
+    store_id: Optional[UUID] = None,
+    status: Optional[str] = None,
+    vu: VendorUser = Depends(require_permission("finance.assets.manage")),
+    db: AsyncSession = Depends(get_db),
+):
+    """Fixed Asset Register: cost / accumulated depreciation / NBV per asset, with category totals."""
+    assets = await FinAssetRepo(db).list_assets(vu.vendor_id, status, category_id, store_id)
+    rows = []
+    totals_by_category: dict[str, dict[str, Any]] = {}
+    for a in assets:
+        cost = float(a.purchase_cost or 0)
+        accum_dep = float(a.accumulated_depreciation or 0)
+        nbv = float(a.current_value if a.current_value is not None else cost - accum_dep)
+        cat_name = a.category.name if a.category else "Uncategorized"
+        rows.append({
+            "id": str(a.id),
+            "asset_code": a.asset_code,
+            "name": a.name,
+            "category_name": cat_name,
+            "status": a.status,
+            "acquisition_date": str(a.acquisition_date) if a.acquisition_date else None,
+            "cost": cost,
+            "accumulated_depreciation": accum_dep,
+            "net_book_value": nbv,
+        })
+        bucket = totals_by_category.setdefault(cat_name, {"category_name": cat_name, "count": 0,
+                                                            "cost": 0.0, "accumulated_depreciation": 0.0,
+                                                            "net_book_value": 0.0})
+        bucket["count"] += 1
+        bucket["cost"] += cost
+        bucket["accumulated_depreciation"] += accum_dep
+        bucket["net_book_value"] += nbv
+    return {
+        "assets": rows,
+        "by_category": list(totals_by_category.values()),
+        "total_cost": sum(r["cost"] for r in rows),
+        "total_accumulated_depreciation": sum(r["accumulated_depreciation"] for r in rows),
+        "total_net_book_value": sum(r["net_book_value"] for r in rows),
+    }
+
+
+@router.get("/assets/reports/depreciation-schedule")
+async def depreciation_schedule_report(
+    from_date: date = Query(...),
+    to_date: date = Query(...),
+    category_id: Optional[UUID] = None,
+    store_id: Optional[UUID] = None,
+    vu: VendorUser = Depends(require_permission("finance.assets.manage")),
+    db: AsyncSession = Depends(get_db),
+):
+    rows = await FinAssetRepo(db).depreciation_schedule(
+        vu.vendor_id, from_date, to_date, category_id, store_id)
+    return {
+        "from_date": str(from_date),
+        "to_date": str(to_date),
+        "entries": rows,
+        "total_amount": sum(r["amount"] for r in rows),
+    }
+
+
+@router.get("/assets/reports/reconciliation")
+async def asset_reconciliation_report(
+    as_of: Optional[date] = None,
+    vu: VendorUser = Depends(require_permission("finance.assets.manage")),
+    db: AsyncSession = Depends(get_db),
+):
+    """Fixed Asset subledger vs GL reconciliation (control check for accounts like 1290)."""
+    return await FinAssetRepo(db).asset_subledger_reconciliation(vu.vendor_id, as_of or date.today())
 
 
 @router.get("/assets/{asset_id}")
@@ -1825,6 +2019,7 @@ async def update_asset(
 @router.post("/assets/{asset_id}/depreciate")
 async def run_depreciation(
     asset_id: UUID,
+    body: dict = Body(default_factory=dict),
     vu: VendorUser = Depends(require_permission("finance.assets.manage")),
     db: AsyncSession = Depends(get_db),
 ):
@@ -1834,13 +2029,25 @@ async def run_depreciation(
         raise HTTPException(404, "Asset not found")
     if asset.status != "active":
         raise HTTPException(400, "Asset is not active")
-    amount = await repo.calculate_depreciation(asset)
+    units = body.get("units")
+    if asset.depreciation_method == "units_of_production":
+        if units is None or float(units) <= 0:
+            raise HTTPException(400, "Enter the units produced/consumed this period")
+        if not asset.total_units_capacity or float(asset.total_units_capacity) <= 0:
+            raise HTTPException(400, "Asset has no total production capacity configured")
+    amount = await repo.calculate_depreciation(asset, units=Decimal(str(units)) if units is not None else None)
+    if amount <= 0:
+        raise HTTPException(400, "Calculated depreciation is zero — check useful life / capacity settings")
+    cat_accounts = await repo.get_category_accounts(asset)
     je = await post_event(db, vu.vendor_id, "depreciation", asset.id, {
         "amount": float(amount),
         "narration": f"Depreciation: {asset.name}",
+        **cat_accounts,
     }, created_by_id=vu.id)
     entry = await repo.record_depreciation(vu.vendor_id, asset, amount,
-                                            je_id=je.id if je else None)
+                                            period_id=je.period_id if je else None,
+                                            je_id=je.id if je else None,
+                                            units=Decimal(str(units)) if units is not None else None)
     await db.commit()
     return {"amount": float(amount), "book_value": float(asset.current_value or 0)}
 
@@ -1855,37 +2062,21 @@ async def dispose_asset(
     asset = await repo.get_asset(asset_id, vu.vendor_id)
     if not asset:
         raise HTTPException(404, "Asset not found")
+    if asset.status != "active":
+        raise HTTPException(400, "Only active assets can be disposed")
+    cat_accounts = await repo.get_category_accounts(asset)
+    method = body.get("disposal_method", "scrapped")
     je = await post_event(db, vu.vendor_id, "disposal", asset.id, {
         "purchase_cost": float(asset.purchase_cost or 0),
         "accum_dep": float(asset.accumulated_depreciation or 0),
         "sale_price": float(body.get("sale_price", 0)),
-        "narration": f"Asset Disposal: {asset.name}",
+        "narration": f"Asset Disposal ({method}): {asset.name}",
+        **cat_accounts,
     }, created_by_id=vu.id)
     disposal = await repo.dispose_asset(vu.vendor_id, asset, body,
                                          je_id=je.id if je else None)
     await db.commit()
     return _d(disposal)
-
-
-@router.get("/assets/maintenance")
-async def list_maintenance(
-    asset_id: Optional[UUID] = None,
-    vu: VendorUser = Depends(require_permission("finance.assets.manage")),
-    db: AsyncSession = Depends(get_db),
-):
-    records = await FinAssetRepo(db).list_maintenance(vu.vendor_id, asset_id)
-    return [_d(r) for r in records]
-
-
-@router.post("/assets/maintenance", status_code=201)
-async def create_maintenance(
-    body: dict,
-    vu: VendorUser = Depends(require_permission("finance.assets.manage")),
-    db: AsyncSession = Depends(get_db),
-):
-    m = await FinAssetRepo(db).create_maintenance(vu.vendor_id, body)
-    await db.commit()
-    return _d(m)
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -2037,6 +2228,7 @@ async def finance_dashboard(
                   r.get("61_90", 0) + r.get("90_plus", 0) for r in ar_aging)
     total_ap = sum(r.get("current", 0) + r.get("1_30", 0) + r.get("31_60", 0) +
                   r.get("61_90", 0) + r.get("90_plus", 0) for r in ap_aging)
+    asset_kpis = await FinAssetRepo(db).asset_kpis(vu.vendor_id, from_date, today)
     return {
         "total_revenue": pnl.get("total_income", 0),
         "total_expenses": pnl.get("total_expenses", 0),
@@ -2044,6 +2236,10 @@ async def finance_dashboard(
         "cash_position": total_cash,
         "total_ar_outstanding": total_ar,
         "total_ap_outstanding": total_ap,
+        "fixed_asset_count": asset_kpis["active_asset_count"],
+        "fixed_asset_nbv": asset_kpis["net_book_value"],
+        "fixed_asset_accum_dep": asset_kpis["accumulated_depreciation"],
+        "fixed_asset_depreciation_ytd": asset_kpis["depreciation_this_period"],
         "period": f"{from_date} to {today}",
     }
 

@@ -606,14 +606,31 @@ async def _handle_asset_disposal(db, vendor_id, payload):
         _line(asset_acc, credit=cost, narration="Remove Asset Cost", vendor_id=vendor_id),
         _line(cash, debit=sale_price, narration="Proceeds from Disposal", vendor_id=vendor_id),
     ]
+    # A gain/loss line is mandatory (not optional) whenever gain_loss != 0 — otherwise
+    # the journal entry would be unbalanced. If the account can't be resolved, bail
+    # out entirely (return None) rather than posting a half-balanced entry.
     if gain_loss > 0:
-        gain_acc = await _find_account(db, vendor_id, "Income", "Other Income", "Gain on Disposal")
-        if gain_acc:
-            lines.append(_line(gain_acc, credit=gain_loss, narration="Gain on Disposal", vendor_id=vendor_id))
+        gain_id = payload.get("gain_account_id")
+        gain_acc = (
+            (await db.execute(select(FinAccount).where(FinAccount.id == gain_id))).scalar_one_or_none()
+            if gain_id else
+            await _find_account(db, vendor_id, "Income", "Other Income", "Gain on Asset Disposal")
+        )
+        if not gain_acc:
+            log.warning("Asset disposal: no Gain on Disposal account configured for vendor %s", vendor_id)
+            return None
+        lines.append(_line(gain_acc, credit=gain_loss, narration="Gain on Disposal", vendor_id=vendor_id))
     elif gain_loss < 0:
-        loss_acc = await _find_account(db, vendor_id, "Expense", "Operating Expense", "Loss on Disposal")
-        if loss_acc:
-            lines.append(_line(loss_acc, debit=abs(gain_loss), narration="Loss on Disposal", vendor_id=vendor_id))
+        loss_id = payload.get("loss_account_id")
+        loss_acc = (
+            (await db.execute(select(FinAccount).where(FinAccount.id == loss_id))).scalar_one_or_none()
+            if loss_id else
+            await _find_account(db, vendor_id, "Expense", "Operating Expense", "Loss on Asset Disposal")
+        )
+        if not loss_acc:
+            log.warning("Asset disposal: no Loss on Disposal account configured for vendor %s", vendor_id)
+            return None
+        lines.append(_line(loss_acc, debit=abs(gain_loss), narration="Loss on Disposal", vendor_id=vendor_id))
     return lines
 
 
