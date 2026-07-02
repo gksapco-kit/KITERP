@@ -61,7 +61,9 @@ import {
   PlayCircle,
 } from "lucide-react";
 
-import type { BlockDefinition, BlockCategory } from "./types";
+import type { ComponentType } from "react";
+import type { BlockDefinition, BlockCategory, BlockVariant } from "./types";
+import { VERTICAL_VARIANT_IDS, VERTICAL_VARIANT_NAMES } from "../lib/verticalVariants";
 
 import { ProductGrid, ProductList, ProductCarousel } from "./products/ProductGrid";
 import { FeaturedProduct } from "./products/FeaturedProduct";
@@ -137,6 +139,21 @@ import { AutoInventory, VehicleDetail } from "./verticals/AutoBlocks";
 import { FitnessScheduler } from "./verticals/FitnessBlocks";
 import { EventListing, TicketPicker } from "./verticals/EventBlocks";
 import { CourseCatalog, CourseDetail } from "./verticals/CourseBlocks";
+
+/**
+ * Builds the full set of 10 layout variants (matching COMMERCE_VARIANT_PRESETS) for a
+ * vertical block, injecting the selected id as the `variant` prop so the component can
+ * render a distinct layout for each "Section style" option.
+ */
+function verticalVariantSet<P extends { variant?: string }>(
+  Comp: ComponentType<P>,
+): BlockVariant<P>[] {
+  return VERTICAL_VARIANT_IDS.map((id) => ({
+    id,
+    name: VERTICAL_VARIANT_NAMES[id],
+    Component: (p: P) => <Comp {...p} variant={id} />,
+  }));
+}
 
 /* ---------- Products ---------- */
 
@@ -1098,6 +1115,12 @@ const emptyProps = z.object({
     .default("emptyCart"),
   size: z.enum(["sm", "md", "lg"]).default("md"),
   showSecondary: z.boolean().default(true),
+  title: z.string().optional(),
+  description: z.string().optional(),
+  cta: z.string().optional(),
+  cta_url: z.string().optional(),
+  secondary_cta: z.string().optional(),
+  secondary_cta_url: z.string().optional(),
 });
 const emptyBlock: BlockDefinition = {
   id: "state.empty",
@@ -1109,7 +1132,7 @@ const emptyBlock: BlockDefinition = {
   isLive: true,
   propsSchema: emptyProps,
   defaultProps: emptyProps.parse({}),
-  variants: [{ id: "default", name: "Default", Component: EmptyState }],
+  variants: verticalVariantSet(EmptyState),
 };
 
 const skeletonProps = z.object({
@@ -1126,15 +1149,21 @@ const skeletonBlock: BlockDefinition = {
   isLive: true,
   propsSchema: skeletonProps,
   defaultProps: skeletonProps.parse({}),
-  variants: [{ id: "default", name: "Default", Component: SkeletonLoader }],
+  variants: verticalVariantSet(SkeletonLoader),
 };
 
 const errorProps = z.object({
   preset: z
     .enum(["generic", "network", "notFound", "serverError", "forbidden", "maintenance"])
     .default("generic"),
-  layout: z.enum(["full", "card"]).default("full"),
   showSecondary: z.boolean().default(true),
+  error_code: z.string().optional(),
+  title: z.string().optional(),
+  description: z.string().optional(),
+  cta: z.string().optional(),
+  cta_url: z.string().optional(),
+  secondary_cta: z.string().optional(),
+  secondary_cta_url: z.string().optional(),
 });
 const errorBlock: BlockDefinition = {
   id: "state.error",
@@ -1146,7 +1175,7 @@ const errorBlock: BlockDefinition = {
   isLive: true,
   propsSchema: errorProps,
   defaultProps: errorProps.parse({}),
-  variants: [{ id: "default", name: "Default", Component: ErrorState }],
+  variants: verticalVariantSet(ErrorState),
 };
 
 /* ---------- Verticals: real estate ---------- */
@@ -1166,11 +1195,7 @@ const propertyListingBlock: BlockDefinition = {
   isLive: true,
   propsSchema: propertyListingProps,
   defaultProps: propertyListingProps.parse({}),
-  variants: [
-    { id: "grid", name: "Grid", Component: (p) => <PropertyListing {...p} layout="grid" /> },
-    { id: "list", name: "List", Component: (p) => <PropertyListing {...p} layout="list" /> },
-    { id: "map", name: "Map", Component: (p) => <PropertyListing {...p} layout="map" /> },
-  ],
+  variants: verticalVariantSet(PropertyListing),
 };
 
 const propertyDetailProps = z.object({
@@ -1205,10 +1230,7 @@ const autoInventoryBlock: BlockDefinition = {
   isLive: true,
   propsSchema: autoInventoryProps,
   defaultProps: autoInventoryProps.parse({}),
-  variants: [
-    { id: "grid", name: "Grid", Component: (p) => <AutoInventory {...p} layout="grid" /> },
-    { id: "list", name: "List", Component: (p) => <AutoInventory {...p} layout="list" /> },
-  ],
+  variants: verticalVariantSet(AutoInventory),
 };
 
 const vehicleDetailProps = z.object({
@@ -1224,7 +1246,7 @@ const vehicleDetailBlock: BlockDefinition = {
   icon: Car,
   propsSchema: vehicleDetailProps,
   defaultProps: vehicleDetailProps.parse({}),
-  variants: [{ id: "default", name: "Default", Component: VehicleDetail }],
+  variants: verticalVariantSet(VehicleDetail),
 };
 
 /* ---------- Verticals: fitness ---------- */
@@ -1243,10 +1265,7 @@ const fitnessBlock: BlockDefinition = {
   isLive: true,
   propsSchema: fitnessProps,
   defaultProps: fitnessProps.parse({}),
-  variants: [
-    { id: "schedule", name: "Schedule", Component: (p) => <FitnessScheduler {...p} layout="schedule" /> },
-    { id: "grid", name: "Grid", Component: (p) => <FitnessScheduler {...p} layout="grid" /> },
-  ],
+  variants: verticalVariantSet(FitnessScheduler),
 };
 
 /* ---------- Verticals: events ---------- */
@@ -1264,10 +1283,7 @@ const eventListingBlock: BlockDefinition = {
   icon: CalendarRange,
   propsSchema: eventListingProps,
   defaultProps: eventListingProps.parse({}),
-  variants: [
-    { id: "grid", name: "Grid", Component: (p) => <EventListing {...p} layout="grid" /> },
-    { id: "list", name: "List", Component: (p) => <EventListing {...p} layout="list" /> },
-  ],
+  variants: verticalVariantSet(EventListing),
 };
 
 const ticketProps = z.object({
@@ -1284,7 +1300,7 @@ const ticketBlock: BlockDefinition = {
   isLive: true,
   propsSchema: ticketProps,
   defaultProps: ticketProps.parse({}),
-  variants: [{ id: "default", name: "Default", Component: TicketPicker }],
+  variants: verticalVariantSet(TicketPicker),
 };
 
 /* ---------- Verticals: courses ---------- */
@@ -1304,10 +1320,7 @@ const courseCatalogBlock: BlockDefinition = {
   isLive: true,
   propsSchema: courseCatalogProps,
   defaultProps: courseCatalogProps.parse({}),
-  variants: [
-    { id: "grid", name: "Grid", Component: (p) => <CourseCatalog {...p} layout="grid" /> },
-    { id: "list", name: "List", Component: (p) => <CourseCatalog {...p} layout="list" /> },
-  ],
+  variants: verticalVariantSet(CourseCatalog),
 };
 
 const courseDetailProps = z.object({
@@ -1323,7 +1336,7 @@ const courseDetailBlock: BlockDefinition = {
   icon: PlayCircle,
   propsSchema: courseDetailProps,
   defaultProps: courseDetailProps.parse({}),
-  variants: [{ id: "default", name: "Default", Component: CourseDetail }],
+  variants: verticalVariantSet(CourseDetail),
 };
 
 /* ---------- Registry ---------- */

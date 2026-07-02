@@ -15,11 +15,13 @@ from fastapi import (
     APIRouter, Body, Depends, HTTPException, Query, Request,
     WebSocket, WebSocketDisconnect, status,
 )
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import require_permission
 from app.core.security import decode_token
 from app.database import get_db
+from app.models.vendor import Vendor
 from app.models.vendor_user import VendorUser
 from app.schemas.crm.schemas import (
     AiInsightResponse, AuditLogResponse, ChatConversationResponse,
@@ -381,12 +383,22 @@ async def public_lead_intake(
 
 # ── Public chat widget (business front / landing pages) ──────────────────────────
 
+async def _live_chat_enabled(db: AsyncSession, vendor_id: UUID) -> bool:
+    """Live chat is opt-out — enabled unless the vendor set live_chat_enabled to False."""
+    settings = await db.scalar(select(Vendor.settings).where(Vendor.id == vendor_id))
+    if isinstance(settings, dict):
+        return settings.get("live_chat_enabled") is not False
+    return True
+
+
 @public_router.post("/chat/widget/{vendor_id}/messages")
 async def widget_post_message(
     vendor_id: UUID, payload: WidgetMessagePayload,
     db: AsyncSession = Depends(get_db),
 ):
     """Visitor sends a message via the embeddable chat widget."""
+    if not await _live_chat_enabled(db, vendor_id):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Live chat is turned off.")
     chat = ChatService(db)
     conv = await chat.get_or_create_for_visitor(
         vendor_id, payload.visitor_id,

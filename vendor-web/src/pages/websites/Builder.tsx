@@ -105,6 +105,7 @@ import { ScrollAnimationControls } from '@/components/websites/ScrollAnimationCo
 import { StoreContentGroupTabs } from '@/components/websites/StoreContentGroupTabs'
 import { animationOptionLabel } from '@storefront/lib/builderScrollAnimations'
 import { blockTypeSupportsBlockLink } from '@storefront/lib/blockLinkPolicy'
+import { isDirectVideoFile } from '@storefront/lib/videoEmbed'
 import { defaultMarqueeItems, marqueeItemsForEditor, marqueeItemsToLegacyText, parseMarqueeItems, patchMarqueeBlockItems, patchMarqueeBlockItemsFromRaw } from '@storefront/lib/marqueeItems'
 import {
   PAYMENT_METHOD_KEYS,
@@ -364,6 +365,83 @@ const DEFAULT_SERVICE_FAQ_ITEMS = [
   { question: 'Can you work with our existing team?', answer: 'Absolutely. We slot into Slack, Linear, or Notion and adapt our cadence to your stand-ups.' },
 ]
 
+// Default editable content for vertical library blocks (mirrors storefront mock so the
+// section shows real-looking items the vendor can edit / add / delete). Images left blank —
+// the storefront generates a gradient placeholder until a real image is uploaded.
+const DEFAULT_COURSE_CATALOG_ITEMS = [
+  { id: 'c1', title: 'Foundations of Modern Ceramics', instructor: 'Naomi Reyes', level: 'Beginner', duration: '6 weeks', lessons: 24, rating: 4.9, reviews: 412, price: 189, currency: 'USD', category: 'Craft', description: 'Wheel throwing, hand-building, and your first three glazed pieces.', image: '' },
+  { id: 'c2', title: 'Photography for Small Brands', instructor: 'Theo Park', level: 'Intermediate', duration: '4 weeks', lessons: 16, rating: 4.8, reviews: 287, price: 149, currency: 'USD', category: 'Photography', description: 'Build a product photo system that scales without a studio.', image: '' },
+  { id: 'c3', title: 'Bread & Pastry Fundamentals', instructor: 'Élodie Marin', level: 'Beginner', duration: '8 weeks', lessons: 32, rating: 4.9, reviews: 538, price: 229, currency: 'USD', category: 'Cooking', description: "From sourdough to laminated doughs — recipes you'll keep.", image: '' },
+  { id: 'c4', title: 'Watercolor Botanicals', instructor: 'Priya Anand', level: 'Beginner', duration: '5 weeks', lessons: 20, rating: 4.7, reviews: 196, price: 129, currency: 'USD', category: 'Art', description: 'Loose, expressive florals with a forgiving wet-on-wet technique.', image: '' },
+]
+
+const DEFAULT_COURSE_SYLLABUS_ITEMS = [
+  { week: 1, title: 'Materials, tools, and your studio setup', lessons: 4, duration: '1h 50m' },
+  { week: 2, title: 'Hand-building: pinch, coil, and slab', lessons: 5, duration: '2h 20m' },
+  { week: 3, title: 'Centering & throwing your first cylinder', lessons: 4, duration: '2h 05m' },
+  { week: 4, title: 'Trimming, foot rings, and refinement', lessons: 3, duration: '1h 35m' },
+  { week: 5, title: 'Surface, slip, and sgraffito', lessons: 4, duration: '1h 50m' },
+  { week: 6, title: 'Glazing, firing, and finishing your three pieces', lessons: 4, duration: '2h 10m' },
+]
+
+const DEFAULT_COURSE_OUTCOMES_ITEMS = [
+  'Throw a balanced cylinder, bowl, and mug',
+  'Mix and apply two reliable glazes',
+  'Run a small home or shared studio safely',
+]
+
+const DEFAULT_COURSE_PERK_ITEMS = [
+  { icon: 'clock', text: '6 weeks of lessons' },
+  { icon: 'video', text: '24 on-demand videos' },
+  { icon: 'award', text: 'Certificate of completion' },
+  { icon: 'users', text: 'Access to private community' },
+]
+
+const DEFAULT_EVENT_LISTING_ITEMS = [
+  { id: 'ev1', title: 'Field Notes — A Night of Ambient', date: 'Jun 5, 2026', venue: 'The Greene Room, Brooklyn', fromPrice: 35, currency: 'USD', tag: 'Music', image: '' },
+  { id: 'ev2', title: 'Spring Pop-Up Market', date: 'Jun 12 – 13, 2026', venue: 'Industry City', fromPrice: 0, currency: 'USD', tag: 'Free', image: '' },
+  { id: 'ev3', title: 'Tasting: Natural Wines of the Loire', date: 'Jun 18, 2026', venue: 'Cellar No. 9', fromPrice: 55, currency: 'USD', tag: 'Food & Drink', image: '' },
+  { id: 'ev4', title: 'Sketch Club: Life Drawing', date: 'Jun 22, 2026', venue: 'Atelier West', fromPrice: 18, currency: 'USD', tag: 'Workshop', image: '' },
+]
+
+const DEFAULT_TICKET_TIER_ITEMS = [
+  { id: 'ga', name: 'General Admission', price: 35, currency: 'USD', perks: 'Standing room\nAccess to all sets', remaining: 124, popular: false },
+  { id: 'seated', name: 'Reserved Seating', price: 65, currency: 'USD', perks: 'Reserved seat\nDrink ticket included\nEarly entry', remaining: 38, popular: true },
+  { id: 'vip', name: 'VIP Lounge', price: 145, currency: 'USD', perks: 'Lounge access\nMeet & greet\nSigned poster\n2 drink tickets', remaining: 6, popular: false },
+]
+
+const DEFAULT_FITNESS_CLASS_ITEMS = [
+  { id: 'fc1', name: 'Sunrise Vinyasa', instructor: 'Maya Lin', type: 'Yoga', duration: 60, intensity: 2, date: 'Mon, May 4', time: '6:30 AM', capacity: 24, booked: 18, studio: 'Studio A', price: 22, currency: 'USD' },
+  { id: 'fc2', name: 'Power Cycle 45', instructor: 'Jordan Park', type: 'Cycle', duration: 45, intensity: 5, date: 'Mon, May 4', time: '7:00 AM', capacity: 32, booked: 32, studio: 'Cycle Room', price: 26, currency: 'USD' },
+  { id: 'fc3', name: 'Strength Foundations', instructor: 'Kai Brooks', type: 'Strength', duration: 50, intensity: 4, date: 'Mon, May 4', time: '12:15 PM', capacity: 16, booked: 9, studio: 'Lifting Floor', price: 28, currency: 'USD' },
+  { id: 'fc4', name: 'Reformer Pilates', instructor: 'Sara Holm', type: 'Pilates', duration: 55, intensity: 3, date: 'Mon, May 4', time: '5:30 PM', capacity: 10, booked: 7, studio: 'Studio B', price: 34, currency: 'USD' },
+  { id: 'fc5', name: 'HIIT & Conditioning', instructor: 'Devon Wright', type: 'HIIT', duration: 45, intensity: 5, date: 'Mon, May 4', time: '6:30 PM', capacity: 20, booked: 14, studio: 'Studio C', price: 24, currency: 'USD' },
+  { id: 'fc6', name: 'Boxing Basics', instructor: 'Rico Alvarez', type: 'Boxing', duration: 60, intensity: 4, date: 'Mon, May 4', time: '7:30 PM', capacity: 14, booked: 11, studio: 'Ring', price: 30, currency: 'USD' },
+]
+
+const DEFAULT_PROPERTY_LISTING_ITEMS = [
+  { id: 're1', title: 'Sunlit Park Slope Brownstone', address: '127 Carroll St, Brooklyn, NY', price: 1895000, currency: 'USD', beds: 4, baths: 3, sqft: 2400, type: 'house', status: 'new', agent: 'Sasha Reed', image: '' },
+  { id: 're2', title: 'Modern Loft with River Views', address: '88 Front St #5B, DUMBO', price: 1290000, currency: 'USD', beds: 2, baths: 2, sqft: 1450, type: 'loft', status: 'for-sale', agent: 'Marcus Cole', image: '' },
+  { id: 're3', title: 'Turnkey Craftsman Bungalow', address: '412 Maple Ave, Austin, TX', price: 549000, currency: 'USD', beds: 3, baths: 2, sqft: 1820, type: 'house', status: 'open-house', agent: 'Priya Anand', image: '' },
+  { id: 're4', title: 'Downtown Two-Bed Condo', address: '900 5th Ave #12C, Seattle, WA', price: 725000, currency: 'USD', beds: 2, baths: 2, sqft: 1120, type: 'condo', status: 'pending', agent: 'Devon Wright', image: '' },
+]
+
+const DEFAULT_AUTO_INVENTORY_ITEMS = [
+  { id: 'v1', year: 2025, make: 'Rivian', model: 'R1S', trim: 'Adventure', price: 84900, currency: 'USD', mileage: 12, fuel: 'Electric', transmission: 'Auto', bodyStyle: 'SUV', exteriorColor: 'Forest Green', condition: 'New', image: '' },
+  { id: 'v2', year: 2023, make: 'Toyota', model: 'Camry', trim: 'XLE', price: 28900, currency: 'USD', mileage: 18400, fuel: 'Hybrid', transmission: 'Auto', bodyStyle: 'Sedan', exteriorColor: 'Midnight Black', condition: 'Certified', image: '' },
+  { id: 'v3', year: 2022, make: 'Ford', model: 'F-150', trim: 'Lariat', price: 41500, currency: 'USD', mileage: 26800, fuel: 'Gas', transmission: 'Auto', bodyStyle: 'Truck', exteriorColor: 'Oxford White', condition: 'Used', image: '' },
+  { id: 'v4', year: 2024, make: 'Honda', model: 'Civic', trim: 'Sport', price: 24900, currency: 'USD', mileage: 6200, fuel: 'Gas', transmission: 'Manual', bodyStyle: 'Hatchback', exteriorColor: 'Rallye Red', condition: 'Certified', image: '' },
+]
+
+const DEFAULT_VEHICLE_HIGHLIGHT_ITEMS = [
+  { text: 'One-owner, clean title' },
+  { text: 'Free CARFAX history report' },
+  { text: 'Multi-point safety inspection' },
+  { text: 'Remaining factory warranty' },
+  { text: 'Apple CarPlay & Android Auto' },
+  { text: 'Heated front seats' },
+]
+
 const BLOCK_CATALOG: BlockDef[] = [
   // Structure
   { type: 'nav', label: 'Navigation', icon: Layout, desc: 'Top navigation with logo and links', category: 'structure', defaultProps: { brand: 'My Store', brand_logo: '', show_logo: true, show_brand_name: true, show_nav_links: true, nav_links_source: 'site_pages', nav_links: [{ label: 'Shop', url: '/products' }, { label: 'Contact', url: '/contact' }], show_search: true, show_cart: true, show_login: true, cta_label: 'Shop now' } },
@@ -402,10 +480,10 @@ const BLOCK_CATALOG: BlockDef[] = [
   { type: 'contact_form', label: 'Contact Form', icon: Mail, desc: 'Contact form with fields', category: 'contact', defaultProps: { title: 'Get in touch', layout: 'split', full_page: false, email: '', phone: '', address: '', show_map: false, form_fields: [{ name: 'name', type: 'text', required: true, placeholder: 'Your name' }, { name: 'email', type: 'email', required: true, placeholder: 'Your email' }, { name: 'message', type: 'textarea', required: true, placeholder: 'How can we help?' }] } },
   { type: 'portfolio_grid', label: 'Portfolio Grid', icon: Camera, desc: 'Filterable work portfolio grid', category: 'portfolio', defaultProps: { title: 'Our Work', columns: 3, filterable: true } },
   { type: 'gallery_masonry', label: 'Gallery Masonry', icon: ImageIcon, desc: 'Masonry image gallery', category: 'media', defaultProps: { title: 'Gallery', layout: 'masonry', columns: 3, images: [] } },
-  { type: 'video_gallery', label: 'Video Gallery', icon: Video, desc: 'YouTube / Vimeo video grid with layouts', category: 'media', defaultProps: { title: 'Video gallery', layout: 'grid', columns: 3, videos: [{ video_url: '', title: '', caption: '' }, { video_url: '', title: '', caption: '' }, { video_url: '', title: '', caption: '' }] } },
+  { type: 'video_gallery', label: 'Video multiple', icon: Video, desc: 'YouTube / Vimeo video grid with layouts', category: 'media', defaultProps: { title: 'Video gallery', layout: 'grid', columns: 3, videos: [{ video_url: '', title: '', caption: '' }, { video_url: '', title: '', caption: '' }, { video_url: '', title: '', caption: '' }] } },
   { type: 'blog_grid', label: 'Blog Grid', icon: FileText, desc: 'Latest posts in a grid', category: 'blog', defaultProps: { title: 'Latest Posts', columns: 3, show_count: 12, image_height_pct: 56 } },
   { type: 'newsletter', label: 'Newsletter', icon: Mail, desc: 'Email capture / subscribe form', category: 'conversion', defaultProps: { title: 'Stay in the Loop', subtitle: 'Get the latest news and updates delivered to your inbox.', cta_label: 'Subscribe' } },
-  { type: 'video_embed', label: 'Video Embed', icon: Video, desc: 'YouTube / Vimeo video player', category: 'media', defaultProps: { title: 'Watch our story', video_url: '', aspect_ratio: '16:9' } },
+  { type: 'video_embed', label: 'Video single', icon: Video, desc: 'YouTube / Vimeo video player', category: 'media', defaultProps: { title: 'Watch our story', video_url: '', aspect_ratio: '16:9' } },
   { type: 'map_embed', label: 'Map', icon: MapIcon, desc: 'Embedded map with location', category: 'contact', defaultProps: { title: 'Visit us', address: '' } },
   { type: 'trust_logos', label: 'Trust Logos', icon: Award, desc: 'Partner/client logo strip', category: 'social', defaultProps: { title: 'Trusted by our partners' } },
   { type: 'timeline', label: 'Timeline', icon: Clock, desc: 'Company history or process steps', category: 'about', defaultProps: { title: 'Our story', items: [{ year: '2020', title: 'We opened our doors', desc: 'Started as a small local shop with a big vision.' }, { year: '2022', title: 'Growing together', desc: 'Expanded our range and welcomed thousands of customers.' }, { year: '2024', title: 'Online store launch', desc: 'Now you can shop with us anytime, anywhere.' }] } },
@@ -499,18 +577,78 @@ const COMMERCE_LIBRARY_BLOCKS: BlockDef[] = [
   { type: 'booking.group', label: 'Group Booking', icon: Clock, desc: 'Adult/child counters with min/max party size.', category: 'widgets', defaultProps: { variant: 'default' } },
   { type: 'booking.recurring', label: 'Recurring Booking', icon: Clock, desc: 'Weekly / bi-weekly / monthly series with discount.', category: 'widgets', defaultProps: { variant: 'default' } },
   { type: 'booking.waitlist', label: 'Waitlist', icon: Clock, desc: 'Join waitlist form or current position card.', category: 'widgets', defaultProps: { variant: 'default' } },
-  { type: 'state.empty', label: 'Empty State', icon: AlertTriangle, desc: 'Friendly empty placeholders for cart, search, wishlist, and more.', category: 'advanced', defaultProps: { variant: 'default' } },
-  { type: 'state.skeleton', label: 'Skeleton Loader', icon: AlertTriangle, desc: 'Loading placeholders shaped like the content they replace.', category: 'advanced', defaultProps: { variant: 'default' } },
-  { type: 'state.error', label: 'Error State', icon: AlertTriangle, desc: '404, 500, network, and maintenance error placeholders.', category: 'advanced', defaultProps: { variant: 'default' } },
-  { type: 'vertical.propertyListing', label: 'Property Listing', icon: StoreIcon, desc: 'Real estate listings in grid, list, or map layout.', category: 'ecommerce', defaultProps: { variant: 'default' } },
+  { type: 'state.empty', label: 'Empty State', icon: AlertTriangle, desc: 'Friendly empty placeholders for cart, search, wishlist, and more.', category: 'advanced', defaultProps: {
+    variant: 'default',
+    preset: 'emptyCart',
+    size: 'md',
+    title: 'Your cart is empty',
+    description: "Looks like you haven't added anything yet. Browse our latest arrivals.",
+    cta: 'Start shopping',
+    cta_url: '',
+    secondary_cta: 'View wishlist',
+    secondary_cta_url: '',
+    showSecondary: true,
+  } },
+  { type: 'state.skeleton', label: 'Skeleton Loader', icon: AlertTriangle, desc: 'Loading placeholders shaped like the content they replace.', category: 'advanced', defaultProps: { variant: 'default', preset: 'productGrid', count: 6 } },
+  { type: 'state.error', label: 'Error State', icon: AlertTriangle, desc: '404, 500, network, and maintenance error placeholders.', category: 'advanced', defaultProps: {
+    variant: 'default',
+    preset: 'generic',
+    error_code: 'Oops',
+    title: 'Something went wrong',
+    description: 'We hit an unexpected snag. Try again, or contact support if it persists.',
+    cta: 'Try again',
+    cta_url: '',
+    secondary_cta: 'Go back',
+    secondary_cta_url: '',
+    showSecondary: true,
+  } },
+  { type: 'vertical.propertyListing', label: 'Property Listing', icon: StoreIcon, desc: 'Real estate listings in grid, list, or map layout.', category: 'ecommerce', defaultProps: { variant: 'default', header_title: 'Featured listings', header_subtitle: '', refine_label: 'Refine search', cta: 'View details', showAgent: true, properties: DEFAULT_PROPERTY_LISTING_ITEMS } },
   { type: 'vertical.propertyDetail', label: 'Property Detail', icon: StoreIcon, desc: 'Full property page with gallery, stats, agent, and mortgage.', category: 'ecommerce', defaultProps: { variant: 'default' } },
-  { type: 'vertical.autoInventory', label: 'Auto Inventory', icon: StoreIcon, desc: 'Vehicle inventory grid with price filter and condition badges.', category: 'ecommerce', defaultProps: { variant: 'default' } },
-  { type: 'vertical.vehicleDetail', label: 'Vehicle Detail', icon: StoreIcon, desc: 'Full vehicle page with specs, highlights, and finance estimate.', category: 'ecommerce', defaultProps: { variant: 'default' } },
-  { type: 'vertical.fitnessSchedule', label: 'Fitness Schedule', icon: StoreIcon, desc: 'Class schedule with intensity, capacity, and reservations.', category: 'ecommerce', defaultProps: { variant: 'default' } },
-  { type: 'vertical.eventListing', label: 'Event Listing', icon: StoreIcon, desc: 'Upcoming events in grid or list, with date and venue.', category: 'ecommerce', defaultProps: { variant: 'default' } },
-  { type: 'vertical.ticketPicker', label: 'Ticket Picker', icon: StoreIcon, desc: 'Tiered ticket selection with seating chart and order summary.', category: 'ecommerce', defaultProps: { variant: 'default' } },
-  { type: 'vertical.courseCatalog', label: 'Course Catalog', icon: StoreIcon, desc: 'Browse courses with rating, level, and price.', category: 'ecommerce', defaultProps: { variant: 'default' } },
-  { type: 'vertical.courseDetail', label: 'Course Detail', icon: StoreIcon, desc: 'Course page with syllabus, outcomes, and pricing card.', category: 'ecommerce', defaultProps: { variant: 'default' } },
+  { type: 'vertical.autoInventory', label: 'Auto Inventory', icon: StoreIcon, desc: 'Vehicle inventory grid with price filter and condition badges.', category: 'ecommerce', defaultProps: { variant: 'default', header_title: 'Available inventory', header_subtitle: '', cta: 'View vehicle', showFilters: true, vehicles: DEFAULT_AUTO_INVENTORY_ITEMS } },
+  { type: 'vertical.vehicleDetail', label: 'Vehicle Detail', icon: StoreIcon, desc: 'Full vehicle page with specs, highlights, and finance estimate.', category: 'ecommerce', defaultProps: {
+    variant: 'default',
+    image_url: '',
+    condition: 'New',
+    year: 2025,
+    make: 'Rivian',
+    model: 'R1S',
+    trim: 'Adventure',
+    exteriorColor: 'Forest Green',
+    bodyStyle: 'SUV',
+    mileage: 12,
+    fuel: 'Electric',
+    transmission: 'Auto',
+    price: 84900,
+    currency: 'USD',
+    location_note: 'Located at our Williamsburg showroom · Available for delivery',
+    cta: 'Schedule test drive',
+    highlights: DEFAULT_VEHICLE_HIGHLIGHT_ITEMS,
+  } },
+  { type: 'vertical.fitnessSchedule', label: 'Fitness Schedule', icon: StoreIcon, desc: 'Class schedule with intensity, capacity, and reservations.', category: 'ecommerce', defaultProps: { variant: 'default', classes: DEFAULT_FITNESS_CLASS_ITEMS } },
+  { type: 'vertical.eventListing', label: 'Event Listing', icon: StoreIcon, desc: 'Upcoming events in grid or list, with date and venue.', category: 'ecommerce', defaultProps: { variant: 'default', header_title: 'Upcoming events', header_subtitle: '', all_events_label: 'All events', cta: 'Get tickets', showTag: true, events: DEFAULT_EVENT_LISTING_ITEMS } },
+  { type: 'vertical.ticketPicker', label: 'Ticket Picker', icon: StoreIcon, desc: 'Tiered ticket selection with seating chart and order summary.', category: 'ecommerce', defaultProps: { variant: 'default', title: 'Field Notes — A Night of Ambient', tagline: 'An intimate evening of live electronic & strings', image_url: '', date: 'Friday, June 5, 2026', doors: '7:30 PM', start: '8:30 PM', venue: 'The Greene Room', address: '418 Atlantic Ave, Brooklyn', order_title: 'Your order', age_note: '21+ event · ID required at door', seating_title: 'Seating chart', max_per_order: 8, cta: 'Continue to checkout', showSeating: true, tiers: DEFAULT_TICKET_TIER_ITEMS } },
+  { type: 'vertical.courseCatalog', label: 'Course Catalog', icon: StoreIcon, desc: 'Browse courses with rating, level, and price.', category: 'ecommerce', defaultProps: { variant: 'default', header_title: 'Featured courses', header_subtitle: '', all_courses_label: 'All courses', cta: 'Enroll', showInstructor: true, courses: DEFAULT_COURSE_CATALOG_ITEMS } },
+  { type: 'vertical.courseDetail', label: 'Course Detail', icon: StoreIcon, desc: 'Course page with syllabus, outcomes, and pricing card.', category: 'ecommerce', defaultProps: {
+    variant: 'default',
+    title: 'Foundations of Modern Ceramics',
+    instructor: 'Naomi Reyes',
+    level: 'Beginner',
+    category: 'Craft',
+    description: 'Wheel throwing, hand-building, and your first three glazed pieces.',
+    image_url: '',
+    duration: '6 weeks',
+    lessons: 24,
+    rating: 4.9,
+    reviews: 412,
+    price: 189,
+    currency: 'USD',
+    enrolled_label: '2,400+ enrolled',
+    cta: 'Enroll for',
+    preview_cta: 'Try free preview',
+    syllabus: DEFAULT_COURSE_SYLLABUS_ITEMS,
+    outcomes: DEFAULT_COURSE_OUTCOMES_ITEMS,
+    perks: DEFAULT_COURSE_PERK_ITEMS,
+  } },
 ]
 
 BLOCK_CATALOG.push(...COMMERCE_LIBRARY_BLOCKS)
@@ -3986,7 +4124,7 @@ const GRADIENT_PRESETS = [
 
 // ?? Sub-item schema registry ?????????????????????????????????????????????????
 
-type ItemFieldType = 'text' | 'textarea' | 'image' | 'number' | 'boolean' | 'emoji' | 'select'
+type ItemFieldType = 'text' | 'textarea' | 'image' | 'video' | 'number' | 'boolean' | 'emoji' | 'select'
 interface ItemField { key: string; label: string; type: ItemFieldType; options?: string[]; optionLabels?: Record<string, string> }
 interface ItemSchema { arrayKey: string; itemLabel: string; defaultItem: Record<string, any>; fields: ItemField[] }
 
@@ -4067,7 +4205,7 @@ const ITEM_SCHEMAS: Record<string, ItemSchema> = {
     arrayKey: 'videos', itemLabel: 'Video',
     defaultItem: { video_url: '', title: '', caption: '' },
     fields: [
-      { key: 'video_url', label: 'Video URL', type: 'text' },
+      { key: 'video_url', label: 'Video', type: 'video' },
       { key: 'title',     label: 'Title',     type: 'text' },
       { key: 'caption',   label: 'Caption',   type: 'textarea' },
     ],
@@ -4082,8 +4220,9 @@ const ITEM_SCHEMAS: Record<string, ItemSchema> = {
   },
   timeline: {
     arrayKey: 'items', itemLabel: 'Milestone',
-    defaultItem: { year: '2024', title: 'New milestone', desc: 'Describe this step.' },
+    defaultItem: { year: '2024', title: 'New milestone', desc: 'Describe this step.', image_url: '' },
     fields: [
+      { key: 'image_url', label: 'Image', type: 'image' },
       { key: 'year', label: 'Year / label', type: 'text' },
       { key: 'title', label: 'Title', type: 'text' },
       { key: 'desc', label: 'Description', type: 'textarea' },
@@ -4130,6 +4269,116 @@ const ITEM_SCHEMAS: Record<string, ItemSchema> = {
       },
     ],
   },
+  // ── Vertical library blocks (static content, editable here) ──────────────────
+  'vertical.courseCatalog': {
+    arrayKey: 'courses', itemLabel: 'Course',
+    defaultItem: { id: '', title: 'New course', instructor: 'Instructor name', level: 'Beginner', duration: '4 weeks', lessons: 12, rating: 4.8, reviews: 0, price: 99, currency: 'USD', category: 'Category', description: 'Short course description.', image: '' },
+    fields: [
+      { key: 'image',       label: 'Image',       type: 'image' },
+      { key: 'title',       label: 'Title',       type: 'text' },
+      { key: 'instructor',  label: 'Instructor',  type: 'text' },
+      { key: 'category',    label: 'Category',    type: 'text' },
+      { key: 'level',       label: 'Level',       type: 'select', options: ['Beginner', 'Intermediate', 'Advanced'] },
+      { key: 'duration',    label: 'Duration',    type: 'text' },
+      { key: 'lessons',     label: 'Lessons',     type: 'number' },
+      { key: 'price',       label: 'Price',       type: 'number' },
+      { key: 'rating',      label: 'Rating',      type: 'number' },
+      { key: 'reviews',     label: 'Reviews',     type: 'number' },
+      { key: 'description', label: 'Description', type: 'textarea' },
+    ],
+  },
+  'vertical.courseDetail': {
+    arrayKey: 'syllabus', itemLabel: 'Week',
+    defaultItem: { week: 1, title: 'New topic', lessons: 3, duration: '1h' },
+    fields: [
+      { key: 'week',     label: 'Week #',   type: 'number' },
+      { key: 'title',    label: 'Topic',    type: 'text' },
+      { key: 'lessons',  label: 'Lessons',  type: 'number' },
+      { key: 'duration', label: 'Duration', type: 'text' },
+    ],
+  },
+  'vertical.eventListing': {
+    arrayKey: 'events', itemLabel: 'Event',
+    defaultItem: { id: '', title: 'New event', date: 'Jun 1, 2026', venue: 'Venue name', fromPrice: 0, currency: 'USD', tag: 'Event', image: '' },
+    fields: [
+      { key: 'image',     label: 'Image',                type: 'image' },
+      { key: 'title',     label: 'Title',                type: 'text' },
+      { key: 'date',      label: 'Date',                 type: 'text' },
+      { key: 'venue',     label: 'Venue',                type: 'text' },
+      { key: 'fromPrice', label: 'From price (0 = Free)', type: 'number' },
+      { key: 'tag',       label: 'Tag',                  type: 'text' },
+    ],
+  },
+  'vertical.ticketPicker': {
+    arrayKey: 'tiers', itemLabel: 'Ticket tier',
+    defaultItem: { id: '', name: 'New tier', price: 0, currency: 'USD', perks: 'First perk\nSecond perk', remaining: 100, popular: false },
+    fields: [
+      { key: 'name',      label: 'Tier name',          type: 'text' },
+      { key: 'price',     label: 'Price',              type: 'number' },
+      { key: 'perks',     label: 'Perks (one per line)', type: 'textarea' },
+      { key: 'remaining', label: 'Remaining',          type: 'number' },
+      { key: 'popular',   label: 'Mark as popular',    type: 'boolean' },
+    ],
+  },
+  'vertical.fitnessSchedule': {
+    arrayKey: 'classes', itemLabel: 'Class',
+    defaultItem: { id: '', name: 'New class', instructor: 'Instructor', type: 'Yoga', duration: 60, intensity: 3, date: 'Mon, May 4', time: '6:00 AM', capacity: 20, booked: 0, studio: 'Studio A', price: 20, currency: 'USD' },
+    fields: [
+      { key: 'name',       label: 'Class name',    type: 'text' },
+      { key: 'instructor', label: 'Instructor',    type: 'text' },
+      { key: 'type',       label: 'Type',          type: 'select', options: ['Yoga', 'HIIT', 'Cycle', 'Pilates', 'Strength', 'Boxing'] },
+      { key: 'time',       label: 'Time',          type: 'text' },
+      { key: 'duration',   label: 'Duration (min)', type: 'number' },
+      { key: 'intensity',  label: 'Intensity',     type: 'select', options: ['1', '2', '3', '4', '5'] },
+      { key: 'capacity',   label: 'Capacity',      type: 'number' },
+      { key: 'booked',     label: 'Booked',        type: 'number' },
+      { key: 'studio',     label: 'Studio',        type: 'text' },
+      { key: 'price',      label: 'Price',         type: 'number' },
+    ],
+  },
+  'vertical.vehicleDetail': {
+    arrayKey: 'highlights', itemLabel: 'Highlight',
+    defaultItem: { text: 'New highlight' },
+    fields: [
+      { key: 'text', label: 'Highlight', type: 'text' },
+    ],
+  },
+  'vertical.propertyListing': {
+    arrayKey: 'properties', itemLabel: 'Property',
+    defaultItem: { id: '', title: 'New listing', address: '', price: 250000, currency: 'USD', beds: 2, baths: 1, sqft: 900, type: 'house', status: 'for-sale', agent: '', image: '' },
+    fields: [
+      { key: 'image',   label: 'Photo',    type: 'image' },
+      { key: 'title',   label: 'Title',    type: 'text' },
+      { key: 'address', label: 'Address',  type: 'text' },
+      { key: 'status',  label: 'Status',   type: 'select', options: ['for-sale', 'new', 'open-house', 'pending'] },
+      { key: 'type',    label: 'Type',     type: 'select', options: ['house', 'condo', 'loft', 'townhouse'] },
+      { key: 'price',   label: 'Price',    type: 'number' },
+      { key: 'currency', label: 'Currency', type: 'text' },
+      { key: 'beds',    label: 'Beds',     type: 'number' },
+      { key: 'baths',   label: 'Baths',    type: 'number' },
+      { key: 'sqft',    label: 'Sq ft',    type: 'number' },
+      { key: 'agent',   label: 'Agent',    type: 'text' },
+    ],
+  },
+  'vertical.autoInventory': {
+    arrayKey: 'vehicles', itemLabel: 'Vehicle',
+    defaultItem: { id: '', year: 2024, make: 'New', model: 'Vehicle', trim: '', price: 25000, currency: 'USD', mileage: 0, fuel: 'Gas', transmission: 'Auto', bodyStyle: 'Sedan', exteriorColor: '', condition: 'Used', image: '' },
+    fields: [
+      { key: 'image',        label: 'Photo',        type: 'image' },
+      { key: 'year',         label: 'Year',         type: 'number' },
+      { key: 'make',         label: 'Make',         type: 'text' },
+      { key: 'model',        label: 'Model',        type: 'text' },
+      { key: 'trim',         label: 'Trim',         type: 'text' },
+      { key: 'condition',    label: 'Condition',    type: 'select', options: ['New', 'Certified', 'Used'] },
+      { key: 'price',        label: 'Price',        type: 'number' },
+      { key: 'currency',     label: 'Currency',     type: 'text' },
+      { key: 'mileage',      label: 'Mileage',      type: 'number' },
+      { key: 'fuel',         label: 'Fuel',         type: 'select', options: ['Gas', 'Hybrid', 'Electric', 'Diesel'] },
+      { key: 'transmission', label: 'Transmission', type: 'select', options: ['Auto', 'Manual'] },
+      { key: 'bodyStyle',    label: 'Body style',   type: 'text' },
+      { key: 'exteriorColor', label: 'Exterior color', type: 'text' },
+    ],
+  },
 }
 
 const ITEM_SCHEMA_ALIASES: Partial<Record<string, keyof typeof ITEM_SCHEMAS>> = {
@@ -4158,6 +4407,11 @@ function itemListSectionTitle(blockType: string, itemSchema: ItemSchema): string
     gallery_masonry: 'Images',
     gallery: 'Images',
     video_gallery: 'Videos',
+    'vertical.fitnessSchedule': 'Classes',
+    'vertical.courseCatalog': 'Courses',
+    'vertical.vehicleDetail': 'Highlights',
+    'vertical.autoInventory': 'Vehicles',
+    'vertical.propertyListing': 'Properties',
   }
   return titles[blockType] || `${itemSchema.itemLabel}s`
 }
@@ -4167,6 +4421,14 @@ const ITEM_LIST_DEFAULT_OPEN = new Set([
   'faq', 'service.faq', 'timeline', 'stats', 'testimonials', 'pricing', 'service.pricing', 'features', 'features_alternating',
   'services_cards', 'services_list', 'team_grid', 'trust_logos', 'marquee_strip', 'payment_methods_strip',
   'gallery_masonry', 'gallery', 'gallery_grid', 'video_gallery',
+  'vertical.fitnessSchedule', 'vertical.ticketPicker', 'vertical.courseCatalog', 'vertical.vehicleDetail', 'vertical.autoInventory', 'vertical.propertyListing',
+])
+
+/** Block types with their own dedicated Title/Description fields in a custom content panel — skip the generic duplicates below. */
+const TITLE_DESC_HANDLED_ELSEWHERE = new Set([
+  'vertical.courseDetail',
+  'state.error',
+  'state.empty',
 ])
 
 /** Block types whose tile thumbnails respect `image_shape` (square / rounded / circle). */
@@ -4279,19 +4541,21 @@ const CATALOG_GRID_BLOCK_CONFIG: Record<string, CatalogGridBlockConfig> = {
   // Commerce kit ? vertical listing blocks
   'vertical.propertyListing': {
     columnMin: 2, defaultColumns: 3, itemCountLabel: 'Listings shown', itemCountKeys: ['show_count'],
-    showColumns: true, showImageHeight: false, showCardStyle: false, showProductToggles: true, showServiceToggles: false,
+    showColumns: true, showImageHeight: false, showCardStyle: false, showProductToggles: false, showServiceToggles: false,
   },
   'vertical.autoInventory': {
     columnMin: 2, defaultColumns: 3, itemCountLabel: 'Vehicles shown', itemCountKeys: ['show_count'],
-    showColumns: true, showImageHeight: false, showCardStyle: false, showProductToggles: true, showServiceToggles: false,
+    showColumns: true, showImageHeight: false, showCardStyle: false, showProductToggles: false, showServiceToggles: false,
   },
   'vertical.eventListing': {
     columnMin: 2, defaultColumns: 4, itemCountLabel: 'Events shown', itemCountKeys: ['show_count'],
-    showColumns: true, showImageHeight: false, showCardStyle: false, showProductToggles: true, showServiceToggles: false,
+    // Product toggles (Badges/Stock/Add button) don't map to this block's real props — it has its own
+    // "Show event tag" checkbox and button-label field in the Content tab instead.
+    showColumns: true, showImageHeight: false, showCardStyle: false, showProductToggles: false, showServiceToggles: false,
   },
   'vertical.courseCatalog': {
     columnMin: 2, defaultColumns: 3, itemCountLabel: 'Courses shown', itemCountKeys: ['show_count'],
-    showColumns: true, showImageHeight: false, showCardStyle: false, showProductToggles: true, showServiceToggles: false,
+    showColumns: true, showImageHeight: false, showCardStyle: false, showProductToggles: false, showServiceToggles: false,
   },
   blog_grid: {
     columnMin: 1, defaultColumns: 3, itemCountLabel: 'Posts shown', itemCountKeys: ['show_count'],
@@ -4702,6 +4966,215 @@ function InlineMediaPicker({
   )
 }
 
+/** Upload / pick a video file from the device or media library (for the Video Embed block). */
+function InlineVideoPicker({
+  siteId, value, onChange,
+}: {
+  siteId: string
+  value: string
+  onChange: (url: string) => void
+}) {
+  const { data: mediaList = [] } = useMedia(siteId)
+  const uploadMedia = useUploadMedia(siteId)
+  const [showLibrary, setShowLibrary] = useState(false)
+  const fileRef = useRef<HTMLInputElement>(null)
+  const videoMedia = mediaList.filter(m => m.file_type === 'video')
+  const isDirect = value ? isDirectVideoFile(value) : false
+
+  const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    try {
+      const saved = await uploadMedia.mutateAsync(file)
+      onChange(saved.original_url)
+      setShowLibrary(false)
+      toast.success('Video uploaded!')
+    } catch {
+      toast.error('Upload failed — use MP4, WebM or MOV up to 50 MB')
+    }
+    e.target.value = ''
+  }
+
+  const actionBtn = 'flex items-center justify-center gap-1.5 py-2 px-2 rounded-lg border text-[11px] font-bold transition-colors'
+
+  return (
+    <div className="space-y-2">
+      <input ref={fileRef} type="file" accept="video/mp4,video/webm,video/quicktime,video/*" className="hidden" onChange={handleUpload} />
+
+      {isDirect && (
+        <div className="relative overflow-hidden rounded-xl border-2 border-primary/30 bg-black">
+          <video src={mediaUrl(value)} className="h-28 w-full bg-black object-contain" controls preload="metadata" />
+        </div>
+      )}
+
+      <div className="grid grid-cols-2 gap-1.5">
+        <button
+          type="button"
+          onClick={() => fileRef.current?.click()}
+          disabled={uploadMedia.isPending}
+          className={cn(actionBtn, 'border-primary/30 text-primary bg-accent/40 hover:bg-accent')}
+        >
+          {uploadMedia.isPending
+            ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+            : <Upload className="w-3.5 h-3.5" />}
+          Upload from device
+        </button>
+        <button
+          type="button"
+          onClick={() => setShowLibrary(v => !v)}
+          className={cn(actionBtn, showLibrary ? 'border-emerald-400 bg-emerald-50 text-emerald-700' : 'border-gray-200 text-gray-600 hover:bg-gray-50')}
+        >
+          <Video className="w-3.5 h-3.5" />
+          Library
+        </button>
+      </div>
+
+      {isDirect && (
+        <button
+          type="button"
+          onClick={() => onChange('')}
+          className="text-xs font-semibold text-red-500 hover:text-red-700"
+        >
+          Remove uploaded video
+        </button>
+      )}
+
+      {showLibrary && (
+        <div className="rounded-xl border border-gray-200 bg-white p-2 space-y-2">
+          {videoMedia.length === 0 ? (
+            <p className="py-3 text-center text-xs text-gray-400">No uploaded videos yet — use Upload from device above.</p>
+          ) : (
+            <div className="grid grid-cols-2 gap-1.5 max-h-44 overflow-y-auto">
+              {videoMedia.map(m => (
+                <button
+                  key={m.id}
+                  type="button"
+                  onClick={() => { onChange(m.original_url); setShowLibrary(false); toast.success('Video selected') }}
+                  className={cn(
+                    'overflow-hidden rounded-lg border-2 bg-black transition-all',
+                    value === m.original_url ? 'border-primary ring-2 ring-primary/30' : 'border-transparent hover:border-primary',
+                  )}
+                  title={m.filename}
+                >
+                  <video src={mediaUrl(m.original_url)} className="h-16 w-full object-contain" preload="metadata" muted />
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      <p className="text-[10px] text-muted-foreground leading-snug">
+        Upload an MP4, WebM or MOV (max 50 MB), or paste a YouTube / Vimeo link above.
+      </p>
+    </div>
+  )
+}
+
+// ?? Generic text-list editor (add / edit / delete each row) ???????????????????
+
+function TextListEditor({
+  items, placeholder, addLabel = 'Add item', onChange,
+}: {
+  items: string[]
+  placeholder?: string
+  addLabel?: string
+  onChange: (items: string[]) => void
+}) {
+  return (
+    <div className="space-y-1.5">
+      {items.map((text, i) => (
+        <div key={i} className="flex items-center gap-1.5">
+          <input
+            type="text"
+            value={text}
+            placeholder={placeholder}
+            onChange={e => {
+              const next = [...items]
+              next[i] = e.target.value
+              onChange(next)
+            }}
+            className="flex-1 min-w-0 px-2.5 py-2 border border-gray-200 rounded-lg text-xs bg-white focus:outline-none focus:ring-2 focus:ring-ring"
+          />
+          <button
+            type="button"
+            onClick={() => onChange(items.filter((_, idx) => idx !== i))}
+            className="p-1.5 rounded-lg border border-red-200 text-red-500 hover:bg-red-50 transition-colors shrink-0"
+            title="Delete"
+          ><Trash2 className="w-3.5 h-3.5" /></button>
+        </div>
+      ))}
+      <button
+        type="button"
+        onClick={() => onChange([...items, ''])}
+        className="flex items-center gap-1 text-xs text-primary hover:text-primary font-semibold"
+      >
+        <Plus className="w-3 h-3" /> {addLabel}
+      </button>
+    </div>
+  )
+}
+
+const PERK_ICON_OPTIONS = [
+  { id: 'clock', label: 'Clock' },
+  { id: 'video', label: 'Video' },
+  { id: 'award', label: 'Award' },
+  { id: 'users', label: 'Users' },
+]
+
+function PerkListEditor({
+  items, onChange,
+}: {
+  items: { icon?: string; text: string }[]
+  onChange: (items: { icon?: string; text: string }[]) => void
+}) {
+  return (
+    <div className="space-y-2">
+      {items.map((perk, i) => (
+        <div key={i} className="flex items-center gap-1.5 rounded-lg border border-gray-100 bg-white p-2">
+          <select
+            value={perk.icon ?? 'clock'}
+            onChange={e => {
+              const next = [...items]
+              next[i] = { ...next[i], icon: e.target.value }
+              onChange(next)
+            }}
+            className="px-1.5 py-2 border border-gray-200 rounded-lg text-xs bg-white shrink-0"
+          >
+            {PERK_ICON_OPTIONS.map(opt => (
+              <option key={opt.id} value={opt.id}>{opt.label}</option>
+            ))}
+          </select>
+          <input
+            type="text"
+            value={perk.text}
+            placeholder="Certificate of completion"
+            onChange={e => {
+              const next = [...items]
+              next[i] = { ...next[i], text: e.target.value }
+              onChange(next)
+            }}
+            className="flex-1 min-w-0 px-2.5 py-2 border border-gray-200 rounded-lg text-xs bg-white focus:outline-none focus:ring-2 focus:ring-ring"
+          />
+          <button
+            type="button"
+            onClick={() => onChange(items.filter((_, idx) => idx !== i))}
+            className="p-1.5 rounded-lg border border-red-200 text-red-500 hover:bg-red-50 transition-colors shrink-0"
+            title="Delete"
+          ><Trash2 className="w-3.5 h-3.5" /></button>
+        </div>
+      ))}
+      <button
+        type="button"
+        onClick={() => onChange([...items, { icon: 'clock', text: '' }])}
+        className="flex items-center gap-1 text-xs text-primary hover:text-primary font-semibold"
+      >
+        <Plus className="w-3 h-3" /> Add item
+      </button>
+    </div>
+  )
+}
+
 // ?? Sub-item Editor ???????????????????????????????????????????????????????????
 
 function SubItemEditor({
@@ -4908,9 +5381,9 @@ function SubItemEditor({
                   ><Copy className="w-3 h-3" /></button>
                   <button
                     onClick={() => deleteItem(idx)}
-                    className="p-1 text-gray-400 hover:text-red-500 transition-colors"
+                    className="p-1.5 rounded-lg border border-red-200 text-red-500 hover:bg-red-50 transition-colors"
                     title="Delete"
-                  ><Trash2 className="w-3 h-3" /></button>
+                  ><Trash2 className="w-3.5 h-3.5" /></button>
                 </div>
                 )}
                 <ChevronRight className={cn('w-3.5 h-3.5 text-gray-400 transition-transform shrink-0', isExpanded && 'rotate-90')} />
@@ -4929,6 +5402,26 @@ function SubItemEditor({
                         onFocus={() => notifyItemImageFocus(idx)}
                         onChange={readOnly ? () => {} : url => updateItem(idx, { [field.key]: url })}
                       />
+                    )
+                    if (field.type === 'video') return (
+                      <div key={field.key} className="space-y-1">
+                        <label className="text-xs font-bold text-gray-500 uppercase tracking-wide">{field.label}</label>
+                        <input
+                          type="text"
+                          value={item[field.key] || ''}
+                          readOnly={readOnly}
+                          onChange={e => !readOnly && updateItem(idx, { [field.key]: e.target.value })}
+                          placeholder="YouTube / Vimeo link"
+                          className="w-full px-2.5 py-2 border border-gray-200 rounded-lg text-xs bg-white font-mono focus:outline-none focus:ring-2 focus:ring-ring"
+                        />
+                        {!readOnly && (
+                          <InlineVideoPicker
+                            siteId={siteId}
+                            value={item[field.key] || ''}
+                            onChange={url => updateItem(idx, { [field.key]: url })}
+                          />
+                        )}
+                      </div>
                     )
                     if (field.type === 'boolean') return (
                       <label key={field.key} className="flex items-center gap-2 cursor-pointer">
@@ -6297,13 +6790,20 @@ function PropsEditor({
       {p.headline    !== undefined && inputRow({ label: 'Headline',      fieldKey: 'headline',      placeholder: 'Your compelling headline?' })}
       {p.headline_line2 !== undefined && inputRow({ label: 'Headline line 2', fieldKey: 'headline_line2', placeholder: 'Second headline line' })}
       {p.subtitle    !== undefined && inputRow({ label: 'Subtitle',      fieldKey: 'subtitle',      multiline: true, placeholder: 'Expand your headline here?' })}
-      {p.title       !== undefined && inputRow({ label: 'Title',         fieldKey: 'title',         placeholder: 'Section title?' })}
+      {p.title       !== undefined && !TITLE_DESC_HANDLED_ELSEWHERE.has(block.block_type) && inputRow({ label: 'Title',         fieldKey: 'title',         placeholder: 'Section title?' })}
       {(p.video_url !== undefined || block.block_type === 'video_embed') && inputRow({
         label: 'Video URL',
         fieldKey: 'video_url',
         placeholder: 'YouTube or Vimeo link (e.g. https://youtube.com/watch?v=...)',
         linkable: false,
       })}
+      {block.block_type === 'video_embed' && siteId && (
+        <InlineVideoPicker
+          siteId={siteId}
+          value={String((p as any).video_url ?? '')}
+          onChange={url => onUpdate({ video_url: url })}
+        />
+      )}
       {(p.message !== undefined || block.block_type === 'cookie_consent') && inputRow({
         label: 'Message',
         fieldKey: 'message',
@@ -6329,7 +6829,7 @@ function PropsEditor({
         placeholder: '/privacy or https://…',
         linkable: false,
       })}
-      {p.description !== undefined && inputRow({ label: 'Description',   fieldKey: 'description',   multiline: true, placeholder: 'Describe this section?' })}
+      {p.description !== undefined && !TITLE_DESC_HANDLED_ELSEWHERE.has(block.block_type) && inputRow({ label: 'Description',   fieldKey: 'description',   multiline: true, placeholder: 'Describe this section?' })}
       {p.eyebrow     !== undefined && inputRow({ label: 'Tagline',       fieldKey: 'eyebrow',       placeholder: 'Small text above headline (e.g. Welcome)' })}
       {p.cta_primary !== undefined && inputRow({ label: 'Primary CTA',   fieldKey: 'cta_primary',   placeholder: 'Get Started' })}
       {p.cta_primary !== undefined && inputRow({ label: '? Primary link', fieldKey: 'cta_primary_url',   placeholder: '/signup or /products/my-product' })}
@@ -6912,6 +7412,370 @@ function PropsEditor({
               <Plus className="w-4 h-4" /> Add your first page
             </button>
           ) : null}
+        </PropsCollapsible>
+      )}
+
+      {block.block_type === 'vertical.ticketPicker' && (
+        <PropsCollapsible title="Event details" preview="Image, tagline, date, venue" defaultOpen>
+          <div className="space-y-2">
+            <InlineMediaPicker
+              siteId={siteId}
+              value={String((p as any).image_url ?? '')}
+              label="Event banner image"
+              onChange={url => onUpdate({ image_url: url } as any)}
+            />
+            {inputRow({ label: 'Tagline', fieldKey: 'tagline', placeholder: 'An intimate evening of live electronic & strings' })}
+            {inputRow({ label: 'Date', fieldKey: 'date', placeholder: 'Friday, June 5, 2026' })}
+            {inputRow({ label: 'Doors', fieldKey: 'doors', placeholder: '7:30 PM' })}
+            {inputRow({ label: 'Start', fieldKey: 'start', placeholder: '8:30 PM' })}
+            {inputRow({ label: 'Venue', fieldKey: 'venue', placeholder: 'The Greene Room' })}
+            {inputRow({ label: 'Address', fieldKey: 'address', placeholder: '418 Atlantic Ave, Brooklyn' })}
+          </div>
+        </PropsCollapsible>
+      )}
+
+      {block.block_type === 'vertical.ticketPicker' && (
+        <PropsCollapsible title="Order summary" preview="Titles, notes, checkout button" defaultOpen>
+          <div className="space-y-2">
+            {inputRow({ label: 'Order summary title', fieldKey: 'order_title', placeholder: 'Your order' })}
+            {inputRow({ label: 'Max tickets per order', fieldKey: 'max_per_order', placeholder: '8', deletable: false })}
+            {inputRow({ label: 'Age restriction note', fieldKey: 'age_note', placeholder: '21+ event · ID required at door' })}
+            {inputRow({ label: 'Seating chart title', fieldKey: 'seating_title', placeholder: 'Seating chart' })}
+            {inputRow({ label: 'Checkout button', fieldKey: 'cta', placeholder: 'Continue to checkout' })}
+            <label className="flex items-center gap-2 cursor-pointer pt-1">
+              <input
+                type="checkbox"
+                checked={(p as any).showSeating !== false}
+                onChange={e => onUpdate({ showSeating: e.target.checked } as any)}
+                className="rounded accent-primary w-4 h-4"
+              />
+              <span className="text-xs font-medium text-gray-700">Show seating chart</span>
+            </label>
+          </div>
+        </PropsCollapsible>
+      )}
+
+      {block.block_type === 'vertical.eventListing' && (
+        <PropsCollapsible title="Section header" preview="Title, subtitle, buttons" defaultOpen>
+          <div className="space-y-2">
+            {inputRow({ label: 'Section title', fieldKey: 'header_title', placeholder: 'Upcoming events' })}
+            {inputRow({ label: 'Section subtitle', fieldKey: 'header_subtitle', placeholder: 'Leave empty to auto-show event count' })}
+            {inputRow({ label: "'All events' button", fieldKey: 'all_events_label', placeholder: 'All events' })}
+            {inputRow({ label: 'Ticket button', fieldKey: 'cta', placeholder: 'Get tickets' })}
+            <label className="flex items-center gap-2 cursor-pointer pt-1">
+              <input
+                type="checkbox"
+                checked={(p as any).showTag !== false}
+                onChange={e => onUpdate({ showTag: e.target.checked } as any)}
+                className="rounded accent-primary w-4 h-4"
+              />
+              <span className="text-xs font-medium text-gray-700">Show event tag badge</span>
+            </label>
+          </div>
+        </PropsCollapsible>
+      )}
+
+      {block.block_type === 'vertical.courseCatalog' && (
+        <PropsCollapsible title="Section header" preview="Title, subtitle, buttons" defaultOpen>
+          <div className="space-y-2">
+            {inputRow({ label: 'Section title', fieldKey: 'header_title', placeholder: 'Featured courses' })}
+            {inputRow({ label: 'Section subtitle', fieldKey: 'header_subtitle', placeholder: 'Leave empty to auto-show course count' })}
+            {inputRow({ label: "'All courses' button", fieldKey: 'all_courses_label', placeholder: 'All courses' })}
+            {inputRow({ label: 'Enroll button', fieldKey: 'cta', placeholder: 'Enroll' })}
+            <label className="flex items-center gap-2 cursor-pointer pt-1">
+              <input
+                type="checkbox"
+                checked={(p as any).showInstructor !== false}
+                onChange={e => onUpdate({ showInstructor: e.target.checked } as any)}
+                className="rounded accent-primary w-4 h-4"
+              />
+              <span className="text-xs font-medium text-gray-700">Show instructor name</span>
+            </label>
+          </div>
+        </PropsCollapsible>
+      )}
+
+      {block.block_type === 'vertical.courseDetail' && (
+        <PropsCollapsible title="Course details" preview="Image, title, instructor, pricing" defaultOpen>
+          <div className="space-y-2">
+            <InlineMediaPicker
+              siteId={siteId}
+              value={String((p as any).image_url ?? '')}
+              label="Course banner image"
+              onChange={url => onUpdate({ image_url: url } as any)}
+            />
+            {inputRow({ label: 'Title', fieldKey: 'title', placeholder: 'Foundations of Modern Ceramics' })}
+            {inputRow({ label: 'Description', fieldKey: 'description', multiline: true, placeholder: 'Wheel throwing, hand-building, and your first three glazed pieces.' })}
+            {inputRow({ label: 'Instructor', fieldKey: 'instructor', placeholder: 'Naomi Reyes' })}
+            <div className="space-y-1">
+              <label className="text-xs font-bold text-gray-500 uppercase tracking-wide">Level</label>
+              <div className="flex gap-1.5">
+                {['Beginner', 'Intermediate', 'Advanced'].map(lvl => (
+                  <button
+                    key={lvl}
+                    type="button"
+                    onClick={() => onUpdate({ level: lvl } as any)}
+                    className={cn(
+                      'flex-1 py-1.5 px-2 rounded-lg border text-xs font-semibold transition-colors',
+                      (((p as any).level as string) ?? 'Beginner') === lvl
+                        ? 'bg-primary text-white border-primary'
+                        : 'bg-white text-gray-600 border-gray-200 hover:border-primary/40',
+                    )}
+                  >{lvl}</button>
+                ))}
+              </div>
+            </div>
+            {inputRow({ label: 'Category', fieldKey: 'category', placeholder: 'Craft' })}
+            {inputRow({ label: 'Duration', fieldKey: 'duration', placeholder: '6 weeks' })}
+            {inputRow({ label: 'Lessons', fieldKey: 'lessons', placeholder: '24', deletable: false })}
+            {inputRow({ label: 'Rating', fieldKey: 'rating', placeholder: '4.9', deletable: false })}
+            {inputRow({ label: 'Reviews', fieldKey: 'reviews', placeholder: '412', deletable: false })}
+            {inputRow({ label: 'Price', fieldKey: 'price', placeholder: '189', deletable: false })}
+            {inputRow({ label: 'Currency', fieldKey: 'currency', placeholder: 'USD', deletable: false })}
+            {inputRow({ label: 'Enrolled note', fieldKey: 'enrolled_label', placeholder: '2,400+ enrolled' })}
+            {inputRow({ label: 'Enroll button', fieldKey: 'cta', placeholder: 'Enroll for' })}
+            {inputRow({ label: 'Preview button', fieldKey: 'preview_cta', placeholder: 'Try free preview' })}
+            <label className="flex items-center gap-2 cursor-pointer pt-1">
+              <input
+                type="checkbox"
+                checked={(p as any).showOutcomes !== false}
+                onChange={e => onUpdate({ showOutcomes: e.target.checked } as any)}
+                className="rounded accent-primary w-4 h-4"
+              />
+              <span className="text-xs font-medium text-gray-700">Show learning outcomes</span>
+            </label>
+          </div>
+        </PropsCollapsible>
+      )}
+
+      {block.block_type === 'vertical.courseDetail' && (
+        <PropsCollapsible title="Learning outcomes" preview={`${(((p as any).outcomes as string[]) || []).length} item(s)`} defaultOpen>
+          <TextListEditor
+            items={((p as any).outcomes as string[]) || []}
+            placeholder="Throw a balanced cylinder, bowl, and mug"
+            addLabel="Add outcome"
+            onChange={next => onUpdate({ outcomes: next } as any)}
+          />
+        </PropsCollapsible>
+      )}
+
+      {block.block_type === 'vertical.courseDetail' && (
+        <PropsCollapsible title="What's included" preview={`${(((p as any).perks as { text: string }[]) || []).length} item(s)`} defaultOpen>
+          <PerkListEditor
+            items={((p as any).perks as { icon?: string; text: string }[]) || []}
+            onChange={next => onUpdate({ perks: next } as any)}
+          />
+        </PropsCollapsible>
+      )}
+
+      {block.block_type === 'vertical.propertyListing' && (
+        <PropsCollapsible title="Section header" preview="Title, subtitle, buttons" defaultOpen>
+          <div className="space-y-2">
+            {inputRow({ label: 'Section title', fieldKey: 'header_title', placeholder: 'Featured listings' })}
+            {inputRow({ label: 'Section subtitle', fieldKey: 'header_subtitle', placeholder: 'Leave empty to auto-show listing count' })}
+            {inputRow({ label: "'Refine search' button", fieldKey: 'refine_label', placeholder: 'Refine search' })}
+            {inputRow({ label: 'Agent button', fieldKey: 'cta', placeholder: 'View details' })}
+            <label className="flex items-center gap-2 cursor-pointer pt-1">
+              <input
+                type="checkbox"
+                checked={(p as any).showAgent !== false}
+                onChange={e => onUpdate({ showAgent: e.target.checked } as any)}
+                className="rounded accent-primary w-4 h-4"
+              />
+              <span className="text-xs font-medium text-gray-700">Show listing agent</span>
+            </label>
+          </div>
+        </PropsCollapsible>
+      )}
+
+      {block.block_type === 'state.empty' && (
+        <PropsCollapsible title="Empty message" preview="Icon, title, description, buttons" defaultOpen>
+          <div className="space-y-2">
+            <div>
+              <label className="block text-xs font-medium text-gray-700 mb-1">Empty state type (icon)</label>
+              <select
+                value={(p as any).preset ?? 'emptyCart'}
+                onChange={e => onUpdate({ preset: e.target.value } as any)}
+                className="w-full px-2 py-1.5 border border-gray-200 rounded text-xs bg-white"
+              >
+                <option value="emptyCart">Empty cart</option>
+                <option value="noResults">No search results</option>
+                <option value="emptyWishlist">Empty wishlist</option>
+                <option value="noBookings">No bookings</option>
+                <option value="noOrders">No orders</option>
+                <option value="outOfStock">Out of stock</option>
+              </select>
+              <p className="mt-1 text-[10px] text-muted-foreground">Only changes the icon — edit the text below directly.</p>
+            </div>
+            <div className="space-y-1">
+              <label className="text-xs font-bold text-gray-500 uppercase tracking-wide">Size</label>
+              <div className="flex gap-1.5">
+                {(['sm', 'md', 'lg'] as const).map(sz => (
+                  <button
+                    key={sz}
+                    type="button"
+                    onClick={() => onUpdate({ size: sz } as any)}
+                    className={cn(
+                      'flex-1 py-1.5 px-2 rounded-lg border text-xs font-semibold transition-colors uppercase',
+                      (((p as any).size as string) ?? 'md') === sz
+                        ? 'bg-primary text-white border-primary'
+                        : 'bg-white text-gray-600 border-gray-200 hover:border-primary/40',
+                    )}
+                  >{sz}</button>
+                ))}
+              </div>
+            </div>
+            {inputRow({ label: 'Title', fieldKey: 'title', placeholder: 'Your cart is empty' })}
+            {inputRow({ label: 'Description', fieldKey: 'description', multiline: true, placeholder: "Looks like you haven't added anything yet." })}
+            {inputRow({ label: 'Primary button', fieldKey: 'cta', placeholder: 'Start shopping' })}
+            {inputRow({ label: 'Secondary button', fieldKey: 'secondary_cta', placeholder: 'View wishlist' })}
+            <label className="flex items-center gap-2 cursor-pointer pt-1">
+              <input
+                type="checkbox"
+                checked={(p as any).showSecondary !== false}
+                onChange={e => onUpdate({ showSecondary: e.target.checked } as any)}
+                className="rounded accent-primary w-4 h-4"
+              />
+              <span className="text-xs font-medium text-gray-700">Show secondary button</span>
+            </label>
+          </div>
+        </PropsCollapsible>
+      )}
+
+      {block.block_type === 'state.skeleton' && (
+        <PropsCollapsible title="Skeleton shape" preview="Content type, item count" defaultOpen>
+          <div className="space-y-2">
+            <div>
+              <label className="block text-xs font-medium text-gray-700 mb-1">Content type</label>
+              <select
+                value={(p as any).preset ?? 'productGrid'}
+                onChange={e => onUpdate({ preset: e.target.value } as any)}
+                className="w-full px-2 py-1.5 border border-gray-200 rounded text-xs bg-white"
+              >
+                <option value="productGrid">Product grid</option>
+                <option value="productList">Product list</option>
+                <option value="detail">Detail page</option>
+                <option value="cart">Cart</option>
+                <option value="calendar">Calendar</option>
+                <option value="table">Table</option>
+              </select>
+              <p className="mt-1 text-[10px] text-muted-foreground">Shape of the loading placeholder — pick whatever this section replaces while it loads.</p>
+            </div>
+            {(((p as any).preset ?? 'productGrid') === 'productGrid' || ((p as any).preset ?? 'productGrid') === 'productList' || (p as any).preset === 'cart' || (p as any).preset === 'table') && (
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1">Item count</label>
+                <input
+                  type="number"
+                  min={2}
+                  max={12}
+                  value={Number((p as any).count ?? 6)}
+                  onChange={e => onUpdate({ count: Math.max(2, Math.min(12, Number(e.target.value) || 6)) } as any)}
+                  className="w-full px-2 py-1.5 border border-gray-200 rounded text-xs"
+                />
+              </div>
+            )}
+          </div>
+        </PropsCollapsible>
+      )}
+
+      {block.block_type === 'state.error' && (
+        <PropsCollapsible title="Error message" preview="Code, title, description, buttons" defaultOpen>
+          <div className="space-y-2">
+            <div>
+              <label className="block text-xs font-medium text-gray-700 mb-1">Error type (icon)</label>
+              <select
+                value={(p as any).preset ?? 'generic'}
+                onChange={e => onUpdate({ preset: e.target.value } as any)}
+                className="w-full px-2 py-1.5 border border-gray-200 rounded text-xs bg-white"
+              >
+                <option value="generic">Generic error</option>
+                <option value="network">Network / offline</option>
+                <option value="notFound">404 not found</option>
+                <option value="serverError">500 server error</option>
+                <option value="forbidden">403 forbidden</option>
+                <option value="maintenance">Maintenance</option>
+              </select>
+              <p className="mt-1 text-[10px] text-muted-foreground">Only changes the icon — edit the text below directly.</p>
+            </div>
+            {inputRow({ label: 'Code / eyebrow', fieldKey: 'error_code', placeholder: 'Oops' })}
+            {inputRow({ label: 'Title', fieldKey: 'title', placeholder: 'Something went wrong' })}
+            {inputRow({ label: 'Description', fieldKey: 'description', multiline: true, placeholder: 'We hit an unexpected snag. Try again, or contact support if it persists.' })}
+            {inputRow({ label: 'Primary button', fieldKey: 'cta', placeholder: 'Try again' })}
+            {inputRow({ label: 'Secondary button', fieldKey: 'secondary_cta', placeholder: 'Go back' })}
+            <label className="flex items-center gap-2 cursor-pointer pt-1">
+              <input
+                type="checkbox"
+                checked={(p as any).showSecondary !== false}
+                onChange={e => onUpdate({ showSecondary: e.target.checked } as any)}
+                className="rounded accent-primary w-4 h-4"
+              />
+              <span className="text-xs font-medium text-gray-700">Show secondary button</span>
+            </label>
+          </div>
+        </PropsCollapsible>
+      )}
+
+      {block.block_type === 'vertical.autoInventory' && (
+        <PropsCollapsible title="Section header" preview="Title, subtitle, filter" defaultOpen>
+          <div className="space-y-2">
+            {inputRow({ label: 'Section title', fieldKey: 'header_title', placeholder: 'Available inventory' })}
+            {inputRow({ label: 'Section subtitle', fieldKey: 'header_subtitle', placeholder: 'Leave empty to auto-show vehicle count' })}
+            {inputRow({ label: 'View vehicle button', fieldKey: 'cta', placeholder: 'View vehicle' })}
+            <label className="flex items-center gap-2 cursor-pointer pt-1">
+              <input
+                type="checkbox"
+                checked={(p as any).showFilters !== false}
+                onChange={e => onUpdate({ showFilters: e.target.checked } as any)}
+                className="rounded accent-primary w-4 h-4"
+              />
+              <span className="text-xs font-medium text-gray-700">Show price filter slider</span>
+            </label>
+          </div>
+        </PropsCollapsible>
+      )}
+
+      {block.block_type === 'vertical.vehicleDetail' && (
+        <PropsCollapsible title="Vehicle details" preview="Photo, spec, pricing" defaultOpen>
+          <div className="space-y-2">
+            <InlineMediaPicker
+              siteId={siteId}
+              value={String((p as any).image_url ?? '')}
+              label="Vehicle photo"
+              onChange={url => onUpdate({ image_url: url } as any)}
+            />
+            <div className="space-y-1">
+              <label className="text-xs font-bold text-gray-500 uppercase tracking-wide">Condition</label>
+              <div className="flex gap-1.5">
+                {['New', 'Certified', 'Used'].map(cond => (
+                  <button
+                    key={cond}
+                    type="button"
+                    onClick={() => onUpdate({ condition: cond } as any)}
+                    className={cn(
+                      'flex-1 py-1.5 px-2 rounded-lg border text-xs font-semibold transition-colors',
+                      (((p as any).condition as string) ?? 'New') === cond
+                        ? 'bg-primary text-white border-primary'
+                        : 'bg-white text-gray-600 border-gray-200 hover:border-primary/40',
+                    )}
+                  >{cond}</button>
+                ))}
+              </div>
+            </div>
+            {inputRow({ label: 'Year', fieldKey: 'year', placeholder: '2025', deletable: false })}
+            {inputRow({ label: 'Make', fieldKey: 'make', placeholder: 'Rivian', deletable: false })}
+            {inputRow({ label: 'Model', fieldKey: 'model', placeholder: 'R1S', deletable: false })}
+            {inputRow({ label: 'Trim', fieldKey: 'trim', placeholder: 'Adventure' })}
+            {inputRow({ label: 'Exterior color', fieldKey: 'exteriorColor', placeholder: 'Forest Green' })}
+            {inputRow({ label: 'Body style', fieldKey: 'bodyStyle', placeholder: 'SUV' })}
+            {inputRow({ label: 'Mileage', fieldKey: 'mileage', placeholder: '12', deletable: false })}
+            {inputRow({ label: 'Fuel type', fieldKey: 'fuel', placeholder: 'Electric' })}
+            {inputRow({ label: 'Transmission', fieldKey: 'transmission', placeholder: 'Auto' })}
+            {inputRow({ label: 'Price', fieldKey: 'price', placeholder: '84900', deletable: false })}
+            {inputRow({ label: 'Currency', fieldKey: 'currency', placeholder: 'USD', deletable: false })}
+            {inputRow({ label: 'Stock number', fieldKey: 'stock_number', placeholder: 'AC-V1-2025' })}
+            {inputRow({ label: 'Location note', fieldKey: 'location_note', multiline: true, placeholder: 'Located at our Williamsburg showroom · Available for delivery' })}
+            {inputRow({ label: 'Test-drive button', fieldKey: 'cta', placeholder: 'Schedule test drive' })}
+          </div>
         </PropsCollapsible>
       )}
 
@@ -11933,6 +12797,7 @@ export default function WebsiteBuilder() {
     faq:                  { arrayKey: 'faqs',         itemField: 'image_url',   defaultTitle: 'Question' },
     'service.faq':        { arrayKey: 'faqs',         itemField: 'image_url',   defaultTitle: 'Question' },
     marquee_strip:        { arrayKey: 'items',        itemField: 'image_url',   defaultTitle: 'Highlight' },
+    timeline:             { arrayKey: 'items',        itemField: 'image_url',   defaultTitle: 'Milestone' },
   }
 
   const applyMediaUrlToSelection = useCallback((

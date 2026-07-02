@@ -1,6 +1,7 @@
 import { useState } from 'react'
+import type { ReactNode } from 'react'
 import { Play, Video, X } from 'lucide-react'
-import { cn } from '@/lib/utils'
+import { cn, imgUrl } from '@/lib/utils'
 import type { PublicSite, StyleConfig, LiveItem } from '@/blocks/registry'
 import BlockEmptyPlaceholder from '@/components/builder/BlockEmptyPlaceholder'
 import { BuilderSectionImage } from '@/components/builder/BuilderSectionImage'
@@ -16,7 +17,7 @@ import {
   sectionItemSize,
 } from '@/lib/sectionItemLayout'
 import { resolveSectionSurface } from '@/lib/navBlockLayout'
-import { getVideoEmbedUrl, getVideoThumbnailUrl } from '@/lib/videoEmbed'
+import { getVideoEmbedUrl, getVideoThumbnailUrl, isDirectVideoFile } from '@/lib/videoEmbed'
 import {
   isBlockFieldHidden,
   isNestedBlockFieldHidden,
@@ -66,7 +67,7 @@ export default function VideoGalleryBlock({ style, props, blockId }: Props) {
     ? propVideos
     : propVideos.filter(({ item }) => {
         const url = String(item.video_url ?? '').trim()
-        return url && getVideoEmbedUrl(url)
+        return url && (isDirectVideoFile(url) || getVideoEmbedUrl(url))
       })
 
   if (videos.length === 0) {
@@ -74,7 +75,7 @@ export default function VideoGalleryBlock({ style, props, blockId }: Props) {
       <BlockEmptyPlaceholder
         style={style}
         title={title ?? undefined}
-        message="Add YouTube or Vimeo links in the builder sidebar to build your video gallery."
+        message="Upload videos from your device or add YouTube / Vimeo links in the builder sidebar."
         hint="Each video can have its own title and caption."
         icon={<Video className="w-10 h-10" style={{ color: style.primary_color }} />}
       />
@@ -93,8 +94,10 @@ export default function VideoGalleryBlock({ style, props, blockId }: Props) {
     heightPx?: number
   }) => {
     const videoUrl = String(item.video_url ?? '').trim()
-    const embedUrl = videoUrl ? getVideoEmbedUrl(videoUrl) : null
-    const thumb = videoUrl ? getVideoThumbnailUrl(videoUrl) : null
+    const isDirect = videoUrl ? isDirectVideoFile(videoUrl) : false
+    const directSrc = isDirect ? imgUrl(videoUrl) : ''
+    const embedUrl = videoUrl && !isDirect ? getVideoEmbedUrl(videoUrl) : null
+    const thumb = videoUrl && !isDirect ? getVideoThumbnailUrl(videoUrl) : null
     const itemTitle = String(item.title ?? '').trim()
     const itemCaption = String(item.caption ?? '').trim()
     const showItemTitle =
@@ -110,7 +113,29 @@ export default function VideoGalleryBlock({ style, props, blockId }: Props) {
     )
     const frameStyle = useFixedHeight ? { height: heightPx } : undefined
 
-    const player = embedUrl ? (
+    const directPlayer: ReactNode = isDirect ? (
+      <div
+        className={cn(shellClass, className, !isEditorCanvas && 'cursor-pointer group')}
+        style={frameStyle}
+        onClick={!isEditorCanvas ? () => setLightbox(directSrc) : undefined}
+      >
+        <video
+          src={directSrc}
+          className={cn('absolute inset-0 h-full w-full bg-black object-contain', tileImg)}
+          muted
+          playsInline
+          preload="metadata"
+          tabIndex={-1}
+        />
+        <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-black/0 transition group-hover:bg-black/20">
+          <span className="flex h-12 w-12 items-center justify-center rounded-full bg-black/55 text-white opacity-90 shadow-lg transition group-hover:scale-105">
+            <Play className="ml-0.5 h-6 w-6 fill-current" />
+          </span>
+        </div>
+      </div>
+    ) : null
+
+    const player = directPlayer ? directPlayer : embedUrl ? (
       isEditorCanvas ? (
         <div className={cn(shellClass, className)} style={frameStyle}>
           {thumb ? (
@@ -301,13 +326,23 @@ export default function VideoGalleryBlock({ style, props, blockId }: Props) {
             className="relative w-full max-w-5xl aspect-video rounded-xl overflow-hidden"
             onClick={e => e.stopPropagation()}
           >
-            <iframe
-              src={lightbox}
-              className="absolute inset-0 h-full w-full"
-              allowFullScreen
-              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-              title="Video"
-            />
+            {isDirectVideoFile(lightbox) ? (
+              <video
+                src={lightbox}
+                className="absolute inset-0 h-full w-full bg-black object-contain"
+                controls
+                autoPlay
+                playsInline
+              />
+            ) : (
+              <iframe
+                src={lightbox}
+                className="absolute inset-0 h-full w-full"
+                allowFullScreen
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                title="Video"
+              />
+            )}
           </div>
         </div>
       )}

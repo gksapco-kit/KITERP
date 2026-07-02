@@ -15,51 +15,77 @@ import { cn } from "@/lib/utils";
 import { formatPrice } from "@/commerce-blocks/lib/format";
 import { mockProperties, type Property } from "@/commerce-blocks/mock/verticals";
 import { catalogGridClassName } from "@/lib/commerceCatalogLayout";
+import {
+  catalogVariantStyle,
+  verticalSwatch,
+  type CatalogVariantStyle,
+} from "@/commerce-blocks/lib/verticalVariants";
 
-const STATUS_LABEL: Record<Property["status"], { label: string; className: string }> = {
+const STATUS_LABEL: Record<string, { label: string; className: string }> = {
   "for-sale": { label: "For sale", className: "bg-secondary text-secondary-foreground" },
   "new": { label: "New", className: "bg-success/15 text-success hover:bg-success/15" },
   "open-house": { label: "Open house", className: "bg-warning/15 text-warning-foreground" },
   "pending": { label: "Pending", className: "bg-muted text-muted-foreground" },
 };
 
+const withPropertyImage = (p: Property): Property => ({
+  ...p,
+  image: p.image || verticalSwatch(p.id || p.title || "property"),
+});
+
 interface PropertyListingProps {
+  variant?: string;
   layout?: "grid" | "list" | "map";
   columns?: number;
   gap?: number;
   itemLimit?: number;
   showAgent?: boolean;
   cta?: string;
+  properties?: Property[];
+  header_title?: string;
+  header_subtitle?: string;
+  refine_label?: string;
 }
 
 export function PropertyListing({
-  layout = "grid",
-  columns = 3,
-  gap = 20,
+  variant,
+  layout,
   itemLimit,
   showAgent = true,
-  cta = "View details",
+  cta,
+  properties,
+  header_title,
+  header_subtitle,
+  refine_label,
 }: PropertyListingProps) {
-  const items = mockProperties.slice(0, itemLimit ?? mockProperties.length);
+  const style = catalogVariantStyle(variant ?? layout ?? "default");
+  const source = (properties && properties.length ? properties : mockProperties).map(withPropertyImage);
+  const items = source.slice(0, itemLimit ?? source.length);
+  const title = header_title ?? "Featured listings";
+  const subtitle = header_subtitle
+    ?? `${items.length} home${items.length === 1 ? "" : "s"} available in your area`;
+  const refineLabel = refine_label ?? "Refine search";
 
-  if (layout === "list") {
-    return (
-      <div className="bg-background p-6">
-        <Header />
-        <div className="space-y-3" style={{ gap }}>
-          {items.map((p) => (
-            <PropertyRow key={p.id} property={p} showAgent={showAgent} cta={cta} />
-          ))}
-        </div>
+  const header = (
+    <div className="mb-5 flex items-end justify-between">
+      <div>
+        {title && <h2 className="text-xl font-semibold">{title}</h2>}
+        {subtitle && <p className="text-sm text-muted-foreground">{subtitle}</p>}
       </div>
-    );
-  }
+      {refineLabel && (
+        <Button variant="outline" size="sm">
+          <MapPin className="h-4 w-4" />
+          {refineLabel}
+        </Button>
+      )}
+    </div>
+  );
 
-  if (layout === "map") {
+  if (style.mode === "split") {
     return (
       <div className="bg-background p-6">
-        <Header />
-        <div className="grid gap-4 lg:grid-cols-[1fr_360px]" style={{ gap }}>
+        {header}
+        <div className="grid gap-4 lg:grid-cols-[1fr_360px]" style={{ gap: style.gap }}>
           <div className="relative aspect-[4/3] overflow-hidden rounded-lg border border-border bg-gradient-to-br from-emerald-100 via-sky-100 to-amber-100 lg:aspect-auto lg:min-h-[500px]">
             {/* Decorative map */}
             <div className="absolute inset-0 opacity-30">
@@ -93,47 +119,60 @@ export function PropertyListing({
     );
   }
 
+  if (style.mode === "list") {
+    return (
+      <div className="bg-background p-6">
+        {header}
+        <div className="flex flex-col" style={{ gap: style.gap }}>
+          {items.map((p) => (
+            <PropertyRow key={p.id} property={p} showAgent={showAgent} cta={cta} cardClass={style.cardClass} />
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  if (style.mode === "featured") {
+    const [first, ...rest] = items;
+    return (
+      <div className="bg-background p-6">
+        {header}
+        {first && <FeaturedProperty property={first} showAgent={showAgent} cta={cta} />}
+        <div className={cn("mt-5 grid grid-cols-1", catalogGridClassName(style.columns))} style={{ gap: style.gap }}>
+          {rest.map((p) => (
+            <PropertyCard key={p.id} property={p} showAgent={showAgent} cta={cta} style={style} />
+          ))}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="bg-background p-6">
-      <Header />
-      <div className={cn("grid grid-cols-1", catalogGridClassName(columns))} style={{ gap }}>
+      {header}
+      <div className={cn("grid grid-cols-1", catalogGridClassName(style.columns))} style={{ gap: style.gap }}>
         {items.map((p) => (
-          <PropertyCard key={p.id} property={p} showAgent={showAgent} cta={cta} />
+          <PropertyCard key={p.id} property={p} showAgent={showAgent} cta={cta} style={style} />
         ))}
       </div>
     </div>
   );
 }
 
-function Header() {
-  return (
-    <div className="mb-5 flex items-end justify-between">
-      <div>
-        <h2 className="text-xl font-semibold">Featured listings</h2>
-        <p className="text-sm text-muted-foreground">{mockProperties.length} homes available in your area</p>
-      </div>
-      <Button variant="outline" size="sm">
-        <MapPin className="h-4 w-4" />
-        Refine search
-      </Button>
-    </div>
-  );
-}
-
-function PropertyCard({ property, showAgent, cta }: { property: Property; showAgent: boolean; cta: string }) {
+function PropertyCard({ property, showAgent, cta, style }: { property: Property; showAgent: boolean; cta?: string; style: CatalogVariantStyle }) {
   const status = STATUS_LABEL[property.status];
   return (
-    <div className="group overflow-hidden rounded-lg border border-border bg-card text-card-foreground transition-shadow hover:shadow-md">
-      <div className="relative aspect-[4/3] overflow-hidden bg-muted">
+    <div className={cn("group flex h-full flex-col overflow-hidden transition-shadow hover:shadow-md", style.cardClass)}>
+      <div className="relative aspect-[4/3] overflow-hidden rounded-md bg-muted">
         <img src={property.image} alt={property.title} className="h-full w-full object-cover transition-transform group-hover:scale-105" />
-        <Badge className={cn("absolute left-3 top-3 text-xs", status.className)}>{status.label}</Badge>
+        {status && <Badge className={cn("absolute left-3 top-3 text-xs", status.className)}>{status.label}</Badge>}
         <button className="absolute right-3 top-3 flex h-8 w-8 items-center justify-center rounded-full bg-background/80 text-foreground backdrop-blur transition-colors hover:bg-background">
           <Heart className="h-4 w-4" />
         </button>
       </div>
-      <div className="p-4">
+      <div className={cn("flex flex-1 flex-col", style.card === "plain" || style.card === "editorial" ? "pt-3" : "p-4")}>
         <div className="flex items-baseline justify-between">
-          <span className="text-xl font-semibold">{formatPrice(property.price, property.currency)}</span>
+          <span className={cn("font-semibold", style.bigTitle ? "text-2xl" : "text-xl")}>{formatPrice(property.price, property.currency)}</span>
           <span className="text-xs uppercase text-muted-foreground">{property.type}</span>
         </div>
         <h3 className="mt-1 line-clamp-1 text-sm font-medium">{property.title}</h3>
@@ -146,7 +185,7 @@ function PropertyCard({ property, showAgent, cta }: { property: Property; showAg
         {showAgent && property.agent && (
           <div className="mt-3 flex items-center justify-between border-t border-border pt-3">
             <span className="text-xs text-muted-foreground">Listed by {property.agent}</span>
-            <Button variant="outline" size="sm" className="h-7 text-xs">{cta}</Button>
+            {cta && <Button variant="outline" size="sm" className="h-7 text-xs">{cta}</Button>}
           </div>
         )}
       </div>
@@ -159,18 +198,20 @@ function PropertyRow({
   showAgent,
   cta,
   compact = false,
+  cardClass,
 }: {
   property: Property;
   showAgent: boolean;
-  cta: string;
+  cta?: string;
   compact?: boolean;
+  cardClass?: string;
 }) {
   const status = STATUS_LABEL[property.status];
   return (
-    <div className={cn("flex gap-4 rounded-lg border border-border bg-card p-3", compact && "p-2")}>
+    <div className={cn("flex gap-4 p-3", compact && "p-2", cardClass ?? "rounded-lg border border-border bg-card")}>
       <div className={cn("relative shrink-0 overflow-hidden rounded-md bg-muted", compact ? "h-20 w-28" : "h-32 w-44")}>
         <img src={property.image} alt={property.title} className="h-full w-full object-cover" />
-        <Badge className={cn("absolute left-1.5 top-1.5 text-xs", status.className)}>{status.label}</Badge>
+        {status && <Badge className={cn("absolute left-1.5 top-1.5 text-xs", status.className)}>{status.label}</Badge>}
       </div>
       <div className="flex min-w-0 flex-1 flex-col">
         <div className="flex items-start justify-between gap-3">
@@ -181,7 +222,7 @@ function PropertyRow({
             <h3 className="line-clamp-1 text-sm font-medium">{property.title}</h3>
             <p className="line-clamp-1 text-xs text-muted-foreground">{property.address}</p>
           </div>
-          {!compact && showAgent && property.agent && (
+          {!compact && showAgent && property.agent && cta && (
             <Button variant="outline" size="sm">{cta}</Button>
           )}
         </div>
@@ -190,6 +231,32 @@ function PropertyRow({
           <span className="inline-flex items-center gap-1"><Bath className="h-3.5 w-3.5" />{property.baths}</span>
           <span className="inline-flex items-center gap-1"><Maximize2 className="h-3.5 w-3.5" />{property.sqft.toLocaleString()} sqft</span>
           <span className="inline-flex items-center gap-1 capitalize"><Home className="h-3.5 w-3.5" />{property.type}</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function FeaturedProperty({ property, showAgent, cta }: { property: Property; showAgent: boolean; cta?: string }) {
+  const status = STATUS_LABEL[property.status];
+  return (
+    <div className="grid grid-cols-1 overflow-hidden rounded-xl border border-border bg-card md:grid-cols-2">
+      <div className="relative aspect-[16/10] overflow-hidden bg-muted md:aspect-auto">
+        <img src={property.image} alt={property.title} className="h-full w-full object-cover" />
+        {status && <Badge className={cn("absolute left-4 top-4", status.className)}>{status.label}</Badge>}
+      </div>
+      <div className="flex flex-col justify-center p-6">
+        <div className="text-xs uppercase tracking-wider text-primary capitalize">Featured · {property.type}</div>
+        <h3 className="mt-1 text-2xl font-bold">{property.title}</h3>
+        <p className="mt-2 text-sm text-muted-foreground">{property.address}</p>
+        <div className="mt-3 flex items-center gap-4 text-sm text-muted-foreground">
+          <span className="inline-flex items-center gap-1"><Bed className="h-4 w-4" />{property.beds}</span>
+          <span className="inline-flex items-center gap-1"><Bath className="h-4 w-4" />{property.baths}</span>
+          <span className="inline-flex items-center gap-1"><Maximize2 className="h-4 w-4" />{property.sqft.toLocaleString()} sqft</span>
+        </div>
+        <div className="mt-4 flex items-center gap-3">
+          <span className="text-2xl font-semibold">{formatPrice(property.price, property.currency)}</span>
+          {showAgent && property.agent && cta && <Button>{cta}</Button>}
         </div>
       </div>
     </div>

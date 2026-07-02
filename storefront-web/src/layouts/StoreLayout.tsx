@@ -450,6 +450,10 @@ function StoreContent() {
   const navigate = useNavigate()
   const theme = useTheme()
 
+  // Live chat widget is opt-out: shown unless the vendor turned it off in My Kit → Inbox.
+  const liveChatEnabled =
+    (vendor?.settings as Record<string, unknown> | undefined)?.live_chat_enabled !== false
+
   const legacyDraftCatalogRedirect = (() => {
     if (isDraftCatalogEmbedPath(pathname)) return null
     if (searchParams.get('draft_embed') !== '1') return null
@@ -664,7 +668,7 @@ function StoreContent() {
             <Outlet />
           </main>
           {layoutOwnsShell && <BuilderSiteShellChrome part="footer" />}
-          {!isBuilderPreview && !draftCatalogEmbed && vendor?.id && (
+          {!isBuilderPreview && !draftCatalogEmbed && vendor?.id && liveChatEnabled && (
             <CrmChatWidget
               vendorId={vendor.id}
               vendorName={vendor.display_name}
@@ -686,7 +690,7 @@ function StoreContent() {
 
       {footerNode}
 
-      {vendor?.id && (
+      {vendor?.id && liveChatEnabled && (
         <CrmChatWidget
           vendorId={vendor.id}
           vendorName={vendor.display_name}

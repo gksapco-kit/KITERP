@@ -8,8 +8,8 @@ import { hasMediaClip } from '@/lib/mediaClip'
 import { resolveSectionSurface } from '@/lib/navBlockLayout'
 import { useBuilderCanvas } from '@/contexts/BuilderCanvasContext'
 import { isBlockFieldHidden, resolveBlockTextField } from '@/lib/blockHiddenFields'
-import { cn } from '@/lib/utils'
-import { getVideoEmbedUrl } from '@/lib/videoEmbed'
+import { cn, imgUrl } from '@/lib/utils'
+import { getVideoEmbedUrl, isDirectVideoFile } from '@/lib/videoEmbed'
 
 function aspectRatioCss(value: string): string {
   switch (value) {
@@ -70,6 +70,7 @@ function VideoTitle({
 
 function VideoPlayer({
   embedUrl,
+  directSrc,
   title,
   aspectRatio,
   mediaClip,
@@ -78,6 +79,8 @@ function VideoPlayer({
   verticalReel,
 }: {
   embedUrl: string
+  /** Set for uploaded / direct video files — rendered with a native <video> player. */
+  directSrc?: string
   title: string | null | undefined
   aspectRatio: string
   mediaClip: unknown
@@ -95,13 +98,23 @@ function VideoPlayer({
       )}
     >
       <div className="relative w-full" style={{ aspectRatio }}>
-        <iframe
-          src={embedUrl}
-          className="absolute inset-0 h-full w-full"
-          allowFullScreen
-          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-          title={title ?? 'Video'}
-        />
+        {directSrc ? (
+          <video
+            src={directSrc}
+            className="absolute inset-0 h-full w-full bg-black object-contain"
+            controls
+            playsInline
+            preload="metadata"
+          />
+        ) : (
+          <iframe
+            src={embedUrl}
+            className="absolute inset-0 h-full w-full"
+            allowFullScreen
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+            title={title ?? 'Video'}
+          />
+        )}
       </div>
     </MediaClipFrame>
   )
@@ -117,7 +130,9 @@ export default function VideoEmbedBlock({ style, props, blockId }: Props) {
   const videoUrl = (props.video_url as string) || ''
   const mediaClip = props.media_clip
   const clipped = hasMediaClip(mediaClip)
-  const embedUrl = videoUrl ? getVideoEmbedUrl(videoUrl) : null
+  const isDirect = videoUrl ? isDirectVideoFile(videoUrl) : false
+  const directSrc = isDirect ? imgUrl(videoUrl) : undefined
+  const embedUrl = videoUrl ? (isDirect ? videoUrl : getVideoEmbedUrl(videoUrl)) : null
   const showTitle = !isBlockFieldHidden(props, 'title') && (title || isEditorCanvas)
 
   const layout = String(props.layout ?? 'standard')
@@ -132,7 +147,7 @@ export default function VideoEmbedBlock({ style, props, blockId }: Props) {
       <BlockEmptyPlaceholder
         style={style}
         title={title ?? 'Video'}
-        message="Paste a YouTube or Vimeo link in the section settings to show your video here."
+        message="Upload a video from your device or paste a YouTube / Vimeo link in the section settings."
         icon={<Video className="w-10 h-10" style={{ color: style.primary_color }} />}
       />
     )
@@ -141,6 +156,7 @@ export default function VideoEmbedBlock({ style, props, blockId }: Props) {
   const player = (
     <VideoPlayer
       embedUrl={embedUrl}
+      directSrc={directSrc}
       title={title}
       aspectRatio={aspectRatio}
       mediaClip={mediaClip}

@@ -2,9 +2,11 @@ import type { CSSProperties, ReactNode } from 'react'
 import type { PublicSite, StyleConfig, LiveItem } from '@/blocks/registry'
 import BlockEmptyPlaceholder from '@/components/builder/BlockEmptyPlaceholder'
 import { BuilderTextField } from '@/components/builder/BuilderTextField'
+import { BuilderSectionImage } from '@/components/builder/BuilderSectionImage'
 import { useBuilderCanvas } from '@/contexts/BuilderCanvasContext'
 import { resolveSectionSurface } from '@/lib/navBlockLayout'
 import { renderFeatureIcon } from '@/lib/sectionItemLayout'
+import { arrayItemImageFrameStyle, arrayItemImageRenderStyle } from '@/lib/sectionImageStyle'
 import {
   genericTimelineContent,
   isTemplateTimelineBlock,
@@ -16,7 +18,11 @@ import {
   resolveBlockTextField,
   visibleArrayEntries,
 } from '@/lib/blockHiddenFields'
-import { cn } from '@/lib/utils'
+import { cn, imgUrl } from '@/lib/utils'
+
+/** 1×1 transparent pixel — keeps an empty editable slot from rendering a broken-image box. */
+const TRANSPARENT_PIXEL =
+  'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7'
 
 interface Props {
   site: PublicSite
@@ -27,7 +33,7 @@ interface Props {
   blockId?: string
 }
 
-type TimelineItem = { year: string; title: string; desc: string }
+type TimelineItem = { year: string; title: string; desc: string; image_url?: string }
 
 type VisibleTimelineItem = { item: TimelineItem; index: number }
 
@@ -186,6 +192,62 @@ function TimelineDescField({
   )
 }
 
+function TimelineImage({
+  item,
+  index,
+  blockId,
+  props,
+  useReplacement,
+  align = 'left',
+}: {
+  item: TimelineItem
+  index: number
+  blockId?: string
+  props: Record<string, unknown>
+  useReplacement: boolean
+  align?: 'left' | 'center' | 'right'
+}) {
+  const builderCanvas = useBuilderCanvas()
+  const allowEditing = Boolean(builderCanvas?.isEditorCanvas && blockId) && !useReplacement
+  if (isNestedBlockFieldHidden(props, `items.${index}.image_url`)) return null
+
+  const hasImage = Boolean(item.image_url)
+  // On the live site, render nothing when there's no image (keeps existing timelines unchanged).
+  if (!hasImage && !allowEditing) return null
+
+  const frameAlign = align === 'center' ? 'mx-auto' : align === 'right' ? 'ml-auto' : 'mr-auto'
+
+  return (
+    <div
+      className={cn('relative mb-4 w-full max-w-[240px] overflow-hidden rounded-xl aspect-[4/3]', frameAlign)}
+      style={arrayItemImageFrameStyle(item as Record<string, unknown>)}
+    >
+      {allowEditing ? (
+        <BuilderSectionImage
+          blockId={blockId}
+          field="image_url"
+          arrayKey="items"
+          index={index}
+          itemField="image_url"
+          blockProps={props}
+          src={item.image_url ? imgUrl(item.image_url) : TRANSPARENT_PIXEL}
+          alt={item.image_url ? item.title : ''}
+          className="h-full w-full object-cover"
+          empty={!item.image_url}
+        />
+      ) : (
+        <img
+          src={imgUrl(item.image_url as string)}
+          alt={item.title}
+          className="h-full w-full object-cover"
+          style={arrayItemImageRenderStyle(item as Record<string, unknown>, props)}
+          loading="lazy"
+        />
+      )}
+    </div>
+  )
+}
+
 function TimelineItemBody({
   item,
   index,
@@ -208,6 +270,14 @@ function TimelineItemBody({
   const alignClass = align === 'center' ? 'text-center' : align === 'right' ? 'text-right' : 'text-left'
   return (
     <div className={cn('min-w-0', alignClass)}>
+      <TimelineImage
+        item={item}
+        index={index}
+        blockId={blockId}
+        props={props}
+        useReplacement={useReplacement}
+        align={align}
+      />
       <TimelineTitleField
         item={item}
         index={index}

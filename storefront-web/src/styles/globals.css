@@ -137,6 +137,13 @@
   .line-clamp-3 { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
 }
 
+/* Pricing feature lists — slim scrollbar when a plan has a very long feature list. */
+.builder-pricing-features { scrollbar-width: thin; scrollbar-color: rgba(120, 120, 120, 0.4) transparent; overscroll-behavior: contain; }
+.builder-pricing-features::-webkit-scrollbar { width: 6px; }
+.builder-pricing-features::-webkit-scrollbar-track { background: transparent; }
+.builder-pricing-features::-webkit-scrollbar-thumb { background-color: rgba(120, 120, 120, 0.35); border-radius: 9999px; }
+.builder-pricing-features:hover::-webkit-scrollbar-thumb { background-color: rgba(120, 120, 120, 0.55); }
+
 /* Builder block entrance animations (generated sites) */
 @keyframes builder-fade-in {
   from { opacity: 0; }

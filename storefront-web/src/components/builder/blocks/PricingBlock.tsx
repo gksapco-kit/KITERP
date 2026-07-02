@@ -140,8 +140,10 @@ export default function PricingBlock({ style, props, liveItems, blockId }: Props
             key={planKey}
             className={cn(
               'builder-tile-card flex flex-col rounded-2xl',
+              // min-w-0 lets grid/flex columns shrink so long feature text wraps instead of
+              // blowing out the track width (which was pushing cards off-screen).
+              isHorizontal ? 'min-w-[280px] shrink-0 snap-center' : 'min-w-0',
               isCompact ? 'p-5' : 'p-8',
-              isHorizontal && 'min-w-[280px] shrink-0 snap-center',
               highlighted ? 'scale-105 text-white shadow-xl' : 'border border-gray-100 bg-white',
             )}
             style={highlighted ? { backgroundColor: style.primary_color } : {}}
@@ -201,11 +203,19 @@ export default function PricingBlock({ style, props, liveItems, blockId }: Props
                 )}
               </div>
             )}
-            <ul className={cn('mt-6 flex-1 space-y-3', isCompact && 'space-y-2')}>
+            <ul
+              className={cn(
+                'builder-pricing-features mt-6 flex-1 space-y-3 overflow-y-auto pr-1',
+                isCompact && 'space-y-2',
+              )}
+              // Cap the feature list height so very long lists scroll inside the card
+              // instead of stretching the whole section. Short lists stay unscrolled.
+              style={{ maxHeight: isCompact ? 220 : 300 }}
+            >
               {plan.features.map((f, j) => (
-                <li key={j} className={cn('flex items-center gap-2 text-sm', highlighted ? 'text-white/90' : 'text-gray-600', isCompact && 'text-xs')}>
-                  <Check className="w-4 h-4 shrink-0" />
-                  {f}
+                <li key={j} className={cn('flex items-start gap-2 text-sm', highlighted ? 'text-white/90' : 'text-gray-600', isCompact && 'text-xs')}>
+                  <Check className="mt-0.5 h-4 w-4 shrink-0" />
+                  <span className="min-w-0 flex-1 break-words leading-relaxed">{f}</span>
                 </li>
               ))}
             </ul>

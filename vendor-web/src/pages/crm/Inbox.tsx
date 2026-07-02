@@ -7,6 +7,9 @@ import { Badge } from '@/components/ui/badge'
 import { useConversations, useConversation, usePostChatMessage } from '@/hooks/useCrm'
 import { crmApi } from '@/api/crm'
 import { apiClient } from '@/api/client'
+import { Switch } from '@/components/ui/switch'
+import { useVendorStore } from '@/stores/vendorStore'
+import { useUpdateVendor } from '@/hooks/useVendor'
 import {
   Send, Loader2, MessageSquare, CheckCircle2, User,
   Calendar, ChevronDown, ChevronRight, ExternalLink, Trash2,
@@ -452,6 +455,49 @@ function ChatsTab() {
   )
 }
 
+// ── Live chat on/off toggle ─────────────────────────────────────────────────────
+function LiveChatToggle() {
+  const vendor = useVendorStore(s => s.vendor)
+  const updateVendor = useUpdateVendor()
+  const settings = (vendor?.settings ?? {}) as Record<string, unknown>
+  // Enabled unless explicitly turned off (matches the widget's existing default-on behavior).
+  const enabled = settings.live_chat_enabled !== false
+
+  const handleToggle = (next: boolean) => {
+    if (!vendor) return
+    updateVendor.mutate({
+      settings: { ...settings, live_chat_enabled: next },
+    })
+  }
+
+  return (
+    <Card className="flex items-start justify-between gap-4 p-4">
+      <div className="min-w-0">
+        <div className="flex items-center gap-2">
+          <MessageSquare className="h-4 w-4 text-primary shrink-0" />
+          <h2 className="text-sm font-semibold text-foreground">Live chat widget</h2>
+          <Badge variant={enabled ? 'default' : 'secondary'} className="text-[10px]">
+            {enabled ? 'On' : 'Off'}
+          </Badge>
+        </div>
+        <p className="mt-1 text-xs text-muted-foreground leading-relaxed">
+          When on, a live chat button appears on your website (Website Management → Website Templates).
+          Turn it off to hide the widget from visitors.
+        </p>
+      </div>
+      <div className="flex items-center gap-2 shrink-0 pt-0.5">
+        {updateVendor.isPending && <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />}
+        <Switch
+          checked={enabled}
+          disabled={!vendor || updateVendor.isPending}
+          onCheckedChange={handleToggle}
+          aria-label="Toggle live chat widget"
+        />
+      </div>
+    </Card>
+  )
+}
+
 // ── Main Inbox page ───────────────────────────────────────────────────────────
 export default function InboxPage() {
   return (
@@ -461,6 +507,7 @@ export default function InboxPage() {
         <h1 className="text-2xl font-bold text-foreground">Inbox</h1>
         <p className="text-sm text-muted-foreground mt-1">Live chat conversations from your Business Front widget.</p>
       </div>
+      <LiveChatToggle />
       <ChatsTab />
     </div>
   )

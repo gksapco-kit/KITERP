@@ -473,7 +473,7 @@ class VendorService:
         update_data = data.model_dump(exclude_unset=True)
         for field, value in update_data.items():
             setattr(vendor, field, value)
-            if field in ("theme_config", "store_holidays", "business_hours", "order_acceptance_hours"):
+            if field in ("settings", "theme_config", "store_holidays", "business_hours", "order_acceptance_hours"):
                 from sqlalchemy.orm.attributes import flag_modified
                 flag_modified(vendor, field)
         
