@@ -1,6 +1,7 @@
 import uuid
 from sqlalchemy import Column, String, Integer, Boolean, DateTime, Date, ForeignKey, Text, Index
 from sqlalchemy.dialects.postgresql import UUID, JSONB
+from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 
 from app.database import Base
@@ -125,4 +126,84 @@ class RestaurantReservation(Base):
 
     __table_args__ = (
         Index("ix_restaurant_reservation_vendor_date", "vendor_id", "reservation_date"),
+    )
+
+
+class RestaurantMenu(Base):
+    """A named dine-in / QR menu belonging to a restaurant outlet (e.g. 'Lunch menu')."""
+    __tablename__ = "restaurant_menu"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    vendor_id = Column(UUID(as_uuid=True), ForeignKey("vendor.id", ondelete="CASCADE"), nullable=False, index=True)
+    restaurant_id = Column(UUID(as_uuid=True), ForeignKey("restaurant.id", ondelete="CASCADE"), nullable=False, index=True)
+    name = Column(String(200), nullable=False)
+    is_active = Column(Boolean, nullable=False, default=True)
+    sort_order = Column(Integer, nullable=False, default=0)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+    categories = relationship(
+        "RestaurantMenuCategory", back_populates="menu", lazy="noload",
+        cascade="all, delete-orphan", order_by="RestaurantMenuCategory.sort_order",
+    )
+    zone_links = relationship(
+        "RestaurantMenuZoneLink", back_populates="menu", lazy="noload",
+        cascade="all, delete-orphan",
+    )
+
+    __table_args__ = (
+        Index("ix_restaurant_menu_vendor", "vendor_id"),
+        Index("ix_restaurant_menu_restaurant", "restaurant_id"),
+    )
+
+
+class RestaurantMenuCategory(Base):
+    """A category (or sub-category) within a menu, with its own item-selection rule."""
+    __tablename__ = "restaurant_menu_category"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    vendor_id = Column(UUID(as_uuid=True), ForeignKey("vendor.id", ondelete="CASCADE"), nullable=False, index=True)
+    menu_id = Column(UUID(as_uuid=True), ForeignKey("restaurant_menu.id", ondelete="CASCADE"), nullable=False, index=True)
+    parent_id = Column(UUID(as_uuid=True), ForeignKey("restaurant_menu_category.id", ondelete="CASCADE"), nullable=True, index=True)
+    name = Column(String(200), nullable=False)
+    sort_order = Column(Integer, nullable=False, default=0)
+    # all_active | curated | by_categories
+    mode = Column(String(20), nullable=False, default="all_active")
+    product_ids = Column(JSONB, nullable=False, default=list)
+    service_ids = Column(JSONB, nullable=False, default=list)
+    vendor_category_ids = Column(JSONB, nullable=False, default=list)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+    menu = relationship("RestaurantMenu", back_populates="categories", lazy="noload")
+    children = relationship(
+        "RestaurantMenuCategory", back_populates="parent", lazy="noload",
+        order_by="RestaurantMenuCategory.sort_order",
+    )
+    parent = relationship(
+        "RestaurantMenuCategory", back_populates="children", remote_side=[id], lazy="noload",
+    )
+
+    __table_args__ = (
+        Index("ix_restaurant_menu_category_menu", "menu_id"),
+        Index("ix_restaurant_menu_category_parent", "parent_id"),
+    )
+
+
+class RestaurantMenuZoneLink(Base):
+    """Links a menu to a zone with a unique guest-facing token (for QR / guest URLs)."""
+    __tablename__ = "restaurant_menu_zone_link"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    vendor_id = Column(UUID(as_uuid=True), ForeignKey("vendor.id", ondelete="CASCADE"), nullable=False, index=True)
+    menu_id = Column(UUID(as_uuid=True), ForeignKey("restaurant_menu.id", ondelete="CASCADE"), nullable=False, index=True)
+    zone_id = Column(UUID(as_uuid=True), ForeignKey("restaurant_zone.id", ondelete="CASCADE"), nullable=False, index=True)
+    link_token = Column(String(64), nullable=False, unique=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    menu = relationship("RestaurantMenu", back_populates="zone_links", lazy="noload")
+
+    __table_args__ = (
+        Index("ix_restaurant_menu_zone_link_menu", "menu_id"),
+        Index("ix_restaurant_menu_zone_link_zone", "zone_id"),
     )

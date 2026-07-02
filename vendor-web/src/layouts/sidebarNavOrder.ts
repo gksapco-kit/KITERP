@@ -255,6 +255,8 @@ export function reconcileNavPlacements(
     '/restaurant/reservations',
     '/restaurant/reports',
     '/restaurant/setup',
+    '/restaurant/outlets',
+    '/restaurant/pos',
   ]
   const restaurantRoutes = [...validTos].filter((to) => to.startsWith('/restaurant/'))
   if (restaurantRoutes.length && out.restaurant) {

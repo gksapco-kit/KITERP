@@ -129,17 +129,30 @@ function hydrateTeam(liveItems: LiveItem[]) {
 
 function hydrateMenuFromProducts(liveItems: LiveItem[]) {
   if (!liveItems.length) return
-  const items = liveItems.map((item, idx) => ({
-    id: item.id || `m${idx + 1}`,
-    name: item.title || `Item ${idx + 1}`,
-    description: item.description || item.subtitle || '',
-    price: moneyToMajor(item.price ?? (item.meta as Record<string, unknown>)?.price),
-    currency: ((item.meta as Record<string, unknown>)?.currency as string) || 'INR',
-    diet: [],
-    popular: idx < 2,
-    image: item.image_url || swatch(item.title || String(idx), 300, 300),
+
+  // Group items by product category so the menu block renders proper sections
+  const sectionMap = new Map<string, typeof mockMenu[0]['items']>()
+  liveItems.forEach((item, idx) => {
+    const cat = ((item.meta as Record<string, unknown>)?.category as string | undefined)?.trim() || 'Menu'
+    if (!sectionMap.has(cat)) sectionMap.set(cat, [])
+    sectionMap.get(cat)!.push({
+      id: item.id || `m${idx + 1}`,
+      name: item.title || `Item ${idx + 1}`,
+      description: item.description || item.subtitle || '',
+      price: moneyToMajor(item.price ?? (item.meta as Record<string, unknown>)?.price),
+      currency: ((item.meta as Record<string, unknown>)?.currency as string) || 'INR',
+      diet: [],
+      popular: idx < 2,
+      image: item.image_url || swatch(item.title || String(idx), 300, 300),
+    })
+  })
+
+  const sections = Array.from(sectionMap.entries()).map(([name, items], si) => ({
+    id: `live-${si}`,
+    name,
+    items,
   }))
-  replaceArray(mockMenu, [{ id: 'live', name: 'Menu', items }])
+  replaceArray(mockMenu, sections)
 }
 
 function hydrateLiveData(blockType: string, liveItems: LiveItem[]) {

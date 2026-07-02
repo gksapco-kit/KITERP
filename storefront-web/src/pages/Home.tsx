@@ -24,6 +24,7 @@ import { storeApi, type StoreLocation } from '@/api/store'
 import type { SectionProps } from '@/home-sections/types'
 import {
   HeroSection,
+  RestaurantMenuSection,
   str,
   editorialKitFromTemplate,
   radiusClass,
@@ -861,6 +862,20 @@ export default function Home() {
                   colors={c}
                   highlightBranch={branchParam}
                   config={{ limit: 6, geo: false, layout: 'grid', filter: 'none' }}
+                />
+              </div>
+            )
+          case 'restaurant_menu':
+            return (
+              <div key={`${section.id}-${idx}`}>
+                <RestaurantMenuSection
+                  props={p}
+                  colors={c}
+                  theme={theme}
+                  products={products}
+                  isLoading={productsLoading}
+                  templateId={templateId}
+                  storePath={storePath}
                 />
               </div>
             )

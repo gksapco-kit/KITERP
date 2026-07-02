@@ -121,6 +121,7 @@ const KEYWORD_HINTS: Record<string, string[]> = {
   'Restaurant Floor':                     ['table', 'floor plan', 'seating', 'dine in', 'restaurant'],
   'Kitchen Board':                        ['kitchen', 'kds', 'cook', 'chef', 'food orders'],
   'Restaurant Tables':                    ['tables', 'restaurant', 'floor', 'seating'],
+  'Dine-in Menu':                         ['qr menu', 'dine in menu', 'restaurant menu', 'table order', 'menu settings', 'curated menu', 'qr code menu', 'dine-in menu'],
   'Business Units':                       ['branch', 'outlet', 'location', 'store code', 'business unit', 'unit code'],
   'Approvals':                            ['approve', 'pending approval', 'finance approval'],
   'Posting Periods':                      ['period', 'close period', 'accounting period'],

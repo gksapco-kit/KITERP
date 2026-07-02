@@ -35,7 +35,14 @@ from app.schemas.restaurant import (
     RestaurantOrderTransferIn,
     RestaurantOrderMergeIn,
     RestaurantOrderAdjustmentsIn,
+    RestaurantMenuCreate,
+    RestaurantMenuUpdate,
+    RestaurantMenuCategoryCreate,
+    RestaurantMenuCategoryUpdate,
+    RestaurantMenuCategoryMoveIn,
+    RestaurantMenuZoneSyncIn,
 )
+from app.services.restaurant_menu_service import RestaurantMenuService
 from datetime import date as date_type
 
 router = APIRouter()
@@ -637,9 +644,17 @@ async def seat_reservation(
 
 
 @router.get("/menu")
-async def get_restaurant_menu_settings(vid: UUID = Depends(_vendor_id), db: AsyncSession = Depends(get_db)):
+async def get_restaurant_menu_settings(
+    restaurant_id: str | None = Query(None, description="Outlet ID — omit for vendor-wide settings"),
+    vid: UUID = Depends(_vendor_id),
+    db: AsyncSession = Depends(get_db),
+):
     svc = RestaurantService(db)
-    settings = await svc.get_menu_settings(vid)
+    rid = UUID(restaurant_id) if restaurant_id else None
+    try:
+        settings = await svc.get_menu_settings(vid, restaurant_id=rid)
+    except ValueError as e:
+        raise HTTPException(404, str(e))
     products = await svc.list_dine_in_catalog(vid)
     return JSONResponse(content={
         **settings,
@@ -680,16 +695,230 @@ async def list_dine_in_products(vid: UUID = Depends(_vendor_id), db: AsyncSessio
 @router.put("/menu")
 async def update_restaurant_menu_settings(
     data: RestaurantMenuSettingsUpdate,
+    restaurant_id: str | None = Query(None, description="Outlet ID — omit for vendor-wide settings"),
     vid: UUID = Depends(_vendor_id),
     db: AsyncSession = Depends(get_db),
     _vu: VendorUser = Depends(require_permission("restaurant.setup")),
 ):
     svc = RestaurantService(db)
+    rid = UUID(restaurant_id) if restaurant_id else None
     try:
-        out = await svc.set_menu_settings(vid, data.mode, data.product_ids)
+        out = await svc.set_menu_settings(
+            vid, data.mode, data.product_ids,
+            category_order=data.category_order if data.category_order else None,
+            restaurant_id=rid,
+        )
     except ValueError as e:
         raise HTTPException(400, str(e))
     return JSONResponse(content=out)
+
+
+# ── Named menus (multi-menu, tree categories, zone links) ─────────────
+
+def _menu_category_dict(c) -> dict:
+    return {
+        "id": str(c.id),
+        "name": c.name,
+        "parent_id": str(c.parent_id) if c.parent_id else None,
+        "sort_order": c.sort_order or 0,
+        "mode": c.mode,
+        "product_ids": [str(x) for x in (c.product_ids or [])],
+        "service_ids": [str(x) for x in (c.service_ids or [])],
+        "vendor_category_ids": [str(x) for x in (c.vendor_category_ids or [])],
+    }
+
+
+def _menu_zone_link_dict(link, zone_name=None) -> dict:
+    return {
+        "id": str(link.id),
+        "zone_id": str(link.zone_id),
+        "zone_name": zone_name,
+        "link_token": link.link_token,
+    }
+
+
+async def _menu_dict(menu, db: AsyncSession) -> dict:
+    zone_names: dict = {}
+    if menu.zone_links:
+        rsvc = RestaurantService(db)
+        all_zones = await rsvc.list_zones(menu.vendor_id, restaurant_id=menu.restaurant_id)
+        zone_names = {z.id: z.name for z in all_zones}
+    categories = sorted(menu.categories, key=lambda c: (c.parent_id is not None, c.sort_order))
+    return {
+        "id": str(menu.id),
+        "restaurant_id": str(menu.restaurant_id),
+        "name": menu.name,
+        "is_active": menu.is_active,
+        "sort_order": menu.sort_order or 0,
+        "categories": [_menu_category_dict(c) for c in categories],
+        "zone_links": [_menu_zone_link_dict(l, zone_names.get(l.zone_id)) for l in menu.zone_links],
+    }
+
+
+@router.get("/menus")
+async def list_menus(
+    restaurant_id: str | None = Query(None),
+    vid: UUID = Depends(_vendor_id),
+    db: AsyncSession = Depends(get_db),
+):
+    svc = RestaurantMenuService(db)
+    rid = UUID(restaurant_id) if restaurant_id else None
+    menus = await svc.list_menus(vid, restaurant_id=rid)
+    return JSONResponse(content={"items": [await _menu_dict(m, db) for m in menus]})
+
+
+@router.post("/menus", status_code=201)
+async def create_menu(
+    data: RestaurantMenuCreate,
+    vid: UUID = Depends(_vendor_id),
+    db: AsyncSession = Depends(get_db),
+    _vu: VendorUser = Depends(require_permission("restaurant.setup")),
+):
+    svc = RestaurantMenuService(db)
+    try:
+        menu = await svc.create_menu(
+            vid, UUID(data.restaurant_id), data.name, zone_ids=data.zone_ids,
+        )
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    return JSONResponse(content=await _menu_dict(menu, db), status_code=201)
+
+
+@router.get("/menus/{menu_id}")
+async def get_menu(
+    menu_id: UUID,
+    vid: UUID = Depends(_vendor_id),
+    db: AsyncSession = Depends(get_db),
+):
+    svc = RestaurantMenuService(db)
+    menu = await svc.get_menu(vid, menu_id)
+    if not menu:
+        raise HTTPException(404, "Menu not found")
+    return JSONResponse(content=await _menu_dict(menu, db))
+
+
+@router.put("/menus/{menu_id}")
+async def update_menu(
+    menu_id: UUID,
+    data: RestaurantMenuUpdate,
+    vid: UUID = Depends(_vendor_id),
+    db: AsyncSession = Depends(get_db),
+    _vu: VendorUser = Depends(require_permission("restaurant.setup")),
+):
+    svc = RestaurantMenuService(db)
+    try:
+        menu = await svc.update_menu(vid, menu_id, **data.model_dump(exclude_unset=True))
+    except ValueError as e:
+        raise HTTPException(404, str(e))
+    return JSONResponse(content=await _menu_dict(menu, db))
+
+
+@router.delete("/menus/{menu_id}", status_code=204)
+async def delete_menu(
+    menu_id: UUID,
+    vid: UUID = Depends(_vendor_id),
+    db: AsyncSession = Depends(get_db),
+    _vu: VendorUser = Depends(require_permission("restaurant.setup")),
+):
+    svc = RestaurantMenuService(db)
+    try:
+        await svc.delete_menu(vid, menu_id)
+    except ValueError as e:
+        raise HTTPException(404, str(e))
+
+
+@router.put("/menus/{menu_id}/zones")
+async def sync_menu_zones(
+    menu_id: UUID,
+    data: RestaurantMenuZoneSyncIn,
+    vid: UUID = Depends(_vendor_id),
+    db: AsyncSession = Depends(get_db),
+    _vu: VendorUser = Depends(require_permission("restaurant.setup")),
+):
+    svc = RestaurantMenuService(db)
+    try:
+        links = await svc.sync_zone_links(vid, menu_id, data.zone_ids)
+    except ValueError as e:
+        raise HTTPException(404, str(e))
+    zone_names: dict = {}
+    if links:
+        rsvc = RestaurantService(db)
+        all_zones = await rsvc.list_zones(vid)
+        zone_names = {z.id: z.name for z in all_zones}
+    return JSONResponse(content={
+        "items": [_menu_zone_link_dict(l, zone_names.get(l.zone_id)) for l in links],
+    })
+
+
+@router.post("/menus/{menu_id}/categories", status_code=201)
+async def create_menu_category(
+    menu_id: UUID,
+    data: RestaurantMenuCategoryCreate,
+    vid: UUID = Depends(_vendor_id),
+    db: AsyncSession = Depends(get_db),
+    _vu: VendorUser = Depends(require_permission("restaurant.setup")),
+):
+    svc = RestaurantMenuService(db)
+    try:
+        category = await svc.create_category(
+            vid, menu_id, data.name,
+            parent_id=UUID(data.parent_id) if data.parent_id else None,
+        )
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    return JSONResponse(content=_menu_category_dict(category), status_code=201)
+
+
+@router.put("/menus/{menu_id}/categories/{category_id}")
+async def update_menu_category(
+    menu_id: UUID,
+    category_id: UUID,
+    data: RestaurantMenuCategoryUpdate,
+    vid: UUID = Depends(_vendor_id),
+    db: AsyncSession = Depends(get_db),
+    _vu: VendorUser = Depends(require_permission("restaurant.setup")),
+):
+    svc = RestaurantMenuService(db)
+    try:
+        category = await svc.update_category(
+            vid, menu_id, category_id, **data.model_dump(exclude_unset=True),
+        )
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    return JSONResponse(content=_menu_category_dict(category))
+
+
+@router.delete("/menus/{menu_id}/categories/{category_id}", status_code=204)
+async def delete_menu_category(
+    menu_id: UUID,
+    category_id: UUID,
+    vid: UUID = Depends(_vendor_id),
+    db: AsyncSession = Depends(get_db),
+    _vu: VendorUser = Depends(require_permission("restaurant.setup")),
+):
+    svc = RestaurantMenuService(db)
+    try:
+        await svc.delete_category(vid, menu_id, category_id)
+    except ValueError as e:
+        raise HTTPException(404, str(e))
+
+
+@router.post("/menus/{menu_id}/categories/{category_id}/move")
+async def move_menu_category(
+    menu_id: UUID,
+    category_id: UUID,
+    data: RestaurantMenuCategoryMoveIn,
+    vid: UUID = Depends(_vendor_id),
+    db: AsyncSession = Depends(get_db),
+    _vu: VendorUser = Depends(require_permission("restaurant.setup")),
+):
+    svc = RestaurantMenuService(db)
+    try:
+        await svc.move_category(vid, menu_id, category_id, data.direction)
+        menu = await svc.get_menu(vid, menu_id)
+    except ValueError as e:
+        raise HTTPException(404, str(e))
+    return JSONResponse(content=await _menu_dict(menu, db))
 
 
 @router.get("/kot-settings")

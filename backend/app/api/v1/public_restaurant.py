@@ -12,9 +12,11 @@ from datetime import date as date_type
 
 from app.database import get_db
 from app.repositories.vendor_repo import VendorRepository
+from app.models.restaurant import Restaurant
 from app.models.vendor_product import Product, ProductModifierGroup, ProductModifierOption
 from app.services.restaurant_service import RestaurantService
-from app.utils.restaurant_menu import load_dine_in_products
+from app.services.restaurant_menu_service import RestaurantMenuService
+from app.utils.restaurant_menu import load_dine_in_products_with_meta, parse_category_order, sort_menu_sections
 from app.schemas.restaurant import RestaurantReservationCreate
 
 router = APIRouter()
@@ -28,7 +30,23 @@ async def _resolve_vendor(vendor_slug: str, db: AsyncSession):
     return vendor
 
 
+def _primary_image_url(p: Product) -> Optional[str]:
+    """Return the primary image URL from the eager-loaded images relation."""
+    images = p.images  # type: ignore[attr-defined]
+    if not images:
+        return None
+    # Prefer explicitly flagged primary; fall back to lowest position
+    primary = next((img for img in images if img.is_primary and img.media_type == "image"), None)
+    if primary:
+        return primary.url
+    image_only = [img for img in images if img.media_type == "image"]
+    if image_only:
+        return min(image_only, key=lambda img: img.position or 0).url
+    return None
+
+
 def _product_dict(p: Product, modifier_groups: Optional[list] = None) -> dict:
+    raw_tags = p.tags if isinstance(p.tags, list) else []
     return {
         "id": str(p.id),
         "name": p.name,
@@ -36,8 +54,10 @@ def _product_dict(p: Product, modifier_groups: Optional[list] = None) -> dict:
         "price": float(p.price or 0),
         "category": p.category,
         "tax_rate": float(p.tax_rate or p.gst_rate or 0),
-        "image_url": None,
-        "is_available": p.status == "active",
+        "image_url": _primary_image_url(p),
+        "stock_status": p.stock_status or "in_stock",
+        "is_available": p.status == "active" and (p.stock_status != "out_of_stock" or bool(p.allow_backorders)),
+        "tags": [str(t) for t in raw_tags],
         "modifier_groups": modifier_groups or [],
     }
 
@@ -102,6 +122,8 @@ async def get_table_by_qr(vendor_slug: str, qr_token: str, db: AsyncSession = De
     svc = RestaurantService(db)
 
     preview_mode = qr_token == "preview"
+    outlet_settings: dict | None = None
+
     if preview_mode:
         table_id = "preview"
         table_label = "Preview"
@@ -114,15 +136,24 @@ async def get_table_by_qr(vendor_slug: str, qr_token: str, db: AsyncSession = De
         table_label = table_row.label
         table_capacity = table_row.capacity
 
-    products = await load_dine_in_products(
-        db, vendor.id, vendor.settings or {}, limit=200,
+        # Load per-outlet menu settings if this table belongs to a restaurant outlet
+        if table_row.restaurant_id:
+            restaurant = await db.get(Restaurant, table_row.restaurant_id)
+            if restaurant and restaurant.settings and restaurant.settings.get("restaurant_menu"):
+                outlet_settings = restaurant.settings
+
+    # Prefer outlet-level settings when available, fall back to vendor-wide
+    effective_settings = outlet_settings if outlet_settings is not None else (vendor.settings or {})
+
+    catalog = await load_dine_in_products_with_meta(
+        db, vendor.id, effective_settings, limit=200,
     )
     mod_map = await _load_modifier_groups_by_product(
-        db, vendor.id, [p.id for p in products],
+        db, vendor.id, [p.id for p in catalog.products],
     )
 
     menu: dict = {}
-    for p in products:
+    for p in catalog.products:
         cat = p.category or "Menu"
         sub = (p.subcategory or "").strip()
         menu.setdefault(cat, {}).setdefault(sub, []).append(
@@ -143,6 +174,9 @@ async def get_table_by_qr(vendor_slug: str, qr_token: str, db: AsyncSession = De
             "subcategories": subcategories,
         })
 
+    category_order = parse_category_order(effective_settings)
+    menu_sections = sort_menu_sections(menu_sections, category_order)
+
     return JSONResponse(content={
         "vendor": {
             "id": str(vendor.id),
@@ -153,9 +187,48 @@ async def get_table_by_qr(vendor_slug: str, qr_token: str, db: AsyncSession = De
             "id": table_id,
             "label": table_label,
             "capacity": table_capacity,
-            "zone_name": None,  # we don't load zone here for simplicity
+            "zone_name": None,
         },
         "menu": menu_sections,
+        "menu_truncated": catalog.truncated,
+    })
+
+
+# ── Named menu by zone guest-link token ────────────────────────────
+
+@router.get("/{vendor_slug}/menu/{link_token}")
+async def get_menu_by_zone_link(vendor_slug: str, link_token: str, db: AsyncSession = Depends(get_db)):
+    """Resolve a menu + zone from a guest-facing menu link token, with the
+    full category tree and resolved products/services for guest browsing."""
+    vendor = await _resolve_vendor(vendor_slug, db)
+    menu_svc = RestaurantMenuService(db)
+
+    link = await menu_svc.resolve_zone_link(link_token)
+    if not link or link.vendor_id != vendor.id:
+        raise HTTPException(404, "Menu link not found")
+
+    menu = link.menu
+    restaurant_svc = RestaurantService(db)
+    zones = await restaurant_svc.list_zones(vendor.id, restaurant_id=menu.restaurant_id)
+    zone = next((z for z in zones if z.id == link.zone_id), None)
+
+    categories = await menu_svc.build_menu_tree_payload(vendor.id, menu)
+
+    return JSONResponse(content={
+        "vendor": {
+            "id": str(vendor.id),
+            "name": vendor.business_name,
+            "slug": vendor.slug,
+        },
+        "zone": {
+            "id": str(link.zone_id),
+            "name": zone.name if zone else None,
+        },
+        "menu": {
+            "id": str(menu.id),
+            "name": menu.name,
+            "categories": categories,
+        },
     })
 
 

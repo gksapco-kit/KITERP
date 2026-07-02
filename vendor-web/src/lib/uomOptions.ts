@@ -1,0 +1,153 @@
+/** Shared unit-of-measure options for products, services, and variants. */
+
+export type UomOption = { value: string; label: string; group: string }
+
+export const UOM_OPTIONS: UomOption[] = [
+  // Count
+  { value: 'piece', label: 'Piece (pc)', group: 'Count' },
+  { value: 'unit', label: 'Unit', group: 'Count' },
+  { value: 'pair', label: 'Pair', group: 'Count' },
+  { value: 'dozen', label: 'Dozen (12)', group: 'Count' },
+  { value: 'gross', label: 'Gross (144)', group: 'Count' },
+  { value: 'set', label: 'Set', group: 'Count' },
+  { value: 'pack', label: 'Pack', group: 'Count' },
+  { value: 'bundle', label: 'Bundle', group: 'Count' },
+  { value: 'box', label: 'Box', group: 'Count' },
+  { value: 'case', label: 'Case', group: 'Count' },
+  { value: 'carton', label: 'Carton', group: 'Count' },
+  { value: 'pallet', label: 'Pallet', group: 'Count' },
+  { value: 'roll', label: 'Roll', group: 'Count' },
+  { value: 'sheet', label: 'Sheet', group: 'Count' },
+  { value: 'bag', label: 'Bag', group: 'Count' },
+  { value: 'bottle', label: 'Bottle', group: 'Count' },
+  { value: 'can', label: 'Can', group: 'Count' },
+  { value: 'jar', label: 'Jar', group: 'Count' },
+  { value: 'tube', label: 'Tube', group: 'Count' },
+  { value: 'sachet', label: 'Sachet', group: 'Count' },
+  { value: 'pouch', label: 'Pouch', group: 'Count' },
+  // Weight
+  { value: 'mg', label: 'Milligram (mg)', group: 'Weight' },
+  { value: 'g', label: 'Gram (g)', group: 'Weight' },
+  { value: 'kg', label: 'Kilogram (kg)', group: 'Weight' },
+  { value: 'tonne', label: 'Metric Ton (t)', group: 'Weight' },
+  { value: 'oz', label: 'Ounce (oz)', group: 'Weight' },
+  { value: 'lb', label: 'Pound (lb)', group: 'Weight' },
+  { value: 'quintal', label: 'Quintal (100 kg)', group: 'Weight' },
+  // Volume
+  { value: 'ml', label: 'Millilitre (ml)', group: 'Volume' },
+  { value: 'cl', label: 'Centilitre (cl)', group: 'Volume' },
+  { value: 'l', label: 'Litre (L)', group: 'Volume' },
+  { value: 'kl', label: 'Kilolitre (kL)', group: 'Volume' },
+  { value: 'fl_oz', label: 'Fluid Ounce (fl oz)', group: 'Volume' },
+  { value: 'pt', label: 'Pint (pt)', group: 'Volume' },
+  { value: 'qt', label: 'Quart (qt)', group: 'Volume' },
+  { value: 'gal', label: 'Gallon (gal)', group: 'Volume' },
+  { value: 'cup', label: 'Cup', group: 'Volume' },
+  { value: 'tbsp', label: 'Tablespoon (tbsp)', group: 'Volume' },
+  // Length
+  { value: 'mm', label: 'Millimetre (mm)', group: 'Length' },
+  { value: 'cm', label: 'Centimetre (cm)', group: 'Length' },
+  { value: 'm', label: 'Metre (m)', group: 'Length' },
+  { value: 'km', label: 'Kilometre (km)', group: 'Length' },
+  { value: 'in', label: 'Inch (in)', group: 'Length' },
+  { value: 'ft', label: 'Foot (ft)', group: 'Length' },
+  { value: 'yd', label: 'Yard (yd)', group: 'Length' },
+  // Area
+  { value: 'sq_m', label: 'Square Metre (m²)', group: 'Area' },
+  { value: 'sq_ft', label: 'Square Foot (ft²)', group: 'Area' },
+  { value: 'sq_yd', label: 'Square Yard (yd²)', group: 'Area' },
+  { value: 'acre', label: 'Acre', group: 'Area' },
+  { value: 'hectare', label: 'Hectare (ha)', group: 'Area' },
+  // Time / Service
+  { value: 'hour', label: 'Hour (hr)', group: 'Time' },
+  { value: 'day', label: 'Day', group: 'Time' },
+  { value: 'week', label: 'Week', group: 'Time' },
+  { value: 'month', label: 'Month', group: 'Time' },
+  { value: 'year', label: 'Year', group: 'Time' },
+  { value: 'session', label: 'Session', group: 'Time' },
+  { value: 'per_session', label: 'Per Session', group: 'Time' },
+  // Hospitality / Hotel
+  { value: 'room', label: 'Room', group: 'Hospitality' },
+  { value: 'room_night', label: 'Room-Night', group: 'Hospitality' },
+  { value: 'night', label: 'Night', group: 'Hospitality' },
+  { value: 'stay', label: 'Stay', group: 'Hospitality' },
+  { value: 'guest', label: 'Guest', group: 'Hospitality' },
+  { value: 'guest_night', label: 'Guest-Night', group: 'Hospitality' },
+  { value: 'person', label: 'Person / Pax', group: 'Hospitality' },
+  { value: 'person_night', label: 'Person-Night', group: 'Hospitality' },
+  { value: 'bed', label: 'Bed', group: 'Hospitality' },
+  { value: 'suite', label: 'Suite', group: 'Hospitality' },
+  { value: 'cottage', label: 'Cottage / Cabin', group: 'Hospitality' },
+  { value: 'villa', label: 'Villa', group: 'Hospitality' },
+  { value: 'booking', label: 'Booking', group: 'Hospitality' },
+  { value: 'check_in', label: 'Check-in', group: 'Hospitality' },
+  // Restaurant / F&B
+  { value: 'plate', label: 'Plate', group: 'Restaurant' },
+  { value: 'dish', label: 'Dish', group: 'Restaurant' },
+  { value: 'serving', label: 'Serving', group: 'Restaurant' },
+  { value: 'portion', label: 'Portion', group: 'Restaurant' },
+  { value: 'half_portion', label: 'Half Portion', group: 'Restaurant' },
+  { value: 'full_portion', label: 'Full Portion', group: 'Restaurant' },
+  { value: 'cover', label: 'Cover (Guest)', group: 'Restaurant' },
+  { value: 'per_head', label: 'Per Head', group: 'Restaurant' },
+  { value: 'table', label: 'Table', group: 'Restaurant' },
+  { value: 'order', label: 'Order', group: 'Restaurant' },
+  { value: 'meal', label: 'Meal', group: 'Restaurant' },
+  { value: 'combo', label: 'Combo / Meal Deal', group: 'Restaurant' },
+  { value: 'thali', label: 'Thali', group: 'Restaurant' },
+  { value: 'platter', label: 'Platter', group: 'Restaurant' },
+  { value: 'bowl', label: 'Bowl', group: 'Restaurant' },
+  { value: 'glass', label: 'Glass', group: 'Restaurant' },
+  { value: 'slice', label: 'Slice', group: 'Restaurant' },
+  { value: 'scoop', label: 'Scoop', group: 'Restaurant' },
+  { value: 'stick', label: 'Stick / Skewer', group: 'Restaurant' },
+  { value: 'buffet', label: 'Buffet', group: 'Restaurant' },
+  { value: 'takeaway', label: 'Takeaway / Parcel', group: 'Restaurant' },
+  { value: 'add_on', label: 'Add-on', group: 'Restaurant' },
+  { value: 'course', label: 'Course', group: 'Restaurant' },
+  // Restaurant sizes (S/M/L, drink sizes, sharing)
+  { value: 'size_xs', label: 'Extra Small', group: 'Restaurant Size' },
+  { value: 'size_sm', label: 'Small', group: 'Restaurant Size' },
+  { value: 'size_md', label: 'Medium / Regular', group: 'Restaurant Size' },
+  { value: 'size_lg', label: 'Large', group: 'Restaurant Size' },
+  { value: 'size_xl', label: 'Extra Large', group: 'Restaurant Size' },
+  { value: 'size_xxl', label: 'XXL / Jumbo', group: 'Restaurant Size' },
+  { value: 'size_mini', label: 'Mini', group: 'Restaurant Size' },
+  { value: 'size_kids', label: 'Kids', group: 'Restaurant Size' },
+  { value: 'size_personal', label: 'Personal', group: 'Restaurant Size' },
+  { value: 'size_sharing', label: 'Sharing', group: 'Restaurant Size' },
+  { value: 'size_family', label: 'Family Size', group: 'Restaurant Size' },
+  { value: 'size_single', label: 'Single (Drink)', group: 'Restaurant Size' },
+  { value: 'size_double', label: 'Double (Drink)', group: 'Restaurant Size' },
+  { value: 'size_short', label: 'Short (Drink)', group: 'Restaurant Size' },
+  { value: 'size_tall', label: 'Tall (Drink)', group: 'Restaurant Size' },
+  { value: 'size_pint', label: 'Pint', group: 'Restaurant Size' },
+  { value: 'size_half_pint', label: 'Half Pint', group: 'Restaurant Size' },
+  // Energy / Power
+  { value: 'watt', label: 'Watt (W)', group: 'Energy' },
+  { value: 'kw', label: 'Kilowatt (kW)', group: 'Energy' },
+  { value: 'kwh', label: 'Kilowatt-Hour (kWh)', group: 'Energy' },
+  // Data
+  { value: 'mb', label: 'Megabyte (MB)', group: 'Data' },
+  { value: 'gb', label: 'Gigabyte (GB)', group: 'Data' },
+  { value: 'tb', label: 'Terabyte (TB)', group: 'Data' },
+]
+
+export const UOM_GROUPS = [...new Set(UOM_OPTIONS.map(u => u.group))]
+
+export function uomLabel(uom: string): string {
+  return UOM_OPTIONS.find(u => u.value === uom)?.label || uom
+}
+
+export function formatUomDisplay(
+  uomQuantity: number | string | null | undefined,
+  uom: string,
+): string {
+  const opt = UOM_OPTIONS.find(u => u.value === uom)
+  const short = (opt?.label || uom).replace(/\s*\(.*\)/, '').trim()
+  const qty = uomQuantity === '' || uomQuantity == null ? null : Number(uomQuantity)
+  if (qty != null && !Number.isNaN(qty) && qty > 0 && qty !== 1) {
+    return `${qty} ${short}`
+  }
+  return opt?.label || uom
+}

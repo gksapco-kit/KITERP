@@ -215,14 +215,54 @@ export default function TableOrderPage() {
   const categories = data?.menu ?? []
   const currentCat = activeCategory ?? categories[0]?.category ?? null
 
+  const DIET_LABELS: Record<string, { icon: string; label: string; className: string }> = {
+    veg: { icon: '🟢', label: 'Veg', className: 'bg-green-50 text-green-700 border-green-200' },
+    vegan: { icon: '🌱', label: 'Vegan', className: 'bg-green-50 text-green-700 border-green-200' },
+    'gluten-free': { icon: 'GF', label: 'Gluten-free', className: 'bg-yellow-50 text-yellow-700 border-yellow-200' },
+    gf: { icon: 'GF', label: 'Gluten-free', className: 'bg-yellow-50 text-yellow-700 border-yellow-200' },
+    spicy: { icon: '🌶', label: 'Spicy', className: 'bg-red-50 text-red-600 border-red-200' },
+    nuts: { icon: 'N', label: 'Contains nuts', className: 'bg-amber-50 text-amber-700 border-amber-200' },
+    dairy: { icon: 'D', label: 'Contains dairy', className: 'bg-blue-50 text-blue-600 border-blue-200' },
+    halal: { icon: 'H', label: 'Halal', className: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
+    jain: { icon: 'J', label: 'Jain', className: 'bg-orange-50 text-orange-700 border-orange-200' },
+  }
+
   function renderMenuItems(items: PublicMenuItem[]) {
-    return items.filter(p => p.is_available).map(p => {
+    return items.map(p => {
+      const unavailable = !p.is_available
+      const lowStock = p.stock_status === 'low_stock'
       const cartItem = cart.find(i => i.product_id === p.id && !(i.modifiers?.length))
       const qtyInCart = cart.filter(i => i.product_id === p.id).reduce((s, i) => s + i.qty, 0)
+      const knownDietTags = (p.tags ?? []).map(t => t.toLowerCase()).filter(t => t in DIET_LABELS)
       return (
-        <div key={p.id} className="flex items-center gap-3 bg-white px-4 py-3">
+        <div key={p.id} className={`flex items-center gap-3 bg-white px-4 py-3 ${unavailable ? 'opacity-50' : ''}`}>
+          {p.image_url && (
+            <div className="w-16 h-16 shrink-0 rounded-lg overflow-hidden bg-gray-100">
+              <img src={p.image_url} alt={p.name} className="w-full h-full object-cover" loading="lazy" />
+            </div>
+          )}
           <div className="flex-1 min-w-0">
-            <p className="font-medium text-gray-900 text-sm">{p.name}</p>
+            <div className="flex items-center gap-1.5 flex-wrap">
+              <p className="font-medium text-gray-900 text-sm">{p.name}</p>
+              {knownDietTags.map(tag => {
+                const info = DIET_LABELS[tag]
+                return (
+                  <span key={tag} title={info.label} className={`text-[10px] font-semibold border rounded px-1 py-0.5 leading-none ${info.className}`}>
+                    {info.icon}
+                  </span>
+                )
+              })}
+              {lowStock && !unavailable && (
+                <span className="text-[10px] font-semibold text-orange-600 bg-orange-50 border border-orange-200 rounded px-1 py-0.5 leading-none">
+                  Low stock
+                </span>
+              )}
+              {unavailable && (
+                <span className="text-[10px] font-semibold text-gray-400 bg-gray-100 border border-gray-200 rounded px-1 py-0.5 leading-none">
+                  Unavailable
+                </span>
+              )}
+            </div>
             {p.description && <p className="text-xs text-gray-500 mt-0.5 truncate">{p.description}</p>}
             <p className="text-sm font-bold text-amber-700 mt-1">
               {formatCurrency(p.price)}
@@ -231,22 +271,24 @@ export default function TableOrderPage() {
               )}
             </p>
           </div>
-          {qtyInCart > 0 && !cartItem ? (
-            <span className="text-xs font-semibold text-amber-700 shrink-0">{qtyInCart} in cart</span>
-          ) : cartItem ? (
-            <div className="flex items-center gap-2 shrink-0">
-              <button type="button" onClick={() => changeQty(cartKey(cartItem), -1)} className="w-8 h-8 rounded-full bg-amber-100 flex items-center justify-center">
-                <Minus className="w-4 h-4 text-amber-700" />
-              </button>
-              <span className="w-5 text-center font-bold text-sm">{cartItem.qty}</span>
-              <button type="button" onClick={() => changeQty(cartKey(cartItem), 1)} className="w-8 h-8 rounded-full bg-amber-500 flex items-center justify-center">
+          {!unavailable && (
+            qtyInCart > 0 && !cartItem ? (
+              <span className="text-xs font-semibold text-amber-700 shrink-0">{qtyInCart} in cart</span>
+            ) : cartItem ? (
+              <div className="flex items-center gap-2 shrink-0">
+                <button type="button" onClick={() => changeQty(cartKey(cartItem), -1)} className="w-8 h-8 rounded-full bg-amber-100 flex items-center justify-center">
+                  <Minus className="w-4 h-4 text-amber-700" />
+                </button>
+                <span className="w-5 text-center font-bold text-sm">{cartItem.qty}</span>
+                <button type="button" onClick={() => changeQty(cartKey(cartItem), 1)} className="w-8 h-8 rounded-full bg-amber-500 flex items-center justify-center">
+                  <Plus className="w-4 h-4 text-white" />
+                </button>
+              </div>
+            ) : (
+              <button type="button" onClick={() => handleProductTap(p)} className="shrink-0 w-8 h-8 rounded-full bg-amber-500 flex items-center justify-center hover:bg-amber-600">
                 <Plus className="w-4 h-4 text-white" />
               </button>
-            </div>
-          ) : (
-            <button type="button" onClick={() => handleProductTap(p)} className="shrink-0 w-8 h-8 rounded-full bg-amber-500 flex items-center justify-center hover:bg-amber-600">
-              <Plus className="w-4 h-4 text-white" />
-            </button>
+            )
           )}
         </div>
       )

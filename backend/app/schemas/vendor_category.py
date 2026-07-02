@@ -20,7 +20,7 @@ class CustomFieldSchema(BaseModel):
 class CategoryCreate(BaseModel):
     name: str = Field(..., min_length=2, max_length=100)
     description: Optional[str] = Field(None, max_length=500)
-    image_url: Optional[str] = Field(None, max_length=500)
+    image_url: Optional[str] = Field(None, max_length=2000)
     applies_to: AppliesTo = AppliesTo.BOTH
     parent_id: Optional[str] = None
     sort_order: int = 0
@@ -31,7 +31,7 @@ class CategoryCreate(BaseModel):
 class CategoryUpdate(BaseModel):
     name: Optional[str] = Field(None, min_length=2, max_length=100)
     description: Optional[str] = Field(None, max_length=500)
-    image_url: Optional[str] = Field(None, max_length=500)
+    image_url: Optional[str] = Field(None, max_length=2000)
     applies_to: Optional[AppliesTo] = None
     is_active: Optional[bool] = None
     is_visible: Optional[bool] = None

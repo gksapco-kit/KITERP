@@ -70,6 +70,7 @@ import { isAxiosError } from 'axios'
 import { extractApiError } from '@/lib/errorMessages'
 import { CatalogItemLink } from '@/components/common/CatalogItemLink'
 import { normalizeCatalogAddons, serializeCatalogAddons, type CatalogAddon } from '@/lib/catalogAddons'
+import { UOM_OPTIONS, UOM_GROUPS, formatUomDisplay } from '@/lib/uomOptions'
 
 // ── Zod schema ──────────────────────────────────────────────────
 
@@ -735,93 +736,6 @@ function cartesianProduct<T>(arrays: T[][]): T[][] {
   )
 }
 
-const UOM_OPTIONS: { value: string; label: string; group: string }[] = [
-  // Quantity / Count
-  { value: 'piece', label: 'Piece (pc)', group: 'Count' },
-  { value: 'unit', label: 'Unit', group: 'Count' },
-  { value: 'pair', label: 'Pair', group: 'Count' },
-  { value: 'dozen', label: 'Dozen (12)', group: 'Count' },
-  { value: 'gross', label: 'Gross (144)', group: 'Count' },
-  { value: 'set', label: 'Set', group: 'Count' },
-  { value: 'pack', label: 'Pack', group: 'Count' },
-  { value: 'bundle', label: 'Bundle', group: 'Count' },
-  { value: 'box', label: 'Box', group: 'Count' },
-  { value: 'case', label: 'Case', group: 'Count' },
-  { value: 'carton', label: 'Carton', group: 'Count' },
-  { value: 'pallet', label: 'Pallet', group: 'Count' },
-  { value: 'roll', label: 'Roll', group: 'Count' },
-  { value: 'sheet', label: 'Sheet', group: 'Count' },
-  { value: 'bag', label: 'Bag', group: 'Count' },
-  { value: 'bottle', label: 'Bottle', group: 'Count' },
-  { value: 'can', label: 'Can', group: 'Count' },
-  { value: 'jar', label: 'Jar', group: 'Count' },
-  { value: 'tube', label: 'Tube', group: 'Count' },
-  { value: 'sachet', label: 'Sachet', group: 'Count' },
-  { value: 'pouch', label: 'Pouch', group: 'Count' },
-  // Weight
-  { value: 'mg', label: 'Milligram (mg)', group: 'Weight' },
-  { value: 'g', label: 'Gram (g)', group: 'Weight' },
-  { value: 'kg', label: 'Kilogram (kg)', group: 'Weight' },
-  { value: 'tonne', label: 'Metric Ton (t)', group: 'Weight' },
-  { value: 'oz', label: 'Ounce (oz)', group: 'Weight' },
-  { value: 'lb', label: 'Pound (lb)', group: 'Weight' },
-  { value: 'quintal', label: 'Quintal (100 kg)', group: 'Weight' },
-  // Volume
-  { value: 'ml', label: 'Millilitre (ml)', group: 'Volume' },
-  { value: 'cl', label: 'Centilitre (cl)', group: 'Volume' },
-  { value: 'l', label: 'Litre (L)', group: 'Volume' },
-  { value: 'kl', label: 'Kilolitre (kL)', group: 'Volume' },
-  { value: 'fl_oz', label: 'Fluid Ounce (fl oz)', group: 'Volume' },
-  { value: 'pt', label: 'Pint (pt)', group: 'Volume' },
-  { value: 'qt', label: 'Quart (qt)', group: 'Volume' },
-  { value: 'gal', label: 'Gallon (gal)', group: 'Volume' },
-  { value: 'cup', label: 'Cup', group: 'Volume' },
-  { value: 'tbsp', label: 'Tablespoon (tbsp)', group: 'Volume' },
-  // Length
-  { value: 'mm', label: 'Millimetre (mm)', group: 'Length' },
-  { value: 'cm', label: 'Centimetre (cm)', group: 'Length' },
-  { value: 'm', label: 'Metre (m)', group: 'Length' },
-  { value: 'km', label: 'Kilometre (km)', group: 'Length' },
-  { value: 'in', label: 'Inch (in)', group: 'Length' },
-  { value: 'ft', label: 'Foot (ft)', group: 'Length' },
-  { value: 'yd', label: 'Yard (yd)', group: 'Length' },
-  // Area
-  { value: 'sq_m', label: 'Square Metre (m²)', group: 'Area' },
-  { value: 'sq_ft', label: 'Square Foot (ft²)', group: 'Area' },
-  { value: 'sq_yd', label: 'Square Yard (yd²)', group: 'Area' },
-  { value: 'acre', label: 'Acre', group: 'Area' },
-  { value: 'hectare', label: 'Hectare (ha)', group: 'Area' },
-  // Time / Service
-  { value: 'hour', label: 'Hour (hr)', group: 'Time' },
-  { value: 'day', label: 'Day', group: 'Time' },
-  { value: 'week', label: 'Week', group: 'Time' },
-  { value: 'month', label: 'Month', group: 'Time' },
-  { value: 'year', label: 'Year', group: 'Time' },
-  { value: 'session', label: 'Session', group: 'Time' },
-  // Energy / Power
-  { value: 'watt', label: 'Watt (W)', group: 'Energy' },
-  { value: 'kw', label: 'Kilowatt (kW)', group: 'Energy' },
-  { value: 'kwh', label: 'Kilowatt-Hour (kWh)', group: 'Energy' },
-  // Data
-  { value: 'mb', label: 'Megabyte (MB)', group: 'Data' },
-  { value: 'gb', label: 'Gigabyte (GB)', group: 'Data' },
-  { value: 'tb', label: 'Terabyte (TB)', group: 'Data' },
-]
-
-const UOM_GROUPS = [...new Set(UOM_OPTIONS.map(u => u.group))]
-
-function formatUomDisplay(
-  uomQuantity: number | string | null | undefined,
-  uom: string,
-): string {
-  const opt = UOM_OPTIONS.find(u => u.value === uom)
-  const short = (opt?.label || uom).replace(/\s*\(.*\)/, '').trim()
-  const qty = uomQuantity === '' || uomQuantity == null ? null : Number(uomQuantity)
-  if (qty != null && !Number.isNaN(qty) && qty > 0 && qty !== 1) {
-    return `${qty} ${short}`
-  }
-  return opt?.label || uom
-}
 
 // ── Variant Media (edit mode — live upload) ─────────────────────
 

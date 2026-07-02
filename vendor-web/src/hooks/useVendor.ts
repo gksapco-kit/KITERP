@@ -201,7 +201,7 @@ export function useCreateCategory() {
     mutationFn: (data: Record<string, unknown>) =>
       vendorApi.createCategory(data),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['vendor', 'categories'] }); toast.success('Category created!') },
-    onError: apiError('Could not create category — check if the name already exists'),
+    onError: apiError('Could not create category'),
   })
 }
 

@@ -18,7 +18,7 @@ class VendorCategory(Base):
     name = Column(String(100), nullable=False)
     slug = Column(String(120), nullable=False)
     description = Column(String(500))
-    image_url = Column(String(500))
+    image_url = Column(String(2000))
 
     # "product", "service", or "both"
     applies_to = Column(String(20), nullable=False, default="both")

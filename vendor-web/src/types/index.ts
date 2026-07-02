@@ -2058,6 +2058,34 @@ export interface RestaurantOutlet {
   updated_at?: string | null
 }
 
+export interface RestaurantMenuCategoryOut {
+  id: string
+  name: string
+  parent_id: string | null
+  sort_order: number
+  mode: 'all_active' | 'curated' | 'by_categories'
+  product_ids: string[]
+  service_ids: string[]
+  vendor_category_ids: string[]
+}
+
+export interface RestaurantMenuZoneLinkOut {
+  id: string
+  zone_id: string
+  zone_name?: string | null
+  link_token: string
+}
+
+export interface RestaurantMenuOut {
+  id: string
+  restaurant_id: string
+  name: string
+  is_active: boolean
+  sort_order: number
+  categories: RestaurantMenuCategoryOut[]
+  zone_links: RestaurantMenuZoneLinkOut[]
+}
+
 // ── Paginated ───────────────────────────────────────────────────
 export interface PaginatedResponse<T> {
   items: T[]

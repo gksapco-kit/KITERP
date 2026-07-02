@@ -168,11 +168,13 @@ class RestaurantReservationUpdate(BaseModel):
 class RestaurantMenuSettingsOut(BaseModel):
     mode: Literal["all_active", "curated"] = "all_active"
     product_ids: List[str] = []
+    category_order: List[str] = []
 
 
 class RestaurantMenuSettingsUpdate(BaseModel):
     mode: Literal["all_active", "curated"] = "all_active"
     product_ids: List[str] = Field(default_factory=list)
+    category_order: List[str] = Field(default_factory=list)
 
 
 class RestaurantKOTSettingsOut(BaseModel):
@@ -212,3 +214,88 @@ class RestaurantOrderAdjustmentsIn(BaseModel):
     tip_amount: Optional[float] = Field(None, ge=0)
     discount_amount: Optional[float] = Field(None, ge=0)
     discount_pct: Optional[float] = Field(None, ge=0, le=100)
+
+
+# ── Named menus (multi-menu, tree categories, zone links) ─────────────
+
+MenuCategoryMode = Literal["all_active", "curated", "by_categories"]
+
+
+class RestaurantMenuCategoryIn(BaseModel):
+    id: Optional[str] = None
+    name: str = Field(min_length=1, max_length=200)
+    parent_id: Optional[str] = None
+    mode: MenuCategoryMode = "all_active"
+    product_ids: List[str] = Field(default_factory=list)
+    service_ids: List[str] = Field(default_factory=list)
+    vendor_category_ids: List[str] = Field(default_factory=list)
+
+
+class RestaurantMenuCategoryOut(BaseModel):
+    id: str
+    name: str
+    parent_id: Optional[str] = None
+    sort_order: int
+    mode: MenuCategoryMode
+    product_ids: List[str] = []
+    service_ids: List[str] = []
+    vendor_category_ids: List[str] = []
+
+    class Config:
+        from_attributes = True
+
+
+class RestaurantMenuZoneLinkOut(BaseModel):
+    id: str
+    zone_id: str
+    zone_name: Optional[str] = None
+    link_token: str
+
+    class Config:
+        from_attributes = True
+
+
+class RestaurantMenuOut(BaseModel):
+    id: str
+    restaurant_id: str
+    name: str
+    is_active: bool
+    sort_order: int
+    categories: List[RestaurantMenuCategoryOut] = []
+    zone_links: List[RestaurantMenuZoneLinkOut] = []
+
+    class Config:
+        from_attributes = True
+
+
+class RestaurantMenuCreate(BaseModel):
+    restaurant_id: str
+    name: str = Field(min_length=1, max_length=200)
+    zone_ids: List[str] = Field(default_factory=list)
+
+
+class RestaurantMenuUpdate(BaseModel):
+    name: Optional[str] = Field(None, min_length=1, max_length=200)
+    is_active: Optional[bool] = None
+    sort_order: Optional[int] = None
+
+
+class RestaurantMenuCategoryCreate(BaseModel):
+    name: str = Field(min_length=1, max_length=200)
+    parent_id: Optional[str] = None
+
+
+class RestaurantMenuCategoryUpdate(BaseModel):
+    name: Optional[str] = Field(None, min_length=1, max_length=200)
+    mode: Optional[MenuCategoryMode] = None
+    product_ids: Optional[List[str]] = None
+    service_ids: Optional[List[str]] = None
+    vendor_category_ids: Optional[List[str]] = None
+
+
+class RestaurantMenuCategoryMoveIn(BaseModel):
+    direction: Literal["up", "down"]
+
+
+class RestaurantMenuZoneSyncIn(BaseModel):
+    zone_ids: List[str] = Field(default_factory=list)

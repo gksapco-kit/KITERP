@@ -588,14 +588,14 @@ const allSections: NavSection[] = [
     title: 'Restaurant',
     icon: UtensilsCrossed,
     items: [
-      { to: '/restaurant/outlets', icon: UtensilsCrossed, label: 'Restaurants', requiresOffering: ['products', 'both'], requiresPermission: 'restaurant.view', groupLabel: 'Setup', groupColor: 'blue' },
-      { to: '/restaurant/setup', icon: Settings, label: 'Table Setup', requiresOffering: ['products', 'both'], requiresPermission: 'restaurant.setup' },
-      { to: '/restaurant/menu', icon: List, label: 'Dine-in Menu', requiresOffering: ['products', 'both'], requiresPermission: 'restaurant.setup' },
       { to: '/restaurant/floor', icon: UtensilsCrossed, label: 'Restaurant Floor', requiresOffering: ['products', 'both'], requiresPermission: 'restaurant.floor', groupLabel: 'Operations', groupColor: 'emerald' },
-      { to: '/restaurant/pos', icon: Store, label: 'Restaurant POS', requiresOffering: ['products', 'both'], requiresPermission: 'pos.view' },
       { to: '/restaurant/kitchen', icon: ChefHat, label: 'Kitchen Board', requiresOffering: ['products', 'both'], requiresPermission: 'restaurant.kitchen' },
+      { to: '/restaurant/menu', icon: List, label: 'Dine-in Menu', requiresOffering: ['products', 'both'], requiresPermission: 'restaurant.setup' },
       { to: '/restaurant/reservations', icon: Calendar, label: 'Reservations', requiresOffering: ['products', 'both'], requiresPermission: 'restaurant.reservations' },
       { to: '/restaurant/reports', icon: BarChart3, label: 'Restaurant Reports', requiresOffering: ['products', 'both'], requiresPermission: 'restaurant.reports' },
+      { to: '/restaurant/setup', icon: Settings, label: 'Table Setup', requiresOffering: ['products', 'both'], requiresPermission: 'restaurant.setup' },
+      { to: '/restaurant/outlets', icon: UtensilsCrossed, label: 'Restaurants', requiresOffering: ['products', 'both'], requiresPermission: 'restaurant.view', groupLabel: 'Setup', groupColor: 'blue' },
+      { to: '/restaurant/pos', icon: Store, label: 'Restaurant POS', requiresOffering: ['products', 'both'], requiresPermission: 'pos.view' },
     ],
   },
   {

@@ -277,10 +277,6 @@ const BLOCK_ITEM_TEXT_SCHEMAS: Record<string, ItemTextSchema> = {
       { key: 'subtitle', label: 'Subtitle' },
     ],
   },
-  footer: {
-    arrayKey: 'footer_columns', itemLabel: 'Column',
-    fields: [{ key: 'title', label: 'Column title' }],
-  },
 }
 
 const BLOCK_ITEM_SCHEMA_ALIASES: Record<string, string> = {

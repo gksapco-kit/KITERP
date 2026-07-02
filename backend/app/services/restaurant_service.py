@@ -878,25 +878,54 @@ class RestaurantService:
         await self.db.refresh(order)
         return r, order
 
-    async def get_menu_settings(self, vendor_id: UUID) -> dict:
-        vendor = await self.db.get(Vendor, vendor_id)
-        if not vendor:
-            return {"mode": "all_active", "product_ids": []}
-        mode, ids = parse_menu_settings(vendor.settings or {})
-        return {"mode": mode, "product_ids": sorted(ids)}
+    async def get_menu_settings(
+        self, vendor_id: UUID, restaurant_id: UUID | None = None
+    ) -> dict:
+        from app.utils.restaurant_menu import parse_category_order
+        if restaurant_id:
+            r = await self.get_restaurant(vendor_id, restaurant_id)
+            if not r:
+                raise ValueError("Restaurant not found")
+            src = r.settings or {}
+        else:
+            vendor = await self.db.get(Vendor, vendor_id)
+            if not vendor:
+                return {"mode": "all_active", "product_ids": [], "category_order": [], "scope": "vendor"}
+            src = vendor.settings or {}
+        mode, ids = parse_menu_settings(src)
+        category_order = parse_category_order(src)
+        scope = "outlet" if restaurant_id else "vendor"
+        return {"mode": mode, "product_ids": ids, "category_order": category_order, "scope": scope}
 
-    async def set_menu_settings(self, vendor_id: UUID, mode: str, product_ids: list) -> dict:
+    async def set_menu_settings(
+        self,
+        vendor_id: UUID,
+        mode: str,
+        product_ids: list,
+        category_order: list | None = None,
+        restaurant_id: UUID | None = None,
+    ) -> dict:
         from app.utils.restaurant_menu import menu_settings_payload
-        vendor = await self.db.get(Vendor, vendor_id)
-        if not vendor:
-            raise ValueError("Vendor not found")
-        settings = dict(vendor.settings or {})
-        patch = menu_settings_payload(mode, product_ids)
-        settings["restaurant_menu"] = patch["restaurant_menu"]
-        vendor.settings = settings
-        await self.db.commit()
-        await self.db.refresh(vendor)
-        return await self.get_menu_settings(vendor_id)
+        patch = menu_settings_payload(mode, product_ids, category_order=category_order)
+        if restaurant_id:
+            r = await self.get_restaurant(vendor_id, restaurant_id)
+            if not r:
+                raise ValueError("Restaurant not found")
+            settings = dict(r.settings or {})
+            settings["restaurant_menu"] = patch["restaurant_menu"]
+            r.settings = settings
+            await self.db.commit()
+            await self.db.refresh(r)
+        else:
+            vendor = await self.db.get(Vendor, vendor_id)
+            if not vendor:
+                raise ValueError("Vendor not found")
+            settings = dict(vendor.settings or {})
+            settings["restaurant_menu"] = patch["restaurant_menu"]
+            vendor.settings = settings
+            await self.db.commit()
+            await self.db.refresh(vendor)
+        return await self.get_menu_settings(vendor_id, restaurant_id=restaurant_id)
 
     async def get_kot_settings(self, vendor_id: UUID, restaurant_id: UUID) -> dict:
         r = await self.get_restaurant(vendor_id, restaurant_id)

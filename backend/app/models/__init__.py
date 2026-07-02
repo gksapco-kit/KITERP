@@ -18,7 +18,10 @@ from app.models.review import Review
 from app.models.inventory import InventoryMovement
 from app.models.vendor_app_build import VendorAppBuild
 from app.models.pos import POSSession, POSTransaction
-from app.models.restaurant import RestaurantZone, RestaurantTable, RestaurantOrder, RestaurantKOT, RestaurantReservation
+from app.models.restaurant import (
+    RestaurantZone, RestaurantTable, RestaurantOrder, RestaurantKOT, RestaurantReservation,
+    RestaurantMenu, RestaurantMenuCategory, RestaurantMenuZoneLink,
+)
 from app.models.invoice import Invoice
 from app.models.coupon import Coupon, CouponUsage
 from app.models.lead import Lead, Quote
@@ -168,6 +171,9 @@ __all__ = [
     "RestaurantOrder",
     "RestaurantKOT",
     "RestaurantReservation",
+    "RestaurantMenu",
+    "RestaurantMenuCategory",
+    "RestaurantMenuZoneLink",
     "Invoice",
     "Coupon",
     "CouponUsage",

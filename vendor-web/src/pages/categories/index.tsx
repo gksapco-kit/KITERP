@@ -29,6 +29,7 @@ import { useNavigate } from 'react-router-dom'
 import { formatCurrency, mediaUrl, cn, isLikelyImageFile } from '@/lib/utils'
 import { resolveBusinessGalleryDisplayUrl } from '@/data/businessImagePack'
 import { ImageSourcePicker } from '@/components/common/ImageSourcePicker'
+import { remoteImageToFile } from '@/components/common/MediaUploadPickerModal'
 import { SingleImagePreview } from '@/components/common/CatalogMediaLightbox'
 import { vendorApi } from '@/api/vendor'
 
@@ -900,7 +901,7 @@ function CategoryFormPanel({
   onVisibleChange: (v: boolean) => void
   onImageUrlClear: () => void
   onUploadImage: (file: File) => Promise<void>
-  onImageUrl: (url: string) => void
+  onImageUrl: (url: string) => void | Promise<void>
   onSubmit: (e: React.FormEvent) => void
   onCancel: () => void
 }) {
@@ -1018,7 +1019,6 @@ function CategoryFormPanel({
                   accept="image/jpeg,image/png,image/webp,image/gif"
                   disabled={pending}
                   uploading={imageUploading}
-                  preferDirectUrl
                   onFile={onUploadImage}
                   onUrl={onImageUrl}
                   buttonLabel="Upload"
@@ -1144,11 +1144,26 @@ export default function CategoriesPage() {
     }
   }
 
-  const handleCategoryImageUrl = (url: string) => {
+  const handleCategoryImageUrl = async (url: string) => {
     const trimmed = url.trim()
     if (!trimmed) return
-    clearLocalPreview()
-    setImageUrl(trimmed)
+    if (trimmed.startsWith('data:')) {
+      toast.error('Upload the image file from your device instead of pasting embedded image data')
+      return
+    }
+    if (trimmed.startsWith('blob:')) {
+      toast.error('Image is still loading — wait a moment and try again')
+      return
+    }
+    setImageUploading(true)
+    try {
+      const file = await remoteImageToFile(trimmed)
+      await uploadCategoryImageFile(file)
+    } catch {
+      toast.error('Could not upload image — try another file or link')
+    } finally {
+      setImageUploading(false)
+    }
   }
 
   const handleToggleCategoryVisibility = (cat: VendorCategory) => {
@@ -1165,8 +1180,16 @@ export default function CategoriesPage() {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     if (!name.trim()) return
-    if (imageUrl?.startsWith('blob:')) {
+    if (imageUrl?.startsWith('blob:') || imageUploading) {
       toast.error('Image is still uploading — wait a moment and try again')
+      return
+    }
+    if (imageUrl?.startsWith('data:')) {
+      toast.error('Upload the image file from your device instead of using embedded image data')
+      return
+    }
+    if (imageUrl && imageUrl.length > 2000) {
+      toast.error('Image link is too long — upload the image file instead')
       return
     }
 

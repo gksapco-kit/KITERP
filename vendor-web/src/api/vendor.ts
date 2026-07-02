@@ -1,5 +1,5 @@
 import apiClient from './client'
-import type { Vendor, Product, Service, ServiceMediaItem, Customer, Order, OrderStats, Review, PaginatedResponse, VendorRole, TeamMember, VendorCategory, Supplier, PurchaseOrder, OrderAttachmentRef, InvoiceTemplate, VendorPlanInfo, Bundle, ProductMerchandising, ProductPriceRule, VendorDocument, VendorDocumentType, PurchasingInfoRecord, SourceList, PurchaseRequisition, VendorInvoice, GoodsBatch, GoodsMovementDocument, MaterialValuation, ServiceEntrySheet, RestaurantOutlet } from '@/types'
+import type { Vendor, Product, Service, ServiceMediaItem, Customer, Order, OrderStats, Review, PaginatedResponse, VendorRole, TeamMember, VendorCategory, Supplier, PurchaseOrder, OrderAttachmentRef, InvoiceTemplate, VendorPlanInfo, Bundle, ProductMerchandising, ProductPriceRule, VendorDocument, VendorDocumentType, PurchasingInfoRecord, SourceList, PurchaseRequisition, VendorInvoice, GoodsBatch, GoodsMovementDocument, MaterialValuation, ServiceEntrySheet, RestaurantOutlet, RestaurantMenuOut, RestaurantMenuCategoryOut, RestaurantMenuZoneLinkOut } from '@/types'
 
 // ── Restaurant extra types ────────────────────────────────────────
 export interface ReservationItem {
@@ -1451,17 +1451,78 @@ export const vendorApi = {
     return response.data as ReservationItem
   },
 
-  restaurantGetMenuSettings: async () => {
-    const response = await apiClient.get('/vendors/me/restaurant/menu')
+  restaurantGetMenuSettings: async (restaurantId?: string) => {
+    const response = await apiClient.get('/vendors/me/restaurant/menu', {
+      params: restaurantId ? { restaurant_id: restaurantId } : undefined,
+    })
     return response.data as {
       mode: 'all_active' | 'curated'
       product_ids: string[]
+      category_order: string[]
+      scope: 'vendor' | 'outlet'
       items: Array<{ id: string; name: string; category?: string; price: number; status: string }>
     }
   },
-  restaurantUpdateMenuSettings: async (body: { mode: 'all_active' | 'curated'; product_ids: string[] }) => {
-    const response = await apiClient.put('/vendors/me/restaurant/menu', body)
-    return response.data as { mode: string; product_ids: string[] }
+  restaurantUpdateMenuSettings: async (
+    body: { mode: 'all_active' | 'curated'; product_ids: string[]; category_order?: string[] },
+    restaurantId?: string,
+  ) => {
+    const response = await apiClient.put('/vendors/me/restaurant/menu', body, {
+      params: restaurantId ? { restaurant_id: restaurantId } : undefined,
+    })
+    return response.data as { mode: string; product_ids: string[]; category_order: string[]; scope: string }
+  },
+
+  // ── Named menus (multi-menu, tree categories, zone links) ────────
+  restaurantListMenus: async (restaurantId?: string) => {
+    const response = await apiClient.get('/vendors/me/restaurant/menus', {
+      params: restaurantId ? { restaurant_id: restaurantId } : undefined,
+    })
+    return response.data as { items: RestaurantMenuOut[] }
+  },
+  restaurantGetMenu: async (menuId: string) => {
+    const response = await apiClient.get(`/vendors/me/restaurant/menus/${menuId}`)
+    return response.data as RestaurantMenuOut
+  },
+  restaurantCreateMenu: async (body: { restaurant_id: string; name: string; zone_ids?: string[] }) => {
+    const response = await apiClient.post('/vendors/me/restaurant/menus', body)
+    return response.data as RestaurantMenuOut
+  },
+  restaurantUpdateMenuDetails: async (menuId: string, body: { name?: string; is_active?: boolean; sort_order?: number }) => {
+    const response = await apiClient.put(`/vendors/me/restaurant/menus/${menuId}`, body)
+    return response.data as RestaurantMenuOut
+  },
+  restaurantDeleteMenu: async (menuId: string) => {
+    await apiClient.delete(`/vendors/me/restaurant/menus/${menuId}`)
+  },
+  restaurantSyncMenuZones: async (menuId: string, zoneIds: string[]) => {
+    const response = await apiClient.put(`/vendors/me/restaurant/menus/${menuId}/zones`, { zone_ids: zoneIds })
+    return response.data as { items: RestaurantMenuZoneLinkOut[] }
+  },
+  restaurantCreateMenuCategory: async (menuId: string, body: { name: string; parent_id?: string | null }) => {
+    const response = await apiClient.post(`/vendors/me/restaurant/menus/${menuId}/categories`, body)
+    return response.data as RestaurantMenuCategoryOut
+  },
+  restaurantUpdateMenuCategory: async (
+    menuId: string,
+    categoryId: string,
+    body: Partial<{
+      name: string
+      mode: 'all_active' | 'curated' | 'by_categories'
+      product_ids: string[]
+      service_ids: string[]
+      vendor_category_ids: string[]
+    }>,
+  ) => {
+    const response = await apiClient.put(`/vendors/me/restaurant/menus/${menuId}/categories/${categoryId}`, body)
+    return response.data as RestaurantMenuCategoryOut
+  },
+  restaurantDeleteMenuCategory: async (menuId: string, categoryId: string) => {
+    await apiClient.delete(`/vendors/me/restaurant/menus/${menuId}/categories/${categoryId}`)
+  },
+  restaurantMoveMenuCategory: async (menuId: string, categoryId: string, direction: 'up' | 'down') => {
+    const response = await apiClient.post(`/vendors/me/restaurant/menus/${menuId}/categories/${categoryId}/move`, { direction })
+    return response.data as RestaurantMenuOut
   },
   restaurantGetKOTSettings: async (restaurantId: string) => {
     const response = await apiClient.get('/vendors/me/restaurant/kot-settings', {

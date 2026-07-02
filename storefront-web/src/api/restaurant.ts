@@ -32,7 +32,9 @@ export interface PublicMenuItem {
   category?: string | null
   tax_rate: number
   image_url?: string | null
+  stock_status?: string | null
   is_available: boolean
+  tags?: string[]
   modifier_groups?: PublicModifierGroup[]
 }
 
@@ -51,6 +53,7 @@ export interface PublicTableInfo {
   vendor: { id: string; name: string; slug: string }
   table: { id: string; label: string; capacity: number; zone_name?: string | null }
   menu: PublicMenuCategory[]
+  menu_truncated?: boolean
 }
 
 export interface GuestOrderModifier {
@@ -70,9 +73,39 @@ export interface GuestOrderItem {
   modifiers?: GuestOrderModifier[]
 }
 
+export interface ZoneMenuItem {
+  id: string
+  item_type: 'product' | 'service'
+  name: string
+  description?: string | null
+  price: number
+  category?: string | null
+  subcategory?: string | null
+  image_url?: string | null
+}
+
+export interface ZoneMenuCategory {
+  id: string
+  name: string
+  mode: 'all_active' | 'curated' | 'by_categories'
+  items: ZoneMenuItem[]
+  children: ZoneMenuCategory[]
+}
+
+export interface ZoneMenuInfo {
+  vendor: { id: string; name: string; slug: string }
+  zone: { id: string; name: string | null }
+  menu: { id: string; name: string; categories: ZoneMenuCategory[] }
+}
+
 export const restaurantApi = {
   getTableMenu: async (vendorSlug: string, qrToken: string): Promise<PublicTableInfo> => {
     const res = await client.get(`/public/restaurant/${vendorSlug}/table/${qrToken}`)
+    return res.data
+  },
+
+  getZoneMenu: async (vendorSlug: string, linkToken: string): Promise<ZoneMenuInfo> => {
+    const res = await client.get(`/public/restaurant/${vendorSlug}/menu/${linkToken}`)
     return res.data
   },
 
