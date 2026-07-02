@@ -87,7 +87,14 @@ export const storeApi = {
   getCart: async (): Promise<Cart> => {
     const res = await apiClient.get('/store/cart'); return res.data
   },
-  addToCart: async (item: { product_id: string; name: string; qty: number; price: number; image_url?: string }): Promise<Cart> => {
+  addToCart: async (item: {
+    product_id: string
+    variant_id?: string
+    name: string
+    qty: number
+    price: number
+    image_url?: string
+  }): Promise<Cart> => {
     const res = await apiClient.post('/store/cart/items', item); return res.data
   },
   updateCartItem: async (index: number, qty: number): Promise<Cart> => {
@@ -252,6 +259,7 @@ export const storeApi = {
       currency: string
       order_id: string
       dev_mode?: boolean
+      checkout_config_id?: string | null
       prefill?: { name?: string; email?: string; contact?: string }
     }
   },

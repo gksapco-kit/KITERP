@@ -26,9 +26,9 @@ export function extractApiError(error: unknown, context: string): string {
       return `${context}: Request timed out — check your internet connection and try again`
     }
     if (ax?.code === 'ERR_NETWORK' || ax?.message?.includes('Network Error')) {
-      return `${context}: Unable to reach the server — the store may be temporarily down`
+      return `${context}: Unable to reach the server — ensure the backend API is running (port 8000) and the storefront dev server is proxying /api (npm run dev in storefront-web, or nginx /api in production)`
     }
-    return `${context}: No response from server — please check your connection`
+    return `${context}: No response from server — please check your connection and that the API is reachable`
   }
 
   const { status, data } = ax.response

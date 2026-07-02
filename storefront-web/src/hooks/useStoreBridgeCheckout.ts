@@ -5,13 +5,19 @@
 import { useMemo, useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useQueryClient } from '@tanstack/react-query'
-import { useCart, useUpdateCartItem, useRemoveCartItem, useCheckout, useStoreInfo, resetCartAfterOrder } from './useStore'
+import { useCart, useUpdateCartItem, useRemoveCartItem, useCheckout, useStoreInfo, resetCartAfterOrder, storeKeys } from './useStore'
 import { useAuthStore } from '@/stores/authStore'
 import { useVendor } from '@/contexts/VendorContext'
 import { useBranch } from '@/contexts/BranchContext'
 import { storeApi } from '@/api/store'
 import { openRazorpayCheckout, mockRazorpayPay } from '@/lib/razorpay'
 import { extractApiError } from '@/lib/errorMessages'
+import {
+  checkoutSelectionToPaymentMethod,
+  isHostedCheckoutGateway,
+  isOnlineCheckoutPayment,
+  validateCheckoutPaymentMethod,
+} from '@/lib/checkoutPayment'
 import { validateCheckoutFields, scrollToFirstCheckoutField, type CheckoutFieldErrors } from '@/checkout/validateCheckout'
 import type { Address, Cart, Customer, PaymentSelection, PaymentProvider, ShippingMethod } from '@/checkout/types'
 
@@ -29,17 +35,6 @@ function paymentToCheckout(method: 'cod' | 'upi' | 'card'): PaymentSelection {
   if (method === 'upi') return { kind: 'provider', provider: 'paypal' }
   if (method === 'cod') return { kind: 'tab', tab: 'bank_transfer' }
   return { kind: 'tab', tab: 'card' }
-}
-
-function checkoutToPayment(sel?: PaymentSelection): string {
-  if (!sel) return 'card'
-  if (sel.kind === 'provider') return sel.provider
-  if (sel.kind === 'tab' && sel.tab === 'bank_transfer') return 'cod'
-  return 'card'
-}
-
-function isOnlinePayment(method: string): boolean {
-  return method !== 'cod'
 }
 
 export function useStoreBridgeCheckout() {
@@ -96,6 +91,7 @@ export function useStoreBridgeCheckout() {
   const [previewError, setPreviewError] = useState<string | undefined>()
   const [fieldErrors, setFieldErrors] = useState<CheckoutFieldErrors>({})
   const [isPlacingOrder, setIsPlacingOrder] = useState(false)
+  const [processingMessage, setProcessingMessage] = useState<string | null>(null)
   const [serverPreview, setServerPreview] = useState<Awaited<ReturnType<typeof storeApi.checkoutPreview>> | null>(null)
 
   const clearFieldErrors = useCallback((keys: string[]) => {
@@ -214,6 +210,18 @@ export function useStoreBridgeCheckout() {
     },
   }), [cart, subtotalAmount, shippingAmount, taxAmount, discountAmount, couponCode, serverPreview, currency])
 
+  const prefetchOrderConfirmation = useCallback(async (orderId: string) => {
+    setProcessingMessage('Loading order confirmation…')
+    try {
+      await qc.fetchQuery({
+        queryKey: storeKeys.order(orderId),
+        queryFn: () => storeApi.getOrder(orderId),
+      })
+    } catch {
+      // Confirmation page will retry; still navigate after payment succeeds.
+    }
+  }, [qc])
+
   const completeOnlinePayment = useCallback(async (orderId: string) => {
     const rzp = await storeApi.createRazorpayOrder(orderId)
 
@@ -222,10 +230,12 @@ export function useStoreBridgeCheckout() {
       razorpay_order_id: string
       razorpay_signature: string
     }) => {
+      setProcessingMessage('Confirming your payment…')
       await storeApi.verifyRazorpayPayment({
         order_id: orderId,
         ...payment,
       })
+      await prefetchOrderConfirmation(orderId)
       await resetCartAfterOrder(qc, vendorSlug)
       navigate(storePath(`/order/${orderId}/confirmation`))
     }
@@ -236,6 +246,7 @@ export function useStoreBridgeCheckout() {
       return
     }
 
+    setProcessingMessage(null)
     await openRazorpayCheckout({
       key: rzp.key_id,
       amount: rzp.amount,
@@ -244,11 +255,12 @@ export function useStoreBridgeCheckout() {
       description: `Order payment`,
       order_id: rzp.razorpay_order_id,
       prefill: rzp.prefill,
+      ...(rzp.checkout_config_id ? { checkout_config_id: rzp.checkout_config_id } : {}),
       handler: async (response) => {
         await finish(response)
       },
     })
-  }, [navigate, storePath, storeName, qc, vendorSlug])
+  }, [navigate, storePath, storeName, qc, vendorSlug, prefetchOrderConfirmation])
 
   const actions = useMemo(() => ({
     setCustomer: (c: Partial<Customer>) => {
@@ -332,7 +344,11 @@ export function useStoreBridgeCheckout() {
       }
       setFieldErrors({})
 
-      const paymentMethod = checkoutToPayment(payment)
+      const paymentMethod = checkoutSelectionToPaymentMethod(payment)
+      const paymentValidationError = validateCheckoutPaymentMethod(paymentMethod)
+      if (paymentValidationError) {
+        return { ok: false, error: paymentValidationError }
+      }
       const checkoutPhone = (
         resolvedAddress?.phone
         || customerInfo.phone
@@ -359,6 +375,8 @@ export function useStoreBridgeCheckout() {
       }
 
       setIsPlacingOrder(true)
+      setProcessingMessage('Placing your order…')
+      let leavingForConfirmation = false
       try {
         let orderId: string
 
@@ -398,9 +416,18 @@ export function useStoreBridgeCheckout() {
           orderId = order.id
         }
 
-        if (isOnlinePayment(paymentMethod)) {
+        if (isOnlineCheckoutPayment(paymentMethod)) {
           try {
-            if (paymentMethod === 'razorpay') {
+            if (isHostedCheckoutGateway(paymentMethod)) {
+              if (paymentMethod !== 'razorpay') {
+                navigate(storePath(`/order/${orderId}/status`))
+                return {
+                  ok: false,
+                  error: `Order created. Complete payment with ${paymentMethod} on your order page — full checkout for this gateway is coming soon.`,
+                  orderId,
+                }
+              }
+              setProcessingMessage('Preparing payment…')
               await completeOnlinePayment(orderId)
             } else {
               navigate(storePath(`/order/${orderId}/status`))
@@ -431,9 +458,12 @@ export function useStoreBridgeCheckout() {
             }
           }
         } else {
+          await prefetchOrderConfirmation(orderId)
           await resetCartAfterOrder(qc, vendorSlug)
+          leavingForConfirmation = true
           navigate(storePath(`/order/${orderId}/confirmation`))
         }
+        leavingForConfirmation = true
         return { ok: true, orderId }
       } catch (err) {
         return {
@@ -441,7 +471,10 @@ export function useStoreBridgeCheckout() {
           error: extractApiError(err, 'Order placement failed. Please check your details and try again.'),
         }
       } finally {
-        setIsPlacingOrder(false)
+        if (!leavingForConfirmation) {
+          setIsPlacingOrder(false)
+          setProcessingMessage(null)
+        }
       }
     },
   }), [
@@ -469,6 +502,7 @@ export function useStoreBridgeCheckout() {
       notes,
       giftMessage,
       isPlacing: isPlacingOrder || checkoutMutation.isPending,
+      processingMessage,
       error: previewError,
       fieldErrors,
       isBranchClosed,

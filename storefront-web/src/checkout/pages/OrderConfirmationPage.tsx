@@ -1,8 +1,9 @@
 import { Link, useParams } from "react-router-dom";
 import { useEffect } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { CheckCircle2, Loader2, Mail, MapPin, Package } from "lucide-react";
+import { CheckCircle2, Mail, MapPin, Package } from "lucide-react";
 import { CheckoutHeader, CheckoutFooter } from "../components/Header";
+import { OrderConfirmationLoading } from "../components/OrderConfirmationLoading";
 import { CheckoutConfigProvider, formatMoney, useCheckoutConfig } from "../config";
 import { LineItem } from "../components/LineItem";
 import { useBranch } from "@/contexts/BranchContext";
@@ -35,15 +36,7 @@ function Inner() {
   }, [qc, vendorSlug]);
 
   if (isLoading) {
-    return (
-      <div className="checkout-root min-h-screen" style={checkoutTheme}>
-        <CheckoutHeader />
-        <main className="mx-auto flex max-w-3xl justify-center px-4 py-20">
-          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-        </main>
-        <CheckoutFooter />
-      </div>
-    );
+    return <OrderConfirmationLoading theme={checkoutTheme} />;
   }
 
   const resolvedId = order?.id ?? orderId ?? "";

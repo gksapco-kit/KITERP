@@ -4,6 +4,8 @@ import { persist } from 'zustand/middleware'
 export type GuestCartItem = {
   product_id: string
   variant_id?: string
+  variant_label?: string
+  slug?: string
   name: string
   qty: number
   price: number

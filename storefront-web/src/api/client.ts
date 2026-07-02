@@ -26,7 +26,7 @@ export function setBranchQueryParam(branch: string | null) {
   _branchQuery = branch?.trim() || null
 }
 
-export const apiClient = axios.create({ baseURL: API_URL, headers: { 'Content-Type': 'application/json' }, timeout: 15000 })
+export const apiClient = axios.create({ baseURL: API_URL, headers: { 'Content-Type': 'application/json' }, timeout: 30_000 })
 
 apiClient.interceptors.request.use((config) => {
   if (config.data instanceof FormData) {

@@ -7,12 +7,59 @@ export type RazorpayCheckoutOptions = {
   order_id: string
   prefill?: { name?: string; email?: string; contact?: string }
   theme?: { color?: string }
+  /** Razorpay Dashboard → Payment Configuration ID (optional). */
+  checkout_config_id?: string
+  /** Request enabled payment methods — UPI still requires Razorpay account provisioning. */
+  method?: Partial<Record<'upi' | 'card' | 'netbanking' | 'wallet' | 'paylater', boolean>>
+  config?: {
+    display?: {
+      blocks?: Record<string, { name: string; instruments: Array<{ method: string; banks?: string[] }> }>
+      sequence?: string[]
+      preferences?: { show_default_blocks?: boolean }
+    }
+  }
   handler: (response: {
     razorpay_payment_id: string
     razorpay_order_id: string
     razorpay_signature: string
   }) => void
   modal?: { ondismiss?: () => void }
+}
+
+/** Prioritise UPI when the merchant account has it enabled on Razorpay. */
+export function buildRazorpayCheckoutOptions(
+  base: Omit<RazorpayCheckoutOptions, 'method' | 'config'>,
+): RazorpayCheckoutOptions {
+  const methods = {
+    upi: true,
+    card: true,
+    netbanking: true,
+    wallet: true,
+    paylater: true,
+  } as const
+
+  if (base.checkout_config_id) {
+    return { ...base, method: { ...methods } }
+  }
+
+  return {
+    ...base,
+    method: { ...methods },
+    config: {
+      display: {
+        blocks: {
+          upi: {
+            name: 'Pay via UPI',
+            instruments: [{ method: 'upi' }],
+          },
+        },
+        sequence: ['block.upi'],
+        preferences: {
+          show_default_blocks: true,
+        },
+      },
+    },
+  }
 }
 
 declare global {
@@ -41,7 +88,7 @@ export async function openRazorpayCheckout(options: RazorpayCheckoutOptions): Pr
   }
   return new Promise((resolve, reject) => {
     const rzp = new window.Razorpay({
-      ...options,
+      ...buildRazorpayCheckoutOptions(options),
       handler: (response) => {
         Promise.resolve(options.handler(response))
           .then(() => resolve())

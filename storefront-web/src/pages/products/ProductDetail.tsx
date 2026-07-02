@@ -6,6 +6,7 @@ import { useVendor } from '@/contexts/VendorContext'
 import { useTheme } from '@/contexts/ThemeContext'
 import { Loader2, ShoppingBag } from 'lucide-react'
 import type { ProductVariant } from '@/types'
+import { variantDisplayLabel } from '@/lib/variantOptions'
 import { ClassicDetail, ModernDetail, MinimalDetail, ProductQuoteModal } from './templates'
 import { trackView } from '@/lib/recentlyViewed'
 
@@ -99,16 +100,32 @@ export default function ProductDetail() {
   }
 
   const handleAddToCart = () => {
-    const img = product.images?.[0]?.url || ''
-    const cartName = selectedVariant ? `${product.name} - ${selectedVariant.name}` : product.name
-    addToCart.mutate({ product_id: product.id, name: cartName, qty, price: displayPrice, image_url: img })
+    const img = displayMedia?.[0]?.url || product.images?.[0]?.url || ''
+    addToCart.mutate({
+      product_id: product.id,
+      variant_id: selectedVariant?.id,
+      variant_label: selectedVariant ? variantDisplayLabel(selectedVariant) || selectedVariant.name : undefined,
+      slug: product.slug,
+      name: product.name,
+      qty,
+      price: displayPrice,
+      image_url: img,
+    })
   }
 
   const handleBuyNow = () => {
-    const img = product.images?.[0]?.url || ''
-    const cartName = selectedVariant ? `${product.name} - ${selectedVariant.name}` : product.name
+    const img = displayMedia?.[0]?.url || product.images?.[0]?.url || ''
     addToCart.mutate(
-      { product_id: product.id, name: cartName, qty, price: displayPrice, image_url: img },
+      {
+        product_id: product.id,
+        variant_id: selectedVariant?.id,
+        variant_label: selectedVariant ? variantDisplayLabel(selectedVariant) || selectedVariant.name : undefined,
+        slug: product.slug,
+        name: product.name,
+        qty,
+        price: displayPrice,
+        image_url: img,
+      },
       { onSuccess: () => navigate(storePath('/checkout')) },
     )
   }

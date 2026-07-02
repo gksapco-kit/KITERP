@@ -60,6 +60,13 @@ class PaymentGatewayService:
                 return secret
         return (settings.RAZORPAY_WEBHOOK_SECRET or "").strip()
 
+    async def _checkout_config_id(self, vendor) -> str | None:
+        creds = await load_payment_credentials(self.db, vendor.id, "razorpay")
+        if not creds:
+            return None
+        raw = creds.get("checkout_config_id")
+        return str(raw).strip() if raw else None
+
     async def create_razorpay_order(
         self,
         vendor,
@@ -69,6 +76,7 @@ class PaymentGatewayService:
         customer_phone: str | None,
     ) -> dict[str, Any]:
         key_id, key_secret = await self._credentials(vendor)
+        checkout_config_id = await self._checkout_config_id(vendor)
         amount_paise = int(Decimal(str(order.total or 0)) * 100)
         if amount_paise < 100:
             raise HTTPException(400, "Order total must be at least ₹1 for online payment")
@@ -82,6 +90,7 @@ class PaymentGatewayService:
                 "currency": "INR",
                 "order_id": str(order.id),
                 "dev_mode": True,
+                "checkout_config_id": checkout_config_id,
                 "prefill": {
                     "name": customer_name,
                     "email": customer_email or "",
@@ -95,6 +104,8 @@ class PaymentGatewayService:
             "receipt": order.order_number,
             "notes": {"order_id": str(order.id), "vendor_id": str(vendor.id)},
         }
+        if checkout_config_id:
+            payload["checkout_config_id"] = checkout_config_id
         async with httpx.AsyncClient(timeout=30) as client:
             resp = await client.post(
                 f"{RAZORPAY_API}/orders",
@@ -113,6 +124,7 @@ class PaymentGatewayService:
             "currency": data.get("currency", "INR"),
             "order_id": str(order.id),
             "dev_mode": False,
+            "checkout_config_id": checkout_config_id,
             "prefill": {
                 "name": customer_name,
                 "email": customer_email or "",

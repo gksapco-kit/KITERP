@@ -143,7 +143,10 @@ class OrderService:
         shipping_amount = preview["shipping_amount"]
         total = preview["total"]
 
-        online_methods = {"card", "upi", "netbanking", "wallet", "razorpay"}
+        online_methods = {
+            "card", "upi", "netbanking", "wallet", "razorpay",
+            "stripe", "square", "paypal", "payu",
+        }
         is_online = data.payment_method.value in online_methods
 
         # Generate order number

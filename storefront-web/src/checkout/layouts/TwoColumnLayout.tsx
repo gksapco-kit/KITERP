@@ -137,7 +137,9 @@ export function PlaceOrderBar({ state, actions }: Props) {
         <Lock size={12} /> By placing this order you agree to our terms and privacy policy.
       </p>
       <button type="button" className="ck-btn-primary sm:w-auto sm:px-8" disabled={state.isPlacing} onClick={handleClick}>
-        {state.isPlacing ? "Placing order…" : "Place order"}
+        {state.isPlacing
+          ? (state.processingMessage ?? 'Placing order…')
+          : 'Place order'}
       </button>
     </div>
   );

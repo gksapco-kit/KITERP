@@ -36,6 +36,10 @@ class PaymentMethod(str, Enum):
     NETBANKING = "netbanking"
     WALLET = "wallet"
     RAZORPAY = "razorpay"
+    STRIPE = "stripe"
+    SQUARE = "square"
+    PAYPAL = "paypal"
+    PAYU = "payu"
 
 
 class ShippingAddress(BaseModel):

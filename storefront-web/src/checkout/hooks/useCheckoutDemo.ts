@@ -13,6 +13,7 @@ export type CheckoutState = {
   notes: string;
   giftMessage: string;
   isPlacing: boolean;
+  processingMessage?: string | null;
   error?: string;
   fieldErrors?: Record<string, string>;
 };

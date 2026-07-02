@@ -5,6 +5,7 @@ import { TwoColumnLayout } from '@/checkout/layouts/TwoColumnLayout'
 import { WizardLayout } from '@/checkout/layouts/WizardLayout'
 import { AccordionLayout } from '@/checkout/layouts/AccordionLayout'
 import { CheckoutHeader, CheckoutFooter } from '@/checkout/components/Header'
+import { CheckoutProcessingOverlay } from '@/checkout/components/CheckoutProcessingOverlay'
 import { useStoreBridgeCheckout } from '@/hooks/useStoreBridgeCheckout'
 import { useCart, useStoreInfo } from '@/hooks/useStore'
 import { useBranch } from '@/contexts/BranchContext'
@@ -93,7 +94,10 @@ function Inner({
         paymentMode: checkout.state.connectedPayments.length > 0 ? 'providers' : 'tabs',
       }}
     >
-      <div className="checkout-root" style={checkoutTheme}>
+      <div className="checkout-root relative" style={checkoutTheme}>
+        {checkout.state.processingMessage ? (
+          <CheckoutProcessingOverlay message={checkout.state.processingMessage} />
+        ) : null}
         <CheckoutHeader />
         {activeLayout === 'wizard'    && <WizardLayout    {...checkout} />}
         {activeLayout === 'accordion' && <AccordionLayout {...checkout} />}

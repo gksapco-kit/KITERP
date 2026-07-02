@@ -26,7 +26,7 @@ const PROVIDERS = [
 ]
 
 const PAYMENT_PROVIDERS = [
-  { id: 'razorpay', label: 'Razorpay', credentials: ['key_id', 'key_secret', 'webhook_secret'], settings: ['mode'] },
+  { id: 'razorpay', label: 'Razorpay', credentials: ['key_id', 'key_secret', 'webhook_secret'], settings: ['mode', 'checkout_config_id'] },
   { id: 'stripe', label: 'Stripe', credentials: ['publishable_key', 'secret_key', 'webhook_secret'], settings: ['mode'] },
   { id: 'square', label: 'Square', credentials: ['application_id', 'access_token', 'webhook_signature_key'], settings: ['mode', 'location_id'] },
   { id: 'paypal', label: 'PayPal', credentials: ['client_id', 'client_secret', 'webhook_id'], settings: ['mode'] },
@@ -41,7 +41,7 @@ const SETTING_HINTS: Record<string, Record<string, string>> = {
     whatsapp_from: 'WhatsApp only — Twilio sandbox: +14155238886. Cannot be used for SMS.',
     voice_caller_id: 'Optional caller ID for voice calls',
   },
-  razorpay: { mode: 'test or live' },
+  razorpay: { mode: 'test or live', checkout_config_id: 'optional — from Razorpay Dashboard → Payment Configuration' },
   stripe: { mode: 'test or live' },
   square: { mode: 'sandbox or live', location_id: 'Optional Square location ID for in-person / online checkout' },
   paypal: { mode: 'sandbox or live' },
@@ -305,6 +305,18 @@ function IntegrationForm({
                 )}
               </Field>
             ))}
+          </div>
+        )}
+
+        {provider.id === 'razorpay' && (
+          <div className="space-y-1 rounded-lg border border-amber-100 bg-amber-50/70 p-3 text-xs text-muted-foreground">
+            <p className="font-medium text-amber-900">UPI not showing at checkout?</p>
+            <p>
+              UPI is controlled by your Razorpay merchant account, not KITERP. In Razorpay Dashboard go to
+              {' '}<strong>Account &amp; Settings → Payment Configuration</strong>, ensure UPI (QR / apps / collect) is
+              visible, complete KYC if needed, then save. If UPI is enabled but still missing, raise a support ticket
+              with Razorpay — they must provision UPI for your Merchant ID.
+            </p>
           </div>
         )}
 

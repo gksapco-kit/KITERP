@@ -24,6 +24,53 @@ import { toast } from 'sonner'
 
 type FilterType = 'products' | 'services' | 'both'
 
+function catalogCountLabel(count: number, filterType: FilterType): string {
+  if (filterType === 'products') return count === 1 ? 'product' : 'products'
+  if (filterType === 'services') return count === 1 ? 'service' : 'services'
+  return count === 1 ? 'item' : 'items'
+}
+
+function CatalogCountBadge({
+  count,
+  filterType,
+  primaryColor,
+}: {
+  count: number
+  filterType: FilterType
+  primaryColor: string
+}) {
+  const label = catalogCountLabel(count, filterType)
+  const Icon = filterType === 'products' ? Package : filterType === 'services' ? Wrench : ShoppingBag
+
+  return (
+    <div
+      className="inline-flex items-center gap-2.5 rounded-xl border px-3 py-2 shadow-sm transition-shadow hover:shadow-md"
+      style={{
+        borderColor: `${primaryColor}22`,
+        background: `linear-gradient(145deg, ${primaryColor}0c 0%, ${primaryColor}04 100%)`,
+      }}
+      title="Total matching your filters"
+      aria-live="polite"
+      aria-label={`${count.toLocaleString()} ${label}`}
+    >
+      <div
+        className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg"
+        style={{ backgroundColor: `${primaryColor}18`, color: primaryColor }}
+      >
+        <Icon className="h-4 w-4" aria-hidden />
+      </div>
+      <div className="min-w-[3rem] text-left">
+        <span className="block text-xl font-bold leading-none tabular-nums tracking-tight text-gray-900">
+          {count.toLocaleString()}
+        </span>
+        <span className="mt-1 block text-[11px] font-medium capitalize leading-none text-gray-500">
+          {label}
+        </span>
+      </div>
+    </div>
+  )
+}
+
 function CategoryTreeItem({ cat, level, selected, onSelect }: {
   cat: StoreCategory; level: number; selected: string; onSelect: (name: string) => void
 }) {
@@ -421,15 +468,11 @@ export default function ProductList() {
                     </button>
                   </div>
 
-                  <div
-                    className="flex min-h-10 min-w-[5.5rem] flex-col justify-center rounded-lg border border-gray-100 bg-gray-50/90 px-3 py-1.5 text-right sm:min-w-[6.5rem]"
-                    title="Total matching your filters"
-                  >
-                    <span className="text-lg font-bold leading-none tabular-nums text-gray-900">{totalCount}</span>
-                    <span className="text-xs font-medium uppercase tracking-wide text-gray-500">
-                      {filterType === 'products' ? 'products' : filterType === 'services' ? 'services' : 'items'}
-                    </span>
-                  </div>
+                  <CatalogCountBadge
+                    count={totalCount}
+                    filterType={filterType}
+                    primaryColor={theme.colors.primary}
+                  />
                 </div>
               </div>
 

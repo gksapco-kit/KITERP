@@ -7,7 +7,7 @@ import { useCartStore } from '@/stores/cartStore'
 import { useGuestCartStore, type GuestCartItem } from '@/stores/guestCartStore'
 import { useVendor } from '@/contexts/VendorContext'
 import { apiError, extractApiError } from '@/lib/errorMessages'
-import type { Cart } from '@/types'
+import type { Cart, Product } from '@/types'
 
 export const storeKeys = {
   info: ['store-info'] as const,
@@ -167,18 +167,116 @@ export function useAddToCart() {
   const qc = useQueryClient()
   const { vendorSlug } = useVendor()
   return useMutation({
-    mutationFn: async (item: Parameters<typeof storeApi.addToCart>[0]) => {
+    mutationFn: async (item: GuestCartItem) => {
       if (!useAuthStore.getState().isAuthenticated) {
         useGuestCartStore.getState().addItem(vendorSlug, item)
         return buildGuestCart(useGuestCartStore.getState().getItems(vendorSlug))
       }
-      return storeApi.addToCart(item)
+      const { variant_label: _vl, slug: _slug, ...apiItem } = item
+      return storeApi.addToCart(apiItem)
     },
     onSuccess: (cart) => {
       applyCartMutation(qc, cart)
-      toast.success('Added to cart!')
     },
     onError: apiError('Could not add item to cart — it may be out of stock'),
+  })
+}
+
+export function useCartProducts(cartItems: Array<{ product_id?: string; slug?: string }>) {
+  const uniqueEntries = useMemo(() => {
+    const map = new Map<string, string | undefined>()
+    for (const item of cartItems) {
+      const id = item.product_id ? String(item.product_id) : ''
+      if (!id) continue
+      map.set(id, item.slug ?? map.get(id))
+    }
+    return [...map.entries()]
+  }, [cartItems])
+
+  return useQuery({
+    queryKey: ['cart-products', uniqueEntries.map(([id, slug]) => `${id}:${slug ?? ''}`).sort().join(',')],
+    queryFn: async () => {
+      const result: Record<string, Product> = {}
+      if (uniqueEntries.length === 0) return result
+
+      const missingIds: string[] = []
+      await Promise.all(
+        uniqueEntries.map(async ([id, slug]) => {
+          if (slug) {
+            try {
+              result[id] = await storeApi.getProduct(slug)
+              return
+            } catch {
+              /* fall back to catalog list */
+            }
+          }
+          missingIds.push(id)
+        }),
+      )
+
+      if (missingIds.length > 0) {
+        let page = 1
+        let pages = 1
+        while (page <= pages && missingIds.some((id) => !result[id])) {
+          const res = await storeApi.listProducts({ page, size: 100 })
+          pages = res.pages || 1
+          for (const product of res.items) {
+            if (missingIds.includes(product.id)) result[product.id] = product
+          }
+          page += 1
+        }
+      }
+
+      return result
+    },
+    enabled: uniqueEntries.length > 0,
+    staleTime: 60_000,
+  })
+}
+
+export function useChangeCartVariant() {
+  const qc = useQueryClient()
+  const { vendorSlug } = useVendor()
+  return useMutation({
+    mutationFn: async ({ index, item }: { index: number; item: GuestCartItem }) => {
+      if (!useAuthStore.getState().isAuthenticated) {
+        const store = useGuestCartStore.getState()
+        const items = [...store.getItems(vendorSlug)]
+        const current = items[index]
+        if (!current) throw new Error('Cart item not found')
+        const mergeIdx = items.findIndex(
+          (i, idx) =>
+            idx !== index &&
+            i.product_id === item.product_id &&
+            i.variant_id === item.variant_id,
+        )
+        if (mergeIdx >= 0) {
+          items[mergeIdx] = {
+            ...items[mergeIdx],
+            qty: items[mergeIdx].qty + current.qty,
+            price: item.price,
+          }
+          items.splice(index, 1)
+        } else {
+          items[index] = { ...current, ...item }
+        }
+        useGuestCartStore.setState((state) => ({
+          byVendor: { ...state.byVendor, [vendorSlug]: items },
+        }))
+        return buildGuestCart(items)
+      }
+      const cart = qc.getQueryData<Cart>(storeKeys.cart) ?? useCartStore.getState().cart
+      const current = cart?.items?.[index]
+      if (!current) throw new Error('Cart item not found')
+      const qty = current.qty
+      const { variant_label: _vl, slug: _slug, ...apiItem } = item
+      await storeApi.removeCartItem(index)
+      return storeApi.addToCart({ ...apiItem, qty })
+    },
+    onSuccess: (cart) => {
+      applyCartMutation(qc, cart)
+    },
+    onError: apiError('Could not update product option'),
   })
 }
 

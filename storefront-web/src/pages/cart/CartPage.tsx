@@ -1,13 +1,22 @@
 import { Link } from 'react-router-dom'
-import { ShoppingBag, ChevronRight, ArrowLeft } from 'lucide-react'
-import { LineItem } from '@/checkout/components/LineItem'
+import { ShoppingBag, ChevronRight, ArrowLeft, Package } from 'lucide-react'
 import { OrderSummary } from '@/checkout/components/OrderSummary'
 import { CheckoutConfigProvider } from '@/checkout/config'
-import { useCart, useUpdateCartItem, useRemoveCartItem, useStoreInfo } from '@/hooks/useStore'
+import {
+  useCart,
+  useUpdateCartItem,
+  useRemoveCartItem,
+  useStoreInfo,
+  useCartProducts,
+  useChangeCartVariant,
+} from '@/hooks/useStore'
 import { useAuthStore } from '@/stores/authStore'
 import { useBranch } from '@/contexts/BranchContext'
 import { useBuilderSiteCheckoutTheme } from '@/hooks/useBuilderSiteCheckoutTheme'
 import { TableSkeleton } from '@/kit/states/StateScreens'
+import { CartDetailLineItem } from './CartDetailLineItem'
+import type { ProductVariant } from '@/types'
+import { variantDisplayLabel } from '@/lib/variantOptions'
 
 export default function CartPage() {
   const { storePath } = useBranch()
@@ -16,22 +25,38 @@ export default function CartPage() {
   const { data: cart, isLoading } = useCart()
   const updateItem = useUpdateCartItem()
   const removeItem = useRemoveCartItem()
+  const changeVariant = useChangeCartVariant()
   const checkoutTheme = useBuilderSiteCheckoutTheme()
+
+  const rawItems = (cart?.items ?? []) as Array<Record<string, unknown>>
+  const { data: productMap = {} } = useCartProducts(
+    rawItems.map((i) => ({
+      product_id: String(i.product_id ?? ''),
+      slug: i.slug ? String(i.slug) : undefined,
+    })),
+  )
 
   const storeName = storeInfo?.display_name ?? storeInfo?.business_name ?? 'Store'
   const currency = 'INR'
 
-  const cartItems = ((cart?.items ?? []) as any[]).map((item: Record<string, unknown>, i: number) => ({
-    id: String(i),
-    productId: String(item.product_id ?? i),
-    variantId: String(item.variant_id ?? i),
-    name: String(item.name ?? ''),
-    variantLabel: item.variant_label ? String(item.variant_label) : undefined,
-    imageUrl: item.image_url ? String(item.image_url) : undefined,
-    unitPrice: { amount: Math.round(Number(item.price) * 100), currency },
-    quantity: Number(item.qty),
-    inStock: true,
-  }))
+  const cartItems = rawItems.map((item: Record<string, unknown>, i: number) => {
+    const variantLabel = item.variant_label
+      ? String(item.variant_label)
+      : undefined
+    const productId = String(item.product_id ?? i)
+    const variantId = item.variant_id ? String(item.variant_id) : undefined
+    return {
+      id: String(i),
+      productId,
+      variantId: variantId ?? productId,
+      name: String(item.name ?? ''),
+      variantLabel,
+      imageUrl: item.image_url ? String(item.image_url) : undefined,
+      unitPrice: { amount: Math.round(Number(item.price) * 100), currency },
+      quantity: Number(item.qty),
+      inStock: true,
+    }
+  })
 
   const subtotalAmount = Math.round(
     ((cart?.items ?? []) as any[]).reduce((s: number, i: any) => s + i.price * i.qty, 0) * 100
@@ -73,14 +98,12 @@ export default function CartPage() {
             <Link to={storePath('/products')} className="ck-btn-ghost p-0">Products</Link>
           </div>
 
-          <h1 className="mb-6 text-2xl font-semibold md:text-3xl">
-            Your cart
+          <div className="mb-6 flex flex-wrap items-center gap-3 sm:gap-4">
+            <h1 className="text-2xl font-semibold md:text-3xl">Detail view</h1>
             {!empty && (
-              <span className="ml-2 text-base font-normal" style={{ color: 'hsl(var(--text-muted))' }}>
-                ({cartItems.reduce((s, i) => s + i.quantity, 0)} items)
-              </span>
+              <CartItemsBadge count={cartItems.reduce((s, i) => s + i.quantity, 0)} />
             )}
-          </h1>
+          </div>
 
           {empty ? (
             <EmptyState storePath={storePath} />
@@ -89,9 +112,11 @@ export default function CartPage() {
               <div className="ck-surface ck-border ck-radius-md p-2 md:p-4">
                 {cartItems.map((item, i) => (
                   <div key={`${item.productId}-${i}`} className={i > 0 ? 'ck-border-t' : ''}>
-                    <LineItem
+                    <CartDetailLineItem
                       item={item}
+                      product={productMap[item.productId]}
                       editable
+                      variantChangePending={changeVariant.isPending}
                       onUpdateQuantity={(id, q) => {
                         const index = Number(id)
                         if (Number.isNaN(index)) return
@@ -101,6 +126,26 @@ export default function CartPage() {
                       onRemove={(id) => {
                         const index = Number(id)
                         if (!Number.isNaN(index)) removeItem.mutate(index)
+                      }}
+                      onVariantChange={(variant: ProductVariant) => {
+                        if (variant.id === item.variantId) return
+                        const raw = rawItems[i]
+                        changeVariant.mutate({
+                          index: i,
+                          item: {
+                            product_id: item.productId,
+                            variant_id: variant.id,
+                            variant_label: variantDisplayLabel(variant) || variant.name,
+                            slug: raw?.slug ? String(raw.slug) : productMap[item.productId]?.slug,
+                            name: String(raw?.name ?? item.name).split(' - ')[0] || item.name,
+                            qty: item.quantity,
+                            price: variant.price,
+                            image_url:
+                              variant.media?.find((m) => m.is_primary)?.url ??
+                              variant.media?.[0]?.url ??
+                              item.imageUrl,
+                          },
+                        })
                       }}
                     />
                   </div>
@@ -130,6 +175,36 @@ export default function CartPage() {
         </main>
       </div>
     </CheckoutConfigProvider>
+  )
+}
+
+function CartItemsBadge({ count }: { count: number }) {
+  const label = count === 1 ? 'item in cart' : 'items in cart'
+  return (
+    <div
+      className="inline-flex items-center gap-2 rounded-xl border px-3 py-1.5"
+      style={{
+        borderColor: 'hsl(var(--border))',
+        background: 'hsl(var(--surface-muted))',
+      }}
+      aria-label={`${count} ${label}`}
+    >
+      <div
+        className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg"
+        style={{
+          background: 'hsl(var(--brand-primary) / 0.12)',
+          color: 'hsl(var(--brand-primary))',
+        }}
+      >
+        <Package className="h-4 w-4" aria-hidden />
+      </div>
+      <div className="text-left">
+        <span className="block text-lg font-bold leading-none tabular-nums">{count}</span>
+        <span className="mt-0.5 block text-[11px] font-medium capitalize leading-none ck-text-muted">
+          {label}
+        </span>
+      </div>
+    </div>
   )
 }
 
