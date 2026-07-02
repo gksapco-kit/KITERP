@@ -1,21 +1,20 @@
+import { publicAsset } from '@/lib/publicAsset'
 import { cn } from '@/lib/utils'
-
-const LOGO_BASE = '/integration-logos'
 
 /** PNG wordmark paths for integration card headers */
 export const INTEGRATION_LOGO_PNG: Record<string, string> = {
-  sendgrid: `${LOGO_BASE}/sendgrid.png`,
-  smtp: `${LOGO_BASE}/smtp.png`,
-  twilio: `${LOGO_BASE}/twilio.png`,
-  meta_whatsapp: `${LOGO_BASE}/meta_whatsapp.png`,
-  openai: `${LOGO_BASE}/openai.png`,
-  google_calendar: `${LOGO_BASE}/google_calendar.png`,
-  outlook_calendar: `${LOGO_BASE}/outlook_calendar.png`,
-  razorpay: `${LOGO_BASE}/razorpay.png`,
-  stripe: `${LOGO_BASE}/stripe.png`,
-  square: `${LOGO_BASE}/square.png`,
-  paypal: `${LOGO_BASE}/paypal.png`,
-  payu: `${LOGO_BASE}/payu.png`,
+  sendgrid: publicAsset('integration-logos/sendgrid.png'),
+  smtp: publicAsset('integration-logos/smtp.png'),
+  twilio: publicAsset('integration-logos/twilio.png'),
+  meta_whatsapp: publicAsset('integration-logos/meta_whatsapp.png'),
+  openai: publicAsset('integration-logos/openai.png'),
+  google_calendar: publicAsset('integration-logos/google_calendar.png'),
+  outlook_calendar: publicAsset('integration-logos/outlook_calendar.png'),
+  razorpay: publicAsset('integration-logos/razorpay.png'),
+  stripe: publicAsset('integration-logos/stripe.png'),
+  square: publicAsset('integration-logos/square.png'),
+  paypal: publicAsset('integration-logos/paypal.png'),
+  payu: publicAsset('integration-logos/payu.png'),
 }
 
 export function integrationLogoPath(providerId: string): string | null {
