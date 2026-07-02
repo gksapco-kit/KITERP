@@ -96,6 +96,78 @@ async def get_connected_payment_providers(
     return [str(row[0]) for row in result.all()]
 
 
+def is_checkout_active(integration: CrmIntegration) -> bool:
+    return (integration.settings or {}).get("checkout_active") is True
+
+
+async def get_checkout_active_payment_providers(
+    db: AsyncSession,
+    vendor_id: UUID,
+) -> list[str]:
+    """Providers explicitly activated for storefront checkout (at most one expected)."""
+    result = await db.execute(
+        select(CrmIntegration).where(
+            CrmIntegration.vendor_id == vendor_id,
+            CrmIntegration.provider.in_(PAYMENT_PROVIDERS),
+            CrmIntegration.status == "connected",
+        )
+    )
+    active: list[str] = []
+    for integ in result.scalars():
+        if is_checkout_active(integ):
+            active.append(str(integ.provider))
+    return active
+
+
+async def set_payment_checkout_active(
+    db: AsyncSession,
+    vendor_id: UUID,
+    integration_id: UUID,
+    active: bool,
+) -> CrmIntegration:
+    """Activate/deactivate a payment gateway on checkout. Only one may be active."""
+    result = await db.execute(
+        select(CrmIntegration).where(
+            CrmIntegration.vendor_id == vendor_id,
+            CrmIntegration.id == integration_id,
+        )
+    )
+    target = result.scalar_one_or_none()
+    if not target:
+        raise ValueError("Integration not found")
+    if not is_payment_provider(target.provider):
+        raise ValueError("Not a payment provider integration")
+    if target.status != "connected":
+        raise ValueError("Integration must be connected before activation")
+
+    if active:
+        others = await db.execute(
+            select(CrmIntegration).where(
+                CrmIntegration.vendor_id == vendor_id,
+                CrmIntegration.provider.in_(PAYMENT_PROVIDERS),
+                CrmIntegration.id != integration_id,
+            )
+        )
+        for other in others.scalars():
+            other_settings = dict(other.settings or {})
+            if other_settings.get("checkout_active"):
+                other_settings["checkout_active"] = False
+                other.settings = other_settings
+
+        settings = dict(target.settings or {})
+        settings["checkout_active"] = True
+        target.settings = settings
+    else:
+        settings = dict(target.settings or {})
+        settings["checkout_active"] = False
+        target.settings = settings
+
+    await db.commit()
+    await db.refresh(target)
+    await sync_vendor_checkout_payments(db, vendor_id)
+    return target
+
+
 def _public_key_for_provider(provider: str, creds: dict[str, Any]) -> str | None:
     field = PUBLIC_KEY_FIELDS.get(provider)
     if not field:
@@ -109,7 +181,7 @@ async def build_checkout_payment_info(
     vendor: Vendor,
 ) -> dict[str, Any]:
     """Public payment config for storefront checkout preview."""
-    connected = await get_connected_payment_providers(db, vendor.id)
+    connected = await get_checkout_active_payment_providers(db, vendor.id)
     providers: list[dict[str, Any]] = []
 
     for provider in connected:
@@ -157,23 +229,24 @@ async def sync_vendor_checkout_payments(db: AsyncSession, vendor_id: UUID) -> No
     if not vendor:
         return
 
-    connected = await get_connected_payment_providers(db, vendor_id)
+    active = await get_checkout_active_payment_providers(db, vendor_id)
     theme_config = dict(vendor.theme_config or {})
     checkout = dict(theme_config.get("checkout") or {})
 
     methods: list[str] = ["cod"]
     for provider in ("razorpay", "stripe", "square", "paypal", "payu"):
-        if provider in connected:
+        if provider in active:
             methods.append(provider)
 
     checkout["payment_methods"] = methods
 
-    razorpay_creds = await load_payment_credentials(db, vendor_id, "razorpay")
-    if razorpay_creds:
-        key_id = _public_key_for_provider("razorpay", razorpay_creds)
-        if key_id:
-            checkout["razorpay_key_id"] = key_id
-    elif "razorpay_key_id" in checkout and "razorpay" not in connected:
+    if "razorpay" in active:
+        razorpay_creds = await load_payment_credentials(db, vendor_id, "razorpay")
+        if razorpay_creds:
+            key_id = _public_key_for_provider("razorpay", razorpay_creds)
+            if key_id:
+                checkout["razorpay_key_id"] = key_id
+    elif "razorpay_key_id" in checkout:
         checkout.pop("razorpay_key_id", None)
 
     theme_config["checkout"] = checkout

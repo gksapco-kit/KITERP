@@ -749,6 +749,10 @@ class IntegrationUpdate(BaseModel):
     credentials: Optional[dict] = None
 
 
+class IntegrationCheckoutActiveRequest(BaseModel):
+    checkout_active: bool
+
+
 class IntegrationTestRequest(BaseModel):
     provider: str
     credentials: Optional[dict] = None

@@ -1682,6 +1682,27 @@ class IntegrationService:
         if is_payment_provider(provider):
             await sync_vendor_checkout_payments(self.db, vendor_id)
 
+    async def set_checkout_active(
+        self,
+        vendor_id: UUID,
+        integration_id: UUID,
+        checkout_active: bool,
+    ) -> CrmIntegration:
+        from app.services.payment_integration_service import (
+            is_payment_provider,
+            set_payment_checkout_active,
+        )
+
+        obj = await self.get(vendor_id, integration_id)
+        if not is_payment_provider(obj.provider):
+            raise HTTPException(status_code=400, detail="Not a payment provider integration")
+        try:
+            return await set_payment_checkout_active(
+                self.db, vendor_id, integration_id, checkout_active,
+            )
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+
 
 # ── Chat ─────────────────────────────────────────────────────────────────────
 

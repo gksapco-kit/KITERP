@@ -1,12 +1,16 @@
 import { useState, useEffect } from 'react'
-import { Card, CardContent } from '@/components/ui/card'
+import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Badge } from '@/components/ui/badge'
-import { useIntegrations, useUpsertIntegration } from '@/hooks/useCrm'
+import { useIntegrations, useUpsertIntegration, useSetIntegrationCheckoutActive } from '@/hooks/useCrm'
 import { crmApi, type Integration } from '@/api/crm'
-import { Plus, Loader2, Plug, CheckCircle2, AlertTriangle, Trash2, Zap, Eye, EyeOff, Copy, CreditCard } from 'lucide-react'
+import { Plus, Loader2, CheckCircle2, AlertTriangle, Trash2, Zap, Eye, EyeOff, Copy, MessageSquare, CreditCard, Plug2 } from 'lucide-react'
 import { CrmModal, Field } from './_shared'
+import { CommunicationIntegrationCard } from '@/components/crm/CommunicationIntegrationCard'
+import type { CommunicationProviderId } from '@/components/crm/CommunicationProviderLogo'
+import { INTEGRATION_GRID_CLASS } from '@/components/crm/IntegrationCardShared'
+import { PaymentProcessorCard } from '@/components/crm/PaymentProcessorCard'
+import type { PaymentProviderId } from '@/components/crm/PaymentProviderLogo'
 import { useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { extractApiError } from '@/lib/errorMessages'
@@ -47,6 +51,10 @@ const SETTING_HINTS: Record<string, Record<string, string>> = {
 const TESTABLE = new Set(['sendgrid', 'smtp', 'twilio', 'razorpay', 'stripe', 'square', 'paypal', 'payu'])
 const PAYMENT_PROVIDER_IDS = new Set(PAYMENT_PROVIDERS.map(p => p.id))
 const DELETE_CONFIRM_PHRASE = 'DELETE'
+
+function isCheckoutActive(integration: Integration): boolean {
+  return integration.settings?.checkout_active === true
+}
 
 function isSecretField(key: string) {
   const k = key.toLowerCase()
@@ -468,84 +476,154 @@ function DeleteIntegrationModal({
 export default function IntegrationsPage() {
   const qc = useQueryClient()
   const { data, isLoading } = useIntegrations()
+  const setCheckoutActive = useSetIntegrationCheckoutActive()
   const [adding, setAdding] = useState<string | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<{ integration: Integration; providerLabel: string } | null>(null)
+  const [togglingId, setTogglingId] = useState<string | null>(null)
 
   const connectedById: Record<string, Integration> = {}
   data?.forEach(i => {
     connectedById[i.provider] = i
   })
 
-  const renderProviderGrid = (providers: typeof PROVIDERS, icon: 'plug' | 'card' = 'plug') => (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-      {providers.map(p => {
+  const connectedPayments = (data ?? []).filter(
+    i => PAYMENT_PROVIDER_IDS.has(i.provider) && i.status === 'connected',
+  )
+  const activePayment = connectedPayments.find(isCheckoutActive)
+
+  const handleCheckoutToggle = (integration: Integration, next: boolean) => {
+    setTogglingId(integration.id)
+    setCheckoutActive.mutate(
+      { id: integration.id, checkout_active: next },
+      {
+        onSuccess: () => {
+          toast.success(
+            next
+              ? `${integration.label || integration.provider} is live on checkout`
+              : `${integration.label || integration.provider} deactivated on checkout`,
+          )
+        },
+        onError: err => toast.error(extractApiError(err, 'Could not update checkout activation')),
+        onSettled: () => setTogglingId(null),
+      },
+    )
+  }
+
+  const renderCommunicationGrid = () => (
+    <div className={INTEGRATION_GRID_CLASS}>
+      {PROVIDERS.map(p => {
         const conn = connectedById[p.id]
-        const Icon = icon === 'card' ? CreditCard : Plug
         return (
-          <Card key={p.id}>
-            <CardContent className="p-5">
-              <div className="flex items-start justify-between gap-2 mb-2">
-                <div className="flex items-center gap-2 min-w-0">
-                  <Icon className="w-5 h-5 text-blue-500 shrink-0" />
-                  <h3 className="text-sm font-semibold truncate">{p.label}</h3>
-                </div>
-                {conn ? (
-                  <Badge variant={conn.status === 'connected' ? 'success' : 'warning'}>
-                    {conn.status === 'connected' ? <CheckCircle2 className="w-3 h-3" /> : <AlertTriangle className="w-3 h-3" />}
-                    {conn.status}
-                  </Badge>
-                ) : <Badge variant="secondary">not connected</Badge>}
-              </div>
-              {conn?.last_error && <p className="text-xs text-red-500 mt-1 line-clamp-2">{conn.last_error}</p>}
-              <div className="flex gap-2 mt-4 pt-3 border-t">
-                <Button variant={conn ? 'outline' : 'default'} size="sm" onClick={() => setAdding(p.id)}>
-                  {conn ? 'Reconfigure' : 'Connect'}
-                </Button>
-                {conn && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    title="Disconnect integration"
-                    onClick={() => setDeleteTarget({ integration: conn, providerLabel: p.label })}
-                  >
-                    <Trash2 className="w-4 h-4 text-red-500" />
-                  </Button>
-                )}
-              </div>
-            </CardContent>
-          </Card>
+          <CommunicationIntegrationCard
+            key={p.id}
+            providerId={p.id as CommunicationProviderId}
+            label={p.label}
+            conn={conn}
+            onConnect={() => setAdding(p.id)}
+            onDelete={() => conn && setDeleteTarget({ integration: conn, providerLabel: p.label })}
+          />
         )
       })}
     </div>
   )
 
+  const renderPaymentProviderGrid = () => (
+    <div className={INTEGRATION_GRID_CLASS}>
+      {PAYMENT_PROVIDERS.map(p => {
+        const conn = connectedById[p.id]
+        const isConnected = conn?.status === 'connected'
+        const isLive = Boolean(conn && isCheckoutActive(conn))
+        const otherIsLive = Boolean(activePayment && activePayment.id !== conn?.id)
+        const activateBlocked = otherIsLive && !isLive
+        const busy = togglingId === conn?.id || setCheckoutActive.isPending
+
+        return (
+          <PaymentProcessorCard
+            key={p.id}
+            providerId={p.id as PaymentProviderId}
+            label={p.label}
+            conn={conn}
+            isConnected={isConnected}
+            isLive={isLive}
+            activateBlocked={activateBlocked}
+            activeProviderLabel={activePayment?.label || activePayment?.provider || null}
+            busy={busy}
+            onConnect={() => setAdding(p.id)}
+            onActivate={() => conn && handleCheckoutToggle(conn, true)}
+            onDeactivate={() => conn && handleCheckoutToggle(conn, false)}
+            onDelete={() => conn && setDeleteTarget({ integration: conn, providerLabel: p.label })}
+          />
+        )
+      })}
+    </div>
+  )
+
+  const connectedCount = (data ?? []).filter(i => i.status === 'connected').length
+  const commConnected = PROVIDERS.filter(p => connectedById[p.id]?.status === 'connected').length
+  const paymentConnected = PAYMENT_PROVIDERS.filter(p => connectedById[p.id]?.status === 'connected').length
+
   return (
-    <div className="space-y-6">
-      <div>
-        <p className="text-xs font-medium uppercase tracking-wide text-gray-400 mb-0.5">CRM</p>
-        <h1 className="text-2xl font-bold text-gray-900">Integrations</h1>
-        <p className="text-sm text-gray-500 mt-1">
-          Connect external providers to send emails, SMS, WhatsApp, run AI, sync calendars, and accept online payments at checkout.
-        </p>
+    <div className="space-y-4">
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border/50 bg-gradient-to-r from-muted/30 via-background to-background px-4 py-3 shadow-sm">
+        <div className="flex min-w-0 items-center gap-3">
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary ring-1 ring-primary/10">
+            <Plug2 className="h-4 w-4" />
+          </div>
+          <div className="min-w-0">
+            <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
+              System · Integrations
+            </p>
+            <h1 className="text-lg font-semibold tracking-tight text-foreground">Connect your providers</h1>
+            <p className="text-xs text-muted-foreground">
+              Email, SMS, WhatsApp, AI, calendars, CRM, and checkout payments in one place.
+            </p>
+          </div>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2">
+          <Badge variant="soft" className="rounded-full px-2.5 py-0.5 text-[11px]">
+            {connectedCount} connected
+          </Badge>
+          {activePayment && (
+            <Badge variant="success" className="rounded-full px-2.5 py-0.5 text-[11px]">
+              Live: {activePayment.label || activePayment.provider}
+            </Badge>
+          )}
+        </div>
       </div>
 
       {isLoading ? (
-        <div className="flex justify-center py-12"><Loader2 className="w-6 h-6 animate-spin text-gray-400" /></div>
+        <div className="flex justify-center py-12">
+          <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+        </div>
       ) : (
-        <>
-          <section className="space-y-3">
-            <h2 className="text-sm font-semibold text-gray-700">Communication &amp; CRM</h2>
-            {renderProviderGrid(PROVIDERS, 'plug')}
+        <div className="space-y-4">
+          <section className="space-y-2">
+            <div className="flex items-center gap-2">
+              <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-blue-500/10 text-blue-600">
+                <MessageSquare className="h-3.5 w-3.5" />
+              </div>
+              <h2 className="text-sm font-semibold text-foreground">Communication &amp; CRM</h2>
+              <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
+                {commConnected}/{PROVIDERS.length} connected
+              </span>
+            </div>
+            {renderCommunicationGrid()}
           </section>
 
-          <section className="space-y-3">
-            <h2 className="text-sm font-semibold text-gray-700">Payment Processors</h2>
-            <p className="text-xs text-muted-foreground -mt-1">
-              Connected gateways appear as payment options on your storefront checkout. Register the webhook URL in each provider dashboard.
-            </p>
-            {renderProviderGrid(PAYMENT_PROVIDERS, 'card')}
+          <section className="space-y-2">
+            <div className="flex items-center gap-2">
+              <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-violet-500/10 text-violet-600">
+                <CreditCard className="h-3.5 w-3.5" />
+              </div>
+              <h2 className="text-sm font-semibold text-foreground">Payment Processors</h2>
+              <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
+                {paymentConnected}/{PAYMENT_PROVIDERS.length} connected
+              </span>
+            </div>
+            {renderPaymentProviderGrid()}
           </section>
-        </>
+        </div>
       )}
 
       {adding && (

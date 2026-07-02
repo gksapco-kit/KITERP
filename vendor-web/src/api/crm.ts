@@ -650,6 +650,8 @@ export const crmApi = {
   updateIntegration: (id: string, data: Partial<Integration> & { credentials?: Record<string, unknown> }) =>
     apiClient.put<Integration>(`${BASE}/integrations/${id}`, data).then(r => r.data),
   deleteIntegration: (id: string) => apiClient.delete(`${BASE}/integrations/${id}`),
+  setIntegrationCheckoutActive: (id: string, checkout_active: boolean) =>
+    apiClient.patch<Integration>(`${BASE}/integrations/${id}/checkout-active`, { checkout_active }).then(r => r.data),
   testIntegration: (data: {
     provider: string
     credentials?: Record<string, unknown>

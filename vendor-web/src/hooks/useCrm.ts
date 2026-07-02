@@ -295,6 +295,15 @@ export const useUpsertIntegration = () => {
   })
 }
 
+export const useSetIntegrationCheckoutActive = () => {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, checkout_active }: { id: string; checkout_active: boolean }) =>
+      crmApi.setIntegrationCheckoutActive(id, checkout_active),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['crm', 'integrations'] }),
+  })
+}
+
 // Reports
 export const useCrmOverview = (range = '30d') =>
   useQuery({ queryKey: KEY('overview', range), queryFn: () => crmApi.reportOverview({ range }) })

@@ -17,7 +17,7 @@ from app.models.vendor_user import VendorUser
 from app.schemas.crm.schemas import (
     CampaignCreate, CampaignResponse, CampaignStepResponse, CampaignUpdate,
     ContactResponse,     EmailTemplateCreate, EmailTemplateResponse,
-    IntegrationCreate, IntegrationDefaultsResponse, IntegrationFormResponse,
+    IntegrationCreate, IntegrationCheckoutActiveRequest, IntegrationDefaultsResponse, IntegrationFormResponse,
     IntegrationResponse, IntegrationTestRequest, IntegrationTestResponse, IntegrationUpdate,
     PaginatedResponse, SegmentCreate, SegmentResponse,
     TemplateTestRequest, TemplateTestResponse,
@@ -418,6 +418,18 @@ async def update_integration(
     db: AsyncSession = Depends(get_db),
 ):
     return await IntegrationService(db).update(vu.vendor_id, integration_id, data)
+
+
+@router.patch("/integrations/{integration_id}/checkout-active", response_model=IntegrationResponse)
+async def set_integration_checkout_active(
+    integration_id: UUID,
+    data: IntegrationCheckoutActiveRequest,
+    vu: VendorUser = Depends(require_permission("crm.integrations.manage")),
+    db: AsyncSession = Depends(get_db),
+):
+    return await IntegrationService(db).set_checkout_active(
+        vu.vendor_id, integration_id, data.checkout_active,
+    )
 
 
 @router.delete("/integrations/{integration_id}", status_code=status.HTTP_204_NO_CONTENT)
