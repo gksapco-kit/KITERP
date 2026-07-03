@@ -6,8 +6,101 @@ import { cn } from '@/lib/utils'
 export const INTEGRATION_GRID_CLASS =
   'grid grid-cols-2 items-stretch gap-2 sm:grid-cols-3 lg:grid-cols-5'
 
-/** @deprecated use INTEGRATION_GRID_CLASS */
-export const PAYMENT_INTEGRATION_GRID_CLASS = INTEGRATION_GRID_CLASS
+/** Uniform height for every integration card (connected and unconnected). */
+export const INTEGRATION_ROW_CARD_HEIGHT = 'h-[5.25rem]'
+
+/** @deprecated use INTEGRATION_ROW_CARD_HEIGHT — all cards share the same height */
+export const INTEGRATION_ROW_CARD_HEIGHT_WITH_ACTIONS = INTEGRATION_ROW_CARD_HEIGHT
+
+export const INTEGRATION_ROW_CARD_CLASS =
+  'relative flex overflow-hidden rounded-lg border bg-card shadow-sm transition-shadow hover:shadow-md'
+
+/** Card body: row 1 grows to fill space above the action row */
+export const INTEGRATION_ROW_BODY_CLASS =
+  'flex min-h-0 min-w-0 flex-1 flex-col justify-center gap-1 py-1.5 pl-3 pr-3'
+
+export const INTEGRATION_ROW_MAIN_CLASS =
+  'flex min-h-0 flex-1 items-center gap-2'
+
+export const INTEGRATION_ROW_ACTIONS_CLASS =
+  'flex shrink-0 items-center justify-end gap-1.5'
+
+/** @deprecated use INTEGRATION_ROW_ACTIONS_CLASS */
+export const INTEGRATION_ROW_FOOTER_ACTIONS_CLASS = INTEGRATION_ROW_ACTIONS_CLASS
+
+/** Communication logos — same row fill inside the card. */
+export const INTEGRATION_PROVIDER_ICON_SLOT_CLASS =
+  'flex h-full max-h-10 w-10 shrink-0 items-center justify-center overflow-visible'
+
+/** Larger centered card logo (e.g. Google Calendar). */
+export const INTEGRATION_PROVIDER_ICON_SLOT_LARGE_CLASS =
+  'flex h-12 w-12 shrink-0 items-center justify-center overflow-visible'
+
+/** Payment logos — fill row 1 height inside the fixed card (max ~40px). */
+export const PAYMENT_PROVIDER_ICON_SLOT_CLASS =
+  'flex h-full max-h-10 w-10 shrink-0 items-center justify-center overflow-visible'
+
+export const PAYMENT_PROVIDER_ICON_SLOT_AMAZON_CLASS =
+  'flex h-11 w-11 shrink-0 items-center justify-center overflow-visible'
+
+/** @deprecated use PAYMENT_PROVIDER_ICON_SLOT_AMAZON_CLASS */
+export const PAYMENT_PROVIDER_ICON_SLOT_WIDE_CLASS = PAYMENT_PROVIDER_ICON_SLOT_AMAZON_CLASS
+
+export const PAYMENT_PROVIDER_AMAZON_ICON_INNER_CLASS =
+  'flex size-full items-center justify-center'
+
+export const PAYMENT_PROVIDER_AMAZON_IMG_CLASS =
+  'size-full max-w-none object-contain object-center'
+
+export const INTEGRATION_PROVIDER_ICON_INNER_CLASS =
+  'flex size-full items-center justify-center [&>svg]:size-full [&>svg]:max-h-full [&>svg]:max-w-full'
+
+export const INTEGRATION_PROVIDER_BRAND_LOCKUP_CLASS =
+  'flex shrink-0 items-center gap-2.5'
+
+export const INTEGRATION_PROVIDER_BRAND_LOCKUP_AMAZON_CLASS =
+  'flex shrink-0 items-center gap-2.5'
+
+/** Absolutely positioned logo column — vertically centers icon in the card. */
+export const INTEGRATION_ROW_CENTERED_LOGO_CLASS =
+  'pointer-events-none absolute bottom-0 left-4 top-0 z-[1] flex items-center justify-center'
+
+export const INTEGRATION_ROW_BADGE_CLASS =
+  'inline-flex h-5 shrink-0 items-center rounded px-1.5 text-[10px] font-medium leading-none'
+
+export const INTEGRATION_ROW_ICON_BTN_CLASS = 'h-8 w-8 shrink-0 rounded-md'
+
+export const INTEGRATION_ROW_TEXT_ACTION_CLASS =
+  'hidden h-8 shrink-0 items-center whitespace-nowrap px-2 text-xs text-muted-foreground xl:inline-flex'
+
+export const INTEGRATION_ROW_CONNECT_BTN_CLASS =
+  'h-7 shrink-0 rounded-md px-4 text-xs font-semibold shadow-sm whitespace-nowrap'
+
+/** Odoo-style primary action (Connect / Activate / Install) */
+export const INTEGRATION_ROW_PRIMARY_ACTION_CLASS = INTEGRATION_ROW_CONNECT_BTN_CLASS
+
+export const INTEGRATION_ROW_CONFIGURE_BTN_CLASS =
+  'h-7 shrink-0 gap-1 rounded-md px-3 text-xs font-medium whitespace-nowrap'
+
+/** Soft destructive — stays inside card on the action row */
+export const INTEGRATION_ROW_DISCONNECT_BTN_CLASS =
+  'h-7 shrink-0 gap-1 rounded-md px-3 text-xs font-medium whitespace-nowrap shadow-sm ' +
+  'border border-red-200/80 bg-red-50 text-red-700 ' +
+  'hover:border-red-300 hover:bg-red-100 hover:text-red-800 ' +
+  'active:scale-[0.98] active:bg-red-100/90'
+
+/** Pairs with Disconnect — same size/shape, green tint for Activate */
+export const INTEGRATION_ROW_ACTIVATE_BTN_CLASS =
+  'h-7 shrink-0 gap-1 rounded-md px-3 text-xs font-medium whitespace-nowrap shadow-sm ' +
+  'border border-emerald-200/80 bg-emerald-50 text-emerald-800 ' +
+  'hover:border-emerald-300 hover:bg-emerald-100 hover:text-emerald-900 ' +
+  'active:scale-[0.98] active:bg-emerald-100/90'
+
+export const INTEGRATION_ROW_DISABLE_BTN_CLASS =
+  'h-7 shrink-0 gap-1 rounded-md px-3 text-xs font-medium whitespace-nowrap shadow-sm ' +
+  'border border-amber-200/80 bg-amber-50 text-amber-900 ' +
+  'hover:border-amber-300 hover:bg-amber-100 hover:text-amber-950 ' +
+  'active:scale-[0.98] active:bg-amber-100/90'
 
 export const INTEGRATION_PILL_BUTTON_CLASS =
   'h-7 min-w-0 flex-1 rounded-full px-2 text-xs font-medium shadow-sm'

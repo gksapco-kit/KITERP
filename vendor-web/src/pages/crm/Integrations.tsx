@@ -6,11 +6,15 @@ import { useIntegrations, useUpsertIntegration, useSetIntegrationCheckoutActive 
 import { crmApi, type Integration } from '@/api/crm'
 import { Plus, Loader2, CheckCircle2, AlertTriangle, Trash2, Zap, Eye, EyeOff, Copy, MessageSquare, CreditCard, Plug2 } from 'lucide-react'
 import { CrmModal, Field } from './_shared'
-import { CommunicationIntegrationCard } from '@/components/crm/CommunicationIntegrationCard'
+import { CommunicationIntegrationCard, COMMUNICATION_INTEGRATION_GRID_CLASS } from '@/components/crm/CommunicationIntegrationCard'
 import type { CommunicationProviderId } from '@/components/crm/CommunicationProviderLogo'
-import { INTEGRATION_GRID_CLASS } from '@/components/crm/IntegrationCardShared'
-import { PaymentProcessorCard } from '@/components/crm/PaymentProcessorCard'
+import { PaymentProcessorCard, PAYMENT_INTEGRATION_GRID_CLASS } from '@/components/crm/PaymentProcessorCard'
 import type { PaymentProviderId } from '@/components/crm/PaymentProviderLogo'
+import {
+  PAYMENT_PROVIDERS,
+  PAYMENT_PROVIDER_IDS,
+  PAYMENT_SETTING_HINTS,
+} from '@/components/crm/paymentProvidersCatalog'
 import { useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { extractApiError } from '@/lib/errorMessages'
@@ -25,14 +29,6 @@ const PROVIDERS = [
   { id: 'outlook_calendar', label: 'Outlook Calendar', credentials: ['client_id', 'client_secret', 'refresh_token'], settings: ['calendar_id'] },
 ]
 
-const PAYMENT_PROVIDERS = [
-  { id: 'razorpay', label: 'Razorpay', credentials: ['key_id', 'key_secret', 'webhook_secret'], settings: ['mode', 'checkout_config_id'] },
-  { id: 'stripe', label: 'Stripe', credentials: ['publishable_key', 'secret_key', 'webhook_secret'], settings: ['mode'] },
-  { id: 'square', label: 'Square', credentials: ['application_id', 'access_token', 'webhook_signature_key'], settings: ['mode', 'location_id'] },
-  { id: 'paypal', label: 'PayPal', credentials: ['client_id', 'client_secret', 'webhook_id'], settings: ['mode'] },
-  { id: 'payu', label: 'PayU', credentials: ['merchant_key', 'merchant_salt'], settings: ['mode'] },
-]
-
 const ALL_PROVIDERS = [...PROVIDERS, ...PAYMENT_PROVIDERS]
 
 const SETTING_HINTS: Record<string, Record<string, string>> = {
@@ -41,15 +37,10 @@ const SETTING_HINTS: Record<string, Record<string, string>> = {
     whatsapp_from: 'WhatsApp only — Twilio sandbox: +14155238886. Cannot be used for SMS.',
     voice_caller_id: 'Optional caller ID for voice calls',
   },
-  razorpay: { mode: 'test or live', checkout_config_id: 'optional — from Razorpay Dashboard → Payment Configuration' },
-  stripe: { mode: 'test or live' },
-  square: { mode: 'sandbox or live', location_id: 'Optional Square location ID for in-person / online checkout' },
-  paypal: { mode: 'sandbox or live' },
-  payu: { mode: 'test or live' },
+  ...PAYMENT_SETTING_HINTS,
 }
 
 const TESTABLE = new Set(['sendgrid', 'smtp', 'twilio', 'razorpay', 'stripe', 'square', 'paypal', 'payu'])
-const PAYMENT_PROVIDER_IDS = new Set(PAYMENT_PROVIDERS.map(p => p.id))
 const DELETE_CONFIRM_PHRASE = 'DELETE'
 
 function isCheckoutActive(integration: Integration): boolean {
@@ -522,7 +513,7 @@ export default function IntegrationsPage() {
   }
 
   const renderCommunicationGrid = () => (
-    <div className={INTEGRATION_GRID_CLASS}>
+    <div className={COMMUNICATION_INTEGRATION_GRID_CLASS}>
       {PROVIDERS.map(p => {
         const conn = connectedById[p.id]
         return (
@@ -540,7 +531,7 @@ export default function IntegrationsPage() {
   )
 
   const renderPaymentProviderGrid = () => (
-    <div className={INTEGRATION_GRID_CLASS}>
+    <div className={PAYMENT_INTEGRATION_GRID_CLASS}>
       {PAYMENT_PROVIDERS.map(p => {
         const conn = connectedById[p.id]
         const isConnected = conn?.status === 'connected'

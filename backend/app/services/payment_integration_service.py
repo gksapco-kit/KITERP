@@ -13,14 +13,29 @@ from app.core.encryption import decrypt_json
 from app.models.crm import CrmIntegration
 from app.models.vendor import Vendor
 
-PAYMENT_PROVIDERS = frozenset({"razorpay", "stripe", "square", "paypal", "payu"})
+PAYMENT_PROVIDERS = frozenset({
+    "razorpay",
+    "stripe",
+    "square",
+    "paypal",
+    "payu",
+    "sepa_direct_debit",
+    "wire_transfer",
+    "demo",
+    "adyen",
+    "amazon_payment_services",
+    "asiapay",
+    "authorize_net",
+    "buckaroo",
+    "flutterwave",
+    "mercado_pago",
+    "mollie",
+    "sips",
+})
 
 WEBHOOK_PATHS: dict[str, str] = {
-    "razorpay": "/store/checkout/payments/razorpay/webhook",
-    "stripe": "/store/checkout/payments/stripe/webhook",
-    "square": "/store/checkout/payments/square/webhook",
-    "paypal": "/store/checkout/payments/paypal/webhook",
-    "payu": "/store/checkout/payments/payu/webhook",
+    provider: f"/store/checkout/payments/{provider}/webhook"
+    for provider in PAYMENT_PROVIDERS
 }
 
 PUBLIC_KEY_FIELDS: dict[str, str] = {
@@ -29,6 +44,18 @@ PUBLIC_KEY_FIELDS: dict[str, str] = {
     "square": "application_id",
     "paypal": "client_id",
     "payu": "merchant_key",
+    "sepa_direct_debit": "api_key",
+    "wire_transfer": "account_number",
+    "demo": "api_key",
+    "adyen": "client_key",
+    "amazon_payment_services": "access_code",
+    "asiapay": "merchant_id",
+    "authorize_net": "api_login_id",
+    "buckaroo": "website_key",
+    "flutterwave": "public_key",
+    "mercado_pago": "public_key",
+    "mollie": "api_key",
+    "sips": "merchant_id",
 }
 
 
@@ -234,7 +261,7 @@ async def sync_vendor_checkout_payments(db: AsyncSession, vendor_id: UUID) -> No
     checkout = dict(theme_config.get("checkout") or {})
 
     methods: list[str] = ["cod"]
-    for provider in ("razorpay", "stripe", "square", "paypal", "payu"):
+    for provider in sorted(PAYMENT_PROVIDERS):
         if provider in active:
             methods.append(provider)
 

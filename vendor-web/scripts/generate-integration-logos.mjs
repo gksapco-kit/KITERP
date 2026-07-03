@@ -5,7 +5,9 @@ import sharp from 'sharp'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const outDir = path.join(__dirname, '../public/integration-logos')
+const bundledDir = path.join(__dirname, '../src/assets/integration-logos')
 fs.mkdirSync(outDir, { recursive: true })
+fs.mkdirSync(bundledDir, { recursive: true })
 
 const WORDMARK_SVG = {
   sendgrid: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 220 40"><text x="0" y="28" fill="#FFFFFF" font-family="Arial,sans-serif" font-size="26" font-weight="700">SendGrid</text></svg>`,
@@ -45,12 +47,16 @@ async function svgToPng(svg, outFile, width = 220, height = 40) {
     .png()
     .toBuffer()
   fs.writeFileSync(outFile, png)
+  const bundledFile = path.join(bundledDir, path.basename(outFile))
+  fs.writeFileSync(bundledFile, png)
 }
 
 async function main() {
   const officialRazorpay = path.join(__dirname, '../public/payment-logos/razorpay.png')
   if (fs.existsSync(officialRazorpay)) {
-    fs.copyFileSync(officialRazorpay, path.join(outDir, 'razorpay.png'))
+    for (const dir of [outDir, bundledDir]) {
+      fs.copyFileSync(officialRazorpay, path.join(dir, 'razorpay.png'))
+    }
     console.log('OK razorpay (official PNG)')
   }
 
