@@ -1,10 +1,10 @@
-import { useMemo, useState, useEffect } from 'react'
+import { useMemo, useState, useEffect, type ReactNode } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
 import {
   ArrowLeft, Loader2, UtensilsCrossed, Search, ExternalLink, GripVertical,
-  Building2, Plus, FolderTree, Copy, MapPin, ChevronRight, ChevronDown,
-  Package, Wrench, Check, Trash2, Power,
+  Building2, Plus, FolderTree, Copy, MapPin, ChevronRight, ChevronDown, ChevronUp,
+  Package, Wrench, Check, Trash2, Power, Pencil,
 } from 'lucide-react'
 import { vendorApi } from '@/api/vendor'
 import { useMyVendor } from '@/hooks/useVendor'
@@ -26,10 +26,11 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { toast } from 'sonner'
-import { cn, formatCurrency } from '@/lib/utils'
+import { cn, formatCurrency, mediaUrl } from '@/lib/utils'
+import { catalogItemPath } from '@/lib/catalogAddons'
 import { getCustomerStorefrontBaseUrl } from '@/lib/storefrontPreviewUrl'
 import { useRestaurantStore } from '@/stores/restaurantStore'
-import type { VendorCategory, RestaurantMenuOut, RestaurantMenuCategoryOut } from '@/types'
+import type { VendorCategory, RestaurantMenuOut, RestaurantMenuCategoryOut, Product, Service } from '@/types'
 
 type MenuCategoryMode = 'all_active' | 'curated' | 'by_categories'
 
@@ -37,7 +38,10 @@ function getMenuZoneGuestUrl(vendorSlug: string, linkToken: string) {
   return `${getCustomerStorefrontBaseUrl(vendorSlug)}/menu/${linkToken}`
 }
 
-function categoryItemSummary(cat: RestaurantMenuCategoryOut) {
+function categoryItemSummary(cat: RestaurantMenuCategoryOut, childCount = 0) {
+  if (childCount > 0) {
+    return childCount === 1 ? '1 sub-category' : `${childCount} sub-categories`
+  }
   if (cat.mode === 'all_active') return 'All items'
   if (cat.mode === 'by_categories') {
     const n = cat.vendor_category_ids.length
@@ -276,6 +280,8 @@ function DropBtn({
   onToggle,
   children,
   className,
+  menuClassName,
+  menuAlign = 'left',
   layer = 'default',
 }: {
   label: string
@@ -284,6 +290,8 @@ function DropBtn({
   onToggle: () => void
   children: React.ReactNode
   className?: string
+  menuClassName?: string
+  menuAlign?: 'left' | 'right'
   layer?: 'default' | 'modal'
 }) {
   const backdropZ = layer === 'modal' ? 'z-[60]' : 'z-40'
@@ -306,11 +314,110 @@ function DropBtn({
       {open && (
         <>
           <button type="button" className={cn('fixed inset-0 cursor-default', backdropZ)} aria-label="Close" onClick={onToggle} />
-          <div className={cn('absolute left-0 top-full mt-1 min-w-[240px] max-h-56 overflow-y-auto rounded-md border border-border bg-popover p-1 shadow-md', menuZ)}>
+          <div className={cn(
+            'absolute top-full mt-1 min-w-[240px] max-h-72 overflow-y-auto rounded-lg border border-border bg-popover shadow-lg',
+            menuAlign === 'right' ? 'right-0' : 'left-0',
+            menuZ,
+            menuClassName,
+          )}>
             {children}
           </div>
         </>
       )}
+    </div>
+  )
+}
+
+function MenuCategoryOrderList({
+  categories,
+  onMove,
+}: {
+  categories: RestaurantMenuCategoryOut[]
+  onMove: (categoryId: string, direction: -1 | 1) => void
+}) {
+  const items = flattenMenuCategoriesForOrder(categories)
+  if (items.length === 0) {
+    return <p className="px-3 py-2 text-[10px] text-muted-foreground">No categories to reorder</p>
+  }
+
+  return (
+    <div className="min-w-[280px]">
+      <p className="border-b border-border px-3 py-2 text-[10px] leading-snug text-muted-foreground">
+        Use ↑↓ to reorder within the same level. Sub-categories stay under their parent.
+      </p>
+      <ul className="p-1.5">
+        {items.map(({ cat, depth }) => {
+          const parentId = cat.parent_id ?? null
+          const siblings = getChildMenuCategories(categories, parentId)
+          const siblingIdx = siblings.findIndex(c => c.id === cat.id)
+          const childCount = getChildMenuCategories(categories, cat.id).length
+          const hasChildren = childCount > 0
+          const atTop = siblingIdx <= 0
+          const atBottom = siblingIdx >= siblings.length - 1
+
+          return (
+            <li
+              key={cat.id}
+              className={cn(
+                'relative flex items-center gap-1.5 rounded-md py-1 pr-0.5 transition-colors hover:bg-muted/50',
+                depth === 0 && 'bg-muted/15',
+              )}
+              style={{ paddingLeft: `${10 + depth * 16}px` }}
+            >
+              {depth > 0 && (
+                <span
+                  className="pointer-events-none absolute top-1/2 h-0 w-3 border-t-2 border-border/70"
+                  style={{ left: `${10 + (depth - 1) * 16 + 2}px` }}
+                  aria-hidden
+                />
+              )}
+              <GripVertical className="h-3.5 w-3.5 shrink-0 text-muted-foreground/45" aria-hidden />
+              <span
+                className={cn(
+                  'flex h-5 w-5 shrink-0 items-center justify-center rounded',
+                  hasChildren
+                    ? 'bg-amber-100 text-amber-700 dark:bg-amber-950/40 dark:text-amber-400'
+                    : 'bg-primary/10 text-primary',
+                )}
+              >
+                <FolderTree className="h-3 w-3" />
+              </span>
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-xs font-medium leading-tight">{cat.name}</p>
+                <p className="truncate text-[9px] text-muted-foreground">
+                  {hasChildren
+                    ? `${childCount} sub-categor${childCount === 1 ? 'y' : 'ies'}`
+                    : categoryItemSummary(cat, 0)}
+                </p>
+              </div>
+              <span className="shrink-0 rounded bg-muted/80 px-1 py-px text-[9px] font-medium text-muted-foreground">
+                {categoryModeBadge(cat.mode)}
+              </span>
+              <div className="flex shrink-0 items-center overflow-hidden rounded-md border border-border/70 bg-background shadow-sm">
+                <button
+                  type="button"
+                  disabled={atTop}
+                  aria-label={`Move ${cat.name} up`}
+                  onClick={() => onMove(cat.id, -1)}
+                  className="p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:cursor-not-allowed disabled:opacity-25"
+                >
+                  <ChevronUp className="h-3.5 w-3.5" />
+                </button>
+                <span className="h-4 w-px bg-border/80" aria-hidden />
+                <button
+                  type="button"
+                  disabled={atBottom}
+                  aria-label={`Move ${cat.name} down`}
+                  onClick={() => onMove(cat.id, 1)}
+                  className="p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:cursor-not-allowed disabled:opacity-25"
+                >
+                  <ChevronDown className="h-3.5 w-3.5" />
+                </button>
+              </div>
+            </li>
+          )
+        })}
+      </ul>
     </div>
   )
 }
@@ -351,6 +458,92 @@ function Panel({ children, className }: { children: React.ReactNode; className?:
   )
 }
 
+/** Vertical guide + horizontal branch for nested menu tree rows. */
+function MenuTreeBranch({ className }: { className?: string }) {
+  return (
+    <span
+      className={cn(
+        'pointer-events-none absolute -left-3 top-[0.875rem] w-3 border-t-2 border-border/70',
+        className,
+      )}
+      aria-hidden
+    />
+  )
+}
+
+function MenuTreeNode({ depth, children }: { depth: number; children: ReactNode }) {
+  return (
+    <li className="relative py-0.5">
+      {depth > 0 && <MenuTreeBranch />}
+      {children}
+    </li>
+  )
+}
+
+function MenuTreeChildren({ children, className }: { children: ReactNode; className?: string }) {
+  return (
+    <ul className={cn('ml-2.5 space-y-0.5 border-l-2 border-border/70 pl-3', className)}>
+      {children}
+    </ul>
+  )
+}
+
+function productThumbUrl(product: Product): string | null {
+  const primaryImg = product.images?.find(img => img.is_primary) || product.images?.[0]
+  if (primaryImg?.url) return mediaUrl(primaryImg.url)
+  const variantImg = (product.variants || [])
+    .flatMap(v => v.media || [])
+    .find(m => m?.url)
+  return variantImg?.url ? mediaUrl(variantImg.url) : null
+}
+
+function serviceThumbUrl(service: Service): string | null {
+  const primaryMedia =
+    service.media?.find(m => m.is_primary && m.media_type === 'image')
+    || service.media?.find(m => m.media_type === 'image')
+  if (primaryMedia?.url) return mediaUrl(primaryMedia.url)
+  if (service.image_url) return mediaUrl(service.image_url)
+  const galleryUrl = service.gallery?.[0]
+  return galleryUrl ? mediaUrl(galleryUrl) : null
+}
+
+function MenuCatalogItemLink({
+  to,
+  name,
+  price,
+  thumbUrl,
+  fallbackIcon: FallbackIcon,
+}: {
+  to: string
+  name: string
+  price: string
+  thumbUrl: string | null
+  fallbackIcon: typeof Package
+}) {
+  return (
+    <Link
+      to={to}
+      className="group flex min-w-0 items-center gap-2 rounded-md px-1.5 py-0.5 text-[11px] transition-colors hover:bg-primary/5"
+      title={`Open ${name}`}
+    >
+      {thumbUrl ? (
+        <img
+          src={thumbUrl}
+          alt=""
+          className="h-6 w-6 shrink-0 rounded border border-border/60 bg-muted object-cover"
+        />
+      ) : (
+        <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded border border-border/60 bg-muted">
+          <FallbackIcon className="h-3 w-3 text-muted-foreground/80" />
+        </span>
+      )}
+      <span className="min-w-0 flex-1 truncate text-foreground/90 group-hover:text-primary">{name}</span>
+      <span className="shrink-0 tabular-nums text-[10px] text-muted-foreground">{price}</span>
+      <ExternalLink className="h-2.5 w-2.5 shrink-0 text-primary/70 opacity-0 transition-opacity group-hover:opacity-100" aria-hidden />
+    </Link>
+  )
+}
+
 export default function RestaurantMenuPage() {
   const { data: vendor } = useMyVendor()
   const { selectedRestaurant } = useRestaurantStore()
@@ -368,6 +561,11 @@ export default function RestaurantMenuPage() {
   const [newCategoryName, setNewCategoryName] = useState('')
   const [menuListSearch, setMenuListSearch] = useState('')
   const [openDrop, setOpenDrop] = useState<string | null>(null)
+  const [guestUrlsEditing, setGuestUrlsEditing] = useState(false)
+  const [editAllCategories, setEditAllCategories] = useState(false)
+  const [editingCategoryIds, setEditingCategoryIds] = useState<string[]>([])
+  const [renameMenuOpen, setRenameMenuOpen] = useState(false)
+  const [renameMenuName, setRenameMenuName] = useState('')
 
   const restaurantsQ = useQuery({
     queryKey: ['restaurants'],
@@ -527,6 +725,49 @@ export default function RestaurantMenuPage() {
     }
   }
 
+  function openRenameMenu() {
+    if (!selectedMenu) return
+    setRenameMenuName(selectedMenu.name)
+    setRenameMenuOpen(true)
+  }
+
+  function closeRenameMenu() {
+    setRenameMenuOpen(false)
+    setRenameMenuName('')
+  }
+
+  async function handleRenameMenu() {
+    if (!selectedMenuId) return
+    const name = renameMenuName.trim()
+    if (!name) { toast.error('Menu name is required'); return }
+    setBusy(true)
+    try {
+      await vendorApi.restaurantUpdateMenuDetails(selectedMenuId, { name })
+      await refreshMenus()
+      closeRenameMenu()
+      toast.success('Menu renamed')
+    } catch (err: any) {
+      toast.error(err?.response?.data?.detail ?? 'Failed to rename menu')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  async function handleToggleMenuActive() {
+    if (!selectedMenu) return
+    const nextActive = !selectedMenu.is_active
+    setBusy(true)
+    try {
+      await vendorApi.restaurantUpdateMenuDetails(selectedMenu.id, { is_active: nextActive })
+      await refreshMenus()
+      toast.success(nextActive ? 'Menu activated' : 'Menu deactivated')
+    } catch (err: any) {
+      toast.error(err?.response?.data?.detail ?? 'Failed to update menu status')
+    } finally {
+      setBusy(false)
+    }
+  }
+
   function closeMenuDetail() {
     setSelectedMenuId(null)
     setExpandedCategoryIds([])
@@ -535,6 +776,9 @@ export default function RestaurantMenuPage() {
     setCreateCategoryOpen(false)
     setCatalogSearch('')
     setOpenDrop(null)
+    setGuestUrlsEditing(false)
+    setEditAllCategories(false)
+    setEditingCategoryIds([])
   }
 
   function openMenu(menuId: string) {
@@ -545,6 +789,33 @@ export default function RestaurantMenuPage() {
     setCreateCategoryOpen(false)
     setCatalogSearch('')
     setOpenDrop(null)
+    setGuestUrlsEditing(false)
+    setEditAllCategories(false)
+    setEditingCategoryIds([])
+  }
+
+  function closeGuestUrlsEditing() {
+    setGuestUrlsEditing(false)
+    setOpenDrop(prev => (prev === 'zones' ? null : prev))
+  }
+
+  function isCategoryEditing(categoryId: string) {
+    return editAllCategories || editingCategoryIds.includes(categoryId)
+  }
+
+  function toggleCategoryEditing(categoryId: string) {
+    if (editAllCategories) return
+    setEditingCategoryIds(prev =>
+      prev.includes(categoryId) ? prev.filter(id => id !== categoryId) : [...prev, categoryId],
+    )
+    setExpandedCategoryIds(prev => (prev.includes(categoryId) ? prev : [...prev, categoryId]))
+  }
+
+  function toggleEditAllCategories() {
+    setEditAllCategories(prev => {
+      if (prev) setEditingCategoryIds([])
+      return !prev
+    })
   }
 
   function openCreateCategory(parentId: string | null = null) {
@@ -788,6 +1059,33 @@ export default function RestaurantMenuPage() {
     ? selectedMenu?.categories.find(cat => cat.id === newCategoryParentId) ?? null
     : null
 
+  const renameMenuDialog = (
+    <Dialog open={renameMenuOpen} onOpenChange={open => { if (!open) closeRenameMenu() }}>
+      <DialogContent className="sm:max-w-sm gap-3 p-4">
+        <DialogHeader className="space-y-1">
+          <DialogTitle className="text-sm">Rename menu</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-1">
+          <Label htmlFor="rename-menu-name" className="text-xs">Menu name</Label>
+          <Input
+            id="rename-menu-name"
+            value={renameMenuName}
+            onChange={e => setRenameMenuName(e.target.value)}
+            placeholder="Menu name"
+            className="h-8 text-xs"
+            onKeyDown={e => { if (e.key === 'Enter') handleRenameMenu() }}
+          />
+        </div>
+        <DialogFooter className="gap-2 sm:gap-2">
+          <Button variant="outline" size="sm" className="h-7 text-xs" onClick={closeRenameMenu}>Cancel</Button>
+          <Button size="sm" className="h-7 text-xs" onClick={handleRenameMenu} disabled={busy}>
+            {busy && <Loader2 className="h-3 w-3 animate-spin" />} Save
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  )
+
   const createCategoryDialog = (
     <Dialog open={createCategoryOpen} onOpenChange={open => { if (!open) closeCreateCategory() }}>
       <DialogContent className="sm:max-w-sm gap-3 p-4">
@@ -825,53 +1123,126 @@ export default function RestaurantMenuPage() {
   function MenuCategoryTreeNode({ cat, depth }: { cat: RestaurantMenuCategoryOut; depth: number }) {
     if (!selectedMenu) return null
     const childCategories = getChildMenuCategories(selectedMenu.categories, cat.id)
+    const hasChildren = childCategories.length > 0
     const expanded = expandedCategoryIds.includes(cat.id)
+    const isEditing = isCategoryEditing(cat.id)
     const { previewProducts, previewServices } = getCategoryPreviewItems(cat)
     const previewCount = previewProducts.length + previewServices.length
 
+    const itemPreview = (
+      <MenuTreeChildren className="mt-0.5 max-h-48 overflow-y-auto">
+        {(catalogQ.isLoading || servicesQ.isLoading || categoriesQ.isLoading) && (
+          <li className="relative py-0.5 pl-0">
+            <MenuTreeBranch className="top-[0.65rem]" />
+            <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />
+          </li>
+        )}
+        {previewProducts.map(p => (
+          <li key={`p-${cat.id}-${p.id}`} className="group relative py-0.5">
+            <MenuTreeBranch className="top-[0.875rem]" />
+            <MenuCatalogItemLink
+              to={catalogItemPath('product', p.id)}
+              name={p.name}
+              price={formatCurrency(p.price)}
+              thumbUrl={productThumbUrl(p)}
+              fallbackIcon={Package}
+            />
+          </li>
+        ))}
+        {previewServices.map(s => (
+          <li key={`s-${cat.id}-${s.id}`} className="group relative py-0.5">
+            <MenuTreeBranch className="top-[0.875rem]" />
+            <MenuCatalogItemLink
+              to={catalogItemPath('service', s.id)}
+              name={s.name}
+              price={formatCurrency(s.price ?? 0)}
+              thumbUrl={serviceThumbUrl(s)}
+              fallbackIcon={Wrench}
+            />
+          </li>
+        ))}
+        {!catalogQ.isLoading && !servicesQ.isLoading && !categoriesQ.isLoading && previewCount === 0 && (
+          <li className="relative py-0.5">
+            <MenuTreeBranch className="top-[0.65rem]" />
+            <span className="text-[10px] italic text-muted-foreground">
+              {cat.mode === 'by_categories' ? 'No items in selected categories' : 'No items in this category'}
+            </span>
+          </li>
+        )}
+      </MenuTreeChildren>
+    )
+
     return (
-      <li className="border-b border-border last:border-b-0">
+      <MenuTreeNode depth={depth}>
         <div
           className={cn(
-            'flex w-full items-center gap-2 py-1.5 hover:bg-muted/50',
-            expanded && 'bg-muted/30',
+            'flex w-full items-center gap-1.5 rounded-md py-0.5 pr-1 transition-colors hover:bg-muted/40',
+            expanded && 'bg-muted/25',
+            isEditing && 'ring-1 ring-inset ring-primary/25 bg-primary/[0.03]',
           )}
-          style={{ paddingLeft: `${8 + depth * 14}px`, paddingRight: '8px' }}
         >
           <button
             type="button"
             onClick={() => toggleCategoryExpand(cat.id)}
-            className="flex min-w-0 flex-1 items-center gap-2 text-left"
+            className="flex min-w-0 flex-1 items-center gap-1.5 text-left"
           >
-            {expanded ? (
-              <ChevronDown className="h-3 w-3 shrink-0 text-muted-foreground" />
+            <span
+              className={cn(
+                'flex h-5 w-5 shrink-0 items-center justify-center rounded',
+                hasChildren ? 'bg-amber-100 text-amber-700 dark:bg-amber-950/50 dark:text-amber-400' : 'bg-primary/10 text-primary',
+              )}
+            >
+              {expanded ? (
+                <ChevronDown className="h-3 w-3" />
+              ) : (
+                <ChevronRight className="h-3 w-3" />
+              )}
+            </span>
+            <FolderTree className={cn('h-3 w-3 shrink-0', hasChildren ? 'text-amber-600' : 'text-primary')} />
+            <span className="min-w-0 flex-1 truncate text-xs font-medium">{cat.name}</span>
+            <span className="hidden shrink-0 text-[10px] text-muted-foreground sm:inline">
+              {categoryItemSummary(cat, childCategories.length)}
+            </span>
+            <span className="shrink-0 rounded bg-muted/80 px-1 py-px text-[9px] font-medium text-muted-foreground">
+              {categoryModeBadge(cat.mode)}
+            </span>
+          </button>
+          {!editAllCategories && (
+            isEditing ? (
+              <button
+                type="button"
+                onClick={() => setEditingCategoryIds(prev => prev.filter(id => id !== cat.id))}
+                className="shrink-0 rounded px-1.5 py-0.5 text-[10px] text-muted-foreground hover:bg-muted hover:text-foreground"
+              >
+                Done
+              </button>
             ) : (
-              <ChevronRight className="h-3 w-3 shrink-0 text-muted-foreground" />
-            )}
-            <FolderTree className="h-3 w-3 shrink-0 text-primary" />
-            <span className="min-w-0 flex-1 truncate font-medium">{cat.name}</span>
-            {childCategories.length > 0 && (
-              <span className="text-[10px] text-muted-foreground">{childCategories.length} sub</span>
-            )}
-            <span className="text-[10px] text-muted-foreground">{categoryItemSummary(cat)}</span>
-            <span className="rounded bg-muted px-1 text-[10px]">{categoryModeBadge(cat.mode)}</span>
-          </button>
-          <button
-            type="button"
-            onClick={() => handleDeleteCategory(cat.id)}
-            className="shrink-0 rounded p-1 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
-            aria-label="Delete category"
-          >
-            <Trash2 className="h-3 w-3" />
-          </button>
+              <button
+                type="button"
+                onClick={() => toggleCategoryEditing(cat.id)}
+                className="shrink-0 rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
+                aria-label={`Edit ${cat.name}`}
+                title="Edit category"
+              >
+                <Pencil className="h-3 w-3" />
+              </button>
+            )
+          )}
+          {isEditing && (
+            <button
+              type="button"
+              onClick={() => handleDeleteCategory(cat.id)}
+              className="shrink-0 rounded p-1 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+              aria-label="Delete category"
+            >
+              <Trash2 className="h-3 w-3" />
+            </button>
+          )}
         </div>
 
-        {expanded && (
-          <div
-            className="border-t border-border bg-muted/10 py-2 pr-2 space-y-2"
-            style={{ paddingLeft: `${20 + depth * 14}px` }}
-          >
-            <div className="flex flex-wrap items-center gap-2 border-l-2 border-primary/30 pl-2">
+        {expanded && isEditing && (
+          <div className="mt-1 rounded-md border border-dashed border-border/80 bg-muted/20 p-2">
+            <div className="flex flex-wrap items-center gap-2">
               <span className="text-[10px] text-muted-foreground">Mode</span>
               <CompactSelect
                 value={cat.mode}
@@ -993,44 +1364,24 @@ export default function RestaurantMenuPage() {
                 </>
               )}
             </div>
-
-            {childCategories.length > 0 && (
-              <ul className="rounded border border-border/70 bg-background/50">
-                {childCategories.map(child => (
-                  <MenuCategoryTreeNode key={child.id} cat={child} depth={depth + 1} />
-                ))}
-              </ul>
+            {hasChildren && (
+              <p className="mt-2 text-[10px] text-muted-foreground">
+                Section header — items live in sub-categories below.
+              </p>
             )}
-
-            <ul className="max-h-40 overflow-y-auto border-l-2 border-border ml-2 pl-3 space-y-0.5">
-              {(catalogQ.isLoading || servicesQ.isLoading || categoriesQ.isLoading) && (
-                <li className="py-1"><Loader2 className="h-3 w-3 animate-spin text-muted-foreground" /></li>
-              )}
-              {previewProducts.map(p => (
-                <li key={`p-${cat.id}-${p.id}`} className="flex items-center gap-1.5 py-0.5 text-[11px]">
-                  <span className="text-muted-foreground">└</span>
-                  <Package className="h-2.5 w-2.5 text-muted-foreground" />
-                  <span className="min-w-0 flex-1 truncate">{p.name}</span>
-                  <span className="shrink-0 text-muted-foreground">{formatCurrency(p.price)}</span>
-                </li>
-              ))}
-              {previewServices.map(s => (
-                <li key={`s-${cat.id}-${s.id}`} className="flex items-center gap-1.5 py-0.5 text-[11px]">
-                  <span className="text-muted-foreground">└</span>
-                  <Wrench className="h-2.5 w-2.5 text-muted-foreground" />
-                  <span className="min-w-0 flex-1 truncate">{s.name}</span>
-                  <span className="shrink-0 text-muted-foreground">{formatCurrency(s.price ?? 0)}</span>
-                </li>
-              ))}
-              {!catalogQ.isLoading && !servicesQ.isLoading && !categoriesQ.isLoading && previewCount === 0 && (
-                <li className="py-1 text-[10px] text-muted-foreground">
-                  {cat.mode === 'by_categories' ? 'No items in selected categories' : 'No items in this category'}
-                </li>
-              )}
-            </ul>
           </div>
         )}
-      </li>
+
+        {expanded && !hasChildren && itemPreview}
+
+        {hasChildren && expanded && (
+          <MenuTreeChildren className="mt-0.5">
+            {childCategories.map(child => (
+              <MenuCategoryTreeNode key={child.id} cat={child} depth={depth + 1} />
+            ))}
+          </MenuTreeChildren>
+        )}
+      </MenuTreeNode>
     )
   }
 
@@ -1047,6 +1398,7 @@ export default function RestaurantMenuPage() {
       <PageShell>
         {createMenuDialog}
         {createCategoryDialog}
+        {renameMenuDialog}
 
         <div className="flex flex-wrap items-center gap-2">
           <Button variant="ghost" size="sm" className="h-7 px-2 text-xs" onClick={closeMenuDetail}>
@@ -1054,122 +1406,201 @@ export default function RestaurantMenuPage() {
           </Button>
           <ChevronRight className="h-3 w-3 text-muted-foreground" />
           <span className="text-xs font-semibold text-foreground">{selectedMenu.name}</span>
+          {!selectedMenu.is_active && (
+            <span className="inline-flex items-center gap-0.5 rounded-full border border-border bg-muted px-1.5 py-0 text-[10px] text-muted-foreground">
+              <Power className="h-2.5 w-2.5" /> Inactive
+            </span>
+          )}
           <span className="inline-flex items-center gap-0.5 rounded-full border border-amber-200 bg-amber-50 px-1.5 py-0 text-[10px] text-amber-700">
             <Building2 className="h-2.5 w-2.5" /> {restaurantName(selectedMenu.restaurant_id)}
           </span>
           <span className="text-[10px] text-muted-foreground">
             {selectedMenu.categories.length} cat · {selectedMenu.zone_links.length} zones
           </span>
-          <Button
-            variant="ghost"
-            size="sm"
-            className="ml-auto h-7 px-2 text-[10px] text-destructive hover:text-destructive"
-            onClick={() => handleDeleteMenu(selectedMenu.id)}
-          >
-            <Trash2 className="h-3 w-3" /> Delete menu
-          </Button>
-        </div>
-
-        <Panel>
-          <div className="mb-2 flex flex-wrap items-center gap-1.5">
+          <div className="ml-auto flex flex-wrap items-center gap-1.5">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="h-7 gap-1 px-2 text-[10px]"
+              onClick={openRenameMenu}
+              disabled={busy}
+            >
+              <Pencil className="h-3 w-3" /> Rename
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="h-7 gap-1 px-2 text-[10px]"
+              onClick={handleToggleMenuActive}
+              disabled={busy}
+            >
+              <Power className="h-3 w-3" /> {selectedMenu.is_active ? 'Deactivate' : 'Activate'}
+            </Button>
             <Button size="sm" className="h-7 px-2 text-xs" onClick={() => openCreateCategory()}>
               <Plus className="h-3 w-3" /> Create menu category
             </Button>
-            {selectedMenu.categories.length > 0 && (
-              <DropBtn
-                label="Category order"
-                open={openDrop === 'order'}
-                onToggle={() => setOpenDrop(openDrop === 'order' ? null : 'order')}
-                className="ml-auto"
+            {guestUrlsEditing ? (
+              <>
+                <DropBtn
+                  label="Zones"
+                  count={selectedMenu.zone_links.length}
+                  open={openDrop === 'zones'}
+                  onToggle={() => setOpenDrop(openDrop === 'zones' ? null : 'zones')}
+                >
+                  {zonesQ.isLoading && <Loader2 className="mx-auto my-2 h-4 w-4 animate-spin" />}
+                  {!zonesQ.isLoading && restaurantZones.length === 0 && (
+                    <p className="px-2 py-2 text-[10px] text-muted-foreground">
+                      No zones. <Link to="/restaurant/setup" className="text-primary">Setup →</Link>
+                    </p>
+                  )}
+                  {restaurantZones.map(zone => {
+                    const assigned = selectedMenu.zone_links.some(l => l.zone_id === zone.id)
+                    return (
+                      <DropRow
+                        key={zone.id}
+                        checked={assigned}
+                        onChange={() => toggleMenuZone(zone.id)}
+                        icon={MapPin}
+                        title={zone.name}
+                        sub={zone.floor ?? undefined}
+                      />
+                    )
+                  })}
+                </DropBtn>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 px-2 text-[10px]"
+                  onClick={closeGuestUrlsEditing}
+                >
+                  Done
+                </Button>
+              </>
+            ) : (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="h-7 gap-1 px-2 text-[10px]"
+                onClick={() => setGuestUrlsEditing(true)}
               >
-                {flattenMenuCategoriesForOrder(selectedMenu.categories).map(({ cat, depth }) => {
-                  const parentId = cat.parent_id ?? null
-                  const siblings = selectedMenu.categories.filter(c => (c.parent_id ?? null) === parentId)
-                  const siblingIdx = siblings.findIndex(c => c.id === cat.id)
-                  return (
-                    <div key={cat.id} className="flex items-center gap-1 px-1 py-0.5 text-xs">
-                      <GripVertical className="h-3 w-3 text-muted-foreground" />
-                      <span className="flex-1 truncate" style={{ paddingLeft: `${depth * 10}px` }}>{cat.name}</span>
-                      <button type="button" disabled={siblingIdx === 0} onClick={() => moveMenuCategory(cat.id, -1)}
-                        className="rounded border px-1 text-[10px] disabled:opacity-30">↑</button>
-                      <button type="button" disabled={siblingIdx === siblings.length - 1}
-                        onClick={() => moveMenuCategory(cat.id, 1)}
-                        className="rounded border px-1 text-[10px] disabled:opacity-30">↓</button>
-                    </div>
-                  )
-                })}
-              </DropBtn>
+                <Pencil className="h-3 w-3" /> Edit zones
+              </Button>
             )}
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-7 px-2 text-[10px] text-destructive hover:text-destructive"
+              onClick={() => handleDeleteMenu(selectedMenu.id)}
+            >
+              <Trash2 className="h-3 w-3" /> Delete menu
+            </Button>
           </div>
+        </div>
 
-          {getRootMenuCategories(selectedMenu.categories).length === 0 ? (
-            <p className="py-3 text-center text-xs text-muted-foreground">
-              No categories yet — use Create menu category above
+        <Panel className="p-2">
+          {selectedMenu.zone_links.length === 0 ? (
+            <p className="text-[10px] text-muted-foreground">
+              <span className="mr-2 text-[9px] font-medium uppercase tracking-wide">Guest URLs</span>
+              {guestUrlsEditing ? 'No zones linked — pick zones in the toolbar' : 'No zones linked'}
             </p>
           ) : (
-            <ul className="rounded border border-border text-xs">
-              {getRootMenuCategories(selectedMenu.categories).map(cat => (
-                <MenuCategoryTreeNode key={cat.id} cat={cat} depth={0} />
-              ))}
-            </ul>
-          )}
-        </Panel>
-
-        <Panel>
-          <div className="mb-1.5 flex flex-wrap items-center gap-2">
-            <p className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">Guest URLs</p>
-            <DropBtn
-              label="Zones"
-              count={selectedMenu.zone_links.length}
-              open={openDrop === 'zones'}
-              onToggle={() => setOpenDrop(openDrop === 'zones' ? null : 'zones')}
-            >
-              {zonesQ.isLoading && <Loader2 className="mx-auto my-2 h-4 w-4 animate-spin" />}
-              {!zonesQ.isLoading && restaurantZones.length === 0 && (
-                <p className="px-2 py-2 text-[10px] text-muted-foreground">
-                  No zones. <Link to="/restaurant/setup" className="text-primary">Setup →</Link>
-                </p>
-              )}
-              {restaurantZones.map(zone => {
-                const assigned = selectedMenu.zone_links.some(l => l.zone_id === zone.id)
-                return (
-                  <DropRow
-                    key={zone.id}
-                    checked={assigned}
-                    onChange={() => toggleMenuZone(zone.id)}
-                    icon={MapPin}
-                    title={zone.name}
-                    sub={zone.floor ?? undefined}
-                  />
-                )
-              })}
-            </DropBtn>
-          </div>
-          {selectedMenu.zone_links.length === 0 ? (
-            <p className="py-2 text-center text-[10px] text-muted-foreground">No zones linked — use Zones above</p>
-          ) : (
-            <ul className="space-y-1.5 text-xs">
+            <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+              <span className="shrink-0 text-[9px] font-medium uppercase tracking-wide text-muted-foreground">
+                Guest URLs
+              </span>
+              <ul className="flex min-w-0 flex-1 flex-wrap gap-1.5">
               {selectedMenu.zone_links.map(link => {
                 const guestUrl = slug ? getMenuZoneGuestUrl(slug, link.link_token) : null
                 return (
-                  <li key={link.zone_id} className="rounded border border-border bg-muted/20 px-2 py-1.5">
-                    <div className="mb-1 flex items-center gap-1 font-medium">
-                      <MapPin className="h-3 w-3" /> {link.zone_name ?? 'Zone'}
+                  <li
+                    key={link.zone_id}
+                    className="inline-flex max-w-[11rem] min-w-[9rem] items-center gap-1 rounded-md border border-border/80 bg-muted/15 px-1.5 py-1"
+                  >
+                    <MapPin className="h-2.5 w-2.5 shrink-0 text-muted-foreground" />
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-[10px] font-medium leading-tight">{link.zone_name ?? 'Zone'}</p>
+                      {guestUrl && (
+                        <code
+                          className="block truncate font-mono text-[8px] leading-tight text-muted-foreground"
+                          title={guestUrl}
+                        >
+                          {guestUrl.replace(/^https?:\/\//, '')}
+                        </code>
+                      )}
                     </div>
                     {guestUrl && (
-                      <div className="flex flex-wrap items-center gap-1.5">
-                        <code className="max-w-[200px] truncate rounded bg-background px-1 py-0.5 font-mono text-[10px]">{guestUrl}</code>
-                        <button type="button" onClick={() => copyGuestUrl(guestUrl)} className="text-[10px] text-primary">
-                          <Copy className="inline h-3 w-3" /> Copy
+                      <div className="flex shrink-0 items-center gap-0.5">
+                        <button
+                          type="button"
+                          onClick={() => copyGuestUrl(guestUrl)}
+                          aria-label={`Copy URL for ${link.zone_name ?? 'zone'}`}
+                          title="Copy"
+                          className="rounded p-0.5 text-primary hover:bg-muted/80"
+                        >
+                          <Copy className="h-2.5 w-2.5" />
                         </button>
-                        <a href={guestUrl} target="_blank" rel="noopener noreferrer" className="text-[10px] text-primary">
-                          <ExternalLink className="inline h-3 w-3" /> Open
+                        <a
+                          href={guestUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          aria-label={`Open URL for ${link.zone_name ?? 'zone'}`}
+                          title="Open"
+                          className="rounded p-0.5 text-primary hover:bg-muted/80"
+                        >
+                          <ExternalLink className="h-2.5 w-2.5" />
                         </a>
                       </div>
                     )}
                   </li>
                 )
               })}
+              </ul>
+            </div>
+          )}
+        </Panel>
+
+        <Panel>
+          {selectedMenu.categories.length > 0 && (
+            <div className="mb-2 flex flex-wrap items-center gap-1.5">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="h-7 gap-1 px-2 text-[10px]"
+                onClick={toggleEditAllCategories}
+              >
+                <Pencil className="h-3 w-3" />
+                {editAllCategories ? 'Done editing' : 'Edit all categories'}
+              </Button>
+              <DropBtn
+                label="Category order"
+                open={openDrop === 'order'}
+                onToggle={() => setOpenDrop(openDrop === 'order' ? null : 'order')}
+                className="ml-auto"
+                menuAlign="right"
+                menuClassName="p-0"
+              >
+                <MenuCategoryOrderList
+                  categories={selectedMenu.categories}
+                  onMove={(categoryId, direction) => moveMenuCategory(categoryId, direction)}
+                />
+              </DropBtn>
+            </div>
+          )}
+
+          {getRootMenuCategories(selectedMenu.categories).length === 0 ? (
+            <p className="py-3 text-center text-xs text-muted-foreground">
+              No categories yet — use Create menu category in the header
+            </p>
+          ) : (
+            <ul className="space-y-0.5 py-1 text-xs">
+              {getRootMenuCategories(selectedMenu.categories).map(cat => (
+                <MenuCategoryTreeNode key={cat.id} cat={cat} depth={0} />
+              ))}
             </ul>
           )}
         </Panel>

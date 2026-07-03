@@ -1,72 +1,95 @@
-import { useState } from 'react'
-import { ArrowRight } from 'lucide-react'
-import { LANDING_APPS } from './landingData'
-import { ImagineToggle } from './ImagineToggle'
+import { useState, type CSSProperties } from 'react'
+import { LANDING_MODULES, type LandingApp, type LandingModule } from './landingData'
+import { ModulesOrbitPanel } from './ModulesOrbitPanel'
+
+function modulePanelStyle(module: LandingModule): CSSProperties {
+  return {
+    ['--module-accent' as string]: module.accent.accent,
+    ['--module-glow' as string]: module.accent.glow,
+    ['--module-panel-tint' as string]: module.accent.panelTint,
+    ['--module-icon-bg' as string]: module.accent.iconBg,
+  }
+}
+
+function AppTile({ app, accent }: { app: LandingApp; accent: string }) {
+  const Icon = app.icon
+  return (
+    <div className="kiterp-app-tile-static flex flex-col items-center text-center group w-[4.25rem]">
+      <div
+        className="kiterp-app-icon w-[3rem] h-[3rem] rounded-xl flex items-center justify-center p-1.5"
+        style={{
+          background: `linear-gradient(145deg, #ffffff 0%, color-mix(in srgb, ${accent} 8%, white) 100%)`,
+          border: `1px solid color-mix(in srgb, ${accent} 14%, #e4ece9)`,
+          boxShadow: `0 1px 4px color-mix(in srgb, ${accent} 8%, transparent)`,
+        }}
+      >
+        <Icon className="w-[1.125rem] h-[1.125rem]" style={{ color: accent }} strokeWidth={1.75} />
+      </div>
+      <p className="mt-1 text-[9px] leading-tight font-medium text-gray-600 px-0.5 line-clamp-2 group-hover:text-[#1e3d34] transition-colors">
+        {app.label}
+      </p>
+    </div>
+  )
+}
 
 export function AppsGridSection() {
-  const [showCompetitors, setShowCompetitors] = useState(false)
+  const [activeModuleId, setActiveModuleId] = useState(LANDING_MODULES[0]?.id ?? '')
+  const activeModule = LANDING_MODULES.find((m) => m.id === activeModuleId) ?? LANDING_MODULES[0]
+
+  if (!activeModule) return null
 
   return (
-    <section id="apps" className="py-14 sm:py-20 bg-[#eef9f4]">
-      <div className="max-w-6xl mx-auto px-4 sm:px-6">
-        <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-3 sm:gap-4">
-          {LANDING_APPS.map((app, i) => {
-            const Icon = app.icon
-            return (
-              <div
-                key={app.id}
-                className="kiterp-app-tile relative flex flex-col items-center text-center group"
-                style={{ animationDelay: `${Math.min(i * 35, 700)}ms` }}
-              >
-                {showCompetitors && app.competitor && (
-                  <span
-                    className="absolute -top-2 left-1/2 -translate-x-1/2 kiterp-hand-note text-sm whitespace-nowrap z-10 pointer-events-none"
-                    style={{ transform: 'translateX(-50%) rotate(-4deg)' }}
-                  >
-                    {app.competitor}
-                  </span>
-                )}
-                <div className="kiterp-app-icon w-full aspect-square max-w-[88px] mx-auto bg-white rounded-2xl shadow-sm border border-white flex items-center justify-center p-4">
-                  <Icon className="w-9 h-9 sm:w-10 sm:h-10" style={{ color: app.color }} strokeWidth={1.75} />
-                </div>
-                <p className="mt-2 text-[11px] sm:text-xs font-medium text-gray-600 leading-tight px-1">
-                  {app.label}
-                </p>
-              </div>
-            )
-          })}
+    <section id="apps" className="py-14 sm:py-20 scroll-mt-20">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6">
+        <div className="text-center mb-10 sm:mb-12">
+          <h2 className="font-kiterp-script text-4xl sm:text-5xl text-[#1e3d34]">
+            Everything your business needs, in one orbit
+          </h2>
+          <p className="mt-2 text-sm text-gray-500 font-[Manrope,sans-serif]">
+            Tap a module to preview its apps.
+          </p>
         </div>
 
-        <div className="mt-10 flex flex-col sm:flex-row items-center justify-between gap-6">
-          <ImagineToggle
-            on={showCompetitors}
-            onToggle={() => setShowCompetitors((v) => !v)}
+        <div className="kiterp-apps-layout">
+          <ModulesOrbitPanel
+            activeModuleId={activeModuleId}
+            onSelectModule={setActiveModuleId}
           />
 
-          <a
-            href="#pricing"
-            className="inline-flex items-center gap-1.5 text-sm font-semibold text-[#64C3A0] hover:gap-2.5 transition-all"
+          <div
+            key={activeModule.id}
+            className="kiterp-module-apps-panel p-3 sm:p-4 kiterp-module-apps-panel--themed"
+            style={modulePanelStyle(activeModule)}
           >
-            View all Apps <ArrowRight className="w-4 h-4" />
-          </a>
+            <div className="flex items-start gap-2.5 mb-3 pb-3 border-b kiterp-module-apps-panel-header">
+              <div
+                className="shrink-0 w-9 h-9 rounded-lg flex items-center justify-center text-white"
+                style={{ background: activeModule.accent.iconBg }}
+              >
+                <activeModule.icon className="w-[1.125rem] h-[1.125rem]" strokeWidth={1.75} />
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="flex items-baseline gap-2 flex-wrap">
+                  <h3 className="text-sm font-semibold text-[#1e3d34] leading-snug">{activeModule.title}</h3>
+                  <span className="text-[10px] font-semibold kiterp-module-apps-count">
+                    {activeModule.apps.length} apps
+                  </span>
+                </div>
+                <p className="text-[11px] text-gray-500 mt-0.5 leading-snug line-clamp-2">{activeModule.description}</p>
+              </div>
+            </div>
+
+            <div className="kiterp-module-apps-grid">
+              {activeModule.apps.map((app) => (
+                <AppTile key={app.id} app={app} accent={activeModule.accent.accent} />
+              ))}
+            </div>
+          </div>
         </div>
 
-        <div className="mt-14 max-w-3xl mx-auto text-center">
-          <p className="text-lg sm:text-xl text-gray-700 leading-relaxed">
-            <strong>Imagine a vast collection of business apps at your disposal.</strong>
-            <br className="hidden sm:block" />
-            {' '}Got something to improve? There is an app for that.
-            <br />
-            No complexity, no cost, just a one-click install.
-          </p>
-          <p className="mt-4 text-gray-500">
-            Each app simplifies a process and empowers more people.
-            Imagine the impact when everyone gets the right tool for the job.
-          </p>
-          <p className="mt-6 font-kiterp-script text-2xl text-[#1e3d34]/80 italic">
-            If you simplify everything, you can do anything!
-          </p>
-        </div>
+        <p className="mt-10 sm:mt-12 text-center font-kiterp-script text-2xl sm:text-3xl text-[#1e3d34] max-w-2xl mx-auto">
+          We simplify everything, so you can achieve anything
+        </p>
       </div>
     </section>
   )

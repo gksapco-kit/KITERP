@@ -1,8 +1,8 @@
 /* Platform landing — KITERP brand palette (#64C3A0) */
 
 .font-kiterp-script {
-  font-family: 'Caveat', 'Segoe Script', cursive;
-  font-weight: 600;
+  font-family: 'Kalam', 'Segoe Print', cursive;
+  font-weight: 400;
 }
 
 .font-kiterp-body {
@@ -106,12 +106,546 @@
 }
 
 .kiterp-app-tile {
-  animation: kiterp-app-pop 0.5s ease-out both;
+  animation: kiterp-app-pop 0.5s ease-out forwards;
 }
 
-.kiterp-app-tile:hover .kiterp-app-icon {
-  transform: translateY(-3px) scale(1.03);
-  box-shadow: 0 12px 28px rgba(100, 195, 160, 0.22);
+.kiterp-app-tile-static {
+  opacity: 1;
+}
+
+.kiterp-module-accordion {
+  opacity: 1;
+}
+
+.kiterp-module-list {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(100, 195, 160, 0.35) transparent;
+}
+
+.kiterp-module-apps-panel {
+  opacity: 1;
+}
+
+#apps {
+  --kiterp-apps-panel-border: rgba(100, 195, 160, 0.28);
+  --kiterp-apps-panel-radius: 1.25rem;
+  --kiterp-apps-panel-shadow:
+    0 4px 20px rgba(100, 195, 160, 0.1),
+    0 1px 3px rgba(24, 28, 37, 0.05);
+  background:
+    radial-gradient(ellipse 80% 50% at 10% 20%, rgba(200, 202, 244, 0.35) 0%, transparent 55%),
+    radial-gradient(ellipse 70% 45% at 90% 30%, rgba(248, 216, 152, 0.28) 0%, transparent 50%),
+    radial-gradient(ellipse 60% 40% at 50% 90%, rgba(184, 232, 220, 0.4) 0%, transparent 55%),
+    linear-gradient(180deg, #ffffff 0%, #f8fafb 45%, #eef9f4 100%);
+}
+
+.kiterp-module-apps-panel--themed {
+  border-radius: var(--kiterp-apps-panel-radius);
+  border: 1px solid color-mix(in srgb, var(--module-accent, #64c3a0) 32%, var(--kiterp-apps-panel-border));
+  background: linear-gradient(
+    165deg,
+    #ffffff 0%,
+    color-mix(in srgb, var(--module-panel-tint, rgba(100, 195, 160, 0.08)) 100%, white) 100%
+  );
+  box-shadow:
+    0 4px 20px color-mix(in srgb, var(--module-glow, rgba(100, 195, 160, 0.2)) 45%, transparent),
+    var(--kiterp-apps-panel-shadow);
+  animation: kiterp-panel-in 0.35s ease-out;
+}
+
+@keyframes kiterp-panel-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.kiterp-module-apps-panel-header {
+  border-color: color-mix(in srgb, var(--module-accent, #64c3a0) 14%, #e4ece9);
+}
+
+.kiterp-module-apps-count {
+  color: var(--module-accent, #64c3a0);
+}
+
+.kiterp-apps-toolbox-grid {
+  margin-top: 4rem;
+  display: grid;
+  gap: 1.25rem;
+  max-width: 58rem;
+  margin-inline: auto;
+}
+
+@media (min-width: 768px) {
+  .kiterp-apps-toolbox-grid {
+    margin-top: 5rem;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 1.5rem;
+    align-items: stretch;
+  }
+}
+
+.kiterp-apps-toolbox-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 0.625rem;
+  padding: 1.75rem 1.5rem 2rem;
+  border-radius: var(--kiterp-apps-panel-radius, 1.25rem);
+  border: 1px solid var(--kiterp-apps-panel-border, rgba(100, 195, 160, 0.28));
+  box-shadow: var(--kiterp-apps-panel-shadow);
+  overflow: hidden;
+  transition:
+    transform 0.25s ease,
+    box-shadow 0.25s ease,
+    border-color 0.25s ease;
+}
+
+.kiterp-apps-toolbox-card:hover {
+  transform: translateY(-3px);
+  border-color: color-mix(in srgb, var(--kiterp-primary) 42%, transparent);
+  box-shadow:
+    0 12px 32px color-mix(in srgb, var(--kiterp-primary) 14%, transparent),
+    0 4px 12px rgba(24, 28, 37, 0.06);
+}
+
+@media (min-width: 640px) {
+  .kiterp-apps-toolbox-card {
+    align-items: flex-start;
+    text-align: left;
+    padding: 2rem 1.75rem 2.25rem;
+    gap: 0.75rem;
+  }
+}
+
+.kiterp-apps-toolbox-card--intro {
+  background: linear-gradient(
+    155deg,
+    #ffffff 0%,
+    color-mix(in srgb, var(--kiterp-mint-bg) 92%, white) 100%
+  );
+}
+
+.kiterp-apps-toolbox-card--intro::before {
+  content: '';
+  position: absolute;
+  top: -2.5rem;
+  right: -2.5rem;
+  width: 8rem;
+  height: 8rem;
+  border-radius: 50%;
+  background: radial-gradient(
+    circle,
+    color-mix(in srgb, var(--kiterp-primary) 12%, transparent) 0%,
+    transparent 70%
+  );
+  pointer-events: none;
+}
+
+.kiterp-apps-toolbox-card--impact {
+  background: linear-gradient(
+    155deg,
+    color-mix(in srgb, var(--kiterp-mint-bg) 55%, white) 0%,
+    color-mix(in srgb, var(--kiterp-mint-soft) 65%, white) 100%
+  );
+}
+
+.kiterp-apps-toolbox-card--impact::before {
+  content: '';
+  position: absolute;
+  bottom: -3rem;
+  left: -2rem;
+  width: 9rem;
+  height: 9rem;
+  border-radius: 50%;
+  background: radial-gradient(
+    circle,
+    color-mix(in srgb, var(--kiterp-primary-deeper) 10%, transparent) 0%,
+    transparent 70%
+  );
+  pointer-events: none;
+}
+
+.kiterp-apps-toolbox-card-icon {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.75rem;
+  height: 2.75rem;
+  border-radius: 0.75rem;
+  flex-shrink: 0;
+}
+
+.kiterp-apps-toolbox-card-icon svg {
+  width: 1.25rem;
+  height: 1.25rem;
+}
+
+.kiterp-apps-toolbox-card-icon--intro {
+  color: var(--kiterp-primary-deeper);
+  background: linear-gradient(
+    145deg,
+    #ffffff 0%,
+    color-mix(in srgb, var(--kiterp-primary) 14%, white) 100%
+  );
+  border: 1px solid color-mix(in srgb, var(--kiterp-primary) 24%, #e4ece9);
+  box-shadow: 0 2px 8px color-mix(in srgb, var(--kiterp-primary) 10%, transparent);
+}
+
+.kiterp-apps-toolbox-card-icon--impact {
+  color: #ffffff;
+  background: linear-gradient(140deg, var(--kiterp-primary) 0%, var(--kiterp-primary-deeper) 100%);
+  border: 1px solid color-mix(in srgb, var(--kiterp-primary-deeper) 35%, transparent);
+  box-shadow: 0 3px 10px color-mix(in srgb, var(--kiterp-primary) 28%, transparent);
+}
+
+.kiterp-apps-toolbox-kicker {
+  position: relative;
+  z-index: 1;
+  margin: 0;
+  font-family: 'Inter', system-ui, sans-serif;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--kiterp-primary-deeper);
+}
+
+.kiterp-apps-toolbox-card-heading {
+  position: relative;
+  z-index: 1;
+  margin: 0;
+  font-family: 'Kalam', 'Segoe Print', cursive;
+  font-weight: 400;
+  font-size: clamp(1.625rem, 3.6vw, 2.125rem);
+  line-height: 1.15;
+  color: var(--kiterp-ink);
+  text-wrap: balance;
+}
+
+.kiterp-apps-toolbox-card-text {
+  position: relative;
+  z-index: 1;
+  margin: 0;
+  font-family: 'Inter', system-ui, sans-serif;
+  font-size: clamp(0.875rem, 1.8vw, 1rem);
+  line-height: 1.7;
+  color: #5a6560;
+  text-wrap: pretty;
+}
+
+.kiterp-apps-toolbox-card--impact .kiterp-apps-toolbox-card-text {
+  flex: 1;
+}
+
+.kiterp-apps-toolbox-card-tagline {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  margin: 0.5rem 0 0;
+  padding-top: 1.25rem;
+  border-top: 1px solid color-mix(in srgb, var(--kiterp-primary) 20%, #e4ece9);
+  font-family: 'Kalam', 'Segoe Print', cursive;
+  font-weight: 400;
+  font-size: clamp(1.375rem, 3vw, 1.625rem);
+  line-height: 1.2;
+  color: var(--kiterp-primary-deeper);
+  text-wrap: balance;
+}
+
+@media (min-width: 640px) {
+  .kiterp-apps-toolbox-card-tagline {
+    margin-top: auto;
+    padding-top: 1.5rem;
+  }
+}
+
+.kiterp-apps-layout {
+  display: grid;
+  gap: 1.25rem;
+  align-items: start;
+}
+
+@media (min-width: 1024px) {
+  .kiterp-apps-layout {
+    grid-template-columns: auto auto;
+    justify-content: center;
+    gap: 2rem;
+  }
+}
+
+.kiterp-module-apps-panel--themed {
+  width: 100%;
+  max-width: 21.5rem;
+}
+
+@media (min-width: 1024px) {
+  .kiterp-module-apps-panel--themed {
+    width: auto;
+    min-width: 11rem;
+    max-width: 21.5rem;
+  }
+}
+
+.kiterp-module-apps-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, 4.25rem);
+  gap: 0.5rem;
+  justify-content: start;
+}
+
+/* Orbital modules panel — left half */
+.kiterp-modules-orbit-wrap {
+  width: 100%;
+  min-width: 0;
+}
+
+.kiterp-modules-orbit {
+  position: relative;
+  width: min(100%, 480px);
+  height: min(100%, 480px);
+  aspect-ratio: 1;
+  margin-inline: auto;
+  border-radius: var(--kiterp-apps-panel-radius, 1.25rem);
+  overflow: visible;
+  /* label push distance — tuned per breakpoint so names stay inside the panel */
+  --orbit-label-dist: 2.75rem;
+}
+
+/* Decorative rounded backdrop kept as its own clipped layer. */
+.kiterp-orbit-bg {
+  position: absolute;
+  inset: 0;
+  border-radius: var(--kiterp-apps-panel-radius, 1.25rem);
+  border: 1px solid var(--kiterp-apps-panel-border, rgba(100, 195, 160, 0.28));
+  box-shadow: var(--kiterp-apps-panel-shadow, 0 4px 20px rgba(100, 195, 160, 0.1), 0 1px 3px rgba(24, 28, 37, 0.05));
+  background:
+    radial-gradient(circle at 18% 22%, rgba(200, 202, 244, 0.22) 0%, transparent 42%),
+    radial-gradient(circle at 82% 28%, rgba(248, 216, 152, 0.18) 0%, transparent 38%),
+    radial-gradient(circle at 50% 88%, rgba(184, 232, 220, 0.28) 0%, transparent 45%),
+    linear-gradient(165deg, #faf9f5 0%, #f3faf7 48%, #eef9f4 100%);
+  overflow: hidden;
+}
+
+.kiterp-orbit-rings {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+.kiterp-orbit-spoke {
+  stroke: rgba(100, 116, 139, 0.32);
+  stroke-width: 1;
+}
+
+.kiterp-orbit-core {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: 5.75rem;
+  height: 5.75rem;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #ffffff;
+  border: 2px solid #1f2937;
+  box-shadow: 0 8px 20px rgba(30, 41, 59, 0.12);
+  z-index: 2;
+}
+
+.kiterp-orbit-core-label {
+  position: relative;
+  z-index: 1;
+  margin: 0;
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: 0.9375rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: #2f2f2f;
+  white-space: nowrap;
+}
+
+.kiterp-orbit-node-wrap {
+  position: absolute;
+  width: 2.875rem;
+  height: 2.875rem;
+  transform: translate(-50%, -50%);
+}
+
+/* Circular icon "planet" node sitting on the ring — pastel fill, neutral icon. */
+.kiterp-orbit-node-btn {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.875rem;
+  height: 2.875rem;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--orbit-accent, #64c3a0) 26%, #ffffff 74%);
+  color: #3a4652;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(30, 41, 59, 0.08);
+  transition: transform 0.22s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.22s ease;
+  box-sizing: border-box;
+}
+
+.kiterp-orbit-node-icon {
+  width: 1.375rem;
+  height: 1.375rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.kiterp-orbit-node-btn:hover {
+  transform: scale(1.08);
+  box-shadow: 0 6px 16px rgba(30, 41, 59, 0.14);
+  z-index: 20;
+}
+
+.kiterp-orbit-node-btn:focus-visible {
+  outline: none;
+  box-shadow:
+    0 0 0 3px color-mix(in srgb, var(--orbit-accent, #64c3a0) 55%, transparent),
+    0 6px 16px rgba(30, 41, 59, 0.14);
+}
+
+.kiterp-orbit-node-btn--active {
+  transform: scale(1.14);
+  box-shadow:
+    0 0 0 6px color-mix(in srgb, var(--orbit-accent, #64c3a0) 22%, transparent),
+    0 0 22px color-mix(in srgb, var(--orbit-glow, rgba(100, 195, 160, 0.4)) 90%, transparent),
+    0 8px 18px rgba(30, 41, 59, 0.14);
+}
+
+/*
+ * Always-visible module name + count.
+ * Each label is pushed radially outward from the centre (using the node's
+ * cos/sin, set inline as --orbit-c / --orbit-s). Because labels sit on a
+ * larger circle than the icons, they fan apart and never overlap.
+ */
+.kiterp-orbit-node-label {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  /*
+   * Two additive offsets: (1) push the label out along the radial line to
+   * --orbit-label-dist, same as before, and (2) shift the label box by its
+   * own width/height so it clears the icon instead of straddling it — e.g.
+   * a node on the right (c near 1) gets its left edge at the anchor point
+   * so text grows rightward, away from the icon, never overlapping it.
+   */
+  transform: translate(
+    calc((-50% + (var(--orbit-c, 0) * 50%)) + (var(--orbit-c, 0) * var(--orbit-label-dist))),
+    calc((-50% + (var(--orbit-s, 0) * 50%)) + (var(--orbit-s, 0) * var(--orbit-label-dist)))
+  );
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.125rem;
+  width: max-content;
+  max-width: min(4.75rem, 28vw);
+  text-align: center;
+  pointer-events: none;
+  z-index: 6;
+}
+
+/* Side nodes: align text so it flows away from the icon rather than centering over it. */
+.kiterp-orbit-node-label--right {
+  align-items: flex-start;
+  text-align: left;
+}
+
+.kiterp-orbit-node-label--left {
+  align-items: flex-end;
+  text-align: right;
+}
+
+.kiterp-orbit-node-title {
+  font-family: Manrope, ui-sans-serif, system-ui, sans-serif;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  line-height: 1.15;
+  letter-spacing: -0.01em;
+  color: #1f2937;
+  overflow-wrap: break-word;
+}
+
+.kiterp-orbit-node-count {
+  font-family: Manrope, ui-sans-serif, system-ui, sans-serif;
+  font-size: 0.5625rem;
+  font-weight: 500;
+  line-height: 1;
+  color: #6b7280;
+  white-space: nowrap;
+}
+
+@media (min-width: 480px) {
+  .kiterp-modules-orbit {
+    width: 480px;
+    height: 480px;
+    --orbit-label-dist: 3.15rem;
+  }
+
+  .kiterp-orbit-node-label {
+    max-width: 5rem;
+  }
+
+  .kiterp-orbit-node-title {
+    font-size: 0.75rem;
+  }
+
+  .kiterp-orbit-node-count {
+    font-size: 0.625rem;
+  }
+}
+
+@media (min-width: 640px) {
+  .kiterp-modules-orbit {
+    --orbit-label-dist: 3.35rem;
+  }
+
+  .kiterp-orbit-node-label {
+    max-width: 5.25rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .kiterp-orbit-node-btn {
+    transition: none;
+  }
+
+  .kiterp-orbit-node-btn:hover {
+    transform: none;
+  }
+
+  .kiterp-orbit-node-btn--active {
+    transform: none;
+  }
+
+  .kiterp-module-apps-panel--themed {
+    animation: none;
+  }
+}
+
+.kiterp-app-tile:hover .kiterp-app-icon,
+.kiterp-app-tile-static:hover .kiterp-app-icon {
+  transform: translateY(-3px) scale(1.04);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .kiterp-app-tile {
+    animation: none;
+    opacity: 1;
+  }
 }
 
 .kiterp-app-icon {
@@ -119,118 +653,148 @@
 }
 
 .kiterp-hand-note {
-  font-family: 'Caveat', cursive;
+  font-family: 'Kalam', cursive;
+  font-weight: 400;
   color: var(--kiterp-primary-deeper);
   font-size: 1.35rem;
   line-height: 1.1;
 }
 
-/* Toggle with corner highlight + form-switch */
-.kiterp-imagine-toggle {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.75rem;
-  padding-left: 0.75rem;
-  border: none;
-  background: transparent;
-  cursor: pointer;
-  text-align: left;
+.kiterp-hand-note--cta-subline {
+  font-size: 1.05rem;
+  line-height: 1.2;
 }
 
-.kiterp-imagine-toggle-label {
-  font-size: 0.875rem;
-  font-weight: 700;
-  color: var(--kiterp-primary-deeper);
-  transition: color 0.2s ease;
-}
-
-.kiterp-imagine-toggle:hover .kiterp-imagine-toggle-label {
-  color: #3d9a7a;
-}
-
-.kiterp-toggle-wrap {
-  position: relative;
-  display: inline-block;
-  flex-shrink: 0;
-}
-
-/* Corner sparkle */
-.kiterp-corner-highlight::after {
-  content: '';
-  position: absolute;
-  top: -40px;
-  left: -30px;
-  width: 60px;
-  height: 60px;
-  background-image: url('/landing/corner-sparkle.svg');
-  background-position: center;
-  background-repeat: no-repeat;
-  background-size: contain;
-  pointer-events: none;
-}
-
-.kiterp-toggle-track {
-  display: inline-block;
-  width: 3rem;
-  height: 1.5rem;
-  border-radius: 9999px;
-  background: #d4ddd8;
-  position: relative;
-  transition: background 0.25s ease;
-}
-
-.kiterp-toggle-track[data-on='true'] {
-  background: var(--kiterp-primary-deeper);
-}
-
-.kiterp-toggle-thumb {
-  position: absolute;
-  top: 50%;
-  left: 2px;
-  width: 1.25rem;
-  height: 1.25rem;
-  border-radius: 50%;
-  background: #fff;
-  transform: translateY(-50%);
-  transition: transform 0.28s cubic-bezier(0.4, 0, 0.2, 1);
-  box-shadow: 0 1px 3px rgba(30, 61, 52, 0.2);
-}
-
-.kiterp-toggle-track[data-on='true'] .kiterp-toggle-thumb {
-  transform: translate(1.5rem, -50%);
-}
-
-@media (max-width: 575.98px) {
-  .kiterp-corner-highlight::after {
-    display: none;
-  }
+/* Community mosaic — vendor-web multi-color palette (scoped to #community) */
+#community {
+  --mosaic-ink: #181c25;
+  --mosaic-subline: #637083;
+  --mosaic-headline-accent: #64c3a0;
+  --mosaic-brand: #64c3a0;
+  --mosaic-highlight-glow: rgba(100, 195, 160, 0.24);
+  --mosaic-scribble: #7ecbb0;
+  background:
+    radial-gradient(ellipse 90% 60% at 15% 10%, rgba(200, 202, 244, 0.25) 0%, transparent 50%),
+    radial-gradient(ellipse 80% 55% at 85% 15%, rgba(248, 216, 152, 0.22) 0%, transparent 48%),
+    radial-gradient(ellipse 70% 50% at 50% 100%, rgba(184, 232, 220, 0.3) 0%, transparent 52%),
+    linear-gradient(180deg, #ffffff 0%, #f8fafb 42%, #eef9f4 55%, #ffffff 100%);
 }
 
 .kiterp-mosaic-shape {
   overflow: hidden;
-  background: #7ec4a8;
-  animation: mosaic-morph-a 20s ease-in-out infinite;
+  background: var(--mosaic-tile-bg, #e7f3ef);
+  border-radius: 1.35rem;
+  box-shadow:
+    0 2px 10px rgba(24, 28, 37, 0.04),
+    0 1px 3px rgba(24, 28, 37, 0.025);
+  animation: mosaic-morph-a 28s cubic-bezier(0.45, 0.05, 0.55, 0.95) infinite;
   animation-delay: var(--mosaic-morph-delay, 0s);
   will-change: border-radius;
+  transition: box-shadow 0.5s ease, filter 0.5s ease;
+}
+
+.kiterp-mosaic-shape--soft {
+  opacity: 0.94;
+  box-shadow:
+    0 3px 12px rgba(24, 28, 37, 0.05),
+    0 1px 3px rgba(24, 28, 37, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.55);
+}
+
+.kiterp-mosaic-shape--avatar {
+  opacity: 0.96;
+  box-shadow:
+    0 4px 14px rgba(24, 28, 37, 0.06),
+    0 1px 4px rgba(24, 28, 37, 0.035);
+  border: 1px solid rgba(255, 255, 255, 0.45);
+}
+
+/* Decorative filler tiles when no live vendor is mapped to this cell. */
+.kiterp-mosaic-shape--placeholder {
+  opacity: 0.72;
+  cursor: default;
+  filter: saturate(0.85);
+}
+
+/* Subtle brand mint accent — only on 5 fixed tiles */
+.kiterp-mosaic-shape--brand {
+  border-color: rgba(100, 195, 160, 0.38);
+  box-shadow:
+    0 4px 16px rgba(100, 195, 160, 0.18),
+    0 1px 4px rgba(24, 28, 37, 0.04);
+}
+
+/* Clickable live storefront tiles */
+.kiterp-mosaic-store {
+  position: relative;
+  z-index: 1;
+  cursor: pointer;
+  text-decoration: none;
+  color: inherit;
+  transition: transform 0.25s ease, box-shadow 0.25s ease, filter 0.25s ease;
+}
+
+.kiterp-mosaic-store:hover {
+  transform: scale(1.06);
+  filter: saturate(1.02);
+  box-shadow:
+    0 6px 20px rgba(100, 195, 160, 0.22),
+    0 2px 6px rgba(24, 28, 37, 0.06);
+  border-color: rgba(100, 195, 160, 0.32);
+}
+
+.kiterp-mosaic-store:focus-visible {
+  outline: 2px solid #64c3a0;
+  outline-offset: 2px;
+}
+
+.kiterp-mosaic-store-logo {
+  width: 44%;
+  height: 44%;
+  max-width: 2.25rem;
+  max-height: 2.25rem;
+  object-fit: contain;
+  border-radius: 0.25rem;
+  transition: opacity 0.45s ease;
+}
+
+@media (min-width: 640px) {
+  .kiterp-mosaic-store-logo {
+    max-width: 2.75rem;
+    max-height: 2.75rem;
+  }
+}
+
+.kiterp-mosaic-store-initials {
+  font-size: 0.875rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  color: #3d7a62;
+}
+
+@media (min-width: 640px) {
+  .kiterp-mosaic-store-initials {
+    font-size: 1rem;
+  }
 }
 
 .kiterp-morph-v0 { animation-name: mosaic-morph-a; }
 .kiterp-morph-v1 { animation-name: mosaic-morph-b; }
 .kiterp-morph-v2 { animation-name: mosaic-morph-c; }
 
-/* Tiles pop in one by one, then a single highlight travels through them. */
+/* Tiles pop in one by one, then a gentle highlight travels through them. */
 .kiterp-mosaic-cell {
   opacity: 0;
-  transform: scale(0.6);
+  transform: scale(0.72);
   animation:
-    mosaic-pop 0.85s cubic-bezier(0.16, 1, 0.3, 1) forwards,
-    mosaic-highlight var(--mosaic-cycle, 14.85s) ease-in-out infinite;
+    mosaic-pop 1s cubic-bezier(0.22, 1, 0.36, 1) forwards,
+    mosaic-highlight var(--mosaic-cycle, 14.85s) cubic-bezier(0.45, 0.05, 0.55, 0.95) infinite;
   animation-delay: var(--mosaic-delay, 0s), calc(var(--mosaic-hl, 0s) + 1s);
   will-change: transform, opacity, filter;
 }
 
 @keyframes mosaic-pop {
-  0% { opacity: 0; transform: scale(0.6) translateY(8px); }
+  0% { opacity: 0; transform: scale(0.72) translateY(6px); }
   100% { opacity: 1; transform: scale(1) translateY(0); }
 }
 
@@ -276,17 +840,17 @@
   90% { border-radius: 30% 60% 70% 40% / 50% 60% 30% 60%; }
 }
 
-/* Gentle spotlight — keep tiles fully visible on white background. */
+/* Gentle spotlight — barely-there lift. */
 @keyframes mosaic-highlight {
-  0%, 20%, 100% {
+  0%, 24%, 100% {
     opacity: 1;
-    transform: scale(0.98);
-    filter: saturate(0.92);
+    transform: scale(1);
+    filter: saturate(0.94);
   }
-  8%, 14% {
+  10%, 16% {
     opacity: 1;
-    transform: scale(1.08);
-    filter: saturate(1.12) drop-shadow(0 6px 16px rgba(100, 195, 160, 0.45));
+    transform: scale(1.025);
+    filter: saturate(1) drop-shadow(0 4px 14px var(--mosaic-hl-glow, var(--mosaic-highlight-glow, rgba(100, 195, 160, 0.2))));
   }
 }
 
@@ -304,13 +868,13 @@
 
 /* Fade the mosaic out in the center so the headline sits in clear space. */
 .kiterp-mosaic-fullmask {
-  -webkit-mask-image: radial-gradient(ellipse 48% 72% at 50% 50%, transparent 0%, transparent 22%, #000 62%);
-  mask-image: radial-gradient(ellipse 48% 72% at 50% 50%, transparent 0%, transparent 22%, #000 62%);
+  -webkit-mask-image: radial-gradient(ellipse 50% 74% at 50% 50%, transparent 0%, transparent 20%, #000 64%);
+  mask-image: radial-gradient(ellipse 50% 74% at 50% 50%, transparent 0%, transparent 20%, #000 64%);
 }
 
 .kiterp-mosaic-fullmask-sm {
-  -webkit-mask-image: radial-gradient(ellipse 64% 58% at 50% 50%, transparent 0%, transparent 24%, #000 58%);
-  mask-image: radial-gradient(ellipse 64% 58% at 50% 50%, transparent 0%, transparent 24%, #000 58%);
+  -webkit-mask-image: radial-gradient(ellipse 66% 60% at 50% 50%, transparent 0%, transparent 22%, #000 60%);
+  mask-image: radial-gradient(ellipse 66% 60% at 50% 50%, transparent 0%, transparent 22%, #000 60%);
 }
 
 .kiterp-mosaic-shape.leaf-tl {
@@ -334,7 +898,7 @@
 }
 
 .kiterp-mosaic-shape.rounded {
-  border-radius: 1.25rem;
+  border-radius: 1.35rem;
 }
 
 .kiterp-mosaic-shape.blob {
@@ -349,12 +913,75 @@
   border-radius: 35% 65% 65% 35% / 55% 45% 55% 45%;
 }
 
-.kiterp-mosaic-shape.plum {
-  background: var(--kiterp-primary);
+#community .kiterp-scribble-arrow {
+  stroke: var(--mosaic-scribble, #7ecbb0);
+  stroke-width: 1.5;
+  opacity: 0.55;
 }
 
-.kiterp-mosaic-shape.gray {
-  background: #94cbb3;
+.kiterp-mosaic-headline-wrap {
+  position: relative;
+  z-index: 1;
+  pointer-events: auto;
+  width: min(100%, 26rem);
+  padding: 0.65rem 1rem 0.7rem;
+  border-radius: 1rem;
+  border: 1px solid rgba(255, 255, 255, 0.65);
+  background: rgba(255, 255, 255, 0.78);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  box-shadow:
+    0 8px 32px rgba(24, 28, 37, 0.06),
+    0 1px 0 rgba(255, 255, 255, 0.8) inset;
+}
+
+@media (min-width: 640px) {
+  .kiterp-mosaic-headline-wrap {
+    width: min(100%, 28rem);
+    padding: 0.7rem 1.15rem 0.75rem;
+  }
+}
+
+.kiterp-mosaic-search {
+  pointer-events: auto;
+}
+
+/* Block storefront links under the center headline (tiles still show through mask). */
+.kiterp-mosaic-center-shield {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: min(72%, 28rem);
+  height: min(68%, 11rem);
+  pointer-events: auto;
+  cursor: default;
+}
+
+#community .kiterp-mosaic-headline {
+  color: var(--mosaic-ink, #181c25);
+}
+
+#community .kiterp-mosaic-headline-accent {
+  color: var(--mosaic-headline-accent, #64c3a0);
+}
+
+#community .kiterp-mosaic-subline {
+  color: var(--mosaic-subline, #637083);
+}
+
+#community .kiterp-mosaic-brand {
+  color: var(--mosaic-brand, #64c3a0);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+#community .kiterp-mosaic-hint {
+  color: #52a088;
+}
+
+#community .kiterp-mosaic-hint--error {
+  color: #b45309;
 }
 
 .kiterp-curve-bg {

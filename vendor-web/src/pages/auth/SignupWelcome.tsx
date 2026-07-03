@@ -39,7 +39,7 @@ const LAUNCH_STEPS: LaunchStep[] = [
   },
   {
     id: 'website-builder',
-    label: 'Website builder',
+    label: 'Business Website Builder',
     description: 'Design pages and publish your public store.',
     nextHref: '/websites',
   },

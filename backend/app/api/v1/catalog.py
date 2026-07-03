@@ -138,6 +138,7 @@ async def list_storefront_vendors(
                 "slug": v.slug,
                 "display_name": v.display_name or v.business_name,
                 "business_name": v.business_name,
+                "logo_url": v.logo_url,
             }
             for v in items
         ],

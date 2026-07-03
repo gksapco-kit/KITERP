@@ -29,7 +29,7 @@ export const PERMISSION_MODULE_LABELS: Record<string, string> = {
   restaurant: 'Restaurant',
   commission: 'Commission',
   reports: 'Reports',
-  websites: 'Website Builder',
+  websites: 'Business Website Builder',
   settings: 'Settings',
   team: 'Staff Access Control',
   roles: 'Roles',

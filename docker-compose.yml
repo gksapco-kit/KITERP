@@ -81,6 +81,10 @@ services:
       - CELERY_BROKER_URL=redis://redis:6379/1
       - CELERY_RESULT_BACKEND=redis://redis:6379/2
       - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      # Docker Desktop (Windows/Mac): bind-mount file events don't reach inotify inside the container.
+      # Force polling so uvicorn --reload picks up Python edits without restarting the container.
+      - WATCHFILES_FORCE_POLLING=true
+      - WATCHFILES_POLL_DELAY_MS=1000
     volumes:
       - ./backend:/app
       - backend_uploads:/app/uploads
@@ -89,6 +93,8 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+    healthcheck:
+      start_period: 120s
 
   # ---- CRM background workers (Celery) ----
 
@@ -98,7 +104,12 @@ services:
       target: development
     container_name: kiterp-crm-worker
     restart: unless-stopped
-    command: celery -A app.worker.celery_app worker --loglevel=info -Q crm,default
+    command:
+      - watchfiles
+      - --filter
+      - python
+      - celery -A app.worker.celery_app worker --loglevel=info -Q crm,default
+      - /app
     environment:
       - DATABASE_URL=postgresql+asyncpg://postgres:postgres@postgres:5432/kiterp
       - REDIS_URL=redis://redis:6379
@@ -107,8 +118,12 @@ services:
       - JWT_SECRET_KEY=${JWT_SECRET_KEY:-your-secret-key-change-in-production}
       - CRM_ENCRYPTION_KEY=${CRM_ENCRYPTION_KEY:-}
       - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - WATCHFILES_FORCE_POLLING=true
+      - WATCHFILES_POLL_DELAY_MS=1000
     volumes:
       - ./backend:/app
+    healthcheck:
+      disable: true
     depends_on:
       postgres:
         condition: service_healthy
@@ -121,7 +136,12 @@ services:
       target: development
     container_name: kiterp-crm-beat
     restart: unless-stopped
-    command: celery -A app.worker.celery_app beat --loglevel=info
+    command:
+      - watchfiles
+      - --filter
+      - python
+      - celery -A app.worker.celery_app beat --loglevel=info
+      - /app
     environment:
       - DATABASE_URL=postgresql+asyncpg://postgres:postgres@postgres:5432/kiterp
       - REDIS_URL=redis://redis:6379
@@ -129,8 +149,12 @@ services:
       - CELERY_RESULT_BACKEND=redis://redis:6379/2
       - JWT_SECRET_KEY=${JWT_SECRET_KEY:-your-secret-key-change-in-production}
       - CRM_ENCRYPTION_KEY=${CRM_ENCRYPTION_KEY:-}
+      - WATCHFILES_FORCE_POLLING=true
+      - WATCHFILES_POLL_DELAY_MS=1000
     volumes:
       - ./backend:/app
+    healthcheck:
+      disable: true
     depends_on:
       - redis
 
@@ -149,6 +173,8 @@ services:
       - BACKEND_PROXY_TARGET=http://backend:8000
       - VITE_API_URL=http://localhost:8000/api/v1
       - VITE_BASE_DOMAIN=kiterp.com
+      # Bind-mount file events are unreliable on Docker Desktop (Windows); poll so Vite picks up edits.
+      - VITE_WATCH_POLLING=1
     volumes:
       - ./frontend:/app
       - /app/node_modules

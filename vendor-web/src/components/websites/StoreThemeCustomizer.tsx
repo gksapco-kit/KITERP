@@ -124,7 +124,7 @@ export function StoreThemeCustomizer({ embedded = false }: { embedded?: boolean 
             <p className="text-sm text-gray-600 mt-1 max-w-2xl">
               Colors, fonts, header, and homepage sections for the classic business front.
               {activeFront.kind === 'website_builder'
-                ? ' Your published Website Builder site controls the home page; these settings still apply to catalog pages.'
+                ? ' Your published Business Website Builder site controls the home page; these settings still apply to catalog pages.'
                 : ' Pick the default layout above, then fine-tune here.'}
             </p>
             <p className="text-sm mt-2">

@@ -481,7 +481,7 @@ function LiveChatToggle() {
           </Badge>
         </div>
         <p className="mt-1 text-xs text-muted-foreground leading-relaxed">
-          When on, a live chat button appears on your website (Website Management → Website Templates).
+          When on, a live chat button appears on your website (Website Management → Business Website Templates).
           Turn it off to hide the widget from visitors.
         </p>
       </div>

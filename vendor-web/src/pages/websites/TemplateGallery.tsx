@@ -100,7 +100,7 @@ const TEMPLATE_GRID_CLASS = 'grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-
 
 const formatCategoryLabel = (cat: string) => {
   if (cat === 'all') return 'All'
-  if (cat === 'website_builder') return 'Website Builder'
+  if (cat === 'website_builder') return 'Business Website Builder'
   return cat.charAt(0).toUpperCase() + cat.slice(1)
 }
 
@@ -1522,8 +1522,8 @@ export default function WebsiteTemplateGalleryPage() {
       void queryClient.invalidateQueries({ queryKey: vendorKeys.me() })
       toast.success(
         vars.storeIds.length > 1
-          ? `Website Builder site linked to ${vars.storeIds.length} business units`
-          : 'Website Builder site linked to business unit',
+          ? `Business Website Builder site linked to ${vars.storeIds.length} business units`
+          : 'Business Website Builder site linked to business unit',
       )
       setAssignBuilderSite(null)
       setSearchParams(prev => {
@@ -2716,7 +2716,7 @@ export default function WebsiteTemplateGalleryPage() {
             </span>
             <div className="min-w-0">
               <h1 className="text-lg font-extrabold tracking-tight text-gray-900">
-                Website Templates
+                Business Website Templates
               </h1>
               <p className="text-xs text-gray-600 sm:text-sm">
                 {stores.length === 0
@@ -2764,7 +2764,7 @@ export default function WebsiteTemplateGalleryPage() {
               className="inline-flex shrink-0 items-center justify-center gap-1 rounded-lg border border-primary/30 bg-white px-2.5 py-1.5 text-xs font-semibold text-primary transition-colors hover:bg-primary/5 sm:text-sm"
             >
               <Globe className="h-3.5 w-3.5" />
-              Website Builder
+              Business Website Builder
               <ChevronRight className="h-3.5 w-3.5 opacity-60" />
             </Link>
             <div className="relative min-w-0 flex-1">

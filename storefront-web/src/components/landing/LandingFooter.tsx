@@ -28,7 +28,6 @@ export function LandingFooter() {
             <p className="text-white text-sm font-semibold mb-3">Platform</p>
             <ul className="space-y-2 text-sm">
               <li><a href="#apps" className="hover:text-white transition-colors">Apps</a></li>
-              <li><a href="#stores" className="hover:text-white transition-colors">Store directory</a></li>
               <li><a href="#pricing" className="hover:text-white transition-colors">Pricing</a></li>
             </ul>
           </div>

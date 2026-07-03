@@ -6,7 +6,7 @@ test.describe('Store theme presets (light)', () => {
   }) => {
     await page.goto('/websites/templates');
 
-    await expect(page.getByRole('heading', { name: /Website Templates/i })).toBeVisible({ timeout: 15000 });
+    await expect(page.getByRole('heading', { name: /Business Website Templates/i })).toBeVisible({ timeout: 15000 });
     await expect(page.getByText('Light', { exact: true })).toBeVisible();
     await expect(page.getByText('Dark', { exact: true })).toHaveCount(0);
 

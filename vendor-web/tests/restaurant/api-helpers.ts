@@ -183,3 +183,56 @@ export async function resetTableForScenario(
     data: { status: 'free' },
   });
 }
+
+export async function ensureRestaurant(
+  request: APIRequestContext,
+  auth: ApiAuth,
+): Promise<{ id: string; name: string }> {
+  const list = await request.get(`${API_BASE}/vendors/me/restaurants`, { headers: auth.headers });
+  if (!list.ok()) throw new Error(`List restaurants failed: ${await list.text()}`);
+  const items = (await list.json()).items || [];
+  const existing = items.find((r: { is_default?: boolean }) => r.is_default) || items[0];
+  if (existing) return { id: existing.id, name: existing.name };
+
+  const stores = await request.get(`${API_BASE}/vendors/me/stores`, { headers: auth.headers });
+  if (!stores.ok()) throw new Error(`List stores failed: ${await stores.text()}`);
+  const storeItems = (await stores.json()).items || [];
+  const store = storeItems[0];
+  if (!store) throw new Error('No business unit store found for restaurant setup');
+
+  const created = await request.post(`${API_BASE}/vendors/me/restaurants`, {
+    headers: auth.headers,
+    data: { store_id: store.id, name: 'Main Restaurant', is_default: true, is_active: true },
+  });
+  if (!created.ok()) throw new Error(`Create restaurant failed: ${await created.text()}`);
+  const body = await created.json();
+  return { id: body.id, name: body.name };
+}
+
+export async function ensureRestaurantZoneForOutlet(
+  request: APIRequestContext,
+  auth: ApiAuth,
+  restaurantId: string,
+  zoneName = 'Indoor',
+): Promise<{ zoneId: string; zoneName: string }> {
+  const zonesRes = await request.get(`${API_BASE}/vendors/me/restaurant/zones`, {
+    headers: auth.headers,
+    params: { restaurant_id: restaurantId },
+  });
+  if (!zonesRes.ok()) throw new Error(`List zones failed: ${await zonesRes.text()}`);
+  const zones = (await zonesRes.json()).items || [];
+  const existing = zones.find((z: { name: string }) => z.name === zoneName);
+  if (existing) return { zoneId: existing.id, zoneName: existing.name };
+
+  const created = await request.post(`${API_BASE}/vendors/me/restaurant/zones`, {
+    headers: auth.headers,
+    data: { name: zoneName, restaurant_id: restaurantId, sort_order: 0 },
+  });
+  if (!created.ok()) throw new Error(`Create zone failed: ${await created.text()}`);
+  const body = await created.json();
+  return { zoneId: body.id, zoneName: body.name };
+}
+
+export async function deleteMenuById(request: APIRequestContext, auth: ApiAuth, menuId: string) {
+  await request.delete(`${API_BASE}/vendors/me/restaurant/menus/${menuId}`, { headers: auth.headers });
+}

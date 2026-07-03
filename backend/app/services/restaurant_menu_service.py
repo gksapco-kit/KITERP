@@ -228,6 +228,22 @@ class RestaurantMenuService:
         )
         return r.scalar_one_or_none()
 
+    async def resolve_menu_for_zone(self, vendor_id: UUID, zone_id: UUID) -> Optional[RestaurantMenu]:
+        """Return the active named menu linked to a zone, if any."""
+        r = await self.db.execute(
+            select(RestaurantMenuZoneLink)
+            .join(RestaurantMenu, RestaurantMenuZoneLink.menu_id == RestaurantMenu.id)
+            .options(selectinload(RestaurantMenuZoneLink.menu).selectinload(RestaurantMenu.categories))
+            .where(
+                RestaurantMenuZoneLink.vendor_id == vendor_id,
+                RestaurantMenuZoneLink.zone_id == zone_id,
+                RestaurantMenu.is_active == True,  # noqa: E712
+            )
+            .order_by(RestaurantMenu.sort_order, RestaurantMenu.name)
+        )
+        link = r.scalars().first()
+        return link.menu if link else None
+
     # ── Item resolution (per-category, for guest / preview rendering) ─
 
     async def _resolve_by_categories(

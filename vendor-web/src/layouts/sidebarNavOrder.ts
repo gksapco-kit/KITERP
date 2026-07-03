@@ -13,6 +13,7 @@ export const NAV_PINNED_SECTION_HOME: Record<string, string> = {
   '/websites/seo': 'website-management',
   '/websites/templates': 'website-management',
   '/system/storefront-display': 'website-management',
+  '/system/social-links': 'website-management',
   '/blog': 'website-management',
   '/system/messages': 'system',
   '/crm/integrations': 'system',
@@ -21,10 +22,11 @@ export const NAV_PINNED_SECTION_HOME: Record<string, string> = {
 /** When pinning, insert after this sibling route when it exists in that section. */
 const NAV_PINNED_INSERT_AFTER: Record<string, string> = {
   '/websites': '/business-front',
-  '/websites/seo': '/websites',
-  '/websites/templates': '/websites/seo',
+  '/websites/templates': '/websites',
   '/system/storefront-display': '/websites/templates',
-  '/blog': '/system/storefront-display',
+  '/system/social-links': '/system/storefront-display',
+  '/blog': '/system/social-links',
+  '/websites/seo': '/blog',
   '/system/messages': '/crm/integrations',
   '/crm/integrations': '/system/modules',
 }
@@ -233,10 +235,11 @@ export function reconcileNavPlacements(
   const websiteManagementOrder = [
     '/business-front',
     '/websites',
-    '/websites/seo',
     '/websites/templates',
     '/system/storefront-display',
+    '/system/social-links',
     '/blog',
+    '/websites/seo',
   ]
   const websiteManagementRoutes = websiteManagementOrder.filter((to) => validTos.has(to))
   if (websiteManagementRoutes.length && out['website-management']) {
@@ -343,7 +346,6 @@ export function reconcileNavPlacements(
 
   // System Configuration routes keep canonical order (Create Messages before Database group).
   const systemConfigurationOrder = [
-    '/system/social-links',
     '/document-templates',
     '/system/modules',
     '/crm/integrations',

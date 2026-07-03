@@ -1271,7 +1271,7 @@ function RenameSiteModal({
         <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
           <div>
             <h2 className="text-base font-bold text-gray-900">Rename website</h2>
-            <p className="text-xs text-gray-500 mt-0.5">Change how this site appears in Website Builder.</p>
+            <p className="text-xs text-gray-500 mt-0.5">Change how this site appears in Business Website Builder.</p>
           </div>
           <button type="button" aria-label="Close" onClick={onClose} className="p-1.5 rounded-lg text-gray-400 hover:bg-gray-100">
             <X className="w-4 h-4" />
@@ -1704,7 +1704,7 @@ function SiteCard({
       if (finalName !== name.trim()) {
         toast.success(`Name already in use â€” saved as "${finalName}"`)
       } else {
-        toast.success(`"${finalName}" saved â€” find it in Website Builder`)
+        toast.success(`"${finalName}" saved â€” find it in Business Website Builder`)
       }
       setSaveAsOpen(false)
     } catch {
@@ -2099,7 +2099,7 @@ export default function WebsitesPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-            <Globe className="w-6 h-6 text-primary" /> Website Builder
+            <Globe className="w-6 h-6 text-primary" /> Business Website Builder
           </h1>
           <p className="text-gray-500 text-sm mt-1">
             Create your store website in minutes â€” pick a style, edit text and photos, then publish

@@ -90,7 +90,7 @@ export const KITERP_DEMO_SCENES: DemoScene[] = [
   },
   {
     id: 'website',
-    navLabel: 'Website Builder',
+    navLabel: 'Business Website Builder',
     navIcon: Globe,
     title: 'Launch your storefront',
     subtitle: 'Drag blocks, connect live data, and publish instantly.',

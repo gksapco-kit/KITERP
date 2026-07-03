@@ -310,7 +310,7 @@ export default function StorefrontBrowserPreviewShell() {
         <AlertTriangle className="w-10 h-10 text-amber-400 mb-4" />
         <h1 className="text-lg font-semibold mb-2">Preview link is invalid</h1>
         <p className="text-sm text-gray-400 mb-6 text-center max-w-md">
-          Open Preview in Browser from the website builder again.
+          Open Preview in Browser from the Business Website Builder again.
         </p>
         <button
           type="button"

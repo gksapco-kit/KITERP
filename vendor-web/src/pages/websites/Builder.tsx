@@ -11498,7 +11498,7 @@ export default function WebsiteBuilder() {
     const defaultName = suggestSiteCopyName(site?.name?.trim() || 'Site', existingNames)
     openTextPrompt({
       title: 'Copy template / Save As',
-      subtitle: 'Save a copy of this site as a new website. It will appear in your Website Builder list.',
+      subtitle: 'Save a copy of this site as a new website. It will appear in your Business Website Builder list.',
       placeholder: 'Website name',
       initialValue: defaultName,
       confirmLabel: 'Save copy',
@@ -11518,7 +11518,7 @@ export default function WebsiteBuilder() {
           if (finalName !== trimmed) {
             toast.success(`Name already in use — saved as "${finalName}"`)
           } else {
-            toast.success(`"${finalName}" saved — find it in Website Builder`)
+            toast.success(`"${finalName}" saved — find it in Business Website Builder`)
           }
           navigate('/websites')
         } catch {
@@ -15205,10 +15205,10 @@ export default function WebsiteBuilder() {
         setLastSavedAt(new Date())
         setSaveFlash(true)
         setTimeout(() => setSaveFlash(false), 1800)
-        toast.success('Enabled — assign this design in Website templates')
+        toast.success('Enabled — assign this design in Business Website Templates')
       } else {
         await websiteApi.unpublishSite(siteId)
-        toast.success('Disabled — hidden from Website templates')
+        toast.success('Disabled — hidden from Business Website Templates')
       }
       await queryClient.invalidateQueries({ queryKey: ['websites', siteId] })
       await queryClient.invalidateQueries({ queryKey: ['websites'], exact: true })
@@ -16456,7 +16456,7 @@ export default function WebsiteBuilder() {
                 {moreMenuOpen && (
                   <div className={cn('absolute right-0 top-full z-[300] mt-1.5 w-72 max-h-[min(70vh,520px)] overflow-y-auto rounded-xl', builderPanelUi.popover)}>
                     <p className={cn(builderPanelUi.eyebrow, 'px-3 pt-2.5 pb-1')}>
-                      Website templates
+                      Business Website Templates
                     </p>
 
                     {!isExternalSite ? (
@@ -16480,8 +16480,8 @@ export default function WebsiteBuilder() {
                           Assign to storefront
                           <span className={builderPanelUi.menuItemHint}>
                             {site?.is_published
-                              ? 'Showing in Website templates — assign to a business unit'
-                              : 'Turn on to show in Website templates'}
+                              ? 'Showing in Business Website Templates — assign to a business unit'
+                              : 'Turn on to show in Business Website Templates'}
                           </span>
                         </span>
                       </div>
@@ -16546,7 +16546,7 @@ export default function WebsiteBuilder() {
                         || resettingCanvasFromServer
                       }
                       onClick={() => { setMoreMenuOpen(false); handleCopyTemplateSaveAs() }}
-                      title="Save a copy of this site as a new website in Website Builder"
+                      title="Save a copy of this site as a new website in Business Website Builder"
                       className={builderPanelUi.menuItem}
                     >
                       <ClipboardCopy className="h-4 w-4 shrink-0 text-primary" />
@@ -17064,7 +17064,7 @@ export default function WebsiteBuilder() {
                   <div className={cn(builderPanelUi.panelScroll, 'p-3 space-y-2')}>
                     <div className="flex items-start justify-between gap-2">
                       <div className="text-xs font-bold text-gray-400 uppercase tracking-wide leading-tight pt-0.5">
-                        Website Templates
+                        Business Website Templates
                       </div>
                       {isTemplateMode && (
                         <button

@@ -6,16 +6,17 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import JSONResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, and_
+from sqlalchemy.orm import selectinload
 from pydantic import BaseModel, Field
 from typing import Optional, List
 from datetime import date as date_type
 
 from app.database import get_db
 from app.repositories.vendor_repo import VendorRepository
-from app.models.restaurant import Restaurant
+from app.models.restaurant import Restaurant, RestaurantZone
 from app.models.vendor_product import Product, ProductModifierGroup, ProductModifierOption
 from app.services.restaurant_service import RestaurantService
-from app.services.restaurant_menu_service import RestaurantMenuService
+from app.services.restaurant_menu_service import RestaurantMenuService, CATALOG_ITEM_LIMIT
 from app.utils.restaurant_menu import load_dine_in_products_with_meta, parse_category_order, sort_menu_sections
 from app.schemas.restaurant import RestaurantReservationCreate
 
@@ -114,15 +115,89 @@ async def _load_modifier_groups_by_product(db: AsyncSession, vendor_id, product_
     return by_product
 
 
+async def _load_products_by_ids(db: AsyncSession, vendor_id, product_ids: list) -> dict:
+    if not product_ids:
+        return {}
+    from uuid import UUID
+    uuids = [UUID(pid) for pid in product_ids]
+    r = await db.execute(
+        select(Product)
+        .options(selectinload(Product.images))
+        .where(Product.vendor_id == vendor_id, Product.id.in_(uuids))
+    )
+    return {str(p.id): p for p in r.scalars().all()}
+
+
+def _menu_tree_product_ids(tree: list[dict]) -> list[str]:
+    ids: list[str] = []
+
+    def walk(cat: dict) -> None:
+        for item in cat.get("items", []):
+            if item.get("item_type") == "product":
+                ids.append(item["id"])
+        for child in cat.get("children", []):
+            walk(child)
+
+    for root in tree:
+        walk(root)
+    return ids
+
+
+def _products_from_named_items(items: list[dict], products_by_id: dict, mod_map: dict) -> list[dict]:
+    out: list[dict] = []
+    for item in items:
+        if item.get("item_type") != "product":
+            continue
+        product = products_by_id.get(item["id"])
+        if product:
+            out.append(_product_dict(product, mod_map.get(str(product.id), [])))
+    return out
+
+
+def _child_to_subcategories(child: dict, products_by_id: dict, mod_map: dict) -> list[dict]:
+    subs: list[dict] = []
+    grandchildren = child.get("children", [])
+    child_products = _products_from_named_items(child.get("items", []), products_by_id, mod_map)
+    if grandchildren:
+        for grandchild in grandchildren:
+            gc_products = _products_from_named_items(grandchild.get("items", []), products_by_id, mod_map)
+            if gc_products:
+                subs.append({"name": grandchild["name"], "items": gc_products})
+        if child_products:
+            subs.insert(0, {"name": child["name"], "items": child_products})
+    elif child_products:
+        subs.append({"name": child["name"], "items": child_products})
+    return subs
+
+
+def _named_menu_tree_to_sections(tree: list[dict], products_by_id: dict, mod_map: dict) -> list[dict]:
+    sections: list[dict] = []
+    for root in tree:
+        children = root.get("children", [])
+        direct_items = _products_from_named_items(root.get("items", []), products_by_id, mod_map)
+        subcategories: list[dict] = []
+        for child in children:
+            subcategories.extend(_child_to_subcategories(child, products_by_id, mod_map))
+        if direct_items or subcategories:
+            sections.append({
+                "category": root["name"],
+                "items": direct_items,
+                "subcategories": subcategories,
+            })
+    return sections
+
+
 # ── Table info + menu by QR token ────────────────────────────────
 
 @router.get("/{vendor_slug}/table/{qr_token}")
 async def get_table_by_qr(vendor_slug: str, qr_token: str, db: AsyncSession = Depends(get_db)):
     vendor = await _resolve_vendor(vendor_slug, db)
     svc = RestaurantService(db)
+    menu_svc = RestaurantMenuService(db)
 
     preview_mode = qr_token == "preview"
     outlet_settings: dict | None = None
+    zone_name: str | None = None
 
     if preview_mode:
         table_id = "preview"
@@ -135,6 +210,36 @@ async def get_table_by_qr(vendor_slug: str, qr_token: str, db: AsyncSession = De
         table_id = str(table_row.id)
         table_label = table_row.label
         table_capacity = table_row.capacity
+
+        if table_row.zone_id:
+            zone = await db.get(RestaurantZone, table_row.zone_id)
+            zone_name = zone.name if zone else None
+
+            named_menu = await menu_svc.resolve_menu_for_zone(vendor.id, table_row.zone_id)
+            if named_menu:
+                categories_tree = await menu_svc.build_menu_tree_payload(vendor.id, named_menu)
+                product_ids = _menu_tree_product_ids(categories_tree)
+                products_by_id = await _load_products_by_ids(db, vendor.id, product_ids)
+                mod_map = await _load_modifier_groups_by_product(
+                    db, vendor.id, [p.id for p in products_by_id.values()],
+                )
+                menu_sections = _named_menu_tree_to_sections(categories_tree, products_by_id, mod_map)
+
+                return JSONResponse(content={
+                    "vendor": {
+                        "id": str(vendor.id),
+                        "name": vendor.business_name,
+                        "slug": vendor.slug,
+                    },
+                    "table": {
+                        "id": table_id,
+                        "label": table_label,
+                        "capacity": table_capacity,
+                        "zone_name": zone_name,
+                    },
+                    "menu": menu_sections,
+                    "menu_truncated": len(product_ids) >= CATALOG_ITEM_LIMIT,
+                })
 
         # Load per-outlet menu settings if this table belongs to a restaurant outlet
         if table_row.restaurant_id:
@@ -187,7 +292,7 @@ async def get_table_by_qr(vendor_slug: str, qr_token: str, db: AsyncSession = De
             "id": table_id,
             "label": table_label,
             "capacity": table_capacity,
-            "zone_name": None,
+            "zone_name": zone_name,
         },
         "menu": menu_sections,
         "menu_truncated": catalog.truncated,

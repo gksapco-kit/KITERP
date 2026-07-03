@@ -75,7 +75,7 @@ export function isPinnedSidebarSection(sectionId: string): boolean {
 /** Short summary shown on each app tile in the All Apps picker. */
 export const SIDEBAR_APP_DESCRIPTIONS: Record<string, string> = {
   'my-kit': 'Dashboard, inbox, notifications, workspace shortcuts, and store settings.',
-  'website-management': 'Website builder, SEO, templates, business front, and blog.',
+  'website-management': 'Business Website Builder, SEO, templates, business front, and blog.',
   'sales': 'Orders, quotations, POS, bookings, projects, invoices, and marketplace.',
   'restaurant': 'Floor service, kitchen board, dine-in menu, reservations, and reports.',
   'commission': 'Payees, plans, accruals, payouts, and commission reporting.',

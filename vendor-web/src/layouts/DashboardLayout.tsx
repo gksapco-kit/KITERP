@@ -20,7 +20,7 @@ import {
   UtensilsCrossed, ChefHat, LayoutGrid, RefreshCw, FolderKanban, FileBarChart,
   GripVertical, SlidersHorizontal, Database, Table2, Search, ExternalLink,
   PanelLeftClose, PanelLeft, Settings2, Hash,
-  ArrowLeft, ArrowRight, MoreHorizontal, Keyboard, Plus, Star, Save, MapPin, Quote,
+  ArrowLeft, ArrowRight, MoreHorizontal, Keyboard, Plus, Star, Save, MapPin, Quote, X,
 } from 'lucide-react'
 import { APP_SAVE_REQUEST_EVENT, dispatchAppSaveRequest } from '@/lib/appSave'
 import { FieldMappingProvider } from '@/providers/FieldMappingProvider'
@@ -128,6 +128,7 @@ import { useAuthStore } from '@/stores/authStore'
 import { useThemeStore } from '@/stores/themeStore'
 import { useVendorStore } from '@/stores/vendorStore'
 import { useRestaurantStore } from '@/stores/restaurantStore'
+import { Select } from '@/components/ui/select'
 import { getStorefrontAppOrigin } from '@/lib/storefrontPreviewUrl'
 import { useESSProfile } from '@/hooks/useVendor'
 import { useMyVendor, useMyPlan, useStores, useOrderStats } from '@/hooks/useVendor'
@@ -542,11 +543,12 @@ const allSections: NavSection[] = [
     icon: Globe,
     items: [
       { to: '/business-front', icon: LayoutDashboard, label: 'Dashboard', alwaysShow: true },
-      { to: '/websites', icon: Globe, label: 'Website Builder', alwaysShow: true },
-      { to: '/websites/seo', icon: Search, label: 'SEO Management', alwaysShow: true },
-      { to: '/websites/templates', icon: Sparkles, label: 'Website Templates', alwaysShow: true },
+      { to: '/websites', icon: Globe, label: 'Business Website Builder', alwaysShow: true },
+      { to: '/websites/templates', icon: Sparkles, label: 'Business Website Templates', alwaysShow: true },
       { to: '/system/storefront-display', icon: SlidersHorizontal, label: 'Business Front Display', alwaysShow: true },
+      { to: '/system/social-links', icon: Globe, label: 'Social & Web Links', alwaysShow: true },
       { to: '/blog', icon: Newspaper, label: 'Blog Manager', alwaysShow: true },
+      { to: '/websites/seo', icon: Search, label: 'SEO Management', alwaysShow: true },
     ],
   },
   {
@@ -790,7 +792,6 @@ const allSections: NavSection[] = [
     title: 'System Configuration',
     icon: Settings2,
     items: [
-      { to: '/system/social-links', icon: Globe, label: 'Social & Web Links', alwaysShow: true },
       { to: '/document-templates', icon: LayoutTemplate, label: 'Document Templates', alwaysShow: true },
       { to: '/system/modules', icon: Layers, label: 'Module Settings', alwaysShow: true },
       { to: '/crm/integrations', icon: Plug, label: 'Integrations', requiresPermission: 'crm.integrations.manage' },
@@ -1149,9 +1150,9 @@ const pageTitles: Record<string, string> = {
   '/document-templates': 'Document Templates',
   '/invoices/templates': 'Invoice Templates',
   '/purchase-orders/templates': 'PO Templates',
-  '/websites': 'Website Builder',
+  '/websites': 'Business Website Builder',
   '/websites/seo': 'SEO Management',
-  '/websites/templates': 'Website Templates',
+  '/websites/templates': 'Business Website Templates',
   '/blog': 'Blog Manager',
   '/finance/basic': 'Finance',
   '/finance/assets': 'Fixed Assets',
@@ -1293,6 +1294,14 @@ function RestaurantScopeBanner() {
   })
   const restaurants = data?.items ?? []
 
+  const outletOptions = useMemo(
+    () => [
+      { value: '', label: 'All restaurants', hint: 'Business unit scope — no outlet filter' },
+      ...restaurants.map(r => ({ value: r.id, label: r.name })),
+    ],
+    [restaurants],
+  )
+
   // Keep selected outlet in sync when list refetches (e.g. after Setup saves timer settings)
   useEffect(() => {
     if (!selectedRestaurant?.id || !restaurants.length) return
@@ -1304,32 +1313,63 @@ function RestaurantScopeBanner() {
 
   if (!isRestaurantPage || restaurants.length === 0) return null
 
+  const isFiltered = !!selectedRestaurant
+
   return (
-    <div className="mb-4 flex items-center gap-2 rounded-lg border border-primary/20 bg-primary/5 px-3 py-2 text-sm">
-      <UtensilsCrossed className="w-4 h-4 text-primary shrink-0" />
-      <span className="text-muted-foreground">Restaurant:</span>
-      <select
-        className="flex-1 bg-transparent text-foreground font-medium text-sm outline-none cursor-pointer min-w-0"
+    <div
+      role="region"
+      aria-label="Restaurant outlet scope"
+      className={cn(
+        'mb-4 flex items-center gap-2.5 rounded-xl border px-3 py-2 sm:gap-3 sm:px-4 sm:py-2.5',
+        isFiltered
+          ? 'border-primary/30 bg-primary/[0.07] shadow-sm shadow-primary/5'
+          : 'border-border/70 bg-muted/30',
+      )}
+    >
+      <span
+        className={cn(
+          'flex h-8 w-8 shrink-0 items-center justify-center rounded-lg',
+          isFiltered
+            ? 'bg-primary/15 text-primary'
+            : 'bg-background text-muted-foreground ring-1 ring-border/60',
+        )}
+        aria-hidden
+      >
+        <UtensilsCrossed className="h-4 w-4" />
+      </span>
+
+      <span className="hidden shrink-0 text-sm font-medium text-muted-foreground sm:inline">
+        Restaurant
+      </span>
+
+      <Select
         value={selectedRestaurant?.id ?? ''}
-        onChange={e => {
-          const r = restaurants.find(x => x.id === e.target.value)
+        onChange={id => {
+          const r = restaurants.find(x => x.id === id)
           setSelectedRestaurant(r ?? null)
         }}
-      >
-        <option value="">All restaurants (BU scope)</option>
-        {restaurants.map(r => (
-          <option key={r.id} value={r.id}>{r.name}</option>
-        ))}
-      </select>
-      {selectedRestaurant && (
+        options={outletOptions}
+        placeholder="All restaurants"
+        aria-label="Select restaurant outlet"
+        wrapperClassName="min-w-0 flex-1"
+        triggerClassName={cn(
+          'h-9 min-h-9 border-0 bg-transparent px-1 shadow-none hover:bg-muted/40 rounded-md',
+          'font-semibold text-foreground focus-visible:ring-2 focus-visible:ring-ring/50',
+          isFiltered && 'text-primary',
+        )}
+      />
+
+      {isFiltered ? (
         <button
+          type="button"
           onClick={() => setSelectedRestaurant(null)}
-          className="shrink-0 text-muted-foreground hover:text-foreground transition-colors"
-          title="Clear restaurant filter"
+          aria-label="Clear restaurant filter — show all outlets"
+          title="Show all restaurants"
+          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
-          ✕
+          <X className="h-4 w-4" aria-hidden />
         </button>
-      )}
+      ) : null}
     </div>
   )
 }

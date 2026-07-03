@@ -11,7 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.vendor import Vendor
 from app.models.store import Store
-from app.models.restaurant import Restaurant, RestaurantZone
+from app.models.restaurant import Restaurant, RestaurantZone, RestaurantTable
 from app.models.vendor_product import Product
 from app.models.vendor_category import VendorCategory
 
@@ -269,3 +269,97 @@ async def test_guest_menu_by_categories_mode(
 async def test_guest_menu_invalid_token_404(client: AsyncClient, test_vendor: Vendor):
     resp = await client.get(f"/api/v1/public/restaurant/{test_vendor.slug}/menu/does-not-exist")
     assert resp.status_code == 404
+
+
+# ── Table QR uses zone-linked named menu ──────────────────────────────────
+
+@pytest.mark.asyncio
+async def test_table_qr_uses_zone_linked_menu(
+    client: AsyncClient, db_session: AsyncSession, test_vendor: Vendor,
+    test_restaurant: Restaurant, test_zone: RestaurantZone, menu_id: str,
+):
+    zone_product = _make_product(test_vendor.id, name="Zone Menu Burger", category="Mains")
+    legacy_product = _make_product(test_vendor.id, name="Legacy Only Pizza", category="Mains")
+    db_session.add_all([zone_product, legacy_product])
+    await db_session.commit()
+
+    cat = (await client.post(f"{MENUS_BASE}/{menu_id}/categories", json={"name": "Food"})).json()
+    await client.put(
+        f"{MENUS_BASE}/{menu_id}/categories/{cat['id']}",
+        json={"mode": "curated", "product_ids": [str(zone_product.id)]},
+    )
+    await client.put(f"{MENUS_BASE}/{menu_id}/zones", json={"zone_ids": [str(test_zone.id)]})
+
+    table = RestaurantTable(
+        id=uuid.uuid4(),
+        vendor_id=test_vendor.id,
+        restaurant_id=test_restaurant.id,
+        zone_id=test_zone.id,
+        label="T9",
+        capacity=4,
+        qr_token=f"qr-{uuid.uuid4().hex[:12]}",
+    )
+    db_session.add(table)
+    await db_session.commit()
+    await db_session.refresh(table)
+
+    resp = await client.get(f"/api/v1/public/restaurant/{test_vendor.slug}/table/{table.qr_token}")
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["table"]["zone_name"] == "Patio"
+
+    item_names = set()
+    for section in body["menu"]:
+        for item in section.get("items", []):
+            item_names.add(item["name"])
+        for sub in section.get("subcategories", []):
+            for item in sub.get("items", []):
+                item_names.add(item["name"])
+
+    assert "Zone Menu Burger" in item_names
+    assert "Legacy Only Pizza" not in item_names
+
+
+@pytest.mark.asyncio
+async def test_table_qr_falls_back_to_legacy_without_zone_menu(
+    client: AsyncClient, db_session: AsyncSession, test_vendor: Vendor,
+    test_restaurant: Restaurant, test_zone: RestaurantZone,
+):
+    legacy_product = _make_product(test_vendor.id, name="Legacy Fallback Pasta", category="Pasta")
+    db_session.add(legacy_product)
+    await db_session.commit()
+
+    test_vendor.settings = {
+        "restaurant_menu": {
+            "mode": "curated",
+            "product_ids": [str(legacy_product.id)],
+        },
+    }
+    await db_session.commit()
+
+    table = RestaurantTable(
+        id=uuid.uuid4(),
+        vendor_id=test_vendor.id,
+        restaurant_id=test_restaurant.id,
+        zone_id=test_zone.id,
+        label="T10",
+        capacity=2,
+        qr_token=f"qr-{uuid.uuid4().hex[:12]}",
+    )
+    db_session.add(table)
+    await db_session.commit()
+    await db_session.refresh(table)
+
+    resp = await client.get(f"/api/v1/public/restaurant/{test_vendor.slug}/table/{table.qr_token}")
+    assert resp.status_code == 200
+    body = resp.json()
+
+    item_names = set()
+    for section in body["menu"]:
+        for item in section.get("items", []):
+            item_names.add(item["name"])
+        for sub in section.get("subcategories", []):
+            for item in sub.get("items", []):
+                item_names.add(item["name"])
+
+    assert "Legacy Fallback Pasta" in item_names

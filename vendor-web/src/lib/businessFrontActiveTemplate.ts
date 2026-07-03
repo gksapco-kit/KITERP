@@ -45,7 +45,7 @@ export function resolveBusinessFrontActiveTemplate(
       name: published.name,
       siteId: published.id,
       description:
-        'Your published Website Builder site controls the business front home. Unpublish it to use a default theme preset below.',
+        'Your published Business Website Builder site controls the business front home. Unpublish it to use a default theme preset below.',
     }
   }
 
@@ -56,7 +56,7 @@ export function resolveBusinessFrontActiveTemplate(
     id: presetId,
     name: preset?.name ?? (presetId === DEFAULT_PRESET_ID ? DEFAULT_PRESET_NAME : presetId),
     description:
-      'This default layout is live on your business front when no Website Builder site is published.',
+      'This default layout is live on your business front when no Business Website Builder site is published.',
   }
 }
 

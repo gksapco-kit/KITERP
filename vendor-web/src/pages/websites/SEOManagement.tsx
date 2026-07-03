@@ -111,9 +111,9 @@ export default function SEOManagementPage() {
         <div className="rounded-2xl border border-dashed border-border bg-muted/30 px-6 py-12 text-center">
           <Globe className="mx-auto mb-3 h-10 w-10 text-muted-foreground/50" />
           <p className="text-sm font-medium text-foreground">No websites yet</p>
-          <p className="mt-1 text-xs text-muted-foreground">Create a site in Website Builder first, then return here to manage SEO.</p>
+          <p className="mt-1 text-xs text-muted-foreground">Create a site in Business Website Builder first, then return here to manage SEO.</p>
           <Button asChild className="mt-4" size="sm">
-            <Link to="/websites">Go to Website Builder</Link>
+            <Link to="/websites">Go to Business Website Builder</Link>
           </Button>
         </div>
       ) : (
@@ -153,7 +153,7 @@ export default function SEOManagementPage() {
               <Button asChild variant="outline" size="sm">
                 <Link to={`/websites/${selectedSiteId}`}>
                   <ExternalLink className="mr-1.5 h-3.5 w-3.5" />
-                  Open in Website Builder
+                  Open in Business Website Builder
                 </Link>
               </Button>
               {activePage && (

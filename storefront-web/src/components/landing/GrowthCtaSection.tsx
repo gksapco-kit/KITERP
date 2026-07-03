@@ -36,24 +36,23 @@ export function GrowthCtaSection() {
         <SparkleBurst />
 
         <h2 className="font-kiterp-script text-[2rem] sm:text-4xl lg:text-5xl leading-tight">
-          <span className="text-[#1e3d34]">Unleash</span>
+          <span className="text-[#1e3d34]">One login</span>
           <br />
-          <span className="text-[#64C3A0]">your growth potential</span>
+          <span className="text-[#64C3A0]">every app you need</span>
         </h2>
 
         <a
           href={VENDOR_SIGNUP_PATH}
           className="kiterp-btn-primary inline-block mt-8 px-8 py-3.5 text-base sm:text-lg"
         >
-          Start now — It&apos;s free
+          Create your account
         </a>
 
         <div className="mt-5 flex flex-col items-center gap-1">
           <svg width="20" height="24" viewBox="0 0 20 24" className="text-[#64C3A0]" aria-hidden>
             <path d="M10 22 L10 4 M4 10 L10 4 L16 10" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
-          <p className="text-xs sm:text-sm text-gray-500">No credit card required</p>
-          <p className="text-xs sm:text-sm text-gray-500">Instant access</p>
+          <p className="text-xs sm:text-sm text-gray-500">Free to start · All modules included</p>
         </div>
       </div>
     </section>

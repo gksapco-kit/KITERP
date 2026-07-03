@@ -183,7 +183,7 @@ export default function SalesPlansPage() {
             Pricing Plans
           </h1>
           <p className="text-sm text-muted-foreground mt-1 max-w-2xl">
-            Manage packages shown on your storefront. Plans sync automatically to Pricing Table and Pricing Tiers sections in the website builder.
+            Manage packages shown on your storefront. Plans sync automatically to Pricing Table and Pricing Tiers sections in the Business Website Builder.
           </p>
         </div>
         <Button onClick={() => setModal({ mode: 'create' })} className="gap-2">
@@ -227,7 +227,7 @@ export default function SalesPlansPage() {
                 {isLoading ? (
                   <tr><td colSpan={8} className="py-12 text-center"><Loader2 className="h-6 w-6 animate-spin mx-auto text-muted-foreground" /></td></tr>
                 ) : rows.length === 0 ? (
-                  <tr><td colSpan={8} className="py-12 text-center text-sm text-muted-foreground">No pricing plans yet. Add your first plan to sync with the website builder.</td></tr>
+                  <tr><td colSpan={8} className="py-12 text-center text-sm text-muted-foreground">No pricing plans yet. Add your first plan to sync with the Business Website Builder.</td></tr>
                 ) : rows.map(plan => (
                   <tr
                     key={plan.id}

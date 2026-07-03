@@ -141,7 +141,7 @@ export function RecentlyDeletedTemplatesModal({ onClose }: { onClose: () => void
   const handleRestore = useCallback(async (id: string, name: string) => {
     try {
       await restoreSite.mutateAsync(id)
-      toast.success(`"${name}" restored to Website Builder`)
+      toast.success(`"${name}" restored to Business Website Builder`)
     } catch (err) {
       toast.error(extractApiError(err, 'Could not restore template'))
     }

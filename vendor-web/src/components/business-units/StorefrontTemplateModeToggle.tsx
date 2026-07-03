@@ -13,7 +13,7 @@ const OPTIONS = [
     label: 'One Template for All Stores',
     shortLabel: 'One for all',
     description:
-      'Every business unit uses the same storefront template. Pick it on the Website Templates page.',
+      'Every business unit uses the same storefront template. Pick it on the Business Website Templates page.',
     selectedClass:
       'cursor-default border-violet-200 bg-violet-50 text-violet-900 shadow-sm ring-1 ring-violet-300/80 dark:border-violet-900/50 dark:bg-violet-950/50 dark:text-violet-100 dark:ring-violet-800/60',
     idleClass: 'text-muted-foreground hover:bg-violet-50/60 hover:text-violet-800 dark:hover:bg-violet-950/30',
@@ -23,7 +23,7 @@ const OPTIONS = [
     label: 'Individual Template Per BU / Store',
     shortLabel: 'Per BU',
     description:
-      'Each business unit can have its own storefront template. Assign templates per store on the Website Templates page.',
+      'Each business unit can have its own storefront template. Assign templates per store on the Business Website Templates page.',
     selectedClass:
       'cursor-default border-emerald-200 bg-emerald-50 text-emerald-900 shadow-sm ring-1 ring-emerald-300/80 dark:border-emerald-900/50 dark:bg-emerald-950/50 dark:text-emerald-100 dark:ring-emerald-800/60',
     idleClass: 'text-muted-foreground hover:bg-emerald-50/60 hover:text-emerald-800 dark:hover:bg-emerald-950/30',

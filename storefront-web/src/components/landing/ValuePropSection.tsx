@@ -1,30 +1,24 @@
-import { Zap, Sparkles, Shield, BadgeIndianRupee } from 'lucide-react'
+import { Zap, Bot, Shield } from 'lucide-react'
 import { LandingDemoVideo } from './LandingDemoVideo'
 
 const PROPS = [
   {
     icon: Zap,
-    title: 'Optimized for productivity',
-    body: 'Experience true speed — smart workflows, live inventory, and a fast UI. Operations done in less than 90ms.',
+    title: 'Built for Speed & Productivity',
+    body: 'Work smarter with lightning-fast performance, intelligent automation, and seamless workflows. Manage inventory, finance, sales, HR, and operations—all from a single platform.',
     accent: '#64C3A0',
   },
   {
-    icon: Sparkles,
-    title: 'Native AI across your business',
-    body: 'Automate work, tailor storefronts, perform deep research, and scale without limits.',
+    icon: Bot,
+    title: 'AI Built Into Every Module',
+    body: 'Leverage AI to automate routine tasks, generate insights, forecast trends, create content, analyze data, and make faster business decisions across every department.',
     accent: '#3d9a7a',
   },
   {
     icon: Shield,
-    title: 'Enterprise software, done right',
-    body: 'Open platform with vendor-owned data. No lock-in — host on our cloud or your infrastructure.',
+    title: 'Enterprise Security & Scalability',
+    body: 'Enterprise-grade security, role-based access, audit trails, and flexible deployment. Scale confidently from startups to global enterprises without changing platforms.',
     accent: '#52b38f',
-  },
-  {
-    icon: BadgeIndianRupee,
-    title: 'Fair pricing',
-    body: 'No usage-based surprises. One simple price per vendor — products, services, HR, and storefront included.',
-    accent: '#ffc954',
   },
 ]
 
@@ -32,27 +26,32 @@ export function ValuePropSection() {
   return (
     <section className="py-16 sm:py-24 bg-white scroll-mt-24">
       <div className="max-w-6xl mx-auto px-4 sm:px-6">
-        <h2 className="font-kiterp-script text-3xl sm:text-4xl text-center text-[#1e3d34] mb-8 sm:mb-10">
-          Level up your quality of work
+        <h2 className="font-kiterp-script text-3xl sm:text-4xl text-center leading-tight text-[#1e3d34] mb-8 sm:mb-10">
+          Do More with Less Effort
+          <br />
+          <span className="text-[#64C3A0]">Work Faster. Work Smarter.</span>
         </h2>
 
         <LandingDemoVideo />
 
-        <div className="grid sm:grid-cols-2 gap-8 lg:gap-12 mt-14 sm:mt-16">
-          {PROPS.map((item) => (
-            <article key={item.title} className="flex gap-5 kiterp-reveal">
-              <div
-                className="w-12 h-12 rounded-2xl flex items-center justify-center shrink-0"
-                style={{ backgroundColor: `${item.accent}18` }}
-              >
-                <item.icon className="w-6 h-6" style={{ color: item.accent }} />
-              </div>
-              <div>
-                <h3 className="text-lg font-bold text-[#1e3d34]">{item.title}</h3>
-                <p className="mt-2 text-sm sm:text-base text-gray-600 leading-relaxed">{item.body}</p>
-              </div>
-            </article>
-          ))}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 lg:gap-6 mt-14 sm:mt-16">
+          {PROPS.map((item) => {
+            const Icon = item.icon
+            return (
+              <article key={item.title} className="kiterp-reveal">
+                <h3 className="flex items-center gap-2 text-base sm:text-lg font-bold text-[#1e3d34] leading-snug">
+                  <span
+                    className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0"
+                    style={{ backgroundColor: `${item.accent}18` }}
+                  >
+                    <Icon className="w-4 h-4" style={{ color: item.accent }} strokeWidth={2} />
+                  </span>
+                  <span>{item.title}</span>
+                </h3>
+                <p className="mt-2 text-sm text-gray-600 leading-relaxed">{item.body}</p>
+              </article>
+            )
+          })}
         </div>
       </div>
     </section>

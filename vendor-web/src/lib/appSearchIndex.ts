@@ -73,9 +73,9 @@ const KEYWORD_HINTS: Record<string, string[]> = {
   'Tax Returns':                          ['gst', 'vat', 'tax', 'filing', 'tax return', 'return filing'],
   'Master Data — Customers & Suppliers':  ['customer', 'supplier', 'contacts', 'parties', 'vendors', 'client list'],
   'Storefront Dashboard':                 ['website dashboard', 'storefront overview', 'business front', 'live store', 'public store'],
-  'Website Builder':                      ['web', 'site', 'page', 'cms', 'website', 'web builder'],
+  'Business Website Builder':             ['web', 'site', 'page', 'cms', 'website', 'web builder', 'business website'],
   'Business Front':                       ['storefront', 'store front', 'business front builder', 'customer store', 'public store', 'branding'],
-  'Website Templates':                    ['preset', 'gallery', 'apply template', 'store theme', 'colors', 'fonts', 'hero', 'classic store', 'legacy template', 'homepage sections', 'product page layout', 'store template'],
+  'Business Website Templates':           ['preset', 'gallery', 'apply template', 'store theme', 'colors', 'fonts', 'hero', 'classic store', 'legacy template', 'homepage sections', 'product page layout', 'store template', 'business website templates'],
   'Document Templates':                   ['doc', 'template', 'prescription', 'sop', 'challan', 'document', 'invoice template', 'quotation template', 'po template', 'purchase order template', 'billing', 'estimate'],
   'Blog Manager':                         ['blog', 'post', 'article', 'content', 'news'],
   'Notifications':                        ['alerts', 'bell', 'updates', 'notification list'],
@@ -134,7 +134,7 @@ const KEYWORD_HINTS: Record<string, string[]> = {
 export const SETTINGS_SECTION_ENTRIES: NavSearchEntry[] = [
   {
     kind: 'nav', id: 'website-builder',
-    label: 'Website Builder',
+    label: 'Business Website Builder',
     description: 'Website Management → Build and publish your store website',
     section: 'Website Management', sectionId: 'website-management',
     to: '/websites',
@@ -241,8 +241,8 @@ export const SETTINGS_SECTION_ENTRIES: NavSearchEntry[] = [
   {
     kind: 'nav', id: 'settings-social',
     label: 'Social & Web Links',
-    description: 'System Configuration → Social & Web Links',
-    section: 'System Configuration', sectionId: 'system',
+    description: 'Website Management → Social & Web Links',
+    section: 'Website Management', sectionId: 'website-management',
     to: '/system/social-links',
     keywords: [
       'social', 'facebook', 'instagram', 'twitter', 'linkedin', 'youtube',

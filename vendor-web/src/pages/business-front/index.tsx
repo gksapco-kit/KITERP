@@ -228,7 +228,7 @@ export default function BusinessFrontHubPage() {
 
   const websiteToolLinks: HubLink[] = [
     {
-      title: 'Website Builder',
+      title: 'Business Website Builder',
       shortTitle: 'Builder',
       description: 'Design pages with blocks — hero, categories, products, nav, footer.',
       to: publishedSite ? `/websites/${publishedSite.id}` : '/websites',
@@ -236,25 +236,11 @@ export default function BusinessFrontHubPage() {
       primary: true,
     },
     {
-      title: 'Website Templates',
+      title: 'Business Website Templates',
       shortTitle: 'Templates',
-      description: 'Assign themes and Website Builder layouts to each business unit.',
+      description: 'Assign themes and Business Website Builder layouts to each business unit.',
       to: '/websites/templates',
       icon: Sparkles,
-    },
-    {
-      title: 'SEO Management',
-      shortTitle: 'SEO',
-      description: 'Google titles, meta descriptions, and social share previews.',
-      to: publishedSite ? `/websites/seo?siteId=${publishedSite.id}` : '/websites/seo',
-      icon: Search,
-    },
-    {
-      title: 'Blog Manager',
-      shortTitle: 'Blog',
-      description: 'Posts and articles on your public storefront.',
-      to: '/blog',
-      icon: Newspaper,
     },
     {
       title: 'Business Front Display',
@@ -269,6 +255,20 @@ export default function BusinessFrontHubPage() {
       description: 'Social profiles and footer links on your storefront.',
       to: '/system/social-links',
       icon: Link2,
+    },
+    {
+      title: 'Blog Manager',
+      shortTitle: 'Blog',
+      description: 'Posts and articles on your public storefront.',
+      to: '/blog',
+      icon: Newspaper,
+    },
+    {
+      title: 'SEO Management',
+      shortTitle: 'SEO',
+      description: 'Google titles, meta descriptions, and social share previews.',
+      to: publishedSite ? `/websites/seo?siteId=${publishedSite.id}` : '/websites/seo',
+      icon: Search,
     },
   ]
 

@@ -351,7 +351,7 @@ export function BuilderDraftTemplateCard({
             : showViewLive
               ? `View live site for ${site.name}`
               : isAssignedNotLive
-                ? `Open ${site.name} in Website Builder`
+                ? `Open ${site.name} in Business Website Builder`
                 : `Preview ${site.name}`
       }
       onClick={e => {
@@ -445,7 +445,7 @@ export function BuilderDraftTemplateCard({
               )}
               title={
                 isSingleTemplateSelected
-                  ? 'This Website Builder site is the live template for every business unit'
+                  ? 'This Business Website Builder site is the live template for every business unit'
                   : 'Not selected — click Assign · all to apply'
               }
             >
@@ -577,8 +577,8 @@ export function BuilderDraftTemplateCard({
               to={`/websites/${site.id}`}
               onClick={e => e.stopPropagation()}
               className={templateCardIconActionClass}
-              title="Edit in Website Builder"
-              aria-label="Edit in Website Builder"
+              title="Edit in Business Website Builder"
+              aria-label="Edit in Business Website Builder"
             >
               <Globe className="h-3 w-3" />
             </Link>

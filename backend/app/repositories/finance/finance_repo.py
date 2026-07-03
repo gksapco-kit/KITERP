@@ -1048,6 +1048,10 @@ class FinAssetRepo:
     async def record_depreciation(self, vendor_id: UUID, asset: FinAsset,
                                   amount: Decimal, period_id: UUID = None,
                                   je_id: UUID = None, units: Decimal = None) -> FinAssetDepreciationEntry:
+        amount = Decimal(str(amount))
+        current_value = Decimal(str(asset.current_value or 0))
+        accumulated = Decimal(str(asset.accumulated_depreciation or 0))
+        book_value_after = current_value - amount
         entry = FinAssetDepreciationEntry(
             id=uuid.uuid4(),
             asset_id=asset.id,
@@ -1055,15 +1059,15 @@ class FinAssetRepo:
             period_id=period_id,
             depreciation_date=date.today(),
             amount=amount,
-            units_produced=units,
-            book_value_after=float(asset.current_value or 0) - float(amount),
+            units_produced=Decimal(str(units)) if units is not None else None,
+            book_value_after=book_value_after,
             journal_entry_id=je_id,
         )
         self.db.add(entry)
-        asset.accumulated_depreciation = (asset.accumulated_depreciation or 0) + float(amount)
-        asset.current_value = (asset.current_value or 0) - float(amount)
+        asset.accumulated_depreciation = accumulated + amount
+        asset.current_value = book_value_after
         if units is not None:
-            asset.units_consumed = float(asset.units_consumed or 0) + float(units)
+            asset.units_consumed = Decimal(str(asset.units_consumed or 0)) + Decimal(str(units))
         await self.db.flush()
         return entry
 

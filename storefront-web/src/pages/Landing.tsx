@@ -8,9 +8,10 @@ import { ValuePropSection } from '@/components/landing/ValuePropSection'
 import { CommunityMosaicSection } from '@/components/landing/CommunityMosaicSection'
 import { GrowthCtaSection } from '@/components/landing/GrowthCtaSection'
 import { LandingFooter } from '@/components/landing/LandingFooter'
+import type { StorefrontVendor } from '@/components/landing/landingData'
 import '@/styles/kiterp-landing.css'
 
-type StoreDirectoryItem = { slug: string; display_name: string; business_name: string }
+type StoreDirectoryItem = StorefrontVendor
 
 export default function Landing() {
   const [slug, setSlug] = useState('')
@@ -24,7 +25,7 @@ export default function Landing() {
     setDirLoading(true)
     setDirError(null)
     apiClient
-      .get<{ items: StoreDirectoryItem[] }>('/catalog/vendors', { params: { limit: 80 } })
+      .get<{ items: StorefrontVendor[] }>('/catalog/vendors', { params: { limit: 100 } })
       .then((res) => {
         if (!cancelled) setDirectory(res.data.items || [])
       })
@@ -65,7 +66,11 @@ export default function Landing() {
     <div className="kiterp-landing font-kiterp-body min-h-screen bg-white">
       <LandingHeader />
       <main>
-        <LandingHero
+        <LandingHero />
+        <AppsGridSection />
+        <ValuePropSection />
+        <CommunityMosaicSection
+          vendors={directory}
           slug={slug}
           setSlug={setSlug}
           onSubmit={handleGo}
@@ -76,9 +81,6 @@ export default function Landing() {
           slugNeedle={slugNeedle}
           onVisitStore={visitStore}
         />
-        <AppsGridSection />
-        <ValuePropSection />
-        <CommunityMosaicSection />
         <GrowthCtaSection />
       </main>
       <LandingFooter />

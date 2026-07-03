@@ -234,7 +234,7 @@ export function BusinessFrontDefaultTemplateCard({
           ) : null}
         </div>
         <p className="truncate text-[10px] leading-tight text-gray-500" title={preset.description || undefined}>
-          {preset.description || 'Section-based home when no Website Builder site is published.'}
+          {preset.description || 'Section-based home when no Business Website Builder site is published.'}
         </p>
         <div className={templateCardActionRowClass} data-template-card-action>
           {singleTemplateMode && onUseForAllStores ? (
