@@ -1,26 +1,57 @@
+import { useEffect, useMemo, useState } from 'react'
 import { Minus, Plus, Trash2 } from 'lucide-react'
 import { formatMoney, useCheckoutConfig } from '@/checkout/config'
 import type { CartItem as CheckoutCartItem } from '@/checkout/types'
 import type { Product, ProductVariant } from '@/types'
-import { formatCurrency } from '@/lib/utils'
+import { formatCurrency, imgUrl } from '@/lib/utils'
+import ProductOptionPicker, { getColorNameFromOptionRows } from '@/components/products/ProductOptionPicker'
 import {
-  colorValueToCss,
-  findVariantBySelections,
-  findVariantForDimensionValue,
-  getValuesForDimension,
-  getVariantOptionDimensions,
-  hasStructuredVariantOptions,
-  isColorDimension,
-  isSizeDimension,
+  buildProductCardOptionRows,
+  resolveCardDisplayImage,
+  resolveVariantForCardPricing,
   resolveSelectedVariant,
   selectionsFromVariant,
+  validateVariantCombination,
   variantDisplayLabel,
+  type ProductCardOptionRow,
 } from '@/lib/variantOptions'
+
+function resolveLineItemDisplayImage(
+  rows: ProductCardOptionRow[],
+  galleryImages: { url: string; alt_text?: string }[],
+  selectedColorName: string | undefined,
+  variants: ProductVariant[],
+  pricingVariant: ProductVariant | undefined,
+  fallbackImage?: string,
+): string | undefined {
+  const fromSwatch = resolveCardDisplayImage(rows, galleryImages, selectedColorName)
+  if (fromSwatch) return fromSwatch
+
+  const colorRow = rows.find((r) => r.type === 'color')
+  if (colorRow?.type === 'color' && selectedColorName) {
+    const swatch = colorRow.swatches.find(
+      (s) => s.value.toLowerCase() === selectedColorName.toLowerCase(),
+    )
+    if (swatch?.variantId) {
+      const linked = variants.find((v) => v.id === swatch.variantId)
+      const mediaUrl =
+        linked?.media?.find((m) => m.is_primary)?.url ?? linked?.media?.[0]?.url
+      if (mediaUrl) return mediaUrl
+    }
+  }
+
+  const variantMedia =
+    pricingVariant?.media?.find((m) => m.is_primary)?.url ?? pricingVariant?.media?.[0]?.url
+  if (variantMedia) return variantMedia
+
+  return fallbackImage
+}
 
 type Props = {
   item: CheckoutCartItem
   product?: Product
   editable?: boolean
+  maxQuantity?: number
   onUpdateQuantity?: (id: string, q: number) => void
   onRemove?: (id: string) => void
   onVariantChange?: (variant: ProductVariant) => void
@@ -41,106 +72,11 @@ function resolveProductName(item: CheckoutCartItem): string {
   return item.name
 }
 
-function DimensionSelector({
-  dimension,
-  variants,
-  selections,
-  disabled,
-  onSelect,
-}: {
-  dimension: string
-  variants: ProductVariant[]
-  selections: Record<string, string>
-  disabled?: boolean
-  onSelect: (dimension: string, value: string) => void
-}) {
-  const values = getValuesForDimension(variants, dimension)
-  const selectedValue = selections[dimension]
-  const isColor = isColorDimension(dimension)
-  const isSize = isSizeDimension(dimension)
-
-  return (
-    <div>
-      <p className="ck-text-muted mb-1.5 text-xs font-medium uppercase tracking-wide">
-        {dimension}
-        {selectedValue ? (
-          <span className="ml-1.5 font-normal normal-case text-gray-700">— {selectedValue}</span>
-        ) : null}
-      </p>
-      <div className={`flex flex-wrap gap-2 ${isSize ? 'gap-1.5' : ''}`}>
-        {values.map((value) => {
-          const isSelected = selectedValue === value
-          const sampleVariant = findVariantForDimensionValue(variants, dimension, value)
-          const swatchColor = isColor ? colorValueToCss(value, sampleVariant) : undefined
-
-          if (isColor && swatchColor) {
-            const light = ['white', 'cream', 'beige', 'yellow', 'silver'].includes(value.toLowerCase())
-            return (
-              <button
-                key={value}
-                type="button"
-                disabled={disabled}
-                title={value}
-                aria-label={`Select ${dimension} ${value}`}
-                aria-pressed={isSelected}
-                onClick={() => onSelect(dimension, value)}
-                className="group flex flex-col items-center gap-1 disabled:opacity-50"
-              >
-                <span
-                  className="h-9 w-9 rounded-full border-2 transition-all"
-                  style={{
-                    backgroundColor: swatchColor,
-                    borderColor: isSelected ? 'hsl(var(--brand-primary))' : light ? '#d1d5db' : 'transparent',
-                    boxShadow: isSelected ? '0 0 0 2px hsl(var(--brand-primary) / 0.25)' : undefined,
-                  }}
-                />
-                <span
-                  className={`text-[10px] font-medium capitalize leading-none ${isSelected ? 'text-gray-900' : 'text-gray-500'}`}
-                >
-                  {value}
-                </span>
-              </button>
-            )
-          }
-
-          return (
-            <button
-              key={value}
-              type="button"
-              disabled={disabled}
-              aria-pressed={isSelected}
-              aria-label={`Select ${dimension} ${value}`}
-              onClick={() => onSelect(dimension, value)}
-              className={`ck-border ck-radius-sm px-3 transition-all disabled:opacity-50 ${
-                isSize ? 'min-w-[2.75rem] py-2 text-center' : 'py-2 text-left'
-              }`}
-              style={{
-                borderWidth: 2,
-                borderColor: isSelected ? 'hsl(var(--brand-primary))' : undefined,
-                background: isSelected ? 'hsl(var(--surface-muted))' : undefined,
-                fontWeight: isSelected ? 600 : 500,
-              }}
-            >
-              <span className={`text-xs ${isSize ? 'font-bold uppercase tracking-wide' : 'font-semibold capitalize'}`}>
-                {value}
-              </span>
-              {!isSize && sampleVariant && (
-                <span className="mt-0.5 block text-[10px] tabular-nums text-gray-500">
-                  {formatCurrency(sampleVariant.price, sampleVariant.currency ?? 'INR')}
-                </span>
-              )}
-            </button>
-          )
-        })}
-      </div>
-    </div>
-  )
-}
-
 export function CartDetailLineItem({
   item,
   product,
   editable,
+  maxQuantity,
   onUpdateQuantity,
   onRemove,
   onVariantChange,
@@ -149,7 +85,6 @@ export function CartDetailLineItem({
   const { locale } = useCheckoutConfig()
   const productName = resolveProductName(item)
   const fallbackVariantLabel = resolveVariantLabel(item)
-  const lineTotal = { amount: item.unitPrice.amount * item.quantity, currency: item.unitPrice.currency }
 
   const activeVariants = (product?.variants ?? []).filter((v) => v.is_active !== false)
   const selectedVariant = resolveSelectedVariant(
@@ -157,25 +92,91 @@ export function CartDetailLineItem({
     item.variantId && item.variantId !== item.productId ? item.variantId : undefined,
     fallbackVariantLabel,
   )
-  const selections = selectionsFromVariant(selectedVariant)
-  const structuredOptions = hasStructuredVariantOptions(activeVariants)
-  const optionDimensions = getVariantOptionDimensions(activeVariants)
+
+  const optionRows = useMemo(
+    () => buildProductCardOptionRows(activeVariants, product?.images),
+    [activeVariants, product?.images],
+  )
+  const galleryImages = useMemo(
+    () =>
+      product?.images?.length
+        ? product.images.map((img) => ({ url: img.url, alt_text: img.alt_text }))
+        : item.imageUrl
+          ? [{ url: item.imageUrl }]
+          : [],
+    [product?.images, item.imageUrl],
+  )
+  const hasStructuredOptions = optionRows.length > 0
+
+  const [selections, setSelections] = useState<Record<string, string>>(() =>
+    selectionsFromVariant(selectedVariant),
+  )
+  const [selectedColorName, setSelectedColorName] = useState<string | undefined>(() =>
+    getColorNameFromOptionRows(selectedVariant, optionRows),
+  )
+
+  useEffect(() => {
+    const nextSelections = selectionsFromVariant(selectedVariant)
+    setSelections(nextSelections)
+    setSelectedColorName(getColorNameFromOptionRows(selectedVariant, optionRows))
+  }, [item.variantId, product?.id, optionRows.length, selectedVariant?.id])
+
+  const validation = useMemo(
+    () => validateVariantCombination(activeVariants, selections, selectedColorName),
+    [activeVariants, selections, selectedColorName],
+  )
+
+  const pricingVariant = useMemo(
+    () =>
+      resolveVariantForCardPricing(activeVariants, optionRows, selections, selectedColorName) ??
+      selectedVariant,
+    [activeVariants, optionRows, selections, selectedColorName, selectedVariant],
+  )
+
+  const unitPriceMinor = Math.round((pricingVariant?.price ?? item.unitPrice.amount / 100) * 100)
+  const lineTotal = { amount: unitPriceMinor * item.quantity, currency: item.unitPrice.currency }
+
   const selectedSummary = selectedVariant
     ? variantDisplayLabel(selectedVariant)
     : fallbackVariantLabel
 
-  const handleDimensionSelect = (dimension: string, value: string) => {
+  const applyVariantIfValid = (nextSelections: Record<string, string>, nextColor?: string) => {
+    const result = validateVariantCombination(activeVariants, nextSelections, nextColor)
+    if (result.valid && result.variant && result.variant.id !== selectedVariant?.id) {
+      onVariantChange?.(result.variant)
+    }
+  }
+
+  const handleSelectSize = (dimension: string, value: string) => {
     const nextSelections = { ...selections, [dimension]: value }
-    const match =
-      findVariantBySelections(activeVariants, nextSelections) ??
-      findVariantForDimensionValue(activeVariants, dimension, value)
-    if (match && match.id !== selectedVariant?.id) onVariantChange?.(match)
+    setSelections(nextSelections)
+    applyVariantIfValid(nextSelections, selectedColorName)
+  }
+
+  const handleSelectColor = (colorName: string) => {
+    setSelectedColorName(colorName)
+    applyVariantIfValid(selections, colorName)
   }
 
   const showFallbackGrid =
     activeVariants.length > 0 &&
-    !structuredOptions &&
+    !hasStructuredOptions &&
     activeVariants.some((v) => variantDisplayLabel(v))
+
+  const displayImage = useMemo(
+    () =>
+      resolveLineItemDisplayImage(
+        optionRows,
+        galleryImages,
+        selectedColorName,
+        activeVariants,
+        pricingVariant,
+        item.imageUrl,
+      ),
+    [optionRows, galleryImages, selectedColorName, activeVariants, pricingVariant, item.imageUrl],
+  )
+
+  const qtyCap = maxQuantity ?? item.maxQuantity ?? 99
 
   return (
     <div className="flex items-start gap-3 py-4 first:pt-2 last:pb-2">
@@ -188,8 +189,13 @@ export function CartDetailLineItem({
           overflow: 'hidden',
         }}
       >
-        {item.imageUrl ? (
-          <img src={item.imageUrl} alt={productName} className="h-full w-full object-cover" />
+        {displayImage ? (
+          <img
+            key={displayImage}
+            src={imgUrl(displayImage)}
+            alt={productName}
+            className="h-full w-full object-cover"
+          />
         ) : (
           <span className="ck-text-subtle text-xs">No image</span>
         )}
@@ -199,20 +205,8 @@ export function CartDetailLineItem({
         <div className="flex flex-col gap-1.5 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
           <div className="min-w-0 sm:pr-1">
             <div className="text-sm font-medium leading-snug break-words">{productName}</div>
-            {selectedSummary && !structuredOptions && (
+            {selectedSummary && !hasStructuredOptions && (
               <div className="ck-text-muted mt-0.5 text-xs">{selectedSummary}</div>
-            )}
-            {structuredOptions && selectedSummary && (
-              <div className="mt-1.5 flex flex-wrap gap-x-3 gap-y-1">
-                {optionDimensions.map((dim) =>
-                  selections[dim] ? (
-                    <span key={dim} className="text-xs text-gray-600">
-                      <span className="font-medium text-gray-500">{dim}:</span>{' '}
-                      <span className="capitalize">{selections[dim]}</span>
-                    </span>
-                  ) : null,
-                )}
-              </div>
             )}
             {item.inStock === false && (
               <span className="ck-badge ck-badge-warning mt-1">Out of stock</span>
@@ -223,19 +217,17 @@ export function CartDetailLineItem({
           </div>
         </div>
 
-        {structuredOptions && editable && (
-          <div className="space-y-3 rounded-lg border border-gray-100 bg-gray-50/50 p-3">
-            {optionDimensions.map((dimension) => (
-              <DimensionSelector
-                key={dimension}
-                dimension={dimension}
-                variants={activeVariants}
-                selections={selections}
-                disabled={variantChangePending}
-                onSelect={handleDimensionSelect}
-              />
-            ))}
-          </div>
+        {hasStructuredOptions && editable && (
+          <ProductOptionPicker
+            rows={optionRows}
+            selections={selections}
+            selectedColorName={selectedColorName}
+            variants={activeVariants}
+            onSelectSize={handleSelectSize}
+            onSelectColor={handleSelectColor}
+            errorMessage={validation.valid ? undefined : validation.message}
+            disabled={variantChangePending}
+          />
         )}
 
         {showFallbackGrid && editable && (
@@ -290,10 +282,7 @@ export function CartDetailLineItem({
                 type="button"
                 aria-label="Increase quantity"
                 className="ck-btn-ghost"
-                onClick={() =>
-                  onUpdateQuantity?.(item.id, Math.min(item.maxQuantity ?? 99, item.quantity + 1))
-                }
-                disabled={item.quantity >= (item.maxQuantity ?? 99)}
+                onClick={() => onUpdateQuantity?.(item.id, item.quantity + 1)}
                 style={{ padding: '6px 10px' }}
               >
                 <Plus size={14} />

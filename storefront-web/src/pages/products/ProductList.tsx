@@ -13,6 +13,8 @@ import {
 } from 'lucide-react'
 import type { StoreCategory } from '@/types'
 import { useBranch } from '@/contexts/BranchContext'
+import { useVendor } from '@/contexts/VendorContext'
+import { useAuthStore } from '@/stores/authStore'
 import { useTheme } from '@/contexts/ThemeContext'
 import StarRating from '@/components/StarRating'
 import { processRows, type SortDir } from '@/lib/tableList'
@@ -20,6 +22,8 @@ import { themeUi } from '@/lib/themeColors'
 import { ProductCard } from '@/kit/products/ProductCard'
 import { ProductGridSkeleton } from '@/kit/states/StateScreens'
 import { bridgeProduct } from '@/kit/bridge'
+import { variantColorCss, variantDisplayLabel } from '@/lib/variantOptions'
+import { assertCanAddToCart } from '@/lib/stockValidation'
 import { toast } from 'sonner'
 
 type FilterType = 'products' | 'services' | 'both'
@@ -131,6 +135,8 @@ function productHasStock(product: Product): boolean {
 
 export default function ProductList() {
   const { storePath } = useBranch()
+  const { vendorSlug } = useVendor()
+  const { isAuthenticated } = useAuthStore()
   const theme = useTheme()
   const addToCart = useAddToCart()
   const cardStyle = theme.card_style || 'default'
@@ -704,15 +710,23 @@ export default function ProductList() {
                       title: item.name,
                       description: item.description || item.short_description || '',
                       categoryIds: [],
-                      images: (item.images || []).map((img: any) => ({ url: img.url || imgUrl(img.url), alt: img.alt_text || item.name })),
+                      images: (item.images || []).map((img: any) => ({
+                        url: img.url || imgUrl(img.url),
+                        alt: img.alt_text || '',
+                      })),
                       variants: variants.length > 0
-                        ? variants.map((v: any) => ({
+                        ? variants.map((v: ProductVariant) => ({
                             id: v.id,
                             name: v.name,
                             options: v.attributes || {},
+                            color: variantColorCss(v),
                             price: { amount: Math.round((v.price ?? 0) * 100), currency: v.currency || 'INR' },
                             compareAtPrice: v.compare_at_price ? { amount: Math.round(v.compare_at_price * 100), currency: v.currency || 'INR' } : undefined,
                             inStock: variantHasStock(v, item as Product),
+                            quantity: v.quantity,
+                            track_inventory: v.track_inventory,
+                            allow_backorders: v.allow_backorders,
+                            stock_status: v.stock_status,
                           }))
                         : [{ id: `${item.id}-default`, name: 'Default', options: {}, price: { amount: Math.round((item.price ?? 0) * 100), currency: item.currency || 'INR' }, inStock: hasStock }],
                       rating: (item.avg_rating ?? 0) > 0 ? { value: item.avg_rating, count: item.review_count ?? 0 } : undefined,
@@ -727,13 +741,34 @@ export default function ProductList() {
                       product={kitProduct}
                       showRating
                       showTags
-                      onAddToCart={async (p) => {
+                      onAddToCart={async (p, variant) => {
+                        const srcVariant = variant ? variants.find((v) => v.id === variant.id) : undefined
+                        const productRow = item as Product
+                        const stockCheck = assertCanAddToCart({
+                          vendorSlug,
+                          isAuthenticated,
+                          productId: p.id,
+                          productName: p.name,
+                          product: productRow,
+                          variant: srcVariant,
+                          variantLabel: srcVariant
+                            ? variantDisplayLabel(srcVariant) || srcVariant.name
+                            : undefined,
+                          requestQty: 1,
+                        })
+                        if (!stockCheck.ok) {
+                          toast.error(stockCheck.message)
+                          return
+                        }
                         try {
                           await addToCart.mutateAsync({
                             product_id: p.id,
+                            variant_id: srcVariant?.id,
+                            variant_label: srcVariant ? variantDisplayLabel(srcVariant) || srcVariant.name : undefined,
+                            slug: item.slug,
                             name: p.name,
                             qty: 1,
-                            price: p.price,
+                            price: variant?.price ?? p.price,
                             image_url: p.image,
                           })
                         } catch {
@@ -831,9 +866,32 @@ export default function ProductList() {
 
                 const handleListAddToCart = async () => {
                   if (!isProduct || !hasStock) return
+                  const productRow = item as Product
+                  const onlyVariant = variants.length === 1 ? (variants[0] as ProductVariant) : undefined
+                  const stockCheck = assertCanAddToCart({
+                    vendorSlug,
+                    isAuthenticated,
+                    productId: item.id,
+                    productName: item.name,
+                    product: productRow,
+                    variant: onlyVariant,
+                    variantLabel: onlyVariant
+                      ? variantDisplayLabel(onlyVariant) || onlyVariant.name
+                      : undefined,
+                    requestQty: 1,
+                  })
+                  if (!stockCheck.ok) {
+                    toast.error(stockCheck.message)
+                    return
+                  }
                   try {
                     await addToCart.mutateAsync({
                       product_id: item.id,
+                      variant_id: onlyVariant?.id,
+                      variant_label: onlyVariant
+                        ? variantDisplayLabel(onlyVariant) || onlyVariant.name
+                        : undefined,
+                      slug: item.slug,
                       name: item.name,
                       qty: 1,
                       price: effectivePrice,

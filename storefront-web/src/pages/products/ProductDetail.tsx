@@ -6,12 +6,23 @@ import { useVendor } from '@/contexts/VendorContext'
 import { useTheme } from '@/contexts/ThemeContext'
 import { Loader2, ShoppingBag } from 'lucide-react'
 import type { ProductVariant } from '@/types'
-import { variantDisplayLabel } from '@/lib/variantOptions'
+import {
+  buildProductCardOptionRows,
+  getProductPageColorOptions,
+  resolveVariantForCardPricing,
+  selectionsFromVariant,
+  validateVariantCombination,
+  type ProductCardOptionRow,
+  type ProductColorOption,
+  variantDisplayLabel,
+} from '@/lib/variantOptions'
 import { ClassicDetail, ModernDetail, MinimalDetail, ProductQuoteModal } from './templates'
 import { trackView } from '@/lib/recentlyViewed'
+import { assertCanAddToCart, getMaxAddQuantity } from '@/lib/stockValidation'
+import { toast } from 'sonner'
 
 export default function ProductDetail() {
-  const { storePath } = useVendor()
+  const { storePath, vendorSlug } = useVendor()
   const { product_detail_template } = useTheme()
   const { slug } = useParams<{ slug: string }>()
   const { data: product, isLoading } = useProduct(slug!)
@@ -27,7 +38,7 @@ export default function ProductDetail() {
 
   const handleSelectVariant = (id: string) => {
     setSelectedVariantId(id)
-    setSelectedImage(0)  // reset gallery to first item when variant changes
+    setSelectedImage(0)
   }
 
   const activeVariants = useMemo(
@@ -37,18 +48,93 @@ export default function ProductDetail() {
 
   const hasVariants = activeVariants.length > 0
 
+  const [selectedColorName, setSelectedColorName] = useState<string | undefined>(undefined)
+  const [selections, setSelections] = useState<Record<string, string>>({})
+
+  const optionRows = useMemo(
+    () => (product ? buildProductCardOptionRows(activeVariants, product.images) : []),
+    [activeVariants, product?.images, product],
+  )
+  const hasStructuredOptions = optionRows.length > 0
+
+  useEffect(() => {
+    if (!product || !activeVariants.length) return
+    const first = activeVariants.find((v) => v.is_active !== false) ?? activeVariants[0]
+    const nextSelections = selectionsFromVariant(first)
+    setSelections(nextSelections)
+    setSelectedVariantId(first.id)
+    const colors = getProductPageColorOptions(activeVariants, product.images)
+    const colorRow = optionRows.find((r) => r.type === 'color')
+    if (colorRow?.type === 'color') {
+      const match = colorRow.swatches.find((s) => s.variantId === first.id)
+      setSelectedColorName(match?.value ?? colors[0]?.name)
+    } else {
+      setSelectedColorName(undefined)
+    }
+  }, [product?.id, activeVariants.length])
+
+  const variantValidation = useMemo(
+    () => validateVariantCombination(activeVariants, selections, selectedColorName),
+    [activeVariants, selections, selectedColorName],
+  )
+
+  const handleSelectColor = (option: ProductColorOption) => {
+    setSelectedColorName(option.name)
+    setSelectedVariantId(option.variantId)
+    if (option.imageIndex != null) setSelectedImage(option.imageIndex)
+    else setSelectedImage(0)
+  }
+
+  const handleSelectSize = (dimension: string, value: string) => {
+    setSelections((prev) => ({ ...prev, [dimension]: value }))
+  }
+
+  useEffect(() => {
+    if (variantValidation.valid && variantValidation.variant) {
+      setSelectedVariantId(variantValidation.variant.id)
+    }
+  }, [variantValidation.valid, variantValidation.variant?.id])
+
   const selectedVariant: ProductVariant | null = useMemo(() => {
     if (!hasVariants) return null
+    if (variantValidation.valid && variantValidation.variant) {
+      return activeVariants.find((v) => v.id === variantValidation.variant!.id) || activeVariants[0]
+    }
     if (selectedVariantId) return activeVariants.find(v => v.id === selectedVariantId) || activeVariants[0]
     return activeVariants[0]
-  }, [hasVariants, selectedVariantId, activeVariants])
+  }, [hasVariants, variantValidation, selectedVariantId, activeVariants])
 
-  const displayPrice = selectedVariant?.price ?? product?.price ?? 0
-  const displayCompare = selectedVariant?.compare_at_price ?? product?.compare_at_price
-  const displayCurrency = selectedVariant?.currency ?? product?.currency ?? 'INR'
-  const displayStock = selectedVariant?.stock_status ?? product?.stock_status
-  const displayOfferLabel = selectedVariant?.offer_label ?? product?.offer_label
-  const displayOnSale = selectedVariant?.is_on_sale ?? product?.is_on_sale
+  const pricingVariant = useMemo(() => {
+    if (!hasVariants || !product) return selectedVariant
+    return (
+      resolveVariantForCardPricing(activeVariants, optionRows, selections, selectedColorName) ??
+      selectedVariant
+    )
+  }, [hasVariants, product, activeVariants, optionRows, selections, selectedColorName, selectedVariant])
+
+  const displayPrice = pricingVariant?.price ?? product?.price ?? 0
+  const displayCompare = pricingVariant?.compare_at_price ?? product?.compare_at_price
+  const displayCurrency = pricingVariant?.currency ?? product?.currency ?? 'INR'
+  const displayStock = pricingVariant?.stock_status ?? product?.stock_status
+  const displayOfferLabel = pricingVariant?.offer_label ?? product?.offer_label
+  const displayOnSale = pricingVariant?.is_on_sale ?? product?.is_on_sale
+
+  const maxAddQty = useMemo(() => {
+    if (!product) return null
+    const variant = pricingVariant ?? selectedVariant ?? undefined
+    return getMaxAddQuantity({
+      vendorSlug,
+      isAuthenticated,
+      productId: product.id,
+      product,
+      variant: variant ?? undefined,
+    })
+  }, [product, pricingVariant, selectedVariant, vendorSlug, isAuthenticated])
+
+  useEffect(() => {
+    if (maxAddQty === null || maxAddQty < 1) return
+    setQty((current) => (current > maxAddQty ? maxAddQty : current))
+  }, [maxAddQty, pricingVariant?.id, selectedVariant?.id])
 
   useEffect(() => {
     if (!product) return
@@ -63,9 +149,9 @@ export default function ProductDetail() {
   }, [product?.id, displayPrice, displayCurrency, storePath, product?.images, product?.name, product?.slug])
 
   const variantColors = useMemo(() => {
-    const colors = activeVariants.filter(v => v.color).map(v => ({ id: v.id, color: v.color!, name: v.name }))
-    return colors.length > 0 ? colors : null
-  }, [activeVariants])
+    const options = getProductPageColorOptions(activeVariants, product?.images)
+    return options.length > 0 ? options : null
+  }, [activeVariants, product?.images])
 
   // Variant media priority: if selected variant has its own media, use it; otherwise fall back to product media
   const displayMedia = useMemo(() => {
@@ -99,7 +185,44 @@ export default function ProductDetail() {
     )
   }
 
+  const handleSetQty = (next: number) => {
+    const newQty = Math.max(1, next)
+    const variant = pricingVariant ?? selectedVariant ?? undefined
+    const stockCheck = assertCanAddToCart({
+      vendorSlug,
+      isAuthenticated,
+      productId: product.id,
+      productName: product.name,
+      product,
+      variant: variant ?? undefined,
+      variantLabel: variant ? variantDisplayLabel(variant) || variant.name : undefined,
+      requestQty: newQty,
+    })
+    if (!stockCheck.ok) {
+      toast.error(stockCheck.message)
+      return
+    }
+    setQty(newQty)
+  }
+
   const handleAddToCart = () => {
+    if (!variantValidation.valid || !product) return
+    const stockCheck = assertCanAddToCart({
+      vendorSlug,
+      isAuthenticated,
+      productId: product.id,
+      productName: product.name,
+      product,
+      variant: selectedVariant ?? undefined,
+      variantLabel: selectedVariant
+        ? variantDisplayLabel(selectedVariant) || selectedVariant.name
+        : undefined,
+      requestQty: qty,
+    })
+    if (!stockCheck.ok) {
+      toast.error(stockCheck.message)
+      return
+    }
     const img = displayMedia?.[0]?.url || product.images?.[0]?.url || ''
     addToCart.mutate({
       product_id: product.id,
@@ -114,6 +237,23 @@ export default function ProductDetail() {
   }
 
   const handleBuyNow = () => {
+    if (!variantValidation.valid || !product) return
+    const stockCheck = assertCanAddToCart({
+      vendorSlug,
+      isAuthenticated,
+      productId: product.id,
+      productName: product.name,
+      product,
+      variant: selectedVariant ?? undefined,
+      variantLabel: selectedVariant
+        ? variantDisplayLabel(selectedVariant) || selectedVariant.name
+        : undefined,
+      requestQty: qty,
+    })
+    if (!stockCheck.ok) {
+      toast.error(stockCheck.message)
+      return
+    }
     const img = displayMedia?.[0]?.url || product.images?.[0]?.url || ''
     addToCart.mutate(
       {
@@ -173,9 +313,11 @@ export default function ProductDetail() {
   const templateProps = {
     product, selectedVariant, activeVariants, hasVariants,
     selectedVariantId, setSelectedVariantId: handleSelectVariant,
-    qty, setQty,
+    qty, setQty: handleSetQty, maxAddQty,
     displayPrice, displayCompare, displayCurrency, displayStock,
-    displayOfferLabel, displayOnSale, discount, variantColors,
+    displayOfferLabel, displayOnSale, discount, variantColors, onSelectColor: handleSelectColor,
+    optionRows, selections, onSelectSize: handleSelectSize, selectedColorName,
+    variantValidation, hasStructuredOptions,
     selectedImage, setSelectedImage,
     displayMedia,
     handleAddToCart, handleBuyNow, handleSubscribe,

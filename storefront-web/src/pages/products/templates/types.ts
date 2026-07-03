@@ -1,4 +1,5 @@
 import type { Product, ProductVariant, ProductCard, QuoteFormField } from '@/types'
+import type { ProductColorOption, ProductCardOptionRow, VariantValidationResult } from '@/lib/variantOptions'
 
 export interface ProductDetailTemplateProps {
   product: Product
@@ -9,6 +10,7 @@ export interface ProductDetailTemplateProps {
   setSelectedVariantId: (id: string) => void
   qty: number
   setQty: (qty: number) => void
+  maxAddQty?: number | null
   displayPrice: number
   displayCompare?: number
   displayCurrency: string
@@ -16,7 +18,14 @@ export interface ProductDetailTemplateProps {
   displayOfferLabel?: string
   displayOnSale?: boolean
   discount: number
-  variantColors: { id: string; color: string; name: string }[] | null
+  variantColors: ProductColorOption[] | null
+  onSelectColor: (option: ProductColorOption) => void
+  optionRows: ProductCardOptionRow[]
+  selections: Record<string, string>
+  onSelectSize: (dimension: string, value: string) => void
+  selectedColorName?: string
+  variantValidation: VariantValidationResult
+  hasStructuredOptions: boolean
   selectedImage: number
   setSelectedImage: (i: number) => void
   displayMedia: { id: string; url: string; alt_text?: string; is_primary: boolean; media_type?: 'image' | 'video' | 'model3d' }[]

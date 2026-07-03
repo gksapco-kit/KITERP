@@ -24,13 +24,32 @@ export interface Product {
   compareAtPrice?: number;
   currency?: string;
   image: string;
-  images?: string[];
+  images?: Array<string | { url: string; alt_text?: string }>;
   rating?: number;
   reviewCount?: number;
   tags?: string[];
   inStock?: boolean;
   description?: string;
-  variants?: { id: ID; label: string; value: string; available?: boolean }[];
+  track_inventory?: boolean;
+  allow_backorders?: boolean;
+  quantity?: number;
+  stock_status?: string;
+  variants?: {
+    id: ID;
+    label: string;
+    value: string;
+    available?: boolean;
+    color?: string;
+    attributes?: Record<string, string>;
+    price?: number;
+    compareAtPrice?: number;
+    quantity?: number;
+    track_inventory?: boolean;
+    allow_backorders?: boolean;
+    stock_status?: string;
+  }[];
+  /** When true, card price shows "From" using the lowest variant price. */
+  showFromPrice?: boolean;
 }
 
 export interface CartLine {

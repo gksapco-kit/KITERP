@@ -11,14 +11,17 @@ import StarRating from '@/components/StarRating'
 import ReviewSection from '@/components/ReviewSection'
 import MerchProductGrid from './MerchProductGrid'
 import MediaViewer from '@/components/MediaViewer'
+import ColorSwatchPicker from '@/components/products/ColorSwatchPicker'
+import { isCombinationAvailable } from '@/lib/variantOptions'
 import type { ProductDetailTemplateProps } from './types'
 
 export default function MinimalDetail(props: ProductDetailTemplateProps) {
   const {
     product, selectedVariant, activeVariants, hasVariants,
-    setSelectedVariantId, qty, setQty,
+    setSelectedVariantId, qty, setQty, maxAddQty,
     displayPrice, displayCompare, displayCurrency, displayStock,
-    displayOfferLabel, displayOnSale, discount, variantColors,
+    displayOfferLabel, displayOnSale, discount, variantColors, onSelectColor,
+    optionRows, selections, onSelectSize, selectedColorName, variantValidation, hasStructuredOptions,
     selectedImage, setSelectedImage, displayMedia,
     selectedVariantId,
     handleAddToCart, handleBuyNow, isAuthenticated, addToCartPending,
@@ -31,6 +34,7 @@ export default function MinimalDetail(props: ProductDetailTemplateProps) {
     subscriptionScheduleModes,
     canQuote, setShowQuote,
   } = props
+  const qtyMax = maxAddQty ?? 99
 
   const intervalLabel: Record<string, string> = {
     daily: 'Daily', weekly: 'Weekly', biweekly: 'Bi-Weekly', monthly: 'Monthly',
@@ -146,21 +150,69 @@ export default function MinimalDetail(props: ProductDetailTemplateProps) {
       {/* Variant / Plan Selector */}
       {hasVariants && (
         <div className="mb-8 space-y-4">
+          {optionRows.filter((r) => r.type === 'size').map((sizeRow) => (
+            sizeRow.type === 'size' ? (
+              <div key={`size-${sizeRow.label}`} className="text-center">
+                <p className="text-xs font-medium text-gray-400 uppercase tracking-wide mb-3">
+                  {sizeRow.label}
+                  {selections[sizeRow.label] ? (
+                    <span className="ml-1.5 font-normal normal-case text-gray-500">— {selections[sizeRow.label]}</span>
+                  ) : null}
+                </p>
+                <div className="flex flex-wrap justify-center gap-2">
+                  {sizeRow.values.map((value) => {
+                    const isSelected = selections[sizeRow.label] === value
+                    const unavailable =
+                      !!selectedColorName &&
+                      !isCombinationAvailable(activeVariants, { ...selections, [sizeRow.label]: value }, selectedColorName)
+                    return (
+                      <button
+                        key={value}
+                        type="button"
+                        onClick={() => onSelectSize(sizeRow.label, value)}
+                        className={`min-w-[2.75rem] px-4 py-2 rounded-full border-2 text-sm font-semibold uppercase transition-all ${
+                          isSelected
+                            ? 'border-black bg-black text-white'
+                            : unavailable
+                              ? 'border-gray-200 bg-gray-50 text-gray-400 opacity-60'
+                              : 'border-gray-200 text-gray-700 hover:border-gray-400'
+                        }`}
+                      >
+                        {value}
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+            ) : null
+          ))}
+
           {variantColors && !isSubscription && (
             <div className="flex justify-center">
               <div>
-                <p className="text-xs font-medium text-gray-400 uppercase tracking-wide text-center mb-3">Color</p>
-                <div className="flex gap-3 justify-center">
-                  {variantColors.map(vc => (
-                    <button key={vc.id} onClick={() => setSelectedVariantId(vc.id)} title={vc.name}
-                      className={`w-10 h-10 rounded-full border-2 transition-all hover:scale-110 ${
-                        selectedVariant?.id === vc.id ? 'border-black ring-2 ring-gray-200 scale-110' : 'border-gray-200'
-                      }`} style={{ backgroundColor: vc.color }} />
-                  ))}
-                </div>
+                <p className="text-xs font-medium text-gray-400 uppercase tracking-wide text-center mb-3">
+                  Color
+                  {selectedColorName ? (
+                    <span className="ml-1.5 font-normal normal-case text-gray-500">— {selectedColorName}</span>
+                  ) : null}
+                </p>
+                <ColorSwatchPicker
+                  options={variantColors}
+                  selectedVariantId={selectedVariant?.id}
+                  selectedImageIndex={selectedImage}
+                  selectedColorName={selectedColorName}
+                  onSelect={onSelectColor}
+                  className="justify-center"
+                />
               </div>
             </div>
           )}
+
+          {!variantValidation.valid && variantValidation.message ? (
+            <p className="text-sm text-red-600 bg-red-50 border border-red-100 rounded-xl px-3 py-2 text-center max-w-md mx-auto">
+              {variantValidation.message}
+            </p>
+          ) : null}
 
           {isSubscription ? (
             <div className="max-w-md mx-auto">
@@ -215,7 +267,7 @@ export default function MinimalDetail(props: ProductDetailTemplateProps) {
                 })}
               </div>
             </div>
-          ) : (
+          ) : !hasStructuredOptions ? (
             <div>
               <p className="text-xs font-medium text-gray-400 uppercase tracking-wide text-center mb-3">Options</p>
               <div className="flex flex-wrap justify-center gap-2">
@@ -232,7 +284,7 @@ export default function MinimalDetail(props: ProductDetailTemplateProps) {
                 })}
               </div>
             </div>
-          )}
+          ) : null}
         </div>
       )}
 
@@ -268,12 +320,12 @@ export default function MinimalDetail(props: ProductDetailTemplateProps) {
             ) : (
               <>
                 <Button className="w-full h-12 rounded-full gap-2 bg-black hover:bg-gray-800 text-white font-medium"
-                  onClick={handleAddToCart} disabled={addToCartPending || displayStock === 'out_of_stock'}>
+                  onClick={handleAddToCart} disabled={addToCartPending || displayStock === 'out_of_stock' || !variantValidation.valid}>
                   {addToCartPending ? <Loader2 className="w-5 h-5 animate-spin" /> : <ShoppingCart className="w-5 h-5" />}
                   {displayStock === 'out_of_stock' ? 'Out of Stock' : 'Add to Cart'}
                 </Button>
                 <Button variant="outline" className="w-full h-12 rounded-full font-medium" onClick={handleBuyNow}
-                  disabled={addToCartPending || displayStock === 'out_of_stock'}>Buy Now</Button>
+                  disabled={addToCartPending || displayStock === 'out_of_stock' || !variantValidation.valid}>Buy Now</Button>
               </>
             )}
             {canQuote && (

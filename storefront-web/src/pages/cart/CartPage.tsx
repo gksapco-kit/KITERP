@@ -12,14 +12,18 @@ import {
 } from '@/hooks/useStore'
 import { useAuthStore } from '@/stores/authStore'
 import { useBranch } from '@/contexts/BranchContext'
+import { useVendor } from '@/contexts/VendorContext'
 import { useBuilderSiteCheckoutTheme } from '@/hooks/useBuilderSiteCheckoutTheme'
 import { TableSkeleton } from '@/kit/states/StateScreens'
 import { CartDetailLineItem } from './CartDetailLineItem'
 import type { ProductVariant } from '@/types'
 import { variantDisplayLabel } from '@/lib/variantOptions'
+import { maxCartLineQty, validateCartLineQtyChange } from '@/lib/cartLineStock'
+import { toast } from 'sonner'
 
 export default function CartPage() {
   const { storePath } = useBranch()
+  const { vendorSlug } = useVendor()
   const { isAuthenticated } = useAuthStore()
   const { data: storeInfo } = useStoreInfo()
   const { data: cart, isLoading } = useCart()
@@ -110,18 +114,40 @@ export default function CartPage() {
           ) : (
             <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_380px]">
               <div className="ck-surface ck-border ck-radius-md p-2 md:p-4">
-                {cartItems.map((item, i) => (
+                {cartItems.map((item, i) => {
+                  const lineMaxQty = maxCartLineQty({
+                    vendorSlug,
+                    isAuthenticated,
+                    product: productMap[item.productId],
+                    line: item,
+                  })
+                  return (
                   <div key={`${item.productId}-${i}`} className={i > 0 ? 'ck-border-t' : ''}>
                     <CartDetailLineItem
                       item={item}
                       product={productMap[item.productId]}
                       editable
                       variantChangePending={changeVariant.isPending}
+                      maxQuantity={lineMaxQty}
                       onUpdateQuantity={(id, q) => {
                         const index = Number(id)
                         if (Number.isNaN(index)) return
-                        if (q <= 0) removeItem.mutate(index)
-                        else updateItem.mutate({ index, qty: q })
+                        if (q <= 0) {
+                          removeItem.mutate(index)
+                          return
+                        }
+                        const stockCheck = validateCartLineQtyChange({
+                          vendorSlug,
+                          isAuthenticated,
+                          product: productMap[item.productId],
+                          line: item,
+                          newQty: q,
+                        })
+                        if (!stockCheck.ok) {
+                          toast.error(stockCheck.message)
+                          return
+                        }
+                        updateItem.mutate({ index, qty: q })
                       }}
                       onRemove={(id) => {
                         const index = Number(id)
@@ -149,7 +175,8 @@ export default function CartPage() {
                       }}
                     />
                   </div>
-                ))}
+                  )
+                })}
                 <div className="ck-border-t mt-2 flex items-center justify-between p-4">
                   <Link to={storePath('/products')} className="ck-btn-ghost flex items-center gap-1">
                     <ArrowLeft size={14} /> Continue shopping

@@ -1,9 +1,21 @@
-import { useEffect, useState } from 'react'
-import { ShoppingCart, X, Minus, Plus, Trash2 } from 'lucide-react'
+import { useEffect, useMemo, useState } from 'react'
+import { ShoppingCart, X } from 'lucide-react'
 import { useCartStore } from '@/stores/cartStore'
 import { useAuthStore } from '@/stores/authStore'
-import { useCart, useUpdateCartItem, useRemoveCartItem } from '@/hooks/useStore'
+import {
+  useCart,
+  useUpdateCartItem,
+  useRemoveCartItem,
+  useCartProducts,
+  useChangeCartVariant,
+} from '@/hooks/useStore'
 import { useVendor } from '@/contexts/VendorContext'
+import { CheckoutConfigProvider } from '@/checkout/config'
+import { CartDetailLineItem } from '@/pages/cart/CartDetailLineItem'
+import type { ProductVariant } from '@/types'
+import { variantDisplayLabel } from '@/lib/variantOptions'
+import { maxCartLineQty, validateCartLineQtyChange } from '@/lib/cartLineStock'
+import { toast } from 'sonner'
 import type { LiveItem, PublicSite, StyleConfig } from '@/blocks/registry'
 import { BuilderTextField } from '@/components/builder/BuilderTextField'
 import { useBuilderCanvas } from '@/contexts/BuilderCanvasContext'
@@ -45,7 +57,37 @@ export default function CartDrawerBlock({ style, props, liveItems, blockId }: Pr
   useCart()
   const updateItem = useUpdateCartItem()
   const removeItem = useRemoveCartItem()
-  const { storePath } = useVendor()
+  const changeVariant = useChangeCartVariant()
+  const { storePath, vendorSlug } = useVendor()
+
+  const rawItems = (cart?.items ?? []) as Array<Record<string, unknown>>
+  const { data: productMap = {} } = useCartProducts(
+    rawItems.map((i) => ({
+      product_id: String(i.product_id ?? ''),
+      slug: i.slug ? String(i.slug) : undefined,
+    })),
+  )
+
+  const cartLineItems = useMemo(
+    () =>
+      rawItems.map((item, i) => {
+        const variantLabel = item.variant_label ? String(item.variant_label) : undefined
+        const productId = String(item.product_id ?? i)
+        const variantId = item.variant_id ? String(item.variant_id) : undefined
+        return {
+          id: String(i),
+          productId,
+          variantId: variantId ?? productId,
+          name: String(item.name ?? ''),
+          variantLabel,
+          imageUrl: item.image_url ? String(item.image_url) : undefined,
+          unitPrice: { amount: Math.round(Number(item.price) * 100), currency: 'INR' },
+          quantity: Number(item.qty),
+          inStock: true,
+        }
+      }),
+    [rawItems],
+  )
 
   const [open, setOpen] = useState(false)
 
@@ -115,58 +157,73 @@ export default function CartDrawerBlock({ style, props, liveItems, blockId }: Pr
                   <p className="text-sm text-gray-500">Your cart is empty.</p>
                 </div>
               ) : (
-                <ul className="divide-y divide-gray-100 list-none p-0 m-0">
-                  {cart.items.map((item, idx) => (
-                    <li key={`${item.product_id}-${idx}`} className="flex gap-3 px-5 py-4">
-                      <div className="w-16 h-16 rounded-lg bg-gray-100 overflow-hidden shrink-0">
-                        {item.image_url ? (
-                          <img src={item.image_url} alt={item.name} className="w-full h-full object-cover" />
-                        ) : null}
+                <CheckoutConfigProvider config={{ storeName: 'Cart', locale: 'en-IN' }}>
+                  <div className="checkout-root px-3">
+                    {cartLineItems.map((lineItem, i) => {
+                      const lineMaxQty = maxCartLineQty({
+                        vendorSlug,
+                        isAuthenticated,
+                        product: productMap[lineItem.productId],
+                        line: lineItem,
+                      })
+                      return (
+                      <div key={`${lineItem.productId}-${i}`} className={i > 0 ? 'border-t border-gray-100' : ''}>
+                        <CartDetailLineItem
+                          item={lineItem}
+                          product={productMap[lineItem.productId]}
+                          editable
+                          variantChangePending={changeVariant.isPending}
+                          maxQuantity={lineMaxQty}
+                          onUpdateQuantity={(id, q) => {
+                            const index = Number(id)
+                            if (Number.isNaN(index)) return
+                            if (q <= 0) {
+                              removeItem.mutate(index)
+                              return
+                            }
+                            const stockCheck = validateCartLineQtyChange({
+                              vendorSlug,
+                              isAuthenticated,
+                              product: productMap[lineItem.productId],
+                              line: lineItem,
+                              newQty: q,
+                            })
+                            if (!stockCheck.ok) {
+                              toast.error(stockCheck.message)
+                              return
+                            }
+                            updateItem.mutate({ index, qty: q })
+                          }}
+                          onRemove={(id) => {
+                            const index = Number(id)
+                            if (!Number.isNaN(index)) removeItem.mutate(index)
+                          }}
+                          onVariantChange={(variant: ProductVariant) => {
+                            if (variant.id === lineItem.variantId) return
+                            const raw = rawItems[i]
+                            changeVariant.mutate({
+                              index: i,
+                              item: {
+                                product_id: lineItem.productId,
+                                variant_id: variant.id,
+                                variant_label: variantDisplayLabel(variant) || variant.name,
+                                slug: raw?.slug ? String(raw.slug) : productMap[lineItem.productId]?.slug,
+                                name: String(raw?.name ?? lineItem.name).split(' - ')[0] || lineItem.name,
+                                qty: lineItem.quantity,
+                                price: variant.price,
+                                image_url:
+                                  variant.media?.find((m) => m.is_primary)?.url ??
+                                  variant.media?.[0]?.url ??
+                                  lineItem.imageUrl,
+                              },
+                            })
+                          }}
+                        />
                       </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium line-clamp-2" style={{ color: style.text_color }}>
-                          {item.name}
-                        </p>
-                        <p className="text-xs text-gray-500 mt-1">
-                          {Number(item.price || 0).toLocaleString()}
-                        </p>
-                        <div className="flex items-center gap-2 mt-2">
-                          <button
-                            type="button"
-                            aria-label="Decrease quantity"
-                            disabled={item.qty <= 1 || updateItem.isPending}
-                            onClick={() => {
-                              if (item.qty <= 1) return
-                              updateItem.mutate({ index: idx, qty: item.qty - 1 })
-                            }}
-                            className="w-7 h-7 inline-flex items-center justify-center border rounded hover:bg-gray-50 disabled:opacity-40"
-                          >
-                            <Minus className="w-3.5 h-3.5" />
-                          </button>
-                          <span className="text-sm tabular-nums">{item.qty}</span>
-                          <button
-                            type="button"
-                            aria-label="Increase quantity"
-                            disabled={updateItem.isPending}
-                            onClick={() => updateItem.mutate({ index: idx, qty: item.qty + 1 })}
-                            className="w-7 h-7 inline-flex items-center justify-center border rounded hover:bg-gray-50 disabled:opacity-40"
-                          >
-                            <Plus className="w-3.5 h-3.5" />
-                          </button>
-                          <button
-                            type="button"
-                            aria-label="Remove item"
-                            disabled={removeItem.isPending}
-                            onClick={() => removeItem.mutate(idx)}
-                            className="ml-auto p-1.5 rounded hover:bg-red-50 text-red-500"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
-                        </div>
-                      </div>
-                    </li>
-                  ))}
-                </ul>
+                      )
+                    })}
+                  </div>
+                </CheckoutConfigProvider>
               )}
 
               {upsells.length > 0 && cart && cart.items.length > 0 && (

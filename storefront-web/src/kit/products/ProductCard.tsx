@@ -1,19 +1,41 @@
+import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { Star, ShoppingCart, Heart } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
-import { cn } from "@/lib/utils";
+import { cn, imgUrl } from "@/lib/utils";
+import type { ProductVariant as ApiVariant } from "@/types";
+import ProductOptionPicker from "@/components/products/ProductOptionPicker";
+import {
+  buildProductCardOptionRows,
+  resolveCardDefaultSelections,
+  resolveCardDisplayImage,
+  resolveVariantForCardPricing,
+  validateVariantCombination,
+} from "@/lib/variantOptions";
 import type { Product } from "../types";
 import { formatPrice } from "../mock";
+
+type KitVariant = NonNullable<Product["variants"]>[number];
 
 export interface ProductCardProps {
   product: Product;
   layout?: "vertical" | "horizontal";
   showRating?: boolean;
   showTags?: boolean;
-  onAddToCart?: (p: Product) => void;
+  onAddToCart?: (p: Product, variant?: KitVariant) => void;
   onToggleWishlist?: (p: Product) => void;
+}
+
+function toApiVariant(v: KitVariant): ApiVariant {
+  return {
+    id: v.id,
+    name: v.label,
+    price: v.price ?? 0,
+    color: v.color,
+    attributes: v.attributes,
+  };
 }
 
 export function ProductCard({
@@ -25,15 +47,93 @@ export function ProductCard({
   onToggleWishlist,
 }: ProductCardProps) {
   const horizontal = layout === "horizontal";
+  const allVariants = product.variants ?? [];
+  const apiVariants = useMemo(() => allVariants.map(toApiVariant), [allVariants]);
+  const galleryImages = useMemo(() => {
+    if (product.images?.length) {
+      return product.images.map((img) =>
+        typeof img === "string" ? { url: img } : { url: img.url, alt_text: img.alt_text },
+      );
+    }
+    return [{ url: product.image }];
+  }, [product.images, product.image]);
+  const optionRows = useMemo(
+    () => buildProductCardOptionRows(apiVariants, galleryImages),
+    [apiVariants, galleryImages],
+  );
+  const showVariantRow = optionRows.length > 0;
+
+  const firstAvailable = allVariants.find((v) => v.available !== false) ?? allVariants[0];
+  const firstApi = firstAvailable ? toApiVariant(firstAvailable) : undefined;
+
+  const [selections, setSelections] = useState<Record<string, string>>(() => {
+    const defaults = resolveCardDefaultSelections(apiVariants, optionRows, firstApi);
+    return defaults.selections;
+  });
+  const [selectedColorName, setSelectedColorName] = useState<string | undefined>(() => {
+    const defaults = resolveCardDefaultSelections(apiVariants, optionRows, firstApi);
+    return defaults.colorName;
+  });
+
+  useEffect(() => {
+    const nextFirst = allVariants.find((v) => v.available !== false) ?? allVariants[0];
+    if (!nextFirst) return;
+    const api = toApiVariant(nextFirst);
+    const rows = buildProductCardOptionRows(apiVariants, galleryImages);
+    const defaults = resolveCardDefaultSelections(apiVariants, rows, api);
+    setSelections(defaults.selections);
+    setSelectedColorName(defaults.colorName);
+  }, [product.id]);
+
+  const validation = useMemo(
+    () => validateVariantCombination(apiVariants, selections, selectedColorName),
+    [apiVariants, selections, selectedColorName],
+  );
+
+  const selectedVariant = useMemo(() => {
+    if (optionRows.length === 0) return firstAvailable;
+    if (!validation.valid || !validation.variant) return undefined;
+    return allVariants.find((v) => v.id === validation.variant!.id);
+  }, [allVariants, validation, optionRows.length, firstAvailable]);
+
+  const pricingVariant = useMemo(() => {
+    const match = resolveVariantForCardPricing(
+      apiVariants,
+      optionRows,
+      selections,
+      selectedColorName,
+    );
+    if (!match) return firstAvailable;
+    return allVariants.find((v) => v.id === match.id) ?? firstAvailable;
+  }, [apiVariants, optionRows, selections, selectedColorName, allVariants, firstAvailable]);
+
+  const displayPrice = pricingVariant?.price ?? product.price;
+  const displayCompare = pricingVariant?.compareAtPrice ?? product.compareAtPrice;
+  const variantPrices = allVariants.map((v) => v.price).filter((p): p is number => p != null);
+  const minPrice = variantPrices.length ? Math.min(...variantPrices) : displayPrice;
+  const maxPrice = variantPrices.length ? Math.max(...variantPrices) : displayPrice;
+  const showFrom =
+    !!product.showFromPrice && minPrice !== maxPrice && !pricingVariant && optionRows.length === 0;
+  const canAdd =
+    optionRows.length === 0
+      ? firstAvailable?.available !== false && product.inStock
+      : validation.valid && selectedVariant?.available !== false && product.inStock;
+
+  const displayImage = useMemo(
+    () =>
+      resolveCardDisplayImage(optionRows, galleryImages, selectedColorName, product.image) ??
+      product.image,
+    [optionRows, galleryImages, selectedColorName, product.image],
+  );
+
   return (
-    <Card className={cn("overflow-hidden group", horizontal && "flex")}>
+    <Card className={cn("overflow-hidden group flex flex-col", horizontal && "flex-row")}>
       <Link to={`/products/${product.slug}`} className={cn("block relative", horizontal ? "w-44 shrink-0" : "")}>
-        {/* Fixed-ratio frame on the wrapper (not the <img>) so cards stay even in
-            height even when a product has no image — the image just covers the frame. */}
         <div className={cn("relative w-full overflow-hidden bg-muted", horizontal ? "h-full" : "aspect-[4/3]")}>
-          {product.image ? (
+          {displayImage ? (
             <img
-              src={product.image}
+              key={displayImage}
+              src={imgUrl(displayImage)}
               alt={product.name}
               loading="lazy"
               className="absolute inset-0 h-full w-full object-cover transition-transform group-hover:scale-105"
@@ -47,13 +147,13 @@ export function ProductCard({
         {showTags && product.tags?.[0] && (
           <Badge className="absolute top-2 left-2 capitalize">{product.tags[0]}</Badge>
         )}
-        {product.compareAtPrice && (
+        {displayCompare && displayCompare > displayPrice && (
           <Badge variant="destructive" className="absolute top-2 right-2">
-            -{Math.round(((product.compareAtPrice - product.price) / product.compareAtPrice) * 100)}%
+            -{Math.round(((displayCompare - displayPrice) / displayCompare) * 100)}%
           </Badge>
         )}
       </Link>
-      <CardContent className={cn("p-4 flex flex-col gap-2 flex-1", horizontal && "p-4")}>
+      <CardContent className={cn("flex flex-1 flex-col gap-2 p-4", horizontal && "p-4")}>
         <Link to={`/products/${product.slug}`} className="font-medium line-clamp-2 hover:underline">
           {product.name}
         </Link>
@@ -63,11 +163,24 @@ export function ProductCard({
             {product.rating.toFixed(1)} <span>({product.reviewCount})</span>
           </div>
         )}
-        <div className="flex items-baseline gap-2">
-          <span className="font-semibold">{formatPrice(product.price, product.currency)}</span>
-          {product.compareAtPrice && (
+        {showVariantRow && (
+          <ProductOptionPicker
+            rows={optionRows}
+            selections={selections}
+            selectedColorName={selectedColorName}
+            variants={apiVariants}
+            onSelectSize={(dimension, value) => setSelections((prev) => ({ ...prev, [dimension]: value }))}
+            onSelectColor={setSelectedColorName}
+            errorMessage={validation.valid ? undefined : validation.message}
+            stopPropagation
+          />
+        )}
+        <div className="flex flex-wrap items-baseline gap-2">
+          {showFrom && <span className="text-xs font-normal text-muted-foreground">From</span>}
+          <span className="font-semibold">{formatPrice(displayPrice, product.currency)}</span>
+          {displayCompare && displayCompare > displayPrice && (
             <span className="text-xs text-muted-foreground line-through">
-              {formatPrice(product.compareAtPrice, product.currency)}
+              {formatPrice(displayCompare, product.currency)}
             </span>
           )}
         </div>
@@ -75,10 +188,20 @@ export function ProductCard({
           <Button
             size="sm"
             className="flex-1"
-            disabled={!product.inStock}
-            onClick={() => onAddToCart?.(product)}
+            disabled={!canAdd}
+            onClick={() => {
+              const variant = selectedVariant ?? firstAvailable;
+              if (canAdd && variant) onAddToCart?.(product, variant);
+            }}
           >
-            <ShoppingCart /> {product.inStock ? "Add to cart" : "Out of stock"}
+            <ShoppingCart />
+            {!product.inStock
+              ? "Out of stock"
+              : optionRows.length > 0 && !validation.valid
+                ? "Select options"
+                : (selectedVariant ?? firstAvailable)?.available === false
+                  ? "Out of stock"
+                  : "Add to cart"}
           </Button>
           <Button size="icon" variant="outline" onClick={() => onToggleWishlist?.(product)} aria-label="Wishlist">
             <Heart />
@@ -92,7 +215,7 @@ export function ProductCard({
 export interface ProductGridProps {
   products: Product[];
   columns?: 2 | 3 | 4 | 5;
-  onAddToCart?: (p: Product) => void;
+  onAddToCart?: (p: Product, variant?: KitVariant) => void;
   onToggleWishlist?: (p: Product) => void;
 }
 
@@ -104,7 +227,7 @@ export function ProductGrid({ products, columns = 4, onAddToCart, onToggleWishli
     5: "sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5",
   };
   return (
-    <div className={cn("grid gap-4 grid-cols-1", colMap[columns])}>
+    <div className={cn("grid grid-cols-1 gap-4", colMap[columns])}>
       {products.map((p) => (
         <ProductCard key={p.id} product={p} onAddToCart={onAddToCart} onToggleWishlist={onToggleWishlist} />
       ))}
@@ -112,7 +235,7 @@ export function ProductGrid({ products, columns = 4, onAddToCart, onToggleWishli
   );
 }
 
-export function ProductList({ products, onAddToCart }: { products: Product[]; onAddToCart?: (p: Product) => void }) {
+export function ProductList({ products, onAddToCart }: { products: Product[]; onAddToCart?: (p: Product, variant?: KitVariant) => void }) {
   return (
     <div className="flex flex-col gap-3">
       {products.map((p) => (

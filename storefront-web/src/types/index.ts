@@ -87,6 +87,7 @@ export interface Product {
   rating_distribution?: Record<number, number>
   track_inventory?: boolean
   created_at?: string
+  allow_backorders?: boolean
 }
 
 export interface ServicePlan {

@@ -12,8 +12,14 @@ function fromMinor(amount: number): number {
 }
 
 export function bridgeProduct(p: StoreProduct): Product {
-  const firstVariant = p.variants?.[0]
-  const price = firstVariant ? fromMinor(firstVariant.price.amount) : 0
+  const variants = p.variants ?? []
+  const firstVariant = variants[0]
+  const variantPrices = variants.map((v) => fromMinor(v.price.amount))
+  const minPrice = variantPrices.length ? Math.min(...variantPrices) : 0
+  const maxPrice = variantPrices.length ? Math.max(...variantPrices) : 0
+  const basePrice = firstVariant ? fromMinor(firstVariant.price.amount) : 0
+  const showFromPrice = variants.length > 1 && (minPrice !== maxPrice || basePrice === 0)
+  const price = showFromPrice ? minPrice : basePrice
   const compareAtPrice = firstVariant?.compareAtPrice ? fromMinor(firstVariant.compareAtPrice.amount) : undefined
   const currency = firstVariant?.price.currency ?? 'INR'
   return {
@@ -24,17 +30,30 @@ export function bridgeProduct(p: StoreProduct): Product {
     compareAtPrice,
     currency,
     image: p.images?.[0]?.url ?? 'https://placehold.co/600x600?text=No+Image',
-    images: p.images?.map((i) => i.url),
+    images: p.images?.map((i) => ({ url: i.url, alt_text: i.alt })),
     rating: p.rating?.value,
     reviewCount: p.rating?.count,
     tags: p.tags,
-    inStock: p.variants?.some((v) => v.inStock) ?? true,
+    inStock: variants.some((v) => v.inStock) || variants.length === 0,
     description: p.description,
-    variants: p.variants?.map((v) => ({
+    track_inventory: (p as { track_inventory?: boolean }).track_inventory,
+    allow_backorders: (p as { allow_backorders?: boolean }).allow_backorders,
+    quantity: (p as { quantity?: number }).quantity,
+    stock_status: (p as { stock_status?: string }).stock_status,
+    showFromPrice,
+    variants: variants.map((v) => ({
       id: v.id,
       label: v.name,
       value: v.id,
       available: v.inStock,
+      color: (v as { color?: string }).color,
+      attributes: v.options ?? (v as { attributes?: Record<string, string> }).attributes,
+      price: fromMinor(v.price.amount),
+      compareAtPrice: v.compareAtPrice ? fromMinor(v.compareAtPrice.amount) : undefined,
+      quantity: (v as { quantity?: number }).quantity,
+      track_inventory: (v as { track_inventory?: boolean }).track_inventory,
+      allow_backorders: (v as { allow_backorders?: boolean }).allow_backorders,
+      stock_status: (v as { stock_status?: string }).stock_status,
     })),
   }
 }

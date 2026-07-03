@@ -16,6 +16,8 @@ import StarRating from '@/components/StarRating'
 import ReviewSection from '@/components/ReviewSection'
 import MerchProductGrid from './MerchProductGrid'
 import MediaViewer from '@/components/MediaViewer'
+import ColorSwatchPicker from '@/components/products/ColorSwatchPicker'
+import { isCombinationAvailable } from '@/lib/variantOptions'
 import type { ProductDetailTemplateProps } from './types'
 import { themeUi } from '@/lib/themeColors'
 
@@ -137,9 +139,10 @@ export function ProductQuoteModal({ productId, productName, formConfig, customer
 export default function ClassicDetail(props: ProductDetailTemplateProps) {
   const {
     product, selectedVariant, activeVariants, hasVariants,
-    setSelectedVariantId, qty, setQty,
+    setSelectedVariantId, qty, setQty, maxAddQty,
     displayPrice, displayCompare, displayCurrency, displayStock,
-    displayOfferLabel, displayOnSale, discount, variantColors,
+    displayOfferLabel, displayOnSale, discount, variantColors, onSelectColor,
+    optionRows, selections, onSelectSize, selectedColorName, variantValidation, hasStructuredOptions,
     selectedImage, setSelectedImage, displayMedia,
     selectedVariantId,
     handleAddToCart, handleBuyNow, handleSubscribe, subscribePending, isAuthenticated, addToCartPending,
@@ -153,6 +156,7 @@ export default function ClassicDetail(props: ProductDetailTemplateProps) {
     canQuote, quoteFormConfig, showQuote, setShowQuote,
     requestQuote, customerInfo,
   } = props
+  const qtyMax = maxAddQty ?? 99
 
   const intervalLabel: Record<string, string> = {
     daily: 'Daily', weekly: 'Weekly', biweekly: 'Bi-Weekly', monthly: 'Monthly',
@@ -304,21 +308,66 @@ export default function ClassicDetail(props: ProductDetailTemplateProps) {
             {/* Variant / Plan Selector */}
             {hasVariants && (
               <div className="mt-5 space-y-3">
+                {optionRows.filter((r) => r.type === 'size').map((sizeRow) => (
+                  sizeRow.type === 'size' ? (
+                    <div key={`size-${sizeRow.label}`}>
+                      <p className="text-sm font-medium text-gray-700 mb-2">
+                        {sizeRow.label}
+                        {selections[sizeRow.label] ? (
+                          <span className="ml-1.5 font-normal text-gray-500">— {selections[sizeRow.label]}</span>
+                        ) : null}
+                      </p>
+                      <div className="flex flex-wrap gap-2">
+                        {sizeRow.values.map((value) => {
+                          const isSelected = selections[sizeRow.label] === value
+                          const unavailable =
+                            !!selectedColorName &&
+                            !isCombinationAvailable(activeVariants, { ...selections, [sizeRow.label]: value }, selectedColorName)
+                          return (
+                            <button
+                              key={value}
+                              type="button"
+                              onClick={() => onSelectSize(sizeRow.label, value)}
+                              className={`min-w-[2.75rem] px-3 py-2 rounded-lg border-2 text-sm font-semibold uppercase transition-all ${
+                                isSelected
+                                  ? 'border-blue-600 bg-blue-50 text-blue-700 ring-1 ring-blue-200'
+                                  : unavailable
+                                    ? 'border-gray-200 bg-gray-50 text-gray-400 opacity-60'
+                                    : 'border-gray-200 hover:border-gray-400 bg-white text-gray-800'
+                              }`}
+                            >
+                              {value}
+                            </button>
+                          )
+                        })}
+                      </div>
+                    </div>
+                  ) : null
+                ))}
+
                 {variantColors && !isSubscription && (
                   <div>
                     <p className="text-sm font-medium text-gray-700 mb-2">
-                      Color: <span className="font-normal text-gray-500">{selectedVariant?.color || '—'}</span>
+                      Color
+                      {selectedColorName ? (
+                        <span className="ml-1.5 font-normal text-gray-500">— {selectedColorName}</span>
+                      ) : null}
                     </p>
-                    <div className="flex flex-wrap gap-2">
-                      {variantColors.map(vc => (
-                        <button key={vc.id} onClick={() => setSelectedVariantId(vc.id)} title={vc.name}
-                          className={`w-9 h-9 rounded-full border-2 transition-all hover:scale-110 ${
-                            selectedVariant?.id === vc.id ? 'border-blue-600 ring-2 ring-blue-200 scale-110' : 'border-gray-300'
-                          }`} style={{ backgroundColor: vc.color }} />
-                      ))}
-                    </div>
+                    <ColorSwatchPicker
+                      options={variantColors}
+                      selectedVariantId={selectedVariant?.id}
+                      selectedImageIndex={selectedImage}
+                      selectedColorName={selectedColorName}
+                      onSelect={onSelectColor}
+                    />
                   </div>
                 )}
+
+                {!variantValidation.valid && variantValidation.message ? (
+                  <p className="text-sm text-red-600 bg-red-50 border border-red-100 rounded-lg px-3 py-2">
+                    {variantValidation.message}
+                  </p>
+                ) : null}
 
                 {isSubscription ? (
                   <div>
@@ -387,7 +436,7 @@ export default function ClassicDetail(props: ProductDetailTemplateProps) {
                       })}
                     </div>
                   </div>
-                ) : (
+                ) : !hasStructuredOptions ? (
                   <div>
                     <p className="text-sm font-medium text-gray-700 mb-2">
                       Options: <span className="font-normal text-gray-500">{selectedVariant?.name}</span>
@@ -418,7 +467,7 @@ export default function ClassicDetail(props: ProductDetailTemplateProps) {
                       })}
                     </div>
                   </div>
-                )}
+                ) : null}
               </div>
             )}
 
@@ -489,12 +538,12 @@ export default function ClassicDetail(props: ProductDetailTemplateProps) {
                     ) : (
                       <>
                         <Button size="lg" className="flex-1 gap-2 h-12 bg-amber-400 hover:bg-amber-500 text-slate-900 font-bold"
-                          onClick={handleAddToCart} disabled={addToCartPending || displayStock === 'out_of_stock'}>
+                          onClick={handleAddToCart} disabled={addToCartPending || displayStock === 'out_of_stock' || !variantValidation.valid}>
                           {addToCartPending ? <Loader2 className="w-5 h-5 animate-spin" /> : <ShoppingCart className="w-5 h-5" />}
                           {displayStock === 'out_of_stock' ? 'Out of Stock' : 'Add to Cart'}
                         </Button>
                         <Button size="lg" className="flex-1 h-12 font-bold" onClick={handleBuyNow}
-                          disabled={addToCartPending || displayStock === 'out_of_stock'}>Buy Now</Button>
+                          disabled={addToCartPending || displayStock === 'out_of_stock' || !variantValidation.valid}>Buy Now</Button>
                       </>
                     )}
                   </div>
