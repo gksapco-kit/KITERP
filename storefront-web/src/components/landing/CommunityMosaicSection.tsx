@@ -142,26 +142,36 @@ function mosaicCellGlow(cell: MosaicCell, isBrand: boolean, hasStore: boolean): 
   return paletteGlow
 }
 
-function StoreTileLogo({ vendor }: { vendor: StorefrontVendor }) {
+function StoreTilePhoto({
+  vendor,
+}: {
+  vendor: StorefrontVendor
+}) {
   const [failed, setFailed] = useState(false)
+  const [loaded, setLoaded] = useState(false)
   const name = vendorDisplayName(vendor)
   const logo = vendor.logo_url?.trim()
   const resolved = logo ? imgUrl(logo) : ''
 
-  if (resolved && !failed) {
-    return (
+  if (!resolved || failed) {
+    return <span className="kiterp-mosaic-store-initials">{vendorInitials(name)}</span>
+  }
+
+  return (
+    <>
+      <span className={`kiterp-mosaic-store-cover-skeleton${loaded ? ' kiterp-mosaic-store-cover-skeleton--hidden' : ''}`} aria-hidden />
       <img
         src={resolved}
         alt={name}
-        className="kiterp-mosaic-store-logo"
+        className={`kiterp-mosaic-store-cover${loaded ? ' kiterp-mosaic-store-cover--loaded' : ''}`}
         loading="lazy"
         decoding="async"
+        onLoad={() => setLoaded(true)}
         onError={() => setFailed(true)}
       />
-    )
-  }
-
-  return <span className="kiterp-mosaic-store-initials">{vendorInitials(name)}</span>
+      <span className="kiterp-mosaic-store-cover-gloss" aria-hidden />
+    </>
+  )
 }
 
 function MosaicCellView({
@@ -195,11 +205,17 @@ function MosaicCellView({
   if (vendor) {
     const name = vendorDisplayName(vendor)
     const fallback = MOSAIC_AVATARS[cell.avatarIdx ?? 0]
-    const tileBg = isBrand ? MOSAIC_BRAND_AVATAR.bg : fallback?.bg
+    const hasPhoto = Boolean(vendor.logo_url?.trim())
+    const paletteColor = isBrand ? MOSAIC_BRAND_SHAPE : MOSAIC_PALETTE[cell.colorIdx ?? 0]
+    const tileBg = hasPhoto
+      ? paletteColor
+      : isBrand
+        ? MOSAIC_BRAND_AVATAR.bg
+        : fallback?.bg
     return (
       <Link
         to={`/store/${vendor.slug}`}
-        className={`${classes} kiterp-mosaic-shape--avatar kiterp-mosaic-store${isBrand ? ' kiterp-mosaic-shape--brand' : ''} flex items-center justify-center`}
+        className={`${classes} kiterp-mosaic-shape--avatar kiterp-mosaic-store${hasPhoto ? ' kiterp-mosaic-store--has-photo' : ' flex items-center justify-center'}${isBrand ? ' kiterp-mosaic-shape--brand' : ''}`}
         style={{
           background: tileBg,
           color: fallback?.ink,
@@ -207,7 +223,7 @@ function MosaicCellView({
         title={`Visit ${name}`}
         aria-label={`Visit ${name} storefront`}
       >
-        <StoreTileLogo vendor={vendor} />
+        {hasPhoto ? <StoreTilePhoto vendor={vendor} /> : <span className="kiterp-mosaic-store-initials">{vendorInitials(name)}</span>}
       </Link>
     )
   }

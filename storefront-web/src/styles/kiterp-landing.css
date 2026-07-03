@@ -931,21 +931,110 @@
   outline-offset: 2px;
 }
 
-.kiterp-mosaic-store-logo {
-  width: 44%;
-  height: 44%;
-  max-width: 2.25rem;
-  max-height: 2.25rem;
-  object-fit: contain;
-  border-radius: 0.25rem;
-  transition: opacity 0.45s ease;
+.kiterp-mosaic-store--has-photo {
+  position: relative;
+  display: block;
+  padding: 0;
+  overflow: hidden;
+  isolation: isolate;
 }
 
-@media (min-width: 640px) {
-  .kiterp-mosaic-store-logo {
-    max-width: 2.75rem;
-    max-height: 2.75rem;
+.kiterp-mosaic-store--has-photo:hover {
+  transform: scale(1.045);
+}
+
+.kiterp-mosaic-store--has-photo.kiterp-mosaic-shape--brand {
+  box-shadow:
+    0 4px 16px rgba(100, 195, 160, 0.22),
+    0 2px 6px rgba(24, 28, 37, 0.06);
+}
+
+.kiterp-mosaic-store-cover {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+  opacity: 0;
+  transform: scale(1.02);
+  transition:
+    opacity 0.45s ease,
+    transform 0.5s cubic-bezier(0.22, 1, 0.36, 1),
+    filter 0.35s ease;
+}
+
+.kiterp-mosaic-store-cover--loaded {
+  opacity: 1;
+  transform: scale(1);
+}
+
+.kiterp-mosaic-store-cover-skeleton {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  background: linear-gradient(
+    135deg,
+    rgba(255, 255, 255, 0.35) 0%,
+    rgba(255, 255, 255, 0.08) 45%,
+    rgba(255, 255, 255, 0.22) 100%
+  );
+  animation: kiterp-mosaic-cover-shimmer 1.4s ease-in-out infinite;
+  transition: opacity 0.35s ease;
+}
+
+.kiterp-mosaic-store-cover-skeleton--hidden {
+  opacity: 0;
+  pointer-events: none;
+}
+
+@keyframes kiterp-mosaic-cover-shimmer {
+  0%,
+  100% {
+    opacity: 0.55;
   }
+  50% {
+    opacity: 0.9;
+  }
+}
+
+.kiterp-mosaic-store-cover-gloss {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  border-radius: inherit;
+  pointer-events: none;
+  background: linear-gradient(
+    155deg,
+    rgba(255, 255, 255, 0.28) 0%,
+    rgba(255, 255, 255, 0.04) 38%,
+    rgba(24, 28, 37, 0.08) 100%
+  );
+}
+
+.kiterp-mosaic-store--has-photo::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  border-radius: inherit;
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.5),
+    inset 0 -8px 16px rgba(24, 28, 37, 0.06);
+  pointer-events: none;
+  transition: box-shadow 0.3s ease;
+}
+
+.kiterp-mosaic-store--has-photo:hover::after {
+  box-shadow:
+    inset 0 0 0 2px rgba(255, 255, 255, 0.72),
+    inset 0 -10px 18px rgba(24, 28, 37, 0.08);
+}
+
+.kiterp-mosaic-store:hover .kiterp-mosaic-store-cover {
+  transform: scale(1.07);
+  filter: saturate(1.08) brightness(1.03);
 }
 
 .kiterp-mosaic-store-initials {
@@ -953,6 +1042,15 @@
   font-weight: 600;
   letter-spacing: 0.06em;
   color: #3d7a62;
+}
+
+.kiterp-mosaic-store--has-photo .kiterp-mosaic-store-initials {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 @media (min-width: 640px) {
