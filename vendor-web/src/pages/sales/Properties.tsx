@@ -1,0 +1,433 @@
+import { useMemo, useRef, useState } from 'react'
+import { toast } from 'sonner'
+import { Plus, Pencil, Trash2, Loader2, Home, ToggleLeft, ToggleRight, X, ImagePlus } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Card, CardContent } from '@/components/ui/card'
+import { ResizableTable } from '@/components/table/ResizableTable'
+import { TableToolbar } from '@/components/table/TableToolbar'
+import { TableColumnLabel } from '@/components/common/FieldLabel'
+import { useEscapeToClose } from '@/hooks/useEscapeToClose'
+import { formatCurrency, isLikelyImageFile, mediaUrl } from '@/lib/utils'
+import { processRows, type SortDir } from '@/lib/tableList'
+import { onClickableTableRow } from '@/lib/clickableTableRow'
+import {
+  useProperties,
+  useCreateProperty,
+  useUpdateProperty,
+  useDeleteProperty,
+  useTogglePropertyActive,
+} from '@/hooks/useProperties'
+import { propertiesApi } from '@/api/properties'
+import type { VendorProperty, VendorPropertyCreate } from '@/api/properties'
+
+const PROPERTY_TYPES = ['house', 'condo', 'loft', 'townhouse']
+const PROPERTY_STATUSES = [
+  { value: 'for-sale', label: 'For sale' },
+  { value: 'new', label: 'New' },
+  { value: 'open-house', label: 'Open house' },
+  { value: 'pending', label: 'Pending' },
+]
+
+function PropertyModal({
+  initial,
+  onClose,
+  onSave,
+  saving,
+}: {
+  initial?: VendorProperty
+  onClose: () => void
+  onSave: (data: VendorPropertyCreate) => void
+  saving: boolean
+}) {
+  useEscapeToClose(onClose)
+  const [title, setTitle] = useState(initial?.title ?? '')
+  const [address, setAddress] = useState(initial?.address ?? '')
+  const [description, setDescription] = useState(initial?.description ?? '')
+  const [price, setPrice] = useState(initial?.price != null ? String(initial.price) : '')
+  const [currency, setCurrency] = useState(initial?.currency ?? 'USD')
+  const [beds, setBeds] = useState(String(initial?.beds ?? 3))
+  const [baths, setBaths] = useState(String(initial?.baths ?? 2))
+  const [sqft, setSqft] = useState(String(initial?.sqft ?? 1500))
+  const [type, setType] = useState(initial?.type ?? 'house')
+  const [status, setStatus] = useState(initial?.status ?? 'for-sale')
+  const [imageUrl, setImageUrl] = useState<string | null>(initial?.image_url ?? null)
+  const [imageUploading, setImageUploading] = useState(false)
+  const localPreviewRef = useRef<string | null>(null)
+  const [agentName, setAgentName] = useState(initial?.agent_name ?? '')
+  const [agentPhone, setAgentPhone] = useState(initial?.agent_phone ?? '')
+  const [agentEmail, setAgentEmail] = useState(initial?.agent_email ?? '')
+  const [ctaLabel, setCtaLabel] = useState(initial?.cta_label ?? 'Schedule tour')
+  const [sortOrder, setSortOrder] = useState(String(initial?.sort_order ?? 0))
+  const [isActive, setIsActive] = useState(initial?.is_active ?? true)
+
+  const clearLocalPreview = () => {
+    if (localPreviewRef.current) {
+      URL.revokeObjectURL(localPreviewRef.current)
+      localPreviewRef.current = null
+    }
+  }
+
+  const handleImageFile = async (file: File) => {
+    if (!isLikelyImageFile(file)) {
+      toast.error('Please choose an image file (JPEG, PNG, WebP, or GIF)')
+      return
+    }
+    clearLocalPreview()
+    const localPreview = URL.createObjectURL(file)
+    localPreviewRef.current = localPreview
+    setImageUrl(localPreview)
+    setImageUploading(true)
+    try {
+      const data = await propertiesApi.uploadImage(file)
+      const saved = data.image_url || data.url
+      if (!saved) throw new Error('No image URL returned')
+      clearLocalPreview()
+      setImageUrl(saved)
+      toast.success('Image uploaded')
+    } catch {
+      clearLocalPreview()
+      setImageUrl(initial?.image_url ?? null)
+      toast.error('Upload failed — try again or pick another image')
+    } finally {
+      setImageUploading(false)
+    }
+  }
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!title.trim()) return
+    if (imageUrl?.startsWith('blob:')) {
+      toast.error('Image is still uploading — wait a moment and try again')
+      return
+    }
+    onSave({
+      title: title.trim(),
+      address: address.trim() || undefined,
+      description: description.trim() || undefined,
+      price: price.trim() ? Number(price) : null,
+      currency: currency.trim() || 'USD',
+      beds: Number(beds) || 0,
+      baths: Number(baths) || 0,
+      sqft: Number(sqft) || 0,
+      type,
+      status,
+      image_url: imageUrl || null,
+      agent_name: agentName.trim() || undefined,
+      agent_phone: agentPhone.trim() || undefined,
+      agent_email: agentEmail.trim() || undefined,
+      cta_label: ctaLabel.trim() || 'Schedule tour',
+      sort_order: Number(sortOrder) || 0,
+      is_active: isActive,
+    })
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+      <div className="flex w-full max-w-lg max-h-[90vh] flex-col rounded-xl border border-border bg-card shadow-xl">
+        <div className="flex shrink-0 items-center justify-between border-b border-border px-5 py-3">
+          <h2 className="text-sm font-semibold">{initial ? 'Edit listing' : 'New listing'}</h2>
+          <button type="button" onClick={onClose} className="rounded-lg p-1 hover:bg-muted">
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+        <form onSubmit={handleSubmit} className="flex flex-1 min-h-0 flex-col">
+        <div className="flex-1 min-h-0 overflow-y-auto space-y-4 p-5">
+          <div>
+            <Label>Listing photo</Label>
+            <label className="mt-1 flex h-32 w-full cursor-pointer items-center justify-center overflow-hidden rounded-lg border border-dashed border-input bg-muted/40 hover:bg-muted/60">
+              {imageUrl ? (
+                <img src={imageUrl.startsWith('blob:') ? imageUrl : mediaUrl(imageUrl)} alt="" className="h-full w-full object-cover" />
+              ) : (
+                <span className="flex flex-col items-center gap-1 text-xs text-muted-foreground">
+                  {imageUploading ? <Loader2 className="h-5 w-5 animate-spin" /> : <ImagePlus className="h-5 w-5" />}
+                  Upload photo
+                </span>
+              )}
+              <input
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={e => {
+                  const file = e.target.files?.[0]
+                  if (file) void handleImageFile(file)
+                }}
+              />
+            </label>
+          </div>
+          <div>
+            <Label>Title</Label>
+            <Input value={title} onChange={e => setTitle(e.target.value)} required placeholder="Sunlit Park Slope Brownstone" />
+          </div>
+          <div>
+            <Label>Address</Label>
+            <Input value={address} onChange={e => setAddress(e.target.value)} placeholder="127 Carroll St, Brooklyn, NY" />
+          </div>
+          <div>
+            <Label>Description (optional)</Label>
+            <textarea
+              value={description}
+              onChange={e => setDescription(e.target.value)}
+              rows={3}
+              className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm"
+              placeholder="About this home…"
+            />
+          </div>
+          <div className="grid grid-cols-3 gap-3">
+            <div className="col-span-2">
+              <Label>Price</Label>
+              <Input type="number" min={0} step="0.01" value={price} onChange={e => setPrice(e.target.value)} />
+            </div>
+            <div>
+              <Label>Currency</Label>
+              <Input value={currency} onChange={e => setCurrency(e.target.value)} />
+            </div>
+          </div>
+          <div className="grid grid-cols-3 gap-3">
+            <div>
+              <Label>Beds</Label>
+              <Input type="number" min={0} value={beds} onChange={e => setBeds(e.target.value)} />
+            </div>
+            <div>
+              <Label>Baths</Label>
+              <Input type="number" min={0} value={baths} onChange={e => setBaths(e.target.value)} />
+            </div>
+            <div>
+              <Label>Sq ft</Label>
+              <Input type="number" min={0} value={sqft} onChange={e => setSqft(e.target.value)} />
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <Label>Property type</Label>
+              <select
+                value={type}
+                onChange={e => setType(e.target.value)}
+                className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm capitalize"
+              >
+                {PROPERTY_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
+              </select>
+            </div>
+            <div>
+              <Label>Status</Label>
+              <select
+                value={status}
+                onChange={e => setStatus(e.target.value)}
+                className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm"
+              >
+                {PROPERTY_STATUSES.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
+              </select>
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <Label>Listing agent</Label>
+              <Input value={agentName} onChange={e => setAgentName(e.target.value)} placeholder="Sasha Reed" />
+            </div>
+            <div>
+              <Label>Button label</Label>
+              <Input value={ctaLabel} onChange={e => setCtaLabel(e.target.value)} />
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <Label>Agent phone</Label>
+              <Input value={agentPhone} onChange={e => setAgentPhone(e.target.value)} />
+            </div>
+            <div>
+              <Label>Agent email</Label>
+              <Input value={agentEmail} onChange={e => setAgentEmail(e.target.value)} />
+            </div>
+          </div>
+          <div>
+            <Label>Sort order</Label>
+            <Input type="number" value={sortOrder} onChange={e => setSortOrder(e.target.value)} />
+          </div>
+          <label className="flex items-center gap-2 text-sm">
+            <input type="checkbox" checked={isActive} onChange={e => setIsActive(e.target.checked)} />
+            Active on storefront
+          </label>
+        </div>
+        <div className="flex shrink-0 justify-end gap-2 border-t border-border px-5 py-3">
+            <Button type="button" variant="outline" onClick={onClose}>Cancel</Button>
+            <Button type="submit" disabled={saving}>
+              {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {initial ? 'Save' : 'Create'}
+            </Button>
+        </div>
+        </form>
+      </div>
+    </div>
+  )
+}
+
+export default function SalesPropertiesPage() {
+  const [search, setSearch] = useState('')
+  const [modal, setModal] = useState<{ mode: 'create' | 'edit'; property?: VendorProperty } | null>(null)
+  const [sortKey, setSortKey] = useState('sort_order')
+  const [sortDir, setSortDir] = useState<SortDir>('asc')
+
+  const { data, isLoading } = useProperties({ size: 100, search: search.trim() || undefined })
+  const createProperty = useCreateProperty()
+  const updateProperty = useUpdateProperty()
+  const deleteProperty = useDeleteProperty()
+  const toggleActive = useTogglePropertyActive()
+
+  const rows = useMemo(() => {
+    const items = data?.items ?? []
+    return processRows(
+      items,
+      search,
+      (p) => [p.title, p.address ?? '', p.type, p.status],
+      sortKey,
+      sortDir,
+      {
+        sort_order: (p) => p.sort_order,
+        title: (p) => p.title,
+        price: (p) => p.price ?? 0,
+        beds: (p) => p.beds,
+        status: (p) => p.status,
+        is_active: (p) => (p.is_active ? 1 : 0),
+      },
+    )
+  }, [data?.items, search, sortKey, sortDir])
+
+  const saving = createProperty.isPending || updateProperty.isPending
+
+  return (
+    <div className="space-y-4 p-4 md:p-6">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="text-xl font-bold flex items-center gap-2">
+            <Home className="h-5 w-5 text-primary" />
+            Property Listings
+          </h1>
+          <p className="text-sm text-muted-foreground mt-1 max-w-2xl">
+            Manage real-estate listings shown on your storefront. Listings sync automatically to Property Listing and Property Detail sections in the website builder.
+          </p>
+        </div>
+        <Button onClick={() => setModal({ mode: 'create' })} className="gap-2">
+          <Plus className="h-4 w-4" /> Add listing
+        </Button>
+      </div>
+
+      <Card>
+        <CardContent className="p-0">
+          <TableToolbar
+            search={search}
+            onSearchChange={setSearch}
+            searchPlaceholder="Search listings…"
+            sortOptions={[
+              { value: 'sort_order', label: 'Order' },
+              { value: 'title', label: 'Title' },
+              { value: 'price', label: 'Price' },
+              { value: 'beds', label: 'Beds' },
+              { value: 'status', label: 'Status' },
+              { value: 'is_active', label: 'Active' },
+            ]}
+            sortKey={sortKey}
+            sortDir={sortDir}
+            onSortKeyChange={setSortKey}
+            onSortDirChange={setSortDir}
+          />
+          <div className="overflow-x-auto">
+            <ResizableTable tableId="sales-properties-v1" defaultWidths={[64, 220, 160, 120, 80, 110, 90, 120]}>
+              <thead>
+                <tr className="border-b bg-muted/40">
+                  <th className="text-left px-4 py-3 text-xs font-medium uppercase"><TableColumnLabel>Order</TableColumnLabel></th>
+                  <th className="text-left px-4 py-3 text-xs font-medium uppercase"><TableColumnLabel>Listing</TableColumnLabel></th>
+                  <th className="text-left px-4 py-3 text-xs font-medium uppercase"><TableColumnLabel>Address</TableColumnLabel></th>
+                  <th className="text-left px-4 py-3 text-xs font-medium uppercase"><TableColumnLabel>Price</TableColumnLabel></th>
+                  <th className="text-left px-4 py-3 text-xs font-medium uppercase"><TableColumnLabel>Beds/Baths</TableColumnLabel></th>
+                  <th className="text-left px-4 py-3 text-xs font-medium uppercase"><TableColumnLabel>Status</TableColumnLabel></th>
+                  <th className="text-left px-4 py-3 text-xs font-medium uppercase"><TableColumnLabel>Active</TableColumnLabel></th>
+                  <th className="text-right px-4 py-3 text-xs font-medium uppercase"><TableColumnLabel>Actions</TableColumnLabel></th>
+                </tr>
+              </thead>
+              <tbody className="divide-y">
+                {isLoading ? (
+                  <tr><td colSpan={8} className="py-12 text-center"><Loader2 className="h-6 w-6 animate-spin mx-auto text-muted-foreground" /></td></tr>
+                ) : rows.length === 0 ? (
+                  <tr><td colSpan={8} className="py-12 text-center text-sm text-muted-foreground">No listings yet. Add your first property to sync with the website builder.</td></tr>
+                ) : rows.map(property => (
+                  <tr
+                    key={property.id}
+                    className="hover:bg-muted/30 cursor-pointer"
+                    onClick={onClickableTableRow(() => setModal({ mode: 'edit', property }))}
+                  >
+                    <td className="px-4 py-3 text-sm">{property.sort_order}</td>
+                    <td className="px-4 py-3 text-sm font-medium">
+                      <div className="flex items-center gap-2">
+                        {property.image_url ? (
+                          <img src={mediaUrl(property.image_url)} alt="" className="h-8 w-10 rounded object-cover shrink-0" />
+                        ) : (
+                          <div className="h-8 w-10 rounded bg-muted shrink-0" />
+                        )}
+                        <span className="line-clamp-1">{property.title}</span>
+                      </div>
+                    </td>
+                    <td className="px-4 py-3 text-sm text-muted-foreground">{property.address || '—'}</td>
+                    <td className="px-4 py-3 text-sm">{property.price != null ? formatCurrency(property.price, property.currency) : '—'}</td>
+                    <td className="px-4 py-3 text-sm">{property.beds} / {property.baths}</td>
+                    <td className="px-4 py-3 text-sm capitalize">{property.status.replace('-', ' ')}</td>
+                    <td className="px-4 py-3 text-sm">{property.is_active ? <span className="text-green-700 font-medium">Active</span> : <span className="text-muted-foreground">Hidden</span>}</td>
+                    <td className="px-4 py-3">
+                      <div className="flex items-center justify-end gap-1">
+                        <button
+                          type="button"
+                          title={property.is_active ? 'Deactivate' : 'Activate'}
+                          onClick={e => {
+                            e.stopPropagation()
+                            toggleActive.mutate({ id: property.id, is_active: !property.is_active })
+                          }}
+                          className="rounded p-1 hover:bg-muted"
+                        >
+                          {property.is_active ? <ToggleRight className="h-4 w-4 text-primary" /> : <ToggleLeft className="h-4 w-4" />}
+                        </button>
+                        <button
+                          type="button"
+                          title="Edit"
+                          onClick={e => { e.stopPropagation(); setModal({ mode: 'edit', property }) }}
+                          className="rounded p-1 hover:bg-muted"
+                        >
+                          <Pencil className="h-4 w-4" />
+                        </button>
+                        <button
+                          type="button"
+                          title="Delete"
+                          onClick={e => {
+                            e.stopPropagation()
+                            if (window.confirm(`Delete listing "${property.title}"?`)) deleteProperty.mutate(property.id)
+                          }}
+                          className="rounded p-1 hover:bg-muted text-destructive"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </ResizableTable>
+          </div>
+        </CardContent>
+      </Card>
+
+      {modal && (
+        <PropertyModal
+          initial={modal.mode === 'edit' ? modal.property : undefined}
+          onClose={() => setModal(null)}
+          saving={saving}
+          onSave={data => {
+            if (modal.mode === 'edit' && modal.property) {
+              updateProperty.mutate({ id: modal.property.id, data }, { onSuccess: () => setModal(null) })
+            } else {
+              createProperty.mutate(data, { onSuccess: () => setModal(null) })
+            }
+          }}
+        />
+      )}
+    </div>
+  )
+}

@@ -212,8 +212,8 @@ function TimelineImage({
   if (isNestedBlockFieldHidden(props, `items.${index}.image_url`)) return null
 
   const hasImage = Boolean(item.image_url)
-  // On the live site, render nothing when there's no image (keeps existing timelines unchanged).
-  if (!hasImage && !allowEditing) return null
+  // No image added for this item — don't render an image slot (add one from the Content tab instead).
+  if (!hasImage) return null
 
   const frameAlign = align === 'center' ? 'mx-auto' : align === 'right' ? 'ml-auto' : 'mr-auto'
 
@@ -436,34 +436,37 @@ function VerticalTimeline({
     <div className="relative">
       <div className="absolute left-8 sm:left-10 top-2 bottom-2 w-px opacity-20" style={{ backgroundColor: textColor }} />
       <div className="space-y-10 sm:space-y-12">
-        {visibleItems.map(({ item, index: i }) => (
-          <div key={i} className="flex gap-5 sm:gap-8 items-start relative">
-            {showIcons ? (
-              <IconMarker index={i} primaryColor={primaryColor} />
-            ) : (
-              <YearBadge
-                item={item}
-                index={i}
-                blockId={blockId}
-                props={props}
-                useReplacement={useReplacement}
-                primaryColor={primaryColor}
-                className="z-10"
-              />
-            )}
-            <div className="pt-2 sm:pt-3 min-w-0 flex-1">
-              <TimelineItemBody
-                item={item}
-                index={i}
-                blockId={blockId}
-                props={props}
-                useReplacement={useReplacement}
-                textColor={textColor}
-                fontHeading={fontHeading}
-              />
+        {visibleItems.map(({ item, index: i }) => {
+          const hasImage = Boolean(item.image_url)
+          return (
+            <div key={i} className={cn('flex gap-5 sm:gap-8 relative', hasImage ? 'items-center' : 'items-start')}>
+              {showIcons ? (
+                <IconMarker index={i} primaryColor={primaryColor} />
+              ) : (
+                <YearBadge
+                  item={item}
+                  index={i}
+                  blockId={blockId}
+                  props={props}
+                  useReplacement={useReplacement}
+                  primaryColor={primaryColor}
+                  className="z-10"
+                />
+              )}
+              <div className={cn('min-w-0 flex-1', !hasImage && 'pt-2 sm:pt-3')}>
+                <TimelineItemBody
+                  item={item}
+                  index={i}
+                  blockId={blockId}
+                  props={props}
+                  useReplacement={useReplacement}
+                  textColor={textColor}
+                  fontHeading={fontHeading}
+                />
+              </div>
             </div>
-          </div>
-        ))}
+          )
+        })}
       </div>
     </div>
   )

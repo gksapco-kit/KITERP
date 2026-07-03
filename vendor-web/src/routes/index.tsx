@@ -235,6 +235,13 @@ import StoreCoveragePage from '@/pages/sales/StoreCoverage'
 import SalesManagerPage from '@/pages/sales/SalesManager'
 import SalesAreaSetupPage from '@/pages/sales/SalesAreaSetup'
 import SalesPlansPage from '@/pages/sales/Plans'
+import SalesPropertiesPage from '@/pages/sales/Properties'
+import SalesCoursesPage from '@/pages/sales/Courses'
+import SalesFitnessClassesPage from '@/pages/sales/FitnessClasses'
+import SalesVehiclesPage from '@/pages/sales/Vehicles'
+import SalesEventsPage from '@/pages/sales/Events'
+import SalesRecurringBookingsPage from '@/pages/sales/RecurringBookings'
+import SalesTestimonialsPage from '@/pages/sales/Testimonials'
 
 const routerBasename = (import.meta.env.VITE_ROUTER_BASENAME || '').replace(/\/$/, '')
 
@@ -343,6 +350,13 @@ export const router = createBrowserRouter([
       { path: 'sales/manager', element: <SalesManagerPage /> },
       { path: 'sales/sales-area', element: <SalesAreaSetupPage /> },
       { path: 'sales/plans', element: <SalesPlansPage /> },
+      { path: 'sales/properties', element: <SalesPropertiesPage /> },
+      { path: 'sales/courses', element: <SalesCoursesPage /> },
+      { path: 'sales/fitness-classes', element: <SalesFitnessClassesPage /> },
+      { path: 'sales/vehicles', element: <SalesVehiclesPage /> },
+      { path: 'sales/events', element: <SalesEventsPage /> },
+      { path: 'sales/recurring-bookings', element: <SalesRecurringBookingsPage /> },
+      { path: 'sales/testimonials', element: <SalesTestimonialsPage /> },
       { path: 'rental', element: <RentalHubPage /> },
       { path: 'invoices', element: <InvoicesPage /> },
       { path: 'invoices/templates', element: <InvoiceTemplatesPage /> },

@@ -48,6 +48,8 @@ interface AutoInventoryProps {
   vehicles?: Vehicle[];
   header_title?: string;
   header_subtitle?: string;
+  /** Live vehicles synced from Sales → Vehicle Inventory — takes priority over static `vehicles`. */
+  liveVehicles?: Vehicle[];
 }
 
 export function AutoInventory({
@@ -60,10 +62,11 @@ export function AutoInventory({
   vehicles,
   header_title,
   header_subtitle,
+  liveVehicles,
 }: AutoInventoryProps) {
   const [maxPrice, setMaxPrice] = useState(90000);
   const style = catalogVariantStyle(variant ?? layout ?? "default");
-  const source = (vehicles && vehicles.length ? vehicles : mockVehicles).map(withVehicleImage);
+  const source = (liveVehicles && liveVehicles.length ? liveVehicles : vehicles && vehicles.length ? vehicles : mockVehicles).map(withVehicleImage);
   const filtered = showFilters ? source.filter((v) => v.price <= maxPrice) : source;
   const items = filtered.slice(0, itemLimit ?? filtered.length);
   const title = header_title ?? "Available inventory";
@@ -267,9 +270,15 @@ const DEFAULT_VEHICLE_HIGHLIGHTS = [
   "Heated front seats",
 ];
 
-/** Highlights may arrive as string[] (mock) or {text}[] (builder item editor). */
-function normalizeHighlights(highlights: unknown): string[] {
-  if (!Array.isArray(highlights) || highlights.length === 0) return DEFAULT_VEHICLE_HIGHLIGHTS;
+/**
+ * Highlights may arrive as string[] (mock) or {text}[] (builder item editor).
+ * `fallbackToDefault` only applies to the unsynced/demo vehicle — live vehicles with no
+ * highlights entered in Vehicle Inventory simply render without a Highlights section.
+ */
+function normalizeHighlights(highlights: unknown, fallbackToDefault = true): string[] {
+  if (!Array.isArray(highlights) || highlights.length === 0) {
+    return fallbackToDefault ? DEFAULT_VEHICLE_HIGHLIGHTS : [];
+  }
   return highlights
     .map((h) => (typeof h === "string" ? h : (h as { text?: string })?.text ?? ""))
     .filter(Boolean);
@@ -302,54 +311,36 @@ interface VehicleDetailProps {
   cta?: string;
   cta_url?: string;
   highlights?: Array<{ text: string }> | string[];
+  itemLimit?: number;
+  header_title?: string;
+  header_subtitle?: string;
+  /** Live vehicles synced from Sales → Vehicle Inventory — when present, EVERY active vehicle renders as its own detail card. */
+  liveVehicles?: Vehicle[];
 }
 
-export function VehicleDetail({
-  variant,
-  vehicleId = "v1",
-  image_url,
-  condition,
-  year,
-  make,
-  model,
-  trim,
-  exteriorColor,
-  bodyStyle,
-  mileage,
-  fuel,
-  transmission,
-  price,
-  currency,
-  stock_number,
-  location_note,
-  cta,
-  cta_url,
-  highlights,
-}: VehicleDetailProps) {
-  const mock = mockVehicles.find((x) => x.id === vehicleId) ?? mockVehicles[0];
-  const v = {
-    image: image_url || mock.image,
-    condition: (condition || mock.condition) as Vehicle["condition"],
-    year: numOrMock(year, mock.year),
-    make: make ?? mock.make,
-    model: model ?? mock.model,
-    trim: trim !== undefined ? trim : mock.trim ?? "",
-    exteriorColor: exteriorColor !== undefined ? exteriorColor : mock.exteriorColor,
-    bodyStyle: bodyStyle !== undefined ? bodyStyle : mock.bodyStyle,
-    mileage: numOrMock(mileage, mock.mileage),
-    fuel: fuel !== undefined ? fuel : mock.fuel,
-    transmission: transmission !== undefined ? transmission : mock.transmission,
-    price: numOrMock(price, mock.price),
-    currency: currency ?? mock.currency,
-  };
-  const ctaLabel = cta ?? "Schedule test drive";
-  const stockNumber = stock_number !== undefined ? stock_number : `AC-${mock.id.toUpperCase()}-${v.year}`;
-  const locationNote = location_note !== undefined
-    ? location_note
-    : "Located at our Williamsburg showroom · Available for delivery";
+type ResolvedVehicleDetail = {
+  key: string;
+  v: Vehicle;
+  stockNumber: string;
+  locationNote: string;
+  highlightList: string[];
+  ctaLabel: string;
+};
+
+/** One vehicle's full spec/highlights/pricing card, laid out per the chosen section style. The CTA label comes
+ * from the resolved vehicle itself (its own "Button label" set in Sales → Vehicle Inventory), so each card can
+ * show a different call-to-action instead of one shared override across every synced vehicle. */
+function VehicleDetailCard({
+  resolved,
+  style,
+  ctaUrl,
+}: {
+  resolved: ResolvedVehicleDetail;
+  style: ReturnType<typeof detailVariantStyle>;
+  ctaUrl?: string;
+}) {
+  const { v, stockNumber, locationNote, highlightList, ctaLabel } = resolved;
   const monthly = Math.round((v.price * 0.018) / 5);
-  const style = detailVariantStyle(variant);
-  const highlightList = normalizeHighlights(highlights);
   const metaLine = [v.year ? String(v.year) : "", v.bodyStyle].filter(Boolean).join(" · ");
   const subLine = [v.trim, v.exteriorColor].filter(Boolean).join(" · ");
   const specs = [
@@ -421,9 +412,9 @@ export function VehicleDetail({
         </div>
         <div className="mt-4 space-y-2">
           {ctaLabel && (
-            <Button className="w-full" asChild={!!cta_url}>
-              {cta_url ? (
-                <a href={cta_url}>
+            <Button className="w-full" asChild={!!ctaUrl}>
+              {ctaUrl ? (
+                <a href={ctaUrl}>
                   <Calendar className="h-4 w-4" />
                   {ctaLabel}
                 </a>
@@ -462,9 +453,101 @@ export function VehicleDetail({
   );
 
   return (
-    <div className="bg-background p-6">
+    <div>
       {style.hero && <div className={cn(style.containerClass, "mb-6")}>{banner}</div>}
       <DetailShell style={style} main={main} aside={aside} />
+    </div>
+  );
+}
+
+export function VehicleDetail({
+  variant,
+  vehicleId = "v1",
+  image_url,
+  condition,
+  year,
+  make,
+  model,
+  trim,
+  exteriorColor,
+  bodyStyle,
+  mileage,
+  fuel,
+  transmission,
+  price,
+  currency,
+  stock_number,
+  location_note,
+  cta,
+  cta_url,
+  highlights,
+  itemLimit,
+  header_title,
+  header_subtitle,
+  liveVehicles,
+}: VehicleDetailProps) {
+  const style = detailVariantStyle(variant);
+  const isLive = !!(liveVehicles && liveVehicles.length);
+  // Section heading only applies once connected to Sales → Vehicle Inventory — the single demo
+  // vehicle below already has its own banner/title, so no separate heading is needed there.
+  const headerTitle = header_title ?? (isLive ? "Available vehicles" : "");
+  const headerSubtitle = header_subtitle ?? (isLive ? `${liveVehicles!.length} vehicle${liveVehicles!.length === 1 ? "" : "s"} in stock` : "");
+
+  // Connected to Sales → Vehicle Inventory: every active vehicle gets its own full detail card,
+  // stacked in the page using the same section style (sidebar position, hero banner, card treatment).
+  const cards: ResolvedVehicleDetail[] = isLive
+    ? (liveVehicles as Vehicle[]).slice(0, itemLimit ?? liveVehicles!.length).map((lv) => {
+        const meta = lv as Vehicle & { stock_number?: string; location_note?: string; highlights?: unknown; ctaLabel?: string };
+        return {
+          key: lv.id,
+          v: withVehicleImage(lv),
+          stockNumber: meta.stock_number ?? "",
+          locationNote: meta.location_note ?? "",
+          highlightList: normalizeHighlights(meta.highlights, false),
+          ctaLabel: meta.ctaLabel ?? "",
+        };
+      })
+    : (() => {
+        // No live data yet — fall back to the single manually-edited/demo vehicle (existing behavior).
+        const mock = mockVehicles.find((x) => x.id === vehicleId) ?? mockVehicles[0];
+        const v: Vehicle = {
+          ...mock,
+          image: image_url || mock.image,
+          condition: (condition || mock.condition) as Vehicle["condition"],
+          year: numOrMock(year, mock.year),
+          make: make ?? mock.make,
+          model: model ?? mock.model,
+          trim: trim !== undefined ? trim : mock.trim ?? "",
+          exteriorColor: exteriorColor !== undefined ? exteriorColor : mock.exteriorColor,
+          bodyStyle: bodyStyle !== undefined ? bodyStyle : mock.bodyStyle,
+          mileage: numOrMock(mileage, mock.mileage),
+          fuel: fuel !== undefined ? fuel : mock.fuel,
+          transmission: transmission !== undefined ? transmission : mock.transmission,
+          price: numOrMock(price, mock.price),
+          currency: currency ?? mock.currency,
+        };
+        const stockNumber = stock_number !== undefined ? stock_number : `AC-${mock.id.toUpperCase()}-${v.year}`;
+        const locationNote = location_note !== undefined
+          ? location_note
+          : "Located at our Williamsburg showroom · Available for delivery";
+        return [{ key: mock.id, v, stockNumber, locationNote, highlightList: normalizeHighlights(highlights), ctaLabel: cta ?? "Schedule test drive" }];
+      })();
+
+  return (
+    <div className="bg-background p-6">
+      {(headerTitle || headerSubtitle) && (
+        <div className="mb-6">
+          {headerTitle && <h2 className="text-2xl font-bold tracking-tight">{headerTitle}</h2>}
+          {headerSubtitle && <p className="mt-1 text-sm text-muted-foreground">{headerSubtitle}</p>}
+        </div>
+      )}
+      <div className={cards.length > 1 ? "space-y-10" : undefined}>
+        {cards.map((card, idx) => (
+          <div key={card.key} className={idx > 0 ? "border-t border-border pt-10" : undefined}>
+            <VehicleDetailCard resolved={card} style={style} ctaUrl={cta_url} />
+          </div>
+        ))}
+      </div>
     </div>
   );
 }

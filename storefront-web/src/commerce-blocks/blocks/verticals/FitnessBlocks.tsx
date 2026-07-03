@@ -30,6 +30,10 @@ interface FitnessSchedulerProps {
   showInstructor?: boolean;
   cta?: string;
   classes?: FitnessClass[];
+  /** Classes synced from Sales → Fitness Schedule — takes priority over `classes` / mock data. */
+  liveClasses?: FitnessClass[];
+  header_title?: string;
+  header_subtitle?: string;
 }
 
 export function FitnessScheduler({
@@ -38,18 +42,27 @@ export function FitnessScheduler({
   showInstructor = true,
   cta = "Reserve",
   classes,
+  liveClasses,
+  header_title,
+  header_subtitle,
 }: FitnessSchedulerProps) {
   const v = normalizeVerticalVariant(variant ?? layout ?? "default");
   const asSchedule = layout === "schedule" ? true : layout === "grid" ? false : SCHEDULE_VARIANTS.has(v);
   const style = catalogVariantStyle(v);
-  const list = classes && classes.length ? classes : mockFitnessClasses;
+  const list = (
+    liveClasses && liveClasses.length
+      ? liveClasses
+      : classes && classes.length
+        ? classes
+        : mockFitnessClasses
+  );
 
   if (!asSchedule) {
     if (style.mode === "featured") {
       const [first, ...rest] = list;
       return (
         <div className="bg-background p-6">
-          <Header hero={style.hero} count={list.length} />
+          <Header hero={style.hero} count={list.length} title={header_title} subtitle={header_subtitle} />
           {first && <FeaturedClass c={first} showInstructor={showInstructor} cta={cta} />}
           <div className={cn("mt-4 grid grid-cols-1", catalogGridClassName(style.columns))} style={{ gap: style.gap }}>
             {rest.map((c) => (
@@ -61,7 +74,7 @@ export function FitnessScheduler({
     }
     return (
       <div className="bg-background p-6">
-        <Header hero={style.hero} count={list.length} />
+        <Header hero={style.hero} count={list.length} title={header_title} subtitle={header_subtitle} />
         <div className={cn("grid grid-cols-1", catalogGridClassName(style.columns))} style={{ gap: style.gap }}>
           {list.map((c) => (
             <ClassCard key={c.id} c={c} showInstructor={showInstructor} cta={cta} style={style} />
@@ -75,7 +88,7 @@ export function FitnessScheduler({
   const bare = v === "minimal";
   return (
     <div className="bg-background p-6">
-      <Header hero={style.hero} count={list.length} />
+      <Header hero={style.hero} count={list.length} title={header_title} subtitle={header_subtitle} />
       <div className={cn("overflow-hidden rounded-lg", !bare && "border border-border")}>
         <div className="grid grid-cols-[110px_1fr_120px_140px_120px] items-center gap-4 border-b border-border bg-muted/40 px-4 py-2 text-xs font-medium uppercase tracking-wider text-muted-foreground">
           <div>Time</div>
@@ -134,21 +147,33 @@ export function FitnessScheduler({
   );
 }
 
-function Header({ hero, count }: { hero?: boolean; count?: number }) {
+function Header({
+  hero,
+  count,
+  title,
+  subtitle,
+}: {
+  hero?: boolean;
+  count?: number;
+  title?: string;
+  subtitle?: string;
+}) {
   const total = count ?? mockFitnessClasses.length;
+  const heading = title || "Today's classes · Mon, May 4";
+  const sub = subtitle || (hero ? `${total} sessions — book your spot` : `${total} sessions`);
   if (hero) {
     return (
       <div className="mb-6 rounded-xl border border-border bg-gradient-to-r from-primary/10 to-transparent p-6">
-        <h2 className="text-3xl font-bold tracking-tight">Today's classes · Mon, May 4</h2>
-        <p className="mt-1 text-sm text-muted-foreground">{total} sessions — book your spot</p>
+        <h2 className="text-3xl font-bold tracking-tight">{heading}</h2>
+        <p className="mt-1 text-sm text-muted-foreground">{sub}</p>
       </div>
     );
   }
   return (
     <div className="mb-5 flex items-end justify-between">
       <div>
-        <h2 className="text-xl font-semibold">Today's classes · Mon, May 4</h2>
-        <p className="text-sm text-muted-foreground">{total} sessions</p>
+        <h2 className="text-xl font-semibold">{heading}</h2>
+        <p className="text-sm text-muted-foreground">{sub}</p>
       </div>
       <Button variant="outline" size="sm">View week</Button>
     </div>

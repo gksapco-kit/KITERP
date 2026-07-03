@@ -115,6 +115,13 @@ from app.models.controlling_area import CoControllingArea
 from app.models.business_partner import BusinessPartner, BusinessPartnerRole
 from app.models.blog import VendorBlogPost
 from app.models.pricing_plan import VendorPricingPlan
+from app.models.vendor_property import VendorProperty
+from app.models.vendor_course import VendorCourse
+from app.models.vendor_fitness_class import VendorFitnessClass
+from app.models.vendor_vehicle import VendorVehicle
+from app.models.vendor_event import VendorEvent
+from app.models.vendor_recurring_plan import VendorRecurringPlan
+from app.models.vendor_testimonial import VendorTestimonial
 from app.models.schema_field_mapping import SchemaFieldMapping
 
 from app.models.website import (

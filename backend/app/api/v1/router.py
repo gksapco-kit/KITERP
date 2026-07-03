@@ -24,6 +24,13 @@ from app.api.v1 import (
     public_sites,
     vendor_blog,
     vendor_pricing_plans,
+    vendor_properties,
+    vendor_courses,
+    vendor_fitness_classes,
+    vendor_vehicles,
+    vendor_events,
+    vendor_recurring_plans,
+    vendor_testimonials,
     catalog_blog,
     vendor_restaurant,
     vendor_restaurants,
@@ -144,6 +151,13 @@ api_router.include_router(store_rentals.router, prefix="/store/rentals", tags=["
 # ── Blog CMS ──────────────────────────────────────────────────────
 api_router.include_router(vendor_blog.router, prefix="/vendors/me/blog", tags=["Vendor Blog"])
 api_router.include_router(vendor_pricing_plans.router, prefix="/vendors/me/pricing-plans", tags=["Vendor Pricing Plans"])
+api_router.include_router(vendor_properties.router, prefix="/vendors/me/properties", tags=["Vendor Properties"])
+api_router.include_router(vendor_courses.router, prefix="/vendors/me/courses", tags=["Vendor Courses"])
+api_router.include_router(vendor_fitness_classes.router, prefix="/vendors/me/fitness-classes", tags=["Vendor Fitness Classes"])
+api_router.include_router(vendor_vehicles.router, prefix="/vendors/me/vehicles", tags=["Vendor Vehicles"])
+api_router.include_router(vendor_events.router, prefix="/vendors/me/events", tags=["Vendor Events"])
+api_router.include_router(vendor_recurring_plans.router, prefix="/vendors/me/recurring-plans", tags=["Vendor Recurring Plans"])
+api_router.include_router(vendor_testimonials.router, prefix="/vendors/me/testimonials", tags=["Vendor Testimonials"])
 
 # ── Website Builder ───────────────────────────────────────────────
 api_router.include_router(vendor_websites.router, prefix="/vendors/me/websites", tags=["Website Builder"])

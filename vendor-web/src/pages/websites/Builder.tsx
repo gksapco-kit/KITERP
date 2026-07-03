@@ -280,6 +280,13 @@ import {
   BLOCK_REQUIRED_DATA_SOURCE,
   isCategorySyncedBlock,
   isPlansSyncedBlock,
+  isPropertiesSyncedBlock,
+  isCoursesSyncedBlock,
+  isFitnessSyncedBlock,
+  isVehiclesSyncedBlock,
+  isEventsSyncedBlock,
+  isRecurringSyncedBlock,
+  isTestimonialsSyncedBlock,
   type LayoutPickerDataSourceChoice,
 } from '@/lib/blockDataSources'
 import { mergeLayoutBlockProps } from '@/lib/layoutBlockProps'
@@ -411,6 +418,12 @@ const DEFAULT_TICKET_TIER_ITEMS = [
   { id: 'ga', name: 'General Admission', price: 35, currency: 'USD', perks: 'Standing room\nAccess to all sets', remaining: 124, popular: false },
   { id: 'seated', name: 'Reserved Seating', price: 65, currency: 'USD', perks: 'Reserved seat\nDrink ticket included\nEarly entry', remaining: 38, popular: true },
   { id: 'vip', name: 'VIP Lounge', price: 145, currency: 'USD', perks: 'Lounge access\nMeet & greet\nSigned poster\n2 drink tickets', remaining: 6, popular: false },
+]
+
+const DEFAULT_RECURRING_PRESET_ITEMS = [
+  { id: 'weekly', name: 'Weekly', description: 'Every week, same day', discount_pct: 0 },
+  { id: 'biweekly', name: 'Every 2 weeks', description: 'Save 10%', discount_pct: 10 },
+  { id: 'monthly', name: 'Monthly', description: 'Once per month', discount_pct: 0 },
 ]
 
 const DEFAULT_FITNESS_CLASS_ITEMS = [
@@ -578,7 +591,21 @@ const COMMERCE_LIBRARY_BLOCKS: BlockDef[] = [
   { type: 'commerce.orderConfirmation', label: 'Order Confirmation', icon: ShoppingCart, desc: 'Thank-you page with order details and shipping ETA.', category: 'erp', defaultProps: { variant: 'default' } },
   { type: 'commerce.giftCards', label: 'Gift Cards', icon: ShoppingCart, desc: 'Buy a gift card or check an existing balance.', category: 'erp', defaultProps: { variant: 'default' } },
   { type: 'booking.group', label: 'Group Booking', icon: Clock, desc: 'Adult/child counters with min/max party size.', category: 'widgets', defaultProps: { variant: 'default' } },
-  { type: 'booking.recurring', label: 'Recurring Booking', icon: Clock, desc: 'Weekly / bi-weekly / monthly series with discount.', category: 'widgets', defaultProps: { variant: 'default' } },
+  { type: 'booking.recurring', label: 'Recurring Booking', icon: Clock, desc: 'Weekly / bi-weekly / monthly series with discount.', category: 'widgets', defaultProps: {
+    variant: 'default',
+    image_url: '',
+    title: 'Weekly Yoga · Vinyasa Flow',
+    startDate: 'Mon, May 4',
+    time: '7:30 AM · 60 min',
+    pricePerSession: 22,
+    currency: 'USD',
+    defaultSessionCount: 8,
+    minSessions: 2,
+    maxSessions: 24,
+    showUpcoming: true,
+    cta: 'Confirm series',
+    presets: DEFAULT_RECURRING_PRESET_ITEMS,
+  } },
   { type: 'booking.waitlist', label: 'Waitlist', icon: Clock, desc: 'Join waitlist form or current position card.', category: 'widgets', defaultProps: { variant: 'default' } },
   { type: 'state.empty', label: 'Empty State', icon: AlertTriangle, desc: 'Friendly empty placeholders for cart, search, wishlist, and more.', category: 'advanced', defaultProps: {
     variant: 'default',
@@ -4346,6 +4373,15 @@ const ITEM_SCHEMAS: Record<string, ItemSchema> = {
       { key: 'text', label: 'Highlight', type: 'text' },
     ],
   },
+  'booking.recurring': {
+    arrayKey: 'presets', itemLabel: 'Frequency option',
+    defaultItem: { id: '', name: 'Weekly', description: 'Every week, same day', discount_pct: 0 },
+    fields: [
+      { key: 'name',         label: 'Name',         type: 'text' },
+      { key: 'description',  label: 'Description',  type: 'text' },
+      { key: 'discount_pct', label: 'Discount %',   type: 'number' },
+    ],
+  },
   'vertical.propertyListing': {
     arrayKey: 'properties', itemLabel: 'Property',
     defaultItem: { id: '', title: 'New listing', address: '', price: 250000, currency: 'USD', beds: 2, baths: 1, sqft: 900, type: 'house', status: 'for-sale', agent: '', image: '' },
@@ -4389,6 +4425,7 @@ const ITEM_SCHEMA_ALIASES: Partial<Record<string, keyof typeof ITEM_SCHEMAS>> = 
   services_list: 'services_cards',
   'service.faq': 'faq',
   'service.pricing': 'pricing',
+  testimonials_grid: 'testimonials',
 }
 
 /** Sidebar heading for expandable item lists (clearer than raw itemLabel). */
@@ -4399,6 +4436,7 @@ function itemListSectionTitle(blockType: string, itemSchema: ItemSchema): string
     timeline: 'Milestones',
     stats: 'Stats',
     testimonials: 'Reviews',
+    testimonials_grid: 'Reviews',
     pricing: 'Plans',
     'service.pricing': 'Plans',
     features: 'Features',
@@ -4415,21 +4453,24 @@ function itemListSectionTitle(blockType: string, itemSchema: ItemSchema): string
     'vertical.vehicleDetail': 'Highlights',
     'vertical.autoInventory': 'Vehicles',
     'vertical.propertyListing': 'Properties',
+    'booking.recurring': 'Frequency options',
   }
   return titles[blockType] || `${itemSchema.itemLabel}s`
 }
 
 /** Block types whose item list should start expanded in the Content tab. */
 const ITEM_LIST_DEFAULT_OPEN = new Set([
-  'faq', 'service.faq', 'timeline', 'stats', 'testimonials', 'pricing', 'service.pricing', 'features', 'features_alternating',
+  'faq', 'service.faq', 'timeline', 'stats', 'testimonials', 'testimonials_grid', 'pricing', 'service.pricing', 'features', 'features_alternating',
   'services_cards', 'services_list', 'team_grid', 'trust_logos', 'marquee_strip', 'payment_methods_strip',
   'gallery_masonry', 'gallery', 'gallery_grid', 'video_gallery',
-  'vertical.fitnessSchedule', 'vertical.ticketPicker', 'vertical.courseCatalog', 'vertical.vehicleDetail', 'vertical.autoInventory', 'vertical.propertyListing',
+  'vertical.fitnessSchedule', 'vertical.ticketPicker', 'vertical.courseCatalog', 'vertical.vehicleDetail', 'vertical.autoInventory', 'vertical.propertyListing', 'booking.recurring',
 ])
 
 /** Block types with their own dedicated Title/Description fields in a custom content panel — skip the generic duplicates below. */
 const TITLE_DESC_HANDLED_ELSEWHERE = new Set([
   'vertical.courseDetail',
+  'vertical.ticketPicker',
+  'booking.recurring',
   'state.error',
   'state.empty',
 ])
@@ -6468,9 +6509,27 @@ function PropsEditor({
   const isBlogBlock = block.block_type === 'blog_grid' || block.block_type === 'blog_featured' || block.block_type === 'blog_list'
   const isCategoryBlock = isCategorySyncedBlock(block.block_type)
   const isPlansBlock = isPlansSyncedBlock(block.block_type)
+  const isPropertiesBlock = isPropertiesSyncedBlock(block.block_type)
+  const isPropertyDetailBlock = block.block_type === 'vertical.propertyDetail'
+  const isCoursesBlock = isCoursesSyncedBlock(block.block_type)
+  const isCourseDetailBlock = block.block_type === 'vertical.courseDetail'
+  const isFitnessBlock = isFitnessSyncedBlock(block.block_type)
+  const isVehiclesBlock = isVehiclesSyncedBlock(block.block_type)
+  const isVehicleDetailBlock = block.block_type === 'vertical.vehicleDetail'
+  const isEventsBlock = isEventsSyncedBlock(block.block_type)
+  const isEventListingBlock = block.block_type === 'vertical.eventListing'
+  const isRecurringBlock = isRecurringSyncedBlock(block.block_type)
+  const isTestimonialsBlock = isTestimonialsSyncedBlock(block.block_type)
   const [blogLiveItems, setBlogLiveItems] = useState<LiveItem[]>([])
   const [categoryLiveItems, setCategoryLiveItems] = useState<LiveItem[]>([])
   const [plansLiveItems, setPlansLiveItems] = useState<LiveItem[]>([])
+  const [propertiesLiveItems, setPropertiesLiveItems] = useState<LiveItem[]>([])
+  const [coursesLiveItems, setCoursesLiveItems] = useState<LiveItem[]>([])
+  const [fitnessLiveItems, setFitnessLiveItems] = useState<LiveItem[]>([])
+  const [vehiclesLiveItems, setVehiclesLiveItems] = useState<LiveItem[]>([])
+  const [eventsLiveItems, setEventsLiveItems] = useState<LiveItem[]>([])
+  const [recurringLiveItems, setRecurringLiveItems] = useState<LiveItem[]>([])
+  const [testimonialsLiveItems, setTestimonialsLiveItems] = useState<LiveItem[]>([])
 
   useEffect(() => {
     if (!isBlogBlock) return
@@ -6514,6 +6573,64 @@ function PropsEditor({
   }, [block.id, block.block_type, isPlansBlock])
 
   useEffect(() => {
+    if (!isPropertiesBlock) return
+    const dsType = (p as Record<string, unknown>).data_source as { type?: string } | undefined
+    if (!dsType || dsType.type !== 'properties') {
+      onUpdate({ data_source: { type: 'properties', auto: true } } as Partial<BlockProps>)
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- migrate legacy property listing blocks once per selection
+  }, [block.id, block.block_type, isPropertiesBlock])
+
+  useEffect(() => {
+    if (!isCoursesBlock) return
+    const dsType = (p as Record<string, unknown>).data_source as { type?: string } | undefined
+    if (!dsType || dsType.type !== 'courses') {
+      onUpdate({ data_source: { type: 'courses', auto: true } } as Partial<BlockProps>)
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- migrate legacy course catalog blocks once per selection
+  }, [block.id, block.block_type, isCoursesBlock])
+
+  useEffect(() => {
+    if (!isFitnessBlock) return
+    const dsType = (p as Record<string, unknown>).data_source as { type?: string } | undefined
+    if (!dsType || dsType.type !== 'fitness_classes') {
+      onUpdate({ data_source: { type: 'fitness_classes', auto: true } } as Partial<BlockProps>)
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- migrate legacy fitness schedule blocks once per selection
+  }, [block.id, block.block_type, isFitnessBlock])
+
+  useEffect(() => {
+    if (!isVehiclesBlock) return
+    const dsType = (p as Record<string, unknown>).data_source as { type?: string } | undefined
+    if (!dsType || dsType.type !== 'vehicles') {
+      onUpdate({ data_source: { type: 'vehicles', auto: true } } as Partial<BlockProps>)
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- migrate legacy auto inventory blocks once per selection
+  }, [block.id, block.block_type, isVehiclesBlock])
+
+  useEffect(() => {
+    if (!isRecurringBlock) return
+    const dsType = (p as Record<string, unknown>).data_source as { type?: string } | undefined
+    // Repairs blocks created before 'booking.recurring' had a dedicated auto-source entry, which
+    // fell back to the generic 'bookings' resource and never showed the synced plans.
+    if (!dsType || dsType.type !== 'recurring_plans') {
+      onUpdate({ data_source: { type: 'recurring_plans', auto: true } } as Partial<BlockProps>)
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- migrate legacy recurring booking blocks once per selection
+  }, [block.id, block.block_type, isRecurringBlock])
+
+  useEffect(() => {
+    if (!isTestimonialsBlock) return
+    const dsType = (p as Record<string, unknown>).data_source as { type?: string } | undefined
+    // testimonials/testimonials_grid always sync — Sales → Testimonials, falling back to verified
+    // reviews server-side — so legacy blocks without (or with a stale) data_source get connected too.
+    if (!dsType || dsType.type !== 'testimonials') {
+      onUpdate({ data_source: { type: 'testimonials', auto: true } } as Partial<BlockProps>)
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- migrate legacy testimonials blocks once per selection
+  }, [block.id, block.block_type, isTestimonialsBlock])
+
+  useEffect(() => {
     if (!isTeamBlock || !siteId) {
       setTeamLiveItems([])
       return
@@ -6553,10 +6670,112 @@ function PropsEditor({
       .catch(() => setPlansLiveItems([]))
   }, [isPlansBlock, siteId, block.id])
 
+  useEffect(() => {
+    if (!(isPropertiesBlock || isPropertyDetailBlock) || !siteId) {
+      setPropertiesLiveItems([])
+      return
+    }
+    void websiteApi.getLive(siteId, 'properties', { limit: 50 })
+      .then(r => setPropertiesLiveItems(r.items ?? []))
+      .catch(() => setPropertiesLiveItems([]))
+  }, [isPropertiesBlock, isPropertyDetailBlock, siteId, block.id])
+
+  useEffect(() => {
+    if (!isPropertyDetailBlock || !propertiesLiveItems.length) return
+    const currentId = String((p as any).propertyId ?? '')
+    const activeItems = propertiesLiveItems.filter(item => item.meta?.is_active !== false)
+    const current = propertiesLiveItems.find(item => item.id === currentId)
+    // Hidden listings never render on the storefront/preview — steer selection to an active one.
+    if (current && current.meta?.is_active !== false) return
+    const fallback = activeItems[0] ?? propertiesLiveItems[0]
+    if (fallback && fallback.id !== currentId) onUpdate({ propertyId: fallback.id } as any)
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- default to first active listing once loaded
+  }, [isPropertyDetailBlock, propertiesLiveItems, block.id])
+
+  useEffect(() => {
+    if (!(isCoursesBlock || isCourseDetailBlock) || !siteId) {
+      setCoursesLiveItems([])
+      return
+    }
+    void websiteApi.getLive(siteId, 'courses', { limit: 50 })
+      .then(r => setCoursesLiveItems(r.items ?? []))
+      .catch(() => setCoursesLiveItems([]))
+  }, [isCoursesBlock, isCourseDetailBlock, siteId, block.id])
+
+  useEffect(() => {
+    if (!isCourseDetailBlock || !coursesLiveItems.length) return
+    const currentId = String((p as any).courseId ?? '')
+    const activeItems = coursesLiveItems.filter(item => item.meta?.is_active !== false)
+    const current = coursesLiveItems.find(item => item.id === currentId)
+    // Hidden courses never render on the storefront/preview — steer selection to an active one.
+    if (current && current.meta?.is_active !== false) return
+    const fallback = activeItems[0] ?? coursesLiveItems[0]
+    if (fallback && fallback.id !== currentId) onUpdate({ courseId: fallback.id } as any)
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- default to first active course once loaded
+  }, [isCourseDetailBlock, coursesLiveItems, block.id])
+
+  useEffect(() => {
+    if (!isFitnessBlock || !siteId) {
+      setFitnessLiveItems([])
+      return
+    }
+    void websiteApi.getLive(siteId, 'fitness_classes', { limit: 50 })
+      .then(r => setFitnessLiveItems(r.items ?? []))
+      .catch(() => setFitnessLiveItems([]))
+  }, [isFitnessBlock, siteId, block.id])
+
+  useEffect(() => {
+    if (!(isVehiclesBlock || isVehicleDetailBlock) || !siteId) {
+      setVehiclesLiveItems([])
+      return
+    }
+    void websiteApi.getLive(siteId, 'vehicles', { limit: 50 })
+      .then(r => setVehiclesLiveItems(r.items ?? []))
+      .catch(() => setVehiclesLiveItems([]))
+  }, [isVehiclesBlock, isVehicleDetailBlock, siteId, block.id])
+
+  useEffect(() => {
+    if (!isEventsBlock || !siteId) {
+      setEventsLiveItems([])
+      return
+    }
+    void websiteApi.getLive(siteId, 'events', { limit: 50 })
+      .then(r => setEventsLiveItems(r.items ?? []))
+      .catch(() => setEventsLiveItems([]))
+  }, [isEventsBlock, siteId, block.id])
+
+  useEffect(() => {
+    if (!isRecurringBlock || !siteId) {
+      setRecurringLiveItems([])
+      return
+    }
+    void websiteApi.getLive(siteId, 'recurring_plans', { limit: 50 })
+      .then(r => setRecurringLiveItems(r.items ?? []))
+      .catch(() => setRecurringLiveItems([]))
+  }, [isRecurringBlock, siteId, block.id])
+
+  useEffect(() => {
+    if (!isTestimonialsBlock || !siteId) {
+      setTestimonialsLiveItems([])
+      return
+    }
+    void websiteApi.getLive(siteId, 'testimonials', { limit: 50 })
+      .then(r => setTestimonialsLiveItems(r.items ?? []))
+      .catch(() => setTestimonialsLiveItems([]))
+  }, [isTestimonialsBlock, siteId, block.id])
+
   const publishedBlogCount = blogLiveItems.filter(item => item.meta?.is_published !== false).length
   const draftBlogCount = blogLiveItems.filter(item => item.meta?.is_published === false).length
   const activeCategoryCount = categoryLiveItems.length
   const activePlansCount = plansLiveItems.filter(item => item.meta?.is_active !== false).length
+  const activePropertiesCount = propertiesLiveItems.filter(item => item.meta?.is_active !== false).length
+  const activeCoursesCount = coursesLiveItems.filter(item => item.meta?.is_active !== false).length
+  const activeFitnessCount = fitnessLiveItems.filter(item => item.meta?.is_active !== false).length
+  const activeVehiclesCount = vehiclesLiveItems.filter(item => item.meta?.is_active !== false).length
+  const activeEventsCount = eventsLiveItems.filter(item => item.meta?.is_active !== false).length
+  const activeRecurringCount = recurringLiveItems.filter(item => item.meta?.is_active !== false).length
+  const curatedTestimonialsCount = testimonialsLiveItems.filter(item => item.meta?.review_type === undefined).length
+  const isTestimonialsFromReviews = testimonialsLiveItems.length > 0 && curatedTestimonialsCount === 0
 
   const blogManagerBanner = isBlogBlock ? (
     <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2.5 text-xs text-emerald-900 leading-snug space-y-2">
@@ -6620,6 +6839,168 @@ function PropsEditor({
         className="inline-flex items-center gap-1 font-semibold text-primary hover:underline"
       >
         Open Pricing Plans →
+      </a>
+    </div>
+  ) : undefined
+
+  const propertiesManagerBanner = isPropertiesBlock ? (
+    <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2.5 text-xs text-emerald-900 leading-snug space-y-2">
+      <p>
+        <span className="font-semibold">Synced with Property Listings.</span>{' '}
+        Listings you manage in Sales → Property Listings appear here automatically.
+      </p>
+      <p className="text-emerald-800">
+        {propertiesLiveItems.length === 0
+          ? 'No listings yet — add your first listing in Property Listings.'
+          : `${activePropertiesCount} active listing${activePropertiesCount === 1 ? '' : 's'} shown${propertiesLiveItems.length > activePropertiesCount ? ` · ${propertiesLiveItems.length - activePropertiesCount} hidden (not shown here or on storefront)` : ''}`}
+      </p>
+      <a
+        href="/sales/properties"
+        target="_blank"
+        rel="noopener noreferrer"
+        className="inline-flex items-center gap-1 font-semibold text-primary hover:underline"
+      >
+        Open Property Listings →
+      </a>
+    </div>
+  ) : undefined
+
+  const coursesManagerBanner = isCoursesBlock ? (
+    <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2.5 text-xs text-emerald-900 leading-snug space-y-2">
+      <p>
+        <span className="font-semibold">Synced with Course Catalog.</span>{' '}
+        Courses you manage in Sales → Course Catalog appear here automatically.
+      </p>
+      <p className="text-emerald-800">
+        {coursesLiveItems.length === 0
+          ? 'No courses yet — add your first course in Course Catalog.'
+          : `${activeCoursesCount} active course${activeCoursesCount === 1 ? '' : 's'} shown${coursesLiveItems.length > activeCoursesCount ? ` · ${coursesLiveItems.length - activeCoursesCount} hidden (not shown here or on storefront)` : ''}`}
+      </p>
+      <a
+        href="/sales/courses"
+        target="_blank"
+        rel="noopener noreferrer"
+        className="inline-flex items-center gap-1 font-semibold text-primary hover:underline"
+      >
+        Open Course Catalog →
+      </a>
+    </div>
+  ) : undefined
+
+  const fitnessManagerBanner = isFitnessBlock ? (
+    <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2.5 text-xs text-emerald-900 leading-snug space-y-2">
+      <p>
+        <span className="font-semibold">Synced with Fitness Schedule.</span>{' '}
+        Classes you manage in Sales → Fitness Schedule appear here automatically.
+      </p>
+      <p className="text-emerald-800">
+        {fitnessLiveItems.length === 0
+          ? 'No classes yet — add your first class in Fitness Schedule.'
+          : `${activeFitnessCount} active class${activeFitnessCount === 1 ? '' : 'es'} shown${fitnessLiveItems.length > activeFitnessCount ? ` · ${fitnessLiveItems.length - activeFitnessCount} hidden (not shown here or on storefront)` : ''}`}
+      </p>
+      <a
+        href="/sales/fitness-classes"
+        target="_blank"
+        rel="noopener noreferrer"
+        className="inline-flex items-center gap-1 font-semibold text-primary hover:underline"
+      >
+        Open Fitness Schedule →
+      </a>
+    </div>
+  ) : undefined
+
+  const vehiclesManagerBanner = (isVehiclesBlock || isVehicleDetailBlock) ? (
+    <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2.5 text-xs text-emerald-900 leading-snug space-y-2">
+      <p>
+        <span className="font-semibold">Synced with Vehicle Inventory.</span>{' '}
+        Vehicles you manage in Sales → Vehicle Inventory appear here automatically.
+      </p>
+      <p className="text-emerald-800">
+        {vehiclesLiveItems.length === 0
+          ? 'No vehicles yet — showing a demo vehicle below. Add your first vehicle in Vehicle Inventory to connect this page.'
+          : isVehicleDetailBlock
+          ? `Every active vehicle gets its own full detail card on this page — ${activeVehiclesCount} shown${vehiclesLiveItems.length > activeVehiclesCount ? ` · ${vehiclesLiveItems.length - activeVehiclesCount} hidden (not shown here or on storefront)` : ''}.`
+          : `${activeVehiclesCount} active vehicle${activeVehiclesCount === 1 ? '' : 's'} shown${vehiclesLiveItems.length > activeVehiclesCount ? ` · ${vehiclesLiveItems.length - activeVehiclesCount} hidden (not shown here or on storefront)` : ''}`}
+      </p>
+      <a
+        href="/sales/vehicles"
+        target="_blank"
+        rel="noopener noreferrer"
+        className="inline-flex items-center gap-1 font-semibold text-primary hover:underline"
+      >
+        Open Vehicle Inventory →
+      </a>
+    </div>
+  ) : undefined
+
+  const eventsManagerBanner = isEventsBlock ? (
+    <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2.5 text-xs text-emerald-900 leading-snug space-y-2">
+      <p>
+        <span className="font-semibold">Synced with Ticketed Events.</span>{' '}
+        Events you manage in Sales → Ticketed Events appear here automatically.
+      </p>
+      <p className="text-emerald-800">
+        {eventsLiveItems.length === 0
+          ? isEventListingBlock
+            ? 'No events yet — showing demo events below. Add your first event in Ticketed Events to connect this page.'
+            : 'No events yet — showing a demo event below. Add your first event in Ticketed Events to connect this page.'
+          : isEventListingBlock
+          ? `${activeEventsCount} active event${activeEventsCount === 1 ? '' : 's'} shown${eventsLiveItems.length > activeEventsCount ? ` · ${eventsLiveItems.length - activeEventsCount} hidden (not shown here or on storefront)` : ''}`
+          : `Every active event gets its own full ticket picker on this page — ${activeEventsCount} shown${eventsLiveItems.length > activeEventsCount ? ` · ${eventsLiveItems.length - activeEventsCount} hidden (not shown here or on storefront)` : ''}.`}
+      </p>
+      <a
+        href="/sales/events"
+        target="_blank"
+        rel="noopener noreferrer"
+        className="inline-flex items-center gap-1 font-semibold text-primary hover:underline"
+      >
+        Open Ticketed Events →
+      </a>
+    </div>
+  ) : undefined
+
+  const recurringManagerBanner = isRecurringBlock ? (
+    <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2.5 text-xs text-emerald-900 leading-snug space-y-2">
+      <p>
+        <span className="font-semibold">Synced with Recurring Bookings.</span>{' '}
+        Plans you manage in Sales → Recurring Bookings appear here automatically.
+      </p>
+      <p className="text-emerald-800">
+        {recurringLiveItems.length === 0
+          ? 'No recurring plans yet — showing a demo plan below. Add your first plan in Recurring Bookings to connect this page.'
+          : `Every active plan gets its own full booking widget on this page — ${activeRecurringCount} shown${recurringLiveItems.length > activeRecurringCount ? ` · ${recurringLiveItems.length - activeRecurringCount} hidden (not shown here or on storefront)` : ''}.`}
+      </p>
+      <a
+        href="/sales/recurring-bookings"
+        target="_blank"
+        rel="noopener noreferrer"
+        className="inline-flex items-center gap-1 font-semibold text-primary hover:underline"
+      >
+        Open Recurring Bookings →
+      </a>
+    </div>
+  ) : undefined
+
+  const testimonialsManagerBanner = isTestimonialsBlock ? (
+    <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2.5 text-xs text-emerald-900 leading-snug space-y-2">
+      <p>
+        <span className="font-semibold">Synced with Testimonials.</span>{' '}
+        Quotes you curate in Sales → Testimonials appear here automatically.
+      </p>
+      <p className="text-emerald-800">
+        {testimonialsLiveItems.length === 0
+          ? 'No testimonials or reviews yet — showing demo quotes below. Add your first testimonial in Sales → Testimonials to connect this page.'
+          : isTestimonialsFromReviews
+          ? `No curated testimonials yet — showing ${testimonialsLiveItems.length} verified 4★+ review${testimonialsLiveItems.length === 1 ? '' : 's'}. Add a testimonial in Sales → Testimonials to take full control of what's shown.`
+          : `${curatedTestimonialsCount} curated testimonial${curatedTestimonialsCount === 1 ? '' : 's'} shown.`}
+      </p>
+      <a
+        href="/sales/testimonials"
+        target="_blank"
+        rel="noopener noreferrer"
+        className="inline-flex items-center gap-1 font-semibold text-primary hover:underline"
+      >
+        Open Testimonials →
       </a>
     </div>
   ) : undefined
@@ -7141,6 +7522,13 @@ function PropsEditor({
       {blogManagerBanner}
       {categoryManagerBanner}
       {plansManagerBanner}
+      {propertiesManagerBanner}
+      {coursesManagerBanner}
+      {fitnessManagerBanner}
+      {vehiclesManagerBanner}
+      {eventsManagerBanner}
+      {recurringManagerBanner}
+      {testimonialsManagerBanner}
       {supportsBlockElementDelete(block.block_type) && (() => {
         const hidden = listDeletableHiddenFields(block.block_type, p as Record<string, unknown>)
         if (!hidden.length) return null
@@ -7419,6 +7807,42 @@ function PropsEditor({
       )}
 
       {block.block_type === 'vertical.ticketPicker' && (
+        <PropsCollapsible title="Section header" preview="Title, subtitle above the page" defaultOpen>
+          <div className="space-y-2">
+            <p className="text-[11px] text-muted-foreground leading-snug">
+              Shown above the ticket picker(s) on the page. Everything else — order summary, seating chart, checkout button — comes from each event in Ticketed Events once connected.
+            </p>
+            {inputRow({ label: 'Section title', fieldKey: 'header_title', placeholder: eventsLiveItems.length > 0 ? 'Upcoming events' : 'Leave empty to hide' })}
+            {inputRow({ label: 'Section subtitle', fieldKey: 'header_subtitle', placeholder: 'Leave empty to auto-show event count' })}
+          </div>
+        </PropsCollapsible>
+      )}
+
+      {isEventsBlock && eventsLiveItems.length > 0 && (
+        <PropsCollapsible
+          title="Events"
+          preview={isEventListingBlock ? `${activeEventsCount} event card${activeEventsCount === 1 ? '' : 's'}` : `${activeEventsCount} full ticket picker${activeEventsCount === 1 ? '' : 's'}`}
+          defaultOpen
+        >
+          <div className="space-y-2">
+            <p className="text-[11px] text-muted-foreground leading-snug">
+              {isEventListingBlock
+                ? "Every active event from Ticketed Events appears here as a card (image, date, venue, from-price), linked in the order they're sorted there. Manage each event's details there."
+                : "Every active event from Ticketed Events gets its own full ticket picker (info, tiers, seating chart, order summary, checkout button) on this page, stacked in the order they're sorted there. Manage each event's details there."}
+            </p>
+            <a
+              href="/sales/events"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1 text-[11px] font-semibold text-primary hover:underline"
+            >
+              Open Ticketed Events →
+            </a>
+          </div>
+        </PropsCollapsible>
+      )}
+
+      {block.block_type === 'vertical.ticketPicker' && eventsLiveItems.length === 0 && (
         <PropsCollapsible title="Event details" preview="Image, tagline, date, venue" defaultOpen>
           <div className="space-y-2">
             <InlineMediaPicker
@@ -7427,6 +7851,7 @@ function PropsEditor({
               label="Event banner image"
               onChange={url => onUpdate({ image_url: url } as any)}
             />
+            {inputRow({ label: 'Event title', fieldKey: 'title', placeholder: 'Field Notes — A Night of Ambient' })}
             {inputRow({ label: 'Tagline', fieldKey: 'tagline', placeholder: 'An intimate evening of live electronic & strings' })}
             {inputRow({ label: 'Date', fieldKey: 'date', placeholder: 'Friday, June 5, 2026' })}
             {inputRow({ label: 'Doors', fieldKey: 'doors', placeholder: '7:30 PM' })}
@@ -7437,7 +7862,7 @@ function PropsEditor({
         </PropsCollapsible>
       )}
 
-      {block.block_type === 'vertical.ticketPicker' && (
+      {block.block_type === 'vertical.ticketPicker' && eventsLiveItems.length === 0 && (
         <PropsCollapsible title="Order summary" preview="Titles, notes, checkout button" defaultOpen>
           <div className="space-y-2">
             {inputRow({ label: 'Order summary title', fieldKey: 'order_title', placeholder: 'Your order' })}
@@ -7498,7 +7923,66 @@ function PropsEditor({
         </PropsCollapsible>
       )}
 
-      {block.block_type === 'vertical.courseDetail' && (
+      {block.block_type === 'vertical.fitnessSchedule' && (
+        <PropsCollapsible title="Section header" preview="Title, subtitle, buttons" defaultOpen>
+          <div className="space-y-2">
+            {inputRow({ label: 'Section title', fieldKey: 'header_title', placeholder: "Today's classes" })}
+            {inputRow({ label: 'Section subtitle', fieldKey: 'header_subtitle', placeholder: 'Leave empty to auto-show class count' })}
+            {inputRow({ label: 'Reserve button', fieldKey: 'cta', placeholder: 'Reserve' })}
+            <label className="flex items-center gap-2 cursor-pointer pt-1">
+              <input
+                type="checkbox"
+                checked={(p as any).showInstructor !== false}
+                onChange={e => onUpdate({ showInstructor: e.target.checked } as any)}
+                className="rounded accent-primary w-4 h-4"
+              />
+              <span className="text-xs font-medium text-gray-700">Show instructor name</span>
+            </label>
+          </div>
+        </PropsCollapsible>
+      )}
+
+      {isCourseDetailBlock && (
+        <PropsCollapsible title="Course" preview="Which course to show" defaultOpen>
+          <div className="space-y-2">
+            {coursesLiveItems.length === 0 ? (
+              <p className="text-[11px] text-muted-foreground leading-snug">
+                No courses in Sales → Course Catalog yet — showing a demo course. Add one there to connect this page.
+              </p>
+            ) : (
+              <>
+                <label className="block text-xs font-medium text-gray-700">Course</label>
+                <select
+                  value={String((p as any).courseId ?? '')}
+                  onChange={e => onUpdate({ courseId: e.target.value } as any)}
+                  className="w-full rounded-lg border border-input bg-background px-2.5 py-1.5 text-xs"
+                >
+                  {coursesLiveItems.map(item => (
+                    <option key={item.id ?? ''} value={item.id ?? ''}>
+                      {item.title}{item.meta?.is_active === false ? ' (Hidden — won\u2019t show)' : ''}
+                    </option>
+                  ))}
+                </select>
+                {(p as any).courseId && coursesLiveItems.find(item => item.id === (p as any).courseId)?.meta?.is_active === false && (
+                  <p className="text-[11px] text-amber-700 leading-snug">
+                    This course is hidden in Course Catalog, so a different active course is shown instead.
+                  </p>
+                )}
+              </>
+            )}
+            <a
+              href="/sales/courses"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1 text-[11px] font-semibold text-primary hover:underline"
+            >
+              Open Course Catalog →
+            </a>
+          </div>
+        </PropsCollapsible>
+      )}
+
+      {block.block_type === 'vertical.courseDetail' && coursesLiveItems.length === 0 && (
         <PropsCollapsible title="Course details" preview="Image, title, instructor, pricing" defaultOpen>
           <div className="space-y-2">
             <InlineMediaPicker
@@ -7551,7 +8035,7 @@ function PropsEditor({
         </PropsCollapsible>
       )}
 
-      {block.block_type === 'vertical.courseDetail' && (
+      {block.block_type === 'vertical.courseDetail' && coursesLiveItems.length === 0 && (
         <PropsCollapsible title="Learning outcomes" preview={`${(((p as any).outcomes as string[]) || []).length} item(s)`} defaultOpen>
           <TextListEditor
             items={((p as any).outcomes as string[]) || []}
@@ -7562,12 +8046,53 @@ function PropsEditor({
         </PropsCollapsible>
       )}
 
-      {block.block_type === 'vertical.courseDetail' && (
+      {block.block_type === 'vertical.courseDetail' && coursesLiveItems.length === 0 && (
         <PropsCollapsible title="What's included" preview={`${(((p as any).perks as { text: string }[]) || []).length} item(s)`} defaultOpen>
           <PerkListEditor
             items={((p as any).perks as { icon?: string; text: string }[]) || []}
             onChange={next => onUpdate({ perks: next } as any)}
           />
+        </PropsCollapsible>
+      )}
+
+      {isPropertyDetailBlock && (
+        <PropsCollapsible title="Listing" preview="Which property to show" defaultOpen>
+          <div className="space-y-2">
+            {propertiesLiveItems.length === 0 ? (
+              <p className="text-[11px] text-muted-foreground leading-snug">
+                No listings in Sales → Property Listings yet — showing a demo listing. Add one there to connect this page.
+              </p>
+            ) : (
+              <>
+                <label className="block text-xs font-medium text-gray-700">Property</label>
+                <select
+                  value={String((p as any).propertyId ?? '')}
+                  onChange={e => onUpdate({ propertyId: e.target.value } as any)}
+                  className="w-full rounded-lg border border-input bg-background px-2.5 py-1.5 text-xs"
+                >
+                  {propertiesLiveItems.map(item => (
+                    <option key={item.id ?? ''} value={item.id ?? ''}>
+                      {item.title}{item.meta?.is_active === false ? ' (Hidden — won\u2019t show)' : ''}
+                    </option>
+                  ))}
+                </select>
+                {(p as any).propertyId && propertiesLiveItems.find(item => item.id === (p as any).propertyId)?.meta?.is_active === false && (
+                  <p className="text-[11px] text-amber-700 leading-snug">
+                    This listing is hidden in Property Listings, so a different active listing is shown instead.
+                  </p>
+                )}
+              </>
+            )}
+            {inputRow({ label: 'Tour button', fieldKey: 'cta', placeholder: 'Schedule tour' })}
+            <a
+              href="/sales/properties"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1 text-[11px] font-semibold text-primary hover:underline"
+            >
+              Open Property Listings →
+            </a>
+          </div>
         </PropsCollapsible>
       )}
 
@@ -7737,7 +8262,37 @@ function PropsEditor({
         </PropsCollapsible>
       )}
 
-      {block.block_type === 'vertical.vehicleDetail' && (
+      {isVehicleDetailBlock && (
+        <PropsCollapsible title="Section header" preview="Title, subtitle above the page" defaultOpen>
+          <div className="space-y-2">
+            <p className="text-[11px] text-muted-foreground leading-snug">
+              Shown above the vehicle detail card(s) on the page. Everything else — specs, pricing, test-drive button — comes from each vehicle in Vehicle Inventory once connected.
+            </p>
+            {inputRow({ label: 'Section title', fieldKey: 'header_title', placeholder: vehiclesLiveItems.length > 0 ? 'Available vehicles' : 'Leave empty to hide' })}
+            {inputRow({ label: 'Section subtitle', fieldKey: 'header_subtitle', placeholder: 'Leave empty to auto-show vehicle count' })}
+          </div>
+        </PropsCollapsible>
+      )}
+
+      {isVehicleDetailBlock && vehiclesLiveItems.length > 0 && (
+        <PropsCollapsible title="Vehicles" preview={`${activeVehiclesCount} full detail card${activeVehiclesCount === 1 ? '' : 's'}`} defaultOpen>
+          <div className="space-y-2">
+            <p className="text-[11px] text-muted-foreground leading-snug">
+              Every active vehicle from Vehicle Inventory gets its own full spec/highlights/pricing card (including its own test-drive button label) on this page, stacked in the order they're sorted there. Manage each vehicle's details there.
+            </p>
+            <a
+              href="/sales/vehicles"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1 text-[11px] font-semibold text-primary hover:underline"
+            >
+              Open Vehicle Inventory →
+            </a>
+          </div>
+        </PropsCollapsible>
+      )}
+
+      {block.block_type === 'vertical.vehicleDetail' && vehiclesLiveItems.length === 0 && (
         <PropsCollapsible title="Vehicle details" preview="Photo, spec, pricing" defaultOpen>
           <div className="space-y-2">
             <InlineMediaPicker
@@ -7782,7 +8337,68 @@ function PropsEditor({
         </PropsCollapsible>
       )}
 
-      {itemSchema && !isPlansBlock && (
+      {isRecurringBlock && (
+        <PropsCollapsible title="Section header" preview="Title, subtitle above the page" defaultOpen>
+          <div className="space-y-2">
+            <p className="text-[11px] text-muted-foreground leading-snug">
+              Shown above the recurring booking widget(s) on the page. Everything else — frequency options, pricing, upcoming sessions — comes from each plan in Recurring Bookings once connected.
+            </p>
+            {inputRow({ label: 'Section title', fieldKey: 'header_title', placeholder: recurringLiveItems.length > 0 ? 'Book your sessions' : 'Leave empty to hide' })}
+            {inputRow({ label: 'Section subtitle', fieldKey: 'header_subtitle', placeholder: 'Leave empty to auto-show plan count' })}
+          </div>
+        </PropsCollapsible>
+      )}
+
+      {isRecurringBlock && recurringLiveItems.length > 0 && (
+        <PropsCollapsible title="Recurring plans" preview={`${activeRecurringCount} full booking widget${activeRecurringCount === 1 ? '' : 's'}`} defaultOpen>
+          <div className="space-y-2">
+            <p className="text-[11px] text-muted-foreground leading-snug">
+              Every active plan from Recurring Bookings gets its own full booking widget (frequency picker, session counter, upcoming sessions, price summary) on this page, stacked in the order they're sorted there. Manage each plan's details there.
+            </p>
+            <a
+              href="/sales/recurring-bookings"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1 text-[11px] font-semibold text-primary hover:underline"
+            >
+              Open Recurring Bookings →
+            </a>
+          </div>
+        </PropsCollapsible>
+      )}
+
+      {isRecurringBlock && recurringLiveItems.length === 0 && (
+        <PropsCollapsible title="Recurring plan details" preview="Service, schedule, pricing" defaultOpen>
+          <div className="space-y-2">
+            <InlineMediaPicker
+              siteId={siteId}
+              value={String((p as any).image_url ?? '')}
+              label="Plan banner image"
+              onChange={url => onUpdate({ image_url: url } as any)}
+            />
+            {inputRow({ label: 'Service name', fieldKey: 'title', placeholder: 'Weekly Yoga · Vinyasa Flow' })}
+            {inputRow({ label: 'Start date', fieldKey: 'startDate', placeholder: 'Mon, May 4' })}
+            {inputRow({ label: 'Time', fieldKey: 'time', placeholder: '7:30 AM · 60 min' })}
+            {inputRow({ label: 'Price per session', fieldKey: 'pricePerSession', placeholder: '22', deletable: false })}
+            {inputRow({ label: 'Currency', fieldKey: 'currency', placeholder: 'USD', deletable: false })}
+            {inputRow({ label: 'Default sessions', fieldKey: 'defaultSessionCount', placeholder: '8', deletable: false })}
+            {inputRow({ label: 'Min sessions', fieldKey: 'minSessions', placeholder: '2', deletable: false })}
+            {inputRow({ label: 'Max sessions', fieldKey: 'maxSessions', placeholder: '24', deletable: false })}
+            {inputRow({ label: 'Confirm button', fieldKey: 'cta', placeholder: 'Confirm series' })}
+            <label className="flex items-center gap-2 cursor-pointer pt-1">
+              <input
+                type="checkbox"
+                checked={(p as any).showUpcoming !== false}
+                onChange={e => onUpdate({ showUpcoming: e.target.checked } as any)}
+                className="rounded accent-primary w-4 h-4"
+              />
+              <span className="text-xs font-medium text-gray-700">Show upcoming sessions list</span>
+            </label>
+          </div>
+        </PropsCollapsible>
+      )}
+
+      {itemSchema && !isPlansBlock && !isPropertiesBlock && !isCoursesBlock && !isFitnessBlock && !isVehiclesBlock && !(isEventsBlock && eventsLiveItems.length > 0) && !(isRecurringBlock && recurringLiveItems.length > 0) && !(isTestimonialsBlock && testimonialsLiveItems.length > 0) && (
         <PropsCollapsible
           title={itemListSectionTitle(block.block_type, itemSchema)}
           preview={`${subEditorItems.length} item(s)`}

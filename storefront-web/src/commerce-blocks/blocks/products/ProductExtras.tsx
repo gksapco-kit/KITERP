@@ -136,11 +136,19 @@ export function ComparisonTable({
     .map((id) => mockProducts.find((p) => p.id === id))
     .filter(Boolean) as typeof mockProducts;
 
-  const rows: { label: string; get: (p: (typeof items)[number]) => React.ReactNode }[] = [
+  const rows: {
+    label: string;
+    get: (p: (typeof items)[number]) => React.ReactNode;
+    /** Plain, JSON-safe value to diff on — required whenever `get` renders JSX, since
+     * React elements carry a circular `_owner`/Fiber back-reference in dev mode that
+     * crashes `JSON.stringify`. */
+    compare?: (p: (typeof items)[number]) => unknown;
+  }[] = [
     { label: "Category", get: (p) => p.category },
     {
       label: "Price",
       get: (p) => <span className="font-semibold">{formatPrice(p.price, p.currency)}</span>,
+      compare: (p) => p.price,
     },
     {
       label: "Rating",
@@ -153,6 +161,7 @@ export function ComparisonTable({
         ) : (
           "—"
         ),
+      compare: (p) => p.rating ?? null,
     },
     {
       label: "Tags",
@@ -168,6 +177,7 @@ export function ComparisonTable({
         ) : (
           <Badge variant="outline">Sold out</Badge>
         ),
+      compare: (p) => p.inStock,
     },
   ];
 
@@ -196,9 +206,10 @@ export function ComparisonTable({
           <tbody>
             {rows.map((row) => {
               const values = items.map((p) => row.get(p));
+              const compareValues = items.map((p) => (row.compare ? row.compare(p) : row.get(p)));
               const allSame =
                 highlightDifferences &&
-                values.every((v) => JSON.stringify(v) === JSON.stringify(values[0]));
+                compareValues.every((v) => JSON.stringify(v) === JSON.stringify(compareValues[0]));
               return (
                 <tr key={row.label} className="border-b border-border last:border-0">
                   <td className="p-4 font-medium text-muted-foreground">{row.label}</td>

@@ -42,6 +42,8 @@ interface CourseCatalogProps {
   showInstructor?: boolean;
   cta?: string;
   courses?: Course[];
+  /** Courses synced from Sales → Course Catalog — takes priority over `courses` / mock data. */
+  liveCourses?: Course[];
   header_title?: string;
   header_subtitle?: string;
   all_courses_label?: string;
@@ -54,12 +56,19 @@ export function CourseCatalog({
   showInstructor = true,
   cta,
   courses,
+  liveCourses,
   header_title,
   header_subtitle,
   all_courses_label,
 }: CourseCatalogProps) {
   const style = catalogVariantStyle(variant ?? layout ?? "default");
-  const source = courses && courses.length ? courses : mockCourses;
+  const source = (
+    liveCourses && liveCourses.length
+      ? liveCourses
+      : courses && courses.length
+        ? courses
+        : mockCourses
+  );
   const items = source.slice(0, itemLimit ?? source.length).map(withCourseImage);
   const headerProps = {
     hero: style.hero,
@@ -290,8 +299,18 @@ function defaultPerks(duration: string, lessons: number): PerkItem[] {
   ];
 }
 
+interface LiveCourseDetail extends Course {
+  syllabus?: SyllabusWeek[];
+  outcomes?: string[];
+  perks?: PerkItem[];
+  enrolled_label?: string;
+  cta_label?: string;
+  preview_cta_label?: string;
+}
+
 interface CourseDetailProps {
   variant?: string;
+  courseId?: string;
   showOutcomes?: boolean;
   cta?: string;
   cta_url?: string;
@@ -313,10 +332,13 @@ interface CourseDetailProps {
   price?: number | string;
   currency?: string;
   enrolled_label?: string;
+  /** Courses synced from Sales → Course Catalog — the one matching `courseId` takes priority over flat props / mock. */
+  liveCourses?: LiveCourseDetail[];
 }
 
 export function CourseDetail({
   variant,
+  courseId,
   showOutcomes = true,
   cta,
   cta_url,
@@ -338,29 +360,33 @@ export function CourseDetail({
   price,
   currency,
   enrolled_label,
+  liveCourses,
 }: CourseDetailProps) {
   const m = mockCourseDetail;
+  const live = liveCourses && liveCourses.length
+    ? (liveCourses.find((x) => x.id === courseId) ?? liveCourses[0])
+    : undefined;
   const c = {
-    title: title ?? m.title,
-    instructor: instructor ?? m.instructor,
-    level: (level as Course["level"] | undefined) ?? m.level,
-    category: category ?? m.category,
-    description: description ?? m.description,
-    image: image_url || m.image,
-    duration: duration ?? m.duration,
-    lessons: lessons !== undefined ? Number(lessons) || 0 : m.lessons,
-    rating: rating !== undefined ? Number(rating) || 0 : m.rating,
-    reviews: reviews !== undefined ? Number(reviews) || 0 : m.reviews,
-    price: price !== undefined ? Number(price) || 0 : m.price,
-    currency: currency || m.currency,
+    title: live?.title ?? title ?? m.title,
+    instructor: live?.instructor ?? instructor ?? m.instructor,
+    level: (live?.level as Course["level"] | undefined) ?? (level as Course["level"] | undefined) ?? m.level,
+    category: live?.category ?? category ?? m.category,
+    description: live?.description ?? description ?? m.description,
+    image: live?.image || image_url || m.image,
+    duration: live?.duration ?? duration ?? m.duration,
+    lessons: live?.lessons ?? (lessons !== undefined ? Number(lessons) || 0 : m.lessons),
+    rating: live?.rating ?? (rating !== undefined ? Number(rating) || 0 : m.rating),
+    reviews: live?.reviews ?? (reviews !== undefined ? Number(reviews) || 0 : m.reviews),
+    price: live?.price ?? (price !== undefined ? Number(price) || 0 : m.price),
+    currency: live?.currency || currency || m.currency,
   };
   const style = detailVariantStyle(variant);
-  const syllabusItems = syllabus && syllabus.length ? syllabus : m.syllabus;
-  const outcomeItems = outcomes && outcomes.length ? outcomes : m.outcomes;
-  const perkItems = perks && perks.length ? perks : defaultPerks(c.duration, c.lessons);
-  const checkoutLabel = cta ?? "Enroll for";
-  const previewLabel = preview_cta ?? "Try free preview";
-  const enrolledText = enrolled_label ?? "2,400+ enrolled";
+  const syllabusItems = live?.syllabus?.length ? live.syllabus : syllabus && syllabus.length ? syllabus : m.syllabus;
+  const outcomeItems = live?.outcomes?.length ? live.outcomes : outcomes && outcomes.length ? outcomes : m.outcomes;
+  const perkItems = live?.perks?.length ? live.perks : perks && perks.length ? perks : defaultPerks(c.duration, c.lessons);
+  const checkoutLabel = live?.cta_label ?? cta ?? "Enroll for";
+  const previewLabel = live?.preview_cta_label ?? preview_cta ?? "Try free preview";
+  const enrolledText = live?.enrolled_label ?? enrolled_label ?? "2,400+ enrolled";
 
   const banner = (
     <div className={cn("relative overflow-hidden rounded-xl bg-muted", style.hero ? "aspect-[21/9]" : "aspect-[16/9]")}>

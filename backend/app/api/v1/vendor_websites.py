@@ -4059,36 +4059,8 @@ async def get_live_resource(
             ))
 
     elif resource == "testimonials":
-        from app.models.review import Review
-        from app.models.customer import Customer
-        q = (
-            select(Review, Customer)
-            .join(Customer, Customer.id == Review.customer_id)
-            .where(
-                Review.vendor_id == vendor.id,
-                Review.is_visible.is_(True),
-                Review.rating >= 4,
-                Review.comment.isnot(None),
-            )
-            .order_by(Review.rating.desc(), Review.created_at.desc())
-            .limit(limit)
-        )
-        rows = (await db.execute(q)).all()
-        for rv, cust in rows:
-            items.append(_norm_item(
-                id=str(rv.id),
-                title=cust.full_name or "Customer",
-                subtitle=cust.company_name or None,
-                description=rv.comment or rv.title or "",
-                image_url=cust.avatar_url,
-                rating=int(rv.rating) if rv.rating is not None else None,
-                meta={
-                    "review_title": rv.title,
-                    "review_type": rv.review_type,
-                    "is_verified_purchase": bool(rv.is_verified_purchase),
-                    "created_at": rv.created_at.isoformat() if rv.created_at else None,
-                },
-            ))
+        from app.services.testimonials_live_feed import build_testimonials_live_items
+        items = await build_testimonials_live_items(db, vendor.id, limit, _norm_item, include_inactive=True)
 
     elif resource == "team":
         try:
@@ -4250,6 +4222,36 @@ async def get_live_resource(
         from app.services.plans_live_feed import build_plans_live_items
 
         items = await build_plans_live_items(db, vendor.id, limit, _norm_item, include_inactive=True)
+
+    elif resource == "properties":
+        from app.services.properties_live_feed import build_properties_live_items
+
+        items = await build_properties_live_items(db, vendor.id, limit, _norm_item, include_inactive=True)
+
+    elif resource == "courses":
+        from app.services.courses_live_feed import build_courses_live_items
+
+        items = await build_courses_live_items(db, vendor.id, limit, _norm_item, include_inactive=True)
+
+    elif resource == "fitness_classes":
+        from app.services.fitness_classes_live_feed import build_fitness_classes_live_items
+
+        items = await build_fitness_classes_live_items(db, vendor.id, limit, _norm_item, include_inactive=True)
+
+    elif resource == "vehicles":
+        from app.services.vehicles_live_feed import build_vehicles_live_items
+
+        items = await build_vehicles_live_items(db, vendor.id, limit, _norm_item, include_inactive=True)
+
+    elif resource == "events":
+        from app.services.events_live_feed import build_events_live_items
+
+        items = await build_events_live_items(db, vendor.id, limit, _norm_item, include_inactive=True)
+
+    elif resource == "recurring_plans":
+        from app.services.recurring_plans_live_feed import build_recurring_plans_live_items
+
+        items = await build_recurring_plans_live_items(db, vendor.id, limit, _norm_item, include_inactive=True)
 
     elif resource == "profile":
         from app.services.storefront_contact import build_profile_live_meta, load_linked_store_for_site

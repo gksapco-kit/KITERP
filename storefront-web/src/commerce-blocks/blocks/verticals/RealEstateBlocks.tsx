@@ -42,6 +42,8 @@ interface PropertyListingProps {
   showAgent?: boolean;
   cta?: string;
   properties?: Property[];
+  /** Live listings synced from Sales → Property Listings — takes priority over `properties` / mock data. */
+  liveProperties?: Property[];
   header_title?: string;
   header_subtitle?: string;
   refine_label?: string;
@@ -54,12 +56,19 @@ export function PropertyListing({
   showAgent = true,
   cta,
   properties,
+  liveProperties,
   header_title,
   header_subtitle,
   refine_label,
 }: PropertyListingProps) {
   const style = catalogVariantStyle(variant ?? layout ?? "default");
-  const source = (properties && properties.length ? properties : mockProperties).map(withPropertyImage);
+  const source = (
+    liveProperties && liveProperties.length
+      ? liveProperties
+      : properties && properties.length
+        ? properties
+        : mockProperties
+  ).map(withPropertyImage);
   const items = source.slice(0, itemLimit ?? source.length);
   const title = header_title ?? "Featured listings";
   const subtitle = header_subtitle
@@ -268,11 +277,14 @@ function FeaturedProperty({ property, showAgent, cta }: { property: Property; sh
 interface PropertyDetailProps {
   propertyId?: string;
   cta?: string;
+  /** Live listings synced from Sales → Property Listings — used to resolve `propertyId` when connected. */
+  liveProperties?: Property[];
 }
 
-export function PropertyDetail({ propertyId = "re1", cta = "Schedule tour" }: PropertyDetailProps) {
-  const p = mockProperties.find((x) => x.id === propertyId) ?? mockProperties[0];
-  const status = STATUS_LABEL[p.status];
+export function PropertyDetail({ propertyId = "re1", cta = "Schedule tour", liveProperties }: PropertyDetailProps) {
+  const pool = liveProperties && liveProperties.length ? liveProperties : mockProperties;
+  const p = withPropertyImage(pool.find((x) => x.id === propertyId) ?? pool[0]);
+  const status = STATUS_LABEL[p.status] ?? STATUS_LABEL["for-sale"];
 
   return (
     <div className="bg-background p-6">

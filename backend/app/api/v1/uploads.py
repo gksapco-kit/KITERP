@@ -230,6 +230,78 @@ async def upload_vendor_category_image(
     return JSONResponse(content={"image_url": url, "url": url})
 
 
+@router.post("/vendor/property-image")
+async def upload_vendor_property_image(
+    file: UploadFile = File(...),
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Upload a property listing image. Returns a URL to store in ``image_url`` on the property."""
+    vendor_id = await _get_vendor_id(current_user, db)
+    url = await _save_file(file, f"vendor-property-images/{vendor_id}")
+    return JSONResponse(content={"image_url": url, "url": url})
+
+
+@router.post("/vendor/course-image")
+async def upload_vendor_course_image(
+    file: UploadFile = File(...),
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Upload a course cover image. Returns a URL to store in ``image_url`` on the course."""
+    vendor_id = await _get_vendor_id(current_user, db)
+    url = await _save_file(file, f"vendor-course-images/{vendor_id}")
+    return JSONResponse(content={"image_url": url, "url": url})
+
+
+@router.post("/vendor/vehicle-image")
+async def upload_vendor_vehicle_image(
+    file: UploadFile = File(...),
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Upload a vehicle photo. Returns a URL to store in ``image_url`` on the vehicle."""
+    vendor_id = await _get_vendor_id(current_user, db)
+    url = await _save_file(file, f"vendor-vehicle-images/{vendor_id}")
+    return JSONResponse(content={"image_url": url, "url": url})
+
+
+@router.post("/vendor/event-image")
+async def upload_vendor_event_image(
+    file: UploadFile = File(...),
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Upload an event banner photo. Returns a URL to store in ``image_url`` on the event."""
+    vendor_id = await _get_vendor_id(current_user, db)
+    url = await _save_file(file, f"vendor-event-images/{vendor_id}")
+    return JSONResponse(content={"image_url": url, "url": url})
+
+
+@router.post("/vendor/recurring-plan-image")
+async def upload_vendor_recurring_plan_image(
+    file: UploadFile = File(...),
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Upload a recurring-plan banner photo. Returns a URL to store in ``image_url`` on the plan."""
+    vendor_id = await _get_vendor_id(current_user, db)
+    url = await _save_file(file, f"vendor-recurring-plan-images/{vendor_id}")
+    return JSONResponse(content={"image_url": url, "url": url})
+
+
+@router.post("/vendor/testimonial-avatar")
+async def upload_vendor_testimonial_avatar(
+    file: UploadFile = File(...),
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Upload a testimonial customer avatar. Returns a URL to store in ``avatar_url`` on the testimonial."""
+    vendor_id = await _get_vendor_id(current_user, db)
+    url = await _save_file(file, f"vendor-testimonial-avatars/{vendor_id}")
+    return JSONResponse(content={"image_url": url, "url": url})
+
+
 @router.post("/user/avatar")
 async def upload_user_avatar(
     file: UploadFile = File(...),

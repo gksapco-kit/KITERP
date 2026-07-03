@@ -9,7 +9,7 @@
 export type LiveResource =
   | 'products' | 'services' | 'testimonials' | 'team' | 'kpis'
   | 'profile' | 'pages' | 'categories' | 'customers' | 'orders'
-  | 'bookings' | 'media' | 'stores' | 'blog' | 'plans'
+  | 'bookings' | 'media' | 'stores' | 'blog' | 'plans' | 'properties' | 'courses' | 'fitness_classes' | 'vehicles' | 'events' | 'recurring_plans'
 
 export interface BlockDef {
   type: string

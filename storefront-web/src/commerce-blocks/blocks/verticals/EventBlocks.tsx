@@ -52,6 +52,8 @@ interface EventListingProps {
   showTag?: boolean;
   cta?: string;
   events?: EventItem[];
+  /** Events synced from Sales → Ticketed Events — takes priority over `events` / mock data. */
+  liveEvents?: EventItem[];
   header_title?: string;
   header_subtitle?: string;
   all_events_label?: string;
@@ -64,12 +66,19 @@ export function EventListing({
   showTag = true,
   cta,
   events,
+  liveEvents,
   header_title,
   header_subtitle,
   all_events_label,
 }: EventListingProps) {
   const style = catalogVariantStyle(variant ?? layout ?? "default");
-  const source = events && events.length ? events : mockEventList;
+  const source = (
+    liveEvents && liveEvents.length
+      ? liveEvents
+      : events && events.length
+        ? events
+        : mockEventList
+  );
   const items = source.slice(0, itemLimit ?? source.length).map(withEventImage);
   const headerProps = {
     hero: style.hero,
@@ -134,21 +143,25 @@ function EventCard({
     <div className={cn("group overflow-hidden transition-shadow hover:shadow-md", style.cardClass)}>
       <div className="relative aspect-[4/3] overflow-hidden rounded-md bg-muted">
         <img src={e.image} alt="" className="h-full w-full object-cover transition-transform group-hover:scale-105" />
-        {showTag && (
+        {showTag && e.tag && (
           <Badge className="absolute left-3 top-3 bg-background/90 text-foreground hover:bg-background/90">
             {e.tag}
           </Badge>
         )}
-        <div className="absolute bottom-3 left-3 rounded-md bg-foreground/90 px-2 py-1 text-xs font-medium text-background backdrop-blur">
-          {e.date}
-        </div>
+        {e.date && (
+          <div className="absolute bottom-3 left-3 rounded-md bg-foreground/90 px-2 py-1 text-xs font-medium text-background backdrop-blur">
+            {e.date}
+          </div>
+        )}
       </div>
       <div className={cn(style.card === "plain" || style.card === "editorial" ? "pt-3" : "p-4")}>
         <h3 className={cn("line-clamp-2 font-semibold", style.bigTitle ? "text-lg" : "text-sm")}>{e.title}</h3>
-        <div className="mt-1 line-clamp-1 inline-flex items-center gap-1 text-xs text-muted-foreground">
-          <MapPin className="h-3 w-3" />
-          {e.venue}
-        </div>
+        {e.venue && (
+          <div className="mt-1 line-clamp-1 inline-flex items-center gap-1 text-xs text-muted-foreground">
+            <MapPin className="h-3 w-3" />
+            {e.venue}
+          </div>
+        )}
         <div className="mt-3 flex items-center justify-between">
           <span className="text-sm font-semibold">
             {e.fromPrice === 0 ? "Free" : `from ${formatPrice(e.fromPrice, e.currency)}`}
@@ -179,12 +192,14 @@ function EventRow({
       <div className="flex flex-1 flex-col">
         <div className="flex items-start justify-between gap-3">
           <div>
-            {showTag && <Badge variant="secondary" className="mb-1 text-xs">{e.tag}</Badge>}
+            {showTag && e.tag && <Badge variant="secondary" className="mb-1 text-xs">{e.tag}</Badge>}
             <h3 className="text-base font-semibold">{e.title}</h3>
-            <div className="mt-0.5 flex items-center gap-3 text-xs text-muted-foreground">
-              <span className="inline-flex items-center gap-1"><Calendar className="h-3.5 w-3.5" />{e.date}</span>
-              <span className="inline-flex items-center gap-1"><MapPin className="h-3.5 w-3.5" />{e.venue}</span>
-            </div>
+            {(e.date || e.venue) && (
+              <div className="mt-0.5 flex items-center gap-3 text-xs text-muted-foreground">
+                {e.date && <span className="inline-flex items-center gap-1"><Calendar className="h-3.5 w-3.5" />{e.date}</span>}
+                {e.venue && <span className="inline-flex items-center gap-1"><MapPin className="h-3.5 w-3.5" />{e.venue}</span>}
+              </div>
+            )}
           </div>
           <div className="text-right">
             <div className="text-xs text-muted-foreground">From</div>
@@ -204,20 +219,22 @@ function FeaturedEvent({ e, showTag, cta }: { e: EventItem; showTag: boolean; ct
     <div className="grid grid-cols-1 overflow-hidden rounded-xl border border-border bg-card md:grid-cols-2">
       <div className="relative aspect-[16/10] overflow-hidden bg-muted md:aspect-auto">
         <img src={e.image} alt="" className="h-full w-full object-cover" />
-        {showTag && (
+        {showTag && e.tag && (
           <Badge className="absolute left-4 top-4 bg-background/90 text-foreground hover:bg-background/90">{e.tag}</Badge>
         )}
       </div>
       <div className="flex flex-col justify-center p-6">
         <div className="inline-flex items-center gap-1 text-xs uppercase tracking-wider text-primary">
           <Calendar className="h-3.5 w-3.5" />
-          Featured · {e.date}
+          {e.date ? `Featured · ${e.date}` : "Featured"}
         </div>
         <h3 className="mt-1 text-2xl font-bold">{e.title}</h3>
-        <div className="mt-2 inline-flex items-center gap-1 text-sm text-muted-foreground">
-          <MapPin className="h-4 w-4" />
-          {e.venue}
-        </div>
+        {e.venue && (
+          <div className="mt-2 inline-flex items-center gap-1 text-sm text-muted-foreground">
+            <MapPin className="h-4 w-4" />
+            {e.venue}
+          </div>
+        )}
         <div className="mt-4 flex items-center gap-3">
           <span className="text-xl font-semibold">
             {e.fromPrice === 0 ? "Free" : `from ${formatPrice(e.fromPrice, e.currency)}`}
@@ -267,12 +284,9 @@ function Header({
 
 /* ---------- Ticket Picker ---------- */
 
-interface TicketPickerProps {
-  variant?: string;
-  showSeating?: boolean;
-  cta?: string;
-  tiers?: EventTier[];
-  title?: string;
+type LiveEvent = {
+  id: string;
+  title: string;
   tagline?: string;
   image_url?: string;
   date?: string;
@@ -280,50 +294,52 @@ interface TicketPickerProps {
   start?: string;
   venue?: string;
   address?: string;
-  order_title?: string;
-  age_note?: string;
-  seating_title?: string;
-  max_per_order?: number | string;
-}
+  tiers?: EventTier[];
+  orderTitle?: string;
+  ageNote?: string;
+  seatingTitle?: string;
+  showSeating?: boolean;
+  maxPerOrder?: number;
+  ctaLabel?: string;
+};
 
-export function TicketPicker({
-  variant,
-  showSeating = true,
-  cta,
-  tiers,
-  title,
-  tagline,
-  image_url,
-  date,
-  doors,
-  start,
-  venue,
-  address,
-  order_title,
-  age_note,
-  seating_title,
-  max_per_order,
-}: TicketPickerProps) {
-  const e = mockEvent;
-  const ev = {
-    title: title ?? e.title,
-    tagline: tagline ?? e.tagline,
-    image: image_url || e.image,
-    date: date ?? e.date,
-    doors: doors ?? e.doors,
-    start: start ?? e.start,
-    venue: venue ?? e.venue,
-    address: address ?? e.address,
+type ResolvedTicketEvent = {
+  key: string;
+  ev: {
+    title: string;
+    tagline: string;
+    image: string;
+    date: string;
+    doors: string;
+    start: string;
+    venue: string;
+    address: string;
   };
-  const orderTitle = order_title ?? "Your order";
-  const ageNote = age_note ?? `${e.ageRestriction} event · ID required at door`;
-  const seatingTitleText = seating_title ?? "Seating chart";
-  const maxPerOrder = (() => {
-    if (max_per_order === undefined) return 8;
-    const n = Number(max_per_order);
-    return Number.isFinite(n) && n > 0 ? n : 8;
-  })();
-  const checkoutLabel = cta ?? "Continue to checkout";
+  tierList: EventTier[];
+  orderTitle: string;
+  ageNote: string;
+  seatingTitleText: string;
+  showSeating: boolean;
+  maxPerOrder: number;
+  checkoutLabel: string;
+};
+
+/** One event's full ticket-selection experience, laid out per the chosen section style. Every setting (order
+ * title, age note, seating chart, max per order, checkout label) comes from the resolved event itself — each
+ * card is fully self-contained so multiple synced events never bleed settings into one another. */
+function TicketPickerCard({
+  resolved,
+  style,
+}: {
+  resolved: ResolvedTicketEvent;
+  style: ReturnType<typeof detailVariantStyle>;
+}) {
+  const { ev, tierList, orderTitle, ageNote, seatingTitleText, showSeating, maxPerOrder, checkoutLabel } = resolved;
+  const [qty, setQty] = useState<Record<string, number>>(
+    Object.fromEntries(tierList.map((t) => [t.id, t.id === "seated" ? 2 : 0])),
+  );
+  const total = tierList.reduce((sum, t) => sum + (qty[t.id] ?? 0) * t.price, 0);
+  const totalQty = Object.values(qty).reduce((a, b) => a + b, 0);
   const infoItems = [
     ev.date ? { icon: Calendar, label: "Date", value: ev.date } : null,
     [ev.doors, ev.start].filter(Boolean).length
@@ -333,13 +349,6 @@ export function TicketPicker({
       ? { icon: MapPin, label: "Venue", value: [ev.venue, ev.address].filter(Boolean).join(" · ") }
       : null,
   ].filter((item): item is { icon: typeof Calendar; label: string; value: string } => item !== null);
-  const style = detailVariantStyle(variant);
-  const tierList: EventTier[] = tiers && tiers.length ? tiers : e.tiers;
-  const [qty, setQty] = useState<Record<string, number>>(
-    Object.fromEntries(tierList.map((t) => [t.id, t.id === "seated" ? 2 : 0])),
-  );
-  const total = tierList.reduce((sum, t) => sum + (qty[t.id] ?? 0) * t.price, 0);
-  const totalQty = Object.values(qty).reduce((a, b) => a + b, 0);
 
   const banner = (
     <div className={cn("relative overflow-hidden rounded-xl bg-muted", style.hero ? "aspect-[21/9]" : "aspect-[16/9]")}>
@@ -368,108 +377,110 @@ export function TicketPicker({
         </div>
       )}
 
-          <div className="mt-6">
-            <h3 className="text-sm font-semibold">Choose your tickets</h3>
-            <div className="mt-3 space-y-3">
-              {tierList.map((t) => {
-                const sold = qty[t.id] ?? 0;
-                const perks = normalizePerks(t.perks);
-                return (
-                  <div
-                    key={t.id}
-                    className={cn(
-                      "flex items-start justify-between gap-3 rounded-lg border border-border bg-card p-4",
-                      t.popular && "border-primary",
-                      sold > 0 && "ring-1 ring-primary",
-                    )}
-                  >
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2">
-                        <span className="font-semibold">{t.name}</span>
-                        {t.popular && <Badge className="text-xs">Popular</Badge>}
-                      </div>
-                      <ul className="mt-1.5 space-y-0.5 text-xs text-muted-foreground">
-                        {perks.map((p) => (
-                          <li key={p}>· {p}</li>
-                        ))}
-                      </ul>
-                      <div className="mt-2 text-xs text-muted-foreground">
-                        {t.remaining < 20 ? (
-                          <span className="text-warning">Only {t.remaining} left</span>
-                        ) : (
-                          <span>{t.remaining} available</span>
-                        )}
-                      </div>
+      {tierList.length > 0 && (
+        <div className="mt-6">
+          <h3 className="text-sm font-semibold">Choose your tickets</h3>
+          <div className="mt-3 space-y-3">
+            {tierList.map((t) => {
+              const sold = qty[t.id] ?? 0;
+              const perks = normalizePerks(t.perks);
+              return (
+                <div
+                  key={t.id}
+                  className={cn(
+                    "flex items-start justify-between gap-3 rounded-lg border border-border bg-card p-4",
+                    t.popular && "border-primary",
+                    sold > 0 && "ring-1 ring-primary",
+                  )}
+                >
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2">
+                      <span className="font-semibold">{t.name}</span>
+                      {t.popular && <Badge className="text-xs">Popular</Badge>}
                     </div>
-                    <div className="flex flex-col items-end gap-2">
-                      <div className="text-lg font-semibold">{formatPrice(t.price, t.currency)}</div>
-                      <div className="flex items-center gap-1">
-                        <Button
-                          size="icon"
-                          variant="outline"
-                          className="h-8 w-8"
-                          disabled={sold === 0}
-                          onClick={() => setQty((q) => ({ ...q, [t.id]: Math.max(0, sold - 1) }))}
-                        >
-                          <Minus className="h-3.5 w-3.5" />
-                        </Button>
-                        <span className="w-6 text-center text-sm font-medium tabular-nums">{sold}</span>
-                        <Button
-                          size="icon"
-                          variant="outline"
-                          className="h-8 w-8"
-                          disabled={sold >= maxPerOrder}
-                          onClick={() => setQty((q) => ({ ...q, [t.id]: sold + 1 }))}
-                        >
-                          <Plus className="h-3.5 w-3.5" />
-                        </Button>
-                      </div>
+                    <ul className="mt-1.5 space-y-0.5 text-xs text-muted-foreground">
+                      {perks.map((p) => (
+                        <li key={p}>· {p}</li>
+                      ))}
+                    </ul>
+                    <div className="mt-2 text-xs text-muted-foreground">
+                      {t.remaining < 20 ? (
+                        <span className="text-warning">Only {t.remaining} left</span>
+                      ) : (
+                        <span>{t.remaining} available</span>
+                      )}
                     </div>
                   </div>
-                );
-              })}
-            </div>
-          </div>
-
-          {showSeating && (
-            <div className="mt-6 overflow-hidden rounded-lg border border-border">
-              {seatingTitleText && (
-                <div className="border-b border-border bg-muted/30 p-3 text-xs font-medium uppercase text-muted-foreground">
-                  {seatingTitleText}
-                </div>
-              )}
-              <div className="p-6">
-                <div className="mx-auto h-2 w-3/4 rounded-full bg-foreground/80" />
-                <div className="mt-1 text-center text-xs uppercase tracking-wider text-muted-foreground">Stage</div>
-                <div className="mt-6 grid gap-1.5">
-                  {Array.from({ length: 6 }).map((_, row) => (
-                    <div key={row} className="flex justify-center gap-1">
-                      {Array.from({ length: 14 }).map((_, col) => {
-                        const taken = (row * 14 + col) % 7 === 0;
-                        const reserved = row === 1 && col >= 6 && col <= 7;
-                        return (
-                          <div
-                            key={col}
-                            className={cn(
-                              "h-4 w-4 rounded-sm",
-                              taken ? "bg-muted" : "bg-primary/30 hover:bg-primary/60",
-                              reserved && "bg-primary",
-                            )}
-                          />
-                        );
-                      })}
+                  <div className="flex flex-col items-end gap-2">
+                    <div className="text-lg font-semibold">{formatPrice(t.price, t.currency)}</div>
+                    <div className="flex items-center gap-1">
+                      <Button
+                        size="icon"
+                        variant="outline"
+                        className="h-8 w-8"
+                        disabled={sold === 0}
+                        onClick={() => setQty((q) => ({ ...q, [t.id]: Math.max(0, sold - 1) }))}
+                      >
+                        <Minus className="h-3.5 w-3.5" />
+                      </Button>
+                      <span className="w-6 text-center text-sm font-medium tabular-nums">{sold}</span>
+                      <Button
+                        size="icon"
+                        variant="outline"
+                        className="h-8 w-8"
+                        disabled={sold >= maxPerOrder}
+                        onClick={() => setQty((q) => ({ ...q, [t.id]: sold + 1 }))}
+                      >
+                        <Plus className="h-3.5 w-3.5" />
+                      </Button>
                     </div>
-                  ))}
+                  </div>
                 </div>
-                <div className="mt-4 flex flex-wrap justify-center gap-3 text-xs text-muted-foreground">
-                  <Legend className="bg-primary/30" label="Available" />
-                  <Legend className="bg-primary" label="Selected" />
-                  <Legend className="bg-muted" label="Taken" />
-                </div>
-              </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {showSeating && (
+        <div className="mt-6 overflow-hidden rounded-lg border border-border">
+          {seatingTitleText && (
+            <div className="border-b border-border bg-muted/30 p-3 text-xs font-medium uppercase text-muted-foreground">
+              {seatingTitleText}
             </div>
           )}
+          <div className="p-6">
+            <div className="mx-auto h-2 w-3/4 rounded-full bg-foreground/80" />
+            <div className="mt-1 text-center text-xs uppercase tracking-wider text-muted-foreground">Stage</div>
+            <div className="mt-6 grid gap-1.5">
+              {Array.from({ length: 6 }).map((_, row) => (
+                <div key={row} className="flex justify-center gap-1">
+                  {Array.from({ length: 14 }).map((_, col) => {
+                    const taken = (row * 14 + col) % 7 === 0;
+                    const reserved = row === 1 && col >= 6 && col <= 7;
+                    return (
+                      <div
+                        key={col}
+                        className={cn(
+                          "h-4 w-4 rounded-sm",
+                          taken ? "bg-muted" : "bg-primary/30 hover:bg-primary/60",
+                          reserved && "bg-primary",
+                        )}
+                      />
+                    );
+                  })}
+                </div>
+              ))}
+            </div>
+            <div className="mt-4 flex flex-wrap justify-center gap-3 text-xs text-muted-foreground">
+              <Legend className="bg-primary/30" label="Available" />
+              <Legend className="bg-primary" label="Selected" />
+              <Legend className="bg-muted" label="Taken" />
+            </div>
+          </div>
         </div>
+      )}
+    </div>
   );
 
   const aside = (
@@ -522,9 +533,135 @@ export function TicketPicker({
   );
 
   return (
-    <div className="bg-background p-6">
+    <div>
       {style.hero && <div className={cn(style.containerClass, "mb-6")}>{banner}</div>}
       <DetailShell style={style} main={main} aside={aside} />
+    </div>
+  );
+}
+
+interface TicketPickerProps {
+  variant?: string;
+  showSeating?: boolean;
+  cta?: string;
+  tiers?: EventTier[];
+  title?: string;
+  tagline?: string;
+  image_url?: string;
+  date?: string;
+  doors?: string;
+  start?: string;
+  venue?: string;
+  address?: string;
+  order_title?: string;
+  age_note?: string;
+  seating_title?: string;
+  max_per_order?: number | string;
+  itemLimit?: number;
+  header_title?: string;
+  header_subtitle?: string;
+  /** Live events synced from Sales → Ticketed Events — when present, EVERY active event renders as its own ticket picker. */
+  liveEvents?: LiveEvent[];
+}
+
+export function TicketPicker({
+  variant,
+  showSeating = true,
+  cta,
+  tiers,
+  title,
+  tagline,
+  image_url,
+  date,
+  doors,
+  start,
+  venue,
+  address,
+  order_title,
+  age_note,
+  seating_title,
+  max_per_order,
+  itemLimit,
+  header_title,
+  header_subtitle,
+  liveEvents,
+}: TicketPickerProps) {
+  const e = mockEvent;
+  const style = detailVariantStyle(variant);
+  const isLive = !!(liveEvents && liveEvents.length);
+  // Section heading only applies once connected to Sales → Ticketed Events — the single demo
+  // event below has its own banner/title already, so no separate heading is needed there.
+  const headerTitle = header_title ?? (isLive ? "Upcoming events" : "");
+  const headerSubtitle = header_subtitle ?? (isLive ? `${liveEvents!.length} event${liveEvents!.length === 1 ? "" : "s"} — grab your tickets` : "");
+
+  const clampMaxPerOrder = (val: number | string | undefined, fallback: number): number => {
+    if (val === undefined) return fallback;
+    const n = Number(val);
+    return Number.isFinite(n) && n > 0 ? n : fallback;
+  };
+
+  // Connected to Sales → Ticketed Events: every active event gets its own full ticket picker,
+  // with its OWN order title / age note / seating chart / checkout label — all managed per-event
+  // in Sales → Ticketed Events, never a single shared override across every card.
+  const cards: ResolvedTicketEvent[] = isLive
+    ? (liveEvents as LiveEvent[]).slice(0, itemLimit ?? liveEvents!.length).map((le) => ({
+        key: le.id,
+        ev: {
+          title: le.title,
+          tagline: le.tagline ?? "",
+          image: le.image_url || verticalSwatch(le.id || le.title || "event"),
+          date: le.date ?? "",
+          doors: le.doors ?? "",
+          start: le.start ?? "",
+          venue: le.venue ?? "",
+          address: le.address ?? "",
+        },
+        tierList: Array.isArray(le.tiers) ? le.tiers : [],
+        orderTitle: le.orderTitle ?? "",
+        ageNote: le.ageNote ?? "",
+        seatingTitleText: le.seatingTitle ?? "",
+        showSeating: le.showSeating !== false,
+        maxPerOrder: clampMaxPerOrder(le.maxPerOrder, 8),
+        checkoutLabel: le.ctaLabel ?? "",
+      }))
+    : [
+        {
+          key: e.id,
+          ev: {
+            title: title ?? e.title,
+            tagline: tagline ?? e.tagline,
+            image: image_url || e.image,
+            date: date ?? e.date,
+            doors: doors ?? e.doors,
+            start: start ?? e.start,
+            venue: venue ?? e.venue,
+            address: address ?? e.address,
+          },
+          tierList: tiers && tiers.length ? tiers : e.tiers,
+          orderTitle: order_title ?? "Your order",
+          ageNote: age_note ?? `${e.ageRestriction} event · ID required at door`,
+          seatingTitleText: seating_title ?? "Seating chart",
+          showSeating,
+          maxPerOrder: clampMaxPerOrder(max_per_order, 8),
+          checkoutLabel: cta ?? "Continue to checkout",
+        },
+      ];
+
+  return (
+    <div className="bg-background p-6">
+      {(headerTitle || headerSubtitle) && (
+        <div className="mb-6">
+          {headerTitle && <h2 className="text-2xl font-bold tracking-tight">{headerTitle}</h2>}
+          {headerSubtitle && <p className="mt-1 text-sm text-muted-foreground">{headerSubtitle}</p>}
+        </div>
+      )}
+      <div className={cards.length > 1 ? "space-y-10" : undefined}>
+        {cards.map((card, idx) => (
+          <div key={card.key} className={idx > 0 ? "border-t border-border pt-10" : undefined}>
+            <TicketPickerCard resolved={card} style={style} />
+          </div>
+        ))}
+      </div>
     </div>
   );
 }

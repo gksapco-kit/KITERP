@@ -1073,8 +1073,26 @@ const groupBookBlock: BlockDefinition = {
 };
 
 const recurringProps = z.object({
+  header_title: z.string().optional(),
+  header_subtitle: z.string().optional(),
+  image_url: z.string().optional(),
+  title: z.string().optional(),
+  startDate: z.string().optional(),
+  time: z.string().optional(),
+  pricePerSession: z.union([z.number(), z.string()]).optional(),
+  currency: z.string().optional(),
+  defaultSessionCount: z.union([z.number(), z.string()]).optional(),
+  minSessions: z.union([z.number(), z.string()]).optional(),
+  maxSessions: z.union([z.number(), z.string()]).optional(),
+  presets: z.array(z.object({
+    id: z.string().optional(),
+    name: z.string(),
+    description: z.string().optional(),
+    discount_pct: z.number().optional(),
+  })).optional(),
   showUpcoming: z.boolean().default(true),
   cta: z.string().default("Confirm series"),
+  cta_url: z.string().optional(),
 });
 const recurringBlock: BlockDefinition = {
   id: "booking.recurring",
@@ -1083,9 +1101,10 @@ const recurringBlock: BlockDefinition = {
   name: "Recurring Booking",
   description: "Weekly / bi-weekly / monthly series with discount.",
   icon: Repeat,
+  isLive: true,
   propsSchema: recurringProps,
   defaultProps: recurringProps.parse({}),
-  variants: [{ id: "default", name: "Default", Component: RecurringBooking }],
+  variants: verticalVariantSet(RecurringBooking),
 };
 
 const waitlistProps = z.object({
@@ -1254,6 +1273,8 @@ const vehicleDetailBlock: BlockDefinition = {
 const fitnessProps = z.object({
   showInstructor: z.boolean().default(true),
   cta: z.string().default("Reserve"),
+  header_title: z.string().optional(),
+  header_subtitle: z.string().optional(),
 });
 const fitnessBlock: BlockDefinition = {
   id: "vertical.fitnessSchedule",
@@ -1324,6 +1345,7 @@ const courseCatalogBlock: BlockDefinition = {
 };
 
 const courseDetailProps = z.object({
+  courseId: z.string().default("c1"),
   showOutcomes: z.boolean().default(true),
   cta: z.string().default("Enroll for"),
 });

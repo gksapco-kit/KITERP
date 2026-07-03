@@ -117,7 +117,7 @@ const SUSPENSE_NULL_FALLBACK_BLOCKS = new Set([
 
 // ── Live data hook ─────────────────────────────────────────────────────────
 
-type LiveResource = 'products' | 'services' | 'testimonials' | 'team' | 'kpis' | 'profile' | 'pages' | 'categories' | 'customers' | 'orders' | 'bookings' | 'media' | 'stores' | 'blog' | 'plans'
+type LiveResource = 'products' | 'services' | 'testimonials' | 'team' | 'kpis' | 'profile' | 'pages' | 'categories' | 'customers' | 'orders' | 'bookings' | 'media' | 'stores' | 'blog' | 'plans' | 'properties' | 'courses' | 'fitness_classes' | 'vehicles' | 'events' | 'recurring_plans'
 
 const BLOCK_LIVE_RESOURCE: Record<string, LiveResource> = {
   product_grid: 'products', live_stock: 'products', live_quote: 'products', related_products: 'products', product_detail: 'products',
@@ -135,6 +135,16 @@ const BLOCK_LIVE_RESOURCE: Record<string, LiveResource> = {
   blog_grid: 'blog', blog_featured: 'blog', blog_list: 'blog',
   pricing: 'plans',
   'service.pricing': 'plans',
+  'vertical.propertyListing': 'properties',
+  'vertical.propertyDetail': 'properties',
+  'vertical.courseCatalog': 'courses',
+  'vertical.courseDetail': 'courses',
+  'vertical.fitnessSchedule': 'fitness_classes',
+  'vertical.autoInventory': 'vehicles',
+  'vertical.vehicleDetail': 'vehicles',
+  'vertical.eventListing': 'events',
+  'vertical.ticketPicker': 'events',
+  'booking.recurring': 'recurring_plans',
 }
 
 function inferCommerceLiveResource(blockType: string): LiveResource | undefined {

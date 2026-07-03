@@ -30,7 +30,7 @@ export const DATA_SOURCES: DataSourceDefinition[] = [
   { id: 'products', label: 'Products', desc: 'Your product catalog', group: 'catalog', blockTypes: ['product_grid', 'menu_grid', 'live_stock', 'live_quote', 'gallery_masonry', 'product_detail', 'related_products', 'cart_drawer', 'recently_viewed', 'product_filters', 'checkout_form'], selectable: true },
   { id: 'services', label: 'Services', desc: 'Your service offerings', group: 'catalog', blockTypes: ['services_cards', 'services_list', 'booking_widget', 'booking_slot_picker', 'menu_grid'], selectable: true },
   { id: 'categories', label: 'Categories', desc: 'Active categories from Sales → Categories', group: 'catalog', blockTypes: ['menu_grid', 'category_cards', 'product.categories', 'product_filters'], selectable: false },
-  { id: 'testimonials', label: 'Testimonials', desc: 'Verified customer reviews (4★+)', group: 'people', blockTypes: ['testimonials', 'testimonials_grid', 'product_reviews'], selectable: false },
+  { id: 'testimonials', label: 'Testimonials', desc: 'Curated quotes from Sales → Testimonials (falls back to verified 4★+ reviews)', group: 'people', blockTypes: ['testimonials', 'testimonials_grid', 'product_reviews', 'service.testimonials'], selectable: false },
   { id: 'team', label: 'Team', desc: 'Active employees & roles', group: 'people', blockTypes: ['team_grid', 'team_list'], selectable: false },
   { id: 'customers', label: 'Customers', desc: 'Top customers for social proof', group: 'people', blockTypes: ['trust_logos'], selectable: false },
   { id: 'stores', label: 'Store branches', desc: 'Physical outlets & branch list', group: 'stores', blockTypes: ['trust_logos'], selectable: true },
@@ -40,6 +40,12 @@ export const DATA_SOURCES: DataSourceDefinition[] = [
   { id: 'pages', label: 'Site Pages', desc: 'Published pages for nav & footer links', group: 'basic', blockTypes: ['nav', 'footer'], selectable: false },
   { id: 'blog', label: 'Blog posts', desc: 'Published posts from Blog Manager', group: 'basic', blockTypes: ['blog_grid', 'blog_featured', 'blog_list'], selectable: false },
   { id: 'plans', label: 'Pricing plans', desc: 'Active plans from Sales → Pricing Plans', group: 'catalog', blockTypes: ['pricing', 'service.pricing'], selectable: false },
+  { id: 'properties', label: 'Property listings', desc: 'Active listings from Sales → Property Listings', group: 'catalog', blockTypes: ['vertical.propertyListing', 'vertical.propertyDetail'], selectable: false },
+  { id: 'courses', label: 'Course catalog', desc: 'Active courses from Sales → Course Catalog', group: 'catalog', blockTypes: ['vertical.courseCatalog', 'vertical.courseDetail'], selectable: false },
+  { id: 'fitness_classes', label: 'Fitness schedule', desc: 'Active classes from Sales → Fitness Schedule', group: 'catalog', blockTypes: ['vertical.fitnessSchedule'], selectable: false },
+  { id: 'vehicles', label: 'Vehicle inventory', desc: 'Active vehicles from Sales → Vehicle Inventory', group: 'catalog', blockTypes: ['vertical.autoInventory', 'vertical.vehicleDetail'], selectable: false },
+  { id: 'events', label: 'Ticketed events', desc: 'Active events from Sales → Ticketed Events', group: 'catalog', blockTypes: ['vertical.eventListing', 'vertical.ticketPicker'], selectable: false },
+  { id: 'recurring_plans', label: 'Recurring bookings', desc: 'Active plans from Sales → Recurring Bookings', group: 'catalog', blockTypes: ['booking.recurring'], selectable: false },
   { id: 'profile', label: 'Vendor Profile', desc: 'Brand, address, contact, socials', group: 'basic', blockTypes: ['contact_form', 'map_embed', 'map_contact', 'footer', 'nav', 'about_split', 'social_links'], selectable: false },
   { id: 'media', label: 'Site Media', desc: 'Images & videos uploaded to this site', group: 'basic', blockTypes: ['gallery_masonry', 'gallery_grid', 'image_gallery', 'portfolio_grid', 'image_block'], selectable: false },
   { id: 'external_api', label: 'Ext API', desc: 'Custom REST endpoint', group: 'ext_api', blockTypes: [], selectable: false },
@@ -103,6 +109,14 @@ export const BLOCK_AUTO_SOURCE: Record<string, LiveResource> = {
   blog_list: 'blog',
   pricing: 'plans',
   'service.pricing': 'plans',
+  'vertical.propertyListing': 'properties',
+  'vertical.courseCatalog': 'courses',
+  'vertical.fitnessSchedule': 'fitness_classes',
+  'vertical.autoInventory': 'vehicles',
+  'vertical.eventListing': 'events',
+  // Explicit override — without this, inferCommerceAutoSource()'s generic 'booking.' prefix match
+  // would wrongly auto-connect this to the unrelated 'bookings' resource.
+  'booking.recurring': 'recurring_plans',
 }
 
 /** Sections that only work with live data — user cannot turn off connection in layout picker. */
@@ -123,6 +137,11 @@ export const BLOCK_REQUIRED_DATA_SOURCE = new Set<string>([
   'blog_list',
   'pricing',
   'service.pricing',
+  'vertical.propertyListing',
+  'vertical.courseCatalog',
+  'vertical.fitnessSchedule',
+  'vertical.autoInventory',
+  'vertical.eventListing',
 ])
 
 /** Website builder sections that show the Categories sync banner in the sidebar. */
@@ -136,12 +155,78 @@ export const PLANS_SYNC_BLOCK_TYPES = new Set<string>([
   'service.pricing',
 ])
 
+/** Website builder sections that show the Property Listings sync banner in the sidebar. */
+export const PROPERTIES_SYNC_BLOCK_TYPES = new Set<string>([
+  'vertical.propertyListing',
+])
+
+/** Website builder sections that show the Course Catalog sync banner in the sidebar. */
+export const COURSES_SYNC_BLOCK_TYPES = new Set<string>([
+  'vertical.courseCatalog',
+])
+
+/** Website builder sections that show the Fitness Schedule sync banner in the sidebar. */
+export const FITNESS_SYNC_BLOCK_TYPES = new Set<string>([
+  'vertical.fitnessSchedule',
+])
+
+/** Website builder sections that show the Vehicle Inventory sync banner in the sidebar. */
+export const VEHICLES_SYNC_BLOCK_TYPES = new Set<string>([
+  'vertical.autoInventory',
+])
+
+/** Website builder sections that show the Ticketed Events sync banner in the sidebar. */
+export const EVENTS_SYNC_BLOCK_TYPES = new Set<string>([
+  'vertical.eventListing',
+  'vertical.ticketPicker',
+])
+
+/** Website builder sections that show the Recurring Bookings sync banner in the sidebar. */
+export const RECURRING_SYNC_BLOCK_TYPES = new Set<string>([
+  'booking.recurring',
+])
+
+/** Website builder sections that show the Testimonials sync banner in the sidebar. */
+export const TESTIMONIALS_SYNC_BLOCK_TYPES = new Set<string>([
+  'testimonials',
+  'testimonials_grid',
+  'service.testimonials',
+])
+
 export function isCategorySyncedBlock(blockType: string): boolean {
   return CATEGORY_SYNC_BLOCK_TYPES.has(blockType)
 }
 
 export function isPlansSyncedBlock(blockType: string): boolean {
   return PLANS_SYNC_BLOCK_TYPES.has(blockType)
+}
+
+export function isPropertiesSyncedBlock(blockType: string): boolean {
+  return PROPERTIES_SYNC_BLOCK_TYPES.has(blockType)
+}
+
+export function isCoursesSyncedBlock(blockType: string): boolean {
+  return COURSES_SYNC_BLOCK_TYPES.has(blockType)
+}
+
+export function isFitnessSyncedBlock(blockType: string): boolean {
+  return FITNESS_SYNC_BLOCK_TYPES.has(blockType)
+}
+
+export function isVehiclesSyncedBlock(blockType: string): boolean {
+  return VEHICLES_SYNC_BLOCK_TYPES.has(blockType)
+}
+
+export function isEventsSyncedBlock(blockType: string): boolean {
+  return EVENTS_SYNC_BLOCK_TYPES.has(blockType)
+}
+
+export function isRecurringSyncedBlock(blockType: string): boolean {
+  return RECURRING_SYNC_BLOCK_TYPES.has(blockType)
+}
+
+export function isTestimonialsSyncedBlock(blockType: string): boolean {
+  return TESTIMONIALS_SYNC_BLOCK_TYPES.has(blockType)
 }
 
 export function inferCommerceAutoSource(blockType: string): LiveResource | undefined {

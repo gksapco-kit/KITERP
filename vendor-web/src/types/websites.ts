@@ -397,6 +397,12 @@ export type LiveResource =
   | 'stores'
   | 'blog'
   | 'plans'
+  | 'properties'
+  | 'courses'
+  | 'fitness_classes'
+  | 'vehicles'
+  | 'events'
+  | 'recurring_plans'
 
 export interface LiveItem {
   id: string

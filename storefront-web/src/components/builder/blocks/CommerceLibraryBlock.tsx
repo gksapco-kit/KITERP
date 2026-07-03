@@ -127,6 +127,223 @@ function hydrateTeam(liveItems: LiveItem[]) {
   )
 }
 
+function liveItemToProperty(item: LiveItem, idx: number) {
+  const meta = (item.meta || {}) as Record<string, unknown>
+  return {
+    id: item.id || `live-property-${idx}`,
+    title: item.title || `Listing ${idx + 1}`,
+    address: (meta.address as string) || item.subtitle || '',
+    price: typeof item.price === 'number' ? item.price : Number(meta.price) || 0,
+    currency: (meta.currency as string) || 'USD',
+    beds: Number(meta.beds) || 0,
+    baths: Number(meta.baths) || 0,
+    sqft: Number(meta.sqft) || 0,
+    type: (meta.type as string) || 'house',
+    status: (meta.status as string) || 'for-sale',
+    image: item.image_url || swatch(item.title || String(idx)),
+    agent: (meta.agent_name as string) || undefined,
+  }
+}
+
+function liveItemToCourse(item: LiveItem, idx: number) {
+  const meta = (item.meta || {}) as Record<string, unknown>
+  return {
+    id: item.id || `live-course-${idx}`,
+    title: item.title || `Course ${idx + 1}`,
+    instructor: (meta.instructor as string) || item.subtitle || '',
+    level: (meta.level as string) || 'Beginner',
+    duration: (meta.duration as string) || '',
+    lessons: Number(meta.lessons) || 0,
+    rating: Number(meta.rating) || 0,
+    reviews: Number(meta.reviews) || 0,
+    price: typeof item.price === 'number' ? item.price : Number(meta.price) || 0,
+    currency: (meta.currency as string) || 'USD',
+    image: item.image_url || swatch(item.title || String(idx)),
+    category: (meta.category as string) || '',
+    description: item.description || '',
+  }
+}
+
+function liveItemToCourseDetail(item: LiveItem, idx: number) {
+  const meta = (item.meta || {}) as Record<string, unknown>
+  return {
+    ...liveItemToCourse(item, idx),
+    syllabus: Array.isArray(meta.syllabus) ? meta.syllabus : [],
+    outcomes: Array.isArray(meta.outcomes) ? meta.outcomes : [],
+    perks: Array.isArray(meta.perks) ? meta.perks : [],
+    enrolled_label: (meta.enrolled_label as string) || undefined,
+    cta_label: (meta.cta_label as string) || undefined,
+    preview_cta_label: (meta.preview_cta_label as string) || undefined,
+  }
+}
+
+/** "2026-07-24" → "Fri, Jul 24" for display; passes through older free-text values unchanged. */
+function formatFitnessClassDate(iso?: string): string {
+  if (!iso) return ''
+  const d = new Date(`${iso}T00:00:00`)
+  if (Number.isNaN(d.getTime())) return iso
+  return d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })
+}
+
+/** "18:30" → "6:30 PM" for display; passes through older free-text values unchanged. */
+function formatFitnessClassTime(hhmm?: string): string {
+  if (!hhmm) return ''
+  const [hStr, mStr] = hhmm.split(':')
+  const h = Number(hStr)
+  if (Number.isNaN(h)) return hhmm
+  const period = h >= 12 ? 'PM' : 'AM'
+  const h12 = h % 12 === 0 ? 12 : h % 12
+  return `${h12}:${mStr ?? '00'} ${period}`
+}
+
+function liveItemToFitnessClass(item: LiveItem, idx: number) {
+  const meta = (item.meta || {}) as Record<string, unknown>
+  return {
+    id: item.id || `live-class-${idx}`,
+    name: item.title || `Class ${idx + 1}`,
+    instructor: (meta.instructor as string) || item.subtitle || '',
+    type: (meta.type as string) || 'Yoga',
+    duration: Number(meta.duration) || 60,
+    intensity: Number(meta.intensity) || 3,
+    date: formatFitnessClassDate(meta.date as string | undefined),
+    time: formatFitnessClassTime(meta.time as string | undefined),
+    capacity: Number(meta.capacity) || 0,
+    booked: Number(meta.booked) || 0,
+    studio: (meta.studio as string) || '',
+    price: typeof item.price === 'number' ? item.price : Number(meta.price) || 0,
+    currency: (meta.currency as string) || 'USD',
+  }
+}
+
+function liveItemToVehicle(item: LiveItem, idx: number) {
+  const meta = (item.meta || {}) as Record<string, unknown>
+  return {
+    id: item.id || `live-vehicle-${idx}`,
+    year: Number(meta.year) || new Date().getFullYear(),
+    make: (meta.make as string) || '',
+    model: (meta.model as string) || '',
+    trim: (meta.trim as string) || undefined,
+    price: typeof item.price === 'number' ? item.price : Number(meta.price) || 0,
+    currency: (meta.currency as string) || 'USD',
+    mileage: Number(meta.mileage) || 0,
+    fuel: (meta.fuel as string) || 'Gas',
+    transmission: (meta.transmission as string) || 'Auto',
+    bodyStyle: (meta.body_style as string) || '',
+    exteriorColor: (meta.exterior_color as string) || '',
+    image: item.image_url || swatch(item.title || String(idx)),
+    condition: (meta.condition as string) || 'Used',
+    stock_number: (meta.stock_number as string) || undefined,
+    location_note: (meta.location_note as string) || undefined,
+    highlights: Array.isArray(meta.highlights) ? meta.highlights : undefined,
+    ctaLabel: (meta.cta_label as string) || undefined,
+  }
+}
+
+/** "2026-07-24" → "Friday, July 24, 2026" for display; passes through older free-text values unchanged. */
+function formatEventDate(iso?: string): string {
+  if (!iso) return ''
+  const d = new Date(`${iso}T00:00:00`)
+  if (Number.isNaN(d.getTime())) return iso
+  return d.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })
+}
+
+/** "18:30" → "6:30 PM" for display; passes through older free-text values unchanged. */
+function formatEventTime(hhmm?: string): string {
+  if (!hhmm) return ''
+  const [hStr, mStr] = hhmm.split(':')
+  const h = Number(hStr)
+  if (Number.isNaN(h)) return hhmm
+  const period = h >= 12 ? 'PM' : 'AM'
+  const h12 = h % 12 === 0 ? 12 : h % 12
+  return `${h12}:${mStr ?? '00'} ${period}`
+}
+
+function liveItemToEvent(item: LiveItem, idx: number) {
+  const meta = (item.meta || {}) as Record<string, unknown>
+  return {
+    id: item.id || `live-event-${idx}`,
+    title: item.title || `Event ${idx + 1}`,
+    tagline: (meta.tagline as string) || item.subtitle || undefined,
+    image_url: item.image_url || swatch(item.title || String(idx)),
+    date: formatEventDate(meta.event_date as string | undefined),
+    doors: formatEventTime(meta.doors_time as string | undefined),
+    start: formatEventTime(meta.start_time as string | undefined),
+    venue: (meta.venue as string) || undefined,
+    address: (meta.address as string) || undefined,
+    tiers: Array.isArray(meta.tiers) ? meta.tiers : [],
+    orderTitle: (meta.order_title as string) || undefined,
+    ageNote: (meta.age_note as string) || undefined,
+    seatingTitle: (meta.seating_title as string) || undefined,
+    showSeating: meta.show_seating !== false,
+    maxPerOrder: Number(meta.max_per_order) || undefined,
+    ctaLabel: (meta.cta_label as string) || undefined,
+  }
+}
+
+/** "2026-06-05" → "Jun 5, 2026" — compact form for grid/list cards (detail cards use the long form above). */
+function formatEventDateShort(iso?: string): string {
+  if (!iso) return ''
+  const d = new Date(`${iso}T00:00:00`)
+  if (Number.isNaN(d.getTime())) return iso
+  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+}
+
+function liveItemToEventCard(item: LiveItem, idx: number) {
+  const meta = (item.meta || {}) as Record<string, unknown>
+  const tiers = Array.isArray(meta.tiers) ? (meta.tiers as Array<Record<string, unknown>>) : []
+  const currency = (tiers[0]?.currency as string) || 'USD'
+  return {
+    id: item.id || `live-event-${idx}`,
+    title: item.title || `Event ${idx + 1}`,
+    date: formatEventDateShort(meta.event_date as string | undefined),
+    venue: (meta.venue as string) || '',
+    image: item.image_url || swatch(item.title || String(idx)),
+    fromPrice: typeof item.price === 'number' ? item.price : 0,
+    currency,
+    tag: '',
+  }
+}
+
+/** "2026-05-04" → "Mon, May 4" for display; passes through older free-text values unchanged. */
+function formatRecurringStartDate(iso?: string): string {
+  if (!iso) return ''
+  const d = new Date(`${iso}T00:00:00`)
+  if (Number.isNaN(d.getTime())) return iso
+  return d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })
+}
+
+/** "07:30" + 60 → "7:30 AM · 60 min"; passes through older free-text values unchanged. */
+function formatRecurringTime(hhmm?: string, durationMinutes?: number): string {
+  const duration = durationMinutes ? `${durationMinutes} min` : ''
+  if (!hhmm) return duration
+  const [hStr, mStr] = hhmm.split(':')
+  const h = Number(hStr)
+  if (Number.isNaN(h)) return [hhmm, duration].filter(Boolean).join(' · ')
+  const period = h >= 12 ? 'PM' : 'AM'
+  const h12 = h % 12 === 0 ? 12 : h % 12
+  return [`${h12}:${mStr ?? '00'} ${period}`, duration].filter(Boolean).join(' · ')
+}
+
+function liveItemToRecurringPlan(item: LiveItem, idx: number) {
+  const meta = (item.meta || {}) as Record<string, unknown>
+  return {
+    id: item.id || `live-recurring-${idx}`,
+    title: item.title || `Plan ${idx + 1}`,
+    image_url: item.image_url || undefined,
+    startDateIso: (meta.start_date as string) || undefined,
+    startDateLabel: formatRecurringStartDate(meta.start_date as string | undefined),
+    timeLabel: formatRecurringTime(meta.start_time as string | undefined, Number(meta.duration_minutes) || undefined),
+    pricePerSession: typeof item.price === 'number' ? item.price : Number(meta.price_per_session) || 0,
+    currency: (meta.currency as string) || 'USD',
+    defaultSessionCount: Number(meta.default_session_count) || 8,
+    minSessions: Number(meta.min_sessions) || 2,
+    maxSessions: Number(meta.max_sessions) || 24,
+    showUpcoming: meta.show_upcoming !== false,
+    presets: Array.isArray(meta.presets) ? meta.presets : [],
+    ctaLabel: (meta.cta_label as string) || undefined,
+  }
+}
+
 function hydrateMenuFromProducts(liveItems: LiveItem[]) {
   if (!liveItems.length) return
 
@@ -186,6 +403,60 @@ export default function CommerceLibraryBlock({ style, props, liveItems, blockTyp
   useMemo(() => {
     hydrateLiveData(blockType, limitedLiveItems)
   }, [blockType, limitedLiveItems])
+
+  // Hidden (is_active: false) listings are only kept in the raw feed so the builder can
+  // show "X active / Y hidden" counts — they must never render in the preview or storefront.
+  const liveProperties = useMemo(() => {
+    if (blockType !== 'vertical.propertyListing' && blockType !== 'vertical.propertyDetail') return []
+    return liveItems
+      .filter((item) => (item.meta as Record<string, unknown> | undefined)?.is_active !== false)
+      .slice(0, catalogLayout.itemLimit)
+      .map(liveItemToProperty)
+  }, [blockType, liveItems, catalogLayout.itemLimit])
+
+  // Same hidden-course filtering as properties/plans — inactive courses never render.
+  const liveCourses = useMemo(() => {
+    if (blockType !== 'vertical.courseCatalog' && blockType !== 'vertical.courseDetail') return []
+    const active = liveItems.filter((item) => (item.meta as Record<string, unknown> | undefined)?.is_active !== false)
+    return blockType === 'vertical.courseDetail'
+      ? active.map(liveItemToCourseDetail)
+      : active.slice(0, catalogLayout.itemLimit).map(liveItemToCourse)
+  }, [blockType, liveItems, catalogLayout.itemLimit])
+
+  // Same hidden-class filtering as properties/courses — inactive classes never render.
+  const liveClasses = useMemo(() => {
+    if (blockType !== 'vertical.fitnessSchedule') return []
+    return liveItems
+      .filter((item) => (item.meta as Record<string, unknown> | undefined)?.is_active !== false)
+      .slice(0, catalogLayout.itemLimit)
+      .map(liveItemToFitnessClass)
+  }, [blockType, liveItems, catalogLayout.itemLimit])
+
+  // Same hidden-vehicle filtering as properties/courses/fitness — inactive vehicles never render.
+  const liveVehicles = useMemo(() => {
+    if (blockType !== 'vertical.autoInventory' && blockType !== 'vertical.vehicleDetail') return []
+    const active = liveItems.filter((item) => (item.meta as Record<string, unknown> | undefined)?.is_active !== false)
+    return (blockType === 'vertical.vehicleDetail' ? active : active.slice(0, catalogLayout.itemLimit)).map(liveItemToVehicle)
+  }, [blockType, liveItems, catalogLayout.itemLimit])
+
+  // Same hidden-event filtering as properties/courses/vehicles — inactive events never render.
+  // Event Listing (grid/list of cards, paged by itemLimit) and Ticket Picker (every active event
+  // gets its own full picker, never truncated) map the live feed into different card shapes.
+  const liveEvents = useMemo(() => {
+    if (blockType !== 'vertical.ticketPicker' && blockType !== 'vertical.eventListing') return []
+    const active = liveItems.filter((item) => (item.meta as Record<string, unknown> | undefined)?.is_active !== false)
+    return blockType === 'vertical.eventListing'
+      ? active.slice(0, catalogLayout.itemLimit).map(liveItemToEventCard)
+      : active.map(liveItemToEvent)
+  }, [blockType, liveItems, catalogLayout.itemLimit])
+
+  // Same hidden-plan filtering as events/vehicles — inactive recurring plans never render.
+  const liveRecurringPlans = useMemo(() => {
+    if (blockType !== 'booking.recurring') return []
+    return liveItems
+      .filter((item) => (item.meta as Record<string, unknown> | undefined)?.is_active !== false)
+      .map(liveItemToRecurringPlan)
+  }, [blockType, liveItems])
 
   const def = useMemo(() => commerceBlocks.find((b) => b.id === blockType), [blockType])
 
@@ -269,6 +540,13 @@ export default function CommerceLibraryBlock({ style, props, liveItems, blockTyp
     ...(typeof props.transmission === 'string' ? { transmission: props.transmission } : {}),
     ...(typeof props.stock_number === 'string' ? { stock_number: props.stock_number } : {}),
     ...(typeof props.location_note === 'string' ? { location_note: props.location_note } : {}),
+    // Recurring Booking plan fields (undefined → mock fallback; '' → hidden on storefront).
+    ...(typeof props.startDate === 'string' ? { startDate: props.startDate } : {}),
+    ...(typeof props.time === 'string' ? { time: props.time } : {}),
+    ...((typeof props.pricePerSession === 'number' || typeof props.pricePerSession === 'string') ? { pricePerSession: props.pricePerSession } : {}),
+    ...((typeof props.defaultSessionCount === 'number' || typeof props.defaultSessionCount === 'string') ? { defaultSessionCount: props.defaultSessionCount } : {}),
+    ...((typeof props.minSessions === 'number' || typeof props.minSessions === 'string') ? { minSessions: props.minSessions } : {}),
+    ...((typeof props.maxSessions === 'number' || typeof props.maxSessions === 'string') ? { maxSessions: props.maxSessions } : {}),
     // Editable content arrays for vertical library blocks (empty/absent → component mock fallback).
     ...(Array.isArray(props.courses) && props.courses.length ? { courses: props.courses } : {}),
     ...(Array.isArray(props.events) && props.events.length ? { events: props.events } : {}),
@@ -280,7 +558,20 @@ export default function CommerceLibraryBlock({ style, props, liveItems, blockTyp
     ...(Array.isArray(props.vehicles) && props.vehicles.length ? { vehicles: props.vehicles } : {}),
     ...(Array.isArray(props.properties) && props.properties.length ? { properties: props.properties } : {}),
     ...(Array.isArray(props.perks) && props.perks.length ? { perks: props.perks } : {}),
+    ...(Array.isArray(props.presets) && props.presets.length ? { presets: props.presets } : {}),
     ...(showcaseLayout ? { layout: showcaseLayout, bg_style: props.bg_style } : {}),
+    // Live-synced Property Listing / Property Detail (Sales → Property Listings). Falls back to static/mock when no live listings exist yet.
+    ...(liveProperties.length ? { liveProperties } : {}),
+    // Live-synced Course Catalog / Course Detail (Sales → Course Catalog). Falls back to static/mock when no live courses exist yet.
+    ...(liveCourses.length ? { liveCourses } : {}),
+    // Live-synced Fitness Schedule (Sales → Fitness Schedule). Falls back to static/mock when no live classes exist yet.
+    ...(liveClasses.length ? { liveClasses } : {}),
+    // Live-synced Auto Inventory / Vehicle Detail (Sales → Vehicle Inventory). Falls back to static/mock when no live vehicles exist yet.
+    ...(liveVehicles.length ? { liveVehicles } : {}),
+    // Live-synced Ticket Picker (Sales → Ticketed Events). Falls back to static/mock when no live events exist yet.
+    ...(liveEvents.length ? { liveEvents } : {}),
+    // Live-synced Recurring Booking (Sales → Recurring Bookings). Falls back to static/mock when no live plans exist yet.
+    ...(liveRecurringPlans.length ? { liveRecurringPlans } : {}),
   }
 
   const themeVars = useMemo(
