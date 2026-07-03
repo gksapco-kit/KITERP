@@ -150,7 +150,7 @@
   box-shadow:
     0 4px 20px color-mix(in srgb, var(--module-glow, rgba(100, 195, 160, 0.2)) 45%, transparent),
     var(--kiterp-apps-panel-shadow);
-  animation: kiterp-panel-in 0.35s ease-out;
+  animation: kiterp-panel-in 0.28s ease-out;
 }
 
 @keyframes kiterp-panel-in {
@@ -362,31 +362,112 @@
   }
 }
 
-.kiterp-apps-layout {
+.kiterp-apps-interactive {
+  position: relative;
   display: grid;
   gap: 1.25rem;
-  align-items: start;
+  align-items: center;
+  justify-items: center;
 }
 
-@media (min-width: 1024px) {
-  .kiterp-apps-layout {
-    grid-template-columns: auto auto;
-    justify-content: center;
-    gap: 2rem;
+/* Orbit always centered — preview on the right never shifts it. */
+.kiterp-apps-orbit-stage {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+/* Scroll-triggered zoom-in when the orbit enters the viewport. */
+.kiterp-orbit-scroll-target {
+  opacity: 0;
+  transform: scale(0.86);
+  will-change: transform, opacity;
+}
+
+.kiterp-orbit-scroll-target--in {
+  animation: kiterp-orbit-zoom-in 0.9s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.kiterp-orbit-scroll-target--in .kiterp-orbit-node-wrap {
+  animation: kiterp-orbit-node-fade 0.45s ease-out both;
+  animation-delay: var(--orbit-node-delay, 0.2s);
+}
+
+@keyframes kiterp-orbit-zoom-in {
+  from {
+    opacity: 0;
+    transform: scale(0.86);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
   }
 }
 
-.kiterp-module-apps-panel--themed {
+@keyframes kiterp-orbit-node-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .kiterp-orbit-scroll-target {
+    opacity: 1;
+    transform: none;
+  }
+
+  .kiterp-orbit-scroll-target--in,
+  .kiterp-orbit-scroll-target--in .kiterp-orbit-node-wrap {
+    animation: none;
+  }
+}
+
+.kiterp-module-preview-dock {
   width: 100%;
   max-width: 21.5rem;
 }
 
 @media (min-width: 1024px) {
-  .kiterp-module-apps-panel--themed {
-    width: auto;
-    min-width: 11rem;
-    max-width: 21.5rem;
+  .kiterp-apps-interactive {
+    display: block;
+    min-height: min(480px, 90vw);
   }
+
+  .kiterp-apps-orbit-stage {
+    width: 100%;
+    min-height: min(480px, 90vw);
+  }
+
+  .kiterp-module-preview-dock {
+    position: absolute;
+    top: 50%;
+    right: 0;
+    transform: translateY(-50%);
+    width: min(21.5rem, 34vw);
+    max-width: 21.5rem;
+    z-index: 10;
+    pointer-events: none;
+  }
+
+  .kiterp-module-preview-dock:has(.kiterp-module-preview-panel) {
+    pointer-events: auto;
+  }
+}
+
+.kiterp-module-preview-panel {
+  max-height: min(24rem, 72vh);
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(100, 195, 160, 0.35) transparent;
+}
+
+.kiterp-module-apps-panel--themed {
+  width: 100%;
+  max-width: 21.5rem;
 }
 
 .kiterp-module-apps-grid {
@@ -400,6 +481,7 @@
 .kiterp-modules-orbit-wrap {
   width: 100%;
   min-width: 0;
+  overflow: visible;
 }
 
 .kiterp-modules-orbit {
@@ -414,21 +496,6 @@
   --orbit-label-dist: 2.75rem;
 }
 
-/* Decorative rounded backdrop kept as its own clipped layer. */
-.kiterp-orbit-bg {
-  position: absolute;
-  inset: 0;
-  border-radius: var(--kiterp-apps-panel-radius, 1.25rem);
-  border: 1px solid var(--kiterp-apps-panel-border, rgba(100, 195, 160, 0.28));
-  box-shadow: var(--kiterp-apps-panel-shadow, 0 4px 20px rgba(100, 195, 160, 0.1), 0 1px 3px rgba(24, 28, 37, 0.05));
-  background:
-    radial-gradient(circle at 18% 22%, rgba(200, 202, 244, 0.22) 0%, transparent 42%),
-    radial-gradient(circle at 82% 28%, rgba(248, 216, 152, 0.18) 0%, transparent 38%),
-    radial-gradient(circle at 50% 88%, rgba(184, 232, 220, 0.28) 0%, transparent 45%),
-    linear-gradient(165deg, #faf9f5 0%, #f3faf7 48%, #eef9f4 100%);
-  overflow: hidden;
-}
-
 .kiterp-orbit-rings {
   position: absolute;
   inset: 0;
@@ -440,6 +507,12 @@
 .kiterp-orbit-spoke {
   stroke: rgba(100, 116, 139, 0.32);
   stroke-width: 1;
+  transition: stroke 0.2s ease, stroke-width 0.2s ease;
+}
+
+.kiterp-orbit-spoke--active {
+  stroke: color-mix(in srgb, var(--kiterp-primary, #64c3a0) 55%, rgba(100, 116, 139, 0.32));
+  stroke-width: 1.5;
 }
 
 .kiterp-orbit-core {
@@ -473,12 +546,59 @@
 
 .kiterp-orbit-node-wrap {
   position: absolute;
-  width: 2.875rem;
-  height: 2.875rem;
+  width: 0;
+  height: 0;
   transform: translate(-50%, -50%);
+  z-index: 5;
 }
 
-/* Circular icon "planet" node sitting on the ring — pastel fill, neutral icon. */
+/* One large hit target: circle + label, no movement on hover. */
+.kiterp-orbit-node-hit {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  display: block;
+  padding: 0;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  text-align: inherit;
+}
+
+.kiterp-orbit-node-hit::before {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 4.75rem;
+  height: 4.75rem;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+}
+
+.kiterp-orbit-node-hit:focus-visible {
+  outline: none;
+}
+
+.kiterp-orbit-node-hit:focus-visible .kiterp-orbit-node-btn {
+  box-shadow:
+    0 0 0 3px color-mix(in srgb, var(--orbit-accent, #64c3a0) 55%, transparent),
+    0 4px 14px rgba(30, 41, 59, 0.12);
+}
+
+.kiterp-orbit-node-hit--active .kiterp-orbit-node-btn {
+  box-shadow:
+    0 0 0 3px color-mix(in srgb, var(--orbit-accent, #64c3a0) 42%, transparent),
+    0 0 16px color-mix(in srgb, var(--orbit-glow, rgba(100, 195, 160, 0.4)) 65%, transparent),
+    0 4px 14px rgba(30, 41, 59, 0.12);
+}
+
+.kiterp-orbit-node-hit--active .kiterp-orbit-node-title {
+  color: #1e3d34;
+}
+
+/* Circular icon node — pastel fill, fixed size. */
 .kiterp-orbit-node-btn {
   position: relative;
   display: flex;
@@ -486,15 +606,17 @@
   justify-content: center;
   width: 2.875rem;
   height: 2.875rem;
-  padding: 0;
-  border: none;
+  margin: 0 auto;
   border-radius: 50%;
   background: color-mix(in srgb, var(--orbit-accent, #64c3a0) 26%, #ffffff 74%);
   color: #3a4652;
-  cursor: pointer;
   box-shadow: 0 2px 8px rgba(30, 41, 59, 0.08);
-  transition: transform 0.22s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.22s ease;
+  transition: box-shadow 0.2s ease;
   box-sizing: border-box;
+}
+
+.kiterp-orbit-node-hit:hover .kiterp-orbit-node-btn {
+  box-shadow: 0 4px 14px rgba(30, 41, 59, 0.12);
 }
 
 .kiterp-orbit-node-icon {
@@ -505,44 +627,13 @@
   justify-content: center;
 }
 
-.kiterp-orbit-node-btn:hover {
-  transform: scale(1.08);
-  box-shadow: 0 6px 16px rgba(30, 41, 59, 0.14);
-  z-index: 20;
-}
-
-.kiterp-orbit-node-btn:focus-visible {
-  outline: none;
-  box-shadow:
-    0 0 0 3px color-mix(in srgb, var(--orbit-accent, #64c3a0) 55%, transparent),
-    0 6px 16px rgba(30, 41, 59, 0.14);
-}
-
-.kiterp-orbit-node-btn--active {
-  transform: scale(1.14);
-  box-shadow:
-    0 0 0 6px color-mix(in srgb, var(--orbit-accent, #64c3a0) 22%, transparent),
-    0 0 22px color-mix(in srgb, var(--orbit-glow, rgba(100, 195, 160, 0.4)) 90%, transparent),
-    0 8px 18px rgba(30, 41, 59, 0.14);
-}
-
 /*
- * Always-visible module name + count.
- * Each label is pushed radially outward from the centre (using the node's
- * cos/sin, set inline as --orbit-c / --orbit-s). Because labels sit on a
- * larger circle than the icons, they fan apart and never overlap.
+ * Module name + count — part of the hit target for easier selection.
  */
 .kiterp-orbit-node-label {
   position: absolute;
   left: 50%;
   top: 50%;
-  /*
-   * Two additive offsets: (1) push the label out along the radial line to
-   * --orbit-label-dist, same as before, and (2) shift the label box by its
-   * own width/height so it clears the icon instead of straddling it — e.g.
-   * a node on the right (c near 1) gets its left edge at the anchor point
-   * so text grows rightward, away from the icon, never overlapping it.
-   */
   transform: translate(
     calc((-50% + (var(--orbit-c, 0) * 50%)) + (var(--orbit-c, 0) * var(--orbit-label-dist))),
     calc((-50% + (var(--orbit-s, 0) * 50%)) + (var(--orbit-s, 0) * var(--orbit-label-dist)))
@@ -556,6 +647,7 @@
   text-align: center;
   pointer-events: none;
   z-index: 6;
+  padding: 0.35rem 0.25rem;
 }
 
 /* Side nodes: align text so it flows away from the icon rather than centering over it. */
@@ -619,16 +711,9 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .kiterp-orbit-node-btn {
+  .kiterp-orbit-node-btn,
+  .kiterp-orbit-spoke {
     transition: none;
-  }
-
-  .kiterp-orbit-node-btn:hover {
-    transform: none;
-  }
-
-  .kiterp-orbit-node-btn--active {
-    transform: none;
   }
 
   .kiterp-module-apps-panel--themed {
@@ -663,6 +748,104 @@
 .kiterp-hand-note--cta-subline {
   font-size: 1.05rem;
   line-height: 1.2;
+}
+
+.kiterp-hero-cta-primary {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.kiterp-hero-cta-note {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  width: 100%;
+  margin-top: 0.35rem;
+  padding-left: 0.5rem;
+}
+
+.kiterp-hero-cta-arrow {
+  display: block;
+  width: 4rem;
+  height: 2.65rem;
+  margin: 0 0 0.4rem 1.65rem;
+  overflow: visible;
+  color: var(--kiterp-primary, #64c3a0);
+  flex-shrink: 0;
+}
+
+.kiterp-hero-cta-arrow-path {
+  stroke: currentColor;
+  stroke-width: 2.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  fill: none;
+}
+
+.kiterp-hero-cta-pricing-wrap {
+  animation: kiterp-hero-price-sway 3s ease-in-out infinite;
+  will-change: transform;
+}
+
+@keyframes kiterp-hero-price-sway {
+  0%,
+  100% {
+    transform: translateX(-0.4rem);
+  }
+  50% {
+    transform: translateX(0.55rem);
+  }
+}
+
+.kiterp-hero-cta-pricing {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  transform: rotate(-8deg);
+  transform-origin: left top;
+  color: var(--kiterp-primary-deeper, #52a088);
+  padding-left: 0.15rem;
+}
+
+.kiterp-hero-cta-price-line {
+  display: block;
+  font-family: 'Kalam', cursive;
+  font-weight: 400;
+  font-size: 1.08rem;
+  line-height: 1.2;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+}
+
+.kiterp-hero-cta-price-line--sub {
+  padding-left: 0.7rem;
+  font-size: 1rem;
+}
+
+@media (min-width: 640px) {
+  .kiterp-hero-cta-arrow {
+    width: 4.35rem;
+    height: 2.85rem;
+    margin-bottom: 0.45rem;
+    margin-left: 1.85rem;
+  }
+
+  .kiterp-hero-cta-price-line {
+    font-size: 1.16rem;
+  }
+
+  .kiterp-hero-cta-price-line--sub {
+    font-size: 1.06rem;
+    padding-left: 0.8rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .kiterp-hero-cta-pricing-wrap {
+    animation: none;
+    transform: none;
+  }
 }
 
 /* Community mosaic — vendor-web multi-color palette (scoped to #community) */
@@ -993,6 +1176,12 @@
   stroke-width: 2;
   fill: none;
   stroke-linecap: round;
+}
+
+.kiterp-hero-cta-arrow .kiterp-scribble-arrow {
+  stroke: currentColor;
+  stroke-width: 2.5;
+  stroke-linejoin: round;
 }
 
 /* Homepage demo video */

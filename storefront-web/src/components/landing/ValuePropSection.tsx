@@ -24,7 +24,7 @@ const PROPS = [
 
 export function ValuePropSection() {
   return (
-    <section className="py-16 sm:py-24 bg-white scroll-mt-24">
+    <section className="pt-2 pb-16 sm:pt-4 sm:pb-24 bg-white scroll-mt-24">
       <div className="max-w-6xl mx-auto px-4 sm:px-6">
         <h2 className="font-kiterp-script text-3xl sm:text-4xl text-center leading-tight text-[#1e3d34] mb-8 sm:mb-10">
           Do More with Less Effort

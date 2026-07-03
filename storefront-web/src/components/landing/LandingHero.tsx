@@ -3,7 +3,7 @@ import { vendorAppUrl } from '@/lib/appUrls'
 
 export function LandingHero() {
   return (
-    <section id="stores" className="relative kiterp-curve-bg overflow-hidden pt-10 pb-16 sm:pt-16 sm:pb-24">
+    <section id="stores" className="relative kiterp-curve-bg overflow-hidden pt-10 pb-4 sm:pt-16 sm:pb-6">
       <div className="max-w-4xl mx-auto px-4 sm:px-6 text-center kiterp-reveal">
         <h1 className="font-kiterp-script text-[2rem] sm:text-5xl lg:text-[3.2rem] leading-[1.1] text-[#1e3d34]">
           Run your business, team, and website on{' '}
@@ -14,26 +14,38 @@ export function LandingHero() {
           One Login, Yet Affordable, Scalable, ROI-Driven, and User-Friendly.
         </p>
 
-        <div className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-4 sm:items-start">
-          <div className="flex flex-col items-center gap-0.5">
+        <div className="mt-8 flex flex-col sm:flex-row items-center sm:items-start justify-center gap-3 sm:gap-4">
+          <div className="kiterp-hero-cta-primary">
             <a href={VENDOR_SIGNUP_PATH} className="kiterp-btn-primary px-7 py-3 text-base sm:text-lg">
               Get started
             </a>
-            <svg width="22" height="22" viewBox="0 0 22 22" fill="none" className="text-[#64C3A0]" aria-hidden>
-              <path
-                d="M4 20C4 20 2 12 8 9C14 6 10 2 18 2"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-              />
-            </svg>
-            <p className="kiterp-hand-note kiterp-hand-note--cta-subline">
-              ₹0.00 / month for ALL apps
-            </p>
+            <div className="kiterp-hero-cta-note">
+              <svg
+                className="kiterp-hero-cta-arrow"
+                viewBox="0 0 64 44"
+                fill="none"
+                aria-hidden
+              >
+                <path
+                  className="kiterp-hero-cta-arrow-path"
+                  d="M38 3 C30 9 22 17 16 27 C12 33 10 37 8 41"
+                />
+                <path className="kiterp-hero-cta-arrow-path" d="M8 41 L2 35" />
+                <path className="kiterp-hero-cta-arrow-path" d="M8 41 L14 39" />
+              </svg>
+              <div className="kiterp-hero-cta-pricing-wrap">
+                <div className="kiterp-hero-cta-pricing">
+                  <span className="kiterp-hero-cta-price-line">₹0.00 / month</span>
+                  <span className="kiterp-hero-cta-price-line kiterp-hero-cta-price-line--sub">
+                    for ALL apps
+                  </span>
+                </div>
+              </div>
+            </div>
           </div>
           <a
             href={`${vendorAppUrl}/login`}
-            className="kiterp-btn-secondary px-7 py-3 text-base sm:text-lg"
+            className="kiterp-btn-secondary px-7 py-3 text-base sm:text-lg sm:mt-0"
           >
             Talk to us
           </a>
