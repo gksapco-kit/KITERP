@@ -138,7 +138,10 @@ app.include_router(api_router, prefix=settings.API_V1_PREFIX)
 
 # Serve uploaded files statically
 uploads_dir = Path(__file__).resolve().parent.parent / "uploads"
-uploads_dir.mkdir(parents=True, exist_ok=True)
+try:
+    uploads_dir.mkdir(parents=True, exist_ok=True)
+except OSError as exc:
+    logger.warning("Upload directory not writable at startup (%s): %s", uploads_dir, exc)
 app.mount("/uploads", StaticFiles(directory=str(uploads_dir)), name="uploads")
 
 

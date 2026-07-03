@@ -11,7 +11,7 @@ if [ -n "$DATABASE_URL" ]; then
   DB_PORT=$(echo "$DATABASE_URL" | sed -E 's|.*:([0-9]+)/.*|\1|')
   DB_PORT=${DB_PORT:-5432}
 
-  echo "[1/3] Waiting for PostgreSQL at $DB_HOST:$DB_PORT ..."
+  echo "[1/4] Waiting for PostgreSQL at $DB_HOST:$DB_PORT ..."
   retries=0
   max_retries=30
   while ! nc -z "$DB_HOST" "$DB_PORT" 2>/dev/null; do
@@ -24,14 +24,14 @@ if [ -n "$DATABASE_URL" ]; then
   done
   echo "       PostgreSQL is up."
 else
-  echo "[1/3] No DATABASE_URL set, skipping Postgres wait."
+  echo "[1/4] No DATABASE_URL set, skipping Postgres wait."
 fi
 
 # ---- Run Alembic Migrations ----
 if [ "${SKIP_MIGRATIONS:-false}" = "true" ]; then
-  echo "[2/3] SKIP_MIGRATIONS=true, skipping Alembic."
+  echo "[2/4] SKIP_MIGRATIONS=true, skipping Alembic."
 else
-  echo "[2/3] Running Alembic migrations ..."
+  echo "[2/4] Running Alembic migrations ..."
   # Default Alembic uses VARCHAR(32) for version_num; this repo uses longer revision ids.
   python <<'PY'
 import asyncio
@@ -72,7 +72,19 @@ PY
   echo "       Migrations complete."
 fi
 
+# ---- Upload directory (Docker volume is often root-owned; app runs as appuser) ----
+echo "[3/3] Ensuring upload directories ..."
+mkdir -p /app/uploads/products /app/uploads/services /app/uploads/media \
+  /app/uploads/vendors /app/uploads/hr /app/uploads/crm /app/uploads/orders \
+  /app/uploads/websites
+if id appuser >/dev/null 2>&1; then
+  chown -R appuser:appgroup /app/uploads
+fi
+
 # ---- Start the application ----
-echo "[3/3] Starting application ..."
+echo "[4/4] Starting application ..."
 echo "=========================================="
+if id appuser >/dev/null 2>&1 && [ "$(id -u)" = "0" ]; then
+  exec gosu appuser "$@"
+fi
 exec "$@"

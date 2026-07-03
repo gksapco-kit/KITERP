@@ -171,9 +171,21 @@ class FileService:
 
     async def _local_put(self, key: str, body: bytes) -> None:
         dest = _LOCAL_UPLOAD_ROOT / key
-        dest.parent.mkdir(parents=True, exist_ok=True)
-        async with aiofiles.open(dest, "wb") as f:
-            await f.write(body)
+        try:
+            dest.parent.mkdir(parents=True, exist_ok=True)
+            async with aiofiles.open(dest, "wb") as f:
+                await f.write(body)
+        except PermissionError as exc:
+            logger.error(
+                "Local upload failed (permission denied): %s. "
+                "Ensure /app/uploads is writable by the app user, or configure "
+                "AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, and AWS_S3_BUCKET for S3 uploads.",
+                dest,
+            )
+            raise PermissionError(
+                f"Upload directory not writable: {dest.parent}. "
+                "Contact your administrator or configure S3 storage."
+            ) from exc
         logger.debug("Local upload: %s (%d bytes)", dest, len(body))
 
     def _local_delete(self, key: str) -> bool:

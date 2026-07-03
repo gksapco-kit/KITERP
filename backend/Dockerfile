@@ -10,6 +10,7 @@ WORKDIR /app
 # Runtime only — asyncpg/cryptography ship wheels; skip gcc/libpq-dev (~225MB apt cache).
 RUN apt-get update && apt-get install -y --no-install-recommends \
     netcat-openbsd \
+    gosu \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/* /var/cache/apt/archives/*
 
@@ -48,10 +49,9 @@ COPY . .
 RUN mkdir -p /app/uploads
 RUN chmod +x /app/entrypoint.sh
 
-# Create non-root user for security
+# Create non-root user for security (entrypoint drops to this user after volume setup)
 RUN addgroup --system appgroup && adduser --system --ingroup appgroup appuser
 RUN chown -R appuser:appgroup /app
-USER appuser
 
 ENV PYTHONPATH=/app
 ENV PYTHONDONTWRITEBYTECODE=1
