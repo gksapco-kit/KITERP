@@ -41,6 +41,15 @@ import {
   Calendar, Hash, Radio, Users, Globe, Tag, MessageSquare, ToggleRight,
   Factory, Store,
 } from 'lucide-react'
+import { useVendorStore } from '@/stores/vendorStore'
+import {
+  buildVariantCombos,
+  GenerateVariantsButton,
+  PresetColourField,
+  PresetSizeField,
+  type GeneratedVariantCombo,
+} from '@/components/products/GenerateVariantsFromPresets'
+import { useProductVariantPresets } from '@/hooks/useProductVariantPresets'
 import { BOMEditor } from '@/components/mrp/BOMEditor'
 import { CategoryHierarchyPicker } from '@/components/common/CategoryHierarchyPicker'
 import { collectCustomFieldsFromSelection, filterCategoryTree } from '@/lib/categoryHierarchy'
@@ -77,6 +86,36 @@ import { UOM_OPTIONS, UOM_GROUPS, formatUomDisplay } from '@/lib/uomOptions'
 const optStr = z.string().optional().or(z.literal(''))
 const optNum = z.coerce.number().optional().or(z.literal('').transform(() => undefined))
 const optInt = z.coerce.number().int().optional().or(z.literal('').transform(() => undefined))
+
+/** Placeholder name for variant row 0 when it is only the colour/size generator UI. */
+const PRESET_GENERATOR_VARIANT_NAME = '__preset_generator__'
+
+function parseVariantAttrsJson(raw: string | undefined): Record<string, string> {
+  try {
+    const parsed = raw ? JSON.parse(raw) : {}
+    return parsed && typeof parsed === 'object' ? (parsed as Record<string, string>) : {}
+  } catch {
+    return {}
+  }
+}
+
+/** Row 0 with no preset attrs selected — not a real SKU until Generate variants runs. */
+function isPresetGeneratorVariant(
+  variant: { name?: string; attributes_json?: string } | undefined,
+  index: number,
+): boolean {
+  if (index !== 0 || !variant) return false
+  if (variant.name === PRESET_GENERATOR_VARIANT_NAME) return true
+  const name = (variant.name || '').trim()
+  if (Object.keys(parseVariantAttrsJson(variant.attributes_json)).length > 0) return false
+  return !name || name === 'Variant'
+}
+
+function defaultVariantRowName(index: number, isSubscriptionType: boolean, isGeneratorRow: boolean): string {
+  if (isSubscriptionType) return `Plan ${index + 1}`
+  if (isGeneratorRow) return PRESET_GENERATOR_VARIANT_NAME
+  return `Variant ${index + 1}`
+}
 
 const variantRowSchema = z.object({
   id: z.string().optional(),  // DB id — present for saved variants, absent for new ones
@@ -234,7 +273,16 @@ const schema = z.object({
   allow_quote_request: z.boolean().default(false),
   quote_form_config: z.any().optional(),
   // Variants
-  variants: z.array(variantRowSchema).default([]),
+  variants: z.array(variantRowSchema).default([]).superRefine((rows, ctx) => {
+    const substantive = rows.filter((v, i) => !isPresetGeneratorVariant(v, i))
+    if (substantive.length === 0 && rows.length > 0) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Generate variants from colours and sizes, or add variant details.',
+        path: [0, 'name'],
+      })
+    }
+  }),
 })
 
 type FormData = z.infer<typeof schema>
@@ -330,18 +378,6 @@ function parseHexColor(color: string): { r: number; g: number; b: number } | nul
   return { r, g, b }
 }
 
-function normalizeHexColorInput(raw: string): string | null {
-  const trimmed = raw.trim()
-  if (!trimmed) return null
-  let hex = trimmed.startsWith('#') ? trimmed.slice(1) : trimmed
-  if (hex.length === 3) hex = hex.split('').map(c => c + c).join('')
-  if (!/^[0-9a-fA-F]{6}$/.test(hex)) return null
-  return `#${hex.toUpperCase()}`
-}
-
-function colorPickerHexValue(raw: string | undefined | null): string {
-  return normalizeHexColorInput(raw || '') || '#FFFFFF'
-}
 
 function isLightAccentColor(color: string): boolean {
   const c = color.trim().toLowerCase()
@@ -412,7 +448,7 @@ function FormTintPanel({
 }) {
   if (headerAccentOnly && header) {
     return (
-      <div className={cn('flex overflow-hidden rounded-lg border-0 shadow-none', !active && 'opacity-85', className)}>
+      <div className={cn('flex overflow-visible rounded-lg border-0 shadow-none', !active && 'opacity-85', className)}>
         <div
           className="w-1 shrink-0 self-stretch min-h-full"
           style={{ background: variantAccentBarGradient(accentColor, active) }}
@@ -455,7 +491,6 @@ function FormTintPanel({
   )
 }
 
-const GENERATE_OPTIONS_ACCENT = '#0D9488'
 
 /** Compact variant/plan editor — tighter gaps, clearer section labels. */
 const variantFormUi = {
@@ -727,15 +762,10 @@ function QuoteFormConfigurator({ fields, onChange }: {
 interface OptionRow {
   name: string
   values: string
+  mode?: 'default' | 'colour' | 'size'
+  linkedSize?: string
+  colourHex?: string
 }
-
-function cartesianProduct<T>(arrays: T[][]): T[][] {
-  return arrays.reduce<T[][]>(
-    (acc, curr) => acc.flatMap(a => curr.map(c => [...a, c])),
-    [[]],
-  )
-}
-
 
 // ── Variant Media (edit mode — live upload) ─────────────────────
 
@@ -2029,6 +2059,8 @@ export default function ProductForm() {
   const [isViewMode, setIsViewMode] = useState(!startInEditMode)
   // Pre-fill barcode from ?barcode= query param (set when navigating from a failed scan)
   const prefillBarcode = !isEdit ? (searchParams.get('barcode') || '') : ''
+  const vendorId = useVendorStore(s => s.vendor?.id)
+  const { presets: variantPresets } = useProductVariantPresets(vendorId)
 
   const { data: product, isLoading } = useProduct(id || '')
   const createProduct = useCreateProduct()
@@ -2116,11 +2148,12 @@ export default function ProductForm() {
     }
   }, [prefillBarcode]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  const [optionRows, setOptionRows] = useState<OptionRow[]>([{ name: '', values: '' }])
+  const [optionRows, setOptionRows] = useState<OptionRow[]>([{ name: '', values: '', mode: 'default' }])
   const [expandedVariants, setExpandedVariants] = useState<Record<number, boolean>>({})
   const toggleVariant = (idx: number) => setExpandedVariants(p => ({ ...p, [idx]: !p[idx] }))
   const [confirmDeleteVariant, setConfirmDeleteVariant] = useState<number | null>(null)
-  const [confirmDeleteOption, setConfirmDeleteOption] = useState<number | null>(null)
+  const [generateColourIds, setGenerateColourIds] = useState<Set<string>>(new Set())
+  const [generateSizeIds, setGenerateSizeIds] = useState<Set<string>>(new Set())
 
   // ── Merchandising state ──
   type MerchMapping = { target_type: 'product' | 'category'; target_product_id: string; target_category: string; relation_type: 'cross_sell' | 'upsell'; bundle_id?: string; trigger_stage: 'PDP' | 'CART' | 'CHECKOUT'; priority: number }
@@ -2642,7 +2675,7 @@ export default function ProductForm() {
       data.custom_fields = parseJsonField(raw.custom_fields) || {}
 
       data.variants = (variantRows || [])
-        .filter(v => v.name?.trim())
+        .filter((v, i) => v.name?.trim() && !isPresetGeneratorVariant(v, i))
         .map(v => ({
           id: v.id || undefined,
           name: v.name.trim(),
@@ -2883,7 +2916,7 @@ export default function ProductForm() {
       }
     }
   }
-  const addOptionRow = () => setOptionRows(prev => [...prev, { name: '', values: '' }])
+  const addOptionRow = () => setOptionRows(prev => [...prev, { name: '', values: '', mode: 'default' }])
   const removeOptionRow = (index: number) => setOptionRows(prev => prev.length <= 1 ? prev : prev.filter((_, i) => i !== index))
 
   const syncVariantNameAttributes = useCallback((index: number, newName: string) => {
@@ -2980,13 +3013,21 @@ export default function ProductForm() {
       return
     }
     if (variantFields.length === 0 && !createVariantSeeded.current) {
-      appendVariant(makeVariantDefaults(isSubscriptionType ? 'Plan 1' : 'Variant', {}))
+      const hasPresets = variantPresets.colours.length > 0 || variantPresets.sizes.length > 0
+      appendVariant(makeVariantDefaults(
+        isSubscriptionType
+          ? 'Plan 1'
+          : hasPresets
+            ? PRESET_GENERATOR_VARIANT_NAME
+            : 'Variant',
+        {},
+      ))
       setExpandedVariants({ 0: true })
       setVisitedSections(s => new Set(s).add('variants'))
       createVariantSeeded.current = true
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps -- seed once per create session; makeVariantDefaults is stable enough for our guards
-  }, [isEdit, isBundleType, variantFields.length, isSubscriptionType])
+  }, [isEdit, isBundleType, variantFields.length, isSubscriptionType, variantPresets.colours.length, variantPresets.sizes.length])
 
   useEffect(() => {
     if (isEdit || isBundleType || variantFields.length !== 1) return
@@ -2998,73 +3039,90 @@ export default function ProductForm() {
     }
   }, [isSubscriptionType, isEdit, isBundleType, variantFields.length, getValues, setValue])
 
-  const generateVariantsFromOptions = () => {
-    const validRows = optionRows.filter(r => r.name.trim() && r.values.trim())
-    if (validRows.length === 0) {
-      toast.error('Add at least one option with a name and values')
+  // Keep the preset generator row's hidden name valid once colour/size presets are available.
+  useEffect(() => {
+    if (isEdit || isSubscriptionType || isBundleType) return
+    const hasPresets = variantPresets.colours.length > 0 || variantPresets.sizes.length > 0
+    if (!hasPresets || variantFields.length === 0) return
+    const v0 = getValues('variants.0')
+    if (!v0 || !isPresetGeneratorVariant(v0, 0)) return
+    if (v0.name !== PRESET_GENERATOR_VARIANT_NAME) {
+      setValue('variants.0.name', PRESET_GENERATOR_VARIANT_NAME, { shouldValidate: false })
+    }
+  }, [
+    isEdit,
+    isSubscriptionType,
+    isBundleType,
+    variantFields.length,
+    variantPresets.colours.length,
+    variantPresets.sizes.length,
+    getValues,
+    setValue,
+  ])
+
+  const applyVariantPresetSelection = useCallback((
+    index: number,
+    colourIds: Set<string>,
+    sizeIds: Set<string>,
+  ) => {
+    const colours = variantPresets.colours.filter(c => colourIds.has(c.id))
+    const sizes = variantPresets.sizes.filter(s => sizeIds.has(s.id))
+    const combos = buildVariantCombos(colours, sizes)
+    if (combos.length === 0) {
+      setValue(
+        `variants.${index}.name`,
+        isSubscriptionType ? `Plan ${index + 1}` : `Variant ${index + 1}`,
+        { shouldDirty: true },
+      )
+      setValue(`variants.${index}.attributes_json`, '{}', { shouldDirty: true })
+      return
+    }
+    const combo = combos[0]
+    setValue(`variants.${index}.name`, combo.name, { shouldDirty: true })
+    setValue(`variants.${index}.attributes_json`, JSON.stringify(combo.attrs), { shouldDirty: true })
+    if (combo.colorHex) {
+      setValue(`variants.${index}.color`, combo.colorHex, { shouldDirty: true })
+    }
+  }, [isSubscriptionType, setValue, variantPresets.colours, variantPresets.sizes])
+
+  const handleGenerateFromPresets = (combos: GeneratedVariantCombo[]) => {
+    if (combos.length === 0) {
+      toast.error('Select at least one colour or size')
       return
     }
 
-    const existingNames = new Set(
-      (getValues('variants') || []).map((v: { name?: string }) => (v.name || '').toLowerCase().trim())
-    )
+    const currentRows = getValues('variants') || []
+    const hasPresets = variantPresets.colours.length > 0 || variantPresets.sizes.length > 0
+    const dropGeneratorRow =
+      !isSubscriptionType
+      && hasPresets
+      && currentRows.length > 0
+      && isPresetGeneratorVariant(currentRows[0], 0)
 
-    // Check if rows should create individual variants (each row = 1 variant)
-    // or combinations (cartesian product across option dimensions)
-    // Individual: all rows have single values (no commas)
-    // Combinations: at least one row has multiple comma-separated values,
-    //   OR multiple rows share the same option name
-    const nameCount = new Map<string, number>()
-    for (const row of validRows) {
-      const key = row.name.trim().toLowerCase()
-      nameCount.set(key, (nameCount.get(key) || 0) + 1)
+    if (dropGeneratorRow) {
+      removeVariant(0)
     }
-    const hasMultiValues = validRows.some(r => r.values.includes(','))
-    const hasSharedNames = [...nameCount.values()].some(c => c > 1)
-    const useCombinations = hasMultiValues || hasSharedNames
+
+    const startIdx = dropGeneratorRow ? 0 : currentRows.length
+    const nameSource = dropGeneratorRow ? currentRows.slice(1) : currentRows
+    const existingNames = new Set(
+      nameSource.map((v: { name?: string }) => (v.name || '').toLowerCase().trim()).filter(Boolean),
+    )
 
     let added = 0
     let skipped = 0
 
-    if (useCombinations) {
-      // Merge rows with same name, then cartesian product
-      const merged = new Map<string, string[]>()
-      for (const row of validRows) {
-        const key = row.name.trim()
-        const vals = row.values.split(',').map(v => v.trim()).filter(Boolean)
-        const existing = merged.get(key) || []
-        merged.set(key, [...existing, ...vals])
-      }
-      const keys = [...merged.keys()]
-      const valueArrays = keys.map(k => [...new Set(merged.get(k)!)])
-      if (valueArrays.some(a => a.length === 0)) {
-        toast.error('Each option must have at least one value')
-        return
-      }
-      const combos = cartesianProduct(valueArrays)
-      for (const combo of combos) {
-        const attrs: Record<string, string> = {}
-        keys.forEach((k, i) => { attrs[k] = combo[i] })
-        const name = combo.join(' / ')
-        if (existingNames.has(name.toLowerCase().trim())) { skipped++; continue }
-        existingNames.add(name.toLowerCase().trim())
-        appendVariant(makeVariantDefaults(name, attrs))
-        added++
-      }
-    } else {
-      // Each row generates its own individual variant
-      for (const row of validRows) {
-        const optName = row.name.trim()
-        const val = row.values.trim()
-        if (existingNames.has(val.toLowerCase())) { skipped++; continue }
-        existingNames.add(val.toLowerCase())
-        appendVariant(makeVariantDefaults(val, { [optName]: val }))
-        added++
-      }
+    for (const combo of combos) {
+      const key = combo.name.toLowerCase().trim()
+      if (existingNames.has(key)) { skipped++; continue }
+      existingNames.add(key)
+      const defaults = makeVariantDefaults(combo.name, combo.attrs)
+      if (combo.colorHex) defaults.color = combo.colorHex
+      appendVariant(defaults)
+      added++
     }
 
     if (added > 0) {
-      const startIdx = variantFields.length
       const expanded: Record<number, boolean> = {}
       for (let i = 0; i < added; i++) expanded[startIdx + i] = true
       setExpandedVariants(p => ({ ...p, ...expanded }))
@@ -3388,27 +3446,30 @@ export default function ProductForm() {
             id="form-section-variants"
             className={cn(formDisplayCompact.scrollMarginEdit, 'flex flex-col gap-1.5 sm:gap-2')}
           >
-            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-              <p className="text-xs text-muted-foreground">
-                {isSubscriptionType
-                  ? 'Each plan has its own pricing, stock, and media.'
-                  : 'Each variant has pricing, stock, and identifiers — expand a row to edit.'}
-              </p>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                className="shrink-0 self-end sm:self-auto"
-                onClick={() => {
-                  appendVariant(makeVariantDefaults(
-                    isSubscriptionType ? `Plan ${variantFields.length + 1}` : `Variant ${variantFields.length + 1}`,
-                    {},
-                  ))
-                  setExpandedVariants(p => ({ ...p, [variantFields.length]: true }))
-                }}
-              >
-                <Plus className="w-4 h-4 mr-1" />{isSubscriptionType ? 'Add plan' : 'Add variant'}
-              </Button>
+            <div className="flex flex-col gap-2">
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                <p className="text-xs text-muted-foreground">
+                  {isSubscriptionType
+                    ? 'Each plan has its own pricing, stock, and media.'
+                    : 'Pick colours & sizes in row 1, then Generate variants — expand rows for pricing and stock.'}
+                </p>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="shrink-0 self-end sm:self-auto"
+                  onClick={() => {
+                    const nextIndex = (getValues('variants') || []).length
+                    appendVariant(makeVariantDefaults(
+                      isSubscriptionType ? `Plan ${nextIndex + 1}` : `Variant ${nextIndex + 1}`,
+                      {},
+                    ))
+                    setExpandedVariants(p => ({ ...p, [nextIndex]: true }))
+                  }}
+                >
+                  <Plus className="w-4 h-4 mr-1" />{isSubscriptionType ? 'Add plan' : 'Add variant'}
+                </Button>
+              </div>
             </div>
 
             <div className={formDisplayCompact.pageGap}>
@@ -3416,7 +3477,7 @@ export default function ProductForm() {
               <p className="rounded-lg bg-muted/25 py-4 text-center text-xs text-gray-500 sm:text-sm">
                 {isSubscriptionType
                   ? 'No plans yet — use Add plan to define pricing.'
-                  : 'No variants yet — use Add variant or generate from options.'}
+                  : 'Pick colours & sizes in the first row, then Generate variants.'}
               </p>
             ) : (
               <>
@@ -3435,6 +3496,14 @@ export default function ProductForm() {
                   const vCurrency = watch(`variants.${index}.currency`) || 'INR'
                   const vCurrSym = CURRENCY_SYMBOLS[vCurrency] || '₹'
                   const vPackLabel = formatUomDisplay(vUomQty, vUom)
+                  let rowAttrs: Record<string, string> = {}
+                  try {
+                    const rawAttrs = watch(`variants.${index}.attributes_json`) as string | undefined
+                    rowAttrs = rawAttrs ? JSON.parse(rawAttrs) : {}
+                  } catch { /* ignore */ }
+                  const rowColourId = variantPresets.colours.find(c => c.name === rowAttrs.Color)?.id
+                  const rowSizeId = variantPresets.sizes.find(s => s.size === rowAttrs.Size)?.id
+                  const hasVariantPresets = variantPresets.colours.length > 0 || variantPresets.sizes.length > 0
                   return (
                   <FormTintPanel
                     key={vf.id}
@@ -3444,36 +3513,136 @@ export default function ProductForm() {
                     header={
                     <div
                       className={cn(
-                        'flex flex-wrap items-center justify-between gap-x-2 gap-y-1.5 px-2 py-1.5 sm:px-2.5 cursor-pointer select-none',
+                        'flex flex-wrap items-center justify-between gap-x-2 gap-y-1.5 px-2 py-2 sm:px-2.5 cursor-pointer select-none',
                         isActive ? 'hover:bg-muted/30' : 'hover:bg-muted/20',
                       )}
                       onClick={() => toggleVariant(index)}
                     >
-                      <div className="flex min-w-0 flex-1 items-center gap-2">
-                        <span
-                          className={cn(
-                            'inline-flex items-center justify-center w-6 h-6 rounded-full text-xs font-bold text-white shrink-0',
-                            !isActive && 'bg-gray-400',
-                          )}
-                          style={isActive ? { backgroundColor: uiAccent } : undefined}
-                        >{index + 1}</span>
-                        <Input
-                          {...register(`variants.${index}.name`, {
-                            onChange: (e: React.ChangeEvent<HTMLInputElement>) => {
-                              register(`variants.${index}.name`).onChange(e)
-                              syncVariantNameAttributes(index, e.target.value)
-                            },
-                          })}
-                          onClick={e => e.stopPropagation()}
-                          onFocus={e => e.stopPropagation()}
-                          placeholder={isSubscriptionType ? `Plan ${index + 1}` : `Variant ${index + 1}`}
-                          className={cn(
-                            'h-8 min-w-[7rem] max-w-[12rem] flex-1 text-sm font-semibold',
-                            'bg-background border-border text-foreground',
-                            !isActive && 'text-muted-foreground',
-                          )}
-                          style={isActive && !lightAccent ? { color: uiAccent } : undefined}
-                        />
+                      <div className="flex min-w-0 flex-1 items-end gap-2">
+                        {!(index === 0 && !isSubscriptionType && hasVariantPresets) && (
+                          <span
+                            className={cn(
+                              'inline-flex items-center justify-center w-6 h-6 rounded-full text-xs font-bold text-white shrink-0 self-center',
+                              !isActive && 'bg-gray-400',
+                            )}
+                            style={isActive ? { backgroundColor: uiAccent } : undefined}
+                          >{index + 1}</span>
+                        )}
+                        {isSubscriptionType ? (
+                          <Input
+                            {...register(`variants.${index}.name`, {
+                              onChange: (e: React.ChangeEvent<HTMLInputElement>) => {
+                                register(`variants.${index}.name`).onChange(e)
+                                syncVariantNameAttributes(index, e.target.value)
+                              },
+                            })}
+                            onClick={e => e.stopPropagation()}
+                            onFocus={e => e.stopPropagation()}
+                            placeholder={`Plan ${index + 1}`}
+                            className={cn(
+                              'h-8 min-w-[7rem] max-w-[12rem] flex-1 text-sm font-semibold',
+                              'bg-background border-border text-foreground',
+                              !isActive && 'text-muted-foreground',
+                            )}
+                            style={isActive && !lightAccent ? { color: uiAccent } : undefined}
+                          />
+                        ) : hasVariantPresets ? (
+                          <div
+                            className="flex items-stretch gap-3 sm:gap-4 flex-nowrap shrink-0"
+                            onClick={e => e.stopPropagation()}
+                          >
+                            <PresetColourField
+                              vendorId={vendorId}
+                              selectedIds={
+                                index === 0
+                                  ? generateColourIds
+                                  : new Set(rowColourId ? [rowColourId] : [])
+                              }
+                              pairCount={
+                                index === 0 && generateSizeIds.size > 0
+                                  ? generateSizeIds.size
+                                  : undefined
+                              }
+                              onSelectedIdsChange={(ids) => {
+                                if (index === 0) {
+                                  setGenerateColourIds(ids)
+                                  return
+                                }
+                                applyVariantPresetSelection(
+                                  index,
+                                  ids,
+                                  new Set(rowSizeId ? [rowSizeId] : []),
+                                )
+                              }}
+                              multiple={index === 0}
+                              idSuffix={`-row-${index}`}
+                            />
+                            <PresetSizeField
+                              vendorId={vendorId}
+                              selectedIds={
+                                index === 0
+                                  ? generateSizeIds
+                                  : new Set(rowSizeId ? [rowSizeId] : [])
+                              }
+                              onSelectedIdsChange={(ids) => {
+                                if (index === 0) {
+                                  setGenerateSizeIds(ids)
+                                  return
+                                }
+                                applyVariantPresetSelection(
+                                  index,
+                                  new Set(rowColourId ? [rowColourId] : []),
+                                  ids,
+                                )
+                              }}
+                              multiple={index === 0}
+                              idSuffix={`-row-${index}`}
+                            />
+                            {index === 0 && (
+                              <GenerateVariantsButton
+                                vendorId={vendorId}
+                                selectedColourIds={generateColourIds}
+                                selectedSizeIds={generateSizeIds}
+                                onGenerate={handleGenerateFromPresets}
+                                prominent
+                              />
+                            )}
+                          </div>
+                        ) : (
+                          <Input
+                            {...register(`variants.${index}.name`, {
+                              onChange: (e: React.ChangeEvent<HTMLInputElement>) => {
+                                register(`variants.${index}.name`).onChange(e)
+                                syncVariantNameAttributes(index, e.target.value)
+                              },
+                            })}
+                            onClick={e => e.stopPropagation()}
+                            onFocus={e => e.stopPropagation()}
+                            placeholder={`Variant ${index + 1}`}
+                            className={cn(
+                              'h-8 min-w-[7rem] max-w-[12rem] flex-1 text-sm font-semibold',
+                              'bg-background border-border text-foreground',
+                              !isActive && 'text-muted-foreground',
+                            )}
+                            style={isActive && !lightAccent ? { color: uiAccent } : undefined}
+                          />
+                        )}
+                        {hasVariantPresets && !isSubscriptionType && (
+                          <Controller
+                            name={`variants.${index}.name`}
+                            control={control}
+                            render={({ field }) => (
+                              <input
+                                type="hidden"
+                                {...field}
+                                value={
+                                  field.value?.trim()
+                                  || defaultVariantRowName(index, false, index === 0)
+                                }
+                              />
+                            )}
+                          />
+                        )}
                         {!isActive && (
                           <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-muted text-muted-foreground shrink-0">Inactive</span>
                         )}
@@ -3486,60 +3655,6 @@ export default function ProductForm() {
                             <span>Stock {vQtyOnHand}</span>
                           </span>
                         )}
-                        <div
-                          className="flex items-center gap-1.5 shrink-0"
-                          onClick={e => e.stopPropagation()}
-                        >
-                          {/* Color swatch — wrapper carries the border so it renders correctly in all browsers */}
-                          <div
-                            className="relative w-7 h-7 rounded border-2 border-gray-400 overflow-hidden shrink-0 cursor-pointer shadow-sm"
-                            style={{ backgroundColor: colorPickerHexValue(watch(`variants.${index}.color`)) }}
-                            title="Pick color"
-                          >
-                            <input
-                              type="color"
-                              value={colorPickerHexValue(watch(`variants.${index}.color`))}
-                              onChange={e => setValue(`variants.${index}.color`, e.target.value.toUpperCase(), { shouldDirty: true })}
-                              className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                            />
-                          </div>
-                          {/* Hex text input — py-0 + leading-none centre text; ring-0 removes the glowing focus ring */}
-                          <Input
-                            {...register(`variants.${index}.color`, {
-                              onBlur: e => {
-                                const normalized = normalizeHexColorInput(e.target.value)
-                                if (normalized) {
-                                  setValue(`variants.${index}.color`, normalized, { shouldDirty: true })
-                                }
-                              },
-                            })}
-                            placeholder="#FFFFFF"
-                            className={cn(
-                              'h-7 py-0 leading-none text-xs w-[5.25rem] shrink-0 font-mono uppercase tracking-tight',
-                              'border border-input bg-background text-foreground',
-                              'focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-gray-500',
-                            )}
-                            aria-label="Color hex code"
-                          />
-                          {/* 3 quick-pick swatches — no scroll */}
-                          {[
-                            { n: 'Red', h: '#EF4444' },
-                            { n: 'Blue', h: '#3B82F6' },
-                            { n: 'Black', h: '#111827' },
-                          ].map(c => {
-                            const selected = watch(`variants.${index}.color`)?.toLowerCase() === c.h.toLowerCase()
-                            return (
-                              <button key={c.h} type="button" title={c.n}
-                                className={cn(
-                                  'w-4 h-4 rounded-full border-2 transition-transform hover:scale-110 shrink-0',
-                                  selected ? 'border-gray-800 ring-1 ring-gray-400 scale-110' : 'border-gray-200',
-                                )}
-                                style={{ backgroundColor: c.h }}
-                                onClick={() => setValue(`variants.${index}.color`, c.h)}
-                              />
-                            )
-                          })}
-                        </div>
                       </div>
                       <div className="flex items-center gap-2 sm:gap-3 shrink-0" onClick={e => e.stopPropagation()}>
                         <Controller
@@ -3902,111 +4017,6 @@ export default function ProductForm() {
                   )
                 })}
               </>
-            )}
-            {!isSubscriptionType && (
-              <FormTintPanel
-                accentColor={GENERATE_OPTIONS_ACCENT}
-                title="Generate from options"
-                hint="Bulk variant builder"
-                icon={Layers}
-              >
-                <p className="text-xs text-gray-500 mb-2">Define option names and their values. All combinations will be created as variant rows.</p>
-                <div className="space-y-2">
-                  {(() => {
-                    const allVariants = watchedVariants || []
-                    const claimed = new Set<number>()
-
-                    // Build rows with their variant numbers
-                    const rowsWithNums = optionRows.map((row, i) => {
-                      let variantNum: number | null = null
-                      if (row.name.trim() && row.values.trim()) {
-                        const optKey = row.name.trim().toLowerCase()
-                        const optVal = row.values.trim()
-                        for (let vi = 0; vi < allVariants.length; vi++) {
-                          if (claimed.has(vi)) continue
-                          try {
-                            const attrs = allVariants[vi].attributes_json ? JSON.parse(allVariants[vi].attributes_json as string) : {}
-                            const matchKey = Object.keys(attrs).find(k => k.toLowerCase() === optKey)
-                            if (matchKey && attrs[matchKey] === optVal) { variantNum = vi + 1; claimed.add(vi); break }
-                          } catch { /* */ }
-                        }
-                      }
-                      return { row, originalIndex: i, variantNum }
-                    })
-
-                    // Sort: matched rows by variant number, unmatched at the end
-                    rowsWithNums.sort((a, b) => {
-                      if (a.variantNum && b.variantNum) return a.variantNum - b.variantNum
-                      if (a.variantNum) return -1
-                      if (b.variantNum) return 1
-                      return a.originalIndex - b.originalIndex
-                    })
-
-                    return rowsWithNums.map(({ row, originalIndex: i, variantNum }) => (
-                    <div key={i} className="flex items-center gap-2">
-                      <span className={`inline-flex items-center justify-center w-6 h-6 rounded-full text-xs font-bold shrink-0 ${
-                        variantNum ? 'bg-indigo-600 text-white' : 'bg-gray-200 text-gray-500'
-                      }`}>{variantNum ?? '—'}</span>
-                      <div className="w-1/3">
-                        <Input
-                          value={row.name}
-                          onChange={e => updateOptionRow(i, 'name', e.target.value)}
-                          placeholder="Option name (e.g. Size)"
-                          className="h-9 text-sm"
-                        />
-                      </div>
-                      <div className="flex-1">
-                        <Input
-                          value={row.values}
-                          onChange={e => updateOptionRow(i, 'values', e.target.value)}
-                          placeholder="Values, comma separated (e.g. S, M, L, XL)"
-                          className="h-9 text-sm"
-                        />
-                      </div>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        className="h-9 px-2 text-indigo-500 hover:text-indigo-700"
-                        title="Copy option"
-                        onClick={() => setOptionRows(prev => [...prev, { name: row.name, values: `${row.values} (copy)` }])}
-                      >
-                        <Copy className="w-4 h-4" />
-                      </Button>
-                      {confirmDeleteOption === i ? (
-                        <div className="flex items-center gap-1">
-                          <Button type="button" size="sm" className="h-7 px-2 text-xs bg-red-600 hover:bg-red-700 text-white" onClick={() => { removeOptionRow(i); setConfirmDeleteOption(null) }}>
-                            Yes
-                          </Button>
-                          <Button type="button" variant="ghost" size="sm" className="h-7 px-2 text-xs" onClick={() => setConfirmDeleteOption(null)}>
-                            No
-                          </Button>
-                        </div>
-                      ) : (
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          className="h-9 px-2 text-red-500 hover:text-red-700"
-                          onClick={() => setConfirmDeleteOption(i)}
-                          disabled={optionRows.length <= 1}
-                        >
-                          <X className="w-4 h-4" />
-                        </Button>
-                      )}
-                    </div>
-                    ))
-                  })()}
-                </div>
-                <div className="flex items-center gap-2">
-                  <Button type="button" variant="outline" size="sm" onClick={addOptionRow}>
-                    <Plus className="w-3 h-3 mr-1" />Add option
-                  </Button>
-                  <Button type="button" variant="secondary" size="sm" onClick={generateVariantsFromOptions}>
-                    Generate variant rows
-                  </Button>
-                </div>
-              </FormTintPanel>
             )}
             </div>
           </div>

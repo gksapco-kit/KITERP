@@ -14,6 +14,18 @@ type CartLineRef = {
   quantity: number
 }
 
+type CartProductLine = { product_id?: string | null }
+
+/** True when the cart already contains this product (any variant line). */
+export function cartContainsProduct(
+  items: CartProductLine[] | undefined | null,
+  productId: string,
+): boolean {
+  const id = String(productId ?? '').trim()
+  if (!id) return false
+  return (items ?? []).some((line) => String(line.product_id ?? '').trim() === id)
+}
+
 function resolveCartLineVariant(
   product: Product | undefined,
   line: CartLineRef,

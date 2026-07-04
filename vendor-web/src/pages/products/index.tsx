@@ -18,9 +18,13 @@ import {
   Plus, Search, Pencil, Trash2, Loader2, X, ChevronLeft, ChevronRight,
   Filter, Copy, Share2, Mail, MessageCircle, MoreVertical, Package,
   Image as ImageIcon, ChevronUp, ChevronDown, ChevronsUpDown, ScanLine,
-  Layers,
+  Layers, Palette, Ruler,
 } from 'lucide-react'
-import { toast } from 'sonner'
+import {
+  formatGroupedVariantLabel,
+  groupProductVariants,
+  variantMatchesGroup,
+} from '@/lib/productVariantPresets'
 import { vendorApi } from '@/api/vendor'
 import { BarcodeScannerModal } from '@/components/scanner/BarcodeScannerModal'
 import { CatalogItemStatusCell } from '@/components/common/CatalogItemStatusCell'
@@ -291,38 +295,63 @@ export default function Products() {
     if (viewMode !== 'variant') return []
     const rows: {
       productId: string; productName: string; productCategory: string; productType: string; thumbUrl: string
-      variantId: string; variantName: string; sku: string; uom: string; uom_quantity: number | null
-      price: number; quantity: number; stock_status: string; low_stock_threshold: number; currency: string; is_active: boolean
+      groupKey: string; variantName: string; variantCount: number
+      sku: string; uom: string; uom_quantity: number | null
+      price: number; priceHigh: number; quantity: number; stock_status: string; low_stock_threshold: number; currency: string; is_active: boolean
     }[] = []
     for (const product of displayProducts) {
       const primaryImg = product.images?.find((img: any) => img.is_primary) || product.images?.[0]
       const productThumb = primaryImg ? resolveUrl(primaryImg.url) : ''
       const variants = product.variants || []
       if (variants.length === 0) {
-        // Product with no variants — show it as a single row
         rows.push({
           productId: product.id, productName: product.name,
           productCategory: product.category || 'Uncategorized', productType: product.product_type || 'physical',
           thumbUrl: productThumb,
-          variantId: '', variantName: '—',
+          groupKey: 'default', variantName: '—', variantCount: 0,
           sku: product.sku || '', uom: product.uom || 'piece', uom_quantity: product.uom_quantity ?? null,
-          price: product.price, quantity: product.quantity ?? 0,
+          price: product.price, priceHigh: product.price, quantity: product.quantity ?? 0,
           stock_status: product.stock_status || 'in_stock', low_stock_threshold: product.low_stock_threshold ?? 5,
           currency: product.currency || 'INR', is_active: product.status === 'active',
         })
       } else {
-        for (const v of variants) {
-          const vImg = (v.images || v.media || []).find((img: any) => img?.url)
+        const groups = groupProductVariants(variants)
+        for (const group of groups) {
+          const groupVariants = variants.filter(v =>
+            variantMatchesGroup(v.name || '', v.attributes, group),
+          )
+          const vImg = groupVariants
+            .flatMap(v => (v.images || v.media || []))
+            .find((img: any) => img?.url)
           const vThumb = vImg ? resolveUrl(vImg.url) : productThumb
+          const prices = groupVariants.map(v => v.price ?? 0).filter(p => p > 0).sort((a, b) => a - b)
+          const price = prices[0] ?? 0
+          const priceHigh = prices[prices.length - 1] ?? price
+          const quantity = groupVariants.reduce((sum, v) => sum + (v.quantity ?? 0), 0)
+          const outCount = groupVariants.filter(v =>
+            v.stock_status === 'out_of_stock' || (v.quantity ?? 0) === 0,
+          ).length
+          const stock_status = outCount === groupVariants.length
+            ? 'out_of_stock'
+            : outCount > 0
+              ? 'low_stock'
+              : groupVariants[0]?.stock_status || 'in_stock'
+          const skus = [...new Set(groupVariants.map(v => v.sku).filter(Boolean))]
           rows.push({
             productId: product.id, productName: product.name,
             productCategory: product.category || 'Uncategorized', productType: product.product_type || 'physical',
             thumbUrl: vThumb,
-            variantId: v.id || '', variantName: v.name || `Variant`,
-            sku: v.sku || '', uom: v.uom || 'piece', uom_quantity: v.uom_quantity ?? null,
-            price: v.price ?? 0, quantity: v.quantity ?? 0,
-            stock_status: v.stock_status || 'in_stock', low_stock_threshold: v.low_stock_threshold ?? 5,
-            currency: v.currency || product.currency || 'INR', is_active: v.is_active !== false,
+            groupKey: group.color || '__size_only__',
+            variantName: formatGroupedVariantLabel(group.color, group.sizeCodes),
+            variantCount: group.count,
+            sku: skus.length === 1 ? skus[0]! : skus.length > 1 ? `${skus.length} SKUs` : '',
+            uom: groupVariants[0]?.uom || 'piece',
+            uom_quantity: groupVariants[0]?.uom_quantity ?? null,
+            price, priceHigh, quantity,
+            stock_status,
+            low_stock_threshold: groupVariants[0]?.low_stock_threshold ?? 5,
+            currency: groupVariants[0]?.currency || product.currency || 'INR',
+            is_active: groupVariants.every(v => v.is_active !== false),
           })
         }
       }
@@ -372,6 +401,14 @@ export default function Products() {
               Variant
             </button>
           </div>
+          <Button variant="outline" className="gap-2" onClick={() => navigate('/products/colours')}>
+            <Palette className="w-4 h-4 text-violet-500" />
+            Add Colours
+          </Button>
+          <Button variant="outline" className="gap-2" onClick={() => navigate('/products/sizes')}>
+            <Ruler className="w-4 h-4 text-indigo-500" />
+            Add Sizes
+          </Button>
           <Button variant="outline" className="gap-2" onClick={() => setShowScanner(true)} disabled={scanLoading}>
             {scanLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <ScanLine className="w-4 h-4 text-blue-500" />}
             Scan
@@ -379,6 +416,7 @@ export default function Products() {
           <Button onClick={() => navigate('/products/new')} className="gap-2 shadow-sm"><Plus className="w-4 h-4" />Add Product</Button>
         </div>
       </div>
+
 
       {/* Search + Filters */}
       <Card className="border-gray-200/80">
@@ -642,11 +680,12 @@ export default function Products() {
 
           {/* ── Variant-wise view ── */}
           {viewMode === 'variant' && (
-          <ResizableTable tableId="products-variant" defaultWidths={[240, 130, 90, 80, 90, 80, 90]}>
+          <ResizableTable tableId="products-variant" defaultWidths={[240, 150, 70, 90, 80, 90, 80, 90]}>
             <thead>
               <tr className="border-b bg-gray-50/80">
                 <th className="text-left px-5 py-3 text-xs font-medium text-gray-400 uppercase tracking-wider"><TableColumnLabel>Product</TableColumnLabel></th>
                 <th className="text-left px-4 py-3 text-xs font-medium text-gray-400 uppercase tracking-wider"><TableColumnLabel>Variant</TableColumnLabel></th>
+                <th className="text-left px-4 py-3 text-xs font-medium text-gray-400 uppercase tracking-wider"><TableColumnLabel>Count</TableColumnLabel></th>
                 <th className="text-left px-4 py-3 text-xs font-medium text-gray-400 uppercase tracking-wider"><TableColumnLabel>SKU</TableColumnLabel></th>
                 <th className="text-left px-4 py-3 text-xs font-medium text-gray-400 uppercase tracking-wider"><TableColumnLabel>Pack</TableColumnLabel></th>
                 <th className="text-left px-4 py-3 text-xs font-medium text-gray-400 uppercase tracking-wider"><TableColumnLabel>Price</TableColumnLabel></th>
@@ -657,10 +696,10 @@ export default function Products() {
             </thead>
             <tbody className="divide-y divide-gray-100">
               {isLoading ? (
-                <tr><td colSpan={8} className="px-6 py-16 text-center"><Loader2 className="w-6 h-6 animate-spin mx-auto text-gray-400" /></td></tr>
+                <tr><td colSpan={9} className="px-6 py-16 text-center"><Loader2 className="w-6 h-6 animate-spin mx-auto text-gray-400" /></td></tr>
               ) : !variantRows.length ? (
                 <tr>
-                  <td colSpan={8} className="px-6 py-16 text-center">
+                  <td colSpan={9} className="px-6 py-16 text-center">
                     <Layers className="w-12 h-12 text-gray-200 mx-auto mb-3" />
                     <p className="text-sm font-medium text-gray-500 mb-1">No variants found</p>
                     {hasActiveQuery && (
@@ -678,13 +717,13 @@ export default function Products() {
                   ? `${row.uom_quantity} ${row.uom}`
                   : row.uom
                 // Group header: first row of a new product gets a subtle top border accent
-                const prevProduct = i > 0 ? variantRows[i - 1].productId : null
-                const isFirstOfProduct = prevProduct !== row.productId
+                const prevGroup = i > 0 ? `${variantRows[i - 1].productId}-${variantRows[i - 1].groupKey}` : null
+                const isFirstOfGroup = prevGroup !== `${row.productId}-${row.groupKey}`
 
                 return (
                   <tr
-                    key={`${row.productId}-${row.variantId || i}`}
-                    className={`hover:bg-gray-50/80 cursor-pointer transition-colors group ${isFirstOfProduct && i > 0 ? 'border-t-2 border-t-gray-200' : ''}`}
+                    key={`${row.productId}-${row.groupKey}-${i}`}
+                    className={`hover:bg-gray-50/80 cursor-pointer transition-colors group ${isFirstOfGroup && i > 0 ? 'border-t-2 border-t-gray-200' : ''}`}
                     onClick={onClickableTableRow(() => navigate(`/products/${row.productId}`))}
                   >
                     <td className="px-5 py-2.5 max-w-[240px]">
@@ -703,10 +742,15 @@ export default function Products() {
                       </div>
                     </td>
                     <td className="px-4 py-2.5">
-                      <p className="text-sm text-gray-700 font-medium truncate">{row.variantName}</p>
+                      <p className="text-sm text-gray-700 font-medium truncate" title={row.variantName}>{row.variantName}</p>
                       {!row.is_active && (
                         <span className="text-[10px] text-amber-600 font-medium">Inactive</span>
                       )}
+                    </td>
+                    <td className="px-4 py-2.5">
+                      <span className="text-sm font-semibold tabular-nums text-gray-800">
+                        {row.variantCount > 0 ? row.variantCount : '—'}
+                      </span>
                     </td>
                     <td className="px-4 py-2.5">
                       <p className="text-xs font-mono text-gray-500 truncate">{row.sku || '—'}</p>
@@ -716,7 +760,11 @@ export default function Products() {
                     </td>
                     <td className="px-4 py-2.5">
                       <span className="text-sm font-semibold text-gray-900 tabular-nums">
-                        {row.price > 0 ? `${sym}${row.price.toLocaleString()}` : '—'}
+                        {row.price > 0
+                          ? row.priceHigh > row.price
+                            ? `${sym}${row.price.toLocaleString()} – ${sym}${row.priceHigh.toLocaleString()}`
+                            : `${sym}${row.price.toLocaleString()}`
+                          : '—'}
                       </span>
                     </td>
                     <td className="px-4 py-2.5">
@@ -797,6 +845,7 @@ export default function Products() {
         onScan={handleBarcodeScan}
         title="Scan to Find Product"
       />
+
     </div>
   )
 }

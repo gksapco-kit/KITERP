@@ -656,6 +656,7 @@ async def get_live_resource_public(
                 url=f"/products/{p.slug}" if p.slug else None,
                 meta={
                     "sku": p.sku,
+                    "slug": p.slug,
                     "category": p.category,
                     "stock_status": p.stock_status,
                     "quantity": p.quantity,

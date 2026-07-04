@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type MouseEvent } from "react";
 import { Link } from "react-router-dom";
 import { Star, ShoppingCart, Heart } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -24,6 +24,9 @@ export interface ProductCardProps {
   layout?: "vertical" | "horizontal";
   showRating?: boolean;
   showTags?: boolean;
+  /** Override card link target (e.g. branch-aware cart detail view). */
+  linkTo?: string;
+  onNavigateClick?: (e: MouseEvent) => void;
   onAddToCart?: (p: Product, variant?: KitVariant) => void;
   onToggleWishlist?: (p: Product) => void;
 }
@@ -43,9 +46,12 @@ export function ProductCard({
   layout = "vertical",
   showRating = true,
   showTags = true,
+  linkTo,
+  onNavigateClick,
   onAddToCart,
   onToggleWishlist,
 }: ProductCardProps) {
+  const productHref = linkTo ?? `/products/${product.slug}`;
   const horizontal = layout === "horizontal";
   const allVariants = product.variants ?? [];
   const apiVariants = useMemo(() => allVariants.map(toApiVariant), [allVariants]);
@@ -128,7 +134,11 @@ export function ProductCard({
 
   return (
     <Card className={cn("overflow-hidden group flex flex-col", horizontal && "flex-row")}>
-      <Link to={`/products/${product.slug}`} className={cn("block relative", horizontal ? "w-44 shrink-0" : "")}>
+      <Link
+        to={productHref}
+        className={cn("block relative", horizontal ? "w-44 shrink-0" : "")}
+        onClick={onNavigateClick}
+      >
         <div className={cn("relative w-full overflow-hidden bg-muted", horizontal ? "h-full" : "aspect-[4/3]")}>
           {displayImage ? (
             <img
@@ -154,7 +164,7 @@ export function ProductCard({
         )}
       </Link>
       <CardContent className={cn("flex flex-1 flex-col gap-2 p-4", horizontal && "p-4")}>
-        <Link to={`/products/${product.slug}`} className="font-medium line-clamp-2 hover:underline">
+        <Link to={productHref} className="font-medium line-clamp-2 hover:underline" onClick={onNavigateClick}>
           {product.name}
         </Link>
         {showRating && product.rating && (

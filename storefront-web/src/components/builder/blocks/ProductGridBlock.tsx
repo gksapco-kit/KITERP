@@ -1,9 +1,10 @@
-import { useState, type CSSProperties, type ReactNode } from 'react'
-import { Link } from 'react-router-dom'
+import { useState, type CSSProperties, type ReactNode, type MouseEvent } from 'react'
+import { Link, useNavigate } from 'react-router-dom'
 import { ShoppingBag, Star, ShoppingCart, Check, Loader2, Heart, FolderTree } from 'lucide-react'
-import { useVendor } from '@/contexts/VendorContext'
-import { useAuthStore } from '@/stores/authStore'
-import { useAddToCart } from '@/hooks/useStore'
+import { useAddToCart, useCart } from '@/hooks/useStore'
+import { useStorePath } from '@/hooks/useStorePath'
+import { CART_DETAIL_PATH, useProductCartDetailPath } from '@/hooks/useProductCartDetailPath'
+import { cartContainsProduct } from '@/lib/cartLineStock'
 import type { PublicSite, StyleConfig, LiveItem } from '@/blocks/registry'
 import CategoryCardsWellness from '@/components/builder/blocks/CategoryCardsWellness'
 import {
@@ -13,7 +14,7 @@ import {
   resolveCategoryCardImage,
 } from '@/lib/wellnessCategoryStyle'
 import { sanitizeWellnessCategoryTitle } from '@/lib/wellnessTemplateCopy'
-import { normalizeLiveProducts } from '@/lib/liveProductUtils'
+import { normalizeLiveProducts, resolveLiveProductUrl } from '@/lib/liveProductUtils'
 import { BuilderTextField } from '@/components/builder/BuilderTextField'
 import { CategoryCardTitle } from '@/components/builder/CategoryCardTitle'
 import { BuilderCanvasProductImage } from '@/components/builder/BuilderCanvasProductImage'
@@ -37,6 +38,18 @@ import {
   imageShapeFromProps,
 } from '@/lib/sectionItemLayout'
 import type { BlockColorProps } from '@/lib/blockColorOverrides'
+
+function productSlugFromLiveItem(item: LiveItem): string | undefined {
+  const detailPath = resolveLiveProductUrl(item)
+  if (!detailPath) return undefined
+  const slug = detailPath.replace(/^\/products\//, '').trim()
+  return slug || undefined
+}
+
+function openProductCartInBuilder(onNavigate: ((url: string) => void) | undefined): void {
+  if (!onNavigate) return
+  onNavigate(CART_DETAIL_PATH)
+}
 
 function categorySectionBackground(style: StyleConfig, props: Record<string, unknown>): string {
   const p = props as BlockColorProps
@@ -159,10 +172,51 @@ export default function ProductGridBlock({ site, style, props, liveItems, blockT
   const builderCanvas = useBuilderCanvas()
   const isEditorCanvas = builderCanvas?.isEditorCanvas && !!blockId
   const siteStyle = { ...(site.style_config || {}), ...style } as Record<string, unknown>
-  const { storePath } = useVendor()
-  const { isAuthenticated } = useAuthStore()
+  const cartDetailPath = useProductCartDetailPath()
+  const storePath = useStorePath()
+  const navigate = useNavigate()
+  const { data: cart } = useCart()
   const addToCart = useAddToCart()
   const [addedIds, setAddedIds] = useState<Set<string>>(new Set())
+
+  const isLiveCatalogProduct = (item: LiveItem) => {
+    const id = String(item.id ?? '')
+    return Boolean(id) && !id.startsWith('ph-') && !id.startsWith('wl-showcase-')
+  }
+
+  const handleProductCardClick = async (e: MouseEvent, item: LiveItem) => {
+    if (isEditorCanvas) {
+      e.preventDefault()
+      e.stopPropagation()
+      openProductCartInBuilder(builderCanvas?.onNavigate)
+      return
+    }
+    if (!isLiveCatalogProduct(item) || item.meta?.stock_status === 'out_of_stock') {
+      e.preventDefault()
+      return
+    }
+
+    e.preventDefault()
+
+    const productId = String(item.id)
+    if (!cartContainsProduct(cart?.items as Array<{ product_id?: string }>, productId)) {
+      try {
+        await addToCart.mutateAsync({
+          product_id: item.id,
+          name: item.title ?? 'Product',
+          qty: 1,
+          price: Number(item.price ?? 0),
+          image_url: item.image_url ?? (item as { image?: string }).image,
+          slug: productSlugFromLiveItem(item),
+        } as any)
+      } catch {
+        /* toast handled by mutation */
+        return
+      }
+    }
+
+    navigate(cartDetailPath)
+  }
 
   const handleAddToCart = async (e: React.MouseEvent, item: LiveItem) => {
     e.preventDefault()
@@ -840,7 +894,22 @@ export default function ProductGridBlock({ site, style, props, liveItems, blockT
               return (
                 <div key={item.id || item.title} className="group">
                   {isEditorCanvas ? (
-                    <div className="block">
+                    <div
+                      className="block cursor-pointer"
+                      role="link"
+                      tabIndex={0}
+                      data-builder-catalog-nav="product"
+                      onClick={e => {
+                        e.stopPropagation()
+                        openProductCartInBuilder(builderCanvas?.onNavigate)
+                      }}
+                      onKeyDown={e => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault()
+                          openProductCartInBuilder(builderCanvas?.onNavigate)
+                        }
+                      }}
+                    >
                       <div
                         className={cn(
                           'relative overflow-hidden mb-4 bg-gray-100',
@@ -875,7 +944,12 @@ export default function ProductGridBlock({ site, style, props, liveItems, blockT
                       </div>
                     </div>
                   ) : (
-                  <Link to={item.url ? storePath(item.url) : storePath('/products')} className="block">
+                  <Link
+                    to={cartDetailPath}
+                    className="block"
+                    data-builder-catalog-nav="product"
+                    onClick={e => void handleProductCardClick(e, item)}
+                  >
                     <div
                       className={cn(
                         'relative overflow-hidden mb-4 bg-gray-100',
@@ -1004,8 +1078,10 @@ export default function ProductGridBlock({ site, style, props, liveItems, blockT
                 className={`builder-tile-card group bg-white border border-gray-100 overflow-hidden transition-all duration-200 flex flex-col ${cardRadius} ${isMinimalCard ? '' : 'hover:shadow-lg hover:-translate-y-1'}`}
               >
                 <Link
-                  to={item.url ? storePath(item.url) : storePath('/products')}
+                  to={cartDetailPath}
                   className="block"
+                  data-builder-catalog-nav="product"
+                  onClick={e => void handleProductCardClick(e, item)}
                 >
                   <div
                     className={cn(

@@ -12068,6 +12068,22 @@ export default function WebsiteBuilder() {
     const target = e.target as HTMLElement
     const anchor = target.closest('a[href]') as HTMLAnchorElement | null
     if (!anchor || !canvasPreviewInnerRef.current?.contains(anchor)) return
+
+    const href = anchor.getAttribute('href') || ''
+    const pathOnly = href.split('?')[0].split('#')[0]
+    const normalized = pathOnly.startsWith('/') ? href : `/${href}`
+
+    if (
+      anchor.dataset.builderCatalogNav === 'product'
+      || parseCatalogStorePath(pathOnly)?.slug
+      || pathOnly.endsWith('/cart')
+    ) {
+      e.preventDefault()
+      e.stopPropagation()
+      handleNavigateBuilderPage(normalized)
+      return
+    }
+
     e.preventDefault()
     e.stopPropagation()
     const blockRoot = anchor.closest('[data-block-id]') as HTMLElement | null
@@ -12077,7 +12093,7 @@ export default function WebsiteBuilder() {
       setRightPanel('links')
       setRightCollapsed(false)
     }
-  }, [])
+  }, [handleNavigateBuilderPage])
 
   const handlePageStyleChange = useCallback((pageId: string, patch: PageStyleOverrides) => {
     setLocalStyle(prev => {

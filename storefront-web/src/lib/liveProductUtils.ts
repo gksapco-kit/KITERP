@@ -7,6 +7,18 @@ export function formatLiveProductPrice(price: number | null | undefined, currenc
   return `${currency} ${Number(price).toLocaleString('en-IN')}`
 }
 
+/** Storefront path for a live catalog product card (/products/{slug}). */
+export function resolveLiveProductUrl(item: LiveItem): string | null {
+  const rawUrl = item.url?.trim()
+  if (rawUrl) return rawUrl
+
+  const meta = (item.meta || {}) as Record<string, unknown>
+  const slug = String(meta.slug ?? '').trim()
+  if (slug) return `/products/${slug}`
+
+  return null
+}
+
 export function normalizeLiveProductPriceLabel(raw: string | null | undefined): string | null {
   if (!raw) return null
   const trimmed = raw.trim()
@@ -32,8 +44,11 @@ export function normalizeLiveProduct(item: LiveItem): LiveItem {
     normalizeLiveProductPriceLabel(item.price_formatted)
     || formatLiveProductPrice(item.price, currency)
 
+  const productUrl = resolveLiveProductUrl(item)
+
   return {
     ...item,
+    url: productUrl,
     image_url: image ? imgUrl(image) : null,
     subtitle: item.subtitle || (meta.brand as string) || null,
     description: item.description || (meta.short_description as string) || null,

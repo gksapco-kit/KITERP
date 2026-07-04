@@ -16,6 +16,8 @@ import OrderAuditReport from '@/pages/orders/OrderAuditReport'
 import Products from '@/pages/products/index'
 import ProductForm from '@/pages/products/ProductForm'
 import ProductAuditReport from '@/pages/products/ProductAuditReport'
+import ProductColoursPage from '@/pages/products/ProductColoursPage'
+import ProductSizesPage from '@/pages/products/ProductSizesPage'
 import Services from '@/pages/services/index'
 import ServiceForm from '@/pages/services/ServiceForm'
 import ServiceAuditReport from '@/pages/services/ServiceAuditReport'
@@ -305,6 +307,8 @@ export const router = createBrowserRouter([
       { path: 'orders/:id/audit', element: <OrderAuditReport /> },
       { path: 'orders/:id', element: <OrderDetail /> },
       { path: 'products', element: <Products /> },
+      { path: 'products/colours', element: <ProductColoursPage /> },
+      { path: 'products/sizes', element: <ProductSizesPage /> },
       { path: 'products/new', element: <ProductForm /> },
       { path: 'products/:id/audit', element: <ProductAuditReport /> },
       { path: 'products/:id', element: <ProductForm /> },
