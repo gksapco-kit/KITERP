@@ -443,7 +443,7 @@ export function ServicePlansEditor({
                               placeholder="499"
                             />
                           </FormField>
-                          <FormField label="UOM">
+                          <FormField label="Billing Unit">
                             <select
                               value={plan.uom}
                               onChange={e => updatePlan(idx, { uom: e.target.value })}
@@ -458,18 +458,19 @@ export function ServicePlansEditor({
                               ))}
                             </select>
                           </FormField>
-                          <FormField label={`Qty / ${uomLbl.replace(/\s*\(.*\)/, '')}`}>
-                            <Input
+                          <FormField label={`Time / ${uomLbl.replace(/\s*\(.*\)/, '')}`}>
+                            <InputWithSuffix
+                              suffix="min"
                               type="number"
                               min="0"
                               step="any"
                               className="w-full"
                               value={plan.duration_minutes}
                               onChange={e => updatePlan(idx, { duration_minutes: e.target.value })}
-                              placeholder="1"
+                              placeholder="60"
                             />
                           </FormField>
-                          <FormField label="Compare at">
+                          <FormField label="Compare-at Price (MRP)">
                             <Input
                               type="number"
                               step="0.01"
@@ -482,7 +483,7 @@ export function ServicePlansEditor({
                               }}
                             />
                           </FormField>
-                          <FormField label="Cost">
+                          <FormField label="Cost Price">
                             <Input
                               type="number"
                               step="0.01"
@@ -507,7 +508,7 @@ export function ServicePlansEditor({
                         </div>
 
                         <div className={cn('grid gap-2', hasPromo ? 'grid-cols-3' : 'grid-cols-2')}>
-                          <FormField label="Disc %">
+                          <FormField label="Discount %">
                             <InputWithSuffix
                               suffix="%"
                               type="number"
@@ -520,7 +521,7 @@ export function ServicePlansEditor({
                               placeholder="0"
                             />
                           </FormField>
-                          <FormField label="Disc Amt">
+                          <FormField label="Discount Amount">
                             <InputWithPrefix
                               prefix={currSym}
                               type="number"
@@ -581,7 +582,7 @@ export function ServicePlansEditor({
                         )}
 
                         <div className={cn('grid grid-cols-2 items-end md:grid-cols-4', variantFormUi.grid)}>
-                          <FormField label="Tax %">
+                          <FormField label="Tax Rate %">
                             <Input
                               type="number"
                               step="0.01"
@@ -592,7 +593,7 @@ export function ServicePlansEditor({
                               placeholder="0"
                             />
                           </FormField>
-                          <FormField label="GST %">
+                          <FormField label="GST Rate %">
                             <Input
                               type="number"
                               step="0.01"
@@ -603,7 +604,7 @@ export function ServicePlansEditor({
                               placeholder="0"
                             />
                           </FormField>
-                          <FormField label="SAC">
+                          <FormField label="SAC Code (GST)">
                             <Input
                               value={plan.sac_code}
                               onChange={e => updatePlan(idx, { sac_code: e.target.value, enable_tax: true })}
@@ -625,7 +626,7 @@ export function ServicePlansEditor({
                         <div className={cn(variantFormUi.sectionRule, 'space-y-1')}>
                           <p className={variantFormUi.sectionHeading}>Service</p>
                           <div className={cn('grid grid-cols-3 items-end', variantFormUi.grid)}>
-                            <FormField label="Frequency">
+                            <FormField label="Billing Type">
                               <div className="inline-flex w-full overflow-hidden rounded-lg border border-border text-xs">
                                 <button
                                   type="button"
@@ -653,7 +654,7 @@ export function ServicePlansEditor({
                                 </button>
                               </div>
                             </FormField>
-                            <FormField label="Delivery Mode">
+                            <FormField label="Service Mode">
                               <select
                                 value={plan.service_mode}
                                 onChange={e => updatePlan(idx, { service_mode: e.target.value })}
@@ -706,7 +707,7 @@ export function ServicePlansEditor({
                               </div>
                             </div>
                             <div className={cn('grid grid-cols-2 md:grid-cols-4', variantFormUi.grid)}>
-                              <FormField label="Interval">
+                              <FormField label="Billing Interval">
                                 <select
                                   value={plan.subscription_interval}
                                   onChange={e => updatePlan(idx, { subscription_interval: e.target.value })}
@@ -718,7 +719,7 @@ export function ServicePlansEditor({
                                   ))}
                                 </select>
                               </FormField>
-                              <FormField label="Max Cycles">
+                              <FormField label="Max Billing Cycles">
                                 <Input
                                   type="number"
                                   min="0"
@@ -727,7 +728,7 @@ export function ServicePlansEditor({
                                   placeholder="0 = ∞"
                                 />
                               </FormField>
-                              <FormField label="Trial (days)">
+                              <FormField label="Free Trial (days)">
                                 <Input
                                   type="number"
                                   min="0"
@@ -796,7 +797,7 @@ export function ServicePlansEditor({
                             onChange={v => updatePlan(idx, { requires_booking: v })}
                           />
                           <div className={cn('grid grid-cols-2 md:grid-cols-3', variantFormUi.grid)}>
-                            <FormField label="Max / Slot">
+                            <FormField label="Max Bookings per Slot">
                               <Input
                                 type="number"
                                 min="1"
@@ -804,7 +805,7 @@ export function ServicePlansEditor({
                                 onChange={e => updatePlan(idx, { max_bookings_per_slot: e.target.value })}
                               />
                             </FormField>
-                            <FormField label="Advance (days)">
+                            <FormField label="Bookable up to (days ahead)">
                               <Input
                                 type="number"
                                 min="0"
@@ -812,7 +813,7 @@ export function ServicePlansEditor({
                                 onChange={e => updatePlan(idx, { advance_booking_days: e.target.value })}
                               />
                             </FormField>
-                            <FormField label="Lead Time">
+                            <FormField label="Minimum Notice Before Booking">
                               <div className="flex gap-1.5">
                                 <Input
                                   type="number"
@@ -871,7 +872,7 @@ export function ServicePlansEditor({
                                 onChange={e => updatePlan(idx, { service_expiry_date: e.target.value })}
                               />
                             </FormField>
-                            <FormField label="Validity (days)">
+                            <FormField label="Valid For (days after purchase)">
                               <Input
                                 type="number"
                                 min="0"
@@ -892,18 +893,6 @@ export function ServicePlansEditor({
                     </div>
                   )}
                 </FormTintPanel>
-                <div className="flex justify-center py-0.5">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    className="rounded-full px-4"
-                    onClick={() => insertPlanAt(idx + 1)}
-                  >
-                    <Plus className="mr-1 h-4 w-4" />
-                    Add plan
-                  </Button>
-                </div>
               </div>
             )
           })}

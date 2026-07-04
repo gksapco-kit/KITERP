@@ -150,8 +150,10 @@ function EventModal({
   const [eventDate, setEventDate] = useState(initial?.event_date ?? '')
   const [doorsTime, setDoorsTime] = useState(initial?.doors_time ?? '')
   const [startTime, setStartTime] = useState(initial?.start_time ?? '')
+  const [endTime, setEndTime] = useState(initial?.end_time ?? '')
   const [venue, setVenue] = useState(initial?.venue ?? '')
   const [address, setAddress] = useState(initial?.address ?? '')
+  const [venueCapacity, setVenueCapacity] = useState(initial?.venue_capacity != null ? String(initial.venue_capacity) : '')
   const [ageNote, setAgeNote] = useState(initial?.age_note ?? '')
   const [orderTitle, setOrderTitle] = useState(initial?.order_title ?? 'Your order')
   const [seatingTitle, setSeatingTitle] = useState(initial?.seating_title ?? 'Seating chart')
@@ -209,8 +211,10 @@ function EventModal({
       event_date: eventDate.trim() || undefined,
       doors_time: doorsTime.trim() || undefined,
       start_time: startTime.trim() || undefined,
+      end_time: endTime.trim() || undefined,
       venue: venue.trim() || undefined,
       address: address.trim() || undefined,
+      venue_capacity: venueCapacity.trim() ? Number(venueCapacity) || undefined : undefined,
       age_note: ageNote.trim() || undefined,
       order_title: orderTitle.trim() || 'Your order',
       seating_title: seatingTitle.trim() || 'Seating chart',
@@ -264,7 +268,7 @@ function EventModal({
             <Label>Tagline</Label>
             <Input value={tagline} onChange={e => setTagline(e.target.value)} placeholder="An intimate evening of live electronic & strings" />
           </div>
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-2 gap-3">
             <div>
               <Label>Date</Label>
               <Input type="date" value={eventDate} onChange={e => setEventDate(e.target.value)} />
@@ -273,9 +277,15 @@ function EventModal({
               <Label>Doors</Label>
               <Input type="time" value={doorsTime} onChange={e => setDoorsTime(e.target.value)} />
             </div>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
             <div>
               <Label>Start</Label>
               <Input type="time" value={startTime} onChange={e => setStartTime(e.target.value)} />
+            </div>
+            <div>
+              <Label>End time</Label>
+              <Input type="time" value={endTime} onChange={e => setEndTime(e.target.value)} />
             </div>
           </div>
           <div className="grid grid-cols-2 gap-3">
@@ -287,6 +297,16 @@ function EventModal({
               <Label>Address</Label>
               <Input value={address} onChange={e => setAddress(e.target.value)} placeholder="418 Atlantic Ave, Brooklyn" />
             </div>
+          </div>
+          <div>
+            <Label>Maximum seats (venue allotment)</Label>
+            <Input
+              type="number"
+              min={0}
+              value={venueCapacity}
+              onChange={e => setVenueCapacity(e.target.value)}
+              placeholder="e.g. 500"
+            />
           </div>
           <div>
             <Label>Age / entry note</Label>
@@ -450,7 +470,10 @@ export default function SalesEventsPage() {
                     <td className="px-4 py-3 text-sm text-muted-foreground">
                       {event.event_date && <div>{formatEventDate(event.event_date)}</div>}
                       <div className="text-xs">
-                        {[formatEventTime(event.start_time), event.venue].filter(Boolean).join(' · ') || '—'}
+                        {[
+                          [formatEventTime(event.start_time), formatEventTime(event.end_time)].filter(Boolean).join(' – '),
+                          event.venue,
+                        ].filter(Boolean).join(' · ') || '—'}
                       </div>
                     </td>
                     <td className="px-4 py-3 text-sm">

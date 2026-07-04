@@ -4254,6 +4254,16 @@ async def get_live_resource(
 
         items = await build_recurring_plans_live_items(db, vendor.id, limit, _norm_item, include_inactive=True)
 
+    elif resource == "booking_wizard_steps":
+        from app.services.booking_wizard_steps_live_feed import build_booking_wizard_steps_live_items
+
+        items = await build_booking_wizard_steps_live_items(db, vendor.id, limit, _norm_item, include_inactive=True)
+
+    elif resource == "booking_resources":
+        from app.services.booking_resources_live_feed import build_booking_resources_live_items
+
+        items = await build_booking_resources_live_items(db, vendor.id, limit, _norm_item, include_inactive=True)
+
     elif resource == "profile":
         from app.services.storefront_contact import build_profile_live_meta, load_linked_store_for_site
 

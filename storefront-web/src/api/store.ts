@@ -357,14 +357,14 @@ export const storeApi = {
   },
 
   // Bookings
-  getBookingSlots: async (serviceId: string, bookingDate: string) => {
+  getBookingSlots: async (serviceId: string, bookingDate: string, planId?: string) => {
     const res = await apiClient.get('/store/bookings/slots', {
-      params: { service_id: serviceId, booking_date: bookingDate },
+      params: { service_id: serviceId, booking_date: bookingDate, plan_id: planId || undefined },
     })
     return res.data as { slots: Array<{ start: string; end: string; start_time: string; available: boolean }>; date: string }
   },
   createBooking: async (data: {
-    service_id: string; booking_date: string; start_time?: string
+    service_id: string; plan_id?: string; booking_date: string; start_time?: string
     notes?: string; payment_method?: string
   }): Promise<Booking> => {
     const res = await apiClient.post('/store/bookings', data); return res.data

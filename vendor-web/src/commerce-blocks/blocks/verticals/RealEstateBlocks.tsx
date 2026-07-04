@@ -17,6 +17,7 @@ import { mockProperties, type Property } from "@/commerce-blocks/mock/verticals"
 
 const STATUS_LABEL: Record<Property["status"], { label: string; className: string }> = {
   "for-sale": { label: "For sale", className: "bg-secondary text-secondary-foreground" },
+  "for-rent": { label: "For rent", className: "bg-primary/15 text-primary" },
   "new": { label: "New", className: "bg-success/15 text-success hover:bg-success/15" },
   "open-house": { label: "Open house", className: "bg-warning/15 text-warning-foreground" },
   "pending": { label: "Pending", className: "bg-muted text-muted-foreground" },

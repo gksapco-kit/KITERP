@@ -338,6 +338,22 @@ export const BLOCK_QUICK_PRESETS: Record<string, SectionLayoutPreset[]> = {
     { label: 'Dark Frame', desc: 'Image on dark background', props: { layout: 'centered', bg_style: 'dark' } },
     { label: 'Parallax Wide', desc: 'Wide cinematic crop', props: { layout: 'full', aspect_ratio: '21:9' } },
   ],
+  'booking.wizard': [
+    { label: 'Horizontal Steps', desc: 'Progress bar with labels across the top', props: { variant: 'horizontal', layout: 'horizontal', showLabels: true } },
+    { label: 'Horizontal Compact', desc: 'Step circles only, no labels', props: { variant: 'horizontal-compact', layout: 'horizontal', showLabels: false } },
+    { label: 'Vertical Steps', desc: 'Stacked step list with descriptions', props: { variant: 'vertical', layout: 'vertical', showLabels: true } },
+    { label: 'Vertical Compact', desc: 'Stacked step list, numbers only', props: { variant: 'vertical-compact', layout: 'vertical', showLabels: false } },
+  ],
+  'booking.resource': [
+    { label: 'Grid Cards', desc: 'Two-column cards with description & features', props: { variant: 'grid', layout: 'grid', showFeatures: true, showPrice: true } },
+    { label: 'List Rows', desc: 'Dense single-column rows', props: { variant: 'list', layout: 'list', showFeatures: true, showPrice: true } },
+    { label: 'Compact Grid', desc: 'Small cards, name & price only', props: { variant: 'compact', layout: 'compact', showFeatures: false, showPrice: true } },
+  ],
+  'service.process': [
+    { label: 'Horizontal', desc: 'Numbered steps in a row with connector lines', props: { variant: 'horizontal', layout: 'horizontal' } },
+    { label: 'Vertical', desc: 'Stacked steps with descriptions beside each number', props: { variant: 'vertical', layout: 'vertical' } },
+    { label: 'Cards', desc: 'Numbered steps inside bordered cards', props: { variant: 'cards', layout: 'cards' } },
+  ],
   booking_widget: [
     { label: 'Calendar View', desc: 'Month calendar picker', props: { show_calendar: true, layout: 'calendar' } },
     { label: 'Simple CTA', desc: 'Book now button', props: { show_calendar: false, layout: 'cta' } },

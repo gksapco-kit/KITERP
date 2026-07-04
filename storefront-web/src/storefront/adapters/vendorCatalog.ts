@@ -4,6 +4,7 @@
  */
 import { storeApi } from '@/api/store'
 import type { Product as StoreProduct, Cart as StoreCart, CartItem, Service as StoreService } from '@/types'
+import { resolveServicePrice, resolveServiceDuration } from '@/lib/servicePricing'
 import type {
   Cart,
   CartLine,
@@ -189,8 +190,8 @@ export const vendorCatalogAdapter: StorefrontDataAdapter = {
         slug: s.slug,
         name: s.name,
         description: s.short_description || s.description || '',
-        durationMinutes: s.duration_minutes ?? 60,
-        price: toMinor(s.price ?? s.price_min ?? 0, s.currency || 'INR'),
+        durationMinutes: resolveServiceDuration(s),
+        price: toMinor(resolveServicePrice(s), s.currency || 'INR'),
         image: s.image_url
           ? { url: s.image_url, alt: s.name }
           : s.media?.[0]

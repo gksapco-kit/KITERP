@@ -108,49 +108,65 @@ export function Testimonials({
 
 /* ---------------- Process Steps ---------------- */
 
+interface ProcessStep {
+  id?: string;
+  title: string;
+  description: string;
+}
+
 interface ProcessProps {
-  layout?: "horizontal" | "vertical";
+  layout?: "horizontal" | "vertical" | "cards";
   title?: string;
+  steps?: ProcessStep[];
 }
 
 export function ProcessSteps({
   layout = "horizontal",
   title = "How we work together",
+  steps,
 }: ProcessProps) {
+  const items = steps !== undefined ? steps : mockProcess;
+
   return (
     <section className="px-6 py-12">
       {title && <h2 className="mb-10 text-center text-3xl font-semibold tracking-tight">{title}</h2>}
-      <div
-        className={cn(
-          "mx-auto max-w-5xl",
-          layout === "horizontal" ? "grid gap-6 md:grid-cols-4" : "space-y-6",
-        )}
-      >
-        {mockProcess.map((s, i) => (
-          <div
-            key={s.id}
-            className={cn(
-              "relative",
-              layout === "vertical" && "flex gap-5",
-            )}
-          >
+      {items.length > 0 && (
+        <div
+          className={cn(
+            "mx-auto max-w-5xl",
+            layout === "horizontal" && "grid gap-6 md:grid-cols-4",
+            layout === "vertical" && "space-y-6",
+            layout === "cards" && "grid gap-5 sm:grid-cols-2 md:grid-cols-4",
+          )}
+        >
+          {items.map((s, i) => (
             <div
+              key={s.id ?? i}
               className={cn(
-                "flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-primary text-lg font-semibold text-primary-foreground",
+                "relative",
+                layout === "vertical" && "flex gap-5",
+                layout === "cards" && "rounded-xl border border-border bg-card p-5 shadow-sm",
               )}
             >
-              {s.step}
+              <div
+                className={cn(
+                  "flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-primary text-lg font-semibold text-primary-foreground",
+                  layout === "cards" && "mb-4 h-10 w-10 text-base",
+                )}
+              >
+                {i + 1}
+              </div>
+              <div className={cn(layout === "horizontal" ? "mt-4" : "")}>
+                <h3 className="font-semibold">{s.title}</h3>
+                <p className="mt-1 text-sm text-muted-foreground">{s.description}</p>
+              </div>
+              {layout === "horizontal" && i < items.length - 1 && (
+                <div className="absolute -right-3 top-6 hidden h-px w-6 bg-border md:block" />
+              )}
             </div>
-            <div className={cn(layout === "horizontal" ? "mt-4" : "")}>
-              <h3 className="font-semibold">{s.title}</h3>
-              <p className="mt-1 text-sm text-muted-foreground">{s.description}</p>
-            </div>
-            {layout === "horizontal" && i < mockProcess.length - 1 && (
-              <div className="absolute -right-3 top-6 hidden h-px w-6 bg-border md:block" />
-            )}
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      )}
     </section>
   );
 }

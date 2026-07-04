@@ -12,12 +12,21 @@ export interface ServiceCardProps {
   service: Service;
   layout?: "row" | "card";
   onBook?: (s: Service) => void;
+  onView?: (s: Service) => void;
 }
 
-export function ServiceCard({ service, layout = "card", onBook }: ServiceCardProps) {
+export function ServiceCard({ service, layout = "card", onBook, onView }: ServiceCardProps) {
   const row = layout === "row";
   return (
-    <Card className={cn("overflow-hidden border-2 shadow-sm", themeUi.cardBorder, themeUi.catalogSurface, row && "flex")}>
+    <Card
+      className={cn(
+        "overflow-hidden border-2 shadow-sm",
+        themeUi.cardBorder, themeUi.catalogSurface, row && "flex",
+        onView && "cursor-pointer transition-shadow hover:shadow-md",
+      )}
+      onClick={onView ? () => onView(service) : undefined}
+      role={onView ? "link" : undefined}
+    >
       {service.image && (
         <div className={cn(row ? "w-56 shrink-0" : "aspect-[16/9]")}>
           <img src={service.image} alt={service.name} className="w-full h-full object-cover" />
@@ -44,7 +53,7 @@ export function ServiceCard({ service, layout = "card", onBook }: ServiceCardPro
         )}
         <div className="mt-auto flex items-center justify-between pt-3 gap-3">
           <div className={cn("text-lg font-bold", themeUi.priceOnSurface)}>{formatPrice(service.price, service.currency)}</div>
-          <Button size="sm" onClick={() => onBook?.(service)}>
+          <Button size="sm" onClick={(e) => { e.stopPropagation(); onBook?.(service); }}>
             Book <ArrowRight />
           </Button>
         </div>
@@ -53,19 +62,19 @@ export function ServiceCard({ service, layout = "card", onBook }: ServiceCardPro
   );
 }
 
-export function ServiceCardGrid({ services, columns = 3, onBook }: { services: Service[]; columns?: 2 | 3 | 4; onBook?: (s: Service) => void }) {
+export function ServiceCardGrid({ services, columns = 3, onBook, onView }: { services: Service[]; columns?: 2 | 3 | 4; onBook?: (s: Service) => void; onView?: (s: Service) => void }) {
   const colMap = { 2: "sm:grid-cols-2", 3: "sm:grid-cols-2 lg:grid-cols-3", 4: "sm:grid-cols-2 lg:grid-cols-4" } as const;
   return (
     <div className={cn("grid gap-4 grid-cols-1", colMap[columns])}>
-      {services.map((s) => <ServiceCard key={s.id} service={s} onBook={onBook} />)}
+      {services.map((s) => <ServiceCard key={s.id} service={s} onBook={onBook} onView={onView} />)}
     </div>
   );
 }
 
-export function ServiceList({ services, onBook }: { services: Service[]; onBook?: (s: Service) => void }) {
+export function ServiceList({ services, onBook, onView }: { services: Service[]; onBook?: (s: Service) => void; onView?: (s: Service) => void }) {
   return (
     <div className="flex flex-col gap-3">
-      {services.map((s) => <ServiceCard key={s.id} service={s} layout="row" onBook={onBook} />)}
+      {services.map((s) => <ServiceCard key={s.id} service={s} layout="row" onBook={onBook} onView={onView} />)}
     </div>
   );
 }

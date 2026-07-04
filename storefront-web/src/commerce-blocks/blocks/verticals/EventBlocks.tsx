@@ -292,8 +292,10 @@ type LiveEvent = {
   date?: string;
   doors?: string;
   start?: string;
+  end?: string;
   venue?: string;
   address?: string;
+  venueCapacity?: number;
   tiers?: EventTier[];
   orderTitle?: string;
   ageNote?: string;
@@ -312,8 +314,10 @@ type ResolvedTicketEvent = {
     date: string;
     doors: string;
     start: string;
+    end: string;
     venue: string;
     address: string;
+    venueCapacity: number | undefined;
   };
   tierList: EventTier[];
   orderTitle: string;
@@ -345,9 +349,11 @@ function TicketPickerCard({
     [ev.doors, ev.start].filter(Boolean).length
       ? { icon: Clock, label: "Doors / Start", value: [ev.doors, ev.start].filter(Boolean).join(" / ") }
       : null,
+    ev.end ? { icon: Clock, label: "Ends", value: ev.end } : null,
     ev.venue || ev.address
       ? { icon: MapPin, label: "Venue", value: [ev.venue, ev.address].filter(Boolean).join(" · ") }
       : null,
+    ev.venueCapacity ? { icon: Users, label: "Maximum seats", value: `${ev.venueCapacity.toLocaleString()} seats` } : null,
   ].filter((item): item is { icon: typeof Calendar; label: string; value: string } => item !== null);
 
   const banner = (
@@ -551,8 +557,10 @@ interface TicketPickerProps {
   date?: string;
   doors?: string;
   start?: string;
+  end?: string;
   venue?: string;
   address?: string;
+  venue_capacity?: number | string;
   order_title?: string;
   age_note?: string;
   seating_title?: string;
@@ -575,8 +583,10 @@ export function TicketPicker({
   date,
   doors,
   start,
+  end,
   venue,
   address,
+  venue_capacity,
   order_title,
   age_note,
   seating_title,
@@ -600,6 +610,12 @@ export function TicketPicker({
     return Number.isFinite(n) && n > 0 ? n : fallback;
   };
 
+  const parseCapacity = (val: number | string | undefined): number | undefined => {
+    if (val === undefined || val === "") return undefined;
+    const n = Number(val);
+    return Number.isFinite(n) && n > 0 ? n : undefined;
+  };
+
   // Connected to Sales → Ticketed Events: every active event gets its own full ticket picker,
   // with its OWN order title / age note / seating chart / checkout label — all managed per-event
   // in Sales → Ticketed Events, never a single shared override across every card.
@@ -613,8 +629,10 @@ export function TicketPicker({
           date: le.date ?? "",
           doors: le.doors ?? "",
           start: le.start ?? "",
+          end: le.end ?? "",
           venue: le.venue ?? "",
           address: le.address ?? "",
+          venueCapacity: parseCapacity(le.venueCapacity),
         },
         tierList: Array.isArray(le.tiers) ? le.tiers : [],
         orderTitle: le.orderTitle ?? "",
@@ -634,8 +652,10 @@ export function TicketPicker({
             date: date ?? e.date,
             doors: doors ?? e.doors,
             start: start ?? e.start,
+            end: end ?? e.end,
             venue: venue ?? e.venue,
             address: address ?? e.address,
+            venueCapacity: parseCapacity(venue_capacity) ?? e.venueCapacity,
           },
           tierList: tiers && tiers.length ? tiers : e.tiers,
           orderTitle: order_title ?? "Your order",

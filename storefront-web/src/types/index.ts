@@ -247,6 +247,7 @@ export interface Order {
 
 export interface Booking {
   id: string; vendor_id: string; customer_id?: string; service_id?: string
+  service_plan_id?: string; plan_name?: string
   booking_number: string; service_name?: string; service_price: number
   booking_date: string; start_time?: string; end_time?: string; duration_minutes?: number
   status: string; customer_name?: string; customer_email?: string; customer_phone?: string

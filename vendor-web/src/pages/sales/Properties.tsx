@@ -22,9 +22,11 @@ import {
 import { propertiesApi } from '@/api/properties'
 import type { VendorProperty, VendorPropertyCreate } from '@/api/properties'
 
-const PROPERTY_TYPES = ['house', 'condo', 'loft', 'townhouse']
+const PROPERTY_TYPES = ['house', 'condo', 'loft', 'townhouse', 'pg']
+const CURRENCIES = ['USD', 'INR', 'EUR', 'GBP', 'AED', 'SGD', 'AUD', 'CAD', 'JPY']
 const PROPERTY_STATUSES = [
   { value: 'for-sale', label: 'For sale' },
+  { value: 'for-rent', label: 'For rent' },
   { value: 'new', label: 'New' },
   { value: 'open-house', label: 'Open house' },
   { value: 'pending', label: 'Pending' },
@@ -181,7 +183,15 @@ function PropertyModal({
             </div>
             <div>
               <Label>Currency</Label>
-              <Input value={currency} onChange={e => setCurrency(e.target.value)} />
+              <select
+                value={currency}
+                onChange={e => setCurrency(e.target.value)}
+                className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm"
+              >
+                {(CURRENCIES.includes(currency) ? CURRENCIES : [currency, ...CURRENCIES]).map(c => (
+                  <option key={c} value={c}>{c}</option>
+                ))}
+              </select>
             </div>
           </div>
           <div className="grid grid-cols-3 gap-3">
@@ -204,9 +214,11 @@ function PropertyModal({
               <select
                 value={type}
                 onChange={e => setType(e.target.value)}
-                className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm capitalize"
+                className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm"
               >
-                {PROPERTY_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
+                {PROPERTY_TYPES.map(t => (
+                  <option key={t} value={t}>{t === 'pg' ? 'PG' : t.charAt(0).toUpperCase() + t.slice(1)}</option>
+                ))}
               </select>
             </div>
             <div>

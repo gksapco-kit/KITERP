@@ -20,6 +20,7 @@ router = APIRouter()
 
 class BookingCreate(BaseModel):
     service_id: str
+    plan_id: Optional[str] = None
     booking_date: date
     start_time: Optional[str] = None
     notes: Optional[str] = None
@@ -36,6 +37,8 @@ def _booking_to_dict(b: Booking) -> dict:
         "vendor_id": str(b.vendor_id),
         "customer_id": str(b.customer_id) if b.customer_id else None,
         "service_id": str(b.service_id) if b.service_id else None,
+        "service_plan_id": str(b.service_plan_id) if b.service_plan_id else None,
+        "plan_name": b.plan_name,
         "booking_number": b.booking_number,
         "service_name": b.service_name,
         "service_price": float(b.service_price) if b.service_price else 0,
@@ -73,6 +76,7 @@ async def create_booking(
         customer_id=customer.id,
         data={
             "service_id": data.service_id,
+            "plan_id": data.plan_id,
             "booking_date": data.booking_date,
             "start_time": data.start_time,
             "notes": data.notes,
@@ -135,16 +139,23 @@ async def create_booking(
 async def get_booking_slots(
     service_id: str,
     booking_date: date,
+    plan_id: Optional[str] = None,
     vendor_id: UUID = Depends(get_store_vendor_id),
     db: AsyncSession = Depends(get_db),
 ):
-    """Return bookable time slots for a service on a given date."""
+    """Return bookable time slots for a service (optionally a specific plan) on a given date."""
     try:
         svc_uuid = UUID(service_id)
     except ValueError:
         raise HTTPException(400, "Invalid service_id")
+    plan_uuid: Optional[UUID] = None
+    if plan_id:
+        try:
+            plan_uuid = UUID(plan_id)
+        except ValueError:
+            raise HTTPException(400, "Invalid plan_id")
     svc = BookingService(db)
-    slots = await svc.get_available_slots(vendor_id, svc_uuid, booking_date)
+    slots = await svc.get_available_slots(vendor_id, svc_uuid, booking_date, plan_id=plan_uuid)
     return JSONResponse(content={"slots": slots, "date": booking_date.isoformat()})
 
 

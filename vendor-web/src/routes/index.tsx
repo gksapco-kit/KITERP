@@ -244,6 +244,8 @@ import SalesVehiclesPage from '@/pages/sales/Vehicles'
 import SalesEventsPage from '@/pages/sales/Events'
 import SalesRecurringBookingsPage from '@/pages/sales/RecurringBookings'
 import SalesTestimonialsPage from '@/pages/sales/Testimonials'
+import SalesBookingWizardStepsPage from '@/pages/sales/BookingWizardSteps'
+import SalesBookingResourcesPage from '@/pages/sales/BookingResources'
 
 const routerBasename = (import.meta.env.VITE_ROUTER_BASENAME || '').replace(/\/$/, '')
 
@@ -361,6 +363,8 @@ export const router = createBrowserRouter([
       { path: 'sales/events', element: <SalesEventsPage /> },
       { path: 'sales/recurring-bookings', element: <SalesRecurringBookingsPage /> },
       { path: 'sales/testimonials', element: <SalesTestimonialsPage /> },
+      { path: 'sales/booking-wizard', element: <SalesBookingWizardStepsPage /> },
+      { path: 'sales/booking-resources', element: <SalesBookingResourcesPage /> },
       { path: 'rental', element: <RentalHubPage /> },
       { path: 'invoices', element: <InvoicesPage /> },
       { path: 'invoices/templates', element: <InvoiceTemplatesPage /> },

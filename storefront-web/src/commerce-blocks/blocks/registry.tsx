@@ -747,8 +747,15 @@ const testimonialBlock: BlockDefinition = {
   ],
 };
 
+const processStepSchema = z.object({
+  id: z.string().optional(),
+  title: z.string().default(""),
+  description: z.string().default(""),
+});
+
 const processProps = z.object({
   title: z.string().default("How we work together"),
+  steps: z.array(processStepSchema).optional(),
 });
 
 const processBlock: BlockDefinition = {
@@ -763,6 +770,7 @@ const processBlock: BlockDefinition = {
   variants: [
     { id: "horizontal", name: "Horizontal", Component: (p) => <ProcessSteps {...p} layout="horizontal" /> },
     { id: "vertical", name: "Vertical", Component: (p) => <ProcessSteps {...p} layout="vertical" /> },
+    { id: "cards", name: "Cards", Component: (p) => <ProcessSteps {...p} layout="cards" /> },
   ],
 };
 
@@ -910,6 +918,8 @@ const resourceProps = z.object({
   showFeatures: z.boolean().default(true),
   showPrice: z.boolean().default(true),
   cta: z.string().default("Reserve"),
+  header_title: z.string().optional(),
+  header_subtitle: z.string().optional(),
 });
 
 const resourceBlock: BlockDefinition = {
@@ -922,11 +932,27 @@ const resourceBlock: BlockDefinition = {
   isLive: true,
   propsSchema: resourceProps,
   defaultProps: resourceProps.parse({}),
-  variants: [{ id: "default", name: "Default", Component: ResourcePicker }],
+  variants: [
+    { id: "grid", name: "Grid", Component: (p) => <ResourcePicker {...p} layout="grid" /> },
+    { id: "list", name: "List", Component: (p) => <ResourcePicker {...p} layout="list" /> },
+    { id: "compact", name: "Compact grid", Component: (p) => <ResourcePicker {...p} layout="compact" /> },
+  ],
 };
+
+const wizardStepSchema = z.object({
+  id: z.string().optional(),
+  label: z.string(),
+  description: z.string().optional(),
+});
 
 const wizardProps = z.object({
   showLabels: z.boolean().default(true),
+  header_title: z.string().optional(),
+  header_subtitle: z.string().optional(),
+  steps: z.array(wizardStepSchema).optional(),
+  // Which step (0-based index into the active step list) shows as "current" — earlier
+  // steps render as done, later ones as upcoming. Leave unset to use the built-in demo default.
+  current_step: z.number().int().min(0).optional(),
 });
 
 const wizardBlock: BlockDefinition = {
@@ -936,11 +962,14 @@ const wizardBlock: BlockDefinition = {
   name: "Booking Wizard",
   description: "Multi-step progress indicator for booking flows.",
   icon: Workflow,
+  isLive: true,
   propsSchema: wizardProps,
   defaultProps: wizardProps.parse({}),
   variants: [
     { id: "horizontal", name: "Horizontal", Component: (p) => <BookingWizard {...p} layout="horizontal" /> },
+    { id: "horizontal-compact", name: "Horizontal Compact", Component: (p) => <BookingWizard {...p} layout="horizontal" showLabels={false} /> },
     { id: "vertical", name: "Vertical", Component: (p) => <BookingWizard {...p} layout="vertical" /> },
+    { id: "vertical-compact", name: "Vertical Compact", Component: (p) => <BookingWizard {...p} layout="vertical" showLabels={false} /> },
   ],
 };
 

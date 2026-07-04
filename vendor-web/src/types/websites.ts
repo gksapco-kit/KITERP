@@ -403,6 +403,8 @@ export type LiveResource =
   | 'vehicles'
   | 'events'
   | 'recurring_plans'
+  | 'booking_wizard_steps'
+  | 'booking_resources'
 
 export interface LiveItem {
   id: string

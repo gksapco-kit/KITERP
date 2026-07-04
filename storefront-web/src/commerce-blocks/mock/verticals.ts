@@ -16,8 +16,8 @@ export interface Property {
   beds: number;
   baths: number;
   sqft: number;
-  type: "house" | "condo" | "loft" | "townhouse";
-  status: "for-sale" | "pending" | "new" | "open-house";
+  type: "house" | "condo" | "loft" | "townhouse" | "pg";
+  status: "for-sale" | "for-rent" | "pending" | "new" | "open-house";
   image: string;
   agent?: string;
 }
@@ -356,8 +356,10 @@ export const mockEvent = {
   date: "Friday, June 5, 2026",
   doors: "7:30 PM",
   start: "8:30 PM",
+  end: "11:00 PM",
   venue: "The Greene Room",
   address: "418 Atlantic Ave, Brooklyn",
+  venueCapacity: 500,
   image: swatch(260, 35, 35),
   ageRestriction: "21+",
   tiers: [

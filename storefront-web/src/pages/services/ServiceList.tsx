@@ -15,6 +15,7 @@ import { TableSkeleton } from '@/kit/states/StateScreens'
 import type { Service as KitService } from '@/kit/types'
 import { themeUi } from '@/lib/themeColors'
 import { cn } from '@/lib/utils'
+import { resolveServicePrice, resolveServiceDuration } from '@/lib/servicePricing'
 
 const SERVICE_MODE_ICON: Record<string, string> = {
   home_visit: 'Home Visit', on_site: 'On-Site', remote: 'Remote', online: 'Online',
@@ -203,12 +204,13 @@ export default function ServiceList() {
                 shortDescription: s.short_description || s.description || '',
                 description: s.description || '',
                 image: s.image_url || s.media?.find((m: any) => m.is_primary)?.url,
-                durationMinutes: s.duration_minutes ?? 60,
-                price: s.price ?? s.price_min ?? 0,
+                durationMinutes: resolveServiceDuration(s),
+                price: resolveServicePrice(s),
                 currency: s.currency || 'INR',
                 features: s.features || [],
               }))}
               onBook={(svc) => navigate(storePath(`/services/${svc.slug}/book`))}
+              onView={(svc) => navigate(storePath(`/services/${svc.slug}`))}
             />
           )}
 
