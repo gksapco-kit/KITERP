@@ -31,6 +31,8 @@ from app.api.v1 import (
     vendor_events,
     vendor_recurring_plans,
     vendor_testimonials,
+    vendor_booking_wizard_steps,
+    vendor_booking_resources,
     catalog_blog,
     vendor_restaurant,
     vendor_restaurants,
@@ -158,6 +160,8 @@ api_router.include_router(vendor_vehicles.router, prefix="/vendors/me/vehicles",
 api_router.include_router(vendor_events.router, prefix="/vendors/me/events", tags=["Vendor Events"])
 api_router.include_router(vendor_recurring_plans.router, prefix="/vendors/me/recurring-plans", tags=["Vendor Recurring Plans"])
 api_router.include_router(vendor_testimonials.router, prefix="/vendors/me/testimonials", tags=["Vendor Testimonials"])
+api_router.include_router(vendor_booking_wizard_steps.router, prefix="/vendors/me/booking-wizard-steps", tags=["Vendor Booking Wizard Steps"])
+api_router.include_router(vendor_booking_resources.router, prefix="/vendors/me/booking-resources", tags=["Vendor Booking Resources"])
 
 # ── Website Builder ───────────────────────────────────────────────
 api_router.include_router(vendor_websites.router, prefix="/vendors/me/websites", tags=["Website Builder"])

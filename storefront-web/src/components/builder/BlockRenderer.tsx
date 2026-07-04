@@ -117,7 +117,7 @@ const SUSPENSE_NULL_FALLBACK_BLOCKS = new Set([
 
 // ── Live data hook ─────────────────────────────────────────────────────────
 
-type LiveResource = 'products' | 'services' | 'testimonials' | 'team' | 'kpis' | 'profile' | 'pages' | 'categories' | 'customers' | 'orders' | 'bookings' | 'media' | 'stores' | 'blog' | 'plans' | 'properties' | 'courses' | 'fitness_classes' | 'vehicles' | 'events' | 'recurring_plans'
+type LiveResource = 'products' | 'services' | 'testimonials' | 'team' | 'kpis' | 'profile' | 'pages' | 'categories' | 'customers' | 'orders' | 'bookings' | 'media' | 'stores' | 'blog' | 'plans' | 'properties' | 'courses' | 'fitness_classes' | 'vehicles' | 'events' | 'recurring_plans' | 'booking_wizard_steps' | 'booking_resources'
 
 const BLOCK_LIVE_RESOURCE: Record<string, LiveResource> = {
   product_grid: 'products', live_stock: 'products', live_quote: 'products', related_products: 'products', product_detail: 'products',
@@ -145,6 +145,10 @@ const BLOCK_LIVE_RESOURCE: Record<string, LiveResource> = {
   'vertical.eventListing': 'events',
   'vertical.ticketPicker': 'events',
   'booking.recurring': 'recurring_plans',
+  // Explicit override — without this, inferCommerceLiveResource()'s generic 'booking.' prefix match
+  // would wrongly connect this to the unrelated 'bookings' resource.
+  'booking.wizard': 'booking_wizard_steps',
+  'booking.resource': 'booking_resources',
 }
 
 function inferCommerceLiveResource(blockType: string): LiveResource | undefined {

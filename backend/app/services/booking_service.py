@@ -7,7 +7,7 @@ from sqlalchemy import select, func, and_
 from fastapi import HTTPException, status
 
 from app.models.booking import Booking
-from app.models.vendor_service import Service, ServiceAvailability
+from app.models.vendor_service import Service, ServiceAvailability, ServicePlan
 
 log = logging.getLogger(__name__)
 
@@ -41,6 +41,19 @@ class BookingService:
         if service.status != "active":
             raise HTTPException(status_code=400, detail="Service is not currently available")
 
+        plan: ServicePlan | None = None
+        plan_id_raw = data.get("plan_id")
+        if plan_id_raw:
+            plan_result = await self.db.execute(
+                select(ServicePlan).where(
+                    ServicePlan.id == UUID(str(plan_id_raw)),
+                    ServicePlan.service_id == service_id,
+                )
+            )
+            plan = plan_result.scalar_one_or_none()
+            if not plan:
+                raise HTTPException(status_code=404, detail="Plan not found for this service")
+
         booking_date = data["booking_date"]
         if isinstance(booking_date, str):
             booking_date = date.fromisoformat(booking_date)
@@ -52,15 +65,19 @@ class BookingService:
             start_time = time.fromisoformat(start_time)
 
         end_time = None
-        duration = service.duration_minutes
+        duration = (plan.duration_minutes if plan else None) or service.duration_minutes
         if start_time and duration:
             from datetime import timedelta
             dt_start = datetime.combine(booking_date, start_time)
             dt_end = dt_start + timedelta(minutes=duration)
             end_time = dt_end.time()
 
-        price = float(service.price or 0)
-        tax_rate = float(service.tax_rate or service.gst_rate or 0)
+        price = float((plan.price if plan and plan.price is not None else service.price) or 0)
+        tax_rate = float(
+            (plan.tax_rate if plan and plan.tax_rate is not None else None)
+            or (plan.gst_rate if plan and plan.gst_rate is not None else None)
+            or service.tax_rate or service.gst_rate or 0
+        )
         subtotal = round(price, 2)
         tax_amount = round(subtotal * tax_rate / 100, 2) if tax_rate else 0
         total = round(subtotal + tax_amount, 2)
@@ -72,8 +89,10 @@ class BookingService:
             store_id=UUID(str(data["store_id"])) if data.get("store_id") else None,
             customer_id=customer_id,
             service_id=service_id,
+            service_plan_id=plan.id if plan else None,
             booking_number=booking_number,
             service_name=service.name,
+            plan_name=plan.name if plan else None,
             service_price=Decimal(str(price)),
             booking_date=booking_date,
             start_time=start_time,
@@ -107,6 +126,7 @@ class BookingService:
         vendor_id: UUID,
         service_id: UUID,
         booking_date: date,
+        plan_id: UUID | None = None,
     ) -> list[dict]:
         from datetime import timedelta
 
@@ -117,24 +137,47 @@ class BookingService:
         if not service:
             raise HTTPException(status_code=404, detail="Service not found")
 
+        plan: ServicePlan | None = None
+        if plan_id:
+            plan_result = await self.db.execute(
+                select(ServicePlan).where(ServicePlan.id == plan_id, ServicePlan.service_id == service_id)
+            )
+            plan = plan_result.scalar_one_or_none()
+
         if booking_date < date.today():
             return []
 
         dow = booking_date.weekday()  # 0=Monday, matches service_availability.day_of_week
-        avail_result = await self.db.execute(
-            select(ServiceAvailability).where(
-                ServiceAvailability.service_id == service_id,
-                ServiceAvailability.day_of_week == dow,
-                ServiceAvailability.is_available.is_(True),
-            )
-        )
-        windows = list(avail_result.scalars().all())
-        if not windows:
-            windows = [
-                type("_Win", (), {"start_time": "09:00", "end_time": "17:00"})(),
-            ]
 
-        duration = service.duration_minutes or 60
+        # Plan-level availability (JSON) takes priority over the service-level table when the
+        # selected plan defines its own weekly schedule — mirrors the storefront's plan selector.
+        # If the plan HAS a schedule but this particular day isn't open, treat it as closed
+        # rather than silently falling back to the service/default hours.
+        windows: list
+        plan_has_schedule = bool(plan and plan.availability)
+        if plan_has_schedule:
+            plan_windows = [
+                w for w in plan.availability if w.get("day_of_week") == dow and w.get("is_available", True)
+            ]
+            windows = [
+                type("_Win", (), {"start_time": w["start_time"], "end_time": w["end_time"]})()
+                for w in plan_windows
+            ]
+        else:
+            avail_result = await self.db.execute(
+                select(ServiceAvailability).where(
+                    ServiceAvailability.service_id == service_id,
+                    ServiceAvailability.day_of_week == dow,
+                    ServiceAvailability.is_available.is_(True),
+                )
+            )
+            windows = list(avail_result.scalars().all())
+            if not windows:
+                windows = [
+                    type("_Win", (), {"start_time": "09:00", "end_time": "17:00"})(),
+                ]
+
+        duration = (plan.duration_minutes if plan else None) or service.duration_minutes or 60
         slots: list[dict] = []
 
         for window in windows:

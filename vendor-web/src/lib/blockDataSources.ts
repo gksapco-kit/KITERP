@@ -46,6 +46,8 @@ export const DATA_SOURCES: DataSourceDefinition[] = [
   { id: 'vehicles', label: 'Vehicle inventory', desc: 'Active vehicles from Sales → Vehicle Inventory', group: 'catalog', blockTypes: ['vertical.autoInventory', 'vertical.vehicleDetail'], selectable: false },
   { id: 'events', label: 'Ticketed events', desc: 'Active events from Sales → Ticketed Events', group: 'catalog', blockTypes: ['vertical.eventListing', 'vertical.ticketPicker'], selectable: false },
   { id: 'recurring_plans', label: 'Recurring bookings', desc: 'Active plans from Sales → Recurring Bookings', group: 'catalog', blockTypes: ['booking.recurring'], selectable: false },
+  { id: 'booking_wizard_steps', label: 'Booking wizard steps', desc: 'Steps from Sales → Booking Wizard (falls back to a default Service/Date/Time/Details/Review flow)', group: 'catalog', blockTypes: ['booking.wizard'], selectable: false },
+  { id: 'booking_resources', label: 'Booking resources', desc: 'Rooms/tables/courts/equipment from Sales → Resources (falls back to demo resources)', group: 'catalog', blockTypes: ['booking.resource'], selectable: false },
   { id: 'profile', label: 'Vendor Profile', desc: 'Brand, address, contact, socials', group: 'basic', blockTypes: ['contact_form', 'map_embed', 'map_contact', 'footer', 'nav', 'about_split', 'social_links'], selectable: false },
   { id: 'media', label: 'Site Media', desc: 'Images & videos uploaded to this site', group: 'basic', blockTypes: ['gallery_masonry', 'gallery_grid', 'image_gallery', 'portfolio_grid', 'image_block'], selectable: false },
   { id: 'external_api', label: 'Ext API', desc: 'Custom REST endpoint', group: 'ext_api', blockTypes: [], selectable: false },
@@ -117,6 +119,8 @@ export const BLOCK_AUTO_SOURCE: Record<string, LiveResource> = {
   // Explicit override — without this, inferCommerceAutoSource()'s generic 'booking.' prefix match
   // would wrongly auto-connect this to the unrelated 'bookings' resource.
   'booking.recurring': 'recurring_plans',
+  'booking.wizard': 'booking_wizard_steps',
+  'booking.resource': 'booking_resources',
 }
 
 /** Sections that only work with live data — user cannot turn off connection in layout picker. */
@@ -193,6 +197,16 @@ export const TESTIMONIALS_SYNC_BLOCK_TYPES = new Set<string>([
   'service.testimonials',
 ])
 
+/** Website builder sections that show the Booking Wizard sync banner in the sidebar. */
+export const WIZARD_SYNC_BLOCK_TYPES = new Set<string>([
+  'booking.wizard',
+])
+
+/** Website builder sections that show the Resources sync banner in the sidebar. */
+export const RESOURCE_SYNC_BLOCK_TYPES = new Set<string>([
+  'booking.resource',
+])
+
 export function isCategorySyncedBlock(blockType: string): boolean {
   return CATEGORY_SYNC_BLOCK_TYPES.has(blockType)
 }
@@ -227,6 +241,14 @@ export function isRecurringSyncedBlock(blockType: string): boolean {
 
 export function isTestimonialsSyncedBlock(blockType: string): boolean {
   return TESTIMONIALS_SYNC_BLOCK_TYPES.has(blockType)
+}
+
+export function isWizardSyncedBlock(blockType: string): boolean {
+  return WIZARD_SYNC_BLOCK_TYPES.has(blockType)
+}
+
+export function isResourceSyncedBlock(blockType: string): boolean {
+  return RESOURCE_SYNC_BLOCK_TYPES.has(blockType)
 }
 
 export function inferCommerceAutoSource(blockType: string): LiveResource | undefined {

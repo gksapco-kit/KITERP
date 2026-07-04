@@ -102,7 +102,7 @@ function BookingSlotsPanel({ availability }: { availability: AvailSlot[] }) {
 
 // ── Plan Selector ─────────────────────────────────────────────────
 
-function PlanSelector({
+export function PlanSelector({
   plans, currency, selectedId, onSelect, hidePrice = false, compact = false,
 }: {
   plans: ServicePlan[]; currency: string; selectedId: string | null; onSelect: (id: string) => void
@@ -217,9 +217,9 @@ function PlanSelector({
 // ── Booking Modal ─────────────────────────────────────────────────
 
 function BookingModal({
-  serviceId, serviceName, price, duration, availability, onClose,
+  serviceId, planId, serviceName, price, duration, availability, onClose,
 }: {
-  serviceId: string; serviceName: string; price: number; duration?: number
+  serviceId: string; planId?: string | null; serviceName: string; price: number; duration?: number
   availability?: AvailSlot[]; onClose: () => void
 }) {
   const createBooking = useCreateBooking()
@@ -258,7 +258,7 @@ function BookingModal({
     e.preventDefault()
     if (!bookingDate) return
     createBooking.mutate(
-      { service_id: serviceId, booking_date: bookingDate, start_time: startTime || undefined, notes: notes || undefined, payment_method: 'cod' },
+      { service_id: serviceId, plan_id: planId || undefined, booking_date: bookingDate, start_time: startTime || undefined, notes: notes || undefined, payment_method: 'cod' },
       { onSuccess: () => onClose() },
     )
   }
@@ -968,6 +968,7 @@ export default function ServiceDetail() {
       {showBooking && service && (
         <BookingModal
           serviceId={service.id}
+          planId={selectedPlan?.id}
           serviceName={selectedPlan ? `${service.name} — ${selectedPlan.name}` : service.name}
           price={selectedPlan?.price ?? service.price ?? 0}
           duration={selectedPlan?.duration_minutes ?? service.duration_minutes}

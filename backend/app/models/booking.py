@@ -22,10 +22,13 @@ class Booking(Base):
     delivery_channel_id = Column(UUID(as_uuid=True), ForeignKey("delivery_channel.id", ondelete="SET NULL"), nullable=True, index=True)
     customer_id = Column(UUID(as_uuid=True), ForeignKey("customer.id"), nullable=False, index=True)
     service_id = Column(UUID(as_uuid=True), ForeignKey("service.id"))
+    # Which pricing plan (Sales → Services → plan) was selected at booking time, if any.
+    service_plan_id = Column(UUID(as_uuid=True), ForeignKey("service_plan.id", ondelete="SET NULL"), nullable=True, index=True)
 
     booking_number = Column(String(20), nullable=False, index=True)
 
     service_name = Column(String(255))
+    plan_name = Column(String(255))
     service_price = Column(Numeric(12, 2), default=0)
 
     booking_date = Column(Date, nullable=False)

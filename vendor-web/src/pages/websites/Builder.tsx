@@ -287,6 +287,8 @@ import {
   isEventsSyncedBlock,
   isRecurringSyncedBlock,
   isTestimonialsSyncedBlock,
+  isWizardSyncedBlock,
+  isResourceSyncedBlock,
   type LayoutPickerDataSourceChoice,
 } from '@/lib/blockDataSources'
 import { mergeLayoutBlockProps } from '@/lib/layoutBlockProps'
@@ -575,15 +577,20 @@ const COMMERCE_LIBRARY_BLOCKS: BlockDef[] = [
   { type: 'product.orderTracking', label: 'Order Tracking', icon: ShoppingBag, desc: 'Shipment status, ETA, tracking number, and items.', category: 'erp', defaultProps: { variant: 'default' } },
   { type: 'product.loyalty', label: 'Loyalty Widget', icon: ShoppingBag, desc: 'Member tier, points, progress bar, and perks.', category: 'ecommerce', defaultProps: { variant: 'default' } },
   { type: 'service.testimonials', label: 'Testimonials', icon: Briefcase, desc: 'Quotes with avatar, role, and rating.', category: 'content', defaultProps: { variant: 'default' } },
-  { type: 'service.process', label: 'Process Steps', icon: Briefcase, desc: 'Numbered step-by-step engagement timeline.', category: 'content', defaultProps: { variant: 'default' } },
+  { type: 'service.process', label: 'Process Steps', icon: Briefcase, desc: 'Numbered step-by-step engagement timeline.', category: 'content', defaultProps: { variant: 'horizontal', layout: 'horizontal', title: 'How we work together', steps: [
+    { title: 'Discover', description: '30-min intake call, brand questionnaire, and audit of current materials.' },
+    { title: 'Define', description: 'Workshop to align on positioning, audience, and visual direction.' },
+    { title: 'Design', description: 'Two concept directions presented, refined into one polished system.' },
+    { title: 'Deliver', description: 'Final assets, source files, and a guidelines doc handed off.' },
+  ] } },
   { type: 'service.faq', label: 'FAQ', icon: Briefcase, desc: 'Accordion of common questions and answers.', category: 'content', defaultProps: { variant: 'default', title: 'Frequently asked', faqs: DEFAULT_SERVICE_FAQ_ITEMS } },
   { type: 'service.team', label: 'Team Picker', icon: Briefcase, desc: 'Pick a team member, see availability and rating.', category: 'content', defaultProps: { variant: 'default' } },
   { type: 'service.addons', label: 'Add-ons Selector', icon: Briefcase, desc: 'Multi-select add-ons with running total.', category: 'content', defaultProps: { variant: 'default' } },
   { type: 'menu.wine', label: 'Wine Pairing', icon: List, desc: 'Wines by glass/bottle with pairings and tasting notes.', category: 'food', defaultProps: { variant: 'default' } },
   { type: 'menu.combo', label: 'Combo / Set Menu', icon: List, desc: 'Multi-course set menus with choose-your-own options.', category: 'food', defaultProps: { variant: 'default' } },
   { type: 'menu.nutrition', label: 'Nutrition Table', icon: List, desc: 'Sortable per-serving nutrition information table.', category: 'food', defaultProps: { variant: 'default' } },
-  { type: 'booking.resource', label: 'Resource Picker', icon: Clock, desc: 'Pick a room, court, or piece of equipment to book.', category: 'widgets', defaultProps: { variant: 'default' } },
-  { type: 'booking.wizard', label: 'Booking Wizard', icon: Clock, desc: 'Multi-step progress indicator for booking flows.', category: 'widgets', defaultProps: { variant: 'default' } },
+  { type: 'booking.resource', label: 'Resource Picker', icon: Clock, desc: 'Synced with Sales → Resources. Pick a room, court, or piece of equipment to book.', category: 'widgets', defaultProps: { variant: 'grid' } },
+  { type: 'booking.wizard', label: 'Booking Wizard', icon: Clock, desc: 'Multi-step progress indicator for booking flows. Steps sync from Sales → Booking Wizard.', category: 'widgets', defaultProps: { variant: 'horizontal', showLabels: true } },
   { type: 'booking.email', label: 'Confirmation Email', icon: Clock, desc: 'Preview of the booking confirmation email.', category: 'widgets', defaultProps: { variant: 'default' } },
   { type: 'booking.history', label: 'Past Bookings', icon: Clock, desc: 'Customer\'s booking history with status badges.', category: 'widgets', defaultProps: { variant: 'default' } },
   { type: 'commerce.checkout', label: 'Checkout', icon: ShoppingCart, desc: 'Full checkout with shipping, payment, and order summary.', category: 'erp', defaultProps: { variant: 'default' } },
@@ -656,7 +663,7 @@ const COMMERCE_LIBRARY_BLOCKS: BlockDef[] = [
   } },
   { type: 'vertical.fitnessSchedule', label: 'Fitness Schedule', icon: StoreIcon, desc: 'Class schedule with intensity, capacity, and reservations.', category: 'ecommerce', defaultProps: { variant: 'default', classes: DEFAULT_FITNESS_CLASS_ITEMS } },
   { type: 'vertical.eventListing', label: 'Event Listing', icon: StoreIcon, desc: 'Upcoming events in grid or list, with date and venue.', category: 'ecommerce', defaultProps: { variant: 'default', header_title: 'Upcoming events', header_subtitle: '', all_events_label: 'All events', cta: 'Get tickets', showTag: true, events: DEFAULT_EVENT_LISTING_ITEMS } },
-  { type: 'vertical.ticketPicker', label: 'Ticket Picker', icon: StoreIcon, desc: 'Tiered ticket selection with seating chart and order summary.', category: 'ecommerce', defaultProps: { variant: 'default', title: 'Field Notes — A Night of Ambient', tagline: 'An intimate evening of live electronic & strings', image_url: '', date: 'Friday, June 5, 2026', doors: '7:30 PM', start: '8:30 PM', venue: 'The Greene Room', address: '418 Atlantic Ave, Brooklyn', order_title: 'Your order', age_note: '21+ event · ID required at door', seating_title: 'Seating chart', max_per_order: 8, cta: 'Continue to checkout', showSeating: true, tiers: DEFAULT_TICKET_TIER_ITEMS } },
+  { type: 'vertical.ticketPicker', label: 'Ticket Picker', icon: StoreIcon, desc: 'Tiered ticket selection with seating chart and order summary.', category: 'ecommerce', defaultProps: { variant: 'default', title: 'Field Notes — A Night of Ambient', tagline: 'An intimate evening of live electronic & strings', image_url: '', date: 'Friday, June 5, 2026', doors: '7:30 PM', start: '8:30 PM', end: '11:00 PM', venue: 'The Greene Room', address: '418 Atlantic Ave, Brooklyn', venue_capacity: 500, order_title: 'Your order', age_note: '21+ event · ID required at door', seating_title: 'Seating chart', max_per_order: 8, cta: 'Continue to checkout', showSeating: true, tiers: DEFAULT_TICKET_TIER_ITEMS } },
   { type: 'vertical.courseCatalog', label: 'Course Catalog', icon: StoreIcon, desc: 'Browse courses with rating, level, and price.', category: 'ecommerce', defaultProps: { variant: 'default', header_title: 'Featured courses', header_subtitle: '', all_courses_label: 'All courses', cta: 'Enroll', showInstructor: true, courses: DEFAULT_COURSE_CATALOG_ITEMS } },
   { type: 'vertical.courseDetail', label: 'Course Detail', icon: StoreIcon, desc: 'Course page with syllabus, outcomes, and pricing card.', category: 'ecommerce', defaultProps: {
     variant: 'default',
@@ -4248,6 +4255,14 @@ const ITEM_SCHEMAS: Record<string, ItemSchema> = {
       { key: 'label', label: 'Label', type: 'text' },
     ],
   },
+  'service.process': {
+    arrayKey: 'steps', itemLabel: 'Step',
+    defaultItem: { title: 'New step', description: 'Describe this step.' },
+    fields: [
+      { key: 'title',       label: 'Title',       type: 'text' },
+      { key: 'description', label: 'Description', type: 'textarea' },
+    ],
+  },
   timeline: {
     arrayKey: 'items', itemLabel: 'Milestone',
     defaultItem: { year: '2024', title: 'New milestone', desc: 'Describe this step.', image_url: '' },
@@ -4389,8 +4404,8 @@ const ITEM_SCHEMAS: Record<string, ItemSchema> = {
       { key: 'image',   label: 'Photo',    type: 'image' },
       { key: 'title',   label: 'Title',    type: 'text' },
       { key: 'address', label: 'Address',  type: 'text' },
-      { key: 'status',  label: 'Status',   type: 'select', options: ['for-sale', 'new', 'open-house', 'pending'] },
-      { key: 'type',    label: 'Type',     type: 'select', options: ['house', 'condo', 'loft', 'townhouse'] },
+      { key: 'status',  label: 'Status',   type: 'select', options: ['for-sale', 'for-rent', 'new', 'open-house', 'pending'] },
+      { key: 'type',    label: 'Type',     type: 'select', options: ['house', 'condo', 'loft', 'townhouse', 'pg'] },
       { key: 'price',   label: 'Price',    type: 'number' },
       { key: 'currency', label: 'Currency', type: 'text' },
       { key: 'beds',    label: 'Beds',     type: 'number' },
@@ -4454,6 +4469,7 @@ function itemListSectionTitle(blockType: string, itemSchema: ItemSchema): string
     'vertical.autoInventory': 'Vehicles',
     'vertical.propertyListing': 'Properties',
     'booking.recurring': 'Frequency options',
+    'service.process': 'Steps',
   }
   return titles[blockType] || `${itemSchema.itemLabel}s`
 }
@@ -4464,6 +4480,7 @@ const ITEM_LIST_DEFAULT_OPEN = new Set([
   'services_cards', 'services_list', 'team_grid', 'trust_logos', 'marquee_strip', 'payment_methods_strip',
   'gallery_masonry', 'gallery', 'gallery_grid', 'video_gallery',
   'vertical.fitnessSchedule', 'vertical.ticketPicker', 'vertical.courseCatalog', 'vertical.vehicleDetail', 'vertical.autoInventory', 'vertical.propertyListing', 'booking.recurring',
+  'service.process',
 ])
 
 /** Block types with their own dedicated Title/Description fields in a custom content panel — skip the generic duplicates below. */
@@ -4471,6 +4488,8 @@ const TITLE_DESC_HANDLED_ELSEWHERE = new Set([
   'vertical.courseDetail',
   'vertical.ticketPicker',
   'booking.recurring',
+  'booking.wizard',
+  'booking.resource',
   'state.error',
   'state.empty',
 ])
@@ -6520,6 +6539,8 @@ function PropsEditor({
   const isEventListingBlock = block.block_type === 'vertical.eventListing'
   const isRecurringBlock = isRecurringSyncedBlock(block.block_type)
   const isTestimonialsBlock = isTestimonialsSyncedBlock(block.block_type)
+  const isWizardBlock = isWizardSyncedBlock(block.block_type)
+  const isResourceBlock = isResourceSyncedBlock(block.block_type)
   const [blogLiveItems, setBlogLiveItems] = useState<LiveItem[]>([])
   const [categoryLiveItems, setCategoryLiveItems] = useState<LiveItem[]>([])
   const [plansLiveItems, setPlansLiveItems] = useState<LiveItem[]>([])
@@ -6530,6 +6551,8 @@ function PropsEditor({
   const [eventsLiveItems, setEventsLiveItems] = useState<LiveItem[]>([])
   const [recurringLiveItems, setRecurringLiveItems] = useState<LiveItem[]>([])
   const [testimonialsLiveItems, setTestimonialsLiveItems] = useState<LiveItem[]>([])
+  const [wizardLiveItems, setWizardLiveItems] = useState<LiveItem[]>([])
+  const [resourceLiveItems, setResourceLiveItems] = useState<LiveItem[]>([])
 
   useEffect(() => {
     if (!isBlogBlock) return
@@ -6629,6 +6652,28 @@ function PropsEditor({
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps -- migrate legacy testimonials blocks once per selection
   }, [block.id, block.block_type, isTestimonialsBlock])
+
+  useEffect(() => {
+    if (!isWizardBlock) return
+    const dsType = (p as Record<string, unknown>).data_source as { type?: string } | undefined
+    // Repairs blocks created before 'booking.wizard' had a dedicated auto-source entry, which
+    // fell back to the generic 'bookings' resource and never showed the synced steps.
+    if (!dsType || dsType.type !== 'booking_wizard_steps') {
+      onUpdate({ data_source: { type: 'booking_wizard_steps', auto: true } } as Partial<BlockProps>)
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- migrate legacy booking wizard blocks once per selection
+  }, [block.id, block.block_type, isWizardBlock])
+
+  useEffect(() => {
+    if (!isResourceBlock) return
+    const dsType = (p as Record<string, unknown>).data_source as { type?: string } | undefined
+    // Repairs blocks created before 'booking.resource' had a dedicated auto-source entry, which
+    // fell back to the generic 'bookings' resource and never showed the synced resources.
+    if (!dsType || dsType.type !== 'booking_resources') {
+      onUpdate({ data_source: { type: 'booking_resources', auto: true } } as Partial<BlockProps>)
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- migrate legacy resource picker blocks once per selection
+  }, [block.id, block.block_type, isResourceBlock])
 
   useEffect(() => {
     if (!isTeamBlock || !siteId) {
@@ -6764,6 +6809,26 @@ function PropsEditor({
       .catch(() => setTestimonialsLiveItems([]))
   }, [isTestimonialsBlock, siteId, block.id])
 
+  useEffect(() => {
+    if (!isWizardBlock || !siteId) {
+      setWizardLiveItems([])
+      return
+    }
+    void websiteApi.getLive(siteId, 'booking_wizard_steps', { limit: 50 })
+      .then(r => setWizardLiveItems(r.items ?? []))
+      .catch(() => setWizardLiveItems([]))
+  }, [isWizardBlock, siteId, block.id])
+
+  useEffect(() => {
+    if (!isResourceBlock || !siteId) {
+      setResourceLiveItems([])
+      return
+    }
+    void websiteApi.getLive(siteId, 'booking_resources', { limit: 50 })
+      .then(r => setResourceLiveItems(r.items ?? []))
+      .catch(() => setResourceLiveItems([]))
+  }, [isResourceBlock, siteId, block.id])
+
   const publishedBlogCount = blogLiveItems.filter(item => item.meta?.is_published !== false).length
   const draftBlogCount = blogLiveItems.filter(item => item.meta?.is_published === false).length
   const activeCategoryCount = categoryLiveItems.length
@@ -6776,6 +6841,11 @@ function PropsEditor({
   const activeRecurringCount = recurringLiveItems.filter(item => item.meta?.is_active !== false).length
   const curatedTestimonialsCount = testimonialsLiveItems.filter(item => item.meta?.review_type === undefined).length
   const isTestimonialsFromReviews = testimonialsLiveItems.length > 0 && curatedTestimonialsCount === 0
+  const activeWizardSteps = wizardLiveItems.filter(item => item.meta?.is_active !== false)
+  const activeWizardStepsCount = activeWizardSteps.length
+  const isWizardFromDefaultTemplate = wizardLiveItems.length > 0 && wizardLiveItems.every(item => item.meta?.is_default_template === true)
+  const activeResourcesCount = resourceLiveItems.filter(item => item.meta?.is_active !== false).length
+  const isResourceFromDefaultTemplate = resourceLiveItems.length > 0 && resourceLiveItems.every(item => item.meta?.is_default_template === true)
 
   const blogManagerBanner = isBlogBlock ? (
     <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2.5 text-xs text-emerald-900 leading-snug space-y-2">
@@ -7001,6 +7071,50 @@ function PropsEditor({
         className="inline-flex items-center gap-1 font-semibold text-primary hover:underline"
       >
         Open Testimonials →
+      </a>
+    </div>
+  ) : undefined
+
+  const wizardManagerBanner = isWizardBlock ? (
+    <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2.5 text-xs text-emerald-900 leading-snug space-y-2">
+      <p>
+        <span className="font-semibold">Synced with Booking Wizard.</span>{' '}
+        Steps you manage in Sales → Booking Wizard appear here automatically.
+      </p>
+      <p className="text-emerald-800">
+        {isWizardFromDefaultTemplate
+          ? `No steps configured yet — showing the default ${activeWizardStepsCount}-step flow below. Add your own steps in Booking Wizard to take full control.`
+          : `${activeWizardStepsCount} active step${activeWizardStepsCount === 1 ? '' : 's'} shown${wizardLiveItems.length > activeWizardStepsCount ? ` · ${wizardLiveItems.length - activeWizardStepsCount} hidden (not shown here or on storefront)` : ''}.`}
+      </p>
+      <a
+        href="/sales/booking-wizard"
+        target="_blank"
+        rel="noopener noreferrer"
+        className="inline-flex items-center gap-1 font-semibold text-primary hover:underline"
+      >
+        Open Booking Wizard →
+      </a>
+    </div>
+  ) : undefined
+
+  const resourceManagerBanner = isResourceBlock ? (
+    <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2.5 text-xs text-emerald-900 leading-snug space-y-2">
+      <p>
+        <span className="font-semibold">Synced with Resources.</span>{' '}
+        Rooms, tables, courts, or equipment you manage in Sales → Resources appear here automatically.
+      </p>
+      <p className="text-emerald-800">
+        {isResourceFromDefaultTemplate
+          ? `No resources configured yet — showing ${activeResourcesCount} demo resource${activeResourcesCount === 1 ? '' : 's'} below. Add your own in Resources to take full control.`
+          : `${activeResourcesCount} active resource${activeResourcesCount === 1 ? '' : 's'} shown${resourceLiveItems.length > activeResourcesCount ? ` · ${resourceLiveItems.length - activeResourcesCount} hidden (not shown here or on storefront)` : ''}.`}
+      </p>
+      <a
+        href="/sales/booking-resources"
+        target="_blank"
+        rel="noopener noreferrer"
+        className="inline-flex items-center gap-1 font-semibold text-primary hover:underline"
+      >
+        Open Resources →
       </a>
     </div>
   ) : undefined
@@ -7529,6 +7643,8 @@ function PropsEditor({
       {eventsManagerBanner}
       {recurringManagerBanner}
       {testimonialsManagerBanner}
+      {wizardManagerBanner}
+      {resourceManagerBanner}
       {supportsBlockElementDelete(block.block_type) && (() => {
         const hidden = listDeletableHiddenFields(block.block_type, p as Record<string, unknown>)
         if (!hidden.length) return null
@@ -7856,8 +7972,10 @@ function PropsEditor({
             {inputRow({ label: 'Date', fieldKey: 'date', placeholder: 'Friday, June 5, 2026' })}
             {inputRow({ label: 'Doors', fieldKey: 'doors', placeholder: '7:30 PM' })}
             {inputRow({ label: 'Start', fieldKey: 'start', placeholder: '8:30 PM' })}
+            {inputRow({ label: 'End time', fieldKey: 'end', placeholder: '11:00 PM' })}
             {inputRow({ label: 'Venue', fieldKey: 'venue', placeholder: 'The Greene Room' })}
             {inputRow({ label: 'Address', fieldKey: 'address', placeholder: '418 Atlantic Ave, Brooklyn' })}
+            {inputRow({ label: 'Maximum seats', fieldKey: 'venue_capacity', placeholder: '500' })}
           </div>
         </PropsCollapsible>
       )}
@@ -8398,6 +8516,120 @@ function PropsEditor({
         </PropsCollapsible>
       )}
 
+      {isWizardBlock && (
+        <PropsCollapsible title="Section header" preview="Title, subtitle above the wizard" defaultOpen>
+          <div className="space-y-2">
+            <p className="text-[11px] text-muted-foreground leading-snug">
+              Shown above the step indicator. The steps themselves — labels and descriptions — are managed in Sales → Booking Wizard, not here.
+            </p>
+            {inputRow({ label: 'Section title', fieldKey: 'header_title', placeholder: 'New booking' })}
+            {inputRow({ label: 'Section subtitle', fieldKey: 'header_subtitle', placeholder: 'Leave empty to hide' })}
+          </div>
+        </PropsCollapsible>
+      )}
+
+      {isWizardBlock && (
+        <PropsCollapsible title="Wizard steps" preview={`${activeWizardStepsCount} step${activeWizardStepsCount === 1 ? '' : 's'}`} defaultOpen>
+          <div className="space-y-2">
+            <p className="text-[11px] text-muted-foreground leading-snug">
+              Every active step from Booking Wizard appears here, in order. Add, edit, reorder, or delete steps there.
+            </p>
+            <a
+              href="/sales/booking-wizard"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1 text-[11px] font-semibold text-primary hover:underline"
+            >
+              Open Booking Wizard →
+            </a>
+          </div>
+        </PropsCollapsible>
+      )}
+
+      {isWizardBlock && (
+        <PropsCollapsible
+          title="Current step status"
+          preview={typeof (p as any).current_step === 'number' && activeWizardSteps[(p as any).current_step] ? `Step ${(p as any).current_step + 1}: ${activeWizardSteps[(p as any).current_step].title}` : 'Auto (demo default)'}
+        >
+          <div className="space-y-2">
+            <p className="text-[11px] text-muted-foreground leading-snug">
+              Choose which step should show as done / current / upcoming in this section — e.g. to show visitors
+              "you are here" on an order-confirmation or status page. Leave on Auto to keep the built-in interactive
+              demo (visitors can click Back / Continue).
+            </p>
+            <select
+              value={typeof (p as any).current_step === 'number' ? String((p as any).current_step) : ''}
+              onChange={e => onUpdate({ current_step: e.target.value === '' ? undefined : Number(e.target.value) } as any)}
+              className="w-full rounded-md border border-input bg-background px-2 py-1.5 text-xs"
+            >
+              <option value="">Auto (demo default)</option>
+              {activeWizardSteps.map((item, idx) => (
+                <option key={item.id || idx} value={idx}>
+                  {`${idx + 1}. ${item.title || `Step ${idx + 1}`}`}
+                </option>
+              ))}
+            </select>
+          </div>
+        </PropsCollapsible>
+      )}
+
+      {isResourceBlock && (
+        <PropsCollapsible title="Section header" preview="Title, subtitle above the resources" defaultOpen>
+          <div className="space-y-2">
+            <p className="text-[11px] text-muted-foreground leading-snug">
+              Shown above the resource cards. The resources themselves — name, description, price, features — are
+              managed in Sales → Resources, not here.
+            </p>
+            {inputRow({ label: 'Section title', fieldKey: 'header_title', placeholder: 'Pick a resource' })}
+            {inputRow({ label: 'Section subtitle', fieldKey: 'header_subtitle', placeholder: 'Leave empty to hide' })}
+          </div>
+        </PropsCollapsible>
+      )}
+
+      {isResourceBlock && (
+        <PropsCollapsible title="Resources" preview={`${activeResourcesCount} resource${activeResourcesCount === 1 ? '' : 's'}`} defaultOpen>
+          <div className="space-y-2">
+            <p className="text-[11px] text-muted-foreground leading-snug">
+              Every active resource from Resources appears here, in order. Add, edit, reorder, or delete resources there.
+            </p>
+            <a
+              href="/sales/booking-resources"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1 text-[11px] font-semibold text-primary hover:underline"
+            >
+              Open Resources →
+            </a>
+          </div>
+        </PropsCollapsible>
+      )}
+
+      {isResourceBlock && (
+        <PropsCollapsible title="Display options" preview={`${(p as any).showFeatures !== false ? 'Features on' : 'Features off'} · ${(p as any).showPrice !== false ? 'Price on' : 'Price off'}`}>
+          <div className="space-y-2">
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={(p as any).showFeatures !== false}
+                onChange={e => onUpdate({ showFeatures: e.target.checked } as any)}
+                className="rounded accent-primary w-4 h-4"
+              />
+              <span className="text-xs font-medium text-gray-700">Show feature tags</span>
+            </label>
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={(p as any).showPrice !== false}
+                onChange={e => onUpdate({ showPrice: e.target.checked } as any)}
+                className="rounded accent-primary w-4 h-4"
+              />
+              <span className="text-xs font-medium text-gray-700">Show price per hour</span>
+            </label>
+            {inputRow({ label: 'Reserve button', fieldKey: 'cta', placeholder: 'Reserve' })}
+          </div>
+        </PropsCollapsible>
+      )}
+
       {itemSchema && !isPlansBlock && !isPropertiesBlock && !isCoursesBlock && !isFitnessBlock && !isVehiclesBlock && !(isEventsBlock && eventsLiveItems.length > 0) && !(isRecurringBlock && recurringLiveItems.length > 0) && !(isTestimonialsBlock && testimonialsLiveItems.length > 0) && (
         <PropsCollapsible
           title={itemListSectionTitle(block.block_type, itemSchema)}
@@ -8492,7 +8724,7 @@ function PropsEditor({
               </PropsAccordionSection>
             ) : null}
 
-            {itemSchema && !isCatalogGridBlock && block.block_type !== 'marquee_strip' && block.block_type !== 'timeline' && block.block_type !== 'service.faq' && block.block_type !== 'payment_methods_strip' ? (
+            {itemSchema && !isCatalogGridBlock && block.block_type !== 'marquee_strip' && block.block_type !== 'timeline' && block.block_type !== 'service.faq' && block.block_type !== 'service.process' && block.block_type !== 'payment_methods_strip' ? (
               <PropsAccordionSection
                 id="grid"
                 activeId={layoutAccordionOpen}

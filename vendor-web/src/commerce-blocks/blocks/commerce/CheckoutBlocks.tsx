@@ -50,10 +50,16 @@ export function Checkout({
   const [shipping, setShipping] = useState("standard");
   const [pay, setPay] = useState("card");
 
-  const items = mockCheckout.items.map((i) => ({
-    ...i,
-    product: mockProducts.find((p) => p.id === i.productId)!,
-  }));
+  // mockProducts is a shared, mutable array — a live-synced product block earlier on the
+  // same page can replace its contents with real vendor products, so these static demo
+  // productIds ("p1", "p7") may no longer resolve. Filter out any that don't match instead
+  // of crashing.
+  const items = mockCheckout.items
+    .map((i) => ({
+      ...i,
+      product: mockProducts.find((p) => p.id === i.productId),
+    }))
+    .filter((it) => it.product);
 
   const Summary = (
     <aside className="space-y-4 rounded-lg border border-border bg-muted/30 p-5">
@@ -62,19 +68,19 @@ export function Checkout({
         {items.map((it) => (
           <li key={it.productId} className="flex gap-3">
             <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-md bg-muted">
-              {it.product.image && (
-                <img src={it.product.image} alt={it.product.name} className="h-full w-full object-cover" />
+              {it.product!.image && (
+                <img src={it.product!.image} alt={it.product!.name} className="h-full w-full object-cover" />
               )}
               <span className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-foreground px-1 text-xs font-medium text-background">
                 {it.quantity}
               </span>
             </div>
             <div className="min-w-0 flex-1">
-              <div className="line-clamp-1 text-sm font-medium">{it.product.name}</div>
+              <div className="line-clamp-1 text-sm font-medium">{it.product!.name}</div>
               <div className="text-xs text-muted-foreground">{it.variant}</div>
             </div>
             <div className="text-sm font-medium">
-              {formatPrice(it.product.price * it.quantity, it.product.currency)}
+              {formatPrice(it.product!.price * it.quantity, it.product!.currency)}
             </div>
           </li>
         ))}
@@ -384,10 +390,14 @@ export function OrderConfirmation({
   cta = "Track your order",
 }: OrderConfirmationProps) {
   const o = mockOrderConfirmation;
-  const items = o.items.map((i) => ({
-    ...i,
-    product: mockProducts.find((p) => p.id === i.productId)!,
-  }));
+  // Same shared-mutable-mock guard as Checkout — a live product feed elsewhere on the page
+  // can replace mockProducts, so fall back gracefully instead of crashing on a missed match.
+  const items = o.items
+    .map((i) => ({
+      ...i,
+      product: mockProducts.find((p) => p.id === i.productId),
+    }))
+    .filter((it) => it.product);
 
   return (
     <div className="bg-background p-6">
@@ -414,12 +424,12 @@ export function OrderConfirmation({
                   {items.map((it) => (
                     <li key={it.productId} className="flex gap-3">
                       <div className="h-14 w-14 shrink-0 overflow-hidden rounded-md bg-muted">
-                        {it.product.image && (
-                          <img src={it.product.image} alt={it.product.name} className="h-full w-full object-cover" />
+                        {it.product!.image && (
+                          <img src={it.product!.image} alt={it.product!.name} className="h-full w-full object-cover" />
                         )}
                       </div>
                       <div className="min-w-0 flex-1">
-                        <div className="text-sm font-medium">{it.product.name}</div>
+                        <div className="text-sm font-medium">{it.product!.name}</div>
                         <div className="text-xs text-muted-foreground">
                           {it.variant} · Qty {it.quantity}
                         </div>

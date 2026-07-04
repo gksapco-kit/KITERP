@@ -24,9 +24,11 @@ class VendorEvent(Base):
     event_date = Column(String(20), nullable=True)  # ISO date, e.g. 2026-06-05
     doors_time = Column(String(10), nullable=True)  # HH:MM
     start_time = Column(String(10), nullable=True)  # HH:MM
+    end_time = Column(String(10), nullable=True)  # HH:MM
 
     venue = Column(String(255), nullable=True)
     address = Column(String(500), nullable=True)
+    venue_capacity = Column(Integer, nullable=True)  # Maximum seats the venue can allot for this event
     age_note = Column(String(255), nullable=True)
 
     order_title = Column(String(120), default="Your order", nullable=False)

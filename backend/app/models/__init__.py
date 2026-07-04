@@ -122,6 +122,8 @@ from app.models.vendor_vehicle import VendorVehicle
 from app.models.vendor_event import VendorEvent
 from app.models.vendor_recurring_plan import VendorRecurringPlan
 from app.models.vendor_testimonial import VendorTestimonial
+from app.models.vendor_booking_wizard_step import VendorBookingWizardStep
+from app.models.vendor_booking_resource import VendorBookingResource
 from app.models.schema_field_mapping import SchemaFieldMapping
 
 from app.models.website import (

@@ -20,8 +20,10 @@ export interface VendorEvent {
   event_date?: string | null
   doors_time?: string | null
   start_time?: string | null
+  end_time?: string | null
   venue?: string | null
   address?: string | null
+  venue_capacity?: number | null
   age_note?: string | null
   order_title: string
   seating_title: string
@@ -42,8 +44,10 @@ export interface VendorEventCreate {
   event_date?: string
   doors_time?: string
   start_time?: string
+  end_time?: string
   venue?: string
   address?: string
+  venue_capacity?: number | null
   age_note?: string
   order_title?: string
   seating_title?: string

@@ -92,8 +92,10 @@ def _event_to_dict(e: VendorEvent) -> dict:
         "event_date": e.event_date,
         "doors_time": e.doors_time,
         "start_time": e.start_time,
+        "end_time": e.end_time,
         "venue": e.venue,
         "address": e.address,
+        "venue_capacity": e.venue_capacity,
         "age_note": e.age_note,
         "order_title": e.order_title,
         "seating_title": e.seating_title,
@@ -115,8 +117,10 @@ class EventCreate(BaseModel):
     event_date: Optional[str] = None
     doors_time: Optional[str] = None
     start_time: Optional[str] = None
+    end_time: Optional[str] = None
     venue: Optional[str] = None
     address: Optional[str] = None
+    venue_capacity: Optional[int] = None
     age_note: Optional[str] = None
     order_title: str = "Your order"
     seating_title: str = "Seating chart"
@@ -136,8 +140,10 @@ class EventUpdate(BaseModel):
     event_date: Optional[str] = None
     doors_time: Optional[str] = None
     start_time: Optional[str] = None
+    end_time: Optional[str] = None
     venue: Optional[str] = None
     address: Optional[str] = None
+    venue_capacity: Optional[int] = None
     age_note: Optional[str] = None
     order_title: Optional[str] = None
     seating_title: Optional[str] = None
@@ -215,8 +221,10 @@ async def create_event(
         event_date=body.event_date,
         doors_time=body.doors_time,
         start_time=body.start_time,
+        end_time=body.end_time,
         venue=body.venue,
         address=body.address,
+        venue_capacity=body.venue_capacity,
         age_note=body.age_note,
         order_title=body.order_title,
         seating_title=body.seating_title,

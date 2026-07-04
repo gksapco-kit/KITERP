@@ -546,10 +546,10 @@ export function useBooking(id: string) {
   })
 }
 
-export function useBookingSlots(serviceId: string | undefined, bookingDate: string | undefined) {
+export function useBookingSlots(serviceId: string | undefined, bookingDate: string | undefined, planId?: string) {
   return useQuery({
-    queryKey: ['booking-slots', serviceId, bookingDate],
-    queryFn: () => storeApi.getBookingSlots(serviceId!, bookingDate!),
+    queryKey: ['booking-slots', serviceId, bookingDate, planId],
+    queryFn: () => storeApi.getBookingSlots(serviceId!, bookingDate!, planId),
     enabled: !!serviceId && !!bookingDate,
     staleTime: 60_000,
   })
@@ -559,7 +559,7 @@ export function useCreateBooking() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: (data: {
-      service_id: string; booking_date: string; start_time?: string
+      service_id: string; plan_id?: string; booking_date: string; start_time?: string
       notes?: string; payment_method?: string
     }) => storeApi.createBooking(data),
     onSuccess: () => {

@@ -30,7 +30,7 @@ import {
   Clock, Eye, Search, Puzzle, BarChart3, Edit2, History,
   Calendar, MapPin, Star, Globe, Tag, Repeat, Plus, Trash2,
   GripVertical, Film, Box, Image as ImageIcon, Copy, MessageSquare, ToggleRight, Info, Layers, Pencil, FileDown,
-  Printer, Store, Hash, Factory, Users,
+  Printer, Store, Hash, Factory, Users, X,
 } from 'lucide-react'
 import {
   BOOKING_DOC_TYPES, getServiceDocTemplates, setServiceDocTemplates,
@@ -59,6 +59,7 @@ import { normalizeCatalogAddons, serializeCatalogAddons, type CatalogAddon } fro
 import { newPlan, type PlanDraft, type AvailSlot } from './planDraft'
 import { DEFAULT_AVAILABILITY, LEAD_TIME_UNITS, CURRENCY_SYMBOL, UOM_OPTIONS, UOM_GROUPS, SUBSCRIPTION_INTERVALS, SCHEDULE_MODE_OPTIONS, SERVICE_MODE_OPTIONS, SERVICE_TYPE_OPTIONS, DAYS_SHORT } from './serviceCatalogConstants'
 import { ServicePlansEditor } from './ServicePlansEditor'
+import { InputWithPrefix } from './variantPanelUi'
 import { ServiceBOMEditor } from '@/components/services/ServiceBOMEditor'
 import { ServiceResourcesEditor } from '@/components/services/ServiceResourcesEditor'
 import { ServiceCostSummary } from '@/components/services/ServiceCostSummary'
@@ -247,15 +248,50 @@ function csvToArray(v?: string): string[] {
   return v.split(',').map(t => t.trim()).filter(Boolean)
 }
 
-function parseJsonField(v?: string): unknown {
-  if (!v?.trim()) return undefined
-  try { return JSON.parse(v) } catch { return undefined }
+interface ServicePackageDraft {
+  _key: string
+  name: string
+  price: string
+  includes: string
 }
 
-function safeJsonStr(v: unknown): string {
-  if (!v) return ''
-  if (typeof v === 'string') return v
-  return JSON.stringify(v, null, 2)
+let packageKeySeq = 0
+function nextPackageKey(): string {
+  packageKeySeq += 1
+  return `pkg-${packageKeySeq}`
+}
+
+function emptyServicePackage(): ServicePackageDraft {
+  return { _key: nextPackageKey(), name: '', price: '', includes: '' }
+}
+
+/** Accepts the legacy JSON-string form, an already-parsed array, or nothing — always returns editable rows. */
+function normalizeServicePackages(v: unknown): ServicePackageDraft[] {
+  let arr: unknown = v
+  if (typeof v === 'string') {
+    if (!v.trim()) return []
+    try { arr = JSON.parse(v) } catch { return [] }
+  }
+  if (!Array.isArray(arr)) return []
+  return arr.map((pkg) => {
+    const p = (pkg || {}) as { name?: string; price?: number | string; includes?: string[] }
+    return {
+      _key: nextPackageKey(),
+      name: p.name || '',
+      price: p.price != null ? String(p.price) : '',
+      includes: Array.isArray(p.includes) ? p.includes.join(', ') : '',
+    }
+  })
+}
+
+function serializeServicePackages(rows: ServicePackageDraft[]): Array<{ name: string; price?: number; includes: string[] }> {
+  return rows
+    .filter(row => row.name.trim())
+    .map(row => ({
+      name: row.name.trim(),
+      price: row.price.trim() ? parseFloat(row.price) : undefined,
+      includes: csvToArray(row.includes),
+    }))
 }
 
 // ── Quote Form Configurator ──────────────────────────────────────
@@ -485,10 +521,10 @@ function AvailabilityEditor({ availability, onChange }: {
   }
 
   const timeCls = cn(
-    'h-8 w-[6.25rem] shrink-0 rounded-md border border-border bg-background px-2.5 pr-7',
-    'text-xs text-foreground [color-scheme:dark]',
+    'h-8 w-[8.5rem] shrink-0 rounded-md border border-border bg-background px-2.5',
+    'text-xs text-foreground [color-scheme:light] dark:[color-scheme:dark]',
     'focus:outline-none focus:ring-1 focus:ring-primary/50',
-    '[&::-webkit-calendar-picker-indicator]:cursor-pointer [&::-webkit-calendar-picker-indicator]:opacity-60',
+    '[&::-webkit-calendar-picker-indicator]:ml-1 [&::-webkit-calendar-picker-indicator]:cursor-pointer [&::-webkit-calendar-picker-indicator]:opacity-70',
   )
 
   return (
@@ -652,6 +688,9 @@ export default function ServiceForm() {
   // Structured add-ons (linked services / products with booking trigger rules)
   type ServiceAddonItem = CatalogAddon
   const [serviceAddons, setServiceAddons] = useState<ServiceAddonItem[]>([])
+
+  // Bundled service packages (e.g. "Basic" / "Premium" tiers with a price and included items)
+  const [servicePackages, setServicePackages] = useState<ServicePackageDraft[]>([])
   const [svcAddonSearch, setSvcAddonSearch] = useState('')
   const [svcAddonResults, setSvcAddonResults] = useState<Array<{ id: string; name: string; item_type: 'product' | 'service' }>>([])
   const [svcAddonLoading, setSvcAddonLoading] = useState(false)
@@ -828,10 +867,11 @@ export default function ServiceForm() {
       whats_not_included: (service.whats_not_included || []).join(', '),
       service_areas: (service.service_areas || []).join(', '),
       addons: '',
-      service_packages: safeJsonStr(service.service_packages),
+      service_packages: '',
     })
 
     setServiceAddons(normalizeCatalogAddons(service.addons))
+    setServicePackages(normalizeServicePackages(service.service_packages))
 
     // Load plans with all per-plan feature overrides
     if (service.plans?.length) {
@@ -962,7 +1002,7 @@ export default function ServiceForm() {
       data.whats_included = csvToArray(raw.whats_included)
       data.whats_not_included = csvToArray(raw.whats_not_included)
       data.service_areas = csvToArray(raw.service_areas)
-      data.service_packages = parseJsonField(raw.service_packages) || []
+      data.service_packages = serializeServicePackages(servicePackages)
       data.availability = availability.filter(a => a.is_available).map(({ day_of_week, start_time, end_time }) => ({ day_of_week, start_time, end_time, is_available: true }))
 
       // Serialize plans with per-plan configuration
@@ -1369,7 +1409,7 @@ export default function ServiceForm() {
             )}
 
             <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-              <DisplayField label="Material Code" value={service.material_code ? <span className="font-mono text-gray-700">{service.material_code}</span> : undefined} />
+              <DisplayField label="Service Code" value={service.material_code ? <span className="font-mono text-gray-700">{service.material_code}</span> : undefined} />
               <DisplayField label="Service Mode" value={modeLbl} />
               <DisplayField label="Category" value={service.category} />
               <DisplayField label="Subcategory" value={service.subcategory} />
@@ -1942,7 +1982,7 @@ export default function ServiceForm() {
               <FormField label="Service Name" name="name" required>
                 <Input {...register('name')} placeholder="e.g. AC Repair & Service" />
               </FormField>
-              <FormField label="Material Code">
+              <FormField label="Service Code">
                 <div className="space-y-1">
                   <div className="relative">
                     <Hash className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-gray-400" />
@@ -2219,10 +2259,54 @@ export default function ServiceForm() {
               <FormField label="Service Areas (pin codes or names, comma separated)">
                 <Input {...register('service_areas')} placeholder="560001, 560002, Koramangala" />
               </FormField>
-              <FormField label="Service Packages (JSON array)">
-                <textarea {...register('service_packages')} rows={2} className={`${textareaCls} font-mono text-xs`}
-                  placeholder='[{"name":"Basic","price":999}]' />
-              </FormField>
+            </div>
+            <div>
+              <FormColumnLabel className="mb-1.5">Service Packages</FormColumnLabel>
+              <p className="text-xs text-gray-400 mb-2">Optional bundles customers can choose instead of a single price — e.g. "Basic" vs "Premium".</p>
+              <div className="space-y-2">
+                {servicePackages.length === 0 && (
+                  <p className="text-xs text-gray-400 italic">No packages yet.</p>
+                )}
+                {servicePackages.map((pkg, i) => (
+                  <div key={pkg._key} className="rounded-lg border border-gray-200 p-2.5 space-y-2 bg-gray-50/50">
+                    <div className="flex items-start gap-2">
+                      <div className="grid flex-1 grid-cols-2 gap-2">
+                        <Input
+                          value={pkg.name}
+                          onChange={e => setServicePackages(rows => rows.map((r, idx) => idx === i ? { ...r, name: e.target.value } : r))}
+                          placeholder="Package name (Basic)"
+                        />
+                        <InputWithPrefix
+                          prefix={CURRENCY_SYMBOL[watch('currency')] || watch('currency') || '₹'}
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          value={pkg.price}
+                          onChange={e => setServicePackages(rows => rows.map((r, idx) => idx === i ? { ...r, price: e.target.value } : r))}
+                          placeholder="999"
+                        />
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setServicePackages(rows => rows.filter((_, idx) => idx !== i))}
+                        className="mt-1 shrink-0 rounded p-1.5 text-destructive hover:bg-destructive/10"
+                        title="Remove package"
+                        aria-label="Remove package"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                    <Input
+                      value={pkg.includes}
+                      onChange={e => setServicePackages(rows => rows.map((r, idx) => idx === i ? { ...r, includes: e.target.value } : r))}
+                      placeholder="What's included, comma separated (Inspection, Labor, Parts)"
+                    />
+                  </div>
+                ))}
+              </div>
+              <Button type="button" variant="outline" size="sm" onClick={() => setServicePackages(rows => [...rows, emptyServicePackage()])} className="gap-2 mt-2">
+                <Plus className="w-3.5 h-3.5" /> Add package
+              </Button>
             </div>
           </div>
         </Section>
@@ -2319,7 +2403,7 @@ export default function ServiceForm() {
 
                     <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
                       <div>
-                        <label className="block text-xs font-medium text-gray-500 uppercase tracking-wide mb-0.5">Type</label>
+                        <label className="block text-xs font-medium text-gray-500 uppercase tracking-wide mb-0.5">Add-on Category</label>
                         <select value={addon.addon_type}
                           onChange={e => setServiceAddons(p => p.map((a, i) => i === ai ? { ...a, addon_type: e.target.value } : a))}
                           className="w-full h-8 px-2 border border-gray-200 rounded-lg text-xs bg-white focus:outline-none focus:ring-2 focus:ring-indigo-400">

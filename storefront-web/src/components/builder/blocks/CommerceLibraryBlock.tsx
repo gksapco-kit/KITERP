@@ -268,8 +268,10 @@ function liveItemToEvent(item: LiveItem, idx: number) {
     date: formatEventDate(meta.event_date as string | undefined),
     doors: formatEventTime(meta.doors_time as string | undefined),
     start: formatEventTime(meta.start_time as string | undefined),
+    end: formatEventTime(meta.end_time as string | undefined),
     venue: (meta.venue as string) || undefined,
     address: (meta.address as string) || undefined,
+    venueCapacity: meta.venue_capacity != null ? Number(meta.venue_capacity) || undefined : undefined,
     tiers: Array.isArray(meta.tiers) ? meta.tiers : [],
     orderTitle: (meta.order_title as string) || undefined,
     ageNote: (meta.age_note as string) || undefined,
@@ -341,6 +343,29 @@ function liveItemToRecurringPlan(item: LiveItem, idx: number) {
     showUpcoming: meta.show_upcoming !== false,
     presets: Array.isArray(meta.presets) ? meta.presets : [],
     ctaLabel: (meta.cta_label as string) || undefined,
+  }
+}
+
+function liveItemToWizardStep(item: LiveItem, idx: number) {
+  return {
+    id: item.id || `live-wizard-step-${idx}`,
+    label: item.title || `Step ${idx + 1}`,
+    description: item.description || undefined,
+  }
+}
+
+function liveItemToResource(item: LiveItem, idx: number) {
+  const meta = (item.meta as Record<string, unknown>) || {}
+  return {
+    id: item.id || `live-resource-${idx}`,
+    name: item.title || `Resource ${idx + 1}`,
+    type: (meta.resource_type as string) || 'room',
+    capacity: Number(meta.capacity) || 1,
+    description: item.description || undefined,
+    features: Array.isArray(meta.features) ? (meta.features as string[]) : [],
+    pricePerHour: typeof item.price === 'number' ? item.price : Number(meta.price_per_hour) || 0,
+    currency: (meta.currency as string) || 'USD',
+    available: meta.is_available !== false,
   }
 }
 
@@ -458,6 +483,24 @@ export default function CommerceLibraryBlock({ style, props, liveItems, blockTyp
       .map(liveItemToRecurringPlan)
   }, [blockType, liveItems])
 
+  // Booking Wizard steps (Sales → Booking Wizard) — inactive steps never render; the live
+  // feed itself falls back to the default 5-step template when the vendor has none configured.
+  const liveWizardSteps = useMemo(() => {
+    if (blockType !== 'booking.wizard') return []
+    return liveItems
+      .filter((item) => (item.meta as Record<string, unknown> | undefined)?.is_active !== false)
+      .map(liveItemToWizardStep)
+  }, [blockType, liveItems])
+
+  // Booking resources (Sales → Resources) — inactive resources never render; the live feed
+  // itself falls back to demo resources when the vendor has none configured.
+  const liveResources = useMemo(() => {
+    if (blockType !== 'booking.resource') return []
+    return liveItems
+      .filter((item) => (item.meta as Record<string, unknown> | undefined)?.is_active !== false)
+      .map(liveItemToResource)
+  }, [blockType, liveItems])
+
   const def = useMemo(() => commerceBlocks.find((b) => b.id === blockType), [blockType])
 
   if (!def) {
@@ -559,6 +602,7 @@ export default function CommerceLibraryBlock({ style, props, liveItems, blockTyp
     ...(Array.isArray(props.properties) && props.properties.length ? { properties: props.properties } : {}),
     ...(Array.isArray(props.perks) && props.perks.length ? { perks: props.perks } : {}),
     ...(Array.isArray(props.presets) && props.presets.length ? { presets: props.presets } : {}),
+    ...(Array.isArray(props.steps) && props.steps.length ? { steps: props.steps } : {}),
     ...(showcaseLayout ? { layout: showcaseLayout, bg_style: props.bg_style } : {}),
     // Live-synced Property Listing / Property Detail (Sales → Property Listings). Falls back to static/mock when no live listings exist yet.
     ...(liveProperties.length ? { liveProperties } : {}),
@@ -572,6 +616,10 @@ export default function CommerceLibraryBlock({ style, props, liveItems, blockTyp
     ...(liveEvents.length ? { liveEvents } : {}),
     // Live-synced Recurring Booking (Sales → Recurring Bookings). Falls back to static/mock when no live plans exist yet.
     ...(liveRecurringPlans.length ? { liveRecurringPlans } : {}),
+    // Live-synced Booking Wizard (Sales → Booking Wizard). Falls back to static/mock when no live steps exist yet.
+    ...(liveWizardSteps.length ? { liveWizardSteps } : {}),
+    // Live-synced Resource Picker (Sales → Resources). Falls back to static/mock when no live resources exist yet.
+    ...(liveResources.length ? { liveResources } : {}),
   }
 
   const themeVars = useMemo(
