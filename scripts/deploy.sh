@@ -27,6 +27,29 @@ log() { echo -e "${GREEN}[DEPLOY]${NC} $1" | tee -a "$LOG_FILE"; }
 warn() { echo -e "${YELLOW}[WARN]${NC} $1" | tee -a "$LOG_FILE"; }
 fail() { echo -e "${RED}[ERROR]${NC} $1" | tee -a "$LOG_FILE"; exit 1; }
 
+# Load production env vars into the shell (works with all compose versions; avoids --env-file).
+load_env_file() {
+    local env_file="$1"
+    set -a
+    # shellcheck disable=SC1090
+    source "$env_file"
+    set +a
+}
+
+# Prefer Docker Compose v2 plugin; fall back to standalone docker-compose (common on older EC2).
+detect_compose_cmd() {
+    local compose_file="$1"
+    if docker compose version >/dev/null 2>&1; then
+        echo "docker compose -f ${compose_file}"
+        return 0
+    fi
+    if command -v docker-compose >/dev/null 2>&1; then
+        echo "docker-compose -f ${compose_file}"
+        return 0
+    fi
+    fail "Neither 'docker compose' (v2 plugin) nor 'docker-compose' found. Install with: sudo ./scripts/setup-ec2.sh"
+}
+
 cd "$PROJECT_DIR"
 echo "" >> "$LOG_FILE"
 log "=== Deploy started at $(date -u '+%Y-%m-%d %H:%M:%S UTC') ==="
@@ -40,8 +63,10 @@ elif [ -f .env ]; then
 else
     fail "No env file found. Copy .env.config.example to .env.config on this server and fill in values (including SENDGRID_API_KEY)."
 fi
-COMPOSE="docker compose --env-file $ENV_FILE -f $COMPOSE_FILE"
+load_env_file "$ENV_FILE"
+COMPOSE="$(detect_compose_cmd "$COMPOSE_FILE")"
 log "Using env file: $ENV_FILE"
+log "Using compose: $COMPOSE"
 
 # Warn if email OTP cannot send (common cause of "no OTP on prod").
 if ! grep -qE '^SENDGRID_API_KEY=SG\.' "$ENV_FILE" 2>/dev/null; then

@@ -131,9 +131,28 @@ class IntegrationRegistry:
         return None
 
     async def get_whatsapp_adapter(self, vendor_id: UUID) -> Optional[WhatsAppAdapter]:
+        from app.services.integration_defaults_service import merge_platform_defaults
+
+        def _merge_platform(creds: dict | None) -> dict:
+            merged = dict(creds or {})
+            platform_creds, platform_settings = merge_platform_defaults("twilio", {}, {})
+            for key, value in platform_creds.items():
+                if value and not merged.get(key):
+                    merged[key] = value
+            for key, value in platform_settings.items():
+                if value and not merged.get(key):
+                    merged[key] = value
+            if not merged.get("account_sid") and (settings.TWILIO_ACCOUNT_SID or "").strip():
+                merged["account_sid"] = settings.TWILIO_ACCOUNT_SID.strip()
+            if not merged.get("auth_token") and (settings.TWILIO_AUTH_TOKEN or "").strip():
+                merged["auth_token"] = settings.TWILIO_AUTH_TOKEN.strip()
+            if not merged.get("whatsapp_from") and (settings.TWILIO_WHATSAPP_FROM or "").strip():
+                merged["whatsapp_from"] = settings.TWILIO_WHATSAPP_FROM.strip()
+            return merged
+
         creds = await self._load(vendor_id, "twilio_whatsapp")
         if creds:
-            adapter = TwilioWhatsAppAdapter.from_credentials(creds)
+            adapter = TwilioWhatsAppAdapter.from_credentials(_merge_platform(creds))
             if adapter:
                 return adapter
         meta = await self._load(vendor_id, "meta_whatsapp")
@@ -141,10 +160,13 @@ class IntegrationRegistry:
             return MetaWhatsAppAdapter.from_credentials(meta)
         # CRM Integrations page saves a single "twilio" provider row
         creds = await self._load(vendor_id, "twilio")
-        if creds and (creds.get("whatsapp_from") or "").strip():
-            adapter = TwilioWhatsAppAdapter.from_credentials(creds)
+        if creds:
+            adapter = TwilioWhatsAppAdapter.from_credentials(_merge_platform(creds))
             if adapter:
                 return adapter
+        platform = _merge_platform({})
+        if platform.get("account_sid") and platform.get("auth_token") and platform.get("whatsapp_from"):
+            return TwilioWhatsAppAdapter.from_credentials(platform)
         return None
 
     async def get_voice_adapter(self, vendor_id: UUID) -> Optional[VoiceAdapter]:
