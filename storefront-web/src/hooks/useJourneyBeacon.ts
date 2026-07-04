@@ -1,7 +1,6 @@
 import { useEffect, useRef } from 'react'
 import { useLocation } from 'react-router-dom'
-
-const API_URL = (import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000/api/v1').replace(/\/$/, '')
+import { getStorefrontApiBaseUrl } from '@/lib/apiBase'
 const VISITOR_KEY = 'asure_visitor_id'
 
 function getVisitorId(): string {
@@ -38,7 +37,7 @@ export function useJourneyBeacon(vendorId?: string, customerId?: string) {
       },
     }
     try {
-      const url = `${API_URL}/public/crm/journey/beacon/${vendorId}`
+      const url = `${getStorefrontApiBaseUrl()}/public/crm/journey/beacon/${vendorId}`
       const body = JSON.stringify(payload)
       if (typeof navigator !== 'undefined' && 'sendBeacon' in navigator) {
         navigator.sendBeacon(url, new Blob([body], { type: 'application/json' }))
@@ -62,7 +61,7 @@ export function trackJourneyEvent(vendorId: string, eventType: string, payload?:
     customer_id: customerId,
     payload: payload || {},
   })
-  const url = `${API_URL}/public/crm/journey/beacon/${vendorId}`
+  const url = `${getStorefrontApiBaseUrl()}/public/crm/journey/beacon/${vendorId}`
   if (typeof navigator !== 'undefined' && 'sendBeacon' in navigator) {
     navigator.sendBeacon(url, new Blob([body], { type: 'application/json' }))
   } else {

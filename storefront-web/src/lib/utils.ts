@@ -1,5 +1,11 @@
 import { type ClassValue, clsx } from 'clsx'
 import { twMerge } from 'tailwind-merge'
+import { getBackendOrigin } from '@/lib/apiBase'
+import { normalizeLoopbackInUrl } from '@/lib/loopbackHost'
+
+function isLoopbackHostname(hostname: string): boolean {
+  return hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '[::1]'
+}
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
@@ -32,8 +38,6 @@ export function formatDate(dateStr?: string) {
   if (!dateStr) return '-'
   return new Date(dateStr).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })
 }
-
-const BACKEND_BASE = import.meta.env.VITE_BACKEND_URL || 'http://localhost:8000'
 
 /** Pack assets referenced as /storefront-ui/* in website templates (not on backend). */
 const STOREFRONT_UI_ASSET_URLS: Record<string, string> = {
@@ -68,12 +72,30 @@ export function imgUrl(url?: string | null): string {
     }
   }
 
-  if (url.startsWith('http://') || url.startsWith('https://')) return url
+  if (url.startsWith('http://') || url.startsWith('https://')) {
+    const normalized = normalizeLoopbackInUrl(url)
+    if (typeof window !== 'undefined' && !isLoopbackHostname(window.location.hostname)) {
+      try {
+        const parsed = new URL(normalized)
+        if (isLoopbackHostname(parsed.hostname) && parsed.pathname.startsWith('/uploads/')) {
+          return `${window.location.origin}${parsed.pathname}${parsed.search}`
+        }
+      } catch {
+        /* fall through */
+      }
+    }
+    return normalized
+  }
   if (url.startsWith('/business-images')) return url
   const path = url.startsWith('/') ? url : `/${url}`
   const packAsset = STOREFRONT_UI_ASSET_URLS[path]
   if (packAsset) return packAsset
   if (path.startsWith('/storefront-ui/')) return path
+  if (path.startsWith('/uploads/') && typeof window !== 'undefined' && !isLoopbackHostname(window.location.hostname)) {
+    return `${window.location.origin}${path}`
+  }
   if (path.startsWith('/uploads/') && import.meta.env.DEV) return path
-  return `${BACKEND_BASE}${path}`
+  const base = getBackendOrigin()
+  if (!base) return path
+  return `${base}${path}`
 }

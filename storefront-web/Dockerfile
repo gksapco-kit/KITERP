@@ -30,7 +30,7 @@ WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
-ARG VITE_API_URL=http://localhost:8000/api/v1
+ARG VITE_API_URL=/api/v1
 ARG VITE_PUBLIC_BASE_PATH=/
 ARG VITE_BASE_DOMAIN=kiterp.com
 ARG VITE_VENDOR_URL=http://localhost:3001

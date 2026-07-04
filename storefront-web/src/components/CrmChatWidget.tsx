@@ -2,8 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { MessageCircle, X, Send, Loader2 } from 'lucide-react'
 import { useTheme } from '@/contexts/ThemeContext'
 import { cn } from '@/lib/utils'
-
-const API_URL = (import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000/api/v1').replace(/\/$/, '')
+import { getStorefrontApiBaseUrl } from '@/lib/apiBase'
 const VISITOR_KEY = 'asure_visitor_id'
 
 function ensureVisitorId(): string {
@@ -74,7 +73,7 @@ export default function CrmChatWidget({ vendorId, vendorName, themeColor = '#256
   const loadHistory = useCallback(async () => {
     if (!visitorIdRef.current) return
     try {
-      const res = await fetch(`${API_URL}/public/crm/chat/widget/${vendorId}/conversations/${visitorIdRef.current}`)
+      const res = await fetch(`${getStorefrontApiBaseUrl()}/public/crm/chat/widget/${vendorId}/conversations/${visitorIdRef.current}`)
       if (!res.ok) return
       const data = await res.json()
       const list = Array.isArray(data?.messages) ? data.messages : []
@@ -110,7 +109,7 @@ export default function CrmChatWidget({ vendorId, vendorName, themeColor = '#256
     setMessages((prev) => [...prev, { id: tempId, sender: 'customer', body, created_at: new Date().toISOString() }])
     setSending(true)
     try {
-      const res = await fetch(`${API_URL}/public/crm/chat/widget/${vendorId}/messages`, {
+      const res = await fetch(`${getStorefrontApiBaseUrl()}/public/crm/chat/widget/${vendorId}/messages`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
