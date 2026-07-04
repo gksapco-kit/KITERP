@@ -49,6 +49,7 @@ import {
   PresetSizeField,
   type GeneratedVariantCombo,
 } from '@/components/products/GenerateVariantsFromPresets'
+import { variantToUpdatePayload } from '@/lib/productVariantPresets'
 import { useProductVariantPresets } from '@/hooks/useProductVariantPresets'
 import { BOMEditor } from '@/components/mrp/BOMEditor'
 import { CategoryHierarchyPicker } from '@/components/common/CategoryHierarchyPicker'
@@ -99,16 +100,25 @@ function parseVariantAttrsJson(raw: string | undefined): Record<string, string> 
   }
 }
 
-/** Row 0 with no preset attrs selected — not a real SKU until Generate variants runs. */
+/** Placeholder row — not a real SKU until Generate variants runs (any index if named). */
 function isPresetGeneratorVariant(
   variant: { name?: string; attributes_json?: string } | undefined,
-  index: number,
+  index?: number,
 ): boolean {
-  if (index !== 0 || !variant) return false
+  if (!variant) return false
   if (variant.name === PRESET_GENERATOR_VARIANT_NAME) return true
+  if (index !== 0) return false
   const name = (variant.name || '').trim()
   if (Object.keys(parseVariantAttrsJson(variant.attributes_json)).length > 0) return false
   return !name || name === 'Variant'
+}
+
+/** Row 0 preset picker + Generate — distinct from generated SKU rows at index 1+. */
+function isVariantGeneratorRow(
+  index: number,
+  variant: { name?: string; attributes_json?: string } | undefined,
+): boolean {
+  return index === 0 && isPresetGeneratorVariant(variant, index)
 }
 
 function defaultVariantRowName(index: number, isSubscriptionType: boolean, isGeneratorRow: boolean): string {
@@ -435,6 +445,7 @@ function FormTintPanel({
   headerAccentOnly = false,
   children,
   className,
+  panelId,
 }: {
   accentColor: string
   active?: boolean
@@ -445,10 +456,11 @@ function FormTintPanel({
   headerAccentOnly?: boolean
   children: React.ReactNode
   className?: string
+  panelId?: string
 }) {
   if (headerAccentOnly && header) {
     return (
-      <div className={cn('flex overflow-visible rounded-lg border-0 shadow-none', !active && 'opacity-85', className)}>
+      <div id={panelId} className={cn('flex overflow-visible rounded-lg border-0 shadow-none', !active && 'opacity-85', className)}>
         <div
           className="w-1 shrink-0 self-stretch min-h-full"
           style={{ background: variantAccentBarGradient(accentColor, active) }}
@@ -465,7 +477,7 @@ function FormTintPanel({
   }
 
   return (
-    <div className={cn('flex overflow-hidden rounded-lg border-0 shadow-none', !active && 'opacity-80', className)}>
+    <div id={panelId} className={cn('flex overflow-hidden rounded-lg border-0 shadow-none', !active && 'opacity-80', className)}>
       <div
         className="w-1 shrink-0 self-stretch min-h-full"
         style={{ background: variantAccentBarGradient(accentColor, active) }}
@@ -847,9 +859,11 @@ function VariantMediaEdit({
 
 // ── Main form ───────────────────────────────────────────────────
 
-function ProductDisplay({ product, onEdit, onBack, priceRules = [], merchMappings = [], allProducts = [] }: {
+function ProductDisplay({ product, onEdit, onEditVariant, onDeleteVariant, onBack, priceRules = [], merchMappings = [], allProducts = [] }: {
   product: any
   onEdit: () => void
+  onEditVariant: (variantId: string) => void
+  onDeleteVariant: (variantId: string) => Promise<void>
   onBack: () => void
   priceRules?: any[]
   merchMappings?: Array<{ target_type: string; target_product_id: string; target_category: string; relation_type: string; bundle_id?: string; trigger_stage: string; priority: number }>
@@ -869,6 +883,8 @@ function ProductDisplay({ product, onEdit, onBack, priceRules = [], merchMapping
   const productAddons = normalizeCatalogAddons((product as { addons?: unknown }).addons)
   const changeHistory: any[] = product.change_history || []
   const [activeViewTab, setActiveViewTab] = useState('basic')
+  const [confirmDeleteVariantId, setConfirmDeleteVariantId] = useState<string | null>(null)
+  const [deletingVariantId, setDeletingVariantId] = useState<string | null>(null)
   const { data: storesData } = useStores()
   const businessUnits = storesData?.stores ?? []
   const showTab = (key: string) => activeViewTab === key
@@ -1113,6 +1129,7 @@ function ProductDisplay({ product, onEdit, onBack, priceRules = [], merchMapping
                   <th className="text-left px-2 py-1.5 font-semibold text-gray-500"><TableColumnLabel>Tax / HSN</TableColumnLabel></th>
                   <th className="text-left px-2 py-1.5 font-semibold text-gray-500"><TableColumnLabel>UOM</TableColumnLabel></th>
                   <th className="text-left px-2 py-1.5 font-semibold text-gray-500"><TableColumnLabel>Flags</TableColumnLabel></th>
+                  <th className="text-right px-2 py-1.5 font-semibold text-gray-500 w-24"><TableColumnLabel>Actions</TableColumnLabel></th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
@@ -1125,9 +1142,16 @@ function ProductDisplay({ product, onEdit, onBack, priceRules = [], merchMapping
                   const stockStatus = isOut ? { bg: 'bg-red-100', text: 'text-red-700', label: 'Out' }
                     : isLow ? { bg: 'bg-amber-100', text: 'text-amber-700', label: 'Low' }
                     : { bg: 'bg-green-100', text: 'text-green-700', label: 'OK' }
+                  const isConfirmingDelete = confirmDeleteVariantId === v.id
+                  const isDeleting = deletingVariantId === v.id
 
                   return (
-                    <tr key={v.id || i} className={`hover:bg-gray-50/60 ${!v.is_active ? 'opacity-40' : ''}`}>
+                    <tr
+                      key={v.id || i}
+                      className={`hover:bg-gray-50/60 cursor-pointer ${!v.is_active ? 'opacity-40' : ''}`}
+                      onClick={() => v.id && onEditVariant(v.id)}
+                      title="Click to edit this variant"
+                    >
                       {/* # */}
                       <td className="px-2 py-2 text-gray-300 font-mono">{i + 1}</td>
 
@@ -1205,6 +1229,71 @@ function ProductDisplay({ product, onEdit, onBack, priceRules = [], merchMapping
                             <span className="text-xs px-1.5 py-0.5 rounded-full font-medium bg-amber-100 text-amber-700">Backorder</span>
                           )}
                         </div>
+                      </td>
+
+                      {/* Actions */}
+                      <td className="px-2 py-2 text-right" onClick={(e) => e.stopPropagation()}>
+                        {isConfirmingDelete ? (
+                          <div className="inline-flex flex-col items-end gap-1">
+                            <p className="text-[10px] font-medium text-red-600">Delete?</p>
+                            <div className="flex gap-1">
+                              <Button
+                                type="button"
+                                size="sm"
+                                variant="destructive"
+                                className="h-6 px-2 text-[10px]"
+                                disabled={isDeleting}
+                                onClick={async () => {
+                                  if (!v.id) return
+                                  setDeletingVariantId(v.id)
+                                  try {
+                                    await onDeleteVariant(v.id)
+                                    setConfirmDeleteVariantId(null)
+                                  } catch (err) {
+                                    toast.error(extractApiError(err, 'Could not delete variant'))
+                                  } finally {
+                                    setDeletingVariantId(null)
+                                  }
+                                }}
+                              >
+                                {isDeleting ? <Loader2 className="w-3 h-3 animate-spin" /> : 'Yes'}
+                              </Button>
+                              <Button
+                                type="button"
+                                size="sm"
+                                variant="outline"
+                                className="h-6 px-2 text-[10px]"
+                                disabled={isDeleting}
+                                onClick={() => setConfirmDeleteVariantId(null)}
+                              >
+                                No
+                              </Button>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="inline-flex items-center gap-0.5">
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              className="h-7 w-7 p-0"
+                              title="Edit variant"
+                              onClick={() => v.id && onEditVariant(v.id)}
+                            >
+                              <Pencil className="w-3.5 h-3.5 text-gray-500" />
+                            </Button>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              className="h-7 w-7 p-0 text-red-500 hover:text-red-600 hover:bg-red-50"
+                              title="Delete variant"
+                              onClick={() => v.id && setConfirmDeleteVariantId(v.id)}
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </Button>
+                          </div>
+                        )}
                       </td>
                     </tr>
                   )
@@ -2126,7 +2215,7 @@ export default function ProductForm() {
     })
   }, [])
 
-  const { fields: variantFields, append: appendVariant, remove: removeVariant, replace: replaceVariants } = useFieldArray({
+  const { fields: variantFields, append: appendVariant, prepend: prependVariant, remove: removeVariant, replace: replaceVariants } = useFieldArray({
     control,
     name: 'variants',
   })
@@ -2152,6 +2241,7 @@ export default function ProductForm() {
   const [expandedVariants, setExpandedVariants] = useState<Record<number, boolean>>({})
   const toggleVariant = (idx: number) => setExpandedVariants(p => ({ ...p, [idx]: !p[idx] }))
   const [confirmDeleteVariant, setConfirmDeleteVariant] = useState<number | null>(null)
+  const [scrollToVariantIndex, setScrollToVariantIndex] = useState<number | null>(null)
   const [generateColourIds, setGenerateColourIds] = useState<Set<string>>(new Set())
   const [generateSizeIds, setGenerateSizeIds] = useState<Set<string>>(new Set())
 
@@ -2187,6 +2277,37 @@ export default function ProductForm() {
   const updateMerchMapping = (idx: number, updates: Partial<MerchMapping>) => {
     setMerchMappings(prev => prev.map((m, i) => i === idx ? { ...m, ...updates } : m))
   }
+
+  const openVariantEditor = useCallback((variantId: string) => {
+    const variants = product?.variants || []
+    const idx = variants.findIndex((v: { id: string }) => v.id === variantId)
+    setIsViewMode(false)
+    setActiveTab('variants')
+    setActiveFormSection('variants')
+    setVisitedSections(p => new Set(p).add('variants'))
+    if (idx >= 0) {
+      setExpandedVariants({ [idx]: true })
+      setScrollToVariantIndex(idx)
+    }
+  }, [product])
+
+  const deleteVariantById = useCallback(async (variantId: string) => {
+    if (!id || !product) return
+    const remaining = (product.variants || []).filter((v: { id: string }) => v.id !== variantId)
+    await updateProduct.mutateAsync({
+      id,
+      data: { variants: remaining.map(variantToUpdatePayload) },
+    })
+  }, [id, product, updateProduct])
+
+  useEffect(() => {
+    if (scrollToVariantIndex == null || isViewMode) return
+    const timer = window.setTimeout(() => {
+      document.getElementById(`variant-panel-${scrollToVariantIndex}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      setScrollToVariantIndex(null)
+    }, 150)
+    return () => window.clearTimeout(timer)
+  }, [scrollToVariantIndex, isViewMode])
 
   const copyVariant = (index: number) => {
     const all = getValues('variants') || []
@@ -2807,8 +2928,13 @@ export default function ProductForm() {
         await syncMerch(newProduct.id)
         // Upload staged variant media now that variants have DB IDs
         if (pendingVariantMedia.size > 0) {
+          const substantiveFormIndices = (variantRows || [])
+            .map((v, i) => (!isPresetGeneratorVariant(v, i) && v.name?.trim() ? i : -1))
+            .filter(i => i >= 0)
           for (const [variantIndex, bucket] of pendingVariantMedia.entries()) {
-            const dbVariant = (newProduct as { variants?: { id: string }[] }).variants?.[variantIndex]
+            const payloadIdx = substantiveFormIndices.indexOf(variantIndex)
+            if (payloadIdx < 0) continue
+            const dbVariant = (newProduct as { variants?: { id: string }[] }).variants?.[payloadIdx]
             if (dbVariant?.id && bucket.files.length > 0) {
               let lastMedia: VariantMediaItem[] = []
               for (const file of bucket.files) {
@@ -3060,6 +3186,21 @@ export default function ProductForm() {
     setValue,
   ])
 
+  // Restore generator row at top if user deleted it (create + colour/size presets).
+  useEffect(() => {
+    if (isEdit || isSubscriptionType || isBundleType) return
+    const hasPresets = variantPresets.colours.length > 0 || variantPresets.sizes.length > 0
+    if (!hasPresets || variantFields.length === 0) return
+    const rows = getValues('variants') || []
+    const hasGenerator = rows.some((v: { name?: string; attributes_json?: string }, i: number) =>
+      isVariantGeneratorRow(i, v),
+    )
+    if (!hasGenerator) {
+      prependVariant(makeVariantDefaults(PRESET_GENERATOR_VARIANT_NAME, {}))
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- only when row count / presets change
+  }, [isEdit, isSubscriptionType, isBundleType, variantFields.length, variantPresets.colours.length, variantPresets.sizes.length])
+
   const applyVariantPresetSelection = useCallback((
     index: number,
     colourIds: Set<string>,
@@ -3092,23 +3233,14 @@ export default function ProductForm() {
     }
 
     const currentRows = getValues('variants') || []
-    const hasPresets = variantPresets.colours.length > 0 || variantPresets.sizes.length > 0
-    const dropGeneratorRow =
-      !isSubscriptionType
-      && hasPresets
-      && currentRows.length > 0
-      && isPresetGeneratorVariant(currentRows[0], 0)
-
-    if (dropGeneratorRow) {
-      removeVariant(0)
-    }
-
-    const startIdx = dropGeneratorRow ? 0 : currentRows.length
-    const nameSource = dropGeneratorRow ? currentRows.slice(1) : currentRows
     const existingNames = new Set(
-      nameSource.map((v: { name?: string }) => (v.name || '').toLowerCase().trim()).filter(Boolean),
+      currentRows
+        .filter((v: { name?: string; attributes_json?: string }, i: number) => !isPresetGeneratorVariant(v, i))
+        .map((v: { name?: string }) => (v.name || '').toLowerCase().trim())
+        .filter(Boolean),
     )
 
+    const startIdx = currentRows.length
     let added = 0
     let skipped = 0
 
@@ -3126,6 +3258,8 @@ export default function ProductForm() {
       const expanded: Record<number, boolean> = {}
       for (let i = 0; i < added; i++) expanded[startIdx + i] = true
       setExpandedVariants(p => ({ ...p, ...expanded }))
+      setGenerateColourIds(new Set())
+      setGenerateSizeIds(new Set())
     }
     if (skipped > 0 && added > 0) {
       toast.success(`Added ${added} variant(s), skipped ${skipped} duplicate(s)`)
@@ -3192,6 +3326,8 @@ export default function ProductForm() {
       <ProductDisplay
         product={product}
         onEdit={() => setIsViewMode(false)}
+        onEditVariant={openVariantEditor}
+        onDeleteVariant={deleteVariantById}
         onBack={() => navigate('/products')}
         priceRules={priceRules as any[]}
         merchMappings={merchMappings}
@@ -3504,9 +3640,14 @@ export default function ProductForm() {
                   const rowColourId = variantPresets.colours.find(c => c.name === rowAttrs.Color)?.id
                   const rowSizeId = variantPresets.sizes.find(s => s.size === rowAttrs.Size)?.id
                   const hasVariantPresets = variantPresets.colours.length > 0 || variantPresets.sizes.length > 0
+                  const isGeneratorRow = isVariantGeneratorRow(index, {
+                    name: variantName,
+                    attributes_json: watch(`variants.${index}.attributes_json`) as string | undefined,
+                  })
                   return (
                   <FormTintPanel
                     key={vf.id}
+                    panelId={`variant-panel-${index}`}
                     accentColor={accentColor}
                     active={isActive}
                     headerAccentOnly
@@ -3519,7 +3660,7 @@ export default function ProductForm() {
                       onClick={() => toggleVariant(index)}
                     >
                       <div className="flex min-w-0 flex-1 items-end gap-2">
-                        {!(index === 0 && !isSubscriptionType && hasVariantPresets) && (
+                        {!( !isSubscriptionType && hasVariantPresets && isGeneratorRow) && (
                           <span
                             className={cn(
                               'inline-flex items-center justify-center w-6 h-6 rounded-full text-xs font-bold text-white shrink-0 self-center',
@@ -3554,17 +3695,17 @@ export default function ProductForm() {
                             <PresetColourField
                               vendorId={vendorId}
                               selectedIds={
-                                index === 0
+                                isGeneratorRow
                                   ? generateColourIds
                                   : new Set(rowColourId ? [rowColourId] : [])
                               }
                               pairCount={
-                                index === 0 && generateSizeIds.size > 0
+                                isGeneratorRow && generateSizeIds.size > 0
                                   ? generateSizeIds.size
                                   : undefined
                               }
                               onSelectedIdsChange={(ids) => {
-                                if (index === 0) {
+                                if (isGeneratorRow) {
                                   setGenerateColourIds(ids)
                                   return
                                 }
@@ -3574,18 +3715,18 @@ export default function ProductForm() {
                                   new Set(rowSizeId ? [rowSizeId] : []),
                                 )
                               }}
-                              multiple={index === 0}
+                              multiple={isGeneratorRow}
                               idSuffix={`-row-${index}`}
                             />
                             <PresetSizeField
                               vendorId={vendorId}
                               selectedIds={
-                                index === 0
+                                isGeneratorRow
                                   ? generateSizeIds
                                   : new Set(rowSizeId ? [rowSizeId] : [])
                               }
                               onSelectedIdsChange={(ids) => {
-                                if (index === 0) {
+                                if (isGeneratorRow) {
                                   setGenerateSizeIds(ids)
                                   return
                                 }
@@ -3595,10 +3736,10 @@ export default function ProductForm() {
                                   ids,
                                 )
                               }}
-                              multiple={index === 0}
+                              multiple={isGeneratorRow}
                               idSuffix={`-row-${index}`}
                             />
-                            {index === 0 && (
+                            {isGeneratorRow && (
                               <GenerateVariantsButton
                                 vendorId={vendorId}
                                 selectedColourIds={generateColourIds}
@@ -3637,7 +3778,7 @@ export default function ProductForm() {
                                 {...field}
                                 value={
                                   field.value?.trim()
-                                  || defaultVariantRowName(index, false, index === 0)
+                                  || defaultVariantRowName(index, false, isGeneratorRow)
                                 }
                               />
                             )}

@@ -167,10 +167,10 @@ async def validate_twilio_sms_config(
 
 
 def _whatsapp_delivery_error(error_code: int | None, twilio_message: str = "") -> str:
-    if error_code == 63016:
+    if error_code in (63015, 63016):
         return _WHATSAPP_SANDBOX_HINT
     msg = twilio_message or ""
-    if "63016" in msg or "sandbox" in msg.lower():
+    if "63015" in msg or "63016" in msg or "sandbox" in msg.lower():
         return _WHATSAPP_SANDBOX_HINT
     if error_code:
         return f"WhatsApp delivery failed (Twilio error {error_code})."

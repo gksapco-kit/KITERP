@@ -6,7 +6,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Select } from '@/components/ui/select'
-import { useProducts, useDeleteProduct, useCategoryTree } from '@/hooks/useVendor'
+import { useProducts, useDeleteProduct, useUpdateProduct, useCategoryTree } from '@/hooks/useVendor'
 import { useVendorStore } from '@/stores/vendorStore'
 import { flattenCategoryTree, filterCategoryTree } from '@/lib/categoryHierarchy'
 import { formatCurrency, formatDate, mediaUrl } from '@/lib/utils'
@@ -14,6 +14,8 @@ import { processRows, type SortDir } from '@/lib/tableList'
 import { onClickableTableRow } from '@/lib/clickableTableRow'
 import { ResizableTable } from '@/components/table/ResizableTable'
 import type { Product } from '@/types'
+import { toast } from 'sonner'
+import { extractApiError } from '@/lib/errorMessages'
 import {
   Plus, Search, Pencil, Trash2, Loader2, X, ChevronLeft, ChevronRight,
   Filter, Copy, Share2, Mail, MessageCircle, MoreVertical, Package,
@@ -24,6 +26,7 @@ import {
   formatGroupedVariantLabel,
   groupProductVariants,
   variantMatchesGroup,
+  variantToUpdatePayload,
 } from '@/lib/productVariantPresets'
 import { vendorApi } from '@/api/vendor'
 import { BarcodeScannerModal } from '@/components/scanner/BarcodeScannerModal'
@@ -196,6 +199,9 @@ export default function Products() {
     store_id: selectedStore?.id || undefined,
   })
   const deleteProduct = useDeleteProduct()
+  const updateProduct = useUpdateProduct()
+  const [variantDeleteKey, setVariantDeleteKey] = useState<string | null>(null)
+  const [variantDeletingKey, setVariantDeletingKey] = useState<string | null>(null)
 
   const activeFilterCount = [status, visibility, category, productType, stock].filter(Boolean).length
   const hasActiveQuery = Boolean(search.trim() || activeFilterCount > 0)
@@ -295,7 +301,7 @@ export default function Products() {
     if (viewMode !== 'variant') return []
     const rows: {
       productId: string; productName: string; productCategory: string; productType: string; thumbUrl: string
-      groupKey: string; variantName: string; variantCount: number
+      groupKey: string; variantName: string; variantCount: number; variantIds: string[]; canDelete: boolean
       sku: string; uom: string; uom_quantity: number | null
       price: number; priceHigh: number; quantity: number; stock_status: string; low_stock_threshold: number; currency: string; is_active: boolean
     }[] = []
@@ -308,7 +314,7 @@ export default function Products() {
           productId: product.id, productName: product.name,
           productCategory: product.category || 'Uncategorized', productType: product.product_type || 'physical',
           thumbUrl: productThumb,
-          groupKey: 'default', variantName: '—', variantCount: 0,
+          groupKey: 'default', variantName: '—', variantCount: 0, variantIds: [], canDelete: false,
           sku: product.sku || '', uom: product.uom || 'piece', uom_quantity: product.uom_quantity ?? null,
           price: product.price, priceHigh: product.price, quantity: product.quantity ?? 0,
           stock_status: product.stock_status || 'in_stock', low_stock_threshold: product.low_stock_threshold ?? 5,
@@ -337,6 +343,7 @@ export default function Products() {
               ? 'low_stock'
               : groupVariants[0]?.stock_status || 'in_stock'
           const skus = [...new Set(groupVariants.map(v => v.sku).filter(Boolean))]
+          const variantIds = groupVariants.map(v => v.id).filter(Boolean)
           rows.push({
             productId: product.id, productName: product.name,
             productCategory: product.category || 'Uncategorized', productType: product.product_type || 'physical',
@@ -344,6 +351,8 @@ export default function Products() {
             groupKey: group.color || '__size_only__',
             variantName: formatGroupedVariantLabel(group.color, group.sizeCodes),
             variantCount: group.count,
+            variantIds,
+            canDelete: variantIds.length > 0,
             sku: skus.length === 1 ? skus[0]! : skus.length > 1 ? `${skus.length} SKUs` : '',
             uom: groupVariants[0]?.uom || 'piece',
             uom_quantity: groupVariants[0]?.uom_quantity ?? null,
@@ -363,6 +372,40 @@ export default function Products() {
     setViewMode(mode)
     try { localStorage.setItem('kiterp:products:viewMode', mode) } catch { /* ignore */ }
   }
+
+  const deleteVariantGroup = useCallback(async (row: {
+    productId: string
+    groupKey: string
+    variantName: string
+    variantIds: string[]
+  }) => {
+    const rowKey = `${row.productId}-${row.groupKey}`
+    const product = displayProducts.find(p => p.id === row.productId)
+    if (!product) {
+      toast.error('Product not found')
+      return
+    }
+    const allVariants = product.variants || []
+    const removeSet = new Set(row.variantIds)
+    const remaining = allVariants.filter(v => !removeSet.has(v.id))
+    if (remaining.length === allVariants.length) {
+      toast.error('No variants matched this row')
+      setVariantDeleteKey(null)
+      return
+    }
+    setVariantDeletingKey(rowKey)
+    try {
+      await updateProduct.mutateAsync({
+        id: row.productId,
+        data: { variants: remaining.map(variantToUpdatePayload) },
+      })
+      setVariantDeleteKey(null)
+    } catch (err) {
+      toast.error(extractApiError(err, 'Could not delete variant'))
+    } finally {
+      setVariantDeletingKey(null)
+    }
+  }, [displayProducts, updateProduct])
 
   return (
     <div className="space-y-5">
@@ -719,6 +762,9 @@ export default function Products() {
                 // Group header: first row of a new product gets a subtle top border accent
                 const prevGroup = i > 0 ? `${variantRows[i - 1].productId}-${variantRows[i - 1].groupKey}` : null
                 const isFirstOfGroup = prevGroup !== `${row.productId}-${row.groupKey}`
+                const rowKey = `${row.productId}-${row.groupKey}`
+                const isConfirmingDelete = variantDeleteKey === rowKey
+                const isDeleting = variantDeletingKey === rowKey
 
                 return (
                   <tr
@@ -781,14 +827,56 @@ export default function Products() {
                         {row.is_active ? 'Active' : 'Inactive'}
                       </span>
                     </td>
-                    <td className="px-5 py-2.5 text-right">
-                      <Button
-                        variant="ghost" size="sm" className="h-7 w-7 p-0"
-                        title="Edit product"
-                        onClick={() => navigate(`/products/${row.productId}?edit=true`)}
-                      >
-                        <Pencil className="w-3.5 h-3.5 text-gray-500" />
-                      </Button>
+                    <td className="px-5 py-2.5 text-right" onClick={(e) => e.stopPropagation()}>
+                      {isConfirmingDelete ? (
+                        <div className="inline-flex flex-col items-end gap-1.5 min-w-[7.5rem]">
+                          <p className="text-[10px] font-medium text-red-600 text-right leading-tight">
+                            Delete {row.variantName}?
+                          </p>
+                          <div className="flex gap-1">
+                            <Button
+                              size="sm"
+                              variant="destructive"
+                              className="h-7 px-2 text-xs"
+                              disabled={isDeleting}
+                              onClick={() => deleteVariantGroup(row)}
+                            >
+                              {isDeleting ? <Loader2 className="w-3 h-3 animate-spin" /> : 'Delete'}
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="h-7 px-2 text-xs"
+                              disabled={isDeleting}
+                              onClick={() => setVariantDeleteKey(null)}
+                            >
+                              Cancel
+                            </Button>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="inline-flex items-center gap-0.5">
+                          <Button
+                            variant="ghost" size="sm" className="h-7 w-7 p-0"
+                            title="Edit product"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              navigate(`/products/${row.productId}?edit=true`)
+                            }}
+                          >
+                            <Pencil className="w-3.5 h-3.5 text-gray-500" />
+                          </Button>
+                          {row.canDelete ? (
+                            <Button
+                              variant="ghost" size="sm" className="h-7 w-7 p-0 text-red-500 hover:text-red-600 hover:bg-red-50"
+                              title={`Delete variant ${row.variantName}`}
+                              onClick={() => setVariantDeleteKey(rowKey)}
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </Button>
+                          ) : null}
+                        </div>
+                      )}
                     </td>
                   </tr>
                 )
