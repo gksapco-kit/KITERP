@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { SiteInputParametersModal } from '@/components/websites/SiteInputParametersModal'
@@ -6,8 +6,8 @@ import { websiteApi } from '@/api/websites'
 import type { StyleConfig, WebsiteSite } from '@/types/websites'
 import {
   getAvailableSetupFeatures,
-  getDefaultSetupFeatures,
   imageCategoryForBusinessType,
+  normalizeSetupFeatures,
   resolveWebsiteSetupFromBusinessSettings,
   type SetupFeatureId,
 } from '@/lib/businessSitePresets'
@@ -20,6 +20,7 @@ import {
   type WebsiteColorPaletteId,
   type WebsitePaletteColors,
 } from '@/lib/websiteColorPalettes'
+import { loadSiteInputParametersState } from '@/lib/siteInputParametersState'
 import {
   readSiteStyleMetadata,
   WEBSITE_CREATE_BUSINESS_PRESETS,
@@ -55,6 +56,7 @@ export function BuilderSiteInputParametersModal({
 }) {
   const queryClient = useQueryClient()
   const [saving, setSaving] = useState(false)
+  const hydratedRef = useRef(false)
 
   const storeCount = stores.length
   const singleStore = storeCount === 1 ? stores[0] : null
@@ -69,42 +71,32 @@ export function BuilderSiteInputParametersModal({
   const [selectedPaletteId, setSelectedPaletteId] = useState<WebsiteColorPaletteId>(DEFAULT_WEBSITE_COLOR_PALETTE_ID)
   const [customPaletteColors, setCustomPaletteColors] = useState<WebsitePaletteColors>(DEFAULT_CUSTOM_WEBSITE_PALETTE_COLORS)
 
+  // Snapshot persisted style_config once when the modal opens — do not re-sync when
+  // vendor/stores/site refetch in the background (that caused values to "flip back").
   useEffect(() => {
-    if (!open) return
-    const meta = readSiteStyleMetadata(site.style_config as Record<string, unknown>)
-    const scopeRaw = meta.website_store_scope?.trim().toLowerCase()
-    const scope: WebsiteStoreScope = scopeRaw === 'all' || scopeRaw === 'store' || scopeRaw === 'external'
-      ? scopeRaw
-      : (storeCount <= 1 ? 'store' : 'all')
-    const storeId = scope === 'store'
-      ? (meta.website_home_store_id
-        ?? meta.website_store_id
-        ?? stores.find(s => s.is_default)?.id
-        ?? stores[0]?.id
-        ?? '')
-      : ''
-    const bizType = meta.business_type ?? WEBSITE_CREATE_BUSINESS_PRESETS[0].id
-    const sellMode = meta.selling_mode ?? WEBSITE_CREATE_BUSINESS_PRESETS.find(b => b.id === bizType)?.sells ?? 'both'
-    const paletteId = (meta.color_palette_id as WebsiteColorPaletteId | undefined) ?? DEFAULT_WEBSITE_COLOR_PALETTE_ID
+    if (!open) {
+      hydratedRef.current = false
+      return
+    }
+    if (hydratedRef.current) return
 
-    setName(site.name)
-    setWebsiteStoreScope(scope)
-    setWebsiteStoreId(storeId || '')
-    setBusinessType(bizType)
-    setSellingMode(sellMode)
-    setSelectedFeatures(
-      (meta.setup_features as SetupFeatureId[] | undefined)
-        ?? getDefaultSetupFeatures(bizType, sellMode),
-    )
-    setSelectedPaletteId(paletteId)
-    setCustomPaletteColors({
-      primary_color: site.style_config.primary_color ?? DEFAULT_CUSTOM_WEBSITE_PALETTE_COLORS.primary_color,
-      secondary_color: site.style_config.secondary_color ?? DEFAULT_CUSTOM_WEBSITE_PALETTE_COLORS.secondary_color,
-      accent_color: site.style_config.accent_color ?? DEFAULT_CUSTOM_WEBSITE_PALETTE_COLORS.accent_color,
-      bg_color: site.style_config.bg_color ?? DEFAULT_CUSTOM_WEBSITE_PALETTE_COLORS.bg_color,
-      surface_color: site.style_config.surface_color ?? DEFAULT_CUSTOM_WEBSITE_PALETTE_COLORS.surface_color,
-      text_color: site.style_config.text_color ?? DEFAULT_CUSTOM_WEBSITE_PALETTE_COLORS.text_color,
-    })
+    const meta = readSiteStyleMetadata(site.style_config as Record<string, unknown>)
+    const needsStores = meta.website_store_scope === 'store'
+      && !meta.website_home_store_id
+      && !meta.website_store_id
+      && stores.length === 0
+    if (needsStores) return
+
+    hydratedRef.current = true
+    const state = loadSiteInputParametersState(site, stores, storeCount)
+    setName(state.name)
+    setWebsiteStoreScope(state.websiteStoreScope)
+    setWebsiteStoreId(state.websiteStoreId)
+    setBusinessType(state.businessType)
+    setSellingMode(state.sellingMode)
+    setSelectedFeatures(state.selectedFeatures)
+    setSelectedPaletteId(state.selectedPaletteId)
+    setCustomPaletteColors(state.customPaletteColors)
   }, [open, site, storeCount, stores])
 
   const isExternalScope = websiteStoreScope === 'external'
@@ -118,8 +110,8 @@ export function BuilderSiteInputParametersModal({
     : null
 
   const settingsSetup = resolveWebsiteSetupFromBusinessSettings(vendor, activeStoreForSettings)
-  const effectiveBusinessType = isExternalScope ? businessType : settingsSetup.businessTypeId
-  const effectiveSellingMode = isExternalScope ? sellingMode : settingsSetup.sellingMode
+  const effectiveBusinessType = businessType
+  const effectiveSellingMode = sellingMode
   const selectedBusiness = WEBSITE_CREATE_BUSINESS_PRESETS.find(t => t.id === effectiveBusinessType) || WEBSITE_CREATE_BUSINESS_PRESETS[0]
   const availableFeatures = getAvailableSetupFeatures(effectiveBusinessType, effectiveSellingMode)
   const settingsBusinessLabel = companyTypeLabel(
@@ -127,12 +119,6 @@ export function BuilderSiteInputParametersModal({
       || vendor?.business_type,
   )
   const settingsSellingLabel = WEBSITE_SELLING_MODES.find(s => s.id === settingsSetup.sellingMode)?.label ?? 'Both'
-
-  useEffect(() => {
-    if (!open || isExternalScope) return
-    setBusinessType(settingsSetup.businessTypeId)
-    setSellingMode(settingsSetup.sellingMode)
-  }, [open, isExternalScope, settingsSetup.businessTypeId, settingsSetup.sellingMode])
 
   const toggleFeature = useCallback((id: SetupFeatureId, locked?: boolean) => {
     if (locked) return
@@ -154,7 +140,11 @@ export function BuilderSiteInputParametersModal({
       const siteName = name.trim() || selectedBusiness.defaultName
       const paletteColors = resolveWebsitePaletteColors(selectedPaletteId, customPaletteColors)
       const existingStyle = site.style_config as Record<string, unknown>
-      const isExternal = String(existingStyle.website_store_scope ?? '').trim().toLowerCase() === 'external'
+      const normalizedFeatures = normalizeSetupFeatures(
+        selectedFeatures,
+        effectiveBusinessType,
+        effectiveSellingMode,
+      )
       const nextStyleConfig = {
         ...existingStyle,
         ...paletteColors,
@@ -162,11 +152,13 @@ export function BuilderSiteInputParametersModal({
         image_category_id: imageCategoryForBusinessType(effectiveBusinessType),
         business_type: effectiveBusinessType,
         selling_mode: effectiveSellingMode,
-        setup_features: selectedFeatures,
-        website_store_scope: existingStyle.website_store_scope,
-        website_store_id: isExternal ? null : existingStyle.website_store_id ?? null,
-        website_store_name: isExternal ? null : existingStyle.website_store_name ?? null,
-        website_home_store_id: isExternal ? null : existingStyle.website_home_store_id ?? null,
+        setup_features: normalizedFeatures,
+        website_store_scope: websiteStoreScope,
+        website_store_id: websiteStoreScope === 'store' ? (websiteStoreId || null) : null,
+        website_store_name: websiteStoreScope === 'store'
+          ? (stores.find(s => s.id === websiteStoreId)?.name ?? existingStyle.website_store_name ?? null)
+          : null,
+        website_home_store_id: websiteStoreScope === 'store' ? (websiteStoreId || null) : null,
       }
 
       const updated = await websiteApi.updateSite(siteId, {
@@ -196,6 +188,9 @@ export function BuilderSiteInputParametersModal({
     selectedPaletteId,
     site.style_config,
     siteId,
+    stores,
+    websiteStoreId,
+    websiteStoreScope,
   ])
 
   const modalProps = useMemo(() => ({

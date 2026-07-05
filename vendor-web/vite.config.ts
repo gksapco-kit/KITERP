@@ -155,7 +155,11 @@ export default defineConfig({
         '../storefront-web/src/components/builder/blocks/NavBlock.tsx',
       ],
     },
-    ...(useWatchPolling ? { watch: { usePolling: true, interval: 1000 } } : {}),
+    watch: {
+      ...(useWatchPolling ? { usePolling: true, interval: 1000 } : {}),
+      // Avoid ENODATA overlay when the editor saves while Vite is mid-read (Windows / bind mounts).
+      awaitWriteFinish: { stabilityThreshold: 200, pollInterval: 100 },
+    },
     /** storefront-web lives outside vendor-web root — required for @fs lazy chunks in preview. */
     fs: {
       allow: [monorepoRoot, storefrontSrc],

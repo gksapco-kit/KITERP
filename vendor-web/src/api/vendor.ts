@@ -279,6 +279,7 @@ export interface StoreAddress {
   country?: string
   latitude?: number
   longitude?: number
+  label?: string
 }
 
 export interface StoreRecord {
@@ -971,7 +972,7 @@ export const vendorApi = {
   },
 
   createCustomer: async (data: Record<string, unknown>): Promise<Customer> => {
-    const response = await apiClient.post('/vendors/me/customers', data)
+    const response = await apiClient.post('/vendors/me/customers', data, { timeout: 30_000 })
     return response.data
   },
 
@@ -985,6 +986,10 @@ export const vendorApi = {
     phone?: string
     email?: string
   }): Promise<import('@/types').CustomerDuplicateMatch[]> => {
+    const phoneKey = (p: string) => {
+      const d = p.replace(/\D/g, '')
+      return d.length >= 10 ? d.slice(-10) : d
+    }
     const seen = new Set<string>()
     const results: import('@/types').CustomerDuplicateMatch[] = []
     const add = (items: Customer[]) => {
@@ -1007,9 +1012,10 @@ export const vendorApi = {
     }
     const searches: Promise<void>[] = []
     if (params.phone?.trim()) {
+      const needle = phoneKey(params.phone.trim())
       searches.push(
         apiClient.get('/vendors/me/customers', { params: { search: params.phone.trim(), size: 10 } })
-          .then(r => add((r.data?.items || []).filter((c: Customer) => c.phone === params.phone)))
+          .then(r => add((r.data?.items || []).filter((c: Customer) => c.phone && phoneKey(c.phone) === needle)))
           .catch(() => {}),
       )
     }

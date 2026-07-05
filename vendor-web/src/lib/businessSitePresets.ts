@@ -10,6 +10,7 @@ export const BUSINESS_TYPE_IMAGE_CATEGORY: Record<string, string> = {
   salon: 'beauty',
   clinic: 'medical-equipment-store',
   consulting: 'book-store',
+  none: 'shop',
 }
 
 export function imageCategoryForBusinessType(businessTypeId: string): string {
@@ -50,7 +51,7 @@ export function resolveWebsiteSetupFromBusinessSettings(
   const companyType = storeCompanyType(store) || vendor?.business_type || ''
   const businessTypeId = companyTypeToWebsitePreset(companyType, vendor?.business_type)
   const offering = vendor?.offering_type || 'both'
-  const sellingMode = offering === 'products' || offering === 'services' || offering === 'both'
+  const sellingMode = offering === 'products' || offering === 'services' || offering === 'both' || offering === 'none'
     ? offering
     : 'both'
   return { businessTypeId, sellingMode }
@@ -208,10 +209,19 @@ export const BUSINESS_STYLE_PRESETS: Record<string, Partial<StyleConfig>> = {
     surface_color: '#f1f5f9',
     text_color: '#0f172a',
   },
+  none: {
+    ...BASE_STYLE_DEFAULTS,
+    primary_color: '#374151',
+    secondary_color: '#1f2937',
+    accent_color: '#6b7280',
+    bg_color: '#ffffff',
+    surface_color: '#f9fafb',
+    text_color: '#111827',
+  },
 }
 
 export function stylePresetForBusinessType(businessTypeId: string): Partial<StyleConfig> {
-  return BUSINESS_STYLE_PRESETS[businessTypeId] ?? BUSINESS_STYLE_PRESETS.retail
+  return BUSINESS_STYLE_PRESETS[businessTypeId] ?? BUSINESS_STYLE_PRESETS.none ?? BUSINESS_STYLE_PRESETS.retail
 }
 
 function featureVisible(
@@ -219,6 +229,19 @@ function featureVisible(
   businessType: string,
   sellingMode: string,
 ): boolean {
+  if (businessType === 'none') {
+    switch (id) {
+      case 'homepage_copy':
+      case 'mobile_layout':
+      case 'seo_content':
+      case 'publish_checklist':
+      case 'about_page':
+      case 'contact_form':
+        return true
+      default:
+        return false
+    }
+  }
   switch (id) {
     case 'homepage_copy':
     case 'mobile_layout':
@@ -257,6 +280,16 @@ export function getAvailableSetupFeatures(
   return ALL_SETUP_FEATURES.filter(f => featureVisible(f.id, businessType, sellingMode))
 }
 
+/** Always-on (locked) setup features for the current business context. */
+export function getCoreSetupFeatures(
+  businessType: string,
+  sellingMode: string,
+): SetupFeatureId[] {
+  return getAvailableSetupFeatures(businessType, sellingMode)
+    .filter(f => f.locked)
+    .map(f => f.id)
+}
+
 /** Default checked features when business type or selling mode changes. */
 export function getDefaultSetupFeatures(
   businessType: string,
@@ -266,10 +299,10 @@ export function getDefaultSetupFeatures(
     .filter(f => {
       if (f.locked) return true
       if (f.id === 'about_page') return true
-      if (f.id === 'services_page') return sellingMode !== 'products'
-      if (f.id === 'products_sections') return sellingMode !== 'services'
-      if (f.id === 'services_sections') return sellingMode !== 'products'
-      if (f.id === 'commerce_blocks') return sellingMode === 'products' || businessType === 'restaurant'
+      if (f.id === 'services_page') return sellingMode === 'services' || sellingMode === 'both'
+      if (f.id === 'products_sections') return sellingMode === 'products' || sellingMode === 'both'
+      if (f.id === 'services_sections') return sellingMode === 'services' || sellingMode === 'both'
+      if (f.id === 'commerce_blocks') return sellingMode === 'products' || sellingMode === 'both' || businessType === 'restaurant'
       if (f.id === 'booking_blocks') return ['salon', 'clinic', 'restaurant'].includes(businessType)
       if (f.id === 'menu_gallery') return businessType === 'restaurant'
       if (f.id === 'pricing_page') return businessType === 'consulting'
@@ -277,6 +310,24 @@ export function getDefaultSetupFeatures(
       return true
     })
     .map(f => f.id)
+}
+
+/** Restore wizard selections from style_config — keeps locked + stored picks valid for the current business context. */
+export function normalizeSetupFeatures(
+  stored: string[] | undefined | null,
+  businessType: string,
+  sellingMode: string,
+): SetupFeatureId[] {
+  const available = getAvailableSetupFeatures(businessType, sellingMode)
+  const lockedIds = available.filter(f => f.locked).map(f => f.id)
+  const availableIds = new Set(available.map(f => f.id))
+
+  if (!stored?.length) {
+    return getDefaultSetupFeatures(businessType, sellingMode)
+  }
+
+  const fromStored = stored.filter((id): id is SetupFeatureId => availableIds.has(id as SetupFeatureId))
+  return [...new Set([...lockedIds, ...fromStored])]
 }
 
 /** Map wizard checkboxes → page slugs sent to the generator. */

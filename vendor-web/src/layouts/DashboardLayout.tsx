@@ -196,6 +196,7 @@ import {
   saveNavPlacementsState,
   buildDefaultPlacementsFromSections,
   reconcileNavPlacements,
+  resolveNavGroupCollapsed,
   RESET_USER_NAV_ORDER_EVENT,
   type NavOrderScope,
 } from '@/layouts/sidebarNavOrder'
@@ -533,7 +534,6 @@ const allSections: NavSection[] = [
       { to: '/notifications', icon: Bell, label: 'Notifications', alwaysShow: true },
       { to: '/crm/inbox', icon: MessageSquare, label: 'Inbox', alwaysShow: true },
       { to: '/relationship-manager', icon: UsersRound, label: 'Relationship Manager', alwaysShow: true },
-      { to: '/workspace', icon: LayoutGrid, label: 'Workspace Apps', alwaysShow: true },
       { to: '/settings', icon: Settings, label: BUSINESS_UNIT_STORE_SETTINGS_LINK, alwaysShow: true },
     ],
   },
@@ -542,7 +542,6 @@ const allSections: NavSection[] = [
     title: 'Website Management',
     icon: Globe,
     items: [
-      { to: '/business-front', icon: LayoutDashboard, label: 'Dashboard', alwaysShow: true },
       { to: '/websites', icon: Globe, label: 'Business Website Builder', alwaysShow: true },
       { to: '/websites/templates', icon: Sparkles, label: 'Business Website Templates', alwaysShow: true },
       { to: '/system/storefront-display', icon: SlidersHorizontal, label: 'Business Front Display', alwaysShow: true },
@@ -557,29 +556,74 @@ const allSections: NavSection[] = [
     icon: ShoppingCart,
     items: [
       { to: '/sales/manager', icon: BarChart3, label: 'Sales Reporting Manager', requiresPermission: 'reports.view' },
-      { to: '/orders', icon: ShoppingCart, label: 'Orders', requiresPermission: 'orders.view' },
+      { to: '/orders', icon: ShoppingCart, label: 'Orders', requiresPermission: 'orders.view', groupLabel: 'Core Sales', groupColor: 'blue' },
       { to: '/quotations', icon: ScrollText, label: 'Quotations', requiresPermission: 'orders.view' },
       { to: '/bookings', icon: Calendar, label: 'Bookings', requiresOffering: ['services', 'both'], requiresPermission: 'bookings.view' },
       { to: '/projects', icon: FolderKanban, label: 'Projects', requiresPermission: 'projects.view' },
       { to: '/pos', icon: Receipt, label: 'POS', requiresOffering: ['products', 'both'], requiresPermission: 'pos.view' },
-      { to: '/subscriptions', icon: RefreshCw, label: 'Subscriptions', requiresPermission: 'subscriptions.view' },
+      { to: '/subscriptions', icon: RefreshCw, label: 'Subscriptions', requiresPermission: 'subscriptions.view', groupLabel: 'Recurring Revenue', groupColor: 'violet' },
       { to: '/sales/plans', icon: Hash, label: 'Pricing Plans', requiresPermission: 'subscriptions.view' },
-      { to: '/sales/properties', icon: Building2, label: 'Property Listings', requiresPermission: 'orders.view' },
+      { to: '/sales/recurring-bookings', icon: RefreshCw, label: 'Recurring Bookings', requiresPermission: 'orders.view' },
+      { to: '/invoices', icon: FileText, label: 'Invoices', requiresPermission: 'invoices.view', groupLabel: 'Billing & Adjustments', groupColor: 'amber' },
+      { to: '/memos', icon: FilePlus, label: 'Credit / Debit Memos', requiresPermission: 'memos.view' },
+      { to: '/coupons', icon: Tag, label: 'Coupons', requiresPermission: 'coupons.view' },
+      { to: '/rental', icon: Truck, label: 'Rentals', requiresPermission: 'rentals.view' },
+      { to: '/sales/properties', icon: Building2, label: 'Property Listings', requiresPermission: 'orders.view', groupLabel: 'Industry Catalogs', groupColor: 'indigo' },
       { to: '/sales/courses', icon: GraduationCap, label: 'Course Catalog', requiresPermission: 'orders.view' },
       { to: '/sales/fitness-classes', icon: Dumbbell, label: 'Fitness Schedule', requiresPermission: 'orders.view' },
       { to: '/sales/vehicles', icon: Car, label: 'Vehicle Inventory', requiresPermission: 'orders.view' },
       { to: '/sales/events', icon: Ticket, label: 'Ticketed Events', requiresPermission: 'orders.view' },
-      { to: '/sales/recurring-bookings', icon: RefreshCw, label: 'Recurring Bookings', requiresPermission: 'orders.view' },
-      { to: '/sales/testimonials', icon: Quote, label: 'Testimonials', requiresPermission: 'orders.view' },
       { to: '/sales/booking-wizard', icon: Workflow, label: 'Booking Wizard', requiresPermission: 'orders.view' },
       { to: '/sales/booking-resources', icon: Warehouse, label: 'Resources', requiresPermission: 'orders.view' },
-      { to: '/marketplace', icon: Target, label: 'Marketplace Leads', requiresPermission: 'orders.view' },
-      { to: '/sales/coverage', icon: MapPin, label: 'Store Coverage', requiresPermission: 'orders.view' },
+      { to: '/sales/coverage', icon: MapPin, label: 'Store Coverage', requiresPermission: 'orders.view', groupLabel: 'Territory & Coverage', groupColor: 'emerald' },
       { to: '/sales/sales-area', icon: LayoutGrid, label: 'Sales Area', requiresPermission: 'orders.view' },
-      { to: '/rental', icon: Truck, label: 'Rentals', requiresPermission: 'rentals.view' },
-      { to: '/invoices', icon: FileText, label: 'Invoices', requiresPermission: 'invoices.view' },
-      { to: '/memos', icon: FilePlus, label: 'Credit / Debit Memos', requiresPermission: 'memos.view' },
-      { to: '/coupons', icon: Tag, label: 'Coupons', requiresPermission: 'coupons.view' },
+      { to: '/marketplace', icon: Target, label: 'Marketplace Leads', requiresPermission: 'orders.view', groupLabel: 'Growth & Social Proof', groupColor: 'rose' },
+      { to: '/sales/testimonials', icon: Quote, label: 'Testimonials', requiresPermission: 'orders.view' },
+    ],
+  },
+  {
+    id: 'inventory',
+    title: 'Inventory Management',
+    icon: Warehouse,
+    items: [
+      { to: '/products', icon: Package, label: 'Products', requiresOffering: ['products', 'both'], requiresPermission: 'products.view' },
+      { to: '/services', icon: Wrench, label: 'Services', requiresOffering: ['services', 'both'], requiresPermission: 'services.view' },
+      { to: '/categories', icon: FolderTree, label: 'Categories' },
+      { to: '/inventory', icon: Warehouse, label: 'Inventory', requiresOffering: ['products', 'both'], requiresPermission: 'inventory.view' },
+      { to: '/plants', icon: Factory, label: 'Plants', requiresOffering: ['products', 'both'], requiresPermission: 'inventory.view' },
+      { to: '/storage-locations', icon: Boxes, label: 'Storage Locations', requiresOffering: ['products', 'both'], requiresPermission: 'inventory.view' },
+      { to: '/purchase-orders', icon: ClipboardList, label: 'Purchase Orders', requiresOffering: ['products', 'both'], requiresPermission: 'procurement.view' },
+    ],
+  },
+  {
+    id: 'master-data',
+    title: 'Master Data Management',
+    icon: Database,
+    items: [
+      { to: '/master-data', icon: PieChart, label: 'Master Data — Customers & Suppliers', labelSize: 'text-sm', alwaysShow: true },
+      { to: '/reviews', icon: MessageSquare, label: 'Reviews', requiresPermission: 'reviews.view' },
+    ],
+  },
+  {
+    id: 'crm',
+    title: 'CRM Management',
+    icon: UsersRound,
+    items: [
+      { to: '/crm', icon: LayoutDashboard, label: 'CRM Dashboard', requiresPermission: 'crm.view' },
+      { to: '/crm/contacts', icon: Contact2, label: 'Contacts', requiresPermission: 'crm.view' },
+      { to: '/crm/leads', icon: Target, label: 'Leads', requiresPermission: 'crm.view' },
+      { to: '/crm/pipeline', icon: GitBranch, label: 'Pipeline', requiresPermission: 'crm.view' },
+      { to: '/crm/activities', icon: Activity, label: 'Tasks', requiresPermission: 'crm.view' },
+      { to: '/crm/tickets', icon: LifeBuoy, label: 'Tickets', requiresPermission: 'crm.view' },
+      { to: '/crm/kb', icon: BookOpen, label: 'Knowledge Base', requiresPermission: 'crm.view' },
+      { to: '/crm/segments', icon: UsersRound, label: 'Segments', requiresPermission: 'crm.view' },
+      { to: '/crm/templates', icon: Mail, label: 'Email Templates', requiresPermission: 'crm.view' },
+      { to: '/crm/campaigns', icon: Megaphone, label: 'Campaigns', requiresPermission: 'crm.view' },
+      { to: '/crm/care-reminder', icon: Heart, label: 'Care & Reminders', requiresPermission: 'crm.view' },
+      { to: '/crm/workflows', icon: Workflow, label: 'Workflows', requiresPermission: 'crm.workflows.manage' },
+      { to: '/crm/ai', icon: Bot, label: 'AI Insights', requiresPermission: 'crm.ai.use' },
+      { to: '/crm/reports', icon: BarChart3, label: 'CRM Reports', requiresPermission: 'crm.reports.view' },
+      { to: '/crm/audit', icon: History, label: 'Audit Log', requiresPermission: 'crm.audit.view' },
     ],
   },
   {
@@ -621,20 +665,6 @@ const allSections: NavSection[] = [
       { to: '/commission/accruals', icon: ClipboardList, label: 'Accruals', requiresPermission: 'commission.read' },
       { to: '/commission/payouts', icon: Wallet2, label: 'Payouts', requiresPermission: 'commission.manage' },
       { to: '/commission/reports', icon: PieChart, label: 'Reports', requiresPermission: 'commission.read' },
-    ],
-  },
-  {
-    id: 'inventory',
-    title: 'Inventory Management',
-    icon: Warehouse,
-    items: [
-      { to: '/products', icon: Package, label: 'Products', requiresOffering: ['products', 'both'], requiresPermission: 'products.view' },
-      { to: '/services', icon: Wrench, label: 'Services', requiresOffering: ['services', 'both'], requiresPermission: 'services.view' },
-      { to: '/categories', icon: FolderTree, label: 'Categories' },
-      { to: '/inventory', icon: Warehouse, label: 'Inventory', requiresOffering: ['products', 'both'], requiresPermission: 'inventory.view' },
-      { to: '/plants', icon: Factory, label: 'Plants', requiresOffering: ['products', 'both'], requiresPermission: 'inventory.view' },
-      { to: '/storage-locations', icon: Boxes, label: 'Storage Locations', requiresOffering: ['products', 'both'], requiresPermission: 'inventory.view' },
-      { to: '/purchase-orders', icon: ClipboardList, label: 'Purchase Orders', requiresOffering: ['products', 'both'], requiresPermission: 'procurement.view' },
     ],
   },
   {
@@ -734,37 +764,6 @@ const allSections: NavSection[] = [
       // ── Period End
       { to: '/controlling/cost-allocations',         icon: GitBranch,     label: 'Cost Allocations',           requiresPermission: 'finance.view', groupLabel: 'Period End',            groupColor: 'rose' },
       { to: '/controlling/period-end',               icon: Calendar,      label: 'Period-End Closing',         requiresPermission: 'finance.view' },
-    ],
-  },
-  {
-    id: 'master-data',
-    title: 'Master Data Management',
-    icon: Database,
-    items: [
-      { to: '/master-data', icon: PieChart, label: 'Master Data — Customers & Suppliers', labelSize: 'text-sm', alwaysShow: true },
-      { to: '/reviews', icon: MessageSquare, label: 'Reviews', requiresPermission: 'reviews.view' },
-    ],
-  },
-  {
-    id: 'crm',
-    title: 'CRM Management',
-    icon: UsersRound,
-    items: [
-      { to: '/crm', icon: LayoutDashboard, label: 'CRM Dashboard', requiresPermission: 'crm.view' },
-      { to: '/crm/contacts', icon: Contact2, label: 'Contacts', requiresPermission: 'crm.view' },
-      { to: '/crm/leads', icon: Target, label: 'Leads', requiresPermission: 'crm.view' },
-      { to: '/crm/pipeline', icon: GitBranch, label: 'Pipeline', requiresPermission: 'crm.view' },
-      { to: '/crm/activities', icon: Activity, label: 'Tasks', requiresPermission: 'crm.view' },
-      { to: '/crm/tickets', icon: LifeBuoy, label: 'Tickets', requiresPermission: 'crm.view' },
-      { to: '/crm/kb', icon: BookOpen, label: 'Knowledge Base', requiresPermission: 'crm.view' },
-      { to: '/crm/segments', icon: UsersRound, label: 'Segments', requiresPermission: 'crm.view' },
-      { to: '/crm/templates', icon: Mail, label: 'Email Templates', requiresPermission: 'crm.view' },
-      { to: '/crm/campaigns', icon: Megaphone, label: 'Campaigns', requiresPermission: 'crm.view' },
-      { to: '/crm/care-reminder', icon: Heart, label: 'Care & Reminders', requiresPermission: 'crm.view' },
-      { to: '/crm/workflows', icon: Workflow, label: 'Workflows', requiresPermission: 'crm.workflows.manage' },
-      { to: '/crm/ai', icon: Bot, label: 'AI Insights', requiresPermission: 'crm.ai.use' },
-      { to: '/crm/reports', icon: BarChart3, label: 'CRM Reports', requiresPermission: 'crm.reports.view' },
-      { to: '/crm/audit', icon: History, label: 'Audit Log', requiresPermission: 'crm.audit.view' },
     ],
   },
   {
@@ -1133,8 +1132,8 @@ const pageTitles: Record<string, string> = {
   '/restaurant/menu': 'Dine-in Menu',
   '/restaurant/reservations': 'Reservations',
   '/restaurant/reports': 'Restaurant Reports',
-  '/workspace': 'Workspace Apps',
   '/relationship-manager': 'Relationship Manager',
+  '/settings/support-activity': 'Support audit',
   '/subscriptions': 'Subscriptions Catalog',
   '/marketplace': 'Marketplace Leads',
   '/rental': 'Rentals',
@@ -1147,8 +1146,7 @@ const pageTitles: Record<string, string> = {
   '/master-data': 'Master Data — Customers / Suppliers',
   '/reviews': 'Reviews',
   '/reports': 'Reports',
-  '/business-front': 'Website Dashboard',
-  '/storefront-builder': 'Website Dashboard',
+  '/storefront-builder': 'Business Website Builder',
   '/document-templates': 'Document Templates',
   '/invoices/templates': 'Invoice Templates',
   '/purchase-orders/templates': 'PO Templates',
@@ -1859,6 +1857,13 @@ export default function DashboardLayout() {
   const permissions = vendorRole?.permissions || []
   const isOwnerOrAdmin = vendorRole?.role === 'owner' || vendorRole?.role === 'admin' || vendorRole?.role_name?.toLowerCase() === 'owner' || vendorRole?.role_name?.toLowerCase() === 'admin'
 
+  const showRmSupportAudit =
+    location.pathname === '/relationship-manager' &&
+    !!vendor?.id &&
+    !!vendorRole?.vendor_id &&
+    vendorRole.vendor_id === vendor.id &&
+    (vendorRole.role === 'owner' || vendorRole.role === 'platform_staff')
+
   const navOrderScope = useMemo((): NavOrderScope | null => {
     if (!user?.id) return null
     const roleKey = vendorRole?.role_id ?? vendorRole?.role ?? vendorRole?.role_name ?? 'member'
@@ -2424,7 +2429,7 @@ export default function DashboardLayout() {
     const activeInGroup =
       activeNavTo && groupItems.some((it) => it.to === activeNavTo) ? activeNavTo : null
     setCollapsedGroups((prev) => {
-      const wasCollapsed = prev[grpKey] ?? false
+      const wasCollapsed = resolveNavGroupCollapsed(grpKey, prev)
       if (!wasCollapsed) {
         return { ...prev, [grpKey]: true }
       }
@@ -3551,7 +3556,7 @@ export default function DashboardLayout() {
                                       )
                                     }
 
-                                    const isGroupCollapsed = collapsedGroups[block.grpKey] ?? false
+                                    const isGroupCollapsed = resolveNavGroupCollapsed(block.grpKey, collapsedGroups)
                                     const groupHasActive = block.entries.some(
                                       ({ item }) => activeNavTo === item.to,
                                     )
@@ -3861,6 +3866,15 @@ export default function DashboardLayout() {
 
             {/* Toolbar — pinned to the right end */}
             <div className="flex shrink-0 items-center gap-2">
+              {showRmSupportAudit ? (
+                <Link
+                  to="/settings/support-activity"
+                  className="inline-flex h-8 shrink-0 items-center gap-1 rounded-lg border border-blue-200/80 bg-blue-50/60 px-2.5 text-xs font-medium text-blue-800 transition-colors hover:bg-blue-100/80 dark:border-blue-900 dark:bg-blue-950/30 dark:text-blue-200 dark:hover:bg-blue-950/50"
+                >
+                  <HelpCircle className="h-3.5 w-3.5 shrink-0" />
+                  Support audit
+                </Link>
+              ) : null}
               <HeaderQuickActionButtons
                 helpRef={helpRef}
                 moreRef={moreRef}

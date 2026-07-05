@@ -23,6 +23,8 @@ import {
   alternatingImageClassNames,
   alternatingRowFlip,
 } from '@/lib/alternatingFeatureLayout'
+import { builderSectionContainerWithMax } from '@/lib/builderSectionLayout'
+import { BuilderSectionSurface } from '@/components/builder/BuilderSectionSurface'
 import {
   isTemplateMealFeaturesBlock,
   productFocusedFeatureContent,
@@ -147,12 +149,13 @@ export default function FeaturesBlock({ site, style, props, blockType, blockId }
     })
 
     return (
-      <section
-        className={`py-16 sm:py-24 px-6 sm:px-12 mx-auto ${isFull ? 'max-w-none px-0 sm:px-0' : 'max-w-6xl'}`}
-        style={{ backgroundColor: sectionBg }}
+      <BuilderSectionSurface
+        surface={{ backgroundColor: sectionBg }}
+        maxWidth={isFull ? 'max-w-none' : 'max-w-6xl'}
+        className={isFull ? 'px-0 sm:px-0 lg:px-0' : undefined}
       >
         {sectionTitle(
-          'text-3xl sm:text-4xl font-semibold text-center mb-12 sm:mb-16 text-balance px-6',
+          'text-3xl sm:text-4xl font-semibold text-center mb-12 sm:mb-16 text-balance',
           { fontFamily: style.font_heading, color: sectionText },
         )}
         <div className={rowGap}>
@@ -219,7 +222,7 @@ export default function FeaturesBlock({ site, style, props, blockType, blockId }
             return <div key={i}>{row}</div>
           })}
         </div>
-      </section>
+      </BuilderSectionSurface>
     )
   }
 
@@ -237,7 +240,7 @@ export default function FeaturesBlock({ site, style, props, blockType, blockId }
 
   if (layout === 'list') {
     return (
-      <section className="py-16 px-4 sm:px-6 lg:px-8 max-w-4xl mx-auto" style={{ background: surface.background, color: surface.color }}>
+      <BuilderSectionSurface surface={surface} maxWidth="max-w-4xl">
         {sectionTitle('text-3xl font-bold mb-10 text-center')}
         <div className="space-y-6" style={{ gap: itemGap }}>
           {visibleArrayEntries(features, props, 'features').map(({ item: feature, index: i }) => (
@@ -268,15 +271,15 @@ export default function FeaturesBlock({ site, style, props, blockType, blockId }
             </div>
           ))}
         </div>
-      </section>
+      </BuilderSectionSurface>
     )
   }
 
   if (layout === 'strip') {
     return (
-      <section className="py-12 px-4 overflow-x-auto" style={{ background: surface.background, color: surface.color }}>
-        {sectionTitle('text-2xl font-bold mb-8 text-center px-4')}
-        <div className="flex min-w-max px-4 mx-auto justify-center" style={{ gap: itemGap }}>
+      <BuilderSectionSurface surface={surface} className="overflow-x-auto">
+        {sectionTitle('text-2xl font-bold mb-8 text-center')}
+        <div className="flex min-w-max mx-auto justify-center" style={{ gap: itemGap }}>
           {visibleArrayEntries(features, props, 'features').map(({ item: feature, index: i }) => (
             <div
               key={i}
@@ -289,13 +292,13 @@ export default function FeaturesBlock({ site, style, props, blockType, blockId }
             </div>
           ))}
         </div>
-      </section>
+      </BuilderSectionSurface>
     )
   }
 
   if (layout === 'masonry') {
     return (
-      <section className="py-16 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto" style={{ background: surface.background, color: surface.color }}>
+      <BuilderSectionSurface surface={surface}>
         {sectionTitle('text-3xl font-bold mb-10 text-center')}
         <div className={cn('columns-1 sm:columns-2 gap-6 space-y-6', columns >= 3 && 'lg:columns-3', columns >= 4 && 'lg:columns-4')} style={{ columnGap: itemGap }}>
           {visibleArrayEntries(features, props, 'features').map(({ item: feature, index: i }) => (
@@ -314,12 +317,12 @@ export default function FeaturesBlock({ site, style, props, blockType, blockId }
             </div>
           ))}
         </div>
-      </section>
+      </BuilderSectionSurface>
     )
   }
 
   return (
-    <section className="py-16 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto" style={{ background: surface.background, color: surface.color }}>
+    <BuilderSectionSurface surface={surface}>
       {sectionTitle('text-3xl font-bold mb-10 text-center')}
       <div className={cn('grid', sectionGridColumnClass(columns))} style={{ gap: itemGap }}>
         {visibleArrayEntries(features, props, 'features').map(({ item: feature, index: i }) => (
@@ -356,6 +359,6 @@ export default function FeaturesBlock({ site, style, props, blockType, blockId }
           </div>
         ))}
       </div>
-    </section>
+    </BuilderSectionSurface>
   )
 }

@@ -1,7 +1,7 @@
 import { Check, ExternalLink, Eye, Globe, Pencil, Store } from 'lucide-react'
 import { Link, useNavigate } from 'react-router-dom'
 import { cn } from '@/lib/utils'
-import { WebsiteSiteGlimpse } from '@/components/websites/WebsiteSiteGlimpse'
+import { resolveWebsiteBuiltForLabel } from '@/components/websites/WebsiteScopeBadge'
 import { AppliedTemplateViewLiveButton, templateCardIconActionClass } from '@/components/websites/AppliedTemplateViewLiveButton'
 import { resolveSiteStaticThumbnail } from '@/lib/websiteSitePreview'
 import {
@@ -147,11 +147,11 @@ export function BuilderDraftTemplateCard({
   const isExternalSite = isBuilderSiteExternal(site)
   const isBuiltForAll = isBuilderSiteBuiltForAll(site)
   const builtForScopeLabel = isExternalSite
-    ? 'Built for External'
+    ? resolveWebsiteBuiltForLabel('external')
     : isBuiltForAll
-      ? 'Built for all'
+      ? resolveWebsiteBuiltForLabel('all')
       : builtForHomeStoreCode
-        ? `Built for · ${builtForHomeStoreCode}`
+        ? resolveWebsiteBuiltForLabel('store', null, builtForHomeStoreCode)
         : null
   const builtForContextStore = Boolean(
     contextStoreId && isBuilderSiteBuiltForStore(site, contextStoreId),
@@ -200,9 +200,9 @@ export function BuilderDraftTemplateCard({
       ? `Live · ${contextStoreCode}`
       : linkedToContextStoreResolved
         ? isExternalSite
-          ? 'Built for External'
+          ? resolveWebsiteBuiltForLabel('external')
           : isBuiltForAll
-            ? 'Built for all'
+            ? resolveWebsiteBuiltForLabel('all')
             : `Built for · ${builtForHomeStoreCode ?? contextStoreCode}`
         : isApplied || isLinkedToStore
           ? builtForHomeStoreCode

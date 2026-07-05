@@ -4,6 +4,7 @@ import type { LiveItem, PublicSite, StyleConfig } from '@/blocks/registry'
 import { BuilderTextField } from '@/components/builder/BuilderTextField'
 import { useBuilderCanvas } from '@/contexts/BuilderCanvasContext'
 import { getRecent } from '@/lib/recentlyViewed'
+import { builderSectionContainerClass, builderSectionContainerWithMax } from '@/lib/builderSectionLayout'
 import { isBlockFieldHidden, resolveBlockTextField } from '@/lib/blockHiddenFields'
 import { useVendor } from '@/contexts/VendorContext'
 import {
@@ -45,7 +46,7 @@ export default function RecentlyViewedBlock({ style, props, blockId }: Props) {
   if (!items.length && !isEditorCanvas) return null
 
   return (
-    <section className="py-12 px-4 sm:px-6 lg:px-8 max-w-6xl mx-auto" aria-label={title ?? undefined}>
+    <section className={builderSectionContainerWithMax('max-w-6xl')} aria-label={title ?? undefined}>
       {showTitle && (
         <BuilderTextField
           fieldKey="title"

@@ -9,6 +9,8 @@ import { ResizableTable } from '@/components/table/ResizableTable'
 import { TableToolbar } from '@/components/table/TableToolbar'
 import { TableColumnLabel } from '@/components/common/FieldLabel'
 import { useEscapeToClose } from '@/hooks/useEscapeToClose'
+import { ImageSourcePicker } from '@/components/common/ImageSourcePicker'
+import { resolveBusinessGalleryDisplayUrl } from '@/data/businessImagePack'
 import { formatCurrency, isLikelyImageFile, mediaUrl } from '@/lib/utils'
 import { processRows, type SortDir } from '@/lib/tableList'
 import { onClickableTableRow } from '@/lib/clickableTableRow'
@@ -93,6 +95,13 @@ function VehicleModal({
     }
   }
 
+  const handleImageUrl = async (url: string) => {
+    const trimmed = url.trim()
+    if (!trimmed) return
+    clearLocalPreview()
+    setImageUrl(trimmed)
+  }
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     if (!make.trim() || !model.trim()) return
@@ -136,25 +145,39 @@ function VehicleModal({
         <div className="flex-1 min-h-0 overflow-y-auto space-y-4 p-5">
           <div>
             <Label>Vehicle photo</Label>
-            <label className="mt-1 flex h-32 w-full cursor-pointer items-center justify-center overflow-hidden rounded-lg border border-dashed border-input bg-muted/40 hover:bg-muted/60">
-              {imageUrl ? (
-                <img src={imageUrl.startsWith('blob:') ? imageUrl : mediaUrl(imageUrl)} alt="" className="h-full w-full object-cover" />
-              ) : (
-                <span className="flex flex-col items-center gap-1 text-xs text-muted-foreground">
-                  {imageUploading ? <Loader2 className="h-5 w-5 animate-spin" /> : <ImagePlus className="h-5 w-5" />}
-                  Upload photo
-                </span>
+            <ImageSourcePicker
+              title="Vehicle photo"
+              uploading={imageUploading}
+              onFile={handleImageFile}
+              onUrl={handleImageUrl}
+              className="mt-1"
+            >
+              {({ open, uploading }) => (
+                <button
+                  type="button"
+                  onClick={open}
+                  disabled={uploading}
+                  className="flex h-32 w-full cursor-pointer items-center justify-center overflow-hidden rounded-lg border border-dashed border-input bg-muted/40 hover:bg-muted/60 disabled:pointer-events-none"
+                >
+                  {imageUrl ? (
+                    <img
+                      src={
+                        imageUrl.startsWith('blob:')
+                          ? imageUrl
+                          : mediaUrl(resolveBusinessGalleryDisplayUrl(imageUrl))
+                      }
+                      alt=""
+                      className="h-full w-full object-cover"
+                    />
+                  ) : (
+                    <span className="flex flex-col items-center gap-1 text-xs text-muted-foreground">
+                      {uploading ? <Loader2 className="h-5 w-5 animate-spin" /> : <ImagePlus className="h-5 w-5" />}
+                      Add photo
+                    </span>
+                  )}
+                </button>
               )}
-              <input
-                type="file"
-                accept="image/*"
-                className="hidden"
-                onChange={e => {
-                  const file = e.target.files?.[0]
-                  if (file) void handleImageFile(file)
-                }}
-              />
-            </label>
+            </ImageSourcePicker>
           </div>
           <div className="grid grid-cols-3 gap-3">
             <div>

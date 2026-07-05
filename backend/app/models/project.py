@@ -17,6 +17,7 @@ class Project(Base):
     vendor_id = Column(UUID(as_uuid=True), ForeignKey("vendor.id", ondelete="CASCADE"), nullable=False, index=True)
     # Business unit (store) this project belongs to.
     store_id = Column(UUID(as_uuid=True), ForeignKey("store.id", ondelete="SET NULL"), nullable=True, index=True)
+    sales_area_id = Column(UUID(as_uuid=True), ForeignKey("sales_area.id", ondelete="SET NULL"), nullable=True, index=True)
 
     project_number = Column(String(20), nullable=False, index=True)
     name = Column(String(255), nullable=False)
@@ -58,6 +59,7 @@ class Project(Base):
     __table_args__ = (
         Index("ix_pm_project_vendor_status", "vendor_id", "status"),
         Index("uq_pm_project_vendor_number", "vendor_id", "project_number", unique=True),
+        Index("ix_pm_project_sales_area", "vendor_id", "sales_area_id"),
     )
 
 

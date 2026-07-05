@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { formatCurrency, imgUrl } from '@/lib/utils'
@@ -15,12 +15,14 @@ import MediaViewer from '@/components/MediaViewer'
 import ColorSwatchPicker from '@/components/products/ColorSwatchPicker'
 import { isCombinationAvailable } from '@/lib/variantOptions'
 import type { ProductDetailTemplateProps } from './types'
+import { isDisplayFieldEnabled } from '@/lib/storefrontDisplayFields'
 import { themeUi } from '@/lib/themeColors'
 
 type Tab = 'description' | 'specs' | 'shipping' | 'reviews'
 
 export default function ModernDetail(props: ProductDetailTemplateProps) {
   const {
+    displayFields,
     product, selectedVariant, activeVariants, hasVariants,
     setSelectedVariantId, qty, setQty, maxAddQty,
     displayPrice, displayCompare, displayCurrency, displayStock,
@@ -40,6 +42,10 @@ export default function ModernDetail(props: ProductDetailTemplateProps) {
   } = props
   const qtyMax = maxAddQty ?? 99
 
+  const sf = displayFields
+  const showCompare = isDisplayFieldEnabled(sf, 'compare_at_price')
+  const showVariants = isDisplayFieldEnabled(sf, 'variants') && hasVariants
+
   const intervalLabel: Record<string, string> = {
     daily: 'Daily', weekly: 'Weekly', biweekly: 'Bi-Weekly', monthly: 'Monthly',
     quarterly: 'Quarterly', biannual: 'Half-Yearly', yearly: 'Yearly',
@@ -49,14 +55,34 @@ export default function ModernDetail(props: ProductDetailTemplateProps) {
     quarterly: '/qtr', biannual: '/6mo', yearly: '/yr',
   }
 
+  const hasSpecsContent = Boolean(specs && Object.keys(specs).length > 0)
+  const showWeight = isDisplayFieldEnabled(sf, 'weight') && Boolean(product.weight_kg)
+  const showDimensions = isDisplayFieldEnabled(sf, 'dimensions') && Boolean(product.length_cm || product.width_cm || product.height_cm)
+  const showShippingSection = isDisplayFieldEnabled(sf, 'shipping_info') && product.requires_shipping !== false
+  const showReturnsSection = isDisplayFieldEnabled(sf, 'return_policy') && Boolean(returnPolicy || returnDays || isReturnable !== undefined)
+  const showWarrantySection = isDisplayFieldEnabled(sf, 'warranty') && Boolean(warrantyType || warrantyDays)
+
+  const tabs: { id: Tab; label: string }[] = []
+  if (isDisplayFieldEnabled(sf, 'description') && product.description) {
+    tabs.push({ id: 'description', label: 'Description' })
+  }
+  if (isDisplayFieldEnabled(sf, 'specifications') && hasSpecsContent) {
+    tabs.push({ id: 'specs', label: 'Specifications' })
+  }
+  if (showShippingSection || showReturnsSection || showWarrantySection || showWeight || showDimensions) {
+    tabs.push({ id: 'shipping', label: 'Shipping & Returns' })
+  }
+  if (isDisplayFieldEnabled(sf, 'reviews')) {
+    tabs.push({ id: 'reviews', label: `Reviews${product.review_count ? ` (${product.review_count})` : ''}` })
+  }
+
   const [activeTab, setActiveTab] = useState<Tab>('description')
 
-  const tabs: { id: Tab; label: string }[] = [
-    { id: 'description', label: 'Description' },
-    ...(specs ? [{ id: 'specs' as Tab, label: 'Specifications' }] : []),
-    { id: 'shipping', label: 'Shipping & Returns' },
-    { id: 'reviews', label: `Reviews${product.review_count ? ` (${product.review_count})` : ''}` },
-  ]
+  useEffect(() => {
+    if (tabs.length > 0 && !tabs.some((tab) => tab.id === activeTab)) {
+      setActiveTab(tabs[0].id)
+    }
+  }, [tabs, activeTab])
 
   return (
     <div className="max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8 py-6">
@@ -65,7 +91,7 @@ export default function ModernDetail(props: ProductDetailTemplateProps) {
         <Link to={storePath('/')} className="hover:text-blue-600">Home</Link>
         <ChevronRight className="w-3 h-3" />
         <Link to={storePath('/products')} className="hover:text-blue-600">Products</Link>
-        {product.category && (
+        {isDisplayFieldEnabled(sf, 'category') && product.category && (
           <>
             <ChevronRight className="w-3 h-3" />
             <Link to={storePath(`/products?category=${encodeURIComponent(product.category)}`)} className="hover:text-blue-600">{product.category}</Link>
@@ -86,11 +112,11 @@ export default function ModernDetail(props: ProductDetailTemplateProps) {
               productName={product.name}
               badges={
                 <div className="absolute top-3 left-3 flex flex-col gap-1.5">
-                  {discount > 0 && <span className="bg-red-500 text-white text-xs font-bold px-2.5 py-1 rounded-lg shadow">-{discount}%</span>}
-                  {product.is_new_arrival && (
+                  {showCompare && discount > 0 && <span className="bg-red-500 text-white text-xs font-bold px-2.5 py-1 rounded-lg shadow">-{discount}%</span>}
+                  {isDisplayFieldEnabled(sf, 'new_arrival_badge') && product.is_new_arrival && (
                     <span className="bg-emerald-500 text-white text-xs font-bold px-2.5 py-1 rounded-lg shadow flex items-center gap-1"><Zap className="w-3 h-3" /> New</span>
                   )}
-                  {product.is_best_seller && (
+                  {isDisplayFieldEnabled(sf, 'best_seller_badge') && product.is_best_seller && (
                     <span className="bg-amber-500 text-white text-xs font-bold px-2.5 py-1 rounded-lg shadow flex items-center gap-1"><Award className="w-3 h-3" /> Bestseller</span>
                   )}
                 </div>
@@ -103,19 +129,28 @@ export default function ModernDetail(props: ProductDetailTemplateProps) {
         <div className="lg:col-span-4 space-y-5">
           <div>
             <div className="flex items-center gap-2 flex-wrap mb-2">
-              {product.brand && <span className="text-xs font-medium text-blue-600 uppercase tracking-wider">{product.brand}</span>}
-              {product.category && <span className="text-xs text-gray-400">in {product.category}</span>}
+              {isDisplayFieldEnabled(sf, 'brand') && product.brand && (
+                <span className="text-xs font-medium text-blue-600 uppercase tracking-wider">{product.brand}</span>
+              )}
+              {isDisplayFieldEnabled(sf, 'category') && product.category && (
+                <span className="text-xs text-gray-400">in {product.category}</span>
+              )}
+              {isDisplayFieldEnabled(sf, 'subcategory') && product.subcategory && (
+                <span className="text-xs text-gray-400">/ {product.subcategory}</span>
+              )}
             </div>
             <h1 className="text-2xl font-bold text-gray-900 leading-tight">{product.name}</h1>
-            {(product.avg_rating ?? 0) > 0 && (
+            {isDisplayFieldEnabled(sf, 'reviews') && (product.avg_rating ?? 0) > 0 && (
               <div className="mt-2"><StarRating rating={product.avg_rating!} showValue reviewCount={product.review_count} /></div>
             )}
           </div>
 
-          {product.short_description && <p className="text-sm text-gray-600 leading-relaxed">{product.short_description}</p>}
+          {isDisplayFieldEnabled(sf, 'short_description') && product.short_description && (
+            <p className="text-sm text-gray-600 leading-relaxed">{product.short_description}</p>
+          )}
 
           {/* Variant / Plan Selector */}
-          {hasVariants && (
+          {showVariants && (
             <div className="space-y-4 border-t pt-5">
               {optionRows.filter((r) => r.type === 'size').map((sizeRow) => (
                 sizeRow.type === 'size' ? (
@@ -222,7 +257,7 @@ export default function ModernDetail(props: ProductDetailTemplateProps) {
                               <p className="text-xs text-gray-400">{vShort}</p>
                             </div>
                           </div>
-                          {v.compare_at_price && v.compare_at_price > v.price && (
+                          {showCompare && v.compare_at_price && v.compare_at_price > v.price && (
                             <p className="text-xs text-gray-400 line-through mt-1">{formatCurrency(v.compare_at_price, v.currency)}</p>
                           )}
                           {isSelected && (
@@ -248,7 +283,7 @@ export default function ModernDetail(props: ProductDetailTemplateProps) {
                           }`}>
                           <p className="text-sm font-semibold text-gray-900">{v.name}</p>
                           <p className="text-sm font-bold mt-0.5">{formatCurrency(v.price, v.currency)}</p>
-                          {v.compare_at_price && v.compare_at_price > v.price && (
+                          {showCompare && v.compare_at_price && v.compare_at_price > v.price && (
                             <p className="text-xs text-gray-400 line-through">{formatCurrency(v.compare_at_price, v.currency)}</p>
                           )}
                         </button>
@@ -261,7 +296,7 @@ export default function ModernDetail(props: ProductDetailTemplateProps) {
           )}
 
           {/* Tags */}
-          {product.tags && product.tags.length > 0 && (
+          {isDisplayFieldEnabled(sf, 'tags') && product.tags && product.tags.length > 0 && (
             <div className="flex flex-wrap gap-1.5">
               {product.tags.map(tag => (
                 <span key={tag} className="inline-flex items-center gap-1 text-xs bg-gray-100 text-gray-500 px-2.5 py-1 rounded-full"><Tag className="w-3 h-3" />{tag}</span>
@@ -270,6 +305,7 @@ export default function ModernDetail(props: ProductDetailTemplateProps) {
           )}
 
           {/* Tabbed content */}
+          {tabs.length > 0 && (
           <div className="border-t pt-5">
             <div className="flex gap-1 border-b">
               {tabs.map(tab => (
@@ -281,44 +317,26 @@ export default function ModernDetail(props: ProductDetailTemplateProps) {
             </div>
 
             <div className="pt-5 min-h-[200px]">
-              {activeTab === 'description' && (
+              {activeTab === 'description' && isDisplayFieldEnabled(sf, 'description') && (
                 <div className="prose prose-sm max-w-none">
-                  {product.description ? (
-                    <p className="text-sm text-gray-600 whitespace-pre-wrap leading-relaxed">{product.description}</p>
-                  ) : (
-                    <p className="text-sm text-gray-400 italic">No description available.</p>
-                  )}
+                  <p className="text-sm text-gray-600 whitespace-pre-wrap leading-relaxed">{product.description}</p>
                 </div>
               )}
 
-              {activeTab === 'specs' && specs && (
+              {activeTab === 'specs' && isDisplayFieldEnabled(sf, 'specifications') && hasSpecsContent && (
                 <div className="divide-y">
-                  {Object.entries(specs).map(([key, value]) => (
+                  {Object.entries(specs!).map(([key, value]) => (
                     <div key={key} className="grid grid-cols-5 py-3 text-sm">
                       <span className="col-span-2 text-gray-500 font-medium">{key}</span>
                       <span className="col-span-3 text-gray-900">{value}</span>
                     </div>
                   ))}
-                  {product.weight_kg && (
-                    <div className="grid grid-cols-5 py-3 text-sm">
-                      <span className="col-span-2 text-gray-500 font-medium">Weight</span>
-                      <span className="col-span-3 text-gray-900">{product.weight_kg} kg</span>
-                    </div>
-                  )}
-                  {(product.length_cm || product.width_cm || product.height_cm) && (
-                    <div className="grid grid-cols-5 py-3 text-sm">
-                      <span className="col-span-2 text-gray-500 font-medium">Dimensions</span>
-                      <span className="col-span-3 text-gray-900">
-                        {[product.length_cm && `${product.length_cm}L`, product.width_cm && `${product.width_cm}W`, product.height_cm && `${product.height_cm}H`].filter(Boolean).join(' × ')} cm
-                      </span>
-                    </div>
-                  )}
                 </div>
               )}
 
               {activeTab === 'shipping' && (
                 <div className="space-y-5">
-                  {product.requires_shipping !== false && (
+                  {showShippingSection && (
                     <div>
                       <h4 className="text-sm font-bold text-gray-900 mb-2 flex items-center gap-2"><Truck className="w-4 h-4 text-blue-600" /> Shipping</h4>
                       <ul className="space-y-2 text-sm text-gray-600">
@@ -327,10 +345,27 @@ export default function ModernDetail(props: ProductDetailTemplateProps) {
                         </li>
                         {product.free_shipping_threshold && <li className="flex items-center gap-2"><Info className="w-4 h-4 text-blue-500 shrink-0" />Free on orders above {formatCurrency(product.free_shipping_threshold)}</li>}
                         {product.shipping_class && <li className="flex items-center gap-2"><Package className="w-4 h-4 text-gray-400 shrink-0" /><span className="capitalize">{product.shipping_class} shipping</span></li>}
+                        {showWeight && <li className="flex items-center gap-2"><Box className="w-4 h-4 text-gray-400 shrink-0" />Weight: {product.weight_kg} kg</li>}
+                        {showDimensions && (
+                          <li className="flex items-center gap-2"><Box className="w-4 h-4 text-gray-400 shrink-0" />
+                            Dimensions: {[product.length_cm && `${product.length_cm}L`, product.width_cm && `${product.width_cm}W`, product.height_cm && `${product.height_cm}H`].filter(Boolean).join(' × ')} cm
+                          </li>
+                        )}
                       </ul>
                     </div>
                   )}
-                  {(returnPolicy || returnDays || isReturnable !== undefined) && (
+                  {!showShippingSection && (showWeight || showDimensions) && (
+                    <div>
+                      <h4 className="text-sm font-bold text-gray-900 mb-2 flex items-center gap-2"><Box className="w-4 h-4 text-gray-400" /> Package Details</h4>
+                      <ul className="space-y-2 text-sm text-gray-600">
+                        {showWeight && <li>Weight: {product.weight_kg} kg</li>}
+                        {showDimensions && (
+                          <li>Dimensions: {[product.length_cm && `${product.length_cm}L`, product.width_cm && `${product.width_cm}W`, product.height_cm && `${product.height_cm}H`].filter(Boolean).join(' × ')} cm</li>
+                        )}
+                      </ul>
+                    </div>
+                  )}
+                  {showReturnsSection && (
                     <div>
                       <h4 className="text-sm font-bold text-gray-900 mb-2 flex items-center gap-2"><RefreshCw className="w-4 h-4 text-green-600" /> Returns</h4>
                       <ul className="space-y-2 text-sm text-gray-600">
@@ -340,12 +375,12 @@ export default function ModernDetail(props: ProductDetailTemplateProps) {
                           <li className="flex items-center gap-2"><Check className="w-4 h-4 text-green-500 shrink-0" />{returnDays ? `${returnDays}-day return window` : 'Returns accepted'}</li>
                         )}
                         {returnPolicy && <li className="text-xs text-gray-500">{returnPolicy}</li>}
-                        {returnConditions && <li className="text-xs text-gray-500">{returnConditions}</li>}
-                        {refundPolicy && <li className="flex items-center gap-2"><Check className="w-4 h-4 text-green-500 shrink-0" /><span className="capitalize">{refundPolicy.replace(/_/g, ' ')}</span></li>}
+                        {isDisplayFieldEnabled(sf, 'return_conditions') && returnConditions && <li className="text-xs text-gray-500">{returnConditions}</li>}
+                        {isDisplayFieldEnabled(sf, 'refund_policy') && refundPolicy && <li className="flex items-center gap-2"><Check className="w-4 h-4 text-green-500 shrink-0" /><span className="capitalize">{refundPolicy.replace(/_/g, ' ')}</span></li>}
                       </ul>
                     </div>
                   )}
-                  {(warrantyType || warrantyDays) && (
+                  {showWarrantySection && (
                     <div>
                       <h4 className="text-sm font-bold text-gray-900 mb-2 flex items-center gap-2"><ShieldCheck className="w-4 h-4 text-primary" /> Warranty</h4>
                       <ul className="space-y-2 text-sm text-gray-600">
@@ -359,9 +394,12 @@ export default function ModernDetail(props: ProductDetailTemplateProps) {
                 </div>
               )}
 
-              {activeTab === 'reviews' && <ReviewSection reviewType="product" targetId={product.id} />}
+              {activeTab === 'reviews' && isDisplayFieldEnabled(sf, 'reviews') && (
+                <ReviewSection reviewType="product" targetId={product.id} />
+              )}
             </div>
           </div>
+          )}
         </div>
 
         {/* Right — Sticky Buy Box */}
@@ -369,7 +407,7 @@ export default function ModernDetail(props: ProductDetailTemplateProps) {
           <div className={`lg:sticky lg:top-4 rounded-2xl border p-5 space-y-4 ${themeUi.cardSurface} ${themeUi.cardBorder}`}>
             {/* Price */}
             <div>
-              {displayOfferLabel && displayOnSale && (
+              {isDisplayFieldEnabled(sf, 'offer_label') && displayOfferLabel && displayOnSale && (
                 <span className="text-xs font-bold text-amber-700 bg-amber-50 px-2 py-0.5 rounded-full mb-2 inline-block">{displayOfferLabel}</span>
               )}
               <div className="flex items-baseline gap-2">
@@ -384,7 +422,7 @@ export default function ModernDetail(props: ProductDetailTemplateProps) {
                   )}
                 </span>
               </div>
-              {displayCompare && displayCompare > displayPrice && (
+              {showCompare && displayCompare && displayCompare > displayPrice && (
                 <div className="flex items-center gap-2 mt-1">
                   <span className="text-sm text-gray-400 line-through">M.R.P.: {formatCurrency(displayCompare, displayCurrency)}</span>
                   {discount > 0 && <span className="text-sm font-bold text-red-600">Save {discount}%</span>}
@@ -417,7 +455,7 @@ export default function ModernDetail(props: ProductDetailTemplateProps) {
             )}
 
             {/* Stock */}
-            {displayStock && (
+            {isDisplayFieldEnabled(sf, 'stock_status') && displayStock && (
               <div className={`text-sm font-semibold ${
                 displayStock === 'in_stock' ? 'text-green-600' : displayStock === 'low_stock' ? 'text-amber-600' : 'text-red-600'
               }`}>
@@ -426,9 +464,17 @@ export default function ModernDetail(props: ProductDetailTemplateProps) {
               </div>
             )}
 
-            {/* SKU */}
-            {(product.sku || selectedVariant?.sku) && (
-              <p className="text-xs text-gray-400">SKU: {selectedVariant?.sku || product.sku}</p>
+            {/* SKU / Barcode */}
+            {((isDisplayFieldEnabled(sf, 'sku') && (selectedVariant?.sku || product.sku))
+              || (isDisplayFieldEnabled(sf, 'barcode') && (selectedVariant?.barcode || product.barcode))) && (
+              <div className="space-y-0.5">
+                {isDisplayFieldEnabled(sf, 'sku') && (selectedVariant?.sku || product.sku) && (
+                  <p className="text-xs text-gray-400">SKU: {selectedVariant?.sku || product.sku}</p>
+                )}
+                {isDisplayFieldEnabled(sf, 'barcode') && (selectedVariant?.barcode || product.barcode) && (
+                  <p className="text-xs text-gray-400">Barcode: {selectedVariant?.barcode || product.barcode}</p>
+                )}
+              </div>
             )}
 
             <div className="border-t pt-4" />
@@ -477,10 +523,19 @@ export default function ModernDetail(props: ProductDetailTemplateProps) {
             {/* Trust strip */}
             <div className="border-t pt-4 space-y-2.5">
               {[
-                { icon: Truck, text: product.shipping_cost ? `Delivery: ${formatCurrency(product.shipping_cost)}` : 'Free Delivery' },
-                { icon: RefreshCw, text: returnDays ? `${returnDays}-Day Returns` : isReturnable === false ? 'Non-returnable' : 'Easy Returns' },
-                { icon: ShieldCheck, text: warrantyDays ? `${warrantyDays >= 365 ? `${Math.floor(warrantyDays / 365)}Y` : `${warrantyDays}D`} Warranty` : 'Secure Purchase' },
-              ].map(b => (
+                isDisplayFieldEnabled(sf, 'shipping_info') && {
+                  icon: Truck,
+                  text: product.shipping_cost ? `Delivery: ${formatCurrency(product.shipping_cost)}` : 'Free Delivery',
+                },
+                isDisplayFieldEnabled(sf, 'return_policy') && {
+                  icon: RefreshCw,
+                  text: returnDays ? `${returnDays}-Day Returns` : isReturnable === false ? 'Non-returnable' : 'Easy Returns',
+                },
+                isDisplayFieldEnabled(sf, 'warranty') && {
+                  icon: ShieldCheck,
+                  text: warrantyDays ? `${warrantyDays >= 365 ? `${Math.floor(warrantyDays / 365)}Y` : `${warrantyDays}D`} Warranty` : 'Secure Purchase',
+                },
+              ].filter((badge): badge is { icon: typeof Truck; text: string } => Boolean(badge)).map(b => (
                 <div key={b.text} className="flex items-center gap-3 text-sm text-gray-600">
                   <b.icon className="w-4 h-4 text-gray-400 shrink-0" /><span>{b.text}</span>
                 </div>

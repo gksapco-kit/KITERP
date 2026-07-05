@@ -7,16 +7,20 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, selectOptionsWithBlank } from '@/components/ui/select'
+import { ThemeSelect } from '@/components/common/ThemeSelect'
 import { Badge } from '@/components/ui/badge'
+import { TableToolbar } from '@/components/table/TableToolbar'
 import { CustomerPicker, type CustomerPickerValue } from '@/components/commission/CustomerPicker'
 import { StaffPicker, type StaffPickerValue } from '@/components/commission/StaffPicker'
 import { BusinessUnitSelect } from '@/components/common/BusinessUnitSelect'
 import { BranchSelect } from '@/components/common/BranchSelect'
+import { SalesAreaSelect } from '@/components/common/SalesAreaSelect'
+import { SalesScopeFilters } from '@/components/common/SalesScopeFilters'
 import { CatalogItemPicker, type CatalogPickerItem } from '@/components/common/CatalogItemPicker'
 import { useCreateProject, useProjects, useProjectsOverview } from '@/hooks/useProjects'
 import { formatDate } from '@/lib/utils'
 import {
-  FolderKanban, Plus, Loader2, Search, CheckCircle2, AlertTriangle,
+  FolderKanban, Plus, Loader2, CheckCircle2, AlertTriangle,
   ListTodo, Activity,
 } from 'lucide-react'
 import type { Project, ProjectPriority, ProjectStatus } from '@/types/project'
@@ -35,22 +39,22 @@ function StatCard({
   accent?: 'blue' | 'green' | 'amber' | 'rose' | 'violet'
 }) {
   const tones: Record<string, string> = {
-    blue: 'bg-blue-50 text-blue-600 dark:bg-blue-950/50 dark:text-blue-300',
-    green: 'bg-emerald-50 text-emerald-600 dark:bg-emerald-950/50 dark:text-emerald-300',
-    amber: 'bg-amber-50 text-amber-600 dark:bg-amber-950/50 dark:text-amber-300',
-    rose: 'bg-rose-50 text-rose-600 dark:bg-rose-950/50 dark:text-rose-300',
-    violet: 'bg-accent text-primary',
+    blue: 'bg-blue-500/10 text-blue-600 dark:text-blue-400',
+    green: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400',
+    amber: 'bg-amber-500/10 text-amber-600 dark:text-amber-400',
+    rose: 'bg-rose-500/10 text-rose-600 dark:text-rose-400',
+    violet: 'bg-primary/10 text-primary',
   }
   return (
     <Card>
-      <CardContent className="p-5 flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{label}</p>
-          <p className="text-2xl font-bold text-foreground mt-1">{value}</p>
-          {hint && <p className="text-xs text-muted-foreground mt-0.5 truncate">{hint}</p>}
+      <CardContent className="p-3 flex items-center gap-2.5">
+        <div className={`shrink-0 w-8 h-8 rounded-lg flex items-center justify-center ${tones[accent]}`}>
+          <Icon className="w-4 h-4" />
         </div>
-        <div className={`shrink-0 w-10 h-10 rounded-xl flex items-center justify-center ${tones[accent]}`}>
-          <Icon className="w-5 h-5" />
+        <div className="min-w-0 flex-1">
+          <p className="text-[11px] sm:text-xs text-muted-foreground truncate">{label}</p>
+          <p className="text-lg font-bold text-foreground leading-tight">{value}</p>
+          {hint && <p className="text-[10px] sm:text-xs text-muted-foreground truncate">{hint}</p>}
         </div>
       </CardContent>
     </Card>
@@ -86,6 +90,7 @@ function CreateProjectModal({ onClose }: { onClose: () => void }) {
   const [owner, setOwner] = useState<StaffPickerValue | null>(null)
   const [storeId, setStoreId] = useState('')
   const [branchId, setBranchId] = useState('')
+  const [salesAreaId, setSalesAreaId] = useState('')
   const effectiveStoreId = branchId || storeId
   const [items, setItems] = useState<CatalogPickerItem[]>([])
 
@@ -101,6 +106,7 @@ function CreateProjectModal({ onClose }: { onClose: () => void }) {
         due_date: form.due_date || undefined,
         priority: form.priority,
         store_id: effectiveStoreId || undefined,
+        sales_area_id: salesAreaId || undefined,
         items: items.length ? items : undefined,
         customer_id: customer?.id,
         customer_name: customer?.full_name,
@@ -121,19 +127,27 @@ function CreateProjectModal({ onClose }: { onClose: () => void }) {
         <form onSubmit={submit} className="flex min-h-0 flex-1 flex-col">
           <ModalBody className="space-y-4 p-5">
             <div className="space-y-1.5">
-              <Label>Business unit</Label>
+              <Label>Sales scope</Label>
               <div className="flex flex-wrap gap-2">
                 <BusinessUnitSelect
                   value={storeId}
-                  onChange={(id) => { setStoreId(id); setBranchId(''); setItems([]) }}
+                  onChange={(id) => { setStoreId(id); setBranchId(''); setSalesAreaId(''); setItems([]) }}
                   allowAll
                   className="flex-1 min-w-[10rem]"
                 />
                 <BranchSelect
                   businessUnitId={storeId || null}
                   value={branchId}
-                  onChange={(id) => { setBranchId(id); setItems([]) }}
+                  onChange={(id) => { setBranchId(id); setSalesAreaId(''); setItems([]) }}
                   allowAll
+                  className="flex-1 min-w-[10rem]"
+                />
+                <SalesAreaSelect
+                  businessUnitId={storeId || null}
+                  branchId={branchId || null}
+                  value={salesAreaId}
+                  onChange={setSalesAreaId}
+                  allowAll={false}
                   className="flex-1 min-w-[10rem]"
                 />
               </div>
@@ -236,6 +250,7 @@ export default function ProjectsPage() {
   const [statusFilter, setStatusFilter] = useState<string>('')
   const [storeFilter, setStoreFilter] = useState('')
   const [branchFilter, setBranchFilter] = useState('')
+  const [salesAreaFilter, setSalesAreaFilter] = useState('')
   const [showCreate, setShowCreate] = useState(false)
 
   const { data: overview, isLoading: overviewLoading } = useProjectsOverview()
@@ -245,6 +260,7 @@ export default function ProjectsPage() {
     search: search.trim() || undefined,
     status: statusFilter || undefined,
     store_id: branchFilter || storeFilter || undefined,
+    sales_area_id: salesAreaFilter || undefined,
   })
 
   const projects = useMemo(() => {
@@ -261,6 +277,16 @@ export default function ProjectsPage() {
 
   const completedCount = overview?.by_status?.completed ?? 0
 
+  const statusOptions = useMemo(
+    () => selectOptionsWithBlank('All statuses', (Object.keys(PROJECT_STATUS_LABELS) as ProjectStatus[]).map((s) => ({
+      value: s,
+      label: PROJECT_STATUS_LABELS[s],
+    }))),
+    [],
+  )
+
+  const moreOptionsActiveCount = statusFilter ? 1 : 0
+
   if (overviewLoading && listLoading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -270,22 +296,22 @@ export default function ProjectsPage() {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="text-xl font-bold text-foreground flex items-center gap-2">
-            <FolderKanban className="w-6 h-6 text-primary" />
+    <div className="space-y-4">
+      <div className="flex items-start justify-between gap-3 flex-wrap">
+        <div className="min-w-0">
+          <h1 className="text-xl sm:text-2xl font-bold text-foreground flex items-center gap-2">
+            <FolderKanban className="w-5 h-5 sm:w-6 sm:h-6 text-primary shrink-0" />
             Projects
           </h1>
-          <p className="text-sm text-muted-foreground mt-1">Track deliverables, tasks, and milestones.</p>
+          <p className="text-xs sm:text-sm text-muted-foreground mt-0.5">Track deliverables, tasks, and milestones.</p>
         </div>
-        <Button onClick={() => setShowCreate(true)}>
-          <Plus className="w-4 h-4 mr-2" />
+        <Button size="sm" className="gap-1.5 shrink-0" onClick={() => setShowCreate(true)}>
+          <Plus className="w-4 h-4" />
           New Project
         </Button>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3">
         <StatCard
           label="Active"
           value={overview?.active_count ?? 0}
@@ -316,52 +342,68 @@ export default function ProjectsPage() {
 
       <Card>
         <CardContent className="p-0">
-          <div className="flex flex-wrap items-center gap-3 p-4 border-b border-border">
-            <div className="relative flex-1 min-w-[200px] max-w-sm">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-              <Input
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder="Search projects…"
-                className="pl-9"
+          <TableToolbar
+            search={search}
+            onSearchChange={setSearch}
+            searchPlaceholder="Search projects…"
+            searchWrapperClassName="min-w-[10rem] flex-1 basis-full sm:basis-auto sm:flex-none sm:w-44 lg:w-52 max-w-full"
+            sortOptions={[]}
+            sortKey=""
+            sortDir="desc"
+            onSortKeyChange={() => {}}
+            onSortDirChange={() => {}}
+            hideSort
+            moreOptionsActiveCount={moreOptionsActiveCount}
+            leading={(
+              <SalesScopeFilters
+                businessUnitId={storeFilter}
+                branchId={branchFilter}
+                salesAreaId={salesAreaFilter}
+                onBusinessUnitChange={(id) => { setStoreFilter(id); setBranchFilter(''); setSalesAreaFilter('') }}
+                onBranchChange={(id) => { setBranchFilter(id); setSalesAreaFilter('') }}
+                onSalesAreaChange={setSalesAreaFilter}
+                itemClassName="w-full min-w-[7rem] sm:w-[8rem]"
               />
-            </div>
-            <Select
-              value={statusFilter}
-              onChange={setStatusFilter}
-              options={selectOptionsWithBlank('All statuses', (Object.keys(PROJECT_STATUS_LABELS) as ProjectStatus[]).map((s) => ({
-                value: s,
-                label: PROJECT_STATUS_LABELS[s],
-              })))}
-              placeholder="All statuses"
-              aria-label="Status filter"
-            />
-            <div className="w-52"><BusinessUnitSelect value={storeFilter} onChange={(id) => { setStoreFilter(id); setBranchFilter('') }} allowAll autoSelectDefault={false} /></div>
-            <div className="w-52"><BranchSelect businessUnitId={storeFilter || null} value={branchFilter} onChange={setBranchFilter} allowAll /></div>
-          </div>
+            )}
+            moreOptions={(
+              <div className="flex flex-wrap items-end gap-3">
+                <div className="flex min-w-[9rem] flex-col gap-1.5">
+                  <label className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Status</label>
+                  <ThemeSelect
+                    value={statusFilter}
+                    onChange={setStatusFilter}
+                    placeholder="All statuses"
+                    aria-label="Status filter"
+                    wrapperClassName="w-full min-w-[9rem]"
+                    options={statusOptions.map((o) => ({ value: o.value, label: o.label }))}
+                  />
+                </div>
+              </div>
+            )}
+          />
 
           <div className="overflow-x-auto">
-            <table className="w-full text-sm">
+            <table className="w-full text-sm min-w-[640px]">
               <thead>
-                <tr className="border-b border-border bg-muted/40 text-left text-xs uppercase tracking-wide text-muted-foreground">
-                  <th className="px-4 py-3 font-medium"><TableColumnLabel>Project</TableColumnLabel></th>
-                  <th className="px-4 py-3 font-medium"><TableColumnLabel>Customer</TableColumnLabel></th>
-                  <th className="px-4 py-3 font-medium"><TableColumnLabel>Status</TableColumnLabel></th>
-                  <th className="px-4 py-3 font-medium"><TableColumnLabel>Priority</TableColumnLabel></th>
-                  <th className="px-4 py-3 font-medium"><TableColumnLabel>Due</TableColumnLabel></th>
-                  <th className="px-4 py-3 font-medium"><TableColumnLabel>Progress</TableColumnLabel></th>
+                <tr className="border-b border-border bg-muted/40 text-left text-[11px] uppercase tracking-wide text-muted-foreground">
+                  <th className="px-3 py-2 font-medium"><TableColumnLabel>Project</TableColumnLabel></th>
+                  <th className="px-3 py-2 font-medium hidden sm:table-cell"><TableColumnLabel>Customer</TableColumnLabel></th>
+                  <th className="px-3 py-2 font-medium"><TableColumnLabel>Status</TableColumnLabel></th>
+                  <th className="px-3 py-2 font-medium hidden md:table-cell"><TableColumnLabel>Priority</TableColumnLabel></th>
+                  <th className="px-3 py-2 font-medium hidden lg:table-cell"><TableColumnLabel>Due</TableColumnLabel></th>
+                  <th className="px-3 py-2 font-medium"><TableColumnLabel>Progress</TableColumnLabel></th>
                 </tr>
               </thead>
               <tbody>
                 {listLoading ? (
                   <tr>
-                    <td colSpan={6} className="px-4 py-12 text-center text-muted-foreground">
-                      <Loader2 className="w-6 h-6 animate-spin mx-auto" />
+                    <td colSpan={6} className="px-3 py-10 text-center text-muted-foreground">
+                      <Loader2 className="w-5 h-5 animate-spin mx-auto" />
                     </td>
                   </tr>
                 ) : projects.length === 0 ? (
                   <tr>
-                    <td colSpan={6} className="px-4 py-12 text-center text-muted-foreground">
+                    <td colSpan={6} className="px-3 py-10 text-center text-muted-foreground text-sm">
                       No projects yet. Create one to get started.
                     </td>
                   </tr>
@@ -372,29 +414,29 @@ export default function ProjectsPage() {
                       onClick={() => navigate(`/projects/${p.id}`)}
                       className="border-b border-border hover:bg-accent/50 cursor-pointer transition-colors"
                     >
-                      <td className="px-4 py-3">
-                        <p className="font-medium text-foreground">{p.name}</p>
+                      <td className="px-3 py-2">
+                        <p className="font-medium text-foreground truncate max-w-[12rem] sm:max-w-none">{p.name}</p>
                         <p className="text-xs text-muted-foreground">{p.project_number}</p>
                       </td>
-                      <td className="px-4 py-3 text-muted-foreground">{p.customer_name || '—'}</td>
-                      <td className="px-4 py-3">
-                        <Badge variant={statusBadgeVariant[p.status]}>{PROJECT_STATUS_LABELS[p.status]}</Badge>
+                      <td className="px-3 py-2 text-muted-foreground hidden sm:table-cell truncate max-w-[10rem]">{p.customer_name || '—'}</td>
+                      <td className="px-3 py-2">
+                        <Badge variant={statusBadgeVariant[p.status]} className="text-[11px]">{PROJECT_STATUS_LABELS[p.status]}</Badge>
                       </td>
-                      <td className="px-4 py-3">
-                        <Badge variant={priorityBadgeVariant[p.priority]}>{PROJECT_PRIORITY_LABELS[p.priority]}</Badge>
+                      <td className="px-3 py-2 hidden md:table-cell">
+                        <Badge variant={priorityBadgeVariant[p.priority]} className="text-[11px]">{PROJECT_PRIORITY_LABELS[p.priority]}</Badge>
                       </td>
-                      <td className="px-4 py-3 text-muted-foreground">
+                      <td className="px-3 py-2 text-muted-foreground hidden lg:table-cell whitespace-nowrap">
                         {p.due_date ? formatDate(p.due_date) : '—'}
                       </td>
-                      <td className="px-4 py-3">
-                        <div className="flex items-center gap-2 min-w-[120px]">
+                      <td className="px-3 py-2">
+                        <div className="flex items-center gap-1.5 min-w-[5rem] sm:min-w-[7rem]">
                           <div className="flex-1 h-1.5 rounded-full bg-muted overflow-hidden">
                             <div
                               className="h-full bg-primary rounded-full transition-all"
                               style={{ width: `${p.progress_percent}%` }}
                             />
                           </div>
-                          <span className="text-xs text-muted-foreground w-8 text-right">{p.progress_percent}%</span>
+                          <span className="text-[11px] text-muted-foreground w-7 text-right shrink-0">{p.progress_percent}%</span>
                         </div>
                       </td>
                     </tr>

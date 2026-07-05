@@ -17,6 +17,56 @@ import {
   type AppliedTemplateViewLiveLink,
   type StorefrontLinkMode,
 } from '@/lib/liveStorefrontUrl'
+
+type ExternalSiteUrlFields = {
+  subdomain?: string | null
+  custom_domain?: string | null
+  domain_verified?: boolean | null
+}
+
+function normalizePublicHttpsUrl(domain: string): string {
+  const trimmed = domain.trim()
+  if (!trimmed) return trimmed
+  return trimmed.startsWith('http://') || trimmed.startsWith('https://')
+    ? trimmed
+    : `https://${trimmed}`
+}
+
+/** Primary public URL for an Other Use / external builder site. */
+export function resolveExternalSitePublicUrl(site: ExternalSiteUrlFields): string | null {
+  const customDomain = site.custom_domain?.trim()
+  if (customDomain) return normalizePublicHttpsUrl(customDomain)
+
+  const subdomain = site.subdomain?.trim()
+  if (!subdomain) return null
+  return `https://${subdomain}.kiterp.com`
+}
+
+/** Live links for a published Other Use site (custom domain + KIT subdomain). */
+export function resolveExternalSiteLiveLinks(
+  site: ExternalSiteUrlFields & { is_published?: boolean },
+): AppliedTemplateViewLiveLink[] {
+  if (site.is_published === false) return []
+
+  const links: AppliedTemplateViewLiveLink[] = []
+  const customDomain = site.custom_domain?.trim()
+  if (customDomain) {
+    links.push({
+      href: normalizePublicHttpsUrl(customDomain),
+      label: customDomain.replace(/^https?:\/\//, ''),
+    })
+  }
+
+  const subdomain = site.subdomain?.trim()
+  if (subdomain) {
+    links.push({
+      href: `https://${subdomain}.kiterp.com`,
+      label: `${subdomain}.kiterp.com`,
+    })
+  }
+
+  return links
+}
 import {
   resolveSiteAppliedTemplateLabel,
   resolveTemplateDisplay,
@@ -26,6 +76,7 @@ import { storesAssignedToTemplate } from '@/lib/websiteTemplateAssignment'
 import { resolveSiteStaticThumbnail } from '@/lib/websiteSitePreview'
 import type { ThemePresetSummary } from '@/lib/businessFrontActiveTemplate'
 import type { SiteListItem, WebsiteSite, WebsiteTemplate } from '@/types/websites'
+import { resolveSiteWebsiteScope } from '@/lib/websiteCreateWizardPresets'
 
 type StoreLike = {
   id: string
@@ -146,7 +197,6 @@ export function listBuilderDraftTemplateSites(sites: SiteListItem[]): SiteListIt
 export function resolveBuilderSiteHomeStoreId(
   site: Pick<SiteListItem, 'website_store_scope' | 'website_store_id' | 'website_home_store_id'>,
 ): string | null {
-  if (site.website_store_scope === 'external') return null
   const explicitHome = site.website_home_store_id?.trim()
   if (explicitHome) return explicitHome
   // Legacy sites: store scope at creation used website_store_id as the home unit.
@@ -159,9 +209,18 @@ export function resolveBuilderSiteHomeStoreId(
 
 /** True when the site was built as an external / marketing site (not a store BU). */
 export function isBuilderSiteExternal(
-  site: Pick<SiteListItem, 'website_store_scope'>,
+  site: Pick<
+    SiteListItem,
+    'website_store_scope' | 'website_store_id' | 'website_home_store_id' | 'business_type' | 'selling_mode'
+  >,
+  storeCount?: number,
 ): boolean {
-  return site.website_store_scope === 'external'
+  if (resolveBuilderSiteHomeStoreId(site)) return false
+  if (site.website_store_scope?.trim().toLowerCase() !== 'external') return false
+  if (storeCount != null) {
+    return resolveSiteWebsiteScope(site, storeCount) === 'external'
+  }
+  return resolveSiteWebsiteScope(site, 1) === 'external'
 }
 
 /** True when the site was built for all business units (not locked to one BU or external). */
@@ -195,6 +254,58 @@ export function resolveSiteBuiltForStore(
 
   const fallbackName = site.website_store_name?.trim()
   return fallbackName ? { id: homeStoreId, name: fallbackName } : { id: homeStoreId }
+}
+
+/** Props for WebsiteScopeBadge — single source for cards, gallery, and lists. */
+export function resolveSiteScopeBadgeProps(
+  site: Pick<
+    SiteListItem,
+    | 'website_store_scope'
+    | 'website_store_id'
+    | 'website_store_name'
+    | 'website_home_store_id'
+    | 'business_type'
+    | 'selling_mode'
+  >,
+  stores: StoreLike[],
+): {
+  scope: 'all' | 'store' | 'external'
+  storeId?: string | null
+  storeName?: string | null
+  storeCode?: string | null
+} {
+  const builtForStore = resolveSiteBuiltForStore(site, stores)
+  if (builtForStore) {
+    return {
+      scope: 'store',
+      storeId: builtForStore.id,
+      storeName: builtForStore.name ?? site.website_store_name,
+      storeCode: formatStoreCode(builtForStore),
+    }
+  }
+
+  const resolvedScope = resolveSiteWebsiteScope(site, stores.length)
+
+  if (resolvedScope === 'store') {
+    const store = stores.length === 1
+      ? stores[0]
+      : stores.find(s => s.id === site.website_store_id)
+    if (store) {
+      return {
+        scope: 'store',
+        storeId: store.id,
+        storeName: store.name ?? site.website_store_name,
+        storeCode: formatStoreCode(store),
+      }
+    }
+  }
+
+  return {
+    scope: resolvedScope,
+    storeId: site.website_store_id,
+    storeName: site.website_store_name,
+    storeCode: null,
+  }
 }
 
 export class BuilderSiteAssignmentError extends Error {

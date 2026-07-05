@@ -21,6 +21,7 @@ class Customer(Base):
     full_name = Column(String(255), nullable=False)
     email = Column(String(255), nullable=True)
     phone = Column(String(20))
+    linked_customer_id = Column(UUID(as_uuid=True), ForeignKey("customer.id"), nullable=True, index=True)
     password_hash = Column(String(255), nullable=False)
     avatar_url = Column(String(500))
 
@@ -64,14 +65,7 @@ class Customer(Base):
     wishlist = relationship("Wishlist", back_populates="customer", uselist=False, lazy="select")
 
     __table_args__ = (
-        Index(
-            "ix_customer_vendor_email", "vendor_id", "email",
-            unique=True,
-            postgresql_where=Column("email").isnot(None),
-        ),
-        Index(
-            "ix_customer_vendor_phone", "vendor_id", "phone",
-            unique=True,
-            postgresql_where=Column("phone").isnot(None),
-        ),
+        Index("ix_customer_email", "email"),
+        Index("ix_customer_phone", "phone"),
+        Index("ix_customer_linked", "linked_customer_id"),
     )

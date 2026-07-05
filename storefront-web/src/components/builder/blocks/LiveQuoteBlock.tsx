@@ -5,6 +5,7 @@ import type { LiveItem, PublicSite, StyleConfig } from '@/blocks/registry'
 import { BuilderTextField } from '@/components/builder/BuilderTextField'
 import { useBuilderCanvas } from '@/contexts/BuilderCanvasContext'
 import { isBlockFieldHidden, resolveBlockTextField } from '@/lib/blockHiddenFields'
+import { builderSectionContainerClass, builderSectionContainerWithMax } from '@/lib/builderSectionLayout'
 import { storeApi } from '@/api/store'
 
 interface Props {
@@ -123,7 +124,7 @@ export default function LiveQuoteBlock({ site, style, props, liveItems, blockId 
   }
 
   return (
-    <section className="py-16 px-4 sm:px-6 lg:px-8 max-w-5xl mx-auto" aria-label={title ?? undefined}>
+    <section className={builderSectionContainerWithMax('max-w-5xl')} aria-label={title ?? undefined}>
       <header className="text-center mb-8">
         <Calculator className="w-8 h-8 mx-auto mb-3" style={{ color: style.primary_color }} aria-hidden="true" />
         {showTitle && (

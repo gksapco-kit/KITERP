@@ -3,6 +3,8 @@ from __future__ import annotations
 
 from typing import Any, Mapping, Optional
 
+from app.utils.social_links_mode import resolve_public_social_links
+
 
 def _str(v: Any) -> str:
     return v.strip() if isinstance(v, str) else ""
@@ -107,7 +109,7 @@ def build_profile_live_meta(vendor, store=None) -> dict[str, Any]:
         "banner_url": vendor.banner_url,
         "subdomain": vendor.subdomain,
         "custom_domain": vendor.custom_domain,
-        "social_links": vendor.social_links or {},
+        "social_links": resolve_public_social_links(vendor, store),
         "business_hours": vendor.business_hours or {},
         "latitude": float(vendor.latitude) if vendor.latitude is not None else None,
         "longitude": float(vendor.longitude) if vendor.longitude is not None else None,

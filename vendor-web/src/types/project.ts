@@ -30,6 +30,7 @@ export interface Project {
   id: string
   vendor_id: string
   store_id?: string | null
+  sales_area_id?: string | null
   items?: ProjectItemInput[]
   project_number: string
   name: string
@@ -115,6 +116,7 @@ export interface ProjectCreateInput {
   status?: ProjectStatus
   priority?: ProjectPriority
   store_id?: string
+  sales_area_id?: string
   items?: ProjectItemInput[]
   customer_id?: string
   customer_name?: string

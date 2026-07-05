@@ -42,16 +42,24 @@ import {
 import { FIELD_OFFSET_STEP_PX, readFieldOffset, readFlipFlag, readRotateDeg } from '@storefront/lib/fieldTextStyles'
 import { BUILDER_FONT_FAMILIES, builderFontPreviewStyle, ensureBuilderFontLoaded, matchBuilderFontFamily } from '@storefront/lib/builderFontFamilies'
 import { pinInlineTextSelectionBeforeToolbarAction } from '@storefront/lib/builderInlineTextSelection'
+import {
+  DESIGN_BAR_SOFT_ACTIVE,
+  DESIGN_BAR_SOFT_CELL,
+  DESIGN_BAR_SOFT_INNER_BORDER,
+  generalDesignBarCluster,
+} from '@/components/websites/designBarVisualUi'
 
 type ControlSize = 'panel' | 'compact' | 'mini' | 'transformPad'
 
 /** Shared tight toolbar shell — matches design bar chrome. */
-export const typographyToolbarBox =
-  'inline-flex h-14 items-stretch overflow-hidden rounded-md border border-gray-200 bg-white shadow-sm shrink-0'
+export const typographyToolbarBox = cn(generalDesignBarCluster, 'shrink-0')
 
 const toolbarShell = typographyToolbarBox
 
-const embeddedShell = 'inline-flex h-full items-stretch shrink-0 border-r border-gray-200 last:border-r-0'
+const embeddedShell = cn('inline-flex h-full items-stretch shrink-0 border-r last:border-r-0', DESIGN_BAR_SOFT_INNER_BORDER)
+
+const softCellBtn = cn('transition-colors duration-150', DESIGN_BAR_SOFT_CELL)
+const softCellActive = DESIGN_BAR_SOFT_ACTIVE
 
 /** Unified height for General tab tool clusters (typography + position pads). */
 export const GENERAL_DESIGN_BAR_H = 'h-14'
@@ -83,11 +91,11 @@ const sizeStyles = {
   },
   /** Position / flip pads — wide cells for easier freehand nudging. */
   transformPad: {
-    cell: 'h-full min-h-0 w-8',
+    cell: 'h-full min-h-0 w-7',
     icon: 'w-3 h-3',
     select: 'h-7 w-[3.25rem] px-0.5 text-[9px]',
     caseBtn: 'px-1 py-0.5 text-[9px]',
-    wrapW: 'w-8',
+    wrapW: 'w-7',
     wrapH: GENERAL_DESIGN_BAR_H,
   },
 } as const
@@ -149,7 +157,9 @@ export function FontSizePxControl({
         type="button"
         className={cn(
           stacked ? 'h-full w-7' : s.cell,
-          'flex shrink-0 items-center justify-center gap-0.5 border-r border-gray-200 text-gray-800 transition-colors hover:bg-gray-50',
+          'flex shrink-0 items-center justify-center gap-0.5 border-r text-gray-700',
+          DESIGN_BAR_SOFT_INNER_BORDER,
+          softCellBtn,
         )}
         onClick={() => step(FONT_SIZE_PX_STEP)}
       >
@@ -160,7 +170,9 @@ export function FontSizePxControl({
         type="button"
         className={cn(
           stacked ? 'h-full w-7' : s.cell,
-          'flex shrink-0 items-center justify-center gap-0.5 border-r border-gray-200 text-gray-800 transition-colors hover:bg-gray-50',
+          'flex shrink-0 items-center justify-center gap-0.5 border-r text-gray-700',
+          DESIGN_BAR_SOFT_INNER_BORDER,
+          softCellBtn,
         )}
         onClick={() => step(-FONT_SIZE_PX_STEP)}
       >
@@ -180,6 +192,12 @@ export function FontSizePxControl({
           onChange(v ? Math.round(Number(v)) : null)
         }}
         onClick={e => e.stopPropagation()}
+        onMouseDown={e => {
+          // Parent typography toolbar uses preventDefault on mousedown (keeps canvas focus).
+          pinInlineTextSelectionBeforeToolbarAction()
+          e.stopPropagation()
+          onMouseDown?.(e)
+        }}
       >
         <option value="">Auto</option>
         {extraSize != null ? (
@@ -285,7 +303,7 @@ export function TypographyFontStack({
   return (
     <div
       className={cn(
-        'flex h-14 w-[7.25rem] shrink-0 flex-col divide-y divide-gray-200 overflow-hidden',
+        'flex h-14 w-[6.75rem] shrink-0 flex-col divide-y divide-gray-200 overflow-hidden',
         className,
       )}
       onMouseDown={onMouseDown}
@@ -456,14 +474,16 @@ export function ColorIdentPickerRow({
   if (designBar) {
     return (
       <div
-        className="flex h-14 shrink-0 items-stretch gap-2 border-l border-gray-200 pl-2 pr-1"
+        className={cn('flex h-14 shrink-0 flex-col border-l', DESIGN_BAR_SOFT_INNER_BORDER, COMPACT_COLOR_COL_W)}
         onMouseDown={onMouseDown}
       >
         <ColorIdentPicker
           letter="T"
           title="Text color"
           size={size}
-          designBar
+          inRow
+          orientation="vertical"
+          rowPosition={showBackgroundPicker ? 'start' : 'single'}
           color={textColor}
           onChange={onTextColorChange}
         />
@@ -472,7 +492,9 @@ export function ColorIdentPickerRow({
             letter="B"
             title="Block background color"
             size={size}
-            designBar
+            inRow
+            orientation="vertical"
+            rowPosition="end"
             color={backgroundColor}
             onChange={onBackgroundColorChange}
           />
@@ -602,8 +624,8 @@ export function TextFieldAlignGrid({
         'flex items-center justify-center transition-colors',
         borderClass,
         active
-          ? 'bg-primary/10 text-primary'
-          : 'bg-white text-gray-600 hover:bg-gray-50',
+          ? softCellActive
+          : cn('bg-white text-gray-600', softCellBtn),
       )}
     >
       <Icon className={s.icon} strokeWidth={2} />
@@ -613,18 +635,19 @@ export function TextFieldAlignGrid({
   return (
     <div className={cn(embedded ? cn(embeddedShell, 'h-full') : toolbarShell, className)} onMouseDown={onMouseDown}>
       <div className={cn('grid grid-cols-3', embedded && 'h-full')}>
-        {cell(v === 'top', () => onVerticalAlignChange('top'), 'Align top', AlignVerticalJustifyStart, 'border-r border-b border-gray-200')}
-        {cell(v === 'middle', () => onVerticalAlignChange('middle'), 'Align middle', AlignVerticalJustifyCenter, 'border-r border-b border-gray-200')}
-        {cell(v === 'bottom', () => onVerticalAlignChange('bottom'), 'Align bottom', AlignVerticalJustifyEnd, 'border-b border-gray-200')}
-        {cell(h === 'left', () => onTextAlignChange('left'), 'Align left', AlignLeft, 'border-r border-gray-200')}
-        {cell(h === 'center', () => onTextAlignChange('center'), 'Align center', AlignCenter, 'border-r border-gray-200')}
+        {cell(v === 'top', () => onVerticalAlignChange('top'), 'Align top', AlignVerticalJustifyStart, cn('border-r border-b', DESIGN_BAR_SOFT_INNER_BORDER))}
+        {cell(v === 'middle', () => onVerticalAlignChange('middle'), 'Align middle', AlignVerticalJustifyCenter, cn('border-r border-b', DESIGN_BAR_SOFT_INNER_BORDER))}
+        {cell(v === 'bottom', () => onVerticalAlignChange('bottom'), 'Align bottom', AlignVerticalJustifyEnd, cn('border-b', DESIGN_BAR_SOFT_INNER_BORDER))}
+        {cell(h === 'left', () => onTextAlignChange('left'), 'Align left', AlignLeft, cn('border-r', DESIGN_BAR_SOFT_INNER_BORDER))}
+        {cell(h === 'center', () => onTextAlignChange('center'), 'Align center', AlignCenter, cn('border-r', DESIGN_BAR_SOFT_INNER_BORDER))}
         {cell(h === 'right', () => onTextAlignChange('right'), 'Align right', AlignRight, '')}
       </div>
       <div
         className={cn(
           s.wrapW,
           s.wrapH,
-          'flex shrink-0 flex-col border-l border-gray-200',
+          'flex shrink-0 flex-col border-l',
+          DESIGN_BAR_SOFT_INNER_BORDER,
         )}
       >
         <button
@@ -632,11 +655,9 @@ export function TextFieldAlignGrid({
           title={wrap ? 'Wrap text (on)' : 'Wrap text (off)'}
           onClick={() => onTextWrapChange(!wrap)}
           className={cn(
-            'flex flex-1 min-h-0 items-center justify-center transition-colors',
-            wrapColumnExtra && 'border-b border-gray-200',
-            wrap
-              ? 'bg-primary/10 text-primary'
-              : 'bg-white text-gray-600 hover:bg-gray-50',
+            'flex flex-1 min-h-0 items-center justify-center',
+            wrapColumnExtra && cn('border-b', DESIGN_BAR_SOFT_INNER_BORDER),
+            wrap ? softCellActive : cn('bg-white text-gray-600', softCellBtn),
           )}
         >
           <WrapText className={s.icon} strokeWidth={2} />
@@ -831,7 +852,8 @@ export function FieldPositionNudge({
       disabled={disabled}
       className={cn(
         s.cell,
-        'flex items-center justify-center text-gray-600 transition-colors hover:bg-gray-50 active:bg-primary/10 touch-none select-none',
+        'flex items-center justify-center touch-none select-none',
+        softCellBtn,
         border,
         disabled && 'opacity-40 pointer-events-none',
       )}
@@ -847,27 +869,28 @@ export function FieldPositionNudge({
       title={`${titleLabel}${moved ? ` (${ox}, ${oy})` : ''} · Arrow keys · hold buttons to repeat`}
     >
       <div className={cn('grid grid-cols-3', size === 'transformPad' ? 'h-full' : undefined)}>
-        <div className={cn(s.cell, 'border-r border-b border-gray-200 bg-gray-50/80')} />
-        {nudgeBtn('Move up', () => onNudge(0, -step), ArrowUp, 'border-r border-b border-gray-200')}
-        <div className={cn(s.cell, 'border-b border-gray-200 bg-gray-50/80')} />
-        {nudgeBtn('Move left', () => onNudge(-step, 0), ArrowLeft, 'border-r border-b border-gray-200')}
+        <div className={cn(s.cell, cn('border-r border-b bg-muted/30', DESIGN_BAR_SOFT_INNER_BORDER))} />
+        {nudgeBtn('Move up', () => onNudge(0, -step), ArrowUp, cn('border-r border-b', DESIGN_BAR_SOFT_INNER_BORDER))}
+        <div className={cn(s.cell, cn('border-b bg-muted/30', DESIGN_BAR_SOFT_INNER_BORDER))} />
+        {nudgeBtn('Move left', () => onNudge(-step, 0), ArrowLeft, cn('border-r border-b', DESIGN_BAR_SOFT_INNER_BORDER))}
         <HoldRepeatButton
           label="Reset position"
           onAction={() => onResetRef.current()}
           disabled={disabled}
           className={cn(
             s.cell,
-            'flex items-center justify-center text-gray-600 transition-colors hover:bg-gray-50 active:bg-primary/10 touch-none select-none',
-            'border-r border-b border-gray-200',
-            moved && !disabled && 'bg-primary/10 text-primary',
+            'flex items-center justify-center touch-none select-none',
+            softCellBtn,
+            cn('border-r border-b', DESIGN_BAR_SOFT_INNER_BORDER),
+            moved && !disabled && softCellActive,
             disabled && 'opacity-40 pointer-events-none',
           )}
         >
           <span className={cn('font-bold leading-none', size === 'mini' || size === 'transformPad' ? 'text-[6px]' : 'text-[8px]')}>·</span>
         </HoldRepeatButton>
-        {nudgeBtn('Move right', () => onNudge(step, 0), ArrowRight, 'border-b border-gray-200')}
-        <div className={cn(s.cell, 'border-r border-gray-200 bg-gray-50/80')} />
-        {nudgeBtn('Move down', () => onNudge(0, step), ArrowDown, 'border-r border-gray-200')}
+        {nudgeBtn('Move right', () => onNudge(step, 0), ArrowRight, cn('border-b', DESIGN_BAR_SOFT_INNER_BORDER))}
+        <div className={cn(s.cell, cn('border-r bg-muted/30', DESIGN_BAR_SOFT_INNER_BORDER))} />
+        {nudgeBtn('Move down', () => onNudge(0, step), ArrowDown, cn('border-r', DESIGN_BAR_SOFT_INNER_BORDER))}
         <div className={cn(s.cell, 'bg-gray-50/80')} />
       </div>
     </div>
@@ -915,7 +938,7 @@ export function FieldPositionScopeToggle({
         className={cn(
           cell,
           layout === 'horizontal' ? 'border-r border-gray-200' : 'border-b border-gray-200',
-          mode === 'group' ? 'bg-primary/10 text-primary' : 'text-gray-500 hover:bg-gray-50',
+          mode === 'group' ? softCellActive : cn('text-gray-500', softCellBtn),
         )}
       >
         All
@@ -924,7 +947,7 @@ export function FieldPositionScopeToggle({
         type="button"
         title="Move selected field only"
         onClick={() => onChange('field')}
-        className={cn(cell, mode === 'field' ? 'bg-primary/10 text-primary' : 'text-gray-500 hover:bg-gray-50')}
+        className={cn(cell, mode === 'field' ? softCellActive : cn('text-gray-500', softCellBtn))}
       >
         1×
       </button>
@@ -988,7 +1011,7 @@ export function LayoutTransformScopeToggle({
             horizontal
               ? index < items.length - 1 && 'border-r border-gray-200'
               : index < items.length - 1 && 'border-b border-gray-200',
-            mode === item.id ? 'bg-primary/10 text-primary' : 'text-gray-500 hover:bg-gray-50',
+            mode === item.id ? softCellActive : cn('text-gray-500', softCellBtn),
           )}
         >
           {item.label}
@@ -1016,14 +1039,14 @@ export function LayoutTransformPositionGroup({
   flipProps?: ComponentProps<typeof FlipRotateControls>
 } & ComponentProps<typeof FieldPositionNudge>) {
   return (
-    <div className={cn(GENERAL_DESIGN_BAR_H, 'flex shrink-0 overflow-hidden rounded-md border border-gray-200 bg-white shadow-sm')}>
+    <div className={cn(generalDesignBarCluster, 'flex shrink-0')}>
       <LayoutTransformScopeToggle
         mode={scopeMode}
         onChange={onScopeChange}
         showGroup={showGroup}
         layout="vertical"
         dense
-        className="h-full w-10 shrink-0 border-0 border-r border-gray-200 rounded-none"
+        className={cn('h-full w-10 shrink-0 rounded-none border-0 border-r', DESIGN_BAR_SOFT_INNER_BORDER)}
       />
       <div className="flex h-full min-w-0 items-stretch">
         <FieldPositionNudge
@@ -1038,7 +1061,7 @@ export function LayoutTransformPositionGroup({
             {...flipProps}
             size={size}
             embedded
-            className="h-full rounded-none border-0 border-l border-gray-200"
+            className={cn('h-full rounded-none border-0 border-l', DESIGN_BAR_SOFT_INNER_BORDER)}
           />
         ) : null}
       </div>
@@ -1098,7 +1121,7 @@ export function FlipRotateControls({
         s.cell,
         'flex items-center justify-center transition-colors touch-none select-none',
         border,
-        isActive ? 'bg-primary/10 text-primary' : 'text-gray-600 hover:bg-gray-50 active:bg-primary/10',
+        isActive ? softCellActive : cn('text-gray-600', softCellBtn),
         disabled && 'opacity-40 pointer-events-none',
       )}
     >
@@ -1107,7 +1130,7 @@ export function FlipRotateControls({
   )
 
   const spacer = (border: string) => (
-    <div className={cn(s.cell, 'bg-gray-50/80', border)} aria-hidden />
+    <div className={cn(s.cell, 'bg-muted/30', border)} aria-hidden />
   )
 
   return (
@@ -1135,7 +1158,7 @@ export function FlipRotateControls({
             s.cell,
             'flex items-center justify-center transition-colors touch-none select-none',
             'border-r border-b border-gray-200',
-            active && !disabled ? 'bg-primary/10 text-primary hover:bg-primary/15' : 'text-gray-600 hover:bg-gray-50',
+            active && !disabled ? cn(softCellActive, 'hover:bg-primary/[0.12]') : cn('text-gray-600', softCellBtn),
             disabled && 'opacity-40 pointer-events-none',
           )}
         >

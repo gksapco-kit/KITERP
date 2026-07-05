@@ -164,14 +164,14 @@ export function SiteInputParametersModal({
                 ) : (
                   <Globe className="h-3.5 w-3.5 text-primary" />
                 )}
-                Who is this website built for?
+                This website is for
               </label>
               <div className="relative">
                 {externalScopeOption ? (
                   <externalScopeOption.icon className="pointer-events-none absolute left-3.5 top-1/2 z-10 h-4 w-4 -translate-y-1/2 text-primary" />
                 ) : null}
                 <div className="w-full rounded-xl border border-gray-200 bg-gray-50 py-2.5 pl-10 pr-3 text-sm font-medium text-gray-700 shadow-sm">
-                  {externalScopeOption?.label ?? 'External use'}
+                  {externalScopeOption?.label ?? 'Other Use'}
                 </div>
               </div>
               {externalScopeOption ? (
@@ -182,7 +182,7 @@ export function SiteInputParametersModal({
             <div>
               <label htmlFor="params-website-scope" className="mb-1.5 flex items-center gap-1.5 text-sm font-semibold text-gray-800">
                 <Globe className="h-3.5 w-3.5 text-primary" />
-                Who is this website built for?
+                This website is for
               </label>
               <div className="relative">
                 {currentScopeOption ? (

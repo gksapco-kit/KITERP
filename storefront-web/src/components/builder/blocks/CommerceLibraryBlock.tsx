@@ -11,6 +11,7 @@ import { mockProducts, mockCategories } from '@/commerce-blocks/mock/products'
 import { mockServices } from '@/commerce-blocks/mock/services'
 import { mockTestimonials, mockTeam } from '@/commerce-blocks/mock/serviceExtras'
 import { mockMenu } from '@/commerce-blocks/mock/menu'
+import { builderSectionContainerClass } from '@/lib/builderSectionLayout'
 
 interface Props {
   site: PublicSite
@@ -505,7 +506,7 @@ export default function CommerceLibraryBlock({ style, props, liveItems, blockTyp
 
   if (!def) {
     return (
-      <section className="px-6 py-10">
+      <section className={builderSectionContainerClass()}>
         <div className="rounded-xl border border-dashed border-gray-300 bg-gray-50 p-6 text-sm text-gray-500">
           Unknown commerce block: <strong>{blockType}</strong>
         </div>

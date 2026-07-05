@@ -11,6 +11,7 @@ import {
   renderFeatureIcon,
   thumbnailShapeClass,
 } from '@/lib/sectionItemLayout'
+import { builderSectionContainerClass, builderSectionContainerWithMax } from '@/lib/builderSectionLayout'
 import {
   CATALOG_GRID_COL_CLASS,
   clampCatalogColumns,
@@ -158,7 +159,7 @@ export default function ServicesCardsBlock({ style, props, liveItems, blockId }:
   }
 
   return (
-    <section className="py-16 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
+    <section className={builderSectionContainerClass()}>
       {showTitle && (
         <BuilderTextField fieldKey="title" blockId={blockId} blockProps={props} value={title ?? ''} as="h2" className="text-3xl font-bold text-gray-900 mb-10 text-center" placeholder="Section title" />
       )}

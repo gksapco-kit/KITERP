@@ -1,6 +1,6 @@
 import { useMemo, useState, type ElementType } from 'react'
 import { createPortal } from 'react-dom'
-import { ChevronDown, Link2, Search, X, Zap, Lock } from 'lucide-react'
+import { ChevronDown, Search, X } from 'lucide-react'
 import { useEscapeToClose } from '@/hooks/useEscapeToClose'
 import { cn } from '@/lib/utils'
 import {
@@ -14,11 +14,9 @@ import {
 } from '@/lib/blockGalleryImages'
 import { findActiveSectionLayoutOption, getSectionLayoutOptions, type SectionLayoutOption } from '@/lib/sectionLayoutPresets'
 import {
-  getBlockDataConnectionMeta,
   initialLayoutPickerDataSourceChoice,
   type LayoutPickerDataSourceChoice,
 } from '@/lib/blockDataSources'
-import type { LiveResource } from '@/types/websites'
 import { SectionLayoutPreview } from '@/components/websites/SectionLayoutPreview'
 import type { BlockProps } from '@/types/websites'
 
@@ -37,6 +35,7 @@ function LayoutOptionCard({
   categoryId,
   optionIndex,
   isActive,
+  compact,
   onSelect,
 }: {
   def: SectionBlockDef
@@ -44,6 +43,7 @@ function LayoutOptionCard({
   categoryId: string
   optionIndex: number
   isActive?: boolean
+  compact?: boolean
   onSelect: () => void
 }) {
   const merged = useMemo(
@@ -52,7 +52,6 @@ function LayoutOptionCard({
   )
   const usesImages = blockSupportsGalleryCategory(def.type)
   const isCommerceBlock = def.type.includes('.')
-  const dataMeta = getBlockDataConnectionMeta(def.type)
   const sampleUrls = useMemo(() => {
     if (!usesImages) return []
     const pool = pickGalleryImageUrls(categoryId, 10)
@@ -65,42 +64,69 @@ function LayoutOptionCard({
     <button
       type="button"
       onClick={onSelect}
+      title={option.desc || option.label}
       className={cn(
-        'text-left rounded-xl border-2 bg-white overflow-hidden transition-all group',
+        'text-left border-2 bg-white overflow-hidden transition-all group',
+        compact ? 'rounded-lg' : 'rounded-xl',
         isActive
           ? 'border-orange-500 shadow-lg ring-2 ring-orange-500/25'
           : 'border-gray-200 hover:border-primary/50 hover:shadow-lg hover:ring-2 hover:ring-primary/15',
       )}
     >
-      <div className="relative aspect-[4/3] bg-slate-100 border-b border-gray-100 overflow-hidden">
+      <div className={cn(
+        'relative bg-slate-100 border-b border-gray-100 overflow-hidden',
+        compact ? 'h-[4.25rem]' : 'aspect-[4/3]',
+      )}>
         {isCommerceBlock ? (
           <div className="absolute inset-0">
             <SectionLayoutPreview blockType={def.type} variantProps={merged} sampleUrls={sampleUrls} />
           </div>
         ) : (
-          <div className="absolute inset-2 rounded-md border border-border/80 bg-white shadow-sm overflow-hidden flex flex-col">
+          <div className={cn(
+            'absolute rounded-md border border-border/80 bg-white shadow-sm overflow-hidden flex flex-col',
+            compact ? 'inset-1' : 'inset-2',
+          )}>
             {def.type === 'footer' && (
-              <div className="flex-1 min-h-0 bg-gradient-to-b from-slate-50 to-white p-1 space-y-0.5">
-                <div className="h-1.5 w-1/3 mx-auto rounded bg-slate-200" />
-                <div className="h-6 rounded bg-slate-100/80" />
-                <div className="flex-1 rounded bg-slate-50" />
-              </div>
+              compact ? (
+                <div className="h-full flex items-end">
+                  <div className="w-full shrink-0">
+                    <SectionLayoutPreview blockType={def.type} variantProps={merged} sampleUrls={sampleUrls} />
+                  </div>
+                </div>
+              ) : (
+                <>
+                  <div className="flex-1 min-h-0 bg-gradient-to-b from-slate-50 to-white p-1 space-y-0.5">
+                    <div className="h-1.5 w-1/3 mx-auto rounded bg-slate-200" />
+                    <div className="h-6 rounded bg-slate-100/80" />
+                    <div className="flex-1 rounded bg-slate-50" />
+                  </div>
+                  <div className="mt-auto shrink-0 min-h-[38%] relative">
+                    <div className="absolute inset-0">
+                      <SectionLayoutPreview blockType={def.type} variantProps={merged} sampleUrls={sampleUrls} />
+                    </div>
+                  </div>
+                </>
+              )
             )}
             {def.type === 'nav' && (
-              <>
-                <div className="shrink-0 min-h-[22%]">
+              compact ? (
+                <div className="h-full flex items-start">
                   <SectionLayoutPreview blockType={def.type} variantProps={merged} sampleUrls={sampleUrls} />
                 </div>
-                <div className="flex-1 min-h-0 bg-gradient-to-b from-white to-slate-50 p-1">
-                  <div className="h-2 w-1/2 mx-auto rounded bg-slate-200 mb-1" />
-                  <div className="h-full rounded bg-slate-100/60" />
-                </div>
-              </>
+              ) : (
+                <>
+                  <div className="shrink-0 min-h-[22%]">
+                    <SectionLayoutPreview blockType={def.type} variantProps={merged} sampleUrls={sampleUrls} />
+                  </div>
+                  <div className="flex-1 min-h-0 bg-gradient-to-b from-white to-slate-50 p-1">
+                    <div className="h-2 w-1/2 mx-auto rounded bg-slate-200 mb-1" />
+                    <div className="h-full rounded bg-slate-100/60" />
+                  </div>
+                </>
+              )
             )}
-            {def.type !== 'nav' && (
-              <div className={cn(
-                def.type === 'footer' ? 'mt-auto shrink-0 min-h-[38%] relative' : 'flex-1 min-h-0 relative',
-              )}>
+            {def.type !== 'nav' && def.type !== 'footer' && (
+              <div className="flex-1 min-h-0 relative">
                 <div className="absolute inset-0">
                   <SectionLayoutPreview blockType={def.type} variantProps={merged} sampleUrls={sampleUrls} />
                 </div>
@@ -109,183 +135,34 @@ function LayoutOptionCard({
           </div>
         )}
         <div className={cn(
-          'absolute top-3 transition-opacity',
-          isActive ? 'left-3 opacity-100' : 'right-3 opacity-0 group-hover:opacity-100',
+          'absolute transition-opacity',
+          compact ? 'top-1.5' : 'top-3',
+          isActive ? 'left-1.5 opacity-100' : 'right-1.5 opacity-0 group-hover:opacity-100',
         )}>
           <span className={cn(
-            'text-[10px] font-semibold px-2 py-0.5 rounded-full shadow',
+            'font-semibold rounded-full shadow',
+            compact ? 'text-[9px] px-1.5 py-0.5' : 'text-[10px] px-2 py-0.5',
             isActive ? 'bg-orange-500 text-white' : 'bg-primary text-white',
           )}>
-            {isActive ? 'Current layout' : 'Use this layout'}
+            {isActive ? 'Current' : 'Use'}
           </span>
         </div>
       </div>
-      <div className="p-3">
-        <div className="text-sm font-semibold text-gray-800">{option.label}</div>
-        {option.desc && <div className="text-xs text-gray-500 mt-0.5 leading-snug">{option.desc}</div>}
-        {dataMeta.canConnect && (
-          <div className={cn(
-            'text-[10px] mt-1.5 font-medium flex items-center gap-1',
-            dataMeta.connectionRequired ? 'text-amber-600' : 'text-emerald-600',
-          )}>
-            <Link2 className="w-3 h-3 shrink-0" />
-            {dataMeta.connectionRequired ? 'Requires live data' : 'Can connect to store data'}
-          </div>
+      <div className={compact ? 'px-2 py-1.5' : 'p-2.5'}>
+        <div className={cn(
+          'font-semibold text-gray-800 leading-tight',
+          compact ? 'text-[11px] line-clamp-1' : 'text-sm',
+        )}>
+          {option.label}
+        </div>
+        {!compact && option.desc && (
+          <div className="text-[11px] text-gray-500 mt-0.5 leading-snug">{option.desc}</div>
         )}
-        {!dataMeta.canConnect && (
-          <div className="text-[10px] text-gray-400 mt-1.5">Static content only</div>
-        )}
-        {usesImages && sampleUrls.length > 0 && (
-          <div className="text-[10px] text-primary/80 mt-1.5 font-medium">Preview uses selected category images</div>
+        {!compact && usesImages && sampleUrls.length > 0 && (
+          <div className="text-[10px] text-primary/80 mt-1 font-medium">Uses category preview images</div>
         )}
       </div>
     </button>
-  )
-}
-
-function DataConnectionPanel({
-  blockType,
-  choice,
-  onChange,
-}: {
-  blockType: string
-  choice: LayoutPickerDataSourceChoice
-  onChange: (next: LayoutPickerDataSourceChoice) => void
-}) {
-  const meta = getBlockDataConnectionMeta(blockType)
-
-  if (!meta.canConnect) {
-    return (
-      <div className="rounded-lg border border-gray-800 bg-gray-800/40 p-3">
-        <div className="flex items-center gap-2 text-gray-400">
-          <Link2 className="w-3.5 h-3.5 shrink-0 opacity-60" />
-          <span className="text-xs font-medium">Static content only</span>
-        </div>
-        <p className="text-[10px] text-gray-500 mt-1.5 leading-relaxed">
-          This section does not connect to your store database. Edit text and images directly on the canvas.
-        </p>
-      </div>
-    )
-  }
-
-  const toggleConnect = () => {
-    if (meta.connectionRequired) return
-    onChange({ ...choice, connect: !choice.connect })
-  }
-
-  const pickSource = (sourceId: LiveResource) => {
-    onChange({ connect: true, sourceType: sourceId })
-  }
-
-  return (
-    <div className="space-y-2">
-      <p className="text-[10px] font-bold uppercase tracking-wide text-gray-500 px-0.5">Live content</p>
-
-      <button
-        type="button"
-        onClick={toggleConnect}
-        disabled={meta.connectionRequired}
-        className={cn(
-          'w-full flex items-center gap-2 px-2.5 py-2 rounded-lg border text-left transition-colors',
-          choice.connect
-            ? 'border-emerald-600/50 bg-emerald-950/40'
-            : 'border-gray-700 bg-gray-800/40',
-          meta.connectionRequired ? 'cursor-default' : 'hover:border-gray-600',
-        )}
-      >
-        <div className={cn(
-          'w-8 h-4 rounded-full shrink-0 relative transition-colors',
-          choice.connect ? 'bg-emerald-500' : 'bg-gray-600',
-        )}>
-          <div className={cn(
-            'absolute top-0.5 w-3 h-3 rounded-full bg-white shadow transition-transform',
-            choice.connect ? 'translate-x-4' : 'translate-x-0.5',
-          )} />
-        </div>
-        <div className="flex-1 min-w-0">
-          <div className="text-xs font-semibold text-white flex items-center gap-1.5">
-            {choice.connect ? 'Connect to live data' : 'Use static content'}
-            {meta.connectionRequired && (
-              <span className="inline-flex items-center gap-0.5 text-[9px] font-bold uppercase tracking-wide text-amber-400/90">
-                <Lock className="w-2.5 h-2.5" /> Required
-              </span>
-            )}
-          </div>
-          <p className="text-[10px] text-gray-400 mt-0.5 leading-snug">
-            {meta.connectionRequired
-              ? 'This section needs live store data to work.'
-              : choice.connect
-                ? 'Pulls from your catalog automatically. Turn off to use placeholder content.'
-                : 'Section will not sync with your store until you connect in the Data tab.'}
-          </p>
-        </div>
-        {choice.connect && (
-          <Zap className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-        )}
-      </button>
-
-      {choice.connect && meta.recommended.length > 0 && (
-        <div className="rounded-lg border border-gray-800 overflow-hidden">
-          <div className="px-2.5 py-1.5 bg-gray-800/60 text-[10px] font-bold uppercase tracking-wide text-gray-400">
-            Recommended for this section
-          </div>
-          <div className="divide-y divide-gray-800">
-            {meta.recommended.map(source => (
-              <button
-                key={source.id}
-                type="button"
-                onClick={() => pickSource(source.id as LiveResource)}
-                className={cn(
-                  'w-full text-left px-2.5 py-2 transition-colors',
-                  choice.sourceType === source.id
-                    ? 'bg-orange-500/15'
-                    : 'hover:bg-white/5',
-                )}
-              >
-                <div className={cn(
-                  'text-xs font-medium',
-                  choice.sourceType === source.id ? 'text-orange-400' : 'text-gray-200',
-                )}>
-                  {source.label}
-                </div>
-                <div className="text-[10px] text-gray-500 mt-0.5 leading-snug">{source.desc}</div>
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {choice.connect && meta.optional.length > 0 && (
-        <div className="rounded-lg border border-gray-800 overflow-hidden">
-          <div className="px-2.5 py-1.5 bg-gray-800/60 text-[10px] font-bold uppercase tracking-wide text-gray-400">
-            Other connections
-          </div>
-          <div className="divide-y divide-gray-800 max-h-32 overflow-y-auto">
-            {meta.optional.map(source => (
-              <button
-                key={source.id}
-                type="button"
-                onClick={() => pickSource(source.id as LiveResource)}
-                className={cn(
-                  'w-full text-left px-2.5 py-2 transition-colors',
-                  choice.sourceType === source.id
-                    ? 'bg-orange-500/15'
-                    : 'hover:bg-white/5',
-                )}
-              >
-                <div className={cn(
-                  'text-xs font-medium',
-                  choice.sourceType === source.id ? 'text-orange-400' : 'text-gray-300',
-                )}>
-                  {source.label}
-                </div>
-                <div className="text-[10px] text-gray-500 mt-0.5 leading-snug">{source.desc}</div>
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
-    </div>
   )
 }
 
@@ -311,11 +188,12 @@ export function SectionLayoutPickerModal({
   const [imageCategoryId, setImageCategoryId] = useState(defaultImageCategoryId)
   const [categorySearch, setCategorySearch] = useState('')
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(() => new Set(IMAGE_CATEGORY_GROUPS.slice(0, 1)))
-  const [dataSourceChoice, setDataSourceChoice] = useState<LayoutPickerDataSourceChoice>(() =>
-    initialLayoutPickerDataSourceChoice(def.type, currentProps),
+  const dataSourceChoice = useMemo(
+    () => initialLayoutPickerDataSourceChoice(def.type, currentProps),
+    [def.type, currentProps],
   )
-  const dataMeta = getBlockDataConnectionMeta(def.type)
   const Icon = def.icon
+  const showGallerySidebar = blockSupportsGalleryCategory(def.type)
   const categories = listImageCategoryOptions()
   const activeCategory = categories.find(c => c.id === imageCategoryId)
 
@@ -327,54 +205,44 @@ export function SectionLayoutPickerModal({
     )
   }, [categories, categorySearch])
 
+  const headerSubtitle = showGallerySidebar
+    ? `${def.label} · ${options.length} layouts · preview uses your selected image category`
+    : `${def.label} · ${options.length} layouts · ${def.desc}`
+  const useCompactGrid = options.length >= 8 || def.type === 'nav' || def.type === 'footer'
+
   return createPortal(
     <>
       <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[99998]" onClick={onClose} aria-hidden />
-      <div className="fixed inset-0 z-[99999] flex items-center justify-center p-3 sm:p-4 pointer-events-none">
+      <div className="fixed inset-0 z-[99999] flex items-center justify-center p-3 sm:p-4 pointer-events-none overflow-y-auto">
         <div
-          className="pointer-events-auto w-full max-w-5xl max-h-[90vh] bg-card border border-border text-foreground rounded-2xl shadow-2xl overflow-hidden flex flex-col"
+          className={cn(
+            'pointer-events-auto w-full bg-card border border-border text-foreground rounded-2xl shadow-2xl flex flex-col my-auto',
+            useCompactGrid ? 'max-w-6xl' : showGallerySidebar ? 'max-w-5xl' : 'max-w-4xl',
+            useCompactGrid ? '' : 'max-h-[90vh] overflow-hidden',
+          )}
           onClick={e => e.stopPropagation()}
           role="dialog"
           aria-modal="true"
           aria-labelledby="section-layout-picker-title"
         >
-          <div className="flex items-center justify-between px-4 sm:px-5 py-4 bg-gray-900 text-white shrink-0">
-            <div>
-              <h2 id="section-layout-picker-title" className="text-lg font-bold">Choose section style</h2>
-              <p className="text-sm text-gray-400 mt-0.5">
-                {blockSupportsGalleryCategory(def.type)
-                  ? 'Preview uses images from your selected category'
-                  : dataMeta.canConnect
-                    ? `${options.length} layouts · connect to your store data below`
-                    : `${options.length} layout styles — pick the look that fits your page`}
-              </p>
+          <div className="flex items-center justify-between gap-3 px-4 py-3 bg-gray-900 text-white shrink-0">
+            <div className="flex min-w-0 items-start gap-2.5">
+              <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-white/10">
+                <Icon className="h-4 w-4 text-primary" />
+              </div>
+              <div className="min-w-0">
+                <h2 id="section-layout-picker-title" className="text-base font-bold leading-tight">Choose section style</h2>
+                <p className="text-xs text-gray-400 mt-0.5 leading-snug">{headerSubtitle}</p>
+              </div>
             </div>
-            <button type="button" aria-label="Close" onClick={onClose} className="p-1.5 rounded-lg hover:bg-white/10">
+            <button type="button" aria-label="Close" onClick={onClose} className="shrink-0 p-1.5 rounded-lg hover:bg-white/10">
               <X className="w-5 h-5" />
             </button>
           </div>
 
-          <div className="flex flex-1 min-h-0">
-            <div className="w-56 shrink-0 bg-gray-900 border-r border-gray-800 flex flex-col hidden md:flex">
-              <div className="p-4 border-b border-gray-800">
-                <div className="flex items-center gap-2 mb-2">
-                  <div className="w-8 h-8 rounded-lg bg-white/10 flex items-center justify-center">
-                    <Icon className="w-4 h-4 text-primary" />
-                  </div>
-                  <span className="text-sm font-semibold text-white leading-tight">{def.label}</span>
-                </div>
-                <p className="text-xs text-gray-400 leading-relaxed">{def.desc}</p>
-              </div>
-
-              <div className="p-3 border-b border-gray-800 shrink-0">
-                <DataConnectionPanel
-                  blockType={def.type}
-                  choice={dataSourceChoice}
-                  onChange={setDataSourceChoice}
-                />
-              </div>
-
-              {blockSupportsGalleryCategory(def.type) && (
+          <div className={cn('flex', useCompactGrid ? '' : 'flex-1 min-h-0')}>
+            {showGallerySidebar && (
+            <div className="w-52 shrink-0 bg-gray-900 border-r border-gray-800 flex flex-col hidden md:flex">
               <div className="p-3 flex-1 min-h-0 flex flex-col gap-2">
                 <p className="text-[10px] font-bold uppercase tracking-wide text-gray-500 px-0.5">Image gallery category</p>
                 <div className="relative shrink-0">
@@ -446,48 +314,34 @@ export function SectionLayoutPickerModal({
                   <p className="text-[10px] text-gray-500 leading-snug shrink-0 px-0.5">{activeCategory.description}</p>
                 )}
               </div>
-              )}
-
-              {!blockSupportsGalleryCategory(def.type) && dataMeta.canConnect && (
-                <div className="flex-1 min-h-0" />
-              )}
             </div>
+            )}
 
-            <div className="flex-1 min-h-0 flex flex-col bg-gray-50">
-              <div className="shrink-0 p-4 sm:px-5 sm:pt-5 sm:pb-2 space-y-3">
-                <div className="md:hidden space-y-2">
-                  <p className="text-xs font-medium text-gray-600">{def.label}</p>
-                  <DataConnectionPanel
-                    blockType={def.type}
-                    choice={dataSourceChoice}
-                    onChange={setDataSourceChoice}
-                  />
-                  {blockSupportsGalleryCategory(def.type) && (
-                  <>
-                  <label className="block text-[10px] font-bold uppercase tracking-wide text-gray-500">Image category</label>
-                  <select
-                    value={imageCategoryId}
-                    onChange={e => setImageCategoryId(e.target.value)}
-                    className="w-full text-xs border border-gray-200 rounded-lg px-2 py-2 bg-white"
-                  >
-                    {categories.map(cat => (
-                      <option key={cat.id} value={cat.id}>{cat.label}</option>
-                    ))}
-                  </select>
-                  </>
-                  )}
-                </div>
-                <div className="flex items-center justify-between gap-2">
-                  <p className="text-xs font-semibold text-gray-600">
-                    More layouts ({options.length} total)
-                  </p>
-                  {options.length > 6 && (
-                    <p className="text-[10px] text-gray-400 shrink-0">Scroll for more</p>
-                  )}
-                </div>
+            <div className={cn('flex-1 flex flex-col bg-gray-50', useCompactGrid ? '' : 'min-h-0')}>
+              {showGallerySidebar && (
+              <div className="shrink-0 px-4 pt-3 pb-1 md:hidden">
+                <label className="block text-[10px] font-bold uppercase tracking-wide text-gray-500 mb-1">Image category</label>
+                <select
+                  value={imageCategoryId}
+                  onChange={e => setImageCategoryId(e.target.value)}
+                  className="w-full text-xs border border-gray-200 rounded-lg px-2 py-1.5 bg-white"
+                >
+                  {categories.map(cat => (
+                    <option key={cat.id} value={cat.id}>{cat.label}</option>
+                  ))}
+                </select>
               </div>
-              <div className="flex-1 min-h-0 overflow-y-auto px-4 sm:px-5 pb-4 sm:pb-5 overscroll-contain">
-                <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3 sm:gap-4">
+              )}
+              <div className={cn(
+                'px-3 sm:px-4 py-3',
+                useCompactGrid ? '' : 'flex-1 min-h-0 overflow-y-auto overscroll-contain',
+              )}>
+                <div className={cn(
+                  'grid gap-2',
+                  useCompactGrid
+                    ? 'grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-6'
+                    : 'grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-2.5',
+                )}>
                   {options.map((opt, idx) => (
                     <LayoutOptionCard
                       key={opt.id}
@@ -496,6 +350,7 @@ export function SectionLayoutPickerModal({
                       categoryId={imageCategoryId}
                       optionIndex={idx}
                       isActive={activeOptionId === opt.id}
+                      compact={useCompactGrid}
                       onSelect={() => onSelect(opt.props as Partial<BlockProps>, imageCategoryId, dataSourceChoice)}
                     />
                   ))}

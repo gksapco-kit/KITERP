@@ -5,6 +5,7 @@ import { publicSitesApi } from '@/api/publicSites'
 import { BuilderTextField } from '@/components/builder/BuilderTextField'
 import { useBuilderCanvas } from '@/contexts/BuilderCanvasContext'
 import { isBlockFieldHidden, resolveBlockTextField } from '@/lib/blockHiddenFields'
+import { builderSectionContainerClass } from '@/lib/builderSectionLayout'
 
 interface Props {
   site: PublicSite
@@ -45,8 +46,9 @@ export default function NewsletterBlock({ site, style, props, blockId }: Props) 
   }
 
   return (
-    <section className="py-16 px-4 sm:px-6 lg:px-8" style={{ backgroundColor: `${style.primary_color}10` }}>
-      <div className="max-w-xl mx-auto text-center">
+    <div className="w-full" style={{ backgroundColor: `${style.primary_color}10` }}>
+      <section className={builderSectionContainerClass()}>
+        <div className="max-w-xl mx-auto text-center">
         <div className="w-12 h-12 rounded-2xl flex items-center justify-center mx-auto mb-4" style={{ backgroundColor: style.primary_color }}>
           <Mail className="w-6 h-6 text-white" />
         </div>
@@ -84,7 +86,8 @@ export default function NewsletterBlock({ site, style, props, blockId }: Props) 
             </form>
           )
         )}
-      </div>
-    </section>
+        </div>
+      </section>
+    </div>
   )
 }

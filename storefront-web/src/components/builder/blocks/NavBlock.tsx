@@ -20,6 +20,7 @@ import {
   resolveCurrentNavActiveKey,
   resolveNavBlockLinks,
 } from '@/lib/siteNavPages'
+import { isVendorBlogEnabled } from '@/lib/catalogNavCapabilities'
 import {
   builderPageSlugFromNavPath,
   isDraftPreviewShellHref,
@@ -29,6 +30,10 @@ import {
 } from '@/lib/previewNavRouting'
 import { useBuilderCanvas } from '@/contexts/BuilderCanvasContext'
 import { siteRadiusPx } from '@/lib/siteBorderRadius'
+import { builderSectionContainerClass } from '@/lib/builderSectionLayout'
+import { BuilderCtaButton } from '@/components/builder/BuilderCtaButton'
+import { BuilderTextField } from '@/components/builder/BuilderTextField'
+import { BuilderSectionImage } from '@/components/builder/BuilderSectionImage'
 
 interface Props {
   site: PublicSite
@@ -36,6 +41,7 @@ interface Props {
   props: Record<string, unknown>
   liveItems: LiveItem[]
   branchCode?: string | null
+  blockId?: string
   isEditorCanvas?: boolean
 }
 
@@ -45,6 +51,7 @@ export default function NavBlock({
   props,
   liveItems,
   branchCode: _branchFromBlocks,
+  blockId,
   isEditorCanvas = false,
 }: Props) {
   const { vendor, previewShell, openBuilderForPage } = useVendor()
@@ -109,9 +116,12 @@ export default function NavBlock({
     navigate(href)
   }, [previewShell, openBuilderForPage, openBuilderPageFromPath, navigate])
 
-  const brand = effectiveVendor?.display_name?.trim() || vendor?.display_name?.trim() || 'Store'
-  const logoUrl = effectiveVendor?.logo_url?.trim() || vendor?.logo_url?.trim() || null
-  const showLogo = props.show_logo !== false && !!logoUrl
+  const brandFallback = effectiveVendor?.display_name?.trim() || vendor?.display_name?.trim() || 'Store'
+  const brand = ((props.brand as string) || '').trim() || brandFallback
+  const brandLogoProp = ((props.brand_logo as string) || '').trim()
+  const logoUrl = brandLogoProp || effectiveVendor?.logo_url?.trim() || vendor?.logo_url?.trim() || null
+  const showLogo = props.show_logo !== false
+  const showLogoImage = showLogo && (!!logoUrl || (isEditorCanvas && !!blockId))
   const showBrandName = props.show_brand_name !== false
   const showNavLinks = props.show_nav_links !== false
   const showSearch = props.show_search !== false
@@ -138,10 +148,12 @@ export default function NavBlock({
       liveItems.map(item => ({ title: item.title, url: item.url })),
       {
         previewShell: previewShell === true,
+        isEditorCanvas,
         offeringType: vendor?.offering_type,
+        blogEnabled: isVendorBlogEnabled(vendor?.settings),
       },
     )
-  }, [showNavLinks, navLinksSource, rawLinks, liveItems, site, storePath, location.pathname, previewShell, vendor?.offering_type])
+  }, [showNavLinks, navLinksSource, rawLinks, liveItems, site, storePath, location.pathname, previewShell, isEditorCanvas, vendor?.offering_type, vendor?.settings])
 
   const currentNavKey = useMemo(
     () => resolveCurrentNavActiveKey(
@@ -192,9 +204,53 @@ export default function NavBlock({
   }
 
   const homePath = storePath('/')
-  const showLogoImage = showLogo && logoUrl
+  const showLogoImageResolved = showLogoImage && (logoUrl || (isEditorCanvas && blockId))
   const showBrandText = showBrandName && brand
-  const showHomeFallback = !showLogoImage && !showBrandText
+  const showHomeFallback = !showLogoImageResolved && !showBrandText
+
+  const logoImageClass = cn('w-auto object-contain shrink-0', shell.isCompact ? 'h-6 max-w-[100px]' : 'h-8 max-w-[120px]')
+
+  const logoImageNode = showLogoImageResolved ? (
+    isEditorCanvas && blockId ? (
+      <BuilderSectionImage
+        blockId={blockId}
+        field="brand_logo"
+        blockProps={props}
+        src={logoUrl ? imgUrl(logoUrl) : ''}
+        alt={brand}
+        empty={!logoUrl}
+        className={logoImageClass}
+      />
+    ) : logoUrl ? (
+      <img
+        src={imgUrl(logoUrl)}
+        alt={brand}
+        className={logoImageClass}
+      />
+    ) : null
+  ) : null
+
+  const brandTextClass = cn('font-bold truncate', shell.isCompact ? 'text-sm' : 'text-base')
+  const brandTextStyle = { color: shell.navBrandCol, fontFamily: style.font_heading }
+
+  const brandTextNode = showBrandText ? (
+    isEditorCanvas && blockId ? (
+      <BuilderTextField
+        fieldKey="brand"
+        blockId={blockId}
+        blockProps={props}
+        value={brand}
+        as="span"
+        className={brandTextClass}
+        style={brandTextStyle}
+        placeholder="Brand name"
+      />
+    ) : (
+      <span className={brandTextClass} style={brandTextStyle}>
+        {brand}
+      </span>
+    )
+  ) : null
 
   const logoNode = previewShell ? (
     <a
@@ -203,18 +259,8 @@ export default function NavBlock({
       className="inline-flex items-center gap-2 min-w-0 shrink-0 max-w-[min(100%,220px)]"
       aria-label={showHomeFallback ? 'Home' : brand}
     >
-      {showLogoImage && (
-        <img
-          src={imgUrl(logoUrl)}
-          alt={brand}
-          className={cn('w-auto object-contain shrink-0', shell.isCompact ? 'h-6 max-w-[100px]' : 'h-8 max-w-[120px]')}
-        />
-      )}
-      {showBrandText && (
-        <span className={cn('font-bold truncate', shell.isCompact ? 'text-sm' : 'text-base')} style={{ color: shell.navBrandCol, fontFamily: style.font_heading }}>
-          {brand}
-        </span>
-      )}
+      {logoImageNode}
+      {showBrandText && brandTextNode}
       {showHomeFallback && (
         <span className={cn('inline-flex items-center gap-1.5 font-semibold', shell.isCompact ? 'text-sm' : 'text-base')} style={{ color: shell.navBrandCol }}>
           <Home className={cn(shell.isCompact ? 'w-4 h-4' : 'w-5 h-5')} aria-hidden />
@@ -224,18 +270,8 @@ export default function NavBlock({
     </a>
   ) : (
     <Link to={homePath} className="inline-flex items-center gap-2 min-w-0 shrink-0 max-w-[min(100%,220px)]" aria-label={showHomeFallback ? 'Home' : brand}>
-      {showLogoImage && (
-        <img
-          src={imgUrl(logoUrl)}
-          alt={brand}
-          className={cn('w-auto object-contain shrink-0', shell.isCompact ? 'h-6 max-w-[100px]' : 'h-8 max-w-[120px]')}
-        />
-      )}
-      {showBrandText && (
-        <span className={cn('font-bold truncate', shell.isCompact ? 'text-sm' : 'text-base')} style={{ color: shell.navBrandCol, fontFamily: style.font_heading }}>
-          {brand}
-        </span>
-      )}
+      {logoImageNode}
+      {showBrandText && brandTextNode}
       {showHomeFallback && (
         <span className={cn('inline-flex items-center gap-1.5 font-semibold', shell.isCompact ? 'text-sm' : 'text-base')} style={{ color: shell.navBrandCol }}>
           <Home className={cn(shell.isCompact ? 'w-4 h-4' : 'w-5 h-5')} aria-hidden />
@@ -248,7 +284,7 @@ export default function NavBlock({
   const linksNode = kitLinks.length > 0 && (
     <nav className={cn(
       'flex items-center gap-1 flex-wrap min-w-0',
-      shell.isCentered ? 'justify-center' : 'justify-center flex-1',
+      shell.isCentered ? 'justify-center' : 'justify-center',
       forceNavLinksVisible ? 'flex' : 'hidden md:flex',
     )}>
       {kitLinks.map(link => (
@@ -407,42 +443,24 @@ export default function NavBlock({
         </div>
       )}
       {ctaLabel && (
-        previewShell ? (
-          <a
-            href={storePath(ctaUrl)}
-            onClick={(e) => previewNavClick(e, storePath(ctaUrl))}
-            className={cn(
-              'text-sm font-semibold whitespace-nowrap hover:opacity-90 transition-opacity',
-              shell.isCompact ? 'px-3 py-1.5' : 'px-4 py-2',
-              shell.isTransparentCta && 'ring-2 ring-white/30',
-            )}
-            style={{
-              backgroundColor: primary,
-              borderRadius,
-              color: '#fff',
-              boxShadow: shell.isTransparentCta ? `0 4px 14px ${primary}66` : undefined,
-            }}
-          >
-            {ctaLabel}
-          </a>
-        ) : (
-          <Link
-            to={storePath(ctaUrl)}
-            className={cn(
-              'text-sm font-semibold whitespace-nowrap hover:opacity-90 transition-opacity',
-              shell.isCompact ? 'px-3 py-1.5' : 'px-4 py-2',
-              shell.isTransparentCta && 'ring-2 ring-white/30',
-            )}
-            style={{
-              backgroundColor: primary,
-              borderRadius,
-              color: '#fff',
-              boxShadow: shell.isTransparentCta ? `0 4px 14px ${primary}66` : undefined,
-            }}
-          >
-            {ctaLabel}
-          </Link>
-        )
+        <BuilderCtaButton
+          fieldKey="cta_label"
+          blockId={blockId}
+          blockProps={props}
+          label={ctaLabel}
+          href={ctaUrl}
+          className={cn(
+            'text-sm font-semibold whitespace-nowrap hover:opacity-90 transition-opacity',
+            shell.isCompact ? 'px-3 py-1.5' : 'px-4 py-2',
+            shell.isTransparentCta && 'ring-2 ring-white/30',
+          )}
+          style={{
+            backgroundColor: primary,
+            borderRadius,
+            color: '#fff',
+            boxShadow: shell.isTransparentCta ? `0 4px 14px ${primary}66` : undefined,
+          }}
+        />
       )}
     </div>
   )
@@ -463,12 +481,14 @@ export default function NavBlock({
       >
         <div
           className={cn(
-            'relative mx-auto max-w-full',
+            builderSectionContainerClass(
+              'relative',
+              shell.isCompact ? 'py-1.5' : 'py-3',
+            ),
             shell.isCentered
               ? 'flex flex-col items-center text-center gap-2'
               : 'flex items-center justify-between gap-3',
-            shell.isCompact ? 'py-1.5 px-4' : 'py-3 px-4 sm:px-6',
-            shell.isElevated && 'mx-3 sm:mx-4 mt-2 rounded-xl shadow-lg border border-black/5',
+            shell.isElevated && '!mx-3 sm:!mx-4 !max-w-none mt-2 rounded-xl shadow-lg border border-black/5',
           )}
         >
           {shell.isCentered ? (
@@ -478,13 +498,17 @@ export default function NavBlock({
               {actionsNode}
             </>
           ) : (
-            <>
-              <div className="flex items-center gap-2 min-w-0 flex-1 md:flex-initial">
+            <div className="grid w-full grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-3">
+              <div className="col-start-1 flex items-center gap-2 min-w-0 justify-self-start">
                 {logoNode}
               </div>
-              {linksNode}
-              {actionsNode}
-            </>
+              <div className="col-start-2 flex min-w-0 justify-center">
+                {linksNode}
+              </div>
+              <div className="col-start-3 flex min-w-0 justify-self-end">
+                {actionsNode}
+              </div>
+            </div>
           )}
         </div>
       </header>

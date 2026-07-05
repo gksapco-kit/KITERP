@@ -1,8 +1,8 @@
-import { useState, useCallback, useRef, useEffect } from 'react'
+import { useState, useCallback, useRef, useEffect, useMemo, type RefObject } from 'react'
 import {
   MapPin, Plus, Trash2, ChevronDown, Globe, Navigation,
   Shield, CheckCircle2, XCircle, TestTube2, Loader2,
-  GripVertical, Settings2, Map, Info, RefreshCw, ChevronRight,
+  GripVertical, Settings2, Map as MapIcon, Info, RefreshCw, ChevronRight,
   Building2, Check,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -13,8 +13,18 @@ import { Badge } from '@/components/ui/badge'
 import { Switch } from '@/components/ui/switch'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
 import { cn } from '@/lib/utils'
-import { useStores } from '@/hooks/useVendor'
+import { useStores, useBranches } from '@/hooks/useVendor'
 import { useEscapeToClose } from '@/hooks/useEscapeToClose'
+import { BRANCH_LABEL } from '@/lib/businessUnitLabels'
+import { toast } from 'sonner'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
 import { BuilderStepSlider } from '@/components/websites/BuilderStepSlider'
 import { CoverageRadiusMap } from '@/components/maps/CoverageRadiusMap'
 import { COUNTRIES, POPULAR_COUNTRIES } from '@/data/countries'
@@ -1148,10 +1158,17 @@ function StoreCoveragePanel({
   store,
   config,
   onUpdate,
+  businessUnitLabel,
+  onRemove,
+  panelRef,
 }: {
   store: { id: string; name: string; code?: string | null }
   config: StoreConfig
   onUpdate: (patch: Partial<StoreConfig>) => void
+  /** Parent BU label when this panel is branch-scoped. */
+  businessUnitLabel?: string
+  onRemove?: () => void
+  panelRef?: RefObject<HTMLDivElement | null>
 }) {
   const { coverageMode, rules, activeTab, mapLat, mapLng, mapRadius, expanded } = config
   const ruleCount = rules.filter(r => r.is_active).length
@@ -1174,7 +1191,10 @@ function StoreCoveragePanel({
   }
 
   return (
-    <div className={cn('rounded-xl border bg-card shadow-sm transition-all', expanded ? 'border-primary/30' : 'border-border')}>
+    <div
+      ref={panelRef}
+      className={cn('rounded-xl border bg-card shadow-sm transition-all', expanded ? 'border-primary/30' : 'border-border')}
+    >
       {/* Store header — BU info + coverage mode */}
       <div className="flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-muted/30 transition-colors">
         <button
@@ -1183,11 +1203,16 @@ function StoreCoveragePanel({
           className="flex flex-1 items-center gap-3 min-w-0 text-left"
         >
           <Building2 className="h-4 w-4 shrink-0 text-muted-foreground" />
-          <div className="flex flex-wrap items-center gap-2 min-w-0">
-            {store.code && (
-              <span className="rounded bg-muted px-1.5 py-0.5 text-[10px] font-mono font-semibold text-muted-foreground">{store.code}</span>
-            )}
-            <span className="font-semibold text-sm text-foreground truncate">{store.name}</span>
+          <div className="flex flex-col gap-0.5 min-w-0">
+            <div className="flex flex-wrap items-center gap-2 min-w-0">
+              {store.code && (
+                <span className="rounded bg-muted px-1.5 py-0.5 text-[10px] font-mono font-semibold text-muted-foreground">{store.code}</span>
+              )}
+              <span className="font-semibold text-sm text-foreground truncate">{store.name}</span>
+            </div>
+            {businessUnitLabel ? (
+              <span className="text-[11px] text-muted-foreground truncate">Business unit: {businessUnitLabel}</span>
+            ) : null}
           </div>
         </button>
 
@@ -1201,6 +1226,18 @@ function StoreCoveragePanel({
             onChange={v => onUpdate({ coverageMode: v })}
           />
         </div>
+
+        {onRemove ? (
+          <button
+            type="button"
+            onClick={onRemove}
+            className="shrink-0 rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
+            aria-label="Remove coverage profile"
+            title="Remove coverage profile"
+          >
+            <Trash2 className="h-4 w-4" />
+          </button>
+        ) : null}
 
         <button
           type="button"
@@ -1227,7 +1264,7 @@ function StoreCoveragePanel({
                     )}
                   </TabsTrigger>
                   <TabsTrigger value="map" className="gap-1.5 text-xs h-7">
-                    <Map className="h-3.5 w-3.5" /> Map Picker
+                    <MapIcon className="h-3.5 w-3.5" /> Map Picker
                   </TabsTrigger>
                   <TabsTrigger value="test" className="gap-1.5 text-xs h-7">
                     <TestTube2 className="h-3.5 w-3.5" /> Test Address
@@ -1318,14 +1355,98 @@ function StoreCoveragePanel({
 
 // ── Main Page ──────────────────────────────────────────────────────────────────
 
-const ALL_BU_VALUE = '__all__'
+interface CoverageScope {
+  id: string
+  buId: string
+  branchId: string
+  storeId: string
+}
+
+const modalNativeSelectClass =
+  'h-9 w-full rounded-md border border-input bg-background px-3 text-sm focus:outline-none focus:ring-1 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-50'
+
+function scopeDedupeKey(buId: string, branchId: string) {
+  return `${buId}::${branchId || 'bu'}`
+}
+
+function formatBuLabel(store: { code?: string | null; name: string }) {
+  return store.code ? `${store.code} · ${store.name}` : store.name
+}
+
+function comboLabel(
+  buId: string,
+  branchId: string,
+  buStores: Array<{ id: string; name: string; code?: string | null }>,
+  storeById: Map<string, { id: string; name: string; code?: string | null; parent_id?: string | null }>,
+) {
+  const bu = buStores.find((s) => s.id === buId) ?? storeById.get(buId)
+  if (!branchId) return bu ? `${formatBuLabel(bu)} (all branches)` : 'Business unit'
+  const branch = storeById.get(branchId)
+  if (!branch) return 'Branch'
+  const branchName = branch.code ? `${branch.code} — ${branch.name}` : branch.name
+  return bu ? `${formatBuLabel(bu)} → ${branchName}` : branchName
+}
 
 export default function StoreCoveragePage() {
   const { data: storesData, isLoading: storesLoading } = useStores()
-  const stores: Array<{ id: string; name: string; code?: string | null }> = (storesData as { stores?: Array<{ id: string; name: string; code?: string | null }> } | undefined)?.stores ?? []
+  const { data: allStoresData } = useStores({ include_branches: true })
+  const buStores = useMemo(
+    () =>
+      (storesData?.stores ?? []).filter(
+        (s) => s.is_active && s.unit_type !== 'branch',
+      ),
+    [storesData],
+  )
 
-  // BU filter — '' means nothing selected yet, ALL_BU_VALUE means show all
-  const [filterStoreId, setFilterStoreId] = useState<string>('')
+  const storeById = useMemo(() => {
+    const map = new Map<string, { id: string; name: string; code?: string | null; parent_id?: string | null }>()
+    for (const s of allStoresData?.stores ?? []) {
+      map.set(s.id, s)
+    }
+    return map
+  }, [allStoresData])
+
+  // Coverage profiles on this page
+  const [coverageScopes, setCoverageScopes] = useState<CoverageScope[]>([])
+  const [createModalOpen, setCreateModalOpen] = useState(false)
+  const [createBuId, setCreateBuId] = useState('')
+  const [createBranchId, setCreateBranchId] = useState('')
+  const lastPanelRef = useRef<HTMLDivElement | null>(null)
+
+  const { data: createBranchesData, isLoading: createBranchesLoading } = useBranches(
+    createModalOpen && createBuId ? createBuId : null,
+  )
+  const createBranches = useMemo(
+    () => (createBranchesData?.branches ?? []).filter((b) => b.is_active),
+    [createBranchesData],
+  )
+
+  const existingScopeKeys = useMemo(
+    () => new Set(coverageScopes.map((s) => scopeDedupeKey(s.buId, s.branchId))),
+    [coverageScopes],
+  )
+
+  const availableCombos = useMemo(() => {
+    const list: Array<{ buId: string; branchId: string }> = []
+    for (const bu of buStores) {
+      list.push({ buId: bu.id, branchId: '' })
+      for (const s of allStoresData?.stores ?? []) {
+        if (s.parent_id === bu.id && s.is_active !== false) {
+          list.push({ buId: bu.id, branchId: s.id })
+        }
+      }
+    }
+    return list.filter((c) => !existingScopeKeys.has(scopeDedupeKey(c.buId, c.branchId)))
+  }, [buStores, allStoresData, existingScopeKeys])
+
+  const createComboTaken = createBuId
+    ? existingScopeKeys.has(scopeDedupeKey(createBuId, createBranchId))
+    : false
+
+  const canCreateCoverage =
+    Boolean(createBuId) &&
+    !createComboTaken &&
+    !(createBranchesLoading && createBranchId)
 
   // Per-store config keyed by store id
   const [configs, setConfigs] = useState<Record<string, StoreConfig>>({})
@@ -1341,19 +1462,88 @@ export default function StoreCoveragePage() {
     (sum, c) => sum + (c.coverageMode === 'restricted' ? c.rules.filter(r => r.is_active).length : 0), 0,
   )
 
-  const visibleStores = filterStoreId === ALL_BU_VALUE
-    ? stores
-    : stores.filter(s => s.id === filterStoreId)
-
-  // When a single store is selected, auto-expand it
-  useEffect(() => {
-    if (filterStoreId && filterStoreId !== ALL_BU_VALUE) {
-      setConfigs(prev => ({
-        ...prev,
-        [filterStoreId]: { ...(prev[filterStoreId] ?? defaultStoreConfig()), expanded: true },
-      }))
+  const openCreateModal = useCallback(() => {
+    if (availableCombos.length === 0) {
+      toast.info('Every business unit and branch already has a coverage profile.')
+      return
     }
-  }, [filterStoreId])
+    const next = availableCombos[0]
+    setCreateBuId(next.buId)
+    setCreateBranchId(next.branchId)
+    setCreateModalOpen(true)
+  }, [availableCombos])
+
+  useEscapeToClose(() => setCreateModalOpen(false), createModalOpen)
+
+  const handleCreateBuChange = (id: string) => {
+    setCreateBuId(id)
+    setCreateBranchId('')
+  }
+
+  const addCoverageScope = useCallback((buId: string, branchId: string) => {
+    const storeId = branchId || buId
+    const dedupeKey = scopeDedupeKey(buId, branchId)
+    if (coverageScopes.some((s) => scopeDedupeKey(s.buId, s.branchId) === dedupeKey)) {
+      toast.error('This business unit / branch already has a coverage profile.')
+      return false
+    }
+
+    const scope: CoverageScope = {
+      id: crypto.randomUUID(),
+      buId,
+      branchId,
+      storeId,
+    }
+    setCoverageScopes(prev => [...prev, scope])
+    setConfigs(prev => ({
+      ...prev,
+      [storeId]: { ...(prev[storeId] ?? defaultStoreConfig()), expanded: true },
+    }))
+    toast.success('Coverage profile created.')
+    window.setTimeout(() => {
+      lastPanelRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    }, 50)
+    return true
+  }, [coverageScopes])
+
+  const confirmCreateCoverage = () => {
+    if (!canCreateCoverage || !createBuId) return
+    if (addCoverageScope(createBuId, createBranchId)) {
+      setCreateModalOpen(false)
+      setCreateBuId('')
+      setCreateBranchId('')
+    }
+  }
+
+  const removeCoverageScope = useCallback((scopeId: string) => {
+    setCoverageScopes(prev => prev.filter(s => s.id !== scopeId))
+  }, [])
+
+  const resolveScopePanel = useCallback((scope: CoverageScope) => {
+    const store = storeById.get(scope.storeId)
+    const bu = storeById.get(scope.buId) ?? buStores.find(s => s.id === scope.buId)
+    if (!store) {
+      const fallback = buStores.find(s => s.id === scope.storeId)
+        ?? (allStoresData?.stores ?? []).find(s => s.id === scope.storeId)
+      if (!fallback) return null
+      return {
+        store: { id: fallback.id, name: fallback.name, code: fallback.code },
+        businessUnitLabel: scope.branchId && bu ? formatBuLabel(bu) : undefined,
+      }
+    }
+    return {
+      store: { id: store.id, name: store.name, code: store.code },
+      businessUnitLabel: scope.branchId && bu ? formatBuLabel(bu) : undefined,
+    }
+  }, [storeById, buStores, allStoresData])
+
+  const scopedPanels = useMemo(
+    () =>
+      coverageScopes
+        .map((scope) => ({ scope, panel: resolveScopePanel(scope) }))
+        .filter((row): row is { scope: CoverageScope; panel: NonNullable<ReturnType<typeof resolveScopePanel>> } => row.panel != null),
+    [coverageScopes, resolveScopePanel],
+  )
 
   return (
     <div className="max-w-5xl mx-auto space-y-5 pb-16">
@@ -1365,41 +1555,116 @@ export default function StoreCoveragePage() {
             <h1 className="text-xl font-bold text-foreground">Store Coverage</h1>
           </div>
           <p className="mt-1 text-sm text-muted-foreground">
-            Define service zones per business unit — each store has its own coverage mode and rules.
+            Define service zones per business unit or branch — each location has its own coverage mode and rules.
           </p>
         </div>
 
-        {/* BU selector */}
-        {!storesLoading && stores.length > 0 && (
+        {/* BU + Branch selectors */}
+        {!storesLoading && buStores.length > 0 && (
           <div className="flex items-center gap-3 shrink-0 flex-wrap">
             {totalActiveRules > 0 && (
               <Badge variant="warning" className="gap-1">
                 {totalActiveRules} rule{totalActiveRules !== 1 ? 's' : ''} total
               </Badge>
             )}
-            <div className="flex flex-col gap-1">
-              <Label className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+            <Button
+              type="button"
+              size="sm"
+              className="h-9 shrink-0 gap-1.5"
+              disabled={availableCombos.length === 0 && coverageScopes.length > 0}
+              onClick={openCreateModal}
+            >
+              <Plus className="h-4 w-4" />
+              Add BU / Branch coverage
+            </Button>
+          </div>
+        )}
+      </div>
+
+      <Dialog open={createModalOpen} onOpenChange={setCreateModalOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>New coverage profile</DialogTitle>
+            <DialogDescription>
+              Choose a business unit and optional branch. Each combination can have its own coverage rules.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-1">
+            <div className="space-y-1.5">
+              <Label htmlFor="coverage-create-bu" className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
                 Business Unit
               </Label>
               <select
-                value={filterStoreId}
-                onChange={e => setFilterStoreId(e.target.value)}
-                className="h-9 min-w-[220px] rounded-md border border-input bg-background px-3 text-sm focus:outline-none focus:ring-1 focus:ring-ring"
+                id="coverage-create-bu"
+                value={createBuId}
+                onChange={(e) => handleCreateBuChange(e.target.value)}
+                className={modalNativeSelectClass}
               >
                 <option value="">— Select business unit —</option>
-                {stores.length > 1 && (
-                  <option value={ALL_BU_VALUE}>All BUs / Stores ({stores.length})</option>
-                )}
-                {stores.map(s => (
+                {buStores.map((s) => (
                   <option key={s.id} value={s.id}>
-                    {s.code ? `${s.code} · ` : ''}{s.name}
+                    {s.code ? `${s.code} — ${s.name}` : s.name}
+                    {s.is_default ? ' (default)' : ''}
                   </option>
                 ))}
               </select>
             </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="coverage-create-branch" className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+                {BRANCH_LABEL}
+              </Label>
+              <select
+                id="coverage-create-branch"
+                value={createBranchId}
+                onChange={(e) => setCreateBranchId(e.target.value)}
+                disabled={!createBuId || createBranchesLoading}
+                className={modalNativeSelectClass}
+              >
+                {createBranchesLoading ? (
+                  <option value="">Loading branches…</option>
+                ) : (
+                  <>
+                    <option value="">All branches</option>
+                    {createBranches.map((b) => (
+                      <option key={b.id} value={b.id}>
+                        {b.code ? `${b.code} — ${b.name}` : b.name}
+                        {b.is_default ? ' (default)' : ''}
+                      </option>
+                    ))}
+                  </>
+                )}
+              </select>
+            </div>
+            {createBuId ? (
+              <p className="text-xs text-muted-foreground">
+                {createComboTaken ? (
+                  <span className="text-amber-700 dark:text-amber-400">
+                    A profile already exists for this combination — pick a different business unit or branch.
+                  </span>
+                ) : (
+                  <>
+                    Creating coverage for{' '}
+                    <strong className="text-foreground">
+                      {comboLabel(createBuId, createBranchId, buStores, storeById)}
+                    </strong>
+                    {availableCombos.length > 1 ? (
+                      <span> · {availableCombos.length - (createComboTaken ? 0 : 1)} more available</span>
+                    ) : null}
+                  </>
+                )}
+              </p>
+            ) : null}
           </div>
-        )}
-      </div>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button type="button" variant="outline" onClick={() => setCreateModalOpen(false)}>
+              Cancel
+            </Button>
+            <Button type="button" disabled={!canCreateCoverage} onClick={confirmCreateCoverage}>
+              Create profile
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Loading */}
       {storesLoading && (
@@ -1409,7 +1674,7 @@ export default function StoreCoveragePage() {
       )}
 
       {/* Empty store list */}
-      {!storesLoading && stores.length === 0 && (
+      {!storesLoading && buStores.length === 0 && (
         <div className="rounded-xl border border-dashed p-12 text-center space-y-2">
           <Building2 className="mx-auto h-8 w-8 text-muted-foreground/30" />
           <p className="text-sm font-medium text-muted-foreground">No business units found</p>
@@ -1417,24 +1682,53 @@ export default function StoreCoveragePage() {
         </div>
       )}
 
-      {/* Nothing selected yet */}
-      {!storesLoading && stores.length > 0 && filterStoreId === '' && (
-        <div className="rounded-xl border border-dashed p-12 text-center space-y-2">
-          <Building2 className="mx-auto h-8 w-8 text-muted-foreground/30" />
-          <p className="text-sm font-medium text-muted-foreground">Select a business unit to manage its coverage</p>
-          <p className="text-xs text-muted-foreground/70">Use the dropdown above to pick a store or view all.</p>
+      {/* Empty — no profiles yet */}
+      {!storesLoading && buStores.length > 0 && coverageScopes.length === 0 && (
+        <div className="rounded-xl border border-dashed p-12 text-center space-y-3">
+          <MapPin className="mx-auto h-8 w-8 text-muted-foreground/30" />
+          <p className="text-sm font-medium text-muted-foreground">No coverage profiles yet</p>
+          <p className="text-xs text-muted-foreground/70 max-w-md mx-auto">
+            Create a profile for each business unit or branch that needs its own service zones and rules.
+          </p>
+          <Button type="button" size="sm" className="gap-1.5" onClick={openCreateModal}>
+            <Plus className="h-4 w-4" />
+            Add BU / Branch coverage
+          </Button>
         </div>
       )}
 
-      {/* Store panels */}
-      {!storesLoading && visibleStores.map(store => (
-        <StoreCoveragePanel
-          key={store.id}
-          store={store}
-          config={getConfig(store.id)}
-          onUpdate={patch => patchConfig(store.id, patch)}
-        />
-      ))}
+      {/* Coverage profiles */}
+      {!storesLoading && scopedPanels.length > 0 && (
+        <div className="space-y-4">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+              Coverage profiles ({scopedPanels.length})
+            </p>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              className="h-8 gap-1.5"
+              disabled={availableCombos.length === 0}
+              onClick={openCreateModal}
+            >
+              <Plus className="h-3.5 w-3.5" />
+              Add another
+            </Button>
+          </div>
+          {scopedPanels.map(({ scope, panel }, index) => (
+            <StoreCoveragePanel
+              key={scope.id}
+              panelRef={index === scopedPanels.length - 1 ? lastPanelRef : undefined}
+              store={panel.store}
+              businessUnitLabel={panel.businessUnitLabel}
+              config={getConfig(scope.storeId)}
+              onUpdate={patch => patchConfig(scope.storeId, patch)}
+              onRemove={() => removeCoverageScope(scope.id)}
+            />
+          ))}
+        </div>
+      )}
     </div>
   )
 }

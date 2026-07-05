@@ -6,6 +6,7 @@ import BlockEmptyPlaceholder from '@/components/builder/BlockEmptyPlaceholder'
 import { BuilderTextField } from '@/components/builder/BuilderTextField'
 import { useBuilderCanvas } from '@/contexts/BuilderCanvasContext'
 import { isBlockFieldHidden, resolveBlockTextField } from '@/lib/blockHiddenFields'
+import { builderSectionContainerClass, builderSectionContainerWithMax } from '@/lib/builderSectionLayout'
 
 interface Props { site: PublicSite; style: StyleConfig; props: Record<string, unknown>; liveItems: LiveItem[]; branchCode?: string | null; blockId?: string }
 
@@ -29,7 +30,7 @@ export default function LiveStockBlock({ style, props, liveItems, blockId }: Pro
     )
   }
   return (
-    <section className="py-12 px-4 sm:px-6 lg:px-8 max-w-5xl mx-auto">
+    <section className={builderSectionContainerWithMax('max-w-5xl')}>
       {showTitle && (
         <BuilderTextField fieldKey="title" blockId={blockId} blockProps={props} value={title ?? ''} as="h3" className="text-xl font-bold text-gray-900 mb-4" placeholder="Section title" />
       )}

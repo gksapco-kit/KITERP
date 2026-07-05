@@ -3,6 +3,8 @@ import BlockEmptyPlaceholder from '@/components/builder/BlockEmptyPlaceholder'
 import { BuilderTextField } from '@/components/builder/BuilderTextField'
 import { useBuilderCanvas } from '@/contexts/BuilderCanvasContext'
 import { cn } from '@/lib/utils'
+import { builderSectionContainerClass, builderSectionContainerWithMax } from '@/lib/builderSectionLayout'
+import { BuilderSectionSurface } from '@/components/builder/BuilderSectionSurface'
 import { resolveSectionSurface } from '@/lib/navBlockLayout'
 import { columnsFromProps, sectionGridColumnClass, sectionItemGap } from '@/lib/sectionItemLayout'
 import {
@@ -54,7 +56,7 @@ export default function StatsBlock({ style, props, liveItems, blockId }: Props) 
 
   if (items.length === 0) {
     return (
-      <section className="py-16 px-4 sm:px-6 lg:px-8 max-w-3xl mx-auto" style={{ background: surface.background, color: surface.color }}>
+      <BuilderSectionSurface surface={surface} maxWidth="max-w-3xl">
         {showTitle && (
           <BuilderTextField
             fieldKey="title"
@@ -71,14 +73,14 @@ export default function StatsBlock({ style, props, liveItems, blockId }: Props) 
           title={title ?? 'Your highlights'}
           message="Add stats like happy customers, products sold, or years in business — or connect live store data."
         />
-      </section>
+      </BuilderSectionSurface>
     )
   }
 
   const colClass = sectionGridColumnClass(columns)
 
   return (
-    <section className="py-16 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto" style={{ background: surface.background, color: surface.color }}>
+    <BuilderSectionSurface surface={surface}>
       {showTitle && (
         <BuilderTextField
           fieldKey="title"
@@ -144,6 +146,6 @@ export default function StatsBlock({ style, props, liveItems, blockId }: Props) 
           )
         })}
       </div>
-    </section>
+    </BuilderSectionSurface>
   )
 }

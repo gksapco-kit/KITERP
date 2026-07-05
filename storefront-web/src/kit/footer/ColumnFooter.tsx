@@ -3,6 +3,8 @@ import { Link } from "react-router-dom";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { SocialPlatformIcon } from "@/lib/socialPlatformIcons";
+import type { SocialLinksIconStyle } from "@/lib/socialLinksMode";
 import {
   FOOTER_SOCIAL_PLATFORMS,
   type FooterSocialPlatform,
@@ -21,6 +23,8 @@ export interface ColumnFooterProps {
   copyright?: string;
   showSocial?: boolean;
   socialLinks?: Partial<Record<FooterSocialPlatform, string>>;
+  /** Outline, filled, or brand-colored social icons. */
+  socialIconStyle?: SocialLinksIconStyle;
   /** When true, render all social icons (used in builder canvas). */
   showAllSocialIcons?: boolean;
   renderSocialIcon?: (platform: FooterSocialPlatform, url: string) => ReactNode;
@@ -38,6 +42,7 @@ export function ColumnFooter({
   copyright = `© ${new Date().getFullYear()} Acme ERP. All rights reserved.`,
   showSocial = true,
   socialLinks,
+  socialIconStyle = "brand",
   showAllSocialIcons = false,
   renderSocialIcon,
   showNewsletter,
@@ -70,7 +75,7 @@ export function ColumnFooter({
               {description && <p className="mt-3 text-sm text-muted-foreground max-w-sm">{description}</p>}
               {showSocial && visibleSocial.length > 0 && (
                 <div className="mt-4 flex items-center gap-2">
-                  {visibleSocial.map(({ key, label, Icon }) => {
+                  {visibleSocial.map(({ key, label }) => {
                     const url = socialLinks?.[key]?.trim() || '';
                     if (renderSocialIcon) {
                       return <span key={key}>{renderSocialIcon(key, url)}</span>;
@@ -82,7 +87,7 @@ export function ColumnFooter({
                           aria-label={label}
                           className="text-muted-foreground/35"
                         >
-                          <Icon className="h-4 w-4" />
+                          <SocialPlatformIcon platform={key} style={socialIconStyle} className="h-4 w-4" />
                         </span>
                       );
                     }
@@ -95,7 +100,7 @@ export function ColumnFooter({
                         aria-label={label}
                         className="text-muted-foreground hover:text-foreground"
                       >
-                        <Icon className="h-4 w-4" />
+                        <SocialPlatformIcon platform={key} style={socialIconStyle} className="h-4 w-4" />
                       </a>
                     );
                   })}

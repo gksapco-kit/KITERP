@@ -43,7 +43,6 @@ import RestaurantReservationsPage from '@/pages/restaurant/Reservations'
 import RestaurantReportsPage from '@/pages/restaurant/Reports'
 import RestaurantMenuPage from '@/pages/restaurant/Menu'
 import RestaurantsPage from '@/pages/restaurant/Restaurants'
-import WorkspaceHubPage from '@/pages/workspace/Hub'
 import SubscriptionsSalesPage from '@/pages/sales/Subscriptions'
 import MarketplaceLeadsPage from '@/pages/sales/MarketplaceLeads'
 import RentalHubPage from '@/pages/rental/RentalHub'
@@ -220,7 +219,6 @@ import WebsiteBuilder from '@/pages/websites/Builder'
 import SEOManagementPage from '@/pages/websites/SEOManagement'
 import WebsiteSubmissions from '@/pages/websites/Submissions'
 import WebsiteTemplateGallery from '@/pages/websites/TemplateGallery'
-import BusinessFrontHubPage from '@/pages/business-front/index'
 import StorefrontBrowserPreviewShell from '@/pages/websites/StorefrontBrowserPreviewShell'
 import LegacyBrowserPreviewRedirect from '@/pages/websites/LegacyBrowserPreviewRedirect'
 import PreviewDraftStorePathRedirect from '@/pages/websites/PreviewDraftStorePathRedirect'
@@ -349,7 +347,6 @@ export const router = createBrowserRouter([
       { path: 'restaurant/order/:orderId', element: <RestaurantOrderPage /> },
       { path: 'restaurant/reservations', element: <RestaurantReservationsPage /> },
       { path: 'restaurant/reports', element: <RestaurantReportsPage /> },
-      { path: 'workspace', element: <WorkspaceHubPage /> },
       { path: 'subscriptions', element: <SubscriptionsSalesPage /> },
       { path: 'marketplace', element: <MarketplaceLeadsPage /> },
       { path: 'sales/coverage', element: <StoreCoveragePage /> },
@@ -373,8 +370,8 @@ export const router = createBrowserRouter([
       { path: 'coupons', element: <CouponsPage /> },
       { path: 'reports', element: <ReportsPage /> },
       { path: 'template', element: <Navigate to="/websites/templates?customize=1" replace /> },
-      { path: 'business-front', element: <BusinessFrontHubPage /> },
-      { path: 'storefront-builder', element: <Navigate to="/business-front" replace /> },
+      { path: 'business-front', element: <Navigate to="/websites" replace /> },
+      { path: 'storefront-builder', element: <Navigate to="/websites" replace /> },
       { path: 'blog', element: <BlogManagerPage /> },
       { path: 'websites', element: <WebsitesPage /> },
       /* Static path must be above :siteId or "templates" is treated as a site id. */

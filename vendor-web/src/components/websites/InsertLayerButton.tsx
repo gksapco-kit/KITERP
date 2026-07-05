@@ -4,7 +4,10 @@ import { cn } from '@/lib/utils'
 import { registerEscapeHandler } from '@/lib/escapeCloseRegistry'
 import { VISUAL_INSERT_TYPES } from '@/lib/builderVisualPresets'
 import { DesignBarDropdownPortal } from '@/components/websites/DesignBarDropdownPortal'
-import { visualInsertBtn, visualTabInsertBtn } from '@/components/websites/designBarVisualUi'
+import {
+  generalDesignBarInsertBtnClass,
+  visualInsertBtnClass,
+} from '@/components/websites/designBarVisualUi'
 import type { OverlayLayerItem } from '@/lib/builderOverlayVisual'
 
 /**
@@ -18,6 +21,8 @@ export function InsertLayerButton({
   open,
   onToggle,
   visualTab = false,
+  embedded = false,
+  stackedBelow = false,
 }: {
   overlayCount: number
   onAddOverlay: (type: string, anchor?: { x: number; y: number }, patch?: Partial<OverlayLayerItem>) => void
@@ -26,6 +31,10 @@ export function InsertLayerButton({
   onToggle?: () => void
   /** Visual tab row — roomier label line-height (General tab unchanged). */
   visualTab?: boolean
+  /** General tab cluster — edge-to-edge cell, no nested pill border. */
+  embedded?: boolean
+  /** When Delete sits below Insert in the same cluster. */
+  stackedBelow?: boolean
 }) {
   const [internalOpen, setInternalOpen] = useState(false)
   const btnRef = useRef<HTMLButtonElement>(null)
@@ -58,23 +67,31 @@ export function InsertLayerButton({
         title="Insert a layer — text, image, icon, button or shape"
         onClick={toggleMenu}
         className={cn(
-          visualTab ? visualTabInsertBtn : visualInsertBtn,
-          menuOpen
-            ? 'border-primary bg-primary text-white shadow-sm'
-            : 'border-primary/30 bg-primary/10 text-primary hover:bg-primary/15',
+          embedded
+            ? generalDesignBarInsertBtnClass(menuOpen, stackedBelow)
+            : visualInsertBtnClass(menuOpen, visualTab),
         )}
       >
-        <Plus className="h-3.5 w-3.5 shrink-0" />
-        <span>Insert</span>
-        {overlayCount > 0 ? (
-          <span className={cn(
-            'rounded-full px-1 text-[8px] font-black leading-none',
-            menuOpen ? 'bg-white/25 text-white' : 'bg-primary/20 text-primary',
-          )}>
-            {overlayCount}
-          </span>
-        ) : null}
-        <ChevronDown className={cn('h-3 w-3 shrink-0 opacity-70', menuOpen && 'rotate-180')} />
+        <Plus className={cn('shrink-0', embedded ? 'h-2.5 w-2.5' : 'h-3.5 w-3.5')} />
+        {embedded ? (
+          <>
+            <span className="leading-none">Insert</span>
+            <ChevronDown className={cn('h-2 w-2 shrink-0 opacity-70', menuOpen && 'rotate-180')} />
+          </>
+        ) : (
+          <>
+            <span>Insert</span>
+            {overlayCount > 0 ? (
+              <span className={cn(
+                'rounded-full px-1 text-[8px] font-black leading-none',
+                menuOpen ? 'bg-white/25 text-white' : 'bg-primary/20 text-primary',
+              )}>
+                {overlayCount}
+              </span>
+            ) : null}
+            <ChevronDown className={cn('h-3 w-3 shrink-0 opacity-70', menuOpen && 'rotate-180')} />
+          </>
+        )}
       </button>
 
       <DesignBarDropdownPortal

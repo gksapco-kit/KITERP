@@ -14,6 +14,7 @@ import {
   resolveStorefrontHeaderCta,
   resolveStorefrontHeaderNavLinks,
 } from '@/lib/siteNavPages'
+import { isVendorBlogEnabled } from '@/lib/catalogNavCapabilities'
 import type { NavLinkItem } from '@/kit/types'
 
 export function useStorefrontHeaderNav(): {
@@ -44,8 +45,9 @@ export function useStorefrontHeaderNav(): {
   const links = useMemo(
     () => resolveStorefrontHeaderNavLinks(site, storePath, pathname, {
       offeringType: vendor?.offering_type,
+      blogEnabled: isVendorBlogEnabled(vendor?.settings),
     }),
-    [site, storePath, pathname, vendor?.offering_type],
+    [site, storePath, pathname, vendor?.offering_type, vendor?.settings],
   )
 
   const cta = useMemo(

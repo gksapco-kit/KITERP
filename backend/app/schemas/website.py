@@ -264,6 +264,8 @@ class SiteListItem(BaseModel):
     website_store_name: Optional[str] = None
     website_home_store_id: Optional[str] = None
     storefront_assigned: Optional[bool] = None
+    business_type: Optional[str] = None
+    selling_mode: Optional[str] = None
     created_at: datetime
     updated_at: datetime
 

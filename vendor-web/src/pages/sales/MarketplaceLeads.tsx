@@ -39,8 +39,16 @@ export default function MarketplaceLeadsPage() {
   return (
     <div className="max-w-5xl mx-auto space-y-8">
       <div>
-        <h1 className="text-xl font-bold text-gray-900">Marketplace leads</h1>
-        <p className="text-sm text-gray-500 mt-1">Open customer requirements you can quote on.</p>
+        <h1 className="text-xl font-bold text-foreground">Marketplace leads</h1>
+        <p className="text-sm text-muted-foreground mt-1">
+          Open customer requirements you can quote on.
+        </p>
+        <p className="text-xs text-muted-foreground/90 mt-2 max-w-2xl leading-relaxed">
+          Leads are posted by customers on your storefront under{' '}
+          <span className="font-medium text-foreground">Account → Marketplace</span>.
+          Matching open requests appear here based on your business type and service area.
+          Submit a quote; if the customer accepts, an order is created automatically.
+        </p>
       </div>
 
       {isLoading && (
@@ -48,8 +56,13 @@ export default function MarketplaceLeadsPage() {
       )}
 
       {!isLoading && leads.length === 0 && (
-        <div className="rounded-xl border border-dashed p-8 text-center text-sm text-gray-500">
-          No open marketplace leads right now.
+        <div className="rounded-xl border border-dashed border-border bg-muted/20 px-6 py-8 text-center">
+          <p className="text-sm font-medium text-foreground">No open marketplace leads right now.</p>
+          <p className="text-xs text-muted-foreground mt-2 max-w-md mx-auto leading-relaxed">
+            When a customer posts a requirement on your online store, it will show up here if it matches
+            your category and location. Ask customers to use Marketplace on your storefront, or check that
+            your business type and store location are set in Settings.
+          </p>
         </div>
       )}
 

@@ -358,6 +358,8 @@ export interface SiteListItem {
   website_home_store_id?: string | null
   /** Set when assigned in Template Gallery — publish alone does not go live. */
   storefront_assigned?: boolean
+  business_type?: string | null
+  selling_mode?: string | null
   created_at: string
   updated_at: string
 }

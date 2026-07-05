@@ -12,6 +12,8 @@ import {
   resolveBlockTextField,
   visibleArrayEntries,
 } from '@/lib/blockHiddenFields'
+import { builderSectionContainerClass, builderSectionContainerWithMax } from '@/lib/builderSectionLayout'
+import { BuilderSectionSurface } from '@/components/builder/BuilderSectionSurface'
 import { arrayItemImageFrameStyle } from '@/lib/sectionImageStyle'
 import { cn, imgUrl } from '@/lib/utils'
 
@@ -199,23 +201,20 @@ export default function FaqBlock({ style, props, blockId }: Props) {
 
   if (rawFaqs.length === 0 || (visibleFaqs.length === 0 && !isEditorCanvas)) {
     return (
-      <section className="py-16 px-4 sm:px-6 lg:px-8 max-w-3xl mx-auto" style={{ backgroundColor: sectionBg }}>
+      <BuilderSectionSurface surface={{ backgroundColor: sectionBg }} maxWidth="max-w-3xl">
         {titleEl}
         <BlockEmptyPlaceholder
           style={style}
           title={title ?? 'FAQ'}
           message="Add questions and answers in the builder so customers know what to expect before they buy."
         />
-      </section>
+      </BuilderSectionSurface>
     )
   }
 
   if (layout === 'grid' || layout === 'two-col' || layout === 'two-column') {
     return (
-      <section
-        className="py-16 px-4 sm:px-6 lg:px-8 max-w-6xl mx-auto"
-        style={{ backgroundColor: sectionBg }}
-      >
+      <BuilderSectionSurface surface={{ backgroundColor: sectionBg }} maxWidth="max-w-6xl">
         {titleEl && <div className="mb-10">{titleEl}</div>}
         <div className={`grid grid-cols-1 ${gridCols} gap-6`}>
           {visibleFaqs.map(({ item: faq, index: i }) => (
@@ -224,16 +223,13 @@ export default function FaqBlock({ style, props, blockId }: Props) {
             </div>
           ))}
         </div>
-      </section>
+      </BuilderSectionSurface>
     )
   }
 
   if (layout === 'split') {
     return (
-      <section
-        className="py-16 px-4 sm:px-6 lg:px-8 max-w-6xl mx-auto"
-        style={{ backgroundColor: sectionBg }}
-      >
+      <BuilderSectionSurface surface={{ backgroundColor: sectionBg }} maxWidth="max-w-6xl">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 items-start">
           <div className="lg:pr-6">
             {titleEl ? <div className="mb-0 text-left">{titleEl}</div> : null}
@@ -260,16 +256,13 @@ export default function FaqBlock({ style, props, blockId }: Props) {
             ))}
           </div>
         </div>
-      </section>
+      </BuilderSectionSurface>
     )
   }
 
   if (layout === 'list') {
     return (
-      <section
-        className="py-16 px-4 sm:px-6 lg:px-8 max-w-3xl mx-auto"
-        style={{ backgroundColor: sectionBg }}
-      >
+      <BuilderSectionSurface surface={{ backgroundColor: sectionBg }} maxWidth="max-w-3xl">
         {titleEl && <div className="mb-10">{titleEl}</div>}
         <div className={stackGap}>
           {visibleFaqs.map(({ item: faq, index: i }) => (
@@ -288,15 +281,12 @@ export default function FaqBlock({ style, props, blockId }: Props) {
             </div>
           ))}
         </div>
-      </section>
+      </BuilderSectionSurface>
     )
   }
 
   return (
-    <section
-      className="py-16 px-4 sm:px-6 lg:px-8 max-w-3xl mx-auto"
-      style={{ backgroundColor: sectionBg }}
-    >
+    <BuilderSectionSurface surface={{ backgroundColor: sectionBg }} maxWidth="max-w-3xl">
       {titleEl && <div className="mb-10">{titleEl}</div>}
       <div className={stackGap}>
         {visibleFaqs.map(({ item: faq, index: i }) => (
@@ -319,6 +309,6 @@ export default function FaqBlock({ style, props, blockId }: Props) {
           </div>
         ))}
       </div>
-    </section>
+    </BuilderSectionSurface>
   )
 }

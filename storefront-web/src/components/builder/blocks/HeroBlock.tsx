@@ -25,6 +25,11 @@ import { useEffectiveVendor } from '@/hooks/useEffectiveVendor'
 import { useBranch } from '@/contexts/BranchContext'
 import { isSharpSiteRadius, siteRadiusPx } from '@/lib/siteBorderRadius'
 import { isBlockFieldHidden, resolveBlockTextField } from '@/lib/blockHiddenFields'
+import {
+  BUILDER_SECTION_INSET_X,
+  builderSectionContainerWithMax,
+  builderSectionInsetClass,
+} from '@/lib/builderSectionLayout'
 
 interface Props {
   site: PublicSite
@@ -415,7 +420,10 @@ export default function HeroBlock({ site, style, props, blockType, blockId, bran
         className={
           opts?.className
           ?? (splitSideBySide
-            ? `relative z-10 flex h-full min-h-[280px] w-full min-w-0 flex-col items-start justify-center gap-5 px-6 sm:px-10 lg:px-14 py-12 lg:py-16`
+            ? cn(
+                BUILDER_SECTION_INSET_X,
+                'relative z-10 flex h-full min-h-[280px] w-full min-w-0 flex-col items-start justify-center gap-5 py-12 lg:py-16',
+              )
             : isSplit
               ? 'relative z-10 flex flex-1 max-w-xl flex-col gap-5'
               : 'relative z-10 mx-auto flex max-w-3xl flex-col gap-5 text-center')
@@ -466,7 +474,10 @@ export default function HeroBlock({ site, style, props, blockType, blockId, bran
         </div>
         ) : null}
         {renderTextPanel({
-          className: 'space-y-5 relative z-10 px-6 sm:px-12 py-12 lg:py-16 flex flex-col justify-center max-w-3xl',
+          className: builderSectionContainerWithMax(
+            'max-w-3xl',
+            'space-y-5 relative z-10 py-12 lg:py-16 flex flex-col justify-center',
+          ),
           style: splitTextPanelStyle(),
         })}
       </section>
@@ -492,7 +503,7 @@ export default function HeroBlock({ site, style, props, blockType, blockId, bran
         </MediaClipFrame>
         ) : null}
         {showSideImage && props.overlay !== false && <div className="absolute inset-0 bg-black/35 z-0" />}
-        <div className="absolute bottom-6 left-4 right-4 md:left-8 md:right-8 z-10">
+        <div className={cn('absolute bottom-6 z-10', builderSectionInsetClass('left-0 right-0'))}>
           <div className="rounded-xl bg-white shadow-lg p-6 md:p-8 text-gray-900">
             {renderTextPanel({
               className: 'space-y-5 relative z-10 max-w-3xl',
@@ -506,8 +517,8 @@ export default function HeroBlock({ site, style, props, blockType, blockId, bran
 
   const centeredImageHeroClass =
     heroUsesImageBg && !splitSideBySide && !isSplit
-      ? 'relative px-8 py-24 min-h-[72vh] flex items-center justify-center overflow-hidden'
-      : 'relative px-8 py-24'
+      ? cn(BUILDER_SECTION_INSET_X, 'relative py-24 min-h-[72vh] flex items-center justify-center overflow-hidden')
+      : cn(BUILDER_SECTION_INSET_X, 'relative py-24')
 
   return (
     <section
@@ -518,7 +529,7 @@ export default function HeroBlock({ site, style, props, blockType, blockId, bran
               wideImage ? 'md:grid-cols-[2fr_3fr]' : 'md:grid-cols-2',
             )
           : isSplit
-            ? 'relative px-8 flex flex-col md:flex-row items-center gap-10 py-16'
+            ? cn(BUILDER_SECTION_INSET_X, 'relative flex flex-col md:flex-row items-center gap-10 py-16')
             : centeredImageHeroClass
       }
       style={

@@ -53,6 +53,8 @@ export function SetupFeaturesPicker({
 }) {
   const core = features.filter(f => f.locked)
   const optional = features.filter(f => !f.locked)
+  const featureIds = new Set(features.map(f => f.id))
+  const selectedInView = selected.filter(id => featureIds.has(id))
   const optionalSelected = optional.filter(f => selected.includes(f.id)).length
 
   return (
@@ -64,7 +66,7 @@ export function SetupFeaturesPicker({
             <p className="mt-0.5 text-xs text-gray-500">Core features are always on. Toggle optional sections below.</p>
           </div>
           <span className="inline-flex shrink-0 items-center rounded-full bg-primary/10 px-2.5 py-1 text-[11px] font-semibold tabular-nums text-primary">
-            {selected.length} of {features.length}
+            {selectedInView.length} of {features.length}
           </span>
         </div>
       </div>

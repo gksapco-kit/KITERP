@@ -58,7 +58,8 @@ import { websiteApi } from '@/api/websites'
 import { vendorApi } from '@/api/vendor'
 import { useVendorStore } from '@/stores/vendorStore'
 import { useMyVendor, useStores, vendorKeys } from '@/hooks/useVendor'
-import { isBuilderSiteAssignedToAnyStore, isBuilderSiteExternal } from '@/lib/builderDraftTemplateSites'
+import { isBuilderSiteAssignedToAnyStore } from '@/lib/builderDraftTemplateSites'
+import { mergeWebsiteStyleConfig, readSiteStyleMetadata, resolveSiteWebsiteScope } from '@/lib/websiteCreateWizardPresets'
 import {
   resolveSiteStoreLink,
   resolveStorefrontLinkMode,
@@ -74,6 +75,9 @@ import { BuilderCanvasPageRenderer, mergePageStyle } from '@/components/websites
 import {
   BuilderSectionOverlay,
   BuilderSectionPaddingHandles,
+  BuilderSectionChromePortal,
+  useBuilderSectionBox,
+  useSectionChromeToolbarDrag,
 } from '@/components/websites/BuilderSectionOverlay'
 import { SectionSizeControl } from '@/components/websites/SectionSizeControl'
 import {
@@ -3467,16 +3471,19 @@ function blockHasConfiguredLinks(block: WebsiteBlock): boolean {
   return overlays.some(o => !!(o.linkType && o.linkType !== 'none'))
 }
 
-/** Floating section chrome (reorder, duplicate, delete) ? can minimize to a hover ball. */
+/** Floating section chrome (reorder, duplicate, delete) — can minimize to a hover ball. */
 function BuilderSectionChromeToolbar({
   block,
   blockIdx,
   selected,
   minimized,
   pinned,
+  visible,
+  containerRef,
+  scrollRootRef,
+  canvasRevision,
   onMinimize,
   onTogglePin,
-  positionClassName,
   onOpenLinksPanel,
   onMoveBlock,
   onDuplicate,
@@ -3489,9 +3496,12 @@ function BuilderSectionChromeToolbar({
   selected: boolean
   minimized: boolean
   pinned: boolean
+  visible: boolean
+  containerRef: React.RefObject<HTMLElement | null>
+  scrollRootRef?: React.RefObject<HTMLElement | null>
+  canvasRevision?: string
   onMinimize: () => void
   onTogglePin: () => void
-  positionClassName: string
   onOpenLinksPanel: () => void
   onMoveBlock: (dir: 'top' | 'up' | 'down' | 'bottom') => void
   onDuplicate: () => void
@@ -3517,35 +3527,53 @@ function BuilderSectionChromeToolbar({
     setHoverPanelDismissed(false)
   }
 
+  const sectionBox = useBuilderSectionBox(block.id, containerRef, canvasRevision, scrollRootRef, 1)
+  const compactSection = (sectionBox?.height ?? 999) < 56
+  const effectiveMinimized = minimized || (compactSection && !pinned)
+
   const showLayout = getSectionLayoutOptions(block.block_type).length > 0
-  const iconBtn = 'p-1.5 text-gray-400 hover:text-white transition-colors'
+  const iconBtn = 'p-0.5 text-gray-400/90 hover:text-white transition-colors'
+  const dragHandleBtn = cn(
+    iconBtn,
+    'mr-0.5 shrink-0 cursor-grab border-r border-white/10 pr-1 active:cursor-grabbing',
+  )
   const hasLinks = blockHasConfiguredLinks(block)
+  const { dragOffset, dragging, portalRef, beginDrag } = useSectionChromeToolbarDrag(block.id)
 
   const toolbarBody = (
     <>
       <button
         type="button"
+        onMouseDown={beginDrag}
+        className={dragHandleBtn}
+        title="Drag to move toolbar anywhere on screen"
+        aria-label="Drag to reposition toolbar"
+      >
+        <GripVertical className="w-3.5 h-3.5" />
+      </button>
+      <button
+        type="button"
         onClick={handleMinimizeClick}
         className={cn(iconBtn, 'hover:text-amber-300 shrink-0')}
         title={
-          minimized
+          effectiveMinimized
             ? 'Close toolbar'
             : 'Minimize to hover ball'
         }
       >
-        <X className="w-6 h-6" />
+        <X className="w-3.5 h-3.5" />
       </button>
       <button type="button" onClick={e => { e.stopPropagation(); onMoveBlock('top') }} className={iconBtn} title="Move section to top of page">
-        <ChevronsUp className="w-7 h-7" />
+        <ChevronsUp className="w-4 h-4" />
       </button>
       <button type="button" onClick={e => { e.stopPropagation(); onMoveBlock('up') }} className={iconBtn} title="Move section up on the page">
-        <ChevronUp className="w-7 h-7" />
+        <ChevronUp className="w-4 h-4" />
       </button>
       <button type="button" onClick={e => { e.stopPropagation(); onMoveBlock('down') }} className={iconBtn} title="Move section down on the page">
-        <ChevronDown className="w-7 h-7" />
+        <ChevronDown className="w-4 h-4" />
       </button>
       <button type="button" onClick={e => { e.stopPropagation(); onMoveBlock('bottom') }} className={iconBtn} title="Move section to bottom of page">
-        <ChevronsDown className="w-7 h-7" />
+        <ChevronsDown className="w-4 h-4" />
       </button>
       {showLayout ? (
         <SectionLayoutControls
@@ -3569,13 +3597,13 @@ function BuilderSectionChromeToolbar({
         )}
         title={hasLinks ? 'Section has links — open Links panel' : 'Link buttons & URLs (Links panel)'}
       >
-        <Link2 className="w-7 h-7" />
+        <Link2 className="w-4 h-4" />
         {hasLinks ? (
-          <span className="absolute top-1 right-1 h-1.5 w-1.5 rounded-full bg-sky-400" aria-hidden />
+          <span className="absolute top-0.5 right-0.5 h-1 w-1 rounded-full bg-sky-400" aria-hidden />
         ) : null}
       </button>
       <button type="button" onClick={e => { e.stopPropagation(); onDuplicate() }} className={iconBtn} title="Duplicate (Ctrl+D)">
-        <Copy className="w-7 h-7" />
+        <Copy className="w-4 h-4" />
       </button>
       <button
         type="button"
@@ -3583,7 +3611,7 @@ function BuilderSectionChromeToolbar({
         title="Delete section"
         className={cn(iconBtn, 'hover:text-red-400')}
       >
-        <Trash2 className="w-7 h-7" />
+        <Trash2 className="w-4 h-4" />
       </button>
       <button
         type="button"
@@ -3592,67 +3620,79 @@ function BuilderSectionChromeToolbar({
           iconBtn,
           pinned && 'text-primary bg-primary/15 ring-1 ring-primary/40 rounded-md hover:text-primary',
         )}
-        title={pinned ? 'Unpin ? collapse to hover ball' : 'Pin toolbar open'}
+        title={pinned ? 'Unpin — collapse to hover ball' : 'Pin toolbar open'}
       >
-        <Pin className={cn('w-5 h-5', pinned && 'fill-current')} />
+        <Pin className={cn('w-3.5 h-3.5', pinned && 'fill-current')} />
       </button>
     </>
   )
 
   const panelClass =
-    'flex items-center gap-1.5 rounded-xl border border-white/10 bg-gray-950/95 px-3 py-2.5 text-white shadow-lg shadow-black/20 backdrop-blur'
+    'flex items-center gap-0.5 rounded-lg border border-white/12 bg-gray-900/80 px-1.5 py-1 text-white shadow-lg shadow-black/20 backdrop-blur-md'
 
-  if (minimized) {
-    const stayOpen = pinned
-    return (
-      <div
-        data-builder-overlay={block.id}
-        data-builder-section-toolbar
-        className={cn(
-          'absolute z-[85] pointer-events-auto',
-          stayOpen ? 'flex items-center gap-1.5' : 'group/section-chrome',
-          positionClassName,
-        )}
-        onClick={e => e.stopPropagation()}
-        onMouseLeave={handleChromeMouseLeave}
-      >
-        {!stayOpen ? (
-          <div
-            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-white/15 bg-gray-950/95 text-gray-300 shadow-lg shadow-black/30 backdrop-blur ring-1 ring-white/10 transition-all hover:scale-110 hover:text-white hover:ring-primary/40"
-            title="Section tools ? hover to expand"
-          >
-            <GripVertical className="h-4 w-4" />
-          </div>
-        ) : null}
-        <div
-          className={cn(
-            panelClass,
-            stayOpen
-              ? 'relative shrink-0'
-              : cn(
-                  'absolute right-0 top-0 origin-top-right',
-                  'scale-[0.94] opacity-0 pointer-events-none transition-all duration-150',
-                  !hoverPanelDismissed &&
-                    'group-hover/section-chrome:scale-100 group-hover/section-chrome:opacity-100 group-hover/section-chrome:pointer-events-auto',
-                ),
-          )}
-        >
-          {toolbarBody}
-        </div>
-      </div>
-    )
-  }
-
-  return (
+  const stayOpen = pinned
+  const chromeContent = effectiveMinimized ? (
     <div
       data-builder-overlay={block.id}
       data-builder-section-toolbar
-      className={cn(panelClass, 'absolute z-[85] pointer-events-auto transition-all', positionClassName)}
+      data-builder-floating-ui
+      className={cn(
+        stayOpen ? 'flex items-center gap-1' : 'group/section-chrome relative',
+        dragging && 'pointer-events-auto',
+      )}
+      onClick={e => e.stopPropagation()}
+      onMouseLeave={handleChromeMouseLeave}
+    >
+      {!stayOpen ? (
+        <div
+          className="flex h-7 w-7 shrink-0 cursor-grab items-center justify-center rounded-full border border-white/12 bg-gray-900/80 text-gray-200 shadow-lg shadow-black/20 backdrop-blur-md ring-1 ring-white/10 transition-all hover:scale-110 hover:text-white hover:ring-primary/40 active:cursor-grabbing"
+          title="Drag to move anywhere — hover to expand tools"
+          onMouseDown={beginDrag}
+        >
+          <GripVertical className="h-3 w-3" />
+        </div>
+      ) : null}
+      <div
+        className={cn(
+          panelClass,
+          stayOpen
+            ? 'relative shrink-0'
+            : cn(
+                'absolute right-0 top-0 origin-top-right',
+                'scale-[0.94] opacity-0 pointer-events-none transition-all duration-150',
+                !dragging && !hoverPanelDismissed &&
+                  'group-hover/section-chrome:scale-100 group-hover/section-chrome:opacity-100 group-hover/section-chrome:pointer-events-auto',
+              ),
+        )}
+      >
+        {toolbarBody}
+      </div>
+    </div>
+  ) : (
+    <div
+      data-builder-overlay={block.id}
+      data-builder-section-toolbar
+      data-builder-floating-ui
+      className={panelClass}
       onClick={e => e.stopPropagation()}
       onMouseLeave={handleChromeMouseLeave}
     >
       {toolbarBody}
     </div>
+  )
+
+  return (
+    <BuilderSectionChromePortal
+      blockId={block.id}
+      containerRef={containerRef}
+      revision={canvasRevision}
+      scrollRootRef={scrollRootRef}
+      visible={visible}
+      dragOffset={dragOffset}
+      portalRef={portalRef}
+    >
+      {chromeContent}
+    </BuilderSectionChromePortal>
   )
 }
 
@@ -7702,6 +7742,53 @@ function PropsEditor({
           </p>
         </div>
       )}
+      {block.block_type === 'nav' && (
+        <PropsCollapsible
+          title="Logo & brand"
+          preview={
+            (p as any).brand_logo
+              ? 'Logo + name'
+              : (p as any).show_logo !== false
+                ? 'Logo slot · name'
+                : (p.brand as string) || 'Text only'
+          }
+        >
+          <BlockImagePickerField
+            blockId={block.id}
+            label="Logo image"
+            fieldKey="brand_logo"
+            siteId={siteId}
+            currentUrl={p.brand_logo as string | undefined}
+            onUpdate={onUpdate}
+          />
+          {p.brand_logo && (
+            <button
+              type="button"
+              onClick={() => onUpdate({ brand_logo: '' } as Partial<BlockProps>)}
+              className="text-xs text-red-500 hover:text-red-700 font-semibold"
+            >
+              Remove logo image
+            </button>
+          )}
+          <p className="text-xs text-gray-400 leading-snug">
+            Pick from your media gallery or upload, or click the logo slot on the canvas. Brand name is in the field below.
+          </p>
+          {[
+            { key: 'show_logo', label: 'Show logo image' },
+            { key: 'show_brand_name', label: 'Show brand name' },
+          ].map(({ key, label }) => (
+            <label key={key} className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={(p as any)[key] !== false}
+                onChange={e => onUpdate({ [key]: e.target.checked } as Partial<BlockProps>)}
+                className="rounded accent-primary"
+              />
+              <span className="text-xs text-gray-600">{label}</span>
+            </label>
+          ))}
+        </PropsCollapsible>
+      )}
       {commonFields}
 
       {onEditPropLink && blockTypeSupportsBlockLink(block.block_type) && (
@@ -7730,7 +7817,14 @@ function PropsEditor({
       )}
 
       {block.block_type === 'nav' && (
-        <PropsCollapsible title="Header elements" preview="Logo ? links ? actions">
+        <PropsCollapsible
+          title="Header elements"
+          preview={[
+            (p as any).show_logo !== false ? 'Logo' : null,
+            (p as any).show_nav_links !== false ? 'links' : null,
+            (p as any).cta_label ? 'CTA' : 'actions',
+          ].filter(Boolean).join(' · ')}
+        >
           {[
             { key: 'show_nav_links', label: 'Show page links' },
             { key: 'show_search', label: 'Show search' },
@@ -8951,43 +9045,9 @@ function PropsEditor({
       {bgImageField}
       {imageUrlField}
       {block.block_type === 'nav' && (
-        <PropsCollapsible title="Logo & brand" preview={p.brand_logo ? 'Logo + name' : (p.brand as string) || 'Text only'}>
-          <BlockImagePickerField
-            blockId={block.id}
-            label="Logo image"
-            fieldKey="brand_logo"
-            siteId={siteId}
-            currentUrl={p.brand_logo as string | undefined}
-            onUpdate={onUpdate}
-          />
-          {p.brand_logo && (
-            <button
-              type="button"
-              onClick={() => onUpdate({ brand_logo: '' } as any)}
-              className="text-xs text-red-500 hover:text-red-700 font-semibold"
-            >
-              Remove logo image
-            </button>
-          )}
-          <p className="text-xs text-gray-400 leading-snug">
-            Pick from your media gallery or upload. Brand name is edited under Content.
-          </p>
-          {[
-            { key: 'show_logo', label: 'Show logo image', disabled: !p.brand_logo },
-            { key: 'show_brand_name', label: 'Show brand name' },
-          ].map(({ key, label, disabled }) => (
-            <label key={key} className={cn('flex items-center gap-2', disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer')}>
-              <input
-                type="checkbox"
-                disabled={disabled}
-                checked={(p as any)[key] !== false}
-                onChange={e => onUpdate({ [key]: e.target.checked } as any)}
-                className="rounded accent-primary"
-              />
-              <span className="text-xs text-gray-600">{label}</span>
-            </label>
-          ))}
-        </PropsCollapsible>
+        <p className="rounded-xl border border-dashed border-border bg-muted/20 px-3 py-2.5 text-xs text-muted-foreground leading-snug">
+          Logo image and brand visibility are under <span className="font-semibold text-foreground">Content → Logo &amp; brand</span>.
+        </p>
       )}
           </>
         )}
@@ -11095,12 +11155,23 @@ export default function WebsiteBuilder() {
   const builderStores = builderStoresData?.stores ?? []
   const isExternalSite = useMemo(() => {
     if (!site) return false
-    const scope = (site as { website_store_scope?: string | null }).website_store_scope
-      ?? (site.style_config as Record<string, unknown> | undefined)?.website_store_scope
-    return isBuilderSiteExternal({
-      website_store_scope: typeof scope === 'string' ? scope : null,
-    })
-  }, [site])
+    const meta = readSiteStyleMetadata(site.style_config as Record<string, unknown>)
+    const siteRecord = site as typeof site & {
+      website_store_scope?: string | null
+      website_store_id?: string | null
+      website_home_store_id?: string | null
+    }
+    return resolveSiteWebsiteScope(
+      {
+        website_store_scope: siteRecord.website_store_scope ?? meta.website_store_scope,
+        website_store_id: siteRecord.website_store_id ?? meta.website_store_id,
+        website_home_store_id: siteRecord.website_home_store_id ?? meta.website_home_store_id,
+        business_type: meta.business_type,
+        selling_mode: meta.selling_mode,
+      },
+      builderStores.length,
+    ) === 'external'
+  }, [site, builderStores.length])
   const updateSite = useUpdateSite(siteId!)
   const overlayLayerUpload = useUploadMedia(siteId!)
   const { data: templates = [] } = useWebsiteTemplates()
@@ -11108,7 +11179,6 @@ export default function WebsiteBuilder() {
   // State
   const [activePageId, setActivePageId] = useState<string | null>(null)
   const [selectedBlockId, setSelectedBlockId] = useState<string | null>(null)
-  const [hoveredBlockId, setHoveredBlockId] = useState<string | null>(null)
   const [minimizedSectionToolbars, setMinimizedSectionToolbars] = useState<Set<string>>(() => new Set())
   const [pinnedSectionToolbars, setPinnedSectionToolbars] = useState<Set<string>>(() => new Set())
   const minimizeSectionToolbar = useCallback((blockId: string) => {
@@ -12278,23 +12348,6 @@ export default function WebsiteBuilder() {
     }
     setRightCollapsed(false)
   }, [formatPaintBrush, selectedBlockId])
-
-  const handleCanvasBlockHover = useCallback((e: React.MouseEvent) => {
-    const target = e.target as HTMLElement
-    const overlay = target.closest('[data-builder-overlay]') as HTMLElement | null
-    if (overlay) {
-      const oid = overlay.getAttribute('data-builder-overlay')
-      setHoveredBlockId(prev => (prev === oid ? prev : oid))
-      return
-    }
-    const blockRoot = target.closest('[data-block-id]') as HTMLElement | null
-    const id = blockRoot?.getAttribute('data-block-id') || null
-    setHoveredBlockId(prev => (prev === id ? prev : id))
-  }, [])
-
-  const handleCanvasBlockHoverLeave = useCallback(() => {
-    setHoveredBlockId(null)
-  }, [])
 
   const handleCanvasNavClickCapture = useCallback((e: React.MouseEvent) => {
     const target = e.target as HTMLElement
@@ -15320,7 +15373,13 @@ export default function WebsiteBuilder() {
     setAutoSaveStatus('saving')
     try {
       if (saveBlocks) await persistAllBlocksToServer()
-      if (saveStyle) await websiteApi.updateSite(siteId, { style_config: sanitizeForApiJson(localStyle) as any })
+      if (saveStyle) {
+        const stylePayload = mergeWebsiteStyleConfig(
+          site?.style_config as Record<string, unknown>,
+          sanitizeForApiJson(localStyle) as Record<string, unknown>,
+        )
+        await websiteApi.updateSite(siteId, { style_config: stylePayload as any })
+      }
       setStyleDirty(false)
       setBlocksDirty(false)
       blocksDirtyRef.current = false
@@ -16346,7 +16405,7 @@ export default function WebsiteBuilder() {
                   </span>
                 </div>
                 <span className={cn('text-[11px] px-2 py-0.5 rounded-full font-semibold leading-none antialiased', site.is_published ? 'bg-emerald-500/20 text-emerald-400 ring-1 ring-emerald-500/40' : 'bg-gray-700 text-gray-400')}>
-                  {isExternalSite ? 'External site' : site.is_published ? 'Ready to assign' : 'Not in templates'}
+                  {isExternalSite ? 'Other Use' : site.is_published ? 'Ready to assign' : 'Not in templates'}
                 </span>
               </div>
             )}
@@ -16953,7 +17012,8 @@ export default function WebsiteBuilder() {
           className={cn(
             'flex flex-col border-r shrink-0',
             builderPanelUi.shell,
-            leftCollapsed ? 'relative w-10' : '',
+            builderPanelUi.panelRailStack,
+            leftCollapsed ? 'w-10' : '',
           )}
           style={leftCollapsed ? undefined : { width: leftWidth }}
         >
@@ -17445,7 +17505,10 @@ export default function WebsiteBuilder() {
         {/* ── LEFT RESIZE HANDLE ──────────────────────────────────────── */}
         {!leftCollapsed && (
           <div
-            className="relative w-px shrink-0 self-stretch bg-transparent transition-colors group z-20 hover:bg-gray-500 active:bg-gray-600"
+            className={cn(
+              'w-px shrink-0 self-stretch bg-transparent transition-colors group hover:bg-gray-500 active:bg-gray-600',
+              builderPanelUi.panelResizeStack,
+            )}
           >
             <div
               className="absolute inset-y-0 -left-1 -right-1 cursor-col-resize"
@@ -17474,7 +17537,7 @@ export default function WebsiteBuilder() {
         )}
 
         {/* ── CANVAS ──────────────────────────────────────────────────── */}
-        <main className="flex-1 min-w-0 flex flex-col overflow-hidden bg-gray-100">
+        <main className="relative z-0 flex-1 min-w-0 flex flex-col overflow-hidden bg-gray-100">
           <BuilderSpacingCoachMark
             visible={Boolean(selectedBlockId)}
             dismissed={builderSpacingTipDismissed}
@@ -17714,8 +17777,6 @@ export default function WebsiteBuilder() {
                       className={cn('relative', formatPaintBrush && 'builder-format-paint-active')}
                       onClickCapture={handleCanvasBlockSelectCapture}
                       onContextMenuCapture={handleCanvasBlockContextMenuCapture}
-                      onMouseMove={handleCanvasBlockHover}
-                      onMouseLeave={handleCanvasBlockHoverLeave}
                     >
                       {builderPublicSite && (
                         <BuilderCanvasPageRenderer
@@ -17757,6 +17818,10 @@ export default function WebsiteBuilder() {
                           selected={selectedBlockId === block.id}
                           minimized={minimizedSectionToolbars.has(block.id)}
                           pinned={pinnedSectionToolbars.has(block.id)}
+                          visible={selectedBlockId === block.id}
+                          containerRef={builderPageRootRef}
+                          scrollRootRef={canvasMainRef}
+                          canvasRevision={canvasBlocksRevision}
                           onMinimize={() => {
                             if (pinnedSectionToolbars.has(block.id)) {
                               unpinSectionToolbar(block.id)
@@ -17768,12 +17833,6 @@ export default function WebsiteBuilder() {
                             }
                           }}
                           onTogglePin={() => togglePinSectionToolbar(block.id)}
-                          positionClassName={cn(
-                            'top-2 right-2',
-                            selectedBlockId === block.id || hoveredBlockId === block.id
-                              ? 'opacity-100'
-                              : 'opacity-0 group-hover:opacity-100',
-                          )}
                           onMoveBlock={dir => handleMoveBlock(block.id, dir)}
                           onDuplicate={() => handleDuplicateBlock(block.id)}
                           onDelete={() => confirmDeleteBlock(block.id)}
@@ -17850,8 +17909,7 @@ export default function WebsiteBuilder() {
                         />
 
                         {(() => {
-                          const sectionResizeActive =
-                            selectedBlockId === block.id || hoveredBlockId === block.id
+                          const sectionResizeActive = selectedBlockId === block.id
                           const inlineEditingThisBlock = inlineTextEdit?.blockId === block.id
                           const suppressSectionResizeChrome =
                             builderModalOpen
@@ -18106,7 +18164,10 @@ export default function WebsiteBuilder() {
         {/* ── RIGHT RESIZE HANDLE ─────────────────────────────────────── */}
         {!rightCollapsed && (
           <div
-            className="relative w-px shrink-0 self-stretch bg-transparent transition-colors group z-20 hover:bg-gray-500 active:bg-gray-600"
+            className={cn(
+              'w-px shrink-0 self-stretch bg-transparent transition-colors group hover:bg-gray-500 active:bg-gray-600',
+              builderPanelUi.panelResizeStack,
+            )}
           >
             <div
               className="absolute inset-y-0 -left-1 -right-1 cursor-col-resize"
@@ -18139,7 +18200,8 @@ export default function WebsiteBuilder() {
           className={cn(
             'flex flex-col border-l shrink-0',
             builderPanelUi.shell,
-            rightCollapsed ? 'relative w-10' : '',
+            builderPanelUi.panelRailStack,
+            rightCollapsed ? 'w-10' : '',
           )}
           style={rightCollapsed ? undefined : { width: rightWidth }}
         >

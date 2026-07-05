@@ -11,9 +11,17 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
 from app.models.blog import VendorBlogPost
+from app.models.vendor import Vendor
 from app.api.v1.catalog import get_vendor_id_from_tenant
+from app.utils.blog_settings import is_blog_enabled
 
 router = APIRouter()
+
+
+async def _require_blog_enabled(vendor_id, db: AsyncSession) -> None:
+    vendor = (await db.execute(select(Vendor).where(Vendor.id == vendor_id))).scalar_one_or_none()
+    if not vendor or not is_blog_enabled(vendor.settings):
+        raise HTTPException(status_code=404, detail="Blog is not available")
 
 
 @router.get("", summary="List published blog posts (public)")
@@ -26,6 +34,7 @@ async def list_published_posts(
     db: AsyncSession = Depends(get_db),
 ):
     vendor_id = await get_vendor_id_from_tenant(request, db)
+    await _require_blog_enabled(vendor_id, db)
     q = select(VendorBlogPost).where(
         VendorBlogPost.vendor_id == vendor_id,
         VendorBlogPost.is_published == True,  # noqa: E712
@@ -57,6 +66,7 @@ async def get_published_post(
     db: AsyncSession = Depends(get_db),
 ):
     vendor_id = await get_vendor_id_from_tenant(request, db)
+    await _require_blog_enabled(vendor_id, db)
     post = (await db.execute(
         select(VendorBlogPost).where(
             VendorBlogPost.vendor_id == vendor_id,

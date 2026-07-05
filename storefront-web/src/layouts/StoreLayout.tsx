@@ -2,7 +2,7 @@ import { Outlet, Link, NavLink, useNavigate, useLocation, useParams, useSearchPa
 import { cn, imgUrl } from '@/lib/utils'
 import {
   Store, AlertTriangle, Loader2,
-  Phone, Mail, Clock, Facebook, Instagram, Twitter, Youtube, Globe,
+  Phone, Mail, Clock,
   ArrowUp, Search, User, ChevronDown, Package, LogOut, ShoppingCart, MapPin, Home,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -27,6 +27,7 @@ import { useEffectiveVendor } from '@/hooks/useEffectiveVendor'
 import { notifyDraftPreviewParentRoute, notifyDraftPreviewHome, rememberDraftEmbedPreviewToken, recallDraftEmbedPreviewToken, storefrontPathToDraftEmbedRoute } from '@/lib/draftEmbedPreview'
 import { buildDraftCatalogEmbedStorePath, isDraftCatalogEmbedPath } from '@/lib/draftCatalogEmbed'
 import { StoreBranchPicker } from '@/components/store/StoreBranchPicker'
+import { SocialLinksIconRow } from '@/components/store/SocialLinksIconRow'
 import {
   buildFooterContactLinks,
   collectBusinessContactEmails,
@@ -297,12 +298,12 @@ function FooterStandard({ vendor, storePath, theme }: { vendor: any; storePath: 
             </div>
             {vendor?.description && <p className={cn('text-sm leading-relaxed line-clamp-3', surface.mutedClass)}>{vendor.description}</p>}
             {vendor?.social_links && (
-              <div className="flex gap-2 mt-4">
-                {vendor.social_links.facebook && <a href={vendor.social_links.facebook} target="_blank" rel="noopener noreferrer" className={surface.socialClass}><Facebook className="w-4 h-4" /></a>}
-                {vendor.social_links.instagram && <a href={vendor.social_links.instagram} target="_blank" rel="noopener noreferrer" className={surface.socialClass}><Instagram className="w-4 h-4" /></a>}
-                {vendor.social_links.twitter && <a href={vendor.social_links.twitter} target="_blank" rel="noopener noreferrer" className={surface.socialClass}><Twitter className="w-4 h-4" /></a>}
-                {vendor.social_links.youtube && <a href={vendor.social_links.youtube} target="_blank" rel="noopener noreferrer" className={surface.socialClass}><Youtube className="w-4 h-4" /></a>}
-              </div>
+              <SocialLinksIconRow
+                links={vendor.social_links}
+                settings={vendor.settings}
+                linkClassName={surface.socialClass}
+                className="mt-4"
+              />
             )}
           </div>
           <div>
@@ -377,13 +378,11 @@ function FooterFull({ vendor, storePath, theme }: { vendor: any; storePath: (p: 
             {vendor?.social_links && Object.keys(vendor.social_links).length > 0 && (
               <div className="mt-5">
                 <h4 className={cn('font-semibold text-sm mb-2.5', surface.titleClass)}>Follow Us</h4>
-                <div className="flex gap-2 flex-wrap">
-                  {vendor.social_links.facebook && <a href={vendor.social_links.facebook} target="_blank" rel="noopener noreferrer" className={surface.socialClass}><Facebook className="w-4 h-4" /></a>}
-                  {vendor.social_links.instagram && <a href={vendor.social_links.instagram} target="_blank" rel="noopener noreferrer" className={surface.socialClass}><Instagram className="w-4 h-4" /></a>}
-                  {vendor.social_links.twitter && <a href={vendor.social_links.twitter} target="_blank" rel="noopener noreferrer" className={surface.socialClass}><Twitter className="w-4 h-4" /></a>}
-                  {vendor.social_links.youtube && <a href={vendor.social_links.youtube} target="_blank" rel="noopener noreferrer" className={surface.socialClass}><Youtube className="w-4 h-4" /></a>}
-                  {vendor.social_links.website && <a href={vendor.social_links.website} target="_blank" rel="noopener noreferrer" className={surface.socialClass}><Globe className="w-4 h-4" /></a>}
-                </div>
+                <SocialLinksIconRow
+                  links={vendor.social_links}
+                  settings={vendor.settings}
+                  linkClassName={surface.socialClass}
+                />
               </div>
             )}
           </div>

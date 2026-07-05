@@ -6,6 +6,7 @@ import { BuilderTextField } from '@/components/builder/BuilderTextField'
 import { BuilderCtaButton } from '@/components/builder/BuilderCtaButton'
 import { useBuilderCanvas } from '@/contexts/BuilderCanvasContext'
 import { columnsFromProps, sectionGridColumnClass, sectionItemGap } from '@/lib/sectionItemLayout'
+import { builderSectionContainerClass, builderSectionContainerWithMax } from '@/lib/builderSectionLayout'
 import { resolvePricingPlans, isLivePlansDataSource, type PricingPlanItem } from '@/lib/pricingPlansLive'
 import { cn } from '@/lib/utils'
 import {
@@ -55,7 +56,7 @@ export default function PricingBlock({ style, props, liveItems, blockId }: Props
 
   if (rawPlans.length === 0 || (visiblePlans.length === 0 && !isEditorCanvas && !showTitle)) {
     return (
-      <section className="py-16 px-4 sm:px-6 lg:px-8 max-w-3xl mx-auto">
+      <section className={builderSectionContainerWithMax('max-w-3xl')}>
         {showTitle && (
           <BuilderTextField fieldKey="title" blockId={blockId} blockProps={props} value={title ?? ''} as="h2" className="text-3xl font-bold text-gray-900 mb-10 text-center" placeholder="Section title" />
         )}
@@ -74,11 +75,8 @@ export default function PricingBlock({ style, props, liveItems, blockId }: Props
   }
 
   return (
-    <section className={cn(
-      'py-16 px-4 sm:px-6 lg:px-8 mx-auto',
-      isDark ? 'bg-gray-900' : '',
-      isHorizontal ? 'max-w-full' : 'max-w-7xl',
-    )}>
+    <div className={cn('w-full', isDark && 'bg-gray-900')}>
+      <section className={cn(builderSectionContainerClass(), isHorizontal && 'max-w-none')}>
       {showTitle && (
         <BuilderTextField fieldKey="title" blockId={blockId} blockProps={props} value={title ?? ''} as="h2" className={cn('text-3xl font-bold mb-10 text-center', isDark ? 'text-white' : 'text-gray-900')} placeholder="Section title" />
       )}
@@ -251,6 +249,7 @@ export default function PricingBlock({ style, props, liveItems, blockId }: Props
           )
         })}
       </div>
-    </section>
+      </section>
+    </div>
   )
 }

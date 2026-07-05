@@ -17,6 +17,7 @@ import ReviewSection from '@/components/ReviewSection'
 import MediaViewer from '@/components/MediaViewer'
 import SubscriptionConfigurator from '@/components/SubscriptionConfigurator'
 import type { ServicePlan, ServiceAvailability } from '@/types'
+import { isDisplayFieldEnabled } from '@/lib/storefrontDisplayFields'
 
 const SERVICE_MODE_LABELS: Record<string, string> = {
   in_store: 'In-Store', on_site: 'On-Site', remote: 'Remote',
@@ -506,7 +507,7 @@ export default function ServiceDetail() {
 
   const isSubscription = !!service?.is_subscription
   const canBook = !!service?.requires_booking
-  const canQuote = !!service?.allow_quote_request
+  const canQuote = !!service?.allow_quote_request && sf.quote_request !== false
   const hasBothModes = isSubscription && canBook
   const currency = service?.currency || 'INR'
 
@@ -563,7 +564,7 @@ export default function ServiceDetail() {
         <Link to={storePath('/')} className={themeUi.linkOnPage}>Home</Link>
         <ChevronRight className="w-3 h-3" />
         <Link to={storePath('/services')} className={themeUi.linkOnPage}>Services</Link>
-        {service.category && (
+        {isDisplayFieldEnabled(sf, 'category') && service.category && (
           <>
             <ChevronRight className="w-3 h-3" />
             <Link to={storePath(`/services?category=${encodeURIComponent(service.category)}`)} className={themeUi.linkOnPage}>{service.category}</Link>
@@ -613,10 +614,13 @@ export default function ServiceDetail() {
           <header className="space-y-3">
           {/* Badges */}
           <div className="flex items-center gap-2 flex-wrap">
-            {service.category && (
+            {isDisplayFieldEnabled(sf, 'category') && service.category && (
               <span className={`text-xs font-bold px-2.5 py-1 rounded-lg uppercase tracking-wider ${themeUi.pillSecondary}`}>
                 {service.category}
               </span>
+            )}
+            {isDisplayFieldEnabled(sf, 'subcategory') && service.subcategory && (
+              <span className="text-xs font-medium text-gray-600 bg-gray-100 px-2 py-1 rounded-lg">{service.subcategory}</span>
             )}
             {sf.brand && service.brand && (
               <span className="text-xs font-medium text-gray-600 bg-gray-100 px-2 py-1 rounded-lg">{service.brand}</span>
@@ -637,7 +641,7 @@ export default function ServiceDetail() {
           <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 leading-tight">{service.name}</h1>
 
           {/* Rating */}
-          {(service.avg_rating ?? 0) > 0 && (
+          {isDisplayFieldEnabled(sf, 'reviews') && (service.avg_rating ?? 0) > 0 && (
             <StarRating rating={service.avg_rating!} showValue reviewCount={service.review_count} />
           )}
           </header>
@@ -648,12 +652,12 @@ export default function ServiceDetail() {
               {unitPrice != null && (
                 <span className="text-3xl font-extrabold text-gray-900">
                   {formatCurrency(unitPrice, currency)}
-                  {(selectedPlan?.uom ?? service.uom) && (selectedPlan?.uom ?? service.uom) !== 'fixed' && (
+                  {isDisplayFieldEnabled(sf, 'uom') && (selectedPlan?.uom ?? service.uom) && (selectedPlan?.uom ?? service.uom) !== 'fixed' && (
                     <span className="text-sm font-normal text-gray-500 ml-1">/{UOM_LABELS[selectedPlan?.uom ?? service.uom] || selectedPlan?.uom || service.uom}</span>
                   )}
                 </span>
               )}
-              {(selectedPlan?.duration_minutes ?? service.duration_minutes) ? (
+              {isDisplayFieldEnabled(sf, 'duration') && (selectedPlan?.duration_minutes ?? service.duration_minutes) ? (
                 <span className="flex items-center gap-1.5 text-sm text-gray-600 bg-gray-100 px-3 py-1.5 rounded-full">
                   <Clock className={`w-4 h-4 ${themeUi.iconPrimary}`} /> {selectedPlan?.duration_minutes ?? service.duration_minutes} min
                 </span>
@@ -672,7 +676,7 @@ export default function ServiceDetail() {
           )}
 
           {/* Plan Selector — always shown when plans exist */}
-          {activePlans.length > 0 && (
+          {isDisplayFieldEnabled(sf, 'service_plans') && activePlans.length > 0 && (
             <div className="pt-1">
               <PlanSelector
                 plans={activePlans}
@@ -686,7 +690,7 @@ export default function ServiceDetail() {
           )}
 
           {/* Description */}
-          {service.description && (
+          {isDisplayFieldEnabled(sf, 'description') && service.description && (
             <div className="pt-4 border-t border-gray-100">
               <h3 className="font-bold text-gray-900 mb-3 flex items-center gap-2 text-sm">
                 <Info className="w-4 h-4 text-gray-400" /> About This Service
@@ -753,17 +757,31 @@ export default function ServiceDetail() {
             </div>
           )}
 
-          {sf.cancellation_policy && (service.cancellation_policy || service.rescheduling_policy) && (
+          {isDisplayFieldEnabled(sf, 'features') && service.features && service.features.length > 0 && (
+            <div className="pt-4 border-t border-gray-100">
+              <h3 className="font-bold text-gray-900 mb-3 text-sm">Features</h3>
+              <div className="grid gap-2">
+                {service.features.map((item) => (
+                  <div key={item} className="flex items-center gap-2.5 text-sm text-gray-600">
+                    <CheckCircle className="w-4 h-4 text-emerald-500 shrink-0" /> {item}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {((isDisplayFieldEnabled(sf, 'cancellation_policy') && service.cancellation_policy)
+            || (isDisplayFieldEnabled(sf, 'rescheduling_policy') && service.rescheduling_policy)) && (
             <div className="pt-4 border-t border-gray-100">
               <h3 className="font-bold text-gray-900 mb-3 text-sm flex items-center gap-2">
                 <Shield className="w-4 h-4 text-gray-400" /> Policies
               </h3>
               <div className="space-y-2 text-sm text-gray-600">
-                {service.cancellation_policy && (
+                {isDisplayFieldEnabled(sf, 'cancellation_policy') && service.cancellation_policy && (
                   <p><span className="font-semibold text-gray-700">Cancellation:</span> {service.cancellation_policy}
                     {service.cancellation_hours ? ` (${service.cancellation_hours}h notice)` : ''}</p>
                 )}
-                {service.rescheduling_policy && (
+                {isDisplayFieldEnabled(sf, 'rescheduling_policy') && service.rescheduling_policy && (
                   <p><span className="font-semibold text-gray-700">Rescheduling:</span> {service.rescheduling_policy}</p>
                 )}
               </div>
@@ -803,7 +821,7 @@ export default function ServiceDetail() {
             )}
 
             {/* Subscription panel */}
-            {((hasBothModes && sidebarMode === 'subscription') || (isSubscription && !canBook)) && subscriptionPrice > 0 && (
+            {isDisplayFieldEnabled(sf, 'subscription_details') && ((hasBothModes && sidebarMode === 'subscription') || (isSubscription && !canBook)) && subscriptionPrice > 0 && (
               <>
                 <SubscriptionConfigurator
                   key={`${selectedPlanId || 'default'}-${subscriptionInterval}`}
@@ -859,21 +877,21 @@ export default function ServiceDetail() {
                   {unitPrice != null ? (
                     <p className="text-3xl font-extrabold text-gray-900 mt-1">
                       {formatCurrency(unitPrice, currency)}
-                      {(selectedPlan?.uom ?? service.uom) && (selectedPlan?.uom ?? service.uom) !== 'fixed' && (
+                      {isDisplayFieldEnabled(sf, 'uom') && (selectedPlan?.uom ?? service.uom) && (selectedPlan?.uom ?? service.uom) !== 'fixed' && (
                         <span className="text-base font-normal text-gray-500 ml-1">/{UOM_LABELS[selectedPlan?.uom ?? service.uom] || selectedPlan?.uom || service.uom}</span>
                       )}
                     </p>
                   ) : (
                     <p className="text-xl font-bold text-amber-600 mt-1">Get a Quote</p>
                   )}
-                  {service.price_min != null && service.price_max != null && (
+                  {isDisplayFieldEnabled(sf, 'price_range') && service.price_min != null && service.price_max != null && (
                     <p className="text-xs text-gray-400 mt-1">
                       Range: {formatCurrency(service.price_min, currency)} – {formatCurrency(service.price_max, currency)}
                     </p>
                   )}
                 </div>
 
-                {(selectedPlan?.duration_minutes ?? service.duration_minutes) ? (
+                {isDisplayFieldEnabled(sf, 'duration') && (selectedPlan?.duration_minutes ?? service.duration_minutes) ? (
                   <div className={`flex items-center gap-3 text-sm text-gray-600 rounded-xl p-3 border ${themeUi.bgBlueishPanel} ${themeUi.borderPrimarySoft}`}>
                     <Clock className={`w-5 h-5 ${themeUi.iconPrimary}`} />
                     <span>Duration: <strong>{selectedPlan?.duration_minutes ?? service.duration_minutes} min</strong></span>
@@ -901,7 +919,7 @@ export default function ServiceDetail() {
                   {unitPrice != null ? (
                     <p className="text-3xl font-extrabold text-gray-900 mt-1">
                       {formatCurrency(unitPrice, currency)}
-                      {(selectedPlan?.uom ?? service.uom) && (selectedPlan?.uom ?? service.uom) !== 'fixed' && (
+                      {isDisplayFieldEnabled(sf, 'uom') && (selectedPlan?.uom ?? service.uom) && (selectedPlan?.uom ?? service.uom) !== 'fixed' && (
                         <span className="text-base font-normal text-gray-500 ml-1">/{UOM_LABELS[selectedPlan?.uom ?? service.uom] || selectedPlan?.uom || service.uom}</span>
                       )}
                     </p>
@@ -953,7 +971,7 @@ export default function ServiceDetail() {
           : null
         const avail = planAvail ?? service.availability
         const showWeeklySlots = canBook && (!hasBothModes || sidebarMode === 'booking')
-        return avail && avail.length > 0 && showWeeklySlots ? (
+        return avail && avail.length > 0 && showWeeklySlots && isDisplayFieldEnabled(sf, 'availability') ? (
           <div className="mt-10">
             <BookingSlotsPanel availability={avail} />
           </div>
@@ -961,9 +979,11 @@ export default function ServiceDetail() {
       })()}
 
       {/* Reviews */}
+      {isDisplayFieldEnabled(sf, 'reviews') && (
       <div className={`mt-8 rounded-2xl border p-6 sm:p-8 ${themeUi.cardSurface} ${themeUi.cardBorder}`}>
         <ReviewSection reviewType="service" targetId={service.id} />
       </div>
+      )}
 
       {showBooking && service && (
         <BookingModal

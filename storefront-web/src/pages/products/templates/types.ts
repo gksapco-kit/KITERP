@@ -1,7 +1,9 @@
 import type { Product, ProductVariant, ProductCard, QuoteFormField } from '@/types'
 import type { ProductColorOption, ProductCardOptionRow, VariantValidationResult } from '@/lib/variantOptions'
+import type { DisplayFieldMap } from '@/lib/storefrontDisplayFields'
 
 export interface ProductDetailTemplateProps {
+  displayFields: DisplayFieldMap
   product: Product
   selectedVariant: ProductVariant | null
   activeVariants: ProductVariant[]

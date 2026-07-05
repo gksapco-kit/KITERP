@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ShoppingCart, Star, Heart, Share2, Loader2, Check } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { builderSectionContainerClass, builderSectionContainerWithMax } from '@/lib/builderSectionLayout'
 import { useAuthStore } from '@/stores/authStore'
 import { useVendor } from '@/contexts/VendorContext'
 import { useAddToCart } from '@/hooks/useStore'
@@ -167,7 +168,7 @@ export default function ProductDetailBlock({ style, props, liveItems, blockId }:
     )
   }
 
-  const sectionPad = 'py-12 px-4 sm:px-6 lg:px-8'
+  const sectionPad = builderSectionContainerClass()
 
   // ── Spotlight hero: full-bleed photo with the details overlaid ─────────────
   if (isHero) {

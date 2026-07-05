@@ -82,17 +82,14 @@ function hslToHex(hsl: string): string {
   return `#${toHex(r)}${toHex(g)}${toHex(b)}`
 }
 
+import {
+  createAllEnabledProductDisplayFields,
+  createAllEnabledServiceDisplayFields,
+} from '@/lib/storefrontDisplayFields'
+
 // ── Block-based helpers ───────────────────────────────────────────────────────
-const DEFAULT_PRODUCT_DISPLAY: Record<string, boolean> = {
-  brand: true, short_description: true, specifications: true, warranty: true,
-  return_policy: true, shipping_info: true, offer_label: true, sku: true,
-  stock_status: true, tags: true,
-}
-const DEFAULT_SERVICE_DISPLAY: Record<string, boolean> = {
-  brand: true, short_description: true, whats_included: true, whats_not_included: true,
-  prerequisites: true, service_areas: true, cancellation_policy: true, offer_label: true,
-  service_mode: true, tags: true,
-}
+const DEFAULT_PRODUCT_DISPLAY = createAllEnabledProductDisplayFields()
+const DEFAULT_SERVICE_DISPLAY = createAllEnabledServiceDisplayFields()
 
 function pickPage(site: PublicSite, slug: string | null): PublicPage | null {
   const pages = site.pages || []

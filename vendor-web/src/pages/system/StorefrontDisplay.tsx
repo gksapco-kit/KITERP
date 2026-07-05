@@ -46,7 +46,7 @@ function FieldGrid({
   onChange: (next: Record<string, boolean>) => void
 }) {
   return (
-    <div className="grid grid-cols-2 gap-2">
+    <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
       {defs.map(f => (
         <label
           key={f.key}
@@ -184,7 +184,7 @@ export default function StorefrontDisplayPage() {
   }
 
   return (
-    <div className="mx-auto max-w-2xl space-y-6">
+    <div className="mx-auto max-w-3xl space-y-6">
       <div>
         <h1 className="text-2xl font-bold text-foreground">Business Front Display</h1>
         <p className="mt-1 text-sm text-muted-foreground">

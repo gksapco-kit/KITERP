@@ -13,12 +13,15 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel, Field
 from sqlalchemy import select, func, delete
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm.attributes import flag_modified
 
 from app.database import get_db
 from app.api.deps import get_current_active_user
 from app.models.user import User
+from app.models.vendor import Vendor
 from app.models.blog import VendorBlogPost
 from app.services.vendor_service import VendorService
+from app.utils.blog_settings import is_blog_enabled, set_blog_enabled
 
 router = APIRouter()
 
@@ -103,7 +106,44 @@ class BlogPostUpdate(BaseModel):
     is_published: Optional[bool] = None
 
 
+class BlogSettingsUpdate(BaseModel):
+    blog_enabled: bool
+
+
+async def _get_vendor(user: User, db: AsyncSession) -> Vendor:
+    svc = VendorService(db)
+    vendor = await svc.get_by_user_id(user.id)
+    if not vendor:
+        raise HTTPException(status_code=404, detail="Vendor not found")
+    result = await db.execute(select(Vendor).where(Vendor.id == vendor.id))
+    db_vendor = result.scalar_one_or_none()
+    if not db_vendor:
+        raise HTTPException(status_code=404, detail="Vendor not found")
+    return db_vendor
+
+
 # ── endpoints ────────────────────────────────────────────────────────────────
+
+@router.get("/settings", summary="Get blog visibility settings")
+async def get_blog_settings(
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_active_user),
+):
+    vendor = await _get_vendor(user, db)
+    return {"blog_enabled": is_blog_enabled(vendor.settings)}
+
+
+@router.patch("/settings", summary="Update blog visibility settings")
+async def update_blog_settings(
+    body: BlogSettingsUpdate,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_active_user),
+):
+    vendor = await _get_vendor(user, db)
+    vendor.settings = set_blog_enabled(vendor.settings, body.blog_enabled)
+    flag_modified(vendor, "settings")
+    await db.commit()
+    return {"blog_enabled": body.blog_enabled}
 
 @router.get("", summary="List blog posts")
 async def list_posts(

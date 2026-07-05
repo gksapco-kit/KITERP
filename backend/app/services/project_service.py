@@ -265,12 +265,15 @@ class ProjectService:
         status_filter: Optional[str] = None,
         search: Optional[str] = None,
         store_id: Optional[str] = None,
+        sales_area_id: Optional[str] = None,
     ) -> tuple[list[dict], int]:
         conditions = [Project.vendor_id == vendor_id]
         if status_filter:
             conditions.append(Project.status == status_filter)
         if store_id:
             conditions.append(Project.store_id == (store_id if isinstance(store_id, UUID) else UUID(str(store_id))))
+        if sales_area_id:
+            conditions.append(Project.sales_area_id == (sales_area_id if isinstance(sales_area_id, UUID) else UUID(str(sales_area_id))))
         if search:
             like = f"%{search.strip()}%"
             conditions.append(
@@ -335,6 +338,7 @@ class ProjectService:
             "id": p.id,
             "vendor_id": p.vendor_id,
             "store_id": p.store_id,
+            "sales_area_id": p.sales_area_id,
             "project_number": p.project_number,
             "name": p.name,
             "description": p.description,
@@ -416,6 +420,7 @@ class ProjectService:
         project = Project(
             vendor_id=vendor_id,
             store_id=data.store_id,
+            sales_area_id=data.sales_area_id,
             project_number=await self._next_project_number(vendor_id),
             name=data.name,
             description=data.description,

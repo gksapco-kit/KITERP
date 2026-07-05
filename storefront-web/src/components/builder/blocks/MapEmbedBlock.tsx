@@ -4,6 +4,7 @@ import { BuilderTextField } from '@/components/builder/BuilderTextField'
 import { useBuilderCanvas } from '@/contexts/BuilderCanvasContext'
 import { useEffectiveVendor } from '@/hooks/useEffectiveVendor'
 import { resolveBusinessContactAddress } from '@/lib/businessContact'
+import { builderSectionContainerClass, builderSectionContainerWithMax } from '@/lib/builderSectionLayout'
 import { isBlockFieldHidden, resolveBlockTextField } from '@/lib/blockHiddenFields'
 
 interface Props {
@@ -41,7 +42,7 @@ export default function MapEmbedBlock({ style, props, liveItems, blockId }: Prop
   const showAddress = !addressHidden && (address || isEditorCanvas)
 
   return (
-    <section className="py-16 px-4 sm:px-6 lg:px-8 max-w-6xl mx-auto">
+    <section className={builderSectionContainerWithMax('max-w-6xl')}>
       {(showTitle || showAddress) && (
         <div className="flex items-center gap-3 mb-6">
           <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ backgroundColor: `${style.primary_color}15` }}>

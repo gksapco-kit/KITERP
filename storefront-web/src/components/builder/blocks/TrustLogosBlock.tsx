@@ -7,6 +7,7 @@ import { useBuilderCanvas } from '@/contexts/BuilderCanvasContext'
 import { arrayItemImageFrameStyle, arrayItemImageRenderStyle } from '@/lib/sectionImageStyle'
 import { sectionGridColumnClass } from '@/lib/sectionItemLayout'
 import { cn, imgUrl } from '@/lib/utils'
+import { builderSectionContainerClass, builderSectionContainerWithMax } from '@/lib/builderSectionLayout'
 import {
   arrayImageDeleteFieldKey,
   isBlockFieldHidden,
@@ -188,8 +189,8 @@ export default function TrustLogosBlock({ style, props, liveItems, blockId }: Pr
   }
 
   return (
-    <section className={cn('px-4 sm:px-6 lg:px-8', compact ? 'py-8' : 'py-12', isDark && 'bg-gray-900')}>
-      <div className="max-w-6xl mx-auto">
+    <div className={cn('w-full', isDark && 'bg-gray-900')}>
+      <section className={builderSectionContainerWithMax('max-w-6xl')}>
         {(showTitle) && (
           <BuilderTextField
             fieldKey="title"
@@ -202,7 +203,7 @@ export default function TrustLogosBlock({ style, props, liveItems, blockId }: Pr
           />
         )}
         {content}
-      </div>
-    </section>
+      </section>
+    </div>
   )
 }

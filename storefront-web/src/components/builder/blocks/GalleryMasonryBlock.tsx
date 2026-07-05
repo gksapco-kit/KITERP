@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { ImageIcon, X } from 'lucide-react'
 import { cn, imgUrl } from '@/lib/utils'
+import { builderSectionContainerClass, builderSectionContainerWithMax } from '@/lib/builderSectionLayout'
 import type { PublicSite, StyleConfig, LiveItem } from '@/blocks/registry'
 import BlockEmptyPlaceholder from '@/components/builder/BlockEmptyPlaceholder'
 import { BuilderSectionImage } from '@/components/builder/BuilderSectionImage'
@@ -114,7 +115,7 @@ export default function GalleryMasonryBlock({ style, props, liveItems, blockId }
   }
 
   return (
-    <section className="py-12 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
+    <section className={builderSectionContainerClass()}>
       {(showTitle) && (
         <BuilderTextField fieldKey="title" blockId={blockId} blockProps={props} value={title ?? ''} as="h2" className="text-3xl font-bold text-gray-900 mb-8 text-center" placeholder="Section title" />
       )}

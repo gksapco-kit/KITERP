@@ -10,6 +10,7 @@ import { hasMediaClip } from '@/lib/mediaClip'
 import { siteRadiusPx } from '@/lib/siteBorderRadius'
 import { useBuilderCanvas } from '@/contexts/BuilderCanvasContext'
 import { isBlockFieldHidden, resolveBlockTextField } from '@/lib/blockHiddenFields'
+import { builderSectionContainerClass, builderSectionContainerWithMax } from '@/lib/builderSectionLayout'
 
 interface Props { site: PublicSite; style: StyleConfig; props: Record<string, unknown>; liveItems: LiveItem[]; branchCode?: string | null; blockId?: string }
 
@@ -93,7 +94,7 @@ export default function ImageBlock({ style, props, blockId }: Props) {
 
   if (layout === 'split') {
     return (
-      <section className="py-8 px-4 sm:px-6 lg:px-8 flex flex-col md:flex-row gap-8 items-center max-w-5xl mx-auto">
+      <section className={builderSectionContainerWithMax('max-w-5xl', 'flex flex-col md:flex-row gap-8 items-center')}>
         {imgEl ? <div className="flex-1 w-full">{imgEl}</div> : null}
         {(showCaption || showTitle) && (
           <div className="flex-1 space-y-3">
@@ -110,7 +111,7 @@ export default function ImageBlock({ style, props, blockId }: Props) {
   }
 
   return (
-    <section className={`py-8 px-4 sm:px-6 lg:px-8 ${layout === 'centered' ? 'max-w-3xl mx-auto' : ''}`}>
+    <section className={layout === 'centered' ? builderSectionContainerWithMax('max-w-3xl') : builderSectionContainerClass()}>
       <figure>
         {imgEl}
         {(Boolean(props.show_caption) && showCaption) && (

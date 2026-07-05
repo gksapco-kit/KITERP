@@ -34,6 +34,11 @@ import { resolveBrandingMode } from '@/lib/brandingMode'
 import { CompanyTypeDropdown } from '@/components/common/CompanyTypeDropdown'
 import { COMPANY_TYPES } from '@/data/companyTypes'
 import { BRANCH_CODE_LABEL, BUSINESS_UNIT_CODE_LABEL } from '@/lib/businessUnitLabels'
+import { branchCodePrefix, nextBranchAutoCode } from '@/lib/branchStoreCodes'
+import {
+  profileCompanyTypeFromVendor,
+  profileFormFromStore,
+} from '@/pages/settings/settingsDirtyHelpers'
 
 const API_BASE = (import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1').replace('/api/v1', '')
 
@@ -54,6 +59,7 @@ interface StoreFormData {
   description: string
   phone: string   // full E.164 string e.g. '+919876543210"
   email: string
+  gstin: string
   street: string
   city: string
   state: string
@@ -62,10 +68,17 @@ interface StoreFormData {
   company_type: string
 }
 
+const GSTIN_RE = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/
+
 const EMPTY_FORM: StoreFormData = {
-  name: '', code: '', description: '', phone: '', email: '',
+  name: '', code: '', description: '', phone: '', email: '', gstin: '',
   street: '', city: '', state: '', pincode: '', is_default: false,
   company_type: '',
+}
+
+function branchGstinFromStore(store: StoreRecord): string {
+  const raw = (store.settings as Record<string, unknown> | undefined)?.gstin
+  return typeof raw === 'string' ? raw : ''
 }
 
 // ── StoreModal ─────────────────────────────────────────────────────────────
@@ -98,22 +111,67 @@ function StoreModal({
 }) {
   useEscapeToClose(onClose)
 
-  const existingType = (store?.settings as Record<string, string> | undefined)?.company_type ?? ''
+  const vendor = useVendorStore((s) => s.vendor)
 
-  const autoCode = store ? (store.code ?? '') : nextAutoCode(existingStores)
-  const [codeEditable, setCodeEditable] = useState(false)
+  const autoCode = store
+    ? (store.code ?? '')
+    : parentBu
+      ? nextBranchAutoCode(parentBu, existingStores)
+      : nextAutoCode(existingStores)
+  const [gstinError, setGstinError] = useState<string | null>(null)
 
-  const [form, setForm] = useState<StoreFormData>(() => store
-    ? {
+  const resolveCompanyType = () =>
+    store
+      ? profileFormFromStore(store, vendor).company_type
+      : profileCompanyTypeFromVendor(vendor)
+
+  const [form, setForm] = useState<StoreFormData>(() => {
+    const company_type = resolveCompanyType()
+    if (store) {
+      return {
         name: store.name, code: store.code ?? '', description: store.description ?? '',
         phone: store.phone ?? '', email: store.email ?? '',
+        gstin: branchGstinFromStore(store),
         street: store.address?.street ?? '', city: store.address?.city ?? '',
         state: store.address?.state ?? '', pincode: store.address?.pincode ?? '',
         is_default: store.is_default,
-        company_type: existingType,
+        company_type,
       }
-    : { ...EMPTY_FORM, code: autoCode }
-  )
+    }
+    return { ...EMPTY_FORM, code: autoCode, company_type }
+  })
+
+  useEffect(() => {
+    const company_type = store
+      ? profileFormFromStore(store, vendor).company_type
+      : profileCompanyTypeFromVendor(vendor)
+    if (store) {
+      setForm({
+        name: store.name, code: store.code ?? '', description: store.description ?? '',
+        phone: store.phone ?? '', email: store.email ?? '',
+        gstin: branchGstinFromStore(store),
+        street: store.address?.street ?? '', city: store.address?.city ?? '',
+        state: store.address?.state ?? '', pincode: store.address?.pincode ?? '',
+        is_default: store.is_default,
+        company_type,
+      })
+      return
+    }
+    if (company_type) {
+      setForm((f) => (f.company_type.trim() ? f : { ...f, company_type }))
+    }
+  }, [
+    store,
+    vendor,
+    (store?.settings as Record<string, unknown> | undefined)?.company_type,
+    vendor?.business_type,
+  ])
+
+  useEffect(() => {
+    if (!store && parentBu) {
+      setForm((f) => ({ ...f, code: nextBranchAutoCode(parentBu, existingStores) }))
+    }
+  }, [store, parentBu?.id, parentBu?.code, existingStores.length])
 
   const lastSuggestedLocationNameRef = useRef<string | null>(null)
 
@@ -141,6 +199,13 @@ function StoreModal({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
+    const gstin = form.gstin.trim().toUpperCase()
+    if (parentBu && gstin && !GSTIN_RE.test(gstin)) {
+      setGstinError('Enter a valid 15-character GSTIN')
+      return
+    }
+    setGstinError(null)
+    const baseSettings = { ...((store?.settings ?? {}) as Record<string, unknown>) }
     onSave({
       name: form.name, code: form.code || undefined, description: form.description || undefined,
       phone: form.phone || undefined, email: form.email || undefined,
@@ -150,7 +215,9 @@ function StoreModal({
         state: form.state || undefined, pincode: form.pincode || undefined,
         country: store?.address?.country || defaultCountry,
       },
-      settings: { company_type: form.company_type || undefined },
+      settings: parentBu
+        ? { ...baseSettings, gstin: gstin || null }
+        : { ...baseSettings, company_type: form.company_type || undefined },
       ...(parentBu && !store ? { parent_id: parentBu.id } : {}),
     })
   }
@@ -192,31 +259,23 @@ function StoreModal({
           </div>
 
           <div>
-            <div className="flex items-center justify-between gap-2 mb-0.5">
-              <Label className="text-xs">{parentBu ? BRANCH_CODE_LABEL : BUSINESS_UNIT_CODE_LABEL}</Label>
-              {!store && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setCodeEditable(v => {
-                      if (v) setForm(f => ({ ...f, code: autoCode }))
-                      return !v
-                    })
-                  }}
-                  className="text-[11px] text-primary hover:underline shrink-0"
-                >
-                  {codeEditable ? 'Use auto' : 'Edit'}
-                </button>
-              )}
-            </div>
-            {codeEditable || store ? (
-              <Input value={form.code} onChange={set('code')} placeholder="e.g. MUM-01" className="h-9" />
-            ) : (
-              <div className="flex h-9 items-center rounded-md border border-input bg-muted/50 px-3 text-sm text-muted-foreground select-none">
-                {form.code}
+            <Label className="text-xs mb-0.5 block">
+              {parentBu ? BRANCH_CODE_LABEL : BUSINESS_UNIT_CODE_LABEL}
+            </Label>
+            <div
+              className="flex h-9 items-center rounded-md border border-input bg-muted/50 px-3 text-sm text-muted-foreground select-none cursor-not-allowed"
+              aria-readonly
+              title={
+                parentBu
+                  ? `Unique under ${branchCodePrefix(parentBu)} — assigned automatically`
+                  : 'Assigned automatically'
+              }
+            >
+              {form.code || '—'}
+              {!store && form.code ? (
                 <span className="ml-2 text-xs text-muted-foreground/60">(auto)</span>
-              </div>
-            )}
+              ) : null}
+            </div>
           </div>
 
           <div>
@@ -232,15 +291,44 @@ function StoreModal({
             <Input type="email" value={form.email} onChange={set('email')} placeholder="store@example.com" className="mt-0.5 h-9" />
           </div>
 
-          <div>
-            <Label className="text-xs">Description</Label>
-            <Input
-              value={form.description}
-              onChange={set('description')}
-              placeholder="Brief description…"
-              className="mt-0.5 h-9"
-            />
-          </div>
+          {parentBu ? (
+            <div>
+              <Label className="text-xs">GSTIN <span className="font-normal text-muted-foreground">(optional)</span></Label>
+              <Input
+                value={form.gstin}
+                onChange={(e) => {
+                  setGstinError(null)
+                  setForm(f => ({ ...f, gstin: e.target.value.toUpperCase() }))
+                }}
+                placeholder="22AAAAA0000A1Z5"
+                maxLength={15}
+                className={cn('mt-0.5 h-9 font-mono uppercase tracking-wide', gstinError && 'border-destructive')}
+              />
+              {gstinError ? <p className="mt-0.5 text-[11px] text-destructive">{gstinError}</p> : null}
+            </div>
+          ) : (
+            <div>
+              <Label className="text-xs">Description</Label>
+              <Input
+                value={form.description}
+                onChange={set('description')}
+                placeholder="Brief description…"
+                className="mt-0.5 h-9"
+              />
+            </div>
+          )}
+
+          {parentBu ? (
+            <div className="col-span-2">
+              <Label className="text-xs">Description</Label>
+              <Input
+                value={form.description}
+                onChange={set('description')}
+                placeholder="Brief description…"
+                className="mt-0.5 h-9"
+              />
+            </div>
+          ) : null}
 
           <div className="col-span-2">
             <Label className="text-xs text-muted-foreground">Address</Label>
@@ -383,6 +471,7 @@ function StoreCard({
   store,
   vendorVerificationLevel: vendorLevel,
   isSelected,
+  showScopeToggle,
   onSelect,
   onEdit,
   onDelete,
@@ -393,6 +482,8 @@ function StoreCard({
   vendorSlug?: string
   vendorVerificationLevel: VerificationLevel
   isSelected: boolean
+  /** Use / Clear scope control — only when the account has more than one business unit. */
+  showScopeToggle: boolean
   onSelect: () => void
   onEdit: () => void
   onDelete: () => void
@@ -461,12 +552,14 @@ function StoreCard({
           className="flex items-center gap-px border-t border-border pt-1"
           onClick={(e) => e.stopPropagation()}
         >
-          <Button size="sm" variant={isSelected ? 'default' : 'outline'}
-            className={cn('h-5 flex-1 text-[0.58rem] px-1', isSelected && 'bg-primary hover:bg-primary/90')}
-            onClick={onSelect}
-          >
-            {isSelected ? <><Check className="mr-0.5 h-2 w-2" />Clear</> : 'Use'}
-          </Button>
+          {showScopeToggle ? (
+            <Button size="sm" variant={isSelected ? 'default' : 'outline'}
+              className={cn('h-5 flex-1 text-[0.58rem] px-1', isSelected && 'bg-primary hover:bg-primary/90')}
+              onClick={onSelect}
+            >
+              {isSelected ? <><Check className="mr-0.5 h-2 w-2" />Clear</> : 'Use'}
+            </Button>
+          ) : null}
           <Button size="sm" variant="ghost" className="h-5 w-5 shrink-0 p-0" onClick={onEdit} title="Edit"><Edit2 className="h-2.5 w-2.5" /></Button>
           {!store.is_default && (
             <Button size="sm" variant="ghost" className="h-5 w-5 shrink-0 p-0" onClick={onSetDefault} title="Set default"><StarOff className="h-2.5 w-2.5" /></Button>
@@ -543,7 +636,11 @@ export function BranchesPanel({ businessUnit }: { businessUnit: StoreRecord }) {
                   {b.is_default && <Star className="h-3.5 w-3.5 text-indigo-500 shrink-0" aria-label="Default branch" />}
                   <div className="min-w-0">
                     <p className="text-sm font-medium text-foreground truncate">{b.name}</p>
-                    <p className="text-xs text-muted-foreground truncate">{b.code || '—'}{!b.is_active ? ' · Inactive' : ''}</p>
+                    <p className="text-xs text-muted-foreground truncate">
+                      {b.code || '—'}
+                      {branchGstinFromStore(b) ? ` · GST ${branchGstinFromStore(b)}` : ''}
+                      {!b.is_active ? ' · Inactive' : ''}
+                    </p>
                   </div>
                 </div>
                 <div className="flex items-center gap-1 shrink-0">
@@ -797,6 +894,7 @@ export default function StoresPage({
               vendorSlug={vendor?.slug}
               vendorVerificationLevel={deriveVendorLevel(vendor)}
               isSelected={selectedStore?.id === store.id}
+              showScopeToggle={stores.length > 1}
               onSelect={() => handleSelectStore(store)}
               onEdit={() => { setEditingStore(store); setModal('edit') }}
               onDelete={() => {

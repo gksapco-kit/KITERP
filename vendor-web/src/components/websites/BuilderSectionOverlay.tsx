@@ -1,5 +1,6 @@
-import { type RefObject, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
+import { type RefObject, useLayoutEffect, useRef, useState, useCallback, useEffect, type ReactNode, type MouseEvent as ReactMouseEvent } from 'react'
 import { createPortal } from 'react-dom'
+import { BUILDER_SECTION_CHROME_Z } from '@/components/websites/builderPanelUi'
 import { cn } from '@/lib/utils'
 
 const SECTION_PADDING_MAX = 320
@@ -83,6 +84,183 @@ export function measureBlockInRoot(
 
 export function getBlockScreenRect(el: HTMLElement): DOMRect {
   return el.getBoundingClientRect()
+}
+
+/** Keep the section hover toolbar fully inside the canvas column (same anchor, no overlap with side panels). */
+const SECTION_CHROME_TOOLBAR_HEIGHT_EST = 30
+const SECTION_CHROME_TOOLBAR_WIDTH_EST = 300
+const SECTION_CHROME_INSET = 6
+
+function resolveSectionChromePortalFrame(
+  anchor: { top: number; left: number; right: number; height: number },
+  canvasRect: DOMRect | null,
+): { top: number; right: number; transform?: string } {
+  const placeAbove = anchor.top >= SECTION_CHROME_TOOLBAR_HEIGHT_EST + SECTION_CHROME_INSET
+  const placeBelowInSection =
+    !placeAbove && anchor.height > SECTION_CHROME_TOOLBAR_HEIGHT_EST + SECTION_CHROME_INSET * 2
+
+  let top = placeAbove
+    ? anchor.top - SECTION_CHROME_INSET
+    : placeBelowInSection
+      ? anchor.top + SECTION_CHROME_INSET
+      : anchor.top + Math.max(SECTION_CHROME_INSET, (anchor.height - SECTION_CHROME_TOOLBAR_HEIGHT_EST) / 2)
+
+  const transform = placeAbove ? 'translateY(-100%)' : undefined
+
+  // Default: align toolbar right edge with block right edge (top-right anchor).
+  let toolbarRight = anchor.right
+  if (canvasRect) {
+    toolbarRight = Math.min(toolbarRight, canvasRect.right - SECTION_CHROME_INSET)
+    // Keep the full toolbar width inside the canvas when the block spans edge-to-edge.
+    const minRight = canvasRect.left + SECTION_CHROME_INSET + SECTION_CHROME_TOOLBAR_WIDTH_EST
+    if (toolbarRight < minRight) {
+      toolbarRight = minRight
+    }
+
+    if (placeAbove) {
+      const visualTop = top - SECTION_CHROME_TOOLBAR_HEIGHT_EST
+      if (visualTop < canvasRect.top + SECTION_CHROME_INSET) {
+        top = canvasRect.top + SECTION_CHROME_INSET + SECTION_CHROME_TOOLBAR_HEIGHT_EST
+      }
+    } else if (placeBelowInSection) {
+      const visualBottom = top + SECTION_CHROME_TOOLBAR_HEIGHT_EST
+      if (visualBottom > canvasRect.bottom - SECTION_CHROME_INSET) {
+        top = canvasRect.bottom - SECTION_CHROME_INSET - SECTION_CHROME_TOOLBAR_HEIGHT_EST
+      }
+    }
+  }
+
+  return {
+    top,
+    right: Math.max(SECTION_CHROME_INSET, window.innerWidth - toolbarRight),
+    transform,
+  }
+}
+
+const SECTION_TOOLBAR_OFFSET_KEY = 'kiterp:builder-section-toolbar-offset'
+
+function readSectionChromeToolbarOffset(blockId: string): { x: number; y: number } {
+  try {
+    const raw = sessionStorage.getItem(`${SECTION_TOOLBAR_OFFSET_KEY}:${blockId}`)
+    if (!raw) return { x: 0, y: 0 }
+    const parsed = JSON.parse(raw) as { x?: number; y?: number }
+    return {
+      x: typeof parsed.x === 'number' && Number.isFinite(parsed.x) ? parsed.x : 0,
+      y: typeof parsed.y === 'number' && Number.isFinite(parsed.y) ? parsed.y : 0,
+    }
+  } catch {
+    return { x: 0, y: 0 }
+  }
+}
+
+function writeSectionChromeToolbarOffset(blockId: string, offset: { x: number; y: number }): void {
+  try {
+    if (offset.x === 0 && offset.y === 0) {
+      sessionStorage.removeItem(`${SECTION_TOOLBAR_OFFSET_KEY}:${blockId}`)
+      return
+    }
+    sessionStorage.setItem(`${SECTION_TOOLBAR_OFFSET_KEY}:${blockId}`, JSON.stringify(offset))
+  } catch {
+    /* ignore quota / private mode */
+  }
+}
+
+function composeSectionChromeTransform(
+  base: string | undefined,
+  offset: { x: number; y: number } | undefined,
+): string | undefined {
+  const parts: string[] = []
+  if (base) parts.push(base)
+  if (offset && (offset.x !== 0 || offset.y !== 0)) {
+    parts.push(`translate(${offset.x}px, ${offset.y}px)`)
+  }
+  return parts.length > 0 ? parts.join(' ') : undefined
+}
+
+/** Drag reposition for the section hover toolbar — offset is kept per block for the session. */
+export function useSectionChromeToolbarDrag(blockId: string) {
+  const [dragOffset, setDragOffset] = useState(() => readSectionChromeToolbarOffset(blockId))
+  const [dragging, setDragging] = useState(false)
+  const portalRef = useRef<HTMLDivElement | null>(null)
+  const dragOffsetRef = useRef(dragOffset)
+  dragOffsetRef.current = dragOffset
+
+  useEffect(() => {
+    setDragOffset(readSectionChromeToolbarOffset(blockId))
+  }, [blockId])
+
+  const clampOffset = useCallback((next: { x: number; y: number }, session: {
+    baseLeft: number
+    baseTop: number
+    width: number
+    height: number
+  }) => {
+    let left = session.baseLeft + next.x
+    let top = session.baseTop + next.y
+    const pad = SECTION_CHROME_INSET
+    left = Math.max(pad, Math.min(left, window.innerWidth - session.width - pad))
+    top = Math.max(pad, Math.min(top, window.innerHeight - session.height - pad))
+    return { x: left - session.baseLeft, y: top - session.baseTop }
+  }, [])
+
+  const finishDrag = useCallback(() => {
+    document.body.style.removeProperty('cursor')
+    document.body.style.removeProperty('user-select')
+    setDragging(false)
+  }, [])
+
+  const beginDrag = useCallback((e: ReactMouseEvent) => {
+    if (e.button !== 0) return
+    const portal = portalRef.current
+    if (!portal) return
+    e.preventDefault()
+    e.stopPropagation()
+
+    const rect = portal.getBoundingClientRect()
+    const offset = dragOffsetRef.current
+    const session = {
+      startX: e.clientX,
+      startY: e.clientY,
+      startOffsetX: offset.x,
+      startOffsetY: offset.y,
+      baseLeft: rect.left - offset.x,
+      baseTop: rect.top - offset.y,
+      width: rect.width,
+      height: rect.height,
+      moved: false,
+    }
+
+    setDragging(true)
+    document.body.style.cursor = 'grabbing'
+    document.body.style.userSelect = 'none'
+
+    const onMove = (ev: MouseEvent) => {
+      const dx = ev.clientX - session.startX
+      const dy = ev.clientY - session.startY
+      if (!session.moved && Math.hypot(dx, dy) < 4) return
+      session.moved = true
+      const next = clampOffset(
+        { x: session.startOffsetX + dx, y: session.startOffsetY + dy },
+        session,
+      )
+      dragOffsetRef.current = next
+      setDragOffset(next)
+    }
+
+    const onUp = () => {
+      window.removeEventListener('mousemove', onMove)
+      window.removeEventListener('mouseup', onUp)
+      if (session.moved) {
+        writeSectionChromeToolbarOffset(blockId, dragOffsetRef.current)
+      }
+      finishDrag()
+    }
+
+    window.addEventListener('mousemove', onMove)
+    window.addEventListener('mouseup', onUp)
+  }, [blockId, clampOffset, finishDrag])
+
+  return { dragOffset, dragging, portalRef, beginDrag }
 }
 
 /** Tracks a rendered block's box inside the builder page root (for selection chrome overlays). */
@@ -204,7 +382,103 @@ export function BuilderDesignBarPortal({
         left: frame.left,
         width: frame.width,
         transform: 'translateY(calc(-100% - 2px))',
-        zIndex: 100000,
+        zIndex: BUILDER_SECTION_CHROME_Z,
+      }}
+      onClick={e => e.stopPropagation()}
+      onMouseDown={e => e.stopPropagation()}
+    >
+      {children}
+    </div>,
+    document.body,
+  )
+}
+
+/** Fixed portal at a block's top-right — sits above the section so it does not cover short blocks. */
+export function BuilderSectionChromePortal({
+  blockId,
+  containerRef,
+  revision,
+  scrollRootRef,
+  visible,
+  dragOffset,
+  portalRef,
+  children,
+}: {
+  blockId: string
+  containerRef: RefObject<HTMLElement | null>
+  revision?: string
+  scrollRootRef?: RefObject<HTMLElement | null>
+  visible: boolean
+  dragOffset?: { x: number; y: number }
+  portalRef?: RefObject<HTMLDivElement | null>
+  children: ReactNode
+}) {
+  const [anchor, setAnchor] = useState<{ top: number; left: number; right: number; height: number } | null>(null)
+
+  useLayoutEffect(() => {
+    if (!visible) {
+      setAnchor(null)
+      return
+    }
+
+    const root = containerRef.current
+    if (!root) {
+      setAnchor(null)
+      return
+    }
+
+    const findEl = () =>
+      root.querySelector(`[data-block-id="${CSS.escape(blockId)}"]`) as HTMLElement | null
+
+    let el = findEl()
+    if (!el) {
+      setAnchor(null)
+      return
+    }
+
+    const update = () => {
+      const currentRoot = containerRef.current
+      el = currentRoot ? findEl() : null
+      if (!el) {
+        setAnchor(null)
+        return
+      }
+      const r = getBlockScreenRect(el)
+      setAnchor({ top: r.top, left: r.left, right: r.right, height: r.height })
+    }
+
+    update()
+    const ro = new ResizeObserver(update)
+    ro.observe(el)
+    ro.observe(root)
+    window.addEventListener('scroll', update, true)
+    window.addEventListener('resize', update)
+    const scrollRoot = scrollRootRef?.current
+    scrollRoot?.addEventListener('scroll', update, { passive: true })
+    scrollRoot && ro.observe(scrollRoot)
+    return () => {
+      ro.disconnect()
+      window.removeEventListener('scroll', update, true)
+      window.removeEventListener('resize', update)
+      scrollRoot?.removeEventListener('scroll', update)
+    }
+  }, [blockId, containerRef, revision, scrollRootRef, visible])
+
+  if (!visible || !anchor) return null
+
+  const canvasRect = scrollRootRef?.current?.getBoundingClientRect() ?? null
+  const frame = resolveSectionChromePortalFrame(anchor, canvasRect)
+
+  return createPortal(
+    <div
+      ref={portalRef}
+      className="pointer-events-auto"
+      style={{
+        position: 'fixed',
+        top: frame.top,
+        right: frame.right,
+        transform: composeSectionChromeTransform(frame.transform, dragOffset),
+        zIndex: BUILDER_SECTION_CHROME_Z,
       }}
       onClick={e => e.stopPropagation()}
       onMouseDown={e => e.stopPropagation()}
@@ -273,7 +547,7 @@ export function BuilderSectionOverlay({
   return (
     <div
       className={cn(
-        'absolute group pointer-events-none',
+        'absolute group pointer-events-none overflow-visible',
         interactive && 'pointer-events-auto cursor-pointer',
         isHidden
           ? 'ring-1 ring-inset ring-amber-400/70'
@@ -438,7 +712,6 @@ export function BuilderSectionPaddingHandles({
   const bottomHandleY = activeEdge === 'bottom' && drag
     ? drag.displayY
     : liveHeight - liveBottom
-  const hideBottom = liveHeight < 16 || bottomHandleY - topHandleY < 4
 
   // Screen Y for clip checks — hide handles when the seam scrolls outside the canvas.
   const topHandleScreenY = screenFrame
@@ -609,11 +882,7 @@ export function BuilderSectionPaddingHandles({
         )}
         style={{
           top: handleY,
-          // Sit just outside the section's outer edge (above the top / below the bottom)
-          // so the pill never floats over the section content.
-          transform: edge === 'top'
-            ? 'translateY(calc(-50% - 14px))'
-            : 'translateY(calc(-50% + 14px))',
+          transform: 'translateY(-50%)',
         }}
       >
         <div
@@ -675,24 +944,18 @@ export function BuilderSectionPaddingHandles({
         style={{ top: topHandleY }}
         aria-hidden
       />
-      {!hideBottom && (
-        <div
-          className={cn(
-            'pointer-events-none absolute left-0 right-0 z-[59] h-[2px] -translate-y-1/2',
-            activeEdge === 'bottom' ? 'bg-primary' : 'bg-primary/45',
-          )}
-          style={{ top: bottomHandleY }}
-          aria-hidden
-        />
-      )}
+      <div
+        className={cn(
+          'pointer-events-none absolute left-0 right-0 z-[59] h-[2px] -translate-y-1/2',
+          activeEdge === 'bottom' ? 'bg-primary' : 'bg-primary/45',
+        )}
+        style={{ top: bottomHandleY }}
+        aria-hidden
+      />
 
       {edges.map(({ edge, value, label }) => {
-        if (edge === 'bottom' && hideBottom) return null
-        // Anchor the drag pill to the section's outer edge (top/bottom border) rather
-        // than the padding seam, so it sits just outside the content. The seam guide
-        // lines above still mark the actual padding amount.
-        const edgeY = edge === 'top' ? 0 : liveHeight
-        return renderHandlePill(edge, edgeY, value, label)
+        const seamY = edge === 'top' ? topHandleY : bottomHandleY
+        return renderHandlePill(edge, seamY, value, label)
       })}
 
       {dragLabel && activeEdge && withinClip(

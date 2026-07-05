@@ -5,6 +5,7 @@ import { BuilderTextField } from '@/components/builder/BuilderTextField'
 import { BuilderSectionImage } from '@/components/builder/BuilderSectionImage'
 import { useBuilderCanvas } from '@/contexts/BuilderCanvasContext'
 import { cn, imgUrl } from '@/lib/utils'
+import { builderSectionContainerClass, builderSectionContainerWithMax } from '@/lib/builderSectionLayout'
 import {
   propMemberToLiveItem,
   resolveTeamGridMembers,
@@ -75,7 +76,7 @@ export default function TeamGridBlock({ style, props, liveItems, blockId }: Prop
   }
 
   return (
-    <section className="py-16 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
+    <section className={builderSectionContainerClass()}>
       {showTitle && (
         <BuilderTextField fieldKey="title" blockId={blockId} blockProps={props} value={title ?? ''} as="h2" className="text-3xl font-bold text-gray-900 mb-4 text-center" placeholder="Section title" />
       )}

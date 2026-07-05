@@ -1,6 +1,12 @@
 import type { StoreLocation } from '@/api/store'
 import type { VendorData } from '@/contexts/VendorContext'
 import { resolveBrandingMode, type BrandingMode } from '@/lib/brandingMode'
+import {
+  resolveSocialLinksIconStyle,
+  resolveSocialLinksMode,
+  storeSocialLinks,
+  type SocialLinksIconStyle,
+} from '@/lib/socialLinksMode'
 
 function settingStr(settings: Record<string, string | unknown> | undefined, key: string): string {
   const v = settings?.[key]
@@ -57,6 +63,35 @@ export function resolveStorefrontBranding(
     banner_url: storeBanner || vendor.banner_url,
     extra_banners: storeExtras.length > 0 ? storeExtras : vendorExtras,
   }
+}
+
+/** Website and social profiles — shared vendor links or per active BU overrides. */
+export function resolveStorefrontSocialLinks(
+  vendor: VendorData,
+  branch: StoreLocation | null,
+): Record<string, string> {
+  const mode = resolveSocialLinksMode(vendor.settings)
+  const vendorLinks = { ...(vendor.social_links ?? {}) }
+
+  if (mode === 'shared' || !branch) return vendorLinks
+
+  const unitLinks = storeSocialLinks(branch.settings as Record<string, unknown> | undefined)
+  if (Object.keys(unitLinks).length === 0) return vendorLinks
+
+  return { ...vendorLinks, ...unitLinks }
+}
+
+/** Social icon rendering style — shared vendor default or per active BU override. */
+export function resolveStorefrontSocialIconStyle(
+  vendor: VendorData,
+  branch: StoreLocation | null,
+): SocialLinksIconStyle {
+  const mode = resolveSocialLinksMode(vendor.settings)
+  return resolveSocialLinksIconStyle(
+    vendor.settings as Record<string, unknown> | undefined,
+    branch?.settings as Record<string, unknown> | undefined,
+    mode,
+  )
 }
 
 function storeExtraStrings(settings: Record<string, unknown> | undefined, key: string): string[] {
@@ -133,6 +168,8 @@ export function applyBranchToVendor(vendor: VendorData, branch: StoreLocation | 
   const branding = resolveStorefrontBranding(vendor, branch)
   const contact = resolveBranchContactOverlay(vendor, branch)
   const address = resolveBranchAddressOverlay(vendor, branch)
+  const social_links = resolveStorefrontSocialLinks(vendor, branch)
+  const socialIconStyle = resolveStorefrontSocialIconStyle(vendor, branch)
   return {
     ...vendor,
     business_name: branding.business_name,
@@ -140,13 +177,17 @@ export function applyBranchToVendor(vendor: VendorData, branch: StoreLocation | 
     description: branch.description?.trim() || vendor.description,
     logo_url: branding.logo_url,
     banner_url: branding.banner_url,
+    social_links,
     support_email: contact.support_email,
     support_phone: contact.support_phone,
     street_address: address.street_address,
     city: address.city,
     state: address.state,
     postal_code: address.postal_code,
-    settings: contact.settings,
+    settings: {
+      ...contact.settings,
+      social_links_icon_style: socialIconStyle,
+    },
     theme_config: {
       ...(vendor.theme_config ?? {}),
       extra_banners: branding.extra_banners,

@@ -29,6 +29,13 @@ export type CatalogNavCapabilities = {
   showServices: boolean
 }
 
+export function isVendorBlogEnabled(settings?: Record<string, unknown> | null): boolean {
+  if (!settings) return true
+  const features = settings.features as Record<string, unknown> | undefined
+  if (features && typeof features.blog === 'boolean') return features.blog
+  return true
+}
+
 export type ResolveCatalogNavCapabilitiesInput = {
   offeringType?: string | null
   sellingMode?: string | null
@@ -209,7 +216,11 @@ export function enrichNavLinksWithCatalogCapabilities(
 export function enrichNavLinksWithBlogLink(
   links: NavLinkItem[],
   storePath: (p: string) => string,
+  blogEnabled = true,
 ): NavLinkItem[] {
+  if (!blogEnabled) {
+    return links.filter(l => !navLinksIncludeCatalogPath([l], storePath, 'blog'))
+  }
   if (navLinksIncludeCatalogPath(links, storePath, 'blog')) return links
   const out = [...links]
   const contactIdx = out.findIndex(l => pathRelativeToStore(l.href, storePath).toLowerCase() === '/contact')
@@ -221,13 +232,12 @@ export function enrichNavLinksWithBlogLink(
 export function defaultCommerceNavLinksForCapabilities(
   storePath: (p: string) => string,
   capabilities: CatalogNavCapabilities,
+  blogEnabled = true,
 ): NavLinkItem[] {
   const links: NavLinkItem[] = [{ label: 'Home', href: storePath('/') }]
   if (capabilities.showProducts) links.push({ label: 'Products', href: storePath('/products') })
   if (capabilities.showServices) links.push({ label: 'Services', href: storePath('/services') })
-  links.push(
-    { label: 'Blog', href: storePath('/blog') },
-    { label: 'Policies', href: storePath('/policies') },
-  )
+  if (blogEnabled) links.push({ label: 'Blog', href: storePath('/blog') })
+  links.push({ label: 'Policies', href: storePath('/policies') })
   return links
 }

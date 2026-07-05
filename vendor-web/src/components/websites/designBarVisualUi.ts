@@ -1,59 +1,92 @@
 import { cn } from '@/lib/utils'
 
+/** Soft, unified chrome tokens for the section design bar. */
+export const DESIGN_BAR_SOFT_BORDER = 'border-gray-100'
+export const DESIGN_BAR_SOFT_RADIUS = 'rounded-lg'
+export const DESIGN_BAR_SOFT_CELL =
+  'text-gray-600 transition-colors duration-150 hover:bg-muted/70 active:bg-muted/90'
+export const DESIGN_BAR_SOFT_ACTIVE = 'bg-primary/[0.08] text-primary hover:bg-primary/[0.12]'
+export const DESIGN_BAR_SOFT_DANGER = 'text-red-500 hover:bg-red-50/80'
+export const DESIGN_BAR_SOFT_INNER_BORDER = 'border-gray-100'
+export const DESIGN_BAR_SOFT_DIVIDE = 'divide-gray-100'
+
 /** Compact Visual tab — fixed row height. */
 export const VISUAL_TAB_ROW_H = 'h-7'
 export const VISUAL_TAB_MIN_H = 'min-h-0'
 
 export const visualPanel =
-  'inline-flex items-stretch shrink-0 overflow-hidden rounded-md border border-gray-200 bg-white'
+  cn('inline-flex items-stretch shrink-0 overflow-hidden bg-white', DESIGN_BAR_SOFT_RADIUS, 'border', DESIGN_BAR_SOFT_BORDER)
 
 export const visualPanelCell =
   cn(
     VISUAL_TAB_ROW_H,
-    'flex min-w-0 items-center justify-center gap-0.5 border-r border-gray-200 px-1 text-[9px] font-bold leading-none transition-colors last:border-r-0 hover:bg-accent',
+    'flex min-w-0 items-center justify-center gap-0.5 border-r px-1 text-[9px] font-medium leading-none last:border-r-0',
+    DESIGN_BAR_SOFT_INNER_BORDER,
+    DESIGN_BAR_SOFT_CELL,
   )
 
-export const visualPanelCellActive = 'bg-primary/10 text-primary'
+export const visualPanelCellActive = DESIGN_BAR_SOFT_ACTIVE
 
 export const visualPanelCellMuted = 'text-gray-500'
 
 export const visualChip =
   cn(
     VISUAL_TAB_ROW_H,
-    'flex items-center px-1.5 text-[8px] font-bold uppercase tracking-wide text-primary bg-accent border-r border-gray-200 shrink-0',
+    'flex items-center px-1.5 text-[8px] font-semibold uppercase tracking-wide text-primary bg-primary/[0.06] border-r shrink-0',
+    DESIGN_BAR_SOFT_INNER_BORDER,
   )
 
 export const visualMeta =
   cn(
     VISUAL_TAB_ROW_H,
-    'flex items-center px-1.5 tabular-nums text-[8px] font-medium text-gray-400 border-r border-gray-200 shrink-0',
+    'flex items-center px-1.5 tabular-nums text-[8px] font-medium text-gray-400 border-r shrink-0',
+    DESIGN_BAR_SOFT_INNER_BORDER,
   )
 
 /** Section / media dropdown trigger — icon + short label, auto width. */
 export const visualSectionBtn =
   cn(
     VISUAL_TAB_ROW_H,
-    'relative flex shrink-0 items-center gap-1 rounded-md border border-gray-200 bg-white px-2 text-[9px] font-semibold leading-none whitespace-nowrap transition-colors hover:bg-accent',
+    'relative flex shrink-0 items-center gap-1 bg-white px-2 text-[9px] font-medium leading-none whitespace-nowrap border',
+    DESIGN_BAR_SOFT_RADIUS,
+    DESIGN_BAR_SOFT_BORDER,
+    DESIGN_BAR_SOFT_CELL,
   )
 
 /** Visual tab section menus (Insert, Icons, Visuals, Effects…) — avoids clipped descenders. */
 export const visualTabMenuBtn = cn(
   VISUAL_TAB_ROW_H,
-  'relative flex shrink-0 items-center gap-1 rounded-md border border-gray-200 bg-white px-2 text-[9px] font-semibold leading-snug whitespace-nowrap transition-colors hover:bg-accent',
+  'relative flex shrink-0 items-center gap-1 bg-white px-2 text-[9px] font-medium leading-snug whitespace-nowrap border',
+  DESIGN_BAR_SOFT_RADIUS,
+  DESIGN_BAR_SOFT_BORDER,
+  DESIGN_BAR_SOFT_CELL,
 )
 
 /** Primary insert action — same height as the rest of the visual bar. */
 export const visualInsertBtn =
   cn(
     VISUAL_TAB_ROW_H,
-    'flex shrink-0 items-center gap-1 rounded-md border px-2 text-[10px] font-bold leading-none whitespace-nowrap transition-colors',
+    'flex shrink-0 items-center gap-1 px-2 text-[10px] font-medium leading-none whitespace-nowrap border bg-white',
+    DESIGN_BAR_SOFT_RADIUS,
+    DESIGN_BAR_SOFT_BORDER,
+    DESIGN_BAR_SOFT_CELL,
   )
 
 /** Visual tab Insert — matches {@link visualTabMenuBtn} text rhythm. */
 export const visualTabInsertBtn = cn(
   VISUAL_TAB_ROW_H,
-  'flex shrink-0 items-center gap-1 rounded-md border px-2 text-[10px] font-bold leading-snug whitespace-nowrap transition-colors',
+  'flex shrink-0 items-center gap-1 px-2 text-[10px] font-medium leading-snug whitespace-nowrap border bg-white',
+  DESIGN_BAR_SOFT_RADIUS,
+  DESIGN_BAR_SOFT_BORDER,
+  DESIGN_BAR_SOFT_CELL,
 )
+
+export function visualInsertBtnClass(active: boolean, visualTab = false) {
+  return cn(
+    visualTab ? visualTabInsertBtn : visualInsertBtn,
+    active && cn(DESIGN_BAR_SOFT_ACTIVE, 'border-primary/20'),
+  )
+}
 
 export function visualActionBtn(variant: 'sky' | 'emerald' | 'primary' | 'muted' | 'link') {
   return cn(
@@ -69,8 +102,11 @@ export function visualActionBtn(variant: 'sky' | 'emerald' | 'primary' | 'muted'
 export function visualIconBtn(active?: boolean) {
   return cn(
     VISUAL_TAB_ROW_H,
-    'flex w-7 shrink-0 items-center justify-center rounded-md border border-gray-200 bg-white transition-colors hover:bg-accent',
-    active && 'border-primary/40 bg-primary/10 text-primary',
+    'flex w-7 shrink-0 items-center justify-center bg-white border',
+    DESIGN_BAR_SOFT_RADIUS,
+    DESIGN_BAR_SOFT_BORDER,
+    DESIGN_BAR_SOFT_CELL,
+    active && cn(DESIGN_BAR_SOFT_ACTIVE, 'border-primary/20'),
   )
 }
 
@@ -95,22 +131,24 @@ export function visualTabMenuTrigger(active: boolean, accent?: 'primary' | 'blue
 }
 
 export const visualSegmentTrack =
-  cn(VISUAL_TAB_ROW_H, 'inline-flex overflow-hidden rounded-md border border-gray-200 bg-gray-50 shrink-0')
+  cn(VISUAL_TAB_ROW_H, 'inline-flex overflow-hidden bg-gray-50/80 shrink-0 border', DESIGN_BAR_SOFT_RADIUS, DESIGN_BAR_SOFT_BORDER)
 
 export function visualSegmentBtn(active: boolean) {
   return cn(
-    'flex h-full items-center px-1.5 text-[8px] font-bold uppercase tracking-wide transition-colors border-r border-gray-200 last:border-r-0',
-    active ? 'bg-primary text-white' : 'text-gray-600 hover:bg-gray-100',
+    'flex h-full items-center px-1.5 text-[8px] font-semibold uppercase tracking-wide transition-colors duration-150 border-r last:border-r-0',
+    DESIGN_BAR_SOFT_INNER_BORDER,
+    active ? cn(DESIGN_BAR_SOFT_ACTIVE, 'font-medium') : cn('text-gray-600', DESIGN_BAR_SOFT_CELL),
   )
 }
 
 export const visualStepperCell =
-  cn(VISUAL_TAB_ROW_H, 'flex w-5 shrink-0 items-center justify-center border-r border-gray-200 text-gray-700 transition-colors hover:bg-gray-50')
+  cn(VISUAL_TAB_ROW_H, 'flex w-5 shrink-0 items-center justify-center border-r text-gray-600', DESIGN_BAR_SOFT_INNER_BORDER, DESIGN_BAR_SOFT_CELL)
 
 export const visualStepperValue =
   cn(
     VISUAL_TAB_ROW_H,
-    'flex w-[1.75rem] shrink-0 items-center justify-center overflow-hidden border-r border-gray-200 bg-white px-0.5 text-[8px] font-bold tabular-nums text-gray-800',
+    'flex w-[1.75rem] shrink-0 items-center justify-center overflow-hidden border-r bg-white px-0.5 text-[8px] font-medium tabular-nums text-gray-700',
+    DESIGN_BAR_SOFT_INNER_BORDER,
   )
 
 export const visualRow = 'flex min-h-[1.75rem] flex-nowrap items-center gap-0.5'
@@ -118,7 +156,7 @@ export const visualRow = 'flex min-h-[1.75rem] flex-nowrap items-center gap-0.5'
 export const visualRowWrap = 'flex min-h-[1.75rem] flex-wrap items-center gap-0.5'
 
 /** Vertical divider between control groups in the visual bar. */
-export const visualGroupDivider = 'mx-0.5 h-7 w-px shrink-0 self-center bg-gray-200'
+export const visualGroupDivider = 'mx-0.5 h-7 w-px shrink-0 self-center bg-gray-100'
 
 /** Section styling menus — single horizontal row. */
 export const visualSectionRow =
@@ -131,19 +169,18 @@ export const visualLayerCol =
 /** Tallest single-row design-bar content (General h-14; image focal pad ≈ 3×h-5). */
 export const DESIGN_BAR_ROW_H = 'min-h-[3.75rem]'
 
-/** Tab panel slot — min height for cross-tab stability; grows only if needed. */
+/** Tab panel slot — wraps tool clusters; grows vertically when narrow. */
 export const designBarTabSlot = cn(
-  DESIGN_BAR_ROW_H,
-  'flex min-w-0 flex-1 items-center overflow-x-auto overflow-y-visible overscroll-x-contain',
+  'flex min-h-[3.75rem] min-w-0 w-full flex-1 flex-wrap items-center gap-1.5 overflow-x-hidden overflow-y-visible content-start py-1',
 )
 
-/** Toolbar row — single line; scroll horizontally when narrow (General tab). */
+/** Toolbar row — wraps within panel width (no horizontal scrollbar). */
 export const visualToolbarRow =
-  'flex w-max max-w-full flex-nowrap items-center gap-0.5 shrink-0'
+  'flex min-w-0 w-full flex-wrap items-center gap-1.5'
 
 /** Layer tools — wrap within panel width (no horizontal scrollbar). */
 export const visualToolbarRowWrap =
-  'flex min-w-0 w-full flex-wrap items-center gap-0.5'
+  'flex min-w-0 w-full flex-wrap items-center gap-1.5'
 
 /** Visual tab with a selected layer — two tight rows, same min-height as other tabs. */
 export const visualTabShellLayer = cn(
@@ -152,11 +189,17 @@ export const visualTabShellLayer = cn(
 )
 
 /** General tab — shared chrome for edit / clipboard / typography clusters. */
-export const generalDesignBarCluster =
-  'inline-flex h-14 shrink-0 overflow-hidden rounded-md border border-gray-200 bg-white shadow-sm'
+export const generalDesignBarCluster = cn(
+  'inline-flex h-14 shrink-0 overflow-hidden bg-white border',
+  DESIGN_BAR_SOFT_RADIUS,
+  DESIGN_BAR_SOFT_BORDER,
+)
 
-export const generalDesignBarCell =
-  'flex h-full items-center justify-center border-r border-gray-200 text-gray-700 transition-colors hover:bg-accent last:border-r-0'
+export const generalDesignBarCell = cn(
+  'flex h-full items-center justify-center border-r last:border-r-0',
+  DESIGN_BAR_SOFT_INNER_BORDER,
+  DESIGN_BAR_SOFT_CELL,
+)
 
 /** 2×2 action grid — edit / case / format / clear. */
 export const generalDesignBarGrid2x2 = cn(
@@ -165,7 +208,7 @@ export const generalDesignBarGrid2x2 = cn(
 )
 
 export const generalDesignBarGridCell =
-  'flex h-full w-full min-h-0 items-center justify-center text-gray-700 transition-colors hover:bg-accent'
+  cn('flex h-full w-full min-h-0 items-center justify-center', DESIGN_BAR_SOFT_CELL)
 
 /**
  * Same 2×2 grid, but stacked in a column shell so a full-width Delete row can
@@ -179,12 +222,47 @@ export const generalDesignBarStack = cn(
 export const generalDesignBarGrid2x2Rows = 'grid h-14 shrink-0 grid-cols-2 grid-rows-2'
 
 /** Full-width Delete row under the 2×2 inset — appears only when an element is selected. */
-export const generalDesignBarDeleteRow =
-  'flex h-6 w-full shrink-0 items-center justify-center gap-1 border-t border-gray-200 text-[9px] font-bold uppercase tracking-wide text-red-600 transition-colors hover:bg-red-50'
+export const generalDesignBarDeleteRow = cn(
+  'flex h-6 w-full shrink-0 items-center justify-center gap-1 border-t text-[9px] font-medium uppercase tracking-wide',
+  DESIGN_BAR_SOFT_INNER_BORDER,
+  DESIGN_BAR_SOFT_DANGER,
+)
+
+/** Insert (+ optional Delete) — compact row; grows to h-14 when Delete is shown. */
+export const generalDesignBarInsertStack = cn(
+  'inline-flex shrink-0 overflow-hidden bg-white border flex-col',
+  DESIGN_BAR_SOFT_RADIUS,
+  DESIGN_BAR_SOFT_BORDER,
+)
+
+/** Insert cell inside {@link generalDesignBarInsertStack}. */
+export function generalDesignBarInsertBtnClass(active: boolean, stackedBelow?: boolean) {
+  return cn(
+    generalDesignBarGridCell,
+    VISUAL_TAB_ROW_H,
+    'shrink-0 gap-0.5 px-1.5 text-[9px] font-medium leading-none whitespace-nowrap',
+    stackedBelow ? 'w-full' : 'w-auto',
+    active && DESIGN_BAR_SOFT_ACTIVE,
+  )
+}
+
+/** Delete cell under Insert — same rhythm as edit-grid cells. */
+export const generalDesignBarDeleteCell = cn(
+  generalDesignBarGridCell,
+  'h-7 shrink-0 flex-col gap-0 border-t px-0.5 text-[8px] font-medium leading-none',
+  DESIGN_BAR_SOFT_INNER_BORDER,
+  DESIGN_BAR_SOFT_DANGER,
+)
+
+/** Inner toolbar button — clipboard rows, etc. */
+export const generalDesignBarInnerBtn = cn(
+  'flex flex-1 items-center justify-center',
+  DESIGN_BAR_SOFT_CELL,
+)
 
 export const visualTabShell = cn(
   designBarTabSlot,
-  'py-0',
+  'min-h-[3.75rem] self-center py-0',
 )
 
 /** Section design-bar tabs — General / Visual / Section image only. */
@@ -192,9 +270,9 @@ export const designBarTabList = 'flex shrink-0 items-center gap-1'
 
 export function designBarTabClass(active: boolean) {
   return cn(
-    'rounded-md border px-2.5 py-1 text-xs font-semibold leading-snug transition-colors',
+    'rounded-lg px-2.5 py-1 text-xs font-medium leading-snug transition-colors duration-150',
     active
-      ? 'border-primary/60 bg-white text-primary shadow-sm ring-1 ring-primary/20'
-      : 'border-gray-200 bg-white/80 text-gray-700 hover:border-gray-300 hover:bg-white hover:text-gray-900',
+      ? cn(DESIGN_BAR_SOFT_ACTIVE, 'border border-primary/15')
+      : 'border border-transparent text-gray-600 hover:bg-muted/60 hover:text-gray-800',
   )
 }

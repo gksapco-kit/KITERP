@@ -2,6 +2,7 @@ import { useState, useMemo, useEffect, useRef } from 'react'
 import { TableColumnLabel, CheckboxFieldLabel } from '@/components/common/FieldLabel'
 import { BusinessUnitSelect, useResolveBuBranch } from '@/components/common/BusinessUnitSelect'
 import { BranchSelect } from '@/components/common/BranchSelect'
+import { SalesScopeFilters } from '@/components/common/SalesScopeFilters'
 import { CatalogItemPicker, type CatalogPickerItem } from '@/components/common/CatalogItemPicker'
 import { useStores } from '@/hooks/useVendor'
 import { useEscapeToClose } from '@/hooks/useEscapeToClose'
@@ -59,6 +60,7 @@ export default function CouponsPage() {
   const [sortDir, setSortDir] = useState<SortDir>('asc')
   const [storeFilter, setStoreFilter] = useState('')
   const [branchFilter, setBranchFilter] = useState('')
+  const [salesAreaFilter, setSalesAreaFilter] = useState('')
 
   const { data: storesData } = useStores()
   const storeLabelById = useMemo(() => {
@@ -131,12 +133,15 @@ export default function CouponsPage() {
             onSortKeyChange={setSortKey}
             onSortDirChange={setSortDir}
           />
-          <div className="flex items-center gap-2 px-4 py-2 border-b">
-            <span className="text-xs text-gray-500">Business unit</span>
-            <div className="w-56"><BusinessUnitSelect value={storeFilter} onChange={(id) => { setStoreFilter(id); setBranchFilter(''); setPage(1) }} allowAll autoSelectDefault={false} /></div>
-            <span className="text-xs text-gray-500">Branch</span>
-            <div className="w-56"><BranchSelect businessUnitId={storeFilter || null} value={branchFilter} onChange={(id) => { setBranchFilter(id); setPage(1) }} allowAll /></div>
-          </div>
+          <SalesScopeFilters
+            businessUnitId={storeFilter}
+            branchId={branchFilter}
+            salesAreaId={salesAreaFilter}
+            onBusinessUnitChange={(id) => { setStoreFilter(id); setBranchFilter(''); setSalesAreaFilter(''); setPage(1) }}
+            onBranchChange={(id) => { setBranchFilter(id); setSalesAreaFilter(''); setPage(1) }}
+            onSalesAreaChange={(id) => { setSalesAreaFilter(id); setPage(1) }}
+            className="px-4 py-2 border-b"
+          />
           <div className="overflow-x-auto">
           <ResizableTable tableId="coupons-v2" defaultWidths={[150, 140, 120, 110, 80, 80, 100, 220]}>
             <thead>

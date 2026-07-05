@@ -6,13 +6,15 @@ import {
   ChevronLeft, BookOpen, Save, Upload, Send, Undo2,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { Switch } from '@/components/ui/switch'
+import { Label } from '@/components/ui/label'
 import { cn, mediaUrl } from '@/lib/utils'
 import { ImageSourcePicker } from '@/components/common/ImageSourcePicker'
 import { SingleImagePreview } from '@/components/common/CatalogMediaLightbox'
 import { vendorApi } from '@/api/vendor'
 import {
   useBlogPosts, useCreateBlogPost, useUpdateBlogPost,
-  useDeleteBlogPost, usePublishBlogPost,
+  useDeleteBlogPost, usePublishBlogPost, useBlogSettings, useUpdateBlogSettings,
 } from '@/hooks/useBlog'
 import type { BlogPost, BlogPostCreate, BlogPostUpdate } from '@/api/blog'
 
@@ -302,6 +304,9 @@ export default function BlogManagerPage() {
   const updateMutation = useUpdateBlogPost()
   const deleteMutation = useDeleteBlogPost()
   const publishMutation = usePublishBlogPost()
+  const { data: blogSettings, isLoading: settingsLoading } = useBlogSettings()
+  const updateSettingsMutation = useUpdateBlogSettings()
+  const blogEnabled = blogSettings?.blog_enabled ?? true
 
   const handleSave = (formData: BlogPostCreate | BlogPostUpdate) => {
     if (editingPost === 'new') {
@@ -330,22 +335,42 @@ export default function BlogManagerPage() {
   return (
     <div className="max-w-5xl mx-auto px-4 sm:px-6 py-8">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center gap-4 mb-6">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
-            <Newspaper className="w-5 h-5 text-primary" />
+      <div className="flex flex-col gap-4 mb-6">
+        <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
+              <Newspaper className="w-5 h-5 text-primary" />
+            </div>
+            <div>
+              <h1 className="text-xl font-bold text-foreground">Blog Manager</h1>
+              <p className="text-sm text-muted-foreground">{total} post{total !== 1 ? 's' : ''} total</p>
+            </div>
           </div>
-          <div>
-            <h1 className="text-xl font-bold text-foreground">Blog Manager</h1>
-            <p className="text-sm text-muted-foreground">{total} post{total !== 1 ? 's' : ''} total</p>
+          <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:ml-auto">
+            <div className="flex items-center gap-3 rounded-xl border border-border bg-card px-3 py-2">
+              <div className="min-w-0">
+                <Label htmlFor="blog-enabled" className="text-sm font-medium text-foreground cursor-pointer">
+                  Show on website
+                </Label>
+                <p className="text-xs text-muted-foreground">
+                  {blogEnabled ? 'Blog page and nav link are visible' : 'Blog is hidden from your storefront'}
+                </p>
+              </div>
+              <Switch
+                id="blog-enabled"
+                checked={blogEnabled}
+                disabled={settingsLoading || updateSettingsMutation.isPending}
+                onCheckedChange={(checked) => updateSettingsMutation.mutate({ blog_enabled: checked })}
+              />
+            </div>
+            <Button
+              onClick={() => setEditingPost('new')}
+              className="gap-2"
+            >
+              <Plus className="w-4 h-4" /> New Post
+            </Button>
           </div>
         </div>
-        <Button
-          onClick={() => setEditingPost('new')}
-          className="sm:ml-auto gap-2"
-        >
-          <Plus className="w-4 h-4" /> New Post
-        </Button>
       </div>
 
       {/* Filters */}

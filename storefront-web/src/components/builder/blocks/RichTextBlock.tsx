@@ -2,6 +2,7 @@ import type { PublicSite, StyleConfig, LiveItem } from '@/blocks/registry'
 import { BuilderTextField } from '@/components/builder/BuilderTextField'
 import { useBuilderCanvas } from '@/contexts/BuilderCanvasContext'
 import { hasInlineHtml } from '@/lib/fieldTextStyles'
+import { builderSectionContainerClass, builderSectionContainerWithMax } from '@/lib/builderSectionLayout'
 import { isBlockFieldHidden, resolveBlockTextField } from '@/lib/blockHiddenFields'
 import { cn } from '@/lib/utils'
 
@@ -24,7 +25,7 @@ export default function RichTextBlock({ props, blockId }: Props) {
 
   if (blockId) {
     return (
-      <section className="py-8 px-4 sm:px-6 lg:px-8 max-w-4xl mx-auto">
+      <section className={builderSectionContainerWithMax('max-w-4xl')}>
         <div className="rich-text-content">
           <BuilderTextField
             fieldKey="content"
@@ -42,7 +43,7 @@ export default function RichTextBlock({ props, blockId }: Props) {
   }
 
   return (
-    <section className="py-8 px-4 sm:px-6 lg:px-8 max-w-4xl mx-auto">
+    <section className={builderSectionContainerWithMax('max-w-4xl')}>
       <div className="rich-text-content" dangerouslySetInnerHTML={{ __html: content ?? '' }} />
     </section>
   )

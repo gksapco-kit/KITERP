@@ -32,12 +32,6 @@ const LAUNCH_STEPS: LaunchStep[] = [
     nextHref: '/settings',
   },
   {
-    id: 'website-dashboard',
-    label: 'Website dashboard',
-    description: 'Overview of your live storefront and website tools.',
-    nextHref: '/business-front',
-  },
-  {
     id: 'website-builder',
     label: 'Business Website Builder',
     description: 'Design pages and publish your public store.',

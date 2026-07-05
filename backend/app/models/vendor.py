@@ -87,7 +87,7 @@ class Vendor(Base):
         "currency": "INR",
         "language": "en",
         "notifications": {"email": True, "sms": True, "push": True},
-        "features": {"products": True, "services": True, "appointments": False}
+        "features": {"products": True, "services": True, "appointments": False, "blog": True}
     })
     
     # Business Hours

@@ -6,6 +6,7 @@ import type { PublicSite, StyleConfig, LiveItem } from '@/blocks/registry'
 import { BuilderTextField } from '@/components/builder/BuilderTextField'
 import { useBuilderCanvas } from '@/contexts/BuilderCanvasContext'
 import { isBlockFieldHidden, resolveBlockTextField } from '@/lib/blockHiddenFields'
+import { builderSectionContainerWithMax } from '@/lib/builderSectionLayout'
 
 interface Props { site: PublicSite; style: StyleConfig; props: Record<string, unknown>; liveItems: LiveItem[]; branchCode?: string | null; blockId?: string }
 
@@ -27,7 +28,7 @@ export default function SearchBarBlock({ style, props, blockId }: Props) {
   }
 
   return (
-    <div className="py-6 px-4 sm:px-6 lg:px-8 max-w-2xl mx-auto">
+    <div className={builderSectionContainerWithMax('max-w-2xl')}>
       <form onSubmit={handleSearch} className="flex gap-2">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />

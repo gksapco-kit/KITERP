@@ -57,7 +57,7 @@ export default function RelationshipManagerPage() {
     !createMut.isPending
 
   return (
-    <div className="space-y-6 p-4 md:p-6 max-w-3xl">
+    <div className="space-y-6 max-w-3xl">
       <div>
         <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2">
           <UsersRound className="w-7 h-7 text-primary" />

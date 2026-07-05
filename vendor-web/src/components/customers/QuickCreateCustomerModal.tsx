@@ -44,7 +44,7 @@ export function QuickCreateCustomerModal({
   useEscapeToClose(onClose)
 
   const navigate = useNavigate()
-  const createCustomerMut = useCreateCustomer()
+  const createCustomerMut = useCreateCustomer({ silent: true })
 
   const [name, setName] = useState('')
   const [phone, setPhone] = useState('')
@@ -99,6 +99,7 @@ export function QuickCreateCustomerModal({
       },
       {
         onSuccess: (data: any) => {
+          toast.success(`${data.full_name} linked and created`)
           selectAndClose({ id: data.id, full_name: data.full_name, phone: data.phone, email: data.email })
         },
         onError: (err: any) => {
@@ -116,6 +117,7 @@ export function QuickCreateCustomerModal({
       { full_name: name.trim(), phone: phone || undefined, email: email || undefined },
       {
         onSuccess: (data: any) => {
+          toast.success(`${data.full_name} created`)
           selectAndClose({ id: data.id, full_name: data.full_name, phone: data.phone, email: data.email })
         },
         onError: async (err: any) => {
@@ -124,8 +126,12 @@ export function QuickCreateCustomerModal({
             const term = phone || email || name
             try {
               const result = await vendorApi.listCustomers({ search: term, size: 10 })
+              const phoneKey = (p: string) => {
+                const d = p.replace(/\D/g, '')
+                return d.length >= 10 ? d.slice(-10) : d
+              }
               const found = (result.items || []).find((c: any) =>
-                (phone && c.phone === phone) ||
+                (phone && c.phone && phoneKey(c.phone) === phoneKey(phone)) ||
                 (email && c.email?.toLowerCase() === email.toLowerCase()),
               )
               if (found) {

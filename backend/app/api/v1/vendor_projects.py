@@ -57,12 +57,14 @@ async def list_projects(
     status: Optional[str] = None,
     search: Optional[str] = None,
     store_id: Optional[str] = None,
+    sales_area_id: Optional[str] = None,
     vu: VendorUser = Depends(require_permission("projects.view")),
     db: AsyncSession = Depends(get_db),
 ):
     svc = ProjectService(db)
     items, total = await svc.list_projects(
-        vu.vendor_id, page=page, size=size, status_filter=status, search=search, store_id=store_id,
+        vu.vendor_id, page=page, size=size, status_filter=status, search=search,
+        store_id=store_id, sales_area_id=sales_area_id,
     )
     return {
         "items": [ProjectResponse.model_validate(i) for i in items],

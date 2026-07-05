@@ -6,6 +6,7 @@ import { BuilderTextField } from '@/components/builder/BuilderTextField'
 import { CategoryCardTitle } from '@/components/builder/CategoryCardTitle'
 import { useBuilderCanvas } from '@/contexts/BuilderCanvasContext'
 import { clampCatalogColumns } from '@/lib/catalogCardLayout'
+import { builderSectionContainerClass } from '@/lib/builderSectionLayout'
 
 export type WellnessCategory = MosaicCategory
 
@@ -58,7 +59,8 @@ export default function CategoryCardsWellness({
     || '#F9F9F5'
 
   return (
-    <section className="py-16 sm:py-28 px-6 sm:px-12 max-w-7xl mx-auto" style={{ backgroundColor: bg }}>
+    <div className="w-full" style={{ backgroundColor: bg }}>
+      <section className={builderSectionContainerClass()}>
       <div className="flex items-end justify-between mb-12 sm:mb-16 gap-4 flex-wrap">
         <div>
           {(eyebrow || blockId) && (
@@ -129,6 +131,7 @@ export default function CategoryCardsWellness({
           )
         )}
       />
-    </section>
+      </section>
+    </div>
   )
 }

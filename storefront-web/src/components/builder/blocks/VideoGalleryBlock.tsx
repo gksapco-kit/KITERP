@@ -2,6 +2,7 @@ import { useState } from 'react'
 import type { ReactNode } from 'react'
 import { Play, Video, X } from 'lucide-react'
 import { cn, imgUrl } from '@/lib/utils'
+import { builderSectionContainerClass, builderSectionContainerWithMax } from '@/lib/builderSectionLayout'
 import type { PublicSite, StyleConfig, LiveItem } from '@/blocks/registry'
 import BlockEmptyPlaceholder from '@/components/builder/BlockEmptyPlaceholder'
 import { BuilderSectionImage } from '@/components/builder/BuilderSectionImage'
@@ -260,7 +261,7 @@ export default function VideoGalleryBlock({ style, props, blockId }: Props) {
 
   return (
     <section
-      className="py-12 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto"
+      className={builderSectionContainerClass()}
       style={{ background: surface.background, color: surface.color }}
     >
       {showTitle && (

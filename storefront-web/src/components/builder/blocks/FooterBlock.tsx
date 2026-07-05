@@ -26,6 +26,9 @@ import {
   resolveBlockTextField,
   visibleArrayEntries,
 } from '@/lib/blockHiddenFields'
+import { readSocialIconStyleFromSettings } from '@/lib/socialPlatformIcons'
+import type { SocialLinksIconStyle } from '@/lib/socialLinksMode'
+import { builderSectionContainerClass } from '@/lib/builderSectionLayout'
 
 interface Props {
   site: PublicSite
@@ -94,6 +97,7 @@ function EditableColumnFooter({
   primaryColor,
   showSocial,
   socialLinks,
+  socialIconStyle,
   profile,
   vendor,
 }: {
@@ -108,6 +112,7 @@ function EditableColumnFooter({
   primaryColor: string
   showSocial: boolean
   socialLinks: Partial<Record<FooterSocialPlatform, string>>
+  socialIconStyle: SocialLinksIconStyle
   profile?: LiveItem
   vendor?: VendorData | null
 }) {
@@ -120,7 +125,7 @@ function EditableColumnFooter({
 
   return (
     <footer className={cn('border-t mt-8', footerClass)} style={{ backgroundColor: footerBg }}>
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+      <div className={builderSectionContainerClass('py-12')}>
         <div className="grid gap-10 md:grid-cols-12">
           <div className="md:col-span-4">
             {showBrand && (
@@ -155,6 +160,7 @@ function EditableColumnFooter({
                     blockId={blockId}
                     platform={key}
                     url={socialLinks[key] || ''}
+                    iconStyle={socialIconStyle}
                   />
                 ))}
               </div>
@@ -294,9 +300,10 @@ export default function FooterBlock({ site, style, props, liveItems, blockId }: 
   const footerColumns = normalizeFooterColumns(rawCols, storePath, previewShell === true, profile, effectiveVendor)
   const showSocial = props.show_social !== false
   const socialLinks = normalizeFooterSocialLinks({
-    ...(vendor?.social_links as Record<string, string> | undefined),
+    ...(effectiveVendor?.social_links as Record<string, string> | undefined),
     ...(props.social_links as Record<string, string> | undefined),
   })
+  const socialIconStyle = readSocialIconStyleFromSettings(effectiveVendor?.settings)
   const showAllSocialIcons = isEditor || previewShell === true
 
   const navLinks: Array<{ label: string; url: string }> =
@@ -318,6 +325,7 @@ export default function FooterBlock({ site, style, props, liveItems, blockId }: 
         primaryColor={style.primary_color}
         showSocial={showSocial}
         socialLinks={socialLinks}
+        socialIconStyle={socialIconStyle}
         profile={profile}
         vendor={effectiveVendor}
       />
@@ -334,6 +342,7 @@ export default function FooterBlock({ site, style, props, liveItems, blockId }: 
         copyright={copyright}
         showSocial={showSocial}
         socialLinks={socialLinks}
+        socialIconStyle={socialIconStyle}
         showAllSocialIcons={showAllSocialIcons}
         showNewsletter={props.show_newsletter === true || footerStyle === 'mega'}
         className={footerClass}
@@ -345,7 +354,7 @@ export default function FooterBlock({ site, style, props, liveItems, blockId }: 
   if (isEditor && (isMinimal || isSimple)) {
     return (
       <footer className={cn('border-t mt-8', footerClass)} style={{ backgroundColor: footerBg }}>
-        <div className={cn('max-w-7xl mx-auto px-4 py-8 text-center', isCompact && 'py-6')}>
+        <div className={builderSectionContainerClass('py-8 text-center', isCompact && 'py-6')}>
           <BuilderTextField
             fieldKey="brand"
             blockId={blockId}
@@ -380,7 +389,7 @@ export default function FooterBlock({ site, style, props, liveItems, blockId }: 
   if (isMinimal || isSimple) {
     return (
       <footer className={cn('border-t mt-8', footerClass)} style={{ backgroundColor: footerBg }}>
-        <div className={cn('max-w-7xl mx-auto px-4 py-8 text-center', isCompact && 'py-6')}>
+        <div className={builderSectionContainerClass('py-8 text-center', isCompact && 'py-6')}>
           <p className={cn('font-bold mb-3', isBrand || isDark ? 'text-white' : '')} style={!isBrand && !isDark ? { color: style.primary_color } : undefined}>
             {brand}
           </p>
@@ -400,7 +409,7 @@ export default function FooterBlock({ site, style, props, liveItems, blockId }: 
   if (isEditor) {
     return (
       <footer className={cn('border-t mt-8', footerClass)} style={{ backgroundColor: footerBg }}>
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+        <div className={builderSectionContainerClass('py-12')}>
           <div className="grid grid-cols-1 md:grid-cols-4 gap-8 mb-8">
             <div className={cn('md:col-span-2', isCompact && 'md:col-span-1')}>
               <BuilderTextField
@@ -457,7 +466,7 @@ export default function FooterBlock({ site, style, props, liveItems, blockId }: 
 
   return (
     <footer className={cn('border-t mt-8', footerClass)} style={{ backgroundColor: footerBg }}>
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+      <div className={builderSectionContainerClass('py-12')}>
         <div className="grid grid-cols-1 md:grid-cols-4 gap-8 mb-8">
           <div className={cn('md:col-span-2', isCompact && 'md:col-span-1')}>
             {logoUrl ? (

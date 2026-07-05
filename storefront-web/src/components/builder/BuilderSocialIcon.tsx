@@ -1,6 +1,8 @@
 import type { MouseEvent } from 'react'
 import { cn } from '@/lib/utils'
 import { useBuilderCanvas } from '@/contexts/BuilderCanvasContext'
+import { SocialPlatformIcon } from '@/lib/socialPlatformIcons'
+import type { SocialLinksIconStyle } from '@/lib/socialLinksMode'
 import {
   FOOTER_SOCIAL_PLATFORMS,
   type FooterSocialPlatform,
@@ -15,11 +17,13 @@ export function BuilderSocialIcon({
   platform,
   url,
   className,
+  iconStyle = 'brand',
 }: {
   blockId: string
   platform: FooterSocialPlatform
   url: string
   className?: string
+  iconStyle?: SocialLinksIconStyle
 }) {
   const ctx = useBuilderCanvas()
   const isEditor = ctx?.isEditorCanvas && !!blockId
@@ -27,7 +31,7 @@ export function BuilderSocialIcon({
   const isSelected = isEditor
     && ctx?.activeBlockId === blockId
     && ((ctx?.activeTextFields ?? []).includes(fieldKey) || ctx?.activeTextField === fieldKey)
-  const { Icon, label } = PLATFORM_META[platform]
+  const { label } = PLATFORM_META[platform]
   const hasUrl = Boolean(url.trim())
 
   const handleClick = (e: MouseEvent<HTMLButtonElement>) => {
@@ -52,7 +56,7 @@ export function BuilderSocialIcon({
         aria-label={label}
         className={cn('text-muted-foreground hover:text-foreground', className)}
       >
-        <Icon className="h-4 w-4" />
+        <SocialPlatformIcon platform={platform} style={iconStyle} className="h-4 w-4" />
       </a>
     )
   }
@@ -73,7 +77,7 @@ export function BuilderSocialIcon({
         className,
       )}
     >
-      <Icon className="h-4 w-4" />
+      <SocialPlatformIcon platform={platform} style={iconStyle} className="h-4 w-4" />
     </button>
   )
 }
@@ -82,10 +86,12 @@ export function FooterSocialIconsRow({
   blockId,
   socialLinks,
   className,
+  iconStyle = 'brand',
 }: {
   blockId: string
   socialLinks: Partial<Record<FooterSocialPlatform, string>>
   className?: string
+  iconStyle?: SocialLinksIconStyle
 }) {
   return (
     <div className={cn('flex items-center gap-2', className)}>
@@ -95,6 +101,7 @@ export function FooterSocialIconsRow({
           blockId={blockId}
           platform={key}
           url={socialLinks[key] || ''}
+          iconStyle={iconStyle}
         />
       ))}
     </div>

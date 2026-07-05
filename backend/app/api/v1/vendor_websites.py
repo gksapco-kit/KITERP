@@ -448,6 +448,8 @@ async def list_sites(
             website_store_name=sc.get("website_store_name"),
             website_home_store_id=sc.get("website_home_store_id"),
             storefront_assigned=sc.get("storefront_assigned") is True,
+            business_type=sc.get("business_type"),
+            selling_mode=sc.get("selling_mode"),
             created_at=s.created_at, updated_at=s.updated_at,
         ))
     return out
@@ -577,7 +579,7 @@ async def ensure_blank_site(
         sort_order=0,
     )
     db.add(home)
-    site.style_config = {}
+    # Keep wizard metadata (scope, setup_features, palette, business_type, etc.) — blank means no blocks only.
     site.updated_at = datetime.utcnow()
     await db.commit()
     return await _get_site(db, site_id, vendor.id)

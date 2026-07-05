@@ -19,6 +19,7 @@ import {
   visibleArrayEntries,
 } from '@/lib/blockHiddenFields'
 import { cn, imgUrl } from '@/lib/utils'
+import { builderSectionContainerWithMax } from '@/lib/builderSectionLayout'
 
 /** 1×1 transparent pixel — keeps an empty editable slot from rendering a broken-image box. */
 const TRANSPARENT_PIXEL =
@@ -890,7 +891,7 @@ export default function TimelineBlock({ site, style, props, blockId }: Props) {
   if (visibleItems.length === 0 && !showTitle) {
     return (
       <section
-        className={cn('py-16 sm:py-24 px-6 sm:px-12 mx-auto', sectionWidthClass)}
+        className={builderSectionContainerWithMax(sectionWidthClass)}
         style={{ background: surface.background, color: textColor }}
       >
         <TimelineBlockTitle
@@ -912,7 +913,7 @@ export default function TimelineBlock({ site, style, props, blockId }: Props) {
 
   return (
     <section
-      className={cn('py-16 sm:py-24 px-6 sm:px-12 mx-auto', sectionWidthClass)}
+      className={builderSectionContainerWithMax(sectionWidthClass)}
       style={{ background: surface.background, color: textColor }}
     >
       <TimelineBlockTitle

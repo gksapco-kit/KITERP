@@ -17,6 +17,24 @@ import {
   resolveBlockTextField,
   visibleArrayEntries,
 } from '@/lib/blockHiddenFields'
+import { builderSectionContainerClass, builderSectionContainerWithMax } from '@/lib/builderSectionLayout'
+import type { ReactNode } from 'react'
+
+function TestimonialSectionShell({
+  surface,
+  className,
+  children,
+}: {
+  surface: { background: string; color: string }
+  className?: string
+  children: ReactNode
+}) {
+  return (
+    <div className="w-full" style={{ background: surface.background, color: surface.color }}>
+      <section className={className}>{children}</section>
+    </div>
+  )
+}
 
 interface Props {
   site: PublicSite
@@ -314,13 +332,13 @@ export default function TestimonialsBlock({ style, props, liveItems, blockId }: 
 
   if (displayEntries.length === 0) {
     return (
-      <section className="px-4 sm:px-6 lg:px-8 max-w-3xl mx-auto text-center" style={{ background: surface.background, color: surface.color }}>
+      <TestimonialSectionShell surface={surface} className={builderSectionContainerWithMax('max-w-3xl', 'text-center')}>
         <BlockEmptyPlaceholder
           style={style}
           title={title ?? 'Testimonials'}
           message="Customer quotes will appear here. Edit the sample reviews in the builder or connect live testimonials from your catalog."
         />
-      </section>
+      </TestimonialSectionShell>
     )
   }
 
@@ -333,7 +351,7 @@ export default function TestimonialsBlock({ style, props, liveItems, blockId }: 
   if (layout === 'centered') {
     const { item, index, isEditableStatic } = displayEntries[0]
     return (
-      <section className="py-16 px-4 sm:px-6 lg:px-8 max-w-3xl mx-auto text-center" style={{ background: surface.background, color: surface.color }}>
+      <TestimonialSectionShell surface={surface} className={builderSectionContainerWithMax('max-w-3xl', 'text-center')}>
         {sectionTitle('text-3xl font-bold mb-4')}
         {previewHint}
         <TestimonialCard
@@ -347,13 +365,13 @@ export default function TestimonialsBlock({ style, props, liveItems, blockId }: 
           testimonialIndex={isEditableStatic ? index : undefined}
           isEditableStatic={isEditableStatic}
         />
-      </section>
+      </TestimonialSectionShell>
     )
   }
 
   if (layout === 'list') {
     return (
-      <section className="py-16 px-4 sm:px-6 lg:px-8 max-w-3xl mx-auto" style={{ background: surface.background, color: surface.color }}>
+      <TestimonialSectionShell surface={surface} className={builderSectionContainerWithMax('max-w-3xl')}>
         {sectionTitle('text-3xl font-bold mb-4 text-center')}
         {previewHint}
         <div className="space-y-4" style={{ gap: itemGap }}>
@@ -372,16 +390,16 @@ export default function TestimonialsBlock({ style, props, liveItems, blockId }: 
             />
           ))}
         </div>
-      </section>
+      </TestimonialSectionShell>
     )
   }
 
   if (layout === 'carousel') {
     return (
-      <section className="py-16 px-4" style={{ background: surface.background, color: surface.color }}>
-        {sectionTitle('text-3xl font-bold mb-4 text-center px-4')}
+      <TestimonialSectionShell surface={surface} className={builderSectionContainerClass()}>
+        {sectionTitle('text-3xl font-bold mb-4 text-center')}
         {previewHint}
-        <div className="flex overflow-x-auto pb-4 px-4 snap-x snap-mandatory items-stretch" style={{ gap: itemGap }}>
+        <div className="flex overflow-x-auto pb-4 snap-x snap-mandatory items-stretch" style={{ gap: itemGap }}>
           {displayEntries.map(({ item, index, isEditableStatic }) => (
             <div key={item.id} className="snap-start shrink-0 w-80 min-w-[20rem] max-w-[20rem] flex">
               <TestimonialCard
@@ -398,13 +416,13 @@ export default function TestimonialsBlock({ style, props, liveItems, blockId }: 
             </div>
           ))}
         </div>
-      </section>
+      </TestimonialSectionShell>
     )
   }
 
   if (layout === 'masonry') {
     return (
-      <section className="py-16 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto" style={{ background: surface.background, color: surface.color }}>
+      <TestimonialSectionShell surface={surface} className={builderSectionContainerClass()}>
         {sectionTitle('text-3xl font-bold mb-4 text-center')}
         {previewHint}
         <div className={cn(masonryColumnClass, 'gap-6 space-y-6')}>
@@ -424,12 +442,12 @@ export default function TestimonialsBlock({ style, props, liveItems, blockId }: 
             </div>
           ))}
         </div>
-      </section>
+      </TestimonialSectionShell>
     )
   }
 
   return (
-    <section className="py-16 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto" style={{ background: surface.background, color: surface.color }}>
+    <TestimonialSectionShell surface={surface} className={builderSectionContainerClass()}>
       {sectionTitle('text-3xl font-bold mb-4 text-center')}
       {previewHint}
       <div className={cn('grid w-full items-stretch', colClass)} style={{ gap: itemGap }}>
@@ -449,6 +467,6 @@ export default function TestimonialsBlock({ style, props, liveItems, blockId }: 
           </div>
         ))}
       </div>
-    </section>
+    </TestimonialSectionShell>
   )
 }

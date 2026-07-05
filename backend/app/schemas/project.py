@@ -69,6 +69,7 @@ class ProjectBase(BaseModel):
     status: ProjectStatus = ProjectStatus.PLANNING
     priority: ProjectPriority = ProjectPriority.MEDIUM
     store_id: Optional[UUID] = None
+    sales_area_id: Optional[UUID] = None
     customer_id: Optional[UUID] = None
     customer_name: Optional[str] = None
     owner_id: Optional[UUID] = None
@@ -94,6 +95,7 @@ class ProjectUpdate(BaseModel):
     status: Optional[ProjectStatus] = None
     priority: Optional[ProjectPriority] = None
     store_id: Optional[UUID] = None
+    sales_area_id: Optional[UUID] = None
     items: Optional[list[ProjectItem]] = None
     customer_id: Optional[UUID] = None
     customer_name: Optional[str] = None

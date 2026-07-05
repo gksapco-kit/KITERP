@@ -766,8 +766,12 @@ async def get_live_resource_public(
 
     elif resource == "blog":
         from app.services.blog_live_feed import build_blog_live_items
+        from app.utils.blog_settings import is_blog_enabled
 
-        items = await build_blog_live_items(db, vendor.id, limit, _norm_item, include_drafts=False)
+        if is_blog_enabled(vendor.settings):
+            items = await build_blog_live_items(db, vendor.id, limit, _norm_item, include_drafts=False)
+        else:
+            items = []
 
     elif resource == "plans":
         from app.services.plans_live_feed import build_plans_live_items

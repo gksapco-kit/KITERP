@@ -40,6 +40,8 @@ export type ImageSourcePickerProps = {
   buttonClassName?: string
   className?: string
   deviceHint?: string
+  /** Include website media library when listing stored uploads. */
+  siteId?: string | null
   children?: ReactNode | ((props: ImageSourcePickerTriggerProps) => ReactNode)
 }
 
@@ -88,6 +90,7 @@ export function ImageSourcePicker({
   buttonClassName,
   className,
   deviceHint,
+  siteId,
   children,
 }: ImageSourcePickerProps) {
   const [open, setOpen] = useState(false)
@@ -226,6 +229,7 @@ export function ImageSourcePicker({
         title={title}
         showGallery={showGallery}
         deviceHint={deviceHint}
+        siteId={siteId}
         galleryMultiSelect={galleryMultiSelect}
         deviceInputId={fileInputId}
         onChooseLocal={handleLocal}
@@ -244,10 +248,11 @@ export function useImageSourcePicker({
   showGallery = true,
   galleryMultiSelect = false,
   deviceHint,
+  siteId,
   onFile,
   onFiles,
   onUrl,
-}: Pick<ImageSourcePickerProps, 'title' | 'accept' | 'showGallery' | 'galleryMultiSelect' | 'deviceHint' | 'onFile' | 'onFiles' | 'onUrl'>) {
+}: Pick<ImageSourcePickerProps, 'title' | 'accept' | 'showGallery' | 'galleryMultiSelect' | 'deviceHint' | 'siteId' | 'onFile' | 'onFiles' | 'onUrl'>) {
   const [open, setOpen] = useState(false)
   const fileInputId = useId()
   const fileRef = useRef<HTMLInputElement>(null)
@@ -331,6 +336,7 @@ export function useImageSourcePicker({
         title={title}
         showGallery={showGallery}
         deviceHint={deviceHint}
+        siteId={siteId}
         galleryMultiSelect={galleryMultiSelect}
         deviceInputId={fileInputId}
         onChooseLocal={handleLocal}

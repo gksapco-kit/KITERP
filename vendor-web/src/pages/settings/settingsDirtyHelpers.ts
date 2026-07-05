@@ -19,6 +19,13 @@ const DAYS = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'
 type DayHours = { open: string; close: string; closed: boolean }
 type SavedDayHours = { open: string; close: string; closed?: boolean }
 
+export const HQ_ADDRESS_LABEL_KEY = 'hq_address_label'
+
+export function hqAddressLabelFromVendor(vendor: Vendor | null | undefined): string {
+  const raw = vendor?.settings?.[HQ_ADDRESS_LABEL_KEY]
+  return typeof raw === 'string' ? raw : ''
+}
+
 function normStr(v: string | null | undefined): string {
   return (v ?? '').trim()
 }
@@ -112,39 +119,54 @@ export function supportEmailsFromVendor(vendor: Vendor): string[] {
 export function profileFormFromStore(
   store: StoreRecord,
   vendor: Vendor | null,
-): { business_name: string; display_name: string; description: string; offering_type: string } {
+): { business_name: string; display_name: string; description: string; offering_type: string; company_type: string } {
   const settings = (store.settings ?? {}) as Record<string, unknown>
   const settingStr = (key: string) => {
     const v = settings[key]
     return typeof v === 'string' && v.trim() ? v.trim() : ''
   }
+  const companyType =
+    settingStr('company_type')
+    || (vendor?.business_type?.trim() && vendor.business_type.toLowerCase() !== 'individual'
+      ? vendor.business_type.trim()
+      : '')
   return {
-    business_name: store.name || '',
-    display_name: settingStr('display_name') || store.name || '',
+    business_name: store.name || settingStr('display_name') || '',
+    display_name: store.name || settingStr('display_name') || '',
     description: store.description || '',
     offering_type: settingStr('offering_type') || vendor?.offering_type || 'both',
+    company_type: companyType,
   }
 }
 
+export function profileCompanyTypeFromVendor(vendor: Vendor | null): string {
+  const raw = (vendor?.business_type || '').trim()
+  if (!raw || raw.toLowerCase() === 'individual') return ''
+  return raw
+}
+
 export function isProfileSectionDirty(
-  form: { business_name: string; display_name: string; description: string; offering_type: string },
+  form: { business_name: string; display_name: string; description: string; offering_type: string; company_type: string },
   vendor: Vendor | null,
   activeStore?: StoreRecord,
   unitProfileEditable?: boolean,
 ): boolean {
   if (!vendor) return false
+  const formName = normStr(form.business_name)
+  const formCategory = normStr(form.company_type)
   if (unitProfileEditable && activeStore) {
     const saved = profileFormFromStore(activeStore, vendor)
     return (
-      normStr(form.business_name) !== normStr(saved.business_name) ||
-      normStr(form.display_name) !== normStr(saved.display_name) ||
+      formName !== normStr(saved.business_name) ||
+      formCategory !== normStr(saved.company_type) ||
       normStr(form.description) !== normStr(saved.description) ||
       (form.offering_type || 'both') !== (saved.offering_type || 'both')
     )
   }
+  const savedName = normStr(vendor.business_name) || normStr(vendor.display_name)
   return (
-    normStr(form.business_name) !== normStr(vendor.business_name) ||
-    normStr(form.display_name) !== normStr(vendor.display_name) ||
+    formName !== savedName ||
+    formCategory !== profileCompanyTypeFromVendor(vendor) ||
     normStr(form.description) !== normStr(vendor.description) ||
     (form.offering_type || 'both') !== (vendor.offering_type || 'both')
   )
@@ -171,8 +193,8 @@ export function isContactSectionDirty(
 }
 
 export function isAddressSectionDirty(
-  hqForm: { street_address: string; city: string; state: string; postal_code: string },
-  unitForm: { street: string; city: string; state: string; pincode: string },
+  hqForm: { label: string; street_address: string; city: string; state: string; country: string; postal_code: string },
+  unitForm: { label: string; street: string; city: string; state: string; country: string; pincode: string },
   vendor: Vendor | null,
   activeStore: StoreRecord | undefined,
   hqEditable: boolean,
@@ -182,18 +204,22 @@ export function isAddressSectionDirty(
   if (hqEditable && vendor) {
     dirty =
       dirty ||
+      normStr(hqForm.label) !== normStr(hqAddressLabelFromVendor(vendor)) ||
       normStr(hqForm.street_address) !== normStr(vendor.street_address) ||
       normStr(hqForm.city) !== normStr(vendor.city) ||
       normStr(hqForm.state) !== normStr(vendor.state) ||
+      normStr(hqForm.country) !== normStr(vendor.country) ||
       normStr(hqForm.postal_code) !== normStr(vendor.postal_code)
   }
   if (unitEditable && activeStore) {
     const addr = activeStore.address
     dirty =
       dirty ||
+      normStr(unitForm.label) !== normStr(addr?.label) ||
       normStr(unitForm.street) !== normStr(addr?.street) ||
       normStr(unitForm.city) !== normStr(addr?.city) ||
       normStr(unitForm.state) !== normStr(addr?.state) ||
+      normStr(unitForm.country) !== normStr(addr?.country) ||
       normStr(unitForm.pincode) !== normStr(addr?.pincode)
   }
   return dirty

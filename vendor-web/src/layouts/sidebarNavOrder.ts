@@ -8,7 +8,6 @@ const LS_PLACEMENTS_V2 = 'kiterp.vendor.sidebar.nav-placements-v2'
  * (Users who customized nav before a link was added often only had it under System Configuration.)
  */
 export const NAV_PINNED_SECTION_HOME: Record<string, string> = {
-  '/business-front': 'website-management',
   '/websites': 'website-management',
   '/websites/seo': 'website-management',
   '/websites/templates': 'website-management',
@@ -21,7 +20,6 @@ export const NAV_PINNED_SECTION_HOME: Record<string, string> = {
 
 /** When pinning, insert after this sibling route when it exists in that section. */
 const NAV_PINNED_INSERT_AFTER: Record<string, string> = {
-  '/websites': '/business-front',
   '/websites/templates': '/websites',
   '/system/storefront-display': '/websites/templates',
   '/system/social-links': '/system/storefront-display',
@@ -233,7 +231,6 @@ export function reconcileNavPlacements(
 
   // Website routes always live under Website Management (avoids losing items after drag-and-drop).
   const websiteManagementOrder = [
-    '/business-front',
     '/websites',
     '/websites/templates',
     '/system/storefront-display',
@@ -294,6 +291,38 @@ export function reconcileNavPlacements(
       ...assetAccountingRoutes,
       ...list.slice(insertAt),
     ]
+  }
+
+  // Sales Management routes keep canonical grouped order.
+  const salesManagementOrder = [
+    '/sales/manager',
+    '/orders',
+    '/quotations',
+    '/bookings',
+    '/projects',
+    '/pos',
+    '/subscriptions',
+    '/sales/plans',
+    '/sales/recurring-bookings',
+    '/invoices',
+    '/memos',
+    '/coupons',
+    '/rental',
+    '/sales/properties',
+    '/sales/courses',
+    '/sales/fitness-classes',
+    '/sales/vehicles',
+    '/sales/events',
+    '/sales/coverage',
+    '/sales/sales-area',
+    '/marketplace',
+    '/sales/testimonials',
+  ]
+  const salesRoutes = [...validTos].filter((to) => home.get(to) === 'sales')
+  if (salesRoutes.length && out.sales) {
+    const ordered = salesManagementOrder.filter((to) => salesRoutes.includes(to))
+    const rest = salesRoutes.filter((to) => !ordered.includes(to))
+    out.sales = [...ordered, ...rest]
   }
 
   // Production routes always live under Production Management (avoids losing items after drag-and-drop).
@@ -434,6 +463,19 @@ export function clearSavedNavOrder(scope?: NavOrderScope | null) {
   } catch {
     /* ignore */
   }
+}
+
+/** Nav subgroups that start collapsed until the user expands them (or navigates to a child route). */
+export const DEFAULT_COLLAPSED_NAV_GROUPS: Record<string, boolean> = {
+  'Sales Management:Industry Catalogs': true,
+}
+
+export function resolveNavGroupCollapsed(
+  grpKey: string,
+  collapsedGroups: Record<string, boolean>,
+): boolean {
+  if (grpKey in collapsedGroups) return collapsedGroups[grpKey]
+  return DEFAULT_COLLAPSED_NAV_GROUPS[grpKey] ?? false
 }
 
 export { RESET_USER_NAV_ORDER_EVENT } from '@/lib/userNavOrder'

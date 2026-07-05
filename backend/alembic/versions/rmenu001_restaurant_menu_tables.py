@@ -15,7 +15,7 @@ import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
 
 revision = "rmenu001_restaurant_menu_tables"
-down_revision = "d003_merge_all_heads"
+down_revision = "rest001_restaurant_base_tables"
 branch_labels = None
 depends_on = None
 

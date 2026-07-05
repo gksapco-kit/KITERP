@@ -31,8 +31,8 @@ const SCOPE_META: Record<WebsiteScope, ScopeMeta> = {
     className: 'border-violet-200 bg-violet-50 text-violet-800',
   },
   external: {
-    label: 'External / marketing site — not tied to a store',
-    shortLabel: 'Built for External',
+    label: 'Other Use — marketing or portfolio site, not tied to a business unit',
+    shortLabel: 'Other Use',
     icon: Globe2,
     className: 'border-violet-200 bg-violet-50 text-violet-700',
   },

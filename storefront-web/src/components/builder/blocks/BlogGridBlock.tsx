@@ -9,6 +9,7 @@ import {
   CATALOG_GRID_COL_CLASS,
   readCatalogCardLayout,
 } from '@/lib/catalogCardLayout'
+import { builderSectionContainerClass, builderSectionContainerWithMax } from '@/lib/builderSectionLayout'
 import { cn, imgUrl } from '@/lib/utils'
 import { isBlockFieldHidden, resolveBlockTextField } from '@/lib/blockHiddenFields'
 
@@ -219,7 +220,7 @@ export default function BlogGridBlock({ style, props, liveItems, blockId, blockT
   }
 
   return (
-    <section className="blog-grid-section py-16 px-4 sm:px-6 lg:px-8 max-w-6xl mx-auto" aria-label={title ?? undefined}>
+    <section className={cn('blog-grid-section', builderSectionContainerWithMax('max-w-6xl'))} aria-label={title ?? undefined}>
       {showTitle && (
         <BuilderTextField
           fieldKey="title"

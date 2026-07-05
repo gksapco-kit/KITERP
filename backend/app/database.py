@@ -2215,6 +2215,7 @@ async def ensure_sales_area_tables() -> None:
         "ALTER TABLE booking ADD COLUMN IF NOT EXISTS delivery_channel_id UUID",
         "ALTER TABLE invoice ADD COLUMN IF NOT EXISTS sales_area_id UUID",
         "ALTER TABLE product ADD COLUMN IF NOT EXISTS division_id UUID",
+        "ALTER TABLE pm_project ADD COLUMN IF NOT EXISTS sales_area_id UUID",
     ]
     fk_specs = (
         ("fk_order_sales_area", '"order"', "sales_area_id", "sales_area", "SET NULL"),
@@ -2225,6 +2226,7 @@ async def ensure_sales_area_tables() -> None:
         ("fk_booking_delivery_channel", "booking", "delivery_channel_id", "delivery_channel", "SET NULL"),
         ("fk_invoice_sales_area", "invoice", "sales_area_id", "sales_area", "SET NULL"),
         ("fk_product_division", "product", "division_id", "sales_division", "SET NULL"),
+        ("fk_pm_project_sales_area", "pm_project", "sales_area_id", "sales_area", "SET NULL"),
     )
     link_index_stmts = [
         'CREATE INDEX IF NOT EXISTS ix_order_sales_area ON "order" (vendor_id, sales_area_id)',
@@ -2232,6 +2234,7 @@ async def ensure_sales_area_tables() -> None:
         "CREATE INDEX IF NOT EXISTS ix_booking_sales_area ON booking (vendor_id, sales_area_id)",
         "CREATE INDEX IF NOT EXISTS ix_invoice_sales_area ON invoice (vendor_id, sales_area_id)",
         "CREATE INDEX IF NOT EXISTS idx_product_division ON product (vendor_id, division_id)",
+        "CREATE INDEX IF NOT EXISTS ix_pm_project_sales_area ON pm_project (vendor_id, sales_area_id)",
     ]
 
     async with engine.begin() as conn:

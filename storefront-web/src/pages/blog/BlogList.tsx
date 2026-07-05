@@ -1,9 +1,10 @@
 import { useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, Navigate } from 'react-router-dom'
 import { Loader2, Newspaper, ChevronRight, Clock, Calendar, Tag, X } from 'lucide-react'
 import { useVendor } from '@/contexts/VendorContext'
 import { useTheme } from '@/contexts/ThemeContext'
 import { useBlogPosts } from '@/hooks/useStore'
+import { isVendorBlogEnabled } from '@/lib/catalogNavCapabilities'
 import type { StoreBlogPost } from '@/api/store'
 import { imgUrl } from '@/lib/utils'
 
@@ -74,7 +75,7 @@ function PostCard({ post, storePath, primaryColor }: {
 }
 
 export default function BlogList() {
-  const { storePath } = useVendor()
+  const { storePath, vendor } = useVendor()
   const theme = useTheme()
   const [activeCategory, setActiveCategory] = useState<string | null>(null)
   const [activeTag, setActiveTag] = useState<string | null>(null)
@@ -86,6 +87,10 @@ export default function BlogList() {
     category: activeCategory ?? undefined,
     tag: activeTag ?? undefined,
   })
+
+  if (!isVendorBlogEnabled(vendor?.settings)) {
+    return <Navigate to={storePath('/')} replace />
+  }
 
   const posts = data?.items ?? []
   const totalPages = data?.pages ?? 1

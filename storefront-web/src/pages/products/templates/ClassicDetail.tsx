@@ -19,6 +19,7 @@ import MediaViewer from '@/components/MediaViewer'
 import ColorSwatchPicker from '@/components/products/ColorSwatchPicker'
 import { isCombinationAvailable } from '@/lib/variantOptions'
 import type { ProductDetailTemplateProps } from './types'
+import { isDisplayFieldEnabled } from '@/lib/storefrontDisplayFields'
 import { themeUi } from '@/lib/themeColors'
 
 const catalogCard = `rounded-xl border ${themeUi.cardSurface} ${themeUi.cardBorder}`
@@ -138,6 +139,7 @@ export function ProductQuoteModal({ productId, productName, formConfig, customer
 
 export default function ClassicDetail(props: ProductDetailTemplateProps) {
   const {
+    displayFields,
     product, selectedVariant, activeVariants, hasVariants,
     setSelectedVariantId, qty, setQty, maxAddQty,
     displayPrice, displayCompare, displayCurrency, displayStock,
@@ -158,6 +160,10 @@ export default function ClassicDetail(props: ProductDetailTemplateProps) {
   } = props
   const qtyMax = maxAddQty ?? 99
 
+  const sf = displayFields
+  const showCompare = isDisplayFieldEnabled(sf, 'compare_at_price')
+  const showVariants = isDisplayFieldEnabled(sf, 'variants') && hasVariants
+
   const intervalLabel: Record<string, string> = {
     daily: 'Daily', weekly: 'Weekly', biweekly: 'Bi-Weekly', monthly: 'Monthly',
     quarterly: 'Quarterly', biannual: 'Half-Yearly', yearly: 'Yearly',
@@ -174,7 +180,7 @@ export default function ClassicDetail(props: ProductDetailTemplateProps) {
         <Link to={storePath('/')} className="hover:text-blue-600">Home</Link>
         <ChevronRight className="w-3 h-3" />
         <Link to={storePath('/products')} className="hover:text-blue-600">Products</Link>
-        {product.category && (
+        {isDisplayFieldEnabled(sf, 'category') && product.category && (
           <>
             <ChevronRight className="w-3 h-3" />
             <Link to={storePath(`/products?category=${encodeURIComponent(product.category)}`)} className="hover:text-blue-600">
@@ -196,15 +202,15 @@ export default function ClassicDetail(props: ProductDetailTemplateProps) {
             productName={product.name}
             badges={
               <div className="absolute top-3 left-3 flex flex-col gap-1.5">
-                {discount > 0 && (
+                {showCompare && discount > 0 && (
                   <span className="bg-red-500 text-white text-xs font-bold px-2.5 py-1 rounded-md shadow">-{discount}%</span>
                 )}
-                {product.is_new_arrival && (
+                {isDisplayFieldEnabled(sf, 'new_arrival_badge') && product.is_new_arrival && (
                   <span className="bg-emerald-500 text-white text-xs font-bold px-2.5 py-1 rounded-md shadow flex items-center gap-1">
                     <Zap className="w-3 h-3" /> New
                   </span>
                 )}
-                {product.is_best_seller && (
+                {isDisplayFieldEnabled(sf, 'best_seller_badge') && product.is_best_seller && (
                   <span className="bg-amber-500 text-white text-xs font-bold px-2.5 py-1 rounded-md shadow flex items-center gap-1">
                     <Award className="w-3 h-3" /> Bestseller
                   </span>
@@ -216,23 +222,23 @@ export default function ClassicDetail(props: ProductDetailTemplateProps) {
           {/* Product Info */}
           <div>
             <div className="flex items-center gap-2 flex-wrap">
-              {product.category && (
+              {isDisplayFieldEnabled(sf, 'category') && product.category && (
                 <span className="text-xs font-medium text-blue-600 bg-blue-50 px-2.5 py-0.5 rounded-full uppercase tracking-wide">{product.category}</span>
               )}
-              {product.subcategory && (
+              {isDisplayFieldEnabled(sf, 'subcategory') && product.subcategory && (
                 <span className="text-xs font-medium text-indigo-600 bg-indigo-50 px-2.5 py-0.5 rounded-full">{product.subcategory}</span>
               )}
-              {product.brand && (
+              {isDisplayFieldEnabled(sf, 'brand') && product.brand && (
                 <span className="text-xs font-medium text-gray-600 bg-gray-100 px-2.5 py-0.5 rounded-full">{product.brand}</span>
               )}
-              {displayOfferLabel && displayOnSale && (
+              {isDisplayFieldEnabled(sf, 'offer_label') && displayOfferLabel && displayOnSale && (
                 <span className="text-xs font-bold text-amber-700 bg-amber-50 px-2.5 py-0.5 rounded-full">{displayOfferLabel}</span>
               )}
             </div>
 
             <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-900 mt-2 leading-tight">{product.name}</h1>
 
-            {(product.avg_rating ?? 0) > 0 && (
+            {isDisplayFieldEnabled(sf, 'reviews') && (product.avg_rating ?? 0) > 0 && (
               <div className="mt-2 flex items-center gap-2">
                 <StarRating rating={product.avg_rating!} showValue reviewCount={product.review_count} />
               </div>
@@ -242,7 +248,7 @@ export default function ClassicDetail(props: ProductDetailTemplateProps) {
 
             {/* Price */}
             <div className="flex items-baseline gap-3 flex-wrap">
-              {discount > 0 && (
+              {showCompare && discount > 0 && (
                 <span className="bg-red-500 text-white text-sm font-bold px-2 py-0.5 rounded">-{discount}%</span>
               )}
               <span className="text-2xl sm:text-3xl font-bold text-gray-900">
@@ -255,7 +261,7 @@ export default function ClassicDetail(props: ProductDetailTemplateProps) {
                   </span>
                 )}
               </span>
-              {displayCompare && displayCompare > displayPrice && (
+              {showCompare && displayCompare && displayCompare > displayPrice && (
                 <span className="text-base text-gray-400 line-through">M.R.P.: {formatCurrency(displayCompare, displayCurrency)}</span>
               )}
             </div>
@@ -280,15 +286,14 @@ export default function ClassicDetail(props: ProductDetailTemplateProps) {
                   maxCycles={subscriptionBillingCycles}
                   allowedModes={subscriptionScheduleModes}
                   onSubscribe={(config) => (handleSubscribe ? handleSubscribe(config) : handleBuyNow())}
-                  subscribePending={subscribePending}
-                  subscribePending={addToCartPending}
+                  subscribePending={subscribePending ?? addToCartPending}
                   disabled={displayStock === 'out_of_stock'}
                 />
               </div>
             )}
 
             {/* Stock */}
-            {displayStock && (
+            {isDisplayFieldEnabled(sf, 'stock_status') && displayStock && (
               <div className="mt-3 flex items-center gap-2">
                 <span className={`inline-flex items-center gap-1 text-sm font-medium px-2.5 py-0.5 rounded-full ${
                   displayStock === 'in_stock' ? 'text-green-700 bg-green-50' :
@@ -306,7 +311,7 @@ export default function ClassicDetail(props: ProductDetailTemplateProps) {
             )}
 
             {/* Variant / Plan Selector */}
-            {hasVariants && (
+            {showVariants && (
               <div className="mt-5 space-y-3">
                 {optionRows.filter((r) => r.type === 'size').map((sizeRow) => (
                   sizeRow.type === 'size' ? (
@@ -391,7 +396,7 @@ export default function ClassicDetail(props: ProductDetailTemplateProps) {
                                 ? 'border-primary bg-accent ring-1 ring-primary/25 shadow-sm'
                                 : 'border-gray-200 hover:border-primary/40 bg-white'
                             }`}>
-                            {vDiscount > 0 && (
+                            {showCompare && vDiscount > 0 && (
                               <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs font-bold px-1.5 py-0.5 rounded-full shadow">-{vDiscount}%</span>
                             )}
                             <div className="flex items-start justify-between">
@@ -423,7 +428,7 @@ export default function ClassicDetail(props: ProductDetailTemplateProps) {
                                 )}
                               </div>
                             )}
-                            {v.compare_at_price && v.compare_at_price > v.price && (
+                            {showCompare && v.compare_at_price && v.compare_at_price > v.price && (
                               <p className="text-xs text-gray-400 line-through mt-1">{formatCurrency(v.compare_at_price, v.currency)}</p>
                             )}
                             {isSelected && (
@@ -451,12 +456,12 @@ export default function ClassicDetail(props: ProductDetailTemplateProps) {
                             className={`relative px-4 py-2.5 rounded-lg border-2 text-left transition-all min-w-[100px] ${
                               isSelected ? 'border-blue-600 bg-blue-50 ring-1 ring-blue-200' : 'border-gray-200 hover:border-gray-400 bg-white'
                             }`}>
-                            {vDiscount > 0 && (
+                            {showCompare && vDiscount > 0 && (
                               <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs font-bold px-1.5 py-0.5 rounded-full">-{vDiscount}%</span>
                             )}
                             <p className={`text-sm font-semibold ${isSelected ? 'text-blue-700' : 'text-gray-800'}`}>{v.name}</p>
                             <p className={`text-sm font-bold mt-0.5 ${isSelected ? 'text-blue-600' : 'text-gray-900'}`}>{formatCurrency(v.price, v.currency)}</p>
-                            {v.compare_at_price && v.compare_at_price > v.price && (
+                            {showCompare && v.compare_at_price && v.compare_at_price > v.price && (
                               <p className="text-xs text-gray-400 line-through">{formatCurrency(v.compare_at_price, v.currency)}</p>
                             )}
                             {v.stock_status && v.stock_status !== 'in_stock' && (
@@ -472,20 +477,37 @@ export default function ClassicDetail(props: ProductDetailTemplateProps) {
             )}
 
             {/* SKU / Barcode */}
-            {(product.sku || product.barcode || selectedVariant?.sku || selectedVariant?.barcode) && (
+            {((isDisplayFieldEnabled(sf, 'sku') && (selectedVariant?.sku || product.sku))
+              || (isDisplayFieldEnabled(sf, 'barcode') && (selectedVariant?.barcode || product.barcode))) && (
               <div className="mt-3 flex gap-4 text-xs text-gray-400">
-                {(selectedVariant?.sku || product.sku) && <span>SKU: {selectedVariant?.sku || product.sku}</span>}
-                {(selectedVariant?.barcode || product.barcode) && <span>Barcode: {selectedVariant?.barcode || product.barcode}</span>}
+                {isDisplayFieldEnabled(sf, 'sku') && (selectedVariant?.sku || product.sku) && (
+                  <span>SKU: {selectedVariant?.sku || product.sku}</span>
+                )}
+                {isDisplayFieldEnabled(sf, 'barcode') && (selectedVariant?.barcode || product.barcode) && (
+                  <span>Barcode: {selectedVariant?.barcode || product.barcode}</span>
+                )}
               </div>
             )}
 
             {/* Trust badges */}
             <div className="mt-5 grid grid-cols-3 gap-3">
               {[
-                { icon: Truck, text: product.shipping_cost ? `Shipping: ${formatCurrency(product.shipping_cost)}` : 'Free Delivery', color: 'text-blue-600 bg-blue-50' },
-                { icon: RefreshCw, text: returnDays ? `${returnDays}-Day Returns` : isReturnable === false ? 'Non-returnable' : 'Easy Returns', color: 'text-green-600 bg-green-50' },
-                { icon: ShieldCheck, text: warrantyDays ? `${warrantyDays >= 365 ? `${Math.floor(warrantyDays / 365)}Y` : `${warrantyDays}D`} Warranty` : 'Secure Buy', color: 'text-primary bg-accent' },
-              ].map((badge) => (
+                isDisplayFieldEnabled(sf, 'shipping_info') && {
+                  icon: Truck,
+                  text: product.shipping_cost ? `Shipping: ${formatCurrency(product.shipping_cost)}` : 'Free Delivery',
+                  color: 'text-blue-600 bg-blue-50',
+                },
+                isDisplayFieldEnabled(sf, 'return_policy') && {
+                  icon: RefreshCw,
+                  text: returnDays ? `${returnDays}-Day Returns` : isReturnable === false ? 'Non-returnable' : 'Easy Returns',
+                  color: 'text-green-600 bg-green-50',
+                },
+                isDisplayFieldEnabled(sf, 'warranty') && {
+                  icon: ShieldCheck,
+                  text: warrantyDays ? `${warrantyDays >= 365 ? `${Math.floor(warrantyDays / 365)}Y` : `${warrantyDays}D`} Warranty` : 'Secure Buy',
+                  color: 'text-primary bg-accent',
+                },
+              ].filter((badge): badge is { icon: typeof Truck; text: string; color: string } => Boolean(badge)).map((badge) => (
                 <div key={badge.text} className={`text-center p-2.5 rounded-lg ${badge.color}`}>
                   <badge.icon className="w-5 h-5 mx-auto mb-0.5" />
                   <p className="text-xs font-medium leading-tight">{badge.text}</p>
@@ -493,16 +515,16 @@ export default function ClassicDetail(props: ProductDetailTemplateProps) {
               ))}
             </div>
 
-            {product.short_description && (
+            {isDisplayFieldEnabled(sf, 'short_description') && product.short_description && (
               <p className="mt-4 text-sm text-gray-600 leading-relaxed">{product.short_description}</p>
             )}
-            {product.description && (
+            {isDisplayFieldEnabled(sf, 'description') && product.description && (
               <div className="mt-5">
                 <h3 className="text-sm font-bold text-gray-900 mb-2">About this item</h3>
                 <p className="text-sm text-gray-600 whitespace-pre-wrap leading-relaxed">{product.description}</p>
               </div>
             )}
-            {product.tags && product.tags.length > 0 && (
+            {isDisplayFieldEnabled(sf, 'tags') && product.tags && product.tags.length > 0 && (
               <div className="mt-4 flex flex-wrap gap-1.5">
                 {product.tags.map((tag) => (
                   <span key={tag} className="inline-flex items-center gap-1 text-xs bg-gray-100 text-gray-600 px-2.5 py-1 rounded-full">
@@ -566,7 +588,7 @@ export default function ClassicDetail(props: ProductDetailTemplateProps) {
 
       {/* Detail Cards */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-6">
-        {product.requires_shipping !== false && (
+        {isDisplayFieldEnabled(sf, 'shipping_info') && product.requires_shipping !== false && (
           <div className={`${catalogCard} p-5`}>
             <h3 className="text-sm font-bold text-gray-900 mb-3 flex items-center gap-2"><Truck className="w-4 h-4 text-blue-600" /> Shipping & Delivery</h3>
             <div className="space-y-2.5 text-sm">
@@ -575,8 +597,8 @@ export default function ClassicDetail(props: ProductDetailTemplateProps) {
               </div>
               {product.free_shipping_threshold && <div className="flex items-start gap-2"><Info className="w-4 h-4 text-blue-500 mt-0.5 shrink-0" /><span className="text-gray-500">Free on orders above {formatCurrency(product.free_shipping_threshold)}</span></div>}
               {product.shipping_class && <div className="flex items-start gap-2"><Package className="w-4 h-4 text-gray-400 mt-0.5 shrink-0" /><span className="text-gray-500 capitalize">{product.shipping_class} shipping</span></div>}
-              {product.weight_kg && <div className="flex items-start gap-2"><Ruler className="w-4 h-4 text-gray-400 mt-0.5 shrink-0" /><span className="text-gray-500">Weight: {product.weight_kg} kg</span></div>}
-              {(product.length_cm || product.width_cm || product.height_cm) && (
+              {isDisplayFieldEnabled(sf, 'weight') && product.weight_kg && <div className="flex items-start gap-2"><Ruler className="w-4 h-4 text-gray-400 mt-0.5 shrink-0" /><span className="text-gray-500">Weight: {product.weight_kg} kg</span></div>}
+              {isDisplayFieldEnabled(sf, 'dimensions') && (product.length_cm || product.width_cm || product.height_cm) && (
                 <div className="flex items-start gap-2"><Box className="w-4 h-4 text-gray-400 mt-0.5 shrink-0" />
                   <span className="text-gray-500">{[product.length_cm && `${product.length_cm}L`, product.width_cm && `${product.width_cm}W`, product.height_cm && `${product.height_cm}H`].filter(Boolean).join(' × ')} cm</span>
                 </div>
@@ -585,7 +607,7 @@ export default function ClassicDetail(props: ProductDetailTemplateProps) {
           </div>
         )}
 
-        {(returnPolicy || returnDays || isReturnable !== undefined) && (
+        {isDisplayFieldEnabled(sf, 'return_policy') && (returnPolicy || returnDays || isReturnable !== undefined) && (
           <div className={`${catalogCard} p-5`}>
             <h3 className="text-sm font-bold text-gray-900 mb-3 flex items-center gap-2"><RefreshCw className="w-4 h-4 text-green-600" /> Return Policy</h3>
             <div className="space-y-2.5 text-sm">
@@ -597,13 +619,13 @@ export default function ClassicDetail(props: ProductDetailTemplateProps) {
                 )}
               </div>
               {returnPolicy && <p className="text-gray-500 text-xs leading-relaxed">{returnPolicy}</p>}
-              {returnConditions && <div className="flex items-start gap-2"><Info className="w-4 h-4 text-blue-500 mt-0.5 shrink-0" /><span className="text-gray-500 text-xs">{returnConditions}</span></div>}
-              {refundPolicy && <div className="flex items-start gap-2"><Check className="w-4 h-4 text-green-500 mt-0.5 shrink-0" /><span className="text-gray-500 capitalize">{refundPolicy.replace(/_/g, ' ')}</span></div>}
+              {isDisplayFieldEnabled(sf, 'return_conditions') && returnConditions && <div className="flex items-start gap-2"><Info className="w-4 h-4 text-blue-500 mt-0.5 shrink-0" /><span className="text-gray-500 text-xs">{returnConditions}</span></div>}
+              {isDisplayFieldEnabled(sf, 'refund_policy') && refundPolicy && <div className="flex items-start gap-2"><Check className="w-4 h-4 text-green-500 mt-0.5 shrink-0" /><span className="text-gray-500 capitalize">{refundPolicy.replace(/_/g, ' ')}</span></div>}
             </div>
           </div>
         )}
 
-        {(warrantyType || warrantyDays) && (
+        {isDisplayFieldEnabled(sf, 'warranty') && (warrantyType || warrantyDays) && (
           <div className={`${catalogCard} p-5`}>
             <h3 className="text-sm font-bold text-gray-900 mb-3 flex items-center gap-2"><ShieldCheck className="w-4 h-4 text-primary" /> Warranty</h3>
             <div className="space-y-2.5 text-sm">
@@ -619,7 +641,7 @@ export default function ClassicDetail(props: ProductDetailTemplateProps) {
       </div>
 
       {/* Variant / Plan Comparison Table */}
-      {hasVariants && activeVariants.length > 1 && (
+      {showVariants && activeVariants.length > 1 && (
         <div className={`${catalogCard} p-4 sm:p-6 lg:p-8 mt-6 overflow-x-auto`}>
           <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
             {isSubscription ? <><Repeat className="w-5 h-5 text-primary" /> Compare Plans</> : <><Box className="w-5 h-5" /> Available Options</>}
@@ -630,7 +652,7 @@ export default function ClassicDetail(props: ProductDetailTemplateProps) {
                 <th className="pb-3 font-semibold text-gray-700 pr-4">{isSubscription ? 'Plan' : 'Option'}</th>
                 {isSubscription && <th className="pb-3 font-semibold text-gray-700 pr-4">Billing</th>}
                 <th className="pb-3 font-semibold text-gray-700 pr-4">Price</th>
-                {activeVariants.some(v => v.compare_at_price) && <th className="pb-3 font-semibold text-gray-700 pr-4">M.R.P.</th>}
+                {showCompare && activeVariants.some(v => v.compare_at_price) && <th className="pb-3 font-semibold text-gray-700 pr-4">M.R.P.</th>}
                 {isSubscription && activeVariants.some(v => v.subscription_trial_days) && (
                   <th className="pb-3 font-semibold text-gray-700 pr-4">Trial</th>
                 )}
@@ -668,7 +690,7 @@ export default function ClassicDetail(props: ProductDetailTemplateProps) {
                       <span className="font-bold text-gray-900">{formatCurrency(v.price, v.currency)}</span>
                       {isSubscription && <span className="text-xs text-gray-400 ml-0.5">{priceUnit}</span>}
                     </td>
-                    {activeVariants.some(av => av.compare_at_price) && (
+                    {showCompare && activeVariants.some(av => av.compare_at_price) && (
                       <td className="py-3 pr-4 text-gray-400 line-through">{v.compare_at_price ? formatCurrency(v.compare_at_price, v.currency) : '—'}</td>
                     )}
                     {isSubscription && activeVariants.some(av => av.subscription_trial_days) && (
@@ -715,7 +737,7 @@ export default function ClassicDetail(props: ProductDetailTemplateProps) {
         </div>
       )}
 
-      {specs && (
+      {isDisplayFieldEnabled(sf, 'specifications') && specs && (
         <div className={`${catalogCard} p-4 sm:p-6 lg:p-8 mt-6`}>
           <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2"><Box className="w-5 h-5" /> Specifications</h3>
           <div className="divide-y">
@@ -734,9 +756,11 @@ export default function ClassicDetail(props: ProductDetailTemplateProps) {
       <MerchProductGrid title="You May Also Like" subtitle="Upgrade your experience"
         products={upsellProducts} storePath={storePath} />
 
+      {isDisplayFieldEnabled(sf, 'reviews') && (
       <div className={`${catalogCard} p-4 sm:p-6 lg:p-8 mt-6`}>
         <ReviewSection reviewType="product" targetId={product.id} />
       </div>
+      )}
 
     </div>
   )

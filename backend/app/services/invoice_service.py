@@ -349,6 +349,7 @@ class InvoiceService:
         size: int = 20,
         store_id: str | UUID = None,
         search: str = None,
+        sales_area_id: str | UUID = None,
     ):
         conditions = [Invoice.vendor_id == vendor_id]
         if invoice_type:
@@ -359,6 +360,8 @@ class InvoiceService:
             conditions.append(Invoice.status == status)
         if store_id:
             conditions.append(Invoice.store_id == (store_id if isinstance(store_id, UUID) else UUID(str(store_id))))
+        if sales_area_id:
+            conditions.append(Invoice.sales_area_id == (sales_area_id if isinstance(sales_area_id, UUID) else UUID(str(sales_area_id))))
         if search and search.strip():
             term = f"%{search.strip()}%"
             conditions.append(

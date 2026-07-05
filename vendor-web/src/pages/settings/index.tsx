@@ -6,7 +6,6 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { useVendorStore } from '@/stores/vendorStore'
-import { useAuthStore } from '@/stores/authStore'
 import { useUpdateVendor, useUpdateStore, useStores, vendorKeys } from '@/hooks/useVendor'
 import type { StoreRecord } from '@/api/vendor'
 import { useBusinessUnitScopeLabel, type BusinessUnitScopeMode } from '@/hooks/useBusinessUnitScope'
@@ -33,7 +32,7 @@ import {
   Clock, ChevronDown, ChevronUp, Building2, Phone,
   Camera, ImageIcon, X, Eye, Copy, ExternalLink, ShoppingBag,
   ChevronRight, Check,
-  Info, CheckCircle2, Landmark, HelpCircle, Lock, Building, Plus,
+  Info, CheckCircle2, Landmark, Lock, Building, Plus,
   Link2, AlertCircle, BadgeCheck, Mail, Star, Server, ListChecks, ShieldCheck,
 } from 'lucide-react'
 import {
@@ -43,10 +42,10 @@ import {
 import { toast } from 'sonner'
 import { extractApiError, GSTIN_FORMAT_MSG } from '@/lib/errorMessages'
 import { cn } from '@/lib/utils'
-import { companyTypeLabel } from '@/data/companyTypes'
 import { BUSINESS_UNIT_STORE_LABEL } from '@/lib/businessUnitLabels'
 import { getBusinessUnitVisual } from '@/lib/businessUnitVisuals'
 import { CollapsibleSection } from '@/components/common/CollapsibleSection'
+import { CompanyTypeDropdown } from '@/components/common/CompanyTypeDropdown'
 import { DisabledOptionCard } from '@/components/common/DisabledOptionCard'
 import {
   galleryImageToFile,
@@ -79,6 +78,8 @@ import {
   useSettingsSectionDirty,
 } from '@/pages/settings/SettingsDirtyContext'
 import {
+  HQ_ADDRESS_LABEL_KEY,
+  hqAddressLabelFromVendor,
   isAddressSectionDirty,
   isBusinessHoursSectionDirty,
   isContactSectionDirty,
@@ -87,6 +88,7 @@ import {
   isOrderAcceptanceSectionDirty,
   isProfileSectionDirty,
   profileFormFromStore,
+  profileCompanyTypeFromVendor,
   isTaxSectionDirty,
   supportEmailsFromStore,
   supportEmailsFromVendor,
@@ -186,7 +188,7 @@ function computeSettingsCompletedSections(
   const unitAddr = activeStore?.address
   const hasUnitAddress = Boolean(unitAddr?.street?.trim() && unitAddr?.city?.trim())
   const hasHqAddress = Boolean(vendor.street_address?.trim() && vendor.city?.trim())
-  if (allBusinessUnitsMode ? hasHqAddress : hasUnitAddress || hasHqAddress) {
+  if (hasUnitAddress || hasHqAddress) {
     done.add('address')
   }
 
@@ -236,7 +238,6 @@ function SettingsPageBody() {
   const vendor = useVendorStore((s) => s.vendor)
   const selectedStore = useVendorStore((s) => s.selectedStore)
   const setSelectedStore = useVendorStore((s) => s.setSelectedStore)
-  const { user } = useAuthStore()
   const { data: storesData } = useStores()
   const stores = [...(storesData?.stores ?? [])].sort((a, b) => {
     const an = parseInt(a.code ?? '', 10)
@@ -255,6 +256,8 @@ function SettingsPageBody() {
     : stores.length === 1
       ? stores[0]
       : undefined
+  const addressStore =
+    activeStoreRecord ?? stores.find((s) => s.is_default) ?? stores[0]
   const showUnitDetailInSettings = !allBusinessUnitsMode && Boolean(activeStoreRecord)
   const showUnitsZone = allBusinessUnitsMode || (showUnitDetailInSettings && Boolean(activeStoreRecord))
   const [searchParams] = useSearchParams()
@@ -449,23 +452,6 @@ function SettingsPageBody() {
     return () => window.removeEventListener(APP_SAVE_REQUEST_EVENT, handler)
   }, [openSection, sectionParam, openAndScrollTo])
 
-  const showSupportAuditLink =
-    !!vendor?.id &&
-    !!user?.vendor_role?.vendor_id &&
-    user.vendor_role.vendor_id === vendor.id &&
-    (user.vendor_role.role === 'owner' || user.vendor_role.role === 'platform_staff')
-
-  const supportAuditChip = showSupportAuditLink ? (
-    <Link
-      to="/settings/support-activity"
-      className="inline-flex h-6 shrink-0 items-center gap-0.5 rounded-full border border-blue-200/80 bg-blue-50/60 px-1.5 text-[0.65rem] font-medium text-blue-800 hover:bg-blue-100/80 dark:border-blue-900 dark:bg-blue-950/30 dark:text-blue-200"
-    >
-      <HelpCircle className="h-2.5 w-2.5 shrink-0" />
-      <span className="hidden sm:inline">Support audit</span>
-      <span className="sm:hidden">Audit</span>
-    </Link>
-  ) : null
-
   const statusChip = (
     <div
       className="flex h-6 shrink-0 items-center gap-1 rounded-full border border-border bg-muted/40 px-1.5 text-[0.65rem] text-muted-foreground"
@@ -525,7 +511,6 @@ function SettingsPageBody() {
               <span className="hidden sm:inline">External Domain</span>
               <span className="sm:hidden">Domain</span>
             </button>
-            {supportAuditChip}
             {statusChip}
           </div>
         </div>
@@ -717,9 +702,9 @@ function SettingsPageBody() {
           <div id="form-section-address" className={formDisplayCompact.scrollMarginView}>
             <AddressSection
               vendor={vendor}
-              activeStore={activeStoreRecord}
-              hqEditable={allBusinessUnitsMode}
-              unitEditable={!allBusinessUnitsMode && Boolean(activeStoreRecord)}
+              activeStore={addressStore}
+              hqEditable={Boolean(vendor)}
+              unitEditable={Boolean(addressStore)}
               open={openSection === 'address'}
               toggle={() => toggleSection('address')}
               onSaveVendor={updateVendor}
@@ -870,57 +855,6 @@ function storeExtraBannersList(settings: Record<string, unknown> | undefined): s
   return raw.filter((x): x is string => typeof x === 'string' && x.trim().length > 0)
 }
 
-/** Ignore vendor signup default — not a real business category label. */
-function normalizeBusinessCategorySource(raw: string | undefined): string {
-  const v = (raw || '').trim()
-  if (!v || v.toLowerCase() === 'individual') return ''
-  return v
-}
-
-function resolveProfileBusinessCategory(
-  vendor: { business_type?: string } | null | undefined,
-  activeStore: StoreRecord | undefined,
-  storeSettings: Record<string, unknown>,
-  allStores: StoreRecord[] | undefined,
-): { label: string; hint: string } {
-  const fromActiveUnit = normalizeBusinessCategorySource(storeSettingStr(storeSettings, 'company_type'))
-  if (fromActiveUnit) {
-    return {
-      label: companyTypeLabel(fromActiveUnit),
-      hint: activeStore
-        ? `Category selected when ${activeStore.name || 'this business unit'} was created.`
-        : 'Category selected when this business unit was created.',
-    }
-  }
-
-  const stores = allStores ?? []
-  const fallbackStore = activeStore ?? stores.find((s) => s.is_default) ?? stores[0]
-  const fromFallbackUnit = normalizeBusinessCategorySource(
-    storeSettingStr(fallbackStore?.settings as Record<string, unknown> | undefined, 'company_type'),
-  )
-  if (fromFallbackUnit) {
-    return {
-      label: companyTypeLabel(fromFallbackUnit),
-      hint: fallbackStore?.name
-        ? `Category from business unit “${fallbackStore.name}”. Select a unit in the top bar to see its own category.`
-        : 'Category from your business unit setup.',
-    }
-  }
-
-  const fromVendor = normalizeBusinessCategorySource(vendor?.business_type)
-  if (fromVendor) {
-    return {
-      label: companyTypeLabel(fromVendor),
-      hint: 'Industry type from account registration. Set per business unit when creating a branch.',
-    }
-  }
-
-  return {
-    label: '—',
-    hint: 'Choose a category when creating a business unit, or during signup.',
-  }
-}
-
 function ProfileSection({ vendor, activeStore: activeStoreProp, unitProfileEditable, unitBrandingEditable, showVendorBranding = true, open, toggle, onSave }: ProfileSectionProps) {
   const qc = useQueryClient()
   const setVendor = useVendorStore((s) => s.setVendor)
@@ -935,6 +869,7 @@ function ProfileSection({ vendor, activeStore: activeStoreProp, unitProfileEdita
     display_name: '',
     description: '',
     offering_type: 'both' as string,
+    company_type: '',
   })
   const [logoUploading, setLogoUploading] = useState(false)
   const [bannerUploading, setBannerUploading] = useState(false)
@@ -954,11 +889,13 @@ function ProfileSection({ vendor, activeStore: activeStoreProp, unitProfileEdita
       return
     }
     if (vendor) {
+      const name = vendor.business_name?.trim() || vendor.display_name?.trim() || ''
       setForm({
-        business_name: vendor.business_name || '',
-        display_name: vendor.display_name || '',
+        business_name: name,
+        display_name: name,
         description: vendor.description || '',
         offering_type: vendor.offering_type || 'both',
+        company_type: profileCompanyTypeFromVendor(vendor),
       })
       setProfileHydrated(true)
       return
@@ -979,13 +916,16 @@ function ProfileSection({ vendor, activeStore: activeStoreProp, unitProfileEdita
       profileSavingRef.current = true
       setProfileSaving(true)
       try {
+        const trimmedName = form.business_name.trim()
+        const trimmedCategory = form.company_type.trim()
         const settings = {
           ...storeSettings,
-          display_name: form.display_name.trim() || undefined,
+          display_name: trimmedName || undefined,
           offering_type: form.offering_type,
+          company_type: trimmedCategory || undefined,
         }
         const { store } = await vendorApi.updateStore(activeStore.id, {
-          name: form.business_name.trim() || activeStore.name,
+          name: trimmedName || activeStore.name,
           description: form.description.trim() || undefined,
           settings,
         })
@@ -1015,7 +955,13 @@ function ProfileSection({ vendor, activeStore: activeStoreProp, unitProfileEdita
       }
       return
     }
-    onSave.mutate({ ...form, offering_type: form.offering_type as 'products' | 'services' | 'both' })
+    onSave.mutate({
+      business_name: form.business_name.trim(),
+      display_name: form.business_name.trim(),
+      description: form.description.trim() || undefined,
+      business_type: form.company_type.trim() || undefined,
+      offering_type: form.offering_type as 'products' | 'services' | 'both',
+    })
   }
 
   const isDirty = useMemo(
@@ -1121,10 +1067,6 @@ function ProfileSection({ vendor, activeStore: activeStoreProp, unitProfileEdita
     : (vendor?.theme_config as { extra_banners?: string[] } | undefined)?.extra_banners ?? []
 
   const unitVisual = unitBrandingEditable && activeStore ? getBusinessUnitVisual(activeStore, vendor, 'per_unit') : null
-  const businessCategory = useMemo(
-    () => resolveProfileBusinessCategory(vendor, activeStore, storeSettings, storesData?.stores),
-    [vendor, activeStore, storeSettings, storesData?.stores],
-  )
   const displayLogoUrl = unitBrandingEditable
     ? (unitVisual?.logoUrl ?? '')
     : (vendor?.logo_url ? resolveBrandingImageUrl(vendor.logo_url) : '')
@@ -1555,34 +1497,29 @@ function ProfileSection({ vendor, activeStore: activeStoreProp, unitProfileEdita
           </div>
         )}
 
-        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
           <div>
             <Label className="mb-1 block text-xs font-medium">Business name</Label>
             <Input
               className="h-8 text-sm"
               value={form.business_name}
-              onChange={(e) => setForm({ ...form, business_name: e.target.value })}
+              onChange={(e) => {
+                const name = e.target.value
+                setForm({ ...form, business_name: name, display_name: name })
+              }}
+              placeholder="Your business or brand name"
               minLength={2}
               maxLength={255}
             />
           </div>
           <div>
-            <Label className="mb-1 block text-xs font-medium">Brand name</Label>
-            <Input
-              className="h-8 text-sm"
-              value={form.display_name}
-              onChange={(e) => setForm({ ...form, display_name: e.target.value })}
+            <CompanyTypeDropdown
+              label="Business category"
+              value={form.company_type}
+              onChange={(company_type) => setForm({ ...form, company_type })}
+              placeholder="Select business category…"
+              className="[&>button]:h-8 [&>button]:min-h-8 [&>button]:rounded-md [&>button]:text-sm"
             />
-          </div>
-          <div>
-            <Label className="mb-1 block text-xs font-medium text-muted-foreground">Business category</Label>
-            <div
-              className="flex h-8 w-full items-center rounded-md border border-border bg-muted/60 px-2.5 text-sm text-muted-foreground"
-              aria-readonly="true"
-              title={businessCategory.hint}
-            >
-              <span className="truncate">{businessCategory.label}</span>
-            </div>
           </div>
           <div>
             <Label className="mb-1 block text-xs font-medium">Offering type</Label>
@@ -1598,7 +1535,7 @@ function ProfileSection({ vendor, activeStore: activeStoreProp, unitProfileEdita
 
         <div>
           <div className="mb-1 flex items-center justify-between gap-2">
-            <Label className="text-xs font-medium">Description</Label>
+            <Label className="text-xs font-medium">Tell about your business</Label>
             <span className="text-xs tabular-nums text-muted-foreground">{form.description.length}/2000</span>
           </div>
           <textarea
@@ -1869,6 +1806,7 @@ type AddressFieldValues = {
   street: string
   city: string
   state: string
+  country: string
   postal: string
 }
 
@@ -1911,35 +1849,50 @@ function UniformAddressFields({
             className="h-8 text-sm"
           />
         </div>
-      </div>
-      <div className="space-y-1">
-        <Label className="text-xs font-medium text-muted-foreground">Postal code</Label>
-        <Input
-          value={values.postal}
-          onChange={(e) => onChange({ postal: e.target.value })}
-          placeholder="500001"
-          className="h-8 text-sm"
-        />
+        <div className="space-y-1">
+          <Label className="text-xs font-medium text-muted-foreground">Country</Label>
+          <Input
+            value={values.country}
+            onChange={(e) => onChange({ country: e.target.value })}
+            placeholder="India"
+            className="h-8 text-sm"
+          />
+        </div>
+        <div className="space-y-1">
+          <Label className="text-xs font-medium text-muted-foreground">Postal code</Label>
+          <Input
+            value={values.postal}
+            onChange={(e) => onChange({ postal: e.target.value })}
+            placeholder="500001"
+            className="h-8 text-sm"
+          />
+        </div>
       </div>
     </div>
   )
 }
 
 function AddressPanelShell({
-  title,
+  name,
+  onNameChange,
+  namePlaceholder,
   icon: Icon,
   hint,
   editable,
   readOnlyMessage,
+  onDelete,
   children,
   onSubmit,
   saving,
 }: {
-  title: string
+  name: string
+  onNameChange: (name: string) => void
+  namePlaceholder: string
   icon: React.ElementType
-  hint: string
+  hint?: string
   editable: boolean
   readOnlyMessage?: string
+  onDelete?: () => void
   children: React.ReactNode
   onSubmit: (e: React.FormEvent) => void
   saving: boolean
@@ -1948,32 +1901,55 @@ function AddressPanelShell({
     <form
       onSubmit={onSubmit}
       className={cn(
-        'flex h-full flex-col rounded-lg border border-border bg-background',
+        'flex flex-col rounded-lg border border-border bg-background',
         !editable && 'opacity-[0.98]',
       )}
     >
-      <div className="flex items-start gap-2 border-b border-border px-2.5 py-2">
-        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary">
+      <div className="flex items-start gap-2 border-b border-border px-2.5 py-2.5">
+        <span className="mt-5 flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary">
           <Icon className="h-3.5 w-3.5" />
         </span>
-        <div className="min-w-0 flex-1">
-          <p className="text-xs font-medium text-foreground">{title}</p>
-          <p className="text-xs leading-snug text-muted-foreground">{hint}</p>
+        <div className="min-w-0 flex-1 space-y-1">
+          <div className="space-y-1">
+            <Label className="text-xs font-medium text-muted-foreground">Address name</Label>
+            <Input
+              value={name}
+              onChange={(e) => onNameChange(e.target.value)}
+              placeholder={namePlaceholder}
+              disabled={!editable}
+              className="h-8 text-sm disabled:opacity-100"
+            />
+          </div>
+          {hint ? <p className="text-xs leading-snug text-muted-foreground">{hint}</p> : null}
         </div>
-        {!editable ? (
-          <span className="inline-flex items-center gap-0.5 rounded-full bg-muted px-1.5 py-0.5 text-xs font-medium text-muted-foreground">
-            <Lock className="h-2.5 w-2.5" />
-            View only
-          </span>
-        ) : null}
+        <div className="flex shrink-0 items-start gap-1">
+          {onDelete && editable ? (
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="mt-4 h-7 w-7 text-muted-foreground hover:text-destructive"
+              aria-label="Remove address"
+              onClick={onDelete}
+            >
+              <X className="h-4 w-4" />
+            </Button>
+          ) : null}
+          {!editable ? (
+            <span className="inline-flex items-center gap-0.5 rounded-full bg-muted px-1.5 py-0.5 text-xs font-medium text-muted-foreground">
+              <Lock className="h-2.5 w-2.5" />
+              View only
+            </span>
+          ) : null}
+        </div>
       </div>
-      <div className="flex flex-1 flex-col gap-2 p-2.5">
+      <div className="flex flex-col gap-2 p-2.5">
         {!editable && readOnlyMessage ? <ReadOnlyBanner message={readOnlyMessage} /> : null}
         <fieldset disabled={!editable} className="contents [&_input]:disabled:cursor-default [&_input]:disabled:opacity-100">
           {children}
         </fieldset>
         {editable ? (
-          <div className="mt-auto flex justify-end pt-0.5">
+          <div className="flex justify-end pt-0.5">
             <SaveButton loading={saving} compact />
           </div>
         ) : null}
@@ -2003,29 +1979,45 @@ function AddressSection({
 }: AddressSectionProps) {
   const updateStore = useUpdateStore()
 
+  const defaultUnitLabel = `${BUSINESS_UNIT_STORE_LABEL} address`
+  const defaultHqLabel = 'Headquarters (HQ)'
+
   const [hqForm, setHqForm] = useState({
+    label: '',
     street_address: '',
     city: '',
     state: '',
+    country: '',
     postal_code: '',
   })
   const [unitForm, setUnitForm] = useState({
+    label: '',
     street: '',
     city: '',
     state: '',
+    country: '',
     pincode: '',
   })
+  const [showExtraAddress, setShowExtraAddress] = useState(false)
   const hqSavingRef = useRef(false)
   const unitSavingRef = useRef(false)
   const [hqHydrated, setHqHydrated] = useState(false)
   const [unitHydrated, setUnitHydrated] = useState(false)
 
+  const hasUnitAddress = unitEditable && Boolean(activeStore)
+  const hasHqAddress = hqEditable && Boolean(vendor)
+  const showUnitFirst = hasUnitAddress
+  const secondaryIsHq = showUnitFirst && hasHqAddress
+  const secondaryIsUnit = !showUnitFirst && hasUnitAddress && hasHqAddress
+
   useLayoutEffect(() => {
     if (vendor && !hqSavingRef.current) {
       setHqForm({
+        label: hqAddressLabelFromVendor(vendor),
         street_address: vendor.street_address || '',
         city: vendor.city || '',
         state: vendor.state || '',
+        country: vendor.country || '',
         postal_code: vendor.postal_code || '',
       })
       setHqHydrated(true)
@@ -2037,30 +2029,46 @@ function AddressSection({
   useLayoutEffect(() => {
     if (unitSavingRef.current) return
     if (!activeStore) {
-      setUnitForm({ street: '', city: '', state: '', pincode: '' })
+      setUnitForm({ label: '', street: '', city: '', state: '', country: '', pincode: '' })
       setUnitHydrated(false)
       return
     }
     const addr = activeStore.address
     setUnitForm({
+      label: addr?.label?.trim() ?? '',
       street: addr?.street ?? '',
       city: addr?.city ?? '',
       state: addr?.state ?? '',
+      country: addr?.country ?? '',
       pincode: addr?.pincode ?? '',
     })
     setUnitHydrated(true)
-  }, [activeStore?.id, activeStore?.address?.street, activeStore?.address?.city, activeStore?.address?.state, activeStore?.address?.pincode])
+  }, [
+    activeStore?.id,
+    activeStore?.address?.label,
+    activeStore?.address?.street,
+    activeStore?.address?.city,
+    activeStore?.address?.state,
+    activeStore?.address?.country,
+    activeStore?.address?.pincode,
+  ])
 
   const handleHqSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-    if (!hqEditable) return
+    if (!hqEditable || !vendor) return
     hqSavingRef.current = true
+    const trimmedLabel = hqForm.label.trim()
     onSaveVendor.mutate(
       {
         street_address: hqForm.street_address || undefined,
         city: hqForm.city || undefined,
         state: hqForm.state || undefined,
+        country: hqForm.country || undefined,
         postal_code: hqForm.postal_code || undefined,
+        settings: {
+          ...(vendor.settings ?? {}),
+          [HQ_ADDRESS_LABEL_KEY]: trimmedLabel || undefined,
+        },
       } as Partial<Vendor>,
       { onSettled: () => { hqSavingRef.current = false } },
     )
@@ -2070,6 +2078,7 @@ function AddressSection({
     e.preventDefault()
     if (!unitEditable || !activeStore) return
     unitSavingRef.current = true
+    const trimmedLabel = unitForm.label.trim()
     updateStore.mutate(
       {
         id: activeStore.id,
@@ -2079,7 +2088,8 @@ function AddressSection({
             city: unitForm.city || undefined,
             state: unitForm.state || undefined,
             pincode: unitForm.pincode || undefined,
-            country: activeStore.address?.country || 'India',
+            country: unitForm.country || undefined,
+            label: trimmedLabel || undefined,
           },
         },
       },
@@ -2087,9 +2097,82 @@ function AddressSection({
     )
   }
 
-  const unitHint = unitEditable
-    ? `Location for ${activeStore?.name ?? 'this unit'}`
-    : `Select a ${BUSINESS_UNIT_STORE_LABEL} in the top bar to edit`
+  const emptyHqForm = () => ({
+    label: '',
+    street_address: '',
+    city: '',
+    state: '',
+    country: '',
+    postal_code: '',
+  })
+
+  const emptyUnitForm = () => ({
+    label: '',
+    street: '',
+    city: '',
+    state: '',
+    country: '',
+    pincode: '',
+  })
+
+  const hasSavedHqAddress = Boolean(
+    vendor &&
+      (hqAddressLabelFromVendor(vendor) ||
+        vendor.street_address?.trim() ||
+        vendor.city?.trim() ||
+        vendor.state?.trim() ||
+        vendor.country?.trim() ||
+        vendor.postal_code?.trim()),
+  )
+
+  const hasSavedUnitAddress = Boolean(
+    activeStore &&
+      (activeStore.address?.label?.trim() ||
+        activeStore.address?.street?.trim() ||
+        activeStore.address?.city?.trim() ||
+        activeStore.address?.state?.trim() ||
+        activeStore.address?.country?.trim() ||
+        activeStore.address?.pincode?.trim()),
+  )
+
+  const handleDeleteHq = () => {
+    if (!hqEditable || !vendor) return
+    setShowExtraAddress(false)
+    setHqForm(emptyHqForm())
+    if (!hasSavedHqAddress) return
+    hqSavingRef.current = true
+    const { [HQ_ADDRESS_LABEL_KEY]: _removed, ...restSettings } = (vendor.settings ?? {}) as Record<string, unknown>
+    onSaveVendor.mutate(
+      {
+        street_address: null,
+        city: null,
+        state: null,
+        country: null,
+        postal_code: null,
+        settings: restSettings,
+      } as Partial<Vendor>,
+      { onSettled: () => { hqSavingRef.current = false } },
+    )
+  }
+
+  const handleDeleteUnit = () => {
+    if (!unitEditable || !activeStore) return
+    setShowExtraAddress(false)
+    setUnitForm(emptyUnitForm())
+    if (!hasSavedUnitAddress) return
+    unitSavingRef.current = true
+    updateStore.mutate(
+      {
+        id: activeStore.id,
+        data: { address: {} },
+      },
+      { onSettled: () => { unitSavingRef.current = false } },
+    )
+  }
+
+  const unitHint = activeStore
+    ? `Location for ${activeStore.name ?? 'this unit'}`
+    : `Add a ${BUSINESS_UNIT_STORE_LABEL} to set a branch address`
 
   const isDirty = useMemo(
     () => isAddressSectionDirty(hqForm, unitForm, vendor, activeStore, hqEditable, unitEditable),
@@ -2098,65 +2181,98 @@ function AddressSection({
   const addressReady = (hqEditable ? hqHydrated : true) && (unitEditable ? unitHydrated : true)
   useSettingsSectionDirty('address', isDirty, addressReady)
 
+  const renderUnitPanel = (deletable: boolean) =>
+    hasUnitAddress ? (
+      <AddressPanelShell
+        name={unitForm.label}
+        onNameChange={(label) => setUnitForm({ ...unitForm, label })}
+        namePlaceholder={defaultUnitLabel}
+        icon={Building}
+        hint={unitHint}
+        editable={unitEditable}
+        onDelete={deletable ? handleDeleteUnit : undefined}
+        onSubmit={handleUnitSubmit}
+        saving={updateStore.isPending}
+      >
+        <UniformAddressFields
+          values={{
+            street: unitForm.street,
+            city: unitForm.city,
+            state: unitForm.state,
+            country: unitForm.country,
+            postal: unitForm.pincode,
+          }}
+          onChange={(patch) =>
+            setUnitForm({
+              ...unitForm,
+              street: patch.street ?? unitForm.street,
+              city: patch.city ?? unitForm.city,
+              state: patch.state ?? unitForm.state,
+              country: patch.country ?? unitForm.country,
+              pincode: patch.postal ?? unitForm.pincode,
+            })
+          }
+        />
+      </AddressPanelShell>
+    ) : null
+
+  const renderHqPanel = (deletable: boolean) =>
+    hasHqAddress ? (
+      <AddressPanelShell
+        name={hqForm.label}
+        onNameChange={(label) => setHqForm({ ...hqForm, label })}
+        namePlaceholder={defaultHqLabel}
+        icon={MapPin}
+        hint="Legal / service location for your business"
+        editable={hqEditable}
+        onDelete={deletable ? handleDeleteHq : undefined}
+        onSubmit={handleHqSubmit}
+        saving={onSaveVendor.isPending}
+      >
+        <UniformAddressFields
+          values={{
+            street: hqForm.street_address,
+            city: hqForm.city,
+            state: hqForm.state,
+            country: hqForm.country,
+            postal: hqForm.postal_code,
+          }}
+          onChange={(patch) =>
+            setHqForm({
+              ...hqForm,
+              street_address: patch.street ?? hqForm.street_address,
+              city: patch.city ?? hqForm.city,
+              state: patch.state ?? hqForm.state,
+              country: patch.country ?? hqForm.country,
+              postal_code: patch.postal ?? hqForm.postal_code,
+            })
+          }
+          streetPlaceholder="123 Main Street, Suite 100"
+        />
+      </AddressPanelShell>
+    ) : null
+
+  const primaryPanel = showUnitFirst ? renderUnitPanel(false) : renderHqPanel(false)
+  const secondaryPanel = secondaryIsHq ? renderHqPanel(true) : secondaryIsUnit ? renderUnitPanel(true) : null
+  const canAddMore = Boolean(secondaryPanel) && !showExtraAddress
+
   return (
     <SectionWrapper title="Addresses" helpText="Branch location and registered HQ address" icon={MapPin} open={open} toggle={toggle}>
-      <div className="grid grid-cols-1 gap-3 pt-2 lg:grid-cols-2 lg:items-stretch">
-        <AddressPanelShell
-          title={`${BUSINESS_UNIT_STORE_LABEL} address`}
-          icon={Building}
-          hint={unitHint}
-          editable={unitEditable}
-          readOnlyMessage={`Choose a specific ${BUSINESS_UNIT_STORE_LABEL} in the top bar to update its address.`}
-          onSubmit={handleUnitSubmit}
-          saving={updateStore.isPending}
-        >
-          <UniformAddressFields
-            values={{
-              street: unitForm.street,
-              city: unitForm.city,
-              state: unitForm.state,
-              postal: unitForm.pincode,
-            }}
-            onChange={(patch) =>
-              setUnitForm({
-                ...unitForm,
-                street: patch.street ?? unitForm.street,
-                city: patch.city ?? unitForm.city,
-                state: patch.state ?? unitForm.state,
-                pincode: patch.postal ?? unitForm.pincode,
-              })
-            }
-          />
-        </AddressPanelShell>
-
-        <AddressPanelShell
-          title="Headquarters (HQ)"
-          icon={MapPin}
-          hint={`All ${BUSINESS_UNIT_STORE_LABEL} — legal / service location (headquarters)`}
-          editable={hqEditable}
-          readOnlyMessage={`Switch to All ${BUSINESS_UNIT_STORE_LABEL} in the top bar to edit the HQ address.`}
-          onSubmit={handleHqSubmit}
-          saving={onSaveVendor.isPending}
-        >
-          <UniformAddressFields
-            values={{
-              street: hqForm.street_address,
-              city: hqForm.city,
-              state: hqForm.state,
-              postal: hqForm.postal_code,
-            }}
-            onChange={(patch) =>
-              setHqForm({
-                ...hqForm,
-                street_address: patch.street ?? hqForm.street_address,
-                city: patch.city ?? hqForm.city,
-                state: patch.state ?? hqForm.state,
-                postal_code: patch.postal ?? hqForm.postal_code,
-              })
-            }
-            streetPlaceholder="123 Main Street, Suite 100"
-          />
-        </AddressPanelShell>
+      <div className="space-y-3 pt-2">
+        {primaryPanel}
+        {showExtraAddress && secondaryPanel ? secondaryPanel : null}
+        {canAddMore ? (
+          <Button
+            type="button"
+            variant="link"
+            size="sm"
+            className="h-auto gap-1 px-0 text-blue-600"
+            onClick={() => setShowExtraAddress(true)}
+          >
+            <Plus className="h-3.5 w-3.5" />
+            Add more address
+          </Button>
+        ) : null}
       </div>
     </SectionWrapper>
   )

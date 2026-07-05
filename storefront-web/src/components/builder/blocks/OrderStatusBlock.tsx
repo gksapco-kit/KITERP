@@ -4,6 +4,7 @@ import type { PublicSite, StyleConfig, LiveItem } from '@/blocks/registry'
 import { BuilderTextField } from '@/components/builder/BuilderTextField'
 import { useBuilderCanvas } from '@/contexts/BuilderCanvasContext'
 import { isBlockFieldHidden, resolveBlockTextField } from '@/lib/blockHiddenFields'
+import { builderSectionContainerClass, builderSectionContainerWithMax } from '@/lib/builderSectionLayout'
 
 interface Props { site: PublicSite; style: StyleConfig; props: Record<string, unknown>; liveItems: LiveItem[]; branchCode?: string | null; blockId?: string }
 
@@ -21,7 +22,7 @@ export default function OrderStatusBlock({ style, props, blockId }: Props) {
   const showTitle = !isBlockFieldHidden(props, 'title') && (title || isEditorCanvas)
   const showPlaceholder = !isBlockFieldHidden(props, 'placeholder') && (placeholder || isEditorCanvas)
   return (
-    <section className="py-16 px-4 sm:px-6 lg:px-8 max-w-lg mx-auto text-center">
+    <section className={builderSectionContainerWithMax('max-w-lg', 'text-center')}>
       <div className="w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-4" style={{ backgroundColor: `${style.primary_color}15` }}>
         <Package className="w-8 h-8" style={{ color: style.primary_color }} />
       </div>

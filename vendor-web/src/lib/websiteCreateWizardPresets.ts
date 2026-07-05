@@ -1,6 +1,28 @@
 import {
-  Globe, Globe2, Store, type LucideIcon,
+  Globe, Globe2, LayoutTemplate, Paintbrush, Store, type LucideIcon,
 } from 'lucide-react'
+
+export type WebsiteCreationApproach = 'ready_pages' | 'scratch'
+
+export const WEBSITE_CREATION_APPROACHES: {
+  id: WebsiteCreationApproach
+  label: string
+  desc: string
+  icon: LucideIcon
+}[] = [
+  {
+    id: 'ready_pages',
+    label: 'Ready pages',
+    desc: 'We generate pages, layouts, copy, and photos from your business setup',
+    icon: LayoutTemplate,
+  },
+  {
+    id: 'scratch',
+    label: 'Build from scratch',
+    desc: 'Start with a blank canvas — add sections and pages yourself in the builder',
+    icon: Paintbrush,
+  },
+]
 
 export const WEBSITE_CREATE_BUSINESS_PRESETS = [
   {
@@ -83,6 +105,16 @@ export const WEBSITE_CREATE_BUSINESS_PRESETS = [
     sells: 'services',
     prompt: 'Create a professional consultant or agency website with hero, service packages, portfolio/case study style sections, testimonials, stats, lead form, FAQ and newsletter.',
   },
+  {
+    id: 'none',
+    label: 'None',
+    icon: '—',
+    desc: 'General site — no industry template',
+    niche: 'general informational website',
+    defaultName: 'My Website',
+    sells: 'none',
+    prompt: 'Create a clean general-purpose website with hero, about section, contact form, and flexible content blocks. No specific industry template.',
+  },
 ] as const
 
 export type WebsiteCreateBusinessPreset = (typeof WEBSITE_CREATE_BUSINESS_PRESETS)[number]
@@ -91,6 +123,7 @@ export const WEBSITE_SELLING_MODES = [
   { id: 'products', label: 'Products', desc: 'Catalog, cart, checkout, product filters' },
   { id: 'services', label: 'Services', desc: 'Service cards, bookings, quote requests' },
   { id: 'both', label: 'Both', desc: 'Products and services on the same website' },
+  { id: 'none', label: 'None', desc: 'Informational site — no product or service catalog' },
 ] as const
 
 export type WebsiteStoreScope = 'all' | 'store' | 'external'
@@ -109,13 +142,13 @@ export const WEBSITE_STORE_SCOPE_OPTIONS: {
   },
   {
     id: 'store',
-    label: 'Specific store',
+    label: 'An individual store',
     desc: 'Website scoped to a single business unit / outlet',
     icon: Store,
   },
   {
     id: 'external',
-    label: 'External use',
+    label: 'Other Use',
     desc: 'Marketing or portfolio site on your own domain — not tied to a store',
     icon: Globe2,
   },
@@ -125,6 +158,7 @@ export type SiteStyleMetadata = {
   image_category_id?: string
   business_type?: string
   selling_mode?: string
+  creation_approach?: WebsiteCreationApproach
   setup_features?: string[]
   website_store_scope?: string
   website_store_id?: string | null
@@ -134,12 +168,101 @@ export type SiteStyleMetadata = {
   storefront_assigned?: boolean
 }
 
+/** Wizard metadata stored in style_config — preserved when saving canvas styles. */
+export const WEBSITE_STYLE_METADATA_KEYS = [
+  'website_store_scope',
+  'website_store_id',
+  'website_store_name',
+  'website_home_store_id',
+  'business_type',
+  'selling_mode',
+  'setup_features',
+  'creation_approach',
+  'image_category_id',
+  'storefront_assigned',
+  'color_palette_id',
+] as const
+
+export function pickWebsiteStyleMetadata(
+  styleConfig: Record<string, unknown> | null | undefined,
+): Record<string, unknown> {
+  const sc = styleConfig ?? {}
+  const out: Record<string, unknown> = {}
+  for (const key of WEBSITE_STYLE_METADATA_KEYS) {
+    if (key in sc && sc[key] !== undefined) out[key] = sc[key]
+  }
+  return out
+}
+
+export function mergeWebsiteStyleConfig(
+  existing: Record<string, unknown> | null | undefined,
+  incoming: Record<string, unknown> | null | undefined,
+): Record<string, unknown> {
+  const preserved = pickWebsiteStyleMetadata(existing)
+  return { ...preserved, ...(incoming ?? {}) }
+}
+
+export function resolveStoredWebsiteScope(
+  meta: SiteStyleMetadata,
+  storeCount: number,
+): WebsiteStoreScope {
+  const scopeRaw = meta.website_store_scope?.trim().toLowerCase()
+  if (scopeRaw === 'all' || scopeRaw === 'store' || scopeRaw === 'external') return scopeRaw
+  return storeCount <= 1 ? 'store' : 'all'
+}
+
+type SiteScopeSource = Pick<
+  SiteStyleMetadata,
+  'website_store_scope' | 'website_store_id' | 'website_home_store_id' | 'business_type' | 'selling_mode'
+>
+
+/** True when style_config reflects an intentional Other Use / external marketing site. */
+export function isExplicitExternalMarketingSite(
+  meta: Pick<SiteStyleMetadata, 'website_store_scope' | 'business_type' | 'selling_mode'>,
+): boolean {
+  if (meta.website_store_scope?.trim().toLowerCase() !== 'external') return false
+  const biz = meta.business_type?.trim().toLowerCase()
+  if (!biz) return true
+  return biz === 'none'
+}
+
+/** Resolve scope from list fields + style_config (home BU wins over a stale external flag). */
+export function resolveSiteWebsiteScope(
+  site: SiteScopeSource | null | undefined,
+  storeCount: number,
+): WebsiteStoreScope {
+  if (!site) return storeCount <= 1 ? 'store' : 'all'
+
+  const homeStoreId = [
+    site.website_home_store_id,
+    site.website_store_id,
+  ].find((id): id is string => typeof id === 'string' && id.trim().length > 0)
+  if (homeStoreId) return 'store'
+
+  const scopeRaw = site.website_store_scope?.trim().toLowerCase()
+  if (scopeRaw === 'external' && !isExplicitExternalMarketingSite(site)) {
+    return storeCount <= 1 ? 'store' : 'all'
+  }
+
+  return resolveStoredWebsiteScope(
+    {
+      website_store_scope: site.website_store_scope ?? undefined,
+      website_store_id: site.website_store_id ?? undefined,
+      website_home_store_id: site.website_home_store_id ?? undefined,
+    },
+    storeCount,
+  )
+}
+
 export function readSiteStyleMetadata(styleConfig: Record<string, unknown> | null | undefined): SiteStyleMetadata {
   const sc = styleConfig ?? {}
   return {
     image_category_id: typeof sc.image_category_id === 'string' ? sc.image_category_id : undefined,
     business_type: typeof sc.business_type === 'string' ? sc.business_type : undefined,
     selling_mode: typeof sc.selling_mode === 'string' ? sc.selling_mode : undefined,
+    creation_approach: sc.creation_approach === 'ready_pages' || sc.creation_approach === 'scratch'
+      ? sc.creation_approach
+      : undefined,
     setup_features: Array.isArray(sc.setup_features)
       ? sc.setup_features.filter((f): f is string => typeof f === 'string')
       : undefined,

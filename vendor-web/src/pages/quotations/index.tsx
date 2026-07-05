@@ -1,14 +1,12 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { TableColumnLabel } from '@/components/common/FieldLabel'
-import { BusinessUnitSelect } from '@/components/common/BusinessUnitSelect'
-import { BranchSelect } from '@/components/common/BranchSelect'
+import { SalesScopeFilters } from '@/components/common/SalesScopeFilters'
 import { onClickableTableRow } from '@/lib/clickableTableRow'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Select } from '@/components/ui/select'
+import { ThemeSelect } from '@/components/common/ThemeSelect'
 import { vendorApi } from '@/api/vendor'
 import { useOrders, useUpdateOrderStatus, useQuotationSettings } from '@/hooks/useVendor'
 import { formatCurrency, formatDate } from '@/lib/utils'
@@ -21,7 +19,7 @@ import type { InvoiceSettings } from '@/lib/invoiceTemplates'
 import type { Order } from '@/types'
 import { toast } from 'sonner'
 import {
-  Plus, Search, Loader2, MessageSquare, FileText, Eye, Check, Settings2,
+  Plus, Loader2, MessageSquare, FileText, Eye, Check, Settings2,
   ChevronLeft, ChevronRight, ArrowRight, Printer, Send, Inbox,
   ScrollText, Clock, CheckCircle2, Ban,
 } from 'lucide-react'
@@ -139,6 +137,7 @@ export default function QuotationsPage() {
   const [statusFilter, setStatusFilter] = useState('')
   const [storeFilter, setStoreFilter] = useState('')
   const [branchFilter, setBranchFilter] = useState('')
+  const [salesAreaFilter, setSalesAreaFilter] = useState('')
   const [page, setPage] = useState(1)
   const [sortKey, setSortKey] = useState('created_at')
   const [sortDir, setSortDir] = useState<SortDir>('desc')
@@ -160,16 +159,18 @@ export default function QuotationsPage() {
     source: 'quote',
     search: search || undefined,
     store_id: branchFilter || storeFilter || undefined,
+    sales_area_id: salesAreaFilter || undefined,
   })
 
   const { data: estimatesData, isLoading: estimatesLoading } = useQuery({
-    queryKey: ['quotations', 'estimates', statusFilter, page, storeFilter, branchFilter, search],
+    queryKey: ['quotations', 'estimates', statusFilter, page, storeFilter, branchFilter, salesAreaFilter, search],
     queryFn: () => vendorApi.listInvoices({
       page,
       size: 20,
       invoice_type: 'estimate',
       status: statusFilter || undefined,
       store_id: branchFilter || storeFilter || undefined,
+      sales_area_id: salesAreaFilter || undefined,
       search: search || undefined,
     }),
   })
@@ -315,124 +316,167 @@ export default function QuotationsPage() {
     return [{ label: 'All statuses', value: '' }]
   }, [tab])
 
+  const moreOptionsActiveCount = useMemo(() => {
+    let count = 0
+    if (statusFilter) count++
+    if (sortKey !== 'created_at') count++
+    if (sortDir !== 'desc') count++
+    return count
+  }, [statusFilter, sortKey, sortDir])
+
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between gap-3 flex-wrap">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Quotations</h1>
-          <p className="text-sm text-gray-500 mt-1">
+    <div className="space-y-4">
+      <div className="flex items-start justify-between gap-3 flex-wrap">
+        <div className="min-w-0">
+          <h1 className="text-xl sm:text-2xl font-bold text-foreground">Quotations</h1>
+          <p className="text-xs sm:text-sm text-muted-foreground mt-0.5">
             Manage customer quote requests and send formal estimates.
           </p>
         </div>
-        <div className="flex gap-2">
-          <Button variant="outline" onClick={() => navigate('/quotations/templates')} className="gap-2">
-            <Settings2 className="w-4 h-4" /> Templates
+        <div className="flex gap-2 shrink-0">
+          <Button variant="outline" size="sm" onClick={() => navigate('/quotations/templates')} className="gap-1.5">
+            <Settings2 className="w-4 h-4" /> <span className="hidden sm:inline">Templates</span>
           </Button>
-          <Button className="gap-1.5" onClick={() => openCreate()}>
+          <Button size="sm" className="gap-1.5" onClick={() => openCreate()}>
             <Plus className="w-4 h-4" /> New Quotation
           </Button>
         </div>
       </div>
 
-      {/* Summary stats */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3">
         <Card>
-          <CardContent className="pt-5 pb-4 flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
-              <Clock className="w-5 h-5 text-primary" />
+          <CardContent className="p-3 flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+              <Clock className="w-4 h-4 text-primary" />
             </div>
-            <div>
-              <p className="text-xs text-gray-500">Pending Requests</p>
-              <p className="text-xl font-bold text-gray-900">{stats.pending}</p>
+            <div className="min-w-0">
+              <p className="text-[11px] sm:text-xs text-muted-foreground truncate">Pending Requests</p>
+              <p className="text-lg font-bold text-foreground leading-tight">{stats.pending}</p>
             </div>
           </CardContent>
         </Card>
         <Card>
-          <CardContent className="pt-5 pb-4 flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-gray-100 flex items-center justify-center">
-              <FileText className="w-5 h-5 text-gray-600" />
+          <CardContent className="p-3 flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-lg bg-muted flex items-center justify-center shrink-0">
+              <FileText className="w-4 h-4 text-muted-foreground" />
             </div>
-            <div>
-              <p className="text-xs text-gray-500">Draft Estimates</p>
-              <p className="text-xl font-bold text-gray-900">{stats.drafts}</p>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-5 pb-4 flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center">
-              <Send className="w-5 h-5 text-blue-600" />
-            </div>
-            <div>
-              <p className="text-xs text-gray-500">Sent</p>
-              <p className="text-xl font-bold text-gray-900">{stats.sent}</p>
+            <div className="min-w-0">
+              <p className="text-[11px] sm:text-xs text-muted-foreground truncate">Draft Estimates</p>
+              <p className="text-lg font-bold text-foreground leading-tight">{stats.drafts}</p>
             </div>
           </CardContent>
         </Card>
         <Card>
-          <CardContent className="pt-5 pb-4 flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-green-50 flex items-center justify-center">
-              <CheckCircle2 className="w-5 h-5 text-green-600" />
+          <CardContent className="p-3 flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-lg bg-blue-500/10 flex items-center justify-center shrink-0">
+              <Send className="w-4 h-4 text-blue-600" />
             </div>
-            <div>
-              <p className="text-xs text-gray-500">Converted</p>
-              <p className="text-xl font-bold text-gray-900">{stats.converted}</p>
+            <div className="min-w-0">
+              <p className="text-[11px] sm:text-xs text-muted-foreground truncate">Sent</p>
+              <p className="text-lg font-bold text-foreground leading-tight">{stats.sent}</p>
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-3 flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-lg bg-green-500/10 flex items-center justify-center shrink-0">
+              <CheckCircle2 className="w-4 h-4 text-green-600" />
+            </div>
+            <div className="min-w-0">
+              <p className="text-[11px] sm:text-xs text-muted-foreground truncate">Converted</p>
+              <p className="text-lg font-bold text-foreground leading-tight">{stats.converted}</p>
             </div>
           </CardContent>
         </Card>
       </div>
-
-      {/* Tabs */}
-      <div className="flex gap-1 flex-wrap rounded-xl bg-gray-100 p-1 w-fit">
-        {tabOptions.map((t) => (
-          <button
-            key={t.key}
-            type="button"
-            onClick={() => { setTab(t.key); setStatusFilter(''); setPage(1) }}
-            className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition-all ${
-              tab === t.key ? 'bg-white text-primary shadow-sm ring-1 ring-primary/15' : 'text-gray-500 hover:text-gray-700'
-            }`}
-          >
-            <t.icon className="w-3.5 h-3.5" />
-            {t.label}
-          </button>
-        ))}
-      </div>
-
-      <Card>
-        <CardContent className="pt-6 space-y-3">
-          <div className="flex flex-col sm:flex-row gap-3">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-              <Input
-                placeholder="Search quotations, customers, services…"
-                value={searchInput}
-                onChange={(e) => setSearchInput(e.target.value)}
-                className="pl-10"
-                aria-label="Search quotations"
-              />
-            </div>
-            <div className="sm:w-56"><BusinessUnitSelect value={storeFilter} onChange={(id) => { setStoreFilter(id); setBranchFilter(''); setPage(1) }} allowAll autoSelectDefault={false} /></div>
-            <div className="sm:w-56"><BranchSelect businessUnitId={storeFilter || null} value={branchFilter} onChange={(id) => { setBranchFilter(id); setPage(1) }} allowAll /></div>
-            {statusOptions.length > 1 && (
-              <Select
-                value={statusFilter}
-                onChange={(v) => { setStatusFilter(v); setPage(1) }}
-                options={statusOptions.map((o) => ({ value: o.value, label: o.label }))}
-                aria-label="Status filter"
-              />
-            )}
-          </div>
-        </CardContent>
-      </Card>
 
       <Card>
         <CardContent className="p-0">
           <TableToolbar
-            search=""
-            onSearchChange={() => {}}
-            hideSearch
-            hint="Sorting applies to loaded quotations."
+            search={searchInput}
+            onSearchChange={setSearchInput}
+            searchPlaceholder="Search quotations, customers, services…"
+            searchWrapperClassName="min-w-[12rem] flex-1 sm:flex-none lg:w-64 max-w-full"
+            hideSort
+            moreOptionsActiveCount={moreOptionsActiveCount}
+            leading={(
+              <div className="flex flex-wrap items-center gap-2 min-w-0 w-full sm:w-auto">
+                <div className="flex gap-0.5 rounded-lg bg-muted p-0.5 w-full sm:w-auto">
+                  {tabOptions.map((t) => (
+                    <button
+                      key={t.key}
+                      type="button"
+                      onClick={() => { setTab(t.key); setStatusFilter(''); setPage(1) }}
+                      className={`flex flex-1 sm:flex-none items-center justify-center gap-1 rounded-md px-2.5 py-1 text-xs font-medium transition-all whitespace-nowrap ${
+                        tab === t.key
+                          ? 'bg-card text-primary shadow-sm ring-1 ring-primary/15'
+                          : 'text-muted-foreground hover:text-foreground'
+                      }`}
+                    >
+                      <t.icon className="w-3.5 h-3.5 shrink-0" />
+                      {t.label}
+                    </button>
+                  ))}
+                </div>
+                <SalesScopeFilters
+                  businessUnitId={storeFilter}
+                  branchId={branchFilter}
+                  salesAreaId={salesAreaFilter}
+                  onBusinessUnitChange={(id) => { setStoreFilter(id); setBranchFilter(''); setSalesAreaFilter(''); setPage(1) }}
+                  onBranchChange={(id) => { setBranchFilter(id); setSalesAreaFilter(''); setPage(1) }}
+                  onSalesAreaChange={(id) => { setSalesAreaFilter(id); setPage(1) }}
+                  itemClassName="w-full min-w-[7rem] sm:w-[8rem]"
+                />
+              </div>
+            )}
+            moreOptions={(
+              <div className="flex flex-wrap items-end gap-3">
+                {statusOptions.length > 1 && (
+                  <div className="flex min-w-[9rem] flex-col gap-1.5">
+                    <label className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Status</label>
+                    <ThemeSelect
+                      value={statusFilter}
+                      onChange={(v) => { setStatusFilter(v); setPage(1) }}
+                      placeholder="All statuses"
+                      aria-label="Status filter"
+                      wrapperClassName="w-full min-w-[9rem]"
+                      options={statusOptions.map((o) => ({ value: o.value, label: o.label }))}
+                    />
+                  </div>
+                )}
+                <div className="flex min-w-[9rem] flex-col gap-1.5">
+                  <label className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Sort by</label>
+                  <ThemeSelect
+                    value={sortKey}
+                    onChange={setSortKey}
+                    options={[
+                      { value: 'created_at', label: 'Date' },
+                      { value: 'number', label: 'Reference #' },
+                      { value: 'customer_name', label: 'Customer' },
+                      { value: 'subject', label: 'Subject' },
+                      { value: 'total', label: 'Amount' },
+                      { value: 'status', label: 'Status' },
+                      { value: 'kind', label: 'Type' },
+                    ]}
+                    aria-label="Sort by column"
+                    wrapperClassName="w-full min-w-[9rem]"
+                  />
+                </div>
+                <div className="flex min-w-[9rem] flex-col gap-1.5">
+                  <label className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Direction</label>
+                  <ThemeSelect
+                    value={sortDir}
+                    onChange={(v) => setSortDir(v as SortDir)}
+                    options={[
+                      { value: 'asc', label: 'Low → High' },
+                      { value: 'desc', label: 'High → Low' },
+                    ]}
+                    aria-label="Sort direction"
+                    wrapperClassName="w-full min-w-[9rem]"
+                  />
+                </div>
+              </div>
+            )}
             sortOptions={[
               { value: 'created_at', label: 'Date' },
               { value: 'number', label: 'Reference #' },
@@ -447,32 +491,33 @@ export default function QuotationsPage() {
             onSortKeyChange={setSortKey}
             onSortDirChange={setSortDir}
           />
+          <div className="overflow-x-auto">
           <ResizableTable
             tableId="quotations"
             defaultWidths={[110, 90, 160, 180, 90, 110, 100, 200]}
           >
             <thead>
-              <tr className="border-b bg-gray-50">
-                <th className="text-left px-5 py-3 text-xs font-medium text-gray-500 uppercase"><TableColumnLabel>Reference</TableColumnLabel></th>
-                <th className="text-left px-5 py-3 text-xs font-medium text-gray-500 uppercase"><TableColumnLabel>Type</TableColumnLabel></th>
-                <th className="text-left px-5 py-3 text-xs font-medium text-gray-500 uppercase"><TableColumnLabel>Customer</TableColumnLabel></th>
-                <th className="text-left px-5 py-3 text-xs font-medium text-gray-500 uppercase"><TableColumnLabel>Subject</TableColumnLabel></th>
-                <th className="text-right px-5 py-3 text-xs font-medium text-gray-500 uppercase"><TableColumnLabel>Amount</TableColumnLabel></th>
-                <th className="text-center px-5 py-3 text-xs font-medium text-gray-500 uppercase"><TableColumnLabel>Status</TableColumnLabel></th>
-                <th className="text-left px-5 py-3 text-xs font-medium text-gray-500 uppercase"><TableColumnLabel>Date</TableColumnLabel></th>
-                <th className="text-center px-5 py-3 text-xs font-medium text-gray-500 uppercase"><TableColumnLabel>Actions</TableColumnLabel></th>
+              <tr className="border-b border-border bg-muted/40">
+                <th className="text-left px-3 sm:px-4 py-2.5 text-xs font-medium text-muted-foreground uppercase"><TableColumnLabel>Reference</TableColumnLabel></th>
+                <th className="text-left px-3 sm:px-4 py-2.5 text-xs font-medium text-muted-foreground uppercase"><TableColumnLabel>Type</TableColumnLabel></th>
+                <th className="text-left px-3 sm:px-4 py-2.5 text-xs font-medium text-muted-foreground uppercase"><TableColumnLabel>Customer</TableColumnLabel></th>
+                <th className="text-left px-3 sm:px-4 py-2.5 text-xs font-medium text-muted-foreground uppercase"><TableColumnLabel>Subject</TableColumnLabel></th>
+                <th className="text-right px-3 sm:px-4 py-2.5 text-xs font-medium text-muted-foreground uppercase"><TableColumnLabel>Amount</TableColumnLabel></th>
+                <th className="text-center px-3 sm:px-4 py-2.5 text-xs font-medium text-muted-foreground uppercase"><TableColumnLabel>Status</TableColumnLabel></th>
+                <th className="text-left px-3 sm:px-4 py-2.5 text-xs font-medium text-muted-foreground uppercase"><TableColumnLabel>Date</TableColumnLabel></th>
+                <th className="text-center px-2 sm:px-3 py-2.5 text-xs font-medium text-muted-foreground uppercase"><TableColumnLabel>Actions</TableColumnLabel></th>
               </tr>
             </thead>
-            <tbody className="divide-y">
+            <tbody className="divide-y divide-border">
               {isLoading ? (
                 <tr>
-                  <td colSpan={8} className="py-12 text-center">
-                    <Loader2 className="w-6 h-6 animate-spin mx-auto text-gray-400" />
+                  <td colSpan={8} className="py-10 text-center">
+                    <Loader2 className="w-6 h-6 animate-spin mx-auto text-muted-foreground" />
                   </td>
                 </tr>
               ) : displayRows.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="py-12 text-center text-sm text-gray-500">
+                  <td colSpan={8} className="py-10 text-center text-sm text-muted-foreground px-4">
                     {tab === 'requests'
                       ? 'No quote requests yet — enable quote requests on your services to receive them.'
                       : tab === 'estimates'
@@ -493,13 +538,13 @@ export default function QuotationsPage() {
                 return (
                   <tr
                     key={row.id}
-                    className="hover:bg-gray-50 cursor-pointer"
+                    className="hover:bg-muted/40 cursor-pointer transition-colors"
                     onClick={onClickableTableRow(() => openQuotationRow(row))}
                   >
-                    <td className="px-5 py-3 text-sm font-medium text-blue-600 font-mono text-xs">
+                    <td className="px-3 sm:px-4 py-2.5 text-xs font-medium text-primary font-mono">
                       {row.number}
                     </td>
-                    <td className="px-5 py-3">
+                    <td className="px-3 sm:px-4 py-2.5">
                       <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${
                         isRequest ? 'bg-primary/10 text-primary' : 'bg-accent text-primary'
                       }`}>
@@ -507,20 +552,20 @@ export default function QuotationsPage() {
                         {isRequest ? 'Request' : 'Estimate'}
                       </span>
                     </td>
-                    <td className="px-5 py-3 text-sm text-gray-700">{row.customer_name}</td>
-                    <td className="px-5 py-3 text-sm text-gray-600 max-w-[220px] truncate" title={row.subject}>
+                    <td className="px-3 sm:px-4 py-2.5 text-sm text-foreground">{row.customer_name}</td>
+                    <td className="px-3 sm:px-4 py-2.5 text-sm text-muted-foreground max-w-[180px] truncate" title={row.subject}>
                       {row.subject}
                     </td>
-                    <td className="px-5 py-3 text-sm text-right font-medium">
+                    <td className="px-3 sm:px-4 py-2.5 text-sm text-right font-medium">
                       {row.total > 0 ? formatCurrency(row.total) : '—'}
                     </td>
-                    <td className="px-5 py-3 text-center">
+                    <td className="px-3 sm:px-4 py-2.5 text-center">
                       <span className={`px-2 py-0.5 rounded-full text-xs font-medium capitalize ${statusClass}`}>
                         {statusText}
                       </span>
                     </td>
-                    <td className="px-5 py-3 text-sm text-gray-500">{formatDate(row.created_at)}</td>
-                    <td className="px-5 py-3">
+                    <td className="px-3 sm:px-4 py-2.5 text-sm text-muted-foreground whitespace-nowrap">{formatDate(row.created_at)}</td>
+                    <td className="px-2 sm:px-3 py-2.5">
                       <div className="flex items-center justify-center gap-1 flex-wrap">
                         {isRequest && row.order && (
                           <>
@@ -617,22 +662,23 @@ export default function QuotationsPage() {
               })}
             </tbody>
           </ResizableTable>
+          </div>
+
+          {tab === 'estimates' && estimatesData && estimatesData.pages > 1 && (
+            <div className="flex items-center justify-between border-t border-border bg-muted/25 px-4 py-2.5 flex-wrap gap-2">
+              <p className="text-sm text-muted-foreground">Page {page} of {estimatesData.pages}</p>
+              <div className="flex gap-2">
+                <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage(page - 1)}>
+                  <ChevronLeft className="w-4 h-4" />
+                </Button>
+                <Button variant="outline" size="sm" disabled={page >= estimatesData.pages} onClick={() => setPage(page + 1)}>
+                  <ChevronRight className="w-4 h-4" />
+                </Button>
+              </div>
+            </div>
+          )}
         </CardContent>
       </Card>
-
-      {tab === 'estimates' && estimatesData && estimatesData.pages > 1 && (
-        <div className="flex items-center justify-between">
-          <p className="text-sm text-gray-500">Page {page} of {estimatesData.pages}</p>
-          <div className="flex gap-2">
-            <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage(page - 1)}>
-              <ChevronLeft className="w-4 h-4" />
-            </Button>
-            <Button variant="outline" size="sm" disabled={page >= estimatesData.pages} onClick={() => setPage(page + 1)}>
-              <ChevronRight className="w-4 h-4" />
-            </Button>
-          </div>
-        </div>
-      )}
 
       {showCreate && (
         <CreateInvoiceModal

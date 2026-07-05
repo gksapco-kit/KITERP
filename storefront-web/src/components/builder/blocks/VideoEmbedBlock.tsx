@@ -9,6 +9,8 @@ import { resolveSectionSurface } from '@/lib/navBlockLayout'
 import { useBuilderCanvas } from '@/contexts/BuilderCanvasContext'
 import { isBlockFieldHidden, resolveBlockTextField } from '@/lib/blockHiddenFields'
 import { cn, imgUrl } from '@/lib/utils'
+import { builderSectionContainerWithMax } from '@/lib/builderSectionLayout'
+import { BuilderSectionSurface } from '@/components/builder/BuilderSectionSurface'
 import { getVideoEmbedUrl, isDirectVideoFile } from '@/lib/videoEmbed'
 
 function aspectRatioCss(value: string): string {
@@ -181,7 +183,7 @@ export default function VideoEmbedBlock({ style, props, blockId }: Props) {
       content = (
         <section className="py-0 px-0 w-full">
           {showTitle && (
-            <div className="px-4 sm:px-6 lg:px-8 py-6 max-w-5xl mx-auto">
+            <div className={builderSectionContainerWithMax('max-w-5xl', 'py-6')}>
               <VideoTitle
                 title={title}
                 showTitle={showTitle}
@@ -199,10 +201,7 @@ export default function VideoEmbedBlock({ style, props, blockId }: Props) {
 
     case 'split':
       content = (
-        <section
-          className="py-10 px-4 sm:px-6 lg:px-8 max-w-6xl mx-auto"
-          style={{ background: surface.background, color: textColor }}
-        >
+        <BuilderSectionSurface surface={surface} maxWidth="max-w-6xl">
           <div className="flex flex-col md:flex-row gap-8 lg:gap-12 items-center">
             <div className="w-full md:flex-1 min-w-0">{player}</div>
             {showTitle && (
@@ -219,16 +218,13 @@ export default function VideoEmbedBlock({ style, props, blockId }: Props) {
               </div>
             )}
           </div>
-        </section>
+        </BuilderSectionSurface>
       )
       break
 
     case 'card':
       content = (
-        <section
-          className="py-12 px-4 sm:px-6 lg:px-8 max-w-4xl mx-auto"
-          style={{ background: surface.background, color: textColor }}
-        >
+        <BuilderSectionSurface surface={surface} maxWidth="max-w-4xl">
           <div
             className={cn(
               'rounded-2xl border p-4 sm:p-6',
@@ -246,16 +242,13 @@ export default function VideoEmbedBlock({ style, props, blockId }: Props) {
             />
             {player}
           </div>
-        </section>
+        </BuilderSectionSurface>
       )
       break
 
     case 'minimal':
       content = (
-        <section
-          className="py-8 px-4 sm:px-6 max-w-xl mx-auto"
-          style={{ background: surface.background, color: textColor }}
-        >
+        <BuilderSectionSurface surface={surface} maxWidth="max-w-xl">
           <VideoTitle
             title={title}
             showTitle={showTitle}
@@ -266,18 +259,15 @@ export default function VideoEmbedBlock({ style, props, blockId }: Props) {
             className="text-lg font-semibold mb-4 text-center"
           />
           {player}
-        </section>
+        </BuilderSectionSurface>
       )
       break
 
     default:
       content = (
-        <section
-          className={cn(
-            'py-12 px-4 sm:px-6 lg:px-8 mx-auto',
-            isVerticalReel ? 'max-w-md' : 'max-w-5xl',
-          )}
-          style={{ background: surface.background, color: textColor }}
+        <BuilderSectionSurface
+          surface={surface}
+          maxWidth={isVerticalReel ? 'max-w-md' : 'max-w-5xl'}
         >
           <VideoTitle
             title={title}
@@ -288,7 +278,7 @@ export default function VideoEmbedBlock({ style, props, blockId }: Props) {
             fontHeading={fontHeading}
           />
           {player}
-        </section>
+        </BuilderSectionSurface>
       )
       break
   }

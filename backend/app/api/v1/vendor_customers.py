@@ -1,18 +1,22 @@
 # app/api/v1/vendor_customers.py
-from fastapi import APIRouter, Depends, HTTPException, status, Query
-from fastapi.responses import JSONResponse
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
-from sqlalchemy.exc import IntegrityError
-from typing import Optional
-from uuid import UUID
-from pydantic import BaseModel, Field, EmailStr, model_validator
+import asyncio
 import math
 import re
 import logging
 import httpx
+from typing import Optional
+from uuid import UUID
 
-from app.database import get_db
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status, Query
+from fastapi.responses import JSONResponse
+from pydantic import BaseModel, Field, EmailStr, model_validator
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
+
+from app.core.security import get_password_hash
+from app.database import AsyncSessionLocal, get_db
+from app.services.sms_service import normalize_e164, is_valid_e164
 from app.api.deps import get_current_active_user
 from app.models.user import User
 from app.models.customer import Customer
@@ -23,8 +27,41 @@ from app.repositories.order_repo import OrderRepository
 from app.utils.validators import validate_gstin
 
 router = APIRouter()
+_log = logging.getLogger(__name__)
 
 _PAN_RE = re.compile(r"^[A-Z]{5}[0-9]{4}[A-Z]$")
+
+
+def _normalize_customer_phone(raw: Optional[str]) -> Optional[str]:
+    if not raw or not str(raw).strip():
+        return None
+    phone = normalize_e164(str(raw).strip())
+    if not is_valid_e164(phone):
+        raise HTTPException(
+            status_code=422,
+            detail="Enter a valid mobile number (e.g. 9703200341 or +919703200341)",
+        )
+    return phone
+
+
+def _normalize_customer_email(raw: Optional[str]) -> Optional[str]:
+    if not raw or not str(raw).strip():
+        return None
+    return str(raw).strip().lower()
+
+
+async def _sync_crm_contact_after_customer(vendor_id: UUID, customer_id: UUID) -> None:
+    """Best-effort CRM sync in a fresh session so create responses are not delayed."""
+    from app.services.crm.services import ContactService
+
+    async with AsyncSessionLocal() as db:
+        customer = await db.get(Customer, customer_id)
+        if not customer:
+            return
+        try:
+            await ContactService(db).ensure_from_customer(vendor_id, customer)
+        except Exception:
+            _log.exception("CRM contact sync failed for customer %s", customer_id)
 
 # ── Indian state code map (first 2 digits of GSTIN) ──────────────────────────
 GSTIN_STATE_CODES: dict[str, str] = {
@@ -86,6 +123,7 @@ class VendorCreateCustomer(BaseModel):
     account_holder_name: Optional[str] = Field(None, max_length=255)
     account_type: Optional[str] = Field(None, pattern=r"^(savings|current)$")
     ifsc_code: Optional[str] = Field(None, max_length=15)
+    linked_customer_id: Optional[UUID] = None
 
     @model_validator(mode="after")
     def require_email_or_phone(self):
@@ -154,6 +192,7 @@ def _customer_dict(customer: Customer) -> dict:
         "full_name": customer.full_name,
         "email": customer.email,
         "phone": customer.phone,
+        "linked_customer_id": str(customer.linked_customer_id) if customer.linked_customer_id else None,
         "is_active": customer.is_active,
         "total_orders": customer.total_orders or 0,
         "total_spent": float(customer.total_spent or 0),
@@ -304,23 +343,26 @@ async def list_customers(
 @router.post("", status_code=status.HTTP_201_CREATED)
 async def create_customer(
     data: VendorCreateCustomer,
+    background_tasks: BackgroundTasks,
     current_user: User = Depends(get_current_active_user),
     db: AsyncSession = Depends(get_db),
 ):
     vendor_id = await _get_vendor_id(current_user, db)
     repo = CustomerRepository(db)
 
-    if data.email:
-        existing = await repo.get_by_vendor_and_email(vendor_id, data.email)
-        if existing:
-            raise HTTPException(status_code=409, detail="A customer with this email already exists")
+    email = _normalize_customer_email(str(data.email) if data.email else None)
+    phone = _normalize_customer_phone(data.phone)
 
-    if data.phone:
-        existing_phone = await repo.get_by_vendor_and_phone(vendor_id, data.phone)
-        if existing_phone:
-            raise HTTPException(status_code=409, detail="A customer with this phone number already exists")
+    if not email and not phone:
+        raise HTTPException(status_code=422, detail="Either email or phone is required")
 
-    # Duplicate GSTIN check
+    linked_customer_id = data.linked_customer_id
+    if linked_customer_id:
+        parent = await repo.get_by_vendor_and_id(vendor_id, linked_customer_id)
+        if not parent:
+            raise HTTPException(status_code=400, detail="Linked customer not found")
+
+    # Duplicate GSTIN check (business identifier stays unique per vendor)
     if data.gstin:
         dup = await db.execute(
             select(Customer).where(Customer.vendor_id == vendor_id, Customer.gstin == data.gstin)
@@ -328,16 +370,15 @@ async def create_customer(
         if dup.scalar_one_or_none():
             raise HTTPException(status_code=409, detail="A customer with this GSTIN already exists")
 
-    from passlib.context import CryptContext
-    pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-    raw_password = data.password or data.phone or "Welcome@123"
-    password_hash = pwd_context.hash(raw_password)
+    raw_password = data.password or phone or "Welcome@123"
+    password_hash = await asyncio.to_thread(get_password_hash, raw_password)
 
     customer = Customer(
         vendor_id=vendor_id,
-        full_name=data.full_name,
-        email=data.email,
-        phone=data.phone,
+        full_name=data.full_name.strip(),
+        email=email,
+        phone=phone,
+        linked_customer_id=linked_customer_id,
         password_hash=password_hash,
         shipping_addresses=data.shipping_addresses or [],
         is_active=True,
@@ -358,14 +399,6 @@ async def create_customer(
     try:
         await db.commit()
         await db.refresh(customer)
-        try:
-            from app.services.crm.services import ContactService
-            await ContactService(db).ensure_from_customer(vendor_id, customer)
-        except Exception:
-            logging.getLogger(__name__).exception(
-                "CRM contact sync failed for customer %s", customer.id,
-            )
-        return JSONResponse(status_code=201, content=_customer_dict(customer))
     except IntegrityError as exc:
         await db.rollback()
         msg = str(exc).lower()
@@ -374,6 +407,9 @@ async def create_customer(
         if "phone" in msg:
             raise HTTPException(status_code=409, detail="A customer with this phone number already exists")
         raise HTTPException(status_code=409, detail="A customer with this information already exists")
+
+    background_tasks.add_task(_sync_crm_contact_after_customer, vendor_id, customer.id)
+    return JSONResponse(status_code=201, content=_customer_dict(customer))
 
 
 @router.put("/{customer_id}")
@@ -392,12 +428,14 @@ async def update_customer(
     if data.full_name is not None:
         customer.full_name = data.full_name
     if data.email is not None:
-        dup = await repo.get_by_vendor_and_email(vendor_id, data.email)
-        if dup and dup.id != customer.id:
-            raise HTTPException(status_code=409, detail="Email already in use by another customer")
-        customer.email = data.email
+        new_email = _normalize_customer_email(str(data.email) if data.email else None)
+        if new_email != (customer.email or None):
+            dup = await repo.get_by_vendor_and_email(vendor_id, new_email) if new_email else None
+            if dup and dup.id != customer.id:
+                raise HTTPException(status_code=409, detail="Email already in use by another customer")
+        customer.email = new_email
     if data.phone is not None:
-        customer.phone = data.phone
+        customer.phone = _normalize_customer_phone(data.phone) if data.phone else None
     if data.is_active is not None:
         customer.is_active = data.is_active
     if data.shipping_addresses is not None:
@@ -436,13 +474,7 @@ async def update_customer(
 
     await db.commit()
     await db.refresh(customer)
-    try:
-        from app.services.crm.services import ContactService
-        await ContactService(db).ensure_from_customer(vendor_id, customer)
-    except Exception:
-        logging.getLogger(__name__).exception(
-            "CRM contact sync failed for customer %s", customer.id,
-        )
+    asyncio.create_task(_sync_crm_contact_after_customer(vendor_id, customer.id))
     return _customer_dict(customer)
 
 

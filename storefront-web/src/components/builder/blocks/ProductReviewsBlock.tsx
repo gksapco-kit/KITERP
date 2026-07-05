@@ -4,6 +4,7 @@ import BlockEmptyPlaceholder from '@/components/builder/BlockEmptyPlaceholder'
 import { BuilderTextField } from '@/components/builder/BuilderTextField'
 import { useBuilderCanvas } from '@/contexts/BuilderCanvasContext'
 import { isBlockFieldHidden, resolveBlockTextField } from '@/lib/blockHiddenFields'
+import { builderSectionContainerClass, builderSectionContainerWithMax } from '@/lib/builderSectionLayout'
 
 interface Props { site: PublicSite; style: StyleConfig; props: Record<string, unknown>; liveItems: LiveItem[]; branchCode?: string | null; blockId?: string }
 
@@ -27,7 +28,7 @@ export default function ProductReviewsBlock({ style, props, liveItems, blockId }
   }
   const avgRating = liveItems.reduce((sum, i) => sum + (i.rating || 0), 0) / liveItems.length
   return (
-    <section className="py-16 px-4 sm:px-6 lg:px-8 max-w-5xl mx-auto">
+    <section className={builderSectionContainerWithMax('max-w-5xl')}>
       <div className="flex items-center justify-between mb-8">
         {showTitle && (
           <BuilderTextField fieldKey="title" blockId={blockId} blockProps={props} value={title ?? ''} as="h2" className="text-2xl font-bold text-gray-900" placeholder="Section title" />

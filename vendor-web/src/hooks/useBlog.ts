@@ -7,6 +7,7 @@ const KEYS = {
   all: ['blog'] as const,
   list: (params?: object) => ['blog', 'list', params] as const,
   detail: (id: string) => ['blog', 'detail', id] as const,
+  settings: ['blog', 'settings'] as const,
 }
 
 export function useBlogPosts(params?: {
@@ -77,5 +78,24 @@ export function usePublishBlogPost() {
       toast.success(publish ? 'Post published' : 'Post unpublished')
     },
     onError: (err) => toast.error(extractApiError(err, 'Publish')),
+  })
+}
+
+export function useBlogSettings() {
+  return useQuery({
+    queryKey: KEYS.settings,
+    queryFn: () => blogApi.getSettings(),
+  })
+}
+
+export function useUpdateBlogSettings() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (data: { blog_enabled: boolean }) => blogApi.updateSettings(data),
+    onSuccess: (result) => {
+      qc.setQueryData(KEYS.settings, result)
+      toast.success(result.blog_enabled ? 'Blog enabled on your website' : 'Blog hidden from your website')
+    },
+    onError: () => toast.error('Failed to update blog settings'),
   })
 }

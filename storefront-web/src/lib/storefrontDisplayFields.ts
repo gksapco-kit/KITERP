@@ -3,27 +3,56 @@ export const DISPLAY_FIELDS_BY_TEMPLATE_KEY = 'display_fields_by_template'
 export const PRODUCT_DISPLAY_FIELD_DEFS = [
   { key: 'brand', label: 'Brand' },
   { key: 'short_description', label: 'Short Description' },
+  { key: 'description', label: 'Full Description' },
+  { key: 'category', label: 'Category' },
+  { key: 'subcategory', label: 'Subcategory' },
+  { key: 'tags', label: 'Tags' },
+  { key: 'compare_at_price', label: 'Compare-at Price / M.R.P.' },
+  { key: 'offer_label', label: 'Offer / Sale Label' },
+  { key: 'new_arrival_badge', label: 'New Arrival Badge' },
+  { key: 'best_seller_badge', label: 'Best Seller Badge' },
+  { key: 'variants', label: 'Variants / Options' },
+  { key: 'sku', label: 'SKU' },
+  { key: 'barcode', label: 'Barcode' },
+  { key: 'stock_status', label: 'Stock Status' },
+  { key: 'quote_request', label: 'Request a Quote' },
   { key: 'specifications', label: 'Specifications' },
+  { key: 'reviews', label: 'Reviews & Rating' },
+  { key: 'cross_sell', label: 'Frequently Bought Together' },
+  { key: 'upsell', label: 'You May Also Like' },
   { key: 'warranty', label: 'Warranty Info' },
   { key: 'return_policy', label: 'Return Policy' },
+  { key: 'return_conditions', label: 'Return Conditions' },
+  { key: 'refund_policy', label: 'Refund Policy' },
   { key: 'shipping_info', label: 'Shipping Info' },
-  { key: 'offer_label', label: 'Offer / Sale Label' },
-  { key: 'sku', label: 'SKU / Barcode' },
-  { key: 'stock_status', label: 'Stock Status' },
-  { key: 'tags', label: 'Tags' },
+  { key: 'weight', label: 'Weight' },
+  { key: 'dimensions', label: 'Dimensions' },
 ] as const
 
 export const SERVICE_DISPLAY_FIELD_DEFS = [
   { key: 'brand', label: 'Brand' },
   { key: 'short_description', label: 'Short Description' },
+  { key: 'description', label: 'Full Description' },
+  { key: 'category', label: 'Category' },
+  { key: 'subcategory', label: 'Subcategory' },
+  { key: 'tags', label: 'Tags' },
+  { key: 'reviews', label: 'Reviews & Rating' },
+  { key: 'features', label: 'Features / Highlights' },
+  { key: 'duration', label: 'Duration' },
+  { key: 'uom', label: 'Unit of Measure' },
+  { key: 'price_range', label: 'Price Range' },
+  { key: 'service_plans', label: 'Service Plans' },
+  { key: 'availability', label: 'Weekly Availability' },
+  { key: 'subscription_details', label: 'Subscription Details' },
+  { key: 'quote_request', label: 'Request a Quote' },
   { key: 'whats_included', label: "What's Included" },
   { key: 'whats_not_included', label: "What's Not Included" },
   { key: 'prerequisites', label: 'Prerequisites' },
   { key: 'service_areas', label: 'Service Areas' },
   { key: 'cancellation_policy', label: 'Cancellation Policy' },
+  { key: 'rescheduling_policy', label: 'Rescheduling Policy' },
   { key: 'offer_label', label: 'Offer / Sale Label' },
   { key: 'service_mode', label: 'Service Mode' },
-  { key: 'tags', label: 'Tags' },
 ] as const
 
 export type DisplayFieldMap = Record<string, boolean>
@@ -100,4 +129,9 @@ export function resolveTemplateDisplayFieldsFromSettings(
       mergeDisplayFieldMap(SERVICE_DISPLAY_FIELD_DEFS, global?.service, defaults.service),
     ),
   }
+}
+
+/** Returns true when a display-field toggle is enabled (missing keys default to on). */
+export function isDisplayFieldEnabled(map: DisplayFieldMap, key: string): boolean {
+  return map[key] !== false
 }

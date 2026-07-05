@@ -38,6 +38,27 @@ import {
   imageShapeFromProps,
 } from '@/lib/sectionItemLayout'
 import type { BlockColorProps } from '@/lib/blockColorOverrides'
+import {
+  builderSectionBleedClass,
+  builderSectionContainerClass,
+  builderSectionContainerWithMax,
+} from '@/lib/builderSectionLayout'
+
+function SectionWithBg({
+  bg,
+  className,
+  children,
+}: {
+  bg: string
+  className?: string
+  children: ReactNode
+}) {
+  return (
+    <div className="w-full" style={{ backgroundColor: bg }}>
+      <section className={className ?? builderSectionContainerClass()}>{children}</section>
+    </div>
+  )
+}
 
 function productSlugFromLiveItem(item: LiveItem): string | undefined {
   const detailPath = resolveLiveProductUrl(item)
@@ -334,7 +355,7 @@ export default function ProductGridBlock({ site, style, props, liveItems, blockT
     const editorialCardClass = 'group relative isolate overflow-hidden block w-full'
 
     return (
-      <section className="py-16 sm:py-20 px-6 sm:px-12 max-w-7xl mx-auto" style={{ backgroundColor: categorySectionBackground(style, props) }}>
+      <SectionWithBg bg={categorySectionBackground(style, props)}>
         <div className="flex items-end justify-between mb-10 gap-4 flex-wrap">
           <div>
             {(eyebrow || blockId) && (
@@ -422,7 +443,7 @@ export default function ProductGridBlock({ site, style, props, liveItems, blockT
             )
           })}
         </div>
-      </section>
+      </SectionWithBg>
     )
   }
 
@@ -479,7 +500,7 @@ export default function ProductGridBlock({ site, style, props, liveItems, blockT
 
     if (catLayout === 'list') {
       return (
-        <section className="py-16 sm:py-20 px-6 sm:px-12 max-w-3xl mx-auto" style={{ backgroundColor: sectionBg }}>
+        <SectionWithBg bg={sectionBg} className={builderSectionContainerWithMax('max-w-3xl')}>
           <CategorySectionHeader title={title} textColor={sectionText} style={style} blockId={blockId} blockProps={props} />
           <div className="divide-y" style={{ borderColor: `${sectionText}22` }}>
             {cats.slice(0, categoryLimit).map((c, i) => wrapCategoryLink(
@@ -501,13 +522,13 @@ export default function ProductGridBlock({ site, style, props, liveItems, blockT
               </>,
             ))}
           </div>
-        </section>
+        </SectionWithBg>
       )
     }
 
     if (catLayout === 'strip') {
       return (
-        <section className="py-16 sm:py-20 px-6 sm:px-12 max-w-7xl mx-auto" style={{ backgroundColor: sectionBg }}>
+        <SectionWithBg bg={sectionBg}>
           <CategorySectionHeader title={title} textColor={sectionText} style={style} blockId={blockId} blockProps={props} />
           <div className="flex gap-4 overflow-x-auto pb-2 snap-x snap-mandatory" style={{ gap: catGap }}>
             {cats.slice(0, categoryLimit).map((c, i) => {
@@ -548,14 +569,14 @@ export default function ProductGridBlock({ site, style, props, liveItems, blockT
               )
             })}
           </div>
-        </section>
+        </SectionWithBg>
       )
     }
 
     if (catLayout === 'banner') {
       const bannerCols = catColumns <= 2 ? 2 : catColumns
       return (
-        <section className="py-16 sm:py-20 px-6 sm:px-12 max-w-7xl mx-auto" style={{ backgroundColor: sectionBg }}>
+        <SectionWithBg bg={sectionBg}>
           <CategorySectionHeader title={title} textColor={sectionText} style={style} blockId={blockId} blockProps={props} />
           <div
             className={cn('grid', CATALOG_GRID_COL_CLASS[bannerCols] || CATALOG_GRID_COL_CLASS[2])}
@@ -601,13 +622,13 @@ export default function ProductGridBlock({ site, style, props, liveItems, blockT
               )
             })}
           </div>
-        </section>
+        </SectionWithBg>
       )
     }
 
     if (catLayout === 'overlay') {
       return (
-        <section className="py-16 sm:py-20 px-6 sm:px-12 max-w-7xl mx-auto" style={{ backgroundColor: sectionBg }}>
+        <SectionWithBg bg={sectionBg}>
           <CategorySectionHeader title={title} textColor={sectionText} style={style} blockId={blockId} blockProps={props} />
           <div
             className={cn('grid', CATALOG_GRID_COL_CLASS[catColumns] || CATALOG_GRID_COL_CLASS[3])}
@@ -653,13 +674,13 @@ export default function ProductGridBlock({ site, style, props, liveItems, blockT
               )
             })}
           </div>
-        </section>
+        </SectionWithBg>
       )
     }
 
     if (catLayout === 'masonry') {
       return (
-        <section className="py-16 sm:py-20 px-6 sm:px-12 max-w-7xl mx-auto" style={{ backgroundColor: sectionBg }}>
+        <SectionWithBg bg={sectionBg}>
           <CategorySectionHeader title={title} textColor={sectionText} style={style} blockId={blockId} blockProps={props} />
           <div style={{ columnCount: catColumns, columnGap: catGap }}>
             {cats.slice(0, categoryLimit).map((c, i) => {
@@ -702,7 +723,7 @@ export default function ProductGridBlock({ site, style, props, liveItems, blockT
               )
             })}
           </div>
-        </section>
+        </SectionWithBg>
       )
     }
 
@@ -712,7 +733,7 @@ export default function ProductGridBlock({ site, style, props, liveItems, blockT
       const tileWrap = catalogTileImageWrapperClass(imageShape)
 
       return (
-        <section className="py-16 sm:py-20 px-6 sm:px-12 max-w-7xl mx-auto" style={{ backgroundColor: sectionBg }}>
+        <SectionWithBg bg={sectionBg}>
           <CategorySectionHeader title={title} textColor={sectionText} style={style} blockId={blockId} blockProps={props} />
           <div
             className={cn('grid', CATALOG_GRID_COL_CLASS[catColumns] || CATALOG_GRID_COL_CLASS[4])}
@@ -767,7 +788,7 @@ export default function ProductGridBlock({ site, style, props, liveItems, blockT
               )
             })}
           </div>
-        </section>
+        </SectionWithBg>
       )
     }
   }
@@ -779,7 +800,7 @@ export default function ProductGridBlock({ site, style, props, liveItems, blockT
     const rawItems = catalogProducts
     if (rawItems.length === 0 && !wellnessSite) {
       return (
-        <section className="py-16 sm:py-20 px-6 sm:px-12 max-w-7xl mx-auto" style={{ backgroundColor: style.surface_color || style.bg_color }}>
+        <SectionWithBg bg={style.surface_color || style.bg_color || '#ffffff'}>
           <BuilderTextField
             fieldKey="title"
             blockId={blockId}
@@ -790,7 +811,7 @@ export default function ProductGridBlock({ site, style, props, liveItems, blockT
             style={{ fontFamily: style.font_heading, color: textColor }}
           />
           <p className="text-sm opacity-70" style={{ color: textColor }}>Your products will appear here once you add them to your catalog from the Products page.</p>
-        </section>
+        </SectionWithBg>
       )
     }
     const useSpotlight = props.featured_spotlight !== false && rawItems.length >= 1
@@ -800,7 +821,7 @@ export default function ProductGridBlock({ site, style, props, liveItems, blockT
 
     return (
       <div style={{ backgroundColor: style.surface_color || style.bg_color }}>
-        <section className="py-16 sm:py-20 px-6 sm:px-12 max-w-7xl mx-auto">
+        <section className={builderSectionContainerClass()}>
           <div className="flex items-end justify-between mb-10 gap-4">
             <BuilderTextField
               fieldKey="title"
@@ -816,10 +837,10 @@ export default function ProductGridBlock({ site, style, props, liveItems, blockT
 
           {featuredOne && (
             <div
-              className="border-y mb-16 sm:mb-20 -mx-6 sm:-mx-12 px-6 sm:px-12"
+              className={cn('border-y mb-16 sm:mb-20', builderSectionBleedClass())}
               style={{ borderColor: `${textColor}18`, backgroundColor: style.bg_color }}
             >
-              <div className="max-w-7xl mx-auto py-16 sm:py-20 grid lg:grid-cols-2 gap-10 lg:gap-12 items-center">
+              <div className="max-w-7xl mx-auto grid lg:grid-cols-2 gap-10 lg:gap-12 items-center">
                 <div className="aspect-[4/5] relative overflow-hidden bg-gray-100">
                   {featuredOne.image_url ? (
                     <BuilderCanvasProductImage
@@ -1053,7 +1074,7 @@ export default function ProductGridBlock({ site, style, props, liveItems, blockT
   }
 
   return (
-    <section className="px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
+    <section className={builderSectionContainerClass()}>
       {(title || blockId) && (
         <BuilderTextField fieldKey="title" blockId={blockId} blockProps={props} value={title} as="h2" className="text-3xl font-bold text-gray-900 mb-10 text-center" />
       )}

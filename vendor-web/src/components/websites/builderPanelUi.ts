@@ -28,6 +28,13 @@ export function builderLinkBtnIcon(linked = false, size: 'sm' | 'md' = 'md') {
   )
 }
 
+/** Side rails — above canvas preview (nav z-50) and section chrome portals. */
+export const BUILDER_PANEL_RAIL_Z = 160
+/** Resize handles + edge toggles — above panel tab strips (same z-index would lose on the right rail). */
+export const BUILDER_PANEL_RESIZE_Z = 170
+/** Section toolbar / design bar portals — above canvas content, below panel edge controls. */
+export const BUILDER_SECTION_CHROME_Z = 140
+
 /** Builder side panels / menus — semantic tokens for light, dark, and all KIT themes. */
 export const builderPanelUi = {
   shell: 'border-border bg-card text-foreground',
@@ -68,9 +75,12 @@ export const builderPanelUi = {
   tabBtnIcon: 'h-3.5 w-3.5 shrink-0',
   tabCollapseBtn:
     'flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-gray-200 bg-white text-muted-foreground shadow-sm transition-colors hover:bg-muted/50 hover:text-foreground',
-  /** Collapse / expand — straddles panel edge at tab-strip junction. */
+  /** Side panel shell — above canvas, below resize handle toggles. */
+  panelRailStack: 'relative z-[160]',
+  /** Drag-to-resize column — must beat panelRailStack so toggles sit above tab strips on both sides. */
+  panelResizeStack: 'relative z-[170]',
   panelEdgeToggle:
-    'absolute z-30 flex h-7 w-7 items-center justify-center rounded-md border border-gray-200 bg-white text-muted-foreground shadow-sm transition-colors hover:bg-muted/50 hover:text-foreground',
+    'absolute z-[170] flex h-7 w-7 items-center justify-center rounded-md border border-gray-200 bg-white text-muted-foreground shadow-sm transition-colors hover:bg-muted/50 hover:text-foreground',
   panelEdgeToggleTop: 'top-11 -translate-y-1/2',
   /** Scrollable panel body below tab strip — keeps tabs pinned while content scrolls. */
   panelBody: 'flex min-h-0 flex-1 flex-col overflow-hidden',

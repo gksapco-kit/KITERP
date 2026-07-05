@@ -12,11 +12,14 @@ export type ThemeSelectOption = {
   group?: string
 }
 
+/** Attribute on portaled ThemeSelect menus — Dialog must ignore outside-click for these. */
+export const THEME_SELECT_MENU_ATTR = 'data-theme-select-menu'
+
 /** Semantic tokens — light, dark, and all KIT templates. */
 export const themeSelectUi = {
   trigger:
     'form-select inline-flex h-10 w-full min-w-0 items-center justify-between gap-2 px-2.5 text-sm text-left text-foreground transition-colors hover:bg-muted/30 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50',
-  menu: 'z-50 max-h-60 overflow-auto rounded-lg border border-border bg-popover py-1 text-popover-foreground shadow-lg animate-in fade-in-0 zoom-in-95 duration-100',
+  menu: 'z-[9999] max-h-60 overflow-auto rounded-lg border border-border bg-popover py-1 text-popover-foreground shadow-lg animate-in fade-in-0 zoom-in-95 duration-100',
   item: 'flex w-full items-center gap-2 px-3 py-2 text-left text-sm transition-colors hover:bg-muted/60 focus-visible:bg-muted/60 focus-visible:outline-none',
   itemActive: 'bg-primary/10 text-foreground dark:bg-primary/20',
   itemLabel: 'min-w-0 flex-1 font-medium text-foreground whitespace-normal break-words',
@@ -39,6 +42,8 @@ export type ThemeSelectProps = {
   wrapperClassName?: string
   /** Extra classes on the trigger button (e.g. status tint) */
   triggerClassName?: string
+  /** Stacking order for the portaled menu (default above modals). */
+  menuZIndex?: number
   'aria-label'?: string
 }
 
@@ -67,6 +72,7 @@ export function ThemeSelect({
   className,
   wrapperClassName,
   triggerClassName,
+  menuZIndex = 9999,
   'aria-label': ariaLabel,
 }: ThemeSelectProps) {
   const [open, setOpen] = useState(false)
@@ -184,13 +190,14 @@ export function ThemeSelect({
           id={listId}
           role="listbox"
           aria-label={ariaLabel}
+          {...{ [THEME_SELECT_MENU_ATTR]: '' }}
           style={{
             position: 'fixed',
             top: menuRect.top,
             left: menuRect.left,
             width: menuRect.width,
             minWidth: Math.max(menuRect.width, 280),
-            zIndex: 200,
+            zIndex: menuZIndex,
           }}
           className={themeSelectUi.menu}
         >

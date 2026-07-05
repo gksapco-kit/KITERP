@@ -31,6 +31,36 @@ const FONT_SIZE_TAILWIND: Record<string, string> = {
   '4xl': 'text-4xl',
 }
 
+/** Default section padding when block props omit padding_top / padding_bottom. */
+export const DEFAULT_CONTENT_SECTION_PADDING = 64
+
+/** Blocks that manage their own vertical rhythm (no default section padding). */
+const SECTION_PADDING_SHELL_BLOCKS = new Set([
+  'nav',
+  'announcement_bar',
+  'spacer',
+  'divider',
+  'footer',
+  'hero',
+  'hero_split',
+  'hero_minimal',
+  'marquee_strip',
+  'cookie_consent',
+])
+
+function defaultSectionPaddingForBlock(blockType: string | undefined): number {
+  if (blockType && SECTION_PADDING_SHELL_BLOCKS.has(blockType)) return 0
+  return DEFAULT_CONTENT_SECTION_PADDING
+}
+
+function readSectionPaddingValue(explicit: unknown, fallback: number): number {
+  if (explicit !== undefined && explicit !== null && explicit !== '') {
+    const n = Number(explicit)
+    return Number.isFinite(n) ? Math.max(0, n) : fallback
+  }
+  return fallback
+}
+
 /** Raw overrides from block entity (or legacy mistaken props copy). */
 export function readRawBlockStyleOverrides(block: {
   style_overrides?: Record<string, unknown>
@@ -124,25 +154,30 @@ function mergeSpacingLayers(
 
 /** Effective spacing for a breakpoint (tablet/mobile inherit unset values from larger breakpoints). */
 export function resolveBlockSectionSpacing(
-  block: { props?: Record<string, unknown>; style_overrides?: Record<string, unknown> },
+  block: {
+    block_type?: string
+    props?: Record<string, unknown>
+    style_overrides?: Record<string, unknown>
+  },
   breakpoint: BreakpointStyleKey = 'desktop',
 ): BlockSectionSpacing {
   const props = (block.props ?? {}) as Record<string, unknown>
   const raw = readRawBlockStyleOverrides(block)
+  const defaultPad = defaultSectionPaddingForBlock(block.block_type)
 
   if (!isBreakpointNested(raw)) {
     const flat = resolveBreakpointStyleOverrides(raw, 'desktop')
     return {
-      paddingTop: Number(flat.padding_top ?? props.padding_top ?? 0) || 0,
-      paddingBottom: Number(flat.padding_bottom ?? props.padding_bottom ?? 0) || 0,
+      paddingTop: readSectionPaddingValue(flat.padding_top ?? props.padding_top, defaultPad),
+      paddingBottom: readSectionPaddingValue(flat.padding_bottom ?? props.padding_bottom, defaultPad),
       sectionScale: clampSectionScale(flat.section_scale ?? props.section_scale ?? 1),
     }
   }
 
   const nested = ensureNestedStyleOverrides(block, raw)
   const desktopBase: BlockSectionSpacing = {
-    paddingTop: Number(props.padding_top ?? 0) || 0,
-    paddingBottom: Number(props.padding_bottom ?? 0) || 0,
+    paddingTop: readSectionPaddingValue(props.padding_top, defaultPad),
+    paddingBottom: readSectionPaddingValue(props.padding_bottom, defaultPad),
     sectionScale: clampSectionScale(props.section_scale ?? 1),
   }
   const desktop = mergeSpacingLayers(desktopBase, readSpacingLayer(nested.desktop))

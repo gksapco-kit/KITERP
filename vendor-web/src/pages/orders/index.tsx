@@ -6,7 +6,8 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Select, selectOptionsWithBlank } from '@/components/ui/select'
-import { useOrders, useUpdateOrderStatus, useOrderReservations, useStores } from '@/hooks/useVendor'
+import { useOrders, useUpdateOrderStatus, useOrderReservations } from '@/hooks/useVendor'
+import { SalesScopeFilters } from '@/components/common/SalesScopeFilters'
 import { MRPReportModal } from '@/components/mrp/MRPReportModal'
 import type { MRPItem } from '@/components/mrp/MRPReportModal'
 import { formatCurrency, formatDate } from '@/lib/utils'
@@ -15,7 +16,7 @@ import { ResizableTable } from '@/components/table/ResizableTable'
 import { processRows, type SortDir } from '@/lib/tableList'
 import { onClickableTableRow } from '@/lib/clickableTableRow'
 import type { Order } from '@/types'
-import { Search, ChevronLeft, ChevronRight, Eye, Loader2, Globe, Monitor, CalendarDays, Download, X, MessageSquare, BarChart3, Lock, Store, Plus } from 'lucide-react'
+import { Search, ChevronLeft, ChevronRight, Eye, Loader2, Globe, Monitor, CalendarDays, Download, X, MessageSquare, BarChart3, Lock, Plus } from 'lucide-react'
 import { CreateBookingModal } from '@/pages/bookings/CreateBookingModal'
 const statusFilters = [
   { label: 'All', value: '' },
@@ -87,10 +88,14 @@ export default function Orders() {
   const [statusFilter, setStatusFilter] = useState('')
   const [sourceFilter, setSourceFilter] = useState('')
   const [storeFilter, setStoreFilter] = useState(selectedStore?.id ?? '')
+  const [branchFilter, setBranchFilter] = useState('')
+  const [salesAreaFilter, setSalesAreaFilter] = useState('')
 
   // Sync with global store selection
   useEffect(() => {
     setStoreFilter(selectedStore?.id ?? '')
+    setBranchFilter('')
+    setSalesAreaFilter('')
     setPage(1)
   }, [selectedStore?.id])
   const [search, setSearch] = useState('')
@@ -102,10 +107,15 @@ export default function Orders() {
   const [mrpOrder, setMrpOrder] = useState<{ id: string; order_number: string; items: MRPItem[] } | null>(null)
   const [showCreateBooking, setShowCreateBooking] = useState(false)
 
-  const { data: storesData } = useStores()
-  const stores = storesData?.stores ?? []
-
-  const { data, isLoading } = useOrders({ page, size: 10, status: statusFilter || undefined, source: sourceFilter || undefined, search: search || undefined, store_id: storeFilter || undefined })
+  const { data, isLoading } = useOrders({
+    page,
+    size: 10,
+    status: statusFilter || undefined,
+    source: sourceFilter || undefined,
+    search: search || undefined,
+    store_id: branchFilter || storeFilter || undefined,
+    sales_area_id: salesAreaFilter || undefined,
+  })
   const updateStatus = useUpdateOrderStatus()
 
   const displayOrders = useMemo(() => {
@@ -210,14 +220,32 @@ export default function Orders() {
       </div>
 
       <Card>
-        <CardContent className="pt-6 space-y-3">
-          <div className="flex flex-col sm:flex-row gap-4">
-            <form onSubmit={(e) => { e.preventDefault(); setSearch(searchInput); setPage(1) }} className="flex-1 flex gap-2">
-              <div className="relative flex-1">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                <Input data-kiterp-search-field placeholder="Search orders..." value={searchInput} onChange={(e) => setSearchInput(e.target.value)} className="pl-10" />
+        <CardContent className="pt-4 pb-4 space-y-3">
+          <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+            <SalesScopeFilters
+              businessUnitId={storeFilter}
+              branchId={branchFilter}
+              salesAreaId={salesAreaFilter}
+              onBusinessUnitChange={(id) => { setStoreFilter(id); setBranchFilter(''); setSalesAreaFilter(''); setPage(1) }}
+              onBranchChange={(id) => { setBranchFilter(id); setSalesAreaFilter(''); setPage(1) }}
+              onSalesAreaChange={(id) => { setSalesAreaFilter(id); setPage(1) }}
+              itemClassName="w-full min-w-[7rem] sm:w-[8rem]"
+            />
+            <form
+              onSubmit={(e) => { e.preventDefault(); setSearch(searchInput); setPage(1) }}
+              className="flex gap-2 min-w-[10rem] flex-1 basis-full sm:basis-auto sm:flex-none sm:w-44 lg:w-52"
+            >
+              <div className="relative flex-1 min-w-0">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
+                <Input
+                  data-kiterp-search-field
+                  placeholder="Search orders..."
+                  value={searchInput}
+                  onChange={(e) => setSearchInput(e.target.value)}
+                  className="pl-10 h-9"
+                />
               </div>
-              <Button type="submit" variant="outline">Search</Button>
+              <Button type="submit" variant="outline" className="shrink-0 h-9">Search</Button>
             </form>
           </div>
           <div className="flex gap-1 flex-wrap items-center">
@@ -236,17 +264,6 @@ export default function Orders() {
                 onClick={() => { setStatusFilter(f.value); setPage(1) }}>{f.label}</Button>
             ))}
           </div>
-          {stores.length > 0 && (
-            <div className="flex gap-1 flex-wrap items-center">
-              <span className="text-xs font-medium text-gray-500 mr-1 flex items-center gap-1"><Store className="w-3.5 h-3.5" />Store:</span>
-              <Button variant={storeFilter === '' ? 'default' : 'outline'} size="sm" onClick={() => { setStoreFilter(''); setPage(1) }}>All Stores</Button>
-              {stores.map(s => (
-                <Button key={s.id} variant={storeFilter === s.id ? 'default' : 'outline'} size="sm" onClick={() => { setStoreFilter(s.id); setPage(1) }}>
-                  {s.name}{s.code ? ` (${s.code})` : ''}
-                </Button>
-              ))}
-            </div>
-          )}
         </CardContent>
       </Card>
 

@@ -8,6 +8,7 @@ import { BuilderCtaButton } from '@/components/builder/BuilderCtaButton'
 import { BuilderSectionImage } from '@/components/builder/BuilderSectionImage'
 import { useBuilderCanvas } from '@/contexts/BuilderCanvasContext'
 import { isBlockFieldHidden, resolveBlockTextField } from '@/lib/blockHiddenFields'
+import { builderSectionContainerClass } from '@/lib/builderSectionLayout'
 
 interface Props {
   site: PublicSite
@@ -102,7 +103,7 @@ export default function CtaBlock({ style, props, blockId }: Props) {
   const showSubtitle = !isBlockFieldHidden(props, 'subtitle') && (subtitle || isEditorCanvas)
 
   return (
-    <section className={cn('px-4 sm:px-6 lg:px-8', compact ? 'py-10' : 'py-16')}>
+    <section className={builderSectionContainerClass()}>
       <div
         className={cn(
           'max-w-5xl mx-auto builder-site-card rounded-3xl',

@@ -89,7 +89,7 @@ export default function SEOManagementPage() {
     <div className="mx-auto flex w-full max-w-3xl flex-col gap-6 p-4 sm:p-6 lg:p-8">
       <div className="space-y-1">
         <div className="flex items-center gap-2 text-xs text-muted-foreground">
-          <Link to="/business-front" className="transition-colors hover:text-foreground">Website Management</Link>
+          <Link to="/websites" className="transition-colors hover:text-foreground">Website Management</Link>
           <ChevronRight className="h-3 w-3" />
           <span className="font-medium text-foreground">SEO Management</span>
         </div>

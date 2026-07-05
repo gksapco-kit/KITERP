@@ -1,5 +1,7 @@
 export type SidebarNavNodeKind = 'section' | 'group' | 'item' | 'rail' | 'flyout'
 
+import { resolveNavGroupCollapsed } from '@/layouts/sidebarNavOrder'
+
 export interface SidebarNavNode {
   key: string
   kind: SidebarNavNodeKind
@@ -87,7 +89,7 @@ export function buildSidebarNavTree(
         grpKey: block.grpKey,
         parentKey,
       })
-      if (collapsedGroups[block.grpKey] ?? false) continue
+      if (resolveNavGroupCollapsed(block.grpKey, collapsedGroups)) continue
       for (const { item } of block.entries) {
         nodes.push({
           key: itemFocusKey(section.id, item.to),
@@ -288,7 +290,7 @@ export function resolveSidebarNavKeyAction(
       return { type: 'focus', key: child }
     }
     if (current.kind === 'group') {
-      const collapsed = ctx.collapsedGroups[current.grpKey ?? ''] ?? false
+      const collapsed = resolveNavGroupCollapsed(current.grpKey ?? '', ctx.collapsedGroups)
       const activeChild = activeDescendantKey(nodes, current.key, ctx.activeNavTo)
       if (collapsed) {
         return {
@@ -339,7 +341,7 @@ export function resolveSidebarNavKeyAction(
       return null
     }
     if (current.kind === 'group') {
-      const collapsed = ctx.collapsedGroups[current.grpKey ?? ''] ?? false
+      const collapsed = resolveNavGroupCollapsed(current.grpKey ?? '', ctx.collapsedGroups)
       if (!collapsed) return { type: 'collapseGroup', grpKey: current.grpKey ?? '' }
       if (current.parentKey) return { type: 'focus', key: current.parentKey }
       return null

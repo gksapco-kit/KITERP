@@ -620,21 +620,21 @@ function SalesAreasTab() {
           ) : (
             <table className="w-full table-fixed border-collapse">
               <colgroup>
-                <col className="w-[24%]" />
+                <col className="w-[18%]" />
+                <col className="w-[22%]" />
                 <col className="w-[14%]" />
                 <col className="w-[15%]" />
                 <col className="w-[13%]" />
-                <col className="w-[18%]" />
                 <col className="w-[11%]" />
                 <col className="w-[5%]" />
               </colgroup>
               <thead>
                 <tr className="border-b bg-gray-50/80 text-left text-[11px] font-semibold text-gray-500 uppercase tracking-wide">
+                  <th className="px-3 py-2"><TableColumnLabel>Sales Area</TableColumnLabel></th>
                   <th className="px-3 py-2"><TableColumnLabel>Business Unit</TableColumnLabel></th>
                   <th className="px-3 py-2"><TableColumnLabel>{BRANCH_LABEL}</TableColumnLabel></th>
                   <th className="px-3 py-2"><TableColumnLabel>Dist. Channel</TableColumnLabel></th>
                   <th className="px-3 py-2"><TableColumnLabel>Division</TableColumnLabel></th>
-                  <th className="px-3 py-2"><TableColumnLabel>Code</TableColumnLabel></th>
                   <th className="px-3 py-2"><TableColumnLabel>Status</TableColumnLabel></th>
                   <th className="px-3 py-2 text-right"><span className="sr-only">Actions</span></th>
                 </tr>
@@ -649,6 +649,9 @@ function SalesAreasTab() {
                   const branchLabel = formatBranchLabel(a)
                   return (
                     <tr key={a.id} className="hover:bg-gray-50/80">
+                      <SalesAreaTruncCell title={a.code || a.name || undefined} className="font-mono font-medium text-foreground">
+                        {a.code || a.name || '—'}
+                      </SalesAreaTruncCell>
                       <SalesAreaTruncCell title={buLabel} className="font-medium text-foreground">
                         {buLabel}
                       </SalesAreaTruncCell>
@@ -669,9 +672,6 @@ function SalesAreasTab() {
                       </SalesAreaTruncCell>
                       <SalesAreaTruncCell title={a.division_name || undefined}>
                         {a.division_name || '—'}
-                      </SalesAreaTruncCell>
-                      <SalesAreaTruncCell title={a.code || undefined} className="font-mono text-gray-500">
-                        {a.code || '—'}
                       </SalesAreaTruncCell>
                       <td className="px-3 py-2 align-middle">
                         <div className="flex items-center">{a.is_default ? <DefaultBadge /> : <StatusPill active={a.is_active} />}</div>

@@ -6,6 +6,7 @@ import { BuilderTextField } from '@/components/builder/BuilderTextField'
 import { BuilderCtaButton } from '@/components/builder/BuilderCtaButton'
 import { useBuilderCanvas } from '@/contexts/BuilderCanvasContext'
 import { isBlockFieldHidden, resolveBlockTextField } from '@/lib/blockHiddenFields'
+import { builderSectionContainerClass, builderSectionContainerWithMax } from '@/lib/builderSectionLayout'
 
 interface Props { site: PublicSite; style: StyleConfig; props: Record<string, unknown>; liveItems: LiveItem[]; branchCode?: string | null; blockId?: string }
 
@@ -26,7 +27,7 @@ export default function BookingWidgetBlock({ style, props, liveItems, blockId }:
   const services = liveItems.slice(0, 6)
 
   return (
-    <section className="py-16 px-4 sm:px-6 lg:px-8 max-w-4xl mx-auto">
+    <section className={builderSectionContainerWithMax('max-w-4xl')}>
       {(showTitle || showSubtitle) && (
         <div className="text-center mb-10">
           {showTitle && (

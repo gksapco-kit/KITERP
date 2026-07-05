@@ -26,6 +26,19 @@ class CustomerRepository(BaseRepository[Customer]):
     async def get_by_vendor_and_phone(
         self, vendor_id: UUID, phone: str
     ) -> Optional[Customer]:
+        from app.services.sms_service import normalize_e164
+
+        normalized = normalize_e164(phone)
+        result = await self.db.execute(
+            select(Customer).where(
+                Customer.vendor_id == vendor_id,
+                Customer.phone == normalized,
+            )
+        )
+        found = result.scalar_one_or_none()
+        if found or normalized == phone:
+            return found
+        # Fallback for legacy rows stored without E.164 prefix
         result = await self.db.execute(
             select(Customer).where(
                 Customer.vendor_id == vendor_id,

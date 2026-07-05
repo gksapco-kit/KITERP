@@ -4,17 +4,13 @@ import { VendorContext, type VendorContextType, type VendorData } from '@storefr
 import { buildDraftPreviewPageUrl, buildDraftPreviewStorePath } from '@/lib/draftPreviewNavigation'
 import { parseCatalogStorePath } from '@/lib/catalogStorePaths'
 
-const DEFAULT_PRODUCT_DISPLAY: Record<string, boolean> = {
-  brand: true, short_description: true, specifications: true, warranty: true,
-  return_policy: true, shipping_info: true, offer_label: true, sku: true,
-  stock_status: true, tags: true,
-}
+import {
+  createAllEnabledProductDisplayFields,
+  createAllEnabledServiceDisplayFields,
+} from '@/lib/storefrontDisplayFields'
 
-const DEFAULT_SERVICE_DISPLAY: Record<string, boolean> = {
-  brand: true, short_description: true, whats_included: true, whats_not_included: true,
-  prerequisites: true, service_areas: true, cancellation_policy: true, offer_label: true,
-  service_mode: true, tags: true,
-}
+const DEFAULT_PRODUCT_DISPLAY = createAllEnabledProductDisplayFields()
+const DEFAULT_SERVICE_DISPLAY = createAllEnabledServiceDisplayFields()
 
 export function PreviewVendorProvider({
   slug,

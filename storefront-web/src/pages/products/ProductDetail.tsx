@@ -22,7 +22,8 @@ import { assertCanAddToCart, getMaxAddQuantity } from '@/lib/stockValidation'
 import { toast } from 'sonner'
 
 export default function ProductDetail() {
-  const { storePath, vendorSlug } = useVendor()
+  const { storePath, vendorSlug, displayFields } = useVendor()
+  const sf = displayFields.product
   const { product_detail_template } = useTheme()
   const { slug } = useParams<{ slug: string }>()
   const { data: product, isLoading } = useProduct(slug!)
@@ -311,6 +312,7 @@ export default function ProductDetail() {
   const isReturnable = selectedVariant?.is_returnable ?? product.is_returnable
 
   const templateProps = {
+    displayFields: sf,
     product, selectedVariant, activeVariants, hasVariants,
     selectedVariantId, setSelectedVariantId: handleSelectVariant,
     qty, setQty: handleSetQty, maxAddQty,
@@ -326,8 +328,8 @@ export default function ProductDetail() {
     addToCartPending: addToCart.isPending,
     storePath, warrantyDays, warrantyType, returnDays,
     returnPolicy, returnConditions, refundPolicy, isReturnable, specs,
-    crossSellProducts: product.cross_sell_products || [],
-    upsellProducts: product.upsell_products || [],
+    crossSellProducts: sf.cross_sell !== false ? (product.cross_sell_products || []) : [],
+    upsellProducts: sf.upsell !== false ? (product.upsell_products || []) : [],
     isSubscription: !!product.is_subscription,
     subscriptionInterval: selectedVariant?.subscription_interval || product.subscription_interval,
     subscriptionPrice: displayPrice,
@@ -337,7 +339,7 @@ export default function ProductDetail() {
     subscriptionSetupFee: selectedVariant?.subscription_setup_fee ?? product.subscription_setup_fee,
     subscriptionBillingCycles: selectedVariant?.subscription_billing_cycles ?? product.subscription_billing_cycles,
     subscriptionScheduleModes: selectedVariant?.subscription_schedule_modes,
-    canQuote: !!product.allow_quote_request,
+    canQuote: !!product.allow_quote_request && sf.quote_request !== false,
     quoteFormConfig: product.quote_form_config,
     showQuote, setShowQuote,
     requestQuote,

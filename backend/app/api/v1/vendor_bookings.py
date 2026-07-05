@@ -109,6 +109,7 @@ async def list_bookings(
     size: int = Query(20, ge=1, le=100),
     status: Optional[str] = None,
     store_id: Optional[str] = None,
+    sales_area_id: Optional[str] = None,
     vendor_id: UUID = Depends(_vendor_id),
     db: AsyncSession = Depends(get_db),
 ):
@@ -123,6 +124,11 @@ async def list_bookings(
         store_uuid = UUID(store_id)
         query = query.where(Booking.store_id == store_uuid)
         count_q = count_q.where(Booking.store_id == store_uuid)
+
+    if sales_area_id:
+        area_uuid = UUID(sales_area_id)
+        query = query.where(Booking.sales_area_id == area_uuid)
+        count_q = count_q.where(Booking.sales_area_id == area_uuid)
 
     total = (await db.execute(count_q)).scalar_one()
     skip = (page - 1) * size

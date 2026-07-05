@@ -12,6 +12,7 @@ import { BuilderTextField } from '@/components/builder/BuilderTextField'
 import { useBuilderCanvas } from '@/contexts/BuilderCanvasContext'
 import { useEffectiveVendor } from '@/hooks/useEffectiveVendor'
 import { recallDraftEmbedPreviewToken } from '@/lib/draftEmbedPreview'
+import { builderSectionContainerClass, builderSectionContainerWithMax } from '@/lib/builderSectionLayout'
 import { extractApiError } from '@/lib/errorMessages'
 import {
   resolveBusinessContactAddress,
@@ -146,7 +147,7 @@ export default function ContactFormBlock({ site, style, props, liveItems, blockI
   const primary = style.primary_color || '#64C3A0'
 
   return (
-    <section className="py-16 px-4 sm:px-6 lg:px-8 max-w-6xl mx-auto">
+    <section className={builderSectionContainerWithMax('max-w-6xl')}>
       <div className="grid lg:grid-cols-2 gap-12 items-start">
         {/* Contact info */}
         <div>

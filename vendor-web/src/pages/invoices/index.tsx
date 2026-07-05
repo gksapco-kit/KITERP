@@ -24,6 +24,7 @@ import {
 import { QuickCreateCustomerModal } from '@/components/customers/QuickCreateCustomerModal'
 import { BusinessUnitSelect } from '@/components/common/BusinessUnitSelect'
 import { BranchSelect } from '@/components/common/BranchSelect'
+import { SalesScopeFilters } from '@/components/common/SalesScopeFilters'
 import { QuotationExtraFieldsEditor } from '@/components/quotations/QuotationExtraFieldsEditor'
 import { serializeQuotationExtraFields, type QuotationExtraField } from '@/types/quotation'
 import apiClient from '@/api/client'
@@ -158,6 +159,7 @@ export default function InvoicesPage() {
   const [statusFilter, setStatusFilter] = useState('')
   const [storeFilter, setStoreFilter] = useState('')
   const [branchFilter, setBranchFilter] = useState('')
+  const [salesAreaFilter, setSalesAreaFilter] = useState('')
   const [showCreate, setShowCreate] = useState(false)
   const [shareOpenId, setShareOpenId] = useState<string | null>(null)
   const [searchInput, setSearchInput] = useState('')
@@ -175,7 +177,7 @@ export default function InvoicesPage() {
   }, [searchInput])
 
   const { data, isLoading } = useQuery({
-    queryKey: ['invoices', page, typeFilter, statusFilter, storeFilter, branchFilter, search],
+    queryKey: ['invoices', page, typeFilter, statusFilter, storeFilter, branchFilter, salesAreaFilter, search],
     queryFn: () => vendorApi.listInvoices({
       page,
       size: 15,
@@ -183,6 +185,7 @@ export default function InvoicesPage() {
       exclude_invoice_type: typeFilter ? undefined : 'estimate',
       status: statusFilter || undefined,
       store_id: branchFilter || storeFilter || undefined,
+      sales_area_id: salesAreaFilter || undefined,
       search: search || undefined,
     }),
   })
@@ -211,6 +214,16 @@ export default function InvoicesPage() {
   const total = data?.total ?? 0
   const pages = data?.pages ?? 1
 
+  const moreOptionsActiveCount = useMemo(() => {
+    let count = 0
+    if (typeFilter) count++
+    if (statusFilter) count++
+    if (salesAreaFilter) count++
+    if (sortKey !== 'created_at') count++
+    if (sortDir !== 'desc') count++
+    return count
+  }, [typeFilter, statusFilter, sortKey, sortDir])
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -227,44 +240,87 @@ export default function InvoicesPage() {
             search={searchInput}
             onSearchChange={setSearchInput}
             searchPlaceholder="Search customer, invoice #, phone…"
-            searchWrapperClassName="w-80 min-w-[18rem]"
+            searchWrapperClassName="min-w-[12rem] flex-1 sm:flex-none lg:w-72 max-w-full"
+            hideSort
+            moreOptionsActiveCount={moreOptionsActiveCount}
             leading={(
-              <>
-                <div className="w-[9.5rem] shrink-0 overflow-hidden">
-                  <BusinessUnitSelect value={storeFilter} onChange={(id) => { setStoreFilter(id); setBranchFilter(''); setPage(1) }} allowAll autoSelectDefault={false} />
+              <SalesScopeFilters
+                businessUnitId={storeFilter}
+                branchId={branchFilter}
+                salesAreaId={salesAreaFilter}
+                onBusinessUnitChange={(id) => { setStoreFilter(id); setBranchFilter(''); setSalesAreaFilter(''); setPage(1) }}
+                onBranchChange={(id) => { setBranchFilter(id); setSalesAreaFilter(''); setPage(1) }}
+                onSalesAreaChange={(id) => { setSalesAreaFilter(id); setPage(1) }}
+              />
+            )}
+            moreOptions={(
+              <div className="flex flex-wrap items-end gap-3">
+                <div className="flex min-w-[9.5rem] flex-col gap-1.5">
+                  <label className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Billing type</label>
+                  <ThemeSelect
+                    value={typeFilter}
+                    onChange={(v) => { setTypeFilter(v); setPage(1) }}
+                    placeholder="All Billing Types"
+                    aria-label="Billing type"
+                    wrapperClassName="w-full min-w-[9.5rem]"
+                    options={[
+                      { value: '', label: 'All Billing Types' },
+                      { value: 'invoice', label: 'Invoices' },
+                      { value: 'receipt', label: 'Receipts' },
+                      { value: 'credit_note', label: 'Credit Notes' },
+                    ]}
+                  />
                 </div>
-                <div className="w-[9.5rem] shrink-0 overflow-hidden">
-                  <BranchSelect businessUnitId={storeFilter || null} value={branchFilter} onChange={(id) => { setBranchFilter(id); setPage(1) }} allowAll />
+                <div className="flex min-w-[9.5rem] flex-col gap-1.5">
+                  <label className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Status</label>
+                  <ThemeSelect
+                    value={statusFilter}
+                    onChange={(v) => { setStatusFilter(v); setPage(1) }}
+                    placeholder="All Status"
+                    aria-label="Status"
+                    wrapperClassName="w-full min-w-[9.5rem]"
+                    options={[
+                      { value: '', label: 'All Status' },
+                      { value: 'draft', label: 'Draft' },
+                      { value: 'sent', label: 'Sent' },
+                      { value: 'paid', label: 'Paid' },
+                      { value: 'partially_paid', label: 'Partial' },
+                      { value: 'overdue', label: 'Overdue' },
+                    ]}
+                  />
                 </div>
-                <ThemeSelect
-                  value={typeFilter}
-                  onChange={(v) => { setTypeFilter(v); setPage(1) }}
-                  placeholder="All Billing Types"
-                  aria-label="Billing type"
-                  wrapperClassName="w-[8.5rem] shrink-0"
-                  options={[
-                    { value: '', label: 'All Billing Types' },
-                    { value: 'invoice', label: 'Invoices' },
-                    { value: 'receipt', label: 'Receipts' },
-                    { value: 'credit_note', label: 'Credit Notes' },
-                  ]}
-                />
-                <ThemeSelect
-                  value={statusFilter}
-                  onChange={(v) => { setStatusFilter(v); setPage(1) }}
-                  placeholder="All Status"
-                  aria-label="Status"
-                  wrapperClassName="w-[8.5rem] shrink-0"
-                  options={[
-                    { value: '', label: 'All Status' },
-                    { value: 'draft', label: 'Draft' },
-                    { value: 'sent', label: 'Sent' },
-                    { value: 'paid', label: 'Paid' },
-                    { value: 'partially_paid', label: 'Partial' },
-                    { value: 'overdue', label: 'Overdue' },
-                  ]}
-                />
-              </>
+                <div className="flex min-w-[9.5rem] flex-col gap-1.5">
+                  <label className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Sort by</label>
+                  <ThemeSelect
+                    value={sortKey}
+                    onChange={setSortKey}
+                    options={[
+                      { value: 'created_at', label: 'Date' },
+                      { value: 'invoice_number', label: 'Invoice #' },
+                      { value: 'customer_name', label: 'Customer' },
+                      { value: 'total', label: 'Total' },
+                      { value: 'balance_due', label: 'Balance due' },
+                      { value: 'status', label: 'Status' },
+                      { value: 'invoice_type', label: 'Type' },
+                    ]}
+                    aria-label="Sort by column"
+                    wrapperClassName="w-full min-w-[9.5rem]"
+                  />
+                </div>
+                <div className="flex min-w-[9.5rem] flex-col gap-1.5">
+                  <label className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Direction</label>
+                  <ThemeSelect
+                    value={sortDir}
+                    onChange={(v) => setSortDir(v as SortDir)}
+                    options={[
+                      { value: 'asc', label: 'Low → High' },
+                      { value: 'desc', label: 'High → Low' },
+                    ]}
+                    aria-label="Sort direction"
+                    wrapperClassName="w-full min-w-[9.5rem]"
+                  />
+                </div>
+              </div>
             )}
             sortOptions={[
               { value: 'created_at', label: 'Date' },

@@ -9,7 +9,7 @@ export default function CheckoutFormBlock({ style, props }: Props) {
   const { storePath } = useVendor()
   // Real checkout is at the /checkout shell route — this block is a CTA/info card for builder pages
   return (
-    <section className="py-16 px-4 sm:px-6 lg:px-8 max-w-4xl mx-auto">
+    <section className={builderSectionContainerWithMax('max-w-4xl')}>
       <h2 className="text-2xl font-bold text-gray-900 mb-6">Secure Checkout</h2>
       <div className="grid sm:grid-cols-3 gap-4 mb-8">
         {[

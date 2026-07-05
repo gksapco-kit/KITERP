@@ -1,4 +1,4 @@
-import { Link, useParams } from 'react-router-dom'
+import { Link, useParams, Navigate } from 'react-router-dom'
 import {
   ChevronLeft, Loader2, Clock, Calendar, Tag,
   Newspaper, AlertCircle,
@@ -7,6 +7,7 @@ import { useVendor } from '@/contexts/VendorContext'
 import { useTheme } from '@/contexts/ThemeContext'
 import { useBlogPost, useBlogPosts } from '@/hooks/useStore'
 import { imgUrl } from '@/lib/utils'
+import { isVendorBlogEnabled } from '@/lib/catalogNavCapabilities'
 import type { StoreBlogPost } from '@/api/store'
 
 function fmtDate(iso?: string | null) {
@@ -96,13 +97,17 @@ function RelatedCard({ post, storePath, primaryColor }: {
 
 export default function BlogPost() {
   const { slug } = useParams<{ slug: string }>()
-  const { storePath } = useVendor()
+  const { storePath, vendor } = useVendor()
   const theme = useTheme()
   const primaryColor = theme.colors.primary
 
   const { data: post, isLoading, isError } = useBlogPost(slug ?? '')
   const { data: relatedData } = useBlogPosts({ size: 4 })
   const related = (relatedData?.items ?? []).filter(p => p.slug !== slug).slice(0, 3)
+
+  if (!isVendorBlogEnabled(vendor?.settings)) {
+    return <Navigate to={storePath('/')} replace />
+  }
 
   if (isLoading) {
     return (

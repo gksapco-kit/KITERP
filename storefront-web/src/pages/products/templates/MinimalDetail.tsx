@@ -14,9 +14,11 @@ import MediaViewer from '@/components/MediaViewer'
 import ColorSwatchPicker from '@/components/products/ColorSwatchPicker'
 import { isCombinationAvailable } from '@/lib/variantOptions'
 import type { ProductDetailTemplateProps } from './types'
+import { isDisplayFieldEnabled } from '@/lib/storefrontDisplayFields'
 
 export default function MinimalDetail(props: ProductDetailTemplateProps) {
   const {
+    displayFields,
     product, selectedVariant, activeVariants, hasVariants,
     setSelectedVariantId, qty, setQty, maxAddQty,
     displayPrice, displayCompare, displayCurrency, displayStock,
@@ -36,6 +38,10 @@ export default function MinimalDetail(props: ProductDetailTemplateProps) {
   } = props
   const qtyMax = maxAddQty ?? 99
 
+  const sf = displayFields
+  const showCompare = isDisplayFieldEnabled(sf, 'compare_at_price')
+  const showVariants = isDisplayFieldEnabled(sf, 'variants') && hasVariants
+
   const intervalLabel: Record<string, string> = {
     daily: 'Daily', weekly: 'Weekly', biweekly: 'Bi-Weekly', monthly: 'Monthly',
     quarterly: 'Quarterly', biannual: 'Half-Yearly', yearly: 'Yearly',
@@ -45,6 +51,25 @@ export default function MinimalDetail(props: ProductDetailTemplateProps) {
     quarterly: '/qtr', biannual: '/6mo', yearly: '/yr',
   }
 
+  const showShippingSection = isDisplayFieldEnabled(sf, 'shipping_info') && product.requires_shipping !== false
+  const showReturnSection = isDisplayFieldEnabled(sf, 'return_policy') && (returnPolicy || returnDays || isReturnable !== undefined)
+  const showWarrantySection = isDisplayFieldEnabled(sf, 'warranty') && (warrantyDays || warrantyType)
+
+  const trustBadges = [
+    isDisplayFieldEnabled(sf, 'shipping_info') && {
+      icon: Truck,
+      text: product.shipping_cost ? `${formatCurrency(product.shipping_cost)} Shipping` : 'Free Delivery',
+    },
+    isDisplayFieldEnabled(sf, 'return_policy') && {
+      icon: RefreshCw,
+      text: returnDays ? `${returnDays}-Day Returns` : isReturnable === false ? 'Non-returnable' : 'Easy Returns',
+    },
+    isDisplayFieldEnabled(sf, 'warranty') && {
+      icon: ShieldCheck,
+      text: warrantyDays ? `${warrantyDays >= 365 ? `${Math.floor(warrantyDays / 365)}Y` : `${warrantyDays}D`} Warranty` : 'Secure Buy',
+    },
+  ].filter((badge): badge is { icon: typeof Truck; text: string } => Boolean(badge))
+
   return (
     <div className="max-w-3xl mx-auto px-4 py-8">
       {/* Breadcrumb */}
@@ -52,7 +77,7 @@ export default function MinimalDetail(props: ProductDetailTemplateProps) {
         <Link to={storePath('/')} className="hover:text-gray-600">Home</Link>
         <ChevronRight className="w-3 h-3" />
         <Link to={storePath('/products')} className="hover:text-gray-600">Products</Link>
-        {product.category && (
+        {isDisplayFieldEnabled(sf, 'category') && product.category && (
           <>
             <ChevronRight className="w-3 h-3" />
             <span className="text-gray-500">{product.category}</span>
@@ -69,10 +94,10 @@ export default function MinimalDetail(props: ProductDetailTemplateProps) {
           productName={product.name}
           badges={
             <div className="absolute top-4 left-4 flex gap-2">
-              {product.is_new_arrival && (
+              {isDisplayFieldEnabled(sf, 'new_arrival_badge') && product.is_new_arrival && (
                 <span className="bg-black text-white text-xs font-medium px-3 py-1 rounded-full flex items-center gap-1"><Zap className="w-3 h-3" /> New</span>
               )}
-              {product.is_best_seller && (
+              {isDisplayFieldEnabled(sf, 'best_seller_badge') && product.is_best_seller && (
                 <span className="bg-amber-500 text-white text-xs font-medium px-3 py-1 rounded-full flex items-center gap-1"><Award className="w-3 h-3" /> Bestseller</span>
               )}
             </div>
@@ -82,16 +107,16 @@ export default function MinimalDetail(props: ProductDetailTemplateProps) {
 
       {/* Product Title — Centered */}
       <div className="text-center mb-6">
-        {product.brand && (
+        {isDisplayFieldEnabled(sf, 'brand') && product.brand && (
           <p className="text-xs font-medium text-gray-400 uppercase tracking-[0.2em] mb-2">{product.brand}</p>
         )}
         <h1 className="text-3xl sm:text-4xl font-bold text-gray-900 leading-tight">{product.name}</h1>
-        {(product.avg_rating ?? 0) > 0 && (
+        {isDisplayFieldEnabled(sf, 'reviews') && (product.avg_rating ?? 0) > 0 && (
           <div className="mt-3 flex justify-center">
             <StarRating rating={product.avg_rating!} showValue reviewCount={product.review_count} />
           </div>
         )}
-        {product.short_description && (
+        {isDisplayFieldEnabled(sf, 'short_description') && product.short_description && (
           <p className="mt-4 text-gray-500 text-sm max-w-md mx-auto leading-relaxed">{product.short_description}</p>
         )}
       </div>
@@ -109,14 +134,14 @@ export default function MinimalDetail(props: ProductDetailTemplateProps) {
               </span>
             )}
           </span>
-          {displayCompare && displayCompare > displayPrice && (
+          {showCompare && displayCompare && displayCompare > displayPrice && (
             <span className="text-lg text-gray-400 line-through">{formatCurrency(displayCompare, displayCurrency)}</span>
           )}
-          {discount > 0 && (
+          {showCompare && discount > 0 && (
             <span className="text-sm font-bold text-red-500">-{discount}%</span>
           )}
         </div>
-        {displayOfferLabel && displayOnSale && (
+        {isDisplayFieldEnabled(sf, 'offer_label') && displayOfferLabel && displayOnSale && (
           <span className="inline-block mt-2 text-xs font-bold text-amber-700 bg-amber-50 px-3 py-1 rounded-full">{displayOfferLabel}</span>
         )}
         <p className="text-xs text-gray-400 mt-1">
@@ -148,7 +173,7 @@ export default function MinimalDetail(props: ProductDetailTemplateProps) {
       )}
 
       {/* Variant / Plan Selector */}
-      {hasVariants && (
+      {showVariants && (
         <div className="mb-8 space-y-4">
           {optionRows.filter((r) => r.type === 'size').map((sizeRow) => (
             sizeRow.type === 'size' ? (
@@ -289,7 +314,7 @@ export default function MinimalDetail(props: ProductDetailTemplateProps) {
       )}
 
       {/* Stock */}
-      {displayStock && (
+      {isDisplayFieldEnabled(sf, 'stock_status') && displayStock && (
         <div className="text-center mb-6">
           <span className={`text-sm font-medium ${
             displayStock === 'in_stock' ? 'text-green-600' : displayStock === 'low_stock' ? 'text-amber-600' : 'text-red-600'
@@ -342,20 +367,18 @@ export default function MinimalDetail(props: ProductDetailTemplateProps) {
       </div>
 
       {/* Trust Row */}
-      <div className="flex justify-center gap-8 mb-12 py-6 border-y">
-        {[
-          { icon: Truck, text: product.shipping_cost ? `${formatCurrency(product.shipping_cost)} Shipping` : 'Free Delivery' },
-          { icon: RefreshCw, text: returnDays ? `${returnDays}-Day Returns` : isReturnable === false ? 'Non-returnable' : 'Easy Returns' },
-          { icon: ShieldCheck, text: warrantyDays ? `${warrantyDays >= 365 ? `${Math.floor(warrantyDays / 365)}Y` : `${warrantyDays}D`} Warranty` : 'Secure Buy' },
-        ].map(b => (
-          <div key={b.text} className="flex items-center gap-2 text-sm text-gray-500">
-            <b.icon className="w-4 h-4" /><span>{b.text}</span>
-          </div>
-        ))}
-      </div>
+      {trustBadges.length > 0 && (
+        <div className="flex justify-center gap-8 mb-12 py-6 border-y">
+          {trustBadges.map(b => (
+            <div key={b.text} className="flex items-center gap-2 text-sm text-gray-500">
+              <b.icon className="w-4 h-4" /><span>{b.text}</span>
+            </div>
+          ))}
+        </div>
+      )}
 
       {/* Description */}
-      {product.description && (
+      {isDisplayFieldEnabled(sf, 'description') && product.description && (
         <div className="mb-10">
           <h2 className="text-lg font-bold text-gray-900 mb-3">About this item</h2>
           <p className="text-sm text-gray-600 whitespace-pre-wrap leading-relaxed">{product.description}</p>
@@ -363,7 +386,7 @@ export default function MinimalDetail(props: ProductDetailTemplateProps) {
       )}
 
       {/* Specifications */}
-      {specs && (
+      {isDisplayFieldEnabled(sf, 'specifications') && specs && (
         <div className="mb-10">
           <h2 className="text-lg font-bold text-gray-900 mb-3">Specifications</h2>
           <div className="divide-y border rounded-xl overflow-hidden">
@@ -378,27 +401,33 @@ export default function MinimalDetail(props: ProductDetailTemplateProps) {
       )}
 
       {/* Shipping / Returns / Warranty */}
-      {(returnPolicy || returnDays || warrantyDays || warrantyType || product.requires_shipping !== false) && (
+      {(showShippingSection || showReturnSection || showWarrantySection) && (
         <div className="mb-10 grid grid-cols-1 sm:grid-cols-3 gap-6">
-          {product.requires_shipping !== false && (
+          {showShippingSection && (
             <div>
               <h3 className="text-sm font-bold text-gray-900 mb-2 flex items-center gap-1.5"><Truck className="w-4 h-4" /> Shipping</h3>
               <p className="text-sm text-gray-500">
                 {product.shipping_cost_type === 'free' || !product.shipping_cost ? 'Free delivery' : `${formatCurrency(product.shipping_cost)} delivery`}
                 {product.free_shipping_threshold ? `. Free above ${formatCurrency(product.free_shipping_threshold)}` : ''}
+                {isDisplayFieldEnabled(sf, 'weight') && product.weight_kg ? ` · Weight: ${product.weight_kg} kg` : ''}
+                {isDisplayFieldEnabled(sf, 'dimensions') && (product.length_cm || product.width_cm || product.height_cm)
+                  ? ` · ${[product.length_cm && `${product.length_cm}L`, product.width_cm && `${product.width_cm}W`, product.height_cm && `${product.height_cm}H`].filter(Boolean).join(' × ')} cm`
+                  : ''}
               </p>
             </div>
           )}
-          {(returnPolicy || returnDays || isReturnable !== undefined) && (
+          {showReturnSection && (
             <div>
               <h3 className="text-sm font-bold text-gray-900 mb-2 flex items-center gap-1.5"><RefreshCw className="w-4 h-4" /> Returns</h3>
               <p className="text-sm text-gray-500">
                 {isReturnable === false ? 'Non-returnable' : returnDays ? `${returnDays}-day return window` : 'Returns accepted'}
                 {returnPolicy ? `. ${returnPolicy}` : ''}
+                {isDisplayFieldEnabled(sf, 'return_conditions') && returnConditions ? `. ${returnConditions}` : ''}
+                {isDisplayFieldEnabled(sf, 'refund_policy') && refundPolicy ? `. ${refundPolicy.replace(/_/g, ' ')}` : ''}
               </p>
             </div>
           )}
-          {(warrantyDays || warrantyType) && (
+          {showWarrantySection && (
             <div>
               <h3 className="text-sm font-bold text-gray-900 mb-2 flex items-center gap-1.5"><ShieldCheck className="w-4 h-4" /> Warranty</h3>
               <p className="text-sm text-gray-500">
@@ -411,7 +440,7 @@ export default function MinimalDetail(props: ProductDetailTemplateProps) {
       )}
 
       {/* Tags */}
-      {product.tags && product.tags.length > 0 && (
+      {isDisplayFieldEnabled(sf, 'tags') && product.tags && product.tags.length > 0 && (
         <div className="flex flex-wrap justify-center gap-2 mb-10">
           {product.tags.map(tag => (
             <span key={tag} className="inline-flex items-center gap-1 text-xs text-gray-400 border px-3 py-1 rounded-full"><Tag className="w-3 h-3" />{tag}</span>
@@ -425,9 +454,11 @@ export default function MinimalDetail(props: ProductDetailTemplateProps) {
         products={upsellProducts} storePath={storePath} />
 
       {/* Reviews */}
-      <div className="border-t pt-8">
-        <ReviewSection reviewType="product" targetId={product.id} />
-      </div>
+      {isDisplayFieldEnabled(sf, 'reviews') && (
+        <div className="border-t pt-8">
+          <ReviewSection reviewType="product" targetId={product.id} />
+        </div>
+      )}
     </div>
   )
 }

@@ -43,6 +43,10 @@ export interface BlogListResponse {
   pages: number
 }
 
+export interface BlogSettings {
+  blog_enabled: boolean
+}
+
 export const blogApi = {
   list: async (params?: {
     page?: number
@@ -80,6 +84,16 @@ export const blogApi = {
 
   unpublish: async (id: string): Promise<BlogPost> => {
     const res = await apiClient.patch(`/vendors/me/blog/${id}`, { is_published: false })
+    return res.data
+  },
+
+  getSettings: async (): Promise<BlogSettings> => {
+    const res = await apiClient.get('/vendors/me/blog/settings')
+    return res.data
+  },
+
+  updateSettings: async (data: BlogSettings): Promise<BlogSettings> => {
+    const res = await apiClient.patch('/vendors/me/blog/settings', data)
     return res.data
   },
 }

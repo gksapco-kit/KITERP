@@ -19,8 +19,11 @@ from app.api.deps import get_current_active_user
 from app.services.vendor_service import VendorService
 from app.utils.store_codes import (
     allocate_default_business_store_code,
+    allocate_unique_branch_code,
     allocate_unique_store_code,
     ensure_default_store_if_missing,
+    ensure_store_code_unique,
+    normalize_branch_code_for_parent,
 )
 
 router = APIRouter()
@@ -257,12 +260,21 @@ async def create_store(
     store_count_before = count_res.scalar_one() or 0
 
     raw_code = (data.code or "").strip()
-    if raw_code:
-        code = raw_code
-    elif not parent and store_count_before == 0:
-        code = await allocate_default_business_store_code(db, vendor_id)
-    else:
-        code = await allocate_unique_store_code(db, vendor_id, data.name)
+    try:
+        if parent:
+            if raw_code:
+                code = await normalize_branch_code_for_parent(db, vendor_id, parent, raw_code)
+            else:
+                code = await allocate_unique_branch_code(db, vendor_id, parent)
+        elif raw_code:
+            code = raw_code
+            await ensure_store_code_unique(db, vendor_id, code)
+        elif store_count_before == 0:
+            code = await allocate_default_business_store_code(db, vendor_id)
+        else:
+            code = await allocate_unique_store_code(db, vendor_id, data.name)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
     # is_default is scoped per sibling group: among root business units for a
     # BU, or among branches of the same BU for a branch.
@@ -326,6 +338,24 @@ async def update_store(
         await db.execute(update(Store).where(*sibling_scope).values(is_default=False))
 
     update_data = data.model_dump(exclude_unset=True)
+    if "code" in update_data and update_data["code"] is not None:
+        new_code = str(update_data["code"]).strip()
+        if not new_code:
+            update_data.pop("code")
+        else:
+            try:
+                if store.parent_id:
+                    parent_row = await db.get(Store, store.parent_id)
+                    if not parent_row or parent_row.vendor_id != vendor_id:
+                        raise HTTPException(status_code=400, detail="Parent business unit not found")
+                    update_data["code"] = await normalize_branch_code_for_parent(
+                        db, vendor_id, parent_row, new_code, exclude_store_id=store.id
+                    )
+                else:
+                    update_data["code"] = new_code
+                    await ensure_store_code_unique(db, vendor_id, new_code, exclude_store_id=store.id)
+            except ValueError as exc:
+                raise HTTPException(status_code=400, detail=str(exc)) from exc
     if "address" in update_data and update_data["address"]:
         update_data["address"] = {k: v for k, v in update_data["address"].items() if v is not None}
     for field in ("email", "phone"):

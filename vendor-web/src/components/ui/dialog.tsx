@@ -2,6 +2,11 @@ import * as React from 'react'
 import * as DialogPrimitive from '@radix-ui/react-dialog'
 import { X } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { THEME_SELECT_MENU_ATTR } from '@/components/common/ThemeSelect'
+
+function isThemeSelectMenuTarget(target: EventTarget | null): boolean {
+  return target instanceof Element && Boolean(target.closest(`[${THEME_SELECT_MENU_ATTR}]`))
+}
 
 const Dialog = DialogPrimitive.Root
 const DialogTrigger = DialogPrimitive.Trigger
@@ -35,6 +40,12 @@ const DialogContent = React.forwardRef<
         'fixed left-1/2 top-1/2 z-50 w-full -translate-x-1/2 -translate-y-1/2 rounded-lg border border-border bg-card p-6 shadow-xl duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95',
         className,
       )}
+      onPointerDownOutside={(e) => {
+        if (isThemeSelectMenuTarget(e.target)) e.preventDefault()
+      }}
+      onInteractOutside={(e) => {
+        if (isThemeSelectMenuTarget(e.target)) e.preventDefault()
+      }}
       {...props}
     >
       {children}

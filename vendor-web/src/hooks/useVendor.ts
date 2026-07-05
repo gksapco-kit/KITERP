@@ -704,7 +704,7 @@ export function useCustomer(id: string) {
   })
 }
 
-export function useCreateCustomer() {
+export function useCreateCustomer(options?: { silent?: boolean }) {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: (data: { full_name: string; email?: string; phone?: string; password?: string; linked_customer_id?: string }) =>
@@ -712,9 +712,11 @@ export function useCreateCustomer() {
     onSuccess: () => {
       // Invalidate using the prefix (without params) so ALL useCustomers() queries refetch
       qc.invalidateQueries({ queryKey: [...vendorKeys.all, 'customers'] })
-      toast.success('Customer created successfully')
+      if (!options?.silent) toast.success('Customer created successfully')
     },
-    onError: apiError('Could not create customer — email or phone may already be registered'),
+    onError: options?.silent
+      ? undefined
+      : apiError('Could not create customer — email or phone may already be registered'),
   })
 }
 

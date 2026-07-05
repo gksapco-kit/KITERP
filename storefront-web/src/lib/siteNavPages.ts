@@ -4,6 +4,7 @@ import {
   defaultCommerceNavLinksForCapabilities,
   enrichNavLinksWithBlogLink,
   enrichNavLinksWithCatalogCapabilities,
+  isVendorBlogEnabled,
   pathRelativeToStore,
   resolveCatalogNavCapabilities,
 } from '@/lib/catalogNavCapabilities'
@@ -21,10 +22,14 @@ export type NavBlockNavProps = {
 export type ResolveNavBlockLinksOptions = {
   /** Vendor-web /preview/draft — never invent default commerce links. */
   previewShell?: boolean
+  /** Website builder canvas — only show links from real site pages, not catalog defaults. */
+  isEditorCanvas?: boolean
   /** Vendor catalog offering: products | services | both */
   offeringType?: string | null
   productCount?: number | null
   serviceCount?: number | null
+  /** When false, hide blog nav links and /blog routes from storefront nav. */
+  blogEnabled?: boolean
 }
 
 export type SitePageNavItem = { title: string; url?: string }
@@ -155,6 +160,9 @@ export function resolveNavBlockLinks(
   options?: ResolveNavBlockLinksOptions,
 ): NavLinkItem[] {
   const previewShell = options?.previewShell === true
+  const isEditorCanvas = options?.isEditorCanvas === true
+  const skipCatalogInjection = previewShell || isEditorCanvas
+  const blogEnabled = options?.blogEnabled !== false
   const showNavLinks = props.show_nav_links !== false
   if (!showNavLinks) return []
 
@@ -190,33 +198,33 @@ export function resolveNavBlockLinks(
   }
 
   const autoCatalogNav = navLinksSource !== 'manual'
-  let enriched = autoCatalogNav
+  let enriched = autoCatalogNav && !skipCatalogInjection
     ? enrichNavLinksWithCatalogCapabilities(deduped, storePath, capabilities, site)
     : deduped
 
-  if (!previewShell) {
-    enriched = enrichNavLinksWithBlogLink(enriched, storePath)
+  if (!previewShell && !isEditorCanvas) {
+    enriched = enrichNavLinksWithBlogLink(enriched, storePath, blogEnabled)
   }
 
-  if (enriched.length === 0 && !previewShell) {
-    enriched = defaultCommerceNavLinksForCapabilities(storePath, capabilities)
+  if (enriched.length === 0 && !previewShell && !isEditorCanvas) {
+    enriched = defaultCommerceNavLinksForCapabilities(storePath, capabilities, blogEnabled)
   }
 
   // Single-page templates (e.g. Verde) only expose Home in site pages — after hiding
   // Home on the homepage that would render an empty nav bar.
   const hasNonHomeLinks = excludeHomeNavLinks(enriched, storePath).length > 0
-  const sourceLinks = previewShell
+  const sourceLinks = previewShell || isEditorCanvas
     ? (enriched.length > 0 ? enriched : [{ label: 'Home', href: storePath('/') }])
     : (hasNonHomeLinks
       ? enriched
-      : defaultCommerceNavLinksForCapabilities(storePath, capabilities))
+      : defaultCommerceNavLinksForCapabilities(storePath, capabilities, blogEnabled))
 
   let links = applyHomeNavVisibility(sourceLinks, pathname, storePath)
   if (links.length === 0) {
     links = applyHomeNavVisibility(
-      previewShell
+      previewShell || isEditorCanvas
         ? [{ label: 'Home', href: storePath('/') }]
-        : defaultCommerceNavLinksForCapabilities(storePath, capabilities),
+        : defaultCommerceNavLinksForCapabilities(storePath, capabilities, blogEnabled),
       pathname,
       storePath,
     )
@@ -228,7 +236,7 @@ export function resolveStorefrontHeaderNavLinks(
   site: PublicSite | null | undefined,
   storePath: (p: string) => string,
   pathname: string,
-  options?: Pick<ResolveNavBlockLinksOptions, 'offeringType' | 'productCount' | 'serviceCount'>,
+  options?: Pick<ResolveNavBlockLinksOptions, 'offeringType' | 'productCount' | 'serviceCount' | 'blogEnabled'>,
 ): NavLinkItem[] {
   const capabilities = resolveCatalogNavCapabilities({
     offeringType: options?.offeringType,
@@ -236,9 +244,10 @@ export function resolveStorefrontHeaderNavLinks(
     productCount: options?.productCount,
     serviceCount: options?.serviceCount,
   })
+  const blogEnabled = options?.blogEnabled !== false
   if (!site) {
     return applyHomeNavVisibility(
-      defaultCommerceNavLinksForCapabilities(storePath, capabilities),
+      defaultCommerceNavLinksForCapabilities(storePath, capabilities, blogEnabled),
       pathname,
       storePath,
     )

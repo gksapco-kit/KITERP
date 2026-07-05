@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useMemo, useLayoutEffect } from 'reac
 import { TableColumnLabel } from '@/components/common/FieldLabel'
 import { BusinessUnitSelect } from '@/components/common/BusinessUnitSelect'
 import { BranchSelect } from '@/components/common/BranchSelect'
+import { SalesScopeFilters } from '@/components/common/SalesScopeFilters'
 import { useEscapeToClose } from '@/hooks/useEscapeToClose'
 import { createPortal } from 'react-dom'
 import { ResizableTable } from '@/components/table/ResizableTable'
@@ -18,6 +19,7 @@ import { vendorApi } from '@/api/vendor'
 import { formatCurrency } from '@/lib/utils'
 import { toast } from 'sonner'
 import { TableToolbar } from '@/components/table/TableToolbar'
+import { ThemeSelect } from '@/components/common/ThemeSelect'
 import { processRows, type SortDir } from '@/lib/tableList'
 import { onClickableTableRow } from '@/lib/clickableTableRow'
 import {
@@ -206,6 +208,7 @@ export default function CreditDebitMemos() {
   const [histTypeFilter, setHistTypeFilter] = useState<string>('')
   const [histStoreFilter, setHistStoreFilter] = useState('')
   const [histBranchFilter, setHistBranchFilter] = useState('')
+  const [histSalesAreaFilter, setHistSalesAreaFilter] = useState('')
   const [includeVoided, setIncludeVoided] = useState(false)
   const [editingMemoId, setEditingMemoId] = useState<string | null>(null)
   const [memoRowBusyId, setMemoRowBusyId] = useState<string | null>(null)
@@ -813,42 +816,59 @@ export default function CreditDebitMemos() {
 
       <Card>
         <CardContent className="p-0">
-          <div className="flex items-center gap-2 px-4 py-3 border-b">
-            <TableToolbar
-              search={histSearch} onSearchChange={setHistSearch}
-              searchPlaceholder="Search by memo #, customer..."
-              sortOptions={[
-                { value: 'created_at', label: 'Date' },
-                { value: 'order_number', label: 'Number' },
-                { value: 'customer_name', label: 'Customer' },
-                { value: 'total', label: 'Total' },
-              ]}
-              sortKey={histSortKey} sortDir={histSortDir}
-              onSortKeyChange={setHistSortKey} onSortDirChange={setHistSortDir}
-            />
-            <div className="w-[8.5rem] shrink-0 overflow-hidden">
-              <select
-                value={histTypeFilter}
-                onChange={(e) => setHistTypeFilter(e.target.value)}
-                className="form-select w-full min-w-0 text-xs"
-              >
-                <option value="">All Memos</option>
-                <option value="credit_memo">Credit Memos</option>
-                <option value="debit_memo">Debit Memos</option>
-              </select>
-            </div>
-            <div className="w-48 shrink-0 overflow-hidden"><BusinessUnitSelect value={histStoreFilter} onChange={(id) => { setHistStoreFilter(id); setHistBranchFilter(''); setHistPage(1) }} allowAll autoSelectDefault={false} disabled={isStoreLocked} /></div>
-            <div className="w-48 shrink-0 overflow-hidden"><BranchSelect businessUnitId={histStoreFilter || null} value={histBranchFilter} onChange={(id) => { setHistBranchFilter(id); setHistPage(1) }} allowAll disabled={isStoreLocked} /></div>
-            <label className="flex items-center gap-2 text-xs text-gray-600 cursor-pointer select-none">
-              <input
-                type="checkbox"
-                className="rounded border-gray-300"
-                checked={includeVoided}
-                onChange={(e) => { setIncludeVoided(e.target.checked); setHistPage(1) }}
-              />
-              Show voided
-            </label>
-          </div>
+          <TableToolbar
+            className="flex-nowrap overflow-x-auto gap-1.5 sm:gap-2 py-2.5"
+            search={histSearch}
+            onSearchChange={setHistSearch}
+            searchPlaceholder="Search memo #, customer…"
+            searchWrapperClassName="min-w-[9rem] w-40 sm:w-44 lg:w-52 shrink-0 max-w-full"
+            sortOptions={[
+              { value: 'created_at', label: 'Date' },
+              { value: 'order_number', label: 'Number' },
+              { value: 'customer_name', label: 'Customer' },
+              { value: 'total', label: 'Total' },
+            ]}
+            sortKey={histSortKey}
+            sortDir={histSortDir}
+            onSortKeyChange={setHistSortKey}
+            onSortDirChange={setHistSortDir}
+            extra={(
+              <>
+                <ThemeSelect
+                  value={histTypeFilter}
+                  onChange={setHistTypeFilter}
+                  placeholder="All Memos"
+                  aria-label="Memo type"
+                  wrapperClassName="w-[7.5rem] shrink-0"
+                  options={[
+                    { value: '', label: 'All Memos' },
+                    { value: 'credit_memo', label: 'Credit Memos' },
+                    { value: 'debit_memo', label: 'Debit Memos' },
+                  ]}
+                />
+                <SalesScopeFilters
+                  businessUnitId={histStoreFilter}
+                  branchId={histBranchFilter}
+                  salesAreaId={histSalesAreaFilter}
+                  onBusinessUnitChange={(id) => { setHistStoreFilter(id); setHistBranchFilter(''); setHistSalesAreaFilter(''); setHistPage(1) }}
+                  onBranchChange={(id) => { setHistBranchFilter(id); setHistSalesAreaFilter(''); setHistPage(1) }}
+                  onSalesAreaChange={(id) => { setHistSalesAreaFilter(id); setHistPage(1) }}
+                  disabled={isStoreLocked}
+                  className="flex-nowrap shrink-0"
+                  itemClassName="w-[7.25rem] sm:w-[7.75rem] shrink-0"
+                />
+                <label className="flex items-center gap-1.5 text-xs text-muted-foreground cursor-pointer select-none whitespace-nowrap shrink-0">
+                  <input
+                    type="checkbox"
+                    className="rounded border-input accent-primary"
+                    checked={includeVoided}
+                    onChange={(e) => { setIncludeVoided(e.target.checked); setHistPage(1) }}
+                  />
+                  Show voided
+                </label>
+              </>
+            )}
+          />
 
           {memosLoading ? (
             <div className="flex justify-center py-12"><Loader2 className="w-6 h-6 animate-spin text-gray-400" /></div>

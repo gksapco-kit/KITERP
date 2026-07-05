@@ -1,5 +1,6 @@
 import type { PublicSite, StyleConfig, LiveItem } from '@/blocks/registry'
 import { cn, imgUrl } from '@/lib/utils'
+import { builderSectionContainerClass, builderSectionContainerWithMax } from '@/lib/builderSectionLayout'
 import { MediaClipFrame } from '@/components/builder/MediaClipFrame'
 import { hasMediaClip } from '@/lib/mediaClip'
 import { BuilderTextField } from '@/components/builder/BuilderTextField'
@@ -45,7 +46,7 @@ export default function AboutSplitBlock({ site, style, props, liveItems, blockId
   const showImage = !imageHidden && (imageUrl || isEditorCanvas)
 
   return (
-    <section className="py-16 px-4 sm:px-6 lg:px-8 max-w-6xl mx-auto">
+    <section className={builderSectionContainerWithMax('max-w-6xl')}>
       <div className={cn('grid gap-12 items-center', showImage ? 'lg:grid-cols-2' : 'grid-cols-1')}>
         {(showSubtitle || showTitle || showDescription) && (
         <div>
