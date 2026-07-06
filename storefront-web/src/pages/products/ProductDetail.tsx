@@ -18,7 +18,7 @@ import {
 } from '@/lib/variantOptions'
 import { ClassicDetail, ModernDetail, MinimalDetail, ProductQuoteModal } from './templates'
 import { trackView } from '@/lib/recentlyViewed'
-import { assertCanAddToCart, getMaxAddQuantity } from '@/lib/stockValidation'
+import { assertCanAddToCart, getMaxAddQuantity, getMinAddQuantity } from '@/lib/stockValidation'
 import { toast } from 'sonner'
 
 export default function ProductDetail() {
@@ -132,10 +132,20 @@ export default function ProductDetail() {
     })
   }, [product, pricingVariant, selectedVariant, vendorSlug, isAuthenticated])
 
+  const minAddQty = useMemo(() => {
+    if (!product) return 1
+    const variant = pricingVariant ?? selectedVariant ?? undefined
+    return getMinAddQuantity({ product, variant: variant ?? undefined })
+  }, [product, pricingVariant, selectedVariant])
+
   useEffect(() => {
     if (maxAddQty === null || maxAddQty < 1) return
     setQty((current) => (current > maxAddQty ? maxAddQty : current))
   }, [maxAddQty, pricingVariant?.id, selectedVariant?.id])
+
+  useEffect(() => {
+    setQty((current) => (current < minAddQty ? minAddQty : current))
+  }, [minAddQty, pricingVariant?.id, selectedVariant?.id])
 
   useEffect(() => {
     if (!product) return
@@ -187,7 +197,7 @@ export default function ProductDetail() {
   }
 
   const handleSetQty = (next: number) => {
-    const newQty = Math.max(1, next)
+    const newQty = Math.max(minAddQty, next)
     const variant = pricingVariant ?? selectedVariant ?? undefined
     const stockCheck = assertCanAddToCart({
       vendorSlug,

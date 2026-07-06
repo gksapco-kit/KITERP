@@ -315,6 +315,8 @@ export function variantToUpdatePayload(v: {
   reorder_quantity?: number | null
   allow_backorders?: boolean
   track_inventory?: boolean
+  max_quantity_per_order?: number | null
+  min_quantity_per_order?: number | null
   weight_kg?: number | null
   expiration_date?: string | null
   manufacture_date?: string | null
@@ -362,6 +364,8 @@ export function variantToUpdatePayload(v: {
     reorder_quantity: v.reorder_quantity ?? undefined,
     allow_backorders: v.allow_backorders ?? false,
     track_inventory: v.track_inventory ?? true,
+    max_quantity_per_order: v.max_quantity_per_order ?? undefined,
+    min_quantity_per_order: v.min_quantity_per_order ?? undefined,
     weight_kg: v.weight_kg ?? undefined,
     expiration_date: v.expiration_date || undefined,
     manufacture_date: v.manufacture_date || undefined,

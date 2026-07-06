@@ -193,6 +193,8 @@ class ServicePlan(Base):
     duration_minutes = Column(Integer)
     buffer_minutes = Column(Integer, default=0)
     service_capacity = Column(Integer, default=1)
+    max_quantity_per_order = Column(Integer, nullable=True)
+    min_quantity_per_order = Column(Integer, nullable=True)
 
     # Pricing overrides
     plan_price_type = Column(String(20))

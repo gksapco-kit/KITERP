@@ -23,6 +23,17 @@ function extraBannerUrls(settings: Record<string, unknown> | undefined): string[
   return raw.filter((x): x is string => typeof x === 'string' && x.trim().length > 0)
 }
 
+function galleryUploadEntries(
+  settings: Record<string, unknown> | undefined,
+): Array<{ url: string; filename?: string; label?: string }> {
+  const raw = settings?.gallery_uploads
+  if (!Array.isArray(raw)) return []
+  return raw.filter(
+    (x): x is { url: string; filename?: string; label?: string } =>
+      typeof x === 'object' && x !== null && typeof (x as { url?: unknown }).url === 'string',
+  )
+}
+
 /** True for paths the vendor uploaded — not stock gallery packs or Unsplash fallbacks. */
 export function isUserStoredImageUrl(url: unknown): url is string {
   if (typeof url !== 'string' || !url.trim()) return false
@@ -76,6 +87,13 @@ export function collectVendorStoredImages(input: {
   stores?: Pick<StoreRecord, 'name' | 'settings'>[]
   categories?: VendorCategory[]
   websiteMedia?: Array<{ id: string; original_url: string; filename?: string | null; label?: string | null }>
+  products?: Array<{ name: string; images?: Array<{ url: string; media_type?: string; alt_text?: string | null }> }>
+  services?: Array<{
+    name: string
+    image_url?: string | null
+    gallery?: string[]
+    media?: Array<{ url: string; media_type?: string; alt_text?: string | null }>
+  }>
 }): StoredGalleryImage[] {
   const seen = new Set<string>()
   const out: StoredGalleryImage[] = []
@@ -85,6 +103,11 @@ export function collectVendorStoredImages(input: {
 
   const vendorExtras = extraBannerUrls(input.vendor?.theme_config as Record<string, unknown> | undefined)
   vendorExtras.forEach((url, i) => pushStoredImage(seen, out, url, `Account banner ${i + 1}`))
+
+  for (const item of galleryUploadEntries(input.vendor?.theme_config as Record<string, unknown> | undefined)) {
+    const label = item.label?.trim() || item.filename?.trim() || 'Gallery upload'
+    pushStoredImage(seen, out, item.url, label)
+  }
 
   for (const store of input.stores ?? []) {
     const settings = (store.settings ?? {}) as Record<string, unknown>
@@ -104,6 +127,28 @@ export function collectVendorStoredImages(input: {
   for (const item of input.websiteMedia ?? []) {
     const label = item.label?.trim() || item.filename?.trim() || 'Site media'
     pushStoredImage(seen, out, item.original_url, label)
+  }
+
+  for (const product of input.products ?? []) {
+    const productLabel = product.name?.trim() || 'Product'
+    for (const img of product.images ?? []) {
+      if (img.media_type && img.media_type !== 'image') continue
+      const label = img.alt_text?.trim() || `${productLabel} image`
+      pushStoredImage(seen, out, img.url, label)
+    }
+  }
+
+  for (const service of input.services ?? []) {
+    const serviceLabel = service.name?.trim() || 'Service'
+    pushStoredImage(seen, out, service.image_url, `${serviceLabel} cover`)
+    for (const url of service.gallery ?? []) {
+      pushStoredImage(seen, out, url, `${serviceLabel} gallery`)
+    }
+    for (const item of service.media ?? []) {
+      if (item.media_type && item.media_type !== 'image') continue
+      const label = item.alt_text?.trim() || `${serviceLabel} media`
+      pushStoredImage(seen, out, item.url, label)
+    }
   }
 
   return out

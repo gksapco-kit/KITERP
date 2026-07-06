@@ -156,6 +156,42 @@ async def upload_vendor_branding_asset(
     return JSONResponse(content={"url": url})
 
 
+@router.post("/vendor/gallery-image")
+async def upload_vendor_gallery_image(
+    file: UploadFile = File(...),
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Upload an image to the vendor gallery (Images → My Uploads)."""
+    from sqlalchemy.orm.attributes import flag_modified
+
+    if detect_media_type(file) != "image":
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Allowed: JPEG, PNG, WebP, GIF, or SVG images.",
+        )
+
+    svc = VendorService(db)
+    vendor = await svc.get_by_user_id(current_user.id)
+    if not vendor:
+        raise HTTPException(status_code=404, detail="Vendor not found")
+
+    vendor_id = vendor.id
+    url = await _save_file(file, f"vendor-gallery/{vendor_id}")
+    fname = (file.filename or "upload.jpg").strip()
+
+    cfg = dict(vendor.theme_config or {})
+    uploads: list = list(cfg.get("gallery_uploads", []))
+    entry = {"url": url, "filename": fname, "label": fname}
+    uploads.append(entry)
+    cfg["gallery_uploads"] = uploads
+    vendor.theme_config = cfg
+    flag_modified(vendor, "theme_config")
+    await db.commit()
+
+    return JSONResponse(content={"url": url, "filename": fname, "gallery_uploads": uploads})
+
+
 @router.post("/vendor/extra-banner")
 async def upload_vendor_extra_banner(
     file: UploadFile = File(...),

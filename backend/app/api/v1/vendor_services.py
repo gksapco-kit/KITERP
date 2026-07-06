@@ -88,6 +88,8 @@ def _plan_to_dict(p) -> dict:
         "duration_minutes": p.duration_minutes,
         "buffer_minutes": p.buffer_minutes or 0,
         "service_capacity": p.service_capacity or 1,
+        "max_quantity_per_order": p.max_quantity_per_order,
+        "min_quantity_per_order": p.min_quantity_per_order,
         # Pricing overrides
         "plan_price_type": p.plan_price_type,
         "price_min": _num(p.price_min),
@@ -262,6 +264,8 @@ def _build_plans(service_id, plans_data: list) -> list:
             duration_minutes=pd.get("duration_minutes"),
             buffer_minutes=pd.get("buffer_minutes") or 0,
             service_capacity=pd.get("service_capacity") or 1,
+            max_quantity_per_order=pd.get("max_quantity_per_order"),
+            min_quantity_per_order=pd.get("min_quantity_per_order"),
             plan_price_type=pd.get("plan_price_type"),
             price_min=pd.get("price_min"),
             price_max=pd.get("price_max"),

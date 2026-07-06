@@ -750,6 +750,15 @@ export const vendorApi = {
     return response.data
   },
 
+  uploadGalleryImage: async (file: File): Promise<{ url: string; filename: string; gallery_uploads: Array<{ url: string; filename?: string; label?: string }> }> => {
+    const form = new FormData()
+    form.append('file', file)
+    const response = await apiClient.post('/uploads/vendor/gallery-image', form, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    })
+    return response.data
+  },
+
   uploadVendorExtraBanner: async (file: File): Promise<{ banner_url: string; extra_banners: string[] }> => {
     const form = new FormData()
     form.append('file', file)

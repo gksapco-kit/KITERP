@@ -82,6 +82,8 @@ class ProductVariantCreate(BaseModel):
     reorder_quantity: Optional[int] = None
     allow_backorders: bool = False
     track_inventory: bool = True
+    max_quantity_per_order: Optional[int] = Field(None, ge=1)
+    min_quantity_per_order: Optional[int] = Field(None, ge=1)
     weight_kg: Optional[float] = None
     # Lifecycle
     expiration_date: Optional[str] = None
@@ -135,6 +137,8 @@ class ProductVariantResponse(BaseModel):
     reorder_quantity: Optional[int] = None
     allow_backorders: bool = False
     track_inventory: bool = True
+    max_quantity_per_order: Optional[int] = None
+    min_quantity_per_order: Optional[int] = None
     weight_kg: Optional[float] = None
     # Lifecycle
     expiration_date: Optional[str] = None

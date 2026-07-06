@@ -31,6 +31,8 @@ export interface PlanDraft {
   service_mode: string
   buffer_minutes: string
   service_capacity: string
+  max_quantity_per_order: string
+  min_quantity_per_order: string
   plan_price_type: string
   price_min: string
   price_max: string
@@ -86,6 +88,8 @@ export function newPlan(i: number): PlanDraft {
     service_mode: 'in_store',
     buffer_minutes: '0',
     service_capacity: '1',
+    max_quantity_per_order: '',
+    min_quantity_per_order: '',
     plan_price_type: 'fixed',
     price_min: '',
     price_max: '',

@@ -156,6 +156,8 @@ const variantRowSchema = z.object({
   reorder_quantity: optInt,
   allow_backorders: z.boolean().default(false),
   track_inventory: z.boolean().default(true),
+  max_quantity_per_order: optInt,
+  min_quantity_per_order: optInt,
   // Shipping (per variant)
   weight_kg: optNum,
   // Lifecycle
@@ -2610,6 +2612,8 @@ export default function ProductForm() {
         reorder_quantity: v.reorder_quantity ?? undefined,
         allow_backorders: v.allow_backorders ?? false,
         track_inventory: v.track_inventory ?? true,
+        max_quantity_per_order: (v as { max_quantity_per_order?: number }).max_quantity_per_order ?? undefined,
+        min_quantity_per_order: (v as { min_quantity_per_order?: number }).min_quantity_per_order ?? undefined,
         weight_kg: (v as any).weight_kg ?? undefined,
         show_lifecycle: !!(v.expiration_date || v.manufacture_date || v.best_before_date || v.warranty_period_days || v.warranty_type),
         expiration_date: v.expiration_date ?? '',
@@ -2824,6 +2828,8 @@ export default function ProductForm() {
           reorder_quantity: v.reorder_quantity,
           allow_backorders: v.allow_backorders ?? false,
           track_inventory: v.track_inventory ?? true,
+          max_quantity_per_order: v.max_quantity_per_order ?? undefined,
+          min_quantity_per_order: v.min_quantity_per_order ?? undefined,
           weight_kg: v.weight_kg ?? undefined,
           expiration_date: v.expiration_date || undefined,
           manufacture_date: v.manufacture_date || undefined,
@@ -3108,6 +3114,8 @@ export default function ProductForm() {
     reorder_quantity: undefined,
     allow_backorders: false,
     track_inventory: true,
+    max_quantity_per_order: undefined,
+    min_quantity_per_order: undefined,
     show_lifecycle: false,
     expiration_date: '',
     manufacture_date: '',
@@ -4063,6 +4071,12 @@ export default function ProductForm() {
                           </select>
                         </FormField>
                         <FormField label="Reorder at"><Input type="number" min="0" {...register(`variants.${index}.reorder_point`)} placeholder="—" /></FormField>
+                        <FormField label="Max per order">
+                          <Input type="number" min="1" {...register(`variants.${index}.max_quantity_per_order`)} placeholder="No limit" />
+                        </FormField>
+                        <FormField label="Min per order">
+                          <Input type="number" min="1" {...register(`variants.${index}.min_quantity_per_order`)} placeholder="1" />
+                        </FormField>
                         <FormField label="Weight (kg)">
                           <Input type="number" step="0.001" min="0" placeholder="0.000" {...register(`variants.${index}.weight_kg`)} />
                         </FormField>

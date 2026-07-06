@@ -6,6 +6,8 @@ export type StockEntity = {
   allow_backorders?: boolean
   quantity?: number
   stock_status?: string
+  max_quantity_per_order?: number | null
+  min_quantity_per_order?: number | null
 }
 
 export type CartStockLine = {
@@ -55,7 +57,38 @@ function resolveStockContext(product: StockEntity, variant?: StockEntity) {
     allowBackorders: variant?.allow_backorders ?? product.allow_backorders ?? false,
     quantity: variant?.quantity ?? product.quantity ?? 0,
     stockStatus: variant?.stock_status ?? product.stock_status ?? 'in_stock',
+    maxPerOrder: variant?.max_quantity_per_order ?? product.max_quantity_per_order ?? null,
+    minPerOrder: variant?.min_quantity_per_order ?? product.min_quantity_per_order ?? null,
   }
+}
+
+function capByOrderLimit(available: number, maxPerOrder: number | null | undefined, cartQtyExcludingLine: number): number {
+  if (maxPerOrder == null || maxPerOrder <= 0) return available
+  return Math.max(0, Math.min(available, maxPerOrder - cartQtyExcludingLine))
+}
+
+function validateMinOrderQuantity(
+  label: string,
+  totalQty: number,
+  minPerOrder: number | null | undefined,
+): StockValidationResult | null {
+  if (totalQty <= 0) return null
+  if (minPerOrder == null || minPerOrder <= 1) return null
+  if (totalQty >= minPerOrder) return null
+  return {
+    ok: false,
+    message: `Minimum ${minPerOrder} of ${label} required per order.`,
+  }
+}
+
+/** Minimum qty per order for a variant (defaults to 1). */
+export function getMinAddQuantity(input: {
+  product: StockEntity
+  variant?: StockEntity
+}): number {
+  const { minPerOrder } = resolveStockContext(input.product, input.variant)
+  if (minPerOrder == null || minPerOrder <= 1) return 1
+  return minPerOrder
 }
 
 export function validateAddToCartStock(input: {
@@ -67,13 +100,37 @@ export function validateAddToCartStock(input: {
   cartQty: number
 }): StockValidationResult {
   const label = input.variantLabel?.trim() || input.productName
-  const { track, allowBackorders, quantity, stockStatus } = resolveStockContext(
+  const { track, allowBackorders, quantity, stockStatus, maxPerOrder, minPerOrder } = resolveStockContext(
     input.product,
     input.variant,
   )
 
   if (stockStatus === 'out_of_stock') {
     return { ok: false, message: `${label} is out of stock.` }
+  }
+
+  const totalQty = input.cartQty + input.requestQty
+  const minError = validateMinOrderQuantity(label, totalQty, minPerOrder)
+  if (minError) return minError
+
+  if (maxPerOrder != null && maxPerOrder > 0 && totalQty > maxPerOrder) {
+    const remaining = maxPerOrder - input.cartQty
+    if (input.cartQty > 0 && remaining <= 0) {
+      return {
+        ok: false,
+        message: `You already have the maximum allowed (${maxPerOrder}) of ${label} in your cart.`,
+      }
+    }
+    if (input.cartQty > 0) {
+      return {
+        ok: false,
+        message: `Only ${remaining} more ${label} can be added — max ${maxPerOrder} per order.`,
+      }
+    }
+    return {
+      ok: false,
+      message: `Maximum ${maxPerOrder} of ${label} allowed per order.`,
+    }
   }
 
   if (!track || allowBackorders) {
@@ -123,13 +180,14 @@ export function getMaxLineQuantity(input: {
   const cartLines = getCurrentCartStockLines(input.vendorSlug, input.isAuthenticated)
   const cartQty = getCartQtyForVariant(cartLines, input.productId, input.variant?.id)
   const cartQtyExcludingLine = Math.max(0, cartQty - input.currentLineQty)
-  const { track, allowBackorders, quantity, stockStatus } = resolveStockContext(
+  const { track, allowBackorders, quantity, stockStatus, maxPerOrder } = resolveStockContext(
     input.product,
     input.variant,
   )
   if (stockStatus === 'out_of_stock') return 0
-  if (!track || allowBackorders) return 99
-  return Math.max(0, Math.max(0, quantity) - cartQtyExcludingLine)
+  const orderCap = capByOrderLimit(Number.MAX_SAFE_INTEGER, maxPerOrder, cartQtyExcludingLine)
+  if (!track || allowBackorders) return Math.min(99, orderCap)
+  return capByOrderLimit(Math.max(0, quantity), maxPerOrder, cartQtyExcludingLine)
 }
 
 /** Max qty user can add on product page (cart qty for variant is subtracted). */
@@ -142,13 +200,16 @@ export function getMaxAddQuantity(input: {
 }): number | null {
   const cartLines = getCurrentCartStockLines(input.vendorSlug, input.isAuthenticated)
   const cartQty = getCartQtyForVariant(cartLines, input.productId, input.variant?.id)
-  const { track, allowBackorders, quantity, stockStatus } = resolveStockContext(
+  const { track, allowBackorders, quantity, stockStatus, maxPerOrder } = resolveStockContext(
     input.product,
     input.variant,
   )
   if (stockStatus === 'out_of_stock') return 0
-  if (!track || allowBackorders) return null
-  return Math.max(0, Math.max(0, quantity) - cartQty)
+  const orderCap = capByOrderLimit(Number.MAX_SAFE_INTEGER, maxPerOrder, cartQty)
+  if (!track || allowBackorders) return orderCap >= Number.MAX_SAFE_INTEGER ? null : orderCap
+  const stockCap = Math.max(0, Math.max(0, quantity) - cartQty)
+  const capped = capByOrderLimit(stockCap, maxPerOrder, cartQty)
+  return capped
 }
 
 export function assertCanSetCartLineQty(input: {
@@ -162,6 +223,7 @@ export function assertCanSetCartLineQty(input: {
   currentLineQty: number
   newQty: number
 }): StockValidationResult {
+  if (input.newQty <= 0) return { ok: true }
   const cartLines = getCurrentCartStockLines(input.vendorSlug, input.isAuthenticated)
   const cartQty = getCartQtyForVariant(cartLines, input.productId, input.variant?.id)
   const cartQtyExcludingLine = Math.max(0, cartQty - input.currentLineQty)

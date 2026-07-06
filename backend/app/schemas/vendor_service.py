@@ -64,6 +64,38 @@ class UnitOfMeasurement(str, Enum):
     SET = "set"
     DOZEN = "dozen"
     BUNDLE = "bundle"
+    # Agriculture
+    BIGHA = "bigha"
+    GUNTHA = "guntha"
+    CENT = "cent"
+    PER_ACRE = "per_acre"
+    PER_HECTARE = "per_hectare"
+    PER_BIGHA = "per_bigha"
+    BUSHEL = "bushel"
+    MAUND = "maund"
+    CWT = "cwt"
+    GUNNY_BAG = "gunny_bag"
+    SACK = "sack"
+    BALE = "bale"
+    CRATE = "crate"
+    TRAY = "tray"
+    PUNNET = "punnet"
+    KATTA = "katta"
+    PLANT = "plant"
+    SAPLING = "sapling"
+    TREE = "tree"
+    SEEDLING = "seedling"
+    CUTTING = "cutting"
+    BULB = "bulb"
+    TUBER = "tuber"
+    PER_PLANT = "per_plant"
+    PER_TREE = "per_tree"
+    HEAD = "head"
+    FLOCK = "flock"
+    HERD = "herd"
+    DOSE = "dose"
+    LITRE_PER_ACRE = "litre_per_acre"
+    KG_PER_ACRE = "kg_per_acre"
 
 
 class ServiceMode(str, Enum):
@@ -124,6 +156,8 @@ class ServicePlanCreate(BaseModel):
     duration_minutes: Optional[int] = None
     buffer_minutes: int = 0
     service_capacity: int = 1
+    max_quantity_per_order: Optional[int] = Field(None, ge=1)
+    min_quantity_per_order: Optional[int] = Field(None, ge=1)
     # Pricing overrides
     plan_price_type: Optional[str] = None
     price_min: Optional[float] = None
@@ -174,6 +208,8 @@ class ServicePlanUpdate(BaseModel):
     duration_minutes: Optional[int] = None
     buffer_minutes: Optional[int] = None
     service_capacity: Optional[int] = None
+    max_quantity_per_order: Optional[int] = Field(None, ge=1)
+    min_quantity_per_order: Optional[int] = Field(None, ge=1)
     plan_price_type: Optional[str] = None
     price_min: Optional[float] = None
     price_max: Optional[float] = None
@@ -221,6 +257,8 @@ class ServicePlanResponse(BaseModel):
     duration_minutes: Optional[int] = None
     buffer_minutes: int = 0
     service_capacity: int = 1
+    max_quantity_per_order: Optional[int] = None
+    min_quantity_per_order: Optional[int] = None
     plan_price_type: Optional[str] = None
     price_min: Optional[float] = None
     price_max: Optional[float] = None

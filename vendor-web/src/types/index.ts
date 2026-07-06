@@ -361,6 +361,8 @@ export interface ProductVariant {
   reorder_quantity?: number
   allow_backorders: boolean
   track_inventory: boolean
+  max_quantity_per_order?: number
+  min_quantity_per_order?: number
   weight_kg?: number
   expiration_date?: string
   manufacture_date?: string
@@ -400,6 +402,8 @@ export interface ServicePlan {
   subscription_billing_cycles?: number
   subscription_schedule_modes: string[]
   duration_minutes?: number
+  max_quantity_per_order?: number
+  min_quantity_per_order?: number
   is_active: boolean
   sort_order: number
   created_at?: string

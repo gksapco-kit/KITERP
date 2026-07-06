@@ -470,6 +470,26 @@ export function ServicePlansEditor({
                               placeholder="60"
                             />
                           </FormField>
+                          <FormField label="Max per order">
+                            <Input
+                              type="number"
+                              min="1"
+                              className="w-full"
+                              value={plan.max_quantity_per_order}
+                              onChange={e => updatePlan(idx, { max_quantity_per_order: e.target.value })}
+                              placeholder="No limit"
+                            />
+                          </FormField>
+                          <FormField label="Min per order">
+                            <Input
+                              type="number"
+                              min="1"
+                              className="w-full"
+                              value={plan.min_quantity_per_order}
+                              onChange={e => updatePlan(idx, { min_quantity_per_order: e.target.value })}
+                              placeholder="1"
+                            />
+                          </FormField>
                           <FormField label="Compare-at Price (MRP)">
                             <Input
                               type="number"

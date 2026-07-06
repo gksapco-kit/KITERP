@@ -28,6 +28,8 @@ export interface ProductVariant {
   is_taxable?: boolean; tax_rate?: number; hsn_code?: string; gst_rate?: number
   quantity?: number; low_stock_threshold?: number; stock_status?: string
   allow_backorders?: boolean; track_inventory?: boolean; weight_kg?: number
+  max_quantity_per_order?: number
+  min_quantity_per_order?: number
   expiration_date?: string; manufacture_date?: string; best_before_date?: string
   warranty_period_days?: number; warranty_type?: string
   is_returnable?: boolean; return_days?: number; refund_policy?: string

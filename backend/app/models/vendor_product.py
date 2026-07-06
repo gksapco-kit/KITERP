@@ -202,6 +202,8 @@ class ProductVariant(Base):
     reorder_quantity = Column(Integer)
     allow_backorders = Column(Boolean, default=False)
     track_inventory = Column(Boolean, default=True)
+    max_quantity_per_order = Column(Integer, nullable=True)
+    min_quantity_per_order = Column(Integer, nullable=True)
     weight_kg = Column(Numeric(8, 3))
 
     # Lifecycle
