@@ -12,7 +12,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
 import { ChevronDown, Search, CheckCircle2, X } from 'lucide-react'
 import { COUNTRIES, POPULAR_COUNTRIES, type CountryEntry } from '@/data/countries'
-import { cn, focusRingClassName, formFieldBorderClassName } from '@/lib/utils'
+import { cn, focusRingClassName, formFieldBorderClassName, searchFieldInnerInputClassName } from '@/lib/utils'
 import { Label } from '@/components/ui/label'
 import {
   getCachedInferredPhoneCountryIso,
@@ -43,26 +43,56 @@ function digitsOnly(raw: string): string {
   return raw.replace(/\D/g, '')
 }
 
+/** Match longest dial code first (e.g. +1268 before +1). */
+function matchCountryFromE164(
+  e164: string,
+): { country: CountryEntry; number: string } | null {
+  const sorted = [...orderedCountries].sort(
+    (a, b) => b.dialCode.length - a.dialCode.length,
+  )
+  for (const c of sorted) {
+    if (e164.startsWith(c.dialCode)) {
+      return { country: c, number: digitsOnly(e164.slice(c.dialCode.length)) }
+    }
+  }
+  return null
+}
+
 /**
- * Given a full phone string (e.g. "+919876543210"), return the matching
- * country and the local number (without dial code).
+ * Given a full phone string (e.g. "+919876543210" or "919876543210"),
+ * return the matching country and the local number (without dial code).
  */
 function parseFullPhone(
   fullPhone: string,
   defaultCountry: CountryEntry,
 ): { country: CountryEntry; number: string } {
   if (!fullPhone) return { country: defaultCountry, number: '' }
-  const stripped = fullPhone.startsWith('+') ? fullPhone : `+${fullPhone}`
-  // Try longer dial codes first to avoid "+1" eating "+1268" etc.
-  const sorted = [...orderedCountries].sort(
-    (a, b) => b.dialCode.length - a.dialCode.length,
-  )
-  for (const c of sorted) {
-    if (stripped.startsWith(c.dialCode)) {
-      return { country: c, number: digitsOnly(stripped.slice(c.dialCode.length)) }
-    }
+
+  const trimmed = fullPhone.trim()
+
+  if (trimmed.startsWith('+') || trimmed.startsWith('00')) {
+    const e164 = trimmed.startsWith('00') ? `+${trimmed.slice(2)}` : trimmed
+    const matched = matchCountryFromE164(e164)
+    if (matched) return matched
+    return { country: defaultCountry, number: digitsOnly(e164.slice(1)) }
   }
-  return { country: defaultCountry, number: digitsOnly(stripped) }
+
+  const digits = digitsOnly(trimmed)
+  if (!digits) return { country: defaultCountry, number: '' }
+
+  // Bare local number — avoid treating "9876543210" as "+98…" (Iran).
+  if (digits.length <= getMaxDigits(defaultCountry)) {
+    return { country: defaultCountry, number: digits }
+  }
+
+  // Pasted digits likely include country code without "+" (e.g. "919876543210").
+  const matched = matchCountryFromE164(`+${digits}`)
+  if (matched) return matched
+
+  return {
+    country: defaultCountry,
+    number: digits.slice(-getMaxDigits(defaultCountry)),
+  }
 }
 
 // ── Shared row chrome (matches Input h-10) ───────────────────────────────────
@@ -118,10 +148,11 @@ function CountryDropdown({
         <Search className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
         <input
           ref={inputRef}
+          data-kiterp-no-field-focus
           value={search}
           onChange={e => setSearch(e.target.value)}
           placeholder="Search country or code…"
-          className="flex-1 text-sm outline-none bg-transparent text-foreground placeholder:text-muted-foreground"
+          className={cn(searchFieldInnerInputClassName, 'min-w-0 flex-1 text-sm text-foreground placeholder:text-muted-foreground')}
         />
         {search && (
           <button type="button" onClick={() => setSearch('')} className="p-0.5">
@@ -320,33 +351,19 @@ export function PhoneInput({
     emit(country, capped)
   }
 
-  /**
-   * Paste handler — allows ANY length paste (26+ digits).
-   * Displays the raw pasted digits briefly, then resolves and trims on blur.
-   * Immediately emits the trimmed value to the parent (used for saving).
-   */
+  /** Paste handler — auto-detect country code from +91…, 0091…, or 919876543210. */
   const handlePaste = (e: React.ClipboardEvent<HTMLInputElement>) => {
     e.preventDefault()
-    const pasted = e.clipboardData.getData('text').trim()
-
-    // Case 1: starts with + or 00 → full international number, auto-detect country
-    if (pasted.startsWith('+') || pasted.startsWith('00')) {
-      const normalized = pasted.startsWith('00') ? `+${pasted.slice(2)}` : pasted
-      const p = parseFullPhone(normalized, country)
-      setCountry(p.country)
-      const num = resolve(p.number, p.country)
-      setLocalNumber(num)
-      emit(p.country, num)
-      return
-    }
-
-    // Case 2: plain digits (with spaces, dashes, brackets, etc.)
-    // Show the full pasted digits so user can see what they pasted,
-    // but emit the trimmed value immediately for save consistency.
-    const digits = digitsOnly(pasted)
-    setLocalNumber(digits)           // show full in the field
-    const trimmed = resolve(digits, country)
-    emit(country, trimmed)           // save-ready trimmed value
+    const pasted = e.clipboardData
+      .getData('text')
+      .trim()
+      .replace(/^tel:/i, '')
+      .replace(/^phone=/i, '')
+    const p = parseFullPhone(pasted, country)
+    const num = resolve(p.number, p.country)
+    setCountry(p.country)
+    setLocalNumber(num)
+    emit(p.country, num)
   }
 
   /** On blur, auto-trim the visible field to match what's being saved */

@@ -32,8 +32,8 @@ export default function AuthLayout() {
   if (isAuthenticated && accessToken && !isVendorHandoffRoute) return <Navigate to="/" replace />
 
   return (
-    <div className="min-h-screen flex flex-col lg:flex-row">
-      <div className="hidden lg:flex lg:w-1/2 bg-primary flex-col p-12 xl:p-14">
+    <div className="flex min-h-screen flex-col lg:h-screen lg:flex-row lg:overflow-hidden">
+      <div className="hidden lg:flex lg:h-screen lg:w-1/2 lg:shrink-0 bg-primary flex-col p-12 xl:p-14">
         <a
           href={homeHref}
           className="inline-flex shrink-0 items-center gap-2 self-start text-white transition-opacity hover:opacity-80"
@@ -58,7 +58,7 @@ export default function AuthLayout() {
           </div>
         </div>
       </div>
-      <div className="flex min-h-screen flex-1 flex-col bg-background lg:min-h-0">
+      <div className="flex min-h-screen flex-1 flex-col bg-background lg:h-screen lg:min-h-0 lg:overflow-y-auto">
         <header className="shrink-0 border-b border-slate-100 px-4 py-2 sm:px-5 lg:hidden">
           <a
             href={homeHref}

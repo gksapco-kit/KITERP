@@ -14,6 +14,8 @@ import { initGlobalEscapeHandler } from './lib/escapeCloseRegistry'
 import { resolveApiBaseUrl } from './lib/apiBase'
 import { DRAFT_BROWSER_PREVIEW_PATH, initPreviewTabOpenerBridge } from './lib/storefrontPreviewUrl'
 import { ensureAppFavicon } from './lib/appFavicon'
+import { refreshAuthSessionDeduped } from './lib/authSession'
+import { isAxiosNetworkError } from './lib/errorMessages'
 import './styles/globals.css'
 
 initGlobalEscapeHandler()
@@ -68,21 +70,26 @@ function isDraftPreviewPath(pathname: string): boolean {
 console.log('%c🏪 VENDOR-WEB (Port 3001)', 'color: #10b981; font-size: 16px; font-weight: bold;')
 console.log('Open http://localhost:3001 — if it fails on Windows Docker, run scripts\\fix-localhost-docker.ps1 as Admin.')
 
-// Preflight: validate stored token in the background (clears stale auth if /auth/me fails).
+// Preflight: validate stored token in the background; refresh silently before logging out.
 async function preflight() {
   if (isDraftPreviewPath(window.location.pathname)) return
   const token = localStorage.getItem('access_token')
   if (!token) return
   const API = resolveApiBaseUrl()
   const ac = new AbortController()
-  const t = window.setTimeout(() => ac.abort(), 5000)
+  const t = window.setTimeout(() => ac.abort(), 8000)
   try {
     const res = await fetch(`${API}/auth/me`, {
       headers: { Authorization: `Bearer ${token}` },
       signal: ac.signal,
     })
-    if (res.status === 401 || res.status === 403) {
-      useAuthStore.getState().logout()
+    if (res.status === 401) {
+      try {
+        const refreshed = await refreshAuthSessionDeduped()
+        if (!refreshed) useAuthStore.getState().logout()
+      } catch (err) {
+        if (!isAxiosNetworkError(err)) useAuthStore.getState().logout()
+      }
     }
   } catch {
     // Network blip — keep tokens (signup handoff from /create-business must not bounce to login)

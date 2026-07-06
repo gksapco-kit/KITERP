@@ -2,6 +2,11 @@ import axios, { AxiosInstance, AxiosError, InternalAxiosRequestConfig } from 'ax
 import { useVendorStore } from '@/stores/vendorStore'
 import { resolveApiBaseUrl } from '@/lib/apiBase'
 import { isAxiosNetworkError } from '@/lib/errorMessages'
+import {
+  clearAuthSessionAndRedirectToLogin,
+  refreshAuthSessionDeduped,
+  shouldSkipTokenRefresh,
+} from '@/lib/authSession'
 
 const API_URL = resolveApiBaseUrl()
 
@@ -33,8 +38,6 @@ apiClient.interceptors.request.use(
   (error) => Promise.reject(error)
 )
 
-let isRefreshing = false
-
 apiClient.interceptors.response.use(
   (response) => response,
   async (error: AxiosError) => {
@@ -53,53 +56,27 @@ apiClient.interceptors.response.use(
     }
 
     const url = originalRequest?.url || ''
-    // Any /auth/* endpoint — let the caller handle the error, never redirect
-    const isAuthEndpoint = url.includes('/auth/')
+    const skipRefresh = shouldSkipTokenRefresh(url)
 
-    if (error.response?.status === 401 && originalRequest && !originalRequest._retry && !isAuthEndpoint) {
+    if (error.response?.status === 401 && originalRequest && !originalRequest._retry && !skipRefresh) {
       originalRequest._retry = true
 
-      let refreshFailedAuth = false
-      if (!isRefreshing) {
-        isRefreshing = true
-        try {
-          const refreshToken = localStorage.getItem('refresh_token')
-          if (refreshToken) {
-            const response = await axios.post(
-              `${API_URL}/auth/refresh`,
-              { refresh_token: refreshToken },
-              { timeout: 15_000 },
-            )
-            const { access_token } = response.data
-            localStorage.setItem('access_token', access_token)
-            originalRequest.headers.Authorization = `Bearer ${access_token}`
-            isRefreshing = false
-            return apiClient(originalRequest)
+      try {
+        const refreshed = await refreshAuthSessionDeduped()
+        if (refreshed) {
+          const token = localStorage.getItem('access_token')
+          if (token) {
+            originalRequest.headers.Authorization = `Bearer ${token}`
           }
-          refreshFailedAuth = true
-        } catch (refreshErr) {
-          isRefreshing = false
-          if (isAxiosNetworkError(refreshErr)) {
-            return Promise.reject(error)
-          }
-          refreshFailedAuth = true
+          return apiClient(originalRequest)
         }
-        isRefreshing = false
+      } catch (refreshErr) {
+        if (isAxiosNetworkError(refreshErr)) {
+          return Promise.reject(error)
+        }
       }
 
-      if (!refreshFailedAuth) return Promise.reject(error)
-
-      // Only redirect if not already on an auth page (login / register / forgot-password)
-      const onAuthPage = /\/(login|register|forgot-password|auth\/handoff)/.test(
-        window.location.pathname
-      )
-      if (!onAuthPage) {
-        localStorage.removeItem('access_token')
-        localStorage.removeItem('refresh_token')
-        localStorage.removeItem('vendor-auth-storage')
-        localStorage.removeItem('vendor-store-data')
-        window.location.href = '/login'
-      }
+      clearAuthSessionAndRedirectToLogin()
     }
 
     // Backend reload / proxy blip — never treat as logout.

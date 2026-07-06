@@ -32,19 +32,47 @@ function digitsOnly(raw: string): string {
   return raw.replace(/\D/g, '')
 }
 
+function matchCountryFromE164(
+  e164: string,
+): { country: CountryEntry; number: string } | null {
+  const sorted = [...orderedCountries].sort((a, b) => b.dialCode.length - a.dialCode.length)
+  for (const c of sorted) {
+    if (e164.startsWith(c.dialCode)) {
+      return { country: c, number: digitsOnly(e164.slice(c.dialCode.length)) }
+    }
+  }
+  return null
+}
+
 function parseFullPhone(
   fullPhone: string,
   defaultCountry: CountryEntry,
 ): { country: CountryEntry; number: string } {
   if (!fullPhone) return { country: defaultCountry, number: '' }
-  const stripped = fullPhone.startsWith('+') ? fullPhone : `+${fullPhone}`
-  const sorted = [...orderedCountries].sort((a, b) => b.dialCode.length - a.dialCode.length)
-  for (const c of sorted) {
-    if (stripped.startsWith(c.dialCode)) {
-      return { country: c, number: digitsOnly(stripped.slice(c.dialCode.length)) }
-    }
+
+  const trimmed = fullPhone.trim()
+
+  if (trimmed.startsWith('+') || trimmed.startsWith('00')) {
+    const e164 = trimmed.startsWith('00') ? `+${trimmed.slice(2)}` : trimmed
+    const matched = matchCountryFromE164(e164)
+    if (matched) return matched
+    return { country: defaultCountry, number: digitsOnly(e164.slice(1)) }
   }
-  return { country: defaultCountry, number: digitsOnly(stripped) }
+
+  const digits = digitsOnly(trimmed)
+  if (!digits) return { country: defaultCountry, number: '' }
+
+  if (digits.length <= getMaxDigits(defaultCountry)) {
+    return { country: defaultCountry, number: digits }
+  }
+
+  const matched = matchCountryFromE164(`+${digits}`)
+  if (matched) return matched
+
+  return {
+    country: defaultCountry,
+    number: digits.slice(-getMaxDigits(defaultCountry)),
+  }
 }
 
 // ── Country dropdown ───────────────────────────────────────────────────────
@@ -205,19 +233,16 @@ export function PhoneInput({
 
   const handlePaste = (e: React.ClipboardEvent<HTMLInputElement>) => {
     e.preventDefault()
-    const pasted = e.clipboardData.getData('text').trim()
-    if (pasted.startsWith('+') || pasted.startsWith('00')) {
-      const normalized = pasted.startsWith('00') ? `+${pasted.slice(2)}` : pasted
-      const p = parseFullPhone(normalized, country)
-      setCountry(p.country)
-      const num = resolve(p.number, p.country)
-      setLocalNumber(num)
-      emit(p.country, num)
-      return
-    }
-    const digits = digitsOnly(pasted)
-    setLocalNumber(digits)
-    emit(country, resolve(digits, country))
+    const pasted = e.clipboardData
+      .getData('text')
+      .trim()
+      .replace(/^tel:/i, '')
+      .replace(/^phone=/i, '')
+    const p = parseFullPhone(pasted, country)
+    const num = resolve(p.number, p.country)
+    setCountry(p.country)
+    setLocalNumber(num)
+    emit(p.country, num)
   }
 
   const handleBlur = () => {
