@@ -121,6 +121,19 @@ function isVariantGeneratorRow(
   return index === 0 && isPresetGeneratorVariant(variant, index)
 }
 
+/** 1-based display number for real SKU rows — the generator row is not counted. */
+function substantiveVariantNumber(
+  variants: Array<{ name?: string; attributes_json?: string }> | undefined,
+  index: number,
+): number | null {
+  if (!variants?.[index] || isPresetGeneratorVariant(variants[index], index)) return null
+  let n = 0
+  for (let i = 0; i <= index; i++) {
+    if (variants[i] && !isPresetGeneratorVariant(variants[i], i)) n++
+  }
+  return n
+}
+
 function defaultVariantRowName(index: number, isSubscriptionType: boolean, isGeneratorRow: boolean): string {
   if (isSubscriptionType) return `Plan ${index + 1}`
   if (isGeneratorRow) return PRESET_GENERATOR_VARIANT_NAME
@@ -287,11 +300,11 @@ const schema = z.object({
   // Variants
   variants: z.array(variantRowSchema).default([]).superRefine((rows, ctx) => {
     const substantive = rows.filter((v, i) => !isPresetGeneratorVariant(v, i))
-    if (substantive.length === 0 && rows.length > 0) {
+    if (substantive.length === 0) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
-        message: 'Generate variants from colours and sizes, or add variant details.',
-        path: [0, 'name'],
+        message: 'Select colours and sizes above, then click Generate.',
+        path: rows.length > 0 ? [0, 'name'] : [],
       })
     }
   }),
@@ -471,7 +484,7 @@ function FormTintPanel({
         <div className={cn('flex min-w-0 flex-1 flex-col', variantPanelSurfaceClass(active))}>
           {header}
           {children ? (
-            <div className="px-2 pb-1.5 pt-0 sm:px-2.5">{children}</div>
+            <div className="border-t border-border/25 px-2 pb-2 pt-2 sm:px-2.5">{children}</div>
           ) : null}
         </div>
       </div>
@@ -506,28 +519,46 @@ function FormTintPanel({
 }
 
 
-/** Compact variant/plan editor — tighter gaps, clearer section labels. */
+/** Compact variant/plan editor — spacing-based groups, no nested boxes. */
 const variantFormUi = {
   body: [
-    'space-y-1.5',
+    'space-y-3',
     '[&_label]:font-medium [&_label]:text-foreground [&_label]:text-[10px] [&_label]:leading-none',
     '[&_input:not([type=color]):not([type=hidden])]:!h-8 [&_input:not([type=color]):not([type=hidden])]:!text-xs [&_input:not([type=color]):not([type=hidden])]:!px-2',
     '[&_select]:!h-8 [&_select]:!min-h-8 [&_select]:!text-xs [&_select]:!px-2 [&_select]:!py-0',
   ].join(' '),
-  grid: 'gap-1.5',
-  sectionRule: 'pt-1.5 border-t border-border/70',
-  sectionHeading: 'text-[10px] font-semibold uppercase tracking-wider text-muted-foreground',
-  sectionPanel: 'rounded-md border border-border/60 bg-muted/20 px-2 py-1.5 sm:px-2.5',
-  mediaHeading: 'text-[11px] font-semibold uppercase tracking-wide text-primary flex items-center gap-1.5',
-  mediaHint: 'font-normal normal-case tracking-normal text-muted-foreground',
+  bodyLayout:
+    'grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_12.5rem] xl:grid-cols-[minmax(0,1fr)_14rem] gap-4 lg:gap-5 lg:items-start',
+  fieldsColumn: 'min-w-0 space-y-3',
+  mediaColumn:
+    'min-w-0 rounded-lg border border-border/60 bg-muted/20 p-2 sm:p-2.5 lg:sticky lg:top-16',
+  grid: 'gap-2',
+  pricingGrid: 'grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6',
+  promoGrid: 'grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-3',
+  inventoryGrid: 'grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4',
+  sectionHeading: 'text-xs font-semibold text-foreground',
+  sectionHint: 'text-[10px] font-normal text-muted-foreground',
 } as const
 
-function VariantFormSection({ title, children, className }: { title: string; children: React.ReactNode; className?: string }) {
+function VariantFormSection({
+  title,
+  hint,
+  children,
+  className,
+}: {
+  title: string
+  hint?: string
+  children: React.ReactNode
+  className?: string
+}) {
   return (
-    <div className={cn(variantFormUi.sectionRule, 'space-y-1', className)}>
-      <p className={variantFormUi.sectionHeading}>{title}</p>
-      <div className={variantFormUi.sectionPanel}>{children}</div>
-    </div>
+    <section className={cn('space-y-1.5', className)}>
+      <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+        <h5 className={variantFormUi.sectionHeading}>{title}</h5>
+        {hint ? <span className={variantFormUi.sectionHint}>{hint}</span> : null}
+      </div>
+      {children}
+    </section>
   )
 }
 
@@ -788,11 +819,13 @@ function VariantMediaEdit({
   variantName,
   initialMedia,
   onChanged,
+  layout = 'inline',
 }: {
   variantId: string
   variantName: string
   initialMedia: VariantMediaItem[]
   onChanged: () => void
+  layout?: 'inline' | 'stacked'
 }) {
   const [media, setMedia] = useState(initialMedia)
 
@@ -845,8 +878,7 @@ function VariantMediaEdit({
   }
 
   return (
-    <VariantFormSection title="Media" className="mt-0">
-      <p className="text-[10px] text-muted-foreground mb-2">Overrides product media · JPG, PNG, MP4, GLB</p>
+    <VariantFormSection title="Media" hint="Overrides product media · JPG, PNG, MP4, GLB">
       <VariantMediaUpload
         media={media}
         onUpload={uploadFile}
@@ -854,6 +886,7 @@ function VariantMediaEdit({
         onSetPrimary={handleSetPrimary}
         onReorder={handleReorder}
         pickerTitle={`Variant media — ${variantName}`}
+        layout={layout}
       />
     </VariantFormSection>
   )
@@ -2782,6 +2815,35 @@ export default function ProductForm() {
     })
   }
 
+  const flushStagedVariantMedia = async (
+    savedProduct: { variants?: { id: string }[] },
+    variantRows: Array<{ name?: string; attributes_json?: string }> | undefined,
+    mediaMap: Map<number, StagedVariantBucket>,
+  ) => {
+    if (mediaMap.size === 0) return
+    const substantiveFormIndices = (variantRows || [])
+      .map((v, i) => (!isPresetGeneratorVariant(v, i) && v.name?.trim() ? i : -1))
+      .filter(i => i >= 0)
+    for (const [variantIndex, bucket] of mediaMap.entries()) {
+      const payloadIdx = substantiveFormIndices.indexOf(variantIndex)
+      if (payloadIdx < 0) continue
+      const dbVariant = savedProduct.variants?.[payloadIdx]
+      if (!dbVariant?.id || bucket.files.length === 0) continue
+      let lastMedia: VariantMediaItem[] = []
+      for (const file of bucket.files) {
+        try {
+          const result = await vendorApi.uploadVariantMedia(dbVariant.id, file)
+          lastMedia = result.media
+        } catch { /* best-effort */ }
+      }
+      const sorted = [...lastMedia].sort((a, b) => a.position - b.position)
+      const primaryItem = sorted[bucket.primaryIndex]
+      if (primaryItem && (primaryItem.media_type || 'image') === 'image' && !primaryItem.is_primary) {
+        try { await vendorApi.setPrimaryVariantMedia(dbVariant.id, primaryItem.url) } catch { /* best-effort */ }
+      }
+    }
+  }
+
   const onSubmit = async (raw: FormData) => {
     try {
       const {
@@ -2924,40 +2986,18 @@ export default function ProductForm() {
       }
 
       if (isEdit) {
-        await updateProduct.mutateAsync({ id: id!, data })
+        const updatedProduct = await updateProduct.mutateAsync({ id: id!, data })
         await syncMerch(id!)
+        await flushStagedVariantMedia(updatedProduct, variantRows, pendingVariantMedia)
+        setPendingVariantMedia(new Map())
         navigate('/products')
       } else {
         const newProduct = await createProduct.mutateAsync(
           { data, images: pendingFiles.length > 0 ? pendingFiles : undefined, primaryImageIndex: pendingPrimaryIndex }
         )
         await syncMerch(newProduct.id)
-        // Upload staged variant media now that variants have DB IDs
-        if (pendingVariantMedia.size > 0) {
-          const substantiveFormIndices = (variantRows || [])
-            .map((v, i) => (!isPresetGeneratorVariant(v, i) && v.name?.trim() ? i : -1))
-            .filter(i => i >= 0)
-          for (const [variantIndex, bucket] of pendingVariantMedia.entries()) {
-            const payloadIdx = substantiveFormIndices.indexOf(variantIndex)
-            if (payloadIdx < 0) continue
-            const dbVariant = (newProduct as { variants?: { id: string }[] }).variants?.[payloadIdx]
-            if (dbVariant?.id && bucket.files.length > 0) {
-              let lastMedia: VariantMediaItem[] = []
-              for (const file of bucket.files) {
-                try {
-                  const result = await vendorApi.uploadVariantMedia(dbVariant.id, file)
-                  lastMedia = result.media
-                } catch { /* best-effort */ }
-              }
-              const sorted = [...lastMedia].sort((a, b) => a.position - b.position)
-              const primaryItem = sorted[bucket.primaryIndex]
-              if (primaryItem && (primaryItem.media_type || 'image') === 'image' && !primaryItem.is_primary) {
-                try { await vendorApi.setPrimaryVariantMedia(dbVariant.id, primaryItem.url) } catch { /* best-effort */ }
-              }
-            }
-          }
-          setPendingVariantMedia(new Map())
-        }
+        await flushStagedVariantMedia(newProduct, variantRows, pendingVariantMedia)
+        setPendingVariantMedia(new Map())
         setPendingFiles([])
         setPendingPreviews([])
         setPendingPrimaryIndex(0)
@@ -3173,7 +3213,7 @@ export default function ProductForm() {
     }
   }, [isSubscriptionType, isEdit, isBundleType, variantFields.length, getValues, setValue])
 
-  // Keep the preset generator row's hidden name valid once colour/size presets are available.
+  // Keep variant 1 generator row name stable until Generate runs.
   useEffect(() => {
     if (isEdit || isSubscriptionType || isBundleType) return
     const hasPresets = variantPresets.colours.length > 0 || variantPresets.sizes.length > 0
@@ -3194,7 +3234,7 @@ export default function ProductForm() {
     setValue,
   ])
 
-  // Restore generator row at top if user deleted it (create + colour/size presets).
+  // Restore variant 1 generator row if all variants were removed.
   useEffect(() => {
     if (isEdit || isSubscriptionType || isBundleType) return
     const hasPresets = variantPresets.colours.length > 0 || variantPresets.sizes.length > 0
@@ -3203,8 +3243,13 @@ export default function ProductForm() {
     const hasGenerator = rows.some((v: { name?: string; attributes_json?: string }, i: number) =>
       isVariantGeneratorRow(i, v),
     )
-    if (!hasGenerator) {
+    const substantiveCount = rows.filter(
+      (v: { name?: string; attributes_json?: string }, i: number) =>
+        !isPresetGeneratorVariant(v, i) && Boolean((v.name || '').trim()),
+    ).length
+    if (!hasGenerator && substantiveCount === 0) {
       prependVariant(makeVariantDefaults(PRESET_GENERATOR_VARIANT_NAME, {}))
+      setExpandedVariants({ 0: true })
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps -- only when row count / presets change
   }, [isEdit, isSubscriptionType, isBundleType, variantFields.length, variantPresets.colours.length, variantPresets.sizes.length])
@@ -3241,40 +3286,73 @@ export default function ProductForm() {
     }
 
     const currentRows = getValues('variants') || []
+    const generatorIndex = currentRows.findIndex(
+      (v: { name?: string; attributes_json?: string }, i: number) => isVariantGeneratorRow(i, v),
+    )
+    const substantiveRows = currentRows.filter(
+      (v: { name?: string; attributes_json?: string }, i: number) => !isPresetGeneratorVariant(v, i),
+    )
     const existingNames = new Set(
-      currentRows
-        .filter((v: { name?: string; attributes_json?: string }, i: number) => !isPresetGeneratorVariant(v, i))
+      substantiveRows
         .map((v: { name?: string }) => (v.name || '').toLowerCase().trim())
         .filter(Boolean),
     )
 
-    const startIdx = currentRows.length
-    let added = 0
+    const toAdd: GeneratedVariantCombo[] = []
     let skipped = 0
-
     for (const combo of combos) {
       const key = combo.name.toLowerCase().trim()
       if (existingNames.has(key)) { skipped++; continue }
       existingNames.add(key)
-      const defaults = makeVariantDefaults(combo.name, combo.attrs)
-      if (combo.colorHex) defaults.color = combo.colorHex
-      appendVariant(defaults)
-      added++
+      toAdd.push(combo)
     }
 
-    if (added > 0) {
-      const expanded: Record<number, boolean> = {}
-      for (let i = 0; i < added; i++) expanded[startIdx + i] = true
-      setExpandedVariants(p => ({ ...p, ...expanded }))
-      setGenerateColourIds(new Set())
-      setGenerateSizeIds(new Set())
+    if (toAdd.length === 0) {
+      if (skipped > 0) toast.info(`All ${skipped} variant(s) already exist — nothing added`)
+      return
     }
-    if (skipped > 0 && added > 0) {
-      toast.success(`Added ${added} variant(s), skipped ${skipped} duplicate(s)`)
-    } else if (skipped > 0) {
-      toast.info(`All ${skipped} variant(s) already exist — nothing added`)
+
+    const comboToRow = (combo: GeneratedVariantCombo, keepId?: string) => {
+      const row = makeVariantDefaults(combo.name, combo.attrs)
+      if (combo.colorHex) row.color = combo.colorHex
+      if (keepId) row.id = keepId
+      return row
+    }
+
+    let nextRows: typeof currentRows
+    const expanded: Record<number, boolean> = {}
+
+    if (generatorIndex >= 0) {
+      const keepId = currentRows[generatorIndex]?.id as string | undefined
+      const mergedFirst = comboToRow(toAdd[0], keepId)
+      const appended = toAdd.slice(1).map(c => comboToRow(c))
+      const tailSubstantive = currentRows
+        .slice(generatorIndex + 1)
+        .filter((v: { name?: string; attributes_json?: string }, i: number) =>
+          !isPresetGeneratorVariant(v, generatorIndex + 1 + i),
+        )
+      nextRows = [
+        ...currentRows.slice(0, generatorIndex),
+        mergedFirst,
+        ...appended,
+        ...tailSubstantive,
+      ]
+      expanded[generatorIndex] = true
+      for (let i = 0; i < appended.length; i++) expanded[generatorIndex + 1 + i] = true
     } else {
-      toast.success(`Added ${added} variant row(s)`)
+      nextRows = [...substantiveRows, ...toAdd.map(c => comboToRow(c))]
+      for (let i = 0; i < toAdd.length; i++) expanded[substantiveRows.length + i] = true
+    }
+
+    replaceVariants(nextRows)
+    setExpandedVariants(p => ({ ...p, ...expanded }))
+    setGenerateColourIds(new Set())
+    setGenerateSizeIds(new Set())
+
+    if (skipped > 0) {
+      toast.success(`Added ${toAdd.length} variant(s), skipped ${skipped} duplicate(s)`)
+    } else {
+      toast.success(`Added ${toAdd.length} variant row(s)`)
     }
   }
 
@@ -3595,7 +3673,9 @@ export default function ProductForm() {
                 <p className="text-xs text-muted-foreground">
                   {isSubscriptionType
                     ? 'Each plan has its own pricing, stock, and media.'
-                    : 'Pick colours & sizes in row 1, then Generate variants — expand rows for pricing and stock.'}
+                    : (variantPresets.colours.length > 0 || variantPresets.sizes.length > 0)
+                      ? 'Pick colours & sizes in variant 1, then Generate — variants are numbered 1, 2, 3…'
+                      : 'Add variants and set pricing, stock, and media for each.'}
                 </p>
                 <Button
                   type="button"
@@ -3616,12 +3696,14 @@ export default function ProductForm() {
               </div>
             </div>
 
-            <div className={formDisplayCompact.pageGap}>
+            <div className="flex flex-col gap-3 sm:gap-4">
             {variantFields.length === 0 ? (
               <p className="rounded-lg bg-muted/25 py-4 text-center text-xs text-gray-500 sm:text-sm">
                 {isSubscriptionType
                   ? 'No plans yet — use Add plan to define pricing.'
-                  : 'Pick colours & sizes in the first row, then Generate variants.'}
+                  : (variantPresets.colours.length > 0 || variantPresets.sizes.length > 0)
+                    ? 'Pick colours and sizes in variant 1, then click Generate.'
+                    : 'No variants yet — use Add variant or pick colours & sizes first.'}
               </p>
             ) : (
               <>
@@ -3648,10 +3730,11 @@ export default function ProductForm() {
                   const rowColourId = variantPresets.colours.find(c => c.name === rowAttrs.Color)?.id
                   const rowSizeId = variantPresets.sizes.find(s => s.size === rowAttrs.Size)?.id
                   const hasVariantPresets = variantPresets.colours.length > 0 || variantPresets.sizes.length > 0
-                  const isGeneratorRow = isVariantGeneratorRow(index, {
+                  const isGeneratorRow = !isSubscriptionType && isVariantGeneratorRow(index, {
                     name: variantName,
                     attributes_json: watch(`variants.${index}.attributes_json`) as string | undefined,
                   })
+                  const variantDisplayNum = substantiveVariantNumber(watchedVariants, index) ?? index + 1
                   return (
                   <FormTintPanel
                     key={vf.id}
@@ -3659,6 +3742,10 @@ export default function ProductForm() {
                     accentColor={accentColor}
                     active={isActive}
                     headerAccentOnly
+                    className={cn(
+                      'overflow-hidden rounded-xl border border-border/80 bg-card shadow-sm',
+                      !isActive && 'border-border/50 opacity-90',
+                    )}
                     header={
                     <div
                       className={cn(
@@ -3668,15 +3755,13 @@ export default function ProductForm() {
                       onClick={() => toggleVariant(index)}
                     >
                       <div className="flex min-w-0 flex-1 items-end gap-2">
-                        {!( !isSubscriptionType && hasVariantPresets && isGeneratorRow) && (
-                          <span
-                            className={cn(
-                              'inline-flex items-center justify-center w-6 h-6 rounded-full text-xs font-bold text-white shrink-0 self-center',
-                              !isActive && 'bg-gray-400',
-                            )}
-                            style={isActive ? { backgroundColor: uiAccent } : undefined}
-                          >{index + 1}</span>
-                        )}
+                        <span
+                          className={cn(
+                            'inline-flex items-center justify-center w-6 h-6 rounded-full text-xs font-bold text-white shrink-0 self-center',
+                            !isActive && 'bg-gray-400',
+                          )}
+                          style={isActive ? { backgroundColor: uiAccent } : undefined}
+                        >{variantDisplayNum}</span>
                         {isSubscriptionType ? (
                           <Input
                             {...register(`variants.${index}.name`, {
@@ -3696,58 +3781,26 @@ export default function ProductForm() {
                             style={isActive && !lightAccent ? { color: uiAccent } : undefined}
                           />
                         ) : hasVariantPresets ? (
-                          <div
-                            className="flex items-stretch gap-3 sm:gap-4 flex-nowrap shrink-0"
-                            onClick={e => e.stopPropagation()}
-                          >
-                            <PresetColourField
-                              vendorId={vendorId}
-                              selectedIds={
-                                isGeneratorRow
-                                  ? generateColourIds
-                                  : new Set(rowColourId ? [rowColourId] : [])
-                              }
-                              pairCount={
-                                isGeneratorRow && generateSizeIds.size > 0
-                                  ? generateSizeIds.size
-                                  : undefined
-                              }
-                              onSelectedIdsChange={(ids) => {
-                                if (isGeneratorRow) {
-                                  setGenerateColourIds(ids)
-                                  return
-                                }
-                                applyVariantPresetSelection(
-                                  index,
-                                  ids,
-                                  new Set(rowSizeId ? [rowSizeId] : []),
-                                )
-                              }}
-                              multiple={isGeneratorRow}
-                              idSuffix={`-row-${index}`}
-                            />
-                            <PresetSizeField
-                              vendorId={vendorId}
-                              selectedIds={
-                                isGeneratorRow
-                                  ? generateSizeIds
-                                  : new Set(rowSizeId ? [rowSizeId] : [])
-                              }
-                              onSelectedIdsChange={(ids) => {
-                                if (isGeneratorRow) {
-                                  setGenerateSizeIds(ids)
-                                  return
-                                }
-                                applyVariantPresetSelection(
-                                  index,
-                                  new Set(rowColourId ? [rowColourId] : []),
-                                  ids,
-                                )
-                              }}
-                              multiple={isGeneratorRow}
-                              idSuffix={`-row-${index}`}
-                            />
-                            {isGeneratorRow && (
+                          isGeneratorRow ? (
+                            <div
+                              className="flex flex-wrap items-end gap-2 sm:gap-3 shrink-0"
+                              onClick={e => e.stopPropagation()}
+                            >
+                              <PresetColourField
+                                vendorId={vendorId}
+                                selectedIds={generateColourIds}
+                                pairCount={generateSizeIds.size > 0 ? generateSizeIds.size : undefined}
+                                onSelectedIdsChange={setGenerateColourIds}
+                                multiple
+                                idSuffix={`-gen-${index}`}
+                              />
+                              <PresetSizeField
+                                vendorId={vendorId}
+                                selectedIds={generateSizeIds}
+                                onSelectedIdsChange={setGenerateSizeIds}
+                                multiple
+                                idSuffix={`-gen-${index}`}
+                              />
                               <GenerateVariantsButton
                                 vendorId={vendorId}
                                 selectedColourIds={generateColourIds}
@@ -3755,8 +3808,40 @@ export default function ProductForm() {
                                 onGenerate={handleGenerateFromPresets}
                                 prominent
                               />
-                            )}
+                            </div>
+                          ) : (
+                          <div
+                            className="flex items-stretch gap-3 sm:gap-4 flex-nowrap shrink-0"
+                            onClick={e => e.stopPropagation()}
+                          >
+                            <PresetColourField
+                              vendorId={vendorId}
+                              selectedIds={new Set(rowColourId ? [rowColourId] : [])}
+                              onSelectedIdsChange={(ids) => {
+                                applyVariantPresetSelection(
+                                  index,
+                                  ids,
+                                  new Set(rowSizeId ? [rowSizeId] : []),
+                                )
+                              }}
+                              multiple={false}
+                              idSuffix={`-row-${index}`}
+                            />
+                            <PresetSizeField
+                              vendorId={vendorId}
+                              selectedIds={new Set(rowSizeId ? [rowSizeId] : [])}
+                              onSelectedIdsChange={(ids) => {
+                                applyVariantPresetSelection(
+                                  index,
+                                  new Set(rowColourId ? [rowColourId] : []),
+                                  ids,
+                                )
+                              }}
+                              multiple={false}
+                              idSuffix={`-row-${index}`}
+                            />
                           </div>
+                          )
                         ) : (
                           <Input
                             {...register(`variants.${index}.name`, {
@@ -3786,7 +3871,8 @@ export default function ProductForm() {
                                 {...field}
                                 value={
                                   field.value?.trim()
-                                  || defaultVariantRowName(index, false, isGeneratorRow)
+                                  || variantName?.trim()
+                                  || `Variant ${variantDisplayNum}`
                                 }
                               />
                             )}
@@ -3795,7 +3881,7 @@ export default function ProductForm() {
                         {!isActive && (
                           <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-muted text-muted-foreground shrink-0">Inactive</span>
                         )}
-                        {!isExpanded && (
+                        {!isExpanded && !isGeneratorRow && (
                           <span className="hidden sm:inline-flex items-center gap-2 text-xs text-muted-foreground shrink-0">
                             <span className="font-medium text-foreground tabular-nums">{vCurrSym}{vPrice.toLocaleString()}</span>
                             <span className="text-border">·</span>
@@ -3806,6 +3892,8 @@ export default function ProductForm() {
                         )}
                       </div>
                       <div className="flex items-center gap-2 sm:gap-3 shrink-0" onClick={e => e.stopPropagation()}>
+                        {!isGeneratorRow && (
+                        <>
                         <Controller
                           name={`variants.${index}.is_active`}
                           control={control}
@@ -3833,13 +3921,21 @@ export default function ProductForm() {
                             <Trash2 className="w-4 h-4" />
                           </Button>
                         )}
+                        </>
+                        )}
                       </div>
                       <ChevronDown className={`w-5 h-5 text-gray-400 transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`} />
                     </div>
                     }
                   >
                     {isExpanded && (
-                    <div className={cn(formEditLayout.sectionContent, variantFormUi.body, '!px-0 !pb-0 !pt-0 border-t-0')}>
+                    isGeneratorRow ? (
+                      <p className="px-2 py-3 text-xs text-muted-foreground sm:px-2.5">
+                        Select colours and sizes above, then click Generate to create variant rows.
+                      </p>
+                    ) : (
+                    <div className={variantFormUi.bodyLayout}>
+                    <div className={variantFormUi.fieldsColumn}>
                     {/* ── Subscription Billing + Price basis (compact) ── */}
                     {isSubscriptionType && (
                       <VariantFormSection title="Billing">
@@ -3872,7 +3968,7 @@ export default function ProductForm() {
                         </div>
                         {/* Schedule modes allowed for customers */}
                         <div>
-                          <p className={cn(variantFormUi.sectionHeading, 'mb-1')}>Customer scheduling options</p>
+                          <p className="text-[11px] font-medium text-muted-foreground mb-1">Customer scheduling options</p>
                           <div className="flex flex-wrap gap-1.5">
                             {([
                               { id: 'dates', label: 'Date Range' },
@@ -3943,7 +4039,7 @@ export default function ProductForm() {
                         <>
                           <VariantFormSection title="Pricing">
                             <div className={cn(
-                              'grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6',
+                              variantFormUi.pricingGrid,
                               variantFormUi.grid,
                               '[&_input[type=number]]:tabular-nums',
                             )}>
@@ -3991,7 +4087,7 @@ export default function ProductForm() {
                               </FormField>
                             </div>
                             {(autoDiscPct > 0 || profit != null) && (
-                              <div className="flex items-center gap-2 flex-wrap mt-1.5 pt-1.5 border-t border-border/50">
+                              <div className="flex items-center gap-2 flex-wrap mt-1.5">
                                 {autoDiscPct > 0 && (
                                   <VariantMetricChip tone="discount" icon={Tag}>
                                     {autoDiscPct.toFixed(1)}% off
@@ -4009,7 +4105,7 @@ export default function ProductForm() {
                           </VariantFormSection>
 
                           <VariantFormSection title="Promotion">
-                            <div className={cn('grid grid-cols-2 md:grid-cols-6 min-w-0 [&>div]:min-w-0', variantFormUi.grid)}>
+                            <div className={cn(variantFormUi.promoGrid, variantFormUi.grid, 'min-w-0 [&>div]:min-w-0')}>
                               <FormField label="Disc %" name={`variants.${index}.discount_percentage`} className="min-w-0">
                                 <InputWithSuffix suffix="%" type="number" step="0.01" min="0" max="100" className="w-full"
                                   {...register(`variants.${index}.discount_percentage`)} placeholder="0" />
@@ -4037,7 +4133,7 @@ export default function ProductForm() {
                               </div>
                             </div>
                             {(discPct > 0 || discAmt > 0 || hasPromoDates) && (
-                              <div className="flex items-center gap-2 flex-wrap mt-1.5 pt-1.5 border-t border-border/50 text-[11px] text-muted-foreground">
+                              <div className="flex items-center gap-2 flex-wrap mt-1.5 text-[11px] text-muted-foreground">
                                 {discPct > 0 && <span className="font-medium text-orange-700">{discPct.toFixed(1)}% OFF</span>}
                                 {discAmt > 0 && <span className="font-medium text-orange-700">{currSym}{discAmt.toLocaleString()} off</span>}
                                 {hasPromoDates && (
@@ -4056,7 +4152,7 @@ export default function ProductForm() {
                     })()}
 
                     <VariantFormSection title="Inventory & IDs">
-                      <div className={cn('grid grid-cols-2 sm:grid-cols-4 md:grid-cols-[2fr_2fr_1fr_1fr_1.5fr_1fr_1fr]', variantFormUi.grid)}>
+                      <div className={cn(variantFormUi.inventoryGrid, variantFormUi.grid)}>
                         <FormField label="SKU"><Input {...register(`variants.${index}.sku`)} placeholder="Optional" /></FormField>
                         <FormField label="Barcode"><Input {...register(`variants.${index}.barcode`)} placeholder="Optional" /></FormField>
                         <FormField label="Qty on hand">
@@ -4081,7 +4177,7 @@ export default function ProductForm() {
                           <Input type="number" step="0.001" min="0" placeholder="0.000" {...register(`variants.${index}.weight_kg`)} />
                         </FormField>
                       </div>
-                      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-1.5 pt-1.5 border-t border-border/50">
+                      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-2">
                         <Controller name={`variants.${index}.track_inventory`} control={control} render={({ field }) => (
                           <Toggle label="Track Inventory" checked={field.value} onChange={field.onChange} />
                         )} />
@@ -4134,24 +4230,31 @@ export default function ProductForm() {
                     {/* Hidden fields — keep form state but no visible UI */}
                     <input type="hidden" {...register(`variants.${index}.attributes_json`)} />
                     <input type="hidden" {...register(`variants.${index}.id`)} />
+                    </div>
 
-                    {/* ── Variant Media (existing variants — live upload) ── */}
-                    {isEdit && watch(`variants.${index}.id`) && (
-                      <VariantMediaEdit
-                        key={watch(`variants.${index}.id`)}
-                        variantId={watch(`variants.${index}.id`) as string}
-                        variantName={variantName || `Variant ${index + 1}`}
-                        initialMedia={product?.variants?.find(v => v.id === watch(`variants.${index}.id`))?.media || []}
-                        onChanged={() => qc.invalidateQueries({ queryKey: ['vendor', 'product', id] })}
-                      />
-                    )}
+                    <aside className={variantFormUi.mediaColumn}>
+                    {/* ── Variant Media (saved variants — live upload; new rows — staged until save) ── */}
+                    {(() => {
+                      const variantId = watch(`variants.${index}.id`) as string | undefined
+                      const skuNum = substantiveVariantNumber(watchedVariants, index) ?? index + 1
+                      const displayName = variantName || `Variant ${skuNum}`
 
-                    {/* ── Variant Media (new product — staged until saved) ── */}
-                    {!isEdit && (() => {
+                      if (variantId) {
+                        return (
+                          <VariantMediaEdit
+                            key={variantId}
+                            variantId={variantId}
+                            variantName={displayName}
+                            initialMedia={product?.variants?.find(v => v.id === variantId)?.media || []}
+                            onChanged={() => qc.invalidateQueries({ queryKey: ['vendor', 'product', id] })}
+                            layout="stacked"
+                          />
+                        )
+                      }
+
                       const bucket = pendingVariantMedia.get(index) ?? emptyStagedVariantBucket()
                       return (
-                        <VariantFormSection title="Media" className="mt-0">
-                          <p className="text-[10px] text-muted-foreground mb-1.5">Uploaded when product is saved</p>
+                        <VariantFormSection title="Media" hint="Uploaded when product is saved">
                           <StagedMediaUpload
                             files={bucket.files}
                             previews={bucket.previews}
@@ -4161,12 +4264,15 @@ export default function ProductForm() {
                             onAddFiles={(files) => addStagedVariantFiles(index, files)}
                             onRemoveFile={(fi) => removeStagedVariantFile(index, fi)}
                             onReplaceFile={(fi, file) => replaceStagedVariantFile(index, fi, file)}
-                            pickerTitle={`Variant media — ${variantName || `Variant ${index + 1}`}`}
+                            pickerTitle={`Variant media — ${displayName}`}
+                            layout="stacked"
                           />
                         </VariantFormSection>
                       )
                     })()}
+                    </aside>
                     </div>
+                    )
                     )}
                   </FormTintPanel>
                   )

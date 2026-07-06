@@ -103,15 +103,66 @@ export function addColourPreset(
   return entry
 }
 
+const SIZE_PRESET_MULTI_VALUE = /[,;|]/
+
+function findSizePresetConflict(size: string, value: string, existing: SizePreset[]): string | null {
+  const sizeKey = size.toLowerCase()
+  const valueKey = value.toLowerCase()
+  for (const entry of existing) {
+    if (entry.size.toLowerCase() === sizeKey) {
+      return `Size "${entry.size}" already exists`
+    }
+    if (entry.value.toLowerCase() === valueKey) {
+      return `Code "${entry.value}" is already used by "${entry.size}"`
+    }
+  }
+  return null
+}
+
+export function validateSizePresetInput(
+  input: { size: string; value: string },
+  vendorId?: string,
+): { ok: true; size: string; value: string } | { ok: false; message: string } {
+  const size = safeStr(input.size)
+  const value = safeStr(input.value)
+  if (!size) {
+    return { ok: false, message: 'Enter a size name (e.g. Small)' }
+  }
+  if (!value) {
+    return { ok: false, message: 'Enter a size code (e.g. S)' }
+  }
+  if (SIZE_PRESET_MULTI_VALUE.test(size)) {
+    return {
+      ok: false,
+      message: 'Size must be one name only — add each size separately (e.g. Small, not Small, Medium, Large)',
+    }
+  }
+  if (SIZE_PRESET_MULTI_VALUE.test(value)) {
+    return {
+      ok: false,
+      message: 'Value must be one code only — add each size separately (e.g. S, not S, M, L)',
+    }
+  }
+  const conflict = findSizePresetConflict(size, value, loadProductVariantPresets(vendorId).sizes)
+  if (conflict) {
+    return { ok: false, message: conflict }
+  }
+  return { ok: true, size, value }
+}
+
 export function addSizePreset(
   input: { size: string; value: string },
   vendorId?: string,
 ): SizePreset {
+  const validated = validateSizePresetInput(input, vendorId)
+  if (!validated.ok) {
+    throw new Error(validated.message)
+  }
   const presets = loadProductVariantPresets(vendorId)
   const entry: SizePreset = {
     id: crypto.randomUUID(),
-    size: input.size.trim(),
-    value: input.value.trim(),
+    size: validated.size,
+    value: validated.value,
   }
   presets.sizes = [...presets.sizes, entry]
   saveProductVariantPresets(presets, vendorId)
@@ -142,6 +193,30 @@ export const COLOUR_PALETTE = [
   { name: 'Teal', hex: '#14B8A6' },
   { name: 'Purple', hex: '#8B5CF6' },
 ] as const
+
+/** Common apparel sizes — selecting one fills display name + variant code. */
+export const SIZE_PALETTE = [
+  { size: 'Extra Small', value: 'XS' },
+  { size: 'Small', value: 'S' },
+  { size: 'Medium', value: 'M' },
+  { size: 'Large', value: 'L' },
+  { size: 'Extra Large', value: 'XL' },
+  { size: '2XL', value: '2XL' },
+  { size: '3XL', value: '3XL' },
+] as const
+
+export type SizePaletteEntry = (typeof SIZE_PALETTE)[number]
+
+export function matchSizePaletteEntry(size: string, value: string): SizePaletteEntry | null {
+  const sizeKey = size.trim().toLowerCase()
+  const valueKey = value.trim().toLowerCase()
+  if (!sizeKey && !valueKey) return null
+  return (
+    SIZE_PALETTE.find(
+      p => p.size.toLowerCase() === sizeKey && p.value.toLowerCase() === valueKey,
+    ) ?? null
+  )
+}
 
 /** @deprecated use COLOUR_PALETTE */
 export const SIZE_COLOUR_PALETTE = COLOUR_PALETTE

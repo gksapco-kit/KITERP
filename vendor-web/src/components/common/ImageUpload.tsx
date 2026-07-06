@@ -76,8 +76,11 @@ export const MEDIA_FORMATS_HELPER = 'JPG, PNG, WebP, GIF · MP4, WebM, MOV · GL
 const catalogMediaCompact = {
   root: 'space-y-1.5',
   row: 'flex items-center gap-2',
+  rowStacked: 'flex flex-col items-stretch gap-2',
   dropzone:
     'flex h-[4.875rem] w-[7.5rem] max-w-full shrink-0 flex-col items-center justify-center gap-0.5 rounded-lg border border-dashed border-gray-300 bg-gray-50/90 px-2 text-center shadow-sm transition-colors hover:border-blue-400 hover:bg-blue-50/60',
+  dropzoneStacked:
+    'flex h-28 w-full max-w-none shrink-0 flex-col items-center justify-center gap-0.5 rounded-lg border border-dashed border-gray-300 bg-gray-50/90 px-2 text-center shadow-sm transition-colors hover:border-blue-400 hover:bg-blue-50/60',
   dropzoneIcon: 'h-4 w-4 text-gray-500',
   dropzoneSpinner: 'h-4 w-4 text-blue-500 animate-spin',
   dropzoneTitle: 'text-[11px] font-medium leading-snug text-gray-700',
@@ -86,6 +89,7 @@ const catalogMediaCompact = {
   headerHelper: 'text-[11px] leading-snug text-gray-500',
   headerPickerHint: 'text-[10px] font-semibold tracking-wide text-primary',
   thumbStrip: 'flex min-w-0 flex-1 flex-wrap items-center gap-1.5',
+  thumbStripStacked: 'flex w-full flex-wrap items-center gap-1.5',
   thumb: 'relative group aspect-square size-[4.875rem] shrink-0 overflow-hidden rounded-md border border-gray-200 bg-white shadow-sm',
   sectionLabel: 'flex items-center gap-1 text-[10px] font-medium text-gray-600',
   sectionLabelIcon: 'h-2.5 w-2.5',
@@ -305,11 +309,13 @@ function CatalogMediaDropzone({
   uploading,
   onDrop,
   onClick,
+  className,
 }: {
   disabled?: boolean
   uploading?: boolean
   onDrop: (e: React.DragEvent) => void
   onClick: () => void
+  className?: string
 }) {
   return (
     <div
@@ -318,6 +324,7 @@ function CatalogMediaDropzone({
       onClick={onClick}
       className={cn(
         catalogMediaCompact.dropzone,
+        className,
         disabled ? 'cursor-not-allowed bg-gray-100 opacity-60' : 'cursor-pointer',
       )}
     >
@@ -615,6 +622,7 @@ interface VariantMediaUploadProps {
   onReorder?: (urls: string[]) => Promise<void>
   disabled?: boolean
   pickerTitle?: string
+  layout?: 'inline' | 'stacked'
 }
 
 /** Catalog media UI for variant-level images/videos/3D (url-keyed). */
@@ -626,6 +634,7 @@ export function VariantMediaUpload({
   onReorder,
   disabled,
   pickerTitle = 'Variant media',
+  layout = 'inline',
 }: VariantMediaUploadProps) {
   const [uploading, setUploading] = useState(false)
 
@@ -678,15 +687,18 @@ export function VariantMediaUpload({
     handleFiles(e.dataTransfer.files)
   }, [handleFiles])
 
+  const stacked = layout === 'stacked'
+
   return (
     <div className={catalogMediaCompact.root}>
       {pickerModal}
-      <div className={catalogMediaCompact.row}>
+      <div className={stacked ? catalogMediaCompact.rowStacked : catalogMediaCompact.row}>
         <CatalogMediaDropzone
           disabled={disabled}
           uploading={uploading}
           onDrop={handleDrop}
           onClick={() => !disabled && !uploading && openPicker()}
+          className={stacked ? catalogMediaCompact.dropzoneStacked : undefined}
         />
 
         {sortedMedia.length > 0 && (
@@ -699,7 +711,7 @@ export function VariantMediaUpload({
             }))}
           >
             {({ open }) => (
-              <div className={catalogMediaCompact.thumbStrip}>
+              <div className={stacked ? catalogMediaCompact.thumbStripStacked : catalogMediaCompact.thumbStrip}>
                 {sortedMedia.map((item, i) => {
                   const asProductImage: ProductImage = {
                     id: item.url,
@@ -843,6 +855,7 @@ interface StagedMediaUploadProps {
   onReplaceFile?: (index: number, file: File) => void
   pickerTitle?: string
   disabled?: boolean
+  layout?: 'inline' | 'stacked'
 }
 
 /** Drop zone for media staged until product/service is saved (create flow). */
@@ -857,6 +870,7 @@ export function StagedMediaUpload({
   onReplaceFile,
   pickerTitle = 'Media',
   disabled,
+  layout = 'inline',
 }: StagedMediaUploadProps) {
   const thumbDrag = useThumbDragReorder(onReorderFiles)
 
@@ -887,15 +901,18 @@ export function StagedMediaUpload({
     handleFiles(e.dataTransfer.files)
   }, [handleFiles])
 
+  const stacked = layout === 'stacked'
+
   return (
     <div className={catalogMediaCompact.root}>
       {pickerModal}
-      <div className={catalogMediaCompact.row}>
+      <div className={stacked ? catalogMediaCompact.rowStacked : catalogMediaCompact.row}>
         <CatalogMediaDropzone
           disabled={disabled}
           uploading={false}
           onDrop={handleDrop}
           onClick={() => !disabled && openPicker()}
+          className={stacked ? catalogMediaCompact.dropzoneStacked : undefined}
         />
         {files.length > 0 && (
           <CatalogMediaLightboxHost
@@ -914,7 +931,7 @@ export function StagedMediaUpload({
             }
           >
             {({ open }) => (
-              <div className={catalogMediaCompact.thumbStrip}>
+              <div className={stacked ? catalogMediaCompact.thumbStripStacked : catalogMediaCompact.thumbStrip}>
                 {files.map((file, i) => {
                   const mt = getMediaType(file)
                   const isPrimary = i === primaryIndex && mt === 'image'
