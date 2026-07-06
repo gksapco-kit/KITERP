@@ -2004,7 +2004,7 @@ function AddPriceRuleForm({ ruleType, productId, variants, onSave, onCancel, sav
 
       <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
         <div className="col-span-2 md:col-span-1">
-          <Label className="block text-xs font-medium text-gray-600 mb-1" required>Rule Name</Label>
+          <Label className="block text-xs font-medium text-gray-600 mb-1">Rule Name <span className="text-red-500">*</span></Label>
           <input className={inputCls} value={name} onChange={e => setName(e.target.value)} placeholder="e.g. Wholesale Rate" />
         </div>
         {variants.length > 0 && (
@@ -2026,7 +2026,7 @@ function AddPriceRuleForm({ ruleType, productId, variants, onSave, onCancel, sav
       {ruleType === 'party' && (
         <div className="grid grid-cols-2 gap-3">
           <div>
-            <Label className="block text-xs font-medium text-gray-600 mb-1" required>Customer Group</Label>
+            <Label className="block text-xs font-medium text-gray-600 mb-1">Customer Group <span className="text-red-500">*</span></Label>
             <select className={selectCls} value={customerGroup} onChange={e => setCustomerGroup(e.target.value)}>
               <option value="">Select group…</option>
               <option value="wholesale">Wholesale</option>
@@ -2072,7 +2072,7 @@ function AddPriceRuleForm({ ruleType, productId, variants, onSave, onCancel, sav
       {ruleType === 'scheduled' && (
         <div className="grid grid-cols-2 gap-3">
           <div>
-            <Label className="block text-xs font-medium text-gray-600 mb-1" required>Start Date</Label>
+            <Label className="block text-xs font-medium text-gray-600 mb-1">Start Date <span className="text-red-500">*</span></Label>
             <input type="datetime-local" className={inputCls} value={startDate} onChange={e => setStartDate(e.target.value)} />
           </div>
           <div>
@@ -2085,7 +2085,7 @@ function AddPriceRuleForm({ ruleType, productId, variants, onSave, onCancel, sav
       {ruleType === 'quantity' && (
         <div className="grid grid-cols-2 gap-3">
           <div>
-            <Label className="block text-xs font-medium text-gray-600 mb-1" required>Min Quantity</Label>
+            <Label className="block text-xs font-medium text-gray-600 mb-1">Min Quantity <span className="text-red-500">*</span></Label>
             <input type="number" min="1" className={inputCls} value={minQty} onChange={e => setMinQty(e.target.value)} placeholder="e.g. 10" />
           </div>
           <div>
@@ -2098,7 +2098,7 @@ function AddPriceRuleForm({ ruleType, productId, variants, onSave, onCancel, sav
       {ruleType === 'channel' && (
         <div className="grid grid-cols-2 gap-3">
           <div>
-            <Label className="block text-xs font-medium text-gray-600 mb-1" required>Sales Channel</Label>
+            <Label className="block text-xs font-medium text-gray-600 mb-1">Sales Channel <span className="text-red-500">*</span></Label>
             <select className={selectCls} value={channel} onChange={e => setChannel(e.target.value)}>
               <option value="">Select channel…</option>
               <option value="online">Online Store</option>
@@ -3128,6 +3128,7 @@ export default function ProductForm() {
   }, [getValues, setValue])
 
   const makeVariantDefaults = (name: string, attrs: Record<string, string>) => ({
+    id: undefined as string | undefined,
     name,
     sku: '',
     // If this is the first variant and we have a prefill barcode from a scan, apply it
