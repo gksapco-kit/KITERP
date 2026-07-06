@@ -5,7 +5,7 @@ import CategoryCardMosaic, { type MosaicCategory } from '@/components/builder/bl
 import { BuilderTextField } from '@/components/builder/BuilderTextField'
 import { CategoryCardTitle } from '@/components/builder/CategoryCardTitle'
 import { useBuilderCanvas } from '@/contexts/BuilderCanvasContext'
-import { clampCatalogColumns } from '@/lib/catalogCardLayout'
+import { buildCategoryCatalogPath } from '@/lib/categoryCatalogLink'
 import { builderSectionContainerClass } from '@/lib/builderSectionLayout'
 
 export type WellnessCategory = MosaicCategory
@@ -119,17 +119,21 @@ export default function CategoryCardsWellness({
             }}
           />
         )}
-        wrapCard={(child, i) => (
-          isEditorCanvas ? (
+        wrapCard={(child, i) => {
+          const cat = categories[i]
+          const to = cat
+            ? buildCategoryCatalogPath(cat.title, (cat as { appliesTo?: string }).appliesTo, storePath)
+            : storePath('/products')
+          return isEditorCanvas ? (
             <div key={i} className="block w-full no-underline text-inherit">
               {child}
             </div>
           ) : (
-            <Link key={i} to={storePath('/products')} className="block w-full no-underline text-inherit">
+            <Link key={i} to={to} className="block w-full no-underline text-inherit">
               {child}
             </Link>
           )
-        )}
+        }}
       />
       </section>
     </div>

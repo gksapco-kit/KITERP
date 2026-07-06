@@ -39,6 +39,8 @@ export interface BlockProps {
   bg_style?: 'gradient' | 'image' | 'minimal' | 'dark' | 'split'
   bg_image_url?: string
   bg_color?: string
+  /** When true (default), multiple hero/store banners rotate in a carousel. */
+  banner_carousel?: boolean
   overlay?: boolean
   overlay_opacity?: number
   cta_primary?: string
@@ -96,6 +98,8 @@ export interface BlockProps {
   email?: string
   phone?: string
   address?: string
+  lat?: number | null
+  lng?: number | null
   show_map?: boolean
   map_lat?: number
   map_lng?: number

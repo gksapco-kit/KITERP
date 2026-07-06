@@ -7,6 +7,7 @@ import {
   defaultOverlayFillColor,
   overlayHasLink,
   overlayMinContainerHeight,
+  overlayPositionStyle,
   resolveOverlayBackground,
   resolveOverlayBorder,
   resolveOverlayLinkHref,
@@ -242,11 +243,7 @@ function OverlayLayer({ item }: { item: BlockOverlayItem }) {
       data-overlay-root
       data-overlay-id={item.id}
       style={{
-        position: 'absolute',
-        left: item.x,
-        top: item.y,
-        width: item.w,
-        height: item.h,
+        ...overlayPositionStyle(item),
         zIndex: item.zIndex || 10,
         pointerEvents: 'auto',
       }}

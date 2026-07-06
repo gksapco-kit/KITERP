@@ -70,6 +70,7 @@ import {
 } from '@/lib/liveStorefrontUrl'
 import { getTemplatePreviewPalette } from '@/lib/templateBlockHighlights'
 import { BuilderCanvasProviders } from '@/components/websites/BuilderCanvasProviders'
+import { MapLocationPicker, readMapBlockCoord } from '@/components/maps/MapLocationPicker'
 import { CanvasHScrollbar } from '@/components/websites/CanvasHScrollbar'
 import { BuilderCanvasPageRenderer, mergePageStyle } from '@/components/websites/BuilderCanvasPageRenderer'
 import {
@@ -99,12 +100,18 @@ import {
   generalDesignBarCluster,
   generalDesignBarGrid2x2,
   generalDesignBarGridCell,
-  generalDesignBarStack,
-  generalDesignBarGrid2x2Rows,
-  generalDesignBarDeleteRow,
+  generalDesignBarInsertStack,
+  generalDesignBarDeleteCell,
+  generalDesignBarInnerBtn,
+  DESIGN_BAR_SOFT_ACTIVE,
+  DESIGN_BAR_SOFT_DIVIDE,
+  DESIGN_BAR_SOFT_INNER_BORDER,
   designBarTabSlot,
   designBarTabClass,
+  designBarTabHeader,
   designBarTabList,
+  designBarTabPanel,
+  designBarRoot,
   visualActionBtn,
   visualToolbarRow,
 } from '@/components/websites/designBarVisualUi'
@@ -206,6 +213,15 @@ import {
   type OverlayLayerItem,
 } from '@/lib/builderOverlayVisual'
 import { overlayImageImgStyle } from '@storefront/lib/overlayImageStyle'
+import {
+  OVERLAY_AXIS_MAX,
+  OVERLAY_MIN_H_PERCENT,
+  OVERLAY_MIN_W_PERCENT,
+  normalizeOverlayBox,
+  overlayPositionStyle,
+  overlayUsesPercent,
+  pxToOverlayPercent,
+} from '@storefront/lib/blockOverlays'
 import { builderOverlayIconLabel, overlayIconRenderSize, resolveBuilderOverlayIcon } from '@storefront/lib/builderOverlayIcons'
 import { SHADOW_PRESETS, SHAPE_OPTIONS } from '@/lib/builderVisualPresets'
 import {
@@ -319,10 +335,6 @@ import {
   teamPropMembers,
 } from '@/lib/teamGridContent'
 import { broadcastPreviewTabError, clearPendingPreviewTabError, clearPendingPreviewTabNavigate, PREVIEW_NAV_MESSAGE_TYPE, pushDraftPreviewUpdate, rememberDraftPreviewSession } from '@/lib/draftPreviewSync'
-import {
-  WELLNESS_CATEGORY_FALLBACK_IMAGES,
-  WELLNESS_DEFAULT_CATEGORY_TITLES,
-} from '@storefront/lib/wellnessCategoryStyle'
 import { IMAGE_SHAPE_OPTIONS, imageShapeRadiusClass, type ImageShape } from '@storefront/lib/sectionItemLayout'
 import { buildFieldStylesCss, fieldTextStyle, CONTENT_GROUP_FIELD_KEY, FIELD_OFFSET_STEP_PX, hasInlineHtml, isInlinePositionField, readFieldOffset, readFlipFlag, readRotateDeg } from '@storefront/lib/fieldTextStyles'
 import { BUILDER_FONT_FAMILIES, ensureBuilderFontLoaded, builderFontPreviewStyle } from '@storefront/lib/builderFontFamilies'
@@ -358,20 +370,17 @@ interface BlockDef {
   defaultProps: BlockProps
 }
 
-const CATEGORY_CARDS_WELLNESS_DEFAULTS = {
+const CATEGORY_CARDS_DEFAULTS = {
   title: 'Shop by category',
   eyebrow: 'Explore',
-  layout: 'wellness',
+  layout: 'grid',
   columns: 3,
-  show_count: 4,
+  show_count: 12,
   item_gap: 24,
   card_padding: 16,
   image_height_pct: 100,
   card_style: 'default',
-  categories: WELLNESS_DEFAULT_CATEGORY_TITLES.map((title: string, i: number) => ({
-    title,
-    image_url: WELLNESS_CATEGORY_FALLBACK_IMAGES[i % WELLNESS_CATEGORY_FALLBACK_IMAGES.length],
-  })),
+  data_source: { type: 'categories', auto: true },
 } as unknown as BlockProps
 
 const DEFAULT_SERVICE_FAQ_ITEMS = [
@@ -468,6 +477,8 @@ const BLOCK_CATALOG: BlockDef[] = [
   // Structure
   { type: 'nav', label: 'Navigation', icon: Layout, desc: 'Top navigation with logo and links', category: 'structure', defaultProps: { brand: 'My Store', brand_logo: '', show_logo: true, show_brand_name: true, show_nav_links: true, nav_links_source: 'site_pages', nav_links: [{ label: 'Shop', url: '/products' }, { label: 'Contact', url: '/contact' }], show_search: true, show_cart: true, show_login: true, cta_label: 'Shop now' } },
   { type: 'footer', label: 'Footer', icon: Layout, desc: 'Site footer with links and copyright', category: 'structure', defaultProps: {
+    brand: '',
+    description: '',
     copyright: '? 2026 My Store. All rights reserved.',
     show_legal: true,
     show_social: true,
@@ -506,7 +517,7 @@ const BLOCK_CATALOG: BlockDef[] = [
   { type: 'blog_grid', label: 'Blog Grid', icon: FileText, desc: 'Latest posts in a grid', category: 'blog', defaultProps: { title: 'Latest Posts', columns: 3, show_count: 12, image_height_pct: 56 } },
   { type: 'newsletter', label: 'Newsletter', icon: Mail, desc: 'Email capture / subscribe form', category: 'conversion', defaultProps: { title: 'Stay in the Loop', subtitle: 'Get the latest news and updates delivered to your inbox.', cta_label: 'Subscribe' } },
   { type: 'video_embed', label: 'Video single', icon: Video, desc: 'YouTube / Vimeo video player', category: 'media', defaultProps: { title: 'Watch our story', video_url: '', aspect_ratio: '16:9' } },
-  { type: 'map_embed', label: 'Map', icon: MapIcon, desc: 'Embedded map with location', category: 'contact', defaultProps: { title: 'Visit us', address: '' } },
+  { type: 'map_embed', label: 'Map', icon: MapIcon, desc: 'Embedded map with location', category: 'contact', defaultProps: { title: 'Visit us', address: '', lat: null, lng: null } },
   { type: 'trust_logos', label: 'Trust Logos', icon: Award, desc: 'Partner/client logo strip', category: 'social', defaultProps: { title: 'Trusted by our partners' } },
   { type: 'timeline', label: 'Timeline', icon: Clock, desc: 'Company history or process steps', category: 'about', defaultProps: { title: 'Our story', items: [{ year: '2020', title: 'We opened our doors', desc: 'Started as a small local shop with a big vision.' }, { year: '2022', title: 'Growing together', desc: 'Expanded our range and welcomed thousands of customers.' }, { year: '2024', title: 'Online store launch', desc: 'Now you can shop with us anytime, anywhere.' }] } },
   { type: 'rich_text', label: 'Rich Text', icon: Type, desc: 'Formatted text content block', category: 'content', defaultProps: { content: '<h2>Your Heading</h2><p>Add your content here. This block supports <strong>bold</strong>, <em>italic</em>, and other formatting.</p>' } },
@@ -516,7 +527,7 @@ const BLOCK_CATALOG: BlockDef[] = [
   { type: 'social_links', label: 'Social Links', icon: Globe, desc: 'Social media icon links', category: 'social', defaultProps: { title: 'Follow Us', social_links: { twitter: 'https://twitter.com', instagram: 'https://instagram.com', linkedin: 'https://linkedin.com' } } },
   { type: 'countdown', label: 'Countdown Timer', icon: Clock, desc: 'Countdown to a date/event', category: 'conversion', get defaultProps() { return { title: 'Launch In', target_date: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString() } } },
   { type: 'product_grid', label: 'Product Grid', icon: ShoppingBag, desc: 'Display products from your catalog', category: 'ecommerce', defaultProps: { title: 'Featured Products', columns: 4, show_badges: true } },
-  { type: 'category_cards', label: 'Category Cards', icon: Layers, desc: 'Animated wellness mosaic — circles, squares & portraits', category: 'ecommerce', defaultProps: CATEGORY_CARDS_WELLNESS_DEFAULTS },
+  { type: 'category_cards', label: 'Category Cards', icon: Layers, desc: 'Shop-by-category grid — synced from Categories', category: 'ecommerce', defaultProps: CATEGORY_CARDS_DEFAULTS },
   { type: 'menu_grid', label: 'Menu / Catalog', icon: List, desc: 'Restaurant-style menu grid', category: 'food', defaultProps: { title: 'Our Menu', categories: ['Starters', 'Mains', 'Desserts', 'Drinks'] } },
   { type: 'about_split', label: 'About Split', icon: Columns, desc: 'About section with image and text', category: 'about', defaultProps: { title: 'About us', subtitle: 'Our story', description: 'Tell customers who you are, what you sell, and why they can trust you.' } },
   { type: 'services_cards', label: 'Services Cards', icon: Briefcase, desc: 'Service offering cards', category: 'content', defaultProps: { title: 'Our services', columns: 3, features: [{ icon: 'Zap', title: 'Consultation', desc: 'Expert advice tailored to your needs.' }, { icon: 'Shield', title: 'Installation', desc: 'Professional setup you can rely on.' }, { icon: 'Star', title: 'Support', desc: 'Friendly help after you buy.' }] } },
@@ -871,10 +882,14 @@ export type OverlayLinkType =
 export interface BlockOverlayItem {
   id: string
   type: 'text' | 'image' | 'button' | 'box' | 'badge' | 'icon' | 'video'
-  x: number   // px from block left
-  y: number   // px from block top
-  w: number   // px width
-  h: number   // px height
+  /** Horizontal offset — percent of section width when coordUnit is `percent`, else px. */
+  x: number
+  /** Vertical offset — percent of section height when coordUnit is `percent`, else px. */
+  y: number
+  w: number
+  h: number
+  /** When `'percent'`, x/y/w/h are 0–100 and stay sticky to the section on resize. */
+  coordUnit?: 'percent' | 'px'
   text?: string
   description?: string // tooltip / alt / accessibility + aria-label
   src?: string
@@ -933,18 +948,18 @@ function defaultOverlayFillColor(type: BlockOverlayItem['type']): string {
 }
 
 const OVERLAY_DEFAULTS: Record<string, Partial<BlockOverlayItem>> = {
-  text:    { w: 220, h: 60,  text: 'Your text here', fontSize: 18, color: '#111827', bgColor: 'transparent' },
-  image:   { w: 300, h: 200, objectFit: 'cover', borderRadius: 8 },
-  button:  { w: 160, h: 44,  text: 'Click Here', bgColor: '#64C3A0', color: '#ffffff', borderRadius: 8, fontSize: 14, fontWeight: 'bold' },
-  box:     { w: 280, h: 180, bgColor: 'rgba(255,255,255,0.9)', borderRadius: 12, shadow: true, borderColor: 'rgba(124,58,237,0.2)', borderWidth: 2 },
-  badge:   { w: 90,  h: 32,  text: 'New', bgColor: '#64C3A0', color: '#ffffff', borderRadius: 999, fontSize: 12, fontWeight: 'bold' },
-  icon:    { w: 56,  h: 56,  iconName: 'star', color: '#111827', bgColor: 'transparent', bgFill: 'none', fontSize: 32 },
-  video:   { w: 320, h: 200, bgColor: '#000000', borderRadius: 8 },
+  text:    { w: 28, h: 8,  text: 'Your text here', fontSize: 18, color: '#111827', bgColor: 'transparent' },
+  image:   { w: 35, h: 22, objectFit: 'cover', borderRadius: 8 },
+  button:  { w: 18, h: 6,  text: 'Click Here', bgColor: '#64C3A0', color: '#ffffff', borderRadius: 8, fontSize: 14, fontWeight: 'bold' },
+  box:     { w: 32, h: 20, bgColor: 'rgba(255,255,255,0.9)', borderRadius: 12, shadow: true, borderColor: 'rgba(124,58,237,0.2)', borderWidth: 2 },
+  badge:   { w: 12, h: 5,  text: 'New', bgColor: '#64C3A0', color: '#ffffff', borderRadius: 999, fontSize: 12, fontWeight: 'bold' },
+  icon:    { w: 8,  h: 8,  iconName: 'star', color: '#111827', bgColor: 'transparent', bgFill: 'none', fontSize: 32 },
+  video:   { w: 38, h: 22, bgColor: '#000000', borderRadius: 8 },
   // Insert-helpers: reuse the button overlay shape but seed link fields so the
   // link-editor popup opens pre-focused on the right section (URL vs DB).
-  link:    { w: 160, h: 44, text: 'Open Link', bgColor: '#64C3A0', color: '#ffffff', borderRadius: 8, fontSize: 14, fontWeight: 'bold', linkType: 'url' },
-  db_link: { w: 180, h: 44, text: 'View Product', bgColor: '#0ea5e9', color: '#ffffff', borderRadius: 8, fontSize: 14, fontWeight: 'bold', linkType: 'product' },
-  store:   { w: 180, h: 44, text: 'Visit Store', bgColor: '#0f766e', color: '#ffffff', borderRadius: 8, fontSize: 14, fontWeight: 'bold', linkType: 'store' },
+  link:    { w: 18, h: 6, text: 'Open Link', bgColor: '#64C3A0', color: '#ffffff', borderRadius: 8, fontSize: 14, fontWeight: 'bold', linkType: 'url' },
+  db_link: { w: 20, h: 6, text: 'View Product', bgColor: '#0ea5e9', color: '#ffffff', borderRadius: 8, fontSize: 14, fontWeight: 'bold', linkType: 'product' },
+  store:   { w: 20, h: 6, text: 'Visit Store', bgColor: '#0f766e', color: '#ffffff', borderRadius: 8, fontSize: 14, fontWeight: 'bold', linkType: 'store' },
 }
 
 const OVERLAY_RESIZE_CURSORS: Record<string, string> = {
@@ -981,6 +996,22 @@ function pointerToOverlayLocal(
   return {
     x: (clientX - rect.left) / scaleX,
     y: (clientY - rect.top) / scaleY,
+  }
+}
+
+/** Pointer position as 0–100 percent of the overlay canvas (responsive coords). */
+function pointerToOverlayPercent(
+  clientX: number,
+  clientY: number,
+  container: HTMLElement | null | undefined,
+): { x: number; y: number } {
+  if (!container) return { x: 0, y: 0 }
+  const local = pointerToOverlayLocal(clientX, clientY, container)
+  const cw = container.clientWidth || 1
+  const ch = container.clientHeight || 1
+  return {
+    x: Math.max(0, Math.min(OVERLAY_AXIS_MAX, Math.round((local.x / cw) * 100))),
+    y: Math.max(0, Math.min(OVERLAY_AXIS_MAX, Math.round((local.y / ch) * 100))),
   }
 }
 
@@ -2914,7 +2945,7 @@ function OverlayElement({
   /** Other overlays on the same canvas — used as alignment snap targets. */
   siblings?: BlockOverlayItem[]
   /** Publish live alignment guide lines while dragging/resizing ([] to clear). */
-  onDragGuides?: (guides: OverlayGuideLine[]) => void
+  onDragGuides?: (guides: OverlayGuideLine[], unit?: 'percent' | 'px') => void
   onSelect: () => void
   onUpdate: (u: Partial<BlockOverlayItem>) => void
   onDelete: () => void
@@ -2973,28 +3004,49 @@ function OverlayElement({
     e.stopPropagation(); e.preventDefault()
     dragMovedRef.current = false
     const container = containerRef.current
-    const startPointer = pointerToOverlayLocal(e.clientX, e.clientY, container)
-    const grabOffsetX = startPointer.x - item.x
-    const grabOffsetY = startPointer.y - item.y
+    const cw = container?.clientWidth || 800
+    const ch = container?.clientHeight || 400
+    let live = item
+    if (!overlayUsesPercent(item) && container) {
+      const migrated = {
+        ...pxToOverlayPercent(item, cw, ch),
+        coordUnit: 'percent' as const,
+      }
+      onUpdate(migrated)
+      live = { ...item, ...migrated }
+    }
+    const usePercent = overlayUsesPercent(live)
+    const startPointer = usePercent
+      ? pointerToOverlayPercent(e.clientX, e.clientY, container)
+      : pointerToOverlayLocal(e.clientX, e.clientY, container)
+    const grabOffsetX = startPointer.x - live.x
+    const grabOffsetY = startPointer.y - live.y
     const originX = e.clientX
     const originY = e.clientY
     document.body.style.cursor = 'move'
+    const snapW = usePercent ? OVERLAY_AXIS_MAX : cw
+    const snapH = usePercent ? OVERLAY_AXIS_MAX : ch
     const onMove = (mv: MouseEvent) => {
       if (Math.abs(mv.clientX - originX) > 3 || Math.abs(mv.clientY - originY) > 3) {
         dragMovedRef.current = true
       }
-      const cw = container?.clientWidth || 800
-      const ch = container?.clientHeight || 400
-      const pointer = pointerToOverlayLocal(mv.clientX, mv.clientY, container)
-      const rawX = Math.max(0, Math.min(cw - item.w, pointer.x - grabOffsetX))
-      const rawY = Math.max(0, Math.min(ch - 20, pointer.y - grabOffsetY))
-      // Snap to sibling overlays + the container's edges/center, Figma-style.
-      const targets = collectOverlayTargets(siblings ?? [], cw, ch)
-      const snapped = snapOverlayDrag({ x: rawX, y: rawY, w: item.w, h: item.h }, targets)
-      onDragGuides?.(snapped.guides)
+      const pointer = usePercent
+        ? pointerToOverlayPercent(mv.clientX, mv.clientY, container)
+        : pointerToOverlayLocal(mv.clientX, mv.clientY, container)
+      const maxX = usePercent ? OVERLAY_AXIS_MAX - live.w : cw - live.w
+      const maxY = usePercent ? OVERLAY_AXIS_MAX - OVERLAY_MIN_H_PERCENT : ch - 20
+      const rawX = Math.max(0, Math.min(maxX, pointer.x - grabOffsetX))
+      const rawY = Math.max(0, Math.min(maxY, pointer.y - grabOffsetY))
+      const normalizedSiblings = (siblings ?? []).map(s =>
+        normalizeOverlayBox(s, cw, ch),
+      )
+      const targets = collectOverlayTargets(normalizedSiblings, snapW, snapH)
+      const snapped = snapOverlayDrag({ x: rawX, y: rawY, w: live.w, h: live.h }, targets)
+      onDragGuides?.(snapped.guides, usePercent ? 'percent' : 'px')
       onUpdate({
-        x: Math.max(0, Math.min(cw - item.w, snapped.x)),
-        y: Math.max(0, Math.min(ch - 20, snapped.y)),
+        x: Math.max(0, Math.min(maxX, snapped.x)),
+        y: Math.max(0, Math.min(maxY, snapped.y)),
+        ...(usePercent ? { coordUnit: 'percent' as const } : {}),
       })
     }
     const onUp = () => {
@@ -3005,34 +3057,60 @@ function OverlayElement({
     }
     document.addEventListener('mousemove', onMove)
     document.addEventListener('mouseup', onUp)
-  }, [textEditing, item.x, item.y, item.w, item.h, containerRef, onUpdate, siblings, onDragGuides])
+  }, [textEditing, item, containerRef, onUpdate, siblings, onDragGuides])
 
   const startResize = useCallback((e: React.MouseEvent, handle: string) => {
     e.stopPropagation(); e.preventDefault()
     const sx = e.clientX, sy = e.clientY
-    const ox = item.x, oy = item.y, ow = item.w, oh = item.h
     const container = containerRef.current
+    const cw = container?.clientWidth || 800
+    const ch = container?.clientHeight || 400
+    let live = item
+    if (!overlayUsesPercent(item) && container) {
+      const migrated = {
+        ...pxToOverlayPercent(item, cw, ch),
+        coordUnit: 'percent' as const,
+      }
+      onUpdate(migrated)
+      live = { ...item, ...migrated }
+    }
+    const usePercent = overlayUsesPercent(live)
+    const ox = live.x, oy = live.y, ow = live.w, oh = live.h
     const { scaleX, scaleY } = container ? overlayContainerScale(container) : { scaleX: 1, scaleY: 1 }
+    const minW = usePercent ? OVERLAY_MIN_W_PERCENT : 40
+    const minH = usePercent ? OVERLAY_MIN_H_PERCENT : 20
+    const snapW = usePercent ? OVERLAY_AXIS_MAX : cw
+    const snapH = usePercent ? OVERLAY_AXIS_MAX : ch
     document.body.style.cursor = OVERLAY_RESIZE_CURSORS[handle]
     const onMove = (mv: MouseEvent) => {
-      const dx = (mv.clientX - sx) / scaleX
-      const dy = (mv.clientY - sy) / scaleY
+      const dx = usePercent
+        ? ((mv.clientX - sx) / scaleX / cw) * 100
+        : (mv.clientX - sx) / scaleX
+      const dy = usePercent
+        ? ((mv.clientY - sy) / scaleY / ch) * 100
+        : (mv.clientY - sy) / scaleY
       let nx = ox, ny = oy, nw = ow, nh = oh
-      if (handle.includes('e')) nw = Math.max(40, ow + dx)
-      if (handle.includes('w')) { nx = ox + dx; nw = Math.max(40, ow - dx) }
-      if (handle.includes('s')) nh = Math.max(20, oh + dy)
-      if (handle.includes('n')) { ny = oy + dy; nh = Math.max(20, oh - dy) }
-      // Snap the edge(s) being dragged to nearby siblings / container edges.
-      const cw = container?.clientWidth || 800
-      const ch = container?.clientHeight || 400
-      const targets = collectOverlayTargets(siblings ?? [], cw, ch)
-      const snapped = snapOverlayResize({ x: nx, y: ny, w: nw, h: nh }, targets, handle)
-      onDragGuides?.(snapped.guides)
-      onUpdate({ x: snapped.x, y: snapped.y, w: snapped.w, h: snapped.h })
+      if (handle.includes('e')) nw = Math.max(minW, ow + dx)
+      if (handle.includes('w')) { nx = ox + dx; nw = Math.max(minW, ow - dx) }
+      if (handle.includes('s')) nh = Math.max(minH, oh + dy)
+      if (handle.includes('n')) { ny = oy + dy; nh = Math.max(minH, oh - dy) }
+      const normalizedSiblings = (siblings ?? []).map(s =>
+        normalizeOverlayBox(s, cw, ch),
+      )
+      const targets = collectOverlayTargets(normalizedSiblings, snapW, snapH)
+      const snapped = snapOverlayResize({ x: nx, y: ny, w: nw, h: nh }, targets, handle, minW, minH)
+      onDragGuides?.(snapped.guides, usePercent ? 'percent' : 'px')
+      onUpdate({
+        x: snapped.x,
+        y: snapped.y,
+        w: snapped.w,
+        h: snapped.h,
+        ...(usePercent ? { coordUnit: 'percent' as const } : {}),
+      })
     }
     const onUp = () => { document.body.style.cursor = ''; onDragGuides?.([]); document.removeEventListener('mousemove', onMove); document.removeEventListener('mouseup', onUp) }
     document.addEventListener('mousemove', onMove); document.addEventListener('mouseup', onUp)
-  }, [item.x, item.y, item.w, item.h, containerRef, onUpdate, siblings, onDragGuides])
+  }, [item, containerRef, onUpdate, siblings, onDragGuides])
 
   const renderContent = () => {
     const fillFallback = defaultOverlayFillColor(item.type)
@@ -3171,7 +3249,7 @@ function OverlayElement({
       data-overlay-root
       data-overlay-id={item.id}
       style={{
-        position: 'absolute', left: item.x, top: item.y, width: item.w, height: item.h,
+        ...overlayPositionStyle(item),
         zIndex: item.zIndex || 10, cursor: textEditing ? 'text' : 'move', userSelect: 'none',
       }}
       onClick={e => {
@@ -3307,6 +3385,7 @@ function BlockOverlayCanvas({
 }) {
   const [internalSelectedId, setInternalSelectedId] = useState<string | null>(null)
   const [dragGuides, setDragGuides] = useState<OverlayGuideLine[]>([])
+  const [dragGuideUnit, setDragGuideUnit] = useState<'percent' | 'px'>('percent')
   const containerRef = useRef<HTMLDivElement>(null)
   const isControlled = controlledSelectedId !== undefined
   const selectedId = isControlled ? controlledSelectedId : internalSelectedId
@@ -3374,7 +3453,9 @@ function BlockOverlayCanvas({
 
   if (!overlays.length && !isEditing) return null
 
-  const minH = overlays.length > 0 ? Math.max(...overlays.map(o => o.y + o.h + 240)) : 0
+  const minH = overlays.some(o => !overlayUsesPercent(o))
+    ? Math.max(...overlays.filter(o => !overlayUsesPercent(o)).map(o => o.y + o.h + 240))
+    : 0
 
   return (
     <div
@@ -3400,7 +3481,10 @@ function BlockOverlayCanvas({
             containerRef={containerRef as React.RefObject<HTMLDivElement>}
             blockBackgroundColor={blockBackgroundColor}
             siblings={overlays.filter(o => o.id !== item.id)}
-            onDragGuides={setDragGuides}
+            onDragGuides={(guides, unit) => {
+              setDragGuides(guides)
+              if (unit) setDragGuideUnit(unit)
+            }}
             onSelect={() => setSelected(item.id)}
             onUpdate={updates => updateItem(item.id, updates)}
             onDelete={() => deleteItem(item.id)}
@@ -3443,13 +3527,27 @@ function BlockOverlayCanvas({
               <div
                 key={`x-${index}-${guide.value}`}
                 className="absolute w-px bg-fuchsia-500 shadow-[0_0_0_1px_rgba(255,255,255,0.85)]"
-                style={{ left: guide.value, top: guide.start, height: Math.max(1, guide.end - guide.start), zIndex: 95 }}
+                style={{
+                  left: dragGuideUnit === 'percent' ? `${guide.value}%` : guide.value,
+                  top: dragGuideUnit === 'percent' ? `${guide.start}%` : guide.start,
+                  height: dragGuideUnit === 'percent'
+                    ? `${Math.max(0.5, guide.end - guide.start)}%`
+                    : Math.max(1, guide.end - guide.start),
+                  zIndex: 95,
+                }}
               />
             ) : (
               <div
                 key={`y-${index}-${guide.value}`}
                 className="absolute h-px bg-fuchsia-500 shadow-[0_0_0_1px_rgba(255,255,255,0.85)]"
-                style={{ top: guide.value, left: guide.start, width: Math.max(1, guide.end - guide.start), zIndex: 95 }}
+                style={{
+                  top: dragGuideUnit === 'percent' ? `${guide.value}%` : guide.value,
+                  left: dragGuideUnit === 'percent' ? `${guide.start}%` : guide.start,
+                  width: dragGuideUnit === 'percent'
+                    ? `${Math.max(0.5, guide.end - guide.start)}%`
+                    : Math.max(1, guide.end - guide.start),
+                  zIndex: 95,
+                }}
               />
             ),
           )}
@@ -3542,7 +3640,7 @@ function BuilderSectionChromeToolbar({
     'mr-0.5 shrink-0 cursor-grab border-r border-white/10 pr-1 active:cursor-grabbing',
   )
   const hasLinks = blockHasConfiguredLinks(block)
-  const { dragOffset, dragging, portalRef, beginDrag } = useSectionChromeToolbarDrag(block.id)
+  const { dragOffset, dragging, portalRef, beginDrag } = useSectionChromeToolbarDrag(block.id, scrollRootRef)
 
   const toolbarBody = (
     <>
@@ -3737,6 +3835,17 @@ function findPageIdForBlock(
     if ((blocksMap[page.id] || []).some(b => b.id === blockId)) return page.id
   }
   return null
+}
+
+function findCanvasBlockType(
+  blocksMap: Record<string, WebsiteBlock[]>,
+  pages: WebsitePage[],
+  blockId: string,
+  preferPageId?: string | null,
+): string | null {
+  const pageId = findPageIdForBlock(blocksMap, pages, blockId, preferPageId)
+  if (!pageId) return null
+  return blocksMap[pageId]?.find(b => b.id === blockId)?.block_type ?? null
 }
 
 function uniquePageSlug(base: string, pages: WebsitePage[]): string {
@@ -6239,33 +6348,35 @@ function SectionLayoutControls({
   const canCycle = layoutOptions.length > 1
 
   if (compact) {
+    const compactBtn =
+      'p-0.5 text-gray-400/90 hover:text-white transition-colors disabled:opacity-30 disabled:cursor-not-allowed'
     return (
-      <div className="inline-flex items-center rounded-md bg-gray-800/80 border border-gray-700/80 overflow-hidden">
+      <div className="inline-flex shrink-0 items-center overflow-hidden rounded-md border border-white/10 bg-gray-800/60">
         <button
           type="button"
           disabled={!canCycle}
           onClick={e => { e.stopPropagation(); onCycleLayout('prev') }}
           title="Previous style ? same section, different look (does not move it on the page)"
-          className="p-1.5 text-gray-400 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed"
+          className={compactBtn}
         >
-          <ChevronLeft className="w-7 h-7" />
+          <ChevronLeft className="w-3.5 h-3.5" />
         </button>
         <button
           type="button"
           onClick={e => { e.stopPropagation(); onOpenLayoutPicker() }}
           title={`Change section style ? ${activeLayout?.label || 'Current'} (not page position)`}
-          className="px-2 py-1.5 text-gray-300 hover:text-white border-x border-gray-700/80"
+          className={cn(compactBtn, 'border-x border-white/10 px-0.5 text-gray-300')}
         >
-          <Layout className="w-7 h-7" />
+          <Layout className="w-3.5 h-3.5" />
         </button>
         <button
           type="button"
           disabled={!canCycle}
           onClick={e => { e.stopPropagation(); onCycleLayout('next') }}
           title="Next style ? same section, different look (does not move it on the page)"
-          className="p-1.5 text-gray-400 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed"
+          className={compactBtn}
         >
-          <ChevronRight className="w-7 h-7" />
+          <ChevronRight className="w-3.5 h-3.5" />
         </button>
       </div>
     )
@@ -6541,8 +6652,15 @@ function PropsEditor({
   previewDevice: DeviceMode
   onPreviewDeviceChange?: (device: DeviceMode) => void
 }) {
+  const navigate = useNavigate()
+  const vendor = useVendorStore(s => s.vendor)
   const p = block.props
   const showTileColors = TILE_COLOR_BLOCK_TYPES.has(block.block_type)
+  const mapDefaultCenter =
+    vendor?.latitude != null && vendor?.longitude != null
+      ? { lat: vendor.latitude, lng: vendor.longitude }
+      : undefined
+  const isMapLocationBlock = block.block_type === 'map_embed' || block.block_type === 'map_contact'
   const tileSwatchDefaults = {
     tile_bg: themeColors.surface_color || themeColors.bg_color || '#ffffff',
     tile_accent: themeColors.primary_color,
@@ -6640,6 +6758,10 @@ function PropsEditor({
     const patch: Record<string, unknown> = {}
     if (!dsType || dsType.type !== 'categories') {
       patch.data_source = { type: 'categories', auto: true }
+      // Drop template placeholder tiles — only live Categories app entries should render.
+      if (Array.isArray(raw.categories) && raw.categories.length > 0) {
+        patch.categories = []
+      }
     }
     if (block.block_type === 'product.categories') {
       const variant = String(raw.variant ?? '')
@@ -6950,14 +7072,13 @@ function PropsEditor({
           ? 'No categories yet — add your first category in Categories.'
           : `${activeCategoryCount} active categor${activeCategoryCount === 1 ? 'y' : 'ies'} available`}
       </p>
-      <a
-        href="/categories"
-        target="_blank"
-        rel="noopener noreferrer"
+      <button
+        type="button"
+        onClick={() => navigate('/categories')}
         className="inline-flex items-center gap-1 font-semibold text-primary hover:underline"
       >
         Open Categories →
-      </a>
+      </button>
     </div>
   ) : undefined
 
@@ -7397,15 +7518,15 @@ function PropsEditor({
         placeholder: '/privacy or https://…',
         linkable: false,
       })}
-      {p.description !== undefined && !TITLE_DESC_HANDLED_ELSEWHERE.has(block.block_type) && inputRow({ label: 'Description',   fieldKey: 'description',   multiline: true, placeholder: 'Describe this section?' })}
+      {p.description !== undefined && !TITLE_DESC_HANDLED_ELSEWHERE.has(block.block_type) && block.block_type !== 'footer' && inputRow({ label: 'Description',   fieldKey: 'description',   multiline: true, placeholder: 'Describe this section?' })}
       {p.eyebrow     !== undefined && inputRow({ label: 'Tagline',       fieldKey: 'eyebrow',       placeholder: 'Small text above headline (e.g. Welcome)' })}
       {p.cta_primary !== undefined && inputRow({ label: 'Primary CTA',   fieldKey: 'cta_primary',   placeholder: 'Get Started' })}
       {p.cta_primary !== undefined && inputRow({ label: '? Primary link', fieldKey: 'cta_primary_url',   placeholder: '/signup or /products/my-product' })}
       {p.cta_secondary!== undefined && inputRow({ label: 'Secondary CTA',fieldKey: 'cta_secondary', placeholder: 'Learn More' })}
       {p.cta_secondary!== undefined && inputRow({ label: '? Secondary link', fieldKey: 'cta_secondary_url', placeholder: '/about or https://...' })}
-      {p.cta_label   !== undefined && inputRow({ label: 'CTA Label',     fieldKey: 'cta_label',     placeholder: 'Click Here' })}
-      {p.cta_label   !== undefined && inputRow({ label: '? CTA link',    fieldKey: 'cta_url',       placeholder: '/signup or /contact' })}
-      {p.brand       !== undefined && inputRow({ label: 'Brand Name',    fieldKey: 'brand',         placeholder: 'Your Brand' })}
+      {p.cta_label   !== undefined && block.block_type !== 'nav' && inputRow({ label: 'CTA Label',     fieldKey: 'cta_label',     placeholder: 'Click Here' })}
+      {p.cta_label   !== undefined && block.block_type !== 'nav' && inputRow({ label: 'CTA link',      fieldKey: 'cta_url',       placeholder: '/signup or /contact' })}
+      {p.brand       !== undefined && block.block_type !== 'nav' && block.block_type !== 'footer' && inputRow({ label: 'Brand Name',    fieldKey: 'brand',         placeholder: 'Your Brand' })}
       {p.text        !== undefined && block.block_type !== 'marquee_strip' && inputRow({ label: 'Text',          fieldKey: 'text',          multiline: true, placeholder: 'Enter text?' })}
       {(p.html !== undefined || block.block_type === 'html_embed') && inputRow({
         label: 'HTML code',
@@ -7416,7 +7537,7 @@ function PropsEditor({
         placeholder: '<div>Custom HTML, iframes, or embed snippets</div>',
         linkable: false,
       })}
-      {p.copyright   !== undefined && inputRow({ label: 'Copyright',     fieldKey: 'copyright',     placeholder: '? 2026 Your Company' })}
+      {p.copyright   !== undefined && block.block_type !== 'footer' && inputRow({ label: 'Copyright',     fieldKey: 'copyright',     placeholder: '? 2026 Your Company' })}
     </div>
   )
 
@@ -7800,26 +7921,37 @@ function PropsEditor({
               Remove logo image
             </button>
           )}
+          {inputRow({ label: 'Brand name', fieldKey: 'brand', placeholder: 'Your store name' })}
           <p className="text-xs text-gray-400 leading-snug">
-            Pick from your media gallery or upload, or click the logo slot on the canvas. Brand name is in the field below.
+            Pick from your media gallery or upload, or click the logo slot on the canvas. Visibility toggles are under <span className="font-semibold text-gray-600">Header elements</span> below.
           </p>
-          {[
-            { key: 'show_logo', label: 'Show logo image' },
-            { key: 'show_brand_name', label: 'Show brand name' },
-          ].map(({ key, label }) => (
-            <label key={key} className="flex items-center gap-2 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={(p as any)[key] !== false}
-                onChange={e => onUpdate({ [key]: e.target.checked } as Partial<BlockProps>)}
-                className="rounded accent-primary"
-              />
-              <span className="text-xs text-gray-600">{label}</span>
-            </label>
-          ))}
         </PropsCollapsible>
       )}
       {commonFields}
+
+      {isMapLocationBlock && (
+        <PropsCollapsible
+          title="Map location"
+          preview={(() => {
+            const lat = readMapBlockCoord((p as any).lat)
+            const lng = readMapBlockCoord((p as any).lng)
+            const addr = String((p as any).address ?? '').trim()
+            if (lat != null && lng != null) return `${lat.toFixed(4)}, ${lng.toFixed(4)}`
+            if (addr) return addr.length > 42 ? `${addr.slice(0, 42)}…` : addr
+            return 'Not set'
+          })()}
+          defaultOpen
+        >
+          <MapLocationPicker
+            address={String((p as any).address ?? '')}
+            lat={readMapBlockCoord((p as any).lat)}
+            lng={readMapBlockCoord((p as any).lng)}
+            defaultCenter={mapDefaultCenter}
+            onChange={next => onUpdate({ address: next.address, lat: next.lat, lng: next.lng } as Partial<BlockProps>)}
+            onPreview={next => onPreview({ address: next.address, lat: next.lat, lng: next.lng } as Partial<BlockProps>)}
+          />
+        </PropsCollapsible>
+      )}
 
       {onEditPropLink && blockTypeSupportsBlockLink(block.block_type) && (
         <PropsCollapsible
@@ -7856,6 +7988,8 @@ function PropsEditor({
           ].filter(Boolean).join(' · ')}
         >
           {[
+            { key: 'show_logo', label: 'Show logo image' },
+            { key: 'show_brand_name', label: 'Show brand name' },
             { key: 'show_nav_links', label: 'Show page links' },
             { key: 'show_search', label: 'Show search' },
             { key: 'show_cart', label: 'Show cart' },
@@ -7871,8 +8005,184 @@ function PropsEditor({
               <span className="text-xs text-gray-600">{label}</span>
             </label>
           ))}
+          <div className="mt-2 space-y-2 border-t border-gray-100 pt-2">
+            {inputRow({ label: 'CTA button', fieldKey: 'cta_label', placeholder: 'Shop now (leave empty to hide)' })}
+            {inputRow({ label: 'CTA link', fieldKey: 'cta_url', placeholder: '/products or /contact' })}
+          </div>
         </PropsCollapsible>
       )}
+
+      {block.block_type === 'footer' && (
+        <PropsCollapsible
+          title="Footer content"
+          preview={[
+            (p as any).brand ? String((p as any).brand) : 'Brand',
+            (p as any).copyright ? 'copyright' : null,
+          ].filter(Boolean).join(' · ')}
+          defaultOpen
+        >
+          {inputRow({ label: 'Brand name', fieldKey: 'brand', placeholder: 'Your store name' })}
+          {inputRow({ label: 'Description', fieldKey: 'description', multiline: true, placeholder: 'Short site description (optional)' })}
+          {inputRow({ label: 'Copyright', fieldKey: 'copyright', placeholder: '© 2026 Your Company. All rights reserved.' })}
+          <p className="text-[10px] text-muted-foreground leading-snug">
+            Double-click text on the footer canvas to edit inline, or use the fields above.
+          </p>
+        </PropsCollapsible>
+      )}
+
+      {block.block_type === 'footer' && (
+        <PropsCollapsible
+          title="Footer elements"
+          preview={[
+            (p as any).show_social !== false ? 'Social' : null,
+            (p as any).show_legal !== false ? 'Legal' : null,
+            (p as any).show_newsletter ? 'Newsletter' : null,
+          ].filter(Boolean).join(' · ') || 'Minimal'}
+        >
+          {[
+            { key: 'show_social', label: 'Show social icons' },
+            { key: 'show_legal', label: 'Show legal links' },
+            { key: 'show_newsletter', label: 'Show newsletter signup' },
+          ].map(({ key, label }) => (
+            <label key={key} className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={key === 'show_newsletter' ? (p as any)[key] === true : (p as any)[key] !== false}
+                onChange={e => onUpdate({ [key]: e.target.checked } as any)}
+                className="rounded accent-primary"
+              />
+              <span className="text-xs text-gray-600">{label}</span>
+            </label>
+          ))}
+          <p className="text-[10px] text-muted-foreground leading-snug mt-1">
+            Layout styles (Dark, Mega, Brand, etc.) are under <span className="font-semibold text-foreground">Layout → Section style</span>.
+          </p>
+        </PropsCollapsible>
+      )}
+
+      {block.block_type === 'footer' && (() => {
+        type FooterLink = string | { label?: string; href?: string; url?: string }
+        type FooterColumn = { title?: string; links?: FooterLink[] }
+        const cols = [...((p.footer_columns as FooterColumn[] | undefined) || [])]
+        const linkLabel = (link: FooterLink) => (typeof link === 'string' ? link : (link.label ?? ''))
+        const linkHref = (link: FooterLink) => (typeof link === 'string' ? '' : (link.href ?? link.url ?? ''))
+        const setCols = (next: FooterColumn[]) => onUpdate({ footer_columns: next } as any)
+        return (
+          <PropsCollapsible
+            title="Footer columns"
+            preview={cols.length ? `${cols.length} column${cols.length === 1 ? '' : 's'}` : 'No columns'}
+            defaultOpen
+          >
+            <p className="text-xs text-gray-400 leading-snug mb-2">
+              Column titles and link labels also edit on the canvas. Use the link picker for URLs.
+            </p>
+            <div className="space-y-3">
+              {cols.map((col, colIdx) => (
+                <div key={colIdx} className="rounded-lg border border-gray-100 bg-gray-50/80 p-2 space-y-2">
+                  <div className="flex gap-1.5 items-center">
+                    <input
+                      type="text"
+                      value={col.title || ''}
+                      placeholder="Column title"
+                      onChange={e => {
+                        const next = cols.map((c, i) => i === colIdx ? { ...c, title: e.target.value } : c)
+                        setCols(next)
+                      }}
+                      className="flex-1 min-w-0 px-2 py-1 border border-gray-200 rounded text-xs font-medium"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setCols(cols.filter((_, i) => i !== colIdx))}
+                      className="p-1 text-red-400 hover:text-red-600 shrink-0"
+                      aria-label="Remove column"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                  {(col.links || []).map((link, linkIdx) => (
+                    <div key={linkIdx} className="flex gap-1.5 items-center pl-1">
+                      <input
+                        type="text"
+                        value={linkLabel(link)}
+                        placeholder="Link label"
+                        onChange={e => {
+                          const nextLinks = [...(col.links || [])]
+                          const prev = nextLinks[linkIdx]
+                          nextLinks[linkIdx] = typeof prev === 'string'
+                            ? e.target.value
+                            : { ...prev, label: e.target.value }
+                          const next = cols.map((c, i) => i === colIdx ? { ...c, links: nextLinks } : c)
+                          setCols(next)
+                        }}
+                        className="flex-1 min-w-0 px-2 py-1 border border-gray-200 rounded text-xs"
+                      />
+                      <input
+                        type="text"
+                        value={linkHref(link)}
+                        placeholder="/page"
+                        onChange={e => {
+                          const nextLinks = [...(col.links || [])]
+                          const prev = nextLinks[linkIdx]
+                          const label = linkLabel(prev)
+                          nextLinks[linkIdx] = { label, href: e.target.value }
+                          const next = cols.map((c, i) => i === colIdx ? { ...c, links: nextLinks } : c)
+                          setCols(next)
+                        }}
+                        className="flex-1 min-w-0 px-2 py-1 border border-gray-200 rounded text-xs font-mono"
+                      />
+                      {onEditPropLink && (
+                        <button
+                          type="button"
+                          onMouseDown={e => {
+                            e.preventDefault()
+                            const rect = (e.currentTarget as HTMLElement).getBoundingClientRect()
+                            onEditPropLink(`footer_columns.${colIdx}.links.${linkIdx}.href`, { x: rect.left, y: rect.bottom + 6 })
+                          }}
+                          className="shrink-0 p-1.5 rounded border border-gray-200 text-gray-500 hover:text-primary hover:border-primary/40"
+                          title="Open link picker"
+                        >
+                          <Link2 className="w-3 h-3" />
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const nextLinks = (col.links || []).filter((_, i) => i !== linkIdx)
+                          const next = cols.map((c, i) => i === colIdx ? { ...c, links: nextLinks } : c)
+                          setCols(next)
+                        }}
+                        className="p-1 text-red-400 hover:text-red-600 shrink-0"
+                        aria-label="Remove link"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  ))}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const next = cols.map((c, i) => i === colIdx
+                        ? { ...c, links: [...(c.links || []), 'New link'] }
+                        : c)
+                      setCols(next)
+                    }}
+                    className="flex items-center gap-1 text-[11px] text-primary font-semibold pl-1"
+                  >
+                    <Plus className="w-3 h-3" /> Add link
+                  </button>
+                </div>
+              ))}
+            </div>
+            <button
+              type="button"
+              onClick={() => setCols([...cols, { title: 'New column', links: [] }])}
+              className="mt-2 flex items-center gap-1 text-xs text-primary hover:text-primary font-semibold"
+            >
+              <Plus className="w-3 h-3" /> Add column
+            </button>
+          </PropsCollapsible>
+        )
+      })()}
 
       {(block.block_type === 'footer' && p.show_social !== false) || block.block_type === 'social_links' ? (
         <PropsCollapsible
@@ -8754,7 +9064,7 @@ function PropsEditor({
         </PropsCollapsible>
       )}
 
-      {itemSchema && !isPlansBlock && !isPropertiesBlock && !isCoursesBlock && !isFitnessBlock && !isVehiclesBlock && !(isEventsBlock && eventsLiveItems.length > 0) && !(isRecurringBlock && recurringLiveItems.length > 0) && !(isTestimonialsBlock && testimonialsLiveItems.length > 0) && (
+      {itemSchema && !isCategoryBlock && !isPlansBlock && !isPropertiesBlock && !isCoursesBlock && !isFitnessBlock && !isVehiclesBlock && !(isEventsBlock && eventsLiveItems.length > 0) && !(isRecurringBlock && recurringLiveItems.length > 0) && !(isTestimonialsBlock && testimonialsLiveItems.length > 0) && (
         <PropsCollapsible
           title={itemListSectionTitle(block.block_type, itemSchema)}
           preview={`${subEditorItems.length} item(s)`}
@@ -9012,6 +9322,37 @@ function PropsEditor({
           <>
       {sectionAndCardColorsPanel}
 
+      {block.block_type === 'footer' && (
+        <SectionPanelGroup
+          title="Footer colors"
+          description="Background and text colors for this footer."
+        >
+          <div className="grid grid-cols-1 @[240px]:grid-cols-2 gap-1.5">
+            {([
+              { key: 'footer_bg' as const, label: 'Background', fallback: themeColors.surface_color || '#f9fafb' },
+              { key: 'footer_heading' as const, label: 'Headings', fallback: themeColors.text_color || '#111827' },
+              { key: 'footer_muted' as const, label: 'Links & muted text', fallback: '#64748b' },
+              { key: 'footer_border' as const, label: 'Border', fallback: '#e2e8f0' },
+            ]).map(({ key, label, fallback }) => (
+              <PanelColorRow
+                key={key}
+                label={label}
+                value={String((p as any)[key] || fallback)}
+                fallback={fallback}
+                onChange={c => {
+                  onPreview({ [key]: c } as any)
+                  onUpdate({ [key]: c } as any)
+                }}
+                onReset={(p as any)[key] ? () => {
+                  onPreview({ [key]: null } as any)
+                  onUpdate({ [key]: null } as any)
+                } : undefined}
+              />
+            ))}
+          </div>
+        </SectionPanelGroup>
+      )}
+
       <SectionPanelGroup
         title="Section appearance"
         description="Shadow and typography for this block."
@@ -9048,14 +9389,6 @@ function PropsEditor({
             <TypographyCompositionFields
               fontSizePx={(p as any).font_size_px as number | undefined}
               onFontSizeChange={px => onUpdate({ font_size_px: px, text_scale: null } as any)}
-              textCaseId={currentTextCaseMenuId(p as any)}
-              onTextCaseSelect={id => {
-                const patch = buildTextCasePropsPatch(p as Record<string, unknown>, id)
-                onUpdate(patch as any)
-                if (id === 'sentence' || id === 'toggle') {
-                  toast.success(id === 'sentence' ? 'Sentence case applied' : 'Toggle case applied')
-                }
-              }}
               textAlign={(p as any).text_align as string | undefined}
               verticalAlign={(p as any).vertical_align as string | undefined}
               textWrap={(p as any).text_wrap as boolean | undefined}
@@ -9072,6 +9405,25 @@ function PropsEditor({
         {editorTab === 'media' && (
           <>
       {heroImageField}
+      {isHeroBlock && usesBgImage && (
+        <PropsCollapsible
+          title="Banner carousel"
+          preview={(p as any).banner_carousel === false ? 'Off' : 'On'}
+        >
+          <label className="flex items-center gap-2 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={(p as any).banner_carousel !== false}
+              onChange={e => onUpdate({ banner_carousel: e.target.checked } as any)}
+              className="rounded accent-primary"
+            />
+            <span className="text-xs text-gray-600">Rotate multiple banners</span>
+          </label>
+          <p className="mt-1.5 text-[10px] leading-snug text-muted-foreground">
+            When on, your hero image and store banners from Settings cycle automatically. Turn off to keep only the primary image.
+          </p>
+        </PropsCollapsible>
+      )}
       {bgImageField}
       {imageUrlField}
       {block.block_type === 'nav' && (
@@ -9723,21 +10075,66 @@ const structureShellToggleClass = (on: boolean) => cn(
   on ? 'border-primary/50 bg-primary/10 text-primary' : 'border-gray-200 text-gray-600 hover:bg-gray-50',
 )
 
+function StructureShellLayoutQuickControls({
+  block,
+  onOpenLayoutPicker,
+  onCycleLayout,
+}: {
+  block: WebsiteBlock
+  onOpenLayoutPicker: () => void
+  onCycleLayout: (direction: 'prev' | 'next') => void
+}) {
+  const layoutOptions = getSectionLayoutOptions(block.block_type)
+  if (layoutOptions.length === 0) return null
+  const activeLayout = findActiveSectionLayoutOption(block.props as Record<string, unknown>, layoutOptions)
+    ?? findBestSectionLayoutOption(block.props as Record<string, unknown>, layoutOptions)
+    ?? layoutOptions[findActiveLayoutIndex(block.props as Record<string, unknown>, block.block_type)]
+  const canCycle = layoutOptions.length > 1
+  const btn = 'p-1 text-gray-500 hover:text-primary transition-colors disabled:opacity-30 disabled:cursor-not-allowed'
+  return (
+    <div className="inline-flex shrink-0 items-center overflow-hidden rounded-md border border-gray-200 bg-white">
+      <button type="button" disabled={!canCycle} onClick={() => onCycleLayout('prev')} className={btn} title="Previous footer/header style">
+        <ChevronLeft className="w-3.5 h-3.5" />
+      </button>
+      <button
+        type="button"
+        onClick={onOpenLayoutPicker}
+        className={cn(btn, 'flex items-center gap-1 border-x border-gray-200 px-1.5 text-[10px] font-semibold text-gray-700')}
+        title={`Change section style — ${activeLayout?.label || 'Current'}`}
+      >
+        <Layout className="w-3.5 h-3.5" />
+        {activeLayout?.label?.split(/\s+/)[0] || 'Style'}
+      </button>
+      <button type="button" disabled={!canCycle} onClick={() => onCycleLayout('next')} className={btn} title="Next footer/header style">
+        <ChevronRight className="w-3.5 h-3.5" />
+      </button>
+    </div>
+  )
+}
+
 function StructureShellDesignBarTools({
   blockType,
   blockProps,
+  block,
   onUpdate,
   onOpenSectionEdit,
   onFocusLogo,
+  onOpenLayoutPicker,
+  onCycleLayout,
 }: {
   blockType: string
   blockProps: Record<string, unknown>
+  block?: WebsiteBlock
   onUpdate: (patch: Partial<BlockProps>) => void
   onOpenSectionEdit?: () => void
   onFocusLogo?: () => void
+  onOpenLayoutPicker?: () => void
+  onCycleLayout?: (direction: 'prev' | 'next') => void
 }) {
   if (blockType === 'nav') {
     const toggles = [
+      { key: 'show_logo', label: 'Logo' },
+      { key: 'show_brand_name', label: 'Name' },
       { key: 'show_nav_links', label: 'Page links' },
       { key: 'show_search', label: 'Search' },
       { key: 'show_cart', label: 'Cart' },
@@ -9785,6 +10182,17 @@ function StructureShellDesignBarTools({
             title="Header call-to-action button label (leave empty to hide)"
           />
         </label>
+        <label className="flex min-w-0 items-center gap-1">
+          <span className="shrink-0 text-[10px] font-semibold text-gray-500">Link</span>
+          <input
+            type="text"
+            value={String(blockProps.cta_url ?? '')}
+            placeholder="/products"
+            onChange={e => onUpdate({ cta_url: e.target.value } as Partial<BlockProps>)}
+            className="h-7 w-24 min-w-0 rounded-md border border-gray-200 px-2 text-[11px] font-mono text-gray-800 sm:w-28"
+            title="Header call-to-action URL"
+          />
+        </label>
         {onFocusLogo ? (
           <button
             type="button"
@@ -9795,6 +10203,13 @@ function StructureShellDesignBarTools({
             <ImageIcon className="h-3 w-3" />
             Logo
           </button>
+        ) : null}
+        {block && onOpenLayoutPicker && onCycleLayout ? (
+          <StructureShellLayoutQuickControls
+            block={block}
+            onOpenLayoutPicker={onOpenLayoutPicker}
+            onCycleLayout={onCycleLayout}
+          />
         ) : null}
         {onOpenSectionEdit ? (
           <button
@@ -9837,6 +10252,52 @@ function StructureShellDesignBarTools({
     )
   }
 
+  if (blockType === 'footer') {
+    const toggles = [
+      { key: 'show_social', label: 'Social' },
+      { key: 'show_legal', label: 'Legal' },
+      { key: 'show_newsletter', label: 'Newsletter' },
+    ] as const
+    return (
+      <div className="flex min-w-0 flex-1 flex-wrap items-center gap-1.5 px-1">
+        <span className="shrink-0 text-[10px] font-bold uppercase tracking-wide text-gray-400">Show</span>
+        {toggles.map(({ key, label }) => {
+          const on = key === 'show_newsletter'
+            ? blockProps[key] === true
+            : blockProps[key] !== false
+          return (
+            <button
+              key={key}
+              type="button"
+              title={`${on ? 'Hide' : 'Show'} ${label.toLowerCase()}`}
+              onClick={() => onUpdate({ [key]: !on } as Partial<BlockProps>)}
+              className={structureShellToggleClass(on)}
+            >
+              {label}
+            </button>
+          )
+        })}
+        {block && onOpenLayoutPicker && onCycleLayout ? (
+          <StructureShellLayoutQuickControls
+            block={block}
+            onOpenLayoutPicker={onOpenLayoutPicker}
+            onCycleLayout={onCycleLayout}
+          />
+        ) : null}
+        {onOpenSectionEdit ? (
+          <button
+            type="button"
+            onClick={onOpenSectionEdit}
+            className="flex h-7 shrink-0 items-center gap-1 rounded-md border border-primary/40 bg-primary/10 px-2.5 text-[10px] font-semibold text-primary hover:bg-primary/15"
+          >
+            <Settings2 className="h-3 w-3" />
+            Section Edit
+          </button>
+        ) : null}
+      </div>
+    )
+  }
+
   return (
     <div className="flex min-w-0 flex-1 items-center gap-2 px-2">
       <span className="min-w-0 text-[11px] leading-snug text-gray-600">
@@ -9855,7 +10316,7 @@ function StructureShellDesignBarTools({
   )
 }
 
-function BlockDesignBar({ block, onUpdate, onInsertAfter, onOpenLinkEditorForOverlay, activeTextField, activeTextFields = [], onActivateTextField, onEditText, onEscapeDismiss, onUndo, onRedo, canUndo, canRedo, formatPaintActive, formatPaintSticky, onFormatPaintStart, onFormatPaintCancel, selectedOverlayId, canvasImageField, canvasImageSlots, onSectionImagePick, onSectionImageLibrary, onFocusPrimaryImage, onSelectOverlay, blockBackgroundColor, onOverlayPickImage, onOverlayOpenLibrary, onOverlaySetImageUrl, onOverlayEditText, onOverlayEditDescription, onOverlayClipboard, onOpenSectionEdit, floating = false, docked = false, selectionHint }: {
+function BlockDesignBar({ block, onUpdate, onInsertAfter, onOpenLinkEditorForOverlay, activeTextField, activeTextFields = [], onActivateTextField, onEditText, onEscapeDismiss, onUndo, onRedo, canUndo, canRedo, formatPaintActive, formatPaintSticky, onFormatPaintStart, onFormatPaintCancel, selectedOverlayId, canvasImageField, canvasImageSlots, onSectionImagePick, onSectionImageLibrary, onFocusPrimaryImage, onSelectOverlay, blockBackgroundColor, onOverlayPickImage, onOverlayOpenLibrary, onOverlaySetImageUrl, onOverlayEditText, onOverlayEditDescription, onOverlayClipboard, onOpenSectionEdit, onOpenLayoutPicker, onCycleLayout, floating = false, docked = false, selectionHint }: {
   block: WebsiteBlock
   onUpdate: (p: Partial<BlockProps>) => void
   onInsertAfter: (type: string) => void
@@ -9883,6 +10344,8 @@ function BlockDesignBar({ block, onUpdate, onInsertAfter, onOpenLinkEditorForOve
   /** Cut / copy / paste the selected overlay layer (within or across sections). */
   onOverlayClipboard?: (action: 'cut' | 'copy' | 'paste') => boolean
   onOpenSectionEdit?: () => void
+  onOpenLayoutPicker?: () => void
+  onCycleLayout?: (direction: 'prev' | 'next') => void
   onUndo?: () => void
   onRedo?: () => void
   canUndo?: boolean
@@ -9994,14 +10457,36 @@ function BlockDesignBar({ block, onUpdate, onInsertAfter, onOpenLinkEditorForOve
   const overlaySiblingBoxes = useMemo(
     () => overlays
       .filter(o => o.id !== selectedOverlay?.id)
-      .map(o => ({ x: o.x, y: o.y, w: o.w, h: o.h })),
-    [overlays, selectedOverlay?.id],
+      .map(o => normalizeOverlayBox(o, overlayCanvasSize.w, overlayCanvasSize.h)),
+    [overlays, selectedOverlay?.id, overlayCanvasSize.w, overlayCanvasSize.h],
   )
+
+  const overlaySnapContainer = useMemo(() => {
+    if (selectedOverlay && overlayUsesPercent(selectedOverlay)) {
+      return { w: OVERLAY_AXIS_MAX, h: OVERLAY_AXIS_MAX }
+    }
+    return overlayCanvasSize
+  }, [selectedOverlay, overlayCanvasSize])
 
   const updateSelectedOverlay = (patch: Partial<OverlayLayerItem>) => {
     if (!selectedOverlayId) return
     onUpdate({
-      overlays: overlays.map(o => (o.id === selectedOverlayId ? { ...o, ...patch } : o)),
+      overlays: overlays.map(o => {
+        if (o.id !== selectedOverlayId) return o
+        let next = { ...o, ...patch }
+        const touchesGeometry = patch.x !== undefined
+          || patch.y !== undefined
+          || patch.w !== undefined
+          || patch.h !== undefined
+        if (touchesGeometry && !overlayUsesPercent(o)) {
+          next = {
+            ...next,
+            ...pxToOverlayPercent(next, overlayCanvasSize.w, overlayCanvasSize.h),
+            coordUnit: 'percent',
+          }
+        }
+        return next
+      }),
     } as Partial<BlockProps>)
   }
 
@@ -10520,10 +11005,11 @@ function BlockDesignBar({ block, onUpdate, onInsertAfter, onOpenLinkEditorForOve
     const newItem = {
       id: newId,
       type: overlayType as BlockOverlayItem['type'],
-      x: 20 + currentOverlays.length * 12,
-      y: 20 + currentOverlays.length * 12,
-      w: (defaults as any).w || 200,
-      h: (defaults as any).h || 80,
+      x: 4 + currentOverlays.length * 2,
+      y: 4 + currentOverlays.length * 2,
+      w: (defaults as any).w || 20,
+      h: (defaults as any).h || 8,
+      coordUnit: 'percent' as const,
       ...defaults,
       ...inheritedOverlayStyle(overlayType as BlockOverlayItem['type']),
       ...initialPatch,
@@ -10578,10 +11064,23 @@ function BlockDesignBar({ block, onUpdate, onInsertAfter, onOpenLinkEditorForOve
     onEscapeDismiss?.()
   }
 
+  const structureShellTools = structureQuickEdit ? (
+    <StructureShellDesignBarTools
+      blockType={blockType}
+      blockProps={p as Record<string, unknown>}
+      block={block}
+      onUpdate={onUpdate}
+      onOpenSectionEdit={onOpenSectionEdit}
+      onFocusLogo={blockType === 'nav' && onFocusPrimaryImage ? onFocusPrimaryImage : undefined}
+      onOpenLayoutPicker={onOpenLayoutPicker}
+      onCycleLayout={onCycleLayout}
+    />
+  ) : null
+
   return (
-    <div className="flex flex-col shrink-0" data-block-design-bar>
+    <div className={designBarRoot} data-block-design-bar>
       <div
-        className="flex items-center gap-2 border-b border-gray-200 bg-gray-100/90 px-2 py-1"
+        className={designBarTabHeader}
         role="tablist"
         aria-label="Section design tools"
       >
@@ -10631,11 +11130,11 @@ function BlockDesignBar({ block, onUpdate, onInsertAfter, onOpenLinkEditorForOve
               : 'Section tools'
       }
       className={cn(
-        'z-[80] flex min-h-[4.25rem] shrink-0 items-center gap-0 overflow-x-auto overflow-y-visible overscroll-x-contain bg-white px-1 py-0.5',
+        designBarTabPanel,
         docked
-          ? 'relative w-full border-b border-primary/20'
+          ? 'relative border-b border-primary/20'
           : floating
-            ? 'relative w-full rounded-t-lg border-t-2 border-primary border-b border-primary/30 shadow-sm'
+            ? 'relative rounded-t-lg border-t-2 border-primary border-b border-primary/30 shadow-sm'
             : 'absolute top-0 left-0 right-0 border-t-2 border-primary border-b border-primary/30 shadow-sm',
       )}
       onClick={e => e.stopPropagation()}
@@ -10643,20 +11142,30 @@ function BlockDesignBar({ block, onUpdate, onInsertAfter, onOpenLinkEditorForOve
       {designBarTab === 'general' && (
         <div className={designBarTabSlot}>
       <div className={visualToolbarRow}>
-      <InsertLayerButton
-        overlayCount={overlayCount}
-        onAddOverlay={addOverlayElement}
-        onClearOverlays={() => onUpdate({ overlays: [] } as Partial<BlockProps>)}
-      />
-      <>
-      {structureQuickEdit ? (
-        <StructureShellDesignBarTools
-          blockType={blockType}
-          blockProps={p as Record<string, unknown>}
-          onUpdate={onUpdate}
-          onOpenSectionEdit={onOpenSectionEdit}
-          onFocusLogo={blockType === 'nav' && onFocusPrimaryImage ? onFocusPrimaryImage : undefined}
+      {!structureQuickEdit ? (
+      <div className={cn(generalDesignBarInsertStack, deleteTarget && 'w-[4.5rem]')}>
+        <InsertLayerButton
+          embedded
+          stackedBelow={!!deleteTarget}
+          overlayCount={overlayCount}
+          onAddOverlay={addOverlayElement}
+          onClearOverlays={() => onUpdate({ overlays: [] } as Partial<BlockProps>)}
         />
+        {deleteTarget ? (
+          <button
+            type="button"
+            title="Delete selected element from section"
+            onClick={runDeleteElement}
+            className={generalDesignBarDeleteCell}
+          >
+            <Trash2 className="h-3 w-3 shrink-0" />
+            <span>Delete</span>
+          </button>
+        ) : null}
+      </div>
+      ) : null}
+      {structureQuickEdit ? (
+        structureShellTools
       ) : (
       <>
       <div className={generalDesignBarGrid2x2}>
@@ -10670,12 +11179,11 @@ function BlockDesignBar({ block, onUpdate, onInsertAfter, onOpenLinkEditorForOve
             onEditText?.()
           }}
           title={overlayTextLayer ? 'Edit button label' : 'Edit section text (E)'}
-          className={cn(generalDesignBarGridCell, 'flex-col gap-0 border-b border-r border-gray-200 px-0.5 text-xs font-medium')}
+          className={cn(generalDesignBarGridCell, 'border-b border-r px-0.5', DESIGN_BAR_SOFT_INNER_BORDER)}
         >
           <Pencil className="h-3 w-3 shrink-0" />
-          <BuilderShortcutKbd className="min-w-[0.75rem] px-0.5 text-[7px] leading-none">E</BuilderShortcutKbd>
         </button>
-        <div className="relative min-h-0 border-b border-gray-200">
+        <div className={cn('relative min-h-0 border-b', DESIGN_BAR_SOFT_INNER_BORDER)}>
           <button
             ref={caseBtnRef}
             type="button"
@@ -10688,7 +11196,7 @@ function BlockDesignBar({ block, onUpdate, onInsertAfter, onOpenLinkEditorForOve
               generalDesignBarGridCell,
               'flex-col gap-0 px-0 text-[10px] font-bold leading-none',
               showCase || currentTextCaseMenuId(typographySource as any) !== 'default'
-                ? 'bg-primary/10 text-primary'
+                ? DESIGN_BAR_SOFT_ACTIVE
                 : undefined,
             )}
           >
@@ -10763,7 +11271,8 @@ function BlockDesignBar({ block, onUpdate, onInsertAfter, onOpenLinkEditorForOve
           }}
           className={cn(
             generalDesignBarGridCell,
-            'border-r border-gray-200',
+            'border-r',
+            DESIGN_BAR_SOFT_INNER_BORDER,
             formatPaintActive
               ? formatPaintSticky
                 ? 'bg-amber-100 text-amber-800'
@@ -10833,26 +11342,12 @@ function BlockDesignBar({ block, onUpdate, onInsertAfter, onOpenLinkEditorForOve
             </div>
           </DesignBarDropdownPortal>
         </div>
-        {deleteTarget ? (
-          <button
-            type="button"
-            title="Delete selected element from section"
-            onClick={runDeleteElement}
-            className={cn(
-              generalDesignBarGridCell,
-              'flex-col gap-0 border-b border-gray-200 px-0.5 text-xs font-medium text-red-600 hover:bg-red-50',
-            )}
-          >
-            <Trash2 className="h-3.5 w-3.5 shrink-0" />
-            <span className="text-[8px] leading-none">Delete</span>
-          </button>
-        ) : null}
       </div>
 
       {(selectedOverlay || !overlayTextLayer) ? (
       <div
         {...{ [BUILDER_DESIGN_BAR_CHROME_ATTR]: true }}
-        className={cn(generalDesignBarCluster, 'w-9 flex-col divide-y divide-gray-200')}
+        className={cn(generalDesignBarCluster, 'w-9 flex-col divide-y', DESIGN_BAR_SOFT_DIVIDE)}
         onMouseDown={e => {
           pinInlineTextSelectionBeforeToolbarAction()
           e.preventDefault()
@@ -10862,7 +11357,7 @@ function BlockDesignBar({ block, onUpdate, onInsertAfter, onOpenLinkEditorForOve
           type="button"
           title={selectedOverlay ? 'Cut layer (Ctrl+X)' : 'Cut (Ctrl+X)'}
           onClick={() => runTextClipboard('cut')}
-          className="flex flex-1 items-center justify-center text-gray-700 transition-colors hover:bg-accent"
+          className={generalDesignBarInnerBtn}
         >
           <Scissors className="h-3 w-3" />
         </button>
@@ -10870,7 +11365,7 @@ function BlockDesignBar({ block, onUpdate, onInsertAfter, onOpenLinkEditorForOve
           type="button"
           title={selectedOverlay ? 'Copy layer (Ctrl+C)' : 'Copy (Ctrl+C)'}
           onClick={() => runTextClipboard('copy')}
-          className="flex flex-1 items-center justify-center text-gray-700 transition-colors hover:bg-accent"
+          className={generalDesignBarInnerBtn}
         >
           <Copy className="h-3 w-3" />
         </button>
@@ -10878,7 +11373,7 @@ function BlockDesignBar({ block, onUpdate, onInsertAfter, onOpenLinkEditorForOve
           type="button"
           title={selectedOverlay ? 'Paste layer (Ctrl+V)' : 'Paste (Ctrl+V)'}
           onClick={() => runTextClipboard('paste')}
-          className="flex flex-1 items-center justify-center text-gray-700 transition-colors hover:bg-accent"
+          className={generalDesignBarInnerBtn}
         >
           <ClipboardPaste className="h-3 w-3" />
         </button>
@@ -11094,7 +11589,6 @@ function BlockDesignBar({ block, onUpdate, onInsertAfter, onOpenLinkEditorForOve
       </span>
       </>
       )}
-      </>
       </div>
         </div>
       )}
@@ -11112,20 +11606,21 @@ function BlockDesignBar({ block, onUpdate, onInsertAfter, onOpenLinkEditorForOve
             onOpenMediaLibrary={onSectionImageLibrary}
             onFocusPrimaryImage={onFocusPrimaryImage}
           />
-          <div className="flex shrink-0 items-center rounded-md border border-gray-200 bg-white px-0.5">
-            <SectionImageControls
-              imageField={canvasImageField}
-              arraySlots={canvasImageSlots}
-              blockProps={p as Record<string, unknown>}
-              blockType={String(block.block_type)}
-              onUpdate={patch => onUpdate(patch as Partial<BlockProps>)}
-            />
-          </div>
+          <SectionImageControls
+            imageField={canvasImageField}
+            arraySlots={canvasImageSlots}
+            blockProps={p as Record<string, unknown>}
+            blockType={String(block.block_type)}
+            onUpdate={patch => onUpdate(patch as Partial<BlockProps>)}
+          />
           </div>
         </div>
       ) : null}
 
       {designBarTab === 'visual' && (
+        structureQuickEdit ? (
+          structureShellTools
+        ) : (
         <VisualDesignBarTools
           blockType={String(block.block_type)}
           blockProps={p as Record<string, unknown>}
@@ -11134,8 +11629,8 @@ function BlockDesignBar({ block, onUpdate, onInsertAfter, onOpenLinkEditorForOve
           overlayCount={overlayCount}
           selectedOverlay={selectedOverlay}
           overlaySiblings={overlaySiblingBoxes}
-          overlayContainerWidth={overlayCanvasSize.w}
-          overlayContainerHeight={overlayCanvasSize.h}
+          overlayContainerWidth={overlaySnapContainer.w}
+          overlayContainerHeight={overlaySnapContainer.h}
           blockBackgroundColor={blockBackgroundColor}
           onUpdate={onUpdate}
           onUpdateOverlay={selectedOverlay ? updateSelectedOverlay : undefined}
@@ -11159,6 +11654,7 @@ function BlockDesignBar({ block, onUpdate, onInsertAfter, onOpenLinkEditorForOve
           onSectionImageLibrary={onSectionImageLibrary}
           onFocusPrimaryImage={onFocusPrimaryImage}
         />
+        )
       )}
     </div>
     </div>
@@ -12388,10 +12884,17 @@ export default function WebsiteBuilder() {
     const pathOnly = href.split('?')[0].split('#')[0]
     const normalized = pathOnly.startsWith('/') ? href : `/${href}`
 
+    const blockRoot = anchor.closest('[data-block-id]') as HTMLElement | null
+    const blockId = blockRoot?.getAttribute('data-block-id')
+    const blockType = blockId ? findCanvasBlockType(localBlocks, localPages, blockId, activePageId) : null
+    const isShellNavLink = blockType === 'nav' || blockType === 'footer'
+
     if (
-      anchor.dataset.builderCatalogNav === 'product'
+      findBuilderPageForNavPath(pathOnly, localPages)
+      || anchor.dataset.builderCatalogNav === 'product'
       || parseCatalogStorePath(pathOnly)?.slug
       || pathOnly.endsWith('/cart')
+      || (isShellNavLink && (parseStorefrontEmbedRoute(normalized) || parseCatalogStorePath(pathOnly)))
     ) {
       e.preventDefault()
       e.stopPropagation()
@@ -12401,14 +12904,12 @@ export default function WebsiteBuilder() {
 
     e.preventDefault()
     e.stopPropagation()
-    const blockRoot = anchor.closest('[data-block-id]') as HTMLElement | null
-    const id = blockRoot?.getAttribute('data-block-id')
-    if (id) {
-      setSelectedBlockId(id)
+    if (blockId) {
+      setSelectedBlockId(blockId)
       setRightPanel('links')
       setRightCollapsed(false)
     }
-  }, [handleNavigateBuilderPage])
+  }, [handleNavigateBuilderPage, localPages, localBlocks, activePageId])
 
   const handlePageStyleChange = useCallback((pageId: string, patch: PageStyleOverrides) => {
     setLocalStyle(prev => {
@@ -17637,6 +18138,8 @@ export default function WebsiteBuilder() {
                     setRightPanel('props')
                     setRightCollapsed(false)
                   }}
+                  onOpenLayoutPicker={() => openLayoutPickerForBlock(block)}
+                  onCycleLayout={dir => { void cycleBlockLayout(block, dir) }}
                   activeTextField={activeTextTarget?.blockId === block.id ? primaryTextFieldKey(activeTextTarget) : null}
                   activeTextFields={activeTextTarget?.blockId === block.id ? activeTextTarget.fieldKeys : []}
                   onActivateTextField={fieldKey => handleCanvasTextFieldActivate(block.id, fieldKey)}

@@ -1,12 +1,24 @@
+import type { CSSProperties } from 'react'
 import { mediaUrl } from '@/lib/utils'
+
+export type OverlayCoordUnit = 'percent' | 'px'
+
+/** Position/size range for percent-based overlays (0–100 of the section). */
+export const OVERLAY_AXIS_MAX = 100
+export const OVERLAY_MIN_W_PERCENT = 4
+export const OVERLAY_MIN_H_PERCENT = 3
 
 export type BlockOverlayItem = {
   id: string
   type: 'text' | 'image' | 'button' | 'box' | 'badge' | 'video' | string
+  /** Horizontal offset — percent of section width when coordUnit is `percent`, else px. */
   x: number
+  /** Vertical offset — percent of section height when coordUnit is `percent`, else px. */
   y: number
   w: number
   h: number
+  /** When `'percent'`, x/y/w/h are 0–100 and scale with the section on resize. */
+  coordUnit?: OverlayCoordUnit
   text?: string
   description?: string
   src?: string
@@ -64,8 +76,78 @@ export function resolveOverlayBorder(item: BlockOverlayItem): string | undefined
   return `${w}px solid ${item.borderColor || '#111827'}`
 }
 
+function clampOverlay(n: number, min: number, max: number) {
+  return Math.min(max, Math.max(min, Math.round(n)))
+}
+
+export function overlayCoordUnit(item: Pick<BlockOverlayItem, 'coordUnit'>): OverlayCoordUnit {
+  return item.coordUnit === 'percent' ? 'percent' : 'px'
+}
+
+export function overlayUsesPercent(item: Pick<BlockOverlayItem, 'coordUnit'>) {
+  return overlayCoordUnit(item) === 'percent'
+}
+
+/** CSS position for an overlay layer — percent coords stay sticky to the section. */
+export function overlayPositionStyle(
+  item: Pick<BlockOverlayItem, 'x' | 'y' | 'w' | 'h' | 'coordUnit'>,
+): CSSProperties {
+  const x = item.x ?? 0
+  const y = item.y ?? 0
+  const w = item.w ?? 0
+  const h = item.h ?? 0
+  if (overlayUsesPercent(item)) {
+    return {
+      position: 'absolute',
+      left: `${x}%`,
+      top: `${y}%`,
+      width: `${w}%`,
+      height: `${h}%`,
+    }
+  }
+  return {
+    position: 'absolute',
+    left: x,
+    top: y,
+    width: w,
+    height: h,
+  }
+}
+
+export function pxToOverlayPercent(
+  box: Pick<BlockOverlayItem, 'x' | 'y' | 'w' | 'h'>,
+  containerW: number,
+  containerH: number,
+): Pick<BlockOverlayItem, 'x' | 'y' | 'w' | 'h'> {
+  if (containerW <= 0 || containerH <= 0) return { x: box.x, y: box.y, w: box.w, h: box.h }
+  return {
+    x: clampOverlay((box.x / containerW) * 100, 0, OVERLAY_AXIS_MAX),
+    y: clampOverlay((box.y / containerH) * 100, 0, OVERLAY_AXIS_MAX),
+    w: clampOverlay((box.w / containerW) * 100, OVERLAY_MIN_W_PERCENT, OVERLAY_AXIS_MAX),
+    h: clampOverlay((box.h / containerH) * 100, OVERLAY_MIN_H_PERCENT, OVERLAY_AXIS_MAX),
+  }
+}
+
+export function normalizeOverlayBox(
+  item: Pick<BlockOverlayItem, 'x' | 'y' | 'w' | 'h' | 'coordUnit'>,
+  containerW: number,
+  containerH: number,
+): Pick<BlockOverlayItem, 'x' | 'y' | 'w' | 'h'> {
+  if (overlayUsesPercent(item)) {
+    return { x: item.x, y: item.y, w: item.w, h: item.h }
+  }
+  return pxToOverlayPercent(item, containerW, containerH)
+}
+
+export function overlaySnapContainerSize(item: Pick<BlockOverlayItem, 'coordUnit'>) {
+  return overlayUsesPercent(item)
+    ? { w: OVERLAY_AXIS_MAX, h: OVERLAY_AXIS_MAX }
+    : null
+}
+
 export function overlayMinContainerHeight(overlays: BlockOverlayItem[]): number {
   if (!overlays.length) return 0
+  if (overlays.every(o => overlayUsesPercent(o))) return 0
   return Math.max(...overlays.map(o => o.y + o.h))
 }
 

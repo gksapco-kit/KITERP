@@ -33,10 +33,15 @@ import {
   type SectionImageShadow,
 } from '@storefront/lib/sectionImageStyle'
 import {
+  DESIGN_BAR_SOFT_INNER_BORDER,
+  visualFocalCell,
+  visualFocalCorner,
+  visualFocalPad,
   visualPanel,
   visualRow,
   visualSegmentBtn,
   visualSegmentTrack,
+  VISUAL_TAB_ROW_H,
   visualStepperCell,
   visualStepperValue,
 } from '@/components/websites/designBarVisualUi'
@@ -63,10 +68,6 @@ const OVERLAY_OPTIONS: { value: SectionImageOverlay; label: string; title: strin
   { value: 'brand', label: 'Brand', title: 'Brand color gradient' },
 ]
 
-const FOCAL_CELL =
-  'flex h-5 w-5 shrink-0 items-center justify-center border-r border-b border-gray-200 text-gray-600 transition-colors hover:bg-primary/10 hover:text-primary'
-
-const FOCAL_EMPTY = 'h-5 w-5 shrink-0 border-r border-b border-gray-200 bg-gray-50/40'
 
 function stopBarBubble(e: React.SyntheticEvent) {
   e.stopPropagation()
@@ -83,7 +84,7 @@ function FocalPad({
     <button
       type="button"
       title={label}
-      className={FOCAL_CELL}
+      className={visualFocalCell}
       onMouseDown={stopBarBubble}
       onClick={() => onNudge(dx, dy)}
     >
@@ -93,27 +94,27 @@ function FocalPad({
 
   return (
     <div
-      className="grid shrink-0 grid-cols-3 grid-rows-3 overflow-hidden rounded-md border border-gray-200 bg-white"
+      className={visualFocalPad}
       role="group"
       aria-label="Image focal point"
     >
-      <div className={FOCAL_EMPTY} aria-hidden />
+      <div className={visualFocalCorner} aria-hidden />
       {btn(0, -FOCAL_STEP, 'Pan up — show upper part of image', ArrowUp)}
-      <div className={FOCAL_EMPTY} aria-hidden />
+      <div className={visualFocalCorner} aria-hidden />
       {btn(-FOCAL_STEP, 0, 'Pan left', ArrowLeft)}
       <button
         type="button"
         title="Center image in frame"
-        className={cn(FOCAL_CELL, 'bg-white text-primary hover:bg-primary/10')}
+        className={cn(visualFocalCell, 'text-primary')}
         onMouseDown={stopBarBubble}
         onClick={onCenter}
       >
         <Crosshair className="h-3 w-3" />
       </button>
       {btn(FOCAL_STEP, 0, 'Pan right', ArrowRight)}
-      <div className={FOCAL_EMPTY} aria-hidden />
+      <div className={visualFocalCorner} aria-hidden />
       {btn(0, FOCAL_STEP, 'Pan down — show lower part of image', ArrowDown)}
-      <div className={cn(FOCAL_EMPTY, 'border-b-0 border-r-0')} aria-hidden />
+      <div className={visualFocalCorner} aria-hidden />
     </div>
   )
 }
@@ -172,7 +173,7 @@ function DecorStepper({
   const bump = (d: number) => onCommit(Math.max(min, Math.min(max, value + d)))
   return (
     <div className={cn(visualPanel, 'relative')} title={title}>
-      <span className="flex h-6 w-5 shrink-0 items-center justify-center border-r border-gray-200 text-gray-500">
+      <span className={cn(VISUAL_TAB_ROW_H, 'flex w-6 shrink-0 items-center justify-center border-r text-gray-500', DESIGN_BAR_SOFT_INNER_BORDER)}>
         {icon}
       </span>
       <button type="button" className={visualStepperCell} onClick={() => bump(-step)} aria-label={`Decrease ${title}`}>
@@ -261,9 +262,9 @@ export function SectionImageControls({
   const showLayer = !isCard && styleField === 'image_url'
 
   return (
-    <div className="flex items-stretch gap-px">
+    <div className="flex items-stretch gap-0.5">
       <FocalPad onNudge={nudgeFocal} onCenter={centerFocal} />
-      <div className="flex flex-col justify-center gap-px">
+      <div className="flex flex-col justify-center gap-0.5">
       <div className={visualRow}>
         <ZoomStepper
           value={zoom}
@@ -327,7 +328,7 @@ export function SectionImageControls({
           />
           {showLayer ? (
             <div className={visualSegmentTrack} role="group" aria-label="Image layer">
-              <span className="flex items-center px-1 text-gray-400">
+              <span className={cn(VISUAL_TAB_ROW_H, 'flex w-6 shrink-0 items-center justify-center border-r text-gray-400', DESIGN_BAR_SOFT_INNER_BORDER)}>
                 <Layers className="h-3 w-3" />
               </span>
               <button

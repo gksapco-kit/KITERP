@@ -19,18 +19,35 @@ export function orderedVendorBannerUrls(
   return list
 }
 
+function dedupePush(list: string[], url: string | undefined): void {
+  const trimmed = url?.trim()
+  if (!trimmed || list.includes(trimmed)) return
+  list.push(trimmed)
+}
+
 /**
- * Hero background URLs: explicit prop/theme image wins as a single slide;
- * otherwise all uploaded store banners rotate in settings order.
+ * Hero background URLs: builder/theme image first, then store banners from settings.
+ * Duplicates are removed; store banners keep settings order after explicit sources.
  */
 export function resolveHeroBackgroundUrls(opts: {
   explicitUrl?: string
   themeHeroUrl?: string
   vendor: (HomeSectionVendor & { theme_config?: Record<string, unknown> }) | null
 }): string[] {
-  const explicit = opts.explicitUrl?.trim()
-  if (explicit) return [explicit]
-  const themeUrl = opts.themeHeroUrl?.trim()
-  if (themeUrl) return [themeUrl]
-  return orderedVendorBannerUrls(opts.vendor)
+  const list: string[] = []
+  dedupePush(list, opts.explicitUrl)
+  dedupePush(list, opts.themeHeroUrl)
+  for (const url of orderedVendorBannerUrls(opts.vendor)) {
+    dedupePush(list, url)
+  }
+  return list
+}
+
+/** Rotate hero banners when multiple URLs exist. Off when explicitly disabled. */
+export function heroUsesBannerCarousel(
+  urlCount: number,
+  bannerCarousel?: boolean | null,
+): boolean {
+  if (urlCount <= 1) return false
+  return bannerCarousel !== false
 }

@@ -1377,8 +1377,6 @@ export function TypographyCompositionFields({
   onFontFamilyChange,
   fontSizePx,
   onFontSizeChange,
-  textCaseId,
-  onTextCaseSelect,
   textAlign,
   verticalAlign,
   textWrap,
@@ -1390,8 +1388,6 @@ export function TypographyCompositionFields({
   onFontFamilyChange?: (font: string | null) => void
   fontSizePx: number | null | undefined
   onFontSizeChange: (px: number | null) => void
-  textCaseId: TextCaseMenuId
-  onTextCaseSelect: (id: TextCaseMenuId) => void
   textAlign?: TextAlignH | string | null
   verticalAlign?: TextAlignV | string | null
   textWrap?: boolean | null
@@ -1438,14 +1434,6 @@ export function TypographyCompositionFields({
         <FontSizePxControl valuePx={fontSizePx} onChange={onFontSizeChange} size="panel" />
         <p className="text-xs leading-relaxed text-gray-400">
           Px sizing overrides XS–2X scale. Auto uses theme + scale only.
-        </p>
-      </div>
-
-      <div className="space-y-1">
-        <div className="text-xs font-medium text-gray-500">Text case</div>
-        <TextCaseList activeId={textCaseId} onSelect={onTextCaseSelect} size="panel" />
-        <p className="text-xs leading-relaxed text-gray-400">
-          Default clears CSS case. Sentence / toggle rewrite stored text (skips URLs and nav links).
         </p>
       </div>
     </div>

@@ -9,6 +9,8 @@ import {
 } from 'react'
 import { createPortal } from 'react-dom'
 import { Maximize2, Minus, Plus } from 'lucide-react'
+import { resolveSectionChromePortalFrame } from '@/components/websites/BuilderSectionOverlay'
+import { BUILDER_SECTION_CHROME_Z } from '@/components/websites/builderPanelUi'
 import { cn } from '@/lib/utils'
 
 const SCALE_MIN = 0.5
@@ -18,10 +20,12 @@ const STEP_PCT = 1
 /** Press-and-hold: wait this long, then repeat the nudge every interval. */
 const HOLD_DELAY_MS = 300
 const HOLD_INTERVAL_MS = 60
-/** Gap between the pill and the section's right edge. */
-const SECTION_EDGE_INSET_PX = 12
+const SECTION_CHROME_TOOLBAR_HEIGHT_EST = 30
+const SECTION_CHROME_INSET = 6
+const PILL_HEIGHT_EST = 24
+const PILL_BELOW_TOOLBAR_GAP = 4
 
-type PillFrame = { top: number; left: number }
+type PillFrame = { top: number; right: number }
 
 function findBlockEl(
   containerRef: RefObject<HTMLElement | null>,
@@ -32,32 +36,51 @@ function findBlockEl(
   return root.querySelector(`[data-block-id="${CSS.escape(blockId)}"]`) as HTMLElement | null
 }
 
-/** Vertical centre follows zoomed content; horizontal anchor uses the block shell. */
+/** Top-right anchor — same placement rules as the section chrome toolbar. */
 function measureSectionSizePillFrame(
   blockEl: HTMLElement,
-  viewport: { top: number; bottom: number; left: number; right: number },
+  canvasRect: DOMRect | null,
 ): PillFrame | null {
   const blockRect = blockEl.getBoundingClientRect()
-  const zoomWrap = blockEl.querySelector(':scope > .builder-block-zoom-wrap') as HTMLElement | null
-  const contentRect = (zoomWrap ?? blockEl).getBoundingClientRect()
 
-  if (
-    blockRect.bottom <= viewport.top
-    || blockRect.top >= viewport.bottom
-    || blockRect.right <= viewport.left
-    || blockRect.left >= viewport.right
-  ) {
-    return null
+  if (canvasRect) {
+    if (
+      blockRect.bottom <= canvasRect.top
+      || blockRect.top >= canvasRect.bottom
+      || blockRect.right <= canvasRect.left
+      || blockRect.left >= canvasRect.right
+    ) {
+      return null
+    }
   }
 
-  return {
-    top: (contentRect.top + contentRect.bottom) / 2,
-    left: Math.min(blockRect.right, viewport.right) - SECTION_EDGE_INSET_PX,
+  const chrome = resolveSectionChromePortalFrame(
+    {
+      top: blockRect.top,
+      left: blockRect.left,
+      right: blockRect.right,
+      height: blockRect.height,
+    },
+    canvasRect,
+  )
+
+  // Sit just below the section toolbar row (never at the section's vertical centre).
+  let top = chrome.transform
+    ? blockRect.top + PILL_BELOW_TOOLBAR_GAP
+    : chrome.top + SECTION_CHROME_TOOLBAR_HEIGHT_EST + PILL_BELOW_TOOLBAR_GAP
+
+  if (canvasRect) {
+    top = Math.max(
+      canvasRect.top + SECTION_CHROME_INSET,
+      Math.min(top, canvasRect.bottom - PILL_HEIGHT_EST - SECTION_CHROME_INSET),
+    )
   }
+
+  return { top, right: chrome.right }
 }
 
 /**
- * Floating "section size" stepper — pinned to the vertical centre of the section (right edge).
+ * Floating "section size" stepper — anchored below the section toolbar (top-right).
  */
 export function SectionSizeControl({
   blockId,
@@ -129,25 +152,22 @@ export function SectionSizeControl({
         return
       }
       const scrollRoot = scrollRootRef?.current
-      const vp = scrollRoot
-        ? scrollRoot.getBoundingClientRect()
-        : { top: 0, bottom: window.innerHeight, left: 0, right: window.innerWidth }
+      const canvasRect = scrollRoot?.getBoundingClientRect() ?? null
 
-      setFrame(measureSectionSizePillFrame(el, vp))
+      setFrame(measureSectionSizePillFrame(el, canvasRect))
     }
 
     updateRef.current = update
     update()
     const el = findBlockEl(containerRef, blockId)
     const root = containerRef.current
-    const zoomWrap = el?.querySelector(':scope > .builder-block-zoom-wrap') as HTMLElement | null
     const ro = new ResizeObserver(update)
     if (el) ro.observe(el)
-    if (zoomWrap) ro.observe(zoomWrap)
     if (root) ro.observe(root)
+    const scrollRoot = scrollRootRef?.current
+    if (scrollRoot) ro.observe(scrollRoot)
     window.addEventListener('scroll', update, true)
     window.addEventListener('resize', update)
-    const scrollRoot = scrollRootRef?.current
     scrollRoot?.addEventListener('scroll', update, { passive: true })
     return () => {
       ro.disconnect()
@@ -201,9 +221,9 @@ export function SectionSizeControl({
       data-section-scale-handle
       data-builder-floating-ui
       className={cn(
-        'group/scale pointer-events-auto fixed z-[150] flex -translate-x-full -translate-y-1/2 items-center gap-0 rounded-full border border-primary/20 bg-white/95 p-0.5 shadow-md ring-1 ring-black/5 backdrop-blur-sm',
+        'group/scale pointer-events-auto fixed flex items-center gap-0 rounded-full border border-primary/20 bg-white/95 p-0.5 shadow-md ring-1 ring-black/5 backdrop-blur-sm',
       )}
-      style={{ top: frame.top, left: frame.left }}
+      style={{ top: frame.top, right: frame.right, zIndex: BUILDER_SECTION_CHROME_Z }}
       onClick={e => e.stopPropagation()}
       onMouseDown={e => { e.stopPropagation(); onActivate?.() }}
     >

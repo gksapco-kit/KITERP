@@ -150,6 +150,7 @@ export const BLOCK_REQUIRED_DATA_SOURCE = new Set<string>([
 
 /** Website builder sections that show the Categories sync banner in the sidebar. */
 export const CATEGORY_SYNC_BLOCK_TYPES = new Set<string>([
+  'category_cards',
   'product.categories',
 ])
 

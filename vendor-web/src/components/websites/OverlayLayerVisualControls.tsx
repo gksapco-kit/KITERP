@@ -11,7 +11,6 @@ import {
   type OverlayLayerItem,
 } from '@/lib/builderOverlayVisual'
 import { OverlayTransformControls } from '@/components/websites/OverlayTransformControls'
-import { OverlayAlignControls } from '@/components/websites/OverlayAlignControls'
 import { OverlayIconPicker } from '@/components/websites/OverlayIconPicker'
 import type { OverlayBox } from '@/lib/overlayAlignmentSnap'
 import {
@@ -132,7 +131,6 @@ export function OverlayLayerVisualControls({
     : defaultOverlayFillColor(String(item.type))
   const isImage = item.type === 'image'
   const isIcon = item.type === 'icon'
-  const hasContainer = !!(containerWidth && containerHeight)
 
   return (
     <div className="flex min-w-0 w-full flex-col gap-px">
@@ -150,15 +148,6 @@ export function OverlayLayerVisualControls({
           containerHeight={containerHeight}
           keyboardShortcuts
         />
-        {hasContainer ? (
-          <OverlayAlignControls
-            item={item}
-            containerWidth={containerWidth!}
-            containerHeight={containerHeight!}
-            onUpdate={onUpdate}
-            variant="compact"
-          />
-        ) : null}
 
         <div className={visualPanel}>
           <span className={visualChip}>{overlayLayerTypeLabel(String(item.type))}</span>

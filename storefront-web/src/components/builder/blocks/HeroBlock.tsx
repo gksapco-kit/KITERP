@@ -30,6 +30,8 @@ import {
   builderSectionContainerWithMax,
   builderSectionInsetClass,
 } from '@/lib/builderSectionLayout'
+import { HeroBannerCarousel } from '@/home-sections/HeroBannerCarousel'
+import { heroUsesBannerCarousel, resolveHeroBackgroundUrls } from '@/home-sections/heroBanners'
 
 interface Props {
   site: PublicSite
@@ -134,11 +136,23 @@ export default function HeroBlock({ site, style, props, blockType, blockId, bran
   const sideImageRaw = isSplit
     ? ((props.image_url as string | undefined) || (props.bg_image_url as string | undefined))
     : undefined
-  const heroImageUrl = heroImageRaw ? imgUrl(heroImageRaw) : undefined
   const sideImageUrl = sideImageRaw ? imgUrl(sideImageRaw) : undefined
 
+  const heroBackgroundUrls = useMemo(
+    () => resolveHeroBackgroundUrls({
+      explicitUrl: heroImageRaw,
+      vendor: effectiveVendor,
+    }),
+    [heroImageRaw, effectiveVendor],
+  )
+  const heroPrimaryUrl = heroBackgroundUrls[0] ? imgUrl(heroBackgroundUrls[0]) : undefined
+  const useBannerCarousel = heroUsesBannerCarousel(
+    heroBackgroundUrls.length,
+    props.banner_carousel as boolean | undefined,
+  )
+
   const hasSideImage = isSplit && !!sideImageUrl
-  const hasBgImg = !!heroImageUrl
+  const hasBgImg = heroBackgroundUrls.length > 0
   const heroUsesImageBg = heroShouldUseFullBleedImage(blockType, props, hasBgImg)
   /** True 50/50 split — matches layout picker (always for hero_split split layout). */
   const splitSideBySide = isSplitPanel
@@ -175,7 +189,9 @@ export default function HeroBlock({ site, style, props, blockType, blockId, bran
                 ? ((props.bg_color as string) || style.bg_color)
                 : `linear-gradient(135deg, ${style.bg_color}, ${style.surface_color})`
 
-  const heroBgImage = heroUsesImageBg ? `url(${heroImageUrl})` : undefined
+  const heroBgImage = heroUsesImageBg && heroBackgroundUrls.length === 1 && heroPrimaryUrl
+    ? `url(${heroPrimaryUrl})`
+    : undefined
   const isDark =
     heroUsesImageBg ||
     bgStyle === 'gradient' ||
@@ -544,19 +560,21 @@ export default function HeroBlock({ site, style, props, blockType, blockId, bran
             }
       }
     >
-      {heroUsesImageBg && heroImageUrl && !bgImageHidden ? (
+      {heroUsesImageBg && heroBackgroundUrls.length > 0 && !bgImageHidden ? (
         <div className="absolute inset-0 z-0">
-          {isEditorCanvas && blockId ? (
+          {useBannerCarousel ? (
+            <HeroBannerCarousel urls={heroBackgroundUrls} />
+          ) : isEditorCanvas && blockId && heroImageRaw ? (
             <BuilderSectionImage
               blockId={blockId}
               field="bg_image_url"
               blockProps={props}
-              src={heroImageUrl}
+              src={heroPrimaryUrl!}
               className="absolute inset-0 h-full w-full object-cover"
             />
           ) : (
             <img
-              src={heroImageUrl}
+              src={heroPrimaryUrl}
               alt=""
               className="absolute inset-0 h-full w-full object-cover"
               loading="eager"

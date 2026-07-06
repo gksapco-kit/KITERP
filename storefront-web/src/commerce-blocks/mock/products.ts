@@ -127,9 +127,9 @@ export const mockProducts: MockProduct[] = [
   },
 ];
 
-export const mockCategories = [
-  { id: "apparel", name: "Apparel", count: 24, image: swatch(30) },
-  { id: "home", name: "Home", count: 41, image: swatch(160, 25, 78) },
-  { id: "stationery", name: "Stationery", count: 12, image: swatch(45, 50, 70) },
-  { id: "bags", name: "Bags", count: 8, image: swatch(280, 25, 80) },
+export const mockCategories: Array<{ id: string; name: string; count: number; image?: string; appliesTo?: string }> = [
+  { id: "apparel", name: "Apparel", count: 24, image: swatch(30), appliesTo: "product" },
+  { id: "home", name: "Home", count: 41, image: swatch(160, 25, 78), appliesTo: "product" },
+  { id: "stationery", name: "Stationery", count: 12, image: swatch(45, 50, 70), appliesTo: "product" },
+  { id: "bags", name: "Bags", count: 8, image: swatch(280, 25, 80), appliesTo: "product" },
 ];

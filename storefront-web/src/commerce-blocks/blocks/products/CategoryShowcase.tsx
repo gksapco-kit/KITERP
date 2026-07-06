@@ -1,5 +1,9 @@
 import { mockCategories } from "@/commerce-blocks/mock/products";
+import type { ReactNode } from "react";
 import { cn, imgUrl } from "@/lib/utils";
+import { buildCategoryCatalogPath } from "@/lib/categoryCatalogLink";
+import { useStorePath } from "@/hooks/useStorePath";
+import { Link } from "react-router-dom";
 import {
   catalogGridClassName,
   type CategoryShowcaseLayout,
@@ -21,7 +25,26 @@ type CategoryItem = {
   name: string;
   count: number;
   image?: string;
+  appliesTo?: string;
 };
+
+function CategoryTileLink({
+  item,
+  children,
+  className,
+}: {
+  item: CategoryItem;
+  children: ReactNode;
+  className?: string;
+}) {
+  const storePath = useStorePath();
+  const to = buildCategoryCatalogPath(item.name, item.appliesTo, storePath);
+  return (
+    <Link to={to} className={cn("block no-underline text-inherit", className)}>
+      {children}
+    </Link>
+  );
+}
 
 function CategoryTile({
   item,
@@ -114,16 +137,18 @@ export function CategoryShowcase({
         {title && <h2 className={headingClass}>{title}</h2>}
         <div className="mx-auto max-w-2xl divide-y" style={{ borderColor: isDark ? "#374151" : undefined }}>
           {items.map((c) => (
-            <div key={c.id} className="flex items-center justify-between gap-4 py-4">
-              <span className={cn("text-base font-medium", isDark ? "text-white" : "text-foreground")}>
-                {c.name}
-              </span>
-              {showCount && (
-                <span className={cn("text-sm shrink-0", isDark ? "text-gray-400" : "text-muted-foreground")}>
-                  {c.count} →
+            <CategoryTileLink key={c.id} item={c}>
+              <div className="flex items-center justify-between gap-4 py-4">
+                <span className={cn("text-base font-medium", isDark ? "text-white" : "text-foreground")}>
+                  {c.name}
                 </span>
-              )}
-            </div>
+                {showCount && (
+                  <span className={cn("text-sm shrink-0", isDark ? "text-gray-400" : "text-muted-foreground")}>
+                    {c.count} →
+                  </span>
+                )}
+              </div>
+            </CategoryTileLink>
           ))}
         </div>
       </section>
@@ -138,14 +163,15 @@ export function CategoryShowcase({
         {title && <h2 className={headingClass}>{title}</h2>}
         <div className="flex overflow-x-auto pb-2 scrollbar-none snap-x snap-mandatory" style={{ gap }}>
           {items.map((c) => (
-            <CategoryTile
-              key={c.id}
-              item={c}
-              showCount={showCount}
-              imagePad={stripPad}
-              className={cn(tileWidth, "snap-start")}
-              titleClass={mode === "strip" ? "text-sm font-semibold" : "text-lg font-semibold"}
-            />
+            <CategoryTileLink key={c.id} item={c} className={cn(tileWidth, "snap-start")}>
+              <CategoryTile
+                item={c}
+                showCount={showCount}
+                imagePad={stripPad}
+                className="h-full"
+                titleClass={mode === "strip" ? "text-sm font-semibold" : "text-lg font-semibold"}
+              />
+            </CategoryTileLink>
           ))}
         </div>
       </section>
@@ -160,14 +186,15 @@ export function CategoryShowcase({
         {title && <h2 className={headingClass}>{title}</h2>}
         <div className={cn("grid", bannerClass)} style={{ gap }}>
           {items.map((c) => (
-            <CategoryTile
-              key={c.id}
-              item={c}
-              showCount={showCount}
-              imagePad={Math.max(45, imagePad * 0.55)}
-              titleClass="text-xl sm:text-2xl font-semibold"
-              overlay="dark"
-            />
+            <CategoryTileLink key={c.id} item={c}>
+              <CategoryTile
+                item={c}
+                showCount={showCount}
+                imagePad={Math.max(45, imagePad * 0.55)}
+                titleClass="text-xl sm:text-2xl font-semibold"
+                overlay="dark"
+              />
+            </CategoryTileLink>
           ))}
         </div>
       </section>
@@ -180,14 +207,15 @@ export function CategoryShowcase({
         {title && <h2 className={headingClass}>{title}</h2>}
         <div className={cn("grid", gridClass)} style={{ gap }}>
           {items.map((c) => (
-            <CategoryTile
-              key={c.id}
-              item={c}
-              showCount={showCount}
-              imagePad={Math.max(90, imagePad * 1.1)}
-              titleClass="text-xl font-semibold"
-              overlay="dark"
-            />
+            <CategoryTileLink key={c.id} item={c}>
+              <CategoryTile
+                item={c}
+                showCount={showCount}
+                imagePad={Math.max(90, imagePad * 1.1)}
+                titleClass="text-xl font-semibold"
+                overlay="dark"
+              />
+            </CategoryTileLink>
           ))}
         </div>
       </section>
@@ -201,13 +229,14 @@ export function CategoryShowcase({
         {title && <h2 className={headingClass}>{title}</h2>}
         <div className={cn("grid", compactClass)} style={{ gap: Math.min(gap, 12) }}>
           {items.map((c) => (
-            <CategoryTile
-              key={c.id}
-              item={c}
-              showCount={showCount}
-              imagePad={Math.min(85, imagePad * 0.75)}
-              titleClass="text-sm font-semibold"
-            />
+            <CategoryTileLink key={c.id} item={c}>
+              <CategoryTile
+                item={c}
+                showCount={showCount}
+                imagePad={Math.min(85, imagePad * 0.75)}
+                titleClass="text-sm font-semibold"
+              />
+            </CategoryTileLink>
           ))}
         </div>
       </section>
@@ -220,12 +249,13 @@ export function CategoryShowcase({
       {title && <h2 className={headingClass}>{title}</h2>}
       <div className={cn("grid", gridClass)} style={{ gap }}>
         {items.map((c) => (
-          <CategoryTile
-            key={c.id}
-            item={c}
-            showCount={showCount}
-            imagePad={imagePad}
-          />
+          <CategoryTileLink key={c.id} item={c}>
+            <CategoryTile
+              item={c}
+              showCount={showCount}
+              imagePad={imagePad}
+            />
+          </CategoryTileLink>
         ))}
       </div>
     </section>

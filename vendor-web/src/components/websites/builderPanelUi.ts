@@ -28,12 +28,12 @@ export function builderLinkBtnIcon(linked = false, size: 'sm' | 'md' = 'md') {
   )
 }
 
-/** Side rails — above canvas preview (nav z-50) and section chrome portals. */
+/** Side rails — above in-canvas sticky nav (z-50); keep below floating section chrome. */
 export const BUILDER_PANEL_RAIL_Z = 160
 /** Resize handles + edge toggles — above panel tab strips (same z-index would lose on the right rail). */
 export const BUILDER_PANEL_RESIZE_Z = 170
-/** Section toolbar / design bar portals — above canvas content, below panel edge controls. */
-export const BUILDER_SECTION_CHROME_Z = 140
+/** Section toolbar / design bar portals — above side panels (matches pre-regression body portals). */
+export const BUILDER_SECTION_CHROME_Z = 100000
 
 /** Builder side panels / menus — semantic tokens for light, dark, and all KIT themes. */
 export const builderPanelUi = {
@@ -75,8 +75,8 @@ export const builderPanelUi = {
   tabBtnIcon: 'h-3.5 w-3.5 shrink-0',
   tabCollapseBtn:
     'flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-gray-200 bg-white text-muted-foreground shadow-sm transition-colors hover:bg-muted/50 hover:text-foreground',
-  /** Side panel shell — above canvas, below resize handle toggles. */
-  panelRailStack: 'relative z-[160]',
+  /** Side panel shell — normal flex stacking; floating section chrome portals sit above via z-index. */
+  panelRailStack: 'relative',
   /** Drag-to-resize column — must beat panelRailStack so toggles sit above tab strips on both sides. */
   panelResizeStack: 'relative z-[170]',
   panelEdgeToggle:

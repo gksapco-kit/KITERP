@@ -167,22 +167,58 @@ export function resolveBlockSectionSpacing(
 
   if (!isBreakpointNested(raw)) {
     const flat = resolveBreakpointStyleOverrides(raw, 'desktop')
+    // block.props wins over flat style_overrides — avoids stale override zeros hiding
+    // padding the canvas handles / Section Edit sliders just wrote to props.
     return {
-      paddingTop: readSectionPaddingValue(flat.padding_top ?? props.padding_top, defaultPad),
-      paddingBottom: readSectionPaddingValue(flat.padding_bottom ?? props.padding_bottom, defaultPad),
-      sectionScale: clampSectionScale(flat.section_scale ?? props.section_scale ?? 1),
+      paddingTop: readSectionPaddingValue(props.padding_top ?? flat.padding_top, defaultPad),
+      paddingBottom: readSectionPaddingValue(props.padding_bottom ?? flat.padding_bottom, defaultPad),
+      sectionScale: clampSectionScale(props.section_scale ?? flat.section_scale ?? 1),
     }
   }
 
   const nested = ensureNestedStyleOverrides(block, raw)
-  const desktopBase: BlockSectionSpacing = {
-    paddingTop: readSectionPaddingValue(props.padding_top, defaultPad),
-    paddingBottom: readSectionPaddingValue(props.padding_bottom, defaultPad),
-    sectionScale: clampSectionScale(props.section_scale ?? 1),
+  const desktopLayer = readSpacingLayer(nested.desktop)
+  const tabletLayer = readSpacingLayer(nested.tablet)
+  const mobileLayer = readSpacingLayer(nested.mobile)
+
+  // Desktop: block.props wins over nested style_overrides (same rule as the flat path).
+  const desktop: BlockSectionSpacing = {
+    paddingTop: readSectionPaddingValue(
+      props.padding_top ?? desktopLayer.padding_top,
+      defaultPad,
+    ),
+    paddingBottom: readSectionPaddingValue(
+      props.padding_bottom ?? desktopLayer.padding_bottom,
+      defaultPad,
+    ),
+    sectionScale: clampSectionScale(
+      props.section_scale ?? desktopLayer.section_scale ?? 1,
+    ),
   }
-  const desktop = mergeSpacingLayers(desktopBase, readSpacingLayer(nested.desktop))
-  const tablet = mergeSpacingLayers(desktop, readSpacingLayer(nested.tablet))
-  const mobile = mergeSpacingLayers(tablet, readSpacingLayer(nested.mobile))
+
+  const tablet: BlockSectionSpacing = {
+    paddingTop: tabletLayer.padding_top !== undefined
+      ? readSectionPaddingValue(tabletLayer.padding_top, desktop.paddingTop)
+      : desktop.paddingTop,
+    paddingBottom: tabletLayer.padding_bottom !== undefined
+      ? readSectionPaddingValue(tabletLayer.padding_bottom, desktop.paddingBottom)
+      : desktop.paddingBottom,
+    sectionScale: tabletLayer.section_scale !== undefined
+      ? clampSectionScale(tabletLayer.section_scale)
+      : desktop.sectionScale,
+  }
+
+  const mobile: BlockSectionSpacing = {
+    paddingTop: mobileLayer.padding_top !== undefined
+      ? readSectionPaddingValue(mobileLayer.padding_top, tablet.paddingTop)
+      : tablet.paddingTop,
+    paddingBottom: mobileLayer.padding_bottom !== undefined
+      ? readSectionPaddingValue(mobileLayer.padding_bottom, tablet.paddingBottom)
+      : tablet.paddingBottom,
+    sectionScale: mobileLayer.section_scale !== undefined
+      ? clampSectionScale(mobileLayer.section_scale)
+      : tablet.sectionScale,
+  }
 
   if (breakpoint === 'mobile') return mobile
   if (breakpoint === 'tablet') return tablet

@@ -33,11 +33,11 @@ export default function MapEmbedBlock({ style, props, liveItems, blockId }: Prop
   const lat = (props.lat as number | null) || (profile?.meta?.latitude as number | null) || null
   const lng = (props.lng as number | null) || (profile?.meta?.longitude as number | null) || null
 
-  const mapSrc = !addressHidden && lat && lng
+  const mapSrc = lat != null && lng != null
     ? `https://www.openstreetmap.org/export/embed.html?bbox=${lng - 0.01},${lat - 0.01},${lng + 0.01},${lat + 0.01}&layer=mapnik&marker=${lat},${lng}`
     : !addressHidden && address
-    ? `https://www.google.com/maps?q=${encodeURIComponent(address)}&output=embed`
-    : null
+      ? `https://www.google.com/maps?q=${encodeURIComponent(address)}&output=embed`
+      : null
 
   const layout = String(props.layout ?? 'card')
   const isFull = layout === 'full'
@@ -49,7 +49,11 @@ export default function MapEmbedBlock({ style, props, liveItems, blockId }: Prop
   const showDirections = props.show_directions === true
   const heightPx = Number(props.height) > 0 ? Number(props.height) : (isMinimal ? 240 : 320)
 
-  const directionsUrl = address ? `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(address)}` : null
+  const directionsUrl = lat && lng
+    ? `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`
+    : address
+      ? `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(address)}`
+      : null
 
   const showTitle = !isBlockFieldHidden(props, 'title') && (title || isEditorCanvas) && !isMinimal
   const showAddress = !addressHidden && (address || isEditorCanvas) && !isMinimal
@@ -87,7 +91,7 @@ export default function MapEmbedBlock({ style, props, liveItems, blockId }: Prop
         <div className={cn('w-full h-full flex items-center justify-center', isDark ? 'bg-white/5 text-white/30' : 'bg-gray-100 text-gray-400')}>
           <div className="text-center">
             <MapPin className={cn('mx-auto opacity-30', isMinimal ? 'w-6 h-6' : 'w-10 h-10 mb-2')} />
-            {!isMinimal && <p className="text-sm">Add an address to show the map</p>}
+            {!isMinimal && <p className="text-sm">Set a location in the builder to show the map</p>}
           </div>
         </div>
       )}

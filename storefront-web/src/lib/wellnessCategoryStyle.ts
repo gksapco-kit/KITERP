@@ -272,7 +272,7 @@ export function resolveCategoryCardImage(
 export function normalizeCategoryCardItems(
   items: { title?: string; image_url?: string | null; meta?: Record<string, unknown> }[],
   propImageByTitle?: Map<string, string | undefined>,
-): { title: string; image_url: string }[] {
+): { title: string; image_url: string; appliesTo: string }[] {
   return items.map((c, i) => {
     const title = String(c.title || `Category ${i + 1}`)
     const raw =
@@ -283,6 +283,7 @@ export function normalizeCategoryCardItems(
     return {
       title,
       image_url: resolveCategoryCardImage({ title, image_url: raw || null }, i, propImageByTitle),
+      appliesTo: typeof c.meta?.applies_to === 'string' ? c.meta.applies_to : 'both',
     }
   })
 }

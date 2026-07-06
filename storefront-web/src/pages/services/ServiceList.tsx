@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { useServices, useStoreCategories } from '@/hooks/useStore'
@@ -63,10 +63,12 @@ function flattenCats(cats: StoreCategory[], prefix = ''): { name: string; label:
 export default function ServiceList() {
   const { storePath } = useBranch()
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
+  const initialCategory = searchParams.get('category') || ''
   const [page, setPage] = useState(1)
   const [search, setSearch] = useState('')
   const [searchInput, setSearchInput] = useState('')
-  const [category, setCategory] = useState('')
+  const [category, setCategory] = useState(initialCategory)
   const [showFilters, setShowFilters] = useState(false)
 
   const { data: catData } = useStoreCategories({ tree: true, applies_to: 'service' })

@@ -27,8 +27,8 @@ export async function checkBackendReachable(options?: {
   retryDelayMs?: number
 }): Promise<boolean> {
   const timeoutMs = options?.timeoutMs ?? 5000
-  const retries = options?.retries ?? (import.meta.env.DEV ? 12 : 2)
-  const retryDelayMs = options?.retryDelayMs ?? 2500
+  const retries = options?.retries ?? (import.meta.env.DEV ? 4 : 2)
+  const retryDelayMs = options?.retryDelayMs ?? 1500
 
   for (let attempt = 0; attempt < retries; attempt += 1) {
     if (await pingHealth(timeoutMs)) return true

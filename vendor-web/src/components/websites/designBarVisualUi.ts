@@ -14,6 +14,31 @@ export const DESIGN_BAR_SOFT_DIVIDE = 'divide-gray-100'
 export const VISUAL_TAB_ROW_H = 'h-7'
 export const VISUAL_TAB_MIN_H = 'min-h-0'
 
+/** Two stacked visual rows + 1px gutter — matches focal pad beside image controls. */
+export const VISUAL_IMAGE_TOOLBAR_STACK_H = 'h-[3.5625rem]'
+export const VISUAL_IMAGE_TOOLBAR_STACK_W = 'w-[3.5625rem]'
+
+/** 3×3 focal / pan pad — same chrome as {@link visualPanel}. */
+export const visualFocalPad = cn(
+  'grid shrink-0 grid-cols-3 grid-rows-3 overflow-hidden bg-white border',
+  DESIGN_BAR_SOFT_RADIUS,
+  DESIGN_BAR_SOFT_BORDER,
+  VISUAL_IMAGE_TOOLBAR_STACK_H,
+  VISUAL_IMAGE_TOOLBAR_STACK_W,
+  '[&>*:nth-child(3n)]:border-r-0 [&>*:nth-child(n+7)]:border-b-0',
+)
+
+export const visualFocalCell = cn(
+  'flex min-h-0 min-w-0 items-center justify-center border-r border-b text-gray-600',
+  DESIGN_BAR_SOFT_INNER_BORDER,
+  DESIGN_BAR_SOFT_CELL,
+)
+
+export const visualFocalCorner = cn(
+  'min-h-0 min-w-0 border-r border-b bg-gray-50/40',
+  DESIGN_BAR_SOFT_INNER_BORDER,
+)
+
 export const visualPanel =
   cn('inline-flex items-stretch shrink-0 overflow-hidden bg-white', DESIGN_BAR_SOFT_RADIUS, 'border', DESIGN_BAR_SOFT_BORDER)
 
@@ -131,23 +156,23 @@ export function visualTabMenuTrigger(active: boolean, accent?: 'primary' | 'blue
 }
 
 export const visualSegmentTrack =
-  cn(VISUAL_TAB_ROW_H, 'inline-flex overflow-hidden bg-gray-50/80 shrink-0 border', DESIGN_BAR_SOFT_RADIUS, DESIGN_BAR_SOFT_BORDER)
+  cn(VISUAL_TAB_ROW_H, 'inline-flex overflow-hidden bg-white shrink-0 border', DESIGN_BAR_SOFT_RADIUS, DESIGN_BAR_SOFT_BORDER)
 
 export function visualSegmentBtn(active: boolean) {
   return cn(
-    'flex h-full items-center px-1.5 text-[8px] font-semibold uppercase tracking-wide transition-colors duration-150 border-r last:border-r-0',
+    'flex h-full min-w-[1.75rem] items-center justify-center px-2 text-[8px] font-semibold uppercase tracking-wide transition-colors duration-150 border-r last:border-r-0',
     DESIGN_BAR_SOFT_INNER_BORDER,
     active ? cn(DESIGN_BAR_SOFT_ACTIVE, 'font-medium') : cn('text-gray-600', DESIGN_BAR_SOFT_CELL),
   )
 }
 
 export const visualStepperCell =
-  cn(VISUAL_TAB_ROW_H, 'flex w-5 shrink-0 items-center justify-center border-r text-gray-600', DESIGN_BAR_SOFT_INNER_BORDER, DESIGN_BAR_SOFT_CELL)
+  cn(VISUAL_TAB_ROW_H, 'flex w-6 shrink-0 items-center justify-center border-r text-gray-600', DESIGN_BAR_SOFT_INNER_BORDER, DESIGN_BAR_SOFT_CELL)
 
 export const visualStepperValue =
   cn(
     VISUAL_TAB_ROW_H,
-    'flex w-[1.75rem] shrink-0 items-center justify-center overflow-hidden border-r bg-white px-0.5 text-[8px] font-medium tabular-nums text-gray-700',
+    'flex min-w-[1.75rem] shrink-0 items-center justify-center overflow-hidden border-r bg-white px-1 text-[8px] font-medium tabular-nums text-gray-700',
     DESIGN_BAR_SOFT_INNER_BORDER,
   )
 
@@ -169,7 +194,15 @@ export const visualLayerCol =
 /** Tallest single-row design-bar content (General h-14; image focal pad ≈ 3×h-5). */
 export const DESIGN_BAR_ROW_H = 'min-h-[3.75rem]'
 
-/** Tab panel slot — wraps tool clusters; grows vertically when narrow. */
+/** Design bar shell */
+export const designBarRoot = 'flex w-full min-w-0 shrink-0 flex-col'
+
+/** Tab panel — grows vertically when tool clusters wrap (no horizontal scroll). */
+export const designBarTabPanel = cn(
+  'z-[80] flex min-h-[4.25rem] w-full min-w-0 shrink-0 items-start gap-0 overflow-x-hidden overflow-y-visible bg-white px-1 py-0.5',
+)
+
+/** Tab panel slot — single flowing row; wraps tool clusters when narrow. */
 export const designBarTabSlot = cn(
   'flex min-h-[3.75rem] min-w-0 w-full flex-1 flex-wrap items-center gap-1.5 overflow-x-hidden overflow-y-visible content-start py-1',
 )
@@ -185,7 +218,7 @@ export const visualToolbarRowWrap =
 /** Visual tab with a selected layer — two tight rows, same min-height as other tabs. */
 export const visualTabShellLayer = cn(
   DESIGN_BAR_ROW_H,
-  'flex min-w-0 w-full flex-1 flex-col justify-start gap-px overflow-hidden py-0',
+  'flex min-w-0 w-full flex-1 flex-col justify-start gap-px overflow-x-hidden overflow-y-visible py-0',
 )
 
 /** General tab — shared chrome for edit / clipboard / typography clusters. */
@@ -264,6 +297,10 @@ export const visualTabShell = cn(
   designBarTabSlot,
   'min-h-[3.75rem] self-center py-0',
 )
+
+/** Tab strip row */
+export const designBarTabHeader =
+  'flex items-center gap-2 border-b border-gray-200 bg-gray-100/90 px-2 py-1'
 
 /** Section design-bar tabs — General / Visual / Section image only. */
 export const designBarTabList = 'flex shrink-0 items-center gap-1'

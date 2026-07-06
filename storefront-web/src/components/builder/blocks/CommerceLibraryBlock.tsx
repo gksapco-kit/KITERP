@@ -73,6 +73,7 @@ function hydrateCategories(liveItems: LiveItem[]) {
       name: item.title || `Category ${idx + 1}`,
       count: Number((item.meta as Record<string, unknown>)?.product_count || (item.meta as Record<string, unknown>)?.count || 0),
       image: item.image_url || swatch(item.title || String(idx)),
+      appliesTo: String((item.meta as Record<string, unknown>)?.applies_to || 'both'),
     })),
   )
 }

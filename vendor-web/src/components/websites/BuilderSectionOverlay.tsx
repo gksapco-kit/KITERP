@@ -48,6 +48,10 @@ export interface BuilderSectionBox {
   height: number
 }
 
+function sameSectionBox(a: BuilderSectionBox, b: BuilderSectionBox): boolean {
+  return a.top === b.top && a.left === b.left && a.width === b.width && a.height === b.height
+}
+
 /** Local coords inside a scaled canvas root (correct for transform: scale). */
 export function measureBlockInRoot(
   el: HTMLElement,
@@ -88,10 +92,10 @@ export function getBlockScreenRect(el: HTMLElement): DOMRect {
 
 /** Keep the section hover toolbar fully inside the canvas column (same anchor, no overlap with side panels). */
 const SECTION_CHROME_TOOLBAR_HEIGHT_EST = 30
-const SECTION_CHROME_TOOLBAR_WIDTH_EST = 300
+const SECTION_CHROME_TOOLBAR_WIDTH_EST = 420
 const SECTION_CHROME_INSET = 6
 
-function resolveSectionChromePortalFrame(
+export function resolveSectionChromePortalFrame(
   anchor: { top: number; left: number; right: number; height: number },
   canvasRect: DOMRect | null,
 ): { top: number; right: number; transform?: string } {
@@ -178,7 +182,10 @@ function composeSectionChromeTransform(
 }
 
 /** Drag reposition for the section hover toolbar — offset is kept per block for the session. */
-export function useSectionChromeToolbarDrag(blockId: string) {
+export function useSectionChromeToolbarDrag(
+  blockId: string,
+  scrollRootRef?: RefObject<HTMLElement | null>,
+) {
   const [dragOffset, setDragOffset] = useState(() => readSectionChromeToolbarOffset(blockId))
   const [dragging, setDragging] = useState(false)
   const portalRef = useRef<HTMLDivElement | null>(null)
@@ -198,10 +205,15 @@ export function useSectionChromeToolbarDrag(blockId: string) {
     let left = session.baseLeft + next.x
     let top = session.baseTop + next.y
     const pad = SECTION_CHROME_INSET
-    left = Math.max(pad, Math.min(left, window.innerWidth - session.width - pad))
+    const canvas = scrollRootRef?.current?.getBoundingClientRect()
+    const minLeft = canvas ? canvas.left + pad : pad
+    const maxLeft = canvas
+      ? canvas.right - session.width - pad
+      : window.innerWidth - session.width - pad
+    left = Math.max(minLeft, Math.min(left, maxLeft))
     top = Math.max(pad, Math.min(top, window.innerHeight - session.height - pad))
     return { x: left - session.baseLeft, y: top - session.baseTop }
-  }, [])
+  }, [scrollRootRef])
 
   const finishDrag = useCallback(() => {
     document.body.style.removeProperty('cursor')
@@ -296,24 +308,20 @@ export function useBuilderSectionBox(
         setBox(null)
         return
       }
-      setBox(measureBlockInRoot(el, currentRoot, layoutScale))
+      const next = measureBlockInRoot(el, currentRoot, layoutScale)
+      setBox(prev => (prev && sameSectionBox(prev, next) ? prev : next))
     }
 
     update()
     const ro = new ResizeObserver(update)
     ro.observe(el)
     ro.observe(root)
-    window.addEventListener('scroll', update, true)
     window.addEventListener('resize', update)
-    const scrollRoot = scrollRootRef?.current
-    scrollRoot?.addEventListener('scroll', update, { passive: true })
     return () => {
       ro.disconnect()
-      window.removeEventListener('scroll', update, true)
       window.removeEventListener('resize', update)
-      scrollRoot?.removeEventListener('scroll', update)
     }
-  }, [blockId, containerRef, revision, scrollRootRef, layoutScale])
+  }, [blockId, containerRef, revision, layoutScale])
 
   return box
 }
@@ -579,25 +587,6 @@ export function BuilderSectionOverlay({
   )
 }
 
-type SectionScreenFrame = {
-  top: number
-  left: number
-  width: number
-  height: number
-  scaleY: number
-}
-
-function measureBlockScreenFrame(
-  containerRef: RefObject<HTMLElement | null>,
-  blockId: string,
-): SectionScreenFrame | null {
-  const el = findBlockEl(containerRef, blockId)
-  if (!el) return null
-  const rect = el.getBoundingClientRect()
-  const scaleY = el.offsetHeight > 0 ? rect.height / el.offsetHeight : 1
-  return { top: rect.top, left: rect.left, width: rect.width, height: rect.height, scaleY }
-}
-
 /** Drag top/bottom section edges to adjust padding_top / padding_bottom. */
 export function BuilderSectionPaddingHandles({
   blockId,
@@ -625,10 +614,6 @@ export function BuilderSectionPaddingHandles({
   // Box tracks ResizeObserver only — skip revision so padding ticks don't reset observers.
   const layoutScale = canvasScale > 0 ? canvasScale : 1
   const box = useBuilderSectionBox(blockId, containerRef, undefined, scrollRootRef, layoutScale)
-  const hasBox = box != null
-  const [screenFrame, setScreenFrame] = useState<SectionScreenFrame | null>(null)
-  // Visible canvas bounds — hide handle pills when their seam scrolls outside the canvas.
-  const [clip, setClip] = useState<{ top: number; bottom: number } | null>(null)
   const [activeEdge, setActiveEdge] = useState<'top' | 'bottom' | null>(null)
   const [dragLabel, setDragLabel] = useState<string | null>(null)
   const dragRef = useRef<{
@@ -644,47 +629,6 @@ export function BuilderSectionPaddingHandles({
   const onPaddingCommitRef = useRef(onPaddingCommit)
   onPaddingPreviewRef.current = onPaddingPreview
   onPaddingCommitRef.current = onPaddingCommit
-
-  useLayoutEffect(() => {
-    if (!hasBox || suppressed) {
-      setScreenFrame(null)
-      return
-    }
-
-    const update = () => {
-      setScreenFrame(measureBlockScreenFrame(containerRef, blockId))
-      const sr = scrollRootRef?.current
-      if (sr) {
-        const r = sr.getBoundingClientRect()
-        setClip({ top: r.top, bottom: r.bottom })
-      } else {
-        setClip(null)
-      }
-    }
-
-    update()
-    const el = findBlockEl(containerRef, blockId)
-    const root = containerRef.current
-    if (!el || !root) return
-
-    const ro = new ResizeObserver(update)
-    ro.observe(el)
-    ro.observe(root)
-    window.addEventListener('scroll', update, true)
-    window.addEventListener('resize', update)
-    const scrollRoot = scrollRootRef?.current
-    scrollRoot?.addEventListener('scroll', update, { passive: true })
-
-    return () => {
-      ro.disconnect()
-      window.removeEventListener('scroll', update, true)
-      window.removeEventListener('resize', update)
-      scrollRoot?.removeEventListener('scroll', update)
-    }
-    // Deps are intentionally stable: padding ticks and the drag label change every
-    // frame during a drag — keeping them out avoids tearing down / rebuilding the
-    // observer on each tick. Live size changes are picked up by the ResizeObserver.
-  }, [blockId, hasBox, suppressed, containerRef, scrollRootRef])
 
   if (!box || suppressed) return null
 
@@ -712,20 +656,12 @@ export function BuilderSectionPaddingHandles({
   const bottomHandleY = activeEdge === 'bottom' && drag
     ? drag.displayY
     : liveHeight - liveBottom
+  const hideBottom = liveHeight < 16 || bottomHandleY - topHandleY < 4
 
-  // Screen Y for clip checks — hide handles when the seam scrolls outside the canvas.
-  const topHandleScreenY = screenFrame
-    ? screenFrame.top + topHandleY * screenFrame.scaleY
-    : null
-  const bottomHandleScreenY = screenFrame
-    ? screenFrame.top + bottomHandleY * screenFrame.scaleY
-    : null
-
-  // Only show a handle/tooltip when its seam is inside the visible canvas. The pad
-  // keeps the pill from poking past the edge (it's centred on the seam).
-  const CLIP_PAD = 10
-  const withinClip = (y: number | null): boolean =>
-    y != null && (!clip || (y >= clip.top + CLIP_PAD && y <= clip.bottom - CLIP_PAD))
+  // Drag pills sit on the outer section border (slightly outside) so the bottom
+  // control stays visible at section edges; seam guide lines stay on padding seams.
+  const topPillY = 0
+  const bottomPillY = liveHeight
 
   const flushPreview = () => {
     const drag = dragRef.current
@@ -870,8 +806,6 @@ export function BuilderSectionPaddingHandles({
     label: string,
   ) => {
     const active = activeEdge === edge
-    const screenY = screenFrame ? screenFrame.top + handleY * screenFrame.scaleY : null
-    if (screenY != null && !withinClip(screenY)) return null
 
     return (
       <div
@@ -882,7 +816,9 @@ export function BuilderSectionPaddingHandles({
         )}
         style={{
           top: handleY,
-          transform: 'translateY(-50%)',
+          transform: edge === 'top'
+            ? 'translateY(calc(-50% - 14px))'
+            : 'translateY(calc(-50% + 14px))',
         }}
       >
         <div
@@ -944,23 +880,24 @@ export function BuilderSectionPaddingHandles({
         style={{ top: topHandleY }}
         aria-hidden
       />
-      <div
-        className={cn(
-          'pointer-events-none absolute left-0 right-0 z-[59] h-[2px] -translate-y-1/2',
-          activeEdge === 'bottom' ? 'bg-primary' : 'bg-primary/45',
-        )}
-        style={{ top: bottomHandleY }}
-        aria-hidden
-      />
+      {!hideBottom && (
+        <div
+          className={cn(
+            'pointer-events-none absolute left-0 right-0 z-[59] h-[2px] -translate-y-1/2',
+            activeEdge === 'bottom' ? 'bg-primary' : 'bg-primary/45',
+          )}
+          style={{ top: bottomHandleY }}
+          aria-hidden
+        />
+      )}
 
       {edges.map(({ edge, value, label }) => {
-        const seamY = edge === 'top' ? topHandleY : bottomHandleY
-        return renderHandlePill(edge, seamY, value, label)
+        if (edge === 'bottom' && hideBottom) return null
+        const pillY = edge === 'top' ? topPillY : bottomPillY
+        return renderHandlePill(edge, pillY, value, label)
       })}
 
-      {dragLabel && activeEdge && withinClip(
-        activeEdge === 'top' ? topHandleScreenY : bottomHandleScreenY,
-      ) && (
+      {dragLabel && activeEdge && (
         <div
           className="pointer-events-none absolute left-1/2 z-[63] -translate-x-1/2 -translate-y-1/2 rounded-md bg-gray-900 px-2.5 py-1 text-[11px] font-mono text-white shadow-md"
           style={{ top: activeEdge === 'top' ? topHandleY : bottomHandleY }}

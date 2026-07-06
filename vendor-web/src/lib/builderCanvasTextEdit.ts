@@ -68,7 +68,7 @@ const BLOCK_TEXT_FIELDS: Record<string, readonly string[]> = {
   video_gallery: ['title'],
   blog_grid: ['title'],
   video_embed: ['title'],
-  map_embed: ['title'],
+  map_embed: ['title', 'address'],
   trust_logos: ['title'],
   timeline: ['title'],
   rich_text: ['content'],

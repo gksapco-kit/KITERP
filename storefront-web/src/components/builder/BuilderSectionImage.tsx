@@ -61,36 +61,100 @@ export function BuilderSectionImage({
     : 0
 
   // The "Photo selected" label floats just ABOVE the frame so it never covers the
-  // image (small avatars / logos were fully hidden under it). It is rendered in a
-  // body portal because the frame and its parent wrappers use `overflow-hidden`,
-  // which would clip anything positioned outside the frame bounds.
+  // image (small avatars / logos were fully hidden under it). In the builder it is
+  // portaled into `.builder-canvas-scroll` with scroll-content coordinates so it
+  // tracks the image while scrolling and stays inside the canvas (not over side
+  // panels). Other contexts fall back to a fixed body portal.
   const frameRef = useRef<HTMLDivElement>(null)
-  const [labelPos, setLabelPos] = useState<{ top: number; left: number } | null>(null)
+  type LabelAnchor = {
+    top: number
+    left: number
+    below: boolean
+    portalRoot: HTMLElement
+    mode: 'canvas' | 'viewport'
+  }
+  const [labelAnchor, setLabelAnchor] = useState<LabelAnchor | null>(null)
   useEffect(() => {
     if (!isActive || typeof window === 'undefined') {
-      setLabelPos(null)
+      setLabelAnchor(null)
       return
     }
     const el = frameRef.current
     if (!el) return
     let raf = 0
+    const BADGE_HALF_W = 72
+    const BADGE_H = 24
+    const GAP = 6
+    const EDGE_PAD = 8
+
     const update = () => {
       const r = el.getBoundingClientRect()
-      setLabelPos({ top: r.top, left: r.left + r.width / 2 })
+      if (r.width <= 0 && r.height <= 0) {
+        setLabelAnchor(null)
+        return
+      }
+
+      const scrollRoot = el.closest('.builder-canvas-scroll') as HTMLElement | null
+      const pageCanvas = el.closest('[data-page-canvas]') as HTMLElement | null
+
+      if (scrollRoot) {
+        const rootRect = scrollRoot.getBoundingClientRect()
+        let centerX = r.left - rootRect.left + scrollRoot.scrollLeft + r.width / 2
+
+        if (pageCanvas) {
+          const pageRect = pageCanvas.getBoundingClientRect()
+          const pageLeft = pageRect.left - rootRect.left + scrollRoot.scrollLeft
+          const pageRight = pageLeft + pageCanvas.offsetWidth
+          centerX = Math.min(
+            pageRight - BADGE_HALF_W - EDGE_PAD,
+            Math.max(pageLeft + BADGE_HALF_W + EDGE_PAD, centerX),
+          )
+        }
+
+        const contentTop = r.top - rootRect.top + scrollRoot.scrollTop
+        const placeBelow = contentTop < BADGE_H + GAP + EDGE_PAD
+        const top = placeBelow ? contentTop + r.height + GAP : contentTop - GAP
+
+        setLabelAnchor({
+          top,
+          left: centerX,
+          below: placeBelow,
+          portalRoot: scrollRoot,
+          mode: 'canvas',
+        })
+        return
+      }
+
+      let left = r.left + r.width / 2
+      const topEdge = r.top - GAP
+      const placeBelow = topEdge - BADGE_H < EDGE_PAD
+      setLabelAnchor({
+        top: placeBelow ? r.bottom + GAP : topEdge,
+        left,
+        below: placeBelow,
+        portalRoot: document.body,
+        mode: 'viewport',
+      })
     }
     const schedule = () => {
       cancelAnimationFrame(raf)
       raf = requestAnimationFrame(update)
     }
     update()
-    window.addEventListener('scroll', schedule, true)
     window.addEventListener('resize', schedule)
+    const scrollRoot = el.closest('.builder-canvas-scroll') as HTMLElement | null
+    scrollRoot?.addEventListener('scroll', schedule, { passive: true })
+    window.addEventListener('scroll', schedule, true)
     const ro = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(schedule) : null
     ro?.observe(el)
+    scrollRoot && ro?.observe(scrollRoot)
+    const pageCanvas = el.closest('[data-page-canvas]') as HTMLElement | null
+    pageCanvas && ro?.observe(pageCanvas)
     return () => {
       cancelAnimationFrame(raf)
-      window.removeEventListener('scroll', schedule, true)
       window.removeEventListener('resize', schedule)
+      scrollRoot?.removeEventListener('scroll', schedule)
+      window.removeEventListener('scroll', schedule, true)
       ro?.disconnect()
     }
   }, [isActive, multiCount])
@@ -178,16 +242,20 @@ export function BuilderSectionImage({
           <span className={cn(CORNER_CLASS, 'right-0 bottom-0 translate-x-px translate-y-px')} aria-hidden />
         </>
       ) : null}
-      {isActive && labelPos && typeof document !== 'undefined'
+      {isActive && labelAnchor && typeof document !== 'undefined'
         ? createPortal(
             <div
-              className="pointer-events-none fixed z-[2147483000] flex -translate-x-1/2 -translate-y-full items-center gap-1 whitespace-nowrap rounded-md bg-primary px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-primary-foreground shadow-md"
-              style={{ top: labelPos.top - 6, left: labelPos.left }}
+              className={cn(
+                'pointer-events-none z-[90] flex -translate-x-1/2 items-center gap-1 whitespace-nowrap rounded-md bg-primary px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-primary-foreground shadow-md',
+                labelAnchor.mode === 'canvas' ? 'absolute' : 'fixed',
+                !labelAnchor.below && '-translate-y-full',
+              )}
+              style={{ top: labelAnchor.top, left: labelAnchor.left }}
             >
               <ImageIcon className="h-3 w-3 shrink-0" aria-hidden />
               {multiCount > 1 ? `${multiCount} selected` : 'Photo selected'}
             </div>,
-            document.body,
+            labelAnchor.portalRoot,
           )
         : null}
     </div>

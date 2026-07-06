@@ -20,7 +20,7 @@ import {
   textOnSolid,
 } from './heroContrast'
 import { HeroBannerCarousel } from './HeroBannerCarousel'
-import { resolveHeroBackgroundUrls } from './heroBanners'
+import { heroUsesBannerCarousel, resolveHeroBackgroundUrls } from './heroBanners'
 
 export function HeroSection({
   props,
@@ -55,6 +55,10 @@ export function HeroSection({
     themeHeroUrl: theme.hero_image_url,
     vendor,
   })
+  const useCarousel = heroUsesBannerCarousel(
+    heroBackgroundUrls.length,
+    props.banner_carousel as boolean | undefined,
+  )
 
   const kit = editorialKitHero(builderTemplateId, props)
 
@@ -68,7 +72,6 @@ export function HeroSection({
     const sub = str(props.subtitle, theme.hero_subtitle) || 'A small collection of garments and homewares, made by hand in studios we know by name.'
     const accent = str(props.accent_phrase as string, 'loud')
     const heroImg = imgUrl(editorialHeroFallback || '/storefront-ui/retail-hero.jpg')
-    const useCarousel = heroBackgroundUrls.length > 1 && !str(props.bg_image_url as string, '') && !theme.hero_image_url
     return (
       <section className="bg-retail-bg text-retail-ink px-4 sm:px-6 lg:px-10 pt-7 sm:pt-10 pb-10 sm:pb-16 overflow-x-hidden">
         <div className="mx-auto max-w-7xl">
@@ -116,7 +119,6 @@ export function HeroSection({
     const lines = raw.split(/\n/).map(l => l.trim()).filter(Boolean)
     const accent = str(props.accent_phrase as string, 'seasonal')
     const heroImg = imgUrl(editorialHeroFallback || '/storefront-ui/restaurant-hero.jpg')
-    const useCarousel = heroBackgroundUrls.length > 1 && !str(props.bg_image_url as string, '') && !theme.hero_image_url
     const line1 = lines[0] || 'Seasonal,'
     const line2 = lines.slice(1).join(' ') || 'quietly seasonal.'
     return (
@@ -158,7 +160,6 @@ export function HeroSection({
     const accent = str(props.accent_phrase as string, 'Patient')
     const sub = str(props.subtitle, theme.hero_subtitle) || 'A 90-bed independent hospital built around the unhurried appointment. Same-day bookings across 14 specialties.'
     const heroImg = imgUrl(editorialHeroFallback || '/storefront-ui/hospital-hero.jpg')
-    const useCarousel = heroBackgroundUrls.length > 1 && !str(props.bg_image_url as string, '') && !theme.hero_image_url
     const lineTail = lines[2] || lines.slice(2).join(' ')
 
     return (
@@ -259,7 +260,11 @@ export function HeroSection({
       <section className={`relative overflow-hidden ${minHeightClass} flex items-center`}>
         {bgUrl ? (
           <>
-            <HeroBannerCarousel urls={heroBackgroundUrls} />
+            {useCarousel ? (
+              <HeroBannerCarousel urls={heroBackgroundUrls} />
+            ) : (
+              <img src={imgUrl(bgUrl)} alt="" className="absolute inset-0 h-full w-full object-cover object-center" />
+            )}
             <div className="absolute inset-0" style={{ background: heroPhotoOverlay(c.primary, c.secondary) }} />
           </>
         ) : (
@@ -322,7 +327,11 @@ export function HeroSection({
     <section className="relative overflow-hidden" style={{ background: heroBrandGradient(c.primary, c.secondary) }}>
       {bgUrl && (
         <div className="absolute inset-0">
-          <HeroBannerCarousel urls={heroBackgroundUrls} />
+          {useCarousel ? (
+            <HeroBannerCarousel urls={heroBackgroundUrls} />
+          ) : (
+            <img src={imgUrl(bgUrl)} alt="" className="absolute inset-0 h-full w-full object-cover object-center" />
+          )}
           <div className="absolute inset-0" style={{ background: heroBannerDimOverlay(c.primary, c.secondary) }} />
         </div>
       )}

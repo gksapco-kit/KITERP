@@ -15,10 +15,14 @@ export type OverlayLayerType =
 export type OverlayLayerItem = {
   id: string
   type: OverlayLayerType | string
+  /** Horizontal offset — percent of section width when coordUnit is `percent`, else px. */
   x?: number
+  /** Vertical offset — percent of section height when coordUnit is `percent`, else px. */
   y?: number
   w: number
   h: number
+  /** When `'percent'`, x/y/w/h are 0–100 and scale with the section on resize. */
+  coordUnit?: 'percent' | 'px'
   zIndex?: number
   src?: string
   bgColor?: string

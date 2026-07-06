@@ -1,11 +1,9 @@
 // Figma-style alignment snapping for inserted overlay elements (buttons, text,
 // images, icons, …) on the website builder canvas.
 //
-// Overlay items already live in the canvas container's pixel coordinate space
-// (item.x / item.y / item.w / item.h), so — unlike the storefront field snapper —
-// no scale conversion is needed here. The dragged/resized item snaps to:
-//   • every sibling overlay's left / center / right and top / middle / bottom
-//   • the container's own edges and center (so items can center on the section)
+// Overlay boxes live in either percent space (0–100 of the section, container
+// 100×100) or legacy pixel space (container width/height in px). Pass the
+// matching container dimensions when collecting snap targets.
 
 export type OverlayBox = { x: number; y: number; w: number; h: number }
 
@@ -208,95 +206,4 @@ export function snapOverlayResize(
   }
 
   return { x, y, w, h, guides }
-}
-
-export type OverlayContainerAlign =
-  | 'left'
-  | 'center-h'
-  | 'right'
-  | 'top'
-  | 'center-v'
-  | 'bottom'
-  | 'center'
-
-/** Move an overlay to align with the section canvas edges or center. */
-export function alignOverlayInContainer(
-  box: OverlayBox,
-  containerW: number,
-  containerH: number,
-  alignment: OverlayContainerAlign,
-): OverlayBox {
-  const w = box.w
-  const h = box.h
-  let x = box.x
-  let y = box.y
-
-  switch (alignment) {
-    case 'left':
-      x = 0
-      break
-    case 'center-h':
-      x = Math.round((containerW - w) / 2)
-      break
-    case 'right':
-      x = containerW - w
-      break
-    case 'top':
-      y = 0
-      break
-    case 'center-v':
-      y = Math.round((containerH - h) / 2)
-      break
-    case 'bottom':
-      y = containerH - h
-      break
-    case 'center':
-      x = Math.round((containerW - w) / 2)
-      y = Math.round((containerH - h) / 2)
-      break
-  }
-
-  return {
-    ...box,
-    x: Math.max(0, Math.min(containerW - w, x)),
-    y: Math.max(0, Math.min(containerH - h, y)),
-  }
-}
-
-/** Guide lines to flash after a one-click align action. */
-export function guidesForContainerAlign(
-  box: OverlayBox,
-  containerW: number,
-  containerH: number,
-  alignment: OverlayContainerAlign,
-): OverlayGuideLine[] {
-  const item = rectFromBox(box)
-  const section = rectFromBox({ x: 0, y: 0, w: containerW, h: containerH })
-  const guides: OverlayGuideLine[] = []
-
-  const pushV = (value: number) => {
-    guides.push({ axis: 'x', value, start: 0, end: containerH })
-  }
-  const pushH = (value: number) => {
-    guides.push({ axis: 'y', value, start: 0, end: containerW })
-  }
-
-  if (alignment === 'left' || alignment === 'center-h' || alignment === 'right' || alignment === 'center') {
-    if (alignment === 'left' || alignment === 'center') pushV(item.left)
-    if (alignment === 'right' || alignment === 'center') pushV(item.right)
-    if (alignment === 'center-h' || alignment === 'center') {
-      pushV(item.centerX)
-      pushV(section.centerX)
-    }
-  }
-  if (alignment === 'top' || alignment === 'center-v' || alignment === 'bottom' || alignment === 'center') {
-    if (alignment === 'top' || alignment === 'center') pushH(item.top)
-    if (alignment === 'bottom' || alignment === 'center') pushH(item.bottom)
-    if (alignment === 'center-v' || alignment === 'center') {
-      pushH(item.centerY)
-      pushH(section.centerY)
-    }
-  }
-
-  return guides
 }

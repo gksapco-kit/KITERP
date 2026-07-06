@@ -46,6 +46,7 @@ const schema = z.object({
 type LoginForm = z.infer<typeof schema>
 
 const SAVED_LOGIN_KEY = 'kiterp_vendor_saved_login'
+const API_UNREACHABLE_TOAST_ID = 'vendor-login-api-unreachable'
 
 function getUnreachableApiMessage(): string {
   if (import.meta.env.DEV) {
@@ -125,23 +126,31 @@ export default function Login() {
       }
       const ax = err as AxiosError
       const status = ax.response?.status
+
+      // Real HTTP response (401, 400, …) means the API is up — show the actual login error.
+      if (ax.response && status !== 502 && status !== 503) {
+        setApiOk(true)
+        toast.error(extractApiError(err, 'Login failed — check your email/phone and password'))
+        return
+      }
+
       const liveReachable = await checkBackendReachable({
-        retries: import.meta.env.DEV ? 4 : 1,
-        retryDelayMs: 1000,
+        retries: import.meta.env.DEV ? 2 : 1,
+        retryDelayMs: 800,
         timeoutMs: 4000,
       })
-      if (liveReachable) setApiOk(true)
-      const backendUnreachable = !liveReachable || status === 502 || status === 503
-      if (backendUnreachable) {
-        if (!liveReachable) setApiOk(false)
-        toast.error(getUnreachableApiMessage())
+      if (liveReachable) {
+        setApiOk(true)
+        if (isAxiosNetworkError(ax)) {
+          toast.error('Connection interrupted — try again in a moment')
+        } else {
+          toast.error(extractApiError(err, 'Login failed — check your email/phone and password'))
+        }
         return
       }
-      if (isAxiosNetworkError(ax)) {
-        toast.error('Connection interrupted — try again in a moment')
-        return
-      }
-      toast.error(extractApiError(err, 'Login failed — check your email/phone and password'))
+
+      setApiOk(false)
+      toast.error(getUnreachableApiMessage(), { id: API_UNREACHABLE_TOAST_ID })
     },
   })
 

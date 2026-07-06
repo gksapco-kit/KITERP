@@ -25,6 +25,7 @@ import {
   resolveWellnessSiteProducts,
 } from '@/lib/wellnessProductFilter'
 import { cn, imgUrl } from '@/lib/utils'
+import { buildCategoryCatalogPath } from '@/lib/categoryCatalogLink'
 import BlockEmptyPlaceholder from '@/components/builder/BlockEmptyPlaceholder'
 import { isBlockFieldHidden, resolveBlockTextField } from '@/lib/blockHiddenFields'
 import {
@@ -86,7 +87,12 @@ function resolveCategoryCardPropData(
   cats: ReturnType<typeof normalizeCategoryCardItems>
   propImageByTitle: Map<string, string | undefined>
 } {
+  const syncedFromCatalog = (() => {
+    const ds = props.data_source
+    return Boolean(ds && typeof ds === 'object' && (ds as { type?: string }).type === 'categories')
+  })()
   const propCats = (() => {
+    if (syncedFromCatalog) return []
     const raw = props.categories as { title?: string; image_url?: string }[] | undefined
     const list = Array.isArray(raw) ? raw.filter(c => c && typeof c === 'object') : []
     if (list.length > 0) {
@@ -109,7 +115,7 @@ function resolveCategoryCardPropData(
     propCats.map(c => [String(c.title || '').toLowerCase(), c.image_url]),
   )
   const cats = normalizeCategoryCardItems(
-    liveItems.length > 0 ? liveItems : propCats,
+    syncedFromCatalog || liveItems.length > 0 ? liveItems : propCats,
     propImageByTitle,
   )
   return { cats, propImageByTitle }
@@ -434,7 +440,7 @@ export default function ProductGridBlock({ site, style, props, liveItems, blockT
             return (
               <Link
                 key={`${c.title}-${i}`}
-                to={storePath('/products')}
+                to={buildCategoryCatalogPath(c.title, c.appliesTo, storePath)}
                 className={editorialCardClass}
                 style={{ paddingBottom: `${editorialTilePadding}%` }}
               >
@@ -483,7 +489,12 @@ export default function ProductGridBlock({ site, style, props, liveItems, blockT
       )
     }
 
-    const wrapCategoryLink = (key: string, cardInner: ReactNode, className?: string) => {
+    const wrapCategoryLink = (
+      key: string,
+      cat: { title: string; appliesTo?: string },
+      cardInner: ReactNode,
+      className?: string,
+    ) => {
       if (isEditorCanvas) {
         return (
           <div key={key} className={cn('group block', className)}>
@@ -492,7 +503,11 @@ export default function ProductGridBlock({ site, style, props, liveItems, blockT
         )
       }
       return (
-        <Link key={key} to={storePath('/products')} className={cn('group block no-underline', className)}>
+        <Link
+          key={key}
+          to={buildCategoryCatalogPath(cat.title, cat.appliesTo, storePath)}
+          className={cn('group block no-underline', className)}
+        >
           {cardInner}
         </Link>
       )
@@ -505,6 +520,7 @@ export default function ProductGridBlock({ site, style, props, liveItems, blockT
           <div className="divide-y" style={{ borderColor: `${sectionText}22` }}>
             {cats.slice(0, categoryLimit).map((c, i) => wrapCategoryLink(
               `${c.title}-${i}`,
+              c,
               <>
                 <div className="flex items-center justify-between py-4 gap-4">
                   <CategoryCardTitle
@@ -536,6 +552,7 @@ export default function ProductGridBlock({ site, style, props, liveItems, blockT
               const stripSize = isMinimalCard ? 96 : isCompactCard ? 112 : 140
               return wrapCategoryLink(
                 `${c.title}-${i}`,
+                c,
                 <>
                   <div
                     className={cn('relative shrink-0 snap-start overflow-hidden bg-gray-100 mb-2', cardRadius)}
@@ -586,6 +603,7 @@ export default function ProductGridBlock({ site, style, props, liveItems, blockT
               const fallback = resolveCategoryCardImage({ title: c.title, image_url: null }, i, propImageByTitle)
               return wrapCategoryLink(
                 `${c.title}-${i}`,
+                c,
                 <div
                   className={cn('relative isolate w-full overflow-hidden bg-gray-100', cardRadius)}
                   style={categoryImageAspectStyle(Math.max(40, Math.min(56, imageHeightPct * 0.5)), false)}
@@ -638,6 +656,7 @@ export default function ProductGridBlock({ site, style, props, liveItems, blockT
               const fallback = resolveCategoryCardImage({ title: c.title, image_url: null }, i, propImageByTitle)
               return wrapCategoryLink(
                 `${c.title}-${i}`,
+                c,
                 <div
                   className={cn('relative isolate w-full overflow-hidden bg-gray-100', cardRadius)}
                   style={categoryImageAspectStyle(imageHeightPct, false)}
@@ -688,6 +707,7 @@ export default function ProductGridBlock({ site, style, props, liveItems, blockT
               const tall = i % 3 === 0
               return wrapCategoryLink(
                 `${c.title}-${i}`,
+                c,
                 <>
                   <div
                     className={cn('relative w-full break-inside-avoid overflow-hidden bg-gray-100', cardRadius)}
@@ -743,6 +763,7 @@ export default function ProductGridBlock({ site, style, props, liveItems, blockT
               const fallback = resolveCategoryCardImage({ title: c.title, image_url: null }, i, propImageByTitle)
               return wrapCategoryLink(
                 `${c.title}-${i}`,
+                c,
                 <div
                   className={cn(
                     'builder-tile-card overflow-hidden bg-white border border-gray-100 flex flex-col h-full',
@@ -874,7 +895,11 @@ export default function ProductGridBlock({ site, style, props, liveItems, blockT
                   <div className="flex flex-wrap gap-3">
                     {(featuredOne.meta as Record<string, unknown>)?.is_category_showcase ? (
                       <Link
-                        to={storePath('/products')}
+                        to={buildCategoryCatalogPath(
+                          featuredOne.title || '',
+                          String((featuredOne.meta as Record<string, unknown>)?.applies_to || 'both'),
+                          storePath,
+                        )}
                         style={{ backgroundColor: style.primary_color, color: '#fff' }}
                         className="h-12 px-8 text-xs font-bold uppercase tracking-[0.2em] rounded-none inline-flex items-center"
                       >

@@ -144,6 +144,7 @@ export default function ProductList() {
   const cardStyle = theme.card_style || 'default'
   const [searchParams] = useSearchParams()
   const initialSearch = searchParams.get('search') || ''
+  const initialCategory = searchParams.get('category') || ''
 
   const [page, setPage] = useState(1)
   const [search, setSearch] = useState(initialSearch)
@@ -158,7 +159,7 @@ export default function ProductList() {
 
   // Filter state
   const [filterType, setFilterType] = useState<FilterType>('both')
-  const [selectedCategory, setSelectedCategory] = useState<string>('')
+  const [selectedCategory, setSelectedCategory] = useState<string>(initialCategory)
   const [minPrice, setMinPrice] = useState<string>('')
   const [maxPrice, setMaxPrice] = useState<string>('')
   const [inStockOnly, setInStockOnly] = useState(false)

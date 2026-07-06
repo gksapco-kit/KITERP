@@ -17,6 +17,11 @@ import {
   type OverlayBox,
   type OverlayGuideLine,
 } from '@/lib/overlayAlignmentSnap'
+import {
+  OVERLAY_AXIS_MAX,
+  OVERLAY_MIN_H_PERCENT,
+  OVERLAY_MIN_W_PERCENT,
+} from '@storefront/lib/blockOverlays'
 import type { OverlayLayerItem } from '@/lib/builderOverlayVisual'
 import {
   visualActionBtn,
@@ -30,10 +35,8 @@ import {
 
 const NUDGE = FIELD_OFFSET_STEP_PX
 const SIZE_STEP = 8
-/** Layer position & size on the visual bar — percent-style 0–100 range. */
-const OVERLAY_AXIS_MAX = 100
-const OVERLAY_MIN_W = 1
-const OVERLAY_MIN_H = 1
+const OVERLAY_MIN_W = OVERLAY_MIN_W_PERCENT
+const OVERLAY_MIN_H = OVERLAY_MIN_H_PERCENT
 // Keyboard arrow nudge: small, even pixel steps (Shift = larger jump).
 const KEY_NUDGE_STEP = 2
 const KEY_NUDGE_STEP_LARGE = 10
