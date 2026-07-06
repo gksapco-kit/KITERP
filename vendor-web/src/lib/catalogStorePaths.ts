@@ -1,4 +1,4 @@
-import { DRAFT_BROWSER_PREVIEW_PATH, getStorefrontAppOrigin, getVendorPreviewOrigin } from '@/lib/storefrontPreviewUrl'
+import { getDraftBrowserPreviewAbsolutePath, getStorefrontAppOrigin, getVendorPreviewOrigin } from '@/lib/storefrontPreviewUrl'
 
 export type CatalogRouteKind = 'products' | 'services' | 'categories'
 
@@ -76,7 +76,7 @@ export function buildDraftPreviewCatalogUrl(
   if (!token) return null
   const embedRoute = parseStorefrontEmbedRoute(rawPath)
   if (!embedRoute) return null
-  const url = new URL(DRAFT_BROWSER_PREVIEW_PATH, getVendorPreviewOrigin())
+  const url = new URL(getDraftBrowserPreviewAbsolutePath(), getVendorPreviewOrigin())
   url.searchParams.set('token', token)
   url.searchParams.set('route', embedRoute.split('?')[0])
   const embedQs = embedRoute.includes('?') ? embedRoute.slice(embedRoute.indexOf('?') + 1) : ''

@@ -20,12 +20,12 @@ import {
   type PreviewTabPostMessage,
 } from '@/lib/draftPreviewSync'
 import {
-  DRAFT_BROWSER_PREVIEW_PATH,
   DRAFT_PREVIEW_PENDING_PARAM,
   PREVIEW_PENDING_READY_TYPE,
   alignPreviewUrlWithCurrentHost,
   getStorefrontAppOrigin,
   getVendorPreviewOrigin,
+  matchesDraftPreviewBrowserPath,
 } from '@/lib/storefrontPreviewUrl'
 import { isSameLoopbackOrigin } from '@/lib/loopbackHost'
 import { cn } from '@/lib/utils'
@@ -58,8 +58,7 @@ function isAllowedPreviewNavigateUrl(raw: string): boolean {
     if (!isSameLoopbackOrigin(url.origin, window.location.origin) && url.origin !== window.location.origin) {
       return false
     }
-    const path = url.pathname.replace(/\/+$/, '') || '/'
-    return path === DRAFT_BROWSER_PREVIEW_PATH && Boolean(url.searchParams.get('token')?.trim())
+    return matchesDraftPreviewBrowserPath(url.pathname) && Boolean(url.searchParams.get('token')?.trim())
   } catch {
     return false
   }

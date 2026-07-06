@@ -1,6 +1,7 @@
 import { ShoppingBag, Wrench, User, ShoppingCart, Home } from 'lucide-react'
 import { parseCatalogRouteParam, buildStorefrontCatalogEmbedUrl } from '@/lib/catalogStorePaths'
 import { buildDraftPreviewPageUrl } from '@/lib/draftPreviewNavigation'
+import { getDraftBrowserPreviewAbsolutePath, getVendorPreviewOrigin } from '@/lib/storefrontPreviewUrl'
 
 function catalogPreviewLabel(catalogRoute: string): { title: string; Icon: typeof ShoppingBag } {
   const base = catalogRoute.split('?')[0].replace(/^\/+|\/+$/g, '')
@@ -44,7 +45,11 @@ export function DraftCatalogPreview({
   hideBreadcrumb?: boolean
 }) {
   const embedSrc = buildStorefrontCatalogEmbedUrl(vendorSlug, catalogRoute, previewToken)
-  const backHref = buildDraftPreviewPageUrl(previewToken, pageSlug)
+  const backHref = (() => {
+    const relative = buildDraftPreviewPageUrl(previewToken, pageSlug)
+    const qs = relative.includes('?') ? relative.slice(relative.indexOf('?')) : ''
+    return `${getVendorPreviewOrigin()}${getDraftBrowserPreviewAbsolutePath()}${qs}`
+  })()
 
   const { title, Icon } = catalogPreviewLabel(catalogRoute)
 

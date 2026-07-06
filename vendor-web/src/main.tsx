@@ -12,7 +12,7 @@ import { RootErrorBoundary } from './components/RootErrorBoundary'
 import { useAuthStore } from './stores/authStore'
 import { initGlobalEscapeHandler } from './lib/escapeCloseRegistry'
 import { resolveApiBaseUrl } from './lib/apiBase'
-import { DRAFT_BROWSER_PREVIEW_PATH, initPreviewTabOpenerBridge } from './lib/storefrontPreviewUrl'
+import { matchesDraftPreviewBrowserPath, initPreviewTabOpenerBridge } from './lib/storefrontPreviewUrl'
 import { ensureAppFavicon } from './lib/appFavicon'
 import { refreshAuthSessionDeduped } from './lib/authSession'
 import { isAxiosNetworkError } from './lib/errorMessages'
@@ -29,10 +29,8 @@ attachAutoRefreshInterceptor(apiClient)
 // Do not treat /auth/handoff?token= as signup — that query param is a short-lived handoff JWT.
 // Do not treat /preview/draft?token= as auth — that query param is a builder snapshot token.
 function isDraftPreviewPath(pathname: string): boolean {
-  const path = pathname.replace(/\/+$/, '') || '/'
-  return path === DRAFT_BROWSER_PREVIEW_PATH
-    || path.startsWith(`${DRAFT_BROWSER_PREVIEW_PATH}/`)
-    || path === '/websites/browser-preview'
+  return matchesDraftPreviewBrowserPath(pathname)
+    || pathname.replace(/\/+$/, '') === '/websites/browser-preview'
 }
 
 ;(() => {

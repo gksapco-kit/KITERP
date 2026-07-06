@@ -62,8 +62,25 @@ export function getCustomerStorefrontBaseUrl(vendorSlug: string): string {
   return `https://${slug}.kiterp.com`
 }
 
-/** Public draft preview on vendor-web (port 3001) — no storefront iframe. */
+/** Router-relative draft preview path (basename applied by React Router in prod). */
 export const DRAFT_BROWSER_PREVIEW_PATH = '/preview/draft'
+
+/**
+ * Full browser pathname for draft preview, including Vite base (e.g. `/vendor/preview/draft` in prod).
+ * Use for window.open, URL(), and window.location.pathname checks — not for React Router `Link to`.
+ */
+export function getDraftBrowserPreviewAbsolutePath(): string {
+  const base = (import.meta.env.BASE_URL || '/').replace(/\/+$/, '')
+  if (!base || base === '/') return DRAFT_BROWSER_PREVIEW_PATH
+  return `${base}${DRAFT_BROWSER_PREVIEW_PATH}`
+}
+
+/** True when `pathname` is the vendor-web draft preview shell (includes /vendor base in prod). */
+export function matchesDraftPreviewBrowserPath(pathname: string): boolean {
+  const path = pathname.replace(/\/+$/, '') || '/'
+  const draft = getDraftBrowserPreviewAbsolutePath().replace(/\/+$/, '') || '/'
+  return path === draft || path.startsWith(`${draft}/`)
+}
 
 /** Query flag while the builder awaits the preview API (same-origin loading shell). */
 export const DRAFT_PREVIEW_PENDING_PARAM = 'pending'
@@ -97,7 +114,7 @@ export function alignPreviewUrlWithCurrentHost(previewShellUrl: string): string 
 
 /** Draft preview URL on vendor-web only: /preview/draft?token=…&page=… */
 export function buildVendorDraftPreviewUrl(previewToken: string, pageSlug?: string | null): string {
-  const url = new URL(DRAFT_BROWSER_PREVIEW_PATH, getVendorPreviewOrigin())
+  const url = new URL(getDraftBrowserPreviewAbsolutePath(), getVendorPreviewOrigin())
   url.searchParams.set('token', previewToken)
   const slug = pageSlug?.trim()
   if (slug && slug.length > 0 && slug.toLowerCase() !== 'home') {
@@ -128,7 +145,7 @@ export function buildBuilderDraftPreviewUrl(
 export function wrapStorefrontPreviewForVendorBrowser(storefrontPreviewUrl: string): string {
   if (typeof window === 'undefined') return storefrontPreviewUrl
   if (!shouldUseLocalStorefrontUrls()) return storefrontPreviewUrl
-  const shell = new URL(DRAFT_BROWSER_PREVIEW_PATH, getVendorPreviewOrigin())
+  const shell = new URL(getDraftBrowserPreviewAbsolutePath(), getVendorPreviewOrigin())
   shell.searchParams.set('target', storefrontPreviewUrl)
   return shell.toString()
 }
@@ -212,7 +229,7 @@ function postMessageToPreviewTabLoopback(url: string): boolean {
 }
 
 function buildVendorDraftPreviewPendingUrl(): string {
-  const url = new URL(DRAFT_BROWSER_PREVIEW_PATH, getVendorPreviewOrigin())
+  const url = new URL(getDraftBrowserPreviewAbsolutePath(), getVendorPreviewOrigin())
   url.searchParams.set(DRAFT_PREVIEW_PENDING_PARAM, '1')
   return url.toString()
 }
