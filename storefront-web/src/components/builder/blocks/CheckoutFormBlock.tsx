@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom'
 import { useVendor } from '@/contexts/VendorContext'
 import { CreditCard, MapPin, Truck } from 'lucide-react'
 import type { PublicSite, StyleConfig, LiveItem } from '@/blocks/registry'
+import { builderSectionContainerWithMax } from '@/lib/builderSectionLayout'
 
 interface Props { site: PublicSite; style: StyleConfig; props: Record<string, unknown>; liveItems: LiveItem[]; branchCode?: string | null }
 

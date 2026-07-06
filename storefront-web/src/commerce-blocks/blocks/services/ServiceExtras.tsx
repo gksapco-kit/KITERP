@@ -221,62 +221,246 @@ export function FAQBlock({ layout = "single", title = "Frequently asked", faqs }
 
 /* ---------------- Team / Practitioner Picker ---------------- */
 
+interface TeamMember {
+  id?: string;
+  name: string;
+  role: string;
+  bio?: string;
+  avatar?: string;
+  rating?: number;
+  reviews?: number;
+  available?: boolean;
+  nextAvailable?: string;
+}
+
 interface TeamProps {
+  layout?: "grid" | "list" | "compact";
   showAvailability?: boolean;
   cta?: string;
   title?: string;
+  members?: TeamMember[];
+}
+
+function initials(name: string): string {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return "?";
+  return (parts[0][0] + (parts[1]?.[0] ?? "")).toUpperCase();
+}
+
+/** Consistent circular avatar — falls back to initials so rows/chips never jump around when a photo is missing. */
+function TeamAvatar({ member, className }: { member: TeamMember; className?: string }) {
+  if (member.avatar) {
+    return <img src={member.avatar} alt={member.name} className={cn("shrink-0 rounded-full object-cover", className)} />;
+  }
+  return (
+    <div
+      className={cn(
+        "flex shrink-0 items-center justify-center rounded-full bg-primary/10 font-semibold text-primary",
+        className,
+      )}
+    >
+      {initials(member.name)}
+    </div>
+  );
 }
 
 export function TeamPicker({
+  layout = "grid",
   showAvailability = true,
   cta = "Book with",
   title = "Choose a practitioner",
+  members,
 }: TeamProps) {
-  const [selected, setSelected] = useState<string>(mockTeam[0].id);
+  const items = members !== undefined ? members : mockTeam;
+  const [selected, setSelected] = useState<string | undefined>(undefined);
+  const activeId = selected ?? items[0]?.id ?? items[0]?.name;
+
+  if (items.length === 0) {
+    return (
+      <section className="px-6 py-10">
+        {title && <h2 className="mb-6 text-2xl font-semibold tracking-tight">{title}</h2>}
+      </section>
+    );
+  }
+
+  if (layout === "list") {
+    return (
+      <section className="px-6 py-10">
+        {title && <h2 className="mb-6 text-2xl font-semibold tracking-tight">{title}</h2>}
+        <div className="mx-auto flex max-w-3xl flex-col gap-3">
+          {items.map((m, i) => {
+            const id = m.id ?? String(i);
+            const active = activeId === id;
+            return (
+              <button
+                key={id}
+                onClick={() => setSelected(id)}
+                disabled={m.available === false}
+                className={cn(
+                  "flex items-center gap-4 rounded-lg border bg-card p-4 text-left transition-all",
+                  active ? "border-primary ring-2 ring-primary/30" : "border-border hover:border-primary/50",
+                  m.available === false && "cursor-not-allowed opacity-60",
+                )}
+              >
+                <TeamAvatar member={m} className="h-14 w-14 text-base" />
+                <div className="min-w-0 flex-1">
+                  <div className="flex flex-wrap items-baseline gap-2">
+                    <span className="font-semibold">{m.name}</span>
+                    <span className="text-xs text-muted-foreground">{m.role}</span>
+                  </div>
+                  {m.bio && <p className="mt-1 line-clamp-1 text-sm text-muted-foreground">{m.bio}</p>}
+                </div>
+                <div className="flex shrink-0 flex-col items-end gap-1.5 text-xs">
+                  {typeof m.rating === "number" && (
+                    <span className="flex items-center gap-1">
+                      <Star className="h-3 w-3 fill-warning text-warning" /> {m.rating}
+                      {typeof m.reviews === "number" ? ` (${m.reviews})` : ""}
+                    </span>
+                  )}
+                  {showAvailability && (m.available !== undefined || m.nextAvailable) && (
+                    <span
+                      className={cn(
+                        "rounded-full px-2 py-0.5 font-medium",
+                        m.available === false
+                          ? "bg-muted text-muted-foreground"
+                          : "bg-success/15 text-success-foreground",
+                      )}
+                    >
+                      {m.available === false ? "Booked" : m.nextAvailable || "Available"}
+                    </span>
+                  )}
+                </div>
+                {active && (
+                  <Button size="sm" className="shrink-0">
+                    {cta} {m.name.split(" ")[0]}
+                  </Button>
+                )}
+              </button>
+            );
+          })}
+        </div>
+      </section>
+    );
+  }
+
+  if (layout === "compact") {
+    const active = items.find((m, i) => (m.id ?? String(i)) === activeId) ?? items[0];
+    return (
+      <section className="px-6 py-10">
+        {title && <h2 className="mb-6 text-2xl font-semibold tracking-tight">{title}</h2>}
+        <div className="mx-auto max-w-3xl">
+          <div className="flex gap-2.5 overflow-x-auto pb-2">
+            {items.map((m, i) => {
+              const id = m.id ?? String(i);
+              const isActive = activeId === id;
+              return (
+                <button
+                  key={id}
+                  onClick={() => setSelected(id)}
+                  disabled={m.available === false}
+                  className={cn(
+                    "flex w-24 shrink-0 flex-col items-center gap-2 rounded-lg border bg-card px-3 py-3 text-center transition-all",
+                    isActive ? "border-primary bg-primary/5 ring-2 ring-primary/30" : "border-border hover:border-primary/50",
+                    m.available === false && "cursor-not-allowed opacity-60",
+                  )}
+                >
+                  <TeamAvatar member={m} className="h-12 w-12 text-sm" />
+                  <div className="w-full">
+                    <div className="truncate text-sm font-semibold">{m.name}</div>
+                    <div className="truncate text-xs text-muted-foreground">{m.role}</div>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+          {active && (
+            <div className="mt-4 flex flex-wrap items-center gap-4 rounded-lg border border-border bg-card p-4">
+              <TeamAvatar member={active} className="h-12 w-12 shrink-0 text-sm" />
+              <div className="min-w-0 flex-1">
+                <div className="flex flex-wrap items-baseline gap-2">
+                  <span className="font-semibold">{active.name}</span>
+                  <span className="text-xs text-muted-foreground">{active.role}</span>
+                </div>
+                {active.bio && <p className="mt-1 text-sm text-muted-foreground">{active.bio}</p>}
+                <div className="mt-1.5 flex items-center gap-3 text-xs">
+                  {typeof active.rating === "number" && (
+                    <span className="flex items-center gap-1">
+                      <Star className="h-3 w-3 fill-warning text-warning" /> {active.rating}
+                      {typeof active.reviews === "number" ? ` (${active.reviews})` : ""}
+                    </span>
+                  )}
+                  {showAvailability && (active.available !== undefined || active.nextAvailable) && (
+                    <span
+                      className={cn(
+                        "rounded-full px-2 py-0.5 font-medium",
+                        active.available === false
+                          ? "bg-muted text-muted-foreground"
+                          : "bg-success/15 text-success-foreground",
+                      )}
+                    >
+                      {active.available === false ? "Booked" : active.nextAvailable || "Available"}
+                    </span>
+                  )}
+                </div>
+              </div>
+              <Button size="sm" className="shrink-0" disabled={active.available === false}>
+                {cta} {active.name.split(" ")[0]}
+              </Button>
+            </div>
+          )}
+        </div>
+      </section>
+    );
+  }
+
   return (
     <section className="px-6 py-10">
       {title && <h2 className="mb-6 text-2xl font-semibold tracking-tight">{title}</h2>}
       <div className="grid gap-4 md:grid-cols-3">
-        {mockTeam.map((m) => {
-          const active = selected === m.id;
+        {items.map((m, i) => {
+          const id = m.id ?? String(i);
+          const active = activeId === id;
           return (
             <button
-              key={m.id}
-              onClick={() => setSelected(m.id)}
-              disabled={!m.available}
+              key={id}
+              onClick={() => setSelected(id)}
+              disabled={m.available === false}
               className={cn(
                 "group flex flex-col rounded-lg border bg-card p-5 text-left transition-all",
                 active ? "border-primary ring-2 ring-primary/30" : "border-border hover:border-primary/50",
-                !m.available && "cursor-not-allowed opacity-60",
+                m.available === false && "cursor-not-allowed opacity-60",
               )}
             >
               <div className="flex items-center gap-3">
-                <img src={m.avatar} alt={m.name} className="h-14 w-14 rounded-full object-cover" />
+                <TeamAvatar member={m} className="h-14 w-14 text-base" />
                 <div>
                   <div className="font-semibold">{m.name}</div>
                   <div className="text-xs text-muted-foreground">{m.role}</div>
                 </div>
               </div>
-              <p className="mt-3 flex-1 text-sm text-muted-foreground">{m.bio}</p>
+              {m.bio && <p className="mt-3 flex-1 text-sm text-muted-foreground">{m.bio}</p>}
               <div className="mt-3 flex items-center justify-between text-xs">
-                <span className="flex items-center gap-1">
-                  <Star className="h-3 w-3 fill-warning text-warning" /> {m.rating} ({m.reviews})
-                </span>
-                {showAvailability && (
+                {typeof m.rating === "number" && (
+                  <span className="flex items-center gap-1">
+                    <Star className="h-3 w-3 fill-warning text-warning" /> {m.rating}
+                    {typeof m.reviews === "number" ? ` (${m.reviews})` : ""}
+                  </span>
+                )}
+                {showAvailability && (m.available !== undefined || m.nextAvailable) && (
                   <span
                     className={cn(
                       "rounded-full px-2 py-0.5 text-xs font-medium",
-                      m.available
-                        ? "bg-success/15 text-success-foreground"
-                        : "bg-muted text-muted-foreground",
+                      m.available === false
+                        ? "bg-muted text-muted-foreground"
+                        : "bg-success/15 text-success-foreground",
                     )}
                   >
-                    {m.available ? m.nextAvailable : "Booked"}
+                    {m.available === false ? "Booked" : m.nextAvailable || "Available"}
                   </span>
                 )}
               </div>
               {active && (
-                <Button size="sm" className="mt-4 w-full">
+                <Button size="sm" className="mt-4 w-full" disabled={m.available === false}>
                   {cta} {m.name.split(" ")[0]}
                 </Button>
               )}

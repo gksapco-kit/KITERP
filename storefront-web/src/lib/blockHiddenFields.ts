@@ -80,7 +80,6 @@ const BLOCK_DELETE_ALIASES: Record<string, string> = {
   promo_strip: 'coupon_banner',
   gallery_grid: 'gallery_masonry',
   image_gallery: 'gallery_masonry',
-  portfolio_grid: 'gallery_masonry',
   blog_featured: 'blog_grid',
   blog_list: 'blog_grid',
   services_list: 'services_cards',
@@ -141,6 +140,7 @@ const TOP_LEVEL_DELETABLE: Record<string, readonly string[]> = {
   marquee_strip: ['text'],
   rich_text: ['content'],
   gallery_masonry: ['title'],
+  portfolio_grid: ['title'],
   video_gallery: ['title'],
   social_links: ['title'],
   product_grid: ['title', 'subtitle'],
@@ -189,6 +189,7 @@ const ARRAY_ITEM_FIELDS: Record<string, readonly { arrayKey: string; fields: rea
   footer: [{ arrayKey: 'footer_columns', fields: ['title', 'links'] }],
   marquee_strip: [{ arrayKey: 'items', fields: ['label', 'image_url', 'url'] }],
   gallery_masonry: [{ arrayKey: 'images', fields: ['src', 'caption', 'alt'] }],
+  portfolio_grid: [{ arrayKey: 'projects', fields: ['title', 'category', 'image_url', 'url'] }],
   video_gallery: [{ arrayKey: 'videos', fields: ['video_url', 'title', 'caption'] }],
   category_cards: [{ arrayKey: 'categories', fields: ['title', 'subtitle', 'image_url'] }],
   payment_methods_strip: [{ arrayKey: 'methods', fields: ['method'] }],
@@ -216,6 +217,7 @@ const ARRAY_IMAGE_FIELDS: Record<string, readonly { arrayKey: string; fields: re
   services_cards: [{ arrayKey: 'features', fields: ['image_url'] }],
   services_list: [{ arrayKey: 'features', fields: ['image_url'] }],
   gallery_masonry: [{ arrayKey: 'images', fields: ['src'] }],
+  portfolio_grid: [{ arrayKey: 'projects', fields: ['image_url'] }],
   video_gallery: [{ arrayKey: 'videos', fields: ['video_url'] }],
   category_cards: [{ arrayKey: 'categories', fields: ['image_url'] }],
   marquee_strip: [{ arrayKey: 'items', fields: ['image_url'] }],
@@ -322,6 +324,7 @@ const ARRAY_ITEM_LABELS: Record<string, string> = {
   footer_columns: 'Footer column',
   images: 'Gallery image',
   methods: 'Payment method',
+  projects: 'Project',
 }
 
 function parseNestedFieldKey(fieldKey: string): { arrayKey: string; index: number; itemField: string } | null {

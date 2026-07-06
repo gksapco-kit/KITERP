@@ -354,6 +354,11 @@ export const BLOCK_QUICK_PRESETS: Record<string, SectionLayoutPreset[]> = {
     { label: 'Vertical', desc: 'Stacked steps with descriptions beside each number', props: { variant: 'vertical', layout: 'vertical' } },
     { label: 'Cards', desc: 'Numbered steps inside bordered cards', props: { variant: 'cards', layout: 'cards' } },
   ],
+  'service.team': [
+    { label: 'Grid', desc: 'Cards in a 3-column grid with bio and rating', props: { variant: 'grid', layout: 'grid' } },
+    { label: 'List', desc: 'Single-column rows, avatar left and details right', props: { variant: 'list', layout: 'list' } },
+    { label: 'Compact', desc: 'Small avatar chips with a summary panel below', props: { variant: 'compact', layout: 'compact' } },
+  ],
   booking_widget: [
     { label: 'Calendar View', desc: 'Month calendar picker', props: { show_calendar: true, layout: 'calendar' } },
     { label: 'Simple CTA', desc: 'Book now button', props: { show_calendar: false, layout: 'cta' } },

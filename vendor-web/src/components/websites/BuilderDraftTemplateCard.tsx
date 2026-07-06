@@ -4,6 +4,7 @@ import { cn } from '@/lib/utils'
 import { resolveWebsiteBuiltForLabel } from '@/components/websites/WebsiteScopeBadge'
 import { AppliedTemplateViewLiveButton, templateCardIconActionClass } from '@/components/websites/AppliedTemplateViewLiveButton'
 import { resolveSiteStaticThumbnail } from '@/lib/websiteSitePreview'
+import { WebsiteSiteGlimpse } from '@/components/websites/WebsiteSiteGlimpse'
 import {
   isBuilderSiteBuSpecific,
   isBuilderSiteBuiltForStore,

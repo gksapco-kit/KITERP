@@ -122,7 +122,7 @@ const MEDIA_URL_KEYS = new Set([
 ])
 
 /** Arrays where `url` on an item is a navigation link (not an image src). */
-const ARRAY_ITEM_URL_IS_NAV = new Set(['nav_links', 'logos', 'items', 'links'])
+const ARRAY_ITEM_URL_IS_NAV = new Set(['nav_links', 'logos', 'items', 'links', 'projects'])
 
 const ITEM_SCHEMA_ALIASES: Record<string, string> = {
   'service.pricing': 'pricing',
@@ -136,7 +136,6 @@ const ITEM_SCHEMA_ALIASES: Record<string, string> = {
   blog_list: 'blog_grid',
   gallery_grid: 'gallery_masonry',
   image_gallery: 'gallery_masonry',
-  portfolio_grid: 'gallery_masonry',
   map_contact: 'map_embed',
   offer_banner: 'coupon_banner',
   promo_strip: 'coupon_banner',

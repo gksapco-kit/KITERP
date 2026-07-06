@@ -57,6 +57,7 @@ const RichTextBlock = lazy(() => import('@/components/builder/blocks/RichTextBlo
 const ImageBlock = lazy(() => import('@/components/builder/blocks/ImageBlock'))
 const VideoEmbedBlock = lazy(() => import('@/components/builder/blocks/VideoEmbedBlock'))
 const GalleryMasonryBlock = lazy(() => import('@/components/builder/blocks/GalleryMasonryBlock'))
+const PortfolioGridBlock = lazy(() => import('@/components/builder/blocks/PortfolioGridBlock'))
 const VideoGalleryBlock = lazy(() => import('@/components/builder/blocks/VideoGalleryBlock'))
 const SocialLinksBlock = lazy(() => import('@/components/builder/blocks/SocialLinksBlock'))
 const CountdownBlock = lazy(() => import('@/components/builder/blocks/CountdownBlock'))
@@ -83,6 +84,7 @@ const BlogGridBlock = lazy(() => import('@/components/builder/blocks/BlogGridBlo
 const CartDrawerBlock = lazy(() => import('@/components/builder/blocks/CartDrawerBlock'))
 const LiveQuoteBlock = lazy(() => import('@/components/builder/blocks/LiveQuoteBlock'))
 const CommerceLibraryBlock = lazy(() => import('@/components/builder/blocks/CommerceLibraryBlock'))
+const HtmlEmbedBlock = lazy(() => import('@/components/builder/blocks/HtmlEmbedBlock'))
 
 // ── Context helpers ────────────────────────────────────────────────────────
 
@@ -325,8 +327,8 @@ export function SingleBlock({
       case 'video_embed':      return <VideoEmbedBlock {...commonProps} />
       case 'gallery_masonry':
       case 'gallery_grid':
-      case 'image_gallery':
-      case 'portfolio_grid':   return <GalleryMasonryBlock {...commonProps} />
+      case 'image_gallery':      return <GalleryMasonryBlock {...commonProps} />
+      case 'portfolio_grid':     return <PortfolioGridBlock {...commonProps} />
       case 'video_gallery':      return <VideoGalleryBlock {...commonProps} />
       case 'social_links':     return <SocialLinksBlock {...commonProps} />
       case 'countdown':        return <CountdownBlock {...commonProps} />
@@ -376,7 +378,7 @@ export function SingleBlock({
       case 'spacer':
         return <div style={{ height: `${Number(p.height ?? 80)}px` }} />
       case 'html_embed':
-        return <div className="w-full" dangerouslySetInnerHTML={{ __html: (p.html as string) || '' }} />
+        return <HtmlEmbedBlock {...commonProps} />
       default:
         return import.meta.env.DEV
           ? <div className="py-4 px-6 bg-yellow-50 border border-yellow-200 text-yellow-700 text-sm rounded">Unknown block type: <strong>{block.block_type}</strong></div>

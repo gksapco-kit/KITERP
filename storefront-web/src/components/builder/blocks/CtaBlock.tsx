@@ -1,6 +1,8 @@
-import type { CSSProperties } from 'react'
+import { useState, type CSSProperties, type FormEvent } from 'react'
+import { Loader2 } from 'lucide-react'
 import { imgUrl, cn } from '@/lib/utils'
 import type { PublicSite, StyleConfig, LiveItem } from '@/blocks/registry'
+import { publicSitesApi } from '@/api/publicSites'
 import { resolveSectionSurface } from '@/lib/navBlockLayout'
 import { readSectionImageFocal } from '@/lib/sectionImageStyle'
 import { BuilderTextField } from '@/components/builder/BuilderTextField'
@@ -19,7 +21,7 @@ interface Props {
   blockId?: string
 }
 
-export default function CtaBlock({ style, props, blockId }: Props) {
+export default function CtaBlock({ site, style, props, blockId }: Props) {
   const builderCanvas = useBuilderCanvas()
   const isEditorCanvas = builderCanvas?.isEditorCanvas && !!blockId
   const headline = resolveBlockTextField(props, 'headline', {
@@ -61,8 +63,65 @@ export default function CtaBlock({ style, props, blockId }: Props) {
   const isSplit = layout === 'split'
   const isCard = layout === 'card'
 
-  const showPrimary = ctaLabel && !isBlockFieldHidden(props, 'cta_label')
-  const showSecondary = ctaSecondary && !isBlockFieldHidden(props, 'cta_secondary')
+  const showEmail = props.show_email === true
+  const [email, setEmail] = useState('')
+  const [subscribing, setSubscribing] = useState(false)
+  const [subscribed, setSubscribed] = useState(false)
+
+  const handleSubscribe = async (e: FormEvent) => {
+    e.preventDefault()
+    if (!email || !site?.id) return
+    setSubscribing(true)
+    try {
+      await publicSitesApi.submitNewsletter(site.id, email)
+      setSubscribed(true)
+    } catch {
+      alert('Subscription failed, please try again')
+    } finally {
+      setSubscribing(false)
+    }
+  }
+
+  const emailForm = showEmail ? (
+    subscribed ? (
+      <p className={cn('text-sm font-semibold', textLight ? 'text-white' : 'text-green-600')}>
+        You&apos;re subscribed! 🎉
+      </p>
+    ) : (
+      <form
+        onSubmit={handleSubscribe}
+        className={cn('flex flex-wrap gap-2 w-full', isSplit ? 'max-w-sm shrink-0' : 'max-w-md mx-auto')}
+      >
+        <input
+          type="email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          placeholder="your@email.com"
+          required
+          className={cn(
+            'flex-1 min-w-[10rem] px-4 py-3 rounded-xl text-sm focus:outline-none focus:ring-2 border',
+            textLight
+              ? 'bg-white/10 border-white/30 text-white placeholder:text-white/60'
+              : 'bg-white border-gray-200 text-gray-900',
+          )}
+        />
+        <button
+          type="submit"
+          disabled={subscribing}
+          className="inline-flex items-center gap-2 px-6 py-3 rounded-xl font-bold text-base hover:opacity-90 transition-all disabled:opacity-60"
+          style={{
+            backgroundColor: textLight ? '#fff' : style.primary_color,
+            color: textLight ? style.primary_color : '#fff',
+          }}
+        >
+          {subscribing ? <Loader2 className="w-4 h-4 animate-spin" /> : ctaLabel || 'Subscribe'}
+        </button>
+      </form>
+    )
+  ) : null
+
+  const showPrimary = !showEmail && ctaLabel && !isBlockFieldHidden(props, 'cta_label')
+  const showSecondary = !showEmail && ctaSecondary && !isBlockFieldHidden(props, 'cta_secondary')
 
   const ctaButtons = (showPrimary || showSecondary) ? (
     <div className={cn('flex gap-3 flex-wrap', isSplit ? 'shrink-0' : 'justify-center')}>
@@ -153,9 +212,11 @@ export default function CtaBlock({ style, props, blockId }: Props) {
               placeholder="Add a subtitle"
             />
           )}
-          {!isSplit && ctaButtons}
+          {!isSplit && (showEmail ? emailForm : ctaButtons)}
         </div>
-        {isSplit && ctaButtons ? <div className={usesImageBg ? 'relative z-[2]' : undefined}>{ctaButtons}</div> : null}
+        {isSplit && (showEmail || ctaButtons) ? (
+          <div className={usesImageBg ? 'relative z-[2]' : undefined}>{showEmail ? emailForm : ctaButtons}</div>
+        ) : null}
         {Boolean(props.show_credit_card_note) && !isSplit && (
           <p className={cn('text-xs mt-3', usesImageBg && 'relative z-[2]', textLight ? 'text-white/60' : 'text-gray-500')}>
             No credit card required

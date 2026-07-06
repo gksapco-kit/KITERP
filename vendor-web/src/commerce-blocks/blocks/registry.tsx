@@ -803,10 +803,23 @@ const faqBlock: BlockDefinition = {
   ],
 };
 
+const teamMemberSchema = z.object({
+  id: z.string().optional(),
+  name: z.string().default(""),
+  role: z.string().default(""),
+  bio: z.string().optional(),
+  avatar: z.string().optional(),
+  rating: z.number().optional(),
+  reviews: z.number().optional(),
+  available: z.boolean().optional(),
+  nextAvailable: z.string().optional(),
+});
+
 const teamProps = z.object({
   showAvailability: z.boolean().default(true),
   cta: z.string().default("Book with"),
   title: z.string().default("Choose a practitioner"),
+  members: z.array(teamMemberSchema).optional(),
 });
 
 const teamBlock: BlockDefinition = {
@@ -818,7 +831,11 @@ const teamBlock: BlockDefinition = {
   icon: Users,
   propsSchema: teamProps,
   defaultProps: teamProps.parse({}),
-  variants: [{ id: "default", name: "Default", Component: TeamPicker }],
+  variants: [
+    { id: "grid", name: "Grid", Component: (p) => <TeamPicker {...p} layout="grid" /> },
+    { id: "list", name: "List", Component: (p) => <TeamPicker {...p} layout="list" /> },
+    { id: "compact", name: "Compact", Component: (p) => <TeamPicker {...p} layout="compact" /> },
+  ],
 };
 
 const addonsProps = z.object({

@@ -5,8 +5,13 @@ import type { LiveItem, PublicSite, StyleConfig } from '@/blocks/registry'
 import { BuilderTextField } from '@/components/builder/BuilderTextField'
 import { useBuilderCanvas } from '@/contexts/BuilderCanvasContext'
 import { isBlockFieldHidden, resolveBlockTextField } from '@/lib/blockHiddenFields'
-import { builderSectionContainerClass, builderSectionContainerWithMax } from '@/lib/builderSectionLayout'
+import { builderSectionContainerWithMax } from '@/lib/builderSectionLayout'
+import { cn } from '@/lib/utils'
 import { storeApi } from '@/api/store'
+
+/** Mirrors the shared `GENERIC_SPACING_PRESETS` layout keys so the section-style picker's
+ * 10 default options ("Standard", "Spacious", "Compact", …) each render distinctly here. */
+type QuoteLayout = 'standard' | 'spacious' | 'compact' | 'centered' | 'wide' | 'narrow' | 'split' | 'card' | 'minimal' | 'statement'
 
 interface Props {
   site: PublicSite
@@ -44,6 +49,37 @@ export default function LiveQuoteBlock({ site, style, props, liveItems, blockId 
   const ctaLabel = resolveBlockTextField(props, 'cta_label')
   const showTitle = !isBlockFieldHidden(props, 'title') && (title || isEditorCanvas)
   const showCta = !isBlockFieldHidden(props, 'cta_label') && (ctaLabel || isEditorCanvas)
+
+  const layout = (String(props.layout ?? 'standard') as QuoteLayout)
+  const isDark = layout === 'statement' || props.bg_style === 'dark'
+  const isCard = layout === 'card' || props.card_style === 'elevated'
+  const isMinimal = layout === 'minimal'
+  const isLeftAlign = props.align === 'left'
+  const isStacked = layout === 'narrow' || layout === 'centered'
+  const catalogAsList = layout === 'compact' || layout === 'narrow' || layout === 'centered'
+
+  const maxWidth =
+    layout === 'wide' || props.max_width === 'full' ? 'max-w-7xl'
+      : layout === 'narrow' || props.max_width === 'prose' ? 'max-w-xl'
+        : layout === 'centered' ? 'max-w-2xl'
+          : layout === 'compact' ? 'max-w-3xl'
+            : 'max-w-5xl'
+  const sectionBg = isDark ? '#0f172a' : undefined
+  const headingColor = isDark ? '#f8fafc' : undefined
+  const mutedTextClass = isDark ? 'text-slate-400' : 'text-gray-500'
+  const catalogItemClass = isMinimal
+    ? 'border-transparent hover:bg-gray-50'
+    : isDark
+      ? 'border-slate-700 hover:border-slate-500 hover:bg-slate-800/60'
+      : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+  const panelClass = isMinimal
+    ? 'border-transparent bg-transparent'
+    : isDark
+      ? 'border-slate-700 bg-slate-800/60'
+      : 'border-gray-200 bg-white'
+  const inputClass = isDark
+    ? 'bg-slate-900 border-slate-700 text-slate-100 placeholder:text-slate-500'
+    : 'bg-white border-gray-200'
 
   const [rows, setRows] = useState<QuoteRow[]>([])
   const [name, setName] = useState('')
@@ -123,133 +159,173 @@ export default function LiveQuoteBlock({ site, style, props, liveItems, blockId 
     }
   }
 
-  return (
-    <section className={builderSectionContainerWithMax('max-w-5xl')} aria-label={title ?? undefined}>
-      <header className="text-center mb-8">
-        <Calculator className="w-8 h-8 mx-auto mb-3" style={{ color: style.primary_color }} aria-hidden="true" />
-        {showTitle && (
-          <BuilderTextField
-            fieldKey="title"
-            blockId={blockId}
-            blockProps={props}
-            value={title ?? ''}
-            as="h2"
-            className="text-2xl sm:text-3xl font-bold"
-            style={{ fontFamily: style.font_heading, color: style.text_color }}
-            placeholder="Section title"
-          />
-        )}
-        <p className="text-sm text-gray-500 mt-2 max-w-lg mx-auto">
-          Pick the items you're interested in, set quantities, and we'll get back with a tailored quote.
-        </p>
-      </header>
+  const catalogPanel = (
+    <div>
+      <h3 className={cn('text-xs font-bold uppercase tracking-wide mb-3', mutedTextClass)}>Catalog</h3>
+      {liveItems.length === 0 ? (
+        <p className={cn('text-sm', mutedTextClass)}>No products available yet.</p>
+      ) : catalogAsList ? (
+        <ul className="space-y-2 list-none p-0 m-0">
+          {liveItems.map(item => (
+            <li key={item.id || item.title}>
+              <button
+                type="button"
+                onClick={() => addProduct(item)}
+                className={cn('w-full text-left p-2.5 border rounded-xl transition-colors flex items-center gap-3', catalogItemClass)}
+              >
+                <div className="w-10 h-10 rounded-lg bg-gray-100 overflow-hidden shrink-0">
+                  {item.image_url && <img src={item.image_url} alt={item.title} className="w-full h-full object-cover" />}
+                </div>
+                <p className="text-sm font-medium truncate flex-1">{item.title}</p>
+                {item.price_formatted && (
+                  <span className={cn('text-xs shrink-0 tabular-nums', mutedTextClass)}>{item.price_formatted}</span>
+                )}
+              </button>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <ul className="grid grid-cols-1 sm:grid-cols-2 gap-3 list-none p-0 m-0">
+          {liveItems.map(item => (
+            <li key={item.id || item.title}>
+              <button
+                type="button"
+                onClick={() => addProduct(item)}
+                className={cn('w-full text-left p-3 border rounded-xl transition-colors flex gap-3', catalogItemClass)}
+              >
+                <div className="w-12 h-12 rounded-lg bg-gray-100 overflow-hidden shrink-0">
+                  {item.image_url && <img src={item.image_url} alt={item.title} className="w-full h-full object-cover" />}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-medium truncate">{item.title}</p>
+                  {item.price_formatted && (
+                    <p className={cn('text-xs mt-0.5', mutedTextClass)}>{item.price_formatted}</p>
+                  )}
+                </div>
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  )
 
-      <div className="grid grid-cols-1 lg:grid-cols-[2fr_1fr] gap-6">
-        {/* Catalog picker */}
-        <div>
-          <h3 className="text-xs font-bold uppercase tracking-wide text-gray-500 mb-3">Catalog</h3>
-          {liveItems.length === 0 ? (
-            <p className="text-sm text-gray-400">No products available yet.</p>
-          ) : (
-            <ul className="grid grid-cols-1 sm:grid-cols-2 gap-3 list-none p-0 m-0">
-              {liveItems.map(item => (
-                <li key={item.id || item.title}>
-                  <button
-                    type="button"
-                    onClick={() => addProduct(item)}
-                    className="w-full text-left p-3 border border-gray-200 rounded-xl hover:border-gray-300 hover:bg-gray-50 transition-colors flex gap-3"
-                  >
-                    <div className="w-12 h-12 rounded-lg bg-gray-100 overflow-hidden shrink-0">
-                      {item.image_url && <img src={item.image_url} alt={item.title} className="w-full h-full object-cover" />}
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <p className="text-sm font-medium truncate">{item.title}</p>
-                      {item.price_formatted && (
-                        <p className="text-xs text-gray-500 mt-0.5">{item.price_formatted}</p>
-                      )}
-                    </div>
-                  </button>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
+  const quotePanel = (
+    <div className={cn('border rounded-2xl p-4 space-y-4', panelClass, !isStacked && 'self-start')}>
+      <h3 className={cn('text-xs font-bold uppercase tracking-wide', mutedTextClass)}>Your Quote</h3>
+      {rows.length === 0 ? (
+        <p className={cn('text-sm', mutedTextClass)}>No items selected yet.</p>
+      ) : (
+        <ul className="space-y-2 list-none p-0 m-0">
+          {rows.map(r => (
+            <li key={r.product_id} className="flex items-center gap-2">
+              <span className="text-sm flex-1 truncate">{r.name}</span>
+              <input
+                type="number"
+                min={0}
+                inputMode="numeric"
+                value={r.qty}
+                onChange={e => updateQty(r.product_id, Number(e.target.value) || 0)}
+                className={cn('w-14 px-2 py-1 border rounded text-sm tabular-nums', inputClass)}
+              />
+              <span className={cn('text-xs w-20 text-right tabular-nums', mutedTextClass)}>
+                {site.currency_symbol}
+                {(r.price * r.qty).toLocaleString()}
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
 
-        {/* Live quote summary */}
-        <aside className="border border-gray-200 rounded-2xl p-4 bg-white space-y-4 self-start">
-          <h3 className="text-xs font-bold uppercase tracking-wide text-gray-500">Your Quote</h3>
-          {rows.length === 0 ? (
-            <p className="text-sm text-gray-400">No items selected yet.</p>
-          ) : (
-            <ul className="space-y-2 list-none p-0 m-0">
-              {rows.map(r => (
-                <li key={r.product_id} className="flex items-center gap-2">
-                  <span className="text-sm flex-1 truncate">{r.name}</span>
-                  <input
-                    type="number"
-                    min={0}
-                    inputMode="numeric"
-                    value={r.qty}
-                    onChange={e => updateQty(r.product_id, Number(e.target.value) || 0)}
-                    className="w-14 px-2 py-1 border rounded text-sm tabular-nums"
-                  />
-                  <span className="text-xs text-gray-500 w-20 text-right tabular-nums">
-                    {site.currency_symbol}
-                    {(r.price * r.qty).toLocaleString()}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          )}
-
-          <div className="border-t pt-3 flex justify-between font-bold">
-            <span className="text-sm">Estimated total</span>
-            <span style={{ color: style.primary_color }}>
-              {site.currency_symbol}
-              {subtotal.toLocaleString()}
-            </span>
-          </div>
-
-          <div className="space-y-2 pt-2">
-            <input
-              type="text"
-              placeholder="Your name"
-              value={name}
-              onChange={e => setName(e.target.value)}
-              className="w-full px-3 py-2 text-sm border rounded-lg"
-            />
-            <input
-              type="text"
-              placeholder="Email or phone"
-              value={contact}
-              onChange={e => setContact(e.target.value)}
-              className="w-full px-3 py-2 text-sm border rounded-lg"
-            />
-            <textarea
-              placeholder="Notes (optional)"
-              value={notes}
-              onChange={e => setNotes(e.target.value)}
-              rows={2}
-              className="w-full px-3 py-2 text-sm border rounded-lg resize-none"
-            />
-          </div>
-
-          <button
-            type="button"
-            onClick={submit}
-            disabled={submitting || rows.length === 0}
-            className="w-full py-2.5 text-sm font-semibold rounded-lg text-white inline-flex items-center justify-center gap-2 disabled:opacity-50"
-            style={{ backgroundColor: style.primary_color }}
-          >
-            {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
-            {isEditorCanvas && showCta ? (
-              <BuilderTextField fieldKey="cta_label" blockId={blockId} blockProps={props} value={ctaLabel ?? ''} as="span" embeddedInControl placeholder="Button label" />
-            ) : (
-              ctaLabel
-            )}
-          </button>
-        </aside>
+      <div className={cn('border-t pt-3 flex justify-between font-bold', isDark && 'border-slate-700')}>
+        <span className="text-sm">Estimated total</span>
+        <span style={{ color: style.primary_color }}>
+          {site.currency_symbol}
+          {subtotal.toLocaleString()}
+        </span>
       </div>
-    </section>
+
+      <div className="space-y-2 pt-2">
+        <input
+          type="text"
+          placeholder="Your name"
+          value={name}
+          onChange={e => setName(e.target.value)}
+          className={cn('w-full px-3 py-2 text-sm border rounded-lg', inputClass)}
+        />
+        <input
+          type="text"
+          placeholder="Email or phone"
+          value={contact}
+          onChange={e => setContact(e.target.value)}
+          className={cn('w-full px-3 py-2 text-sm border rounded-lg', inputClass)}
+        />
+        <textarea
+          placeholder="Notes (optional)"
+          value={notes}
+          onChange={e => setNotes(e.target.value)}
+          rows={2}
+          className={cn('w-full px-3 py-2 text-sm border rounded-lg resize-none', inputClass)}
+        />
+      </div>
+
+      <button
+        type="button"
+        onClick={submit}
+        disabled={submitting || rows.length === 0}
+        className="w-full py-2.5 text-sm font-semibold rounded-lg text-white inline-flex items-center justify-center gap-2 disabled:opacity-50"
+        style={{ backgroundColor: style.primary_color }}
+      >
+        {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+        {isEditorCanvas && showCta ? (
+          <BuilderTextField fieldKey="cta_label" blockId={blockId} blockProps={props} value={ctaLabel ?? ''} as="span" embeddedInControl placeholder="Button label" />
+        ) : (
+          ctaLabel
+        )}
+      </button>
+    </div>
+  )
+
+  const body = isStacked ? (
+    <div className="space-y-6">
+      {catalogPanel}
+      {quotePanel}
+    </div>
+  ) : (
+    <div className="grid grid-cols-1 lg:grid-cols-[2fr_1fr] gap-6">
+      {catalogPanel}
+      {quotePanel}
+    </div>
+  )
+
+  return (
+    <div className="w-full" style={sectionBg ? { background: sectionBg } : undefined}>
+      <section className={builderSectionContainerWithMax(maxWidth)} aria-label={title ?? undefined}>
+        <header className={cn('mb-8 flex flex-col', isLeftAlign ? 'items-start text-left' : 'items-center text-center')}>
+          <Calculator className={cn('w-8 h-8 mb-3', !isLeftAlign && 'mx-auto')} style={{ color: style.primary_color }} aria-hidden="true" />
+          {showTitle && (
+            <BuilderTextField
+              fieldKey="title"
+              blockId={blockId}
+              blockProps={props}
+              value={title ?? ''}
+              as="h2"
+              className="text-2xl sm:text-3xl font-bold"
+              style={{ fontFamily: style.font_heading, color: headingColor ?? style.text_color }}
+              placeholder="Section title"
+            />
+          )}
+          <p className={cn('text-sm mt-2 max-w-lg', mutedTextClass, !isLeftAlign && 'mx-auto')}>
+            Pick the items you're interested in, set quantities, and we'll get back with a tailored quote.
+          </p>
+        </header>
+
+        {isCard ? (
+          <div className={cn('rounded-2xl border p-5 sm:p-6 shadow-sm', panelClass)}>{body}</div>
+        ) : (
+          body
+        )}
+      </section>
+    </div>
   )
 }

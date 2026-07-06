@@ -98,16 +98,56 @@ export function ChangePasswordForm({ onSubmit }: { onSubmit?: (data: { current: 
 
 /* ---------------- Address Book ---------------- */
 
-export function AddressBook({ addresses: initial }: { addresses: Address[] }) {
+export function AddressBook({
+  addresses: initial,
+  onAdd,
+  onUpdate,
+  onDelete,
+  onSetDefault,
+}: {
+  addresses: Address[];
+  /** Persist a newly added address (e.g. save to backend). */
+  onAdd?: (a: Address) => void | Promise<void>;
+  /** Persist an edited address. */
+  onUpdate?: (a: Address) => void | Promise<void>;
+  /** Persist removal of an address. */
+  onDelete?: (id: string) => void | Promise<void>;
+  /** Persist the new default address. */
+  onSetDefault?: (id: string) => void | Promise<void>;
+}) {
   const [list, setList] = useState<Address[]>(initial);
   const [editing, setEditing] = useState<Address | null>(null);
   const [adding, setAdding] = useState(false);
+  const [saving, setSaving] = useState(false);
 
-  const setDefault = (id: string) => setList((l) => l.map((a) => ({ ...a, isDefault: a.id === id })));
-  const remove = (id: string) => setList((l) => l.filter((a) => a.id !== id));
-  const upsert = (a: Address) => {
-    setList((l) => l.some((x) => x.id === a.id) ? l.map((x) => (x.id === a.id ? a : x)) : [...l, a]);
+  // Keep in sync with the parent-owned source of truth (e.g. after a save
+  // round-trips through the backend and the customer record refreshes) so a
+  // page refresh — which re-derives `initial` from persisted data — doesn't
+  // silently diverge from what's shown here.
+  useEffect(() => { setList(initial); }, [initial]);
+
+  const setDefault = async (id: string) => {
+    setList((l) => l.map((a) => ({ ...a, isDefault: a.id === id })));
+    try { await onSetDefault?.(id); } catch { setList(initial); }
+  };
+  const remove = async (id: string) => {
+    const prev = list;
+    setList((l) => l.filter((a) => a.id !== id));
+    try { await onDelete?.(id); } catch { setList(prev); }
+  };
+  const upsert = async (a: Address) => {
+    const isNew = !list.some((x) => x.id === a.id);
+    const prev = list;
+    setList((l) => (isNew ? [...l, a] : l.map((x) => (x.id === a.id ? a : x))));
     setEditing(null); setAdding(false);
+    setSaving(true);
+    try {
+      if (isNew) await onAdd?.(a); else await onUpdate?.(a);
+    } catch {
+      setList(prev);
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -118,8 +158,8 @@ export function AddressBook({ addresses: initial }: { addresses: Address[] }) {
       </CardHeader>
       <CardContent className="space-y-3">
         {list.map((a) => (
-          <div key={a.id} className="rounded-md border p-4 flex items-start gap-3">
-            <div className="flex-1">
+          <div key={a.id} className="rounded-md border p-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+            <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2">
                 <span className="font-medium">{a.label ?? a.fullName}</span>
                 {a.isDefault && <Badge variant="secondary">Default</Badge>}
@@ -129,10 +169,33 @@ export function AddressBook({ addresses: initial }: { addresses: Address[] }) {
               </div>
               {a.phone && <div className="text-sm text-muted-foreground">{a.phone}</div>}
             </div>
-            <div className="flex flex-col gap-1">
-              {!a.isDefault && <Button variant="ghost" size="sm" onClick={() => setDefault(a.id)}><Star className="h-4 w-4" />Default</Button>}
-              <Button variant="ghost" size="sm" onClick={() => setEditing(a)}><Pencil className="h-4 w-4" />Edit</Button>
-              <Button variant="ghost" size="sm" onClick={() => remove(a.id)}><Trash2 className="h-4 w-4" />Delete</Button>
+            <div className="flex flex-wrap items-center gap-1.5 sm:shrink-0">
+              {!a.isDefault && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-8 gap-1.5 px-2.5 text-xs"
+                  onClick={() => setDefault(a.id)}
+                >
+                  <Star className="h-3.5 w-3.5" /> Set default
+                </Button>
+              )}
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-8 gap-1.5 px-2.5 text-xs"
+                onClick={() => setEditing(a)}
+              >
+                <Pencil className="h-3.5 w-3.5" /> Edit
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-8 gap-1.5 px-2.5 text-xs text-destructive hover:border-destructive/40 hover:bg-destructive/10 hover:text-destructive"
+                onClick={() => remove(a.id)}
+              >
+                <Trash2 className="h-3.5 w-3.5" /> Delete
+              </Button>
             </div>
           </div>
         ))}
@@ -141,6 +204,7 @@ export function AddressBook({ addresses: initial }: { addresses: Address[] }) {
             initial={editing ?? undefined}
             onCancel={() => { setEditing(null); setAdding(false); }}
             onSave={upsert}
+            saving={saving}
           />
         )}
       </CardContent>
@@ -148,7 +212,7 @@ export function AddressBook({ addresses: initial }: { addresses: Address[] }) {
   );
 }
 
-function AddressForm({ initial, onSave, onCancel }: { initial?: Address; onSave: (a: Address) => void; onCancel: () => void }) {
+function AddressForm({ initial, onSave, onCancel, saving }: { initial?: Address; onSave: (a: Address) => void; onCancel: () => void; saving?: boolean }) {
   const [a, setA] = useState<Address>(initial ?? {
     id: `a_${Date.now()}`, fullName: "", line1: "", city: "", postalCode: "", country: "India",
   });
@@ -166,7 +230,7 @@ function AddressForm({ initial, onSave, onCancel }: { initial?: Address; onSave:
         <div><Label>Country</Label><Input required value={a.country} onChange={(e) => set("country", e.target.value)} className="mt-1" /></div>
         <div><Label>Phone</Label><Input value={a.phone ?? ""} onChange={(e) => set("phone", e.target.value)} className="mt-1" /></div>
       </div>
-      <div className="flex gap-2"><Button type="submit">Save</Button><Button type="button" variant="ghost" onClick={onCancel}>Cancel</Button></div>
+      <div className="flex gap-2"><Button type="submit" disabled={saving}>{saving ? "Saving…" : "Save"}</Button><Button type="button" variant="ghost" onClick={onCancel} disabled={saving}>Cancel</Button></div>
     </form>
   );
 }

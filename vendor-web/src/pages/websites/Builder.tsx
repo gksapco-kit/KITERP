@@ -588,7 +588,11 @@ const COMMERCE_LIBRARY_BLOCKS: BlockDef[] = [
     { title: 'Deliver', description: 'Final assets, source files, and a guidelines doc handed off.' },
   ] } },
   { type: 'service.faq', label: 'FAQ', icon: Briefcase, desc: 'Accordion of common questions and answers.', category: 'content', defaultProps: { variant: 'default', title: 'Frequently asked', faqs: DEFAULT_SERVICE_FAQ_ITEMS } },
-  { type: 'service.team', label: 'Team Picker', icon: Briefcase, desc: 'Pick a team member, see availability and rating.', category: 'content', defaultProps: { variant: 'default' } },
+  { type: 'service.team', label: 'Team Picker', icon: Briefcase, desc: 'Pick a team member, see availability and rating.', category: 'content', defaultProps: { variant: 'grid', layout: 'grid', title: 'Choose a practitioner', members: [
+    { name: 'Elena Ruiz', role: 'Lead Strategist', bio: '12 years building brand systems for hospitality and DTC.', rating: 4.9, reviews: 87, available: true, nextAvailable: 'Today, 3:30 PM' },
+    { name: 'Jordan Chen', role: 'Senior Designer', bio: 'Identity, packaging, and editorial. Loves a tight grid.', rating: 4.8, reviews: 64, available: true, nextAvailable: 'Tomorrow, 10:00 AM' },
+    { name: 'Priya Shah', role: 'Creative Director', bio: 'Leads the studio. Heavy on positioning and verbal identity.', rating: 5.0, reviews: 42, available: false, nextAvailable: 'Next Monday' },
+  ] } },
   { type: 'service.addons', label: 'Add-ons Selector', icon: Briefcase, desc: 'Multi-select add-ons with running total.', category: 'content', defaultProps: { variant: 'default' } },
   { type: 'menu.wine', label: 'Wine Pairing', icon: List, desc: 'Wines by glass/bottle with pairings and tasting notes.', category: 'food', defaultProps: { variant: 'default' } },
   { type: 'menu.combo', label: 'Combo / Set Menu', icon: List, desc: 'Multi-course set menus with choose-your-own options.', category: 'food', defaultProps: { variant: 'default' } },
@@ -4278,6 +4282,16 @@ const ITEM_SCHEMAS: Record<string, ItemSchema> = {
       { key: 'alt',     label: 'Alt Text',  type: 'text' },
     ],
   },
+  portfolio_grid: {
+    arrayKey: 'projects', itemLabel: 'Project',
+    defaultItem: { title: 'New Project', category: 'Category', image_url: '', url: '' },
+    fields: [
+      { key: 'image_url', label: 'Image',                type: 'image' },
+      { key: 'title',     label: 'Project Title',        type: 'text' },
+      { key: 'category',  label: 'Category / Tag',       type: 'text' },
+      { key: 'url',       label: 'Project Link (optional)', type: 'text' },
+    ],
+  },
   video_gallery: {
     arrayKey: 'videos', itemLabel: 'Video',
     defaultItem: { video_url: '', title: '', caption: '' },
@@ -4301,6 +4315,20 @@ const ITEM_SCHEMAS: Record<string, ItemSchema> = {
     fields: [
       { key: 'title',       label: 'Title',       type: 'text' },
       { key: 'description', label: 'Description', type: 'textarea' },
+    ],
+  },
+  'service.team': {
+    arrayKey: 'members', itemLabel: 'Team member',
+    defaultItem: { name: 'New team member', role: 'Specialist', bio: 'Short bio about this team member.', avatar: '', rating: 4.8, reviews: 0, available: true, nextAvailable: 'Today' },
+    fields: [
+      { key: 'avatar',        label: 'Photo',                  type: 'image' },
+      { key: 'name',          label: 'Name',                   type: 'text' },
+      { key: 'role',          label: 'Role / Title',           type: 'text' },
+      { key: 'bio',           label: 'Bio',                    type: 'textarea' },
+      { key: 'rating',        label: 'Rating (0-5)',           type: 'number' },
+      { key: 'reviews',       label: 'Review count',           type: 'number' },
+      { key: 'available',     label: 'Available for booking',  type: 'boolean' },
+      { key: 'nextAvailable', label: 'Next available slot',    type: 'text' },
     ],
   },
   timeline: {
@@ -4503,6 +4531,7 @@ function itemListSectionTitle(blockType: string, itemSchema: ItemSchema): string
     gallery_masonry: 'Images',
     gallery: 'Images',
     video_gallery: 'Videos',
+    portfolio_grid: 'Projects',
     'vertical.fitnessSchedule': 'Classes',
     'vertical.courseCatalog': 'Courses',
     'vertical.vehicleDetail': 'Highlights',
@@ -4510,6 +4539,7 @@ function itemListSectionTitle(blockType: string, itemSchema: ItemSchema): string
     'vertical.propertyListing': 'Properties',
     'booking.recurring': 'Frequency options',
     'service.process': 'Steps',
+    'service.team': 'Team members',
   }
   return titles[blockType] || `${itemSchema.itemLabel}s`
 }
@@ -4520,7 +4550,7 @@ const ITEM_LIST_DEFAULT_OPEN = new Set([
   'services_cards', 'services_list', 'team_grid', 'trust_logos', 'marquee_strip', 'payment_methods_strip',
   'gallery_masonry', 'gallery', 'gallery_grid', 'video_gallery',
   'vertical.fitnessSchedule', 'vertical.ticketPicker', 'vertical.courseCatalog', 'vertical.vehicleDetail', 'vertical.autoInventory', 'vertical.propertyListing', 'booking.recurring',
-  'service.process',
+  'service.process', 'service.team',
 ])
 
 /** Block types with their own dedicated Title/Description fields in a custom content panel — skip the generic duplicates below. */
@@ -8818,7 +8848,7 @@ function PropsEditor({
               </PropsAccordionSection>
             ) : null}
 
-            {itemSchema && !isCatalogGridBlock && block.block_type !== 'marquee_strip' && block.block_type !== 'timeline' && block.block_type !== 'service.faq' && block.block_type !== 'service.process' && block.block_type !== 'payment_methods_strip' ? (
+            {itemSchema && !isCatalogGridBlock && block.block_type !== 'marquee_strip' && block.block_type !== 'timeline' && block.block_type !== 'service.faq' && block.block_type !== 'service.process' && block.block_type !== 'service.team' && block.block_type !== 'payment_methods_strip' ? (
               <PropsAccordionSection
                 id="grid"
                 activeId={layoutAccordionOpen}
@@ -13718,6 +13748,7 @@ export default function WebsiteBuilder() {
     'service.faq':        { arrayKey: 'faqs',         itemField: 'image_url',   defaultTitle: 'Question' },
     marquee_strip:        { arrayKey: 'items',        itemField: 'image_url',   defaultTitle: 'Highlight' },
     timeline:             { arrayKey: 'items',        itemField: 'image_url',   defaultTitle: 'Milestone' },
+    'service.team':       { arrayKey: 'members',      itemField: 'avatar',      defaultTitle: 'Team Member' },
   }
 
   const applyMediaUrlToSelection = useCallback((

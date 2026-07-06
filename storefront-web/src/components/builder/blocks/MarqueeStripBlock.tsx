@@ -1,4 +1,4 @@
-import { useCallback, type MouseEvent, type ReactNode } from 'react'
+import { useCallback, useState, type MouseEvent, type ReactNode } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import type { StyleConfig } from '@/blocks/registry'
 import { BuilderSectionImage } from '@/components/builder/BuilderSectionImage'
@@ -314,12 +314,36 @@ export default function MarqueeStripBlock({ style, props, blockId }: Props) {
   const sepChar = separator === 'pipe' ? '|' : '·'
   const itemGap = Math.min(120, Math.max(8, Number(props.item_gap ?? 40) || 40))
 
+  const speed = String(props.speed ?? 'normal')
+  const animationDuration = speed === 'fast' ? '14s' : speed === 'slow' ? '46s' : '28s'
+
+  const marqueeStyle = String(props.style ?? 'default')
+  const isDarkStyle = marqueeStyle === 'dark'
+  const isBrandStyle = marqueeStyle === 'brand'
+  const isBoldStyle = marqueeStyle === 'bold'
+
+  const shellBg = isDarkStyle ? '#0f172a' : isBrandStyle ? style.primary_color : style.bg_color
+  const shellText = isDarkStyle || isBrandStyle ? '#f8fafc' : style.text_color
+  const shellBorder = isDarkStyle ? '#ffffff26' : isBrandStyle ? '#ffffff33' : `${style.text_color}18`
+
+  const pauseOnHover = props.pause_on_hover === true
+  const [hovering, setHovering] = useState(false)
+
   return (
     <div
       className={cn('overflow-hidden border-b', compact ? 'py-2' : 'py-4')}
-      style={{ borderColor: `${style.text_color}18`, backgroundColor: style.bg_color }}
+      style={{ borderColor: shellBorder, backgroundColor: shellBg, color: shellText }}
+      onMouseEnter={pauseOnHover ? () => setHovering(true) : undefined}
+      onMouseLeave={pauseOnHover ? () => setHovering(false) : undefined}
     >
-      <div className="sf-marquee-track whitespace-nowrap items-center" style={{ fontFamily: style.font_heading }}>
+      <div
+        className={cn('sf-marquee-track whitespace-nowrap items-center', isBoldStyle && 'font-semibold uppercase tracking-wide')}
+        style={{
+          fontFamily: style.font_heading,
+          animationDuration,
+          animationPlayState: pauseOnHover && hovering ? 'paused' : undefined,
+        }}
+      >
         {visibleItems.length === 0 && !showLegacyText ? (
           <span className="text-sm opacity-60 px-4"> </span>
         ) : visibleItems.length === 0 && showLegacyText ? (

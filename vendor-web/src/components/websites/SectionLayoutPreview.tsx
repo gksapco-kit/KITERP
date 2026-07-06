@@ -673,67 +673,313 @@ function FaqPreview({ variantProps }: { variantProps: Record<string, unknown> })
 
 function ContactFormPreview({ variantProps, sampleUrls }: { variantProps: Record<string, unknown>; sampleUrls: string[] }) {
   const layout = String(variantProps.layout ?? 'split')
-  const img = sampleUrls[0]
-  const field = (h = 'h-2') => <Bar w="w-full" h={h} className="bg-white border border-border" />
+  const isDark = String(variantProps.bg_style ?? '') === 'dark'
+  const fullPage = variantProps.full_page === true
+  const columns2 = Number(variantProps.columns) === 2
+  const showMap = variantProps.show_map === true
+  const imagePosition = variantProps.image_position as string | undefined
+  const img = layout === 'split' && imagePosition ? sampleUrls[0] : undefined
+
+  const bgClass = isDark ? 'bg-slate-900' : 'bg-slate-50'
+  const fieldBorder = isDark ? 'border-white/20 bg-white/10' : 'border-border bg-white'
+  const labelBar = isDark ? 'bg-white/70' : 'bg-slate-600'
+  const mutedBar = isDark ? 'bg-white/25' : 'bg-slate-300'
+  const field = (h = 'h-2', extra?: string) => <Bar w={extra ?? 'w-full'} h={h} className={cn('border', fieldBorder)} />
 
   if (layout === 'centered') {
     return (
-      <div className="h-full p-3 flex flex-col items-center justify-center bg-slate-50 gap-1 relative overflow-hidden">
-        {img && <Img src={img} className="absolute inset-0 w-full h-full rounded-none object-cover opacity-15" />}
-        <Bar w="w-1/3" h="h-1.5" className="bg-slate-600 mb-1 relative z-10" />
-        <div className="w-3/4 space-y-0.5 relative z-10">{field()}{field()}{field('h-4')}{<Bar w="w-1/2" h="h-2" className="bg-primary/60" />}</div>
+      <div className={cn('h-full p-3 flex flex-col items-center gap-1 relative overflow-hidden', bgClass, fullPage ? 'justify-center' : 'justify-center')}>
+        <Bar w="w-1/3" h="h-1.5" className={cn(labelBar, 'mb-1 relative z-10')} />
+        <div className={cn('relative z-10', columns2 ? 'w-4/5 grid grid-cols-2 gap-1' : 'w-3/4 space-y-0.5')}>
+          {field()}{field()}{!columns2 && field('h-4')}
+          {columns2 && <div className="col-span-2">{field('h-4')}</div>}
+        </div>
+        <Bar w="w-1/2" h="h-2.5" className="bg-primary/70 mt-1 relative z-10" />
+      </div>
+    )
+  }
+
+  if (layout === 'card') {
+    return (
+      <div className={cn('h-full p-3 flex items-center justify-center', bgClass)}>
+        <div className={cn('w-4/5 rounded-md border-2 p-2 space-y-0.5 shadow-sm', isDark ? 'border-white/30 bg-white/5' : 'border-slate-300 bg-white')}>
+          <Bar w="w-1/2" h="h-1.5" className={cn(labelBar, 'mb-1')} />
+          {field()}{field()}{field('h-4')}
+          <Bar w="w-1/2" h="h-2" className="bg-primary/70 mt-1" />
+        </div>
+      </div>
+    )
+  }
+
+  if (layout === 'inline') {
+    return (
+      <div className={cn('h-full p-3 flex flex-col items-center justify-center gap-1.5', bgClass)}>
+        <Bar w="w-1/3" h="h-1.5" className={cn(labelBar, 'mb-1')} />
+        <div className="w-full flex items-center gap-1 px-2">
+          {field('h-2.5', 'flex-1')}
+          {field('h-2.5', 'flex-1')}
+          <Bar w="w-8" h="h-2.5" className="bg-primary/70 shrink-0" />
+        </div>
+      </div>
+    )
+  }
+
+  if (layout === 'minimal') {
+    return (
+      <div className={cn('h-full p-3 flex flex-col items-center justify-center gap-1', bgClass)}>
+        <div className="w-2/3 space-y-1">
+          {field('h-2')}
+          {field('h-4')}
+        </div>
+        <Bar w="w-1/3" h="h-2" className="bg-primary/70 mt-1" />
       </div>
     )
   }
 
   if (layout === 'stacked') {
     return (
-      <div className="h-full p-2 flex flex-col gap-1 bg-slate-50">
-        <div className="flex-1 space-y-0.5">{field()}{field()}{field('h-3')}{<Bar w="w-2/3" h="h-2" className="bg-primary/60" />}</div>
-        <Img src={img} className="h-1/3 w-full rounded border border-border" />
+      <div className={cn('h-full p-2 flex flex-col gap-1', bgClass)}>
+        <div className="flex justify-center gap-2 pb-0.5">
+          <Bar w="w-6" h="h-1" className={mutedBar} />
+          <Bar w="w-6" h="h-1" className={mutedBar} />
+        </div>
+        <div className="flex-1 space-y-0.5">{field()}{field()}{field('h-3')}{<Bar w="w-2/3" h="h-2" className="bg-primary/70" />}</div>
+        {showMap && <Img src={sampleUrls[0]} className="h-1/4 w-full rounded border border-border" />}
       </div>
     )
   }
 
+  // split (default) — contact-details panel, or a photo panel when image_position is set
+  const infoOrImage = img ? (
+    <Img src={img} className="w-2/5 h-full rounded object-cover" />
+  ) : (
+    <div className="w-2/5 space-y-0.5 pt-1">
+      <Bar w="w-full" h="h-1" className={labelBar} />
+      <Bar w="w-3/4" h="h-0.5" className={mutedBar} />
+      <Bar w="w-2/3" h="h-0.5" className={mutedBar} />
+    </div>
+  )
+  const formPanel = (
+    <div className="flex-1 space-y-0.5">{field()}{field()}{field('h-3')}{<Bar w="w-2/3" h="h-2" className="bg-primary/70" />}</div>
+  )
+
   return (
-    <div className="h-full p-2 flex gap-1.5 bg-slate-50 relative overflow-hidden">
-      {img && <Img src={img} className="absolute inset-0 w-full h-full rounded-none object-cover opacity-10" />}
-      <div className="flex-1 space-y-0.5 relative z-10">{field()}{field()}{field('h-3')}{<Bar w="w-2/3" h="h-2" className="bg-primary/60" />}</div>
-      <div className="w-2/5 space-y-0.5 pt-1 relative z-10">
-        <Bar w="w-full" h="h-1" className="bg-slate-500" />
-        <Bar w="w-3/4" h="h-0.5" className="bg-slate-300" />
-        <Bar w="w-2/3" h="h-0.5" className="bg-slate-300" />
-      </div>
+    <div className={cn('h-full p-2 flex gap-1.5', bgClass)}>
+      {imagePosition === 'right' ? (
+        <>
+          {formPanel}
+          {infoOrImage}
+        </>
+      ) : (
+        <>
+          {infoOrImage}
+          {formPanel}
+        </>
+      )}
     </div>
   )
 }
 
 function CtaPreview({ variantProps, sampleUrls }: { variantProps: Record<string, unknown>; sampleUrls: string[] }) {
   const bgStyle = String(variantProps.bg_style ?? 'gradient')
-  const img = sampleUrls[0]
+  const layout = String(variantProps.layout ?? 'centered')
+  const isSplit = layout === 'split'
+  const isCard = layout === 'card'
+  const compact = variantProps.compact === true
+  const showEmail = variantProps.show_email === true
+  const hasSecondary = !!variantProps.cta_secondary
+  // Only the "Image Background" preset shows a photo — otherwise every other
+  // bg_style would render identically as a photo-with-overlay in the thumbnail.
+  const img = bgStyle === 'image' ? sampleUrls[0] : undefined
+
   const shell =
     img ? 'relative'
       : bgStyle === 'dark' ? 'bg-slate-900'
         : bgStyle === 'light' ? 'bg-slate-50'
-          : 'bg-gradient-to-r from-primary/30 to-emerald-100'
-  const text = bgStyle === 'dark' || img ? 'bg-white/80' : 'bg-slate-700'
-  const sub = bgStyle === 'dark' || img ? 'bg-white/50' : 'bg-slate-400'
+          : bgStyle === 'brand' ? 'bg-primary/80'
+            : 'bg-gradient-to-r from-primary/30 to-emerald-100'
+  const isDarkSurface = bgStyle === 'dark' || bgStyle === 'brand' || !!img
+  const text = isDarkSurface ? 'bg-white/80' : 'bg-slate-700'
+  const sub = isDarkSurface ? 'bg-white/50' : 'bg-slate-400'
+
+  const textBlock = (
+    <div className={cn('flex flex-col gap-1', isSplit ? 'items-start' : 'items-center')}>
+      <Bar w="w-20" h="h-2" className={text} />
+      {!compact && <Bar w="w-14" h="h-1" className={sub} />}
+    </div>
+  )
+
+  const actionsBlock = showEmail ? (
+    <div className="flex items-center gap-1">
+      <Bar w="w-10" h="h-2.5" className={cn('rounded-full', isDarkSurface ? 'bg-white/25' : 'bg-white border border-slate-300')} />
+      <Bar w="w-6" h="h-2.5" className="bg-primary/70" />
+    </div>
+  ) : (
+    <div className="flex items-center gap-1">
+      <Bar w="w-9" h="h-2.5" className="bg-primary/70" />
+      {hasSecondary && (
+        <Bar w="w-9" h="h-2.5" className={cn('rounded border bg-transparent', isDarkSurface ? 'border-white/50' : 'border-slate-400')} />
+      )}
+    </div>
+  )
+
+  const body = isSplit ? (
+    <div className="relative z-10 flex w-full items-center justify-between gap-2">
+      {textBlock}
+      {actionsBlock}
+    </div>
+  ) : (
+    <div className="relative z-10 flex flex-col items-center gap-1">
+      {textBlock}
+      {actionsBlock}
+    </div>
+  )
 
   return (
-    <div className={cn('h-full flex flex-col items-center justify-center gap-1 p-3 overflow-hidden', shell)}>
+    <div
+      className={cn(
+        'h-full flex overflow-hidden p-3',
+        shell,
+        isSplit ? 'items-center' : 'flex-col items-center justify-center',
+      )}
+    >
       {img && (
         <>
           <Img src={img} className="absolute inset-0 w-full h-full rounded-none object-cover" />
           <div className={cn('absolute inset-0', bgStyle === 'dark' ? 'bg-black/60' : 'bg-black/45')} />
         </>
       )}
-      <div className="relative z-10 flex flex-col items-center gap-1">
-        <Bar w="w-1/2" h="h-2" className={text} />
-        <Bar w="w-1/3" h="h-1" className={sub} />
-        <Bar w="w-12" h="h-2.5" className="bg-primary/70 mt-1" />
-      </div>
+      {isCard ? (
+        <div className={cn('relative z-10 w-full rounded-md border p-2', isDarkSurface ? 'border-white/30' : 'border-slate-300 bg-white/70')}>
+          {body}
+        </div>
+      ) : (
+        body
+      )}
     </div>
   )
+}
+
+function RichTextPreview({ variantProps }: { variantProps: Record<string, unknown> }) {
+  const layout = String(variantProps.layout ?? 'standard')
+  const isDark = variantProps.bg_style === 'dark'
+  const isCard = layout === 'card' || variantProps.card_style === 'elevated'
+  const isNarrow = layout === 'narrow' || variantProps.max_width === 'prose'
+  const isWide = layout === 'wide'
+  const isCentered = layout === 'centered'
+  const align = String(variantProps.align ?? (isCentered ? 'center' : 'left'))
+
+  const bgClass = isDark ? 'bg-slate-900' : 'bg-white'
+  const lineClass = isDark ? 'bg-white/70' : 'bg-slate-700'
+  const mutedClass = isDark ? 'bg-white/25' : 'bg-slate-200'
+
+  if (layout === 'quote') {
+    return (
+      <div className={cn('h-full p-3 flex flex-col items-center justify-center gap-1', bgClass)}>
+        <Bar w="w-5" h="h-3" className="bg-primary/50" />
+        <Bar w="w-3/4" h="h-1.5" className={lineClass} />
+        <Bar w="w-1/2" h="h-1.5" className={lineClass} />
+      </div>
+    )
+  }
+
+  if (layout === 'columns') {
+    return (
+      <div className={cn('h-full p-3 flex gap-2', bgClass)}>
+        <div className="flex-1 space-y-0.5">
+          <Bar w="w-2/3" h="h-1.5" className={cn(lineClass, 'mb-0.5')} />
+          {[0, 1].map(i => <Bar key={i} w="w-full" h="h-0.5" className={mutedClass} />)}
+        </div>
+        <div className="flex-1 space-y-0.5 pt-2">
+          {[0, 1, 2].map(i => <Bar key={i} w={i === 2 ? 'w-3/5' : 'w-full'} h="h-0.5" className={mutedClass} />)}
+        </div>
+      </div>
+    )
+  }
+
+  const widthClass = isNarrow ? 'w-1/2' : isWide ? 'w-full' : 'w-3/4'
+  const lines = (
+    <div className="space-y-0.5">
+      <Bar w="w-1/2" h="h-2" className={cn(lineClass, 'mb-0.5', align === 'center' && 'mx-auto')} />
+      {[0, 1, 2, 3].map(i => (
+        <Bar key={i} w={i === 3 ? 'w-3/5' : 'w-full'} h="h-0.5" className={cn(mutedClass, align === 'center' && i === 3 && 'mx-auto')} />
+      ))}
+    </div>
+  )
+
+  return (
+    <div className={cn('h-full p-3 flex flex-col justify-center', bgClass, align === 'center' ? 'items-center' : 'items-start')}>
+      {isCard ? (
+        <div className={cn('rounded border p-2', widthClass, isDark ? 'border-white/20 bg-white/5' : 'border-slate-300 bg-white shadow-sm')}>
+          {lines}
+        </div>
+      ) : (
+        <div className={widthClass}>{lines}</div>
+      )}
+    </div>
+  )
+}
+
+function MapEmbedPreview({ variantProps }: { variantProps: Record<string, unknown> }) {
+  const layout = String(variantProps.layout ?? 'card')
+  const isDark = variantProps.bg_style === 'dark'
+  const isGrayscale = variantProps.map_style === 'grayscale'
+  const showDirections = variantProps.show_directions === true
+
+  const outerBg = isDark ? 'bg-slate-900' : 'bg-slate-50'
+  const mapBorder = isGrayscale ? 'bg-slate-300 border-slate-400' : 'bg-emerald-100 border-emerald-200'
+  const pinBg = isGrayscale ? 'bg-slate-500' : 'bg-emerald-400'
+  const labelBar = isDark ? 'bg-white/70' : undefined
+  const mutedBar = isDark ? 'bg-white/30' : 'bg-slate-300'
+
+  const mapBox = (rounded = true) => (
+    <div className={cn('h-full flex items-center justify-center border relative', rounded && 'rounded', mapBorder)}>
+      <Bar w="w-1/3" h="h-1.5" className={pinBg} />
+      {showDirections && <span className="absolute bottom-1 right-1 h-1.5 w-4 rounded-sm bg-white shadow" />}
+    </div>
+  )
+
+  if (layout === 'split') {
+    return (
+      <div className={cn('h-full p-1.5 flex gap-1', outerBg)}>
+        <div className="flex-1 space-y-0.5 pt-2">
+          <Bar w="w-3/4" h="h-1" className={labelBar} />
+          <Bar w="w-1/2" h="h-0.5" className={mutedBar} />
+        </div>
+        <div className="w-3/5">{mapBox()}</div>
+      </div>
+    )
+  }
+
+  if (layout === 'minimal') {
+    return (
+      <div className={cn('h-full p-3 flex items-center justify-center', outerBg)}>
+        <div className="w-2/3 h-2/3">{mapBox()}</div>
+      </div>
+    )
+  }
+
+  if (layout === 'full') {
+    return (
+      <div className={cn('h-full flex flex-col', outerBg)}>
+        <div className="flex-1">{mapBox(false)}</div>
+      </div>
+    )
+  }
+
+  if (layout === 'stacked') {
+    return (
+      <div className={cn('h-full p-1.5 flex flex-col gap-1', outerBg)}>
+        <div className="flex justify-center">
+          <Bar w="w-8" h="h-1" className={labelBar} />
+        </div>
+        <div className="flex-1">{mapBox()}</div>
+      </div>
+    )
+  }
+
+  // card (default)
+  return <div className={cn('h-full p-1.5', outerBg)}>{mapBox()}</div>
 }
 
 function ProductDetailPreview({ variantProps, sampleUrls }: { variantProps: Record<string, unknown>; sampleUrls: string[] }) {
@@ -990,6 +1236,111 @@ function GalleryPreview({ variantProps, sampleUrls }: { variantProps: Record<str
       {[0, 1, 2, 3, 4, 5].slice(0, cols <= 2 ? 4 : cols >= 4 ? 8 : 6).map(i => (
         <Img key={i} src={sampleUrls[i]} className={cn('w-full', imgClass, cols <= 2 ? 'aspect-[4/3]' : 'aspect-square')} />
       ))}
+    </div>
+  )
+}
+
+function PortfolioGridPreview({ variantProps, sampleUrls }: { variantProps: Record<string, unknown>; sampleUrls: string[] }) {
+  const layout = String(variantProps.layout ?? 'grid')
+  const cols = Number(variantProps.columns) || 3
+  const filterable = variantProps.filterable === true
+  const hoverReveal = variantProps.hover_reveal === true
+  const dark = String(variantProps.bg_style ?? '') === 'dark'
+  const shell = dark ? 'bg-slate-900' : 'bg-white'
+  const cap = dark ? 'bg-white/25' : 'bg-slate-300'
+  const capDim = dark ? 'bg-white/10' : 'bg-slate-200'
+
+  const Tile = ({ i, className }: { i: number; className?: string }) => (
+    <div key={i} className={cn('relative overflow-hidden rounded-sm', className)}>
+      <Img src={sampleUrls[i]} className="w-full h-full rounded-none object-cover" />
+      {i === 0 && hoverReveal ? (
+        <div className="absolute inset-0 bg-black/55 flex flex-col justify-end p-1 gap-0.5">
+          <Bar w="w-3/5" h="h-1" className="bg-white/90" />
+          <Bar w="w-2/5" h="h-0.5" className="bg-white/60" />
+        </div>
+      ) : null}
+    </div>
+  )
+
+  if (layout === 'full') {
+    return (
+      <div className={cn('h-full p-1.5 flex flex-col gap-1', shell)}>
+        {[0, 1].map(i => (
+          <div key={i} className="relative w-full flex-1 overflow-hidden rounded-sm">
+            <Img src={sampleUrls[i]} className="w-full h-full rounded-none object-cover" />
+          </div>
+        ))}
+      </div>
+    )
+  }
+
+  if (layout === 'carousel') {
+    return (
+      <div className={cn('h-full p-1.5 flex flex-col gap-1', shell)}>
+        <div className="flex gap-1 flex-1 overflow-hidden">
+          {[0, 1, 2].map(i => (
+            <div key={i} className={cn('relative shrink-0 overflow-hidden rounded-sm', i === 2 ? 'w-1/5 opacity-40' : 'w-2/5')}>
+              <Img src={sampleUrls[i]} className="w-full h-full rounded-none object-cover" />
+            </div>
+          ))}
+        </div>
+        <div className="flex gap-0.5 justify-center">
+          {[0, 1, 2].map(i => <span key={i} className={cn('h-0.5 w-2 rounded-full', i === 0 ? cap : capDim)} />)}
+        </div>
+      </div>
+    )
+  }
+
+  if (layout === 'list') {
+    return (
+      <div className={cn('h-full p-1.5 flex flex-col gap-1 justify-center', shell)}>
+        {[0, 1, 2].map(i => (
+          <div key={i} className="flex items-center gap-1">
+            <div className="w-4 h-3 rounded-sm overflow-hidden shrink-0">
+              <Img src={sampleUrls[i]} className="w-full h-full rounded-none object-cover" />
+            </div>
+            <div className="flex-1 flex flex-col gap-0.5">
+              <Bar w="w-3/4" h="h-1" className={cap} />
+              <Bar w="w-1/2" h="h-0.5" className={capDim} />
+            </div>
+          </div>
+        ))}
+      </div>
+    )
+  }
+
+  if (layout === 'featured') {
+    return (
+      <div className={cn('h-full p-1.5 grid grid-cols-3 grid-rows-2 gap-0.5', shell)}>
+        <Tile i={0} className="col-span-2 row-span-2" />
+        <Tile i={1} />
+        <Tile i={2} />
+      </div>
+    )
+  }
+
+  if (layout === 'masonry') {
+    return (
+      <div className={cn('h-full p-1.5 columns-3 gap-0.5', shell)}>
+        {[0, 1, 2, 3, 4, 5].map(i => (
+          <Tile key={i} i={i} className={cn('w-full mb-0.5 break-inside-avoid', i % 3 === 0 ? 'h-8' : 'h-5')} />
+        ))}
+      </div>
+    )
+  }
+
+  return (
+    <div className={cn('h-full p-1.5 flex flex-col gap-1', shell)}>
+      {filterable ? (
+        <div className="flex gap-0.5 justify-center shrink-0">
+          {[0, 1, 2].map(i => <span key={i} className={cn('h-1 w-4 rounded-full', i === 0 ? cap : capDim)} />)}
+        </div>
+      ) : null}
+      <div className={cn('grid gap-0.5 flex-1', cols <= 2 ? 'grid-cols-2' : cols >= 4 ? 'grid-cols-4' : 'grid-cols-3')}>
+        {Array.from({ length: cols <= 2 ? 4 : cols >= 4 ? 8 : 6 }, (_, i) => (
+          <Tile key={i} i={i} className={cn(cols <= 2 ? 'aspect-[4/3]' : 'aspect-square')} />
+        ))}
+      </div>
     </div>
   )
 }
@@ -1415,9 +1766,10 @@ export function SectionLayoutPreview({ blockType, variantProps, sampleUrls }: Pr
     case 'team_grid':
       return <TeamPreview variantProps={variantProps} sampleUrls={sampleUrls} />
     case 'gallery_masonry':
-    case 'portfolio_grid':
     case 'image_gallery':
       return <GalleryPreview variantProps={variantProps} sampleUrls={sampleUrls} />
+    case 'portfolio_grid':
+      return <PortfolioGridPreview variantProps={variantProps} sampleUrls={sampleUrls} />
     case 'video_gallery':
       return <VideoGalleryPreview variantProps={variantProps} />
     case 'category_cards':
@@ -1434,20 +1786,7 @@ export function SectionLayoutPreview({ blockType, variantProps, sampleUrls }: Pr
     case 'countdown':
       return <CountdownPreview variantProps={variantProps} />
     case 'map_embed':
-      return (
-        <div className="h-full p-1.5 bg-slate-50">
-          {variantProps.layout === 'split' ? (
-            <div className="h-full flex gap-1">
-              <div className="flex-1 space-y-0.5 pt-2"><Bar w="w-3/4" h="h-1" /><Bar w="w-1/2" h="h-0.5" className="bg-slate-300" /></div>
-              <div className="w-3/5 rounded bg-emerald-100 border border-emerald-200 flex items-center justify-center"><Bar w="w-1/2" h="h-1" className="bg-emerald-400" /></div>
-            </div>
-          ) : (
-            <div className="h-full rounded bg-emerald-100 border border-emerald-200 flex items-center justify-center">
-              <Bar w="w-1/3" h="h-1.5" className="bg-emerald-400" />
-            </div>
-          )}
-        </div>
-      )
+      return <MapEmbedPreview variantProps={variantProps} />
     case 'image_block':
       return (
         <div className="h-full p-2 flex flex-col gap-1 justify-center bg-slate-50">
@@ -1490,12 +1829,7 @@ export function SectionLayoutPreview({ blockType, variantProps, sampleUrls }: Pr
         ? <StatsPreview variantProps={{ columns: 4 }} sampleUrls={sampleUrls} />
         : <FaqPreview variantProps={{ layout: 'list' }} />
     case 'rich_text':
-      return (
-        <div className="h-full p-3 flex flex-col gap-0.5 justify-center bg-white">
-          <Bar w="w-1/2" h="h-2" className="bg-slate-700" />
-          {[0, 1, 2, 3].map(i => <Bar key={i} w={i === 3 ? 'w-3/5' : 'w-full'} h="h-0.5" className="bg-slate-200" />)}
-        </div>
-      )
+      return <RichTextPreview variantProps={variantProps} />
     case 'booking_widget':
       return variantProps.layout === 'cta'
         ? <CtaPreview variantProps={{ bg_style: 'gradient' }} sampleUrls={sampleUrls} />

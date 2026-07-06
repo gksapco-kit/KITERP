@@ -173,8 +173,30 @@ export function applyCategoryImagesToBlockProps(
     }
   }
 
+  // CTA only shows its background photo when the "Image Background" bg_style is
+  // selected — filling bg_image_url unconditionally would make every other bg_style
+  // (gradient/dark/light/brand) render identically as a photo-with-overlay.
+  if (blockType === 'cta') {
+    if (next.bg_style === 'image') {
+      if (shouldFill('bg_image_url')) next.bg_image_url = nextUrl()
+    } else if (forceRefresh) {
+      delete next.bg_image_url
+    }
+  }
+
+  // Contact form only shows a side photo for the "Image Split" preset
+  // (layout: split + image_position set) — every other layout uses the plain
+  // contact-details panel, so an unconditional fill would leak a stock photo in.
+  if (blockType === 'contact_form') {
+    if (next.layout === 'split' && next.image_position) {
+      if (shouldFill('bg_image_url')) next.bg_image_url = nextUrl()
+    } else if (forceRefresh) {
+      delete next.bg_image_url
+    }
+  }
+
   const topFields = BLOCK_IMAGE_FIELDS[blockType]
-  if (topFields) {
+  if (topFields && blockType !== 'cta' && blockType !== 'contact_form') {
     for (const field of topFields) {
       if (shouldFill(field)) next[field] = nextUrl()
     }

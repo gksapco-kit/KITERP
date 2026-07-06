@@ -12,6 +12,9 @@ class AddressItem(BaseModel):
     postal_code: str = Field(..., min_length=4, max_length=20)
     country: str = Field(default="India", max_length=100)
     label: str = Field(default="home", max_length=50)  # home, work, other
+    full_name: Optional[str] = Field(None, max_length=255)
+    line2: Optional[str] = Field(None, max_length=500)
+    phone: Optional[str] = Field(None, max_length=20)
 
 
 class CustomerCreate(BaseModel):
