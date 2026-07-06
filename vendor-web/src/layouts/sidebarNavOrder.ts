@@ -2,6 +2,31 @@ const LS_SECTION = 'kiterp.vendor.sidebar.section-ids'
 const LS_ITEMS = 'kiterp.vendor.sidebar.item-orders'
 /** Ordered `to` paths per section id (links may appear under any visible module). */
 const LS_PLACEMENTS_V2 = 'kiterp.vendor.sidebar.nav-placements-v2'
+const LS_SECTION_VERSION = 'kiterp.vendor.sidebar.section-order-version'
+
+/**
+ * Bump when the built-in top-level module order changes.
+ * Users below this version get the canonical order on next load (fixes stale prod localStorage).
+ */
+export const SIDEBAR_SECTION_ORDER_VERSION = 2
+
+/** Canonical module order — must match `allSections` in DashboardLayout.tsx. */
+export const CANONICAL_SIDEBAR_SECTION_IDS = [
+  'my-kit',
+  'website-management',
+  'sales',
+  'inventory',
+  'master-data',
+  'crm',
+  'production',
+  'restaurant',
+  'commission',
+  'procurement',
+  'finance',
+  'controlling',
+  'hr',
+  'system',
+] as const
 
 /**
  * Routes that must always appear under a given sidebar section.
@@ -66,8 +91,59 @@ function readWithLegacyFallback<T>(
   return null
 }
 
+function readSectionOrderVersion(scope?: NavOrderScope | null): number {
+  try {
+    const raw = localStorage.getItem(scopedKey(LS_SECTION_VERSION, scope))
+    const n = raw ? parseInt(raw, 10) : 0
+    return Number.isFinite(n) ? n : 0
+  } catch {
+    return 0
+  }
+}
+
+function writeSectionOrderVersion(scope?: NavOrderScope | null) {
+  try {
+    localStorage.setItem(
+      scopedKey(LS_SECTION_VERSION, scope),
+      String(SIDEBAR_SECTION_ORDER_VERSION),
+    )
+  } catch {
+    /* ignore */
+  }
+}
+
+/** Insert modules missing from saved order at their canonical index (not at the end). */
+function mergeMissingSectionsAtCanonicalPositions(saved: string[], defaultIds: string[]): string[] {
+  const defaultSet = new Set(defaultIds)
+  let order = saved.filter((id) => defaultSet.has(id))
+  const missing = defaultIds.filter((id) => !order.includes(id))
+  for (const id of missing) {
+    const canonicalIdx = defaultIds.indexOf(id)
+    let insertAt = order.length
+    for (let i = canonicalIdx - 1; i >= 0; i--) {
+      const prevIdx = order.indexOf(defaultIds[i])
+      if (prevIdx >= 0) {
+        insertAt = prevIdx + 1
+        break
+      }
+    }
+    order = [...order.slice(0, insertAt), id, ...order.slice(insertAt)]
+  }
+  return order
+}
+
 export function loadSectionIds(defaultIds: string[], scope?: NavOrderScope | null): string[] {
   try {
+    const storedVersion = readSectionOrderVersion(scope)
+    const needsCanonicalReset = storedVersion < SIDEBAR_SECTION_ORDER_VERSION
+
+    if (needsCanonicalReset) {
+      const order = [...defaultIds]
+      saveSectionIds(order, scope)
+      writeSectionOrderVersion(scope)
+      return order
+    }
+
     const key = scopedKey(LS_SECTION, scope)
     const legacyKey = LS_SECTION
     const parsed = readWithLegacyFallback<string[]>(key, legacyKey, (v) => {
@@ -77,13 +153,17 @@ export function loadSectionIds(defaultIds: string[], scope?: NavOrderScope | nul
         /* ignore */
       }
     })
-    if (!parsed || !Array.isArray(parsed)) return [...defaultIds]
-    const set = new Set(defaultIds)
-    const ordered = parsed.filter((id) => set.has(id))
-    for (const id of defaultIds) {
-      if (!ordered.includes(id)) ordered.push(id)
+    if (!parsed || !Array.isArray(parsed)) {
+      writeSectionOrderVersion(scope)
+      return [...defaultIds]
     }
-    return ordered
+
+    const merged = mergeMissingSectionsAtCanonicalPositions(parsed, defaultIds)
+    if (merged.length !== parsed.length || merged.some((id, i) => id !== parsed[i])) {
+      saveSectionIds(merged, scope)
+    }
+    writeSectionOrderVersion(scope)
+    return merged
   } catch {
     return [...defaultIds]
   }
@@ -457,8 +537,9 @@ export function clearSavedNavOrder(scope?: NavOrderScope | null) {
           scopedKey(LS_SECTION, scope),
           scopedKey(LS_ITEMS, scope),
           scopedKey(LS_PLACEMENTS_V2, scope),
+          scopedKey(LS_SECTION_VERSION, scope),
         ]
-      : [LS_SECTION, LS_ITEMS, LS_PLACEMENTS_V2]
+      : [LS_SECTION, LS_ITEMS, LS_PLACEMENTS_V2, LS_SECTION_VERSION]
     for (const k of keys) localStorage.removeItem(k)
   } catch {
     /* ignore */

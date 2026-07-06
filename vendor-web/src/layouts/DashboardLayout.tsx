@@ -187,6 +187,7 @@ import {
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import {
+  CANONICAL_SIDEBAR_SECTION_IDS,
   ensurePinnedNavItemsInSection,
   loadSectionIds,
   saveSectionIds,
@@ -807,7 +808,7 @@ const allSections: NavSection[] = [
   },
 ]
 
-const DEFAULT_SECTION_IDS = allSections.map((s) => s.id)
+const DEFAULT_SECTION_IDS = CANONICAL_SIDEBAR_SECTION_IDS.slice() as string[]
 
 const SID_SEC = 'sb-sec:'
 const SID_ITM = 'sb-itm:'

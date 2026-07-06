@@ -1,6 +1,7 @@
 import type { NavOrderScope } from '@/layouts/sidebarNavOrder'
 
 const LS_ENABLED = 'kiterp.vendor.sidebar.enabled-sections'
+const LS_KNOWN_SECTIONS = 'kiterp.vendor.sidebar.known-section-ids'
 
 /** Always visible in the sidebar — core hub for dashboard, notifications, and settings. */
 export const PINNED_SIDEBAR_SECTION_IDS = ['my-kit'] as const
@@ -38,6 +39,7 @@ function withPinned(ids: string[], allSectionIds: string[]): string[] {
 
 /**
  * Load enabled sidebar module ids. Defaults to all visible modules (backward compatible).
+ * New modules added in an app update are auto-enabled; explicit uninstalls are preserved.
  */
 export function loadEnabledSectionIds(
   allSectionIds: string[],
@@ -45,11 +47,23 @@ export function loadEnabledSectionIds(
 ): string[] {
   try {
     const key = scopedKey(LS_ENABLED, scope)
+    const knownKey = scopedKey(LS_KNOWN_SECTIONS, scope)
     const parsed = readJson<string[]>(key)
+    const known = readJson<string[]>(knownKey) ?? []
     if (!parsed || !Array.isArray(parsed)) return [...allSectionIds]
     const valid = new Set(allSectionIds)
     const stored = parsed.filter((id) => valid.has(id))
-    return withPinned(stored, allSectionIds)
+    let enabled = withPinned(stored, allSectionIds)
+    // Modules that did not exist when the user last saved — enable by default.
+    for (const id of allSectionIds) {
+      if (!known.includes(id) && !enabled.includes(id)) enabled.push(id)
+    }
+    try {
+      localStorage.setItem(knownKey, JSON.stringify(allSectionIds))
+    } catch {
+      /* ignore */
+    }
+    return enabled
   } catch {
     return [...allSectionIds]
   }
