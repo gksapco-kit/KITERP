@@ -77,15 +77,23 @@ export function normalizeVariantAttributes(variant: ProductVariant): Record<stri
 
   const valueKey = keys.find((k) => k.toLowerCase() === 'value')
   const sizeKey = keys.find((k) => isSizeDimension(k))
+  const colorKey = keys.find(isColorDimension)
   const valueCode = valueKey ? attrs[valueKey]?.trim() : ''
   const sizeLabel = sizeKey ? attrs[sizeKey]?.trim() : ''
-  const canonicalSize = valueCode
+  // ERP uses Value as a size code alongside Color (e.g. Gold + S). Do not treat Value as
+  // size when it is the only attribute and holds a color-like label (e.g. Gold).
+  const valueIsSizeCode = Boolean(valueKey && valueCode && (colorKey || isSizeLikeToken(valueCode)))
+  const canonicalSize = valueIsSizeCode
     ? toCompactSizeCode(valueCode)
     : sizeLabel
       ? toCompactSizeCode(sizeLabel)
       : ''
 
-  if (canonicalSize || sizeKey || valueKey) {
+  if (valueKey && valueCode && !valueIsSizeCode && !colorKey && isColorLikeToken(valueCode)) {
+    return { Color: valueCode }
+  }
+
+  if (canonicalSize || sizeKey || valueIsSizeCode) {
     const out: Record<string, string> = {}
     for (const [k, v] of Object.entries(attrs)) {
       if (isSizeDimension(k) || k.toLowerCase() === 'value') continue
@@ -231,6 +239,13 @@ function resolveVariantByColorName(
   selections: Record<string, string>,
 ): ProductVariant | undefined {
   const sizeSel = getSizeSelection(selections)
+
+  // Gallery-only or single-SKU products: every swatch maps to the same purchasable variant.
+  if (normalized.length === 1) {
+    const only = normalized[0]
+    if (variantHasSize(only, sizeSel)) return only
+  }
+
   const galleryIdx = parseGalleryColorIndex(colorName)
   if (galleryIdx != null && galleryIdx >= 0) {
     const candidate = normalized[galleryIdx] ?? normalized[0]

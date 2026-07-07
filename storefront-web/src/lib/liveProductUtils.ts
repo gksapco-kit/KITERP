@@ -3,8 +3,25 @@ import { imgUrl } from '@/lib/utils'
 
 export function formatLiveProductPrice(price: number | null | undefined, currency = 'INR'): string | null {
   if (price == null || Number.isNaN(Number(price))) return null
+  if (Number(price) <= 0) return null
   if (currency === 'INR') return `₹${Number(price).toLocaleString('en-IN')}`
   return `${currency} ${Number(price).toLocaleString('en-IN')}`
+}
+
+/** Resolve the price shown on catalog cards from live feed items. */
+export function resolveLiveItemDisplayPrice(item: LiveItem): number | null {
+  const meta = (item.meta || {}) as Record<string, unknown>
+  const direct = item.price
+  if (direct != null && Number(direct) > 0) return Number(direct)
+
+  const labeled = normalizeLiveProductPriceLabel(item.price_formatted)
+  if (labeled) {
+    const amount = labeled.replace(/^₹/, '').replace(/,/g, '')
+    const num = Number(amount)
+    if (!Number.isNaN(num) && num > 0) return num
+  }
+
+  return direct != null && !Number.isNaN(Number(direct)) ? Number(direct) : null
 }
 
 /** Storefront path for a live catalog item (/products/{slug} or /services/{slug}). */
@@ -50,9 +67,10 @@ export function normalizeLiveProduct(item: LiveItem): LiveItem {
     || (meta.thumbnail_url as string)
     || null
 
+  const resolvedPrice = resolveLiveItemDisplayPrice(item)
   const priceFormatted =
-    normalizeLiveProductPriceLabel(item.price_formatted)
-    || formatLiveProductPrice(item.price, currency)
+    formatLiveProductPrice(resolvedPrice, currency)
+    || normalizeLiveProductPriceLabel(item.price_formatted)
 
   const productUrl = resolveLiveProductUrl(item)
 
@@ -62,6 +80,7 @@ export function normalizeLiveProduct(item: LiveItem): LiveItem {
     image_url: image ? imgUrl(image) : null,
     subtitle: item.subtitle || (meta.brand as string) || null,
     description: item.description || (meta.short_description as string) || null,
+    price: resolvedPrice ?? item.price,
     price_formatted: priceFormatted,
   }
 }

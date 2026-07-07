@@ -3994,6 +3994,7 @@ async def get_live_resource(
     if resource == "products":
         from app.models.vendor_product import Product, ProductImage
         from app.services.product_media import resolve_product_thumbnail_url
+        from app.services.product_pricing import live_product_price_fields
         q = (
             select(Product)
             .options(selectinload(Product.images), selectinload(Product.variants))
@@ -4004,14 +4005,15 @@ async def get_live_resource(
         rows = (await db.execute(q)).scalars().all()
         for p in rows:
             img = resolve_product_thumbnail_url(p)
+            price_fields = live_product_price_fields(p)
             items.append(_norm_item(
                 id=str(p.id),
                 title=p.name or "",
                 subtitle=p.brand,
                 description=p.short_description or p.description,
                 image_url=img,
-                price=float(p.price) if p.price is not None else None,
-                price_formatted=(f"{p.currency or 'INR'} {float(p.price):,.0f}" if p.price is not None else None),
+                price=price_fields["price"],
+                price_formatted=price_fields["price_formatted"],
                 url=f"/products/{p.slug}" if p.slug else None,
                 meta={
                     "sku": p.sku,
@@ -4022,9 +4024,10 @@ async def get_live_resource(
                     "is_featured": p.is_featured,
                     "is_on_sale": p.is_on_sale,
                     "discount_percentage": float(p.discount_percentage) if p.discount_percentage is not None else None,
-                    "compare_at_price": float(p.compare_at_price) if p.compare_at_price is not None else None,
+                    "compare_at_price": price_fields["compare_at_price"],
                     "currency": p.currency,
                     "offer_label": p.offer_label,
+                    "price_from_variants": price_fields["price_from_variants"],
                 },
             ))
 

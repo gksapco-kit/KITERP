@@ -30,7 +30,7 @@ export function checkoutSelectionToPaymentMethod(sel?: PaymentSelection): string
 }
 
 export function isManualProofPayment(sel?: PaymentSelection): boolean {
-  return sel?.kind === 'tab' && (sel.tab === 'upi' || sel.tab === 'bnpl')
+  return sel?.kind === 'tab' && sel.tab === 'upi'
 }
 
 /** @deprecated use isManualProofPayment */
@@ -44,7 +44,8 @@ export function isHostedCheckoutGateway(method: string): boolean {
 
 export function isOnlineCheckoutPayment(method: string, sel?: PaymentSelection): boolean {
   if (isManualProofPayment(sel)) return false
-  return method !== 'cod'
+  if (method === 'cod' || method === 'pay_later') return false
+  return true
 }
 
 export function validateCheckoutPaymentMethod(method: string): string | null {

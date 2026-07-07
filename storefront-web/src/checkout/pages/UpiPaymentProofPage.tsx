@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { CheckCircle2, Loader2, Mail, Package, Upload } from "lucide-react";
+import { CheckCircle2, Loader2, Mail, Upload } from "lucide-react";
 import { storeApi } from "@/api/store";
 import { resetCartAfterOrder, storeKeys } from "@/hooks/useStore";
 import { useBranch } from "@/contexts/BranchContext";
@@ -27,11 +27,6 @@ function manualUpiFromStoreInfo(storeInfo: unknown): ManualUpiConfig | null {
       ?? (storeInfo as { business_name?: string } | undefined)?.business_name,
     logo_url: (storeInfo as { logo_url?: string } | undefined)?.logo_url ?? null,
   };
-}
-
-function paymentTitle(method?: string) {
-  if (method === "pay_later") return "Complete Pay later payment";
-  return "Complete UPI payment";
 }
 
 export default function UpiPaymentProofPage() {
@@ -60,8 +55,13 @@ export default function UpiPaymentProofPage() {
   }, [qc, vendorSlug]);
 
   const manualUpi = manualUpiFromStoreInfo(storeInfo);
-  const isPayLater = order?.payment_method === "pay_later";
   const customerEmail = customer?.email ?? "";
+
+  useEffect(() => {
+    if (order?.payment_method === "pay_later") {
+      navigate(storePath(`/order/${orderId}/confirmation`), { replace: true });
+    }
+  }, [order?.payment_method, orderId, navigate, storePath]);
 
   const totalMoney = order
     ? { amount: Math.round(Number(order.total) * 100), currency: "INR" }
@@ -102,7 +102,7 @@ export default function UpiPaymentProofPage() {
     }
   };
 
-  if (isLoading || !order) {
+  if (isLoading || !order || order.payment_method === "pay_later") {
     return (
       <div className="flex justify-center py-20">
         <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
@@ -152,17 +152,13 @@ export default function UpiPaymentProofPage() {
     <div className="checkout-root min-h-screen">
       <CheckoutHeader />
       <main className="mx-auto max-w-xl px-3 py-8 sm:px-4 sm:py-10">
-        <h1 className="text-2xl font-semibold">{paymentTitle(order.payment_method)}</h1>
+        <h1 className="text-2xl font-semibold">Complete UPI payment</h1>
         <p className="ck-text-muted mt-1 text-sm">
           Order <strong>{order.order_number}</strong> · Pay{" "}
           <strong>₹{Number(order.total).toFixed(2)}</strong>
         </p>
 
-        {isPayLater ? (
-          <div className="ck-border ck-radius-md ck-text-muted mt-6 p-4 text-sm">
-            <Package className="mb-2 inline h-4 w-4" /> Pay later — upload your payment screenshot and transaction ID below so the store can verify your payment.
-          </div>
-        ) : manualUpi ? (
+        {manualUpi ? (
           <div className="mt-6">
             <UpiPaymentPanel manualUpi={manualUpi} total={totalMoney} />
           </div>

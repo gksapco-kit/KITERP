@@ -124,10 +124,10 @@ function EditableColumnFooter({
   const visibleColumns = visibleArrayEntries(columns, blockProps, 'footer_columns')
 
   return (
-    <footer className={cn('border-t mt-8', footerClass)} style={{ backgroundColor: footerBg }}>
+    <footer className={cn('w-full min-w-0 border-t mt-8', footerClass)} style={{ backgroundColor: footerBg }}>
       <div className={builderSectionContainerClass('py-12')}>
-        <div className="grid gap-10 md:grid-cols-12">
-          <div className="md:col-span-4">
+        <div className="grid w-full min-w-0 gap-10 md:grid-cols-12">
+          <div className="min-w-0 md:col-span-4">
             {showBrand && (
             <BuilderTextField
               fieldKey="brand"
@@ -169,13 +169,13 @@ function EditableColumnFooter({
 
           <div
             className={cn(
-              'grid gap-8 md:col-span-8',
+              'grid w-full min-w-0 gap-8 md:col-span-8',
               (visibleColumns.length >= 4
-                ? 'sm:grid-cols-2 md:grid-cols-4'
+                ? 'md:grid-cols-2 lg:grid-cols-4'
                 : visibleColumns.length === 3
-                  ? 'sm:grid-cols-2 md:grid-cols-3'
+                  ? 'md:grid-cols-2 lg:grid-cols-3'
                   : visibleColumns.length === 2
-                    ? 'sm:grid-cols-2'
+                    ? 'md:grid-cols-2'
                     : 'grid-cols-1'),
             )}
           >

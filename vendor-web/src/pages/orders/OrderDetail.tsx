@@ -60,7 +60,7 @@ export default function OrderDetail() {
   const [reviewingPayment, setReviewingPayment] = useState(false)
 
   const pendingUpiProof =
-    (order?.payment_method === 'upi' || order?.payment_method === 'pay_later')
+    order?.payment_method === 'upi'
     && order?.payment_status === 'pending_verification'
     && order?.payment_proof?.status === 'submitted'
 

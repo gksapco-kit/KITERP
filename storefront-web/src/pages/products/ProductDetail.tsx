@@ -9,8 +9,10 @@ import type { ProductVariant } from '@/types'
 import {
   buildProductCardOptionRows,
   getProductPageColorOptions,
+  getVariantOptionDimensions,
+  isColorDimension,
+  resolveCardDefaultSelections,
   resolveVariantForCardPricing,
-  selectionsFromVariant,
   validateVariantCombination,
   type ProductCardOptionRow,
   type ProductColorOption,
@@ -63,17 +65,12 @@ export default function ProductDetail() {
   useEffect(() => {
     if (!product || !activeVariants.length) return
     const first = activeVariants.find((v) => v.is_active !== false) ?? activeVariants[0]
-    const nextSelections = selectionsFromVariant(first)
-    setSelections(nextSelections)
-    setSelectedVariantId(first.id)
-    const colors = getProductPageColorOptions(activeVariants, product.images)
-    const colorRow = optionRows.find((r) => r.type === 'color')
-    if (colorRow?.type === 'color') {
-      const match = colorRow.swatches.find((s) => s.variantId === first.id)
-      setSelectedColorName(match?.value ?? colors[0]?.name)
-    } else {
-      setSelectedColorName(undefined)
-    }
+    const rows = buildProductCardOptionRows(activeVariants, product.images)
+    const defaults = resolveCardDefaultSelections(activeVariants, rows, first)
+    setSelections(defaults.selections)
+    setSelectedColorName(defaults.colorName)
+    const validated = validateVariantCombination(activeVariants, defaults.selections, defaults.colorName)
+    setSelectedVariantId(validated.variant?.id ?? first.id)
   }, [product?.id, activeVariants.length])
 
   const variantValidation = useMemo(
@@ -84,6 +81,10 @@ export default function ProductDetail() {
   const handleSelectColor = (option: ProductColorOption) => {
     setSelectedColorName(option.name)
     setSelectedVariantId(option.variantId)
+    const colorDim = getVariantOptionDimensions(activeVariants).find(isColorDimension)
+    if (colorDim) {
+      setSelections((prev) => ({ ...prev, [colorDim]: option.name }))
+    }
     if (option.imageIndex != null) setSelectedImage(option.imageIndex)
     else setSelectedImage(0)
   }

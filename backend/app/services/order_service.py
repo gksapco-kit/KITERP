@@ -154,8 +154,7 @@ class OrderService:
             data.payment_method.value == "upi"
             and manual_upi_cfg.get("enabled")
         )
-        is_manual_pay_later = data.payment_method.value == "pay_later"
-        is_manual_proof = is_manual_upi or is_manual_pay_later
+        is_manual_proof = is_manual_upi
         is_online = data.payment_method.value in online_methods and not is_manual_proof
 
         # Generate order number
@@ -212,6 +211,12 @@ class OrderService:
             order.confirmed_at = datetime.now(timezone.utc)
             payment.status = "pending"
             self._record_status(order.id, "pending", "confirmed", changed_by_role="system", notes="Auto-confirmed (COD)")
+        elif data.payment_method.value == "pay_later":
+            order.payment_status = "pending"
+            order.status = "confirmed"
+            order.confirmed_at = datetime.now(timezone.utc)
+            payment.status = "pending"
+            self._record_status(order.id, "pending", "confirmed", changed_by_role="system", notes="Auto-confirmed (Pay later)")
         elif is_online:
             order.payment_status = "pending"
             order.status = "pending"
@@ -237,8 +242,8 @@ class OrderService:
             if ship_phone and not (customer.phone or "").strip():
                 customer.phone = ship_phone
 
-        # COD: deduct stock and clear cart immediately; online/manual UPI: defer until payment verify
-        if data.payment_method.value == "cod":
+        # COD / Pay later: deduct stock and clear cart immediately; online/manual UPI: defer until payment verify
+        if data.payment_method.value in ("cod", "pay_later"):
             await self._deduct_inventory_for_order(vendor_id, order)
             if clear_cart and cart is not None:
                 await self.cart_repo.clear_cart(cart)
@@ -288,7 +293,7 @@ class OrderService:
                 )
                 # Online card/UPI: defer email/SMS/WhatsApp until payment is confirmed
                 # (see PaymentGatewayService._finalize_paid_order).
-                if data.payment_method.value == "cod":
+                if data.payment_method.value in ("cod", "pay_later"):
                     customer = await self.customer_repo.get_by_vendor_and_id(vendor_id, customer_id)
                     await send_order_placed_notifications(
                         self.db,
@@ -625,8 +630,8 @@ class OrderService:
         order = await self.order_repo.get_by_vendor_and_id(vendor_id, order_id)
         if not order or order.customer_id != customer_id:
             raise HTTPException(status_code=404, detail="Order not found")
-        if order.payment_method not in ("upi", "pay_later"):
-            raise HTTPException(status_code=400, detail="This order does not use manual payment verification")
+        if order.payment_method != "upi":
+            raise HTTPException(status_code=400, detail="This order does not use manual UPI payment verification")
         if order.payment_status == "paid":
             raise HTTPException(status_code=400, detail="Payment already confirmed")
         if order.payment_status not in ("pending", "pending_verification"):
@@ -680,8 +685,8 @@ class OrderService:
         order = await self.order_repo.get_by_vendor_and_id(vendor_id, order_id)
         if not order:
             raise HTTPException(status_code=404, detail="Order not found")
-        if order.payment_method not in ("upi", "pay_later"):
-            raise HTTPException(status_code=400, detail="Not a manual payment order")
+        if order.payment_method != "upi":
+            raise HTTPException(status_code=400, detail="Not a manual UPI payment order")
         if order.payment_status == "paid":
             return order
         if order.payment_status != "pending_verification" or not order.payment_proof:
@@ -754,8 +759,8 @@ class OrderService:
         order = await self.order_repo.get_by_vendor_and_id(vendor_id, order_id)
         if not order:
             raise HTTPException(status_code=404, detail="Order not found")
-        if order.payment_method not in ("upi", "pay_later"):
-            raise HTTPException(status_code=400, detail="Not a manual payment order")
+        if order.payment_method != "upi":
+            raise HTTPException(status_code=400, detail="Not a manual UPI payment order")
         if order.payment_status == "paid":
             raise HTTPException(status_code=400, detail="Payment already confirmed")
 

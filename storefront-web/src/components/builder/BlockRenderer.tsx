@@ -604,6 +604,21 @@ export function splitLeadingShellBlocks(blocks: PublicBlock[]) {
   return { shellBlocks, contentBlocks: blocks.slice(index) }
 }
 
+const TRAILING_SHELL_BLOCK_TYPES = new Set(['footer'])
+
+/** Trailing footer blocks stay outside overflow-x-clip so mobile padding is not clipped. */
+export function splitTrailingShellBlocks(blocks: PublicBlock[]) {
+  const trailingShellBlocks: PublicBlock[] = []
+  let end = blocks.length
+  while (end > 0) {
+    const blockType = blocks[end - 1]?.block_type
+    if (!blockType || !TRAILING_SHELL_BLOCK_TYPES.has(blockType)) break
+    trailingShellBlocks.unshift(blocks[end - 1])
+    end -= 1
+  }
+  return { middleBlocks: blocks.slice(0, end), trailingShellBlocks }
+}
+
 export default function BlockRenderer({ blocks, site, pageId, branchCode, suppressShellSticky = false }: BlockRendererProps) {
   const style = mergePageStyle(site.style_config as Partial<StyleConfig>, pageId)
   const location = useLocation()
@@ -645,7 +660,8 @@ export default function BlockRenderer({ blocks, site, pageId, branchCode, suppre
     )
   }
 
-  const { shellBlocks, contentBlocks } = splitLeadingShellBlocks(visibleBlocks)
+  const { shellBlocks, contentBlocks: afterLeadingShell } = splitLeadingShellBlocks(visibleBlocks)
+  const { middleBlocks, trailingShellBlocks } = splitTrailingShellBlocks(afterLeadingShell)
 
   const pageStyle = {
     backgroundColor: style.bg_color,
@@ -667,7 +683,8 @@ export default function BlockRenderer({ blocks, site, pageId, branchCode, suppre
   const siteRadiusMode = normalizeSiteBorderRadius(style.border_radius)
 
   const renderShell = shellBlocks.length > 0 && !suppressShellSticky
-  const blocksToRender = suppressShellSticky ? visibleBlocks : contentBlocks
+  const blocksToRender = suppressShellSticky ? visibleBlocks : middleBlocks
+  const trailingToRender = suppressShellSticky ? [] : trailingShellBlocks
 
   return (
     <div className="builder-page min-w-0" style={pageStyle} data-site-radius={siteRadiusMode}>
@@ -680,6 +697,7 @@ export default function BlockRenderer({ blocks, site, pageId, branchCode, suppre
       <div className="builder-page-content min-w-0 overflow-x-clip">
         {blocksToRender.map(renderBlock)}
       </div>
+      {trailingToRender.map(renderBlock)}
     </div>
   )
 }

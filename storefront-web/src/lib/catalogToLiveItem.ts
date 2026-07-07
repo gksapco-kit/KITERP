@@ -11,21 +11,36 @@ function primaryImageUrl(images: { url: string; is_primary?: boolean }[] | undef
 
 export function catalogProductToLiveItem(product: Product): LiveItem {
   const currency = product.currency || 'INR'
+  const variants = (product.variants || []).filter(v => v.is_active !== false)
+  const variantPrices = variants.map(v => v.price).filter(p => p > 0)
+  const effectivePrice =
+    product.price > 0
+      ? product.price
+      : variantPrices.length > 0
+        ? Math.min(...variantPrices)
+        : product.price
+  const variantComparePrices = variants
+    .map(v => v.compare_at_price)
+    .filter((p): p is number => p != null && p > 0)
+  const effectiveCompareAt =
+    product.compare_at_price ??
+    (variantComparePrices.length > 0 ? Math.min(...variantComparePrices) : undefined)
+
   return {
     id: product.id,
     title: product.name,
     subtitle: product.brand || product.short_description || null,
     description: product.description || null,
     image_url: resolveProductThumbnailUrl({ images: product.images, variants: product.variants }),
-    price: product.price,
-    price_formatted: formatLiveProductPrice(product.price, currency),
+    price: effectivePrice,
+    price_formatted: formatLiveProductPrice(effectivePrice, currency),
     url: `/products/${product.slug}`,
     meta: {
       slug: product.slug,
       category: product.category,
       stock_status: product.stock_status,
       currency,
-      compare_at_price: product.compare_at_price,
+      compare_at_price: effectiveCompareAt,
       is_on_sale: product.is_on_sale,
       is_featured: product.is_featured,
     },
