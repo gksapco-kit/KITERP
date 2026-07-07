@@ -1,5 +1,6 @@
 import { AxiosError } from 'axios'
 import { toast } from 'sonner'
+import { humanizeApiValidationError } from '@/lib/formFieldErrors'
 
 /**
  * Map known raw DB / server error strings into short, user-readable messages.
@@ -70,7 +71,7 @@ function humanizeValidationMessage(field: string, msg: string): string {
     return 'Invalid format — please check the value and try again.'
   }
 
-  return msg
+  return humanizeApiValidationError(field, msg)
 }
 
 /**
@@ -148,13 +149,14 @@ export function extractApiError(error: unknown, context: string): string {
   }
 
   if (data?.detail && Array.isArray(data.detail)) {
-    const fieldErrors = (data.detail as ApiErrorDetail[])
-      .map(e => {
-        const field = e.loc?.filter(p => p !== 'body')?.join('.') || e.field || 'field'
-        const raw = e.msg || e.message || 'invalid value'
-        return humanizeValidationMessage(field, raw)
-      })
-      .slice(0, 5)
+    const fieldErrors = [...new Set(
+      (data.detail as ApiErrorDetail[])
+        .map(e => {
+          const field = e.loc?.filter(p => p !== 'body')?.join('.') || e.field || 'field'
+          const raw = e.msg || e.message || 'invalid value'
+          return humanizeValidationMessage(field, raw)
+        }),
+    )].slice(0, 5)
     const suffix = data.detail.length > 5 ? ` (+${data.detail.length - 5} more)` : ''
     return fieldErrors.length === 1
       ? `${context}: ${fieldErrors[0]}`

@@ -34,6 +34,13 @@ import { builderSectionContainerClass } from '@/lib/builderSectionLayout'
 import { BuilderCtaButton } from '@/components/builder/BuilderCtaButton'
 import { BuilderTextField } from '@/components/builder/BuilderTextField'
 import { BuilderSectionImage } from '@/components/builder/BuilderSectionImage'
+import {
+  readNavBrandGap,
+  readNavBrandLayout,
+  resolveNavBrandContainerClass,
+  resolveNavBrandTextClass,
+  resolveNavLogoPresentation,
+} from '@/lib/navBrandStyle'
 
 interface Props {
   site: PublicSite
@@ -208,7 +215,9 @@ export default function NavBlock({
   const showBrandText = showBrandName && brand
   const showHomeFallback = !showLogoImageResolved && !showBrandText
 
-  const logoImageClass = cn('w-auto object-contain shrink-0', shell.isCompact ? 'h-6 max-w-[100px]' : 'h-8 max-w-[120px]')
+  const brandLayout = readNavBrandLayout(props)
+  const brandGap = readNavBrandGap(props)
+  const logoPresentation = resolveNavLogoPresentation(props, shell.isCompact)
 
   const logoImageNode = showLogoImageResolved ? (
     isEditorCanvas && blockId ? (
@@ -219,18 +228,20 @@ export default function NavBlock({
         src={logoUrl ? imgUrl(logoUrl) : ''}
         alt={brand}
         empty={!logoUrl}
-        className={logoImageClass}
+        className={logoPresentation.className}
+        style={logoPresentation.style}
       />
     ) : logoUrl ? (
       <img
         src={imgUrl(logoUrl)}
         alt={brand}
-        className={logoImageClass}
+        className={logoPresentation.className}
+        style={logoPresentation.style}
       />
     ) : null
   ) : null
 
-  const brandTextClass = cn('font-bold truncate', shell.isCompact ? 'text-sm' : 'text-base')
+  const brandTextClass = cn(resolveNavBrandTextClass(props, shell.isCompact))
   const brandTextStyle = { color: shell.navBrandCol, fontFamily: style.font_heading }
 
   const brandTextNode = showBrandText ? (
@@ -256,7 +267,8 @@ export default function NavBlock({
     <a
       href={homePath}
       onClick={(e) => previewNavClick(e, homePath)}
-      className="inline-flex items-center gap-2 min-w-0 shrink-0 max-w-[min(100%,220px)]"
+      className={cn(resolveNavBrandContainerClass(brandLayout, shell.isCentered), 'max-w-[min(100%,260px)]')}
+      style={{ gap: brandGap }}
       aria-label={showHomeFallback ? 'Home' : brand}
     >
       {logoImageNode}
@@ -269,7 +281,12 @@ export default function NavBlock({
       )}
     </a>
   ) : (
-    <Link to={homePath} className="inline-flex items-center gap-2 min-w-0 shrink-0 max-w-[min(100%,220px)]" aria-label={showHomeFallback ? 'Home' : brand}>
+    <Link
+      to={homePath}
+      className={cn(resolveNavBrandContainerClass(brandLayout, shell.isCentered), 'max-w-[min(100%,260px)]')}
+      style={{ gap: brandGap }}
+      aria-label={showHomeFallback ? 'Home' : brand}
+    >
       {logoImageNode}
       {showBrandText && brandTextNode}
       {showHomeFallback && (

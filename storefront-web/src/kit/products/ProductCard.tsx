@@ -14,6 +14,13 @@ import {
   resolveVariantForCardPricing,
   validateVariantCombination,
 } from "@/lib/variantOptions";
+import {
+  readCatalogCardLayout,
+} from "@/lib/catalogCardLayout";
+import {
+  catalogAddButtonLabel,
+  resolveCatalogAddButtonPresentation,
+} from "@/lib/catalogAddButtonStyle";
 import type { Product } from "../types";
 import { formatPrice } from "../mock";
 
@@ -51,6 +58,7 @@ export function ProductCard({
   onAddToCart,
   onToggleWishlist,
 }: ProductCardProps) {
+  const cardLayout = readCatalogCardLayout({});
   const productHref = linkTo ?? `/products/${product.slug}`;
   const horizontal = layout === "horizontal";
   const allVariants = product.variants ?? [];
@@ -125,6 +133,19 @@ export function ProductCard({
       ? firstAvailable?.available !== false && product.inStock
       : validation.valid && selectedVariant?.available !== false && product.inStock;
 
+  const addBtn = resolveCatalogAddButtonPresentation({
+    style: cardLayout.addButtonStyle,
+    isMinimalCard: cardLayout.isMinimalCard,
+    isCompactCard: cardLayout.isCompactCard,
+  });
+  const addLabel = !product.inStock
+    ? "Out of stock"
+    : optionRows.length > 0 && !validation.valid
+      ? "Select options"
+      : (selectedVariant ?? firstAvailable)?.available === false
+        ? "Out of stock"
+        : catalogAddButtonLabel(cardLayout.isMinimalCard);
+
   const displayImage = useMemo(
     () =>
       resolveCardDisplayImage(optionRows, galleryImages, selectedColorName, product.image) ??
@@ -195,24 +216,22 @@ export function ProductCard({
           )}
         </div>
         <div className="mt-auto flex items-center gap-2 pt-2">
-          <Button
-            size="sm"
-            className="flex-1"
-            disabled={!canAdd}
-            onClick={() => {
-              const variant = selectedVariant ?? firstAvailable;
-              if (canAdd && variant) onAddToCart?.(product, variant);
-            }}
-          >
-            <ShoppingCart />
-            {!product.inStock
-              ? "Out of stock"
-              : optionRows.length > 0 && !validation.valid
-                ? "Select options"
-                : (selectedVariant ?? firstAvailable)?.available === false
-                  ? "Out of stock"
-                  : "Add to cart"}
-          </Button>
+          {cardLayout.showAddButton && (
+            <button
+              type="button"
+              className={cn(addBtn.className, !addBtn.iconOnly && "flex-1", "hover:opacity-90")}
+              style={addBtn.style}
+              disabled={!canAdd}
+              aria-label={addBtn.iconOnly ? addLabel : undefined}
+              onClick={() => {
+                const variant = selectedVariant ?? firstAvailable;
+                if (canAdd && variant) onAddToCart?.(product, variant);
+              }}
+            >
+              <ShoppingCart className={addBtn.iconClassName} />
+              {addBtn.showLabel ? addLabel : null}
+            </button>
+          )}
           <Button size="icon" variant="outline" onClick={() => onToggleWishlist?.(product)} aria-label="Wishlist">
             <Heart />
           </Button>

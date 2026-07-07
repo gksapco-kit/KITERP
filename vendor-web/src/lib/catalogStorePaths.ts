@@ -56,6 +56,25 @@ export function parseStorefrontEmbedRoute(rawPath: string): string | null {
   return null
 }
 
+/** Strip /store/:slug and draft-catalog embed prefixes so catalog parsers see /products/foo. */
+export function normalizeStorefrontCatalogHref(rawPath: string): string {
+  const clean = rawPath.startsWith('/') ? rawPath : `/${rawPath}`
+  const qIdx = clean.indexOf('?')
+  const queryString = qIdx >= 0 ? clean.slice(qIdx) : ''
+  let pathname = (qIdx >= 0 ? clean.slice(0, qIdx) : clean).replace(/\/+$/, '') || '/'
+
+  const draftEmbed = pathname.match(/^\/store\/[^/]+\/draft-catalog\/[^/]+(\/.*)?$/i)
+  if (draftEmbed) {
+    pathname = draftEmbed[1]?.replace(/\/+$/, '') || '/'
+  } else {
+    const store = pathname.match(/^\/store\/[^/]+(\/.*)?$/i)
+    if (store) pathname = store[1]?.replace(/\/+$/, '') || '/'
+  }
+
+  if (pathname === '/') return queryString || '/'
+  return `${pathname}${queryString}`
+}
+
 /** `products/cosmotics` or `services/foo/book` or `cart` from a ?route= query value. */
 export function parseCatalogRouteParam(route: string): ParsedCatalogPath | null {
   const trimmed = route.trim().replace(/^\/+|\/+$/g, '')

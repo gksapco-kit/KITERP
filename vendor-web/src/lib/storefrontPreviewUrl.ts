@@ -166,21 +166,39 @@ function rememberLastPreviewNavigateUrl(url: string): void {
   lastPreviewNavigateUrl = url
 }
 
+function deliverPreviewNavigateUrl(url: string): void {
+  broadcastPreviewTabNavigate(url)
+  reacquirePreviewWindowRef()
+  if (previewWindowRef && !previewWindowRef.closed) {
+    try {
+      const targetOrigin = new URL(url).origin
+      if (isSameLoopbackOrigin(window.location.origin, targetOrigin)) {
+        previewWindowRef.location.replace(url)
+        previewWindowRef.focus()
+      }
+    } catch {
+      /* localStorage poll + postMessage remain the fallback */
+    }
+    postMessageToPreviewTabLoopback(url)
+  }
+}
+
 function retryLastPreviewNavigateDelivery(): void {
   if (!lastPreviewNavigateUrl) return
-  broadcastPreviewTabNavigate(lastPreviewNavigateUrl)
-  reacquirePreviewWindowRef()
-  if (!previewWindowRef || previewWindowRef.closed) return
-  try {
-    const targetOrigin = new URL(lastPreviewNavigateUrl).origin
-    if (isSameLoopbackOrigin(window.location.origin, targetOrigin)) {
-      previewWindowRef.location.replace(lastPreviewNavigateUrl)
-      previewWindowRef.focus()
+  deliverPreviewNavigateUrl(lastPreviewNavigateUrl)
+}
+
+/** Pending tab may mount after the first handoff — retry for a short window. */
+function schedulePreviewDeliveryRetries(url: string, durationMs = 45_000): void {
+  deliverPreviewNavigateUrl(url)
+  const startedAt = Date.now()
+  const intervalId = window.setInterval(() => {
+    if (Date.now() - startedAt > durationMs) {
+      window.clearInterval(intervalId)
+      return
     }
-  } catch {
-    /* localStorage poll + postMessage remain the fallback */
-  }
-  postMessageToPreviewTabLoopback(lastPreviewNavigateUrl)
+    deliverPreviewNavigateUrl(url)
+  }, 750)
 }
 
 /** Listen for the pending preview tab signalling it is ready to receive the token URL. */
@@ -289,23 +307,11 @@ export function navigateDraftPreviewTab(previewShellUrl: string): boolean {
     const targetOrigin = new URL(url).origin
 
     // Always persist for the pending tab to poll — never clear from the builder side.
-    broadcastPreviewTabNavigate(url)
-
-    // Same-origin location.replace is the most reliable handoff when the tab exists.
+    deliverPreviewNavigateUrl(url)
     if (previewWindowRef && !previewWindowRef.closed && isSameLoopbackOrigin(window.location.origin, targetOrigin)) {
-      try {
-        previewWindowRef.location.replace(url)
-        previewWindowRef.focus()
-        locationNavigated = true
-      } catch {
-        /* localStorage poll + postMessage below */
-      }
+      locationNavigated = true
     }
-
-    // postMessage can fire before the pending shell mounts — treat as best-effort only.
-    if (previewWindowRef && !previewWindowRef.closed) {
-      postMessageToPreviewTabLoopback(url)
-    }
+    schedulePreviewDeliveryRetries(url)
 
     // Only open a new tab when prepare did not run and we have no live preview window.
     if (!locationNavigated && !previewPrepareActive && (!previewWindowRef || previewWindowRef.closed)) {

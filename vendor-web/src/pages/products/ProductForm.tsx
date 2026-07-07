@@ -86,7 +86,21 @@ import { UOM_OPTIONS, UOM_GROUPS, formatUomDisplay } from '@/lib/uomOptions'
 
 const optStr = z.string().optional().or(z.literal(''))
 const optNum = z.coerce.number().optional().or(z.literal('').transform(() => undefined))
-const optInt = z.coerce.number().int().optional().or(z.literal('').transform(() => undefined))
+/** Empty number inputs must stay undefined — z.coerce.number() turns '' into 0. */
+const optInt = z.preprocess(
+  (val) => (val === '' || val === null || val === undefined ? undefined : val),
+  z.coerce.number().int().optional(),
+)
+/** Optional order limits: blank = no limit; backend rejects 0 (ge=1 when set). */
+const optOrderLimitInt = z.preprocess(
+  (val) => (val === '' || val === null || val === undefined ? undefined : val),
+  z.union([
+    z.undefined(),
+    z.coerce.number().int().refine(n => n >= 1, {
+      message: 'Enter 1 or more, or leave blank',
+    }),
+  ]),
+)
 
 /** Placeholder name for variant row 0 when it is only the colour/size generator UI. */
 const PRESET_GENERATOR_VARIANT_NAME = '__preset_generator__'
@@ -169,8 +183,8 @@ const variantRowSchema = z.object({
   reorder_quantity: optInt,
   allow_backorders: z.boolean().default(false),
   track_inventory: z.boolean().default(true),
-  max_quantity_per_order: optInt,
-  min_quantity_per_order: optInt,
+  max_quantity_per_order: optOrderLimitInt,
+  min_quantity_per_order: optOrderLimitInt,
   // Shipping (per variant)
   weight_kg: optNum,
   // Lifecycle

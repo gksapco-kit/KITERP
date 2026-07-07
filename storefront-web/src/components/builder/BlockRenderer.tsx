@@ -252,7 +252,7 @@ function blockLayoutKey(props: Record<string, unknown> | undefined): string {
     props.bg_style, props.bg_color, props.columns, props.image_position, props.card_style,
     props.gradient_preset, props.nav_bg, props.footer_bg, props.overlay, props.compact,
     props.block_shadow, props.item_gap, props.image_height_pct, props.card_padding,
-    props.show_stock, props.show_add_button, props.show_badges, props.show_count, props.show_book_link,
+    props.show_stock, props.show_add_button, props.add_button_style, props.show_quantity_controls, props.show_badges, props.show_count, props.show_book_link,
   ].map(v => String(v ?? '')).join(':')
 }
 

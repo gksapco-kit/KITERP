@@ -7,7 +7,7 @@ export function formatLiveProductPrice(price: number | null | undefined, currenc
   return `${currency} ${Number(price).toLocaleString('en-IN')}`
 }
 
-/** Storefront path for a live catalog product card (/products/{slug}). */
+/** Storefront path for a live catalog item (/products/{slug} or /services/{slug}). */
 export function resolveLiveProductUrl(item: LiveItem): string | null {
   const rawUrl = item.url?.trim()
   if (rawUrl) return rawUrl
@@ -17,6 +17,16 @@ export function resolveLiveProductUrl(item: LiveItem): string | null {
   if (slug) return `/products/${slug}`
 
   return null
+}
+
+/** Branch-aware storefront path for a catalog card link. */
+export function resolveLiveCatalogStorePath(
+  item: LiveItem,
+  storePath: (p: string) => string,
+): string | null {
+  const rel = resolveLiveProductUrl(item)
+  if (!rel) return null
+  return storePath(rel)
 }
 
 export function normalizeLiveProductPriceLabel(raw: string | null | undefined): string | null {

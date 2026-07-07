@@ -21,6 +21,8 @@ const STYLE_PRESERVE_PROP_KEYS = new Set([
   'block_shadow', 'padding_top', 'padding_bottom', 'text_color_override', 'bg_color_override',
   'tile_bg', 'tile_accent', 'tile_text', 'tile_border', 'font_size_px', 'text_scale', 'text_transform',
   'top_shape', 'bottom_shape', 'shape_color', 'media_clip', 'min_height', 'item_gap', 'item_size', 'image_shape',
+  'image_aspect', 'image_object_fit', 'card_border_radius',
+  'tile_overlay_style', 'tile_overlay_clip', 'tile_backdrop', 'add_button_style',
   'content_offset_x', 'content_offset_y',
   'content_flip_h', 'content_flip_v', 'content_rotate_deg',
   'section_flip_h', 'section_flip_v', 'section_rotate_deg',

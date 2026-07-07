@@ -1,10 +1,9 @@
-import { useState, useMemo, type MouseEvent } from 'react'
+import { useState, useMemo } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { useProducts, useServices, useStoreCategories } from '@/hooks/useStore'
 import { useAddToCart } from '@/hooks/useStore'
-import { useProductCartDetailPath } from '@/hooks/useProductCartDetailPath'
 import { formatCurrency, imgUrl, cn } from '@/lib/utils'
 import type { Product, Service, ProductVariant } from '@/types'
 import {
@@ -140,7 +139,6 @@ export default function ProductList() {
   const { isAuthenticated } = useAuthStore()
   const theme = useTheme()
   const addToCart = useAddToCart()
-  const cartDetailPath = useProductCartDetailPath()
   const cardStyle = theme.card_style || 'default'
   const [searchParams] = useSearchParams()
   const initialSearch = searchParams.get('search') || ''
@@ -166,35 +164,6 @@ export default function ProductList() {
 
   const { data: catData } = useStoreCategories({ tree: true })
   const categories = catData?.categories || []
-
-  const queueProductForCartDetail = (item: Product) => {
-    if (!productHasStock(item)) return
-    const imageUrl = item.images?.[0]?.url
-    const variants = (item.variants || []).filter((v) => v.is_active !== false)
-    const effectivePrice = item.price > 0
-      ? item.price
-      : variants.length > 0
-        ? Math.min(...variants.map((v) => v.price))
-        : 0
-    void addToCart.mutateAsync({
-      product_id: item.id,
-      slug: item.slug,
-      name: item.name,
-      qty: 1,
-      price: effectivePrice,
-      image_url: imageUrl ? imgUrl(imageUrl) : undefined,
-    }).catch(() => {
-      /* toast handled by mutation */
-    })
-  }
-
-  const handleProductCardNavigate = (e: MouseEvent, item: Product) => {
-    if (!productHasStock(item)) {
-      e.preventDefault()
-      return
-    }
-    queueProductForCartDetail(item)
-  }
 
   // Build query params - when showing "both" - when showing "both", fetch larger pages and paginate client-side
   const pageSize = filterType === 'both' ? 50 : 12
@@ -640,7 +609,7 @@ export default function ProductList() {
               {combinedItems.map((item: any) => {
                 const isProduct = item.type === 'product'
                 const detailPath = isProduct ? `/products/${item.slug}` : `/services/${item.slug}`
-                const cardLinkTo = isProduct ? cartDetailPath : storePath(detailPath)
+                const cardLinkTo = storePath(detailPath)
                 const imageUrl = isProduct ? item.images?.[0]?.url : item.image_url
                 const hasStock = isProduct ? productHasStock(item as Product) : true
 
@@ -654,8 +623,7 @@ export default function ProductList() {
                   // Dark overlay card: image fills the card, gradient overlay at bottom, text over image
                   return (
                     <Link key={`${item.type}-${item.id}`} to={cardLinkTo}
-                      className="group relative aspect-[3/4] rounded-xl overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 bg-gray-900 block"
-                      onClick={isProduct ? (e) => handleProductCardNavigate(e, item as Product) : undefined}>
+                      className="group relative aspect-[3/4] rounded-xl overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 bg-gray-900 block">
                       {imageUrl ? (
                         <img src={imgUrl(imageUrl)} alt={item.name}
                           className="absolute inset-0 w-full h-full object-cover opacity-80 group-hover:opacity-100 group-hover:scale-105 transition-all duration-500" />
@@ -698,8 +666,7 @@ export default function ProductList() {
                   // Minimal card: no heavy border, subtle hover, airy layout
                   return (
                     <Link key={`${item.type}-${item.id}`} to={cardLinkTo}
-                      className={`group flex flex-col rounded-xl hover:shadow-md transition-all duration-200 p-1 overflow-hidden ${themeUi.catalogSurface}`}
-                      onClick={isProduct ? (e) => handleProductCardNavigate(e, item as Product) : undefined}>
+                      className={`group flex flex-col rounded-xl hover:shadow-md transition-all duration-200 p-1 overflow-hidden ${themeUi.catalogSurface}`}>
                       <div className="aspect-square bg-gray-100 rounded-lg overflow-hidden relative">
                         {imageUrl ? (
                           <img src={imgUrl(imageUrl)} alt={item.name}
@@ -774,8 +741,7 @@ export default function ProductList() {
                     <ProductCard
                       key={`${item.type}-${item.id}`}
                       product={kitProduct}
-                      linkTo={cartDetailPath}
-                      onNavigateClick={(e) => handleProductCardNavigate(e, item as Product)}
+                      linkTo={storePath(`/products/${item.slug}`)}
                       showRating
                       showTags
                       onAddToCart={async (p, variant) => {
@@ -893,7 +859,7 @@ export default function ProductList() {
               {combinedItems.map((item: any) => {
                 const isProduct = item.type === 'product'
                 const detailPath = isProduct ? `/products/${item.slug}` : `/services/${item.slug}`
-                const cardLinkTo = isProduct ? cartDetailPath : storePath(detailPath)
+                const cardLinkTo = storePath(detailPath)
                 const imageUrl = isProduct ? item.images?.[0]?.url : item.image_url
                 const hasStock = isProduct ? productHasStock(item as Product) : true
                 const variants = isProduct ? (item.variants || []).filter((v: any) => v.is_active !== false) : []
@@ -948,7 +914,6 @@ export default function ProductList() {
                     <Link
                       to={cardLinkTo}
                       className="w-32 h-32 sm:w-44 sm:h-44 bg-gray-50 rounded-lg overflow-hidden shrink-0 relative block"
-                      onClick={isProduct ? (e) => handleProductCardNavigate(e, item as Product) : undefined}
                     >
                       {imageUrl ? (
                         <img src={imgUrl(imageUrl)} alt={item.name} className="w-full h-full object-cover" />
@@ -965,7 +930,6 @@ export default function ProductList() {
                       <Link
                         to={cardLinkTo}
                         className={`text-base font-medium line-clamp-2 block no-underline ${themeUi.titleOnSurface} ${themeUi.groupHoverTitle}`}
-                        onClick={isProduct ? (e) => handleProductCardNavigate(e, item as Product) : undefined}
                       >
                         {item.name}
                       </Link>

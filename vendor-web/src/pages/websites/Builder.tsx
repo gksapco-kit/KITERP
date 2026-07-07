@@ -91,7 +91,6 @@ import {
   ColorIdentPickerRow,
   LineSpacingMenuContent,
   LineSpacingToolbarButton,
-  TypographyCompositionFields,
   typographyToolbarBox,
   type TextAlignH,
   type TextAlignV,
@@ -223,7 +222,7 @@ import {
   pxToOverlayPercent,
 } from '@storefront/lib/blockOverlays'
 import { builderOverlayIconLabel, overlayIconRenderSize, resolveBuilderOverlayIcon } from '@storefront/lib/builderOverlayIcons'
-import { SHADOW_PRESETS, SHAPE_OPTIONS } from '@/lib/builderVisualPresets'
+import { SHAPE_OPTIONS } from '@/lib/builderVisualPresets'
 import {
   buildSectionImagePropsPatch,
   sectionPrimaryImageField,
@@ -264,6 +263,8 @@ import { builderLinkBtn, builderLinkBtnIcon, builderPanelUi } from '@/components
 import { discoverSectionLinkTargets, SECTION_CTA_LABEL_KEYS, resolveSocialLinkPanelEntries, countConfiguredSocialLinks } from '@/lib/sectionLinksPanel'
 import { BuilderSiteInputParametersModal } from '@/components/websites/BuilderSiteInputParametersModal'
 import { BuilderStylePanel } from '@/components/websites/BuilderStylePanel'
+import { NavBrandDisplayControls } from '@/components/websites/NavBrandDisplayControls'
+import { navBrandDisplayPreview } from '@storefront/lib/navBrandStyle'
 import { BuilderStepSlider } from '@/components/websites/BuilderStepSlider'
 import {
   PanelBgStylePicker,
@@ -273,7 +274,6 @@ import {
   PanelColorRow,
   PanelFieldLabel,
   PanelGroupEyebrow,
-  PanelShadowPresetPicker,
   PanelSliderRow,
 } from '@/components/websites/BuilderPanelFields'
 import {
@@ -324,7 +324,7 @@ import {
 } from '@/lib/storefrontPreviewUrl'
 import { mediaUrl } from '@/lib/utils'
 import { extractApiError, isBuilderPreviewInfraFailure } from '@/lib/errorMessages'
-import { parseCatalogStorePath, parseStorefrontEmbedRoute } from '@/lib/catalogStorePaths'
+import { normalizeStorefrontCatalogHref, parseCatalogStorePath, parseStorefrontEmbedRoute } from '@/lib/catalogStorePaths'
 import { DraftCatalogPreview } from '@/components/websites/DraftCatalogPreview'
 import { findBuilderPageForNavPath } from '@storefront/lib/previewNavRouting'
 import { recallDraftPreviewToken } from '@/lib/draftPreviewNavigation'
@@ -336,6 +336,16 @@ import {
 } from '@/lib/teamGridContent'
 import { broadcastPreviewTabError, clearPendingPreviewTabError, clearPendingPreviewTabNavigate, PREVIEW_NAV_MESSAGE_TYPE, pushDraftPreviewUpdate, rememberDraftPreviewSession } from '@/lib/draftPreviewSync'
 import { IMAGE_SHAPE_OPTIONS, imageShapeRadiusClass, type ImageShape } from '@storefront/lib/sectionItemLayout'
+import {
+  CATALOG_IMAGE_ASPECT_OPTIONS,
+  CATALOG_IMAGE_OBJECT_FIT_OPTIONS,
+} from '@storefront/lib/catalogCardLayout'
+import {
+  TILE_BACKDROP_OPTIONS,
+  TILE_OVERLAY_CLIP_OPTIONS,
+  TILE_OVERLAY_STYLE_OPTIONS,
+} from '@storefront/lib/catalogTileShapePresentation'
+import { CATALOG_ADD_BUTTON_STYLE_OPTIONS, parseCatalogAddButtonStyle } from '@storefront/lib/catalogAddButtonStyle'
 import { buildFieldStylesCss, fieldTextStyle, CONTENT_GROUP_FIELD_KEY, FIELD_OFFSET_STEP_PX, hasInlineHtml, isInlinePositionField, readFieldOffset, readFlipFlag, readRotateDeg } from '@storefront/lib/fieldTextStyles'
 import { BUILDER_FONT_FAMILIES, ensureBuilderFontLoaded, builderFontPreviewStyle } from '@storefront/lib/builderFontFamilies'
 import {
@@ -475,7 +485,7 @@ const DEFAULT_VEHICLE_HIGHLIGHT_ITEMS = [
 
 const BLOCK_CATALOG: BlockDef[] = [
   // Structure
-  { type: 'nav', label: 'Navigation', icon: Layout, desc: 'Top navigation with logo and links', category: 'structure', defaultProps: { brand: 'My Store', brand_logo: '', show_logo: true, show_brand_name: true, show_nav_links: true, nav_links_source: 'site_pages', nav_links: [{ label: 'Shop', url: '/products' }, { label: 'Contact', url: '/contact' }], show_search: true, show_cart: true, show_login: true, cta_label: 'Shop now' } },
+  { type: 'nav', label: 'Navigation', icon: Layout, desc: 'Top navigation with logo and links', category: 'structure', defaultProps: { brand: 'My Store', brand_logo: '', show_logo: true, show_brand_name: true, brand_layout: 'horizontal', logo_size: 'md', logo_shape: 'original', logo_fit: 'contain', brand_gap: 8, brand_name_size: 'md', show_nav_links: true, nav_links_source: 'site_pages', nav_links: [{ label: 'Shop', url: '/products' }, { label: 'Contact', url: '/contact' }], show_search: true, show_cart: true, show_login: true, cta_label: 'Shop now' } },
   { type: 'footer', label: 'Footer', icon: Layout, desc: 'Site footer with links and copyright', category: 'structure', defaultProps: {
     brand: '',
     description: '',
@@ -4310,8 +4320,6 @@ const GRADIENT_PRESETS = [
   { label: 'Midnight',      value: 'linear-gradient(135deg,#0f172a,#1e293b)' },
 ]
 
-// SHADOW_PRESETS imported from @/lib/builderVisualPresets
-
 // ?? Sub-item schema registry ?????????????????????????????????????????????????
 
 type ItemFieldType = 'text' | 'textarea' | 'image' | 'video' | 'number' | 'boolean' | 'emoji' | 'select'
@@ -4901,9 +4909,14 @@ function CatalogGridLayoutControls({
     config.itemCountKeys.map(k => p[k]).find(v => v != null && v !== '') ?? 12,
   ) || 12))
   const cardStyle = String(p.card_style ?? 'default')
+  const imageAspect = String(p.image_aspect ?? 'auto')
+  const imageObjectFit = String(p.image_object_fit ?? 'cover')
+  const cardBorderRadius = p.card_border_radius
+  const radiusAuto = cardBorderRadius == null || cardBorderRadius === ''
   const showStock = p.show_stock !== false
   const showAddButton = p.show_add_button !== false
   const showBookLink = p.show_book_link !== false && p.show_add_button !== false
+  const addButtonStyle = parseCatalogAddButtonStyle(p.add_button_style)
   const showBadges = p.show_badges !== false
   const columnOptions = catalogColumnOptionsFor(blockType)
   const dataSource = (p.data_source && typeof p.data_source === 'object')
@@ -4958,6 +4971,77 @@ function CatalogGridLayoutControls({
         onChange={n => patch({ image_height_pct: n })}
       />
       )}
+
+      <div className="space-y-1">
+        <PanelFieldLabel>Image aspect</PanelFieldLabel>
+        <PanelChipWrap>
+          {CATALOG_IMAGE_ASPECT_OPTIONS.map(opt => (
+            <PanelChip
+              key={opt.value}
+              active={imageAspect === opt.value}
+              onClick={() => patch({ image_aspect: opt.value })}
+            >
+              {opt.label}
+            </PanelChip>
+          ))}
+        </PanelChipWrap>
+      </div>
+
+      {config.showImageHeight && imageAspect === 'auto' && (
+      <CatalogGridSliderField
+        label="Image height"
+        value={imageHeightPct}
+        min={40}
+        max={100}
+        step={2}
+        suffix="%"
+        onChange={n => patch({ image_height_pct: n })}
+      />
+      )}
+
+      <div className="space-y-1">
+        <PanelFieldLabel>Image fit</PanelFieldLabel>
+        <PanelChipWrap>
+          {CATALOG_IMAGE_OBJECT_FIT_OPTIONS.map(opt => (
+            <PanelChip
+              key={opt.value}
+              active={imageObjectFit === opt.value}
+              onClick={() => patch({ image_object_fit: opt.value })}
+            >
+              {opt.label}
+            </PanelChip>
+          ))}
+        </PanelChipWrap>
+      </div>
+
+      <div className="space-y-1">
+        <PanelFieldLabel>Card corner radius</PanelFieldLabel>
+        <PanelChipWrap>
+          <PanelChip active={radiusAuto} onClick={() => patch({ card_border_radius: null })}>
+            Auto
+          </PanelChip>
+          {[0, 8, 12, 16, 24].map(n => (
+            <PanelChip
+              key={n}
+              active={!radiusAuto && Number(cardBorderRadius) === n}
+              onClick={() => patch({ card_border_radius: n })}
+            >
+              {n}px
+            </PanelChip>
+          ))}
+        </PanelChipWrap>
+        {!radiusAuto && (
+          <CatalogGridSliderField
+            label="Custom radius"
+            value={Math.min(32, Math.max(0, Number(cardBorderRadius) || 0))}
+            min={0}
+            max={32}
+            step={1}
+            suffix="px"
+            onChange={n => patch({ card_border_radius: n })}
+          />
+        )}
+      </div>
 
       <CatalogGridSliderField
         label="Card padding"
@@ -5028,6 +5112,22 @@ function CatalogGridLayoutControls({
             </PanelChip>
           )}
         </PanelChipWrap>
+        {config.showProductToggles && showAddButton && (
+          <div className="space-y-1 pt-1">
+            <PanelFieldLabel>Add button style</PanelFieldLabel>
+            <PanelChipWrap>
+              {CATALOG_ADD_BUTTON_STYLE_OPTIONS.map(opt => (
+                <PanelChip
+                  key={opt.value}
+                  active={addButtonStyle === opt.value}
+                  onClick={() => patch({ add_button_style: opt.value })}
+                >
+                  {opt.label}
+                </PanelChip>
+              ))}
+            </PanelChipWrap>
+          </div>
+        )}
       </div>
       )}
     </div>
@@ -7781,34 +7881,94 @@ function PropsEditor({
   )
 
   const imageShapePicker = hasImageShape && (
-    <div className="space-y-1.5">
-      <p className={builderPanelUi.hint}>Applies to all cards in this section.</p>
-      <div className="grid grid-cols-4 @[260px]:grid-cols-5 gap-1">
-        {IMAGE_SHAPE_OPTIONS.map(opt => {
-          const active = String((p as any).image_shape ?? (block.block_type === 'team_grid' ? 'circle' : 'rounded')) === opt.value
-          const previewClass = imageShapeRadiusClass(opt.value as ImageShape)
-          return (
-            <button
-              key={opt.value}
-              type="button"
-              title={opt.label}
-              onClick={() => {
-                onPreview({ image_shape: opt.value } as any)
-                onUpdate({ image_shape: opt.value } as any)
-              }}
-              className={cn(
-                'flex flex-col items-center gap-0.5 rounded-md border px-0.5 py-1 text-[9px] font-semibold leading-tight transition-colors',
-                active
-                  ? 'border-primary bg-card text-primary shadow-sm'
-                  : 'border-border bg-background text-muted-foreground hover:border-primary/40',
-              )}
-            >
-              <span className={cn('h-5 w-5 border border-primary/30 bg-primary/20', previewClass)} aria-hidden />
-              <span className="w-full truncate text-center">{opt.label}</span>
-            </button>
-          )
-        })}
+    <div className="space-y-3">
+      <div className="space-y-1.5">
+        <p className={builderPanelUi.hint}>Applies to all cards in this section.</p>
+        <div className="grid grid-cols-4 @[260px]:grid-cols-5 gap-1">
+          {IMAGE_SHAPE_OPTIONS.map(opt => {
+            const active = String((p as any).image_shape ?? (block.block_type === 'team_grid' ? 'circle' : 'rounded')) === opt.value
+            const previewClass = imageShapeRadiusClass(opt.value as ImageShape)
+            return (
+              <button
+                key={opt.value}
+                type="button"
+                title={opt.label}
+                onClick={() => {
+                  onPreview({ image_shape: opt.value } as any)
+                  onUpdate({ image_shape: opt.value } as any)
+                }}
+                className={cn(
+                  'flex flex-col items-center gap-0.5 rounded-md border px-0.5 py-1 text-[9px] font-semibold leading-tight transition-colors',
+                  active
+                    ? 'border-primary bg-card text-primary shadow-sm'
+                    : 'border-border bg-background text-muted-foreground hover:border-primary/40',
+                )}
+              >
+                <span className={cn('h-5 w-5 border border-primary/30 bg-primary/20', previewClass)} aria-hidden />
+                <span className="w-full truncate text-center">{opt.label}</span>
+              </button>
+            )
+          })}
+        </div>
       </div>
+
+      {isCatalogGridBlock ? (
+        <div className="space-y-2 border-t border-border/60 pt-2">
+          <PanelFieldLabel>Overlay style</PanelFieldLabel>
+          <PanelChipWrap>
+            {TILE_OVERLAY_STYLE_OPTIONS.map(opt => (
+              <PanelChip
+                key={opt.value}
+                active={String((p as any).tile_overlay_style ?? 'gradient') === opt.value}
+                onClick={() => {
+                  onPreview({ tile_overlay_style: opt.value } as any)
+                  onUpdate({ tile_overlay_style: opt.value } as any)
+                }}
+              >
+                {opt.label}
+              </PanelChip>
+            ))}
+          </PanelChipWrap>
+          <p className="text-[10px] text-muted-foreground leading-snug">
+            For circle and custom shapes, use Auto or To shape so gradients follow the tile — not the square box.
+          </p>
+
+          <PanelFieldLabel>Clip overlay to shape</PanelFieldLabel>
+          <PanelChipWrap>
+            {TILE_OVERLAY_CLIP_OPTIONS.map(opt => (
+              <PanelChip
+                key={opt.value}
+                active={String((p as any).tile_overlay_clip ?? 'auto') === opt.value}
+                onClick={() => {
+                  onPreview({ tile_overlay_clip: opt.value } as any)
+                  onUpdate({ tile_overlay_clip: opt.value } as any)
+                }}
+              >
+                {opt.label}
+              </PanelChip>
+            ))}
+          </PanelChipWrap>
+
+          <PanelFieldLabel>Corner backdrop</PanelFieldLabel>
+          <PanelChipWrap>
+            {TILE_BACKDROP_OPTIONS.map(opt => (
+              <PanelChip
+                key={opt.value}
+                active={String((p as any).tile_backdrop ?? 'default') === opt.value}
+                onClick={() => {
+                  onPreview({ tile_backdrop: opt.value } as any)
+                  onUpdate({ tile_backdrop: opt.value } as any)
+                }}
+              >
+                {opt.label}
+              </PanelChip>
+            ))}
+          </PanelChipWrap>
+          <p className="text-[10px] text-muted-foreground leading-snug">
+            Transparent or Match section removes gray squares behind circular tiles.
+          </p>
+        </div>
+      ) : null}
     </div>
   )
 
@@ -7898,9 +8058,9 @@ function PropsEditor({
           title="Logo & brand"
           preview={
             (p as any).brand_logo
-              ? 'Logo + name'
+              ? `${navBrandDisplayPreview(p as Record<string, unknown>)} · ${(p.brand as string) || 'Brand'}`
               : (p as any).show_logo !== false
-                ? 'Logo slot · name'
+                ? `${navBrandDisplayPreview(p as Record<string, unknown>)} · name`
                 : (p.brand as string) || 'Text only'
           }
         >
@@ -7922,6 +8082,7 @@ function PropsEditor({
             </button>
           )}
           {inputRow({ label: 'Brand name', fieldKey: 'brand', placeholder: 'Your store name' })}
+          <NavBrandDisplayControls props={p as Record<string, unknown>} onUpdate={onUpdate} />
           <p className="text-xs text-gray-400 leading-snug">
             Pick from your media gallery or upload, or click the logo slot on the canvas. Visibility toggles are under <span className="font-semibold text-gray-600">Header elements</span> below.
           </p>
@@ -9353,52 +9514,25 @@ function PropsEditor({
         </SectionPanelGroup>
       )}
 
-      <SectionPanelGroup
-        title="Section appearance"
-        description="Shadow and typography for this block."
-      >
-        <div className="space-y-2">
-          {bgStyleField && (
-            <PropsCollapsible title="Background style" preview={String(p.bg_style || 'minimal')}>
-              {bgStyleField}
-            </PropsCollapsible>
-          )}
-          {gradientField && (
-            <PropsCollapsible title="Gradient preset" preview={(p as any).gradient_preset ? 'Custom' : 'Default'}>
-              {gradientField}
-            </PropsCollapsible>
-          )}
-          <PropsCollapsible
-            title="Block shadow"
-            preview={SHADOW_PRESETS.find(sh => sh.value === ((p as any).block_shadow ?? 'none'))?.label || 'None'}
-          >
-            <PanelShadowPresetPicker
-              value={String((p as any).block_shadow ?? 'none')}
-              onPreview={v => onPreview({ block_shadow: v } as any)}
-              onChange={v => onUpdate({ block_shadow: v } as any)}
-            />
-          </PropsCollapsible>
-          <PropsCollapsible
-            title="Text & sizing"
-            preview={
-              typeof (p as any).font_size_px === 'number' && (p as any).font_size_px > 0
-                ? `${Math.round((p as any).font_size_px)}px`
-                : 'Auto'
-            }
-          >
-            <TypographyCompositionFields
-              fontSizePx={(p as any).font_size_px as number | undefined}
-              onFontSizeChange={px => onUpdate({ font_size_px: px, text_scale: null } as any)}
-              textAlign={(p as any).text_align as string | undefined}
-              verticalAlign={(p as any).vertical_align as string | undefined}
-              textWrap={(p as any).text_wrap as boolean | undefined}
-              onTextAlignChange={align => onUpdate({ text_align: align } as any)}
-              onVerticalAlignChange={align => onUpdate({ vertical_align: align } as any)}
-              onTextWrapChange={wrap => onUpdate({ text_wrap: wrap } as any)}
-            />
-          </PropsCollapsible>
-        </div>
-      </SectionPanelGroup>
+      {(bgStyleField || gradientField) && (
+        <SectionPanelGroup
+          title="Section appearance"
+          description="Background style for this block."
+        >
+          <div className="space-y-2">
+            {bgStyleField && (
+              <PropsCollapsible title="Background style" preview={String(p.bg_style || 'minimal')}>
+                {bgStyleField}
+              </PropsCollapsible>
+            )}
+            {gradientField && (
+              <PropsCollapsible title="Gradient preset" preview={(p as any).gradient_preset ? 'Custom' : 'Default'}>
+                {gradientField}
+              </PropsCollapsible>
+            )}
+          </div>
+        </SectionPanelGroup>
+      )}
           </>
         )}
 
@@ -12735,8 +12869,8 @@ export default function WebsiteBuilder() {
 
   const handleNavigateBuilderPage = useCallback((url: string) => {
     const raw = (url || '/').trim()
-    const pathOnly = raw.split('?')[0].split('#')[0]
-    const normalized = pathOnly.startsWith('/') ? raw : `/${raw}`
+    const normalized = normalizeStorefrontCatalogHref(raw.startsWith('/') ? raw : `/${raw}`)
+    const pathOnly = normalized.split('?')[0].split('#')[0]
 
     const target = findBuilderPageForNavPath(pathOnly, localPages)
     if (target) {
@@ -12877,12 +13011,17 @@ export default function WebsiteBuilder() {
 
   const handleCanvasNavClickCapture = useCallback((e: React.MouseEvent) => {
     const target = e.target as HTMLElement
+    const catalogNavDiv = target.closest('[data-builder-catalog-nav="product"]:not(a)') as HTMLElement | null
+    if (catalogNavDiv && canvasPreviewInnerRef.current?.contains(catalogNavDiv)) {
+      return
+    }
+
     const anchor = target.closest('a[href]') as HTMLAnchorElement | null
     if (!anchor || !canvasPreviewInnerRef.current?.contains(anchor)) return
 
     const href = anchor.getAttribute('href') || ''
-    const pathOnly = href.split('?')[0].split('#')[0]
-    const normalized = pathOnly.startsWith('/') ? href : `/${href}`
+    const normalized = normalizeStorefrontCatalogHref(href.startsWith('/') ? href : `/${href}`)
+    const pathOnly = normalized.split('?')[0].split('#')[0]
 
     const blockRoot = anchor.closest('[data-block-id]') as HTMLElement | null
     const blockId = blockRoot?.getAttribute('data-block-id')

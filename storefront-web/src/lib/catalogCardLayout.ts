@@ -1,5 +1,9 @@
 /** Shared grid + card sizing for product/service catalog blocks. */
 
+import type { CSSProperties } from 'react'
+import { parseCatalogAddButtonStyle, type CatalogAddButtonStyle } from '@/lib/catalogAddButtonStyle'
+import { cn } from '@/lib/utils'
+
 export const MIN_CATALOG_GRID_COLUMNS = 1
 export const MAX_CATALOG_GRID_COLUMNS = 12
 
@@ -41,6 +45,28 @@ export function catalogGridResponsiveColClass(columns: number): string {
   return CATALOG_GRID_COL_CLASS[columns] || CATALOG_GRID_COL_CLASS[4]
 }
 
+export type CatalogImageAspect = 'auto' | 'square' | 'tall' | 'wide'
+export type CatalogImageObjectFit = 'cover' | 'contain'
+
+export const CATALOG_IMAGE_ASPECT_OPTIONS: { value: CatalogImageAspect; label: string }[] = [
+  { value: 'auto', label: 'Custom height' },
+  { value: 'square', label: 'Square' },
+  { value: 'tall', label: 'Tall 3:4' },
+  { value: 'wide', label: 'Wide 4:3' },
+]
+
+export const CATALOG_IMAGE_OBJECT_FIT_OPTIONS: { value: CatalogImageObjectFit; label: string }[] = [
+  { value: 'cover', label: 'Cover' },
+  { value: 'contain', label: 'Contain' },
+]
+
+export const CATALOG_IMAGE_ASPECT_CLASS: Record<CatalogImageAspect, string | null> = {
+  auto: null,
+  square: 'aspect-square',
+  tall: 'aspect-[3/4]',
+  wide: 'aspect-[4/3]',
+}
+
 export interface CatalogCardLayout {
   columns: number
   itemGap: number
@@ -50,10 +76,97 @@ export interface CatalogCardLayout {
   isCompactCard: boolean
   isMinimalCard: boolean
   cardRadius: string
+  cardBorderRadius: number | null
+  imageAspect: CatalogImageAspect
+  imageObjectFit: CatalogImageObjectFit
   showBadges: boolean
   showStock: boolean
   showAddButton: boolean
   showBookLink: boolean
+  addButtonStyle: CatalogAddButtonStyle
+}
+
+export interface CatalogImageShell {
+  wrapperClassName: string
+  wrapperStyle?: CSSProperties
+  imageClassName: string
+}
+
+export function catalogImageObjectFitClass(fit?: string | null): string {
+  return fit === 'contain' ? 'object-contain' : 'object-cover'
+}
+
+export function parseCatalogImageAspect(raw: unknown): CatalogImageAspect {
+  const value = String(raw ?? 'auto') as CatalogImageAspect
+  return value in CATALOG_IMAGE_ASPECT_CLASS ? value : 'auto'
+}
+
+export function parseCatalogImageObjectFit(raw: unknown): CatalogImageObjectFit {
+  return raw === 'contain' ? 'contain' : 'cover'
+}
+
+export function parseCardBorderRadius(raw: unknown): number | null {
+  if (raw == null || raw === '') return null
+  const n = Number(raw)
+  if (!Number.isFinite(n)) return null
+  return Math.min(Math.max(Math.round(n), 0), 32)
+}
+
+export function buildCatalogImageShell(options: {
+  imageHeightPct: number
+  imageAspect: CatalogImageAspect
+  imageObjectFit: CatalogImageObjectFit
+  productTileWrap: string
+  isCircle: boolean
+  hoverScale?: boolean
+  bgClass?: string
+}): CatalogImageShell {
+  const objectFit = catalogImageObjectFitClass(options.imageObjectFit)
+  const hover =
+    options.hoverScale !== false
+      ? 'group-hover:scale-105 transition-transform duration-300'
+      : ''
+  const imageClassName = cn('absolute inset-0 w-full h-full', objectFit, hover)
+  const bg = options.bgClass ?? 'bg-gray-50'
+
+  if (options.isCircle) {
+    return {
+      wrapperClassName: cn(
+        'relative w-full overflow-hidden',
+        bg,
+        options.productTileWrap,
+        'aspect-square max-w-[min(100%,240px)] mx-auto',
+      ),
+      imageClassName,
+    }
+  }
+
+  const aspectClass = CATALOG_IMAGE_ASPECT_CLASS[options.imageAspect]
+  if (aspectClass) {
+    return {
+      wrapperClassName: cn('relative w-full overflow-hidden', bg, options.productTileWrap, aspectClass),
+      imageClassName,
+    }
+  }
+
+  return {
+    wrapperClassName: cn('relative w-full overflow-hidden', bg, options.productTileWrap),
+    wrapperStyle: { paddingBottom: `${options.imageHeightPct}%` },
+    imageClassName,
+  }
+}
+
+export function resolveCardRadiusPresentation(
+  cardBorderRadius: number | null,
+  cardRadiusClass: string,
+): { className: string; style?: CSSProperties } {
+  if (cardBorderRadius != null) {
+    return {
+      className: 'overflow-hidden',
+      style: { borderRadius: `${cardBorderRadius}px` },
+    }
+  }
+  return { className: cardRadiusClass }
 }
 
 export function readCatalogCardLayout(
@@ -85,9 +198,13 @@ export function readCatalogCardLayout(
     isCompactCard,
     isMinimalCard,
     cardRadius: isMinimalCard ? 'rounded-lg' : isCompactCard ? 'rounded-xl' : 'rounded-2xl',
+    cardBorderRadius: parseCardBorderRadius(props.card_border_radius),
+    imageAspect: parseCatalogImageAspect(props.image_aspect),
+    imageObjectFit: parseCatalogImageObjectFit(props.image_object_fit),
     showBadges: props.show_badges !== false,
     showStock: props.show_stock !== false && !isMinimalCard,
     showAddButton: props.show_add_button !== false,
     showBookLink: props.show_book_link !== false && props.show_add_button !== false,
+    addButtonStyle: parseCatalogAddButtonStyle(props.add_button_style),
   }
 }

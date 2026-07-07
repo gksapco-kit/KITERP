@@ -74,6 +74,15 @@ export function buildBlockColorStyleCss(
         color: ${props.text_color_override} !important;
       }
     `)
+    if (!props.tile_text) {
+      rules.push(`
+        ${selector} .builder-tile-card h3,
+        ${selector} .builder-tile-card h4,
+        ${selector} .builder-tile-card .builder-tile-card-title {
+          color: ${theme.text_color} !important;
+        }
+      `)
+    }
   }
 
   if (props.bg_color_override) {

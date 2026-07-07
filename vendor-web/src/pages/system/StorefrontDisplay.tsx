@@ -160,7 +160,6 @@ export default function StorefrontDisplayPage() {
         [selectedTemplateId]: entry,
       }
     }
-
     updateVendor.mutate({ settings: payload } as Partial<Vendor>, {
       onSuccess: () => toast.success('Business Front display updated'),
       onSettled: () => {

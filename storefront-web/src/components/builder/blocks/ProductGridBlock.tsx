@@ -1,10 +1,8 @@
 import { useState, type CSSProperties, type ReactNode, type MouseEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { ShoppingBag, Star, ShoppingCart, Check, Loader2, Heart, FolderTree } from 'lucide-react'
-import { useAddToCart, useCart } from '@/hooks/useStore'
+import { useAddToCart } from '@/hooks/useStore'
 import { useStorePath } from '@/hooks/useStorePath'
-import { CART_DETAIL_PATH, useProductCartDetailPath } from '@/hooks/useProductCartDetailPath'
-import { cartContainsProduct } from '@/lib/cartLineStock'
 import type { PublicSite, StyleConfig, LiveItem } from '@/blocks/registry'
 import CategoryCardsWellness from '@/components/builder/blocks/CategoryCardsWellness'
 import {
@@ -14,7 +12,7 @@ import {
   resolveCategoryCardImage,
 } from '@/lib/wellnessCategoryStyle'
 import { sanitizeWellnessCategoryTitle } from '@/lib/wellnessTemplateCopy'
-import { normalizeLiveProducts, resolveLiveProductUrl } from '@/lib/liveProductUtils'
+import { normalizeLiveProducts, resolveLiveCatalogStorePath, resolveLiveProductUrl } from '@/lib/liveProductUtils'
 import { BuilderTextField } from '@/components/builder/BuilderTextField'
 import { CategoryCardTitle } from '@/components/builder/CategoryCardTitle'
 import { BuilderCanvasProductImage } from '@/components/builder/BuilderCanvasProductImage'
@@ -33,11 +31,26 @@ import {
   catalogGridResponsiveColClass,
   clampCatalogColumns,
   readCatalogCardLayout,
+  buildCatalogImageShell,
+  resolveCardRadiusPresentation,
 } from '@/lib/catalogCardLayout'
+import {
+  catalogAddButtonLabel,
+  resolveCatalogAddButtonPresentation,
+} from '@/lib/catalogAddButtonStyle'
 import {
   catalogTileImageWrapperClass,
   imageShapeFromProps,
+  type ImageShape,
 } from '@/lib/sectionItemLayout'
+import {
+  buildCatalogShapedTileTree,
+  catalogShapedTileOverlayContentClass,
+  catalogTileHostAspectStyle,
+  catalogTileHostBackdropClass,
+  catalogTileHostBackdropStyle,
+  readCatalogTileShapeSettings,
+} from '@/lib/catalogTileShapePresentation'
 import type { BlockColorProps } from '@/lib/blockColorOverrides'
 import {
   builderSectionBleedClass,
@@ -61,22 +74,39 @@ function SectionWithBg({
   )
 }
 
-function productSlugFromLiveItem(item: LiveItem): string | undefined {
-  const detailPath = resolveLiveProductUrl(item)
-  if (!detailPath) return undefined
-  const slug = detailPath.replace(/^\/products\//, '').trim()
-  return slug || undefined
-}
-
-function openProductCartInBuilder(onNavigate: ((url: string) => void) | undefined): void {
-  if (!onNavigate) return
-  onNavigate(CART_DETAIL_PATH)
+function openCatalogItemInBuilder(
+  onNavigate: ((url: string) => void) | undefined,
+  item: LiveItem,
+): void {
+  const path = resolveLiveProductUrl(item)
+  if (!path || !onNavigate) return
+  onNavigate(path)
 }
 
 function categorySectionBackground(style: StyleConfig, props: Record<string, unknown>): string {
   const p = props as BlockColorProps
   if (props.bg_style === 'dark') return p.bg_color_override || '#111827'
   return p.bg_color_override || style.bg_color || '#F9F9F5'
+}
+
+function resolveCategorySectionText(
+  style: StyleConfig,
+  props: BlockColorProps,
+  darkSection: boolean,
+): string {
+  if (darkSection) return '#f9fafb'
+  return props.text_color_override || style.text_color || '#111827'
+}
+
+/** Card labels sit on light tile surfaces — use Card text, not section header color. */
+function resolveCategoryCardText(
+  style: StyleConfig,
+  props: BlockColorProps,
+  darkSection: boolean,
+): string {
+  if (props.tile_text) return props.tile_text
+  if (darkSection) return '#f9fafb'
+  return style.text_color || '#111827'
 }
 
 function resolveCategoryCardPropData(
@@ -137,8 +167,8 @@ function categoryTitleClass(isMinimal: boolean, isCompact: boolean): string {
   return 'text-base font-medium text-center'
 }
 
-function categoryImageAspectStyle(imageHeightPct: number, isCircle: boolean): CSSProperties | undefined {
-  return isCircle ? undefined : { paddingBottom: `${imageHeightPct}%` }
+function categoryImageAspectStyle(imageHeightPct: number, shape: ImageShape, clipToShape: boolean): CSSProperties | undefined {
+  return catalogTileHostAspectStyle(imageHeightPct, shape, clipToShape)
 }
 
 /** Editorial overlay tiles: map image height % (40–100) to padding-bottom ratio. */
@@ -199,10 +229,8 @@ export default function ProductGridBlock({ site, style, props, liveItems, blockT
   const builderCanvas = useBuilderCanvas()
   const isEditorCanvas = builderCanvas?.isEditorCanvas && !!blockId
   const siteStyle = { ...(site.style_config || {}), ...style } as Record<string, unknown>
-  const cartDetailPath = useProductCartDetailPath()
   const storePath = useStorePath()
   const navigate = useNavigate()
-  const { data: cart } = useCart()
   const addToCart = useAddToCart()
   const [addedIds, setAddedIds] = useState<Set<string>>(new Set())
 
@@ -211,38 +239,20 @@ export default function ProductGridBlock({ site, style, props, liveItems, blockT
     return Boolean(id) && !id.startsWith('ph-') && !id.startsWith('wl-showcase-')
   }
 
-  const handleProductCardClick = async (e: MouseEvent, item: LiveItem) => {
+  const handleProductCardClick = (e: MouseEvent, item: LiveItem) => {
+    const detailPath = resolveLiveCatalogStorePath(item, storePath)
     if (isEditorCanvas) {
       e.preventDefault()
       e.stopPropagation()
-      openProductCartInBuilder(builderCanvas?.onNavigate)
+      openCatalogItemInBuilder(builderCanvas?.onNavigate, item)
       return
     }
-    if (!isLiveCatalogProduct(item) || item.meta?.stock_status === 'out_of_stock') {
+    if (!isLiveCatalogProduct(item) || !detailPath) {
       e.preventDefault()
       return
     }
-
     e.preventDefault()
-
-    const productId = String(item.id)
-    if (!cartContainsProduct(cart?.items as Array<{ product_id?: string }>, productId)) {
-      try {
-        await addToCart.mutateAsync({
-          product_id: item.id,
-          name: item.title ?? 'Product',
-          qty: 1,
-          price: Number(item.price ?? 0),
-          image_url: item.image_url ?? (item as { image?: string }).image,
-          slug: productSlugFromLiveItem(item),
-        } as any)
-      } catch {
-        /* toast handled by mutation */
-        return
-      }
-    }
-
-    navigate(cartDetailPath)
+    navigate(detailPath)
   }
 
   const handleAddToCart = async (e: React.MouseEvent, item: LiveItem) => {
@@ -337,6 +347,8 @@ export default function ProductGridBlock({ site, style, props, liveItems, blockT
     } = categoryLayout
     const editorialImageShape = imageShapeFromProps(props)
     const editorialTileWrap = catalogTileImageWrapperClass(editorialImageShape)
+    const editorialTileSettings = readCatalogTileShapeSettings(props)
+    const editorialSectionBg = categorySectionBackground(style, props)
     const editorialTilePadding = categoryEditorialTilePaddingBottom(editorialImageHeight)
     const eyebrow = (props.eyebrow as string) || ''
     const itemsReadOnly = categoryItemsReadOnly(isEditorCanvas, liveItems)
@@ -394,9 +406,16 @@ export default function ProductGridBlock({ site, style, props, liveItems, blockT
         >
           {cats.slice(0, editorialLimit).map((c, i) => {
             const fallback = resolveCategoryCardImage({ title: c.title, image_url: null }, i, propImageByTitle)
-            const cardInner = (
-              <div className="absolute inset-0">
-                <div className={cn('absolute inset-0 z-0', editorialTileWrap)}>
+            const shapedTile = buildCatalogShapedTileTree(
+              {
+                shape: editorialImageShape,
+                tileWrap: editorialTileWrap,
+                overlayDirection: 'bottom',
+                sectionBg: editorialSectionBg,
+                ...editorialTileSettings,
+              },
+              {
+                image: (
                   <CategoryEditorialImage
                     src={c.image_url}
                     fallback={fallback}
@@ -409,21 +428,27 @@ export default function ProductGridBlock({ site, style, props, liveItems, blockT
                     blockProps={props}
                     readOnly={itemsReadOnly}
                   />
-                </div>
-                <div className="absolute inset-0 z-[1] bg-gradient-to-t from-black/60 via-black/10 to-transparent pointer-events-none" />
-                <div className="absolute bottom-0 left-0 z-[2] text-white" style={{ padding: editorialCardPadding }}>
-                  <CategoryCardTitle
-                    index={i}
-                    title={c.title}
-                    blockId={blockId}
-                    blockProps={props}
-                    readOnly={itemsReadOnly}
-                    as="h3"
-                    className="text-2xl"
-                    style={{ fontFamily: style.font_heading, color: '#fff' }}
-                  />
-                  <span className="text-xs uppercase tracking-[0.2em] text-white/80 pointer-events-none">Shop now →</span>
-                </div>
+                ),
+                overlayContent: (
+                  <div className={catalogShapedTileOverlayContentClass()} style={{ padding: editorialCardPadding }}>
+                    <CategoryCardTitle
+                      index={i}
+                      title={c.title}
+                      blockId={blockId}
+                      blockProps={props}
+                      readOnly={itemsReadOnly}
+                      as="h3"
+                      className="text-2xl"
+                      style={{ fontFamily: style.font_heading, color: '#fff' }}
+                    />
+                    <span className="text-xs uppercase tracking-[0.2em] text-white/80 pointer-events-none">Shop now →</span>
+                  </div>
+                ),
+              },
+            )
+            const cardInner = (
+              <div className="absolute inset-0">
+                {shapedTile.node}
               </div>
             )
             if (isEditorCanvas) {
@@ -473,7 +498,12 @@ export default function ProductGridBlock({ site, style, props, liveItems, blockT
     })
     const sectionBg = categorySectionBackground(style, props)
     const darkSection = props.bg_style === 'dark'
-    const sectionText = darkSection ? '#f9fafb' : textColor
+    const colorProps = props as BlockColorProps
+    const sectionText = resolveCategorySectionText(style, colorProps, darkSection)
+    const cardText = resolveCategoryCardText(style, colorProps, darkSection)
+    const categoryImageShape = imageShapeFromProps(props)
+    const categoryTileWrap = catalogTileImageWrapperClass(categoryImageShape)
+    const categoryTileSettings = readCatalogTileShapeSettings(props)
 
     if (cats.length === 0) {
       return (
@@ -579,7 +609,7 @@ export default function ProductGridBlock({ site, style, props, liveItems, blockT
                     readOnly={itemsReadOnly}
                     as="span"
                     className={cn(categoryTitleClass(isMinimalCard, isCompactCard), 'block truncate')}
-                    style={{ color: sectionText, paddingTop: Math.max(2, cardPadding / 2) }}
+                    style={{ color: cardText, paddingTop: Math.max(2, cardPadding / 2) }}
                   />
                 </>,
                 isMinimalCard ? 'shrink-0 w-24 text-center' : isCompactCard ? 'shrink-0 w-28 text-center' : 'shrink-0 w-[140px] text-center',
@@ -601,41 +631,64 @@ export default function ProductGridBlock({ site, style, props, liveItems, blockT
           >
             {cats.slice(0, categoryLimit).map((c, i) => {
               const fallback = resolveCategoryCardImage({ title: c.title, image_url: null }, i, propImageByTitle)
+              const shapedTile = buildCatalogShapedTileTree(
+                {
+                  shape: categoryImageShape,
+                  tileWrap: categoryTileWrap,
+                  overlayDirection: 'right',
+                  sectionBg,
+                  ...categoryTileSettings,
+                },
+                {
+                  image: (
+                    <CategoryEditorialImage
+                      src={c.image_url}
+                      fallback={fallback}
+                      alt={c.title}
+                      className="absolute inset-0 z-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                      blockId={blockId}
+                      arrayKey="categories"
+                      index={i}
+                      itemField="image_url"
+                      blockProps={props}
+                      readOnly={itemsReadOnly}
+                    />
+                  ),
+                  overlayContent: (
+                    <div className="absolute bottom-4 left-4 right-4 z-[2]" style={{ padding: cardPadding }}>
+                      <CategoryCardTitle
+                        index={i}
+                        title={c.title}
+                        blockId={blockId}
+                        blockProps={props}
+                        readOnly={itemsReadOnly}
+                        as="h3"
+                        className={cn(
+                          isMinimalCard ? 'text-sm' : isCompactCard ? 'text-base' : 'text-lg sm:text-xl',
+                          'font-semibold text-white',
+                        )}
+                        style={{ fontFamily: style.font_heading }}
+                      />
+                    </div>
+                  ),
+                },
+              )
               return wrapCategoryLink(
                 `${c.title}-${i}`,
                 c,
                 <div
-                  className={cn('relative isolate w-full overflow-hidden bg-gray-100', cardRadius)}
-                  style={categoryImageAspectStyle(Math.max(40, Math.min(56, imageHeightPct * 0.5)), false)}
+                  className={cn(
+                    'relative isolate w-full overflow-hidden',
+                    cardRadius,
+                    !shapedTile.frame.clipToShape && 'bg-gray-100',
+                    catalogTileHostBackdropClass(categoryTileSettings.backdrop, shapedTile.frame.clipToShape, sectionBg),
+                  )}
+                  style={{
+                    ...categoryImageAspectStyle(Math.max(40, Math.min(56, imageHeightPct * 0.5)), categoryImageShape, shapedTile.frame.clipToShape),
+                    ...catalogTileHostBackdropStyle(categoryTileSettings.backdrop, shapedTile.frame.clipToShape, sectionBg),
+                  }}
                 >
-                  <CategoryEditorialImage
-                    src={c.image_url}
-                    fallback={fallback}
-                    alt={c.title}
-                    className="absolute inset-0 z-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
-                    blockId={blockId}
-                    arrayKey="categories"
-                    index={i}
-                    itemField="image_url"
-                    blockProps={props}
-                    readOnly={itemsReadOnly}
-                  />
-                  <div className="absolute inset-0 z-[1] bg-gradient-to-r from-black/50 to-transparent pointer-events-none" />
-                  <div className="absolute bottom-4 left-4 right-4 z-[2]" style={{ padding: cardPadding }}>
-                    <CategoryCardTitle
-                      index={i}
-                      title={c.title}
-                      blockId={blockId}
-                      blockProps={props}
-                      readOnly={itemsReadOnly}
-                      as="h3"
-                      className={cn(
-                        isMinimalCard ? 'text-sm' : isCompactCard ? 'text-base' : 'text-lg sm:text-xl',
-                        'font-semibold text-white',
-                      )}
-                      style={{ fontFamily: style.font_heading }}
-                    />
-                  </div>
+                  {shapedTile.node}
                 </div>,
               )
             })}
@@ -654,41 +707,64 @@ export default function ProductGridBlock({ site, style, props, liveItems, blockT
           >
             {cats.slice(0, categoryLimit).map((c, i) => {
               const fallback = resolveCategoryCardImage({ title: c.title, image_url: null }, i, propImageByTitle)
+              const shapedTile = buildCatalogShapedTileTree(
+                {
+                  shape: categoryImageShape,
+                  tileWrap: categoryTileWrap,
+                  overlayDirection: 'bottom',
+                  sectionBg,
+                  ...categoryTileSettings,
+                },
+                {
+                  image: (
+                    <CategoryEditorialImage
+                      src={c.image_url}
+                      fallback={fallback}
+                      alt={c.title}
+                      className="absolute inset-0 z-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                      blockId={blockId}
+                      arrayKey="categories"
+                      index={i}
+                      itemField="image_url"
+                      blockProps={props}
+                      readOnly={itemsReadOnly}
+                    />
+                  ),
+                  overlayContent: (
+                    <div className={cn(catalogShapedTileOverlayContentClass(), 'right-0')} style={{ padding: cardPadding }}>
+                      <CategoryCardTitle
+                        index={i}
+                        title={c.title}
+                        blockId={blockId}
+                        blockProps={props}
+                        readOnly={itemsReadOnly}
+                        as="h3"
+                        className={cn(
+                          isMinimalCard ? 'text-sm' : isCompactCard ? 'text-sm' : 'text-base',
+                          'font-semibold text-white',
+                        )}
+                        style={{ fontFamily: style.font_heading }}
+                      />
+                    </div>
+                  ),
+                },
+              )
               return wrapCategoryLink(
                 `${c.title}-${i}`,
                 c,
                 <div
-                  className={cn('relative isolate w-full overflow-hidden bg-gray-100', cardRadius)}
-                  style={categoryImageAspectStyle(imageHeightPct, false)}
+                  className={cn(
+                    'relative isolate w-full overflow-hidden',
+                    cardRadius,
+                    !shapedTile.frame.clipToShape && 'bg-gray-100',
+                    catalogTileHostBackdropClass(categoryTileSettings.backdrop, shapedTile.frame.clipToShape, sectionBg),
+                  )}
+                  style={{
+                    ...categoryImageAspectStyle(imageHeightPct, categoryImageShape, shapedTile.frame.clipToShape),
+                    ...catalogTileHostBackdropStyle(categoryTileSettings.backdrop, shapedTile.frame.clipToShape, sectionBg),
+                  }}
                 >
-                  <CategoryEditorialImage
-                    src={c.image_url}
-                    fallback={fallback}
-                    alt={c.title}
-                    className="absolute inset-0 z-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
-                    blockId={blockId}
-                    arrayKey="categories"
-                    index={i}
-                    itemField="image_url"
-                    blockProps={props}
-                    readOnly={itemsReadOnly}
-                  />
-                  <div className="absolute inset-0 z-[1] bg-gradient-to-t from-black/65 via-black/15 to-transparent pointer-events-none" />
-                  <div className="absolute bottom-0 left-0 right-0 z-[2]" style={{ padding: cardPadding }}>
-                    <CategoryCardTitle
-                      index={i}
-                      title={c.title}
-                      blockId={blockId}
-                      blockProps={props}
-                      readOnly={itemsReadOnly}
-                      as="h3"
-                      className={cn(
-                        isMinimalCard ? 'text-sm' : isCompactCard ? 'text-sm' : 'text-base',
-                        'font-semibold text-white',
-                      )}
-                      style={{ fontFamily: style.font_heading }}
-                    />
-                  </div>
+                  {shapedTile.node}
                 </div>,
               )
             })}
@@ -713,7 +789,7 @@ export default function ProductGridBlock({ site, style, props, liveItems, blockT
                     className={cn('relative w-full break-inside-avoid overflow-hidden bg-gray-100', cardRadius)}
                     style={{
                       marginBottom: catGap,
-                      ...categoryImageAspectStyle(tall ? imageHeightPct : Math.max(40, imageHeightPct - 12), false),
+                      ...categoryImageAspectStyle(tall ? imageHeightPct : Math.max(40, imageHeightPct - 12), categoryImageShape, false),
                     }}
                   >
                     <CategoryEditorialImage
@@ -737,7 +813,7 @@ export default function ProductGridBlock({ site, style, props, liveItems, blockT
                     readOnly={itemsReadOnly}
                     as="span"
                     className={cn(categoryTitleClass(isMinimalCard, isCompactCard), 'block')}
-                    style={{ color: sectionText, marginBottom: catGap, padding: `0 0 ${Math.max(4, cardPadding / 2)}px` }}
+                    style={{ color: cardText, marginBottom: catGap, padding: `0 0 ${Math.max(4, cardPadding / 2)}px` }}
                   />
                 </>,
               )
@@ -748,9 +824,12 @@ export default function ProductGridBlock({ site, style, props, liveItems, blockT
     }
 
     if (catLayout === 'grid' || catLayout === '' || catLayout === 'wellness') {
-      const imageShape = imageShapeFromProps(props)
-      const isCircle = imageShape === 'circle'
-      const tileWrap = catalogTileImageWrapperClass(imageShape)
+      const shapedTileSettings = {
+        shape: categoryImageShape,
+        tileWrap: categoryTileWrap,
+        sectionBg,
+        ...categoryTileSettings,
+      }
 
       return (
         <SectionWithBg bg={sectionBg}>
@@ -761,6 +840,25 @@ export default function ProductGridBlock({ site, style, props, liveItems, blockT
           >
             {cats.slice(0, categoryLimit).map((c, i) => {
               const fallback = resolveCategoryCardImage({ title: c.title, image_url: null }, i, propImageByTitle)
+              const shapedTile = buildCatalogShapedTileTree(
+                shapedTileSettings,
+                {
+                  image: (
+                    <CategoryEditorialImage
+                      src={c.image_url}
+                      fallback={fallback}
+                      alt={c.title}
+                      className="absolute inset-0 z-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                      blockId={blockId}
+                      arrayKey="categories"
+                      index={i}
+                      itemField="image_url"
+                      blockProps={props}
+                      readOnly={itemsReadOnly}
+                    />
+                  ),
+                },
+              )
               return wrapCategoryLink(
                 `${c.title}-${i}`,
                 c,
@@ -773,24 +871,17 @@ export default function ProductGridBlock({ site, style, props, liveItems, blockT
                 >
                   <div
                     className={cn(
-                      'relative w-full overflow-hidden bg-gray-100',
-                      tileWrap,
-                      isCircle && 'aspect-square max-w-[min(100%,240px)] mx-auto',
+                      'relative w-full',
+                      shapedTile.frame.clipToShape ? '' : 'overflow-hidden bg-gray-100',
+                      !shapedTile.frame.clipToShape && categoryTileWrap,
+                      catalogTileHostBackdropClass(categoryTileSettings.backdrop, shapedTile.frame.clipToShape, sectionBg),
                     )}
-                    style={categoryImageAspectStyle(imageHeightPct, isCircle)}
+                    style={{
+                      ...categoryImageAspectStyle(imageHeightPct, categoryImageShape, shapedTile.frame.clipToShape),
+                      ...catalogTileHostBackdropStyle(categoryTileSettings.backdrop, shapedTile.frame.clipToShape, sectionBg),
+                    }}
                   >
-                    <CategoryEditorialImage
-                      src={c.image_url}
-                      fallback={fallback}
-                      alt={c.title}
-                      className="absolute inset-0 z-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
-                      blockId={blockId}
-                      arrayKey="categories"
-                      index={i}
-                    itemField="image_url"
-                    blockProps={props}
-                    readOnly={itemsReadOnly}
-                  />
+                    {shapedTile.node}
                   </div>
                   <div style={{ padding: cardPadding }}>
                     <CategoryCardTitle
@@ -801,7 +892,7 @@ export default function ProductGridBlock({ site, style, props, liveItems, blockT
                       readOnly={itemsReadOnly}
                       as="h3"
                       className={categoryTitleClass(isMinimalCard, isCompactCard)}
-                      style={{ fontFamily: style.font_heading, color: sectionText }}
+                      style={{ fontFamily: style.font_heading, color: cardText }}
                     />
                   </div>
                 </div>,
@@ -870,6 +961,7 @@ export default function ProductGridBlock({ site, style, props, liveItems, blockT
                       alt={featuredOne.title}
                       className="absolute inset-0 w-full h-full object-cover"
                       isCatalogPhoto={!String(featuredOne.id || '').startsWith('ph-')}
+                      allowNavigation
                     />
                   ) : (
                     <div className="absolute inset-0 flex items-center justify-center"><ShoppingBag className="w-12 h-12 text-gray-300" /></div>
@@ -947,12 +1039,12 @@ export default function ProductGridBlock({ site, style, props, liveItems, blockT
                       data-builder-catalog-nav="product"
                       onClick={e => {
                         e.stopPropagation()
-                        openProductCartInBuilder(builderCanvas?.onNavigate)
+                        openCatalogItemInBuilder(builderCanvas?.onNavigate, item)
                       }}
                       onKeyDown={e => {
                         if (e.key === 'Enter' || e.key === ' ') {
                           e.preventDefault()
-                          openProductCartInBuilder(builderCanvas?.onNavigate)
+                          openCatalogItemInBuilder(builderCanvas?.onNavigate, item)
                         }
                       }}
                     >
@@ -972,6 +1064,7 @@ export default function ProductGridBlock({ site, style, props, liveItems, blockT
                             alt={item.title}
                             className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
                             isCatalogPhoto={!isPh}
+                            allowNavigation={!isPh}
                           />
                         ) : (
                           <div className="absolute inset-0 flex items-center justify-center"><ShoppingBag className="w-10 h-10 text-gray-300" /></div>
@@ -991,10 +1084,10 @@ export default function ProductGridBlock({ site, style, props, liveItems, blockT
                     </div>
                   ) : (
                   <Link
-                    to={cartDetailPath}
+                    to={resolveLiveCatalogStorePath(item, storePath) ?? '#'}
                     className="block"
                     data-builder-catalog-nav="product"
-                    onClick={e => void handleProductCardClick(e, item)}
+                    onClick={e => handleProductCardClick(e, item)}
                   >
                     <div
                       className={cn(
@@ -1012,6 +1105,7 @@ export default function ProductGridBlock({ site, style, props, liveItems, blockT
                           alt={item.title}
                           className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
                           isCatalogPhoto={!isPh}
+                          allowNavigation={!isPh}
                         />
                       ) : (
                         <div className="absolute inset-0 flex items-center justify-center"><ShoppingBag className="w-10 h-10 text-gray-300" /></div>
@@ -1070,17 +1164,23 @@ export default function ProductGridBlock({ site, style, props, liveItems, blockT
     imageHeightPct,
     cardPadding,
     cardRadius,
+    cardBorderRadius,
+    imageAspect,
+    imageObjectFit,
     isMinimalCard,
     isCompactCard,
     titleClass,
     priceClass,
-    buttonClass,
     showStock,
     showAddButton,
+    addButtonStyle,
   } = {
     imageHeightPct: cardLayout.imageHeightPct,
     cardPadding: cardLayout.cardPadding,
     cardRadius: cardLayout.cardRadius,
+    cardBorderRadius: cardLayout.cardBorderRadius,
+    imageAspect: cardLayout.imageAspect,
+    imageObjectFit: cardLayout.imageObjectFit,
     isMinimalCard: cardLayout.isMinimalCard,
     isCompactCard: cardLayout.isCompactCard,
     titleClass: cardLayout.isMinimalCard
@@ -1089,13 +1189,9 @@ export default function ProductGridBlock({ site, style, props, liveItems, blockT
         ? 'font-semibold text-gray-900 text-sm line-clamp-2 mb-1'
         : 'font-semibold text-gray-900 group-hover:text-primary transition-colors line-clamp-2 mb-2',
     priceClass: cardLayout.isMinimalCard ? 'text-sm font-bold' : cardLayout.isCompactCard ? 'text-base font-bold' : 'text-lg font-bold',
-    buttonClass: cardLayout.isMinimalCard
-      ? 'w-full flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-white text-[11px] font-semibold transition-all disabled:opacity-60 hover:opacity-90'
-      : cardLayout.isCompactCard
-        ? 'w-full flex items-center justify-center gap-1.5 py-2 rounded-lg text-white text-xs font-semibold transition-all disabled:opacity-60 hover:opacity-90'
-        : 'w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-white text-sm font-semibold transition-all disabled:opacity-60 hover:opacity-90',
     showStock: cardLayout.showStock,
     showAddButton: cardLayout.showAddButton,
+    addButtonStyle: cardLayout.addButtonStyle,
   }
 
   return (
@@ -1118,32 +1214,50 @@ export default function ProductGridBlock({ site, style, props, liveItems, blockT
             const isAdded = addedIds.has(item.id!)
             const isAdding = addToCart.isPending && addToCart.variables && (addToCart.variables as any).product_id === item.id
             const outOfStock = item.meta?.stock_status === 'out_of_stock'
+            const imageShell = buildCatalogImageShell({
+              imageHeightPct,
+              imageAspect,
+              imageObjectFit,
+              productTileWrap,
+              isCircle: isCircleProductTile,
+            })
+            const cardRadiusPresentation = resolveCardRadiusPresentation(cardBorderRadius, cardRadius)
+            const addBtn = resolveCatalogAddButtonPresentation({
+              style: addButtonStyle,
+              primaryColor: style.primary_color,
+              isAdded,
+              isMinimalCard,
+              isCompactCard,
+            })
+            const addLabel = catalogAddButtonLabel(isMinimalCard)
             return (
               <div
                 key={item.id}
-                className={`builder-tile-card group bg-white border border-gray-100 overflow-hidden transition-all duration-200 flex flex-col ${cardRadius} ${isMinimalCard ? '' : 'hover:shadow-lg hover:-translate-y-1'}`}
+                className={cn(
+                  'builder-tile-card group bg-white border border-gray-100 overflow-hidden transition-all duration-200 flex flex-col',
+                  cardRadiusPresentation.className,
+                  isMinimalCard ? '' : 'hover:shadow-lg hover:-translate-y-1',
+                )}
+                style={cardRadiusPresentation.style}
               >
                 <Link
-                  to={cartDetailPath}
+                  to={resolveLiveCatalogStorePath(item, storePath) ?? '#'}
                   className="block"
                   data-builder-catalog-nav="product"
-                  onClick={e => void handleProductCardClick(e, item)}
+                  onClick={e => handleProductCardClick(e, item)}
                 >
                   <div
-                    className={cn(
-                      'relative w-full overflow-hidden bg-gray-50',
-                      productTileWrap,
-                      isCircleProductTile && 'aspect-square max-w-[min(100%,240px)] mx-auto',
-                    )}
-                    style={isCircleProductTile ? undefined : { paddingBottom: `${imageHeightPct}%` }}
+                    className={imageShell.wrapperClassName}
+                    style={imageShell.wrapperStyle}
                   >
                     {item.image_url ? (
                       <BuilderCanvasProductImage
                         blockId={blockId}
                         src={item.image_url}
                         alt={item.title}
-                        className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                        className={imageShell.imageClassName}
                         isCatalogPhoto={!String(item.id || '').startsWith('ph-')}
+                        allowNavigation={!String(item.id || '').startsWith('ph-')}
                       />
                     ) : (
                       <div className="absolute inset-0 flex items-center justify-center text-gray-300">
@@ -1179,21 +1293,28 @@ export default function ProductGridBlock({ site, style, props, liveItems, blockT
                 </Link>
 
                 {showAddButton && (
-                <div style={{ padding: cardPadding, paddingTop: 0 }} className="mt-auto">
+                <div
+                  style={{ padding: cardPadding, paddingTop: 0 }}
+                  className={cn('mt-auto', addBtn.iconOnly && 'flex justify-center')}
+                >
                   <button
                     onClick={e => handleAddToCart(e, item)}
                     disabled={outOfStock || isAdded || !!isAdding}
-                    className={buttonClass}
-                    style={{ backgroundColor: isAdded ? '#10b981' : style.primary_color }}
+                    className={cn(addBtn.className, 'hover:opacity-90')}
+                    style={addBtn.style}
+                    aria-label={addBtn.iconOnly ? addLabel : undefined}
                   >
                     {isAdding ? (
-                      <Loader2 className="w-4 h-4 animate-spin" />
+                      <Loader2 className={cn(addBtn.iconClassName, 'animate-spin')} />
                     ) : isAdded ? (
-                      <><Check className="w-4 h-4" /> Added!</>
+                      <><Check className={addBtn.iconClassName} /> {addBtn.showLabel ? 'Added!' : null}</>
                     ) : outOfStock ? (
-                      'Out of Stock'
+                      addBtn.showLabel ? 'Out of Stock' : <ShoppingCart className={addBtn.iconClassName} />
                     ) : (
-                      <><ShoppingCart className={isMinimalCard ? 'w-3 h-3' : 'w-4 h-4'} /> {isMinimalCard ? 'Add' : 'Add to Cart'}</>
+                      <>
+                        <ShoppingCart className={addBtn.iconClassName} />
+                        {addBtn.showLabel ? addLabel : null}
+                      </>
                     )}
                   </button>
                 </div>

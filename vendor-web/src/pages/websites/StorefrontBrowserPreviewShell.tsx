@@ -30,8 +30,8 @@ import {
 import { isSameLoopbackOrigin } from '@/lib/loopbackHost'
 import { cn } from '@/lib/utils'
 
-/** Allow time for slow preview snapshots; pending tab retries delivery on mount. */
-const PENDING_PREVIEW_TIMEOUT_MS = 90_000
+/** Allow time for slow preview snapshots; must exceed createBuilderPreview timeout (120s). */
+const PENDING_PREVIEW_TIMEOUT_MS = 150_000
 
 function requestPreviewDeliveryFromOpener(): void {
   try {
@@ -100,6 +100,7 @@ export default function StorefrontBrowserPreviewShell() {
   const [loading, setLoading] = useState(Boolean(token))
   const [lastSyncedAt, setLastSyncedAt] = useState<Date | null>(null)
   const [pendingError, setPendingError] = useState<string | null>(null)
+  const [pendingRetryKey, setPendingRetryKey] = useState(0)
 
   const loadPreview = useCallback((previewToken: string, opts?: { quiet?: boolean }) => {
     if (!previewToken) return Promise.resolve()
@@ -196,6 +197,7 @@ export default function StorefrontBrowserPreviewShell() {
       const existingErr = peekPendingPreviewTabError()
       if (existingErr) setPendingError(existingErr)
       const startedAt = Date.now()
+      let timedOut = false
       const pollId = window.setInterval(() => {
         const nav = peekPendingPreviewTabNavigate()
         if (nav) { goToPreview(nav); return }
@@ -204,7 +206,8 @@ export default function StorefrontBrowserPreviewShell() {
           setPendingError(err)
           return
         }
-        if (Date.now() - startedAt > PENDING_PREVIEW_TIMEOUT_MS) {
+        if (!timedOut && Date.now() - startedAt > PENDING_PREVIEW_TIMEOUT_MS) {
+          timedOut = true
           setPendingError(
             'Preview is taking too long. Keep the builder tab open, then click "Check again" or re-open Preview in Browser from the builder. '
             + 'If this keeps happening, confirm the API is running on http://127.0.0.1:8000.',
@@ -229,7 +232,7 @@ export default function StorefrontBrowserPreviewShell() {
       unsubscribeChannel()
       unsubscribeError()
     }
-  }, [pending, token, setSearchParams])
+  }, [pending, token, setSearchParams, pendingRetryKey])
 
   useEffect(() => {
     if (!token) {
@@ -275,6 +278,8 @@ export default function StorefrontBrowserPreviewShell() {
                   window.location.replace(alignPreviewUrlWithCurrentHost(nav))
                   return
                 }
+                // Restart the pending poll window and ask the builder tab to re-deliver.
+                setPendingRetryKey(k => k + 1)
               }}
               className="inline-flex items-center gap-2 rounded-lg border border-gray-600 px-4 py-2 text-sm font-semibold text-white hover:bg-gray-800"
             >

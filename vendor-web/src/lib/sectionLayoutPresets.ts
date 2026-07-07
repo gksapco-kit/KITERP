@@ -302,7 +302,8 @@ export const BLOCK_QUICK_PRESETS: Record<string, SectionLayoutPreset[]> = {
     { label: 'Dark Showcase', desc: 'Categories on dark background', props: { variant: 'grid', layout: 'grid', columns: 3, bg_style: 'dark' } },
   ],
   category_cards: [
-    { label: 'Wellness Mosaic', desc: 'Animated mix of circles, squares & portraits', props: { layout: 'wellness', columns: 3 } },
+    { label: 'Category Explorer', desc: 'Tap a category to reveal its products here', props: { layout: 'grid', columns: 3, interaction_mode: 'expand' } },
+    { label: 'Wellness Mosaic', desc: 'Animated mix of circles, squares & portraits', props: { layout: 'wellness', columns: 3, interaction_mode: 'expand' } },
     { label: 'Editorial 3-Col', desc: 'Shop-by-category editorial', props: { layout: 'editorial', columns: 3 } },
     { label: 'Square Grid', desc: 'Even category squares', props: { layout: 'grid', columns: 4 } },
     { label: 'Wide Banners', desc: 'Full-width category banners', props: { layout: 'banner', columns: 2 } },

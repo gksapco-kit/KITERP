@@ -7,6 +7,7 @@ import { CategoryCardTitle } from '@/components/builder/CategoryCardTitle'
 import { useBuilderCanvas } from '@/contexts/BuilderCanvasContext'
 import { buildCategoryCatalogPath } from '@/lib/categoryCatalogLink'
 import { builderSectionContainerClass } from '@/lib/builderSectionLayout'
+import { clampCatalogColumns } from '@/lib/catalogCardLayout'
 
 export type WellnessCategory = MosaicCategory
 
@@ -25,6 +26,8 @@ interface Props {
   imageHeightPct?: number
   cardPadding?: number
   itemsReadOnly?: boolean
+  interactionMode?: 'expand' | 'navigate'
+  onCategorySelect?: (cat: { title: string; appliesTo?: string }) => void
 }
 
 export default function CategoryCardsWellness({
@@ -42,6 +45,8 @@ export default function CategoryCardsWellness({
   imageHeightPct,
   cardPadding,
   itemsReadOnly = false,
+  interactionMode = 'expand',
+  onCategorySelect,
 }: Props) {
   const builderCanvas = useBuilderCanvas()
   const isEditorCanvas = builderCanvas?.isEditorCanvas && !!blockId
@@ -121,14 +126,32 @@ export default function CategoryCardsWellness({
         )}
         wrapCard={(child, i) => {
           const cat = categories[i]
+          if (isEditorCanvas) {
+            return (
+              <div key={i} className="block w-full no-underline text-inherit">
+                {child}
+              </div>
+            )
+          }
+          if (interactionMode === 'expand' && cat && onCategorySelect) {
+            return (
+              <button
+                key={i}
+                type="button"
+                onClick={() => onCategorySelect({
+                  title: cat.title,
+                  appliesTo: (cat as { appliesTo?: string }).appliesTo,
+                })}
+                className="block w-full no-underline text-inherit text-left"
+              >
+                {child}
+              </button>
+            )
+          }
           const to = cat
             ? buildCategoryCatalogPath(cat.title, (cat as { appliesTo?: string }).appliesTo, storePath)
             : storePath('/products')
-          return isEditorCanvas ? (
-            <div key={i} className="block w-full no-underline text-inherit">
-              {child}
-            </div>
-          ) : (
+          return (
             <Link key={i} to={to} className="block w-full no-underline text-inherit">
               {child}
             </Link>

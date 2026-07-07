@@ -9,6 +9,8 @@ export function BuilderCanvasProductImage({
   alt,
   className,
   isCatalogPhoto = true,
+  /** When true, clicks pass through to parent links (product detail navigation). */
+  allowNavigation = false,
 }: {
   blockId?: string
   src: string
@@ -16,11 +18,12 @@ export function BuilderCanvasProductImage({
   className?: string
   /** True when the URL comes from live product/catalog data (not section props). */
   isCatalogPhoto?: boolean
+  allowNavigation?: boolean
 }) {
   const canvas = useBuilderCanvas()
   const isEditor = canvas?.isEditorCanvas && blockId
 
-  if (!isEditor) {
+  if (!isEditor || allowNavigation) {
     return <img src={src} alt={alt} className={className} loading="lazy" />
   }
 
