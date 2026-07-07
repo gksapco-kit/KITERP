@@ -6,6 +6,7 @@ import { LineItem } from "./LineItem";
 
 type Props = {
   cart: Cart;
+  selectedShippingLabel?: string;
   collapsibleOnMobile?: boolean;
   showItems?: boolean;
   showCouponInput?: boolean;
@@ -15,6 +16,7 @@ type Props = {
 
 export function OrderSummary({
   cart,
+  selectedShippingLabel,
   collapsibleOnMobile = false,
   showItems = true,
   showCouponInput,
@@ -107,7 +109,7 @@ export function OrderSummary({
             />
           )}
           <Row
-            label="Shipping"
+            label={selectedShippingLabel ? `Shipping (${selectedShippingLabel})` : "Shipping"}
             value={
               cart.shipping
                 ? cart.shipping.amount === 0

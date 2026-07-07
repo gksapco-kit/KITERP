@@ -20,11 +20,11 @@ export default function ForgotPassword() {
   }
 
   return (
-    <div className="min-h-[calc(100vh-4rem)] flex items-center justify-center px-4 py-10" style={{ backgroundColor: background, fontFamily }}>
+    <div className="min-h-[calc(100vh-4rem)] flex items-center justify-center px-3 py-8 sm:px-4 sm:py-10" style={{ backgroundColor: background, fontFamily }}>
       <div className="w-full max-w-md">
         <div className="bg-white rounded-2xl shadow-xl border-2 border-gray-200 overflow-hidden max-h-[90vh] overflow-y-auto">
           {/* Header */}
-          <div className="px-8 py-8 text-center" style={{ background: panelGradient }}>
+          <div className="px-4 py-6 sm:px-8 sm:py-8 text-center" style={{ background: panelGradient }}>
             <div className="w-16 h-16 rounded-2xl bg-white/20 backdrop-blur-sm flex items-center justify-center mx-auto mb-4 shadow-lg ring-4 ring-white/25">
               {vendor?.logo_url ? (
                 <img src={imgUrl(vendor.logo_url)} alt={vendor.display_name} className="w-12 h-12 rounded-xl object-cover" />
@@ -35,7 +35,7 @@ export default function ForgotPassword() {
             <h1 className="text-xl font-bold text-white">{vendor?.display_name || 'Our Store'}</h1>
           </div>
 
-          <div className="px-8 py-8">
+          <div className="px-4 py-6 sm:px-8 sm:py-8">
             {submitted ? (
               <div className="text-center space-y-4">
                 <CheckCircle2 className="w-14 h-14 text-green-500 mx-auto" />

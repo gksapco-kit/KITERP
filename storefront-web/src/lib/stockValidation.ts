@@ -52,14 +52,41 @@ export function getCartQtyForVariant(
 }
 
 function resolveStockContext(product: StockEntity, variant?: StockEntity) {
+  const allowBackorders = variant?.allow_backorders ?? product.allow_backorders ?? false
+  const quantity = variant?.quantity ?? product.quantity ?? 0
+  const stockStatus = variant?.stock_status ?? product.stock_status ?? 'in_stock'
+  const maxPerOrder = variant?.max_quantity_per_order ?? product.max_quantity_per_order ?? null
+  const minPerOrder = variant?.min_quantity_per_order ?? product.min_quantity_per_order ?? null
+  const explicitTrack = variant?.track_inventory ?? product.track_inventory
+  const hasOnHandQty = variant?.quantity != null || product.quantity != null
+  // Enforce on-hand quantity unless backorders are allowed; respect explicit track_inventory=false only when no qty is set.
+  const track =
+    !allowBackorders &&
+    (explicitTrack !== false || hasOnHandQty)
+
   return {
-    track: variant?.track_inventory ?? product.track_inventory ?? true,
-    allowBackorders: variant?.allow_backorders ?? product.allow_backorders ?? false,
-    quantity: variant?.quantity ?? product.quantity ?? 0,
-    stockStatus: variant?.stock_status ?? product.stock_status ?? 'in_stock',
-    maxPerOrder: variant?.max_quantity_per_order ?? product.max_quantity_per_order ?? null,
-    minPerOrder: variant?.min_quantity_per_order ?? product.min_quantity_per_order ?? null,
+    track,
+    allowBackorders,
+    quantity,
+    stockStatus,
+    maxPerOrder,
+    minPerOrder,
   }
+}
+
+/** On-hand quantity for the selected product/variant, or null when unlimited. */
+export function getOnHandQuantity(product: StockEntity, variant?: StockEntity): number | null {
+  const { track, allowBackorders, quantity, stockStatus } = resolveStockContext(product, variant)
+  if (stockStatus === 'out_of_stock') return 0
+  if (!track || allowBackorders) return null
+  return Math.max(0, quantity)
+}
+
+/** Whether the product/variant can be purchased (matches add-to-cart validation). */
+export function canPurchaseProduct(product: StockEntity, variant?: StockEntity): boolean {
+  const onHand = getOnHandQuantity(product, variant)
+  if (onHand !== null) return onHand > 0
+  return (variant?.stock_status ?? product.stock_status ?? 'in_stock') !== 'out_of_stock'
 }
 
 function capByOrderLimit(available: number, maxPerOrder: number | null | undefined, cartQtyExcludingLine: number): number {
@@ -151,20 +178,20 @@ export function validateAddToCartStock(input: {
   if (input.cartQty > 0 && remaining <= 0) {
     return {
       ok: false,
-      message: `You already have the maximum available quantity (${available}) of ${label} in your cart.`,
+      message: `Maximum stock reached — you already have all ${available} available of ${label} in your cart.`,
     }
   }
 
   if (input.cartQty > 0) {
     return {
       ok: false,
-      message: `Only ${remaining} more ${label} can be added — ${available} in stock and ${input.cartQty} already in your cart.`,
+      message: `Maximum stock reached — only ${remaining} more of ${label} can be added (${available} on hand, ${input.cartQty} already in cart).`,
     }
   }
 
   return {
     ok: false,
-    message: `Only ${available} ${label} available in stock.`,
+    message: `Maximum stock reached — only ${available} of ${label} available on hand.`,
   }
 }
 

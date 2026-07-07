@@ -1,5 +1,6 @@
 export interface MockProduct {
   id: string;
+  slug: string;
   name: string;
   description: string;
   price: number;
@@ -21,6 +22,7 @@ const swatch = (h: number, s = 40, l = 80) =>
 export const mockProducts: MockProduct[] = [
   {
     id: "p1",
+    slug: "linen-field-shirt",
     name: "Linen Field Shirt",
     description: "Breathable lightweight linen, garment-washed for softness.",
     price: 89,
@@ -35,6 +37,7 @@ export const mockProducts: MockProduct[] = [
   },
   {
     id: "p2",
+    slug: "ceramic-pour-over-kit",
     name: "Ceramic Pour-over Kit",
     description: "Hand-thrown ceramic dripper with bamboo carafe.",
     price: 64,
@@ -48,6 +51,7 @@ export const mockProducts: MockProduct[] = [
   },
   {
     id: "p3",
+    slug: "walnut-desk-tray",
     name: "Walnut Desk Tray",
     description: "Hand-finished walnut catch-all for the everyday carry.",
     price: 48,
@@ -61,6 +65,7 @@ export const mockProducts: MockProduct[] = [
   },
   {
     id: "p4",
+    slug: "wool-trail-socks",
     name: "Wool Trail Socks",
     description: "Merino blend with cushioned heel — 3-pair pack.",
     price: 32,
@@ -74,6 +79,7 @@ export const mockProducts: MockProduct[] = [
   },
   {
     id: "p5",
+    slug: "brass-pocket-notebook",
     name: "Brass Pocket Notebook",
     description: "Refillable brass cover with 96 pages of cotton paper.",
     price: 38,
@@ -87,6 +93,7 @@ export const mockProducts: MockProduct[] = [
   },
   {
     id: "p6",
+    slug: "canvas-day-tote",
     name: "Canvas Day Tote",
     description: "Heavy-duty 14oz canvas with leather handles.",
     price: 72,
@@ -101,6 +108,7 @@ export const mockProducts: MockProduct[] = [
   },
   {
     id: "p7",
+    slug: "stoneware-mug-set",
     name: "Stoneware Mug Set",
     description: "Set of 4 reactive-glaze stoneware mugs, dishwasher safe.",
     price: 56,
@@ -114,6 +122,7 @@ export const mockProducts: MockProduct[] = [
   },
   {
     id: "p8",
+    slug: "recycled-wool-throw",
     name: "Recycled Wool Throw",
     description: "Soft and warm throw made from recycled wool fibers.",
     price: 128,

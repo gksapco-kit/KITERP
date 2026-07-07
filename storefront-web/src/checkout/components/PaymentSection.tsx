@@ -1,12 +1,12 @@
-import { useState } from "react";
-import { CreditCard, Wallet, Building2, Clock, Apple } from "lucide-react";
+import { useEffect, useState } from "react";
+import { CreditCard, Wallet, Building2, Clock, Apple, Smartphone } from "lucide-react";
 import { useCheckoutConfig, type ConnectedPayment } from "../config";
 import { PaymentSelection, PaymentTabType, PaymentProvider, type Money } from "../types";
 import {
   HostedGatewayCheckoutNote,
   CodPaymentForm,
-  CardForm,
 } from "./ProviderPaymentForms";
+import { UpiPaymentPanel } from "./UpiPaymentPanel";
 
 const HOSTED_GATEWAYS = new Set(["razorpay", "stripe", "square", "paypal", "payu"]);
 
@@ -46,7 +46,9 @@ export function PaymentSection({ onChange, value, total }: Props) {
         </div>
       )}
 
-      {(paymentMode === "tabs" || paymentMode === "hybrid") && <PaymentTabs onChange={onChange} />}
+      {(paymentMode === "tabs" || paymentMode === "hybrid") && (
+        <PaymentTabs onChange={onChange} total={total} />
+      )}
     </div>
   );
 }
@@ -179,54 +181,71 @@ function providerIcon(p: PaymentProvider) {
   return <Wallet size={16} />;
 }
 
-const TABS: { id: PaymentTabType; label: string; icon: React.ReactNode }[] = [
-  { id: "card", label: "Card", icon: <CreditCard size={14} /> },
-  { id: "wallet", label: "Wallet", icon: <Wallet size={14} /> },
-  { id: "bank_transfer", label: "Bank", icon: <Building2 size={14} /> },
-  { id: "bnpl", label: "Pay later", icon: <Clock size={14} /> },
-];
+function PaymentTabs({
+  onChange,
+  total,
+}: {
+  onChange?: (s: PaymentSelection) => void;
+  total?: Money;
+}) {
+  const { manualUpi } = useCheckoutConfig();
+  const upiEnabled = Boolean(manualUpi?.enabled);
+  const [tab, setTab] = useState<PaymentTabType>(upiEnabled ? "upi" : "bnpl");
 
-function PaymentTabs({ onChange }: { onChange?: (s: PaymentSelection) => void }) {
-  const [tab, setTab] = useState<PaymentTabType>("card");
+  useEffect(() => {
+    onChange?.({ kind: "tab", tab: upiEnabled ? "upi" : "bnpl" });
+  }, [upiEnabled]);
+
+  const selectTab = (next: PaymentTabType) => {
+    setTab(next);
+    onChange?.({ kind: "tab", tab: next });
+  };
 
   return (
     <div>
-      <div className="ck-border ck-radius-md flex p-1" style={{ background: "hsl(var(--surface-muted))" }}>
-        {TABS.map((t) => (
+      <div
+        className={`ck-border ck-radius-md grid gap-1 p-1 ${upiEnabled ? "grid-cols-2" : "grid-cols-1"}`}
+        style={{ background: "hsl(var(--surface-muted))" }}
+      >
+        <button
+          type="button"
+          onClick={() => selectTab("bnpl")}
+          className="flex items-center justify-center gap-1.5 py-2 text-sm font-medium transition"
+          style={{
+            borderRadius: "calc(var(--radius-md) - 4px)",
+            background: tab === "bnpl" ? "hsl(var(--surface))" : "transparent",
+            color: tab === "bnpl" ? "hsl(var(--text))" : "hsl(var(--text-muted))",
+            boxShadow: tab === "bnpl" ? "var(--shadow-sm)" : "none",
+            border: "none",
+            cursor: "pointer",
+          }}
+        >
+          <Clock size={14} />
+          Pay later
+        </button>
+        {upiEnabled && (
           <button
-            key={t.id}
             type="button"
-            onClick={() => {
-              setTab(t.id);
-              onChange?.({ kind: "tab", tab: t.id });
-            }}
-            className="flex flex-1 items-center justify-center gap-1.5 py-2 text-sm font-medium transition"
+            onClick={() => selectTab("upi")}
+            className="flex items-center justify-center gap-1.5 py-2 text-sm font-medium transition"
             style={{
               borderRadius: "calc(var(--radius-md) - 4px)",
-              background: tab === t.id ? "hsl(var(--surface))" : "transparent",
-              color: tab === t.id ? "hsl(var(--text))" : "hsl(var(--text-muted))",
-              boxShadow: tab === t.id ? "var(--shadow-sm)" : "none",
+              background: tab === "upi" ? "hsl(var(--surface))" : "transparent",
+              color: tab === "upi" ? "hsl(var(--text))" : "hsl(var(--text-muted))",
+              boxShadow: tab === "upi" ? "var(--shadow-sm)" : "none",
               border: "none",
               cursor: "pointer",
             }}
           >
-            {t.icon}
-            {t.label}
+            <Smartphone size={14} />
+            UPI
           </button>
-        ))}
+        )}
       </div>
 
       <div className="mt-4">
-        {tab === "card" && <CardForm onChange={(d) => onChange?.({ kind: "tab", tab: "card", cardDetails: d })} />}
-        {tab === "wallet" && (
-          <p className="ck-border ck-radius-md ck-text-muted p-3 text-sm">
-            Choose a wallet provider above (Apple Pay, Google Pay, PayPal).
-          </p>
-        )}
-        {tab === "bank_transfer" && (
-          <p className="ck-border ck-radius-md ck-text-muted p-3 text-sm">
-            You&apos;ll receive bank transfer instructions on the confirmation page.
-          </p>
+        {tab === "upi" && manualUpi?.enabled && (
+          <UpiPaymentPanel manualUpi={manualUpi} total={total} />
         )}
         {tab === "bnpl" && (
           <p className="ck-border ck-radius-md ck-text-muted p-3 text-sm">

@@ -12,12 +12,18 @@ import { useQueryClient } from '@tanstack/react-query'
 import { storeApi, type StoreLocation } from '@/api/store'
 import { setBranchQueryParam } from '@/api/client'
 import { useVendor } from '@/contexts/VendorContext'
+import {
+  branchCodeForStore,
+  branchKey,
+  matchBranch,
+  pickDefaultOpenBranch,
+} from '@/lib/branchMatching'
 
 export type BranchContextValue = {
   branches: StoreLocation[]
   branchCode: string | null
   selectedBranch: StoreLocation | null
-  /** True when branchCode is set but not found in the open-branches list (store is closed). */
+  /** True when the resolved business unit exists and is marked is_open=false. */
   isBranchClosed: boolean
   setBranchCode: (code: string | null) => void
   /** Same as vendor storePath but keeps the active ?branch= on internal links. */
@@ -52,16 +58,6 @@ function writeSavedBranch(vendorSlug: string, code: string | null) {
   }
 }
 
-function branchKey(v: string | null | undefined): string {
-  return String(v ?? '').trim().toLowerCase()
-}
-
-function matchBranch(stores: StoreLocation[], code: string | null): StoreLocation | null {
-  const key = branchKey(code)
-  if (!key) return null
-  return stores.find((s) => branchKey(s.code) === key || branchKey(s.id) === key) ?? null
-}
-
 export function BranchPreviewProvider({
   value,
   children,
@@ -80,6 +76,7 @@ export function BranchProvider({ children }: { children: ReactNode }) {
   const qc = useQueryClient()
   const [branches, setBranches] = useState<StoreLocation[]>([])
   const [loading, setLoading] = useState(true)
+  const [branchesLoaded, setBranchesLoaded] = useState(false)
 
   const branchCode = searchParams.get('branch')?.trim() || null
 
@@ -94,13 +91,21 @@ export function BranchProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     let cancelled = false
+    setLoading(true)
+    setBranchesLoaded(false)
     storeApi
       .listBranches()
       .then((r) => {
-        if (!cancelled) setBranches(r.stores ?? [])
+        if (!cancelled) {
+          setBranches(r.stores ?? [])
+          setBranchesLoaded(true)
+        }
       })
       .catch(() => {
-        if (!cancelled) setBranches([])
+        if (!cancelled) {
+          setBranches([])
+          setBranchesLoaded(false)
+        }
       })
       .finally(() => {
         if (!cancelled) setLoading(false)
@@ -116,11 +121,12 @@ export function BranchProvider({ children }: { children: ReactNode }) {
 
   // Remember the selected unit across internal navigation (cart, checkout, etc.).
   useEffect(() => {
-    if (!vendorSlug) return
-    if (branchCode) {
+    if (!vendorSlug || !branchCode || loading || !branchesLoaded) return
+    const match = matchBranch(branches, branchCode)
+    if (match && match.is_open !== false) {
       writeSavedBranch(vendorSlug, branchCode)
     }
-  }, [vendorSlug, branchCode])
+  }, [vendorSlug, branchCode, loading, branchesLoaded, branches])
 
   useEffect(() => {
     if (!vendorSlug || branchCode || loading) return
@@ -139,13 +145,33 @@ export function BranchProvider({ children }: { children: ReactNode }) {
     [branches, branchCode],
   )
 
-  // Branch is closed when the URL points to an unknown unit or one marked is_open=false.
+  // Replace stale ?branch= values with the default open unit once stores are loaded.
+  useEffect(() => {
+    if (!vendorSlug || loading || !branchesLoaded || !branchCode || selectedBranch) return
+    const fallback = pickDefaultOpenBranch(branches)
+    if (!fallback) return
+    const resolved = branchCodeForStore(fallback)
+    if (!resolved || branchKey(resolved) === branchKey(branchCode)) return
+    const next = new URLSearchParams(searchParams)
+    next.set('branch', resolved)
+    const qs = next.toString()
+    navigate(`${location.pathname}${qs ? `?${qs}` : ''}`, { replace: true })
+  }, [
+    vendorSlug,
+    loading,
+    branchesLoaded,
+    branchCode,
+    selectedBranch,
+    branches,
+    location.pathname,
+    navigate,
+    searchParams,
+  ])
+
+  // Only block checkout when the resolved unit is explicitly marked closed.
   const isBranchClosed = useMemo(
-    () =>
-      !loading
-      && branchCode !== null
-      && (selectedBranch === null || selectedBranch.is_open === false),
-    [loading, branchCode, selectedBranch],
+    () => !loading && branchesLoaded && selectedBranch?.is_open === false,
+    [loading, branchesLoaded, selectedBranch],
   )
 
   const setBranchCode = useCallback(

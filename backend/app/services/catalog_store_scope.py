@@ -5,7 +5,7 @@ from typing import Iterable, Literal, Optional
 from uuid import UUID
 
 from fastapi import HTTPException
-from sqlalchemy import delete, or_, select
+from sqlalchemy import delete, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.store import ProductStore, ServiceStore, Store
@@ -118,9 +118,10 @@ async def resolve_store_id(
             raise HTTPException(422, "This business unit is currently closed")
         return sid
     if branch:
-        filters = [Store.code == branch]
+        cleaned = branch.strip()
+        filters = [func.lower(Store.code) == cleaned.lower()]
         try:
-            filters.append(Store.id == UUID(branch))
+            filters.append(Store.id == UUID(cleaned))
         except ValueError:
             pass
         row = await db.execute(

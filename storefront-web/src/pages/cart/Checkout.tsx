@@ -11,14 +11,19 @@ import { useCart, useStoreInfo } from '@/hooks/useStore'
 import { useBranch } from '@/contexts/BranchContext'
 import { useBuilderSite } from '@/contexts/BuilderSiteContext'
 import { useBuilderSiteCheckoutTheme } from '@/hooks/useBuilderSiteCheckoutTheme'
+import { useCompletePendingBuyNow } from '@/hooks/useCompletePendingBuyNow'
 import type { StyleConfig } from '@/blocks/registry'
 
 export default function Checkout() {
   const { storePath } = useBranch()
+  const { completing: completingBuyNow } = useCompletePendingBuyNow()
   const { data: cart, isLoading: cartLoading } = useCart()
   const { data: storeInfo } = useStoreInfo()
   const { builderSite } = useBuilderSite()
   const [params] = useSearchParams()
+
+  const hasCartItems = (cart?.items?.length ?? 0) > 0
+  const waitingForCart = cartLoading && !hasCartItems
 
   // Precedence: URL param (QA/demo) > wb_site style_config (website builder)
   //             > vendor theme_config > theme.css default
@@ -30,7 +35,7 @@ export default function Checkout() {
 
   const checkoutTheme = useBuilderSiteCheckoutTheme()
 
-  if (cartLoading) {
+  if (waitingForCart || (completingBuyNow && !hasCartItems)) {
     return (
       <div className="flex justify-center py-20">
         <Loader2 className="w-8 h-8 animate-spin text-gray-400" />
@@ -83,6 +88,7 @@ function Inner({
 }) {
   const checkout = useStoreBridgeCheckout()
   const { layout: configLayout } = useCheckoutConfig()
+  const { data: storeInfo } = useStoreInfo()
   const activeLayout = layout ?? configLayout
 
   return (
@@ -92,11 +98,20 @@ function Inner({
         connectedPayments: checkout.state.connectedPayments,
         codEnabled: checkout.state.codEnabled,
         paymentMode: checkout.state.connectedPayments.length > 0 ? 'providers' : 'tabs',
+        manualUpi: checkout.state.manualUpi ?? null,
+        logoUrl: (storeInfo as { logo_url?: string } | undefined)?.logo_url,
       }}
     >
       <div className="checkout-root relative" style={checkoutTheme}>
         {checkout.state.processingMessage ? (
           <CheckoutProcessingOverlay message={checkout.state.processingMessage} />
+        ) : null}
+        {checkout.state.error ? (
+          <div className="mx-auto max-w-6xl px-3 py-3 sm:px-4 md:px-6">
+            <p className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+              {checkout.state.error}
+            </p>
+          </div>
         ) : null}
         <CheckoutHeader />
         {activeLayout === 'wizard'    && <WizardLayout    {...checkout} />}

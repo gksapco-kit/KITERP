@@ -9,6 +9,7 @@ import { useCart, useUpdateCartItem, useRemoveCartItem, useCheckout, useStoreInf
 import { useAuthStore } from '@/stores/authStore'
 import { useVendor } from '@/contexts/VendorContext'
 import { useBranch } from '@/contexts/BranchContext'
+import { branchCodeForStore, pickDefaultOpenBranch } from '@/lib/branchMatching'
 import { storeApi } from '@/api/store'
 import { openRazorpayCheckout, mockRazorpayPay } from '@/lib/razorpay'
 import { extractApiError } from '@/lib/errorMessages'
@@ -16,6 +17,7 @@ import {
   checkoutSelectionToPaymentMethod,
   isHostedCheckoutGateway,
   isOnlineCheckoutPayment,
+  isManualProofPayment,
   validateCheckoutPaymentMethod,
 } from '@/lib/checkoutPayment'
 import { validateCheckoutFields, scrollToFirstCheckoutField, type CheckoutFieldErrors } from '@/checkout/validateCheckout'
@@ -43,7 +45,7 @@ export function useStoreBridgeCheckout() {
   const { storePath } = useBranch()
   const { customer, isAuthenticated, setTokens, setCustomer } = useAuthStore()
   const { vendorSlug } = useVendor()
-  const { branchCode, isBranchClosed, selectedBranch } = useBranch()
+  const { branchCode, isBranchClosed, selectedBranch, branches } = useBranch()
   const isGuest = !isAuthenticated
   const { data: cart } = useCart()
   const { data: storeInfo } = useStoreInfo()
@@ -120,35 +122,41 @@ export function useStoreBridgeCheckout() {
     [cart?.items],
   )
 
-  const refreshPreview = useCallback(async (coupon?: string | null) => {
+  const refreshPreview = useCallback(async (options?: { coupon?: string | null; shippingMethodId?: string }) => {
     if (!cartItemsPayload.length) {
       setServerPreview(null)
       return
     }
+    const methodId = options?.shippingMethodId ?? shippingMethodId
+    const coupon = options?.coupon !== undefined ? options.coupon : couponCode
     setPreviewLoading(true)
     setPreviewError(undefined)
     try {
       const previewBody = {
-        shipping_method_id: shippingMethodId,
-        coupon_code: coupon ?? couponCode ?? undefined,
+        shipping_method_id: methodId,
+        coupon_code: coupon ?? undefined,
         shipping_state: resolvedAddress?.region,
       }
       const data = isGuest
         ? await storeApi.guestCheckoutPreview({ ...previewBody, items: cartItemsPayload })
         : await storeApi.checkoutPreview(previewBody)
       setServerPreview(data)
-      if (data.shipping_methods?.length && !data.shipping_methods.some(m => m.id === shippingMethodId)) {
+      if (data.shipping_methods?.length && !data.shipping_methods.some(m => m.id === methodId)) {
         setShippingMethodId(data.shipping_methods[0].id)
       }
       const connected = data.connected_payments ?? []
       const codOk = (data.payment_methods ?? []).includes('cod')
-      if (connected.length > 0 || codOk) {
+      const manualUpi = data.manual_upi ?? null
+      if (connected.length > 0 || codOk || manualUpi?.enabled) {
         setPayment(prev => {
           if (prev) return prev
           if (connected.length > 0) {
             return { kind: 'provider', provider: connected[0].provider as PaymentProvider }
           }
-          return { kind: 'tab', tab: 'bank_transfer' }
+          if (manualUpi?.enabled) {
+            return { kind: 'tab', tab: 'upi' }
+          }
+          return { kind: 'tab', tab: 'bnpl' }
         })
       }
     } catch {
@@ -187,7 +195,7 @@ export function useStoreBridgeCheckout() {
     items: ((cart?.items ?? []) as Record<string, unknown>[]).map((item, i) => ({
       id: String(i),
       productId: String(item.product_id ?? i),
-      variantId: String(item.variant_id ?? i),
+      variantId: item.variant_id ? String(item.variant_id) : undefined,
       name: String(item.name ?? ''),
       variantLabel: item.variant_label ? String(item.variant_label) : undefined,
       imageUrl: item.image_url ? String(item.image_url) : undefined,
@@ -262,6 +270,10 @@ export function useStoreBridgeCheckout() {
     })
   }, [navigate, storePath, storeName, qc, vendorSlug, prefetchOrderConfirmation])
 
+  const setPaymentSelection = useCallback((p: PaymentSelection) => setPayment(p), [])
+  const setNotesValue = useCallback((s: string) => setNotes(s), [])
+  const setGiftMessageValue = useCallback((s: string) => setGiftMessage(s), [])
+
   const actions = useMemo(() => ({
     setCustomer: (c: Partial<Customer>) => {
       setCustomerInfo(c)
@@ -283,10 +295,13 @@ export function useStoreBridgeCheckout() {
       setShippingAddressState(undefined)
     },
 
-    setShippingMethod: (id: string) => setShippingMethodId(id),
-    setPayment: (p: PaymentSelection) => setPayment(p),
-    setNotes: (s: string) => setNotes(s),
-    setGiftMessage: (s: string) => setGiftMessage(s),
+    setShippingMethod: (id: string) => {
+      setShippingMethodId(id)
+      void refreshPreview({ shippingMethodId: id })
+    },
+    setPayment: setPaymentSelection,
+    setNotes: setNotesValue,
+    setGiftMessage: setGiftMessageValue,
 
     updateQuantity: (id: string, q: number) => {
       const idx = Number(id)
@@ -317,13 +332,19 @@ export function useStoreBridgeCheckout() {
     },
     removeCoupon: (_code: string) => {
       setCouponCode(null)
-      void refreshPreview(null)
+      void refreshPreview({ coupon: null })
     },
 
     placeOrder: async (): Promise<{ ok: boolean; orderId?: string; error?: string; fieldErrors?: CheckoutFieldErrors }> => {
       if (isBranchClosed) {
-        return { ok: false, error: 'This store is currently closed. Please check back later or choose another location.' }
+        return {
+          ok: false,
+          error: 'This store is currently closed. Please check back later or choose another location.',
+        }
       }
+
+      const checkoutBranch = selectedBranch ?? pickDefaultOpenBranch(branches)
+      const orderBranchCode = checkoutBranch ? branchCodeForStore(checkoutBranch) : branchCode ?? undefined
 
       const usingSavedAddress = !isGuest && !!selectedSavedAddressId && !!savedAddresses.length
       const validationErrors = validateCheckoutFields({
@@ -395,8 +416,8 @@ export function useStoreBridgeCheckout() {
             shipping_method_id: shippingMethodId,
             notes: notes || undefined,
             coupon_code: couponCode ?? undefined,
-            branch_code: branchCode ?? undefined,
-            store_id: selectedBranch?.id ?? undefined,
+            branch_code: orderBranchCode,
+            store_id: checkoutBranch?.id ?? undefined,
           })
           if (result.access_token && result.refresh_token) {
             setTokens({ access_token: result.access_token, refresh_token: result.refresh_token, token_type: 'bearer' })
@@ -410,13 +431,13 @@ export function useStoreBridgeCheckout() {
             shipping_method_id: shippingMethodId,
             notes: notes || undefined,
             coupon_code: couponCode ?? undefined,
-            branch_code: branchCode ?? undefined,
-            store_id: selectedBranch?.id ?? undefined,
+            branch_code: orderBranchCode,
+            store_id: checkoutBranch?.id ?? undefined,
           })
           orderId = order.id
         }
 
-        if (isOnlineCheckoutPayment(paymentMethod)) {
+        if (isOnlineCheckoutPayment(paymentMethod, payment)) {
           try {
             if (isHostedCheckoutGateway(paymentMethod)) {
               if (paymentMethod !== 'razorpay') {
@@ -457,6 +478,11 @@ export function useStoreBridgeCheckout() {
               orderId,
             }
           }
+        } else if (isManualProofPayment(payment)) {
+          await resetCartAfterOrder(qc, vendorSlug)
+          leavingForConfirmation = true
+          navigate(storePath(`/order/${orderId}/payment`))
+          return { ok: true, orderId }
         } else {
           await prefetchOrderConfirmation(orderId)
           await resetCartAfterOrder(qc, vendorSlug)
@@ -482,7 +508,8 @@ export function useStoreBridgeCheckout() {
     checkoutMutation, navigate, storePath, removeItem, updateItem,
     completeOnlinePayment, refreshPreview, isGuest, customerInfo,
     cartItemsPayload, setTokens, setCustomer, vendorSlug, qc,
-    branchCode, isBranchClosed, clearFieldErrors, selectedSavedAddressId, savedAddresses, isPlacingOrder,
+    branchCode, isBranchClosed, branches, clearFieldErrors, selectedSavedAddressId, savedAddresses, isPlacingOrder,
+    setPaymentSelection, setNotesValue, setGiftMessageValue,
   ])
 
   return {
@@ -508,7 +535,7 @@ export function useStoreBridgeCheckout() {
       isBranchClosed,
       connectedPayments: serverPreview?.connected_payments ?? [],
       codEnabled: (serverPreview?.payment_methods ?? []).includes('cod'),
-      razorpayEnabled: Boolean(serverPreview?.razorpay_enabled),
+      manualUpi: serverPreview?.manual_upi ?? null,
     },
     actions,
   }

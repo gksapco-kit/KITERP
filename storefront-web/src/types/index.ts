@@ -234,6 +234,14 @@ export interface Order {
   id: string; order_number: string; items: OrderItem[]; item_count: number
   subtotal: number; tax_amount: number; discount_amount: number; shipping_amount: number; total: number
   status: string; payment_status: string; payment_method?: string
+  payment_proof?: {
+    utr?: string
+    screenshot_url?: string
+    status?: string
+    submitted_at?: string
+    reviewed_at?: string
+    review_notes?: string
+  } | null
   shipping_address?: Record<string, string>; tracking_number?: string; tracking_url?: string
   cancel_reason?: string
   cancel_attachments?: OrderAttachmentRef[]

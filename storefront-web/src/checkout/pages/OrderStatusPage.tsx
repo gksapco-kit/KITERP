@@ -29,7 +29,7 @@ function Inner() {
     return (
       <div className="checkout-root min-h-screen" style={checkoutTheme}>
         <CheckoutHeader />
-        <main className="mx-auto flex max-w-4xl justify-center px-4 py-20">
+        <main className="mx-auto flex max-w-4xl justify-center px-3 py-16 sm:px-4 sm:py-20 md:px-6">
           <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
         </main>
         <CheckoutFooter />
@@ -41,7 +41,7 @@ function Inner() {
     return (
       <div className="checkout-root min-h-screen" style={checkoutTheme}>
         <CheckoutHeader />
-        <main className="mx-auto max-w-4xl px-4 py-16 text-center md:px-6">
+        <main className="mx-auto max-w-4xl px-3 py-12 text-center sm:px-4 sm:py-16 md:px-6">
           <h1 className="mb-4 text-2xl font-semibold">Order not found</h1>
           <Link to={storePath("/products")} className="ck-btn-primary no-underline" style={{ width: "auto", padding: "12px 24px" }}>
             Continue shopping
@@ -59,7 +59,7 @@ function Inner() {
   return (
     <div className="checkout-root min-h-screen" style={checkoutTheme}>
       <CheckoutHeader />
-      <main className="mx-auto max-w-4xl px-4 py-8 md:px-6">
+      <main className="mx-auto max-w-4xl px-3 py-6 sm:px-4 sm:py-8 md:px-6">
         <div className="mb-6 flex flex-wrap items-end justify-between gap-3">
           <div>
             <p className="ck-text-subtle text-xs uppercase tracking-wide">Order</p>

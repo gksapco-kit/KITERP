@@ -14,6 +14,10 @@ import { useAuthStore } from '@/stores/authStore'
 import { useBranch } from '@/contexts/BranchContext'
 import { useVendor } from '@/contexts/VendorContext'
 import { useBuilderSiteCheckoutTheme } from '@/hooks/useBuilderSiteCheckoutTheme'
+import {
+  computeCartTaxAmount,
+  resolveDeliveryCharge,
+} from '@/lib/deliveryConditions'
 import { TableSkeleton } from '@/kit/states/StateScreens'
 import { CartDetailLineItem } from './CartDetailLineItem'
 import type { ProductVariant } from '@/types'
@@ -23,7 +27,7 @@ import { toast } from 'sonner'
 
 export default function CartPage() {
   const { storePath } = useBranch()
-  const { vendorSlug } = useVendor()
+  const { vendorSlug, vendor } = useVendor()
   const { isAuthenticated } = useAuthStore()
   const { data: storeInfo } = useStoreInfo()
   const { data: cart, isLoading } = useCart()
@@ -52,7 +56,7 @@ export default function CartPage() {
     return {
       id: String(i),
       productId,
-      variantId: variantId ?? productId,
+      variantId: variantId ?? undefined,
       name: String(item.name ?? ''),
       variantLabel,
       imageUrl: item.image_url ? String(item.image_url) : undefined,
@@ -65,19 +69,32 @@ export default function CartPage() {
   const subtotalAmount = Math.round(
     ((cart?.items ?? []) as any[]).reduce((s: number, i: any) => s + i.price * i.qty, 0) * 100
   )
-  const taxAmount = Math.round(subtotalAmount * 0.18)
+  const subtotalRupees = subtotalAmount / 100
+  const vendorSettings = (vendor?.settings ?? {}) as Record<string, unknown>
+  const { shippingAmount: shippingRupees } = resolveDeliveryCharge(vendorSettings, subtotalRupees)
+  const shippingAmount = Math.round(shippingRupees * 100)
+  const { taxAmount: taxRupees, taxLabel } = computeCartTaxAmount(
+    (cart?.items ?? []) as Array<{ product_id?: string; price: number; qty: number }>,
+    productMap,
+    vendorSettings,
+    vendor?.is_gst_registered,
+    vendor?.default_tax_rate,
+  )
+  const taxAmount = Math.round(taxRupees * 100)
   const discountAmount = Math.round(Number(cart?.discount_amount ?? 0) * 100)
 
   const checkoutCart = {
     id: 'store_cart',
     items: cartItems,
     subtotal: { amount: subtotalAmount, currency },
-    shipping: { amount: 0, currency },
+    shipping: { amount: shippingAmount, currency },
     discounts: discountAmount > 0
       ? [{ code: 'DISCOUNT', label: 'Discount', amount: { amount: discountAmount, currency } }]
       : [],
-    taxes: [{ label: 'GST (18%)', amount: { amount: taxAmount, currency } }],
-    total: { amount: subtotalAmount + taxAmount - discountAmount, currency },
+    taxes: taxLabel
+      ? [{ label: taxLabel, amount: { amount: taxAmount, currency } }]
+      : [],
+    total: { amount: subtotalAmount + shippingAmount + taxAmount - discountAmount, currency },
   }
 
   const empty = !cartItems.length
@@ -93,17 +110,17 @@ export default function CartPage() {
   return (
     <CheckoutConfigProvider config={{ storeName, showCoupon: true, showTrustBadges: true }}>
       <div className="checkout-root" style={checkoutTheme}>
-        <main className="mx-auto max-w-6xl px-4 py-8 md:px-6">
-          <div className="mb-5 flex items-center gap-2 text-sm">
+        <main className="mx-auto max-w-6xl px-3 py-6 sm:px-4 md:px-6 md:py-8">
+          <div className="mb-5 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm">
             <Link to={storePath('/')} className="ck-btn-ghost flex items-center gap-1 p-0">
               <ArrowLeft size={14} /> Continue shopping
             </Link>
-            <span className="ck-text-subtle">·</span>
+            <span className="ck-text-subtle hidden sm:inline">·</span>
             <Link to={storePath('/products')} className="ck-btn-ghost p-0">Products</Link>
           </div>
 
           <div className="mb-6 flex flex-wrap items-center gap-3 sm:gap-4">
-            <h1 className="text-2xl font-semibold md:text-3xl">Detail view</h1>
+            <h1 className="text-xl font-semibold sm:text-2xl md:text-3xl">Your Cart</h1>
             {!empty && (
               <CartItemsBadge count={cartItems.reduce((s, i) => s + i.quantity, 0)} />
             )}
@@ -113,7 +130,7 @@ export default function CartPage() {
             <EmptyState storePath={storePath} />
           ) : (
             <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_380px]">
-              <div className="ck-surface ck-border ck-radius-md p-2 md:p-4">
+              <div className="ck-surface ck-border ck-radius-md p-2 sm:p-3 md:p-4">
                 {cartItems.map((item, i) => {
                   const lineMaxQty = maxCartLineQty({
                     vendorSlug,
@@ -133,7 +150,10 @@ export default function CartPage() {
                         const index = Number(id)
                         if (Number.isNaN(index)) return
                         if (q <= 0) {
-                          removeItem.mutate(index)
+                          removeItem.mutate({
+                            productId: item.productId,
+                            variantId: item.variantId,
+                          })
                           return
                         }
                         const stockCheck = validateCartLineQtyChange({
@@ -149,13 +169,16 @@ export default function CartPage() {
                         }
                         updateItem.mutate({ index, qty: q })
                       }}
-                      onRemove={(id) => {
-                        const index = Number(id)
-                        if (!Number.isNaN(index)) removeItem.mutate(index)
+                      onRemove={() => {
+                        removeItem.mutate({
+                          productId: item.productId,
+                          variantId: item.variantId,
+                        })
                       }}
                       onVariantChange={(variant: ProductVariant) => {
-                        if (variant.id === item.variantId) return
                         const raw = rawItems[i]
+                        const rawVariantId = raw?.variant_id ? String(raw.variant_id) : undefined
+                        if (rawVariantId && variant.id === rawVariantId) return
                         changeVariant.mutate({
                           index: i,
                           item: {
@@ -248,18 +271,18 @@ function EmptyState({ storePath }: { storePath: (path: string) => string }) {
       <p className="ck-text-muted mt-1 max-w-md text-sm">
         Looks like you haven't added anything yet. Browse our products and services.
       </p>
-      <div className="mt-6 flex gap-3">
+      <div className="mt-6 flex w-full max-w-sm flex-col gap-3 sm:max-w-none sm:flex-row sm:justify-center">
         <Link
           to={storePath('/products')}
-          className="ck-btn-primary no-underline"
-          style={{ width: 'auto', padding: '12px 24px' }}
+          className="ck-btn-primary no-underline w-full text-center sm:w-auto"
+          style={{ padding: '12px 24px' }}
         >
           Browse products
         </Link>
         <Link
           to={storePath('/services')}
-          className="ck-btn-secondary no-underline"
-          style={{ textAlign: 'center', padding: '12px 24px' }}
+          className="ck-btn-secondary no-underline w-full text-center sm:w-auto"
+          style={{ padding: '12px 24px' }}
         >
           View services
         </Link>

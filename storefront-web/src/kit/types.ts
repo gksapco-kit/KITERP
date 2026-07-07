@@ -47,6 +47,7 @@ export interface Product {
     track_inventory?: boolean;
     allow_backorders?: boolean;
     stock_status?: string;
+    media?: { url: string; media_type?: 'image' | 'video' | 'model3d'; is_primary?: boolean; alt_text?: string; position?: number }[];
   }[];
   /** When true, card price shows "From" using the lowest variant price. */
   showFromPrice?: boolean;
@@ -121,6 +122,7 @@ export interface BlogPost {
 
 export interface WishlistItem extends Product {
   savedAt: string;
+  variantId?: string;
 }
 
 export interface NotificationPrefs {

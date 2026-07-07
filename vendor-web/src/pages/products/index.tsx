@@ -23,9 +23,7 @@ import {
   Layers, Palette, Ruler,
 } from 'lucide-react'
 import {
-  formatGroupedVariantLabel,
-  groupProductVariants,
-  variantMatchesGroup,
+  formatVariantDisplayLabel,
   variantToUpdatePayload,
 } from '@/lib/productVariantPresets'
 import { vendorApi } from '@/api/vendor'
@@ -140,8 +138,9 @@ function MoreMenu({ product, onDelete }: { product: Product; onDelete: () => voi
     <>
       <button
         ref={triggerRef}
+        type="button"
         className="inline-flex h-8 w-8 items-center justify-center rounded-md p-0 text-gray-500 hover:bg-gray-100 transition-colors"
-        onClick={() => { setOpen(v => !v); setConfirmDelete(false) }}
+        onClick={(e) => { e.stopPropagation(); setOpen(v => !v); setConfirmDelete(false) }}
       >
         <MoreVertical className="w-4 h-4" />
       </button>
@@ -200,6 +199,7 @@ export default function Products() {
   })
   const deleteProduct = useDeleteProduct()
   const updateProduct = useUpdateProduct()
+  const [productDeleteId, setProductDeleteId] = useState<string | null>(null)
   const [variantDeleteKey, setVariantDeleteKey] = useState<string | null>(null)
   const [variantDeletingKey, setVariantDeletingKey] = useState<string | null>(null)
 
@@ -321,46 +321,30 @@ export default function Products() {
           currency: product.currency || 'INR', is_active: product.status === 'active',
         })
       } else {
-        const groups = groupProductVariants(variants)
-        for (const group of groups) {
-          const groupVariants = variants.filter(v =>
-            variantMatchesGroup(v.name || '', v.attributes, group),
-          )
-          const vImg = groupVariants
-            .flatMap(v => (v.images || v.media || []))
-            .find((img: any) => img?.url)
+        for (const v of variants) {
+          const vImg = (v.images || v.media || []).find((img: any) => img?.url)
           const vThumb = vImg ? resolveUrl(vImg.url) : productThumb
-          const prices = groupVariants.map(v => v.price ?? 0).filter(p => p > 0).sort((a, b) => a - b)
-          const price = prices[0] ?? 0
-          const priceHigh = prices[prices.length - 1] ?? price
-          const quantity = groupVariants.reduce((sum, v) => sum + (v.quantity ?? 0), 0)
-          const outCount = groupVariants.filter(v =>
-            v.stock_status === 'out_of_stock' || (v.quantity ?? 0) === 0,
-          ).length
-          const stock_status = outCount === groupVariants.length
-            ? 'out_of_stock'
-            : outCount > 0
-              ? 'low_stock'
-              : groupVariants[0]?.stock_status || 'in_stock'
-          const skus = [...new Set(groupVariants.map(v => v.sku).filter(Boolean))]
-          const variantIds = groupVariants.map(v => v.id).filter(Boolean)
+          const price = v.price ?? 0
+          const qty = v.quantity ?? 0
           rows.push({
             productId: product.id, productName: product.name,
             productCategory: product.category || 'Uncategorized', productType: product.product_type || 'physical',
             thumbUrl: vThumb,
-            groupKey: group.color || '__size_only__',
-            variantName: formatGroupedVariantLabel(group.color, group.sizeCodes),
-            variantCount: group.count,
-            variantIds,
-            canDelete: variantIds.length > 0,
-            sku: skus.length === 1 ? skus[0]! : skus.length > 1 ? `${skus.length} SKUs` : '',
-            uom: groupVariants[0]?.uom || 'piece',
-            uom_quantity: groupVariants[0]?.uom_quantity ?? null,
-            price, priceHigh, quantity,
-            stock_status,
-            low_stock_threshold: groupVariants[0]?.low_stock_threshold ?? 5,
-            currency: groupVariants[0]?.currency || product.currency || 'INR',
-            is_active: groupVariants.every(v => v.is_active !== false),
+            groupKey: v.id || `${product.id}-${v.name || 'variant'}`,
+            variantName: formatVariantDisplayLabel(v.name || '', v.attributes),
+            variantCount: 1,
+            variantIds: v.id ? [v.id] : [],
+            canDelete: Boolean(v.id),
+            sku: v.sku || '',
+            uom: v.uom || 'piece',
+            uom_quantity: v.uom_quantity ?? null,
+            price,
+            priceHigh: price,
+            quantity: qty,
+            stock_status: v.stock_status || (qty === 0 ? 'out_of_stock' : 'in_stock'),
+            low_stock_threshold: v.low_stock_threshold ?? 5,
+            currency: v.currency || product.currency || 'INR',
+            is_active: v.is_active !== false,
           })
         }
       }
@@ -706,13 +690,56 @@ export default function Products() {
                   <td className="px-4 py-3">
                     <CatalogItemStatusCell status={product.status} isVisible={product.is_visible} />
                   </td>
-                  <td className="px-5 py-3 text-right">
-                    <div className="flex gap-1 justify-end items-center">
-                      <Button variant="ghost" size="sm" className="h-8 w-8 p-0" title="Edit" onClick={() => navigate(`/products/${product.id}?edit=true`)}>
-                        <Pencil className="w-4 h-4 text-gray-500" />
-                      </Button>
-                      <MoreMenu product={product} onDelete={() => deleteProduct.mutate(product.id)} />
-                    </div>
+                  <td className="px-5 py-3 text-right" onClick={(e) => e.stopPropagation()}>
+                    {productDeleteId === product.id ? (
+                      <div className="inline-flex flex-col items-end gap-1.5 min-w-[7.5rem]">
+                        <p className="text-[10px] font-medium text-red-600 text-right leading-tight">
+                          Delete this product?
+                        </p>
+                        <div className="flex gap-1">
+                          <Button
+                            size="sm"
+                            variant="destructive"
+                            className="h-7 px-2 text-xs"
+                            disabled={deleteProduct.isPending}
+                            onClick={() => deleteProduct.mutate(product.id, { onSettled: () => setProductDeleteId(null) })}
+                          >
+                            {deleteProduct.isPending ? <Loader2 className="w-3 h-3 animate-spin" /> : 'Delete'}
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-7 px-2 text-xs"
+                            disabled={deleteProduct.isPending}
+                            onClick={() => setProductDeleteId(null)}
+                          >
+                            Cancel
+                          </Button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="flex gap-1 justify-end items-center">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-8 w-8 p-0"
+                          title="Edit"
+                          onClick={() => navigate(`/products/${product.id}?edit=true`)}
+                        >
+                          <Pencil className="w-4 h-4 text-gray-500" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-8 w-8 p-0 text-red-500 hover:text-red-600 hover:bg-red-50"
+                          title="Delete product"
+                          onClick={() => setProductDeleteId(product.id)}
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                        <MoreMenu product={product} onDelete={() => deleteProduct.mutate(product.id)} />
+                      </div>
+                    )}
                   </td>
                 </tr>
                 )
@@ -760,8 +787,8 @@ export default function Products() {
                   ? `${row.uom_quantity} ${row.uom}`
                   : row.uom
                 // Group header: first row of a new product gets a subtle top border accent
-                const prevGroup = i > 0 ? `${variantRows[i - 1].productId}-${variantRows[i - 1].groupKey}` : null
-                const isFirstOfGroup = prevGroup !== `${row.productId}-${row.groupKey}`
+                const prevProductId = i > 0 ? variantRows[i - 1].productId : null
+                const isFirstOfProduct = prevProductId !== row.productId
                 const rowKey = `${row.productId}-${row.groupKey}`
                 const isConfirmingDelete = variantDeleteKey === rowKey
                 const isDeleting = variantDeletingKey === rowKey
@@ -769,7 +796,7 @@ export default function Products() {
                 return (
                   <tr
                     key={`${row.productId}-${row.groupKey}-${i}`}
-                    className={`hover:bg-gray-50/80 cursor-pointer transition-colors group ${isFirstOfGroup && i > 0 ? 'border-t-2 border-t-gray-200' : ''}`}
+                    className={`hover:bg-gray-50/80 cursor-pointer transition-colors group ${isFirstOfProduct && i > 0 ? 'border-t-2 border-t-gray-200' : ''}`}
                     onClick={onClickableTableRow(() => navigate(`/products/${row.productId}`))}
                   >
                     <td className="px-5 py-2.5 max-w-[240px]">

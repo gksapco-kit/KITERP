@@ -1,9 +1,11 @@
+import { Link } from "react-router-dom";
 import { Star, ShoppingBag } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatPrice } from "@/commerce-blocks/lib/format";
 import { mockProducts } from "@/commerce-blocks/mock/products";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { useStorePath } from "@/hooks/useStorePath";
 import {
   productCardBodyClass,
   productCardImageShell,
@@ -12,6 +14,7 @@ import {
 
 interface ProductCardProps {
   productId?: string;
+  productSlug?: string;
   showPrice?: boolean;
   showTags?: boolean;
   showRating?: boolean;
@@ -21,6 +24,7 @@ interface ProductCardProps {
   imageHeightPct?: number;
   cardPadding?: number;
   cardStyle?: string;
+  onAddToCart?: (e: React.MouseEvent) => void;
 }
 
 const aspectClass = {
@@ -31,6 +35,7 @@ const aspectClass = {
 
 export function ProductCard({
   productId,
+  productSlug,
   showPrice = true,
   showTags = true,
   showRating = false,
@@ -40,7 +45,9 @@ export function ProductCard({
   imageHeightPct,
   cardPadding,
   cardStyle,
+  onAddToCart,
 }: ProductCardProps) {
+  const storePath = useStorePath();
   const product =
     mockProducts.find((p) => p.id === productId) ?? mockProducts[0];
   const onSale = product.compareAtPrice && product.compareAtPrice > product.price;
@@ -48,6 +55,8 @@ export function ProductCard({
   const isMinimal = cardStyle === "minimal";
   const isCompact = cardStyle === "compact";
   const imageShell = productCardImageShell(imageHeightPct, aspectClass[aspect]);
+  const slug = productSlug || product.slug || product.id;
+  const detailHref = storePath(`/products/${slug}`);
 
   return (
     <div
@@ -56,41 +65,45 @@ export function ProductCard({
         isMinimal ? "rounded-md" : isCompact ? "rounded-lg" : "rounded-lg",
       )}
     >
-      <div className={imageShell.wrapperClass} style={imageShell.wrapperStyle}>
-        {product.image && (
-          <img
-            src={product.image}
-            alt={product.name}
-            className={imageShell.imageClass}
-          />
-        )}
-        {showTags && (
-          <div className="absolute left-2 top-2 flex flex-wrap gap-1">
-            {onSale && (
-              <Badge variant="destructive" className="text-xs">
-                Sale
-              </Badge>
-            )}
-            {product.tags.slice(0, 1).map((t) => (
-              <Badge key={t} variant="secondary" className="text-xs">
-                {t}
-              </Badge>
-            ))}
-          </div>
-        )}
-        {!product.inStock && (
-          <div className="absolute inset-0 flex items-center justify-center bg-background/70 backdrop-blur-sm">
-            <span className="text-xs font-medium uppercase tracking-wide text-foreground">
-              Sold out
-            </span>
-          </div>
-        )}
-      </div>
+      <Link to={detailHref} className="block">
+        <div className={imageShell.wrapperClass} style={imageShell.wrapperStyle}>
+          {product.image && (
+            <img
+              src={product.image}
+              alt={product.name}
+              className={cn(imageShell.imageClass, "transition-transform group-hover:scale-105")}
+            />
+          )}
+          {showTags && (
+            <div className="absolute left-2 top-2 flex flex-wrap gap-1">
+              {onSale && (
+                <Badge variant="destructive" className="text-xs">
+                  Sale
+                </Badge>
+              )}
+              {product.tags.slice(0, 1).map((t) => (
+                <Badge key={t} variant="secondary" className="text-xs">
+                  {t}
+                </Badge>
+              ))}
+            </div>
+          )}
+          {!product.inStock && (
+            <div className="absolute inset-0 flex items-center justify-center bg-background/70 backdrop-blur-sm">
+              <span className="text-xs font-medium uppercase tracking-wide text-foreground">
+                Sold out
+              </span>
+            </div>
+          )}
+        </div>
+      </Link>
       <div className="flex flex-1 flex-col" style={{ padding: pad }}>
         {!isMinimal && (
           <div className="text-xs text-muted-foreground">{product.category}</div>
         )}
-        <h3 className={productCardBodyClass(cardStyle)}>{product.name}</h3>
+        <Link to={detailHref} className="hover:underline">
+          <h3 className={productCardBodyClass(cardStyle)}>{product.name}</h3>
+        </Link>
         {showRating && product.rating && !isMinimal && (
           <div className="mt-1 flex items-center gap-1 text-xs text-muted-foreground">
             <Star className="h-3 w-3 fill-warning text-warning" />
@@ -116,6 +129,11 @@ export function ProductCard({
             variant="outline"
             className={cn("w-full", isMinimal ? "mt-2 h-7 text-[11px]" : "mt-3")}
             disabled={!product.inStock}
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              onAddToCart?.(e);
+            }}
           >
             <ShoppingBag className={isMinimal ? "h-3 w-3" : "h-3.5 w-3.5"} />
             {isMinimal ? "Add" : cta}

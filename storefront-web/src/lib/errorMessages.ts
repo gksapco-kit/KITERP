@@ -116,7 +116,13 @@ export function formatCustomerAuthError(
   }
 
   if (!ax?.response) {
-    return 'Unable to reach the store. Check your connection and try again.'
+    if (ax?.code === 'ECONNABORTED' || ax?.message?.includes('timeout')) {
+      return 'The store is taking too long to respond. Check your connection and try again.'
+    }
+    if (ax?.code === 'ERR_NETWORK' || ax?.message?.includes('Network Error')) {
+      return 'Cannot reach the store API. Start the backend (port 8000) and open the business front at http://127.0.0.1:3002 so /api requests are proxied correctly.'
+    }
+    return 'Unable to reach the store. Check your connection, ensure the backend is running, and try again.'
   }
 
   return fallback

@@ -81,7 +81,7 @@ export type PaymentProvider =
   | "square"
   | "payu"
   | "cod";
-export type PaymentTabType = "card" | "wallet" | "bank_transfer" | "bnpl";
+export type PaymentTabType = "card" | "wallet" | "bank_transfer" | "bnpl" | "upi";
 
 export type CardDetails = {
   number: string;

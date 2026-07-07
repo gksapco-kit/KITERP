@@ -10,6 +10,15 @@ export type ConnectedPayment = {
   public_key?: string | null;
 };
 
+export type ManualUpiConfig = {
+  enabled: boolean;
+  upi_id?: string | null;
+  qr_code_url?: string | null;
+  label?: string;
+  business_name?: string;
+  logo_url?: string | null;
+};
+
 export type CheckoutConfig = {
   /** Visual layout for the checkout page */
   layout: CheckoutLayout;
@@ -21,6 +30,8 @@ export type CheckoutConfig = {
   connectedPayments?: ConnectedPayment[];
   /** Whether cash on delivery is available */
   codEnabled?: boolean;
+  /** Vendor-uploaded UPI QR for manual payments */
+  manualUpi?: ManualUpiConfig | null;
 
   /** Feature toggles */
   showCoupon: boolean;

@@ -14,6 +14,7 @@ from app.models.order import Order
 from app.schemas.order import (
     CheckoutRequest, GuestCheckoutRequest,
     OrderCancelRequest, ReturnExchangeRequest, QuoteRequest,
+    PaymentProofSubmit,
 )
 from app.services.order_service import OrderService
 from app.services.invoice_service import InvoiceService
@@ -52,6 +53,7 @@ def _order_to_dict(order: Order) -> dict:
         "payment_status": order.payment_status,
         "payment_method": order.payment_method,
         "payment_reference": order.payment_reference,
+        "payment_proof": getattr(order, "payment_proof", None),
         "shipping_address": order.shipping_address,
         "tracking_number": order.tracking_number,
         "tracking_url": order.tracking_url,
@@ -239,6 +241,20 @@ async def upload_order_media(
         )
     payload = await save_order_media_file(file, vendor_id, order_id)
     return JSONResponse(content=payload)
+
+
+@router.post("/{order_id}/payment-proof")
+async def submit_payment_proof(
+    order_id: UUID,
+    data: PaymentProofSubmit,
+    customer: Customer = Depends(get_current_active_customer),
+    vendor_id: UUID = Depends(get_store_vendor_id),
+    db: AsyncSession = Depends(get_db),
+):
+    """Submit UTR and payment screenshot for manual UPI orders."""
+    service = OrderService(db)
+    order = await service.submit_payment_proof(vendor_id, customer.id, order_id, data)
+    return JSONResponse(content=_order_to_dict(order))
 
 
 @router.get("/{order_id}")

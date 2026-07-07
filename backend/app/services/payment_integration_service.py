@@ -241,11 +241,14 @@ async def build_checkout_payment_info(
         from app.services.checkout_service import get_razorpay_key_id
         razorpay_key = get_razorpay_key_id(vendor, settings.RAZORPAY_KEY_ID) or None
 
+    from app.services.checkout_service import build_manual_upi_public_info
+
     return {
         "payment_methods": methods,
         "connected_payments": providers,
         "razorpay_key_id": razorpay_key,
         "razorpay_enabled": bool(razorpay_key or settings.DEBUG),
+        "manual_upi": build_manual_upi_public_info(vendor),
     }
 
 

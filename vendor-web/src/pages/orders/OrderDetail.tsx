@@ -56,6 +56,33 @@ export default function OrderDetail() {
   const [selectedDeliveryStaff, setSelectedDeliveryStaff] = useState<StaffPickerValue | null>(null)
   const [assigningDelivery, setAssigningDelivery] = useState(false)
   const [deliveryStaffExpanded, setDeliveryStaffExpanded] = useState(false)
+  const [paymentReviewNotes, setPaymentReviewNotes] = useState('')
+  const [reviewingPayment, setReviewingPayment] = useState(false)
+
+  const pendingUpiProof =
+    (order?.payment_method === 'upi' || order?.payment_method === 'pay_later')
+    && order?.payment_status === 'pending_verification'
+    && order?.payment_proof?.status === 'submitted'
+
+  const reviewPayment = async (action: 'approve' | 'reject') => {
+    if (!order) return
+    setReviewingPayment(true)
+    try {
+      if (action === 'approve') {
+        await vendorApi.approveOrderPayment(order.id, paymentReviewNotes ? { notes: paymentReviewNotes } : undefined)
+        toast.success('Payment approved — order confirmed')
+      } else {
+        await vendorApi.rejectOrderPayment(order.id, paymentReviewNotes ? { notes: paymentReviewNotes } : undefined)
+        toast.success('Payment rejected')
+      }
+      setPaymentReviewNotes('')
+      qc.invalidateQueries({ queryKey: ['order', order.id] })
+    } catch {
+      toast.error(action === 'approve' ? 'Could not approve payment' : 'Could not reject payment')
+    } finally {
+      setReviewingPayment(false)
+    }
+  }
 
   if (isLoading) return <div className="flex justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-gray-400" /></div>
   if (!order) return <p className="text-center py-20 text-gray-500">Order not found</p>
@@ -117,6 +144,40 @@ export default function OrderDetail() {
         onViewBooking={(id) => navigate(`/bookings/${id}`)}
         onViewAuditHistory={() => navigate(`/orders/${order.id}/audit`)}
       />
+
+      {pendingUpiProof && (
+        <div className="rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm">
+          <p className="font-semibold text-amber-900">UPI payment awaiting your approval</p>
+          <p className="mt-1 text-amber-800">
+            UTR: <strong>{order.payment_proof?.utr}</strong>
+            {order.payment_proof?.submitted_at ? ` · Submitted ${new Date(order.payment_proof.submitted_at).toLocaleString()}` : ''}
+          </p>
+          {order.payment_proof?.screenshot_url && (
+            <a
+              href={order.payment_proof.screenshot_url}
+              target="_blank"
+              rel="noreferrer"
+              className="mt-2 inline-block text-xs font-medium text-amber-900 underline"
+            >
+              View payment screenshot
+            </a>
+          )}
+          <div className="mt-3 flex flex-wrap items-end gap-2">
+            <input
+              value={paymentReviewNotes}
+              onChange={(e) => setPaymentReviewNotes(e.target.value)}
+              placeholder="Notes (optional)"
+              className="min-w-[200px] flex-1 rounded border px-2 py-1.5 text-sm"
+            />
+            <Button size="sm" disabled={reviewingPayment} onClick={() => void reviewPayment('approve')}>
+              Approve payment
+            </Button>
+            <Button size="sm" variant="outline" disabled={reviewingPayment} onClick={() => void reviewPayment('reject')}>
+              Reject
+            </Button>
+          </div>
+        </div>
+      )}
 
       {/* Quote Request Banner */}
       {order.source === 'quote' && (

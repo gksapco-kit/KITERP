@@ -1384,6 +1384,67 @@ function RenameSiteModal({
   )
 }
 
+function DeleteSiteConfirmModal({
+  siteName,
+  open,
+  deleting,
+  onClose,
+  onConfirm,
+}: {
+  siteName: string
+  open: boolean
+  deleting: boolean
+  onClose: () => void
+  onConfirm: () => void | Promise<void>
+}) {
+  useEscapeToClose(() => !deleting && onClose(), open)
+
+  if (!open) return null
+
+  return (
+    <div data-kiterp-modal className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-black/40" onClick={() => !deleting && onClose()} />
+      <div className="relative w-full max-w-md rounded-2xl bg-card text-foreground shadow-2xl border border-border overflow-hidden">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
+          <div>
+            <h2 className="text-base font-bold text-gray-900">Move to Recently deleted?</h2>
+            <p className="text-xs text-gray-500 mt-0.5">
+              Move &quot;{siteName}&quot; to Recently deleted
+            </p>
+          </div>
+          <button
+            type="button"
+            aria-label="Close"
+            onClick={onClose}
+            disabled={deleting}
+            className="p-1.5 rounded-lg text-gray-400 hover:bg-gray-100 disabled:opacity-50"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+        <div className="p-5 space-y-4">
+          <p className="text-sm text-gray-600">
+            It stays there for 30 days — restore anytime before then, or delete permanently from Recently deleted.
+          </p>
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" onClick={onClose} disabled={deleting}>
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              disabled={deleting}
+              onClick={() => void onConfirm()}
+            >
+              {deleting ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Trash2 className="w-4 h-4 mr-2" />}
+              Move to Recently deleted
+            </Button>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 function CopySiteSaveAsModal({
   siteName,
   existingSiteNames,
@@ -1605,6 +1666,7 @@ function SiteCard({
   const [copyingPreviewLink, setCopyingPreviewLink] = useState(false)
   const [previewLinkCopied, setPreviewLinkCopied] = useState(false)
   const [deleting, setDeleting] = useState(false)
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false)
   const menuBtnRef = useRef<HTMLButtonElement>(null)
   const websitesListKey = websitesListQueryKey(vendor?.id)
   const menuRef = useRef<HTMLDivElement>(null)
@@ -1698,16 +1760,18 @@ function SiteCard({
     return () => document.removeEventListener('mousedown', handler)
   }, [menuOpen])
 
-  const handleDelete = async () => {
-    if (deleting) return
-    if (!confirm(
-      `Move "${site.name}" to Recently deleted?\n\nIt stays there for 30 days — restore anytime before then, or delete permanently from Recently deleted.`,
-    )) return
+  const handleDeleteClick = () => {
     setMenuOpen(false)
+    setDeleteConfirmOpen(true)
+  }
+
+  const handleDeleteConfirm = async () => {
+    if (deleting) return
     setDeleting(true)
     try {
       await deleteSite.mutateAsync(site.id)
       toast.success('Moved to Recently deleted — restore within 30 days')
+      setDeleteConfirmOpen(false)
     } catch (err) {
       toast.error(extractApiError(err, 'Failed to delete'))
     } finally {
@@ -2012,10 +2076,10 @@ function SiteCard({
                 <SiteCardMenuDivider />
                 <SiteCardMenuItem
                   icon={Trash2}
-                  label={deleting ? 'Deletingâ€¦' : 'Delete'}
+                  label="Delete"
                   destructive
                   disabled={deleting}
-                  onClick={() => void handleDelete()}
+                  onClick={handleDeleteClick}
                 />
               </div>,
               document.body,
@@ -2127,6 +2191,14 @@ function SiteCard({
         saving={copyingSite}
         onClose={() => !copyingSite && setSaveAsOpen(false)}
         onSave={handleSaveAsConfirm}
+      />
+
+      <DeleteSiteConfirmModal
+        siteName={site.name}
+        open={deleteConfirmOpen}
+        deleting={deleting}
+        onClose={() => !deleting && setDeleteConfirmOpen(false)}
+        onConfirm={handleDeleteConfirm}
       />
     </div>
   )

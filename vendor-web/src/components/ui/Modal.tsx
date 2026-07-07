@@ -1,4 +1,5 @@
 import type { MouseEvent, ReactNode } from 'react'
+import { createPortal } from 'react-dom'
 import { X } from 'lucide-react'
 import { cn, onModalBackdropClick } from '@/lib/utils'
 import {
@@ -64,7 +65,7 @@ export function ModalOverlay({
 }) {
   useEscapeToClose(onClose)
 
-  return (
+  const overlay = (
     <div
       data-kiterp-modal
       className={cn(modalOverlayCenterClass, className)}
@@ -73,6 +74,9 @@ export function ModalOverlay({
       {children}
     </div>
   )
+
+  if (typeof document === 'undefined') return overlay
+  return createPortal(overlay, document.body)
 }
 
 export function ModalPanel({

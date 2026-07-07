@@ -632,19 +632,17 @@ async def get_live_resource_public(
 
     if resource == "products":
         from app.models.vendor_product import Product, ProductImage
+        from app.services.product_media import resolve_product_thumbnail_url
         q = (
             select(Product)
-            .options(selectinload(Product.images))
+            .options(selectinload(Product.images), selectinload(Product.variants))
             .where(Product.vendor_id == vendor.id, Product.is_visible.is_(True))
             .order_by(Product.is_featured.desc(), Product.created_at.desc())
             .limit(limit)
         )
         rows = (await db.execute(q)).scalars().all()
         for p in rows:
-            img = None
-            if p.images:
-                primary = next((i for i in p.images if i.is_primary), None) or p.images[0]
-                img = primary.url
+            img = resolve_product_thumbnail_url(p)
             items.append(_norm_item(
                 id=str(p.id),
                 title=p.name or "",

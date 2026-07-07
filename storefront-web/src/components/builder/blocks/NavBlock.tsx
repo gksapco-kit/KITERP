@@ -1,6 +1,8 @@
 import { useMemo, useState, useCallback } from 'react'
 import { Link, useNavigate, useLocation } from 'react-router-dom'
-import { Search, ShoppingBag, User, X, Home } from 'lucide-react'
+import { Search, ShoppingBag, User, X, Home, Menu } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet'
 import { useVendor } from '@/contexts/VendorContext'
 import { useEffectiveVendor } from '@/hooks/useEffectiveVendor'
 import { useStorePath } from '@/hooks/useStorePath'
@@ -72,6 +74,7 @@ export default function NavBlock({
   useCart()
   const [searchOpen, setSearchOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
 
   const sitePageSlugs = useMemo(() => sitePageSlugSet(site), [site])
 
@@ -192,14 +195,20 @@ export default function NavBlock({
   const primary = style.primary_color || '#64C3A0'
   const borderRadius = siteRadiusPx(style.border_radius, 'sm')
 
-  const navLinkClass = (href: string, compact: boolean) => {
+  const navLinkClass = (href: string, compact: boolean, mobile = false) => {
     const active = isNavLinkActive(href, currentNavKey, storePath)
     return cn(
-      'rounded-md text-sm font-medium transition-colors whitespace-nowrap',
-      compact ? 'px-2 py-1' : 'px-3 py-2',
+      'rounded-md font-medium transition-colors',
+      mobile
+        ? 'block px-3 py-2.5 text-base'
+        : cn('text-sm whitespace-nowrap', compact ? 'px-2 py-1' : 'px-3 py-2'),
       active
-        ? 'font-semibold underline decoration-2 underline-offset-4'
-        : 'hover:opacity-80',
+        ? mobile
+          ? 'font-semibold bg-primary/10'
+          : 'font-semibold underline decoration-2 underline-offset-4'
+        : mobile
+          ? 'hover:bg-muted/60'
+          : 'hover:opacity-80',
     )
   }
 
@@ -208,6 +217,54 @@ export default function NavBlock({
     return active
       ? { color: primary }
       : { color: shell.navTextCol }
+  }
+
+  const closeMobileMenu = useCallback(() => setMobileMenuOpen(false), [])
+
+  const renderNavLinkItem = (link: NavLinkItem, mobile = false) => {
+    const className = navLinkClass(link.href, shell.isCompact, mobile)
+    const style = mobile ? navLinkStyle(link.href) : navLinkStyle(link.href)
+    const ariaCurrent = isNavLinkActive(link.href, currentNavKey, storePath) ? 'page' as const : undefined
+    const builderNavClick = builderCanvas?.onNavigate && !isEditorCanvas
+      ? (e: React.MouseEvent) => {
+          e.preventDefault()
+          if (mobile) closeMobileMenu()
+          builderCanvas.onNavigate!(link.href)
+        }
+      : mobile
+        ? () => closeMobileMenu()
+        : undefined
+
+    if (previewShell) {
+      return (
+        <a
+          key={link.href}
+          href={link.href}
+          onClick={(e) => {
+            if (mobile) closeMobileMenu()
+            previewNavClick(e, link.href)
+          }}
+          className={className}
+          style={style}
+          aria-current={ariaCurrent}
+        >
+          {link.label}
+        </a>
+      )
+    }
+
+    return (
+      <Link
+        key={link.href}
+        to={link.href}
+        onClick={builderNavClick}
+        className={className}
+        style={style}
+        aria-current={ariaCurrent}
+      >
+        {link.label}
+      </Link>
+    )
   }
 
   const homePath = storePath('/')
@@ -267,7 +324,7 @@ export default function NavBlock({
     <a
       href={homePath}
       onClick={(e) => previewNavClick(e, homePath)}
-      className={cn(resolveNavBrandContainerClass(brandLayout, shell.isCentered), 'max-w-[min(100%,260px)]')}
+      className={cn(resolveNavBrandContainerClass(brandLayout, shell.isCentered), 'max-w-[min(100%,180px)] sm:max-w-[min(100%,260px)]')}
       style={{ gap: brandGap }}
       aria-label={showHomeFallback ? 'Home' : brand}
     >
@@ -283,7 +340,7 @@ export default function NavBlock({
   ) : (
     <Link
       to={homePath}
-      className={cn(resolveNavBrandContainerClass(brandLayout, shell.isCentered), 'max-w-[min(100%,260px)]')}
+      className={cn(resolveNavBrandContainerClass(brandLayout, shell.isCentered), 'max-w-[min(100%,180px)] sm:max-w-[min(100%,260px)]')}
       style={{ gap: brandGap }}
       aria-label={showHomeFallback ? 'Home' : brand}
     >
@@ -298,43 +355,6 @@ export default function NavBlock({
     </Link>
   )
 
-  const linksNode = kitLinks.length > 0 && (
-    <nav className={cn(
-      'flex items-center gap-1 flex-wrap min-w-0',
-      shell.isCentered ? 'justify-center' : 'justify-center',
-      forceNavLinksVisible ? 'flex' : 'hidden md:flex',
-    )}>
-      {kitLinks.map(link => (
-        previewShell ? (
-          <a
-            key={link.href}
-            href={link.href}
-            onClick={(e) => previewNavClick(e, link.href)}
-            className={navLinkClass(link.href, shell.isCompact)}
-            style={navLinkStyle(link.href)}
-            aria-current={isNavLinkActive(link.href, currentNavKey, storePath) ? 'page' : undefined}
-          >
-            {link.label}
-          </a>
-        ) : (
-          <Link
-            key={link.href}
-            to={link.href}
-            onClick={builderCanvas?.onNavigate && !isEditorCanvas ? (e) => {
-              e.preventDefault()
-              builderCanvas.onNavigate!(link.href)
-            } : undefined}
-            className={navLinkClass(link.href, shell.isCompact)}
-            style={navLinkStyle(link.href)}
-            aria-current={isNavLinkActive(link.href, currentNavKey, storePath) ? 'page' : undefined}
-          >
-            {link.label}
-          </Link>
-        )
-      ))}
-    </nav>
-  )
-
   const submitSearch = (e?: React.FormEvent) => {
     e?.preventDefault()
     const q = searchQuery.trim()
@@ -343,11 +363,179 @@ export default function NavBlock({
     navigateStorePath(`/products?search=${encodeURIComponent(q)}`)
   }
 
+  const linksNode = kitLinks.length > 0 && (
+    <nav className={cn(
+      'flex items-center gap-1 flex-wrap min-w-0',
+      shell.isCentered ? 'justify-center' : 'justify-center',
+      forceNavLinksVisible ? 'flex' : 'hidden md:flex',
+    )}>
+      {kitLinks.map(link => renderNavLinkItem(link))}
+    </nav>
+  )
+
+  const showMobileMenu = !forceNavLinksVisible
+
+  const mobileMenuNode = showMobileMenu && (
+    <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
+      <SheetTrigger asChild>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="md:hidden shrink-0 -ml-1 h-9 w-9"
+          style={{ color: shell.navTextCol }}
+          aria-label="Open menu"
+        >
+          <Menu className="h-5 w-5" />
+        </Button>
+      </SheetTrigger>
+      <SheetContent side="left" className="w-[min(100vw-2rem,20rem)] overflow-y-auto">
+        <SheetHeader>
+          <SheetTitle style={{ color: shell.navTextCol }}>Menu</SheetTitle>
+        </SheetHeader>
+        {kitLinks.length > 0 && (
+          <nav className="mt-6 flex flex-col gap-0.5">
+            {kitLinks.map(link => renderNavLinkItem(link, true))}
+          </nav>
+        )}
+        {showBranchPicker && (
+          <div className="mt-6 border-t pt-4">
+            <p className="mb-2 px-3 text-xs font-medium uppercase tracking-wide opacity-60" style={{ color: shell.navTextCol }}>
+              Store location
+            </p>
+            <div className="px-3">
+              <StoreBranchPicker />
+            </div>
+          </div>
+        )}
+        {showSearch && (
+          <form
+            onSubmit={(e) => {
+              submitSearch(e)
+              closeMobileMenu()
+            }}
+            className="mt-6 flex gap-2 px-3"
+          >
+            <Input
+              value={searchQuery}
+              onChange={e => setSearchQuery(e.target.value)}
+              placeholder="Search products…"
+              className="h-10 text-sm flex-1"
+            />
+            <Button type="submit" size="icon" aria-label="Search">
+              <Search className="h-4 w-4" />
+            </Button>
+          </form>
+        )}
+        {showAccount && (
+          <div className="mt-6 flex flex-col gap-1 border-t pt-4 px-1">
+            {builderCanvas?.onNavigate ? (
+              <button
+                type="button"
+                onClick={() => {
+                  closeMobileMenu()
+                  navigateStorePath(isAuthenticated ? '/account' : '/login')
+                }}
+                className="flex items-center gap-2 rounded-md px-3 py-2.5 text-base font-medium hover:bg-muted/60"
+                style={{ color: shell.navTextCol }}
+              >
+                <User className="h-4 w-4" /> {isAuthenticated ? 'My Account' : 'Sign in'}
+              </button>
+            ) : previewShell ? (
+              <a
+                href={storePath(isAuthenticated ? '/account' : '/login')}
+                onClick={(e) => {
+                  closeMobileMenu()
+                  previewNavClick(e, storePath(isAuthenticated ? '/account' : '/login'))
+                }}
+                className="flex items-center gap-2 rounded-md px-3 py-2.5 text-base font-medium hover:bg-muted/60"
+                style={{ color: shell.navTextCol }}
+              >
+                <User className="h-4 w-4" /> {isAuthenticated ? 'My Account' : 'Sign in'}
+              </a>
+            ) : (
+              <Link
+                to={storePath(isAuthenticated ? '/account' : '/login')}
+                onClick={closeMobileMenu}
+                className="flex items-center gap-2 rounded-md px-3 py-2.5 text-base font-medium hover:bg-muted/60"
+                style={{ color: shell.navTextCol }}
+              >
+                <User className="h-4 w-4" /> {isAuthenticated ? 'My Account' : 'Sign in'}
+              </Link>
+            )}
+          </div>
+        )}
+        {ctaLabel && (
+          <div className="mt-4 px-3 pb-2">
+            {isEditorCanvas && blockId ? (
+              <BuilderCtaButton
+                fieldKey="cta_label"
+                blockId={blockId}
+                blockProps={props}
+                label={ctaLabel}
+                href={ctaUrl}
+                className={cn(
+                  'w-full text-sm font-semibold hover:opacity-90 transition-opacity text-center',
+                  shell.isCompact ? 'px-3 py-2' : 'px-4 py-2.5',
+                  shell.isTransparentCta && 'ring-2 ring-white/30',
+                )}
+                style={{
+                  backgroundColor: primary,
+                  borderRadius,
+                  color: '#fff',
+                  boxShadow: shell.isTransparentCta ? `0 4px 14px ${primary}66` : undefined,
+                }}
+              />
+            ) : previewShell ? (
+              <a
+                href={storePath(ctaUrl)}
+                onClick={(e) => {
+                  closeMobileMenu()
+                  previewNavClick(e, storePath(ctaUrl))
+                }}
+                className={cn(
+                  'inline-flex w-full items-center justify-center text-sm font-semibold hover:opacity-90 transition-opacity',
+                  shell.isCompact ? 'px-3 py-2' : 'px-4 py-2.5',
+                  shell.isTransparentCta && 'ring-2 ring-white/30',
+                )}
+                style={{
+                  backgroundColor: primary,
+                  borderRadius,
+                  color: '#fff',
+                  boxShadow: shell.isTransparentCta ? `0 4px 14px ${primary}66` : undefined,
+                }}
+              >
+                {ctaLabel}
+              </a>
+            ) : (
+              <Link
+                to={storePath(ctaUrl)}
+                onClick={closeMobileMenu}
+                className={cn(
+                  'inline-flex w-full items-center justify-center text-sm font-semibold hover:opacity-90 transition-opacity no-underline',
+                  shell.isCompact ? 'px-3 py-2' : 'px-4 py-2.5',
+                  shell.isTransparentCta && 'ring-2 ring-white/30',
+                )}
+                style={{
+                  backgroundColor: primary,
+                  borderRadius,
+                  color: '#fff',
+                  boxShadow: shell.isTransparentCta ? `0 4px 14px ${primary}66` : undefined,
+                }}
+              >
+                {ctaLabel}
+              </Link>
+            )}
+          </div>
+        )}
+      </SheetContent>
+    </Sheet>
+  )
+
   const actionsNode = (
-    <div className="flex items-center gap-1 sm:gap-2 shrink-0">
+    <div className="flex items-center gap-0.5 sm:gap-2 shrink-0">
       {showSearch && (
         searchOpen ? (
-          <form onSubmit={submitSearch} className="flex items-center gap-1">
+          <form onSubmit={submitSearch} className="hidden md:flex items-center gap-1">
             <Input
               autoFocus
               value={searchQuery}
@@ -377,7 +565,7 @@ export default function NavBlock({
           <button
             type="button"
             onClick={() => setSearchOpen(true)}
-            className="p-2 rounded-lg hover:opacity-70 transition-opacity"
+            className="hidden md:inline-flex p-2 rounded-lg hover:opacity-70 transition-opacity"
             style={{ color: shell.navTextCol }}
             aria-label="Search"
           >
@@ -428,31 +616,33 @@ export default function NavBlock({
         )
       )}
       {showAccount && (
-        builderCanvas?.onNavigate ? (
-          <button
-            type="button"
-            onClick={() => navigateStorePath(isAuthenticated ? '/account' : '/login')}
-            className="p-2 rounded-lg hover:opacity-70 transition-opacity"
-            style={{ color: shell.navTextCol }}
-            aria-label="Account"
-          >
-            <User className="w-5 h-5" />
-          </button>
-        ) : previewShell ? (
-          <a
-            href={storePath(isAuthenticated ? '/account' : '/login')}
-            onClick={(e) => previewNavClick(e, storePath(isAuthenticated ? '/account' : '/login'))}
-            className="p-2 rounded-lg hover:opacity-70 transition-opacity"
-            style={{ color: shell.navTextCol }}
-            aria-label="Account"
-          >
-            <User className="w-5 h-5" />
-          </a>
-        ) : (
-          <Link to={storePath(isAuthenticated ? '/account' : '/login')} className="p-2 rounded-lg hover:opacity-70 transition-opacity" style={{ color: shell.navTextCol }} aria-label="Account">
-            <User className="w-5 h-5" />
-          </Link>
-        )
+        <div className="hidden md:block">
+          {builderCanvas?.onNavigate ? (
+            <button
+              type="button"
+              onClick={() => navigateStorePath(isAuthenticated ? '/account' : '/login')}
+              className="p-2 rounded-lg hover:opacity-70 transition-opacity"
+              style={{ color: shell.navTextCol }}
+              aria-label="Account"
+            >
+              <User className="w-5 h-5" />
+            </button>
+          ) : previewShell ? (
+            <a
+              href={storePath(isAuthenticated ? '/account' : '/login')}
+              onClick={(e) => previewNavClick(e, storePath(isAuthenticated ? '/account' : '/login'))}
+              className="p-2 rounded-lg hover:opacity-70 transition-opacity"
+              style={{ color: shell.navTextCol }}
+              aria-label="Account"
+            >
+              <User className="w-5 h-5" />
+            </a>
+          ) : (
+            <Link to={storePath(isAuthenticated ? '/account' : '/login')} className="p-2 rounded-lg hover:opacity-70 transition-opacity" style={{ color: shell.navTextCol }} aria-label="Account">
+              <User className="w-5 h-5" />
+            </Link>
+          )}
+        </div>
       )}
       {showBranchPicker && !shell.isCentered && (
         <div className="hidden md:flex items-center shrink-0">
@@ -467,7 +657,7 @@ export default function NavBlock({
           label={ctaLabel}
           href={ctaUrl}
           className={cn(
-            'text-sm font-semibold whitespace-nowrap hover:opacity-90 transition-opacity',
+            'hidden md:inline-flex text-sm font-semibold whitespace-nowrap hover:opacity-90 transition-opacity',
             shell.isCompact ? 'px-3 py-1.5' : 'px-4 py-2',
             shell.isTransparentCta && 'ring-2 ring-white/30',
           )}
@@ -510,22 +700,40 @@ export default function NavBlock({
         >
           {shell.isCentered ? (
             <>
-              {logoNode}
-              {linksNode}
-              {actionsNode}
-            </>
-          ) : (
-            <div className="grid w-full grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-3">
-              <div className="col-start-1 flex items-center gap-2 min-w-0 justify-self-start">
-                {logoNode}
-              </div>
-              <div className="col-start-2 flex min-w-0 justify-center">
-                {linksNode}
-              </div>
-              <div className="col-start-3 flex min-w-0 justify-self-end">
+              <div className="flex md:hidden w-full items-center justify-between gap-2">
+                <div className="flex items-center gap-1 min-w-0">
+                  {mobileMenuNode}
+                  {logoNode}
+                </div>
                 {actionsNode}
               </div>
-            </div>
+              <div className="hidden md:flex flex-col items-center text-center gap-2 w-full">
+                {logoNode}
+                {linksNode}
+                {actionsNode}
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="flex md:hidden w-full items-center justify-between gap-2">
+                <div className="flex items-center gap-1 min-w-0 flex-1">
+                  {mobileMenuNode}
+                  {logoNode}
+                </div>
+                {actionsNode}
+              </div>
+              <div className="hidden md:grid w-full grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-3">
+                <div className="col-start-1 flex items-center gap-2 min-w-0 justify-self-start">
+                  {logoNode}
+                </div>
+                <div className="col-start-2 flex min-w-0 justify-center">
+                  {linksNode}
+                </div>
+                <div className="col-start-3 flex min-w-0 justify-self-end">
+                  {actionsNode}
+                </div>
+              </div>
+            </>
           )}
         </div>
       </header>

@@ -40,6 +40,7 @@ class PaymentMethod(str, Enum):
     SQUARE = "square"
     PAYPAL = "paypal"
     PAYU = "payu"
+    PAY_LATER = "pay_later"
 
 
 class ShippingAddress(BaseModel):
@@ -279,3 +280,12 @@ class OrderStatsResponse(BaseModel):
     total_revenue: float = 0
     today_orders: int = 0
     today_revenue: float = 0
+
+
+class PaymentProofSubmit(BaseModel):
+    utr: str = Field(..., min_length=6, max_length=50)
+    screenshot_url: str = Field(..., min_length=10, max_length=2000)
+
+
+class PaymentProofReview(BaseModel):
+    notes: Optional[str] = Field(None, max_length=500)

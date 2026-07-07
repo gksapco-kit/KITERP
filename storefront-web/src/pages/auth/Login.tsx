@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input'
 import { SmartLoginInput } from '@/components/ui/SmartLoginInput'
 import { useCustomerLogin } from '@/hooks/useStore'
 import { useVendor } from '@/contexts/VendorContext'
+import { setVendorContext } from '@/api/client'
 import { imgUrl, cn, focusRingClassName } from '@/lib/utils'
 import { isValidEmailOrPhoneLogin } from '@/lib/loginIdentifier'
 import { formatCustomerAuthError } from '@/lib/errorMessages'
@@ -40,8 +41,8 @@ const schema = z.object({
 })
 
 export default function Login() {
-  const loginMut = useCustomerLogin()
-  const { vendor, storePath } = useVendor()
+  const loginMut = useCustomerLogin({ silentError: true })
+  const { vendor, isLoading: vendorLoading, error: vendorError, storePath } = useVendor()
   const navigate = useNavigate()
   const routeLocation = useLocation()
   const [showPw, setShowPw] = useState(false)
@@ -59,6 +60,12 @@ export default function Login() {
   })
 
   useEffect(() => {
+    if (vendor?.id && vendor.slug) {
+      setVendorContext(vendor.slug, vendor.id)
+    }
+  }, [vendor?.id, vendor?.slug])
+
+  useEffect(() => {
     if (vendor?.id) {
       const s = readCustomerSavedLogin(vendor.id)
       if (s) {
@@ -69,6 +76,10 @@ export default function Login() {
   }, [vendor?.id, setValue])
 
   const onSubmit = (data: { login: string; password: string }) => {
+    if (vendorLoading || vendorError) return
+    if (vendor?.id && vendor.slug) {
+      setVendorContext(vendor.slug, vendor.id)
+    }
     loginMut.mutate(data, {
       onSuccess: () => {
         if (vendor?.id) {
@@ -89,6 +100,7 @@ export default function Login() {
 
   const location = [vendor?.city, vendor?.state].filter(Boolean).join(', ')
   const authError = loginMut.isError ? formatCustomerAuthError(loginMut.error) : null
+  const loginBlocked = vendorLoading || Boolean(vendorError) || !vendor?.id
 
   return (
     <div
@@ -187,6 +199,19 @@ export default function Login() {
               </p>
             </div>
 
+            {vendorError && (
+              <div
+                role="alert"
+                className="mb-5 flex gap-3 rounded-xl border border-amber-200 bg-amber-50 px-3.5 py-3 text-sm text-amber-950"
+              >
+                <AlertCircle className="h-5 w-5 shrink-0 text-amber-600 mt-0.5" />
+                <div>
+                  <p className="font-semibold text-amber-900">Store unavailable</p>
+                  <p className="mt-0.5 leading-snug">{vendorError}</p>
+                </div>
+              </div>
+            )}
+
             {authError && (
               <div
                 role="alert"
@@ -281,12 +306,12 @@ export default function Login() {
                 type="submit"
                 className="mt-4 min-h-12 w-full rounded-xl px-4 py-3 text-base font-bold shadow-md transition-all hover:opacity-95 hover:shadow-lg active:scale-[0.99]"
                 style={{ backgroundColor: primary, color: btnText }}
-                disabled={loginMut.isPending}
+                disabled={loginMut.isPending || loginBlocked}
               >
                 {loginMut.isPending && (
                   <Loader2 className="mr-2 h-5 w-5 shrink-0 animate-spin" />
                 )}
-                Sign in
+                {vendorLoading ? 'Loading store…' : 'Sign in'}
               </Button>
             </form>
 

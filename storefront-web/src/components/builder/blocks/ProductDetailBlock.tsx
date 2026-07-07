@@ -1,10 +1,7 @@
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
 import { ShoppingCart, Star, Heart, Share2, Loader2, Check } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { builderSectionContainerClass, builderSectionContainerWithMax } from '@/lib/builderSectionLayout'
-import { useAuthStore } from '@/stores/authStore'
-import { useVendor } from '@/contexts/VendorContext'
 import { useAddToCart } from '@/hooks/useStore'
 import type { PublicSite, StyleConfig, LiveItem } from '@/blocks/registry'
 import { BuilderSectionImage } from '@/components/builder/BuilderSectionImage'
@@ -21,9 +18,6 @@ interface Props {
 export default function ProductDetailBlock({ style, props, liveItems, blockId }: Props) {
   const [qty, setQty] = useState(1)
   const [addedToCart, setAddedToCart] = useState(false)
-  const { storePath } = useVendor()
-  const { isAuthenticated } = useAuthStore()
-  const navigate = useNavigate()
   const addToCart = useAddToCart()
 
   const product = liveItems[0]
@@ -55,13 +49,17 @@ export default function ProductDetailBlock({ style, props, liveItems, blockId }:
   const iconBtn = onDark ? 'border-white/25 hover:bg-white/10 text-white/80' : 'border-gray-200 hover:bg-gray-50 text-gray-400'
 
   const handleAddToCart = async () => {
-    if (!isAuthenticated) {
-      navigate(storePath('/login'))
-      return
-    }
     if (!product) return
     try {
-      await addToCart.mutateAsync({ product_id: product.id, qty } as any)
+      const priceNum = Number(product.price ?? 0)
+      await addToCart.mutateAsync({
+        product_id: product.id,
+        name: product.title ?? 'Product',
+        qty,
+        price: priceNum,
+        image_url: product.image_url ?? undefined,
+        slug: String((product.meta as Record<string, unknown>)?.slug ?? ''),
+      } as any)
       setAddedToCart(true)
       setTimeout(() => setAddedToCart(false), 2000)
     } catch {

@@ -118,9 +118,9 @@ export default function ServiceBookingPage() {
           {selectedDate && ` on ${selectedDate.toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long' })}`}
           {selectedSlot && ` at ${new Date(selectedSlot).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`}.
         </p>
-        <div className="flex justify-center gap-3 pt-4">
-          <Button variant="outline" onClick={() => navigate(storePath('/account/bookings'))}>My bookings</Button>
-          <Button onClick={() => navigate(storePath('/services'))}>Browse more services</Button>
+        <div className="flex flex-col gap-3 pt-4 sm:flex-row sm:justify-center">
+          <Button variant="outline" className="w-full sm:w-auto" onClick={() => navigate(storePath('/account/bookings'))}>My bookings</Button>
+          <Button className="w-full sm:w-auto" onClick={() => navigate(storePath('/services'))}>Browse more services</Button>
         </div>
       </div>
     )
@@ -148,7 +148,7 @@ export default function ServiceBookingPage() {
   }
 
   return (
-    <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div className="max-w-4xl mx-auto px-3 sm:px-6 lg:px-8 py-6 sm:py-8">
       <nav className="text-sm text-muted-foreground mb-6 flex items-center gap-1.5">
         <Link to={storePath('/services')} className="hover:text-foreground">Services</Link>
         <ChevronRight className="w-3 h-3" />

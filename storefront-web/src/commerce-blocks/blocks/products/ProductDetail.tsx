@@ -1,10 +1,12 @@
-import { Minus, Plus, Star, ShoppingBag, Truck, ShieldCheck, Heart } from "lucide-react";
+import { Minus, Plus, Star, ShoppingBag, Truck, ShieldCheck, Heart, Loader2 } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { formatPrice } from "@/commerce-blocks/lib/format";
 import { mockProducts } from "@/commerce-blocks/mock/products";
 import { cn } from "@/lib/utils";
+import { useAddToCart } from "@/hooks/useStore";
+import { toast } from "sonner";
 
 interface Props {
   productId?: string;
@@ -23,8 +25,24 @@ export function ProductDetail({
 }: Props) {
   const p = mockProducts.find((x) => x.id === productId) ?? mockProducts[0];
   const [qty, setQty] = useState(1);
+  const addToCart = useAddToCart();
 
   const gallery = [p.image, p.image, p.image].filter(Boolean) as string[];
+
+  const handleAddToCart = () => {
+    if (!p.inStock) return;
+    addToCart.mutate(
+      {
+        product_id: p.id,
+        slug: p.slug,
+        name: p.name,
+        qty,
+        price: p.price,
+        image_url: p.image,
+      },
+      { onSuccess: () => toast.success("Added to cart") },
+    );
+  };
 
   return (
     <section
@@ -36,15 +54,15 @@ export function ProductDetail({
       <div className="space-y-3">
         <div className="aspect-square overflow-hidden rounded-lg bg-muted">
           {gallery[0] && (
-            <img src={gallery[0]} alt={p.name} className="h-full w-full object-cover" />
+            <img src={gallery[0]} alt={p.name} className="h-full w-full object-contain p-4" />
           )}
         </div>
-        <div className="grid grid-cols-4 gap-2">
+        <div className="flex flex-col gap-2 max-h-64 overflow-y-auto">
           {gallery.map((src, i) => (
             <div
               key={i}
               className={cn(
-                "aspect-square overflow-hidden rounded-md border bg-muted",
+                "aspect-square w-16 overflow-hidden rounded-md border bg-muted shrink-0",
                 i === 0 ? "border-primary" : "border-border",
               )}
             >
@@ -87,11 +105,20 @@ export function ProductDetail({
               <Plus className="h-4 w-4" />
             </Button>
           </div>
-          <Button size="lg" className="flex-1" disabled={!p.inStock}>
-            <ShoppingBag className="h-4 w-4" />
+          <Button
+            size="lg"
+            className="flex-1 gap-2"
+            disabled={!p.inStock || addToCart.isPending}
+            onClick={handleAddToCart}
+          >
+            {addToCart.isPending ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <ShoppingBag className="h-4 w-4" />
+            )}
             {p.inStock ? cta : "Sold out"}
           </Button>
-          <Button size="lg" variant="outline">
+          <Button size="lg" variant="outline" aria-label="Save to wishlist">
             <Heart className="h-4 w-4" />
           </Button>
         </div>

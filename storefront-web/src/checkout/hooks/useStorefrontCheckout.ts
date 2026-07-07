@@ -34,7 +34,7 @@ export function useStorefrontCheckout(confirmationBasePath: string, siteId?: str
   const [shippingAddress, setShippingAddressState] = useState<Address | undefined>()
   const [selectedSavedAddressId, setSelectedSavedAddressId] = useState<string | undefined>()
   const [shippingMethodId, setShippingMethodId] = useState<string | undefined>('standard')
-  const [payment, setPayment] = useState<PaymentSelection | undefined>({ kind: 'tab', tab: 'card' })
+  const [payment, setPayment] = useState<PaymentSelection | undefined>({ kind: 'tab', tab: 'bnpl' })
   const [notes, setNotes] = useState('')
   const [giftMessage, setGiftMessage] = useState('')
   const [isPlacing, setIsPlacing] = useState(false)

@@ -19,9 +19,10 @@ export function WizardLayout({ state, actions }: { state: CheckoutState; actions
   const [addingNew, setAddingNew] = useState(false);
   const idx = STEPS.indexOf(step);
   const hasSaved = showSavedAddresses && (state.customer.savedAddresses?.length ?? 0) > 0;
+  const selectedShippingLabel = state.shippingMethods.find((m) => m.id === state.shippingMethodId)?.label;
 
   return (
-    <div className="mx-auto grid max-w-6xl grid-cols-1 gap-6 px-4 py-6 md:px-6 lg:grid-cols-[minmax(0,1fr)_minmax(340px,460px)] lg:gap-8">
+    <div className="mx-auto grid max-w-6xl grid-cols-1 gap-6 px-3 py-6 sm:px-4 md:px-6 lg:grid-cols-[minmax(0,1fr)_minmax(340px,460px)] lg:gap-8">
       <div className="min-w-0 space-y-4">
         <ProgressIndicator current={idx} />
 
@@ -122,6 +123,7 @@ export function WizardLayout({ state, actions }: { state: CheckoutState; actions
         <div className="lg:sticky lg:top-6 lg:pl-1">
           <OrderSummary
             cart={state.cart}
+            selectedShippingLabel={selectedShippingLabel}
             collapsibleOnMobile
             onApplyCoupon={actions.applyCoupon}
             onRemoveCoupon={actions.removeCoupon}

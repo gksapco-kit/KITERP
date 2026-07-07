@@ -11,13 +11,13 @@ export const modalWidth4xl = 'max-w-7xl'
 export const modalWidth5xl = 'max-w-7xl'
 export const modalDefaultMaxWidth = modalWidthLg
 
-/** Full-screen modal backdrop */
+/** Full-screen modal backdrop — z-[100] sits above sticky form bars (z-10–z-30) and dashboard chrome */
 export const modalOverlayClass =
-  'fixed inset-0 z-50 flex items-start justify-center bg-black/50 backdrop-blur-sm p-4 overflow-y-auto'
+  'fixed inset-0 z-[100] flex items-start justify-center bg-black/50 backdrop-blur-sm p-4 overflow-y-auto'
 
 /** Vertically centered backdrop (legacy pages) */
 export const modalOverlayCenterClass =
-  'fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 overflow-y-auto'
+  'fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 overflow-y-auto'
 
 /** Standard dialog panel shell */
 export const modalPanelClass =

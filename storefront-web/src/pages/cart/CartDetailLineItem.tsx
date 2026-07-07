@@ -4,13 +4,13 @@ import { formatMoney, useCheckoutConfig } from '@/checkout/config'
 import type { CartItem as CheckoutCartItem } from '@/checkout/types'
 import type { Product, ProductVariant } from '@/types'
 import { formatCurrency, imgUrl } from '@/lib/utils'
-import ProductOptionPicker, { getColorNameFromOptionRows } from '@/components/products/ProductOptionPicker'
+import ProductOptionPicker from '@/components/products/ProductOptionPicker'
 import {
   buildProductCardOptionRows,
+  resolveCardDefaultSelections,
   resolveCardDisplayImage,
   resolveVariantForCardPricing,
   resolveSelectedVariant,
-  selectionsFromVariant,
   validateVariantCombination,
   variantDisplayLabel,
   type ProductCardOptionRow,
@@ -89,7 +89,7 @@ export function CartDetailLineItem({
   const activeVariants = (product?.variants ?? []).filter((v) => v.is_active !== false)
   const selectedVariant = resolveSelectedVariant(
     activeVariants,
-    item.variantId && item.variantId !== item.productId ? item.variantId : undefined,
+    item.variantId,
     fallbackVariantLabel,
   )
 
@@ -108,18 +108,20 @@ export function CartDetailLineItem({
   )
   const hasStructuredOptions = optionRows.length > 0
 
-  const [selections, setSelections] = useState<Record<string, string>>(() =>
-    selectionsFromVariant(selectedVariant),
-  )
-  const [selectedColorName, setSelectedColorName] = useState<string | undefined>(() =>
-    getColorNameFromOptionRows(selectedVariant, optionRows),
-  )
+  const [selections, setSelections] = useState<Record<string, string>>(() => {
+    const defaults = resolveCardDefaultSelections(activeVariants, optionRows, selectedVariant)
+    return defaults.selections
+  })
+  const [selectedColorName, setSelectedColorName] = useState<string | undefined>(() => {
+    const defaults = resolveCardDefaultSelections(activeVariants, optionRows, selectedVariant)
+    return defaults.colorName
+  })
 
   useEffect(() => {
-    const nextSelections = selectionsFromVariant(selectedVariant)
-    setSelections(nextSelections)
-    setSelectedColorName(getColorNameFromOptionRows(selectedVariant, optionRows))
-  }, [item.variantId, product?.id, optionRows.length, selectedVariant?.id])
+    const defaults = resolveCardDefaultSelections(activeVariants, optionRows, selectedVariant)
+    setSelections(defaults.selections)
+    setSelectedColorName(defaults.colorName)
+  }, [item.variantId, product?.id, optionRows, selectedVariant?.id, activeVariants])
 
   const validation = useMemo(
     () => validateVariantCombination(activeVariants, selections, selectedColorName),
@@ -142,9 +144,10 @@ export function CartDetailLineItem({
 
   const applyVariantIfValid = (nextSelections: Record<string, string>, nextColor?: string) => {
     const result = validateVariantCombination(activeVariants, nextSelections, nextColor)
-    if (result.valid && result.variant && result.variant.id !== selectedVariant?.id) {
-      onVariantChange?.(result.variant)
-    }
+    if (!result.valid || !result.variant) return
+    const resolvedId = selectedVariant?.id
+    if (resolvedId && result.variant.id === resolvedId) return
+    onVariantChange?.(result.variant)
   }
 
   const handleSelectSize = (dimension: string, value: string) => {
@@ -177,6 +180,8 @@ export function CartDetailLineItem({
   )
 
   const qtyCap = maxQuantity ?? item.maxQuantity ?? 99
+  const atMaxQty = item.quantity >= qtyCap
+  const exceedsStock = item.quantity > qtyCap
 
   return (
     <div className="flex items-start gap-3 py-4 first:pt-2 last:pb-2">
@@ -222,6 +227,7 @@ export function CartDetailLineItem({
             rows={optionRows}
             selections={selections}
             selectedColorName={selectedColorName}
+            selectedVariantId={validation.variant?.id ?? selectedVariant?.id}
             variants={activeVariants}
             onSelectSize={handleSelectSize}
             onSelectColor={handleSelectColor}
@@ -263,39 +269,62 @@ export function CartDetailLineItem({
         )}
 
         {editable && (
-          <div className="flex items-center justify-between">
-            <div className="ck-border ck-radius-sm flex items-center" style={{ width: 'fit-content' }}>
+          <div className="flex flex-col gap-1.5">
+            {exceedsStock && (
+              <div className="flex flex-wrap items-center gap-2">
+                <p className="text-xs font-medium text-destructive">
+                  Only {qtyCap} available in stock — please reduce quantity.
+                </p>
+                <button
+                  type="button"
+                  className="ck-btn-secondary text-xs"
+                  style={{ padding: '4px 10px', width: 'auto' }}
+                  onClick={() => onUpdateQuantity?.(item.id, Math.max(0, qtyCap))}
+                >
+                  {qtyCap <= 0 ? 'Remove from cart' : `Reduce to ${qtyCap}`}
+                </button>
+              </div>
+            )}
+            <div className="flex items-center justify-between">
+              <div className="ck-border ck-radius-sm flex items-center" style={{ width: 'fit-content' }}>
+                <button
+                  type="button"
+                  aria-label="Decrease quantity"
+                  className="ck-btn-ghost"
+                  onClick={() => onUpdateQuantity?.(item.id, Math.max(1, item.quantity - 1))}
+                  disabled={item.quantity <= 1}
+                  style={{ padding: '6px 10px' }}
+                >
+                  <Minus size={14} />
+                </button>
+                <span
+                  className="px-2 text-sm tabular-nums"
+                  style={{ minWidth: 28, textAlign: 'center' }}
+                >
+                  {item.quantity}
+                </span>
+                <button
+                  type="button"
+                  aria-label="Increase quantity"
+                  className="ck-btn-ghost"
+                  onClick={() =>
+                    onUpdateQuantity?.(item.id, Math.min(qtyCap, item.quantity + 1))
+                  }
+                  disabled={atMaxQty}
+                  style={{ padding: '6px 10px' }}
+                >
+                  <Plus size={14} />
+                </button>
+              </div>
               <button
                 type="button"
-                aria-label="Decrease quantity"
-                className="ck-btn-ghost"
-                onClick={() => onUpdateQuantity?.(item.id, Math.max(1, item.quantity - 1))}
-                disabled={item.quantity <= 1}
-                style={{ padding: '6px 10px' }}
+                className="ck-btn-ghost flex items-center gap-1"
+                onClick={() => onRemove?.(item.id)}
+                aria-label={`Remove ${productName}`}
               >
-                <Minus size={14} />
-              </button>
-              <span className="px-2 text-sm" style={{ minWidth: 24, textAlign: 'center' }}>
-                {item.quantity}
-              </span>
-              <button
-                type="button"
-                aria-label="Increase quantity"
-                className="ck-btn-ghost"
-                onClick={() => onUpdateQuantity?.(item.id, item.quantity + 1)}
-                style={{ padding: '6px 10px' }}
-              >
-                <Plus size={14} />
+                <Trash2 size={14} /> Remove
               </button>
             </div>
-            <button
-              type="button"
-              className="ck-btn-ghost flex items-center gap-1"
-              onClick={() => onRemove?.(item.id)}
-              aria-label={`Remove ${productName}`}
-            >
-              <Trash2 size={14} /> Remove
-            </button>
           </div>
         )}
       </div>

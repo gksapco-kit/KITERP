@@ -5,7 +5,8 @@ import { Input } from '@/components/ui/input'
 import { useProducts, useServices, useStoreCategories } from '@/hooks/useStore'
 import { useAddToCart } from '@/hooks/useStore'
 import { formatCurrency, imgUrl, cn } from '@/lib/utils'
-import type { Product, Service, ProductVariant } from '@/types'
+import type { Product, Service, ProductVariant, Cart } from '@/types'
+import type { GuestCartItem } from '@/stores/guestCartStore'
 import {
   Search, ShoppingBag, ShoppingCart, Loader2, ChevronLeft, ChevronRight,
   Grid3X3, LayoutList, SlidersHorizontal, X, Package, Wrench,
@@ -22,8 +23,9 @@ import { themeUi } from '@/lib/themeColors'
 import { ProductCard } from '@/kit/products/ProductCard'
 import { ProductGridSkeleton } from '@/kit/states/StateScreens'
 import { bridgeProduct } from '@/kit/bridge'
+import { resolveProductThumbnailUrl } from '@/lib/productImageUtils'
 import { variantColorCss, variantDisplayLabel } from '@/lib/variantOptions'
-import { assertCanAddToCart } from '@/lib/stockValidation'
+import { assertCanAddToCart, canPurchaseProduct } from '@/lib/stockValidation'
 import { toast } from 'sonner'
 
 type FilterType = 'products' | 'services' | 'both'
@@ -113,13 +115,9 @@ function flattenCats(cats: StoreCategory[], prefix = ''): { name: string; label:
   return result
 }
 
-/** Match grid ProductCard / bridgeProduct stock logic (variants, stock_status, inventory flags). */
+/** Match grid ProductCard / bridgeProduct stock logic (aligned with add-to-cart validation). */
 function variantHasStock(v: ProductVariant, product: Product): boolean {
-  if ((v.stock_status ?? 'in_stock') === 'out_of_stock') return false
-  const track = v.track_inventory ?? product.track_inventory ?? true
-  if (!track) return true
-  if (v.allow_backorders ?? product.allow_backorders) return true
-  return (v.quantity ?? 0) > 0
+  return canPurchaseProduct(product, v)
 }
 
 function productHasStock(product: Product): boolean {
@@ -127,10 +125,63 @@ function productHasStock(product: Product): boolean {
   if (variants.length > 0) {
     return variants.some((v) => variantHasStock(v, product))
   }
-  if (product.stock_status === 'out_of_stock') return false
-  if (product.allow_backorders) return true
-  if (!product.track_inventory) return true
-  return (product.quantity ?? 0) > 0
+  return canPurchaseProduct(product)
+}
+
+function resolveListCartVariant(
+  variants: ProductVariant[],
+  kitVariant?: { id: string },
+): ProductVariant | undefined {
+  if (!kitVariant || kitVariant.id.endsWith('-default')) {
+    return variants.length === 1 ? variants[0] : undefined
+  }
+  return variants.find((v) => v.id === kitVariant.id)
+}
+
+async function addProductToCart(input: {
+  vendorSlug: string
+  isAuthenticated: boolean
+  product: Product
+  variants: ProductVariant[]
+  kitVariant?: { id: string }
+  name: string
+  slug: string
+  price: number
+  image?: string
+  addToCart: { mutateAsync: (item: GuestCartItem) => Promise<Cart> }
+}) {
+  const srcVariant = resolveListCartVariant(input.variants, input.kitVariant)
+  const stockCheck = assertCanAddToCart({
+    vendorSlug: input.vendorSlug,
+    isAuthenticated: input.isAuthenticated,
+    productId: input.product.id,
+    productName: input.name,
+    product: input.product,
+    variant: srcVariant,
+    variantLabel: srcVariant ? variantDisplayLabel(srcVariant) || srcVariant.name : undefined,
+    requestQty: 1,
+  })
+  if (!stockCheck.ok) {
+    toast.error(stockCheck.message)
+    return false
+  }
+  try {
+    await input.addToCart.mutateAsync({
+      product_id: input.product.id,
+      variant_id: srcVariant?.id,
+      variant_label: srcVariant ? variantDisplayLabel(srcVariant) || srcVariant.name : undefined,
+      slug: input.slug,
+      name: input.name,
+      qty: 1,
+      price: input.price,
+      image_url: input.image,
+    })
+    toast.success('Added to cart')
+    return true
+  } catch {
+    toast.error('Could not add to cart')
+    return false
+  }
 }
 
 export default function ProductList() {
@@ -276,7 +327,7 @@ export default function ProductList() {
   const filterTypeLabel = filterType === 'products' ? 'Products only' : filterType === 'services' ? 'Services only' : null
 
   return (
-    <div className="max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8 py-6">
+    <div className="max-w-[1440px] mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-6">
       {/* Breadcrumb */}
       <nav className={`${themeUi.breadcrumbNav} mb-4`}>
         <Link to={storePath('/')} className={themeUi.linkOnPage}>Home</Link>
@@ -394,7 +445,7 @@ export default function ProductList() {
                 </div>
 
                 <form
-                  className="flex flex-1 min-w-0 gap-2"
+                  className="flex flex-1 min-w-0 flex-col gap-2 sm:flex-row"
                   onSubmit={(e) => {
                     e.preventDefault()
                     setSearch(searchInput.trim())
@@ -421,14 +472,14 @@ export default function ProductList() {
                       </button>
                     ) : null}
                   </div>
-                  <Button type="submit" size="sm" className="shrink-0 h-10 px-4 text-white hover:opacity-95" style={{ backgroundColor: theme.colors.primary }}>
+                  <Button type="submit" size="sm" className="shrink-0 h-10 w-full px-4 text-white hover:opacity-95 sm:w-auto" style={{ backgroundColor: theme.colors.primary }}>
                     Search
                   </Button>
                 </form>
 
-                <div className="flex flex-wrap items-center gap-2 lg:justify-end lg:shrink-0">
-                  <span className="text-xs font-medium uppercase tracking-wide text-gray-400 hidden sm:inline">Sort</span>
-                  <div className="w-[8rem] shrink-0 overflow-hidden">
+                <div className="grid grid-cols-2 gap-2 w-full sm:flex sm:flex-wrap sm:items-center sm:gap-2 lg:justify-end lg:shrink-0 lg:w-auto">
+                  <span className="col-span-2 hidden text-xs font-medium uppercase tracking-wide text-gray-400 sm:col-span-1 sm:inline">Sort</span>
+                  <div className="min-w-0">
                     <select
                       value={sortKey}
                       onChange={(e) => setSortKey(e.target.value)}
@@ -440,7 +491,7 @@ export default function ProductList() {
                       <option value="created_at">Date added</option>
                     </select>
                   </div>
-                  <div className="w-[8.5rem] shrink-0 overflow-hidden">
+                  <div className="min-w-0">
                     <select
                       value={sortDir}
                       onChange={(e) => setSortDir(e.target.value as SortDir)}
@@ -452,41 +503,43 @@ export default function ProductList() {
                     </select>
                   </div>
 
-                  <div className="mx-1 hidden h-8 w-px bg-gray-200 sm:block" aria-hidden />
+                  <div className="col-span-2 flex items-center justify-between gap-2 sm:col-span-1 sm:contents">
+                    <div className="mx-1 hidden h-8 w-px bg-gray-200 sm:block" aria-hidden />
 
-                  <div className="inline-flex rounded-lg border border-gray-200 p-0.5 bg-gray-50/80">
-                    <button
-                      type="button"
-                      onClick={() => setViewMode('grid')}
-                      className={`rounded-md p-2 transition-colors ${viewMode === 'grid' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500 hover:text-gray-800'}`}
-                      aria-pressed={viewMode === 'grid'}
-                      aria-label="Grid view"
-                    >
-                      <Grid3X3 className="h-4 w-4" />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setViewMode('list')}
-                      className={`rounded-md p-2 transition-colors ${viewMode === 'list' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500 hover:text-gray-800'}`}
-                      aria-pressed={viewMode === 'list'}
-                      aria-label="List view"
-                    >
-                      <LayoutList className="h-4 w-4" />
-                    </button>
+                    <div className="inline-flex rounded-lg border border-gray-200 p-0.5 bg-gray-50/80">
+                      <button
+                        type="button"
+                        onClick={() => setViewMode('grid')}
+                        className={`rounded-md p-2 transition-colors ${viewMode === 'grid' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500 hover:text-gray-800'}`}
+                        aria-pressed={viewMode === 'grid'}
+                        aria-label="Grid view"
+                      >
+                        <Grid3X3 className="h-4 w-4" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setViewMode('list')}
+                        className={`rounded-md p-2 transition-colors ${viewMode === 'list' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500 hover:text-gray-800'}`}
+                        aria-pressed={viewMode === 'list'}
+                        aria-label="List view"
+                      >
+                        <LayoutList className="h-4 w-4" />
+                      </button>
+                    </div>
+
+                    <CatalogCountBadge
+                      count={totalCount}
+                      filterType={filterType}
+                      primaryColor={theme.colors.primary}
+                    />
                   </div>
-
-                  <CatalogCountBadge
-                    count={totalCount}
-                    filterType={filterType}
-                    primaryColor={theme.colors.primary}
-                  />
                 </div>
               </div>
 
               <div className="flex flex-col gap-2 border-t border-gray-100 pt-3 sm:flex-row sm:items-center sm:justify-between">
-                <div className="flex flex-wrap items-center gap-2">
+                <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:gap-2">
                   <span className="text-xs font-medium text-gray-500 uppercase tracking-wide">Refine</span>
-                  <div className="w-[11rem] shrink-0 overflow-hidden">
+                  <div className="min-w-0 w-full sm:w-[11rem]">
                     <select
                       value={sortBy}
                       onChange={(e) => setSortBy(e.target.value)}
@@ -610,7 +663,9 @@ export default function ProductList() {
                 const isProduct = item.type === 'product'
                 const detailPath = isProduct ? `/products/${item.slug}` : `/services/${item.slug}`
                 const cardLinkTo = storePath(detailPath)
-                const imageUrl = isProduct ? item.images?.[0]?.url : item.image_url
+                const imageUrl = isProduct
+                  ? resolveProductThumbnailUrl({ images: item.images, variants: item.variants })
+                  : item.image_url
                 const hasStock = isProduct ? productHasStock(item as Product) : true
 
                 const variants = isProduct ? (item.variants || []).filter((v: any) => v.is_active !== false) : []
@@ -722,6 +777,7 @@ export default function ProductList() {
                             name: v.name,
                             options: v.attributes || {},
                             color: variantColorCss(v),
+                            media: v.media,
                             price: { amount: Math.round((v.price ?? 0) * 100), currency: v.currency || 'INR' },
                             compareAtPrice: v.compare_at_price ? { amount: Math.round(v.compare_at_price * 100), currency: v.currency || 'INR' } : undefined,
                             inStock: variantHasStock(v, item as Product),
@@ -744,39 +800,20 @@ export default function ProductList() {
                       linkTo={storePath(`/products/${item.slug}`)}
                       showRating
                       showTags
+                      addToCartPending={addToCart.isPending}
                       onAddToCart={async (p, variant) => {
-                        const srcVariant = variant ? variants.find((v) => v.id === variant.id) : undefined
-                        const productRow = item as Product
-                        const stockCheck = assertCanAddToCart({
+                        await addProductToCart({
                           vendorSlug,
                           isAuthenticated,
-                          productId: p.id,
-                          productName: p.name,
-                          product: productRow,
-                          variant: srcVariant,
-                          variantLabel: srcVariant
-                            ? variantDisplayLabel(srcVariant) || srcVariant.name
-                            : undefined,
-                          requestQty: 1,
+                          product: item as Product,
+                          variants,
+                          kitVariant: variant,
+                          name: p.name,
+                          slug: item.slug,
+                          price: variant?.price ?? p.price,
+                          image: p.image,
+                          addToCart,
                         })
-                        if (!stockCheck.ok) {
-                          toast.error(stockCheck.message)
-                          return
-                        }
-                        try {
-                          await addToCart.mutateAsync({
-                            product_id: p.id,
-                            variant_id: srcVariant?.id,
-                            variant_label: srcVariant ? variantDisplayLabel(srcVariant) || srcVariant.name : undefined,
-                            slug: item.slug,
-                            name: p.name,
-                            qty: 1,
-                            price: variant?.price ?? p.price,
-                            image_url: p.image,
-                          })
-                        } catch {
-                          toast.error('Could not add to cart')
-                        }
                       }}
                     />
                   )
@@ -860,7 +897,9 @@ export default function ProductList() {
                 const isProduct = item.type === 'product'
                 const detailPath = isProduct ? `/products/${item.slug}` : `/services/${item.slug}`
                 const cardLinkTo = storePath(detailPath)
-                const imageUrl = isProduct ? item.images?.[0]?.url : item.image_url
+                const imageUrl = isProduct
+                  ? resolveProductThumbnailUrl({ images: item.images, variants: item.variants })
+                  : item.image_url
                 const hasStock = isProduct ? productHasStock(item as Product) : true
                 const variants = isProduct ? (item.variants || []).filter((v: any) => v.is_active !== false) : []
                 const effectivePrice = isProduct
@@ -870,50 +909,28 @@ export default function ProductList() {
 
                 const handleListAddToCart = async () => {
                   if (!isProduct || !hasStock) return
-                  const productRow = item as Product
-                  const onlyVariant = variants.length === 1 ? (variants[0] as ProductVariant) : undefined
-                  const stockCheck = assertCanAddToCart({
+                  await addProductToCart({
                     vendorSlug,
                     isAuthenticated,
-                    productId: item.id,
-                    productName: item.name,
-                    product: productRow,
-                    variant: onlyVariant,
-                    variantLabel: onlyVariant
-                      ? variantDisplayLabel(onlyVariant) || onlyVariant.name
-                      : undefined,
-                    requestQty: 1,
+                    product: item as Product,
+                    variants,
+                    kitVariant: variants.length === 1 ? { id: variants[0].id } : undefined,
+                    name: item.name,
+                    slug: item.slug,
+                    price: effectivePrice,
+                    image: imageUrl ? imgUrl(imageUrl) : undefined,
+                    addToCart,
                   })
-                  if (!stockCheck.ok) {
-                    toast.error(stockCheck.message)
-                    return
-                  }
-                  try {
-                    await addToCart.mutateAsync({
-                      product_id: item.id,
-                      variant_id: onlyVariant?.id,
-                      variant_label: onlyVariant
-                        ? variantDisplayLabel(onlyVariant) || onlyVariant.name
-                        : undefined,
-                      slug: item.slug,
-                      name: item.name,
-                      qty: 1,
-                      price: effectivePrice,
-                      image_url: imageUrl ? imgUrl(imageUrl) : undefined,
-                    })
-                  } catch {
-                    toast.error('Could not add to cart')
-                  }
                 }
 
                 return (
                   <div
                     key={`${item.type}-${item.id}`}
-                    className={`group flex gap-4 rounded-xl border p-4 hover:shadow-md transition-all max-h-[90vh] overflow-y-auto ${themeUi.catalogGridCard}`}
+                    className={`group flex flex-col gap-3 rounded-xl border p-3 sm:flex-row sm:gap-4 sm:p-4 hover:shadow-md transition-all ${themeUi.catalogGridCard}`}
                   >
                     <Link
                       to={cardLinkTo}
-                      className="w-32 h-32 sm:w-44 sm:h-44 bg-gray-50 rounded-lg overflow-hidden shrink-0 relative block"
+                      className="w-full h-40 sm:w-44 sm:h-44 bg-gray-50 rounded-lg overflow-hidden shrink-0 relative block"
                     >
                       {imageUrl ? (
                         <img src={imgUrl(imageUrl)} alt={item.name} className="w-full h-full object-cover" />
@@ -972,7 +989,7 @@ export default function ProductList() {
                         <p className={`text-xs mt-1 capitalize ${themeUi.mutedOnSurface}`}>{item.service_mode.replace('_', ' ')}</p>
                       )}
                     </div>
-                    <div className="flex shrink-0 flex-col items-stretch justify-center gap-2 sm:min-w-[140px]">
+                    <div className="flex w-full shrink-0 flex-col items-stretch justify-center gap-2 sm:w-auto sm:min-w-[140px]">
                       {isProduct ? (
                         <Button
                           size="sm"

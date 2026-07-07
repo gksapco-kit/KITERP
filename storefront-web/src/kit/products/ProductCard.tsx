@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useState, type MouseEvent } from "react";
 import { Link } from "react-router-dom";
-import { Star, ShoppingCart, Heart } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Star, ShoppingCart } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { ProductWishlistButton } from "@/components/products/ProductWishlistButton";
 import { Card, CardContent } from "@/components/ui/card";
 import { cn, imgUrl } from "@/lib/utils";
+import { collectProductGalleryImages } from "@/lib/productImageUtils";
 import type { ProductVariant as ApiVariant } from "@/types";
 import ProductOptionPicker from "@/components/products/ProductOptionPicker";
 import {
@@ -34,8 +35,9 @@ export interface ProductCardProps {
   /** Override card link target (e.g. branch-aware cart detail view). */
   linkTo?: string;
   onNavigateClick?: (e: MouseEvent) => void;
-  onAddToCart?: (p: Product, variant?: KitVariant) => void;
+  onAddToCart?: (p: Product, variant?: KitVariant) => void | Promise<void>;
   onToggleWishlist?: (p: Product) => void;
+  addToCartPending?: boolean;
 }
 
 function toApiVariant(v: KitVariant): ApiVariant {
@@ -45,6 +47,11 @@ function toApiVariant(v: KitVariant): ApiVariant {
     price: v.price ?? 0,
     color: v.color,
     attributes: v.attributes,
+    media: v.media,
+    quantity: v.quantity,
+    track_inventory: v.track_inventory,
+    allow_backorders: v.allow_backorders,
+    stock_status: v.stock_status,
   };
 }
 
@@ -57,6 +64,7 @@ export function ProductCard({
   onNavigateClick,
   onAddToCart,
   onToggleWishlist,
+  addToCartPending = false,
 }: ProductCardProps) {
   const cardLayout = readCatalogCardLayout({});
   const productHref = linkTo ?? `/products/${product.slug}`;
@@ -64,13 +72,18 @@ export function ProductCard({
   const allVariants = product.variants ?? [];
   const apiVariants = useMemo(() => allVariants.map(toApiVariant), [allVariants]);
   const galleryImages = useMemo(() => {
-    if (product.images?.length) {
-      return product.images.map((img) =>
-        typeof img === "string" ? { url: img } : { url: img.url, alt_text: img.alt_text },
-      );
-    }
-    return [{ url: product.image }];
-  }, [product.images, product.image]);
+    const productImages = product.images?.length
+      ? product.images.map((img) =>
+          typeof img === "string" ? { url: img } : { url: img.url, alt_text: img.alt_text },
+        )
+      : product.image
+        ? [{ url: product.image }]
+        : []
+    return collectProductGalleryImages({
+      images: productImages,
+      variants: apiVariants,
+    })
+  }, [product.images, product.image, apiVariants]);
   const optionRows = useMemo(
     () => buildProductCardOptionRows(apiVariants, galleryImages),
     [apiVariants, galleryImages],
@@ -129,9 +142,10 @@ export function ProductCard({
   const showFrom =
     !!product.showFromPrice && minPrice !== maxPrice && !pricingVariant && optionRows.length === 0;
   const canAdd =
-    optionRows.length === 0
+    !addToCartPending &&
+    (optionRows.length === 0
       ? firstAvailable?.available !== false && product.inStock
-      : validation.valid && selectedVariant?.available !== false && product.inStock;
+      : validation.valid && selectedVariant?.available !== false && product.inStock);
 
   const addBtn = resolveCatalogAddButtonPresentation({
     style: cardLayout.addButtonStyle,
@@ -155,35 +169,45 @@ export function ProductCard({
 
   return (
     <Card className={cn("overflow-hidden group flex flex-col", horizontal && "flex-row")}>
-      <Link
-        to={productHref}
-        className={cn("block relative", horizontal ? "w-44 shrink-0" : "")}
-        onClick={onNavigateClick}
-      >
-        <div className={cn("relative w-full overflow-hidden bg-muted", horizontal ? "h-full" : "aspect-[4/3]")}>
-          {displayImage ? (
-            <img
-              key={displayImage}
-              src={imgUrl(displayImage)}
-              alt={product.name}
-              loading="lazy"
-              className="absolute inset-0 h-full w-full object-cover transition-transform group-hover:scale-105"
-            />
-          ) : (
-            <div className="absolute inset-0 flex items-center justify-center text-muted-foreground">
-              <ShoppingCart className="h-8 w-8 opacity-25" />
-            </div>
-          )}
-        </div>
+      <div className={cn("relative", horizontal ? "w-44 shrink-0" : "")}>
+        <Link to={productHref} className="block" onClick={onNavigateClick}>
+          <div className={cn("relative w-full overflow-hidden bg-muted", horizontal ? "h-full" : "aspect-[4/3]")}>
+            {displayImage ? (
+              <img
+                key={displayImage}
+                src={imgUrl(displayImage)}
+                alt={product.name}
+                loading="lazy"
+                className="absolute inset-0 h-full w-full object-cover transition-transform group-hover:scale-105"
+              />
+            ) : (
+              <div className="absolute inset-0 flex items-center justify-center text-muted-foreground">
+                <ShoppingCart className="h-8 w-8 opacity-25" />
+              </div>
+            )}
+          </div>
+        </Link>
         {showTags && product.tags?.[0] && (
-          <Badge className="absolute top-2 left-2 capitalize">{product.tags[0]}</Badge>
+          <Badge className="absolute top-2 left-2 z-10 capitalize pointer-events-none">{product.tags[0]}</Badge>
         )}
         {displayCompare && displayCompare > displayPrice && (
-          <Badge variant="destructive" className="absolute top-2 right-2">
+          <Badge variant="destructive" className="absolute bottom-2 left-2 z-10 pointer-events-none">
             -{Math.round(((displayCompare - displayPrice) / displayCompare) * 100)}%
           </Badge>
         )}
-      </Link>
+        <div className="absolute top-3 right-3 z-20">
+          <ProductWishlistButton
+            productId={product.id}
+            productName={product.name}
+            slug={product.slug}
+            price={displayPrice}
+            imageUrl={displayImage}
+            variantId={selectedVariant?.id}
+            overlay
+            className="h-9 w-9 rounded-lg"
+          />
+        </div>
+      </div>
       <CardContent className={cn("flex flex-1 flex-col gap-2 p-4", horizontal && "p-4")}>
         <Link to={productHref} className="font-medium line-clamp-2 hover:underline" onClick={onNavigateClick}>
           {product.name}
@@ -199,6 +223,7 @@ export function ProductCard({
             rows={optionRows}
             selections={selections}
             selectedColorName={selectedColorName}
+            selectedVariantId={validation.variant?.id ?? selectedVariant?.id}
             variants={apiVariants}
             onSelectSize={(dimension, value) => setSelections((prev) => ({ ...prev, [dimension]: value }))}
             onSelectColor={setSelectedColorName}
@@ -215,26 +240,30 @@ export function ProductCard({
             </span>
           )}
         </div>
-        <div className="mt-auto flex items-center gap-2 pt-2">
+        <div className={cn("mt-auto flex items-center gap-2 pt-2", !cardLayout.showAddButton && "hidden")}>
           {cardLayout.showAddButton && (
             <button
               type="button"
-              className={cn(addBtn.className, !addBtn.iconOnly && "flex-1", "hover:opacity-90")}
+              className={cn(addBtn.className, !addBtn.iconOnly && "w-full", "hover:opacity-90")}
               style={addBtn.style}
-              disabled={!canAdd}
+              disabled={!canAdd || addToCartPending}
               aria-label={addBtn.iconOnly ? addLabel : undefined}
-              onClick={() => {
-                const variant = selectedVariant ?? firstAvailable;
-                if (canAdd && variant) onAddToCart?.(product, variant);
+              onClick={(e) => {
+                e.preventDefault()
+                e.stopPropagation()
+                const resolved =
+                  validation.valid && validation.variant
+                    ? allVariants.find((v) => v.id === validation.variant!.id)
+                    : undefined
+                const variant = resolved ?? selectedVariant ?? firstAvailable
+                if (!canAdd || !variant || !onAddToCart) return
+                void onAddToCart(product, variant)
               }}
             >
               <ShoppingCart className={addBtn.iconClassName} />
-              {addBtn.showLabel ? addLabel : null}
+              {addBtn.showLabel ? (addToCartPending ? 'Adding…' : addLabel) : null}
             </button>
           )}
-          <Button size="icon" variant="outline" onClick={() => onToggleWishlist?.(product)} aria-label="Wishlist">
-            <Heart />
-          </Button>
         </div>
       </CardContent>
     </Card>

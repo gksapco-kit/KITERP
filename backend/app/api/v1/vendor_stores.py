@@ -303,6 +303,7 @@ async def create_store(
         address=data.address.model_dump(exclude_none=True) if data.address else {},
         manager_id=UUID(data.manager_id) if data.manager_id else None,
         is_default=is_default,
+        is_open=True,
         settings=data.settings or {},
     )
     db.add(store)

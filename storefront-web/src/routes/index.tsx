@@ -47,6 +47,7 @@ import BlogPost from '@/pages/blog/BlogPost'
 import Policies from '@/pages/Policies'
 import OrderConfirmationPage from '@/checkout/pages/OrderConfirmationPage'
 import OrderStatusPage from '@/checkout/pages/OrderStatusPage'
+import UpiPaymentProofPage from '@/checkout/pages/UpiPaymentProofPage'
 import TableOrderPage from '@/pages/restaurant/TableOrderPage'
 import ZoneMenuPage from '@/pages/restaurant/ZoneMenuPage'
 import ReservationPage from '@/pages/restaurant/ReservationPage'
@@ -108,6 +109,7 @@ const draftCatalogShellChildren = [
   { path: 'cart', element: <CartPage /> },
   { path: 'checkout', element: <Checkout /> },
   { path: 'order/:orderId/confirmation', element: <OrderConfirmationPage /> },
+  { path: 'order/:orderId/payment', element: <UpiPaymentProofPage /> },
   { path: 'order/:orderId/status', element: <OrderStatusPage /> },
   { path: 'account', element: <ProtectedRoute><Account /></ProtectedRoute> },
   { path: 'account/orders', element: <ProtectedRoute><MyOrders /></ProtectedRoute> },
@@ -151,6 +153,7 @@ export const router = createBrowserRouter([
       { path: 'cart', element: <StorefrontCartRoute /> },
       { path: 'checkout', element: <StorefrontCheckoutRoute /> },
       { path: 'order/:orderId/confirmation', element: <StorefrontConfirmationRoute /> },
+      { path: 'order/:orderId/payment', element: <UpiPaymentProofPage /> },
     ],
   },
   // Vendor-specific business front: /store/:vendorSlug/...
@@ -181,6 +184,7 @@ export const router = createBrowserRouter([
       { path: 'cart', element: <CartPage /> },
       { path: 'checkout', element: <Checkout /> },
       { path: 'order/:orderId/confirmation', element: <OrderConfirmationPage /> },
+      { path: 'order/:orderId/payment', element: <UpiPaymentProofPage /> },
       { path: 'order/:orderId/status', element: <OrderStatusPage /> },
       { path: 'account', element: <ProtectedRoute><Account /></ProtectedRoute> },
       { path: 'account/orders', element: <ProtectedRoute><MyOrders /></ProtectedRoute> },

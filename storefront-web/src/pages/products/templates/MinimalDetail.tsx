@@ -2,7 +2,7 @@ import { Link } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { formatCurrency, imgUrl } from '@/lib/utils'
 import {
-  Minus, Plus, ShoppingCart, Loader2, ShoppingBag,
+  ShoppingBag,
   Truck, ShieldCheck, RefreshCw, ChevronRight, Tag,
   Award, Zap, Check, Repeat, MessageSquare,
 } from 'lucide-react'
@@ -12,6 +12,8 @@ import ReviewSection from '@/components/ReviewSection'
 import MerchProductGrid from './MerchProductGrid'
 import MediaViewer from '@/components/MediaViewer'
 import ColorSwatchPicker from '@/components/products/ColorSwatchPicker'
+import { ProductPurchaseActions } from '@/components/products/ProductPurchaseActions'
+import { ProductMediaWishlistOverlay } from '@/components/products/ProductMediaWishlistOverlay'
 import { isCombinationAvailable } from '@/lib/variantOptions'
 import type { ProductDetailTemplateProps } from './types'
 import { isDisplayFieldEnabled } from '@/lib/storefrontDisplayFields'
@@ -20,7 +22,7 @@ export default function MinimalDetail(props: ProductDetailTemplateProps) {
   const {
     displayFields,
     product, selectedVariant, activeVariants, hasVariants,
-    setSelectedVariantId, qty, setQty, maxAddQty,
+    setSelectedVariantId, qty, setQty, validateQtyChange, maxAddQty, minAddQty, onHandQty,
     displayPrice, displayCompare, displayCurrency, displayStock,
     displayOfferLabel, displayOnSale, discount, variantColors, onSelectColor,
     optionRows, selections, onSelectSize, selectedColorName, variantValidation, hasStructuredOptions,
@@ -71,7 +73,7 @@ export default function MinimalDetail(props: ProductDetailTemplateProps) {
   ].filter((badge): badge is { icon: typeof Truck; text: string } => Boolean(badge))
 
   return (
-    <div className="max-w-3xl mx-auto px-4 py-8">
+    <div className="max-w-3xl mx-auto px-3 py-6 sm:px-4 sm:py-8">
       {/* Breadcrumb */}
       <nav className="text-xs text-gray-400 mb-8 flex items-center gap-1">
         <Link to={storePath('/')} className="hover:text-gray-600">Home</Link>
@@ -92,6 +94,16 @@ export default function MinimalDetail(props: ProductDetailTemplateProps) {
           selectedIndex={selectedImage}
           onSelect={setSelectedImage}
           productName={product.name}
+          thumbnailPosition="left"
+          topRightOverlay={
+            <ProductMediaWishlistOverlay
+              product={product}
+              selectedVariant={selectedVariant}
+              displayPrice={displayPrice}
+              displayMedia={displayMedia}
+              selectedImage={selectedImage}
+            />
+          }
           badges={
             <div className="absolute top-4 left-4 flex gap-2">
               {isDisplayFieldEnabled(sf, 'new_arrival_badge') && product.is_new_arrival && (
@@ -326,45 +338,27 @@ export default function MinimalDetail(props: ProductDetailTemplateProps) {
       )}
 
       {/* Quantity & Buy */}
-      <div className="max-w-sm mx-auto mb-12 space-y-4">
-        <div className="flex items-center justify-center gap-4">
-          <div className="flex items-center border rounded-full overflow-hidden">
-            <button onClick={() => setQty(Math.max(1, qty - 1))} className="w-10 h-10 flex items-center justify-center hover:bg-gray-50"><Minus className="w-4 h-4" /></button>
-            <span className="w-10 h-10 flex items-center justify-center text-sm font-bold">{qty}</span>
-            <button onClick={() => setQty(qty + 1)} className="w-10 h-10 flex items-center justify-center hover:bg-gray-50"><Plus className="w-4 h-4" /></button>
-          </div>
-          {selectedVariant && qty > 1 && (
-            <span className="text-sm text-gray-500">Total: <span className="font-semibold text-gray-900">{formatCurrency(displayPrice * qty, displayCurrency)}</span></span>
-          )}
-        </div>
-
-        {isAuthenticated ? (
-          <div className="space-y-2">
-            {isSubscription ? (
-              <p className="text-xs text-gray-400 text-center">Use the subscription plan above to subscribe.</p>
-            ) : (
-              <>
-                <Button className="w-full h-12 rounded-full gap-2 bg-black hover:bg-gray-800 text-white font-medium"
-                  onClick={handleAddToCart} disabled={addToCartPending || displayStock === 'out_of_stock' || !variantValidation.valid}>
-                  {addToCartPending ? <Loader2 className="w-5 h-5 animate-spin" /> : <ShoppingCart className="w-5 h-5" />}
-                  {displayStock === 'out_of_stock' ? 'Out of Stock' : 'Add to Cart'}
-                </Button>
-                <Button variant="outline" className="w-full h-12 rounded-full font-medium" onClick={handleBuyNow}
-                  disabled={addToCartPending || displayStock === 'out_of_stock' || !variantValidation.valid}>Buy Now</Button>
-              </>
-            )}
-            {canQuote && (
-              <Button variant="outline" className="w-full h-11 font-medium rounded-full mt-2" onClick={() => setShowQuote(true)}>
-                <MessageSquare className="w-5 h-5 mr-2" /> Request a Quote
-              </Button>
-            )}
-          </div>
-        ) : (
-          <Link to={storePath('/login')}>
-            <Button className="w-full h-12 rounded-full font-medium bg-black hover:bg-gray-800 text-white">Sign in to Buy</Button>
-          </Link>
-        )}
-      </div>
+      <ProductPurchaseActions
+        qty={qty}
+        setQty={setQty}
+        validateQtyChange={validateQtyChange}
+        maxQty={maxAddQty}
+        minQty={minAddQty}
+        onHandQty={onHandQty}
+        displayPrice={displayPrice}
+        displayCurrency={displayCurrency}
+        displayStock={displayStock}
+        variantValidationValid={variantValidation.valid}
+        addToCartPending={addToCartPending}
+        handleAddToCart={handleAddToCart}
+        handleBuyNow={handleBuyNow}
+        isSubscription={isSubscription}
+        canQuote={canQuote}
+        onRequestQuote={() => setShowQuote(true)}
+        isAuthenticated={isAuthenticated}
+        storePath={storePath}
+        className="mx-auto mb-12 max-w-sm space-y-4"
+      />
 
       {/* Trust Row */}
       {trustBadges.length > 0 && (

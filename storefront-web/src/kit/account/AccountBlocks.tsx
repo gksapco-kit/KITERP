@@ -152,7 +152,7 @@ export function AddressBook({
 
   return (
     <Card>
-      <CardHeader className="flex flex-row items-center justify-between">
+      <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <CardTitle>Saved addresses</CardTitle>
         <Button size="sm" onClick={() => setAdding(true)}><Plus /> Add address</Button>
       </CardHeader>
@@ -271,7 +271,15 @@ export function NotificationPreferencesForm({ value, onChange }: { value?: Parti
 
 /* ---------------- Wishlist ---------------- */
 
-export function WishlistPage({ items: initial, onMoveToCart }: { items: WishlistItem[]; onMoveToCart?: (id: string) => void }) {
+export function WishlistPage({
+  items: initial,
+  onMoveToCart,
+  movingId,
+}: {
+  items: WishlistItem[]
+  onMoveToCart?: (id: string) => void
+  movingId?: string | null
+}) {
   const [items, setItems] = useState(initial);
   const [view, setView] = useState<"grid" | "list">("grid");
   const [copied, setCopied] = useState(false);
@@ -284,9 +292,9 @@ export function WishlistPage({ items: initial, onMoveToCart }: { items: Wishlist
 
   return (
     <Card>
-      <CardHeader className="flex flex-row items-center justify-between">
-        <CardTitle>My wishlist ({items.length})</CardTitle>
-        <div className="flex items-center gap-2">
+      <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <CardTitle className="text-lg sm:text-xl">My wishlist ({items.length})</CardTitle>
+        <div className="flex flex-wrap items-center gap-2">
           <Button size="sm" variant="outline" onClick={share}><Share2 />{copied ? "Copied!" : "Share"}</Button>
           <div className="inline-flex border rounded-md">
             <Button size="icon" variant={view === "grid" ? "default" : "ghost"} onClick={() => setView("grid")}><Grid /></Button>
@@ -315,7 +323,14 @@ export function WishlistPage({ items: initial, onMoveToCart }: { items: Wishlist
                   <div className="text-sm font-semibold mt-1">{formatPrice(p.price)}</div>
                   <div className="text-xs text-muted-foreground mt-1">Saved on {p.savedAt}</div>
                   <div className="mt-auto flex gap-2 pt-3">
-                    <Button size="sm" className="flex-1" onClick={() => onMoveToCart?.(p.id)}><ShoppingCart /> Move to cart</Button>
+                    <Button
+                      size="sm"
+                      className="flex-1"
+                      disabled={movingId === p.id}
+                      onClick={() => onMoveToCart?.(p.id)}
+                    >
+                      <ShoppingCart /> {movingId === p.id ? "Checking…" : "Move to cart"}
+                    </Button>
                     <Button size="icon" variant="ghost" onClick={() => remove(p.id)} aria-label="Remove"><Trash2 /></Button>
                   </div>
                 </div>

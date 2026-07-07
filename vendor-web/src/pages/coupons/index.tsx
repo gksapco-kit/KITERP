@@ -242,18 +242,37 @@ function CouponModal({
       }))
   })
   const [loading, setLoading] = useState(false)
+  const [codeError, setCodeError] = useState<string | null>(null)
 
   const isSpecific = form.applicable_to === 'products' || form.applicable_to === 'services' || form.applicable_to === 'specific'
 
   const handleSave = async () => {
+    const code = form.code.trim().toUpperCase()
+    if (!code) {
+      setCodeError('Coupon code is required')
+      toast.error('Coupon code is required')
+      return
+    }
+    if (code.length < 2) {
+      setCodeError('Coupon code must be at least 2 characters')
+      toast.error('Coupon code must be at least 2 characters')
+      return
+    }
+    if (form.discount_value <= 0) {
+      toast.error('Discount value must be greater than 0')
+      return
+    }
+    setCodeError(null)
     setLoading(true)
     try {
+      const { branch_id, store_id: formStoreId, ...rest } = form
       const payload = {
-        ...form,
-        store_id: form.branch_id || form.store_id || undefined,
+        ...rest,
+        code,
+        store_id: branch_id || formStoreId || undefined,
         usage_limit: form.usage_limit || undefined,
         max_discount: form.max_discount || undefined,
-        applicable_ids: isSpecific ? applicableItems : [],
+        applicable_ids: isSpecific ? applicableItems.map((item) => item.id) : [],
       }
       if (mode === 'create') await vendorApi.createCoupon(payload)
       else await vendorApi.updateCoupon(coupon!.id as string, payload)
@@ -293,7 +312,25 @@ function CouponModal({
             <p className="text-[11px] text-gray-400 mt-1">Scopes which items can be selected below. "All business units" keeps it global; pick a branch to restrict further.</p>
           </div>
           <div className="grid grid-cols-2 gap-3">
-            <div><Label>Code</Label><Input className="mt-1 font-mono uppercase" value={form.code} onChange={e => setForm({ ...form, code: e.target.value.toUpperCase() })} placeholder="SAVE20" disabled={mode === 'edit'} /></div>
+            <div>
+              <Label>Code</Label>
+              <Input
+                className={`mt-1 font-mono uppercase ${codeError ? 'border-red-500' : ''}`}
+                value={form.code}
+                onChange={e => {
+                  setCodeError(null)
+                  setForm({ ...form, code: e.target.value.toUpperCase() })
+                }}
+                placeholder="SAVE20"
+                minLength={2}
+                disabled={mode === 'edit'}
+              />
+              {codeError ? (
+                <p className="mt-1 text-xs text-red-600">{codeError}</p>
+              ) : (
+                <p className="mt-1 text-[11px] text-gray-400">At least 2 characters (e.g. RR, SAVE10)</p>
+              )}
+            </div>
             <div><Label>Title</Label><Input className="mt-1" value={form.title} onChange={e => setForm({ ...form, title: e.target.value })} placeholder="20% Off" /></div>
           </div>
           <div><Label>Description</Label><Input className="mt-1" value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} placeholder="Get 20% off on all products" /></div>
@@ -355,7 +392,7 @@ function CouponModal({
         </div>
         <div className="px-6 py-4 border-t flex justify-end gap-3">
           <Button variant="cancel" onClick={onClose}>Cancel</Button>
-          <Button onClick={handleSave} disabled={loading || !form.code} className="gap-2">
+          <Button onClick={handleSave} disabled={loading || form.code.trim().length < 2 || form.discount_value <= 0} className="gap-2">
             {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Tag className="w-4 h-4" />}{mode === 'create' ? 'Create' : 'Save'}
           </Button>
         </div>

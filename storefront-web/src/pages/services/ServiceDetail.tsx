@@ -66,7 +66,7 @@ function BookingSlotsPanel({ availability }: { availability: AvailSlot[] }) {
       <h3 className={`font-bold mb-4 flex items-center gap-2 text-sm ${themeUi.textPrimary}`}>
         <Calendar className={`w-4 h-4 ${themeUi.iconPrimary}`} /> Weekly Availability
       </h3>
-      <div className="grid grid-cols-4 sm:grid-cols-7 gap-2">
+      <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-7 gap-2">
         {allDays.map(day => {
           const label = DAYS[day] ?? `Day ${day}`
           const slots = (byDay.get(day) || []).filter(s => s.is_available)
@@ -558,7 +558,7 @@ export default function ServiceDetail() {
   const unitPrice = selectedPlan?.price ?? service.price
 
   return (
-    <div className="max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8 py-6">
+    <div className="max-w-[1440px] mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-6">
       {/* Breadcrumb */}
       <nav className={`text-sm mb-5 flex items-center gap-1 flex-wrap ${themeUi.pageTextMuted}`}>
         <Link to={storePath('/')} className={themeUi.linkOnPage}>Home</Link>
@@ -650,7 +650,7 @@ export default function ServiceDetail() {
           {!isSubscription && (
             <div className="flex items-center gap-3 flex-wrap">
               {unitPrice != null && (
-                <span className="text-3xl font-extrabold text-gray-900">
+                <span className="text-2xl sm:text-3xl font-extrabold text-gray-900">
                   {formatCurrency(unitPrice, currency)}
                   {isDisplayFieldEnabled(sf, 'uom') && (selectedPlan?.uom ?? service.uom) && (selectedPlan?.uom ?? service.uom) !== 'fixed' && (
                     <span className="text-sm font-normal text-gray-500 ml-1">/{UOM_LABELS[selectedPlan?.uom ?? service.uom] || selectedPlan?.uom || service.uom}</span>
@@ -875,7 +875,7 @@ export default function ServiceDetail() {
                 <div>
                   <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">Price</p>
                   {unitPrice != null ? (
-                    <p className="text-3xl font-extrabold text-gray-900 mt-1">
+                    <p className="text-2xl sm:text-3xl font-extrabold text-gray-900 mt-1">
                       {formatCurrency(unitPrice, currency)}
                       {isDisplayFieldEnabled(sf, 'uom') && (selectedPlan?.uom ?? service.uom) && (selectedPlan?.uom ?? service.uom) !== 'fixed' && (
                         <span className="text-base font-normal text-gray-500 ml-1">/{UOM_LABELS[selectedPlan?.uom ?? service.uom] || selectedPlan?.uom || service.uom}</span>
@@ -917,7 +917,7 @@ export default function ServiceDetail() {
                 <div>
                   <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">Price</p>
                   {unitPrice != null ? (
-                    <p className="text-3xl font-extrabold text-gray-900 mt-1">
+                    <p className="text-2xl sm:text-3xl font-extrabold text-gray-900 mt-1">
                       {formatCurrency(unitPrice, currency)}
                       {isDisplayFieldEnabled(sf, 'uom') && (selectedPlan?.uom ?? service.uom) && (selectedPlan?.uom ?? service.uom) !== 'fixed' && (
                         <span className="text-base font-normal text-gray-500 ml-1">/{UOM_LABELS[selectedPlan?.uom ?? service.uom] || selectedPlan?.uom || service.uom}</span>

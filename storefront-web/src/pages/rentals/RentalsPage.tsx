@@ -45,7 +45,7 @@ export default function RentalsPage() {
   const selected = (assets as Record<string, unknown>[]).find((a) => String(a.id) === selectedId)
 
   return (
-    <div className="max-w-5xl mx-auto px-4 sm:px-6 py-8">
+    <div className="max-w-5xl mx-auto px-3 sm:px-6 py-6 sm:py-8">
       <nav className="text-sm text-gray-500 mb-6">
         <Link to={storePath('/')} className="hover:text-primary">Home</Link>
         <span className="mx-2">/</span>

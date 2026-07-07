@@ -5,7 +5,7 @@ import { buildDraftCatalogEmbedStorePath, parseDraftCatalogEmbedPath } from '@/l
 
 const CART_DETAIL_PATH = '/cart'
 
-/** Branch-aware URL for the storefront cart "Detail view" page. */
+/** Branch-aware URL for the storefront cart page. */
 export function useProductCartDetailPath(): string {
   const storePath = useStorePath()
   const { vendorSlug: routeSlug, previewToken: routePreviewToken } = useParams<{

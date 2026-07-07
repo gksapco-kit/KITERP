@@ -46,7 +46,7 @@ export default function MyMarketplace() {
   }
 
   return (
-    <div className="max-w-4xl mx-auto px-4 sm:px-6 py-8">
+    <div className="max-w-4xl mx-auto px-3 sm:px-6 py-6 sm:py-8">
       <nav className="text-sm text-gray-500 mb-6 flex items-center gap-1.5">
         <Link to={storePath('/account')} className="hover:text-primary">Account</Link>
         <ChevronRight className="w-3 h-3" />

@@ -178,7 +178,10 @@ export default function CartDrawerBlock({ style, props, liveItems, blockId }: Pr
                             const index = Number(id)
                             if (Number.isNaN(index)) return
                             if (q <= 0) {
-                              removeItem.mutate(index)
+                              removeItem.mutate({
+                                productId: lineItem.productId,
+                                variantId: lineItem.variantId,
+                              })
                               return
                             }
                             const stockCheck = validateCartLineQtyChange({
@@ -194,9 +197,11 @@ export default function CartDrawerBlock({ style, props, liveItems, blockId }: Pr
                             }
                             updateItem.mutate({ index, qty: q })
                           }}
-                          onRemove={(id) => {
-                            const index = Number(id)
-                            if (!Number.isNaN(index)) removeItem.mutate(index)
+                          onRemove={() => {
+                            removeItem.mutate({
+                              productId: lineItem.productId,
+                              variantId: lineItem.variantId,
+                            })
                           }}
                           onVariantChange={(variant: ProductVariant) => {
                             if (variant.id === lineItem.variantId) return

@@ -7,6 +7,7 @@ import { useCartStore } from '@/stores/cartStore'
 import { useGuestCartStore, type GuestCartItem } from '@/stores/guestCartStore'
 import { useVendor } from '@/contexts/VendorContext'
 import { apiError, extractApiError } from '@/lib/errorMessages'
+import { clearPendingBuyNow, peekPendingBuyNow } from '@/lib/pendingBuyNow'
 import type { Cart, Product } from '@/types'
 
 export const storeKeys = {
@@ -47,6 +48,40 @@ export function buildGuestCart(items: GuestCartItem[]): Cart {
     coupon_code: null,
     discount_amount: 0,
   } as Cart
+}
+
+export type RemoveCartItemInput =
+  | number
+  | { productId: string; variantId?: string }
+
+type CartLineRef = {
+  product_id?: string
+  variant_id?: string | null
+  productId?: string
+  variantId?: string | null
+}
+
+function lineProductId(line: CartLineRef): string {
+  return String(line.product_id ?? line.productId ?? '')
+}
+
+function lineVariantId(line: CartLineRef): string {
+  return String(line.variant_id ?? line.variantId ?? '')
+}
+
+export function resolveCartLineIndex(
+  items: CartLineRef[] | undefined,
+  input: RemoveCartItemInput,
+): number {
+  if (!items?.length) return -1
+  if (typeof input === 'number') {
+    return input >= 0 && input < items.length ? input : -1
+  }
+  const productId = String(input.productId ?? '')
+  const variantId = String(input.variantId ?? '')
+  return items.findIndex(
+    (line) => lineProductId(line) === productId && lineVariantId(line) === variantId,
+  )
 }
 
 export function useStoreInfo() {
@@ -142,9 +177,19 @@ export function useCart() {
       return cart
     },
     enabled: isAuthenticated,
+    staleTime: 30_000,
+    retry: 1,
+    refetchOnWindowFocus: false,
+    placeholderData: (previous) => previous ?? useCartStore.getState().cart ?? undefined,
   })
 
   const cartFromStore = useCartStore((s) => s.cart)
+
+  const resolvedCart = useMemo(() => {
+    if (!isAuthenticated) return guestCart
+    if (server.isFetched && server.data !== undefined) return server.data
+    return cartFromStore ?? server.data
+  }, [isAuthenticated, guestCart, server.isFetched, server.data, cartFromStore])
 
   if (!isAuthenticated) {
     return {
@@ -157,9 +202,12 @@ export function useCart() {
       status: 'success' as const,
     }
   }
+  const hasCachedItems = (resolvedCart?.items?.length ?? 0) > 0
   return {
     ...server,
-    data: cartFromStore ?? server.data,
+    data: resolvedCart,
+    // Keep checkout usable when add-to-cart already hydrated the local cart.
+    isLoading: server.isLoading && !hasCachedItems,
   }
 }
 
@@ -177,6 +225,10 @@ export function useAddToCart() {
     },
     onSuccess: (cart) => {
       applyCartMutation(qc, cart)
+      if (vendorSlug) {
+        const pending = peekPendingBuyNow(vendorSlug)
+        if (pending) clearPendingBuyNow()
+      }
     },
     onError: apiError('Could not add item to cart — it may be out of stock'),
   })
@@ -244,6 +296,12 @@ export function useChangeCartVariant() {
         const items = [...store.getItems(vendorSlug)]
         const current = items[index]
         if (!current) throw new Error('Cart item not found')
+        if (
+          current.product_id === item.product_id
+          && String(current.variant_id ?? '') === String(item.variant_id ?? '')
+        ) {
+          return buildGuestCart(items)
+        }
         const mergeIdx = items.findIndex(
           (i, idx) =>
             idx !== index &&
@@ -268,6 +326,12 @@ export function useChangeCartVariant() {
       const cart = qc.getQueryData<Cart>(storeKeys.cart) ?? useCartStore.getState().cart
       const current = cart?.items?.[index]
       if (!current) throw new Error('Cart item not found')
+      if (
+        String(current.product_id) === String(item.product_id)
+        && String(current.variant_id ?? '') === String(item.variant_id ?? '')
+      ) {
+        return cart as Cart
+      }
       const qty = current.qty
       const { variant_label: _vl, slug: _slug, ...apiItem } = item
       await storeApi.removeCartItem(index)
@@ -337,22 +401,64 @@ export function useRemoveCartItem() {
   const qc = useQueryClient()
   const { vendorSlug } = useVendor()
   return useMutation({
-    mutationFn: async (index: number) => {
+    mutationFn: async (input: RemoveCartItemInput) => {
+      const isAuth = useAuthStore.getState().isAuthenticated
+      if (!isAuth) {
+        const items = useGuestCartStore.getState().getItems(vendorSlug)
+        const index = resolveCartLineIndex(items, input)
+        if (index < 0) throw new Error('Cart item not found')
+        useGuestCartStore.getState().removeItem(vendorSlug, index)
+        return buildGuestCart(useGuestCartStore.getState().getItems(vendorSlug))
+      }
+
+      const cart = qc.getQueryData<Cart>(storeKeys.cart) ?? useCartStore.getState().cart
+      let index = resolveCartLineIndex(cart?.items as CartLineRef[] | undefined, input)
+      if (index < 0) {
+        const fresh = await storeApi.getCart()
+        applyCartMutation(qc, fresh)
+        index = resolveCartLineIndex(fresh.items as CartLineRef[] | undefined, input)
+      }
+      if (index < 0) throw new Error('Cart item not found')
+      return storeApi.removeCartItem(index)
+    },
+    onMutate: async (input) => {
+      await qc.cancelQueries({ queryKey: storeKeys.cart })
+
       if (!useAuthStore.getState().isAuthenticated) {
         const store = useGuestCartStore.getState()
-        if (index < 0 || index >= store.getItems(vendorSlug).length) {
-          throw new Error('Cart item not found')
-        }
+        const before = store.getItems(vendorSlug)
+        const index = resolveCartLineIndex(before, input)
+        if (index < 0) return {}
+        const snap = before.map((i) => ({ ...i }))
         store.removeItem(vendorSlug, index)
-        return buildGuestCart(store.getItems(vendorSlug))
+        applyCartMutation(qc, buildGuestCart(store.getItems(vendorSlug)))
+        return { guestSnap: snap, vendorSlug }
       }
-      return storeApi.removeCartItem(index)
+
+      const previous = qc.getQueryData<Cart>(storeKeys.cart) ?? useCartStore.getState().cart ?? null
+      const index = resolveCartLineIndex(previous?.items as CartLineRef[] | undefined, input)
+      if (previous?.items && index >= 0) {
+        const items = previous.items.filter((_, i) => i !== index)
+        applyCartMutation(qc, { ...previous, items } as Cart)
+      }
+      return { previous }
     },
     onSuccess: (cart) => {
       applyCartMutation(qc, cart)
       toast.success('Item removed')
     },
-    onError: apiError('Could not remove item from cart'),
+    onError: (err, _input, context) => {
+      if (context?.guestSnap && context.vendorSlug) {
+        useGuestCartStore.setState((state) => ({
+          byVendor: { ...state.byVendor, [context.vendorSlug]: context.guestSnap },
+        }))
+        applyCartMutation(qc, buildGuestCart(context.guestSnap))
+      } else if (context?.previous) {
+        applyCartMutation(qc, context.previous)
+      }
+      qc.invalidateQueries({ queryKey: storeKeys.cart })
+      apiError('Could not remove item from cart')(err)
+    },
   })
 }
 
@@ -462,8 +568,9 @@ export function useCustomerMe() {
   })
 }
 
-export function useCustomerLogin() {
+export function useCustomerLogin(options?: { silentError?: boolean }) {
   const qc = useQueryClient()
+  const { vendorSlug } = useVendor()
   const { setTokens, setCustomer } = useAuthStore()
   return useMutation({
     mutationFn: ({ login, password }: { login: string; password: string }) => storeApi.login(login, password),
@@ -477,11 +584,36 @@ export function useCustomerLogin() {
       } catch {
         // will be re-fetched by useCustomerMe in layout
       }
+
+      if (vendorSlug) {
+        syncCartStore(null)
+        qc.setQueryData(storeKeys.cart, undefined)
+
+        const guestItems = useGuestCartStore.getState().getItems(vendorSlug)
+        if (guestItems.length > 0) {
+          try {
+            let cart = qc.getQueryData<Cart>(storeKeys.cart) ?? useCartStore.getState().cart
+            for (const item of guestItems) {
+              const { variant_label: _vl, slug: _slug, ...apiItem } = item
+              cart = await storeApi.addToCart(apiItem)
+            }
+            if (cart) applyCartMutation(qc, cart)
+            useGuestCartStore.getState().clear(vendorSlug)
+            clearPendingBuyNow()
+          } catch {
+            // Checkout can still complete pending Buy Now item separately.
+          }
+        }
+      }
+
       qc.invalidateQueries({ queryKey: storeKeys.me })
+      qc.invalidateQueries({ queryKey: storeKeys.cart })
       toast.success('Welcome!')
       // Navigation handled by the calling component using vendor context
     },
-    onError: apiError('Login failed — invalid email/phone or password'),
+    onError: options?.silentError
+      ? undefined
+      : apiError('Login failed'),
   })
 }
 
@@ -601,6 +733,7 @@ function mapWishlistItems(raw: { items?: Array<Record<string, unknown>> }) {
     name: String(i.name || ''),
     price: Number(i.price || 0),
     image: String(i.image_url || ''),
+    variantId: i.variant_id ? String(i.variant_id) : undefined,
     savedAt: String(i.saved_at || new Date().toISOString()),
   }))
 }

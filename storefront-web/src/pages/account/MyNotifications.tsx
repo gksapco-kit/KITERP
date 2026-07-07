@@ -36,7 +36,7 @@ export default function MyNotifications() {
   const hasUnread = items.some((n) => !n.is_read)
 
   return (
-    <div className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+    <div className="max-w-2xl mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-6">
       <nav className="text-sm text-gray-500 mb-6">
         <Link to={storePath('/')} className="hover:text-blue-600">Home</Link>
         <ChevronRight className="inline w-3 h-3 mx-1.5" />

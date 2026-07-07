@@ -121,7 +121,7 @@ export default function Register() {
         </div>
 
         {/* ── Right form panel ── */}
-        <div className="flex-1 bg-white px-8 py-10 overflow-y-auto">
+        <div className="flex-1 bg-white px-4 py-8 sm:px-8 sm:py-10 overflow-y-auto">
           <div className="w-full max-w-sm mx-auto">
             <div className="mb-6">
               <h2 className="text-2xl font-bold text-gray-900">Create account</h2>

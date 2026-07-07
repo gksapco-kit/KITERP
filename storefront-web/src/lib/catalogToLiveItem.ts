@@ -1,6 +1,7 @@
 import type { LiveItem } from '@/blocks/registry'
 import type { Product, Service } from '@/types'
 import { formatLiveProductPrice } from '@/lib/liveProductUtils'
+import { resolveProductThumbnailUrl } from '@/lib/productImageUtils'
 
 function primaryImageUrl(images: { url: string; is_primary?: boolean }[] | undefined): string | null {
   if (!images?.length) return null
@@ -15,7 +16,7 @@ export function catalogProductToLiveItem(product: Product): LiveItem {
     title: product.name,
     subtitle: product.brand || product.short_description || null,
     description: product.description || null,
-    image_url: primaryImageUrl(product.images),
+    image_url: resolveProductThumbnailUrl({ images: product.images, variants: product.variants }),
     price: product.price,
     price_formatted: formatLiveProductPrice(product.price, currency),
     url: `/products/${product.slug}`,

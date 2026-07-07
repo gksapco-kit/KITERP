@@ -61,7 +61,7 @@ export default function MyOrders() {
   }, [data?.items, search, sortKey, sortDir])
 
   return (
-    <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+    <div className="max-w-4xl mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-6">
       <nav className="text-sm text-gray-500 mb-6">
         <Link to={storePath('/')} className="hover:text-blue-600">Home</Link>
         <ChevronRight className="inline w-3 h-3 mx-1.5" />
@@ -106,8 +106,8 @@ export default function MyOrders() {
               <Link key={order.id} to={storePath(`/account/orders/${order.id}`)}
                 className="block bg-white rounded-xl border hover:shadow-md transition-all group overflow-hidden max-h-[90vh] overflow-y-auto">
                 {/* Header */}
-                <div className="bg-gray-50 px-5 py-3 border-b flex items-center justify-between flex-wrap gap-2 text-sm">
-                  <div className="flex gap-6 flex-wrap">
+                <div className="bg-gray-50 px-4 sm:px-5 py-3 border-b flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between text-sm">
+                  <div className="flex flex-col gap-2 sm:flex-row sm:gap-6 sm:flex-wrap">
                     <div>
                       <span className="text-gray-500">Order placed: </span>
                       <span className="font-medium">{formatDate(order.created_at)}</span>
@@ -137,7 +137,7 @@ export default function MyOrders() {
                 </div>
 
                 {/* Items preview */}
-                <div className="px-5 py-4 flex items-center justify-between gap-4">
+                <div className="px-4 sm:px-5 py-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-3 overflow-hidden">
                       {order.items.slice(0, 3).map((item, i) => (

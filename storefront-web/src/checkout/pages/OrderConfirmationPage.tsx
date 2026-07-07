@@ -48,7 +48,7 @@ function Inner() {
   return (
     <div className="checkout-root min-h-screen" style={checkoutTheme}>
       <CheckoutHeader />
-      <main className="mx-auto max-w-3xl px-4 py-8 md:px-6">
+      <main className="mx-auto max-w-3xl px-3 py-6 sm:px-4 sm:py-8 md:px-6">
         <div
           className="ck-radius-lg mb-6 flex flex-col items-center px-6 py-10 text-center"
           style={{ background: "hsl(var(--brand-primary) / 0.04)" }}

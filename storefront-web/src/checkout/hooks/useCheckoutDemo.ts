@@ -44,7 +44,7 @@ export function useCheckoutDemo(): { state: CheckoutState; actions: CheckoutActi
   const [shippingAddress, setShippingAddress] = useState<Address | undefined>(mockSavedAddresses[0]);
   const [selectedSavedAddressId, setSelectedSavedAddressId] = useState<string | undefined>(mockSavedAddresses[0].id);
   const [shippingMethodId, setShippingMethodId] = useState<string | undefined>("standard");
-  const [payment, setPayment] = useState<PaymentSelection | undefined>({ kind: "tab", tab: "card" });
+  const [payment, setPayment] = useState<PaymentSelection | undefined>({ kind: "tab", tab: "bnpl" });
   const [notes, setNotes] = useState("");
   const [giftMessage, setGiftMessage] = useState("");
   const [isPlacing, setIsPlacing] = useState(false);

@@ -27,12 +27,12 @@ export default function Policies() {
   ]
 
   return (
-    <div className="max-w-3xl mx-auto px-4 py-8 space-y-8">
-      <h1 className="text-3xl font-bold text-gray-900">Store Policies</h1>
+    <div className="max-w-3xl mx-auto px-3 sm:px-4 py-6 sm:py-8 space-y-6 sm:space-y-8">
+      <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Store Policies</h1>
 
       {sections.map((section) => (
         <div key={section.title} className="bg-white rounded-xl border p-6">
-          <h2 className="text-xl font-semibold text-gray-900 mb-3">{section.title}</h2>
+          <h2 className="text-lg sm:text-xl font-semibold text-gray-900 mb-3">{section.title}</h2>
           <div className="text-sm text-gray-600 leading-relaxed whitespace-pre-line">{section.content}</div>
         </div>
       ))}

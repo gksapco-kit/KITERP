@@ -15,9 +15,10 @@ export function AccordionLayout({ state, actions }: { state: CheckoutState; acti
   const [openItem, setOpenItem] = useState("contact");
   const [addingNew, setAddingNew] = useState(false);
   const hasSaved = showSavedAddresses && (state.customer.savedAddresses?.length ?? 0) > 0;
+  const selectedShippingLabel = state.shippingMethods.find((m) => m.id === state.shippingMethodId)?.label;
 
   return (
-    <div className="mx-auto grid max-w-6xl grid-cols-1 gap-6 px-4 py-6 md:px-6 lg:grid-cols-[minmax(0,1fr)_minmax(340px,460px)] lg:gap-8">
+    <div className="mx-auto grid max-w-6xl grid-cols-1 gap-6 px-3 py-6 sm:px-4 md:px-6 lg:grid-cols-[minmax(0,1fr)_minmax(340px,460px)] lg:gap-8">
       <div className="ck-surface ck-border ck-radius-md min-w-0 p-4 md:p-6">
         <Accordion type="single" collapsible value={openItem} onValueChange={setOpenItem} className="w-full">
           <AccordionItem value="contact">
@@ -90,6 +91,7 @@ export function AccordionLayout({ state, actions }: { state: CheckoutState; acti
         <div className="lg:sticky lg:top-6 lg:pl-1">
           <OrderSummary
             cart={state.cart}
+            selectedShippingLabel={selectedShippingLabel}
             collapsibleOnMobile
             onApplyCoupon={actions.applyCoupon}
             onRemoveCoupon={actions.removeCoupon}

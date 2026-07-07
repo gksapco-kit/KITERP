@@ -18,7 +18,9 @@ import {
 } from '@/lib/variantOptions'
 import { ClassicDetail, ModernDetail, MinimalDetail, ProductQuoteModal } from './templates'
 import { trackView } from '@/lib/recentlyViewed'
-import { assertCanAddToCart, getMaxAddQuantity, getMinAddQuantity } from '@/lib/stockValidation'
+import { assertCanAddToCart, getMaxAddQuantity, getMinAddQuantity, getOnHandQuantity } from '@/lib/stockValidation'
+import { resolveProductThumbnailUrl } from '@/lib/productImageUtils'
+import { setPendingBuyNow } from '@/lib/pendingBuyNow'
 import { toast } from 'sonner'
 
 export default function ProductDetail() {
@@ -120,23 +122,31 @@ export default function ProductDetail() {
   const displayOfferLabel = pricingVariant?.offer_label ?? product?.offer_label
   const displayOnSale = pricingVariant?.is_on_sale ?? product?.is_on_sale
 
+  const stockVariant = useMemo(
+    () => pricingVariant ?? selectedVariant ?? null,
+    [pricingVariant, selectedVariant],
+  )
+
+  const onHandQty = useMemo(() => {
+    if (!product) return null
+    return getOnHandQuantity(product, stockVariant ?? undefined)
+  }, [product, stockVariant])
+
   const maxAddQty = useMemo(() => {
     if (!product) return null
-    const variant = pricingVariant ?? selectedVariant ?? undefined
     return getMaxAddQuantity({
       vendorSlug,
       isAuthenticated,
       productId: product.id,
       product,
-      variant: variant ?? undefined,
+      variant: stockVariant ?? undefined,
     })
-  }, [product, pricingVariant, selectedVariant, vendorSlug, isAuthenticated])
+  }, [product, stockVariant, vendorSlug, isAuthenticated])
 
   const minAddQty = useMemo(() => {
     if (!product) return 1
-    const variant = pricingVariant ?? selectedVariant ?? undefined
-    return getMinAddQuantity({ product, variant: variant ?? undefined })
-  }, [product, pricingVariant, selectedVariant])
+    return getMinAddQuantity({ product, variant: stockVariant ?? undefined })
+  }, [product, stockVariant])
 
   useEffect(() => {
     if (maxAddQty === null || maxAddQty < 1) return
@@ -153,7 +163,7 @@ export default function ProductDetail() {
       id: product.id,
       title: product.name,
       url: `${storePath('/products')}/${product.slug}`,
-      image_url: product.images?.[0]?.url || null,
+      image_url: resolveProductThumbnailUrl({ images: product.images, variants: activeVariants }),
       price: displayPrice,
       currency: displayCurrency,
     })
@@ -164,16 +174,23 @@ export default function ProductDetail() {
     return options.length > 0 ? options : null
   }, [activeVariants, product?.images])
 
-  // Variant media priority: if selected variant has its own media, use it; otherwise fall back to product media
   const displayMedia = useMemo(() => {
     const vm = selectedVariant?.media
-    if (vm && vm.length > 0) return vm.map(m => ({ id: m.url, url: m.url, alt_text: m.alt_text, is_primary: m.is_primary, media_type: m.media_type }))
-    return product?.images || []
-  }, [selectedVariant, product?.images])
+    if (vm && vm.length > 0) {
+      return vm.map(m => ({ id: m.url, url: m.url, alt_text: m.alt_text, is_primary: m.is_primary, media_type: m.media_type }))
+    }
+    if (product?.images?.length) return product.images
+    for (const variant of activeVariants) {
+      if (variant.media?.length) {
+        return variant.media.map(m => ({ id: m.url, url: m.url, alt_text: m.alt_text, is_primary: m.is_primary, media_type: m.media_type }))
+      }
+    }
+    return []
+  }, [selectedVariant, product?.images, activeVariants])
 
   if (isLoading) {
     return (
-      <div className="max-w-6xl mx-auto px-4 py-8">
+      <div className="max-w-6xl mx-auto px-3 py-6 sm:px-4 sm:py-8">
         <div className="grid lg:grid-cols-2 gap-8 animate-pulse">
           <div className="aspect-square bg-muted rounded-lg" />
           <div className="space-y-4">
@@ -196,89 +213,83 @@ export default function ProductDetail() {
     )
   }
 
-  const handleSetQty = (next: number) => {
-    const newQty = Math.max(minAddQty, next)
-    const variant = pricingVariant ?? selectedVariant ?? undefined
-    const stockCheck = assertCanAddToCart({
+  const runStockCheck = (requestQty: number) => {
+    if (!product) return { ok: false as const, message: 'Product unavailable.' }
+    const variant = stockVariant ?? undefined
+    return assertCanAddToCart({
       vendorSlug,
       isAuthenticated,
       productId: product.id,
       productName: product.name,
       product,
-      variant: variant ?? undefined,
+      variant,
       variantLabel: variant ? variantDisplayLabel(variant) || variant.name : undefined,
-      requestQty: newQty,
+      requestQty,
     })
-    if (!stockCheck.ok) {
-      toast.error(stockCheck.message)
-      return
-    }
-    setQty(newQty)
+  }
+
+  const handleSetQty = (next: number) => {
+    setQty(Math.max(minAddQty, next))
+  }
+
+  const validateQtyChange = (next: number) => {
+    return runStockCheck(Math.max(minAddQty, next))
   }
 
   const handleAddToCart = () => {
     if (!variantValidation.valid || !product) return
-    const stockCheck = assertCanAddToCart({
-      vendorSlug,
-      isAuthenticated,
-      productId: product.id,
-      productName: product.name,
-      product,
-      variant: selectedVariant ?? undefined,
-      variantLabel: selectedVariant
-        ? variantDisplayLabel(selectedVariant) || selectedVariant.name
-        : undefined,
-      requestQty: qty,
-    })
+    const stockCheck = runStockCheck(qty)
     if (!stockCheck.ok) {
       toast.error(stockCheck.message)
       return
     }
-    const img = displayMedia?.[0]?.url || product.images?.[0]?.url || ''
-    addToCart.mutate({
-      product_id: product.id,
-      variant_id: selectedVariant?.id,
-      variant_label: selectedVariant ? variantDisplayLabel(selectedVariant) || selectedVariant.name : undefined,
-      slug: product.slug,
-      name: product.name,
-      qty,
-      price: displayPrice,
-      image_url: img,
-    })
-  }
-
-  const handleBuyNow = () => {
-    if (!variantValidation.valid || !product) return
-    const stockCheck = assertCanAddToCart({
-      vendorSlug,
-      isAuthenticated,
-      productId: product.id,
-      productName: product.name,
-      product,
-      variant: selectedVariant ?? undefined,
-      variantLabel: selectedVariant
-        ? variantDisplayLabel(selectedVariant) || selectedVariant.name
-        : undefined,
-      requestQty: qty,
-    })
-    if (!stockCheck.ok) {
-      toast.error(stockCheck.message)
-      return
-    }
-    const img = displayMedia?.[0]?.url || product.images?.[0]?.url || ''
+    const img = displayMedia?.[0]?.url
+      || resolveProductThumbnailUrl({ images: product.images, variants: activeVariants })
+      || ''
     addToCart.mutate(
       {
         product_id: product.id,
-        variant_id: selectedVariant?.id,
-        variant_label: selectedVariant ? variantDisplayLabel(selectedVariant) || selectedVariant.name : undefined,
+        variant_id: stockVariant?.id,
+        variant_label: stockVariant ? variantDisplayLabel(stockVariant) || stockVariant.name : undefined,
         slug: product.slug,
         name: product.name,
         qty,
         price: displayPrice,
         image_url: img,
       },
-      { onSuccess: () => navigate(storePath('/checkout')) },
+      { onSuccess: () => toast.success('Added to cart') },
     )
+  }
+
+  const handleBuyNow = () => {
+    if (!variantValidation.valid || !product) return
+    const stockCheck = runStockCheck(qty)
+    if (!stockCheck.ok) {
+      toast.error(stockCheck.message)
+      return
+    }
+    const img = displayMedia?.[0]?.url
+      || resolveProductThumbnailUrl({ images: product.images, variants: activeVariants })
+      || ''
+    const cartItem = {
+      product_id: product.id,
+      variant_id: stockVariant?.id,
+      variant_label: stockVariant ? variantDisplayLabel(stockVariant) || stockVariant.name : undefined,
+      slug: product.slug,
+      name: product.name,
+      qty,
+      price: displayPrice,
+      image_url: img,
+    }
+
+    if (!isAuthenticated) {
+      setPendingBuyNow({ vendorSlug, productId: product.id, item: cartItem })
+      toast.info('Please sign in to continue to checkout')
+      navigate(storePath('/login'), { state: { from: storePath('/checkout') } })
+      return
+    }
+
+    addToCart.mutate(cartItem, { onSuccess: () => navigate(storePath('/checkout')) })
   }
 
   const handleSubscribe = (config: {
@@ -325,7 +336,7 @@ export default function ProductDetail() {
     displayFields: sf,
     product, selectedVariant, activeVariants, hasVariants,
     selectedVariantId, setSelectedVariantId: handleSelectVariant,
-    qty, setQty: handleSetQty, maxAddQty,
+    qty, setQty: handleSetQty, validateQtyChange, maxAddQty, minAddQty, onHandQty,
     displayPrice, displayCompare, displayCurrency, displayStock,
     displayOfferLabel, displayOnSale, discount, variantColors, onSelectColor: handleSelectColor,
     optionRows, selections, onSelectSize: handleSelectSize, selectedColorName,

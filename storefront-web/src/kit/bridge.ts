@@ -5,6 +5,10 @@
 import type { Product as StoreProduct, ServiceItem } from '@/storefront/types'
 import type { Customer, Order as AppOrder, CartItem } from '@/types/index'
 import type { Product, CartLine, Service, Order, AccountUser, WishlistItem } from './types'
+import {
+  collectProductGalleryImages,
+  resolveProductThumbnailUrl,
+} from '@/lib/productImageUtils'
 
 /** Minor units (paise/cents) → major units (rupees/dollars) */
 function fromMinor(amount: number): number {
@@ -13,6 +17,11 @@ function fromMinor(amount: number): number {
 
 export function bridgeProduct(p: StoreProduct): Product {
   const variants = p.variants ?? []
+  const extendedVariants = variants as Array<
+    StoreProduct['variants'][number] & {
+      media?: { url: string; media_type?: string; is_primary?: boolean; alt_text?: string }[]
+    }
+  >
   const firstVariant = variants[0]
   const variantPrices = variants.map((v) => fromMinor(v.price.amount))
   const minPrice = variantPrices.length ? Math.min(...variantPrices) : 0
@@ -22,6 +31,14 @@ export function bridgeProduct(p: StoreProduct): Product {
   const price = showFromPrice ? minPrice : basePrice
   const compareAtPrice = firstVariant?.compareAtPrice ? fromMinor(firstVariant.compareAtPrice.amount) : undefined
   const currency = firstVariant?.price.currency ?? 'INR'
+  const galleryImages = collectProductGalleryImages({
+    images: (p.images || []).map((img) => ({ url: img.url, alt_text: img.alt })),
+    variants: extendedVariants,
+  })
+  const thumbnail = resolveProductThumbnailUrl({
+    images: (p.images || []).map((img) => ({ url: img.url, alt_text: img.alt })),
+    variants: extendedVariants,
+  })
   return {
     id: p.id,
     slug: p.slug,
@@ -29,8 +46,10 @@ export function bridgeProduct(p: StoreProduct): Product {
     price,
     compareAtPrice,
     currency,
-    image: p.images?.[0]?.url ?? 'https://placehold.co/600x600?text=No+Image',
-    images: p.images?.map((i) => ({ url: i.url, alt_text: i.alt })),
+    image: thumbnail ?? '',
+    images: galleryImages.length
+      ? galleryImages.map((img) => ({ url: img.url, alt_text: img.alt_text }))
+      : p.images?.map((i) => ({ url: i.url, alt_text: i.alt })),
     rating: p.rating?.value,
     reviewCount: p.rating?.count,
     tags: p.tags,
@@ -41,13 +60,14 @@ export function bridgeProduct(p: StoreProduct): Product {
     quantity: (p as { quantity?: number }).quantity,
     stock_status: (p as { stock_status?: string }).stock_status,
     showFromPrice,
-    variants: variants.map((v) => ({
+    variants: extendedVariants.map((v) => ({
       id: v.id,
       label: v.name,
       value: v.id,
       available: v.inStock,
       color: (v as { color?: string }).color,
       attributes: v.options ?? (v as { attributes?: Record<string, string> }).attributes,
+      media: v.media,
       price: fromMinor(v.price.amount),
       compareAtPrice: v.compareAtPrice ? fromMinor(v.compareAtPrice.amount) : undefined,
       quantity: (v as { quantity?: number }).quantity,

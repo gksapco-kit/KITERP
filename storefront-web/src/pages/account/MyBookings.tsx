@@ -67,7 +67,7 @@ export default function MyBookings() {
   }
 
   return (
-    <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+    <div className="max-w-4xl mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-6">
       <nav className="text-sm text-gray-500 mb-6">
         <Link to={storePath('/')} className="hover:text-blue-600">Home</Link>
         <ChevronRight className="inline w-3 h-3 mx-1.5" />
@@ -111,7 +111,7 @@ export default function MyBookings() {
             const canCancel = ['pending', 'confirmed'].includes(b.status)
             return (
               <div key={b.id} className="bg-white rounded-xl border p-5 hover:shadow-sm transition-shadow max-h-[90vh] overflow-y-auto">
-                <div className="flex items-start justify-between gap-4">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
                       <span className="text-xs font-mono text-gray-400">{b.booking_number}</span>
@@ -139,10 +139,10 @@ export default function MyBookings() {
                       <p className="text-xs text-red-500 mt-2">Reason: {b.cancel_reason}</p>
                     )}
                   </div>
-                  <div className="text-right shrink-0 flex flex-col items-end gap-1">
+                  <div className="flex w-full flex-col gap-2 sm:w-auto sm:shrink-0 sm:items-end sm:text-right">
                     <p className="text-lg font-bold text-gray-900">{formatCurrency(b.total)}</p>
                     <p className="text-xs text-gray-400 capitalize">{b.payment_status}</p>
-                    <div className="flex gap-2 mt-1">
+                    <div className="flex flex-wrap gap-2 mt-1">
                       {b.order_id && (
                         <Button
                           variant="outline"

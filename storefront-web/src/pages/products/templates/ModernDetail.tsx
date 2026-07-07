@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { formatCurrency, imgUrl } from '@/lib/utils'
 import {
-  Minus, Plus, ShoppingCart, Loader2, ShoppingBag,
+  ShoppingBag,
   Truck, ShieldCheck, RefreshCw, ChevronRight, Tag, Package,
   Award, Zap, Check, Info, Box, Repeat, MessageSquare,
 } from 'lucide-react'
@@ -13,6 +13,8 @@ import ReviewSection from '@/components/ReviewSection'
 import MerchProductGrid from './MerchProductGrid'
 import MediaViewer from '@/components/MediaViewer'
 import ColorSwatchPicker from '@/components/products/ColorSwatchPicker'
+import { ProductPurchaseActions } from '@/components/products/ProductPurchaseActions'
+import { ProductMediaWishlistOverlay } from '@/components/products/ProductMediaWishlistOverlay'
 import { isCombinationAvailable } from '@/lib/variantOptions'
 import type { ProductDetailTemplateProps } from './types'
 import { isDisplayFieldEnabled } from '@/lib/storefrontDisplayFields'
@@ -24,7 +26,7 @@ export default function ModernDetail(props: ProductDetailTemplateProps) {
   const {
     displayFields,
     product, selectedVariant, activeVariants, hasVariants,
-    setSelectedVariantId, qty, setQty, maxAddQty,
+    setSelectedVariantId, qty, setQty, validateQtyChange, maxAddQty, minAddQty, onHandQty,
     displayPrice, displayCompare, displayCurrency, displayStock,
     displayOfferLabel, displayOnSale, discount, variantColors, onSelectColor,
     optionRows, selections, onSelectSize, selectedColorName, variantValidation, hasStructuredOptions,
@@ -85,7 +87,7 @@ export default function ModernDetail(props: ProductDetailTemplateProps) {
   }, [tabs, activeTab])
 
   return (
-    <div className="max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8 py-6">
+    <div className="max-w-[1440px] mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-6">
       {/* Breadcrumb */}
       <nav className="text-sm text-gray-500 mb-4 flex items-center flex-wrap gap-1">
         <Link to={storePath('/')} className="hover:text-blue-600">Home</Link>
@@ -110,6 +112,16 @@ export default function ModernDetail(props: ProductDetailTemplateProps) {
               selectedIndex={selectedImage}
               onSelect={setSelectedImage}
               productName={product.name}
+              thumbnailPosition="left"
+              topRightOverlay={
+                <ProductMediaWishlistOverlay
+                  product={product}
+                  selectedVariant={selectedVariant}
+                  displayPrice={displayPrice}
+                  displayMedia={displayMedia}
+                  selectedImage={selectedImage}
+                />
+              }
               badges={
                 <div className="absolute top-3 left-3 flex flex-col gap-1.5">
                   {showCompare && discount > 0 && <span className="bg-red-500 text-white text-xs font-bold px-2.5 py-1 rounded-lg shadow">-{discount}%</span>}
@@ -477,48 +489,27 @@ export default function ModernDetail(props: ProductDetailTemplateProps) {
               </div>
             )}
 
-            <div className="border-t pt-4" />
-
-            {/* Quantity */}
-            <div>
-              <p className="text-sm font-medium text-gray-700 mb-2">Quantity</p>
-              <div className="flex items-center border rounded-lg overflow-hidden w-fit">
-                <button onClick={() => setQty(Math.max(1, qty - 1))} className="w-10 h-10 flex items-center justify-center hover:bg-gray-50"><Minus className="w-4 h-4" /></button>
-                <span className="w-12 h-10 flex items-center justify-center border-x text-sm font-bold bg-gray-50">{qty}</span>
-                <button onClick={() => setQty(qty + 1)} className="w-10 h-10 flex items-center justify-center hover:bg-gray-50"><Plus className="w-4 h-4" /></button>
-              </div>
-              {selectedVariant && qty > 1 && (
-                <p className="text-xs text-gray-500 mt-1">Total: {formatCurrency(displayPrice * qty, displayCurrency)}</p>
-              )}
-            </div>
-
-            {/* Buttons */}
-            {isAuthenticated ? (
-              <div className="space-y-2">
-                {isSubscription ? (
-                  <p className="text-xs text-gray-400 text-center">Use the subscription plan above to subscribe.</p>
-                ) : (
-                  <>
-                    <Button className="w-full h-12 gap-2 bg-amber-400 hover:bg-amber-500 text-slate-900 font-bold text-sm"
-                      onClick={handleAddToCart} disabled={addToCartPending || displayStock === 'out_of_stock' || !variantValidation.valid}>
-                      {addToCartPending ? <Loader2 className="w-5 h-5 animate-spin" /> : <ShoppingCart className="w-5 h-5" />}
-                      {displayStock === 'out_of_stock' ? 'Out of Stock' : 'Add to Cart'}
-                    </Button>
-                    <Button className="w-full h-12 font-bold text-sm" onClick={handleBuyNow}
-                      disabled={addToCartPending || displayStock === 'out_of_stock' || !variantValidation.valid}>Buy Now</Button>
-                  </>
-                )}
-                {canQuote && (
-                  <Button variant="outline" className="w-full h-11 font-bold rounded-xl mt-2" onClick={() => setShowQuote(true)}>
-                    <MessageSquare className="w-5 h-5 mr-2" /> Request a Quote
-                  </Button>
-                )}
-              </div>
-            ) : (
-              <Link to={storePath('/login')}>
-                <Button className="w-full h-12 font-bold bg-amber-400 hover:bg-amber-500 text-slate-900">Sign in to Buy</Button>
-              </Link>
-            )}
+            <ProductPurchaseActions
+              qty={qty}
+              setQty={setQty}
+              validateQtyChange={validateQtyChange}
+              maxQty={maxAddQty}
+              minQty={minAddQty}
+              onHandQty={onHandQty}
+              displayPrice={displayPrice}
+              displayCurrency={displayCurrency}
+              displayStock={displayStock}
+              variantValidationValid={variantValidation.valid}
+              addToCartPending={addToCartPending}
+              handleAddToCart={handleAddToCart}
+              handleBuyNow={handleBuyNow}
+              isSubscription={isSubscription}
+              canQuote={canQuote}
+              onRequestQuote={() => setShowQuote(true)}
+              isAuthenticated={isAuthenticated}
+              storePath={storePath}
+              className="space-y-4 border-t pt-4"
+            />
 
             {/* Trust strip */}
             <div className="border-t pt-4 space-y-2.5">

@@ -48,6 +48,8 @@ class Order(Base):
     )  # pending, paid, failed, refunded, partially_refunded
     payment_method = Column(String(30))
     payment_reference = Column(String(255))
+    # Manual UPI proof: { utr, screenshot_url, status, submitted_at, reviewed_at, notes }
+    payment_proof = Column(JSONB, nullable=True)
 
     # Shipping
     shipping_address = Column(JSONB)

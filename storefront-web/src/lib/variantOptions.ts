@@ -7,6 +7,35 @@ const SIZE_VALUE_PATTERN =
 
 const SIZE_ORDER = ['xxs', 'xs', 's', 'm', 'l', 'xl', 'xxl', '2xl', '3xl', '4xl']
 
+const SIZE_NAME_TO_CODE: Record<string, string> = {
+  'extra small': 'XS',
+  'x-small': 'XS',
+  xsmall: 'XS',
+  small: 'S',
+  medium: 'M',
+  large: 'L',
+  'extra large': 'XL',
+  'x-large': 'XL',
+  xlarge: 'XL',
+  'xx-large': 'XXL',
+  xxlarge: 'XXL',
+  '2xl': '2XL',
+  '3xl': '3XL',
+  '4xl': '4XL',
+  'one size': 'OS',
+  os: 'OS',
+}
+
+/** Prefer short size codes (S, M, L) over display names (Small, Medium, Large). */
+function toCompactSizeCode(value: string): string {
+  const trimmed = value.trim()
+  if (!trimmed) return trimmed
+  const mapped = SIZE_NAME_TO_CODE[trimmed.toLowerCase()]
+  if (mapped) return mapped
+  if (isSizeLikeToken(trimmed) && trimmed.length <= 4) return trimmed.toUpperCase()
+  return trimmed
+}
+
 export function isSizeLikeToken(value: string): boolean {
   const trimmed = value.trim()
   if (!trimmed) return false
@@ -41,18 +70,28 @@ export function normalizeVariantAttributes(variant: ProductVariant): Record<stri
     const name = variant.name?.trim() ?? ''
     if (name && !GENERIC_VARIANT_NAMES.test(name)) {
       if (isColorLikeToken(name)) return { Color: name }
-      if (isSizeLikeToken(name)) return { Size: name }
+      if (isSizeLikeToken(name)) return { Size: toCompactSizeCode(name) }
     }
     return {}
   }
 
+  const valueKey = keys.find((k) => k.toLowerCase() === 'value')
   const sizeKey = keys.find((k) => isSizeDimension(k))
-  if (sizeKey) {
+  const valueCode = valueKey ? attrs[valueKey]?.trim() : ''
+  const sizeLabel = sizeKey ? attrs[sizeKey]?.trim() : ''
+  const canonicalSize = valueCode
+    ? toCompactSizeCode(valueCode)
+    : sizeLabel
+      ? toCompactSizeCode(sizeLabel)
+      : ''
+
+  if (canonicalSize || sizeKey || valueKey) {
     const out: Record<string, string> = {}
     for (const [k, v] of Object.entries(attrs)) {
-      if (isSizeDimension(k)) out.Size = v
-      else out[k] = v
+      if (isSizeDimension(k) || k.toLowerCase() === 'value') continue
+      out[k] = v
     }
+    if (canonicalSize) out.Size = canonicalSize
     return out
   }
 
@@ -61,10 +100,10 @@ export function normalizeVariantAttributes(variant: ProductVariant): Record<stri
     const val = attrs[key]
     if (isColorDimension(key)) return attrs
     if (isSizeLikeToken(key) && !isColorDimension(key)) {
-      return { Size: val || key }
+      return { Size: toCompactSizeCode(val || key) }
     }
     if (val && key.toLowerCase() === val.toLowerCase() && isSizeLikeToken(val)) {
-      return { Size: val }
+      return { Size: toCompactSizeCode(val) }
     }
   }
 
@@ -110,16 +149,16 @@ function collectSizeValuesFromVariants(variants: ProductVariant[]): string[] {
     const attrs = getVariantAttributes(v)
     for (const [key, val] of Object.entries(attrs)) {
       if (!val || isColorDimension(key)) continue
-      if (isSizeDimension(key) || isSizeLikeToken(val)) values.add(val)
+      if (isSizeDimension(key) || isSizeLikeToken(val)) values.add(toCompactSizeCode(val))
     }
     const name = v.name?.trim() ?? ''
     if (!name || GENERIC_VARIANT_NAMES.test(name)) continue
     if (isSizeLikeToken(name)) {
-      values.add(name)
+      values.add(toCompactSizeCode(name))
       continue
     }
     for (const part of name.split(/[/·\-–|,]+/).map((p) => p.trim()).filter(Boolean)) {
-      if (isSizeLikeToken(part)) values.add(part)
+      if (isSizeLikeToken(part)) values.add(toCompactSizeCode(part))
     }
   }
   return sortSizeValues([...values])
@@ -132,6 +171,83 @@ function getColorFromVariant(v: ProductVariant): string | undefined {
   const name = v.name?.trim()
   if (name && isColorLikeToken(name)) return name
   return undefined
+}
+
+function parseGalleryColorIndex(name: string): number | undefined {
+  const match = name.trim().match(/^color\s+(\d+)$/i)
+  if (!match) return undefined
+  return Number(match[1]) - 1
+}
+
+function stripSpuriousSizeSelections(
+  normalized: ProductVariant[],
+  selections: Record<string, string>,
+): Record<string, string> {
+  const hasStructuredSize = normalized.some((v) => {
+    const attrs = getVariantAttributes(v)
+    return Object.keys(attrs).some(isSizeDimension) || Boolean(attrs.Size)
+  })
+  if (hasStructuredSize) return selections
+
+  const out = { ...selections }
+  for (const key of Object.keys(out)) {
+    if (isSizeDimension(key) || key === 'Size') delete out[key]
+  }
+  return out
+}
+
+function variantsHaveStructuredSize(variants: ProductVariant[]): boolean {
+  const normalized = normalizeVariantsForOptions(variants)
+  return normalized.some((v) => {
+    const attrs = getVariantAttributes(v)
+    return Object.keys(attrs).some(isSizeDimension) || Boolean(attrs.Size)
+  })
+}
+
+function applySizeDefaultsIfStructured(
+  variants: ProductVariant[],
+  rows: ProductCardOptionRow[],
+  target: Record<string, string>,
+) {
+  if (!variantsHaveStructuredSize(variants)) return
+  for (const row of rows) {
+    if (row.type === 'size' && !target[row.label] && row.values[0]) {
+      target[row.label] = row.values[0]
+    }
+  }
+}
+
+function variantHasSize(variant: ProductVariant, size?: string): boolean {
+  if (!size) return true
+  const attrs = getVariantAttributes(variant)
+  const sizeKey = Object.keys(attrs).find(isSizeDimension) || (attrs.Size ? 'Size' : undefined)
+  const variantSize = sizeKey ? attrs[sizeKey] : undefined
+  return !variantSize || variantSize === size
+}
+
+function resolveVariantByColorName(
+  normalized: ProductVariant[],
+  colorName: string,
+  selections: Record<string, string>,
+): ProductVariant | undefined {
+  const sizeSel = getSizeSelection(selections)
+  const galleryIdx = parseGalleryColorIndex(colorName)
+  if (galleryIdx != null && galleryIdx >= 0) {
+    const candidate = normalized[galleryIdx] ?? normalized[0]
+    if (candidate && variantHasSize(candidate, sizeSel)) return candidate
+  }
+
+  return normalized.find((v) => {
+    if (!variantHasSize(v, sizeSel)) return false
+    const colorLabel = getColorFromVariant(v)
+    const css = variantColorCss(v)
+    const needle = colorName.toLowerCase()
+    if (colorLabel?.toLowerCase() === needle) return true
+    if (css?.toLowerCase() === needle) return true
+    if (colorValueToCss(colorName, v)?.toLowerCase() === css?.toLowerCase()) return true
+    const label = variantDisplayLabel(v) || v.name
+    return label?.toLowerCase() === needle
+  })
 }
 
 export function isCombinationAvailable(
@@ -150,24 +266,29 @@ export function validateVariantCombination(
   const normalized = normalizeVariantsForOptions(variants)
   if (!normalized.length) return { valid: true }
 
+  const cleanedSelections = stripSpuriousSizeSelections(normalized, selections)
   const colorDim = getVariantOptionDimensions(normalized).find(isColorDimension)
-  const merged: Record<string, string> = { ...selections }
+  const merged: Record<string, string> = { ...cleanedSelections }
   if (colorName && colorDim) merged[colorDim] = colorName
 
   const exact = findVariantBySelections(normalized, merged)
   const colorSelectionComplete =
-    !colorName || (colorDim ? merged[colorDim] === colorName : false)
+    !colorName || !colorDim || merged[colorDim] === colorName
   if (exact && colorSelectionComplete) return { valid: true, variant: exact }
 
   if (colorName) {
+    const match = resolveVariantByColorName(normalized, colorName, merged)
+    if (match) return { valid: true, variant: match }
+
+    // Legacy inline matcher kept for edge cases with partial selections
     const sizeSel = getSizeSelection(merged)
-    const match = normalized.find((v) => {
+    const legacyMatch = normalized.find((v) => {
       const attrs = getVariantAttributes(v)
       if (sizeSel) {
         const sizeKey = Object.keys(attrs).find(isSizeDimension) || (attrs.Size ? 'Size' : undefined)
         const variantSize = sizeKey ? attrs[sizeKey] : undefined
         if (variantSize && variantSize !== sizeSel) return false
-      } else if (Object.keys(selections).length > 0 && !partialSelectionMatch(v, selections)) {
+      } else if (Object.keys(cleanedSelections).length > 0 && !partialSelectionMatch(v, cleanedSelections)) {
         return false
       }
 
@@ -179,7 +300,7 @@ export function validateVariantCombination(
       if (colorValueToCss(colorName, v)?.toLowerCase() === css?.toLowerCase()) return true
       return false
     })
-    if (match) return { valid: true, variant: match }
+    if (legacyMatch) return { valid: true, variant: legacyMatch }
   }
 
   if (!colorName && Object.keys(merged).length > 0) {
@@ -187,10 +308,21 @@ export function validateVariantCombination(
     if (partial) return { valid: true, variant: partial }
   }
 
+  if (colorName) {
+    const byColor = resolveVariantByColorName(normalized, colorName, merged)
+    if (byColor) return { valid: true, variant: byColor }
+  }
+
+  if (Object.keys(merged).length === 0 && !colorName && normalized.length === 1) {
+    return { valid: true, variant: normalized[0] }
+  }
+
   const size = getSizeSelection(merged)
   const color = colorName || (colorDim ? merged[colorDim] : undefined)
 
   if (size && color) {
+    const galleryResolved = resolveVariantByColorName(normalized, color, merged)
+    if (galleryResolved) return { valid: true, variant: galleryResolved }
     const availableColors = [
       ...new Set(
         normalized
@@ -234,24 +366,31 @@ export function buildProductCardOptionRows(
   const normalized = normalizeVariantsForOptions(variants)
   const rows: ProductCardOptionRow[] = []
   const dimensions = getVariantOptionDimensions(normalized)
+  const colorOpts = getProductPageColorOptions(normalized, productImages)
+  const colorDim = dimensions.find(isColorDimension)
+  const galleryOnlyColors = colorOpts.length > 0 && !colorDim
   let hasSizeRow = false
 
   for (const dim of dimensions) {
     if (isColorDimension(dim)) continue
+    if (dim.toLowerCase() === 'value') continue
     const values = getValuesForDimension(normalized, dim)
     if (!values.length) continue
 
-    if (isSizeDimension(dim) || values.every(isSizeLikeToken)) {
-      rows.push({ type: 'size', label: 'Size', values: sortSizeValues(values) })
+    const compactValues = sortSizeValues(values.map(toCompactSizeCode))
+    const uniqueValues = [...new Set(compactValues)]
+
+    if (isSizeDimension(dim) || uniqueValues.every(isSizeLikeToken)) {
+      rows.push({ type: 'size', label: 'Size', values: uniqueValues })
       hasSizeRow = true
       continue
     }
 
-    rows.push({ type: 'size', label: dim, values })
+    rows.push({ type: 'size', label: dim, values: uniqueValues })
     hasSizeRow = true
   }
 
-  if (!hasSizeRow) {
+  if (!hasSizeRow && !galleryOnlyColors) {
     const inferredSizes = collectSizeValuesFromVariants(normalized)
     if (inferredSizes.length > 0) {
       rows.push({ type: 'size', label: 'Size', values: inferredSizes })
@@ -259,7 +398,6 @@ export function buildProductCardOptionRows(
     }
   }
 
-  const colorOpts = getProductPageColorOptions(normalized, productImages)
   if (colorOpts.length > 0) {
     rows.push({
       type: 'color',
@@ -274,7 +412,7 @@ export function buildProductCardOptionRows(
     })
   }
 
-  if (!hasSizeRow && variants.length > 1) {
+  if (!hasSizeRow && variants.length > 1 && !galleryOnlyColors) {
     const names = variants
       .map((v) => v.name?.trim())
       .filter((n): n is string => !!n && !GENERIC_VARIANT_NAMES.test(n))
@@ -283,7 +421,7 @@ export function buildProductCardOptionRows(
       rows.unshift({
         type: 'size',
         label: 'Size',
-        values: uniqueNames.every(isSizeLikeToken) ? sortSizeValues(uniqueNames) : uniqueNames,
+        values: uniqueNames.every(isSizeLikeToken) ? sortSizeValues(uniqueNames.map(toCompactSizeCode)) : uniqueNames,
       })
     }
   }
@@ -382,30 +520,61 @@ export function resolveVariantForCardPricing(
   return normalized.find((v) => v.is_active !== false) ?? normalized[0]
 }
 
+export function resolveColorNameForVariant(
+  variant: ProductVariant | undefined,
+  rows: ProductCardOptionRow[],
+  variants: ProductVariant[] = [],
+): string | undefined {
+  if (!variant || !rows.length) return undefined
+
+  const attrs = getVariantAttributes(variant)
+  const colorKey = Object.keys(attrs).find(isColorDimension)
+  if (colorKey) return attrs[colorKey]
+
+  const colorRow = rows.find((r) => r.type === 'color')
+  if (colorRow?.type !== 'color') return undefined
+
+  const byId = colorRow.swatches.find(
+    (s) => s.variantId === variant.id && !String(s.variantId).startsWith('gallery-'),
+  )
+  if (byId) return byId.value
+
+  const normalized = normalizeVariantsForOptions(variants.length ? variants : [variant])
+  const idx = normalized.findIndex((v) => v.id === variant.id)
+  if (idx >= 0) {
+    const byGalleryIndex = colorRow.swatches.find(
+      (s) => parseGalleryColorIndex(s.value) === idx,
+    )
+    if (byGalleryIndex) return byGalleryIndex.value
+    if (colorRow.swatches[idx]) return colorRow.swatches[idx].value
+  }
+
+  return undefined
+}
+
 export function resolveCardDefaultSelections(
   variants: ProductVariant[],
   rows: ProductCardOptionRow[],
   preferredVariant?: ProductVariant,
 ): { selections: Record<string, string>; colorName?: string } {
-  const selections = { ...selectionsFromVariant(preferredVariant) }
-  for (const row of rows) {
-    if (row.type === 'size' && !selections[row.label] && row.values[0]) {
-      selections[row.label] = row.values[0]
-    }
-  }
+  const selections = stripSpuriousSizeSelections(
+    normalizeVariantsForOptions(variants),
+    { ...selectionsFromVariant(preferredVariant) },
+  )
+  applySizeDefaultsIfStructured(variants, rows, selections)
 
   const colorRow = rows.find((r) => r.type === 'color')
-  let colorName: string | undefined
-  if (preferredVariant && colorRow?.type === 'color') {
-    const attrs = getVariantAttributes(preferredVariant)
-    const colorKey = Object.keys(attrs).find(isColorDimension)
-    if (colorKey) colorName = attrs[colorKey]
-    if (!colorName) {
-      colorName = colorRow.swatches.find((s) => s.variantId === preferredVariant.id)?.value
-    }
-  }
+  let colorName = resolveColorNameForVariant(preferredVariant, rows, variants)
+
   if (!colorName && colorRow?.type === 'color') {
-    colorName = colorRow.swatches[0]?.value
+    for (const swatch of colorRow.swatches) {
+      const tryValidation = validateVariantCombination(variants, selections, swatch.value)
+      if (tryValidation.valid) {
+        colorName = swatch.value
+        break
+      }
+    }
+    if (!colorName) colorName = colorRow.swatches[0]?.value
   }
 
   let validation = validateVariantCombination(variants, selections, colorName)
@@ -413,15 +582,12 @@ export function resolveCardDefaultSelections(
 
   const first = variants.find((v) => v.is_active !== false) ?? variants[0]
   if (first) {
-    const retrySelections = { ...selectionsFromVariant(first) }
-    for (const row of rows) {
-      if (row.type === 'size' && !retrySelections[row.label] && row.values[0]) {
-        retrySelections[row.label] = row.values[0]
-      }
-    }
-    const retryColor =
-      getColorFromVariant(first) ??
-      (colorRow?.type === 'color' ? colorRow.swatches[0]?.value : undefined)
+    const retrySelections = stripSpuriousSizeSelections(
+      normalizeVariantsForOptions(variants),
+      { ...selectionsFromVariant(first) },
+    )
+    applySizeDefaultsIfStructured(variants, rows, retrySelections)
+    const retryColor = resolveColorNameForVariant(first, rows, variants) ?? colorRow?.swatches[0]?.value
     validation = validateVariantCombination(variants, retrySelections, retryColor)
     if (validation.valid) {
       return { selections: retrySelections, colorName: retryColor }
@@ -628,23 +794,46 @@ function dedupeProductImages(imgs: { url: string; alt_text?: string }[]): { url:
   })
 }
 
+function variantImageUrl(variant?: ProductVariant): string | undefined {
+  const item = variant?.media?.find(
+    (m) => (m.media_type || 'image') === 'image' && m.url,
+  )
+  return item?.url
+}
+
+function findSampleVariantForDimensionValue(
+  variants: ProductVariant[],
+  dimension: string,
+  value: string,
+): ProductVariant | undefined {
+  const normalized = normalizeVariantsForOptions(variants)
+  const dimLower = dimension.toLowerCase()
+  const matches = normalized.filter((variant) => {
+    const attrs = getVariantAttributes(variant)
+    const key = Object.keys(attrs).find((k) => k.toLowerCase() === dimLower)
+    return key != null && attrs[key] === value
+  })
+  if (!matches.length) return undefined
+  return matches.find((v) => variantImageUrl(v)) ?? matches[0]
+}
+
 function dedupeColorOptions(options: ProductColorOption[]): ProductColorOption[] {
-  const seenUrl = new Set<string>()
-  const seenName = new Set<string>()
+  const seen = new Set<string>()
   const out: ProductColorOption[] = []
   for (const opt of options) {
-    const urlKey = opt.imageUrl ? normalizeImageUrl(opt.imageUrl) : ''
     const nameKey = opt.name.trim().toLowerCase()
     const genericName = /^color \d+$/.test(nameKey)
+    const cssKey = opt.color.trim().toLowerCase()
+    const key = !genericName && nameKey
+      ? `name:${nameKey}`
+      : cssKey
+        ? `css:${cssKey}`
+        : opt.imageUrl
+          ? `url:${normalizeImageUrl(opt.imageUrl)}`
+          : `id:${opt.id}`
 
-    if (urlKey) {
-      if (seenUrl.has(urlKey)) continue
-      seenUrl.add(urlKey)
-    } else if (nameKey && !genericName) {
-      if (seenName.has(nameKey)) continue
-      seenName.add(nameKey)
-    }
-
+    if (seen.has(key)) continue
+    seen.add(key)
     out.push(opt)
   }
   return out
@@ -699,7 +888,7 @@ export function getProductPageColorOptions(
   const colorDim = getVariantOptionDimensions(normalized).find(isColorDimension)
   if (colorDim) {
     for (const value of getValuesForDimension(normalized, colorDim)) {
-      const sample = findVariantForDimensionValue(normalized, colorDim, value)
+      const sample = findSampleVariantForDimensionValue(normalized, colorDim, value)
       if (!sample) continue
       const css = colorValueToCss(value, sample) || '#9ca3af'
       const key = value.toLowerCase()
@@ -711,7 +900,7 @@ export function getProductPageColorOptions(
         variantId: sample.id,
         name: value,
         color: css,
-        imageUrl: sample.media?.[0]?.url || imgMatch?.url,
+        imageUrl: variantImageUrl(sample) || imgMatch?.url,
         imageIndex: imgMatch?.index,
       })
     }
@@ -721,17 +910,18 @@ export function getProductPageColorOptions(
     for (const v of normalized) {
       const css = variantColorCss(v)
       if (!css) continue
-      const key = css.toLowerCase()
+      const colorLabel = getColorFromVariant(v)
+      const key = (colorLabel || css).toLowerCase()
       if (seen.has(key)) continue
       seen.add(key)
-      const label = variantDisplayLabel(v) || v.name
+      const label = colorLabel || variantDisplayLabel(v) || v.name
       const imgMatch = label && productImages?.length ? matchImageToColorName(productImages, label) : undefined
       options.push({
         id: v.id,
         variantId: v.id,
         name: label,
         color: css,
-        imageUrl: v.media?.[0]?.url || imgMatch?.url,
+        imageUrl: variantImageUrl(v) || imgMatch?.url,
         imageIndex: imgMatch?.index,
       })
     }
@@ -751,7 +941,7 @@ export function getProductPageColorOptions(
         variantId: v.id,
         name,
         color: css,
-        imageUrl: v.media?.[0]?.url || imgMatch?.url,
+        imageUrl: variantImageUrl(v) || imgMatch?.url,
         imageIndex: imgMatch?.index,
       })
     }
@@ -761,12 +951,12 @@ export function getProductPageColorOptions(
 
   if (colorDim && options.length > 0) {
     return dedupeColorOptions(
-      options.map((opt, i) => {
+      options.map((opt) => {
         const imgMatch = matchImageToColorName(imgs, opt.name)
         return {
           ...opt,
-          imageUrl: opt.imageUrl || imgMatch?.url || imgs[i]?.url,
-          imageIndex: opt.imageIndex ?? imgMatch?.index ?? (imgs[i] ? i : undefined),
+          imageUrl: opt.imageUrl || imgMatch?.url,
+          imageIndex: opt.imageIndex ?? imgMatch?.index,
         }
       }),
     )
@@ -780,11 +970,14 @@ export function getProductPageColorOptions(
 
   if (options.length >= 1) {
     return dedupeColorOptions(
-      options.map((opt, i) => ({
-        ...opt,
-        imageUrl: opt.imageUrl || imgs[i]?.url,
-        imageIndex: opt.imageIndex ?? (imgs[i] ? i : undefined),
-      })),
+      options.map((opt) => {
+        const imgMatch = matchImageToColorName(imgs, opt.name)
+        return {
+          ...opt,
+          imageUrl: opt.imageUrl || imgMatch?.url,
+          imageIndex: opt.imageIndex ?? imgMatch?.index,
+        }
+      }),
     )
   }
 

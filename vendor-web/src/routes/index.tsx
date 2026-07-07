@@ -244,6 +244,7 @@ import SalesRecurringBookingsPage from '@/pages/sales/RecurringBookings'
 import SalesTestimonialsPage from '@/pages/sales/Testimonials'
 import SalesBookingWizardStepsPage from '@/pages/sales/BookingWizardSteps'
 import SalesBookingResourcesPage from '@/pages/sales/BookingResources'
+import DeliveryConditionsPage from '@/pages/sales/DeliveryConditions'
 
 const routerBasename = (import.meta.env.VITE_ROUTER_BASENAME || '').replace(/\/$/, '')
 
@@ -350,6 +351,7 @@ export const router = createBrowserRouter([
       { path: 'subscriptions', element: <SubscriptionsSalesPage /> },
       { path: 'marketplace', element: <MarketplaceLeadsPage /> },
       { path: 'sales/coverage', element: <StoreCoveragePage /> },
+      { path: 'sales/delivery-conditions', element: <DeliveryConditionsPage /> },
       { path: 'sales/manager', element: <SalesManagerPage /> },
       { path: 'sales/sales-area', element: <SalesAreaSetupPage /> },
       { path: 'sales/plans', element: <SalesPlansPage /> },

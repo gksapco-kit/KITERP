@@ -42,22 +42,29 @@ function replaceArray<T>(target: T[], next: T[]) {
 
 function hydrateProducts(liveItems: LiveItem[]) {
   if (!liveItems.length) return
-  const products = liveItems.map((item, idx) => ({
-    id: item.id || `p${idx + 1}`,
-    name: item.title || `Product ${idx + 1}`,
-    description: item.description || item.subtitle || '',
-    price: moneyToMajor(item.price ?? (item.meta as Record<string, unknown>)?.price),
-    compareAtPrice: moneyToMajor((item.meta as Record<string, unknown>)?.compare_at_price),
-    currency: ((item.meta as Record<string, unknown>)?.currency as string) || 'INR',
-    image: item.image_url || swatch(item.title || String(idx)),
-    tags: Array.isArray((item.meta as Record<string, unknown>)?.tags)
-      ? ((item.meta as Record<string, unknown>).tags as string[])
-      : [item.subtitle || (item.meta as Record<string, unknown>)?.category_name as string].filter(Boolean),
-    category: ((item.meta as Record<string, unknown>)?.category as string) || item.subtitle || 'Products',
-    inStock: ((item.meta as Record<string, unknown>)?.stock_status as string) !== 'out_of_stock',
-    rating: typeof item.rating === 'number' ? item.rating : undefined,
-    reviews: Number((item.meta as Record<string, unknown>)?.review_count || 0),
-  }))
+  const products = liveItems.map((item, idx) => {
+    const meta = (item.meta || {}) as Record<string, unknown>
+    const slugFromMeta = String(meta.slug ?? '').trim()
+    const slugFromUrl = item.url?.match(/\/products\/([^/?#]+)/i)?.[1]?.trim()
+    const slug = slugFromMeta || slugFromUrl || String(item.id || `p${idx + 1}`)
+    return {
+      id: item.id || `p${idx + 1}`,
+      slug,
+      name: item.title || `Product ${idx + 1}`,
+      description: item.description || item.subtitle || '',
+      price: moneyToMajor(item.price ?? meta.price),
+      compareAtPrice: moneyToMajor(meta.compare_at_price),
+      currency: (meta.currency as string) || 'INR',
+      image: item.image_url || swatch(item.title || String(idx)),
+      tags: Array.isArray(meta.tags)
+        ? (meta.tags as string[])
+        : [item.subtitle || (meta.category_name as string)].filter(Boolean),
+      category: (meta.category as string) || item.subtitle || 'Products',
+      inStock: (meta.stock_status as string) !== 'out_of_stock',
+      rating: typeof item.rating === 'number' ? item.rating : undefined,
+      reviews: Number(meta.review_count || 0),
+    }
+  })
   replaceArray(mockProducts, products)
 }
 

@@ -171,6 +171,7 @@ async def ensure_default_store_if_missing(
             address={},
             is_default=True,
             is_active=True,
+            is_open=True,
         )
     )
     await db.flush()

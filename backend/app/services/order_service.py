@@ -12,6 +12,7 @@ from app.models.vendor_product import Product
 from app.schemas.order import (
     CheckoutRequest, GuestCheckoutRequest, OrderStatusUpdate,
     OrderCancelRequest, ReturnExchangeRequest, ReturnResolveRequest,
+    PaymentProofSubmit, PaymentProofReview,
 )
 from app.services.customer_service import CustomerService
 from app.repositories.order_repo import OrderRepository
@@ -22,7 +23,7 @@ from app.services.inventory_service import InventoryService
 from app.services.notification_service import NotificationService
 from app.services.order_notification_service import send_order_placed_notifications
 from app.services.invoice_service import InvoiceService
-from app.services.checkout_service import CheckoutService
+from app.services.checkout_service import CheckoutService, get_manual_upi_config
 from app.services.coupon_service import CouponService
 from app.repositories.vendor_repo import VendorRepository
 from app.models.store import Store
@@ -75,10 +76,11 @@ class OrderService:
         """Raise 422 if the specified branch exists but is currently closed."""
         if not branch_code:
             return
-        from sqlalchemy import or_
-        filters = [Store.code == branch_code]
+        from sqlalchemy import func, or_
+        cleaned = branch_code.strip()
+        filters = [func.lower(Store.code) == cleaned.lower()]
         try:
-            filters.append(Store.id == UUID(branch_code))
+            filters.append(Store.id == UUID(cleaned))
         except (ValueError, AttributeError):
             pass
         row = await self.db.execute(
@@ -147,7 +149,14 @@ class OrderService:
             "card", "upi", "netbanking", "wallet", "razorpay",
             "stripe", "square", "paypal", "payu",
         }
-        is_online = data.payment_method.value in online_methods
+        manual_upi_cfg = get_manual_upi_config(vendor)
+        is_manual_upi = (
+            data.payment_method.value == "upi"
+            and manual_upi_cfg.get("enabled")
+        )
+        is_manual_pay_later = data.payment_method.value == "pay_later"
+        is_manual_proof = is_manual_upi or is_manual_pay_later
+        is_online = data.payment_method.value in online_methods and not is_manual_proof
 
         # Generate order number
         order_number = await self.order_repo.get_next_order_number(vendor_id)
@@ -207,6 +216,10 @@ class OrderService:
             order.payment_status = "pending"
             order.status = "pending"
             payment.status = "pending"
+        elif is_manual_proof:
+            order.payment_status = "pending"
+            order.status = "pending"
+            payment.status = "pending"
 
         # Auto-generate invoice for confirmed (COD) orders
         if order.status == "confirmed":
@@ -224,8 +237,8 @@ class OrderService:
             if ship_phone and not (customer.phone or "").strip():
                 customer.phone = ship_phone
 
-        # COD: deduct stock and clear cart immediately; online: defer until payment verify
-        if not is_online:
+        # COD: deduct stock and clear cart immediately; online/manual UPI: defer until payment verify
+        if data.payment_method.value == "cod":
             await self._deduct_inventory_for_order(vendor_id, order)
             if clear_cart and cart is not None:
                 await self.cart_repo.clear_cart(cart)
@@ -275,7 +288,7 @@ class OrderService:
                 )
                 # Online card/UPI: defer email/SMS/WhatsApp until payment is confirmed
                 # (see PaymentGatewayService._finalize_paid_order).
-                if not is_online:
+                if data.payment_method.value == "cod":
                     customer = await self.customer_repo.get_by_vendor_and_id(vendor_id, customer_id)
                     await send_order_placed_notifications(
                         self.db,
@@ -597,6 +610,175 @@ class OrderService:
             order.status = "delivered"
 
         self._record_status(order.id, prev, order.status, changed_by=user_id, changed_by_role="vendor", notes=data.notes)
+
+        await self.db.commit()
+        await self.db.refresh(order)
+        return order
+
+    async def submit_payment_proof(
+        self,
+        vendor_id: UUID,
+        customer_id: UUID,
+        order_id: UUID,
+        data: PaymentProofSubmit,
+    ) -> Order:
+        order = await self.order_repo.get_by_vendor_and_id(vendor_id, order_id)
+        if not order or order.customer_id != customer_id:
+            raise HTTPException(status_code=404, detail="Order not found")
+        if order.payment_method not in ("upi", "pay_later"):
+            raise HTTPException(status_code=400, detail="This order does not use manual payment verification")
+        if order.payment_status == "paid":
+            raise HTTPException(status_code=400, detail="Payment already confirmed")
+        if order.payment_status not in ("pending", "pending_verification"):
+            raise HTTPException(status_code=400, detail="Payment cannot be submitted for this order")
+
+        now = datetime.now(timezone.utc).isoformat()
+        order.payment_reference = data.utr.strip()
+        order.payment_proof = {
+            "utr": data.utr.strip(),
+            "screenshot_url": data.screenshot_url.strip(),
+            "status": "submitted",
+            "submitted_at": now,
+        }
+        order.payment_status = "pending_verification"
+
+        result = await self.db.execute(
+            select(Payment).where(Payment.order_id == order.id).order_by(Payment.created_at.desc())
+        )
+        payment = result.scalars().first()
+        if payment:
+            payment.gateway_response = {
+                **(payment.gateway_response or {}),
+                "manual_upi_proof": order.payment_proof,
+            }
+
+        await self.db.commit()
+        await self.db.refresh(order)
+
+        try:
+            from app.services.vendor_service import VendorService
+            vendor_svc = VendorService(self.db)
+            vendor = await vendor_svc.get_by_id(vendor_id)
+            if vendor:
+                customer = await self.customer_repo.get_by_vendor_and_id(vendor_id, customer_id)
+                await send_order_placed_notifications(
+                    self.db, vendor=vendor, order=order, customer=customer,
+                )
+                await self.db.commit()
+        except Exception as exc:
+            log.warning("Notifications after payment proof failed for %s: %s", order.id, exc)
+
+        return order
+
+    async def approve_manual_payment(
+        self,
+        vendor_id: UUID,
+        order_id: UUID,
+        data: PaymentProofReview | None = None,
+        user_id: UUID | None = None,
+    ) -> Order:
+        order = await self.order_repo.get_by_vendor_and_id(vendor_id, order_id)
+        if not order:
+            raise HTTPException(status_code=404, detail="Order not found")
+        if order.payment_method not in ("upi", "pay_later"):
+            raise HTTPException(status_code=400, detail="Not a manual payment order")
+        if order.payment_status == "paid":
+            return order
+        if order.payment_status != "pending_verification" or not order.payment_proof:
+            raise HTTPException(status_code=400, detail="No payment proof awaiting approval")
+
+        proof = dict(order.payment_proof or {})
+        proof["status"] = "approved"
+        proof["reviewed_at"] = datetime.now(timezone.utc).isoformat()
+        if data and data.notes:
+            proof["review_notes"] = data.notes
+        order.payment_proof = proof
+        order.payment_status = "paid"
+        order.status = "confirmed"
+        now = datetime.now(timezone.utc)
+        order.confirmed_at = now
+        self._record_status(
+            order.id, "pending", "confirmed",
+            changed_by=user_id, changed_by_role="vendor",
+            notes=data.notes if data else "Manual UPI payment approved",
+        )
+
+        result = await self.db.execute(
+            select(Payment).where(Payment.order_id == order.id).order_by(Payment.created_at.desc())
+        )
+        payment = result.scalars().first()
+        if payment:
+            payment.status = "completed"
+            if order.payment_reference:
+                payment.gateway_reference = order.payment_reference
+
+        await self._deduct_inventory_for_order(vendor_id, order)
+
+        try:
+            cart = await self.cart_repo.get_by_customer(vendor_id, order.customer_id)
+            if cart:
+                await self.cart_repo.clear_cart(cart)
+        except Exception as exc:
+            log.warning("Cart clear after manual UPI approval failed for %s: %s", order.id, exc)
+
+        try:
+            await self.invoice_svc.create_from_order(order, auto_commit=False)
+        except Exception as e:
+            log.warning("Auto-invoice after manual UPI approval failed for %s: %s", order.id, e)
+
+        await self.db.commit()
+        await self.db.refresh(order)
+
+        try:
+            from app.services.vendor_service import VendorService
+            vendor_svc = VendorService(self.db)
+            vendor = await vendor_svc.get_by_id(vendor_id)
+            if vendor:
+                customer = await self.customer_repo.get_by_vendor_and_id(vendor_id, order.customer_id)
+                await send_order_placed_notifications(
+                    self.db, vendor=vendor, order=order, customer=customer,
+                )
+                await self.db.commit()
+        except Exception as exc:
+            log.warning("Notifications after manual UPI approval failed for %s: %s", order.id, exc)
+
+        return order
+
+    async def reject_manual_payment(
+        self,
+        vendor_id: UUID,
+        order_id: UUID,
+        data: PaymentProofReview | None = None,
+        user_id: UUID | None = None,
+    ) -> Order:
+        order = await self.order_repo.get_by_vendor_and_id(vendor_id, order_id)
+        if not order:
+            raise HTTPException(status_code=404, detail="Order not found")
+        if order.payment_method not in ("upi", "pay_later"):
+            raise HTTPException(status_code=400, detail="Not a manual payment order")
+        if order.payment_status == "paid":
+            raise HTTPException(status_code=400, detail="Payment already confirmed")
+
+        proof = dict(order.payment_proof or {})
+        proof["status"] = "rejected"
+        proof["reviewed_at"] = datetime.now(timezone.utc).isoformat()
+        if data and data.notes:
+            proof["review_notes"] = data.notes
+        order.payment_proof = proof
+        order.payment_status = "failed"
+
+        result = await self.db.execute(
+            select(Payment).where(Payment.order_id == order.id).order_by(Payment.created_at.desc())
+        )
+        payment = result.scalars().first()
+        if payment:
+            payment.status = "failed"
+
+        self._record_status(
+            order.id, order.status, order.status,
+            changed_by=user_id, changed_by_role="vendor",
+            notes=data.notes if data else "Manual UPI payment rejected",
+        )
 
         await self.db.commit()
         await self.db.refresh(order)

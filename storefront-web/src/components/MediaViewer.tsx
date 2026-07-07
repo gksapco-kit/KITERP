@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useMemo } from 'react'
+import { useState, useRef, useEffect, useMemo, useCallback } from 'react'
 import { cn, imgUrl } from '@/lib/utils'
 import { ensureModelViewerScript } from '@/lib/modelViewerLoader'
 import {
@@ -6,7 +6,8 @@ import {
   useCatalogMediaLightbox,
   type LightboxMediaItem,
 } from '@/components/common/CatalogMediaLightbox'
-import { Play, Pause, Volume2, VolumeX, Maximize, Box, Camera, RotateCcw, X, ZoomIn } from 'lucide-react'
+import { ImageHoverZoom } from '@/components/products/ImageHoverZoom'
+import { Play, Pause, Volume2, VolumeX, Maximize, Box, Camera, RotateCcw, RotateCw, X } from 'lucide-react'
 
 type MediaType = 'image' | 'video' | 'model3d'
 
@@ -19,6 +20,7 @@ interface MediaItem {
 }
 
 export type MediaViewerLayout = 'detail' | 'square'
+export type MediaViewerThumbnailPosition = 'bottom' | 'left'
 
 interface MediaViewerProps {
   items: MediaItem[]
@@ -26,20 +28,24 @@ interface MediaViewerProps {
   onSelect: (i: number) => void
   productName: string
   badges?: React.ReactNode
+  /** e.g. wishlist — pinned to the top-right of the main stage */
+  topRightOverlay?: React.ReactNode
   /** `detail` — capped 4:3 hero (default). `square` — full-width square stage. */
   layout?: MediaViewerLayout
+  /** Vertical thumbnails on the left when multiple images exist. */
+  thumbnailPosition?: MediaViewerThumbnailPosition
 }
 
 const STAGE_LAYOUT: Record<MediaViewerLayout, { stage: string; image: string; video: string }> = {
   detail: {
-    stage: 'aspect-[4/3] max-h-[min(420px,55vw)] sm:max-h-[420px] w-full max-w-[560px] mx-auto lg:mx-0',
+    stage: 'aspect-square w-full max-w-[640px] mx-auto lg:mx-0',
     image: 'object-cover',
-    video: 'object-contain p-2',
+    video: 'object-contain',
   },
   square: {
     stage: 'aspect-square w-full',
-    image: 'object-contain p-4',
-    video: 'object-contain p-4',
+    image: 'object-cover',
+    video: 'object-contain',
   },
 }
 
@@ -178,14 +184,27 @@ function Model3DViewer({ url, alt, poster, minHeight = 300 }: { url: string; alt
   )
 }
 
-function ThumbnailItem({ item, isSelected, onClick }: { item: MediaItem; isSelected: boolean; onClick: () => void }) {
+function ThumbnailItem({
+  item,
+  isSelected,
+  onClick,
+  vertical = false,
+}: {
+  item: MediaItem
+  isSelected: boolean
+  onClick: () => void
+  vertical?: boolean
+}) {
   const mt = item.media_type || 'image'
   return (
     <button
+      type="button"
       onClick={onClick}
-      className={`w-16 h-16 sm:w-20 sm:h-20 rounded-lg border-2 overflow-hidden shrink-0 transition-all relative ${
-        isSelected ? 'border-blue-600 ring-1 ring-blue-600' : 'border-gray-200 hover:border-gray-400'
-      }`}
+      className={cn(
+        'rounded-lg border-2 overflow-hidden shrink-0 transition-all relative',
+        vertical ? 'w-14 h-14 sm:w-16 sm:h-16' : 'w-16 h-16 sm:w-20 sm:h-20',
+        isSelected ? 'border-blue-600 ring-1 ring-blue-600' : 'border-gray-200 hover:border-gray-400',
+      )}
     >
       {mt === 'video' ? (
         <div className="w-full h-full bg-gray-100 flex items-center justify-center relative">
@@ -208,12 +227,22 @@ function ThumbnailItem({ item, isSelected, onClick }: { item: MediaItem; isSelec
   )
 }
 
-export default function MediaViewer({ items, selectedIndex, onSelect, productName, badges, layout = 'detail' }: MediaViewerProps) {
+export default function MediaViewer({
+  items,
+  selectedIndex,
+  onSelect,
+  productName,
+  badges,
+  topRightOverlay,
+  layout = 'detail',
+  thumbnailPosition = 'bottom',
+}: MediaViewerProps) {
   const selected = items[selectedIndex]
   const mt = selected?.media_type || 'image'
   const firstImage = items.find(i => (i.media_type || 'image') === 'image')
   const stage = STAGE_LAYOUT[layout]
-  const modelMinHeight = layout === 'detail' ? 280 : 300
+  const modelMinHeight = layout === 'detail' ? 320 : 300
+  const useLeftThumbs = items.length > 1 && thumbnailPosition === 'left'
 
   const lightboxItems = useMemo<LightboxMediaItem[]>(
     () => items.map(item => ({
@@ -225,6 +254,61 @@ export default function MediaViewer({ items, selectedIndex, onSelect, productNam
     [items],
   )
   const lightbox = useCatalogMediaLightbox(lightboxItems.length)
+  const [isDragging360, setIsDragging360] = useState(false)
+  const spinDragRef = useRef<{ startX: number; anchorIndex: number; moved: boolean } | null>(null)
+
+  const imageItems = useMemo(
+    () => items.filter((i) => (i.media_type || 'image') === 'image'),
+    [items],
+  )
+  const imageItemIndices = useMemo(
+    () => imageItems.map((img) => items.findIndex((i) => i.id === img.id)),
+    [items, imageItems],
+  )
+  const can360 = imageItems.length >= 3
+
+  const spinToOffset = useCallback(
+    (offsetSteps: number, anchorIndex: number) => {
+      const anchorSpinIdx = imageItemIndices.indexOf(anchorIndex)
+      if (anchorSpinIdx < 0 || imageItemIndices.length === 0) return
+      const len = imageItemIndices.length
+      const nextSpinIdx = (((anchorSpinIdx + offsetSteps) % len) + len) % len
+      const nextItemIdx = imageItemIndices[nextSpinIdx]
+      if (nextItemIdx >= 0 && nextItemIdx !== selectedIndex) onSelect(nextItemIdx)
+    },
+    [imageItemIndices, onSelect, selectedIndex],
+  )
+
+  const openLightbox = useCallback(() => {
+    if (!selected || lightboxItems.length === 0) return
+    lightbox.open(selectedIndex)
+  }, [selected, lightboxItems.length, lightbox, selectedIndex])
+
+  const handleImagePointerDown = (e: React.PointerEvent) => {
+    if (!can360 || mt !== 'image') return
+    spinDragRef.current = { startX: e.clientX, anchorIndex: selectedIndex, moved: false }
+    setIsDragging360(true)
+    e.currentTarget.setPointerCapture(e.pointerId)
+  }
+
+  const handleImagePointerMove = (e: React.PointerEvent) => {
+    const drag = spinDragRef.current
+    if (!drag || !can360) return
+    const dx = e.clientX - drag.startX
+    if (Math.abs(dx) > 4) drag.moved = true
+    const steps = -Math.round(dx / 28)
+    spinToOffset(steps, drag.anchorIndex)
+  }
+
+  const handleImagePointerUp = (e: React.PointerEvent) => {
+    const drag = spinDragRef.current
+    spinDragRef.current = null
+    setIsDragging360(false)
+    if (e.currentTarget.hasPointerCapture(e.pointerId)) {
+      e.currentTarget.releasePointerCapture(e.pointerId)
+    }
+    if (drag && !drag.moved && mt === 'image') openLightbox()
+  }
 
   useEffect(() => {
     if (lightbox.index !== null && lightbox.index !== selectedIndex) {
@@ -232,13 +316,30 @@ export default function MediaViewer({ items, selectedIndex, onSelect, productNam
     }
   }, [lightbox.index, selectedIndex, onSelect])
 
-  const openLightbox = () => {
-    if (!selected || lightboxItems.length === 0) return
-    lightbox.open(selectedIndex)
-  }
+  const thumbnailRail = items.length > 1 ? (
+    <div
+      className={cn(
+        useLeftThumbs
+          ? 'flex flex-row gap-2 shrink-0 overflow-x-auto pb-1 scrollbar-hide md:flex-col md:max-h-[640px] md:overflow-y-auto md:overflow-x-hidden md:pb-0 md:pr-0.5 md:scrollbar-thin'
+          : 'flex gap-2 overflow-x-auto scrollbar-hide pb-1',
+      )}
+    >
+      {items.map((item, i) => (
+        <ThumbnailItem
+          key={item.id}
+          item={item}
+          isSelected={i === selectedIndex}
+          onClick={() => onSelect(i)}
+          vertical={useLeftThumbs}
+        />
+      ))}
+    </div>
+  ) : null
 
   return (
-    <div className="space-y-3">
+    <div className={cn(useLeftThumbs ? 'flex flex-col gap-3 md:flex-row md:items-start' : 'space-y-3')}>
+      {useLeftThumbs ? thumbnailRail : null}
+      <div className={cn('min-w-0', useLeftThumbs ? 'flex-1' : 'w-full')}>
       <div className={cn('bg-gray-50 rounded-xl overflow-hidden border relative group/stage', stage.stage)}>
         {!selected ? (
           <div className="absolute inset-0 flex items-center justify-center">
@@ -274,38 +375,49 @@ export default function MediaViewer({ items, selectedIndex, onSelect, productNam
             </button>
           </div>
         ) : (
-          <button
-            type="button"
-            onClick={openLightbox}
-            className="absolute inset-0 w-full h-full cursor-zoom-in focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:ring-inset"
-            aria-label={`View ${productName} full size`}
+          <div
+            className={cn(
+              'absolute inset-0',
+              can360 && (isDragging360 ? 'cursor-grabbing' : 'cursor-grab'),
+            )}
+            onPointerDown={handleImagePointerDown}
+            onPointerMove={handleImagePointerMove}
+            onPointerUp={handleImagePointerUp}
+            onPointerCancel={handleImagePointerUp}
           >
-            <img
-              src={imgUrl(selected.url)}
+            <ImageHoverZoom
+              src={selected.url}
               alt={selected.alt_text || productName}
-              className={cn('absolute inset-0 w-full h-full pointer-events-none', stage.image)}
+              imgClassName={stage.image}
+              disabled={isDragging360}
+              onClick={can360 ? undefined : openLightbox}
             />
-            <span
-              className="pointer-events-none absolute bottom-3 right-3 flex items-center gap-1 rounded-full bg-black/55 px-2.5 py-1.5 text-xs font-medium text-white opacity-0 transition-opacity group-hover/stage:opacity-100"
-            >
-              <ZoomIn className="w-3.5 h-3.5" aria-hidden />
-              Zoom
-            </span>
-          </button>
+            {can360 && !isDragging360 && (
+              <span className="pointer-events-none absolute bottom-3 left-3 z-10 flex items-center gap-1 rounded-full bg-black/60 px-2.5 py-1.5 text-xs font-medium text-white opacity-0 transition-opacity group-hover/stage:opacity-100">
+                <RotateCw className="h-3.5 w-3.5" aria-hidden />
+                Drag for 360°
+              </span>
+            )}
+            {can360 && (
+              <span className="pointer-events-none absolute top-3 left-3 z-10 flex items-center gap-1 rounded-full bg-black/70 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white">
+                360°
+              </span>
+            )}
+          </div>
         )}
         {mt === 'image' && (
           <div className="pointer-events-none absolute inset-0 z-[1]">
             {badges}
           </div>
         )}
+        {topRightOverlay ? (
+          <div className="absolute top-3 right-3 z-20 pointer-events-auto">
+            {topRightOverlay}
+          </div>
+        ) : null}
       </div>
-      {items.length > 1 && (
-        <div className="flex gap-2 overflow-x-auto scrollbar-hide pb-1">
-          {items.map((item, i) => (
-            <ThumbnailItem key={item.id} item={item} isSelected={i === selectedIndex} onClick={() => onSelect(i)} />
-          ))}
-        </div>
-      )}
+      {!useLeftThumbs ? thumbnailRail : null}
+      </div>
       <CatalogMediaLightbox
         items={lightboxItems}
         index={lightbox.index}

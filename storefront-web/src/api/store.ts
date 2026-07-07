@@ -246,6 +246,14 @@ export const storeApi = {
       tax_lines: Array<{ label: string; amount: number }>
       razorpay_key_id?: string | null
       razorpay_enabled?: boolean
+      manual_upi?: {
+        enabled: boolean
+        upi_id?: string | null
+        qr_code_url?: string | null
+        label?: string
+        business_name?: string
+        logo_url?: string | null
+      } | null
       coupon_valid?: boolean
       coupon_message?: string
     }
@@ -295,6 +303,10 @@ export const storeApi = {
     const form = new FormData()
     form.append('file', file)
     const res = await apiClient.post(`/store/orders/${orderId}/upload-media`, form)
+    return res.data
+  },
+  submitPaymentProof: async (orderId: string, data: { utr: string; screenshot_url: string }): Promise<Order> => {
+    const res = await apiClient.post(`/store/orders/${orderId}/payment-proof`, data)
     return res.data
   },
   cancelOrder: async (

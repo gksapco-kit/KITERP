@@ -3,6 +3,7 @@ import { cn, imgUrl } from '@/lib/utils'
 import type { ProductVariant } from '@/types'
 import {
   isCombinationAvailable,
+  resolveColorNameForVariant,
   type ProductCardOptionRow,
 } from '@/lib/variantOptions'
 
@@ -10,6 +11,7 @@ export type ProductOptionPickerProps = {
   rows: ProductCardOptionRow[]
   selections: Record<string, string>
   selectedColorName?: string
+  selectedVariantId?: string
   variants: ProductVariant[]
   onSelectSize: (dimension: string, value: string) => void
   onSelectColor: (name: string) => void
@@ -56,7 +58,7 @@ function SizeChip({
         onClick()
       }}
       className={cn(
-        'inline-flex h-7 min-w-[2rem] items-center justify-center rounded border px-1.5 text-[11px] font-semibold uppercase leading-none transition-all disabled:opacity-50',
+        'inline-flex h-8 w-8 items-center justify-center rounded border p-0 text-[11px] font-semibold uppercase leading-none transition-all disabled:opacity-50',
         selected
           ? 'border-primary bg-primary text-primary-foreground shadow-sm'
           : unavailable
@@ -104,17 +106,18 @@ function ColorSwatch({
         onClick()
       }}
       className={cn(
-        'h-6 w-6 shrink-0 overflow-hidden rounded-full border-2 transition-all disabled:opacity-50',
-        selected ? 'ring-2 ring-primary ring-offset-1 scale-105' : 'hover:scale-105',
-        unavailable && 'opacity-40',
-        imageUrl && 'border-gray-200',
+        'h-7 w-7 shrink-0 overflow-hidden rounded-full border-2 transition-all disabled:opacity-50',
+        selected
+          ? 'border-primary ring-2 ring-primary ring-offset-2 scale-110 shadow-md'
+          : 'border-gray-200 hover:scale-105 hover:border-primary/50',
+        unavailable && !selected && 'opacity-40',
       )}
       style={
         imageUrl
           ? undefined
           : {
               backgroundColor: css,
-              borderColor: selected ? undefined : light ? '#d1d5db' : 'transparent',
+              borderColor: selected ? undefined : light ? '#d1d5db' : css,
             }
       }
     >
@@ -129,6 +132,7 @@ export default function ProductOptionPicker({
   rows,
   selections,
   selectedColorName,
+  selectedVariantId,
   variants,
   onSelectSize,
   onSelectColor,
@@ -169,9 +173,13 @@ export default function ProductOptionPicker({
                     />
                   )
                 })
-              : row.swatches.map(({ css, value, imageUrl }) => {
-                  const selected = selectedColorName?.toLowerCase() === value.toLowerCase()
-                  const unavailable = !isCombinationAvailable(variants, selections, value)
+              : row.swatches.map(({ css, value, imageUrl, variantId }) => {
+                  const selected =
+                    selectedColorName?.toLowerCase() === value.toLowerCase()
+                    || (!!selectedVariantId && variantId === selectedVariantId)
+                  const unavailable =
+                    !selected &&
+                    !isCombinationAvailable(variants, selections, value)
                   return (
                     <ColorSwatch
                       key={`${value}-${imageUrl ?? css}`}
@@ -202,13 +210,7 @@ export default function ProductOptionPicker({
 export function getColorNameFromOptionRows(
   variant: ProductVariant | undefined,
   rows: ProductCardOptionRow[],
+  variants: ProductVariant[] = [],
 ): string | undefined {
-  if (!variant || !rows.length) return undefined
-  const attrs = variant.attributes ?? {}
-  const colorKey = Object.keys(attrs).find((k) => /color|colour/i.test(k))
-  if (colorKey) return attrs[colorKey]
-  const colorRow = rows.find((r) => r.type === 'color')
-  if (colorRow?.type !== 'color') return undefined
-  const match = colorRow.swatches.find((s) => s.variantId === variant.id)
-  return match?.value
+  return resolveColorNameForVariant(variant, rows, variants)
 }

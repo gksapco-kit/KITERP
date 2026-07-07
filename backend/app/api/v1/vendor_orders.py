@@ -22,6 +22,7 @@ from app.schemas.order import (
     OrderStatsResponse,
     ReturnExchangeRequest,
     ReturnResolveRequest,
+    PaymentProofReview,
 )
 from app.services.order_service import OrderService
 from app.services.vendor_service import VendorService
@@ -70,6 +71,7 @@ def _order_to_dict(order: Order) -> dict:
         "payment_status": order.payment_status,
         "payment_method": order.payment_method,
         "payment_reference": order.payment_reference,
+        "payment_proof": getattr(order, "payment_proof", None),
         # Shipping
         "shipping_address": order.shipping_address,
         "tracking_number": order.tracking_number,
@@ -351,6 +353,38 @@ async def update_order_status(
     repo = OrderRepository(db)
     order = await repo.get_by_vendor_and_id(vendor_id, order_id)
 
+    return JSONResponse(content=await _enrich_order_dict(db, order, _order_to_dict(order)))
+
+
+@router.post("/{order_id}/approve-payment")
+async def approve_manual_payment(
+    order_id: UUID,
+    data: PaymentProofReview = PaymentProofReview(),
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Approve a submitted manual UPI payment proof."""
+    vendor_id = await _get_vendor_id(current_user, db)
+    service = OrderService(db)
+    order = await service.approve_manual_payment(vendor_id, order_id, data, user_id=current_user.id)
+    repo = OrderRepository(db)
+    order = await repo.get_by_vendor_and_id(vendor_id, order_id)
+    return JSONResponse(content=await _enrich_order_dict(db, order, _order_to_dict(order)))
+
+
+@router.post("/{order_id}/reject-payment")
+async def reject_manual_payment(
+    order_id: UUID,
+    data: PaymentProofReview = PaymentProofReview(),
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Reject a submitted manual UPI payment proof."""
+    vendor_id = await _get_vendor_id(current_user, db)
+    service = OrderService(db)
+    order = await service.reject_manual_payment(vendor_id, order_id, data, user_id=current_user.id)
+    repo = OrderRepository(db)
+    order = await repo.get_by_vendor_and_id(vendor_id, order_id)
     return JSONResponse(content=await _enrich_order_dict(db, order, _order_to_dict(order)))
 
 

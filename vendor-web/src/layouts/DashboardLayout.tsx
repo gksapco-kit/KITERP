@@ -560,6 +560,7 @@ const allSections: NavSection[] = [
       { to: '/orders', icon: ShoppingCart, label: 'Orders', requiresPermission: 'orders.view', groupLabel: 'Core Sales', groupColor: 'blue' },
       { to: '/quotations', icon: ScrollText, label: 'Quotations', requiresPermission: 'orders.view' },
       { to: '/bookings', icon: Calendar, label: 'Bookings', requiresOffering: ['services', 'both'], requiresPermission: 'bookings.view' },
+      { to: '/sales/delivery-conditions', icon: PackageSearch, label: 'Delivery Conditions', requiresPermission: 'orders.view' },
       { to: '/projects', icon: FolderKanban, label: 'Projects', requiresPermission: 'projects.view' },
       { to: '/pos', icon: Receipt, label: 'POS', requiresOffering: ['products', 'both'], requiresPermission: 'pos.view' },
       { to: '/subscriptions', icon: RefreshCw, label: 'Subscriptions', requiresPermission: 'subscriptions.view', groupLabel: 'Recurring Revenue', groupColor: 'violet' },

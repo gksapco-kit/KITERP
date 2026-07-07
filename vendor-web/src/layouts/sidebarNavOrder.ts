@@ -379,6 +379,7 @@ export function reconcileNavPlacements(
     '/orders',
     '/quotations',
     '/bookings',
+    '/sales/delivery-conditions',
     '/projects',
     '/pos',
     '/subscriptions',

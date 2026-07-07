@@ -4,9 +4,9 @@ import { formatCurrency, imgUrl } from '@/lib/utils'
 import { useState } from 'react'
 import { Input } from '@/components/ui/input'
 import {
-  Minus, Plus, ShoppingCart, Loader2, ShoppingBag,
+  ShoppingBag,
   Truck, ShieldCheck, RefreshCw, ChevronRight, Tag, Package, Box,
-  Award, Zap, Check, Info, Calendar, Ruler, Repeat, MessageSquare, Send, X,
+  Award, Zap, Check, Info, Calendar, Ruler, Repeat, MessageSquare, Send, X, Loader2,
 } from 'lucide-react'
 import type { QuoteFormField } from '@/types'
 import { QuoteFormFieldInput } from '@/components/quote/QuoteFormFieldInput'
@@ -17,6 +17,8 @@ import ReviewSection from '@/components/ReviewSection'
 import MerchProductGrid from './MerchProductGrid'
 import MediaViewer from '@/components/MediaViewer'
 import ColorSwatchPicker from '@/components/products/ColorSwatchPicker'
+import { ProductPurchaseActions } from '@/components/products/ProductPurchaseActions'
+import { ProductMediaWishlistOverlay } from '@/components/products/ProductMediaWishlistOverlay'
 import { isCombinationAvailable } from '@/lib/variantOptions'
 import type { ProductDetailTemplateProps } from './types'
 import { isDisplayFieldEnabled } from '@/lib/storefrontDisplayFields'
@@ -114,7 +116,7 @@ export function ProductQuoteModal({ productId, productName, formConfig, customer
             </div>
           ))}
           {dateTimeFields.length > 0 && (
-            <div className={`grid gap-3 ${dateTimeFields.length >= 2 ? 'grid-cols-2' : 'grid-cols-1'}`}>
+            <div className={`grid gap-3 ${dateTimeFields.length >= 2 ? 'grid-cols-1 sm:grid-cols-2' : 'grid-cols-1'}`}>
               {dateTimeFields.map(f => (
                 <div key={f.key}>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -141,7 +143,7 @@ export default function ClassicDetail(props: ProductDetailTemplateProps) {
   const {
     displayFields,
     product, selectedVariant, activeVariants, hasVariants,
-    setSelectedVariantId, qty, setQty, maxAddQty,
+    setSelectedVariantId, qty, setQty, validateQtyChange, maxAddQty, minAddQty, onHandQty,
     displayPrice, displayCompare, displayCurrency, displayStock,
     displayOfferLabel, displayOnSale, discount, variantColors, onSelectColor,
     optionRows, selections, onSelectSize, selectedColorName, variantValidation, hasStructuredOptions,
@@ -174,7 +176,7 @@ export default function ClassicDetail(props: ProductDetailTemplateProps) {
   }
 
   return (
-    <div className="max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8 py-6">
+    <div className="max-w-[1440px] mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-6">
       {/* Breadcrumb */}
       <nav className="text-sm text-gray-500 mb-6 flex items-center flex-wrap gap-1">
         <Link to={storePath('/')} className="hover:text-blue-600">Home</Link>
@@ -200,6 +202,16 @@ export default function ClassicDetail(props: ProductDetailTemplateProps) {
             selectedIndex={selectedImage}
             onSelect={setSelectedImage}
             productName={product.name}
+            thumbnailPosition="left"
+            topRightOverlay={
+              <ProductMediaWishlistOverlay
+                product={product}
+                selectedVariant={selectedVariant}
+                displayPrice={displayPrice}
+                displayMedia={displayMedia}
+                selectedImage={selectedImage}
+              />
+            }
             badges={
               <div className="absolute top-3 left-3 flex flex-col gap-1.5">
                 {showCompare && discount > 0 && (
@@ -537,51 +549,26 @@ export default function ClassicDetail(props: ProductDetailTemplateProps) {
             <div className="border-t mt-6 pt-6" />
 
             {/* Quantity + Add to Cart */}
-            <div className="space-y-4">
-              <div className="flex items-center gap-4">
-                <span className="text-sm font-medium text-gray-700">Qty:</span>
-                <div className="flex items-center border rounded-lg overflow-hidden">
-                  <button onClick={() => setQty(Math.max(1, qty - 1))} className="w-10 h-10 flex items-center justify-center hover:bg-gray-50 transition-colors"><Minus className="w-4 h-4" /></button>
-                  <span className="w-12 h-10 flex items-center justify-center border-x text-sm font-bold bg-gray-50">{qty}</span>
-                  <button onClick={() => setQty(qty + 1)} className="w-10 h-10 flex items-center justify-center hover:bg-gray-50 transition-colors"><Plus className="w-4 h-4" /></button>
-                </div>
-                {selectedVariant && (
-                  <span className="text-sm text-gray-500">
-                    Total: <span className="font-semibold text-gray-900">{formatCurrency(displayPrice * qty, displayCurrency)}</span>
-                  </span>
-                )}
-              </div>
-
-              {isAuthenticated ? (
-                <>
-                  <div className="flex gap-3">
-                    {isSubscription ? (
-                      <p className="text-xs text-gray-400 text-center w-full">Use the subscription plan above to subscribe.</p>
-                    ) : (
-                      <>
-                        <Button size="lg" className="flex-1 gap-2 h-12 bg-amber-400 hover:bg-amber-500 text-slate-900 font-bold"
-                          onClick={handleAddToCart} disabled={addToCartPending || displayStock === 'out_of_stock' || !variantValidation.valid}>
-                          {addToCartPending ? <Loader2 className="w-5 h-5 animate-spin" /> : <ShoppingCart className="w-5 h-5" />}
-                          {displayStock === 'out_of_stock' ? 'Out of Stock' : 'Add to Cart'}
-                        </Button>
-                        <Button size="lg" className="flex-1 h-12 font-bold" onClick={handleBuyNow}
-                          disabled={addToCartPending || displayStock === 'out_of_stock' || !variantValidation.valid}>Buy Now</Button>
-                      </>
-                    )}
-                  </div>
-                  {canQuote && (
-                    <Button variant="outline" size="lg" className="w-full h-11 font-bold rounded-xl mt-2"
-                      onClick={() => setShowQuote(true)}>
-                      <MessageSquare className="w-5 h-5 mr-2" /> Request a Quote
-                    </Button>
-                  )}
-                </>
-              ) : (
-                <Link to={storePath('/login')}>
-                  <Button size="lg" className="w-full h-12 font-bold bg-amber-400 hover:bg-amber-500 text-slate-900">Sign in to Buy</Button>
-                </Link>
-              )}
-            </div>
+            <ProductPurchaseActions
+              qty={qty}
+              setQty={setQty}
+              validateQtyChange={validateQtyChange}
+              maxQty={maxAddQty}
+              minQty={minAddQty}
+              onHandQty={onHandQty}
+              displayPrice={displayPrice}
+              displayCurrency={displayCurrency}
+              displayStock={displayStock}
+              variantValidationValid={variantValidation.valid}
+              addToCartPending={addToCartPending}
+              handleAddToCart={handleAddToCart}
+              handleBuyNow={handleBuyNow}
+              isSubscription={isSubscription}
+              canQuote={canQuote}
+              onRequestQuote={() => setShowQuote(true)}
+              isAuthenticated={isAuthenticated}
+              storePath={storePath}
+            />
           </div>
         </div>
       </div>

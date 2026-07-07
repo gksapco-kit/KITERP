@@ -9,7 +9,7 @@ class DiscountType(str, Enum):
 
 
 class CouponCreate(BaseModel):
-    code: str = Field(min_length=3, max_length=50)
+    code: str = Field(min_length=2, max_length=50)
     store_id: Optional[str] = None
     title: Optional[str] = None
     description: Optional[str] = None

@@ -1,6 +1,7 @@
 import type { Product, ProductVariant, ProductCard, QuoteFormField } from '@/types'
 import type { ProductColorOption, ProductCardOptionRow, VariantValidationResult } from '@/lib/variantOptions'
 import type { DisplayFieldMap } from '@/lib/storefrontDisplayFields'
+import type { StockValidationResult } from '@/lib/stockValidation'
 
 export interface ProductDetailTemplateProps {
   displayFields: DisplayFieldMap
@@ -12,7 +13,10 @@ export interface ProductDetailTemplateProps {
   setSelectedVariantId: (id: string) => void
   qty: number
   setQty: (qty: number) => void
+  validateQtyChange?: (next: number) => StockValidationResult
   maxAddQty?: number | null
+  minAddQty?: number
+  onHandQty?: number | null
   displayPrice: number
   displayCompare?: number
   displayCurrency: string

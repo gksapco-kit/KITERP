@@ -947,6 +947,16 @@ export const vendorApi = {
     return response.data
   },
 
+  approveOrderPayment: async (id: string, data?: { notes?: string }): Promise<Order> => {
+    const response = await apiClient.post(`/vendors/me/orders/${id}/approve-payment`, data ?? {})
+    return response.data
+  },
+
+  rejectOrderPayment: async (id: string, data?: { notes?: string }): Promise<Order> => {
+    const response = await apiClient.post(`/vendors/me/orders/${id}/reject-payment`, data ?? {})
+    return response.data
+  },
+
   requestReturnExchange: async (
     id: string,
     data: {

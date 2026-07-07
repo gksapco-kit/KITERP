@@ -134,6 +134,97 @@ async def test_shipping_added_to_total(db_session, test_vendor, taxed_product):
     assert preview["total"] == 299.0
 
 
+@pytest.mark.asyncio
+async def test_free_delivery_threshold_waives_shipping(db_session, test_vendor, taxed_product):
+    test_vendor.settings = {
+        "delivery_conditions": {
+            "enabled": True,
+            "free_delivery_threshold": 499,
+            "minimum_delivery_charge": 49,
+        },
+    }
+    db_session.add(test_vendor)
+    await db_session.commit()
+    await db_session.refresh(test_vendor)
+
+    svc = CheckoutService(db_session)
+    below = await svc.preview(
+        test_vendor, _items(taxed_product, qty=2, price=100.0), shipping_method_id="express",
+    )
+    assert below["shipping_amount"] == 49.0
+    assert below["free_delivery_applied"] is False
+
+    above = await svc.preview(
+        test_vendor, _items(taxed_product, qty=5, price=100.0), shipping_method_id="express",
+    )
+    assert above["subtotal"] == 500.0
+    assert above["shipping_amount"] == 99.0
+    assert above["free_delivery_applied"] is False
+    assert above["total"] == 599.0
+
+    above_free = await svc.preview(
+        test_vendor, _items(taxed_product, qty=5, price=100.0), shipping_method_id="free",
+    )
+    assert above_free["shipping_amount"] == 0.0
+    assert above_free["free_delivery_applied"] is True
+    assert above_free["total"] == 500.0
+
+
+@pytest.mark.asyncio
+async def test_free_delivery_threshold_exact_amount(db_session, test_vendor, taxed_product):
+    test_vendor.settings = {
+        "delivery_conditions": {
+            "enabled": True,
+            "free_delivery_threshold": 499,
+            "minimum_delivery_charge": 49,
+        },
+    }
+    db_session.add(test_vendor)
+    await db_session.commit()
+    await db_session.refresh(test_vendor)
+
+    svc = CheckoutService(db_session)
+    preview = await svc.preview(
+        test_vendor,
+        _items(taxed_product, qty=1, price=499.0),
+        shipping_method_id="express",
+    )
+    assert preview["subtotal"] == 499.0
+    assert preview["shipping_amount"] == 99.0
+    assert preview["free_delivery_applied"] is False
+    assert preview["total"] == 598.0
+
+    preview_free = await svc.preview(
+        test_vendor,
+        _items(taxed_product, qty=1, price=499.0),
+        shipping_method_id="free",
+    )
+    assert preview_free["shipping_amount"] == 0.0
+    assert preview_free["free_delivery_applied"] is True
+
+
+@pytest.mark.asyncio
+async def test_calculate_gst_disabled(db_session, gst_vendor, taxed_product):
+    gst_vendor.settings = {
+        "delivery_conditions": {
+            "enabled": True,
+            "calculate_gst": False,
+        },
+    }
+    db_session.add(gst_vendor)
+    await db_session.commit()
+    await db_session.refresh(gst_vendor)
+
+    svc = CheckoutService(db_session)
+    preview = await svc.preview(
+        gst_vendor, _items(taxed_product), shipping_method_id="free",
+        shipping_state="Karnataka",
+    )
+    assert preview["calculate_gst"] is False
+    assert preview["tax_amount"] == 0.0
+    assert preview["total"] == 200.0
+
+
 # ── Coupon validation ────────────────────────────────────────────
 
 @pytest.mark.asyncio

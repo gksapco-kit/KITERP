@@ -45,6 +45,7 @@ import { cn } from '@/lib/utils'
 import { BUSINESS_UNIT_STORE_LABEL } from '@/lib/businessUnitLabels'
 import { getBusinessUnitVisual } from '@/lib/businessUnitVisuals'
 import { CollapsibleSection } from '@/components/common/CollapsibleSection'
+import { UnsavedChangesDialog } from '@/components/common/UnsavedChangesDialog'
 import { CompanyTypeDropdown } from '@/components/common/CompanyTypeDropdown'
 import { DisabledOptionCard } from '@/components/common/DisabledOptionCard'
 import {
@@ -70,7 +71,7 @@ import {
 import { APP_VERSION, APP_BUILD, LAST_UPDATED, CHANGELOG } from '@/constants/vendorAppMeta'
 import { PhoneInput } from '@/components/ui/PhoneInput'
 import { APP_SAVE_REQUEST_EVENT } from '@/lib/appSave'
-import { UnsavedChangesDialog } from '@/components/common/UnsavedChangesDialog'
+import { UpiCheckoutSettings } from '@/components/settings/UpiCheckoutSettings'
 import { useUnsavedChangesGuard } from '@/hooks/useUnsavedChangesGuard'
 import {
   SettingsDirtyProvider,
@@ -2741,6 +2742,8 @@ function OrderAcceptanceSection({ vendor, open, toggle, onSave }: SectionProps) 
             )}
           </>
         )}
+
+        <UpiCheckoutSettings vendor={vendor} />
 
         <div className="flex justify-end pt-2">
           <SaveButton loading={onSave.isPending} />

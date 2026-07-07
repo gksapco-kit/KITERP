@@ -641,6 +641,15 @@ export interface Order {
   placed_by_name?: string
   placed_by_type?: 'customer' | 'staff' | 'cashier'
   payment_method?: string
+  payment_reference?: string
+  payment_proof?: {
+    utr?: string
+    screenshot_url?: string
+    status?: string
+    submitted_at?: string
+    reviewed_at?: string
+    review_notes?: string
+  } | null
   shipping_address?: Record<string, string>
   tracking_number?: string
   tracking_url?: string

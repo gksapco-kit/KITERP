@@ -38,10 +38,10 @@ export function TableToolbar({
 
   return (
     <div
-      className={`flex flex-col sm:flex-row gap-3 flex-wrap items-stretch sm:items-center border-b border-gray-100 bg-gray-50/90 px-4 py-3 rounded-t-xl ${className}`}
+      className={`flex flex-col gap-3 flex-wrap items-stretch border-b border-gray-100 bg-gray-50/90 px-3 py-3 sm:flex-row sm:items-center sm:px-4 rounded-t-xl ${className}`}
     >
       {!hideSearch && (
-        <div className="relative flex-1 min-w-[200px] max-w-md">
+        <div className="relative w-full min-w-0 sm:flex-1 sm:max-w-md">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
           <Input
             value={search}
@@ -52,10 +52,10 @@ export function TableToolbar({
           />
         </div>
       )}
-      <div className="flex flex-wrap items-center gap-2 sm:ml-auto">
-        {hint && <span className="text-xs text-gray-400 hidden md:inline max-w-[14rem]">{hint}</span>}
-        <span className="text-xs font-medium text-gray-500">Sort</span>
-        <div className="w-[8rem] shrink-0 overflow-hidden">
+      <div className="grid grid-cols-2 gap-2 w-full sm:flex sm:flex-wrap sm:items-center sm:gap-2 sm:ml-auto sm:w-auto">
+        {hint && <span className="col-span-2 text-xs text-gray-400 hidden md:inline max-w-[14rem] sm:col-span-1">{hint}</span>}
+        <span className="col-span-2 text-xs font-medium text-gray-500 sm:col-span-1 sm:inline hidden sm:inline">Sort</span>
+        <div className="min-w-0">
           <select
             value={sortKey}
             onChange={(e) => onSortKeyChange(e.target.value)}
@@ -69,7 +69,7 @@ export function TableToolbar({
             ))}
           </select>
         </div>
-        <div className="w-[8.5rem] shrink-0 overflow-hidden">
+        <div className="min-w-0">
           <select
             value={sortDir}
             onChange={(e) => onSortDirChange(e.target.value as SortDir)}

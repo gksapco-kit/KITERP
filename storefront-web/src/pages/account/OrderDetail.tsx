@@ -175,7 +175,7 @@ export default function OrderDetail() {
   const isReturnOrExchange = ['return_requested', 'exchange_requested', 'returned', 'exchanged', 'refunded'].includes(order.status)
 
   return (
-    <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+    <div className="max-w-4xl mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-6">
       {/* Breadcrumb */}
       <nav className="text-sm text-gray-500 mb-6">
         <Link to={storePath('/')} className="hover:text-blue-600">Home</Link>
@@ -188,10 +188,10 @@ export default function OrderDetail() {
       {/* Order header */}
       <div className="bg-white rounded-xl border overflow-hidden mb-6">
         <div className="bg-gray-50 px-5 sm:px-6 py-4 border-b">
-          <div className="flex items-center justify-between flex-wrap gap-2">
-            <div>
-              <div className="flex items-center gap-2">
-                <h1 className="text-xl font-bold text-gray-900">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between flex-wrap">
+            <div className="min-w-0">
+              <div className="flex flex-wrap items-center gap-2">
+                <h1 className="text-lg sm:text-xl font-bold text-gray-900">
                   {isBooking ? 'Booking' : isQuote ? 'Quote Request' : 'Order'} {order.order_number}
                 </h1>
                 {isBooking && (
@@ -205,7 +205,7 @@ export default function OrderDetail() {
               </div>
               <p className="text-sm text-gray-500 mt-0.5">Placed on {formatDate(order.created_at)}</p>
             </div>
-            <div className="flex items-center gap-2 flex-wrap">
+            <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center w-full sm:w-auto">
               {invoice && (
                 <Button
                   variant="outline" size="sm"
@@ -260,7 +260,8 @@ export default function OrderDetail() {
               {order.notes && <p className="text-sm text-gray-600 mt-2 border-t border-primary/30 pt-2">{order.notes}</p>}
             </div>
           ) : (
-            <div className="flex items-center justify-between relative">
+            <div className="overflow-x-auto -mx-1 px-1 pb-2 sm:overflow-visible sm:mx-0 sm:px-0 sm:pb-0">
+            <div className="flex items-center justify-between relative min-w-[280px] sm:min-w-0">
               {(() => {
                 const steps = isBooking ? bookingStepConfig : stepConfig
                 const stepCount = steps.length
@@ -296,6 +297,7 @@ export default function OrderDetail() {
                   </>
                 )
               })()}
+            </div>
             </div>
           )}
         </div>
