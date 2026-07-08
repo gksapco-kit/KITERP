@@ -20,7 +20,7 @@ export function TwoColumnLayout({ state, actions }: Props) {
   const selectedShippingLabel = state.shippingMethods.find((m) => m.id === state.shippingMethodId)?.label;
 
   return (
-    <div className="mx-auto grid max-w-6xl grid-cols-1 gap-6 px-3 py-6 sm:px-4 md:px-6 lg:grid-cols-[minmax(0,1fr)_minmax(340px,460px)] lg:gap-8">
+    <div className="mx-auto grid max-w-6xl grid-cols-1 gap-6 px-3 py-6 sm:px-4 md:px-6 lg:grid-cols-[minmax(0,1fr)_minmax(340px,460px)] lg:items-start lg:gap-8">
       <div className="order-2 min-w-0 space-y-4 lg:order-1">
         <Section step={1} title="Contact">
           <ContactStep
@@ -109,16 +109,14 @@ export function TwoColumnLayout({ state, actions }: Props) {
         <PlaceOrderBar state={state} actions={actions} />
       </div>
 
-      <div className="order-1 min-w-0 lg:order-2 lg:pl-1">
-        <div className="lg:sticky lg:top-20">
-          <OrderSummary
-            cart={state.cart}
-            selectedShippingLabel={selectedShippingLabel}
-            collapsibleOnMobile
-            onApplyCoupon={actions.applyCoupon}
-            onRemoveCoupon={actions.removeCoupon}
-          />
-        </div>
+      <div className="order-1 min-w-0 lg:order-2 lg:self-start lg:pl-1 lg:sticky lg:top-20">
+        <OrderSummary
+          cart={state.cart}
+          selectedShippingLabel={selectedShippingLabel}
+          collapsibleOnMobile
+          onApplyCoupon={actions.applyCoupon}
+          onRemoveCoupon={actions.removeCoupon}
+        />
       </div>
     </div>
   );

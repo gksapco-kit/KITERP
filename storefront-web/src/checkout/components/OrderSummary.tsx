@@ -31,7 +31,7 @@ export function OrderSummary({
   const totalDiscount = cart.discounts.reduce((sum, d) => sum + d.amount.amount, 0);
 
   return (
-    <aside className="ck-surface-elevated ck-border ck-radius-md p-5 md:p-6">
+    <aside className="ck-surface-elevated ck-border ck-radius-md p-5 md:p-6 lg:flex lg:max-h-[calc(100vh-6rem)] lg:flex-col">
       {collapsibleOnMobile && (
         <button
           type="button"
@@ -47,11 +47,13 @@ export function OrderSummary({
         </button>
       )}
 
-      <div className={collapsibleOnMobile && !open ? "hidden md:block" : "block"}>
-        <h3 className="mb-4 text-base font-semibold">Order summary</h3>
+      <div
+        className={`${collapsibleOnMobile && !open ? "hidden md:block" : "block"} lg:flex lg:min-h-0 lg:flex-1 lg:flex-col`}
+      >
+        <h3 className="mb-4 shrink-0 text-base font-semibold">Order summary</h3>
 
         {showItems && (
-          <div className="ck-border-b mb-4 pb-1">
+          <div className="ck-border-b mb-4 pb-1 lg:min-h-0 lg:flex-1 lg:overflow-y-auto">
             {cart.items.map((item) => (
               <LineItem key={item.id} item={item} compact />
             ))}
@@ -59,7 +61,7 @@ export function OrderSummary({
         )}
 
         {showCouponField && (
-          <div className="mb-4">
+          <div className="mb-4 shrink-0">
             {cart.discounts.length > 0 && (
               <div className="mb-2 flex flex-wrap gap-2">
                 {cart.discounts.map((d) => (
@@ -99,7 +101,7 @@ export function OrderSummary({
           </div>
         )}
 
-        <dl className="space-y-2.5 text-sm">
+        <dl className="shrink-0 space-y-2.5 text-sm">
           <Row label="Subtotal" value={formatMoney(cart.subtotal, locale)} />
           {totalDiscount > 0 && (
             <Row
@@ -122,13 +124,13 @@ export function OrderSummary({
             cart.taxes.map((t, i) => <Row key={i} label={t.label} value={formatMoney(t.amount, locale)} />)}
         </dl>
 
-        <div className="ck-border-t mt-4 flex items-baseline justify-between gap-4 pt-4">
+        <div className="ck-border-t mt-4 flex shrink-0 items-baseline justify-between gap-4 pt-4">
           <span className="min-w-0 text-sm font-medium">Total</span>
           <span className="shrink-0 text-xl font-semibold tabular-nums">{formatMoney(cart.total, locale)}</span>
         </div>
 
         {showTrustBadges && (
-          <div className="ck-text-subtle mt-4 flex items-center justify-center gap-2 text-xs">
+          <div className="ck-text-subtle mt-4 flex shrink-0 items-center justify-center gap-2 text-xs">
             <Lock size={12} /> Secure checkout · Encrypted payment
           </div>
         )}

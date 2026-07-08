@@ -1,4 +1,5 @@
 import { Mail, User } from "lucide-react";
+import { useLocation, useNavigate } from "react-router-dom";
 import { useCheckoutConfig } from "../config";
 import { Customer } from "../types";
 import { useAuthStore } from "@/stores/authStore";
@@ -14,6 +15,16 @@ export function ContactStep({ customer, onChange, onSignInClick, fieldErrors = {
   const { allowGuest } = useCheckoutConfig();
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   const showNameFields = customer.isGuest !== false;
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  // `login` and `checkout` are sibling routes in every context (live store,
+  // storefront preview, template browser), so swap the last path segment.
+  const handleSignIn = () => {
+    if (onSignInClick) return onSignInClick();
+    const loginPath = location.pathname.replace(/\/[^/]*$/, "/login");
+    navigate(loginPath, { state: { from: location.pathname + location.search } });
+  };
 
   return (
     <div className="space-y-3">
@@ -23,7 +34,7 @@ export function ContactStep({ customer, onChange, onSignInClick, fieldErrors = {
             <User size={14} /> Checking out as guest
           </span>
           {!isAuthenticated && (
-            <button type="button" className="ck-btn-ghost" onClick={onSignInClick}>
+            <button type="button" className="ck-btn-ghost" onClick={handleSignIn}>
               Have an account? Sign in
             </button>
           )}

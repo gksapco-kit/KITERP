@@ -1,7 +1,7 @@
 import { Link, useParams } from "react-router-dom";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { CheckCircle2, Mail, MapPin, Package } from "lucide-react";
+import { CheckCircle2, Mail, MapPin, Package, X } from "lucide-react";
 import { CheckoutHeader, CheckoutFooter } from "../components/Header";
 import { Confetti } from "../components/Confetti";
 import { OrderConfirmationLoading } from "../components/OrderConfirmationLoading";
@@ -31,10 +31,17 @@ function Inner() {
   const qc = useQueryClient();
   const { data: order, isLoading } = useOrder(orderId ?? "");
   useCart();
+  const [showConfirmPopup, setShowConfirmPopup] = useState(false);
 
   useEffect(() => {
     void resetCartAfterOrder(qc, vendorSlug);
   }, [qc, vendorSlug]);
+
+  useEffect(() => {
+    if (!isLoading && order) {
+      setShowConfirmPopup(true);
+    }
+  }, [isLoading, order]);
 
   if (isLoading) {
     return <OrderConfirmationLoading theme={checkoutTheme} />;
@@ -49,6 +56,14 @@ function Inner() {
   return (
     <div className="checkout-root min-h-screen" style={checkoutTheme}>
       <Confetti />
+      {showConfirmPopup ? (
+        <OrderConfirmedPopup
+          orderNumber={order?.order_number ?? resolvedId}
+          customerName={customerName}
+          trackTo={resolvedId ? storePath(`/order/${resolvedId}/status`) : null}
+          onClose={() => setShowConfirmPopup(false)}
+        />
+      ) : null}
       <CheckoutHeader />
       <main className="mx-auto max-w-3xl px-3 py-6 sm:px-4 sm:py-8 md:px-6">
         <div
@@ -127,6 +142,77 @@ function Inner() {
         </div>
       </main>
       <CheckoutFooter />
+    </div>
+  );
+}
+
+function OrderConfirmedPopup({
+  orderNumber,
+  customerName,
+  trackTo,
+  onClose,
+}: {
+  orderNumber: string;
+  customerName: string;
+  trackTo: string | null;
+  onClose: () => void;
+}) {
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [onClose]);
+
+  return (
+    <div
+      className="fixed inset-0 z-[200] flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="order-confirmed-title"
+      onClick={onClose}
+    >
+      <div
+        className="ck-surface ck-radius-lg relative w-full max-w-sm p-6 text-center shadow-xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <button
+          type="button"
+          onClick={onClose}
+          aria-label="Close"
+          className="ck-text-muted absolute right-3 top-3 flex h-8 w-8 items-center justify-center rounded-full hover:bg-[hsl(var(--surface-muted))]"
+        >
+          <X size={18} />
+        </button>
+        <div
+          className="mx-auto mb-4 flex h-14 w-14 animate-bounce items-center justify-center"
+          style={{ borderRadius: "999px", background: "hsl(var(--success) / 0.15)", color: "hsl(var(--success))" }}
+        >
+          <CheckCircle2 size={32} />
+        </div>
+        <h2 id="order-confirmed-title" className="text-xl font-semibold">
+          Order confirmed!
+        </h2>
+        <p className="ck-text-muted mt-2 text-sm">
+          Thanks{customerName && customerName !== "there" ? `, ${customerName}` : ""}! Your order{" "}
+          <span className="font-medium">{orderNumber}</span> has been placed successfully.
+        </p>
+        <div className="mt-6 flex flex-col gap-2">
+          {trackTo ? (
+            <Link
+              to={trackTo}
+              className="ck-btn-primary no-underline"
+              style={{ textAlign: "center", padding: "12px 24px" }}
+            >
+              Track your order
+            </Link>
+          ) : null}
+          <button type="button" onClick={onClose} className="ck-btn-secondary" style={{ textAlign: "center" }}>
+            View order details
+          </button>
+        </div>
+      </div>
     </div>
   );
 }

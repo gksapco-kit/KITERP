@@ -1,12 +1,19 @@
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { useAuthStore } from '@/stores/authStore'
-import { Button } from '@/components/ui/button'
-import { Package, User, MapPin, ChevronRight, Heart, Settings, ShoppingBag, CalendarDays, Bell, Repeat, MessageSquareQuote, PackageOpen } from 'lucide-react'
+import { useCustomerLogout } from '@/hooks/useStore'
+import { Package, User, MapPin, ChevronRight, Heart, Settings, ShoppingBag, CalendarDays, Bell, Repeat, MessageSquareQuote, PackageOpen, LogOut } from 'lucide-react'
 import { useVendor } from '@/contexts/VendorContext'
 
 export default function Account() {
   const { customer } = useAuthStore()
   const { storePath } = useVendor()
+  const navigate = useNavigate()
+  const logout = useCustomerLogout()
+
+  const handleLogout = () => {
+    logout()
+    navigate(storePath('/login'))
+  }
 
   const menuItems = [
     { to: storePath('/account/notifications'), icon: Bell, label: 'Notifications', desc: 'Order updates and alerts', color: 'bg-sky-50 text-sky-600' },
@@ -33,15 +40,25 @@ export default function Account() {
 
       {/* Profile Card */}
       <div className="bg-white rounded-xl border p-6 mb-6">
-        <div className="flex items-center gap-4">
-          <div className="w-16 h-16 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center text-white text-xl font-bold shrink-0">
-            {customer?.full_name?.charAt(0)?.toUpperCase() || 'U'}
+        <div className="flex items-start justify-between gap-4">
+          <div className="flex items-center gap-4 min-w-0">
+            <div className="w-16 h-16 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center text-white text-xl font-bold shrink-0">
+              {customer?.full_name?.charAt(0)?.toUpperCase() || 'U'}
+            </div>
+            <div className="min-w-0">
+              <h2 className="text-lg font-bold text-gray-900">{customer?.full_name}</h2>
+              {customer?.email && <p className="text-sm text-gray-500 truncate">{customer.email}</p>}
+              {customer?.phone && <p className="text-sm text-gray-500">{customer.phone}</p>}
+            </div>
           </div>
-          <div>
-            <h2 className="text-lg font-bold text-gray-900">{customer?.full_name}</h2>
-            {customer?.email && <p className="text-sm text-gray-500">{customer.email}</p>}
-            {customer?.phone && <p className="text-sm text-gray-500">{customer.phone}</p>}
-          </div>
+          <button
+            type="button"
+            onClick={handleLogout}
+            className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-red-600 hover:bg-red-50 rounded-lg transition-colors shrink-0"
+          >
+            <LogOut className="w-4 h-4" />
+            <span className="hidden sm:inline">Sign Out</span>
+          </button>
         </div>
         <div className="mt-4 pt-4 border-t grid grid-cols-2 sm:grid-cols-3 gap-4 text-center">
           <div>
