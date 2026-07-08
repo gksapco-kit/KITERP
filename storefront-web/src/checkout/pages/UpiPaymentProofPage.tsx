@@ -9,6 +9,7 @@ import { useStoreInfo } from "@/hooks/useStore";
 import { useVendor } from "@/contexts/VendorContext";
 import { useAuthStore } from "@/stores/authStore";
 import { UpiPaymentPanel } from "@/checkout/components/UpiPaymentPanel";
+import { Confetti } from "@/checkout/components/Confetti";
 import { CheckoutHeader, CheckoutFooter } from "@/checkout/components/Header";
 import type { ManualUpiConfig } from "@/checkout/config";
 
@@ -115,9 +116,12 @@ export default function UpiPaymentProofPage() {
   if (done || proofSubmitted || order.payment_status === "paid") {
     return (
       <div className="checkout-root min-h-screen">
+        <Confetti />
         <CheckoutHeader />
         <main className="mx-auto max-w-lg px-3 py-12 text-center sm:px-4 sm:py-16">
-          <CheckCircle2 className="mx-auto h-12 w-12 text-green-600" />
+          <div className="mx-auto flex h-16 w-16 animate-bounce items-center justify-center rounded-full bg-green-100">
+            <CheckCircle2 className="h-10 w-10 text-green-600" />
+          </div>
           <h1 className="mt-4 text-2xl font-semibold">Thank you for placing your order!</h1>
           <p className="mt-2 text-sm text-gray-600">
             Your order <strong>{order.order_number}</strong> has been received.
@@ -135,13 +139,22 @@ export default function UpiPaymentProofPage() {
           <p className="mt-3 text-sm text-gray-500">
             The store will verify your payment and confirm your order.
           </p>
-          <button
-            type="button"
-            className="ck-btn-primary mt-6"
-            onClick={() => navigate(storePath(`/order/${orderId}/status`))}
-          >
-            View order status
-          </button>
+          <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:justify-center">
+            <button
+              type="button"
+              className="ck-btn-primary"
+              onClick={() => navigate(storePath("/products"))}
+            >
+              Continue shopping
+            </button>
+            <button
+              type="button"
+              className="ck-btn-secondary"
+              onClick={() => navigate(storePath(`/order/${orderId}/status`))}
+            >
+              View order status
+            </button>
+          </div>
         </main>
         <CheckoutFooter />
       </div>

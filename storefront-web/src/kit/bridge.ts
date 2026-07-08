@@ -123,7 +123,7 @@ export function bridgeCustomer(c: Customer): AccountUser {
     name: c.full_name ?? c.email ?? c.id,
     email: c.email ?? '',
     phone: c.phone ?? undefined,
-    avatarUrl: undefined,
+    avatarUrl: c.avatar_url ?? undefined,
   }
 }
 

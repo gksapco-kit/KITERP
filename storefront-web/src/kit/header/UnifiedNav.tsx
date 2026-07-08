@@ -59,6 +59,25 @@ export interface UnifiedNavProps {
   storePath?: (p: string) => string;
 }
 
+function AccountAvatar({ user }: { user?: AccountUser | null }) {
+  if (!user) return <User />;
+  const initial = (user.name || user.email || "U").trim().charAt(0).toUpperCase() || "U";
+  if (user.avatarUrl) {
+    return (
+      <img
+        src={user.avatarUrl}
+        alt={user.name || "Account"}
+        className="h-7 w-7 rounded-full object-cover"
+      />
+    );
+  }
+  return (
+    <span className="flex h-7 w-7 items-center justify-center rounded-full bg-primary text-xs font-bold text-primary-foreground">
+      {initial}
+    </span>
+  );
+}
+
 export function UnifiedNav({
   logo,
   logoHomeTo = "/",
@@ -246,7 +265,9 @@ export function UnifiedNav({
           {showAccount && (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon" aria-label="Account"><User /></Button>
+                <Button variant="ghost" size="icon" aria-label="Account" className="rounded-full">
+                  <AccountAvatar user={user} />
+                </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-56">
                 {user ? (

@@ -2,8 +2,10 @@ export interface Token { access_token: string; refresh_token: string; token_type
 
 export interface Customer {
   id: string; vendor_id: string; full_name: string; email?: string; phone?: string
+  avatar_url?: string | null
   shipping_addresses: Address[]; default_address_index: number
   total_orders: number; total_spent: number; created_at: string
+  notification_preferences?: Record<string, boolean>
 }
 
 export interface Address {

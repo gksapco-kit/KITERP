@@ -501,6 +501,29 @@ export default function ClassicDetail(props: ProductDetailTemplateProps) {
               </div>
             )}
 
+            {/* Quantity + Add to Cart */}
+            <div className="border-t mt-6 pt-6" />
+            <ProductPurchaseActions
+              qty={qty}
+              setQty={setQty}
+              validateQtyChange={validateQtyChange}
+              maxQty={maxAddQty}
+              minQty={minAddQty}
+              onHandQty={onHandQty}
+              displayPrice={displayPrice}
+              displayCurrency={displayCurrency}
+              displayStock={displayStock}
+              variantValidationValid={variantValidation.valid}
+              addToCartPending={addToCartPending}
+              handleAddToCart={handleAddToCart}
+              handleBuyNow={handleBuyNow}
+              isSubscription={isSubscription}
+              canQuote={canQuote}
+              onRequestQuote={() => setShowQuote(true)}
+              isAuthenticated={isAuthenticated}
+              storePath={storePath}
+            />
+
             {/* Trust badges */}
             <div className="mt-5 grid grid-cols-3 gap-3">
               {[
@@ -545,30 +568,6 @@ export default function ClassicDetail(props: ProductDetailTemplateProps) {
                 ))}
               </div>
             )}
-
-            <div className="border-t mt-6 pt-6" />
-
-            {/* Quantity + Add to Cart */}
-            <ProductPurchaseActions
-              qty={qty}
-              setQty={setQty}
-              validateQtyChange={validateQtyChange}
-              maxQty={maxAddQty}
-              minQty={minAddQty}
-              onHandQty={onHandQty}
-              displayPrice={displayPrice}
-              displayCurrency={displayCurrency}
-              displayStock={displayStock}
-              variantValidationValid={variantValidation.valid}
-              addToCartPending={addToCartPending}
-              handleAddToCart={handleAddToCart}
-              handleBuyNow={handleBuyNow}
-              isSubscription={isSubscription}
-              canQuote={canQuote}
-              onRequestQuote={() => setShowQuote(true)}
-              isAuthenticated={isAuthenticated}
-              storePath={storePath}
-            />
           </div>
         </div>
       </div>

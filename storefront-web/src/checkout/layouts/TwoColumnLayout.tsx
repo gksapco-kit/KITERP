@@ -109,8 +109,8 @@ export function TwoColumnLayout({ state, actions }: Props) {
         <PlaceOrderBar state={state} actions={actions} />
       </div>
 
-      <div className="order-1 min-w-0 lg:order-2">
-        <div className="lg:sticky lg:top-6 lg:pl-1">
+      <div className="order-1 min-w-0 lg:order-2 lg:pl-1">
+        <div className="lg:sticky lg:top-20">
           <OrderSummary
             cart={state.cart}
             selectedShippingLabel={selectedShippingLabel}

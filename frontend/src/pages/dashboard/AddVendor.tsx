@@ -19,7 +19,7 @@ import { ArrowLeft, Loader2, MapPin, UserPlus, Copy, CheckCircle2 } from 'lucide
 const LocationPicker = lazy(() => import('@/components/common/LocationPicker'))
 
 const addVendorSchema = z.object({
-  owner_email: z.string().email('Valid email required'),
+  owner_email: z.union([z.literal(''), z.string().email('Valid email required')]).optional(),
   owner_password: z.string().min(6, 'Min 6 characters').max(128),
   owner_name: z.string().min(2, 'Min 2 characters').max(255),
   owner_phone: z.string().optional().or(z.literal('')),
@@ -70,7 +70,7 @@ export default function AddVendor() {
   const [radius, setRadius] = useState(10)
   const [createdResult, setCreatedResult] = useState<{
     vendor: { display_name: string; slug: string; subdomain: string }
-    owner_account: { email: string; password: string; user_created: boolean }
+    owner_account: { email: string | null; phone: string | null; password: string; user_created: boolean }
   } | null>(null)
   const [copiedField, setCopiedField] = useState<string | null>(null)
 
@@ -124,7 +124,7 @@ export default function AddVendor() {
   const createVendor = useMutation({
     mutationFn: (data: AddVendorForm) =>
       adminApi.createVendor({
-        owner_email: data.owner_email,
+        owner_email: data.owner_email?.trim() || undefined,
         owner_password: data.owner_password,
         owner_name: data.owner_name,
         owner_phone: data.owner_phone || undefined,
@@ -191,21 +191,25 @@ export default function AddVendor() {
             </p>
 
             <div className="space-y-3">
-              <div className="flex items-center justify-between bg-white rounded-lg p-3 border">
-                <div>
-                  <p className="text-xs text-gray-500 uppercase tracking-wide">Email</p>
-                  <p className="font-mono font-medium">{owner_account.email}</p>
+              {(owner_account.email || owner_account.phone) && (
+                <div className="flex items-center justify-between bg-white rounded-lg p-3 border">
+                  <div>
+                    <p className="text-xs text-gray-500 uppercase tracking-wide">
+                      {owner_account.email ? 'Email' : 'Phone'}
+                    </p>
+                    <p className="font-mono font-medium">{owner_account.email || owner_account.phone}</p>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => copyToClipboard(owner_account.email || owner_account.phone || '', 'login')}
+                    className="gap-1"
+                  >
+                    {copiedField === 'login' ? <CheckCircle2 className="w-4 h-4 text-green-500" /> : <Copy className="w-4 h-4" />}
+                    {copiedField === 'login' ? 'Copied' : 'Copy'}
+                  </Button>
                 </div>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => copyToClipboard(owner_account.email, 'email')}
-                  className="gap-1"
-                >
-                  {copiedField === 'email' ? <CheckCircle2 className="w-4 h-4 text-green-500" /> : <Copy className="w-4 h-4" />}
-                  {copiedField === 'email' ? 'Copied' : 'Copy'}
-                </Button>
-              </div>
+              )}
 
               {owner_account.user_created && (
                 <div className="flex items-center justify-between bg-white rounded-lg p-3 border">
@@ -289,7 +293,7 @@ export default function AddVendor() {
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="owner_email">Login Email *</Label>
+                <Label htmlFor="owner_email">Login Email</Label>
                 <Input id="owner_email" type="email" {...register('owner_email')} placeholder="owner@vendor.com" />
                 {errors.owner_email && <p className="text-xs text-red-500">{errors.owner_email.message}</p>}
               </div>

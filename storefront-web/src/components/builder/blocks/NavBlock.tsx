@@ -1,4 +1,4 @@
-import { useMemo, useState, useCallback } from 'react'
+import { useMemo, useState, useCallback, useEffect } from 'react'
 import { Link, useNavigate, useLocation } from 'react-router-dom'
 import { Search, ShoppingBag, User, X, Home, Menu } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -21,6 +21,7 @@ import {
   isNavLinkActive,
   resolveCurrentNavActiveKey,
   resolveNavBlockLinks,
+  resolveNavCtaLabel,
 } from '@/lib/siteNavPages'
 import { isVendorBlogEnabled } from '@/lib/catalogNavCapabilities'
 import {
@@ -69,12 +70,17 @@ export default function NavBlock({
   const builderCanvas = useBuilderCanvas()
   const navigate = useNavigate()
   const location = useLocation()
-  const { isAuthenticated } = useAuthStore()
+  const { isAuthenticated, customer } = useAuthStore()
   const cartCount = useCartStore(selectCartItemCount)
   useCart()
   const [searchOpen, setSearchOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+  const [avatarFailed, setAvatarFailed] = useState(false)
+
+  useEffect(() => {
+    setAvatarFailed(false)
+  }, [customer?.avatar_url])
 
   const sitePageSlugs = useMemo(() => sitePageSlugSet(site), [site])
 
@@ -137,7 +143,7 @@ export default function NavBlock({
   const showSearch = props.show_search !== false
   const showCart = props.show_cart !== false
   const showAccount = props.show_login !== false && props.show_account !== false
-  const ctaLabel = (props.cta_label as string | null) || null
+  const ctaLabel = resolveNavCtaLabel(props.cta_label as string | null)
   const ctaUrl = (props.cta_url as string | null) || '/contact'
   const announcement = (props.announcement as string | undefined) || null
 
@@ -531,6 +537,28 @@ export default function NavBlock({
     </Sheet>
   )
 
+  const accountInitial =
+    (customer?.full_name || customer?.email || 'U').trim().charAt(0).toUpperCase() || 'U'
+  const avatarSrc = imgUrl((customer?.avatar_url || '').trim())
+  const showAvatarImage = isAuthenticated && !!avatarSrc && !avatarFailed
+  const accountAvatarNode = showAvatarImage ? (
+    <img
+      src={avatarSrc}
+      alt={customer?.full_name || 'Account'}
+      className="w-6 h-6 rounded-full object-cover"
+      onError={() => setAvatarFailed(true)}
+    />
+  ) : isAuthenticated ? (
+    <span
+      className="flex w-6 h-6 items-center justify-center rounded-full text-xs font-bold text-white"
+      style={{ backgroundColor: primary }}
+    >
+      {accountInitial}
+    </span>
+  ) : (
+    <User className="w-5 h-5" />
+  )
+
   const actionsNode = (
     <div className="flex items-center gap-0.5 sm:gap-2 shrink-0">
       {showSearch && (
@@ -625,7 +653,7 @@ export default function NavBlock({
               style={{ color: shell.navTextCol }}
               aria-label="Account"
             >
-              <User className="w-5 h-5" />
+              {accountAvatarNode}
             </button>
           ) : previewShell ? (
             <a
@@ -635,11 +663,11 @@ export default function NavBlock({
               style={{ color: shell.navTextCol }}
               aria-label="Account"
             >
-              <User className="w-5 h-5" />
+              {accountAvatarNode}
             </a>
           ) : (
             <Link to={storePath(isAuthenticated ? '/account' : '/login')} className="p-2 rounded-lg hover:opacity-70 transition-opacity" style={{ color: shell.navTextCol }} aria-label="Account">
-              <User className="w-5 h-5" />
+              {accountAvatarNode}
             </Link>
           )}
         </div>

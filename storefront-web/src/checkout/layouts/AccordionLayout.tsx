@@ -87,16 +87,14 @@ export function AccordionLayout({ state, actions }: { state: CheckoutState; acti
         </div>
       </div>
 
-      <div className="min-w-0">
-        <div className="lg:sticky lg:top-6 lg:pl-1">
-          <OrderSummary
-            cart={state.cart}
-            selectedShippingLabel={selectedShippingLabel}
-            collapsibleOnMobile
-            onApplyCoupon={actions.applyCoupon}
-            onRemoveCoupon={actions.removeCoupon}
-          />
-        </div>
+      <div className="min-w-0 lg:sticky lg:top-6 lg:self-start lg:pl-1">
+        <OrderSummary
+          cart={state.cart}
+          selectedShippingLabel={selectedShippingLabel}
+          collapsibleOnMobile
+          onApplyCoupon={actions.applyCoupon}
+          onRemoveCoupon={actions.removeCoupon}
+        />
       </div>
     </div>
   );

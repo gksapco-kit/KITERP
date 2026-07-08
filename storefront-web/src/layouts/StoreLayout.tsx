@@ -437,6 +437,15 @@ function StoreContent() {
       rememberDraftEmbedPreviewToken(searchParams.get('preview_token')!.trim())
     }
   }, [draftCatalogEmbed, searchParams])
+
+  // Reset scroll to the top whenever the route (page) changes so newly opened
+  // pages (products, product/service detail, account/addresses, etc.) start at
+  // the top instead of inheriting the previous page's scroll position.
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      window.scrollTo({ top: 0, left: 0, behavior: 'auto' })
+    }
+  }, [pathname])
   const { builderSite } = useBuilderSite()
   const { isLoading, error } = useVendor()
   const vendor = useEffectiveVendor()
@@ -576,7 +585,12 @@ function StoreContent() {
     : 'bordered'
 
   const kitUser = isAuthenticated && customer
-    ? { id: customer.id, name: customer.full_name ?? customer.email ?? '', email: customer.email ?? '' }
+    ? {
+        id: customer.id,
+        name: customer.full_name ?? customer.email ?? '',
+        email: customer.email ?? '',
+        avatarUrl: customer.avatar_url ? imgUrl(customer.avatar_url) : undefined,
+      }
     : null
 
   const kitLinks = headerNavLinks

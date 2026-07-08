@@ -2298,7 +2298,7 @@ WEBSITE_TEMPLATES = {
         "pages": [
             {"title": "Home", "slug": "home", "page_type": "home", "is_homepage": True, "show_in_nav": True, "blocks": [
                 {"block_type": "announcement_bar", "props": {"text": "Wholesome snacks and groceries — natural ingredients you can trust.", "color": "#274832"}},
-                {"block_type": "nav", "props": {"brand": "Wellness Store", "show_cart": True, "show_search": True, "cta_label": "Shop now"}},
+                {"block_type": "nav", "props": {"brand": "Wellness Store", "show_cart": True, "show_search": True, "cta_label": "Get started"}},
                 {"block_type": "hero_split", "props": {
                     "headline": "Discover wellness essentials",
                     "headline_line2": "for everyday wellness",
@@ -3246,7 +3246,7 @@ def _wellness_retail_home_blocks(
             "brand": short_name,
             "show_cart": True,
             "show_search": True,
-            "cta_label": "Shop now",
+            "cta_label": "Get started",
         })},
         {"block_type": "hero_split", "label": "Hero", "props": snap_props("hero_split", {
             "headline": "Discover wellness essentials",

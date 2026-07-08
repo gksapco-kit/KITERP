@@ -1,6 +1,7 @@
 import { Mail, User } from "lucide-react";
 import { useCheckoutConfig } from "../config";
 import { Customer } from "../types";
+import { useAuthStore } from "@/stores/authStore";
 
 type Props = {
   customer: Partial<Customer>;
@@ -11,6 +12,7 @@ type Props = {
 
 export function ContactStep({ customer, onChange, onSignInClick, fieldErrors = {} }: Props) {
   const { allowGuest } = useCheckoutConfig();
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   const showNameFields = customer.isGuest !== false;
 
   return (
@@ -20,9 +22,11 @@ export function ContactStep({ customer, onChange, onSignInClick, fieldErrors = {
           <span className="flex items-center gap-2">
             <User size={14} /> Checking out as guest
           </span>
-          <button type="button" className="ck-btn-ghost" onClick={onSignInClick}>
-            Have an account? Sign in
-          </button>
+          {!isAuthenticated && (
+            <button type="button" className="ck-btn-ghost" onClick={onSignInClick}>
+              Have an account? Sign in
+            </button>
+          )}
         </div>
       )}
 

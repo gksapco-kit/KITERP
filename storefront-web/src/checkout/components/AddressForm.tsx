@@ -78,44 +78,48 @@ export function AddressForm({ initial, onSubmit, onChange, hideSubmit, formId, f
       className="space-y-3"
       noValidate
     >
-      <Field label="Full name" error={displayErrors.fullName} fieldKey="fullName">
-        <input
-          className="ck-input"
-          autoComplete="name"
-          value={v.fullName}
-          aria-invalid={!!displayErrors.fullName}
-          data-checkout-field="fullName"
-          onChange={(e) => update("fullName", e.target.value)}
-        />
-      </Field>
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <Field label="Full name" error={displayErrors.fullName} fieldKey="fullName">
+          <input
+            className="ck-input"
+            autoComplete="name"
+            value={v.fullName}
+            aria-invalid={!!displayErrors.fullName}
+            data-checkout-field="fullName"
+            onChange={(e) => update("fullName", e.target.value)}
+          />
+        </Field>
 
-      <Field label="Company (optional)">
-        <input
-          className="ck-input"
-          autoComplete="organization"
-          value={v.company}
-          onChange={(e) => update("company", e.target.value)}
-        />
-      </Field>
+        <Field label="Company (optional)">
+          <input
+            className="ck-input"
+            autoComplete="organization"
+            value={v.company}
+            onChange={(e) => update("company", e.target.value)}
+          />
+        </Field>
+      </div>
 
-      <Field label="Address" error={displayErrors.line1} fieldKey="line1">
-        <input
-          className="ck-input"
-          autoComplete="address-line1"
-          value={v.line1}
-          aria-invalid={!!displayErrors.line1}
-          data-checkout-field="line1"
-          onChange={(e) => update("line1", e.target.value)}
-        />
-      </Field>
-      <Field label="Apartment, suite, etc. (optional)">
-        <input
-          className="ck-input"
-          autoComplete="address-line2"
-          value={v.line2}
-          onChange={(e) => update("line2", e.target.value)}
-        />
-      </Field>
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <Field label="Address" error={displayErrors.line1} fieldKey="line1">
+          <input
+            className="ck-input"
+            autoComplete="address-line1"
+            value={v.line1}
+            aria-invalid={!!displayErrors.line1}
+            data-checkout-field="line1"
+            onChange={(e) => update("line1", e.target.value)}
+          />
+        </Field>
+        <Field label="Apartment, suite, etc. (optional)">
+          <input
+            className="ck-input"
+            autoComplete="address-line2"
+            value={v.line2}
+            onChange={(e) => update("line2", e.target.value)}
+          />
+        </Field>
+      </div>
 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
         <Field label="City" error={displayErrors.city} fieldKey="city">

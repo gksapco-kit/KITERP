@@ -55,18 +55,18 @@ export default function ProfileSettings() {
   }
 
   return (
-    <div className="max-w-2xl mx-auto px-3 sm:px-6 py-6 sm:py-8">
-      <nav className="text-sm text-gray-500 mb-6 flex items-center gap-1.5">
+    <div className="max-w-5xl mx-auto px-3 sm:px-6 py-4 sm:py-6">
+      <nav className="text-sm text-gray-500 mb-4 flex items-center gap-1.5">
         <Link to={storePath('/account')} className="hover:text-primary">Account</Link>
         <ChevronRight className="w-3 h-3" />
         <span className="text-gray-900 font-medium">Profile & Settings</span>
       </nav>
 
-      <h1 className="text-2xl font-bold mb-8">Profile &amp; Settings</h1>
-
-      <div className="space-y-6">
-        <ProfileEdit user={kitUser} onSave={handleSaveProfile} />
-        <ChangePasswordForm onSubmit={handleChangePassword} />
+      <div className="grid gap-4">
+        <div className="grid gap-4 lg:grid-cols-2 lg:items-stretch">
+          <ProfileEdit user={kitUser} onSave={handleSaveProfile} />
+          <ChangePasswordForm onSubmit={handleChangePassword} />
+        </div>
         <NotificationPreferencesForm
           value={notifPrefs}
           onChange={async (prefs) => {

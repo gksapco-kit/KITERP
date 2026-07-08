@@ -96,7 +96,6 @@ export default function AddressesPage() {
         <span className="text-gray-900 font-medium">Saved Addresses</span>
       </nav>
 
-      <h1 className="text-2xl font-bold mb-8">Saved Addresses</h1>
       <AddressBook
         addresses={kitAddresses}
         onAdd={handleAdd}

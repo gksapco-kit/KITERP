@@ -22,7 +22,7 @@ import {
 } from '@/hooks/useVendor'
 import { vendorApi } from '@/api/vendor'
 import type { OrderAttachmentRef } from '@/types'
-import { Loader2, CheckCircle, XCircle, RotateCcw, Repeat, MessageSquare } from 'lucide-react'
+import { Loader2, CheckCircle, XCircle, RotateCcw, Repeat, MessageSquare, X, ZoomIn, ShieldCheck } from 'lucide-react'
 
 const MAX_ORDER_MEDIA = 10
 
@@ -58,6 +58,9 @@ export default function OrderDetail() {
   const [deliveryStaffExpanded, setDeliveryStaffExpanded] = useState(false)
   const [paymentReviewNotes, setPaymentReviewNotes] = useState('')
   const [reviewingPayment, setReviewingPayment] = useState(false)
+  const [showProofPreview, setShowProofPreview] = useState(false)
+  const [showApproveConfirm, setShowApproveConfirm] = useState(false)
+  const [approveConfirmText, setApproveConfirmText] = useState('')
 
   const pendingUpiProof =
     order?.payment_method === 'upi'
@@ -76,6 +79,8 @@ export default function OrderDetail() {
         toast.success('Payment rejected')
       }
       setPaymentReviewNotes('')
+      setShowApproveConfirm(false)
+      setApproveConfirmText('')
       qc.invalidateQueries({ queryKey: ['order', order.id] })
     } catch {
       toast.error(action === 'approve' ? 'Could not approve payment' : 'Could not reject payment')
@@ -148,33 +153,54 @@ export default function OrderDetail() {
       {pendingUpiProof && (
         <div className="rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm">
           <p className="font-semibold text-amber-900">UPI payment awaiting your approval</p>
-          <p className="mt-1 text-amber-800">
-            UTR: <strong>{order.payment_proof?.utr}</strong>
-            {order.payment_proof?.submitted_at ? ` · Submitted ${new Date(order.payment_proof.submitted_at).toLocaleString()}` : ''}
-          </p>
-          {order.payment_proof?.screenshot_url && (
-            <a
-              href={order.payment_proof.screenshot_url}
-              target="_blank"
-              rel="noreferrer"
-              className="mt-2 inline-block text-xs font-medium text-amber-900 underline"
-            >
-              View payment screenshot
-            </a>
-          )}
-          <div className="mt-3 flex flex-wrap items-end gap-2">
-            <input
-              value={paymentReviewNotes}
-              onChange={(e) => setPaymentReviewNotes(e.target.value)}
-              placeholder="Notes (optional)"
-              className="min-w-[200px] flex-1 rounded border px-2 py-1.5 text-sm"
-            />
-            <Button size="sm" disabled={reviewingPayment} onClick={() => void reviewPayment('approve')}>
-              Approve payment
-            </Button>
-            <Button size="sm" variant="outline" disabled={reviewingPayment} onClick={() => void reviewPayment('reject')}>
-              Reject
-            </Button>
+          <div className="mt-3 grid grid-cols-1 gap-4 sm:grid-cols-[auto_1fr]">
+            {/* Screenshot thumbnail — click to enlarge */}
+            {order.payment_proof?.screenshot_url ? (
+              <button
+                type="button"
+                onClick={() => setShowProofPreview(true)}
+                className="group relative h-28 w-28 shrink-0 overflow-hidden rounded-lg border border-amber-300 bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-amber-400"
+                aria-label="View payment screenshot"
+              >
+                <img
+                  src={order.payment_proof.screenshot_url}
+                  alt="UPI payment screenshot"
+                  className="h-full w-full object-cover transition-transform duration-200 group-hover:scale-105"
+                />
+                <span className="absolute inset-0 flex items-center justify-center bg-black/0 transition-colors group-hover:bg-black/40">
+                  <ZoomIn className="h-6 w-6 text-white opacity-0 transition-opacity group-hover:opacity-100" />
+                </span>
+              </button>
+            ) : (
+              <div className="flex h-28 w-28 shrink-0 items-center justify-center rounded-lg border border-dashed border-amber-300 bg-white text-center text-xs text-amber-700">
+                No screenshot
+              </div>
+            )}
+
+            <div className="flex min-w-0 flex-col">
+              <p className="text-amber-800">
+                UTR: <strong>{order.payment_proof?.utr}</strong>
+              </p>
+              {order.payment_proof?.submitted_at && (
+                <p className="mt-0.5 text-xs text-amber-700">
+                  Submitted {new Date(order.payment_proof.submitted_at).toLocaleString()}
+                </p>
+              )}
+              <div className="mt-auto flex flex-wrap items-end gap-2 pt-3">
+                <input
+                  value={paymentReviewNotes}
+                  onChange={(e) => setPaymentReviewNotes(e.target.value)}
+                  placeholder="Notes (optional)"
+                  className="min-w-[200px] flex-1 rounded border px-2 py-1.5 text-sm"
+                />
+                <Button size="sm" disabled={reviewingPayment} onClick={() => { setApproveConfirmText(''); setShowApproveConfirm(true) }}>
+                  Approve payment
+                </Button>
+                <Button size="sm" variant="outline" disabled={reviewingPayment} onClick={() => void reviewPayment('reject')}>
+                  Reject
+                </Button>
+              </div>
+            </div>
           </div>
         </div>
       )}
@@ -353,6 +379,95 @@ export default function OrderDetail() {
             )
           }}
         />
+      )}
+
+      {/* Payment screenshot lightbox */}
+      {showProofPreview && order.payment_proof?.screenshot_url && (
+        <div
+          data-kiterp-modal
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4"
+          onClick={() => setShowProofPreview(false)}
+        >
+          <button
+            type="button"
+            aria-label="Close preview"
+            onClick={() => setShowProofPreview(false)}
+            className="absolute right-4 top-4 rounded-full bg-white/10 p-2 text-white hover:bg-white/20"
+          >
+            <X className="h-6 w-6" />
+          </button>
+          <img
+            src={order.payment_proof.screenshot_url}
+            alt="UPI payment screenshot"
+            className="max-h-[90vh] max-w-full rounded-lg object-contain shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          />
+        </div>
+      )}
+
+      {/* Approve payment confirmation — requires typing "approved" */}
+      {showApproveConfirm && (
+        <div
+          data-kiterp-modal
+          className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-black/50"
+          onClick={() => { if (!reviewingPayment) { setShowApproveConfirm(false); setApproveConfirmText('') } }}
+        >
+          <div
+            className="mx-4 w-full max-w-md overflow-y-auto rounded-xl border border-border bg-card text-foreground shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between border-b px-6 py-4">
+              <h2 className="flex items-center gap-2 text-lg font-semibold">
+                <ShieldCheck className="h-5 w-5 text-green-600" /> Confirm payment approval
+              </h2>
+              <button
+                type="button"
+                aria-label="Close"
+                disabled={reviewingPayment}
+                onClick={() => { setShowApproveConfirm(false); setApproveConfirmText('') }}
+                className="rounded-lg p-1 hover:bg-gray-100 disabled:opacity-50"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            <div className="space-y-4 px-6 py-5">
+              <p className="text-sm text-gray-600">
+                Approving this payment will <strong>confirm the order</strong>. This action cannot be undone.
+                To continue, type <strong>approved</strong> in the box below.
+              </p>
+              <input
+                autoFocus
+                value={approveConfirmText}
+                onChange={(e) => setApproveConfirmText(e.target.value)}
+                placeholder="Type approved"
+                className="w-full rounded border px-3 py-2 text-sm"
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && approveConfirmText.trim().toLowerCase() === 'approved' && !reviewingPayment) {
+                    void reviewPayment('approve')
+                  }
+                }}
+              />
+              <div className="flex gap-3 pt-1">
+                <Button
+                  variant="cancel"
+                  className="flex-1"
+                  disabled={reviewingPayment}
+                  onClick={() => { setShowApproveConfirm(false); setApproveConfirmText('') }}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  className="flex-1 gap-2"
+                  disabled={reviewingPayment || approveConfirmText.trim().toLowerCase() !== 'approved'}
+                  onClick={() => void reviewPayment('approve')}
+                >
+                  {reviewingPayment && <Loader2 className="h-4 w-4 animate-spin" />}
+                  OK, confirm order
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   )

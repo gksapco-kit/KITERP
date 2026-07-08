@@ -11,8 +11,16 @@ depends_on = None
 
 
 def upgrade() -> None:
-    op.add_column("order", sa.Column("payment_proof", JSONB, nullable=True))
+    conn = op.get_bind()
+    insp = sa.inspect(conn)
+    cols = {c["name"] for c in insp.get_columns("order")}
+    if "payment_proof" not in cols:
+        op.add_column("order", sa.Column("payment_proof", JSONB, nullable=True))
 
 
 def downgrade() -> None:
-    op.drop_column("order", "payment_proof")
+    conn = op.get_bind()
+    insp = sa.inspect(conn)
+    cols = {c["name"] for c in insp.get_columns("order")}
+    if "payment_proof" in cols:
+        op.drop_column("order", "payment_proof")

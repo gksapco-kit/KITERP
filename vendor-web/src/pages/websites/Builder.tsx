@@ -485,7 +485,7 @@ const DEFAULT_VEHICLE_HIGHLIGHT_ITEMS = [
 
 const BLOCK_CATALOG: BlockDef[] = [
   // Structure
-  { type: 'nav', label: 'Navigation', icon: Layout, desc: 'Top navigation with logo and links', category: 'structure', defaultProps: { brand: 'My Store', brand_logo: '', show_logo: true, show_brand_name: true, brand_layout: 'horizontal', logo_size: 'md', logo_shape: 'original', logo_fit: 'contain', brand_gap: 8, brand_name_size: 'md', show_nav_links: true, nav_links_source: 'site_pages', nav_links: [{ label: 'Shop', url: '/products' }, { label: 'Contact', url: '/contact' }], show_search: true, show_cart: true, show_login: true, cta_label: 'Shop now' } },
+  { type: 'nav', label: 'Navigation', icon: Layout, desc: 'Top navigation with logo and links', category: 'structure', defaultProps: { brand: 'My Store', brand_logo: '', show_logo: true, show_brand_name: true, brand_layout: 'horizontal', logo_size: 'md', logo_shape: 'original', logo_fit: 'contain', brand_gap: 8, brand_name_size: 'md', show_nav_links: true, nav_links_source: 'site_pages', nav_links: [{ label: 'Shop', url: '/products' }, { label: 'Contact', url: '/contact' }], show_search: true, show_cart: true, show_login: true, cta_label: 'Get started' } },
   { type: 'footer', label: 'Footer', icon: Layout, desc: 'Site footer with links and copyright', category: 'structure', defaultProps: {
     brand: '',
     description: '',
@@ -8167,7 +8167,7 @@ function PropsEditor({
             </label>
           ))}
           <div className="mt-2 space-y-2 border-t border-gray-100 pt-2">
-            {inputRow({ label: 'CTA button', fieldKey: 'cta_label', placeholder: 'Shop now (leave empty to hide)' })}
+            {inputRow({ label: 'CTA button', fieldKey: 'cta_label', placeholder: 'Get started (leave empty to hide)' })}
             {inputRow({ label: 'CTA link', fieldKey: 'cta_url', placeholder: '/products or /contact' })}
           </div>
         </PropsCollapsible>

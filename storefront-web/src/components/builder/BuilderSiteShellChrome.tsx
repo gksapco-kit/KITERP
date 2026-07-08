@@ -24,13 +24,20 @@ export function BuilderSiteShellChrome({ part }: { part: 'header' | 'footer' }) 
   if (part === 'header') {
     const { blocks } = siteShellBlocks(builderSite)
     if (!blocks.length) return null
+    // The layout owns the shell here, so BlockRenderer's own sticky wrapper would
+    // be confined to this short header-only .builder-page and scroll away. Pin the
+    // header from this outer wrapper (whose parent is the full-height layout column)
+    // and suppress the inner sticky to avoid a nested, ineffective sticky context.
     return (
-      <BlockRenderer
-        blocks={blocks}
-        site={builderSite}
-        pageId={pageId}
-        branchCode={branchCode}
-      />
+      <div className="sticky top-0 z-50 w-full">
+        <BlockRenderer
+          blocks={blocks}
+          site={builderSite}
+          pageId={pageId}
+          branchCode={branchCode}
+          suppressShellSticky
+        />
+      </div>
     )
   }
 

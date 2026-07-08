@@ -2,6 +2,7 @@ import { useState, useMemo } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { useProducts, useServices, useStoreCategories } from '@/hooks/useStore'
 import { useAddToCart } from '@/hooks/useStore'
 import { formatCurrency, imgUrl, cn } from '@/lib/utils'
@@ -314,7 +315,10 @@ export default function ProductList() {
 
   const clearSearch = () => { setSearch(''); setSearchInput(''); setPage(1) }
 
-  const selectToolbarCls = `h-9 w-full min-w-0 rounded-lg border border-gray-200 bg-white px-2.5 text-sm text-gray-700 ${themeUi.focusRing} focus:ring-offset-0`
+  // Radix trigger + content styling: keeps the dropdown inside the viewport on
+  // mobile (native <select> popups overflow/overlap on small screens).
+  const selectTriggerCls = `h-9 w-full min-w-0 rounded-lg border-gray-200 bg-white px-2.5 text-sm text-gray-700 font-normal`
+  const selectContentCls = 'max-w-[calc(100vw-1.5rem)]'
 
   const hasActiveFilters =
     Boolean(search) ||
@@ -402,17 +406,18 @@ export default function ProductList() {
 
               <div>
                 <label className="text-xs font-medium text-gray-500 uppercase tracking-wide">Sort By</label>
-                <select
-                  value={sortBy}
-                  onChange={(e) => setSortBy(e.target.value)}
-                  className={`mt-1.5 w-full h-9 rounded-md border text-sm px-2 bg-white ${themeUi.focusRing}`}
-                >
-                  <option value="default">Relevance</option>
-                  <option value="price_low">Price: Low to High</option>
-                  <option value="price_high">Price: High to Low</option>
-                  <option value="newest">Newest Arrivals</option>
-                  <option value="rating">Avg. Customer Review</option>
-                </select>
+                <Select value={sortBy} onValueChange={setSortBy}>
+                  <SelectTrigger className={`mt-1.5 ${selectTriggerCls}`} aria-label="Sort by">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className={selectContentCls}>
+                    <SelectItem value="default">Relevance</SelectItem>
+                    <SelectItem value="price_low">Price: Low to High</SelectItem>
+                    <SelectItem value="price_high">Price: High to Low</SelectItem>
+                    <SelectItem value="newest">Newest Arrivals</SelectItem>
+                    <SelectItem value="rating">Avg. Customer Review</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
 
               {(selectedCategory || minPrice || maxPrice || inStockOnly || search) && (
@@ -480,27 +485,27 @@ export default function ProductList() {
                 <div className="grid grid-cols-2 gap-2 w-full sm:flex sm:flex-wrap sm:items-center sm:gap-2 lg:justify-end lg:shrink-0 lg:w-auto">
                   <span className="col-span-2 hidden text-xs font-medium uppercase tracking-wide text-gray-400 sm:col-span-1 sm:inline">Sort</span>
                   <div className="min-w-0">
-                    <select
-                      value={sortKey}
-                      onChange={(e) => setSortKey(e.target.value)}
-                      className={selectToolbarCls}
-                      aria-label="Sort by"
-                    >
-                      <option value="name">Name</option>
-                      <option value="price">Price</option>
-                      <option value="created_at">Date added</option>
-                    </select>
+                    <Select value={sortKey} onValueChange={setSortKey}>
+                      <SelectTrigger className={selectTriggerCls} aria-label="Sort by">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent className={selectContentCls}>
+                        <SelectItem value="name">Name</SelectItem>
+                        <SelectItem value="price">Price</SelectItem>
+                        <SelectItem value="created_at">Date added</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
                   <div className="min-w-0">
-                    <select
-                      value={sortDir}
-                      onChange={(e) => setSortDir(e.target.value as SortDir)}
-                      className={selectToolbarCls}
-                      aria-label="Sort direction"
-                    >
-                      <option value="asc">Ascending</option>
-                      <option value="desc">Descending</option>
-                    </select>
+                    <Select value={sortDir} onValueChange={(v) => setSortDir(v as SortDir)}>
+                      <SelectTrigger className={selectTriggerCls} aria-label="Sort direction">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent className={selectContentCls}>
+                        <SelectItem value="asc">Ascending</SelectItem>
+                        <SelectItem value="desc">Descending</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
 
                   <div className="col-span-2 flex items-center justify-between gap-2 sm:col-span-1 sm:contents">
@@ -540,18 +545,18 @@ export default function ProductList() {
                 <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:gap-2">
                   <span className="text-xs font-medium text-gray-500 uppercase tracking-wide">Refine</span>
                   <div className="min-w-0 w-full sm:w-[11rem]">
-                    <select
-                      value={sortBy}
-                      onChange={(e) => setSortBy(e.target.value)}
-                      className={selectToolbarCls}
-                      aria-label="Catalog sort (relevance, price, newest)"
-                    >
-                      <option value="default">Featured: Relevance</option>
-                      <option value="price_low">Price: Low to high</option>
-                      <option value="price_high">Price: High to low</option>
-                      <option value="newest">Newest arrivals</option>
-                      <option value="rating">Highest rated</option>
-                    </select>
+                    <Select value={sortBy} onValueChange={setSortBy}>
+                      <SelectTrigger className={selectTriggerCls} aria-label="Catalog sort (relevance, price, newest)">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent className={selectContentCls}>
+                        <SelectItem value="default">Featured: Relevance</SelectItem>
+                        <SelectItem value="price_low">Price: Low to high</SelectItem>
+                        <SelectItem value="price_high">Price: High to low</SelectItem>
+                        <SelectItem value="newest">Newest arrivals</SelectItem>
+                        <SelectItem value="rating">Highest rated</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
                 </div>
                 {hasActiveFilters ? (

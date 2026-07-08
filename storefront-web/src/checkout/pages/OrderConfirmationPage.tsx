@@ -3,6 +3,7 @@ import { useEffect } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { CheckCircle2, Mail, MapPin, Package } from "lucide-react";
 import { CheckoutHeader, CheckoutFooter } from "../components/Header";
+import { Confetti } from "../components/Confetti";
 import { OrderConfirmationLoading } from "../components/OrderConfirmationLoading";
 import { CheckoutConfigProvider, formatMoney, useCheckoutConfig } from "../config";
 import { LineItem } from "../components/LineItem";
@@ -47,6 +48,7 @@ function Inner() {
 
   return (
     <div className="checkout-root min-h-screen" style={checkoutTheme}>
+      <Confetti />
       <CheckoutHeader />
       <main className="mx-auto max-w-3xl px-3 py-6 sm:px-4 sm:py-8 md:px-6">
         <div
@@ -54,12 +56,12 @@ function Inner() {
           style={{ background: "hsl(var(--brand-primary) / 0.04)" }}
         >
           <div
-            className="mb-3 flex h-12 w-12 items-center justify-center"
+            className="mb-3 flex h-12 w-12 animate-bounce items-center justify-center"
             style={{ borderRadius: "999px", background: "hsl(var(--success) / 0.15)", color: "hsl(var(--success))" }}
           >
             <CheckCircle2 size={28} />
           </div>
-          <h1 className="text-2xl font-semibold md:text-3xl">Thank you, {customerName}!</h1>
+          <h1 className="text-2xl font-semibold md:text-3xl">Thank you for placing your order, {customerName}!</h1>
           <p className="ck-text-muted mt-1 text-sm">
             Your order{" "}
             <span className="font-medium">{order?.order_number ?? resolvedId}</span> has been placed.

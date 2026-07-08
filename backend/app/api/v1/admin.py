@@ -185,7 +185,7 @@ class AdminVendorUpdate(BaseModel):
 
 class AdminVendorCreate(BaseModel):
     """Admin creates a vendor AND the owner's login account in one step."""
-    owner_email: str = Field(..., description="Login email for the vendor owner")
+    owner_email: Optional[str] = Field(None, description="Login email for the vendor owner (optional if phone is set)")
     owner_password: str = Field(..., min_length=6, max_length=128, description="Login password for the vendor owner")
     owner_name: str = Field(..., min_length=2, max_length=255)
     owner_phone: Optional[str] = None
@@ -220,19 +220,32 @@ async def admin_create_vendor(
     """
     user_repo = UserRepository(db)
 
-    # Check if user already exists with this email
-    existing_user = await user_repo.get_by_email(body.owner_email)
+    owner_email = (body.owner_email or "").strip().lower() or None
+    owner_phone = (body.owner_phone or "").strip() or None
+    if not owner_email and not owner_phone:
+        raise HTTPException(
+            status_code=422,
+            detail="Owner must have at least an email or phone for login.",
+        )
+
+    existing_user = None
+    if owner_email:
+        existing_user = await user_repo.get_by_email(owner_email)
+    elif owner_phone:
+        existing_user = await user_repo.get_by_phone(owner_phone)
+
     if existing_user:
         owner_user = existing_user
         user_created = False
     else:
         owner_user = User(
-            email=body.owner_email,
-            phone=body.owner_phone,
+            email=owner_email,
+            phone=owner_phone,
             password_hash=get_password_hash(body.owner_password),
             full_name=body.owner_name,
             is_active=True,
-            is_email_verified=True,
+            is_email_verified=bool(owner_email),
+            is_phone_verified=bool(owner_phone),
         )
         db.add(owner_user)
         await db.flush()
@@ -248,7 +261,7 @@ async def admin_create_vendor(
         offering_type=OfferingType(body.offering_type),
         industry=body.industry,
         description=body.description,
-        primary_email=body.primary_email or body.owner_email,
+        primary_email=body.primary_email or owner_email,
         primary_phone=body.primary_phone,
         owner_name=body.owner_name,
         address=AddressCreate(
@@ -277,14 +290,15 @@ async def admin_create_vendor(
         },
         "owner_account": {
             "user_id": str(owner_user.id),
-            "email": body.owner_email,
+            "email": owner_email,
+            "phone": owner_phone,
             "password": body.owner_password if user_created else "(existing account — password unchanged)",
             "full_name": body.owner_name,
             "user_created": user_created,
         },
         "message": (
             f"Vendor '{vendor.display_name}' created. "
-            f"Owner can log in with email: {body.owner_email}"
+            f"Owner can log in with: {owner_email or owner_phone}"
         ),
     }
 

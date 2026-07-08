@@ -1,5 +1,5 @@
 import { useRef, useState, useEffect } from "react";
-import { Camera, Trash2, Pencil, Plus, Star, Share2, Grid, List as ListIcon, ShoppingCart } from "lucide-react";
+import { Camera, Trash2, Pencil, Plus, Star, Share2, Grid, List as ListIcon, ShoppingCart, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -44,14 +44,14 @@ export function ProfileEdit({ user, onSave }: { user: AccountUser; onSave?: (u: 
 
   return (
     <Card>
-      <CardHeader><CardTitle>Edit profile</CardTitle></CardHeader>
-      <CardContent>
+      <CardHeader className="p-4 pb-3"><CardTitle className="text-lg">Edit profile</CardTitle></CardHeader>
+      <CardContent className="p-4 pt-0">
         <form
-          className="space-y-4"
+          className="space-y-3"
           onSubmit={(e) => { e.preventDefault(); onSave?.({ ...user, name, email, phone, avatarUrl }); }}
         >
-          <div className="flex items-center gap-4">
-            <Avatar className="h-16 w-16">
+          <div className="flex items-center gap-3">
+            <Avatar className="h-14 w-14">
               <AvatarImage src={avatarUrl} alt={name} />
               <AvatarFallback>{name.slice(0, 2).toUpperCase()}</AvatarFallback>
             </Avatar>
@@ -79,8 +79,8 @@ export function ChangePasswordForm({ onSubmit }: { onSubmit?: (data: { current: 
   const mismatch = next && confirm && next !== confirm;
   return (
     <Card>
-      <CardHeader><CardTitle>Change password</CardTitle></CardHeader>
-      <CardContent>
+      <CardHeader className="p-4 pb-3"><CardTitle className="text-lg">Change password</CardTitle></CardHeader>
+      <CardContent className="p-4 pt-0">
         <form className="space-y-3" onSubmit={(e) => { e.preventDefault(); if (!mismatch) onSubmit?.({ current, next }); }}>
           <div><Label>Current password</Label><Input type="password" required value={current} onChange={(e) => setCurrent(e.target.value)} className="mt-1" /></div>
           <div><Label>New password</Label><Input type="password" required minLength={8} value={next} onChange={(e) => setNext(e.target.value)} className="mt-1" /></div>
@@ -153,7 +153,7 @@ export function AddressBook({
   return (
     <Card>
       <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <CardTitle>Saved addresses</CardTitle>
+        <CardTitle>Saved Addresses</CardTitle>
         <Button size="sm" onClick={() => setAdding(true)}><Plus /> Add address</Button>
       </CardHeader>
       <CardContent className="space-y-3">
@@ -217,20 +217,22 @@ function AddressForm({ initial, onSave, onCancel, saving }: { initial?: Address;
     id: `a_${Date.now()}`, fullName: "", line1: "", city: "", postalCode: "", country: "India",
   });
   const set = <K extends keyof Address>(k: K, v: Address[K]) => setA((x) => ({ ...x, [k]: v }));
+  const labelCls = "text-xs font-medium text-muted-foreground";
+  const inputCls = "mt-0.5 h-8 text-sm";
   return (
-    <form onSubmit={(e) => { e.preventDefault(); onSave(a); }} className="rounded-md border p-4 space-y-3">
-      <div className="grid sm:grid-cols-2 gap-3">
-        <div><Label>Label</Label><Input value={a.label ?? ""} onChange={(e) => set("label", e.target.value)} className="mt-1" /></div>
-        <div><Label>Full name</Label><Input required value={a.fullName} onChange={(e) => set("fullName", e.target.value)} className="mt-1" /></div>
-        <div className="sm:col-span-2"><Label>Address line 1</Label><Input required value={a.line1} onChange={(e) => set("line1", e.target.value)} className="mt-1" /></div>
-        <div className="sm:col-span-2"><Label>Address line 2</Label><Input value={a.line2 ?? ""} onChange={(e) => set("line2", e.target.value)} className="mt-1" /></div>
-        <div><Label>City</Label><Input required value={a.city} onChange={(e) => set("city", e.target.value)} className="mt-1" /></div>
-        <div><Label>State</Label><Input value={a.state ?? ""} onChange={(e) => set("state", e.target.value)} className="mt-1" /></div>
-        <div><Label>Postal code</Label><Input required value={a.postalCode} onChange={(e) => set("postalCode", e.target.value)} className="mt-1" /></div>
-        <div><Label>Country</Label><Input required value={a.country} onChange={(e) => set("country", e.target.value)} className="mt-1" /></div>
-        <div><Label>Phone</Label><Input value={a.phone ?? ""} onChange={(e) => set("phone", e.target.value)} className="mt-1" /></div>
+    <form onSubmit={(e) => { e.preventDefault(); onSave(a); }} className="rounded-md border p-3 space-y-3">
+      <div className="grid gap-x-3 gap-y-2 sm:grid-cols-6">
+        <div className="sm:col-span-3"><Label className={labelCls}>Label</Label><Input value={a.label ?? ""} onChange={(e) => set("label", e.target.value)} className={inputCls} /></div>
+        <div className="sm:col-span-3"><Label className={labelCls}>Full name</Label><Input required value={a.fullName} onChange={(e) => set("fullName", e.target.value)} className={inputCls} /></div>
+        <div className="sm:col-span-3"><Label className={labelCls}>Address line 1</Label><Input required value={a.line1} onChange={(e) => set("line1", e.target.value)} className={inputCls} /></div>
+        <div className="sm:col-span-3"><Label className={labelCls}>Address line 2</Label><Input value={a.line2 ?? ""} onChange={(e) => set("line2", e.target.value)} className={inputCls} /></div>
+        <div className="sm:col-span-2"><Label className={labelCls}>City</Label><Input required value={a.city} onChange={(e) => set("city", e.target.value)} className={inputCls} /></div>
+        <div className="sm:col-span-2"><Label className={labelCls}>State</Label><Input value={a.state ?? ""} onChange={(e) => set("state", e.target.value)} className={inputCls} /></div>
+        <div className="sm:col-span-2"><Label className={labelCls}>Postal code</Label><Input required value={a.postalCode} onChange={(e) => set("postalCode", e.target.value)} className={inputCls} /></div>
+        <div className="sm:col-span-3"><Label className={labelCls}>Country</Label><Input required value={a.country} onChange={(e) => set("country", e.target.value)} className={inputCls} /></div>
+        <div className="sm:col-span-3"><Label className={labelCls}>Phone</Label><Input value={a.phone ?? ""} onChange={(e) => set("phone", e.target.value)} className={inputCls} /></div>
       </div>
-      <div className="flex gap-2"><Button type="submit" disabled={saving}>{saving ? "Saving…" : "Save"}</Button><Button type="button" variant="ghost" onClick={onCancel} disabled={saving}>Cancel</Button></div>
+      <div className="flex gap-2"><Button type="submit" size="sm" disabled={saving}>{saving ? "Saving…" : "Save"}</Button><Button type="button" variant="ghost" size="sm" onClick={onCancel} disabled={saving}>Cancel</Button></div>
     </form>
   );
 }
@@ -253,11 +255,11 @@ export function NotificationPreferencesForm({ value, onChange }: { value?: Parti
   ];
   return (
     <Card>
-      <CardHeader><CardTitle>Notifications</CardTitle></CardHeader>
-      <CardContent className="space-y-3">
+      <CardHeader className="p-4 pb-3"><CardTitle className="text-lg">Notifications</CardTitle></CardHeader>
+      <CardContent className="grid gap-2 p-4 pt-0 sm:grid-cols-2 xl:grid-cols-3">
         {items.map((it) => (
-          <div key={it.key} className="flex items-center justify-between gap-4 rounded-md border p-3">
-            <div>
+          <div key={it.key} className="flex items-center justify-between gap-3 rounded-md border p-2.5">
+            <div className="min-w-0">
               <div className="text-sm font-medium">{it.label}</div>
               <div className="text-xs text-muted-foreground">{it.description}</div>
             </div>
@@ -270,6 +272,14 @@ export function NotificationPreferencesForm({ value, onChange }: { value?: Parti
 }
 
 /* ---------------- Wishlist ---------------- */
+
+/** Format a stored date (ISO string or plain date) into a friendly label. */
+function formatSavedDate(raw: string): string {
+  if (!raw) return "";
+  const d = new Date(raw);
+  if (Number.isNaN(d.getTime())) return raw;
+  return d.toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" });
+}
 
 export function WishlistPage({
   items: initial,
@@ -321,17 +331,36 @@ export function WishlistPage({
                 <div className="p-3 flex-1 flex flex-col">
                   <div className="text-sm font-medium line-clamp-1">{p.name}</div>
                   <div className="text-sm font-semibold mt-1">{formatPrice(p.price)}</div>
-                  <div className="text-xs text-muted-foreground mt-1">Saved on {p.savedAt}</div>
-                  <div className="mt-auto flex gap-2 pt-3">
+                  {p.savedAt ? (
+                    <div className="text-xs text-muted-foreground mt-1">Saved {formatSavedDate(p.savedAt)}</div>
+                  ) : null}
+                  <div className="mt-auto flex items-stretch gap-2 pt-3">
                     <Button
                       size="sm"
-                      className="flex-1"
+                      className="flex-1 gap-1.5 font-medium"
                       disabled={movingId === p.id}
                       onClick={() => onMoveToCart?.(p.id)}
                     >
-                      <ShoppingCart /> {movingId === p.id ? "Checking…" : "Move to cart"}
+                      {movingId === p.id ? (
+                        <>
+                          <Loader2 className="animate-spin" /> Adding…
+                        </>
+                      ) : (
+                        <>
+                          <ShoppingCart /> Move to cart
+                        </>
+                      )}
                     </Button>
-                    <Button size="icon" variant="ghost" onClick={() => remove(p.id)} aria-label="Remove"><Trash2 /></Button>
+                    <Button
+                      size="icon"
+                      variant="outline"
+                      className="shrink-0 text-muted-foreground hover:border-red-200 hover:bg-red-50 hover:text-red-600"
+                      onClick={() => remove(p.id)}
+                      aria-label="Remove from wishlist"
+                      title="Remove from wishlist"
+                    >
+                      <Trash2 />
+                    </Button>
                   </div>
                 </div>
               </div>

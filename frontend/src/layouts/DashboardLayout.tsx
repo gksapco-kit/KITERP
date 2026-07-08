@@ -17,7 +17,7 @@ import {
   Table2,
   X,
 } from 'lucide-react'
-import { cn } from '@/lib/utils'
+import { cn, mediaUrl } from '@/lib/utils'
 import { useLogout } from '@/hooks/useAuth'
 import { useAuthStore } from '@/stores/authStore'
 import { getDashboardUserRoleLabel, isPlatformStaff, isSuperuserAdmin } from '@/lib/platformAccess'
@@ -49,6 +49,36 @@ const adminNavItemsSupport = [
   { to: '/dashboard/vendors', icon: Users, label: 'Business Accounts' },
   { to: '/dashboard/account-activity', icon: ScrollText, label: 'Account activity' },
 ]
+
+function ProfileAvatar({
+  user,
+  className,
+  textClassName = 'text-sm font-bold',
+}: {
+  user: { full_name?: string; avatar_url?: string | null } | null | undefined
+  className?: string
+  textClassName?: string
+}) {
+  const initial = (user?.full_name || 'U').trim().charAt(0).toUpperCase() || 'U'
+  return (
+    <div
+      className={cn(
+        'flex shrink-0 items-center justify-center overflow-hidden rounded-full bg-primary text-primary-foreground',
+        className,
+      )}
+    >
+      {user?.avatar_url ? (
+        <img
+          src={mediaUrl(user.avatar_url)}
+          alt={user.full_name || 'Profile'}
+          className="h-full w-full object-cover"
+        />
+      ) : (
+        <span className={textClassName}>{initial}</span>
+      )}
+    </div>
+  )
+}
 
 export default function DashboardLayout() {
   const logout = useLogout()
@@ -104,12 +134,15 @@ export default function DashboardLayout() {
           </div>
 
           {/* User info */}
-          <div className="space-y-0.5 border-b border-gray-100 px-4 py-3 sm:px-6">
-            <p className="truncate text-sm font-medium text-gray-900">{user?.full_name}</p>
-            <p className="truncate text-xs text-gray-500">{user?.email || user?.phone || '—'}</p>
-            {roleLabel ? (
-              <p className="truncate pt-0.5 text-xs font-medium text-gray-700">{roleLabel}</p>
-            ) : null}
+          <div className="flex items-center gap-3 border-b border-gray-100 px-4 py-3 sm:px-6">
+            <ProfileAvatar user={user} className="h-10 w-10 shadow-sm ring-1 ring-black/5" />
+            <div className="min-w-0 flex-1 space-y-0.5">
+              <p className="truncate text-sm font-medium text-gray-900">{user?.full_name}</p>
+              <p className="truncate text-xs text-gray-500">{user?.email || user?.phone || '—'}</p>
+              {roleLabel ? (
+                <p className="truncate pt-0.5 text-xs font-medium text-gray-700">{roleLabel}</p>
+              ) : null}
+            </div>
           </div>
 
           {/* Navigation */}
@@ -161,7 +194,8 @@ export default function DashboardLayout() {
           >
             <Menu className="h-5 w-5" />
           </button>
-          <span className="min-w-0 truncate text-sm font-semibold text-gray-900">{displayName}</span>
+          <span className="min-w-0 flex-1 truncate text-sm font-semibold text-gray-900">{displayName}</span>
+          <ProfileAvatar user={user} className="h-8 w-8 shadow-sm ring-1 ring-black/5" textClassName="text-xs font-bold" />
         </header>
 
         <main className="min-w-0 max-w-none p-4 sm:p-6 lg:p-8">

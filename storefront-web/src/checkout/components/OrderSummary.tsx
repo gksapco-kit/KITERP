@@ -86,7 +86,7 @@ export function OrderSummary({
               />
               <button
                 type="button"
-                className="ck-btn-secondary shrink-0 whitespace-nowrap px-5 sm:self-auto"
+                className="ck-btn-secondary shrink-0 whitespace-nowrap px-5 h-[44px] sm:self-auto"
                 disabled={!coupon.trim()}
                 onClick={() => {
                   onApplyCoupon?.(coupon.trim());

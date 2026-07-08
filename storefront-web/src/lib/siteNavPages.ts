@@ -257,12 +257,20 @@ export function resolveStorefrontHeaderNavLinks(
   return resolveNavBlockLinks(site, storePath, pathname, props, liveItems, options)
 }
 
+/** Normalize nav CTA button copy for storefront display. */
+export function resolveNavCtaLabel(raw: string | null | undefined): string | null {
+  const label = raw?.trim()
+  if (!label) return null
+  if (/^shop\s*now$/i.test(label)) return 'Get started'
+  return label
+}
+
 export function resolveStorefrontHeaderCta(
   site: PublicSite | null | undefined,
   storePath: (p: string) => string,
 ): { label: string; href: string } | undefined {
   const props = pickHomeNavBlockProps(site)
-  const label = props.cta_label?.trim()
+  const label = resolveNavCtaLabel(props.cta_label)
   if (!label) return undefined
   return { label, href: storePath(props.cta_url || '/contact') }
 }

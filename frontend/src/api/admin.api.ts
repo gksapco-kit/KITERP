@@ -58,7 +58,7 @@ export interface ListVendorsParams {
 }
 
 export interface AdminVendorCreatePayload {
-  owner_email: string
+  owner_email?: string
   owner_password: string
   owner_name: string
   owner_phone?: string
@@ -92,7 +92,8 @@ export interface AdminVendorCreateResponse {
   }
   owner_account: {
     user_id: string
-    email: string
+    email: string | null
+    phone: string | null
     password: string
     full_name: string
     user_created: boolean
