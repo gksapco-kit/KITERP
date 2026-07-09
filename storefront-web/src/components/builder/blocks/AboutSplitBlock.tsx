@@ -1,12 +1,15 @@
+import type { ReactNode } from 'react'
 import type { PublicSite, StyleConfig, LiveItem } from '@/blocks/registry'
 import { cn, imgUrl } from '@/lib/utils'
-import { builderSectionContainerClass, builderSectionContainerWithMax } from '@/lib/builderSectionLayout'
+import { builderSectionContainerWithMax } from '@/lib/builderSectionLayout'
 import { MediaClipFrame } from '@/components/builder/MediaClipFrame'
 import { hasMediaClip } from '@/lib/mediaClip'
 import { BuilderTextField } from '@/components/builder/BuilderTextField'
 import { BuilderSectionImage } from '@/components/builder/BuilderSectionImage'
 import { useBuilderCanvas } from '@/contexts/BuilderCanvasContext'
 import { isBlockFieldHidden, resolveBlockTextField } from '@/lib/blockHiddenFields'
+import { hasInlineHtml } from '@/lib/fieldTextStyles'
+import { BuilderSectionSurface } from '@/components/builder/BuilderSectionSurface'
 
 interface Props {
   site: PublicSite
@@ -45,67 +48,200 @@ export default function AboutSplitBlock({ site, style, props, liveItems, blockId
   const showDescription = !isBlockFieldHidden(props, 'description') && (description || isEditorCanvas)
   const showImage = !imageHidden && (imageUrl || isEditorCanvas)
 
-  return (
-    <section className={builderSectionContainerWithMax('max-w-6xl')}>
-      <div className={cn('grid gap-12 items-center', showImage ? 'lg:grid-cols-2' : 'grid-cols-1')}>
-        {(showSubtitle || showTitle || showDescription) && (
-        <div>
-          {showSubtitle && (
-            <BuilderTextField
-              fieldKey="subtitle"
-              blockId={blockId}
-              blockProps={props}
-              value={subtitle ?? ''}
-              as="p"
-              className="text-sm font-semibold uppercase tracking-widest mb-2"
-              style={{ color: style.primary_color }}
-            />
+  const layout = String(props.layout ?? 'split')
+  const imagePosition = String(props.image_position ?? 'right')
+  const imageOnLeft = imagePosition === 'left'
+  const isDark = props.bg_style === 'dark'
+  const isCard = props.card_style === 'card'
+  const isStatement = layout === 'statement' || imagePosition === 'none'
+  const isOverlay = layout === 'overlay' && showImage
+  const isFull = layout === 'full'
+
+  const sectionText = isDark ? '#f8fafc' : (style.text_color || '#111827')
+  const sectionBg = isDark ? '#0f172a' : undefined
+  const mutedText = isDark ? 'text-slate-300' : 'text-gray-600'
+  const titleClass = isDark ? 'text-white' : 'text-gray-900'
+
+  const descriptionClass = cn(
+    'rich-text-content leading-relaxed',
+    mutedText,
+    description && !hasInlineHtml(description) && 'whitespace-pre-wrap',
+    isStatement && 'text-left sm:text-center',
+  )
+
+  const renderTextColumn = (opts?: { onImage?: boolean }) => {
+    const onImage = opts?.onImage ?? false
+    return (
+    <div
+      className={cn(
+        'about-split-text-col min-w-0 space-y-3 sm:space-y-4',
+        isStatement && 'mx-auto w-full max-w-3xl text-center',
+      )}
+    >
+      {showSubtitle && (
+        <BuilderTextField
+          fieldKey="subtitle"
+          blockId={blockId}
+          blockProps={props}
+          value={subtitle ?? ''}
+          as="p"
+          className="text-xs sm:text-sm font-semibold uppercase tracking-widest"
+          style={{ color: onImage ? '#ffffff' : style.primary_color }}
+        />
+      )}
+      {showTitle && (
+        <BuilderTextField
+          fieldKey="title"
+          blockId={blockId}
+          blockProps={props}
+          value={title ?? ''}
+          as="h2"
+          className={cn(
+            'text-2xl sm:text-3xl lg:text-4xl font-bold text-balance',
+            onImage ? 'text-white' : titleClass,
           )}
-          {showTitle && (
-            <BuilderTextField
-              fieldKey="title"
-              blockId={blockId}
-              blockProps={props}
-              value={title ?? ''}
-              as="h2"
-              className="text-3xl font-bold text-gray-900 mb-4"
-            />
+        />
+      )}
+      {showDescription && (
+        <BuilderTextField
+          fieldKey="description"
+          blockId={blockId}
+          blockProps={props}
+          value={description ?? ''}
+          as="div"
+          multiline
+          className={cn(
+            descriptionClass,
+            onImage && 'text-gray-100 [&_a]:text-white',
           )}
-          {showDescription && (
-            <BuilderTextField
-              fieldKey="description"
-              blockId={blockId}
-              blockProps={props}
-              value={description ?? ''}
-              as="p"
-              multiline
-              className="text-gray-600 leading-relaxed"
-              placeholder="Tell your story"
-            />
-          )}
-        </div>
+          placeholder="Tell your story"
+        />
+      )}
+    </div>
+    )
+  }
+
+  const renderImageColumn = (opts?: { overlay?: boolean; fullBleed?: boolean }) => {
+    const overlay = opts?.overlay ?? false
+    const fullBleed = opts?.fullBleed ?? false
+    const imageClass = cn(
+      'w-full h-full object-cover',
+      !clipped && !fullBleed && 'rounded-2xl',
+      fullBleed && 'rounded-none',
+    )
+    const frameClass = cn(
+      'w-full shadow-lg',
+      overlay ? 'h-full min-h-[280px] sm:min-h-[360px]' : 'aspect-[4/3] sm:aspect-[5/4] lg:aspect-[4/5] max-h-[420px] lg:max-h-none',
+      fullBleed && 'max-h-none aspect-[16/10] sm:aspect-[21/9]',
+    )
+
+    return (
+      <div
+        className={cn(
+          'about-split-image-col min-w-0 w-full',
+          !overlay && 'order-2',
+          !overlay && imageOnLeft && 'lg:order-1',
+          !overlay && !imageOnLeft && 'lg:order-2',
         )}
-        {showImage && (
-        <div>
-          {imageUrl ? (
-            <MediaClipFrame clip={mediaClip} className="w-full aspect-video shadow-lg">
-              <BuilderSectionImage
-                blockId={blockId}
-                field="image_url"
-                blockProps={props}
-                src={imageUrl}
-                alt={title ?? 'About'}
-                className={`w-full h-full object-cover ${!clipped ? 'rounded-2xl' : ''}`}
-              />
-            </MediaClipFrame>
-          ) : (
-            <div className="w-full aspect-video rounded-2xl flex items-center justify-center" style={{ backgroundColor: `${style.primary_color}10` }}>
-              <span className="text-gray-400">About Image</span>
-            </div>
-          )}
-        </div>
+      >
+        {imageUrl ? (
+          <MediaClipFrame clip={mediaClip} className={frameClass}>
+            <BuilderSectionImage
+              blockId={blockId}
+              field="image_url"
+              blockProps={props}
+              src={imageUrl}
+              alt={title ?? 'About'}
+              className={imageClass}
+            />
+          </MediaClipFrame>
+        ) : (
+          <div
+            className={cn(frameClass, 'flex items-center justify-center rounded-2xl')}
+            style={{ backgroundColor: `${style.primary_color}10` }}
+          >
+            <span className="text-gray-400">About Image</span>
+          </div>
         )}
       </div>
-    </section>
+    )
+  }
+
+  const splitGrid = (
+    <div
+      className={cn(
+        'grid grid-cols-1 items-start gap-8 sm:gap-10 lg:gap-12',
+        showImage && !isStatement && 'lg:grid-cols-2',
+      )}
+    >
+      <div
+        className={cn(
+          'min-w-0',
+          !isStatement && 'order-1',
+          !isStatement && imageOnLeft && 'lg:order-2',
+          !isStatement && !imageOnLeft && 'lg:order-1',
+        )}
+      >
+        {renderTextColumn()}
+      </div>
+      {showImage && !isStatement && renderImageColumn()}
+    </div>
   )
+
+  const cardShell = (children: ReactNode) => (
+    <div
+      className={cn(
+        'rounded-2xl border p-5 sm:p-8 lg:p-10',
+        isDark ? 'border-white/10 bg-white/5' : 'border-gray-200 bg-white shadow-sm',
+      )}
+    >
+      {children}
+    </div>
+  )
+
+  const inner = (() => {
+    if (isOverlay) {
+      return (
+        <div className="relative overflow-hidden rounded-2xl">
+          {renderImageColumn({ overlay: true })}
+          <div className="absolute inset-0 bg-black/45" aria-hidden />
+          <div className="relative z-10 flex min-h-[280px] items-center sm:min-h-[360px]">
+            <div className="w-full px-5 py-10 sm:px-8 sm:py-12 lg:px-12">
+              <div className="max-w-xl">
+                {renderTextColumn({ onImage: true })}
+              </div>
+            </div>
+          </div>
+        </div>
+      )
+    }
+
+    if (isFull && showImage) {
+      return (
+        <div className="space-y-8 sm:space-y-10">
+          {renderImageColumn({ fullBleed: true })}
+          {renderTextColumn()}
+        </div>
+      )
+    }
+
+    if (isCard) return cardShell(splitGrid)
+    return splitGrid
+  })()
+
+  const maxWidth = isFull ? 'max-w-none' : 'max-w-6xl'
+  const sectionClass = cn(
+    builderSectionContainerWithMax(maxWidth),
+    isFull && showImage && 'px-0 sm:px-0 lg:px-0',
+  )
+
+  if (sectionBg) {
+    return (
+      <BuilderSectionSurface surface={{ backgroundColor: sectionBg, color: sectionText }} maxWidth={maxWidth}>
+        {inner}
+      </BuilderSectionSurface>
+    )
+  }
+
+  return <section className={sectionClass}>{inner}</section>
 }

@@ -67,6 +67,9 @@ export function catalogServiceToLiveItem(service: Service): LiveItem {
       slug: service.slug,
       category: service.category,
       currency,
+      allow_quote_request: service.allow_quote_request,
+      requires_booking: service.requires_booking,
+      duration_minutes: service.duration_minutes,
     },
   }
 }

@@ -9,6 +9,8 @@ export interface MockService {
   features: string[];
   popular?: boolean;
   image?: string;
+  allowQuoteRequest?: boolean;
+  requiresBooking?: boolean;
 }
 
 const swatch = (h: number) =>

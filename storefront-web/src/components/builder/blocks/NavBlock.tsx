@@ -330,7 +330,7 @@ export default function NavBlock({
     <a
       href={homePath}
       onClick={(e) => previewNavClick(e, homePath)}
-      className={cn(resolveNavBrandContainerClass(brandLayout, shell.isCentered), 'max-w-[min(100%,180px)] sm:max-w-[min(100%,260px)]')}
+      className={cn(resolveNavBrandContainerClass(brandLayout, shell.isCentered), 'min-w-0 max-w-[min(100%,180px)] sm:max-w-[min(100%,260px)] md:max-w-[min(100%,260px)]')}
       style={{ gap: brandGap }}
       aria-label={showHomeFallback ? 'Home' : brand}
     >
@@ -346,7 +346,7 @@ export default function NavBlock({
   ) : (
     <Link
       to={homePath}
-      className={cn(resolveNavBrandContainerClass(brandLayout, shell.isCentered), 'max-w-[min(100%,180px)] sm:max-w-[min(100%,260px)]')}
+      className={cn(resolveNavBrandContainerClass(brandLayout, shell.isCentered), 'min-w-0 max-w-[min(100%,180px)] sm:max-w-[min(100%,260px)] md:max-w-[min(100%,260px)]')}
       style={{ gap: brandGap }}
       aria-label={showHomeFallback ? 'Home' : brand}
     >
@@ -361,22 +361,108 @@ export default function NavBlock({
     </Link>
   )
 
+  const closeSearch = useCallback(() => {
+    setSearchOpen(false)
+    setSearchQuery('')
+  }, [])
+
   const submitSearch = (e?: React.FormEvent) => {
     e?.preventDefault()
     const q = searchQuery.trim()
     if (!q) return
-    setSearchOpen(false)
+    closeSearch()
+    closeMobileMenu()
     navigateStorePath(`/products?search=${encodeURIComponent(q)}`)
   }
 
-  const linksNode = kitLinks.length > 0 && (
-    <nav className={cn(
-      'flex items-center gap-1 flex-wrap min-w-0',
-      shell.isCentered ? 'justify-center' : 'justify-center',
-      forceNavLinksVisible ? 'flex' : 'hidden md:flex',
-    )}>
-      {kitLinks.map(link => renderNavLinkItem(link))}
-    </nav>
+  const mobileSearchBarNode = showSearch && searchOpen && (
+    <form onSubmit={submitSearch} className="flex flex-1 items-center gap-1.5 min-w-0">
+      <Input
+        autoFocus
+        value={searchQuery}
+        onChange={e => setSearchQuery(e.target.value)}
+        placeholder="Search products, prices, variants…"
+        className="h-9 text-sm flex-1 min-w-0"
+        aria-label="Search products"
+      />
+      <button
+        type="submit"
+        className="p-2 rounded-lg hover:opacity-70 transition-opacity shrink-0"
+        style={{ color: shell.navTextCol }}
+        aria-label="Submit search"
+      >
+        <Search className="w-4 h-4" />
+      </button>
+      <button
+        type="button"
+        onClick={closeSearch}
+        className="p-2 rounded-lg hover:opacity-70 transition-opacity shrink-0"
+        style={{ color: shell.navTextCol }}
+        aria-label="Close search"
+      >
+        <X className="w-4 h-4" />
+      </button>
+    </form>
+  )
+
+  const mobileCartNode = showCart && (
+    builderCanvas?.onNavigate ? (
+      <button
+        type="button"
+        onClick={() => navigateStorePath('/cart')}
+        className="p-2 rounded-lg hover:opacity-70 transition-opacity relative"
+        style={{ color: shell.navTextCol }}
+        aria-label="Cart"
+      >
+        <ShoppingBag className="w-5 h-5" />
+        {cartCount > 0 && (
+          <span className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] px-1 rounded-full bg-primary text-white text-[10px] font-bold flex items-center justify-center">
+            {cartCount}
+          </span>
+        )}
+      </button>
+    ) : previewShell ? (
+      <a
+        href={storePath('/cart')}
+        onClick={(e) => previewNavClick(e, storePath('/cart'))}
+        className="p-2 rounded-lg hover:opacity-70 transition-opacity relative"
+        style={{ color: shell.navTextCol }}
+        aria-label="Cart"
+      >
+        <ShoppingBag className="w-5 h-5" />
+        {cartCount > 0 && (
+          <span className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] px-1 rounded-full bg-primary text-white text-[10px] font-bold flex items-center justify-center">
+            {cartCount}
+          </span>
+        )}
+      </a>
+    ) : (
+      <Link to={storePath('/cart')} className="p-2 rounded-lg hover:opacity-70 transition-opacity relative" style={{ color: shell.navTextCol }} aria-label="Cart">
+        <ShoppingBag className="w-5 h-5" />
+        {cartCount > 0 && (
+          <span className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] px-1 rounded-full bg-primary text-white text-[10px] font-bold flex items-center justify-center">
+            {cartCount}
+          </span>
+        )}
+      </Link>
+    )
+  )
+
+  const mobileActionsNode = (
+    <div className="flex items-center gap-0.5 shrink-0 ml-auto">
+      {showSearch && !searchOpen && (
+        <button
+          type="button"
+          onClick={() => setSearchOpen(true)}
+          className="inline-flex p-2 rounded-lg hover:opacity-70 transition-opacity"
+          style={{ color: shell.navTextCol }}
+          aria-label="Search"
+        >
+          <Search className="w-5 h-5" />
+        </button>
+      )}
+      {mobileCartNode}
+    </div>
   )
 
   const showMobileMenu = !forceNavLinksVisible
@@ -412,25 +498,6 @@ export default function NavBlock({
               <StoreBranchPicker />
             </div>
           </div>
-        )}
-        {showSearch && (
-          <form
-            onSubmit={(e) => {
-              submitSearch(e)
-              closeMobileMenu()
-            }}
-            className="mt-6 flex gap-2 px-3"
-          >
-            <Input
-              value={searchQuery}
-              onChange={e => setSearchQuery(e.target.value)}
-              placeholder="Search products…"
-              className="h-10 text-sm flex-1"
-            />
-            <Button type="submit" size="icon" aria-label="Search">
-              <Search className="h-4 w-4" />
-            </Button>
-          </form>
         )}
         {showAccount && (
           <div className="mt-6 flex flex-col gap-1 border-t pt-4 px-1">
@@ -537,6 +604,34 @@ export default function NavBlock({
     </Sheet>
   )
 
+  const renderMobileHeaderRow = () => searchOpen ? (
+    <div className="flex md:hidden w-full items-center gap-2 min-w-0">
+      {mobileMenuNode}
+      {mobileSearchBarNode}
+      {mobileCartNode}
+    </div>
+  ) : (
+    <div className="flex md:hidden w-full items-center justify-between gap-2 min-w-0">
+      <div className="flex items-center gap-1 min-w-0 flex-1 overflow-hidden">
+        {mobileMenuNode}
+        <div className="min-w-0 flex-1 overflow-hidden">
+          {logoNode}
+        </div>
+      </div>
+      {mobileActionsNode}
+    </div>
+  )
+
+  const linksNode = kitLinks.length > 0 && (
+    <nav className={cn(
+      'flex items-center gap-1 flex-wrap min-w-0',
+      shell.isCentered ? 'justify-center' : 'justify-center',
+      forceNavLinksVisible ? 'flex' : 'hidden md:flex',
+    )}>
+      {kitLinks.map(link => renderNavLinkItem(link))}
+    </nav>
+  )
+
   const accountInitial =
     (customer?.full_name || customer?.email || 'U').trim().charAt(0).toUpperCase() || 'U'
   const avatarSrc = imgUrl((customer?.avatar_url || '').trim())
@@ -561,46 +656,6 @@ export default function NavBlock({
 
   const actionsNode = (
     <div className="flex items-center gap-0.5 sm:gap-2 shrink-0">
-      {showSearch && (
-        searchOpen ? (
-          <form onSubmit={submitSearch} className="hidden md:flex items-center gap-1">
-            <Input
-              autoFocus
-              value={searchQuery}
-              onChange={e => setSearchQuery(e.target.value)}
-              placeholder="Search products…"
-              className={cn('h-9 text-sm', shell.isCompact ? 'w-36' : 'w-44')}
-            />
-            <button
-              type="submit"
-              className="p-2 rounded-lg hover:opacity-70 transition-opacity"
-              style={{ color: shell.navTextCol }}
-              aria-label="Submit search"
-            >
-              <Search className="w-4 h-4" />
-            </button>
-            <button
-              type="button"
-              onClick={() => { setSearchOpen(false); setSearchQuery('') }}
-              className="p-2 rounded-lg hover:opacity-70 transition-opacity"
-              style={{ color: shell.navTextCol }}
-              aria-label="Close search"
-            >
-              <X className="w-4 h-4" />
-            </button>
-          </form>
-        ) : (
-          <button
-            type="button"
-            onClick={() => setSearchOpen(true)}
-            className="hidden md:inline-flex p-2 rounded-lg hover:opacity-70 transition-opacity"
-            style={{ color: shell.navTextCol }}
-            aria-label="Search"
-          >
-            <Search className="w-5 h-5" />
-          </button>
-        )
-      )}
       {showCart && (
         builderCanvas?.onNavigate ? (
           <button
@@ -728,13 +783,7 @@ export default function NavBlock({
         >
           {shell.isCentered ? (
             <>
-              <div className="flex md:hidden w-full items-center justify-between gap-2">
-                <div className="flex items-center gap-1 min-w-0">
-                  {mobileMenuNode}
-                  {logoNode}
-                </div>
-                {actionsNode}
-              </div>
+              {renderMobileHeaderRow()}
               <div className="hidden md:flex flex-col items-center text-center gap-2 w-full">
                 {logoNode}
                 {linksNode}
@@ -743,13 +792,7 @@ export default function NavBlock({
             </>
           ) : (
             <>
-              <div className="flex md:hidden w-full items-center justify-between gap-2">
-                <div className="flex items-center gap-1 min-w-0 flex-1">
-                  {mobileMenuNode}
-                  {logoNode}
-                </div>
-                {actionsNode}
-              </div>
+              {renderMobileHeaderRow()}
               <div className="hidden md:grid w-full grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-3">
                 <div className="col-start-1 flex items-center gap-2 min-w-0 justify-self-start">
                   {logoNode}

@@ -8,6 +8,7 @@ import { useGuestCartStore, type GuestCartItem } from '@/stores/guestCartStore'
 import { useVendor } from '@/contexts/VendorContext'
 import { apiError, extractApiError } from '@/lib/errorMessages'
 import { clearPendingBuyNow, peekPendingBuyNow } from '@/lib/pendingBuyNow'
+import { getCartQtyForVariant } from '@/lib/stockValidation'
 import type { Cart, Product } from '@/types'
 
 export const storeKeys = {
@@ -209,6 +210,51 @@ export function useCart() {
     // Keep checkout usable when add-to-cart already hydrated the local cart.
     isLoading: server.isLoading && !hasCachedItems,
   }
+}
+
+function cartItemsToStockLines(cart: Cart | null | undefined) {
+  return (cart?.items ?? []).map((item) => ({
+    product_id: String(item.product_id),
+    variant_id: item.variant_id ? String(item.variant_id) : undefined,
+    qty: Number(item.qty),
+  }))
+}
+
+/** Total quantity in cart for a product (all variants combined). */
+export function useCartProductQty(productId?: string | null): number {
+  const { data: cart } = useCart()
+  return useMemo(() => {
+    if (!productId) return 0
+    return cartItemsToStockLines(cart).reduce((sum, line) => {
+      return line.product_id === String(productId) ? sum + line.qty : sum
+    }, 0)
+  }, [cart, productId])
+}
+
+/** Quantity in cart for a specific product + variant selection. */
+export function useCartVariantQty(productId?: string | null, variantId?: string | null): number {
+  const { data: cart } = useCart()
+  return useMemo(() => {
+    if (!productId) return 0
+    return getCartQtyForVariant(
+      cartItemsToStockLines(cart),
+      String(productId),
+      variantId ? String(variantId) : undefined,
+    )
+  }, [cart, productId, variantId])
+}
+
+/** Map of product_id → total qty for efficient grid rendering. */
+export function useCartProductQtyMap(): Map<string, number> {
+  const { data: cart } = useCart()
+  return useMemo(() => {
+    const map = new Map<string, number>()
+    for (const item of cart?.items ?? []) {
+      const pid = String(item.product_id)
+      map.set(pid, (map.get(pid) ?? 0) + Number(item.qty))
+    }
+    return map
+  }, [cart])
 }
 
 export function useAddToCart() {

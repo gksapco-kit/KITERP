@@ -5,6 +5,7 @@ import type { PublicSite, StyleConfig, LiveItem } from '@/blocks/registry'
 import { BuilderTextField } from '@/components/builder/BuilderTextField'
 import { BuilderSectionImage } from '@/components/builder/BuilderSectionImage'
 import { useBuilderCanvas } from '@/contexts/BuilderCanvasContext'
+import { shouldShowServiceBookCta } from '@/lib/serviceStorefrontCta'
 import {
   iconBoxShapeClass,
   imageShapeFromProps,
@@ -38,7 +39,7 @@ interface Props {
 type FeatureItem = { title: string; desc: string; icon?: string; image_url?: string }
 
 export default function ServicesCardsBlock({ style, props, liveItems, blockId }: Props) {
-  const { storePath } = useVendor()
+  const { storePath, displayFields } = useVendor()
   const builderCanvas = useBuilderCanvas()
   const isEditorCanvas = builderCanvas?.isEditorCanvas && !!blockId
 
@@ -190,6 +191,16 @@ export default function ServicesCardsBlock({ style, props, liveItems, blockId }:
 
             const showItemTitle = useLive || staticIndex == null || !isNestedBlockFieldHidden(props, `features.${staticIndex}.title`)
             const showItemDesc = useLive || staticIndex == null || !isNestedBlockFieldHidden(props, `features.${staticIndex}.desc`)
+            const itemMeta = (item.meta || {}) as Record<string, unknown>
+            const showBookCta = cardLayout.showBookLink && (
+              !useLive || shouldShowServiceBookCta(
+                {
+                  allow_quote_request: itemMeta.allow_quote_request as boolean | undefined,
+                  requires_booking: itemMeta.requires_booking as boolean | undefined,
+                },
+                displayFields.service,
+              )
+            )
 
             const mediaNode = !useLive && staticFeature && staticIndex != null
               ? renderStaticImage(staticFeature, staticIndex, isList)
@@ -309,7 +320,7 @@ export default function ServicesCardsBlock({ style, props, liveItems, blockId }:
                         <Clock className="w-3 h-3" />{Number(item.meta.duration_minutes)} min
                       </span>
                     ) : <span />}
-                    {cardLayout.showBookLink && (
+                    {showBookCta && (
                       item.url ? (
                         <Link to={storePath(item.url)} className="flex items-center gap-1 text-sm font-semibold hover:gap-2 transition-all shrink-0" style={{ color: style.primary_color }}>
                           {cardLayout.isMinimalCard ? 'Book' : 'Book'} <ArrowRight className="w-3.5 h-3.5" />

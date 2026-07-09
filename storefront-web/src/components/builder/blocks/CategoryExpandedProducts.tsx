@@ -1,8 +1,8 @@
-import { useState, type MouseEvent } from 'react'
+import { type MouseEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { ArrowLeft, Check, Loader2, ShoppingBag, ShoppingCart, Star } from 'lucide-react'
+import { ArrowLeft, Loader2, ShoppingBag, ShoppingCart, Star } from 'lucide-react'
 import type { StyleConfig } from '@/blocks/registry'
-import { useAddToCart } from '@/hooks/useStore'
+import { useAddToCart, useCart, useCartProductQtyMap } from '@/hooks/useStore'
 import { useProducts, useServices } from '@/hooks/useStore'
 import { useStorePath } from '@/hooks/useStorePath'
 import { catalogProductToLiveItem, catalogServiceToLiveItem } from '@/lib/catalogToLiveItem'
@@ -64,7 +64,8 @@ export default function CategoryExpandedProducts({
   const storePath = useStorePath()
   const navigate = useNavigate()
   const addToCart = useAddToCart()
-  const [addedIds, setAddedIds] = useState<Set<string>>(new Set())
+  useCart()
+  const cartQtyByProduct = useCartProductQtyMap()
 
   const isServiceCategory = appliesTo === 'service'
   const { data: productsData, isLoading: productsLoading } = useProducts(
@@ -113,8 +114,6 @@ export default function CategoryExpandedProducts({
         price: Number(item.price ?? 0),
         image_url: item.image_url ?? item.image,
       } as any)
-      setAddedIds(prev => { const next = new Set(prev); next.add(item.id!); return next })
-      setTimeout(() => setAddedIds(prev => { const next = new Set(prev); next.delete(item.id!); return next }), 2000)
     } catch { /* mutation handles */ }
   }
 
@@ -194,7 +193,7 @@ export default function CategoryExpandedProducts({
           style={{ gap: itemGap }}
         >
           {items.map(item => {
-            const isAdded = addedIds.has(item.id!)
+            const cartQty = cartQtyByProduct.get(String(item.id)) ?? 0
             const isAdding = addToCart.isPending && addToCart.variables && (addToCart.variables as any).product_id === item.id
             const outOfStock = item.meta?.stock_status === 'out_of_stock'
             const imageShell = buildCatalogImageShell({
@@ -208,11 +207,11 @@ export default function CategoryExpandedProducts({
             const addBtn = resolveCatalogAddButtonPresentation({
               style: addButtonStyle,
               primaryColor: style.primary_color,
-              isAdded,
+              isAdded: cartQty > 0,
               isMinimalCard,
               isCompactCard,
             })
-            const addLabel = catalogAddButtonLabel(isMinimalCard)
+            const addLabel = catalogAddButtonLabel(isMinimalCard, cartQty)
             return (
               <div
                 key={item.id}
@@ -283,21 +282,19 @@ export default function CategoryExpandedProducts({
                   >
                     <button
                       onClick={e => handleAddToCart(e, item)}
-                      disabled={outOfStock || isAdded || !!isAdding}
+                      disabled={outOfStock || !!isAdding}
                       className={cn(addBtn.className, 'hover:opacity-90')}
                       style={addBtn.style}
                       aria-label={addBtn.iconOnly ? addLabel : undefined}
                     >
                       {isAdding ? (
                         <Loader2 className={cn(addBtn.iconClassName, 'animate-spin')} />
-                      ) : isAdded ? (
-                        <><Check className={addBtn.iconClassName} /> {addBtn.showLabel ? 'Added!' : null}</>
                       ) : outOfStock ? (
                         addBtn.showLabel ? 'Out of Stock' : <ShoppingCart className={addBtn.iconClassName} />
                       ) : (
                         <>
                           <ShoppingCart className={addBtn.iconClassName} />
-                          {addBtn.showLabel ? addLabel : null}
+                          {addBtn.showLabel ? addLabel : cartQty > 0 ? <span className="text-xs font-bold">{cartQty}</span> : null}
                         </>
                       )}
                     </button>

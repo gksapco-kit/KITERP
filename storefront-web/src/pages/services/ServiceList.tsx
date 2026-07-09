@@ -210,9 +210,11 @@ export default function ServiceList() {
                 price: resolveServicePrice(s),
                 currency: s.currency || 'INR',
                 features: s.features || [],
+                allowQuoteRequest: !!s.allow_quote_request,
+                requiresBooking: s.requires_booking,
               }))}
+              linkTo={(svc) => storePath(`/services/${svc.slug}`)}
               onBook={(svc) => navigate(storePath(`/services/${svc.slug}/book`))}
-              onView={(svc) => navigate(storePath(`/services/${svc.slug}`))}
             />
           )}
 

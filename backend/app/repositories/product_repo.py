@@ -2,7 +2,7 @@
 from typing import Optional, List
 from uuid import UUID
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, and_, or_, func
+from sqlalchemy import select, and_, or_, func, exists, cast, String
 from sqlalchemy.orm import selectinload
 
 from app.models.vendor_product import Product, ProductVariant, ProductImage
@@ -180,12 +180,48 @@ class ProductRepository(BaseRepository[Product]):
             count_query = count_query.where(Product.category == category)
         
         if search:
-            search_filter = or_(
-                Product.name.ilike(f"%{search}%"),
-                Product.description.ilike(f"%{search}%"),
-                Product.sku.ilike(f"%{search}%"),
-                Product.barcode.ilike(f"%{search}%"),
+            term = search.strip()
+            like = f"%{term}%"
+            variant_text_match = exists(
+                select(ProductVariant.id).where(
+                    ProductVariant.product_id == Product.id,
+                    or_(
+                        ProductVariant.name.ilike(like),
+                        ProductVariant.sku.ilike(like),
+                        ProductVariant.barcode.ilike(like),
+                        ProductVariant.color.ilike(like),
+                    ),
+                )
             )
+            search_clauses = [
+                Product.name.ilike(like),
+                Product.description.ilike(like),
+                Product.short_description.ilike(like),
+                Product.sku.ilike(like),
+                Product.barcode.ilike(like),
+                Product.brand.ilike(like),
+                Product.category.ilike(like),
+                Product.subcategory.ilike(like),
+                Product.material_code.ilike(like),
+                cast(Product.tags, String).ilike(like),
+                variant_text_match,
+            ]
+            price_term = term.replace(",", "").replace("₹", "").replace("$", "").strip()
+            try:
+                price_val = float(price_term)
+            except ValueError:
+                price_val = None
+            if price_val is not None:
+                search_clauses.append(Product.price == price_val)
+                search_clauses.append(
+                    exists(
+                        select(ProductVariant.id).where(
+                            ProductVariant.product_id == Product.id,
+                            ProductVariant.price == price_val,
+                        )
+                    )
+                )
+            search_filter = or_(*search_clauses)
             query = query.where(search_filter)
             count_query = count_query.where(search_filter)
         

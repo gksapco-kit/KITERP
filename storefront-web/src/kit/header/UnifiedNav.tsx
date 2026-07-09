@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { Search, ShoppingCart, User, Menu, LogIn, UserPlus, Package, LogOut, Bell } from "lucide-react";
+import { Search, ShoppingCart, User, Menu, LogIn, UserPlus, Package, LogOut, Bell, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -101,6 +101,7 @@ export function UnifiedNav({
   storePath,
 }: UnifiedNavProps) {
   const [q, setQ] = useState("");
+  const [searchOpen, setSearchOpen] = useState(false);
   const location = useLocation();
 
   const currentNavKey = useMemo(() => {
@@ -133,11 +134,38 @@ export function UnifiedNav({
     notifications: accountPaths.notifications ?? "/account/notifications",
   };
 
+  const closeSearch = () => {
+    setSearchOpen(false);
+    setQ("");
+  };
+
   const submitSearch = (e: React.FormEvent) => {
     e.preventDefault();
-    if (onSearch) onSearch(q);
-    else if (q.trim()) window.location.href = `/products?q=${encodeURIComponent(q)}`;
+    const trimmed = q.trim();
+    if (!trimmed) return;
+    closeSearch();
+    if (onSearch) onSearch(trimmed);
+    else window.location.href = `/products?search=${encodeURIComponent(trimmed)}`;
   };
+
+  const mobileSearchBarNode = showSearch && searchOpen && (
+    <form onSubmit={submitSearch} className="flex md:hidden flex-1 items-center gap-1.5 min-w-0">
+      <Input
+        autoFocus
+        value={q}
+        onChange={(e) => setQ(e.target.value)}
+        placeholder="Search products, prices, variants…"
+        className="h-9 text-sm flex-1 min-w-0"
+        aria-label="Search products"
+      />
+      <Button type="submit" size="icon" variant="ghost" aria-label="Submit search">
+        <Search className="h-4 w-4" />
+      </Button>
+      <Button type="button" size="icon" variant="ghost" onClick={closeSearch} aria-label="Close search">
+        <X className="h-4 w-4" />
+      </Button>
+    </form>
+  );
 
   return (
     <header
@@ -176,12 +204,6 @@ export function UnifiedNav({
               ))}
             </nav>
             {sheetExtra && <div className="mt-6 border-t pt-4">{sheetExtra}</div>}
-            {showSearch && (
-              <form onSubmit={submitSearch} className="mt-6 flex gap-2">
-                <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search..." />
-                <Button type="submit" size="icon"><Search /></Button>
-              </form>
-            )}
             <div className="mt-6 flex flex-col gap-2">
               {showAccount && !user && (
                 <>
@@ -207,12 +229,14 @@ export function UnifiedNav({
           </SheetContent>
         </Sheet>
 
-        <Link
-          to={logoHomeTo}
-          className="font-semibold tracking-tight text-base sm:text-lg min-w-0 flex-1 md:flex-initial truncate max-w-[min(100%,56vw)] md:max-w-none [&_img]:max-w-[min(140px,42vw)] sm:[&_img]:max-w-[160px]"
-        >
-          {logo ?? "Acme ERP"}
-        </Link>
+        {mobileSearchBarNode ?? (
+          <Link
+            to={logoHomeTo}
+            className="font-semibold tracking-tight text-base sm:text-lg min-w-0 flex-1 md:flex-initial truncate max-w-[min(100%,56vw)] md:max-w-none [&_img]:max-w-[min(140px,42vw)] sm:[&_img]:max-w-[160px]"
+          >
+            {logo ?? "Acme ERP"}
+          </Link>
+        )}
 
         {afterLogo}
 
@@ -233,18 +257,17 @@ export function UnifiedNav({
         </nav>
 
         <div className="ml-auto flex items-center gap-1 sm:gap-2 shrink-0">
-          {showSearch && (
-            <form onSubmit={submitSearch} className="hidden md:flex items-center gap-2">
-              <div className="relative">
-                <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  value={q}
-                  onChange={(e) => setQ(e.target.value)}
-                  placeholder="Search products..."
-                  className="pl-8 w-56 h-10 text-base"
-                />
-              </div>
-            </form>
+          {showSearch && !searchOpen && (
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="md:hidden"
+              onClick={() => setSearchOpen(true)}
+              aria-label="Search"
+            >
+              <Search />
+            </Button>
           )}
 
           {showCart && (

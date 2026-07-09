@@ -102,6 +102,8 @@ function hydrateServices(liveItems: LiveItem[]) {
         : [],
       popular: idx === 0,
       image: item.image_url || swatch(item.title || String(idx)),
+      allowQuoteRequest: Boolean((item.meta as Record<string, unknown>)?.allow_quote_request),
+      requiresBooking: (item.meta as Record<string, unknown>)?.requires_booking as boolean | undefined,
     })),
   )
 }

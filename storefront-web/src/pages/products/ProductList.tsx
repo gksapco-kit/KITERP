@@ -1,16 +1,16 @@
 import { useState, useMemo } from 'react'
-import { Link, useSearchParams } from 'react-router-dom'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { useProducts, useServices, useStoreCategories } from '@/hooks/useStore'
-import { useAddToCart } from '@/hooks/useStore'
+import { useAddToCart, useCart, useCartProductQtyMap } from '@/hooks/useStore'
 import { formatCurrency, imgUrl, cn } from '@/lib/utils'
 import type { Product, Service, ProductVariant, Cart } from '@/types'
 import type { GuestCartItem } from '@/stores/guestCartStore'
 import {
   Search, ShoppingBag, ShoppingCart, Loader2, ChevronLeft, ChevronRight,
-  Grid3X3, LayoutList, SlidersHorizontal, X, Package, Wrench,
+  Grid3X3, LayoutList, SlidersHorizontal, X, Package, Wrench, ArrowRight,
   ChevronDown,
 } from 'lucide-react'
 import type { StoreCategory } from '@/types'
@@ -27,6 +27,10 @@ import { bridgeProduct } from '@/kit/bridge'
 import { resolveProductThumbnailUrl } from '@/lib/productImageUtils'
 import { variantColorCss, variantDisplayLabel } from '@/lib/variantOptions'
 import { assertCanAddToCart, canPurchaseProduct } from '@/lib/stockValidation'
+import { catalogAddButtonLabel } from '@/lib/catalogAddButtonStyle'
+import { shouldShowServiceBookCta } from '@/lib/serviceStorefrontCta'
+import { resolveServiceDuration } from '@/lib/servicePricing'
+import { ServiceCard } from '@/kit/services/ServiceBlocks'
 import { toast } from 'sonner'
 
 type FilterType = 'products' | 'services' | 'both'
@@ -187,10 +191,13 @@ async function addProductToCart(input: {
 
 export default function ProductList() {
   const { storePath } = useBranch()
-  const { vendorSlug } = useVendor()
+  const navigate = useNavigate()
+  const { vendorSlug, displayFields } = useVendor()
   const { isAuthenticated } = useAuthStore()
   const theme = useTheme()
   const addToCart = useAddToCart()
+  useCart()
+  const cartQtyByProduct = useCartProductQtyMap()
   const cardStyle = theme.card_style || 'default'
   const [searchParams] = useSearchParams()
   const initialSearch = searchParams.get('search') || ''
@@ -723,6 +730,29 @@ export default function ProductList() {
                 }
 
                 if (cardStyle === 'minimal') {
+                  if (!isProduct) {
+                    return (
+                      <ServiceCard
+                        key={`${item.type}-${item.id}`}
+                        service={{
+                          id: item.id,
+                          slug: item.slug,
+                          name: item.name,
+                          shortDescription: item.short_description || item.description || '',
+                          description: item.description || '',
+                          image: imageUrl || undefined,
+                          durationMinutes: resolveServiceDuration(item),
+                          price: effectivePrice,
+                          currency: item.currency || 'INR',
+                          features: item.features || [],
+                          allowQuoteRequest: !!item.allow_quote_request,
+                          requiresBooking: item.requires_booking,
+                        }}
+                        linkTo={storePath(`/services/${item.slug}`)}
+                        onBook={(svc) => navigate(storePath(`/services/${svc.slug}/book`))}
+                      />
+                    )
+                  }
                   // Minimal card: no heavy border, subtle hover, airy layout
                   return (
                     <Link key={`${item.type}-${item.id}`} to={cardLinkTo}
@@ -764,134 +794,85 @@ export default function ProductList() {
                   )
                 }
 
-                // default card — uses kit ProductCard
-                const kitProduct = isProduct
-                  ? bridgeProduct({
-                      id: item.id,
-                      slug: item.slug,
-                      title: item.name,
-                      description: item.description || item.short_description || '',
-                      categoryIds: [],
-                      images: (item.images || []).map((img: any) => ({
-                        url: img.url || imgUrl(img.url),
-                        alt: img.alt_text || '',
-                      })),
-                      variants: variants.length > 0
-                        ? variants.map((v: ProductVariant) => ({
-                            id: v.id,
-                            name: v.name,
-                            options: v.attributes || {},
-                            color: variantColorCss(v),
-                            media: v.media,
-                            price: { amount: Math.round((v.price ?? 0) * 100), currency: v.currency || 'INR' },
-                            compareAtPrice: v.compare_at_price ? { amount: Math.round(v.compare_at_price * 100), currency: v.currency || 'INR' } : undefined,
-                            inStock: variantHasStock(v, item as Product),
-                            quantity: v.quantity,
-                            track_inventory: v.track_inventory,
-                            allow_backorders: v.allow_backorders,
-                            stock_status: v.stock_status,
-                          }))
-                        : [{ id: `${item.id}-default`, name: 'Default', options: {}, price: { amount: Math.round((item.price ?? 0) * 100), currency: item.currency || 'INR' }, inStock: hasStock }],
-                      rating: (item.avg_rating ?? 0) > 0 ? { value: item.avg_rating, count: item.review_count ?? 0 } : undefined,
-                      tags: item.tags || [],
-                    } as any)
-                  : null
-
-                if (isProduct && kitProduct) {
+                // service card — same Book / quote rules as the services catalog
+                if (!isProduct) {
                   return (
-                    <ProductCard
+                    <ServiceCard
                       key={`${item.type}-${item.id}`}
-                      product={kitProduct}
-                      linkTo={storePath(`/products/${item.slug}`)}
-                      showRating
-                      showTags
-                      addToCartPending={addToCart.isPending}
-                      onAddToCart={async (p, variant) => {
-                        await addProductToCart({
-                          vendorSlug,
-                          isAuthenticated,
-                          product: item as Product,
-                          variants,
-                          kitVariant: variant,
-                          name: p.name,
-                          slug: item.slug,
-                          price: variant?.price ?? p.price,
-                          image: p.image,
-                          addToCart,
-                        })
+                      service={{
+                        id: item.id,
+                        slug: item.slug,
+                        name: item.name,
+                        shortDescription: item.short_description || item.description || '',
+                        description: item.description || '',
+                        image: imageUrl || undefined,
+                        durationMinutes: resolveServiceDuration(item),
+                        price: effectivePrice,
+                        currency: item.currency || 'INR',
+                        features: item.features || [],
+                        allowQuoteRequest: !!item.allow_quote_request,
+                        requiresBooking: item.requires_booking,
                       }}
+                      linkTo={storePath(`/services/${item.slug}`)}
+                      onBook={(svc) => navigate(storePath(`/services/${svc.slug}/book`))}
                     />
                   )
                 }
 
-                // service fallback card
-                  return (
-                  <Link key={`${item.type}-${item.id}`} to={cardLinkTo}
-                    className={`${themeUi.catalogGridCard} max-h-[90vh] overflow-y-auto`}>
-                    <div className="aspect-square bg-gray-50 overflow-hidden relative">
-                      {imageUrl ? (
-                        <img src={imgUrl(imageUrl)} alt={item.name}
-                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center">
-                          {isProduct ? <ShoppingBag className="w-12 h-12 text-gray-200" /> : <Wrench className="w-12 h-12 text-gray-200" />}
-                        </div>
-                      )}
-                      {isProduct && item.compare_at_price && item.compare_at_price > item.price && (
-                        <span className="absolute top-2 left-2 bg-red-500 text-white text-xs font-bold px-2 py-0.5 rounded">
-                          -{Math.round((1 - item.price / item.compare_at_price) * 100)}%
-                        </span>
-                      )}
-                      {!hasStock && (
-                        <span className="absolute top-2 right-2 bg-gray-500 text-white text-xs font-bold px-2 py-0.5 rounded">
-                          Out of Stock
-                        </span>
-                      )}
-                      <span className="absolute bottom-2 left-2 text-white text-xs font-bold px-2 py-0.5 rounded" style={{ backgroundColor: isProduct ? theme.colors.primary : theme.colors.accent }}>
-                        {isProduct ? 'Product' : 'Service'}
-                      </span>
-                    </div>
-                    <div className="p-3 sm:p-4">
-                      <h3 className={`text-sm font-medium line-clamp-2 min-h-[2.5rem] ${themeUi.titleOnSurface} ${themeUi.groupHoverTitle}`}>
-                        {item.name}
-                      </h3>
-                      {(item.avg_rating ?? 0) > 0 && (
-                        <div className="mt-1"><StarRating rating={item.avg_rating!} size="sm" reviewCount={item.review_count} /></div>
-                      )}
-                      <div className="mt-2">
-                        {(() => {
-                          if (isProduct) {
-                            return (
-                              <>
-                                {showFrom && <span className="text-xs text-gray-500 mr-1">From</span>}
-                                <span className={`text-lg ${themeUi.priceOnSurface}`}>{formatCurrency(effectivePrice)}</span>
-                                {item.compare_at_price && item.compare_at_price > effectivePrice && (
-                                  <span className="text-sm text-gray-400 line-through ml-2">{formatCurrency(item.compare_at_price)}</span>
-                                )}
-                                {variants.length > 1 && (
-                                  <span className="text-xs text-gray-500 ml-1.5">({variants.length} options)</span>
-                                )}
-                              </>
-                            )
-                          }
-                          return (
-                            <>
-                              <span className={`text-lg ${themeUi.priceOnSurface}`}>{formatCurrency(effectivePrice)}</span>
-                              {item.price_min && item.price_max && item.price_min !== item.price_max && (
-                                <span className="text-sm text-gray-500 ml-1">- {formatCurrency(item.price_max)}</span>
-                              )}
-                            </>
-                          )
-                        })()}
-                      </div>
-                      {isProduct && (
-                        <p className="text-xs text-green-600 font-medium mt-1">Free Delivery</p>
-                      )}
-                      {!isProduct && item.service_mode && (
-                        <p className={`text-xs mt-1 capitalize ${themeUi.mutedOnSurface}`}>{item.service_mode.replace('_', ' ')}</p>
-                      )}
-                    </div>
-                  </Link>
+                // default product card — uses kit ProductCard
+                const kitProduct = bridgeProduct({
+                  id: item.id,
+                  slug: item.slug,
+                  title: item.name,
+                  description: item.description || item.short_description || '',
+                  categoryIds: [],
+                  images: (item.images || []).map((img: any) => ({
+                    url: img.url || imgUrl(img.url),
+                    alt: img.alt_text || '',
+                  })),
+                  variants: variants.length > 0
+                    ? variants.map((v: ProductVariant) => ({
+                        id: v.id,
+                        name: v.name,
+                        options: v.attributes || {},
+                        color: variantColorCss(v),
+                        media: v.media,
+                        price: { amount: Math.round((v.price ?? 0) * 100), currency: v.currency || 'INR' },
+                        compareAtPrice: v.compare_at_price ? { amount: Math.round(v.compare_at_price * 100), currency: v.currency || 'INR' } : undefined,
+                        inStock: variantHasStock(v, item as Product),
+                        quantity: v.quantity,
+                        track_inventory: v.track_inventory,
+                        allow_backorders: v.allow_backorders,
+                        stock_status: v.stock_status,
+                      }))
+                    : [{ id: `${item.id}-default`, name: 'Default', options: {}, price: { amount: Math.round((item.price ?? 0) * 100), currency: item.currency || 'INR' }, inStock: hasStock }],
+                  rating: (item.avg_rating ?? 0) > 0 ? { value: item.avg_rating, count: item.review_count ?? 0 } : undefined,
+                  tags: item.tags || [],
+                } as any)
+
+                return (
+                  <ProductCard
+                    key={`${item.type}-${item.id}`}
+                    product={kitProduct}
+                    linkTo={storePath(`/products/${item.slug}`)}
+                    showRating
+                    showTags
+                    addToCartPending={addToCart.isPending}
+                    onAddToCart={async (p, variant) => {
+                      await addProductToCart({
+                        vendorSlug,
+                        isAuthenticated,
+                        product: item as Product,
+                        variants,
+                        kitVariant: variant,
+                        name: p.name,
+                        slug: item.slug,
+                        price: variant?.price ?? p.price,
+                        image: p.image,
+                        addToCart,
+                      })
+                    }}
+                  />
                 )
               })}
             </div>
@@ -911,6 +892,11 @@ export default function ProductList() {
                   ? (item.price > 0 ? item.price : variants.length > 0 ? Math.min(...variants.map((v: any) => v.price)) : 0)
                   : (item.price || item.price_min || 0)
                 const showFrom = isProduct && item.price === 0 && variants.length > 0
+                const listCartQty = isProduct ? (cartQtyByProduct.get(String(item.id)) ?? 0) : 0
+                const showServiceBook = !isProduct && shouldShowServiceBookCta(
+                  { allow_quote_request: item.allow_quote_request, requires_booking: item.requires_booking },
+                  displayFields.service,
+                )
 
                 const handleListAddToCart = async () => {
                   if (!isProduct || !hasStock) return
@@ -1007,7 +993,13 @@ export default function ProductList() {
                           ) : (
                             <ShoppingCart className="w-4 h-4" />
                           )}
-                          {hasStock ? 'Add to cart' : 'Out of stock'}
+                          {hasStock ? catalogAddButtonLabel(false, listCartQty) : 'Out of stock'}
+                        </Button>
+                      ) : showServiceBook ? (
+                        <Button size="sm" className="gap-1.5" asChild>
+                          <Link to={storePath(`/services/${item.slug}/book`)}>
+                            Book <ArrowRight className="w-4 h-4" />
+                          </Link>
                         </Button>
                       ) : (
                         <Button size="sm" variant="outline" asChild>

@@ -4059,6 +4059,7 @@ async def get_live_resource(
                     "price_max": float(s.price_max) if s.price_max is not None else None,
                     "currency": s.currency,
                     "requires_booking": bool(s.requires_booking),
+                    "allow_quote_request": bool(s.allow_quote_request),
                 },
             ))
 

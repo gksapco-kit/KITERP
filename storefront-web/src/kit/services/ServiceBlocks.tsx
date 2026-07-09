@@ -1,80 +1,186 @@
-import { Link } from "react-router-dom";
-import { Clock, ArrowRight, Check } from "lucide-react";
+import { Link, type MouseEvent } from "react-router-dom";
+import { Clock, CalendarDays, Check, Wrench } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { themeUi } from "@/lib/themeColors";
-import { cn } from "@/lib/utils";
+import { useVendor } from "@/contexts/VendorContext";
+import { shouldShowServiceBookCta } from "@/lib/serviceStorefrontCta";
+import { readCatalogCardLayout } from "@/lib/catalogCardLayout";
+import {
+  resolveCatalogAddButtonPresentation,
+} from "@/lib/catalogAddButtonStyle";
+import { cn, imgUrl } from "@/lib/utils";
 import type { Service } from "../types";
 import { formatPrice } from "../mock";
 
 export interface ServiceCardProps {
   service: Service;
   layout?: "row" | "card";
+  linkTo?: string;
+  onNavigateClick?: (e: MouseEvent) => void;
   onBook?: (s: Service) => void;
+  /** Legacy navigation handler — prefer linkTo */
   onView?: (s: Service) => void;
+  showDuration?: boolean;
+  showFeatures?: boolean;
 }
 
-export function ServiceCard({ service, layout = "card", onBook, onView }: ServiceCardProps) {
+export function ServiceCard({
+  service,
+  layout = "card",
+  linkTo,
+  onNavigateClick,
+  onBook,
+  onView,
+  showDuration = true,
+  showFeatures = false,
+}: ServiceCardProps) {
+  const { displayFields } = useVendor();
+  const cardLayout = readCatalogCardLayout({});
   const row = layout === "row";
+  const serviceHref = linkTo ?? `/services/${service.slug}`;
+  const showBookCta = shouldShowServiceBookCta(
+    {
+      allow_quote_request: service.allowQuoteRequest,
+      requires_booking: service.requiresBooking,
+    },
+    displayFields.service,
+  );
+  const addBtn = resolveCatalogAddButtonPresentation({
+    style: cardLayout.addButtonStyle,
+    isMinimalCard: cardLayout.isMinimalCard,
+    isCompactCard: cardLayout.isCompactCard,
+  });
+
+  const handleNavClick = (e: MouseEvent) => {
+    if (onNavigateClick) {
+      onNavigateClick(e);
+      return;
+    }
+    if (onView) {
+      e.preventDefault();
+      onView(service);
+    }
+  };
+
+  const imageBlock = (
+    <div className={cn("relative w-full overflow-hidden bg-muted", row ? "h-full min-h-[11rem]" : "aspect-[4/3]")}>
+      {service.image ? (
+        <img
+          src={imgUrl(service.image)}
+          alt={service.name}
+          loading="lazy"
+          className="absolute inset-0 h-full w-full object-cover transition-transform group-hover:scale-105"
+        />
+      ) : (
+        <div className="absolute inset-0 flex items-center justify-center text-muted-foreground">
+          <Wrench className="h-8 w-8 opacity-25" />
+        </div>
+      )}
+    </div>
+  );
+
   return (
-    <Card
-      className={cn(
-        "overflow-hidden border-2 shadow-sm",
-        themeUi.cardBorder, themeUi.catalogSurface, row && "flex",
-        onView && "cursor-pointer transition-shadow hover:shadow-md",
-      )}
-      onClick={onView ? () => onView(service) : undefined}
-      role={onView ? "link" : undefined}
-    >
-      {service.image && (
-        <div className={cn(row ? "w-56 shrink-0" : "aspect-[16/9]")}>
-          <img src={service.image} alt={service.name} className="w-full h-full object-cover" />
-        </div>
-      )}
-      <CardContent className="p-5 flex flex-col gap-3 flex-1">
-        <div className="flex items-start justify-between gap-3">
-          <div>
-            <h3 className={cn("text-lg font-semibold", themeUi.titleOnSurface)}>{service.name}</h3>
-            {service.shortDescription && (
-              <p className={cn("text-base mt-1.5 line-clamp-2", themeUi.mutedOnSurface)}>{service.shortDescription}</p>
-            )}
-          </div>
-          <Badge variant="secondary" className="shrink-0 text-sm">
-            <Clock className="h-3.5 w-3.5 mr-1" />{service.durationMinutes}m
+    <Card className={cn("overflow-hidden group flex flex-col", row && "flex-row")}>
+      <div className={cn("relative", row ? "w-44 shrink-0" : "")}>
+        <Link to={serviceHref} className="block" onClick={handleNavClick}>
+          {imageBlock}
+        </Link>
+        {showDuration && service.durationMinutes > 0 && (
+          <Badge variant="secondary" className="absolute top-2 left-2 z-10 pointer-events-none gap-1">
+            <Clock className="h-3 w-3" />
+            {service.durationMinutes}m
           </Badge>
-        </div>
-        {service.features && (
-          <ul className="space-y-1.5">
+        )}
+      </div>
+      <CardContent className={cn("flex flex-1 flex-col gap-2 p-4", row && "p-4")}>
+        <Link
+          to={serviceHref}
+          className="font-medium line-clamp-2 hover:underline"
+          onClick={handleNavClick}
+        >
+          {service.name}
+        </Link>
+        {!row && service.shortDescription && (
+          <p className="text-sm text-muted-foreground line-clamp-2">{service.shortDescription}</p>
+        )}
+        {showFeatures && service.features && service.features.length > 0 && (
+          <ul className="space-y-1">
             {service.features.slice(0, 3).map((f) => (
-              <li key={f} className={cn("text-sm flex gap-2", themeUi.mutedOnSurface)}><Check className={cn("h-4 w-4 mt-0.5 shrink-0", themeUi.iconPrimary)} />{f}</li>
+              <li key={f} className="text-sm flex gap-2 text-muted-foreground">
+                <Check className="h-4 w-4 mt-0.5 shrink-0 text-primary" />
+                {f}
+              </li>
             ))}
           </ul>
         )}
-        <div className="mt-auto flex items-center justify-between pt-3 gap-3">
-          <div className={cn("text-lg font-bold", themeUi.priceOnSurface)}>{formatPrice(service.price, service.currency)}</div>
-          <Button size="sm" onClick={(e) => { e.stopPropagation(); onBook?.(service); }}>
-            Book <ArrowRight />
-          </Button>
+        <div className="flex flex-wrap items-baseline gap-2">
+          <span className="font-semibold">{formatPrice(service.price, service.currency)}</span>
         </div>
+        {showBookCta && onBook && (
+          <div className="mt-auto flex items-center gap-2 pt-2">
+            <button
+              type="button"
+              className={cn(addBtn.className, !addBtn.iconOnly && "w-full", "hover:opacity-90")}
+              style={addBtn.style}
+              aria-label={addBtn.iconOnly ? "Book" : undefined}
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                onBook(service);
+              }}
+            >
+              <CalendarDays className={addBtn.iconClassName} />
+              {addBtn.showLabel ? "Book" : null}
+            </button>
+          </div>
+        )}
       </CardContent>
     </Card>
   );
 }
 
-export function ServiceCardGrid({ services, columns = 3, onBook, onView }: { services: Service[]; columns?: 2 | 3 | 4; onBook?: (s: Service) => void; onView?: (s: Service) => void }) {
+export function ServiceCardGrid({ services, columns = 3, onBook, onView, linkTo }: {
+  services: Service[];
+  columns?: 2 | 3 | 4;
+  onBook?: (s: Service) => void;
+  onView?: (s: Service) => void;
+  linkTo?: (s: Service) => string;
+}) {
   const colMap = { 2: "sm:grid-cols-2", 3: "sm:grid-cols-2 lg:grid-cols-3", 4: "sm:grid-cols-2 lg:grid-cols-4" } as const;
   return (
     <div className={cn("grid gap-4 grid-cols-1", colMap[columns])}>
-      {services.map((s) => <ServiceCard key={s.id} service={s} onBook={onBook} onView={onView} />)}
+      {services.map((s) => (
+        <ServiceCard
+          key={s.id}
+          service={s}
+          linkTo={linkTo?.(s)}
+          onBook={onBook}
+          onView={onView}
+        />
+      ))}
     </div>
   );
 }
 
-export function ServiceList({ services, onBook, onView }: { services: Service[]; onBook?: (s: Service) => void; onView?: (s: Service) => void }) {
+export function ServiceList({ services, onBook, onView, linkTo }: {
+  services: Service[];
+  onBook?: (s: Service) => void;
+  onView?: (s: Service) => void;
+  linkTo?: (s: Service) => string;
+}) {
   return (
     <div className="flex flex-col gap-3">
-      {services.map((s) => <ServiceCard key={s.id} service={s} layout="row" onBook={onBook} onView={onView} />)}
+      {services.map((s) => (
+        <ServiceCard
+          key={s.id}
+          service={s}
+          layout="row"
+          linkTo={linkTo?.(s)}
+          onBook={onBook}
+          onView={onView}
+          showFeatures
+        />
+      ))}
     </div>
   );
 }
@@ -104,9 +210,12 @@ export function PricingTiers({ tiers }: { tiers: PricingTier[] }) {
             ))}
           </ul>
           {t.cta && (
-            <Button asChild className="mt-6" variant={t.highlight ? "default" : "outline"}>
-              <Link to={t.cta.href}>{t.cta.label}</Link>
-            </Button>
+            <Link
+              to={t.cta.href}
+              className="mt-6 inline-flex items-center justify-center rounded-md border border-input bg-background px-4 py-2 text-sm font-medium hover:bg-accent hover:text-accent-foreground"
+            >
+              {t.cta.label}
+            </Link>
           )}
         </Card>
       ))}

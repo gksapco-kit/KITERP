@@ -2,10 +2,29 @@ import { Check, Clock, ArrowRight, Star } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { formatPrice } from "@/commerce-blocks/lib/format";
-import { mockServices } from "@/commerce-blocks/mock/services";
+import { mockServices, type MockService } from "@/commerce-blocks/mock/services";
+import { useVendor } from "@/contexts/VendorContext";
+import { shouldShowServiceBookCta } from "@/lib/serviceStorefrontCta";
+import type { DisplayFieldMap } from "@/lib/storefrontDisplayFields";
 import { cn } from "@/lib/utils";
 import { catalogGridClassName } from "@/lib/commerceCatalogLayout";
 import { cardStylePadding } from "@/lib/commerceCatalogLayout";
+
+function serviceShowsBookCta(
+  service: MockService,
+  showBookLink: boolean,
+  showCta: boolean,
+  serviceDisplayFields?: DisplayFieldMap,
+): boolean {
+  if (!showBookLink || !showCta) return false;
+  return shouldShowServiceBookCta(
+    {
+      allow_quote_request: service.allowQuoteRequest,
+      requires_booking: service.requiresBooking,
+    },
+    serviceDisplayFields,
+  );
+}
 
 interface ListProps {
   showFeatures?: boolean;
@@ -30,6 +49,7 @@ export function ServiceList({
   cardPadding = 20,
   itemLimit,
 }: ListProps) {
+  const { displayFields } = useVendor();
   const items = itemLimit ? mockServices.slice(0, itemLimit) : mockServices;
   return (
     <section className="px-6 py-10">
@@ -78,7 +98,7 @@ export function ServiceList({
                 <div className="text-xs text-muted-foreground">starting from</div>
               </div>
               <Button>
-                {(showBookLink && showCta) ? cta : 'View'}
+                {serviceShowsBookCta(s, showBookLink, showCta, displayFields.service) ? cta : 'View'}
                 <ArrowRight className="h-4 w-4" />
               </Button>
             </div>
@@ -114,6 +134,7 @@ export function ServiceCardGrid({
   cta = "Learn more",
   title = "Services we offer",
 }: GridProps) {
+  const { displayFields } = useVendor();
   const pad = cardStylePadding(cardStyle ?? "default", cardPadding);
   const isMinimal = cardStyle === "minimal";
   const items = itemLimit ? mockServices.slice(0, itemLimit) : mockServices;
@@ -150,7 +171,7 @@ export function ServiceCardGrid({
                 <div className="text-xs text-muted-foreground">{s.duration}</div>
               </div>
               <Button variant="outline" size="sm">
-                {(showBookLink && showCta) ? cta : 'View'}
+                {serviceShowsBookCta(s, showBookLink, showCta, displayFields.service) ? cta : 'View'}
               </Button>
             </div>
           </div>

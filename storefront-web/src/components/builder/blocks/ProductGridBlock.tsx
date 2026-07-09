@@ -1,7 +1,7 @@
-import { useState, type CSSProperties, type ReactNode, type MouseEvent } from 'react'
+import { type CSSProperties, type ReactNode, type MouseEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { ShoppingBag, Star, ShoppingCart, Check, Loader2, Heart, FolderTree } from 'lucide-react'
-import { useAddToCart } from '@/hooks/useStore'
+import { ShoppingBag, Star, ShoppingCart, Loader2, Heart, FolderTree } from 'lucide-react'
+import { useAddToCart, useCart, useCartProductQtyMap } from '@/hooks/useStore'
 import { useStorePath } from '@/hooks/useStorePath'
 import type { PublicSite, StyleConfig, LiveItem } from '@/blocks/registry'
 import CategoryCardsWellness from '@/components/builder/blocks/CategoryCardsWellness'
@@ -232,7 +232,8 @@ export default function ProductGridBlock({ site, style, props, liveItems, blockT
   const storePath = useStorePath()
   const navigate = useNavigate()
   const addToCart = useAddToCart()
-  const [addedIds, setAddedIds] = useState<Set<string>>(new Set())
+  useCart()
+  const cartQtyByProduct = useCartProductQtyMap()
 
   const isLiveCatalogProduct = (item: LiveItem) => {
     const id = String(item.id ?? '')
@@ -267,8 +268,6 @@ export default function ProductGridBlock({ site, style, props, liveItems, blockT
         price: Number(item.price ?? 0),
         image_url: item.image_url ?? item.image,
       } as any)
-      setAddedIds(prev => { const next = new Set(prev); next.add(item.id!); return next })
-      setTimeout(() => setAddedIds(prev => { const next = new Set(prev); next.delete(item.id!); return next }), 2000)
     } catch { /* mutation handles */ }
   }
 
@@ -1004,7 +1003,7 @@ export default function ProductGridBlock({ site, style, props, liveItems, blockT
                         className="h-12 px-8 text-xs font-bold uppercase tracking-[0.2em] rounded-none"
                         onClick={e => handleAddToCart(e, featuredOne)}
                       >
-                        Add to cart
+                        {catalogAddButtonLabel(false, cartQtyByProduct.get(String(featuredOne.id)) ?? 0)}
                       </button>
                     )}
                     <button
@@ -1027,6 +1026,7 @@ export default function ProductGridBlock({ site, style, props, liveItems, blockT
           >
             {gridList.map(item => {
               const outOfStock = item.meta?.stock_status === 'out_of_stock'
+              const cartQty = cartQtyByProduct.get(String(item.id)) ?? 0
               const isPh = String(item.id || '').startsWith('ph-') || String(item.id || '').startsWith('wl-showcase-')
               const isShowcase = !!(item.meta as Record<string, unknown>)?.is_category_showcase
               return (
@@ -1139,7 +1139,7 @@ export default function ProductGridBlock({ site, style, props, liveItems, blockT
                       className="mt-3 w-full py-2 text-xs font-medium rounded-lg text-white disabled:opacity-50"
                       style={{ backgroundColor: style.primary_color }}
                     >
-                      {outOfStock ? 'Out of stock' : 'Add to cart'}
+                      {outOfStock ? 'Out of stock' : catalogAddButtonLabel(false, cartQty)}
                     </button>
                   )}
                 </div>
@@ -1211,7 +1211,7 @@ export default function ProductGridBlock({ site, style, props, liveItems, blockT
           style={{ gap: itemGap }}
         >
           {items.map(item => {
-            const isAdded = addedIds.has(item.id!)
+            const cartQty = cartQtyByProduct.get(String(item.id)) ?? 0
             const isAdding = addToCart.isPending && addToCart.variables && (addToCart.variables as any).product_id === item.id
             const outOfStock = item.meta?.stock_status === 'out_of_stock'
             const imageShell = buildCatalogImageShell({
@@ -1225,11 +1225,11 @@ export default function ProductGridBlock({ site, style, props, liveItems, blockT
             const addBtn = resolveCatalogAddButtonPresentation({
               style: addButtonStyle,
               primaryColor: style.primary_color,
-              isAdded,
+              isAdded: cartQty > 0,
               isMinimalCard,
               isCompactCard,
             })
-            const addLabel = catalogAddButtonLabel(isMinimalCard)
+            const addLabel = catalogAddButtonLabel(isMinimalCard, cartQty)
             return (
               <div
                 key={item.id}
@@ -1299,21 +1299,19 @@ export default function ProductGridBlock({ site, style, props, liveItems, blockT
                 >
                   <button
                     onClick={e => handleAddToCart(e, item)}
-                    disabled={outOfStock || isAdded || !!isAdding}
+                    disabled={outOfStock || !!isAdding}
                     className={cn(addBtn.className, 'hover:opacity-90')}
                     style={addBtn.style}
                     aria-label={addBtn.iconOnly ? addLabel : undefined}
                   >
                     {isAdding ? (
                       <Loader2 className={cn(addBtn.iconClassName, 'animate-spin')} />
-                    ) : isAdded ? (
-                      <><Check className={addBtn.iconClassName} /> {addBtn.showLabel ? 'Added!' : null}</>
                     ) : outOfStock ? (
                       addBtn.showLabel ? 'Out of Stock' : <ShoppingCart className={addBtn.iconClassName} />
                     ) : (
                       <>
                         <ShoppingCart className={addBtn.iconClassName} />
-                        {addBtn.showLabel ? addLabel : null}
+                        {addBtn.showLabel ? addLabel : cartQty > 0 ? <span className="text-xs font-bold">{cartQty}</span> : null}
                       </>
                     )}
                   </button>

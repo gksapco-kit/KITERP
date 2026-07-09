@@ -126,8 +126,10 @@ function colorPresentation(
   }
 }
 
-export function catalogAddButtonLabel(isMinimalCard?: boolean): string {
-  return isMinimalCard ? 'Add' : 'Add to Cart'
+export function catalogAddButtonLabel(isMinimalCard?: boolean, cartQty?: number): string {
+  const base = isMinimalCard ? 'Add' : 'Add to Cart'
+  if (cartQty != null && cartQty > 0) return `${base} (${cartQty})`
+  return base
 }
 
 export function resolveCatalogAddButtonPresentation(options: {

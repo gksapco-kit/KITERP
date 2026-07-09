@@ -698,7 +698,42 @@ html[dir='rtl'] [data-sonner-toast][data-styled='true']:has([data-close-button])
   clip-path: none !important;
 }
 
+/* About split — keep positioned builder fields inside their column on small screens. */
+.about-split-text-col {
+  overflow-x: clip;
+  overflow-wrap: anywhere;
+}
+
+.about-split-text-col [data-field-layout] {
+  max-width: 100%;
+}
+
+.about-split-image-col {
+  align-self: start;
+}
+
+@media (min-width: 1024px) {
+  .about-split-image-col {
+    position: sticky;
+    top: 6rem;
+  }
+}
+
 /* Rich text blocks — Tailwind preflight removes list markers; prose plugin is not used. */
+.rich-text-content h2,
+.rich-text-content h3,
+.rich-text-content h4 {
+  font-weight: 600;
+  margin: 1.25rem 0 0.5rem;
+  line-height: 1.35;
+}
+
+.rich-text-content h2:first-child,
+.rich-text-content h3:first-child,
+.rich-text-content h4:first-child {
+  margin-top: 0;
+}
+
 .rich-text-content ul {
   list-style-type: disc;
   list-style-position: outside;

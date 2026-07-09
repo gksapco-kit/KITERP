@@ -74,6 +74,8 @@ export interface Service {
   price: number;
   currency?: string;
   features?: string[];
+  allowQuoteRequest?: boolean;
+  requiresBooking?: boolean;
   staff?: { id: ID; name: string; avatarUrl?: string }[];
 }
 

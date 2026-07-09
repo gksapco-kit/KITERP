@@ -22,6 +22,7 @@ import {
   catalogAddButtonLabel,
   resolveCatalogAddButtonPresentation,
 } from "@/lib/catalogAddButtonStyle";
+import { useCart, useCartVariantQty } from "@/hooks/useStore";
 import type { Product } from "../types";
 import { formatPrice } from "../mock";
 
@@ -123,6 +124,12 @@ export function ProductCard({
     return allVariants.find((v) => v.id === validation.variant!.id);
   }, [allVariants, validation, optionRows.length, firstAvailable]);
 
+  useCart();
+  const cartQty = useCartVariantQty(
+    product.id,
+    selectedVariant?.id ?? (optionRows.length === 0 ? firstAvailable?.id : undefined),
+  );
+
   const pricingVariant = useMemo(() => {
     const match = resolveVariantForCardPricing(
       apiVariants,
@@ -151,6 +158,7 @@ export function ProductCard({
     style: cardLayout.addButtonStyle,
     isMinimalCard: cardLayout.isMinimalCard,
     isCompactCard: cardLayout.isCompactCard,
+    isAdded: cartQty > 0,
   });
   const addLabel = !product.inStock
     ? "Out of stock"
@@ -158,7 +166,7 @@ export function ProductCard({
       ? "Select options"
       : (selectedVariant ?? firstAvailable)?.available === false
         ? "Out of stock"
-        : catalogAddButtonLabel(cardLayout.isMinimalCard);
+        : catalogAddButtonLabel(cardLayout.isMinimalCard, cartQty);
 
   const displayImage = useMemo(
     () =>
