@@ -63,10 +63,10 @@ export default function AboutSplitBlock({ site, style, props, liveItems, blockId
   const titleClass = isDark ? 'text-white' : 'text-gray-900'
 
   const descriptionClass = cn(
-    'rich-text-content leading-relaxed',
+    'rich-text-content leading-relaxed text-sm sm:text-base',
     mutedText,
     description && !hasInlineHtml(description) && 'whitespace-pre-wrap',
-    isStatement && 'text-left sm:text-center',
+    isStatement ? 'text-left sm:text-center' : 'max-lg:text-left',
   )
 
   const renderTextColumn = (opts?: { onImage?: boolean }) => {
@@ -97,7 +97,7 @@ export default function AboutSplitBlock({ site, style, props, liveItems, blockId
           value={title ?? ''}
           as="h2"
           className={cn(
-            'text-2xl sm:text-3xl lg:text-4xl font-bold text-balance',
+            'text-xl sm:text-2xl md:text-3xl lg:text-4xl font-bold text-balance',
             onImage ? 'text-white' : titleClass,
           )}
         />
@@ -131,8 +131,14 @@ export default function AboutSplitBlock({ site, style, props, liveItems, blockId
     )
     const frameClass = cn(
       'w-full shadow-lg',
-      overlay ? 'h-full min-h-[280px] sm:min-h-[360px]' : 'aspect-[4/3] sm:aspect-[5/4] lg:aspect-[4/5] max-h-[420px] lg:max-h-none',
-      fullBleed && 'max-h-none aspect-[16/10] sm:aspect-[21/9]',
+      overlay
+        ? 'h-full min-h-[240px] sm:min-h-[320px] lg:min-h-[360px]'
+        : cn(
+            'aspect-[4/5] sm:aspect-[5/4] lg:aspect-[4/5]',
+            'max-h-[300px] sm:max-h-[380px] lg:max-h-none',
+            'max-lg:mx-auto max-lg:max-w-[280px] sm:max-lg:max-w-sm',
+          ),
+      fullBleed && 'max-h-none max-w-none mx-0 aspect-[16/10] sm:aspect-[21/9]',
     )
 
     return (
@@ -170,13 +176,13 @@ export default function AboutSplitBlock({ site, style, props, liveItems, blockId
   const splitGrid = (
     <div
       className={cn(
-        'grid grid-cols-1 items-start gap-8 sm:gap-10 lg:gap-12',
+        'about-split-grid grid grid-cols-1 items-start gap-6 sm:gap-8 lg:gap-12',
         showImage && !isStatement && 'lg:grid-cols-2',
       )}
     >
       <div
         className={cn(
-          'min-w-0',
+          'about-split-text-wrap min-w-0',
           !isStatement && 'order-1',
           !isStatement && imageOnLeft && 'lg:order-2',
           !isStatement && !imageOnLeft && 'lg:order-1',
@@ -191,7 +197,7 @@ export default function AboutSplitBlock({ site, style, props, liveItems, blockId
   const cardShell = (children: ReactNode) => (
     <div
       className={cn(
-        'rounded-2xl border p-5 sm:p-8 lg:p-10',
+        'rounded-2xl border p-4 sm:p-6 md:p-8 lg:p-10',
         isDark ? 'border-white/10 bg-white/5' : 'border-gray-200 bg-white shadow-sm',
       )}
     >
@@ -202,23 +208,31 @@ export default function AboutSplitBlock({ site, style, props, liveItems, blockId
   const inner = (() => {
     if (isOverlay) {
       return (
-        <div className="relative overflow-hidden rounded-2xl">
-          {renderImageColumn({ overlay: true })}
-          <div className="absolute inset-0 bg-black/45" aria-hidden />
-          <div className="relative z-10 flex min-h-[280px] items-center sm:min-h-[360px]">
-            <div className="w-full px-5 py-10 sm:px-8 sm:py-12 lg:px-12">
-              <div className="max-w-xl">
-                {renderTextColumn({ onImage: true })}
+        <>
+          <div className="about-split-grid space-y-6 sm:space-y-8 lg:hidden">
+            {renderTextColumn()}
+            {renderImageColumn()}
+          </div>
+          <div className="about-split-overlay relative hidden min-h-[280px] overflow-hidden rounded-2xl sm:min-h-[360px] lg:block">
+            <div className="absolute inset-0">
+              {renderImageColumn({ overlay: true })}
+            </div>
+            <div className="absolute inset-0 bg-black/45" aria-hidden />
+            <div className="relative z-10 flex min-h-[280px] items-center sm:min-h-[360px]">
+              <div className="w-full px-5 py-10 sm:px-8 sm:py-12 lg:px-12">
+                <div className="max-w-xl">
+                  {renderTextColumn({ onImage: true })}
+                </div>
               </div>
             </div>
           </div>
-        </div>
+        </>
       )
     }
 
     if (isFull && showImage) {
       return (
-        <div className="space-y-8 sm:space-y-10">
+        <div className="space-y-6 sm:space-y-8 lg:space-y-10">
           {renderImageColumn({ fullBleed: true })}
           {renderTextColumn()}
         </div>
@@ -231,13 +245,18 @@ export default function AboutSplitBlock({ site, style, props, liveItems, blockId
 
   const maxWidth = isFull ? 'max-w-none' : 'max-w-6xl'
   const sectionClass = cn(
+    'about-split-block',
     builderSectionContainerWithMax(maxWidth),
     isFull && showImage && 'px-0 sm:px-0 lg:px-0',
   )
 
   if (sectionBg) {
     return (
-      <BuilderSectionSurface surface={{ backgroundColor: sectionBg, color: sectionText }} maxWidth={maxWidth}>
+      <BuilderSectionSurface
+        surface={{ backgroundColor: sectionBg, color: sectionText }}
+        maxWidth={maxWidth}
+        className="about-split-block"
+      >
         {inner}
       </BuilderSectionSurface>
     )

@@ -698,22 +698,88 @@ html[dir='rtl'] [data-sonner-toast][data-styled='true']:has([data-close-button])
   clip-path: none !important;
 }
 
-/* About split — keep positioned builder fields inside their column on small screens. */
-.about-split-text-col {
+/* About split — stack text and image cleanly; neutralize desktop field offsets on small screens. */
+.about-split-block .about-split-grid {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.about-split-block .about-split-text-wrap {
+  position: relative;
+  z-index: 1;
+  min-width: 0;
+}
+
+.about-split-block .about-split-text-col {
+  display: flex;
+  flex-direction: column;
   overflow-x: clip;
   overflow-wrap: anywhere;
 }
 
-.about-split-text-col [data-field-layout] {
+.about-split-block .about-split-text-col [data-field-layout] {
   max-width: 100%;
 }
 
-.about-split-image-col {
+.about-split-block .about-split-image-col {
   align-self: start;
+  position: relative;
+  z-index: 0;
+  isolation: isolate;
+}
+
+.about-split-block .about-split-overlay .about-split-image-col {
+  height: 100%;
+}
+
+@media (max-width: 1023px) {
+  .about-split-block .about-split-text-col [data-field-layout],
+  .about-split-block .about-split-text-wrap [data-field-layout] {
+    position: static !important;
+    top: auto !important;
+    left: auto !important;
+    right: auto !important;
+    transform: none !important;
+    min-height: 0 !important;
+    height: auto !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    display: block !important;
+    justify-content: flex-start !important;
+  }
+
+  .about-split-block .about-split-text-col .rich-text-content,
+  .about-split-block .about-split-text-col [data-text-key='description'],
+  .about-split-block .about-split-text-col [data-field-layout] .builder-canvas-text-field-in-layout {
+    text-align: left !important;
+  }
+
+  .about-split-block .about-split-text-col .rich-text-content ul,
+  .about-split-block .about-split-text-col .rich-text-content ol {
+    padding-left: 1.25rem;
+    margin: 0.5rem 0;
+  }
+
+  .about-split-block .about-split-text-col .rich-text-content h2,
+  .about-split-block .about-split-text-col .rich-text-content h3,
+  .about-split-block .about-split-text-col .rich-text-content h4 {
+    font-size: 1.05rem;
+    line-height: 1.4;
+  }
+
+  .about-split-block .about-split-image-col {
+    position: relative !important;
+    top: auto !important;
+  }
+}
+
+@media (max-width: 639px) {
+  .about-split-block .about-split-grid {
+    gap: 1.25rem;
+  }
 }
 
 @media (min-width: 1024px) {
-  .about-split-image-col {
+  .about-split-block .about-split-image-col {
     position: sticky;
     top: 6rem;
   }

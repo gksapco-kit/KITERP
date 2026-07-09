@@ -8,7 +8,9 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { ThemeSelect } from '@/components/common/ThemeSelect'
 import { vendorApi } from '@/api/vendor'
-import { useOrders, useUpdateOrderStatus, useQuotationSettings } from '@/hooks/useVendor'
+import { useOrders, useUpdateOrderStatus, useQuotationSettings, useUpdateInvoice } from '@/hooks/useVendor'
+import { InlineEditCell } from '@/components/table/InlineEditCell'
+import { useInlineFieldPatch, INLINE_EDIT_HINT } from '@/hooks/useInlineFieldPatch'
 import { formatCurrency, formatDate } from '@/lib/utils'
 import { TableToolbar } from '@/components/table/TableToolbar'
 import { ResizableTable } from '@/components/table/ResizableTable'
@@ -125,6 +127,42 @@ export default function QuotationsPage() {
   const navigate = useNavigate()
   const qc = useQueryClient()
   const updateStatus = useUpdateOrderStatus()
+  const updateInvoice = useUpdateInvoice()
+  const { savingCellKey, setSavingCellKey, cellKey, patchField: patchOrderField } = useInlineFieldPatch({
+    mutateAsync: ({ id, data }) => updateStatus.mutateAsync({ id, data }),
+  })
+  const { patchField: patchEstimateField } = useInlineFieldPatch({
+    mutateAsync: ({ id, data }) => updateInvoice.mutateAsync({ id, data }),
+  })
+  const isSaving = (id: string, field: string) => savingCellKey === cellKey(id, field)
+
+  const requestStatusOptions = [
+    { value: 'quote_requested', label: 'Awaiting Response' },
+    { value: 'pending', label: 'Pending' },
+    { value: 'confirmed', label: 'Converted' },
+    { value: 'cancelled', label: 'Declined' },
+  ]
+  const estimateStatusOptions = Object.keys(estimateStatusStyle).map((value) => ({
+    value,
+    label: value.replace(/_/g, ' '),
+  }))
+
+  const patchQuotationStatus = useCallback(async (row: QuotationRow, status: string) => {
+    if (row.kind === 'request' && row.order) {
+      await patchOrderField(row.order.id, 'status', status)
+      return
+    }
+    if (row.estimate) {
+      const id = String(row.estimate.id)
+      setSavingCellKey(cellKey(id, 'status'))
+      try {
+        await patchEstimateField(id, 'status', status)
+      } finally {
+        setSavingCellKey(null)
+      }
+    }
+  }, [patchOrderField, patchEstimateField, cellKey, setSavingCellKey])
+
   const { data: quoteSettings } = useQuotationSettings()
   const mergedQuoteSettings = useMemo<Partial<InvoiceSettings>>(
     () => ({ ...DEFAULT_QUOTATION_SETTINGS, ...(quoteSettings as Partial<InvoiceSettings> || {}) }),
@@ -398,6 +436,7 @@ export default function QuotationsPage() {
             searchPlaceholder="Search quotations, customers, services…"
             searchWrapperClassName="min-w-[12rem] flex-1 sm:flex-none lg:w-64 max-w-full"
             hideSort
+            hint={INLINE_EDIT_HINT}
             moreOptionsActiveCount={moreOptionsActiveCount}
             leading={(
               <div className="flex flex-wrap items-center gap-2 min-w-0 w-full sm:w-auto">
@@ -559,10 +598,24 @@ export default function QuotationsPage() {
                     <td className="px-3 sm:px-4 py-2.5 text-sm text-right font-medium">
                       {row.total > 0 ? formatCurrency(row.total) : '—'}
                     </td>
-                    <td className="px-3 sm:px-4 py-2.5 text-center">
-                      <span className={`px-2 py-0.5 rounded-full text-xs font-medium capitalize ${statusClass}`}>
-                        {statusText}
-                      </span>
+                    <td className="px-3 sm:px-4 py-2.5 text-center" onClick={(e) => e.stopPropagation()}>
+                      <InlineEditCell
+                        type="select"
+                        value={row.status}
+                        options={isRequest ? requestStatusOptions : estimateStatusOptions}
+                        saving={
+                          isRequest && row.order
+                            ? isSaving(row.order.id, 'status')
+                            : row.estimate
+                              ? isSaving(String(row.estimate.id), 'status')
+                              : false
+                        }
+                        onSave={(v) => patchQuotationStatus(row, String(v))}
+                      >
+                        <span className={`px-2 py-0.5 rounded-full text-xs font-medium capitalize ${statusClass}`}>
+                          {statusText}
+                        </span>
+                      </InlineEditCell>
                     </td>
                     <td className="px-3 sm:px-4 py-2.5 text-sm text-muted-foreground whitespace-nowrap">{formatDate(row.created_at)}</td>
                     <td className="px-2 sm:px-3 py-2.5">

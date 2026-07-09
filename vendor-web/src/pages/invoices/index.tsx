@@ -10,7 +10,7 @@ import { Label } from '@/components/ui/label'
 import { vendorApi } from '@/api/vendor'
 import { PhoneInput } from '@/components/ui/PhoneInput'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { useInvoiceSettings, useProducts, useServices } from '@/hooks/useVendor'
+import { useInvoiceSettings, useProducts, useServices, useUpdateInvoice } from '@/hooks/useVendor'
 import { formatCurrency, formatDate } from '@/lib/utils'
 import { onClickableTableRow } from '@/lib/clickableTableRow'
 import { ResizableTable } from '@/components/table/ResizableTable'
@@ -29,6 +29,8 @@ import { QuotationExtraFieldsEditor } from '@/components/quotations/QuotationExt
 import { serializeQuotationExtraFields, type QuotationExtraField } from '@/types/quotation'
 import apiClient from '@/api/client'
 import { TableToolbar } from '@/components/table/TableToolbar'
+import { InlineEditCell } from '@/components/table/InlineEditCell'
+import { useInlineFieldPatch, INLINE_EDIT_HINT } from '@/hooks/useInlineFieldPatch'
 import { processRows, type SortDir } from '@/lib/tableList'
 import { ThemeSelect } from '@/components/common/ThemeSelect'
 import type { InvoiceSettings } from '@/lib/invoiceTemplates'
@@ -189,6 +191,15 @@ export default function InvoicesPage() {
       search: search || undefined,
     }),
   })
+  const updateInvoice = useUpdateInvoice()
+  const { savingCellKey, cellKey, patchField: patchInvoiceField } = useInlineFieldPatch({
+    mutateAsync: ({ id, data }) => updateInvoice.mutateAsync({ id, data }),
+  })
+  const isSaving = (id: string, field: string) => savingCellKey === cellKey(id, field)
+  const invoiceStatusOptions = Object.entries(invoiceStatusBadge).map(([value, b]) => ({
+    value,
+    label: b.label,
+  }))
 
   type InvRow = Record<string, unknown>
   const displayInvoices = useMemo(() => {
@@ -242,6 +253,7 @@ export default function InvoicesPage() {
             searchPlaceholder="Search customer, invoice #, phone…"
             searchWrapperClassName="min-w-[12rem] flex-1 sm:flex-none lg:w-72 max-w-full"
             hideSort
+            hint={INLINE_EDIT_HINT}
             moreOptionsActiveCount={moreOptionsActiveCount}
             leading={(
               <SalesScopeFilters
@@ -394,9 +406,27 @@ export default function InvoicesPage() {
                     </td>
                     <td className="px-5 py-3"><span className={invoiceBadgeClass(tb)}>{tb.label}</span></td>
                     <td className="px-5 py-3 text-sm text-foreground">{(inv.customer_name as string) || '-'}</td>
-                    <td className="px-5 py-3 text-sm text-right font-medium text-foreground">{formatCurrency(inv.total as number)}</td>
-                    <td className="px-5 py-3 text-sm text-right">{(inv.balance_due as number) > 0 ? <span className="text-red-600 dark:text-red-400 font-medium">{formatCurrency(inv.balance_due as number)}</span> : <span className="text-emerald-600 dark:text-emerald-400">Paid</span>}</td>
-                    <td className="px-5 py-3 text-center"><span className={`${invoiceBadgeClass(sb)} capitalize`}>{inv.status as string}</span></td>
+                    <td className="px-5 py-3 text-sm text-right font-medium text-foreground">
+                      <InlineEditCell readOnly readOnlyMessage="Invoice total is calculated from line items" value={inv.total as number} onSave={() => {}} className="text-right font-medium">
+                        {formatCurrency(inv.total as number)}
+                      </InlineEditCell>
+                    </td>
+                    <td className="px-5 py-3 text-sm text-right">
+                      <InlineEditCell readOnly readOnlyMessage="Balance due is calculated from payments" value={inv.balance_due as number} onSave={() => {}} className="text-right">
+                        {(inv.balance_due as number) > 0 ? <span className="text-red-600 dark:text-red-400 font-medium">{formatCurrency(inv.balance_due as number)}</span> : <span className="text-emerald-600 dark:text-emerald-400">Paid</span>}
+                      </InlineEditCell>
+                    </td>
+                    <td className="px-5 py-3 text-center">
+                      <InlineEditCell
+                        type="select"
+                        value={inv.status as string}
+                        options={invoiceStatusOptions}
+                        saving={isSaving(inv.id as string, 'status')}
+                        onSave={(v) => patchInvoiceField(inv.id as string, 'status', v)}
+                      >
+                        <span className={`${invoiceBadgeClass(sb)} capitalize`}>{inv.status as string}</span>
+                      </InlineEditCell>
+                    </td>
                     <td className="px-5 py-3 text-sm text-muted-foreground">{formatDate(inv.created_at as string)}</td>
                     <td className="px-2 py-3">
                       <div className="flex items-center justify-center gap-1">

@@ -10,6 +10,8 @@ import { Select, selectOptionsWithBlank } from '@/components/ui/select'
 import { ThemeSelect } from '@/components/common/ThemeSelect'
 import { Badge } from '@/components/ui/badge'
 import { TableToolbar } from '@/components/table/TableToolbar'
+import { InlineEditCell } from '@/components/table/InlineEditCell'
+import { useInlineFieldPatch, INLINE_EDIT_HINT } from '@/hooks/useInlineFieldPatch'
 import { CustomerPicker, type CustomerPickerValue } from '@/components/commission/CustomerPicker'
 import { StaffPicker, type StaffPickerValue } from '@/components/commission/StaffPicker'
 import { BusinessUnitSelect } from '@/components/common/BusinessUnitSelect'
@@ -17,13 +19,13 @@ import { BranchSelect } from '@/components/common/BranchSelect'
 import { SalesAreaSelect } from '@/components/common/SalesAreaSelect'
 import { SalesScopeFilters } from '@/components/common/SalesScopeFilters'
 import { CatalogItemPicker, type CatalogPickerItem } from '@/components/common/CatalogItemPicker'
-import { useCreateProject, useProjects, useProjectsOverview } from '@/hooks/useProjects'
+import { useCreateProject, useProjects, useProjectsOverview, useUpdateProject } from '@/hooks/useProjects'
 import { formatDate } from '@/lib/utils'
 import {
   FolderKanban, Plus, Loader2, CheckCircle2, AlertTriangle,
   ListTodo, Activity,
 } from 'lucide-react'
-import type { Project, ProjectPriority, ProjectStatus } from '@/types/project'
+import type { Project, ProjectPriority, ProjectStatus, ProjectUpdateInput } from '@/types/project'
 import {
   PROJECT_PRIORITY_LABELS,
   PROJECT_STATUS_LABELS,
@@ -262,6 +264,20 @@ export default function ProjectsPage() {
     store_id: branchFilter || storeFilter || undefined,
     sales_area_id: salesAreaFilter || undefined,
   })
+  const updateProject = useUpdateProject()
+  const { savingCellKey, cellKey, patchField: patchProjectField } = useInlineFieldPatch({
+    mutateAsync: ({ id, data }) => updateProject.mutateAsync({ id, data: data as ProjectUpdateInput }),
+  })
+  const isSaving = (id: string, field: string) => savingCellKey === cellKey(id, field)
+
+  const projectStatusOptions = (Object.keys(PROJECT_STATUS_LABELS) as ProjectStatus[]).map((s) => ({
+    value: s,
+    label: PROJECT_STATUS_LABELS[s],
+  }))
+  const projectPriorityOptions = (Object.keys(PROJECT_PRIORITY_LABELS) as ProjectPriority[]).map((s) => ({
+    value: s,
+    label: PROJECT_PRIORITY_LABELS[s],
+  }))
 
   const projects = useMemo(() => {
     const items = (listData?.items ?? []) as Project[]
@@ -353,6 +369,7 @@ export default function ProjectsPage() {
             onSortKeyChange={() => {}}
             onSortDirChange={() => {}}
             hideSort
+            hint={INLINE_EDIT_HINT}
             moreOptionsActiveCount={moreOptionsActiveCount}
             leading={(
               <SalesScopeFilters
@@ -414,30 +431,62 @@ export default function ProjectsPage() {
                       onClick={() => navigate(`/projects/${p.id}`)}
                       className="border-b border-border hover:bg-accent/50 cursor-pointer transition-colors"
                     >
-                      <td className="px-3 py-2">
-                        <p className="font-medium text-foreground truncate max-w-[12rem] sm:max-w-none">{p.name}</p>
-                        <p className="text-xs text-muted-foreground">{p.project_number}</p>
+                      <td className="px-3 py-2" onClick={(e) => e.stopPropagation()}>
+                        <InlineEditCell
+                          value={p.name}
+                          saving={isSaving(p.id, 'name')}
+                          onSave={(v) => patchProjectField(p.id, 'name', String(v).trim())}
+                          className="font-medium"
+                        >
+                          <p className="font-medium text-foreground truncate max-w-[12rem] sm:max-w-none">{p.name}</p>
+                          <p className="text-xs text-muted-foreground">{p.project_number}</p>
+                        </InlineEditCell>
                       </td>
                       <td className="px-3 py-2 text-muted-foreground hidden sm:table-cell truncate max-w-[10rem]">{p.customer_name || '—'}</td>
+                      <td className="px-3 py-2" onClick={(e) => e.stopPropagation()}>
+                        <InlineEditCell
+                          type="select"
+                          value={p.status}
+                          options={projectStatusOptions}
+                          saving={isSaving(p.id, 'status')}
+                          onSave={(v) => patchProjectField(p.id, 'status', v)}
+                        >
+                          <Badge variant={statusBadgeVariant[p.status]} className="text-[11px]">{PROJECT_STATUS_LABELS[p.status]}</Badge>
+                        </InlineEditCell>
+                      </td>
+                      <td className="px-3 py-2 hidden md:table-cell" onClick={(e) => e.stopPropagation()}>
+                        <InlineEditCell
+                          type="select"
+                          value={p.priority}
+                          options={projectPriorityOptions}
+                          saving={isSaving(p.id, 'priority')}
+                          onSave={(v) => patchProjectField(p.id, 'priority', v)}
+                        >
+                          <Badge variant={priorityBadgeVariant[p.priority]} className="text-[11px]">{PROJECT_PRIORITY_LABELS[p.priority]}</Badge>
+                        </InlineEditCell>
+                      </td>
+                      <td className="px-3 py-2 text-muted-foreground hidden lg:table-cell whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
+                        <InlineEditCell
+                          type="text"
+                          value={p.due_date || ''}
+                          saving={isSaving(p.id, 'due_date')}
+                          onSave={(v) => patchProjectField(p.id, 'due_date', String(v).trim() || null)}
+                        >
+                          {p.due_date ? formatDate(p.due_date) : '—'}
+                        </InlineEditCell>
+                      </td>
                       <td className="px-3 py-2">
-                        <Badge variant={statusBadgeVariant[p.status]} className="text-[11px]">{PROJECT_STATUS_LABELS[p.status]}</Badge>
-                      </td>
-                      <td className="px-3 py-2 hidden md:table-cell">
-                        <Badge variant={priorityBadgeVariant[p.priority]} className="text-[11px]">{PROJECT_PRIORITY_LABELS[p.priority]}</Badge>
-                      </td>
-                      <td className="px-3 py-2 text-muted-foreground hidden lg:table-cell whitespace-nowrap">
-                        {p.due_date ? formatDate(p.due_date) : '—'}
-                      </td>
-                      <td className="px-3 py-2">
-                        <div className="flex items-center gap-1.5 min-w-[5rem] sm:min-w-[7rem]">
-                          <div className="flex-1 h-1.5 rounded-full bg-muted overflow-hidden">
-                            <div
-                              className="h-full bg-primary rounded-full transition-all"
-                              style={{ width: `${p.progress_percent}%` }}
-                            />
+                        <InlineEditCell readOnly readOnlyMessage="Progress is calculated from completed tasks" value={p.progress_percent} onSave={() => {}}>
+                          <div className="flex items-center gap-1.5 min-w-[5rem] sm:min-w-[7rem]">
+                            <div className="flex-1 h-1.5 rounded-full bg-muted overflow-hidden">
+                              <div
+                                className="h-full bg-primary rounded-full transition-all"
+                                style={{ width: `${p.progress_percent}%` }}
+                              />
+                            </div>
+                            <span className="text-[11px] text-muted-foreground w-7 text-right shrink-0">{p.progress_percent}%</span>
                           </div>
-                          <span className="text-[11px] text-muted-foreground w-7 text-right shrink-0">{p.progress_percent}%</span>
-                        </div>
+                        </InlineEditCell>
                       </td>
                     </tr>
                   ))

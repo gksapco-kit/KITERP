@@ -47,7 +47,7 @@ function TimelineBlockTitle({
   props,
   textColor,
   fontHeading,
-  className = 'text-3xl sm:text-4xl font-semibold mb-12 sm:mb-16 text-center',
+  className = 'text-2xl sm:text-3xl lg:text-4xl font-semibold mb-8 sm:mb-12 lg:mb-16 text-center',
 }: {
   title: string | null | undefined
   showTitle: boolean
@@ -435,12 +435,12 @@ function VerticalTimeline({
 
   return (
     <div className="relative">
-      <div className="absolute left-8 sm:left-10 top-2 bottom-2 w-px opacity-20" style={{ backgroundColor: textColor }} />
-      <div className="space-y-10 sm:space-y-12">
+      <div className="absolute left-6 sm:left-8 md:left-10 top-2 bottom-2 w-px opacity-20" style={{ backgroundColor: textColor }} />
+      <div className="space-y-8 sm:space-y-10 md:space-y-12">
         {visibleItems.map(({ item, index: i }) => {
           const hasImage = Boolean(item.image_url)
           return (
-            <div key={i} className={cn('flex gap-5 sm:gap-8 relative', hasImage ? 'items-center' : 'items-start')}>
+            <div key={i} className={cn('flex gap-4 sm:gap-6 md:gap-8 relative', hasImage ? 'items-center' : 'items-start')}>
               {showIcons ? (
                 <IconMarker index={i} primaryColor={primaryColor} />
               ) : (
@@ -603,14 +603,14 @@ function AlternatingTimeline({
   return (
     <div className="relative max-w-4xl mx-auto">
       <div className="absolute left-1/2 top-0 bottom-0 w-px -translate-x-1/2 opacity-20" style={{ backgroundColor: textColor }} />
-      <div className="space-y-12">
+      <div className="space-y-8 sm:space-y-10 md:space-y-12">
         {visibleItems.map(({ item, index: i }) => {
           const isRight = i % 2 === 1
           return (
             <div
               key={i}
               className={cn(
-                'grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-10 items-center',
+                'grid grid-cols-1 gap-4 sm:gap-6 md:grid-cols-2 md:gap-10 items-center',
                 isRight && 'md:[direction:rtl]',
               )}
             >
