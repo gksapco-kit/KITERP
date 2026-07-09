@@ -1,5 +1,6 @@
 import {
   broadcastPreviewTabNavigate,
+  draftPreviewNavigateTargetsMatch,
   PREVIEW_NAV_MESSAGE_TYPE,
 } from '@/lib/draftPreviewSync'
 import { isSameLoopbackOrigin, normalizeLoopbackHostname, normalizeLoopbackOrigin } from '@/lib/loopbackHost'
@@ -161,25 +162,47 @@ let previewWindowRef: Window | null = null
 let previewPrepareActive = false
 /** Last URL handed to navigateDraftPreviewTab — retried when the pending tab finishes loading. */
 let lastPreviewNavigateUrl: string | null = null
+let previewDeliveryRetryIntervalId: ReturnType<typeof setInterval> | null = null
+
+function stopPreviewDeliveryRetries(): void {
+  if (previewDeliveryRetryIntervalId != null) {
+    window.clearInterval(previewDeliveryRetryIntervalId)
+    previewDeliveryRetryIntervalId = null
+  }
+}
+
+function previewTabShowsUrl(tab: Window, url: string): boolean {
+  try {
+    return draftPreviewNavigateTargetsMatch(tab.location.href, url)
+  } catch {
+    return false
+  }
+}
 
 function rememberLastPreviewNavigateUrl(url: string): void {
   lastPreviewNavigateUrl = url
 }
 
 function deliverPreviewNavigateUrl(url: string): void {
-  broadcastPreviewTabNavigate(url)
+  const target = alignPreviewUrlWithCurrentHost(url)
+  broadcastPreviewTabNavigate(target)
   reacquirePreviewWindowRef()
   if (previewWindowRef && !previewWindowRef.closed) {
     try {
-      const targetOrigin = new URL(url).origin
+      const targetOrigin = new URL(target).origin
       if (isSameLoopbackOrigin(window.location.origin, targetOrigin)) {
-        previewWindowRef.location.replace(url)
+        if (previewTabShowsUrl(previewWindowRef, target)) {
+          stopPreviewDeliveryRetries()
+          postMessageToPreviewTabLoopback(target)
+          return
+        }
+        previewWindowRef.location.replace(target)
         previewWindowRef.focus()
       }
     } catch {
       /* localStorage poll + postMessage remain the fallback */
     }
-    postMessageToPreviewTabLoopback(url)
+    postMessageToPreviewTabLoopback(target)
   }
 }
 
@@ -188,16 +211,22 @@ function retryLastPreviewNavigateDelivery(): void {
   deliverPreviewNavigateUrl(lastPreviewNavigateUrl)
 }
 
-/** Pending tab may mount after the first handoff — retry for a short window. */
-function schedulePreviewDeliveryRetries(url: string, durationMs = 45_000): void {
-  deliverPreviewNavigateUrl(url)
+/** Pending tab may mount after the first handoff — retry only until the tab arrives. */
+function schedulePreviewDeliveryRetries(url: string, durationMs = 12_000): void {
+  stopPreviewDeliveryRetries()
+  const target = alignPreviewUrlWithCurrentHost(url)
+  deliverPreviewNavigateUrl(target)
   const startedAt = Date.now()
-  const intervalId = window.setInterval(() => {
+  previewDeliveryRetryIntervalId = window.setInterval(() => {
     if (Date.now() - startedAt > durationMs) {
-      window.clearInterval(intervalId)
+      stopPreviewDeliveryRetries()
       return
     }
-    deliverPreviewNavigateUrl(url)
+    if (previewWindowRef && !previewWindowRef.closed && previewTabShowsUrl(previewWindowRef, target)) {
+      stopPreviewDeliveryRetries()
+      return
+    }
+    deliverPreviewNavigateUrl(target)
   }, 750)
 }
 

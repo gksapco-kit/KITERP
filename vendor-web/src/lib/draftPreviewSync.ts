@@ -47,6 +47,22 @@ function canonicalizePreviewNavigateUrl(url: string): string {
   }
 }
 
+/** True when two draft preview shell URLs point at the same token/page/route. */
+export function draftPreviewNavigateTargetsMatch(a: string, b: string): boolean {
+  try {
+    const left = new URL(canonicalizePreviewNavigateUrl(a))
+    const right = new URL(canonicalizePreviewNavigateUrl(b))
+    const normPath = (p: string) => p.replace(/\/+$/, '') || '/'
+    if (normPath(left.pathname) !== normPath(right.pathname)) return false
+    for (const key of ['token', 'page', 'route'] as const) {
+      if ((left.searchParams.get(key) || '') !== (right.searchParams.get(key) || '')) return false
+    }
+    return Boolean(left.searchParams.get('token')?.trim())
+  } catch {
+    return a.trim() === b.trim()
+  }
+}
+
 export type DraftPreviewUpdateMessage = {
   type: 'updated'
   token: string
@@ -77,6 +93,17 @@ export function broadcastPreviewTabNavigate(url: string): void {
   if (!target) return
   // A successful navigate supersedes any earlier error.
   clearPendingPreviewTabError()
+  const existing = peekPendingPreviewTabNavigate()
+  if (existing && draftPreviewNavigateTargetsMatch(existing, target)) {
+    try {
+      const channel = new BroadcastChannel(PREVIEW_NAV_CHANNEL)
+      channel.postMessage({ type: 'navigate', url: target } satisfies DraftPreviewNavigateMessage)
+      channel.close()
+    } catch {
+      /* BroadcastChannel unavailable */
+    }
+    return
+  }
   // localStorage is shared across tabs on the same origin (canonical 127.0.0.1 in dev).
   try {
     localStorage.setItem(PREVIEW_NAV_STORAGE_KEY, target)

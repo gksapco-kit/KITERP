@@ -9,6 +9,7 @@ import { BuilderSectionImage } from '@/components/builder/BuilderSectionImage'
 import { useBuilderCanvas } from '@/contexts/BuilderCanvasContext'
 import { isBlockFieldHidden, resolveBlockTextField } from '@/lib/blockHiddenFields'
 import { hasInlineHtml } from '@/lib/fieldTextStyles'
+import { readSectionImageRadius } from '@/lib/sectionImageStyle'
 import { BuilderSectionSurface } from '@/components/builder/BuilderSectionSurface'
 
 interface Props {
@@ -56,6 +57,15 @@ export default function AboutSplitBlock({ site, style, props, liveItems, blockId
   const isStatement = layout === 'statement' || imagePosition === 'none'
   const isOverlay = layout === 'overlay' && showImage
   const isFull = layout === 'full'
+  const imageWidthMode = String(props.image_width ?? '')
+  const imageRadius = readSectionImageRadius('image_url', props)
+
+  const splitGridCols = (() => {
+    if (!showImage || isStatement) return ''
+    if (imageWidthMode === '60') return 'lg:grid-cols-[2fr_3fr]'
+    if (imageWidthMode === '55') return 'lg:grid-cols-[9fr_11fr]'
+    return 'lg:grid-cols-[11fr_9fr]'
+  })()
 
   const sectionText = isDark ? '#f8fafc' : (style.text_color || '#111827')
   const sectionBg = isDark ? '#0f172a' : undefined
@@ -130,16 +140,17 @@ export default function AboutSplitBlock({ site, style, props, liveItems, blockId
       fullBleed && 'rounded-none',
     )
     const frameClass = cn(
-      'w-full shadow-lg',
+      'about-split-image-frame w-full shadow-lg',
       overlay
         ? 'h-full min-h-[240px] sm:min-h-[320px] lg:min-h-[360px]'
         : cn(
-            'aspect-[4/5] sm:aspect-[5/4] lg:aspect-[4/5]',
-            'max-h-[300px] sm:max-h-[380px] lg:max-h-none',
-            'max-lg:mx-auto max-lg:max-w-[280px] sm:max-lg:max-w-sm',
+            'aspect-[4/5] mx-auto',
+            'w-full max-w-[260px] sm:max-w-[280px] lg:max-w-[300px]',
+            'max-h-[320px] sm:max-h-[360px] lg:max-h-[400px]',
           ),
-      fullBleed && 'max-h-none max-w-none mx-0 aspect-[16/10] sm:aspect-[21/9]',
+      fullBleed && 'about-split-image-frame--bleed max-h-none max-w-none mx-0 aspect-[16/10] sm:aspect-[21/9]',
     )
+    const frameStyle = imageRadius > 0 && !fullBleed ? { borderRadius: imageRadius } : undefined
 
     return (
       <div
@@ -150,8 +161,9 @@ export default function AboutSplitBlock({ site, style, props, liveItems, blockId
           !overlay && !imageOnLeft && 'lg:order-2',
         )}
       >
+        <div className={cn('about-split-image-stack', !overlay && !fullBleed && 'flex flex-col items-center')}>
         {imageUrl ? (
-          <MediaClipFrame clip={mediaClip} className={frameClass}>
+          <MediaClipFrame clip={mediaClip} className={frameClass} style={frameStyle}>
             <BuilderSectionImage
               blockId={blockId}
               field="image_url"
@@ -164,11 +176,12 @@ export default function AboutSplitBlock({ site, style, props, liveItems, blockId
         ) : (
           <div
             className={cn(frameClass, 'flex items-center justify-center rounded-2xl')}
-            style={{ backgroundColor: `${style.primary_color}10` }}
+            style={{ backgroundColor: `${style.primary_color}10`, ...frameStyle }}
           >
             <span className="text-gray-400">About Image</span>
           </div>
         )}
+        </div>
       </div>
     )
   }
@@ -177,7 +190,7 @@ export default function AboutSplitBlock({ site, style, props, liveItems, blockId
     <div
       className={cn(
         'about-split-grid grid grid-cols-1 items-start gap-6 sm:gap-8 lg:gap-12',
-        showImage && !isStatement && 'lg:grid-cols-2',
+        splitGridCols,
       )}
     >
       <div

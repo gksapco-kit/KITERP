@@ -727,8 +727,38 @@ html[dir='rtl'] [data-sonner-toast][data-styled='true']:has([data-close-button])
   isolation: isolate;
 }
 
+.about-split-block .about-split-image-stack {
+  width: 100%;
+}
+
+.about-split-block .about-split-image-frame {
+  overflow: hidden;
+}
+
+.about-split-block .about-split-image-frame:not(.about-split-image-frame--bleed) {
+  height: auto;
+}
+
+.about-split-block .about-split-image-frame:not(.about-split-image-frame--bleed) img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
 .about-split-block .about-split-overlay .about-split-image-col {
   height: 100%;
+}
+
+@media (min-width: 1024px) {
+  .about-split-block .about-split-image-col {
+    display: flex;
+    justify-content: center;
+  }
+
+  .about-split-block .about-split-image-stack {
+    max-width: 300px;
+  }
 }
 
 @media (max-width: 1023px) {

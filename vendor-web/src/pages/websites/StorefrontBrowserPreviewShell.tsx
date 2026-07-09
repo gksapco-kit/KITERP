@@ -14,6 +14,7 @@ import {
   clearPendingPreviewTabNavigate,
   peekPendingPreviewTabError,
   clearPendingPreviewTabError,
+  draftPreviewNavigateTargetsMatch,
   PREVIEW_NAV_MESSAGE_TYPE,
   PREVIEW_NAV_STORAGE_KEY,
   PREVIEW_ERROR_STORAGE_KEY,
@@ -139,6 +140,9 @@ export default function StorefrontBrowserPreviewShell() {
       const canonical = alignPreviewUrlWithCurrentHost(navUrl)
       if (!isAllowedPreviewNavigateUrl(canonical)) return
       clearPendingPreviewTabNavigate()
+      if (draftPreviewNavigateTargetsMatch(window.location.href, canonical)) {
+        return
+      }
       window.location.replace(canonical)
     }
 
@@ -224,7 +228,9 @@ export default function StorefrontBrowserPreviewShell() {
     }
 
     const pendingNavigate = consumePendingPreviewTabNavigate()
-    if (pendingNavigate) goToPreview(pendingNavigate)
+    if (pendingNavigate && !draftPreviewNavigateTargetsMatch(window.location.href, pendingNavigate)) {
+      goToPreview(pendingNavigate)
+    }
 
     return () => {
       window.removeEventListener('message', onWindowMessage)
