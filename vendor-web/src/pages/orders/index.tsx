@@ -13,6 +13,8 @@ import type { MRPItem } from '@/components/mrp/MRPReportModal'
 import { formatCurrency, formatDate } from '@/lib/utils'
 import { TableToolbar } from '@/components/table/TableToolbar'
 import { ResizableTable } from '@/components/table/ResizableTable'
+import { InlineEditCell } from '@/components/table/InlineEditCell'
+import { useInlineFieldPatch, INLINE_EDIT_HINT } from '@/hooks/useInlineFieldPatch'
 import { processRows, type SortDir } from '@/lib/tableList'
 import { onClickableTableRow } from '@/lib/clickableTableRow'
 import type { Order } from '@/types'
@@ -117,6 +119,25 @@ export default function Orders() {
     sales_area_id: salesAreaFilter || undefined,
   })
   const updateStatus = useUpdateOrderStatus()
+  const { savingCellKey, cellKey, patchField: patchOrderField } = useInlineFieldPatch({
+    mutateAsync: ({ id, data }) => updateStatus.mutateAsync({ id, data }),
+  })
+  const isSaving = (id: string, field: string) => savingCellKey === cellKey(id, field)
+
+  const orderStatusOptions = [
+    { value: 'quote_requested', label: 'Quote Request' },
+    { value: 'pending', label: 'Pending' },
+    { value: 'confirmed', label: 'Confirmed' },
+    { value: 'processing', label: 'Processing' },
+    { value: 'shipped', label: 'Shipped' },
+    { value: 'delivered', label: 'Delivered' },
+    { value: 'return_requested', label: 'Return Requested' },
+    { value: 'exchange_requested', label: 'Exchange Requested' },
+    { value: 'returned', label: 'Returned' },
+    { value: 'exchanged', label: 'Exchanged' },
+    { value: 'cancelled', label: 'Cancelled' },
+    { value: 'refunded', label: 'Refunded' },
+  ]
 
   const displayOrders = useMemo(() => {
     if (!data?.items?.length) return []
@@ -302,7 +323,7 @@ export default function Orders() {
             search=""
             onSearchChange={() => {}}
             hideSearch
-            hint="Sorting applies to the current page of results."
+            hint={`${INLINE_EDIT_HINT} Sorting applies to the current page.`}
             sortOptions={[
               { value: 'created_at', label: 'Date' },
               { value: 'order_number', label: 'Order #' },
@@ -374,14 +395,32 @@ export default function Orders() {
                     <p className="text-sm font-medium text-foreground">{order.customer_name || 'Unknown'}</p>
                     <p className="text-xs text-muted-foreground">{order.customer_email || ''}</p>
                   </td>
-                  <td className="px-6 py-4 text-sm text-muted-foreground">{order.item_count} items</td>
-                  <td className="px-6 py-4 text-sm font-medium text-foreground">{formatCurrency(order.total)}</td>
+                  <td className="px-6 py-4 text-sm text-muted-foreground">
+                    <InlineEditCell readOnly readOnlyMessage="Item count is calculated from order lines" value={order.item_count} onSave={() => {}}>
+                      {order.item_count} items
+                    </InlineEditCell>
+                  </td>
+                  <td className="px-6 py-4 text-sm font-medium text-foreground">
+                    <InlineEditCell readOnly readOnlyMessage="Order total is calculated from line items" value={order.total} onSave={() => {}}>
+                      {formatCurrency(order.total)}
+                    </InlineEditCell>
+                  </td>
                   <td className="px-6 py-4">
-                    <span className={`rounded-full px-2 py-0.5 text-xs font-medium uppercase ${SOURCE_BADGE[src] || 'bg-muted text-muted-foreground'}`}>{src}</span>
+                    <InlineEditCell readOnly readOnlyMessage="Order source is set when the order is created" value={src} onSave={() => {}}>
+                      <span className={`rounded-full px-2 py-0.5 text-xs font-medium uppercase ${SOURCE_BADGE[src] || 'bg-muted text-muted-foreground'}`}>{src}</span>
+                    </InlineEditCell>
                   </td>
                   <td className="px-6 py-4">
                     <div className="flex flex-wrap items-center gap-1.5">
-                      <span className={`rounded-full px-2 py-0.5 text-xs font-medium capitalize ${statusStyle[order.status] || 'bg-muted text-muted-foreground'}`}>{statusLabel[order.status] || order.status}</span>
+                      <InlineEditCell
+                        type="select"
+                        value={order.status}
+                        options={orderStatusOptions}
+                        saving={isSaving(order.id, 'status')}
+                        onSave={(v) => patchOrderField(order.id, 'status', v)}
+                      >
+                        <span className={`rounded-full px-2 py-0.5 text-xs font-medium capitalize ${statusStyle[order.status] || 'bg-muted text-muted-foreground'}`}>{statusLabel[order.status] || order.status}</span>
+                      </InlineEditCell>
                       <OrderReservationBadge orderId={order.id} />
                     </div>
                   </td>

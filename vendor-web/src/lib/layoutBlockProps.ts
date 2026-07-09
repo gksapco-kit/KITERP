@@ -112,6 +112,7 @@ export function mergeLayoutBlockProps(
       social_links: socialLinks && typeof socialLinks === 'object'
         ? socialLinks
         : {
+            whatsapp: '',
             twitter: '',
             facebook: '',
             instagram: '',

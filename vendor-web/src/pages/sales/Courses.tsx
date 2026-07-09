@@ -6,7 +6,9 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent } from '@/components/ui/card'
 import { ResizableTable } from '@/components/table/ResizableTable'
+import { InlineEditCell } from '@/components/table/InlineEditCell'
 import { TableToolbar } from '@/components/table/TableToolbar'
+import { useInlineFieldPatch, INLINE_EDIT_HINT } from '@/hooks/useInlineFieldPatch'
 import { TableColumnLabel } from '@/components/common/FieldLabel'
 import { useEscapeToClose } from '@/hooks/useEscapeToClose'
 import { ImageSourcePicker } from '@/components/common/ImageSourcePicker'
@@ -435,6 +437,7 @@ export default function SalesCoursesPage() {
   }, [data?.items, search, sortKey, sortDir])
 
   const saving = createCourse.isPending || updateCourse.isPending
+  const { isSaving, patchField } = useInlineFieldPatch(updateCourse)
 
   return (
     <div className="space-y-4 p-4 md:p-6">
@@ -471,6 +474,7 @@ export default function SalesCoursesPage() {
             sortDir={sortDir}
             onSortKeyChange={setSortKey}
             onSortDirChange={setSortDir}
+            hint={INLINE_EDIT_HINT}
           />
           <div className="overflow-x-auto">
             <ResizableTable tableId="sales-courses-v1" defaultWidths={[64, 220, 140, 110, 100, 80, 90, 120]}>
@@ -497,7 +501,11 @@ export default function SalesCoursesPage() {
                     className="hover:bg-muted/30 cursor-pointer"
                     onClick={onClickableTableRow(() => setModal({ mode: 'edit', course }))}
                   >
-                    <td className="px-4 py-3 text-sm">{course.sort_order}</td>
+                    <td className="px-4 py-3 text-sm">
+                      <InlineEditCell type="number" value={course.sort_order} readOnly readOnlyMessage="Use the full editor to change sort order" title="Order">
+                        {course.sort_order}
+                      </InlineEditCell>
+                    </td>
                     <td className="px-4 py-3 text-sm font-medium">
                       <div className="flex items-center gap-2">
                         {course.image_url ? (
@@ -505,14 +513,80 @@ export default function SalesCoursesPage() {
                         ) : (
                           <div className="h-8 w-10 rounded bg-muted shrink-0" />
                         )}
-                        <span className="line-clamp-1">{course.title}</span>
+                        <InlineEditCell
+                          value={course.title}
+                          saving={isSaving(course.id, 'title')}
+                          validate={(v) => String(v).trim().length < 1 ? 'Title is required' : null}
+                          onSave={(v) => patchField(course.id, 'title', String(v).trim())}
+                          title="Edit course title"
+                          className="-mx-1.5 min-w-0 flex-1"
+                        >
+                          <span className="line-clamp-1">{course.title}</span>
+                        </InlineEditCell>
                       </div>
                     </td>
-                    <td className="px-4 py-3 text-sm text-muted-foreground">{course.instructor || '—'}</td>
-                    <td className="px-4 py-3 text-sm">{course.price != null ? formatCurrency(course.price, course.currency) : '—'}</td>
-                    <td className="px-4 py-3 text-sm">{course.level}</td>
-                    <td className="px-4 py-3 text-sm">{course.rating > 0 ? `${course.rating} (${course.reviews})` : '—'}</td>
-                    <td className="px-4 py-3 text-sm">{course.is_active ? <span className="text-green-700 font-medium">Active</span> : <span className="text-muted-foreground">Hidden</span>}</td>
+                    <td className="px-4 py-3 text-sm text-muted-foreground">
+                      <InlineEditCell
+                        value={course.instructor || ''}
+                        saving={isSaving(course.id, 'instructor')}
+                        onSave={(v) => patchField(course.id, 'instructor', String(v).trim() || null)}
+                        title="Edit instructor"
+                      >
+                        {course.instructor || '—'}
+                      </InlineEditCell>
+                    </td>
+                    <td className="px-4 py-3 text-sm">
+                      <InlineEditCell
+                        type="number"
+                        value={course.price ?? 0}
+                        min={0}
+                        step="0.01"
+                        saving={isSaving(course.id, 'price')}
+                        validate={(v) => Number(v) < 0 ? 'Price must be 0 or more' : null}
+                        onSave={(v) => patchField(course.id, 'price', Number(v) || null)}
+                        title="Edit price"
+                      >
+                        {course.price != null ? formatCurrency(course.price, course.currency) : '—'}
+                      </InlineEditCell>
+                    </td>
+                    <td className="px-4 py-3 text-sm">
+                      <InlineEditCell
+                        type="select"
+                        value={course.level}
+                        options={COURSE_LEVELS.map(l => ({ value: l, label: l }))}
+                        saving={isSaving(course.id, 'level')}
+                        onSave={(v) => patchField(course.id, 'level', v)}
+                        title="Edit level"
+                      >
+                        {course.level}
+                      </InlineEditCell>
+                    </td>
+                    <td className="px-4 py-3 text-sm">
+                      <InlineEditCell
+                        type="number"
+                        value={course.rating}
+                        readOnly
+                        readOnlyMessage="Rating and reviews are managed in the full editor"
+                        title="Rating"
+                      >
+                        {course.rating > 0 ? `${course.rating} (${course.reviews})` : '—'}
+                      </InlineEditCell>
+                    </td>
+                    <td className="px-4 py-3 text-sm">
+                      <InlineEditCell
+                        type="select"
+                        value={course.is_active ? 'true' : 'false'}
+                        options={[
+                          { value: 'true', label: 'Active' },
+                          { value: 'false', label: 'Hidden' },
+                        ]}
+                        saving={isSaving(course.id, 'is_active')}
+                        onSave={(v) => patchField(course.id, 'is_active', v === 'true')}
+                        title="Edit active status"
+                      >
+                        {course.is_active ? <span className="text-green-700 font-medium">Active</span> : <span className="text-muted-foreground">Hidden</span>}
+                      </InlineEditCell>
+                    </td>
                     <td className="px-4 py-3">
                       <div className="flex items-center justify-end gap-1">
                         <button

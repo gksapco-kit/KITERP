@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { SocialPlatformIcon } from "@/lib/socialPlatformIcons";
 import type { SocialLinksIconStyle } from "@/lib/socialLinksMode";
+import { resolveSocialLinkHref } from "@/lib/socialLinkHref";
 import {
   FOOTER_SOCIAL_PLATFORMS,
   type FooterSocialPlatform,
@@ -55,7 +56,7 @@ export function ColumnFooter({
   const newsletter = showNewsletter ?? isFull;
   const paymentStrip = showPaymentStrip ?? isFull;
   const visibleSocial = FOOTER_SOCIAL_PLATFORMS.filter(({ key }) =>
-    showAllSocialIcons || Boolean(socialLinks?.[key]?.trim()),
+    showAllSocialIcons || Boolean(resolveSocialLinkHref(key, socialLinks?.[key] ?? '')),
   );
   const linkColumnGrid =
     columns.length >= 4
@@ -77,7 +78,8 @@ export function ColumnFooter({
               {showSocial && visibleSocial.length > 0 && (
                 <div className="mt-4 flex items-center gap-2">
                   {visibleSocial.map(({ key, label }) => {
-                    const url = socialLinks?.[key]?.trim() || '';
+                    const rawUrl = socialLinks?.[key]?.trim() || '';
+                    const url = resolveSocialLinkHref(key, rawUrl);
                     if (renderSocialIcon) {
                       return <span key={key}>{renderSocialIcon(key, url)}</span>;
                     }

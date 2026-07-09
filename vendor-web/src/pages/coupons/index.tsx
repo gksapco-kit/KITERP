@@ -15,11 +15,12 @@ import { vendorApi } from '@/api/vendor'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { formatCurrency, formatDate } from '@/lib/utils'
 import { ResizableTable } from '@/components/table/ResizableTable'
+import { InlineEditCell } from '@/components/table/InlineEditCell'
+import { useInlineFieldPatch, INLINE_EDIT_HINT } from '@/hooks/useInlineFieldPatch'
 import { toast } from 'sonner'
 import { extractApiError } from '@/lib/errorMessages'
 import { TableToolbar } from '@/components/table/TableToolbar'
 import { processRows, type SortDir } from '@/lib/tableList'
-import { onClickableTableRow } from '@/lib/clickableTableRow'
 import { Plus, Loader2, Tag, Pencil, Trash2, X, ToggleLeft, ToggleRight, Copy, Share2, Mail, MessageCircle } from 'lucide-react'
 
 function couponShareText(c: Record<string, unknown>): string {
@@ -84,6 +85,13 @@ export default function CouponsPage() {
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['coupons'] }); toast.success('Coupon updated') },
   })
 
+  const updateCoupon = useMutation({
+    mutationFn: ({ id, data }: { id: string; data: Record<string, unknown> }) => vendorApi.updateCoupon(id, data),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['coupons'] }); toast.success('Coupon updated') },
+    onError: (err) => toast.error(extractApiError(err, 'Could not update coupon')),
+  })
+  const { isSaving, patchField } = useInlineFieldPatch(updateCoupon)
+
   type CRow = Record<string, unknown>
   const sortAccessors: Record<string, (c: CRow) => unknown> = {
     code: (c) => c.code,
@@ -119,6 +127,7 @@ export default function CouponsPage() {
             search=""
             onSearchChange={() => {}}
             hideSearch
+            hint={INLINE_EDIT_HINT}
             sortOptions={[
               { value: 'code', label: 'Code' },
               { value: 'discount_type', label: 'Discount Type' },
@@ -162,20 +171,144 @@ export default function CouponsPage() {
               ) : !data?.items?.length ? (
                 <tr><td colSpan={8} className="py-12 text-center text-sm text-gray-500"><Tag className="w-10 h-10 mx-auto mb-2 text-gray-200" />No coupons yet</td></tr>
               ) : displayCoupons.map((c: CRow) => (
-                <tr key={c.id as string} className="hover:bg-gray-50 cursor-pointer"
-                  onClick={onClickableTableRow(() => setModal({ mode: 'edit', coupon: c }))}>
-                  <td className="px-5 py-3"><span className="font-mono text-sm font-bold bg-gray-100 px-2 py-0.5 rounded">{c.code as string}</span>{c.title != null && c.title !== '' && <p className="text-xs text-gray-500 mt-0.5">{String(c.title)}</p>}</td>
-                  <td className="px-5 py-3 text-sm text-gray-600">{c.store_id ? (storeLabelById.get(c.store_id as string) ?? '—') : <span className="text-gray-400">All units</span>}</td>
-                  <td className="px-5 py-3 text-sm">{c.discount_type === 'percentage' ? `${c.discount_value}%${c.max_discount ? ` (max ${formatCurrency(c.max_discount as number)})` : ''}` : formatCurrency(c.discount_value as number)}</td>
-                  <td className="px-5 py-3 text-sm">{(c.min_order_amount as number) > 0 ? formatCurrency(c.min_order_amount as number) : '-'}</td>
-                  <td className="px-5 py-3 text-sm text-center">{c.times_used as number}{c.usage_limit ? `/${c.usage_limit}` : ''}</td>
-                  <td className="px-5 py-3 text-center">
-                    <button onClick={() => toggleCoupon.mutate({ id: c.id as string, is_active: !(c.is_active as boolean) })}>
-                      {c.is_active ? <ToggleRight className="w-6 h-6 text-green-500 mx-auto" /> : <ToggleLeft className="w-6 h-6 text-gray-400 mx-auto" />}
-                    </button>
+                <tr key={c.id as string} className="hover:bg-gray-50 transition-colors">
+                  <td className="px-5 py-3">
+                    <InlineEditCell
+                      value={String(c.code ?? '')}
+                      saving={isSaving(c.id as string, 'code')}
+                      onSave={(v) => patchField(c.id as string, 'code', String(v).trim().toUpperCase())}
+                      title="Edit coupon code"
+                      inputClassName="font-mono font-bold uppercase"
+                    >
+                      <span className="font-mono text-sm font-bold bg-gray-100 px-2 py-0.5 rounded">{c.code as string}</span>
+                    </InlineEditCell>
+                    <InlineEditCell
+                      value={String(c.title ?? '')}
+                      saving={isSaving(c.id as string, 'title')}
+                      onSave={(v) => patchField(c.id as string, 'title', String(v).trim())}
+                      title="Edit coupon title"
+                    >
+                      <p className="text-xs text-gray-500 mt-0.5">{c.title ? String(c.title) : '—'}</p>
+                    </InlineEditCell>
                   </td>
-                  <td className="px-5 py-3 text-sm text-gray-500 truncate overflow-hidden">{c.expires_at ? formatDate(c.expires_at as string) : 'Never'}</td>
-                  <td className="px-3 py-3 text-right whitespace-nowrap overflow-hidden">
+                  <td className="px-5 py-3">
+                    <InlineEditCell
+                      type="select"
+                      value={(c.store_id as string) || ''}
+                      options={[
+                        { value: '', label: 'All units' },
+                        ...(storesData?.stores ?? []).map((s) => ({
+                          value: s.id,
+                          label: s.code ? `${s.code} — ${s.name}` : s.name,
+                        })),
+                      ]}
+                      saving={isSaving(c.id as string, 'store_id')}
+                      onSave={(v) => patchField(c.id as string, 'store_id', v || null)}
+                      title="Edit business unit"
+                    >
+                      <span className="text-sm text-gray-600">
+                        {c.store_id ? (storeLabelById.get(c.store_id as string) ?? '—') : <span className="text-gray-400">All units</span>}
+                      </span>
+                    </InlineEditCell>
+                  </td>
+                  <td className="px-5 py-3">
+                    <div className="space-y-1">
+                      <InlineEditCell
+                        type="select"
+                        value={String(c.discount_type)}
+                        options={[
+                          { value: 'percentage', label: 'Percentage' },
+                          { value: 'fixed', label: 'Fixed amount' },
+                        ]}
+                        saving={isSaving(c.id as string, 'discount_type')}
+                        onSave={(v) => patchField(c.id as string, 'discount_type', v)}
+                        title="Edit discount type"
+                      >
+                        <span className="text-xs text-gray-500 capitalize">{String(c.discount_type)}</span>
+                      </InlineEditCell>
+                      <InlineEditCell
+                        type="number"
+                        value={Number(c.discount_value)}
+                        min={0}
+                        step="0.01"
+                        saving={isSaving(c.id as string, 'discount_value')}
+                        validate={(v) => Number(v) < 0 ? 'Must be 0 or more' : null}
+                        onSave={(v) => patchField(c.id as string, 'discount_value', Number(v))}
+                        title="Edit discount value"
+                      >
+                        <span className="text-sm">
+                          {c.discount_type === 'percentage'
+                            ? `${c.discount_value}%${c.max_discount ? ` (max ${formatCurrency(c.max_discount as number)})` : ''}`
+                            : formatCurrency(c.discount_value as number)}
+                        </span>
+                      </InlineEditCell>
+                    </div>
+                  </td>
+                  <td className="px-5 py-3">
+                    <InlineEditCell
+                      type="number"
+                      value={Number(c.min_order_amount) || 0}
+                      min={0}
+                      step="0.01"
+                      saving={isSaving(c.id as string, 'min_order_amount')}
+                      onSave={(v) => patchField(c.id as string, 'min_order_amount', Number(v))}
+                      title="Edit minimum order amount"
+                    >
+                      <span className="text-sm">{(c.min_order_amount as number) > 0 ? formatCurrency(c.min_order_amount as number) : '—'}</span>
+                    </InlineEditCell>
+                  </td>
+                  <td className="px-5 py-3">
+                    <div className="space-y-1 text-center">
+                      <InlineEditCell
+                        type="number"
+                        value={Number(c.times_used)}
+                        readOnly
+                        readOnlyMessage="Usage count is automatic"
+                        title="Times used"
+                      >
+                        <span className="text-sm">{c.times_used as number}</span>
+                      </InlineEditCell>
+                      <InlineEditCell
+                        type="number"
+                        value={Number(c.usage_limit) || 0}
+                        min={0}
+                        step="1"
+                        saving={isSaving(c.id as string, 'usage_limit')}
+                        parse={(raw) => Math.max(0, Math.round(Number(raw) || 0))}
+                        onSave={(v) => patchField(c.id as string, 'usage_limit', Number(v) || null)}
+                        title="Edit usage limit"
+                      >
+                        <span className="text-xs text-gray-500">limit: {c.usage_limit ? String(c.usage_limit) : '∞'}</span>
+                      </InlineEditCell>
+                    </div>
+                  </td>
+                  <td className="px-5 py-3 text-center">
+                    <InlineEditCell
+                      type="select"
+                      value={c.is_active ? 'true' : 'false'}
+                      options={[
+                        { value: 'true', label: 'Active' },
+                        { value: 'false', label: 'Inactive' },
+                      ]}
+                      saving={isSaving(c.id as string, 'is_active')}
+                      onSave={(v) => patchField(c.id as string, 'is_active', v === 'true')}
+                      title="Edit active status"
+                    >
+                      {c.is_active ? <ToggleRight className="w-6 h-6 text-green-500 mx-auto" /> : <ToggleLeft className="w-6 h-6 text-gray-400 mx-auto" />}
+                    </InlineEditCell>
+                  </td>
+                  <td className="px-5 py-3">
+                    <InlineEditCell
+                      value={c.expires_at ? String(c.expires_at).slice(0, 10) : ''}
+                      saving={isSaving(c.id as string, 'expires_at')}
+                      onSave={(v) => patchField(c.id as string, 'expires_at', String(v).trim() ? `${String(v).trim()}T23:59:59` : null)}
+                      title="Edit expiry date (YYYY-MM-DD)"
+                      inputClassName="text-xs"
+                    >
+                      <span className="text-sm text-gray-500">{c.expires_at ? formatDate(c.expires_at as string) : 'Never'}</span>
+                    </InlineEditCell>
+                  </td>
+                  <td className="px-3 py-3 text-right whitespace-nowrap overflow-hidden" onClick={(e) => e.stopPropagation()}>
                     <div className="inline-flex items-center gap-0.5 justify-end">
                       <Button variant="ghost" size="sm" className="h-8 w-8 p-0 shrink-0" title="Copy code" onClick={() => copyCouponCode(c.code as string)}><Copy className="w-4 h-4 text-gray-500" /></Button>
                       <Button variant="ghost" size="sm" className="h-8 w-8 p-0 shrink-0" title="Share via WhatsApp" onClick={() => shareViaWhatsApp(c)}><MessageCircle className="w-4 h-4 text-green-600" /></Button>

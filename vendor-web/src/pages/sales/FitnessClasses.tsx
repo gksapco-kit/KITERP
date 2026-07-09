@@ -5,7 +5,9 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent } from '@/components/ui/card'
 import { ResizableTable } from '@/components/table/ResizableTable'
+import { InlineEditCell } from '@/components/table/InlineEditCell'
 import { TableToolbar } from '@/components/table/TableToolbar'
+import { useInlineFieldPatch, INLINE_EDIT_HINT } from '@/hooks/useInlineFieldPatch'
 import { TableColumnLabel } from '@/components/common/FieldLabel'
 import { useEscapeToClose } from '@/hooks/useEscapeToClose'
 import { formatCurrency } from '@/lib/utils'
@@ -238,6 +240,7 @@ export default function SalesFitnessClassesPage() {
   }, [data?.items, search, sortKey, sortDir])
 
   const saving = createClass.isPending || updateClass.isPending
+  const { isSaving, patchField } = useInlineFieldPatch(updateClass)
 
   return (
     <div className="space-y-4 p-4 md:p-6">
@@ -274,6 +277,7 @@ export default function SalesFitnessClassesPage() {
             sortDir={sortDir}
             onSortKeyChange={setSortKey}
             onSortDirChange={setSortDir}
+            hint={INLINE_EDIT_HINT}
           />
           <div className="overflow-x-auto">
             <ResizableTable tableId="sales-fitness-classes-v1" defaultWidths={[64, 200, 130, 100, 130, 100, 90, 120]}>
@@ -300,21 +304,119 @@ export default function SalesFitnessClassesPage() {
                     className="hover:bg-muted/30 cursor-pointer"
                     onClick={onClickableTableRow(() => setModal({ mode: 'edit', cls }))}
                   >
-                    <td className="px-4 py-3 text-sm">{cls.sort_order}</td>
+                    <td className="px-4 py-3 text-sm">
+                      <InlineEditCell type="number" value={cls.sort_order} readOnly readOnlyMessage="Use the full editor to change sort order" title="Order">
+                        {cls.sort_order}
+                      </InlineEditCell>
+                    </td>
                     <td className="px-4 py-3 text-sm font-medium">
                       <div>
-                        <div className="line-clamp-1">{cls.name}</div>
-                        <div className="text-xs text-muted-foreground">{cls.price != null ? formatCurrency(cls.price, cls.currency) : '—'}</div>
+                        <InlineEditCell
+                          value={cls.name}
+                          saving={isSaving(cls.id, 'name')}
+                          validate={(v) => String(v).trim().length < 1 ? 'Name is required' : null}
+                          onSave={(v) => patchField(cls.id, 'name', String(v).trim())}
+                          title="Edit class name"
+                        >
+                          <div className="line-clamp-1">{cls.name}</div>
+                        </InlineEditCell>
+                        <InlineEditCell
+                          type="number"
+                          value={cls.price ?? 0}
+                          min={0}
+                          step="0.01"
+                          saving={isSaving(cls.id, 'price')}
+                          validate={(v) => Number(v) < 0 ? 'Price must be 0 or more' : null}
+                          onSave={(v) => patchField(cls.id, 'price', Number(v) || null)}
+                          title="Edit price"
+                        >
+                          <div className="text-xs text-muted-foreground">{cls.price != null ? formatCurrency(cls.price, cls.currency) : '—'}</div>
+                        </InlineEditCell>
                       </div>
                     </td>
-                    <td className="px-4 py-3 text-sm text-muted-foreground">{cls.instructor || '—'}</td>
-                    <td className="px-4 py-3 text-sm">{cls.type}</td>
                     <td className="px-4 py-3 text-sm text-muted-foreground">
-                      {cls.time ? formatClassTime(cls.time) : '—'}
-                      {cls.date && <div className="text-xs">{formatClassDate(cls.date)}</div>}
+                      <InlineEditCell
+                        value={cls.instructor || ''}
+                        saving={isSaving(cls.id, 'instructor')}
+                        onSave={(v) => patchField(cls.id, 'instructor', String(v).trim() || null)}
+                        title="Edit instructor"
+                      >
+                        {cls.instructor || '—'}
+                      </InlineEditCell>
                     </td>
-                    <td className="px-4 py-3 text-sm">{cls.booked}/{cls.capacity}</td>
-                    <td className="px-4 py-3 text-sm">{cls.is_active ? <span className="text-green-700 font-medium">Active</span> : <span className="text-muted-foreground">Hidden</span>}</td>
+                    <td className="px-4 py-3 text-sm">
+                      <InlineEditCell
+                        type="select"
+                        value={cls.type}
+                        options={CLASS_TYPES.map(t => ({ value: t, label: t }))}
+                        saving={isSaving(cls.id, 'type')}
+                        onSave={(v) => patchField(cls.id, 'type', v)}
+                        title="Edit class type"
+                      >
+                        {cls.type}
+                      </InlineEditCell>
+                    </td>
+                    <td className="px-4 py-3 text-sm text-muted-foreground">
+                      <div className="space-y-0.5">
+                        <InlineEditCell
+                          value={cls.time || ''}
+                          saving={isSaving(cls.id, 'time')}
+                          onSave={(v) => patchField(cls.id, 'time', String(v).trim() || null)}
+                          title="Edit time (HH:MM)"
+                        >
+                          {cls.time ? formatClassTime(cls.time) : '—'}
+                        </InlineEditCell>
+                        <InlineEditCell
+                          value={cls.date || ''}
+                          saving={isSaving(cls.id, 'date')}
+                          onSave={(v) => patchField(cls.id, 'date', String(v).trim() || null)}
+                          title="Edit date (YYYY-MM-DD)"
+                        >
+                          <div className="text-xs">{cls.date ? formatClassDate(cls.date) : '—'}</div>
+                        </InlineEditCell>
+                      </div>
+                    </td>
+                    <td className="px-4 py-3 text-sm">
+                      <div className="flex items-center gap-0.5">
+                        <InlineEditCell
+                          type="number"
+                          value={cls.booked}
+                          readOnly
+                          readOnlyMessage="Booked count is automatic"
+                          title="Booked"
+                        >
+                          {cls.booked}
+                        </InlineEditCell>
+                        <span>/</span>
+                        <InlineEditCell
+                          type="number"
+                          value={cls.capacity}
+                          min={1}
+                          step="1"
+                          saving={isSaving(cls.id, 'capacity')}
+                          validate={(v) => Number(v) < 1 ? 'Capacity must be at least 1' : null}
+                          onSave={(v) => patchField(cls.id, 'capacity', Number(v) || 1)}
+                          title="Edit capacity"
+                        >
+                          {cls.capacity}
+                        </InlineEditCell>
+                      </div>
+                    </td>
+                    <td className="px-4 py-3 text-sm">
+                      <InlineEditCell
+                        type="select"
+                        value={cls.is_active ? 'true' : 'false'}
+                        options={[
+                          { value: 'true', label: 'Active' },
+                          { value: 'false', label: 'Hidden' },
+                        ]}
+                        saving={isSaving(cls.id, 'is_active')}
+                        onSave={(v) => patchField(cls.id, 'is_active', v === 'true')}
+                        title="Edit active status"
+                      >
+                        {cls.is_active ? <span className="text-green-700 font-medium">Active</span> : <span className="text-muted-foreground">Hidden</span>}
+                      </InlineEditCell>
+                    </td>
                     <td className="px-4 py-3">
                       <div className="flex items-center justify-end gap-1">
                         <button

@@ -493,6 +493,7 @@ const BLOCK_CATALOG: BlockDef[] = [
     show_legal: true,
     show_social: true,
     social_links: {
+      whatsapp: '',
       twitter: '',
       facebook: '',
       instagram: '',
@@ -8360,25 +8361,27 @@ function PropsEditor({
           {(
             block.block_type === 'social_links'
               ? [
-                  { key: 'twitter', label: 'Twitter / X' },
-                  { key: 'instagram', label: 'Instagram' },
-                  { key: 'linkedin', label: 'LinkedIn' },
-                  { key: 'facebook', label: 'Facebook' },
-                  { key: 'youtube', label: 'YouTube' },
+                  { key: 'whatsapp', label: 'WhatsApp', placeholder: '+91 98765 43210' },
+                  { key: 'twitter', label: 'Twitter / X', placeholder: 'https://x.com/your-page' },
+                  { key: 'instagram', label: 'Instagram', placeholder: 'https://instagram.com/your-page' },
+                  { key: 'linkedin', label: 'LinkedIn', placeholder: 'https://linkedin.com/company/your-page' },
+                  { key: 'facebook', label: 'Facebook', placeholder: 'https://facebook.com/your-page' },
+                  { key: 'youtube', label: 'YouTube', placeholder: 'https://youtube.com/@your-page' },
                 ]
               : [
-                  { key: 'twitter', label: 'Twitter / X' },
-                  { key: 'facebook', label: 'Facebook' },
-                  { key: 'instagram', label: 'Instagram' },
-                  { key: 'youtube', label: 'YouTube' },
+                  { key: 'whatsapp', label: 'WhatsApp', placeholder: '+91 98765 43210' },
+                  { key: 'twitter', label: 'Twitter / X', placeholder: 'https://x.com/your-page' },
+                  { key: 'facebook', label: 'Facebook', placeholder: 'https://facebook.com/your-page' },
+                  { key: 'instagram', label: 'Instagram', placeholder: 'https://instagram.com/your-page' },
+                  { key: 'youtube', label: 'YouTube', placeholder: 'https://youtube.com/@your-page' },
                 ]
-          ).map(({ key, label }) => (
+          ).map(({ key, label, placeholder }) => (
             <div key={key} className="flex items-center gap-1.5">
               <span className="w-20 shrink-0 text-xs text-gray-500">{label}</span>
               <input
-                type="url"
+                type="text"
                 value={String((p.social_links as Record<string, string> | undefined)?.[key] || '')}
-                placeholder={`https://${key}.com/your-page`}
+                placeholder={placeholder}
                 onChange={e => {
                   const next = { ...((p.social_links as Record<string, string>) || {}) }
                   const val = e.target.value.trim()

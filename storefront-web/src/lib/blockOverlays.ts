@@ -1,5 +1,6 @@
 import type { CSSProperties } from 'react'
 import { mediaUrl } from '@/lib/utils'
+import { resolveSocialLinkHref } from '@/lib/socialLinkHref'
 
 export type OverlayCoordUnit = 'percent' | 'px'
 
@@ -203,7 +204,7 @@ export function resolveOverlayLinkHref(
     case 'phone':
       return target.startsWith('tel:') ? target : `tel:${target.replace(/\s/g, '')}`
     case 'whatsapp':
-      return `https://wa.me/${target.replace(/\D/g, '')}`
+      return resolveSocialLinkHref('whatsapp', target)
     case 'booking':
       return internal('/booking')
     case 'quote':

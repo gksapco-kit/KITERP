@@ -38,6 +38,7 @@ export type SocialLinkPanelEntry = {
 }
 
 const FOOTER_SOCIAL_PLATFORMS: { key: string; label: string }[] = [
+  { key: 'whatsapp', label: 'WhatsApp' },
   { key: 'twitter', label: 'Twitter / X' },
   { key: 'facebook', label: 'Facebook' },
   { key: 'instagram', label: 'Instagram' },
@@ -45,6 +46,7 @@ const FOOTER_SOCIAL_PLATFORMS: { key: string; label: string }[] = [
 ]
 
 const SOCIAL_BLOCK_PLATFORMS: { key: string; label: string }[] = [
+  { key: 'whatsapp', label: 'WhatsApp' },
   { key: 'twitter', label: 'Twitter / X' },
   { key: 'instagram', label: 'Instagram' },
   { key: 'linkedin', label: 'LinkedIn' },

@@ -3,6 +3,7 @@ import { cn } from '@/lib/utils'
 import { useBuilderCanvas } from '@/contexts/BuilderCanvasContext'
 import { SocialPlatformIcon } from '@/lib/socialPlatformIcons'
 import type { SocialLinksIconStyle } from '@/lib/socialLinksMode'
+import { resolveSocialLinkHref } from '@/lib/socialLinkHref'
 import {
   FOOTER_SOCIAL_PLATFORMS,
   type FooterSocialPlatform,
@@ -32,7 +33,8 @@ export function BuilderSocialIcon({
     && ctx?.activeBlockId === blockId
     && ((ctx?.activeTextFields ?? []).includes(fieldKey) || ctx?.activeTextField === fieldKey)
   const { label } = PLATFORM_META[platform]
-  const hasUrl = Boolean(url.trim())
+  const href = resolveSocialLinkHref(platform, url)
+  const hasUrl = Boolean(href)
 
   const handleClick = (e: MouseEvent<HTMLButtonElement>) => {
     if (!isEditor) return
@@ -50,7 +52,7 @@ export function BuilderSocialIcon({
     if (!hasUrl) return null
     return (
       <a
-        href={url}
+        href={href}
         target="_blank"
         rel="noopener noreferrer"
         aria-label={label}
@@ -65,8 +67,8 @@ export function BuilderSocialIcon({
     <button
       type="button"
       onClick={handleClick}
-      title={hasUrl ? `${label}: ${url}` : `Click to add ${label} URL`}
-      aria-label={hasUrl ? `${label}: ${url}` : `Add ${label} URL`}
+      title={hasUrl ? `${label}: ${href}` : `Click to add ${label} URL`}
+      aria-label={hasUrl ? `${label}: ${href}` : `Add ${label} URL`}
       className={cn(
         'inline-flex h-9 w-9 items-center justify-center rounded-md border transition-colors',
         isSelected

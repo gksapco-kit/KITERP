@@ -1,10 +1,10 @@
-import { useState, useCallback, useEffect, useMemo, useRef } from 'react'
+import { useState, useCallback, useEffect, useMemo, useRef, Fragment } from 'react'
 import { TableColumnLabel } from '@/components/common/FieldLabel'
 import { useEscapeToClose } from '@/hooks/useEscapeToClose'
 import { useVendorStore } from '@/stores/vendorStore'
 import { ResizableTable } from '@/components/table/ResizableTable'
 import { Link } from 'react-router-dom'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { vendorApi } from '@/api/vendor'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -19,6 +19,7 @@ import {
   useInventoryStockIn,
   useInventoryStockOut,
   useInventoryAdjust,
+  useUpdateProduct,
   useSuppliers,
   usePurchaseOrders,
   useStores,
@@ -32,6 +33,9 @@ import {
   ChevronDown, ChevronRight as ChevronRightIcon,
 } from 'lucide-react'
 import { TableToolbar } from '@/components/table/TableToolbar'
+import { InlineEditCell } from '@/components/table/InlineEditCell'
+import { useInlineFieldPatch, INLINE_EDIT_HINT } from '@/hooks/useInlineFieldPatch'
+import { variantToUpdatePayload } from '@/lib/productVariantPresets'
 import { processRows, type SortDir } from '@/lib/tableList'
 import { BarcodeScannerModal } from '@/components/scanner/BarcodeScannerModal'
 import { useBarcodeScanner } from '@/hooks/useBarcodeScanner'
@@ -275,7 +279,15 @@ export default function Inventory() {
           onClearFilter={() => setHistoryProductFilter('')}
         />
       )}
-      {tab === 'low-stock' && <LowStockTab data={lowStock} loading={lowStockLoading} onAction={(pid, pname) => setModal({ type: 'stock-in', productId: pid, productName: pname })} onViewHistory={handleViewHistory} />}
+      {tab === 'low-stock' && (
+        <LowStockTab
+          data={lowStock}
+          loading={lowStockLoading}
+          selectedStoreId={selectedStoreId}
+          onAction={(pid, pname) => setModal({ type: 'stock-in', productId: pid, productName: pname })}
+          onViewHistory={handleViewHistory}
+        />
+      )}
 
       {/* Modal */}
       {modal.type && (
@@ -349,6 +361,80 @@ function SummaryTab({ data, loading, stores, selectedStoreId, onAction, onViewHi
   onAction: (pid: string, pname: string, type: ModalType, vid?: string) => void
   onViewHistory: (pid: string) => void
 }) {
+  const qc = useQueryClient()
+  const updateProduct = useUpdateProduct()
+  const adjust = useInventoryAdjust()
+  const { data: productsData } = useProducts({ size: 500 })
+  const products = productsData?.items ?? []
+
+  const { savingCellKey, setSavingCellKey, cellKey, patchField: patchProductField } = useInlineFieldPatch({
+    mutateAsync: async ({ id, data: patchData }) => {
+      const result = await updateProduct.mutateAsync({ id, data: patchData })
+      await qc.invalidateQueries({ queryKey: ['vendor', 'inventory-summary'] })
+      await qc.invalidateQueries({ queryKey: ['vendor', 'inventory-low-stock'] })
+      return result
+    },
+  })
+
+  const patchVariantFields = useCallback(async (
+    productId: string,
+    variantId: string,
+    updates: Record<string, unknown>,
+    savingField?: string,
+  ) => {
+    const product = products.find(p => p.id === productId)
+    if (!product) {
+      toast.error('Product not found')
+      return
+    }
+    const field = savingField ?? Object.keys(updates)[0] ?? 'variant'
+    const key = `${productId}:variant:${variantId}:${field}`
+    setSavingCellKey(key)
+    try {
+      const updatedVariants = (product.variants || []).map((v) => {
+        const payload = variantToUpdatePayload(v)
+        return v.id === variantId ? { ...payload, ...updates } : payload
+      })
+      await updateProduct.mutateAsync({ id: productId, data: { variants: updatedVariants } })
+      await qc.invalidateQueries({ queryKey: ['vendor', 'inventory-summary'] })
+      await qc.invalidateQueries({ queryKey: ['vendor', 'inventory-low-stock'] })
+    } finally {
+      setSavingCellKey(null)
+    }
+  }, [products, updateProduct, qc, setSavingCellKey])
+
+  const patchStockQuantity = useCallback(async (
+    saveKey: string,
+    productId: string,
+    newQuantity: number,
+    opts?: { variantId?: string; storeId?: string },
+  ) => {
+    setSavingCellKey(saveKey)
+    try {
+      await adjust.mutateAsync({
+        product_id: productId,
+        variant_id: opts?.variantId,
+        store_id: opts?.storeId,
+        new_quantity: newQuantity,
+        reason: 'Inline edit',
+      })
+    } finally {
+      setSavingCellKey(null)
+    }
+  }, [adjust, setSavingCellKey])
+
+  const isSaving = useCallback(
+    (entityId: string, field: string) => savingCellKey === cellKey(entityId, field),
+    [cellKey, savingCellKey],
+  )
+  const isSavingVariant = useCallback(
+    (productId: string, variantId: string, field: string) =>
+      savingCellKey === `${productId}:variant:${variantId}:${field}`,
+    [savingCellKey],
+  )
+
+  const getProduct = useCallback((id: string) => products.find(p => p.id === id), [products])
+
   const [q, setQ] = useState('')
   const [sk, setSk] = useState('product_name')
   const [sd, setSd] = useState<SortDir>('asc')
@@ -406,6 +492,7 @@ function SummaryTab({ data, loading, stores, selectedStoreId, onAction, onViewHi
           sortDir={sd}
           onSortKeyChange={setSk}
           onSortDirChange={setSd}
+          hint={INLINE_EDIT_HINT}
           className="rounded-t-xl"
         />
         <div className="overflow-x-auto">
@@ -434,9 +521,11 @@ function SummaryTab({ data, loading, stores, selectedStoreId, onAction, onViewHi
             ) : rows.map((item) => {
               const hasVariants = (item.variants?.length ?? 0) > 0
               const isExpanded = expandedRows.has(item.product_id)
+              const fullProduct = getProduct(item.product_id)
+              const storeFilterId = selectedStoreId !== 'all' ? selectedStoreId : undefined
               return (
-                <>
-                  <tr key={item.product_id} className="hover:bg-gray-50">
+                <Fragment key={item.product_id}>
+                  <tr className="hover:bg-gray-50">
                     <td className="px-6 py-4 text-sm font-medium">
                       <div className="flex items-center gap-2">
                         {hasVariants && (
@@ -444,34 +533,117 @@ function SummaryTab({ data, loading, stores, selectedStoreId, onAction, onViewHi
                             {isExpanded ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronRightIcon className="w-3.5 h-3.5" />}
                           </button>
                         )}
-                        <Link to={`/products/${item.product_id}`} className="text-blue-600 hover:text-blue-800 hover:underline">
-                          {item.product_name}
-                        </Link>
+                        <InlineEditCell
+                          value={item.product_name}
+                          saving={isSaving(item.product_id, 'name')}
+                          onSave={(v) => patchProductField(item.product_id, 'name', String(v).trim())}
+                          className="font-medium"
+                        >
+                          <Link to={`/products/${item.product_id}`} className="text-blue-600 hover:text-blue-800 hover:underline">
+                            {item.product_name}
+                          </Link>
+                        </InlineEditCell>
                         {hasVariants && (
                           <span className="text-xs text-gray-400">({item.variants!.length} variants)</span>
                         )}
                       </div>
                     </td>
-                    <td className="px-6 py-4 text-sm text-gray-500">{item.sku || '-'}</td>
-                    <td className="px-6 py-4 text-sm text-gray-400 font-mono text-xs">-</td>
-                    <td className="px-6 py-4 text-sm text-right text-gray-500">-</td>
-                    <td className="px-6 py-4 text-sm text-right font-medium whitespace-nowrap">{item.current_quantity}</td>
+                    <td className="px-6 py-4 text-sm text-gray-500">
+                      <InlineEditCell
+                        value={item.sku || ''}
+                        saving={isSaving(item.product_id, 'sku')}
+                        onSave={(v) => patchProductField(item.product_id, 'sku', String(v).trim())}
+                      >
+                        {item.sku || '-'}
+                      </InlineEditCell>
+                    </td>
+                    <td className="px-6 py-4 text-sm text-gray-400 font-mono text-xs">
+                      <InlineEditCell
+                        value={fullProduct?.barcode || ''}
+                        readOnly={hasVariants}
+                        readOnlyMessage="Edit barcode on variant rows"
+                        saving={isSaving(item.product_id, 'barcode')}
+                        onSave={(v) => patchProductField(item.product_id, 'barcode', String(v).trim())}
+                      >
+                        {hasVariants ? '-' : (fullProduct?.barcode || '-')}
+                      </InlineEditCell>
+                    </td>
+                    <td className="px-6 py-4 text-sm text-right text-gray-500">
+                      <InlineEditCell
+                        type="number"
+                        min={0}
+                        step="0.01"
+                        value={fullProduct?.cost_price ?? 0}
+                        readOnly={hasVariants}
+                        readOnlyMessage="Edit cost price on variant rows"
+                        saving={isSaving(item.product_id, 'cost_price')}
+                        onSave={(v) => patchProductField(item.product_id, 'cost_price', Number(v))}
+                        className="text-right"
+                      >
+                        {hasVariants ? '-' : (fullProduct?.cost_price != null ? `₹${fullProduct.cost_price.toFixed(2)}` : '-')}
+                      </InlineEditCell>
+                    </td>
+                    <td className="px-6 py-4 text-sm text-right font-medium whitespace-nowrap">
+                      <InlineEditCell
+                        type="number"
+                        min={0}
+                        value={item.current_quantity}
+                        readOnly={hasVariants}
+                        readOnlyMessage="Edit stock on variant rows"
+                        saving={isSaving(item.product_id, 'quantity')}
+                        onSave={(v) => patchStockQuantity(
+                          cellKey(item.product_id, 'quantity'),
+                          item.product_id,
+                          Number(v),
+                          { storeId: storeFilterId },
+                        )}
+                        className="text-right font-medium"
+                      >
+                        {item.current_quantity}
+                      </InlineEditCell>
+                    </td>
                     {selectedStoreId === 'all' && stores.map(s => {
                       const sq = item.store_quantities?.find(q => q.store_id === s.id)
+                      const qty = sq?.quantity ?? 0
                       return (
                         <td key={s.id} className="px-4 py-4 text-sm text-right text-indigo-600 font-medium">
-                          {sq ? sq.quantity : <span className="text-gray-300">—</span>}
+                          <InlineEditCell
+                            type="number"
+                            min={0}
+                            value={qty}
+                            readOnly={hasVariants}
+                            readOnlyMessage="Edit stock on variant rows"
+                            saving={savingCellKey === `${item.product_id}:store:${s.id}`}
+                            onSave={(v) => patchStockQuantity(
+                              `${item.product_id}:store:${s.id}`,
+                              item.product_id,
+                              Number(v),
+                              { storeId: s.id },
+                            )}
+                            className="text-right font-medium text-indigo-600"
+                          >
+                            {sq ? sq.quantity : <span className="text-gray-300">—</span>}
+                          </InlineEditCell>
                         </td>
                       )
                     })}
                     <td className="px-6 py-4 text-center whitespace-nowrap">
-                      {item.is_low_stock ? (
-                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-amber-50 text-amber-700">
-                          <AlertTriangle className="w-3 h-3" />Low
-                        </span>
-                      ) : (
-                        <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-green-50 text-green-700">OK</span>
-                      )}
+                      <InlineEditCell
+                        type="number"
+                        min={0}
+                        value={item.low_stock_threshold}
+                        saving={isSaving(item.product_id, 'low_stock_threshold')}
+                        onSave={(v) => patchProductField(item.product_id, 'low_stock_threshold', Number(v))}
+                        title="Double-click to edit low-stock threshold"
+                      >
+                        {item.is_low_stock ? (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-amber-50 text-amber-700">
+                            <AlertTriangle className="w-3 h-3" />Low
+                          </span>
+                        ) : (
+                          <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-green-50 text-green-700">OK</span>
+                        )}
+                      </InlineEditCell>
                     </td>
                     <td className="px-6 py-4 text-right whitespace-nowrap">
                       <div className="inline-flex flex-nowrap items-center justify-end gap-1">
@@ -494,22 +666,89 @@ function SummaryTab({ data, loading, stores, selectedStoreId, onAction, onViewHi
                     return (
                       <tr key={v.id} className="bg-gray-50/60 border-l-2 border-l-blue-200">
                         <td className="px-6 py-3 text-sm text-gray-700 pl-12">
-                          <span className="text-gray-400 mr-1">└</span>{v.name}
+                          <span className="text-gray-400 mr-1">└</span>
+                          <InlineEditCell
+                            value={v.name}
+                            saving={isSavingVariant(item.product_id, v.id, 'name')}
+                            onSave={(val) => patchVariantFields(item.product_id, v.id, { name: String(val).trim() }, 'name')}
+                          >
+                            {v.name}
+                          </InlineEditCell>
                           {v.expiration_date && (
                             <span className="ml-2 text-xs text-gray-400">Exp: {v.expiration_date}</span>
                           )}
                         </td>
-                        <td className="px-6 py-3 text-sm text-gray-500">{v.sku || '-'}</td>
-                        <td className="px-6 py-3 text-xs text-gray-400 font-mono">{v.barcode || '-'}</td>
-                        <td className="px-6 py-3 text-sm text-right text-gray-600">
-                          {v.cost_price != null ? `₹${v.cost_price.toFixed(2)}` : '-'}
+                        <td className="px-6 py-3 text-sm text-gray-500">
+                          <InlineEditCell
+                            value={v.sku || ''}
+                            saving={isSavingVariant(item.product_id, v.id, 'sku')}
+                            onSave={(val) => patchVariantFields(item.product_id, v.id, { sku: String(val).trim() }, 'sku')}
+                          >
+                            {v.sku || '-'}
+                          </InlineEditCell>
                         </td>
-                        <td className="px-6 py-3 text-sm text-right font-medium">{v.quantity}</td>
+                        <td className="px-6 py-3 text-xs text-gray-400 font-mono">
+                          <InlineEditCell
+                            value={v.barcode || ''}
+                            saving={isSavingVariant(item.product_id, v.id, 'barcode')}
+                            onSave={(val) => patchVariantFields(item.product_id, v.id, { barcode: String(val).trim() }, 'barcode')}
+                          >
+                            {v.barcode || '-'}
+                          </InlineEditCell>
+                        </td>
+                        <td className="px-6 py-3 text-sm text-right text-gray-600">
+                          <InlineEditCell
+                            type="number"
+                            min={0}
+                            step="0.01"
+                            value={v.cost_price ?? 0}
+                            saving={isSavingVariant(item.product_id, v.id, 'cost_price')}
+                            onSave={(val) => patchVariantFields(item.product_id, v.id, { cost_price: Number(val) }, 'cost_price')}
+                            className="text-right"
+                          >
+                            {v.cost_price != null ? `₹${v.cost_price.toFixed(2)}` : '-'}
+                          </InlineEditCell>
+                        </td>
+                        <td className="px-6 py-3 text-sm text-right font-medium">
+                          <InlineEditCell
+                            type="number"
+                            min={0}
+                            value={v.quantity}
+                            saving={isSavingVariant(item.product_id, v.id, 'quantity')}
+                            onSave={(val) => patchStockQuantity(
+                              `${item.product_id}:variant:${v.id}:quantity`,
+                              item.product_id,
+                              Number(val),
+                              { variantId: v.id, storeId: storeFilterId },
+                            )}
+                            className="text-right font-medium"
+                          >
+                            {v.quantity}
+                          </InlineEditCell>
+                        </td>
                         {selectedStoreId === 'all' && stores.map(s => (
-                          <td key={s.id} className="px-4 py-3 text-sm text-right text-gray-300">—</td>
+                          <td key={s.id} className="px-4 py-3 text-sm text-right text-gray-300">
+                            <InlineEditCell
+                              readOnly
+                              readOnlyMessage="Per-store stock is tracked at product level"
+                              value={0}
+                              onSave={() => {}}
+                            >
+                              —
+                            </InlineEditCell>
+                          </td>
                         ))}
                         <td className="px-6 py-3 text-center whitespace-nowrap">
-                          <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${statusColor}`}>{statusLabel}</span>
+                          <InlineEditCell
+                            type="number"
+                            min={0}
+                            value={v.low_stock_threshold}
+                            saving={isSavingVariant(item.product_id, v.id, 'low_stock_threshold')}
+                            onSave={(val) => patchVariantFields(item.product_id, v.id, { low_stock_threshold: Number(val) }, 'low_stock_threshold')}
+                            title="Double-click to edit low-stock threshold"
+                          >
+                            <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${statusColor}`}>{statusLabel}</span>
+                          </InlineEditCell>
                         </td>
                         <td className="px-6 py-3 text-right whitespace-nowrap">
                           <Button variant="ghost" size="sm" className="text-green-600 text-xs" onClick={() => onAction(item.product_id, `${item.product_name} — ${v.name}`, 'stock-in', v.id)}>+ In</Button>
@@ -517,7 +756,7 @@ function SummaryTab({ data, loading, stores, selectedStoreId, onAction, onViewHi
                       </tr>
                     )
                   })}
-                </>
+                </Fragment>
               )
             })}
           </tbody>
@@ -662,12 +901,48 @@ function HistoryTab({ data, loading, page, setPage, productFilter, onClearFilter
 
 type LowItem = { product_id: string; product_name: string; sku?: string; current_quantity: number; low_stock_threshold: number }
 
-function LowStockTab({ data, loading, onAction, onViewHistory }: {
+function LowStockTab({ data, loading, selectedStoreId, onAction, onViewHistory }: {
   data: { items: LowItem[]; total: number } | undefined
   loading: boolean
+  selectedStoreId: string
   onAction: (pid: string, pname: string) => void
   onViewHistory: (pid: string) => void
 }) {
+  const qc = useQueryClient()
+  const updateProduct = useUpdateProduct()
+  const adjust = useInventoryAdjust()
+  const { savingCellKey, setSavingCellKey, cellKey, patchField: patchProductField } = useInlineFieldPatch({
+    mutateAsync: async ({ id, data: patchData }) => {
+      const result = await updateProduct.mutateAsync({ id, data: patchData })
+      await qc.invalidateQueries({ queryKey: ['vendor', 'inventory-summary'] })
+      await qc.invalidateQueries({ queryKey: ['vendor', 'inventory-low-stock'] })
+      return result
+    },
+  })
+
+  const patchStockQuantity = useCallback(async (
+    saveKey: string,
+    productId: string,
+    newQuantity: number,
+  ) => {
+    setSavingCellKey(saveKey)
+    try {
+      await adjust.mutateAsync({
+        product_id: productId,
+        new_quantity: newQuantity,
+        store_id: selectedStoreId !== 'all' ? selectedStoreId : undefined,
+        reason: 'Inline edit',
+      })
+    } finally {
+      setSavingCellKey(null)
+    }
+  }, [adjust, selectedStoreId, setSavingCellKey])
+
+  const isSaving = useCallback(
+    (entityId: string, field: string) => savingCellKey === cellKey(entityId, field),
+    [cellKey, savingCellKey],
+  )
+
   const [q, setQ] = useState('')
   const [sk, setSk] = useState('shortage')
   const [sd, setSd] = useState<SortDir>('desc')
@@ -725,6 +1000,7 @@ function LowStockTab({ data, loading, onAction, onViewHistory }: {
           sortDir={sd}
           onSortKeyChange={setSk}
           onSortDirChange={setSd}
+          hint={INLINE_EDIT_HINT}
         />
         <ResizableTable tableId="inventory-lowstock" defaultWidths={[240, 120, 90, 90, 90, 80]}>
           <thead>
@@ -743,15 +1019,60 @@ function LowStockTab({ data, loading, onAction, onViewHistory }: {
             ) : rows.map((item) => (
               <tr key={item.product_id} className="hover:bg-amber-50/30">
                 <td className="px-6 py-4 text-sm font-medium">
-                  <Link to={`/products/${item.product_id}`} className="text-blue-600 hover:text-blue-800 hover:underline">
-                    {item.product_name}
-                  </Link>
+                  <InlineEditCell
+                    value={item.product_name}
+                    saving={isSaving(item.product_id, 'name')}
+                    onSave={(v) => patchProductField(item.product_id, 'name', String(v).trim())}
+                    className="font-medium"
+                  >
+                    <Link to={`/products/${item.product_id}`} className="text-blue-600 hover:text-blue-800 hover:underline">
+                      {item.product_name}
+                    </Link>
+                  </InlineEditCell>
                 </td>
-                <td className="px-6 py-4 text-sm text-gray-500">{item.sku || '-'}</td>
-                <td className="px-6 py-4 text-sm text-right font-medium text-red-600">{item.current_quantity}</td>
-                <td className="px-6 py-4 text-sm text-right text-gray-500">{item.low_stock_threshold}</td>
+                <td className="px-6 py-4 text-sm text-gray-500">
+                  <InlineEditCell
+                    value={item.sku || ''}
+                    saving={isSaving(item.product_id, 'sku')}
+                    onSave={(v) => patchProductField(item.product_id, 'sku', String(v).trim())}
+                  >
+                    {item.sku || '-'}
+                  </InlineEditCell>
+                </td>
+                <td className="px-6 py-4 text-sm text-right font-medium text-red-600">
+                  <InlineEditCell
+                    type="number"
+                    min={0}
+                    value={item.current_quantity}
+                    saving={isSaving(item.product_id, 'quantity')}
+                    onSave={(v) => patchStockQuantity(cellKey(item.product_id, 'quantity'), item.product_id, Number(v))}
+                    className="text-right font-medium text-red-600"
+                  >
+                    {item.current_quantity}
+                  </InlineEditCell>
+                </td>
+                <td className="px-6 py-4 text-sm text-right text-gray-500">
+                  <InlineEditCell
+                    type="number"
+                    min={0}
+                    value={item.low_stock_threshold}
+                    saving={isSaving(item.product_id, 'low_stock_threshold')}
+                    onSave={(v) => patchProductField(item.product_id, 'low_stock_threshold', Number(v))}
+                    className="text-right"
+                  >
+                    {item.low_stock_threshold}
+                  </InlineEditCell>
+                </td>
                 <td className="px-6 py-4 text-sm text-right font-medium text-amber-600">
-                  {item.shortage}
+                  <InlineEditCell
+                    readOnly
+                    readOnlyMessage="Shortage is calculated from current stock and threshold"
+                    value={item.shortage}
+                    onSave={() => {}}
+                    className="text-right font-medium text-amber-600"
+                  >
+                    {item.shortage}
+                  </InlineEditCell>
                 </td>
                 <td className="px-6 py-4 text-right">
                   <div className="flex gap-1 justify-end">

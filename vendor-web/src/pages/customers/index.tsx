@@ -6,12 +6,13 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { useCustomers, useCreateCustomer } from '@/hooks/useVendor'
+import { useCustomers, useCreateCustomer, useUpdateCustomer } from '@/hooks/useVendor'
+import { useInlineFieldPatch, INLINE_EDIT_HINT } from '@/hooks/useInlineFieldPatch'
 import { formatCurrency, formatDate } from '@/lib/utils'
 import { TableToolbar } from '@/components/table/TableToolbar'
 import { ResizableTable } from '@/components/table/ResizableTable'
+import { InlineEditCell } from '@/components/table/InlineEditCell'
 import { processRows, type SortDir } from '@/lib/tableList'
-import { onClickableTableRow } from '@/lib/clickableTableRow'
 import { vendorApi } from '@/api/vendor'
 import type { Customer } from '@/types'
 import { PhoneInput } from '@/components/ui/PhoneInput'
@@ -321,6 +322,8 @@ export default function Customers() {
   const [sortDir, setSortDir] = useState<SortDir>('asc')
 
   const { data, isLoading } = useCustomers({ page, size: 10, search: search || undefined })
+  const updateCustomer = useUpdateCustomer()
+  const { isSaving, patchField } = useInlineFieldPatch(updateCustomer)
   const pages = data?.pages || 0
 
   const displayCustomers = useMemo(() => {
@@ -374,7 +377,7 @@ export default function Customers() {
             search=""
             onSearchChange={() => {}}
             hideSearch
-            hint="Sorting applies to the current page."
+            hint={INLINE_EDIT_HINT}
             sortOptions={[
               { value: 'full_name', label: 'Name' },
               { value: 'phone', label: 'Phone' },
@@ -417,22 +420,92 @@ export default function Customers() {
               ) : displayCustomers.map((c) => {
                 const bal = c.opening_balance ?? 0
                 return (
-                  <tr key={c.id} className="hover:bg-gray-50 transition-colors cursor-pointer"
-                    onClick={onClickableTableRow(() => navigate(`/customers/${c.id}`))}>
+                  <tr key={c.id} className="hover:bg-gray-50 transition-colors">
                     <td className="px-6 py-4">
-                      <p className="text-sm font-medium text-gray-900">{c.full_name}</p>
-                      <p className="text-xs text-gray-500">{c.company_name || c.email || c.phone || '—'}</p>
+                      <InlineEditCell
+                        value={c.full_name}
+                        saving={isSaving(c.id, 'full_name')}
+                        validate={(v) => String(v).trim().length < 2 ? 'Min 2 characters' : null}
+                        onSave={(v) => patchField(c.id, 'full_name', String(v).trim())}
+                        title="Edit customer name"
+                      >
+                        <span className="text-sm font-medium text-gray-900">{c.full_name}</span>
+                      </InlineEditCell>
+                      <InlineEditCell
+                        value={c.company_name || ''}
+                        saving={isSaving(c.id, 'company_name')}
+                        onSave={(v) => patchField(c.id, 'company_name', String(v).trim())}
+                        title="Edit company"
+                      >
+                        <span className="text-xs text-gray-500">{c.company_name || '—'}</span>
+                      </InlineEditCell>
+                      <InlineEditCell
+                        value={c.email || ''}
+                        saving={isSaving(c.id, 'email')}
+                        onSave={(v) => patchField(c.id, 'email', String(v).trim())}
+                        title="Edit email"
+                      >
+                        <span className="text-xs text-gray-400">{c.email || '—'}</span>
+                      </InlineEditCell>
                     </td>
-                    <td className="px-6 py-4 text-sm text-gray-600 hidden sm:table-cell">{c.phone || '—'}</td>
-                    <td className="px-6 py-4 text-xs font-mono text-gray-600 hidden lg:table-cell">{c.gstin || '—'}</td>
-                    <td className="px-6 py-4 text-sm text-gray-700">{c.total_orders}</td>
-                    <td className="px-6 py-4 text-sm text-gray-700">{formatCurrency(c.total_spent)}</td>
-                    <td className="px-6 py-4 text-sm hidden md:table-cell">
-                      {bal !== 0 ? (
-                        <span className={bal > 0 ? 'text-orange-600' : 'text-green-600'}>
-                          {formatCurrency(Math.abs(bal))} {bal > 0 ? 'Dr' : 'Cr'}
-                        </span>
-                      ) : <span className="text-gray-400">—</span>}
+                    <td className="px-6 py-4 hidden sm:table-cell">
+                      <InlineEditCell
+                        value={c.phone || ''}
+                        saving={isSaving(c.id, 'phone')}
+                        onSave={(v) => patchField(c.id, 'phone', String(v).trim())}
+                        title="Edit phone"
+                      >
+                        <span className="text-sm text-gray-600">{c.phone || '—'}</span>
+                      </InlineEditCell>
+                    </td>
+                    <td className="px-6 py-4 hidden lg:table-cell">
+                      <InlineEditCell
+                        value={c.gstin || ''}
+                        saving={isSaving(c.id, 'gstin')}
+                        onSave={(v) => patchField(c.id, 'gstin', String(v).trim().toUpperCase())}
+                        title="Edit GSTIN"
+                        inputClassName="font-mono text-xs uppercase"
+                      >
+                        <span className="text-xs font-mono text-gray-600">{c.gstin || '—'}</span>
+                      </InlineEditCell>
+                    </td>
+                    <td className="px-6 py-4">
+                      <InlineEditCell
+                        type="number"
+                        value={c.total_orders}
+                        readOnly
+                        readOnlyMessage="Order count is calculated from sales"
+                        title="Orders"
+                      >
+                        <span className="text-sm text-gray-700">{c.total_orders}</span>
+                      </InlineEditCell>
+                    </td>
+                    <td className="px-6 py-4">
+                      <InlineEditCell
+                        type="number"
+                        value={c.total_spent}
+                        readOnly
+                        readOnlyMessage="Total spent is calculated from sales"
+                        title="Spent"
+                      >
+                        <span className="text-sm text-gray-700">{formatCurrency(c.total_spent)}</span>
+                      </InlineEditCell>
+                    </td>
+                    <td className="px-6 py-4 hidden md:table-cell">
+                      <InlineEditCell
+                        type="number"
+                        value={bal}
+                        step="0.01"
+                        saving={isSaving(c.id, 'opening_balance')}
+                        onSave={(v) => patchField(c.id, 'opening_balance', Number(v))}
+                        title="Edit opening balance"
+                      >
+                        {bal !== 0 ? (
+                          <span className={bal > 0 ? 'text-orange-600' : 'text-green-600'}>
+                            {formatCurrency(Math.abs(bal))} {bal > 0 ? 'Dr' : 'Cr'}
+                          </span>
+                        ) : <span className="text-gray-400">—</span>}
+                      </InlineEditCell>
                     </td>
                     <td className="px-6 py-4 text-right">
                       <Button variant="ghost" size="sm" onClick={() => navigate(`/customers/${c.id}`)}>

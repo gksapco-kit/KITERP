@@ -7,6 +7,8 @@ import { cn } from '@/lib/utils'
 import { builderSectionContainerClass, builderSectionContainerWithMax } from '@/lib/builderSectionLayout'
 import { isBlockFieldHidden, resolveBlockTextField } from '@/lib/blockHiddenFields'
 import { SocialPlatformIcon, readSocialIconStyleFromSettings } from '@/lib/socialPlatformIcons'
+import { resolveSocialLinkHref } from '@/lib/socialLinkHref'
+import { mergeSocialLinks } from '@/lib/mergeSocialLinks'
 
 interface Props {
   site: PublicSite
@@ -17,7 +19,7 @@ interface Props {
   blockId?: string
 }
 
-const DEFAULT_PLATFORMS = ['twitter', 'instagram', 'linkedin', 'facebook', 'youtube'] as const
+const DEFAULT_PLATFORMS = ['whatsapp', 'twitter', 'instagram', 'linkedin', 'facebook', 'youtube'] as const
 
 function readSocialLinksRecord(
   props: Record<string, unknown>,
@@ -52,7 +54,7 @@ function buildPlatformEntries(
     }
     return Object.entries(merged)
   }
-  return Object.entries(raw).filter(([, url]) => String(url ?? '').trim())
+  return Object.entries(raw).filter(([platform, url]) => Boolean(resolveSocialLinkHref(platform, String(url ?? ''))))
 }
 
 function SocialPlatformChip({
@@ -73,7 +75,8 @@ function SocialPlatformChip({
   const builderCanvas = useBuilderCanvas()
   const key = platform.toLowerCase()
   const label = platform.charAt(0).toUpperCase() + platform.slice(1)
-  const hasUrl = Boolean(url.trim())
+  const href = resolveSocialLinkHref(key, url)
+  const hasUrl = Boolean(href)
   const fieldKey = `social_links.${platform}`
   const isSelected = isEditorCanvas
     && builderCanvas?.activeBlockId === blockId
@@ -107,7 +110,7 @@ function SocialPlatformChip({
       <button
         type="button"
         onClick={handleEditorClick}
-        title={hasUrl ? `${label}: ${url}` : `Click to add ${label} URL`}
+        title={hasUrl ? `${label}: ${href}` : `Click to add ${label} URL`}
         className={chipClass}
         style={{ ['--brand-primary' as string]: style.primary_color }}
       >
@@ -121,7 +124,7 @@ function SocialPlatformChip({
 
   return (
     <a
-      href={url}
+      href={href}
       target="_blank"
       rel="noopener noreferrer"
       aria-label={`${label} (opens in new window)`}
@@ -142,9 +145,12 @@ export default function SocialLinksBlock({ style, props, liveItems, blockId }: P
   const title = resolveBlockTextField(props, 'title')
   const showTitle = !isBlockFieldHidden(props, 'title') && (title || isEditorCanvas)
   const profile = liveItems[0]
-  const rawLinks = readSocialLinksRecord(props, profile)
+  const rawLinks = mergeSocialLinks(
+    effectiveVendor?.social_links as Record<string, string> | undefined,
+    readSocialLinksRecord(props, profile),
+  )
   const entries = buildPlatformEntries(rawLinks, isEditorCanvas)
-  const hasVisibleLinks = entries.some(([, url]) => isEditorCanvas || Boolean(String(url).trim()))
+  const hasVisibleLinks = entries.some(([platform, url]) => isEditorCanvas || Boolean(resolveSocialLinkHref(platform, url)))
 
   if (!hasVisibleLinks && !showTitle) return null
 

@@ -17,6 +17,8 @@ import {
 } from 'lucide-react'
 import { ResizableTable } from '@/components/table/ResizableTable'
 import { TableColumnLabel } from '@/components/common/FieldLabel'
+import { InlineEditCell } from '@/components/table/InlineEditCell'
+import { useInlineFieldPatch, INLINE_EDIT_HINT } from '@/hooks/useInlineFieldPatch'
 import type { Plant } from '@/types'
 
 export default function PlantsPage() {
@@ -36,6 +38,10 @@ export default function PlantsPage() {
   const createPlant = useCreatePlant()
   const updatePlant = useUpdatePlant()
   const deletePlant = useDeletePlant()
+  const { savingCellKey, cellKey, patchField: patchPlantField } = useInlineFieldPatch({
+    mutateAsync: ({ id, data }) => updatePlant.mutateAsync({ id, data }),
+  })
+  const isSaving = (id: string, field: string) => savingCellKey === cellKey(id, field)
 
   const [showForm, setShowForm] = useState(false)
   const [editing, setEditing] = useState<Plant | null>(null)
@@ -168,15 +174,49 @@ export default function PlantsPage() {
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-2">
                           <Factory className="w-4 h-4 text-indigo-500 shrink-0" />
-                          <p className="text-sm font-medium">{plant.name}</p>
+                          <InlineEditCell
+                            value={plant.name}
+                            saving={isSaving(plant.id, 'name')}
+                            onSave={(v) => patchPlantField(plant.id, 'name', String(v).trim())}
+                            className="text-sm font-medium"
+                          >
+                            {plant.name}
+                          </InlineEditCell>
                         </div>
                       </td>
-                      <td className="px-4 py-3 text-sm text-gray-600">{plant.code || '—'}</td>
-                      <td className="px-4 py-3 text-sm text-gray-500">{plant.description || '—'}</td>
+                      <td className="px-4 py-3 text-sm text-gray-600">
+                        <InlineEditCell
+                          value={plant.code || ''}
+                          saving={isSaving(plant.id, 'code')}
+                          onSave={(v) => patchPlantField(plant.id, 'code', String(v).trim())}
+                        >
+                          {plant.code || '—'}
+                        </InlineEditCell>
+                      </td>
+                      <td className="px-4 py-3 text-sm text-gray-500">
+                        <InlineEditCell
+                          value={plant.description || ''}
+                          saving={isSaving(plant.id, 'description')}
+                          onSave={(v) => patchPlantField(plant.id, 'description', String(v).trim())}
+                        >
+                          {plant.description || '—'}
+                        </InlineEditCell>
+                      </td>
                       <td className="px-4 py-3">
-                        <span className={`px-2 py-0.5 text-xs rounded-full font-medium ${plant.is_active ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
-                          {plant.is_active ? 'Active' : 'Inactive'}
-                        </span>
+                        <InlineEditCell
+                          type="select"
+                          value={plant.is_active ? 'true' : 'false'}
+                          options={[
+                            { value: 'true', label: 'Active' },
+                            { value: 'false', label: 'Inactive' },
+                          ]}
+                          saving={isSaving(plant.id, 'is_active')}
+                          onSave={(v) => patchPlantField(plant.id, 'is_active', v === 'true')}
+                        >
+                          <span className={`px-2 py-0.5 text-xs rounded-full font-medium ${plant.is_active ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
+                            {plant.is_active ? 'Active' : 'Inactive'}
+                          </span>
+                        </InlineEditCell>
                       </td>
                       <td className="px-4 py-3 text-right">
                         <div className="flex items-center justify-end gap-1">

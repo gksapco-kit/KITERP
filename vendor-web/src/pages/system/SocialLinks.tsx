@@ -9,7 +9,7 @@ import { PhoneInput } from '@/components/ui/PhoneInput'
 import { BusinessUnitSelect } from '@/components/common/BusinessUnitSelect'
 import { ThemeSelect } from '@/components/common/ThemeSelect'
 import { SocialLinksModeToggle } from '@/components/business-units/SocialLinksModeToggle'
-import { Save, Loader2, Link2 } from 'lucide-react'
+import { Save, Loader2, Link2, ExternalLink, MessageCircle } from 'lucide-react'
 import { toast } from 'sonner'
 import type { Vendor } from '@/types'
 import {
@@ -27,24 +27,27 @@ import {
 } from '@/lib/socialLinksMode'
 import { cn } from '@/lib/utils'
 import { SocialPlatformIcon } from '@/lib/socialPlatformIcons'
+import {
+  normalizeSocialLinksForSave,
+  resolveSocialLinkHref,
+  socialLinkValueForInput,
+} from '@/lib/socialLinkStorage'
 
 function linksFromSource(source?: Record<string, string> | null): Record<string, string> {
   const out: Record<string, string> = {}
-  for (const f of SOCIAL_LINK_FIELDS) out[f.key] = source?.[f.key] || ''
+  for (const f of SOCIAL_LINK_FIELDS) {
+    out[f.key] = socialLinkValueForInput(f.key, source?.[f.key] || '')
+  }
   if (source) {
     for (const [k, v] of Object.entries(source)) {
-      if (!(k in out) && typeof v === 'string') out[k] = v
+      if (!(k in out) && typeof v === 'string') out[k] = socialLinkValueForInput(k, v)
     }
   }
   return out
 }
 
 function cleanLinks(links: Record<string, string>): Record<string, string> {
-  const cleaned: Record<string, string> = {}
-  for (const [k, v] of Object.entries(links)) {
-    if (v.trim()) cleaned[k] = v.trim()
-  }
-  return cleaned
+  return normalizeSocialLinksForSave(links)
 }
 
 export default function SocialLinksPage() {
@@ -177,10 +180,26 @@ export default function SocialLinksPage() {
 
   const editingHint =
     socialLinksMode === 'shared'
-      ? 'These links apply to every business unit on your storefront.'
+      ? 'These links apply to every business unit — store footer, website footer, and social sections.'
       : activeStore
-        ? `Editing links for ${activeStore.code ? `${activeStore.code} — ` : ''}${activeStore.name}. Empty fields use your shared links as fallback.`
+        ? `Editing links for ${activeStore.code ? `${activeStore.code} — ` : ''}${activeStore.name}. Empty fields inherit your shared links.`
         : 'Select a business unit to edit its links.'
+
+  const sharedLinks = vendor?.social_links ?? {}
+
+  const inheritedHint = (key: string): string | undefined => {
+    if (socialLinksMode !== 'per_unit') return undefined
+    const inherited = sharedLinks[key]?.trim()
+    if (!inherited || links[key]?.trim()) return undefined
+    return `Inherited: ${socialLinkValueForInput(key, inherited)}`
+  }
+
+  const whatsappHref = resolveSocialLinkHref(
+    'whatsapp',
+    links.whatsapp?.trim() || (socialLinksMode === 'per_unit' ? sharedLinks.whatsapp : '') || '',
+  )
+  const otherFields = SOCIAL_LINK_FIELDS.filter((f) => f.key !== 'whatsapp')
+  const whatsappField = SOCIAL_LINK_FIELDS.find((f) => f.key === 'whatsapp')
 
   return (
     <div className="mx-auto max-w-6xl space-y-6 pb-8">
@@ -193,7 +212,7 @@ export default function SocialLinksPage() {
           <div className="min-w-0">
             <h1 className="text-2xl font-bold text-foreground">Social & Web Links</h1>
             <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
-              Links shown on your business front, website, and customer-facing pages.
+              Set once here — links appear in your store footer, website footer, and social sections.
             </p>
           </div>
         </div>
@@ -247,9 +266,64 @@ export default function SocialLinksPage() {
 
             <p className="text-xs text-muted-foreground">{editingHint}</p>
 
+            {whatsappField && (
+              <div className="rounded-xl border border-emerald-200/80 bg-emerald-50/60 p-4 dark:border-emerald-900/50 dark:bg-emerald-950/20">
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-emerald-100 text-emerald-700 ring-1 ring-inset ring-emerald-200 dark:bg-emerald-900/40 dark:text-emerald-300 dark:ring-emerald-800">
+                        <MessageCircle className="h-4 w-4" />
+                      </span>
+                      <div>
+                        <Label htmlFor="social-link-whatsapp" autoHelp={false} className="mb-0 text-sm font-semibold">
+                          WhatsApp
+                        </Label>
+                        <p className="text-xs text-muted-foreground">
+                          Shown in your store footer and social icons. Customers tap to open a WhatsApp chat.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                  {whatsappHref && (
+                    <a
+                      href={whatsappHref}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-300 bg-white px-3 py-1.5 text-xs font-medium text-emerald-700 hover:bg-emerald-50 dark:border-emerald-800 dark:bg-emerald-950 dark:text-emerald-300"
+                    >
+                      <ExternalLink className="h-3.5 w-3.5" />
+                      Preview chat link
+                    </a>
+                  )}
+                </div>
+                <div className="mt-3 flex items-center gap-2">
+                  <span
+                    className={cn(
+                      'flex h-10 w-10 shrink-0 items-center justify-center rounded-lg ring-1 ring-inset',
+                      links.whatsapp?.trim() || inheritedHint('whatsapp')
+                        ? 'bg-emerald-100 text-emerald-700 ring-emerald-200'
+                        : 'bg-muted/80 text-muted-foreground ring-border',
+                    )}
+                    aria-hidden
+                  >
+                    <SocialPlatformIcon platform="whatsapp" style={iconStyle} bare className="h-4 w-4" />
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <PhoneInput
+                      value={links.whatsapp || ''}
+                      onChange={(v) => markDirty({ ...links, whatsapp: v })}
+                      defaultCountryIso="IN"
+                      placeholder={inheritedHint('whatsapp') || whatsappField.placeholder}
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+
             <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-              {SOCIAL_LINK_FIELDS.map((f) => {
+              {otherFields.map((f) => {
                 const hasValue = Boolean(links[f.key]?.trim())
+                const inherited = inheritedHint(f.key)
                 return (
                   <div key={f.key} className="space-y-1.5">
                     <div className="flex items-center gap-2">
@@ -262,7 +336,7 @@ export default function SocialLinksPage() {
                         <span
                           className={cn(
                             'flex h-10 w-10 shrink-0 items-center justify-center rounded-lg ring-1 ring-inset',
-                            hasValue
+                            hasValue || inherited
                               ? 'bg-primary/10 text-primary ring-primary/25'
                               : 'bg-muted/80 text-muted-foreground ring-border',
                           )}
@@ -275,6 +349,7 @@ export default function SocialLinksPage() {
                             value={links[f.key] || ''}
                             onChange={(v) => markDirty({ ...links, [f.key]: v })}
                             defaultCountryIso="IN"
+                            placeholder={inherited || f.placeholder}
                           />
                         </div>
                       </div>
@@ -283,7 +358,7 @@ export default function SocialLinksPage() {
                         <span
                           className={cn(
                             'pointer-events-none absolute left-3 top-1/2 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-md ring-1 ring-inset',
-                            hasValue
+                            hasValue || inherited
                               ? 'bg-primary/10 text-primary ring-primary/25'
                               : 'bg-muted/80 text-muted-foreground ring-border',
                           )}
@@ -295,7 +370,7 @@ export default function SocialLinksPage() {
                           id={`social-link-${f.key}`}
                           value={links[f.key] || ''}
                           onChange={(e) => markDirty({ ...links, [f.key]: e.target.value })}
-                          placeholder={f.placeholder}
+                          placeholder={inherited || f.placeholder}
                           className={cn('pl-12', hasValue && 'border-primary/30')}
                         />
                       </div>

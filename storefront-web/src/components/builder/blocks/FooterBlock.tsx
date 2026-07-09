@@ -13,7 +13,7 @@ import { ColumnFooter } from '@/kit/footer/ColumnFooter'
 import type { FooterColumn } from '@/kit/footer/ColumnFooter'
 import {
   FOOTER_SOCIAL_PLATFORMS,
-  normalizeFooterSocialLinks,
+  resolveFooterSocialLinks,
   type FooterSocialPlatform,
 } from '@/kit/footer/footerSocial'
 import {
@@ -26,8 +26,9 @@ import {
   resolveBlockTextField,
   visibleArrayEntries,
 } from '@/lib/blockHiddenFields'
-import { readSocialIconStyleFromSettings } from '@/lib/socialPlatformIcons'
+import { readSocialIconStyleFromSettings, SocialPlatformIcon } from '@/lib/socialPlatformIcons'
 import type { SocialLinksIconStyle } from '@/lib/socialLinksMode'
+import { resolveSocialLinkHref } from '@/lib/socialLinkHref'
 import { builderSectionContainerClass } from '@/lib/builderSectionLayout'
 
 interface Props {
@@ -40,6 +41,52 @@ interface Props {
 }
 
 type RawColumn = { title?: string; links?: Array<{ label: string; href: string } | string> }
+
+function FooterPublishedSocialRow({
+  socialLinks,
+  socialIconStyle,
+  showAllSocialIcons,
+  className,
+  linkClassName,
+}: {
+  socialLinks: Partial<Record<FooterSocialPlatform, string>>
+  socialIconStyle: SocialLinksIconStyle
+  showAllSocialIcons?: boolean
+  className?: string
+  linkClassName?: string
+}) {
+  const visible = FOOTER_SOCIAL_PLATFORMS.filter(({ key }) =>
+    showAllSocialIcons || Boolean(resolveSocialLinkHref(key, socialLinks[key] ?? '')),
+  )
+  if (visible.length === 0) return null
+
+  return (
+    <div className={cn('flex flex-wrap items-center justify-center gap-2', className)}>
+      {visible.map(({ key, label }) => {
+        const href = resolveSocialLinkHref(key, socialLinks[key] ?? '')
+        if (!href) {
+          return (
+            <span key={key} aria-label={label} className="text-muted-foreground/35">
+              <SocialPlatformIcon platform={key} style={socialIconStyle} className="h-4 w-4" />
+            </span>
+          )
+        }
+        return (
+          <a
+            key={key}
+            href={href}
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label={label}
+            className={cn('text-muted-foreground hover:text-foreground', linkClassName)}
+          >
+            <SocialPlatformIcon platform={key} style={socialIconStyle} className="h-4 w-4" />
+          </a>
+        )
+      })}
+    </div>
+  )
+}
 
 function linkLabel(link: string | { label?: string; href?: string }): string {
   if (typeof link === 'string') return link
@@ -299,10 +346,10 @@ export default function FooterBlock({ site, style, props, liveItems, blockId }: 
   const rawCols = props.footer_columns as RawColumn[] | undefined
   const footerColumns = normalizeFooterColumns(rawCols, storePath, previewShell === true, profile, effectiveVendor)
   const showSocial = props.show_social !== false
-  const socialLinks = normalizeFooterSocialLinks({
-    ...(effectiveVendor?.social_links as Record<string, string> | undefined),
-    ...(props.social_links as Record<string, string> | undefined),
-  })
+  const socialLinks = resolveFooterSocialLinks(
+    effectiveVendor?.social_links as Record<string, string> | undefined,
+    props.social_links as Record<string, string> | undefined,
+  )
   const socialIconStyle = readSocialIconStyleFromSettings(effectiveVendor?.settings)
   const showAllSocialIcons = isEditor || previewShell === true
 
@@ -372,6 +419,19 @@ export default function FooterBlock({ site, style, props, liveItems, blockId }: 
               </FooterLink>
             ))}
           </div>
+          {showSocial && blockId && (
+            <div className="mb-4 flex items-center justify-center gap-2">
+              {FOOTER_SOCIAL_PLATFORMS.map(({ key }) => (
+                <BuilderSocialIcon
+                  key={key}
+                  blockId={blockId}
+                  platform={key}
+                  url={socialLinks[key] || ''}
+                  iconStyle={socialIconStyle}
+                />
+              ))}
+            </div>
+          )}
           <BuilderTextField
             fieldKey="copyright"
             blockId={blockId}
@@ -400,6 +460,14 @@ export default function FooterBlock({ site, style, props, liveItems, blockId }: 
               </FooterLink>
             ))}
           </div>
+          {showSocial && (
+            <FooterPublishedSocialRow
+              socialLinks={socialLinks}
+              socialIconStyle={socialIconStyle}
+              className="mb-4"
+              linkClassName={isDark || isBrand ? 'text-white/70 hover:text-white' : undefined}
+            />
+          )}
           <p className={cn('text-xs', isDark || isBrand ? 'text-white/50' : 'text-gray-400')}>{copyright}</p>
         </div>
       </footer>
@@ -433,6 +501,19 @@ export default function FooterBlock({ site, style, props, liveItems, blockId }: 
                   className="text-sm text-gray-500 max-w-sm"
                   placeholder="Short site description"
                 />
+              )}
+              {showSocial && (
+                <div className="mt-4 flex items-center gap-2">
+                  {FOOTER_SOCIAL_PLATFORMS.map(({ key }) => (
+                    <BuilderSocialIcon
+                      key={key}
+                      blockId={blockId!}
+                      platform={key}
+                      url={socialLinks[key] || ''}
+                      iconStyle={socialIconStyle}
+                    />
+                  ))}
+                </div>
               )}
             </div>
             {navLinks.length > 0 && (
@@ -475,6 +556,13 @@ export default function FooterBlock({ site, style, props, liveItems, blockId }: 
               <p className="text-xl font-bold mb-3" style={{ color: style.primary_color }}>{brand}</p>
             )}
             {description && <p className="text-sm text-gray-500 max-w-sm">{description}</p>}
+            {showSocial && (
+              <FooterPublishedSocialRow
+                socialLinks={socialLinks}
+                socialIconStyle={socialIconStyle}
+                className="mt-4 justify-start"
+              />
+            )}
           </div>
           {navLinks.length > 0 && (
             <div>

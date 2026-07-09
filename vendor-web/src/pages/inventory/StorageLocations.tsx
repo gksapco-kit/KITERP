@@ -21,6 +21,8 @@ import {
   Boxes, MapPin,
 } from 'lucide-react'
 import { ResizableTable } from '@/components/table/ResizableTable'
+import { InlineEditCell } from '@/components/table/InlineEditCell'
+import { useInlineFieldPatch, INLINE_EDIT_HINT } from '@/hooks/useInlineFieldPatch'
 import type { StorageLocation, CustomField } from '@/types'
 
 const selectCls = 'h-10 text-sm'
@@ -88,12 +90,14 @@ function CustomFieldsEditor({ fields, onChange }: { fields: CustomField[]; onCha
   )
 }
 
-function LocationRow({ loc, level, onEdit, onAddSub, onDelete }: {
+function LocationRow({ loc, level, onEdit, onAddSub, onDelete, patchField, isSaving }: {
   loc: StorageLocation
   level: number
   onEdit: (l: StorageLocation) => void
   onAddSub: (parentId: string) => void
   onDelete: (id: string) => void
+  patchField: (id: string, field: string, value: unknown) => Promise<void>
+  isSaving: (id: string, field: string) => boolean
 }) {
   const [expanded, setExpanded] = useState(true)
   const hasChildren = loc.children && loc.children.length > 0
@@ -113,21 +117,54 @@ function LocationRow({ loc, level, onEdit, onAddSub, onDelete }: {
             )}
             <MapPin className={`w-4 h-4 shrink-0 ${level === 0 ? 'text-indigo-500' : 'text-gray-400'}`} />
             <div>
-              <p className="text-sm font-medium">{loc.name}</p>
+              <InlineEditCell
+                value={loc.name}
+                saving={isSaving(loc.id, 'name')}
+                onSave={(v) => patchField(loc.id, 'name', String(v).trim())}
+                className="text-sm font-medium"
+              >
+                {loc.name}
+              </InlineEditCell>
               {loc.description && <p className="text-xs text-gray-500">{loc.description}</p>}
             </div>
           </div>
         </td>
-        <td className="px-4 py-3 text-sm text-gray-600">{loc.code || '—'}</td>
-        <td className="px-4 py-3">
-          {loc.custom_fields?.length > 0 && (
-            <span className="text-xs text-gray-500">{loc.custom_fields.length} field{loc.custom_fields.length > 1 ? 's' : ''}</span>
-          )}
+        <td className="px-4 py-3 text-sm text-gray-600">
+          <InlineEditCell
+            value={loc.code || ''}
+            saving={isSaving(loc.id, 'code')}
+            onSave={(v) => patchField(loc.id, 'code', String(v).trim())}
+          >
+            {loc.code || '—'}
+          </InlineEditCell>
         </td>
         <td className="px-4 py-3">
-          <span className={`px-2 py-0.5 text-xs rounded-full font-medium ${loc.is_active ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
-            {loc.is_active ? 'Active' : 'Inactive'}
-          </span>
+          <InlineEditCell
+            readOnly
+            readOnlyMessage="Custom fields are edited in the location form"
+            value={loc.custom_fields?.length ?? 0}
+            onSave={() => {}}
+          >
+            {loc.custom_fields?.length > 0 && (
+              <span className="text-xs text-gray-500">{loc.custom_fields.length} field{loc.custom_fields.length > 1 ? 's' : ''}</span>
+            )}
+          </InlineEditCell>
+        </td>
+        <td className="px-4 py-3">
+          <InlineEditCell
+            type="select"
+            value={loc.is_active ? 'true' : 'false'}
+            options={[
+              { value: 'true', label: 'Active' },
+              { value: 'false', label: 'Inactive' },
+            ]}
+            saving={isSaving(loc.id, 'is_active')}
+            onSave={(v) => patchField(loc.id, 'is_active', v === 'true')}
+          >
+            <span className={`px-2 py-0.5 text-xs rounded-full font-medium ${loc.is_active ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
+              {loc.is_active ? 'Active' : 'Inactive'}
+            </span>
+          </InlineEditCell>
         </td>
         <td className="px-4 py-3 text-right">
           <div className="flex items-center justify-end gap-1">
@@ -156,6 +193,8 @@ function LocationRow({ loc, level, onEdit, onAddSub, onDelete }: {
           onEdit={onEdit}
           onAddSub={onAddSub}
           onDelete={onDelete}
+          patchField={patchField}
+          isSaving={isSaving}
         />
       ))}
     </>
@@ -188,6 +227,10 @@ export default function StorageLocationsPage() {
   const createLocation = useCreateStorageLocation()
   const updateLocation = useUpdateStorageLocation()
   const deleteLocation = useDeleteStorageLocation()
+  const { patchField: patchLocationField, cellKey, savingCellKey } = useInlineFieldPatch({
+    mutateAsync: ({ id, data }) => updateLocation.mutateAsync({ id, data }),
+  })
+  const isSaving = (id: string, field: string) => savingCellKey === cellKey(id, field)
 
   const [showForm, setShowForm] = useState(false)
   const [editing, setEditing] = useState<StorageLocation | null>(null)
@@ -347,7 +390,7 @@ export default function StorageLocationsPage() {
 
       <Card>
         <CardContent className="p-0">
-          <div className="px-4 py-3 border-b">
+          <div className="px-4 py-3 border-b space-y-1">
             <div className="relative max-w-sm">
               <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
               <Input
@@ -357,6 +400,7 @@ export default function StorageLocationsPage() {
                 className="pl-9 h-9"
               />
             </div>
+            <p className="text-xs text-gray-400">{INLINE_EDIT_HINT}</p>
           </div>
           {stores.length === 0 ? (
             <p className="text-sm text-gray-400 text-center py-12">Create a business unit first to manage storage locations.</p>
@@ -389,6 +433,8 @@ export default function StorageLocationsPage() {
                       onEdit={openEdit}
                       onAddSub={openCreate}
                       onDelete={id => deleteLocation.mutate(id)}
+                      patchField={patchLocationField}
+                      isSaving={isSaving}
                     />
                   ))
                 )}

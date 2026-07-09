@@ -7,18 +7,24 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Select } from '@/components/ui/select'
 import { useProducts, useDeleteProduct, useUpdateProduct, useCategoryTree } from '@/hooks/useVendor'
+import { useInlineFieldPatch, INLINE_EDIT_HINT } from '@/hooks/useInlineFieldPatch'
 import { useVendorStore } from '@/stores/vendorStore'
 import { flattenCategoryTree, filterCategoryTree } from '@/lib/categoryHierarchy'
 import { formatCurrency, formatDate, mediaUrl } from '@/lib/utils'
 import { processRows, type SortDir } from '@/lib/tableList'
-import { onClickableTableRow } from '@/lib/clickableTableRow'
 import { ResizableTable } from '@/components/table/ResizableTable'
+import { InlineEditCell } from '@/components/table/InlineEditCell'
+import {
+  VariantInlineEditor,
+  formatVariantPriceRange,
+  formatVariantStockTotal,
+} from '@/components/products/VariantInlineEditor'
 import type { Product } from '@/types'
 import { toast } from 'sonner'
 import { extractApiError } from '@/lib/errorMessages'
 import {
   Plus, Search, Pencil, Trash2, Loader2, X, ChevronLeft, ChevronRight,
-  Filter, Copy, Share2, Mail, MessageCircle, MoreVertical, Package,
+  Filter, Copy, Share2, Mail, MessageCircle, MoreVertical, Package, Eye,
   Image as ImageIcon, ChevronUp, ChevronDown, ChevronsUpDown, ScanLine,
   Layers, Palette, Ruler,
 } from 'lucide-react'
@@ -28,7 +34,6 @@ import {
 } from '@/lib/productVariantPresets'
 import { vendorApi } from '@/api/vendor'
 import { BarcodeScannerModal } from '@/components/scanner/BarcodeScannerModal'
-import { CatalogItemStatusCell } from '@/components/common/CatalogItemStatusCell'
 import {
   CatalogFilterField,
   CatalogListFiltersPanel,
@@ -53,7 +58,17 @@ function shareProduct(product: { name: string; price: number; category?: string;
   else { navigator.clipboard.writeText(text); toast.success('Product info copied!') }
 }
 
-function MoreMenu({ product, onDelete }: { product: Product; onDelete: () => void }) {
+function MoreMenu({
+  product,
+  onView,
+  onEdit,
+  onDelete,
+}: {
+  product: Product
+  onView: () => void
+  onEdit: () => void
+  onDelete: () => void
+}) {
   const [open, setOpen] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
   const triggerRef = useRef<HTMLButtonElement>(null)
@@ -93,6 +108,15 @@ function MoreMenu({ product, onDelete }: { product: Product; onDelete: () => voi
       style={{ position: 'absolute', top: pos.top, right: pos.right, zIndex: 9999, transform: pos.openUp ? 'translateY(-100%)' : undefined }}
       className="w-44 bg-popover text-popover-foreground rounded-lg border border-border shadow-lg py-1 animate-in fade-in-0 zoom-in-95 max-h-[min(90vh,24rem)] overflow-y-auto"
     >
+      <button className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+        onClick={() => { onView(); setOpen(false) }}>
+        <Eye className="w-4 h-4 text-blue-500" /> View
+      </button>
+      <button className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+        onClick={() => { onEdit(); setOpen(false) }}>
+        <Pencil className="w-4 h-4 text-gray-500" /> Edit
+      </button>
+      <div className="border-t my-1" />
       <button className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
         onClick={() => { shareProduct(product, 'copy'); setOpen(false) }}>
         <Copy className="w-4 h-4 text-gray-400" /> Copy Info
@@ -149,6 +173,11 @@ function MoreMenu({ product, onDelete }: { product: Product; onDelete: () => voi
   )
 }
 
+const ACTIVE_INACTIVE_OPTIONS = [
+  { value: 'true', label: 'Active' },
+  { value: 'false', label: 'Inactive' },
+]
+
 export default function Products() {
   const navigate = useNavigate()
   const selectedStore = useVendorStore(s => s.selectedStore)
@@ -199,6 +228,8 @@ export default function Products() {
   })
   const deleteProduct = useDeleteProduct()
   const updateProduct = useUpdateProduct()
+  const { savingCellKey, setSavingCellKey, cellKey, patchField: patchProductField } = useInlineFieldPatch(updateProduct)
+
   const [productDeleteId, setProductDeleteId] = useState<string | null>(null)
   const [variantDeleteKey, setVariantDeleteKey] = useState<string | null>(null)
   const [variantDeletingKey, setVariantDeletingKey] = useState<string | null>(null)
@@ -296,12 +327,45 @@ export default function Products() {
     )
   }, [data?.items, sortKey, sortDir, categorySub])
 
+  const patchVariantFields = useCallback(async (
+    productId: string,
+    variantId: string,
+    updates: Record<string, unknown>,
+    savingField?: string,
+  ) => {
+    const product = displayProducts.find(p => p.id === productId)
+    if (!product) {
+      toast.error('Product not found')
+      return
+    }
+    const field = savingField ?? Object.keys(updates)[0] ?? 'variant'
+    const key = `${productId}:variant:${variantId}:${field}`
+    setSavingCellKey(key)
+    try {
+      const updatedVariants = (product.variants || []).map((v) => {
+        const payload = variantToUpdatePayload(v)
+        return v.id === variantId ? { ...payload, ...updates } : payload
+      })
+      await updateProduct.mutateAsync({ id: productId, data: { variants: updatedVariants } })
+    } finally {
+      setSavingCellKey(null)
+    }
+  }, [displayProducts, updateProduct])
+
+  const patchVariantField = useCallback(async (
+    productId: string,
+    variantId: string,
+    field: 'price' | 'quantity',
+    value: number,
+  ) => patchVariantFields(productId, variantId, { [field]: value }, field),
+  [patchVariantFields])
+
   // Flattened variant rows for variant-wise view
   const variantRows = useMemo(() => {
     if (viewMode !== 'variant') return []
     const rows: {
       productId: string; productName: string; productCategory: string; productType: string; thumbUrl: string
-      groupKey: string; variantName: string; variantCount: number; variantIds: string[]; canDelete: boolean
+      groupKey: string; variantName: string; variantRawName: string; variantCount: number; variantIds: string[]; canDelete: boolean
       sku: string; uom: string; uom_quantity: number | null
       price: number; priceHigh: number; quantity: number; stock_status: string; low_stock_threshold: number; currency: string; is_active: boolean
     }[] = []
@@ -314,7 +378,7 @@ export default function Products() {
           productId: product.id, productName: product.name,
           productCategory: product.category || 'Uncategorized', productType: product.product_type || 'physical',
           thumbUrl: productThumb,
-          groupKey: 'default', variantName: '—', variantCount: 0, variantIds: [], canDelete: false,
+          groupKey: 'default', variantName: '—', variantRawName: '', variantCount: 0, variantIds: [], canDelete: false,
           sku: product.sku || '', uom: product.uom || 'piece', uom_quantity: product.uom_quantity ?? null,
           price: product.price, priceHigh: product.price, quantity: product.quantity ?? 0,
           stock_status: product.stock_status || 'in_stock', low_stock_threshold: product.low_stock_threshold ?? 5,
@@ -322,7 +386,7 @@ export default function Products() {
         })
       } else {
         for (const v of variants) {
-          const vImg = (v.images || v.media || []).find((img: any) => img?.url)
+          const vImg = (v.media || []).find((img) => img?.url)
           const vThumb = vImg ? resolveUrl(vImg.url) : productThumb
           const price = v.price ?? 0
           const qty = v.quantity ?? 0
@@ -332,6 +396,7 @@ export default function Products() {
             thumbUrl: vThumb,
             groupKey: v.id || `${product.id}-${v.name || 'variant'}`,
             variantName: formatVariantDisplayLabel(v.name || '', v.attributes),
+            variantRawName: v.name || '',
             variantCount: 1,
             variantIds: v.id ? [v.id] : [],
             canDelete: Boolean(v.id),
@@ -526,6 +591,7 @@ export default function Products() {
               </Button>
             </div>
           )}
+          <p className="text-xs text-gray-400 px-1">{INLINE_EDIT_HINT}</p>
         </CardContent>
       </Card>
 
@@ -536,7 +602,7 @@ export default function Products() {
 
           {/* ── Product-wise view ── */}
           {viewMode === 'product' && (
-          <ResizableTable tableId="products" defaultWidths={[280, 120, 90, 100, 110, 90, 80]}>
+          <ResizableTable tableId="products" defaultWidths={[280, 120, 90, 100, 110, 90, 110]}>
             <thead>
               <tr className="border-b bg-gray-50/80">
                 {([
@@ -604,7 +670,6 @@ export default function Products() {
               ) : displayProducts.map((product) => {
                 const variants = product.variants || []
                 const hasVariants = variants.length > 0
-                const symbol = product.currency === 'INR' ? '\u20B9' : '$'
                 const primaryImg = product.images?.find((img: any) => img.is_primary) || product.images?.[0]
                 const variantImg = !primaryImg
                   ? variants.flatMap((v: any) => v.images || v.media || []).find((img: any) => img?.url)
@@ -612,42 +677,98 @@ export default function Products() {
                 const thumbUrl = primaryImg ? resolveUrl(primaryImg.url) : variantImg ? resolveUrl(variantImg.url) : ''
 
                 return (
-                <tr key={product.id} className="hover:bg-gray-50/80 cursor-pointer transition-colors group" onClick={onClickableTableRow(() => navigate(`/products/${product.id}`))}>
+                <tr key={product.id} className="hover:bg-gray-50/80 transition-colors group">
                   <td className="px-5 py-3 max-w-[280px]">
                     <div className="flex items-center gap-3 min-w-0">
                       {thumbUrl ? (
-                        <img src={thumbUrl} alt="" className="w-10 h-10 rounded-lg object-cover bg-gray-100 border border-gray-200/80" />
+                        <img src={thumbUrl} alt="" className="w-10 h-10 rounded-lg object-cover bg-gray-100 border border-gray-200/80 shrink-0" />
                       ) : (
-                        <div className="w-10 h-10 rounded-lg bg-gray-100 border border-gray-200/80 flex items-center justify-center">
+                        <div className="w-10 h-10 rounded-lg bg-gray-100 border border-gray-200/80 flex items-center justify-center shrink-0">
                           <ImageIcon className="w-4 h-4 text-gray-300" />
                         </div>
                       )}
-                      <div className="min-w-0">
-                        <p className="text-sm font-medium text-gray-900 group-hover:text-blue-700 transition-colors truncate">{product.name}</p>
-                        <p className="text-xs text-gray-400 truncate">{product.category || 'Uncategorized'}</p>
+                      <div className="min-w-0 flex-1">
+                        <InlineEditCell
+                          value={product.name}
+                          saving={savingCellKey === cellKey(product.id, 'name')}
+                          validate={(v) => String(v).trim().length < 2 ? 'Min 2 characters' : null}
+                          onSave={(v) => patchProductField(product.id, 'name', String(v).trim())}
+                          className="-mx-1.5"
+                          title="Edit product name"
+                        >
+                          <span className="text-sm font-medium text-gray-900">{product.name}</span>
+                        </InlineEditCell>
+                        <InlineEditCell
+                          value={product.category || ''}
+                          saving={savingCellKey === cellKey(product.id, 'category')}
+                          onSave={(v) => patchProductField(product.id, 'category', String(v).trim())}
+                          title="Edit category"
+                        >
+                          <span className="text-xs text-gray-400">{product.category || 'Uncategorized'}</span>
+                        </InlineEditCell>
                       </div>
                     </div>
                   </td>
                   <td className="px-4 py-3 max-w-[120px]">
-                    <p className="text-sm text-gray-600 truncate" title={product.brand || undefined}>{product.brand || '—'}</p>
+                    <InlineEditCell
+                      value={product.brand || ''}
+                      saving={savingCellKey === cellKey(product.id, 'brand')}
+                      onSave={(v) => patchProductField(product.id, 'brand', String(v).trim())}
+                      title="Edit brand"
+                    >
+                      <span className="text-sm text-gray-600">{product.brand || '—'}</span>
+                    </InlineEditCell>
                   </td>
                   <td className="px-4 py-3">
-                    <span className="px-2 py-0.5 text-xs rounded-full font-semibold bg-blue-50 text-blue-700 whitespace-nowrap">{productTypeLabel(product.product_type)}</span>
+                    <InlineEditCell
+                      type="select"
+                      value={product.product_type || 'physical'}
+                      options={PRODUCT_TYPE_FILTER_OPTIONS}
+                      saving={savingCellKey === cellKey(product.id, 'product_type')}
+                      onSave={(v) => patchProductField(product.id, 'product_type', v)}
+                      title="Edit product type"
+                    >
+                      <span className="px-2 py-0.5 text-xs rounded-full font-semibold bg-blue-50 text-blue-700 whitespace-nowrap">
+                        {productTypeLabel(product.product_type)}
+                      </span>
+                    </InlineEditCell>
                   </td>
                   <td className="px-4 py-3 max-w-[110px]">
                     {(() => {
-                      if (!hasVariants) return <span className="text-sm font-medium text-gray-900 truncate block">{formatCurrency(product.price)}</span>
-                      const prices = variants.map((v: any) => v.price).filter((p: number) => p > 0).sort((a: number, b: number) => a - b)
-                      if (prices.length === 0) return <span className="text-sm text-gray-400">—</span>
-                      const low = prices[0]
-                      const high = prices[prices.length - 1]
+                      if (!hasVariants) {
+                        return (
+                          <InlineEditCell
+                            type="number"
+                            value={product.price}
+                            min={0}
+                            step="0.01"
+                            saving={savingCellKey === cellKey(product.id, 'price')}
+                            validate={(v) => Number(v) < 0 ? 'Price must be 0 or more' : null}
+                            onSave={(v) => patchProductField(product.id, 'price', Number(v))}
+                            title="Edit price"
+                          >
+                            <span className="text-sm font-medium text-gray-900">{formatCurrency(product.price)}</span>
+                          </InlineEditCell>
+                        )
+                      }
+                      const prices = variants.map((v) => v.price).filter((p) => p > 0).sort((a, b) => a - b)
+                      if (prices.length === 0) return <span className="text-sm text-gray-400 px-1.5">—</span>
+                      const { text, sub } = formatVariantPriceRange(variants, product.currency)
                       return (
-                        <div className="min-w-0">
-                          <p className="text-sm font-medium text-gray-900 truncate">
-                            {low === high ? formatCurrency(low) : `${symbol}${low.toLocaleString()} – ${symbol}${high.toLocaleString()}`}
-                          </p>
-                          <p className="text-xs text-gray-400">{variants.length} variant{variants.length > 1 ? 's' : ''}</p>
-                        </div>
+                        <VariantInlineEditor
+                          productId={product.id}
+                          variants={variants}
+                          field="price"
+                          currency={product.currency}
+                          savingKey={savingCellKey}
+                          onSaveVariant={(variantId, value) => patchVariantField(product.id, variantId, 'price', value)}
+                          display={(
+                            <div className="min-w-0">
+                              <p className="text-sm font-medium text-gray-900 truncate">{text}</p>
+                              <p className="text-xs text-gray-400">{sub}</p>
+                            </div>
+                          )}
+                        />
                       )
                     })()}
                   </td>
@@ -659,36 +780,98 @@ export default function Products() {
                         const isOut = sts === 'out_of_stock' || sts === 'discontinued'
                         const isLow = !isOut && qty <= (product.low_stock_threshold ?? 5)
                         return (
-                          <div className="min-w-0">
-                            <p>
-                              <span className={`text-sm font-semibold ${isOut ? 'text-red-600' : isLow ? 'text-amber-600' : 'text-gray-800'}`}>{qty}</span>
-                              <span className={`ml-1 text-xs ${isOut ? 'text-red-400' : 'text-gray-400'}`}>{sts.replace(/_/g, ' ')}</span>
-                            </p>
+                          <div className="space-y-1">
+                            <InlineEditCell
+                              type="number"
+                              value={qty}
+                              min={0}
+                              step="1"
+                              saving={savingCellKey === cellKey(product.id, 'quantity')}
+                              validate={(v) => Number(v) < 0 || !Number.isInteger(Number(v)) ? 'Enter a whole number ≥ 0' : null}
+                              parse={(raw) => Math.max(0, Math.round(Number(raw) || 0))}
+                              onSave={(v) => patchProductField(product.id, 'quantity', Number(v))}
+                              title="Edit stock quantity"
+                            >
+                              <span className={`text-sm font-semibold ${isOut ? 'text-red-600' : isLow ? 'text-amber-600' : 'text-gray-800'}`}>
+                                {qty}
+                              </span>
+                            </InlineEditCell>
+                            <InlineEditCell
+                              type="select"
+                              value={sts}
+                              options={PRODUCT_STOCK_FILTER_OPTIONS}
+                              saving={savingCellKey === cellKey(product.id, 'stock_status')}
+                              onSave={(v) => patchProductField(product.id, 'stock_status', v)}
+                              title="Edit stock status"
+                            >
+                              <span className={`text-xs ${isOut ? 'text-red-400' : 'text-gray-400'}`}>{sts.replace(/_/g, ' ')}</span>
+                            </InlineEditCell>
                           </div>
                         )
                       }
-                      const totalStock = variants.reduce((s: number, v: any) => s + (v.quantity || 0), 0)
-                      const outCount = variants.filter((v: any) => v.stock_status === 'out_of_stock' || (v.quantity || 0) === 0).length
-                      const isAllOut = outCount === variants.length
-                      const hasLow = !isAllOut && outCount > 0
+                      const { total, outCount, isAllOut, hasLow, variantCount } = formatVariantStockTotal(variants)
                       return (
-                        <div className="min-w-0">
-                          <p>
-                            <span className={`text-sm font-semibold ${isAllOut ? 'text-red-600' : hasLow ? 'text-amber-600' : 'text-gray-800'}`}>
-                              {totalStock.toLocaleString()}
-                            </span>
-                            <span className="text-xs text-gray-400 ml-1">total</span>
-                          </p>
-                          {outCount > 0 && !isAllOut && (
-                            <p className="text-xs text-red-400 truncate">{outCount}/{variants.length} out of stock</p>
+                        <VariantInlineEditor
+                          productId={product.id}
+                          variants={variants}
+                          field="quantity"
+                          savingKey={savingCellKey}
+                          onSaveVariant={(variantId, value) => patchVariantField(product.id, variantId, 'quantity', value)}
+                          display={(
+                            <div className="min-w-0">
+                              <p>
+                                <span className={`text-sm font-semibold ${isAllOut ? 'text-red-600' : hasLow ? 'text-amber-600' : 'text-gray-800'}`}>
+                                  {total.toLocaleString()}
+                                </span>
+                                <span className="text-xs text-gray-400 ml-1">total</span>
+                              </p>
+                              {outCount > 0 && !isAllOut && (
+                                <p className="text-xs text-red-400 truncate">{outCount}/{variantCount} out of stock</p>
+                              )}
+                              {isAllOut && <p className="text-xs text-red-400">all out of stock</p>}
+                            </div>
                           )}
-                          {isAllOut && <p className="text-xs text-red-400">all out of stock</p>}
-                        </div>
+                        />
                       )
                     })()}
                   </td>
                   <td className="px-4 py-3">
-                    <CatalogItemStatusCell status={product.status} isVisible={product.is_visible} />
+                    <div className="flex flex-col gap-1 min-w-[6.5rem]">
+                      <InlineEditCell
+                        type="select"
+                        value={product.status}
+                        options={PRODUCT_STATUS_FILTER_OPTIONS}
+                        saving={savingCellKey === cellKey(product.id, 'status')}
+                        onSave={(v) => patchProductField(product.id, 'status', v)}
+                        title="Edit status"
+                      >
+                        <span className={`px-2 py-0.5 text-xs rounded-full font-semibold whitespace-nowrap capitalize ${
+                          product.status === 'active'
+                            ? 'bg-green-100 text-green-700'
+                            : product.status === 'archived'
+                              ? 'bg-red-50 text-red-600'
+                              : 'bg-gray-100 text-gray-700'
+                        }`}>
+                          {product.status}
+                        </span>
+                      </InlineEditCell>
+                      <InlineEditCell
+                        type="select"
+                        value={product.is_visible ? 'true' : 'false'}
+                        options={VISIBILITY_FILTER_OPTIONS}
+                        saving={savingCellKey === cellKey(product.id, 'is_visible')}
+                        onSave={(v) => patchProductField(product.id, 'is_visible', v === 'true')}
+                        title="Edit visibility"
+                      >
+                        <span className={`px-2 py-0.5 text-xs rounded-full font-semibold whitespace-nowrap ${
+                          product.is_visible
+                            ? 'bg-emerald-50 text-emerald-700 border border-emerald-100'
+                            : 'bg-amber-50 text-amber-800 border border-amber-100'
+                        }`}>
+                          {product.is_visible ? 'Visible' : 'Hidden'}
+                        </span>
+                      </InlineEditCell>
+                    </div>
                   </td>
                   <td className="px-5 py-3 text-right" onClick={(e) => e.stopPropagation()}>
                     {productDeleteId === product.id ? (
@@ -723,7 +906,16 @@ export default function Products() {
                           variant="ghost"
                           size="sm"
                           className="h-8 w-8 p-0"
-                          title="Edit"
+                          title="View product"
+                          onClick={() => navigate(`/products/${product.id}`)}
+                        >
+                          <Eye className="w-4 h-4 text-blue-500" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-8 w-8 p-0"
+                          title="Edit product"
                           onClick={() => navigate(`/products/${product.id}?edit=true`)}
                         >
                           <Pencil className="w-4 h-4 text-gray-500" />
@@ -737,7 +929,12 @@ export default function Products() {
                         >
                           <Trash2 className="w-4 h-4" />
                         </Button>
-                        <MoreMenu product={product} onDelete={() => deleteProduct.mutate(product.id)} />
+                        <MoreMenu
+                          product={product}
+                          onView={() => navigate(`/products/${product.id}`)}
+                          onEdit={() => navigate(`/products/${product.id}?edit=true`)}
+                          onDelete={() => deleteProduct.mutate(product.id)}
+                        />
                       </div>
                     )}
                   </td>
@@ -793,11 +990,14 @@ export default function Products() {
                 const isConfirmingDelete = variantDeleteKey === rowKey
                 const isDeleting = variantDeletingKey === rowKey
 
+                const variantId = row.variantIds[0]
+                const variantPriceKey = variantId ? `${row.productId}:variant:${variantId}:price` : cellKey(row.productId, 'price')
+                const variantQtyKey = variantId ? `${row.productId}:variant:${variantId}:quantity` : cellKey(row.productId, 'quantity')
+
                 return (
                   <tr
                     key={`${row.productId}-${row.groupKey}-${i}`}
-                    className={`hover:bg-gray-50/80 cursor-pointer transition-colors group ${isFirstOfProduct && i > 0 ? 'border-t-2 border-t-gray-200' : ''}`}
-                    onClick={onClickableTableRow(() => navigate(`/products/${row.productId}`))}
+                    className={`hover:bg-gray-50/80 transition-colors group ${isFirstOfProduct && i > 0 ? 'border-t-2 border-t-gray-200' : ''}`}
                   >
                     <td className="px-5 py-2.5 max-w-[240px]">
                       <div className="flex items-center gap-2.5 min-w-0">
@@ -808,51 +1008,192 @@ export default function Products() {
                             <ImageIcon className="w-3.5 h-3.5 text-gray-300" />
                           </div>
                         )}
-                        <div className="min-w-0">
-                          <p className="text-xs font-semibold text-gray-900 group-hover:text-blue-700 transition-colors truncate">{row.productName}</p>
-                          <p className="text-[10px] text-gray-400 truncate">{row.productCategory}</p>
+                        <div className="min-w-0 flex-1">
+                          <InlineEditCell
+                            value={row.productName}
+                            saving={savingCellKey === cellKey(row.productId, 'name')}
+                            validate={(v) => String(v).trim().length < 2 ? 'Min 2 characters' : null}
+                            onSave={(v) => patchProductField(row.productId, 'name', String(v).trim())}
+                            className="-mx-1"
+                            title="Edit product name"
+                          >
+                            <span className="text-xs font-semibold text-gray-900">{row.productName}</span>
+                          </InlineEditCell>
+                          <InlineEditCell
+                            value={row.productCategory === 'Uncategorized' ? '' : row.productCategory}
+                            saving={savingCellKey === cellKey(row.productId, 'category')}
+                            onSave={(v) => patchProductField(row.productId, 'category', String(v).trim())}
+                            title="Edit category"
+                          >
+                            <span className="text-[10px] text-gray-400">{row.productCategory}</span>
+                          </InlineEditCell>
                         </div>
                       </div>
                     </td>
                     <td className="px-4 py-2.5">
-                      <p className="text-sm text-gray-700 font-medium truncate" title={row.variantName}>{row.variantName}</p>
-                      {!row.is_active && (
-                        <span className="text-[10px] text-amber-600 font-medium">Inactive</span>
+                      {variantId ? (
+                        <InlineEditCell
+                          value={row.variantRawName}
+                          saving={savingCellKey === `${row.productId}:variant:${variantId}:name`}
+                          validate={(v) => String(v).trim().length < 1 ? 'Name required' : null}
+                          onSave={(v) => patchVariantFields(row.productId, variantId, { name: String(v).trim() }, 'name')}
+                          title="Edit variant name"
+                        >
+                          <span className="text-sm text-gray-700 font-medium truncate">{row.variantName}</span>
+                        </InlineEditCell>
+                      ) : (
+                        <span className="text-sm text-gray-700 font-medium px-1.5">{row.variantName}</span>
                       )}
                     </td>
                     <td className="px-4 py-2.5">
-                      <span className="text-sm font-semibold tabular-nums text-gray-800">
-                        {row.variantCount > 0 ? row.variantCount : '—'}
-                      </span>
+                      <InlineEditCell
+                        type="number"
+                        value={row.variantCount}
+                        readOnly
+                        readOnlyMessage="Variant count is automatic"
+                        title="Variant count"
+                      >
+                        <span className="text-sm font-semibold tabular-nums text-gray-800">
+                          {row.variantCount > 0 ? row.variantCount : '—'}
+                        </span>
+                      </InlineEditCell>
                     </td>
                     <td className="px-4 py-2.5">
-                      <p className="text-xs font-mono text-gray-500 truncate">{row.sku || '—'}</p>
+                      {variantId ? (
+                        <InlineEditCell
+                          value={row.sku}
+                          saving={savingCellKey === `${row.productId}:variant:${variantId}:sku`}
+                          onSave={(v) => patchVariantFields(row.productId, variantId, { sku: String(v).trim() }, 'sku')}
+                          title="Edit SKU"
+                          inputClassName="font-mono text-xs"
+                        >
+                          <span className="text-xs font-mono text-gray-500">{row.sku || '—'}</span>
+                        </InlineEditCell>
+                      ) : (
+                        <InlineEditCell
+                          value={row.sku}
+                          saving={savingCellKey === cellKey(row.productId, 'sku')}
+                          onSave={(v) => patchProductField(row.productId, 'sku', String(v).trim())}
+                          title="Edit SKU"
+                          inputClassName="font-mono text-xs"
+                        >
+                          <span className="text-xs font-mono text-gray-500">{row.sku || '—'}</span>
+                        </InlineEditCell>
+                      )}
                     </td>
                     <td className="px-4 py-2.5">
-                      <span className="text-xs text-gray-600 whitespace-nowrap">{packLabel}</span>
+                      {variantId ? (
+                        <div className="space-y-1">
+                          <InlineEditCell
+                            type="number"
+                            value={row.uom_quantity ?? 0}
+                            min={0}
+                            step="0.01"
+                            saving={savingCellKey === `${row.productId}:variant:${variantId}:uom_quantity`}
+                            onSave={(v) => patchVariantFields(row.productId, variantId, { uom_quantity: Number(v) || null }, 'uom_quantity')}
+                            title="Edit pack quantity"
+                          >
+                            <span className="text-xs text-gray-600">{row.uom_quantity ?? '—'}</span>
+                          </InlineEditCell>
+                          <InlineEditCell
+                            value={row.uom}
+                            saving={savingCellKey === `${row.productId}:variant:${variantId}:uom`}
+                            onSave={(v) => patchVariantFields(row.productId, variantId, { uom: String(v).trim() }, 'uom')}
+                            title="Edit unit"
+                          >
+                            <span className="text-xs text-gray-500">{row.uom}</span>
+                          </InlineEditCell>
+                        </div>
+                      ) : (
+                        <InlineEditCell
+                          value={row.uom}
+                          saving={savingCellKey === cellKey(row.productId, 'uom')}
+                          onSave={(v) => patchProductField(row.productId, 'uom', String(v).trim())}
+                          title="Edit unit"
+                        >
+                          <span className="text-xs text-gray-600">{packLabel}</span>
+                        </InlineEditCell>
+                      )}
                     </td>
                     <td className="px-4 py-2.5">
-                      <span className="text-sm font-semibold text-gray-900 tabular-nums">
-                        {row.price > 0
-                          ? row.priceHigh > row.price
-                            ? `${sym}${row.price.toLocaleString()} – ${sym}${row.priceHigh.toLocaleString()}`
-                            : `${sym}${row.price.toLocaleString()}`
-                          : '—'}
-                      </span>
+                      <InlineEditCell
+                        type="number"
+                        value={row.price}
+                        min={0}
+                        step="0.01"
+                        saving={savingCellKey === variantPriceKey}
+                        validate={(v) => Number(v) < 0 ? 'Price must be 0 or more' : null}
+                        onSave={(v) => (
+                          variantId
+                            ? patchVariantField(row.productId, variantId, 'price', Number(v))
+                            : patchProductField(row.productId, 'price', Number(v))
+                        )}
+                        title="Edit price"
+                      >
+                        <span className="text-sm font-semibold text-gray-900 tabular-nums">
+                          {row.price > 0
+                            ? row.priceHigh > row.price
+                              ? `${sym}${row.price.toLocaleString()} – ${sym}${row.priceHigh.toLocaleString()}`
+                              : `${sym}${row.price.toLocaleString()}`
+                            : '—'}
+                        </span>
+                      </InlineEditCell>
                     </td>
                     <td className="px-4 py-2.5">
-                      <span className={`text-sm font-semibold tabular-nums ${isOut ? 'text-red-600' : isLow ? 'text-amber-600' : 'text-gray-800'}`}>
-                        {row.quantity.toLocaleString()}
-                      </span>
-                      {isLow && !isOut && <span className="ml-1 text-[10px] text-amber-500">low</span>}
-                      {isOut && <span className="ml-1 text-[10px] text-red-400">{row.stock_status.replace(/_/g, ' ')}</span>}
+                      <InlineEditCell
+                        type="number"
+                        value={row.quantity}
+                        min={0}
+                        step="1"
+                        saving={savingCellKey === variantQtyKey}
+                        validate={(v) => Number(v) < 0 || !Number.isInteger(Number(v)) ? 'Enter a whole number ≥ 0' : null}
+                        parse={(raw) => Math.max(0, Math.round(Number(raw) || 0))}
+                        onSave={(v) => (
+                          variantId
+                            ? patchVariantField(row.productId, variantId, 'quantity', Number(v))
+                            : patchProductField(row.productId, 'quantity', Number(v))
+                        )}
+                        title="Edit stock"
+                      >
+                        <span className={`text-sm font-semibold tabular-nums ${isOut ? 'text-red-600' : isLow ? 'text-amber-600' : 'text-gray-800'}`}>
+                          {row.quantity.toLocaleString()}
+                        </span>
+                        {isLow && !isOut && <span className="ml-1 text-[10px] text-amber-500">low</span>}
+                        {isOut && <span className="ml-1 text-[10px] text-red-400">{row.stock_status.replace(/_/g, ' ')}</span>}
+                      </InlineEditCell>
                     </td>
                     <td className="px-4 py-2.5">
-                      <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold whitespace-nowrap ${
-                        row.is_active ? 'bg-green-50 text-green-700 border border-green-200' : 'bg-gray-100 text-gray-500 border border-gray-200'
-                      }`}>
-                        {row.is_active ? 'Active' : 'Inactive'}
-                      </span>
+                      {variantId ? (
+                        <InlineEditCell
+                          type="select"
+                          value={row.is_active ? 'true' : 'false'}
+                          options={ACTIVE_INACTIVE_OPTIONS}
+                          saving={savingCellKey === `${row.productId}:variant:${variantId}:is_active`}
+                          onSave={(v) => patchVariantFields(row.productId, variantId, { is_active: v === 'true' }, 'is_active')}
+                          title="Edit variant status"
+                        >
+                          <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold whitespace-nowrap ${
+                            row.is_active ? 'bg-green-50 text-green-700 border border-green-200' : 'bg-gray-100 text-gray-500 border border-gray-200'
+                          }`}>
+                            {row.is_active ? 'Active' : 'Inactive'}
+                          </span>
+                        </InlineEditCell>
+                      ) : (
+                        <InlineEditCell
+                          type="select"
+                          value={row.is_active ? 'true' : 'false'}
+                          options={ACTIVE_INACTIVE_OPTIONS}
+                          saving={savingCellKey === cellKey(row.productId, 'status')}
+                          onSave={(v) => patchProductField(row.productId, 'status', v === 'true' ? 'active' : 'draft')}
+                          title="Edit status"
+                        >
+                          <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold whitespace-nowrap ${
+                            row.is_active ? 'bg-green-50 text-green-700 border border-green-200' : 'bg-gray-100 text-gray-500 border border-gray-200'
+                          }`}>
+                            {row.is_active ? 'Active' : 'Inactive'}
+                          </span>
+                        </InlineEditCell>
+                      )}
                     </td>
                     <td className="px-5 py-2.5 text-right" onClick={(e) => e.stopPropagation()}>
                       {isConfirmingDelete ? (
@@ -883,6 +1224,16 @@ export default function Products() {
                         </div>
                       ) : (
                         <div className="inline-flex items-center gap-0.5">
+                          <Button
+                            variant="ghost" size="sm" className="h-7 w-7 p-0"
+                            title="View product"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              navigate(`/products/${row.productId}`)
+                            }}
+                          >
+                            <Eye className="w-3.5 h-3.5 text-blue-500" />
+                          </Button>
                           <Button
                             variant="ghost" size="sm" className="h-7 w-7 p-0"
                             title="Edit product"

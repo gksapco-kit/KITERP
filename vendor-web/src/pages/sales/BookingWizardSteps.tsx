@@ -6,7 +6,9 @@ import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Card, CardContent } from '@/components/ui/card'
 import { ResizableTable } from '@/components/table/ResizableTable'
+import { InlineEditCell } from '@/components/table/InlineEditCell'
 import { TableToolbar } from '@/components/table/TableToolbar'
+import { useInlineFieldPatch, INLINE_EDIT_HINT } from '@/hooks/useInlineFieldPatch'
 import { TableColumnLabel } from '@/components/common/FieldLabel'
 import { useEscapeToClose } from '@/hooks/useEscapeToClose'
 import { processRows, type SortDir } from '@/lib/tableList'
@@ -120,6 +122,7 @@ export default function SalesBookingWizardStepsPage() {
   }, [data?.items, search, sortKey, sortDir])
 
   const saving = createStep.isPending || updateStep.isPending
+  const { isSaving, patchField } = useInlineFieldPatch(updateStep)
   const nextSortOrder = (data?.items?.length ?? 0)
 
   return (
@@ -156,6 +159,7 @@ export default function SalesBookingWizardStepsPage() {
             sortDir={sortDir}
             onSortKeyChange={setSortKey}
             onSortDirChange={setSortDir}
+            hint={INLINE_EDIT_HINT}
           />
           <div className="overflow-x-auto">
             <ResizableTable tableId="sales-booking-wizard-steps-v1" defaultWidths={[64, 220, 360, 90, 120]}>
@@ -181,13 +185,48 @@ export default function SalesBookingWizardStepsPage() {
                   >
                     <td className="px-4 py-3 text-sm text-muted-foreground">
                       <div className="flex items-center gap-1.5">
-                        <GripVertical className="h-3.5 w-3.5 opacity-40" />
-                        {step.sort_order}
+                        <GripVertical className="h-3.5 w-3.5 opacity-40 shrink-0" />
+                        <InlineEditCell type="number" value={step.sort_order} readOnly readOnlyMessage="Use the full editor to change step order" title="Order">
+                          {step.sort_order}
+                        </InlineEditCell>
                       </div>
                     </td>
-                    <td className="px-4 py-3 text-sm font-medium">{step.label}</td>
-                    <td className="px-4 py-3 text-sm text-muted-foreground line-clamp-2 max-w-sm">{step.description || '—'}</td>
-                    <td className="px-4 py-3 text-sm">{step.is_active ? <span className="text-green-700 font-medium">Active</span> : <span className="text-muted-foreground">Hidden</span>}</td>
+                    <td className="px-4 py-3 text-sm font-medium">
+                      <InlineEditCell
+                        value={step.label}
+                        saving={isSaving(step.id, 'label')}
+                        validate={(v) => String(v).trim().length < 1 ? 'Label is required' : null}
+                        onSave={(v) => patchField(step.id, 'label', String(v).trim())}
+                        title="Edit step label"
+                      >
+                        {step.label}
+                      </InlineEditCell>
+                    </td>
+                    <td className="px-4 py-3 text-sm text-muted-foreground line-clamp-2 max-w-sm">
+                      <InlineEditCell
+                        value={step.description || ''}
+                        saving={isSaving(step.id, 'description')}
+                        onSave={(v) => patchField(step.id, 'description', String(v).trim() || null)}
+                        title="Edit description"
+                      >
+                        {step.description || '—'}
+                      </InlineEditCell>
+                    </td>
+                    <td className="px-4 py-3 text-sm">
+                      <InlineEditCell
+                        type="select"
+                        value={step.is_active ? 'true' : 'false'}
+                        options={[
+                          { value: 'true', label: 'Active' },
+                          { value: 'false', label: 'Hidden' },
+                        ]}
+                        saving={isSaving(step.id, 'is_active')}
+                        onSave={(v) => patchField(step.id, 'is_active', v === 'true')}
+                        title="Edit active status"
+                      >
+                        {step.is_active ? <span className="text-green-700 font-medium">Active</span> : <span className="text-muted-foreground">Hidden</span>}
+                      </InlineEditCell>
+                    </td>
                     <td className="px-4 py-3">
                       <div className="flex items-center justify-end gap-1">
                         <button

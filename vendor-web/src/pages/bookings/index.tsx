@@ -20,6 +20,8 @@ import { TableToolbar } from '@/components/table/TableToolbar'
 import { processRows, type SortDir } from '@/lib/tableList'
 import { onClickableTableRow } from '@/lib/clickableTableRow'
 import { useUpdateBookingStatus } from '@/hooks/useVendor'
+import { useInlineFieldPatch, INLINE_EDIT_HINT } from '@/hooks/useInlineFieldPatch'
+import { InlineEditCell } from '@/components/table/InlineEditCell'
 import { usePanelResize } from '@/hooks/usePanelResize'
 import { DragHandle } from '@/components/common/DragHandle'
 import { QuickCreateCustomerModal } from '@/components/customers/QuickCreateCustomerModal'
@@ -347,6 +349,19 @@ export default function BookingsPage() {
   const [cancelReason, setCancelReason] = useState('')
 
   const updateStatus = useUpdateBookingStatus()
+  const { savingCellKey, cellKey, patchField: patchBookingField } = useInlineFieldPatch({
+    mutateAsync: ({ id, data }) => updateStatus.mutateAsync({ id, data: data as { status: string } }),
+  })
+  const isSaving = (id: string, field: string) => savingCellKey === cellKey(id, field)
+
+  const bookingStatusOptions = [
+    { value: 'pending', label: 'Pending' },
+    { value: 'confirmed', label: 'Confirmed' },
+    { value: 'in_progress', label: 'In Progress' },
+    { value: 'completed', label: 'Completed' },
+    { value: 'cancelled', label: 'Cancelled' },
+    { value: 'no_show', label: 'No Show' },
+  ]
 
   // Quick-create customer modal state
   const [showQuickCreate, setShowQuickCreate] = useState(false)
@@ -1469,7 +1484,7 @@ export default function BookingsPage() {
                 search=""
                 onSearchChange={() => {}}
                 hideSearch
-                hint="Sorting applies to the current page."
+                hint={`${INLINE_EDIT_HINT} Sorting applies to the current page.`}
                 sortOptions={[
                   { value: 'booking_date', label: 'Booking date' },
                   { value: 'created_at', label: 'Created' },
@@ -1506,13 +1521,40 @@ export default function BookingsPage() {
                         <td className="px-6 py-4 text-sm font-medium text-blue-600">{(b.booking_number as string) || '-'}</td>
                         <td className="px-6 py-4 text-sm text-gray-700">{(b.service_name as string) || '-'}</td>
                         <td className="px-6 py-4 text-sm text-gray-900">{(b.customer_name as string) || '-'}</td>
-                        <td className="px-6 py-4 text-sm text-gray-500">{b.booking_date ? formatDate(b.booking_date as string) : '-'}</td>
-                        <td className="px-6 py-4 text-center">
-                          <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${badge.bg} ${badge.text}`}>
-                            {badge.label}
-                          </span>
+                        <td className="px-6 py-4 text-sm text-gray-500">
+                          <InlineEditCell
+                            readOnly
+                            readOnlyMessage="Use Reschedule in Actions to change the booking date"
+                            value={b.booking_date as string || ''}
+                            onSave={() => {}}
+                          >
+                            {b.booking_date ? formatDate(b.booking_date as string) : '-'}
+                          </InlineEditCell>
                         </td>
-                        <td className="px-6 py-4 text-sm text-right font-medium">{formatCurrency((b.total as number) || (b.service_price as number) || 0)}</td>
+                        <td className="px-6 py-4 text-center">
+                          <InlineEditCell
+                            type="select"
+                            value={b.status as string}
+                            options={bookingStatusOptions}
+                            saving={isSaving(b.id as string, 'status')}
+                            onSave={(v) => patchBookingField(b.id as string, 'status', v)}
+                          >
+                            <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${badge.bg} ${badge.text}`}>
+                              {badge.label}
+                            </span>
+                          </InlineEditCell>
+                        </td>
+                        <td className="px-6 py-4 text-sm text-right font-medium">
+                          <InlineEditCell
+                            readOnly
+                            readOnlyMessage="Booking total is calculated from the service price"
+                            value={(b.total as number) || 0}
+                            onSave={() => {}}
+                            className="text-right font-medium"
+                          >
+                            {formatCurrency((b.total as number) || (b.service_price as number) || 0)}
+                          </InlineEditCell>
+                        </td>
                         <td className="px-6 py-4 text-sm text-gray-500">{b.created_at ? formatDate(b.created_at as string) : '-'}</td>
                         <td className="px-2 py-3 text-right">
                           {(() => {

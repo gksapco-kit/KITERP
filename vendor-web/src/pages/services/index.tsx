@@ -1,6 +1,5 @@
 import { useMemo, useState, useRef, useEffect } from 'react'
 import { TableColumnLabel } from '@/components/common/FieldLabel'
-import { CatalogItemStatusCell } from '@/components/common/CatalogItemStatusCell'
 import {
   CatalogFilterField,
   CatalogListFiltersPanel,
@@ -14,19 +13,20 @@ import { useNavigate } from 'react-router-dom'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { useServices, useDeleteService, useCategories } from '@/hooks/useVendor'
+import { useServices, useDeleteService, useUpdateService, useCategories } from '@/hooks/useVendor'
+import { useInlineFieldPatch, INLINE_EDIT_HINT } from '@/hooks/useInlineFieldPatch'
 import { useVendorStore } from '@/stores/vendorStore'
 import { formatCurrency, mediaUrl } from '@/lib/utils'
 import { TableToolbar } from '@/components/table/TableToolbar'
 import { ResizableTable } from '@/components/table/ResizableTable'
+import { InlineEditCell } from '@/components/table/InlineEditCell'
 import { processRows, type SortDir } from '@/lib/tableList'
-import { onClickableTableRow } from '@/lib/clickableTableRow'
 import type { Service } from '@/types'
 import {
-  Plus, Search, Pencil, Trash2, Loader2, X,
+  Plus, Search, Pencil, Trash2, Loader2, X, Eye,
   ChevronLeft, ChevronRight, Filter, MoreVertical,
   Copy, Share2, Mail, MessageCircle, Clock, MapPin,
-  AlertTriangle, Wrench, Image as ImageIcon, Layers,
+  Wrench, Image as ImageIcon, Layers,
 } from 'lucide-react'
 import { toast } from 'sonner'
 
@@ -187,6 +187,8 @@ export default function Services() {
     store_id: selectedStore?.id || undefined,
   })
   const deleteService = useDeleteService()
+  const updateService = useUpdateService()
+  const { isSaving, patchField } = useInlineFieldPatch(updateService)
 
   const activeFilterCount = [status, visibility, category, serviceType, serviceMode].filter(Boolean).length
   const hasActiveQuery = Boolean(search.trim() || activeFilterCount > 0)
@@ -360,6 +362,7 @@ export default function Services() {
               </Button>
             </div>
           )}
+          <p className="text-xs text-gray-400 px-1">{INLINE_EDIT_HINT}</p>
         </CardContent>
       </Card>
 
@@ -368,7 +371,7 @@ export default function Services() {
         <CardContent className="p-0">
           <TableToolbar
             search="" onSearchChange={() => {}} hideSearch
-            hint="Sorting applies to the current page."
+            hint={INLINE_EDIT_HINT}
             sortOptions={[
               { value: 'name', label: 'Service' },
               { value: 'service_type', label: 'Type' },
@@ -436,62 +439,207 @@ export default function Services() {
                   const activePlans = service.plans?.filter((p: any) => p.is_active)?.length ?? 0
 
                   return (
-                    <tr key={service.id}
-                      className="hover:bg-gray-50/80 cursor-pointer transition-colors group"
-                      onClick={onClickableTableRow(() => navigate(`/services/${service.id}?mode=view`))}>
+                    <tr key={service.id} className="hover:bg-gray-50/80 transition-colors group">
                       <td className="px-5 py-3">
                         <div className="flex items-center gap-3">
                           {thumbUrl ? (
-                            <img src={thumbUrl} alt="" className="w-10 h-10 rounded-lg object-cover bg-gray-100 border border-gray-200/80" />
+                            <img src={thumbUrl} alt="" className="w-10 h-10 rounded-lg object-cover bg-gray-100 border border-gray-200/80 shrink-0" />
                           ) : (
-                            <div className="w-10 h-10 rounded-lg bg-gray-100 border border-gray-200/80 flex items-center justify-center">
+                            <div className="w-10 h-10 rounded-lg bg-gray-100 border border-gray-200/80 flex items-center justify-center shrink-0">
                               <ImageIcon className="w-4 h-4 text-gray-300" />
                             </div>
                           )}
-                          <div className="min-w-0">
-                            <p className="text-sm font-medium text-gray-900 group-hover:text-primary transition-colors truncate">{service.name}</p>
-                            <p className="text-xs text-gray-400 truncate">{service.category || 'Uncategorized'}</p>
+                          <div className="min-w-0 flex-1">
+                            <InlineEditCell
+                              value={service.name}
+                              saving={isSaving(service.id, 'name')}
+                              validate={(v) => String(v).trim().length < 2 ? 'Min 2 characters' : null}
+                              onSave={(v) => patchField(service.id, 'name', String(v).trim())}
+                              className="-mx-1.5"
+                              title="Edit service name"
+                            >
+                              <span className="text-sm font-medium text-gray-900">{service.name}</span>
+                            </InlineEditCell>
+                            <InlineEditCell
+                              value={service.category || ''}
+                              saving={isSaving(service.id, 'category')}
+                              onSave={(v) => patchField(service.id, 'category', String(v).trim())}
+                              title="Edit category"
+                            >
+                              <span className="text-xs text-gray-400">{service.category || 'Uncategorized'}</span>
+                            </InlineEditCell>
                           </div>
                         </div>
                       </td>
                       <td className="px-4 py-3">
-                        <span className="px-2 py-0.5 text-xs rounded-full font-semibold bg-accent text-primary capitalize">
-                          {(service.service_type || 'one_time').replace('_', ' ')}
-                        </span>
+                        <InlineEditCell
+                          type="select"
+                          value={service.service_type || 'one_time'}
+                          options={SERVICE_TYPE_OPTIONS}
+                          saving={isSaving(service.id, 'service_type')}
+                          onSave={(v) => patchField(service.id, 'service_type', v)}
+                          title="Edit service type"
+                        >
+                          <span className="px-2 py-0.5 text-xs rounded-full font-semibold bg-accent text-primary capitalize">
+                            {(service.service_type || 'one_time').replace('_', ' ')}
+                          </span>
+                        </InlineEditCell>
                       </td>
                       <td className="px-4 py-3">
-                        <span className="text-[12px] text-gray-600 capitalize flex items-center gap-1">
-                          {service.service_mode === 'home_visit' && <MapPin className="w-3 h-3 text-gray-400" />}
-                          {(service.service_mode || 'in_store').replace(/_/g, ' ')}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3 text-sm font-medium text-gray-900">
-                        {service.price ? formatCurrency(service.price) :
-                         (service.price_min && service.price_max) ? `${formatCurrency(service.price_min)}–${formatCurrency(service.price_max)}` :
-                         <span className="text-gray-400 text-xs capitalize">{service.price_type || '—'}</span>}
+                        <InlineEditCell
+                          type="select"
+                          value={service.service_mode || 'in_store'}
+                          options={SERVICE_MODE_OPTIONS}
+                          saving={isSaving(service.id, 'service_mode')}
+                          onSave={(v) => patchField(service.id, 'service_mode', v)}
+                          title="Edit delivery mode"
+                        >
+                          <span className="text-[12px] text-gray-600 capitalize flex items-center gap-1">
+                            {service.service_mode === 'home_visit' && <MapPin className="w-3 h-3 text-gray-400" />}
+                            {(service.service_mode || 'in_store').replace(/_/g, ' ')}
+                          </span>
+                        </InlineEditCell>
                       </td>
                       <td className="px-4 py-3">
-                        {plansCount > 0 ? (
-                          <div className="flex items-center gap-1.5">
-                            <Layers className="w-3.5 h-3.5 text-primary/70" />
-                            <span className="text-xs font-medium text-gray-700">{plansCount}</span>
-                            <span className="text-xs text-gray-400">({activePlans} active)</span>
+                        {service.price != null && service.price > 0 ? (
+                          <InlineEditCell
+                            type="number"
+                            value={service.price}
+                            min={0}
+                            step="0.01"
+                            saving={isSaving(service.id, 'price')}
+                            validate={(v) => Number(v) < 0 ? 'Price must be 0 or more' : null}
+                            onSave={(v) => patchField(service.id, 'price', Number(v))}
+                            title="Edit price"
+                          >
+                            <span className="text-sm font-medium text-gray-900">{formatCurrency(service.price)}</span>
+                          </InlineEditCell>
+                        ) : service.price_min != null && service.price_max != null ? (
+                          <div className="space-y-1">
+                            <InlineEditCell
+                              type="number"
+                              value={service.price_min}
+                              min={0}
+                              step="0.01"
+                              saving={isSaving(service.id, 'price_min')}
+                              onSave={(v) => patchField(service.id, 'price_min', Number(v))}
+                              title="Edit min price"
+                            >
+                              <span className="text-xs text-gray-700">{formatCurrency(service.price_min)}</span>
+                            </InlineEditCell>
+                            <InlineEditCell
+                              type="number"
+                              value={service.price_max}
+                              min={0}
+                              step="0.01"
+                              saving={isSaving(service.id, 'price_max')}
+                              onSave={(v) => patchField(service.id, 'price_max', Number(v))}
+                              title="Edit max price"
+                            >
+                              <span className="text-xs text-gray-700">{formatCurrency(service.price_max)}</span>
+                            </InlineEditCell>
                           </div>
                         ) : (
-                          <span className="text-xs text-gray-300">—</span>
+                          <InlineEditCell
+                            type="number"
+                            value={0}
+                            min={0}
+                            step="0.01"
+                            saving={isSaving(service.id, 'price')}
+                            onSave={(v) => patchField(service.id, 'price', Number(v))}
+                            title="Set price"
+                          >
+                            <span className="text-gray-400 text-xs capitalize">{service.price_type || '—'}</span>
+                          </InlineEditCell>
                         )}
                       </td>
-                      <td className="px-4 py-3 text-sm text-gray-600">
-                        {service.duration_minutes
-                          ? <span className="flex items-center gap-1"><Clock className="w-3 h-3 text-gray-400" />{service.duration_minutes} min</span>
-                          : <span className="text-gray-300 text-xs">—</span>}
+                      <td className="px-4 py-3">
+                        <InlineEditCell
+                          readOnly
+                          readOnlyMessage="Open full editor to manage service plans"
+                          title="Plans"
+                        >
+                          {plansCount > 0 ? (
+                            <div className="flex items-center gap-1.5">
+                              <Layers className="w-3.5 h-3.5 text-primary/70" />
+                              <span className="text-xs font-medium text-gray-700">{plansCount}</span>
+                              <span className="text-xs text-gray-400">({activePlans} active)</span>
+                            </div>
+                          ) : (
+                            <span className="text-xs text-gray-300">—</span>
+                          )}
+                        </InlineEditCell>
                       </td>
                       <td className="px-4 py-3">
-                        <CatalogItemStatusCell status={service.status} isVisible={service.is_visible} />
+                        {service.duration_minutes ? (
+                          <InlineEditCell
+                            type="number"
+                            value={service.duration_minutes}
+                            min={0}
+                            step="1"
+                            saving={isSaving(service.id, 'duration_minutes')}
+                            validate={(v) => Number(v) < 0 ? 'Must be 0 or more' : null}
+                            parse={(raw) => Math.max(0, Math.round(Number(raw) || 0))}
+                            onSave={(v) => patchField(service.id, 'duration_minutes', Number(v))}
+                            title="Edit duration (minutes)"
+                          >
+                            <span className="text-sm text-gray-600 flex items-center gap-1">
+                              <Clock className="w-3 h-3 text-gray-400" />{service.duration_minutes} min
+                            </span>
+                          </InlineEditCell>
+                        ) : (
+                          <InlineEditCell
+                            type="number"
+                            value={0}
+                            min={0}
+                            step="1"
+                            saving={isSaving(service.id, 'duration_minutes')}
+                            onSave={(v) => patchField(service.id, 'duration_minutes', Number(v) || undefined)}
+                            title="Add duration (minutes)"
+                          >
+                            <span className="text-gray-300 text-xs">—</span>
+                          </InlineEditCell>
+                        )}
                       </td>
-                      <td className="px-5 py-3 text-right">
+                      <td className="px-4 py-3">
+                        <div className="flex flex-col gap-1 min-w-[6.5rem]">
+                          <InlineEditCell
+                            type="select"
+                            value={service.status}
+                            options={PRODUCT_STATUS_FILTER_OPTIONS}
+                            saving={isSaving(service.id, 'status')}
+                            onSave={(v) => patchField(service.id, 'status', v)}
+                            title="Edit status"
+                          >
+                            <span className={`px-2 py-0.5 text-xs rounded-full font-semibold whitespace-nowrap capitalize ${
+                              service.status === 'active' ? 'bg-green-100 text-green-700'
+                                : service.status === 'archived' ? 'bg-red-50 text-red-600'
+                                  : 'bg-gray-100 text-gray-700'
+                            }`}>{service.status}</span>
+                          </InlineEditCell>
+                          <InlineEditCell
+                            type="select"
+                            value={service.is_visible ? 'true' : 'false'}
+                            options={VISIBILITY_FILTER_OPTIONS}
+                            saving={isSaving(service.id, 'is_visible')}
+                            onSave={(v) => patchField(service.id, 'is_visible', v === 'true')}
+                            title="Edit visibility"
+                          >
+                            <span className={`px-2 py-0.5 text-xs rounded-full font-semibold whitespace-nowrap ${
+                              service.is_visible
+                                ? 'bg-emerald-50 text-emerald-700 border border-emerald-100'
+                                : 'bg-amber-50 text-amber-800 border border-amber-100'
+                            }`}>{service.is_visible ? 'Visible' : 'Hidden'}</span>
+                          </InlineEditCell>
+                        </div>
+                      </td>
+                      <td className="px-5 py-3 text-right" onClick={(e) => e.stopPropagation()}>
                         <div className="flex gap-1 justify-end items-center">
-                          <Button variant="ghost" size="sm" className="h-8 w-8 p-0" title="Edit"
+                          <Button variant="ghost" size="sm" className="h-8 w-8 p-0" title="View service"
+                            onClick={() => navigate(`/services/${service.id}?mode=view`)}>
+                            <Eye className="w-4 h-4 text-blue-500" />
+                          </Button>
+                          <Button variant="ghost" size="sm" className="h-8 w-8 p-0" title="Full edit"
                             onClick={() => navigate(`/services/${service.id}`)}>
                             <Pencil className="w-4 h-4 text-gray-500" />
                           </Button>

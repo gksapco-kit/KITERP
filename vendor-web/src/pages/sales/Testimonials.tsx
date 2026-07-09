@@ -7,7 +7,9 @@ import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Card, CardContent } from '@/components/ui/card'
 import { ResizableTable } from '@/components/table/ResizableTable'
+import { InlineEditCell } from '@/components/table/InlineEditCell'
 import { TableToolbar } from '@/components/table/TableToolbar'
+import { useInlineFieldPatch, INLINE_EDIT_HINT } from '@/hooks/useInlineFieldPatch'
 import { TableColumnLabel } from '@/components/common/FieldLabel'
 import { useEscapeToClose } from '@/hooks/useEscapeToClose'
 import { isLikelyImageFile, mediaUrl } from '@/lib/utils'
@@ -225,6 +227,7 @@ export default function SalesTestimonialsPage() {
   }, [data?.items, search, sortKey, sortDir])
 
   const saving = createTestimonial.isPending || updateTestimonial.isPending
+  const { isSaving, patchField } = useInlineFieldPatch(updateTestimonial)
 
   return (
     <div className="space-y-4 p-4 md:p-6">
@@ -260,6 +263,7 @@ export default function SalesTestimonialsPage() {
             sortDir={sortDir}
             onSortKeyChange={setSortKey}
             onSortDirChange={setSortDir}
+            hint={INLINE_EDIT_HINT}
           />
           <div className="overflow-x-auto">
             <ResizableTable tableId="sales-testimonials-v1" defaultWidths={[64, 220, 320, 100, 90, 120]}>
@@ -284,7 +288,11 @@ export default function SalesTestimonialsPage() {
                     className="hover:bg-muted/30 cursor-pointer"
                     onClick={onClickableTableRow(() => setModal({ mode: 'edit', testimonial }))}
                   >
-                    <td className="px-4 py-3 text-sm">{testimonial.sort_order}</td>
+                    <td className="px-4 py-3 text-sm">
+                      <InlineEditCell type="number" value={testimonial.sort_order} readOnly readOnlyMessage="Use the full editor to change sort order" title="Order">
+                        {testimonial.sort_order}
+                      </InlineEditCell>
+                    </td>
                     <td className="px-4 py-3 text-sm font-medium">
                       <div className="flex items-center gap-2">
                         {testimonial.avatar_url ? (
@@ -292,19 +300,72 @@ export default function SalesTestimonialsPage() {
                         ) : (
                           <div className="h-8 w-8 rounded-full bg-muted shrink-0" />
                         )}
-                        <div>
-                          <div className="line-clamp-1">{testimonial.name}</div>
-                          {(testimonial.role || testimonial.company) && (
-                            <div className="text-xs text-muted-foreground line-clamp-1">
-                              {[testimonial.role, testimonial.company].filter(Boolean).join(', ')}
-                            </div>
-                          )}
+                        <div className="min-w-0 space-y-0.5">
+                          <InlineEditCell
+                            value={testimonial.name}
+                            saving={isSaving(testimonial.id, 'name')}
+                            validate={(v) => String(v).trim().length < 1 ? 'Name is required' : null}
+                            onSave={(v) => patchField(testimonial.id, 'name', String(v).trim())}
+                            title="Edit customer name"
+                          >
+                            <div className="line-clamp-1">{testimonial.name}</div>
+                          </InlineEditCell>
+                          <InlineEditCell
+                            value={testimonial.role || ''}
+                            saving={isSaving(testimonial.id, 'role')}
+                            onSave={(v) => patchField(testimonial.id, 'role', String(v).trim() || null)}
+                            title="Edit role"
+                          >
+                            <div className="text-xs text-muted-foreground line-clamp-1">{testimonial.role || '—'}</div>
+                          </InlineEditCell>
+                          <InlineEditCell
+                            value={testimonial.company || ''}
+                            saving={isSaving(testimonial.id, 'company')}
+                            onSave={(v) => patchField(testimonial.id, 'company', String(v).trim() || null)}
+                            title="Edit company"
+                          >
+                            <div className="text-xs text-muted-foreground line-clamp-1">{testimonial.company || '—'}</div>
+                          </InlineEditCell>
                         </div>
                       </div>
                     </td>
-                    <td className="px-4 py-3 text-sm text-muted-foreground line-clamp-2 max-w-xs">{testimonial.quote}</td>
-                    <td className="px-4 py-3 text-sm"><StarRow rating={testimonial.rating} /></td>
-                    <td className="px-4 py-3 text-sm">{testimonial.is_active ? <span className="text-green-700 font-medium">Active</span> : <span className="text-muted-foreground">Hidden</span>}</td>
+                    <td className="px-4 py-3 text-sm text-muted-foreground line-clamp-2 max-w-xs">
+                      <InlineEditCell
+                        value={testimonial.quote}
+                        saving={isSaving(testimonial.id, 'quote')}
+                        validate={(v) => String(v).trim().length < 1 ? 'Quote is required' : null}
+                        onSave={(v) => patchField(testimonial.id, 'quote', String(v).trim())}
+                        title="Edit quote"
+                      >
+                        {testimonial.quote}
+                      </InlineEditCell>
+                    </td>
+                    <td className="px-4 py-3 text-sm">
+                      <InlineEditCell
+                        type="number"
+                        value={testimonial.rating}
+                        readOnly
+                        readOnlyMessage="Edit rating in the full editor"
+                        title="Rating"
+                      >
+                        <StarRow rating={testimonial.rating} />
+                      </InlineEditCell>
+                    </td>
+                    <td className="px-4 py-3 text-sm">
+                      <InlineEditCell
+                        type="select"
+                        value={testimonial.is_active ? 'true' : 'false'}
+                        options={[
+                          { value: 'true', label: 'Active' },
+                          { value: 'false', label: 'Hidden' },
+                        ]}
+                        saving={isSaving(testimonial.id, 'is_active')}
+                        onSave={(v) => patchField(testimonial.id, 'is_active', v === 'true')}
+                        title="Edit active status"
+                      >
+                        {testimonial.is_active ? <span className="text-green-700 font-medium">Active</span> : <span className="text-muted-foreground">Hidden</span>}
+                      </InlineEditCell>
+                    </td>
                     <td className="px-4 py-3">
                       <div className="flex items-center justify-end gap-1">
                         <button

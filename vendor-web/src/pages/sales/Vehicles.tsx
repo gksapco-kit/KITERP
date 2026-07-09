@@ -6,7 +6,9 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent } from '@/components/ui/card'
 import { ResizableTable } from '@/components/table/ResizableTable'
+import { InlineEditCell } from '@/components/table/InlineEditCell'
 import { TableToolbar } from '@/components/table/TableToolbar'
+import { useInlineFieldPatch, INLINE_EDIT_HINT } from '@/hooks/useInlineFieldPatch'
 import { TableColumnLabel } from '@/components/common/FieldLabel'
 import { useEscapeToClose } from '@/hooks/useEscapeToClose'
 import { ImageSourcePicker } from '@/components/common/ImageSourcePicker'
@@ -338,6 +340,7 @@ export default function SalesVehiclesPage() {
   }, [data?.items, search, sortKey, sortDir])
 
   const saving = createVehicle.isPending || updateVehicle.isPending
+  const { isSaving, patchField } = useInlineFieldPatch(updateVehicle)
 
   return (
     <div className="space-y-4 p-4 md:p-6">
@@ -374,6 +377,7 @@ export default function SalesVehiclesPage() {
             sortDir={sortDir}
             onSortKeyChange={setSortKey}
             onSortDirChange={setSortDir}
+            hint={INLINE_EDIT_HINT}
           />
           <div className="overflow-x-auto">
             <ResizableTable tableId="sales-vehicles-v1" defaultWidths={[64, 220, 130, 100, 110, 90, 120]}>
@@ -399,7 +403,11 @@ export default function SalesVehiclesPage() {
                     className="hover:bg-muted/30 cursor-pointer"
                     onClick={onClickableTableRow(() => setModal({ mode: 'edit', vehicle }))}
                   >
-                    <td className="px-4 py-3 text-sm">{vehicle.sort_order}</td>
+                    <td className="px-4 py-3 text-sm">
+                      <InlineEditCell type="number" value={vehicle.sort_order} readOnly readOnlyMessage="Use the full editor to change sort order" title="Order">
+                        {vehicle.sort_order}
+                      </InlineEditCell>
+                    </td>
                     <td className="px-4 py-3 text-sm font-medium">
                       <div className="flex items-center gap-2">
                         {vehicle.image_url ? (
@@ -407,13 +415,93 @@ export default function SalesVehiclesPage() {
                         ) : (
                           <div className="h-8 w-10 rounded bg-muted shrink-0" />
                         )}
-                        <span className="line-clamp-1">{vehicle.year} {vehicle.make} {vehicle.model}</span>
+                        <div className="min-w-0 flex flex-wrap items-center gap-1">
+                          <InlineEditCell
+                            type="number"
+                            value={vehicle.year}
+                            min={1900}
+                            step="1"
+                            saving={isSaving(vehicle.id, 'year')}
+                            onSave={(v) => patchField(vehicle.id, 'year', Number(v) || vehicle.year)}
+                            title="Edit year"
+                          >
+                            <span>{vehicle.year}</span>
+                          </InlineEditCell>
+                          <InlineEditCell
+                            value={vehicle.make}
+                            saving={isSaving(vehicle.id, 'make')}
+                            validate={(v) => String(v).trim().length < 1 ? 'Make is required' : null}
+                            onSave={(v) => patchField(vehicle.id, 'make', String(v).trim())}
+                            title="Edit make"
+                          >
+                            <span>{vehicle.make}</span>
+                          </InlineEditCell>
+                          <InlineEditCell
+                            value={vehicle.model}
+                            saving={isSaving(vehicle.id, 'model')}
+                            validate={(v) => String(v).trim().length < 1 ? 'Model is required' : null}
+                            onSave={(v) => patchField(vehicle.id, 'model', String(v).trim())}
+                            title="Edit model"
+                          >
+                            <span className="line-clamp-1">{vehicle.model}</span>
+                          </InlineEditCell>
+                        </div>
                       </div>
                     </td>
-                    <td className="px-4 py-3 text-sm">{vehicle.price != null ? formatCurrency(vehicle.price, vehicle.currency) : '—'}</td>
-                    <td className="px-4 py-3 text-sm">{vehicle.mileage.toLocaleString()} mi</td>
-                    <td className="px-4 py-3 text-sm">{vehicle.condition}</td>
-                    <td className="px-4 py-3 text-sm">{vehicle.is_active ? <span className="text-green-700 font-medium">Active</span> : <span className="text-muted-foreground">Hidden</span>}</td>
+                    <td className="px-4 py-3 text-sm">
+                      <InlineEditCell
+                        type="number"
+                        value={vehicle.price ?? 0}
+                        min={0}
+                        step="0.01"
+                        saving={isSaving(vehicle.id, 'price')}
+                        validate={(v) => Number(v) < 0 ? 'Price must be 0 or more' : null}
+                        onSave={(v) => patchField(vehicle.id, 'price', Number(v) || null)}
+                        title="Edit price"
+                      >
+                        {vehicle.price != null ? formatCurrency(vehicle.price, vehicle.currency) : '—'}
+                      </InlineEditCell>
+                    </td>
+                    <td className="px-4 py-3 text-sm">
+                      <InlineEditCell
+                        type="number"
+                        value={vehicle.mileage}
+                        min={0}
+                        step="1"
+                        saving={isSaving(vehicle.id, 'mileage')}
+                        onSave={(v) => patchField(vehicle.id, 'mileage', Number(v) || 0)}
+                        title="Edit mileage"
+                      >
+                        {vehicle.mileage.toLocaleString()} mi
+                      </InlineEditCell>
+                    </td>
+                    <td className="px-4 py-3 text-sm">
+                      <InlineEditCell
+                        type="select"
+                        value={vehicle.condition}
+                        options={CONDITIONS.map(c => ({ value: c, label: c }))}
+                        saving={isSaving(vehicle.id, 'condition')}
+                        onSave={(v) => patchField(vehicle.id, 'condition', v)}
+                        title="Edit condition"
+                      >
+                        {vehicle.condition}
+                      </InlineEditCell>
+                    </td>
+                    <td className="px-4 py-3 text-sm">
+                      <InlineEditCell
+                        type="select"
+                        value={vehicle.is_active ? 'true' : 'false'}
+                        options={[
+                          { value: 'true', label: 'Active' },
+                          { value: 'false', label: 'Hidden' },
+                        ]}
+                        saving={isSaving(vehicle.id, 'is_active')}
+                        onSave={(v) => patchField(vehicle.id, 'is_active', v === 'true')}
+                        title="Edit active status"
+                      >
+                        {vehicle.is_active ? <span className="text-green-700 font-medium">Active</span> : <span className="text-muted-foreground">Hidden</span>}
+                      </InlineEditCell>
+                    </td>
                     <td className="px-4 py-3">
                       <div className="flex items-center justify-end gap-1">
                         <button

@@ -471,6 +471,9 @@ class VendorService:
             )
         
         update_data = data.model_dump(exclude_unset=True)
+        if "social_links" in update_data and update_data["social_links"] is not None:
+            from app.utils.social_link_normalize import normalize_social_links
+            update_data["social_links"] = normalize_social_links(update_data["social_links"])
         for field, value in update_data.items():
             setattr(vendor, field, value)
             if field in ("settings", "theme_config", "store_holidays", "business_hours", "order_acceptance_hours"):

@@ -6,7 +6,9 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent } from '@/components/ui/card'
 import { ResizableTable } from '@/components/table/ResizableTable'
+import { InlineEditCell } from '@/components/table/InlineEditCell'
 import { TableToolbar } from '@/components/table/TableToolbar'
+import { useInlineFieldPatch, INLINE_EDIT_HINT } from '@/hooks/useInlineFieldPatch'
 import { TableColumnLabel } from '@/components/common/FieldLabel'
 import { useEscapeToClose } from '@/hooks/useEscapeToClose'
 import { ImageSourcePicker } from '@/components/common/ImageSourcePicker'
@@ -329,6 +331,7 @@ export default function SalesPropertiesPage() {
   }, [data?.items, search, sortKey, sortDir])
 
   const saving = createProperty.isPending || updateProperty.isPending
+  const { isSaving, patchField } = useInlineFieldPatch(updateProperty)
 
   return (
     <div className="space-y-4 p-4 md:p-6">
@@ -365,6 +368,7 @@ export default function SalesPropertiesPage() {
             sortDir={sortDir}
             onSortKeyChange={setSortKey}
             onSortDirChange={setSortDir}
+            hint={INLINE_EDIT_HINT}
           />
           <div className="overflow-x-auto">
             <ResizableTable tableId="sales-properties-v1" defaultWidths={[64, 220, 160, 120, 80, 110, 90, 120]}>
@@ -391,7 +395,11 @@ export default function SalesPropertiesPage() {
                     className="hover:bg-muted/30 cursor-pointer"
                     onClick={onClickableTableRow(() => setModal({ mode: 'edit', property }))}
                   >
-                    <td className="px-4 py-3 text-sm">{property.sort_order}</td>
+                    <td className="px-4 py-3 text-sm">
+                      <InlineEditCell type="number" value={property.sort_order} readOnly readOnlyMessage="Use the full editor to change sort order" title="Order">
+                        {property.sort_order}
+                      </InlineEditCell>
+                    </td>
                     <td className="px-4 py-3 text-sm font-medium">
                       <div className="flex items-center gap-2">
                         {property.image_url ? (
@@ -399,14 +407,96 @@ export default function SalesPropertiesPage() {
                         ) : (
                           <div className="h-8 w-10 rounded bg-muted shrink-0" />
                         )}
-                        <span className="line-clamp-1">{property.title}</span>
+                        <InlineEditCell
+                          value={property.title}
+                          saving={isSaving(property.id, 'title')}
+                          validate={(v) => String(v).trim().length < 1 ? 'Title is required' : null}
+                          onSave={(v) => patchField(property.id, 'title', String(v).trim())}
+                          title="Edit listing title"
+                          className="-mx-1.5 min-w-0 flex-1"
+                        >
+                          <span className="line-clamp-1">{property.title}</span>
+                        </InlineEditCell>
                       </div>
                     </td>
-                    <td className="px-4 py-3 text-sm text-muted-foreground">{property.address || '—'}</td>
-                    <td className="px-4 py-3 text-sm">{property.price != null ? formatCurrency(property.price, property.currency) : '—'}</td>
-                    <td className="px-4 py-3 text-sm">{property.beds} / {property.baths}</td>
-                    <td className="px-4 py-3 text-sm capitalize">{property.status.replace('-', ' ')}</td>
-                    <td className="px-4 py-3 text-sm">{property.is_active ? <span className="text-green-700 font-medium">Active</span> : <span className="text-muted-foreground">Hidden</span>}</td>
+                    <td className="px-4 py-3 text-sm text-muted-foreground">
+                      <InlineEditCell
+                        value={property.address || ''}
+                        saving={isSaving(property.id, 'address')}
+                        onSave={(v) => patchField(property.id, 'address', String(v).trim() || null)}
+                        title="Edit address"
+                      >
+                        {property.address || '—'}
+                      </InlineEditCell>
+                    </td>
+                    <td className="px-4 py-3 text-sm">
+                      <InlineEditCell
+                        type="number"
+                        value={property.price ?? 0}
+                        min={0}
+                        step="0.01"
+                        saving={isSaving(property.id, 'price')}
+                        validate={(v) => Number(v) < 0 ? 'Price must be 0 or more' : null}
+                        onSave={(v) => patchField(property.id, 'price', Number(v) || null)}
+                        title="Edit price"
+                      >
+                        {property.price != null ? formatCurrency(property.price, property.currency) : '—'}
+                      </InlineEditCell>
+                    </td>
+                    <td className="px-4 py-3 text-sm">
+                      <div className="flex items-center gap-1">
+                        <InlineEditCell
+                          type="number"
+                          value={property.beds}
+                          min={0}
+                          step="1"
+                          saving={isSaving(property.id, 'beds')}
+                          onSave={(v) => patchField(property.id, 'beds', Number(v) || 0)}
+                          title="Edit beds"
+                        >
+                          {property.beds}
+                        </InlineEditCell>
+                        <span>/</span>
+                        <InlineEditCell
+                          type="number"
+                          value={property.baths}
+                          min={0}
+                          step="1"
+                          saving={isSaving(property.id, 'baths')}
+                          onSave={(v) => patchField(property.id, 'baths', Number(v) || 0)}
+                          title="Edit baths"
+                        >
+                          {property.baths}
+                        </InlineEditCell>
+                      </div>
+                    </td>
+                    <td className="px-4 py-3 text-sm capitalize">
+                      <InlineEditCell
+                        type="select"
+                        value={property.status}
+                        options={PROPERTY_STATUSES}
+                        saving={isSaving(property.id, 'status')}
+                        onSave={(v) => patchField(property.id, 'status', v)}
+                        title="Edit status"
+                      >
+                        {property.status.replace('-', ' ')}
+                      </InlineEditCell>
+                    </td>
+                    <td className="px-4 py-3 text-sm">
+                      <InlineEditCell
+                        type="select"
+                        value={property.is_active ? 'true' : 'false'}
+                        options={[
+                          { value: 'true', label: 'Active' },
+                          { value: 'false', label: 'Hidden' },
+                        ]}
+                        saving={isSaving(property.id, 'is_active')}
+                        onSave={(v) => patchField(property.id, 'is_active', v === 'true')}
+                        title="Edit active status"
+                      >
+                        {property.is_active ? <span className="text-green-700 font-medium">Active</span> : <span className="text-muted-foreground">Hidden</span>}
+                      </InlineEditCell>
+                    </td>
                     <td className="px-4 py-3">
                       <div className="flex items-center justify-end gap-1">
                         <button

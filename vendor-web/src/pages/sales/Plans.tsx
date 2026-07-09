@@ -5,7 +5,9 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent } from '@/components/ui/card'
 import { ResizableTable } from '@/components/table/ResizableTable'
+import { InlineEditCell } from '@/components/table/InlineEditCell'
 import { TableToolbar } from '@/components/table/TableToolbar'
+import { useInlineFieldPatch, INLINE_EDIT_HINT } from '@/hooks/useInlineFieldPatch'
 import { TableColumnLabel } from '@/components/common/FieldLabel'
 import { useEscapeToClose } from '@/hooks/useEscapeToClose'
 import { formatCurrency } from '@/lib/utils'
@@ -173,6 +175,7 @@ export default function SalesPlansPage() {
   }, [data?.items, search, sortKey, sortDir])
 
   const saving = createPlan.isPending || updatePlan.isPending
+  const { isSaving, patchField } = useInlineFieldPatch(updatePlan)
 
   return (
     <div className="space-y-4 p-4 md:p-6">
@@ -208,6 +211,7 @@ export default function SalesPlansPage() {
             sortDir={sortDir}
             onSortKeyChange={setSortKey}
             onSortDirChange={setSortDir}
+            hint={INLINE_EDIT_HINT}
           />
           <div className="overflow-x-auto">
             <ResizableTable tableId="pricing-plans-v1" defaultWidths={[72, 180, 120, 80, 90, 90, 90, 120]}>
@@ -234,13 +238,85 @@ export default function SalesPlansPage() {
                     className="hover:bg-muted/30 cursor-pointer"
                     onClick={onClickableTableRow(() => setModal({ mode: 'edit', plan }))}
                   >
-                    <td className="px-4 py-3 text-sm">{plan.sort_order}</td>
-                    <td className="px-4 py-3 text-sm font-medium">{plan.name}</td>
-                    <td className="px-4 py-3 text-sm">{plan.price != null ? formatCurrency(plan.price, plan.currency) : '—'}</td>
-                    <td className="px-4 py-3 text-sm">{plan.period}</td>
-                    <td className="px-4 py-3 text-sm">{plan.features?.length ?? 0}</td>
-                    <td className="px-4 py-3">{plan.is_featured ? <Star className="h-4 w-4 text-amber-500 fill-amber-500" /> : '—'}</td>
-                    <td className="px-4 py-3 text-sm">{plan.is_active ? <span className="text-green-700 font-medium">Active</span> : <span className="text-muted-foreground">Hidden</span>}</td>
+                    <td className="px-4 py-3 text-sm">
+                      <InlineEditCell type="number" value={plan.sort_order} readOnly readOnlyMessage="Use the full editor to change sort order" title="Order">
+                        {plan.sort_order}
+                      </InlineEditCell>
+                    </td>
+                    <td className="px-4 py-3 text-sm font-medium">
+                      <InlineEditCell
+                        value={plan.name}
+                        saving={isSaving(plan.id, 'name')}
+                        validate={(v) => String(v).trim().length < 1 ? 'Name is required' : null}
+                        onSave={(v) => patchField(plan.id, 'name', String(v).trim())}
+                        title="Edit plan name"
+                      >
+                        {plan.name}
+                      </InlineEditCell>
+                    </td>
+                    <td className="px-4 py-3 text-sm">
+                      <InlineEditCell
+                        type="number"
+                        value={plan.price ?? 0}
+                        min={0}
+                        step="0.01"
+                        saving={isSaving(plan.id, 'price')}
+                        validate={(v) => Number(v) < 0 ? 'Price must be 0 or more' : null}
+                        onSave={(v) => patchField(plan.id, 'price', Number(v) || null)}
+                        title="Edit price"
+                      >
+                        {plan.price != null ? formatCurrency(plan.price, plan.currency) : '—'}
+                      </InlineEditCell>
+                    </td>
+                    <td className="px-4 py-3 text-sm">
+                      <InlineEditCell
+                        value={plan.period}
+                        saving={isSaving(plan.id, 'period')}
+                        onSave={(v) => patchField(plan.id, 'period', String(v).trim())}
+                        title="Edit billing period"
+                      >
+                        {plan.period}
+                      </InlineEditCell>
+                    </td>
+                    <td className="px-4 py-3 text-sm">
+                      <InlineEditCell
+                        readOnly
+                        readOnlyMessage="Edit features in the full editor"
+                        title="Features"
+                      >
+                        {plan.features?.length ?? 0}
+                      </InlineEditCell>
+                    </td>
+                    <td className="px-4 py-3">
+                      <InlineEditCell
+                        type="select"
+                        value={plan.is_featured ? 'true' : 'false'}
+                        options={[
+                          { value: 'true', label: 'Featured' },
+                          { value: 'false', label: 'Not featured' },
+                        ]}
+                        saving={isSaving(plan.id, 'is_featured')}
+                        onSave={(v) => patchField(plan.id, 'is_featured', v === 'true')}
+                        title="Edit featured status"
+                      >
+                        {plan.is_featured ? <Star className="h-4 w-4 text-amber-500 fill-amber-500" /> : '—'}
+                      </InlineEditCell>
+                    </td>
+                    <td className="px-4 py-3 text-sm">
+                      <InlineEditCell
+                        type="select"
+                        value={plan.is_active ? 'true' : 'false'}
+                        options={[
+                          { value: 'true', label: 'Active' },
+                          { value: 'false', label: 'Hidden' },
+                        ]}
+                        saving={isSaving(plan.id, 'is_active')}
+                        onSave={(v) => patchField(plan.id, 'is_active', v === 'true')}
+                        title="Edit active status"
+                      >
+                        {plan.is_active ? <span className="text-green-700 font-medium">Active</span> : <span className="text-muted-foreground">Hidden</span>}
+                      </InlineEditCell>
+                    </td>
                     <td className="px-4 py-3">
                       <div className="flex items-center justify-end gap-1">
                         <button

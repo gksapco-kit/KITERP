@@ -5,13 +5,13 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import {
-  useSuppliers, useCreateSupplier, useUpdateSupplier, useDeleteSupplier,
+import { useSuppliers, useCreateSupplier, useUpdateSupplier, useDeleteSupplier,
   usePurchaseOrders,
 } from '@/hooks/useVendor'
+import { useInlineFieldPatch, INLINE_EDIT_HINT } from '@/hooks/useInlineFieldPatch'
 import { formatDate, formatCurrency } from '@/lib/utils'
-import { onClickableTableRow } from '@/lib/clickableTableRow'
 import { ResizableTable } from '@/components/table/ResizableTable'
+import { InlineEditCell } from '@/components/table/InlineEditCell'
 import type { Supplier, PurchaseOrder } from '@/types'
 import {
   Loader2, Plus, Search, Pencil, Trash2, X, Truck, Mail, Phone, MapPin,
@@ -88,6 +88,8 @@ export default function SuppliersPage() {
 
   const { data, isLoading } = useSuppliers(search ? { search } : undefined)
   const deleteMut = useDeleteSupplier()
+  const updateSupplier = useUpdateSupplier()
+  const { isSaving, patchField } = useInlineFieldPatch(updateSupplier)
 
   const suppliers = data?.items || []
 
@@ -146,7 +148,7 @@ export default function SuppliersPage() {
               search=""
               onSearchChange={() => {}}
               hideSearch
-              hint="Use search above for API filter; sort applies to loaded results."
+              hint={INLINE_EDIT_HINT}
               sortOptions={[
                 { value: 'name', label: 'Name' },
                 { value: 'contact_name', label: 'Contact' },
@@ -177,30 +179,96 @@ export default function SuppliersPage() {
                 {displaySuppliers.map((s) => {
                   const bal = s.opening_balance ?? 0
                   return (
-                  <tr key={s.id} className="hover:bg-gray-50 cursor-pointer" onClick={onClickableTableRow(() => setViewing(s))}>
-                    <td className="px-6 py-4 text-sm font-medium text-gray-900">{s.name}</td>
-                    <td className="px-6 py-4 text-sm text-gray-600">{s.contact_name || '-'}</td>
-                    <td className="px-6 py-4 text-xs font-mono text-gray-600 hidden lg:table-cell">{s.gstin || '-'}</td>
-                    <td className="px-6 py-4 text-sm text-gray-600">{s.phone || '-'}</td>
-                    <td className="px-6 py-4 text-sm hidden md:table-cell">
-                      {bal !== 0 ? (
-                        <span className={bal > 0 ? 'text-orange-600' : 'text-green-600'}>{formatCurrency(Math.abs(bal))} {bal > 0 ? 'Cr' : 'Dr'}</span>
-                      ) : <span className="text-gray-400">—</span>}
+                  <tr key={s.id} className="hover:bg-gray-50 transition-colors">
+                    <td className="px-6 py-4">
+                      <InlineEditCell
+                        value={s.name}
+                        saving={isSaving(s.id, 'name')}
+                        validate={(v) => String(v).trim().length < 2 ? 'Min 2 characters' : null}
+                        onSave={(v) => patchField(s.id, 'name', String(v).trim())}
+                        title="Edit supplier name"
+                      >
+                        <span className="text-sm font-medium text-gray-900">{s.name}</span>
+                      </InlineEditCell>
+                    </td>
+                    <td className="px-6 py-4">
+                      <InlineEditCell
+                        value={s.contact_name || ''}
+                        saving={isSaving(s.id, 'contact_name')}
+                        onSave={(v) => patchField(s.id, 'contact_name', String(v).trim())}
+                        title="Edit contact name"
+                      >
+                        <span className="text-sm text-gray-600">{s.contact_name || '—'}</span>
+                      </InlineEditCell>
+                      <InlineEditCell
+                        value={s.email || ''}
+                        saving={isSaving(s.id, 'email')}
+                        onSave={(v) => patchField(s.id, 'email', String(v).trim())}
+                        title="Edit email"
+                      >
+                        <span className="text-xs text-gray-500">{s.email || '—'}</span>
+                      </InlineEditCell>
+                    </td>
+                    <td className="px-6 py-4 hidden lg:table-cell">
+                      <InlineEditCell
+                        value={s.gstin || ''}
+                        saving={isSaving(s.id, 'gstin')}
+                        onSave={(v) => patchField(s.id, 'gstin', String(v).trim().toUpperCase())}
+                        title="Edit GSTIN"
+                        inputClassName="font-mono text-xs uppercase"
+                      >
+                        <span className="text-xs font-mono text-gray-600">{s.gstin || '—'}</span>
+                      </InlineEditCell>
+                    </td>
+                    <td className="px-6 py-4">
+                      <InlineEditCell
+                        value={s.phone || ''}
+                        saving={isSaving(s.id, 'phone')}
+                        onSave={(v) => patchField(s.id, 'phone', String(v).trim())}
+                        title="Edit phone"
+                      >
+                        <span className="text-sm text-gray-600">{s.phone || '—'}</span>
+                      </InlineEditCell>
+                    </td>
+                    <td className="px-6 py-4 hidden md:table-cell">
+                      <InlineEditCell
+                        type="number"
+                        value={bal}
+                        step="0.01"
+                        saving={isSaving(s.id, 'opening_balance')}
+                        onSave={(v) => patchField(s.id, 'opening_balance', Number(v))}
+                        title="Edit opening balance"
+                      >
+                        {bal !== 0 ? (
+                          <span className={bal > 0 ? 'text-orange-600' : 'text-green-600'}>{formatCurrency(Math.abs(bal))} {bal > 0 ? 'Cr' : 'Dr'}</span>
+                        ) : <span className="text-gray-400">—</span>}
+                      </InlineEditCell>
                     </td>
                     <td className="px-6 py-4 text-center">
-                      {(() => {
-                        const st = getMasterStatus(s)
-                        const cfg = STATUS_CFG[st]
-                        return (
-                          <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium ${cfg.bg} ${cfg.text}`}>
-                            <span className={`w-1.5 h-1.5 rounded-full ${cfg.dot}`} />
-                            {cfg.label}
-                          </span>
-                        )
-                      })()}
+                      <InlineEditCell
+                        type="select"
+                        value={s.is_active ? 'true' : 'false'}
+                        options={[
+                          { value: 'true', label: 'Active' },
+                          { value: 'false', label: 'Inactive' },
+                        ]}
+                        saving={isSaving(s.id, 'is_active')}
+                        onSave={(v) => patchField(s.id, 'is_active', v === 'true')}
+                        title="Edit status"
+                      >
+                        {(() => {
+                          const st = getMasterStatus(s)
+                          const cfg = STATUS_CFG[st]
+                          return (
+                            <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium ${cfg.bg} ${cfg.text}`}>
+                              <span className={`w-1.5 h-1.5 rounded-full ${cfg.dot}`} />
+                              {cfg.label}
+                            </span>
+                          )
+                        })()}
+                      </InlineEditCell>
                     </td>
-                    <td className="px-6 py-4 text-sm text-gray-500">{formatDate(s.created_at)}</td>
-                    <td className="px-6 py-4 text-right">
+                    <td className="px-6 py-4 text-right" onClick={(e) => e.stopPropagation()}>
                       <div className="flex gap-1 justify-end">
                         <Button variant="ghost" size="sm" title="View details" onClick={() => setViewing(s)}>
                           <Eye className="w-4 h-4 text-blue-500" />

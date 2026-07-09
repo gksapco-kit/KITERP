@@ -7,7 +7,9 @@ import { Textarea } from '@/components/ui/textarea'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { ResizableTable } from '@/components/table/ResizableTable'
+import { InlineEditCell } from '@/components/table/InlineEditCell'
 import { TableToolbar } from '@/components/table/TableToolbar'
+import { useInlineFieldPatch, INLINE_EDIT_HINT } from '@/hooks/useInlineFieldPatch'
 import { TableColumnLabel } from '@/components/common/FieldLabel'
 import { useEscapeToClose } from '@/hooks/useEscapeToClose'
 import { formatCurrency } from '@/lib/utils'
@@ -19,7 +21,6 @@ import {
   useUpdateBookingResource,
   useDeleteBookingResource,
   useToggleBookingResourceActive,
-  useToggleBookingResourceAvailable,
 } from '@/hooks/useBookingResources'
 import type { VendorBookingResource, VendorBookingResourceCreate } from '@/api/bookingResources'
 
@@ -154,7 +155,6 @@ export default function SalesBookingResourcesPage() {
   const updateResource = useUpdateBookingResource()
   const deleteResource = useDeleteBookingResource()
   const toggleActive = useToggleBookingResourceActive()
-  const toggleAvailable = useToggleBookingResourceAvailable()
 
   const rows = useMemo(() => {
     const items = data?.items ?? []
@@ -174,6 +174,7 @@ export default function SalesBookingResourcesPage() {
   }, [data?.items, search, sortKey, sortDir])
 
   const saving = createResource.isPending || updateResource.isPending
+  const { isSaving, patchField } = useInlineFieldPatch(updateResource)
 
   return (
     <div className="space-y-4 p-4 md:p-6">
@@ -209,6 +210,7 @@ export default function SalesBookingResourcesPage() {
             sortDir={sortDir}
             onSortKeyChange={setSortKey}
             onSortDirChange={setSortDir}
+            hint={INLINE_EDIT_HINT}
           />
           <div className="overflow-x-auto">
             <ResizableTable tableId="sales-booking-resources-v1" defaultWidths={[64, 240, 110, 90, 130, 100, 100, 130]}>
@@ -235,9 +237,21 @@ export default function SalesBookingResourcesPage() {
                     className="hover:bg-muted/30 cursor-pointer"
                     onClick={onClickableTableRow(() => setModal({ mode: 'edit', resource }))}
                   >
-                    <td className="px-4 py-3 text-sm text-muted-foreground">{resource.sort_order}</td>
+                    <td className="px-4 py-3 text-sm text-muted-foreground">
+                      <InlineEditCell type="number" value={resource.sort_order} readOnly readOnlyMessage="Use the full editor to change sort order" title="Order">
+                        {resource.sort_order}
+                      </InlineEditCell>
+                    </td>
                     <td className="px-4 py-3 text-sm font-medium">
-                      <div>{resource.name}</div>
+                      <InlineEditCell
+                        value={resource.name}
+                        saving={isSaving(resource.id, 'name')}
+                        validate={(v) => String(v).trim().length < 1 ? 'Name is required' : null}
+                        onSave={(v) => patchField(resource.id, 'name', String(v).trim())}
+                        title="Edit resource name"
+                      >
+                        <div>{resource.name}</div>
+                      </InlineEditCell>
                       {resource.features.length > 0 && (
                         <div className="mt-1 flex flex-wrap gap-1">
                           {resource.features.slice(0, 3).map(f => (
@@ -249,25 +263,78 @@ export default function SalesBookingResourcesPage() {
                         </div>
                       )}
                     </td>
-                    <td className="px-4 py-3 text-sm text-muted-foreground capitalize">{resource.resource_type}</td>
-                    <td className="px-4 py-3 text-sm text-muted-foreground">{resource.capacity}</td>
-                    <td className="px-4 py-3 text-sm">{formatCurrency(resource.price_per_hour, resource.currency)}</td>
+                    <td className="px-4 py-3 text-sm text-muted-foreground capitalize">
+                      <InlineEditCell
+                        type="select"
+                        value={resource.resource_type}
+                        options={RESOURCE_TYPES.map(t => ({ value: t, label: t[0].toUpperCase() + t.slice(1) }))}
+                        saving={isSaving(resource.id, 'resource_type')}
+                        onSave={(v) => patchField(resource.id, 'resource_type', v)}
+                        title="Edit resource type"
+                      >
+                        {resource.resource_type}
+                      </InlineEditCell>
+                    </td>
+                    <td className="px-4 py-3 text-sm text-muted-foreground">
+                      <InlineEditCell
+                        type="number"
+                        value={resource.capacity}
+                        min={1}
+                        step="1"
+                        saving={isSaving(resource.id, 'capacity')}
+                        validate={(v) => Number(v) < 1 ? 'Capacity must be at least 1' : null}
+                        onSave={(v) => patchField(resource.id, 'capacity', Number(v) || 1)}
+                        title="Edit capacity"
+                      >
+                        {resource.capacity}
+                      </InlineEditCell>
+                    </td>
+                    <td className="px-4 py-3 text-sm">
+                      <InlineEditCell
+                        type="number"
+                        value={resource.price_per_hour}
+                        min={0}
+                        step="0.01"
+                        saving={isSaving(resource.id, 'price_per_hour')}
+                        validate={(v) => Number(v) < 0 ? 'Price must be 0 or more' : null}
+                        onSave={(v) => patchField(resource.id, 'price_per_hour', Number(v) || 0)}
+                        title="Edit price per hour"
+                      >
+                        {formatCurrency(resource.price_per_hour, resource.currency)}
+                      </InlineEditCell>
+                    </td>
                     <td className="px-4 py-3">
-                      <button
-                        type="button"
-                        title={resource.is_available ? 'Mark booked' : 'Mark available'}
-                        onClick={e => {
-                          e.stopPropagation()
-                          toggleAvailable.mutate({ id: resource.id, is_available: !resource.is_available })
-                        }}
-                        className="inline-flex items-center gap-1 rounded p-1 hover:bg-muted"
+                      <InlineEditCell
+                        type="select"
+                        value={resource.is_available ? 'true' : 'false'}
+                        options={[
+                          { value: 'true', label: 'Available' },
+                          { value: 'false', label: 'Booked' },
+                        ]}
+                        saving={isSaving(resource.id, 'is_available')}
+                        onSave={(v) => patchField(resource.id, 'is_available', v === 'true')}
+                        title="Edit availability"
                       >
                         {resource.is_available
                           ? <span className="text-xs font-medium text-green-700">Available</span>
                           : <span className="text-xs text-muted-foreground">Booked</span>}
-                      </button>
+                      </InlineEditCell>
                     </td>
-                    <td className="px-4 py-3 text-sm">{resource.is_active ? <span className="text-green-700 font-medium">Active</span> : <span className="text-muted-foreground">Hidden</span>}</td>
+                    <td className="px-4 py-3 text-sm">
+                      <InlineEditCell
+                        type="select"
+                        value={resource.is_active ? 'true' : 'false'}
+                        options={[
+                          { value: 'true', label: 'Active' },
+                          { value: 'false', label: 'Hidden' },
+                        ]}
+                        saving={isSaving(resource.id, 'is_active')}
+                        onSave={(v) => patchField(resource.id, 'is_active', v === 'true')}
+                        title="Edit active status"
+                      >
+                        {resource.is_active ? <span className="text-green-700 font-medium">Active</span> : <span className="text-muted-foreground">Hidden</span>}
+                      </InlineEditCell>
+                    </td>
                     <td className="px-4 py-3">
                       <div className="flex items-center justify-end gap-1">
                         <button

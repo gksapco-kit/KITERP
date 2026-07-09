@@ -21,6 +21,7 @@ from app.repositories.review_repo import ReviewRepository
 from app.utils.geo import haversine_km
 from app.utils.vendor_storefront import vendor_live_on_storefront
 from app.services.storefront_theme_config import normalize_theme_config, theme_config_needs_migration
+from app.utils.social_link_normalize import normalize_social_links
 
 router = APIRouter()
 
@@ -243,7 +244,7 @@ async def get_vendor_by_slug(
         "latitude": float(vendor.latitude) if vendor.latitude else None,
         "longitude": float(vendor.longitude) if vendor.longitude else None,
         "service_radius_km": vendor.service_radius_km,
-        "social_links": vendor.social_links or {},
+        "social_links": normalize_social_links(vendor.social_links or {}),
         "business_hours": vendor.business_hours or {},
         "gstin": vendor.gstin,
         "is_gst_registered": vendor.is_gst_registered,

@@ -370,6 +370,10 @@ async def update_store(
             else:
                 merged_settings[key] = value
         update_data["settings"] = merged_settings
+        if "social_links" in merged_settings:
+            from app.utils.social_link_normalize import normalize_social_links
+            merged_settings["social_links"] = normalize_social_links(merged_settings.get("social_links"))
+            update_data["settings"] = merged_settings
     if "manager_id" in update_data and update_data["manager_id"]:
         update_data["manager_id"] = UUID(update_data["manager_id"])
 

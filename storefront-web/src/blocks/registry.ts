@@ -38,7 +38,7 @@ export interface LiveItem {
 export const BLOCK_CATALOG: BlockDef[] = [
   // Structure
   { type: 'nav', label: 'Navigation', desc: 'Top navigation with logo and links', category: 'structure', defaultProps: { brand: 'Your Brand', brand_logo: '', show_logo: true, show_brand_name: true, brand_layout: 'horizontal', logo_size: 'md', logo_shape: 'original', logo_fit: 'contain', brand_gap: 8, brand_name_size: 'md', show_nav_links: true, nav_links_source: 'site_pages', nav_links: [{ label: 'About', url: '/about' }, { label: 'Contact', url: '/contact' }], show_search: true, show_cart: true, show_login: true, cta_label: 'Get Started' }, liveResource: 'pages' },
-  { type: 'footer', label: 'Footer', desc: 'Site footer with links and copyright', category: 'structure', defaultProps: { copyright: '© 2026 Your Company. All rights reserved.', columns: 4, show_social: true, social_links: { twitter: '', facebook: '', instagram: '', youtube: '' } }, liveResource: 'pages' },
+  { type: 'footer', label: 'Footer', desc: 'Site footer with links and copyright', category: 'structure', defaultProps: { copyright: '© 2026 Your Company. All rights reserved.', columns: 4, show_social: true, social_links: { whatsapp: '', twitter: '', facebook: '', instagram: '', youtube: '' } }, liveResource: 'pages' },
   { type: 'announcement_bar', label: 'Announcement Bar', desc: 'Top banner for promotions', category: 'structure', defaultProps: { text: 'Wholesome snacks and groceries — natural ingredients you can trust.', color: '#274832', show_close: true } },
 
   // Hero
@@ -69,7 +69,7 @@ export const BLOCK_CATALOG: BlockDef[] = [
   { type: 'image_block', label: 'Image', desc: 'Single image with optional caption', category: 'media', defaultProps: { image_url: '', caption: '' } },
   { type: 'divider', label: 'Divider', desc: 'Visual separator between sections', category: 'layout', defaultProps: { style: 'line', color: '#e5e7eb', spacing: 40 } },
   { type: 'spacer', label: 'Spacer', desc: 'Blank vertical spacer', category: 'layout', defaultProps: { height: 80 } },
-  { type: 'social_links', label: 'Social Links', desc: 'Social media icon links', category: 'social', defaultProps: { title: 'Follow Us', social_links: { twitter: '', instagram: '', linkedin: '', facebook: '', youtube: '' } }, liveResource: 'profile' },
+  { type: 'social_links', label: 'Social Links', desc: 'Social media icon links', category: 'social', defaultProps: { title: 'Follow Us', social_links: { whatsapp: '', twitter: '', instagram: '', linkedin: '', facebook: '', youtube: '' } }, liveResource: 'profile' },
   { type: 'countdown', label: 'Countdown Timer', desc: 'Countdown to a date/event', category: 'conversion', defaultProps: { title: 'Launch In', target_date: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString() } },
   { type: 'product_grid', label: 'Product Grid', desc: 'Display products from your catalog', category: 'ecommerce', defaultProps: { title: 'Featured Products', columns: 4, show_badges: true, padding_top: 64, padding_bottom: 64 }, liveResource: 'products' },
   { type: 'menu_grid', label: 'Menu / Catalog', desc: 'Restaurant-style menu grid', category: 'food', defaultProps: { title: 'Our Menu', categories: ['Starters', 'Mains', 'Desserts', 'Drinks'] }, liveResource: 'products' },

@@ -35,6 +35,8 @@ import { useAuthStore } from '@/stores/authStore'
 import { useVendorStore } from '@/stores/vendorStore'
 import type { TeamMember } from '@/types'
 import { TableToolbar } from '@/components/table/TableToolbar'
+import { InlineEditCell } from '@/components/table/InlineEditCell'
+import { useInlineFieldPatch, INLINE_EDIT_HINT } from '@/hooks/useInlineFieldPatch'
 import { processRows, type SortDir } from '@/lib/tableList'
 import { extractApiError } from '@/lib/errorMessages'
 import { onClickableTableRow } from '@/lib/clickableTableRow'
@@ -44,6 +46,15 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { vendorApi } from '@/api/vendor'
 
 const SYSTEM_ROLES = ['owner', 'admin', 'manager', 'sales', 'staff']
+
+type MemberUpdatePayload = {
+  role?: string
+  role_id?: string
+  is_active?: boolean
+  access_starts_at?: string | null
+  access_ends_at?: string | null
+  clear_access_ends_at?: boolean
+}
 
 const roleColors: Record<string, string> = {
   owner: 'bg-primary/12 text-primary',
@@ -133,14 +144,46 @@ export default function TeamPage() {
   const members = teamData?.items || []
   const customRoles = assignableRoles?.custom_roles ?? []
 
-  type MemberUpdatePayload = {
-    role?: string
-    role_id?: string
-    is_active?: boolean
-    access_starts_at?: string | null
-    access_ends_at?: string | null
-    clear_access_ends_at?: boolean
-  }
+  const { savingCellKey, setSavingCellKey, cellKey, patchField: patchMemberField } = useInlineFieldPatch({
+    mutateAsync: ({ id, data }) => updateMutation.mutateAsync({ id, data: data as MemberUpdatePayload }),
+  })
+  const isSaving = (id: string, field: string) => savingCellKey === cellKey(id, field)
+
+  const roleOptions = useMemo(() => {
+    const builtin = assignableRoles?.builtin_roles ?? []
+    const custom = assignableRoles?.custom_roles ?? []
+    return [
+      ...builtin.map((r) => ({ value: r.slug, label: r.name })),
+      ...custom.map((r) => ({ value: r.id, label: r.name })),
+    ]
+  }, [assignableRoles])
+
+  const storeOptions = useMemo(
+    () => [
+      { value: '', label: 'All stores' },
+      ...stores.map((s) => ({ value: s.id, label: s.name })),
+    ],
+    [stores],
+  )
+
+  const patchMemberRole = useCallback(async (memberId: string, selectValue: string) => {
+    const parsed = parseRoleSelectValue(selectValue, customRoles)
+    setSavingCellKey(`${memberId}:role`)
+    try {
+      await updateMutation.mutateAsync({ id: memberId, data: parsed })
+    } finally {
+      setSavingCellKey(null)
+    }
+  }, [customRoles, updateMutation, setSavingCellKey])
+
+  const patchMemberStore = useCallback(async (memberId: string, storeId: string) => {
+    setSavingCellKey(`${memberId}:store`)
+    try {
+      await assignStoreMutation.mutateAsync({ staffId: memberId, storeId: storeId || null })
+    } finally {
+      setSavingCellKey(null)
+    }
+  }, [assignStoreMutation, setSavingCellKey])
 
   const displayMembers = useMemo(
     () =>
@@ -318,6 +361,7 @@ export default function TeamPage() {
           sortDir={sortDir}
           onSortKeyChange={setSortKey}
           onSortDirChange={setSortDir}
+          hint={INLINE_EDIT_HINT}
           className="border-0 border-b rounded-none bg-gray-50/80"
         />
         {(!vendorId || isLoading) ? (
@@ -403,37 +447,70 @@ export default function TeamPage() {
                       </div>
                     </td>
                     <td className="px-6 py-4">
-                      <button
-                        type="button"
-                        title="View role permissions"
-                        onClick={() => {
-                          const isBuiltIn = SYSTEM_ROLES.includes(member.role)
-                          const dest = isBuiltIn
-                            ? `/roles?builtin=${member.role}&from=team`
-                            : member.role_id
-                              ? `/roles?roleId=${member.role_id}&from=team`
-                              : '/roles?from=team'
-                          navigate(dest)
-                        }}
-                        className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium transition-opacity hover:opacity-75 ${roleColors[member.role] || roleColors.custom}`}
-                      >
-                        <Shield className="w-3 h-3" />
-                        {member.role_name}
-                      </button>
+                      {canManageTeam && member.role !== 'owner' && member.user_id !== user?.id ? (
+                        <InlineEditCell
+                          type="select"
+                          value={roleSelectValue(member)}
+                          options={roleOptions}
+                          saving={isSaving(member.id, 'role')}
+                          onSave={(v) => patchMemberRole(member.id, String(v))}
+                        >
+                          <button
+                            type="button"
+                            title="View role permissions"
+                            onClick={() => {
+                              const isBuiltIn = SYSTEM_ROLES.includes(member.role)
+                              const dest = isBuiltIn
+                                ? `/roles?builtin=${member.role}&from=team`
+                                : member.role_id
+                                  ? `/roles?roleId=${member.role_id}&from=team`
+                                  : '/roles?from=team'
+                              navigate(dest)
+                            }}
+                            className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium transition-opacity hover:opacity-75 ${roleColors[member.role] || roleColors.custom}`}
+                          >
+                            <Shield className="w-3 h-3" />
+                            {member.role_name}
+                          </button>
+                        </InlineEditCell>
+                      ) : (
+                        <button
+                          type="button"
+                          title="View role permissions"
+                          onClick={() => {
+                            const isBuiltIn = SYSTEM_ROLES.includes(member.role)
+                            const dest = isBuiltIn
+                              ? `/roles?builtin=${member.role}&from=team`
+                              : member.role_id
+                                ? `/roles?roleId=${member.role_id}&from=team`
+                                : '/roles?from=team'
+                            navigate(dest)
+                          }}
+                          className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium transition-opacity hover:opacity-75 ${roleColors[member.role] || roleColors.custom}`}
+                        >
+                          <Shield className="w-3 h-3" />
+                          {member.role_name}
+                        </button>
+                      )}
                     </td>
                     <td className="px-6 py-4">
                       {stores.length > 0 ? (
-                        <Select
-                          value={(member as TeamMember & { store_id?: string }).store_id ?? ''}
-                          onChange={(v) => assignStoreMutation.mutate({
-                            staffId: member.id,
-                            storeId: v || null,
-                          })}
-                          options={selectOptionsWithBlank('All stores', stores.map(s => ({ value: s.id, label: s.name })))}
-                          placeholder="All stores"
-                          aria-label="Assign store"
-                          className="text-xs max-w-[140px]"
-                        />
+                        canManageTeam && member.role !== 'owner' ? (
+                          <InlineEditCell
+                            type="select"
+                            value={(member as TeamMember & { store_id?: string }).store_id ?? ''}
+                            options={storeOptions}
+                            saving={savingCellKey === `${member.id}:store`}
+                            onSave={(v) => patchMemberStore(member.id, String(v))}
+                            className="text-xs max-w-[140px]"
+                          >
+                            {(member as TeamMember & { store_name?: string }).store_name || 'All stores'}
+                          </InlineEditCell>
+                        ) : (
+                          <span className="text-xs text-gray-600">
+                            {(member as TeamMember & { store_name?: string }).store_name || 'All stores'}
+                          </span>
+                        )
                       ) : (
                         <span className="text-xs text-gray-400 flex items-center gap-1">
                           <Store className="w-3 h-3" />No stores
@@ -442,17 +519,26 @@ export default function TeamPage() {
                     </td>
                     <td className="px-6 py-4">
                       {canManageTeam && member.role !== 'owner' && member.user_id !== user?.id ? (
-                        <button
-                          type="button"
-                          onClick={() => handleToggleStatus(member)}
-                          title={member.is_active ? 'Active — click to deactivate' : 'Inactive — click to activate'}
-                          className="inline-flex items-center text-gray-400 hover:text-gray-700 transition-colors"
-                          aria-label={member.is_active ? 'Deactivate team member' : 'Activate team member'}
+                        <InlineEditCell
+                          type="select"
+                          value={member.is_active ? 'true' : 'false'}
+                          options={[
+                            { value: 'true', label: 'Active' },
+                            { value: 'false', label: 'Inactive' },
+                          ]}
+                          saving={isSaving(member.id, 'is_active')}
+                          onSave={(v) => patchMemberField(member.id, 'is_active', v === 'true')}
                         >
-                          {member.is_active
-                            ? <ToggleRight className="w-6 h-6 text-green-500" />
-                            : <ToggleLeft className="w-6 h-6 text-gray-400" />}
-                        </button>
+                          {member.is_active ? (
+                            <span className="inline-flex items-center gap-1 text-green-600 text-xs font-medium">
+                              <UserCheck className="w-3.5 h-3.5" /> Active
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 text-red-500 text-xs font-medium">
+                              <UserX className="w-3.5 h-3.5" /> Inactive
+                            </span>
+                          )}
+                        </InlineEditCell>
                       ) : member.is_active ? (
                         <span className="inline-flex items-center gap-1 text-green-600 text-xs font-medium">
                           <UserCheck className="w-3.5 h-3.5" /> Active

@@ -6,7 +6,9 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent } from '@/components/ui/card'
 import { ResizableTable } from '@/components/table/ResizableTable'
+import { InlineEditCell } from '@/components/table/InlineEditCell'
 import { TableToolbar } from '@/components/table/TableToolbar'
+import { useInlineFieldPatch, INLINE_EDIT_HINT } from '@/hooks/useInlineFieldPatch'
 import { TableColumnLabel } from '@/components/common/FieldLabel'
 import { useEscapeToClose } from '@/hooks/useEscapeToClose'
 import { ImageSourcePicker } from '@/components/common/ImageSourcePicker'
@@ -421,6 +423,7 @@ export default function SalesEventsPage() {
   }, [data?.items, search, sortKey, sortDir])
 
   const saving = createEvent.isPending || updateEvent.isPending
+  const { isSaving, patchField } = useInlineFieldPatch(updateEvent)
 
   return (
     <div className="space-y-4 p-4 md:p-6">
@@ -455,6 +458,7 @@ export default function SalesEventsPage() {
             sortDir={sortDir}
             onSortKeyChange={setSortKey}
             onSortDirChange={setSortDir}
+            hint={INLINE_EDIT_HINT}
           />
           <div className="overflow-x-auto">
             <ResizableTable tableId="sales-events-v1" defaultWidths={[64, 240, 160, 130, 90, 120]}>
@@ -479,7 +483,11 @@ export default function SalesEventsPage() {
                     className="hover:bg-muted/30 cursor-pointer"
                     onClick={onClickableTableRow(() => setModal({ mode: 'edit', event }))}
                   >
-                    <td className="px-4 py-3 text-sm">{event.sort_order}</td>
+                    <td className="px-4 py-3 text-sm">
+                      <InlineEditCell type="number" value={event.sort_order} readOnly readOnlyMessage="Use the full editor to change sort order" title="Order">
+                        {event.sort_order}
+                      </InlineEditCell>
+                    </td>
                     <td className="px-4 py-3 text-sm font-medium">
                       <div className="flex items-center gap-2">
                         {event.image_url ? (
@@ -487,26 +495,71 @@ export default function SalesEventsPage() {
                         ) : (
                           <div className="h-8 w-10 rounded bg-muted shrink-0" />
                         )}
-                        <span className="line-clamp-1">{event.title}</span>
+                        <InlineEditCell
+                          value={event.title}
+                          saving={isSaving(event.id, 'title')}
+                          validate={(v) => String(v).trim().length < 1 ? 'Title is required' : null}
+                          onSave={(v) => patchField(event.id, 'title', String(v).trim())}
+                          title="Edit event title"
+                          className="-mx-1.5 min-w-0 flex-1"
+                        >
+                          <span className="line-clamp-1">{event.title}</span>
+                        </InlineEditCell>
                       </div>
                     </td>
                     <td className="px-4 py-3 text-sm text-muted-foreground">
-                      {event.event_date && <div>{formatEventDate(event.event_date)}</div>}
-                      <div className="text-xs">
-                        {[
-                          [formatEventTime(event.start_time), formatEventTime(event.end_time)].filter(Boolean).join(' – '),
-                          event.venue,
-                        ].filter(Boolean).join(' · ') || '—'}
+                      <div className="space-y-0.5">
+                        <InlineEditCell
+                          value={event.event_date || ''}
+                          saving={isSaving(event.id, 'event_date')}
+                          onSave={(v) => patchField(event.id, 'event_date', String(v).trim() || null)}
+                          title="Edit date (YYYY-MM-DD)"
+                        >
+                          {event.event_date ? formatEventDate(event.event_date) : '—'}
+                        </InlineEditCell>
+                        <InlineEditCell
+                          value={event.venue || ''}
+                          saving={isSaving(event.id, 'venue')}
+                          onSave={(v) => patchField(event.id, 'venue', String(v).trim() || null)}
+                          title="Edit venue"
+                        >
+                          <span className="text-xs">
+                            {[
+                              [formatEventTime(event.start_time), formatEventTime(event.end_time)].filter(Boolean).join(' – '),
+                              event.venue,
+                            ].filter(Boolean).join(' · ') || '—'}
+                          </span>
+                        </InlineEditCell>
                       </div>
                     </td>
                     <td className="px-4 py-3 text-sm">
-                      {event.tiers.length > 0 ? (
-                        <span>{event.tiers.length} tier{event.tiers.length === 1 ? '' : 's'} · from {formatCurrency(Math.min(...event.tiers.map(t => t.price)), event.tiers[0]?.currency ?? 'USD')}</span>
-                      ) : (
-                        <span className="text-muted-foreground">No tiers</span>
-                      )}
+                      <InlineEditCell
+                        readOnly
+                        readOnlyMessage="Edit ticket tiers in the full editor"
+                        title="Ticket tiers"
+                      >
+                        {event.tiers.length > 0 ? (
+                          <span>{event.tiers.length} tier{event.tiers.length === 1 ? '' : 's'} · from {formatCurrency(Math.min(...event.tiers.map(t => t.price)), event.tiers[0]?.currency ?? 'USD')}</span>
+                        ) : (
+                          <span className="text-muted-foreground">No tiers</span>
+                        )}
+                      </InlineEditCell>
                     </td>
-                    <td className="px-4 py-3 text-sm">{event.is_active ? <span className="text-green-700 font-medium">Active</span> : <span className="text-muted-foreground">Hidden</span>}</td>
+                    <td className="px-4 py-3 text-sm">
+                      <InlineEditCell
+                        type="select"
+                        value={event.is_active ? 'true' : 'false'}
+                        options={[
+                          { value: 'true', label: 'Active' },
+                          { value: 'false', label: 'Hidden' },
+                        ]}
+                        saving={isSaving(event.id, 'is_active')}
+                        onSave={(v) => patchField(event.id, 'is_active', v === 'true')}
+                        title="Edit active status"
+                      >
+                        {event.is_active ? <span className="text-green-700 font-medium">Active</span> : <span className="text-muted-foreground">Hidden</span>}
+                      </InlineEditCell>
+                    </td>
                     <td className="px-4 py-3">
                       <div className="flex items-center justify-end gap-1">
                         <button

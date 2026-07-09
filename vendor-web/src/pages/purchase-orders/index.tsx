@@ -9,7 +9,7 @@ import { Label } from '@/components/ui/label'
 import { Select, selectOptionsWithBlank } from '@/components/ui/select'
 import {
   usePurchaseOrders, useCreatePurchaseOrder, useSuppliers, useProducts, useServices,
-  useCreateSupplier,
+  useCreateSupplier, useUpdatePurchaseOrder,
 } from '@/hooks/useVendor'
 import { useQuery } from '@tanstack/react-query'
 import { vendorApi } from '@/api/vendor'
@@ -19,6 +19,8 @@ import { PhoneInput } from '@/components/ui/PhoneInput'
 import { ResizableTable } from '@/components/table/ResizableTable'
 import type { Product, Service, PurchaseOrder } from '@/types'
 import { TableToolbar } from '@/components/table/TableToolbar'
+import { InlineEditCell } from '@/components/table/InlineEditCell'
+import { useInlineFieldPatch, INLINE_EDIT_HINT } from '@/hooks/useInlineFieldPatch'
 import { processRows, type SortDir } from '@/lib/tableList'
 import { onClickableTableRow } from '@/lib/clickableTableRow'
 import { useBarcodeScanner } from '@/hooks/useBarcodeScanner'
@@ -83,6 +85,21 @@ export default function PurchaseOrdersPage() {
   if (statusFilter) params.status = statusFilter
 
   const { data, isLoading } = usePurchaseOrders(params)
+  const updatePO = useUpdatePurchaseOrder()
+  const { savingCellKey, cellKey, patchField: patchPOField } = useInlineFieldPatch({
+    mutateAsync: ({ id, data }) => updatePO.mutateAsync({ id, data }),
+  })
+  const isSaving = (id: string, field: string) => savingCellKey === cellKey(id, field)
+
+  const poStatusOptions = [
+    { value: 'draft', label: 'Draft' },
+    { value: 'sent', label: 'Sent' },
+    { value: 'ordered', label: 'Ordered' },
+    { value: 'partial_received', label: 'Partial' },
+    { value: 'received', label: 'Received' },
+    { value: 'closed', label: 'Closed' },
+    { value: 'cancelled', label: 'Cancelled' },
+  ]
 
   const total = data?.total || 0
   const pages = data?.pages || 0
@@ -200,7 +217,7 @@ export default function PurchaseOrdersPage() {
                 search=""
                 onSearchChange={() => {}}
                 hideSearch
-                hint="Sorting applies to the current page."
+                hint={`${INLINE_EDIT_HINT} Sorting applies to the current page.`}
                 sortOptions={[
                   { value: 'order_date', label: 'Order date' },
                   { value: 'created_at', label: 'Created' },
@@ -247,11 +264,23 @@ export default function PurchaseOrdersPage() {
                         <td className="px-6 py-4 text-sm font-medium text-blue-600">{po.po_number}</td>
                         <td className="px-6 py-4 text-sm text-gray-900">{po.supplier_name || '-'}</td>
                         <td className="px-6 py-4 text-center">
-                          <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${badge.bg} ${badge.text}`}>
-                            {badge.label}
-                          </span>
+                          <InlineEditCell
+                            type="select"
+                            value={po.status}
+                            options={poStatusOptions}
+                            saving={isSaving(po.id, 'status')}
+                            onSave={(v) => patchPOField(po.id, 'status', v)}
+                          >
+                            <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${badge.bg} ${badge.text}`}>
+                              {badge.label}
+                            </span>
+                          </InlineEditCell>
                         </td>
-                        <td className="px-6 py-4 text-sm text-right font-medium">{formatCurrency(po.total)}</td>
+                        <td className="px-6 py-4 text-sm text-right font-medium">
+                          <InlineEditCell readOnly readOnlyMessage="PO total is calculated from line items" value={po.total} onSave={() => {}} className="text-right font-medium">
+                            {formatCurrency(po.total)}
+                          </InlineEditCell>
+                        </td>
                         <td className="px-6 py-4">
                           {items.length === 0 ? (
                             <span className="text-xs text-gray-400">No items</span>
@@ -270,7 +299,16 @@ export default function PurchaseOrdersPage() {
                           )}
                         </td>
                         <td className="px-6 py-4 text-sm text-gray-500">{formatDate(po.order_date)}</td>
-                        <td className="px-6 py-4 text-sm text-gray-500">{formatDate(po.expected_delivery_date)}</td>
+                        <td className="px-6 py-4 text-sm text-gray-500">
+                          <InlineEditCell
+                            type="text"
+                            value={po.expected_delivery_date || ''}
+                            saving={isSaving(po.id, 'expected_delivery_date')}
+                            onSave={(v) => patchPOField(po.id, 'expected_delivery_date', String(v).trim() || null)}
+                          >
+                            {formatDate(po.expected_delivery_date)}
+                          </InlineEditCell>
+                        </td>
                       </tr>
                     )
                   })}

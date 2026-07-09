@@ -3,6 +3,8 @@ from __future__ import annotations
 
 from typing import Any, Mapping
 
+from app.utils.social_link_normalize import normalize_social_links
+
 
 SOCIAL_LINKS_MODE_KEY = "social_links_mode"
 
@@ -30,13 +32,13 @@ def _clean_links(raw: Any) -> dict[str, str]:
 
 def resolve_public_social_links(vendor, store=None) -> dict[str, str]:
     """Resolve storefront social links — shared vendor links or per-unit overrides."""
-    vendor_links = _clean_links(getattr(vendor, "social_links", None) or {})
+    vendor_links = normalize_social_links(getattr(vendor, "social_links", None) or {})
     mode = resolve_social_links_mode(getattr(vendor, "settings", None))
     if mode == "shared" or not store:
         return vendor_links
 
     store_settings = getattr(store, "settings", None) or {}
-    store_links = _clean_links(store_settings.get("social_links"))
+    store_links = normalize_social_links(store_settings.get("social_links"))
     if not store_links:
         return vendor_links
 

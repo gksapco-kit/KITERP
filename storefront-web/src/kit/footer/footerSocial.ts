@@ -1,13 +1,15 @@
 import type { LucideIcon } from 'lucide-react'
-import { Facebook, Instagram, Twitter, Youtube } from 'lucide-react'
+import { Facebook, Instagram, MessageCircle, Twitter, Youtube } from 'lucide-react'
+import { mergeSocialLinks } from '@/lib/mergeSocialLinks'
 
-export type FooterSocialPlatform = 'twitter' | 'facebook' | 'instagram' | 'youtube'
+export type FooterSocialPlatform = 'whatsapp' | 'twitter' | 'facebook' | 'instagram' | 'youtube'
 
 export const FOOTER_SOCIAL_PLATFORMS: Array<{
   key: FooterSocialPlatform
   label: string
   Icon: LucideIcon
 }> = [
+  { key: 'whatsapp', label: 'WhatsApp', Icon: MessageCircle },
   { key: 'twitter', label: 'Twitter / X', Icon: Twitter },
   { key: 'facebook', label: 'Facebook', Icon: Facebook },
   { key: 'instagram', label: 'Instagram', Icon: Instagram },
@@ -15,6 +17,7 @@ export const FOOTER_SOCIAL_PLATFORMS: Array<{
 ]
 
 export const DEFAULT_FOOTER_SOCIAL_LINKS: Record<FooterSocialPlatform, string> = {
+  whatsapp: '',
   twitter: '',
   facebook: '',
   instagram: '',
@@ -31,4 +34,12 @@ export function normalizeFooterSocialLinks(
     if (typeof val === 'string') next[key] = val.trim()
   }
   return next
+}
+
+/** Global vendor links with optional block overrides — empty block slots keep vendor values. */
+export function resolveFooterSocialLinks(
+  vendorLinks?: Record<string, string> | null,
+  blockLinks?: Record<string, string> | null,
+): Record<FooterSocialPlatform, string> {
+  return normalizeFooterSocialLinks(mergeSocialLinks(vendorLinks, blockLinks))
 }
