@@ -217,9 +217,12 @@ import {
   OVERLAY_MIN_H_PERCENT,
   OVERLAY_MIN_W_PERCENT,
   normalizeOverlayBox,
+  overlayIsBelowProductBand,
   overlayPositionStyle,
+  overlayPositionStyleForViewport,
   overlayUsesPercent,
   pxToOverlayPercent,
+  type OverlayImageBoundsPct,
 } from '@storefront/lib/blockOverlays'
 import { builderOverlayIconLabel, overlayIconRenderSize, resolveBuilderOverlayIcon } from '@storefront/lib/builderOverlayIcons'
 import { SHAPE_OPTIONS } from '@/lib/builderVisualPresets'
@@ -2946,6 +2949,10 @@ function OverlayElement({
   containerRef, blockBackgroundColor, siblings, onDragGuides, onSelect, onUpdate, onDelete,
   onOpenAiForImage, onOpenMediaForImage, onPickLocalImage, onImageFileDrop,
   onEditLink, onContextMenu, onRequestText, onBringToFront, onSendToBack, onDismiss,
+  mobilePreview = false,
+  imageBounds = null,
+  stackIndex,
+  stackCount,
 }: {
   item: BlockOverlayItem
   isSelected: boolean
@@ -2969,6 +2976,14 @@ function OverlayElement({
   onBringToFront?: () => void
   onSendToBack?: () => void
   onDismiss?: () => void
+  /**
+   * When true (mobile device preview), below-product overlays pin onto the
+   * image. Drag/resize of desktop coords is locked while pinned.
+   */
+  mobilePreview?: boolean
+  imageBounds?: OverlayImageBoundsPct | null
+  stackIndex?: number
+  stackCount?: number
   // Open the styled text prompt (title/prompt/placeholder/current value)
   onRequestText?: (opts: {
     title: string
@@ -3255,13 +3270,29 @@ function OverlayElement({
     }
   }
 
+  const containerEl = containerRef.current
+  const pinToImage = Boolean(mobilePreview && stackCount != null && stackCount > 0)
+  const positionStyle = overlayPositionStyleForViewport(item, {
+    mobile: pinToImage,
+    containerWidthPx: containerEl?.clientWidth,
+    containerHeightPx: containerEl?.clientHeight,
+    imageBounds,
+    stackIndex,
+    stackCount,
+  })
+  // Mobile preview uses a display-only pin layout — don't drag/resize desktop coords while pinned.
+  const lockDesktopCoords = pinToImage
+
   return (
     <div
       data-overlay-root
       data-overlay-id={item.id}
+      data-overlay-mobile-on-image={pinToImage ? 'true' : undefined}
       style={{
-        ...overlayPositionStyle(item),
-        zIndex: item.zIndex || 10, cursor: textEditing ? 'text' : 'move', userSelect: 'none',
+        ...positionStyle,
+        zIndex: item.zIndex || 10,
+        cursor: textEditing ? 'text' : lockDesktopCoords ? 'default' : 'move',
+        userSelect: 'none',
       }}
       onClick={e => {
         e.stopPropagation()
@@ -3282,6 +3313,7 @@ function OverlayElement({
         if (t.closest('[data-overlay-toolbar],[data-overlay-delete],[data-overlay-resize-handle]')) return
         if (t.closest('input,textarea,select')) return
         if (!isSelected) onSelect()
+        if (lockDesktopCoords) return
         // Empty image/video layers use click/drop to upload — skip drag so the click isn't eaten.
         if (!textEditing && !((item.type === 'image' || item.type === 'video') && !item.src)) startDrag(e)
       }}
@@ -3327,8 +3359,8 @@ function OverlayElement({
         <>
           {/* Selection ring */}
           <div style={{ position: 'absolute', inset: -2, border: '2px solid #64C3A0', borderRadius: 3, pointerEvents: 'none', zIndex: 1 }} />
-          {/* Resize handles */}
-          {Object.keys(OVERLAY_HANDLE_POS).map(h => (
+          {/* Resize handles — hidden in mobile pin preview (coords are desktop-only). */}
+          {!lockDesktopCoords && Object.keys(OVERLAY_HANDLE_POS).map(h => (
             <div
               key={h}
               data-overlay-resize-handle
@@ -3365,6 +3397,7 @@ function BlockOverlayCanvas({
   onCloseSettingsPanel,
   onOpenAiImageTools, onOpenMediaLibrary,
   onPickLocalImage, onImageFileDrop, onEditLinkForOverlay, onOverlayContextMenu, onRequestText,
+  mobilePreview = false,
 }: {
   blockId?: string
   overlays: BlockOverlayItem[]
@@ -3383,6 +3416,8 @@ function BlockOverlayCanvas({
   onImageFileDrop?: (file: File, overlayTarget?: { blockId: string; overlayId: string }) => void
   onEditLinkForOverlay?: (item: BlockOverlayItem, anchor: { x: number; y: number }) => void
   onOverlayContextMenu?: (item: BlockOverlayItem, e: React.MouseEvent) => void
+  /** Mobile device preview — pin below-product overlays onto the image. */
+  mobilePreview?: boolean
   onRequestText?: (opts: {
     title: string
     subtitle?: string
@@ -3462,6 +3497,72 @@ function BlockOverlayCanvas({
     return () => window.removeEventListener('keydown', onKey, true)
   }, [isEditing, selectedId, deleteItem, setSelected])
 
+  const [imageBounds, setImageBounds] = useState<OverlayImageBoundsPct | null>(null)
+
+  useEffect(() => {
+    if (!mobilePreview) {
+      setImageBounds(null)
+      return
+    }
+    const canvas = containerRef.current
+    if (!canvas) return
+
+    const measure = () => {
+      const block = (canvas.closest('[data-block-id], [data-bid], [data-sf-bid]') as HTMLElement | null)
+        ?? canvas.parentElement
+      if (!block) return
+      const candidates = Array.from(
+        block.querySelectorAll<HTMLElement>(
+          '[data-builder-section-image], .about-split-image-frame, img',
+        ),
+      ).filter((el) => {
+        const r = el.getBoundingClientRect()
+        return r.width >= 48 && r.height >= 48
+      })
+      if (!candidates.length) {
+        setImageBounds(null)
+        return
+      }
+      const img = candidates.reduce((best, el) => {
+        const a = el.getBoundingClientRect()
+        const b = best.getBoundingClientRect()
+        return a.width * a.height > b.width * b.height ? el : best
+      })
+      const canvasRect = canvas.getBoundingClientRect()
+      const imgRect = img.getBoundingClientRect()
+      if (canvasRect.width <= 0 || canvasRect.height <= 0) return
+      setImageBounds({
+        left: ((imgRect.left - canvasRect.left) / canvasRect.width) * 100,
+        top: ((imgRect.top - canvasRect.top) / canvasRect.height) * 100,
+        width: (imgRect.width / canvasRect.width) * 100,
+        height: (imgRect.height / canvasRect.height) * 100,
+      })
+    }
+
+    measure()
+    const ro = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(measure) : null
+    ro?.observe(canvas)
+    window.addEventListener('resize', measure)
+    return () => {
+      ro?.disconnect()
+      window.removeEventListener('resize', measure)
+    }
+  }, [mobilePreview, overlays.length])
+
+  const belowBandStack = useMemo(() => {
+    if (!mobilePreview || !overlays.length) return new Map<string, { index: number; count: number }>()
+    const ch = containerRef.current?.clientHeight || 0
+    const band = overlays
+      .filter((o) => overlayIsBelowProductBand(o, ch || undefined))
+      .slice()
+      .sort((a, b) => (a.y ?? 0) - (b.y ?? 0) || (a.x ?? 0) - (b.x ?? 0))
+    const map = new Map<string, { index: number; count: number }>()
+    band.forEach((item, index) => {
+      map.set(item.id, { index, count: band.length })
+    })
+    return map
+  }, [mobilePreview, overlays])
+
   if (!overlays.length && !isEditing) return null
 
   const minH = overlays.some(o => !overlayUsesPercent(o))
@@ -3472,17 +3573,21 @@ function BlockOverlayCanvas({
     <div
       ref={containerRef}
       data-overlay-canvas
+      data-overlay-mobile={mobilePreview ? 'true' : undefined}
       style={{
         position: 'absolute', inset: 0, zIndex: 78,
         // Container itself never blocks clicks ? lets them pass through to the
         // underlying inline-editable text. Each overlay item re-enables pointer
         // events on itself so it's still interactive.
         pointerEvents: 'none',
-        minHeight: isEditing && minH > 0 ? minH : undefined,
+        minHeight: isEditing && minH > 0 && !mobilePreview ? minH : undefined,
+        overflow: mobilePreview ? 'hidden' : undefined,
       }}
       onClick={e => { if (e.target === containerRef.current) setSelected(null) }}
     >
-      {overlays.map(item => (
+      {overlays.map(item => {
+        const stack = belowBandStack.get(item.id)
+        return (
         <div key={item.id} className={isEditing ? 'pointer-events-auto' : 'pointer-events-none'}>
           <OverlayElement
             item={item}
@@ -3492,6 +3597,10 @@ function BlockOverlayCanvas({
             containerRef={containerRef as React.RefObject<HTMLDivElement>}
             blockBackgroundColor={blockBackgroundColor}
             siblings={overlays.filter(o => o.id !== item.id)}
+            mobilePreview={mobilePreview}
+            imageBounds={imageBounds}
+            stackIndex={stack?.index}
+            stackCount={stack?.count}
             onDragGuides={(guides, unit) => {
               setDragGuides(guides)
               if (unit) setDragGuideUnit(unit)
@@ -3529,7 +3638,8 @@ function BlockOverlayCanvas({
             onDismiss={onCloseSettingsPanel}
           />
         </div>
-      ))}
+        )
+      })}
       {/* Figma-style alignment guides shown live while dragging / resizing. */}
       {isEditing && dragGuides.length > 0 ? (
         <div className="pointer-events-none absolute inset-0 z-[90] overflow-visible" aria-hidden>
@@ -6152,11 +6262,18 @@ interface BreakpointStyleOverrides {
 function BlockBreakpointStyles({
   styleOverrides,
   onChange,
+  previewDevice,
+  onPreviewDeviceChange,
 }: {
   styleOverrides: BreakpointStyleOverrides
   onChange: (overrides: BreakpointStyleOverrides) => void
+  previewDevice?: DeviceMode
+  onPreviewDeviceChange?: (device: DeviceMode) => void
 }) {
-  const [bp, setBp] = React.useState<Breakpoint>('desktop')
+  const bp = (previewDevice ?? 'desktop') as Breakpoint
+  const setBp = (next: Breakpoint) => {
+    onPreviewDeviceChange?.(next)
+  }
 
   const bpStyle = (styleOverrides[bp] || {}) as Record<string, unknown>
 
@@ -7978,6 +8095,21 @@ function PropsEditor({
       <div className="shrink-0 px-3 py-2.5 border-b border-border bg-card">
         <p className="text-xs font-bold text-foreground truncate">{block.label || block.block_type}</p>
         <p className={builderPanelUi.hint}>Section settings — layout, design, and content</p>
+        <button
+          type="button"
+          className="mt-1.5 flex w-full min-w-0 items-center gap-1 rounded border border-border/80 bg-muted/40 px-1.5 py-1 text-left font-mono text-[9px] text-muted-foreground hover:border-primary/40 hover:text-foreground"
+          title="Copy CSS selector for Custom CSS (Page Edit)"
+          onClick={() => {
+            const sel = `[data-block-id="${block.id}"]`
+            void navigator.clipboard?.writeText(sel).then(
+              () => toast.success('CSS selector copied'),
+              () => toast.message(sel),
+            )
+          }}
+        >
+          <span className="min-w-0 flex-1 truncate">{`[data-block-id="${block.id}"]`}</span>
+          <span className="shrink-0 text-[8px] font-sans font-semibold uppercase tracking-wide text-primary">Copy</span>
+        </button>
       </div>
 
       <SectionEditorRibbon tabs={ribbonTabs} active={editorTab} onChange={setEditorTab} />
@@ -9600,6 +9732,8 @@ function PropsEditor({
       <BlockBreakpointStyles
         styleOverrides={readRawBlockStyleOverrides(block) as any}
         onChange={overrides => onUpdate({ style_overrides: overrides } as any)}
+        previewDevice={previewDevice}
+        onPreviewDeviceChange={onPreviewDeviceChange}
       />
 
       <PropsCollapsible title="Scroll Animation" preview={animationOptionLabel(block.animation)}>
@@ -9794,6 +9928,36 @@ function PagePanel({
                 )
               })}
             </div>
+          </div>
+
+          <div>
+            <div className="mb-1 flex items-center justify-between gap-2">
+              <div className={cn(builderPanelUi.eyebrow, 'mb-0')}>Custom CSS</div>
+              {pageOverrides.custom_css != null && pageOverrides.custom_css !== '' && (
+                <button
+                  type="button"
+                  onClick={() => onPageStyleChange(activePage.id, { custom_css: undefined })}
+                  className="shrink-0 text-[9px] text-muted-foreground hover:text-destructive"
+                  title="Clear custom CSS"
+                >
+                  Clear
+                </button>
+              )}
+            </div>
+            <textarea
+              value={pageOverrides.custom_css || ''}
+              onChange={e => onPageStyleChange(activePage.id, { custom_css: e.target.value })}
+              spellCheck={false}
+              rows={8}
+              placeholder={`.builder-page .builder-block {\n  /* your styles */\n}\n\n[data-block-id="…"] h1 {\n  color: #111;\n}`}
+              className="w-full resize-y rounded-md border border-border bg-background px-2 py-1.5 font-mono text-[10px] leading-relaxed text-foreground outline-none focus:border-primary focus:ring-1 focus:ring-primary/30"
+              title="Applied immediately on this page. Target .builder-page, .builder-block, or [data-block-id=&quot;…&quot;]."
+            />
+            <p className={cn(builderPanelUi.hint, 'mt-1 px-0.5')}>
+              Applies live on this page. Use class names or{' '}
+              <span className="font-mono text-[9px]">[data-block-id="…"]</span>
+              {' '}(section id is on each block in the canvas).
+            </p>
           </div>
 
           {hasOverrides && (
@@ -11962,6 +12126,81 @@ export default function WebsiteBuilder() {
   const [rightWidth, setRightWidth] = useState(288)
   const isResizingLeft = useRef(false)
   const isResizingRight = useRef(false)
+  /** Browser window too narrow for dual docked side panels. */
+  const [builderViewportNarrow, setBuilderViewportNarrow] = useState(() => (
+    typeof window !== 'undefined' ? window.matchMedia('(max-width: 1200px)').matches : false
+  ))
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    const mq = window.matchMedia('(max-width: 1200px)')
+    const sync = () => setBuilderViewportNarrow(mq.matches)
+    sync()
+    mq.addEventListener('change', sync)
+    return () => mq.removeEventListener('change', sync)
+  }, [])
+
+  /**
+   * Compact chrome: Phone/Tablet canvas preview, or a narrow browser window.
+   * Panels stay available — collapsed as a thin rail, expanded as an overlay drawer
+   * so the canvas keeps full width and collapse/expand always works.
+   */
+  const compactSidePanels = device === 'mobile' || device === 'tablet' || builderViewportNarrow
+  const panelCollapseBeforeCompactRef = useRef<{ left: boolean; right: boolean } | null>(null)
+  const wasCompactSidePanelsRef = useRef(compactSidePanels)
+
+  useEffect(() => {
+    const wasCompact = wasCompactSidePanelsRef.current
+    wasCompactSidePanelsRef.current = compactSidePanels
+    if (compactSidePanels && !wasCompact) {
+      if (!panelCollapseBeforeCompactRef.current) {
+        panelCollapseBeforeCompactRef.current = { left: leftCollapsed, right: rightCollapsed }
+      }
+      setLeftCollapsed(true)
+      setRightCollapsed(true)
+      return
+    }
+    if (!compactSidePanels && wasCompact && panelCollapseBeforeCompactRef.current) {
+      const prev = panelCollapseBeforeCompactRef.current
+      panelCollapseBeforeCompactRef.current = null
+      setLeftCollapsed(prev.left)
+      setRightCollapsed(prev.right)
+    }
+  }, [compactSidePanels])
+
+  const openLeftBuilderPanel = useCallback(() => {
+    setLeftCollapsed(false)
+    if (compactSidePanels) setRightCollapsed(true)
+  }, [compactSidePanels])
+
+  const openRightBuilderPanel = useCallback(() => {
+    setRightCollapsed(false)
+    if (compactSidePanels) setLeftCollapsed(true)
+  }, [compactSidePanels])
+
+  const closeLeftBuilderPanel = useCallback(() => setLeftCollapsed(true), [])
+  const closeRightBuilderPanel = useCallback(() => setRightCollapsed(true), [])
+
+  const leftPanelOverlay = compactSidePanels && !leftCollapsed
+  const rightPanelOverlay = compactSidePanels && !rightCollapsed
+  const showPanelBackdrop = leftPanelOverlay || rightPanelOverlay
+
+  useEffect(() => {
+    if (!showPanelBackdrop) return
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return
+      e.preventDefault()
+      setLeftCollapsed(true)
+      setRightCollapsed(true)
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [showPanelBackdrop])
+
+  const openLeftBuilderPanelRef = useRef(openLeftBuilderPanel)
+  const openRightBuilderPanelRef = useRef(openRightBuilderPanel)
+  openLeftBuilderPanelRef.current = openLeftBuilderPanel
+  openRightBuilderPanelRef.current = openRightBuilderPanel
+
   /** Avoid showing the previous site's blocks when `siteId` in the URL changes without a full remount. */
   const prevEditorSiteIdRef = useRef<string | null>(null)
   const [isSaving, setIsSaving] = useState(false)
@@ -12929,7 +13168,7 @@ export default function WebsiteBuilder() {
     setCanvasImageTarget(null)
     setActiveTextTarget(prev => toggleTextFieldInTarget(prev, blockId, fieldKey, opts?.additive ?? false))
     setRightPanel('props')
-    setRightCollapsed(false)
+    openRightBuilderPanel()
   }, [formatPaintBrush])
 
   const handleCanvasBlockSelectCapture = useCallback((e: React.MouseEvent) => {
@@ -12995,7 +13234,7 @@ export default function WebsiteBuilder() {
       setCanvasImageTarget(null)
       setActiveTextTarget(null)
       setRightPanel('props')
-      setRightCollapsed(false)
+      openRightBuilderPanel()
       return
     }
 
@@ -13009,7 +13248,7 @@ export default function WebsiteBuilder() {
     if (isNewSelection) {
       setRightPanel('props')
     }
-    setRightCollapsed(false)
+    openRightBuilderPanel()
   }, [formatPaintBrush, selectedBlockId])
 
   const handleCanvasNavClickCapture = useCallback((e: React.MouseEvent) => {
@@ -13049,7 +13288,7 @@ export default function WebsiteBuilder() {
     if (blockId) {
       setSelectedBlockId(blockId)
       setRightPanel('links')
-      setRightCollapsed(false)
+      openRightBuilderPanel()
     }
   }, [handleNavigateBuilderPage, localPages, localBlocks, activePageId])
 
@@ -13465,7 +13704,7 @@ export default function WebsiteBuilder() {
       setOverlayImageTarget(null)
       setActiveTextTarget(null)
       setRightPanel('props')
-      setRightCollapsed(false)
+      openRightBuilderPanel()
       setCanvasImageTarget(toggleCanvasImageSlot(null, blockId, field, opts))
       return
     }
@@ -13503,7 +13742,7 @@ export default function WebsiteBuilder() {
   }, [selectedBlockId])
 
   const openMediaFromCanvas = useCallback(() => {
-    setLeftCollapsed(false)
+    openLeftBuilderPanel()
     setLeftPanel('media')
   }, [])
 
@@ -13709,7 +13948,7 @@ export default function WebsiteBuilder() {
     pushHistory(nextMap)
     setSelectedBlockId(focusId)
     setRightPanel('props')
-    setRightCollapsed(false)
+    openRightBuilderPanel()
     scrollCanvasToBlock(focusId)
     setSavingBlockId(focusId)
     setAutoSaveStatus('saving')
@@ -13789,7 +14028,7 @@ export default function WebsiteBuilder() {
         const existing = relocated.find(b => b.block_type === def.type)!
         setSelectedBlockId(existing.id)
         setRightPanel('props')
-        setRightCollapsed(false)
+        openRightBuilderPanel()
         setBlocksDirty(true)
         blocksDirtyRef.current = true
         toast.success(`${def.label} moved to the ${def.type === 'footer' ? 'bottom' : 'top'}`)
@@ -13865,7 +14104,7 @@ export default function WebsiteBuilder() {
     pushHistory(next)
     setSelectedBlockId(tempId)
     setRightPanel('props')
-    setRightCollapsed(false)
+    openRightBuilderPanel()
     scrollCanvasToBlock(tempId)
 
     // 2. Persist in background (structure blocks always save on the homepage)
@@ -14244,7 +14483,7 @@ export default function WebsiteBuilder() {
           setOverlayImageTarget(null)
           setActiveTextTarget({ blockId, fieldKeys: [fieldKey] })
           setRightPanel('props')
-          setRightCollapsed(false)
+          openRightBuilderPanel()
           if (!formatPaintBrush.sticky) setFormatPaintBrush(null)
           toast.success('Formatting applied to word')
           return true
@@ -14257,7 +14496,7 @@ export default function WebsiteBuilder() {
           setOverlayImageTarget(null)
           setActiveTextTarget({ blockId, fieldKeys: [fieldKey] })
           setRightPanel('props')
-          setRightCollapsed(false)
+          openRightBuilderPanel()
           if (!formatPaintBrush.sticky) setFormatPaintBrush(null)
           toast.success('Formatting applied to selected text')
           return true
@@ -14277,7 +14516,7 @@ export default function WebsiteBuilder() {
     if (fieldKey) setActiveTextTarget({ blockId, fieldKeys: [fieldKey] })
     else setActiveTextTarget(null)
     setRightPanel('props')
-    setRightCollapsed(false)
+    openRightBuilderPanel()
     if (!formatPaintBrush.sticky) setFormatPaintBrush(null)
     toast.success(fieldKey ? 'Formatting applied to text field' : 'Formatting applied to section')
     return true
@@ -15138,7 +15377,7 @@ export default function WebsiteBuilder() {
     setOverlayImageTarget(null)
     setActiveTextTarget({ blockId: block.id, fieldKeys: [fieldKey] })
     setRightPanel('props')
-    setRightCollapsed(false)
+    openRightBuilderPanel()
     setInlineTextEdit({
       blockId: block.id,
       fields,
@@ -15184,7 +15423,7 @@ export default function WebsiteBuilder() {
         id: 'props',
         label: 'Block properties (side panel)',
         icon: SlidersHorizontal,
-        onSelect: () => { setRightPanel('props'); setRightCollapsed(false) },
+        onSelect: () => { setRightPanel('props'); openRightBuilderPanel() },
       },
       {
         id: 'edit',
@@ -15200,7 +15439,7 @@ export default function WebsiteBuilder() {
         id: 'style',
         label: 'Style & colors (side panel)',
         icon: Palette,
-        onSelect: () => { setRightPanel('style'); setRightCollapsed(false) },
+        onSelect: () => { setRightPanel('style'); openRightBuilderPanel() },
       },
       ...(getSectionLayoutOptions(block.block_type).length > 0 ? [{
         id: 'layout',
@@ -15224,7 +15463,7 @@ export default function WebsiteBuilder() {
         icon: ImageIcon,
         onSelect: () => {
           setLeftPanel('media')
-          setLeftCollapsed(false)
+          openLeftBuilderPanel()
           const primaryField = sectionPrimaryImageField(
             String(block.block_type),
             (block.props ?? {}) as Record<string, unknown>,
@@ -15851,12 +16090,12 @@ export default function WebsiteBuilder() {
     setActivePageId(pageId)
     setSelectedBlockId(blockId)
     setRightPanel('props')
-    setRightCollapsed(false)
+    openRightBuilderPanel()
   }
 
   const openSectionsPanel = useCallback(() => {
     setLeftPanel('blocks')
-    setLeftCollapsed(false)
+    openLeftBuilderPanel()
   }, [])
 
   // Insert a block after the currently selected block
@@ -16714,7 +16953,7 @@ export default function WebsiteBuilder() {
       cancelAnimationFrame(raf)
       ro.disconnect()
     }
-  }, [designWidthPx, leftCollapsed, rightCollapsed, leftWidth, rightWidth, isLoading, site, activePageId])
+  }, [designWidthPx, leftCollapsed, rightCollapsed, leftWidth, rightWidth, isLoading, site, activePageId, compactSidePanels])
 
   useLayoutEffect(() => {
     const main = canvasMainRef.current
@@ -16722,7 +16961,7 @@ export default function WebsiteBuilder() {
     main.scrollLeft = 0
     // Keep preview fitted when side panels resize (user can zoom again after).
     setCanvasZoom(1)
-  }, [canvasFitScale, designWidthPx, leftCollapsed, rightCollapsed, leftWidth, rightWidth])
+  }, [canvasFitScale, designWidthPx, leftCollapsed, rightCollapsed, leftWidth, rightWidth, compactSidePanels])
 
   useLayoutEffect(() => {
     const inner = canvasPreviewInnerRef.current
@@ -16757,7 +16996,7 @@ export default function WebsiteBuilder() {
     if (!main) return
     const maxScrollLeft = Math.max(0, scaledCanvasWidth + CANVAS_VIEWPORT_PAD_PX - main.clientWidth)
     if (main.scrollLeft > maxScrollLeft) main.scrollLeft = maxScrollLeft
-  }, [scaledCanvasWidth, leftCollapsed, rightCollapsed, leftWidth, rightWidth])
+  }, [scaledCanvasWidth, leftCollapsed, rightCollapsed, leftWidth, rightWidth, compactSidePanels])
 
   const prevCanvasZoomRef = useRef(canvasZoom)
   useLayoutEffect(() => {
@@ -17014,7 +17253,7 @@ export default function WebsiteBuilder() {
             return
           }
           setLeftPanel(panel)
-          setLeftCollapsed(false)
+          openLeftBuilderPanel()
         }}
         onOpenSeoManagement={() => {
           const params = new URLSearchParams()
@@ -17025,7 +17264,7 @@ export default function WebsiteBuilder() {
         }}
         onOpenRightPanel={(panel) => {
           setRightPanel(panel)
-          setRightCollapsed(false)
+          openRightBuilderPanel()
         }}
         onOpenHelp={() => { restoreBuilderCoachMarks() }}
       />
@@ -17679,26 +17918,74 @@ export default function WebsiteBuilder() {
       </header>
 
       {/* ── Main Layout ──────────────────────────────────────────────── */}
-      <div className="flex flex-1 overflow-hidden">
+      <div className="relative flex flex-1 overflow-hidden">
+        {showPanelBackdrop && (
+          <button
+            type="button"
+            aria-label="Close side panel"
+            className="absolute inset-0 z-[190] bg-black/25"
+            onClick={() => {
+              closeLeftBuilderPanel()
+              closeRightBuilderPanel()
+            }}
+          />
+        )}
+
+        {/* Compact (Phone/Tablet/narrow): corner expand chips — no side rails / white gutters */}
+        {compactSidePanels && leftCollapsed && (
+          <button
+            type="button"
+            onClick={openLeftBuilderPanel}
+            title="Open panel — Sections, Pages, Templates, Media"
+            className={cn(
+              builderPanelUi.panelEdgeToggleCorner,
+              builderPanelUi.panelEdgeToggleCornerLeft,
+            )}
+          >
+            <PanelLeft className="h-3.5 w-3.5" strokeWidth={2} />
+          </button>
+        )}
+        {compactSidePanels && rightCollapsed && (
+          <button
+            type="button"
+            onClick={openRightBuilderPanel}
+            title="Open panel — Section Edit, Page Edit, Links, Style"
+            className={cn(
+              builderPanelUi.panelEdgeToggleCorner,
+              builderPanelUi.panelEdgeToggleCornerRight,
+            )}
+          >
+            <PanelRight className="h-3.5 w-3.5" strokeWidth={2} />
+          </button>
+        )}
 
         {/* ── LEFT PANEL ──────────────────────────────────────────────── */}
+        {/* Compact+collapsed: omit rail so canvas is full-bleed. Desktop keeps a thin rail. */}
+        {(leftPanelOverlay || !compactSidePanels) && (
         <aside
           className={cn(
-            'flex flex-col border-r shrink-0',
+            'flex flex-col border-r',
             builderPanelUi.shell,
             builderPanelUi.panelRailStack,
-            leftCollapsed ? 'w-10' : '',
+            leftPanelOverlay
+              ? 'absolute inset-y-0 left-0 z-[200] shadow-2xl'
+              : 'relative shrink-0',
+            !leftPanelOverlay && leftCollapsed ? 'w-10' : '',
           )}
-          style={leftCollapsed ? undefined : { width: leftWidth }}
+          style={
+            leftCollapsed && !leftPanelOverlay
+              ? undefined
+              : { width: Math.min(leftWidth, compactSidePanels ? 320 : leftWidth) }
+          }
         >
           {leftCollapsed ? (
             <button
               type="button"
-              onClick={() => setLeftCollapsed(false)}
+              onClick={openLeftBuilderPanel}
               title="Open panel — Sections, Pages, Templates, Media"
               className={cn(
                 builderPanelUi.panelEdgeToggle,
-                builderPanelUi.panelEdgeToggleTop,
+                builderPanelUi.panelEdgeToggleMid,
                 'right-0 translate-x-1/2',
               )}
             >
@@ -17729,6 +18016,14 @@ export default function WebsiteBuilder() {
                     </button>
                   ))}
                 </div>
+                <button
+                  type="button"
+                  onClick={closeLeftBuilderPanel}
+                  title="Collapse panel"
+                  className={cn(builderPanelUi.tabCollapseBtn, 'mr-1.5 self-center')}
+                >
+                  <PanelLeftClose className="h-3.5 w-3.5" strokeWidth={2} />
+                </button>
               </div>
 
               <BuilderWelcomePanel
@@ -18175,14 +18470,16 @@ export default function WebsiteBuilder() {
             </>
           )}
         </aside>
+        )}
 
         {/* ── LEFT RESIZE HANDLE ──────────────────────────────────────── */}
-        {!leftCollapsed && (
+        {!compactSidePanels && !leftCollapsed && (
           <div
             className={cn(
               'w-px shrink-0 self-stretch bg-transparent transition-colors group hover:bg-gray-500 active:bg-gray-600',
               builderPanelUi.panelResizeStack,
             )}
+            title="Drag to resize panel"
           >
             <div
               className="absolute inset-y-0 -left-1 -right-1 cursor-col-resize"
@@ -18192,21 +18489,7 @@ export default function WebsiteBuilder() {
                 document.body.style.cursor = 'col-resize'
                 document.body.style.userSelect = 'none'
               }}
-              title="Drag to resize panel"
             />
-            <button
-              type="button"
-              onClick={() => setLeftCollapsed(true)}
-              onMouseDown={e => e.stopPropagation()}
-              title="Collapse panel"
-              className={cn(
-                builderPanelUi.panelEdgeToggle,
-                builderPanelUi.panelEdgeToggleTop,
-                'left-1/2 -translate-x-1/2',
-              )}
-            >
-              <PanelLeftClose className="h-3.5 w-3.5" strokeWidth={2} />
-            </button>
           </div>
         )}
 
@@ -18278,7 +18561,7 @@ export default function WebsiteBuilder() {
                   onOverlayClipboard={action => runOverlayClipboardAction(action, block.id)}
                   onOpenSectionEdit={() => {
                     setRightPanel('props')
-                    setRightCollapsed(false)
+                    openRightBuilderPanel()
                   }}
                   onOpenLayoutPicker={() => openLayoutPickerForBlock(block)}
                   onCycleLayout={dir => { void cycleBlockLayout(block, dir) }}
@@ -18307,6 +18590,23 @@ export default function WebsiteBuilder() {
             onDragOver={handleCanvasDragOver}
             onDrop={handleDropOnCanvas}
           >
+          {device !== 'desktop' && (
+            <div className="sticky top-0 z-[60] flex items-center justify-center gap-2 border-b border-primary/20 bg-primary/10 px-3 py-1.5 text-[11px] font-semibold text-primary backdrop-blur-sm">
+              {device === 'mobile' ? <Smartphone className="h-3.5 w-3.5" /> : <Tablet className="h-3.5 w-3.5" />}
+              <span>
+                {device === 'mobile'
+                  ? 'Phone preview — tap the side rails to open panels as drawers'
+                  : 'Tablet preview — side panels open as drawers; spacing & layout follow this breakpoint'}
+              </span>
+              <button
+                type="button"
+                onClick={() => setDevice('desktop')}
+                className="ml-1 rounded px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-primary/80 hover:bg-primary/15 hover:text-primary"
+              >
+                Desktop
+              </button>
+            </div>
+          )}
 
           {/* Embedded catalog / commerce page (product, service, cart, checkout…) shown
               in-place instead of opening a separate preview tab. */}
@@ -18377,6 +18677,7 @@ export default function WebsiteBuilder() {
                 <div
                   ref={canvasPreviewInnerRef}
                   data-page-canvas="true"
+                  data-preview-bp={device}
                   onClickCapture={handleCanvasNavClickCapture}
                   style={canvasScaleStyle}
                   className="shadow-lg rounded-none min-h-[600px] overflow-visible"
@@ -18444,6 +18745,7 @@ export default function WebsiteBuilder() {
                   <div
                     ref={canvasPreviewInnerRef}
                     data-page-canvas="true"
+                    data-preview-bp={device}
                     onClickCapture={handleCanvasNavClickCapture}
                     style={canvasScaleStyle}
                     className="shadow-lg rounded-none min-h-[600px] overflow-visible"
@@ -18517,7 +18819,7 @@ export default function WebsiteBuilder() {
                           onOpenLinksPanel={() => {
                             setSelectedBlockId(block.id)
                             setRightPanel('links')
-                            setRightCollapsed(false)
+                            openRightBuilderPanel()
                           }}
                         />
 
@@ -18550,6 +18852,7 @@ export default function WebsiteBuilder() {
                           blockId={block.id}
                           overlays={(((block.props as Record<string, unknown>).overlays as BlockOverlayItem[]) || [])}
                           isEditing={selectedBlockId === block.id}
+                          mobilePreview={device === 'mobile'}
                           blockBackgroundColor={
                             ((block.props as Record<string, unknown>).bg_color_override as string | undefined)
                             || canvasStyle.bg_color
@@ -18622,7 +18925,7 @@ export default function WebsiteBuilder() {
                             onActivate={() => {
                               setSelectedBlockId(block.id)
                               setRightPanel('props')
-                              setRightCollapsed(false)
+                              openRightBuilderPanel()
                             }}
                           />
                           </>
@@ -18838,12 +19141,13 @@ export default function WebsiteBuilder() {
         </main>
 
         {/* ── RIGHT RESIZE HANDLE ─────────────────────────────────────── */}
-        {!rightCollapsed && (
+        {!compactSidePanels && !rightCollapsed && (
           <div
             className={cn(
               'w-px shrink-0 self-stretch bg-transparent transition-colors group hover:bg-gray-500 active:bg-gray-600',
               builderPanelUi.panelResizeStack,
             )}
+            title="Drag to resize panel"
           >
             <div
               className="absolute inset-y-0 -left-1 -right-1 cursor-col-resize"
@@ -18853,42 +19157,36 @@ export default function WebsiteBuilder() {
                 document.body.style.cursor = 'col-resize'
                 document.body.style.userSelect = 'none'
               }}
-              title="Drag to resize panel"
             />
-            <button
-              type="button"
-              onClick={() => setRightCollapsed(true)}
-              onMouseDown={e => e.stopPropagation()}
-              title="Collapse panel"
-              className={cn(
-                builderPanelUi.panelEdgeToggle,
-                builderPanelUi.panelEdgeToggleTop,
-                'left-1/2 -translate-x-1/2',
-              )}
-            >
-              <PanelRightClose className="h-3.5 w-3.5" strokeWidth={2} />
-            </button>
           </div>
         )}
 
         {/* ── RIGHT PANEL ──────────────────────────────────────────────── */}
+        {(rightPanelOverlay || !compactSidePanels) && (
         <aside
           className={cn(
-            'flex flex-col border-l shrink-0',
+            'flex flex-col border-l',
             builderPanelUi.shell,
             builderPanelUi.panelRailStack,
-            rightCollapsed ? 'w-10' : '',
+            rightPanelOverlay
+              ? 'absolute inset-y-0 right-0 z-[200] shadow-2xl'
+              : 'relative shrink-0',
+            !rightPanelOverlay && rightCollapsed ? 'w-10' : '',
           )}
-          style={rightCollapsed ? undefined : { width: rightWidth }}
+          style={
+            rightCollapsed && !rightPanelOverlay
+              ? undefined
+              : { width: Math.min(rightWidth, compactSidePanels ? 320 : rightWidth) }
+          }
         >
           {rightCollapsed ? (
             <button
               type="button"
-              onClick={() => setRightCollapsed(false)}
+              onClick={openRightBuilderPanel}
               title="Open panel — Section Edit, Page Edit, Links, Style"
               className={cn(
                 builderPanelUi.panelEdgeToggle,
-                builderPanelUi.panelEdgeToggleTop,
+                builderPanelUi.panelEdgeToggleMid,
                 'left-0 -translate-x-1/2',
               )}
             >
@@ -18919,6 +19217,14 @@ export default function WebsiteBuilder() {
                   </button>
                 ))}
                 </div>
+                <button
+                  type="button"
+                  onClick={closeRightBuilderPanel}
+                  title="Collapse panel"
+                  className={cn(builderPanelUi.tabCollapseBtn, 'ml-1.5 mr-1.5 self-center')}
+                >
+                  <PanelRightClose className="h-3.5 w-3.5" strokeWidth={2} />
+                </button>
               </div>
 
               <div className={builderPanelUi.panelBody}>
@@ -18999,6 +19305,7 @@ export default function WebsiteBuilder() {
             </>
           )}
         </aside>
+        )}
       </div>
 
       {site && siteId ? (

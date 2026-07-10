@@ -20,7 +20,7 @@ import { publicSitesApi } from '@/api/publicSites'
 import { useVendor } from '@/contexts/VendorContext'
 import { useLiveDataFetch } from '@/contexts/LiveDataFetchContext'
 import { useBuilderCanvas } from '@/contexts/BuilderCanvasContext'
-import { buildSiteThemeCss } from '@/lib/siteThemeCss'
+import { buildSiteThemeCss, sanitizeCustomCss } from '@/lib/siteThemeCss'
 import { normalizeSiteBorderRadius } from '@/lib/siteBorderRadius'
 import NavBlock from '@/components/builder/blocks/NavBlock'
 import FooterBlock from '@/components/builder/blocks/FooterBlock'
@@ -516,9 +516,21 @@ export function SingleBlock({
         enableBlockLink ? 'cursor-pointer' : '',
         shellStack,
         sectionStyles.fontSizeClass,
-        !block.visible_on_mobile ? 'hidden sm:block' : '',
-        !block.visible_on_tablet ? 'sm:hidden lg:block' : '',
-        !block.visible_on_desktop ? 'lg:hidden' : '',
+        // Editor: honor canvas device preview (media queries see the browser, not canvas width).
+        // Live: keep Tailwind responsive visibility classes.
+        isEditorCanvas
+          ? (
+              (previewBreakpoint === 'mobile' && block.visible_on_mobile === false)
+              || (previewBreakpoint === 'tablet' && block.visible_on_tablet === false)
+              || (previewBreakpoint === 'desktop' && block.visible_on_desktop === false)
+                ? 'hidden'
+                : ''
+            )
+          : [
+              !block.visible_on_mobile ? 'hidden sm:block' : '',
+              !block.visible_on_tablet ? 'sm:hidden lg:block' : '',
+              !block.visible_on_desktop ? 'lg:hidden' : '',
+            ].filter(Boolean).join(' '),
         getBlockScrollAnimationClass(block.animation),
       ].filter(Boolean).join(' ')}
       style={Object.keys(wrapperStyle).length ? wrapperStyle : undefined}
@@ -686,9 +698,12 @@ export default function BlockRenderer({ blocks, site, pageId, branchCode, suppre
   const blocksToRender = suppressShellSticky ? visibleBlocks : middleBlocks
   const trailingToRender = suppressShellSticky ? [] : trailingShellBlocks
 
+  const pageCustomCss = sanitizeCustomCss(style.custom_css)
+
   return (
     <div className="builder-page min-w-0" style={pageStyle} data-site-radius={siteRadiusMode}>
       <style>{buildSiteThemeCss(style)}</style>
+      {pageCustomCss ? <style data-page-custom-css>{pageCustomCss}</style> : null}
       {renderShell && (
         <div className="sticky top-0 z-50 w-full">
           {shellBlocks.map(renderBlock)}

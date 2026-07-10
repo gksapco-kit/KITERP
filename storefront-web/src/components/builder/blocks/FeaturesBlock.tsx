@@ -37,6 +37,8 @@ import {
   resolveBlockTextField,
   visibleArrayEntries,
 } from '@/lib/blockHiddenFields'
+import { useBuilderCanvas } from '@/contexts/BuilderCanvasContext'
+import { previewBelowLg } from '@/lib/previewBreakpoint'
 
 interface FeatureItem { icon?: string; title: string; desc?: string; description?: string; image_url?: string }
 
@@ -96,6 +98,8 @@ interface Props {
 }
 
 export default function FeaturesBlock({ site, style, props, blockType, blockId }: Props) {
+  const canvas = useBuilderCanvas()
+  const stackBelowLg = Boolean(canvas?.isEditorCanvas && blockId && previewBelowLg(canvas.previewBreakpoint))
   const isAlternating = blockType === 'features_alternating'
   const useTemplateReplacement = isAlternating && isTemplateMealFeaturesBlock(props)
   const replacement = useTemplateReplacement ? productFocusedFeatureContent(site.name) : null
@@ -166,15 +170,24 @@ export default function FeaturesBlock({ site, style, props, blockType, blockId }
             const flip = alternatingRowFlip(i, imagePos, useIcons)
             const row = (
               <div
-                className={`flex flex-col gap-8 lg:gap-12 items-center ${flip ? 'lg:flex-row-reverse' : 'lg:flex-row'} ${isFull ? 'px-0' : ''}`}
+                className={cn(
+                  'flex flex-col gap-8 items-center',
+                  !stackBelowLg && 'lg:gap-12',
+                  !stackBelowLg && (flip ? 'lg:flex-row-reverse' : 'lg:flex-row'),
+                  isFull && 'px-0',
+                )}
               >
-                <div className={`w-full lg:w-1/2 ${imageShape === 'circle' ? 'flex justify-center lg:justify-start' : ''}`}>
+                <div className={cn('w-full', !stackBelowLg && 'lg:w-1/2', imageShape === 'circle' && cn('flex justify-center', !stackBelowLg && 'lg:justify-start'))}>
                   {useIcons ? (
-                    <div className={`rounded-full flex items-center justify-center text-3xl sm:text-4xl bg-primary/10 animate-pulse mx-auto lg:mx-0 ${isCompact ? 'w-20 h-20' : 'w-24 h-24 sm:w-28 sm:h-28'}`}>
+                    <div className={cn(
+                      'rounded-full flex items-center justify-center text-3xl sm:text-4xl bg-primary/10 animate-pulse mx-auto',
+                      !stackBelowLg && 'lg:mx-0',
+                      isCompact ? 'w-20 h-20' : 'w-24 h-24 sm:w-28 sm:h-28',
+                    )}>
                       {feature.icon || altIcons[i % altIcons.length]}
                     </div>
                   ) : (
-                    <div className="relative mx-auto max-w-md lg:max-w-none">
+                    <div className={cn('relative mx-auto max-w-md', !stackBelowLg && 'lg:max-w-none')}>
                       {imageShape === 'circle' && (
                         <div className="absolute inset-4 rounded-full bg-primary/20 blur-2xl animate-pulse pointer-events-none" />
                       )}
@@ -194,7 +207,10 @@ export default function FeaturesBlock({ site, style, props, blockType, blockId }
                     </div>
                   )}
                 </div>
-                <div className="w-full lg:w-1/2 space-y-4 text-center lg:text-left px-6 lg:px-0">
+                <div className={cn(
+                  'w-full space-y-4 text-center px-6',
+                  !stackBelowLg && 'lg:w-1/2 lg:text-left lg:px-0',
+                )}>
                   {showNumbers && (
                     <span className={`inline-flex w-8 h-8 rounded-full items-center justify-center text-xs font-bold ${isDark ? 'bg-white/15 text-white' : 'bg-primary/15'}`} style={{ color: isDark ? '#fff' : style.primary_color }}>
                       {String(i + 1).padStart(2, '0')}

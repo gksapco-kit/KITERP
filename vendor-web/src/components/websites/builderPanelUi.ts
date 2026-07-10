@@ -81,7 +81,14 @@ export const builderPanelUi = {
   panelResizeStack: 'relative z-[170]',
   panelEdgeToggle:
     'absolute z-[170] flex h-7 w-7 items-center justify-center rounded-md border border-gray-200 bg-white text-muted-foreground shadow-sm transition-colors hover:bg-muted/50 hover:text-foreground',
+  /** Mid-rail — desktop collapsed expand (away from design bar). */
+  panelEdgeToggleMid: 'top-1/2 -translate-y-1/2',
   panelEdgeToggleTop: 'top-11 -translate-y-1/2',
+  /** Phone/tablet collapsed — corner chips over the canvas, no side rail. */
+  panelEdgeToggleCorner:
+    'absolute z-[200] flex h-8 w-8 items-center justify-center rounded-lg border border-gray-200 bg-white text-muted-foreground shadow-md transition-colors hover:bg-muted/50 hover:text-foreground',
+  panelEdgeToggleCornerLeft: 'top-2 left-2',
+  panelEdgeToggleCornerRight: 'top-2 right-2',
   /** Scrollable panel body below tab strip — keeps tabs pinned while content scrolls. */
   panelBody: 'flex min-h-0 flex-1 flex-col overflow-hidden',
   panelScroll: 'min-h-0 flex-1 overflow-y-auto',

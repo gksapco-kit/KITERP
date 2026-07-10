@@ -1,6 +1,14 @@
 import type { StyleConfig } from '@/blocks/registry'
 import { normalizeSiteBorderRadius } from '@/lib/siteBorderRadius'
 
+/** Strip tags that could break out of an inline <style> element. */
+export function sanitizeCustomCss(css: string | null | undefined): string {
+  if (!css || typeof css !== 'string') return ''
+  return css
+    .replace(/<\/\s*style/gi, '')
+    .replace(/<\s*script/gi, '')
+}
+
 const SITE_BTN_SELECTORS = [
   '.builder-page .builder-site-btn',
   '.builder-page button.rounded-lg:not(.rounded-full)',

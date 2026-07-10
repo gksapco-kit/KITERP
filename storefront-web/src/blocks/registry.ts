@@ -133,6 +133,10 @@ export interface StyleConfig {
   checkout_layout?: 'two-column' | 'wizard' | 'accordion'
   /** Per-token overrides for .checkout-root CSS variables (HSL triplet values). */
   checkout_token_overrides?: Record<string, string>
+  /** Per-page style overrides keyed by page id (from style_config.page_styles). */
+  page_styles?: Record<string, Partial<StyleConfig>>
+  /** Page-level custom CSS (merged from page_styles[pageId].custom_css). */
+  custom_css?: string
 }
 
 export const DEFAULT_STYLE: StyleConfig = {

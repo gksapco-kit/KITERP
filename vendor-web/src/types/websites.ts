@@ -270,6 +270,8 @@ export interface PageStyleOverrides {
   font_body?: string
   font_size_base?: number
   font_size_heading?: number
+  /** Raw CSS for this page; applied live in builder and on the storefront. */
+  custom_css?: string
 }
 
 export interface WebsiteSite {

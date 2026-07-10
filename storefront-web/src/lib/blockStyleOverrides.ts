@@ -225,29 +225,62 @@ export function resolveBlockSectionSpacing(
   return desktop
 }
 
-/** Flatten breakpoint-nested overrides; desktop is the default in the builder panel. */
+function readStyleLayer(layer: Record<string, unknown> | undefined): ResolvedBlockStyleOverrides {
+  if (!layer) return {}
+  const out: ResolvedBlockStyleOverrides = {}
+  if (typeof layer.bg_color === 'string' && layer.bg_color) out.bg_color = layer.bg_color
+  if (typeof layer.text_color === 'string' && layer.text_color) out.text_color = layer.text_color
+  if (typeof layer.font_size === 'string' && layer.font_size) out.font_size = layer.font_size
+  if (typeof layer.padding_top === 'number' && Number.isFinite(layer.padding_top)) {
+    out.padding_top = layer.padding_top
+  }
+  if (typeof layer.padding_bottom === 'number' && Number.isFinite(layer.padding_bottom)) {
+    out.padding_bottom = layer.padding_bottom
+  }
+  if (typeof layer.section_scale === 'number' && Number.isFinite(layer.section_scale)) {
+    out.section_scale = layer.section_scale
+  }
+  return out
+}
+
+function mergeStyleLayers(
+  base: ResolvedBlockStyleOverrides,
+  overlay: ResolvedBlockStyleOverrides,
+): ResolvedBlockStyleOverrides {
+  return {
+    bg_color: overlay.bg_color ?? base.bg_color,
+    text_color: overlay.text_color ?? base.text_color,
+    font_size: overlay.font_size ?? base.font_size,
+    padding_top: overlay.padding_top ?? base.padding_top,
+    padding_bottom: overlay.padding_bottom ?? base.padding_bottom,
+    section_scale: overlay.section_scale ?? base.section_scale,
+  }
+}
+
+/**
+ * Flatten breakpoint-nested overrides. Tablet/mobile inherit unset values from
+ * larger breakpoints (same model as section spacing).
+ */
 export function resolveBreakpointStyleOverrides(
   raw: Record<string, unknown> | null | undefined,
   breakpoint: BreakpointStyleKey = 'desktop',
 ): ResolvedBlockStyleOverrides {
   if (!raw || !Object.keys(raw).length) return {}
-  const source = isBreakpointNested(raw)
-    ? (raw[breakpoint] as Record<string, unknown> | undefined) || {}
-    : raw
-  const out: ResolvedBlockStyleOverrides = {}
-  if (typeof source.bg_color === 'string' && source.bg_color) out.bg_color = source.bg_color
-  if (typeof source.text_color === 'string' && source.text_color) out.text_color = source.text_color
-  if (typeof source.font_size === 'string' && source.font_size) out.font_size = source.font_size
-  if (typeof source.padding_top === 'number' && Number.isFinite(source.padding_top)) {
-    out.padding_top = source.padding_top
-  }
-  if (typeof source.padding_bottom === 'number' && Number.isFinite(source.padding_bottom)) {
-    out.padding_bottom = source.padding_bottom
-  }
-  if (typeof source.section_scale === 'number' && Number.isFinite(source.section_scale)) {
-    out.section_scale = source.section_scale
-  }
-  return out
+  if (!isBreakpointNested(raw)) return readStyleLayer(raw)
+
+  const desktop = readStyleLayer(raw.desktop as Record<string, unknown> | undefined)
+  if (breakpoint === 'desktop') return desktop
+
+  const tablet = mergeStyleLayers(
+    desktop,
+    readStyleLayer(raw.tablet as Record<string, unknown> | undefined),
+  )
+  if (breakpoint === 'tablet') return tablet
+
+  return mergeStyleLayers(
+    tablet,
+    readStyleLayer(raw.mobile as Record<string, unknown> | undefined),
+  )
 }
 
 export function blockStyleFontSizeClass(fontSize: string | undefined): string | undefined {

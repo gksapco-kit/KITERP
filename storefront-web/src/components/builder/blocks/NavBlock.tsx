@@ -192,7 +192,13 @@ export default function NavBlock({
     ],
   )
 
-  const forceNavLinksVisible = isEditorCanvas || previewShell === true
+  // Desktop/tablet canvas / draft preview: keep links visible for editing.
+  // Phone canvas: show the real hamburger chrome (md breakpoint ≈ 768px).
+  const previewBp = builderCanvas?.previewBreakpoint ?? 'desktop'
+  const forceNavLinksVisible =
+    previewShell === true
+    || (isEditorCanvas && previewBp !== 'mobile')
+  const narrowNavPreview = isEditorCanvas && previewBp === 'mobile'
 
   // Only offer the multi-store selector when the vendor runs a single website
   // shared across all stores; per-unit websites are tied to one store.
@@ -473,7 +479,7 @@ export default function NavBlock({
         <Button
           variant="ghost"
           size="icon"
-          className="md:hidden shrink-0 -ml-1 h-9 w-9"
+          className={cn('shrink-0 -ml-1 h-9 w-9', !narrowNavPreview && 'md:hidden')}
           style={{ color: shell.navTextCol }}
           aria-label="Open menu"
         >
@@ -605,13 +611,13 @@ export default function NavBlock({
   )
 
   const renderMobileHeaderRow = () => searchOpen ? (
-    <div className="flex md:hidden w-full items-center gap-2 min-w-0">
+    <div className={cn('flex w-full items-center gap-2 min-w-0', !narrowNavPreview && 'md:hidden')}>
       {mobileMenuNode}
       {mobileSearchBarNode}
       {mobileCartNode}
     </div>
   ) : (
-    <div className="flex md:hidden w-full items-center justify-between gap-2 min-w-0">
+    <div className={cn('flex w-full items-center justify-between gap-2 min-w-0', !narrowNavPreview && 'md:hidden')}>
       <div className="flex items-center gap-1 min-w-0 flex-1 overflow-hidden">
         {mobileMenuNode}
         <div className="min-w-0 flex-1 overflow-hidden">
@@ -626,7 +632,7 @@ export default function NavBlock({
     <nav className={cn(
       'flex items-center gap-1 flex-wrap min-w-0',
       shell.isCentered ? 'justify-center' : 'justify-center',
-      forceNavLinksVisible ? 'flex' : 'hidden md:flex',
+      forceNavLinksVisible ? 'flex' : narrowNavPreview ? 'hidden' : 'hidden md:flex',
     )}>
       {kitLinks.map(link => renderNavLinkItem(link))}
     </nav>
@@ -784,7 +790,10 @@ export default function NavBlock({
           {shell.isCentered ? (
             <>
               {renderMobileHeaderRow()}
-              <div className="hidden md:flex flex-col items-center text-center gap-2 w-full">
+              <div className={cn(
+                'flex-col items-center text-center gap-2 w-full',
+                narrowNavPreview ? 'hidden' : 'hidden md:flex',
+              )}>
                 {logoNode}
                 {linksNode}
                 {actionsNode}
@@ -793,7 +802,10 @@ export default function NavBlock({
           ) : (
             <>
               {renderMobileHeaderRow()}
-              <div className="hidden md:grid w-full grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-3">
+              <div className={cn(
+                'w-full grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-3',
+                narrowNavPreview ? 'hidden' : 'hidden md:grid',
+              )}>
                 <div className="col-start-1 flex items-center gap-2 min-w-0 justify-self-start">
                   {logoNode}
                 </div>

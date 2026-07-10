@@ -9,6 +9,7 @@ import { BuilderSectionImage } from '@/components/builder/BuilderSectionImage'
 import { useBuilderCanvas } from '@/contexts/BuilderCanvasContext'
 import { isBlockFieldHidden, resolveBlockTextField } from '@/lib/blockHiddenFields'
 import { hasInlineHtml } from '@/lib/fieldTextStyles'
+import { previewBelowLg } from '@/lib/previewBreakpoint'
 import { readSectionImageRadius } from '@/lib/sectionImageStyle'
 import { BuilderSectionSurface } from '@/components/builder/BuilderSectionSurface'
 
@@ -24,6 +25,8 @@ interface Props {
 export default function AboutSplitBlock({ site, style, props, liveItems, blockId }: Props) {
   const canvas = useBuilderCanvas()
   const isEditorCanvas = canvas?.isEditorCanvas && !!blockId
+  // Canvas device preview — Tailwind lg: still sees the browser window.
+  const stackBelowLg = isEditorCanvas && previewBelowLg(canvas?.previewBreakpoint)
   const profile = liveItems[0]
 
   const title = resolveBlockTextField(props, 'title', {
@@ -61,7 +64,7 @@ export default function AboutSplitBlock({ site, style, props, liveItems, blockId
   const imageRadius = readSectionImageRadius('image_url', props)
 
   const splitGridCols = (() => {
-    if (!showImage || isStatement) return ''
+    if (!showImage || isStatement || stackBelowLg) return ''
     if (imageWidthMode === '60') return 'lg:grid-cols-[2fr_3fr]'
     if (imageWidthMode === '55') return 'lg:grid-cols-[9fr_11fr]'
     return 'lg:grid-cols-[11fr_9fr]'
@@ -189,7 +192,8 @@ export default function AboutSplitBlock({ site, style, props, liveItems, blockId
   const splitGrid = (
     <div
       className={cn(
-        'about-split-grid grid grid-cols-1 items-start gap-6 sm:gap-8 lg:gap-12',
+        'about-split-grid grid grid-cols-1 items-start gap-6 sm:gap-8',
+        !stackBelowLg && 'lg:gap-12',
         splitGridCols,
       )}
     >
@@ -197,8 +201,8 @@ export default function AboutSplitBlock({ site, style, props, liveItems, blockId
         className={cn(
           'about-split-text-wrap min-w-0',
           !isStatement && 'order-1',
-          !isStatement && imageOnLeft && 'lg:order-2',
-          !isStatement && !imageOnLeft && 'lg:order-1',
+          !stackBelowLg && !isStatement && imageOnLeft && 'lg:order-2',
+          !stackBelowLg && !isStatement && !imageOnLeft && 'lg:order-1',
         )}
       >
         {renderTextColumn()}
@@ -220,6 +224,14 @@ export default function AboutSplitBlock({ site, style, props, liveItems, blockId
 
   const inner = (() => {
     if (isOverlay) {
+      if (stackBelowLg) {
+        return (
+          <div className="about-split-grid space-y-6 sm:space-y-8">
+            {renderTextColumn()}
+            {renderImageColumn()}
+          </div>
+        )
+      }
       return (
         <>
           <div className="about-split-grid space-y-6 sm:space-y-8 lg:hidden">

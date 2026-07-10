@@ -1,4 +1,4 @@
-import type { CSSProperties, ReactNode } from 'react'
+import { useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import { useVendor } from '@/contexts/VendorContext'
 import { mediaUrl } from '@/lib/utils'
@@ -6,15 +6,130 @@ import { overlayImageImgStyle } from '@/lib/overlayImageStyle'
 import {
   defaultOverlayFillColor,
   overlayHasLink,
+  overlayIsBelowProductBand,
   overlayMinContainerHeight,
-  overlayPositionStyle,
+  overlayPositionStyleForViewport,
   resolveOverlayBackground,
   resolveOverlayBorder,
   resolveOverlayLinkHref,
   type BlockOverlayItem,
+  type OverlayImageBoundsPct,
 } from '@/lib/blockOverlays'
 import { builderOverlayIconLabel, overlayIconRenderSize, resolveBuilderOverlayIcon } from '@/lib/builderOverlayIcons'
 import { builderFontPreviewStyle, ensureBuilderFontLoaded } from '@/lib/builderFontFamilies'
+import { useBuilderCanvas } from '@/contexts/BuilderCanvasContext'
+
+const MOBILE_MQ = '(max-width: 767px)'
+
+function useOverlayMobileViewport(): boolean {
+  const canvas = useBuilderCanvas()
+  const previewBp = canvas?.isEditorCanvas ? canvas.previewBreakpoint : undefined
+
+  const [matchMobile, setMatchMobile] = useState(() => {
+    if (typeof window === 'undefined') return false
+    return window.matchMedia(MOBILE_MQ).matches
+  })
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    const mq = window.matchMedia(MOBILE_MQ)
+    const sync = () => setMatchMobile(mq.matches)
+    sync()
+    mq.addEventListener('change', sync)
+    return () => mq.removeEventListener('change', sync)
+  }, [])
+
+  if (previewBp === 'mobile') return true
+  if (previewBp === 'tablet' || previewBp === 'desktop') return false
+  return matchMobile
+}
+
+function useOverlayContainerSize(enabled: boolean) {
+  const ref = useRef<HTMLDivElement | null>(null)
+  const [size, setSize] = useState({ w: 0, h: 0 })
+
+  useEffect(() => {
+    if (!enabled) return
+    const el = ref.current
+    if (!el || typeof ResizeObserver === 'undefined') return
+    const ro = new ResizeObserver((entries) => {
+      const entry = entries[0]
+      if (!entry) return
+      const { width, height } = entry.contentRect
+      setSize({ w: Math.round(width), h: Math.round(height) })
+    })
+    ro.observe(el)
+    setSize({ w: Math.round(el.clientWidth), h: Math.round(el.clientHeight) })
+    return () => ro.disconnect()
+  }, [enabled])
+
+  return { ref, size }
+}
+
+/** Largest section image inside the block, as % of the overlay canvas. */
+function useOverlayImageBounds(
+  canvasRef: React.RefObject<HTMLDivElement | null>,
+  enabled: boolean,
+  containerSize: { w: number; h: number },
+): OverlayImageBoundsPct | null {
+  const [bounds, setBounds] = useState<OverlayImageBoundsPct | null>(null)
+
+  useEffect(() => {
+    if (!enabled) {
+      setBounds(null)
+      return
+    }
+    const canvas = canvasRef.current
+    if (!canvas) return
+
+    const measure = () => {
+      const block = (canvas.closest('[data-sf-bid], [data-block-id], [data-bid]') as HTMLElement | null)
+        ?? canvas.parentElement
+      if (!block) return
+
+      const candidates = Array.from(
+        block.querySelectorAll<HTMLElement>(
+          '[data-builder-section-image], .about-split-image-frame, .about-split-image-col img, img',
+        ),
+      ).filter((el) => {
+        const r = el.getBoundingClientRect()
+        return r.width >= 48 && r.height >= 48
+      })
+      if (!candidates.length) {
+        setBounds(null)
+        return
+      }
+
+      const img = candidates.reduce((best, el) => {
+        const a = el.getBoundingClientRect()
+        const b = best.getBoundingClientRect()
+        return a.width * a.height > b.width * b.height ? el : best
+      })
+
+      const canvasRect = canvas.getBoundingClientRect()
+      const imgRect = img.getBoundingClientRect()
+      if (canvasRect.width <= 0 || canvasRect.height <= 0) return
+
+      setBounds({
+        left: ((imgRect.left - canvasRect.left) / canvasRect.width) * 100,
+        top: ((imgRect.top - canvasRect.top) / canvasRect.height) * 100,
+        width: (imgRect.width / canvasRect.width) * 100,
+        height: (imgRect.height / canvasRect.height) * 100,
+      })
+    }
+
+    measure()
+    const ro = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(measure) : null
+    ro?.observe(canvas)
+    window.addEventListener('resize', measure)
+    return () => {
+      ro?.disconnect()
+      window.removeEventListener('resize', measure)
+    }
+  }, [enabled, canvasRef, containerSize.w, containerSize.h])
+
+  return bounds
+}
 
 function overlayTextFontStyle(item: BlockOverlayItem): CSSProperties {
   if (!item.fontFamily) return {}
@@ -234,16 +349,41 @@ function OverlayLayerContent({ item }: { item: BlockOverlayItem }) {
   }
 }
 
-function OverlayLayer({ item }: { item: BlockOverlayItem }) {
+function OverlayLayer({
+  item,
+  mobile,
+  containerWidthPx,
+  containerHeightPx,
+  imageBounds,
+  stackIndex,
+  stackCount,
+}: {
+  item: BlockOverlayItem
+  mobile: boolean
+  containerWidthPx: number
+  containerHeightPx: number
+  imageBounds: OverlayImageBoundsPct | null
+  stackIndex?: number
+  stackCount?: number
+}) {
   const linked = overlayHasLink(item)
   const body = <OverlayLayerContent item={item} />
+  const pinToImage = mobile && stackCount != null && stackCount > 0
 
   return (
     <div
       data-overlay-root
       data-overlay-id={item.id}
+      data-overlay-mobile-on-image={pinToImage ? 'true' : undefined}
       style={{
-        ...overlayPositionStyle(item),
+        ...overlayPositionStyleForViewport(item, {
+          mobile: pinToImage,
+          containerWidthPx,
+          containerHeightPx,
+          imageBounds,
+          stackIndex,
+          stackCount,
+        }),
         zIndex: item.zIndex || 10,
         pointerEvents: 'auto',
       }}
@@ -259,24 +399,56 @@ function OverlayLayer({ item }: { item: BlockOverlayItem }) {
 
 /** Read-only overlay layers for preview and live storefront (matches builder canvas). */
 export function BlockOverlayLayers({ overlays }: { overlays: BlockOverlayItem[] }) {
-  if (!overlays.length) return null
-
+  const mobile = useOverlayMobileViewport()
+  const { ref, size } = useOverlayContainerSize(mobile && overlays.length > 0)
+  const imageBounds = useOverlayImageBounds(ref, mobile && overlays.length > 0, size)
   const minH = overlayMinContainerHeight(overlays)
+
+  const belowBandStack = useMemo(() => {
+    if (!mobile || !overlays.length) return new Map<string, { index: number; count: number }>()
+    const band = overlays
+      .filter((o) => overlayIsBelowProductBand(o, size.h || undefined))
+      .slice()
+      .sort((a, b) => (a.y ?? 0) - (b.y ?? 0) || (a.x ?? 0) - (b.x ?? 0))
+    const map = new Map<string, { index: number; count: number }>()
+    band.forEach((item, index) => {
+      map.set(item.id, { index, count: band.length })
+    })
+    return map
+  }, [mobile, overlays, size.h])
+
+  if (!overlays.length) return null
 
   return (
     <div
+      ref={ref}
       aria-hidden={false}
+      data-overlay-canvas
+      data-overlay-mobile={mobile ? 'true' : undefined}
       style={{
         position: 'absolute',
         inset: 0,
         zIndex: 15,
         pointerEvents: 'none',
-        minHeight: minH > 0 ? minH : undefined,
+        minHeight: !mobile && minH > 0 ? minH : undefined,
+        overflow: mobile ? 'hidden' : undefined,
       }}
     >
-      {overlays.map(item => (
-        <OverlayLayer key={item.id} item={item} />
-      ))}
+      {overlays.map(item => {
+        const stack = belowBandStack.get(item.id)
+        return (
+          <OverlayLayer
+            key={item.id}
+            item={item}
+            mobile={mobile}
+            containerWidthPx={size.w}
+            containerHeightPx={size.h}
+            imageBounds={imageBounds}
+            stackIndex={stack?.index}
+            stackCount={stack?.count}
+          />
+        )
+      })}
     </div>
   )
 }

@@ -2936,3 +2936,150 @@ html[dir='rtl'] [data-sonner-toast][data-styled='true']:has([data-close-button])
 .rich-text-content i {
   font-style: italic;
 }
+
+/* ── About split (keep in sync with storefront-web globals.css) ───────────── */
+.about-split-block .about-split-grid {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.about-split-block .about-split-text-wrap {
+  position: relative;
+  z-index: 1;
+  min-width: 0;
+}
+
+.about-split-block .about-split-text-col {
+  display: flex;
+  flex-direction: column;
+  overflow-x: clip;
+  overflow-wrap: anywhere;
+}
+
+.about-split-block .about-split-text-col [data-field-layout] {
+  max-width: 100%;
+}
+
+.about-split-block .about-split-image-col {
+  align-self: start;
+  position: relative;
+  z-index: 0;
+  isolation: isolate;
+}
+
+.about-split-block .about-split-image-stack {
+  width: 100%;
+}
+
+.about-split-block .about-split-image-frame {
+  overflow: hidden;
+}
+
+.about-split-block .about-split-image-frame:not(.about-split-image-frame--bleed) {
+  height: auto;
+}
+
+.about-split-block .about-split-image-frame:not(.about-split-image-frame--bleed) img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.about-split-block .about-split-overlay .about-split-image-col {
+  height: 100%;
+}
+
+@media (min-width: 1024px) {
+  .about-split-block .about-split-image-col {
+    display: flex;
+    justify-content: center;
+    position: sticky;
+    top: 6rem;
+  }
+
+  .about-split-block .about-split-image-stack {
+    max-width: 300px;
+  }
+}
+
+@media (max-width: 1023px) {
+  .about-split-block .about-split-text-col [data-field-layout],
+  .about-split-block .about-split-text-wrap [data-field-layout] {
+    position: static !important;
+    top: auto !important;
+    left: auto !important;
+    right: auto !important;
+    transform: none !important;
+    min-height: 0 !important;
+    height: auto !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    display: block !important;
+    justify-content: flex-start !important;
+  }
+
+  .about-split-block .about-split-text-col .rich-text-content,
+  .about-split-block .about-split-text-col [data-text-key='description'],
+  .about-split-block .about-split-text-col [data-field-layout] .builder-canvas-text-field-in-layout {
+    text-align: left !important;
+  }
+
+  .about-split-block .about-split-image-col {
+    position: relative !important;
+    top: auto !important;
+  }
+}
+
+/*
+ * Builder device preview — media queries see the browser window, not canvas width.
+ * When data-preview-bp is tablet/mobile, force the same layout rules as real breakpoints.
+ */
+[data-page-canvas][data-preview-bp='mobile'] .about-split-block .about-split-text-col [data-field-layout],
+[data-page-canvas][data-preview-bp='tablet'] .about-split-block .about-split-text-col [data-field-layout],
+[data-page-canvas][data-preview-bp='mobile'] .about-split-block .about-split-text-wrap [data-field-layout],
+[data-page-canvas][data-preview-bp='tablet'] .about-split-block .about-split-text-wrap [data-field-layout],
+[data-page-canvas][data-preview-bp='mobile'] [data-field-layout],
+[data-page-canvas][data-preview-bp='tablet'] [data-field-layout] {
+  position: static !important;
+  top: auto !important;
+  left: auto !important;
+  right: auto !important;
+  transform: none !important;
+  min-height: 0 !important;
+  height: auto !important;
+  width: 100% !important;
+  max-width: 100% !important;
+}
+
+[data-page-canvas][data-preview-bp='mobile'] .about-split-block .about-split-image-col,
+[data-page-canvas][data-preview-bp='tablet'] .about-split-block .about-split-image-col {
+  position: relative !important;
+  top: auto !important;
+  display: block;
+}
+
+[data-page-canvas][data-preview-bp='mobile'] .about-split-block .about-split-image-stack,
+[data-page-canvas][data-preview-bp='tablet'] .about-split-block .about-split-image-stack {
+  max-width: none;
+}
+
+/* Common multi-column / side-by-side layouts under phone preview */
+[data-page-canvas][data-preview-bp='mobile'] [class*='lg:grid-cols'],
+[data-page-canvas][data-preview-bp='tablet'] [class*='lg:grid-cols'],
+[data-page-canvas][data-preview-bp='mobile'] [class*='xl:grid-cols'] {
+  grid-template-columns: minmax(0, 1fr) !important;
+}
+
+[data-page-canvas][data-preview-bp='mobile'] [class*='md:grid-cols'] {
+  grid-template-columns: minmax(0, 1fr) !important;
+}
+
+[data-page-canvas][data-preview-bp='mobile'] [class*='lg:flex-row'],
+[data-page-canvas][data-preview-bp='tablet'] [class*='lg:flex-row'],
+[data-page-canvas][data-preview-bp='mobile'] [class*='md:flex-row'] {
+  flex-direction: column !important;
+}
+
+[data-page-canvas][data-preview-bp='mobile'] .builder-block [data-overlay-canvas][data-overlay-mobile='true'] {
+  overflow: hidden;
+}

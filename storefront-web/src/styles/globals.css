@@ -802,6 +802,13 @@ html[dir='rtl'] [data-sonner-toast][data-styled='true']:has([data-close-button])
   }
 }
 
+/* Section overlays placed below the product on desktop pin onto the image on mobile. */
+@media (max-width: 767px) {
+  .builder-block [data-overlay-canvas][data-overlay-mobile='true'] {
+    overflow: hidden;
+  }
+}
+
 @media (max-width: 639px) {
   .about-split-block .about-split-grid {
     gap: 1.25rem;
@@ -813,6 +820,60 @@ html[dir='rtl'] [data-sonner-toast][data-styled='true']:has([data-close-button])
     position: sticky;
     top: 6rem;
   }
+}
+
+/*
+ * Builder device preview — when the canvas sets data-preview-bp, apply the same
+ * field-offset / stack rules as real max-width media queries (browser viewport
+ * is usually desktop even when the canvas is phone-sized).
+ */
+[data-page-canvas][data-preview-bp='mobile'] .about-split-block .about-split-text-col [data-field-layout],
+[data-page-canvas][data-preview-bp='tablet'] .about-split-block .about-split-text-col [data-field-layout],
+[data-page-canvas][data-preview-bp='mobile'] .about-split-block .about-split-text-wrap [data-field-layout],
+[data-page-canvas][data-preview-bp='tablet'] .about-split-block .about-split-text-wrap [data-field-layout],
+[data-page-canvas][data-preview-bp='mobile'] [data-field-layout],
+[data-page-canvas][data-preview-bp='tablet'] [data-field-layout] {
+  position: static !important;
+  top: auto !important;
+  left: auto !important;
+  right: auto !important;
+  transform: none !important;
+  min-height: 0 !important;
+  height: auto !important;
+  width: 100% !important;
+  max-width: 100% !important;
+}
+
+[data-page-canvas][data-preview-bp='mobile'] .about-split-block .about-split-image-col,
+[data-page-canvas][data-preview-bp='tablet'] .about-split-block .about-split-image-col {
+  position: relative !important;
+  top: auto !important;
+  display: block;
+}
+
+[data-page-canvas][data-preview-bp='mobile'] .about-split-block .about-split-image-stack,
+[data-page-canvas][data-preview-bp='tablet'] .about-split-block .about-split-image-stack {
+  max-width: none;
+}
+
+[data-page-canvas][data-preview-bp='mobile'] [class*='lg:grid-cols'],
+[data-page-canvas][data-preview-bp='tablet'] [class*='lg:grid-cols'],
+[data-page-canvas][data-preview-bp='mobile'] [class*='xl:grid-cols'] {
+  grid-template-columns: minmax(0, 1fr) !important;
+}
+
+[data-page-canvas][data-preview-bp='mobile'] [class*='md:grid-cols'] {
+  grid-template-columns: minmax(0, 1fr) !important;
+}
+
+[data-page-canvas][data-preview-bp='mobile'] [class*='lg:flex-row'],
+[data-page-canvas][data-preview-bp='tablet'] [class*='lg:flex-row'],
+[data-page-canvas][data-preview-bp='mobile'] [class*='md:flex-row'] {
+  flex-direction: column !important;
+}
+
+[data-page-canvas][data-preview-bp='mobile'] .builder-block [data-overlay-canvas][data-overlay-mobile='true'] {
+  overflow: hidden;
 }
 
 /* Rich text blocks — Tailwind preflight removes list markers; prose plugin is not used. */

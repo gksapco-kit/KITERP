@@ -115,6 +115,121 @@ export function overlayPositionStyle(
   }
 }
 
+/**
+ * Overlays placed in the lower band of a section (below the product/image on
+ * desktop). On mobile the section stacks, so those absolute coords straddle or
+ * fall below the image — pin them onto the bottom of the image instead.
+ */
+export const OVERLAY_BELOW_BAND_Y_PERCENT = 45
+
+/** Fallback when px overlays have no measured container height yet. */
+const OVERLAY_BELOW_BAND_Y_PX_FALLBACK = 220
+
+/** Image box as % of the overlay canvas (section). */
+export type OverlayImageBoundsPct = {
+  left: number
+  top: number
+  width: number
+  height: number
+}
+
+export function overlayIsBelowProductBand(
+  item: Pick<BlockOverlayItem, 'x' | 'y' | 'w' | 'h' | 'coordUnit'>,
+  containerHeightPx?: number,
+): boolean {
+  if (overlayUsesPercent(item)) {
+    return (item.y ?? 0) >= OVERLAY_BELOW_BAND_Y_PERCENT
+  }
+  if (!containerHeightPx || containerHeightPx <= 0) {
+    return (item.y ?? 0) >= OVERLAY_BELOW_BAND_Y_PX_FALLBACK
+  }
+  return ((item.y ?? 0) / containerHeightPx) * 100 >= OVERLAY_BELOW_BAND_Y_PERCENT
+}
+
+/**
+ * Pin an overlay to the bottom of the product image on mobile.
+ * `stackIndex` / `stackCount` keep multiple below-band layers ordered in that band.
+ */
+export function overlayMobileOnImageStyle(
+  item: Pick<BlockOverlayItem, 'x' | 'y' | 'w' | 'h'>,
+  opts?: {
+    imageBounds?: OverlayImageBoundsPct | null
+    stackIndex?: number
+    stackCount?: number
+  },
+): CSSProperties {
+  const imageBounds = opts?.imageBounds
+  const stackCount = Math.max(1, opts?.stackCount ?? 1)
+  const stackIndex = Math.min(Math.max(opts?.stackIndex ?? 0, 0), stackCount - 1)
+  const widthPct = Math.min(Math.max(item.w ?? 90, 82), 96)
+  const lineH = Math.min(Math.max(item.h ?? 12, 8), 22)
+
+  if (imageBounds && imageBounds.width > 4 && imageBounds.height > 4) {
+    const bandHeight = Math.min(36, Math.max(lineH * stackCount + 4, 18))
+    const bandTop = imageBounds.top + imageBounds.height - bandHeight
+    const slotH = bandHeight / stackCount
+    const top = bandTop + stackIndex * slotH
+    const width = Math.max((widthPct / 100) * imageBounds.width, imageBounds.width * 0.88)
+    const left = imageBounds.left + (imageBounds.width - width) / 2
+
+    return {
+      position: 'absolute',
+      left: `${left}%`,
+      top: `${Math.max(imageBounds.top, top)}%`,
+      width: `${width}%`,
+      height: `${Math.max(slotH - 0.6, 6)}%`,
+      maxHeight: `${bandHeight}%`,
+    }
+  }
+
+  // Fallback: bottom of the section when image bounds are not measurable yet.
+  const slotShare = 100 / stackCount
+  const bottom = 3 + (stackCount - 1 - stackIndex) * Math.min(slotShare * 0.22, 8)
+  return {
+    position: 'absolute',
+    left: '4%',
+    width: '92%',
+    top: 'auto',
+    bottom: `${bottom}%`,
+    height: 'auto',
+    minHeight: `${Math.min(lineH, 14)}%`,
+    maxHeight: '34%',
+  }
+}
+
+/**
+ * Desktop: stored coords. Mobile: below-product overlays move onto the image bottom.
+ */
+export function overlayPositionStyleForViewport(
+  item: Pick<BlockOverlayItem, 'x' | 'y' | 'w' | 'h' | 'coordUnit'>,
+  opts?: {
+    mobile?: boolean
+    containerWidthPx?: number
+    containerHeightPx?: number
+    imageBounds?: OverlayImageBoundsPct | null
+    stackIndex?: number
+    stackCount?: number
+  },
+): CSSProperties {
+  if (!opts?.mobile || !overlayIsBelowProductBand(item, opts.containerHeightPx)) {
+    return overlayPositionStyle(item)
+  }
+
+  const stackOpts = {
+    imageBounds: opts.imageBounds,
+    stackIndex: opts.stackIndex,
+    stackCount: opts.stackCount,
+  }
+
+  if (overlayUsesPercent(item)) {
+    return overlayMobileOnImageStyle(item, stackOpts)
+  }
+
+  const cw = opts.containerWidthPx && opts.containerWidthPx > 0 ? opts.containerWidthPx : 390
+  const ch = opts.containerHeightPx && opts.containerHeightPx > 0 ? opts.containerHeightPx : 560
+  return overlayMobileOnImageStyle(pxToOverlayPercent(item, cw, ch), stackOpts)
+}
+
 export function pxToOverlayPercent(
   box: Pick<BlockOverlayItem, 'x' | 'y' | 'w' | 'h'>,
   containerW: number,

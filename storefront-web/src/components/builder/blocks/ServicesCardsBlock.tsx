@@ -14,7 +14,7 @@ import {
 } from '@/lib/sectionItemLayout'
 import { builderSectionContainerClass, builderSectionContainerWithMax } from '@/lib/builderSectionLayout'
 import {
-  CATALOG_GRID_COL_CLASS,
+  catalogGridColClassForBreakpoint,
   clampCatalogColumns,
   readCatalogCardLayout,
 } from '@/lib/catalogCardLayout'
@@ -42,6 +42,7 @@ export default function ServicesCardsBlock({ style, props, liveItems, blockId }:
   const { storePath, displayFields } = useVendor()
   const builderCanvas = useBuilderCanvas()
   const isEditorCanvas = builderCanvas?.isEditorCanvas && !!blockId
+  const previewBp = isEditorCanvas ? (builderCanvas?.previewBreakpoint ?? 'desktop') : 'desktop'
 
   const title = resolveBlockTextField(props, 'title')
   const showTitle = !isBlockFieldHidden(props, 'title') && (title || isEditorCanvas)
@@ -49,6 +50,7 @@ export default function ServicesCardsBlock({ style, props, liveItems, blockId }:
   const layout = String(props.layout ?? 'grid')
   const isList = layout === 'list'
   const columns = isList ? 1 : clampCatalogColumns(props.columns, 3, 'services_cards')
+  const gridColClass = catalogGridColClassForBreakpoint(columns, previewBp)
   const cardLayout = readCatalogCardLayout(props, 'services_cards', { defaultColumns: 3 })
   const imageShape = imageShapeFromProps(props)
 
@@ -172,7 +174,7 @@ export default function ServicesCardsBlock({ style, props, liveItems, blockId }:
       ) : (
         <div
           className={cn(
-            isList ? 'space-y-4 max-w-3xl mx-auto' : cn('grid', CATALOG_GRID_COL_CLASS[columns] || CATALOG_GRID_COL_CLASS[3]),
+            isList ? 'space-y-4 max-w-3xl mx-auto' : cn('grid', gridColClass),
           )}
           style={{ gap: cardLayout.itemGap }}
         >

@@ -45,6 +45,33 @@ export function catalogGridResponsiveColClass(columns: number): string {
   return CATALOG_GRID_COL_CLASS[columns] || CATALOG_GRID_COL_CLASS[4]
 }
 
+/**
+ * Column classes for the builder device preview. Live sites keep the full
+ * responsive string; the editor must pick a fixed class because Tailwind
+ * breakpoints follow the browser window, not the canvas width.
+ */
+export function catalogGridColClassForBreakpoint(
+  columns: number,
+  breakpoint: 'desktop' | 'tablet' | 'mobile' = 'desktop',
+): string {
+  const n = Math.min(Math.max(Math.round(columns) || 1, 1), MAX_CATALOG_GRID_COLUMNS)
+  if (breakpoint === 'desktop') return CATALOG_GRID_COL_CLASS[n] || CATALOG_GRID_COL_CLASS[4]
+
+  // Match the base / sm–md band of CATALOG_GRID_COL_CLASS (no lg/xl).
+  if (breakpoint === 'mobile') {
+    if (n <= 3) return 'grid-cols-1'
+    return 'grid-cols-2'
+  }
+
+  // Tablet ≈ sm/md applied, lg+ not.
+  if (n <= 1) return 'grid-cols-1'
+  if (n === 2) return 'grid-cols-2'
+  if (n === 3) return 'grid-cols-2'
+  if (n <= 5) return 'grid-cols-3'
+  if (n === 6) return 'grid-cols-4'
+  return 'grid-cols-4'
+}
+
 export type CatalogImageAspect = 'auto' | 'square' | 'tall' | 'wide'
 export type CatalogImageObjectFit = 'cover' | 'contain'
 

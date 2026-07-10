@@ -17,6 +17,7 @@ import { MediaClipFrame } from '@/components/builder/MediaClipFrame'
 import { hasMediaClip } from '@/lib/mediaClip'
 import { readSectionImageLayer } from '@/lib/sectionImageStyle'
 import { useBuilderCanvas } from '@/contexts/BuilderCanvasContext'
+import { previewBelowMd } from '@/lib/previewBreakpoint'
 import { useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { storeApi, type StoreLocation } from '@/api/store'
@@ -46,6 +47,7 @@ interface Props {
 export default function HeroBlock({ site, style, props, blockType, blockId, branchCode: branchFromBlocks }: Props) {
   const canvas = useBuilderCanvas()
   const isEditorCanvas = canvas?.isEditorCanvas && !!blockId
+  const stackBelowMd = Boolean(isEditorCanvas && previewBelowMd(canvas?.previewBreakpoint))
   const effectiveVendor = useEffectiveVendor()
   const [searchParams] = useSearchParams()
   const { selectedBranch: branchFromContext } = useBranch()
@@ -541,11 +543,16 @@ export default function HeroBlock({ site, style, props, blockType, blockId, bran
       className={
         splitSideBySide
           ? cn(
-              'relative grid min-h-[min(420px,72vh)] grid-cols-1 overflow-hidden md:min-h-[min(560px,78vh)] md:items-stretch',
-              wideImage ? 'md:grid-cols-[2fr_3fr]' : 'md:grid-cols-2',
+              'relative grid min-h-[min(420px,72vh)] grid-cols-1 overflow-hidden',
+              !stackBelowMd && 'md:min-h-[min(560px,78vh)] md:items-stretch',
+              !stackBelowMd && (wideImage ? 'md:grid-cols-[2fr_3fr]' : 'md:grid-cols-2'),
             )
           : isSplit
-            ? cn(BUILDER_SECTION_INSET_X, 'relative flex flex-col md:flex-row items-center gap-10 py-16')
+            ? cn(
+                BUILDER_SECTION_INSET_X,
+                'relative flex flex-col items-center gap-10 py-16',
+                !stackBelowMd && 'md:flex-row',
+              )
             : centeredImageHeroClass
       }
       style={

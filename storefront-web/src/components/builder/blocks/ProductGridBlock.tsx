@@ -28,6 +28,7 @@ import BlockEmptyPlaceholder from '@/components/builder/BlockEmptyPlaceholder'
 import { isBlockFieldHidden, resolveBlockTextField } from '@/lib/blockHiddenFields'
 import {
   CATALOG_GRID_COL_CLASS,
+  catalogGridColClassForBreakpoint,
   catalogGridResponsiveColClass,
   clampCatalogColumns,
   readCatalogCardLayout,
@@ -228,6 +229,12 @@ function mediaUrl(url: string | null | undefined) {
 export default function ProductGridBlock({ site, style, props, liveItems, blockType = 'product_grid', pageBlocks, blockId }: Props) {
   const builderCanvas = useBuilderCanvas()
   const isEditorCanvas = builderCanvas?.isEditorCanvas && !!blockId
+  const previewBp = isEditorCanvas ? (builderCanvas?.previewBreakpoint ?? 'desktop') : 'desktop'
+  const catalogCols = (n: number) => (
+    isEditorCanvas
+      ? catalogGridColClassForBreakpoint(n, previewBp)
+      : (CATALOG_GRID_COL_CLASS[n] || CATALOG_GRID_COL_CLASS[4])
+  )
   const siteStyle = { ...(site.style_config || {}), ...style } as Record<string, unknown>
   const storePath = useStorePath()
   const navigate = useNavigate()
@@ -400,7 +407,7 @@ export default function ProductGridBlock({ site, style, props, liveItems, blockT
           <span className="text-sm underline opacity-80 cursor-pointer" style={{ color: textColor }}>View all</span>
         </div>
         <div
-          className={cn('grid', CATALOG_GRID_COL_CLASS[editorialColumns] || CATALOG_GRID_COL_CLASS[3])}
+          className={cn('grid', catalogCols(editorialColumns || 3))}
           style={{ gap: editorialGap }}
         >
           {cats.slice(0, editorialLimit).map((c, i) => {
@@ -625,7 +632,7 @@ export default function ProductGridBlock({ site, style, props, liveItems, blockT
         <SectionWithBg bg={sectionBg}>
           <CategorySectionHeader title={title} textColor={sectionText} style={style} blockId={blockId} blockProps={props} />
           <div
-            className={cn('grid', CATALOG_GRID_COL_CLASS[bannerCols] || CATALOG_GRID_COL_CLASS[2])}
+            className={cn('grid', catalogCols(bannerCols || 2))}
             style={{ gap: catGap }}
           >
             {cats.slice(0, categoryLimit).map((c, i) => {
@@ -701,7 +708,7 @@ export default function ProductGridBlock({ site, style, props, liveItems, blockT
         <SectionWithBg bg={sectionBg}>
           <CategorySectionHeader title={title} textColor={sectionText} style={style} blockId={blockId} blockProps={props} />
           <div
-            className={cn('grid', CATALOG_GRID_COL_CLASS[catColumns] || CATALOG_GRID_COL_CLASS[3])}
+            className={cn('grid', catalogCols(catColumns || 3))}
             style={{ gap: catGap }}
           >
             {cats.slice(0, categoryLimit).map((c, i) => {
@@ -834,7 +841,7 @@ export default function ProductGridBlock({ site, style, props, liveItems, blockT
         <SectionWithBg bg={sectionBg}>
           <CategorySectionHeader title={title} textColor={sectionText} style={style} blockId={blockId} blockProps={props} />
           <div
-            className={cn('grid', CATALOG_GRID_COL_CLASS[catColumns] || CATALOG_GRID_COL_CLASS[4])}
+            className={cn('grid', catalogCols(catColumns || 4))}
             style={{ gap: catGap }}
           >
             {cats.slice(0, categoryLimit).map((c, i) => {
@@ -928,7 +935,11 @@ export default function ProductGridBlock({ site, style, props, liveItems, blockT
     const useSpotlight = props.featured_spotlight !== false && rawItems.length >= 1
     const featuredOne = useSpotlight ? rawItems[0] : null
     const gridList = useSpotlight ? rawItems.slice(1) : rawItems
-    const gridCls = catalogGridResponsiveColClass(columns).replace(/^grid-cols-1 /, '')
+    const gridCls = (
+      isEditorCanvas
+        ? catalogGridColClassForBreakpoint(columns, previewBp)
+        : catalogGridResponsiveColClass(columns)
+    ).replace(/^grid-cols-1 /, '')
 
     return (
       <div style={{ backgroundColor: style.surface_color || style.bg_color }}>
@@ -1207,7 +1218,7 @@ export default function ProductGridBlock({ site, style, props, liveItems, blockT
         </div>
       ) : (
         <div
-          className={`grid ${CATALOG_GRID_COL_CLASS[columns] || CATALOG_GRID_COL_CLASS[4]}`}
+          className={`grid ${catalogCols(columns)}`}
           style={{ gap: itemGap }}
         >
           {items.map(item => {
