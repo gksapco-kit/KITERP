@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from 'react'
+import { useCallback, useEffect, useMemo } from 'react'
 import { useQuery, useMutation, useQueryClient, type QueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { storeApi } from '@/api/store'
@@ -441,6 +441,71 @@ export function useUpdateCartItem() {
       apiError('Could not update cart quantity')(err)
     },
   })
+}
+
+/** Resolve cart line for catalog cards (prefer exact variant, else first product line). */
+export function findCatalogCartLineIndex(
+  items: CartLineRef[] | undefined,
+  productId: string,
+  variantId?: string | null,
+): number {
+  if (!items?.length || !productId) return -1
+  if (variantId) {
+    return resolveCartLineIndex(items, { productId, variantId })
+  }
+  const exact = resolveCartLineIndex(items, { productId })
+  if (exact >= 0) return exact
+  return items.findIndex((line) => lineProductId(line) === String(productId))
+}
+
+/**
+ * Set absolute qty for a catalog product/variant line.
+ * qty <= 0 removes the line; missing line adds via `addItem`.
+ */
+export function useSetCatalogCartQty() {
+  const qc = useQueryClient()
+  const { vendorSlug } = useVendor()
+  const addToCart = useAddToCart()
+  const updateItem = useUpdateCartItem()
+  const removeItem = useRemoveCartItem()
+
+  const setQty = useCallback(
+    async (input: {
+      productId: string
+      variantId?: string
+      qty: number
+      addItem?: GuestCartItem
+    }) => {
+      const productId = String(input.productId)
+      const variantId = input.variantId ? String(input.variantId) : undefined
+      const isAuth = useAuthStore.getState().isAuthenticated
+      const items = isAuth
+        ? ((qc.getQueryData<Cart>(storeKeys.cart) ?? useCartStore.getState().cart)?.items as CartLineRef[] | undefined)
+        : useGuestCartStore.getState().getItems(vendorSlug)
+      const index = findCatalogCartLineIndex(items, productId, variantId)
+
+      if (input.qty <= 0) {
+        if (index < 0) return
+        // Use index so fallback product-line matches still remove correctly.
+        await removeItem.mutateAsync(index)
+        return
+      }
+
+      if (index < 0) {
+        if (!input.addItem) throw new Error('Cart item not found')
+        await addToCart.mutateAsync({ ...input.addItem, qty: input.qty })
+        return
+      }
+
+      await updateItem.mutateAsync({ index, qty: input.qty })
+    },
+    [qc, vendorSlug, addToCart, updateItem, removeItem],
+  )
+
+  return {
+    setQty,
+    isPending: addToCart.isPending || updateItem.isPending || removeItem.isPending,
+  }
 }
 
 export function useRemoveCartItem() {

@@ -420,9 +420,9 @@ export default function NavBlock({
         style={{ color: shell.navTextCol }}
         aria-label="Cart"
       >
-        <ShoppingBag className="w-5 h-5" />
+        <ShoppingBag className="w-7 h-7" />
         {cartCount > 0 && (
-          <span className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] px-1 rounded-full bg-primary text-white text-[10px] font-bold flex items-center justify-center">
+          <span className="absolute -top-0.5 -right-0.5 min-w-[20px] h-[20px] px-1 rounded-full bg-primary text-white text-[11px] font-bold flex items-center justify-center">
             {cartCount}
           </span>
         )}
@@ -435,18 +435,18 @@ export default function NavBlock({
         style={{ color: shell.navTextCol }}
         aria-label="Cart"
       >
-        <ShoppingBag className="w-5 h-5" />
+        <ShoppingBag className="w-7 h-7" />
         {cartCount > 0 && (
-          <span className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] px-1 rounded-full bg-primary text-white text-[10px] font-bold flex items-center justify-center">
+          <span className="absolute -top-0.5 -right-0.5 min-w-[20px] h-[20px] px-1 rounded-full bg-primary text-white text-[11px] font-bold flex items-center justify-center">
             {cartCount}
           </span>
         )}
       </a>
     ) : (
       <Link to={storePath('/cart')} className="p-2 rounded-lg hover:opacity-70 transition-opacity relative" style={{ color: shell.navTextCol }} aria-label="Cart">
-        <ShoppingBag className="w-5 h-5" />
+        <ShoppingBag className="w-7 h-7" />
         {cartCount > 0 && (
-          <span className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] px-1 rounded-full bg-primary text-white text-[10px] font-bold flex items-center justify-center">
+          <span className="absolute -top-0.5 -right-0.5 min-w-[20px] h-[20px] px-1 rounded-full bg-primary text-white text-[11px] font-bold flex items-center justify-center">
             {cartCount}
           </span>
         )}
@@ -646,18 +646,18 @@ export default function NavBlock({
     <img
       src={avatarSrc}
       alt={customer?.full_name || 'Account'}
-      className="w-6 h-6 rounded-full object-cover"
+      className="w-9 h-9 rounded-full object-cover"
       onError={() => setAvatarFailed(true)}
     />
   ) : isAuthenticated ? (
     <span
-      className="flex w-6 h-6 items-center justify-center rounded-full text-xs font-bold text-white"
+      className="flex w-9 h-9 items-center justify-center rounded-full text-sm font-bold text-white"
       style={{ backgroundColor: primary }}
     >
       {accountInitial}
     </span>
   ) : (
-    <User className="w-5 h-5" />
+    <User className="w-7 h-7" />
   )
 
   const actionsNode = (
@@ -671,9 +671,9 @@ export default function NavBlock({
             style={{ color: shell.navTextCol }}
             aria-label="Cart"
           >
-            <ShoppingBag className="w-5 h-5" />
+            <ShoppingBag className="w-7 h-7" />
             {cartCount > 0 && (
-              <span className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] px-1 rounded-full bg-primary text-white text-[10px] font-bold flex items-center justify-center">
+              <span className="absolute -top-0.5 -right-0.5 min-w-[20px] h-[20px] px-1 rounded-full bg-primary text-white text-[11px] font-bold flex items-center justify-center">
                 {cartCount}
               </span>
             )}
@@ -686,18 +686,18 @@ export default function NavBlock({
             style={{ color: shell.navTextCol }}
             aria-label="Cart"
           >
-            <ShoppingBag className="w-5 h-5" />
+            <ShoppingBag className="w-7 h-7" />
             {cartCount > 0 && (
-              <span className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] px-1 rounded-full bg-primary text-white text-[10px] font-bold flex items-center justify-center">
+              <span className="absolute -top-0.5 -right-0.5 min-w-[20px] h-[20px] px-1 rounded-full bg-primary text-white text-[11px] font-bold flex items-center justify-center">
                 {cartCount}
               </span>
             )}
           </a>
         ) : (
           <Link to={storePath('/cart')} className="p-2 rounded-lg hover:opacity-70 transition-opacity relative" style={{ color: shell.navTextCol }} aria-label="Cart">
-            <ShoppingBag className="w-5 h-5" />
+            <ShoppingBag className="w-7 h-7" />
             {cartCount > 0 && (
-              <span className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] px-1 rounded-full bg-primary text-white text-[10px] font-bold flex items-center justify-center">
+              <span className="absolute -top-0.5 -right-0.5 min-w-[20px] h-[20px] px-1 rounded-full bg-primary text-white text-[11px] font-bold flex items-center justify-center">
                 {cartCount}
               </span>
             )}

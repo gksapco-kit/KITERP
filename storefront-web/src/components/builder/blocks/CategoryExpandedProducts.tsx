@@ -1,8 +1,8 @@
 import { type MouseEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { ArrowLeft, Loader2, ShoppingBag, ShoppingCart, Star } from 'lucide-react'
+import { ArrowLeft, Loader2, ShoppingBag, Star } from 'lucide-react'
 import type { StyleConfig } from '@/blocks/registry'
-import { useAddToCart, useCart, useCartProductQtyMap } from '@/hooks/useStore'
+import { useAddToCart, useCart, useCartProductQtyMap, useSetCatalogCartQty } from '@/hooks/useStore'
 import { useProducts, useServices } from '@/hooks/useStore'
 import { useStorePath } from '@/hooks/useStorePath'
 import { catalogProductToLiveItem, catalogServiceToLiveItem } from '@/lib/catalogToLiveItem'
@@ -17,10 +17,7 @@ import {
   readCatalogCardLayout,
   resolveCardRadiusPresentation,
 } from '@/lib/catalogCardLayout'
-import {
-  catalogAddButtonLabel,
-  resolveCatalogAddButtonPresentation,
-} from '@/lib/catalogAddButtonStyle'
+import { CatalogAddOrQtyControl } from '@/components/catalog/CatalogAddOrQtyControl'
 import { catalogTileImageWrapperClass, imageShapeFromProps } from '@/lib/sectionItemLayout'
 import { builderSectionContainerClass } from '@/lib/builderSectionLayout'
 import type { LiveItem } from '@/blocks/registry'
@@ -66,6 +63,7 @@ export default function CategoryExpandedProducts({
   const addToCart = useAddToCart()
   useCart()
   const cartQtyByProduct = useCartProductQtyMap()
+  const { setQty: setCatalogQty } = useSetCatalogCartQty()
 
   const isServiceCategory = appliesTo === 'service'
   const { data: productsData, isLoading: productsLoading } = useProducts(
@@ -102,18 +100,29 @@ export default function CategoryExpandedProducts({
     navigate(detailPath)
   }
 
-  const handleAddToCart = async (e: React.MouseEvent, item: LiveItem) => {
-    e.preventDefault()
-    e.stopPropagation()
+  const cartItemFromLive = (item: LiveItem) => ({
+    product_id: String(item.id),
+    name: item.title ?? 'Product',
+    qty: 1,
+    price: Number(item.price ?? 0),
+    image_url: item.image_url ?? undefined,
+  })
+
+  const addLiveItemToCart = async (item: LiveItem) => {
     if (!item.id || String(item.id).startsWith('ph-')) return
     try {
-      await addToCart.mutateAsync({
-        product_id: item.id,
-        name: item.title ?? 'Product',
-        qty: 1,
-        price: Number(item.price ?? 0),
-        image_url: item.image_url ?? item.image,
-      } as any)
+      await addToCart.mutateAsync(cartItemFromLive(item) as any)
+    } catch { /* mutation handles */ }
+  }
+
+  const handleCatalogQtyChange = async (item: LiveItem, qty: number) => {
+    if (!item.id || String(item.id).startsWith('ph-')) return
+    try {
+      await setCatalogQty({
+        productId: String(item.id),
+        qty,
+        addItem: cartItemFromLive(item) as any,
+      })
     } catch { /* mutation handles */ }
   }
 
@@ -204,14 +213,6 @@ export default function CategoryExpandedProducts({
               isCircle: isCircleProductTile,
             })
             const cardRadiusPresentation = resolveCardRadiusPresentation(cardBorderRadius, cardRadius)
-            const addBtn = resolveCatalogAddButtonPresentation({
-              style: addButtonStyle,
-              primaryColor: style.primary_color,
-              isAdded: cartQty > 0,
-              isMinimalCard,
-              isCompactCard,
-            })
-            const addLabel = catalogAddButtonLabel(isMinimalCard, cartQty)
             return (
               <div
                 key={item.id}
@@ -278,26 +279,19 @@ export default function CategoryExpandedProducts({
                 {showAddButton && !isServiceCategory && (
                   <div
                     style={{ padding: cardPadding, paddingTop: 0 }}
-                    className={cn('mt-auto', addBtn.iconOnly && 'flex justify-center')}
+                    className="mt-auto"
                   >
-                    <button
-                      onClick={e => handleAddToCart(e, item)}
-                      disabled={outOfStock || !!isAdding}
-                      className={cn(addBtn.className, 'hover:opacity-90')}
-                      style={addBtn.style}
-                      aria-label={addBtn.iconOnly ? addLabel : undefined}
-                    >
-                      {isAdding ? (
-                        <Loader2 className={cn(addBtn.iconClassName, 'animate-spin')} />
-                      ) : outOfStock ? (
-                        addBtn.showLabel ? 'Out of Stock' : <ShoppingCart className={addBtn.iconClassName} />
-                      ) : (
-                        <>
-                          <ShoppingCart className={addBtn.iconClassName} />
-                          {addBtn.showLabel ? addLabel : cartQty > 0 ? <span className="text-xs font-bold">{cartQty}</span> : null}
-                        </>
-                      )}
-                    </button>
+                    <CatalogAddOrQtyControl
+                      cartQty={cartQty}
+                      onAdd={() => addLiveItemToCart(item)}
+                      onQtyChange={qty => handleCatalogQtyChange(item, qty)}
+                      outOfStock={outOfStock}
+                      pending={!!isAdding}
+                      primaryColor={style.primary_color}
+                      addButtonStyle={addButtonStyle}
+                      isMinimalCard={isMinimalCard}
+                      isCompactCard={isCompactCard}
+                    />
                   </div>
                 )}
               </div>

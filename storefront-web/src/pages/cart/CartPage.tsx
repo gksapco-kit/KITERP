@@ -111,19 +111,18 @@ export default function CartPage() {
     <CheckoutConfigProvider config={{ storeName, showCoupon: true, showTrustBadges: true }}>
       <div className="checkout-root" style={checkoutTheme}>
         <main className="mx-auto max-w-6xl px-3 py-6 sm:px-4 md:px-6 md:py-8">
-          <div className="mb-5 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm">
-            <Link to={storePath('/')} className="ck-btn-ghost flex items-center gap-1 p-0">
-              <ArrowLeft size={14} /> Continue shopping
-            </Link>
-            <span className="ck-text-subtle hidden sm:inline">·</span>
-            <Link to={storePath('/products')} className="ck-btn-ghost p-0">Products</Link>
-          </div>
-
-          <div className="mb-6 flex flex-wrap items-center gap-3 sm:gap-4">
+          <div className="mb-6 flex flex-wrap items-center gap-x-3 gap-y-2 sm:gap-x-4">
             <h1 className="text-xl font-semibold sm:text-2xl md:text-3xl">Your Cart</h1>
             {!empty && (
               <CartItemsBadge count={cartItems.reduce((s, i) => s + i.quantity, 0)} />
             )}
+            <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm">
+              <Link to={storePath('/')} className="ck-btn-ghost flex items-center gap-1 p-0">
+                <ArrowLeft size={14} /> Continue shopping
+              </Link>
+              <span className="ck-text-subtle hidden sm:inline">·</span>
+              <Link to={storePath('/products')} className="ck-btn-ghost p-0">Products</Link>
+            </div>
           </div>
 
           {empty ? (
@@ -207,7 +206,7 @@ export default function CartPage() {
                 </div>
               </div>
 
-              <div>
+              <aside className="min-w-0 lg:sticky lg:top-24 lg:z-10 lg:self-start">
                 <OrderSummary
                   cart={checkoutCart}
                   showItems={false}
@@ -219,7 +218,7 @@ export default function CartPage() {
                 >
                   Proceed to checkout <ChevronRight size={16} />
                 </Link>
-              </div>
+              </aside>
             </div>
           )}
         </main>

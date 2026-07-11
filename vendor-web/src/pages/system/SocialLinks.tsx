@@ -203,7 +203,7 @@ export default function SocialLinksPage() {
 
   return (
     <div className="mx-auto max-w-6xl space-y-6 pb-8">
-      {/* Title left · link scope pills right — full width */}
+      {/* Title left · link scope pills + save right — full width */}
       <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:gap-8">
         <div className="flex min-w-0 shrink-0 items-start gap-3 lg:max-w-md">
           <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
@@ -217,19 +217,23 @@ export default function SocialLinksPage() {
           </div>
         </div>
 
-        <div className="flex min-w-0 flex-1 justify-start lg:justify-end lg:pt-0.5">
+        <div className="flex min-w-0 flex-1 flex-col items-stretch gap-3 sm:flex-row sm:items-start sm:justify-end lg:pt-0.5">
           <SocialLinksModeToggle
             mode={socialLinksMode}
             pending={updateVendor.isPending}
             onConfirm={handleSetSocialLinksMode}
             showHelper
           />
+          <Button type="submit" form="social-links-form" disabled={isSaving} className="gap-2 shrink-0 self-end sm:self-start">
+            {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+            Save Changes
+          </Button>
         </div>
       </div>
 
       <Card>
         <CardContent className="p-0">
-          <form onSubmit={handleSubmit} className="space-y-4 px-5 py-5">
+          <form id="social-links-form" onSubmit={handleSubmit} className="space-y-4 px-5 py-5">
             <div
               className={cn(
                 'grid grid-cols-1 gap-4',

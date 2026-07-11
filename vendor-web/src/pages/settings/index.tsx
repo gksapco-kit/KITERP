@@ -830,6 +830,19 @@ function SaveButton({ loading, compact }: { loading: boolean; compact?: boolean 
   )
 }
 
+function FormSaveBar({ loading, compact, top }: { loading: boolean; compact?: boolean; top?: boolean }) {
+  return (
+    <div
+      className={cn(
+        'flex justify-end',
+        top ? undefined : compact ? 'pt-0.5' : 'border-t border-border/60 pt-2',
+      )}
+    >
+      <SaveButton loading={loading} compact={compact} />
+    </div>
+  )
+}
+
 // â”€â”€ Profile Section â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 type ProfileSectionProps = SectionProps & {
@@ -1314,6 +1327,7 @@ function ProfileSection({ vendor, activeStore: activeStoreProp, unitProfileEdita
       {extraBannerPickerModal}
 
       <form onSubmit={handleSubmit} className="space-y-2.5">
+        <FormSaveBar loading={profileSaving || onSave.isPending} top />
         {/* Logo & banner — shown when: (a) vendor branding (single mode or all-BU view), or (b) per-unit branding editor */}
         {(showVendorBranding || unitBrandingEditable) ? (
         <div className="rounded-lg border border-border/70 bg-background/80 px-2.5 py-2">
@@ -1690,6 +1704,7 @@ function ContactSection({
       toggle={toggle}
     >
       <form onSubmit={handleSubmit} className="space-y-4">
+        <FormSaveBar loading={contactSaving} top />
         {!unitContactEditable ? (
           <p className="text-xs text-muted-foreground">
             Default contact for all {BUSINESS_UNIT_STORE_LABEL}s. Select a specific unit in the top bar to set contact details for that branch only.
@@ -1945,14 +1960,13 @@ function AddressPanelShell({
         </div>
       </div>
       <div className="flex flex-col gap-2 p-2.5">
+        {editable ? <FormSaveBar loading={saving} compact top /> : null}
         {!editable && readOnlyMessage ? <ReadOnlyBanner message={readOnlyMessage} /> : null}
         <fieldset disabled={!editable} className="contents [&_input]:disabled:cursor-default [&_input]:disabled:opacity-100">
           {children}
         </fieldset>
         {editable ? (
-          <div className="flex justify-end pt-0.5">
-            <SaveButton loading={saving} compact />
-          </div>
+          <FormSaveBar loading={saving} compact />
         ) : null}
       </div>
     </form>
@@ -2334,6 +2348,7 @@ function TaxSection({ vendor, open, toggle, onSave }: SectionProps) {
   return (
     <SectionWrapper title="Tax & Compliance" helpText="GST, PAN, GSTIN and tax registration details" icon={FileText} open={open} toggle={toggle}>
       <form onSubmit={handleSubmit} className="space-y-4 pt-4">
+        <FormSaveBar loading={onSave.isPending} top />
         <label className="flex items-center gap-3 cursor-pointer">
           <input
             type="checkbox"
@@ -2471,6 +2486,7 @@ function BusinessHoursSection({ vendor, open, toggle, onSave }: SectionProps) {
       toggle={toggle}
     >
       <form onSubmit={handleSubmit} className="space-y-3">
+        <FormSaveBar loading={onSave.isPending} top />
         <p className="text-sm text-muted-foreground">
           <strong className="font-medium text-foreground">Opening hours</strong> — shown on your business front (when you are open for visitors).
         </p>
@@ -2644,6 +2660,7 @@ function OrderAcceptanceSection({ vendor, open, toggle, onSave }: SectionProps) 
       toggle={toggle}
     >
       <form onSubmit={handleSubmit} className="space-y-4">
+        <FormSaveBar loading={onSave.isPending} top />
         <label className="flex cursor-pointer items-center gap-3">
           <input
             type="checkbox"
@@ -3084,6 +3101,7 @@ function ExternalDomainSection({ vendor, open, toggle, onSave }: SectionProps) {
       toggle={toggle}
     >
       <form onSubmit={handleSubmit} className="space-y-3">
+        <FormSaveBar loading={onSave.isPending} top />
 
         {/* Scope + preview info — always visible when expanded */}
         <div className="rounded-lg border border-border bg-muted/30 divide-y divide-border text-xs hidden">

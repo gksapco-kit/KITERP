@@ -108,7 +108,7 @@ function ColorSwatch({
       className={cn(
         'h-7 w-7 shrink-0 overflow-hidden rounded-full border-2 transition-all disabled:opacity-50',
         selected
-          ? 'border-primary ring-2 ring-primary ring-offset-2 scale-110 shadow-md'
+          ? 'border-primary ring-2 ring-primary/40 ring-offset-1 scale-105 shadow-sm'
           : 'border-gray-200 hover:scale-105 hover:border-primary/50',
         unavailable && !selected && 'opacity-40',
       )}
@@ -144,13 +144,16 @@ export default function ProductOptionPicker({
   if (!rows.length) return null
 
   return (
-    <div className={cn('space-y-1.5 rounded-md border border-border/60 bg-muted/20 px-2 py-2', className)}>
+    <div className={cn('flex flex-col gap-3', className)}>
       {rows.map((row) => (
-        <div key={row.type === 'size' ? `size-${row.label}` : 'color'} className="flex items-center gap-2">
-          <span className="w-9 shrink-0 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+        <div
+          key={row.type === 'size' ? `size-${row.label}` : 'color'}
+          className="flex items-center gap-2"
+        >
+          <span className="w-10 shrink-0 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
             {row.label}
           </span>
-          <div className="flex min-w-0 flex-1 flex-wrap gap-1">
+          <div className="flex min-w-0 flex-1 flex-wrap items-center gap-1.5">
             {row.type === 'size'
               ? row.values.map((value) => {
                   const selected = selections[row.label] === value

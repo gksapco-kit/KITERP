@@ -183,13 +183,18 @@ export default function StorefrontDisplayPage() {
   }
 
   return (
-    <div className="mx-auto max-w-3xl space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-foreground">Business Front Display</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Choose fields per website template. When a template is assigned to a business unit, customers see only the
-          fields you enable here — product data still controls whether a row appears.
-        </p>
+    <form onSubmit={handleSubmit} className="mx-auto max-w-3xl space-y-6">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div className="min-w-0">
+          <h1 className="text-2xl font-bold text-foreground">Business Front Display</h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Choose fields per website template. When a template is assigned to a business unit, customers see only the
+            fields you enable here — product data still controls whether a row appears.
+          </p>
+        </div>
+        <div className="shrink-0 self-end sm:self-start">
+          <SaveButton loading={updateVendor.isPending} />
+        </div>
       </div>
 
       <Card>
@@ -236,61 +241,59 @@ export default function StorefrontDisplayPage() {
         </CardContent>
       </Card>
 
-      <form onSubmit={handleSubmit} className="space-y-6">
-        <Card>
-          <CardHeader className="pb-3">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/12 text-primary ring-1 ring-inset ring-primary/20">
-                  <Package className="h-5 w-5" strokeWidth={2} />
-                </div>
-                <CardTitle className="text-base">Product Fields</CardTitle>
+      <Card>
+        <CardHeader className="pb-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/12 text-primary ring-1 ring-inset ring-primary/20">
+                <Package className="h-5 w-5" strokeWidth={2} />
               </div>
-              <div className="flex gap-3 text-xs">
-                <button type="button" onClick={() => toggleAll('product', true)} className="text-primary hover:underline">
-                  Show All
-                </button>
-                <span className="text-border">|</span>
-                <button type="button" onClick={() => toggleAll('product', false)} className="text-muted-foreground hover:underline">
-                  Hide All
-                </button>
-              </div>
+              <CardTitle className="text-base">Product Fields</CardTitle>
             </div>
-          </CardHeader>
-          <CardContent>
-            <FieldGrid defs={PRODUCT_DISPLAY_FIELD_DEFS} values={productFields} onChange={setProductFields} />
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="pb-3">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/12 text-primary ring-1 ring-inset ring-primary/20">
-                  <Wrench className="h-5 w-5" strokeWidth={2} />
-                </div>
-                <CardTitle className="text-base">Service Fields</CardTitle>
-              </div>
-              <div className="flex gap-3 text-xs">
-                <button type="button" onClick={() => toggleAll('service', true)} className="text-primary hover:underline">
-                  Show All
-                </button>
-                <span className="text-border">|</span>
-                <button type="button" onClick={() => toggleAll('service', false)} className="text-muted-foreground hover:underline">
-                  Hide All
-                </button>
-              </div>
+            <div className="flex gap-3 text-xs">
+              <button type="button" onClick={() => toggleAll('product', true)} className="text-primary hover:underline">
+                Show All
+              </button>
+              <span className="text-border">|</span>
+              <button type="button" onClick={() => toggleAll('product', false)} className="text-muted-foreground hover:underline">
+                Hide All
+              </button>
             </div>
-          </CardHeader>
-          <CardContent>
-            <FieldGrid defs={SERVICE_DISPLAY_FIELD_DEFS} values={serviceFields} onChange={setServiceFields} />
-          </CardContent>
-        </Card>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <FieldGrid defs={PRODUCT_DISPLAY_FIELD_DEFS} values={productFields} onChange={setProductFields} />
+        </CardContent>
+      </Card>
 
-        <div className="flex justify-end">
-          <SaveButton loading={updateVendor.isPending} />
-        </div>
-      </form>
-    </div>
+      <Card>
+        <CardHeader className="pb-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/12 text-primary ring-1 ring-inset ring-primary/20">
+                <Wrench className="h-5 w-5" strokeWidth={2} />
+              </div>
+              <CardTitle className="text-base">Service Fields</CardTitle>
+            </div>
+            <div className="flex gap-3 text-xs">
+              <button type="button" onClick={() => toggleAll('service', true)} className="text-primary hover:underline">
+                Show All
+              </button>
+              <span className="text-border">|</span>
+              <button type="button" onClick={() => toggleAll('service', false)} className="text-muted-foreground hover:underline">
+                Hide All
+              </button>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <FieldGrid defs={SERVICE_DISPLAY_FIELD_DEFS} values={serviceFields} onChange={setServiceFields} />
+        </CardContent>
+      </Card>
+
+      <div className="flex justify-end">
+        <SaveButton loading={updateVendor.isPending} />
+      </div>
+    </form>
   )
 }

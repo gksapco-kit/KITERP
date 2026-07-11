@@ -496,7 +496,7 @@ function SummaryTab({ data, loading, stores, selectedStoreId, onAction, onViewHi
           className="rounded-t-xl"
         />
         <div className="overflow-x-auto">
-        <ResizableTable tableId="inventory-stock-v2" defaultWidths={[240, 110, 110, 110, 110, ...stores.map(() => 90), 100, 300]}>
+        <ResizableTable tableId="inventory-stock-v3" defaultWidths={[240, 110, 110, 110, 110, ...stores.map(() => 90), 140, 300]}>
           <thead>
             <tr className="border-b bg-gray-50">
               <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase"><TableColumnLabel>Product / Variant</TableColumnLabel></th>
@@ -635,13 +635,14 @@ function SummaryTab({ data, loading, stores, selectedStoreId, onAction, onViewHi
                         saving={isSaving(item.product_id, 'low_stock_threshold')}
                         onSave={(v) => patchProductField(item.product_id, 'low_stock_threshold', Number(v))}
                         title="Double-click to edit low-stock threshold"
+                        truncateContent={false}
                       >
                         {item.is_low_stock ? (
                           <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-amber-50 text-amber-700">
-                            <AlertTriangle className="w-3 h-3" />Low
+                            <AlertTriangle className="w-3 h-3 shrink-0" />Low
                           </span>
                         ) : (
-                          <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-green-50 text-green-700">OK</span>
+                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-50 text-green-700">OK</span>
                         )}
                       </InlineEditCell>
                     </td>
@@ -746,8 +747,9 @@ function SummaryTab({ data, loading, stores, selectedStoreId, onAction, onViewHi
                             saving={isSavingVariant(item.product_id, v.id, 'low_stock_threshold')}
                             onSave={(val) => patchVariantFields(item.product_id, v.id, { low_stock_threshold: Number(val) }, 'low_stock_threshold')}
                             title="Double-click to edit low-stock threshold"
+                            truncateContent={false}
                           >
-                            <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${statusColor}`}>{statusLabel}</span>
+                            <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${statusColor}`}>{statusLabel}</span>
                           </InlineEditCell>
                         </td>
                         <td className="px-6 py-3 text-right whitespace-nowrap">

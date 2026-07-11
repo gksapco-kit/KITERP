@@ -6,13 +6,9 @@ const HIDE_DELAY_MS = 220
 export function useModuleHoverPreview() {
   const [highlightedId, setHighlightedId] = useState<string | null>(null)
   const [previewId, setPreviewId] = useState<string | null>(null)
-  const previewOpenRef = useRef(false)
+  const pinnedIdRef = useRef<string | null>(null)
   const showTimer = useRef<ReturnType<typeof setTimeout>>()
   const hideTimer = useRef<ReturnType<typeof setTimeout>>()
-
-  useEffect(() => {
-    previewOpenRef.current = previewId !== null
-  }, [previewId])
 
   useEffect(() => {
     return () => {
@@ -28,14 +24,18 @@ export function useModuleHoverPreview() {
 
   const hoverModule = useCallback(
     (id: string | null) => {
-      setHighlightedId(id)
       clearTimers()
 
+      // After a click selection, ignore hover — keep showing that module's detail
+      // until another app is clicked or the user clicks outside the panel.
+      if (pinnedIdRef.current) {
+        setHighlightedId(pinnedIdRef.current)
+        return
+      }
+
+      setHighlightedId(id)
+
       if (id) {
-        if (previewOpenRef.current) {
-          setPreviewId(id)
-          return
-        }
         showTimer.current = setTimeout(() => setPreviewId(id), SHOW_DELAY_MS)
         return
       }
@@ -48,6 +48,7 @@ export function useModuleHoverPreview() {
   const selectModule = useCallback(
     (id: string) => {
       clearTimers()
+      pinnedIdRef.current = id
       setHighlightedId(id)
       setPreviewId(id)
     },
@@ -60,6 +61,7 @@ export function useModuleHoverPreview() {
 
   const dismissPreview = useCallback(() => {
     clearTimers()
+    pinnedIdRef.current = null
     setHighlightedId(null)
     setPreviewId(null)
   }, [clearTimers])

@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { useProducts, useServices, useStoreCategories } from '@/hooks/useStore'
-import { useAddToCart, useCart, useCartProductQtyMap } from '@/hooks/useStore'
+import { useAddToCart, useCart, useCartProductQtyMap, useSetCatalogCartQty } from '@/hooks/useStore'
 import { formatCurrency, imgUrl, cn } from '@/lib/utils'
 import type { Product, Service, ProductVariant, Cart } from '@/types'
 import type { GuestCartItem } from '@/stores/guestCartStore'
@@ -27,7 +27,7 @@ import { bridgeProduct } from '@/kit/bridge'
 import { resolveProductThumbnailUrl } from '@/lib/productImageUtils'
 import { variantColorCss, variantDisplayLabel } from '@/lib/variantOptions'
 import { assertCanAddToCart, canPurchaseProduct } from '@/lib/stockValidation'
-import { catalogAddButtonLabel } from '@/lib/catalogAddButtonStyle'
+import { CatalogAddOrQtyControl } from '@/components/catalog/CatalogAddOrQtyControl'
 import { shouldShowServiceBookCta } from '@/lib/serviceStorefrontCta'
 import { resolveServiceDuration } from '@/lib/servicePricing'
 import { ServiceCard } from '@/kit/services/ServiceBlocks'
@@ -198,6 +198,7 @@ export default function ProductList() {
   const addToCart = useAddToCart()
   useCart()
   const cartQtyByProduct = useCartProductQtyMap()
+  const { setQty: setCatalogQty } = useSetCatalogCartQty()
   const cardStyle = theme.card_style || 'default'
   const [searchParams] = useSearchParams()
   const initialSearch = searchParams.get('search') || ''
@@ -914,6 +915,25 @@ export default function ProductList() {
                   })
                 }
 
+                const handleListQtyChange = async (qty: number) => {
+                  if (!isProduct) return
+                  const variantId = variants.length === 1 ? String(variants[0].id) : undefined
+                  await setCatalogQty({
+                    productId: String(item.id),
+                    variantId,
+                    qty,
+                    addItem: {
+                      product_id: String(item.id),
+                      variant_id: variantId,
+                      name: item.name,
+                      qty: 1,
+                      price: effectivePrice,
+                      image_url: imageUrl ? imgUrl(imageUrl) : undefined,
+                      slug: item.slug,
+                    },
+                  })
+                }
+
                 return (
                   <div
                     key={`${item.type}-${item.id}`}
@@ -982,19 +1002,14 @@ export default function ProductList() {
                     </div>
                     <div className="flex w-full shrink-0 flex-col items-stretch justify-center gap-2 sm:w-auto sm:min-w-[140px]">
                       {isProduct ? (
-                        <Button
-                          size="sm"
-                          className="gap-1.5"
-                          disabled={!hasStock || addToCart.isPending}
-                          onClick={handleListAddToCart}
-                        >
-                          {addToCart.isPending ? (
-                            <Loader2 className="w-4 h-4 animate-spin" />
-                          ) : (
-                            <ShoppingCart className="w-4 h-4" />
-                          )}
-                          {hasStock ? catalogAddButtonLabel(false, listCartQty) : 'Out of stock'}
-                        </Button>
+                        <CatalogAddOrQtyControl
+                          cartQty={listCartQty}
+                          onAdd={handleListAddToCart}
+                          onQtyChange={handleListQtyChange}
+                          outOfStock={!hasStock}
+                          pending={addToCart.isPending}
+                          addButtonStyle="filled"
+                        />
                       ) : showServiceBook ? (
                         <Button size="sm" className="gap-1.5" asChild>
                           <Link to={storePath(`/services/${item.slug}/book`)}>

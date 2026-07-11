@@ -37,19 +37,19 @@ const SIZE_CLASS: Record<
   { base: string; icon: string; iconOnly: string }
 > = {
   minimal: {
-    base: 'gap-1.5 py-1.5 text-[11px] font-semibold',
+    base: 'gap-1.5 h-9 min-h-9 py-0 text-[11px] font-semibold',
     icon: 'w-3 h-3',
-    iconOnly: 'h-8 w-8',
-  },
-  compact: {
-    base: 'gap-1.5 py-2 text-xs font-semibold',
-    icon: 'w-4 h-4',
     iconOnly: 'h-9 w-9',
   },
-  default: {
-    base: 'gap-2 py-2.5 text-sm font-semibold',
+  compact: {
+    base: 'gap-1.5 h-10 min-h-10 py-0 text-xs font-semibold',
     icon: 'w-4 h-4',
     iconOnly: 'h-10 w-10',
+  },
+  default: {
+    base: 'gap-2 h-11 min-h-11 py-0 text-sm font-semibold',
+    icon: 'w-4 h-4',
+    iconOnly: 'h-11 w-11',
   },
 }
 

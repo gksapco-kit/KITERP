@@ -80,7 +80,7 @@ export function readNavLogoShape(props: Record<string, unknown>): NavLogoShape {
   return readEnum(
     props.logo_shape,
     ['original', 'rounded', 'square', 'circle', 'squircle', 'sharp'] as const,
-    'original',
+    'rounded',
   )
 }
 
@@ -132,7 +132,7 @@ export function resolveNavLogoPresentation(
   const classNames = ['shrink-0']
 
   if (shape === 'original') {
-    classNames.push('w-auto object-contain')
+    classNames.push('w-auto object-contain rounded-lg')
     style.height = height
     style.maxWidth = maxWidth
   } else {

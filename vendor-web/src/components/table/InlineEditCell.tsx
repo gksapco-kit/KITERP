@@ -11,6 +11,8 @@ type InlineEditCellBaseProps = {
   saving?: boolean
   className?: string
   title?: string
+  /** Ellipsize long text. Set false for badges/chips that must stay fully visible. */
+  truncateContent?: boolean
   children: ReactNode
 }
 
@@ -40,7 +42,7 @@ function isSelectProps(props: InlineEditCellProps): props is InlineEditSelectPro
 }
 
 export function InlineEditCell(props: InlineEditCellProps) {
-  const { disabled, readOnly, readOnlyMessage, saving, className, title } = props
+  const { disabled, readOnly, readOnlyMessage, saving, className, title, truncateContent = true } = props
   const [editing, setEditing] = useState(false)
   const [draft, setDraft] = useState('')
   const [error, setError] = useState<string | null>(null)
@@ -214,7 +216,9 @@ export function InlineEditCell(props: InlineEditCellProps) {
       )}
     >
       <span className="flex items-center gap-1 min-w-0">
-        <span className="min-w-0 flex-1 truncate">{props.children}</span>
+        <span className={cn('min-w-0 flex-1', truncateContent ? 'truncate' : 'whitespace-nowrap')}>
+          {props.children}
+        </span>
         {saving && <Loader2 className="w-3 h-3 shrink-0 animate-spin text-blue-500" />}
       </span>
     </div>

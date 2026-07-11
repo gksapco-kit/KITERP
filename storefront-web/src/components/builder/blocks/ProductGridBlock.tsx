@@ -1,7 +1,7 @@
 import { type CSSProperties, type ReactNode, type MouseEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { ShoppingBag, Star, ShoppingCart, Loader2, Heart, FolderTree } from 'lucide-react'
-import { useAddToCart, useCart, useCartProductQtyMap } from '@/hooks/useStore'
+import { ShoppingBag, Star, Heart, FolderTree } from 'lucide-react'
+import { useAddToCart, useCart, useCartProductQtyMap, useSetCatalogCartQty } from '@/hooks/useStore'
 import { useStorePath } from '@/hooks/useStorePath'
 import type { PublicSite, StyleConfig, LiveItem } from '@/blocks/registry'
 import CategoryCardsWellness from '@/components/builder/blocks/CategoryCardsWellness'
@@ -35,10 +35,7 @@ import {
   buildCatalogImageShell,
   resolveCardRadiusPresentation,
 } from '@/lib/catalogCardLayout'
-import {
-  catalogAddButtonLabel,
-  resolveCatalogAddButtonPresentation,
-} from '@/lib/catalogAddButtonStyle'
+import { CatalogAddOrQtyControl } from '@/components/catalog/CatalogAddOrQtyControl'
 import {
   catalogTileImageWrapperClass,
   imageShapeFromProps,
@@ -241,6 +238,7 @@ export default function ProductGridBlock({ site, style, props, liveItems, blockT
   const addToCart = useAddToCart()
   useCart()
   const cartQtyByProduct = useCartProductQtyMap()
+  const { setQty: setCatalogQty } = useSetCatalogCartQty()
 
   const isLiveCatalogProduct = (item: LiveItem) => {
     const id = String(item.id ?? '')
@@ -263,18 +261,29 @@ export default function ProductGridBlock({ site, style, props, liveItems, blockT
     navigate(detailPath)
   }
 
-  const handleAddToCart = async (e: React.MouseEvent, item: LiveItem) => {
-    e.preventDefault()
-    e.stopPropagation()
+  const cartItemFromLive = (item: LiveItem) => ({
+    product_id: String(item.id),
+    name: item.title ?? 'Product',
+    qty: 1,
+    price: Number(item.price ?? 0),
+    image_url: item.image_url ?? undefined,
+  })
+
+  const addLiveItemToCart = async (item: LiveItem) => {
     if (!item.id || String(item.id).startsWith('ph-')) return
     try {
-      await addToCart.mutateAsync({
-        product_id: item.id,
-        name: item.title ?? 'Product',
-        qty: 1,
-        price: Number(item.price ?? 0),
-        image_url: item.image_url ?? item.image,
-      } as any)
+      await addToCart.mutateAsync(cartItemFromLive(item) as any)
+    } catch { /* mutation handles */ }
+  }
+
+  const handleCatalogQtyChange = async (item: LiveItem, qty: number) => {
+    if (!item.id || String(item.id).startsWith('ph-')) return
+    try {
+      await setCatalogQty({
+        productId: String(item.id),
+        qty,
+        addItem: cartItemFromLive(item) as any,
+      })
     } catch { /* mutation handles */ }
   }
 
@@ -1008,14 +1017,16 @@ export default function ProductGridBlock({ site, style, props, liveItems, blockT
                         Shop category
                       </Link>
                     ) : (
-                      <button
-                        type="button"
-                        style={{ backgroundColor: style.primary_color, color: '#fff' }}
-                        className="h-12 px-8 text-xs font-bold uppercase tracking-[0.2em] rounded-none"
-                        onClick={e => handleAddToCart(e, featuredOne)}
-                      >
-                        {catalogAddButtonLabel(false, cartQtyByProduct.get(String(featuredOne.id)) ?? 0)}
-                      </button>
+                      <CatalogAddOrQtyControl
+                        cartQty={cartQtyByProduct.get(String(featuredOne.id)) ?? 0}
+                        onAdd={() => addLiveItemToCart(featuredOne)}
+                        onQtyChange={qty => handleCatalogQtyChange(featuredOne, qty)}
+                        pending={addToCart.isPending && (addToCart.variables as any)?.product_id === featuredOne.id}
+                        primaryColor={style.primary_color}
+                        addButtonStyle="filled"
+                        fullWidth={false}
+                        className="h-12 min-w-[10rem] rounded-none px-6 text-xs font-bold uppercase tracking-[0.2em]"
+                      />
                     )}
                     <button
                       type="button"
@@ -1143,15 +1154,18 @@ export default function ProductGridBlock({ site, style, props, liveItems, blockT
                     <span className="text-sm shrink-0" style={{ color: textColor }}>{item.price_formatted || '—'}</span>
                   </div>
                   {!isPh && (
-                    <button
-                      type="button"
-                      onClick={e => handleAddToCart(e, item)}
-                      disabled={outOfStock}
-                      className="mt-3 w-full py-2 text-xs font-medium rounded-lg text-white disabled:opacity-50"
-                      style={{ backgroundColor: style.primary_color }}
-                    >
-                      {outOfStock ? 'Out of stock' : catalogAddButtonLabel(false, cartQty)}
-                    </button>
+                    <div className="mt-3">
+                      <CatalogAddOrQtyControl
+                        cartQty={cartQty}
+                        onAdd={() => addLiveItemToCart(item)}
+                        onQtyChange={qty => handleCatalogQtyChange(item, qty)}
+                        disabled={outOfStock}
+                        outOfStock={outOfStock}
+                        pending={addToCart.isPending && (addToCart.variables as any)?.product_id === item.id}
+                        primaryColor={style.primary_color}
+                        addButtonStyle="filled"
+                      />
+                    </div>
                   )}
                 </div>
               )
@@ -1233,14 +1247,6 @@ export default function ProductGridBlock({ site, style, props, liveItems, blockT
               isCircle: isCircleProductTile,
             })
             const cardRadiusPresentation = resolveCardRadiusPresentation(cardBorderRadius, cardRadius)
-            const addBtn = resolveCatalogAddButtonPresentation({
-              style: addButtonStyle,
-              primaryColor: style.primary_color,
-              isAdded: cartQty > 0,
-              isMinimalCard,
-              isCompactCard,
-            })
-            const addLabel = catalogAddButtonLabel(isMinimalCard, cartQty)
             return (
               <div
                 key={item.id}
@@ -1306,26 +1312,19 @@ export default function ProductGridBlock({ site, style, props, liveItems, blockT
                 {showAddButton && (
                 <div
                   style={{ padding: cardPadding, paddingTop: 0 }}
-                  className={cn('mt-auto', addBtn.iconOnly && 'flex justify-center')}
+                  className="mt-auto"
                 >
-                  <button
-                    onClick={e => handleAddToCart(e, item)}
-                    disabled={outOfStock || !!isAdding}
-                    className={cn(addBtn.className, 'hover:opacity-90')}
-                    style={addBtn.style}
-                    aria-label={addBtn.iconOnly ? addLabel : undefined}
-                  >
-                    {isAdding ? (
-                      <Loader2 className={cn(addBtn.iconClassName, 'animate-spin')} />
-                    ) : outOfStock ? (
-                      addBtn.showLabel ? 'Out of Stock' : <ShoppingCart className={addBtn.iconClassName} />
-                    ) : (
-                      <>
-                        <ShoppingCart className={addBtn.iconClassName} />
-                        {addBtn.showLabel ? addLabel : cartQty > 0 ? <span className="text-xs font-bold">{cartQty}</span> : null}
-                      </>
-                    )}
-                  </button>
+                  <CatalogAddOrQtyControl
+                    cartQty={cartQty}
+                    onAdd={() => addLiveItemToCart(item)}
+                    onQtyChange={qty => handleCatalogQtyChange(item, qty)}
+                    outOfStock={outOfStock}
+                    pending={!!isAdding}
+                    primaryColor={style.primary_color}
+                    addButtonStyle={addButtonStyle}
+                    isMinimalCard={isMinimalCard}
+                    isCompactCard={isCompactCard}
+                  />
                 </div>
                 )}
               </div>

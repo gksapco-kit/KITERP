@@ -1,5 +1,5 @@
 import { Link, useParams } from "react-router-dom";
-import { Check, ClipboardList, ExternalLink, Loader2, MapPin, Package, Truck } from "lucide-react";
+import { Check, ClipboardList, Clock, ExternalLink, Loader2, MapPin, Package, Truck } from "lucide-react";
 import { CheckoutHeader, CheckoutFooter } from "../components/Header";
 import { CheckoutConfigProvider, formatMoney, useCheckoutConfig } from "../config";
 import { LineItem } from "../components/LineItem";
@@ -72,7 +72,7 @@ function Inner() {
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_320px]">
           <div className="space-y-4">
             <div className="ck-surface ck-border ck-radius-md p-4 md:p-6">
-              <h2 className="mb-4 text-base font-semibold">Tracking</h2>
+              <h2 className="mb-5 text-base font-semibold tracking-tight">Tracking</h2>
               <Timeline events={timeline} />
               {order.tracking_number ? (
                 <div className="ck-border-t mt-4 flex flex-wrap items-center justify-between gap-2 pt-4 text-sm">
@@ -158,33 +158,69 @@ function buildTimeline(order: Order): OrderTimelineEvent[] {
 }
 
 function Timeline({ events }: { events: OrderTimelineEvent[] }) {
+  if (!events.length) {
+    return <p className="ck-text-muted text-sm">No tracking updates yet.</p>;
+  }
+
+  const lastDoneIdx = events.reduce((acc, e, i) => (e.occurredAt ? i : acc), -1);
+
   return (
-    <ol className="relative" style={{ paddingLeft: 28 }}>
-      <span
-        aria-hidden
-        className="absolute"
-        style={{ left: 13, top: 8, bottom: 8, width: 2, background: "hsl(var(--border-token))" }}
-      />
+    <ol className="m-0 list-none space-y-0 p-0">
       {events.map((e, i) => {
         const done = !!e.occurredAt;
+        const isLatest = i === lastDoneIdx;
+        const isLast = i === events.length - 1;
         const Icon = iconForStatus(e.status);
+
         return (
-          <li key={i} className="relative mb-5 last:mb-0">
-            <span
-              className="absolute flex h-7 w-7 items-center justify-center"
-              style={{
-                left: -27,
-                top: 0,
-                borderRadius: "999px",
-                background: done ? "hsl(var(--success))" : "hsl(var(--surface-muted))",
-                color: done ? "hsl(var(--brand-primary-foreground))" : "hsl(var(--text-muted))",
-              }}
-            >
-              {done ? <Check size={14} /> : <Icon size={14} />}
-            </span>
-            <div className="text-sm font-medium">{e.label}</div>
-            <div className="ck-text-muted text-xs">
-              {e.occurredAt ? new Date(e.occurredAt).toLocaleString() : "Pending"}
+          <li key={`${e.status}-${e.occurredAt ?? i}`} className="flex gap-3">
+            {/* Rail: icon + connector */}
+            <div className="flex w-7 shrink-0 flex-col items-center">
+              <span
+                className="relative z-[1] flex h-7 w-7 shrink-0 items-center justify-center rounded-full"
+                style={{
+                  background: done
+                    ? isLatest
+                      ? "hsl(var(--success))"
+                      : "hsl(var(--success) / 0.18)"
+                    : "hsl(var(--surface-muted))",
+                  color: done
+                    ? isLatest
+                      ? "#fff"
+                      : "hsl(var(--success))"
+                    : "hsl(var(--text-muted))",
+                  boxShadow: isLatest ? "0 0 0 4px hsl(var(--success) / 0.15)" : undefined,
+                }}
+                aria-hidden
+              >
+                {done ? <Check size={14} strokeWidth={2.5} /> : <Icon size={14} />}
+              </span>
+              {!isLast ? (
+                <span
+                  aria-hidden
+                  className="mt-1 w-0.5 flex-1 min-h-[1.25rem]"
+                  style={{
+                    background: i < lastDoneIdx
+                      ? "hsl(var(--success) / 0.45)"
+                      : "hsl(var(--border-token))",
+                  }}
+                />
+              ) : null}
+            </div>
+
+            {/* Content */}
+            <div className={`min-w-0 flex-1 ${isLast ? "pb-0" : "pb-5"}`}>
+              <div className={`text-sm leading-7 ${isLatest ? "font-semibold" : "font-medium"}`}>
+                {e.label}
+              </div>
+              <div className="ck-text-muted mt-0.5 text-xs leading-snug">
+                {e.occurredAt
+                  ? new Date(e.occurredAt).toLocaleString(undefined, {
+                      dateStyle: "medium",
+                      timeStyle: "short",
+                    })
+                  : "Awaiting update"}
+              </div>
             </div>
           </li>
         );
@@ -213,12 +249,31 @@ function SidePanel({
 }
 
 function iconForStatus(s: string) {
-  if (s === "placed" || s === "paid" || s === "confirmed") return ClipboardList;
-  if (s === "packed") return Package;
-  if (s === "shipped" || s === "out_for_delivery") return Truck;
+  const key = (s || "").toLowerCase();
+  if (key === "pending") return Clock;
+  if (key === "placed" || key === "paid" || key === "confirmed" || key === "processing") return ClipboardList;
+  if (key === "packed") return Package;
+  if (key === "shipped" || key === "out_for_delivery") return Truck;
+  if (key === "delivered") return Check;
   return MapPin;
 }
 
+const STATUS_LABELS: Record<string, string> = {
+  pending: "Pending",
+  placed: "Order placed",
+  confirmed: "Confirmed",
+  paid: "Paid",
+  processing: "Processing",
+  packed: "Packed",
+  shipped: "Shipped",
+  out_for_delivery: "Out for delivery",
+  delivered: "Delivered",
+  cancelled: "Cancelled",
+  refunded: "Refunded",
+};
+
 function statusLabel(s: string) {
-  return s.replace(/_/g, " ").replace(/^\w/, (c) => c.toUpperCase());
+  const key = (s || "").toLowerCase();
+  if (STATUS_LABELS[key]) return STATUS_LABELS[key];
+  return key.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 }

@@ -18,11 +18,8 @@ import {
 import {
   readCatalogCardLayout,
 } from "@/lib/catalogCardLayout";
-import {
-  catalogAddButtonLabel,
-  resolveCatalogAddButtonPresentation,
-} from "@/lib/catalogAddButtonStyle";
-import { useCart, useCartVariantQty } from "@/hooks/useStore";
+import { CatalogAddOrQtyControl } from "@/components/catalog/CatalogAddOrQtyControl";
+import { useCart, useCartVariantQty, useSetCatalogCartQty } from "@/hooks/useStore";
 import type { Product } from "../types";
 import { formatPrice } from "../mock";
 
@@ -129,6 +126,7 @@ export function ProductCard({
     product.id,
     selectedVariant?.id ?? (optionRows.length === 0 ? firstAvailable?.id : undefined),
   );
+  const { setQty: setCatalogQty } = useSetCatalogCartQty();
 
   const pricingVariant = useMemo(() => {
     const match = resolveVariantForCardPricing(
@@ -154,26 +152,52 @@ export function ProductCard({
       ? firstAvailable?.available !== false && product.inStock
       : validation.valid && selectedVariant?.available !== false && product.inStock);
 
-  const addBtn = resolveCatalogAddButtonPresentation({
-    style: cardLayout.addButtonStyle,
-    isMinimalCard: cardLayout.isMinimalCard,
-    isCompactCard: cardLayout.isCompactCard,
-    isAdded: cartQty > 0,
-  });
-  const addLabel = !product.inStock
-    ? "Out of stock"
-    : optionRows.length > 0 && !validation.valid
-      ? "Select options"
-      : (selectedVariant ?? firstAvailable)?.available === false
-        ? "Out of stock"
-        : catalogAddButtonLabel(cardLayout.isMinimalCard, cartQty);
-
   const displayImage = useMemo(
     () =>
       resolveCardDisplayImage(optionRows, galleryImages, selectedColorName, product.image) ??
       product.image,
     [optionRows, galleryImages, selectedColorName, product.image],
   );
+
+  const resolveAddVariant = () => {
+    const resolved =
+      validation.valid && validation.variant
+        ? allVariants.find((v) => v.id === validation.variant!.id)
+        : undefined;
+    return resolved ?? selectedVariant ?? firstAvailable;
+  };
+
+  const handleAddClick = () => {
+    const variant = resolveAddVariant();
+    if (!canAdd || !variant || !onAddToCart) return;
+    void onAddToCart(product, variant);
+  };
+
+  const handleQtyChange = async (qty: number) => {
+    const variant = resolveAddVariant();
+    if (!variant) return;
+    await setCatalogQty({
+      productId: product.id,
+      variantId: variant.id,
+      qty,
+      addItem: {
+        product_id: product.id,
+        variant_id: variant.id,
+        name: product.name,
+        qty: 1,
+        price: variant.price ?? product.price,
+        image_url: displayImage,
+      },
+    });
+  };
+
+  const addLabel = !product.inStock
+    ? "Out of stock"
+    : optionRows.length > 0 && !validation.valid
+      ? "Select options"
+      : (selectedVariant ?? firstAvailable)?.available === false
+        ? "Out of stock"
+        : undefined;
 
   return (
     <Card className={cn("overflow-hidden group flex flex-col", horizontal && "flex-row")}>
@@ -217,7 +241,7 @@ export function ProductCard({
         </div>
       </div>
       <CardContent className={cn("flex flex-1 flex-col gap-2 p-4", horizontal && "p-4")}>
-        <Link to={productHref} className="font-medium line-clamp-2 hover:underline" onClick={onNavigateClick}>
+        <Link to={productHref} className="font-medium line-clamp-2 no-underline hover:no-underline" onClick={onNavigateClick}>
           {product.name}
         </Link>
         {showRating && product.rating && (
@@ -250,27 +274,18 @@ export function ProductCard({
         </div>
         <div className={cn("mt-auto flex items-center gap-2 pt-2", !cardLayout.showAddButton && "hidden")}>
           {cardLayout.showAddButton && (
-            <button
-              type="button"
-              className={cn(addBtn.className, !addBtn.iconOnly && "w-full", "hover:opacity-90")}
-              style={addBtn.style}
-              disabled={!canAdd || addToCartPending}
-              aria-label={addBtn.iconOnly ? addLabel : undefined}
-              onClick={(e) => {
-                e.preventDefault()
-                e.stopPropagation()
-                const resolved =
-                  validation.valid && validation.variant
-                    ? allVariants.find((v) => v.id === validation.variant!.id)
-                    : undefined
-                const variant = resolved ?? selectedVariant ?? firstAvailable
-                if (!canAdd || !variant || !onAddToCart) return
-                void onAddToCart(product, variant)
-              }}
-            >
-              <ShoppingCart className={addBtn.iconClassName} />
-              {addBtn.showLabel ? (addToCartPending ? 'Adding…' : addLabel) : null}
-            </button>
+            <CatalogAddOrQtyControl
+              cartQty={cartQty}
+              onAdd={handleAddClick}
+              onQtyChange={handleQtyChange}
+              disabled={!canAdd && cartQty === 0}
+              pending={addToCartPending}
+              outOfStock={!product.inStock || (selectedVariant ?? firstAvailable)?.available === false}
+              labelOverride={addLabel}
+              addButtonStyle={cardLayout.addButtonStyle}
+              isMinimalCard={cardLayout.isMinimalCard}
+              isCompactCard={cardLayout.isCompactCard}
+            />
           )}
         </div>
       </CardContent>

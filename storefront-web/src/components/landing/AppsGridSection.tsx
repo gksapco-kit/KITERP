@@ -24,15 +24,9 @@ export function AppsGridSection() {
 
     const onPointerDown = (event: PointerEvent) => {
       const target = event.target
-      if (!(target instanceof Node)) return
-
-      const interactive = interactiveRef.current
-      if (!interactive?.contains(target)) {
-        dismissPreview()
-        return
-      }
-
       if (!(target instanceof Element)) return
+
+      // Keep detail open when switching circle apps; only close on outside click.
       if (
         target.closest('.kiterp-orbit-node-hit') ||
         target.closest('.kiterp-module-preview-panel')

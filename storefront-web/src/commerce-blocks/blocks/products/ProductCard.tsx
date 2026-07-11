@@ -101,7 +101,7 @@ export function ProductCard({
         {!isMinimal && (
           <div className="text-xs text-muted-foreground">{product.category}</div>
         )}
-        <Link to={detailHref} className="hover:underline">
+        <Link to={detailHref} className="no-underline hover:no-underline">
           <h3 className={productCardBodyClass(cardStyle)}>{product.name}</h3>
         </Link>
         {showRating && product.rating && !isMinimal && (

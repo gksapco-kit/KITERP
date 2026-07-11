@@ -60,19 +60,19 @@ export interface UnifiedNavProps {
 }
 
 function AccountAvatar({ user }: { user?: AccountUser | null }) {
-  if (!user) return <User />;
+  if (!user) return <User className="h-7 w-7" />;
   const initial = (user.name || user.email || "U").trim().charAt(0).toUpperCase() || "U";
   if (user.avatarUrl) {
     return (
       <img
         src={user.avatarUrl}
         alt={user.name || "Account"}
-        className="h-7 w-7 rounded-full object-cover"
+        className="h-9 w-9 rounded-full object-cover"
       />
     );
   }
   return (
-    <span className="flex h-7 w-7 items-center justify-center rounded-full bg-primary text-xs font-bold text-primary-foreground">
+    <span className="flex h-9 w-9 items-center justify-center rounded-full bg-primary text-sm font-bold text-primary-foreground">
       {initial}
     </span>
   );
@@ -273,7 +273,7 @@ export function UnifiedNav({
           {showCart && (
             <Button variant="ghost" size="icon" asChild className="relative" aria-label="Cart">
               <Link to={cartHref}>
-                <ShoppingCart />
+                <ShoppingCart className="h-7 w-7" />
                 {cartCount > 0 && (
                   <Badge className="absolute -top-1 -right-1 h-5 min-w-5 px-1 rounded-full text-xs">
                     {cartCount}

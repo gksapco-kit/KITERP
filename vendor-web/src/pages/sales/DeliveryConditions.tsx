@@ -56,15 +56,27 @@ export default function DeliveryConditionsPage() {
   const previewMinCharge = form.minimum_delivery_charge
 
   return (
-    <div className="mx-auto max-w-3xl space-y-6 p-4 md:p-6">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Delivery Conditions</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Configure delivery charges and GST calculation for your storefront cart and checkout.
-        </p>
+    <form onSubmit={handleSubmit} className="mx-auto max-w-3xl space-y-6 p-4 md:p-6">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div className="min-w-0">
+          <h1 className="text-2xl font-semibold tracking-tight">Delivery Conditions</h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Configure delivery charges and GST calculation for your storefront cart and checkout.
+          </p>
+        </div>
+        <div className="shrink-0 self-end sm:self-start">
+          <Button type="submit" disabled={updateVendor.isPending} className="gap-2">
+            {updateVendor.isPending ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Save className="h-4 w-4" />
+            )}
+            Save Changes
+          </Button>
+        </div>
       </div>
 
-      <form onSubmit={handleSubmit} className="space-y-6">
+      <div className="space-y-6">
         <Card>
           <CardHeader className="pb-3">
             <div className="flex items-center gap-3">
@@ -223,7 +235,7 @@ export default function DeliveryConditionsPage() {
             Save Changes
           </Button>
         </div>
-      </form>
-    </div>
+      </div>
+    </form>
   )
 }
