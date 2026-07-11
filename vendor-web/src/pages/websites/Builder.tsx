@@ -617,7 +617,7 @@ const COMMERCE_LIBRARY_BLOCKS: BlockDef[] = [
     { name: 'Elena Ruiz', role: 'Lead Strategist', bio: '12 years building brand systems for hospitality and DTC.', rating: 4.9, reviews: 87, available: true, nextAvailable: 'Today, 3:30 PM' },
     { name: 'Jordan Chen', role: 'Senior Designer', bio: 'Identity, packaging, and editorial. Loves a tight grid.', rating: 4.8, reviews: 64, available: true, nextAvailable: 'Tomorrow, 10:00 AM' },
     { name: 'Priya Shah', role: 'Creative Director', bio: 'Leads the studio. Heavy on positioning and verbal identity.', rating: 5.0, reviews: 42, available: false, nextAvailable: 'Next Monday' },
-  ] } },
+  ] as BlockProps['members'] } },
   { type: 'service.addons', label: 'Add-ons Selector', icon: Briefcase, desc: 'Multi-select add-ons with running total.', category: 'content', defaultProps: { variant: 'default' } },
   { type: 'menu.wine', label: 'Wine Pairing', icon: List, desc: 'Wines by glass/bottle with pairings and tasting notes.', category: 'food', defaultProps: { variant: 'default' } },
   { type: 'menu.combo', label: 'Combo / Set Menu', icon: List, desc: 'Multi-course set menus with choose-your-own options.', category: 'food', defaultProps: { variant: 'default' } },
@@ -1535,7 +1535,10 @@ function LinkEditorPopup({
         {/* Group tabs */}
         <StoreContentGroupTabs
           activeGroup={activeGroup}
-          onGroupChange={setActiveGroup}
+          onGroupChange={(group) => {
+            if (group === 'ext_api') return
+            setActiveGroup(group as LinkTypeMeta['group'])
+          }}
           groups={LINK_GROUPS}
           className="shrink-0 rounded-none border-x-0 border-t-0"
         />
@@ -3171,7 +3174,7 @@ function OverlayElement({
       case 'image':
         return item.src ? (
           <div style={{ width: '100%', height: '100%', overflow: 'hidden', borderRadius: item.borderRadius || 0 }}>
-            <img src={mediaUrl(item.src)} style={overlayImageImgStyle(item)} alt="" draggable={false} />
+            <img src={mediaUrl(item.src)} style={overlayImageImgStyle(item) as unknown as React.CSSProperties} alt="" draggable={false} />
           </div>
         ) : (
           <div
@@ -13052,7 +13055,7 @@ export default function WebsiteBuilder() {
 
   const builderPreviewStore = useMemo(() => {
     if (!site || builderStores.length === 0) return null
-    const { scope, storeId } = resolveWebsiteStoreLink(site, localStyle)
+    const { scope, storeId } = resolveWebsiteStoreLink(site, localStyle as unknown as Record<string, unknown>)
     if (scope !== 'store' || !storeId) return null
     const linked = builderStores.find((s) => s.id === storeId)
     if (!linked) return null
@@ -13660,7 +13663,7 @@ export default function WebsiteBuilder() {
       toast.info('Nothing to paste — copy or cut a layer first.')
       return false
     }
-    const pasted = cloneOverlayForPaste(clip.item) as BlockOverlayItem
+    const pasted = cloneOverlayForPaste(clip.item) as unknown as BlockOverlayItem
     handleUpdateBlockProps(bid, { overlays: [...overlays, pasted] } as Partial<BlockProps>)
     onOverlayLayerPicked(pasted.id, bid)
     consumeOverlayClipboardAfterPaste()
@@ -15184,8 +15187,8 @@ export default function WebsiteBuilder() {
         : {}) as Record<string, unknown>
       const links = Array.isArray(col.links) ? [...(col.links as unknown[])] : []
       const rawLink = links[linkIdx]
-      const linkObj = rawLink && typeof rawLink === 'object'
-        ? { ...(rawLink as object) }
+      const linkObj: Record<string, unknown> = rawLink && typeof rawLink === 'object'
+        ? { ...(rawLink as Record<string, unknown>) }
         : { label: typeof rawLink === 'string' ? rawLink : '' }
       const label = String(linkObj.label ?? (typeof rawLink === 'string' ? rawLink : '') ?? '').trim()
       const target = String(linkObj[urlField] ?? linkObj.href ?? linkObj.url ?? '').trim()
@@ -16290,8 +16293,8 @@ export default function WebsiteBuilder() {
       if (saveBlocks) await persistAllBlocksToServer()
       if (saveStyle) {
         const stylePayload = mergeWebsiteStyleConfig(
-          site?.style_config as Record<string, unknown>,
-          sanitizeForApiJson(localStyle) as Record<string, unknown>,
+          site?.style_config as unknown as Record<string, unknown>,
+          sanitizeForApiJson(localStyle) as unknown as Record<string, unknown>,
         )
         await websiteApi.updateSite(siteId, { style_config: stylePayload as any })
       }

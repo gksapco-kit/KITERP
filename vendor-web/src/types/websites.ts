@@ -100,8 +100,19 @@ export interface BlockProps {
   // FAQ
   faqs?: { question: string; answer: string }[]
 
-  // Team
-  members?: { name: string; role: string; bio?: string; avatar_url?: string; social?: Record<string, string> }[]
+  // Team (team_grid + service.team picker extras)
+  members?: {
+    name: string
+    role: string
+    bio?: string
+    avatar_url?: string
+    avatar?: string
+    social?: Record<string, string>
+    rating?: number
+    reviews?: number
+    available?: boolean
+    nextAvailable?: string
+  }[]
 
   // Blog
   posts?: { title: string; excerpt?: string; image_url?: string; date?: string; author?: string; slug?: string; url?: string; category?: string }[]
@@ -305,6 +316,10 @@ export interface WebsiteSite {
   // location
   location: string | null
   timezone: string
+  // Business-unit assignment (also mirrored in style_config metadata)
+  website_store_scope?: string | null
+  website_store_id?: string | null
+  website_home_store_id?: string | null
   // headless
   headless_enabled: boolean
   headless_token: string | null
