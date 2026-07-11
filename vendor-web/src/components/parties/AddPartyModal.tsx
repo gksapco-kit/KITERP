@@ -3,8 +3,8 @@
  *
  * Features:
  * - Party Type selector: Customer | Vendor | Employee | Partner | Contractor
- * - Groups / Segments: multi-select tag chip input (pre-defined + user-created,
- *   persisted to localStorage so groups accumulate across sessions)
+ * - Groups / Segments: search input with dropdown; selected tags shown below the field
+ *   (pre-defined + user-created, persisted to localStorage across sessions)
  * - Smart Lookup: auto-detects GSTIN / PAN / CIN / Phone / Email patterns
  *   AND searches existing master data (customers + suppliers) with debounced
  *   autocomplete — shows matching records with which field was matched,
@@ -482,58 +482,16 @@ function GroupTagInput({ selected, onChange }: GroupTagInputProps) {
         <span className="text-gray-400 font-normal normal-case tracking-normal">(optional)</span>
       </Label>
 
-      {/* Input box — chips live inline with the input */}
       <div className="relative">
-        <div
-          className="flex flex-wrap items-center gap-1.5 border rounded-lg px-2 py-1.5 min-h-[38px] cursor-text focus-within:ring-2 focus-within:ring-primary focus-within:border-primary/60 bg-white"
-          onClick={() => { setOpen(true); inputRef.current?.focus() }}
-        >
-          {/* Selected chips — inline before the text input */}
-          {selected.map(g => (
-            <span
-              key={g}
-              className={`inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full border shrink-0 ${groupColor(g)}`}
-            >
-              {g}
-              <button
-                type="button"
-                onClick={e => { e.stopPropagation(); toggle(g) }}
-                className="hover:opacity-70 transition-opacity"
-                aria-label={`Remove ${g}`}
-              >
-                <X className="w-2.5 h-2.5" />
-              </button>
-            </span>
-          ))}
-
-          {/* + Create button */}
-          <button
-            type="button"
-            onClick={e => { e.stopPropagation(); setOpen(true); inputRef.current?.focus() }}
-            className="shrink-0 flex items-center gap-0.5 text-xs font-medium text-primary bg-primary/10 border border-primary/30 rounded-full px-2 py-0.5 hover:bg-primary/15 hover:border-primary/40 transition-colors"
-          >
-            <Plus className="w-3 h-3" /> Add
-          </button>
-
-          <input
-            ref={inputRef}
-            value={inputVal}
-            onChange={e => { setInputVal(e.target.value); setOpen(true) }}
-            onFocus={() => setOpen(true)}
-            onKeyDown={handleKeyDown}
-            placeholder={selected.length === 0 ? 'Select or type a group…' : 'More…'}
-            className="flex-1 text-sm outline-none bg-transparent min-w-[80px]"
-          />
-          {inputVal.trim() && (
-            <button
-              type="button"
-              onClick={() => addNew(inputVal)}
-              className="shrink-0 text-xs text-primary font-semibold hover:text-primary/80 flex items-center gap-0.5"
-            >
-              <Plus className="w-3 h-3" /> Add
-            </button>
-          )}
-        </div>
+        <input
+          ref={inputRef}
+          value={inputVal}
+          onChange={e => { setInputVal(e.target.value); setOpen(true) }}
+          onFocus={() => setOpen(true)}
+          onKeyDown={handleKeyDown}
+          placeholder="Select or type a group…"
+          className="w-full border rounded-lg px-3 py-2 text-sm bg-white outline-none focus:ring-2 focus:ring-primary focus:border-primary/60"
+        />
 
         {/* Dropdown */}
         {open && (
@@ -581,6 +539,28 @@ function GroupTagInput({ selected, onChange }: GroupTagInputProps) {
           </div>
         )}
       </div>
+
+      {selected.length > 0 && (
+        <div className="mt-2 flex flex-wrap gap-1.5">
+          {selected.map(g => (
+            <span
+              key={g}
+              className={`inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full border ${groupColor(g)}`}
+            >
+              {g}
+              <button
+                type="button"
+                onClick={() => toggle(g)}
+                className="hover:opacity-70 transition-opacity"
+                aria-label={`Remove ${g}`}
+              >
+                <X className="w-2.5 h-2.5" />
+              </button>
+            </span>
+          ))}
+        </div>
+      )}
+
       <p className="text-xs text-gray-400 mt-1">
         Press Enter or comma to create a new group. Groups persist for future records.
       </p>

@@ -1,102 +1,82 @@
 import { useEffect, useState } from 'react'
 import { imgUrl, cn } from '@/lib/utils'
 
+/** Bundled default when a product has no photo. */
+export const PRODUCT_NO_IMAGE_SRC = '/product-no-image.png'
+
 type Props = {
   src?: string | null
   alt: string
   className?: string
-  /** Hide the caption under the cube (very small thumbs). */
+  /** Kept for callers; text overlay is no longer shown. */
   hideLabel?: boolean
-  /** `lg` for product detail hero; default for cards / cart thumbs. */
+  /** Kept for callers; placeholder is full-bleed graphic. */
   size?: 'sm' | 'md' | 'lg'
   /** Extra classes for the img when an image is shown. */
   imgClassName?: string
 }
 
-/** Isometric product-box mark matching the storefront empty-image placeholder. */
+/** Shopping-cart mark matching the storefront empty-image placeholder. */
 export function ProductBoxIcon({ className }: { className?: string }) {
   return (
     <svg
-      viewBox="0 0 48 48"
+      viewBox="0 0 64 64"
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
       className={className}
       aria-hidden
     >
-      <path d="M24 8L38 16V32L24 40L10 32V16L24 8Z" fill="#CBD5E1" />
-      <path d="M24 24V40L38 32V16L24 24Z" fill="#94A3B8" />
-      <path d="M24 24V40L10 32V16L24 24Z" fill="#A8B4C4" />
-      <path d="M24 8L38 16L24 24L10 16L24 8Z" fill="#E2E8F0" />
       <path
-        d="M24 8L38 16V32L24 40L10 32V16L24 8Z"
-        stroke="#94A3B8"
-        strokeWidth="1.25"
+        d="M12 18h6l4.5 22h24l5-16H22"
+        stroke="#546E7A"
+        strokeWidth="3.5"
+        strokeLinecap="round"
         strokeLinejoin="round"
       />
-      <path d="M10 16L24 24L38 16" stroke="#94A3B8" strokeWidth="1.25" strokeLinejoin="round" />
-      <path d="M24 24V40" stroke="#94A3B8" strokeWidth="1.25" />
+      <circle cx="28" cy="48" r="3.5" fill="#546E7A" />
+      <circle cx="42" cy="48" r="3.5" fill="#546E7A" />
+      <circle cx="38" cy="30" r="8" stroke="#546E7A" strokeWidth="2.5" />
+      <path d="M32.5 24.5L43.5 35.5" stroke="#546E7A" strokeWidth="2.5" strokeLinecap="round" />
     </svg>
   )
 }
 
-const SIZE = {
-  sm: {
-    icon: 'h-5 w-5 max-h-none max-w-none',
-    label: 'text-[9px]',
-    gap: 'gap-1',
-  },
-  md: {
-    icon: 'h-10 w-10 max-h-none max-w-none',
-    label: 'text-[11px]',
-    gap: 'gap-1.5',
-  },
-  lg: {
-    icon: 'h-16 w-16 max-h-none max-w-none',
-    label: 'text-sm',
-    gap: 'gap-2',
-  },
-} as const
-
-/** Empty-state tile: cube + “No product image”. */
+/** Empty-state tile: default cart graphic (no text overlay). */
 export function ProductImagePlaceholder({
   className,
-  hideLabel = false,
-  size = 'md',
 }: {
   className?: string
   hideLabel?: boolean
   size?: 'sm' | 'md' | 'lg'
 }) {
-  const s = SIZE[size]
   return (
     <div
       className={cn(
-        'flex h-full w-full flex-col items-center justify-center bg-[#F1F5F9] px-2 text-center',
-        s.gap,
+        'relative flex h-full w-full items-center justify-center overflow-hidden bg-[#F0F0F0]',
         className,
       )}
+      role="img"
+      aria-label="No Image"
     >
-      <ProductBoxIcon className={cn('shrink-0', s.icon)} />
-      {!hideLabel && (
-        <span className={cn('max-w-full font-medium leading-tight text-slate-400', s.label)}>
-          No product image
-        </span>
-      )}
-      <span className="sr-only">No product image</span>
+      <img
+        src={PRODUCT_NO_IMAGE_SRC}
+        alt=""
+        className="absolute inset-0 h-full w-full object-cover"
+        draggable={false}
+      />
+      <span className="sr-only">No Image</span>
     </div>
   )
 }
 
 /**
- * Product thumbnail with a default “No product image” placeholder
+ * Product thumbnail with a default cart placeholder
  * when the URL is missing or fails to load.
  */
 export function ProductThumb({
   src,
   alt,
   className,
-  hideLabel = false,
-  size = 'sm',
   imgClassName,
 }: Props) {
   const resolved = src ? imgUrl(src) : ''
@@ -124,7 +104,7 @@ export function ProductThumb({
           onError={() => setFailed(true)}
         />
       ) : (
-        <ProductImagePlaceholder hideLabel={hideLabel} size={size} />
+        <ProductImagePlaceholder />
       )}
     </div>
   )

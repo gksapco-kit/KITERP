@@ -214,9 +214,11 @@ export default function Products() {
     return () => clearTimeout(t)
   }, [searchInput])
 
+  // Product view: server-paginated by product. Variant view: load a large product
+  // batch, flatten to variant rows, then paginate those rows by pageSize.
   const { data, isLoading } = useProducts({
-    page,
-    size: pageSize,
+    page: viewMode === 'variant' ? 1 : page,
+    size: viewMode === 'variant' ? 500 : pageSize,
     search: search || undefined,
     status: status || undefined,
     category: categoryRoot || undefined,
@@ -416,8 +418,21 @@ export default function Products() {
     return rows
   }, [displayProducts, viewMode])
 
+  const variantTotal = variantRows.length
+  const variantPages = Math.max(1, Math.ceil(variantTotal / pageSize) || 1)
+  const pagedVariantRows = useMemo(() => {
+    if (viewMode !== 'variant') return []
+    const start = (page - 1) * pageSize
+    return variantRows.slice(start, start + pageSize)
+  }, [viewMode, variantRows, page, pageSize])
+
+  useEffect(() => {
+    if (viewMode === 'variant' && page > variantPages) setPage(1)
+  }, [viewMode, page, variantPages])
+
   const setViewModePersisted = (mode: 'product' | 'variant') => {
     setViewMode(mode)
+    setPage(1)
     try { localStorage.setItem('kiterp:products:viewMode', mode) } catch { /* ignore */ }
   }
 
@@ -959,7 +974,7 @@ export default function Products() {
             <tbody className="divide-y divide-gray-100">
               {isLoading ? (
                 <tr><td colSpan={9} className="px-6 py-16 text-center"><Loader2 className="w-6 h-6 animate-spin mx-auto text-gray-400" /></td></tr>
-              ) : !variantRows.length ? (
+              ) : !pagedVariantRows.length ? (
                 <tr>
                   <td colSpan={9} className="px-6 py-16 text-center">
                     <Layers className="w-12 h-12 text-gray-200 mx-auto mb-3" />
@@ -971,7 +986,7 @@ export default function Products() {
                     )}
                   </td>
                 </tr>
-              ) : variantRows.map((row, i) => {
+              ) : pagedVariantRows.map((row, i) => {
                 const sym = row.currency === 'INR' ? '₹' : '$'
                 const isOut = row.stock_status === 'out_of_stock' || row.stock_status === 'discontinued'
                 const isLow = !isOut && row.quantity <= row.low_stock_threshold
@@ -979,7 +994,7 @@ export default function Products() {
                   ? `${row.uom_quantity} ${row.uom}`
                   : row.uom
                 // Group header: first row of a new product gets a subtle top border accent
-                const prevProductId = i > 0 ? variantRows[i - 1].productId : null
+                const prevProductId = i > 0 ? pagedVariantRows[i - 1].productId : null
                 const isFirstOfProduct = prevProductId !== row.productId
                 const rowKey = `${row.productId}-${row.groupKey}`
                 const isConfirmingDelete = variantDeleteKey === rowKey
@@ -1265,15 +1280,15 @@ export default function Products() {
           {data && (
             <TablePagination
               page={page}
-              pages={data.pages || 1}
-              total={data.total}
+              pages={viewMode === 'variant' ? variantPages : (data.pages || 1)}
+              total={viewMode === 'variant' ? variantTotal : data.total}
               pageSize={pageSize}
               onPageChange={setPage}
-              onPageSizeChange={setPageSize}
-              itemLabel="products"
+              onPageSizeChange={(size) => { setPageSize(size); setPage(1) }}
+              itemLabel={viewMode === 'variant' ? 'variant rows' : 'products'}
               countSuffix={
-                viewMode === 'variant' && variantRows.length > 0
-                  ? ` · ${variantRows.length} variant row${variantRows.length === 1 ? '' : 's'}`
+                viewMode === 'variant' && (data.total ?? 0) > 0
+                  ? ` · ${data.total} product${data.total === 1 ? '' : 's'}`
                   : undefined
               }
             />

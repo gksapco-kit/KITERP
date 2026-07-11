@@ -45,11 +45,13 @@ function SizeChip({
   stopPropagation?: boolean
   onClick: () => void
 }) {
+  const compact = value.trim().length <= 3
   return (
     <button
       type="button"
       aria-pressed={selected}
       disabled={disabled}
+      title={value}
       onClick={(e) => {
         if (stopPropagation) {
           e.preventDefault()
@@ -58,7 +60,8 @@ function SizeChip({
         onClick()
       }}
       className={cn(
-        'inline-flex h-8 w-8 items-center justify-center rounded border p-0 text-[11px] font-semibold uppercase leading-none transition-all disabled:opacity-50',
+        'inline-flex h-8 items-center justify-center rounded border text-[11px] font-semibold uppercase leading-none whitespace-nowrap transition-all disabled:opacity-50',
+        compact ? 'w-8 shrink-0 p-0' : 'min-w-8 shrink-0 px-2.5',
         selected
           ? 'border-primary bg-primary text-primary-foreground shadow-sm'
           : unavailable
@@ -150,7 +153,7 @@ export default function ProductOptionPicker({
           key={row.type === 'size' ? `size-${row.label}` : 'color'}
           className="flex items-center gap-2"
         >
-          <span className="w-10 shrink-0 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+          <span className="w-12 shrink-0 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground truncate" title={row.label}>
             {row.label}
           </span>
           <div className="flex min-w-0 flex-1 flex-wrap items-center gap-1.5">

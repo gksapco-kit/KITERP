@@ -277,54 +277,62 @@ function ChipSelect({
   }
 
   return (
-    <div ref={ref} className="relative min-w-0">
-      <button
-        type="button"
-        onClick={() => !disabled && setOpen(o => !o)}
-        disabled={disabled}
-        aria-expanded={open}
-        aria-haspopup="listbox"
-        className={cn(
-          'flex min-h-[2.25rem] w-full flex-wrap gap-1 rounded-md border border-input bg-background px-3 py-1 text-sm text-left',
-          'focus:outline-none focus:ring-1 focus:ring-ring',
-          'disabled:cursor-not-allowed disabled:opacity-40',
+    <div className="min-w-0 space-y-1.5">
+      <div ref={ref} className="relative">
+        <button
+          type="button"
+          onClick={() => !disabled && setOpen(o => !o)}
+          disabled={disabled}
+          aria-expanded={open}
+          aria-haspopup="listbox"
+          className={cn(
+            'flex h-9 w-full items-center gap-2 rounded-md border border-input bg-background px-3 text-sm text-left',
+            'focus:outline-none focus:ring-1 focus:ring-ring',
+            'disabled:cursor-not-allowed disabled:opacity-40',
+          )}
+        >
+          <span className={cn('flex-1 truncate', values.length === 0 ? 'text-muted-foreground' : 'text-foreground')}>
+            {values.length === 0
+              ? placeholder
+              : `${values.length} selected`}
+          </span>
+          <ChevronDown className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+        </button>
+        {open && options.length > 0 && (
+          <div
+            role="listbox"
+            aria-multiselectable="true"
+            className="absolute left-0 top-full z-50 mt-1 max-h-48 w-full overflow-y-auto rounded-md border border-border bg-popover shadow-lg"
+          >
+            {options.map(o => (
+              <label
+                key={o}
+                className="flex cursor-pointer items-center gap-2 px-3 py-1.5 text-sm hover:bg-muted"
+              >
+                <input
+                  type="checkbox"
+                  checked={values.includes(o)}
+                  onChange={() => toggle(o)}
+                  className="h-3.5 w-3.5 rounded"
+                />
+                {o}
+              </label>
+            ))}
+          </div>
         )}
-      >
-        {values.length === 0 ? (
-          <span className="text-muted-foreground">{placeholder}</span>
-        ) : (
-          values.map(v => (
+      </div>
+      {values.length > 0 && (
+        <div className="flex flex-wrap gap-1">
+          {values.map(v => (
             <span key={v} className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
               {v}
               <button
                 type="button"
-                onClick={e => { e.stopPropagation(); toggle(v) }}
+                onClick={() => toggle(v)}
                 className="ml-0.5 hover:text-destructive"
+                aria-label={`Remove ${v}`}
               >×</button>
             </span>
-          ))
-        )}
-        <ChevronDown className="ml-auto mt-0.5 h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-      </button>
-      {open && options.length > 0 && (
-        <div
-          role="listbox"
-          aria-multiselectable="true"
-          className="absolute left-0 top-full z-50 mt-1 max-h-48 w-full overflow-y-auto rounded-md border border-border bg-popover shadow-lg"
-        >
-          {options.map(o => (
-            <label
-              key={o}
-              className="flex cursor-pointer items-center gap-2 px-3 py-1.5 text-sm hover:bg-muted"
-            >
-              <input
-                type="checkbox"
-                checked={values.includes(o)}
-                onChange={() => toggle(o)}
-                className="h-3.5 w-3.5 rounded"
-              />
-              {o}
-            </label>
           ))}
         </div>
       )}
@@ -346,21 +354,30 @@ function PostalTagInput({
   }
 
   return (
-    <div className="flex flex-wrap gap-1 rounded-md border border-input bg-background px-2 py-1 text-sm focus-within:ring-1 focus-within:ring-ring">
-      {values.map(v => (
-        <span key={v} className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
-          {v}
-          <button type="button" onClick={() => onChange(values.filter(x => x !== v))} className="hover:text-destructive">×</button>
-        </span>
-      ))}
+    <div className="space-y-1.5">
       <input
         value={draft}
         onChange={e => setDraft(e.target.value)}
         onKeyDown={e => { if (e.key === 'Enter' || e.key === ',') { e.preventDefault(); commit() } }}
         onBlur={commit}
-        placeholder={values.length === 0 ? placeholder : 'Add more…'}
-        className="min-w-[6rem] flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground"
+        placeholder={placeholder}
+        className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm outline-none placeholder:text-muted-foreground focus:ring-1 focus:ring-ring"
       />
+      {values.length > 0 && (
+        <div className="flex flex-wrap gap-1">
+          {values.map(v => (
+            <span key={v} className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
+              {v}
+              <button
+                type="button"
+                onClick={() => onChange(values.filter(x => x !== v))}
+                className="hover:text-destructive"
+                aria-label={`Remove ${v}`}
+              >×</button>
+            </span>
+          ))}
+        </div>
+      )}
     </div>
   )
 }

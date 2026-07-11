@@ -243,8 +243,8 @@ export default function Orders() {
       </div>
 
       <Card>
-        <CardContent className="pt-4 pb-4 space-y-3">
-          <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+        <CardContent className="p-3 sm:p-4 space-y-2">
+          <div className="flex flex-wrap items-center gap-x-2 gap-y-1.5">
             <SalesScopeFilters
               businessUnitId={storeFilter}
               branchId={branchFilter}
@@ -256,7 +256,7 @@ export default function Orders() {
             />
             <form
               onSubmit={(e) => { e.preventDefault(); setSearch(searchInput); setPage(1) }}
-              className="flex gap-2 min-w-[10rem] flex-1 basis-full sm:basis-auto sm:flex-none sm:w-44 lg:w-52"
+              className="flex gap-1.5 min-w-[10rem] flex-1 basis-[12rem] sm:basis-auto sm:flex-none sm:w-44 lg:w-52"
             >
               <div className="relative flex-1 min-w-0">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
@@ -270,21 +270,21 @@ export default function Orders() {
               </div>
               <Button type="submit" variant="outline" className="shrink-0 h-9">Search</Button>
             </form>
+            <div className="flex gap-1 flex-wrap items-center">
+              <span className="text-xs font-medium text-gray-500 shrink-0">Source:</span>
+              {sourceFilters.map((f) => (
+                <Button key={f.value} variant={sourceFilter === f.value ? 'default' : 'outline'} size="sm"
+                  onClick={() => { setSourceFilter(f.value); setPage(1) }} className="gap-1 h-8">
+                  <f.icon className="w-3.5 h-3.5" />{f.label}
+                </Button>
+              ))}
+            </div>
           </div>
           <div className="flex gap-1 flex-wrap items-center">
-            <span className="text-xs font-medium text-gray-500 mr-1">Source:</span>
-            {sourceFilters.map((f) => (
-              <Button key={f.value} variant={sourceFilter === f.value ? 'default' : 'outline'} size="sm"
-                onClick={() => { setSourceFilter(f.value); setPage(1) }} className="gap-1">
-                <f.icon className="w-3.5 h-3.5" />{f.label}
-              </Button>
-            ))}
-          </div>
-          <div className="flex gap-1 flex-wrap items-center">
-            <span className="text-xs font-medium text-gray-500 mr-1">Status:</span>
+            <span className="text-xs font-medium text-gray-500 shrink-0">Status:</span>
             {statusFilters.map((f) => (
               <Button key={f.value} variant={statusFilter === f.value ? 'default' : 'outline'} size="sm"
-                onClick={() => { setStatusFilter(f.value); setPage(1) }}>{f.label}</Button>
+                onClick={() => { setStatusFilter(f.value); setPage(1) }} className="h-8">{f.label}</Button>
             ))}
           </div>
         </CardContent>
@@ -340,15 +340,15 @@ export default function Orders() {
             onSortKeyChange={setSortKey}
             onSortDirChange={setSortDir}
           />
-          <ResizableTable tableId="orders" defaultWidths={[40, 130, 150, 80, 90, 90, 100, 100, 80]}>
+          <ResizableTable tableId="orders-v2" defaultWidths={[48, 130, 150, 80, 90, 90, 100, 100, 80]}>
             <thead>
               <tr className="border-b border-border bg-muted/40">
-                <th className="w-10 px-4 py-3">
+                <th className="w-12 px-3 py-3 text-center align-middle">
                   <input
                     type="checkbox"
                     checked={allSelected}
                     onChange={toggleSelectAll}
-                    className="h-4 w-4 rounded border-input accent-primary"
+                    className="mx-auto block h-4 w-4 rounded border-input accent-primary"
                   />
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium uppercase text-muted-foreground"><TableColumnLabel>Order</TableColumnLabel></th>
@@ -376,12 +376,12 @@ export default function Orders() {
                     }
                     navigate(`/orders/${order.id}`)
                   })}>
-                  <td className="w-10 px-4 py-4">
+                  <td className="w-12 px-3 py-4 text-center align-middle">
                     <input
                       type="checkbox"
                       checked={selectedIds.has(order.id)}
                       onChange={() => toggleRow(order.id)}
-                      className="h-4 w-4 rounded border-input accent-primary"
+                      className="mx-auto block h-4 w-4 rounded border-input accent-primary"
                     />
                   </td>
                   <td className="px-6 py-4">

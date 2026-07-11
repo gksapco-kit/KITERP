@@ -45,14 +45,17 @@ export function ResizableTable({ tableId, defaultWidths, children, className }: 
         if (!isValidElement(cell) || (cell as React.ReactElement).type !== 'th') return cell
         const th = cell as React.ReactElement<React.ThHTMLAttributes<HTMLTableCellElement>>
         const ci = colIdx++
+        // Narrow columns (e.g. checkbox) must not clip controls; label columns keep nowrap.
+        const colWidth = widths[ci] ?? 40
+        const isNarrow = colWidth <= 56
         return cloneElement(th, {
           style: {
             ...(th.props.style || {}),
             position: 'relative',
             width: widths[ci] ?? 'auto',
-            minWidth: widths[ci] ?? 40,
-            overflow: 'hidden',
-            whiteSpace: 'nowrap',
+            minWidth: colWidth,
+            overflow: isNarrow ? 'visible' : 'hidden',
+            whiteSpace: isNarrow ? undefined : 'nowrap',
           },
           children: (
             <>
