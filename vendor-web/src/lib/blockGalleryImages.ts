@@ -205,12 +205,15 @@ export function applyCategoryImagesToBlockProps(
   const arrayCfg = BLOCK_ARRAY_IMAGE[blockType]
   if (arrayCfg) {
     const existing = Array.isArray(next[arrayCfg.arrayKey]) ? [...(next[arrayCfg.arrayKey] as Record<string, unknown>[])] : []
+    // Team grid: only fill photos for members the user already has — never invent
+    // empty "Team Member" cards that break alignment in the section.
     const targetCount =
-      blockType.includes('gallery') ? 8
-        : blockType === 'portfolio_grid' ? 6
-          : blockType === 'blog_grid' ? 3
-            : blockType === 'category_cards' ? 4
-              : Math.max(existing.length, 3)
+      blockType === 'team_grid' ? Math.max(existing.length, existing.length === 0 ? 3 : existing.length)
+        : blockType.includes('gallery') ? 8
+          : blockType === 'portfolio_grid' ? 6
+            : blockType === 'blog_grid' ? 3
+              : blockType === 'category_cards' ? 4
+                : Math.max(existing.length, 3)
 
     const fillAllImages = forceRefresh
       || (blockType === 'features' && next.show_images === true)

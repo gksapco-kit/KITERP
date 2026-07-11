@@ -40,8 +40,7 @@ const GST_STATES: Record<string, string> = {
   '97': 'Other Territory',
 }
 
-function CreateCustomerModal({
- onClose }: { onClose: () => void }) {
+function CreateCustomerModal({ onClose }: { onClose: () => void }) {
   const createCustomer = useCreateCustomer()
   const [form, setForm] = useState({
     full_name: '',
@@ -422,15 +421,22 @@ export default function Customers() {
                 return (
                   <tr key={c.id} className="hover:bg-gray-50 transition-colors">
                     <td className="px-6 py-4">
-                      <InlineEditCell
-                        value={c.full_name}
-                        saving={isSaving(c.id, 'full_name')}
-                        validate={(v) => String(v).trim().length < 2 ? 'Min 2 characters' : null}
-                        onSave={(v) => patchField(c.id, 'full_name', String(v).trim())}
-                        title="Edit customer name"
-                      >
-                        <span className="text-sm font-medium text-gray-900">{c.full_name}</span>
-                      </InlineEditCell>
+                      <div className="flex items-center gap-1.5 min-w-0">
+                        <InlineEditCell
+                          value={c.full_name}
+                          saving={isSaving(c.id, 'full_name')}
+                          validate={(v) => String(v).trim().length < 2 ? 'Min 2 characters' : null}
+                          onSave={(v) => patchField(c.id, 'full_name', String(v).trim())}
+                          title="Edit customer name"
+                        >
+                          <span className="text-sm font-medium text-gray-900">{c.full_name}</span>
+                        </InlineEditCell>
+                        {c.customer_group && c.customer_group !== 'retail' && (
+                          <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-indigo-100 text-indigo-700 capitalize shrink-0">
+                            {c.customer_group}
+                          </span>
+                        )}
+                      </div>
                       <InlineEditCell
                         value={c.company_name || ''}
                         saving={isSaving(c.id, 'company_name')}
@@ -476,6 +482,7 @@ export default function Customers() {
                         readOnly
                         readOnlyMessage="Order count is calculated from sales"
                         title="Orders"
+                        onSave={() => {}}
                       >
                         <span className="text-sm text-gray-700">{c.total_orders}</span>
                       </InlineEditCell>
@@ -487,10 +494,11 @@ export default function Customers() {
                         readOnly
                         readOnlyMessage="Total spent is calculated from sales"
                         title="Spent"
+                        onSave={() => {}}
                       >
                         <span className="text-sm text-gray-700">{formatCurrency(c.total_spent)}</span>
                       </InlineEditCell>
-                    </td>
+                    </td> 
                     <td className="px-6 py-4 hidden md:table-cell">
                       <InlineEditCell
                         type="number"

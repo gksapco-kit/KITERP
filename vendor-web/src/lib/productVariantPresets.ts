@@ -247,7 +247,7 @@ function hexToRgb(hex: string): { r: number; g: number; b: number } | null {
   }
 }
 
-/** Exact palette name, else nearest swatch name for custom hex codes. */
+/** Exact palette name, else nearest named color, else an HSL-based label. */
 export function suggestColourName(hex: string): string {
   const normalized = normalizeHexColor(hex)
   const exact = colourNameForHex(normalized)
@@ -256,18 +256,105 @@ export function suggestColourName(hex: string): string {
   const rgb = hexToRgb(normalized)
   if (!rgb) return normalized
 
-  let closest = COLOUR_PALETTE[0]
+  // Prefer a close match from the expanded named set (or built-in palette).
+  let closestName = COLOUR_PALETTE[0].name
   let bestDist = Infinity
-  for (const c of COLOUR_PALETTE) {
+  for (const c of [...COLOUR_PALETTE, ...EXTENDED_COLOUR_NAMES]) {
     const sample = hexToRgb(c.hex)
     if (!sample) continue
     const dist = (rgb.r - sample.r) ** 2 + (rgb.g - sample.g) ** 2 + (rgb.b - sample.b) ** 2
     if (dist < bestDist) {
       bestDist = dist
-      closest = c
+      closestName = c.name
     }
   }
-  return closest.name
+  // Within ~18% RGB distance (~30 per channel) — use the named match.
+  if (bestDist <= 30 * 30 * 3) return closestName
+
+  return describeColourFromHsl(rgb)
+}
+
+/** Broader web-ish names for custom hex codes (e.g. #D6D6E1 → Lavender Gray). */
+const EXTENDED_COLOUR_NAMES: { name: string; hex: string }[] = [
+  { name: 'Lavender Gray', hex: '#D6D6E1' },
+  { name: 'Light Gray', hex: '#D1D5DB' },
+  { name: 'Silver', hex: '#C0C0C0' },
+  { name: 'Slate', hex: '#64748B' },
+  { name: 'Charcoal', hex: '#374151' },
+  { name: 'Ivory', hex: '#FFFFF0' },
+  { name: 'Cream', hex: '#FFFDD0' },
+  { name: 'Beige', hex: '#F5F5DC' },
+  { name: 'Tan', hex: '#D2B48C' },
+  { name: 'Brown', hex: '#A52A2A' },
+  { name: 'Maroon', hex: '#800000' },
+  { name: 'Burgundy', hex: '#800020' },
+  { name: 'Coral', hex: '#FF7F50' },
+  { name: 'Salmon', hex: '#FA8072' },
+  { name: 'Orange', hex: '#F97316' },
+  { name: 'Gold', hex: '#FFD700' },
+  { name: 'Yellow', hex: '#EAB308' },
+  { name: 'Lime', hex: '#84CC16' },
+  { name: 'Olive', hex: '#808000' },
+  { name: 'Mint', hex: '#98FF98' },
+  { name: 'Forest', hex: '#228B22' },
+  { name: 'Sky Blue', hex: '#38BDF8' },
+  { name: 'Cyan', hex: '#06B6D4' },
+  { name: 'Turquoise', hex: '#40E0D0' },
+  { name: 'Indigo', hex: '#4F46E5' },
+  { name: 'Violet', hex: '#7C3AED' },
+  { name: 'Lavender', hex: '#E6E6FA' },
+  { name: 'Lilac', hex: '#C8A2C8' },
+  { name: 'Magenta', hex: '#D946EF' },
+  { name: 'Rose', hex: '#F43F5E' },
+  { name: 'Peach', hex: '#FFCBA4' },
+  { name: 'Khaki', hex: '#C3B091' },
+]
+
+function rgbToHsl(r: number, g: number, b: number): { h: number; s: number; l: number } {
+  const rn = r / 255
+  const gn = g / 255
+  const bn = b / 255
+  const max = Math.max(rn, gn, bn)
+  const min = Math.min(rn, gn, bn)
+  const l = (max + min) / 2
+  if (max === min) return { h: 0, s: 0, l }
+  const d = max - min
+  const s = l > 0.5 ? d / (2 - max - min) : d / (max + min)
+  let h = 0
+  if (max === rn) h = ((gn - bn) / d + (gn < bn ? 6 : 0)) / 6
+  else if (max === gn) h = ((bn - rn) / d + 2) / 6
+  else h = ((rn - gn) / d + 4) / 6
+  return { h: h * 360, s, l }
+}
+
+function describeColourFromHsl(rgb: { r: number; g: number; b: number }): string {
+  const { h, s, l } = rgbToHsl(rgb.r, rgb.g, rgb.b)
+  if (s < 0.08) {
+    if (l < 0.15) return 'Near Black'
+    if (l < 0.35) return 'Dark Gray'
+    if (l < 0.55) return 'Gray'
+    if (l < 0.75) return 'Light Gray'
+    if (l < 0.92) return 'Off White'
+    return 'White'
+  }
+  const hueName =
+    h < 15 || h >= 345 ? 'Red'
+    : h < 40 ? 'Orange'
+    : h < 65 ? 'Yellow'
+    : h < 150 ? 'Green'
+    : h < 190 ? 'Cyan'
+    : h < 250 ? 'Blue'
+    : h < 290 ? 'Purple'
+    : h < 330 ? 'Pink'
+    : 'Red'
+  const tone =
+    l < 0.25 ? 'Deep'
+    : l < 0.4 ? 'Dark'
+    : l > 0.78 ? 'Light'
+    : l > 0.65 && s < 0.35 ? 'Soft'
+    : s > 0.7 ? 'Bright'
+    : ''
+  return tone ? `${tone} ${hueName}` : hueName
 }
 
 export function applyColourSelection(hex: string): { hex: string; name: string } {

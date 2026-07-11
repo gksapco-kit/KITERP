@@ -37,6 +37,7 @@ import { PhoneInput } from '@/components/ui/PhoneInput'
 import { cn } from '@/lib/utils'
 import { useImageSourcePicker } from '@/components/common/ImageSourcePicker'
 import { SingleImagePreview } from '@/components/common/CatalogMediaLightbox'
+import { CUSTOMER_PRICING_GROUPS } from '@/lib/customerGroups'
 
 // ── Regex constants ───────────────────────────────────────────────────────────
 
@@ -990,6 +991,13 @@ export function AddPartyModal({
     if (paymentTerms === t) setPaymentTerms('')
   }
   const [openingBalance, setOpeningBalance] = useState('')
+  // Pricing group (customer role only) — drives which "party" price rules apply at checkout/POS.
+  const [customerGroup, setCustomerGroup] = useState<string>(() => {
+    if (editRecord?.kind === 'customer') {
+      return (editRecord.raw as unknown as Record<string, string>).customer_group || 'retail'
+    }
+    return 'retail'
+  })
   const [contactPerson, setContactPerson] = useState('')
   const [notes, setNotes] = useState('')
   // Bank details
@@ -1377,6 +1385,7 @@ export function AddPartyModal({
             gstin: apiGstin || undefined, pan_number: apiPan || undefined,
             opening_balance: openingBalance ? parseFloat(openingBalance) : 0,
             billing_address: billingAddress, notes: notes || undefined,
+            customer_group: customerGroup,
             ...bankPayload,
           }
           const updated = await updateCustomer.mutateAsync({ id, data: payload })
@@ -1420,6 +1429,10 @@ export function AddPartyModal({
           : undefined
 
       const rolesToCreate = selectedRoles.length > 0 ? selectedRoles : [partyType]
+      const roleDefs = rolesToCreate.map(r => ({
+        role: r,
+        attributes: r === 'customer' ? { customer_group: customerGroup } : undefined,
+      }))
 
       const created = await createBP.mutateAsync({
         name:                 name.trim(),
@@ -1437,7 +1450,7 @@ export function AddPartyModal({
         account_type:         accountType || undefined,
         ifsc_code:            ifscCode || undefined,
         notes:                finalNotes || undefined,
-        roles:                rolesToCreate.map(r => ({ role: r })),
+        roles:                roleDefs,
       })
       const createdId = (created as unknown as { id?: string }).id
       if (createdId) persistAvatarIfNeeded(createdId)
@@ -1504,7 +1517,7 @@ export function AddPartyModal({
   return (
     <>
     <div data-kiterp-modal className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 overflow-y-auto" onClick={onClose}>
-      <div className="bg-card border border-border text-foreground rounded-2xl shadow-2xl w-full max-w-[720px] max-h-[92vh] overflow-y-auto">
+      <div className="bg-card border border-border text-foreground rounded-2xl shadow-2xl w-full max-w-[720px] max-h-[92vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
 
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-border sticky top-0 bg-card z-10">
@@ -2218,6 +2231,20 @@ export function AddPartyModal({
                     </div>
                   )}
                 </div>
+
+                {/* Pricing Group (customer only) — must match a product's "Party" price rule to apply */}
+                {partyType === 'customer' && (
+                  <div>
+                    <Label className="flex items-center gap-1 text-xs"><Tag className="w-3 h-3" /> Pricing Group</Label>
+                    <select value={customerGroup} onChange={e => setCustomerGroup(e.target.value)}
+                      className="mt-1 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm focus:ring-2 focus:ring-primary/30 focus:border-primary outline-none">
+                      {CUSTOMER_PRICING_GROUPS.map(g => (
+                        <option key={g.value} value={g.value}>{g.label}</option>
+                      ))}
+                    </select>
+                    <p className="text-xs text-gray-400 mt-0.5">Determines which retail/wholesale/distributor/agent price rules apply to this customer at checkout &amp; POS.</p>
+                  </div>
+                )}
 
                 {/* Notes */}
                 <div>

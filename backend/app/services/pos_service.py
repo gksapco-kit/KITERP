@@ -19,6 +19,7 @@ from app.services.inventory_service import InventoryService
 from app.services.invoice_service import InvoiceService
 from app.services.coupon_service import CouponService
 from app.services.loyalty_service import LoyaltyService
+from app.services.price_resolver import resolve_items_pricing
 
 log = logging.getLogger(__name__)
 
@@ -199,6 +200,19 @@ class POSService:
         session = session_result.scalar_one_or_none()
         if not session:
             raise ValueError("No open POS session found for this business unit")
+
+        # ── Apply party (retail/wholesale/distributor/agent…), quantity-tier,
+        # and channel price rules for new sales, so the price charged reflects
+        # who's buying and how much — not just the sticker price. Returns and
+        # credit memos keep the originally sold price.
+        if transaction_type in ("sale", "debit_memo"):
+            items = await resolve_items_pricing(
+                self.db,
+                vendor_id,
+                items,
+                customer_id=customer_id,
+                channel="pos",
+            )
 
         # ── Compute line items ──
         subtotal = 0

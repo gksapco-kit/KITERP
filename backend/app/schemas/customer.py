@@ -52,6 +52,7 @@ class CustomerUpdate(BaseModel):
     account_holder_name: Optional[str] = Field(None, max_length=255)
     account_type: Optional[str] = Field(None, pattern=r"^(savings|current)$")
     ifsc_code: Optional[str] = Field(None, max_length=15)
+    customer_group: Optional[str] = Field(None, max_length=50)
 
 
 class CustomerResponse(BaseModel):
@@ -63,6 +64,7 @@ class CustomerResponse(BaseModel):
     email: Optional[str] = None
     phone: Optional[str] = None
     avatar_url: Optional[str] = None
+    customer_group: Optional[str] = "retail"
     shipping_addresses: Optional[list] = []
     default_address_index: int = 0
     is_active: bool = True

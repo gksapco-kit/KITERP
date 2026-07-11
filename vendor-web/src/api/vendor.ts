@@ -210,6 +210,239 @@ export interface SelectedModifier {
   price_delta: number
 }
 
+// ── Product Configuration Engine (metadata-driven, unlimited nesting) ──────
+export type ConfigInputType =
+  | 'dropdown' | 'radio' | 'checkbox' | 'multiselect' | 'color' | 'image'
+  | 'text' | 'number' | 'date' | 'boolean'
+
+export interface ConfigOption {
+  id: string
+  attribute_id: string
+  parent_option_id: string | null
+  name: string
+  display_name: string
+  image_url: string | null
+  icon: string | null
+  color_code: string | null
+  price_delta: number
+  sort_order: number
+  labels_i18n: Record<string, string>
+  is_active: boolean
+  created_at?: string | null
+  updated_at?: string | null
+}
+
+export interface ConfigAttribute {
+  id: string
+  product_id: string
+  parent_attribute_id: string | null
+  name: string
+  display_name: string
+  description: string | null
+  input_type: ConfigInputType
+  display_order: number
+  is_required: boolean
+  is_multiple: boolean
+  default_value: unknown
+  visibility_rule: Record<string, unknown> | null
+  validation_rule: Record<string, unknown> | null
+  labels_i18n: Record<string, string>
+  is_active: boolean
+  version_number: number
+  options: ConfigOption[]
+  children: ConfigAttribute[]
+}
+
+export type RuleLogicalOperator = 'AND' | 'OR' | 'NOT'
+export type RuleComparisonOperator =
+  | 'equals' | 'not_equals' | 'contains' | 'gt' | 'lt' | 'between' | 'starts_with' | 'ends_with'
+
+export interface RuleConditionGroup {
+  op: RuleLogicalOperator
+  children: RuleCondition[]
+}
+export interface RuleConditionLeaf {
+  attribute?: string
+  operator?: RuleComparisonOperator
+  value?: unknown
+  value2?: unknown
+}
+export type RuleCondition = RuleConditionGroup | RuleConditionLeaf
+
+export type RuleActionType =
+  | 'show_field' | 'hide_field' | 'require_field' | 'disable_option' | 'enable_option'
+  | 'auto_select' | 'change_default' | 'warning' | 'error' | 'prevent_save'
+
+export interface RuleAction {
+  type: RuleActionType
+  target?: string
+  value?: unknown
+  message?: string
+}
+
+export type RuleExecutionMode = 'always' | 'first_match'
+
+export interface ConfigRule {
+  id: string
+  product_id: string
+  name: string
+  description: string | null
+  priority: number
+  execution_mode: RuleExecutionMode
+  conditions: RuleCondition
+  actions: RuleAction[]
+  is_active: boolean
+  version_number: number
+  created_at?: string | null
+  updated_at?: string | null
+}
+
+export interface RuleEvaluationResult {
+  shown: string[]
+  hidden: string[]
+  required: string[]
+  disabled_options: Record<string, string[]>
+  enabled_options: Record<string, string[]>
+  auto_select: Record<string, unknown>
+  defaults: Record<string, unknown>
+  warnings: string[]
+  errors: string[]
+  prevent_save: boolean
+  matched_rule_ids: string[]
+}
+
+// ── Variant Generator ────────────────────────────────────────────
+export type VariantGenerateMode = 'all' | 'selected' | 'missing' | 'regenerate'
+export type VariantPreviewStatus = 'new' | 'exists' | 'excluded'
+
+export interface VariantPreviewItem {
+  variant_hash: string
+  label: string
+  sku_preview: string
+  barcode_preview?: string | null
+  selection: Record<string, string>
+  price_delta: number
+  status: VariantPreviewStatus
+}
+
+export interface VariantPreviewResult {
+  total_combinations: number
+  new_count: number
+  existing_count: number
+  excluded_count: number
+  truncated: boolean
+  max_combinations: number
+  items: VariantPreviewItem[]
+}
+
+export interface VariantGenerateResult {
+  created_count: number
+  skipped_existing_count: number
+  deleted_count: number
+  created_variant_ids: string[]
+}
+
+export interface InvalidVariantsResult {
+  deleted_count: number
+  deleted_variant_ids: string[]
+}
+
+// ── Variant Management (Excel-like grid + details drawer) ──────────
+export interface InventorySettings {
+  auto_generate_barcode: boolean
+}
+
+export interface VariantListItem {
+  id: string
+  name: string
+  sku?: string | null
+  barcode?: string | null
+  uom: string
+  price: number
+  compare_at_price?: number | null
+  cost_price?: number | null
+  currency: string
+  is_taxable: boolean
+  tax_rate?: number | null
+  quantity: number
+  low_stock_threshold: number
+  stock_status?: string | null
+  track_inventory: boolean
+  attributes: Record<string, unknown>
+  config_selection?: Record<string, unknown> | null
+  variant_hash?: string | null
+  media: Array<{ url: string; media_type?: string; is_primary?: boolean }>
+  color?: string | null
+  is_active: boolean
+  created_at?: string | null
+  updated_at?: string | null
+}
+
+export interface VariantDetail extends VariantListItem {
+  uom_quantity?: number | null
+  price_type: string
+  discount_percentage?: number | null
+  discount_amount?: number | null
+  offer_label?: string | null
+  is_on_sale: boolean
+  hsn_code?: string | null
+  gst_rate?: number | null
+  reorder_point?: number | null
+  reorder_quantity?: number | null
+  allow_backorders: boolean
+  max_quantity_per_order?: number | null
+  min_quantity_per_order?: number | null
+  weight_kg?: number | null
+  expiration_date?: string | null
+  manufacture_date?: string | null
+  best_before_date?: string | null
+  warranty_period_days?: number | null
+  warranty_type?: string | null
+  is_returnable: boolean
+  return_days?: number | null
+  refund_policy?: string | null
+  return_policy?: string | null
+  return_conditions?: string | null
+  search_keywords?: string | null
+  subscription_interval?: string | null
+  subscription_trial_days?: number | null
+  subscription_setup_fee?: number | null
+  subscription_billing_cycles?: number | null
+}
+
+export interface VariantListResult {
+  items: VariantListItem[]
+  total: number
+  page: number
+  size: number
+  pages: number
+}
+
+export type VariantPatchFields = Partial<{
+  name: string; sku: string; barcode: string; uom: string; uom_quantity: number
+  price: number; compare_at_price: number; cost_price: number; currency: string
+  discount_percentage: number; discount_amount: number; offer_label: string; is_on_sale: boolean
+  is_taxable: boolean; tax_rate: number; hsn_code: string; gst_rate: number
+  quantity: number; low_stock_threshold: number; stock_status: string
+  track_inventory: boolean; allow_backorders: boolean
+  reorder_point: number; reorder_quantity: number
+  max_quantity_per_order: number; min_quantity_per_order: number
+  weight_kg: number
+  manufacture_date: string | null; expiration_date: string | null; best_before_date: string | null
+  warranty_period_days: number; warranty_type: string
+  is_returnable: boolean; return_days: number; refund_policy: string
+  return_policy: string; return_conditions: string
+  color: string; is_active: boolean
+}>
+
+export type PriceAdjustMode = 'set' | 'increase_pct' | 'decrease_pct' | 'increase_amt' | 'decrease_amt'
+
+export interface BulkUpdatePayload {
+  variant_ids: string[]
+  set_fields?: VariantPatchFields
+  price_adjustment?: { field?: 'price' | 'compare_at_price' | 'cost_price'; mode: PriceAdjustMode; value: number }
+}
+
 // ── Restaurant types ───────────────────────────────────────────────
 export interface RestaurantOrderItem {
   product_id?: string
@@ -580,6 +813,16 @@ export const vendorApi = {
     } | null
   }> => {
     const response = await apiClient.get('/vendors/me/products/barcode-lookup', { params: { code } })
+    return response.data
+  },
+
+  getInventorySettings: async (): Promise<InventorySettings> => {
+    const response = await apiClient.get('/vendors/me/inventory/settings')
+    return response.data
+  },
+
+  updateInventorySettings: async (data: InventorySettings): Promise<InventorySettings> => {
+    const response = await apiClient.put('/vendors/me/inventory/settings', data)
     return response.data
   },
 
@@ -1245,6 +1488,120 @@ export const vendorApi = {
   },
   productDeleteModifierOption: async (productId: string, groupId: string, optionId: string) => {
     await apiClient.delete(`/vendors/me/products/${productId}/modifiers/${groupId}/options/${optionId}`)
+  },
+
+  // ── Product Configuration Engine (attributes, options, rules) ──────
+  productListConfigAttributes: async (productId: string): Promise<{ items: ConfigAttribute[]; total_attributes: number; total_options: number }> => {
+    const response = await apiClient.get(`/vendors/me/products/${productId}/config/attributes`)
+    return response.data
+  },
+  productCreateConfigAttribute: async (productId: string, body: {
+    name: string; display_name: string; description?: string; input_type?: ConfigInputType
+    parent_attribute_id?: string | null; display_order?: number; is_required?: boolean; is_multiple?: boolean
+    default_value?: unknown; validation_rule?: Record<string, unknown> | null
+    labels_i18n?: Record<string, string>; is_active?: boolean
+  }): Promise<ConfigAttribute> => {
+    const response = await apiClient.post(`/vendors/me/products/${productId}/config/attributes`, body)
+    return response.data
+  },
+  productUpdateConfigAttribute: async (productId: string, attributeId: string, body: Partial<{
+    name: string; display_name: string; description: string | null; input_type: ConfigInputType
+    parent_attribute_id: string | null; display_order: number; is_required: boolean; is_multiple: boolean
+    default_value: unknown; validation_rule: Record<string, unknown> | null
+    is_active: boolean; version_number: number
+  }>): Promise<ConfigAttribute> => {
+    const response = await apiClient.patch(`/vendors/me/products/${productId}/config/attributes/${attributeId}`, body)
+    return response.data
+  },
+  productDeleteConfigAttribute: async (productId: string, attributeId: string) => {
+    await apiClient.delete(`/vendors/me/products/${productId}/config/attributes/${attributeId}`)
+  },
+  productCreateConfigOption: async (productId: string, attributeId: string, body: {
+    name: string; display_name: string; parent_option_id?: string | null; image_url?: string
+    icon?: string; color_code?: string; price_delta?: number; sort_order?: number; is_active?: boolean
+  }): Promise<ConfigOption> => {
+    const response = await apiClient.post(`/vendors/me/products/${productId}/config/attributes/${attributeId}/options`, body)
+    return response.data
+  },
+  productUpdateConfigOption: async (productId: string, optionId: string, body: Partial<{
+    name: string; display_name: string; parent_option_id: string | null; image_url: string
+    icon: string; color_code: string; price_delta: number; sort_order: number; is_active: boolean
+  }>): Promise<ConfigOption> => {
+    const response = await apiClient.patch(`/vendors/me/products/${productId}/config/options/${optionId}`, body)
+    return response.data
+  },
+  productDeleteConfigOption: async (productId: string, optionId: string) => {
+    await apiClient.delete(`/vendors/me/products/${productId}/config/options/${optionId}`)
+  },
+
+  productListConfigRules: async (productId: string): Promise<{ items: ConfigRule[] }> => {
+    const response = await apiClient.get(`/vendors/me/products/${productId}/config/rules`)
+    return response.data
+  },
+  productCreateConfigRule: async (productId: string, body: {
+    name: string; description?: string; priority?: number; execution_mode?: RuleExecutionMode
+    conditions: RuleCondition; actions: RuleAction[]; is_active?: boolean
+  }): Promise<ConfigRule> => {
+    const response = await apiClient.post(`/vendors/me/products/${productId}/config/rules`, body)
+    return response.data
+  },
+  productUpdateConfigRule: async (productId: string, ruleId: string, body: Partial<{
+    name: string; description: string; priority: number; execution_mode: RuleExecutionMode
+    conditions: RuleCondition; actions: RuleAction[]; is_active: boolean; version_number: number
+  }>): Promise<ConfigRule> => {
+    const response = await apiClient.patch(`/vendors/me/products/${productId}/config/rules/${ruleId}`, body)
+    return response.data
+  },
+  productDeleteConfigRule: async (productId: string, ruleId: string) => {
+    await apiClient.delete(`/vendors/me/products/${productId}/config/rules/${ruleId}`)
+  },
+  productEvaluateConfigRules: async (productId: string, selection: Record<string, unknown>): Promise<RuleEvaluationResult> => {
+    const response = await apiClient.post(`/vendors/me/products/${productId}/config/rules/evaluate`, { selection })
+    return response.data
+  },
+
+  // ── Variant Generator (metadata -> concrete Variant Instances) ─────
+  productPreviewVariants: async (productId: string, body: {
+    mode?: VariantGenerateMode; excluded_hashes?: string[]; max_combinations?: number
+  }): Promise<VariantPreviewResult> => {
+    const response = await apiClient.post(`/vendors/me/products/${productId}/config/variants/preview`, body)
+    return response.data
+  },
+  productGenerateVariants: async (productId: string, body: {
+    mode?: VariantGenerateMode; excluded_hashes?: string[]; selected_hashes?: string[]
+    base_price?: number; currency?: string; max_combinations?: number
+  }): Promise<VariantGenerateResult> => {
+    const response = await apiClient.post(`/vendors/me/products/${productId}/config/variants/generate`, body)
+    return response.data
+  },
+  productDeleteInvalidVariants: async (productId: string): Promise<InvalidVariantsResult> => {
+    const response = await apiClient.delete(`/vendors/me/products/${productId}/config/variants/invalid`)
+    return response.data
+  },
+
+  // ── Variant Management (grid + drawer) ──────────────────────────────
+  productListVariants: async (productId: string, params?: { search?: string; is_active?: boolean }): Promise<VariantListResult> => {
+    const response = await apiClient.get(`/vendors/me/products/${productId}/variants`, { params: { size: 10000, ...params } })
+    return response.data
+  },
+  productGetVariant: async (productId: string, variantId: string): Promise<VariantDetail> => {
+    const response = await apiClient.get(`/vendors/me/products/${productId}/variants/${variantId}`)
+    return response.data
+  },
+  productPatchVariant: async (productId: string, variantId: string, body: VariantPatchFields): Promise<VariantDetail> => {
+    const response = await apiClient.patch(`/vendors/me/products/${productId}/variants/${variantId}`, body)
+    return response.data
+  },
+  productDeleteVariant: async (productId: string, variantId: string): Promise<void> => {
+    await apiClient.delete(`/vendors/me/products/${productId}/variants/${variantId}`)
+  },
+  productBulkUpdateVariants: async (productId: string, body: BulkUpdatePayload): Promise<{ updated_count: number }> => {
+    const response = await apiClient.post(`/vendors/me/products/${productId}/variants/bulk-update`, body)
+    return response.data
+  },
+  productBulkDeleteVariants: async (productId: string, variantIds: string[]): Promise<{ deleted_count: number }> => {
+    const response = await apiClient.post(`/vendors/me/products/${productId}/variants/bulk-delete`, { variant_ids: variantIds })
+    return response.data
   },
 
   posCreateTransaction: async (data: Record<string, unknown>) => {

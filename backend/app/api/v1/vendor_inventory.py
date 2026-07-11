@@ -1,7 +1,8 @@
-from fastapi import APIRouter, Depends, HTTPException, status, Query
+from fastapi import APIRouter, Depends, HTTPException, status, Query, Request
 from fastapi.responses import JSONResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
+from sqlalchemy.orm.attributes import flag_modified
 from typing import Optional
 from uuid import UUID
 from datetime import date
@@ -10,10 +11,15 @@ import math
 from app.database import get_db
 from app.api.deps import get_current_active_user, get_current_vendor_id
 from app.models.user import User
+from app.models.vendor import Vendor
 from app.models.vendor_product import Product, ProductVariant
 from app.models.storage_location import StorageLocation
 from app.services.vendor_service import VendorService
 from app.services.inventory_service import InventoryService
+from app.services.inventory_settings import (
+    INVENTORY_SETTINGS_KEY,
+    get_inventory_settings,
+)
 from app.services.store_inventory_service import (
     apply_store_inventory_delta,
     set_store_inventory_quantity,
@@ -24,6 +30,52 @@ from app.schemas.inventory import (
 )
 
 router = APIRouter()
+
+
+# ── Inventory / catalog coding settings ─────────────────────────────
+# Declared before dynamic routes so /settings is never captured elsewhere.
+
+@router.get("/settings")
+async def get_inventory_coding_settings(
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db),
+):
+    svc = VendorService(db)
+    vendor = await svc.get_by_user_id(current_user.id)
+    if not vendor:
+        raise HTTPException(404, "Vendor not found")
+    return JSONResponse(content=get_inventory_settings(vendor.settings))
+
+
+@router.put("/settings")
+async def update_inventory_coding_settings(
+    request: Request,
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db),
+):
+    data = await request.json()
+    if not isinstance(data, dict):
+        raise HTTPException(400, "Settings payload must be an object")
+
+    svc = VendorService(db)
+    vendor = await svc.get_by_user_id(current_user.id)
+    if not vendor:
+        raise HTTPException(404, "Vendor not found")
+
+    result = await db.execute(select(Vendor).where(Vendor.id == vendor.id))
+    db_vendor = result.scalar_one_or_none()
+    if not db_vendor:
+        raise HTTPException(404, "Vendor record not found")
+
+    current = dict(db_vendor.settings or {})
+    existing = get_inventory_settings(current)
+    if "auto_generate_barcode" in data:
+        existing["auto_generate_barcode"] = bool(data["auto_generate_barcode"])
+    current[INVENTORY_SETTINGS_KEY] = existing
+    db_vendor.settings = current
+    flag_modified(db_vendor, "settings")
+    await db.commit()
+    return JSONResponse(content=existing)
 
 
 def _movement_to_dict(m, location_names: dict[str, str] | None = None) -> dict:

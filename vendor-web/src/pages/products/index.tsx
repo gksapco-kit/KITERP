@@ -26,12 +26,11 @@ import {
   Plus, Search, Pencil, Trash2, Loader2, X, ChevronLeft, ChevronRight,
   Filter, Copy, Share2, Mail, MessageCircle, MoreVertical, Package, Eye,
   Image as ImageIcon, ChevronUp, ChevronDown, ChevronsUpDown, ScanLine,
-  Layers, Palette, Ruler,
+  Layers,
 } from 'lucide-react'
-import {
-  formatVariantDisplayLabel,
-  variantToUpdatePayload,
-} from '@/lib/productVariantPresets'
+import { formatVariantDisplayLabel } from '@/lib/productVariantPresets'
+import { variantToUpdatePayload } from '@/lib/productVariants'
+import { onClickableTableRow } from '@/lib/clickableTableRow'
 import { vendorApi } from '@/api/vendor'
 import { BarcodeScannerModal } from '@/components/scanner/BarcodeScannerModal'
 import {
@@ -493,14 +492,6 @@ export default function Products() {
               Variant
             </button>
           </div>
-          <Button variant="outline" className="gap-2" onClick={() => navigate('/products/colours')}>
-            <Palette className="w-4 h-4 text-violet-500" />
-            Add Colours
-          </Button>
-          <Button variant="outline" className="gap-2" onClick={() => navigate('/products/sizes')}>
-            <Ruler className="w-4 h-4 text-indigo-500" />
-            Add Sizes
-          </Button>
           <Button variant="outline" className="gap-2" onClick={() => setShowScanner(true)} disabled={scanLoading}>
             {scanLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <ScanLine className="w-4 h-4 text-blue-500" />}
             Scan
@@ -677,7 +668,11 @@ export default function Products() {
                 const thumbUrl = primaryImg ? resolveUrl(primaryImg.url) : variantImg ? resolveUrl(variantImg.url) : ''
 
                 return (
-                <tr key={product.id} className="hover:bg-gray-50/80 transition-colors group">
+                <tr
+                  key={product.id}
+                  className="hover:bg-gray-50/80 cursor-pointer transition-colors group"
+                  onClick={onClickableTableRow(() => navigate(`/products/${product.id}`))}
+                >
                   <td className="px-5 py-3 max-w-[280px]">
                     <div className="flex items-center gap-3 min-w-0">
                       {thumbUrl ? (
@@ -997,7 +992,8 @@ export default function Products() {
                 return (
                   <tr
                     key={`${row.productId}-${row.groupKey}-${i}`}
-                    className={`hover:bg-gray-50/80 transition-colors group ${isFirstOfProduct && i > 0 ? 'border-t-2 border-t-gray-200' : ''}`}
+                    className={`hover:bg-gray-50/80 cursor-pointer transition-colors group ${isFirstOfProduct && i > 0 ? 'border-t-2 border-t-gray-200' : ''}`}
+                    onClick={onClickableTableRow(() => navigate(`/products/${row.productId}`))}
                   >
                     <td className="px-5 py-2.5 max-w-[240px]">
                       <div className="flex items-center gap-2.5 min-w-0">
@@ -1052,6 +1048,7 @@ export default function Products() {
                         readOnly
                         readOnlyMessage="Variant count is automatic"
                         title="Variant count"
+                        onSave={() => {}}
                       >
                         <span className="text-sm font-semibold tabular-nums text-gray-800">
                           {row.variantCount > 0 ? row.variantCount : '—'}

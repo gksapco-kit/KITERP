@@ -3673,7 +3673,7 @@ Fill in real copy for the business. No placeholder text."""
         elif slug == "about":
             page_blocks = [
                 {"block_type": "hero_minimal", "label": "Hero", "props": _enrich_block_props_with_category("hero_minimal", {"headline": "About Us", "subtitle": "Our story, mission and values.", "bg_style": "image"}, imgs, img_cursor)},
-                {"block_type": "about_split",  "label": "Our Story", "props": _enrich_block_props_with_category("about_split", {"title": "Who We Are", "description": biz}, imgs, img_cursor)},
+                {"block_type": "about_split",  "label": "Our Story", "props": _enrich_block_props_with_category("about_split", {"title": "Who We Are", "subtitle": "Our Story", "description": biz, "layout": "split", "image_position": "right"}, imgs, img_cursor)},
                 {"block_type": "team_grid",    "label": "Team", "props": {"title": "Meet the Team", "columns": 3}},
                 {"block_type": "timeline",     "label": "Timeline", "props": {"title": "Our Journey"}},
             ]

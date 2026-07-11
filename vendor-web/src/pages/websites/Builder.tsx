@@ -518,9 +518,10 @@ const BLOCK_CATALOG: BlockDef[] = [
   // Content
   { type: 'features', label: 'Features Grid', icon: Columns, desc: 'Feature cards in a grid', category: 'content', defaultProps: { title: 'Why shop with us', layout: 'grid-3', features: [{ icon: 'Truck', title: 'Fast delivery', desc: 'Quick, reliable shipping to your door' }, { icon: 'Shield', title: 'Secure checkout', desc: 'Safe payments and protected orders' }, { icon: 'Heart', title: 'Quality guaranteed', desc: 'Handpicked products we stand behind' }] } },
   { type: 'features_alternating', label: 'Features ? Alternating', icon: List, desc: 'Alternating image/text sections', category: 'content', defaultProps: { title: 'Why Choose Us', layout: 'stacked', image_position: 'left', features: [{ title: 'Fresh & quality', desc: 'We source carefully so every order meets our standards.', image_url: '' }, { title: 'Friendly support', desc: 'Questions? Our team is happy to help before and after you buy.', image_url: '' }] } },
+  { type: 'about_split', label: 'Our Story', icon: Columns, desc: 'Story left, photo right — Who We Are about section', category: 'about', defaultProps: { title: 'Who We Are', subtitle: 'Our Story', description: 'Tell customers who you are, what you sell, and why they can trust you.', layout: 'split', image_position: 'right' } },
   { type: 'stats', label: 'Stats / Numbers', icon: BarChart3, desc: 'Key metrics and achievements', category: 'content', defaultProps: { title: 'Trusted by our community', stats: [{ value: '2K+', label: 'Happy customers' }, { value: '500+', label: 'Products' }, { value: '4.8?', label: 'Average rating' }, { value: '24/7', label: 'Online ordering' }] } },
   { type: 'testimonials', label: 'Testimonials', icon: Quote, desc: 'Customer reviews and quotes', category: 'social', defaultProps: { title: 'What our customers say', testimonials: [{ name: 'Priya Sharma', role: 'Regular customer', company: '', quote: 'Great quality and fast delivery ? I order every week!', rating: 5 }, { name: 'James Wilson', role: 'Local buyer', company: '', quote: 'Easy to shop and the team was very helpful.', rating: 5 }] } },
-  { type: 'team_grid', label: 'Team Grid', icon: Users, desc: 'Meet the team cards', category: 'about', defaultProps: { title: 'Meet our team', columns: 4, members: [{ name: 'Alex Morgan', role: 'Store owner', bio: 'Passionate about great products and service.' }, { name: 'Sam Rivera', role: 'Customer care', bio: 'Here to help with orders and questions.' }] } },
+  { type: 'team_grid', label: 'Team Grid', icon: Users, desc: 'Meet the team cards', category: 'about', defaultProps: { title: 'Meet our team', columns: 3, image_shape: 'circle', members: [{ name: 'Alex Morgan', role: 'Store owner', bio: 'Passionate about great products and service.' }, { name: 'Sam Rivera', role: 'Customer care', bio: 'Here to help with orders and questions.' }, { name: 'Jordan Lee', role: 'Operations', bio: 'Keeping shelves stocked and delivery on track.' }] } },
   { type: 'pricing', label: 'Pricing Table', icon: Hash, desc: 'Pricing plans comparison', category: 'conversion', defaultProps: { title: 'Our packages', show_annual_toggle: false, data_source: { type: 'plans', auto: true } } },
   { type: 'faq', label: 'FAQ / Accordion', icon: MessageSquare, desc: 'Frequently asked questions', category: 'content', defaultProps: { title: 'Common questions', faqs: [{ question: 'How do I place an order?', answer: 'Browse our products, add items to your cart, and checkout securely online.' }, { question: 'What are your delivery times?', answer: 'Most orders arrive within 2?5 business days. Local delivery may be faster.' }, { question: 'Can I return an item?', answer: 'Yes ? unused items can be returned within 14 days. Contact us to start a return.' }] } },
   { type: 'cta', label: 'Call to Action', icon: Zap, desc: 'Bold CTA section to convert visitors', category: 'conversion', defaultProps: { headline: 'Ready to shop?', subtitle: 'Browse our collection and find something you will love today.', cta_label: 'Start shopping', cta_url: '/products' } },
@@ -543,7 +544,6 @@ const BLOCK_CATALOG: BlockDef[] = [
   { type: 'product_grid', label: 'Product Grid', icon: ShoppingBag, desc: 'Display products from your catalog', category: 'ecommerce', defaultProps: { title: 'Featured Products', columns: 4, show_badges: true } },
   { type: 'category_cards', label: 'Category Cards', icon: Layers, desc: 'Shop-by-category grid — synced from Categories', category: 'ecommerce', defaultProps: CATEGORY_CARDS_DEFAULTS },
   { type: 'menu_grid', label: 'Menu / Catalog', icon: List, desc: 'Restaurant-style menu grid', category: 'food', defaultProps: { title: 'Our Menu', categories: ['Starters', 'Mains', 'Desserts', 'Drinks'] } },
-  { type: 'about_split', label: 'About Split', icon: Columns, desc: 'About section with image and text', category: 'about', defaultProps: { title: 'About us', subtitle: 'Our story', description: 'Tell customers who you are, what you sell, and why they can trust you.' } },
   { type: 'services_cards', label: 'Services Cards', icon: Briefcase, desc: 'Service offering cards', category: 'content', defaultProps: { title: 'Our services', columns: 3, features: [{ icon: 'Zap', title: 'Consultation', desc: 'Expert advice tailored to your needs.' }, { icon: 'Shield', title: 'Installation', desc: 'Professional setup you can rely on.' }, { icon: 'Star', title: 'Support', desc: 'Friendly help after you buy.' }] } },
   { type: 'html_embed', label: 'HTML Embed', icon: Code, desc: 'Custom HTML/widget embed', category: 'advanced', defaultProps: { html: '<p>Add your custom HTML here</p>' } },
 
@@ -6601,11 +6601,13 @@ function SectionLayoutControls({
   }
 
   if (embedded) {
+    const sectionName = catalogBlockLabel(block)
     return (
       <div className="@container space-y-2">
         <div className="flex min-w-0 items-start justify-between gap-2">
           <div className="min-w-0">
-            <p className="truncate text-[11px] font-semibold leading-tight text-foreground">
+            <div className={builderPanelUi.eyebrow}>{sectionName}</div>
+            <p className="mt-1 truncate text-[11px] font-semibold leading-tight text-foreground">
               {activeLayout?.label || 'Default layout'}
             </p>
             {activeLayout?.desc ? (
@@ -11885,7 +11887,7 @@ function BlockDesignBar({ block, onUpdate, onInsertAfter, onOpenLinkEditorForOve
       />
       ) : null}
 
-      <span className="hidden md:inline shrink-0 text-[10px] text-gray-400 font-mono truncate max-w-[5rem]" title={overlayTextLayer ? overlayLayerTypeLabel(String(overlayTextLayer.type)) : (block.label || block.block_type)}>
+      <span className="hidden @[720px]/designbar:inline shrink-0 text-[10px] text-gray-400 font-mono truncate max-w-[5rem]" title={overlayTextLayer ? overlayLayerTypeLabel(String(overlayTextLayer.type)) : (block.label || block.block_type)}>
         {overlayTextLayer ? overlayLayerTypeLabel(String(overlayTextLayer.type)) : (block.label || block.block_type)}
       </span>
       </>

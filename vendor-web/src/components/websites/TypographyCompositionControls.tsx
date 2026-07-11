@@ -52,11 +52,11 @@ import {
 type ControlSize = 'panel' | 'compact' | 'mini' | 'transformPad'
 
 /** Shared tight toolbar shell — matches design bar chrome. */
-export const typographyToolbarBox = cn(generalDesignBarCluster, 'shrink-0')
+export const typographyToolbarBox = cn(generalDesignBarCluster, 'w-max max-w-full shrink-0')
 
 const toolbarShell = typographyToolbarBox
 
-const embeddedShell = cn('inline-flex h-full items-stretch shrink-0 border-r last:border-r-0', DESIGN_BAR_SOFT_INNER_BORDER)
+const embeddedShell = cn('inline-flex h-full w-max items-stretch shrink-0 border-r last:border-r-0', DESIGN_BAR_SOFT_INNER_BORDER)
 
 const softCellBtn = cn('transition-colors duration-150', DESIGN_BAR_SOFT_CELL)
 const softCellActive = DESIGN_BAR_SOFT_ACTIVE
@@ -72,14 +72,17 @@ const sizeStyles = {
     caseBtn: 'px-2.5 py-2 text-xs',
     wrapW: 'w-9',
     wrapH: 'h-[4.5rem]',
+    /** Fixed tracks — avoid `grid-cols-3` (1fr) which stretches flex-wrapped clusters. */
+    padGrid: 'grid grid-cols-[repeat(3,2.25rem)]',
   },
   compact: {
-    cell: 'w-7 h-7',
-    icon: 'w-3.5 h-3.5',
+    cell: 'w-7 h-7 @max-[640px]/designbar:h-[1.5rem] @max-[640px]/designbar:w-6',
+    icon: 'w-3.5 h-3.5 @max-[640px]/designbar:h-3 @max-[640px]/designbar:w-3',
     select: 'h-7 w-[3.25rem] px-0.5 text-[11px]',
     caseBtn: 'px-2 py-1.5 text-xs',
-    wrapW: 'w-7',
-    wrapH: 'h-14',
+    wrapW: 'w-7 @max-[640px]/designbar:w-6',
+    wrapH: 'h-14 @max-[640px]/designbar:h-12',
+    padGrid: 'grid grid-cols-[repeat(3,1.75rem)] @max-[640px]/designbar:grid-cols-[repeat(3,1.5rem)]',
   },
   mini: {
     cell: 'w-6 h-6',
@@ -88,15 +91,17 @@ const sizeStyles = {
     caseBtn: 'px-1 py-0.5 text-[9px]',
     wrapW: 'w-6',
     wrapH: 'h-[4.5rem]',
+    padGrid: 'grid grid-cols-[repeat(3,1.5rem)]',
   },
   /** Position / flip pads — wide cells for easier freehand nudging. */
   transformPad: {
-    cell: 'h-full min-h-0 w-7',
+    cell: 'h-full min-h-0 w-7 @max-[640px]/designbar:w-6',
     icon: 'w-3 h-3',
     select: 'h-7 w-[3.25rem] px-0.5 text-[9px]',
     caseBtn: 'px-1 py-0.5 text-[9px]',
-    wrapW: 'w-7',
-    wrapH: GENERAL_DESIGN_BAR_H,
+    wrapW: 'w-7 @max-[640px]/designbar:w-6',
+    wrapH: cn(GENERAL_DESIGN_BAR_H, '@max-[640px]/designbar:h-12'),
+    padGrid: 'grid h-full grid-cols-[repeat(3,1.75rem)] @max-[640px]/designbar:grid-cols-[repeat(3,1.5rem)]',
   },
 } as const
 
@@ -304,6 +309,7 @@ export function TypographyFontStack({
     <div
       className={cn(
         'flex h-14 w-[6.75rem] shrink-0 flex-col divide-y divide-gray-200 overflow-hidden',
+        '@max-[640px]/designbar:h-12 @max-[640px]/designbar:w-[5.75rem]',
         className,
       )}
       onMouseDown={onMouseDown}
@@ -474,7 +480,12 @@ export function ColorIdentPickerRow({
   if (designBar) {
     return (
       <div
-        className={cn('flex h-14 shrink-0 flex-col border-l', DESIGN_BAR_SOFT_INNER_BORDER, COMPACT_COLOR_COL_W)}
+        className={cn(
+          'flex h-14 shrink-0 flex-col border-l',
+          DESIGN_BAR_SOFT_INNER_BORDER,
+          COMPACT_COLOR_COL_W,
+          '@max-[640px]/designbar:h-12',
+        )}
         onMouseDown={onMouseDown}
       >
         <ColorIdentPicker
@@ -634,7 +645,7 @@ export function TextFieldAlignGrid({
 
   return (
     <div className={cn(embedded ? cn(embeddedShell, 'h-full') : toolbarShell, className)} onMouseDown={onMouseDown}>
-      <div className={cn('grid grid-cols-3', embedded && 'h-full')}>
+      <div className={cn(s.padGrid, embedded && 'h-full')}>
         {cell(v === 'top', () => onVerticalAlignChange('top'), 'Align top', AlignVerticalJustifyStart, cn('border-r border-b', DESIGN_BAR_SOFT_INNER_BORDER))}
         {cell(v === 'middle', () => onVerticalAlignChange('middle'), 'Align middle', AlignVerticalJustifyCenter, cn('border-r border-b', DESIGN_BAR_SOFT_INNER_BORDER))}
         {cell(v === 'bottom', () => onVerticalAlignChange('bottom'), 'Align bottom', AlignVerticalJustifyEnd, cn('border-b', DESIGN_BAR_SOFT_INNER_BORDER))}
@@ -868,7 +879,7 @@ export function FieldPositionNudge({
       onMouseDown={onMouseDown}
       title={`${titleLabel}${moved ? ` (${ox}, ${oy})` : ''} · Arrow keys · hold buttons to repeat`}
     >
-      <div className={cn('grid grid-cols-3', size === 'transformPad' ? 'h-full' : undefined)}>
+      <div className={s.padGrid}>
         <div className={cn(s.cell, cn('border-r border-b bg-muted/30', DESIGN_BAR_SOFT_INNER_BORDER))} />
         {nudgeBtn('Move up', () => onNudge(0, -step), ArrowUp, cn('border-r border-b', DESIGN_BAR_SOFT_INNER_BORDER))}
         <div className={cn(s.cell, cn('border-b bg-muted/30', DESIGN_BAR_SOFT_INNER_BORDER))} />
@@ -1039,16 +1050,16 @@ export function LayoutTransformPositionGroup({
   flipProps?: ComponentProps<typeof FlipRotateControls>
 } & ComponentProps<typeof FieldPositionNudge>) {
   return (
-    <div className={cn(generalDesignBarCluster, 'flex shrink-0')}>
+    <div className={cn(generalDesignBarCluster, 'w-max max-w-full')}>
       <LayoutTransformScopeToggle
         mode={scopeMode}
         onChange={onScopeChange}
         showGroup={showGroup}
         layout="vertical"
         dense
-        className={cn('h-full w-10 shrink-0 rounded-none border-0 border-r', DESIGN_BAR_SOFT_INNER_BORDER)}
+        className={cn('h-full w-10 shrink-0 rounded-none border-0 border-r @max-[640px]/designbar:w-8', DESIGN_BAR_SOFT_INNER_BORDER)}
       />
-      <div className="flex h-full min-w-0 items-stretch">
+      <div className="flex h-full w-max shrink-0 items-stretch">
         <FieldPositionNudge
           {...nudgeProps}
           size={size}
@@ -1144,7 +1155,7 @@ export function FlipRotateControls({
       onMouseDown={onMouseDown}
       title="Flip & rotate"
     >
-      <div className={cn('grid grid-cols-3', size === 'transformPad' ? 'h-full' : undefined)}>
+      <div className={s.padGrid}>
         {spacer('border-r border-b border-gray-200')}
         {padBtn('Flip horizontal', () => onChange({ flip_h: h ? null : true }), FlipHorizontal, h, 'border-r border-b border-gray-200')}
         {spacer('border-b border-gray-200')}

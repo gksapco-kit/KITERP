@@ -175,7 +175,7 @@ function ToolbarPositionMatrix({
 
   return (
     <div
-      className={cn('grid grid-cols-3 overflow-hidden rounded-lg border', edgeBorder)}
+      className={cn('grid w-max grid-cols-[repeat(3,minmax(2.5rem,auto))] overflow-hidden rounded-lg border', edgeBorder)}
       role="group"
       aria-label="Position and size"
     >
@@ -283,8 +283,11 @@ function NudgePad({
   return (
     <div
       className={cn(
-        variant === 'toolbar' ? 'grid grid-cols-3 gap-0.5' : visualPanel,
-        variant === 'compact' && 'grid h-[4.5rem] w-[4.5rem] grid-cols-3 gap-0 overflow-hidden p-0',
+        variant === 'toolbar'
+          ? 'grid w-max grid-cols-[repeat(3,1.5rem)] gap-0.5'
+          : visualPanel,
+        variant === 'compact' &&
+          'grid h-[4.5rem] w-[4.5rem] grid-cols-[repeat(3,1.5rem)] gap-0 overflow-hidden p-0',
       )}
       role="group"
       aria-label="Move layer"

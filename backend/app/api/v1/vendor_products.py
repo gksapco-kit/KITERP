@@ -2,7 +2,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Query, UploadFile, File, Form
 from fastapi.responses import JSONResponse
 from fastapi.encoders import jsonable_encoder
-from pydantic import ValidationError
+from pydantic import ValidationError, BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import Optional, List
 from uuid import UUID
@@ -839,6 +839,61 @@ async def delete_price_rule(
         raise HTTPException(status_code=404, detail="Price rule not found")
     await db.delete(rule)
     await db.commit()
+
+
+class PriceResolveRequest(BaseModel):
+    variant_id: Optional[str] = None
+    quantity: int = 1
+    price: float = 0
+    customer_id: Optional[str] = None
+    customer_group: Optional[str] = None
+    channel: Optional[str] = None
+    shipping_state: Optional[str] = None
+    shipping_city: Optional[str] = None
+    shipping_pincode: Optional[str] = None
+
+
+@router.post("/{product_id}/resolve-price")
+async def resolve_product_price(
+    product_id: UUID,
+    payload: PriceResolveRequest,
+    vendor_id: UUID = Depends(get_current_vendor_id),
+    db: AsyncSession = Depends(get_db),
+):
+    """Preview the effective price for a product under a given sale context
+    (party/customer group, quantity, channel, location, schedule) — lets the
+    vendor verify their pricing rules actually apply before going live."""
+    from app.services.price_resolver import (
+        build_context_for_customer, load_rules, resolve_price,
+    )
+
+    ctx = await build_context_for_customer(
+        db, vendor_id,
+        UUID(payload.customer_id) if payload.customer_id else None,
+        quantity=payload.quantity,
+        channel=payload.channel,
+        shipping_state=payload.shipping_state,
+        shipping_city=payload.shipping_city,
+        shipping_pincode=payload.shipping_pincode,
+    )
+    if payload.customer_group and not ctx.customer_group:
+        ctx.customer_group = payload.customer_group
+
+    grouped = await load_rules(db, vendor_id, [product_id])
+    resolution = resolve_price(
+        grouped.get(product_id, []),
+        variant_id=UUID(payload.variant_id) if payload.variant_id else None,
+        base_price=payload.price,
+        ctx=ctx,
+    )
+    return JSONResponse(content={
+        "price": resolution.price,
+        "base_price": resolution.base_price,
+        "matched": resolution.matched,
+        "rule_id": resolution.rule_id,
+        "rule_type": resolution.rule_type,
+        "rule_name": resolution.rule_name,
+    })
 
 
 # ── Modifier Groups & Options ─────────────────────────────────────

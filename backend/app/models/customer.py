@@ -25,6 +25,10 @@ class Customer(Base):
     password_hash = Column(String(255), nullable=False)
     avatar_url = Column(String(500))
 
+    # Pricing group — drives which party price rules apply (retail, wholesale,
+    # distributor, agent, dealer, vip, employee, institutional, government, custom).
+    customer_group = Column(String(50), nullable=True, default="retail")
+
     # Business / GST
     gstin = Column(String(15), nullable=True)
     pan_number = Column(String(10), nullable=True)

@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react'
 import { Users } from 'lucide-react'
 import type { PublicSite, StyleConfig, LiveItem } from '@/blocks/registry'
 import BlockEmptyPlaceholder from '@/components/builder/BlockEmptyPlaceholder'
@@ -5,7 +6,7 @@ import { BuilderTextField } from '@/components/builder/BuilderTextField'
 import { BuilderSectionImage } from '@/components/builder/BuilderSectionImage'
 import { useBuilderCanvas } from '@/contexts/BuilderCanvasContext'
 import { cn, imgUrl } from '@/lib/utils'
-import { builderSectionContainerClass, builderSectionContainerWithMax } from '@/lib/builderSectionLayout'
+import { builderSectionContainerClass } from '@/lib/builderSectionLayout'
 import {
   propMemberToLiveItem,
   resolveTeamGridMembers,
@@ -26,6 +27,108 @@ const TRANSPARENT_PIXEL =
   'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7'
 
 interface Props { site: PublicSite; style: StyleConfig; props: Record<string, unknown>; liveItems: LiveItem[]; branchCode?: string | null; blockId?: string }
+
+function MemberAvatar({
+  member,
+  memberIndex,
+  rawMember,
+  blockId,
+  blockProps,
+  style,
+  avatarSize,
+  avatarClass,
+  imageShape,
+  allowImageEditing,
+  showAvatar,
+}: {
+  member: LiveItem
+  memberIndex: number
+  rawMember?: Record<string, unknown>
+  blockId?: string
+  blockProps: Record<string, unknown>
+  style: StyleConfig
+  avatarSize: number
+  avatarClass: string
+  imageShape: ReturnType<typeof imageShapeFromProps>
+  allowImageEditing: boolean
+  showAvatar: boolean
+}) {
+  const [broken, setBroken] = useState(false)
+  const imageSrc = member.image_url ? imgUrl(member.image_url) : ''
+
+  useEffect(() => {
+    setBroken(false)
+    if (!imageSrc) return
+    const probe = new window.Image()
+    probe.onload = () => setBroken(false)
+    probe.onerror = () => setBroken(true)
+    probe.src = imageSrc
+    return () => {
+      probe.onload = null
+      probe.onerror = null
+    }
+  }, [imageSrc])
+
+  if (!showAvatar) return null
+
+  const hasImage = Boolean(imageSrc) && !broken
+  const frameStyle = {
+    width: avatarSize,
+    height: avatarSize,
+    backgroundColor: hasImage ? undefined : `${style.primary_color}14`,
+    ...(rawMember ? arrayItemImageFrameStyle(rawMember) : {}),
+  }
+
+  if (allowImageEditing) {
+    return (
+      <div
+        className={cn(avatarClass, 'relative mx-auto shrink-0 overflow-hidden')}
+        style={frameStyle}
+      >
+        <BuilderSectionImage
+          blockId={blockId}
+          field="avatar_url"
+          arrayKey="members"
+          index={memberIndex}
+          itemField="avatar_url"
+          blockProps={blockProps}
+          src={hasImage ? imageSrc : TRANSPARENT_PIXEL}
+          alt={hasImage ? (member.title || '') : ''}
+          className={`${avatarClass} h-full w-full object-cover`}
+          empty={!hasImage}
+        />
+      </div>
+    )
+  }
+
+  if (hasImage) {
+    return (
+      <img
+        src={imageSrc}
+        alt={member.title || ''}
+        className={cn(avatarClass, 'mx-auto shrink-0 object-cover')}
+        style={{ width: avatarSize, height: avatarSize, ...arrayItemImageRenderStyle(rawMember ?? {}, blockProps) }}
+        loading="lazy"
+        onError={() => setBroken(true)}
+      />
+    )
+  }
+
+  return (
+    <div
+      className={cn(iconBoxShapeClass(imageShape), 'mx-auto flex shrink-0 items-center justify-center text-white font-bold')}
+      style={{
+        width: avatarSize,
+        height: avatarSize,
+        backgroundColor: style.primary_color,
+        fontSize: avatarSize * 0.35,
+      }}
+      aria-hidden
+    >
+      {(member.title || '?').charAt(0).toUpperCase()}
+    </div>
+  )
+}
 
 export default function TeamGridBlock({ style, props, liveItems, blockId }: Props) {
   const builderCanvas = useBuilderCanvas()
@@ -77,14 +180,35 @@ export default function TeamGridBlock({ style, props, liveItems, blockId }: Prop
 
   return (
     <section className={builderSectionContainerClass()}>
-      {showTitle && (
-        <BuilderTextField fieldKey="title" blockId={blockId} blockProps={props} value={title ?? ''} as="h2" className="text-3xl font-bold text-gray-900 mb-4 text-center" placeholder="Section title" />
-      )}
-      {showDescription && (
-        <BuilderTextField fieldKey="description" blockId={blockId} blockProps={props} value={description ?? ''} as="p" multiline className="text-center text-sm text-gray-500 mb-10 max-w-2xl mx-auto" placeholder="Optional description" />
+      {(showTitle || showDescription) && (
+        <div className="mb-10 flex w-full flex-col items-center text-center">
+          {showTitle && (
+            <BuilderTextField
+              fieldKey="title"
+              blockId={blockId}
+              blockProps={props}
+              value={title ?? ''}
+              as="h2"
+              className="text-3xl font-bold text-gray-900"
+              placeholder="Section title"
+            />
+          )}
+          {showDescription && (
+            <BuilderTextField
+              fieldKey="description"
+              blockId={blockId}
+              blockProps={props}
+              value={description ?? ''}
+              as="p"
+              multiline
+              className={cn('mt-3 max-w-2xl text-sm text-gray-500', !description && isEditorCanvas && 'opacity-60')}
+              placeholder="Optional description"
+            />
+          )}
+        </div>
       )}
       <div
-        className={`grid ${sectionGridColumnClass(columns)} mx-auto`}
+        className={cn('mx-auto grid w-full items-start', sectionGridColumnClass(columns))}
         style={{ gap: `${itemGap}px`, maxWidth: columns >= 5 ? '100%' : '1000px' }}
       >
         {visibleEntries.map(({ item: member, memberIndex, rawMember }) => {
@@ -95,103 +219,89 @@ export default function TeamGridBlock({ style, props, liveItems, blockId }: Prop
           const showName = useLive || !isNestedBlockFieldHidden(props, `members.${memberIndex}.name`)
           const showRole = useLive || !isNestedBlockFieldHidden(props, `members.${memberIndex}.role`)
           const showBio = useLive || !isNestedBlockFieldHidden(props, `members.${memberIndex}.bio`)
+          const roleValue = member.subtitle || ''
+          const bioValue = member.description || ''
+          const showRoleField = showRole && (roleValue || isEditorCanvas)
+          const showBioField = showBio && (bioValue || isEditorCanvas)
 
           return (
-          <div
-            key={member.id}
-            className={`text-center ${!isMinimal ? 'p-4 rounded-2xl border border-gray-100 bg-white shadow-sm' : 'p-2'}`}
-          >
-            {showAvatar && allowImageEditing ? (
-              <div
-                className={cn(avatarClass, 'relative mx-auto mb-3 overflow-hidden')}
-                style={{
-                  width: avatarSize,
-                  height: avatarSize,
-                  backgroundColor: member.image_url ? undefined : `${style.primary_color}14`,
-                  ...arrayItemImageFrameStyle(rawMember ?? {}),
-                }}
-              >
-                <BuilderSectionImage
-                  blockId={blockId}
-                  field="avatar_url"
-                  arrayKey="members"
-                  index={memberIndex}
-                  itemField="avatar_url"
-                  blockProps={props}
-                  src={member.image_url ? imgUrl(member.image_url) : TRANSPARENT_PIXEL}
-                  alt={member.image_url ? member.title : ''}
-                  className={`${avatarClass} h-full w-full object-cover`}
-                  empty={!member.image_url}
-                />
+            <div
+              key={member.id}
+              className={cn(
+                'flex h-full min-w-0 flex-col items-center text-center',
+                !isMinimal ? 'rounded-2xl border border-gray-100 bg-white p-5 shadow-sm' : 'p-2',
+              )}
+            >
+              {showAvatar && (
+                <div className="mb-3 flex w-full justify-center">
+                  <MemberAvatar
+                    member={member}
+                    memberIndex={memberIndex}
+                    rawMember={rawMember}
+                    blockId={blockId}
+                    blockProps={props}
+                    style={style}
+                    avatarSize={avatarSize}
+                    avatarClass={avatarClass}
+                    imageShape={imageShape}
+                    allowImageEditing={allowImageEditing}
+                    showAvatar={showAvatar}
+                  />
+                </div>
+              )}
+
+              <div className="flex w-full min-w-0 flex-col items-center gap-0.5">
+                {showName && (
+                  allowImageEditing ? (
+                    <BuilderTextField
+                      fieldKey={`members.${memberIndex}.name`}
+                      blockId={blockId}
+                      blockProps={props}
+                      value={member.title}
+                      as="h3"
+                      className="w-full text-center text-sm font-semibold text-gray-900"
+                      placeholder="Name"
+                    />
+                  ) : (
+                    <h3 className="w-full text-center text-sm font-semibold text-gray-900">{member.title}</h3>
+                  )
+                )}
+                {showRoleField && (
+                  allowImageEditing ? (
+                    <BuilderTextField
+                      fieldKey={`members.${memberIndex}.role`}
+                      blockId={blockId}
+                      blockProps={props}
+                      value={roleValue}
+                      as="p"
+                      className={cn('w-full text-center text-sm text-gray-400', !roleValue && 'opacity-60')}
+                      placeholder="Role"
+                    />
+                  ) : (
+                    <p className="w-full text-center text-sm text-gray-400">{roleValue}</p>
+                  )
+                )}
+                {showBioField && (
+                  allowImageEditing ? (
+                    <BuilderTextField
+                      fieldKey={`members.${memberIndex}.bio`}
+                      blockId={blockId}
+                      blockProps={props}
+                      value={bioValue}
+                      as="p"
+                      multiline
+                      className={cn(
+                        'mt-1 w-full max-w-[16rem] text-center text-xs leading-relaxed text-gray-500',
+                        !bioValue && 'opacity-60',
+                      )}
+                      placeholder="Bio"
+                    />
+                  ) : (
+                    <p className="mt-1 w-full max-w-[16rem] text-center text-xs leading-relaxed text-gray-500">{bioValue}</p>
+                  )
+                )}
               </div>
-            ) : showAvatar && member.image_url ? (
-              <img
-                src={imgUrl(member.image_url)}
-                alt={member.title}
-                className={`${avatarClass} mx-auto mb-3 object-cover`}
-                style={{ width: avatarSize, height: avatarSize, ...arrayItemImageRenderStyle(rawMember ?? {}, props) }}
-                loading="lazy"
-              />
-            ) : showAvatar && showName ? (
-              <div
-                className={`${iconBoxShapeClass(imageShape)} mx-auto mb-3 flex items-center justify-center text-white font-bold`}
-                style={{
-                  width: avatarSize,
-                  height: avatarSize,
-                  backgroundColor: style.primary_color,
-                  fontSize: avatarSize * 0.35,
-                }}
-              >
-                {(member.title || '?').charAt(0)}
-              </div>
-            ) : null}
-            {showName && (
-              allowImageEditing ? (
-                <BuilderTextField
-                  fieldKey={`members.${memberIndex}.name`}
-                  blockId={blockId}
-                  blockProps={props}
-                  value={member.title}
-                  as="h3"
-                  className="font-semibold text-gray-900 text-sm"
-                  placeholder="Name"
-                />
-              ) : (
-                <h3 className="font-semibold text-gray-900 text-sm">{member.title}</h3>
-              )
-            )}
-            {showRole && member.subtitle && (
-              allowImageEditing ? (
-                <BuilderTextField
-                  fieldKey={`members.${memberIndex}.role`}
-                  blockId={blockId}
-                  blockProps={props}
-                  value={member.subtitle}
-                  as="p"
-                  className="text-sm text-gray-400 mt-0.5"
-                  placeholder="Role"
-                />
-              ) : (
-                <p className="text-sm text-gray-400 mt-0.5">{member.subtitle}</p>
-              )
-            )}
-            {showBio && member.description && (
-              allowImageEditing ? (
-                <BuilderTextField
-                  fieldKey={`members.${memberIndex}.bio`}
-                  blockId={blockId}
-                  blockProps={props}
-                  value={member.description}
-                  as="p"
-                  multiline
-                  className="text-xs text-gray-500 mt-1.5 max-w-xs mx-auto leading-relaxed"
-                  placeholder="Bio"
-                />
-              ) : (
-                <p className="text-xs text-gray-500 mt-1.5 max-w-xs mx-auto leading-relaxed">{member.description}</p>
-              )
-            )}
-          </div>
+            </div>
           )
         })}
       </div>

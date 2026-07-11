@@ -124,6 +124,9 @@ class VendorCreateCustomer(BaseModel):
     account_type: Optional[str] = Field(None, pattern=r"^(savings|current)$")
     ifsc_code: Optional[str] = Field(None, max_length=15)
     linked_customer_id: Optional[UUID] = None
+    # Pricing group — drives which "party" price rules apply at checkout/POS
+    # (retail, wholesale, distributor, agent, dealer, vip, employee, institutional, government, custom).
+    customer_group: Optional[str] = Field(None, max_length=50)
 
     @model_validator(mode="after")
     def require_email_or_phone(self):
@@ -168,6 +171,7 @@ class VendorUpdateCustomer(BaseModel):
     account_holder_name: Optional[str] = Field(None, max_length=255)
     account_type: Optional[str] = Field(None, pattern=r"^(savings|current)$")
     ifsc_code: Optional[str] = Field(None, max_length=15)
+    customer_group: Optional[str] = Field(None, max_length=50)
 
     @model_validator(mode="after")
     def validate_gstin_and_pan(self):
@@ -192,6 +196,7 @@ def _customer_dict(customer: Customer) -> dict:
         "full_name": customer.full_name,
         "email": customer.email,
         "phone": customer.phone,
+        "customer_group": customer.customer_group or "retail",
         "linked_customer_id": str(customer.linked_customer_id) if customer.linked_customer_id else None,
         "is_active": customer.is_active,
         "total_orders": customer.total_orders or 0,
@@ -382,6 +387,7 @@ async def create_customer(
         password_hash=password_hash,
         shipping_addresses=data.shipping_addresses or [],
         is_active=True,
+        customer_group=data.customer_group or "retail",
         gstin=data.gstin,
         pan_number=data.pan_number,
         cin=data.cin,
@@ -471,6 +477,8 @@ async def update_customer(
         customer.account_type = data.account_type
     if data.ifsc_code is not None:
         customer.ifsc_code = data.ifsc_code
+    if data.customer_group is not None:
+        customer.customer_group = data.customer_group
 
     await db.commit()
     await db.refresh(customer)

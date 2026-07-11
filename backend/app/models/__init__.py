@@ -6,6 +6,7 @@ from app.models.user_contact_change_request import UserContactChangeRequest
 from app.models.vendor_user import VendorUser
 from app.models.vendor_role import VendorRole
 from app.models.vendor_product import Product, ProductVariant, ProductImage, ProductPriceRule, ProductModifierGroup, ProductModifierOption
+from app.models.product_config import ProductConfigAttribute, ProductConfigOption, ProductConfigRule
 from app.models.vendor_service import Service, ServiceAvailability, ServicePlan, ServiceBOMItem, ServiceResource
 from app.models.vendor_plan import VendorPlan
 from app.models.customer import Customer
@@ -162,6 +163,9 @@ __all__ = [
     "Product",
     "ProductVariant",
     "ProductImage",
+    "ProductConfigAttribute",
+    "ProductConfigOption",
+    "ProductConfigRule",
     "Service",
     "ServiceAvailability",
     "ServicePlan",

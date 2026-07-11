@@ -233,6 +233,13 @@ class ProductVariant(Base):
     # Variant attributes (e.g., {"size": "M", "color": "Red"})
     attributes = Column(JSONB, default={})
 
+    # ── Configuration Engine linkage (set only for auto-generated variants) ──
+    # config_selection is machine-keyed ({attribute.name: option.name}) so it can be
+    # re-evaluated against ProductConfigRule; attributes above stays human-readable.
+    config_selection = Column(JSONB, nullable=True)
+    variant_hash = Column(String(64), nullable=True)  # dedup key — sha256(product_id + canonical selection)
+    search_keywords = Column(Text, nullable=True)
+
     # Variant-specific media (images/videos/3D); overrides product media when set
     media = Column(JSONB, default=[])
 
@@ -245,6 +252,11 @@ class ProductVariant(Base):
     __table_args__ = (
         Index("idx_variant_product", "product_id"),
         Index("idx_variant_sku", "sku"),
+        Index(
+            "idx_variant_hash_unique", "product_id", "variant_hash",
+            unique=True,
+            postgresql_where=text("variant_hash IS NOT NULL"),
+        ),
     )
 
 

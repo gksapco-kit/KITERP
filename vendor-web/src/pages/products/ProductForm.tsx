@@ -33,24 +33,16 @@ import {
   type VariantMediaItem,
 } from '@/components/common/ImageUpload'
 import {
-  ArrowLeft, Loader2, Upload, X, ChevronDown, ChevronUp,
+  ArrowLeft, Loader2, Upload, X, ChevronDown, ChevronUp, ChevronLeft, ChevronRight,
   Package, IndianRupee, Receipt, Boxes, RotateCcw,
   Truck, Eye, Search, Settings, Download, Repeat, BarChart3,
   Layers, Link2, Plus, Trash2, Copy, ShoppingBag, Pencil, Clock,
   FileDown, Film, Box, Star, Calculator, DollarSign, MapPin,
   Calendar, Hash, Radio, Users, Globe, Tag, MessageSquare, ToggleRight,
-  Factory, Store,
+  Factory, Store, Zap,
 } from 'lucide-react'
-import { useVendorStore } from '@/stores/vendorStore'
-import {
-  buildVariantCombos,
-  GenerateVariantsButton,
-  PresetColourField,
-  PresetSizeField,
-  type GeneratedVariantCombo,
-} from '@/components/products/GenerateVariantsFromPresets'
-import { variantToUpdatePayload } from '@/lib/productVariantPresets'
-import { useProductVariantPresets } from '@/hooks/useProductVariantPresets'
+import { variantToUpdatePayload } from '@/lib/productVariants'
+import { CUSTOMER_PRICING_GROUPS } from '@/lib/customerGroups'
 import { BOMEditor } from '@/components/mrp/BOMEditor'
 import { CategoryHierarchyPicker } from '@/components/common/CategoryHierarchyPicker'
 import { collectCustomFieldsFromSelection, filterCategoryTree } from '@/lib/categoryHierarchy'
@@ -74,7 +66,7 @@ import { PRODUCT_TYPE_FILTER_OPTIONS } from '@/components/catalog/CatalogListFil
 import { BusinessUnitScopePicker, type StoreScope } from '@/components/common/BusinessUnitScopePicker'
 import type { FormSectionDef } from '@/components/common/FormSectionNav'
 import { useEffect, useState, useCallback, useRef, useMemo } from 'react'
-import { useQueryClient } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { isAxiosError } from 'axios'
 import { extractApiError } from '@/lib/errorMessages'
@@ -101,58 +93,6 @@ const optOrderLimitInt = z.preprocess(
     }),
   ]),
 )
-
-/** Placeholder name for variant row 0 when it is only the colour/size generator UI. */
-const PRESET_GENERATOR_VARIANT_NAME = '__preset_generator__'
-
-function parseVariantAttrsJson(raw: string | undefined): Record<string, string> {
-  try {
-    const parsed = raw ? JSON.parse(raw) : {}
-    return parsed && typeof parsed === 'object' ? (parsed as Record<string, string>) : {}
-  } catch {
-    return {}
-  }
-}
-
-/** Placeholder row — not a real SKU until Generate variants runs (any index if named). */
-function isPresetGeneratorVariant(
-  variant: { name?: string; attributes_json?: string } | undefined,
-  index?: number,
-): boolean {
-  if (!variant) return false
-  if (variant.name === PRESET_GENERATOR_VARIANT_NAME) return true
-  if (index !== 0) return false
-  const name = (variant.name || '').trim()
-  if (Object.keys(parseVariantAttrsJson(variant.attributes_json)).length > 0) return false
-  return !name || name === 'Variant'
-}
-
-/** Row 0 preset picker + Generate — distinct from generated SKU rows at index 1+. */
-function isVariantGeneratorRow(
-  index: number,
-  variant: { name?: string; attributes_json?: string } | undefined,
-): boolean {
-  return index === 0 && isPresetGeneratorVariant(variant, index)
-}
-
-/** 1-based display number for real SKU rows — the generator row is not counted. */
-function substantiveVariantNumber(
-  variants: Array<{ name?: string; attributes_json?: string }> | undefined,
-  index: number,
-): number | null {
-  if (!variants?.[index] || isPresetGeneratorVariant(variants[index], index)) return null
-  let n = 0
-  for (let i = 0; i <= index; i++) {
-    if (variants[i] && !isPresetGeneratorVariant(variants[i], i)) n++
-  }
-  return n
-}
-
-function defaultVariantRowName(index: number, isSubscriptionType: boolean, isGeneratorRow: boolean): string {
-  if (isSubscriptionType) return `Plan ${index + 1}`
-  if (isGeneratorRow) return PRESET_GENERATOR_VARIANT_NAME
-  return `Variant ${index + 1}`
-}
 
 const variantRowSchema = z.object({
   id: z.string().optional(),  // DB id — present for saved variants, absent for new ones
@@ -312,16 +252,7 @@ const schema = z.object({
   allow_quote_request: z.boolean().default(false),
   quote_form_config: z.any().optional(),
   // Variants
-  variants: z.array(variantRowSchema).default([]).superRefine((rows, ctx) => {
-    const substantive = rows.filter((v, i) => !isPresetGeneratorVariant(v, i))
-    if (substantive.length === 0) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: 'Select colours and sizes above, then click Generate.',
-        path: rows.length > 0 ? [0, 'name'] : [],
-      })
-    }
-  }),
+  variants: z.array(variantRowSchema).default([]),
 })
 
 type FormData = z.infer<typeof schema>
@@ -498,7 +429,7 @@ function FormTintPanel({
         <div className={cn('flex min-w-0 flex-1 flex-col', variantPanelSurfaceClass(active))}>
           {header}
           {children ? (
-            <div className="border-t border-border/25 px-2 pb-2 pt-2 sm:px-2.5">{children}</div>
+            <div className="border-t border-border/25 px-2 pb-1.5 pt-1.5 sm:px-2.5">{children}</div>
           ) : null}
         </div>
       </div>
@@ -533,24 +464,30 @@ function FormTintPanel({
 }
 
 
-/** Compact variant/plan editor — spacing-based groups, no nested boxes. */
+/** Compact variant/plan editor — dense fields for narrow product form columns. */
 const variantFormUi = {
   body: [
-    'space-y-3',
-    '[&_label]:font-medium [&_label]:text-foreground [&_label]:text-[10px] [&_label]:leading-none',
-    '[&_input:not([type=color]):not([type=hidden])]:!h-8 [&_input:not([type=color]):not([type=hidden])]:!text-xs [&_input:not([type=color]):not([type=hidden])]:!px-2',
-    '[&_select]:!h-8 [&_select]:!min-h-8 [&_select]:!text-xs [&_select]:!px-2 [&_select]:!py-0',
+    'space-y-2',
+    '[&_[data-field]]:!space-y-0.5',
+    '[&_label]:!mb-0 [&_label]:!text-[10px] [&_label]:!font-medium [&_label]:!leading-tight [&_label]:text-muted-foreground',
+    '[&_input:not([type=color]):not([type=hidden])]:!h-7 [&_input:not([type=color]):not([type=hidden])]:!min-h-7',
+    '[&_input:not([type=color]):not([type=hidden])]:!py-0 [&_input:not([type=color]):not([type=hidden])]:!text-xs',
+    '[&_input:not([type=color]):not([type=hidden])]:!px-1.5 [&_input:not([type=color]):not([type=hidden])]:!rounded-md',
+    '[&_select]:!h-7 [&_select]:!min-h-7 [&_select]:!text-xs [&_select]:!px-1.5 [&_select]:!py-0 [&_select]:!rounded-md',
+    '[&_input[type=datetime-local]]:!text-[11px] [&_input[type=datetime-local]]:!px-1 [&_input[type=datetime-local]]:!pr-7',
+    '[&_input[type=datetime-local]::-webkit-calendar-picker-indicator]:![width:0.9rem] [&_input[type=datetime-local]::-webkit-calendar-picker-indicator]:![height:0.9rem]',
   ].join(' '),
   bodyLayout:
-    'grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_12.5rem] xl:grid-cols-[minmax(0,1fr)_14rem] gap-4 lg:gap-5 lg:items-start',
-  fieldsColumn: 'min-w-0 space-y-3',
+    'grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_10.5rem] xl:grid-cols-[minmax(0,1fr)_12.5rem] gap-2.5 lg:gap-3 lg:items-start',
+  fieldsColumn: 'min-w-0 space-y-2',
   mediaColumn:
-    'min-w-0 rounded-lg border border-border/60 bg-muted/20 p-2 sm:p-2.5 lg:sticky lg:top-16',
-  grid: 'gap-2',
-  pricingGrid: 'grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6',
-  promoGrid: 'grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-3',
-  inventoryGrid: 'grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4',
-  sectionHeading: 'text-xs font-semibold text-foreground',
+    'min-w-0 rounded-md border border-border/50 bg-muted/10 p-1 sm:p-1.5 lg:sticky lg:top-16',
+  grid: 'gap-x-1.5 gap-y-1.5',
+  pricingGrid: 'grid grid-cols-3 sm:grid-cols-3 md:grid-cols-6',
+  promoGrid:
+    'grid grid-cols-[minmax(0,0.55fr)_minmax(0,0.65fr)_minmax(0,0.95fr)_minmax(0,1.2fr)_minmax(0,1.2fr)_auto]',
+  inventoryGrid: 'grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5',
+  sectionHeading: 'text-[11px] font-semibold tracking-wide text-foreground',
   sectionHint: 'text-[10px] font-normal text-muted-foreground',
 } as const
 
@@ -566,8 +503,8 @@ function VariantFormSection({
   className?: string
 }) {
   return (
-    <section className={cn('space-y-1.5', className)}>
-      <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+    <section className={cn('space-y-1', className)}>
+      <div className="flex flex-wrap items-baseline gap-x-1.5 gap-y-0">
         <h5 className={variantFormUi.sectionHeading}>{title}</h5>
         {hint ? <span className={variantFormUi.sectionHint}>{hint}</span> : null}
       </div>
@@ -591,8 +528,8 @@ function VariantMetricChip({
     loss: 'bg-red-50 text-red-700 border-red-200',
   }[tone]
   return (
-    <span className={cn('inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-medium border', toneCls)}>
-      <Icon className="w-3 h-3 shrink-0" />
+    <span className={cn('inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium border', toneCls)}>
+      <Icon className="w-2.5 h-2.5 shrink-0" />
       {children}
     </span>
   )
@@ -600,37 +537,47 @@ function VariantMetricChip({
 
 function InputWithSuffix({ suffix, className, ...props }: React.ComponentProps<typeof Input> & { suffix: string }) {
   return (
-    <div className="relative">
-      <Input className={cn('w-full pr-7', className)} {...props} />
-      <span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-xs font-medium text-muted-foreground">{suffix}</span>
+    <div className="relative min-w-0">
+      <Input className={cn('w-full pr-5', className)} {...props} />
+      <span className="pointer-events-none absolute right-1.5 top-1/2 -translate-y-1/2 text-[10px] font-medium leading-none text-muted-foreground">{suffix}</span>
     </div>
   )
 }
 
 function InputWithPrefix({ prefix, className, ...props }: React.ComponentProps<typeof Input> & { prefix: string }) {
   return (
-    <div className="relative">
-      <Input className={cn('w-full pl-7', className)} {...props} />
-      <span className="pointer-events-none absolute left-2 top-1/2 -translate-y-1/2 text-xs font-medium text-muted-foreground">{prefix}</span>
+    <div className="relative min-w-0">
+      <Input className={cn('w-full pl-5', className)} {...props} />
+      <span className="pointer-events-none absolute left-1.5 top-1/2 -translate-y-1/2 text-[10px] font-medium leading-none text-muted-foreground">{prefix}</span>
     </div>
   )
 }
 
-function Toggle({ label, checked, onChange }: {
-  label: string; checked: boolean; onChange: (v: boolean) => void
+function Toggle({ label, checked, onChange, compact }: {
+  label: string; checked: boolean; onChange: (v: boolean) => void; compact?: boolean
 }) {
   return (
-    <label className="flex cursor-pointer select-none items-center gap-2">
+    <label className={cn('flex cursor-pointer select-none items-center', compact ? 'gap-1.5' : 'gap-2')}>
       <button
         type="button"
         role="switch"
         aria-checked={checked}
         onClick={() => onChange(!checked)}
-        className={`relative inline-flex h-5 w-9 shrink-0 rounded-full border-2 border-transparent transition-colors ${checked ? 'bg-primary' : 'bg-muted'}`}
+        className={cn(
+          'relative inline-flex shrink-0 rounded-full border-2 border-transparent transition-colors',
+          compact ? 'h-4 w-7' : 'h-5 w-9',
+          checked ? 'bg-primary' : 'bg-muted',
+        )}
       >
-        <span className={`pointer-events-none inline-block h-4 w-4 rounded-full bg-background shadow-sm transform transition-transform ${checked ? 'translate-x-4' : 'translate-x-0'}`} />
+        <span
+          className={cn(
+            'pointer-events-none inline-block rounded-full bg-background shadow-sm transform transition-transform',
+            compact ? 'h-3 w-3' : 'h-4 w-4',
+            checked ? (compact ? 'translate-x-3' : 'translate-x-4') : 'translate-x-0',
+          )}
+        />
       </button>
-      <span className="text-xs text-foreground sm:text-sm">{label}</span>
+      <span className={cn('text-foreground', compact ? 'text-[11px] leading-none' : 'text-xs sm:text-sm')}>{label}</span>
     </label>
   )
 }
@@ -892,7 +839,7 @@ function VariantMediaEdit({
   }
 
   return (
-    <VariantFormSection title="Media" hint="Overrides product media · JPG, PNG, MP4, GLB">
+    <VariantFormSection title="Media" hint="Overrides product media">
       <VariantMediaUpload
         media={media}
         onUpload={uploadFile}
@@ -908,7 +855,7 @@ function VariantMediaEdit({
 
 // ── Main form ───────────────────────────────────────────────────
 
-function ProductDisplay({ product, onEdit, onEditVariant, onDeleteVariant, onBack, priceRules = [], merchMappings = [], allProducts = [] }: {
+function ProductDisplay({ product, onEdit, onEditVariant, onDeleteVariant, onBack, priceRules = [], merchMappings = [], allProducts = [], initialTab = 'basic' }: {
   product: any
   onEdit: () => void
   onEditVariant: (variantId: string) => void
@@ -917,6 +864,7 @@ function ProductDisplay({ product, onEdit, onEditVariant, onDeleteVariant, onBac
   priceRules?: any[]
   merchMappings?: Array<{ target_type: string; target_product_id: string; target_category: string; relation_type: string; bundle_id?: string; trigger_stage: string; priority: number }>
   allProducts?: Array<{ id: string; name: string; category?: string; sku?: string }>
+  initialTab?: string
 }) {
   const navigate = useNavigate()
   const symbol = product.currency === 'INR' ? '\u20B9' : '$'
@@ -931,7 +879,7 @@ function ProductDisplay({ product, onEdit, onEditVariant, onDeleteVariant, onBac
   const isSubscription = pType === 'subscription' || product.is_subscription
   const productAddons = normalizeCatalogAddons((product as { addons?: unknown }).addons)
   const changeHistory: any[] = product.change_history || []
-  const [activeViewTab, setActiveViewTab] = useState('basic')
+  const [activeViewTab, setActiveViewTab] = useState(initialTab || 'basic')
   const [confirmDeleteVariantId, setConfirmDeleteVariantId] = useState<string | null>(null)
   const [deletingVariantId, setDeletingVariantId] = useState<string | null>(null)
   const { data: storesData } = useStores()
@@ -1078,6 +1026,33 @@ function ProductDisplay({ product, onEdit, onEditVariant, onDeleteVariant, onBac
 
       {(showTab('variants') || showTab('bundle')) && (
       <>
+      {/* Variant configuration engine — available from display mode */}
+      {showTab('variants') && !isBundleView && !isSubscription && (
+        <Card>
+          <CardContent className={formDisplayCompact.cardBody}>
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div className="min-w-0">
+                <div className="flex items-center gap-2">
+                  <Layers className={formDisplayCompact.sectionHeaderIcon} />
+                  <span className={formDisplayCompact.sectionHeaderTitle}>Variant configuration</span>
+                </div>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Open the config engine to set options, compatibility rules, generate variants, and manage prices &amp; stock.
+                </p>
+              </div>
+              <Button
+                type="button"
+                size="sm"
+                className="h-8 shrink-0 gap-1.5"
+                onClick={() => navigate(`/products/${product.id}/configure`)}
+              >
+                {hasVariants ? <Zap className="h-3.5 w-3.5" /> : <Layers className="h-3.5 w-3.5" />}
+                {hasVariants ? 'Fast entry variants' : 'Configure & Manage Variants'}
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
       {/* Pricing — hide when variants carry all pricing and base is zero */}
       {(!hasVariants || hasBasePricing) && (
         <Card>
@@ -1160,12 +1135,27 @@ function ProductDisplay({ product, onEdit, onEditVariant, onDeleteVariant, onBac
       {product.variants?.length > 0 && (
         <Card>
           <CardContent className="p-4">
-            <div className="flex items-center gap-2 mb-3">
+            <div className="flex flex-wrap items-center gap-2 mb-3">
               <Layers className="w-4 h-4 text-gray-500" />
               <span className={formDisplayCompact.sectionHeaderTitle}>Variants ({product.variants.length})</span>
               <span className="ml-auto text-xs text-gray-400">
                 {product.variants.filter((v: any) => v.quantity <= (v.low_stock_threshold ?? 5)).length} low stock
               </span>
+              {!isSubscription && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="h-7 gap-1 text-xs"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    navigate(`/products/${product.id}/configure`)
+                  }}
+                >
+                  <Layers className="h-3 w-3" />
+                  Config engine
+                </Button>
+              )}
             </div>
             <table className="w-full text-xs">
               <thead>
@@ -2043,17 +2033,11 @@ function AddPriceRuleForm({ ruleType, productId, variants, onSave, onCancel, sav
             <Label className="block text-xs font-medium text-gray-600 mb-1">Customer Group <span className="text-red-500">*</span></Label>
             <select className={selectCls} value={customerGroup} onChange={e => setCustomerGroup(e.target.value)}>
               <option value="">Select group…</option>
-              <option value="wholesale">Wholesale</option>
-              <option value="retail">Retail</option>
-              <option value="vip">VIP</option>
-              <option value="employee">Employee</option>
-              <option value="distributor">Distributor</option>
-              <option value="dealer">Dealer</option>
-              <option value="agent">Agent</option>
-              <option value="institutional">Institutional</option>
-              <option value="government">Government</option>
-              <option value="custom">Custom</option>
+              {CUSTOMER_PRICING_GROUPS.map(g => (
+                <option key={g.value} value={g.value}>{g.label}</option>
+              ))}
             </select>
+            <p className="text-xs text-gray-400 mt-1">Must match the pricing group set on the customer's record for this rule to apply.</p>
           </div>
         </div>
       )}
@@ -2187,6 +2171,17 @@ function fieldPathToSection(path: string): string | null {
   return 'basic'
 }
 
+function isAutoSeededPlaceholderVariant(
+  v: { name?: string; sku?: string; barcode?: string; quantity?: number },
+  isSubscription: boolean,
+): boolean {
+  const defaultName = isSubscription ? 'Plan 1' : 'Variant 1'
+  return v.name?.trim() === defaultName
+    && !v.sku?.trim()
+    && !v.barcode?.trim()
+    && (v.quantity ?? 0) === 0
+}
+
 export default function ProductForm() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
@@ -2197,10 +2192,14 @@ export default function ProductForm() {
   const [isViewMode, setIsViewMode] = useState(!startInEditMode)
   // Pre-fill barcode from ?barcode= query param (set when navigating from a failed scan)
   const prefillBarcode = !isEdit ? (searchParams.get('barcode') || '') : ''
-  const vendorId = useVendorStore(s => s.vendor?.id)
-  const { presets: variantPresets } = useProductVariantPresets(vendorId)
 
   const { data: product, isLoading } = useProduct(id || '')
+  const { data: inventorySettings } = useQuery({
+    queryKey: ['inventory-settings'],
+    queryFn: () => vendorApi.getInventorySettings(),
+    staleTime: 60_000,
+  })
+  const autoGenerateBarcode = inventorySettings?.auto_generate_barcode !== false
   const createProduct = useCreateProduct()
   const updateProduct = useUpdateProduct()
   const deleteProduct = useDeleteProduct()
@@ -2228,9 +2227,9 @@ export default function ProductForm() {
   type StagedVariantBucket = { files: File[]; previews: string[]; primaryIndex: number }
   const [pendingVariantMedia, setPendingVariantMedia] = useState<Map<number, StagedVariantBucket>>(new Map())
 
-  const [activeTab, setActiveTab] = useState('basic')
-  const [visitedSections, setVisitedSections] = useState<Set<string>>(new Set(['basic']))
-  const [activeFormSection, setActiveFormSection] = useState<string | null>('basic')
+  const [activeTab, setActiveTab] = useState(() => searchParams.get('tab') || 'basic')
+  const [visitedSections, setVisitedSections] = useState<Set<string>>(() => new Set([searchParams.get('tab') || 'basic']))
+  const [activeFormSection, setActiveFormSection] = useState<string | null>(() => searchParams.get('tab') || 'basic')
   const toggle = (key: string) => {
     setActiveTab(key)
     setActiveFormSection(key)
@@ -2264,7 +2263,7 @@ export default function ProductForm() {
     })
   }, [])
 
-  const { fields: variantFields, append: appendVariant, prepend: prependVariant, remove: removeVariant, replace: replaceVariants } = useFieldArray({
+  const { fields: variantFields, append: appendVariant, remove: removeVariant, replace: replaceVariants } = useFieldArray({
     control,
     name: 'variants',
   })
@@ -2286,13 +2285,26 @@ export default function ProductForm() {
     }
   }, [prefillBarcode]) // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Deep-link: /products/:id?edit=true&tab=variants opens Price & Variants
+  useEffect(() => {
+    const tab = searchParams.get('tab')
+    if (!tab || isViewMode) return
+    setActiveTab(tab)
+    setActiveFormSection(tab)
+    setVisitedSections(s => new Set(s).add(tab))
+    const t = window.setTimeout(() => {
+      document.getElementById(`form-section-${tab}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    }, 80)
+    return () => window.clearTimeout(t)
+  }, [searchParams, isViewMode])
+
   const [optionRows, setOptionRows] = useState<OptionRow[]>([{ name: '', values: '', mode: 'default' }])
   const [expandedVariants, setExpandedVariants] = useState<Record<number, boolean>>({})
   const toggleVariant = (idx: number) => setExpandedVariants(p => ({ ...p, [idx]: !p[idx] }))
   const [confirmDeleteVariant, setConfirmDeleteVariant] = useState<number | null>(null)
   const [scrollToVariantIndex, setScrollToVariantIndex] = useState<number | null>(null)
-  const [generateColourIds, setGenerateColourIds] = useState<Set<string>>(new Set())
-  const [generateSizeIds, setGenerateSizeIds] = useState<Set<string>>(new Set())
+  const [variantsPage, setVariantsPage] = useState(1)
+  const [variantsPageSize, setVariantsPageSize] = useState(10)
 
   // ── Merchandising state ──
   type MerchMapping = { target_type: 'product' | 'category'; target_product_id: string; target_category: string; relation_type: 'cross_sell' | 'upsell'; bundle_id?: string; trigger_stage: 'PDP' | 'CART' | 'CHECKOUT'; priority: number }
@@ -2351,12 +2363,18 @@ export default function ProductForm() {
 
   useEffect(() => {
     if (scrollToVariantIndex == null || isViewMode) return
+    setVariantsPage(Math.floor(scrollToVariantIndex / variantsPageSize) + 1)
     const timer = window.setTimeout(() => {
       document.getElementById(`variant-panel-${scrollToVariantIndex}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
       setScrollToVariantIndex(null)
     }, 150)
     return () => window.clearTimeout(timer)
-  }, [scrollToVariantIndex, isViewMode])
+  }, [scrollToVariantIndex, isViewMode, variantsPageSize])
+
+  useEffect(() => {
+    const totalPages = Math.max(1, Math.ceil(variantFields.length / variantsPageSize))
+    if (variantsPage > totalPages) setVariantsPage(totalPages)
+  }, [variantFields.length, variantsPage, variantsPageSize])
 
   const copyVariant = (index: number) => {
     const all = getValues('variants') || []
@@ -2836,7 +2854,7 @@ export default function ProductForm() {
   ) => {
     if (mediaMap.size === 0) return
     const substantiveFormIndices = (variantRows || [])
-      .map((v, i) => (!isPresetGeneratorVariant(v, i) && v.name?.trim() ? i : -1))
+      .map((v, i) => (v.name?.trim() ? i : -1))
       .filter(i => i >= 0)
     for (const [variantIndex, bucket] of mediaMap.entries()) {
       const payloadIdx = substantiveFormIndices.indexOf(variantIndex)
@@ -2858,172 +2876,211 @@ export default function ProductForm() {
     }
   }
 
+  const persistProduct = useCallback(async (
+    raw: FormData,
+    opts?: { omitPlaceholderVariants?: boolean },
+  ): Promise<Product | null> => {
+    const {
+      variants: variantRows,
+      show_lifecycle: _sl,
+      show_return_warranty: _srw,
+      return_warranty_per_variant: _rwpv,
+      ...rest
+    } = raw as FormData & { show_lifecycle?: boolean; show_return_warranty?: boolean; return_warranty_per_variant?: boolean }
+
+    const data: Record<string, unknown> = { ...rest }
+    data.tags = raw.tags ? raw.tags.split(',').map(t => t.trim()).filter(Boolean) : []
+    data.meta_keywords = raw.meta_keywords ? raw.meta_keywords.split(',').map(t => t.trim()).filter(Boolean) : []
+    data.attributes = parseJsonField(raw.attributes) || {}
+    data.specifications = parseJsonField(raw.specifications) || {}
+    data.custom_fields = parseJsonField(raw.custom_fields) || {}
+
+    let substantiveVariants = (variantRows || []).filter(v => v.name?.trim())
+    if (opts?.omitPlaceholderVariants && !isEdit) {
+      substantiveVariants = substantiveVariants.filter(
+        v => !isAutoSeededPlaceholderVariant(v, isSubscriptionType),
+      )
+    }
+
+    data.variants = substantiveVariants
+      .map(v => ({
+        id: v.id || undefined,
+        name: v.name.trim(),
+        sku: v.sku?.trim() || undefined,
+        barcode: v.barcode?.trim() || undefined,
+        uom: v.uom || 'piece',
+        uom_quantity: v.uom_quantity ?? undefined,
+        price_type: v.price_type || 'per_unit',
+        price: v.price,
+        compare_at_price: v.compare_at_price,
+        cost_price: v.cost_price,
+        currency: v.currency || 'INR',
+        discount_percentage: v.discount_percentage,
+        discount_amount: v.discount_amount,
+        offer_label: v.offer_label?.trim() || undefined,
+        is_on_sale: v.is_on_sale ?? false,
+        is_taxable: v.is_taxable ?? true,
+        tax_rate: v.tax_rate,
+        hsn_code: v.hsn_code?.trim() || undefined,
+        gst_rate: v.gst_rate,
+        quantity: v.quantity ?? 0,
+        low_stock_threshold: v.low_stock_threshold ?? 5,
+        stock_status: v.stock_status || 'in_stock',
+        reorder_point: v.reorder_point,
+        reorder_quantity: v.reorder_quantity,
+        allow_backorders: v.allow_backorders ?? false,
+        track_inventory: v.track_inventory ?? true,
+        max_quantity_per_order: v.max_quantity_per_order ?? undefined,
+        min_quantity_per_order: v.min_quantity_per_order ?? undefined,
+        weight_kg: v.weight_kg ?? undefined,
+        expiration_date: v.expiration_date || undefined,
+        manufacture_date: v.manufacture_date || undefined,
+        best_before_date: v.best_before_date || undefined,
+        warranty_period_days: v.warranty_period_days ?? undefined,
+        warranty_type: v.warranty_type || undefined,
+        is_returnable: v.is_returnable ?? true,
+        return_days: v.return_days ?? undefined,
+        refund_policy: v.refund_policy || undefined,
+        return_policy: v.return_policy || undefined,
+        return_conditions: v.return_conditions || undefined,
+        color: v.color || undefined,
+        attributes: (parseJsonField(v.attributes_json) as Record<string, unknown>) || {},
+        subscription_interval: v.subscription_interval || undefined,
+        subscription_trial_days: v.subscription_trial_days ?? undefined,
+        subscription_setup_fee: v.subscription_setup_fee ?? undefined,
+        subscription_billing_cycles: v.subscription_billing_cycles ?? undefined,
+        subscription_schedule_modes: v.subscription_schedule_modes?.length ? v.subscription_schedule_modes : undefined,
+        is_active: v.is_active ?? true,
+      }))
+
+    if (raw.product_type === 'digital') data.is_digital = true
+    if (raw.product_type === 'bundle') data.is_digital = true
+    if (raw.product_type === 'subscription') {
+      data.is_subscription = true
+      const firstActiveVariant = (data.variants as Array<{ is_active?: boolean; price?: number; subscription_interval?: string; subscription_trial_days?: number; subscription_setup_fee?: number; subscription_billing_cycles?: number }> || []).find(v => v.is_active !== false && v.price != null && Number(v.price) > 0)
+      if (firstActiveVariant) {
+        data.subscription_price = Number(firstActiveVariant.price)
+        data.subscription_interval = firstActiveVariant.subscription_interval || data.subscription_interval
+        data.subscription_trial_days = firstActiveVariant.subscription_trial_days ?? data.subscription_trial_days
+        data.subscription_setup_fee = firstActiveVariant.subscription_setup_fee ?? data.subscription_setup_fee
+        data.subscription_billing_cycles = firstActiveVariant.subscription_billing_cycles ?? data.subscription_billing_cycles
+      }
+    }
+    if (raw.product_type === 'bundle') data.related_product_ids = bundleItemIds
+
+    data.addons = serializeCatalogAddons(productAddons)
+
+    if (catalogStoreScope === 'selected' && catalogStoreIds.length === 0) {
+      toast.error('Select at least one business unit, or choose All business units.')
+      openAndScrollTo('visibility')
+      return null
+    }
+    data.store_scope = catalogStoreScope
+    data.store_ids = catalogStoreScope === 'selected' ? catalogStoreIds : []
+
+    if (raw.allow_quote_request) {
+      data.quote_form_config = quoteFields.filter(f => f.enabled).map(({ key, label, type, required, enabled, placeholder, options }) => ({
+        key, label, type, required, enabled, placeholder, ...(options?.length ? { options } : {}),
+      }))
+    } else {
+      data.quote_form_config = null
+    }
+
+    for (const k of Object.keys(data)) {
+      if (data[k] === '' || data[k] === undefined) delete data[k]
+    }
+
+    const syncMerch = async (productId: string) => {
+      try {
+        const mappings = merchMappings
+          .filter(m => m.target_type === 'category' ? !!m.target_category : !!m.target_product_id)
+          .map(m => ({
+            target_type: m.target_type,
+            target_product_id: m.target_type === 'product' ? m.target_product_id : undefined,
+            target_category: m.target_type === 'category' ? m.target_category : undefined,
+            relation_type: m.relation_type,
+            bundle_id: m.bundle_id || undefined,
+            trigger_stage: m.trigger_stage,
+            priority: m.priority,
+          }))
+        if (mappings.length > 0 || isEdit) {
+          await vendorApi.syncProductMerchandising(productId, { mappings })
+        }
+      } catch { /* best-effort */ }
+    }
+
+    const productName = String(data.name || '').trim()
+    if (productName) {
+      const nameTaken = allProducts.some(
+        (p) => p.name.trim().toLowerCase() === productName.toLowerCase() && (!isEdit || p.id !== id),
+      )
+      if (nameTaken) {
+        toast.error('A product with this name already exists')
+        return null
+      }
+    }
+
+    if (isEdit) {
+      const updatedProduct = await updateProduct.mutateAsync({ id: id!, data })
+      await syncMerch(id!)
+      await flushStagedVariantMedia(updatedProduct, substantiveVariants, pendingVariantMedia)
+      setPendingVariantMedia(new Map())
+      return updatedProduct as Product
+    }
+
+    const newProduct = await createProduct.mutateAsync(
+      { data, images: pendingFiles.length > 0 ? pendingFiles : undefined, primaryImageIndex: pendingPrimaryIndex },
+    )
+    await syncMerch(newProduct.id)
+    await flushStagedVariantMedia(newProduct, substantiveVariants, pendingVariantMedia)
+    setPendingVariantMedia(new Map())
+    setPendingFiles([])
+    setPendingPreviews([])
+    setPendingPrimaryIndex(0)
+    return newProduct as Product
+  }, [
+    allProducts, bundleItemIds, catalogStoreIds, catalogStoreScope, createProduct,
+    id, isEdit, isSubscriptionType, merchMappings, openAndScrollTo, pendingFiles, pendingPrimaryIndex,
+    pendingVariantMedia, productAddons, quoteFields, updateProduct,
+  ])
+
   const onSubmit = async (raw: FormData) => {
     try {
-      const {
-        variants: variantRows,
-        show_lifecycle: _sl,
-        show_return_warranty: _srw,
-        return_warranty_per_variant: _rwpv,
-        ...rest
-      } = raw as FormData & { show_lifecycle?: boolean; show_return_warranty?: boolean; return_warranty_per_variant?: boolean }
-
-      const data: Record<string, unknown> = { ...rest }
-      data.tags = raw.tags ? raw.tags.split(',').map(t => t.trim()).filter(Boolean) : []
-      data.meta_keywords = raw.meta_keywords ? raw.meta_keywords.split(',').map(t => t.trim()).filter(Boolean) : []
-      data.attributes = parseJsonField(raw.attributes) || {}
-      data.specifications = parseJsonField(raw.specifications) || {}
-      data.custom_fields = parseJsonField(raw.custom_fields) || {}
-
-      data.variants = (variantRows || [])
-        .filter((v, i) => v.name?.trim() && !isPresetGeneratorVariant(v, i))
-        .map(v => ({
-          id: v.id || undefined,
-          name: v.name.trim(),
-          sku: v.sku?.trim() || undefined,
-          barcode: v.barcode?.trim() || undefined,
-          uom: v.uom || 'piece',
-          uom_quantity: v.uom_quantity ?? undefined,
-          price_type: v.price_type || 'per_unit',
-          price: v.price,
-          compare_at_price: v.compare_at_price,
-          cost_price: v.cost_price,
-          currency: v.currency || 'INR',
-          discount_percentage: v.discount_percentage,
-          discount_amount: v.discount_amount,
-          offer_label: v.offer_label?.trim() || undefined,
-          is_on_sale: v.is_on_sale ?? false,
-          is_taxable: v.is_taxable ?? true,
-          tax_rate: v.tax_rate,
-          hsn_code: v.hsn_code?.trim() || undefined,
-          gst_rate: v.gst_rate,
-          quantity: v.quantity ?? 0,
-          low_stock_threshold: v.low_stock_threshold ?? 5,
-          stock_status: v.stock_status || 'in_stock',
-          reorder_point: v.reorder_point,
-          reorder_quantity: v.reorder_quantity,
-          allow_backorders: v.allow_backorders ?? false,
-          track_inventory: v.track_inventory ?? true,
-          max_quantity_per_order: v.max_quantity_per_order ?? undefined,
-          min_quantity_per_order: v.min_quantity_per_order ?? undefined,
-          weight_kg: v.weight_kg ?? undefined,
-          expiration_date: v.expiration_date || undefined,
-          manufacture_date: v.manufacture_date || undefined,
-          best_before_date: v.best_before_date || undefined,
-          warranty_period_days: v.warranty_period_days ?? undefined,
-          warranty_type: v.warranty_type || undefined,
-          is_returnable: v.is_returnable ?? true,
-          return_days: v.return_days ?? undefined,
-          refund_policy: v.refund_policy || undefined,
-          return_policy: v.return_policy || undefined,
-          return_conditions: v.return_conditions || undefined,
-          color: v.color || undefined,
-          attributes: (parseJsonField(v.attributes_json) as Record<string, unknown>) || {},
-          subscription_interval: v.subscription_interval || undefined,
-          subscription_trial_days: v.subscription_trial_days ?? undefined,
-          subscription_setup_fee: v.subscription_setup_fee ?? undefined,
-          subscription_billing_cycles: v.subscription_billing_cycles ?? undefined,
-          subscription_schedule_modes: v.subscription_schedule_modes?.length ? v.subscription_schedule_modes : undefined,
-          is_active: v.is_active ?? true,
-        }))
-
-      // Auto-set type flags from product_type
-      if (raw.product_type === 'digital') data.is_digital = true
-      if (raw.product_type === 'bundle')  data.is_digital = true
-      if (raw.product_type === 'subscription') {
-        data.is_subscription = true
-        // Derive product-level subscription fields from the first active variant for backward compat
-        const firstActiveVariant = (data.variants as Array<{ is_active?: boolean; price?: number; subscription_interval?: string; subscription_trial_days?: number; subscription_setup_fee?: number; subscription_billing_cycles?: number }> || []).find(v => v.is_active !== false && v.price != null && Number(v.price) > 0)
-        if (firstActiveVariant) {
-          data.subscription_price = Number(firstActiveVariant.price)
-          data.subscription_interval = firstActiveVariant.subscription_interval || data.subscription_interval
-          data.subscription_trial_days = firstActiveVariant.subscription_trial_days ?? data.subscription_trial_days
-          data.subscription_setup_fee = firstActiveVariant.subscription_setup_fee ?? data.subscription_setup_fee
-          data.subscription_billing_cycles = firstActiveVariant.subscription_billing_cycles ?? data.subscription_billing_cycles
-        }
-      }
-      // Bundle items stored as related_product_ids
-      if (raw.product_type === 'bundle') data.related_product_ids = bundleItemIds
-
-      data.addons = serializeCatalogAddons(productAddons)
-
-      if (catalogStoreScope === 'selected' && catalogStoreIds.length === 0) {
-        toast.error('Select at least one business unit, or choose All business units.')
-        openAndScrollTo('visibility')
-        return
-      }
-      data.store_scope = catalogStoreScope
-      data.store_ids = catalogStoreScope === 'selected' ? catalogStoreIds : []
-
-      // Include quote form config; explicitly clear when disabled
-      if (raw.allow_quote_request) {
-        data.quote_form_config = quoteFields.filter(f => f.enabled).map(({ key, label, type, required, enabled, placeholder, options }) => ({
-          key, label, type, required, enabled, placeholder, ...(options?.length ? { options } : {}),
-        }))
-      } else {
-        data.quote_form_config = null
-      }
-
-      // Strip empty strings so the backend gets null instead
-      for (const k of Object.keys(data)) {
-        if (data[k] === '' || data[k] === undefined) delete data[k]
-      }
-
-      const syncMerch = async (productId: string) => {
-        try {
-          const mappings = merchMappings
-            .filter(m => m.target_type === 'category' ? !!m.target_category : !!m.target_product_id)
-            .map(m => ({
-              target_type: m.target_type,
-              target_product_id: m.target_type === 'product' ? m.target_product_id : undefined,
-              target_category: m.target_type === 'category' ? m.target_category : undefined,
-              relation_type: m.relation_type,
-              bundle_id: m.bundle_id || undefined,
-              trigger_stage: m.trigger_stage,
-              priority: m.priority,
-            }))
-          if (mappings.length > 0 || isEdit) {
-            await vendorApi.syncProductMerchandising(productId, { mappings })
-          }
-        } catch { /* best-effort */ }
-      }
-
-      const productName = String(data.name || '').trim()
-      if (productName) {
-        const nameTaken = allProducts.some(
-          (p) => p.name.trim().toLowerCase() === productName.toLowerCase() && (!isEdit || p.id !== id),
-        )
-        if (nameTaken) {
-          toast.error('A product with this name already exists')
-          return
-        }
-      }
-
-      if (isEdit) {
-        const updatedProduct = await updateProduct.mutateAsync({ id: id!, data })
-        await syncMerch(id!)
-        await flushStagedVariantMedia(updatedProduct, variantRows, pendingVariantMedia)
-        setPendingVariantMedia(new Map())
-        navigate('/products')
-      } else {
-        const newProduct = await createProduct.mutateAsync(
-          { data, images: pendingFiles.length > 0 ? pendingFiles : undefined, primaryImageIndex: pendingPrimaryIndex }
-        )
-        await syncMerch(newProduct.id)
-        await flushStagedVariantMedia(newProduct, variantRows, pendingVariantMedia)
-        setPendingVariantMedia(new Map())
-        setPendingFiles([])
-        setPendingPreviews([])
-        setPendingPrimaryIndex(0)
-        navigate('/products')
-      }
+      const saved = await persistProduct(raw)
+      if (!saved) return
+      navigate('/products')
     } catch (err) {
-      // Mutations already toast via apiError(); avoid duplicate “Request failed with status code …”
       if (!isAxiosError(err)) {
         toast.error(extractApiError(err, 'Submit failed'))
       }
     }
   }
+
+  const [isOpeningVariantConfig, setIsOpeningVariantConfig] = useState(false)
+
+  const handleOpenVariantConfig = handleSubmit(async (raw) => {
+    try {
+      setIsOpeningVariantConfig(true)
+      const saved = await persistProduct(raw, { omitPlaceholderVariants: !isEdit })
+      if (!saved) return
+      const hasRealVariants = (raw.variants || []).some(
+        v => v.name?.trim() && (!isEdit || !isAutoSeededPlaceholderVariant(v, isSubscriptionType)),
+      )
+      qc.invalidateQueries({ queryKey: ['vendor', 'product', saved.id] })
+      navigate(
+        isEdit && hasRealVariants
+          ? `/products/${saved.id}/configure?view=manage`
+          : `/products/${saved.id}/configure?from=create`,
+        { replace: !isEdit },
+      )
+    } catch (err) {
+      if (!isAxiosError(err)) {
+        toast.error(extractApiError(err, 'Could not open variant setup'))
+      }
+    } finally {
+      setIsOpeningVariantConfig(false)
+    }
+  }, onFormInvalid)
 
   const handleUpload = useCallback(async (file: File) => {
     if (!id) return
@@ -3202,13 +3259,8 @@ export default function ProductForm() {
       return
     }
     if (variantFields.length === 0 && !createVariantSeeded.current) {
-      const hasPresets = variantPresets.colours.length > 0 || variantPresets.sizes.length > 0
       appendVariant(makeVariantDefaults(
-        isSubscriptionType
-          ? 'Plan 1'
-          : hasPresets
-            ? PRESET_GENERATOR_VARIANT_NAME
-            : 'Variant',
+        isSubscriptionType ? 'Plan 1' : 'Variant 1',
         {},
       ))
       setExpandedVariants({ 0: true })
@@ -3216,7 +3268,7 @@ export default function ProductForm() {
       createVariantSeeded.current = true
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps -- seed once per create session; makeVariantDefaults is stable enough for our guards
-  }, [isEdit, isBundleType, variantFields.length, isSubscriptionType, variantPresets.colours.length, variantPresets.sizes.length])
+  }, [isEdit, isBundleType, variantFields.length, isSubscriptionType])
 
   useEffect(() => {
     if (isEdit || isBundleType || variantFields.length !== 1) return
@@ -3227,149 +3279,6 @@ export default function ProductForm() {
       setValue('variants.0.subscription_interval', 'monthly')
     }
   }, [isSubscriptionType, isEdit, isBundleType, variantFields.length, getValues, setValue])
-
-  // Keep variant 1 generator row name stable until Generate runs.
-  useEffect(() => {
-    if (isEdit || isSubscriptionType || isBundleType) return
-    const hasPresets = variantPresets.colours.length > 0 || variantPresets.sizes.length > 0
-    if (!hasPresets || variantFields.length === 0) return
-    const v0 = getValues('variants.0')
-    if (!v0 || !isPresetGeneratorVariant(v0, 0)) return
-    if (v0.name !== PRESET_GENERATOR_VARIANT_NAME) {
-      setValue('variants.0.name', PRESET_GENERATOR_VARIANT_NAME, { shouldValidate: false })
-    }
-  }, [
-    isEdit,
-    isSubscriptionType,
-    isBundleType,
-    variantFields.length,
-    variantPresets.colours.length,
-    variantPresets.sizes.length,
-    getValues,
-    setValue,
-  ])
-
-  // Restore variant 1 generator row if all variants were removed.
-  useEffect(() => {
-    if (isEdit || isSubscriptionType || isBundleType) return
-    const hasPresets = variantPresets.colours.length > 0 || variantPresets.sizes.length > 0
-    if (!hasPresets || variantFields.length === 0) return
-    const rows = getValues('variants') || []
-    const hasGenerator = rows.some((v: { name?: string; attributes_json?: string }, i: number) =>
-      isVariantGeneratorRow(i, v),
-    )
-    const substantiveCount = rows.filter(
-      (v: { name?: string; attributes_json?: string }, i: number) =>
-        !isPresetGeneratorVariant(v, i) && Boolean((v.name || '').trim()),
-    ).length
-    if (!hasGenerator && substantiveCount === 0) {
-      prependVariant(makeVariantDefaults(PRESET_GENERATOR_VARIANT_NAME, {}))
-      setExpandedVariants({ 0: true })
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps -- only when row count / presets change
-  }, [isEdit, isSubscriptionType, isBundleType, variantFields.length, variantPresets.colours.length, variantPresets.sizes.length])
-
-  const applyVariantPresetSelection = useCallback((
-    index: number,
-    colourIds: Set<string>,
-    sizeIds: Set<string>,
-  ) => {
-    const colours = variantPresets.colours.filter(c => colourIds.has(c.id))
-    const sizes = variantPresets.sizes.filter(s => sizeIds.has(s.id))
-    const combos = buildVariantCombos(colours, sizes)
-    if (combos.length === 0) {
-      setValue(
-        `variants.${index}.name`,
-        isSubscriptionType ? `Plan ${index + 1}` : `Variant ${index + 1}`,
-        { shouldDirty: true },
-      )
-      setValue(`variants.${index}.attributes_json`, '{}', { shouldDirty: true })
-      return
-    }
-    const combo = combos[0]
-    setValue(`variants.${index}.name`, combo.name, { shouldDirty: true })
-    setValue(`variants.${index}.attributes_json`, JSON.stringify(combo.attrs), { shouldDirty: true })
-    if (combo.colorHex) {
-      setValue(`variants.${index}.color`, combo.colorHex, { shouldDirty: true })
-    }
-  }, [isSubscriptionType, setValue, variantPresets.colours, variantPresets.sizes])
-
-  const handleGenerateFromPresets = (combos: GeneratedVariantCombo[]) => {
-    if (combos.length === 0) {
-      toast.error('Select at least one colour or size')
-      return
-    }
-
-    const currentRows = getValues('variants') || []
-    const generatorIndex = currentRows.findIndex(
-      (v: { name?: string; attributes_json?: string }, i: number) => isVariantGeneratorRow(i, v),
-    )
-    const substantiveRows = currentRows.filter(
-      (v: { name?: string; attributes_json?: string }, i: number) => !isPresetGeneratorVariant(v, i),
-    )
-    const existingNames = new Set(
-      substantiveRows
-        .map((v: { name?: string }) => (v.name || '').toLowerCase().trim())
-        .filter(Boolean),
-    )
-
-    const toAdd: GeneratedVariantCombo[] = []
-    let skipped = 0
-    for (const combo of combos) {
-      const key = combo.name.toLowerCase().trim()
-      if (existingNames.has(key)) { skipped++; continue }
-      existingNames.add(key)
-      toAdd.push(combo)
-    }
-
-    if (toAdd.length === 0) {
-      if (skipped > 0) toast.info(`All ${skipped} variant(s) already exist — nothing added`)
-      return
-    }
-
-    const comboToRow = (combo: GeneratedVariantCombo, keepId?: string) => {
-      const row = makeVariantDefaults(combo.name, combo.attrs)
-      if (combo.colorHex) row.color = combo.colorHex
-      if (keepId) row.id = keepId
-      return row
-    }
-
-    let nextRows: typeof currentRows
-    const expanded: Record<number, boolean> = {}
-
-    if (generatorIndex >= 0) {
-      const keepId = currentRows[generatorIndex]?.id as string | undefined
-      const mergedFirst = comboToRow(toAdd[0], keepId)
-      const appended = toAdd.slice(1).map(c => comboToRow(c))
-      const tailSubstantive = currentRows
-        .slice(generatorIndex + 1)
-        .filter((v: { name?: string; attributes_json?: string }, i: number) =>
-          !isPresetGeneratorVariant(v, generatorIndex + 1 + i),
-        )
-      nextRows = [
-        ...currentRows.slice(0, generatorIndex),
-        mergedFirst,
-        ...appended,
-        ...tailSubstantive,
-      ]
-      expanded[generatorIndex] = true
-      for (let i = 0; i < appended.length; i++) expanded[generatorIndex + 1 + i] = true
-    } else {
-      nextRows = [...substantiveRows, ...toAdd.map(c => comboToRow(c))]
-      for (let i = 0; i < toAdd.length; i++) expanded[substantiveRows.length + i] = true
-    }
-
-    replaceVariants(nextRows)
-    setExpandedVariants(p => ({ ...p, ...expanded }))
-    setGenerateColourIds(new Set())
-    setGenerateSizeIds(new Set())
-
-    if (skipped > 0) {
-      toast.success(`Added ${toAdd.length} variant(s), skipped ${skipped} duplicate(s)`)
-    } else {
-      toast.success(`Added ${toAdd.length} variant row(s)`)
-    }
-  }
 
   const formValues = watch()
   const productSections: FormSectionDef[] = useMemo(() => [
@@ -3426,13 +3335,22 @@ export default function ProductForm() {
     return (
       <ProductDisplay
         product={product}
-        onEdit={() => setIsViewMode(false)}
+        onEdit={() => {
+          setIsViewMode(false)
+          const tab = searchParams.get('tab')
+          if (tab) {
+            setActiveTab(tab)
+            setActiveFormSection(tab)
+            setVisitedSections(s => new Set(s).add(tab))
+          }
+        }}
         onEditVariant={openVariantEditor}
         onDeleteVariant={deleteVariantById}
         onBack={() => navigate('/products')}
         priceRules={priceRules as any[]}
         merchMappings={merchMappings}
         allProducts={allProducts}
+        initialTab={searchParams.get('tab') || 'basic'}
       />
     )
   }
@@ -3688,15 +3606,38 @@ export default function ProductForm() {
                 <p className="text-xs text-muted-foreground">
                   {isSubscriptionType
                     ? 'Each plan has its own pricing, stock, and media.'
-                    : (variantPresets.colours.length > 0 || variantPresets.sizes.length > 0)
-                      ? 'Pick colours & sizes in variant 1, then Generate — variants are numbered 1, 2, 3…'
-                      : 'Add variants and set pricing, stock, and media for each.'}
+                    : isEdit
+                      ? 'Add variants manually, or use Fast entry variants for prices & stock in bulk.'
+                      : 'Add variants manually, or open Configure & Manage Variants to set up options in bulk (saves the product first).'}
                 </p>
+                <div className="flex shrink-0 gap-2 self-end sm:self-auto">
+                {!isSubscriptionType && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    disabled={isOpeningVariantConfig || isSaving}
+                    onClick={() => void handleOpenVariantConfig()}
+                    title={variantFields.length > 0
+                      ? 'Fast-edit variant prices, stock, SKUs, and activation'
+                      : isEdit
+                        ? 'Define configurable attributes, IF/THEN rules, generate variants in bulk, and manage every variant in a grid'
+                        : 'Save this product and open the guided variant setup wizard'}
+                  >
+                    {(isOpeningVariantConfig || isSaving) ? (
+                      <Loader2 className="w-4 h-4 mr-1 animate-spin" />
+                    ) : variantFields.length > 0 ? (
+                      <Zap className="w-4 h-4 mr-1" />
+                    ) : (
+                      <Layers className="w-4 h-4 mr-1" />
+                    )}
+                    {variantFields.length > 0 ? 'Fast entry variants' : 'Configure & Manage Variants'}
+                  </Button>
+                )}
                 <Button
                   type="button"
                   variant="outline"
                   size="sm"
-                  className="shrink-0 self-end sm:self-auto"
                   onClick={() => {
                     const nextIndex = (getValues('variants') || []).length
                     appendVariant(makeVariantDefaults(
@@ -3704,25 +3645,35 @@ export default function ProductForm() {
                       {},
                     ))
                     setExpandedVariants(p => ({ ...p, [nextIndex]: true }))
+                    setVariantsPage(Math.floor(nextIndex / variantsPageSize) + 1)
                   }}
                 >
                   <Plus className="w-4 h-4 mr-1" />{isSubscriptionType ? 'Add plan' : 'Add variant'}
                 </Button>
+                </div>
               </div>
             </div>
 
-            <div className="flex flex-col gap-3 sm:gap-4">
+            <div className="flex flex-col gap-2 sm:gap-2.5">
             {variantFields.length === 0 ? (
               <p className="rounded-lg bg-muted/25 py-4 text-center text-xs text-gray-500 sm:text-sm">
                 {isSubscriptionType
                   ? 'No plans yet — use Add plan to define pricing.'
-                  : (variantPresets.colours.length > 0 || variantPresets.sizes.length > 0)
-                    ? 'Pick colours and sizes in variant 1, then click Generate.'
-                    : 'No variants yet — use Add variant or pick colours & sizes first.'}
+                  : isEdit
+                    ? 'No variants yet — use Add variant, or open Configure & Manage Variants for bulk generation.'
+                    : 'No variants yet — use Add variant, or Configure & Manage Variants to set up options in bulk.'}
               </p>
             ) : (
               <>
-                {variantFields.map((vf, index) => {
+                {(() => {
+                  const totalPages = Math.max(1, Math.ceil(variantFields.length / variantsPageSize))
+                  const safePage = Math.min(variantsPage, totalPages)
+                  const pageStart = (safePage - 1) * variantsPageSize
+                  const pageFields = variantFields.slice(pageStart, pageStart + variantsPageSize)
+                  return (
+                    <>
+                {pageFields.map((vf, i) => {
+                  const index = pageStart + i
                   const isActive = watch(`variants.${index}.is_active`)
                   const isExpanded = expandedVariants[index] ?? false
                   const variantName = watch(`variants.${index}.name`)
@@ -3737,19 +3688,7 @@ export default function ProductForm() {
                   const vCurrency = watch(`variants.${index}.currency`) || 'INR'
                   const vCurrSym = CURRENCY_SYMBOLS[vCurrency] || '₹'
                   const vPackLabel = formatUomDisplay(vUomQty, vUom)
-                  let rowAttrs: Record<string, string> = {}
-                  try {
-                    const rawAttrs = watch(`variants.${index}.attributes_json`) as string | undefined
-                    rowAttrs = rawAttrs ? JSON.parse(rawAttrs) : {}
-                  } catch { /* ignore */ }
-                  const rowColourId = variantPresets.colours.find(c => c.name === rowAttrs.Color)?.id
-                  const rowSizeId = variantPresets.sizes.find(s => s.size === rowAttrs.Size)?.id
-                  const hasVariantPresets = variantPresets.colours.length > 0 || variantPresets.sizes.length > 0
-                  const isGeneratorRow = !isSubscriptionType && isVariantGeneratorRow(index, {
-                    name: variantName,
-                    attributes_json: watch(`variants.${index}.attributes_json`) as string | undefined,
-                  })
-                  const variantDisplayNum = substantiveVariantNumber(watchedVariants, index) ?? index + 1
+                  const variantDisplayNum = index + 1
                   return (
                   <FormTintPanel
                     key={vf.id}
@@ -3764,15 +3703,15 @@ export default function ProductForm() {
                     header={
                     <div
                       className={cn(
-                        'flex flex-wrap items-center justify-between gap-x-2 gap-y-1.5 px-2 py-2 sm:px-2.5 cursor-pointer select-none',
+                        'flex flex-wrap items-center justify-between gap-x-2 gap-y-1 px-2 py-1.5 sm:px-2.5 cursor-pointer select-none',
                         isActive ? 'hover:bg-muted/30' : 'hover:bg-muted/20',
                       )}
                       onClick={() => toggleVariant(index)}
                     >
-                      <div className="flex min-w-0 flex-1 items-end gap-2">
+                      <div className="flex min-w-0 flex-1 items-center gap-1.5">
                         <span
                           className={cn(
-                            'inline-flex items-center justify-center w-6 h-6 rounded-full text-xs font-bold text-white shrink-0 self-center',
+                            'inline-flex items-center justify-center w-5 h-5 rounded-full text-[10px] font-bold text-white shrink-0',
                             !isActive && 'bg-gray-400',
                           )}
                           style={isActive ? { backgroundColor: uiAccent } : undefined}
@@ -3789,74 +3728,12 @@ export default function ProductForm() {
                             onFocus={e => e.stopPropagation()}
                             placeholder={`Plan ${index + 1}`}
                             className={cn(
-                              'h-8 min-w-[7rem] max-w-[12rem] flex-1 text-sm font-semibold',
+                              'h-7 min-w-[6.5rem] max-w-[11rem] flex-1 text-xs font-semibold',
                               'bg-background border-border text-foreground',
                               !isActive && 'text-muted-foreground',
                             )}
                             style={isActive && !lightAccent ? { color: uiAccent } : undefined}
                           />
-                        ) : hasVariantPresets ? (
-                          isGeneratorRow ? (
-                            <div
-                              className="flex flex-wrap items-end gap-2 sm:gap-3 shrink-0"
-                              onClick={e => e.stopPropagation()}
-                            >
-                              <PresetColourField
-                                vendorId={vendorId}
-                                selectedIds={generateColourIds}
-                                pairCount={generateSizeIds.size > 0 ? generateSizeIds.size : undefined}
-                                onSelectedIdsChange={setGenerateColourIds}
-                                multiple
-                                idSuffix={`-gen-${index}`}
-                              />
-                              <PresetSizeField
-                                vendorId={vendorId}
-                                selectedIds={generateSizeIds}
-                                onSelectedIdsChange={setGenerateSizeIds}
-                                multiple
-                                idSuffix={`-gen-${index}`}
-                              />
-                              <GenerateVariantsButton
-                                vendorId={vendorId}
-                                selectedColourIds={generateColourIds}
-                                selectedSizeIds={generateSizeIds}
-                                onGenerate={handleGenerateFromPresets}
-                                prominent
-                              />
-                            </div>
-                          ) : (
-                          <div
-                            className="flex items-stretch gap-3 sm:gap-4 flex-nowrap shrink-0"
-                            onClick={e => e.stopPropagation()}
-                          >
-                            <PresetColourField
-                              vendorId={vendorId}
-                              selectedIds={new Set(rowColourId ? [rowColourId] : [])}
-                              onSelectedIdsChange={(ids) => {
-                                applyVariantPresetSelection(
-                                  index,
-                                  ids,
-                                  new Set(rowSizeId ? [rowSizeId] : []),
-                                )
-                              }}
-                              multiple={false}
-                              idSuffix={`-row-${index}`}
-                            />
-                            <PresetSizeField
-                              vendorId={vendorId}
-                              selectedIds={new Set(rowSizeId ? [rowSizeId] : [])}
-                              onSelectedIdsChange={(ids) => {
-                                applyVariantPresetSelection(
-                                  index,
-                                  new Set(rowColourId ? [rowColourId] : []),
-                                  ids,
-                                )
-                              }}
-                              multiple={false}
-                              idSuffix={`-row-${index}`}
-                            />
-                          </div>
-                          )
                         ) : (
                           <Input
                             {...register(`variants.${index}.name`, {
@@ -3869,35 +3746,18 @@ export default function ProductForm() {
                             onFocus={e => e.stopPropagation()}
                             placeholder={`Variant ${index + 1}`}
                             className={cn(
-                              'h-8 min-w-[7rem] max-w-[12rem] flex-1 text-sm font-semibold',
+                              'h-7 min-w-[6.5rem] max-w-[11rem] flex-1 text-xs font-semibold',
                               'bg-background border-border text-foreground',
                               !isActive && 'text-muted-foreground',
                             )}
                             style={isActive && !lightAccent ? { color: uiAccent } : undefined}
                           />
                         )}
-                        {hasVariantPresets && !isSubscriptionType && (
-                          <Controller
-                            name={`variants.${index}.name`}
-                            control={control}
-                            render={({ field }) => (
-                              <input
-                                type="hidden"
-                                {...field}
-                                value={
-                                  field.value?.trim()
-                                  || variantName?.trim()
-                                  || `Variant ${variantDisplayNum}`
-                                }
-                              />
-                            )}
-                          />
-                        )}
                         {!isActive && (
-                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-muted text-muted-foreground shrink-0">Inactive</span>
+                          <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-medium bg-muted text-muted-foreground shrink-0">Inactive</span>
                         )}
-                        {!isExpanded && !isGeneratorRow && (
-                          <span className="hidden sm:inline-flex items-center gap-2 text-xs text-muted-foreground shrink-0">
+                        {!isExpanded && (
+                          <span className="hidden sm:inline-flex items-center gap-1.5 text-[11px] text-muted-foreground shrink-0">
                             <span className="font-medium text-foreground tabular-nums">{vCurrSym}{vPrice.toLocaleString()}</span>
                             <span className="text-border">·</span>
                             <span>{vPackLabel}</span>
@@ -3906,50 +3766,41 @@ export default function ProductForm() {
                           </span>
                         )}
                       </div>
-                      <div className="flex items-center gap-2 sm:gap-3 shrink-0" onClick={e => e.stopPropagation()}>
-                        {!isGeneratorRow && (
-                        <>
+                      <div className="flex items-center gap-1.5 sm:gap-2 shrink-0" onClick={e => e.stopPropagation()}>
                         <Controller
                           name={`variants.${index}.is_active`}
                           control={control}
                           render={({ field }) => (
-                            <Toggle label="Active" checked={field.value} onChange={field.onChange} />
+                            <Toggle compact label="Active" checked={field.value} onChange={field.onChange} />
                           )}
                         />
-                        <Button type="button" variant="ghost" size="sm" className="text-indigo-500 hover:text-indigo-700 hover:bg-indigo-50 h-8" title="Copy variant" onClick={(e) => {
+                        <Button type="button" variant="ghost" size="sm" className="text-indigo-500 hover:text-indigo-700 hover:bg-indigo-50 h-7 w-7 p-0" title="Copy variant" onClick={(e) => {
                           e.preventDefault()
                           copyVariant(index)
                         }}>
-                          <Copy className="w-4 h-4" />
+                          <Copy className="w-3.5 h-3.5" />
                         </Button>
                         {confirmDeleteVariant === index ? (
                           <div className="flex items-center gap-1">
-                            <Button type="button" size="sm" className="h-7 px-2 text-xs bg-red-600 hover:bg-red-700 text-white" onClick={(e) => { e.preventDefault(); removeVariant(index); setConfirmDeleteVariant(null) }}>
+                            <Button type="button" size="sm" className="h-6 px-1.5 text-[10px] bg-red-600 hover:bg-red-700 text-white" onClick={(e) => { e.preventDefault(); removeVariant(index); setConfirmDeleteVariant(null) }}>
                               Delete
                             </Button>
-                            <Button type="button" variant="ghost" size="sm" className="h-7 px-2 text-xs" onClick={(e) => { e.preventDefault(); setConfirmDeleteVariant(null) }}>
+                            <Button type="button" variant="ghost" size="sm" className="h-6 px-1.5 text-[10px]" onClick={(e) => { e.preventDefault(); setConfirmDeleteVariant(null) }}>
                               Cancel
                             </Button>
                           </div>
                         ) : (
-                          <Button type="button" variant="ghost" size="sm" className="text-red-500 hover:text-red-700 hover:bg-red-50 h-8" title="Delete variant" onClick={(e) => { e.preventDefault(); setConfirmDeleteVariant(index) }}>
-                            <Trash2 className="w-4 h-4" />
+                          <Button type="button" variant="ghost" size="sm" className="text-red-500 hover:text-red-700 hover:bg-red-50 h-7 w-7 p-0" title="Delete variant" onClick={(e) => { e.preventDefault(); setConfirmDeleteVariant(index) }}>
+                            <Trash2 className="w-3.5 h-3.5" />
                           </Button>
                         )}
-                        </>
-                        )}
                       </div>
-                      <ChevronDown className={`w-5 h-5 text-gray-400 transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`} />
+                      <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`} />
                     </div>
                     }
                   >
                     {isExpanded && (
-                    isGeneratorRow ? (
-                      <p className="px-2 py-3 text-xs text-muted-foreground sm:px-2.5">
-                        Select colours and sizes above, then click Generate to create variant rows.
-                      </p>
-                    ) : (
-                    <div className={variantFormUi.bodyLayout}>
+                    <div className={cn(variantFormUi.body, variantFormUi.bodyLayout)}>
                     <div className={variantFormUi.fieldsColumn}>
                     {/* ── Subscription Billing + Price basis (compact) ── */}
                     {isSubscriptionType && (
@@ -4102,7 +3953,7 @@ export default function ProductForm() {
                               </FormField>
                             </div>
                             {(autoDiscPct > 0 || profit != null) && (
-                              <div className="flex items-center gap-2 flex-wrap mt-1.5">
+                              <div className="mt-1 flex flex-wrap items-center gap-1.5">
                                 {autoDiscPct > 0 && (
                                   <VariantMetricChip tone="discount" icon={Tag}>
                                     {autoDiscPct.toFixed(1)}% off
@@ -4134,26 +3985,26 @@ export default function ProductForm() {
                                   placeholder={autoDiscPct > 0 ? `${autoDiscPct.toFixed(1)}% OFF` : 'Flash Sale'} />
                               </FormField>
                               <FormField label="Promo Start" className="min-w-0">
-                                <Input type="datetime-local" className="w-full min-w-0 text-xs"
+                                <Input type="datetime-local" className="w-full min-w-0"
                                   {...register(`variants.${index}.discount_start_date` as any)} />
                               </FormField>
                               <FormField label="Promo End" className="min-w-0">
-                                <Input type="datetime-local" className="w-full min-w-0 text-xs"
+                                <Input type="datetime-local" className="w-full min-w-0"
                                   {...register(`variants.${index}.discount_end_date` as any)} />
                               </FormField>
-                              <div className="flex items-end pb-1.5 min-w-0">
+                              <div className="flex min-w-0 items-end pb-0.5">
                                 <Controller name={`variants.${index}.is_on_sale`} control={control} render={({ field }) => (
-                                  <Toggle label="On Sale" checked={field.value} onChange={field.onChange} />
+                                  <Toggle compact label="On Sale" checked={field.value} onChange={field.onChange} />
                                 )} />
                               </div>
                             </div>
                             {(discPct > 0 || discAmt > 0 || hasPromoDates) && (
-                              <div className="flex items-center gap-2 flex-wrap mt-1.5 text-[11px] text-muted-foreground">
+                              <div className="mt-1 flex flex-wrap items-center gap-1.5 text-[10px] text-muted-foreground">
                                 {discPct > 0 && <span className="font-medium text-orange-700">{discPct.toFixed(1)}% OFF</span>}
                                 {discAmt > 0 && <span className="font-medium text-orange-700">{currSym}{discAmt.toLocaleString()} off</span>}
                                 {hasPromoDates && (
                                   <span className="inline-flex items-center gap-1">
-                                    <Calendar className="w-3 h-3" />
+                                    <Calendar className="w-2.5 h-2.5" />
                                     {new Date(promoStart!).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })}
                                     {' → '}
                                     {new Date(promoEnd!).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })}
@@ -4166,10 +4017,18 @@ export default function ProductForm() {
                       )
                     })()}
 
-                    <VariantFormSection title="Inventory & IDs">
+                    <VariantFormSection
+                      title="Inventory & IDs"
+                      hint={autoGenerateBarcode ? 'Barcodes auto-fill on variant generate' : 'Barcodes are manual — Inventory Config'}
+                    >
                       <div className={cn(variantFormUi.inventoryGrid, variantFormUi.grid)}>
                         <FormField label="SKU"><Input {...register(`variants.${index}.sku`)} placeholder="Optional" /></FormField>
-                        <FormField label="Barcode"><Input {...register(`variants.${index}.barcode`)} placeholder="Optional" /></FormField>
+                        <FormField label="Barcode">
+                          <Input
+                            {...register(`variants.${index}.barcode`)}
+                            placeholder={autoGenerateBarcode ? 'Auto when generating variants, or type here' : 'Enter barcode manually'}
+                          />
+                        </FormField>
                         <FormField label="Qty on hand">
                           <Input type="number" min="0" {...register(`variants.${index}.quantity`)}
                             className="font-semibold bg-primary/10 border-primary/30 dark:bg-primary/15 dark:border-primary/40" />
@@ -4188,23 +4047,23 @@ export default function ProductForm() {
                         <FormField label="Min per order">
                           <Input type="number" min="1" {...register(`variants.${index}.min_quantity_per_order`)} placeholder="1" />
                         </FormField>
-                        <FormField label="Weight (kg)">
+                        <FormField label="Weight (kg)" className="max-w-[7.5rem]">
                           <Input type="number" step="0.001" min="0" placeholder="0.000" {...register(`variants.${index}.weight_kg`)} />
                         </FormField>
                       </div>
-                      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-2">
+                      <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1">
                         <Controller name={`variants.${index}.track_inventory`} control={control} render={({ field }) => (
-                          <Toggle label="Track Inventory" checked={field.value} onChange={field.onChange} />
+                          <Toggle compact label="Track Inventory" checked={field.value} onChange={field.onChange} />
                         )} />
                         <Controller name={`variants.${index}.allow_backorders`} control={control} render={({ field }) => (
-                          <Toggle label="Backorders" checked={field.value} onChange={field.onChange} />
+                          <Toggle compact label="Backorders" checked={field.value} onChange={field.onChange} />
                         )} />
                         <Controller name={`variants.${index}.show_lifecycle`} control={control} render={({ field }) => (
-                          <Toggle label="Lifecycle" checked={field.value} onChange={field.onChange} />
+                          <Toggle compact label="Lifecycle" checked={field.value} onChange={field.onChange} />
                         )} />
                         {watch('return_warranty_per_variant') && (
                           <Controller name={`variants.${index}.show_return_warranty`} control={control} render={({ field }) => (
-                            <Toggle label="Return & Warranty" checked={field.value} onChange={field.onChange} />
+                            <Toggle compact label="Return & Warranty" checked={field.value} onChange={field.onChange} />
                           )} />
                         )}
                       </div>
@@ -4251,7 +4110,7 @@ export default function ProductForm() {
                     {/* ── Variant Media (saved variants — live upload; new rows — staged until save) ── */}
                     {(() => {
                       const variantId = watch(`variants.${index}.id`) as string | undefined
-                      const skuNum = substantiveVariantNumber(watchedVariants, index) ?? index + 1
+                      const skuNum = index + 1
                       const displayName = variantName || `Variant ${skuNum}`
 
                       if (variantId) {
@@ -4269,7 +4128,7 @@ export default function ProductForm() {
 
                       const bucket = pendingVariantMedia.get(index) ?? emptyStagedVariantBucket()
                       return (
-                        <VariantFormSection title="Media" hint="Uploaded when product is saved">
+                        <VariantFormSection title="Media" hint="Saved with product">
                           <StagedMediaUpload
                             files={bucket.files}
                             previews={bucket.previews}
@@ -4287,11 +4146,78 @@ export default function ProductForm() {
                     })()}
                     </aside>
                     </div>
-                    )
                     )}
                   </FormTintPanel>
                   )
                 })}
+                <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border bg-muted/20 px-3 py-2">
+                  <div className="flex flex-wrap items-center gap-2 text-[11px] text-muted-foreground">
+                    <span>
+                      {pageStart + 1}–{Math.min(pageStart + variantsPageSize, variantFields.length)} of{' '}
+                      {variantFields.length.toLocaleString('en-IN')}
+                    </span>
+                    <span className="hidden sm:inline">·</span>
+                    <label className="flex items-center gap-1.5">
+                      <span className="hidden sm:inline">Rows</span>
+                      <Input
+                        type="number"
+                        min={1}
+                        max={200}
+                        list="product-form-variant-page-sizes"
+                        value={variantsPageSize}
+                        onChange={e => {
+                          const raw = e.target.value
+                          if (raw === '') return
+                          const n = Number(raw)
+                          if (!Number.isFinite(n)) return
+                          setVariantsPageSize(Math.min(200, Math.max(1, Math.floor(n))))
+                          setVariantsPage(1)
+                        }}
+                        onBlur={e => {
+                          const n = Number(e.target.value)
+                          if (!Number.isFinite(n) || n < 1) setVariantsPageSize(10)
+                        }}
+                        aria-label="Variants per page"
+                        className="h-7 w-20 min-w-[5rem] px-2 text-center text-xs tabular-nums"
+                      />
+                      <datalist id="product-form-variant-page-sizes">
+                        {[5, 10, 25, 50].map(n => (
+                          <option key={n} value={n} />
+                        ))}
+                      </datalist>
+                    </label>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="h-7 w-7 p-0"
+                      disabled={safePage <= 1}
+                      onClick={() => setVariantsPage(safePage - 1)}
+                      aria-label="Previous page"
+                    >
+                      <ChevronLeft className="h-3.5 w-3.5" />
+                    </Button>
+                    <span className="min-w-[3.5rem] text-center text-[11px] text-muted-foreground">
+                      {safePage} / {totalPages}
+                    </span>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="h-7 w-7 p-0"
+                      disabled={safePage >= totalPages}
+                      onClick={() => setVariantsPage(safePage + 1)}
+                      aria-label="Next page"
+                    >
+                      <ChevronRight className="h-3.5 w-3.5" />
+                    </Button>
+                  </div>
+                </div>
+                    </>
+                  )
+                })()}
               </>
             )}
             </div>

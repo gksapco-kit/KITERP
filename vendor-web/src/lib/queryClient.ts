@@ -16,6 +16,10 @@ const AUTO_REFRESH_SKIP_URL_RE = [
   /\/auth\/(?:phone|email)\/(?:send|verify|resend|confirm)/i,
   /\/auth\/vendor-signup\/send-/i,
   /\/builder-previews(?:\/|$)/i,
+  // Read-only endpoints that use POST for their request body — invalidating
+  // active queries here re-triggers the same POST, causing an infinite loop.
+  /\/config\/variants\/preview(?:\/|$)/i,
+  /\/config\/rules\/evaluate(?:\/|$)/i,
 ]
 
 let boundQueryClient: QueryClient | null = null

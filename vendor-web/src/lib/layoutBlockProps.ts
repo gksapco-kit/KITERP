@@ -129,12 +129,6 @@ export function mergeLayoutBlockProps(
     return merged as BlockProps
   }
 
-  if (blockType === 'about_split') {
-    if (propsOverride.layout === 'overlay') {
-      merged.image_position = merged.image_position ?? 'left'
-    }
-  }
-
   /** Layout preset keys always win over stale values from a previous layout. */
   const LAYOUT_SHELL_PROP_KEYS = [
     'layout', 'full_page', 'show_map', 'columns', 'bg_style', 'gradient_preset', 'overlay',
@@ -144,7 +138,7 @@ export function mergeLayoutBlockProps(
     'aspect_ratio', 'show_caption', 'show_newsletter', 'show_social', 'cta_square', 'eyebrow_plain',
     'item_gap', 'max_width', 'show_images', 'bg_color', 'show_annual_toggle', 'card_style',
     'image_shape', 'use_icons', 'show_numbers', 'item_gap', 'footer_bg', 'footer_heading', 'footer_muted', 'footer_border',
-    'color', 'show_close', 'image_width', 'show_divider',
+    'color', 'show_close', 'image_width', 'show_divider', 'show_stats', 'media_type',
   ] as const
   for (const key of LAYOUT_SHELL_PROP_KEYS) {
     if (key in layoutShell) merged[key] = layoutShell[key]
@@ -163,6 +157,23 @@ export function mergeLayoutBlockProps(
 
   // Preset override keys always win (layout picker selection).
   Object.assign(merged, propsOverride)
+
+  if (blockType === 'about_split' && Object.keys(propsOverride).length > 0) {
+    // Drop style keys from the previous preset so Image Left does not keep Dark/Card/Video flags.
+    const aboutExclusiveKeys = [
+      'layout', 'variant', 'image_position', 'bg_style', 'card_style', 'show_stats', 'media_type',
+    ] as const
+    for (const key of aboutExclusiveKeys) {
+      if (!(key in propsOverride)) delete merged[key]
+    }
+    Object.assign(merged, propsOverride)
+    if (propsOverride.layout === 'overlay' && !('image_position' in propsOverride)) {
+      merged.image_position = 'background'
+    }
+    if (!merged.layout && (merged.image_position === 'left' || merged.image_position === 'right')) {
+      merged.layout = 'split'
+    }
+  }
 
   if (blockType.includes('hero') && propsOverride.bg_style === 'minimal' && !('bg_color' in propsOverride)) {
     delete merged.bg_color

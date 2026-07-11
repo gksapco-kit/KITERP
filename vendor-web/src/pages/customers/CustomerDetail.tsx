@@ -4,7 +4,8 @@ import { Button } from '@/components/ui/button'
 import { useCustomer } from '@/hooks/useVendor'
 import { formatCurrency, formatDate } from '@/lib/utils'
 import { Loading } from '@/components/common/Loading'
-import { ArrowLeft, Building2, MapPin, CreditCard, Landmark, FileText } from 'lucide-react'
+import { ArrowLeft, Building2, MapPin, CreditCard, Landmark, FileText, Tag } from 'lucide-react'
+import { CUSTOMER_PRICING_GROUPS } from '@/lib/customerGroups'
 
 function cleanPartyNotes(notes?: string): string {
   if (!notes) return ''
@@ -49,7 +50,13 @@ export default function CustomerDetail() {
           <ArrowLeft className="w-4 h-4 mr-1" />Back
         </Button>
         <div>
-          <h1 className="text-2xl font-bold">{customer.full_name}</h1>
+          <div className="flex items-center gap-2">
+            <h1 className="text-2xl font-bold">{customer.full_name}</h1>
+            <span className="inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700">
+              <Tag className="w-3 h-3" />
+              {CUSTOMER_PRICING_GROUPS.find(g => g.value === (customer.customer_group || 'retail'))?.label || 'Retail'}
+            </span>
+          </div>
           {customer.company_name && customer.company_name !== customer.full_name && (
             <p className="text-sm text-gray-500 flex items-center gap-1 mt-0.5">
               <Building2 className="w-3.5 h-3.5" /> {customer.company_name}

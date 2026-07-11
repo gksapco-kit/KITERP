@@ -1,4 +1,4 @@
-// ── Plans ────────────────────────────────────────────────────────
+ // ── Plans ────────────────────────────────────────────────────────
 export interface VendorPlanInfo {
   id: string
   name: string
@@ -545,6 +545,8 @@ export interface Customer {
   full_name: string
   email?: string
   phone?: string
+  /** Pricing group — drives which "party" price rules (retail/wholesale/distributor/agent/…) apply at checkout & POS. */
+  customer_group?: string
   gstin?: string
   pan_number?: string
   cin?: string

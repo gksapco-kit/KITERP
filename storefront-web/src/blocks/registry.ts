@@ -1,3 +1,4 @@
+
 /**
  * Shared block registry — defines every block type understood by both the
  * vendor-web builder and the storefront BlockRenderer.
@@ -51,7 +52,7 @@ export const BLOCK_CATALOG: BlockDef[] = [
   { type: 'features_alternating', label: 'Features — Alternating', desc: 'Alternating image/text sections', category: 'content', defaultProps: { title: 'Why Choose Us', features: [{ title: 'Feature One', desc: 'Detailed description of this feature and how it benefits users.', image_url: '' }, { title: 'Feature Two', desc: 'Another great feature that sets you apart from the competition.', image_url: '' }] } },
   { type: 'stats', label: 'Stats / Numbers', desc: 'Key metrics and achievements', category: 'content', defaultProps: { title: 'By the Numbers', stats: [{ value: '50K+', label: 'Happy Customers' }, { value: '99.9%', label: 'Uptime' }, { value: '4.9★', label: 'Average Rating' }, { value: '24/7', label: 'Support' }] }, liveResource: 'kpis' },
   { type: 'testimonials', label: 'Testimonials', desc: 'Customer reviews and quotes', category: 'social', defaultProps: { title: 'What Our Customers Say', testimonials: [], padding_top: 64, padding_bottom: 64 }, liveResource: 'testimonials' },
-  { type: 'team_grid', label: 'Team Grid', desc: 'Meet the team cards', category: 'about', defaultProps: { title: 'Meet Our Team', columns: 4, members: [] }, liveResource: 'team' },
+  { type: 'team_grid', label: 'Team Grid', desc: 'Meet the team cards', category: 'about', defaultProps: { title: 'Meet Our Team', columns: 3, image_shape: 'circle', members: [{ name: 'Alex Morgan', role: 'Store owner', bio: 'Passionate about great products and service.' }, { name: 'Sam Rivera', role: 'Customer care', bio: 'Here to help with orders and questions.' }, { name: 'Jordan Lee', role: 'Operations', bio: 'Keeping shelves stocked and delivery on track.' }] }, liveResource: 'team' },
   { type: 'pricing', label: 'Pricing Table', desc: 'Pricing plans comparison', category: 'conversion', defaultProps: { title: 'Simple, Transparent Pricing', show_annual_toggle: true, plans: [] }, liveResource: 'plans' },
   { type: 'faq', label: 'FAQ / Accordion', desc: 'Frequently asked questions', category: 'content', defaultProps: { title: 'Frequently Asked Questions', faqs: [{ question: 'How do I get started?', answer: 'Simply sign up and follow our quick onboarding guide.' }] } },
   { type: 'cta', label: 'Call to Action', desc: 'Bold CTA section to convert visitors', category: 'conversion', defaultProps: { headline: 'Ready to Get Started?', subtitle: 'Join 50,000+ businesses already using our platform.', cta_label: 'Start Free Trial', cta_url: '/signup' } },
@@ -73,7 +74,7 @@ export const BLOCK_CATALOG: BlockDef[] = [
   { type: 'countdown', label: 'Countdown Timer', desc: 'Countdown to a date/event', category: 'conversion', defaultProps: { title: 'Launch In', target_date: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString() } },
   { type: 'product_grid', label: 'Product Grid', desc: 'Display products from your catalog', category: 'ecommerce', defaultProps: { title: 'Featured Products', columns: 4, show_badges: true, padding_top: 64, padding_bottom: 64 }, liveResource: 'products' },
   { type: 'menu_grid', label: 'Menu / Catalog', desc: 'Restaurant-style menu grid', category: 'food', defaultProps: { title: 'Our Menu', categories: ['Starters', 'Mains', 'Desserts', 'Drinks'] }, liveResource: 'products' },
-  { type: 'about_split', label: 'About Split', desc: 'About section with image and text', category: 'about', defaultProps: { title: 'About Us', subtitle: 'Our Story', description: 'We are a passionate team dedicated to creating exceptional experiences.' }, liveResource: 'profile' },
+  { type: 'about_split', label: 'Our Story', desc: 'Story left, photo right — Who We Are about section', category: 'about', defaultProps: { title: 'Who We Are', subtitle: 'Our Story', description: 'Tell customers who you are, what you sell, and why they can trust you.', layout: 'split', image_position: 'right' }, liveResource: 'profile' },
   { type: 'services_cards', label: 'Services Cards', desc: 'Service offering cards', category: 'content', defaultProps: { title: 'Our Services', columns: 3, features: [] }, liveResource: 'services' },
   { type: 'html_embed', label: 'HTML Embed', desc: 'Custom HTML/widget embed', category: 'advanced', defaultProps: { html: '<p>Add your custom HTML here</p>' } },
 

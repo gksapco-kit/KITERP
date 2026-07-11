@@ -20,7 +20,7 @@ export const VISUAL_IMAGE_TOOLBAR_STACK_W = 'w-[3.5625rem]'
 
 /** 3×3 focal / pan pad — same chrome as {@link visualPanel}. */
 export const visualFocalPad = cn(
-  'grid shrink-0 grid-cols-3 grid-rows-3 overflow-hidden bg-white border',
+  'grid shrink-0 grid-cols-[repeat(3,1.1875rem)] grid-rows-3 overflow-hidden bg-white border',
   DESIGN_BAR_SOFT_RADIUS,
   DESIGN_BAR_SOFT_BORDER,
   VISUAL_IMAGE_TOOLBAR_STACK_H,
@@ -194,8 +194,8 @@ export const visualLayerCol =
 /** Tallest single-row design-bar content (General h-14; image focal pad ≈ 3×h-5). */
 export const DESIGN_BAR_ROW_H = 'min-h-[3.75rem]'
 
-/** Design bar shell */
-export const designBarRoot = 'flex w-full min-w-0 shrink-0 flex-col'
+/** Design bar shell — named container so tool clusters can densify when narrow. */
+export const designBarRoot = '@container/designbar flex w-full min-w-0 shrink-0 flex-col'
 
 /** Tab panel — grows vertically when tool clusters wrap (no horizontal scroll). */
 export const designBarTabPanel = cn(
@@ -205,15 +205,16 @@ export const designBarTabPanel = cn(
 /** Tab panel slot — single flowing row; wraps tool clusters when narrow. */
 export const designBarTabSlot = cn(
   'flex min-h-[3.75rem] min-w-0 w-full flex-1 flex-wrap items-center gap-1.5 overflow-x-hidden overflow-y-visible content-start py-1',
+  '@max-[640px]/designbar:min-h-[3.25rem] @max-[640px]/designbar:gap-1',
 )
 
 /** Toolbar row — wraps within panel width (no horizontal scrollbar). */
 export const visualToolbarRow =
-  'flex min-w-0 w-full flex-wrap items-center gap-1.5'
+  'flex min-w-0 w-full flex-wrap items-center content-start gap-1.5 @max-[640px]/designbar:gap-1'
 
 /** Layer tools — wrap within panel width (no horizontal scrollbar). */
 export const visualToolbarRowWrap =
-  'flex min-w-0 w-full flex-wrap items-center gap-1.5'
+  'flex min-w-0 w-full flex-wrap items-center content-start gap-1.5 @max-[640px]/designbar:gap-1'
 
 /** Visual tab with a selected layer — two tight rows, same min-height as other tabs. */
 export const visualTabShellLayer = cn(
@@ -221,11 +222,13 @@ export const visualTabShellLayer = cn(
   'flex min-w-0 w-full flex-1 flex-col justify-start gap-px overflow-x-hidden overflow-y-visible py-0',
 )
 
-/** General tab — shared chrome for edit / clipboard / typography clusters. */
+/** General tab — shared chrome for edit / clipboard / typography clusters.
+ *  `w-max` keeps wrapped clusters from stretching to the full bar width. */
 export const generalDesignBarCluster = cn(
-  'inline-flex h-14 shrink-0 overflow-hidden bg-white border',
+  'inline-flex h-14 w-max max-w-full shrink-0 overflow-hidden bg-white border',
   DESIGN_BAR_SOFT_RADIUS,
   DESIGN_BAR_SOFT_BORDER,
+  '@max-[640px]/designbar:h-12',
 )
 
 export const generalDesignBarCell = cn(
@@ -238,6 +241,7 @@ export const generalDesignBarCell = cn(
 export const generalDesignBarGrid2x2 = cn(
   generalDesignBarCluster,
   'grid w-20 grid-cols-2 grid-rows-2',
+  '@max-[640px]/designbar:w-[4.5rem]',
 )
 
 export const generalDesignBarGridCell =
@@ -263,7 +267,7 @@ export const generalDesignBarDeleteRow = cn(
 
 /** Insert (+ optional Delete) — compact row; grows to h-14 when Delete is shown. */
 export const generalDesignBarInsertStack = cn(
-  'inline-flex shrink-0 overflow-hidden bg-white border flex-col',
+  'inline-flex w-max max-w-full shrink-0 overflow-hidden bg-white border flex-col',
   DESIGN_BAR_SOFT_RADIUS,
   DESIGN_BAR_SOFT_BORDER,
 )

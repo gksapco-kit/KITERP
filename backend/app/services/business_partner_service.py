@@ -74,8 +74,15 @@ class BusinessPartnerService:
             "created_at": r.created_at.isoformat() if r.created_at else None,
         }
 
-    async def _provision_customer(self, vendor_id: UUID, bp: BusinessPartner) -> Customer:
-        """Create a Customer row seeded from the BP identity."""
+    async def _provision_customer(
+        self, vendor_id: UUID, bp: BusinessPartner, customer_group: Optional[str] = None,
+    ) -> Customer:
+        """Create a Customer row seeded from the BP identity.
+
+        `customer_group` (retail/wholesale/distributor/agent/dealer/…) drives which
+        "party" price rules apply for this customer at checkout/POS — sourced from
+        the customer role's `attributes.customer_group`.
+        """
         raw_password = bp.phone or "Welcome@123"
         customer = Customer(
             vendor_id=vendor_id,
@@ -95,6 +102,7 @@ class BusinessPartnerService:
             account_holder_name=bp.account_holder_name,
             account_type=bp.account_type or "savings",
             ifsc_code=bp.ifsc_code,
+            customer_group=customer_group or "retail",
             is_active=True,
         )
         self.db.add(customer)
@@ -214,7 +222,7 @@ class BusinessPartnerService:
         supplier_id = None
 
         if role == "customer":
-            c = await self._provision_customer(vendor_id, bp)
+            c = await self._provision_customer(vendor_id, bp, customer_group=(attributes or {}).get("customer_group"))
             customer_id = c.id
         else:
             # All non-customer roles map to a supplier row

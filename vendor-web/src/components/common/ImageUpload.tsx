@@ -74,23 +74,24 @@ export const MEDIA_FORMATS_HELPER = 'JPG, PNG, WebP, GIF · MP4, WebM, MOV · GL
 
 /** Compact but readable catalog media UI for product/service forms. */
 const catalogMediaCompact = {
-  root: 'space-y-1.5',
-  row: 'flex items-center gap-2',
-  rowStacked: 'flex flex-col items-stretch gap-2',
+  root: 'space-y-1',
+  row: 'flex items-center gap-1.5',
+  rowStacked: 'flex flex-col items-stretch gap-1.5',
   dropzone:
-    'flex h-[4.875rem] w-[7.5rem] max-w-full shrink-0 flex-col items-center justify-center gap-0.5 rounded-lg border border-dashed border-gray-300 bg-gray-50/90 px-2 text-center shadow-sm transition-colors hover:border-blue-400 hover:bg-blue-50/60',
+    'flex h-[4.25rem] w-[6.5rem] max-w-full shrink-0 flex-col items-center justify-center gap-0.5 rounded-md border border-dashed border-gray-300 bg-gray-50/90 px-1.5 text-center shadow-sm transition-colors hover:border-blue-400 hover:bg-blue-50/60',
   dropzoneStacked:
-    'flex h-28 w-full max-w-none shrink-0 flex-col items-center justify-center gap-0.5 rounded-lg border border-dashed border-gray-300 bg-gray-50/90 px-2 text-center shadow-sm transition-colors hover:border-blue-400 hover:bg-blue-50/60',
-  dropzoneIcon: 'h-4 w-4 text-gray-500',
-  dropzoneSpinner: 'h-4 w-4 text-blue-500 animate-spin',
-  dropzoneTitle: 'text-[11px] font-medium leading-snug text-gray-700',
+    'flex h-[3.25rem] w-full max-w-none shrink-0 flex-row items-center justify-center gap-1.5 rounded-md border border-dashed border-gray-300 bg-gray-50/90 px-2 text-center shadow-sm transition-colors hover:border-blue-400 hover:bg-blue-50/60',
+  dropzoneIcon: 'h-3.5 w-3.5 shrink-0 text-gray-500',
+  dropzoneSpinner: 'h-3.5 w-3.5 shrink-0 text-blue-500 animate-spin',
+  dropzoneTitle: 'text-[10px] font-medium leading-none text-gray-700',
   headerRow: 'mb-1 flex flex-wrap items-baseline gap-x-2 gap-y-0.5',
   headerTitle: 'text-xs font-semibold text-foreground',
   headerHelper: 'text-[11px] leading-snug text-gray-500',
   headerPickerHint: 'text-[10px] font-semibold tracking-wide text-primary',
   thumbStrip: 'flex min-w-0 flex-1 flex-wrap items-center gap-1.5',
-  thumbStripStacked: 'flex w-full flex-wrap items-center gap-1.5',
-  thumb: 'relative group aspect-square size-[4.875rem] shrink-0 overflow-hidden rounded-md border border-gray-200 bg-white shadow-sm',
+  thumbStripStacked: 'flex w-full flex-wrap items-center gap-1',
+  thumb: 'relative group aspect-square size-[4.25rem] shrink-0 overflow-hidden rounded-md border border-gray-200 bg-white shadow-sm',
+  thumbStacked: 'relative group aspect-square size-[3.25rem] shrink-0 overflow-hidden rounded-md border border-gray-200 bg-white shadow-sm',
   sectionLabel: 'flex items-center gap-1 text-[10px] font-medium text-gray-600',
   sectionLabelIcon: 'h-2.5 w-2.5',
   primaryBadge:
@@ -100,7 +101,7 @@ const catalogMediaCompact = {
     'absolute left-0.5 top-0.5 z-[4] flex h-4 w-4 items-center justify-center rounded-full bg-white/95 text-gray-600 shadow-sm opacity-0 transition-opacity group-hover:opacity-100 hover:bg-yellow-400 hover:text-yellow-900',
   setPrimaryBtnIcon: 'h-2.5 w-2.5',
   orderBadge:
-    'absolute bottom-0.5 left-0.5 z-[3] flex h-4 w-4 items-center justify-center rounded-full bg-black/60 text-[9px] font-bold tabular-nums text-white shadow-sm',
+    'absolute bottom-0.5 left-0.5 z-[3] flex h-3.5 w-3.5 items-center justify-center rounded-full bg-black/60 text-[8px] font-bold tabular-nums text-white shadow-sm',
   dragHandle:
     'absolute bottom-0.5 right-0.5 z-[4] flex cursor-grab items-center justify-center rounded bg-black/45 p-0.5 text-white opacity-0 transition-opacity group-hover:opacity-100 active:cursor-grabbing',
   dragHandleIcon: 'h-2.5 w-2.5',
@@ -207,6 +208,7 @@ function CatalogMediaThumb({
   topLeft,
   topRight,
   orderNumber,
+  size = 'default',
   draggable = false,
   isDragging = false,
   isDragOver = false,
@@ -220,6 +222,7 @@ function CatalogMediaThumb({
   topLeft?: ReactNode
   topRight?: ReactNode
   orderNumber?: number
+  size?: 'default' | 'stacked'
   draggable?: boolean
   isDragging?: boolean
   isDragOver?: boolean
@@ -231,7 +234,7 @@ function CatalogMediaThumb({
   return (
     <div
       className={cn(
-        catalogMediaCompact.thumb,
+        size === 'stacked' ? catalogMediaCompact.thumbStacked : catalogMediaCompact.thumb,
         'group',
         isDragging && catalogMediaCompact.thumbDragging,
         isDragOver && catalogMediaCompact.thumbDragOver,
@@ -310,12 +313,14 @@ function CatalogMediaDropzone({
   onDrop,
   onClick,
   className,
+  label,
 }: {
   disabled?: boolean
   uploading?: boolean
   onDrop: (e: React.DragEvent) => void
   onClick: () => void
   className?: string
+  label?: string
 }) {
   return (
     <div
@@ -334,7 +339,7 @@ function CatalogMediaDropzone({
         <Upload className={catalogMediaCompact.dropzoneIcon} />
       )}
       <p className={catalogMediaCompact.dropzoneTitle}>
-        {uploading ? 'Uploading…' : 'Click or drag here'}
+        {uploading ? 'Uploading…' : (label ?? 'Click or drag here')}
       </p>
     </div>
   )
@@ -699,6 +704,7 @@ export function VariantMediaUpload({
           onDrop={handleDrop}
           onClick={() => !disabled && !uploading && openPicker()}
           className={stacked ? catalogMediaCompact.dropzoneStacked : undefined}
+          label={stacked ? 'Add media' : undefined}
         />
 
         {sortedMedia.length > 0 && (
@@ -725,6 +731,7 @@ export function VariantMediaUpload({
                     <CatalogMediaThumb
                       key={item.url}
                       orderNumber={i + 1}
+                      size={stacked ? 'stacked' : 'default'}
                       draggable={!!onReorder && !disabled}
                       isDragging={thumbDrag.draggingIndex === i}
                       isDragOver={thumbDrag.dragOverIndex === i}
@@ -913,6 +920,7 @@ export function StagedMediaUpload({
           onDrop={handleDrop}
           onClick={() => !disabled && openPicker()}
           className={stacked ? catalogMediaCompact.dropzoneStacked : undefined}
+          label={stacked ? 'Add media' : undefined}
         />
         {files.length > 0 && (
           <CatalogMediaLightboxHost
@@ -939,6 +947,7 @@ export function StagedMediaUpload({
                     <CatalogMediaThumb
                       key={`${file.name}-${file.size}-${i}`}
                       orderNumber={i + 1}
+                      size={stacked ? 'stacked' : 'default'}
                       draggable={!disabled}
                       isDragging={thumbDrag.draggingIndex === i}
                       isDragOver={thumbDrag.dragOverIndex === i}

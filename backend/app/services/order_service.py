@@ -1,4 +1,3 @@
-# app/services/order_service.py
 import logging
 from uuid import UUID
 from datetime import datetime, timezone
@@ -25,6 +24,7 @@ from app.services.order_notification_service import send_order_placed_notificati
 from app.services.invoice_service import InvoiceService
 from app.services.checkout_service import CheckoutService, get_manual_upi_config
 from app.services.coupon_service import CouponService
+from app.services.price_resolver import resolve_items_pricing
 from app.repositories.vendor_repo import VendorRepository
 from app.models.store import Store
 from app.services.store_resolver import resolve_store_id as resolve_txn_store_id
@@ -131,6 +131,23 @@ class OrderService:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Vendor not found")
 
         shipping_state = data.shipping_address.state if data.shipping_address else None
+        shipping_city = data.shipping_address.city if data.shipping_address else None
+        shipping_pincode = data.shipping_address.postal_code if data.shipping_address else None
+
+        # Apply party (retail/wholesale/distributor/agent…), quantity-tier,
+        # channel, location, and scheduled price rules before totals are computed
+        # so the effective price — not the sticker price — is what gets charged.
+        items = await resolve_items_pricing(
+            self.db,
+            vendor_id,
+            items,
+            customer_id=customer_id,
+            channel="online",
+            shipping_state=shipping_state,
+            shipping_city=shipping_city,
+            shipping_pincode=shipping_pincode,
+        )
+
         preview = await CheckoutService(self.db).preview(
             vendor=vendor,
             items=items,

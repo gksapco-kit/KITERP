@@ -2,7 +2,7 @@
 from fastapi import APIRouter
 
 from app.api.v1 import (
-    auth, vendors, vendor_relationship_manager, vendor_contact_change, vendor_products, vendor_services, vendor_categories,
+    auth, vendors, vendor_relationship_manager, vendor_contact_change, vendor_products, vendor_product_config, vendor_variant_generator, vendor_variant_management, vendor_services, vendor_categories,
     vendor_orders, vendor_customers, vendor_reviews,
     vendor_team, vendor_roles, vendor_inventory, vendor_storage_locations, vendor_plants, vendor_procurement,
     vendor_pos, vendor_invoices, vendor_invoice_templates, vendor_coupons,
@@ -69,6 +69,9 @@ api_router.include_router(
     tags=["Vendor Contact Change"],
 )
 api_router.include_router(vendor_products.router, prefix="/vendors/me/products", tags=["Vendor Products"])
+api_router.include_router(vendor_product_config.router, prefix="/vendors/me/products", tags=["Product Configuration Engine"])
+api_router.include_router(vendor_variant_generator.router, prefix="/vendors/me/products", tags=["Variant Generator"])
+api_router.include_router(vendor_variant_management.router, prefix="/vendors/me/products", tags=["Variant Management"])
 api_router.include_router(vendor_services.router, prefix="/vendors/me/services", tags=["Vendor Services"])
 api_router.include_router(vendor_categories.router, prefix="/vendors/me/categories", tags=["Vendor Categories"])
 api_router.include_router(vendor_orders.router, prefix="/vendors/me/orders", tags=["Vendor Orders"])

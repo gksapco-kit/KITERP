@@ -16,8 +16,7 @@ import OrderAuditReport from '@/pages/orders/OrderAuditReport'
 import Products from '@/pages/products/index'
 import ProductForm from '@/pages/products/ProductForm'
 import ProductAuditReport from '@/pages/products/ProductAuditReport'
-import ProductColoursPage from '@/pages/products/ProductColoursPage'
-import ProductSizesPage from '@/pages/products/ProductSizesPage'
+import ProductConfiguratorPage from '@/pages/products/ProductConfiguratorPage'
 import Services from '@/pages/services/index'
 import ServiceForm from '@/pages/services/ServiceForm'
 import ServiceAuditReport from '@/pages/services/ServiceAuditReport'
@@ -33,6 +32,7 @@ import CategoriesPage from '@/pages/categories/index'
 import Inventory from '@/pages/inventory/index'
 import StorageLocationsPage from '@/pages/inventory/StorageLocations'
 import PlantsPage from '@/pages/inventory/Plants'
+import InventorySettingsPage from '@/pages/inventory/InventorySettings'
 import POS from '@/pages/pos/index'
 import RestaurantFloorPage from '@/pages/restaurant/Floor'
 import RestaurantKitchenPage from '@/pages/restaurant/Kitchen'
@@ -308,10 +308,9 @@ export const router = createBrowserRouter([
       { path: 'orders/:id/audit', element: <OrderAuditReport /> },
       { path: 'orders/:id', element: <OrderDetail /> },
       { path: 'products', element: <Products /> },
-      { path: 'products/colours', element: <ProductColoursPage /> },
-      { path: 'products/sizes', element: <ProductSizesPage /> },
       { path: 'products/new', element: <ProductForm /> },
       { path: 'products/:id/audit', element: <ProductAuditReport /> },
+      { path: 'products/:id/configure', element: <ProductConfiguratorPage /> },
       { path: 'products/:id', element: <ProductForm /> },
       { path: 'services', element: <Services /> },
       { path: 'services/new', element: <ServiceForm /> },
@@ -336,6 +335,7 @@ export const router = createBrowserRouter([
       { path: 'production/mrp', element: <ProductionMRPPage /> },
       { path: 'production/analytics', element: <ProductionAnalyticsPage /> },
       { path: 'inventory', element: <Inventory /> },
+      { path: 'inventory/settings', element: <InventorySettingsPage /> },
       { path: 'storage-locations', element: <StorageLocationsPage /> },
       { path: 'plants', element: <PlantsPage /> },
       { path: 'pos', element: <POS /> },

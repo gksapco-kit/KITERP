@@ -1,8 +1,8 @@
-import { Children, cloneElement, createContext, isValidElement, useCallback, useContext, useEffect, useRef, useState } from 'react'
+import { Children, cloneElement, createContext, isValidElement, useCallback, useContext, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import type { ElementType, ReactNode, ReactElement } from 'react'
 import { cn } from '@/lib/utils'
 import { formatFormFieldError } from '@/lib/formFieldErrors'
-import { CheckCircle2, Circle, Clock } from 'lucide-react'
+import { CheckCircle2, ChevronDown, Circle, Clock } from 'lucide-react'
 import { useFormContext, type FieldErrors } from 'react-hook-form'
 import { Label } from '@/components/ui/label'
 import { toast } from 'sonner'
@@ -285,7 +285,51 @@ type FormSectionTabsProps = {
   className?: string
 }
 
-/** Horizontal scrollable tabs for product/service forms (replaces stacked accordions). */
+const MORE_BTN_RESERVE = 100 // px reserved for the More button + gap
+
+function TabButton({
+  sec,
+  isActive,
+  hasError,
+  isCompleted,
+  onClick,
+  measure,
+}: {
+  sec: FormSectionDef
+  isActive: boolean
+  hasError?: boolean
+  isCompleted?: boolean
+  onClick: () => void
+  measure?: boolean
+}) {
+  const Icon = sec.icon
+  return (
+    <button
+      type="button"
+      role="tab"
+      aria-selected={isActive}
+      data-tab-measure={measure ? '' : undefined}
+      onClick={onClick}
+      className={cn(
+        'flex shrink-0 items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs font-medium transition-colors sm:px-3 sm:text-[0.8125rem]',
+        isActive
+          ? 'bg-primary text-primary-foreground shadow-sm'
+          : 'text-muted-foreground hover:bg-muted/60 hover:text-foreground',
+        hasError && !isActive && 'text-red-600 hover:text-red-700',
+      )}
+    >
+      <Icon className="h-4 w-4 shrink-0" strokeWidth={isActive ? 2.25 : 2} />
+      <span className="whitespace-nowrap">{sec.label}</span>
+      {hasError ? (
+        <span className="flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white">!</span>
+      ) : isCompleted && !isActive ? (
+        <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-500" aria-hidden />
+      ) : null}
+    </button>
+  )
+}
+
+/** Horizontal tabs — overflow items collapse into a right-side More menu (no scrollbar). */
 export function FormSectionTabs({
   sections,
   activeKey,
@@ -297,6 +341,95 @@ export function FormSectionTabs({
   const visible = sections.filter((s) => s.visible !== false)
   const activeSection = visible.find((s) => s.key === activeKey)
 
+  const containerRef = useRef<HTMLDivElement>(null)
+  const measureRef = useRef<HTMLDivElement>(null)
+  const moreWrapRef = useRef<HTMLDivElement>(null)
+  const [fitCount, setFitCount] = useState(visible.length)
+  const [moreOpen, setMoreOpen] = useState(false)
+
+  useLayoutEffect(() => {
+    const container = containerRef.current
+    const measure = measureRef.current
+    if (!container || !measure) return
+
+    const recalc = () => {
+      const tabEls = Array.from(measure.querySelectorAll('[data-tab-measure]')) as HTMLElement[]
+      if (tabEls.length === 0) {
+        setFitCount(0)
+        return
+      }
+      const widths = tabEls.map((el) => el.getBoundingClientRect().width)
+      const available = container.clientWidth
+      const gap = 2
+
+      // Try fitting all without More button
+      let used = 0
+      let allFit = true
+      for (let i = 0; i < widths.length; i++) {
+        const next = used + widths[i] + (i > 0 ? gap : 0)
+        if (next > available) {
+          allFit = false
+          break
+        }
+        used = next
+      }
+      if (allFit) {
+        setFitCount(widths.length)
+        return
+      }
+
+      // Fit with More button reserved
+      used = 0
+      let count = 0
+      const budget = Math.max(0, available - MORE_BTN_RESERVE)
+      for (let i = 0; i < widths.length; i++) {
+        const next = used + widths[i] + (count > 0 ? gap : 0)
+        if (next <= budget) {
+          used = next
+          count++
+        } else {
+          break
+        }
+      }
+      setFitCount(Math.max(1, Math.min(count, widths.length - 1)))
+    }
+
+    const ro = new ResizeObserver(() => recalc())
+    ro.observe(container)
+    recalc()
+    return () => ro.disconnect()
+  }, [visible])
+
+  useEffect(() => {
+    if (!moreOpen) return
+    const onDoc = (e: MouseEvent) => {
+      if (!moreWrapRef.current?.contains(e.target as Node)) setMoreOpen(false)
+    }
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setMoreOpen(false)
+    }
+    document.addEventListener('mousedown', onDoc)
+    document.addEventListener('keydown', onKey)
+    return () => {
+      document.removeEventListener('mousedown', onDoc)
+      document.removeEventListener('keydown', onKey)
+    }
+  }, [moreOpen])
+
+  // Keep the active tab in the primary row when possible
+  let primary = visible.slice(0, fitCount)
+  let overflow = visible.slice(fitCount)
+  const activeInOverflowIdx = overflow.findIndex((s) => s.key === activeKey)
+  if (activeInOverflowIdx >= 0 && primary.length > 0) {
+    const activeTab = overflow[activeInOverflowIdx]
+    const displaced = primary[primary.length - 1]
+    primary = [...primary.slice(0, -1), activeTab]
+    overflow = [displaced, ...overflow.filter((s) => s.key !== activeKey)]
+  }
+
+  const overflowHasActive = overflow.some((s) => s.key === activeKey)
+  const overflowHasError = overflow.some((s) => hasErrorSections?.has(s.key))
+
   return (
     <div className={cn('space-y-1', className)}>
       <div
@@ -304,43 +437,107 @@ export function FormSectionTabs({
         role="tablist"
         aria-label="Form sections"
       >
-        <div className="flex gap-0.5 overflow-x-auto overscroll-x-contain pb-px scrollbar-thin">
-          {visible.map((sec) => {
-            const isActive = activeKey === sec.key
-            const hasError = hasErrorSections?.has(sec.key)
-            const isCompleted = completedSections?.has(sec.key)
-            const Icon = sec.icon
+        {/* Hidden measure row — same styles as real tabs */}
+        <div
+          ref={measureRef}
+          className="pointer-events-none absolute -left-[9999px] top-0 flex gap-0.5 opacity-0"
+          aria-hidden
+        >
+          {visible.map((sec) => (
+            <TabButton
+              key={sec.key}
+              sec={sec}
+              isActive={false}
+              hasError={hasErrorSections?.has(sec.key)}
+              isCompleted={completedSections?.has(sec.key)}
+              onClick={() => {}}
+              measure
+            />
+          ))}
+        </div>
 
-            return (
-              <button
+        <div ref={containerRef} className="flex min-w-0 items-center gap-0.5">
+          <div className="flex min-w-0 flex-1 items-center gap-0.5 overflow-hidden">
+            {primary.map((sec) => (
+              <TabButton
                 key={sec.key}
-                type="button"
-                role="tab"
-                aria-selected={isActive}
+                sec={sec}
+                isActive={activeKey === sec.key}
+                hasError={hasErrorSections?.has(sec.key)}
+                isCompleted={completedSections?.has(sec.key)}
                 onClick={() => onChange(sec.key)}
+              />
+            ))}
+          </div>
+
+          {overflow.length > 0 && (
+            <div ref={moreWrapRef} className="relative shrink-0">
+              <button
+                type="button"
+                aria-haspopup="menu"
+                aria-expanded={moreOpen}
+                onClick={() => setMoreOpen((o) => !o)}
                 className={cn(
-                  'flex shrink-0 items-center gap-1 rounded-md px-2 py-1 text-[0.6875rem] font-medium transition-colors sm:px-2.5 sm:text-xs',
-                  isActive
-                    ? 'bg-primary text-primary-foreground shadow-sm'
+                  'flex items-center gap-1 rounded-md px-2.5 py-1.5 text-xs font-medium transition-colors sm:px-3 sm:text-[0.8125rem]',
+                  moreOpen || overflowHasActive
+                    ? 'bg-muted text-foreground'
                     : 'text-muted-foreground hover:bg-muted/60 hover:text-foreground',
-                  hasError && !isActive && 'text-red-600 hover:text-red-700',
+                  overflowHasError && 'text-red-600',
                 )}
               >
-                <Icon className="h-3.5 w-3.5 shrink-0" strokeWidth={isActive ? 2.25 : 2} />
-                <span className="whitespace-nowrap">{sec.label}</span>
-                {hasError ? (
-                  <span className="flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[9px] font-bold text-white">!</span>
-                ) : isCompleted && !isActive ? (
-                  <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-emerald-500" aria-hidden />
-                ) : null}
+                More
+                <span className="rounded bg-muted-foreground/15 px-1.5 py-px text-[10px] tabular-nums sm:text-[11px]">
+                  {overflow.length}
+                </span>
+                <ChevronDown className={cn('h-4 w-4 transition-transform', moreOpen && 'rotate-180')} />
               </button>
-            )
-          })}
+
+              {moreOpen && (
+                <div
+                  role="menu"
+                  className="absolute right-0 top-full z-50 mt-1 max-h-72 min-w-[13rem] overflow-y-auto rounded-md border bg-popover p-1 text-popover-foreground shadow-md"
+                >
+                  {overflow.map((sec) => {
+                    const isActive = activeKey === sec.key
+                    const hasError = hasErrorSections?.has(sec.key)
+                    const isCompleted = completedSections?.has(sec.key)
+                    const Icon = sec.icon
+                    return (
+                      <button
+                        key={sec.key}
+                        type="button"
+                        role="menuitem"
+                        onClick={() => {
+                          onChange(sec.key)
+                          setMoreOpen(false)
+                        }}
+                        className={cn(
+                          'flex w-full items-center gap-2 rounded-sm px-2.5 py-2 text-left text-sm transition-colors',
+                          isActive
+                            ? 'bg-primary text-primary-foreground'
+                            : 'text-foreground hover:bg-muted',
+                          hasError && !isActive && 'text-red-600',
+                        )}
+                      >
+                        <Icon className="h-4 w-4 shrink-0" />
+                        <span className="min-w-0 flex-1 truncate">{sec.label}</span>
+                        {hasError ? (
+                          <span className="flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white">!</span>
+                        ) : isCompleted && !isActive ? (
+                          <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-500" />
+                        ) : null}
+                      </button>
+                    )
+                  })}
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </div>
 
       {activeSection?.hint ? (
-        <p className="px-0.5 text-[0.6875rem] leading-snug text-muted-foreground">{activeSection.hint}</p>
+        <p className="px-0.5 text-xs leading-snug text-muted-foreground">{activeSection.hint}</p>
       ) : null}
     </div>
   )
